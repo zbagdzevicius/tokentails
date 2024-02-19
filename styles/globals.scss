@@ -1,0 +1,264 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap");
+
+$breakpoints: (
+  "mobile": 767px,
+  "md": 768px,
+  "lg": 1024px,
+  "xl": 1280px,
+  "2xl": 1536px,
+  "3xl": 2300px,
+);
+
+@mixin device($breakpoint) {
+  @if $breakpoint == "mobile" {
+    @media (max-width: map-get($breakpoints, $breakpoint)) {
+      @content;
+    }
+  } @else if map-has-key($breakpoints, $breakpoint) {
+    @media (min-width: map-get($breakpoints, $breakpoint)) {
+      @content;
+    }
+  } @else {
+    @warn "Unknown breakpoint: #{$breakpoint}.";
+  }
+}
+
+body,
+html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  color: white;
+  background: #02020a;
+  font-family: "Space Mono", monospace;
+}
+html{scroll-behavior: smooth;}
+
+.title {
+  font-family: "Orbitron", sans-serif;
+}
+
+.container {
+  @apply m-auto max-w-[94rem] px-4 md:px-8 2xl:px-0;
+
+  &.no-p {
+    padding: 0 !important;
+  }
+
+  &.no-mb {
+    margin-bottom: 0;
+  }
+
+  &.no-m {
+    margin: 0;
+  }
+}
+
+.container-padding {
+  @apply px-4 md:px-8 2xl:px-0;
+}
+
+@keyframes transition-animation {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.transition-animation {
+  animation: transition-animation 1s ease-in;
+}
+
+/* TITLE */
+.gradient-text {
+  color: transparent;
+  width: fit-content;
+  background: conic-gradient(
+    #7851a9 12%,
+    #c8a2c8 12%,
+    #9966cc 33%,
+    #7851a9 33%,
+    #6f2da8 55%,
+    #9966cc 55%,
+    #6f2da8 70%,
+    #9966cc 70%,
+    #c8a2c8 87%,
+    #7851a9 87%
+  );
+  background-repeat: repeat;
+  background-size: 50%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: expand-rev 3s ease forwards;
+  animation-iteration-count: infinite;
+}
+
+@keyframes expand-rev {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+/* TITLE END */
+
+.core {
+  inset: 0;
+  position: fixed;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  background-position: center;
+}
+
+// SWIPER STYLES
+
+.swiper {
+  width: 100%;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+
+  @include device("md") {
+    padding-top: 25px !important;
+    padding-bottom: 25px !important;
+  }
+
+  @include device("lg") {
+    padding-top: 25px !important;
+    padding-bottom: 25px !important;
+  }
+
+  @include device("2xl") {
+    padding-top: 35px !important;
+    padding-bottom: 35px !important;
+  }
+
+  @include device("3xl") {
+    padding-top: 75px !important;
+    padding-bottom: 75px !important;
+  }
+}
+
+:root {
+  --swiper-pagination-color: #6f2da8 !important;
+  --swiper-navigation-color: #c8a2c8 !important;
+  --swiper-pagination-bullet-inactive-color: #9966cc !important;
+}
+
+.default-slider {
+  .swiper-slide {
+    width: 75% !important;
+
+    @include device(md) {
+      width: 50% !important;
+    }
+
+    @include device(xl) {
+      width: 40% !important;
+    }
+
+    @include device("2xl") {
+      width: 30% !important;
+    }
+
+    @include device("3xl") {
+      width: 25% !important;
+    }
+  }
+}
+
+.column-slider {
+  .swiper-slide {
+    @include device(md) {
+      width: 75% !important;
+    }
+
+    @include device(xl) {
+      width: 70% !important;
+    }
+
+    @include device("2xl") {
+      width: 65% !important;
+    }
+
+    @include device("3xl") {
+      width: 60% !important;
+    }
+  }
+}
+
+// SWIPER STYLES END
+
+// CUSTOM SCROLLBAR START
+
+::-webkit-scrollbar {
+  width: 20px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #431c53a0;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+// CUSTOM SCROLLBAR END
+
+// COOL BORDER START
+
+// COOL BORDER END
+
+.animate-border {
+  --border-angle: 0turn; // For animation.
+  --main-bg: conic-gradient(
+    from var(--border-angle),
+    #213,
+    #112 5%,
+    #112 60%,
+    #213 95%
+  );
+
+  border-radius: 2em;
+  --gradient-border: conic-gradient(
+    from var(--border-angle),
+    transparent 25%,
+    #9966cc,
+    #431c53 99%,
+    transparent
+  );
+  border: solid 5px transparent;
+  @include device(md) {
+    border: solid 10px transparent;
+  }
+
+  background: 
+    // padding-box clip this background in to the overall element except the border.
+    var(--main-bg) padding-box,
+    // border-box extends this background to the border space
+    var(--gradient-border) border-box,
+    // Duplicate main background to fill in behind the gradient border. You can remove this if you want the border to extend "outside" the box background.
+    var(--main-bg) border-box;
+
+  animation: bg-spin 3s linear infinite;
+  @keyframes bg-spin {
+    to {
+      --border-angle: 1turn;
+    }
+  }
+
+  transform: translateY(6%);
+}
+
+@property --border-angle {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 0turn;
+}
