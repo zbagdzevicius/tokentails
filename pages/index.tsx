@@ -1,14 +1,76 @@
-import { Faq } from "@/components/landing/faq/Faq";
+import { Header } from "@/components/header/Header";
+import { HomePage } from "@/components/homePage/HomePage";
+import { CatsSlider } from "@/components/catsSlider/CatsSlider";
+import { CatsHub } from "@/components/catsHub/CatsHub";
+import { CatsWinners } from "@/components/catsWinners/CatsWinners";
+import { FeedbackSlider } from "@/components/feedbackSlider/FeedbackSlider";
+import { Footer } from "@/components/footer/Footer";
+import { useRef, useEffect, useState } from "react"
 import Head from "next/head";
 
 export default function Index() {
+
+  const [activeSection, setActiveSection] = useState("");
+  const homepageRef = useRef(null);
+  const catssliderRef = useRef(null);
+  const catshubRef = useRef(null);
+  const catswinnersRef = useRef(null);
+  const feedbackSliderRef = useRef(null);
+
+  const sections = [
+    homepageRef,
+    catssliderRef,
+    catshubRef,
+    catswinnersRef,
+    feedbackSliderRef,
+  ];
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !entry.target.classList.contains("animated-block")) {
+            setActiveSection(entry.target.id);
+            entry.target.classList.add("animated-block");
+            if (entry.target.id === "homepage") {
+              entry.target.classList.add("fade-in");
+            }
+          }
+        });
+      },
+      {
+        rootMargin: "0px",
+        threshold: 0.5,
+      }
+    )
+    sections.forEach((sectionRef) => {
+      if (sectionRef.current) {
+        observer.observe(sectionRef.current);
+      }
+    });
+
+    return () => {
+      sections.forEach((sectionRef) => {
+        if (sectionRef.current) {
+          observer.unobserve(sectionRef.current);
+        }
+      });
+    };
+  }, []);
+  useEffect(() => {
+    sections.forEach((sectionRef) => {
+      if (sectionRef.current) {
+        (sectionRef.current as HTMLDivElement).classList.add("invisible-block");
+      }
+    });
+  }, [sections]);
   return (
     <>
       <Head>
         <title>
           Skillmatrix - Where learning crypto is as fun as your favorite game
         </title>
-        <meta property="og:image" content="/images/logo.jpg" />
+        <meta property="og:image" content="/logo/logo.png" />
         <meta
           property="og:title"
           content="Skillmatrix - Where learning crypto is as fun as your favorite game"
@@ -18,11 +80,29 @@ export default function Index() {
           name="description"
           content="SkillMatrix dApp revolutionizes crypto education by combining interactive learning, gamification, and community engagement"
         />
-        <link rel="shortcut icon" href="/images/logo.jpg" />
+        <link rel="shortcut icon" href="/images/content/crown.png" />
       </Head>
-      <span id="faq" className="pt-8 pb-32">
-        <Faq />
-      </span>
+
+      <Header />
+
+      <div id="homepage" ref={homepageRef}>
+        <HomePage />
+      </div>
+      <div id="catsslider" ref={catssliderRef}>
+        <CatsSlider />
+      </div>
+      <div id="catshub" ref={catshubRef}>
+        <CatsHub />
+      </div>
+      <div id="catswinners" ref={catswinnersRef}>
+        <CatsWinners />
+      </div>
+      <div id="feedbackslider" ref={feedbackSliderRef} >
+        <FeedbackSlider />
+      </div>
+
+      <Footer />
+
     </>
   );
 }
