@@ -1,6 +1,4 @@
 import React from "react";
-import { Title } from "./Title";
-
 interface IProps {
   image: string;
   title: string;

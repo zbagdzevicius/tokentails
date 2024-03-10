@@ -21,6 +21,20 @@ const config: Config = {
           800: "#702963",
           900: "#301934",
         },
+        main: {
+          black: "#161616",
+          white: "#FFFFFF",
+          ember: "#C1260F",
+          rusty: "#EE642A",
+
+          slate: "#A1A1A1",
+
+          grape: "#8726B7",
+
+          midnight: "#1E293B",
+          gray: "#CBD5E1",
+          background: "#02020a",
+        },
       },
       animation: {
         "loop-scroll": "loop-scroll 50s linear infinite",
@@ -35,8 +49,16 @@ const config: Config = {
           to: { transform: "translateX(-100%)" },
         },
         flip: {
-          "0%, 100%": { transform: "skew(0deg, 0deg)", "border-radius": "0", "opacity": "0.5" },
-          "50%": { transform: "skew(90deg, 60deg)", "border-radius": "90px", "opacity": "0.2" },
+          "0%, 100%": {
+            transform: "skew(0deg, 0deg)",
+            "border-radius": "0",
+            opacity: "0.5",
+          },
+          "50%": {
+            transform: "skew(90deg, 60deg)",
+            "border-radius": "90px",
+            opacity: "0.2",
+          },
         },
         hover: {
           "0%, 100%": {
@@ -134,7 +156,19 @@ const config: Config = {
             letterSpacing: "-0.015625rem",
           },
         ],
+        p7: [
+          "0.625rem",
+          {
+            lineHeight: "1rem",
+            letterSpacing: "-0.015625rem",
+          },
+        ],
       },
+    },
+    fontFamily: {
+      primary: ["Inter", "sans-serif"],
+      secondary: ["Bebas Neue", "sans-serif"],
+      tertiary: ["Nunito", "sans-serif"],
     },
   },
   plugins: [],

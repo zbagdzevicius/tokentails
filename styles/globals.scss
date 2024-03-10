@@ -3,6 +3,9 @@
 @tailwind utilities;
 @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap");
 
 $breakpoints: (
   "mobile": 767px,
@@ -12,6 +15,7 @@ $breakpoints: (
   "2xl": 1536px,
   "3xl": 2300px,
 );
+$custom-background: linear-gradient(90.26deg, #c1260f 0.34%, #ee642a 96.66%);
 
 @mixin device($breakpoint) {
   @if $breakpoint == "mobile" {
@@ -36,7 +40,9 @@ html {
   background: #02020a;
   font-family: "Space Mono", monospace;
 }
-html{scroll-behavior: smooth;}
+html {
+  scroll-behavior: smooth;
+}
 
 .title {
   font-family: "Orbitron", sans-serif;
@@ -123,7 +129,7 @@ html{scroll-behavior: smooth;}
 .swiper {
   width: 100%;
   padding-top: 10px !important;
-  padding-bottom: 10px !important;
+  padding-bottom: 30px !important;
 
   @include device("md") {
     padding-top: 25px !important;
@@ -147,8 +153,13 @@ html{scroll-behavior: smooth;}
 }
 
 :root {
-  --swiper-pagination-color: #6f2da8 !important;
-  --swiper-navigation-color: #c8a2c8 !important;
+  --swiper-pagination-color: linear-gradient(
+      90.26deg,
+      #c1260f 0.34%,
+      #ee642a 96.66%
+    ),
+    linear-gradient(0deg, #fff7f7, #fff7f7) !important;
+  --swiper-navigation-color: #ffffff !important;
   --swiper-pagination-bullet-inactive-color: #9966cc !important;
 }
 
@@ -193,7 +204,17 @@ html{scroll-behavior: smooth;}
     }
   }
 }
-
+.swiper-pagination {
+  margin-bottom: -10px !important;
+  &-bullet {
+    width: 15px !important;
+    height: 15px !important;
+  }
+  &-bullet-active {
+    width: 20px !important;
+    height: 20px !important;
+  }
+}
 // SWIPER STYLES END
 
 // CUSTOM SCROLLBAR START
@@ -261,4 +282,107 @@ html{scroll-behavior: smooth;}
   syntax: "<angle>";
   inherits: true;
   initial-value: 0turn;
+}
+
+//CUSTOM GRADIENT TEXT
+
+.custom-gradient-text {
+  background: -webkit-linear-gradient(90.26deg, #c1260f 0.34%, #ee642a 96.66%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hover\:custom-gradient-text:hover {
+  background: -webkit-linear-gradient(90.26deg, #c1260f 0.34%, #ee642a 96.66%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+$n: 20;
+
+.slider-banner {
+  height: 100px;
+  margin: auto;
+  overflow: hidden;
+  width: 110%;
+}
+.slider {
+  position: relative;
+  height: 100px;
+  margin: auto;
+  overflow: hidden;
+  width: 100%;
+}
+.slide-track {
+  animation: scroll 40s linear infinite;
+  display: flex;
+  width: calc(250px * $n);
+  overflow: hidden;
+}
+.slider .slide {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100px;
+  width: 250px;
+}
+.slider:before {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    #02020a,
+    transparent 10%,
+    transparent 90%,
+    #02020a
+  );
+  z-index: 1;
+}
+
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(calc(-250px * $n/2));
+  }
+}
+.animated-block {
+  opacity: 1;
+  animation: slide-in-up 2s forwards;
+}
+@keyframes slide-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(100px);
+  }
+  20% {
+    opacity: 15%;
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.fade-in {
+  animation: fadeInAnimation 1.5s ease forwards;
+}
+
+@keyframes fadeInAnimation {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.invisible-block {
+  opacity: 0;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
 }

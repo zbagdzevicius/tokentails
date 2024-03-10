@@ -40,9 +40,8 @@ const FaqSection = ({ title, description, isActive, onSet }: IProps) => {
       >
         <div className="text-left title">{title}</div>
         <span
-          className={`h-8 w-8 shrink-0 fill-accent-100 transition ${
-            isActive ? "rotate-[-180deg]" : ""
-          }`}
+          className={`h-8 w-8 shrink-0 fill-accent-100 transition ${isActive ? "rotate-[-180deg]" : ""
+            }`}
         >
           <svg viewBox="0 0 64 64">
             <path d="M63.029,42.285l-13.08-7.848c-0.175,4.299-0.787,8.26-1.494,11.562H64v-2   C64,43.297,63.632,42.646,63.029,42.285z" />
@@ -57,9 +56,8 @@ const FaqSection = ({ title, description, isActive, onSet }: IProps) => {
         </span>
       </button>
       <div
-        className={`text-p4 transition relative z-0 py-4 px-5 border-b ${
-          isActive ? "" : "hidden"
-        }`}
+        className={`text-p4 transition relative z-0 py-4 px-5 border-b ${isActive ? "" : "hidden"
+          }`}
       >
         {description}
       </div>
