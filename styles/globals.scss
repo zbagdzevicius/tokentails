@@ -40,6 +40,10 @@ html {
   background: #02020a;
   font-family: "Space Mono", monospace;
 }
+
+* {
+  cursor: url('/cursor/cursor.png'),auto;
+}
 html {
   scroll-behavior: smooth;
 }
@@ -307,17 +311,21 @@ $n: 20;
   width: 110%;
 }
 .slider {
-  position: relative;
   height: 100px;
   margin: auto;
   overflow: hidden;
   width: 100%;
+  max-width: 100vw;
 }
 .slide-track {
   animation: scroll 40s linear infinite;
   display: flex;
   width: calc(250px * $n);
   overflow: hidden;
+
+  &.inverse {
+    animation: scroll-inverse 40s linear infinite;
+  }
 }
 .slider .slide {
   display: flex;
@@ -347,6 +355,14 @@ $n: 20;
   }
   100% {
     transform: translateX(calc(-250px * $n/2));
+  }
+}
+@keyframes scroll-inverse {
+  0% {
+    transform: translateX(calc(-250px * $n/2));
+  }
+  100% {
+    transform: translateX(0);
   }
 }
 .animated-block {

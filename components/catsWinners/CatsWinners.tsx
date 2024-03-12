@@ -5,16 +5,16 @@ export const CatsWinners = () => {
         <div className="flex items-center justify-center container">
             <div className="w-8/12 max-lg:w-full max-lg:m-5">
                 <h1 className="text-left font-secondary uppercase tracking-tighter text-h2 text-balance max-lg:text-h6 my-3">
-                    we’re the first gaming award winners the world
+                    we’re the first play to save game in the world
                 </h1>
                 <div className="grid grid-cols-2 max-lg:grid-cols-1 grid-rows-7 gap-6 max-lg:gap-2">
                     <div>
                         <div className="flex flex-row items-center flex-wrap space-x-3 text-p5 max-lg:text-sm font-primary">
                             <p className="text-main-rustyOrange">Adventure</p>
-                            <p className="active:text-main-rustyOrange">Arcade</p>
-                            <p>Arena</p>
-                            <p>Avoider</p>
-                            <p>Balance</p>
+                            <p className="active:text-main-rustyOrange">RPG</p>
+                            <p>Social</p>
+                            <p>Save</p>
+                            <p>Cats</p>
                         </div>
                     </div>
                     <div className="p-1 max-lg:p-0.5 row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl">
@@ -33,8 +33,8 @@ export const CatsWinners = () => {
                         <div className="flex flex-row justify-between items-center">
                             <div className="flex flex-col">
                                 <p className="text-p4 max-lg:text-p5 font-tertiary">We’ve have many more than</p>
-                                <h1 className="text-h2 max-lg:text-h3 font-secondary">100+</h1>
-                                <p className="text-p4 max-lg:text-p5  font-tertiary">Gaming <span className="custom-gradient-text font-bold">Collections</span></p>
+                                <h1 className="text-h2 max-lg:text-h3 font-secondary">1000+</h1>
+                                <p className="text-p4 max-lg:text-p5  font-tertiary">Virtual <span className="custom-gradient-text font-bold">Cats</span></p>
                             </div>
                             <div>
                                 <button className="[clip-path:polygon(0%_0%,100%_0%,92%_100%,0%_100%)]

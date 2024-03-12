@@ -17,16 +17,13 @@ export const FeedbackSlider = () => {
 
                     </div>
                     <div className='text-center text-p5 font-tertiary text-pretty'>
-                        <p>Quick and adaptable, SoundPart reliably meets these key necessities. The capacity to talk straightforwardly with a senior guarantor makes
-                            this conceivable. Quick and adaptable, SoundPart reliably meets these key necessities. The capacity to talk straightforwardly with
-                            a senior guarantor makes this conceivable.</p>
+                        <p>Purr meow meow purr</p>
                         <br />
-                        <p>Quick and adaptable, SoundPart reliably meets these key necessities. The capacity to talk straightforwardly with a senior guarantor makes
-                            this conceivable</p>
+                        <p>Much purr so meow</p>
                     </div>
                     <div className='flex items-center flex-col'>
-                        <Image className="w-14 h-14 max-lg:w-10 max-lg:h-10 rounded-full" src="/images/content/crown.png" width={50} height={50} alt='avatar' />
-                        <p className='text-p4 max-lg:text-p5 font-tertiary '>Esther Howard</p>
+                        <img className="w-32" src="/cats/black/Sitting-Hat-Black.gif" alt='avatar' />
+                        <p className='text-p4 max-lg:text-p5 font-tertiary '>Peanut</p>
                     </div>
                 </div>
             </div>
@@ -43,16 +40,15 @@ export const FeedbackSlider = () => {
 
                     </div>
                     <div className='text-center text-p5 font-tertiary text-pretty'>
-                        <p>Quick and adaptable, SoundPart reliably meets these key necessities. The capacity to talk straightforwardly with a senior guarantor makes
-                            this conceivable. Quick and adaptable, SoundPart reliably meets these key necessities. The capacity to talk straightforwardly with
-                            a senior guarantor makes this conceivable.</p>
-                        <br />
-                        <p>Quick and adaptable, SoundPart reliably meets these key necessities. The capacity to talk straightforwardly with a senior guarantor makes
-                            this conceivable</p>
+                        <div className='text-center text-p5 font-tertiary text-pretty'>
+                            <p>I meow you</p>
+                            <br />
+                            <p>Purrfect place for my meow meow</p>
+                        </div>
                     </div>
                     <div className='flex items-center flex-col'>
-                        <Image className="w-14 h-14 max-lg:w-10 max-lg:h-10 rounded-full" src="/images/content/crown.png" width={50} height={50} alt='avatar' />
-                        <p className='text-p4 max-lg:text-p5 font-tertiary'>Esther Howard</p>
+                        <img className="w-32" src="/cats/pinkie/pink-lamiendo-ropa.gif" alt='avatar' />
+                        <p className='text-p4 max-lg:text-p5 font-tertiary '>Pinkie</p>
                     </div>
                 </div>
             </div>
@@ -70,16 +66,13 @@ export const FeedbackSlider = () => {
 
                     </div>
                     <div className='text-center text-p5 font-tertiary text-pretty'>
-                        <p>Quick and adaptable, SoundPart reliably meets these key necessities. The capacity to talk straightforwardly with a senior guarantor makes
-                            this conceivable. Quick and adaptable, SoundPart reliably meets these key necessities. The capacity to talk straightforwardly with
-                            a senior guarantor makes this conceivable.</p>
+                        <p>Meooow meow</p>
                         <br />
-                        <p>Quick and adaptable, SoundPart reliably meets these key necessities. The capacity to talk straightforwardly with a senior guarantor makes
-                            this conceivable</p>
+                        <p>The best meow in the world</p>
                     </div>
                     <div className='flex items-center flex-col'>
-                        <Image className="w-14 h-14 max-lg:w-10 max-lg:h-10 rounded-full" src="/images/content/crown.png" width={50} height={50} alt='avatar' />
-                        <p className='text-p4 max-lg:text-p5 font-tertiary'>Esther Howard</p>
+                        <img className="w-32" src="/cats/grey/Loaf-Clothed-Grey.gif" alt='avatar' />
+                        <p className='text-p4 max-lg:text-p5 font-tertiary '>Snowball</p>
                     </div>
                 </div>
             </div>
@@ -88,9 +81,9 @@ export const FeedbackSlider = () => {
     return (
         <>
             <div className='flex items-center justify-center flex-col my-32 container'>
-                <Image src="/images/content/crown.png" width={100} height={100} alt='Crown' />
+                <img src="/logo/coin.png" width={100} height={100} alt='coin' />
                 <h1 className="text-left font-secondary uppercase tracking-tighter text-h2 text-balance max-lg:text-h6 my-3">
-                    Happy clients
+                    Happy cats
                 </h1>
                 <Slider items={items} />
             </div>

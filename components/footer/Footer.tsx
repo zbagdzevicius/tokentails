@@ -65,7 +65,7 @@ export const Footer: React.FC = () => {
   return (
     <footer className="text-white text-center py-4">
       <div className='flex flex-wrap items-center justify-around max-lg:justify-between mx-2' >
-        <Image className=" w-32 h-8 max-lg:w-24 max-lg:h-6" src="/logo/logo.png" alt='logo' width={100} height={50}></Image>
+        <img className="h-24" src="/logo/logo.png" alt='logo' />
         <ul className='flex max-lg:order-3'>
           {footerConsts.map((footerItem, index) => (
             <li

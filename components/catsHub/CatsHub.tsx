@@ -10,19 +10,24 @@ interface IProps {
 
 const CatsHubProps: IProps[] = [
     {
-        title: "STAFF PICKS WITH ERIN THIS WEEK'S TOP PICKS",
+        title: "EXPLORE OUR VIRTUAL CAT SHELTER",
         description:
-            "We offer initial courses for free. Advanced courses needs to be bought as NFT. Users can also opt to receive certificates upon completing learning paths, which are issued for a fee as NFTs.",
+            "Choose your purr-fect companion from a diverse range of lovable felines !",
     },
     {
-        title: "Compelling Games Is 20 Years of age!",
+        title: "START TO PLAY",
         description:
-            "Our platform continually updates its courses to reflect the latest trends and developments, ensuring that learners always have access to current and relevant information.",
+            "Each cat has its own unique personality and story waiting to be discovered. Take care, have fun and play !",
     },
     {
-        title: "Irresistible Games Merchandise Is Here",
+        title: "ACTIVITIES",
         description:
-            "By integrating RPG learnplay. Enroll into courses quests, participate in mini-games with your Roadmap character, fight in quizes with your own HP that will be refreshed each day, unlock new courses, play Crypto Wars and accomplish your goals !",
+            "Play with your cat in the entertaining RPG game where you can interact with your cat. Feed, pet, exercise and take care of your cat. Earn points, make your cat happy, loveable and friendly. Customize appearance of your cat, including color and items such as hats, collars and suit.",
+    },
+    {
+        title: "SAVE",
+        description:
+            "Buy cats and accessories NFTs ( 50% of earned funds via NFTs are donated to cat shelters directly or via support of goods ). You can choose to donate earned points to cat shelters. 20% of total token supply is reserved for saving cats.",
     },
 ];
 
@@ -47,7 +52,7 @@ const CatsSection = ({ title, description, isActive, onSet }: IProps) => {
                     <Image
                         className={`h-8 max-lg:h-4 max-lg:w-4 w-8 shrink-0 fill-accent-100 transition ase-in-out duration-700 ${isActive ? "rotate-[-180deg]" : ""
                             }`}
-                        src="/icons/arrowdown.svg"
+                        src="/cursor/cursor.png"
                         alt="arrow down"
                         width={60}
                         height={60}
@@ -72,7 +77,7 @@ export const CatsHub = () => {
             <Image src='/images/cats-hub/crown.png' width={100} height={100} alt="crown" />
             <div className="w-9/12 max-lg:w-full ">
                 <h1 className="text-center font-secondary uppercase tracking-tighter text-8xl max-lg:text-5xl  max-lg:text-balance ">
-                    THE Most recent Patterns, Conveyed Directly TO YOUR INBOX.
+                    YOUR VIRTUAL COMPANION
                 </h1>
 
                 <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1 max-lg:mx-5 my-10">

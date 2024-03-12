@@ -36,7 +36,7 @@ export const Header = () => {
     return (
         <header>
             <div className='flex flex-wrap items-center justify-between py-6 px-24 max-lg:px-4 relative'>
-                <Image className=" w-32 h-8 max-lg:w-24 max-lg:h-6" src="/logo/logo.png" alt='logo' width={100} height={50}></Image>
+        <img className="h-24" src="/logo/logo.png" alt='logo' />
                 <ul className='lg:!flex lg:space-x-4 max-lg:space-y-2 max-lg:hidden max-lg:py-4 max-lg:w-full'>
                     {navConsts.map((navItem, index) => (
                         <li key={index} className='max-lg:border-b max-lg:py-2 px-3 max-lg:rounded'>
