@@ -68,19 +68,19 @@ export default function Index() {
     <>
       <Head>
         <title>
-          Skillmatrix - Where learning crypto is as fun as your favorite game
+          Token Tails - Play to Save
         </title>
         <meta property="og:image" content="/logo/logo.png" />
         <meta
           property="og:title"
-          content="Skillmatrix - Where learning crypto is as fun as your favorite game"
+          content="Token Tails - Play to Save"
           key="title"
         />
         <meta
           name="description"
-          content="SkillMatrix dApp revolutionizes crypto education by combining interactive learning, gamification, and community engagement"
+          content="PLAY WITH YOUR VIRTUAL CAT TO SAVE A CAT IN A SHELTER"
         />
-        <link rel="shortcut icon" href="/images/content/crown.png" />
+        <link rel="shortcut icon" href="/logo/coin.png" />
       </Head>
 
       <Header />
