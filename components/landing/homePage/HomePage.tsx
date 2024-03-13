@@ -89,89 +89,7 @@ const sponsorImage = [
     },
 ]
 
-const bannerWhiteConsts: bannerProps[] = [
-    {
-        image: "/cats/black/Jump-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Licking-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Loaf-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Playing-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Sitting-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Jump-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Licking-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Loaf-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Playing-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Sitting-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Jump-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Licking-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Loaf-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Playing-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Sitting-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Jump-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Licking-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Loaf-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Playing-Hat-Black.gif",
-        title: "Play logo"
-    },
-    {
-        image: "/cats/black/Sitting-Hat-Black.gif",
-        title: "Play logo"
-    },
-]
-const bannerBlackConsts: bannerProps[] = [
+const cats: bannerProps[] = [
     {
         image: "/cats/pinkie/pink-caminando-ropa.gif",
         title: "Play logo"
@@ -225,23 +143,23 @@ const bannerBlackConsts: bannerProps[] = [
         title: "Play logo"
     },
     {
-        image: "/cats/pinkie/pink-corriendo-ropa.gif",
+        image: "/cats/black/Jump-Hat-Black.gif",
         title: "Play logo"
     },
     {
-        image: "/cats/pinkie/pink-lamiendo-ropa.gif",
+        image: "/cats/black/Licking-Hat-Black.gif",
         title: "Play logo"
     },
     {
-        image: "/cats/yellow/Liking-Hat-Yellow.gif",
+        image: "/cats/black/Loaf-Hat-Black.gif",
         title: "Play logo"
     },
     {
-        image: "/cats/pinkie/pink-caminando-ropa.gif",
+        image: "/cats/black/Playing-Hat-Black.gif",
         title: "Play logo"
     },
     {
-        image: "/cats/pinkie/pink-corriendo-ropa.gif",
+        image: "/cats/black/Sitting-Hat-Black.gif",
         title: "Play logo"
     },
     {
@@ -256,26 +174,16 @@ const bannerBlackConsts: bannerProps[] = [
 export const HomePage = () => {
     return (
         <div className=" my-4 flex justify-center items-center flex-col">
-            <div className=" relative w-6/12 max-lg:w-full pt-16 px-10 max-lg:text-balance">
+            <div className="relative w-full lg:w-2/3 xl:w-1/2 pt-16 px-10 max-lg:text-balance">
                 <Image className="absolute top-0 left-0 " src="/images/home-page/firework.png" alt="fireworks" width={80} height={80} />
-                <h1 className="text-center font-secondary uppercase tracking-tighter text-8xl max-lg:text-4xl">
+                <h1 className="text-center font-secondary uppercase tracking-tighter text-h3 md:text-8xl">
                     Play with your virtual cat to save a cat in a shelter
                 </h1>
             </div>
             <div className="relative w-full flex items-center justify-center max-w-[100vw] overflow-hidden">
-                <div className="absolute -inset-16 slider 2xl:rotate-[5deg] md:rotate-6 rotate-12 max-lg:h-10 z-10">
+                <div className="absolute left-0 right-0 top-0 bottom-0 slider transform z-10 rotate-12">
                     <div className="slide-track inverse">
-
-                        {bannerBlackConsts.map((banner, index) => (
-                            <div key={index} className="slide">
-                                <img src={banner.image} alt={banner.title} width={100} height={100} />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-                <div className="absolute -inset-16 slider transform 2xl:-rotate-[5deg]  md:-rotate-6 -rotate-12 max-lg:h-10">
-                    <div className="slide-track inverse">
-                        {bannerWhiteConsts.map((banner, index) => (
+                        {cats.map((banner, index) => (
                             <div key={index} className="slide">
                                 <img src={banner.image} alt={banner.title} width={100} height={100} />
                             </div>

@@ -19,9 +19,6 @@ const navConsts: navProps[] = [
         title: "Colection",
     },
     {
-        title: "Explore",
-    },
-    {
         title: "Comunity",
     },
 ];

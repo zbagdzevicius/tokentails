@@ -1,4 +1,4 @@
-import { Slider } from '../../components/shared/Slider';
+import { Slider } from '../../shared/Slider';
 
 import Image from 'next/image';
 

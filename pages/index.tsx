@@ -1,21 +1,24 @@
 import { Header } from "@/components/header/Header";
-import { HomePage } from "@/components/homePage/HomePage";
-import { CatsSlider } from "@/components/catsSlider/CatsSlider";
-import { CatsHub } from "@/components/catsHub/CatsHub";
-import { CatsWinners } from "@/components/catsWinners/CatsWinners";
-import { FeedbackSlider } from "@/components/feedbackSlider/FeedbackSlider";
+import { HomePage } from "@/components/landing/homePage/HomePage";
+import { CatsSlider } from "@/components/landing/catsSlider/CatsSlider";
+import { CatsHub } from "@/components/landing/catsHub/CatsHub";
+import { CatsWinners } from "@/components/landing/catsWinners/CatsWinners";
+import { FeedbackSlider } from "@/components/landing/feedbackSlider/FeedbackSlider";
 import { Footer } from "@/components/footer/Footer";
-import { useRef, useEffect, useState } from "react"
+import { useRef, useEffect, useState } from "react";
 import Head from "next/head";
+import { Tokenomics } from "@/components/landing/tokenomics/Tokenomics";
+import Roadmap from "@/components/landing/roadmap/Roadmap";
 
 export default function Index() {
-
   const [activeSection, setActiveSection] = useState("");
   const homepageRef = useRef(null);
   const catssliderRef = useRef(null);
   const catshubRef = useRef(null);
   const catswinnersRef = useRef(null);
   const feedbackSliderRef = useRef(null);
+  const tokenomicsRef = useRef(null);
+  const roadmapRef = useRef(null);
 
   const sections = [
     homepageRef,
@@ -23,13 +26,18 @@ export default function Index() {
     catshubRef,
     catswinnersRef,
     feedbackSliderRef,
+    tokenomicsRef,
+    roadmapRef,
   ];
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && !entry.target.classList.contains("animated-block")) {
+          if (
+            entry.isIntersecting &&
+            !entry.target.classList.contains("animated-block")
+          ) {
             setActiveSection(entry.target.id);
             entry.target.classList.add("animated-block");
             if (entry.target.id === "homepage") {
@@ -42,7 +50,7 @@ export default function Index() {
         rootMargin: "0px",
         threshold: 0.5,
       }
-    )
+    );
     sections.forEach((sectionRef) => {
       if (sectionRef.current) {
         observer.observe(sectionRef.current);
@@ -67,9 +75,7 @@ export default function Index() {
   return (
     <>
       <Head>
-        <title>
-          Token Tails - Play to Save
-        </title>
+        <title>Token Tails - Play to Save</title>
         <meta property="og:image" content="/logo/logo.png" />
         <meta
           property="og:title"
@@ -85,24 +91,30 @@ export default function Index() {
 
       <Header />
 
-      <div id="homepage" ref={homepageRef}>
-        <HomePage />
+      <div className="flex flex-col gap-8 md:gap-16">
+        <div id="homepage" ref={homepageRef}>
+          <HomePage />
+        </div>
+        <div id="catsslider" ref={catssliderRef}>
+          <CatsSlider />
+        </div>
+        <div id="catshub" ref={catshubRef}>
+          <CatsHub />
+        </div>
+        <div id="tokenomics" ref={feedbackSliderRef}>
+          <Tokenomics />
+        </div>
+        <div id="catswinners" ref={catswinnersRef}>
+          <CatsWinners />
+        </div>
+        <div id="roadmap" ref={roadmapRef}>
+          <Roadmap />
+        </div>
+        <div id="feedbackslider" ref={feedbackSliderRef}>
+          <FeedbackSlider />
+        </div>
+        <Footer />
       </div>
-      <div id="catsslider" ref={catssliderRef}>
-        <CatsSlider />
-      </div>
-      <div id="catshub" ref={catshubRef}>
-        <CatsHub />
-      </div>
-      <div id="catswinners" ref={catswinnersRef}>
-        <CatsWinners />
-      </div>
-      <div id="feedbackslider" ref={feedbackSliderRef} >
-        <FeedbackSlider />
-      </div>
-
-      <Footer />
-
     </>
   );
 }

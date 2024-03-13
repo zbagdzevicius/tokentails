@@ -117,13 +117,13 @@ export const CatsHub = () => {
                                     Play Now
                                 </span>
                             </button>
-                            <div className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] flex items-center justify-center bg-gradient-to-r from-main-ember to-main-rusty rounded w-32 h-10 max-lg:w-24 max-lg:h">
+                            <a target="_blank" href="https://docs.google.com/presentation/d/1lm3Ioazcd-p_zzn5YRUZAeTFrFmsIVDnq_HuC9OdOZI" className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] flex items-center justify-center bg-gradient-to-r from-main-ember to-main-rusty rounded w-32 h-10 max-lg:w-24 max-lg:h">
                                 <button className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] bg-[#02020a] rounded w-[125px] h-[38px] max-lg:w-[94px]">
                                     <span className="text-center text-base font-primary max-lg:text-xs">
-                                        Watch Trailer
+                                        Presentation
                                     </span>
                                 </button>
-                            </div>
+                            </a>
                         </div>
                     </div>
                 </div>

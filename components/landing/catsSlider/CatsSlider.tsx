@@ -1,4 +1,4 @@
-import { Slider } from '../shared/Slider';
+import { Slider } from '../../shared/Slider';
 import Image from 'next/image';
 export const CatsSlider = () => {
 

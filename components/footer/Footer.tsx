@@ -24,9 +24,6 @@ const footerConsts: FooterProps[] = [
     title: "Colection",
   },
   {
-    title: "Explore",
-  },
-  {
     title: "Comunity",
   },
 ];
@@ -94,7 +91,7 @@ export const Footer: React.FC = () => {
       <div className="flex justify-center items-center">
         <hr className="h-px my-8 max-lg:my-2 w-11/12 bg-gray-200 border-0 dark:bg-gray-700" />
       </div>
-      <p className="text-sm text-main-gray max-lg:text-p7 my-10 ">&copy; {currentYear} All Rights Reserved by Play Games</p>
+      <p className="text-sm text-main-gray max-lg:text-p7 my-10 ">&copy; {currentYear} All Rights Reserved by Token Tails</p>
     </footer >
   );
 };

@@ -58,6 +58,11 @@ html {
   &.no-p {
     padding: 0 !important;
   }
+  &.no-p-mobile {
+    @include device(mobile) {
+      padding: 0 !important;
+    }
+  }
 
   &.no-mb {
     margin-bottom: 0;
