@@ -9,6 +9,7 @@ import { useRef, useEffect, useState } from "react";
 import Head from "next/head";
 import { Tokenomics } from "@/components/landing/tokenomics/Tokenomics";
 import Roadmap from "@/components/landing/roadmap/Roadmap";
+import Preregistration from "@/components/landing/preregistration/Preregistration";
 
 export default function Index() {
   const [activeSection, setActiveSection] = useState("");
