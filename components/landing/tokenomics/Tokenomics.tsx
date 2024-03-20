@@ -17,7 +17,7 @@ export const Tokenomics = () => {
             <span className="font-bold">TOTAL SUPPLY</span> - 1B $TTAILS
           </div>
           <div>
-            <span className="font-bold">40% Public</span> - CEX/DEX, ICO,
+            <span className="font-bold">60% Public</span> - CEX/DEX, ICO,
             Liquidity, Linear vesting
           </div>
           <div>
@@ -25,12 +25,12 @@ export const Tokenomics = () => {
             shelters, vested over 10 years
           </div>
           <div>
-            <span className="font-bold">20% Rewards</span> - Prizes, staking
+            <span className="font-bold">10% Rewards</span> - Prizes, staking
             rewards, earnings and airdrops, Linear vesting
           </div>
           <div>
-            <span className="font-bold">20% Development</span> - Engineering,
-            social growth and partnerships, Cliff vesting
+            <span className="font-bold">10% Development</span> - Engineering,
+            social growth and partnerships, Cliff vesting - unlocked over 4 years
           </div>
         </div>
       </div>
