@@ -36,14 +36,14 @@ export const CatsWinners = () => {
                                 <h1 className="text-h2 max-lg:text-h3 font-secondary">1000+</h1>
                                 <p className="text-p4 max-lg:text-p5  font-tertiary">Virtual <span className="custom-gradient-text font-bold">Cats</span></p>
                             </div>
-                            <div>
+                            <a href="#preregistration">
                                 <button className="[clip-path:polygon(0%_0%,100%_0%,92%_100%,0%_100%)]
                     bg-gradient-to-r from-main-ember to-main-rusty rounded w-32 h-10 max-lg:w-24">
                                     <span className="text-center text-lg font-primary max-lg:text-xs leading-4">
-                                        View More
+                                        Pre-register
                                     </span>
                                 </button>
-                            </div>
+                            </a>
                         </div>
                     </div>
                 </div>

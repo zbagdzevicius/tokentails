@@ -114,7 +114,7 @@ export const CatsHub = () => {
                                 className="[clip-path:polygon(0%_0%,100%_0%,92%_100%,0%_100%)]
                     bg-gradient-to-r from-main-ember to-main-rusty rounded w-32 h-10 max-lg:w-20">
                                 <span className="text-center text-base font-primary max-lg:text-xs leading-4">
-                                    Play Now
+                                    Pre-register
                                 </span>
                             </button>
                             <a target="_blank" href="https://docs.google.com/presentation/d/1lm3Ioazcd-p_zzn5YRUZAeTFrFmsIVDnq_HuC9OdOZI" className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] flex items-center justify-center bg-gradient-to-r from-main-ember to-main-rusty rounded w-32 h-10 max-lg:w-24 max-lg:h">
