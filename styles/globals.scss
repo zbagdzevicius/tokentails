@@ -250,18 +250,18 @@ html {
   --border-angle: 0turn; // For animation.
   --main-bg: conic-gradient(
     from var(--border-angle),
-    #213,
-    #112 5%,
-    #112 60%,
-    #213 95%
+    #EE642A,
+    #C1260F 5%,
+    #EE642A 60%,
+    #8726B7 95%
   );
 
   border-radius: 2em;
   --gradient-border: conic-gradient(
     from var(--border-angle),
     transparent 25%,
-    #9966cc,
-    #431c53 99%,
+    #C1260F,
+    #8726B7 99%,
     transparent
   );
   border: solid 5px transparent;

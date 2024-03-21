@@ -10,6 +10,7 @@ import Head from "next/head";
 import { Tokenomics } from "@/components/landing/tokenomics/Tokenomics";
 import Roadmap from "@/components/landing/roadmap/Roadmap";
 import Preregistration from "@/components/landing/preregistration/Preregistration";
+import Contact from "@/components/landing/contact/Contact";
 
 export default function Index() {
   const [activeSection, setActiveSection] = useState("");
@@ -20,6 +21,7 @@ export default function Index() {
   const feedbackSliderRef = useRef(null);
   const tokenomicsRef = useRef(null);
   const roadmapRef = useRef(null);
+  const contactRef = useRef(null);
 
   const sections = [
     homepageRef,
@@ -29,6 +31,7 @@ export default function Index() {
     feedbackSliderRef,
     tokenomicsRef,
     roadmapRef,
+    contactRef,
   ];
 
   useEffect(() => {
@@ -113,6 +116,9 @@ export default function Index() {
         </div>
         <div id="feedbackslider" ref={feedbackSliderRef}>
           <FeedbackSlider />
+        </div>
+        <div id="contact" ref={contactRef}>
+          <Contact />
         </div>
         <Footer />
       </div>

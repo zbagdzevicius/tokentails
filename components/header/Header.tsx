@@ -3,22 +3,27 @@ import { useState } from "react";
 
 interface navProps {
   title: string;
+  link: string;
   isActive?: boolean;
   onSet?: () => void;
 }
 
 const navConsts: navProps[] = [
   {
-    title: "Marketplace",
+    title: "Activities",
+    link: "#catsslider",
   },
   {
-    title: "Stats",
+    title: "Game",
+    link: "#catshub",
   },
   {
-    title: "Colection",
+    title: "Tokenomics",
+    link: "#tokenomics",
   },
   {
-    title: "Comunity",
+    title: "Contact",
+    link: "#contact",
   },
 ];
 
@@ -43,6 +48,7 @@ export const Header = () => {
               className="max-lg:border-b max-lg:py-2 px-3 max-lg:rounded"
             >
               <a
+                href={navItem.link}
                 className={`text-p5 max-lg:text-p6 font-primary hover:custom-gradient-text ${
                   activeTitle === navItem.title
                     ? "custom-gradient-text font-bold"
@@ -91,6 +97,7 @@ export const Header = () => {
             {navConsts.map((navItem, index) => (
               <li key={index} className="py-2 px-3">
                 <a
+                  href={navItem.link}
                   className={`text-p5 font-primary hover:custom-gradient-text${
                     activeTitle === navItem.title
                       ? "custom-gradient-text font-bold"
