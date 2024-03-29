@@ -10,7 +10,7 @@ export default function Select() {
             id: 1,
             img: "/catgame/cat.gif",
             name: "Peanut",
-            ability: CatAbilitySkill.AQUAWHISKER,
+            ability: CatAbilitySkill.WHISKERFLAME,
             story: resqueStory("Alpha"),
           },
           {
@@ -38,7 +38,7 @@ export default function Select() {
             id: 5,
             img: "/cats/yellow/Jump-Hat-Yellow.gif",
             name: "Pickle",
-            ability: CatAbilitySkill.WHISKERFLAME,
+            ability: CatAbilitySkill.AQUAWHISKER,
             story: resqueStory("Epsilon"),
           },
           {
