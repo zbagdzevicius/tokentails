@@ -194,12 +194,6 @@ export const PurrquestGame = () => {
 
             let coinPitch = 0;
 
-            k.onUpdate(() => {
-                if (coinPitch > 0) {
-                    coinPitch = Math.max(0, coinPitch - k.dt() * 100);
-                }
-            });
-
             player.onCollide("coin", (c) => {
                 k.destroy(c);
                 k.play("coin", {
@@ -271,8 +265,6 @@ export const PurrquestGame = () => {
             function triggerEncounterBeforeRescue() {
                 const playerDistance = player.pos.x;
                 const NPCDistance = NPC.pos.x;
-                console.log("npc pos", NPC.pos);
-                console.log("player pos", player.pos);
 
                 const distanceBetween = Math.abs(playerDistance - NPCDistance);
                 const encounterDistance = 384;

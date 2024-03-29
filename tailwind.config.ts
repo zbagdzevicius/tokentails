@@ -164,6 +164,9 @@ const config: Config = {
           },
         ],
       },
+      screens: {
+        "3xl": "2300px",
+      },
     },
     fontFamily: {
       primary: ["Inter", "sans-serif"],
