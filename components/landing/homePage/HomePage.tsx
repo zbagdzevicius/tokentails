@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Preregistration from "../preregistration/Preregistration";
+import Link from "next/link";
 
 interface bannerProps {
   image: string;
@@ -12,8 +13,8 @@ const sponsorImage = [
     name: "Twitch",
   },
   {
-    image: "/images/sponsor/roblox.png",
-    name: "Roblox",
+    image: "/images/sponsor/u2u.png",
+    name: "u2u",
   },
   {
     image: "/images/sponsor/gamesradar.png",
@@ -22,14 +23,18 @@ const sponsorImage = [
   {
     image: "/images/sponsor/chess.png",
     name: "Chess",
+  },
+  {
+    image: "/images/sponsor/roblox.png",
+    name: "Roblox",
   },
   {
     image: "/images/sponsor/twitch.png",
     name: "Twitch",
   },
   {
-    image: "/images/sponsor/roblox.png",
-    name: "Roblox",
+    image: "/images/sponsor/u2u.png",
+    name: "u2u",
   },
   {
     image: "/images/sponsor/gamesradar.png",
@@ -38,41 +43,40 @@ const sponsorImage = [
   {
     image: "/images/sponsor/chess.png",
     name: "Chess",
-  },
-  {
-    image: "/images/sponsor/gamesradar.png",
-    name: "Gamesradar",
-  },
-  {
-    image: "/images/sponsor/chess.png",
-    name: "Chess",
-  },
-
-  {
-    image: "/images/sponsor/twitch.png",
-    name: "Twitch",
   },
   {
     image: "/images/sponsor/roblox.png",
     name: "Roblox",
-  },
-  {
-    image: "/images/sponsor/gamesradar.png",
-    name: "Gamesradar",
-  },
-  {
-    image: "/images/sponsor/chess.png",
-    name: "Chess",
   },
   {
     image: "/images/sponsor/twitch.png",
     name: "Twitch",
   },
   {
+    image: "/images/sponsor/u2u.png",
+    name: "u2u",
+  },
+  {
+    image: "/images/sponsor/gamesradar.png",
+    name: "Gamesradar",
+  },
+  {
+    image: "/images/sponsor/chess.png",
+    name: "Chess",
+  },
+  {
     image: "/images/sponsor/roblox.png",
     name: "Roblox",
   },
   {
+    image: "/images/sponsor/twitch.png",
+    name: "Twitch",
+  },
+  {
+    image: "/images/sponsor/u2u.png",
+    name: "u2u",
+  },
+  {
     image: "/images/sponsor/gamesradar.png",
     name: "Gamesradar",
   },
@@ -81,12 +85,8 @@ const sponsorImage = [
     name: "Chess",
   },
   {
-    image: "/images/sponsor/gamesradar.png",
-    name: "Gamesradar",
-  },
-  {
-    image: "/images/sponsor/chess.png",
-    name: "Chess",
+    image: "/images/sponsor/roblox.png",
+    name: "Roblox",
   },
 ];
 
@@ -187,6 +187,15 @@ export const HomePage = () => {
           Play with your virtual cat to save a cat in a shelter
         </h1>
       </div>
+
+      <Link href="/select">
+        <button
+          className="[clip-path:polygon(0%_1%,100%_0%,90%_100%,10%_100%)] w-72 max-lg:w-40 max-sm:w-36 h-8 sm:h-9 lg:h-12 
+                    bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm font-primary max-sm:text-xs"
+        >
+          U2U Hackathon Demo
+        </button>
+      </Link>
       <div className="relative w-full flex items-center justify-center max-w-[100vw] overflow-hidden">
         <div className="absolute left-0 right-0 top-0 bottom-0 slider transform z-10 rotate-12">
           <div className="slide-track inverse">
@@ -249,13 +258,8 @@ export const HomePage = () => {
       <div className="slider relative">
         <div className="slide-track">
           {sponsorImage.map((sponsor, index) => (
-            <div key={index} className="slide">
-              <Image
-                src={sponsor.image}
-                alt={sponsor.name}
-                width={100}
-                height={100}
-              />
+            <div key={index} className="slide flex items-center">
+              <img className="h-8" src={sponsor.image} alt={sponsor.name} />
             </div>
           ))}
         </div>
