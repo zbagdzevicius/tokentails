@@ -1,4 +1,3 @@
-'use client'
 import { PurrquestGame } from "@/components/games/PurrquestGame";
 
 const Purrquest = () => {
