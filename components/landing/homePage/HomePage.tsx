@@ -190,10 +190,10 @@ export const HomePage = () => {
 
       <Link href="/select">
         <button
-          className="[clip-path:polygon(0%_1%,100%_0%,90%_100%,10%_100%)] w-72 max-lg:w-40 max-sm:w-36 h-8 sm:h-9 lg:h-12 
+          className="[clip-path:polygon(0%_1%,100%_0%,90%_100%,10%_100%)] w-72 h-8 sm:h-9 lg:h-12 
                     bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm font-primary max-sm:text-xs"
         >
-          U2U Hackathon Demo
+          Demo for U2U
         </button>
       </Link>
       <div className="relative w-full flex items-center justify-center max-w-[100vw] overflow-hidden">
