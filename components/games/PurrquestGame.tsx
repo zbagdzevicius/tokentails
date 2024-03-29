@@ -18,7 +18,6 @@ export const PurrquestGame = () => {
             // if you don't want kaboom to create a canvas and insert under document.body
             canvas: canvasRef.current || undefined,
         });
-
         // define some constants
         const JUMP_FORCE = 1320;
         // const JUMP_FORCE = 3000;

@@ -23,11 +23,11 @@ export const loadGameAssets = (k: any) => {
         },
     });
     k.loadSprite("background", "/images/home-page/bg-1.jpg");
-    k.loadSprite("ghosty", "purrquest/sprites/ghosty.png");
-    k.loadSprite("spike", "purrquest/sprites/spike.png");
+    // k.loadSprite("ghosty", "purrquest/sprites/ghosty.png");
+    // k.loadSprite("spike", "purrquest/sprites/spike.png");
     k.loadSprite("grass", "purrquest/sprites/grass.png");
-    k.loadSprite("prize", "purrquest/sprites/jumpy.png");
-    k.loadSprite("apple", "purrquest/sprites/apple.png");
+    // k.loadSprite("prize", "purrquest/sprites/jumpy.png");
+    // k.loadSprite("apple", "purrquest/sprites/apple.png");
     k.loadSprite("portal", "purrquest/sprites/portal.png");
     k.loadSprite("coin", "purrquest/sprites/coin.png");
     k.loadSprite("trampoline", "purrquest/sprites/trampoline.png");
@@ -36,7 +36,7 @@ export const loadGameAssets = (k: any) => {
     k.loadSound("coin", "purrquest/sounds/score.mp3");
     k.loadSound("powerup", "purrquest/sounds/powerup.mp3");
     k.loadSound("blip", "purrquest/sounds/blip.mp3");
-    k.loadSound("hit", "purrquest/sounds/hit.mp3");
+    // k.loadSound("hit", "purrquest/sounds/hit.mp3");
     k.loadSound("portal", "purrquest/sounds/portal.mp3");
 };
 
