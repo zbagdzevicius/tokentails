@@ -1,3 +1,4 @@
+'use client'
 import kaboom from "kaboom";
 import { useEffect, useRef } from "react";
 import { addControls, loadControls } from "./controls";
