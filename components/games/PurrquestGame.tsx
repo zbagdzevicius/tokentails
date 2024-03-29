@@ -96,7 +96,7 @@ export const PurrquestGame = () => {
             addBackground(k);
             loadGameAssets(k);
             // add level to scene
-            const level = k.addLevel(LEVELS[levelId ?? 0], levelConf);
+             k.addLevel(LEVELS[0], levelConf);
             addControls(k, {
                 jump: () => jump(),
                 left: () => left(),
@@ -151,16 +151,10 @@ export const PurrquestGame = () => {
                 if (!doorState.isOpen) {
                     checkDistanceBetweenDoors();
                 }
-                // center camera to player
                 k.camPos(player.pos);
-                // check fall death
-                // if (player.pos.y >= FALL_DEATH) {
-                //     k.go("lose");
-                // }
             });
 
             player.onPhysicsResolve(() => {
-                // Set the viewport center to player.pos
                 k.camPos(player.pos);
             });
 
@@ -272,7 +266,7 @@ export const PurrquestGame = () => {
                     NPC.enterState("idle");
                     NPC.play("idle");
                     player.play("idle");
-                    showDialogue("Stepkitten, help me! I am stuck!");
+                    showDialogue("Brother, help me! I am stuck!");
                 }
             }
 
@@ -281,12 +275,7 @@ export const PurrquestGame = () => {
                 player.play("idle");
                 NPC.enterState("idle");
                 NPC.play("idle");
-                showDialogue("Thank you for saving me, Stepkitten!");
-
-                // uncomment to end game and trigger winning scene
-                // k.wait(5, () => {
-                //     k.go("win");
-                // });
+                showDialogue("Thank you for saving me, Brother!");
             }
 
             function jump() {
@@ -329,16 +318,6 @@ export const PurrquestGame = () => {
             k.onKeyPress("f", () => {
                 k.setFullscreen(!k.isFullscreen());
             });
-        });
-
-        k.scene("lose", () => {
-            k.add([k.text("You Lose")]);
-            k.onKeyPress(() => k.go("game"));
-        });
-
-        k.scene("win", () => {
-            k.add([k.text("You Win")]);
-            k.onKeyPress(() => k.go("game"));
         });
 
         k.go("game");

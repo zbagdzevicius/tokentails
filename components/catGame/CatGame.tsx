@@ -28,7 +28,7 @@ export const CatGame: React.FC<CatGameProps> = ({ catConsts, onClickCallback }) 
         id: id,
         axisX: Math.random() * 2 - 1,
         axisY: Math.random() * 2 - 1,
-        speedX: Math.random() > -1 ? 0.001 : -0.001,
+        speedX: Math.random() > -1 ? 0.005 : -0.005,
         speedY: Math.random() > 0.3 ? 0.001 : -0.001,
         clicked: false,
         img,
