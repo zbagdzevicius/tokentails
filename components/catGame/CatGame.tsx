@@ -147,10 +147,10 @@ export const CatGame: React.FC<CatGameProps> = ({ catConsts, onClickCallback }) 
     return (
         <div className="relative w-screen h-screen overflow-hidden">
             <img className="absolute z-0 w-full h-full object-fit" src="/catgame/bg.jpg" />
-            {elements.map((element) => (
+            {elements.map((element, index) => (
                 <Image
                     src={element.img}
-                    key={element.id}
+                    key={index}
                     className="absolute left-0 top-0 w-44 h-44"
                     width={180}
                     height={180}

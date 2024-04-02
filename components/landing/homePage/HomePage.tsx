@@ -188,7 +188,7 @@ export const HomePage = () => {
         </h1>
       </div>
 
-      <a href="/select">
+      <a href="/adopt">
         <button
           className="[clip-path:polygon(0%_1%,100%_0%,90%_100%,10%_100%)] w-72 h-8 sm:h-9 lg:h-12 
                     bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm font-primary max-sm:text-xs"

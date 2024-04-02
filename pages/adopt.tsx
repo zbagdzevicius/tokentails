@@ -1,13 +1,12 @@
+"use client";
+
 import { CatGame } from "@/components/catGame/CatGame";
 import ModalCard from "@/components/modalCard/ModalCard";
-import { useMyCats } from "@/components/web3/minting/MyCats";
 import { CatConsts } from "@/models/cats";
 import { useState } from "react";
 
-export default function Select() {
+export default function Connect() {
   const [selectedCat, setSelectedCat] = useState<any>(null);
-
-  const { isConnected, balance, isBalanceLoading, isReady, cats } = useMyCats();
 
   const handleCatClick = (cat: {
     id: number;
@@ -25,25 +24,21 @@ export default function Select() {
     <div className="max-h-screen max-w-screen overflow-hidden relative">
       <div className="flex items-center justify-around fixed top-0 left-0 right-0 z-10 bg-green-700">
         <div className="flex items-center gap-4">
-          <a href="/adopt">
+          <div className="font-primary">ADOPT A CAT</div>
+          <a href="select">
             <button
               className="[clip-path:polygon(0%_0%,100%_0%,92%_100%,0%_100%)]
                     bg-gradient-to-r from-main-ember to-main-rusty rounded w-36 h-8 max-lg:w-24"
             >
               <span className="text-center text-lg max-lg:text-xs leading-4 font-primary">
-                ADOPT A CAT
+                My Cats
               </span>
             </button>
           </a>
-          <div className="font-primary">MY CATS</div>
         </div>
         <w3m-button />
       </div>
-      {isReady ? (
-        <CatGame catConsts={cats} onClickCallback={handleCatClick} />
-      ) : (
-        <div className="pt-40 fixed inset-0 text-center">"Loading..."</div>
-      )}
+      <CatGame catConsts={CatConsts} onClickCallback={handleCatClick} />
       {selectedCat && (
         <ModalCard
           onClose={handleCloseModal}
@@ -52,6 +47,7 @@ export default function Select() {
           ability={selectedCat.ability}
           resqueStory={selectedCat.story}
           isPlayable={selectedCat.isPlayable}
+          isMintable={true}
           catHp={100}
         />
       )}

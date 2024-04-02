@@ -22,17 +22,28 @@ export interface CatAbility {
   description: string;
 }
 
-export const resqueStory = (name: string) => {
-  const stories = [
-    `Found wandering near an ancient temple, ${name} now uses its mystical powers to help lost and scared kittens find their way.`,
-    `Once caught in a fierce storm, ${name} now harnesses the power of thunder to protect its companions from danger.`,
-    `Found in a cold, abandoned building, ${name}'s fiery spirit helped her survive and now inspires resilience in others.`,
-    `Once a shy, elusive shadow, ${name} now uses its speed to deliver messages and help between shelters.`,
-    `Emerging from the shadows of the streets, ${name} now uses its stealth to protect the shelter from threats unseen.`,
-    `Once adrift and alone, ${name} now soothes troubled spirits with its serene presence.`,
-  ];
+export const names = [
+  "Peanut",
+  "Snowball",
+  "Pinkie",
+  "Cookie",
+  "Pickle",
+  "Rainbow",
+  "Bagel",
+];
 
-  return stories[Math.floor(Math.random() * stories.length)];
+export const resqueStory = (name: string) => {
+  const stories = {
+    [names[0]]: `Found wandering near an ancient temple, ${name} now uses its mystical powers to help lost and scared kittens find their way.`,
+    [names[1]]: `Once caught in a fierce storm, ${name} now harnesses the power of thunder to protect its companions from danger.`,
+    [names[2]]: `Found in a cold, abandoned building, ${name}'s fiery spirit helped her survive and now inspires resilience in others.`,
+    [names[3]]: `Once a shy, elusive shadow, ${name} now uses its speed to deliver messages and help between shelters.`,
+    [names[4]]: `Emerging from the shadows of the streets, ${name} now uses its stealth to protect the shelter from threats unseen.`,
+    [names[5]]: `Once adrift and alone, ${name} now soothes troubled spirits with its serene presence.`,
+    [names[6]]: `Once left, ${name} now dreams to find a loving owner.`,
+  };
+
+  return stories[name];
 };
 
 export const catAbilitiesSkills = [
@@ -85,4 +96,71 @@ export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {
     description:
       "A gentle but powerful stream of water that can push opponents away",
   },
+};
+
+export const assignAbilitiesToCats = () => {
+  return [
+    {
+      id: 1,
+      img: "/catgame/cat.gif",
+      name: names[0],
+      ability: CatAbilitySkill.WHISKERFLAME,
+      story: resqueStory(names[0]),
+      isPlayable: true,
+    },
+    {
+      id: 2,
+      img: "/cats/grey/Running-Clothed-Grey.gif",
+      name: names[1],
+      ability: CatAbilitySkill.PURRSTORM,
+      story: resqueStory(names[1]),
+    },
+    {
+      id: 3,
+      img: "/cats/pinkie/pink-corriendo-ropa.gif",
+      name: names[2],
+      ability: CatAbilitySkill.FURSHADOW,
+      story: resqueStory(names[2]),
+    },
+    {
+      id: 4,
+      img: "/cats/siamese/siames saltando .gif",
+      name: names[3],
+      ability: CatAbilitySkill.SHADOWPOUNCE,
+      story: resqueStory(names[3]),
+    },
+    {
+      id: 5,
+      img: "/cats/yellow/Jump-Hat-Yellow.gif",
+      name: names[4],
+      ability: CatAbilitySkill.AQUAWHISKER,
+      story: resqueStory(names[4]),
+    },
+    {
+      id: 6,
+      img: "/cats/grey/digging.gif",
+      name: names[5],
+      ability: CatAbilitySkill.TAILWIND,
+      story: resqueStory(names[5]),
+    },
+    {
+      id: 7,
+      img: "/cats/black/dig.gif",
+      name: names[6],
+      ability: CatAbilitySkill.TAILWIND,
+      story: resqueStory(names[6]),
+    },
+  ];
+};
+
+export const CatConsts = assignAbilitiesToCats();
+
+export const CatsMap = {
+  [names[0]?.toLowerCase()]: CatConsts[0],
+  [names[1]?.toLowerCase()]: CatConsts[1],
+  [names[2]?.toLowerCase()]: CatConsts[2],
+  [names[3]?.toLowerCase()]: CatConsts[3],
+  [names[4]?.toLowerCase()]: CatConsts[4],
+  [names[5]?.toLowerCase()]: CatConsts[5],
+  [names[6]?.toLowerCase()]: CatConsts[6],
 };
