@@ -126,7 +126,7 @@ const ModalCard: React.FC<ModalProps> = ({
                       <div className="flex justify-between items-center m-1">
                         <div className="flex flex-row space-x-4 items-center">
                           <div className="relative flex justify-center items-center">
-                            <Image
+                            <img
                               src="/card/base.png"
                               alt="base"
                               width={60}
@@ -142,7 +142,7 @@ const ModalCard: React.FC<ModalProps> = ({
                           </h3>
                         </div>
                         <div className="relative">
-                          <Image
+                          <img
                             className="w-24 max-lg:w-16 h-10 max-lg:h-7"
                             src="/card/base.png"
                             alt="base"
@@ -159,14 +159,14 @@ const ModalCard: React.FC<ModalProps> = ({
                       </div>
                     </div>
                     <div className="relative mx-4 h-full">
-                      <Image
+                      <img
                         className="w-full h-full rounded-xl"
                         src="/images/home-page/bg-1.jpg"
                         alt="base"
                         width={400}
                         height={400}
                       />
-                      <Image
+                      <img
                         src={img}
                         alt="Hero cat"
                         width={250}
@@ -189,7 +189,7 @@ const ModalCard: React.FC<ModalProps> = ({
                       </div>
                       <div className="my-3 text-outline">
                         <div className="flex flex-row items-center">
-                          <Image
+                          <img
                             className="w-10 h-10 max-lg:w-8 max-lg:h-8 max-sm:h-6 max-sm:w-6 "
                             src={`/ability/${abilityDetails.type}.png`}
                             alt={abilityDetails.type}

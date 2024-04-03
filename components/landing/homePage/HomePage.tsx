@@ -176,7 +176,7 @@ export const HomePage = () => {
   return (
     <div className=" my-4 flex justify-center items-center flex-col">
       <div className="relative w-full lg:w-2/3 xl:w-1/2 pt-16 px-10 max-lg:text-balance">
-        <Image
+        <img
           className="absolute top-0 left-0 "
           src="/images/home-page/firework.png"
           alt="fireworks"
@@ -220,14 +220,14 @@ export const HomePage = () => {
                 alt="Cats Background"
                 className="w-full h-full"
               />
-              <Image
+              <img
                 src="/images/home-page/bg-1.jpg"
                 alt="cats"
                 className="absolute inset-0 w-full h-full object-cover z-3 md:p-2.5 p-1.5"
                 width={500}
                 height={500}
               />
-              <Image
+              <img
                 src="/images/home-page/cats-top.png"
                 alt="Cat Hero"
                 className="absolute -top-16 lg:-top-36 right-0 w-1/2 object-cover overflow-hidden"
@@ -235,7 +235,7 @@ export const HomePage = () => {
                 height={500}
               />
             </div>
-            <Image
+            <img
               src="/images/home-page/crown.png"
               alt="crown"
               className="w-16 max-lg:w-10 h-16 max-lg:h-10 absolute top-0 right-0"

@@ -49,7 +49,7 @@ const CatsSection = ({ title, description, isActive, onSet }: IProps) => {
                             : ""
                         }`}
                 >
-                    <Image
+                    <img
                         className={`h-8 max-lg:h-4 max-lg:w-4 w-8 shrink-0 fill-accent-100 transition ase-in-out duration-700 ${isActive ? "rotate-[-180deg]" : ""
                             }`}
                         src="/cursor/cursor.png"
@@ -74,7 +74,7 @@ export const CatsHub = () => {
     const [active, setActive] = useState(CatsHubProps[0]);
     return (
         <div className="my-20 flex items-center justify-center flex-col container">
-            <Image src='/images/cats-hub/crown.png' width={100} height={100} alt="crown" />
+            <img src='/images/cats-hub/crown.png' width={100} height={100} alt="crown" />
             <div className="w-9/12 max-lg:w-full ">
                 <h1 className="text-center font-secondary uppercase tracking-tighter text-8xl max-lg:text-5xl  max-lg:text-balance ">
                     YOUR VIRTUAL COMPANION
@@ -82,14 +82,14 @@ export const CatsHub = () => {
 
                 <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1 max-lg:mx-5 my-10">
                     <div className="relative w-full h-fit">
-                        <Image
+                        <img
                             src='/images/cats-hub/cat-background.png'
                             alt="Cats Background"
                             className="w-full h-full"
                             width={500}
                             height={200}
                         />
-                        <Image
+                        <img
                             src='/images/cats-hub/cats-customize-2.jpg'
                             alt="cats"
                             className="absolute inset-0 w-full h-full object-cover z-3 md:p-2.5 p-1.5"

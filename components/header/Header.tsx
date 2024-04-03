@@ -64,14 +64,14 @@ export const Header = () => {
         <div className="flex items-center space-x-2">
           <div onClick={() => setIsNavOpen(!isNavOpen)} className="lg:hidden">
             {isNavOpen ? (
-              <Image
+              <img
                 src="/icons/close.svg"
                 alt="close"
                 width={16}
                 height={16}
               />
             ) : (
-              <Image
+              <img
                 src="/icons/burger.svg"
                 alt="burger"
                 width={16}

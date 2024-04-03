@@ -18,16 +18,16 @@ export const CatsWinners = () => {
                         </div>
                     </div>
                     <div className="p-1 max-lg:p-0.5 row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl">
-                        <Image className="w-full h-full object-cover rounded-2xl" src="/images/cats-winners/cat-tamogotchi.jpg" width={200} height={200} alt="cats" />
+                        <img className="w-full h-full object-cover rounded-2xl" src="/images/cats-winners/cat-tamogotchi.jpg" width={200} height={200} alt="cats" />
                     </div>
                     <div className="p-1 max-lg:p-0.5  row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl">
-                        <Image className="w-full h-full object-cover rounded-2xl" src="/images/cats-winners/cats-customize-1.jpg" width={200} height={200} alt="cats" />
+                        <img className="w-full h-full object-cover rounded-2xl" src="/images/cats-winners/cats-customize-1.jpg" width={200} height={200} alt="cats" />
                     </div>
                     <div className="p-1 max-lg:p-0.5  row-span-9 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl">
-                        <Image className="w-full h-full object-cover rounded-2xl" src="/images/cats-winners/cats-group-2.jpg" width={200} height={200} alt="cats" />
+                        <img className="w-full h-full object-cover rounded-2xl" src="/images/cats-winners/cats-group-2.jpg" width={200} height={200} alt="cats" />
                     </div>
                     <div className="p-1 max-lg:p-0.5  row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl">
-                        <Image className="w-full h-full object-cover rounded-2xl" src="/images/cats-winners/cats-group-1.jpg" width={200} height={200} alt="cats" />
+                        <img className="w-full h-full object-cover rounded-2xl" src="/images/cats-winners/cats-group-1.jpg" width={200} height={200} alt="cats" />
                     </div>
                     <div className="rows-span-2">
                         <div className="flex flex-col md:flex-row justify-between gap-4 md:items-center">
