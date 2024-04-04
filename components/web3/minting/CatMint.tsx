@@ -1,9 +1,9 @@
 "use client";
 
-import { config, nftContractAddress } from "@/config";
+import { config, nftContractAddress } from "@/config/web3";
 import { getRandomInt } from "@/constants/utils";
 import { nftContractAbi } from "@/contracts/ERC721Basic";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   useAccount,
   useReadContract,
@@ -16,11 +16,6 @@ interface IProps {
 }
 
 export const useCatMint = ({ name }: IProps) => {
-  const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
   const { isConnected, address } = useAccount();
   const [tokenId, setTokenId] = useState(getRandomInt(9999999)); // Example token ID, could be dynamically set
   const [tokenURI, setTokenURI] = useState(
@@ -57,6 +52,7 @@ export const useCatMint = ({ name }: IProps) => {
 
   return {
     mint,
+    isConnected,
     isPending,
     isConfirming,
     isConfirmed,

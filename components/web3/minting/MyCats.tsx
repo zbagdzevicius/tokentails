@@ -1,22 +1,30 @@
 "use client";
 
-import { config, nftContractAddress } from "@/config";
+import { config, nftContractAddress } from "@/config/web3";
 import { nftContractAbi } from "@/contracts/ERC721Basic";
 import { CatsMap } from "@/models/cats";
 import { useEffect, useState } from "react";
 import { useAccount, useReadContract } from "wagmi";
 
+const getUrisCatNames = (uris: string[]) => {
+  return uris.map((uri: any) => {
+    const name = uri
+      .split("/")
+      ?.reverse()?.[0]
+      ?.toLowerCase()
+      ?.replace(".json", "");
+
+    return CatsMap[name];
+  });
+};
+
 export const useMyCats = () => {
-  const [isMounted, setIsMounted] = useState(false);
   const [cats, setCats] = useState<any[]>([]);
   const [isReady, setIsReady] = useState(false);
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const { isConnected, address } = useAccount();
   const {
-    data: balance,
+    data: ownedUris,
     error: balanceError,
     isPending: isBalanceLoading,
   } = useReadContract({
@@ -28,23 +36,14 @@ export const useMyCats = () => {
   });
 
   useEffect(() => {
-    const catsMetadata = balance as any[];
-
-    if (catsMetadata?.length) {
-      setCats(
-        catsMetadata.map((meta: any) => {
-          const name = meta.split("/")?.reverse()?.[0]?.toLowerCase()?.replace('.json', '');
-
-          return CatsMap[name];
-        })
-      );
+    if ((ownedUris as string[])?.length) {
+      setCats(getUrisCatNames(ownedUris as string[]));
       setIsReady(true);
     }
-  }, [balance]);
+  }, [ownedUris]);
 
   return {
     isConnected,
-    balance,
     isBalanceLoading,
     isReady,
     cats,

@@ -50,7 +50,7 @@ const Preregistration = () => {
       {!isSubmitted && (
         <form
           id="preregistration"
-          className="container font-primary flex justify-center pt-8"
+          className="container flex justify-center pt-8"
           onSubmit={methods.handleSubmit(onSubmit)}
         >
           <ShortAnswerInput id="1130409291" />
@@ -59,7 +59,7 @@ const Preregistration = () => {
               type="submit"
               className="relative [clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] bg-[#02020a] rounded w-[125px] h-[38px] max-lg:w-[94px]"
             >
-              <span className="text-center text-base font-primary max-lg:text-xs">
+              <span className="text-center text-base max-lg:text-xs">
                 SUBMIT
               </span>
               <img
@@ -71,7 +71,7 @@ const Preregistration = () => {
         </form>
       )}
       {isSubmitted && (
-        <div className="pt-8 justify-center flex items-center container max-w-xl font-primary uppercase">
+        <div className="pt-8 justify-center flex items-center container max-w-xl uppercase">
           <div>
             Your email has been registered, soon we are going to reach you out !
           </div>

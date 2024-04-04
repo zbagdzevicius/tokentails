@@ -1,8 +1,6 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap");
@@ -38,7 +36,7 @@ html {
   height: 100%;
   color: white;
   background: #02020a;
-  font-family: "Space Mono", monospace;
+  font-family: "Nunito", sans-serif;
 }
 
 * {
@@ -46,10 +44,6 @@ html {
 }
 html {
   scroll-behavior: smooth;
-}
-
-.title {
-  font-family: "Orbitron", sans-serif;
 }
 
 .container {
@@ -656,7 +650,7 @@ button.card__rotator {
     var(--background-x) var(--background-y),
     var(--background-x) var(--background-y);
 
-  filter: brightness(0.8) contrast(2.95) saturate(0.65);
+  filter: brightness(0.7) contrast(2.95) saturate(0.65);
 }
 .card__glare {
   background-image: radial-gradient(

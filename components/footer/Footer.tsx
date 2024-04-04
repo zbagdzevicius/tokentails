@@ -51,7 +51,7 @@ export const Footer: React.FC = () => {
             <li key={index} className="max-lg:py-6 px-3 max-lg:rounded">
               <a
                 href={footerItem.link}
-                className={`text-p5 max-lg:text-p6 cursor-pointer font-primary hover:custom-gradient-text ${
+                className={`text-p5 max-lg:text-p6 cursor-pointer hover:custom-gradient-text ${
                   activeTitle === footerItem.title
                     ? "custom-gradient-text font-bold"
                     : ""

@@ -1,4 +1,4 @@
-import Web3ModalProvider from "@/context";
+import Web3ModalProvider from "@/context/web3";
 import { PropsWithChildren } from "react";
 
 export const MainLayout = ({ children }: PropsWithChildren<any>) => {

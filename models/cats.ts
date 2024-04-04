@@ -59,9 +59,13 @@ export const getCatAbility = () =>
   catAbilitiesSkills[Math.floor(Math.random() * catAbilitiesSkills.length)];
 
 export interface ICat {
+  _id: string | number;
+  name: string;
   img: string;
-  ability: CatAbility;
-  rescueStory: string;
+  ability: CatAbilitySkill;
+  isPlayable?: boolean;
+  resqueStory: string;
+  hp: number;
 }
 
 export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {
@@ -98,57 +102,64 @@ export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {
   },
 };
 
-export const assignAbilitiesToCats = () => {
+export const assignAbilitiesToCats = (): ICat[] => {
   return [
     {
-      id: 1,
+      _id: 1,
       img: "/catgame/cat.gif",
       name: names[0],
       ability: CatAbilitySkill.WHISKERFLAME,
-      story: resqueStory(names[0]),
+      resqueStory: resqueStory(names[0]),
       isPlayable: true,
+      hp: 100,
     },
     {
-      id: 2,
+      _id: 2,
       img: "/cats/grey/Running-Clothed-Grey.gif",
       name: names[1],
       ability: CatAbilitySkill.PURRSTORM,
-      story: resqueStory(names[1]),
+      resqueStory: resqueStory(names[1]),
+      hp: 100,
     },
     {
-      id: 3,
+      _id: 3,
       img: "/cats/pinkie/pink-corriendo-ropa.gif",
       name: names[2],
       ability: CatAbilitySkill.FURSHADOW,
-      story: resqueStory(names[2]),
+      resqueStory: resqueStory(names[2]),
+      hp: 100,
     },
     {
-      id: 4,
+      _id: 4,
       img: "/cats/siamese/siames saltando .gif",
       name: names[3],
       ability: CatAbilitySkill.SHADOWPOUNCE,
-      story: resqueStory(names[3]),
+      resqueStory: resqueStory(names[3]),
+      hp: 100,
     },
     {
-      id: 5,
+      _id: 5,
       img: "/cats/yellow/Jump-Hat-Yellow.gif",
       name: names[4],
       ability: CatAbilitySkill.AQUAWHISKER,
-      story: resqueStory(names[4]),
+      resqueStory: resqueStory(names[4]),
+      hp: 100,
     },
     {
-      id: 6,
+      _id: 6,
       img: "/cats/grey/digging.gif",
       name: names[5],
       ability: CatAbilitySkill.TAILWIND,
-      story: resqueStory(names[5]),
+      resqueStory: resqueStory(names[5]),
+      hp: 100,
     },
     {
-      id: 7,
+      _id: 7,
       img: "/cats/black/dig.gif",
       name: names[6],
       ability: CatAbilitySkill.TAILWIND,
-      story: resqueStory(names[6]),
+      resqueStory: resqueStory(names[6]),
+      hp: 100,
     },
   ];
 };

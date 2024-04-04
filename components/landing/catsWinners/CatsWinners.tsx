@@ -9,7 +9,7 @@ export const CatsWinners = () => {
                 </h1>
                 <div className="grid grid-cols-2 grid-rows-7 gap-6 max-lg:gap-2">
                     <div>
-                        <div className="flex flex-row items-center flex-wrap space-x-3 text-p5 max-lg:text-sm font-primary">
+                        <div className="flex flex-row items-center flex-wrap space-x-3 text-p5 max-lg:text-sm">
                             <p className="text-main-rustyOrange">Adventure</p>
                             <p className="active:text-main-rustyOrange">RPG</p>
                             <p>Social</p>
@@ -39,7 +39,7 @@ export const CatsWinners = () => {
                             <a href="#preregistration">
                                 <button className="[clip-path:polygon(0%_0%,100%_0%,92%_100%,0%_100%)]
                     bg-gradient-to-r from-main-ember to-main-rusty rounded w-32 h-10 max-lg:w-24">
-                                    <span className="text-center text-lg font-primary max-lg:text-xs leading-4">
+                                    <span className="text-center text-lg max-lg:text-xs leading-4">
                                         Pre-register
                                     </span>
                                 </button>

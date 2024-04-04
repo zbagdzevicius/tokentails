@@ -12,7 +12,7 @@ export const Tokenomics = () => {
         <div className="flex-1 min-w-0 flex justify-end items-center">
           <img width={256} src="/logo/tokenomics.png" />
         </div>
-        <div className="flex-1 min-w-0 flex justify-center flex-col gap-6 font-primary">
+        <div className="flex-1 min-w-0 flex justify-center flex-col gap-6">
           <div>
             <span className="font-bold">TOTAL SUPPLY</span> - 1B $TTAILS
           </div>

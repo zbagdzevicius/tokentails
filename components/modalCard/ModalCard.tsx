@@ -1,51 +1,64 @@
-import React, { useState, useEffect, useRef } from "react";
-import { CatAbilitySkill, CatAbilities, CatAbility } from "@/models/cats";
-import Image from "next/image";
-import { useRouter } from "next/router";
 import { useCatMint } from "@/components/web3/minting/CatMint";
+import { CatAbilities, CatAbility, ICat } from "@/models/cats";
+import { useRouter } from "next/router";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 type CardStyles = {
   [key: string]: string | number;
 };
-interface ModalProps {
-  img: string;
-  name: string;
-  ability: CatAbilitySkill;
-  resqueStory: string;
-  catHp: number;
+interface IProps extends ICat {
+  hp: number;
   isMintable?: boolean;
-  isPlayable?: boolean;
   onClose: () => void;
 }
 
-const ModalCard: React.FC<ModalProps> = ({
+const initialCardStyle = {
+  "--pointer-x": "50%",
+  "--pointer-y": "50%",
+  "--card-opacity": 0,
+  "--rotate-x": "0deg",
+  "--rotate-y": "0deg",
+  "--card-scale": 1,
+  "--translate-x": "0px",
+  "--translate-y": "0px",
+  "--background-y": "44%",
+  "--background-x": "34%",
+};
+
+const ModalCard: React.FC<IProps> = ({
   onClose,
   img,
   name,
   ability,
   resqueStory,
-  catHp,
-  isMintable,
   isPlayable,
+  hp,
+  isMintable,
 }) => {
   const router = useRouter();
   const abilityDetails: CatAbility | undefined = CatAbilities[ability];
   const cardRef = useRef<HTMLDivElement>(null);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isMouseWithinCard, setIsMouseWithinCard] = useState(false);
-  const { mint, isPending, isConfirming, isConfirmed } = useCatMint({ name });
-  const [cardStyles, setCardStyles] = useState<CardStyles>({
-    "--pointer-x": "50%",
-    "--pointer-y": "50%",
-    "--card-opacity": 0,
-    "--rotate-x": "0deg",
-    "--rotate-y": "0deg",
-    "--card-scale": 1,
-    "--translate-x": "0px",
-    "--translate-y": "0px",
-    "--background-y": "44%",
-    "--background-x": "34%",
-  });
+  const { mint, isPending, isConfirming, isConfirmed, isConnected } =
+    useCatMint({ name });
+  const [cardStyles, setCardStyles] = useState<CardStyles>(initialCardStyle);
+
+  const ctaButtonText = useMemo(() => {
+    if (isMintable) {
+      if (isConfirming || isPending) {
+        return "Adopting...";
+      }
+
+      if (isConfirmed) {
+        return "Adopted";
+      }
+      if (!isConfirmed) {
+        return "Adopt";
+      }
+    } else if (isPlayable) {
+      return "Play";
+    }
+  }, [isMintable, isConfirmed, isPlayable]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -55,7 +68,6 @@ const ModalCard: React.FC<ModalProps> = ({
         const x = ((clientX - rect.left) / rect.width) * 100;
         const y = ((clientY - rect.top) / rect.height) * 100;
 
-        setMousePosition({ x, y });
         setIsMouseWithinCard(
           clientX >= rect.left - 100 &&
             clientX <= rect.right + 100 &&
@@ -76,6 +88,8 @@ const ModalCard: React.FC<ModalProps> = ({
             "--background-y": `${(y - 6) * 0.1}%`,
             "--background-x": `${(x - 3) * 0.1}%`,
           }));
+        } else {
+          setCardStyles(initialCardStyle);
         }
       }
     };
@@ -153,7 +167,7 @@ const ModalCard: React.FC<ModalProps> = ({
                             <span className="text-xs max-lg:text-p7 mx-1 max-lg:mx-px">
                               HP
                             </span>
-                            {catHp}
+                            {hp}
                           </h3>
                         </div>
                       </div>
@@ -208,22 +222,16 @@ const ModalCard: React.FC<ModalProps> = ({
                         <button
                           disabled={isPending || isConfirming}
                           className="[clip-path:polygon(0%_1%,100%_0%,92%_100%,0%_100%)] w-64 max-lg:w-32 max-sm:w-28 h-12 max-lg:h-8 
-                    bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm font-primary max-sm:text-xs z-10"
+                    bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm max-sm:text-xs z-10"
                           onClick={handleClick}
                         >
-                          {isMintable
-                            ? isConfirmed
-                              ? "Minted"
-                              : "Mint"
-                            : isPlayable
-                            ? "Play"
-                            : "Nonplayable"}
+                          {ctaButtonText}
                         </button>
 
                         <button
                           disabled={isPending || isConfirming}
                           className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] w-64 max-lg:w-32 max-sm:w-28 h-12 max-lg:h-8 
-                    bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm font-primary max-sm:text-xs z-10"
+                    bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm max-sm:text-xs z-10"
                           onClick={onClose}
                         >
                           Close

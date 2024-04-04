@@ -1,19 +1,15 @@
 import { CatGame } from "@/components/catGame/CatGame";
 import ModalCard from "@/components/modalCard/ModalCard";
 import { useMyCats } from "@/components/web3/minting/MyCats";
-import { CatConsts } from "@/models/cats";
+import { ICat } from "@/models/cats";
 import { useState } from "react";
 
 export default function Select() {
   const [selectedCat, setSelectedCat] = useState<any>(null);
 
-  const { isConnected, balance, isBalanceLoading, isReady, cats } = useMyCats();
+  const { isConnected, isReady, cats } = useMyCats();
 
-  const handleCatClick = (cat: {
-    id: number;
-    img: string;
-    ability: string;
-  }) => {
+  const handleCatClick = (cat: Partial<ICat>) => {
     setSelectedCat(cat);
   };
 
@@ -23,7 +19,7 @@ export default function Select() {
 
   return (
     <div className="max-h-screen max-w-screen overflow-hidden relative">
-      <div className="flex items-center justify-around fixed top-0 left-0 right-0 z-10 bg-green-700">
+      <div className="flex items-center justify-around fixed top-0 left-0 right-0 z-10 bg-green-700 h-12">
         <div className="flex items-center gap-4">
           <a href="/adopt">
             <button
@@ -39,22 +35,14 @@ export default function Select() {
         </div>
         <w3m-button />
       </div>
-      {isReady ? (
-        <CatGame catConsts={cats} onClickCallback={handleCatClick} />
+      {isReady && isConnected ? (
+        <CatGame cats={cats} onClickCallback={handleCatClick} />
       ) : (
-        <div className="pt-40 fixed inset-0 text-center">"Loading..."</div>
+        <div className="pt-40 font-bold fixed inset-0 text-center">
+          Cats are loading...
+        </div>
       )}
-      {selectedCat && (
-        <ModalCard
-          onClose={handleCloseModal}
-          img={selectedCat.img}
-          name={selectedCat.name}
-          ability={selectedCat.ability}
-          resqueStory={selectedCat.story}
-          isPlayable={selectedCat.isPlayable}
-          catHp={100}
-        />
-      )}
+      {selectedCat && <ModalCard onClose={handleCloseModal} {...selectedCat} />}
     </div>
   );
 }

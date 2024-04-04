@@ -49,7 +49,7 @@ export const Header = () => {
             >
               <a
                 href={navItem.link}
-                className={`text-p5 max-lg:text-p6 font-primary hover:custom-gradient-text ${
+                className={`text-p5 max-lg:text-p6 hover:custom-gradient-text ${
                   activeTitle === navItem.title
                     ? "custom-gradient-text font-bold"
                     : ""
@@ -84,7 +84,7 @@ export const Header = () => {
               className="[clip-path:polygon(0%_0%,100%_0%,92%_100%,0%_100%)]
                     bg-gradient-to-r from-main-ember to-main-rusty rounded w-36 h-10 max-lg:w-24 max-lg:h-8"
             >
-              <span className="text-center text-lg max-lg:text-xs leading-4 font-primary">
+              <span className="text-center text-lg max-lg:text-xs leading-4">
                 Pre-Register
               </span>
             </button>
@@ -98,7 +98,7 @@ export const Header = () => {
               <li key={index} className="py-2 px-3">
                 <a
                   href={navItem.link}
-                  className={`text-p5 font-primary hover:custom-gradient-text${
+                  className={`text-p5 hover:custom-gradient-text${
                     activeTitle === navItem.title
                       ? "custom-gradient-text font-bold"
                       : ""

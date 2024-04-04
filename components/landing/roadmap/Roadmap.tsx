@@ -19,7 +19,7 @@ const Roadmap = () => {
             />
           </div>
           <h2 className="font-secondary text-h3">2024 Q2</h2>
-          <div className="font-primary flex flex-col">
+          <div className="flex flex-col">
             <span>MVP release</span>
             <span>NFTs release</span>
             <span>Token creation</span>
@@ -35,7 +35,7 @@ const Roadmap = () => {
             />
           </div>
           <h2 className="font-secondary text-h3">2024 Q3</h2>
-          <div className="font-primary flex flex-col">
+          <div className="flex flex-col">
             <span>Social network</span>
             <span>Affiliate system</span>
             <span>Shelters Collabs</span>
@@ -51,7 +51,7 @@ const Roadmap = () => {
             />
           </div>
           <h2 className="font-secondary text-h3">2024 Q4</h2>
-          <div className="font-primary flex flex-col">
+          <div className="flex flex-col">
             <span>NFT marketplace</span>
             <span>NFTs royalties system</span>
             <span>Wallets integrations</span>
@@ -65,7 +65,7 @@ const Roadmap = () => {
             />
           </div>
           <h2 className="font-secondary text-h3">2025 Q1</h2>
-          <div className="font-primary flex flex-col">
+          <div className="flex flex-col">
             <span>Worldwide scaling</span>
             <span>Cross-chain NFTs</span>
             <span>Blockchains partnerships</span>

@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import { ICat } from "@/models/cats";
+import { useEffect, useState } from "react";
 
 interface Element {
   id: number;
@@ -12,23 +13,18 @@ interface Element {
   img: string;
 }
 
-interface CatConst {
-  img: string;
-  id: number;
-  ability: string;
+interface IProps {
+  cats: ICat[];
+  onClickCallback: (cat: ICat) => void;
 }
 
-interface CatGameProps {
-  catConsts: CatConst[];
-  onClickCallback: (cat: CatConst) => void;
+function hexStringToNumber(str: string | number) {
+  return parseInt(str?.toString(), 16);
 }
 
-export const CatGame: React.FC<CatGameProps> = ({
-  catConsts,
-  onClickCallback,
-}) => {
-  const generateRandomPosition = (img: string, id: number): Element => ({
-    id: id,
+export const CatGame = ({ cats, onClickCallback }: IProps) => {
+  const generateRandomPosition = (img: string, id: number | string): Element => ({
+    id: hexStringToNumber(id),
     axisX: Math.random() * 2 - 1,
     axisY: Math.random() * 2 - 1,
     speedX: Math.random() > -1 ? 0.005 : -0.005,
@@ -38,7 +34,7 @@ export const CatGame: React.FC<CatGameProps> = ({
   });
 
   const [elements, setElements] = useState<Element[]>(() =>
-    catConsts.map(({ img, id }) => generateRandomPosition(img, id))
+    cats.map(({ img, _id }, index) => generateRandomPosition(img, _id))
   );
 
   const handleCatClick = (catId: number) => {
@@ -48,7 +44,7 @@ export const CatGame: React.FC<CatGameProps> = ({
           return element;
         }
         if (element.clicked) {
-          const clickedCat = catConsts.find((cat) => cat.id === catId);
+          const clickedCat = cats.find((cat) => cat._id === catId);
 
           if (clickedCat) {
             onClickCallback(clickedCat);
