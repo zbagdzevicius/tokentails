@@ -32,11 +32,11 @@ export const Slider = ({ items, customClass }: IProps) => {
           spaceBetween: 10,
         },
         768: {
-          slidesPerView: 2,
+          slidesPerView: 3,
           spaceBetween: 15,
         },
         1024: {
-          slidesPerView: 3,
+          slidesPerView: 5,
           spaceBetween: 20,
         },
       }}
