@@ -2,9 +2,9 @@ export const CatsWinners = () => {
   return (
     <div className="flex items-center justify-center container no-p-mobile">
       <div className="w-8/12 max-lg:w-full max-lg:m-2">
-        <h1 className="text-left font-secondary uppercase tracking-tighter text-h2 text-balance max-lg:text-h6 my-3">
+        <h2 className="text-left font-secondary uppercase tracking-tighter text-h2 text-balance max-lg:text-h6 my-3">
           we’re the first play to save game in the world
-        </h1>
+        </h2>
         <div className="grid grid-cols-2 grid-rows-7 gap-6 max-lg:gap-2">
           <div>
             <div className="flex flex-row items-center flex-wrap space-x-3 text-p5 max-lg:text-sm">
@@ -57,7 +57,7 @@ export const CatsWinners = () => {
                 <p className="text-p4 max-lg:text-p5 font-tertiary">
                   We’ve have many more than
                 </p>
-                <h1 className="text-h2 max-lg:text-h3 font-secondary">1000+</h1>
+                <div className="text-h2 max-lg:text-h3 font-secondary">1000+</div>
                 <p className="text-p4 max-lg:text-p5  font-tertiary">
                   Virtual{" "}
                   <span className="custom-gradient-text font-bold">Cats</span>

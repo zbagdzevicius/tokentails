@@ -3,9 +3,9 @@ export const Tokenomics = () => {
     <div className="container pb-8">
       <div className="flex justify-center items-center gap-4 md:pb-16">
         <img src="/logo/coin.png" className="w-14" />
-        <h1 className="text-center font-secondary uppercase tracking-tighter text-h3 md:text-8xl">
+        <h2 className="text-center font-secondary uppercase tracking-tighter text-h3 md:text-8xl">
           TOKENOMICS
-        </h1>
+        </h2>
         <img src="/logo/coin.png" className="w-14" />
       </div>
       <div className="flex flex-col md:flex-row items-center gap-8 md:gap-24">

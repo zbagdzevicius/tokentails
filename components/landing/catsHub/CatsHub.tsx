@@ -87,9 +87,9 @@ export const CatsHub = () => {
         alt="crown"
       />
       <div className="w-9/12 max-lg:w-full ">
-        <h1 className="text-center font-secondary uppercase tracking-tighter text-8xl max-lg:text-5xl  max-lg:text-balance ">
+        <h2 className="text-center font-secondary uppercase tracking-tighter text-8xl max-lg:text-5xl  max-lg:text-balance ">
           YOUR VIRTUAL COMPANION
-        </h1>
+        </h2>
 
         <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1 max-lg:mx-5 my-10">
           <div className="relative w-full h-fit">

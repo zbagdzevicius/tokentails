@@ -25,8 +25,7 @@ export const Slider = ({ items, customClass }: IProps) => {
         depth: 100,
         slideShadows: true,
       }}
-      
-      loop={true}
+
       breakpoints={{
         640: {
           slidesPerView: 1,
