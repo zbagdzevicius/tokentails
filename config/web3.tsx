@@ -22,7 +22,7 @@ export const u2u = defineChain({
   contracts: {},
 });
 
-export const nftContractAddress = '0xd6265283af414697b61a46272669f21e6131628f';
+export const nftContractAddress = "0xd6265283af414697b61a46272669f21e6131628f";
 
 // Get projectId at https://cloud.walletconnect.com
 export const projectId = "4ef5743bb63ef48716115119e580ff88";

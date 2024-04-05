@@ -50,7 +50,7 @@ const ModalCard: React.FC<IProps> = ({
       }
 
       if (isConfirmed) {
-        return "Adopted";
+        return "See My Cat";
       }
       if (!isConfirmed) {
         return "Adopt";
@@ -59,7 +59,7 @@ const ModalCard: React.FC<IProps> = ({
       return "Play";
     }
 
-    return "Nonplayable"
+    return "Nonplayable";
   }, [isMintable, isConfirmed, isPlayable]);
 
   useEffect(() => {
@@ -104,6 +104,9 @@ const ModalCard: React.FC<IProps> = ({
   }, [isMouseWithinCard]);
 
   const handleClick = () => {
+    if (!isConnected) {
+      return;
+    }
     if (isMintable) {
       if (isConfirmed) {
         router.push("/select");
@@ -221,14 +224,18 @@ const ModalCard: React.FC<IProps> = ({
                         </p>
                       </div>
                       <div className="flex items-center gap-1 justify-center text-white">
-                        <button
-                          disabled={isPending || isConfirming}
-                          className="[clip-path:polygon(0%_1%,100%_0%,92%_100%,0%_100%)] w-64 max-lg:w-32 max-sm:w-28 h-12 max-lg:h-8 
+                        {isConnected ? (
+                          <button
+                            disabled={isPending || isConfirming}
+                            className="[clip-path:polygon(0%_1%,100%_0%,92%_100%,0%_100%)] w-64 max-lg:w-32 max-sm:w-28 h-12 max-lg:h-8 
                     bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm max-sm:text-xs z-10 rounded-lg"
-                          onClick={handleClick}
-                        >
-                          {ctaButtonText}
-                        </button>
+                            onClick={handleClick}
+                          >
+                            {ctaButtonText}
+                          </button>
+                        ) : (
+                          <div className="z-10"><w3m-button /></div>
+                        )}
 
                         <button
                           disabled={isPending || isConfirming}
