@@ -58,6 +58,8 @@ const ModalCard: React.FC<IProps> = ({
     } else if (isPlayable) {
       return "Play";
     }
+
+    return "Nonplayable"
   }, [isMintable, isConfirmed, isPlayable]);
 
   useEffect(() => {
@@ -218,11 +220,11 @@ const ModalCard: React.FC<IProps> = ({
                           {abilityDetails.description}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1 justify-center">
+                      <div className="flex items-center gap-1 justify-center text-white">
                         <button
                           disabled={isPending || isConfirming}
                           className="[clip-path:polygon(0%_1%,100%_0%,92%_100%,0%_100%)] w-64 max-lg:w-32 max-sm:w-28 h-12 max-lg:h-8 
-                    bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm max-sm:text-xs z-10"
+                    bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm max-sm:text-xs z-10 rounded-lg"
                           onClick={handleClick}
                         >
                           {ctaButtonText}
@@ -231,7 +233,7 @@ const ModalCard: React.FC<IProps> = ({
                         <button
                           disabled={isPending || isConfirming}
                           className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] w-64 max-lg:w-32 max-sm:w-28 h-12 max-lg:h-8 
-                    bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm max-sm:text-xs z-10"
+                    bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm max-sm:text-xs z-10 rounded-lg"
                           onClick={onClose}
                         >
                           Close
