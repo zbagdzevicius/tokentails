@@ -132,26 +132,26 @@ html {
 .swiper {
   width: 100%;
   padding-top: 10px !important;
-  padding-bottom: 30px !important;
+  padding-bottom: 45px !important;
 
   @include device("md") {
     padding-top: 25px !important;
-    padding-bottom: 25px !important;
+    padding-bottom: 50pxpx !important;
   }
 
   @include device("lg") {
     padding-top: 25px !important;
-    padding-bottom: 25px !important;
+    padding-bottom: 75px !important;
   }
 
   @include device("2xl") {
     padding-top: 35px !important;
-    padding-bottom: 35px !important;
+    padding-bottom: 75px !important;
   }
 
   @include device("3xl") {
     padding-top: 75px !important;
-    padding-bottom: 75px !important;
+    padding-bottom: 150px !important;
   }
 }
 
@@ -164,6 +164,7 @@ html {
     linear-gradient(0deg, #fff7f7, #fff7f7) !important;
   --swiper-navigation-color: #ffffff !important;
   --swiper-pagination-bullet-inactive-color: #9966cc !important;
+  --swiper-pagination-bottom: 8px;
 }
 
 .default-slider {
