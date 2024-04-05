@@ -1,6 +1,4 @@
-import Image from "next/image";
 import Preregistration from "../preregistration/Preregistration";
-import Link from "next/link";
 
 interface bannerProps {
   image: string;
@@ -174,7 +172,7 @@ const cats: bannerProps[] = [
 ];
 export const HomePage = () => {
   return (
-    <div className=" my-4 flex justify-center items-center flex-col">
+    <div className="my-4 flex justify-center items-center flex-col">
       <div className="relative w-full lg:w-2/3 xl:w-1/2 pt-16 px-10 max-lg:text-balance">
         <img
           className="absolute top-0 left-0 "
@@ -191,7 +189,7 @@ export const HomePage = () => {
       <a href="/adopt">
         <button
           className="[clip-path:polygon(0%_1%,100%_0%,90%_100%,10%_100%)] w-72 h-8 sm:h-9 lg:h-12 
-                    bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm max-sm:text-xs"
+                    bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm max-sm:text-xs text-white"
         >
           Demo for U2U
         </button>
@@ -246,7 +244,7 @@ export const HomePage = () => {
           <a href="#preregistration" className="absolute bottom-0">
             <button
               className="[clip-path:polygon(0%_1%,100%_0%,90%_100%,10%_100%)] w-72 max-lg:w-40 max-sm:w-36 h-8 sm:h-9 lg:h-12 
-                    bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm max-sm:text-xs"
+                    bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm max-sm:text-xs text-white"
             >
               Pre-Register Now
             </button>
@@ -255,10 +253,11 @@ export const HomePage = () => {
       </div>
       <Preregistration />
 
-      <div className="slider relative">
+      <div className="my-4"></div>
+      <div className="slider relative bg-gradient-to-r from-green-300 to-purple-300">
         <div className="slide-track">
           {sponsorImage.map((sponsor, index) => (
-            <div key={index} className="slide flex items-center">
+            <div key={index} className="slide flex items-center invert">
               <img className="h-8" src={sponsor.image} alt={sponsor.name} />
             </div>
           ))}

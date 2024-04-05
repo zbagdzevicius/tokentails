@@ -59,7 +59,7 @@ const Preregistration = () => {
               type="submit"
               className="relative [clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] bg-[#02020a] rounded w-[125px] h-[38px] max-lg:w-[94px]"
             >
-              <span className="text-center text-base max-lg:text-xs">
+              <span className="text-center text-base max-lg:text-xs text-white">
                 SUBMIT
               </span>
               <img

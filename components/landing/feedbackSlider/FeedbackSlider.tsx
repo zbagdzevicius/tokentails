@@ -5,8 +5,8 @@ import Image from 'next/image';
 export const FeedbackSlider = () => {
     const items = [
         < div key={1} className="flex items-center justify-center" >
-            <div className="p-0.5 w-full bg-gradient-to-br from-main-slate via-main-grape to-main-rusty max-lg:mx-4">
-                <div className="relative flex items-center justify-center flex-col w-full h-fit p-10 max-lg:p-3 bg-gradient-to-r from-[#243031] from-5% via-[#1B2428] via-40% to-[#0D1013] to-90%">
+            <div className="p-0.5 w-full bg-gradient-to-r rounded-3xl from-yellow-300 to-main-rusty max-lg:mx-4">
+                <div className="relative flex items-center justify-center flex-col w-full h-fit p-10 max-lg:p-3">
                     <img className="absolute top-[-35px] right-10" src="/icons/ditto.svg" width={70} height={70} alt="Ditto Mark" />
                     <div className='flex flex-row mb-5'>
                         <img className="w-8 h-8 max-lg:w-5 max-lg:h-5" src="/icons/star.svg" width={25} height={25} alt="star" />
@@ -28,8 +28,8 @@ export const FeedbackSlider = () => {
                 </div>
             </div>
         </div>, < div key={2} className="flex items-center justify-center" >
-            <div className="p-0.5 w-full bg-gradient-to-br from-main-slate via-main-grape to-main-rusty max-lg:mx-4">
-                <div className="relative flex items-center justify-center flex-col w-full h-fit p-10 max-lg:p-3 bg-gradient-to-r from-[#243031] from-5% via-[#1B2428] via-40% to-[#0D1013] to-90%">
+            <div className="p-0.5 w-full bg-gradient-to-r rounded-3xl from-blue-300 to-blue-400 max-lg:mx-4">
+                <div className="relative flex items-center justify-center flex-col w-full h-fit p-10 max-lg:p-3 bg-gradient-to-r from-blue-300">
                     <img className="absolute top-[-35px] right-10" src="/icons/ditto.svg" width={70} height={70} alt="Ditto Mark" />
                     <div className='flex flex-row mb-5'>
                         <img className="w-8 h-8 max-lg:w-5 max-lg:h-5" src="/icons/star.svg" width={25} height={25} alt="star" />
@@ -54,8 +54,8 @@ export const FeedbackSlider = () => {
             </div>
         </div>,
         < div key={3} className="flex items-center justify-center" >
-            <div className="p-0.5 w-full bg-gradient-to-br from-main-slate via-main-grape to-main-rusty max-lg:mx-4">
-                <div className="relative flex items-center justify-center flex-col w-full h-fit p-10 max-lg:p-3 bg-gradient-to-r from-[#243031] from-5% via-[#1B2428] via-40% to-[#0D1013] to-90%">
+            <div className="p-0.5 w-full bg-gradient-to-r rounded-3xl from-green-300 to-purple-400 max-lg:mx-4">
+                <div className="relative flex items-center justify-center flex-col w-full h-fit p-10 max-lg:p-3">
                     <img className="absolute top-[-35px] right-10" src="/icons/ditto.svg" width={70} height={70} alt="Ditto Mark" />
                     <div className='flex flex-row mb-5'>
                         <img className="w-8 h-8 max-lg:w-5 max-lg:h-5" src="/icons/star.svg" width={25} height={25} alt="star" />

@@ -87,5 +87,5 @@ export const CatsSlider = () => {
       </div>
     </div>,
   ];
-  return <Slider items={items} customClass="container" />;
+  return <Slider items={items} customClass="container text-white" />;
 };

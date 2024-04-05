@@ -1,16 +1,17 @@
-import { Header } from "@/components/header/Header";
-import { HomePage } from "@/components/landing/homePage/HomePage";
-import { CatsSlider } from "@/components/landing/catsSlider/CatsSlider";
-import { CatsHub } from "@/components/landing/catsHub/CatsHub";
-import { CatsWinners } from "@/components/landing/catsWinners/CatsWinners";
-import { FeedbackSlider } from "@/components/landing/feedbackSlider/FeedbackSlider";
 import { Footer } from "@/components/footer/Footer";
-import { useRef, useEffect, useState } from "react";
-import Head from "next/head";
-import { Tokenomics } from "@/components/landing/tokenomics/Tokenomics";
-import Roadmap from "@/components/landing/roadmap/Roadmap";
-import Preregistration from "@/components/landing/preregistration/Preregistration";
+import { Header } from "@/components/header/Header";
+import { CatsHub } from "@/components/landing/catsHub/CatsHub";
+import { CatsSlider } from "@/components/landing/catsSlider/CatsSlider";
+import { CatsWinners } from "@/components/landing/catsWinners/CatsWinners";
 import Contact from "@/components/landing/contact/Contact";
+import { FeedbackSlider } from "@/components/landing/feedbackSlider/FeedbackSlider";
+import { HomePage } from "@/components/landing/homePage/HomePage";
+import Roadmap from "@/components/landing/roadmap/Roadmap";
+import { Tokenomics } from "@/components/landing/tokenomics/Tokenomics";
+import { Circle } from "@/components/shared/Circle";
+import { CircleWhite } from "@/components/shared/CircleWhite";
+import Head from "next/head";
+import { useEffect, useRef, useState } from "react";
 
 export default function Index() {
   const [activeSection, setActiveSection] = useState("");
@@ -51,8 +52,8 @@ export default function Index() {
         });
       },
       {
-        rootMargin: "0px",
-        threshold: 0.5,
+        rootMargin: "100px",
+        threshold: 0.35,
       }
     );
     sections.forEach((sectionRef) => {
@@ -95,30 +96,61 @@ export default function Index() {
 
       <Header />
 
-      <div className="flex flex-col gap-8 md:gap-16">
-        <div id="homepage" ref={homepageRef}>
-          <HomePage />
+      <div className="flex flex-col">
+        <div className="fixed -left-48 -bottom-32 md:-bottom-64">
+          <Circle />
         </div>
-        <div id="catsslider" ref={catssliderRef}>
-          <CatsSlider />
+        <div className="fixed -right-48 -top-32 md:-top-64">
+          <Circle />
         </div>
-        <div id="catshub" ref={catshubRef}>
-          <CatsHub />
+        <div className="bg-gradient-to-t from-white to-yellow-300 pt-24 md:pt-36 pb-4">
+          <div id="homepage" ref={homepageRef}>
+            <HomePage />
+          </div>
         </div>
-        <div id="tokenomics" ref={feedbackSliderRef}>
-          <Tokenomics />
+        <div className="py-4 bg-gradient-to-b from-white to-purple-300">
+          <div id="catsslider" ref={catssliderRef}>
+            <CatsSlider />
+          </div>
         </div>
-        <div id="catswinners" ref={catswinnersRef}>
-          <CatsWinners />
+        <div className="py-4 bg-gradient-to-b from-purple-300">
+          <div id="catshub" ref={catshubRef}>
+            <CatsHub />
+          </div>
         </div>
-        <div id="roadmap" ref={roadmapRef}>
-          <Roadmap />
+        <div className="py-4 bg-gradient-to-t from-blue-300">
+          <div id="tokenomics" ref={tokenomicsRef}>
+            <Tokenomics />
+          </div>
         </div>
-        <div id="feedbackslider" ref={feedbackSliderRef}>
-          <FeedbackSlider />
+        <div className="py-4 bg-gradient-to-b from-blue-300 to-green-300">
+          <div
+            className="relative overflow-hidden"
+            id="catswinners"
+            ref={catswinnersRef}
+          >
+            <div className="z-10 relative">
+              <CatsWinners />
+            </div>
+            <div className="absolute bottom-0 right-0 md:right-72 z-0">
+              <CircleWhite />
+            </div>
+          </div>
         </div>
-        <div id="contact" ref={contactRef}>
-          <Contact />
+        <div className="py-4 bg-gradient-to-t from-blue-300 to-green-300">
+          <div id="roadmap" ref={roadmapRef}>
+            <Roadmap />
+          </div>
+        </div>
+        <div className="py-4 bg-gradient-to-t from-purple-300 to-blue-300">
+          <div id="feedbackslider" ref={feedbackSliderRef}>
+            <FeedbackSlider />
+          </div>
+        </div>
+        <div className="pt-4 pb-16 bg-gradient-to-b from-purple-300 to-yellow-300">
+          <div id="contact" ref={contactRef}>
+            <Contact />
+          </div>
         </div>
         <Footer />
       </div>

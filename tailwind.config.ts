@@ -21,6 +21,18 @@ const config: Config = {
           800: "#702963",
           900: "#301934",
         },
+        yellow: {
+          300: "#FCECBB",
+        },
+        green: {
+          300: "#D5F4E5",
+        },
+        purple: {
+          300: "#F0C5FD",
+        },
+        blue: {
+          300: "#C4E2FC",
+        },
         main: {
           black: "#161616",
           white: "#FFFFFF",
@@ -33,7 +45,6 @@ const config: Config = {
 
           midnight: "#1E293B",
           gray: "#CBD5E1",
-          background: "#02020a",
         },
       },
       animation: {
