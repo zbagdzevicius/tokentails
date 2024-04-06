@@ -2,7 +2,7 @@ export const CatsWinners = () => {
   return (
     <div className="flex items-center justify-center container no-p-mobile">
       <div className="w-8/12 max-lg:w-full max-lg:m-2">
-        <h2 className="text-left font-secondary uppercase tracking-tighter text-h2 text-balance max-lg:text-h6 my-3">
+        <h2 className="text-left font-secondary uppercase tracking-tight text-h2 text-balance max-lg:text-h6 my-3">
           we’re the first play to save game in the world
         </h2>
         <div className="grid grid-cols-2 grid-rows-7 gap-6 max-lg:gap-2">
@@ -63,13 +63,13 @@ export const CatsWinners = () => {
                   <span className="custom-gradient-text font-bold">Cats</span>
                 </p>
               </div>
-              <a href="#preregistration">
+              <a href="/adopt">
                 <button
                   className="[clip-path:polygon(0%_0%,100%_0%,92%_100%,0%_100%)]
                     bg-gradient-to-r from-main-ember to-main-rusty rounded w-32 h-10 max-lg:w-24"
                 >
                   <span className="text-center text-lg max-lg:text-xs leading-4 text-white">
-                    Pre-register
+                    Demo
                   </span>
                 </button>
               </a>

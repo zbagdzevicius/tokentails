@@ -29,8 +29,8 @@ const ShortAnswerInput = ({ id }: { id: string }) => {
 
   return (
     <input
-      className="[clip-path:polygon(0%_0%,100%_0%,96%_100%,0%_100%)] w-56 md:w-72 rounded-l placeholder:text-gray-100 px-6 py-2 bg-gradient-to-r from-main-ember to-main-rusty outline-none"
-      placeholder="Your email address"
+      className="[clip-path:polygon(0%_0%,100%_0%,96%_100%,0%_100%)] w-56 md:w-[360px] rounded-l placeholder:text-gray-100 px-4 md:px-8 text-p5 md:text-p4 bg-gradient-to-r from-main-ember to-main-rusty outline-none h-12 md:h-16 text-white"
+      placeholder="Sign Up for Early Access"
       type="text"
       {...register()}
     />
@@ -54,16 +54,16 @@ const Preregistration = () => {
           onSubmit={methods.handleSubmit(onSubmit)}
         >
           <ShortAnswerInput id="1130409291" />
-          <span className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] flex items-center justify-center bg-gradient-to-r from-main-ember to-main-rusty rounded w-32 h-10 max-lg:w-24">
+          <span className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] flex items-center justify-center bg-gradient-to-r from-main-ember to-main-rusty rounded w-32 h-12 md:h-16 max-lg:w-24">
             <button
               type="submit"
-              className="relative [clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] bg-[#02020a] rounded w-[125px] h-[38px] max-lg:w-[94px]"
+              className="relative [clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] bg-[#02020a] rounded w-[125px] h-[64px] max-lg:w-[94px]"
             >
-              <span className="text-center text-base max-lg:text-xs text-white">
-                SUBMIT
+              <span className="text-center text-p5 md:text-p4 text-white">
+                Sign Up
               </span>
               <img
-                className="absolute right-0 top-0"
+                className="absolute right-0 top-4"
                 src="/cats/grey/Running-Clothed-Grey.gif"
               />
             </button>

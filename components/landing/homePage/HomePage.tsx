@@ -172,7 +172,7 @@ const cats: bannerProps[] = [
 ];
 export const HomePage = () => {
   return (
-    <div className="my-4 flex justify-center items-center flex-col">
+    <div className="mt-4 flex justify-center items-center flex-col">
       <div className="relative w-full lg:w-2/3 xl:w-1/2 pt-16 px-10 max-lg:text-balance">
         <img
           className="absolute top-0 left-0 "
@@ -181,19 +181,10 @@ export const HomePage = () => {
           width={80}
           height={80}
         />
-        <h1 className="text-center font-secondary uppercase tracking-tighter text-h3 md:text-8xl">
+        <h1 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl">
           Play with your virtual cat to save a cat in a shelter
         </h1>
       </div>
-
-      <a href="/adopt">
-        <button
-          className="[clip-path:polygon(0%_1%,100%_0%,90%_100%,10%_100%)] w-72 h-8 sm:h-9 lg:h-12 
-                    bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm max-sm:text-xs text-white"
-        >
-          Demo for U2U
-        </button>
-      </a>
       <div className="relative w-full flex items-center justify-center max-w-[100vw] overflow-hidden">
         <div className="absolute left-0 right-0 top-0 bottom-0 slider transform z-10 rotate-12">
           <div className="slide-track inverse">
@@ -241,12 +232,12 @@ export const HomePage = () => {
               height={100}
             />
           </div>
-          <a href="#preregistration" className="absolute bottom-0">
+          <a href="/adopt" className="absolute bottom-0">
             <button
               className="[clip-path:polygon(0%_1%,100%_0%,90%_100%,10%_100%)] w-72 max-lg:w-40 max-sm:w-36 h-8 sm:h-9 lg:h-12 
                     bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm max-sm:text-xs text-white"
             >
-              Pre-Register Now
+              Demo
             </button>
           </a>
         </div>

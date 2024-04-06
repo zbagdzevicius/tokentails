@@ -3,7 +3,7 @@ import React from "react";
 const Contact = () => {
   return (
     <div className="container">
-      <h2 className="mt-12 text-center text-left font-secondary uppercase tracking-tighter text-h2 text-balance max-lg:text-h6 my-3">
+      <h2 className="mt-12 text-center text-left font-secondary uppercase tracking-tight text-h2 text-balance max-lg:text-h6 my-3">
         Contact us
       </h2>
       <div className="flex flex-col md:flex-row gap-8 justify-between">
@@ -54,7 +54,7 @@ const Contact = () => {
             />
             <div className="font-bold text-p4">Žygimantas Bagdzevicius</div>
 
-            <div>Founder & CTO</div>
+            <div>Founder & CTO, Owner of 2 Cats</div>
           </div>
           <div className="flex gap-2 md:gap-8 justify-center">
             <a

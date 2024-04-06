@@ -112,7 +112,7 @@ export const FeedbackSlider = () => {
     <>
       <div className="flex items-center justify-center flex-col my-32">
         <img src="/logo/coin.png" width={100} height={100} alt="coin" />
-        <h2 className="text-left font-secondary uppercase tracking-tighter text-h2 text-balance max-lg:text-h6 my-3">
+        <h2 className="text-left font-secondary uppercase tracking-tight text-h2 text-balance max-lg:text-h6 my-3">
           Happy cats
         </h2>
         <Slider items={items} />

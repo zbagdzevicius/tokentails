@@ -145,12 +145,12 @@ html {
   }
 
   @include device("2xl") {
-    padding-top: 35px !important;
+    padding-top: 25px !important;
     padding-bottom: 75px !important;
   }
 
   @include device("3xl") {
-    padding-top: 75px !important;
+    padding-top: 25px !important;
     padding-bottom: 150px !important;
   }
 }

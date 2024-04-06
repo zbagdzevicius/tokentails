@@ -15,7 +15,6 @@ import { useEffect, useRef, useState } from "react";
 
 export default function Index() {
   const [activeSection, setActiveSection] = useState("");
-  const homepageRef = useRef(null);
   const catssliderRef = useRef(null);
   const catshubRef = useRef(null);
   const catswinnersRef = useRef(null);
@@ -25,7 +24,6 @@ export default function Index() {
   const contactRef = useRef(null);
 
   const sections = [
-    homepageRef,
     catssliderRef,
     catshubRef,
     catswinnersRef,
@@ -45,9 +43,6 @@ export default function Index() {
           ) {
             setActiveSection(entry.target.id);
             entry.target.classList.add("animated-block");
-            if (entry.target.id === "homepage") {
-              entry.target.classList.add("fade-in");
-            }
           }
         });
       },
@@ -103,12 +98,12 @@ export default function Index() {
         <div className="fixed -right-48 -top-32 md:-top-64">
           <Circle />
         </div>
-        <div className="bg-gradient-to-t from-white to-yellow-300 pt-24 md:pt-36 pb-4">
-          <div id="homepage" ref={homepageRef}>
+        <div className="bg-gradient-to-t from-white to-yellow-300 pt-24 md:pt-36 pb-4 fade-in">
+          <div id="homepage">
             <HomePage />
           </div>
         </div>
-        <div className="py-4 bg-gradient-to-b from-white to-purple-300">
+        <div className="pb-4 pt-3 md:pt-0 bg-gradient-to-b from-white to-purple-300">
           <div id="catsslider" ref={catssliderRef}>
             <CatsSlider />
           </div>
@@ -137,7 +132,7 @@ export default function Index() {
             </div>
           </div>
         </div>
-        <div className="py-4 bg-gradient-to-t from-blue-300 to-green-300">
+        <div className="py-4 pt-24 bg-gradient-to-t from-blue-300 to-green-300">
           <div id="roadmap" ref={roadmapRef}>
             <Roadmap />
           </div>

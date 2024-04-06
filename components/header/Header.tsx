@@ -116,7 +116,7 @@ export const Header = () => {
                     bg-gradient-to-r from-main-ember to-main-rusty rounded w-36 h-10 max-lg:w-24 max-lg:h-8"
             >
               <span className="text-center text-lg max-lg:text-xs leading-4 text-white">
-                Pre-Register
+                Sign-Up
               </span>
             </button>
           </a>

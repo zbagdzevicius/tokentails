@@ -3,7 +3,7 @@ export const Tokenomics = () => {
     <div className="container pb-8">
       <div className="flex justify-center items-center gap-4 md:pb-16">
         <img src="/logo/coin.png" className="w-14" />
-        <h2 className="text-center font-secondary uppercase tracking-tighter text-h3 md:text-8xl">
+        <h2 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl">
           TOKENOMICS
         </h2>
         <img src="/logo/coin.png" className="w-14" />
@@ -27,6 +27,9 @@ export const Tokenomics = () => {
           <div>
             <span className="font-bold">Team</span> - Engineering,
             social growth and partnerships
+          </div>
+          <div className="font-bold">
+            More details coming soon !
           </div>
         </div>
       </div>

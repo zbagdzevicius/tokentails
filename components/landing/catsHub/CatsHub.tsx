@@ -77,7 +77,7 @@ const CatsSection = ({ title, description, isActive, onSet }: IProps) => {
   );
 };
 export const CatsHub = () => {
-  const [active, setActive] = useState(CatsHubProps[0]);
+  const [active, setActive] = useState<Partial<IProps>>({});
   return (
     <div className="my-20 flex items-center justify-center flex-col container">
       <img
@@ -87,7 +87,7 @@ export const CatsHub = () => {
         alt="crown"
       />
       <div className="w-9/12 max-lg:w-full ">
-        <h2 className="text-center font-secondary uppercase tracking-tighter text-8xl max-lg:text-5xl  max-lg:text-balance ">
+        <h2 className="text-center font-secondary uppercase tracking-tight text-8xl max-lg:text-5xl  max-lg:text-balance ">
           YOUR VIRTUAL COMPANION
         </h2>
 
@@ -127,7 +127,7 @@ export const CatsHub = () => {
                     bg-gradient-to-r from-main-ember to-main-rusty rounded w-32 h-10 max-lg:w-20"
                 >
                   <span className="text-center text-base max-lg:text-xs leading-4 text-white">
-                    Pre-register
+                    Sign-Up
                   </span>
                 </button>
               </a>
@@ -138,7 +138,7 @@ export const CatsHub = () => {
               >
                 <button className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] bg-[#02020a] rounded w-[125px] h-[38px] max-lg:w-[94px] text-white">
                   <span className="text-center text-base max-lg:text-xs">
-                    Presentation
+                    Pitch Deck
                   </span>
                 </button>
               </a>
