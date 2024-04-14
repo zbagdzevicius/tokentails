@@ -16,6 +16,7 @@
     "next": "14.0.4",
     "node-html-to-image": "^4.0.0",
     "nodejs-base64-converter": "^1.0.5",
+    "phaser": "^3.80.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-google-forms-hooks": "^1.2.4",
