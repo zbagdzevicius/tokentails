@@ -14,6 +14,8 @@
     "ethers": "^6.11.1",
     "kaboom": "^3000.1.17",
     "next": "14.0.4",
+    "node-html-to-image": "^4.0.0",
+    "nodejs-base64-converter": "^1.0.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-google-forms-hooks": "^1.2.4",
