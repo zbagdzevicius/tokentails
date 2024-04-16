@@ -47,7 +47,7 @@ export default function Select() {
         <CatGame cats={cats} onClickCallback={handleCatClick} />
       ) : (
         <div className="pt-40 font-bold fixed inset-0 text-center">
-          Cats are loading...
+          Cats are loading, make sure that your wallet is connected...
         </div>
       )}
       {selectedCat && <ModalCard onClose={handleCloseModal} {...selectedCat} />}
