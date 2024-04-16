@@ -10,20 +10,20 @@ interface navProps {
 
 const navConsts: navProps[] = [
   {
-    title: "Activities",
-    link: "#catsslider",
-  },
-  {
     title: "Game",
-    link: "#catshub",
+    link: "/#catsslider",
   },
   {
-    title: "Tokenomics",
-    link: "#tokenomics",
+    title: "Token",
+    link: "/#tokenomics",
+  },
+  {
+    title: "Blog",
+    link: "/feed",
   },
   {
     title: "Contact",
-    link: "#contact",
+    link: "/#contact",
   },
 ];
 
@@ -73,10 +73,10 @@ export const Header = () => {
       }`}
     >
       <div className={`flex flex-wrap items-center justify-between ${isTop ? 'py-6' : 'py-2'} px-24 max-lg:px-4 relative`}>
-        <div className="flex items-center gap-4 transition">
+        <a href="/" className="flex items-center gap-4 transition">
           <img className={isTop ? `h-12 md:h-24` : `h-8 md:h-12`} src="/logo/logo.png" alt="logo" />
           <div className="text-p3 font-secondary">TOKEN TAILS</div>
-        </div>
+        </a>
         <ul className="lg:!flex lg:space-x-4 max-lg:space-y-2 max-lg:hidden max-lg:py-4 max-lg:w-full">
           {navConsts.map((navItem, index) => (
             <li
@@ -110,7 +110,7 @@ export const Header = () => {
               />
             )}
           </div>
-          <a href="#preregistration">
+          <a href="/#preregistration">
             <button
               className="[clip-path:polygon(0%_0%,100%_0%,92%_100%,0%_100%)]
                     bg-gradient-to-r from-main-ember to-main-rusty rounded w-36 h-10 max-lg:w-24 max-lg:h-8"
@@ -123,7 +123,7 @@ export const Header = () => {
         </div>
       </div>
       {isNavOpen && (
-        <div className="lg:hidden absolute bg-main-background w-full z-10">
+        <div className="lg:hidden absolute w-full z-10 bg-gradient-to-b from-yellow-300 to-purple-300">
           <ul className="space-y-2">
             {navConsts.map((navItem, index) => (
               <li key={index} className="py-2 px-3">

@@ -9,20 +9,20 @@ interface FooterProps {
 
 const navConsts: FooterProps[] = [
   {
-    title: "Activities",
-    link: "#catsslider",
-  },
-  {
     title: "Game",
-    link: "#catshub",
+    link: "/#catshub",
   },
   {
-    title: "Tokenomics",
-    link: "#tokenomics",
+    title: "Token",
+    link: "/#tokenomics",
+  },
+  {
+    title: "Blog",
+    link: "/feed",
   },
   {
     title: "Contact",
-    link: "#contact",
+    link: "/#contact",
   },
 ];
 
@@ -36,7 +36,7 @@ export const Footer: React.FC = () => {
   return (
     <div className="z-10">
       <div className="flex justify-center items-center">
-        <hr className="h-px w-full bg-gray-200 border-0 dark:bg-gray-700" />
+        <hr className="h-px w-full bg-gray-200 border-0" />
       </div>
       <footer className="text-center py-4 bg-yellow-300">
         <div className="flex flex-wrap items-center container justify-around max-lg:justify-between lg:px-24">

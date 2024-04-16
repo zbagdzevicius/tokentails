@@ -29,6 +29,17 @@ $custom-background: linear-gradient(90.26deg, #c1260f 0.34%, #ee642a 96.66%);
   }
 }
 
+
+@media (max-width: 768px) {
+  html {
+      font-size: calc(100vw / 25);
+  }
+
+  .video > div:not(.play-handler) {
+      width: 100vw;
+  }
+}
+
 body,
 html {
   margin: 0;
@@ -689,3 +700,68 @@ button.card__rotator {
                                   supported by Chrome, Edge, Opera and Firefox */
 }
 // DISABLE SELECTION END
+
+
+// ARTICLE CONTENT STYLINGS
+/* ARTICLE CONTENT STYLINGS */
+/* Paragraphs */
+
+.article-content article p {
+  @apply text-main-black;
+}
+
+.article-content p {
+  @apply my-3 mx-0;
+}
+/* Images */
+.article-content img {
+  @apply mt-6 mx-auto justify-center;
+}
+.article-content .image-container {
+  @apply my-6 mx-auto;
+  max-width: 480px;
+}
+.article-content .image-container figcaption,
+.main-figure figcaption {
+  @apply mt-4 text-center text-p3 text-main-rusty;
+}
+.article-content a {
+  @apply text-accent-700 dark:text-accent-600;
+}
+
+.article-content h2 {
+  @apply text-p2 font-secondary font-semibold capitalize;
+}
+
+.article-content h3 {
+  @apply text-p2 font-secondary font-semibold capitalize;
+}
+
+.article-content ul li {
+  @apply list-disc;
+}
+
+.article-content ol li {
+  @apply list-decimal;
+}
+
+.article-content ol,
+.article-content ul {
+  @apply my-4 ml-2;
+}
+
+.article-content iframe {
+  max-width: 100%;
+  width: 100%;
+}
+
+.article-content ol li,
+.article-content ul li {
+  @apply ml-2 md:ml-0 mb-2;
+}
+
+.article-content ul li::marker,
+.article-content ol li::marker {
+  @apply text-accent font-semibold;
+}
+// ARTICLE CONTENT STYLINGS END

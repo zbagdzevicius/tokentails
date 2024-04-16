@@ -121,7 +121,7 @@ export const CatsHub = () => {
               ))}
             </div>
             <div className="flex mt-10 max-lg:mt-5">
-              <a href="#preregistration">
+              <a href="/#preregistration">
                 <button
                   className="[clip-path:polygon(0%_0%,100%_0%,92%_100%,0%_100%)]
                     bg-gradient-to-r from-main-ember to-main-rusty rounded w-32 h-10 max-lg:w-20"
@@ -134,9 +134,9 @@ export const CatsHub = () => {
               <a
                 target="_blank"
                 href="https://docs.google.com/presentation/d/1lm3Ioazcd-p_zzn5YRUZAeTFrFmsIVDnq_HuC9OdOZI"
-                className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] flex items-center justify-center bg-gradient-to-r from-main-ember to-main-rusty rounded w-32 h-10 max-lg:w-24 max-lg:h"
+                className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] bg-[#02020a] flex items-center justify-center rounded w-32 h-10 max-lg:w-24 max-lg:h"
               >
-                <button className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] bg-[#02020a] rounded w-[125px] h-[38px] max-lg:w-[94px] text-white">
+                <button className="w-[125px] h-[38px] max-lg:w-[94px] text-white">
                   <span className="text-center text-base max-lg:text-xs">
                     Pitch Deck
                   </span>
