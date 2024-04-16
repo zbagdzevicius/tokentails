@@ -36,7 +36,7 @@ const Contact = () => {
                 draggable="false"
               />
             </a>
-            <a target="_blank" href="mailto:info@tokentails.com">
+            <a target="_blank" href="mailto:hello@tokentails.com">
               <img
                 className="w-12"
                 src="/icons/social/email.png"

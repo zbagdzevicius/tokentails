@@ -113,12 +113,7 @@ export default function Index() {
             <CatsHub />
           </div>
         </div>
-        <div className="py-4 bg-gradient-to-t from-blue-300">
-          <div id="tokenomics" ref={tokenomicsRef}>
-            <Tokenomics />
-          </div>
-        </div>
-        <div className="py-4 bg-gradient-to-b from-blue-300 to-green-300">
+        <div className="py-4 bg-gradient-to-b from-transparent to-green-300">
           <div
             className="relative overflow-hidden"
             id="catswinners"
@@ -137,9 +132,14 @@ export default function Index() {
             <Roadmap />
           </div>
         </div>
-        <div className="py-4 bg-gradient-to-t from-purple-300 to-blue-300">
+        <div className="py-4 bg-gradient-to-t from-green-300 to-blue-300">
           <div id="feedbackslider" ref={feedbackSliderRef}>
             <FeedbackSlider />
+          </div>
+        </div>
+        <div className="py-4 bg-gradient-to-t from-purple-300 to-green-300">
+          <div id="tokenomics" ref={tokenomicsRef}>
+            <Tokenomics />
           </div>
         </div>
         <div className="pt-4 pb-16 bg-gradient-to-b from-purple-300 to-yellow-300">

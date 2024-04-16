@@ -1,38 +1,20 @@
+import { VestingSchedule } from "@/components/shared/VestingSchedule";
+
 export const Tokenomics = () => {
   return (
-    <div className="container pb-8">
-      <div className="flex justify-center items-center gap-4 md:pb-16">
+    <div className="pb-8 max-w-[1280px] md:mx-auto">
+      <div className="flex justify-center items-center gap-4 md:pb-12">
         <img src="/logo/coin.png" className="w-14" />
         <h2 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl">
           TOKENOMICS
         </h2>
         <img src="/logo/coin.png" className="w-14" />
       </div>
-      <div className="flex flex-col md:flex-row items-center gap-8 md:gap-24">
-        <div className="flex-1 min-w-0 flex justify-end items-center">
-          <img width={256} src="/logo/tokenomics.png" />
-        </div>
-        <div className="flex-1 min-w-0 flex justify-center flex-col gap-6">
-          <div>
-            <span className="font-bold">TOTAL SUPPLY</span> - 1B $TTAILS
-          </div>
-          <div>
-            <span className="font-bold">Public</span> - CEX/DEX, ICO,
-            Liquidity
-          </div>
-          <div>
-            <span className="font-bold">Rewards</span> - Prizes, staking
-            rewards, earnings and airdrops
-          </div>
-          <div>
-            <span className="font-bold">Team</span> - Engineering,
-            social growth and partnerships
-          </div>
-          <div className="font-bold">
-            More details coming soon !
-          </div>
-        </div>
+      <div className="flex flex-col items-center w-full mb-4">
+        <div><span className="font-bold">TOTAL SUPPLY</span> - 1B $TAILS</div>
+        <div><span className="font-bold">INITIAL MARKET CAP</span> - $390K</div>
       </div>
+      <VestingSchedule />
     </div>
   );
 };
