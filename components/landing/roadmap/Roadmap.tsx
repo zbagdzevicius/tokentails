@@ -19,13 +19,10 @@ const Roadmap = () => {
             />
           </div>
           <h2 className="font-secondary text-h3">2024 Q2</h2>
-          <div className="flex flex-col">
-            <span>Community</span>
-            <span>MVP release</span>
-            <span>NFTs release</span>
+          <div className="flex flex-col items-center">
+            <span>MVP release: Virtual cat shelter</span>
+            <span>Cat NFT launch</span>
             <span>Shelters Collab</span>
-            <span>Virtual cats shelter</span>
-            <span>Wallets integrations</span>
           </div>
         </div>
         <div className="flex flex-col items-center gap-4 md:pt-24">
@@ -36,14 +33,11 @@ const Roadmap = () => {
             />
           </div>
           <h2 className="font-secondary text-h3">2024 Q3</h2>
-          <div className="flex flex-col">
-            <span>Token creation</span>
-            <span>Social network</span>
-            <span>List in CEX/DEX</span>
+          <div className="flex flex-col items-center">
+            <span>Full version: Purrquest</span>
+            <span>$TAILS listing</span>
+            <span>Mystery boxes</span>
             <span>Affiliate system</span>
-            <span>Shelters Collabs</span>
-            <span>Shelters Donation</span>
-            <span>RPG cats game MVP</span>
           </div>
         </div>
         <div className="flex flex-col items-center gap-4 md:pt-12">
@@ -54,11 +48,10 @@ const Roadmap = () => {
             />
           </div>
           <h2 className="font-secondary text-h3">2024 Q4</h2>
-          <div className="flex flex-col">
-            <span>Rewards</span>
-            <span>Mystery Meows</span>
-            <span>NFT marketplace</span>
+          <div className="flex flex-col items-center">
+            <span>Skins & Customizations</span>
             <span>NFT royalties system</span>
+            <span>NFT marketplace</span>
           </div>
         </div>
         <div className="flex flex-col items-center gap-4">
@@ -69,11 +62,10 @@ const Roadmap = () => {
             />
           </div>
           <h2 className="font-secondary text-h3">2025 Q1</h2>
-          <div className="flex flex-col">
-            <span>Cross-chain NFTs</span>
-            <span>Worldwide scaling</span>
-            <span>Meowgical experience</span>
-            <span>Blockchains partnerships</span>
+          <div className="flex flex-col items-center">
+            <span>Cross-chain expansion</span>
+            <span>Breeding</span>
+            <span>Quests</span>
           </div>
         </div>
       </div>
