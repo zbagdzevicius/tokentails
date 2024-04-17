@@ -71,32 +71,32 @@ export function fromNow(value: DateInput): { text: string; value?: number } {
   };
 
   if (delta <= FROM_NOW_JUST_NOW) {
-    result.text = "Naujausias";
+    result.text = "latest meow";
   } else if (delta <= FROM_NOW_MINUTE) {
-    result.text = `Naujas`;
+    result.text = `new meow`;
   } else if (delta <= FROM_NOW_MINUTES) {
     result.value = Math.ceil(delta / MINUTE);
-    result.text = `Prieš ${result.value} minutes`;
+    result.text = `${result.value} minutes ago`;
   } else if (delta <= FROM_NOW_HOUR) {
-    result.text = `Prieš valandą`;
+    result.text = `an hour ago`;
   } else if (delta <= FROM_NOW_HOURS) {
     result.value = Math.ceil(delta / HOUR);
-    result.text = `Prieš ${result.value} valandas`;
+    result.text = `${result.value} hours ago`;
   } else if (delta <= FROM_NOW_DAY) {
-    result.text = `Prieš dieną`;
+    result.text = `yesterday`;
   } else if (delta <= FROM_NOW_DAYS) {
     result.value = Math.ceil(delta / DAY);
-    result.text = `Prieš ${result.value} dienas`;
+    result.text = `${result.value} purrdays ago`;
   } else if (delta <= FROM_NOW_MONTH) {
-    result.text = `Prieš mėnesį`;
+    result.text = `last month`;
   } else if (delta <= FROM_NOW_MONTHS) {
     result.value = Math.ceil(delta / MONTH);
-    result.text = `Prieš ${result.value} mėnesius`;
+    result.text = `${result.value} months ago`;
   } else if (delta <= FROM_NOW_YEAR) {
-    result.text = `Prieš metus`;
+    result.text = `last year`;
   } else {
     result.value = Math.ceil(delta / YEAR);
-    result.text = `Prieš ${result.value} metus`;
+    result.text = `${result.value} years ago`;
   }
 
   return result;

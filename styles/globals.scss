@@ -711,7 +711,7 @@ button.card__rotator {
 }
 
 .article-content p {
-  @apply my-3 mx-0;
+  @apply my-6 mx-0;
 }
 /* Images */
 .article-content img {
@@ -747,7 +747,7 @@ button.card__rotator {
 
 .article-content ol,
 .article-content ul {
-  @apply my-4 ml-2;
+  @apply my-4 ml-6;
 }
 
 .article-content iframe {
@@ -762,6 +762,6 @@ button.card__rotator {
 
 .article-content ul li::marker,
 .article-content ol li::marker {
-  @apply text-accent font-semibold;
+  @apply text-main-ember font-semibold;
 }
 // ARTICLE CONTENT STYLINGS END

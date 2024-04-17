@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "postbuild": "next-sitemap"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^5.4.1",
@@ -24,6 +24,8 @@
     "next": "14.0.4",
     "next-seo": "^6.5.0",
     "next-share": "^0.27.0",
+    "next-sitemap": "^4.2.3",
+    "nextjs-google-analytics": "^2.3.3",
     "node-html-to-image": "^4.0.0",
     "nodejs-base64-converter": "^1.0.5",
     "phaser": "^3.80.1",

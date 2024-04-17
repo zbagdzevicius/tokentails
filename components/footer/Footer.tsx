@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Socials } from "./Socials";
 
 interface FooterProps {
   title: string;
@@ -40,11 +41,15 @@ export const Footer: React.FC = () => {
       </div>
       <footer className="text-center py-4 bg-yellow-300">
         <div className="flex flex-wrap items-center container justify-around max-lg:justify-between lg:px-24">
-          <img
-            className="h-24 flex-1 object-contain object-left"
-            src="/logo/logo.png"
-            alt="logo"
-          />
+          <div className="flex items-center gap-4">
+            <img
+              className="h-24 flex-1 object-contain object-left"
+              src="/logo/logo.png"
+              alt="logo"
+            />
+
+<Socials/>
+          </div>
           <ul className="flex flex-1 max-lg:order-3 justify-center">
             {navConsts.map((footerItem, index) => (
               <li key={index} className="max-lg:py-6 px-3 max-lg:rounded">

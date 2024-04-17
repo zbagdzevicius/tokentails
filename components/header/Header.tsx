@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { Socials } from "../footer/Socials";
 
 interface navProps {
   title: string;
@@ -124,7 +125,7 @@ export const Header = () => {
       </div>
       {isNavOpen && (
         <div className="lg:hidden absolute w-full z-10 bg-gradient-to-b from-yellow-300 to-purple-300">
-          <ul className="space-y-2">
+          <ul className="space-y-2 pb-4">
             {navConsts.map((navItem, index) => (
               <li key={index} className="py-2 px-3">
                 <a
@@ -143,6 +144,7 @@ export const Header = () => {
                 </a>
               </li>
             ))}
+            <Socials/>
           </ul>
         </div>
       )}
