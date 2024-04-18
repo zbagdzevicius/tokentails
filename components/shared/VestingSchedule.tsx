@@ -3,14 +3,14 @@ import React from "react";
 export const VestingSchedule = () => {
   return (
     <div className="overflow-x-scroll">
-      <table className="rounded-lg overflow-hidden table-auto bg-blue-300 text-black-900 w-full text-sm text-left text-gray-500 max-xl:ml-8 max-xl:mr-8">
+      <table className="rounded-lg overflow-hidden table-auto bg-blue-300 text-black-900 w-full text-sm text-left text-gray-500 max-2xl:ml-2 max-2xl:mr-2">
         <thead className="text-p5 uppercase text-black-300 bg-gray-50 border-b border-purple-300">
           <tr>
             <th className="py-3 px-6"></th>
             <th className="py-3 text-center">ALLOCATION</th>
             <th className="py-3 px-6 text-center">TGE</th>
             <th className="py-3 px-6 text-center">price</th>
-            <th className="py-3 px-6 text-end border-l border-blue-300">1</th>
+            <th className="py-3 px-6 text-center border-l border-blue-300">1</th>
             <th className="py-3 px-6 text-center border-l border-blue-300">2</th>
             <th className="py-3 px-6 text-center border-l border-blue-300">3</th>
             <th className="py-3 px-6 text-center border-l border-blue-300">4</th>
