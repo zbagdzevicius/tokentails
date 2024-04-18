@@ -55,7 +55,7 @@ export const CatsWinners = () => {
             <div className="flex flex-col md:flex-row justify-between gap-4 md:items-center">
               <div className="flex flex-col">
                 <p className="text-p4 max-lg:text-p5 font-tertiary">
-                  We’ve have many more than
+                  We’ve many more than
                 </p>
                 <div className="text-h2 max-lg:text-h3 font-secondary">1000+</div>
                 <p className="text-p4 max-lg:text-p5  font-tertiary">
