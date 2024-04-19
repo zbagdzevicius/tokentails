@@ -73,7 +73,7 @@ const teamMembers: ITeamMember[] = [
     socials: [
       {
         img: SocialImages.LINKEDIN,
-        link: "https://www.linkedin.com/in/ernest-rimkievicius-0785a521a/",
+        link: "https://www.linkedin.com/in/ernest-rimkevi%C4%8Dius-0785a521a",
       },
     ],
   },
@@ -83,8 +83,8 @@ const teamMembers: ITeamMember[] = [
     role: "Engineer",
     socials: [
       {
-        img: SocialImages.LINKEDIN,
-        link: "https://www.kolhq.com/",
+        img: SocialImages.EMAIL,
+        link: "https://success.codes/",
       },
     ],
   },
@@ -134,18 +134,14 @@ const teamMembers: ITeamMember[] = [
 const TeamMember = ({ img, name, role, socials }: ITeamMember) => {
   return (
     <div className="text-center">
-      <img
-        className="mx-auto mb-4 w-36 h-36"
-        src={img}
-        alt={name}
-      />
-      <h3 className="mb-1 text-p3 md:text-p3 font-secondary">
-        {name}
-      </h3>
-      <p className="px-2 rounded-full animate-border w-fit m-auto text-white">{role}</p>
+      <img className="mx-auto mb-4 w-36 h-36" src={img} alt={name} />
+      <h3 className="mb-1 text-p3 md:text-p3 font-secondary">{name}</h3>
+      <p className="px-2 rounded-full animate-border w-fit m-auto text-white">
+        {role}
+      </p>
       <ul className="flex justify-center mt-4 space-x-4">
         {socials.map((social) => (
-          <a target="_blank" href={social.link}>
+          <a key={social.link} target="_blank" href={social.link}>
             <img className="w-5" src={social.img} draggable="false" />
           </a>
         ))}
@@ -159,7 +155,7 @@ const Team = () => {
     <div className="py-8 px-4 mx-auto max-w-screen-xl text-center lg:py-16 lg:px-6">
       <div className="grid gap-8 lg:gap-16 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {teamMembers.map((teamMember) => (
-          <TeamMember {...teamMember} />
+          <TeamMember key={teamMember.name} {...teamMember} />
         ))}
       </div>
     </div>

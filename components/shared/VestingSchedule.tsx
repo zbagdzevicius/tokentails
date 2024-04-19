@@ -10,22 +10,54 @@ export const VestingSchedule = () => {
             <th className="py-3 text-center">ALLOCATION</th>
             <th className="py-3 px-6 text-center">TGE</th>
             <th className="py-3 px-6 text-center">price</th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">1</th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">2</th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">3</th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">4</th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">5</th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">6</th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">6</th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">7</th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">9</th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">10</th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">11</th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">12</th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">13</th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">14</th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">15</th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">...</th>
+            <th className="py-3 px-0 text-center border-l border-blue-300 relative">
+              <div className="flex items-center text-p6 w-16 m-auto">1 month after TGE</div>
+            </th>
+            <th className="py-3 text-center border-l border-blue-300">
+              <div className="flex items-center text-p6 w-16 m-auto">2 months after TGE</div>
+            </th>
+            <th className="py-3 text-center border-l border-blue-300">
+              <div className="flex items-center text-p6 w-16 m-auto">3 months after TGE</div>
+            </th>
+            <th className="py-3 text-center border-l border-blue-300">
+              <div className="flex items-center text-p6 w-16 m-auto">4 months after TGE</div>
+            </th>
+            <th className="py-3 text-center border-l border-blue-300">
+              <div className="flex items-center text-p6 w-16 m-auto">5 months after TGE</div>
+            </th>
+            <th className="py-3 text-center border-l border-blue-300">
+              <div className="flex items-center text-p6 w-16 m-auto">6 months after TGE</div>
+            </th>
+            <th className="py-3 text-center border-l border-blue-300">
+              <div className="flex items-center text-p6 w-16 m-auto">7 months after TGE</div>
+            </th>
+            <th className="py-3 text-center border-l border-blue-300">
+              <div className="flex items-center text-p6 w-16 m-auto">8 months after TGE</div>
+            </th>
+            <th className="py-3 px-6 text-center border-l border-blue-300">
+              9
+            </th>
+            <th className="py-3 px-6 text-center border-l border-blue-300">
+              10
+            </th>
+            <th className="py-3 px-6 text-center border-l border-blue-300">
+              11
+            </th>
+            <th className="py-3 px-6 text-center border-l border-blue-300">
+              12
+            </th>
+            <th className="py-3 px-6 text-center border-l border-blue-300">
+              13
+            </th>
+            <th className="py-3 px-6 text-center border-l border-blue-300">
+              14
+            </th>
+            <th className="py-3 px-6 text-center border-l border-blue-300">
+              15
+            </th>
+            <th className="py-3 px-6 text-center border-l border-blue-300">
+              ...
+            </th>
           </tr>
         </thead>
         <tbody>

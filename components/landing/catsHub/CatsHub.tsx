@@ -25,7 +25,7 @@ const CatsHubProps: IProps[] = [
       "Play with your cat in the entertaining RPG game where you can interact with your cat. Feed, pet, exercise and take care of your cat. Earn points, make your cat happy, loveable and friendly. Customize appearance of your cat, including color and items such as hats, collars and suit.",
   },
   {
-    title: "SAVE",
+    title: "SAVE CATS IN REAL-LIFE",
     description:
       "Buy cats and accessories NFTs ( 50% of earned funds via NFTs are donated to cat shelters directly or via support of goods ). You can choose to donate earned points to cat shelters. 20% of total token supply is reserved for saving cats.",
   },
@@ -133,7 +133,7 @@ export const CatsHub = () => {
               </a>
               <a
                 target="_blank"
-                href="https://docs.google.com/presentation/d/1lm3Ioazcd-p_zzn5YRUZAeTFrFmsIVDnq_HuC9OdOZI"
+                href="https://docs.google.com/presentation/d/1G8F_HxNLwxkBSZ9XAcnvtH9SQFBjtI6Wq_2Y6FEXLdQ"
                 className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] bg-[#02020a] flex items-center justify-center rounded w-32 h-10 max-lg:w-24 max-lg:h"
               >
                 <button className="w-[125px] h-[38px] max-lg:w-[94px] text-white">
