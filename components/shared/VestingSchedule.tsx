@@ -10,54 +10,92 @@ export const VestingSchedule = () => {
             <th className="py-3 text-center">ALLOCATION</th>
             <th className="py-3 px-6 text-center">TGE</th>
             <th className="py-3 px-6 text-center">price</th>
-            <th className="py-3 px-0 text-center border-l border-blue-300 relative">
-              <div className="flex items-center text-p6 w-16 m-auto">1 month after TGE</div>
+            <th className="py-3 px-6 text-center border-l border-blue-300 relative bg-gray-50">
+              <div className="absolute inset-0 flex items-center pr-2 rounded-t-lg text-[10px] leading-[10px] z-0">
+                months after TGE
+              </div>
+              <div className="absolute top-0 bottom-4 pt-2 -right-1 bg-gray-50 flex items-center z-10">
+                1
+              </div>
             </th>
-            <th className="py-3 text-center border-l border-blue-300">
-              <div className="flex items-center text-p6 w-16 m-auto">2 months after TGE</div>
+
+            <th className="py-3 px-6 text-center border-l border-blue-300 relative">
+              <div className="absolute top-0 bottom-4 pt-2 -right-1 bg-gray-50 flex items-center">
+                2
+              </div>
             </th>
-            <th className="py-3 text-center border-l border-blue-300">
-              <div className="flex items-center text-p6 w-16 m-auto">3 months after TGE</div>
+
+            <th className="py-3 px-6 text-center border-l border-blue-300 relative">
+              <div className="absolute top-0 bottom-4 pt-2 -right-1 bg-gray-50 flex items-center">
+                3
+              </div>
             </th>
-            <th className="py-3 text-center border-l border-blue-300">
-              <div className="flex items-center text-p6 w-16 m-auto">4 months after TGE</div>
+
+            <th className="py-3 px-6 text-center border-l border-blue-300 relative">
+              <div className="absolute top-0 bottom-4 pt-2 -right-1 bg-gray-50 flex items-center">
+                4
+              </div>
             </th>
-            <th className="py-3 text-center border-l border-blue-300">
-              <div className="flex items-center text-p6 w-16 m-auto">5 months after TGE</div>
+
+            <th className="py-3 px-6 text-center border-l border-blue-300 relative">
+              <div className="absolute top-0 bottom-4 pt-2 -right-1 bg-gray-50 flex items-center">
+                5
+              </div>
             </th>
-            <th className="py-3 text-center border-l border-blue-300">
-              <div className="flex items-center text-p6 w-16 m-auto">6 months after TGE</div>
+
+            <th className="py-3 px-6 text-center border-l border-blue-300 relative">
+              <div className="absolute top-0 bottom-4 pt-2 -right-1 bg-gray-50 flex items-center">
+                6
+              </div>
             </th>
-            <th className="py-3 text-center border-l border-blue-300">
-              <div className="flex items-center text-p6 w-16 m-auto">7 months after TGE</div>
+
+            <th className="py-3 px-6 text-center border-l border-blue-300 relative">
+              <div className="absolute top-0 bottom-4 pt-2 -right-1 bg-gray-50 flex items-center">
+                7
+              </div>
             </th>
-            <th className="py-3 text-center border-l border-blue-300">
-              <div className="flex items-center text-p6 w-16 m-auto">8 months after TGE</div>
+
+            <th className="py-3 px-6 text-center border-l border-blue-300 relative">
+              <div className="absolute top-0 bottom-4 pt-2 -right-1 bg-gray-50 flex items-center">
+                8
+              </div>
             </th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">
-              9
+            <th className="py-3 px-6 text-center border-l border-blue-300 relative">
+              <div className="absolute top-0 bottom-4 pt-2 -right-1 bg-gray-50 flex items-center">
+                9
+              </div>
             </th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">
-              10
+            <th className="py-3 px-6 text-center border-l border-blue-300 relative">
+              <div className="absolute top-0 bottom-4 pt-2 -right-2 bg-gray-50 flex items-center">
+                10
+              </div>
             </th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">
-              11
+            <th className="py-3 px-6 text-center border-l border-blue-300 relative">
+              <div className="absolute top-0 bottom-4 pt-2 -right-2 bg-gray-50 flex items-center">
+                11
+              </div>
             </th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">
-              12
+            <th className="py-3 px-6 text-center border-l border-blue-300 relative">
+              <div className="absolute top-0 bottom-4 pt-2 -right-2 bg-gray-50 flex items-center">
+                12
+              </div>
             </th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">
-              13
+            <th className="py-3 px-6 text-center border-l border-blue-300 relative">
+              <div className="absolute top-0 bottom-4 pt-2 -right-2 bg-gray-50 flex items-center">
+                13
+              </div>
             </th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">
-              14
+            <th className="py-3 px-6 text-center border-l border-blue-300 relative">
+              <div className="absolute top-0 bottom-4 pt-2 -right-2 bg-gray-50 flex items-center">
+                14
+              </div>
             </th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">
-              15
+            <th className="py-3 px-6 text-center border-l border-blue-300 relative">
+              <div className="absolute top-0 bottom-4 pt-2 -right-2 bg-gray-50 flex items-center">
+                15
+              </div>
             </th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">
-              ...
-            </th>
+            <th className="py-3 px-6 text-center border-l border-blue-300"></th>
           </tr>
         </thead>
         <tbody>
@@ -155,7 +193,7 @@ export const VestingSchedule = () => {
               scope="row"
               className="text-p5 py-4 px-6 font-medium whitespace-nowrap bg-green-300 border-b border-white"
             >
-              MARKETING
+              mARKETING
             </th>
             <td className="py-4 px-6 text-center text-green-300 bg-gray-700 text-p4">
               10%
@@ -244,64 +282,64 @@ export const VestingSchedule = () => {
               scope="row"
               className="text-p5 py-4 px-6 font-medium whitespace-nowrap bg-white"
             >
-              MARKET CAP
+              mARKET CAP
             </th>
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p4">
               -
             </td>
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p4 border-l border-white-300">
-              $0.48M
+              $0.48m
             </td>
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p5 border-l border-white">
               -
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $0.6M
+              $0.6m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $1.2M
+              $1.2m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $1.7M
+              $1.7m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $2.2M
+              $2.2m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $2.6M
+              $2.6m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $3.1M
+              $3.1m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $3.7M
+              $3.7m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $4.2M
+              $4.2m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $4.7M
+              $4.7m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $5.3M
+              $5.3m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $5.9M
+              $5.9m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $6.4M
+              $6.4
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $7.3M
+              $7.3m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $7.9M
+              $7.9m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $8.5M
+              $8.5m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $30M
+              $30m
             </td>
           </tr>
         </tbody>
