@@ -12,7 +12,7 @@ export const Tokenomics = () => {
       </div>
       <div className="flex flex-col items-center w-full mb-4">
         <div><span className="font-bold">TOTAL SUPPLY</span> - 1B $TAILS</div>
-        <div><span className="font-bold">INITIAL MARKET CAP</span> - $390K</div>
+        <div><span className="font-bold">INITIAL MARKET CAP</span> - $0.39m</div>
       </div>
       <VestingSchedule />
     </div>

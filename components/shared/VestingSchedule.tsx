@@ -193,7 +193,7 @@ export const VestingSchedule = () => {
               scope="row"
               className="text-p5 py-4 px-6 font-medium whitespace-nowrap bg-green-300 border-b border-white"
             >
-              mARKETING
+              MARKETING
             </th>
             <td className="py-4 px-6 text-center text-green-300 bg-gray-700 text-p4">
               10%
@@ -280,9 +280,10 @@ export const VestingSchedule = () => {
           <tr className="border-b border-white">
             <th
               scope="row"
-              className="text-p5 py-4 px-6 font-medium whitespace-nowrap bg-white"
+              className="text-p5 py-4 px-6 font-medium whitespace-nowrap bg-white flex flex-col"
             >
-              mARKET CAP
+              <span>MARKET CAP</span>
+              <span className="text-p6">INCL. LIQUIDITY</span>
             </th>
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p4">
               -
