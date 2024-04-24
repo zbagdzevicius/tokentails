@@ -11,7 +11,7 @@ interface FooterProps {
 const navConsts: FooterProps[] = [
   {
     title: "Game",
-    link: "/#catshub",
+    link: "#catsslider",
   },
   {
     title: "Token",
@@ -24,6 +24,10 @@ const navConsts: FooterProps[] = [
   {
     title: "Contact",
     link: "/#contact",
+  },
+  {
+    title: "Airdrop",
+    link: "/giveaway",
   },
 ];
 

@@ -12,7 +12,7 @@ interface navProps {
 const navConsts: navProps[] = [
   {
     title: "Game",
-    link: "/#catsslider",
+    link: "#catsslider",
   },
   {
     title: "Token",
@@ -25,6 +25,10 @@ const navConsts: navProps[] = [
   {
     title: "Contact",
     link: "/#contact",
+  },
+  {
+    title: "Airdrop",
+    link: "/giveaway",
   },
 ];
 
