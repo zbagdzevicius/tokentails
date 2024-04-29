@@ -25,10 +25,6 @@ const navConsts: FooterProps[] = [
     title: "Contact",
     link: "/#contact",
   },
-  {
-    title: "Airdrop",
-    link: "/giveaway",
-  },
 ];
 
 export const Footer: React.FC = () => {

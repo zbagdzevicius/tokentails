@@ -26,10 +26,6 @@ const navConsts: navProps[] = [
     title: "Contact",
     link: "/#contact",
   },
-  {
-    title: "Airdrop",
-    link: "/giveaway",
-  },
 ];
 
 export const Header = () => {
