@@ -7,16 +7,16 @@ interface bannerProps {
 
 const sponsorImage = [
   {
-    image: "/images/sponsor/twitch.png",
-    name: "Twitch",
+    image: "/images/sponsor/stellar.webp",
+    name: "Stellar",
   },
   {
     image: "/images/sponsor/u2u.png",
     name: "u2u",
   },
   {
-    image: "/images/sponsor/gamesradar.png",
-    name: "Gamesradar",
+    image: "/images/sponsor/moonbeam.webp",
+    name: "moonbeam",
   },
   {
     image: "/images/sponsor/chess.png",
@@ -27,16 +27,16 @@ const sponsorImage = [
     name: "Roblox",
   },
   {
-    image: "/images/sponsor/twitch.png",
-    name: "Twitch",
+    image: "/images/sponsor/stellar.webp",
+    name: "Stellar",
   },
   {
     image: "/images/sponsor/u2u.png",
     name: "u2u",
   },
   {
-    image: "/images/sponsor/gamesradar.png",
-    name: "Gamesradar",
+    image: "/images/sponsor/moonbeam.webp",
+    name: "moonbeam",
   },
   {
     image: "/images/sponsor/chess.png",
@@ -47,16 +47,16 @@ const sponsorImage = [
     name: "Roblox",
   },
   {
-    image: "/images/sponsor/twitch.png",
-    name: "Twitch",
+    image: "/images/sponsor/stellar.webp",
+    name: "Stellar",
   },
   {
     image: "/images/sponsor/u2u.png",
     name: "u2u",
   },
   {
-    image: "/images/sponsor/gamesradar.png",
-    name: "Gamesradar",
+    image: "/images/sponsor/moonbeam.webp",
+    name: "moonbeam",
   },
   {
     image: "/images/sponsor/chess.png",
@@ -67,16 +67,16 @@ const sponsorImage = [
     name: "Roblox",
   },
   {
-    image: "/images/sponsor/twitch.png",
-    name: "Twitch",
+    image: "/images/sponsor/stellar.webp",
+    name: "Stellar",
   },
   {
     image: "/images/sponsor/u2u.png",
     name: "u2u",
   },
   {
-    image: "/images/sponsor/gamesradar.png",
-    name: "Gamesradar",
+    image: "/images/sponsor/moonbeam.webp",
+    name: "moonbeam",
   },
   {
     image: "/images/sponsor/chess.png",
