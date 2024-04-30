@@ -31,7 +31,7 @@ export const Socials = () => {
           draggable="false"
         />
       </a>
-      <a target="_blank" href="https://discord.gg/yMJT7Xhb">
+      <a target="_blank" href="https://discord.gg/4FVYmnd7Hg">
         <img
           className="w-8"
           src="/icons/social/discord.png"
