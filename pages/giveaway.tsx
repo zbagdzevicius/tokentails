@@ -10,7 +10,7 @@ export default function giveaway() {
         <meta property="og:title" content="Token Tails Airdrop" key="title" />
         <meta
           name="description"
-          content="$1700 USD, 50 winners. Join us in an airdrop, to celebrate our project LAUNCH!"
+          content="$8500 USD, 228 winners. Join us in an airdrop, to celebrate our project!"
         />
         <link rel="shortcut icon" href="/logo/coin.png" />
       </Head>
