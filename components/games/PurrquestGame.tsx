@@ -1,9 +1,10 @@
-'use client'
+"use client";
 import kaboom from "kaboom";
 import { useEffect, useRef } from "react";
 import { addControls, loadControls } from "./controls";
-import { LEVELS } from "./levels";
+import { LEVEL, loadLevelConfig } from "./level";
 import { loadGameAssets, addBackground } from "./assets";
+import { initPlayer, playerAttributes, initNPC } from "./characters";
 
 export const PurrquestGame = () => {
     const canvasRef = useRef(null);
@@ -19,12 +20,7 @@ export const PurrquestGame = () => {
             // if you don't want kaboom to create a canvas and insert under document.body
             canvas: canvasRef.current || undefined,
         });
-        // define some constants
-        const JUMP_FORCE = 1320;
-        // const JUMP_FORCE = 3000;
-        const MOVE_SPEED = 700;
-        // const MOVE_SPEED = 1500;
-        // const FALL_DEATH = 2400;
+
         k.setGravity(3200);
 
         // enable debug mode
@@ -35,69 +31,14 @@ export const PurrquestGame = () => {
         let keyState = { hasKey: false };
         let doorState = { isOpen: false };
 
-        function openDoors(doorState: any) {
-            return {
-                id: "doors",
-                require: ["pos", "area"],
-                update() {
-                    if (doorState.isOpen) {
-                        (this as any).move(0, -30);
-
-                        if ((this as any).pos.y <= 3840) {
-                            (this as any).pos.y = 3840;
-                            doorState.isOpen = false;
-                        }
-                    }
-                },
-            };
-        }
-
         // define what each symbol means in the level graph
-        const levelConf = {
-            tileWidth: 64,
-            tileHeight: 64,
-            tiles: {
-                "□": () => [
-                    k.sprite("grass"),
-                    k.area(),
-                    k.body({ isStatic: true }),
-                    k.anchor("bot"),
-                    k.offscreen({ hide: true }),
-                    "platform",
-                ],
-                "-": () => [
-                    k.sprite("steel"),
-                    k.area(),
-                    k.body({ isStatic: true }),
-                    k.offscreen({ hide: true }),
-                    k.anchor("bot"),
-                    openDoors(doorState),
-                ],
-                T: () => [
-                    k.sprite("trampoline"),
-                    k.area(),
-                    k.body({ isStatic: true }),
-                    k.anchor("bot"),
-                    k.offscreen({ hide: true }),
-                    "trampoline",
-                ],
-                K: () => [k.sprite("key"), k.area(), k.body(), k.anchor("bot"), k.offscreen({ hide: true }), "key"],
-                $: () => [
-                    k.sprite("coin"),
-                    k.area(),
-                    k.pos(0, -9),
-                    k.anchor("bot"),
-                    k.offscreen({ hide: true }),
-                    "coin",
-                ],
-            },
-        };
+        const levelConf = loadLevelConfig(k, doorState);
 
         k.scene("game", ({ levelId, coins } = { levelId: 0, coins: 0 }) => {
             addBackground(k);
             loadGameAssets(k);
             // add level to scene
-             k.addLevel(LEVELS[0], levelConf);
+            k.addLevel(LEVEL, levelConf);
             addControls(k, {
                 jump: () => jump(),
                 left: () => left(),
@@ -107,34 +48,11 @@ export const PurrquestGame = () => {
             });
 
             // define player object
-            const player = k.add([
-                k.sprite("cat", { anim: "idle" }),
-                k.area({
-                    shape: new k.Rect(k.vec2(0, 0), 33, 33),
-                }),
-                k.scale(2),
-                k.anchor("center"),
-                k.pos(3000, 2752),
-                // k.pos(5000, 3900), // spawn near the door
-                // k.pos(500, 100), // spawn near the key
-                k.body(),
-                "player",
-            ]);
+            const player = initPlayer(k);
             // face towards left at the start
             player.flipX = true;
 
-            const NPC = k.add([
-                k.sprite("cat", { anim: "run" }),
-                k.area({
-                    shape: new k.Rect(k.vec2(0, 0), 33, 33),
-                }),
-                k.scale(2),
-                k.anchor("center"),
-                k.pos(6000, 4000),
-                k.state("panic", ["idle", "panic"]),
-                k.body(),
-                "NPC",
-            ]);
+            const NPC = initNPC(k);
             // NPC running in circles at the start of the game
             NPC.use(panic(500, 1));
 
@@ -161,7 +79,7 @@ export const PurrquestGame = () => {
 
             (player as any).onGround((l: any) => {
                 if (l.is("trampoline")) {
-                    player.jump(JUMP_FORCE * 2);
+                    player.jump(playerAttributes.JUMP_FORCE * 2);
                     k.play("powerup");
                 }
             });
@@ -282,18 +200,18 @@ export const PurrquestGame = () => {
             function jump() {
                 // these 2 functions are provided by body() component
                 if (player.isGrounded()) {
-                    player.jump(JUMP_FORCE);
+                    player.jump(playerAttributes.JUMP_FORCE);
                     if (player.curAnim() !== "jump") player.play("jump");
                 }
             }
 
             function right() {
-                player.move(MOVE_SPEED, 0);
+                player.move(playerAttributes.MOVE_SPEED, 0);
                 if (player.curAnim() !== "run") player.play("run");
                 player.flipX = false;
             }
             function left() {
-                player.move(-MOVE_SPEED, 0);
+                player.move(-playerAttributes.MOVE_SPEED, 0);
                 if (player.curAnim() !== "run") player.play("run");
                 player.flipX = true;
             }
