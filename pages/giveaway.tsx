@@ -1,7 +1,10 @@
 import Head from "next/head";
-import React from "react";
+import React, { useEffect } from "react";
 
 export default function giveaway() {
+  useEffect(() => {
+    window.location.href = 'https://taskon.xyz/campaign/detail/13703047' 
+  }, [])
   return (
     <>
       <Head>
