@@ -41,7 +41,7 @@ export const Feed = ({ items }: IProps) => {
 
   return (
     <div className="flex flex-col gap-2 md:gap-4">
-      {entitiesWithMetadata.map((item, i) => {
+      {entitiesWithMetadata.filter(item => !!item.slug).map((item, i) => {
         const Component = entityTypeComponent[item.type];
         return <Component key={i} {...item} />;
       })}
