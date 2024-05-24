@@ -20,8 +20,8 @@ export function ArticleDetails({
   updatedAt,
 }: Props) {
   const link = useMemo(
-    () => EntityRouteOption.ARTICLE.details([category.slug, slug]),
-    [slug, category.slug]
+    () => EntityRouteOption.ARTICLE.details([category?.slug, slug]),
+    [slug, category?.slug]
   );
 
   return (

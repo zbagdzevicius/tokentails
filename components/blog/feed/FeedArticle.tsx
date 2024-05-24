@@ -6,7 +6,7 @@ import { FeedCard } from './FeedCard';
 import { EntityRouteOption } from '@/constants/api';
 
 export const FeedArticle = ({ _id, title, slug, featuredImage, excerpt, category, createdAt, ...rest }: Props) => {
-    const link = useMemo(() => EntityRouteOption.ARTICLE.details([category.slug, slug]), [slug, category.slug]);
+    const link = useMemo(() => EntityRouteOption.ARTICLE.details([category?.slug, slug]), [slug, category?.slug]);
 
     return (
         <FeedCard
