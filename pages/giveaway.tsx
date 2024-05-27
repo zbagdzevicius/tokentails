@@ -9,11 +9,11 @@ export default function giveaway() {
     <>
       <Head>
         <title>Token Tails - Play to Save</title>
-        <meta property="og:image" content="/airdrop.jpg" />
+        <meta property="og:image" content="/airdrop-2.jpg" />
         <meta property="og:title" content="Token Tails Airdrop" key="title" />
         <meta
           name="description"
-          content="$8500 USD, 228 winners. Join us in an airdrop, to celebrate our project!"
+          content="$1000 USD, early access, 50+ winners. Join us in an airdrop, to celebrate our project!"
         />
         <link rel="shortcut icon" href="/logo/coin.png" />
       </Head>
