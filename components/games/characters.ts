@@ -4,7 +4,7 @@ export const playerAttributes = {
     JUMP_FORCE: 1320,
     // JUMP_FORCE: 3000,
     // MOVE_SPEED: 700,
-    MOVE_SPEED: 1500,
+    MOVE_SPEED: 800,
     // FALL_DEATH: 2400,
 };
 
