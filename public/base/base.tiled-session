@@ -1,0 +1,117 @@
+{
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
+    "activeFile": "base.tmx",
+    "expandedProjectPaths": [
+    ],
+    "file.lastUsedOpenFilter": "All Files (*)",
+    "fileStates": {
+        "": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1.3328
+        },
+        "#Decorations (32x32)": {
+            "dynamicWrapping": false
+        },
+        "#Platforms (32x32)": {
+            "dynamicWrapping": false
+        },
+        "#SUGARY_TILESET_01": {
+            "dynamicWrapping": false
+        },
+        "#Terrain and Back Wall (32x32)": {
+            "scaleInEditor": 1
+        },
+        "#home": {
+            "dynamicWrapping": true
+        },
+        "base.tmx": {
+            "expandedGroupLayers": [
+                12
+            ],
+            "scale": 0.8578,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 376.5446491023548,
+                "y": -514.6887386337141
+            }
+        },
+        "base.tmx#Clouds": {
+            "scaleInDock": 0.6674
+        },
+        "base.tmx#Decorations (32x32)": {
+            "scaleInDock": 1.4003,
+            "scaleInEditor": 1
+        },
+        "base.tmx#Grass Mountains": {
+            "scaleInDock": 1
+        },
+        "base.tmx#Platforms (32x32)": {
+            "scaleInDock": 1
+        },
+        "base.tmx#Rock Mountains": {
+            "scaleInDock": 1
+        },
+        "base.tmx#SUGARY_TILESET_01": {
+            "scaleInDock": 1
+        },
+        "base.tmx#Sky": {
+            "scaleInDock": 1
+        },
+        "base.tmx#Terrain and Back Wall (32x32)": {
+            "scaleInDock": 1
+        },
+        "base.tmx#blocks": {
+            "scaleInDock": 1
+        },
+        "base.tmx#cat-32": {
+            "scaleInDock": 1
+        },
+        "base.tmx#clouds": {
+            "scaleInDock": 1
+        },
+        "base.tmx#decorations": {
+            "scaleInDock": 1.681
+        },
+        "base.tmx#grass": {
+            "scaleInDock": 0.3179
+        },
+        "base.tmx#platforms": {
+            "scaleInDock": 1.9357
+        },
+        "base.tmx#rock": {
+            "scaleInDock": 1
+        },
+        "base.tmx#sky": {
+            "scaleInDock": 2.0033
+        },
+        "base.tmx#sugar": {
+            "scaleInDock": 1.9351
+        },
+        "base.tmx#walls": {
+            "scaleInDock": 2.2835
+        }
+    },
+    "last.exportedFilePath": "/Users/zygimantasbagdzevicius/me/cats/public/base",
+    "last.imagePath": "/Users/zygimantasbagdzevicius/Downloads/FREE_Fantasy Forest/Backgrounds",
+    "map.fixedSize": false,
+    "map.lastUsedExportFilter": "All Files (*)",
+    "map.lastUsedFormat": "tmx",
+    "map.tileHeight": 64,
+    "map.tileWidth": 64,
+    "openFiles": [
+        "base.tmx"
+    ],
+    "project": "base.tiled-project",
+    "recentFiles": [
+        "base.tmx"
+    ],
+    "tileset.embedInMap": true,
+    "tileset.tileSize": {
+        "height": 32,
+        "width": 32
+    },
+    "tileset.type": 0
+}
