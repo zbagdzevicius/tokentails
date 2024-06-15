@@ -39,28 +39,30 @@ const ModalCard: React.FC<IProps> = ({
   const abilityDetails: CatAbility | undefined = CatAbilities[ability];
   const cardRef = useRef<HTMLDivElement>(null);
   const [isMouseWithinCard, setIsMouseWithinCard] = useState(false);
-  const { mint, isPending, isConfirming, isConfirmed, isConnected } =
-    useCatMint({ name });
   const [cardStyles, setCardStyles] = useState<CardStyles>(initialCardStyle);
 
   const ctaButtonText = useMemo(() => {
     if (isMintable) {
-      if (isConfirming || isPending) {
-        return "Adopting...";
-      }
+      // if (isConfirming || isPending) {
+      //   return "Adopting...";
+      // }
 
-      if (isConfirmed) {
-        return "See My Cat";
-      }
-      if (!isConfirmed) {
-        return "Adopt";
-      }
+      // if (isConfirmed) {
+      //   return "See My Cat";
+      // }
+      // if (!isConfirmed) {
+      //   return "Adopt";
+      // }
+      return "Coming soon"
     } else if (isPlayable) {
       return "Play";
     }
 
     return "Nonplayable";
-  }, [isMintable, isConfirmed, isPlayable]);
+  }, [
+    isMintable,
+    // isConfirmed,
+    isPlayable]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -104,20 +106,6 @@ const ModalCard: React.FC<IProps> = ({
   }, [isMouseWithinCard]);
 
   const handleClick = () => {
-    if (!isConnected) {
-      return;
-    }
-    if (isMintable) {
-      if (isConfirmed) {
-        router.push("/select");
-      } else {
-        mint();
-      }
-    } else if (!isPlayable) {
-      onClose();
-    } else {
-      router.push("/purrquest");
-    }
   };
 
   return (
@@ -198,8 +186,8 @@ const ModalCard: React.FC<IProps> = ({
                     <div className="text-start m-5 max-lg:m-2 max-sm:m-1">
                       <div className="text-outline mb-3 max-sm:mb-2">
                         <div className="flex flex-row items-center">
-                          <h4 className="text-white text-p2  max-3xl:text-p3 max-md: max-lg:text-p3 max-sm:text-p5 max-lg:tracking-tight text-start ml-16 max-sm:ml-10 font-bold">
-                            Story
+                          <h4 className="text-white text-p5 md:text-p3 xl:text-p2 max-lg:tracking-tight text-start ml-16 max-sm:ml-10 font-bold">
+                            STORY
                           </h4>
                         </div>
                         <p className="text-white text-p4  max-3xl:text-p5 max-lg:text-sm  font-bold">
@@ -215,7 +203,7 @@ const ModalCard: React.FC<IProps> = ({
                             width={40}
                             height={40}
                           />
-                          <h4 className="text-white text-p2  max-3xl:text-p3 max-lg:text-p3 max-sm:text-p text-start ml-6 max-sm:ml-4 max-lg:tracking-tight font-bold">
+                          <h4 className="text-white text-p2 max-3xl:text-p3 max-md: max-lg:text-p3 max-sm:text-p5 max-lg:tracking-tight text-start ml-4 md:ml-8 font-bold">
                             {ability}
                           </h4>
                         </div>
@@ -224,11 +212,11 @@ const ModalCard: React.FC<IProps> = ({
                         </p>
                       </div>
                       <div className="flex items-center gap-1 justify-center text-white">
-                        {isConnected ? (
+                        {true ? (
                           <button
-                            disabled={isPending || isConfirming}
-                            className="[clip-path:polygon(0%_1%,100%_0%,92%_100%,0%_100%)] w-64 max-lg:w-32 max-sm:w-28 h-12 max-lg:h-8 
-                    bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm max-sm:text-xs z-10 rounded-lg"
+                            // disabled={isPending || isConfirming}
+                            className="[clip-path:polygon(0%_1%,100%_0%,92%_100%,0%_100%)] w-64 max-lg:w-36 max-sm:w-28 h-12 max-lg:h-8 
+                    bg-gradient-to-r from-main-ember to-main-rusty text-xl max-lg:text-sm max-sm:text-xs z-10 rounded-lg"
                             onClick={handleClick}
                           >
                             {ctaButtonText}
@@ -238,9 +226,9 @@ const ModalCard: React.FC<IProps> = ({
                         )}
 
                         <button
-                          disabled={isPending || isConfirming}
+                          // disabled={isPending || isConfirming}
                           className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] w-64 max-lg:w-32 max-sm:w-28 h-12 max-lg:h-8 
-                    bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm max-sm:text-xs z-10 rounded-lg"
+                    bg-gradient-to-r from-main-ember to-main-rusty text-xl max-lg:text-sm max-sm:text-xs z-10 rounded-lg"
                           onClick={onClose}
                         >
                           Close

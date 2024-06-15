@@ -5,12 +5,13 @@
     },
     "activeFile": "base.tmx",
     "expandedProjectPaths": [
+        "."
     ],
     "file.lastUsedOpenFilter": "All Files (*)",
     "fileStates": {
         "": {
             "scaleInDock": 1,
-            "scaleInEditor": 1.3328
+            "scaleInEditor": 2.39
         },
         "#Decorations (32x32)": {
             "dynamicWrapping": false
@@ -31,11 +32,11 @@
             "expandedGroupLayers": [
                 12
             ],
-            "scale": 0.8578,
+            "scale": 0.7123,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 376.5446491023548,
-                "y": -514.6887386337141
+                "x": 63.17562824652535,
+                "y": -228.13421311245258
             }
         },
         "base.tmx#Clouds": {
@@ -64,7 +65,7 @@
             "scaleInDock": 1
         },
         "base.tmx#blocks": {
-            "scaleInDock": 1
+            "scaleInDock": 1.7671
         },
         "base.tmx#cat-32": {
             "scaleInDock": 1

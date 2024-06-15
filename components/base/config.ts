@@ -1,5 +1,5 @@
-import { AUTO, Game, Scale } from "phaser";
-import { DevScene } from "./scenes/DevScene";
+import { AUTO, Game } from "phaser";
+import { BaseScene } from "./scenes/BaseScene";
 
 //  Find out more information about the Game Config at:
 //  https://newdocs.phaser.io/docs/3.70.0/Phaser.Types.Core.GameConfig
@@ -12,14 +12,11 @@ const config: Phaser.Types.Core.GameConfig = {
   type: AUTO,
   parent: "game-container",
   backgroundColor: "#fff",
-  scale: {
-    // zoom: 2
-  },
-  scene: DevScene,
+  scene: BaseScene,
   physics: {
     default: "arcade",
     arcade: {
-      gravity: { x: 0, y: 450 },
+      gravity: { x: 0, y: 800  },
       debug: false,
     },
   },

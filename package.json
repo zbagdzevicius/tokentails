@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "postbuild": "next-sitemap"
+    "postbuild": "next-sitemap",
+    "extrude:food": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/food-original.png --output ./public/base/food.png",
+    "extrude:blocks": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/blocks-original.png --output ./public/base/blocks.png"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^5.4.1",
@@ -36,6 +38,7 @@
     "react-intersection-observer": "^9.8.1",
     "rss": "^1.2.2",
     "swiper": "^11.0.6",
+    "tile-extruder": "^2.1.0",
     "use-debounce": "^10.0.0",
     "viem": "^2.9.6",
     "wagmi": "^2.5.17"

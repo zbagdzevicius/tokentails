@@ -13,6 +13,18 @@ interface ExtendedBody extends Physics.Arcade.Body {
   onFloor(): boolean;
 }
 
+export enum NPCJobType {
+  EAT,
+  RUN,
+}
+
+export interface NPCJob {
+  x?: number;
+  y?: number;
+  type: NPCJobType;
+  callback?: () => void;
+}
+
 export enum PlayerAnimation {
   SLEEP = "SLEEP",
   DIGGING = "DIGGING",
@@ -46,12 +58,14 @@ const animationConfigurations: {
   { key: PlayerAnimation.WALKING, frames: 8, repeat: 0 },
 ];
 
-export class Player {
-  scene: Scene;
+export class Cat {
+  private scene: Scene;
   sprite: Physics.Arcade.Sprite;
-  isJumping: boolean = false;
-  lastTouchedWall: "left" | "right" = "left";
-  animation: PlayerAnimation = animationConfigurations[0].key;
+  private isJumping: boolean = false;
+  private lastTouchedWall: "left" | "right" = "left";
+  private animation: PlayerAnimation = animationConfigurations[0].key;
+  job: null | NPCJob = null;
+  private timeoutFunction: any;
 
   constructor(scene: Scene, x: number, y: number) {
     this.scene = scene;
@@ -106,7 +120,44 @@ export class Player {
   }
 
   update() {
-    this.updateOngoingMovements();
+    if (!this.job) {
+      this.updateOngoingMovements();
+    } else {
+      this.updateOngoingJob();
+    }
+  }
+
+  private updateOngoingJob() {
+    if (!this?.sprite?.anims?.play) {
+      return;
+    }
+    if (this.job?.type === NPCJobType.RUN) {
+      this.sprite.anims.play(PlayerAnimation.RUNNING, true);
+      const xPositionDifference = (this.sprite.body?.x || 0) - this.job!.x!;
+      this.sprite.setVelocityX(-xPositionDifference);
+      if (this.sprite.body?.blocked.right || this.sprite.body?.blocked.left) {
+        this.sprite.setVelocityY(-200);
+      }
+      if (xPositionDifference > 0) {
+        this.sprite.setFlipX(true);
+      } else {
+        this.sprite.setFlipX(false);
+      }
+
+      if (Math.abs(xPositionDifference) < 10) {
+        this.job.callback?.();
+        this.job = { type: NPCJobType.EAT };
+      }
+    } else if (this.job?.type === NPCJobType.EAT) {
+      if (!this.timeoutFunction) {
+        this.sprite.setVelocityX(0);
+        this.timeoutFunction = setTimeout(() => {
+          this.job = null;
+          this.timeoutFunction = null;
+        }, 3000);
+      }
+      this.sprite.anims.play(PlayerAnimation.GROOMING, true);
+    }
   }
 
   setJump(isJumping: boolean) {
@@ -117,9 +168,12 @@ export class Player {
   }
 
   private updateOngoingMovements() {
+    if (!this?.sprite?.anims?.play) {
+      return;
+    }
     const onGround = (this.sprite.body as ExtendedBody).onFloor();
     if (this.isJumping && onGround) {
-      this.sprite.setVelocityY(-330);
+      this.sprite.setVelocityY(-400);
       this.isJumping = true;
       return;
     }
