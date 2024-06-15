@@ -1,5 +1,6 @@
 import { IArticle, IArticleExcerpt } from "@/models/article";
 import { ICategory } from "@/models/category";
+import { IProfileCat } from "@/models/cats";
 import { IComment } from "@/models/comment";
 import { IGroup } from "@/models/group";
 import { IProfile } from "@/models/profile";
@@ -37,12 +38,12 @@ export const FEED_OPTION: Record<
     href: "/feed/announcements",
   },
   GROUP: {
-      name: 'Groups',
-      href: 'g',
+    name: "Groups",
+    href: "g",
   },
   QUIZ: {
-      name: 'QUIZ',
-      href: 'quiz',
+    name: "QUIZ",
+    href: "quiz",
   },
 };
 
@@ -75,21 +76,20 @@ export const EntityRouteOption: Omit<
       list?: (slugs: string[]) => string;
     }
   >,
-  | EntityType.COMMENT
-  | EntityType.VIDEO_SLIDER
-  | EntityType.VIDEO
+  EntityType.COMMENT | EntityType.VIDEO_SLIDER | EntityType.VIDEO
 > = {
   [EntityType.ARTICLE]: {
-    details: ([category, article]) => `/feed/${category}${urlPrefix}/${article}`,
+    details: ([category, article]) =>
+      `/feed/${category}${urlPrefix}/${article}`,
   },
   [EntityType.GROUP]: {
-      details: ([slug]) => `/feed/${FEED_OPTION.GROUP.href}${urlPrefix}/${slug}`,
+    details: ([slug]) => `/feed/${FEED_OPTION.GROUP.href}${urlPrefix}/${slug}`,
   },
   [EntityType.PUBLICATION]: {
-      details: ([slug]) => `/${FEED_OPTION.GROUP.href}/p/${slug}`,
+    details: ([slug]) => `/${FEED_OPTION.GROUP.href}/p/${slug}`,
   },
   [EntityType.QUIZ]: {
-      details: ([quiz]) => `/${FEED_OPTION.QUIZ.href}${urlPrefix}/${quiz}`,
+    details: ([quiz]) => `/${FEED_OPTION.QUIZ.href}${urlPrefix}/${quiz}`,
   },
 };
 
@@ -454,6 +454,27 @@ export const groupFetch = async (slug: string): Promise<IGroup> => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return null;
+  });
+};
+
+export const redeemCat = async (code: string): Promise<IProfileCat | null> => {
+  if (!code) {
+    return null;
+  }
+  return fetch(`${apiUrl}/cat/redeem/${code}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: localStorage.getItem("accesstoken"),
     } as any,
   }).then((response) => {
     if (response.ok) {

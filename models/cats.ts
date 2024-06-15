@@ -1,3 +1,5 @@
+import { IStatusValue, StatusType } from "./status";
+
 export enum CatAbilitySkill {
   FURSHADOW = "FURSHADOW",
   PURRSTORM = "PURRSTORM",
@@ -66,6 +68,16 @@ export interface ICat {
   isPlayable?: boolean;
   resqueStory: string;
   hp: number;
+  status: Partial<Record<StatusType, IStatusValue>>;
+}
+
+export interface IProfileCat {
+  _id: string | number;
+  name: string;
+  ability: CatAbilitySkill;
+  resqueStory: string;
+  status: Partial<Record<StatusType, IStatusValue>>;
+  spriteImg: string;
 }
 
 export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {
@@ -102,6 +114,11 @@ export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {
   },
 };
 
+const status: Partial<Record<StatusType, IStatusValue>> = {
+  [StatusType.EAT]: 0,
+  [StatusType.PLAY]: 0,
+};
+
 export const assignAbilitiesToCats = (): ICat[] => {
   return [
     {
@@ -112,6 +129,7 @@ export const assignAbilitiesToCats = (): ICat[] => {
       resqueStory: resqueStory(names[0]),
       isPlayable: true,
       hp: 100,
+      status,
     },
     {
       _id: 2,
@@ -120,6 +138,7 @@ export const assignAbilitiesToCats = (): ICat[] => {
       ability: CatAbilitySkill.PURRSTORM,
       resqueStory: resqueStory(names[1]),
       hp: 100,
+      status,
     },
     {
       _id: 3,
@@ -128,6 +147,7 @@ export const assignAbilitiesToCats = (): ICat[] => {
       ability: CatAbilitySkill.FURSHADOW,
       resqueStory: resqueStory(names[2]),
       hp: 100,
+      status,
     },
     {
       _id: 4,
@@ -136,6 +156,7 @@ export const assignAbilitiesToCats = (): ICat[] => {
       ability: CatAbilitySkill.SHADOWPOUNCE,
       resqueStory: resqueStory(names[3]),
       hp: 100,
+      status,
     },
     {
       _id: 5,
@@ -144,6 +165,7 @@ export const assignAbilitiesToCats = (): ICat[] => {
       ability: CatAbilitySkill.AQUAWHISKER,
       resqueStory: resqueStory(names[4]),
       hp: 100,
+      status,
     },
     {
       _id: 6,
@@ -152,6 +174,7 @@ export const assignAbilitiesToCats = (): ICat[] => {
       ability: CatAbilitySkill.TAILWIND,
       resqueStory: resqueStory(names[5]),
       hp: 100,
+      status,
     },
     {
       _id: 7,
@@ -160,6 +183,7 @@ export const assignAbilitiesToCats = (): ICat[] => {
       ability: CatAbilitySkill.TAILWIND,
       resqueStory: resqueStory(names[6]),
       hp: 100,
+      status,
     },
   ];
 };

@@ -4,7 +4,7 @@
   <export target="base.json" format="json"/>
  </editorsettings>
  <tileset firstgid="1" name="blocks" tilewidth="32" tileheight="32" tilecount="290" columns="29">
-  <image source="blocks.png" width="928" height="320"/>
+  <image source="blocks-original.png" width="928" height="320"/>
  </tileset>
  <layer id="14" name="blocks" width="30" height="20">
   <data encoding="csv">
