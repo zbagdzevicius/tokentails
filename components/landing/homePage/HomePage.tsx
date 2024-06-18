@@ -201,7 +201,7 @@ export const HomePage = () => {
           </div>
         </div>
         <div></div>
-        <div className="relative h-fit flex items-center justify-center pb-10 max-lg:pb-7">
+        <div className="relative z-10 h-fit flex items-center justify-center pb-10 max-lg:pb-7">
           <div className="relative pt-20 max-lg:pt-10 px-14 max-lg:px-0 flex items-center justify-center">
             <div className="relative w-full max-lg:w-9/12">
               <img
@@ -209,17 +209,19 @@ export const HomePage = () => {
                 alt="Cats Background"
                 className="w-full h-full"
               />
-              <img
-                src="/images/home-page/bg-1.jpg"
-                alt="cats"
+              <video
                 className="absolute inset-0 w-full h-full object-cover z-3 md:p-2.5 p-1.5"
-                width={500}
-                height={500}
-              />
+                autoPlay
+                muted
+                loop
+                playsInline
+              >
+                <source src="https://tokentails.fra1.cdn.digitaloceanspaces.com/token-tails-intro.webm" />
+              </video>
               <img
                 src="/images/home-page/cats-top.webp"
                 alt="Cat Hero"
-                className="absolute -top-16 lg:-top-36 right-0 w-1/2 object-cover overflow-hidden"
+                className="absolute -top-12 lg:-top-16 right-0 w-1/4 object-cover overflow-hidden"
                 width={500}
                 height={500}
               />

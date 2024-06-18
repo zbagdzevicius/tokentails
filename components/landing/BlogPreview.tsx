@@ -45,7 +45,6 @@ export const BlogPreview = () => {
     queryKey: ["todos"],
     queryFn: () => findArticlesFetch({ page: 0, perPage: 4 }),
   });
-  console.log(data);
   return (
     <div className="">
       <h2 className="text-center font-secondary uppercase tracking-tight text-h2 text-balance max-lg:text-h6 my-3">
