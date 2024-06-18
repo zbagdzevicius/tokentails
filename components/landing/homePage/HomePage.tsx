@@ -173,7 +173,7 @@ const cats: bannerProps[] = [
 export const HomePage = () => {
   return (
     <div className="mt-4 flex justify-center items-center flex-col">
-      <div className="relative w-full lg:w-2/3 xl:w-1/2 pt-16 px-10 max-lg:text-balance">
+      <div className="relative w-full lg:w-2/3 xl:w-1/2 pt-16 px-10 max-lg:text-balance md:-mb-16">
         <img
           className="absolute top-0 left-0 "
           src="/images/home-page/firework.png"
@@ -182,7 +182,7 @@ export const HomePage = () => {
           height={80}
         />
         <h1 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl">
-          Play with your virtual cat to save a cat in a shelter
+          PLAY TO SAVE
         </h1>
       </div>
       <div className="relative w-full flex items-center justify-center max-w-[100vw] overflow-hidden">
