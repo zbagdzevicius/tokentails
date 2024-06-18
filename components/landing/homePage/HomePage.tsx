@@ -19,32 +19,12 @@ const sponsorImage = [
     name: "moonbeam",
   },
   {
-    image: "/images/sponsor/chess.png",
-    name: "Chess",
+    image: "/images/sponsor/dao.webp",
+    name: "dao",
   },
   {
-    image: "/images/sponsor/roblox.png",
-    name: "Roblox",
-  },
-  {
-    image: "/images/sponsor/stellar.webp",
-    name: "Stellar",
-  },
-  {
-    image: "/images/sponsor/u2u.png",
-    name: "u2u",
-  },
-  {
-    image: "/images/sponsor/moonbeam.webp",
-    name: "moonbeam",
-  },
-  {
-    image: "/images/sponsor/chess.png",
-    name: "Chess",
-  },
-  {
-    image: "/images/sponsor/roblox.png",
-    name: "Roblox",
+    image: "/images/sponsor/skale.webp",
+    name: "skale",
   },
   {
     image: "/images/sponsor/stellar.webp",
@@ -59,12 +39,12 @@ const sponsorImage = [
     name: "moonbeam",
   },
   {
-    image: "/images/sponsor/chess.png",
-    name: "Chess",
+    image: "/images/sponsor/dao.webp",
+    name: "dao",
   },
   {
-    image: "/images/sponsor/roblox.png",
-    name: "Roblox",
+    image: "/images/sponsor/skale.webp",
+    name: "skale",
   },
   {
     image: "/images/sponsor/stellar.webp",
@@ -79,8 +59,28 @@ const sponsorImage = [
     name: "moonbeam",
   },
   {
-    image: "/images/sponsor/chess.png",
-    name: "Chess",
+    image: "/images/sponsor/dao.webp",
+    name: "dao",
+  },
+  {
+    image: "/images/sponsor/skale.png",
+    name: "skale",
+  },
+  {
+    image: "/images/sponsor/stellar.webp",
+    name: "Stellar",
+  },
+  {
+    image: "/images/sponsor/u2u.png",
+    name: "u2u",
+  },
+  {
+    image: "/images/sponsor/moonbeam.webp",
+    name: "moonbeam",
+  },
+  {
+    image: "/images/sponsor/dao.webp",
+    name: "dao",
   },
   {
     image: "/images/sponsor/roblox.png",
@@ -205,7 +205,7 @@ export const HomePage = () => {
           <div className="relative pt-20 max-lg:pt-10 px-14 max-lg:px-0 flex items-center justify-center">
             <div className="relative w-full max-lg:w-9/12">
               <img
-                src="/images/home-page/cat-background.png"
+                src="/images/home-page/cat-background.webp"
                 alt="Cats Background"
                 className="w-full h-full"
               />
@@ -217,7 +217,7 @@ export const HomePage = () => {
                 height={500}
               />
               <img
-                src="/images/home-page/cats-top.png"
+                src="/images/home-page/cats-top.webp"
                 alt="Cat Hero"
                 className="absolute -top-16 lg:-top-36 right-0 w-1/2 object-cover overflow-hidden"
                 width={500}

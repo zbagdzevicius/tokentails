@@ -15,7 +15,7 @@ interface ITeamMember {
 enum SocialImages {
   LINKEDIN = "/icons/social/linkedin.png",
   INSTAGRAM = "/icons/social/instagram.png",
-  X = "/icons/social/x.png",
+  X = "/icons/social/x.webp",
   WARPCAST = "/icons/social/warpcast.png",
   EMAIL = "/icons/social/email.png",
 }
@@ -67,6 +67,17 @@ const teamMembers: ITeamMember[] = [
     ],
   },
   {
+    img: "/team/krishna.webp",
+    name: "Krishna Meruva",
+    role: "Marketing Lead",
+    socials: [
+      {
+        img: SocialImages.LINKEDIN,
+        link: "https://www.linkedin.com/in/krishna-meruva/",
+      },
+    ],
+  },
+  {
     img: "/team/ernest.webp",
     name: "Ernest Rimkevičius",
     role: "Developer",
@@ -78,13 +89,13 @@ const teamMembers: ITeamMember[] = [
     ],
   },
   {
-    img: "/team/gerardas.webp",
-    name: "Gerardas Stanevičius",
+    img: "/team/lukas.webp",
+    name: "Lukas Kveraga",
     role: "Engineer",
     socials: [
       {
-        img: SocialImages.EMAIL,
-        link: "https://success.codes/",
+        img: SocialImages.LINKEDIN,
+        link: "https://www.linkedin.com/in/lukas-kveraga",
       },
     ],
   },
@@ -96,6 +107,17 @@ const teamMembers: ITeamMember[] = [
       {
         img: SocialImages.LINKEDIN,
         link: "https://www.linkedin.com/in/andriusziuznys/",
+      },
+    ],
+  },
+  {
+    img: "/team/domas.webp",
+    name: "Domas Grašys",
+    role: "UI expert",
+    socials: [
+      {
+        img: SocialImages.LINKEDIN,
+        link: "https://www.linkedin.com/in/igor-plusa/",
       },
     ],
   },
@@ -134,7 +156,7 @@ const teamMembers: ITeamMember[] = [
 const TeamMember = ({ img, name, role, socials }: ITeamMember) => {
   return (
     <div className="text-center">
-      <img className="mx-auto mb-4 w-36 h-36" src={img} alt={name} />
+      <img className="mx-auto mb-4 w-36 h-36 object-contain" src={img} alt={name} />
       <h3 className="mb-1 text-p3 md:text-p3 font-secondary">{name}</h3>
       <p className="px-2 rounded-full animate-border w-fit m-auto text-white">
         {role}
@@ -153,7 +175,7 @@ const TeamMember = ({ img, name, role, socials }: ITeamMember) => {
 const Team = () => {
   return (
     <div className="py-8 px-4 mx-auto max-w-screen-xl text-center lg:py-16 lg:px-6">
-      <div className="grid gap-8 lg:gap-16 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+      <div className="grid gap-8 grid-cols-2 md:grid-cols-5">
         {teamMembers.map((teamMember) => (
           <TeamMember key={teamMember.name} {...teamMember} />
         ))}

@@ -29,7 +29,7 @@ export const loadGameAssets = (k: any) => {
     // k.loadSprite("prize", "purrquest/sprites/jumpy.png");
     // k.loadSprite("apple", "purrquest/sprites/apple.png");
     k.loadSprite("portal", "purrquest/sprites/portal.png");
-    k.loadSprite("coin", "purrquest/sprites/coin.png");
+    k.loadSprite("coin", "purrquest/sprites/coin.webp");
     k.loadSprite("trampoline", "purrquest/sprites/trampoline.png");
     k.loadSprite("steel", "purrquest/sprites/steel.png");
     k.loadSprite("key", "purrquest/sprites/key.png");

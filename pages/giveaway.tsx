@@ -15,7 +15,7 @@ export default function giveaway() {
           name="description"
           content="$1000 USD, early access, 50+ winners. Join us in an airdrop, to celebrate our project!"
         />
-        <link rel="shortcut icon" href="/logo/coin.png" />
+        <link rel="shortcut icon" href="/logo/coin.webp" />
       </Head>
       <iframe
         className="w-screen h-screen"
@@ -25,7 +25,7 @@ export default function giveaway() {
         <a href="/" className="p-3 md:p-8">
           <img
             className="h-12 md:h-24 flex-1 object-contain object-left"
-            src="/logo/logo.png"
+            src="/logo/logo.webp"
             alt="logo"
           />
         </a>

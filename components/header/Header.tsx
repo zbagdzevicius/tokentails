@@ -75,7 +75,7 @@ export const Header = () => {
     >
       <div className={`flex flex-wrap items-center justify-between ${isTop ? 'py-6' : 'py-2'} px-24 max-lg:px-4 relative`}>
         <a href="/" className="flex items-center gap-4 transition">
-          <img className={isTop ? `h-12 md:h-24` : `h-8 md:h-12`} src="/logo/logo.png" alt="logo" />
+          <img className={isTop ? `h-12 md:h-24` : `h-8 md:h-12`} src="/logo/logo.webp" alt="logo" />
           <div className="text-p3 font-secondary">TOKEN TAILS</div>
         </a>
         <ul className="lg:!flex lg:space-x-4 max-lg:space-y-2 max-lg:hidden max-lg:py-4 max-lg:w-full">

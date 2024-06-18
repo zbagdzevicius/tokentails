@@ -60,7 +60,7 @@ export const SignInContent = () => {
 
   return (
     <div className="pt-8 pb-4 px-4 md:px-16 md:py-12 text-gray-500 flex flex-col justify-between">
-      <img className="w-16 m-auto mb-8" src="/logo/logo.png" />
+      <img className="w-16 m-auto mb-8" src="/logo/logo.webp" />
       {!user && (
         <div>
           <SignInForm signIn={signIn} />
@@ -99,7 +99,7 @@ export const SignInContent = () => {
       <ul className="m-auto">
         {features.map((feature) => (
           <li key={feature} className="flex items-center gap-x-2">
-            <img className="w-4" src="/logo/coin.png" />
+            <img className="w-4" src="/logo/coin.webp" />
             <div>{feature}</div>
           </li>
         ))}

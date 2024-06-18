@@ -30,7 +30,7 @@ const ShortAnswerInput = ({ id }: { id: string }) => {
   return (
     <input
       className="[clip-path:polygon(0%_0%,100%_0%,96%_100%,0%_100%)] w-56 md:w-[360px] rounded-l placeholder:text-gray-100 px-4 md:px-8 text-p5 md:text-p4 bg-gradient-to-r from-main-ember to-main-rusty outline-none h-12 md:h-16 text-white"
-      placeholder="Sign Up for Early Access"
+      placeholder="Sign Up to our Whitelist"
       type="text"
       {...register()}
     />

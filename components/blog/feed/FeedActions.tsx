@@ -72,7 +72,7 @@ export const FeedActions = ({
               {Math.ceil(getRandomNumber(`${link}-share`, new Date()) / 10)}{" "}
               Shares
             </span>
-            <img className="w-4 ml-2" src="/logo/coin.png" />
+            <img className="w-4 ml-2" src="/logo/coin.webp" />
           </div>
         </div>
       </div>
@@ -107,7 +107,7 @@ export const FeedActions = ({
               onClick={() => setShareModalOpened(true)}
               className="w-1/3 cursor-pointer flex group justify-center items-center hover:bg-gray-100 text-xl rounded-md text-gray-500 rem:h-[38px] group relative"
             >
-              <img src="/logo/coin.png" className="w-6 h-6" />
+              <img src="/logo/coin.webp" className="w-6 h-6" />
               <div className="text-p4 font-semibold ml-2">Share</div>
               <Share url={link!} />
             </a>

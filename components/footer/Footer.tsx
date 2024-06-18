@@ -44,7 +44,7 @@ export const Footer: React.FC = () => {
           <div className="flex items-center gap-4">
             <img
               className="h-24 flex-1 object-contain object-left"
-              src="/logo/logo.png"
+              src="/logo/logo.webp"
               alt="logo"
             />
 

@@ -31,7 +31,7 @@ const metadata = {
   name: "Web3Modal",
   description: "TokenTails wallet connect",
   url: "https://tokentails.com", // origin must match your domain & subdomain
-  icons: ["https://tokentails.com/logo/logo.png"],
+  icons: ["https://tokentails.com/logo/logo.webp"],
 };
 
 // Create wagmiConfig

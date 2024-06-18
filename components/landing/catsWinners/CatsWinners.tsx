@@ -5,59 +5,60 @@ export const CatsWinners = () => {
         <h2 className="text-left font-secondary uppercase tracking-tight text-h2 text-balance max-lg:text-h6 my-3">
           we’re the first play to save game in the world
         </h2>
-        <div className="grid grid-cols-2 grid-rows-7 gap-6 max-lg:gap-2">
-          <div>
+        <div className="grid grid-cols-2 md:grid-rows-7 gap-6 max-lg:gap-2">
+          <div className="flex items-center md:items-start">
             <div className="flex flex-row items-center flex-wrap space-x-3 text-p5 max-lg:text-sm">
-              <p className="text-main-rustyOrange">Adventure</p>
-              <p className="active:text-main-rustyOrange">RPG</p>
-              <p>Social</p>
-              <p>Save</p>
-              <p>Cats</p>
+              <p className="text-main-rustyOrange">
+                Join the the most exciting game of 2024, start your Purrari and
+                enroll into Furrtivities right now. Don't miss it out ! Cat's are limited !
+              </p>
             </div>
           </div>
-          <div className="p-1 max-lg:p-0.5 row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl">
+          <div className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl">
             <img
               className="w-full h-full object-cover rounded-2xl"
-              src="/images/cats-winners/cat-tamogotchi.jpg"
+              src="/images/cats-winners/adventures.jpg"
               width={200}
               height={200}
               alt="cats"
             />
           </div>
-          <div className="p-1 max-lg:p-0.5  row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl">
+          <div className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl">
             <img
               className="w-full h-full object-cover rounded-2xl"
-              src="/images/cats-winners/cats-customize-1.jpg"
+              src="/images/cats-winners/adopt.jpg"
               width={200}
               height={200}
               alt="cats"
             />
           </div>
-          <div className="p-1 max-lg:p-0.5  row-span-9 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl">
+          <div className="p-1 max-lg:p-0.5 md:row-span-9 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl">
             <img
               className="w-full h-full object-cover rounded-2xl"
-              src="/images/cats-winners/cats-group-2.jpg"
+              src="/images/cats-winners/catbasador.jpg"
               width={200}
               height={200}
               alt="cats"
             />
           </div>
-          <div className="p-1 max-lg:p-0.5  row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl">
+          <div className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl">
             <img
               className="w-full h-full object-cover rounded-2xl"
-              src="/images/cats-winners/cats-group-1.jpg"
+              src="/images/cats-winners/friends.jpg"
               width={200}
               height={200}
               alt="cats"
             />
           </div>
-          <div className="rows-span-2">
-            <div className="flex flex-col md:flex-row justify-between gap-4 md:items-center">
+          <div className="md:rows-span-2">
+            <div className="flex flex-col items-center md:flex-row justify-center md:justify-between gap-4">
               <div className="flex flex-col">
                 <p className="text-p4 max-lg:text-p5 font-tertiary">
                   Select from
                 </p>
-                <div className="text-h2 max-lg:text-h3 font-secondary">1000+</div>
+                <div className="text-h2 max-lg:text-h3 font-secondary">
+                  1000+
+                </div>
                 <p className="text-p4 max-lg:text-p5  font-tertiary">
                   Virtual{" "}
                   <span className="custom-gradient-text font-bold">Cats</span>

@@ -15,7 +15,7 @@ interface IProps {
 export const SeoHead = ({
   name,
   description,
-  image = `${process.env.NEXT_PUBLIC_DOMAIN}/logo.png`,
+  image = `${process.env.NEXT_PUBLIC_DOMAIN}/logo.webp`,
   article,
   page,
 }: IProps) => {
@@ -82,7 +82,7 @@ export const SeoHead = ({
       <meta name="twitter:title" content={mainTitle} />
       <meta name="twitter:description" content={mainDescription} />
       <meta name="twitter:image" content={mainImage} />
-      <link rel="shortcut icon" href="/logo/coin.png" />
+      <link rel="shortcut icon" href="/logo/coin.webp" />
     </Head>
   );
 };

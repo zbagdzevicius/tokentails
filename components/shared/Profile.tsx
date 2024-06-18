@@ -29,7 +29,7 @@ export const ProfileContent = () => {
 
   return (
     <div className="pt-8 pb-4 px-4 md:px-16 md:py-12 text-gray-500 flex flex-col gap-4 justify-between items-center">
-      <img className="w-16 m-auto" src="/logo/logo.png" />
+      <img className="w-16 m-auto" src="/logo/logo.webp" />
       {user && <div>Hello, {user.displayName || user.email} !</div>}
       {!profile?.cat && (
         <div className="flex flex-col items-center justify-center gap-2 font-bold font-secondary">
@@ -48,12 +48,12 @@ export const ProfileContent = () => {
       {profile?.cat && (
         <ul className="m-auto">
           <li className="flex items-center gap-x-2">
-            <img className="w-4" src="/logo/coin.png" />
+            <img className="w-4" src="/logo/coin.webp" />
             <div>Your cat name is {profile.cat.name}</div>
           </li>
           {features.map((feature) => (
             <li key={feature} className="flex items-center gap-x-2">
-              <img className="w-4" src="/logo/coin.png" />
+              <img className="w-4" src="/logo/coin.webp" />
               <div>{feature}</div>
             </li>
           ))}

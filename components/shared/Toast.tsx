@@ -9,9 +9,9 @@ export const Toast = ({ message, icon, isError }: IToast) => {
                     isError ? 'border-red-500' : 'border-purple-300'
                 } bg-yellow-300 flex items-center justify-center gap-4 text-main-black font-secondary`}
             >
-                <img className='w-6' src="/logo/coin.png" />
+                <img className='w-6' src="/logo/coin.webp" />
                 <div>{message}</div>
-                <img className='w-6' src="/logo/coin.png" />
+                <img className='w-6' src="/logo/coin.webp" />
             </div>
         </div>
     );

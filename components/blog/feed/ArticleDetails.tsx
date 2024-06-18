@@ -31,7 +31,7 @@ export function ArticleDetails({
       link={link}
       author={category.name}
       authorSubtitle="Andrius Žiužnys"
-      authorImage={'/logo/coin.png'}
+      authorImage={'/logo/coin.webp'}
       description={excerpt}
       authorLink={category.slug}
       date={createdAt}

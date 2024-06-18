@@ -1,5 +1,6 @@
 import { Footer } from "@/components/footer/Footer";
 import { Header } from "@/components/header/Header";
+import { BlogPreview } from "@/components/landing/BlogPreview";
 import { CatsHub } from "@/components/landing/catsHub/CatsHub";
 import { CatsSlider } from "@/components/landing/catsSlider/CatsSlider";
 import { CatsWinners } from "@/components/landing/catsWinners/CatsWinners";
@@ -76,7 +77,7 @@ export default function Index() {
     <>
       <Head>
         <title>Token Tails - Play to Save</title>
-        <meta property="og:image" content="/logo/logo.png" />
+        <meta property="og:image" content="/logo/logo.webp" />
         <meta
           property="og:title"
           content="Token Tails - Play to Save"
@@ -86,7 +87,7 @@ export default function Index() {
           name="description"
           content="PLAY WITH YOUR VIRTUAL CAT TO SAVE A CAT IN A SHELTER"
         />
-        <link rel="shortcut icon" href="/logo/coin.png" />
+        <link rel="shortcut icon" href="/logo/coin.webp" />
       </Head>
 
       <Header />
@@ -111,6 +112,11 @@ export default function Index() {
         <div className="py-4 bg-gradient-to-b from-purple-300">
           <div id="catshub" ref={catshubRef}>
             <CatsHub />
+          </div>
+        </div>
+        <div className="pb-4 pt-3 md:pt-0">
+          <div id="blog">
+            <BlogPreview />
           </div>
         </div>
         <div className="py-4 bg-gradient-to-b from-transparent to-green-300">

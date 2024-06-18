@@ -15,19 +15,19 @@ const CatsHubProps: IProps[] = [
       "Choose your purr-fect companion from a diverse range of lovable felines !",
   },
   {
-    title: "START TO PLAY",
+    title: "VIRTUAL CAT",
     description:
-      "Each cat has its own unique personality and story waiting to be discovered. Take care, have fun and play !",
+      "Each cat is unique and linked with a real cat in the shelter. By adopting a virtual cat, you're helping a real cat.",
   },
   {
     title: "ACTIVITIES",
     description:
-      "Play with your cat in the entertaining RPG game where you can interact with your cat. Feed, pet, exercise and take care of your cat. Earn points, make your cat happy, loveable and friendly. Customize appearance of your cat, including color and items such as hats, collars and suit.",
+      "Keep you cat happy - feed, play and fulfill the needs of your cat to earn tokens",
   },
   {
     title: "SAVE CATS IN REAL-LIFE",
     description:
-      "Buy cats and accessories NFTs ( 50% of earned funds via NFTs are donated to cat shelters directly or via support of goods ). You can choose to donate earned points to cat shelters. 20% of total token supply is reserved for saving cats.",
+      "Buy cats and accessories NFTs - 50% of revenue will be distributed to cat shelters",
   },
 ];
 
@@ -44,7 +44,7 @@ const CatsSection = ({ title, description, isActive, onSet }: IProps) => {
       >
         <button
           onClick={() => onSet?.()}
-          className={`flex relative z-10 w-full title items-center py-5 px-5 transition 
+          className={`flex relative z-10 w-full title items-center py-3 px-5 transition 
                 ${
                   isActive
                     ? "bg-gradient-to-r from-yellow-300 from-5% to-white"
@@ -91,19 +91,19 @@ export const CatsHub = () => {
           YOUR VIRTUAL COMPANION
         </h2>
 
-        <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1 max-lg:mx-5 my-10">
+        <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1 max-lg:mx-5 my-0 md:my-10">
           <div className="relative w-full h-fit">
             <img
-              src="/images/cats-hub/cat-background.png"
+              src="/images/cats-hub/cat-background.webp"
               alt="Cats Background"
-              className="w-full h-full"
+              className="w-full h-full animate-colormax"
               width={500}
               height={200}
             />
             <img
-              src="/images/cats-hub/cats-customize-2.jpg"
+              src="/images/cats-hub/cat-with-hat.webp"
               alt="cats"
-              className="absolute inset-0 w-full h-full object-cover z-3 md:p-2.5 p-1.5"
+              className="absolute inset-0 w-full h-full object-contain z-3 md:p-2.5 p-1.5"
               width={1000}
               height={1000}
             />

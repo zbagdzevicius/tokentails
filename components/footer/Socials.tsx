@@ -6,7 +6,7 @@ export const Socials = () => {
       <a target="_blank" href="https://x.com/tokentails">
         <img
           className="w-8"
-          src="/icons/social/x.png"
+          src="/icons/social/x.webp"
           draggable="false"
         />
       </a>

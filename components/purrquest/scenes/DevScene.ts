@@ -29,7 +29,7 @@ export class DevScene extends Scene {
       frameWidth: 64,
       frameHeight: 39,
     });
-    this.load.image("coin", "purrquest/sprites/coin.png");
+    this.load.image("coin", "purrquest/sprites/coin.webp");
     this.load.image("trampoline", "purrquest/sprites/trampoline.png");
     // this.load.image("ground", "purrquest/sprites/platform.png");
     this.load.image("key", "purrquest/sprites/key.png");
