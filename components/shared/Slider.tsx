@@ -10,9 +10,10 @@ import { EffectCoverflow, Pagination, Autoplay } from "swiper/modules";
 interface IProps {
   items: ReactNode[];
   customClass?: string;
+  mobileSlides?: number;
 }
 
-export const Slider = ({ items, customClass }: IProps) => {
+export const Slider = ({ items, customClass, mobileSlides }: IProps) => {
   return (
     <Swiper
       effect={"coverflow"}
@@ -28,11 +29,11 @@ export const Slider = ({ items, customClass }: IProps) => {
 
       breakpoints={{
         0: {
-          slidesPerView: 2,
+          slidesPerView: mobileSlides || 1,
           spaceBetween: 10,
         },
         640: {
-          slidesPerView: 2,
+          slidesPerView: mobileSlides || 1,
           spaceBetween: 10,
         },
         768: {

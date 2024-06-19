@@ -61,5 +61,5 @@ export const CatsSlider = () => {
       )}
     </div>
   ));
-  return <Slider items={items} customClass="text-white" />;
+  return <Slider items={items} customClass="text-white" mobileSlides={2} />;
 };
