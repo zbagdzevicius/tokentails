@@ -6,7 +6,7 @@ const sliderItems: { img: string; title: string; explanation: string }[] = [
     img: "/images/cats-slider/cat-eat.jpg",
     title: "feed",
     explanation:
-      "Feed your cat to fill the energy - without the energy cat won't be able to play",
+      "Feed your adorable feline friend to fill their energy tank! So your kitty will be able to enjoy all the fun.",
   },
   {
     img: "/images/cats-slider/cat-smile.jpg",
@@ -16,17 +16,17 @@ const sliderItems: { img: string; title: string; explanation: string }[] = [
   {
     img: "/images/cats-slider/cat-sit.jpg",
     title: "Love",
-    explanation: "Love your cat by giving it what it wants - your attention",
+    explanation: "Show your NFT cat some love by giving them what they crave most – your attention!",
   },
   {
     img: "/images/cats-slider/cat-play-1.jpg",
     title: "Play",
-    explanation: "Play with your cat daily to fulfill the Joy of the cat",
+    explanation: "Play with your cat daily to level up their Joy and unlock exciting rewards!",
   },
   {
     img: "/images/cats-slider/cat-play-2.jpg",
     title: "Contribute",
-    explanation: "50% of each NFT purchase goes straight to cat shelters",
+    explanation: "Real world impact: 50% of every NFT purchase goes directly to supporting cat shelters!",
   },
 ];
 

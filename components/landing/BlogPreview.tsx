@@ -48,7 +48,7 @@ export const BlogPreview = () => {
   return (
     <div className="">
       <h2 className="text-center font-secondary uppercase tracking-tight text-h2 text-balance max-lg:text-h6 my-3">
-        Some Pawsome news
+        Some Paw-some news
       </h2>
       <div className="grid grid-cols-2 md:grid-cols-4">
         {data?.map((article) => (

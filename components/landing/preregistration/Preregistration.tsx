@@ -54,12 +54,12 @@ const Preregistration = () => {
           onSubmit={methods.handleSubmit(onSubmit)}
         >
           <ShortAnswerInput id="1130409291" />
-          <span className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] flex items-center justify-center bg-[#02020a] rounded w-32 h-12 md:h-16 max-lg:w-24">
+          <span className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] flex items-center justify-center bg-[#02020a] rounded w-34 h-12 md:h-16 max-lg:w-24">
             <button
               type="submit"
               className="relative w-[125px] h-[64px] max-lg:w-[94px]"
             >
-              <span className="text-center text-p5 md:text-p4 text-white">
+              <span className="text-center text-p5 md:text-p4 text-white whitespace-nowrap">
                 Sign Up
               </span>
               <img

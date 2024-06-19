@@ -1,3 +1,4 @@
+import { Socials } from "@/components/footer/Socials";
 import Preregistration from "../preregistration/Preregistration";
 
 interface bannerProps {
@@ -200,7 +201,6 @@ export const HomePage = () => {
             ))}
           </div>
         </div>
-        <div></div>
         <div className="relative z-10 h-fit flex items-center justify-center pb-10 max-lg:pb-7">
           <div className="relative pt-20 max-lg:pt-10 px-14 max-lg:px-0 flex items-center justify-center">
             <div className="relative w-full max-lg:w-9/12">
@@ -244,6 +244,10 @@ export const HomePage = () => {
           </a>
         </div>
       </div>
+
+      <div className="mt-4"></div>
+      <Socials />
+      <div className="font-secondary mt-1">Become part of our 40k+ Token Tails community!</div>
       <Preregistration />
 
       <div className="my-4"></div>

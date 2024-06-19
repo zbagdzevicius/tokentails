@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import Image from "next/image";
 
 interface IProps {
@@ -12,7 +12,7 @@ const CatsHubProps: IProps[] = [
   {
     title: "EXPLORE OUR VIRTUAL CAT SHELTER",
     description:
-      "Choose your purr-fect companion from a diverse range of lovable felines !",
+      "Choose your purr-fect companion from a diverse range of lovable felines!",
   },
   {
     title: "VIRTUAL CAT",
@@ -42,13 +42,13 @@ const CatsSection = ({ title, description, isActive, onSet }: IProps) => {
                 : ""
             }`}
       >
-        <button
+        <a
           onClick={() => onSet?.()}
           className={`flex relative z-10 w-full title items-center py-3 px-5 transition 
                 ${
                   isActive
                     ? "bg-gradient-to-r from-yellow-300 from-5% to-white"
-                    : ""
+                    : "bg-gradient-to-r from-yellow-300 from-5% to-white"
                 }`}
         >
           <img
@@ -64,7 +64,7 @@ const CatsSection = ({ title, description, isActive, onSet }: IProps) => {
           <div className="text-p4 max-lg:text-p5 font-tertiary pl-4">
             {title}
           </div>
-        </button>
+        </a>
       </div>
       <div
         className={`text-p4 max-lg:text-p5 font-tertiary transition relative z-0 py-4 px-5 border-b ${
@@ -78,6 +78,10 @@ const CatsSection = ({ title, description, isActive, onSet }: IProps) => {
 };
 export const CatsHub = () => {
   const [active, setActive] = useState<Partial<IProps>>({});
+
+  const onActiveClick = useCallback((section: IProps) => {
+    setActive((active) => active === section ? {} : section )
+  }, [setActive]);
   return (
     <div className="my-20 flex items-center justify-center flex-col container">
       <img
@@ -109,14 +113,14 @@ export const CatsHub = () => {
             />
           </div>
           <div>
-            <div className="flex-1">
+            <div className="flex-1 flex flex-col gap-1">
               {CatsHubProps.map((section, index) => (
                 <CatsSection
                   key={index}
                   title={section.title}
                   description={section.description}
                   isActive={section.title === active.title}
-                  onSet={() => setActive(section)}
+                  onSet={() => onActiveClick(section)}
                 />
               ))}
             </div>
