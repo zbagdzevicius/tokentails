@@ -55,7 +55,7 @@ export const CatsSlider = () => {
         </button>
       </div>
       {activeSlide === item.title && (
-        <div className="absolute z-30 font-tertiary inset-0 justify-center items-center lg:items-start lg:pt-2 xl:items-center xl:pt-0 flex text-black px-6 md:px-2 text-p3 md:text-p4 font-bold text-center">
+        <div className="absolute z-30 font-tertiary inset-0 justify-center items-center lg:items-start lg:pt-2 xl:items-center xl:pt-0 flex text-black px-6 md:px-2 text-p5 md:text-p4 font-bold text-center">
           {item.explanation}
         </div>
       )}

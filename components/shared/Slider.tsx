@@ -27,8 +27,12 @@ export const Slider = ({ items, customClass }: IProps) => {
       }}
 
       breakpoints={{
+        0: {
+          slidesPerView: 2,
+          spaceBetween: 10,
+        },
         640: {
-          slidesPerView: 1,
+          slidesPerView: 2,
           spaceBetween: 10,
         },
         768: {
