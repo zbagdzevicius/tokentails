@@ -15,6 +15,7 @@ const apiUrl = process.env.NEXT_PUBLIC_BE_URL;
 export const categories: ICategory[] = [
   { name: "Cats NFT", slug: "cats-nft" },
   { name: "Announcements", slug: "announcements" },
+  { name: "All About Cats", slug: "all-about-cats" },
 ] as ICategory[];
 
 export interface IRouteOption {
@@ -25,7 +26,7 @@ export interface IRouteOption {
 export const urlPrefix = process.env.NEXT_PUBLIC_IS_APP ? "/app" : "";
 
 export const FEED_OPTION: Record<
-  "HOME" | "ARTICLES_CATS_NFT" | "ARTICLES_ANNOUNCEMENTS" | "GROUP" | "QUIZ",
+  "HOME" | "ARTICLES_CATS_NFT" | "ARTICLES_ANNOUNCEMENTS" | "ARTICLES_ALL_ABOUT_CATS" | "GROUP" | "QUIZ",
   IRouteOption
 > = {
   HOME: { name: "Feed", href: "/feed" },
@@ -36,6 +37,10 @@ export const FEED_OPTION: Record<
   ARTICLES_ANNOUNCEMENTS: {
     name: "Announcements",
     href: "/feed/announcements",
+  },
+  ARTICLES_ALL_ABOUT_CATS: {
+    name: "All About Cats",
+    href: "/feed/all-about-cats",
   },
   GROUP: {
     name: "Groups",
@@ -50,6 +55,7 @@ export const FEED_OPTION: Record<
 export const articlesCategories: IRouteOption[] = [
   FEED_OPTION.ARTICLES_CATS_NFT,
   FEED_OPTION.ARTICLES_ANNOUNCEMENTS,
+  FEED_OPTION.ARTICLES_ALL_ABOUT_CATS,
 ];
 
 export const feedOptions = [

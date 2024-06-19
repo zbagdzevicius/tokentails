@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Socials } from "../footer/Socials";
 
@@ -12,19 +11,19 @@ interface navProps {
 const navConsts: navProps[] = [
   {
     title: "Game",
-    link: "#catsslider",
+    link: "/#catsslider",
   },
   {
     title: "Token",
     link: "/#tokenomics",
   },
   {
-    title: "Blog",
-    link: "/feed",
+    title: "Team",
+    link: "/#contact",
   },
   {
     title: "Contact",
-    link: "/#contact",
+    link: "mailto:info@tokentails.com",
   },
 ];
 
@@ -119,13 +118,13 @@ export const Header = () => {
               />
             )}
           </div>
-          <a href="/#preregistration">
+          <a href="/blog">
             <button
               className="[clip-path:polygon(0%_0%,100%_0%,92%_100%,0%_100%)]
                     bg-gradient-to-r from-main-ember to-main-rusty rounded w-36 h-10 max-lg:w-24 max-lg:h-8"
             >
               <span className="text-center text-lg max-lg:text-xs leading-4 text-white">
-                Sign-Up
+                Blog
               </span>
             </button>
           </a>

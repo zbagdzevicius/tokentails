@@ -11,7 +11,7 @@ export const NoMore = ({
 }: IProps) => {
   return (
     <div className="flex flex-col w-full justify-center items-center mt-4">
-      <div className="text-3xl md:text-6xl font-semibold mb-2 md:mb-3 mt-4 px-4">
+      <div className="text-3xl md:text-4xl font-semibold mb-2 md:mb-3 mt-4 px-4">
         {title}
       </div>
       <div className="text-md mb-12 px-4 text-center">{subtitle}</div>

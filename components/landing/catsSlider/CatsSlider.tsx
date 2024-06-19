@@ -5,8 +5,7 @@ const sliderItems: { img: string; title: string; explanation: string }[] = [
   {
     img: "/images/cats-slider/cat-eat.jpg",
     title: "feed",
-    explanation:
-      "Feed your adorable feline friend to fill their energy tank! So your kitty will be able to enjoy all the fun.",
+    explanation: "Feed your adorable feline friend to fill their energy tank",
   },
   {
     img: "/images/cats-slider/cat-smile.jpg",
@@ -16,17 +15,20 @@ const sliderItems: { img: string; title: string; explanation: string }[] = [
   {
     img: "/images/cats-slider/cat-sit.jpg",
     title: "Love",
-    explanation: "Show your NFT cat some love by giving them what they crave most – your attention!",
+    explanation:
+      "Show your NFT cat love by giving them what they crave most – your attention!",
   },
   {
     img: "/images/cats-slider/cat-play-1.jpg",
-    title: "Play",
-    explanation: "Play with your cat daily to level up their Joy and unlock exciting rewards!",
+    title: "Engage",
+    explanation:
+      "Play with your cat daily to level up their Joy and unlock exciting rewards!",
   },
   {
     img: "/images/cats-slider/cat-play-2.jpg",
     title: "Contribute",
-    explanation: "Real world impact: 50% of every NFT purchase goes directly to supporting cat shelters!",
+    explanation:
+      "50% of every NFT purchase goes directly to supporting cat shelters!",
   },
 ];
 
@@ -53,7 +55,7 @@ export const CatsSlider = () => {
         </button>
       </div>
       {activeSlide === item.title && (
-        <div className="absolute z-30 font-tertiary text-black px-8 text-p3 font-bold text-center">
+        <div className="absolute z-30 font-tertiary inset-0 justify-center items-center lg:items-start lg:pt-2 xl:items-center xl:pt-0 flex text-black px-6 md:px-2 text-p3 md:text-p4 font-bold text-center">
           {item.explanation}
         </div>
       )}

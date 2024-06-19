@@ -38,7 +38,7 @@ const CatsSection = ({ title, description, isActive, onSet }: IProps) => {
         className={`
             ${
               isActive
-                ? "bg-gradient-to-br from-main-slate via-main-grape to-main-rusty p-0.5 w-full rounded animate-colormax"
+                ? "bg-gradient-to-br from-main-slate via-main-grape to-main-rusty p-0.5 w-full rounded"
                 : ""
             }`}
       >
@@ -55,7 +55,7 @@ const CatsSection = ({ title, description, isActive, onSet }: IProps) => {
             className={`h-8 max-lg:h-4 max-lg:w-4 w-8 shrink-0 fill-accent-100 transition ase-in-out duration-700 ${
               isActive ? "rotate-[-180deg]" : ""
             }`}
-            src="/cursor/cursor.png"
+            src="/cursor/cursor-sand.png"
             alt="arrow down"
             width={60}
             height={60}
@@ -137,7 +137,7 @@ export const CatsHub = () => {
               </a>
               <a
                 target="_blank"
-                href="https://docs.google.com/presentation/d/1G8F_HxNLwxkBSZ9XAcnvtH9SQFBjtI6Wq_2Y6FEXLdQ"
+                href="https://tokentails.com/pitch-deck.pdf"
                 className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] bg-[#02020a] flex items-center justify-center rounded w-32 h-10 max-lg:w-24 max-lg:h"
               >
                 <button className="w-[125px] h-[38px] max-lg:w-[94px] text-white">

@@ -6,7 +6,7 @@ export const Tokenomics = () => {
       <div className="flex justify-center items-center gap-4 md:pb-12">
         <img src="/logo/coin.webp" className="w-14" />
         <h2 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl">
-          TOKENOMICS
+          TAILONOMICS
         </h2>
         <img src="/logo/coin.webp" className="w-14" />
       </div>

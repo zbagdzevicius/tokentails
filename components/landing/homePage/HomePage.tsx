@@ -1,5 +1,6 @@
 import { Socials } from "@/components/footer/Socials";
 import Preregistration from "../preregistration/Preregistration";
+import { useEffect, useState } from "react";
 
 interface bannerProps {
   image: string;
@@ -172,6 +173,58 @@ const cats: bannerProps[] = [
   },
 ];
 export const HomePage = () => {
+  const [countdown, setCountdown] = useState("");
+  const [earlyCountdown, setEarlyCountdown] = useState("");
+
+  useEffect(() => {
+    // Set the date we're counting down to
+    const countDownDate = new Date("Jul 31, 2024 20:00:00").getTime();
+    const earlyCountDownDate = new Date("Jul 1, 2024 18:30:00").getTime();
+
+    function setCountdownStates() {
+      // Get today's date and time
+      const now = new Date().getTime();
+
+      // Find the distance between now and the count down date
+      const distance = countDownDate - now;
+
+      // Time calculations for days, hours, minutes and seconds
+      const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+      const hours = Math.floor(
+        (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+      );
+      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+      let countdownText =
+        distance < 0 ? "PLAY NOW" : days + "d " + hours + "h " + minutes + "m";
+
+      setCountdown(countdownText);
+
+      // Find the distance between now and the count down date
+      const earlyDistance = earlyCountDownDate - now;
+
+      // Time calculations for days, hours, minutes and seconds
+      const earlyDays = Math.floor(earlyDistance / (1000 * 60 * 60 * 24));
+      const earlyHours = Math.floor(
+        (earlyDistance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+      );
+      const earlyMinutes = Math.floor(
+        (earlyDistance % (1000 * 60 * 60)) / (1000 * 60)
+      );
+      const earlySeconds = Math.floor((earlyDistance % (1000 * 60)) / 1000);
+      let earlyCountdownText =
+        earlyDistance < 0
+          ? "PLAY NOW"
+          : earlyDays + "d " + earlyHours + "h " + earlyMinutes + "m";
+
+      setEarlyCountdown(earlyCountdownText);
+    }
+    // Update the count down every 1 second
+    const x = setInterval(setCountdownStates, 60000);
+    setCountdownStates();
+    return () => clearInterval(x);
+  }, [setCountdown]);
+
   return (
     <div className="mt-4 flex justify-center items-center flex-col">
       <div className="relative w-full lg:w-2/3 xl:w-1/2 pt-16 px-10 max-lg:text-balance md:-mb-16">
@@ -236,10 +289,13 @@ export const HomePage = () => {
           </div>
           <a href="/adopt" className="absolute bottom-0">
             <button
-              className="[clip-path:polygon(0%_1%,100%_0%,90%_100%,10%_100%)] w-72 max-lg:w-40 max-sm:w-36 h-8 sm:h-9 lg:h-12 
-                    bg-gradient-to-r from-main-ember to-main-rusty text-2xl max-lg:text-sm max-sm:text-xs text-white"
+              className="[clip-path:polygon(0%_1%,100%_0%,90%_100%,10%_100%)] w-52 lg:w-72 h-10 lg:h-12 
+                    bg-gradient-to-r from-main-ember to-main-rusty text-p5 md:text-p4 lg:text-2xl text-white"
             >
-              Demo
+              <div>PLAY</div>
+              <div className="text-p6 -mt-1">
+                EARLY ACCESS: {earlyCountdown}
+              </div>
             </button>
           </a>
         </div>
@@ -247,7 +303,6 @@ export const HomePage = () => {
 
       <div className="mt-4"></div>
       <Socials />
-      <div className="font-secondary mt-1">Become part of our 40k+ Token Tails community!</div>
       <Preregistration />
 
       <div className="my-4"></div>

@@ -9,7 +9,8 @@ import { useEffect, useState } from "react";
 
 export default function Connect() {
   const [selectedCat, setSelectedCat] = useState<any>(null);
-  const { user, showSignInPopup, showProfilePopup, profile } = useFirebaseAuth();
+  const { user, showSignInPopup, showProfilePopup, profile } =
+    useFirebaseAuth();
 
   useEffect(() => {
     if (!user) {
@@ -33,6 +34,9 @@ export default function Connect() {
             <PixelButton text="MY CATS" onClick={() => {}}></PixelButton>
           </a>
         )}
+        <a href="/">
+          <PixelButton text="HOME" onClick={() => {}}></PixelButton>
+        </a>
         <PixelButton
           text="ADOPTION CENTER"
           active

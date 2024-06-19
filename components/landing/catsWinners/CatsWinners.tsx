@@ -9,12 +9,11 @@ export const CatsWinners = () => {
           <div className="flex items-center md:items-start">
             <div className="flex flex-row items-center flex-wrap space-x-3 text-p5 max-lg:text-sm">
               <p className="text-main-rustyOrange">
-                Join the the most exciting game of 2024, start your Purrari and
-                enroll into Furrtivities right now. Don't miss it out ! Cat's are limited !
+                Join the most exciting game of 2024. Join now, Cats are limited !
               </p>
             </div>
           </div>
-          <div className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl">
+          <a href="https://zealy.io/cw/tokentails" target="_blank" className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl hover:animate-hover">
             <img
               className="w-full h-full object-cover rounded-2xl"
               src="/images/cats-winners/adventures.jpg"
@@ -22,8 +21,8 @@ export const CatsWinners = () => {
               height={200}
               alt="cats"
             />
-          </div>
-          <div className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl">
+          </a>
+          <a href="/adopt" className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl hover:animate-hover">
             <img
               className="w-full h-full object-cover rounded-2xl"
               src="/images/cats-winners/adopt.jpg"
@@ -31,17 +30,17 @@ export const CatsWinners = () => {
               height={200}
               alt="cats"
             />
-          </div>
-          <div className="p-1 max-lg:p-0.5 md:row-span-9 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl">
+          </a>
+          <a href="https://x.com/tokentails/status/1803445263576736175" target="_blank" className="p-1 max-lg:p-0.5 md:row-span-9 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl hover:animate-hover">
             <img
               className="w-full h-full object-cover rounded-2xl"
-              src="/images/cats-winners/catbasador.jpg"
+              src="/images/cats-winners/catbassador.jpg"
               width={200}
               height={200}
               alt="cats"
             />
-          </div>
-          <div className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl">
+          </a>
+          <a href="/blog" className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl hover:animate-hover">
             <img
               className="w-full h-full object-cover rounded-2xl"
               src="/images/cats-winners/friends.jpg"
@@ -49,7 +48,7 @@ export const CatsWinners = () => {
               height={200}
               alt="cats"
             />
-          </div>
+          </a>
           <div className="md:rows-span-2">
             <div className="flex flex-col items-center md:flex-row justify-center md:justify-between gap-4">
               <div className="flex flex-col">
@@ -59,9 +58,8 @@ export const CatsWinners = () => {
                 <div className="text-h2 max-lg:text-h3 font-secondary">
                   1000+
                 </div>
-                <p className="text-p4 max-lg:text-p5  font-tertiary">
-                  Virtual{" "}
-                  <span className="custom-gradient-text font-bold">Cats</span>
+                <p className="text-p4 max-lg:text-p5 font-tertiary flex items-center">
+                  Virtual Cats <img src="/images/cats-winners/cat-heart.gif"/>
                 </p>
               </div>
               <a href="/adopt">
@@ -70,7 +68,7 @@ export const CatsWinners = () => {
                     bg-gradient-to-r from-main-ember to-main-rusty rounded w-32 h-10 max-lg:w-24"
                 >
                   <span className="text-center text-lg max-lg:text-xs leading-4 text-white">
-                    Demo
+                    Play
                   </span>
                 </button>
               </a>

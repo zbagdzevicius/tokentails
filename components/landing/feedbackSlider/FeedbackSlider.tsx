@@ -39,7 +39,7 @@ const catReview: {
     name: "Pickle",
     img: "/cats/yellow/Liking-Hat-Yellow.gif",
     line1: "I'm full of treats",
-    line2: "All thanks to the Token Tails",
+    line2: "All thanks to Token Tails",
     bg: "bg-gradient-to-r from-yellow-300 to-white",
   },
 ];
@@ -113,7 +113,7 @@ export const FeedbackSlider = () => {
       <div className="flex items-center justify-center flex-col my-32">
         <img src="/logo/coin.webp" width={100} height={100} alt="coin" />
         <h2 className="text-left font-secondary uppercase tracking-tight text-h2 text-balance max-lg:text-h6 my-3">
-          Happy cats
+          Real Verified Cat reviews
         </h2>
         <Slider items={items} />
       </div>

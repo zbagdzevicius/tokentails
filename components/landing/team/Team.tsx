@@ -24,7 +24,7 @@ const teamMembers: ITeamMember[] = [
   {
     img: "/team/zygimantas.webp",
     name: "Žygimantas Bagdzevičius",
-    role: "Founder | CTO",
+    role: "CEO | CTO",
     socials: [
       {
         img: SocialImages.LINKEDIN,
@@ -158,7 +158,7 @@ const TeamMember = ({ img, name, role, socials }: ITeamMember) => {
     <div className="text-center">
       <img className="mx-auto mb-4 w-36 h-36 object-contain" src={img} alt={name} />
       <h3 className="mb-1 text-p3 md:text-p3 font-secondary">{name}</h3>
-      <p className="px-2 rounded-full animate-border w-fit m-auto text-white">
+      <p className="w-fit m-auto text-primary">
         {role}
       </p>
       <ul className="flex justify-center mt-4 space-x-4">

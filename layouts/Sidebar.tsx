@@ -50,6 +50,7 @@ export const Sidebar = () => {
     <div className="col-span-1 h-full hidden lg:flex flex-col gap-4 sticky top-36 md:basis-[150px] xl:basis-[260px] 2xl:basis-[360px] shrink-0 transition-animation">
       <SidebarItem {...FEED_OPTION.ARTICLES_CATS_NFT} />
       <SidebarItem {...FEED_OPTION.ARTICLES_ANNOUNCEMENTS} />
+      <SidebarItem {...FEED_OPTION.ARTICLES_ALL_ABOUT_CATS} />
     </div>
   );
 };
