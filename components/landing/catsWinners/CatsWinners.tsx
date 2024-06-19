@@ -5,7 +5,7 @@ export const CatsWinners = () => {
         <h2 className="text-left font-secondary uppercase tracking-tight text-h2 text-balance max-lg:text-h6 my-3">
           we’re the first play to save game in the world
         </h2>
-        <div className="grid grid-cols-2 md:grid-rows-7 gap-6 max-lg:gap-2">
+        <div className="grid grid-cols-2 md:grid-rows-5 xl:grid-rows-7 gap-6 max-lg:gap-2">
           <div className="flex items-center md:items-start">
             <div className="flex flex-row items-center flex-wrap space-x-3 text-p5 max-lg:text-sm">
               <p className="text-main-rustyOrange">
