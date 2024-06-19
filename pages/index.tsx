@@ -77,7 +77,7 @@ export default function Index() {
     <>
       <Head>
         <title>Token Tails - Play to Save</title>
-        <meta property="og:image" content="/logo/logo.webp" />
+        <meta property="og:image" content="/logo/ogg.jpg" />
         <meta
           property="og:title"
           content="Token Tails - Play to Save"
