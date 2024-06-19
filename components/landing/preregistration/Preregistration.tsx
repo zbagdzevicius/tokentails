@@ -29,8 +29,8 @@ const ShortAnswerInput = ({ id }: { id: string }) => {
 
   return (
     <input
-      className="[clip-path:polygon(0%_0%,100%_0%,97%_100%,0%_100%)] w-56 md:w-[360px] rounded-l placeholder:text-gray-100 px-4 md:px-8 text-p5 md:text-p4 bg-gradient-to-r from-main-ember to-main-rusty outline-none h-12 md:h-16 text-white"
-      placeholder="Sign Up to our Whitelist"
+      className="[clip-path:polygon(0%_0%,100%_0%,97%_100%,0%_100%)] w-56 md:w-[360px] rounded-l placeholder:text-gray-500 px-4 md:px-8 text-p5 md:text-p4 bg-gradient-to-r border-y border-l border-black from-white to-gray-100 h-12 md:h-16 text-primary -mr-4"
+      placeholder="Enter your email"
       type="text"
       {...register()}
     />
@@ -54,7 +54,7 @@ const Preregistration = () => {
           onSubmit={methods.handleSubmit(onSubmit)}
         >
           <ShortAnswerInput id="1130409291" />
-          <span className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] flex items-center justify-center bg-[#02020a] rounded w-34 h-12 md:h-16 max-lg:w-24">
+          <span className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] flex items-center justify-center bg-gradient-to-r from-main-ember to-main-rusty rounded w-34 h-12 md:h-16 max-lg:w-24">
             <button
               type="submit"
               className="relative w-[125px] h-[64px] max-lg:w-[94px]"
@@ -73,7 +73,7 @@ const Preregistration = () => {
       {isSubmitted && (
         <div className="pt-8 justify-center flex items-center container max-w-xl uppercase">
           <div>
-            Your email has been registered, soon we are going to reach you out !
+            Your email has been included to our catlist, we are going to reach you out on July 31st !
           </div>
           <img src="/cats/grey/Sitting-Clothed-Grey.gif" />
         </div>
