@@ -65,7 +65,6 @@ const BaseGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame(
           scene: scene_instance,
         };
       }
-      console.log('cool')
     });
     return () => {
       BaseBus.removeListener("current-scene-ready");
@@ -80,20 +79,15 @@ function Base() {
   //  References to the PhaserGame component (game and scene are exposed)
   const { profile, showProfilePopup } = useFirebaseAuth();
   const phaserRef = useRef<IRefPhaserGame | null>(null);
-  const { setCat, setStatus, cat } = useCat();
+  const { setCat, setCatStatus, cat } = useCat();
   useEffect(() => {
-    if (setCat) {
-      setCat(CatConsts[0]);
-      console.log(CatConsts[0]);
+    if (setCat && profile?.cat) {
+      setCat(profile.cat!);
     }
-  }, []);
+  }, [profile?.cat]);
   useEffect(() => {
     if (profile?.cat) {
-      console.log(profile?.cat.spriteImg);
-      setTimeout(() => {
-
-        BaseBus.emit(BaseBusEvent.SPAWN_CAT);
-      }, 3000)
+      BaseBus.emit(BaseBusEvent.SPAWN_CAT, profile.cat);
     }
   }, [profile?.cat]);
 
@@ -101,16 +95,15 @@ function Base() {
     BaseBus.addListener(BaseBusEvent.EATEN, () => {
       const status = cat?.status[StatusType.EAT] || 0;
       if ((cat?.status[StatusType.EAT] || 0) < 4) {
-        setStatus({ type: StatusType.EAT, status: status + 1 });
+        setCatStatus({ type: StatusType.EAT, status: status + 1 });
       }
     });
     BaseBus.addListener(BaseBusEvent.PLAYED, () => {
       const status = cat?.status[StatusType.PLAY] || 0;
       if (status < 4) {
-        setStatus({ type: StatusType.PLAY, status: status + 1 });
+        setCatStatus({ type: StatusType.PLAY, status: status + 1 });
       }
     });
-    console.log({ catStatus: cat?.status });
     return () => {
       BaseBus.removeListener(BaseBusEvent.EATEN);
       BaseBus.removeListener(BaseBusEvent.PLAYED);
@@ -130,8 +123,7 @@ function Base() {
       <div className="fixed right-0 top-0 z-50">
         {cat && (
           <>
-            <div className="flex flex-col justify-center relative gap-2 items-end pr-4 pt-1 pl-8 pb-6">
-              <div className="z-0 absolute bg-white opacity-50 text-center rounded-bl-full inset-0"></div>
+            <div className="flex flex-col justify-center relative gap-2 items-end pr-2 md:pr-4 pt-1 md:pt-4">
               <StatusBar
                 status={cat.status[StatusType.EAT]!}
                 type={StatusType.EAT}

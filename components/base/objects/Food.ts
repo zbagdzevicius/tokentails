@@ -14,9 +14,9 @@ interface ExtendedBody extends Physics.Arcade.Body {
 }
 
 export enum FoodAnimation {
-  IDLE = "IDLE",
-  APPEAR = "APPEAR",
-  DISAPPEAR = "DISAPPEAR",
+  FOOD_IDLE = "FOOD_IDLE",
+  FOOD_APPEAR = "FOOD_APPEAR",
+  FOOD_DISAPPEAR = "FOOD_DISAPPEAR",
 }
 
 const maxAnimationFrames = 9;
@@ -25,9 +25,9 @@ const animationConfigurations: {
   frames: number;
   repeat: -1 | 0;
 }[] = [
-  { key: FoodAnimation.IDLE, frames: 1, repeat: 0 },
-  { key: FoodAnimation.APPEAR, frames: maxAnimationFrames, repeat: 0 },
-  { key: FoodAnimation.DISAPPEAR, frames: maxAnimationFrames, repeat: 0 },
+  { key: FoodAnimation.FOOD_IDLE, frames: 1, repeat: 0 },
+  { key: FoodAnimation.FOOD_APPEAR, frames: maxAnimationFrames, repeat: 0 },
+  { key: FoodAnimation.FOOD_DISAPPEAR, frames: maxAnimationFrames, repeat: 0 },
 ];
 
 export class Food {
@@ -57,13 +57,13 @@ export class Food {
   }
 
   spawn() {
-    this.sprite.anims.play(FoodAnimation.APPEAR, true);
+    this.sprite.anims.play(FoodAnimation.FOOD_APPEAR, true);
   }
 
   eaten(fn: () => void) {
     setTimeout(() => {
       if (this?.sprite?.anims?.play) {
-        this.sprite.anims.play(FoodAnimation.DISAPPEAR, true);
+        this.sprite.anims.play(FoodAnimation.FOOD_DISAPPEAR, true);
       }
     }, 2000);
     setTimeout(() => {

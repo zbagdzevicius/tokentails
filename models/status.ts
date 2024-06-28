@@ -5,8 +5,8 @@ export interface IStatus {
 }
 
 export enum StatusType {
-  EAT,
-  PLAY,
+  EAT = 'EAT',
+  PLAY = 'PLAY',
 }
 
 export const typeImages: Record<StatusType, string> = {

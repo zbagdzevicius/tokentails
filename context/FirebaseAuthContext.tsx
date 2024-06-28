@@ -89,7 +89,6 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     queryFn: () => (user ? profileFetch() : null),
   });
   useEffect(() => {
-    console.log(profileResponse);
     setProfile(profileResponse);
   }, [profileResponse]);
   const onUserChange = useCallback(

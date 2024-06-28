@@ -51,6 +51,7 @@
     "autoprefixer": "^10.0.1",
     "eslint": "^8",
     "eslint-config-next": "14.0.4",
+    "tailwindcss-convert-px-to-rem": "^1.0.4",
     "postcss": "^8",
     "sass": "^1.69.7",
     "tailwindcss": "^3.3.0",
