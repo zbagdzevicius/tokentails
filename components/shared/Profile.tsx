@@ -60,7 +60,7 @@ export const ProfileContent = () => {
         </ul>
       )}
       {user && (
-        <div className="pt-8">
+        <div className="pt-8 opacity-25 hover:opacity-100">
           <PixelButton onClick={logout} text="Logout ; ("></PixelButton>
         </div>
       )}
@@ -73,7 +73,7 @@ export const Profile = ({ close }: { close: () => void }) => {
     <div className="fixed inset-0 pt-safe w-full z-[100] flex justify-center h-full">
       <div
         onClick={close}
-        className="z-40 h-full w-full absolute inset-0 bg-white opacity-[0.75]"
+        className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
       <div className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full relative bg-white absolute top-[7rem] md:top-[9rem] rounded-lg shadow h-fit">
         <ProfileContent />

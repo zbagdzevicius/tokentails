@@ -16,22 +16,22 @@ interface ExtendedBody extends Physics.Arcade.Body {
 const toySpeed = 300;
 
 export enum ToyAnimation {
-  ALERT = "ALERT",
-  ATTACK = "ATTACK",
-  AWAKE = "AWAKE",
-  DEATH = "DEATH",
-  DOUBLE_PECK = "DOUBLE_PECK",
-  FLY = "FLY",
-  HURT = "HURT",
-  IDLE = "IDLE",
-  JUMP = "JUMP",
-  PECK = "PECK",
-  SING = "SING",
-  SIT = "SIT",
-  SLEEP = "SLEEP",
-  SNORE = "SNORE",
-  WALK = "WALK",
-  APPEAR = "APPEAR",
+  TOY_ALERT = "TOY_ALERT",
+  TOY_ATTACK = "TOY_ATTACK",
+  TOY_AWAKE = "TOY_AWAKE",
+  TOY_DEATH = "TOY_DEATH",
+  TOY_DOUBLE_PECK = "TOY_DOUBLE_PECK",
+  TOY_FLY = "TOY_FLY",
+  TOY_HURT = "TOY_HURT",
+  TOY_IDLE = "TOY_IDLE",
+  TOY_JUMP = "TOY_JUMP",
+  TOY_PECK = "TOY_PECK",
+  TOY_SING = "TOY_SING",
+  TOY_SIT = "TOY_SIT",
+  TOY_SLEEP = "TOY_SLEEP",
+  TOY_SNORE = "TOY_SNORE",
+  TOY_WALK = "TOY_WALK",
+  TOY_APPEAR = "TOY_APPEAR",
 }
 
 const maxAnimationFrames = 10;
@@ -40,22 +40,22 @@ const animationConfigurations: {
   frames: number;
   repeat: -1 | 0;
 }[] = [
-  { key: ToyAnimation.ALERT, frames: 4, repeat: -1 },
-  { key: ToyAnimation.ATTACK, frames: 4, repeat: -1 },
-  { key: ToyAnimation.AWAKE, frames: 4, repeat: -1 },
-  { key: ToyAnimation.DEATH, frames: 5, repeat: -1 },
-  { key: ToyAnimation.DOUBLE_PECK, frames: 10, repeat: -1 },
-  { key: ToyAnimation.FLY, frames: 6, repeat: -1 },
-  { key: ToyAnimation.HURT, frames: 6, repeat: -1 },
-  { key: ToyAnimation.IDLE, frames: 4, repeat: -1 },
-  { key: ToyAnimation.JUMP, frames: 1, repeat: -1 },
-  { key: ToyAnimation.PECK, frames: 6, repeat: -1 },
-  { key: ToyAnimation.SING, frames: 6, repeat: -1 },
-  { key: ToyAnimation.SIT, frames: 4, repeat: -1 },
-  { key: ToyAnimation.SLEEP, frames: 3, repeat: -1 },
-  { key: ToyAnimation.SNORE, frames: 6, repeat: -1 },
-  { key: ToyAnimation.WALK, frames: 4, repeat: -1 },
-  { key: ToyAnimation.APPEAR, frames: 8, repeat: -1 },
+  { key: ToyAnimation.TOY_ALERT, frames: 4, repeat: -1 },
+  { key: ToyAnimation.TOY_ATTACK, frames: 4, repeat: -1 },
+  { key: ToyAnimation.TOY_AWAKE, frames: 4, repeat: -1 },
+  { key: ToyAnimation.TOY_DEATH, frames: 5, repeat: -1 },
+  { key: ToyAnimation.TOY_DOUBLE_PECK, frames: 10, repeat: -1 },
+  { key: ToyAnimation.TOY_FLY, frames: 6, repeat: -1 },
+  { key: ToyAnimation.TOY_HURT, frames: 6, repeat: -1 },
+  { key: ToyAnimation.TOY_IDLE, frames: 4, repeat: -1 },
+  { key: ToyAnimation.TOY_JUMP, frames: 1, repeat: -1 },
+  { key: ToyAnimation.TOY_PECK, frames: 6, repeat: -1 },
+  { key: ToyAnimation.TOY_SING, frames: 6, repeat: -1 },
+  { key: ToyAnimation.TOY_SIT, frames: 4, repeat: -1 },
+  { key: ToyAnimation.TOY_SLEEP, frames: 3, repeat: -1 },
+  { key: ToyAnimation.TOY_SNORE, frames: 6, repeat: -1 },
+  { key: ToyAnimation.TOY_WALK, frames: 4, repeat: -1 },
+  { key: ToyAnimation.TOY_APPEAR, frames: 8, repeat: -1 },
 ];
 
 export class Toy {
@@ -90,10 +90,10 @@ export class Toy {
         repeat: animationConfiguration.repeat,
       });
     }
-    this.sprite.anims.play(ToyAnimation.APPEAR);
+    this.sprite.anims.play(ToyAnimation.TOY_APPEAR);
     setTimeout(() => {
       if (this?.sprite?.anims?.play) {
-        this.sprite.anims.play(ToyAnimation.FLY);
+        this.sprite.anims.play(ToyAnimation.TOY_FLY);
       }
     }, 1000)
 
@@ -122,27 +122,27 @@ export class Toy {
 
   bounce() {
     this.debouncePassed = false;
-    this.sprite.anims.play(ToyAnimation.HURT);
+    this.sprite.anims.play(ToyAnimation.TOY_HURT);
     setTimeout(() => {
       if (this?.sprite?.anims?.play) {
-        this.sprite.anims.play(ToyAnimation.ALERT);
+        this.sprite.anims.play(ToyAnimation.TOY_ALERT);
       }
     }, 1000);
     setTimeout(() => {
       if (this?.sprite?.anims?.play) {
-        this.sprite.anims.play(ToyAnimation.DEATH);
+        this.sprite.anims.play(ToyAnimation.TOY_DEATH);
       }
     }, 2000);
     setTimeout(() => {
       if (this?.sprite?.anims?.play) {
-        this.sprite.anims.play(ToyAnimation.SING);
+        this.sprite.anims.play(ToyAnimation.TOY_SING);
       }
     }, 3000);
 
     this.sprite.setVelocityY(-100);
     setTimeout(() => {
       if (this?.sprite?.anims?.play) {
-        this.sprite.anims.play(ToyAnimation.FLY);
+        this.sprite.anims.play(ToyAnimation.TOY_FLY);
         this.debouncePassed = true;
       }
     }, 4000);

@@ -1,6 +1,6 @@
 import { IArticle, IArticleExcerpt } from "@/models/article";
 import { ICategory } from "@/models/category";
-import { IProfileCat } from "@/models/cats";
+import { ICatStatus, IProfileCat } from "@/models/cats";
 import { IComment } from "@/models/comment";
 import { IGroup } from "@/models/group";
 import { IProfile } from "@/models/profile";
@@ -26,7 +26,12 @@ export interface IRouteOption {
 export const urlPrefix = process.env.NEXT_PUBLIC_IS_APP ? "/app" : "";
 
 export const FEED_OPTION: Record<
-  "HOME" | "ARTICLES_CATS_NFT" | "ARTICLES_ANNOUNCEMENTS" | "ARTICLES_ALL_ABOUT_CATS" | "GROUP" | "QUIZ",
+  | "HOME"
+  | "ARTICLES_CATS_NFT"
+  | "ARTICLES_ANNOUNCEMENTS"
+  | "ARTICLES_ALL_ABOUT_CATS"
+  | "GROUP"
+  | "QUIZ",
   IRouteOption
 > = {
   HOME: { name: "Feed", href: "/feed" },
@@ -477,6 +482,31 @@ export const redeemCat = async (code: string): Promise<IProfileCat | null> => {
   }
   return fetch(`${apiUrl}/cat/redeem/${code}`, {
     method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: localStorage.getItem("accesstoken"),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return null;
+  });
+};
+
+export const updateCatStatus = async (
+  id: string | number,
+  status: ICatStatus
+): Promise<IProfileCat | null> => {
+  if (!id || !(status.EAT || status.PLAY)) {
+    return null;
+  }
+  return fetch(`${apiUrl}/cat/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(status),
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",

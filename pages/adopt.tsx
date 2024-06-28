@@ -38,7 +38,7 @@ export default function Connect() {
           <PixelButton text="HOME" onClick={() => {}}></PixelButton>
         </a>
         <PixelButton
-          text="ADOPTION CENTER"
+          text="ADOPTION"
           active
           onClick={() => {}}
         ></PixelButton>
