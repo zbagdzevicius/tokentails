@@ -23,7 +23,7 @@ const navConsts: FooterProps[] = [
   },
   {
     title: "Contact",
-    link: "/#contact",
+    link: "mailto:info@tokentails.com",
   },
 ];
 

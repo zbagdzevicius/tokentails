@@ -40,7 +40,7 @@ export const CatsWinners = () => {
               alt="cats"
             />
           </a>
-          <a href="/blog" className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl hover:animate-hover">
+          <a href="/feed" className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl hover:animate-hover">
             <img
               className="w-full h-full object-cover rounded-2xl"
               src="/images/cats-winners/friends.jpg"
