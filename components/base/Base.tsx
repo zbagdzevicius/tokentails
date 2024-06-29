@@ -133,8 +133,12 @@ function Base() {
                 type={StatusType.PLAY}
               />
               <div className="flex items-center gap-2 ">
+                <p className="font-bold font-secondary text-p3 z-10">9 X</p>
                 <img className="w-8 z-10" src="/base/heart.png" />
-                <p className="font-bold font-secondary text-p3 z-10">x 9</p>
+              </div>
+              <div className="flex items-center gap-2 ">
+                <p className="font-bold font-secondary text-p3 z-10">{profile?.score || 0} X</p>
+                <img className="w-8 z-10" src="/logo/coin.webp" />
               </div>
             </div>
           </>

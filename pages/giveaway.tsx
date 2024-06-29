@@ -3,23 +3,23 @@ import React, { useEffect } from "react";
 
 export default function giveaway() {
   useEffect(() => {
-    window.location.href = 'https://taskon.xyz/campaign/detail/13703047' 
+    window.location.href = 'https://x.com/tokentails/status/1806277853970825543' 
   }, [])
   return (
     <>
       <Head>
         <title>Token Tails - Play to Save</title>
-        <meta property="og:image" content="/airdrop-2.jpg" />
-        <meta property="og:title" content="Token Tails Airdrop" key="title" />
+        <meta property="og:image" content="/airdrop-3.jpg" />
+        <meta property="og:title" content="Token Tails Meme contest" key="title" />
         <meta
           name="description"
-          content="$1000 USD, early access, 50+ winners. Join us in an airdrop, to celebrate our project!"
+          content="Think you’ve got the best cat meme? 😸 Show us to win a piece from $1000 in $TAILS! 🎁"
         />
         <link rel="shortcut icon" href="/logo/coin.webp" />
       </Head>
       <iframe
         className="w-screen h-screen"
-        src="https://gleam.io/53NWn/tokentails-1st-airdrop-1700-usd-50-winners"
+        src="https://zealy.io/cw/tokentails"
       ></iframe>
       <div className="absolute bottom-0 right-0 flex justify-center">
         <a href="/" className="p-3 md:p-8">

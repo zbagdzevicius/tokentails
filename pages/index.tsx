@@ -9,6 +9,7 @@ import { FeedbackSlider } from "@/components/landing/feedbackSlider/FeedbackSlid
 import { HomePage } from "@/components/landing/homePage/HomePage";
 import Roadmap from "@/components/landing/roadmap/Roadmap";
 import { Tokenomics } from "@/components/landing/tokenomics/Tokenomics";
+import { Leaderboard } from "@/components/leaderboard/Leaderboard";
 import { Circle } from "@/components/shared/Circle";
 import { CircleWhite } from "@/components/shared/CircleWhite";
 import Head from "next/head";
@@ -23,6 +24,7 @@ export default function Index() {
   const tokenomicsRef = useRef(null);
   const roadmapRef = useRef(null);
   const contactRef = useRef(null);
+  const leaderboardRef = useRef(null);
 
   const sections = [
     catssliderRef,
@@ -32,6 +34,7 @@ export default function Index() {
     tokenomicsRef,
     roadmapRef,
     contactRef,
+    leaderboardRef,
   ];
 
   useEffect(() => {
@@ -114,12 +117,12 @@ export default function Index() {
             <CatsHub />
           </div>
         </div>
-        <div className="pb-4 pt-3 md:pt-0">
-          <div id="blog">
-            <BlogPreview />
+        <div className="py-4 md:pt-12 bg-gradient-to-b from-yellow-300 to-purple-300">
+          <div id="leaderboard" ref={leaderboardRef} className="max-w-xl m-auto">
+            <Leaderboard />
           </div>
         </div>
-        <div className="py-4 bg-gradient-to-b from-transparent to-green-300">
+        <div className="py-4 bg-gradient-to-b from-purple-300 to-green-300">
           <div
             className="relative overflow-hidden"
             id="catswinners"
@@ -151,6 +154,11 @@ export default function Index() {
         <div className="pt-4 pb-16 bg-gradient-to-b from-purple-300 to-yellow-300">
           <div id="contact" ref={contactRef}>
             <Contact />
+          </div>
+        </div>
+        <div className="">
+          <div id="blog">
+            <BlogPreview />
           </div>
         </div>
         <Footer />

@@ -539,3 +539,20 @@ export const deleteProfileRequest = async (): Promise<void> => {
     return;
   });
 };
+
+export const getLeaderboard = async (): Promise<IProfile[]> => {
+  return fetch(`${apiUrl}/user/leaderboard`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return [];
+  });
+};
