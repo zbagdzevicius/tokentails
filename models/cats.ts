@@ -80,6 +80,8 @@ export interface IProfileCat {
   resqueStory: string;
   status: ICatStatus;
   spriteImg: string;
+  lives: number;
+  expiresAt: string;
 }
 
 export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {

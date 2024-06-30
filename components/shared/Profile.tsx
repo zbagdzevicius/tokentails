@@ -50,6 +50,12 @@ export const ProfileContent = () => {
           <li className="flex items-center gap-x-2">
             <img className="w-4" src="/logo/coin.webp" />
             <div>Your cat name is {profile.cat.name}</div>
+            {profile.cat.expiresAt && (
+              <div>
+                Your cat is going to expire on:{" "}
+                {new Date(profile.cat.expiresAt).toLocaleString()}
+              </div>
+            )}
           </li>
           {features.map((feature) => (
             <li key={feature} className="flex items-center gap-x-2">

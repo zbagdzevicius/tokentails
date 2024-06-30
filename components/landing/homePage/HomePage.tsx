@@ -17,8 +17,8 @@ const sponsorImage = [
     name: "u2u",
   },
   {
-    image: "/images/sponsor/moonbeam.webp",
-    name: "moonbeam",
+    image: "/images/sponsor/kommunitas.webp",
+    name: "kommunitas",
   },
   {
     image: "/images/sponsor/dao.webp",
@@ -37,8 +37,8 @@ const sponsorImage = [
     name: "u2u",
   },
   {
-    image: "/images/sponsor/moonbeam.webp",
-    name: "moonbeam",
+    image: "/images/sponsor/kommunitas.webp",
+    name: "kommunitas",
   },
   {
     image: "/images/sponsor/dao.webp",
@@ -57,8 +57,8 @@ const sponsorImage = [
     name: "u2u",
   },
   {
-    image: "/images/sponsor/moonbeam.webp",
-    name: "moonbeam",
+    image: "/images/sponsor/kommunitas.webp",
+    name: "kommunitas",
   },
   {
     image: "/images/sponsor/dao.webp",
@@ -77,8 +77,8 @@ const sponsorImage = [
     name: "u2u",
   },
   {
-    image: "/images/sponsor/moonbeam.webp",
-    name: "moonbeam",
+    image: "/images/sponsor/kommunitas.webp",
+    name: "kommunitas",
   },
   {
     image: "/images/sponsor/dao.webp",
