@@ -23,7 +23,10 @@ function hexStringToNumber(str: string | number) {
 }
 
 export const CatGame = ({ cats, onClickCallback }: IProps) => {
-  const generateRandomPosition = (img: string, id: number | string): Element => ({
+  const generateRandomPosition = (
+    img: string,
+    id: number | string
+  ): Element => ({
     id: hexStringToNumber(id),
     axisX: Math.random() * 2 - 1,
     axisY: Math.random() * 2 - 1,
@@ -40,34 +43,21 @@ export const CatGame = ({ cats, onClickCallback }: IProps) => {
   const handleCatClick = (catId: number) => {
     setElements((prevElements) =>
       prevElements.map((element) => {
-        if (element.id !== catId) {
-          return element;
-        }
-        if (element.clicked) {
-          const clickedCat = cats.find((cat) => cat._id === catId);
+        const clickedCat = cats.find((cat) => cat._id === catId);
 
-          if (clickedCat) {
-            onClickCallback(clickedCat);
-            return {
-              ...element,
-              clicked: false,
-              isMoving: false,
-            };
-          }
+        if (clickedCat) {
+          onClickCallback(clickedCat);
+          return {
+            ...element,
+            clicked: false,
+            isMoving: false,
+          };
         }
         const updatedElement = {
           ...element,
           isMoving: !element.isMoving,
           clicked: true,
         };
-
-        setTimeout(() => {
-          setElements((prevElements) =>
-            prevElements.map((el) =>
-              el.id === element.id ? { ...el, isMoving: false } : el
-            )
-          );
-        }, 10000);
 
         return updatedElement;
       })
@@ -154,11 +144,13 @@ export const CatGame = ({ cats, onClickCallback }: IProps) => {
   return (
     <div className="relative w-screen h-screen overflow-hidden">
       <img
+        draggable="false"
         className="absolute z-0 w-full h-full object-fit"
         src="/catgame/bg.jpg"
       />
       {elements.map((element, index) => (
         <img
+          draggable="false"
           src={element.img}
           key={index}
           className="absolute left-0 top-0 w-44 h-44"
