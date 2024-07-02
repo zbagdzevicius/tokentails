@@ -85,17 +85,7 @@ export const VestingSchedule = () => {
                 13
               </div>
             </th>
-            <th className="py-3 px-6 text-center border-l border-blue-300 relative">
-              <div className="absolute top-0 bottom-4 pt-2 -right-2 bg-gray-50 flex items-center">
-                14
-              </div>
-            </th>
-            <th className="py-3 px-6 text-center border-l border-blue-300 relative">
-              <div className="absolute top-0 bottom-4 pt-2 -right-2 bg-gray-50 flex items-center">
-                15
-              </div>
-            </th>
-            <th className="py-3 px-6 text-center border-l border-blue-300"></th>
+            <th className="py-3 px-6 text-center border-l border-blue-300">...</th>
           </tr>
         </thead>
         <tbody>
@@ -118,7 +108,7 @@ export const VestingSchedule = () => {
             <td colSpan={2} className="text-center border border-purple-300">
               CLIFF
             </td>
-            <td colSpan={14} className="py-4 px-6 bg-purple-300 text-left">
+            <td colSpan={12} className="py-4 px-6 bg-purple-300 text-left">
               LINEAR VEST - 15 MONTHS
             </td>
           </tr>
@@ -230,7 +220,7 @@ export const VestingSchedule = () => {
             <td colSpan={1} className="text-center border border-green-300">
               CLIFF
             </td>
-            <td colSpan={15} className="py-4 px-6 bg-green-300 text-left">
+            <td colSpan={13} className="py-4 px-6 bg-green-300 text-left">
               LINEAR VEST - 64 MONTHS
             </td>
           </tr>
@@ -253,7 +243,7 @@ export const VestingSchedule = () => {
             <td colSpan={5} className="text-center border border-white">
               CLIFF
             </td>
-            <td colSpan={11} className="py-4 px-6 bg-white text-left">
+            <td colSpan={9} className="py-4 px-6 bg-white text-left">
               LINEAR VEST - 40 MONTHS
             </td>
           </tr>
@@ -273,7 +263,7 @@ export const VestingSchedule = () => {
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p4 border-l border-white-300">
               -
             </td>
-            <td colSpan={16} className="py-4 px-6 bg-white text-left">
+            <td colSpan={14} className="py-4 px-6 bg-white text-left">
               VESTED AT TGE
             </td>
           </tr>
@@ -332,12 +322,6 @@ export const VestingSchedule = () => {
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
               $4.6m
-            </td>
-            <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $4.9m
-            </td>
-            <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $5.2m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
               $15m
