@@ -107,19 +107,19 @@ export const VestingSchedule = () => {
               SEED
             </th>
             <td className="py-4 px-6 text-center text-purple-300 bg-gray-700 text-p4">
-              4%
+              12%
             </td>
             <td className="py-4 px-6 text-center text-purple-300 bg-gray-700 text-p4 border-l border-purple-300">
-              5%
+              10%
             </td>
             <td className="py-4 px-6 text-center text-purple-300 bg-gray-700 text-p4 border-l border-purple-300">
               $0.01
             </td>
-            <td colSpan={3} className="text-center border border-purple-300">
+            <td colSpan={2} className="text-center border border-purple-300">
               CLIFF
             </td>
-            <td colSpan={13} className="py-4 px-6 bg-purple-300 text-left">
-              LINEAR VEST - 18 MONTHS
+            <td colSpan={14} className="py-4 px-6 bg-purple-300 text-left">
+              LINEAR VEST - 15 MONTHS
             </td>
           </tr>
           <tr className="border-b border-purple-300">
@@ -130,10 +130,10 @@ export const VestingSchedule = () => {
               PRIVATE
             </th>
             <td className="py-4 px-6 text-center text-purple-300 bg-gray-700 text-p4">
-              6%
+              1%
             </td>
             <td className="py-4 px-6 text-center text-purple-300 bg-gray-700 text-p4 border-l border-purple-300">
-              10%
+              15%
             </td>
             <td className="py-4 px-6 text-center text-purple-300 bg-gray-700 text-p4 border-l border-purple-300">
               $0.02
@@ -141,8 +141,8 @@ export const VestingSchedule = () => {
             <td colSpan={1} className="text-center border border-purple-300">
               CLIFF
             </td>
-            <td colSpan={12} className="py-4 px-6 bg-purple-300 text-left">
-              LINEAR VEST - 12 MONTHS
+            <td colSpan={10} className="py-4 px-6 bg-purple-300 text-left">
+              LINEAR VEST - 10 MONTHS
             </td>
           </tr>
           <tr className="border-b border-yellow-300">
@@ -153,16 +153,16 @@ export const VestingSchedule = () => {
               PUBLIC
             </th>
             <td className="py-4 px-6 text-center text-yellow-300 bg-gray-700 text-p4">
-              2%
+              6%
             </td>
             <td className="py-4 px-6 text-center text-yellow-300 bg-gray-700 text-p4 border-l border-yellow-300">
-              25%
+              20%
             </td>
             <td className="py-4 px-6 text-center text-yellow-300 bg-gray-700 text-p4 border-l border-yellow-300">
               $0.03
             </td>
             <td colSpan={3} className="py-4 px-6 bg-yellow-300 text-left">
-              LINEAR VEST - 3 MONTHS
+              LINEAR VEST - 4 MONTHS
             </td>
           </tr>
           <tr className="border-b border-yellow-300">
@@ -196,7 +196,7 @@ export const VestingSchedule = () => {
               MARKETING
             </th>
             <td className="py-4 px-6 text-center text-green-300 bg-gray-700 text-p4">
-              10%
+              20%
             </td>
             <td className="py-4 px-6 text-center text-green-300 bg-gray-700 text-p4 border-l border-green-300">
               0
@@ -204,11 +204,11 @@ export const VestingSchedule = () => {
             <td className="py-4 px-6 text-center text-green-300 bg-gray-700 text-p4 border-l border-green-300">
               -
             </td>
-            <td className="text-center border border-green-300" colSpan={4}>
+            <td className="text-center border border-green-300" colSpan={2}>
               CLIFF
             </td>
             <td colSpan={12} className="py-4 px-6 bg-green-300 text-left">
-              LINEAR VEST - 40 MONTHS
+              LINEAR VEST - 64 MONTHS
             </td>
           </tr>
           <tr className="border-b border-green-300">
@@ -219,7 +219,7 @@ export const VestingSchedule = () => {
               REWARDS
             </th>
             <td className="py-4 px-6 text-center text-green-300 bg-gray-700 text-p4">
-              40%
+              34.5%
             </td>
             <td className="py-4 px-6 text-center text-green-300 bg-gray-700 text-p4 border-l border-green-300">
               0
@@ -231,7 +231,7 @@ export const VestingSchedule = () => {
               CLIFF
             </td>
             <td colSpan={15} className="py-4 px-6 bg-green-300 text-left">
-              LINEAR VEST - 50 MONTHS
+              LINEAR VEST - 64 MONTHS
             </td>
           </tr>
           <tr className="border-b border-white">
@@ -242,7 +242,7 @@ export const VestingSchedule = () => {
               FOUNDATION
             </th>
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p4">
-              33.5%
+              15%
             </td>
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p4 border-l border-white-300">
               0
@@ -265,7 +265,7 @@ export const VestingSchedule = () => {
               LIQUIDITY
             </th>
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p4">
-              3%
+              10%
             </td>
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p4 border-l border-white-300">
               100%
@@ -289,58 +289,58 @@ export const VestingSchedule = () => {
               -
             </td>
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p4 border-l border-white-300">
-              $0.48m
+              $0.53m
             </td>
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p5 border-l border-white">
               -
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $0.6m
+              $0.71m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $1.2m
+              $0.98m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $1.7m
+              $1.4m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $2.2m
+              $1.8m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $2.6m
+              $2.1m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $3.1m
+              $2.4m
+            </td>
+            <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
+              $2.7m
+            </td>
+            <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
+              $3.0m
+            </td>
+            <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
+              $3.3m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
               $3.7m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $4.2m
+              $4.0m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $4.7m
+              $4.3m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $5.3m
+              $4.6m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $5.9m
+              $4.9m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $6.4
+              $5.2m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $7.3m
-            </td>
-            <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $7.9m
-            </td>
-            <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $8.5m
-            </td>
-            <td className="py-4 px-4 text-center text-white bg-gray-700 text-p5 border-l border-white">
-              $30m
+              $15m
             </td>
           </tr>
         </tbody>

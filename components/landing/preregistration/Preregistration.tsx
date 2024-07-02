@@ -48,32 +48,41 @@ const Preregistration = () => {
   return (
     <GoogleFormProvider {...methods}>
       {!isSubmitted && (
-        <form
-          id="preregistration"
-          className="container flex justify-center pt-8"
-          onSubmit={methods.handleSubmit(onSubmit)}
-        >
-          <ShortAnswerInput id="1130409291" />
-          <span className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] flex items-center justify-center bg-gradient-to-r from-main-ember to-main-rusty rounded w-34 h-12 md:h-16 max-lg:w-24">
-            <button
-              type="submit"
-              className="relative w-[125px] h-[64px] max-lg:w-[94px]"
-            >
-              <span className="text-center text-p5 md:text-p4 text-white whitespace-nowrap">
-                Sign Up
-              </span>
-              <img
-                className="absolute right-0 top-4"
-                src="/cats/grey/Running-Clothed-Grey.gif"
-              />
-            </button>
-          </span>
-        </form>
+        <div className="flex flex-col pt-8">
+          <div className="flex items-center justify-center gap-4 mb-2">
+            <input className="w-6 h-6" type="checkbox"></input>
+            <div className="font-secondary">
+              I ACCEPT TO GET SPECIAL OFFERS
+            </div>
+          </div>
+          <form
+            id="preregistration"
+            className="container flex justify-center"
+            onSubmit={methods.handleSubmit(onSubmit)}
+          >
+            <ShortAnswerInput id="1130409291" />
+            <span className="[clip-path:polygon(8%_0%,100%_0%,100%_100%,0%_100%)] flex items-center justify-center bg-gradient-to-r from-main-ember to-main-rusty rounded w-34 h-12 md:h-16 max-lg:w-24">
+              <button
+                type="submit"
+                className="relative w-[125px] h-[64px] max-lg:w-[94px]"
+              >
+                <span className="text-center text-p5 md:text-p4 text-white whitespace-nowrap">
+                  Sign Up
+                </span>
+                <img
+                  className="absolute right-0 top-4"
+                  src="/cats/grey/Running-Clothed-Grey.gif"
+                />
+              </button>
+            </span>
+          </form>
+        </div>
       )}
       {isSubmitted && (
         <div className="pt-8 justify-center flex items-center container max-w-xl uppercase">
           <div>
-            Your email has been included to our catlist, we are going to reach you out on July 31st !
+            Your email has been included to our catlist, we are going to reach
+            you out on July 31st !
           </div>
           <img src="/cats/grey/Sitting-Clothed-Grey.gif" />
         </div>

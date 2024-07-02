@@ -173,32 +173,15 @@ const cats: bannerProps[] = [
   },
 ];
 export const HomePage = () => {
-  const [countdown, setCountdown] = useState("");
   const [earlyCountdown, setEarlyCountdown] = useState("");
 
   useEffect(() => {
     // Set the date we're counting down to
-    const countDownDate = new Date("Jul 31, 2024 20:00:00").getTime();
-    const earlyCountDownDate = new Date("Jul 1, 2024 18:30:00").getTime();
+    const earlyCountDownDate = new Date("Jul 31, 2024 18:30:00").getTime();
 
     function setCountdownStates() {
       // Get today's date and time
       const now = new Date().getTime();
-
-      // Find the distance between now and the count down date
-      const distance = countDownDate - now;
-
-      // Time calculations for days, hours, minutes and seconds
-      const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-      const hours = Math.floor(
-        (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
-      );
-      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-      let countdownText =
-        distance < 0 ? "PLAY NOW" : days + "d " + hours + "h " + minutes + "m";
-
-      setCountdown(countdownText);
 
       // Find the distance between now and the count down date
       const earlyDistance = earlyCountDownDate - now;
@@ -215,15 +198,22 @@ export const HomePage = () => {
       let earlyCountdownText =
         earlyDistance < 0
           ? "PLAY NOW"
-          : earlyDays + "d " + earlyHours + "h " + earlyMinutes + "m";
+          : earlyDays +
+            "d " +
+            earlyHours +
+            "h " +
+            earlyMinutes +
+            "m " +
+            earlySeconds +
+            " s";
 
       setEarlyCountdown(earlyCountdownText);
     }
     // Update the count down every 1 second
-    const x = setInterval(setCountdownStates, 60000);
+    const x = setInterval(setCountdownStates, 1000);
     setCountdownStates();
     return () => clearInterval(x);
-  }, [setCountdown]);
+  }, [setEarlyCountdown]);
 
   return (
     <div className="mt-4 flex justify-center items-center flex-col">
@@ -293,15 +283,15 @@ export const HomePage = () => {
                     bg-gradient-to-r from-main-ember to-main-rusty text-p5 md:text-p4 lg:text-2xl text-white"
             >
               <div>PLAY</div>
-              <div className="text-p6 -mt-1">
-                EARLY ACCESS: {earlyCountdown}
-              </div>
+              <div className="text-p6 -mt-1">ONLY FOR EARLY BIRDS</div>
             </button>
           </a>
         </div>
       </div>
 
       <div className="mt-4"></div>
+      <div className="font-secondary -mb-2">Public beta opens in</div>
+      <div className="font-secondary text-p1">{earlyCountdown}</div>
       <Socials />
       <Preregistration />
 
