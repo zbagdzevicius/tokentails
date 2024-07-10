@@ -14,13 +14,22 @@ export class BaseScene extends Scene {
   tilemap!: Phaser.Tilemaps.Tilemap;
   groundLayer!: Phaser.Tilemaps.TilemapLayer;
   isPlaying: boolean = false;
+  blipSound?:
+    | Phaser.Sound.WebAudioSound
+    | Phaser.Sound.NoAudioSound
+    | Phaser.Sound.HTML5AudioSound;
 
   constructor() {
     super("DevScene");
 
-    BaseBus.addListener(BaseBusEvent.SPAWN_CAT, (args: any) => this.spawnCat(args));
+    BaseBus.addListener(BaseBusEvent.SPAWN_CAT, (args: any) =>
+      this.spawnCat(args)
+    );
     BaseBus.addListener(BaseBusEvent.SPAWN_EAT, () => this.spawnFood());
     BaseBus.addListener(BaseBusEvent.SPAWN_PLAY, () => this.spawnPlay());
+    BaseBus.addListener(BaseBusEvent.MEOW, () =>
+      this.sound.play("meow", { volume: 0.5 })
+    );
   }
 
   preload() {
@@ -35,6 +44,10 @@ export class BaseScene extends Scene {
       spacing: 2,
     });
     this.load.image("coin", "purrquest/sprites/coin.webp");
+    this.load.audio("blip", "purrquest/sounds/blip.mp3");
+    this.load.audio("meow", "purrquest/sounds/meow.mp3");
+    this.load.audio("purr", "purrquest/sounds/purr.mp3");
+    this.load.audio("eat", "purrquest/sounds/eat.mp3");
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.tilemapTiledJSON("tilemap", "base/base.json");
     this.load.image("blocks", "base/blocks.png");
@@ -70,6 +83,11 @@ export class BaseScene extends Scene {
     BaseBus.emit("current-scene-ready");
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(1.25);
+    this.addSounds();
+  }
+
+  private addSounds() {
+    this.blipSound = this.sound.add("blip", { volume: 0.1 });
   }
 
   async spawnCat(cat: IProfileCat) {
@@ -98,7 +116,7 @@ export class BaseScene extends Scene {
     if (this.food || !this.cat) {
       return;
     }
-    
+
     this.food = new Food(this, 200, -400);
     this.cat.job = {
       x: this.food.sprite.x,
@@ -133,9 +151,11 @@ export class BaseScene extends Scene {
   }
 
   private onFoodEat() {
+    this.sound.play("eat", { volume: 0.5, duration: 2 });
     this.food?.eaten(() => {
       this.food?.sprite.destroy();
       this.food = null;
+      this.sound.play("purr", { volume: 0.5 });
 
       BaseBus.emit(BaseBusEvent.EATEN);
     });
@@ -159,6 +179,10 @@ export class BaseScene extends Scene {
     if (this.toy) {
       this.toy.bounce();
       BaseBus.emit(BaseBusEvent.PLAYED);
+
+      if (!this.blipSound?.isPlaying) {
+        this.blipSound?.play();
+      }
     }
   }
 }

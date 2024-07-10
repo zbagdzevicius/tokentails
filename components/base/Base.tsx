@@ -11,7 +11,6 @@ import { StatusBar } from "../shared/game/StatusBar";
 import { StatusType } from "@/models/status";
 import { BaseBusEvent } from "./BaseBus.events";
 import { useCat } from "@/context/CatContext";
-import { CatAbilitySkill, CatConsts } from "@/models/cats";
 import { PixelButton } from "../button/PixelButton";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 
@@ -88,6 +87,10 @@ function Base() {
   useEffect(() => {
     if (profile?.cat) {
       BaseBus.emit(BaseBusEvent.SPAWN_CAT, profile.cat);
+
+      if ((profile.cat.status.EAT || 0) < 4) {
+        BaseBus.emit(BaseBusEvent.MEOW);
+      }
     }
   }, [profile?.cat]);
 
@@ -137,7 +140,9 @@ function Base() {
                 <img className="w-8 z-10" src="/base/heart.png" />
               </div>
               <div className="flex items-center gap-2 ">
-                <p className="font-bold font-secondary text-p3 z-10">{profile?.score || 0} X</p>
+                <p className="font-bold font-secondary text-p3 z-10">
+                  {profile?.score || 0} X
+                </p>
                 <img className="w-8 z-10" src="/logo/coin.webp" />
               </div>
             </div>
