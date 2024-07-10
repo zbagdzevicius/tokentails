@@ -5,6 +5,7 @@ import { Toy } from "../objects/Toy";
 import BaseBus from "../BaseBus";
 import { BaseBusEvent } from "../BaseBus.events";
 import { IProfileCat } from "@/models/cats";
+import { ZOOM } from "@/constants/utils";
 
 export class BaseScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
@@ -82,7 +83,7 @@ export class BaseScene extends Scene {
     this.groundLayer?.setCollisionByExclusion([-1]);
     BaseBus.emit("current-scene-ready");
     this.cameras.main.setScroll(-650, -1000);
-    this.cameras.main.setZoom(1.25);
+    this.cameras.main.setZoom(ZOOM);
     this.addSounds();
   }
 
@@ -109,7 +110,7 @@ export class BaseScene extends Scene {
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
     // Adjust camera to follow the player
     this.cameras.main.startFollow(this.cat.sprite);
-    this.cameras.main.zoom = 1.25;
+    this.cameras.main.zoom = ZOOM;
   }
 
   spawnFood() {

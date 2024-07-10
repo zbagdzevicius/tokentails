@@ -143,11 +143,11 @@ export const CatGame = ({ cats, onClickCallback }: IProps) => {
   });
   return (
     <div className="relative w-screen h-screen overflow-hidden">
-      <img
+      <div
         draggable="false"
         className="absolute z-0 w-full h-full object-fit"
-        src="/catgame/bg.jpg"
-      />
+        style={{ backgroundImage: "url(/catgame/bg.jpg)", backgroundRepeat: 'repeat', backgroundSize: '500px' }}
+      ></div>
       {elements.map((element, index) => (
         <img
           draggable="false"
