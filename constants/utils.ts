@@ -27,7 +27,7 @@ export function insertObjectEveryN<T>(
 }
 
 export function isMobile() {
-  if (!window || !navigator) {
+  if (typeof window === "undefined") {
     return false;
   }
   let check = false;
