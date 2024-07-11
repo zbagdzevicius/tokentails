@@ -125,13 +125,13 @@ export const CatsHub = () => {
               ))}
             </div>
             <div className="flex mt-10 max-lg:mt-5">
-              <a href="/#preregistration">
+              <a href="https://docs.tokentails.com">
                 <button
                   className="[clip-path:polygon(0%_0%,100%_0%,92%_100%,0%_100%)]
                     bg-gradient-to-r from-main-ember to-main-rusty rounded w-32 h-10 max-lg:w-20"
                 >
                   <span className="text-center text-base max-lg:text-xs leading-4 text-white">
-                    Sign-Up
+                    DOCS
                   </span>
                 </button>
               </a>
@@ -142,7 +142,7 @@ export const CatsHub = () => {
               >
                 <button className="w-[125px] h-[38px] max-lg:w-[94px] text-white">
                   <span className="text-center text-base max-lg:text-xs">
-                    Pitch Deck
+                    PITCH DECK
                   </span>
                 </button>
               </a>

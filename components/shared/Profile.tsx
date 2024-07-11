@@ -1,4 +1,4 @@
-import { redeemCat } from "@/constants/api";
+import { redeemCat, redeemFreeTrial } from "@/constants/api";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { ChangeEvent, useCallback, useState } from "react";
 import { PixelButton } from "../button/PixelButton";
@@ -10,7 +10,7 @@ const features = [
 ];
 
 export const ProfileContent = () => {
-  const { logout, user, profile, refetchProfile } = useFirebaseAuth();
+  const { logout, user, profile, refetchProfile, position } = useFirebaseAuth();
   const [error, setError] = useState("");
   const [code, setCode] = useState("");
   const handleCodeChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -26,6 +26,11 @@ export const ProfileContent = () => {
       refetchProfile();
     }
   }, [profile, code, setError, refetchProfile]);
+
+  const freeTrial = useCallback(async () => {
+    await redeemFreeTrial();
+    refetchProfile();
+  }, [profile, refetchProfile]);
 
   return (
     <div className="pt-8 pb-4 px-4 md:px-16 md:py-12 text-gray-500 flex flex-col gap-4 justify-between items-center">
@@ -43,6 +48,8 @@ export const ProfileContent = () => {
           />
           {error && <p className="text-red-500">{error}</p>}
           <PixelButton text="Redeem" onClick={() => redeem()} />
+          <p>You don't have a code ?</p>
+          <PixelButton text="Try Free trial" onClick={() => freeTrial()} />
         </div>
       )}
       {profile?.cat && (
@@ -50,19 +57,34 @@ export const ProfileContent = () => {
           <li className="flex items-center gap-x-2">
             <img className="w-4" src="/logo/coin.webp" />
             <div>Your cat name is {profile.cat.name}</div>
-            {profile.cat.expiresAt && (
-              <div>
-                Your cat is going to expire on:{" "}
-                {new Date(profile.cat.expiresAt).toLocaleString()}
-              </div>
-            )}
           </li>
+          <li className="flex items-center gap-x-2">
+            <img className="w-4" src="/logo/coin.webp" />
+            <div>Leaderboard position #{position}</div>
+          </li>
+
           {features.map((feature) => (
             <li key={feature} className="flex items-center gap-x-2">
               <img className="w-4" src="/logo/coin.webp" />
               <div>{feature}</div>
             </li>
           ))}
+          {profile.cat.expiresAt && (
+            <li className="flex items-center gap-x-2 mt-2">
+              <div className="flex flex-col">
+                <div className="text-p6 text-center">
+                  Your cat is going to expire on<br></br>
+                  {new Date(profile.cat.expiresAt).toLocaleString()}
+                </div>
+                <div className="text-p6">
+                  You'll be allowed to adopt it after expiration period
+                </div>
+                <div className="text-p6 text-center">
+                  Take care of it to get a discount
+                </div>
+              </div>
+            </li>
+          )}
         </ul>
       )}
       {user && (

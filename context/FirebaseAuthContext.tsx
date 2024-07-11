@@ -1,7 +1,11 @@
 import { Profile } from "@/components/shared/Profile";
 import { SignIn } from "@/components/shared/SignIn";
 import { Verify } from "@/components/shared/Verify";
-import { deleteProfileRequest, profileFetch } from "@/constants/api";
+import {
+  deleteProfileRequest,
+  getLeaderboardPosition,
+  profileFetch,
+} from "@/constants/api";
 import { IProfile } from "@/models/profile";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { Capacitor } from "@capacitor/core";
@@ -58,7 +62,8 @@ type User = FirebaseUser | null;
 type ContextState = {
   user: User;
   profile?: IProfile | null;
-  refetchProfile: () => void,
+  position?: number | null;
+  refetchProfile: () => void;
   setProfile: (profile: IProfile | null) => void;
   isLoginModalDisplayed: boolean;
   setIsLoginModalDisplayed: (isDisplayed: boolean) => void;
@@ -84,9 +89,13 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [isVerifiedModalDisplayed, setIsVerifiedModalDisplayed] =
     React.useState(false);
 
-  const { data: profileResponse, isFetching, refetch: refetchProfile } = useQuery({
+  const { data: profileResponse, refetch: refetchProfile } = useQuery({
     queryKey: ["profile-details", user],
     queryFn: () => (user ? profileFetch() : null),
+  });
+  const { data: position } = useQuery({
+    queryKey: ["profile-details", profile],
+    queryFn: () => (user ? getLeaderboardPosition() : null),
   });
   useEffect(() => {
     setProfile(profileResponse);
@@ -95,6 +104,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     async (u: User) => {
       if (!u) {
         setUser(null);
+        setProfile(null);
         localStorage.removeItem("accesstoken");
         // } else if (u && !u?.emailVerified) {
         //     sendEmailVerification(u);
@@ -115,6 +125,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     profile,
     setProfile,
     user,
+    position,
     isLoginModalDisplayed,
     setIsLoginModalDisplayed,
     isVerifiedModalDisplayed,
@@ -241,6 +252,7 @@ function useFirebaseAuth() {
   return {
     user: context.user,
     profile: context.profile,
+    position: context.position,
     setProfile: context.setProfile,
     refetchProfile: context.refetchProfile,
     deleteProfile,

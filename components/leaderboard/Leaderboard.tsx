@@ -1,4 +1,5 @@
 import { getLeaderboard } from "@/constants/api";
+import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
 
@@ -7,6 +8,7 @@ export const Leaderboard = () => {
     queryKey: ["leaderboard"],
     queryFn: () => getLeaderboard(),
   });
+  const { position } = useFirebaseAuth();
   return (
     <div>
       <h2 className="text-center font-secondary uppercase tracking-tight text-8xl max-lg:text-5xl  max-lg:text-balance ">
@@ -18,6 +20,11 @@ export const Leaderboard = () => {
       <h2 className="text-center font-secondary uppercase text-p5 md:text-p4">
         Airdrop - Fullfill the needs of your cat to earn 1 point per day
       </h2>
+      {position && (
+        <div className="font-secondary uppercase text-p1 bg-yellow-300 w-fit m-auto rounded-xl px-8 mt-4">
+          Your position {position}
+        </div>
+      )}
       <table className="rounded-lg overflow-hidden table-auto bg-blue-300 text-black-900 w-full text-sm text-left text-gray-500  md:mt-8">
         <thead className="text-p6 md:text-p5 uppercase text-black-300 bg-gray-50 border-b border-purple-300">
           <tr>

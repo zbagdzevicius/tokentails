@@ -177,7 +177,7 @@ export const HomePage = () => {
 
   useEffect(() => {
     // Set the date we're counting down to
-    const earlyCountDownDate = new Date("Jul 31, 2024 18:30:00").getTime();
+    const earlyCountDownDate = new Date("Jul 19, 2024 18:30:00").getTime();
 
     function setCountdownStates() {
       // Get today's date and time
@@ -282,18 +282,20 @@ export const HomePage = () => {
               className="[clip-path:polygon(0%_1%,100%_0%,90%_100%,10%_100%)] w-52 lg:w-72 h-10 lg:h-12 
                     bg-gradient-to-r from-main-ember to-main-rusty text-p5 md:text-p4 lg:text-2xl text-white"
             >
-              <div>PLAY</div>
-              <div className="text-p6 -mt-1">ONLY FOR EARLY BIRDS</div>
+              <div className="flex justify-center items-center gap-1">
+                <div>PLAY NOW</div>
+              </div>
+              <div className="text-p6 -mt-1">ADOPT AND EARN POINTS</div>
             </button>
           </a>
         </div>
       </div>
 
       <div className="mt-4"></div>
-      <div className="font-secondary -mb-2">Public beta opens in</div>
+      <div className="font-secondary -mb-2">Telegram game will be launched in</div>
       <div className="font-secondary text-p1">{earlyCountdown}</div>
       <Socials />
-      <Preregistration />
+      {/* <Preregistration /> */}
 
       <div className="my-4"></div>
       <div className="slider relative bg-gradient-to-r from-green-300 to-purple-300">

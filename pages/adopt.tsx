@@ -18,6 +18,14 @@ export default function Connect() {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (profile && user) {
+      if (!profile.cat) {
+        showProfilePopup();
+      }
+    }
+  }, [profile]);
+
   const handleCatClick = (cat: Partial<ICat>) => {
     setSelectedCat(cat);
   };
@@ -37,11 +45,7 @@ export default function Connect() {
         <a href="/">
           <PixelButton text="HOME" onClick={() => {}}></PixelButton>
         </a>
-        <PixelButton
-          text="ADOPTION"
-          active
-          onClick={() => {}}
-        ></PixelButton>
+        <PixelButton text="ADOPTION" active onClick={() => {}}></PixelButton>
         <PixelButton
           text="PROFILE"
           onClick={() => showProfilePopup()}

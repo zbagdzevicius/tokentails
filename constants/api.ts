@@ -496,6 +496,23 @@ export const redeemCat = async (code: string): Promise<IProfileCat | null> => {
     return null;
   });
 };
+export const redeemFreeTrial = async (): Promise<IProfileCat | null> => {
+  return fetch(`${apiUrl}/cat/redeem/free`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: localStorage.getItem("accesstoken"),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return null;
+  });
+};
 
 export const updateCatStatus = async (
   id: string | number,
@@ -555,4 +572,24 @@ export const getLeaderboard = async (): Promise<IProfile[]> => {
     console.warn(JSON.stringify(response));
     return [];
   });
+};
+
+export const getLeaderboardPosition = async (): Promise<number> => {
+  return fetch(`${apiUrl}/user/leaderboard/position`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: localStorage.getItem("accesstoken"),
+    } as any,
+  })
+    .then((response) => {
+      if (response.ok) {
+        return response.json();
+      }
+
+      console.warn(JSON.stringify(response));
+      return { position: "999" };
+    })
+    .then((v) => v.position);
 };

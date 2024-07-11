@@ -117,12 +117,7 @@ export default function Index() {
             <CatsHub />
           </div>
         </div>
-        <div className="py-4 md:pt-12 bg-gradient-to-b from-yellow-300 to-purple-300">
-          <div id="leaderboard" ref={leaderboardRef} className="max-w-xl m-auto">
-            <Leaderboard />
-          </div>
-        </div>
-        <div className="py-4 bg-gradient-to-b from-purple-300 to-green-300">
+        <div className="py-4 bg-gradient-to-b from-yellow-300 to-purple-300">
           <div
             className="relative overflow-hidden"
             id="catswinners"
@@ -134,6 +129,11 @@ export default function Index() {
             <div className="absolute bottom-0 right-0 md:right-72 z-0">
               <CircleWhite />
             </div>
+          </div>
+        </div>
+        <div className="py-4 md:pt-12 bg-gradient-to-b from-purple-300 to-green-300">
+          <div id="leaderboard" ref={leaderboardRef} className="max-w-xl m-auto">
+            <Leaderboard />
           </div>
         </div>
         <div className="py-4 pt-24 bg-gradient-to-t from-blue-300 to-green-300">
@@ -151,14 +151,14 @@ export default function Index() {
             <Tokenomics />
           </div>
         </div>
-        <div className="pt-4 pb-16 bg-gradient-to-b from-purple-300 to-yellow-300">
-          <div id="contact" ref={contactRef}>
-            <Contact />
-          </div>
-        </div>
-        <div className="">
+        <div className="bg-gradient-to-t from-green-300 to-purple-300">
           <div id="blog">
             <BlogPreview />
+          </div>
+        </div>
+        <div className="pt-4 bg-gradient-to-b from-blue-300 to-yellow-300">
+          <div id="contact" ref={contactRef}>
+            <Contact />
           </div>
         </div>
         <Footer />
