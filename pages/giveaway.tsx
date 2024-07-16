@@ -3,7 +3,7 @@ import React, { useEffect } from "react";
 
 export default function giveaway() {
   useEffect(() => {
-    window.location.href = 'https://x.com/tokentails/status/1806277853970825543' 
+    window.location.href = 'https://x.com/tokentails/status/1806277853970825543'
   }, [])
   return (
     <>

@@ -49,8 +49,7 @@ export class DevScene extends Phaser.Scene {
   private readonly roomRows: number = 8;
   private readonly levelCols: number = 4;
   private readonly levelRows: number = 4;
-  private level: string[][][] = [];
-  private path: { x: number; y: number }[] = [];
+  private level: string[][] = [];
 
   constructor() {
     super("DevScene");
@@ -59,17 +58,10 @@ export class DevScene extends Phaser.Scene {
   preload() {
     this.load.image("wall", "assets/sprite-grass.png");
     this.load.image("ladder", "assets/sprite-ladder.png");
-    this.load.image("path", "assets/sprite-path.png"); // Assuming you have a path image for blue color
   }
 
   create() {
     this.generateLevel();
-    const start = { x: 0, y: 0 }; // Start at top-left corner of the first room
-    const exit = {
-      x: this.levelCols * this.roomCols - 1,
-      y: this.levelRows * this.roomRows - 1,
-    }; // Exit at bottom-right corner of the last room
-    this.path = this.findPath(start, exit);
     this.renderLevel();
   }
 
@@ -80,7 +72,7 @@ export class DevScene extends Phaser.Scene {
       this.level[i] = [];
       for (let j = 0; j < this.levelCols; j++) {
         const randomRoom = this.getRandomRoom();
-        this.level[i].push(randomRoom);
+        this.level[i].push(randomRoom as any);
       }
     }
   }
@@ -108,7 +100,6 @@ export class DevScene extends Phaser.Scene {
     }
 
     this.addBorders();
-    this.renderPath();
   }
 
   private addTile(tile: string, x: number, y: number) {
@@ -143,65 +134,6 @@ export class DevScene extends Phaser.Scene {
       this.addTile("1", 0, y);
       // Right border
       this.addTile("1", (totalCols - 1) * this.tileSize, y);
-    }
-  }
-
-  private findPath(
-    start: { x: number; y: number },
-    exit: { x: number; y: number }
-  ): { x: number; y: number }[] {
-    const visited = Array.from({ length: this.levelRows * this.roomRows }, () =>
-      Array(this.levelCols * this.roomCols).fill(false)
-    );
-    const path: { x: number; y: number }[] = [];
-
-    const dfs = (x: number, y: number): boolean => {
-      if (x === exit.x && y === exit.y) {
-        path.push({ x, y });
-        return true;
-      }
-
-      if (
-        x < 0 ||
-        y < 0 ||
-        x >= this.levelCols * this.roomCols ||
-        y >= this.levelRows * this.roomRows ||
-        visited[y][x] ||
-        this.level[Math.floor(y / this.roomRows)][
-          Math.floor(x / this.roomCols)
-        ][y % this.roomRows][x % this.roomCols] === "1"
-      ) {
-        return false;
-      }
-
-      visited[y][x] = true;
-      path.push({ x, y });
-
-      const directions = [
-        { dx: 1, dy: 0 },
-        { dx: -1, dy: 0 },
-        { dx: 0, dy: 1 },
-        { dx: 0, dy: -1 },
-      ];
-
-      for (const { dx, dy } of directions) {
-        if (dfs(x + dx, y + dy)) {
-          return true;
-        }
-      }
-
-      path.pop();
-      return false;
-    };
-
-    dfs(start.x, start.y);
-    console.log(path);
-    return path;
-  }
-
-  private renderPath() {
-    for (const { x, y } of this.path) {
-      this.add.image(x * this.tileSize, y * this.tileSize, "path").setOrigin(0);
     }
   }
 }
