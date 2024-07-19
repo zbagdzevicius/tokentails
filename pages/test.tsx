@@ -1,4 +1,4 @@
-import { CatbassadorsAuth } from "@/components/catbassadors/CatbassadorsAuth";
+import { TelegramAuthProvider } from "@/context/TelegramAuthContext";
 import { SDKProvider } from "@telegram-apps/sdk-react";
 import { useEffect } from "react";
 
@@ -14,7 +14,9 @@ const test = () => {
 
   return (
     <SDKProvider acceptCustomStyles debug={true}>
-      <CatbassadorsAuth></CatbassadorsAuth>
+      <TelegramAuthProvider>
+        {/* <CatbassadorsAuth></CatbassadorsAuth> */}
+      </TelegramAuthProvider>
     </SDKProvider>
   );
 };

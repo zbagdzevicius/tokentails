@@ -3,7 +3,7 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "base.tmx",
+    "activeFile": "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.tmx",
     "expandedProjectPaths": [
         "."
     ],
@@ -27,6 +27,20 @@
         },
         "#home": {
             "dynamicWrapping": true
+        },
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.tmx": {
+            "expandedGroupLayers": [
+                12
+            ],
+            "scale": 1.9752,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 74.16970433373831,
+                "y": -696.8914540299716
+            }
+        },
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.tmx#blocks": {
+            "scaleInDock": 1.5413
         },
         "base.tmx": {
             "expandedGroupLayers": [
@@ -95,7 +109,7 @@
             "scaleInDock": 2.2835
         }
     },
-    "last.exportedFilePath": "/Users/zygimantasbagdzevicius/me/cats/public/base",
+    "last.exportedFilePath": "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors",
     "last.imagePath": "/Users/zygimantasbagdzevicius/Downloads/FREE_Fantasy Forest/Backgrounds",
     "map.fixedSize": false,
     "map.lastUsedExportFilter": "All Files (*)",
@@ -103,10 +117,11 @@
     "map.tileHeight": 64,
     "map.tileWidth": 64,
     "openFiles": [
-        "base.tmx"
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.tmx"
     ],
     "project": "base.tiled-project",
     "recentFiles": [
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.tmx",
         "base.tmx"
     ],
     "tileset.embedInMap": true,

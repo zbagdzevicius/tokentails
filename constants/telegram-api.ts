@@ -1,0 +1,132 @@
+import { IProfile } from "@/models/profile";
+
+const apiUrl = process.env.NEXT_PUBLIC_BE_URL;
+
+function waitForLocalStorageKey(key: string = "accesstoken") {
+  return new Promise((resolve) => {
+    const checkKey = () => {
+      if (sessionStorage.getItem(key) !== null) {
+        resolve(sessionStorage.getItem(key));
+      } else {
+        setTimeout(checkKey, 1000); // Check every 100ms
+      }
+    };
+    checkKey();
+  });
+}
+
+const getAuthHeaders = () => ({accesstoken: sessionStorage.getItem('accesstoken')})
+
+export const TGetProfile = async (): Promise<IProfile> => {
+  await waitForLocalStorageKey();
+  return fetch(`${apiUrl}/user/catbassadors/profile`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return null;
+  });
+};
+
+export const TGetLeaderboardPosition = async (): Promise<number> => {
+  await waitForLocalStorageKey();
+  return fetch(`${apiUrl}/user/catbassadors/leaderboard/position`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    } as any,
+  })
+    .then((response) => {
+      if (response.ok) {
+        return response.json();
+      }
+
+      console.warn(JSON.stringify(response));
+      return { position: "99999" };
+    })
+    .then((v) => v.position);
+};
+
+export const TDeleteLive = async (points: string | number): Promise<IProfile[]> => {
+  await waitForLocalStorageKey();
+  return fetch(`${apiUrl}/user/catbassadors/live/${points}`, {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return [];
+  });
+};
+
+export const TRedeemLives = async (): Promise<object> => {
+  await waitForLocalStorageKey();
+  return fetch(`${apiUrl}/user/catbassadors/lives/redeem`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return {};
+  });
+};
+
+export const TGetLeaderboard = async (): Promise<IProfile[]> => {
+  return fetch(`${apiUrl}/user/catbassadors/leaderboard`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return [];
+  });
+};
+
+export const TPostReferral = async (telegramId: string): Promise<object> => {
+  await waitForLocalStorageKey();
+  return fetch(`${apiUrl}/user/catbassadors/referral/${telegramId}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return {};
+  });
+};

@@ -473,7 +473,7 @@ $n: 20;
   @apply mt-4 text-center text-p3 text-main-rusty;
 }
 .article-content a {
-  @apply text-accent-700 dark:text-accent-600;
+  @apply text-amber-600 bg-yellow-300 px-4 py-1 rounded-xl;
 }
 
 .article-content h2 {

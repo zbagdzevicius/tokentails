@@ -9,6 +9,9 @@ export enum CatAbilitySkill {
   AQUAWHISKER = "AQUAWHISKER",
 }
 
+
+export const catbassadorsGameDuration = 30;
+
 export enum CatAbilityType {
   ELECTRIC = "ELECTRIC",
   STORM = "STORM",
@@ -80,6 +83,8 @@ export interface IProfileCat {
   resqueStory: string;
   status: ICatStatus;
   spriteImg: string;
+  catImg: string;
+  cardImg: string;
   lives: number;
   expiresAt: string;
 }

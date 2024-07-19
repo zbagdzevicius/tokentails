@@ -1,84 +1,69 @@
-import { useLaunchParams, useInitData, User } from "@telegram-apps/sdk-react";
-import React, { ReactNode, useMemo } from "react";
+import { TDeleteLive } from "@/constants/telegram-api";
+import { useTelegramAuth } from "@/context/TelegramAuthContext";
+import { useToast } from "@/context/ToastContext";
+import { catbassadorsGameDuration } from "@/models/cats";
+import { useUtils } from "@telegram-apps/sdk-react";
+import dynamic from "next/dynamic";
+import { useCallback, useState } from "react";
+import { PixelButton } from "../button/PixelButton";
+import { useGameOverEvent, useGameStartEvent } from "./hooks";
 
-export type IDisplayDataRow = { title: string } & (
-  | { type: "link"; value?: string }
-  | { value: ReactNode }
+const Catbassadors = dynamic(
+  () => import("@/components/catbassadors/Catbassadors"),
+  { ssr: false }
 );
 
-function getUserRows(user: User): IDisplayDataRow[] {
-  return [
-    { title: "id", value: user.id.toString() },
-    { title: "username", value: user.username },
-    { title: "photo_url", value: user.photoUrl },
-    { title: "last_name", value: user.lastName },
-    { title: "first_name", value: user.firstName },
-    { title: "is_bot", value: user.isBot },
-    { title: "is_premium", value: user.isPremium },
-    { title: "language_code", value: user.languageCode },
-    { title: "allows_to_write_to_pm", value: user.allowsWriteToPm },
-    { title: "added_to_attachment_menu", value: user.addedToAttachmentMenu },
-  ];
-}
+const startGame = () => {
+  const event = new CustomEvent("game-start", {
+    detail: { start: true },
+  });
+
+  window.dispatchEvent(event);
+};
+
+let timerInterval: any = null;
 
 export const CatbassadorsAuth = () => {
-  const launchParams = useLaunchParams(true);
-  const initData = useInitData(true);
+  const utils = useUtils(true);
+  const showToast = useToast();
+  const { profile, user, showProfilePopup, redeemLives, refetchProfile } =
+    useTelegramAuth();
+  const [isGameStarted, setIsGameStarted] = useState(false);
+  const [timer, setTimer] = useState(0);
 
-  const initDataRows = useMemo<IDisplayDataRow[] | undefined>(() => {
-    if (!initData || !launchParams?.initDataRaw) {
-      return;
+  useGameOverEvent(async (event) => {
+    setIsGameStarted(false);
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      setTimer(0);
     }
-    const {
-      hash,
-      queryId,
-      chatType,
-      chatInstance,
-      authDate,
-      startParam,
-      canSendAfter,
-      canSendAfterDate,
-    } = initData;
-    return [
-      { title: "raw", value: launchParams.initDataRaw },
-      { title: "auth_date", value: authDate.toLocaleString() },
-      { title: "auth_date (raw)", value: authDate.getTime() / 1000 },
-      { title: "hash", value: hash },
-      { title: "can_send_after", value: canSendAfterDate?.toISOString() },
-      { title: "can_send_after (raw)", value: canSendAfter },
-      { title: "query_id", value: queryId },
-      { title: "start_param", value: startParam },
-      { title: "chat_type", value: chatType },
-      { title: "chat_instance", value: chatInstance },
-    ];
-  }, [initData, launchParams]);
-  const userRows = useMemo<IDisplayDataRow[] | undefined>(() => {
-    return initData && initData.user ? getUserRows(initData.user) : undefined;
-  }, [initData]);
+    showToast({ message: `You earned ${event.detail.score} coins` });
+    await TDeleteLive(event.detail.score || 0);
+    refetchProfile();
+  });
 
-  const receiverRows = useMemo<IDisplayDataRow[] | undefined>(() => {
-    return initData && initData.receiver
-      ? getUserRows(initData.receiver)
-      : undefined;
-  }, [initData]);
+  useGameStartEvent(() => {
+    setIsGameStarted(true);
 
-  const chatRows = useMemo<IDisplayDataRow[] | undefined>(() => {
-    console.log({initData});
-    if (!initData?.chat) {
-      return;
+    setTimer(catbassadorsGameDuration);
+    timerInterval = setInterval(() => {
+      setTimer((v) => {
+        return v === 0 ? 0 : v - 1;
+      });
+    }, 1000);
+  });
+
+  const playGame = useCallback(() => {
+    if (profile?.catbassadorsLives) {
+      startGame();
+      setIsGameStarted(true);
+    } else {
+      showToast({ message: "Invite friends to earn lives !" });
     }
-    const { id, title, type, username, photoUrl } = initData.chat;
+  }, [profile]);
 
-    return [
-      { title: "id", value: id.toString() },
-      { title: "title", value: title },
-      { title: "type", value: type },
-      { title: "username", value: username },
-      { title: "photo_url", value: photoUrl },
-    ];
-  }, [initData]);
-
-  if (!initDataRows) {
+  if (!profile) {
     return (
       <img
         alt="Telegram sticker"
@@ -89,12 +74,83 @@ export const CatbassadorsAuth = () => {
   }
 
   return (
-    <div>works
-      {userRows?.map((v) => (
-        <p key={v.title}>
-          {v.title} - {v.value}
-        </p>
-      ))}
+    <div>
+      <Catbassadors cat={profile?.cat} profile={profile} timer={timer} />
+      {!isGameStarted && profile && (
+        <>
+          <div className="fixed bottom-8 left-4 right-4 pb-safe flex justify-between items-end">
+            <div className="flex flex-col items-center animate-hover">
+              <div className="flex flex-col items-center font-secondary text-p2 opacity-75 bg-yellow-300 px-2 rounded-t-xl">
+                <img className="w-8 z-10 pt-2" src="/base/heart.png" />
+                <div className="-mt-1">{profile.catbassadorsLives || 0}</div>
+                <div className="-mt-2 text-p4">LIVES</div>
+              </div>
+              <PixelButton
+                active={!profile.catbassadorsLives}
+                onClick={() => playGame()}
+                text="Play"
+              ></PixelButton>
+            </div>
+            <PixelButton
+              onClick={() => {
+                showProfilePopup();
+              }}
+              text="STATS"
+            ></PixelButton>
+
+            {profile.canRedeemLives && (
+              <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center font-secondary text-p2 opacity-75 bg-white px-2 rounded-t-xl">
+                  <img className="w-8 z-10 pt-2" src="/base/heart.png" />
+                  <div className="-mt-1">FREE</div>
+                  <div className="-mt-2 text-p4">LIVES</div>
+                </div>
+                <PixelButton
+                  onClick={() => (profile.canRedeemLives ? redeemLives() : {})}
+                  text="REDEEM"
+                ></PixelButton>
+              </div>
+            )}
+            <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center font-secondary text-p2 opacity-75 bg-white px-1 rounded-t-xl">
+                <img className="w-8 z-10 -mt-2 pt-4" src="/logo/coin.webp" />
+                <div>EARN</div>
+                <div className="-mt-2 text-p5">+250 COINS</div>
+                <div className="-mt-2 text-h3">+</div>
+                <img className="w-8 z-10 -mt-3" src="/base/heart.png" />
+                <div className="-mt-1">GET</div>
+                <div className="text-p5 -mt-2">+1 daily live</div>
+              </div>
+              <PixelButton
+                onClick={() => {
+                  utils?.shareURL(
+                    `https://t.me/CatbassadorsBot/app?startapp=${user?.user.id}&startApp=${user?.user.id}`,
+                    "Try catbassadors game"
+                  );
+                }}
+                text="INVITE"
+              ></PixelButton>
+            </div>
+          </div>
+        </>
+      )}
+      <div
+        className={`pb-safe fixed bottom-6 left-0 right-0 w-full flex justify-between ${
+          !isGameStarted ? "hidden" : ""
+        }`}
+      >
+        <button id="jump">
+          <img className="control-button" src="game/controls/jump.png" />
+        </button>
+        <div className="">
+          <button id="left">
+            <img className="control-button" src="game/controls/left.png" />
+          </button>
+          <button id="right">
+            <img className="control-button" src="game/controls/right.png" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
