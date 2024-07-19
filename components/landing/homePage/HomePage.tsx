@@ -1,6 +1,7 @@
 import { Socials } from "@/components/footer/Socials";
 import Preregistration from "../preregistration/Preregistration";
 import { useEffect, useState } from "react";
+import { PixelButton } from "@/components/button/PixelButton";
 
 interface bannerProps {
   image: string;
@@ -283,7 +284,7 @@ export const HomePage = () => {
                     bg-gradient-to-r from-main-ember to-main-rusty text-p5 md:text-p4 lg:text-2xl text-white"
             >
               <div className="flex justify-center items-center gap-1">
-                <div>PLAY NOW</div>
+                <div>PLAY</div>
               </div>
               <div className="text-p6 -mt-1">ADOPT AND EARN POINTS</div>
             </button>
@@ -292,8 +293,10 @@ export const HomePage = () => {
       </div>
 
       <div className="mt-4"></div>
-      <div className="font-secondary -mb-2">Telegram game will be launched in</div>
-      <div className="font-secondary text-p1">{earlyCountdown}</div>
+      <div className="font-secondary">Telegram game Is Launched !</div>
+      <a href="https://t.me/CatbassadorsBot" target="_blank" className="font-secondary text-p1 mb-4">
+        <PixelButton text="PLAY TELEGRAM GAME" onClick={() => {}}></PixelButton>
+      </a>
       <Socials />
       {/* <Preregistration /> */}
 

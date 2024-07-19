@@ -31,7 +31,7 @@ export const CatsWinners = () => {
               alt="cats"
             />
           </a>
-          <a href="https://x.com/tokentails/status/1803445263576736175" target="_blank" className="p-1 max-lg:p-0.5 md:row-span-9 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl hover:animate-hover">
+          <a href="https://t.me/CatbassadorsBot" target="_blank" className="p-1 max-lg:p-0.5 md:row-span-9 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl hover:animate-hover">
             <img
               className="w-full h-full object-cover rounded-2xl"
               src="/images/cats-winners/catbassador.jpg"
