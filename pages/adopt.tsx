@@ -33,9 +33,23 @@ export default function Connect() {
   const handleCloseModal = () => {
     setSelectedCat(null);
   };
+  const [isClicked, setIsClicked] = useState(false);
+  useEffect(() => {
+    window.onclick = () => {
+      setIsClicked(true);
+    };
+  }, []);
 
   return (
     <div className="max-h-screen max-w-screen overflow-hidden relative">
+      {isClicked && (
+        <audio className="display: none" autoPlay>
+          <source
+            src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3"
+            type="audio/mpeg"
+          />
+        </audio>
+      )}
       <div className="flex gap-1 md:gap-4 items-center justify-center fixed top-2 left-0 right-0 z-10 h-12">
         {profile?.cat && (
           <a className="flex justify-end" href="/base">

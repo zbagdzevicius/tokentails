@@ -19,6 +19,15 @@ const nextConfig = {
     ],
     deviceSizes: [240, 320, 400, 480, 600, 640, 720, 1000, 1200],
   },
+
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "http://localhost:3005/:path*", // Proxy to Backend
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

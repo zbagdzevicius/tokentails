@@ -5,4 +5,8 @@ export interface IProfile {
     name: string;
     cat: IProfileCat;
     score: number;
+    catpoints: number;
+    canRedeemLives: boolean;
+    catbassadorsLives: number;
+    referrals: string[];
 }
