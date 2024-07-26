@@ -77,7 +77,7 @@ export interface ICat {
 
 
 export interface IProfileCat {
-  _id: string | number;
+  _id?: string | number;
   name: string;
   ability: CatAbilitySkill;
   resqueStory: string;
