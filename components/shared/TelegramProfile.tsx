@@ -27,19 +27,33 @@ export const TelegramProfileContent = () => {
         <ul className="m-auto font-primary">
           <li className="flex items-center gap-x-2">
             <img className="w-4" src="/logo/coin.webp" />
-            <div>Your cat name is <span className="font-bold">{profile.cat.name}</span></div>
+            <div>
+              Your cat name is{" "}
+              <span className="font-bold">{profile.cat.name}</span>
+            </div>
           </li>
           <li className="flex items-center gap-x-2">
             <img className="w-4" src="/logo/coin.webp" />
-            <div>Leaderboard position <span className="font-bold">#{(position||0) + 100}</span></div>
+            <div>
+              Leaderboard position{" "}
+              <span className="font-bold">#{position || 0}</span>
+            </div>
           </li>
           <li className="flex items-center gap-x-2">
             <img className="w-4" src="/logo/coin.webp" />
-            <div>Your referrals <span className="font-bold">{profile.referrals?.length || 0}</span></div>
+            <div>
+              Your referrals{" "}
+              <span className="font-bold">
+                {profile.referrals?.length || 0}
+              </span>
+            </div>
           </li>
           <li className="flex items-center gap-x-2 mb-4">
             <img className="w-4" src="/logo/coin.webp" />
-            <div>Your coins: <span className="font-bold">{profile.catpoints || 0}</span></div>
+            <div>
+              Your coins:{" "}
+              <span className="font-bold">{profile.catpoints || 0}</span>
+            </div>
           </li>
 
           <li className="font-secondary text-p3">What to expect ?</li>

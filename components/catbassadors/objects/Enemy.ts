@@ -59,6 +59,35 @@ const animationConfigurations: {
   { key: EnemyAnimation.ENEMY_APPEAR, frames: 8, repeat: -1 },
 ];
 
+export enum EnemyType {
+  COIN = "COIN",
+  BOSS_COIN = "BOSS_COIN",
+}
+
+const EnemyTypeSriteMap: Record<EnemyType, string> = {
+  [EnemyType.COIN]: "coin",
+  [EnemyType.BOSS_COIN]: "bosscoin",
+};
+
+const getEnemyType = (): EnemyType => {
+  const type = Math.floor(Math.random() * 20);
+  if (type === 5) {
+    return EnemyType.BOSS_COIN;
+  }
+
+  return EnemyType.COIN;
+};
+
+const EnemyTypeCoinReward: Record<EnemyType, number> = {
+  [EnemyType.COIN]: 1,
+  [EnemyType.BOSS_COIN]: 30,
+}
+
+const EnemyTypeVelocity: Record<EnemyType, number> = {
+  [EnemyType.COIN]: 5,
+  [EnemyType.BOSS_COIN]: 8,
+}
+
 export class Enemy {
   scene: ExtendedScene;
   sprite: Physics.Arcade.Sprite;
@@ -66,43 +95,20 @@ export class Enemy {
   vy: number = 5; // Vertical velocity
   vx: number = 5; // Horizontal velocity
   bounce: number = bounceFactor;
+  coinReward: number;
+  timeReward: number = 0;
+  type: EnemyType;
 
   constructor(scene: ExtendedScene, x: number, y: number) {
     this.scene = scene;
-    this.sprite = this.scene.physics.add.sprite(x, y, "coin").setSize(32, 32);
+    this.type = getEnemyType();
+    this.vy = EnemyTypeVelocity[this.type]
+    this.vx = EnemyTypeVelocity[this.type]
+    this.coinReward = EnemyTypeCoinReward[this.type];
+    this.sprite = this.scene.physics.add
+      .sprite(x, y, EnemyTypeSriteMap[this.type])
+      .setSize(32, 32);
     this.sprite.setGravityY(-900);
-
-    this.initAnimations();
-  }
-
-  initAnimations() {
-    // for (const animationConfiguration of animationConfigurations) {
-    //   const index = animationConfigurations.indexOf(animationConfiguration);
-    //   this.scene.anims.create({
-    //     key: animationConfiguration.key,
-    //     frames: this.scene.anims.generateFrameNumbers("bird", {
-    //       start: index * maxAnimationFrames,
-    //       end: index * maxAnimationFrames + animationConfiguration.frames - 1,
-    //     }),
-    //     frameRate: 8,
-    //     repeat: animationConfiguration.repeat,
-    //   });
-    // }
-    // this.sprite.anims.play(EnemyAnimation.ENEMY_APPEAR);
-    // setTimeout(() => {
-    //   if (this?.sprite?.anims?.play) {
-    //     this.sprite.anims.play(EnemyAnimation.ENEMY_FLY);
-    //   }
-    // }, 1000);
-
-    // setInterval(() => {
-    //   const animationIndex = animationConfigurations.findIndex(
-    //     (configuration) => configuration.key === this.animation
-    //   );
-    //   const newIndex = animationIndex + 1;
-    //   this.animation =
-    //     animationConfigurations[newIndex % animationConfigurations.length].key;
-    // }, 2000);
   }
 
   update() {

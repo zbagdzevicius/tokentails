@@ -1,10 +1,20 @@
 import { IProfileCat } from "@/models/cats";
 import { IProfile } from "@/models/profile";
-import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import CatbassadorsBus from "./CatbassadorsBus";
 import { CatbassadorsBusEvent } from "./CatbassadorsBus.events";
 import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
-import { useGameOverEvent, useGameStartEvent } from "./hooks";
+import {
+  useGameLoadedEvent,
+  useGameOverEvent,
+  useGameStartEvent,
+} from "./hooks";
 
 export interface IGameOverEvent extends Event {
   detail: {
@@ -98,14 +108,17 @@ const Catbassadors = ({ cat, profile, timer }: ICatbassadorsProps) => {
   // The sprite can only be moved in the MainMenu Scene
   //  References to the PhaserGame component (game and scene are exposed)
   const phaserRef = useRef<IRefPhaserGame | null>(null);
+  const isGameLoaded = useGameLoadedEvent();
 
   useEffect(() => {
-    if (cat) {
+    if (cat && isGameLoaded) {
+      CatbassadorsBus.emit(CatbassadorsBusEvent.SPAWN_CAT, cat);
       setTimeout(() => {
         CatbassadorsBus.emit(CatbassadorsBusEvent.SPAWN_CAT, cat);
-      }, 100);
+      }, 1000)
     }
-  }, [cat]);
+  }, [cat, isGameLoaded]);
+  
 
   return (
     <div id="app">

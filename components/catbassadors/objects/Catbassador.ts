@@ -20,6 +20,8 @@ type KeyMap = {
   space: Phaser.Input.Keyboard.Key;
 };
 
+const wallSlidingThresholdMs = 200;
+
 export enum PlayerAnimation {
   SLEEP = "SLEEP",
   DIGGING = "DIGGING",
@@ -53,13 +55,23 @@ const animationConfigurations: {
   { key: PlayerAnimation.WALKING, frames: 8, repeat: 0 },
 ];
 
+const velocityY = 420;
+
 export class Cat {
   private scene: Scene;
   sprite: Physics.Arcade.Sprite;
   private isJumping: boolean = false;
   isMobileJumping: boolean = false;
   isMobileLeft: boolean = false;
+  wallJumpCount: number = 0;
   isMobileRight: boolean = false;
+  lastWallTouched: "left" | "right" | null = null;
+  wallTouchTime: number = 0;
+  disableLeftMovement: boolean = false;
+  disableRightMovement: boolean = false;
+  justJumped: boolean = false;
+  isSliding: boolean = false;
+  jumpTimer: number = 0;
   private animation: PlayerAnimation = animationConfigurations[0].key;
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   keys!: KeyMap;
@@ -68,8 +80,8 @@ export class Cat {
     this.scene = scene;
     this.sprite = this.scene.physics.add
       .sprite(x, y, "cat")
-      .setSize(32, 32)
-      .setOffset(8, 4);
+      .setSize(28, 28)
+      .setOffset(12, 8);
 
     this.cursors = this.scene.input.keyboard!.createCursorKeys();
     this.keys = this.scene.input.keyboard!.addKeys({
@@ -129,60 +141,170 @@ export class Cat {
   }
 
   private updateOngoingMovements() {
-    // controls
-    if (this.cursors.left.isDown || this.keys.left.isDown || this.isMobileLeft) {
-      this.sprite.setVelocityX(-400);
+    const leftKeyDown =
+      this.cursors.left.isDown || this.keys.left.isDown || this.isMobileLeft;
+    const rightKeyDown =
+      this.cursors.right.isDown || this.keys.right.isDown || this.isMobileRight;
+    const upKeyDown =
+      this.cursors.up.isDown ||
+      this.keys.up.isDown ||
+      this.keys.space.isDown ||
+      this.isMobileJumping;
+
+    const touchingLeftWall =
+      this.sprite.body!.blocked.left && !this.sprite.body!.blocked.down;
+    const touchingRightWall =
+      this.sprite.body!.blocked.right && !this.sprite.body!.blocked.down;
+
+    const canWallJump =
+      upKeyDown &&
+      !this.sprite.body!.blocked.down &&
+      ((touchingLeftWall && this.lastWallTouched !== "left") ||
+        (touchingRightWall && this.lastWallTouched !== "right"));
+
+    const blockedAbove = this.sprite.body!.blocked.up;
+    const onGround = this.sprite.body!.blocked.down;
+
+    if (!this.disableLeftMovement && leftKeyDown) {
+      this.sprite.setVelocityX(-300);
       this.sprite.setFlipX(true);
-      if (!this.isJumping) {
-        this.sprite.anims.play(PlayerAnimation.RUNNING, true);
-      }
-    } else if (this.cursors.right.isDown || this.keys.right.isDown || this.isMobileRight) {
-      this.sprite.setVelocityX(400);
+    } else if (!this.disableRightMovement && rightKeyDown) {
+      this.sprite.setVelocityX(300);
       this.sprite.setFlipX(false);
-      if (!this.isJumping) {
-        this.sprite.anims.play(PlayerAnimation.RUNNING, true);
-      }
     } else {
       this.sprite.setVelocityX(0);
-      if (!this.isJumping) {
-        this.sprite.anims.play(PlayerAnimation.IDLE, true);
-      }
+    }
+
+    if (this.isJumping) {
+      this.sprite.anims.play(PlayerAnimation.JUMPING_UP, true);
+    } else if (leftKeyDown || rightKeyDown) {
+      this.sprite.anims.play(PlayerAnimation.RUNNING, true);
+    } else {
+      this.sprite.anims.play(PlayerAnimation.IDLE, true);
+    }
+
+    if (touchingLeftWall || touchingRightWall) {
+      this.wallTouchTime += this.scene.game.loop.delta;
+    } else {
+      this.wallTouchTime = 0;
     }
 
     if (
-      (this.cursors.up.isDown ||
-        this.keys.up.isDown ||
-        this.keys.space.isDown || this.isMobileJumping) &&
-      this.sprite.body!.touching.down
+      // SHOULD JUMP
+      !blockedAbove &&
+      (onGround || canWallJump) &&
+      upKeyDown &&
+      !this.justJumped
     ) {
-      this.sprite.setVelocityY(-330);
-      this.isJumping = true;
-    }
-
-    // Jump only if player is on the ground
-    const onGround = (this.sprite.body as ExtendedBody).onFloor();
-    if (
-      (this.cursors.up.isDown ||
-        this.keys.up.isDown ||
-        this.keys.space.isDown || this.isMobileJumping) &&
-      onGround
-    ) {
-      this.sprite.setVelocityY(-330);
-      this.isJumping = true;
-    }
-
-    if (!this.sprite.body!.touching.down && this.sprite.body!.velocity.y < 0) {
-      // jumping
-      this.sprite.setFrame(3);
-      this.isJumping = true;
+      this.jump({
+        canWallJump,
+        touchingLeftWall,
+        touchingRightWall,
+        blockedAbove,
+        onGround,
+      });
     } else if (
-      !this.sprite.body!.touching.down &&
-      this.sprite.body!.velocity.y > 0
+      // IS SLIDING
+      !onGround &&
+      (touchingLeftWall || touchingRightWall) &&
+      this.wallTouchTime > wallSlidingThresholdMs
     ) {
-      // falling
-      this.sprite.setFrame(5);
+      this.isSliding = true;
+      this.sprite.setVelocityY(100);
+    } else if (!onGround) {
+      this.isJumping = true;
+      this.isSliding = false;
     } else {
       this.isJumping = false;
+      this.isSliding = false;
+      this.wallJumpCount = 0;
+      this.lastWallTouched = null;
+      this.wallTouchTime = 0;
+    }
+
+    if (
+      this.cursors.up.isUp &&
+      this.keys.up.isUp &&
+      this.keys.space.isUp &&
+      !this.isMobileJumping
+    ) {
+      this.justJumped = false;
+    }
+    this.applyAdvancedGravity();
+  }
+
+  jump({
+    canWallJump,
+    touchingLeftWall,
+    touchingRightWall,
+    blockedAbove,
+    onGround,
+  }: {
+    canWallJump: boolean;
+    touchingLeftWall: boolean;
+    touchingRightWall: boolean;
+    blockedAbove: boolean;
+    onGround: boolean;
+  }) {
+    if (!blockedAbove && (onGround || canWallJump)) {
+      this.justJumped = true;
+      this.jumpTimer = this.scene.time.now;
+      if (canWallJump) {
+        this.wallJumpCount++;
+        const jumpDirection = touchingLeftWall ? 1 : -1;
+        this.sprite.setVelocityY(-velocityY);
+        this.sprite.setVelocityX(velocityY * jumpDirection); // wall jump push
+
+        if (touchingLeftWall) {
+          this.disableLeftMovement = true;
+          this.lastWallTouched = "left";
+          this.scene.time.addEvent({
+            delay: 300,
+            callback: () => {
+              this.disableLeftMovement = false;
+            },
+            callbackScope: this,
+          });
+        } else if (touchingRightWall) {
+          this.disableRightMovement = true;
+          this.lastWallTouched = "right";
+          this.scene.time.addEvent({
+            delay: 300,
+            callback: () => {
+              this.disableRightMovement = false;
+            },
+            callbackScope: this,
+          });
+        }
+
+        this.scene.time.addEvent({
+          delay: 10,
+          callback: () => {
+            const currentVelocity = this.sprite.body!.velocity.x;
+            const targetVelocity = 2000 * jumpDirection; // jump top velocity
+            const newVelocity = Phaser.Math.Linear(
+              currentVelocity,
+              targetVelocity,
+              0.1
+            );
+            this.sprite.setVelocityX(newVelocity);
+          },
+          callbackScope: this,
+          repeat: 15,
+        });
+      } else {
+        this.sprite.setVelocityY(-velocityY);
+      }
+      this.isJumping = true;
+      this.isSliding = false;
+    }
+  }
+
+  applyAdvancedGravity() {
+    if (this.sprite.body!.velocity.y > 0) {
+      this.sprite.setGravityY(500); // Increase fall gravity
+    } else {
+      this.sprite.setGravityY(450); // Normal gravity
     }
   }
 

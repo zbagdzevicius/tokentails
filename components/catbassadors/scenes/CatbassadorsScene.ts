@@ -5,7 +5,15 @@ import { CatbassadorsBusEvent } from "../CatbassadorsBus.events";
 import { Cat } from "../objects/Catbassador";
 import { Enemy } from "../objects/Enemy";
 
-const enemyDurationMs = 10000;
+const enemyDurationMs = 15000;
+
+const setIsGameLoaded = () => {
+  const event = new CustomEvent("game-loaded", {
+    detail: { start: true },
+  });
+
+  window.dispatchEvent(event);
+};
 
 export class CatbassadorsScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
@@ -43,6 +51,7 @@ export class CatbassadorsScene extends Scene {
       margin: 1,
       spacing: 2,
     });
+    this.load.image("bosscoin", "logo/boss-coin.png");
     this.load.image("coin", "logo/coin.png");
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.audio("coin", "purrquest/sounds/score.mp3");
@@ -83,11 +92,13 @@ export class CatbassadorsScene extends Scene {
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(1.25);
 
-    this.load.on("complete", () => this.createCat(), this);
-
     this.setMobileControls();
-    this.setDefaultSound();
     window.addEventListener("game-start", () => this.startGame());
+    setIsGameLoaded();
+
+    this.gameSound = this.sound.add("coingame", { loop: true });
+    this.backgroundSound = this.sound.add("purr", { loop: true });
+    this.setDefaultSound();
   }
 
   private setMobileControls() {
@@ -168,11 +179,8 @@ export class CatbassadorsScene extends Scene {
   }
 
   private createCat() {
-    // Create the player
     this.cat = new Cat(this, 0, -400);
-    // Enable collision between player and tilemap layer
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
-    // Adjust camera to follow the player
     this.cameras.main.startFollow(this.cat.sprite);
   }
 
@@ -181,7 +189,11 @@ export class CatbassadorsScene extends Scene {
       return;
     }
 
-    const enemy = new Enemy(this, this.getEnemySpawnPosition(), -650);
+    const enemy = new Enemy(
+      this,
+      this.getEnemySpawnPositionX(),
+      this.getEnemySpawnPositionY()
+    );
 
     this.enemies.push(enemy);
 
@@ -217,7 +229,7 @@ export class CatbassadorsScene extends Scene {
 
   private onCatCatchTheEnemy(enemy: Enemy) {
     // Add to the score
-    this.score += 1;
+    this.score += enemy.coinReward;
     this.sound.play("coin");
 
     // Remove the caught enemy
@@ -225,16 +237,22 @@ export class CatbassadorsScene extends Scene {
     this.enemies = this.enemies.filter((e) => e !== enemy);
   }
 
-  private getEnemySpawnPosition(): number {
-    const leftWall = 300;
-    const rightWall = -300;
+  private getEnemySpawnPositionX(): number {
+    const leftWall = -440;
+    const rightWall = 300;
+
+    return Math.floor(Math.random() * (rightWall - leftWall + 1)) + leftWall;
+  }
+
+  private getEnemySpawnPositionY(): number {
+    const leftWall = -1450;
+    const rightWall = -400;
 
     return Math.floor(Math.random() * (rightWall - leftWall + 1)) + leftWall;
   }
 
   private setDefaultSound() {
-    this.backgroundSound = this.sound.add("purr", { loop: true });
-    this.backgroundSound.play();
+    this.backgroundSound?.play();
   }
 
   private endGame() {
@@ -264,11 +282,11 @@ export class CatbassadorsScene extends Scene {
 
   private startGame() {
     this.timer = catbassadorsGameDuration;
-    this.gameSound = this.sound.add("coingame", { loop: true });
-    this.gameSound.play();
+
+    this.gameSound?.play();
 
     this.enemySpawnInterval = setInterval(() => {
       this.spawnEnemy();
-    }, 500);
+    }, 400);
   }
 }

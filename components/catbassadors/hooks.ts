@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export interface IGameOverEvent extends Event {
   detail: {
@@ -29,6 +29,26 @@ export const useGameStartEvent = (
       );
     };
   }, [callback]);
+};
+
+export const useGameLoadedEvent = () => {
+  const [isGameLoaded, setIsGameLoaded] = useState(false);
+  useEffect(() => {
+    const handleGameStart = (event: IGameStartEvent) => {
+      setIsGameLoaded(true);
+    };
+
+    window.addEventListener("game-loaded", handleGameStart as EventListener);
+
+    return () => {
+      window.removeEventListener(
+        "game-loaded",
+        handleGameStart as EventListener
+      );
+    };
+  }, []);
+
+  return isGameLoaded;
 };
 
 export const useGameOverEvent = (callback: (event: IGameOverEvent) => void) => {
