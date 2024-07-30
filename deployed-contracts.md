@@ -1,4 +1,10 @@
-# SKALE nebulas testnet
+# SKALE nebula testnet
+details: https://testnet.portal.skale.space/chains/lanky-ill-funny-testnet
+RPC endpoint: https://testnet.skalenodes.com/v1/lanky-ill-funny-testnet
+block explorer: https://lanky-ill-funny-testnet.explorer.testnet.skalenodes.com
+chain ID: 37084624
+currency symbol: sFUEL
+faucet: https://www.sfuelstation.com/connect-wallet
 order:
 - Tails ERC-20 token: 0xE02E0025A203b7754101B4300440389037a93235
 - TokenTailsCat ERC-721 NFT: 0x64637b3E4B050Fd2b5127cdeD83ABF1e464A3a54
