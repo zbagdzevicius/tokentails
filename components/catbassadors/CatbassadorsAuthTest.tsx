@@ -5,13 +5,16 @@ import { catbassadorsGameDuration } from "@/models/cats";
 import dynamic from "next/dynamic";
 import { useCallback, useState } from "react";
 import { PixelButton } from "../button/PixelButton";
-import { useGameOverEvent, useGameStartEvent } from "./hooks";
+import {
+  useGameOverEvent,
+  useGameStartEvent,
+  useGameTimerUpdate,
+} from "./hooks";
 
 const Catbassadors = dynamic(
   () => import("@/components/catbassadors/Catbassadors"),
   { ssr: false }
 );
-
 
 const startGame = () => {
   const event = new CustomEvent("game-start", {
@@ -46,10 +49,13 @@ export const CatbassadorsAuthTest = () => {
     setIsGameStarted(true);
 
     setTimer(catbassadorsGameDuration);
+
+    if (timerInterval) {
+      clearInterval(timerInterval);
+    }
+
     timerInterval = setInterval(() => {
-      setTimer((v) => {
-        return v === 0 ? 0 : v - 1;
-      });
+      setTimer((v) => (v === 0 ? 0 : v - 1));
     }, 1000);
   });
 
@@ -61,6 +67,8 @@ export const CatbassadorsAuthTest = () => {
       showToast({ message: "Invite friends to earn lives !" });
     }
   }, [profile]);
+
+  useGameTimerUpdate(setTimer);
 
   if (!profile) {
     return (
@@ -120,10 +128,7 @@ export const CatbassadorsAuthTest = () => {
                 <div className="-mt-1">GET</div>
                 <div className="text-p5 -mt-2">+1 daily live</div>
               </div>
-              <PixelButton
-                onClick={() => {}}
-                text="INVITE"
-              ></PixelButton>
+              <PixelButton onClick={() => {}} text="INVITE"></PixelButton>
             </div>
           </div>
         </>

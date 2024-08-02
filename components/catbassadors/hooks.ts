@@ -6,6 +6,12 @@ export interface IGameOverEvent extends Event {
   };
 }
 
+export interface IGameUpdateEvent extends Event {
+  detail: {
+    additionalTime: number;
+  };
+}
+
 export interface IGameStartEvent extends Event {
   detail: {
     start: boolean;
@@ -63,4 +69,44 @@ export const useGameOverEvent = (callback: (event: IGameOverEvent) => void) => {
       window.removeEventListener("game-over", handleGameOver as EventListener);
     };
   }, [callback]);
+};
+
+export const useGameUpdateEvent = (
+  callback: (event: IGameUpdateEvent) => void
+) => {
+  useEffect(() => {
+    const handleGameOver = (event: IGameUpdateEvent) => {
+      callback(event);
+    };
+
+    window.addEventListener("game-update", handleGameOver as EventListener);
+
+    return () => {
+      window.removeEventListener(
+        "game-update",
+        handleGameOver as EventListener
+      );
+    };
+  }, [callback]);
+};
+
+export const useGameTimerUpdate = (
+  setTimer: (updateFn: (prevTimer: number) => number) => void
+) => {
+  useEffect(() => {
+    const handleGameUpdate = (event: CustomEvent) => {
+      const formattedTime = Number(event.detail.time.toFixed());
+
+      setTimer((prevTimer) => prevTimer + formattedTime);
+    };
+
+    window.addEventListener("game-update", handleGameUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener(
+        "game-update",
+        handleGameUpdate as EventListener
+      );
+    };
+  }, [setTimer]);
 };
