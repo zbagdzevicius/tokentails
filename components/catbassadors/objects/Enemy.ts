@@ -62,31 +62,45 @@ const animationConfigurations: {
 export enum EnemyType {
   COIN = "COIN",
   BOSS_COIN = "BOSS_COIN",
+  TIME_COIN = "TIME_COIN",
 }
 
 const EnemyTypeSriteMap: Record<EnemyType, string> = {
   [EnemyType.COIN]: "coin",
   [EnemyType.BOSS_COIN]: "bosscoin",
+  [EnemyType.TIME_COIN]: "timecoin",
 };
 
 const getEnemyType = (): EnemyType => {
-  const type = Math.floor(Math.random() * 20);
-  if (type === 5) {
-    return EnemyType.BOSS_COIN;
-  }
+  const type = Math.random() * 100;
 
-  return EnemyType.COIN;
+  switch (true) {
+    case type < 3:
+      return EnemyType.TIME_COIN;
+    case type < 8:
+      return EnemyType.BOSS_COIN;
+    default:
+      return EnemyType.COIN;
+  }
 };
 
 const EnemyTypeCoinReward: Record<EnemyType, number> = {
   [EnemyType.COIN]: 1,
   [EnemyType.BOSS_COIN]: 30,
-}
+  [EnemyType.TIME_COIN]: 0,
+};
+
+const EnemyTypeTimeReward: Record<EnemyType, number> = {
+  [EnemyType.COIN]: 0,
+  [EnemyType.BOSS_COIN]: 3,
+  [EnemyType.TIME_COIN]: 10,
+};
 
 const EnemyTypeVelocity: Record<EnemyType, number> = {
   [EnemyType.COIN]: 5,
   [EnemyType.BOSS_COIN]: 8,
-}
+  [EnemyType.TIME_COIN]: 12,
+};
 
 export class Enemy {
   scene: ExtendedScene;
@@ -102,9 +116,10 @@ export class Enemy {
   constructor(scene: ExtendedScene, x: number, y: number) {
     this.scene = scene;
     this.type = getEnemyType();
-    this.vy = EnemyTypeVelocity[this.type]
-    this.vx = EnemyTypeVelocity[this.type]
+    this.vy = EnemyTypeVelocity[this.type];
+    this.vx = EnemyTypeVelocity[this.type];
     this.coinReward = EnemyTypeCoinReward[this.type];
+    this.timeReward = EnemyTypeTimeReward[this.type];
     this.sprite = this.scene.physics.add
       .sprite(x, y, EnemyTypeSriteMap[this.type])
       .setSize(32, 32);

@@ -3,7 +3,7 @@ import { Scene } from "phaser";
 import BaseBus from "../CatbassadorsBus";
 import { CatbassadorsBusEvent } from "../CatbassadorsBus.events";
 import { Cat } from "../objects/Catbassador";
-import { Enemy } from "../objects/Enemy";
+import { Enemy, EnemyType } from "../objects/Enemy";
 
 const enemyDurationMs = 15000;
 
@@ -52,6 +52,7 @@ export class CatbassadorsScene extends Scene {
       spacing: 2,
     });
     this.load.image("bosscoin", "logo/boss-coin.png");
+    this.load.image("timecoin", "icons/clock.png");
     this.load.image("coin", "logo/coin.png");
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.audio("coin", "purrquest/sounds/score.mp3");
@@ -228,13 +229,29 @@ export class CatbassadorsScene extends Scene {
   }
 
   private onCatCatchTheEnemy(enemy: Enemy) {
-    // Add to the score
-    this.score += enemy.coinReward;
+    // Add reward
+    this.processEnemyReward(enemy);
     this.sound.play("coin");
 
     // Remove the caught enemy
     enemy.sprite.destroy();
     this.enemies = this.enemies.filter((e) => e !== enemy);
+  }
+
+  private processEnemyReward(enemy: Enemy) {
+    this.score += enemy.coinReward;
+    if (enemy.timeReward) {
+      const newTime = this.timer + enemy.timeReward;
+
+      const formattedTime = Number(newTime.toFixed());
+
+      this.timer = formattedTime;
+      const event = new CustomEvent("game-update", {
+        detail: { time: enemy.timeReward },
+      });
+
+      window.dispatchEvent(event);
+    }
   }
 
   private getEnemySpawnPositionX(): number {

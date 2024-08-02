@@ -6,7 +6,11 @@ import { useUtils } from "@telegram-apps/sdk-react";
 import dynamic from "next/dynamic";
 import { useCallback, useState } from "react";
 import { PixelButton } from "../button/PixelButton";
-import { useGameOverEvent, useGameStartEvent } from "./hooks";
+import {
+  useGameOverEvent,
+  useGameStartEvent,
+  useGameTimerUpdate,
+} from "./hooks";
 
 const Catbassadors = dynamic(
   () => import("@/components/catbassadors/Catbassadors"),
@@ -53,6 +57,8 @@ export const CatbassadorsAuth = () => {
       });
     }, 1000);
   });
+
+  useGameTimerUpdate(setTimer);
 
   const playGame = useCallback(() => {
     if (profile?.catbassadorsLives) {
