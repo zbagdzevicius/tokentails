@@ -1,12 +1,5 @@
-import { CatbassadorsAuthTest } from "@/components/catbassadors/CatbassadorsAuthTest";
-import { TelegramAuthProviderTest } from "@/context/TelegramAuthContextTest";
-
 const test = () => {
-  return (
-    <TelegramAuthProviderTest>
-      <CatbassadorsAuthTest />
-    </TelegramAuthProviderTest>
-  );
+  return <></>;
 };
 
 export default test;

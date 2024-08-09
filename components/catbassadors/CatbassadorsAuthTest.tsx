@@ -28,7 +28,7 @@ let timerInterval: any = null;
 
 export const CatbassadorsAuthTest = () => {
   const showToast = useToast();
-  const { profile, user, showProfilePopup, redeemLives, refetchProfile } =
+  const { profile, user, showProfilePopup, showQuestsPopup, redeemLives, refetchProfile } =
     useTelegramAuthTest();
   const [isGameStarted, setIsGameStarted] = useState(false);
   const [timer, setTimer] = useState(0);
@@ -98,12 +98,20 @@ export const CatbassadorsAuthTest = () => {
                 text="Play"
               ></PixelButton>
             </div>
-            <PixelButton
-              onClick={() => {
-                showProfilePopup();
-              }}
-              text="STATS"
-            ></PixelButton>
+            <div className="flex flex-col gap-4">
+              <PixelButton
+                onClick={() => {
+                  showQuestsPopup();
+                }}
+                text="QUESTS"
+              ></PixelButton>
+              <PixelButton
+                onClick={() => {
+                  showProfilePopup();
+                }}
+                text="STATS"
+              ></PixelButton>
+            </div>
 
             {profile.canRedeemLives && (
               <div className="flex flex-col items-center">
