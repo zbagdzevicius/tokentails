@@ -50,7 +50,7 @@ const TelegramAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [isProfileModalDisplayed, setIsProfileModalDisplayed] =
     React.useState(false);
   const [isQuestsModalDisplayed, setIsQuestsModalDisplayed] =
-    React.useState(true);
+    React.useState(false);
 
   const telegramUserData = React.useMemo<ITelegramUserData | null>(() => {
     if (!initData || !launchParams?.initDataRaw) {
