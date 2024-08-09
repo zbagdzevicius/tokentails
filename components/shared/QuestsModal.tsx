@@ -242,14 +242,14 @@ export const QuestsModalContent = () => {
                 className="flex justify-between items-center w-full"
               >
                 <div className="flex gap-2 items-center">
-                  {profile?.quests.includes(quest.key) ? (
+                  {profile?.quests?.includes(quest.key) ? (
                     <img className="w-6" src="icons/check.webp" />
                   ) : (
                     <img className="w-6" src={quest.icon} />
                   )}
                   <PixelButton
                     text={quest.name}
-                    active={profile?.quests.includes(quest.key)}
+                    active={profile?.quests?.includes(quest.key)}
                     onClick={() => redeem(quest)}
                   ></PixelButton>
                 </div>
@@ -276,14 +276,14 @@ export const QuestsModalContent = () => {
                 className="flex justify-between items-center w-full"
               >
                 <div className="flex relative gap-2 items-center">
-                  {profile?.quests.includes(quest.key) ? (
+                  {profile?.quests?.includes(quest.key) ? (
                     <img className="w-6" src="icons/check.webp" />
                   ) : (
                     <img className="w-6" src={quest.icon} />
                   )}
                   <PixelButton
                     text={quest.name}
-                    active={profile?.quests.includes(quest.key)}
+                    active={profile?.quests?.includes(quest.key)}
                     onClick={() => redeem(quest)}
                   ></PixelButton>
                 </div>
