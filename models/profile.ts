@@ -1,3 +1,4 @@
+import { QUEST } from "@/components/shared/QuestsModal";
 import { IProfileCat } from "./cats";
 
 export interface IProfile {
@@ -9,4 +10,5 @@ export interface IProfile {
     canRedeemLives: boolean;
     catbassadorsLives: number;
     referrals: string[];
+    quests: QUEST[];
 }

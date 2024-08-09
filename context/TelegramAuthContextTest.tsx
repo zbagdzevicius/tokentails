@@ -3,8 +3,8 @@ import { IProfile } from "@/models/profile";
 import { User } from "@telegram-apps/sdk-react";
 import * as React from "react";
 import { useCallback } from "react";
-import { useToast } from "./ToastContext";
 import { CatAbilitySkill } from "@/models/cats";
+import { QUEST, QuestsModal } from "@/components/shared/QuestsModal";
 
 interface ITelegramUserData {
   raw: string;
@@ -27,6 +27,8 @@ type ContextState = {
   setProfile: (profile: IProfile | null) => void;
   isProfileModalDisplayed: boolean;
   setIsProfileModalDisplayed: (isDisplayed: boolean) => void;
+  isQuestsModalDisplayed: boolean;
+  setIsQuestsModalDisplayed: (isDisplayed: boolean) => void;
 };
 
 const TelegramAuthContext = React.createContext<ContextState | undefined>(
@@ -54,13 +56,15 @@ const TelegramAuthProviderTest = ({
     },
     score: 123,
     catpoints: 123,
+    quests: [QUEST.FOLLOW_DISCORD, QUEST.INVITE_FRIENDS_10],
     canRedeemLives: true,
     catbassadorsLives: 123,
     referrals: [],
   };
-  const toast = useToast();
   const [isProfileModalDisplayed, setIsProfileModalDisplayed] =
     React.useState(false);
+  const [isQuestsModalDisplayed, setIsQuestsModalDisplayed] =
+    React.useState(true);
 
   const value = {
     user: {} as any,
@@ -70,6 +74,8 @@ const TelegramAuthProviderTest = ({
     redeemLives: () => {},
     isProfileModalDisplayed,
     setIsProfileModalDisplayed,
+    isQuestsModalDisplayed,
+    setIsQuestsModalDisplayed,
     refetchProfile: () => {},
   };
 
@@ -77,6 +83,9 @@ const TelegramAuthProviderTest = ({
     <TelegramAuthContext.Provider value={value}>
       {isProfileModalDisplayed && (
         <TelegramProfile close={() => setIsProfileModalDisplayed(false)} />
+      )}
+      {isQuestsModalDisplayed && (
+        <QuestsModal close={() => setIsQuestsModalDisplayed(false)} />
       )}
       {children}
     </TelegramAuthContext.Provider>
@@ -89,6 +98,11 @@ function useTelegramAuthTest() {
   const showProfilePopup = useCallback(() => {
     if (context?.user) {
       context?.setIsProfileModalDisplayed(true);
+    }
+  }, [context]);
+  const showQuestsPopup = useCallback(() => {
+    if (context?.user) {
+      context?.setIsQuestsModalDisplayed(true);
     }
   }, [context]);
   if (context === undefined) {
@@ -104,6 +118,7 @@ function useTelegramAuthTest() {
     setProfile: context.setProfile,
     refetchProfile: context.refetchProfile,
     showProfilePopup,
+    showQuestsPopup,
   };
 }
 

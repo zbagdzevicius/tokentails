@@ -1,3 +1,4 @@
+import { QUEST } from "@/components/shared/QuestsModal";
 import { IProfile } from "@/models/profile";
 
 const apiUrl = process.env.NEXT_PUBLIC_BE_URL;
@@ -15,7 +16,9 @@ function waitForLocalStorageKey(key: string = "accesstoken") {
   });
 }
 
-const getAuthHeaders = () => ({accesstoken: sessionStorage.getItem('accesstoken')})
+const getAuthHeaders = () => ({
+  accesstoken: sessionStorage.getItem("accesstoken"),
+});
 
 export const TGetProfile = async (): Promise<IProfile> => {
   await waitForLocalStorageKey();
@@ -57,7 +60,9 @@ export const TGetLeaderboardPosition = async (): Promise<number> => {
     .then((v) => v.position);
 };
 
-export const TDeleteLive = async (points: string | number): Promise<IProfile[]> => {
+export const TDeleteLive = async (
+  points: string | number
+): Promise<IProfile[]> => {
   await waitForLocalStorageKey();
   return fetch(`${apiUrl}/user/catbassadors/live/${points}`, {
     method: "DELETE",
@@ -128,5 +133,26 @@ export const TPostReferral = async (telegramId: string): Promise<object> => {
 
     console.warn(JSON.stringify(response));
     return {};
+  });
+};
+
+export const TPostQuest = async (
+  quest: QUEST
+): Promise<{ message: string; success?: boolean }> => {
+  // await waitForLocalStorageKey();
+  return fetch(`${apiUrl}/user/catbassadors/quest/${quest}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return { message: "Please try again later", success: false };
   });
 };
