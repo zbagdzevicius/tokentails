@@ -178,7 +178,7 @@ const allQuests: IQuest[] = [
 ];
 
 export const QuestsModalContent = () => {
-  const { profile } = useTelegramAuth();
+  const { profile, refetchProfile } = useTelegramAuth();
   const [questsType, setQuestsType] = useState(QuestType.SOCIAL);
   const quests = useMemo(
     () => allQuests.filter((quest) => quest.type === questsType),
@@ -199,6 +199,9 @@ export const QuestsModalContent = () => {
         if (socialInProgressQuests.includes(quest.key)) {
           const result = await TPostQuest(quest.key);
           toast({ message: result.message });
+          if (result.success) {
+            await refetchProfile();
+          }
         } else {
           setSocialInProgressQuests([...socialInProgressQuests, quest.key]);
           utils?.openLink(quest.link!);
@@ -206,6 +209,9 @@ export const QuestsModalContent = () => {
       } else {
         const result = await TPostQuest(quest.key);
         toast({ message: result.message });
+        if (result.success) {
+          await refetchProfile();
+        }
       }
     },
     [setSocialInProgressQuests, socialInProgressQuests]
