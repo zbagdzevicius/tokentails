@@ -8,23 +8,17 @@ import "@openzeppelin/contracts@4.9.3/access/AccessControlEnumerable.sol";
 
 contract TokenTails is ERC20, ERC20Burnable, AccessControlEnumerable {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    uint256 private _maxSupply;
+    uint256 public immutable maxSupply = 500000000 * 10 ** decimals();
 
     constructor()
         ERC20("Token Tails", "TAILS")
     {
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _grantRole(MINTER_ROLE, _msgSender());
-        _maxSupply = 500000000 * 10 ** decimals(); // Setting max supply to 500,000,000 with decimals adjustment
-    }
-
-    function maxSupply() public view returns (uint256) {
-        return _maxSupply;
     }
 
     function mint(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
-        uint256 amountWithDecimals = amount * 10 ** decimals(); // Adjust amount for decimals
-        require(totalSupply() + amountWithDecimals <= _maxSupply, "ERC20: minting would exceed max supply");
+        uint256 amountWithDecimals = amount * 10 ** decimals();
+        require(totalSupply() + amountWithDecimals <= maxSupply, "minting would exceed max supply");
         _mint(to, amountWithDecimals);
     }
 }
