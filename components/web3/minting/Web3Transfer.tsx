@@ -115,7 +115,7 @@ export const Web3Transfer = ({ price, entityType, _id }: ITransfer) => {
     }
   }, [isTaxConfirmed]);
 
-  if (process.env.NEXT_PUBLIC_IS_PROD) {
+  if (process.env.NEXT_PUBLIC_IS_PROD === 'true') {
     return <PixelButton text="COMING SOON"></PixelButton>
   }
 
