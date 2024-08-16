@@ -2,6 +2,7 @@ import { redeemCat, redeemFreeTrial } from "@/constants/api";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { ChangeEvent, useCallback, useState } from "react";
 import { PixelButton } from "../button/PixelButton";
+import { useToast } from "@/context/ToastContext";
 
 const features = [
   "Take care of your cat !",
@@ -16,6 +17,18 @@ export const ProfileContent = () => {
   const handleCodeChange = (event: ChangeEvent<HTMLInputElement>) => {
     setCode(event?.target?.value);
   };
+  const toast = useToast();
+
+  const copy = useCallback(() => {
+    navigator.clipboard
+      .writeText(profile?.walletAddress!)
+      .then(() => {
+        toast({ message: "Wallet address coppied to clipboard" });
+      })
+      .catch((err) => {
+        throw err;
+      });
+  }, [profile?.walletAddress, toast, close]);
 
   const redeem = useCallback(async () => {
     const response = await redeemCat(code);
@@ -36,6 +49,12 @@ export const ProfileContent = () => {
     <div className="pt-8 pb-4 px-4 md:px-16 md:py-12 text-gray-500 flex flex-col gap-4 justify-between items-center">
       <img className="w-16 m-auto" src="/logo/logo.webp" />
       {user && <div>Hello, {user.displayName || user.email} !</div>}
+      <div onClick={() => copy()} className="flex flex-col items-center">
+        <div className="text-p6 font-bold">YOUR ACCOUNT WALLET ADDRESS</div>
+        <p className="text-p5 font-bold font-secondary">
+          {profile?.walletAddress}
+        </p>
+      </div>
       {!profile?.cat && (
         <div className="flex flex-col items-center justify-center gap-2 font-bold font-secondary">
           <p>Redeem your Virtual cat</p>

@@ -4,7 +4,7 @@ import { Cat, NPCJobType } from "../objects/Cat";
 import { Toy } from "../objects/Toy";
 import BaseBus from "../BaseBus";
 import { BaseBusEvent } from "../BaseBus.events";
-import { IProfileCat } from "@/models/cats";
+import { ICat } from "@/models/cats";
 import { ZOOM } from "@/constants/utils";
 
 export class BaseScene extends Scene {
@@ -91,7 +91,7 @@ export class BaseScene extends Scene {
     this.blipSound = this.sound.add("blip", { volume: 0.1 });
   }
 
-  async spawnCat(cat: IProfileCat) {
+  async spawnCat(cat: ICat) {
     if (this.cat || !cat) {
       return;
     }

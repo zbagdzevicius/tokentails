@@ -36,6 +36,7 @@ export const Leaderboard = () => {
         <tbody>
           {data?.map((result, index) => (
             <tr
+              key={index}
               className={`border-b ${
                 index > 2 ? "border-purple-300" : "border-yellow-300"
               }`}

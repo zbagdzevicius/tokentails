@@ -1,6 +1,6 @@
 "use client";
 
-import { config, nftContractAddress } from "@/config/web3";
+import { config, nftContractAddress } from "@/web3/web3";
 import { getRandomInt } from "@/constants/utils";
 import { nftContractAbi } from "@/contracts/ERC721Basic";
 import { useState } from "react";

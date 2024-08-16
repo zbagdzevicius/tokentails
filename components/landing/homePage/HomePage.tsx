@@ -66,7 +66,7 @@ const sponsorImage = [
     name: "dao",
   },
   {
-    image: "/images/sponsor/skale.png",
+    image: "/images/sponsor/skale.webp",
     name: "skale",
   },
   {

@@ -1,20 +1,20 @@
 import { updateCatStatus } from "@/constants/api";
-import { ICatStatus, IProfileCat } from "@/models/cats";
+import { ICatStatus, ICat } from "@/models/cats";
 import { IStatus } from "@/models/status";
 import { useMutation } from "@tanstack/react-query";
 import * as React from "react";
 import { useCallback } from "react";
 
 type ContextState = {
-  cat: IProfileCat | null;
-  setCat: (cat: IProfileCat) => void;
+  cat: ICat | null;
+  setCat: (cat: ICat) => void;
   setCatStatus: (status: IStatus) => void;
 };
 
 const CatContext = React.createContext<ContextState | undefined>(undefined);
 
 const CatProvider = ({ children }: React.PropsWithChildren<{}>) => {
-  const [cat, setCat] = React.useState<IProfileCat | null>(null);
+  const [cat, setCat] = React.useState<ICat | null>(null);
 
   const saveStatusCall = useCallback(
     async (params: ICatStatus) => {

@@ -1,10 +1,10 @@
+import { QUEST, QuestsModal } from "@/components/shared/QuestsModal";
 import { TelegramProfile } from "@/components/shared/TelegramProfile";
+import { CatAbilitySkill, CatAbilityType } from "@/models/cats";
 import { IProfile } from "@/models/profile";
 import { User } from "@telegram-apps/sdk-react";
 import * as React from "react";
 import { useCallback } from "react";
-import { CatAbilitySkill } from "@/models/cats";
-import { QUEST, QuestsModal } from "@/components/shared/QuestsModal";
 
 interface ITelegramUserData {
   raw: string;
@@ -41,7 +41,10 @@ const TelegramAuthProviderTest = ({
   const profile: IProfile = {
     name: "Test",
     cat: {
+      _id: "test",
       name: "Catnip",
+      type: CatAbilityType.STORM,
+      price: 50,
       ability: CatAbilitySkill.AQUAWHISKER,
       resqueStory: "Test story",
       status: {
@@ -50,10 +53,14 @@ const TelegramAuthProviderTest = ({
       },
       lives: 9,
       expiresAt: new Date().toISOString(),
-    spriteImg: 'https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/BLACK/hearted-red.png',
-    catImg: 'https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/BLACK/hearted-red/JUMPING.gif',
-    cardImg: 'https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/cards/LOVETAP/purrlock-holmes.png',
+      spriteImg:
+        "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/BLACK/hearted-red.png",
+      catImg:
+        "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/BLACK/hearted-red/JUMPING.gif",
+      cardImg:
+        "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/cards/LOVETAP/purrlock-holmes.png",
     },
+    walletAddress: '',
     score: 123,
     catpoints: 123,
     quests: [QUEST.FOLLOW_DISCORD, QUEST.INVITE_FRIENDS_10],

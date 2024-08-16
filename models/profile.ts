@@ -1,11 +1,12 @@
 import { QUEST } from "@/components/shared/QuestsModal";
-import { IProfileCat } from "./cats";
+import { ICat } from "./cats";
 
 export interface IProfile {
     avatar?: string;
     name: string;
-    cat: IProfileCat;
+    cat: ICat;
     score: number;
+    walletAddress: string;
     catpoints: number;
     canRedeemLives: boolean;
     catbassadorsLives: number;

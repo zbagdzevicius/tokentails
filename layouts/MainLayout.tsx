@@ -9,13 +9,13 @@ export const MainLayout = ({ children }: PropsWithChildren<any>) => {
   return (
     <div>
       <QueryClientProvider client={queryClient}>
-        <FirebaseAuthProvider>
-          <EntityMetadataProvider>
-            <ToastProvider>
+        <ToastProvider>
+          <FirebaseAuthProvider>
+            <EntityMetadataProvider>
               <main className="z-10 relative flex flex-col">{children}</main>
-            </ToastProvider>
-          </EntityMetadataProvider>
-        </FirebaseAuthProvider>
+            </EntityMetadataProvider>
+          </FirebaseAuthProvider>
+        </ToastProvider>
       </QueryClientProvider>
     </div>
   );

@@ -1,10 +1,11 @@
 interface IProps {
   text: string;
+  subtext?: string | number;
   active?: boolean;
-  onClick: () => void;
+  onClick?: () => void;
 }
 
-export const PixelButton = ({ text, active, onClick }: IProps) => {
+export const PixelButton = ({ text, subtext, active, onClick }: IProps) => {
   return (
     <button
       onClick={onClick}
@@ -21,6 +22,7 @@ export const PixelButton = ({ text, active, onClick }: IProps) => {
       <div className="h-12 flex flex-col border-y-4 border-black bg-red-500">
         <div className="h-9 bg-red-500 px-4 font-secondary text-p4 flex items-center gap-2">
           <p className="text-yellow-300">{text}</p>
+          {subtext && <p className="text-yellow-200">{subtext}</p>}
         </div>
         <div className="h-1 bg-yellow-300"></div>
         {!active && <div className="h-2 bg-red-700"></div>}

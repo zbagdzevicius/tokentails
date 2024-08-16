@@ -1,11 +1,10 @@
-import { IProfileCat } from "@/models/cats";
+import { ICat } from "@/models/cats";
 import { IProfile } from "@/models/profile";
 import {
   forwardRef,
   useEffect,
   useLayoutEffect,
-  useRef,
-  useState,
+  useRef
 } from "react";
 import CatbassadorsBus from "./CatbassadorsBus";
 import { CatbassadorsBusEvent } from "./CatbassadorsBus.events";
@@ -99,7 +98,7 @@ const CatbassadorsGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame(
 });
 
 interface ICatbassadorsProps {
-  cat: IProfileCat;
+  cat: ICat;
   profile: IProfile;
   timer: number;
 }
