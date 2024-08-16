@@ -1,4 +1,4 @@
-import { IProfileCat, catbassadorsGameDuration } from "@/models/cats";
+import { ICat, catbassadorsGameDuration } from "@/models/cats";
 import { Scene } from "phaser";
 import BaseBus from "../CatbassadorsBus";
 import { CatbassadorsBusEvent } from "../CatbassadorsBus.events";
@@ -166,7 +166,7 @@ export class CatbassadorsScene extends Scene {
     });
   }
 
-  async spawnCat(cat: IProfileCat) {
+  async spawnCat(cat: ICat) {
     if (this.cat || !cat) {
       return;
     }

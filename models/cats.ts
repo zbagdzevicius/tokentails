@@ -9,7 +9,6 @@ export enum CatAbilitySkill {
   AQUAWHISKER = "AQUAWHISKER",
 }
 
-
 export const catbassadorsGameDuration = 30;
 
 export enum CatAbilityType {
@@ -63,23 +62,13 @@ export const catAbilitiesSkills = [
 export const getCatAbility = () =>
   catAbilitiesSkills[Math.floor(Math.random() * catAbilitiesSkills.length)];
 
-export type ICatStatus =  Partial<Record<StatusType, IStatusValue>>;
+export type ICatStatus = Partial<Record<StatusType, IStatusValue>>;
 
 export interface ICat {
-  _id: string | number;
-  name: string;
-  img: string;
-  ability: CatAbilitySkill;
-  isPlayable?: boolean;
-  resqueStory: string;
-  status: ICatStatus;
-}
-
-
-export interface IProfileCat {
-  _id?: string | number;
+  _id?: string;
   name: string;
   ability: CatAbilitySkill;
+  type: CatAbilityType;
   resqueStory: string;
   status: ICatStatus;
   spriteImg: string;
@@ -87,6 +76,7 @@ export interface IProfileCat {
   cardImg: string;
   lives: number;
   expiresAt: string;
+  price: number;
 }
 
 export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {
@@ -121,83 +111,4 @@ export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {
     description:
       "A gentle but powerful stream of water that can push opponents away",
   },
-};
-
-const status: Partial<Record<StatusType, IStatusValue>> = {
-  [StatusType.EAT]: 0,
-  [StatusType.PLAY]: 0,
-};
-
-export const assignAbilitiesToCats = (): ICat[] => {
-  return [
-    {
-      _id: 1,
-      img: "/catgame/cat.gif",
-      name: names[0],
-      ability: CatAbilitySkill.WHISKERFLAME,
-      resqueStory: resqueStory(names[0]),
-      isPlayable: true,
-      status,
-    },
-    {
-      _id: 2,
-      img: "/cats/grey/Running-Clothed-Grey.gif",
-      name: names[1],
-      ability: CatAbilitySkill.PURRSTORM,
-      resqueStory: resqueStory(names[1]),
-      status,
-    },
-    {
-      _id: 3,
-      img: "/cats/pinkie/pink-corriendo-ropa.gif",
-      name: names[2],
-      ability: CatAbilitySkill.FURSHADOW,
-      resqueStory: resqueStory(names[2]),
-      status,
-    },
-    {
-      _id: 4,
-      img: "/cats/siamese/siames saltando .gif",
-      name: names[3],
-      ability: CatAbilitySkill.SHADOWPOUNCE,
-      resqueStory: resqueStory(names[3]),
-      status,
-    },
-    {
-      _id: 5,
-      img: "/cats/yellow/Jump-Hat-Yellow.gif",
-      name: names[4],
-      ability: CatAbilitySkill.AQUAWHISKER,
-      resqueStory: resqueStory(names[4]),
-      status,
-    },
-    {
-      _id: 6,
-      img: "/cats/grey/digging.gif",
-      name: names[5],
-      ability: CatAbilitySkill.TAILWIND,
-      resqueStory: resqueStory(names[5]),
-      status,
-    },
-    {
-      _id: 7,
-      img: "/cats/black/dig.gif",
-      name: names[6],
-      ability: CatAbilitySkill.TAILWIND,
-      resqueStory: resqueStory(names[6]),
-      status,
-    },
-  ];
-};
-
-export const CatConsts = assignAbilitiesToCats();
-
-export const CatsMap = {
-  [names[0]?.toLowerCase()]: CatConsts[0],
-  [names[1]?.toLowerCase()]: CatConsts[1],
-  [names[2]?.toLowerCase()]: CatConsts[2],
-  [names[3]?.toLowerCase()]: CatConsts[3],
-  [names[4]?.toLowerCase()]: CatConsts[4],
-  [names[5]?.toLowerCase()]: CatConsts[5],
-  [names[6]?.toLowerCase()]: CatConsts[6],
 };

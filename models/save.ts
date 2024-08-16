@@ -6,6 +6,7 @@ export enum EntityType {
     COMMENT = 'COMMENT',
     GROUP = 'GROUP',
     PUBLICATION = 'PUBLICATION',
+    CAT = 'CAT',
 }
 
 export interface ISave {

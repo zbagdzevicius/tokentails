@@ -3,7 +3,7 @@ import { ICat } from "@/models/cats";
 import { useEffect, useState } from "react";
 
 interface Element {
-  id: number;
+  id: string;
   axisX: number;
   axisY: number;
   speedX: number;
@@ -18,16 +18,9 @@ interface IProps {
   onClickCallback: (cat: ICat) => void;
 }
 
-function hexStringToNumber(str: string | number) {
-  return parseInt(str?.toString(), 16);
-}
-
 export const CatGame = ({ cats, onClickCallback }: IProps) => {
-  const generateRandomPosition = (
-    img: string,
-    id: number | string
-  ): Element => ({
-    id: hexStringToNumber(id),
+  const generateRandomPosition = (img: string, id: string): Element => ({
+    id: id,
     axisX: Math.random() * 2 - 1,
     axisY: Math.random() * 2 - 1,
     speedX: Math.random() > -1 ? 0.005 : -0.005,
@@ -36,11 +29,16 @@ export const CatGame = ({ cats, onClickCallback }: IProps) => {
     img,
   });
 
-  const [elements, setElements] = useState<Element[]>(() =>
-    cats.map(({ img, _id }, index) => generateRandomPosition(img, _id))
-  );
+  const [elements, setElements] = useState<Element[]>([]);
+  useEffect(() => {
+    if (cats?.length) {
+      setElements(cats.map(({ catImg, _id }, index) =>
+        generateRandomPosition(catImg, _id!)
+      ));
+    }
+  }, [cats]);
 
-  const handleCatClick = (catId: number) => {
+  const handleCatClick = (catId: string) => {
     setElements((prevElements) =>
       prevElements.map((element) => {
         const clickedCat = cats.find((cat) => cat._id === catId);
@@ -146,16 +144,18 @@ export const CatGame = ({ cats, onClickCallback }: IProps) => {
       <div
         draggable="false"
         className="absolute z-0 w-full h-full object-fit"
-        style={{ backgroundImage: "url(/catgame/bg.jpg)", backgroundRepeat: 'repeat', backgroundSize: '500px' }}
+        style={{
+          backgroundImage: "url(/catgame/bg.jpg)",
+          backgroundRepeat: "repeat",
+          backgroundSize: "500px",
+        }}
       ></div>
       {elements.map((element, index) => (
         <img
           draggable="false"
           src={element.img}
           key={index}
-          className="absolute left-0 top-0 w-44 h-44"
-          width={180}
-          height={180}
+          className="absolute left-0 top-0 w-24 h-24"
           alt="cat gif"
           style={getCatStyle(element)}
           onClick={() => handleCatClick(element.id)}

@@ -3,7 +3,7 @@ import React from 'react';
 
 export const Toast = ({ message, icon, isError }: IToast) => {
     return (
-        <div className="fixed top-32 left-1/2 z-[60]" style={{ transform: 'translateX(-50%)' }}>
+        <div className="fixed z-[110] top-32 left-1/2 z-[60]" style={{ transform: 'translateX(-50%)' }}>
             <div
                 className={`animate-bounce rem:w-[360px] min-h-10 px-2 rounded-lg shadow border-2 ${
                     isError ? 'border-red-500' : 'border-purple-300'

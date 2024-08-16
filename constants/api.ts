@@ -1,14 +1,16 @@
 import { IArticle, IArticleExcerpt } from "@/models/article";
 import { ICategory } from "@/models/category";
-import { ICatStatus, IProfileCat } from "@/models/cats";
+import { ICat, ICatStatus } from "@/models/cats";
 import { IComment } from "@/models/comment";
 import { IGroup } from "@/models/group";
+import { IOrder } from "@/models/order";
 import { IProfile } from "@/models/profile";
 import { IPublication } from "@/models/publication";
 import { IQuiz } from "@/models/quiz";
 import { EntityType, ISave, ISaved } from "@/models/save";
 import { IGenericSearchParams } from "@/models/search";
 import { IVideo } from "@/models/video";
+import { CurrencyType } from "@/web3/contracts";
 
 const apiUrl = process.env.NEXT_PUBLIC_BE_URL;
 
@@ -101,6 +103,9 @@ export const EntityRouteOption: Omit<
   },
   [EntityType.QUIZ]: {
     details: ([quiz]) => `/${FEED_OPTION.QUIZ.href}${urlPrefix}/${quiz}`,
+  },
+  [EntityType.CAT]: {
+    details: ([]) => `/`,
   },
 };
 
@@ -476,7 +481,7 @@ export const groupFetch = async (slug: string): Promise<IGroup> => {
   });
 };
 
-export const redeemCat = async (code: string): Promise<IProfileCat | null> => {
+export const redeemCat = async (code: string): Promise<ICat | null> => {
   if (!code) {
     return null;
   }
@@ -496,7 +501,7 @@ export const redeemCat = async (code: string): Promise<IProfileCat | null> => {
     return null;
   });
 };
-export const redeemFreeTrial = async (): Promise<IProfileCat | null> => {
+export const redeemFreeTrial = async (): Promise<ICat | null> => {
   return fetch(`${apiUrl}/cat/redeem/free`, {
     method: "GET",
     headers: {
@@ -517,7 +522,7 @@ export const redeemFreeTrial = async (): Promise<IProfileCat | null> => {
 export const updateCatStatus = async (
   id: string | number,
   status: ICatStatus
-): Promise<IProfileCat | null> => {
+): Promise<ICat | null> => {
   if (!id || !(status.EAT || status.PLAY)) {
     return null;
   }
@@ -592,4 +597,66 @@ export const getLeaderboardPosition = async (): Promise<number> => {
       return { position: "999" };
     })
     .then((v) => v.position);
+};
+
+export const getCurrencyRate = async (
+  currencyType: CurrencyType
+): Promise<string> => {
+  return fetch(`${apiUrl}/cat/rate/${currencyType}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    } as any,
+  })
+    .then((response) => {
+      if (response.ok) {
+        return response.json();
+      }
+
+      console.warn(JSON.stringify(response));
+      return { price: 1000 };
+    })
+    .then((v) => v.price);
+};
+
+export const confirmTransaction = async (
+  order: IOrder
+): Promise<Pick<IOrder, "cat">> => {
+  return fetch(`${apiUrl}/web3/confirm`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: localStorage.getItem("accesstoken"),
+    } as any,
+    body: JSON.stringify(order),
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return null;
+  });
+};
+
+export const getCatsForSale = async (confirmation: {
+  minPrice?: number;
+}): Promise<ICat[]> => {
+  return fetch(`${apiUrl}/cat/for-sale`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    } as any,
+    body: JSON.stringify(confirmation),
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return [];
+  });
 };
