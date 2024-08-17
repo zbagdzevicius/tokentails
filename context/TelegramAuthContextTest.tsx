@@ -40,6 +40,7 @@ const TelegramAuthProviderTest = ({
 }: React.PropsWithChildren<{}>) => {
   const profile: IProfile = {
     name: "Test",
+    cats: [],
     cat: {
       _id: "test",
       name: "Catnip",
