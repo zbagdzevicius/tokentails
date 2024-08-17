@@ -28,9 +28,13 @@ export class BaseScene extends Scene {
     );
     BaseBus.addListener(BaseBusEvent.SPAWN_EAT, () => this.spawnFood());
     BaseBus.addListener(BaseBusEvent.SPAWN_PLAY, () => this.spawnPlay());
-    BaseBus.addListener(BaseBusEvent.MEOW, () =>
-      this.sound.play("meow", { volume: 0.5 })
-    );
+    BaseBus.addListener(BaseBusEvent.MEOW, () => {
+      setTimeout(() => {
+        try {
+          this.sound.play("meow", { volume: 0.5 });
+        } catch {}
+      }, 2000);
+    });
   }
 
   preload() {
