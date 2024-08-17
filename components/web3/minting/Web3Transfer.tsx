@@ -130,7 +130,7 @@ export const Web3Transfer = ({ price, entityType, _id }: ITransfer) => {
   if (!isConnected) {
     return <w3m-button />;
   }
-  if (profile?.cats.find((cat) => cat?._id === _id)) {
+  if (profile?.cats?.find((cat) => cat?._id === _id)) {
     return <PixelButton text={entityType} subtext="Adopted" active></PixelButton>;
   }
 
