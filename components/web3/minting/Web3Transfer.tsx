@@ -2,8 +2,10 @@
 
 import { PixelButton } from "@/components/button/PixelButton";
 import { confirmTransaction } from "@/constants/api";
+import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
+import { isProd } from "@/models/app";
 import { EntityType } from "@/models/save";
 import {
   ChainType,
@@ -11,7 +13,7 @@ import {
   CurrencyType,
   recipient,
 } from "@/web3/contracts";
-import { bnbTestnetChain, config } from "@/web3/web3";
+import { bnbTestnetChain, chainTypeId, config } from "@/web3/web3";
 import { ITransfer } from "@/web3/web3.model";
 import { ethers } from "ethers";
 import { useEffect, useState } from "react";
@@ -28,16 +30,16 @@ const nftTypeCtaText: Partial<Record<EntityType, string>> = {
   [EntityType.CAT]: "Adopt",
 };
 
-const paymentsChain = process.env.NEXT_PUBLIC_IS_PROD
-  ? ChainType.BNB
-  : ChainType.BNB_TEST;
+const paymentsChain = isProd ? ChainType.BNB : ChainType.BNB_TEST;
 
 export const Web3Transfer = ({ price, entityType, _id }: ITransfer) => {
+  const { refetchProfile, profile } = useFirebaseAuth();
   const { isConnected, chainId, currencyType, setCurrencyType, balance } =
     useWeb3();
   const { switchChainAsync } = useSwitchChain({ config });
   const bnbPrice = useTokenPrice({ price, currencyType: CurrencyType.BNB });
-  const { sendTransactionAsync } = useSendTransaction();
+  const { sendTransactionAsync, isPending: isTransactionPending } =
+    useSendTransaction();
   const toast = useToast();
   const [hash, setHash] = useState<undefined | `0x${string}`>();
   const {
@@ -53,8 +55,8 @@ export const Web3Transfer = ({ price, entityType, _id }: ITransfer) => {
   const [state, setState] = useState<null | "success">(null);
 
   async function syncChain() {
-    if (chainId !== bnbTestnetChain.id) {
-      await switchChainAsync({ chainId: bnbTestnetChain.id });
+    if (chainId !== chainTypeId[paymentsChain]) {
+      await switchChainAsync({ chainId: chainTypeId[paymentsChain] });
     }
   }
 
@@ -111,30 +113,31 @@ export const Web3Transfer = ({ price, entityType, _id }: ITransfer) => {
         chainType: paymentsChain,
         currencyType,
         price,
-      });
+      }).then(() => refetchProfile());
     }
   }, [isTaxConfirmed]);
 
-  if (process.env.NEXT_PUBLIC_IS_PROD === 'true') {
-    return <PixelButton text="COMING SOON"></PixelButton>
-  }
-
-  if (!isConnected) {
-    <w3m-button />;
-  }
-
-  if (isPending || isTaxLoading) {
-    <PixelButton text="LOADING" active></PixelButton>;
-  }
-
-  if (isTaxConfirmed) {
-    <PixelButton text="OWNED" active></PixelButton>;
-  }
   useEffect(() => {
     if (taxData?.status === "success") {
       setState("success");
     }
   }, [taxData, setState]);
+
+  if (isProd) {
+    return <PixelButton text="COMING SOON"></PixelButton>;
+  }
+
+  if (!isConnected) {
+    return <w3m-button />;
+  }
+  if (profile?.cats.find((cat) => cat?._id === _id)) {
+    return <PixelButton text={entityType} subtext="Adopted" active></PixelButton>;
+  }
+
+  if (isPending || isTaxLoading || isTransactionPending || isTaxConfirmed) {
+    return <PixelButton text="ADOPTING" active></PixelButton>;
+  }
+
 
   return (
     <div className="flex flex-col items-center">
@@ -153,18 +156,13 @@ export const Web3Transfer = ({ price, entityType, _id }: ITransfer) => {
         ))}
       </div>
       <PixelButton
-        text={state === "success" ? entityType : nftTypeCtaText[entityType]!}
-        active={state === "success"}
-        subtext={
-          state === "success"
-            ? "Adopted"
-            : `for $${price} ${
-                [CurrencyType.USDC, CurrencyType.USDT].includes(currencyType)
-                  ? currencyType
-                  : `in ${currencyType}`
-              }`
-        }
-        onClick={() => (state === "success" ? {} : transfer())}
+        text={nftTypeCtaText[entityType]!}
+        subtext={`for $${price} ${
+          [CurrencyType.USDC, CurrencyType.USDT].includes(currencyType)
+            ? currencyType
+            : `in ${currencyType}`
+        }`}
+        onClick={() => transfer()}
       ></PixelButton>
     </div>
   );

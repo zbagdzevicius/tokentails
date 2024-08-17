@@ -2,8 +2,9 @@ import { defaultWagmiConfig } from "@web3modal/wagmi/react/config";
 import { defineChain } from "viem";
 
 import { cookieStorage, createStorage } from "wagmi";
-import { currencyContracts, CurrencyType } from "./contracts";
+import { ChainType, currencyContracts, CurrencyType } from "./contracts";
 import { abiERC20 } from "./abi-erc20";
+import { isProd } from "@/models/app";
 
 export const bnbChain = defineChain({
   id: 56, // BNB Chain mainnet chain ID
@@ -125,6 +126,13 @@ export const skaleNebulaMainnet = defineChain({
   contracts: {},
 });
 
+export const chainTypeId: Record<ChainType, number> = {
+  [ChainType.BNB]: bnbChain.id,
+  [ChainType.BNB_TEST]: bnbTestnetChain.id,
+  [ChainType.SKALE]: skaleNebulaMainnet.id,
+  [ChainType.SKALE_TEST]: skaleNebulaMainnet.id,
+};
+
 export const nftContractAddress = "0xd6265283af414697b61a46272669f21e6131628f";
 
 // Get projectId at https://cloud.walletconnect.com
@@ -138,7 +146,7 @@ const metadata = {
 };
 
 // Create wagmiConfig
-const chains = process.env.NEXT_PUBLIC_IS_PROD
+const chains = isProd
   ? ([
       bnbChain,
       // skaleNebulaMainnet

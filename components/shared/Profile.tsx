@@ -5,7 +5,7 @@ import { PixelButton } from "../button/PixelButton";
 import { useToast } from "@/context/ToastContext";
 
 const features = [
-  "Take care of your cat !",
+  "Take care of your cats !",
   "Enjoy Meowgical Experience",
   "Engage in Purrfect Gameplay",
 ];
@@ -76,6 +76,10 @@ export const ProfileContent = () => {
           <li className="flex items-center gap-x-2">
             <img className="w-4" src="/logo/coin.webp" />
             <div>Your cat name is {profile.cat.name}</div>
+          </li>
+          <li className="flex items-center gap-x-2">
+            <img className="w-4" src="/logo/coin.webp" />
+            <div>Adopted cats: {profile.cats?.length || 0}</div>
           </li>
           <li className="flex items-center gap-x-2">
             <img className="w-4" src="/logo/coin.webp" />

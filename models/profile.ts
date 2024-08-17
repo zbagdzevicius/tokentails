@@ -5,6 +5,7 @@ export interface IProfile {
     avatar?: string;
     name: string;
     cat: ICat;
+    cats: ICat[];
     score: number;
     walletAddress: string;
     catpoints: number;

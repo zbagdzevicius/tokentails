@@ -7,6 +7,7 @@ import { getCatsForSale } from "@/constants/api";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import Web3ModalProvider from "@/context/web3";
 import { Web3Provider } from "@/context/Web3Context";
+import { isProd } from "@/models/app";
 import { ICat } from "@/models/cats";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -19,7 +20,7 @@ export default function Connect() {
   const { data: catsForSale } = useQuery({
     queryKey: ["cats-for-sale"],
     queryFn: () =>
-      getCatsForSale({ minPrice: process.env.NEXT_PUBLIC_IS_PROD ? 0 : 0 }),
+      getCatsForSale({ minPrice: isProd ? 0 : 0 }),
   });
 
   useEffect(() => {

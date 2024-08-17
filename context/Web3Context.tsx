@@ -1,3 +1,4 @@
+import { isProd } from "@/models/app";
 import { CurrencyType } from "@/web3/contracts";
 import { bnbChain, bnbTestnetChain } from "@/web3/web3";
 import * as React from "react";
@@ -21,7 +22,7 @@ type ContextState = {
 
 const Web3Context = React.createContext<ContextState | undefined>(undefined);
 
-const paymentsChain = process.env.NEXT_PUBLIC_IS_PROD ? bnbChain : bnbTestnetChain;
+const paymentsChain = isProd ? bnbChain : bnbTestnetChain;
 
 export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
   const { isConnected, address, chainId } = useAccount();
