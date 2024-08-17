@@ -92,9 +92,6 @@ const TelegramAuthProviderTest = ({
       {isProfileModalDisplayed && (
         <TelegramProfile close={() => setIsProfileModalDisplayed(false)} />
       )}
-      {isQuestsModalDisplayed && (
-        <QuestsModal close={() => setIsQuestsModalDisplayed(false)} />
-      )}
       {children}
     </TelegramAuthContext.Provider>
   );
