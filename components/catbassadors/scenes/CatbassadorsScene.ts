@@ -3,7 +3,7 @@ import { Scene } from "phaser";
 import BaseBus from "../CatbassadorsBus";
 import { CatbassadorsBusEvent } from "../CatbassadorsBus.events";
 import { Cat } from "../objects/Catbassador";
-import { Enemy, EnemyType } from "../objects/Enemy";
+import { Enemy } from "../objects/Enemy";
 
 const enemyDurationMs = 15000;
 
