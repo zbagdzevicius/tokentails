@@ -1,207 +1,181 @@
 import Phaser from "phaser";
-
-const prebuiltRooms = [
-  [
-    "0000000000",
-    "0000000000",
-    "0000000000",
-    "0000000000",
-    "00L0000L00",
-    "00L0000L00",
-    "00L0000L00",
-    "1111111111",
-  ],
-  [
-    "0000000000",
-    "0000000000",
-    "0000000000",
-    "0000000000",
-    "00L0000L00",
-    "00L0000L00",
-    "00L0000L00",
-    "0000000000",
-  ],
-  [
-    "1111111111",
-    "0000000000",
-    "0011111100",
-    "0000000000",
-    "00L0000L00",
-    "00L0000L00",
-    "00L0000L00",
-    "1111111111",
-  ],
-  [
-    "0000000001",
-    "0000000001",
-    "0000000001",
-    "0000000001",
-    "00L1111L01",
-    "00L0000L01",
-    "00L0000L01",
-    "0000000001",
-  ],
-];
+import { GenerateLevel } from "../level/generateLevel";
+import { Player } from "../objects/Player";
+import { MoovablePlatform } from "../objects/MoovablePlatform";
+import { setMobileControls, isMobileOrTablet } from "../utils/MobileControls";
+import { Pathfinding } from "../utils/Pathfinding";
 
 export class DevScene extends Phaser.Scene {
-  private readonly tileSize: number = 32;
-  private readonly roomCols: number = 10;
-  private readonly roomRows: number = 8;
-  private readonly levelCols: number = 4;
-  private readonly levelRows: number = 4;
-  private level: string[][][] = [];
-  private path: { x: number; y: number }[] = [];
+  private generateLevel!: GenerateLevel;
+  private player!: Player;
+  private moovablePlatform!: MoovablePlatform;
+  private pathfinding!: Pathfinding;
+  private groundLayer!: Phaser.Tilemaps.TilemapLayer;
+  private loadingText!: Phaser.GameObjects.Text;
 
   constructor() {
     super("DevScene");
   }
 
   preload() {
-    this.load.image("wall", "assets/sprite-grass.png");
-    this.load.image("ladder", "assets/sprite-ladder.png");
-    this.load.image("path", "assets/sprite-path.png"); // Assuming you have a path image for blue color
+    this.loadingText = this.add
+      .text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2,
+        "Loading...",
+        {
+          fontSize: "32px",
+          color: "#ffffff",
+        }
+      )
+      .setOrigin(0.5);
+    this.load.spritesheet("cat", "cats/black/sprite/combined.png", {
+      frameWidth: 64,
+      frameHeight: 39,
+    });
+    this.load.spritesheet("blocks", "base/blocks-original.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+    this.load.image("leftButton", "game/controls/left.png");
+    this.load.image("rightButton", "game/controls/right.png");
+    this.load.image("jumpButton", "game/controls/jump.png");
+    this.load.image("dashButton", "game/controls/dash.png");
+    this.load.image("platform", "game/platform.png");
+
+
+    this.load.on("progress", (value: number) => {
+      this.loadingText.setText(`Loading... ${Math.round(value * 100)}%`);
+    });
+
+   
+    this.load.on("complete", () => {
+      this.loadingText.destroy();
+    });
   }
 
   create() {
-    this.generateLevel();
-    const start = { x: 0, y: 0 }; // Start at top-left corner of the first room
-    const exit = {
-      x: this.levelCols * this.roomCols - 1,
-      y: this.levelRows * this.roomRows - 1,
-    }; // Exit at bottom-right corner of the last room
-    this.path = this.findPath(start, exit);
-    this.renderLevel();
-  }
+    this.generateLevel = new GenerateLevel(this);
 
-  update() {}
+    const platformConfigs = [
+      { speed: 15, distance: 32, tileIndex: 270 },
+      { speed: 50, distance: 64, tileIndex: 269 },
+    ];
 
-  private generateLevel() {
-    for (let i = 0; i < this.levelRows; i++) {
-      this.level[i] = [];
-      for (let j = 0; j < this.levelCols; j++) {
-        const randomRoom = this.getRandomRoom();
-        this.level[i].push(randomRoom);
-      }
-    }
-  }
+    this.moovablePlatform = new MoovablePlatform(this, platformConfigs);
 
-  private getRandomRoom(): string[] {
-    const randomIndex = Phaser.Math.Between(0, prebuiltRooms.length - 1);
-    return prebuiltRooms[randomIndex];
-  }
+    this.generateLevel.generateNewRoom();
 
-  private renderLevel() {
-    for (let row = 0; row < this.levelRows; row++) {
-      for (let col = 0; col < this.levelCols; col++) {
-        const room = this.level[row][col];
-        for (let roomRow = 0; roomRow < this.roomRows; roomRow++) {
-          for (let roomCol = 0; roomCol < this.roomCols; roomCol++) {
-            const tile = room[roomRow][roomCol];
-            const x =
-              col * this.roomCols * this.tileSize + roomCol * this.tileSize;
-            const y =
-              row * this.roomRows * this.tileSize + roomRow * this.tileSize;
-            this.addTile(tile, x, y);
-          }
-        }
-      }
-    }
+    this.pathfinding = new Pathfinding(this, this.generateLevel);
+    this.pathfinding.initializePathfinding();
+    this.pathfinding.validatePathExistence(289, 290);
 
-    this.addBorders();
-    this.renderPath();
-  }
+    this.spawnPlayer();
+    this.renderTilemap();
 
-  private addTile(tile: string, x: number, y: number) {
-    switch (tile) {
-      case "1":
-        this.add.image(x, y, "wall").setOrigin(0);
-        break;
-      case "L":
-        this.add.image(x, y, "ladder").setOrigin(0);
-        break;
-      // Add more cases for other tiles as needed
-    }
-  }
-
-  private addBorders() {
-    const totalCols = this.levelCols * this.roomCols;
-    const totalRows = this.levelRows * this.roomRows;
-
-    // Top and Bottom Borders
-    for (let col = 0; col < totalCols; col++) {
-      const x = col * this.tileSize;
-      // Top border
-      this.addTile("1", x, 0);
-      // Bottom border
-      this.addTile("1", x, (totalRows - 1) * this.tileSize);
-    }
-
-    // Left and Right Borders
-    for (let row = 0; row < totalRows; row++) {
-      const y = row * this.tileSize;
-      // Left border
-      this.addTile("1", 0, y);
-      // Right border
-      this.addTile("1", (totalCols - 1) * this.tileSize, y);
-    }
-  }
-
-  private findPath(
-    start: { x: number; y: number },
-    exit: { x: number; y: number }
-  ): { x: number; y: number }[] {
-    const visited = Array.from({ length: this.levelRows * this.roomRows }, () =>
-      Array(this.levelCols * this.roomCols).fill(false)
+    this.moovablePlatform.createPlatformsForTiles(
+      this.groundLayer!,
+      this.player.sprite
     );
-    const path: { x: number; y: number }[] = [];
 
-    const dfs = (x: number, y: number): boolean => {
-      if (x === exit.x && y === exit.y) {
-        path.push({ x, y });
-        return true;
-      }
+    this.physics.add.collider(
+      this.moovablePlatform.getGroup(),
+      this.groundLayer
+    );
 
-      if (
-        x < 0 ||
-        y < 0 ||
-        x >= this.levelCols * this.roomCols ||
-        y >= this.levelRows * this.roomRows ||
-        visited[y][x] ||
-        this.level[Math.floor(y / this.roomRows)][
-          Math.floor(x / this.roomCols)
-        ][y % this.roomRows][x % this.roomCols] === "1"
-      ) {
-        return false;
-      }
-
-      visited[y][x] = true;
-      path.push({ x, y });
-
-      const directions = [
-        { dx: 1, dy: 0 },
-        { dx: -1, dy: 0 },
-        { dx: 0, dy: 1 },
-        { dx: 0, dy: -1 },
-      ];
-
-      for (const { dx, dy } of directions) {
-        if (dfs(x + dx, y + dy)) {
-          return true;
-        }
-      }
-
-      path.pop();
-      return false;
-    };
-
-    dfs(start.x, start.y);
-    console.log(path);
-    return path;
+    if (isMobileOrTablet()) {
+      setMobileControls(this, this.player);
+    }
   }
 
-  private renderPath() {
-    for (const { x, y } of this.path) {
-      this.add.image(x * this.tileSize, y * this.tileSize, "path").setOrigin(0);
+  update() {
+    this.player.update();
+    this.moovablePlatform.update(this.player.sprite, this.groundLayer);
+  }
+
+  private spawnPlayer() {
+    const startCoords = this.generateLevel.getStartCoordinates();
+    const startX =
+      startCoords.x *
+        this.generateLevel.getTileSize() *
+        this.generateLevel.getRoomCols() +
+      32 * 6.5;
+    const startY =
+      startCoords.y *
+        this.generateLevel.getTileSize() *
+        this.generateLevel.getRoomRows() +
+      64 -
+      16;
+
+    this.player = new Player(this, startX, startY);
+  }
+
+  private renderTilemap() {
+    const gridData = this.generateLevel.generateGridData();
+    const tilemap = this.make.tilemap({
+      key: "tilemap",
+      data: gridData,
+      tileWidth: 32,
+      tileHeight: 32,
+    });
+
+    const tileset = tilemap.addTilesetImage("blocks-original", "blocks");
+    this.groundLayer = tilemap.createLayer("layer", tileset!, 0, 0)!;
+    this.groundLayer?.setCollision([
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 89, 90, 91, 33, 34, 35, 36, 37, 62, 63,
+      64, 65, 66, 72, 92, 93, 94, 120, 121, 122, 123, 150, 151, 152,
+    ]);
+
+    this.physics.add.collider(
+      this.player.sprite as Phaser.Physics.Arcade.Sprite,
+      this.groundLayer!,
+      undefined,
+      undefined,
+      this.moovablePlatform
+    );
+    this.physics.add.collider(
+      this.moovablePlatform.getGroup(),
+      this.groundLayer!
+    );
+
+    this.cameras.main.startFollow(this.player.sprite);
+    this.player.sprite.setDepth(1);
+
+    // Adding collision detection for spikes
+    this.physics.add.overlap(
+      this.player.sprite,
+      this.groundLayer!,
+      (player, tile) =>
+        this.checkSpikeTileCollision(
+          player as Phaser.GameObjects.Sprite,
+          tile as Phaser.Tilemaps.Tile
+        ),
+      undefined,
+      this
+    );
+
+    this.physics.add.collider(
+      this.player.sprite as Phaser.Physics.Arcade.Sprite,
+      this.moovablePlatform.getGroup(),
+      (player, platform) =>
+        this.moovablePlatform.collisionMovingPlatform(
+          player as Phaser.Physics.Arcade.Sprite,
+          platform as Phaser.Physics.Arcade.Image
+        ),
+      undefined,
+      this
+    );
+  }
+
+  private checkSpikeTileCollision(
+    player: Phaser.GameObjects.Sprite,
+    tile: Phaser.Tilemaps.Tile
+  ) {
+    const spikeTiles = [70, 71, 100, 99];
+    if (spikeTiles.includes(tile.index)) {
+      this.scene.pause();
+      this.cameras.main.setAlpha(0.7);
+      this.scene.launch("UIScene");
     }
   }
 }

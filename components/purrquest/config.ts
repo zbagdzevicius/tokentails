@@ -5,6 +5,7 @@ import { Game as MainGame } from "./scenes/Game";
 import { MainMenu } from "./scenes/MainMenu";
 import { Preloader } from "./scenes/Preloader";
 import { DevScene } from "./scenes/DevScene";
+import { UIScene } from "./scenes/UIScene";
 // import { ProceduralLevelGenerator } from "./level/ProceduralLevelGenerator";
 //  Find out more information about the Game Config at:
 //  https://newdocs.phaser.io/docs/3.70.0/Phaser.Types.Core.GameConfig
@@ -18,7 +19,7 @@ const config: Phaser.Types.Core.GameConfig = {
   parent: "game-container",
   backgroundColor: "#34eb6b",
   // scene: [Boot, Preloader, MainMenu, MainGame, GameOver],
-  scene: [DevScene, GameOver],
+  scene: [DevScene, GameOver, UIScene, Preloader],
   physics: {
     default: "arcade",
     arcade: {
