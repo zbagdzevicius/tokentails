@@ -28,8 +28,14 @@ let timerInterval: any = null;
 
 export const CatbassadorsAuthTest = () => {
   const showToast = useToast();
-  const { profile, user, showProfilePopup, showQuestsPopup, redeemLives, refetchProfile } =
-    useTelegramAuthTest();
+  const {
+    profile,
+    user,
+    showProfilePopup,
+    showQuestsPopup,
+    redeemLives,
+    refetchProfile,
+  } = useTelegramAuthTest();
   const [isGameStarted, setIsGameStarted] = useState(false);
   const [timer, setTimer] = useState(0);
 
@@ -142,13 +148,21 @@ export const CatbassadorsAuthTest = () => {
         </>
       )}
       <div
-        className={`pb-safe fixed bottom-6 left-0 right-0 w-full flex justify-between ${
+        className={`pb-safe fixed bottom-6 left-0 right-0 w-full flex items-end justify-between ${
           !isGameStarted ? "hidden" : ""
         }`}
       >
-        <button id="jump">
-          <img className="control-button" src="game/controls/jump.png" />
-        </button>
+        <div className="flex flex-col items-end">
+          <button id="dash">
+            <img
+              className="control-button"
+              src="game/controls/dash-white.png"
+            />
+          </button>
+          <button id="jump">
+            <img className="control-button" src="game/controls/jump.png" />
+          </button>
+        </div>
         <div className="">
           <button id="left">
             <img className="control-button" src="game/controls/left.png" />

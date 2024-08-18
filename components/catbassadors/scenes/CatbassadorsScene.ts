@@ -178,6 +178,26 @@ export class CatbassadorsScene extends Scene {
         this.cat.isMobileJumping = false;
       }
     });
+
+    const dashButton = document.getElementById("dash");
+    dashButton?.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      if (this.cat) {
+        this.cat.isMobileDash = true;
+      }
+    });
+    dashButton?.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      if (this.cat) {
+        this.cat.isMobileDash = false;
+      }
+    });
+    dashButton?.addEventListener("mouseleave", (e) => {
+      e.preventDefault();
+      if (this.cat) {
+        this.cat.isMobileDash = false;
+      }
+    });
   }
 
   async spawnCat(cat: ICat) {

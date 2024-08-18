@@ -18,6 +18,7 @@ type KeyMap = {
   left: Phaser.Input.Keyboard.Key;
   right: Phaser.Input.Keyboard.Key;
   space: Phaser.Input.Keyboard.Key;
+  dash: Phaser.Input.Keyboard.Key;
 };
 
 const wallSlidingThresholdMs = 200;
@@ -75,6 +76,13 @@ export class Cat {
   private animation: PlayerAnimation = animationConfigurations[0].key;
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   keys!: KeyMap;
+  isMobileDash: boolean = false;
+
+  canDash: boolean = true;
+  isDashing: boolean = false;
+  dashTime: number = 200; // Duration of dash in ms
+  dashCooldown: number = 600; // Cooldown time before dashing again
+  dashSpeed: number = 600; // Speed during dash
 
   constructor(scene: Scene, x: number, y: number) {
     this.scene = scene;
@@ -88,7 +96,7 @@ export class Cat {
       up: "W",
       left: "A",
       right: "D",
-      space: "SPACE",
+      dash: "SPACE",
     }) as KeyMap;
 
     this.initAnimations();
@@ -141,6 +149,8 @@ export class Cat {
   }
 
   private updateOngoingMovements() {
+    if (this.isDashing) return;
+  
     const leftKeyDown =
       this.cursors.left.isDown || this.keys.left.isDown || this.isMobileLeft;
     const rightKeyDown =
@@ -148,7 +158,6 @@ export class Cat {
     const upKeyDown =
       this.cursors.up.isDown ||
       this.keys.up.isDown ||
-      this.keys.space.isDown ||
       this.isMobileJumping;
 
     const touchingLeftWall =
@@ -189,6 +198,9 @@ export class Cat {
       this.wallTouchTime = 0;
     }
 
+
+    this.handleDash();
+
     if (
       // SHOULD JUMP
       !blockedAbove &&
@@ -225,12 +237,40 @@ export class Cat {
     if (
       this.cursors.up.isUp &&
       this.keys.up.isUp &&
-      this.keys.space.isUp &&
       !this.isMobileJumping
     ) {
       this.justJumped = false;
     }
     this.applyAdvancedGravity();
+  }
+
+  private handleDash() {
+    const dashKeyDown =
+      Phaser.Input.Keyboard.JustDown(this.keys.dash) || this.isMobileDash;
+
+    if (dashKeyDown && this.canDash) {
+      this.dash();
+      this.isMobileDash = false;
+    }
+  }
+
+  private dash() {
+    this.canDash = false;
+    this.isDashing = true;
+    const direction = this.sprite.flipX ? -1 : 1;
+    this.sprite.setVelocityX(this.dashSpeed * direction);
+    this.sprite.setVelocityY(0);
+
+    this.scene.time.delayedCall(this.dashTime, this.stopDash, [], this);
+  }
+
+  private stopDash() {
+    this.isDashing = false;
+    this.sprite.setVelocityX(0);
+
+    this.scene.time.delayedCall(this.dashCooldown, () => {
+      this.canDash = true;
+    });
   }
 
   jump({

@@ -30,8 +30,14 @@ let timerInterval: any = null;
 export const CatbassadorsAuth = () => {
   const utils = useUtils(true);
   const showToast = useToast();
-  const { profile, user, showProfilePopup, showQuestsPopup, redeemLives, refetchProfile } =
-    useTelegramAuth();
+  const {
+    profile,
+    user,
+    showProfilePopup,
+    showQuestsPopup,
+    redeemLives,
+    refetchProfile,
+  } = useTelegramAuth();
   const [isGameStarted, setIsGameStarted] = useState(false);
   const [timer, setTimer] = useState(0);
 
@@ -153,9 +159,17 @@ export const CatbassadorsAuth = () => {
           !isGameStarted ? "hidden" : ""
         }`}
       >
-        <button id="jump">
-          <img className="control-button" src="game/controls/jump.png" />
-        </button>
+        <div className="flex flex-col">
+          <button id="dash">
+            <img
+              className="control-button"
+              src="game/controls/dash-white.png"
+            />
+          </button>
+          <button id="jump">
+            <img className="control-button" src="game/controls/jump.png" />
+          </button>
+        </div>
         <div className="">
           <button id="left">
             <img className="control-button" src="game/controls/left.png" />
