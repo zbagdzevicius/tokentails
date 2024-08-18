@@ -155,7 +155,7 @@ export const CatbassadorsAuth = () => {
         </>
       )}
       <div
-        className={`pb-safe fixed bottom-6 left-0 right-0 w-full flex justify-between ${
+        className={`pb-safe fixed bottom-6 left-0 right-0 w-full flex items-end justify-between ${
           !isGameStarted ? "hidden" : ""
         }`}
       >
