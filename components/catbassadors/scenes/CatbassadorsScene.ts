@@ -68,6 +68,10 @@ export class CatbassadorsScene extends Scene {
     this.load.image("clouds", "base/outer-bg/clouds.png");
     this.load.image("rock", "base/outer-bg/rock.png");
     this.load.image("sky", "base/outer-bg/sky.png");
+    this.load.spritesheet("starAnimation", "base/star-animation.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
   }
 
   create() {
@@ -84,6 +88,16 @@ export class CatbassadorsScene extends Scene {
       2
     )!;
     this.groundLayer = this.tilemap.createLayer("blocks", [sugarTileset])!;
+
+    this.anims.create({
+      key: "star",
+      frames: this.anims.generateFrameNumbers("starAnimation", {
+        start: 0,
+        end: 3,
+      }),
+      frameRate: 8,
+      repeat: 1,
+    });
 
     this.tilemap.createLayer("decorations", [sugarTileset]);
 
@@ -232,6 +246,20 @@ export class CatbassadorsScene extends Scene {
     // Add reward
     this.processEnemyReward(enemy);
     this.sound.play("coin");
+
+    if (this.cat) {
+      const starAnimationSprite = this.add.sprite(
+        this.cat.sprite.x,
+        this.cat.sprite.y,
+        "starAnimation"
+      );
+
+      starAnimationSprite.play("star");
+
+      starAnimationSprite.on("animationcomplete", () => {
+        starAnimationSprite.destroy();
+      });
+    }
 
     // Remove the caught enemy
     enemy.sprite.destroy();
