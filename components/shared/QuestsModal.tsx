@@ -205,6 +205,11 @@ export const QuestsModalContent = () => {
     async (quest: IQuest) => {
       if (profile?.quests?.includes(quest.key)) {
         toast({ message: "This quest is claimed already" });
+        if (quest.link?.startsWith("https://t.me")) {
+          utils?.openTelegramLink(quest.link!);
+        } else {
+          utils?.openLink(quest.link!);
+        }
       }
       if (quest.type === QuestType.SOCIAL) {
         if (socialInProgressQuests.includes(quest.key)) {
@@ -215,7 +220,11 @@ export const QuestsModalContent = () => {
           }
         } else {
           setSocialInProgressQuests([...socialInProgressQuests, quest.key]);
-          utils?.openLink(quest.link!);
+          if (quest.link?.startsWith("https://t.me")) {
+            utils?.openTelegramLink(quest.link!);
+          } else {
+            utils?.openLink(quest.link!);
+          }
         }
       } else {
         const result = await TPostQuest(quest.key);
