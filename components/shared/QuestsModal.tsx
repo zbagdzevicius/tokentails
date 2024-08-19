@@ -24,6 +24,7 @@ interface IQuest {
 }
 
 export enum QUEST {
+  START_VANA_DATA_HERO = "START_VANA_DATA_HERO",
   FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",
   FOLLOW_TG_GROUP = "FOLLOW_TG_GROUP",
   FOLLOW_X = "FOLLOW_X",
@@ -104,13 +105,23 @@ const allQuests: IQuest[] = [
   {
     type: QuestType.SOCIAL,
     key: QUEST.FOLLOW_LINKEDIN,
-    name: "Follow on LINKEDIN",
-    link: "https://www.linkedin.com/company/token-tails",
+    name: "Start Vana Data Hero",
+    link: "https://t.me/VanaDataHeroBot/VanaDataHero",
     icon: "/icons/social/linkedin.png",
     reward: {
-      coins: 250,
+      coins: 500,
     },
   },
+  // {
+  //   type: QuestType.SOCIAL,
+  //   key: QUEST.FOLLOW_LINKEDIN,
+  //   name: "Follow on LINKEDIN",
+  //   link: "https://www.linkedin.com/company/token-tails",
+  //   icon: "/icons/social/linkedin.png",
+  //   reward: {
+  //     coins: 250,
+  //   },
+  // },
   {
     type: QuestType.MILESTONE,
     key: QUEST.FOLLOW_TG_CHANNEL,
