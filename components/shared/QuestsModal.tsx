@@ -104,10 +104,10 @@ const allQuests: IQuest[] = [
   },
   {
     type: QuestType.SOCIAL,
-    key: QUEST.FOLLOW_LINKEDIN,
+    key: QUEST.START_VANA_DATA_HERO,
     name: "Start Vana Data Hero",
     link: "https://t.me/VanaDataHeroBot/VanaDataHero",
-    icon: "/icons/social/linkedin.png",
+    icon: "/icons/social/vana.webp",
     reward: {
       coins: 500,
     },
