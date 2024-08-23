@@ -4,13 +4,14 @@ import { useToast } from "@/context/ToastContext";
 import { catbassadorsGameDuration } from "@/models/cats";
 import { useUtils } from "@telegram-apps/sdk-react";
 import dynamic from "next/dynamic";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { PixelButton } from "../button/PixelButton";
 import {
   useGameOverEvent,
   useGameStartEvent,
   useGameTimerUpdate,
 } from "./hooks";
+import { GameStatsSection } from "./GameStatsSection";
 
 const Catbassadors = dynamic(
   () => import("@/components/catbassadors/Catbassadors"),
@@ -38,6 +39,16 @@ export const CatbassadorsAuth = () => {
     redeemLives,
     refetchProfile,
   } = useTelegramAuth();
+  const numberOfPointsToRedeem = useMemo(() => {
+    const referralsPoints = (profile?.referrals?.length || 0) * 50;
+    const streakPoints = (profile?.streak || 0) * 25;
+    const basePoints = 250;
+
+    return referralsPoints + streakPoints + basePoints;
+  }, [profile]);
+  const numberOfLivesToRedeem = useMemo(() => {
+    return (profile?.referrals?.length || 0) + 3;
+  }, [profile?.referrals]);
   const [isGameStarted, setIsGameStarted] = useState(false);
   const [timer, setTimer] = useState(0);
 
@@ -90,6 +101,7 @@ export const CatbassadorsAuth = () => {
       <Catbassadors cat={profile?.cat} profile={profile} timer={timer} />
       {!isGameStarted && profile && (
         <>
+          <GameStatsSection profile={profile} />
           <div className="fixed bottom-8 left-4 right-4 pb-safe flex justify-between items-end">
             <div className="flex flex-col items-center animate-hover">
               <div className="flex flex-col items-center font-secondary text-p2 opacity-75 bg-yellow-300 px-2 rounded-t-xl">
@@ -120,10 +132,17 @@ export const CatbassadorsAuth = () => {
 
             {profile.canRedeemLives && (
               <div className="flex flex-col items-center">
-                <div className="flex flex-col items-center font-secondary text-p2 opacity-75 bg-white px-2 rounded-t-xl">
-                  <img className="w-8 z-10 pt-2" src="/base/heart.png" />
-                  <div className="-mt-1">FREE</div>
-                  <div className="-mt-2 text-p4">LIVES</div>
+                <div className="flex flex-col items-center font-secondary text-p2 opacity-75 bg-white px-1 rounded-xl">
+                  <img className="w-8 z-10 -mt-2 pt-4" src="/logo/coin.webp" />
+                  <div>GRAB</div>
+                  <div className="-mt-2 text-p5">
+                    {numberOfPointsToRedeem} COINS
+                  </div>
+                  <div className="-mt-2 text-h3">+</div>
+                  <img className="w-8 z-10 -mt-2" src="/base/heart.png" />
+                  <div className="text-p5">{numberOfLivesToRedeem} FREE</div>
+                  <div className="-mt-2">LIVES</div>
+                  <img className="w-12" src="/logo/chest.webp" />
                 </div>
                 <PixelButton
                   onClick={() => (profile.canRedeemLives ? redeemLives() : {})}
@@ -135,7 +154,7 @@ export const CatbassadorsAuth = () => {
               <div className="flex flex-col items-center font-secondary text-p2 opacity-75 bg-white px-1 rounded-t-xl">
                 <img className="w-8 z-10 -mt-2 pt-4" src="/logo/coin.webp" />
                 <div>EARN</div>
-                <div className="-mt-2 text-p5">+250 COINS</div>
+                <div className="-mt-2 text-p5">1000 COINS</div>
                 <div className="-mt-2 text-h3">+</div>
                 <img className="w-8 z-10 -mt-3" src="/base/heart.png" />
                 <div className="-mt-1">GET</div>

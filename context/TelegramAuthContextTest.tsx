@@ -41,6 +41,7 @@ const TelegramAuthProviderTest = ({
   const profile: IProfile = {
     name: "Test",
     cats: [],
+    streak: 5,
     cat: {
       _id: "test",
       name: "Catnip",

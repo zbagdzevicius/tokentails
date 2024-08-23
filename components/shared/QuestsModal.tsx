@@ -25,6 +25,8 @@ interface IQuest {
 
 export enum QUEST {
   START_VANA_DATA_HERO = "START_VANA_DATA_HERO",
+  START_TEA_FARM = "START_TEA_FARM",
+  START_EPIC_OF_CASTLES = "START_EPIC_OF_CASTLES",
   FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",
   FOLLOW_TG_GROUP = "FOLLOW_TG_GROUP",
   FOLLOW_X = "FOLLOW_X",
@@ -49,7 +51,7 @@ const allQuests: IQuest[] = [
     link: "https://t.me/tokentails",
     icon: "/icons/social/telegram.png",
     reward: {
-      coins: 250,
+      coins: 500,
     },
   },
   {
@@ -59,7 +61,7 @@ const allQuests: IQuest[] = [
     link: "https://x.com/tokentails",
     icon: "/icons/social/x.webp",
     reward: {
-      coins: 250,
+      coins: 500,
     },
   },
   {
@@ -69,7 +71,7 @@ const allQuests: IQuest[] = [
     link: "https://t.me/tokentailsgroup",
     icon: "/icons/social/telegram.png",
     reward: {
-      coins: 250,
+      coins: 500,
     },
   },
   {
@@ -79,7 +81,37 @@ const allQuests: IQuest[] = [
     link: "https://discord.gg/4FVYmnd7Hg",
     icon: "/icons/social/discord.png",
     reward: {
-      coins: 250,
+      coins: 500,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.START_VANA_DATA_HERO,
+    name: "Start Vana Data Hero",
+    link: "https://t.me/VanaDataHeroBot/VanaDataHero",
+    icon: "/icons/social/vana.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.START_TEA_FARM,
+    name: "Start Tea Farm",
+    link: "https://t.me/TeaFarmTownBot/game?startapp=r_5527372962",
+    icon: "/icons/social/teafarm.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.START_EPIC_OF_CASTLES,
+    name: "Start Epic of Castles",
+    link: "https://t.me/epicofcastles_bot/start?startapp=u119983992",
+    icon: "/icons/social/epicofcastles.webp",
+    reward: {
+      coins: 1000,
     },
   },
   {
@@ -89,7 +121,7 @@ const allQuests: IQuest[] = [
     link: "https://instagram.com/tokentails",
     icon: "/icons/social/instagram.png",
     reward: {
-      coins: 250,
+      coins: 500,
     },
   },
   {
@@ -98,16 +130,6 @@ const allQuests: IQuest[] = [
     name: "Follow on TIKTOK",
     link: "https://tiktok.com/@tokentails",
     icon: "/icons/social/tiktok.png",
-    reward: {
-      coins: 250,
-    },
-  },
-  {
-    type: QuestType.SOCIAL,
-    key: QUEST.START_VANA_DATA_HERO,
-    name: "Start Vana Data Hero",
-    link: "https://t.me/VanaDataHeroBot/VanaDataHero",
-    icon: "/icons/social/vana.webp",
     reward: {
       coins: 500,
     },

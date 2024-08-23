@@ -42,7 +42,7 @@ export const TelegramProfileContent = () => {
           <li className="flex items-center gap-x-2">
             <img className="w-4" src="/logo/coin.webp" />
             <div>
-              Your referrals{" "}
+              Your Friends{" "}
               <span className="font-bold">
                 {profile.referrals?.length || 0}
               </span>

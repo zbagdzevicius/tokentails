@@ -4,6 +4,7 @@ import { ICat } from "./cats";
 export interface IProfile {
     avatar?: string;
     name: string;
+    streak: number;
     cat: ICat;
     cats: ICat[];
     score: number;
