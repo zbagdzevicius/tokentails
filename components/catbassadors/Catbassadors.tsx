@@ -127,7 +127,7 @@ const Catbassadors = ({ cat, profile, timer }: ICatbassadorsProps) => {
             <div className="flex flex-col justify-center relative gap-2 items-end pr-2 md:pr-4 pt-1 md:pt-4">
               <div className="flex items-center gap-2 ">
                 <p className="font-bold font-secondary text-p3 z-10">
-                  {profile?.catpoints || 0} X
+                  {profile?.catpoints?.toFixed(0) || 0} X
                 </p>
                 <img className="w-8 z-10" src="/logo/coin.webp" />
               </div>
