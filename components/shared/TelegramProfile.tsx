@@ -52,7 +52,7 @@ export const TelegramProfileContent = () => {
             <img className="w-4" src="/logo/coin.webp" />
             <div>
               Your coins:{" "}
-              <span className="font-bold">{profile.catpoints || 0}</span>
+              <span className="font-bold">{profile.catpoints?.toFixed(0) || 0}</span>
             </div>
           </li>
 

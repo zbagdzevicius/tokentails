@@ -32,7 +32,7 @@ export const GameStatsSection = ({ profile }: { profile: IProfile }) => {
     if (!profile) {
       return [];
     }
-    const level = profile.catpoints.toString().length;
+    const level = profile.catpoints?.toFixed(0).toString().length;
     return [
       {
         title: "Level",
