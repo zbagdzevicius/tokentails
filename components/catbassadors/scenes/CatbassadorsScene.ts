@@ -1,10 +1,10 @@
+import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { ICat, catbassadorsGameDuration } from "@/models/cats";
 import { Scene } from "phaser";
 import BaseBus from "../CatbassadorsBus";
 import { CatbassadorsBusEvent } from "../CatbassadorsBus.events";
 import { Cat } from "../objects/Catbassador";
 import { Enemy } from "../objects/Enemy";
-
 const enemyDurationMs = 15000;
 
 const setIsGameLoaded = () => {
@@ -60,14 +60,6 @@ export class CatbassadorsScene extends Scene {
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.tilemapTiledJSON("tilemap", "catbassadors/catbassadors.json");
     this.load.image("blocks", "base/blocks.png");
-    this.load.image("bg", "base/bg.svg");
-    this.load.image("platforms", "base/pirate/platforms.png");
-    this.load.image("walls", "base/pirate/walls.png");
-    this.load.image("decorations", "base/pigs/decorations.png");
-    this.load.image("grass", "base/outer-bg/grass.png");
-    this.load.image("clouds", "base/outer-bg/clouds.png");
-    this.load.image("rock", "base/outer-bg/rock.png");
-    this.load.image("sky", "base/outer-bg/sky.png");
     this.load.spritesheet("starAnimation", "base/star-animation.png", {
       frameWidth: 32,
       frameHeight: 32,
@@ -75,8 +67,7 @@ export class CatbassadorsScene extends Scene {
   }
 
   create() {
-    this.add.image(0, -600, "bg").setDisplaySize(2200, 1600);
-
+    this.physics.world.setFPS(90);
     this.tilemap = this.make.tilemap({ key: "tilemap" });
 
     const sugarTileset = this.tilemap.addTilesetImage(
@@ -107,97 +98,18 @@ export class CatbassadorsScene extends Scene {
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(1.25);
 
-    this.setMobileControls();
-    window.addEventListener("game-start", () => this.startGame());
-    setIsGameLoaded();
-
     this.gameSound = this.sound.add("coingame", { loop: true });
     this.backgroundSound = this.sound.add("purr", { loop: true });
     this.setDefaultSound();
-  }
-
-  private setMobileControls() {
-    const leftButton = document.getElementById("left");
-    leftButton?.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      if (this.cat) {
-        this.cat.isMobileLeft = true;
-        this.cat.isMobileRight = false;
+    const startGameCallback = () => {
+      if (this) {
+        this.startGame();
+      } else {
+        removeEventListener("game-start", startGameCallback);
       }
-    });
-    leftButton?.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      if (this.cat) {
-        this.cat.isMobileLeft = false;
-      }
-    });
-    leftButton?.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      if (this.cat) {
-        this.cat.isMobileLeft = false;
-      }
-    });
-
-    const rightButton = document.getElementById("right");
-    rightButton?.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      if (this.cat) {
-        this.cat.isMobileRight = true;
-        this.cat.isMobileLeft = false;
-      }
-    });
-    rightButton?.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      if (this.cat) {
-        this.cat.isMobileRight = false;
-      }
-    });
-    rightButton?.addEventListener("mouseleave", (e) => {
-      e.preventDefault();
-      if (this.cat) {
-        this.cat.isMobileRight = false;
-      }
-    });
-
-    const jumpButton = document.getElementById("jump");
-    jumpButton?.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      if (this.cat) {
-        this.cat.isMobileJumping = true;
-      }
-    });
-    jumpButton?.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      if (this.cat) {
-        this.cat.isMobileJumping = false;
-      }
-    });
-    jumpButton?.addEventListener("mouseleave", (e) => {
-      e.preventDefault();
-      if (this.cat) {
-        this.cat.isMobileJumping = false;
-      }
-    });
-
-    const dashButton = document.getElementById("dash");
-    dashButton?.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      if (this.cat) {
-        this.cat.isMobileDash = true;
-      }
-    });
-    dashButton?.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      if (this.cat) {
-        this.cat.isMobileDash = false;
-      }
-    });
-    dashButton?.addEventListener("mouseleave", (e) => {
-      e.preventDefault();
-      if (this.cat) {
-        this.cat.isMobileDash = false;
-      }
-    });
+    };
+    window.addEventListener("game-start", startGameCallback);
+    setIsGameLoaded();
   }
 
   async spawnCat(cat: ICat) {
@@ -217,6 +129,8 @@ export class CatbassadorsScene extends Scene {
     this.cat = new Cat(this, 0, -400);
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
     this.cameras.main.startFollow(this.cat.sprite);
+
+    setMobileControls(this.cat);
   }
 
   spawnEnemy() {
@@ -251,7 +165,7 @@ export class CatbassadorsScene extends Scene {
     });
   }
 
-  update(time: number, delta: number) {
+  update(time: any, delta: any) {
     this.cat?.update();
     this.enemies.forEach((enemy) => enemy.update());
 
@@ -348,7 +262,9 @@ export class CatbassadorsScene extends Scene {
   private startGame() {
     this.timer = catbassadorsGameDuration;
 
-    this.gameSound?.play();
+    try {
+      this.gameSound?.play();
+    } catch {}
 
     this.enemySpawnInterval = setInterval(() => {
       this.spawnEnemy();

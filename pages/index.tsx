@@ -102,22 +102,34 @@ export default function Index() {
         <div className="fixed -right-48 -top-32 md:-top-64">
           <Circle />
         </div>
-        <div className="bg-gradient-to-t from-white to-yellow-300 pt-24 md:pt-36 pb-4 fade-in">
+        <div className="pt-24 md:pt-36 fade-in" 
+          style={{
+            backgroundImage: "url(/base/bg-night.gif)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}>
           <div id="homepage">
             <HomePage />
           </div>
         </div>
-        <div className="pb-4 pt-3 md:pt-0 bg-gradient-to-b from-white to-purple-300">
+        <div className="pb-4 pt-3 md:pt-0 bg-gradient-to-b from-purple-300 to-blue-300">
           <div id="catsslider" ref={catssliderRef}>
             <CatsSlider />
           </div>
         </div>
-        <div className="py-4 bg-gradient-to-b from-purple-300">
+        <div className="py-4 bg-gradient-to-b from-purple-300" 
+          style={{
+            backgroundImage: "url(/base/bg-2.gif)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}>
           <div id="catshub" ref={catshubRef}>
             <CatsHub />
           </div>
         </div>
-        <div className="py-4 bg-gradient-to-b from-yellow-300 to-purple-300">
+        <div className="py-4 bg-gradient-to-b from-purple-300 via-yellow-300 to-purple-300">
           <div
             className="relative overflow-hidden"
             id="catswinners"
@@ -131,12 +143,24 @@ export default function Index() {
             </div>
           </div>
         </div>
-        <div className="py-4 md:pt-12 bg-gradient-to-b from-purple-300 to-green-300">
-          <div id="leaderboard" ref={leaderboardRef} className="max-w-xl m-auto">
+        <div
+          className="py-4 md:pt-12 bg-gradient-to-b from-purple-300 to-green-300"
+          style={{
+            backgroundImage: "url(/base/bg.gif)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div
+            id="leaderboard"
+            ref={leaderboardRef}
+            className="max-w-xl m-auto"
+          >
             <Leaderboard />
           </div>
         </div>
-        <div className="py-4 pt-24 bg-gradient-to-t from-blue-300 to-green-300">
+        <div className="py-4 pt-24 bg-gradient-to-t from-blue-300 to-purple-300">
           <div id="roadmap" ref={roadmapRef}>
             <Roadmap />
           </div>

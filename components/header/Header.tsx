@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Socials } from "../footer/Socials";
+import { PixelButton } from "../button/PixelButton";
 
 interface navProps {
   title: string;
@@ -119,14 +120,7 @@ export const Header = () => {
             )}
           </div>
           <a href="/feed">
-            <button
-              className="[clip-path:polygon(0%_0%,100%_0%,92%_100%,0%_100%)]
-                    bg-gradient-to-r from-main-ember to-main-rusty rounded w-36 h-10 max-lg:w-24 max-lg:h-8"
-            >
-              <span className="text-center text-lg max-lg:text-xs leading-4 text-white">
-                Blog
-              </span>
-            </button>
+            <PixelButton text="Blog" isBig></PixelButton>
           </a>
         </div>
       </div>

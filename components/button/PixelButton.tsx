@@ -2,10 +2,17 @@ interface IProps {
   text: string;
   subtext?: string | number;
   active?: boolean;
+  isBig?: boolean;
   onClick?: () => void;
 }
 
-export const PixelButton = ({ text, subtext, active, onClick }: IProps) => {
+export const PixelButton = ({
+  text,
+  subtext,
+  active,
+  onClick,
+  isBig,
+}: IProps) => {
   return (
     <button
       onClick={onClick}
@@ -20,7 +27,11 @@ export const PixelButton = ({ text, subtext, active, onClick }: IProps) => {
         {!active && <div className="h-2 bg-red-700"></div>}
       </div>
       <div className="h-12 flex flex-col border-y-4 border-black bg-red-500">
-        <div className="h-9 bg-red-500 px-4 font-secondary text-p4 flex items-center gap-2">
+        <div
+          className={`h-9 bg-red-500 px-4 font-secondary ${
+            isBig ? "text-p3" : "text-p4"
+          } flex items-center gap-2`}
+        >
           <p className="text-yellow-300">{text}</p>
           {subtext && <p className="text-yellow-200">{subtext}</p>}
         </div>

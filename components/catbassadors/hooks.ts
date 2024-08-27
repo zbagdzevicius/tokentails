@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export interface IGameOverEvent extends Event {
   detail: {
@@ -35,6 +35,26 @@ export const useGameStartEvent = (
       );
     };
   }, [callback]);
+};
+
+export const useBackground = () => {
+  const bgHour = useMemo(() => {
+    const coreBg = {
+      backgroundRepeat: "no-repeat",
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+    };
+    const hours = new Date().getHours();
+    return {
+      ...coreBg,
+      backgroundImage:
+        hours > 17 || hours < 6
+          ? "url(/base/bg-night.gif)"
+          : "url(/base/bg.gif)",
+    };
+  }, []);
+
+  return bgHour;
 };
 
 export const useGameLoadedEvent = () => {

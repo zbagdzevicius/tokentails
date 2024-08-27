@@ -5,7 +5,7 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import "swiper/css/effect-coverflow";
 import "swiper/css/pagination";
-import { EffectCoverflow, Pagination, Autoplay } from "swiper/modules";
+import { EffectCoverflow, Pagination } from "swiper/modules";
 
 interface IProps {
   items: ReactNode[];
@@ -20,7 +20,7 @@ export const Slider = ({ items, customClass, mobileSlides }: IProps) => {
       grabCursor={true}
       centeredSlides={true}
       slidesPerView={'auto'}
-      initialSlide={1}
+      initialSlide={2}
       coverflowEffect={{
         rotate: 20,
         depth: 100,
@@ -47,12 +47,7 @@ export const Slider = ({ items, customClass, mobileSlides }: IProps) => {
       }}
       pagination={{ clickable: true }}
       slideToClickedSlide={true}
-      autoplay={{
-        delay: 8000,
-        disableOnInteraction: false
-
-      }}
-      modules={[Autoplay, EffectCoverflow, Pagination]}
+      modules={[EffectCoverflow, Pagination]}
       className={customClass || ""}
     >
       {items.map((Item, index) => (

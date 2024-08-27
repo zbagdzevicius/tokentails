@@ -27,6 +27,7 @@ export enum QUEST {
   START_VANA_DATA_HERO = "START_VANA_DATA_HERO",
   START_TEA_FARM = "START_TEA_FARM",
   START_EPIC_OF_CASTLES = "START_EPIC_OF_CASTLES",
+  START_NOT_BITCOIN = "START_NOT_BITCOIN",
   FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",
   FOLLOW_TG_GROUP = "FOLLOW_TG_GROUP",
   FOLLOW_X = "FOLLOW_X",
@@ -76,16 +77,6 @@ const allQuests: IQuest[] = [
   },
   {
     type: QuestType.SOCIAL,
-    key: QUEST.FOLLOW_DISCORD,
-    name: "Join server",
-    link: "https://discord.gg/4FVYmnd7Hg",
-    icon: "/icons/social/discord.png",
-    reward: {
-      coins: 500,
-    },
-  },
-  {
-    type: QuestType.SOCIAL,
     key: QUEST.START_VANA_DATA_HERO,
     name: "Start Vana Data Hero",
     link: "https://t.me/VanaDataHeroBot/VanaDataHero",
@@ -110,6 +101,16 @@ const allQuests: IQuest[] = [
     name: "Start Epic of Castles",
     link: "https://t.me/epicofcastles_bot/start?startapp=u119983992",
     icon: "/icons/social/epicofcastles.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.START_NOT_BITCOIN,
+    name: "Start NotBitCoin",
+    link: "https://t.me/epicofcastles_bot/start?startapp=u119983992",
+    icon: "/icons/social/notbitcoin.webp",
     reward: {
       coins: 1000,
     },
@@ -145,12 +146,22 @@ const allQuests: IQuest[] = [
   //   },
   // },
   {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_DISCORD,
+    name: "Join server",
+    link: "https://discord.gg/4FVYmnd7Hg",
+    icon: "/icons/social/discord.png",
+    reward: {
+      coins: 500,
+    },
+  },
+  {
     type: QuestType.MILESTONE,
     key: QUEST.FOLLOW_TG_CHANNEL,
     name: "Reach 2k coins",
     icon: "/logo/coin.webp",
     reward: {
-      coins: 250,
+      coins: 500,
     },
   },
   {
