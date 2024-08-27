@@ -109,7 +109,7 @@ const allQuests: IQuest[] = [
     type: QuestType.SOCIAL,
     key: QUEST.START_NOT_BITCOIN,
     name: "Start NotBitCoin",
-    link: "https://t.me/epicofcastles_bot/start?startapp=u119983992",
+    link: "https://t.me/notbitco_in_bot?start=2jeus9u",
     icon: "/icons/social/notbitcoin.webp",
     reward: {
       coins: 1000,
