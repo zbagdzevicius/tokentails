@@ -1,4 +1,4 @@
-import { AUTO, Game } from "phaser";
+import { Game } from "phaser";
 import { CatbassadorsScene } from "./scenes/CatbassadorsScene";
 
 //  Find out more information about the Game Config at:
@@ -9,14 +9,15 @@ export const GAME_HEIGHT = window.innerHeight;
 // export const GAME_HEIGHT = 768 || window.innerHeight;
 
 const config: Phaser.Types.Core.GameConfig = {
-  type: AUTO,
+  type: Phaser.WEBGL,
   parent: "game-container",
-  backgroundColor: "#FCECBB",
+  transparent: true,
   scene: CatbassadorsScene,
   physics: {
     default: "arcade",
     arcade: {
-      gravity: { x: 0, y: 700  },
+      fps: 60,
+      gravity: { x: 0, y: 700 },
       debug: false,
     },
   },

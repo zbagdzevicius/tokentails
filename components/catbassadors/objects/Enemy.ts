@@ -16,49 +16,6 @@ interface ExtendedScene extends Scene {
   groundLayer: Phaser.Tilemaps.TilemapLayer;
 }
 
-export enum EnemyAnimation {
-  ENEMY_ALERT = "ENEMY_ALERT",
-  ENEMY_ATTACK = "ENEMY_ATTACK",
-  ENEMY_AWAKE = "ENEMY_AWAKE",
-  ENEMY_DEATH = "ENEMY_DEATH",
-  ENEMY_DOUBLE_PECK = "ENEMY_DOUBLE_PECK",
-  ENEMY_FLY = "ENEMY_FLY",
-  ENEMY_HURT = "ENEMY_HURT",
-  ENEMY_IDLE = "ENEMY_IDLE",
-  ENEMY_JUMP = "ENEMY_JUMP",
-  ENEMY_PECK = "ENEMY_PECK",
-  ENEMY_SING = "ENEMY_SING",
-  ENEMY_SIT = "ENEMY_SIT",
-  ENEMY_SLEEP = "ENEMY_SLEEP",
-  ENEMY_SNORE = "ENEMY_SNORE",
-  ENEMY_WALK = "ENEMY_WALK",
-  ENEMY_APPEAR = "ENEMY_APPEAR",
-}
-
-const maxAnimationFrames = 10;
-const animationConfigurations: {
-  key: EnemyAnimation;
-  frames: number;
-  repeat: -1 | 0;
-}[] = [
-  { key: EnemyAnimation.ENEMY_ALERT, frames: 4, repeat: -1 },
-  { key: EnemyAnimation.ENEMY_ATTACK, frames: 4, repeat: -1 },
-  { key: EnemyAnimation.ENEMY_AWAKE, frames: 4, repeat: -1 },
-  { key: EnemyAnimation.ENEMY_DEATH, frames: 5, repeat: -1 },
-  { key: EnemyAnimation.ENEMY_DOUBLE_PECK, frames: 10, repeat: -1 },
-  { key: EnemyAnimation.ENEMY_FLY, frames: 6, repeat: -1 },
-  { key: EnemyAnimation.ENEMY_HURT, frames: 6, repeat: -1 },
-  { key: EnemyAnimation.ENEMY_IDLE, frames: 4, repeat: -1 },
-  { key: EnemyAnimation.ENEMY_JUMP, frames: 1, repeat: -1 },
-  { key: EnemyAnimation.ENEMY_PECK, frames: 6, repeat: -1 },
-  { key: EnemyAnimation.ENEMY_SING, frames: 6, repeat: -1 },
-  { key: EnemyAnimation.ENEMY_SIT, frames: 4, repeat: -1 },
-  { key: EnemyAnimation.ENEMY_SLEEP, frames: 3, repeat: -1 },
-  { key: EnemyAnimation.ENEMY_SNORE, frames: 6, repeat: -1 },
-  { key: EnemyAnimation.ENEMY_WALK, frames: 4, repeat: -1 },
-  { key: EnemyAnimation.ENEMY_APPEAR, frames: 8, repeat: -1 },
-];
-
 export enum EnemyType {
   COIN = "COIN",
   BOSS_COIN = "BOSS_COIN",
@@ -105,12 +62,11 @@ const EnemyTypeVelocity: Record<EnemyType, number> = {
 export class Enemy {
   scene: ExtendedScene;
   sprite: Physics.Arcade.Sprite;
-  animation: EnemyAnimation = animationConfigurations[0].key;
-  vy: number = 5; // Vertical velocity
-  vx: number = 5; // Horizontal velocity
+  vy: number;
+  vx: number;
   bounce: number = bounceFactor;
   coinReward: number;
-  timeReward: number = 0;
+  timeReward: number;
   type: EnemyType;
 
   constructor(scene: ExtendedScene, x: number, y: number) {
@@ -126,7 +82,7 @@ export class Enemy {
     this.sprite.setGravityY(-900);
   }
 
-  update() {
+  async update() {
     this.applyGravity();
     this.checkCollisions();
   }
@@ -185,7 +141,7 @@ export class Enemy {
   }
 
   addCollider(collider: ColliderType) {
-    if (this) {
+    if (this?.sprite) {
       this.scene.physics.add.collider(this.sprite, collider);
     }
   }

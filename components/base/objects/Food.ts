@@ -67,7 +67,9 @@ export class Food {
       }
     }, 2000);
     setTimeout(() => {
-      fn();
+      if (fn) {
+        fn();
+      }
     }, 4000);
   }
 

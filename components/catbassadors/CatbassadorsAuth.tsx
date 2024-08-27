@@ -6,12 +6,14 @@ import { useUtils } from "@telegram-apps/sdk-react";
 import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState } from "react";
 import { PixelButton } from "../button/PixelButton";
+import { MobileButtons } from "../Phaser/MobileButtons/MobileButtons";
+import { GameStatsSection } from "./GameStatsSection";
 import {
+  useBackground,
   useGameOverEvent,
   useGameStartEvent,
   useGameTimerUpdate,
 } from "./hooks";
-import { GameStatsSection } from "./GameStatsSection";
 
 const Catbassadors = dynamic(
   () => import("@/components/catbassadors/Catbassadors"),
@@ -77,6 +79,8 @@ export const CatbassadorsAuth = () => {
 
   useGameTimerUpdate(setTimer);
 
+  const background = useBackground();
+
   const playGame = useCallback(() => {
     if (profile?.catbassadorsLives) {
       startGame();
@@ -97,7 +101,7 @@ export const CatbassadorsAuth = () => {
   }
 
   return (
-    <div>
+    <div style={background}>
       <Catbassadors cat={profile?.cat} profile={profile} timer={timer} />
       {!isGameStarted && profile && (
         <>
@@ -173,31 +177,7 @@ export const CatbassadorsAuth = () => {
           </div>
         </>
       )}
-      <div
-        className={`pb-safe fixed bottom-6 left-0 right-0 w-full flex items-end justify-between ${
-          !isGameStarted ? "hidden" : ""
-        }`}
-      >
-        <div className="flex flex-col">
-          <button id="dash">
-            <img
-              className="control-button"
-              src="game/controls/dash-white.png"
-            />
-          </button>
-          <button id="jump">
-            <img className="control-button" src="game/controls/jump.png" />
-          </button>
-        </div>
-        <div className="">
-          <button id="left">
-            <img className="control-button" src="game/controls/left.png" />
-          </button>
-          <button id="right">
-            <img className="control-button" src="game/controls/right.png" />
-          </button>
-        </div>
-      </div>
+      <MobileButtons isHidden={!isGameStarted} />
     </div>
   );
 };

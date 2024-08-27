@@ -1,26 +1,20 @@
-import { IArticleExcerpt as Props } from "@/models/article";
 import { EntityRouteOption, findArticlesFetch } from "@/constants/api";
+import { IArticleExcerpt as Props } from "@/models/article";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo } from "react";
 
-const BlogPreviewCard = ({
-  _id,
-  title,
-  slug,
-  featuredImage,
-  excerpt,
-  category,
-  createdAt,
-  ...rest
-}: Props) => {
+const BlogPreviewCard = ({ title, slug, featuredImage, category }: Props) => {
   const link = useMemo(
     () => EntityRouteOption.ARTICLE.details([category?.slug, slug]),
     [slug, category?.slug]
   );
   return (
-    <Link href={link} className="rem:h-[350px] relative flex">
+    <Link
+      href={link}
+      className="rem:h-[350px] border-4 border-yellow-300 relative flex"
+    >
       <Image
         loading="lazy"
         height={350}

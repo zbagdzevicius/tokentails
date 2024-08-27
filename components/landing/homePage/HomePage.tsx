@@ -246,8 +246,8 @@ export const HomePage = () => {
           </div>
         </div>
         <div className="relative z-10 h-fit flex items-center justify-center pb-10 max-lg:pb-7">
-          <div className="relative pt-20 max-lg:pt-10 px-14 max-lg:px-0 flex items-center justify-center">
-            <div className="relative w-full max-lg:w-9/12">
+          <div className="relative pt-20 max-lg:pt-10 px-8 flex items-center justify-center">
+            <div className="relative w-full">
               <img
                 src="/images/home-page/cat-background.webp"
                 alt="Cats Background"
@@ -278,24 +278,23 @@ export const HomePage = () => {
               height={100}
             />
           </div>
-          <a href="/adopt" className="absolute bottom-0">
-            <button
-              className="[clip-path:polygon(0%_1%,100%_0%,90%_100%,10%_100%)] w-52 lg:w-72 h-10 lg:h-12 
-                    bg-gradient-to-r from-main-ember to-main-rusty text-p5 md:text-p4 lg:text-2xl text-white"
-            >
-              <div className="flex justify-center items-center gap-1">
-                <div>PLAY</div>
-              </div>
-              <div className="text-p6 -mt-1">ADOPT AND EARN POINTS</div>
-            </button>
+          <a href="/adopt" className="absolute bottom-0 md:bottom-4">
+            <PixelButton
+              text="PLAY IN BROWSER"
+              isBig
+              subtext="AND EARN COINS"
+              onClick={() => {}}
+            ></PixelButton>
           </a>
         </div>
       </div>
-
-      <div className="mt-4"></div>
-      <div className="font-secondary">Telegram game Is Launched !</div>
-      <a href="https://t.me/CatbassadorsBot" target="_blank" className="font-secondary text-p1 mb-4">
-        <PixelButton text="PLAY TELEGRAM GAME" onClick={() => {}}></PixelButton>
+      <div className="font-secondary text-p3 md:-mt-2">OR</div>
+      <a
+        href="https://t.me/CatbassadorsBot"
+        target="_blank"
+        className="font-secondary text-p1 mb-4"
+      >
+        <PixelButton text="PLAY TELEGRAM GAME" subtext="TO WIN AIRDROP" isBig onClick={() => {}}></PixelButton>
       </a>
       <Socials />
       {/* <Preregistration /> */}

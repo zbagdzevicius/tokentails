@@ -31,7 +31,7 @@ export class BaseScene extends Scene {
     BaseBus.addListener(BaseBusEvent.MEOW, () => {
       setTimeout(() => {
         try {
-          this.sound.play("meow", { volume: 0.5 });
+          this.sound?.play?.("meow", { volume: 0.5 });
         } catch {}
       }, 2000);
     });
@@ -57,13 +57,6 @@ export class BaseScene extends Scene {
     this.load.tilemapTiledJSON("tilemap", "base/base.json");
     this.load.image("blocks", "base/blocks.png");
     this.load.image("bg", "base/bg.svg");
-    this.load.image("platforms", "base/pirate/platforms.png");
-    this.load.image("walls", "base/pirate/walls.png");
-    this.load.image("decorations", "base/pigs/decorations.png");
-    this.load.image("grass", "base/outer-bg/grass.png");
-    this.load.image("clouds", "base/outer-bg/clouds.png");
-    this.load.image("rock", "base/outer-bg/rock.png");
-    this.load.image("sky", "base/outer-bg/sky.png");
   }
 
   create() {

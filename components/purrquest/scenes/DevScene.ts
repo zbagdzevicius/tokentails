@@ -2,8 +2,9 @@ import Phaser from "phaser";
 import { GenerateLevel } from "../level/generateLevel";
 import { Player } from "../objects/Player";
 import { MoovablePlatform } from "../objects/MoovablePlatform";
-import { setMobileControls, isMobileOrTablet } from "../utils/MobileControls";
+import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { Pathfinding } from "../utils/Pathfinding";
+import { JumpThroughPlatform } from "../objects/JumpThroughPlatform ";
 
 export class DevScene extends Phaser.Scene {
   private generateLevel!: GenerateLevel;
@@ -12,6 +13,7 @@ export class DevScene extends Phaser.Scene {
   private pathfinding!: Pathfinding;
   private groundLayer!: Phaser.Tilemaps.TilemapLayer;
   private loadingText!: Phaser.GameObjects.Text;
+  private jumpThroughPlatform!: JumpThroughPlatform;
 
   constructor() {
     super("DevScene");
@@ -29,9 +31,9 @@ export class DevScene extends Phaser.Scene {
         }
       )
       .setOrigin(0.5);
-    this.load.spritesheet("cat", "cats/black/sprite/combined.png", {
-      frameWidth: 64,
-      frameHeight: 39,
+    this.load.spritesheet("cat", "cats/black/sprites/hat-cylinder-black.png", {
+      frameWidth: 48,
+      frameHeight: 48,
     });
     this.load.spritesheet("blocks", "base/blocks-original.png", {
       frameWidth: 32,
@@ -43,23 +45,23 @@ export class DevScene extends Phaser.Scene {
     this.load.image("dashButton", "game/controls/dash.png");
     this.load.image("platform", "game/platform.png");
 
-
     this.load.on("progress", (value: number) => {
       this.loadingText.setText(`Loading... ${Math.round(value * 100)}%`);
     });
 
-   
     this.load.on("complete", () => {
       this.loadingText.destroy();
     });
   }
 
   create() {
+    this.physics.world.setFPS(90);
     this.generateLevel = new GenerateLevel(this);
 
     const platformConfigs = [
       { speed: 15, distance: 32, tileIndex: 270 },
       { speed: 50, distance: 64, tileIndex: 269 },
+      { speed: 70, distance: 76, tileIndex: 268 },
     ];
 
     this.moovablePlatform = new MoovablePlatform(this, platformConfigs);
@@ -83,9 +85,11 @@ export class DevScene extends Phaser.Scene {
       this.groundLayer
     );
 
-    if (isMobileOrTablet()) {
-      setMobileControls(this, this.player);
-    }
+    // this.jumpThroughPlatform = new JumpThroughPlatform(
+    //   this,
+    //   this.player.sprite
+    // );
+    // this.jumpThroughPlatform.createPlatform(200, 300, "platform");
   }
 
   update() {
@@ -108,6 +112,7 @@ export class DevScene extends Phaser.Scene {
       16;
 
     this.player = new Player(this, startX, startY);
+    setMobileControls(this.player);
   }
 
   private renderTilemap() {
@@ -122,10 +127,10 @@ export class DevScene extends Phaser.Scene {
     const tileset = tilemap.addTilesetImage("blocks-original", "blocks");
     this.groundLayer = tilemap.createLayer("layer", tileset!, 0, 0)!;
     this.groundLayer?.setCollision([
-      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 89, 90, 91, 33, 34, 35, 36, 37, 62, 63,
-      64, 65, 66, 72, 92, 93, 94, 120, 121, 122, 123, 150, 151, 152,
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 29, 88, 90, 91, 33, 34, 35, 36, 37, 62,
+      63, 64, 65, 72, 92, 93, 94, 120, 121, 122, 123, 150, 151, 152,
     ]);
-
+    //all values is -1
     this.physics.add.collider(
       this.player.sprite as Phaser.Physics.Arcade.Sprite,
       this.groundLayer!,
@@ -141,7 +146,6 @@ export class DevScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player.sprite);
     this.player.sprite.setDepth(1);
 
-    // Adding collision detection for spikes
     this.physics.add.overlap(
       this.player.sprite,
       this.groundLayer!,

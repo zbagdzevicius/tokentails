@@ -1,3 +1,5 @@
+import { PixelButton } from "@/components/button/PixelButton";
+
 export const CatsWinners = () => {
   return (
     <div className="flex items-center justify-center container no-p-mobile">
@@ -9,11 +11,16 @@ export const CatsWinners = () => {
           <div className="flex items-center md:items-start">
             <div className="flex flex-row items-center flex-wrap space-x-3 text-p5 max-lg:text-sm">
               <p className="text-main-rustyOrange">
-                Join the most exciting game of 2024. Join now, Cats are limited !
+                Join the most exciting game of 2024. Join now, Cats are limited
+                !
               </p>
             </div>
           </div>
-          <a href="https://zealy.io/cw/tokentails" target="_blank" className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl hover:animate-hover">
+          <a
+            href="https://zealy.io/cw/tokentails"
+            target="_blank"
+            className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl hover:animate-hover"
+          >
             <img
               className="w-full h-full object-cover rounded-2xl"
               src="/images/cats-winners/adventures.jpg"
@@ -22,7 +29,10 @@ export const CatsWinners = () => {
               alt="cats"
             />
           </a>
-          <a href="/adopt" className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl hover:animate-hover">
+          <a
+            href="/adopt"
+            className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl hover:animate-hover"
+          >
             <img
               className="w-full h-full object-cover rounded-2xl"
               src="/images/cats-winners/adopt.jpg"
@@ -31,7 +41,11 @@ export const CatsWinners = () => {
               alt="cats"
             />
           </a>
-          <a href="https://t.me/CatbassadorsBot" target="_blank" className="p-1 max-lg:p-0.5 md:row-span-9 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl hover:animate-hover">
+          <a
+            href="https://t.me/CatbassadorsBot"
+            target="_blank"
+            className="p-1 max-lg:p-0.5 md:row-span-9 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl hover:animate-hover"
+          >
             <img
               className="w-full h-full object-cover rounded-2xl"
               src="/images/cats-winners/catbassador.jpg"
@@ -40,7 +54,10 @@ export const CatsWinners = () => {
               alt="cats"
             />
           </a>
-          <a href="/feed" className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl hover:animate-hover">
+          <a
+            href="/feed"
+            className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl hover:animate-hover"
+          >
             <img
               className="w-full h-full object-cover rounded-2xl"
               src="/images/cats-winners/friends.jpg"
@@ -59,18 +76,11 @@ export const CatsWinners = () => {
                   1000+
                 </div>
                 <p className="text-p4 max-lg:text-p5 font-tertiary flex items-center">
-                  Virtual Cats <img src="/images/cats-winners/cat-heart.gif"/>
+                  Virtual Cats <img src="/images/cats-winners/cat-heart.gif" />
                 </p>
               </div>
               <a href="/adopt">
-                <button
-                  className="[clip-path:polygon(0%_0%,100%_0%,92%_100%,0%_100%)]
-                    bg-gradient-to-r from-main-ember to-main-rusty rounded w-32 h-10 max-lg:w-24"
-                >
-                  <span className="text-center text-lg max-lg:text-xs leading-4 text-white">
-                    Play
-                  </span>
-                </button>
+                <PixelButton text="PLAY NOW" />
               </a>
             </div>
           </div>

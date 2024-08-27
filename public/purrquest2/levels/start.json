@@ -1,0 +1,48 @@
+{ "compressionlevel":-1,
+ "height":8,
+ "infinite":false,
+ "layers":[
+        {
+         "data":[0, 0, 0, 0, 0, 0, 2, 3, 4, 0,
+            0, 5, 7, 0, 0, 0, 0, 0, 0, 0,
+            0, 63, 65, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 179, 180, 181, 0, 5, 6, 7, 0,
+            0, 0, 208, 209, 210, 0, 63, 64, 65, 0,
+            0, 0, 237, 238, 239, 0, 0, 0, 0, 0,
+            0, 0, 2, 3, 4, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 2, 3, 4],
+         "height":8,
+         "id":1,
+         "name":"Tile Layer 1",
+         "opacity":1,
+         "type":"tilelayer",
+         "visible":true,
+         "width":10,
+         "x":0,
+         "y":0
+        }],
+ "nextlayerid":2,
+ "nextobjectid":1,
+ "orientation":"orthogonal",
+ "renderorder":"right-down",
+ "tiledversion":"1.10.2",
+ "tileheight":32,
+ "tilesets":[
+        {
+         "columns":29,
+         "firstgid":1,
+         "image":"..\/..\/..\/..\/..\/gmae\/cats\/public\/base\/blocks-original.png",
+         "imageheight":320,
+         "imagewidth":928,
+         "margin":0,
+         "name":"blocks-original",
+         "spacing":0,
+         "tilecount":290,
+         "tileheight":32,
+         "tilewidth":32
+        }],
+ "tilewidth":32,
+ "type":"map",
+ "version":"1.10",
+ "width":10
+}

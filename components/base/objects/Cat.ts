@@ -1,4 +1,4 @@
-import { Scene, Physics, GameObjects } from "phaser";
+import { GameObjects, Physics, Scene } from "phaser";
 
 /**
  * Physics objects that could be colliders
@@ -109,7 +109,7 @@ export class Cat {
       repeat: 0,
     });
 
-    setInterval(() => {
+    const interval = setInterval(() => {
       const animationIndex = animationConfigurations.findIndex(
         (configuration) => configuration.key === this.animation
       );
@@ -117,6 +117,12 @@ export class Cat {
       this.animation =
         animationConfigurations[newIndex % animationConfigurations.length].key;
     }, 2000);
+    this.sprite.on("destroy", () => {
+      clearInterval(interval);
+      if (this.timeoutFunction) {
+        clearTimeout(this.timeoutFunction);
+      }
+    });
   }
 
   update() {

@@ -16,23 +16,28 @@ export class GenerateLevel {
   private solutionPath!: Phaser.GameObjects.Graphics;
   private solutionCells: Phaser.Math.Vector2[] = [];
   private roomConnections: Map<string, Set<string>> = new Map();
-  private readonly MAX_PLACED_ROOMS = 4;
+  private readonly MIN_PLACED_ROOMS = 8;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
   }
-
   generateNewRoom() {
-    this.rooms = [];
-    this.grid = [];
-
+    this.clearLevelData();
     this.generateGrid();
     this.createRooms();
     this.createSolutionPath();
     this.createWalls();
     this.placePrebuiltRooms();
   }
-
+  clearLevelData() {
+    this.rooms = [];
+    this.grid = [];
+    this.roomConnections.clear();
+    this.solutionCells = [];
+    if (this.solutionPath) {
+      this.solutionPath.clear();
+    }
+  }
   generateGrid() {
     this.grid = Array.from({ length: this.levelRows }, (_, y) =>
       Array.from({ length: this.levelCols }, (_, x) => ({
@@ -210,41 +215,35 @@ export class GenerateLevel {
         for (let attempt = 0; attempt < 3; attempt++) {
           const roomsToTry =
             attempt < 2 ? prebuiltRooms : prebuiltRoomsWithoutWalls;
-          const shuffledRooms = Phaser.Utils.Array.Shuffle(roomsToTry);
+          const randomRoom = Phaser.Utils.Array.GetRandom(roomsToTry);
 
-          for (let j = 0; j < shuffledRooms.length; j++) {
-            let entryDir = -1;
-            let exitDir = -1;
-            if (i > 0) {
-              const prevExitDir = this.getDirection(
-                this.solutionCells[i - 1],
-                this.solutionCells[i]
-              );
-              entryDir = this.oppositeDirection(prevExitDir);
-            }
-            if (i < this.solutionCells.length - 1) {
-              exitDir = this.getDirection(
-                this.solutionCells[i],
-                this.solutionCells[i + 1]
-              );
-            }
-            if (this.isValidRoom(shuffledRooms[j], x, y, entryDir, exitDir)) {
-              this.rooms[y * this.levelCols + x].placePrebuiltRoom(
-                shuffledRooms[j]
-              );
-              placed = true;
-              break;
-            }
+          let entryDir = -1;
+          let exitDir = -1;
+          if (i > 0) {
+            const prevExitDir = this.getDirection(
+              this.solutionCells[i - 1],
+              this.solutionCells[i]
+            );
+            entryDir = this.oppositeDirection(prevExitDir);
           }
-
-          if (placed) break;
+          if (i < this.solutionCells.length - 1) {
+            exitDir = this.getDirection(
+              this.solutionCells[i],
+              this.solutionCells[i + 1]
+            );
+          }
+          if (this.isValidRoom(randomRoom, x, y, entryDir, exitDir)) {
+            this.rooms[y * this.levelCols + x].placePrebuiltRoom(randomRoom);
+            placed = true;
+            break;
+          }
         }
 
         if (!placed) {
-          const randomRoom = Phaser.Utils.Array.GetRandom(
+          const fallbackRoom = Phaser.Utils.Array.GetRandom(
             prebuiltRoomsWithoutWalls
           );
-          this.rooms[y * this.levelCols + x].placePrebuiltRoom(randomRoom);
+          this.rooms[y * this.levelCols + x].placePrebuiltRoom(fallbackRoom);
           placed = true;
 
           if (!placed) {
@@ -255,13 +254,11 @@ export class GenerateLevel {
         }
       }
     }
-    //FLAG if cpalced room amount is less from MAX_PLACED_ROOMS than regenerate all level
+
+    // Check if the placed rooms meet the minimum requirement
     const placedRoomCount = this.countPlacedPrebuiltRooms();
-    if (placedRoomCount <= this.MAX_PLACED_ROOMS) {
-      // console.warn(
-      //   "Placed prebuilt rooms are 4 or fewer. Regenerating the level..."
-      // );
-      this.generateNewRoom(); 
+    if (placedRoomCount <= this.MIN_PLACED_ROOMS) {
+      this.generateNewRoom();
     }
   }
 
