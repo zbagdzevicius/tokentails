@@ -1,9 +1,10 @@
 import { TPostQuest } from "@/constants/telegram-api";
 import { useTelegramAuth } from "@/context/TelegramAuthContext";
 import { useToast } from "@/context/ToastContext";
-import { useCallback, useMemo, useState } from "react";
-import { PixelButton } from "../button/PixelButton";
 import { useUtils } from "@telegram-apps/sdk-react";
+import { useMemo, useState } from "react";
+import { useDebouncedCallback } from "use-debounce";
+import { PixelButton } from "../button/PixelButton";
 
 enum QuestType {
   SOCIAL = "SOCIAL",
@@ -228,47 +229,23 @@ export const QuestsModalContent = () => {
     () => allQuests.filter((quest) => quest.type === questsType),
     [questsType]
   );
-  const [socialInProgressQuests, setSocialInProgressQuests] = useState<QUEST[]>(
-    []
-  );
   const toast = useToast();
   const utils = useUtils(true);
 
-  const redeem = useCallback(
-    async (quest: IQuest) => {
-      if (profile?.quests?.includes(quest.key)) {
-        toast({ message: "This quest is claimed already" });
-        if (quest.link?.startsWith("https://t.me")) {
-          utils?.openTelegramLink(quest.link!);
-        } else {
-          utils?.openLink(quest.link!);
-        }
-      }
-      if (quest.type === QuestType.SOCIAL) {
-        if (socialInProgressQuests.includes(quest.key)) {
-          const result = await TPostQuest(quest.key);
-          toast({ message: result.message });
-          if (result.success) {
-            await refetchProfile();
-          }
-        } else {
-          setSocialInProgressQuests([...socialInProgressQuests, quest.key]);
-          if (quest.link?.startsWith("https://t.me")) {
-            utils?.openTelegramLink(quest.link!);
-          } else {
-            utils?.openLink(quest.link!);
-          }
-        }
+  const redeem = useDebouncedCallback(async (quest: IQuest) => {
+    if (quest.link) {
+      if (quest.link?.startsWith("https://t.me")) {
+        utils?.openTelegramLink(quest.link!);
       } else {
-        const result = await TPostQuest(quest.key);
-        toast({ message: result.message });
-        if (result.success) {
-          await refetchProfile();
-        }
+        utils?.openLink(quest.link!);
       }
-    },
-    [setSocialInProgressQuests, socialInProgressQuests]
-  );
+    }
+    const result = await TPostQuest(quest.key);
+    toast({ message: result.message });
+    if (result.success) {
+      await refetchProfile();
+    }
+  }, 200);
 
   return (
     <div className="pt-4 pb-8 px-4 md:px-16 md:py-12 text-gray-500 flex flex-col justify-between items-center">
