@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 const Base = dynamic(() => import("@/components/base/Base"), { ssr: false });
 
-export default function Game() {
+export default function BaseGame() {
   const [isClicked, setIsClicked] = useState(false);
   useEffect(() => {
     window.onclick = () => {

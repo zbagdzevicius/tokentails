@@ -1,12 +1,6 @@
-import { Profile } from "@/components/shared/Profile";
 import { SignIn } from "@/components/shared/SignIn";
 import { Verify } from "@/components/shared/Verify";
-import {
-  deleteProfileRequest,
-  getLeaderboardPosition,
-  profileFetch,
-} from "@/constants/api";
-import { IProfile } from "@/models/profile";
+import { profileFetch } from "@/constants/api";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { Capacitor } from "@capacitor/core";
 import { useQuery } from "@tanstack/react-query";
@@ -26,7 +20,8 @@ import {
   signOut,
 } from "firebase/auth";
 import * as React from "react";
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
+import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
 
 const firebaseConfig = {
@@ -61,16 +56,10 @@ const providers = {
 type User = FirebaseUser | null;
 type ContextState = {
   user: User;
-  profile?: IProfile | null;
-  position?: number | null;
-  refetchProfile: () => void;
-  setProfile: (profile: IProfile | null) => void;
   isLoginModalDisplayed: boolean;
   setIsLoginModalDisplayed: (isDisplayed: boolean) => void;
   isVerifiedModalDisplayed: boolean;
   setIsVerifiedModalDisplayed: (isDisplayed: boolean) => void;
-  isProfileModalDisplayed: boolean;
-  setIsProfileModalDisplayed: (isDisplayed: boolean) => void;
 };
 
 const FirebaseAuthContext = React.createContext<ContextState | undefined>(
@@ -79,26 +68,20 @@ const FirebaseAuthContext = React.createContext<ContextState | undefined>(
 
 const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [user, setUser] = React.useState<User>(null);
-  const [profile, setProfile] = React.useState<IProfile | null | undefined>(
-    null
-  );
   const [isLoginModalDisplayed, setIsLoginModalDisplayed] =
-    React.useState(false);
-  const [isProfileModalDisplayed, setIsProfileModalDisplayed] =
     React.useState(false);
   const [isVerifiedModalDisplayed, setIsVerifiedModalDisplayed] =
     React.useState(false);
+  const { setProfile } = useProfile();
 
   const { data: profileResponse, refetch: refetchProfile } = useQuery({
     queryKey: ["profile-details", user],
     queryFn: () => (user ? profileFetch() : null),
   });
-  const { data: position } = useQuery({
-    queryKey: ["profile-details", profile],
-    queryFn: () => (user ? getLeaderboardPosition() : null),
-  });
-  useEffect(() => {
-    setProfile(profileResponse);
+  React.useEffect(() => {
+    if (profileResponse) {
+      setProfile(profileResponse);
+    }
   }, [profileResponse]);
   const onUserChange = useCallback(
     async (u: User) => {
@@ -113,7 +96,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       } else {
         // setIsVerifiedModalDisplayed(false);
         await u.getIdToken(true).then((token) => {
-          localStorage.setItem("accesstoken", token);
+          localStorage.setItem("accesstoken", `fb${token}`);
           setIsLoginModalDisplayed(false);
           setUser(u);
         });
@@ -122,16 +105,11 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     [setIsLoginModalDisplayed, setIsVerifiedModalDisplayed]
   );
   const value = {
-    profile,
-    setProfile,
     user,
-    position,
     isLoginModalDisplayed,
     setIsLoginModalDisplayed,
     isVerifiedModalDisplayed,
     setIsVerifiedModalDisplayed,
-    isProfileModalDisplayed,
-    setIsProfileModalDisplayed,
     refetchProfile,
   };
 
@@ -149,9 +127,6 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       )}
       {isVerifiedModalDisplayed && (
         <Verify close={() => setIsVerifiedModalDisplayed(false)} />
-      )}
-      {isProfileModalDisplayed && (
-        <Profile close={() => setIsProfileModalDisplayed(false)} />
       )}
       {children}
     </FirebaseAuthContext.Provider>
@@ -217,13 +192,6 @@ function useFirebaseAuth() {
     },
     []
   );
-  const deleteProfile = useCallback(async () => {
-    await deleteProfileRequest();
-    if (Capacitor.isNativePlatform()) {
-      FirebaseAuthentication.signOut();
-    }
-    signOut(auth);
-  }, []);
   const logout = useCallback(() => {
     if (Capacitor.isNativePlatform()) {
       FirebaseAuthentication.signOut();
@@ -236,14 +204,6 @@ function useFirebaseAuth() {
       context?.setIsLoginModalDisplayed(true);
     }
   }, [context]);
-  const showProfilePopup = useCallback(() => {
-    if (context?.user) {
-      context?.setIsProfileModalDisplayed(true);
-    } else {
-      context?.setIsVerifiedModalDisplayed(false);
-      context?.setIsLoginModalDisplayed(true);
-    }
-  }, [context]);
   if (context === undefined) {
     throw new Error(
       "useFirebaseAuth must be used within a FirebaseAuthProvider"
@@ -251,15 +211,9 @@ function useFirebaseAuth() {
   }
   return {
     user: context.user,
-    profile: context.profile,
-    position: context.position,
-    setProfile: context.setProfile,
-    refetchProfile: context.refetchProfile,
-    deleteProfile,
     signIn,
     logout,
     showSignInPopup,
-    showProfilePopup,
   };
 }
 

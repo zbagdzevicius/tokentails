@@ -544,24 +544,6 @@ export const updateCatStatus = async (
   });
 };
 
-export const deleteProfileRequest = async (): Promise<void> => {
-  return fetch(`${apiUrl}/user/meal-plan`, {
-    method: "DELETE",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      accesstoken: localStorage.getItem("accesstoken"),
-    } as any,
-  }).then((response) => {
-    if (response.ok) {
-      return;
-    }
-
-    console.warn(JSON.stringify(response));
-    return;
-  });
-};
-
 export const getLeaderboard = async (): Promise<IProfile[]> => {
   return fetch(`${apiUrl}/user/leaderboard`, {
     method: "GET",
