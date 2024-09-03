@@ -93,7 +93,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   return (
     <GameContext.Provider value={value}>
-      <GameSelect setGameType={setGameType} />
+      <GameSelect gameType={gameType} setGameType={setGameType} />
       {profile && (
         <>
           {!isStarted && (

@@ -1,10 +1,10 @@
 import { TPostQuest } from "@/constants/telegram-api";
-import { useTelegramAuth } from "@/context/TelegramAuthContext";
 import { useToast } from "@/context/ToastContext";
 import { useUtils } from "@telegram-apps/sdk-react";
 import { useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { PixelButton } from "../button/PixelButton";
+import { useProfile } from "@/context/ProfileContext";
 
 enum QuestType {
   SOCIAL = "SOCIAL",
@@ -223,7 +223,7 @@ const allQuests: IQuest[] = [
 ];
 
 export const QuestsModalContent = () => {
-  const { profile, refetchProfile } = useTelegramAuth();
+  const { profile, setProfileUpdate } = useProfile();
   const [questsType, setQuestsType] = useState(QuestType.SOCIAL);
   const quests = useMemo(
     () => allQuests.filter((quest) => quest.type === questsType),

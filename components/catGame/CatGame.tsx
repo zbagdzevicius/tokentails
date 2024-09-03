@@ -32,9 +32,11 @@ export const CatGame = ({ cats, onClickCallback }: IProps) => {
   const [elements, setElements] = useState<Element[]>([]);
   useEffect(() => {
     if (cats?.length) {
-      setElements(cats.map(({ catImg, _id }, index) =>
-        generateRandomPosition(catImg, _id!)
-      ));
+      setElements(
+        cats.map(({ catImg, _id }, index) =>
+          generateRandomPosition(catImg, _id!)
+        )
+      );
     }
   }, [cats]);
 
@@ -140,10 +142,10 @@ export const CatGame = ({ cats, onClickCallback }: IProps) => {
     transform: `scaleX(${element.speedX < 0 ? -1 : 1})`,
   });
   return (
-    <div className="relative w-screen h-screen overflow-hidden">
+    <div className="w-full h-full">
       <div
         draggable="false"
-        className="absolute z-0 w-full h-full object-fit"
+        className=" z-0 w-full h-full object-fit"
         style={{
           backgroundImage: "url(/catgame/bg.jpg)",
           backgroundRepeat: "repeat",

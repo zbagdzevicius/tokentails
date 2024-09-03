@@ -9,6 +9,9 @@ const Catbassadors = dynamic(
   { ssr: false }
 );
 
+const Base = dynamic(() => import("@/components/base/Base"), { ssr: false });
+const Adopt = dynamic(() => import("@/components/game/Adopt"), { ssr: false });
+
 export const Game = () => {
   const { gameType, timer } = useGame();
   const { profile } = useProfile();
@@ -19,6 +22,8 @@ export const Game = () => {
       {gameType === GameType.CATBASSADORS && profile && (
         <Catbassadors cat={profile?.cat} profile={profile} timer={timer} />
       )}
+      {gameType === GameType.HOME && profile && <Base />}
+      {gameType === GameType.SHELTER && profile && <Adopt />}
     </div>
   );
 };

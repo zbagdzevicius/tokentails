@@ -6,6 +6,7 @@ import BaseBus from "../BaseBus";
 import { BaseBusEvent } from "../BaseBus.events";
 import { ICat } from "@/models/cats";
 import { ZOOM } from "@/constants/utils";
+import { setIsGameLoaded } from "@/components/game/events";
 
 export class BaseScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
@@ -82,6 +83,8 @@ export class BaseScene extends Scene {
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(ZOOM);
     this.addSounds();
+
+    setIsGameLoaded();
   }
 
   private addSounds() {

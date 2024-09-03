@@ -9,7 +9,7 @@ export const MainLayout = ({ children }: PropsWithChildren<any>) => {
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <ProfileProvider>
-          <main className="z-10 relative flex flex-col">{children}</main>
+          <main className="z-10 relative flex flex-col overflow-hidden">{children}</main>
         </ProfileProvider>
       </ToastProvider>
     </QueryClientProvider>
