@@ -1,9 +1,14 @@
-import { Profile } from "@/components/shared/Profile";
 import { getLeaderboardPosition } from "@/constants/api";
 import { IProfile } from "@/models/profile";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 import { useCallback } from "react";
+
+export interface IUtils {
+  openLink: (url: string, options?: any) => void;
+  openTelegramLink: (url: string) => void;
+  shareURL: (url: string, text?: string) => void;
+}
 
 type ContextState = {
   profile?: IProfile | null;
@@ -12,6 +17,8 @@ type ContextState = {
   setProfileUpdate: (profile: Partial<IProfile>) => void;
   isProfileModalDisplayed: boolean;
   setIsProfileModalDisplayed: (isDisplayed: boolean) => void;
+  setUtils: (utils: IUtils) => void;
+  utils: IUtils | null;
 };
 
 const ProfileContext = React.createContext<ContextState | undefined>(undefined);
@@ -20,6 +27,7 @@ const ProfileProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [profile, setProfile] = React.useState<IProfile | null | undefined>(
     null
   );
+  const [utils, setUtils] = React.useState<IUtils | null>(null);
   const [isProfileModalDisplayed, setIsProfileModalDisplayed] =
     React.useState(false);
 
@@ -41,15 +49,12 @@ const ProfileProvider = ({ children }: React.PropsWithChildren<{}>) => {
     position,
     isProfileModalDisplayed,
     setIsProfileModalDisplayed,
+    utils,
+    setUtils,
   };
 
   return (
-    <ProfileContext.Provider value={value}>
-      {isProfileModalDisplayed && (
-        <Profile close={() => setIsProfileModalDisplayed(false)} />
-      )}
-      {children}
-    </ProfileContext.Provider>
+    <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>
   );
 };
 
@@ -66,6 +71,8 @@ function useProfile() {
   return {
     profile: context.profile,
     position: context.position,
+    utils: context.utils,
+    setUtils: context.setUtils,
     setProfile: context.setProfile,
     setProfileUpdate: context.setProfileUpdate,
     showProfilePopup,

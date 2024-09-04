@@ -1,19 +1,24 @@
-import { GameModal } from "@/models/game";
+import { TRedeemLives } from "@/constants/telegram-api";
+import { IUtils } from "@/context/ProfileContext";
+import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
 import { useCallback, useMemo } from "react";
 import { PixelButton } from "../button/PixelButton";
 import { GameStatsSection } from "../catbassadors/GameStatsSection";
-import { TRedeemLives } from "@/constants/telegram-api";
 
 interface IProps {
   profile: IProfile;
+  utils: IUtils | null;
+  gameType: GameType | null;
   setProfileUpdate: (profile: Partial<IProfile>) => void;
   setOpenedModal: (modal: GameModal) => void;
   setIsStarted: (isStarted: boolean) => void;
 }
 
 export const GameOptionsModal = ({
+  utils,
   profile,
+  gameType,
   setProfileUpdate,
   setOpenedModal,
   setIsStarted,
@@ -32,7 +37,11 @@ export const GameOptionsModal = ({
 
   const redeemLives = useCallback(async () => {
     await TRedeemLives();
-    setProfileUpdate({ canRedeemLives: false });
+    setProfileUpdate({
+      canRedeemLives: false,
+      catbassadorsLives:
+        (profile.catbassadorsLives || 0) + numberOfLivesToRedeem,
+    });
   }, []);
 
   return (
@@ -45,11 +54,13 @@ export const GameOptionsModal = ({
             <div className="-mt-1">{profile.catbassadorsLives || 0}</div>
             <div className="-mt-2 text-p4">LIVES</div>
           </div>
-          <PixelButton
-            active={!profile.catbassadorsLives}
-            onClick={() => setIsStarted(true)}
-            text="Play"
-          ></PixelButton>
+          {gameType === GameType.CATBASSADORS && (
+            <PixelButton
+              active={!profile.catbassadorsLives}
+              onClick={() => setIsStarted(true)}
+              text="Play"
+            ></PixelButton>
+          )}
         </div>
         <div className="flex flex-col gap-4">
           <PixelButton
@@ -96,7 +107,14 @@ export const GameOptionsModal = ({
             <div className="-mt-1">GET</div>
             <div className="text-p5 -mt-2">+1 daily live</div>
           </div>
-          <PixelButton onClick={() => {}} text="INVITE"></PixelButton>
+          <PixelButton
+            onClick={() => {
+              utils?.shareURL(
+                `https://t.me/CatbassadorsBot/app?startapp=${user?.user.id}&startApp=${user?.user.id}`
+              );
+            }}
+            text="INVITE"
+          ></PixelButton>
         </div>
       </div>
     </>

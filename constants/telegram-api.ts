@@ -60,23 +60,6 @@ export const TRedeemLives = async (): Promise<object> => {
   });
 };
 
-export const TGetLeaderboard = async (): Promise<IProfile[]> => {
-  return fetch(`${apiUrl}/user/catbassadors/leaderboard`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    } as any,
-  }).then((response) => {
-    if (response.ok) {
-      return response.json();
-    }
-
-    console.warn(JSON.stringify(response));
-    return [];
-  });
-};
-
 export const TPostReferral = async (telegramId: string): Promise<object> => {
   await waitForLocalStorageKey();
   return fetch(`${apiUrl}/user/catbassadors/referral/${telegramId}`, {

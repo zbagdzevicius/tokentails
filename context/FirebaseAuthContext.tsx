@@ -68,27 +68,51 @@ const FirebaseAuthContext = React.createContext<ContextState | undefined>(
 
 const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [user, setUser] = React.useState<User>(null);
+  const toast = useToast();
   const [isLoginModalDisplayed, setIsLoginModalDisplayed] =
     React.useState(false);
   const [isVerifiedModalDisplayed, setIsVerifiedModalDisplayed] =
     React.useState(false);
-  const { setProfile } = useProfile();
+  const { setProfile, setUtils } = useProfile();
 
   const { data: profileResponse, refetch: refetchProfile } = useQuery({
     queryKey: ["profile-details", user],
     queryFn: () => (user ? profileFetch() : null),
   });
+
+  const copy = useCallback(
+    (text: string) => {
+      navigator.clipboard
+        .writeText(text)
+        .then(() => {
+          toast({ message: "Invite link is coppied to your clipboard" });
+        })
+        .catch((err) => {
+          throw err;
+        });
+    },
+    [toast]
+  );
+
   React.useEffect(() => {
     if (profileResponse) {
       setProfile(profileResponse);
     }
   }, [profileResponse]);
+  React.useEffect(() => {
+    setUtils({
+      openLink: (url: string, options: any) =>
+        window.open(url, "_blank")?.focus?.(),
+      openTelegramLink: (url: string) => window.open(url, "_blank")?.focus?.(),
+      shareURL: (url: string, text?: string) => copy(url),
+    });
+  }, []);
   const onUserChange = useCallback(
     async (u: User) => {
       if (!u) {
         setUser(null);
         setProfile(null);
-        localStorage.removeItem("accesstoken");
+        sessionStorage.removeItem("accesstoken");
         // } else if (u && !u?.emailVerified) {
         //     sendEmailVerification(u);
         //     signOut(auth);
@@ -96,7 +120,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       } else {
         // setIsVerifiedModalDisplayed(false);
         await u.getIdToken(true).then((token) => {
-          localStorage.setItem("accesstoken", `fb${token}`);
+          sessionStorage.setItem("accesstoken", `fb${token}`);
           setIsLoginModalDisplayed(false);
           setUser(u);
         });

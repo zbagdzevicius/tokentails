@@ -1,7 +1,12 @@
 import { profileFetch } from "@/constants/api";
 import { TPostReferral, TRedeemLives } from "@/constants/telegram-api";
 import { useQuery } from "@tanstack/react-query";
-import { User, useInitData, useLaunchParams } from "@telegram-apps/sdk-react";
+import {
+  User,
+  useInitData,
+  useLaunchParams,
+  useUtils,
+} from "@telegram-apps/sdk-react";
 import * as React from "react";
 import { useCallback, useEffect } from "react";
 import { useProfile } from "./ProfileContext";
@@ -30,6 +35,16 @@ const TelegramAuthContext = React.createContext<ContextState | undefined>(
 const TelegramAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const launchParams = useLaunchParams(true);
   const initData = useInitData(true);
+  const { setUtils } = useProfile();
+
+  const utils = useUtils(true);
+
+  utils?.openLink;
+  useEffect(() => {
+    if (utils) {
+      setUtils(utils);
+    }
+  }, [utils]);
 
   const telegramUserData = React.useMemo<ITelegramUserData | null>(() => {
     if (!initData || !launchParams?.initDataRaw) {

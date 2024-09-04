@@ -1,14 +1,14 @@
 import { TPostQuest } from "@/constants/telegram-api";
+import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
-import { useUtils } from "@telegram-apps/sdk-react";
 import { useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { PixelButton } from "../button/PixelButton";
-import { useProfile } from "@/context/ProfileContext";
 
 enum QuestType {
   SOCIAL = "SOCIAL",
   MILESTONE = "MILESTONE",
+  PARTNERS = "PARTNERS",
 }
 
 interface IQuestReward {
@@ -29,6 +29,8 @@ export enum QUEST {
   START_TEA_FARM = "START_TEA_FARM",
   START_EPIC_OF_CASTLES = "START_EPIC_OF_CASTLES",
   START_NOT_BITCOIN = "START_NOT_BITCOIN",
+  START_DONZ_SQUAT = "START_DONZ_SQUAT",
+  START_TAP_WARRIOR = "START_TAP_WARRIOR",
   FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",
   FOLLOW_TG_GROUP = "FOLLOW_TG_GROUP",
   FOLLOW_X = "FOLLOW_X",
@@ -77,7 +79,7 @@ const allQuests: IQuest[] = [
     },
   },
   {
-    type: QuestType.SOCIAL,
+    type: QuestType.PARTNERS,
     key: QUEST.START_VANA_DATA_HERO,
     name: "Start Vana Data Hero",
     link: "https://t.me/VanaDataHeroBot/VanaDataHero",
@@ -87,7 +89,7 @@ const allQuests: IQuest[] = [
     },
   },
   {
-    type: QuestType.SOCIAL,
+    type: QuestType.PARTNERS,
     key: QUEST.START_TEA_FARM,
     name: "Start Tea Farm",
     link: "https://t.me/TeaFarmTownBot/game?startapp=r_5527372962",
@@ -97,7 +99,7 @@ const allQuests: IQuest[] = [
     },
   },
   {
-    type: QuestType.SOCIAL,
+    type: QuestType.PARTNERS,
     key: QUEST.START_EPIC_OF_CASTLES,
     name: "Start Epic of Castles",
     link: "https://t.me/epicofcastles_bot/start?startapp=u119983992",
@@ -107,11 +109,31 @@ const allQuests: IQuest[] = [
     },
   },
   {
-    type: QuestType.SOCIAL,
+    type: QuestType.PARTNERS,
     key: QUEST.START_NOT_BITCOIN,
     name: "Start NotBitCoin",
     link: "https://t.me/notbitco_in_bot?start=2jeus9u",
     icon: "/icons/social/notbitcoin.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_DONZ_SQUAT,
+    name: "Start Doonz Squad",
+    link: "https://t.me/doonz_squad_bot/doonz_squad?startapp=id5527372962",
+    icon: "/icons/social/donzsquad.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_TAP_WARRIOR,
+    name: "Start Tap Warrior",
+    link: "https://t.me/tapwarrior_bot",
+    icon: "/icons/social/tapwarrior.webp",
     reward: {
       coins: 1000,
     },
@@ -136,16 +158,16 @@ const allQuests: IQuest[] = [
       coins: 500,
     },
   },
-  // {
-  //   type: QuestType.SOCIAL,
-  //   key: QUEST.FOLLOW_LINKEDIN,
-  //   name: "Follow on LINKEDIN",
-  //   link: "https://www.linkedin.com/company/token-tails",
-  //   icon: "/icons/social/linkedin.png",
-  //   reward: {
-  //     coins: 250,
-  //   },
-  // },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_LINKEDIN,
+    name: "Follow on LINKEDIN",
+    link: "https://www.linkedin.com/company/token-tails",
+    icon: "/icons/social/linkedin.png",
+    reward: {
+      coins: 250,
+    },
+  },
   {
     type: QuestType.SOCIAL,
     key: QUEST.FOLLOW_DISCORD,
@@ -223,14 +245,13 @@ const allQuests: IQuest[] = [
 ];
 
 export const QuestsModalContent = () => {
-  const { profile, setProfileUpdate } = useProfile();
+  const { profile, setProfileUpdate, utils } = useProfile();
   const [questsType, setQuestsType] = useState(QuestType.SOCIAL);
   const quests = useMemo(
     () => allQuests.filter((quest) => quest.type === questsType),
     [questsType]
   );
   const toast = useToast();
-  const utils = useUtils(true);
 
   const redeem = useDebouncedCallback(async (quest: IQuest) => {
     if (quest.link) {
@@ -243,19 +264,23 @@ export const QuestsModalContent = () => {
     const result = await TPostQuest(quest.key);
     toast({ message: result.message });
     if (result.success) {
-      await refetchProfile();
+      setProfileUpdate({ quests: [...(profile?.quests || []), quest.key] });
     }
   }, 200);
 
   return (
-    <div className="pt-4 pb-8 px-4 md:px-16 md:py-12 text-gray-500 flex flex-col justify-between items-center">
+    <div className="px-4 py-8 md:px-16 md:py-12 text-gray-500 flex flex-col justify-between items-center">
       <div className="flex items-center justify-between w-full">
         <PixelButton
           text="SOCIAL"
           active={questsType === QuestType.SOCIAL}
           onClick={() => setQuestsType(QuestType.SOCIAL)}
         ></PixelButton>
-        <div className="text-p1 font-secondary">QUESTS</div>
+        <PixelButton
+          text="PARTNERS"
+          active={questsType === QuestType.PARTNERS}
+          onClick={() => setQuestsType(QuestType.PARTNERS)}
+        ></PixelButton>
         <PixelButton
           text="MILESTONE"
           active={questsType === QuestType.MILESTONE}
@@ -300,12 +325,12 @@ export const QuestsModalContent = () => {
           </div>
         </>
       )}
-      {questsType === QuestType.MILESTONE && (
+      {questsType !== QuestType.SOCIAL && (
         <>
           <div className="text-p1 font-secondary w-full flex justify-between items-center">
-            MILESTONES QUESTS
+            {questsType} QUESTS
           </div>
-          <div className="flex flex-col gap-2 w-full">
+          <div className="flex flex-col gap-2 w-full pb-8">
             {quests.map((quest) => (
               <div
                 key={quest.name}
@@ -345,7 +370,7 @@ export const QuestsModal = ({ close }: { close: () => void }) => {
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
-      <div className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full relative bg-white absolute top-[4rem] md:top-[9rem] rounded-lg shadow h-fit">
+      <div className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full relative bg-white absolute inset-0 max-h-screen overflow-y-auto rounded-lg shadow h-fit">
         <QuestsModalContent />
         <button onClick={close} className="absolute right-[0] top-0 group">
           <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>

@@ -4,6 +4,7 @@ import {
   useGameTimerUpdate,
 } from "@/components/catbassadors/hooks";
 import { GameOptionsModal } from "@/components/game/GameOptionsModal";
+import { GameSelect } from "@/components/game/GameSelect";
 import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
 import { QuestsModal } from "@/components/shared/QuestsModal";
 import { TelegramProfile } from "@/components/shared/TelegramProfile";
@@ -13,7 +14,6 @@ import { GameModal, GameType } from "@/models/game";
 import * as React from "react";
 import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
-import { GameSelect } from "@/components/game/GameSelect";
 
 type ContextState = {
   isStarted?: boolean;
@@ -38,7 +38,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [isStarted, setIsStarted] = React.useState<boolean>(false);
   const [gameType, setGameType] = React.useState<GameType | null>(null);
   const [openedModal, setOpenedModal] = React.useState<GameModal | null>(null);
-  const { profile, setProfileUpdate } = useProfile();
+  const { profile, setProfileUpdate, utils } = useProfile();
   const showToast = useToast();
 
   const [timer, setTimer] = React.useState<number>(0);
@@ -93,12 +93,14 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   return (
     <GameContext.Provider value={value}>
-      <GameSelect gameType={gameType} setGameType={setGameType} />
+      {!isStarted && <GameSelect gameType={gameType} setGameType={setGameType} />}
       {profile && (
         <>
           {!isStarted && (
             <GameOptionsModal
+              utils={utils}
               profile={profile}
+              gameType={gameType}
               setOpenedModal={setOpenedModal}
               setIsStarted={playGame}
               setProfileUpdate={setProfileUpdate}
