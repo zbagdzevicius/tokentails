@@ -1,14 +1,13 @@
 import { getLeaderboard } from "@/constants/api";
-import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
+import { useProfile } from "@/context/ProfileContext";
 import { useQuery } from "@tanstack/react-query";
-import React from "react";
 
 export const Leaderboard = () => {
   const { data } = useQuery({
     queryKey: ["leaderboard"],
     queryFn: () => getLeaderboard(),
   });
-  const { position } = useFirebaseAuth();
+  const { position } = useProfile();
   return (
     <div>
       <h2 className="text-center font-secondary uppercase tracking-tight text-8xl max-lg:text-5xl  max-lg:text-balance ">
@@ -67,7 +66,7 @@ export const Leaderboard = () => {
                     : "border-yellow-300 text-yellow-300"
                 }`}
               >
-                {result.score || 0}
+                {result.catpoints || 0}
               </td>
             </tr>
           ))}

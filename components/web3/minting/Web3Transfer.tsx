@@ -2,7 +2,7 @@
 
 import { PixelButton } from "@/components/button/PixelButton";
 import { confirmTransaction } from "@/constants/api";
-import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
+import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
 import { isProd } from "@/models/app";
@@ -33,7 +33,7 @@ const nftTypeCtaText: Partial<Record<EntityType, string>> = {
 const paymentsChain = isProd ? ChainType.BNB : ChainType.BNB_TEST;
 
 export const Web3Transfer = ({ price, entityType, _id }: ITransfer) => {
-  const { refetchProfile, profile } = useFirebaseAuth();
+  const { profile, setProfileUpdate } = useProfile();
   const { isConnected, chainId, currencyType, setCurrencyType, balance } =
     useWeb3();
   const { switchChainAsync } = useSwitchChain({ config });
@@ -113,7 +113,9 @@ export const Web3Transfer = ({ price, entityType, _id }: ITransfer) => {
         chainType: paymentsChain,
         currencyType,
         price,
-      }).then(() => refetchProfile());
+      }).then(() => {
+        // TODO - add cat to user profile as main
+      });
     }
   }, [isTaxConfirmed]);
 
@@ -131,13 +133,14 @@ export const Web3Transfer = ({ price, entityType, _id }: ITransfer) => {
     return <w3m-button />;
   }
   if (profile?.cats?.find((cat) => cat?._id === _id)) {
-    return <PixelButton text={entityType} subtext="Adopted" active></PixelButton>;
+    return (
+      <PixelButton text={entityType} subtext="Adopted" active></PixelButton>
+    );
   }
 
   if (isPending || isTaxLoading || isTransactionPending || isTaxConfirmed) {
     return <PixelButton text="ADOPTING" active></PixelButton>;
   }
-
 
   return (
     <div className="flex flex-col items-center">

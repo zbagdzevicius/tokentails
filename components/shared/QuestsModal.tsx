@@ -219,7 +219,7 @@ const allQuests: IQuest[] = [
     type: QuestType.MILESTONE,
     key: QUEST.REACH_COINS_100K,
     name: "Reach 100k coins",
-    icon: "/logo/coin.webp",
+    icon: "/logo/boss-coin.png",
     reward: {
       coins: 5000,
     },
@@ -237,7 +237,7 @@ const allQuests: IQuest[] = [
     type: QuestType.MILESTONE,
     key: QUEST.REACH_COINS_1M,
     name: "Reach 1m coins",
-    icon: "/logo/coin.webp",
+    icon: "/logo/boss-coin.png",
     reward: {
       coins: 50000,
     },
@@ -269,7 +269,7 @@ export const QuestsModalContent = () => {
   }, 200);
 
   return (
-    <div className="px-4 py-8 md:px-16 md:py-12 text-gray-500 flex flex-col justify-between items-center">
+    <div className="px-4 py-8 md:px-16 md:py-12 text-gray-800 flex flex-col justify-between items-center">
       <div className="flex items-center justify-between w-full">
         <PixelButton
           text="SOCIAL"
@@ -314,11 +314,9 @@ export const QuestsModalContent = () => {
                     onClick={() => redeem(quest)}
                   ></PixelButton>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="text-p5 font-secondary">
-                    +{quest.reward.coins} COINS
-                  </div>
-                  <img className="w-5 z-10" src="/logo/coin.webp" />
+                <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
+                  <img className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute" src="/logo/coin.webp" />
+                  {quest.reward.coins} COINS
                 </div>
               </div>
             ))}
@@ -348,11 +346,9 @@ export const QuestsModalContent = () => {
                     onClick={() => redeem(quest)}
                   ></PixelButton>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="text-p5 font-secondary">
-                    +{quest.reward.coins} COINS
-                  </div>
-                  <img className="w-5 z-10" src="/logo/coin.webp" />
+                <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
+                  <img className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute" src="/logo/coin.webp" />
+                  {quest.reward.coins} COINS
                 </div>
               </div>
             ))}
@@ -370,7 +366,7 @@ export const QuestsModal = ({ close }: { close: () => void }) => {
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
-      <div className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full relative bg-white absolute inset-0 max-h-screen overflow-y-auto rounded-lg shadow h-fit">
+      <div className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full relative bg-gradient-to-b from-yellow-300 to-purple-300 absolute inset-0 max-h-screen overflow-y-auto rounded-lg shadow h-fit">
         <QuestsModalContent />
         <button onClick={close} className="absolute right-[0] top-0 group">
           <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>

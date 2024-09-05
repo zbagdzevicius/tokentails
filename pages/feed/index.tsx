@@ -1,5 +1,6 @@
 import { FeedLanding } from "@/components/blog/feed/FeedLanding";
 import { SeoHead } from "@/components/seo/SeoHead";
+import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import BlogLayout from "@/layouts/BlogLayout";
 import { WebPageJsonLd } from "next-seo";
 import { useEffect, useState } from "react";
@@ -25,9 +26,12 @@ function BlogLanding() {
         description="tokentails.com"
         id={process.env.NEXT_PUBLIC_DOMAIN!}
       />
-      <BlogLayout>
-        <FeedLanding />
-      </BlogLayout>
+
+      <FirebaseAuthProvider>
+        <BlogLayout>
+          <FeedLanding />
+        </BlogLayout>
+      </FirebaseAuthProvider>
     </div>
   );
 }

@@ -278,7 +278,7 @@ export const HomePage = () => {
               height={100}
             />
           </div>
-          <a href="/adopt" className="absolute bottom-0 md:bottom-4">
+          <a href="/game" className="absolute bottom-0 md:bottom-4">
             <PixelButton
               text="PLAY IN BROWSER"
               isBig
