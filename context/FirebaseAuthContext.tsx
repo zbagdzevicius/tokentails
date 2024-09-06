@@ -95,7 +95,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   );
 
   React.useEffect(() => {
-    if (!profileResponse) {
+    if (!!profileResponse?.cat) {
       setIsLoginModalDisplayed(false);
     }
   }, [profileResponse]);
@@ -153,7 +153,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   return (
     <FirebaseAuthContext.Provider value={value}>
       {isLoginModalDisplayed && (
-        <SignIn close={() => setIsLoginModalDisplayed(true)} />
+        <SignIn close={() => {}} />
       )}
       {isVerifiedModalDisplayed && (
         <Verify close={() => setIsVerifiedModalDisplayed(false)} />
