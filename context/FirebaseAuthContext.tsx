@@ -95,7 +95,9 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   );
 
   React.useEffect(() => {
-    setIsLoginModalDisplayed(false);
+    if (!profileResponse) {
+      setIsLoginModalDisplayed(false);
+    }
   }, [profileResponse]);
 
   React.useEffect(() => {
