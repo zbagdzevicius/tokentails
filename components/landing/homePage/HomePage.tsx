@@ -290,7 +290,7 @@ export const HomePage = () => {
       </div>
       <div className="font-secondary text-p3 md:-mt-2">OR</div>
       <a
-        href="https://t.me/CatbassadorsBot"
+        href="https://t.me/CatbassadorsBot?start=start"
         target="_blank"
         className="font-secondary text-p1 mb-4"
       >
