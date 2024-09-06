@@ -33,17 +33,17 @@ export const CatGame = ({ cats, onClickCallback }: IProps) => {
   useEffect(() => {
     if (cats?.length) {
       setElements(
-        cats.map(({ catImg, _id }, index) =>
-          generateRandomPosition(catImg, _id!)
+        cats.map(({ catImg, name }, index) =>
+          generateRandomPosition(catImg, name!)
         )
       );
     }
   }, [cats]);
 
-  const handleCatClick = (catId: string) => {
+  const handleCatClick = (name: string) => {
     setElements((prevElements) =>
       prevElements.map((element) => {
-        const clickedCat = cats.find((cat) => cat._id === catId);
+        const clickedCat = cats.find((cat) => cat.name === name);
 
         if (clickedCat) {
           onClickCallback(clickedCat);

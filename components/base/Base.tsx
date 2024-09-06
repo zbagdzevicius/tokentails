@@ -86,7 +86,7 @@ function Base() {
     if (setCat && profile?.cat) {
       setCat(profile.cat!);
     }
-  }, [profile?.cat]);
+  }, [profile?.cat, setCat]);
   useEffect(() => {
     if (profile?.cat && isGameLoaded) {
       BaseBus.emit(BaseBusEvent.SPAWN_CAT, profile.cat);
@@ -143,7 +143,6 @@ function Base() {
       )}
       <div className="fixed right-0 top-0 z-50">
         {cat && (
-          <>
             <div className="flex flex-col justify-center relative gap-2 items-end pr-2 md:pr-4 pt-1 md:pt-4">
               <StatusBar
                 status={cat.status[StatusType.EAT]!}
@@ -153,21 +152,10 @@ function Base() {
                 status={cat.status[StatusType.PLAY]!}
                 type={StatusType.PLAY}
               />
-              <div className="flex items-center gap-2 ">
-                <p className="font-bold font-secondary text-p3 z-10">9 X</p>
-                <img className="w-8 z-10" src="/base/heart.png" />
-              </div>
-              <div className="flex items-center gap-2 ">
-                <p className="font-bold font-secondary text-p3 z-10">
-                  {profile?.score || 0} X
-                </p>
-                <img className="w-8 z-10" src="/logo/coin.webp" />
-              </div>
             </div>
-          </>
         )}
       </div>
-      <div className="fixed bottom-4 left-0 right-0 z-50 flex justify-center gap-2 px-4">
+      <div className="fixed bottom-8 pb-safe left-1/2 -translate-x-1/2 flex justify-center gap-2 px-4">
         <PixelButton text="Play" onClick={onPlayClick} />
         <PixelButton text="Feed" onClick={onFeedClick} />
       </div>

@@ -76,7 +76,7 @@ const TelegramAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     };
   }, [initData, launchParams]);
 
-  const { setProfile } = useProfile();
+  const { setProfile, setShareUrl } = useProfile();
   const { data: profileResponse, refetch: refetchProfile } = useQuery({
     queryKey: ["t-profile-details", telegramUserData?.raw],
     queryFn: () => (telegramUserData?.raw ? profileFetch() : null),
@@ -93,6 +93,10 @@ const TelegramAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   useEffect(() => {
     if (telegramUserData?.startParam && profileResponse) {
       TPostReferral(telegramUserData?.startParam);
+
+      setShareUrl(
+        `https://t.me/CatbassadorsBot/app?startapp=${telegramUserData?.user.id}&startApp=${telegramUserData?.user.id}`
+      );
     }
   }, [telegramUserData?.startParam, profileResponse]);
 

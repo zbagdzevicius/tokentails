@@ -1,3 +1,4 @@
+import { CatProvider } from "@/context/CatContext";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { GameType } from "@/models/game";
@@ -22,7 +23,11 @@ export const Game = () => {
       {gameType === GameType.CATBASSADORS && profile && (
         <Catbassadors cat={profile?.cat} profile={profile} timer={timer} />
       )}
-      {gameType === GameType.HOME && profile && <Base />}
+      {gameType === GameType.HOME && profile && (
+        <CatProvider>
+          <Base />
+        </CatProvider>
+      )}
       {gameType === GameType.SHELTER && profile && <Adopt />}
     </div>
   );

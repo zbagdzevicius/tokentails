@@ -4,11 +4,7 @@ import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
 import CatbassadorsBus from "./CatbassadorsBus";
 import { CatbassadorsBusEvent } from "./CatbassadorsBus.events";
 import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
-import {
-  useGameLoadedEvent,
-  useGameOverEvent,
-  useGameStartEvent,
-} from "./hooks";
+import { useGameLoadedEvent } from "./hooks";
 
 export interface IGameOverEvent extends Event {
   detail: {
@@ -36,14 +32,6 @@ const CatbassadorsGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame(
   ref
 ) {
   const game = useRef<Phaser.Game | null>(null!);
-
-  useGameOverEvent((event) => {
-    console.log("gameover, score:", event.detail.score);
-  });
-
-  useGameStartEvent((event) => {
-    console.log("Game started");
-  });
 
   useLayoutEffect(() => {
     if (game.current === null) {

@@ -75,7 +75,7 @@ export interface ICat {
   catImg: string;
   cardImg: string;
   lives: number;
-  expiresAt: string;
+  expiresAt?: string;
   price: number;
 }
 

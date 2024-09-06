@@ -10,6 +10,7 @@ interface IProps {
   profile: IProfile;
   utils: IUtils | null;
   gameType: GameType | null;
+  shareUrl?: string;
   setProfileUpdate: (profile: Partial<IProfile>) => void;
   setOpenedModal: (modal: GameModal) => void;
   setIsStarted: (isStarted: boolean) => void;
@@ -19,6 +20,7 @@ export const GameOptionsModal = ({
   utils,
   profile,
   gameType,
+  shareUrl,
   setProfileUpdate,
   setOpenedModal,
   setIsStarted,
@@ -62,22 +64,24 @@ export const GameOptionsModal = ({
             ></PixelButton>
           )}
         </div>
-        <div className="flex flex-col gap-4">
-          <PixelButton
-            onClick={() => {
-              setOpenedModal(GameModal.QUESTS);
-            }}
-            text="QUESTS"
-          ></PixelButton>
-          <PixelButton
-            onClick={() => {
-              setOpenedModal(GameModal.PROFILE);
-            }}
-            text="STATS"
-          ></PixelButton>
-        </div>
+        {gameType !== GameType.HOME && (
+          <div className="flex flex-col gap-4">
+            <PixelButton
+              onClick={() => {
+                setOpenedModal(GameModal.QUESTS);
+              }}
+              text="QUESTS"
+            ></PixelButton>
+            <PixelButton
+              onClick={() => {
+                setOpenedModal(GameModal.PROFILE);
+              }}
+              text="STATS"
+            ></PixelButton>
+          </div>
+        )}
 
-        {profile.canRedeemLives && (
+        {profile.canRedeemLives && gameType !== GameType.HOME && (
           <div className="flex flex-col items-center">
             <div className="flex flex-col items-center font-secondary text-p2 opacity-75 bg-white px-1 rounded-xl">
               <img className="w-8 z-10 -mt-2 pt-4" src="/logo/coin.webp" />
@@ -109,9 +113,7 @@ export const GameOptionsModal = ({
           </div>
           <PixelButton
             onClick={() => {
-              utils?.shareURL(
-                `https://t.me/CatbassadorsBot/app?startapp=${user?.user.id}&startApp=${user?.user.id}`
-              );
+              utils?.shareURL(shareUrl!);
             }}
             text="INVITE"
           ></PixelButton>

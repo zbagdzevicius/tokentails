@@ -9,7 +9,7 @@ interface IProps {
 
 export const GameSelect = ({ setGameType, gameType }: IProps) => {
   return (
-    <div className="fixed inset-0 z-0 flex flex-col gap-2 items-center top-24">
+    <div className="fixed inset-0 z-0 flex flex-col gap-2 items-center top-2">
       {gameType && (
         <PixelButton text="SWITCH GAME" onClick={() => setGameType(null)} />
       )}

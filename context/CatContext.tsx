@@ -1,9 +1,10 @@
 import { updateCatStatus } from "@/constants/api";
 import { ICatStatus, ICat } from "@/models/cats";
-import { IStatus } from "@/models/status";
+import { IStatus, StatusType } from "@/models/status";
 import { useMutation } from "@tanstack/react-query";
 import * as React from "react";
 import { useCallback } from "react";
+import { useProfile } from "./ProfileContext";
 
 type ContextState = {
   cat: ICat | null;
@@ -13,8 +14,35 @@ type ContextState = {
 
 const CatContext = React.createContext<ContextState | undefined>(undefined);
 
+const MAX_CAT_STATUS = 4;
+
+function isMaxReached(status: IStatus, cat: ICat): boolean {
+  if (!cat.status.EAT || !cat.status.PLAY) {
+    return false;
+  }
+
+  if (cat.status.EAT >= MAX_CAT_STATUS && cat.status.PLAY >= MAX_CAT_STATUS) {
+    return false;
+  }
+
+  const newStatuses: Record<StatusType, number> = {
+    ...{ [StatusType.EAT]: 0, [StatusType.PLAY]: 0 },
+    ...cat.status,
+    [status.type]: status.status,
+  };
+
+  return Object.keys([StatusType.EAT, StatusType.PLAY])
+    .map(
+      (key) =>
+        newStatuses[key as StatusType] >= MAX_CAT_STATUS &&
+        newStatuses[key as StatusType] >= MAX_CAT_STATUS
+    )
+    .includes(true);
+}
+
 const CatProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [cat, setCat] = React.useState<ICat | null>(null);
+  const { setProfileUpdate, profile } = useProfile();
 
   const saveStatusCall = useCallback(
     async (params: ICatStatus) => {
@@ -37,6 +65,15 @@ const CatProvider = ({ children }: React.PropsWithChildren<{}>) => {
       if (!cat) {
         return;
       }
+
+      const shouldAddPoints = isMaxReached(status, cat);
+      if (shouldAddPoints) {
+        setProfileUpdate({
+          catbassadorsLives: (profile?.catbassadorsLives || 0) + 9,
+          catpoints: (profile?.catpoints || 0) + 1000,
+        });
+      }
+
       const newStatus = {
         ...cat,
         status: { ...(cat.status || {}), [status.type]: status.status },

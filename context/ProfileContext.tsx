@@ -13,6 +13,8 @@ export interface IUtils {
 type ContextState = {
   profile?: IProfile | null;
   position?: number | null;
+  shareUrl?: string;
+  setShareUrl: (url: string) => void;
   setProfile: (profile: IProfile | null) => void;
   setProfileUpdate: (profile: Partial<IProfile>) => void;
   isProfileModalDisplayed: boolean;
@@ -26,6 +28,9 @@ const ProfileContext = React.createContext<ContextState | undefined>(undefined);
 const ProfileProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [profile, setProfile] = React.useState<IProfile | null | undefined>(
     null
+  );
+  const [shareUrl, setShareUrl] = React.useState<string>(
+    "https://tokentails.com"
   );
   const [utils, setUtils] = React.useState<IUtils | null>(null);
   const [isProfileModalDisplayed, setIsProfileModalDisplayed] =
@@ -51,6 +56,8 @@ const ProfileProvider = ({ children }: React.PropsWithChildren<{}>) => {
     setIsProfileModalDisplayed,
     utils,
     setUtils,
+    shareUrl,
+    setShareUrl,
   };
 
   return (
@@ -72,6 +79,8 @@ function useProfile() {
     profile: context.profile,
     position: context.position,
     utils: context.utils,
+    shareUrl: context.shareUrl,
+    setShareUrl: context.setShareUrl,
     setUtils: context.setUtils,
     setProfile: context.setProfile,
     setProfileUpdate: context.setProfileUpdate,

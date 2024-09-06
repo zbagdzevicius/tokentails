@@ -38,7 +38,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [isStarted, setIsStarted] = React.useState<boolean>(false);
   const [gameType, setGameType] = React.useState<GameType | null>(null);
   const [openedModal, setOpenedModal] = React.useState<GameModal | null>(null);
-  const { profile, setProfileUpdate, utils } = useProfile();
+  const { profile, setProfileUpdate, utils, shareUrl } = useProfile();
   const showToast = useToast();
 
   const [timer, setTimer] = React.useState<number>(0);
@@ -93,7 +93,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   return (
     <GameContext.Provider value={value}>
-      {!isStarted && <GameSelect gameType={gameType} setGameType={setGameType} />}
+      {!isStarted && (
+        <GameSelect gameType={gameType} setGameType={setGameType} />
+      )}
       {profile && (
         <>
           {!isStarted && (
@@ -101,6 +103,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
               utils={utils}
               profile={profile}
               gameType={gameType}
+              shareUrl={shareUrl}
               setOpenedModal={setOpenedModal}
               setIsStarted={playGame}
               setProfileUpdate={setProfileUpdate}
