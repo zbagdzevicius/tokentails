@@ -42,6 +42,7 @@ export const GameOptionsModal = ({
     setProfileUpdate({
       canRedeemLives: false,
       streak: (profile.streak || 0) + 1,
+      catpoints: (profile.catpoints || 0) + numberOfLivesToRedeem,
       catbassadorsLives:
         (profile.catbassadorsLives || 0) + numberOfLivesToRedeem,
     });

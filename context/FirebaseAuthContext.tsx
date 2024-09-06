@@ -70,7 +70,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [user, setUser] = React.useState<User>(null);
   const toast = useToast();
   const [isLoginModalDisplayed, setIsLoginModalDisplayed] =
-    React.useState(false);
+    React.useState(true);
   const [isVerifiedModalDisplayed, setIsVerifiedModalDisplayed] =
     React.useState(false);
   const { setProfile, setUtils } = useProfile();
@@ -93,6 +93,10 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     },
     [toast]
   );
+
+  React.useEffect(() => {
+    setIsLoginModalDisplayed(false);
+  }, [profileResponse]);
 
   React.useEffect(() => {
     if (profileResponse) {
@@ -147,7 +151,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   return (
     <FirebaseAuthContext.Provider value={value}>
       {isLoginModalDisplayed && (
-        <SignIn close={() => setIsLoginModalDisplayed(false)} />
+        <SignIn close={() => setIsLoginModalDisplayed(true)} />
       )}
       {isVerifiedModalDisplayed && (
         <Verify close={() => setIsVerifiedModalDisplayed(false)} />
