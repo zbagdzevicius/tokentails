@@ -19,7 +19,7 @@ export const CatCard: React.FC<IProps> = ({
   const cardRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="flex items-center justify-center w-full h-full fixed top-0 left-0">
+    <div className="flex justify-center w-full h-full fixed top-0 left-0">
       <div
         className="absolute inset-0 z-0 bg-yellow-300 opacity-50"
         onClick={() => onClose()}

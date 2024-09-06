@@ -15,7 +15,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
       )}
       {!gameType && (
         <>
-          <div className="font-secondary text-h5 bg-gradient-to-t from-yellow-300 to-purple-300 px-2 rounded-lg py-2">
+          <div className="font-secondary text-p2 md:text-h5 bg-gradient-to-t from-yellow-300 to-purple-300 px-2 rounded-lg py-2">
             SELECT GAME
           </div>
           <div className="flex gap-2">
@@ -48,7 +48,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
+          {/* <div className="flex gap-2">
             <div className="relative">
               <div className="opacity-25">
                 <img
@@ -71,7 +71,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
                 <div className="bg-yellow-300 px-2 rounded-lg">COMING SOON</div>
               </div>
             </div>
-          </div>
+          </div> */}
         </>
       )}
     </div>

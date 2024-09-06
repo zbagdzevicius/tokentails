@@ -36,7 +36,7 @@ export class BaseScene extends Scene {
       margin: 1,
       spacing: 2,
     });
-    this.load.image("coin", "purrquest/sprites/coin.webp");
+    this.load.image("coin", "logo/coin.webp");
     this.load.audio("blip", "purrquest/sounds/blip.mp3");
     this.load.audio("meow", "purrquest/sounds/meow.mp3");
     this.load.audio("purr", "purrquest/sounds/purr.mp3");

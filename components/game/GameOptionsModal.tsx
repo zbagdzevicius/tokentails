@@ -41,6 +41,7 @@ export const GameOptionsModal = ({
     await TRedeemLives();
     setProfileUpdate({
       canRedeemLives: false,
+      streak: (profile.streak || 0) + 1,
       catbassadorsLives:
         (profile.catbassadorsLives || 0) + numberOfLivesToRedeem,
     });
@@ -90,10 +91,10 @@ export const GameOptionsModal = ({
                 {numberOfPointsToRedeem} COINS
               </div>
               <div className="-mt-2 text-h3">+</div>
-              <img className="w-8 z-10 -mt-2" src="/base/heart.png" />
+              <img className="w-6 md:w-8 z-10 -mt-2" src="/base/heart.png" />
               <div className="text-p5">{numberOfLivesToRedeem} FREE</div>
               <div className="-mt-2">LIVES</div>
-              <img className="w-12" src="/logo/chest.webp" />
+              <img className="w-10 md:w-12" src="/logo/chest.webp" />
             </div>
             <PixelButton
               onClick={() => (profile.canRedeemLives ? redeemLives() : {})}

@@ -3,11 +3,9 @@ import { useToast } from "@/context/ToastContext";
 import { useCallback } from "react";
 
 const features = [
-  "NFTs",
-  "Airdrops",
   "Mystery boxes",
-  "Weekly Rewards",
-  "Doubling Events - Track us on X",
+  "NFTs & Airdrops prizes",
+  "Weekly Rewards & Events",
 ];
 
 export const TelegramProfileContent = () => {

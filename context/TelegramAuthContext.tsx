@@ -93,12 +93,11 @@ const TelegramAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   useEffect(() => {
     if (telegramUserData?.startParam && profileResponse) {
       TPostReferral(telegramUserData?.startParam);
-
       setShareUrl(
         `https://t.me/CatbassadorsBot/app?startapp=${telegramUserData?.user.id}&startApp=${telegramUserData?.user.id}`
       );
     }
-  }, [telegramUserData?.startParam, profileResponse]);
+  }, [telegramUserData?.startParam, profileResponse, setShareUrl]);
 
   const value = {
     user: telegramUserData,

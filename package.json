@@ -6,7 +6,7 @@
     "dev": "next dev",
     "dev:https": "next dev --experimental-https",
     "build": "next build",
-    "ngrok": "ngrok http --domain=game-doe-poorly.ngrok-free.app http://192.168.68.100:3000",
+    "ngrok": "ngrok http --domain=game-doe-poorly.ngrok-free.app http://192.168.68.101:3000",
     "start": "next start",
     "postbuild": "next-sitemap",
     "extrude:food": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/food-original.png --output ./public/base/food.png",
