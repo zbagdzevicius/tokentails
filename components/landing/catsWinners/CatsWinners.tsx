@@ -30,7 +30,7 @@ export const CatsWinners = () => {
             />
           </a>
           <a
-            href="/adopt"
+            href="/game"
             className="p-1 max-lg:p-0.5 md:row-span-10 bg-gradient-to-br from-main-slate via-main-grape to-main-rusty rounded-2xl hover:animate-hover"
           >
             <img
@@ -79,7 +79,7 @@ export const CatsWinners = () => {
                   Virtual Cats <img src="/images/cats-winners/cat-heart.gif" />
                 </p>
               </div>
-              <a href="/adopt">
+              <a href="/game">
                 <PixelButton text="PLAY NOW" />
               </a>
             </div>

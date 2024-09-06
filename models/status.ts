@@ -10,8 +10,8 @@ export enum StatusType {
 }
 
 export const typeImages: Record<StatusType, string> = {
-  [StatusType.EAT]: "base/eat.png",
-  [StatusType.PLAY]: "base/play.png",
+  [StatusType.EAT]: "logo/rocket.png",
+  [StatusType.PLAY]: "logo/paw.png",
 };
 
 export const statusTypeLabels: Record<StatusType, string> = {

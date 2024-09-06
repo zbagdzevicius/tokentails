@@ -5,15 +5,8 @@ import BaseBus from "../CatbassadorsBus";
 import { CatbassadorsBusEvent } from "../CatbassadorsBus.events";
 import { Cat } from "../objects/Catbassador";
 import { Enemy } from "../objects/Enemy";
+import { setIsGameLoaded } from "@/components/game/events";
 const enemyDurationMs = 15000;
-
-const setIsGameLoaded = () => {
-  const event = new CustomEvent("game-loaded", {
-    detail: { start: true },
-  });
-
-  window.dispatchEvent(event);
-};
 
 export class CatbassadorsScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;

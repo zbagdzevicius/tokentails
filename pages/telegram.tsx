@@ -1,13 +1,15 @@
-"use client";
-import { CatbassadorsAuth } from "@/components/catbassadors/CatbassadorsAuth";
+import { Game } from "@/components/game/Game";
+import { GameProvider } from "@/context/GameContext";
 import { TelegramAuthProvider } from "@/context/TelegramAuthContext";
 import { SDKProvider } from "@telegram-apps/sdk-react";
 
-export default function Game() {
+export default function game() {
   return (
     <SDKProvider acceptCustomStyles debug={true}>
       <TelegramAuthProvider>
-        <CatbassadorsAuth />
+        <GameProvider>
+          <Game />
+        </GameProvider>
       </TelegramAuthProvider>
     </SDKProvider>
   );

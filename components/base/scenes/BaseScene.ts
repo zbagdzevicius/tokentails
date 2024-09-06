@@ -1,11 +1,12 @@
+import { setIsGameLoaded } from "@/components/game/events";
+import { ZOOM } from "@/constants/utils";
+import { ICat } from "@/models/cats";
 import { Scene } from "phaser";
-import { Food } from "../objects/Food";
-import { Cat, NPCJobType } from "../objects/Cat";
-import { Toy } from "../objects/Toy";
 import BaseBus from "../BaseBus";
 import { BaseBusEvent } from "../BaseBus.events";
-import { ICat } from "@/models/cats";
-import { ZOOM } from "@/constants/utils";
+import { Cat, NPCJobType } from "../objects/Cat";
+import { Food } from "../objects/Food";
+import { Toy } from "../objects/Toy";
 
 export class BaseScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
@@ -21,20 +22,7 @@ export class BaseScene extends Scene {
     | Phaser.Sound.HTML5AudioSound;
 
   constructor() {
-    super("DevScene");
-
-    BaseBus.addListener(BaseBusEvent.SPAWN_CAT, (args: any) =>
-      this.spawnCat(args)
-    );
-    BaseBus.addListener(BaseBusEvent.SPAWN_EAT, () => this.spawnFood());
-    BaseBus.addListener(BaseBusEvent.SPAWN_PLAY, () => this.spawnPlay());
-    BaseBus.addListener(BaseBusEvent.MEOW, () => {
-      setTimeout(() => {
-        try {
-          this.sound?.play?.("meow", { volume: 0.5 });
-        } catch {}
-      }, 2000);
-    });
+    super("BaseScene");
   }
 
   preload() {
@@ -48,7 +36,7 @@ export class BaseScene extends Scene {
       margin: 1,
       spacing: 2,
     });
-    this.load.image("coin", "purrquest/sprites/coin.webp");
+    this.load.image("coin", "logo/coin.webp");
     this.load.audio("blip", "purrquest/sounds/blip.mp3");
     this.load.audio("meow", "purrquest/sounds/meow.mp3");
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
@@ -82,6 +70,21 @@ export class BaseScene extends Scene {
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(ZOOM);
     this.addSounds();
+
+    BaseBus.addListener(BaseBusEvent.SPAWN_CAT, (args: any) =>
+      this.spawnCat(args)
+    );
+    BaseBus.addListener(BaseBusEvent.SPAWN_EAT, () => this.spawnFood());
+    BaseBus.addListener(BaseBusEvent.SPAWN_PLAY, () => this.spawnPlay());
+    BaseBus.addListener(BaseBusEvent.MEOW, () => {
+      setTimeout(() => {
+        try {
+          this.sound?.play?.("meow", { volume: 0.5 });
+        } catch {}
+      }, 2000);
+    });
+
+    setIsGameLoaded();
   }
 
   private addSounds() {
@@ -111,7 +114,7 @@ export class BaseScene extends Scene {
   }
 
   spawnFood() {
-    if (this.food || !this.cat) {
+    if (this.food || !this.cat || !this.physics.add) {
       return;
     }
 
@@ -125,12 +128,11 @@ export class BaseScene extends Scene {
   }
 
   spawnPlay() {
-    if (!this.cat) {
+    if (!this.cat || !this.physics.add) {
       return;
     }
     if (this.toy) {
       this.toy.sprite.destroy();
-      this.toy = null;
     }
     this.toy = new Toy(this, 0, -450);
     this.physics.add.collider(this.toy.sprite, this.groundLayer);

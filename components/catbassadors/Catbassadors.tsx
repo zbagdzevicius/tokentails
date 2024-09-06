@@ -1,19 +1,10 @@
 import { ICat } from "@/models/cats";
 import { IProfile } from "@/models/profile";
-import {
-  forwardRef,
-  useEffect,
-  useLayoutEffect,
-  useRef
-} from "react";
+import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
 import CatbassadorsBus from "./CatbassadorsBus";
 import { CatbassadorsBusEvent } from "./CatbassadorsBus.events";
 import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
-import {
-  useGameLoadedEvent,
-  useGameOverEvent,
-  useGameStartEvent,
-} from "./hooks";
+import { useGameLoadedEvent } from "./hooks";
 
 export interface IGameOverEvent extends Event {
   detail: {
@@ -41,14 +32,6 @@ const CatbassadorsGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame(
   ref
 ) {
   const game = useRef<Phaser.Game | null>(null!);
-
-  useGameOverEvent((event) => {
-    console.log("gameover, score:", event.detail.score);
-  });
-
-  useGameStartEvent((event) => {
-    console.log("Game started");
-  });
 
   useLayoutEffect(() => {
     if (game.current === null) {
@@ -114,10 +97,9 @@ const Catbassadors = ({ cat, profile, timer }: ICatbassadorsProps) => {
       CatbassadorsBus.emit(CatbassadorsBusEvent.SPAWN_CAT, cat);
       setTimeout(() => {
         CatbassadorsBus.emit(CatbassadorsBusEvent.SPAWN_CAT, cat);
-      }, 1000)
+      }, 1000);
     }
   }, [cat, isGameLoaded]);
-  
 
   return (
     <div id="app">
@@ -125,18 +107,6 @@ const Catbassadors = ({ cat, profile, timer }: ICatbassadorsProps) => {
         {cat && (
           <>
             <div className="flex flex-col justify-center relative gap-2 items-end pr-2 md:pr-4 pt-1 md:pt-4">
-              <div className="flex items-center gap-2 ">
-                <p className="font-bold font-secondary text-p3 z-10">
-                  {profile?.catpoints?.toFixed(0) || 0} X
-                </p>
-                <img className="w-8 z-10" src="/logo/coin.webp" />
-              </div>
-              <div className="flex items-center gap-2 ">
-                <p className="font-bold font-secondary text-p3 z-10">
-                  {profile.catbassadorsLives} X
-                </p>
-                <img className="w-8 z-10" src="/base/heart.png" />
-              </div>
               {timer !== 0 && (
                 <div className="flex items-center gap-2 ">
                   <p className="font-bold font-secondary text-p3 z-10">

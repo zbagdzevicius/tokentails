@@ -91,20 +91,12 @@ export class Toy {
       });
     }
     this.sprite.anims.play(ToyAnimation.TOY_APPEAR);
+
     setTimeout(() => {
       if (this?.sprite?.anims?.play) {
         this.sprite.anims.play(ToyAnimation.TOY_FLY);
       }
-    }, 1000)
-
-    setInterval(() => {
-      const animationIndex = animationConfigurations.findIndex(
-        (configuration) => configuration.key === this.animation
-      );
-      const newIndex = animationIndex + 1;
-      this.animation =
-        animationConfigurations[newIndex % animationConfigurations.length].key;
-    }, 2000);
+    }, 1000);
   }
 
   private goToInitialPosition() {

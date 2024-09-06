@@ -1,8 +1,6 @@
 import { CatAbilities, ICat } from "@/models/cats";
-import { EntityType } from "@/models/save";
 import React, { useRef } from "react";
 import { PixelButton } from "../button/PixelButton";
-import { Web3Transfer } from "../web3/minting/Web3Transfer";
 
 interface IProps extends ICat {
   onClose: () => void;
@@ -21,7 +19,7 @@ export const CatCard: React.FC<IProps> = ({
   const cardRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="flex items-center justify-center w-full h-full fixed top-0 left-0">
+    <div className="flex justify-center w-full h-full fixed top-0 left-0">
       <div
         className="absolute inset-0 z-0 bg-yellow-300 opacity-50"
         onClick={() => onClose()}
@@ -45,15 +43,12 @@ export const CatCard: React.FC<IProps> = ({
                 </div>
                 <div className="relative">
                   <img
-                    className="w-24 max-lg:w-16 h-10 max-lg:h-7"
+                    className="w-16 md:w-20 h-7 md:h-8"
                     src="/card/base.png"
                     alt="base"
                   />
-                  <h3 className="text-[#545454] text-3xl max-lg:text-xl font-bold absolute inset-0 text-center">
-                    9
-                    <span className="text-xs max-lg:text-p7 mx-1 max-lg:mx-px">
-                      LIVES
-                    </span>
+                  <h3 className="text-gray-500 italic text-p5 md:text-p4 font-secondary absolute inset-0 font-bold flex justify-center items-center">
+                    KITTEN
                   </h3>
                 </div>
               </div>
@@ -103,12 +98,13 @@ export const CatCard: React.FC<IProps> = ({
                 </p>
               </div>
               <div className="flex items-end gap-1 justify-around text-white">
-                <Web3Transfer
+                {/* <Web3Transfer
                   price={price}
                   _id={_id!}
                   entityType={EntityType.CAT}
-                />
+                /> */}
 
+                <PixelButton active={true} text="COMING" subtext="NEXT WEEK" onClick={() => {}}></PixelButton>
                 <PixelButton text="CLOSE" onClick={onClose}></PixelButton>
               </div>
             </div>

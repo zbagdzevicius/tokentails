@@ -3,6 +3,7 @@ import { ArticleMicrodata } from "@/components/seo/ArticleMicrodata";
 import { SeoHead } from "@/components/seo/SeoHead";
 import { articleFetch } from "@/constants/api";
 import { getAppStaticProps } from "@/constants/props-functions";
+import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import BlogLayout from "@/layouts/BlogLayout";
 import { IArticle, IArticleExcerpt } from "@/models/article";
 import Custom404 from "@/pages/404";
@@ -20,9 +21,14 @@ export default function ArticlePage({ article, randomArticles }: Props) {
         <SeoHead article={article} />
         <ArticleMicrodata {...article!} />
 
-        <BlogLayout>
-          <ArticleContainer article={article} randomArticles={randomArticles} />
-        </BlogLayout>
+        <FirebaseAuthProvider>
+          <BlogLayout>
+            <ArticleContainer
+              article={article}
+              randomArticles={randomArticles}
+            />
+          </BlogLayout>
+        </FirebaseAuthProvider>
       </Then>
       <Else>
         <Custom404 />

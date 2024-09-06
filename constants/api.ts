@@ -244,7 +244,7 @@ export const savePost = (props: ISave): Promise<void> =>
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      accesstoken: localStorage.getItem("accesstoken"),
+      accesstoken: sessionStorage.getItem("accesstoken"),
     } as any,
     body: JSON.stringify(props),
   }).then((response) => {
@@ -261,7 +261,7 @@ export const saveDelete = (props: ISave): Promise<void> =>
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      accesstoken: localStorage.getItem("accesstoken"),
+      accesstoken: sessionStorage.getItem("accesstoken"),
     } as any,
     body: JSON.stringify(props),
   }).then((response) => {
@@ -278,7 +278,7 @@ export const likePost = (props: ISave): Promise<void> =>
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      accesstoken: localStorage.getItem("accesstoken"),
+      accesstoken: sessionStorage.getItem("accesstoken"),
     } as any,
     body: JSON.stringify(props),
   }).then((response) => {
@@ -295,7 +295,7 @@ export const unlikePost = (props: ISave): Promise<void> =>
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      accesstoken: localStorage.getItem("accesstoken"),
+      accesstoken: sessionStorage.getItem("accesstoken"),
     } as any,
     body: JSON.stringify(props),
   }).then((response) => {
@@ -317,7 +317,7 @@ export const entityMetadataFetch = async (
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      accesstoken: localStorage.getItem("accesstoken"),
+      accesstoken: sessionStorage.getItem("accesstoken"),
     } as any,
     body: JSON.stringify(props),
   }).then((response) => {
@@ -375,7 +375,7 @@ export const submitComment = (
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      accesstoken: localStorage.getItem("accesstoken"),
+      accesstoken: sessionStorage.getItem("accesstoken"),
     } as any,
     body: JSON.stringify(comment),
   }).then((response) => {
@@ -395,7 +395,7 @@ export const submitPublication = (
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      accesstoken: localStorage.getItem("accesstoken"),
+      accesstoken: sessionStorage.getItem("accesstoken"),
     } as any,
     body: JSON.stringify(publication),
   }).then((response) => {
@@ -434,7 +434,7 @@ export const profileFetch = async (): Promise<IProfile> => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      accesstoken: localStorage.getItem("accesstoken"),
+      accesstoken: sessionStorage.getItem("accesstoken"),
     } as any,
   }).then((response) => {
     if (response.ok) {
@@ -452,7 +452,7 @@ export const saveProfile = (profile: IProfile) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      accesstoken: localStorage.getItem("accesstoken"),
+      accesstoken: sessionStorage.getItem("accesstoken"),
     } as any,
     body: JSON.stringify(profile),
   }).then((response) => {
@@ -490,24 +490,7 @@ export const redeemCat = async (code: string): Promise<ICat | null> => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      accesstoken: localStorage.getItem("accesstoken"),
-    } as any,
-  }).then((response) => {
-    if (response.ok) {
-      return response.json();
-    }
-
-    console.warn(JSON.stringify(response));
-    return null;
-  });
-};
-export const redeemFreeTrial = async (): Promise<ICat | null> => {
-  return fetch(`${apiUrl}/cat/redeem/free`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      accesstoken: localStorage.getItem("accesstoken"),
+      accesstoken: sessionStorage.getItem("accesstoken"),
     } as any,
   }).then((response) => {
     if (response.ok) {
@@ -532,7 +515,7 @@ export const updateCatStatus = async (
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      accesstoken: localStorage.getItem("accesstoken"),
+      accesstoken: sessionStorage.getItem("accesstoken"),
     } as any,
   }).then((response) => {
     if (response.ok) {
@@ -541,24 +524,6 @@ export const updateCatStatus = async (
 
     console.warn(JSON.stringify(response));
     return null;
-  });
-};
-
-export const deleteProfileRequest = async (): Promise<void> => {
-  return fetch(`${apiUrl}/user/meal-plan`, {
-    method: "DELETE",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      accesstoken: localStorage.getItem("accesstoken"),
-    } as any,
-  }).then((response) => {
-    if (response.ok) {
-      return;
-    }
-
-    console.warn(JSON.stringify(response));
-    return;
   });
 };
 
@@ -585,7 +550,7 @@ export const getLeaderboardPosition = async (): Promise<number> => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      accesstoken: localStorage.getItem("accesstoken"),
+      accesstoken: sessionStorage.getItem("accesstoken"),
     } as any,
   })
     .then((response) => {
@@ -628,7 +593,7 @@ export const confirmTransaction = async (
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      accesstoken: localStorage.getItem("accesstoken"),
+      accesstoken: sessionStorage.getItem("accesstoken"),
     } as any,
     body: JSON.stringify(order),
   }).then((response) => {

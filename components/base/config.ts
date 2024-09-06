@@ -1,4 +1,4 @@
-import { AUTO, Game } from "phaser";
+import { Game } from "phaser";
 import { BaseScene } from "./scenes/BaseScene";
 
 //  Find out more information about the Game Config at:
@@ -9,7 +9,7 @@ export const GAME_HEIGHT = window.innerHeight;
 // export const GAME_HEIGHT = 768 || window.innerHeight;
 
 const config: Phaser.Types.Core.GameConfig = {
-  type: AUTO,
+  type: Phaser.WEBGL,
   parent: "game-container",
   backgroundColor: "#fff",
   scene: BaseScene,

@@ -5,8 +5,8 @@ const colors = ["#f75252", "#f7c352", "#e1f752", "#bbf752", "#52f76a"];
 
 export const StatusBar = ({ status: currentStatus, type }: IStatus) => {
   return (
-    <div className="flex justify-center gap-2 items-center z-10">
-      <img className="w-8 md:w-10" src={typeImages[type]} />
+    <div className="flex justify-center gap-1 md:gap-2 items-center z-10">
+      <img className="w-4 md:w-6" src={typeImages[type]} />
       <div className="w-24 h-8 flex items-center justify-center relative">
         <div className="z-10 absolute flex inset-0 justify-center items-center">
           <p className="font-secondary text-p4">{statusTypeLabels[type]}</p>

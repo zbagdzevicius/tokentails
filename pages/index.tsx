@@ -12,6 +12,7 @@ import { Tokenomics } from "@/components/landing/tokenomics/Tokenomics";
 import { Leaderboard } from "@/components/leaderboard/Leaderboard";
 import { Circle } from "@/components/shared/Circle";
 import { CircleWhite } from "@/components/shared/CircleWhite";
+import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import Head from "next/head";
 import { useEffect, useRef, useState } from "react";
 
@@ -102,13 +103,15 @@ export default function Index() {
         <div className="fixed -right-48 -top-32 md:-top-64">
           <Circle />
         </div>
-        <div className="pt-24 md:pt-36 fade-in" 
+        <div
+          className="pt-24 md:pt-36 fade-in"
           style={{
             backgroundImage: "url(/base/bg-night.gif)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
-          }}>
+          }}
+        >
           <div id="homepage">
             <HomePage />
           </div>
@@ -118,13 +121,15 @@ export default function Index() {
             <CatsSlider />
           </div>
         </div>
-        <div className="py-4 bg-gradient-to-b from-purple-300" 
+        <div
+          className="py-4 bg-gradient-to-b from-purple-300"
           style={{
             backgroundImage: "url(/base/bg-2.gif)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
-          }}>
+          }}
+        >
           <div id="catshub" ref={catshubRef}>
             <CatsHub />
           </div>
@@ -143,6 +148,27 @@ export default function Index() {
             </div>
           </div>
         </div>
+        <div className="py-4 pt-24 bg-gradient-to-t from-blue-300 to-purple-300">
+          <div id="roadmap" ref={roadmapRef}>
+            <Roadmap />
+          </div>
+        </div>
+        <div className="py-4 bg-gradient-to-t from-green-300 to-blue-300">
+          <div id="feedbackslider" ref={feedbackSliderRef}>
+            <FeedbackSlider />
+          </div>
+        </div>
+        <div className="bg-gradient-to-b from-green-300 to-blue-300">
+          <div id="blog">
+            <BlogPreview />
+          </div>
+        </div>
+        <div className="pt-4 bg-gradient-to-b from-blue-300 to-yellow-300">
+          <div id="contact" ref={contactRef}>
+            <Contact />
+          </div>
+        </div>
+
         <div
           className="py-4 md:pt-12 bg-gradient-to-b from-purple-300 to-green-300"
           style={{
@@ -157,32 +183,15 @@ export default function Index() {
             ref={leaderboardRef}
             className="max-w-xl m-auto"
           >
-            <Leaderboard />
+            <FirebaseAuthProvider>
+              <Leaderboard />
+            </FirebaseAuthProvider>
           </div>
         </div>
-        <div className="py-4 pt-24 bg-gradient-to-t from-blue-300 to-purple-300">
-          <div id="roadmap" ref={roadmapRef}>
-            <Roadmap />
-          </div>
-        </div>
-        <div className="py-4 bg-gradient-to-t from-green-300 to-blue-300">
-          <div id="feedbackslider" ref={feedbackSliderRef}>
-            <FeedbackSlider />
-          </div>
-        </div>
-        <div className="py-4 bg-gradient-to-t from-purple-300 to-green-300">
+
+        <div className="py-4 pt-16 bg-gradient-to-t from-purple-300 to-green-300">
           <div id="tokenomics" ref={tokenomicsRef}>
             <Tokenomics />
-          </div>
-        </div>
-        <div className="bg-gradient-to-t from-green-300 to-purple-300">
-          <div id="blog">
-            <BlogPreview />
-          </div>
-        </div>
-        <div className="pt-4 bg-gradient-to-b from-blue-300 to-yellow-300">
-          <div id="contact" ref={contactRef}>
-            <Contact />
           </div>
         </div>
         <Footer />

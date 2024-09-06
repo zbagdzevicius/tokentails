@@ -20,46 +20,6 @@ const getAuthHeaders = () => ({
   accesstoken: sessionStorage.getItem("accesstoken"),
 });
 
-export const TGetProfile = async (): Promise<IProfile> => {
-  await waitForLocalStorageKey();
-  return fetch(`${apiUrl}/user/catbassadors/profile`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-    } as any,
-  }).then((response) => {
-    if (response.ok) {
-      return response.json();
-    }
-
-    console.warn(JSON.stringify(response));
-    return null;
-  });
-};
-
-export const TGetLeaderboardPosition = async (): Promise<number> => {
-  await waitForLocalStorageKey();
-  return fetch(`${apiUrl}/user/catbassadors/leaderboard/position`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-    } as any,
-  })
-    .then((response) => {
-      if (response.ok) {
-        return response.json();
-      }
-
-      console.warn(JSON.stringify(response));
-      return { position: "99999" };
-    })
-    .then((v) => v.position);
-};
-
 export const TDeleteLive = async (
   points: string | number
 ): Promise<IProfile[]> => {
@@ -97,23 +57,6 @@ export const TRedeemLives = async (): Promise<object> => {
 
     console.warn(JSON.stringify(response));
     return {};
-  });
-};
-
-export const TGetLeaderboard = async (): Promise<IProfile[]> => {
-  return fetch(`${apiUrl}/user/catbassadors/leaderboard`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    } as any,
-  }).then((response) => {
-    if (response.ok) {
-      return response.json();
-    }
-
-    console.warn(JSON.stringify(response));
-    return [];
   });
 };
 

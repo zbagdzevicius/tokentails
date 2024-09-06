@@ -1,18 +1,20 @@
+import { useCat } from "@/context/CatContext";
+import { useProfile } from "@/context/ProfileContext";
+import { StatusType } from "@/models/status";
 import {
   forwardRef,
   useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
+  useState,
 } from "react";
-import { StartGame, GAME_HEIGHT, GAME_WIDTH } from "./config";
-import BaseBus from "./BaseBus";
-import { StatusBar } from "../shared/game/StatusBar";
-import { StatusType } from "@/models/status";
-import { BaseBusEvent } from "./BaseBus.events";
-import { useCat } from "@/context/CatContext";
 import { PixelButton } from "../button/PixelButton";
-import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
+import { StatusBar } from "../shared/game/StatusBar";
+import BaseBus from "./BaseBus";
+import { BaseBusEvent } from "./BaseBus.events";
+import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
+import { useGameLoadedEvent } from "../catbassadors/hooks";
 
 export interface IRefPhaserGame {
   game: Phaser.Game | null;
@@ -76,23 +78,24 @@ const BaseGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame(
 function Base() {
   // The sprite can only be moved in the MainMenu Scene
   //  References to the PhaserGame component (game and scene are exposed)
-  const { profile, showProfilePopup } = useFirebaseAuth();
+  const { profile } = useProfile();
   const phaserRef = useRef<IRefPhaserGame | null>(null);
   const { setCat, setCatStatus, cat } = useCat();
+  const isGameLoaded = useGameLoadedEvent();
   useEffect(() => {
     if (setCat && profile?.cat) {
       setCat(profile.cat!);
     }
-  }, [profile?.cat]);
+  }, [profile?.cat, setCat]);
   useEffect(() => {
-    if (profile?.cat) {
+    if (profile?.cat && isGameLoaded) {
       BaseBus.emit(BaseBusEvent.SPAWN_CAT, profile.cat);
 
       if ((profile.cat.status.EAT || 0) < 4) {
         BaseBus.emit(BaseBusEvent.MEOW);
       }
     }
-  }, [profile?.cat]);
+  }, [profile?.cat, isGameLoaded]);
 
   useEffect(() => {
     BaseBus.addListener(BaseBusEvent.EATEN, () => {
@@ -121,11 +124,25 @@ function Base() {
     BaseBus.emit(BaseBusEvent.SPAWN_EAT);
   }, []);
 
+  const [isClicked, setIsClicked] = useState(false);
+  useEffect(() => {
+    window.onclick = () => {
+      setIsClicked(true);
+    };
+  }, []);
+
   return (
     <div id="app">
+      {isClicked && (
+        <audio className="display: none" autoPlay>
+          <source
+            src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3"
+            type="audio/mpeg"
+          />
+        </audio>
+      )}
       <div className="fixed right-0 top-0 z-50">
         {cat && (
-          <>
             <div className="flex flex-col justify-center relative gap-2 items-end pr-2 md:pr-4 pt-1 md:pt-4">
               <StatusBar
                 status={cat.status[StatusType.EAT]!}
@@ -135,27 +152,12 @@ function Base() {
                 status={cat.status[StatusType.PLAY]!}
                 type={StatusType.PLAY}
               />
-              <div className="flex items-center gap-2 ">
-                <p className="font-bold font-secondary text-p3 z-10">9 X</p>
-                <img className="w-8 z-10" src="/base/heart.png" />
-              </div>
-              <div className="flex items-center gap-2 ">
-                <p className="font-bold font-secondary text-p3 z-10">
-                  {profile?.score || 0} X
-                </p>
-                <img className="w-8 z-10" src="/logo/coin.webp" />
-              </div>
             </div>
-          </>
         )}
       </div>
-      <div className="fixed bottom-4 left-0 right-0 z-50 flex justify-center gap-2 px-4">
+      <div className="fixed bottom-8 pb-safe left-1/2 -translate-x-1/2 flex justify-center gap-2 px-4">
         <PixelButton text="Play" onClick={onPlayClick} />
         <PixelButton text="Feed" onClick={onFeedClick} />
-        <PixelButton text="PROFILE" onClick={showProfilePopup} />
-        <a href="/adopt">
-          <PixelButton text="ADOPT" onClick={onFeedClick} />
-        </a>
       </div>
       <BaseGame ref={phaserRef} />
     </div>

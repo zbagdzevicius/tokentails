@@ -1,12 +1,12 @@
 import { Avatar } from "@/components/profile/Avatar";
+import { commentsFetch, getNextPageFn, submitComment } from "@/constants/api";
+import { fromNow } from "@/constants/utils";
 import { useEntityMetadata } from "@/context/EntityMetadataContext";
-import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
+import { useProfile } from "@/context/ProfileContext";
 import { IComment } from "@/models/comment";
 import { EntityType, ISave } from "@/models/save";
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import classNames from "classnames";
-import { commentsFetch, getNextPageFn, submitComment } from "@/constants/api";
-import { fromNow } from "@/constants/utils";
 import { ChangeEvent, useCallback, useMemo, useState } from "react";
 import { If, Then } from "react-if";
 import { useDebouncedCallback } from "use-debounce";
@@ -23,17 +23,16 @@ export const SafeInput = (
   props: ICommentInputProps & { placeholder: string }
 ) => {
   const [message, setMessage] = useState("");
-  const { user, showSignInPopup } = useFirebaseAuth();
+  const { profile } = useProfile();
   const commentCall = useCallback(async () => {
-    if (!user) {
-      showSignInPopup();
+    if (!profile) {
       throw Error("Not signed in");
     }
     if (!message?.length) {
       throw Error("Message is empty");
     }
     return submitComment({ ...props, text: message });
-  }, [user, message, showSignInPopup]);
+  }, [profile, message]);
   const { mutate, isPending } = useMutation({
     mutationFn: commentCall,
     onSuccess: (data) => {
@@ -176,9 +175,7 @@ export const Comment = ({
             <div className="pt-2 flex-1">
               <div className="flex flex-col gap-2 overflow-y-auto flex-1">
                 {!replies.length && (
-                  <span className="text-center">
-                    No meows, Write a meow
-                  </span>
+                  <span className="text-center">No meows, Write a meow</span>
                 )}
                 {replies.map((reply) => (
                   <Comment key={reply._id!} isReplyDisabled={true} {...reply} />

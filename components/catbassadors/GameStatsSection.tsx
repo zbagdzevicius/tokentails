@@ -77,6 +77,16 @@ export const GameStatsSection = ({ profile }: { profile: IProfile }) => {
             onClick={() => setModal(stat.text)}
           />
         ))}
+
+        <div className="flex flex-col relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300">
+          <img className="w-6 h-6" src="/logo/coin.webp" />
+          <div className="text-p4 flex items-center gap-1">
+            <div>COINS</div>
+          </div>
+          <div className="flex items-center gap-2 -mt-1">
+            <div className="text-p5">{profile?.catpoints?.toFixed(0) || 0}</div>
+          </div>
+        </div>
       </div>
       {modal && (
         <div className="fixed inset-0 pt-safe w-full z-50 flex justify-center h-full">
@@ -86,7 +96,9 @@ export const GameStatsSection = ({ profile }: { profile: IProfile }) => {
           ></div>
           <div className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full relative bg-white absolute top-[4rem] md:top-[9rem] rounded-lg shadow h-fit">
             <div className="pb-safe rem:min-h-[100px] p-8 text-gray-500 flex flex-col gap-8 justify-between items-center">
-              <p className="text-p3 font-secondary whitespace-pre-line text-center">{modal}</p>
+              <p className="text-p3 font-secondary whitespace-pre-line text-center">
+                {modal}
+              </p>
               <PixelButton
                 onClick={() => setModal(null)}
                 text="Okey"
