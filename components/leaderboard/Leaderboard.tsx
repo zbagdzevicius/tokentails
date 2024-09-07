@@ -14,10 +14,7 @@ export const Leaderboard = () => {
         LEADERBOARD
       </h2>
       <h2 className="text-center font-secondary uppercase text-p5 md:text-p4">
-        EXCLUSIVE FOR EARLY BIRDS - UNLOCKED ON JULY 1st
-      </h2>
-      <h2 className="text-center font-secondary uppercase text-p5 md:text-p4">
-        Airdrop - Fullfill the needs of your cat to earn 1 point per day
+        Airdrop - Climb up the leaderboard to get bigger Airdrops !
       </h2>
       {position && (
         <div className="font-secondary uppercase text-p1 bg-yellow-300 w-fit m-auto rounded-xl px-8 mt-4">
