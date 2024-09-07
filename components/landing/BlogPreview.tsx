@@ -13,7 +13,7 @@ const BlogPreviewCard = ({ title, slug, featuredImage, category }: Props) => {
   return (
     <Link
       href={link}
-      className="rem:h-[350px] border-4 border-yellow-300 relative flex"
+      className="rem:h-[350px] border-2 md:border border-yellow-300 relative flex"
     >
       <Image
         loading="lazy"

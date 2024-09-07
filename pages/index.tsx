@@ -6,36 +6,35 @@ import { CatsSlider } from "@/components/landing/catsSlider/CatsSlider";
 import { CatsWinners } from "@/components/landing/catsWinners/CatsWinners";
 import Contact from "@/components/landing/contact/Contact";
 import { FeedbackSlider } from "@/components/landing/feedbackSlider/FeedbackSlider";
+import { GameModesSlider } from "@/components/landing/GameModesSlider";
 import { HomePage } from "@/components/landing/homePage/HomePage";
 import Roadmap from "@/components/landing/roadmap/Roadmap";
 import { Tokenomics } from "@/components/landing/tokenomics/Tokenomics";
-import { Leaderboard } from "@/components/leaderboard/Leaderboard";
 import { Circle } from "@/components/shared/Circle";
 import { CircleWhite } from "@/components/shared/CircleWhite";
-import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import Head from "next/head";
 import { useEffect, useRef, useState } from "react";
 
 export default function Index() {
   const [activeSection, setActiveSection] = useState("");
   const catssliderRef = useRef(null);
+  const gamessliderRef = useRef(null);
   const catshubRef = useRef(null);
   const catswinnersRef = useRef(null);
   const feedbackSliderRef = useRef(null);
   const tokenomicsRef = useRef(null);
   const roadmapRef = useRef(null);
   const contactRef = useRef(null);
-  const leaderboardRef = useRef(null);
 
   const sections = [
     catssliderRef,
+    gamessliderRef,
     catshubRef,
     catswinnersRef,
     feedbackSliderRef,
     tokenomicsRef,
     roadmapRef,
     contactRef,
-    leaderboardRef,
   ];
 
   useEffect(() => {
@@ -134,7 +133,12 @@ export default function Index() {
             <CatsHub />
           </div>
         </div>
-        <div className="py-4 bg-gradient-to-b from-purple-300 via-yellow-300 to-purple-300">
+        <div className="pb-4 pt-3 md:pt-0 bg-gradient-to-b from-purple-300 to-yellow-300">
+          <div id="catsslider" ref={gamessliderRef}>
+            <GameModesSlider />
+          </div>
+        </div>
+        <div className="py-4 bg-gradient-to-b from-yellow-300 via-yellow-300 to-purple-300">
           <div
             className="relative overflow-hidden"
             id="catswinners"
@@ -163,33 +167,13 @@ export default function Index() {
             <BlogPreview />
           </div>
         </div>
-        <div className="pt-4 bg-gradient-to-b from-blue-300 to-yellow-300">
+        <div className="pt-4 bg-gradient-to-b from-blue-300 to-green-300">
           <div id="contact" ref={contactRef}>
             <Contact />
           </div>
         </div>
 
-        <div
-          className="py-4 md:pt-12 bg-gradient-to-b from-purple-300 to-green-300"
-          style={{
-            backgroundImage: "url(/base/bg.gif)",
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        >
-          <div
-            id="leaderboard"
-            ref={leaderboardRef}
-            className="max-w-xl m-auto"
-          >
-            <FirebaseAuthProvider>
-              <Leaderboard />
-            </FirebaseAuthProvider>
-          </div>
-        </div>
-
-        <div className="py-4 pt-16 bg-gradient-to-t from-purple-300 to-green-300">
+        <div className="py-4 pt-16 bg-gradient-to-t from-yellow-300 to-green-300">
           <div id="tokenomics" ref={tokenomicsRef}>
             <Tokenomics />
           </div>

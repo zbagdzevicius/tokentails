@@ -1,7 +1,6 @@
-import { Socials } from "@/components/footer/Socials";
-import Preregistration from "../preregistration/Preregistration";
-import { useEffect, useState } from "react";
 import { PixelButton } from "@/components/button/PixelButton";
+import { Socials } from "@/components/footer/Socials";
+import { useEffect, useState } from "react";
 
 interface bannerProps {
   image: string;
@@ -9,86 +8,30 @@ interface bannerProps {
 }
 
 const sponsorImage = [
-  {
-    image: "/images/sponsor/stellar.webp",
-    name: "Stellar",
-  },
-  {
-    image: "/images/sponsor/u2u.png",
-    name: "u2u",
-  },
-  {
-    image: "/images/sponsor/kommunitas.webp",
-    name: "kommunitas",
-  },
-  {
-    image: "/images/sponsor/dao.webp",
-    name: "dao",
-  },
-  {
-    image: "/images/sponsor/skale.webp",
-    name: "skale",
-  },
-  {
-    image: "/images/sponsor/stellar.webp",
-    name: "Stellar",
-  },
-  {
-    image: "/images/sponsor/u2u.png",
-    name: "u2u",
-  },
-  {
-    image: "/images/sponsor/kommunitas.webp",
-    name: "kommunitas",
-  },
-  {
-    image: "/images/sponsor/dao.webp",
-    name: "dao",
-  },
-  {
-    image: "/images/sponsor/skale.webp",
-    name: "skale",
-  },
-  {
-    image: "/images/sponsor/stellar.webp",
-    name: "Stellar",
-  },
-  {
-    image: "/images/sponsor/u2u.png",
-    name: "u2u",
-  },
-  {
-    image: "/images/sponsor/kommunitas.webp",
-    name: "kommunitas",
-  },
-  {
-    image: "/images/sponsor/dao.webp",
-    name: "dao",
-  },
-  {
-    image: "/images/sponsor/skale.webp",
-    name: "skale",
-  },
-  {
-    image: "/images/sponsor/stellar.webp",
-    name: "Stellar",
-  },
-  {
-    image: "/images/sponsor/u2u.png",
-    name: "u2u",
-  },
-  {
-    image: "/images/sponsor/kommunitas.webp",
-    name: "kommunitas",
-  },
-  {
-    image: "/images/sponsor/dao.webp",
-    name: "dao",
-  },
-  {
-    image: "/images/sponsor/roblox.png",
-    name: "Roblox",
-  },
+  "/images/sponsor/stellar.webp",
+  "/images/sponsor/brinc.webp",
+  "/images/sponsor/skale.webp",
+  "/images/sponsor/buidlers-tribe.webp",
+  "/images/sponsor/crossfi.webp",
+  "/images/sponsor/diamante.webp",
+  "/images/sponsor/digitalocean.webp",
+  "/images/sponsor/earn-alliance.webp",
+  "/images/sponsor/microsoft-for-startups.webp",
+  "/images/sponsor/social-shifters.webp",
+  "/images/sponsor/unicorn-ultra.webp",
+  "/images/sponsor/xdc.webp",
+  "/images/sponsor/stellar.webp",
+  "/images/sponsor/brinc.webp",
+  "/images/sponsor/skale.webp",
+  "/images/sponsor/buidlers-tribe.webp",
+  "/images/sponsor/crossfi.webp",
+  "/images/sponsor/diamante.webp",
+  "/images/sponsor/digitalocean.webp",
+  "/images/sponsor/earn-alliance.webp",
+  "/images/sponsor/microsoft-for-startups.webp",
+  "/images/sponsor/social-shifters.webp",
+  "/images/sponsor/unicorn-ultra.webp",
+  "/images/sponsor/xdc.webp",
 ];
 
 const cats: bannerProps[] = [
@@ -218,7 +161,7 @@ export const HomePage = () => {
 
   return (
     <div className="mt-4 flex justify-center items-center flex-col">
-      <div className="relative w-full lg:w-2/3 xl:w-1/2 pt-16 px-10 max-lg:text-balance md:-mb-16">
+      <div className="relative w-full lg:w-2/3 xl:w-1/2 px-10 max-lg:text-balance -mb-2 lg:-mb-16">
         <img
           className="absolute top-0 left-0 "
           src="/images/home-page/firework.png"
@@ -279,22 +222,43 @@ export const HomePage = () => {
             />
           </div>
           <a href="/game" className="absolute bottom-0 md:bottom-4">
-            <PixelButton
-              text="PLAY IN BROWSER"
-              isBig
-              subtext="AND EARN COINS"
-              onClick={() => {}}
-            ></PixelButton>
+            <span className="relative z-10">
+              <PixelButton text="PLAY ON" isBig subtext="BROWSER"></PixelButton>
+            </span>
+
+            <img
+              src="/logo/coin.webp"
+              alt="coin"
+              className="h-12 w-12 absolute bottom-0 top-0 -left-6"
+            />
+            <img
+              src="/logo/chest.webp"
+              alt="coin"
+              className="h-12 w-12 absolute bottom-0 top-0 -right-6"
+            />
           </a>
         </div>
       </div>
-      <div className="font-secondary text-p3 md:-mt-2">OR</div>
+      <div className="font-secondary text-p3 md:-mt-3">OR</div>
       <a
         href="https://t.me/CatbassadorsBot?start=start"
         target="_blank"
-        className="font-secondary text-p1 mb-4"
+        className="font-secondary text-p1 mb-4 relative"
       >
-        <PixelButton text="PLAY TELEGRAM GAME" subtext="TO WIN AIRDROP" isBig onClick={() => {}}></PixelButton>
+        <span className="relative z-10">
+          <PixelButton text="PLAY ON" subtext="TELEGRAM" isBig></PixelButton>
+        </span>
+
+        <img
+          src="/logo/boss-coin.png"
+          alt="coin"
+          className="h-12 w-12 absolute bottom-0 top-0 -right-6"
+        />
+        <img
+          src="/logo/level.png"
+          alt="coin"
+          className="h-12 w-12 absolute bottom-0 top-0 -left-6"
+        />
       </a>
       <Socials />
       {/* <Preregistration /> */}
@@ -303,10 +267,13 @@ export const HomePage = () => {
       <div className="slider relative bg-gradient-to-r from-green-300 to-purple-300">
         <div className="slide-track">
           {sponsorImage.map((sponsor, index) => (
-            <div key={index} className="slide flex items-center invert">
-              <img className="h-8" src={sponsor.image} alt={sponsor.name} />
+            <div key={index} className="slide flex items-center">
+              <img className="h-10 w-full" src={sponsor} />
             </div>
           ))}
+        </div>
+        <div className="absolute left-1/2 -translate-x-1/2 -top-3 px-4 bg-gradient-to-r from-purple-400 to-blue-400 text-white rounded-full font-secondary">
+          PARTNERS
         </div>
       </div>
     </div>

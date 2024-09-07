@@ -69,12 +69,12 @@ export const Header = () => {
         showHeader
           ? isTop
             ? ""
-            : "bg-[rgba(45, 30, 107, 1)] bg-opacity-50 backdrop-blur-md shadow-lg"
+            : "bg-[rgba(45, 30, 107, 1)] lg:bg-opacity-50 bg-yellow-300 shadow-lg"
           : "-translate-y-full"
       }`}
     >
       <div
-        className={`flex flex-wrap items-center justify-between ${
+        className={`flex flex-wrap items-center justify-between relative ${
           isTop ? "py-6" : "py-2"
         } px-24 max-lg:px-4 relative`}
       >
@@ -86,7 +86,7 @@ export const Header = () => {
           />
           <div className="text-p3 font-secondary">TOKEN TAILS</div>
         </a>
-        <ul className="lg:!flex lg:space-x-4 max-lg:space-y-2 max-lg:hidden max-lg:py-4 max-lg:w-full">
+        <ul className="hidden lg:flex space-x-8 py-4 absolute left-1/2 -translate-x-1/2">
           {navConsts.map((navItem, index) => (
             <li
               key={index}
@@ -94,7 +94,7 @@ export const Header = () => {
             >
               <a
                 href={navItem.link}
-                className={`text-p5 max-lg:text-p6 hover:custom-gradient-text ${
+                className={`text-p3 font-secondary hover:custom-gradient-text ${
                   activeTitle === navItem.title
                     ? "custom-gradient-text font-bold"
                     : ""
@@ -107,7 +107,7 @@ export const Header = () => {
           ))}
         </ul>
         <div className="flex items-center space-x-2">
-          <div onClick={() => setIsNavOpen(!isNavOpen)} className="lg:hidden">
+          <div onClick={() => setIsNavOpen(!isNavOpen)} className="lg:hidden h-12 w-12 flex items-center justify-center bg-gradient-to-b opacity-50 from-yellow-300 to-red-300 mr-4 rounded-xl">
             {isNavOpen ? (
               <img src="/icons/close.svg" alt="close" width={16} height={16} />
             ) : (
@@ -125,23 +125,18 @@ export const Header = () => {
         </div>
       </div>
       {isNavOpen && (
-        <div className="lg:hidden absolute w-full z-10 bg-gradient-to-b from-yellow-300 to-purple-300">
-          <ul className="space-y-2 pb-4">
+        <div className="lg:hidden absolute w-full z-10 bg-gradient-to-b from-yellow-300 via-red-300 to-yellow-300">
+          <ul className="pb-4 flex flex-col items-center">
             {navConsts.map((navItem, index) => (
               <li key={index} className="py-2 px-3">
                 <a
                   href={navItem.link}
-                  className={`text-p5 hover:custom-gradient-text${
-                    activeTitle === navItem.title
-                      ? "custom-gradient-text font-bold"
-                      : ""
-                  }`}
                   onClick={() => {
                     handleTitleClick(navItem.title);
                     setIsNavOpen(false);
                   }}
                 >
-                  {navItem.title}
+                  <PixelButton active={activeTitle === navItem.title} text={navItem.title}></PixelButton>
                 </a>
               </li>
             ))}

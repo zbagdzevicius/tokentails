@@ -1,6 +1,5 @@
-import React, { useCallback, useState } from "react";
-import Image from "next/image";
 import { PixelButton } from "@/components/button/PixelButton";
+import { useCallback, useState } from "react";
 
 interface IProps {
   title: string;

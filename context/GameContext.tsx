@@ -5,6 +5,7 @@ import {
 } from "@/components/catbassadors/hooks";
 import { GameOptionsModal } from "@/components/game/GameOptionsModal";
 import { GameSelect } from "@/components/game/GameSelect";
+import { Leaderboard } from "@/components/leaderboard/Leaderboard";
 import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
 import { QuestsModal } from "@/components/shared/QuestsModal";
 import { TelegramProfile } from "@/components/shared/TelegramProfile";
@@ -116,6 +117,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           )}
           {openedModal === GameModal.QUESTS && (
             <QuestsModal close={() => setOpenedModal(null)} />
+          )}
+          {openedModal === GameModal.LEADERBOARD && (
+            <Leaderboard close={() => setOpenedModal(null)} />
           )}
         </>
       )}

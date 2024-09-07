@@ -1,6 +1,7 @@
 export enum GameModal {
   QUESTS = "QUESTS",
   PROFILE = "PROFILE",
+  LEADERBOARD = "LEADERBOARD",
 }
 
 export enum GameType {

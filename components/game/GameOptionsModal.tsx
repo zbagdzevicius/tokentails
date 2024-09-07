@@ -42,7 +42,7 @@ export const GameOptionsModal = ({
     setProfileUpdate({
       canRedeemLives: false,
       streak: (profile.streak || 0) + 1,
-      catpoints: (profile.catpoints || 0) + numberOfLivesToRedeem,
+      catpoints: (profile.catpoints || 0) + numberOfPointsToRedeem,
       catbassadorsLives:
         (profile.catbassadorsLives || 0) + numberOfLivesToRedeem,
     });
@@ -70,15 +70,21 @@ export const GameOptionsModal = ({
           <div className="flex flex-col gap-4">
             <PixelButton
               onClick={() => {
+                setOpenedModal(GameModal.PROFILE);
+              }}
+              text="STATS"
+            ></PixelButton>
+            <PixelButton
+              onClick={() => {
                 setOpenedModal(GameModal.QUESTS);
               }}
               text="QUESTS"
             ></PixelButton>
             <PixelButton
               onClick={() => {
-                setOpenedModal(GameModal.PROFILE);
+                setOpenedModal(GameModal.LEADERBOARD);
               }}
-              text="STATS"
+              text="LEADERBOARD"
             ></PixelButton>
           </div>
         )}
