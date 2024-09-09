@@ -26,6 +26,9 @@ const GameStatSection = ({ title, image, stat, bg, onClick }: IGameStat) => {
   );
 };
 
+const coinsText = `Earn coins to get airdrops
+stay in the top leaderboards to win extra prizes`;
+
 export const GameStatsSection = ({ profile }: { profile: IProfile }) => {
   const [modal, setModal] = useState<null | string>(null);
   const gameStats = useMemo(() => {
