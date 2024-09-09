@@ -118,9 +118,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           {openedModal === GameModal.QUESTS && (
             <QuestsModal close={() => setOpenedModal(null)} />
           )}
-          {openedModal === GameModal.LEADERBOARD && (
-            <Leaderboard close={() => setOpenedModal(null)} />
-          )}
+          {[GameModal.LEADERBOARD, GameModal.LEADERBOARD_DAILY].includes(
+            openedModal as GameModal
+          ) && <Leaderboard type={openedModal!} close={() => setOpenedModal(null)} />}
         </>
       )}
       {children}

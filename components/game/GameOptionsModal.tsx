@@ -5,6 +5,7 @@ import { IProfile } from "@/models/profile";
 import { useCallback, useMemo } from "react";
 import { PixelButton } from "../button/PixelButton";
 import { GameStatsSection } from "../catbassadors/GameStatsSection";
+import { useToast } from "@/context/ToastContext";
 
 interface IProps {
   profile: IProfile;
@@ -32,6 +33,7 @@ export const GameOptionsModal = ({
 
     return referralsPoints + streakPoints + basePoints;
   }, [profile?.referrals, profile?.streak]);
+  const toast = useToast();
 
   const numberOfLivesToRedeem = useMemo(() => {
     return (profile?.referrals?.length || 0) + 3;
@@ -53,7 +55,15 @@ export const GameOptionsModal = ({
       <GameStatsSection profile={profile} />
       <div className="fixed bottom-8 left-4 right-4 pb-safe flex justify-between items-end">
         <div className="flex flex-col items-center animate-hover">
-          <div className="flex flex-col items-center font-secondary text-p2 opacity-75 bg-yellow-300 px-2 rounded-t-xl">
+          <div
+            onClick={() =>
+              toast({
+                message:
+                  "To earn lives - Redeem daily rewards, invite friends and feed your cat at Home",
+              })
+            }
+            className="flex flex-col items-center font-secondary text-p2 opacity-75 bg-yellow-300 px-2 rounded-t-xl"
+          >
             <img className="w-8 z-10 pt-2" src="/base/heart.png" />
             <div className="-mt-1">{profile.catbassadorsLives || 0}</div>
             <div className="-mt-2 text-p4">LIVES</div>
@@ -61,7 +71,11 @@ export const GameOptionsModal = ({
           {gameType === GameType.CATBASSADORS && (
             <PixelButton
               active={!profile.catbassadorsLives}
-              onClick={() => setIsStarted(true)}
+              onClick={() =>
+                profile.catbassadorsLives > 0
+                  ? setIsStarted(true)
+                  : toast({ message: "Earn more lives to play" })
+              }
               text="Play"
             ></PixelButton>
           )}
@@ -80,6 +94,24 @@ export const GameOptionsModal = ({
               }}
               text="QUESTS"
             ></PixelButton>
+            <div className="relative">
+              <div className="relative z-10 flex justify-center">
+                <PixelButton
+                  onClick={() => {
+                    setOpenedModal(GameModal.LEADERBOARD_DAILY);
+                  }}
+                  text="CONTEST"
+                ></PixelButton>
+              </div>
+              <img
+                src="/logo/coin.webp"
+                className="w-8 absolute top-2 left-0"
+              />
+              <img
+                src="/logo/boss-coin.png"
+                className="w-8 absolute top-2 right-0"
+              />
+            </div>
             <PixelButton
               onClick={() => {
                 setOpenedModal(GameModal.LEADERBOARD);

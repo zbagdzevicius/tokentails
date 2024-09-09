@@ -1,5 +1,5 @@
 import { IProfile } from "@/models/profile";
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { PixelButton } from "../button/PixelButton";
 
 interface IGameStat {
@@ -78,7 +78,10 @@ export const GameStatsSection = ({ profile }: { profile: IProfile }) => {
           />
         ))}
 
-        <div className="flex flex-col relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300">
+        <div
+          onClick={() => setModal(coinsText)}
+          className="flex flex-col relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300"
+        >
           <img className="w-6 h-6" src="/logo/coin.webp" />
           <div className="text-p4 flex items-center gap-1">
             <div>COINS</div>

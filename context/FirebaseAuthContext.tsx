@@ -195,7 +195,7 @@ function useFirebaseAuth() {
 
           if (isWrongPassword) {
             toast({
-              message: "Neteisingas slaptažodis",
+              message: "Wrong password",
               icon: "bx-x-circle",
               isError: true,
             });

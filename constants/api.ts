@@ -2,6 +2,7 @@ import { IArticle, IArticleExcerpt } from "@/models/article";
 import { ICategory } from "@/models/category";
 import { ICat, ICatStatus } from "@/models/cats";
 import { IComment } from "@/models/comment";
+import { GameModal } from "@/models/game";
 import { IGroup } from "@/models/group";
 import { IOrder } from "@/models/order";
 import { IProfile } from "@/models/profile";
@@ -527,21 +528,28 @@ export const updateCatStatus = async (
   });
 };
 
-export const getLeaderboard = async (): Promise<IProfile[]> => {
-  return fetch(`${apiUrl}/user/leaderboard`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    } as any,
-  }).then((response) => {
+export const getLeaderboard = async (
+  gameModal: GameModal
+): Promise<IProfile[]> => {
+  return fetch(
+    `${apiUrl}/user/leaderboard${
+      gameModal === GameModal.LEADERBOARD_DAILY ? "/daily" : ""
+    }`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      } as any,
+    }
+  ).then((response) => {
     if (response.ok) {
       return response.json();
     }
 
     console.warn(JSON.stringify(response));
     return [];
-  });
+  }).then();
 };
 
 export const getLeaderboardPosition = async (): Promise<number> => {

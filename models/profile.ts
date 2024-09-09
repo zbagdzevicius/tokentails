@@ -10,6 +10,8 @@ export interface IProfile {
     score: number;
     walletAddress: string;
     catpoints: number;
+    catpointsToday: number;
+    catpointsRecord: number;
     canRedeemLives: boolean;
     catbassadorsLives: number;
     referrals: string[];
