@@ -330,7 +330,7 @@ $n: 20;
 .slide-track {
   animation: scroll 40s linear infinite;
   display: flex;
-  width: calc(250px * $n);
+  width: calc(300px * $n);
   overflow: hidden;
 
   &.inverse {

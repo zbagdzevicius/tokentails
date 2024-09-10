@@ -8,30 +8,32 @@ interface bannerProps {
 }
 
 const sponsorImage = [
+  "/images/sponsor/microsoft-for-startups.webp",
+  "/images/sponsor/social-shifters.webp",
   "/images/sponsor/stellar.webp",
+  "/images/sponsor/immutable.webp",
   "/images/sponsor/brinc.webp",
   "/images/sponsor/skale.webp",
+  "/images/sponsor/xdc.webp",
   "/images/sponsor/buidlers-tribe.webp",
   "/images/sponsor/crossfi.webp",
   "/images/sponsor/diamante.webp",
   "/images/sponsor/digitalocean.webp",
   "/images/sponsor/earn-alliance.webp",
+  "/images/sponsor/unicorn-ultra.webp",
   "/images/sponsor/microsoft-for-startups.webp",
   "/images/sponsor/social-shifters.webp",
-  "/images/sponsor/unicorn-ultra.webp",
-  "/images/sponsor/xdc.webp",
   "/images/sponsor/stellar.webp",
+  "/images/sponsor/immutable.webp",
   "/images/sponsor/brinc.webp",
   "/images/sponsor/skale.webp",
+  "/images/sponsor/xdc.webp",
   "/images/sponsor/buidlers-tribe.webp",
   "/images/sponsor/crossfi.webp",
   "/images/sponsor/diamante.webp",
   "/images/sponsor/digitalocean.webp",
   "/images/sponsor/earn-alliance.webp",
-  "/images/sponsor/microsoft-for-startups.webp",
-  "/images/sponsor/social-shifters.webp",
   "/images/sponsor/unicorn-ultra.webp",
-  "/images/sponsor/xdc.webp",
 ];
 
 const cats: bannerProps[] = [
@@ -160,8 +162,8 @@ export const HomePage = () => {
   }, [setEarlyCountdown]);
 
   return (
-    <div className="mt-4 flex justify-center items-center flex-col">
-      <div className="relative w-full lg:w-2/3 xl:w-1/2 px-10 max-lg:text-balance -mb-2 lg:-mb-16">
+    <div className="mt-14 md:mt-4 flex justify-center items-center flex-col">
+      <div className="relative w-full md:w-2/3 xl:w-1/2 px-10 max-lg:text-balance -mb-8 md:-mb-32">
         <img
           className="absolute top-0 left-0 "
           src="/images/home-page/firework.png"
@@ -169,7 +171,7 @@ export const HomePage = () => {
           width={80}
           height={80}
         />
-        <h1 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl">
+        <h1 className="text-center font-secondary uppercase tracking-tight text-h3 -mt-14 md:text-8xl">
           PLAY TO SAVE
         </h1>
       </div>
@@ -188,79 +190,86 @@ export const HomePage = () => {
             ))}
           </div>
         </div>
-        <div className="relative z-10 h-fit flex items-center justify-center pb-10 max-lg:pb-7">
-          <div className="relative pt-20 max-lg:pt-10 px-8 flex items-center justify-center">
+        <div className="relative z-10 h-fit flex items-center justify-center">
+          <div className="relative pt-10 md:pt-20 px-8 flex items-center justify-center">
             <div className="relative w-full">
+              <img
+                src="/images/home-page/tamagotchi.webp"
+                alt="Cats Background"
+                className="absolute w-[600px] rem:pl-[50px] pb-5 h-[640px] md:relative z-[1] hidden md:block"
+              />
               <img
                 src="/images/home-page/cat-background.webp"
                 alt="Cats Background"
-                className="w-full h-full"
+                className="absolute md:hidden inset-0 h-full w-full z-[1]"
               />
               <video
-                className="absolute inset-0 w-full h-full object-cover z-3 md:p-2.5 p-1.5"
+                className="relative md:absolute inset-0 rounded-md md:-skew-x-[1deg] p-3 md:p-0 md:skew-y-[6deg] rem:w-[320px] rem:h-[320px] md:rem:w-[272px] md:rem:h-[272px] overflow-hidden m-auto z-[2]"
                 autoPlay
                 muted
                 loop
                 playsInline
               >
-                <source src="https://tokentails.fra1.cdn.digitaloceanspaces.com/token-tails-intro.webm" />
+                <source src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/videos/trailer-2024-09.mp4" />
               </video>
               <img
-                src="/images/home-page/cats-top.webp"
+                src="/images/home-page/rocket-cat.webp"
                 alt="Cat Hero"
-                className="absolute -top-12 lg:-top-16 right-0 w-1/4 object-cover overflow-hidden"
-                width={500}
-                height={500}
+                className="absolute -top-10 md:top-5 -right-0 md:-right-8 z-0 w-12 -rotate-45 md:rotate-0 md:w-36 overflow-hidden z-0"
               />
             </div>
             <img
               src="/images/home-page/crown.png"
               alt="crown"
-              className="w-16 max-lg:w-10 h-16 max-lg:h-10 absolute top-0 right-0"
+              className="md:w-16 w-10 md:h-16 h-10 absolute md:top-12 right-0"
               width={100}
               height={100}
             />
           </div>
-          <a href="/game" className="absolute bottom-0 md:bottom-4">
-            <span className="relative z-10">
-              <PixelButton text="PLAY ON" isBig subtext="BROWSER"></PixelButton>
-            </span>
-
-            <img
-              src="/logo/coin.webp"
-              alt="coin"
-              className="h-12 w-12 absolute bottom-0 top-0 -left-6"
-            />
-            <img
-              src="/logo/chest.webp"
-              alt="coin"
-              className="h-12 w-12 absolute bottom-0 top-0 -right-6"
-            />
-          </a>
         </div>
       </div>
-      <div className="font-secondary text-p3 md:-mt-3">OR</div>
-      <a
-        href="https://t.me/CatbassadorsBot?start=start"
-        target="_blank"
-        className="font-secondary text-p1 mb-4 relative"
-      >
-        <span className="relative z-10">
-          <PixelButton text="PLAY ON" subtext="TELEGRAM" isBig></PixelButton>
-        </span>
+      <div className="flex flex-col md:flex-row gap-2 md:gap-10 items-center mb-4 mt-4 md:-mt-32 relative z-10">
+        <a href="/game" className="relative">
+          <span className="relative z-10">
+            <PixelButton text="PLAY ON" isBig subtext="BROWSER"></PixelButton>
+          </span>
 
-        <img
-          src="/logo/boss-coin.png"
-          alt="coin"
-          className="h-12 w-12 absolute bottom-0 top-0 -right-6"
-        />
-        <img
-          src="/logo/level.png"
-          alt="coin"
-          className="h-12 w-12 absolute bottom-0 top-0 -left-6"
-        />
-      </a>
-      <Socials />
+          <img
+            src="/logo/coin.webp"
+            alt="coin"
+            className="h-12 w-12 absolute bottom-0 top-0 -left-6"
+          />
+          <img
+            src="/logo/chest.webp"
+            alt="coin"
+            className="h-12 w-12 absolute bottom-0 top-0 -right-6"
+          />
+        </a>
+        <div className="font-secondary text-p3 bg-gradient-to-r from-red-500 to-red-500 px-2 text-yellow-300 border-4 border-black rounded-full">OR</div>
+        <a
+          href="https://t.me/CatbassadorsBot?start=start"
+          target="_blank"
+          className="font-secondary relative"
+        >
+          <span className="relative z-10">
+            <PixelButton text="PLAY ON" subtext="TELEGRAM" isBig></PixelButton>
+          </span>
+
+          <img
+            src="/logo/boss-coin.png"
+            alt="coin"
+            className="h-12 w-12 absolute bottom-0 top-0 -right-6"
+          />
+          <img
+            src="/logo/level.png"
+            alt="coin"
+            className="h-12 w-12 absolute bottom-0 top-0 -left-6"
+          />
+        </a>
+      </div>
+      <span className="relative z-10">
+        <Socials />
+      </span>
       {/* <Preregistration /> */}
 
       <div className="my-4"></div>

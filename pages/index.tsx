@@ -167,15 +167,9 @@ export default function Index() {
             <BlogPreview />
           </div>
         </div>
-        <div className="pt-4 bg-gradient-to-b from-blue-300 to-green-300">
+        <div className="pt-4 bg-gradient-to-b from-green-300 to-yellow-300">
           <div id="contact" ref={contactRef}>
             <Contact />
-          </div>
-        </div>
-
-        <div className="py-4 pt-16 bg-gradient-to-t from-yellow-300 to-green-300">
-          <div id="tokenomics" ref={tokenomicsRef}>
-            <Tokenomics />
           </div>
         </div>
         <Footer />

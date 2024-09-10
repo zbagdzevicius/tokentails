@@ -24,7 +24,7 @@ const teamMembers: ITeamMember[] = [
   {
     img: "/team/zygimantas.webp",
     name: "Žygimantas Bagdzevičius",
-    role: "CEO | CTO",
+    role: "Founder, CTO",
     socials: [
       {
         img: SocialImages.LINKEDIN,
