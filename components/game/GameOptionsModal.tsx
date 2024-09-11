@@ -55,6 +55,14 @@ export const GameOptionsModal = ({
       <GameStatsSection profile={profile} />
       <div className="fixed bottom-8 left-4 right-4 pb-safe flex justify-between items-end">
         <div className="flex flex-col items-center animate-hover">
+          <span className="mb-4">
+            <PixelButton
+              onClick={() => {
+                setOpenedModal(GameModal.CATS);
+              }}
+              text="CATS"
+            ></PixelButton>
+          </span>
           <div
             onClick={() =>
               toast({

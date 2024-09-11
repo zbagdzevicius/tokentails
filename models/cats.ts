@@ -77,6 +77,7 @@ export interface ICat {
   lives: number;
   expiresAt?: string;
   price: number;
+  catpoints: number;
 }
 
 export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {

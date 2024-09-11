@@ -165,7 +165,7 @@ const allQuests: IQuest[] = [
     link: "https://www.linkedin.com/company/token-tails",
     icon: "/icons/social/linkedin.png",
     reward: {
-      coins: 250,
+      coins: 500,
     },
   },
   {

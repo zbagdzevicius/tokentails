@@ -1,22 +1,69 @@
 import { CatAbilities, ICat } from "@/models/cats";
-import React, { useRef } from "react";
+import React, { useMemo, useRef } from "react";
 import { PixelButton } from "../button/PixelButton";
+import { useProfile } from "@/context/ProfileContext";
+import { adoptCatFetch, catsFetch } from "@/constants/api";
+import { useToast } from "@/context/ToastContext";
+import { useQuery } from "@tanstack/react-query";
 
 interface IProps extends ICat {
   onClose: () => void;
 }
 
-export const CatCard: React.FC<IProps> = ({
-  _id,
-  onClose,
-  catImg,
-  name,
-  type,
-  ability,
-  resqueStory,
-  price,
-}) => {
+export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
+  const { _id, catImg, name, type, ability, resqueStory, catpoints, price } =
+    catData;
   const cardRef = useRef<HTMLDivElement>(null);
+  const { profile, setProfileUpdate } = useProfile();
+
+  const { data: cats } = useQuery({
+    queryKey: ["cats", profile?.cat],
+    queryFn: () => catsFetch(),
+  });
+  const catpointsInMillions = useMemo(() => {
+    if (cats?.find((cat) => cat._id === _id)) {
+      return 'adopted';
+    }
+    const inMillions = catpoints / 1000000;
+    return `${inMillions.toFixed(2)}m`;
+  }, [price, cats]);
+  const toast = useToast();
+  const isForSale = useMemo(() => {
+    const isOwned = cats?.find((cat) => cat._id === _id);
+    const hasEnoughFunds = (profile?.catpoints || 0) < catpoints;
+
+    if (isOwned || hasEnoughFunds) {
+      return false;
+    }
+
+    return true;
+  }, [cats, profile?.catpoints]);
+
+  const adopt = async () => {
+    if (cats?.find((cat) => cat._id?.toString() === _id)) {
+      toast({ message: "You already own this NFT cat" });
+      return;
+    }
+
+    if (
+      !profile?.catpoints ||
+      !catpoints ||
+      (catpoints || 0) > (profile?.catpoints || 0)
+    ) {
+      toast({ message: "You need more coins to adopt" });
+      return;
+    }
+
+    const status = await adoptCatFetch(_id!);
+    if (status.success) {
+      setProfileUpdate({
+        cats: [...(cats || []), catData],
+        cat: catData,
+      });
+
+      toast({ message: "Congratz on your adopted cat !" });
+    }
+  };
 
   return (
     <div className="flex justify-center w-full h-full fixed top-0 left-0">
@@ -104,7 +151,12 @@ export const CatCard: React.FC<IProps> = ({
                   entityType={EntityType.CAT}
                 /> */}
 
-                <PixelButton active={true} text="COMING" subtext="NEXT WEEK" onClick={() => {}}></PixelButton>
+                <PixelButton
+                  active={!isForSale}
+                  text={catpointsInMillions}
+                  subtext={catpointsInMillions === 'adopted' ? '' : "coins"}
+                  onClick={() => adopt()}
+                ></PixelButton>
                 <PixelButton text="CLOSE" onClick={onClose}></PixelButton>
               </div>
             </div>

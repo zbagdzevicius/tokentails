@@ -447,6 +447,61 @@ export const profileFetch = async (): Promise<IProfile> => {
   });
 };
 
+export const catsFetch = async (): Promise<ICat[]> => {
+  return fetch(`${apiUrl}/user/cats`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: sessionStorage.getItem("accesstoken"),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return [];
+  });
+};
+
+export const catsForSaleFetch = async (): Promise<ICat[]> => {
+  return fetch(`${apiUrl}/cat/sale`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: sessionStorage.getItem("accesstoken"),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return [];
+  });
+};
+export const adoptCatFetch = async (
+  _id: string
+): Promise<{ success: boolean; message: string }> => {
+  return fetch(`${apiUrl}/cat/adopt/${_id}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: sessionStorage.getItem("accesstoken"),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return [];
+  });
+};
+
 export const saveProfile = (profile: IProfile) => {
   return fetch(`${apiUrl}/user/profile`, {
     method: "POST",
@@ -542,14 +597,16 @@ export const getLeaderboard = async (
         "Content-Type": "application/json",
       } as any,
     }
-  ).then((response) => {
-    if (response.ok) {
-      return response.json();
-    }
+  )
+    .then((response) => {
+      if (response.ok) {
+        return response.json();
+      }
 
-    console.warn(JSON.stringify(response));
-    return [];
-  }).then();
+      console.warn(JSON.stringify(response));
+      return [];
+    })
+    .then();
 };
 
 export const getLeaderboardPosition = async (): Promise<number> => {

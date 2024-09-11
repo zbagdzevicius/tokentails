@@ -7,6 +7,7 @@ import { GameOptionsModal } from "@/components/game/GameOptionsModal";
 import { GameSelect } from "@/components/game/GameSelect";
 import { Leaderboard } from "@/components/leaderboard/Leaderboard";
 import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
+import { CatsModal } from "@/components/shared/CatsModal";
 import { QuestsModal } from "@/components/shared/QuestsModal";
 import { TelegramProfile } from "@/components/shared/TelegramProfile";
 import { TDeleteLive } from "@/constants/telegram-api";
@@ -120,7 +121,15 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           )}
           {[GameModal.LEADERBOARD, GameModal.LEADERBOARD_DAILY].includes(
             openedModal as GameModal
-          ) && <Leaderboard type={openedModal!} close={() => setOpenedModal(null)} />}
+          ) && (
+            <Leaderboard
+              type={openedModal!}
+              close={() => setOpenedModal(null)}
+            />
+          )}
+          {openedModal === GameModal.CATS && (
+            <CatsModal close={() => setOpenedModal(null)} />
+          )}
         </>
       )}
       {children}
