@@ -50,7 +50,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
               </div>
               <img
                 className="absolute inset-0 object-cover w-full h-full z-0"
-                src={`ability/${cat.type}_bg.webp`}
+                src={`ability/${cat.type}_BG.webp`}
               />
             </div>
           </div>
