@@ -10,6 +10,7 @@ interface bannerProps {
 const sponsorImage = [
   "/images/sponsor/microsoft-for-startups.webp",
   "/images/sponsor/social-shifters.webp",
+  "/images/sponsor/diamante.webp",
   "/images/sponsor/stellar.webp",
   "/images/sponsor/immutable.webp",
   "/images/sponsor/brinc.webp",
@@ -17,7 +18,6 @@ const sponsorImage = [
   "/images/sponsor/xdc.webp",
   "/images/sponsor/buidlers-tribe.webp",
   "/images/sponsor/crossfi.webp",
-  "/images/sponsor/diamante.webp",
   "/images/sponsor/digitalocean.webp",
   "/images/sponsor/earn-alliance.webp",
   "/images/sponsor/unicorn-ultra.webp",
