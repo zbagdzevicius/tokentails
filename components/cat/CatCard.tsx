@@ -22,7 +22,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
   });
   const catpointsInMillions = useMemo(() => {
     if (cats?.find((cat) => cat._id === _id)) {
-      return 'adopted';
+      return "adopted";
     }
     const inMillions = catpoints / 1000000;
     return `${inMillions.toFixed(2)}m`;
@@ -59,6 +59,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
       setProfileUpdate({
         cats: [...(cats || []), catData],
         cat: catData,
+        catpoints: profile.catpoints - catpoints,
       });
 
       toast({ message: "Congratz on your adopted cat !" });
@@ -154,7 +155,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                 <PixelButton
                   active={!isForSale}
                   text={catpointsInMillions}
-                  subtext={catpointsInMillions === 'adopted' ? '' : "coins"}
+                  subtext={catpointsInMillions === "adopted" ? "" : "coins"}
                   onClick={() => adopt()}
                 ></PixelButton>
                 <PixelButton text="CLOSE" onClick={onClose}></PixelButton>

@@ -26,8 +26,14 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
 
   return (
     <div className="px-4 pt-4 pb-8 md:px-16 text-gray-800 flex flex-col justify-between items-center">
-      <h2 className="text-center font-secondary uppercase tracking-tight text-8xl max-lg:text-5xl max-lg:text-balance mb-8">
+      <h2 className="text-center font-secondary uppercase tracking-tight text-8xl max-lg:text-5xl max-lg:text-balance">
         My Cats
+      </h2>
+      <h2 className="text-center font-secondary uppercase text-p5 md:text-p4">
+       Here you can switch your main cat
+      </h2>
+      <h2 className="text-center font-secondary uppercase text-p5 md:text-p4 mb-6">
+       Earn coins to Adopt more cats in the shelter
       </h2>
       <div className="flex flex-wrap justify-center">
         {cats?.map((cat) => (
