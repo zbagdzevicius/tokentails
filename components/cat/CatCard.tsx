@@ -21,7 +21,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
     queryFn: () => catsFetch(),
   });
   const catpointsInMillions = useMemo(() => {
-    if (cats?.find((cat) => cat._id === _id)) {
+    if (cats?.find((cat) => cat.name === name)) {
       return "adopted";
     }
     const inMillions = catpoints / 1000000;
@@ -40,7 +40,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
   }, [cats, profile?.catpoints]);
 
   const adopt = async () => {
-    if (cats?.find((cat) => cat._id?.toString() === _id)) {
+    if (cats?.find((cat) => cat.name === name)) {
       toast({ message: "You already own this NFT cat" });
       return;
     }
