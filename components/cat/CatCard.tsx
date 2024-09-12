@@ -29,7 +29,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
   }, [price, cats]);
   const toast = useToast();
   const isForSale = useMemo(() => {
-    const isOwned = cats?.find((cat) => cat._id === _id);
+    const isOwned = cats?.find((cat) => cat.name === name);
     const hasEnoughFunds = (profile?.catpoints || 0) < catpoints;
 
     if (isOwned || hasEnoughFunds) {
