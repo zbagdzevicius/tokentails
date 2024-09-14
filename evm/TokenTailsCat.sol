@@ -7,7 +7,6 @@ import "@openzeppelin/contracts@4.9.3/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts@4.9.3/utils/Strings.sol";
 
 contract TokenTailsCat is ERC721, AccessControlEnumerable {
-    uint256 private _nextTokenId;
     string private _baseTokenURI;
 
     // Define a single role for both minting and burning
@@ -28,8 +27,7 @@ contract TokenTailsCat is ERC721, AccessControlEnumerable {
     }
 
     function safeMint(address to) public onlyRole(MINTER_ROLE) {
-        uint256 tokenId = _nextTokenId++;
-        _safeMint(to, tokenId);
+        super._mint(_to, _tokenId);
     }
 
     function burn(uint256 tokenId) public onlyRole(MINTER_ROLE) {
@@ -52,16 +50,5 @@ contract TokenTailsCat is ERC721, AccessControlEnumerable {
         bytes4 interfaceId
     ) public view override(ERC721, AccessControlEnumerable) returns (bool) {
         return super.supportsInterface(interfaceId);
-    }
-
-    /**
-    * Custom accessor to create a unique token
-    */
-    function mintUniqueTokenTo(
-        address _to,
-        uint256 _tokenId
-    ) public
-    {
-        super._mint(_to, _tokenId);
     }
 }
