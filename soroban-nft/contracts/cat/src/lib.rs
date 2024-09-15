@@ -1,7 +1,7 @@
 #![no_std]
 use soroban_sdk::{
     contract, contractimpl, contracttype, symbol_short, vec, Address, Env, Error as SdkError,
-    Symbol, Vec,
+    String, Symbol, Vec,
 };
 
 #[contract]
@@ -23,13 +23,6 @@ impl From<Error> for SdkError {
 }
 
 #[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub struct NFT {
-    pub id: Symbol,
-    pub owner: Address,
-}
-
-#[contracttype]
 pub struct Roles {
     pub admin: Address,
     pub minters: Vec<Address>,
@@ -38,12 +31,18 @@ pub struct Roles {
 const ROLES: Symbol = symbol_short!("ROLES");
 const BASE_URI: Symbol = symbol_short!("BASE_URI");
 const BURN: Symbol = symbol_short!("BURN");
+const TRANSFER: Symbol = symbol_short!("TRANSFER");
 const MINT: Symbol = symbol_short!("MINT");
 
 #[contractimpl]
 impl CatContract {
     // Initialize contract with admin and minter roles in persistent storage
-    pub fn initialize(env: Env, admin: Address, minters: Vec<Address>, base_uri: Symbol) -> Result<(), SdkError> {
+    pub fn initialize(
+        env: Env,
+        admin: Address,
+        minters: Vec<Address>,
+        base_uri: String,
+    ) -> Result<(), SdkError> {
         // Check if the contract has already been initialized by checking the presence of the ROLES key
         if env.storage().persistent().has(&ROLES) {
             return Err(Error::Unauthorized.into());
@@ -69,7 +68,7 @@ impl CatContract {
     }
 
     // Mint an NFT to a specific address using persistent storage
-    pub fn mint(env: Env, invoker: Address, to: Address, token_id: Symbol) -> Result<(), SdkError> {
+    pub fn mint(env: Env, invoker: Address, to: Address, token_id: String) -> Result<(), SdkError> {
         let roles: Roles = env.storage().persistent().get(&ROLES).unwrap();
 
         // Require that the invoker (caller) has authorized this call
@@ -85,18 +84,13 @@ impl CatContract {
             return Err(Error::TokenExists.into());
         }
 
-        let nft = NFT {
-            id: token_id.clone(),
-            owner: to.clone(),
-        };
-        env.storage().persistent().set(&token_id, &nft);
+        env.storage().persistent().set(&token_id, &to.clone());
 
         // Log the mint event
-        env.events().publish((&MINT,), (to, token_id));
+        env.events().publish((MINT,), (to, token_id));
 
         Ok(())
     }
-
 
     // Add a minter
     pub fn add_minter(env: Env, invoker: Address, new_minter: Address) -> Result<(), SdkError> {
@@ -115,7 +109,11 @@ impl CatContract {
     }
 
     // Remove a minter
-    pub fn remove_minter(env: Env, invoker: Address, minter_to_remove: Address) -> Result<(), SdkError> {
+    pub fn remove_minter(
+        env: Env,
+        invoker: Address,
+        minter_to_remove: Address,
+    ) -> Result<(), SdkError> {
         let mut roles: Roles = env.storage().persistent().get(&ROLES).unwrap();
 
         // Only admin can remove a minter
@@ -137,7 +135,7 @@ impl CatContract {
     }
 
     // Burn an NFT by removing it from persistent storage
-    pub fn burn(env: Env, invoker: Address, token_id: Symbol) -> Result<(), SdkError> {
+    pub fn burn(env: Env, invoker: Address, token_id: String) -> Result<(), SdkError> {
         let roles: Roles = env.storage().persistent().get(&ROLES).unwrap();
 
         // Require that the invoker (caller) has authorized this call
@@ -162,14 +160,60 @@ impl CatContract {
         Ok(())
     }
 
+    // Transfer an NFT from one address to another
+    pub fn transfer_from(
+        env: Env,
+        invoker: Address,
+        from: Address,
+        to: Address,
+        token_id: String,
+    ) -> Result<(), SdkError> {
+        // Retrieve the stored roles
+        let roles: Roles = env.storage().persistent().get(&ROLES).unwrap();
+
+        // Require that the invoker (caller) has authorized this call
+        invoker.require_auth();
+
+        // Check if the token exists in persistent storage
+        if !env.storage().persistent().has(&token_id) {
+            return Err(Error::TokenNotFound.into());
+        }
+
+        // Get the current NFT
+        let owner = env.storage().persistent().get(&token_id).unwrap();
+
+        // Check if the invoker is the owner or an authorized entity (admin)
+        if invoker != owner && invoker != from && !Self::is_authorized_minter(&roles, &invoker)
+        {
+            return Err(Error::Unauthorized.into());
+        }
+
+        // Ensure the current owner matches the "from" address
+        if owner != from {
+            return Err(Error::Unauthorized.into());
+        }
+
+        // Update the NFT with the new owner
+        env.storage().persistent().set(&token_id, &to.clone());
+
+        // Log the transfer event
+        env.events().publish((TRANSFER,), (from, to, token_id));
+
+        Ok(())
+    }
+
     // Get the owner of an NFT from persistent storage
-    pub fn get_owner(env: Env, token_id: Symbol) -> Address {
-        let nft: NFT = env.storage().persistent().get(&token_id).unwrap();
-        nft.owner
+    pub fn owner_of(env: Env, token_id: String) -> Result<Address, SdkError> {
+        // Check if the token exists in persistent storage
+        if !env.storage().persistent().has(&token_id) {
+            return Err(Error::TokenNotFound.into());
+        }
+        let owner = env.storage().persistent().get(&token_id).unwrap();
+        Ok(owner)
     }
 
     // Set the base URI for the metadata in persistent storage
-    pub fn set_base_uri(env: Env, invoker: Address, new_base_uri: Symbol) -> Result<(), SdkError> {
+    pub fn set_base_uri(env: Env, invoker: Address, new_base_uri: String) -> Result<(), SdkError> {
         let roles: Roles = env.storage().persistent().get(&ROLES).unwrap();
 
         // Require that the invoker (caller) has authorized this call
@@ -185,15 +229,19 @@ impl CatContract {
     }
 
     // Get the base URI for the NFTs from persistent storage
-    pub fn get_base_uri(env: Env) -> Symbol {
+    pub fn get_base_uri(env: Env) -> String {
         env.storage().persistent().get(&BASE_URI).unwrap()
     }
 
     // Get the token URI by concatenating base URI and token ID
-    pub fn get_token_uri(env: Env, token_id: Symbol) -> Vec<Symbol> {
-        let base_uri: Symbol = Self::get_base_uri(env.clone());
+    pub fn get_token_uri(env: Env, token_id: String) -> Result<Vec<String>, SdkError> {
+        // Check if the token exists in persistent storage
+        if !env.storage().persistent().has(&token_id) {
+            return Err(Error::TokenNotFound.into());
+        }
+        let base_uri: String = Self::get_base_uri(env.clone());
 
-        vec![&env, base_uri, token_id]
+        Ok(vec![&env, base_uri, token_id])
     }
 }
 
