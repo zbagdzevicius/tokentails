@@ -80,27 +80,108 @@ stellar contract deploy \
 ```
 
 ### Contracts:
-- Cat testnet: CDUNBRH6DPNLFQRNE3WZVMDWAFCXACDZVEMUJD7PF6KMLZDEEKGNAW5V
-- Cat mainnet: CDUNBRH6DPNLFQRNE3WZVMDWAFCXACDZVEMUJD7PF6KMLZDEEKGNAW5V
+- Owner testnet public key: GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN
+- Test testnet public key: GBFDHPVUCADXYGDUHJEXKO3BLV26SA5JBHV5MFQ3TH5HWVYZIP73VR4O
+- Cat testnet: CDALFQUFKGJPR6NQZ66YK2RZ3FU2MTZ54OP6BQRXGWY6R2FRZGXO5XDE
+- Cat mainnet: 
 
 - New Soroban contracts can be put in `contracts`, each in their own directory. There is already a `cat` contract in there to get you started.
 - If you initialized this project with any other example contracts via `--with-example`, those contracts will be in the `contracts` directory as well.
 - Contracts should have their own `Cargo.toml` files that rely on the top-level `Cargo.toml` workspace for their dependencies.
 - Frontend libraries can be added to the top-level directory as well. If you initialized this project with a frontend template via `--frontend-template` you will have those files already included.
 
-### Interaction
+### Contract initialization example
 
 e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CDUNBRH6DPNLFQRNE3WZVMDWAFCXACDZVEMUJD7PF6KMLZDEEKGNAW5V \
+  --id CDALFQUFKGJPR6NQZ66YK2RZ3FU2MTZ54OP6BQRXGWY6R2FRZGXO5XDE \
   --source zygis \
   --network testnet \
   -- \
-  METHOD \
-  --to RPC
+  initialize \
+  --admin GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN \
+  --minters '["GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN"]' \
+  --base_uri cat
 ```
+
+### Contract mint example
+
+e.g. on how to interact
+
+```
+stellar contract invoke \
+  --id CDALFQUFKGJPR6NQZ66YK2RZ3FU2MTZ54OP6BQRXGWY6R2FRZGXO5XDE \
+  --source zygis \
+  --network testnet \
+  -- \
+  mint \
+  --invoker GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN \
+  --to GBFDHPVUCADXYGDUHJEXKO3BLV26SA5JBHV5MFQ3TH5HWVYZIP73VR4O \
+  --token_id cat_3
+```
+
+### Contract get_token_uri example
+
+e.g. on how to interact
+
+```
+stellar contract invoke \
+  --id CDALFQUFKGJPR6NQZ66YK2RZ3FU2MTZ54OP6BQRXGWY6R2FRZGXO5XDE \
+  --source zygis \
+  --network testnet \
+  -- \
+  get_token_uri \
+  --token_id cat_3
+```
+
+### Contract set_base_uri example
+
+e.g. on how to interact
+
+```
+stellar contract invoke \
+  --id CDALFQUFKGJPR6NQZ66YK2RZ3FU2MTZ54OP6BQRXGWY6R2FRZGXO5XDE \
+  --source zygis \
+  --network testnet \
+  -- \
+  set_base_uri \
+  --invoker GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN \
+  --new_base_uri "api.tokentails.com/cat/nft/"
+```
+
+### Contract owner_of example
+
+e.g. on how to interact
+
+```
+stellar contract invoke \
+  --id CDALFQUFKGJPR6NQZ66YK2RZ3FU2MTZ54OP6BQRXGWY6R2FRZGXO5XDE \
+  --source zygis \
+  --network testnet \
+  -- \
+  owner_of \
+  --token_id cat_3
+```
+
+### Contract transfer_to example
+
+e.g. on how to interact
+
+```
+stellar contract invoke \
+  --id CDALFQUFKGJPR6NQZ66YK2RZ3FU2MTZ54OP6BQRXGWY6R2FRZGXO5XDE \
+  --source zygis \
+  --network testnet \
+  -- \
+  transfer_from \
+  --invoker GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN \
+  --from GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN \
+  --to GBFDHPVUCADXYGDUHJEXKO3BLV26SA5JBHV5MFQ3TH5HWVYZIP73VR4O \
+  --token_id cat_3
+```
+
 
 #### Protocol 21 (Mainnet, June 18, 2024)
 
