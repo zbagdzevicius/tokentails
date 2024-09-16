@@ -84,6 +84,7 @@ stellar contract deploy \
 - Test testnet public key: GBFDHPVUCADXYGDUHJEXKO3BLV26SA5JBHV5MFQ3TH5HWVYZIP73VR4O
 - Cat testnet: CDALFQUFKGJPR6NQZ66YK2RZ3FU2MTZ54OP6BQRXGWY6R2FRZGXO5XDE
 - Cat mainnet: 
+- testnet explorer: https://stellar.expert/explorer/testnet
 
 - New Soroban contracts can be put in `contracts`, each in their own directory. There is already a `cat` contract in there to get you started.
 - If you initialized this project with any other example contracts via `--with-example`, those contracts will be in the `contracts` directory as well.
