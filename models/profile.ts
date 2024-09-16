@@ -9,6 +9,7 @@ export interface IProfile {
     cats: ICat[];
     score: number;
     walletAddress: string;
+    stellarWalletAddress: string;
     catpoints: number;
     catpointsToday: number;
     catpointsRecord: number;

@@ -690,3 +690,21 @@ export const getCatsForSale = async (confirmation: {
     return [];
   });
 };
+
+export const setActiveCat = async (id: string): Promise<void> => {
+  return fetch(`${apiUrl}/cat/${id}/activate`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: sessionStorage.getItem("accesstoken"),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return;
+  });
+};
