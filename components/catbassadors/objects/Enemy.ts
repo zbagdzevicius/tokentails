@@ -20,12 +20,14 @@ export enum EnemyType {
   COIN = "COIN",
   BOSS_COIN = "BOSS_COIN",
   TIME_COIN = "TIME_COIN",
+  KEY = "KEY",
 }
 
 const EnemyTypeSriteMap: Record<EnemyType, string> = {
   [EnemyType.COIN]: "coin",
   [EnemyType.BOSS_COIN]: "bosscoin",
   [EnemyType.TIME_COIN]: "timecoin",
+  [EnemyType.KEY]: "key",
 };
 
 const getEnemyType = (): EnemyType => {
@@ -45,18 +47,21 @@ const EnemyTypeCoinReward: Record<EnemyType, number> = {
   [EnemyType.COIN]: 1,
   [EnemyType.BOSS_COIN]: 30,
   [EnemyType.TIME_COIN]: 0,
+  [EnemyType.KEY]: 0,
 };
 
 const EnemyTypeTimeReward: Record<EnemyType, number> = {
   [EnemyType.COIN]: 0,
   [EnemyType.BOSS_COIN]: 3,
   [EnemyType.TIME_COIN]: 10,
+  [EnemyType.KEY]: 0,
 };
 
 const EnemyTypeVelocity: Record<EnemyType, number> = {
   [EnemyType.COIN]: 5,
   [EnemyType.BOSS_COIN]: 8,
   [EnemyType.TIME_COIN]: 12,
+  [EnemyType.KEY]: 12,
 };
 
 export class Enemy {
@@ -69,9 +74,9 @@ export class Enemy {
   timeReward: number;
   type: EnemyType;
 
-  constructor(scene: ExtendedScene, x: number, y: number) {
+  constructor(scene: ExtendedScene, x: number, y: number, type?: EnemyType) {
     this.scene = scene;
-    this.type = getEnemyType();
+    this.type = type || getEnemyType();
     this.vy = EnemyTypeVelocity[this.type];
     this.vx = EnemyTypeVelocity[this.type];
     this.coinReward = EnemyTypeCoinReward[this.type];

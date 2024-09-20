@@ -1,61 +1,44 @@
-// import Phaser from "phaser";
 // import { prebuiltRooms } from "../prebuiltRooms/PrebuiltRooms";
 // import { prebuiltRoomsWithoutWalls } from "../prebuiltRooms/prebuiltRoomsWithoutWalls";
-// import { Player } from "../objects/Player";
+// import { spawnRoom } from "../prebuiltRooms/SpawnRoom";
+// import { exitRoom } from "../prebuiltRooms/ExitRoom";
 // import { Room } from "../objects/Room";
 
-// export class DevScene extends Phaser.Scene {
+// export class GenerateLevel {
+//   private scene: Phaser.Scene;
 //   private readonly tileSize: number = 32;
-//   private readonly roomCols: number = 11;
-//   private readonly roomRows: number = 9;
+//   private readonly roomCols: number = 10;
+//   private readonly roomRows: number = 8;
 //   private readonly levelCols: number = 4;
 //   private readonly levelRows: number = 4;
 //   private grid: { room: Room; x: number; y: number }[][] = [];
-//   private player!: Player;
 //   private rooms: Room[] = [];
 //   private solutionPath!: Phaser.GameObjects.Graphics;
 //   private solutionCells: Phaser.Math.Vector2[] = [];
 //   private roomConnections: Map<string, Set<string>> = new Map();
-//   private wallGroup!: Phaser.Physics.Arcade.StaticGroup;
-//   private ironWallGroup!: Phaser.Physics.Arcade.StaticGroup;
+//   private readonly MIN_PLACED_ROOMS = 8;
 
-//   constructor() {
-//     super("DevScene");
+//   constructor(scene: Phaser.Scene) {
+//     this.scene = scene;
 //   }
-
-//   preload() {
-//     this.load.spritesheet("cat", "cats/black/sprite/combined.png", {
-//       frameWidth: 64,
-//       frameHeight: 39,
-//     });
-//     this.load.tilemapTiledJSON("levelOne", "purrquest2/levels/levelOne.json");
-//     this.load.image("wall", "assets/sprite-grass.png");
-//     this.load.image("ironWall", "purrquest/sprites/steel.png");
-//     this.load.spritesheet("sprite-grass", "assets/sprite-grass.png", {
-//       frameWidth: 32,
-//       frameHeight: 32,
-//     });
+//   generateNewRoom() {
+//     this.clearLevelData();
+//     this.generateGrid();
+//     this.createRooms();
+//     this.createSolutionPath();
+//     this.createWalls();
+//     this.placePrebuiltRooms();
 //   }
-
-//   create() {
-//     // this.generateGrid();
-//     // this.createRooms();
-//     // this.createSolutionPath();
-//     // this.wallGroup = this.physics.add.staticGroup();
-//     // this.ironWallGroup = this.physics.add.staticGroup();
-//     // this.placePrebuiltRooms();
-//     // this.createWalls();
-//     this.createPlayer();
-//     // this.setupCollisions();
-//     this.createTileset();
-//     // this.downloadGridData();
+//   clearLevelData() {
+//     this.rooms = [];
+//     this.grid = [];
+//     this.roomConnections.clear();
+//     this.solutionCells = [];
+//     if (this.solutionPath) {
+//       this.solutionPath.clear();
+//     }
 //   }
-
-//   update() {
-//     this.player.update();
-//   }
-
-//   private generateGrid() {
+//   generateGrid() {
 //     this.grid = Array.from({ length: this.levelRows }, (_, y) =>
 //       Array.from({ length: this.levelCols }, (_, x) => ({
 //         room: null as any,
@@ -65,18 +48,7 @@
 //     );
 //   }
 
-//   private createTileset() {
-//     this.tilemap = this.make.tilemap({ key: "levelOne" });
-//     const tileset = this.tilemap.addTilesetImage(
-//       "sprite-grass",
-//       "sprite-grass"
-//     );
-//     this.groundLayer = this.tilemap.createLayer("wallLayer", tileset!)!;
-//     this.groundLayer?.setCollisionByProperty({ collides: true });
-//     this.physics.add.collider(this.player.sprite, this.groundLayer);
-//   }
-
-//   private createRooms() {
+//   createRooms() {
 //     for (let y = 0; y < this.levelRows; y++) {
 //       for (let x = 0; x < this.levelCols; x++) {
 //         const room = new Room(
@@ -85,7 +57,7 @@
 //           this.roomCols,
 //           this.roomRows,
 //           this.tileSize,
-//           this
+//           this.scene
 //         );
 //         this.rooms.push(room);
 //         this.grid[y][x].room = room;
@@ -93,12 +65,30 @@
 //     }
 //   }
 
-//   private createSolutionPath() {
-//     this.solutionPath = this.add.graphics({
+//   createSolutionPath() {
+//     const corners = [
+//       { x: 0, y: 0, name: "LU" },
+//       { x: 0, y: this.levelRows - 1, name: "LD" },
+//       { x: this.levelCols - 1, y: 0, name: "RU" },
+//       { x: this.levelCols - 1, y: this.levelRows - 1, name: "RD" },
+//     ];
+
+//     const shuffledCorners = Phaser.Utils.Array.Shuffle(corners);
+//     const startCorner = shuffledCorners[0];
+//     let endCorner = shuffledCorners[1];
+
+//     while (endCorner.name === startCorner.name) {
+//       endCorner = Phaser.Utils.Array.Shuffle(corners)[1];
+//     }
+
+//     const { x: startX, y: startY } = startCorner;
+//     const { x: endX, y: endY } = endCorner;
+
+//     this.solutionPath = this.scene.add.graphics({
 //       lineStyle: { width: 4, color: 0xffff00 },
 //     });
 
-//     const path = this.findPath(0, 0, this.levelCols - 1, this.levelRows - 1);
+//     const path = this.findPath(startX, startY, endX, endY);
 //     if (path) {
 //       this.solutionCells = path;
 //       for (let i = 0; i < path.length - 1; i++) {
@@ -108,6 +98,24 @@
 //         this.connectRooms(room1, room2, path[i], path[i + 1]);
 //       }
 //     }
+//   }
+
+//   getStartCoordinates(): Phaser.Math.Vector2 {
+//     return this.solutionCells.length > 0
+//       ? this.solutionCells[0]
+//       : new Phaser.Math.Vector2(0, 0);
+//   }
+
+//   getTileSize(): number {
+//     return this.tileSize;
+//   }
+
+//   getRoomCols(): number {
+//     return this.roomCols;
+//   }
+
+//   getRoomRows(): number {
+//     return this.roomRows;
 //   }
 
 //   private findPath(
@@ -140,10 +148,10 @@
 //       }
 
 //       const directions = Phaser.Utils.Array.Shuffle([
-//         { dx: 0, dy: -1 }, // north
-//         { dx: 1, dy: 0 }, // east
-//         { dx: 0, dy: 1 }, // south
-//         { dx: -1, dy: 0 }, // west
+//         { dx: 0, dy: -1 },
+//         { dx: 0, dy: 1 },
+//         { dx: -1, dy: 0 },
+//         { dx: 1, dy: 0 },
 //       ]);
 
 //       for (const { dx, dy } of directions) {
@@ -162,93 +170,157 @@
 //   private connectRooms(
 //     room1: Room,
 //     room2: Room,
-//     cell1: Phaser.Math.Vector2,
-//     cell2: Phaser.Math.Vector2
-//   ) {
-//     const x1 = room1.centerX();
-//     const y1 = room1.centerY();
-//     const x2 = room2.centerX();
-//     const y2 = room2.centerY();
+//     pos1: Phaser.Math.Vector2,
+//     pos2: Phaser.Math.Vector2
+//   ): void {
+//     const key1 = `${pos1.x},${pos1.y}`;
+//     const key2 = `${pos2.x},${pos2.y}`;
 
-//     this.solutionPath.moveTo(x1, y1);
-
-//     if (x1 === x2 || y1 === y2) {
-//       this.solutionPath.lineTo(x2, y2);
-//     } else {
-//       this.solutionPath.lineTo(x2, y1).lineTo(x2, y2);
+//     if (!this.roomConnections.has(key1)) {
+//       this.roomConnections.set(key1, new Set());
+//     }
+//     if (!this.roomConnections.has(key2)) {
+//       this.roomConnections.set(key2, new Set());
 //     }
 
-//     this.solutionPath.strokePath();
-
-//     this.markConnection(cell1, cell2);
-//     this.markConnection(cell2, cell1);
+//     this.roomConnections.get(key1)!.add(key2);
+//     this.roomConnections.get(key2)!.add(key1);
 //   }
 
-//   private markConnection(
-//     cell1: Phaser.Math.Vector2,
-//     cell2: Phaser.Math.Vector2
-//   ) {
-//     const key = `${cell1.x},${cell1.y}`;
-//     const value = `${cell2.x},${cell2.y}`;
+//   countPlacedPrebuiltRooms(): number {
+//     let placedRoomCount = 0;
 
-//     if (!this.roomConnections.has(key)) {
-//       this.roomConnections.set(key, new Set());
+//     for (const room of this.rooms) {
+//       if (room.hasPrebuiltRoom()) {
+//         placedRoomCount++;
+//       }
 //     }
-//     this.roomConnections.get(key)!.add(value);
+
+//     return placedRoomCount;
 //   }
 
-//   private createWalls() {
-//     this.rooms.forEach((room) => {
-//       const key = `${room.getX()},${room.getY()}`;
-//       const connections = this.roomConnections.get(key) || new Set();
-//       room.createWalls(connections, this.wallGroup, this.ironWallGroup);
-//     });
-//   }
+//   // Example of how you might use this method after placing the rooms
+//   placePrebuiltRooms() {
+//     for (let i = 0; i < this.solutionCells.length; i++) {
+//       const { x, y } = this.solutionCells[i];
+//       let placed = false;
 
-//   private checkBlockedSides(room: string[]): boolean[] {
-//     const blocked = [false, false, false, false]; // [right, up, left, down]
+//       let selectedRoom;
+//       if (i === 0) {
+//         selectedRoom = spawnRoom;
+//       } else if (i === this.solutionCells.length - 1) {
+//         selectedRoom = exitRoom;
+//       } else {
+//         const roomsToTry = Phaser.Utils.Array.GetRandom(prebuiltRooms);
+//         selectedRoom = roomsToTry;
+//       }
 
-//     if (room[0].split("").every((cell) => cell === "1")) {
-//       blocked[1] = true;
+//       // Debugging Log
+//       console.log("Selected Room:", selectedRoom);
+
+//       // Check if selectedRoom has layers
+//       if (!selectedRoom || !Array.isArray(selectedRoom.layers)) {
+//         console.warn(
+//           `Invalid room or missing layers at (${x}, ${y})`,
+//           selectedRoom
+//         );
+//         continue;
+//       }
+
+//       this.rooms[y * this.levelCols + x].placePrebuiltRoom(selectedRoom.layers);
+//       placed = true;
+
+//       if (!placed) {
+//         console.error(`No valid prebuilt room found for position (${x}, ${y})`);
+//       }
 //     }
 
-//     if (room[room.length - 1].split("").every((cell) => cell === "1")) {
-//       blocked[3] = true;
+//     const placedRoomCount = this.countPlacedPrebuiltRooms();
+//     if (placedRoomCount <= this.MIN_PLACED_ROOMS) {
+//       this.generateNewRoom();
 //     }
-
-//     if (room.every((row) => row[0] === "1")) {
-//       blocked[2] = true;
-//     }
-
-//     if (room.every((row) => row[row.length - 1] === "1")) {
-//       blocked[0] = true;
-//     }
-
-//     return blocked;
 //   }
 
 //   private isValidRoom(
-//     room: string[],
+//     roomLayer: string[],
 //     posX: number,
 //     posY: number,
 //     entryDir: number,
 //     exitDir: number
 //   ): boolean {
-//     const blocked = this.checkBlockedSides(room);
-//     console.log(
-//       `Room at (${posX}, ${posY}) - Entry Dir: ${entryDir}, Exit Dir: ${exitDir}, Blocked Sides: ${blocked}`
-//     );
-
-//     if (entryDir !== -1 && blocked[entryDir]) {
-//       console.log(`Entry direction ${entryDir} is blocked`);
-//       return false;
-//     }
-//     if (exitDir !== -1 && blocked[exitDir]) {
-//       console.log(`Exit direction ${exitDir} is blocked`);
-//       return false;
-//     }
-
+//     const blocked = this.checkBlockedSides(roomLayer);
+//     if (entryDir !== -1 && blocked[entryDir]) return false;
+//     if (exitDir !== -1 && blocked[exitDir]) return false;
 //     return true;
+//   }
+
+//   private checkBlockedSides(roomLayer: string[]): boolean[] {
+//     const blocked = [false, false, false, false];
+//     const isBlocked = (cell: string): boolean => {
+//       return [
+//         "1",
+//         "2",
+//         "3",
+//         "4",
+//         "5",
+//         "6",
+//         "7",
+//         "8",
+//         "9",
+//         "10",
+//         "89",
+//         "90",
+//         "91",
+//         "33",
+//         "34",
+//         "35",
+//         "36",
+//         "37",
+//         "62",
+//         "63",
+//         "64",
+//         "65",
+//         "66",
+//         "70",
+//         "71",
+//         "72",
+//         "92",
+//         "93",
+//         "94",
+//         "99",
+//         "100",
+//         "101",
+//         "120",
+//         "121",
+//         "122",
+//         "123",
+//         "150",
+//         "151",
+//         "152",
+//       ].includes(cell);
+//     };
+
+//     if (roomLayer[0].split(",").every(isBlocked)) {
+//       blocked[1] = true;
+//     }
+
+//     if (roomLayer[roomLayer.length - 1].split(",").every(isBlocked)) {
+//       blocked[3] = true;
+//     }
+
+//     if (roomLayer.every((row) => isBlocked(row.split(",")[0]))) {
+//       blocked[2] = true;
+//     }
+
+//     if (
+//       roomLayer.every((row) =>
+//         isBlocked(row.split(",")[row.split(",").length - 1])
+//       )
+//     ) {
+//       blocked[0] = true;
+//     }
+
+//     return blocked;
 //   }
 
 //   private getDirection(
@@ -259,7 +331,7 @@
 //     if (cell1.y > cell2.y) return 1; // Up
 //     if (cell1.x > cell2.x) return 2; // Left
 //     if (cell1.y < cell2.y) return 3; // Down
-//     return -1; // Invalid direction
+//     return -1;
 //   }
 
 //   private oppositeDirection(direction: number): number {
@@ -273,115 +345,33 @@
 //       case 3:
 //         return 1; // Down -> Up
 //       default:
-//         return -1; // Invalid direction
+//         return -1;
 //     }
 //   }
 
-//   private placePrebuiltRooms() {
-//     for (let i = 0; i < this.solutionCells.length; i++) {
-//       const { x, y } = this.solutionCells[i];
-//       let placed = false;
+//   createWalls() {
+//     for (const room of this.rooms) {
+//       const roomKey = `${room.getX()},${room.getY()}`;
+//       const connections = this.roomConnections.get(roomKey) || new Set();
+//       room.createWalls(connections);
+//     }
+//   }
 
-//       for (let attempt = 0; attempt < 3; attempt++) {
-//         const roomsToTry =
-//           attempt < 2 ? prebuiltRooms : prebuiltRoomsWithoutWalls;
-//         const shuffledRooms = Phaser.Utils.Array.Shuffle(roomsToTry);
-
-//         for (let j = 0; j < shuffledRooms.length; j++) {
-//           let entryDir = -1;
-//           let exitDir = -1;
-//           if (i > 0) {
-//             const prevExitDir = this.getDirection(
-//               this.solutionCells[i - 1],
-//               this.solutionCells[i]
-//             );
-//             entryDir = this.oppositeDirection(prevExitDir);
-//           }
-//           if (i < this.solutionCells.length - 1) {
-//             exitDir = this.getDirection(
-//               this.solutionCells[i],
-//               this.solutionCells[i + 1]
-//             );
-//           }
-//           if (this.isValidRoom(shuffledRooms[j], x, y, entryDir, exitDir)) {
-//             this.rooms[y * this.levelCols + x].placePrebuiltRoom(
-//               shuffledRooms[j],
-//               this.ironWallGroup
-//             );
-//             placed = true;
-//             break;
-//           }
+//   getTileCoordinates(
+//     tileId: number,
+//     levelData: number[][]
+//   ): Phaser.Math.Vector2 | null {
+//     for (let row = 0; row < levelData.length; row++) {
+//       for (let col = 0; col < levelData[row].length; col++) {
+//         if (levelData[row][col] === tileId) {
+//           return new Phaser.Math.Vector2(col, row);
 //         }
-
-//         if (placed) break;
-//       }
-
-//       if (!placed) {
-//         console.error(`No valid prebuilt room found for position (${x}, ${y})`);
 //       }
 //     }
+//     return null;
 //   }
 
-//   private createPlayer() {
-//     const firstRoom = this.rooms[0];
-//     this.player = new Player(this, 100, 10);
-//     this.cameras.main.startFollow(this.player.sprite);
-//   }
-
-//   private setupCollisions() {
-//     this.physics.add.collider(this.player.sprite, this.wallGroup);
-//     this.physics.add.collider(this.player.sprite, this.ironWallGroup);
-//     this.physics.add.overlap(
-//       this.player.sprite,
-//       this.wallGroup,
-//       this.handleOverlap,
-//       undefined,
-//       this
-//     );
-//     this.physics.add.overlap(
-//       this.player.sprite,
-//       this.ironWallGroup,
-//       this.handleOverlap,
-//       undefined,
-//       this
-//     );
-//   }
-
-//   private handleOverlap(
-//     player: Phaser.Physics.Arcade.Sprite,
-//     wall: Phaser.Physics.Arcade.Sprite
-//   ) {
-//     const overlapX = player.x - wall.x;
-//     const overlapY = player.y - wall.y;
-
-//     if (Math.abs(overlapX) > Math.abs(overlapY)) {
-//       if (overlapX > 0) {
-//         player.x = wall.x + wall.width / 2 + player.width / 2;
-//       } else {
-//         player.x = wall.x - wall.width / 2 - player.width / 2;
-//       }
-//     } else {
-//       if (overlapY > 0) {
-//         player.y = wall.y + wall.height / 2 + player.height / 2;
-//       } else {
-//         player.y = wall.y - wall.height / 2 - player.height / 2;
-//       }
-//     }
-//   }
-//   private downloadGridData() {
-//     const fullLevelData = this.generateGridData();
-//     const tiledData = this.generateTiledData(fullLevelData);
-//     const jsonData = JSON.stringify(tiledData, null, 2);
-
-//     const blob = new Blob([jsonData], { type: "application/json" });
-//     const url = URL.createObjectURL(blob);
-//     const a = document.createElement("a");
-//     a.href = url;
-//     a.download = "levelData.json";
-//     a.click();
-//     URL.revokeObjectURL(url);
-//   }
-//   private generateGridData(): number[][] {
+//   generateGridData(): number[][] {
 //     const fullLevelData: number[][] = [];
 
 //     for (let y = 0; y < this.levelRows * this.roomRows; y++) {
@@ -391,75 +381,28 @@
 //         const roomY = Math.floor(y / this.roomRows);
 //         const blockX = x % this.roomCols;
 //         const blockY = y % this.roomRows;
-//         fullLevelData[y][x] =
-//           this.grid[roomY][roomX].room.getRoomData()[blockY][blockX];
+
+//         const room = this.grid[roomY][roomX].room;
+//         const roomData = room.getRoomData();
+
+//         // Check for correct data placement
+//         if (roomData.length > 0) {
+//           const baseTileIndex = roomData[0][blockY][blockX];
+//           const overlayTileIndex = roomData[1][blockY][blockX];
+
+//           // Use overlay tile if present, otherwise use base tile
+//           fullLevelData[y].push(
+//             overlayTileIndex > 0 ? overlayTileIndex - 1 : baseTileIndex - 1
+//           );
+//         } else {
+//           fullLevelData[y].push(0); // Default to empty if no data
+//         }
 //       }
 //     }
 
-//     console.log("Full Level Data:");
-//     for (const row of fullLevelData) {
-//       console.log(row.join(" "));
-//     }
+//     // Log the final level data
+//     console.log("Generated Full Level Data:", fullLevelData);
 
 //     return fullLevelData;
-//   }
-
-//   private generateTiledData(fullLevelData: number[][]) {
-//     return {
-//       compressionlevel: -1,
-//       height: this.levelRows * this.roomRows,
-//       infinite: false,
-//       layers: [
-//         {
-//           data: fullLevelData.flat(), // Flatten 2D array into 1D
-//           height: this.levelRows * this.roomRows,
-//           id: 1,
-//           name: "wallLayer",
-//           opacity: 1,
-//           type: "tilelayer",
-//           visible: true,
-//           width: this.levelCols * this.roomCols,
-//           x: 0,
-//           y: 0,
-//         },
-//       ],
-//       nextlayerid: 2,
-//       nextobjectid: 1,
-//       orientation: "orthogonal",
-//       renderorder: "right-down",
-//       tiledversion: "1.10.2",
-//       tileheight: this.tileSize,
-//       tilesets: [
-//         {
-//           columns: 1,
-//           firstgid: 1,
-//           image: "../../../public/assets/sprite-grass.png",
-//           imageheight: 32,
-//           imagewidth: 32,
-//           margin: 0,
-//           name: "sprite-grass",
-//           spacing: 0,
-//           tilecount: 1,
-//           tileheight: 32,
-//           tiles: [
-//             {
-//               id: 0,
-//               properties: [
-//                 {
-//                   name: "collides",
-//                   type: "bool",
-//                   value: true,
-//                 },
-//               ],
-//             },
-//           ],
-//           tilewidth: 32,
-//         },
-//       ],
-//       tilewidth: this.tileSize,
-//       type: "map",
-//       version: "1.10",
-//       width: this.levelCols * this.roomCols,
-//     };
 //   }
 // }

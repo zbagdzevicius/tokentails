@@ -14,7 +14,7 @@ export class GenerateLevel {
   private grid: { room: Room; x: number; y: number }[][] = [];
   private rooms: Room[] = [];
   private solutionPath!: Phaser.GameObjects.Graphics;
-  private solutionCells: Phaser.Math.Vector2[] = [];
+  public solutionCells: Phaser.Math.Vector2[] = [];
   private roomConnections: Map<string, Set<string>> = new Map();
   private readonly MIN_PLACED_ROOMS = 8;
 
@@ -28,16 +28,22 @@ export class GenerateLevel {
     this.createSolutionPath();
     this.createWalls();
     this.placePrebuiltRooms();
+    if (this.solutionCells.length <= this.MIN_PLACED_ROOMS) {
+      this.generateNewRoom();
+    }
   }
+
   clearLevelData() {
     this.rooms = [];
     this.grid = [];
     this.roomConnections.clear();
     this.solutionCells = [];
+
     if (this.solutionPath) {
-      this.solutionPath.clear();
+      this.solutionPath.destroy();
     }
   }
+
   generateGrid() {
     this.grid = Array.from({ length: this.levelRows }, (_, y) =>
       Array.from({ length: this.levelCols }, (_, x) => ({
@@ -84,13 +90,11 @@ export class GenerateLevel {
     const { x: startX, y: startY } = startCorner;
     const { x: endX, y: endY } = endCorner;
 
-    this.solutionPath = this.scene.add.graphics({
-      lineStyle: { width: 4, color: 0xffff00 },
-    });
-
+    // Finding the path without creating the graphics object
     const path = this.findPath(startX, startY, endX, endY);
     if (path) {
       this.solutionCells = path;
+
       for (let i = 0; i < path.length - 1; i++) {
         const room1 = this.rooms[path[i].y * this.levelCols + path[i].x];
         const room2 =
@@ -99,7 +103,6 @@ export class GenerateLevel {
       }
     }
   }
-
   getStartCoordinates(): Phaser.Math.Vector2 {
     return this.solutionCells.length > 0
       ? this.solutionCells[0]
@@ -187,29 +190,16 @@ export class GenerateLevel {
     this.roomConnections.get(key2)!.add(key1);
   }
 
-  countPlacedPrebuiltRooms(): number {
-    let placedRoomCount = 0;
-
-    for (const room of this.rooms) {
-      if (room.hasPrebuiltRoom()) {
-        placedRoomCount++;
-      }
-    }
-
-    return placedRoomCount;
-  }
-
-  // Example of how you might use this method after placing the rooms
   placePrebuiltRooms() {
     for (let i = 0; i < this.solutionCells.length; i++) {
       const { x, y } = this.solutionCells[i];
       let placed = false;
 
       if (i === 0) {
-        this.rooms[y * this.levelCols + x].placePrebuiltRoom(spawnRoom);
+        this.rooms[y * this.levelCols + x].placePrebuiltRoom(spawnRoom.layers);
         placed = true;
       } else if (i === this.solutionCells.length - 1) {
-        this.rooms[y * this.levelCols + x].placePrebuiltRoom(exitRoom);
+        this.rooms[y * this.levelCols + x].placePrebuiltRoom(exitRoom.layers);
         placed = true;
       } else {
         for (let attempt = 0; attempt < 3; attempt++) {
@@ -232,8 +222,11 @@ export class GenerateLevel {
               this.solutionCells[i + 1]
             );
           }
-          if (this.isValidRoom(randomRoom, x, y, entryDir, exitDir)) {
-            this.rooms[y * this.levelCols + x].placePrebuiltRoom(randomRoom);
+
+          if (this.isValidRoom(randomRoom.layers[0], x, y, entryDir, exitDir)) {
+            this.rooms[y * this.levelCols + x].placePrebuiltRoom(
+              randomRoom.layers
+            );
             placed = true;
             break;
           }
@@ -243,22 +236,28 @@ export class GenerateLevel {
           const fallbackRoom = Phaser.Utils.Array.GetRandom(
             prebuiltRoomsWithoutWalls
           );
-          this.rooms[y * this.levelCols + x].placePrebuiltRoom(fallbackRoom);
+          this.rooms[y * this.levelCols + x].placePrebuiltRoom(
+            fallbackRoom.layers
+          );
           placed = true;
-
-          if (!placed) {
-            console.error(
-              `No valid prebuilt room found for position (${x}, ${y})`
-            );
-          }
         }
       }
     }
 
-    // Check if the placed rooms meet the minimum requirement
-    const placedRoomCount = this.countPlacedPrebuiltRooms();
-    if (placedRoomCount <= this.MIN_PLACED_ROOMS) {
-      this.generateNewRoom();
+    for (let y = 0; y < this.levelRows; y++) {
+      for (let x = 0; x < this.levelCols; x++) {
+        const roomIndex = y * this.levelCols + x;
+        const room = this.rooms[roomIndex];
+
+        if (!room.hasPrebuiltRoom()) {
+          const useNoWalls = Math.random() < 0.55; // 55% chance to choose a room without walls
+          const roomsToTry = useNoWalls
+            ? prebuiltRoomsWithoutWalls
+            : prebuiltRooms;
+          const randomRoom = Phaser.Utils.Array.GetRandom(roomsToTry);
+          room.placePrebuiltRoom(randomRoom.layers);
+        }
+      }
     }
   }
 
@@ -395,43 +394,57 @@ export class GenerateLevel {
     return null;
   }
 
-  generateGridData(): number[][] {
-    const fullLevelData: number[][] = [];
+  generateGridData(): { baseLayer: number[][]; overlayLayer: number[][] } {
+    const totalCols = this.levelCols * this.roomCols + 2;
+    const totalRows = this.levelRows * this.roomRows + 2;
 
-    for (let y = 0; y < this.levelRows * this.roomRows; y++) {
-      fullLevelData[y] = [];
-      for (let x = 0; x < this.levelCols * this.roomCols; x++) {
-        const roomX = Math.floor(x / this.roomCols);
-        const roomY = Math.floor(y / this.roomRows);
-        const blockX = x % this.roomCols;
-        const blockY = y % this.roomRows;
+    const baseLayerData: number[][] = Array.from({ length: totalRows }, () =>
+      Array(totalCols).fill(0)
+    );
+    const overlayLayerData: number[][] = Array.from({ length: totalRows }, () =>
+      Array(totalCols).fill(0)
+    );
 
+    const getTileIndex = (x: number, y: number, layer: number): number => {
+      const roomX = Math.floor((x - 1) / this.roomCols);
+      const roomY = Math.floor((y - 1) / this.roomRows);
+      const blockX = (x - 1) % this.roomCols;
+      const blockY = (y - 1) % this.roomRows;
+      return (
+        this.grid[roomY][roomX].room.getRoomData()[layer][blockY][blockX] - 1
+      );
+    };
+
+    for (let y = 0; y < totalRows; y++) {
+      for (let x = 0; x < totalCols; x++) {
         if (y === 0 && x === 0) {
-          fullLevelData[y].push(91); // Top-left corner
-        } else if (y === 0 && x === this.levelCols * this.roomCols - 1) {
-          fullLevelData[y].push(93); // Top-right corner
-        } else if (y === this.levelRows * this.roomRows - 1 && x === 0) {
-          fullLevelData[y].push(149); // Bottom-left corner
-        } else if (
-          y === this.levelRows * this.roomRows - 1 &&
-          x === this.levelCols * this.roomCols - 1
-        ) {
-          fullLevelData[y].push(151); // Bottom-right corner
-        } else if (y === 0) {
-          fullLevelData[y].push(92); // Top boundary
-        } else if (y === this.levelRows * this.roomRows - 1) {
-          fullLevelData[y].push(150); // Bottom boundary
-        } else if (x === 0) {
-          fullLevelData[y].push(120); // Left boundary
-        } else if (x === this.levelCols * this.roomCols - 1) {
-          fullLevelData[y].push(122); // Right boundary
+          baseLayerData[y][x] = 91; // Top-left corner
+          overlayLayerData[y][x] = 91; // Top-left corner (overlay)
+        } else if (y === 0 && x === totalCols - 1) {
+          baseLayerData[y][x] = 93; // Top-right corner
+          overlayLayerData[y][x] = 93; // Top-right corner (overlay)
+        } else if (y === totalRows - 1 && x === 0) {
+          baseLayerData[y][x] = 149; // Bottom-left corner
+          overlayLayerData[y][x] = 149; // Bottom-left corner (overlay)
+        } else if (y === totalRows - 1 && x === totalCols - 1) {
+          baseLayerData[y][x] = 151; // Bottom-right corner
+          overlayLayerData[y][x] = 151; // Bottom-right corner (overlay)
+        }
+        // Check boundaries
+        else if (y === 0 || y === totalRows - 1) {
+          baseLayerData[y][x] = 31; // Top or Bottom boundary
+          overlayLayerData[y][x] = 31; // Top or Bottom boundary (overlay)
+        } else if (x === 0 || x === totalCols - 1) {
+          baseLayerData[y][x] = 123; // Left or Right boundary
+          overlayLayerData[y][x] = 123; // Left or Right boundary (overlay)
         } else {
-          const tileIndex =
-            this.grid[roomY][roomX].room.getRoomData()[blockY][blockX];
-          fullLevelData[y].push(tileIndex - 1);
+          // Inner grid tiles
+          baseLayerData[y][x] = getTileIndex(x, y, 0);
+          overlayLayerData[y][x] = getTileIndex(x, y, 1);
         }
       }
     }
-    return fullLevelData;
+
+    return { baseLayer: baseLayerData, overlayLayer: overlayLayerData };
   }
 }
