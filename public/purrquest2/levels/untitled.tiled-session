@@ -1,0 +1,552 @@
+{
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
+    "activeFile": "without/without11.json",
+    "expandedProjectPaths": [
+        "without",
+        "blocked",
+        "."
+    ],
+    "file.lastUsedOpenFilter": "All Files (*)",
+    "fileStates": {
+        "": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked1.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 159.88908441316053,
+                "y": 128.32080200501255
+            }
+        },
+        "blocked/blocked1.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked10.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 159.88908441316053,
+                "y": 127.97952327627578
+            }
+        },
+        "blocked/blocked10.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked11.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 159.88908441316053,
+                "y": 127.97952327627578
+            }
+        },
+        "blocked/blocked11.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked12.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 159.88908441316053,
+                "y": 127.97952327627578
+            }
+        },
+        "blocked/blocked12.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked13.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 159.88908441316053,
+                "y": 128.32080200501255
+            }
+        },
+        "blocked/blocked13.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked14.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 160.23036314189727,
+                "y": 128.32080200501255
+            }
+        },
+        "blocked/blocked14.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked15.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 159.88908441316053,
+                "y": 127.97952327627578
+            }
+        },
+        "blocked/blocked15.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked16.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 159.88908441316053,
+                "y": 127.97952327627578
+            }
+        },
+        "blocked/blocked16.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked17.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 159.88908441316053,
+                "y": 127.97952327627578
+            }
+        },
+        "blocked/blocked17.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked18.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 158.86524822695037,
+                "y": 127.97952327627578
+            }
+        },
+        "blocked/blocked18.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked19.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 158.86524822695037,
+                "y": 128.32080200501255
+            }
+        },
+        "blocked/blocked19.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked2.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 159.88908441316053,
+                "y": 127.97952327627578
+            }
+        },
+        "blocked/blocked2.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked3.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 159.88908441316053,
+                "y": 127.97952327627578
+            }
+        },
+        "blocked/blocked3.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked4.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 159.88908441316053,
+                "y": 127.97952327627578
+            }
+        },
+        "blocked/blocked4.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked5.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 159.88908441316053,
+                "y": 127.97952327627578
+            }
+        },
+        "blocked/blocked5.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked6.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 159.88908441316053,
+                "y": 127.97952327627578
+            }
+        },
+        "blocked/blocked6.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked7.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 159.88908441316053,
+                "y": 127.97952327627578
+            }
+        },
+        "blocked/blocked7.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked8.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 159.88908441316053,
+                "y": 83.9545672692369
+            }
+        },
+        "blocked/blocked8.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked9.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 159.88908441316053,
+                "y": 215.34687783288004
+            }
+        },
+        "blocked/blocked9.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/blocked9.json#blocks-original-development": {
+            "scaleInDock": 1
+        },
+        "blocked/without1010.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 160.23036314189727,
+                "y": 128.32080200501255
+            }
+        },
+        "blocked/without1010.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/without10101.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 160.23036314189727,
+                "y": 128.32080200501255
+            }
+        },
+        "blocked/without10101.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/without105.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 160.23036314189727,
+                "y": 128.32080200501255
+            }
+        },
+        "blocked/without105.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/without106.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 160.23036314189727,
+                "y": 128.32080200501255
+            }
+        },
+        "blocked/without106.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "blocked/without107.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 160.23036314189727,
+                "y": 128.32080200501255
+            }
+        },
+        "blocked/without107.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/a.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 160.23036314189727,
+                "y": 128.32080200501255
+            }
+        },
+        "without/a.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 158.86524822695037,
+                "y": 126.2731296325921
+            }
+        },
+        "without/without.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without.json#blocks-original-development": {
+            "scaleInDock": 1
+        },
+        "without/without1.json": {
+            "scale": 2,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 158.25,
+                "y": 115
+            }
+        },
+        "without/without1.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without1.json#blocks-original-development": {
+            "scaleInDock": 1
+        },
+        "without/without10.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 158.86524822695037,
+                "y": 125.93185090385539
+            }
+        },
+        "without/without10.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without100.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 160.23036314189727,
+                "y": 128.32080200501255
+            }
+        },
+        "without/without100.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without101.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 160.23036314189727,
+                "y": 128.32080200501255
+            }
+        },
+        "without/without101.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without102.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 160.23036314189727,
+                "y": 128.32080200501255
+            }
+        },
+        "without/without102.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without104.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 160.23036314189727,
+                "y": 128.32080200501255
+            }
+        },
+        "without/without104.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without105.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 160.23036314189727,
+                "y": 128.32080200501255
+            }
+        },
+        "without/without105.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without11.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 158.86524822695037,
+                "y": 124.90801471764516
+            }
+        },
+        "without/without11.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without12.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 158.86524822695037,
+                "y": 125.93185090385539
+            }
+        },
+        "without/without12.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without13.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 158.86524822695037,
+                "y": 127.2969658188023
+            }
+        },
+        "without/without13.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without2.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 158.86524822695037,
+                "y": 127.2969658188023
+            }
+        },
+        "without/without2.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without3.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 158.86524822695037,
+                "y": 127.2969658188023
+            }
+        },
+        "without/without3.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without4.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 158.86524822695037,
+                "y": 126.61440836132883
+            }
+        },
+        "without/without4.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without4.json#blocks-original-development": {
+            "scaleInDock": 1
+        },
+        "without/without5.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 158.86524822695037,
+                "y": 127.2969658188023
+            }
+        },
+        "without/without5.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without6.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 158.86524822695037,
+                "y": 127.2969658188023
+            }
+        },
+        "without/without6.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without7.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 158.86524822695037,
+                "y": 127.2969658188023
+            }
+        },
+        "without/without7.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without8.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 158.86524822695037,
+                "y": 127.63824454753907
+            }
+        },
+        "without/without8.json#blocks-original": {
+            "scaleInDock": 1
+        },
+        "without/without9.json": {
+            "scale": 2.93015625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 158.86524822695037,
+                "y": 83.61328854050018
+            }
+        },
+        "without/without9.json#blocks-original": {
+            "scaleInDock": 1
+        }
+    },
+    "last.imagePath": "C:/Users/ernes/Desktop/game/cats/public/purrquest2/icons",
+    "map.height": 8,
+    "map.lastUsedFormat": "json",
+    "map.width": 10,
+    "openFiles": [
+        "without/without10.json",
+        "without/without12.json",
+        "without/without.json",
+        "without/without1.json",
+        "without/without11.json",
+        "without/without2.json",
+        "without/without3.json",
+        "without/without4.json",
+        "without/without5.json",
+        "without/without6.json",
+        "without/without7.json",
+        "without/without8.json",
+        "without/without9.json",
+        "blocked/blocked18.json",
+        "without/without13.json",
+        "blocked/blocked19.json"
+    ],
+    "project": "untitled.tiled-project",
+    "recentFiles": [
+        "without/without104.json",
+        "without/without102.json",
+        "without/without101.json",
+        "without/without100.json",
+        "without/a.json",
+        "blocked/blocked19.json",
+        "without/without13.json",
+        "blocked/blocked18.json",
+        "without/without9.json",
+        "without/without8.json",
+        "without/without7.json",
+        "without/without6.json"
+    ],
+    "tileset.embedInMap": true
+}

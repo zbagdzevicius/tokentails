@@ -31,6 +31,7 @@ export enum QUEST {
   START_NOT_BITCOIN = "START_NOT_BITCOIN",
   START_DONZ_SQUAT = "START_DONZ_SQUAT",
   START_TAP_WARRIOR = "START_TAP_WARRIOR",
+  START_STAR_AI = "START_STAR_AI",
   FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",
   FOLLOW_TG_GROUP = "FOLLOW_TG_GROUP",
   FOLLOW_X = "FOLLOW_X",
@@ -134,6 +135,16 @@ const allQuests: IQuest[] = [
     name: "Start Tap Warrior",
     link: "https://t.me/tapwarrior_bot",
     icon: "/icons/social/tapwarrior.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_STAR_AI,
+    name: "Start Star AI",
+    link: "https://t.me/TheStarAIBot/StarAI?startapp=KwAg1e",
+    icon: "/icons/social/starai.webp",
     reward: {
       coins: 1000,
     },

@@ -17,7 +17,6 @@ export class TextButton extends Phaser.GameObjects.Text {
       .on("pointerdown", () => this.enterButtonActiveState())
       .on("pointerup", () => {
         this.enterButtonHoverState();
-        console.log(`${text} button clicked`); // Log button click
         callback();
       });
 
