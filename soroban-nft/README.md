@@ -82,7 +82,7 @@ stellar contract deploy \
 ### Contracts:
 - Owner testnet public key: GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN
 - Test testnet public key: GBFDHPVUCADXYGDUHJEXKO3BLV26SA5JBHV5MFQ3TH5HWVYZIP73VR4O
-- Cat testnet: CDALFQUFKGJPR6NQZ66YK2RZ3FU2MTZ54OP6BQRXGWY6R2FRZGXO5XDE
+- Cat testnet: CBSLDG3O5CEP6OGHN7YG6VIZSYF7LNA46XEFR24Z2I2BLZCMNCWTKP6S
 - Cat mainnet: 
 - testnet explorer: https://stellar.expert/explorer/testnet
 
@@ -97,7 +97,7 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CDALFQUFKGJPR6NQZ66YK2RZ3FU2MTZ54OP6BQRXGWY6R2FRZGXO5XDE \
+  --id CBSLDG3O5CEP6OGHN7YG6VIZSYF7LNA46XEFR24Z2I2BLZCMNCWTKP6S \
   --source zygis \
   --network testnet \
   -- \
@@ -113,7 +113,7 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CDALFQUFKGJPR6NQZ66YK2RZ3FU2MTZ54OP6BQRXGWY6R2FRZGXO5XDE \
+  --id CBSLDG3O5CEP6OGHN7YG6VIZSYF7LNA46XEFR24Z2I2BLZCMNCWTKP6S \
   --source zygis \
   --network testnet \
   -- \
@@ -129,7 +129,7 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CDALFQUFKGJPR6NQZ66YK2RZ3FU2MTZ54OP6BQRXGWY6R2FRZGXO5XDE \
+  --id CBSLDG3O5CEP6OGHN7YG6VIZSYF7LNA46XEFR24Z2I2BLZCMNCWTKP6S \
   --source zygis \
   --network testnet \
   -- \
@@ -143,7 +143,7 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CDALFQUFKGJPR6NQZ66YK2RZ3FU2MTZ54OP6BQRXGWY6R2FRZGXO5XDE \
+  --id CBSLDG3O5CEP6OGHN7YG6VIZSYF7LNA46XEFR24Z2I2BLZCMNCWTKP6S \
   --source zygis \
   --network testnet \
   -- \
@@ -158,7 +158,7 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CDALFQUFKGJPR6NQZ66YK2RZ3FU2MTZ54OP6BQRXGWY6R2FRZGXO5XDE \
+  --id CBSLDG3O5CEP6OGHN7YG6VIZSYF7LNA46XEFR24Z2I2BLZCMNCWTKP6S \
   --source zygis \
   --network testnet \
   -- \
@@ -172,7 +172,7 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CDALFQUFKGJPR6NQZ66YK2RZ3FU2MTZ54OP6BQRXGWY6R2FRZGXO5XDE \
+  --id CBSLDG3O5CEP6OGHN7YG6VIZSYF7LNA46XEFR24Z2I2BLZCMNCWTKP6S \
   --source zygis \
   --network testnet \
   -- \
