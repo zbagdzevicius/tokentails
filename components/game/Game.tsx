@@ -9,7 +9,9 @@ const Catbassadors = dynamic(
   () => import("@/components/catbassadors/Catbassadors"),
   { ssr: false }
 );
-
+const PurrQuest = dynamic(() => import("@/components/purrquest/PurrQuest"), {
+  ssr: false,
+});
 const Base = dynamic(() => import("@/components/base/Base"), { ssr: false });
 const Adopt = dynamic(() => import("@/components/game/Adopt"), { ssr: false });
 
@@ -29,6 +31,9 @@ export const Game = () => {
         </CatProvider>
       )}
       {gameType === GameType.SHELTER && profile && <Adopt />}
+      {gameType === GameType.PURRQUEST && profile && (
+        <PurrQuest cat={profile?.cat} />
+      )}
     </div>
   );
 };

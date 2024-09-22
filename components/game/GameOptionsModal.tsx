@@ -76,7 +76,7 @@ export const GameOptionsModal = ({
             <div className="-mt-1">{profile.catbassadorsLives || 0}</div>
             <div className="-mt-2 text-p4">LIVES</div>
           </div>
-          {gameType === GameType.CATBASSADORS && (
+          {[GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!) && (
             <PixelButton
               active={!profile.catbassadorsLives}
               onClick={() =>

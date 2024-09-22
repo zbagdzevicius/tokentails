@@ -1,6 +1,6 @@
-import { Scene, Physics, GameObjects } from "phaser";
-import { PlayerMovement } from "@/components/Phaser/PlayerMovement/PlayerMovement";
 import { IPlayer } from "@/components/Phaser/PlayerMovement/IPlayer";
+import { PlayerMovement } from "@/components/Phaser/PlayerMovement/PlayerMovement";
+import { GameObjects, Physics, Scene } from "phaser";
 export type KeyMap = {
   up: Phaser.Input.Keyboard.Key;
   left: Phaser.Input.Keyboard.Key;
@@ -62,7 +62,6 @@ export class Player implements IPlayer {
   justJumped: boolean = false;
   isSliding: boolean = false;
   jumpTimer: number = 0;
-  private animation: PlayerAnimation = animationConfigurations[0].key;
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   keys!: KeyMap;
   isMobileDash: boolean = false;

@@ -1,4 +1,4 @@
 export enum PurrquestBusEvent {
-  SPAWN_CAT = "SPAWN_CAT",
-  CAT_DIED = "CAT_DIED",
+  START_GAME = "START_GAME",
+  GAME_OVER = "GAME_OVER",
 }

@@ -3,7 +3,6 @@ import { GenerateLevel } from "../level/generateLevel";
 
 export class Pathfinding {
   private easystar: EasyStar.js;
-  private graphics: Phaser.GameObjects.Graphics;
   private scene: Phaser.Scene;
   private generateLevel: GenerateLevel;
 
@@ -11,7 +10,6 @@ export class Pathfinding {
     this.scene = scene;
     this.generateLevel = generateLevel;
     this.easystar = new EasyStar.js();
-    this.graphics = this.scene.add.graphics();
   }
 
   initializePathfinding() {
