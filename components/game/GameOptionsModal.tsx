@@ -2,7 +2,7 @@ import { TRedeemLives } from "@/constants/telegram-api";
 import { IUtils } from "@/context/ProfileContext";
 import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PixelButton } from "../button/PixelButton";
 import { GameStatsSection } from "../catbassadors/GameStatsSection";
 import { useToast } from "@/context/ToastContext";
@@ -34,6 +34,7 @@ export const GameOptionsModal = ({
     return referralsPoints + streakPoints + basePoints;
   }, [profile?.referrals, profile?.streak]);
   const toast = useToast();
+  const [isLoading, setIsLoading] = useState(true);
 
   const numberOfLivesToRedeem = useMemo(() => {
     return (profile?.referrals?.length || 0) + 3;
@@ -49,6 +50,12 @@ export const GameOptionsModal = ({
         (profile.catbassadorsLives || 0) + numberOfLivesToRedeem,
     });
   }, []);
+  useEffect(() => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 2000);
+  }, [gameType]);
 
   return (
     <>
@@ -76,15 +83,17 @@ export const GameOptionsModal = ({
             <div className="-mt-1">{profile.catbassadorsLives || 0}</div>
             <div className="-mt-2 text-p4">LIVES</div>
           </div>
-          {gameType === GameType.CATBASSADORS && (
+          {[GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!) && (
             <PixelButton
               active={!profile.catbassadorsLives}
               onClick={() =>
-                profile.catbassadorsLives > 0
+                isLoading
+                  ? {}
+                  : profile.catbassadorsLives > 0
                   ? setIsStarted(true)
                   : toast({ message: "Earn more lives to play" })
               }
-              text="Play"
+              text={isLoading ? "READY" : "Play"}
             ></PixelButton>
           )}
         </div>

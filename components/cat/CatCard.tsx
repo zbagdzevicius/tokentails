@@ -1,5 +1,5 @@
 import { CatAbilities, ICat } from "@/models/cats";
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { PixelButton } from "../button/PixelButton";
 import { useProfile } from "@/context/ProfileContext";
 import { adoptCatFetch, catsFetch } from "@/constants/api";
@@ -15,21 +15,25 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
     catData;
   const cardRef = useRef<HTMLDivElement>(null);
   const { profile, setProfileUpdate } = useProfile();
+  const [isAdopting, setIsAdopting] = useState(false);
 
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
     queryFn: () => catsFetch(),
   });
   const catpointsInMillions = useMemo(() => {
-    if (cats?.find((cat) => cat._id === _id)) {
+    if (isAdopting) {
+      return "adopting"
+    }
+    if (cats?.find((cat) => cat.name === name)) {
       return "adopted";
     }
     const inMillions = catpoints / 1000000;
     return `${inMillions.toFixed(2)}m`;
-  }, [price, cats]);
+  }, [price, cats, isAdopting]);
   const toast = useToast();
   const isForSale = useMemo(() => {
-    const isOwned = cats?.find((cat) => cat._id === _id);
+    const isOwned = cats?.find((cat) => cat.name === name);
     const hasEnoughFunds = (profile?.catpoints || 0) < catpoints;
 
     if (isOwned || hasEnoughFunds) {
@@ -40,7 +44,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
   }, [cats, profile?.catpoints]);
 
   const adopt = async () => {
-    if (cats?.find((cat) => cat._id?.toString() === _id)) {
+    if (cats?.find((cat) => cat.name === name)) {
       toast({ message: "You already own this NFT cat" });
       return;
     }
@@ -54,6 +58,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
       return;
     }
 
+    setIsAdopting(true)
     const status = await adoptCatFetch(_id!);
     if (status.success) {
       setProfileUpdate({
@@ -63,6 +68,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
       });
 
       toast({ message: "Congratz on your adopted cat !" });
+      setIsAdopting(false);
     }
   };
 
@@ -155,7 +161,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                 <PixelButton
                   active={!isForSale}
                   text={catpointsInMillions}
-                  subtext={catpointsInMillions === "adopted" ? "" : "coins"}
+                  subtext={["adopted", "adopting"].includes(catpointsInMillions) ? "" : "coins"}
                   onClick={() => adopt()}
                 ></PixelButton>
                 <PixelButton text="CLOSE" onClick={onClose}></PixelButton>

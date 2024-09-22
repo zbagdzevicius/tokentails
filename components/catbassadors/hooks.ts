@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 export interface IGameOverEvent extends Event {
   detail: {
     score: number;
+    message: string;
   };
 }
 

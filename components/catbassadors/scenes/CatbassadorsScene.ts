@@ -23,7 +23,6 @@ export class CatbassadorsScene extends Scene {
 
   constructor() {
     super("CatbassadorsScene");
-
     BaseBus.addListener(CatbassadorsBusEvent.SPAWN_CAT, (args: any) =>
       this.spawnCat(args)
     );
@@ -44,6 +43,7 @@ export class CatbassadorsScene extends Scene {
       margin: 1,
       spacing: 2,
     });
+
     this.load.image("bosscoin", "logo/boss-coin.png");
     this.load.image("timecoin", "icons/clock.png");
     this.load.image("coin", "logo/coin.png");

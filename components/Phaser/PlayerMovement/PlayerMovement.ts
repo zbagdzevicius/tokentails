@@ -191,7 +191,7 @@ export class PlayerMovement {
           callback: () => {
             const currentFps = this.player.scene.game.loop.actualFps;
 
-            const jumpValue = currentFps <= 30 ? 900 : 1900;
+            const jumpValue = currentFps <= 30 ? 700 : 1500;
 
             const currentVelocity = this.player.sprite.body!.velocity.x;
             const targetVelocity = jumpValue * jumpDirection;
@@ -204,7 +204,7 @@ export class PlayerMovement {
             this.player.sprite.setVelocityX(newVelocity);
           },
           callbackScope: this,
-          repeat: 10,
+          repeat: 8,
         });
       } else {
         this.player.sprite.setVelocityY(this.player.jumpSpeed);

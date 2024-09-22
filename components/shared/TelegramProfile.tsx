@@ -11,16 +11,19 @@ const features = [
 export const TelegramProfileContent = () => {
   const { profile, position } = useProfile();
   const toast = useToast();
-  const copy = useCallback(() => {
-    navigator.clipboard
-      .writeText(profile?.walletAddress!)
-      .then(() => {
-        toast({ message: "Wallet address coppied to clipboard" });
-      })
-      .catch((err) => {
-        throw err;
-      });
-  }, [profile?.walletAddress, toast, close]);
+  const copy = useCallback(
+    (stringToCopy: string) => {
+      navigator.clipboard
+        .writeText(stringToCopy!)
+        .then(() => {
+          toast({ message: "Wallet address coppied to clipboard" });
+        })
+        .catch((err) => {
+          throw err;
+        });
+    },
+    [toast, close]
+  );
 
   return (
     <div className="pt-4 pb-8 px-4 md:px-16 md:py-12 text-gray-700 flex flex-col justify-between items-center">
@@ -43,8 +46,7 @@ export const TelegramProfileContent = () => {
           <li className="flex items-center gap-x-2">
             <img className="w-4" src="/logo/boss-coin.png" />
             <div>
-              Position{" "}
-              <span className="font-bold">#{position || 0}</span>
+              Position <span className="font-bold">#{position || 0}</span>
             </div>
           </li>
           <li className="flex items-center gap-x-2">
@@ -76,15 +78,33 @@ export const TelegramProfileContent = () => {
             </li>
           ))}
 
-          <li onClick={() => copy()} className="flex flex-col gap-1 mt-3">
+          <li
+            onClick={() => copy(profile?.walletAddress)}
+            className="flex flex-col gap-1 mt-3"
+          >
             <div className="text-p6">
-              Your account wallet address{" "}
+              Your EVM wallet address{" "}
               <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg">
                 COPY
               </span>
             </div>
-            <p className="text-p5 font-bold font-secondary">
+            <p className="text-p6 font-bold font-secondary">
               {profile?.walletAddress}
+            </p>
+          </li>
+
+          <li
+            onClick={() => copy(profile?.stellarWalletAddress)}
+            className="flex flex-col gap-1 mt-3"
+          >
+            <div className="text-p6">
+              Your Stellar wallet address{" "}
+              <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg">
+                COPY
+              </span>
+            </div>
+            <p className="text-p6 font-bold font-secondary">
+              {profile?.stellarWalletAddress}
             </p>
           </li>
         </ul>

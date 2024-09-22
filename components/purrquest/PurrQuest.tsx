@@ -1,8 +1,9 @@
+import { useGame } from "@/context/GameContext";
+import { ICat } from "@/models/cats";
 import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
-import { StartGame, GAME_HEIGHT, GAME_WIDTH } from "./config";
-import { EventBus } from "./EventBus";
-import { MobileButtons } from "../Phaser/MobileButtons/MobileButtons";
 import { useBackground } from "../catbassadors/hooks";
+import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
+import { EventBus } from "./EventBus";
 export interface IRefPhaserGame {
   game: Phaser.Game | null;
   scene: Phaser.Scene | null;
@@ -62,18 +63,35 @@ const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame(
   return <div id="game-container"></div>;
 });
 
-function PurrQuest() {
-  const background = useBackground();
-  // The sprite can only be moved in the MainMenu Scene
-  //  References to the PhaserGame component (game and scene are exposed)
+interface IPurrquestProps {
+  cat: ICat;
+}
+
+const Purrquest = ({ cat }: IPurrquestProps) => {
   const phaserRef = useRef<IRefPhaserGame | null>(null);
+  const { isStarted } = useGame();
+  const background = useBackground();
 
   return (
     <div style={background} id="app">
-      <MobileButtons isHidden={false}/>
+      {!isStarted && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2">
+          <div className="flex gap-2 items-center font-secondary text-p3">
+            <span>Find</span>
+            <img className="h-8" src="purrquest/sprites/key.png"></img>
+            <span>OPEN</span>
+            <img className="h-8" src="logo/chest.webp"></img>
+          </div>
+          <div className="flex gap-2 justify-center items-center font-secondary text-p3 mt-2">
+            <img className="h-8" src="logo/coin.webp"></img>
+            <span>WIN 5000</span>
+            <img className="h-8" src="logo/coin.webp"></img>
+          </div>
+        </div>
+      )}
       <PhaserGame ref={phaserRef} />
     </div>
   );
-}
+};
 
-export default PurrQuest;
+export default Purrquest;

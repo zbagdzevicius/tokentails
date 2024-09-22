@@ -11,7 +11,7 @@ import { CatsModal } from "@/components/shared/CatsModal";
 import { QuestsModal } from "@/components/shared/QuestsModal";
 import { TelegramProfile } from "@/components/shared/TelegramProfile";
 import { TDeleteLive } from "@/constants/telegram-api";
-import { catbassadorsGameDuration } from "@/models/cats";
+import { catbassadorsGameDuration, ICat } from "@/models/cats";
 import { GameModal, GameType } from "@/models/game";
 import * as React from "react";
 import { useProfile } from "./ProfileContext";
@@ -24,9 +24,9 @@ type ContextState = {
   timer: number;
 };
 
-const startGame = () => {
+const startGame = (cat?: ICat) => {
   const event = new CustomEvent("game-start", {
-    detail: { start: true },
+    detail: { start: true, cat },
   });
 
   window.dispatchEvent(event);
@@ -49,13 +49,14 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
       return;
     }
     const earnedScore = event.detail.score || 0;
+    const message: string = event.detail.message || '';
     setIsStarted(false);
     if (timerInterval) {
       clearInterval(timerInterval);
       timerInterval = null;
       setTimer(0);
     }
-    showToast({ message: `You earned ${earnedScore} coins` });
+    showToast({ message: `You earned ${earnedScore} coins ${message}` });
     await TDeleteLive(earnedScore);
     setProfileUpdate({
       catbassadorsLives: (profile.catbassadorsLives || 1) - 1,
@@ -76,7 +77,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   const playGame = React.useCallback(() => {
     if (profile?.catbassadorsLives) {
-      startGame();
+      startGame(profile?.cat);
       setIsStarted(true);
     } else {
       showToast({ message: "Invite friends to earn lives !" });

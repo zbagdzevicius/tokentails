@@ -1,6 +1,6 @@
-import { Scene, Physics, GameObjects } from "phaser";
-import { PlayerMovement } from "@/components/Phaser/PlayerMovement/PlayerMovement";
 import { IPlayer } from "@/components/Phaser/PlayerMovement/IPlayer";
+import { PlayerMovement } from "@/components/Phaser/PlayerMovement/PlayerMovement";
+import { GameObjects, Physics, Scene } from "phaser";
 export type KeyMap = {
   up: Phaser.Input.Keyboard.Key;
   left: Phaser.Input.Keyboard.Key;
@@ -62,7 +62,6 @@ export class Player implements IPlayer {
   justJumped: boolean = false;
   isSliding: boolean = false;
   jumpTimer: number = 0;
-  private animation: PlayerAnimation = animationConfigurations[0].key;
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   keys!: KeyMap;
   isMobileDash: boolean = false;
@@ -82,7 +81,7 @@ export class Player implements IPlayer {
   constructor(scene: Scene, x: number, y: number) {
     this.scene = scene;
     this.sprite = this.scene.physics.add.sprite(x, y, "cat");
-    this.sprite.body?.setSize(30, 30);
+    this.sprite.body?.setSize(26, 26);
     this.cursors = this.scene.input.keyboard!.createCursorKeys();
     this.keys = this.scene.input.keyboard!.addKeys({
       up: "W",
@@ -98,26 +97,31 @@ export class Player implements IPlayer {
 
   initAnimations() {
     for (const animationConfiguration of animationConfigurations) {
-      const index = animationConfigurations.indexOf(animationConfiguration);
+      if (!this.scene.anims.exists(animationConfiguration.key)) {
+        const index = animationConfigurations.indexOf(animationConfiguration);
+        this.scene.anims.create({
+          key: animationConfiguration.key,
+          frames: this.scene.anims.generateFrameNumbers("cat", {
+            start: index * maxAnimationFrames,
+            end: index * maxAnimationFrames + animationConfiguration.frames - 1,
+          }),
+          frameRate: 8,
+          repeat: animationConfiguration.repeat,
+        });
+      }
+    }
+
+    if (!this.scene.anims.exists(PlayerAnimation.JUMPING_UP)) {
       this.scene.anims.create({
-        key: animationConfiguration.key,
+        key: PlayerAnimation.JUMPING_UP,
         frames: this.scene.anims.generateFrameNumbers("cat", {
-          start: index * maxAnimationFrames,
-          end: index * maxAnimationFrames + animationConfiguration.frames - 1,
+          start: 5 * maxAnimationFrames,
+          end: 5 * maxAnimationFrames + 5,
         }),
         frameRate: 8,
-        repeat: animationConfiguration.repeat,
+        repeat: 0,
       });
     }
-    this.scene.anims.create({
-      key: PlayerAnimation.JUMPING_UP,
-      frames: this.scene.anims.generateFrameNumbers("cat", {
-        start: 5 * maxAnimationFrames,
-        end: 5 * maxAnimationFrames + 5,
-      }),
-      frameRate: 8,
-      repeat: 0,
-    });
   }
 
   update() {
