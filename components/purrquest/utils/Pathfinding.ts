@@ -3,7 +3,6 @@ import { GenerateLevel } from "../level/generateLevel";
 
 export class Pathfinding {
   private easystar: EasyStar.js;
-  // private graphics: Phaser.GameObjects.Graphics;
   private scene: Phaser.Scene;
   private generateLevel: GenerateLevel;
 
@@ -11,13 +10,12 @@ export class Pathfinding {
     this.scene = scene;
     this.generateLevel = generateLevel;
     this.easystar = new EasyStar.js();
-    // this.graphics = this.scene.add.graphics();
   }
 
   initializePathfinding() {
     const gridData = this.generateLevel.generateGridData();
-    this.easystar.setGrid(gridData);
-    const walkableTiles = [-1, 289, 290];
+    this.easystar.setGrid(gridData.baseLayer);
+    const walkableTiles = [-1, 283, 289, 290];
     this.easystar.setAcceptableTiles(walkableTiles);
   }
 
@@ -26,11 +24,11 @@ export class Pathfinding {
 
     const startCoords = this.generateLevel.getTileCoordinates(
       startTile,
-      this.generateLevel.generateGridData()
+      this.generateLevel.generateGridData().baseLayer
     );
     const endCoords = this.generateLevel.getTileCoordinates(
       endTile,
-      this.generateLevel.generateGridData()
+      this.generateLevel.generateGridData().baseLayer
     );
 
     if (startCoords && endCoords) {

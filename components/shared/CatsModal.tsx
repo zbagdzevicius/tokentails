@@ -1,4 +1,4 @@
-import { catsFetch } from "@/constants/api";
+import { catsFetch, setActiveCat } from "@/constants/api";
 import { useProfile } from "@/context/ProfileContext";
 import { useQuery } from "@tanstack/react-query";
 import { PixelButton } from "../button/PixelButton";
@@ -20,6 +20,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
       return;
     }
     setProfileUpdate({ cat: cat });
+    setActiveCat(cat._id!);
     toast({ message: "Switch game to spawn your cat" });
     close();
   };
@@ -36,8 +37,8 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
        Earn coins to Adopt more cats in the shelter
       </h2>
       <div className="flex flex-wrap justify-center">
-        {cats?.map((cat) => (
-          <div className="w-1/2 flex justify-center mb-4">
+        {cats?.map((cat, index) => (
+          <div key={index} className="w-1/2 flex justify-center mb-4">
             <div className="relative overflow-hidden w-36 rounded-xl py-2 border-2 border-black">
               <div className="relative z-10 items-center flex flex-col">
                 <img className="w-16 z-10" src={cat.catImg} />

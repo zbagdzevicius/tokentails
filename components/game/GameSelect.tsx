@@ -36,17 +36,11 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
               className="w-24 h-24 rounded-xl hover:animate-hover"
               src="/game/select/catbassadors.jpg"
             />
-            <div className="relative">
-              <div className="opacity-25">
-                <img
-                  className="w-24 h-24 rounded-xl"
-                  src="/game/select/purrquest.jpg"
-                />
-              </div>
-              <div className="absolute inset-0 flex justify-center items-center font-secondary -rotate-45">
-                <div className="bg-yellow-300 px-2 rounded-lg">COMING SOON</div>
-              </div>
-            </div>
+            <img
+              onClick={() => setGameType(GameType.PURRQUEST)}
+              className="w-24 h-24 rounded-xl hover:animate-hover"
+              src="/game/select/purrquest.jpg"
+            />
           </div>
           {/* <div className="flex gap-2">
             <div className="relative">
