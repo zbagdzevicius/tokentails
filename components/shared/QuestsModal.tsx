@@ -32,6 +32,10 @@ export enum QUEST {
   START_DONZ_SQUAT = "START_DONZ_SQUAT",
   START_TAP_WARRIOR = "START_TAP_WARRIOR",
   START_STAR_AI = "START_STAR_AI",
+  START_RUN_TAP = "START_RUN_TAP",
+  START_TRUMP = "START_TRUMP",
+  START_PRO_TRADER = "START_PRO_TRADER",
+  START_MAHJONG = "START_MAHJONG",
   FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",
   FOLLOW_TG_GROUP = "FOLLOW_TG_GROUP",
   FOLLOW_X = "FOLLOW_X",
@@ -145,6 +149,46 @@ const allQuests: IQuest[] = [
     name: "Start Star AI",
     link: "https://t.me/TheStarAIBot/StarAI?startapp=KwAg1e",
     icon: "/icons/social/starai.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_RUN_TAP,
+    name: "Start RUN Tap Tap",
+    link: "https://t.me/run_tap_tap_bot/RunTapTap?startapp=M04OUXXJ6787273224",
+    icon: "/icons/social/run_tap.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_TRUMP,
+    name: "Start Trump Fight",
+    link: "https://t.me/trumpfight_app_bot",
+    icon: "/icons/social/trump.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_PRO_TRADER,
+    name: "Start ProTrader",
+    link: "https://t.me/ProTraderBot_Tap2EarnGame_Bot/tap2earn?startapp=r_386752948",
+    icon: "/icons/social/protrader.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_MAHJONG,
+    name: "Start Mahjong",
+    link: "https://game.mjmeta.io",
+    icon: "/icons/social/mahjong.webp",
     reward: {
       coins: 1000,
     },
