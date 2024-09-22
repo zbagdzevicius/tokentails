@@ -124,7 +124,7 @@ export const GameOptionsModal = ({
               onClick={() => {
                 setOpenedModal(GameModal.LEADERBOARD);
               }}
-              text="LEADERBOARD"
+              text="LEADERS"
             ></PixelButton>
           </div>
         )}
