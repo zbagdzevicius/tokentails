@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import * as React from "react";
 import { useCallback } from "react";
 import { useProfile } from "./ProfileContext";
+import { useToast } from "./ToastContext";
 
 type ContextState = {
   cat: ICat | null;
@@ -31,18 +32,17 @@ function isMaxReached(status: IStatus, cat: ICat): boolean {
     [status.type]: status.status,
   };
 
-  return Object.keys([StatusType.EAT, StatusType.PLAY])
-    .map(
-      (key) =>
-        newStatuses[key as StatusType] >= MAX_CAT_STATUS &&
-        newStatuses[key as StatusType] >= MAX_CAT_STATUS
-    )
-    .includes(true);
+  const areBothStatusesMaxedOut =
+    newStatuses[StatusType.EAT] >= MAX_CAT_STATUS &&
+    newStatuses[StatusType.PLAY] >= MAX_CAT_STATUS;
+
+  return areBothStatusesMaxedOut;
 }
 
 const CatProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [cat, setCat] = React.useState<ICat | null>(null);
   const { setProfileUpdate, profile } = useProfile();
+  const toast = useToast();
 
   const saveStatusCall = useCallback(
     async (params: ICatStatus) => {
@@ -67,10 +67,15 @@ const CatProvider = ({ children }: React.PropsWithChildren<{}>) => {
       }
 
       const shouldAddPoints = isMaxReached(status, cat);
+
       if (shouldAddPoints) {
         setProfileUpdate({
           catbassadorsLives: (profile?.catbassadorsLives || 0) + 9,
           catpoints: (profile?.catpoints || 0) + 1000,
+        });
+
+        toast({
+          message: "9 Lives and 1000 Catpoints added!",
         });
       }
 
