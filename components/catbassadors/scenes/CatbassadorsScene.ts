@@ -20,6 +20,7 @@ export class CatbassadorsScene extends Scene {
   score: number = 0;
   gameSound?: Phaser.Sound.BaseSound;
   backgroundSound?: Phaser.Sound.BaseSound;
+  lastUpdateTime: number;
 
   constructor() {
     super("CatbassadorsScene");
@@ -30,6 +31,8 @@ export class CatbassadorsScene extends Scene {
     BaseBus.addListener(CatbassadorsBusEvent.SPAWN_PLAY, () =>
       this.spawnEnemy()
     );
+
+    this.lastUpdateTime = 0;
   }
 
   preload() {
@@ -102,7 +105,26 @@ export class CatbassadorsScene extends Scene {
       }
     };
     window.addEventListener("game-start", startGameCallback);
+    this.lastUpdateTime = performance.now();
+    document.addEventListener(
+      "visibilitychange",
+      this.handleVisibilityChange.bind(this)
+    );
+
     setIsGameLoaded();
+  }
+
+  handleVisibilityChange() {
+    if (document.hidden) {
+      this.lastUpdateTime = performance.now();
+    } else {
+      const currentTime = performance.now();
+      const timeElapsed = (currentTime - this.lastUpdateTime) / 1000; // Time in seconds
+
+      this.timer -= timeElapsed;
+
+      this.lastUpdateTime = currentTime;
+    }
   }
 
   async spawnCat(cat: ICat) {
@@ -167,6 +189,8 @@ export class CatbassadorsScene extends Scene {
     if (this.timer <= 0 && this.enemySpawnInterval) {
       this.endGame();
     }
+
+    this.lastUpdateTime = performance.now();
   }
 
   private onCatCatchTheEnemy(enemy: Enemy) {
