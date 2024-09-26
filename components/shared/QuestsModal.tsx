@@ -36,6 +36,8 @@ export enum QUEST {
   START_TRUMP = "START_TRUMP",
   START_PRO_TRADER = "START_PRO_TRADER",
   START_MAHJONG = "START_MAHJONG",
+  START_MHAYA = "START_MHAYA",
+  FOLLOW_MHAYA = "FOLLOW_MHAYA",
   FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",
   FOLLOW_TG_GROUP = "FOLLOW_TG_GROUP",
   FOLLOW_X = "FOLLOW_X",
@@ -194,6 +196,16 @@ const allQuests: IQuest[] = [
     },
   },
   {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_MHAYA,
+    name: "Start Mhaya",
+    link: "https://t.me/mhaya_bot?start=28ABuuKPr4d",
+    icon: "/icons/social/mhaya.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
     type: QuestType.SOCIAL,
     key: QUEST.FOLLOW_IG,
     name: "Follow on IG",
@@ -234,8 +246,18 @@ const allQuests: IQuest[] = [
     },
   },
   {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_MHAYA,
+    name: "Joing Mhaya",
+    link: "https://t.me/mhaya_monopoly",
+    icon: "/icons/social/mhaya.webp",
+    reward: {
+      coins: 500,
+    },
+  },
+  {
     type: QuestType.MILESTONE,
-    key: QUEST.FOLLOW_TG_CHANNEL,
+    key: QUEST.REACH_COINS_2K,
     name: "Reach 2k coins",
     icon: "/logo/coin.webp",
     reward: {
