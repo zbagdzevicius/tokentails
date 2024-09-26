@@ -1,6 +1,16 @@
 import { QUEST } from "@/components/shared/QuestsModal";
 import { ICat } from "./cats";
 
+export interface IWallet {
+    walletAddress: string;
+}
+
+export interface IUserWallets {
+    aptos: IWallet;
+    stellar: IWallet;
+    evm: IWallet;
+}
+
 export interface IProfile {
     avatar?: string;
     name: string;
@@ -8,8 +18,7 @@ export interface IProfile {
     cat: ICat;
     cats: ICat[];
     score: number;
-    walletAddress: string;
-    stellarWalletAddress: string;
+    wallets: IUserWallets;
     catpoints: number;
     catpointsToday: number;
     catpointsRecord: number;
