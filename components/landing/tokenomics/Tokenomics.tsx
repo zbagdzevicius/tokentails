@@ -11,8 +11,8 @@ export const Tokenomics = () => {
         <img src="/logo/coin.webp" className="w-14" />
       </div>
       <div className="flex flex-col items-center w-full mb-4">
-        <div><span className="font-bold">TOTAL SUPPLY</span> - 500m $TAILS</div>
-        <div><span className="font-bold">INITIAL MARKET CAP</span> - $0.53m</div>
+        <div><span className="font-bold">TOTAL SUPPLY</span> - 69m $TAILS</div>
+        <div><span className="font-bold">INITIAL MARKET CAP</span> - $0.3m</div>
       </div>
       <VestingSchedule />
     </div>
