@@ -38,6 +38,9 @@ export enum QUEST {
   START_MAHJONG = "START_MAHJONG",
   START_MHAYA = "START_MHAYA",
   FOLLOW_MHAYA = "FOLLOW_MHAYA",
+  START_MOONDROPS = "START_MOONDROPS",
+  FOLLOW_MOONDROPS = "FOLLOW_MOONDROPS",
+  FOLLOW_BLOCKGAMES = "FOLLOW_BLOCKGAMES",
   FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",
   FOLLOW_TG_GROUP = "FOLLOW_TG_GROUP",
   FOLLOW_X = "FOLLOW_X",
@@ -206,6 +209,16 @@ const allQuests: IQuest[] = [
     },
   },
   {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_MOONDROPS,
+    name: "Start Moondrops",
+    link: "https://t.me/moondropsggbot/app",
+    icon: "/icons/social/moondrops.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
     type: QuestType.SOCIAL,
     key: QUEST.FOLLOW_IG,
     name: "Follow on IG",
@@ -251,6 +264,26 @@ const allQuests: IQuest[] = [
     name: "Joing Mhaya",
     link: "https://t.me/mhaya_monopoly",
     icon: "/icons/social/mhaya.webp",
+    reward: {
+      coins: 500,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_MOONDROPS,
+    name: "Join Moondrops",
+    link: "https://t.me/MoonDropsAnnouncements",
+    icon: "/icons/social/moondrops.webp",
+    reward: {
+      coins: 500,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_BLOCKGAMES,
+    name: "Follow Blockgames",
+    link: "https://x.com/GetBlockGames",
+    icon: "/icons/social/blockgames.webp",
     reward: {
       coins: 500,
     },
