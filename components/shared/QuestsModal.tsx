@@ -94,6 +94,16 @@ const allQuests: IQuest[] = [
     },
   },
   {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_BLOCKGAMES,
+    name: "Follow Blockgames",
+    link: "https://x.com/GetBlockGames",
+    icon: "/icons/social/blockgames.webp",
+    reward: {
+      coins: 500,
+    },
+  },
+  {
     type: QuestType.PARTNERS,
     key: QUEST.START_VANA_DATA_HERO,
     name: "Start Vana Data Hero",
@@ -217,7 +227,7 @@ const allQuests: IQuest[] = [
     type: QuestType.PARTNERS,
     key: QUEST.START_MOONDROPS,
     name: "Start Moondrops",
-    link: "https://t.me/moondropsggbot/app",
+    link: "https://t.me/moondropsggbot/app?startapp=eyJhZmZpbGlhdGVfaWQiOiJNRFpNSDM2NiJ9",
     icon: "/icons/social/moondrops.webp",
     reward: {
       coins: 1000,
@@ -228,7 +238,7 @@ const allQuests: IQuest[] = [
     key: QUEST.START_GRAND_JOURNEY,
     name: "Start Grand Journey",
     link: "https://t.me/grandjourneybot/airdrop?startapp=ref_aRql1Z",
-    icon: "/icons/social/moonjourney.webp",
+    icon: "/icons/social/grandjourney.webp",
     reward: {
       coins: 1000,
     },
@@ -315,16 +325,6 @@ const allQuests: IQuest[] = [
   },
   {
     type: QuestType.SOCIAL,
-    key: QUEST.FOLLOW_BLOCKGAMES,
-    name: "Follow Blockgames",
-    link: "https://x.com/GetBlockGames",
-    icon: "/icons/social/blockgames.webp",
-    reward: {
-      coins: 500,
-    },
-  },
-  {
-    type: QuestType.SOCIAL,
     key: QUEST.FOLLOW_GRAND_JOURNEY,
     name: "Follow Grand Journey",
     link: "https://t.me/Channel_GrandJourney",
@@ -338,7 +338,7 @@ const allQuests: IQuest[] = [
     key: QUEST.FOLLOW_ROYAL_PETS,
     name: "Follow Royal Pets",
     link: "https://t.me/royalpetofficial",
-    icon: "/icons/social/grandjourney.webp",
+    icon: "/icons/social/royalpets.webp",
     reward: {
       coins: 500,
     },
@@ -480,7 +480,10 @@ export const QuestsModalContent = () => {
                   ></PixelButton>
                 </div>
                 <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
-                  <img className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute" src="/logo/coin.webp" />
+                  <img
+                    className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
+                    src="/logo/coin.webp"
+                  />
                   {quest.reward.coins} COINS
                 </div>
               </div>
@@ -512,7 +515,10 @@ export const QuestsModalContent = () => {
                   ></PixelButton>
                 </div>
                 <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
-                  <img className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute" src="/logo/coin.webp" />
+                  <img
+                    className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
+                    src="/logo/coin.webp"
+                  />
                   {quest.reward.coins} COINS
                 </div>
               </div>
