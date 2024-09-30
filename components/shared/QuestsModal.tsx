@@ -41,6 +41,11 @@ export enum QUEST {
   START_MOONDROPS = "START_MOONDROPS",
   FOLLOW_MOONDROPS = "FOLLOW_MOONDROPS",
   FOLLOW_BLOCKGAMES = "FOLLOW_BLOCKGAMES",
+  START_GRAND_JOURNEY = "START_GRAND_JOURNEY",
+  FOLLOW_GRAND_JOURNEY = "FOLLOW_GRAND_JOURNEY",
+  START_ROYAL_PETS = "START_ROYAL_PETS",
+  FOLLOW_ROYAL_PETS = "FOLLOW_ROYAL_PETS",
+  START_CLOCKIE_CHAOS = "START_CLOCKIE_CHAOS",
   FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",
   FOLLOW_TG_GROUP = "FOLLOW_TG_GROUP",
   FOLLOW_X = "FOLLOW_X",
@@ -219,6 +224,36 @@ const allQuests: IQuest[] = [
     },
   },
   {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_GRAND_JOURNEY,
+    name: "Start Grand Journey",
+    link: "https://t.me/grandjourneybot/airdrop?startapp=ref_aRql1Z",
+    icon: "/icons/social/moonjourney.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_ROYAL_PETS,
+    name: "Start Royal Pets",
+    link: "https://t.me/royalpetsbot/pet?startapp=7041976025",
+    icon: "/icons/social/royalpets.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_CLOCKIE_CHAOS,
+    name: "Start Clockie Chaos",
+    link: "https://t.me/ClockieChaosBot?start=8d007fff-42e8-4345-b315-983c24160cf9",
+    icon: "/icons/social/clockiechaos.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
     type: QuestType.SOCIAL,
     key: QUEST.FOLLOW_IG,
     name: "Follow on IG",
@@ -284,6 +319,26 @@ const allQuests: IQuest[] = [
     name: "Follow Blockgames",
     link: "https://x.com/GetBlockGames",
     icon: "/icons/social/blockgames.webp",
+    reward: {
+      coins: 500,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_GRAND_JOURNEY,
+    name: "Follow Grand Journey",
+    link: "https://t.me/Channel_GrandJourney",
+    icon: "/icons/social/grandjourney.webp",
+    reward: {
+      coins: 500,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_ROYAL_PETS,
+    name: "Follow Royal Pets",
+    link: "https://t.me/royalpetofficial",
+    icon: "/icons/social/grandjourney.webp",
     reward: {
       coins: 500,
     },
