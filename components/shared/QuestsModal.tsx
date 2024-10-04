@@ -36,6 +36,16 @@ export enum QUEST {
   START_TRUMP = "START_TRUMP",
   START_PRO_TRADER = "START_PRO_TRADER",
   START_MAHJONG = "START_MAHJONG",
+  START_MHAYA = "START_MHAYA",
+  FOLLOW_MHAYA = "FOLLOW_MHAYA",
+  START_MOONDROPS = "START_MOONDROPS",
+  FOLLOW_MOONDROPS = "FOLLOW_MOONDROPS",
+  FOLLOW_BLOCKGAMES = "FOLLOW_BLOCKGAMES",
+  START_GRAND_JOURNEY = "START_GRAND_JOURNEY",
+  FOLLOW_GRAND_JOURNEY = "FOLLOW_GRAND_JOURNEY",
+  START_ROYAL_PETS = "START_ROYAL_PETS",
+  FOLLOW_ROYAL_PETS = "FOLLOW_ROYAL_PETS",
+  START_CLOCKIE_CHAOS = "START_CLOCKIE_CHAOS",
   FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",
   FOLLOW_TG_GROUP = "FOLLOW_TG_GROUP",
   FOLLOW_X = "FOLLOW_X",
@@ -79,6 +89,16 @@ const allQuests: IQuest[] = [
     name: "Join group",
     link: "https://t.me/tokentailsgroup",
     icon: "/icons/social/telegram.png",
+    reward: {
+      coins: 500,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_BLOCKGAMES,
+    name: "Follow Blockgames",
+    link: "https://x.com/GetBlockGames",
+    icon: "/icons/social/blockgames.webp",
     reward: {
       coins: 500,
     },
@@ -194,6 +214,56 @@ const allQuests: IQuest[] = [
     },
   },
   {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_MHAYA,
+    name: "Start Mhaya",
+    link: "https://t.me/mhaya_bot?start=28ABuuKPr4d",
+    icon: "/icons/social/mhaya.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_MOONDROPS,
+    name: "Start Moondrops",
+    link: "https://t.me/moondropsggbot/app?startapp=eyJhZmZpbGlhdGVfaWQiOiJNRFpNSDM2NiJ9",
+    icon: "/icons/social/moondrops.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_GRAND_JOURNEY,
+    name: "Start Grand Journey",
+    link: "https://t.me/grandjourneybot/airdrop?startapp=ref_aRql1Z",
+    icon: "/icons/social/grandjourney.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_ROYAL_PETS,
+    name: "Start Royal Pets",
+    link: "https://t.me/royalpetsbot/pet?startapp=7041976025",
+    icon: "/icons/social/royalpets.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_CLOCKIE_CHAOS,
+    name: "Start Clockie Chaos",
+    link: "https://t.me/ClockieChaosBot?start=8d007fff-42e8-4345-b315-983c24160cf9",
+    icon: "/icons/social/clockiechaos.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
     type: QuestType.SOCIAL,
     key: QUEST.FOLLOW_IG,
     name: "Follow on IG",
@@ -234,8 +304,48 @@ const allQuests: IQuest[] = [
     },
   },
   {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_MHAYA,
+    name: "Joing Mhaya",
+    link: "https://t.me/mhaya_monopoly",
+    icon: "/icons/social/mhaya.webp",
+    reward: {
+      coins: 500,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_MOONDROPS,
+    name: "Join Moondrops",
+    link: "https://t.me/MoonDropsAnnouncements",
+    icon: "/icons/social/moondrops.webp",
+    reward: {
+      coins: 500,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_GRAND_JOURNEY,
+    name: "Follow Grand Journey",
+    link: "https://t.me/Channel_GrandJourney",
+    icon: "/icons/social/grandjourney.webp",
+    reward: {
+      coins: 500,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_ROYAL_PETS,
+    name: "Follow Royal Pets",
+    link: "https://t.me/royalpetofficial",
+    icon: "/icons/social/royalpets.webp",
+    reward: {
+      coins: 500,
+    },
+  },
+  {
     type: QuestType.MILESTONE,
-    key: QUEST.FOLLOW_TG_CHANNEL,
+    key: QUEST.REACH_COINS_2K,
     name: "Reach 2k coins",
     icon: "/logo/coin.webp",
     reward: {
@@ -370,7 +480,10 @@ export const QuestsModalContent = () => {
                   ></PixelButton>
                 </div>
                 <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
-                  <img className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute" src="/logo/coin.webp" />
+                  <img
+                    className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
+                    src="/logo/coin.webp"
+                  />
                   {quest.reward.coins} COINS
                 </div>
               </div>
@@ -402,7 +515,10 @@ export const QuestsModalContent = () => {
                   ></PixelButton>
                 </div>
                 <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
-                  <img className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute" src="/logo/coin.webp" />
+                  <img
+                    className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
+                    src="/logo/coin.webp"
+                  />
                   {quest.reward.coins} COINS
                 </div>
               </div>
