@@ -46,6 +46,9 @@ export enum QUEST {
   START_ROYAL_PETS = "START_ROYAL_PETS",
   FOLLOW_ROYAL_PETS = "FOLLOW_ROYAL_PETS",
   START_CLOCKIE_CHAOS = "START_CLOCKIE_CHAOS",
+  FOLLOW_DRATON = "FOLLOW_DRATON",
+  START_DRATON = "START_DRATON",
+  START_COIN_BUNNY = "START_COIN_BUNNY",
   FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",
   FOLLOW_TG_GROUP = "FOLLOW_TG_GROUP",
   FOLLOW_X = "FOLLOW_X",
@@ -264,6 +267,26 @@ const allQuests: IQuest[] = [
     },
   },
   {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_DRATON,
+    name: "Start Draton",
+    link: "https://t.me/DratonTrading_bot/Launch?startapp=qnRCrayK40",
+    icon: "/icons/social/draton.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_COIN_BUNNY,
+    name: "Start Coin Bunny",
+    link: "https://t.me/CoinBunnyAppBot",
+    icon: "/icons/social/coinbunny.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
     type: QuestType.SOCIAL,
     key: QUEST.FOLLOW_IG,
     name: "Follow on IG",
@@ -344,6 +367,16 @@ const allQuests: IQuest[] = [
     },
   },
   {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_DRATON,
+    name: "Follow Draton",
+    link: "https://t.me/draton_channel",
+    icon: "/icons/social/draton.webp",
+    reward: {
+      coins: 500,
+    },
+  },
+  {
     type: QuestType.MILESTONE,
     key: QUEST.REACH_COINS_2K,
     name: "Reach 2k coins",
@@ -413,7 +446,12 @@ export const QuestsModalContent = () => {
   const { profile, setProfileUpdate, utils } = useProfile();
   const [questsType, setQuestsType] = useState(QuestType.SOCIAL);
   const quests = useMemo(
-    () => allQuests.filter((quest) => quest.type === questsType),
+    () =>
+      allQuests.filter((quest) => {
+        const isMatchingType = quest.type === questsType;
+        const isNotCompleted = !profile?.quests?.includes(quest.key);
+        return isMatchingType && isNotCompleted
+      }),
     [questsType]
   );
   const toast = useToast();

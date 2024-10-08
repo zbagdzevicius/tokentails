@@ -31,15 +31,20 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
         My Cats
       </h2>
       <h2 className="text-center font-secondary uppercase text-p5 md:text-p4">
-       Here you can switch your main cat
+        Here you can switch your main cat
       </h2>
       <h2 className="text-center font-secondary uppercase text-p5 md:text-p4 mb-6">
-       Earn coins to Adopt more cats in the shelter
+        Earn coins to Adopt more cats in the shelter
       </h2>
       <div className="flex flex-wrap justify-center">
         {cats?.map((cat, index) => (
           <div key={index} className="w-1/2 flex justify-center mb-4">
             <div className="relative overflow-hidden w-36 rounded-xl py-2 border-2 border-black">
+              {cat.catpoints && (
+                <div className="absolute left-2 top-1 opacity-75 text-black px-2 text-p5 font-secondary rounded-xl bg-yellow-300 z-20">
+                  X2
+                </div>
+              )}
               <div className="relative z-10 items-center flex flex-col">
                 <img className="w-16 z-10" src={cat.catImg} />
                 <img

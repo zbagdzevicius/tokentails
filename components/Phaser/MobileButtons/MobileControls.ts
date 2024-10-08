@@ -8,8 +8,6 @@ interface ControlledObject {
 }
 
 interface Controls {
-  leftButton: HTMLElement | null;
-  rightButton: HTMLElement | null;
   jumpButton: HTMLElement | null;
   dashButton: HTMLElement | null;
 }
@@ -21,16 +19,12 @@ export function setMobileControls(
   controlledObject: ControlledObject & IPlayer
 ) {
   const controls: Controls = {
-    leftButton: document.getElementById("left"),
-    rightButton: document.getElementById("right"),
     jumpButton: document.getElementById("jump"),
     dashButton: document.getElementById("dash"),
   };
 
   if (
     !controlledObject ||
-    !controls.leftButton ||
-    !controls.rightButton ||
     !controls.jumpButton ||
     !controls.dashButton
   ) {
@@ -70,27 +64,51 @@ export function setMobileControls(
     });
   };
 
-  addControlListeners(
-    controls.leftButton,
-    () => {
-      controlledObject.isMobileLeft = true;
-      controlledObject.isMobileRight = false;
-    },
-    () => {
-      controlledObject.isMobileLeft = false;
-    }
-  );
+  const addMovementListener = () => {
+    const handler = (e: any) => {
+      if (e.detail.direction === "LEFT") {
+        controlledObject.isMobileLeft = true;
+        controlledObject.isMobileRight = false;
+      } else if (e.detail.direction === "RIGHT") {
+        controlledObject.isMobileLeft = false;
+        controlledObject.isMobileRight = true;
+      } else {
+        controlledObject.isMobileLeft = false;
+        controlledObject.isMobileRight = false;
+      }
 
-  addControlListeners(
-    controls.rightButton,
-    () => {
-      controlledObject.isMobileRight = true;
-      controlledObject.isMobileLeft = false;
-    },
-    () => {
-      controlledObject.isMobileRight = false;
-    }
-  );
+      e.preventDefault();
+    };
+    window.addEventListener("joystick-direction", handler as EventListener);
+
+    controlledObject.sprite.on("destroy", () => {
+      window.removeEventListener("joystick-direction", handler);
+    });
+  };
+
+  // addControlListeners(
+  //   controls.leftButton,
+  //   () => {
+  //     controlledObject.isMobileLeft = true;
+  //     controlledObject.isMobileRight = false;
+  //   },
+  //   () => {
+  //     controlledObject.isMobileLeft = false;
+  //   }
+  // );
+
+  // addControlListeners(
+  //   controls.rightButton,
+  //   () => {
+  //     controlledObject.isMobileRight = true;
+  //     controlledObject.isMobileLeft = false;
+  //   },
+  //   () => {
+  //     controlledObject.isMobileRight = false;
+  //   }
+  // );
+
+  addMovementListener();
 
   addControlListeners(
     controls.jumpButton,

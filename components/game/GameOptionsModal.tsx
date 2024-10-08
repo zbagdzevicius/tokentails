@@ -162,7 +162,7 @@ export const GameOptionsModal = ({
           <div className="flex flex-col items-center font-secondary text-p2 opacity-75 bg-white px-1 rounded-t-xl">
             <img className="w-8 z-10 -mt-2 pt-4" src="/logo/coin.webp" />
             <div>EARN</div>
-            <div className="-mt-2 text-p5">1000 COINS</div>
+            <div className="-mt-2 text-p5">2000 COINS</div>
             <div className="-mt-2 text-h3">+</div>
             <img className="w-8 z-10 -mt-3" src="/base/heart.png" />
             <div className="-mt-1">GET</div>
