@@ -48,8 +48,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     if (!profile) {
       return;
     }
-    const earnedScore = event.detail.score || 0;
-    const message: string = event.detail.message || '';
+    const earnedScore =
+      (event.detail.score || 0) * (profile?.cat.catpoints ? 2 : 1);
+    const message: string = event.detail.message || "";
     setIsStarted(false);
     if (timerInterval) {
       clearInterval(timerInterval);
