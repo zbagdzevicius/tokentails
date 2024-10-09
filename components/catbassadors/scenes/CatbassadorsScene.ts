@@ -8,12 +8,15 @@ import { Enemy } from "../objects/Enemy";
 import { setIsGameLoaded } from "@/components/game/events";
 const enemyDurationMs = 15000;
 
+const JUMP_LAYER_TILES = [47, 48, 49, 50];
+
 export class CatbassadorsScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
   cat?: Cat;
   enemy?: Enemy | null;
   tilemap!: Phaser.Tilemaps.Tilemap;
   groundLayer!: Phaser.Tilemaps.TilemapLayer;
+  platformsLayer!: Phaser.Tilemaps.TilemapLayer;
   enemies: Enemy[] = [];
   enemySpawnInterval: NodeJS.Timeout | null = null;
   timer: number = catbassadorsGameDuration;
@@ -75,6 +78,9 @@ export class CatbassadorsScene extends Scene {
       2
     )!;
     this.groundLayer = this.tilemap.createLayer("blocks", [sugarTileset])!;
+    this.platformsLayer = this.tilemap.createLayer("platforms", [
+      sugarTileset,
+    ])!;
 
     this.anims.create({
       key: "star",
@@ -90,6 +96,19 @@ export class CatbassadorsScene extends Scene {
 
     // Set collision for specific tiles based on property
     this.groundLayer?.setCollisionByExclusion([-1]);
+    this.platformsLayer?.setCollision(JUMP_LAYER_TILES);
+    this.platformsLayer.setTileIndexCallback(
+      JUMP_LAYER_TILES,
+      (player: Phaser.GameObjects.GameObject) => {
+        const playerSprite = player as Phaser.Physics.Arcade.Sprite;
+        if (playerSprite.body!.velocity.y <= 0) {
+          return true;
+        }
+        return false;
+      },
+      this
+    );
+
     BaseBus.emit("current-scene-ready");
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(1.25);
@@ -113,17 +132,20 @@ export class CatbassadorsScene extends Scene {
 
     setIsGameLoaded();
 
-    const joystick = (this.plugins.get("rexVirtualJoystick") as any)?.add(this, {
-      x: 0,
-      y: -400,
-      radius: 100,
-      // base: baseGameObject,
-      // thumb: thumbGameObject,
-      // dir: '8dir',
-      // forceMin: 16,
-      // fixed: true,
-      // enable: true
-    });
+    const joystick = (this.plugins.get("rexVirtualJoystick") as any)?.add(
+      this,
+      {
+        x: 0,
+        y: -400,
+        radius: 100,
+        // base: baseGameObject,
+        // thumb: thumbGameObject,
+        // dir: '8dir',
+        // forceMin: 16,
+        // fixed: true,
+        // enable: true
+      }
+    );
     var cursorKeys = joystick.createCursorKeys();
     console.log(cursorKeys);
   }
@@ -157,6 +179,11 @@ export class CatbassadorsScene extends Scene {
   private createCat() {
     this.cat = new Cat(this, 0, -400);
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
+
+    this.physics.add.collider(
+      this.cat.sprite as Phaser.Physics.Arcade.Sprite,
+      this.platformsLayer
+    );
     this.cameras.main.startFollow(this.cat.sprite);
 
     setMobileControls(this.cat);
