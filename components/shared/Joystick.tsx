@@ -13,12 +13,12 @@ export const shapeBoundsFactory = (
   baseSize: number,
   parentRect: DOMRect
 ) => {
-  relativeX = getWithinBounds(absoluteX - parentRect.left - baseSize, baseSize);
+  relativeX = getWithinBounds(absoluteX - parentRect.left - baseSize * 1.25, baseSize);
   return relativeX;
 };
 
 const getWithinBounds = (value: number, baseSize: number): number => {
-  const halfBaseSize = baseSize / 2;
+  const halfBaseSize = baseSize;
   if (value > halfBaseSize) {
     return halfBaseSize;
   }
@@ -73,16 +73,6 @@ export interface IJoystickCoordinates {
   relativeX: number;
   axisX: number;
   direction: JoystickDirection;
-}
-
-/**
- * Radians identifying the direction of the joystick
- */
-enum RadianQuadrantBinding {
-  TopRight = 2.35619449,
-  TopLeft = -2.35619449,
-  BottomRight = 0.785398163,
-  BottomLeft = -0.785398163,
 }
 
 class Joystick extends React.Component<IJoystickProps, IJoystickState> {
@@ -198,9 +188,7 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
    */
   private _getDirection(relativeX: number): JoystickDirection {
     // CREATE FALLBACK SO IT WON'T MOVE
-    if (!(relativeX > 5 || relativeX < -5)) {
-      return "DISABLED";
-    } else if (relativeX > 0) {
+    if (relativeX > 0) {
       return "RIGHT";
     }
 
@@ -209,7 +197,7 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
 
   private updatePosition(event: PointerEvent) {
     const absoluteX = event.clientX;
-    let relativeX = absoluteX - this._parentRect.left - this._baseSize;
+    let relativeX = absoluteX - this._parentRect.left - this._baseSize * 1.25;
     const direction = this._getDirection(relativeX);
 
     relativeX = shapeBoundsFactory(
@@ -289,7 +277,7 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
     const padStyle = {
       borderRadius: "24px",
       height: `${this._baseSize}px`,
-      width: `${this._baseSize * 2}px`,
+      width: `${this._baseSize * 2.5}px`,
       background: "#FCECBB",
       display: "flex",
       justifyContent: "center",
@@ -309,8 +297,8 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
   private _getStickStyle(): any {
     let stickStyle = {
       cursor: "move",
-      height: `${this._baseSize / 1.1}px`,
-      width: `${(this._baseSize * 2) / 1.1}px`,
+      height: '100%',
+      width: '100%',
       border: "none",
       flexShrink: 0,
       touchAction: "none",
@@ -331,7 +319,7 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
     return (
       <div
         data-testid="joystick-base"
-        className="z-[100] ml-8 relative"
+        className="z-[100] ml-8 mb-4 relative"
         ref={this._baseRef}
         style={baseStyle}
       >

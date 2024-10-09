@@ -36,8 +36,10 @@ export class PlayerMovement {
     const canWallJump =
       upKeyDown &&
       !sprite.body!.blocked.down &&
-      ((touchingLeftWall && this.player.lastWallTouched !== "left") ||
-        (touchingRightWall && this.player.lastWallTouched !== "right"));
+      // ((touchingLeftWall && this.player.lastWallTouched !== "left") ||
+      //   (touchingRightWall && this.player.lastWallTouched !== "right"));
+      ((touchingLeftWall) ||
+        (touchingRightWall));
 
     const blockedAbove = sprite.body!.blocked.up;
     const onGround = sprite.body!.blocked.down;
