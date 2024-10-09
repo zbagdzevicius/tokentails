@@ -13,7 +13,10 @@ export const shapeBoundsFactory = (
   baseSize: number,
   parentRect: DOMRect
 ) => {
-  relativeX = getWithinBounds(absoluteX - parentRect.left - baseSize * 1.25, baseSize);
+  relativeX = getWithinBounds(
+    absoluteX - parentRect.left - baseSize * 1.25,
+    baseSize
+  );
   return relativeX;
 };
 
@@ -80,8 +83,7 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
     React.createRef();
   private readonly _baseRef: React.RefObject<HTMLDivElement> =
     React.createRef();
-  private readonly _throttleMoveCallback: (data: IJoystickUpdateEvent) => void;
-  private _baseSize: number = 80;
+  private _baseSize: number = 90;
   private frameId: number | null = null;
 
   private _parentRect!: DOMRect;
@@ -93,20 +95,6 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
     this.state = {
       dragging: false,
     };
-    this._throttleMoveCallback = (() => {
-      let lastCall = 0;
-      return (event: IJoystickUpdateEvent) => {
-        const now = new Date().getTime();
-        const throttleAmount = this.props.throttle || 0;
-        if (now - lastCall < throttleAmount) {
-          return;
-        }
-        lastCall = now;
-        if (this.props.move) {
-          return this.props.move(event);
-        }
-      };
-    })();
   }
 
   componentWillUnmount() {
@@ -149,12 +137,6 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
           coordinates,
         });
       }
-    });
-
-    this._throttleMoveCallback({
-      type: "move",
-      x: (coordinates.relativeX * 2) / this._baseSize,
-      direction: coordinates.direction,
     });
   }
 
@@ -297,8 +279,8 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
   private _getStickStyle(): any {
     let stickStyle = {
       cursor: "move",
-      height: '100%',
-      width: '100%',
+      height: "100%",
+      width: "100%",
       border: "none",
       flexShrink: 0,
       touchAction: "none",
@@ -319,21 +301,21 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
     return (
       <div
         data-testid="joystick-base"
-        className="z-[100] ml-8 mb-4 relative"
+        className="z-[100] ml-2 mb-4 relative"
         ref={this._baseRef}
         style={baseStyle}
       >
         <div className="absolute right-4 z-0 opacity-50">
-          <img src="icons/arrow.webp" className="w-12"/>
+          <img src="icons/arrow.webp" className="w-12" />
         </div>
         <div className="absolute left-4 z-0  opacity-50 rotate-180">
-          <img src="icons/arrow.webp" className="w-12"/>
+          <img src="icons/arrow.webp" className="w-12" />
         </div>
         <button
           ref={this._stickRef}
           disabled={this.props.disabled}
           onPointerDown={(event: any) => this._pointerDown(event)}
-          className="z-10"
+          className="z-10 outline-none"
           style={stickStyle}
         >
           <div className="flex w-full justify-center">
