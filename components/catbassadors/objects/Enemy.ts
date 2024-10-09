@@ -45,8 +45,8 @@ const getEnemyType = (): EnemyType => {
 
 const EnemyTypeCoinReward: Record<EnemyType, number> = {
   [EnemyType.COIN]: 1,
-  [EnemyType.BOSS_COIN]: 30,
-  [EnemyType.TIME_COIN]: 0,
+  [EnemyType.BOSS_COIN]: 100,
+  [EnemyType.TIME_COIN]: 100,
   [EnemyType.KEY]: 0,
 };
 
