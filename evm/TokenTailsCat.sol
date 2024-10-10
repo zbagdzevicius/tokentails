@@ -8,8 +8,6 @@ import "@openzeppelin/contracts@4.9.3/utils/Strings.sol";
 
 contract TokenTailsCat is ERC721, AccessControlEnumerable {
     string private _baseTokenURI;
-
-    // Define a single role for both minting and burning
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
     constructor() ERC721("Token Tails Cat", "TTCAT") {
@@ -26,12 +24,8 @@ contract TokenTailsCat is ERC721, AccessControlEnumerable {
         _baseTokenURI = newBaseURI;
     }
 
-    function safeMint(address to) public onlyRole(MINTER_ROLE) {
-        super._mint(_to, _tokenId);
-    }
-
-    function burn(uint256 tokenId) public onlyRole(MINTER_ROLE) {
-        _burn(tokenId);
+    function mintUniqueTokenTo(address to, uint256 tokenId) public onlyRole(MINTER_ROLE) {
+        super._mint(to, tokenId);
     }
 
     // Override tokenURI to dynamically generate the full token URI
@@ -39,11 +33,6 @@ contract TokenTailsCat is ERC721, AccessControlEnumerable {
         require(_exists(tokenId), "URI query for nonexistent token");
         string memory base = _baseURI();
         return string(abi.encodePacked(base, Strings.toString(tokenId)));
-    }
-
-    // Override _burn function to clear the token URI storage
-    function _burn(uint256 tokenId) internal override(ERC721) {
-        super._burn(tokenId);
     }
 
     function supportsInterface(
