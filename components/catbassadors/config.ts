@@ -1,6 +1,5 @@
 import { Game } from "phaser";
 import { CatbassadorsScene } from "./scenes/CatbassadorsScene";
-import VirtualJoystickPlugin from 'phaser3-rex-plugins/plugins/virtualjoystick-plugin.js';
 
 //  Find out more information about the Game Config at:
 //  https://newdocs.phaser.io/docs/3.70.0/Phaser.Types.Core.GameConfig
@@ -14,15 +13,6 @@ const config: Phaser.Types.Core.GameConfig = {
   parent: "game-container",
   transparent: true,
   scene: CatbassadorsScene,
-  plugins: {
-      global: [{
-          key: 'rexVirtualJoystick',
-          plugin: VirtualJoystickPlugin,
-          start: true
-      },
-      // ...
-      ]
-  },
   physics: {
     default: "arcade",
     arcade: {

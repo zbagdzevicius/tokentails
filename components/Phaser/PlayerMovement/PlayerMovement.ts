@@ -9,6 +9,7 @@ export class PlayerMovement {
 
   constructor(player: IPlayer) {
     this.player = player;
+    this.player.sprite.setMaxVelocity(this.player.walkSpeed * 2, 1000000)
   }
 
   updateOngoingMovements() {
@@ -38,17 +39,23 @@ export class PlayerMovement {
       !sprite.body!.blocked.down &&
       // ((touchingLeftWall && this.player.lastWallTouched !== "left") ||
       //   (touchingRightWall && this.player.lastWallTouched !== "right"));
-      ((touchingLeftWall) ||
-        (touchingRightWall));
+      (touchingLeftWall || touchingRightWall);
 
     const blockedAbove = sprite.body!.blocked.up;
     const onGround = sprite.body!.blocked.down;
 
+    const initialWalkSpeed = this.player.walkSpeed / 4;
     if (!this.player.disableLeftMovement && leftKeyDown) {
-      sprite.setVelocityX(-this.player.walkSpeed);
+      if (this.player.sprite.body?.velocity.x! > -initialWalkSpeed) {
+        sprite.setVelocityX(-initialWalkSpeed);
+      }
+      sprite.setAccelerationX(-this.player.walkSpeed * 2);
       sprite.setFlipX(true);
     } else if (!this.player.disableRightMovement && rightKeyDown) {
-      sprite.setVelocityX(this.player.walkSpeed);
+      if (this.player.sprite.body?.velocity.x! < initialWalkSpeed) {
+        sprite.setVelocityX(initialWalkSpeed);
+      }
+      sprite.setAccelerationX(this.player.walkSpeed * 2);
       sprite.setFlipX(false);
     } else {
       sprite.setVelocityX(0);
@@ -137,7 +144,7 @@ export class PlayerMovement {
 
   private stopDash() {
     this.player.isDashing = false;
-    this.player.sprite.setVelocityX(0);
+    // this.player.sprite.setVelocityX(0);
 
     this.player.scene.time.delayedCall(this.player.dashCooldown, () => {
       this.player.canDash = true;
@@ -164,7 +171,10 @@ export class PlayerMovement {
         this.player.wallJumpCount++;
         const jumpDirection = touchingLeftWall ? 1 : -1;
         this.player.sprite.setVelocityY(this.player.jumpSpeed);
-        this.player.sprite.setVelocityX(this.player.walkSpeed * jumpDirection); // wall jump push
+
+        this.player.sprite.setVelocityX(
+          this.player.sprite.body?.velocity.x || 0
+        ); // wall jump push
 
         if (touchingLeftWall) {
           this.player.disableLeftMovement = true;

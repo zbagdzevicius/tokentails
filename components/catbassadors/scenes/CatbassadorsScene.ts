@@ -131,23 +131,6 @@ export class CatbassadorsScene extends Scene {
     );
 
     setIsGameLoaded();
-
-    const joystick = (this.plugins.get("rexVirtualJoystick") as any)?.add(
-      this,
-      {
-        x: 0,
-        y: -400,
-        radius: 100,
-        // base: baseGameObject,
-        // thumb: thumbGameObject,
-        // dir: '8dir',
-        // forceMin: 16,
-        // fixed: true,
-        // enable: true
-      }
-    );
-    var cursorKeys = joystick.createCursorKeys();
-    console.log(cursorKeys);
   }
 
   handleVisibilityChange() {
