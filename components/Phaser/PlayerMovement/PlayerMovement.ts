@@ -1,6 +1,6 @@
 import { PlayerAnimation } from "@/components/purrquest/objects/Player";
-import { IPlayer } from "../PlayerMovement/IPlayer";
 import Phaser from "phaser";
+import { IPlayer } from "../PlayerMovement/IPlayer";
 
 const wallSlidingThresholdMs = 200;
 
@@ -125,14 +125,13 @@ export class PlayerMovement {
       Phaser.Input.Keyboard.JustDown(this.player.keys.dash) ||
       this.player.isMobileDash;
 
-    if (dashKeyDown && this.player.canDash) {
+    if (dashKeyDown) {
       this.dash();
       this.player.isMobileDash = false;
     }
   }
 
   private dash() {
-    this.player.canDash = false;
     this.player.isDashing = true;
     const direction = this.player.sprite.flipX ? -1 : 1;
     this.player.sprite.setVelocityX(this.player.dashSpeed * direction);
@@ -148,11 +147,6 @@ export class PlayerMovement {
 
   private stopDash() {
     this.player.isDashing = false;
-    // this.player.sprite.setVelocityX(0);
-
-    this.player.scene.time.delayedCall(this.player.dashCooldown, () => {
-      this.player.canDash = true;
-    });
   }
 
   jump({

@@ -66,7 +66,6 @@ export class Player implements IPlayer {
   keys!: KeyMap;
   isMobileDash: boolean = false;
 
-  canDash: boolean = true;
   isDashing: boolean = false;
   dashTime: number = 200;
   dashCooldown: number = 600;
