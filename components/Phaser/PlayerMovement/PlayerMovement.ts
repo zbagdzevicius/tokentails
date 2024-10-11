@@ -1,4 +1,4 @@
-import { PlayerAnimation } from "@/components/purrquest/objects/Player";
+import { PlayerAnimation } from "@/components/catbassadors/objects/Catbassador";
 import Phaser from "phaser";
 import { IPlayer } from "../PlayerMovement/IPlayer";
 

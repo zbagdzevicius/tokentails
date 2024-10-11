@@ -6,8 +6,8 @@ import { ICat } from "@/models/cats";
 import { GenerateLevel } from "../level/generateLevel";
 import { Chest } from "../objects/Chest";
 import { MovablePlatform } from "../objects/MovablePlatform";
-import { Player } from "../objects/Player";
 import { Pathfinding } from "../utils/Pathfinding";
+import { Cat } from "@/components/catbassadors/objects/Catbassador";
 
 const COLLISION_TILES = [
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 29, 31, 33, 34, 35, 36, 37, 62, 63, 64, 65, 72,
@@ -31,7 +31,7 @@ const PLATFORM_CONFIGS: {
 
 export class PurrquestScene extends Phaser.Scene {
   private generateLevel!: GenerateLevel;
-  private player?: Player;
+  private player?: Cat;
   private pathfinding!: Pathfinding;
   public groundLayer?: Phaser.Tilemaps.TilemapLayer;
   private jumpLayer?: Phaser.Tilemaps.TilemapLayer;
@@ -142,7 +142,7 @@ export class PurrquestScene extends Phaser.Scene {
       64 -
       16;
 
-    this.player = new Player(this, startX, startY);
+    this.player = new Cat(this, startX, startY);
     this.cameras.main.startFollow(this.player.sprite);
     this.player.sprite.setDepth(2);
     this.cameras.main.zoom = ZOOM;
