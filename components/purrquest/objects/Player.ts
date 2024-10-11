@@ -73,7 +73,7 @@ export class Player implements IPlayer {
   dashSpeed: number = 600;
 
   readonly walkSpeed: number = 320;
-  readonly jumpSpeed: number = -420;
+  readonly jumpSpeed: number = -450;
   readonly wallSlideSpeed: number = 100;
 
   movement: PlayerMovement;
