@@ -11,7 +11,6 @@ export interface IPlayer {
   isMobileLeft: boolean;
   isMobileRight: boolean;
   isMobileDash: boolean;
-  canDash: boolean;
   isDashing: boolean;
   walkSpeed: number;
   jumpSpeed: number;

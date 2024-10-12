@@ -71,7 +71,6 @@ export class Cat implements IPlayer {
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   keys!: KeyMap;
 
-  canDash: boolean = true;
   isDashing: boolean = false;
   readonly dashTime: number = 200; // Duration of dash in ms
   readonly dashCooldown: number = 300; // Cooldown time before dashing again

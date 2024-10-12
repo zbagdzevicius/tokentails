@@ -9,6 +9,7 @@ import { setIsGameLoaded } from "@/components/game/events";
 const enemyDurationMs = 15000;
 
 const JUMP_LAYER_TILES = [47, 48, 49, 50];
+const TRAMPOLINE_TILES = [51];
 
 export class CatbassadorsScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
@@ -17,6 +18,7 @@ export class CatbassadorsScene extends Scene {
   tilemap!: Phaser.Tilemaps.Tilemap;
   groundLayer!: Phaser.Tilemaps.TilemapLayer;
   platformsLayer!: Phaser.Tilemaps.TilemapLayer;
+  jumperLayer!: Phaser.Tilemaps.TilemapLayer;
   enemies: Enemy[] = [];
   enemySpawnInterval: NodeJS.Timeout | null = null;
   timer: number = catbassadorsGameDuration;
@@ -81,6 +83,8 @@ export class CatbassadorsScene extends Scene {
     this.platformsLayer = this.tilemap.createLayer("platforms", [
       sugarTileset,
     ])!;
+    this.tilemap.createLayer("decorations", [sugarTileset]);
+    this.jumperLayer = this.tilemap.createLayer("jumper", [sugarTileset])!;
 
     this.anims.create({
       key: "star",
@@ -92,8 +96,6 @@ export class CatbassadorsScene extends Scene {
       repeat: 1,
     });
 
-    this.tilemap.createLayer("decorations", [sugarTileset]);
-
     // Set collision for specific tiles based on property
     this.groundLayer?.setCollisionByExclusion([-1]);
     this.platformsLayer?.setCollision(JUMP_LAYER_TILES);
@@ -102,6 +104,19 @@ export class CatbassadorsScene extends Scene {
       (player: Phaser.GameObjects.GameObject) => {
         const playerSprite = player as Phaser.Physics.Arcade.Sprite;
         if (playerSprite.body!.velocity.y <= 0) {
+          return true;
+        }
+        return false;
+      },
+      this
+    );
+    this.jumperLayer?.setCollision(TRAMPOLINE_TILES);
+    this.jumperLayer.setTileIndexCallback(
+      JUMP_LAYER_TILES,
+      (player: Phaser.GameObjects.GameObject) => {
+        const playerSprite = player as Phaser.Physics.Arcade.Sprite;
+        if (playerSprite.body!.velocity.y <= 0) {
+          playerSprite.setVelocityY(200);
           return true;
         }
         return false;
@@ -166,6 +181,14 @@ export class CatbassadorsScene extends Scene {
     this.physics.add.collider(
       this.cat.sprite as Phaser.Physics.Arcade.Sprite,
       this.platformsLayer
+    );
+    this.physics.add.collider(
+      this.cat.sprite as Phaser.Physics.Arcade.Sprite,
+      this.jumperLayer,
+      () => {
+        this.cat?.sprite.setVelocityY(-1000);
+        this.sound.play("powerup");
+      }
     );
     this.cameras.main.startFollow(this.cat.sprite);
 
