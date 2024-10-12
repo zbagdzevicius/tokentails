@@ -96,7 +96,6 @@ export class CatbassadorsScene extends Scene {
       repeat: 1,
     });
 
-
     // Set collision for specific tiles based on property
     this.groundLayer?.setCollisionByExclusion([-1]);
     this.platformsLayer?.setCollision(JUMP_LAYER_TILES);
@@ -186,7 +185,10 @@ export class CatbassadorsScene extends Scene {
     this.physics.add.collider(
       this.cat.sprite as Phaser.Physics.Arcade.Sprite,
       this.jumperLayer,
-      () => this.cat?.sprite.setVelocityY(-1000)
+      () => {
+        this.cat?.sprite.setVelocityY(-1000);
+        this.sound.play("powerup");
+      }
     );
     this.cameras.main.startFollow(this.cat.sprite);
 
