@@ -56,13 +56,13 @@ const teamMembers: ITeamMember[] = [
     ],
   },
   {
-    img: "/team/matt.webp",
-    name: "Matt Bankauskas",
-    role: "CMO",
+    img: "/team/feta.webp",
+    name: "Feta",
+    role: "Chief Cat",
     socials: [
       {
         img: SocialImages.EMAIL,
-        link: "https://www.kolhq.com/",
+        link: "https://media.tenor.com/Y3bJsdez11QAAAAj/cute-spin-cute-bubu.gif",
       },
     ],
   },
