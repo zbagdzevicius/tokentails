@@ -75,8 +75,8 @@ const Purrquest = ({ cat }: IPurrquestProps) => {
   return (
     <div style={background} id="app">
       {!isStarted && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2">
-          <div className="flex gap-2 items-center font-secondary text-p3">
+        <div className="absolute top-44 left-1/2 -translate-x-1/2">
+          <div className="flex gap-2 items-center justify-center font-secondary text-p3">
             <span>Find</span>
             <img className="h-8" src="purrquest/sprites/key.png"></img>
             <span>OPEN</span>
@@ -84,8 +84,14 @@ const Purrquest = ({ cat }: IPurrquestProps) => {
           </div>
           <div className="flex gap-2 justify-center items-center font-secondary text-p3 mt-2">
             <img className="h-8" src="logo/coin.webp"></img>
-            <span>WIN 5000</span>
+            <span>WIN 5000+</span>
             <img className="h-8" src="logo/coin.webp"></img>
+          </div>
+          <div className="flex gap-2 justify-center items-center font-secondary text-p3 mt-2">
+            <span>CLICK PLAY BELOW</span>
+          </div>
+          <div className="flex gap-2 justify-center items-center font-secondary text-p3 mt-2">
+          <img className="h-8 rotate-90" src="icons/arrow.webp"></img>
           </div>
         </div>
       )}

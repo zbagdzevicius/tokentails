@@ -1,6 +1,8 @@
 import { IProfile } from "@/models/profile";
 import { useMemo, useState } from "react";
 import { PixelButton } from "../button/PixelButton";
+import { useGame } from "@/context/GameContext";
+import { GameModal } from "@/models/game";
 
 interface IGameStat {
   title: string;
@@ -16,7 +18,7 @@ const GameStatSection = ({ title, image, stat, bg, onClick }: IGameStat) => {
     <button
       onClick={onClick}
       className={`flex flex-col items-center font-secondary rounded-xl p-2 bg-gradient-to-b ${bg}`}
-    >
+      >
       <div className="text-p4">{title}</div>
       <div className="flex items-center gap-2 -mt-1">
         <img className="w-6 h-6" src={image} />
@@ -29,7 +31,13 @@ const GameStatSection = ({ title, image, stat, bg, onClick }: IGameStat) => {
 const coinsText = `Earn coins to get airdrops
 stay in the top leaderboards to win extra prizes`;
 
-export const GameStatsSection = ({ profile }: { profile: IProfile }) => {
+export const GameStatsSection = ({
+  profile,
+  setOpenedModal,
+}: {
+  profile: IProfile;
+  setOpenedModal: (modal: GameModal) => void;
+}) => {
   const [modal, setModal] = useState<null | string>(null);
   const gameStats = useMemo(() => {
     if (!profile) {
@@ -72,7 +80,7 @@ export const GameStatsSection = ({ profile }: { profile: IProfile }) => {
   }
   return (
     <div>
-      <div className="fixed left-4 top-2 flex flex-col gap-2 opacity-75">
+      <div className="fixed left-4 top-2 z-10 flex flex-col gap-2 opacity-75">
         {gameStats.map((stat) => (
           <GameStatSection
             {...stat}
@@ -91,6 +99,15 @@ export const GameStatsSection = ({ profile }: { profile: IProfile }) => {
           </div>
           <div className="flex items-center gap-2 -mt-1">
             <div className="text-p5">{profile?.catpoints?.toFixed(0) || 0}</div>
+          </div>
+        </div>
+        <div
+          onClick={() => setOpenedModal(GameModal.PROFILE)}
+          className="flex flex-col relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300"
+        >
+          <img className="w-10 h-10" src={profile.cat?.catImg} />
+          <div className="text-p4 flex items-center gap-1">
+            <div>STATS</div>
           </div>
         </div>
       </div>

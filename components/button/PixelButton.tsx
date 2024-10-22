@@ -32,7 +32,7 @@ export const PixelButton = ({
             isBig ? "text-p3" : "text-p4"
           } flex items-center gap-2`}
         >
-          <p className="text-yellow-300">{text}</p>
+          <p className="text-yellow-300 whitespace-nowrap">{text}</p>
           {subtext && <p className="text-yellow-200">{subtext}</p>}
         </div>
         <div className="h-1 bg-yellow-300"></div>

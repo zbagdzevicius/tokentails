@@ -1,11 +1,12 @@
 import { TRedeemLives } from "@/constants/telegram-api";
 import { IUtils } from "@/context/ProfileContext";
+import { useToast } from "@/context/ToastContext";
 import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { BaseBusEvent } from "../base/BaseBus.events";
 import { PixelButton } from "../button/PixelButton";
 import { GameStatsSection } from "../catbassadors/GameStatsSection";
-import { useToast } from "@/context/ToastContext";
 
 interface IProps {
   profile: IProfile;
@@ -57,19 +58,16 @@ export const GameOptionsModal = ({
     }, 2000);
   }, [gameType]);
 
+  const onFeedClick = useCallback(() => {
+    const event = new CustomEvent(BaseBusEvent.SPAWN_EAT, {});
+    window.dispatchEvent(event);
+  }, []);
+
   return (
     <>
-      <GameStatsSection profile={profile} />
-      <div className="fixed bottom-8 left-4 right-4 pb-safe flex justify-between items-end">
+      <GameStatsSection profile={profile} setOpenedModal={setOpenedModal} />
+      <div className="fixed z-10 bottom-8 left-4 right-4 pb-safe flex justify-between items-end">
         <div className="flex flex-col items-center animate-hover">
-          <span className="mb-4">
-            <PixelButton
-              onClick={() => {
-                setOpenedModal(GameModal.CATS);
-              }}
-              text="CATS"
-            ></PixelButton>
-          </span>
           <div
             onClick={() =>
               toast({
@@ -97,13 +95,13 @@ export const GameOptionsModal = ({
             ></PixelButton>
           )}
         </div>
-        {gameType !== GameType.HOME && (
+        {gameType !== GameType.HOME ? (
           <div className="flex flex-col gap-4">
             <PixelButton
               onClick={() => {
-                setOpenedModal(GameModal.PROFILE);
+                setOpenedModal(GameModal.CATS);
               }}
-              text="STATS"
+              text="CATS"
             ></PixelButton>
             <PixelButton
               onClick={() => {
@@ -112,29 +110,27 @@ export const GameOptionsModal = ({
               text="QUESTS"
             ></PixelButton>
             <div className="relative">
-              <div className="relative z-10 flex justify-center">
+              <div className="relative z-20 flex justify-center">
                 <PixelButton
                   onClick={() => {
-                    setOpenedModal(GameModal.LEADERBOARD_DAILY);
+                    setOpenedModal(GameModal.LEADERBOARD);
                   }}
                   text="CONTEST"
                 ></PixelButton>
               </div>
               <img
                 src="/logo/coin.webp"
-                className="w-8 absolute top-2 left-0"
+                className="w-8 absolute top-2 z-10 -left-5"
               />
               <img
                 src="/logo/boss-coin.png"
-                className="w-8 absolute top-2 right-0"
+                className="w-8 absolute top-2 z-10 -right-5"
               />
             </div>
-            <PixelButton
-              onClick={() => {
-                setOpenedModal(GameModal.LEADERBOARD);
-              }}
-              text="LEADERS"
-            ></PixelButton>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <PixelButton text="Feed" onClick={onFeedClick} />
           </div>
         )}
 

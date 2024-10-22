@@ -4,11 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import { PixelButton } from "../button/PixelButton";
 import { ICat } from "@/models/cats";
 import { useToast } from "@/context/ToastContext";
+import { useGame } from "@/context/GameContext";
+import { GameType } from "@/models/game";
 
 export const CatsModalContent = ({ close }: { close: () => void }) => {
   const { profile, setProfileUpdate } = useProfile();
   const toast = useToast();
 
+  const { setGameType } = useGame();
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
     queryFn: () => catsFetch(),
@@ -19,9 +22,13 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
       toast({ message: "This cat is selected" });
       return;
     }
-    setProfileUpdate({ cat: cat });
+    setProfileUpdate({ cat });
     setActiveCat(cat._id!);
-    toast({ message: "Switch game to spawn your cat" });
+
+    const event = new CustomEvent("cat-change", { detail: cat });
+    window.dispatchEvent(event);
+
+    toast({});
     close();
   };
 
@@ -68,6 +75,15 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
           </div>
         ))}
       </div>
+
+      <img
+        onClick={() => {
+          setGameType(GameType.SHELTER);
+          close();
+        }}
+        className="w-36 h-36 rounded-xl hover:animate-hover animate-border"
+        src="/game/select/shelter.jpg"
+      />
     </div>
   );
 };

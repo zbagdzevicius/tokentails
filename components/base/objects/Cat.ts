@@ -66,11 +66,13 @@ export class Cat {
   private animation: PlayerAnimation = animationConfigurations[0].key;
   job: null | NPCJob = null;
   private timeoutFunction: any;
+  private catName: string;
 
-  constructor(scene: Scene, x: number, y: number) {
+  constructor(scene: Scene, x: number, y: number, catName: string,) {
     this.scene = scene;
+    this.catName = catName;
     this.sprite = this.scene.physics.add
-      .sprite(x, y, "cat")
+      .sprite(x, y, catName)
       .setSize(32, 32)
       .setOffset(8, 4);
 
@@ -80,9 +82,10 @@ export class Cat {
   initAnimations() {
     for (const animationConfiguration of animationConfigurations) {
       const index = animationConfigurations.indexOf(animationConfiguration);
+      this.scene.anims.get(animationConfiguration.key)?.destroy();
       this.scene.anims.create({
         key: animationConfiguration.key,
-        frames: this.scene.anims.generateFrameNumbers("cat", {
+        frames: this.scene.anims.generateFrameNumbers(this.catName, {
           start: index * maxAnimationFrames,
           end: index * maxAnimationFrames + animationConfiguration.frames - 1,
         }),
@@ -90,18 +93,20 @@ export class Cat {
         repeat: animationConfiguration.repeat,
       });
     }
+    this.scene.anims.get(PlayerAnimation.JUMPING_UP)?.destroy();
     this.scene.anims.create({
       key: PlayerAnimation.JUMPING_UP,
-      frames: this.scene.anims.generateFrameNumbers("cat", {
+      frames: this.scene.anims.generateFrameNumbers(this.catName, {
         start: 5 * maxAnimationFrames,
         end: 5 * maxAnimationFrames + 5,
       }),
       frameRate: 8,
       repeat: 0,
     });
+    this.scene.anims.get(PlayerAnimation.JUMPING_DOWN)?.destroy();
     this.scene.anims.create({
       key: PlayerAnimation.JUMPING_DOWN,
-      frames: this.scene.anims.generateFrameNumbers("cat", {
+      frames: this.scene.anims.generateFrameNumbers(this.catName, {
         start: 5 * maxAnimationFrames + 5,
         end: 5 * maxAnimationFrames + 7,
       }),

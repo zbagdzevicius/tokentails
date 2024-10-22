@@ -21,19 +21,18 @@ export const Game = () => {
   const background = useBackground();
 
   return (
-    <div className="w-full h-screen" style={background}>
-      {gameType === GameType.CATBASSADORS && profile && (
-        <Catbassadors cat={profile?.cat} profile={profile} timer={timer} />
-      )}
-      {gameType === GameType.HOME && profile && (
-        <CatProvider>
-          <Base />
-        </CatProvider>
-      )}
-      {gameType === GameType.SHELTER && profile && <Adopt />}
-      {gameType === GameType.PURRQUEST && profile && (
-        <PurrQuest cat={profile?.cat} />
-      )}
+    <div className="w-full h-screen z-[9]" style={background}>
+        <div className="fixed inset-0 z-[-1]">
+          <img src="/assets/spooky.webp" className="w-16 m-auto draggable" />
+        </div>
+        {gameType === GameType.CATBASSADORS && profile && (
+          <Catbassadors cat={profile?.cat} profile={profile} timer={timer} />
+        )}
+        {gameType === GameType.HOME && profile && <Base />}
+        {gameType === GameType.SHELTER && profile && <Adopt />}
+        {gameType === GameType.PURRQUEST && profile && (
+          <PurrQuest cat={profile?.cat} />
+        )}
     </div>
   );
 };

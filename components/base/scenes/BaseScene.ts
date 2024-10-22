@@ -6,13 +6,13 @@ import BaseBus from "../BaseBus";
 import { BaseBusEvent } from "../BaseBus.events";
 import { Cat, NPCJobType } from "../objects/Cat";
 import { Food } from "../objects/Food";
-import { Toy } from "../objects/Toy";
 
 export class BaseScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
   cat?: Cat;
-  toy?: Toy | null;
+  catDto?: ICat;
   food?: Food | null;
+  catSpritesheet?: Phaser.Loader.LoaderPlugin;
   tilemap!: Phaser.Tilemaps.Tilemap;
   groundLayer!: Phaser.Tilemaps.TilemapLayer;
   isPlaying: boolean = false;
@@ -66,7 +66,7 @@ export class BaseScene extends Scene {
 
     // Set collision for specific tiles based on property
     this.groundLayer?.setCollisionByExclusion([-1]);
-    BaseBus.emit("current-scene-ready");
+    BaseBus.emit("current-scene-ready", this);
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(ZOOM);
     this.addSounds();
@@ -74,8 +74,6 @@ export class BaseScene extends Scene {
     BaseBus.addListener(BaseBusEvent.SPAWN_CAT, (args: any) =>
       this.spawnCat(args)
     );
-    BaseBus.addListener(BaseBusEvent.SPAWN_EAT, () => this.spawnFood());
-    BaseBus.addListener(BaseBusEvent.SPAWN_PLAY, () => this.spawnPlay());
     BaseBus.addListener(BaseBusEvent.MEOW, () => {
       setTimeout(() => {
         try {
@@ -84,6 +82,7 @@ export class BaseScene extends Scene {
       }, 2000);
     });
 
+    window.addEventListener(BaseBusEvent.SPAWN_EAT, () => this.spawnFood());
     setIsGameLoaded();
   }
 
@@ -92,20 +91,27 @@ export class BaseScene extends Scene {
   }
 
   async spawnCat(cat: ICat) {
-    if (this.cat || !cat) {
+    if (!cat || cat?.name === this.catDto?.name) {
       return;
     }
-    this.load.on("complete", () => this.createCat(), this);
-    this.load.spritesheet("cat", cat.spriteImg, {
+    this.catDto = cat;
+    this.load.once(
+      "complete",
+      () => {
+        this.createCat(cat.name);
+      },
+      this
+    );
+    this.load.spritesheet(cat.name, cat.spriteImg, {
       frameWidth: 48,
       frameHeight: 48,
     });
     this.load.start();
   }
 
-  private createCat() {
+  private createCat(catName: string) {
     // Create the player
-    this.cat = new Cat(this, 0, -400);
+    this.cat = new Cat(this, 0, -400, catName);
     // Enable collision between player and tilemap layer
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
     // Adjust camera to follow the player
@@ -127,27 +133,8 @@ export class BaseScene extends Scene {
     this.physics.add.collider(this.food.sprite, this.groundLayer);
   }
 
-  spawnPlay() {
-    if (!this.cat || !this.physics.add) {
-      return;
-    }
-    if (this.toy) {
-      this.toy.sprite.destroy();
-    }
-    this.toy = new Toy(this, 0, -450);
-    this.physics.add.collider(this.toy.sprite, this.groundLayer);
-    this.physics.add.collider(this.cat.sprite, this.toy.sprite, () =>
-      this.onCatCatchTheToy()
-    );
-    this.isPlaying = true;
-  }
-
   update() {
     this.cat?.update();
-    this.toy?.update();
-    if (this.isPlaying) {
-      this.catchTheToy();
-    }
   }
 
   private onFoodEat() {
@@ -159,30 +146,5 @@ export class BaseScene extends Scene {
 
       BaseBus.emit(BaseBusEvent.EATEN);
     });
-  }
-
-  private catchTheToy() {
-    if (this.toy && this.cat) {
-      const distance = this.getDistance(this.cat.sprite, this.toy.sprite);
-      this.cat.setJump(distance < 80);
-    }
-  }
-
-  private getDistance(
-    obj1: Phaser.Physics.Arcade.Sprite,
-    obj2: Phaser.Physics.Arcade.Sprite
-  ) {
-    return Math.abs(obj1.x - obj2.x);
-  }
-
-  private onCatCatchTheToy() {
-    if (this.toy) {
-      this.toy.bounce();
-      BaseBus.emit(BaseBusEvent.PLAYED);
-
-      if (!this.blipSound?.isPlaying) {
-        this.blipSound?.play();
-      }
-    }
   }
 }

@@ -38,7 +38,7 @@ let timerInterval: any = null;
 
 const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [isStarted, setIsStarted] = React.useState<boolean>(false);
-  const [gameType, setGameType] = React.useState<GameType | null>(null);
+  const [gameType, setGameType] = React.useState<GameType | null>(GameType.HOME);
   const [openedModal, setOpenedModal] = React.useState<GameModal | null>(null);
   const { profile, setProfileUpdate, utils, shareUrl } = useProfile();
   const showToast = useToast();
@@ -121,11 +121,8 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           {openedModal === GameModal.QUESTS && (
             <QuestsModal close={() => setOpenedModal(null)} />
           )}
-          {[GameModal.LEADERBOARD, GameModal.LEADERBOARD_DAILY].includes(
-            openedModal as GameModal
-          ) && (
+          {[GameModal.LEADERBOARD].includes(openedModal as GameModal) && (
             <Leaderboard
-              type={openedModal!}
               close={() => setOpenedModal(null)}
             />
           )}

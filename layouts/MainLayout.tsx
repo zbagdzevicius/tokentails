@@ -1,3 +1,4 @@
+import { CatProvider } from "@/context/CatContext";
 import { ProfileProvider } from "@/context/ProfileContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { queryClient } from "@/context/query";
@@ -9,7 +10,11 @@ export const MainLayout = ({ children }: PropsWithChildren<any>) => {
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <ProfileProvider>
-          <main className="z-10 relative flex flex-col overflow-hidden">{children}</main>
+          <CatProvider>
+            <main className="z-10 relative flex flex-col overflow-hidden">
+              {children}
+            </main>
+          </CatProvider>
         </ProfileProvider>
       </ToastProvider>
     </QueryClientProvider>

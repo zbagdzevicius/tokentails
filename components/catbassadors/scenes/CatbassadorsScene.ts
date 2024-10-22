@@ -53,6 +53,7 @@ export class CatbassadorsScene extends Scene {
     });
 
     this.load.image("bosscoin", "logo/boss-coin.png");
+    this.load.image("pumpkin", "icons/pumpkin.png");
     this.load.image("timecoin", "icons/clock.png");
     this.load.image("coin", "logo/coin.png");
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");

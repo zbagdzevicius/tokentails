@@ -542,3 +542,44 @@ $n: 20;
   transition: all 0.9s ease-in-out;
 }
 // CARD CSS END
+
+
+// DRAG AROUND ANIMATION
+
+.draggable {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  animation: moveAround ease-in-out 8s infinite alternate;
+  opacity: 50%;
+}
+
+/* Define the animation to move the element around randomly */
+@keyframes moveAround {
+  0% {
+    top: 10%;
+    left: 10%;
+    rotate: 45deg;
+  }
+  25% {
+    top: 10%;
+    left: 80%;
+  }
+  50% {
+    top: 80%;
+    left: 80%;
+    rotate: 30deg;
+  }
+  75% {
+    top: 80%;
+    left: 10%;
+    rotate: 15deg;
+  }
+  100% {
+    top: 10%;
+    left: 10%;
+    rotate: 30deg;
+  }
+}
+
+// DRAG AROUND ANIMATION ENDS
