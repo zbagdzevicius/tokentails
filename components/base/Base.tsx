@@ -1,20 +1,18 @@
 import { useCat } from "@/context/CatContext";
-import { useProfile } from "@/context/ProfileContext";
 import { StatusType } from "@/models/status";
 import {
   forwardRef,
-  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
 } from "react";
-import { PixelButton } from "../button/PixelButton";
+import { useCatChangeEvent, useGameLoadedEvent } from "../catbassadors/hooks";
 import { StatusBar } from "../shared/game/StatusBar";
 import BaseBus from "./BaseBus";
 import { BaseBusEvent } from "./BaseBus.events";
 import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
-import { useGameLoadedEvent } from "../catbassadors/hooks";
+import { useGame } from "@/context/GameContext";
 
 export interface IRefPhaserGame {
   game: Phaser.Game | null;
@@ -76,53 +74,46 @@ const BaseGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame(
 });
 
 function Base() {
-  // The sprite can only be moved in the MainMenu Scene
-  //  References to the PhaserGame component (game and scene are exposed)
-  const { profile } = useProfile();
   const phaserRef = useRef<IRefPhaserGame | null>(null);
-  const { setCat, setCatStatus, cat } = useCat();
+  const { setCatStatus, cat } = useCat();
+  const { setGameType } = useGame();
+  useCatChangeEvent(({ detail: newCat }) => {
+    if (newCat) {
+      phaserRef.current?.scene?.scene.restart();
+      setTimeout(() => {
+        BaseBus.emit(BaseBusEvent.SPAWN_CAT, newCat);
+      }, 1000);
+    }
+  });
   const isGameLoaded = useGameLoadedEvent();
   useEffect(() => {
-    if (setCat && profile?.cat) {
-      setCat(profile.cat!);
-    }
-  }, [profile?.cat, setCat]);
-  useEffect(() => {
-    if (profile?.cat && isGameLoaded) {
-      BaseBus.emit(BaseBusEvent.SPAWN_CAT, profile.cat);
+    if (cat && isGameLoaded) {
+      if (!(phaserRef.current?.scene as any)?.cat) {
+        BaseBus.emit(BaseBusEvent.SPAWN_CAT, cat);
+      }
 
-      if ((profile.cat.status.EAT || 0) < 4) {
+      if ((cat.status.EAT || 0) < 4) {
         BaseBus.emit(BaseBusEvent.MEOW);
       }
     }
-  }, [profile?.cat, isGameLoaded]);
+  }, [cat, isGameLoaded]);
 
   useEffect(() => {
     BaseBus.addListener(BaseBusEvent.EATEN, () => {
-      const status = cat?.status[StatusType.EAT] || 0;
       if ((cat?.status[StatusType.EAT] || 0) < 4) {
-        setCatStatus({ type: StatusType.EAT, status: status + 1 });
-      }
-    });
-    BaseBus.addListener(BaseBusEvent.PLAYED, () => {
-      const status = cat?.status[StatusType.PLAY] || 0;
-      if (status < 4) {
-        setCatStatus({ type: StatusType.PLAY, status: status + 1 });
+        setCatStatus({ type: StatusType.EAT, status: 4 });
       }
     });
     return () => {
       BaseBus.removeListener(BaseBusEvent.EATEN);
-      BaseBus.removeListener(BaseBusEvent.PLAYED);
     };
   }, [cat?.status]);
 
-  const onPlayClick = useCallback(() => {
-    BaseBus.emit(BaseBusEvent.SPAWN_PLAY);
-  }, []);
-
-  const onFeedClick = useCallback(() => {
-    BaseBus.emit(BaseBusEvent.SPAWN_EAT);
-  }, []);
+  useEffect(() => {
+    if (cat?.status.EAT === 4) {
+      setGameType(null);
+    }
+  }, [cat, setGameType])
 
   const [isClicked, setIsClicked] = useState(false);
   useEffect(() => {
@@ -132,7 +123,7 @@ function Base() {
   }, []);
 
   return (
-    <div id="app">
+    <div id="app" className="z-20">
       {isClicked && (
         <audio className="display: none" autoPlay>
           <source
@@ -143,21 +134,13 @@ function Base() {
       )}
       <div className="fixed right-0 top-0 z-50">
         {cat && (
-            <div className="flex flex-col justify-center relative gap-2 items-end pr-2 md:pr-4 pt-1 md:pt-4">
-              <StatusBar
-                status={cat.status[StatusType.EAT]!}
-                type={StatusType.EAT}
-              />
-              <StatusBar
-                status={cat.status[StatusType.PLAY]!}
-                type={StatusType.PLAY}
-              />
-            </div>
+          <div className="flex flex-col justify-center relative gap-2 items-end pr-2 md:pr-4 pt-1 md:pt-4">
+            <StatusBar
+              status={cat.status[StatusType.EAT]!}
+              type={StatusType.EAT}
+            />
+          </div>
         )}
-      </div>
-      <div className="fixed bottom-8 pb-safe left-1/2 -translate-x-1/2 flex justify-center gap-2 px-4">
-        <PixelButton text="Play" onClick={onPlayClick} />
-        <PixelButton text="Feed" onClick={onFeedClick} />
       </div>
       <BaseGame ref={phaserRef} />
     </div>

@@ -1,11 +1,12 @@
 import { TRedeemLives } from "@/constants/telegram-api";
 import { IUtils } from "@/context/ProfileContext";
+import { useToast } from "@/context/ToastContext";
 import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { BaseBusEvent } from "../base/BaseBus.events";
 import { PixelButton } from "../button/PixelButton";
 import { GameStatsSection } from "../catbassadors/GameStatsSection";
-import { useToast } from "@/context/ToastContext";
 
 interface IProps {
   profile: IProfile;
@@ -57,19 +58,21 @@ export const GameOptionsModal = ({
     }, 2000);
   }, [gameType]);
 
+  const onFeedClick = useCallback(() => {
+    const event = new CustomEvent(BaseBusEvent.SPAWN_EAT, {});
+    window.dispatchEvent(event);
+  }, []);
+
   return (
     <>
-      <GameStatsSection profile={profile} />
-      <div className="fixed bottom-8 left-4 right-4 pb-safe flex justify-between items-end">
+      <GameStatsSection profile={profile} setOpenedModal={setOpenedModal} />
+      <div className="fixed z-10 bottom-8 left-4 right-4 pb-safe flex justify-between items-end">
         <div className="flex flex-col items-center animate-hover">
-          <span className="mb-4">
-            <PixelButton
-              onClick={() => {
-                setOpenedModal(GameModal.CATS);
-              }}
-              text="CATS"
-            ></PixelButton>
-          </span>
+          {[GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!) && (
+            <span className="mb-8 animate-pulse">
+              <img className="h-8 rotate-90" src="icons/arrow.webp"></img>
+            </span>
+          )}
           <div
             onClick={() =>
               toast({
@@ -97,13 +100,13 @@ export const GameOptionsModal = ({
             ></PixelButton>
           )}
         </div>
-        {gameType !== GameType.HOME && (
+        {gameType !== GameType.HOME ? (
           <div className="flex flex-col gap-4">
             <PixelButton
               onClick={() => {
-                setOpenedModal(GameModal.PROFILE);
+                setOpenedModal(GameModal.CATS);
               }}
-              text="STATS"
+              text="CATS"
             ></PixelButton>
             <PixelButton
               onClick={() => {
@@ -111,46 +114,27 @@ export const GameOptionsModal = ({
               }}
               text="QUESTS"
             ></PixelButton>
-            <div className="relative">
-              <div className="relative z-10 flex justify-center">
-                <PixelButton
-                  onClick={() => {
-                    setOpenedModal(GameModal.LEADERBOARD_DAILY);
-                  }}
-                  text="CONTEST"
-                ></PixelButton>
-              </div>
-              <img
-                src="/logo/coin.webp"
-                className="w-8 absolute top-2 left-0"
-              />
-              <img
-                src="/logo/boss-coin.png"
-                className="w-8 absolute top-2 right-0"
-              />
-            </div>
             <PixelButton
               onClick={() => {
                 setOpenedModal(GameModal.LEADERBOARD);
               }}
-              text="LEADERS"
+              text="CONTEST"
             ></PixelButton>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <PixelButton text="Feed" onClick={onFeedClick} />
           </div>
         )}
 
         {profile.canRedeemLives && gameType !== GameType.HOME && (
           <div className="flex flex-col items-center">
-            <div className="flex flex-col items-center font-secondary text-p2 opacity-75 bg-white px-1 rounded-xl">
-              <img className="w-8 z-10 -mt-2 pt-4" src="/logo/coin.webp" />
-              <div>GRAB</div>
-              <div className="-mt-2 text-p5">
-                {numberOfPointsToRedeem} COINS
-              </div>
+            <div className="flex w-16 flex-col items-center font-secondary text-p2 opacity-75 bg-white px-1 rounded-t-xl">
+              <img className="w-8 z-10 pt-4 -mt-2" src="/logo/coin.webp" />
+              <div className="text-p5 mt-1">{numberOfPointsToRedeem} COINS</div>
               <div className="-mt-2 text-h3">+</div>
               <img className="w-6 md:w-8 z-10 -mt-2" src="/base/heart.png" />
-              <div className="text-p5">{numberOfLivesToRedeem} FREE</div>
-              <div className="-mt-2">LIVES</div>
-              <img className="w-10 md:w-12" src="/logo/chest.webp" />
+              <div className="text-p5">3 LIVES</div>
             </div>
             <PixelButton
               onClick={() => (profile.canRedeemLives ? redeemLives() : {})}
@@ -159,14 +143,12 @@ export const GameOptionsModal = ({
           </div>
         )}
         <div className="flex flex-col items-center">
-          <div className="flex flex-col items-center font-secondary text-p2 opacity-75 bg-white px-1 rounded-t-xl">
-            <img className="w-8 z-10 -mt-2 pt-4" src="/logo/coin.webp" />
-            <div>EARN</div>
-            <div className="-mt-2 text-p5">2000 COINS</div>
+          <div className="flex w-16 flex-col items-center font-secondary text-p2 opacity-75 bg-white px-1 rounded-t-xl">
+            <img className="w-8 z-10 pt-4 -mt-2" src="/logo/coin.webp" />
+            <div className="text-p5 mt-1">2000 COINS</div>
             <div className="-mt-2 text-h3">+</div>
-            <img className="w-8 z-10 -mt-3" src="/base/heart.png" />
-            <div className="-mt-1">GET</div>
-            <div className="text-p5 -mt-2">+1 daily live</div>
+            <img className="w-6 md:w-8 z-10 -mt-2" src="/base/heart.png" />
+            <div className="text-p5">+DAILY LIVE</div>
           </div>
           <PixelButton
             onClick={() => {

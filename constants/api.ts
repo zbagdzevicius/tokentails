@@ -562,7 +562,8 @@ export const updateCatStatus = async (
   id: string | number,
   status: ICatStatus
 ): Promise<ICat | null> => {
-  if (!id || !(status.EAT || status.PLAY)) {
+  if (!id || !status.EAT) {
+    console.log('null');
     return null;
   }
   return fetch(`${apiUrl}/cat/${id}`, {

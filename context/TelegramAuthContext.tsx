@@ -10,6 +10,7 @@ import {
 import * as React from "react";
 import { useCallback, useEffect } from "react";
 import { useProfile } from "./ProfileContext";
+import { useToast } from "./ToastContext";
 
 interface ITelegramUserData {
   raw: string;
@@ -36,6 +37,7 @@ const TelegramAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const launchParams = useLaunchParams(true);
   const initData = useInitData(true);
   const { setUtils } = useProfile();
+  const toast = useToast();
 
   const utils = useUtils(true);
 
@@ -84,6 +86,7 @@ const TelegramAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const redeemLives = useCallback(async () => {
     await TRedeemLives();
     refetchProfile();
+    toast({message: 'Come back tomorrow for More !'})
   }, []);
   useEffect(() => {
     if (profileResponse) {
