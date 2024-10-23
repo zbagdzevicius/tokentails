@@ -84,7 +84,7 @@ export const TelegramProfileContent = () => {
             ))}
           </li>
 
-          {profile?.wallets.evm && (
+          {profile?.wallets?.evm && (
             <li
               onClick={() => copy(profile?.wallets.evm.walletAddress)}
               className="flex flex-col gap-1 mt-3"
@@ -118,7 +118,7 @@ export const TelegramProfileContent = () => {
             </li>
           )}
 
-          {profile?.wallets.aptos.walletAddress && (
+          {profile?.wallets?.aptos.walletAddress && (
             <li
               onClick={() => copy(profile?.wallets.aptos.walletAddress)}
               className="flex flex-col gap-1 mt-3"
