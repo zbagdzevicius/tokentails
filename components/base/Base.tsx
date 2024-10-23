@@ -132,7 +132,7 @@ function Base() {
           />
         </audio>
       )}
-      <div className="fixed right-0 top-0 z-50">
+      <div className="fixed right-1/2 translate-x-[50%] z-50">
         {cat && (
           <div className="flex flex-col justify-center relative gap-2 items-end pr-2 md:pr-4 pt-1 md:pt-4">
             <StatusBar
