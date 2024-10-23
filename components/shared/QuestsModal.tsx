@@ -37,10 +37,14 @@ export enum QUEST {
   START_PRO_TRADER = "START_PRO_TRADER",
   START_MAHJONG = "START_MAHJONG",
   START_MHAYA = "START_MHAYA",
+  START_PUMPKIN = "START_PUMPKIN",
+  START_PRESIDENT = "START_PRESIDENT",
   FOLLOW_MHAYA = "FOLLOW_MHAYA",
   START_MOONDROPS = "START_MOONDROPS",
   FOLLOW_MOONDROPS = "FOLLOW_MOONDROPS",
   FOLLOW_BLOCKGAMES = "FOLLOW_BLOCKGAMES",
+  FOLLOW_PUMPKIN = "FOLLOW_PUMPKIN",
+  FOLLOW_PRESIDENT = "FOLLOW_PRESIDENT",
   START_GRAND_JOURNEY = "START_GRAND_JOURNEY",
   FOLLOW_GRAND_JOURNEY = "FOLLOW_GRAND_JOURNEY",
   START_ROYAL_PETS = "START_ROYAL_PETS",
@@ -288,6 +292,26 @@ const allQuests: IQuest[] = [
   },
   {
     type: QuestType.SOCIAL,
+    key: QUEST.START_PUMPKIN,
+    name: "Start Draton",
+    link: "https://t.me/pumpkin_xyz_bot",
+    icon: "/icons/social/pumpkin.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.START_PRESIDENT,
+    name: "Start President",
+    link: "https://t.me/PresidentVote_bot?start=5666be2d3",
+    icon: "/icons/social/president.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
     key: QUEST.FOLLOW_IG,
     name: "Follow on IG",
     link: "https://instagram.com/tokentails",
@@ -372,6 +396,26 @@ const allQuests: IQuest[] = [
     name: "Follow Draton",
     link: "https://t.me/draton_channel",
     icon: "/icons/social/draton.webp",
+    reward: {
+      coins: 500,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_PUMPKIN,
+    name: "Follow Draton",
+    link: "https://t.me/pumpkin_global",
+    icon: "/icons/social/pumpkin.webp",
+    reward: {
+      coins: 500,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_PRESIDENT,
+    name: "Follow President",
+    link: "https://t.me/presidentvote_news",
+    icon: "/icons/social/president.webp",
     reward: {
       coins: 500,
     },

@@ -12,6 +12,7 @@ import { StatusBar } from "../shared/game/StatusBar";
 import BaseBus from "./BaseBus";
 import { BaseBusEvent } from "./BaseBus.events";
 import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
+import { useGame } from "@/context/GameContext";
 
 export interface IRefPhaserGame {
   game: Phaser.Game | null;
@@ -75,6 +76,7 @@ const BaseGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame(
 function Base() {
   const phaserRef = useRef<IRefPhaserGame | null>(null);
   const { setCatStatus, cat } = useCat();
+  const { setGameType } = useGame();
   useCatChangeEvent(({ detail: newCat }) => {
     if (newCat) {
       phaserRef.current?.scene?.scene.restart();
@@ -106,6 +108,12 @@ function Base() {
       BaseBus.removeListener(BaseBusEvent.EATEN);
     };
   }, [cat?.status]);
+
+  useEffect(() => {
+    if (cat?.status.EAT === 4) {
+      setGameType(null);
+    }
+  }, [cat, setGameType])
 
   const [isClicked, setIsClicked] = useState(false);
   useEffect(() => {

@@ -75,7 +75,7 @@ const Purrquest = ({ cat }: IPurrquestProps) => {
   return (
     <div style={background} id="app">
       {!isStarted && (
-        <div className="absolute top-44 left-1/2 -translate-x-1/2">
+        <div className="absolute top-52 left-1/2 -translate-x-1/2">
           <div className="flex gap-2 items-center justify-center font-secondary text-p3">
             <span>Find</span>
             <img className="h-8" src="purrquest/sprites/key.png"></img>

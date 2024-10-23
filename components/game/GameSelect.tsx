@@ -1,5 +1,7 @@
 import { GameType } from "@/models/game";
 import { PixelButton } from "../button/PixelButton";
+import { useCat } from "@/context/CatContext";
+import { useToast } from "@/context/ToastContext";
 
 interface IProps {
   gameType: GameType | null;
@@ -7,12 +9,22 @@ interface IProps {
 }
 
 export const GameSelect = ({ setGameType, gameType }: IProps) => {
+  const { cat } = useCat();
+  const toast = useToast();
+
   return (
-    <div className="fixed left-1/2 right-1/2 translate-x-[50%] z-10 flex flex-col gap-2 items-center top-24">
+    <div className="fixed left-1/2 right-1/2 translate-x-[50%] z-10 flex flex-col gap-2 items-center top-28 md:top-48">
       {gameType && (
         <PixelButton
           text="CHOOSE YOUR ADVENTURE"
-          onClick={() => setGameType(null)}
+          active={cat?.status.EAT !== 4}
+          onClick={() => {
+            if (cat?.status.EAT !== 4) {
+              toast({ message: "You must feed your cat first" });
+            } else {
+              setGameType(null);
+            }
+          }}
         />
       )}
       {!gameType && (

@@ -1,14 +1,49 @@
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
+import { GameStatSection } from "../catbassadors/GameStatsSection";
+import { commafy } from "@/constants/utils";
 
-const features = [
-  "NFTs & Airdrops prizes",
-  "Weekly Rewards & Events",
-];
+const features = ["NFTs & Airdrops prizes", "Weekly Rewards & Events"];
 
 export const TelegramProfileContent = () => {
   const { profile, position } = useProfile();
+
+  const gameStats = useMemo(() => {
+    if (!profile) {
+      return [];
+    }
+    const level = profile.catpoints?.toFixed(0).toString().length;
+    return [
+      {
+        title: "Level",
+        image: "/logo/level.png",
+        stat: level || 0,
+        bg: "from-yellow-300 to-green-300",
+        text: `Earn coins to level up
+        1 digit coins = 1 level
+        e.g. 1000 coins = level 4
+        Higher level = More Rewards
+        `,
+      },
+      {
+        title: "Friends",
+        image: "/logo/friends.png",
+        stat: profile.referrals?.length || 0,
+        bg: "from-green-300 to-green-300",
+        text: `Earn 2000 coins for each friend
+        + 50 daily coins and +1 daily live`,
+      },
+      {
+        title: "Streak",
+        image: "/logo/rocket.png",
+        stat: profile.streak || 0,
+        bg: "from-green-300 to-yellow-300",
+        text: `Streak of days you played in a row
+        1 day = +25 daily coins`,
+      },
+    ];
+  }, [profile]);
   const toast = useToast();
   const copy = useCallback(
     (stringToCopy: string) => {
@@ -25,102 +60,80 @@ export const TelegramProfileContent = () => {
   );
 
   return (
-    <div className="pt-4 pb-8 px-4 md:px-16 md:py-12 text-gray-700 flex flex-col justify-between items-center">
+    <div className="pt-4 pb-8 px-4 md:px-16 md:pt-4 md:pb-12 text-gray-700 flex flex-col justify-between items-center">
       <img
         className="w-16 m-auto"
         src={profile?.cat?.catImg || "/logo/logo.webp"}
       />
       {profile?.cat && (
         <ul className="m-auto font-primary">
-          <li className="text-p3 font-secondary bg-yellow-300 w-fit px-4 mb-2 rounded-lg">
+          <li className="text-p3 font-secondary bg-yellow-300 w-fit px-4 mb-2 rounded-lg m-auto">
             Hello, {profile.name} !
           </li>
-          <li className="flex items-center gap-x-2">
-            <img className="w-4" src="/logo/comments.png" />
-            <div>
-              Active cat is{" "}
-              <span className="font-bold">{profile.cat.name}</span>
-            </div>
-          </li>
-          <li className="flex items-center gap-x-2">
-            <img className="w-4" src="/logo/boss-coin.png" />
-            <div>
-              Position <span className="font-bold">#{position || 0}</span>
-            </div>
-          </li>
-          <li className="flex items-center gap-x-2">
-            <img className="w-4" src="/logo/friends.png" />
-            <div>
-              Friends{" "}
-              <span className="font-bold">
-                {profile.referrals?.length || 0}
-              </span>
-            </div>
-          </li>
-          <li className="flex items-center gap-x-2 mb-4">
-            <img className="w-4" src="/logo/chest.webp" />
-            <div>
+          <li className="flex items-center gap-x-2 mb-4 justify-center mt-4">
+            <img className="w-8" src="/logo/chest.webp" />
+            <div className="flex font-secondary text-p3 gap-2">
               Coins:{" "}
-              <span className="font-bold">
-                {profile.catpoints?.toFixed(0) || 0}
-              </span>
+              <span className="font-bold">{commafy(profile.catpoints)}</span>
             </div>
+            <img className="w-8 rotate-x scale-x-[-1]" src="/logo/chest.webp" />
+          </li>
+          <li className="flex justify-between mb-4">
+            {gameStats.map((stat) => (
+              <GameStatSection {...stat} key={stat.title} onClick={() => {}} />
+            ))}
           </li>
 
-          <li className="font-secondary text-p3 bg-yellow-300 rounded-lg w-fit px-4 mb-2">
-            What to expect ?
-          </li>
-          {features.map((feature) => (
-            <li key={feature} className="flex items-center gap-x-2">
-              <img className="w-4" src="/logo/coin.webp" />
-              <div>{feature}</div>
+          {profile?.wallets.evm && (
+            <li
+              onClick={() => copy(profile?.wallets.evm.walletAddress)}
+              className="flex flex-col gap-1 mt-3"
+            >
+              <div className="text-p6">
+                Your EVM wallet address{" "}
+                <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg">
+                  COPY
+                </span>
+              </div>
+              <p className="text-p6 font-bold font-secondary">
+                {profile?.wallets.evm.walletAddress}
+              </p>
             </li>
-          ))}
+          )}
 
-          <li
-            onClick={() => copy(profile?.wallets.evm.walletAddress)}
-            className="flex flex-col gap-1 mt-3"
-          >
-            <div className="text-p6">
-              Your EVM wallet address{" "}
-              <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg">
-                COPY
-              </span>
-            </div>
-            <p className="text-p6 font-bold font-secondary">
-              {profile?.wallets.evm.walletAddress}
-            </p>
-          </li>
+          {profile?.wallets?.stellar && (
+            <li
+              onClick={() => copy(profile?.wallets.stellar.walletAddress)}
+              className="flex flex-col gap-1 mt-3"
+            >
+              <div className="text-p6">
+                Your Stellar wallet address{" "}
+                <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg">
+                  COPY
+                </span>
+              </div>
+              <p className="text-p6 font-bold font-secondary">
+                {profile?.wallets.stellar.walletAddress}
+              </p>
+            </li>
+          )}
 
-          <li
-            onClick={() => copy(profile?.wallets.stellar.walletAddress)}
-            className="flex flex-col gap-1 mt-3"
-          >
-            <div className="text-p6">
-              Your Stellar wallet address{" "}
-              <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg">
-                COPY
-              </span>
-            </div>
-            <p className="text-p6 font-bold font-secondary">
-              {profile?.wallets.stellar.walletAddress}
-            </p>
-          </li>
-
-          <li
-            onClick={() => copy(profile?.wallets.aptos.walletAddress)}
-            className="flex flex-col gap-1 mt-3"
-          >
-            <div className="text-p6">
-              Your Aptos wallet address{" "}
-              <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg">
-                COPY
-              </span>
-            </div>
-            <p className="text-p6 font-bold font-secondary">
-              {profile?.wallets.aptos.walletAddress}
-            </p>
-          </li>
+          {profile?.wallets.aptos.walletAddress && (
+            <li
+              onClick={() => copy(profile?.wallets.aptos.walletAddress)}
+              className="flex flex-col gap-1 mt-3"
+            >
+              <div className="text-p6">
+                Your Aptos wallet address{" "}
+                <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg">
+                  COPY
+                </span>
+              </div>
+              <p className="text-p6 font-bold font-secondary">
+                {profile?.wallets.aptos.walletAddress}
+              </p>
+            </li>
+          )}
         </ul>
       )}
     </div>

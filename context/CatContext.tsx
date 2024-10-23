@@ -14,14 +14,10 @@ type ContextState = {
 
 const CatContext = React.createContext<ContextState | undefined>(undefined);
 
-const MAX_CAT_STATUS = 4;
+export const MAX_CAT_STATUS = 4;
 
 function isMaxReached(status: IStatus, cat: ICat): boolean {
-  if (!cat.status.EAT) {
-    return false;
-  }
-
-  if (cat.status.EAT >= MAX_CAT_STATUS) {
+  if (!cat.status.EAT || cat.status.EAT >= MAX_CAT_STATUS) {
     return false;
   }
 
@@ -31,9 +27,7 @@ function isMaxReached(status: IStatus, cat: ICat): boolean {
     [status.type]: status.status,
   };
 
-  const areBothStatusesMaxedOut = newStatuses[StatusType.EAT] >= MAX_CAT_STATUS;
-
-  return areBothStatusesMaxedOut;
+  return newStatuses[StatusType.EAT] >= MAX_CAT_STATUS;
 }
 
 const CatProvider = ({ children }: React.PropsWithChildren<{}>) => {
@@ -58,7 +52,7 @@ const CatProvider = ({ children }: React.PropsWithChildren<{}>) => {
   });
 
   const setCatStatus = useCallback(
-    (status: IStatus) => {
+    async (status: IStatus) => {
       if (!cat) {
         return;
       }
@@ -66,15 +60,6 @@ const CatProvider = ({ children }: React.PropsWithChildren<{}>) => {
       const shouldAddPoints = isMaxReached(status, cat);
 
       if (shouldAddPoints) {
-        setProfileUpdate({
-          catbassadorsLives: (profile?.catbassadorsLives || 0) + 9,
-          catpoints: (profile?.catpoints || 0) + 1000,
-          cat: {
-            ...(profile?.cat! || {}),
-            status: { [status.type]: status.status },
-          },
-        });
-
         toast({
           message: "9 Lives and 1000 Catpoints added!",
         });
@@ -84,9 +69,12 @@ const CatProvider = ({ children }: React.PropsWithChildren<{}>) => {
         ...cat,
         status: { ...(cat.status || {}), [status.type]: status.status },
       };
-      if ((newStatus.status[status.type] || 0) <= status.status) {
-        saveStatus.mutate(newStatus.status);
-      }
+      setProfileUpdate({
+        catbassadorsLives: (profile?.catbassadorsLives || 0) + 9,
+        catpoints: (profile?.catpoints || 0) + 1000,
+        cat: newStatus,
+      });
+      await saveStatus.mutate(newStatus.status);
     },
     [saveStatus]
   );

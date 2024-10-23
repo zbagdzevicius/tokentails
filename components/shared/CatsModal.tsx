@@ -6,6 +6,7 @@ import { ICat } from "@/models/cats";
 import { useToast } from "@/context/ToastContext";
 import { useGame } from "@/context/GameContext";
 import { GameType } from "@/models/game";
+import { MAX_CAT_STATUS } from "@/context/CatContext";
 
 export const CatsModalContent = ({ close }: { close: () => void }) => {
   const { profile, setProfileUpdate } = useProfile();
@@ -29,6 +30,9 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
     window.dispatchEvent(event);
 
     toast({});
+    if (cat?.status?.EAT !== MAX_CAT_STATUS) {
+      setGameType(GameType.HOME);
+    }
     close();
   };
 
@@ -52,6 +56,9 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                   X2
                 </div>
               )}
+              {
+                <div></div>
+              }
               <div className="relative z-10 items-center flex flex-col">
                 <img className="w-16 z-10" src={cat.catImg} />
                 <img

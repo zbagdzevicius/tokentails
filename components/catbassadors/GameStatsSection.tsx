@@ -13,12 +13,18 @@ interface IGameStat {
   onClick: () => void;
 }
 
-const GameStatSection = ({ title, image, stat, bg, onClick }: IGameStat) => {
+export const GameStatSection = ({
+  title,
+  image,
+  stat,
+  bg,
+  onClick,
+}: IGameStat) => {
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center font-secondary rounded-xl p-2 bg-gradient-to-b ${bg}`}
-      >
+      className={`flex flex-col items-center font-secondary rounded-xl w-24 p-2 bg-gradient-to-r ${bg}`}
+    >
       <div className="text-p4">{title}</div>
       <div className="flex items-center gap-2 -mt-1">
         <img className="w-6 h-6" src={image} />
@@ -28,8 +34,8 @@ const GameStatSection = ({ title, image, stat, bg, onClick }: IGameStat) => {
   );
 };
 
-const coinsText = `Earn coins to get airdrops
-stay in the top leaderboards to win extra prizes`;
+const coinsText = `Earn coins to receive $TAILS airdrop
+Top the leaderboard to win extra prizes every week.`;
 
 export const GameStatsSection = ({
   profile,
@@ -39,59 +45,16 @@ export const GameStatsSection = ({
   setOpenedModal: (modal: GameModal) => void;
 }) => {
   const [modal, setModal] = useState<null | string>(null);
-  const gameStats = useMemo(() => {
-    if (!profile) {
-      return [];
-    }
-    const level = profile.catpoints?.toFixed(0).toString().length;
-    return [
-      {
-        title: "Level",
-        image: "/logo/level.png",
-        stat: level || 0,
-        bg: "from-blue-300 to-purple-300",
-        text: `Earn coins to level up
-        1 digit coins = 1 level
-        e.g. 1000 coins = level 4
-        Higher level = More Rewards
-        `,
-      },
-      {
-        title: "Friends",
-        image: "/logo/friends.png",
-        stat: profile.referrals?.length || 0,
-        bg: "from-purple-300 to-green-300",
-        text: `Earn 2000 coins for each friend
-        + 50 daily coins and +1 daily live`,
-      },
-      {
-        title: "Streak",
-        image: "/logo/rocket.png",
-        stat: profile.streak || 0,
-        bg: "from-green-300 to-yellow-300",
-        text: `Streak of days you played in a row
-        1 day = +25 daily coins`,
-      },
-    ];
-  }, [profile]);
 
   if (!profile) {
     return <></>;
   }
   return (
     <div>
-      <div className="fixed left-4 top-2 z-10 flex flex-col gap-2 opacity-75">
-        {gameStats.map((stat) => (
-          <GameStatSection
-            {...stat}
-            key={stat.title}
-            onClick={() => setModal(stat.text)}
-          />
-        ))}
-
+      <div className="fixed left-4 top-2 right-4 z-10 flex justify-between opacity-75">
         <div
           onClick={() => setModal(coinsText)}
-          className="flex flex-col relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300"
+          className="flex flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300"
         >
           <img className="w-6 h-6" src="/logo/coin.webp" />
           <div className="text-p4 flex items-center gap-1">
@@ -103,7 +66,7 @@ export const GameStatsSection = ({
         </div>
         <div
           onClick={() => setOpenedModal(GameModal.PROFILE)}
-          className="flex flex-col relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300"
+          className="flex flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300"
         >
           <img className="w-10 h-10" src={profile.cat?.catImg} />
           <div className="text-p4 flex items-center gap-1">
