@@ -291,7 +291,7 @@ const allQuests: IQuest[] = [
     },
   },
   {
-    type: QuestType.SOCIAL,
+    type: QuestType.PARTNERS,
     key: QUEST.START_PUMPKIN,
     name: "Start Draton",
     link: "https://t.me/pumpkin_xyz_bot",
@@ -301,7 +301,7 @@ const allQuests: IQuest[] = [
     },
   },
   {
-    type: QuestType.SOCIAL,
+    type: QuestType.PARTNERS,
     key: QUEST.START_PRESIDENT,
     name: "Start President",
     link: "https://t.me/PresidentVote_bot?start=5666be2d3",
