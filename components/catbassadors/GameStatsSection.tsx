@@ -1,8 +1,8 @@
-import { IProfile } from "@/models/profile";
-import { useMemo, useState } from "react";
-import { PixelButton } from "../button/PixelButton";
 import { useGame } from "@/context/GameContext";
-import { GameModal } from "@/models/game";
+import { GameModal, GameType } from "@/models/game";
+import { IProfile } from "@/models/profile";
+import { useState } from "react";
+import { PixelButton } from "../button/PixelButton";
 
 interface IGameStat {
   title: string;
@@ -45,13 +45,16 @@ export const GameStatsSection = ({
   setOpenedModal: (modal: GameModal) => void;
 }) => {
   const [modal, setModal] = useState<null | string>(null);
+  const { gameType } = useGame();
 
   if (!profile) {
     return <></>;
   }
   return (
     <div>
-      <div className="fixed left-4 top-2 right-4 z-10 flex justify-between opacity-75">
+      <div
+        className={`fixed left-4 ${gameType === GameType.SHELTER ? 'pb-safe bottom-4 z-9' : 'top-2 z-10'} right-4 flex justify-between opacity-75`}
+      >
         <div
           onClick={() => setModal(coinsText)}
           className="flex flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300"

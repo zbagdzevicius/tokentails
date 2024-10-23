@@ -73,19 +73,21 @@ export const GameOptionsModal = ({
               <img className="h-8 rotate-90" src="icons/arrow.webp"></img>
             </span>
           )}
-          <div
-            onClick={() =>
-              toast({
-                message:
-                  "To earn lives - Redeem daily rewards, invite friends and feed your cat at Home",
-              })
-            }
-            className="flex flex-col items-center font-secondary text-p2 opacity-75 bg-yellow-300 px-2 rounded-t-xl"
-          >
-            <img className="w-8 z-10 pt-2" src="/base/heart.png" />
-            <div className="-mt-1">{profile.catbassadorsLives || 0}</div>
-            <div className="-mt-2 text-p4">LIVES</div>
-          </div>
+          {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
+            <div
+              onClick={() =>
+                toast({
+                  message:
+                    "To earn lives - Redeem daily rewards, invite friends and feed your cat at Home",
+                })
+              }
+              className="flex flex-col items-center font-secondary text-p2 opacity-75 bg-yellow-300 px-2 rounded-t-xl"
+            >
+              <img className="w-8 z-10 pt-2" src="/base/heart.png" />
+              <div className="-mt-1">{profile.catbassadorsLives || 0}</div>
+              <div className="-mt-2 text-p4">LIVES</div>
+            </div>
+          )}
           {[GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!) && (
             <PixelButton
               active={!profile.catbassadorsLives}
@@ -100,7 +102,7 @@ export const GameOptionsModal = ({
             ></PixelButton>
           )}
         </div>
-        {gameType !== GameType.HOME ? (
+        {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
           <div className="flex flex-col gap-4">
             <PixelButton
               onClick={() => {
@@ -121,42 +123,48 @@ export const GameOptionsModal = ({
               text="CONTEST"
             ></PixelButton>
           </div>
-        ) : (
+        )}
+        {gameType === GameType.HOME && (
           <div className="flex flex-col gap-4">
             <PixelButton text="Feed" onClick={onFeedClick} />
           </div>
         )}
 
-        {profile.canRedeemLives && gameType !== GameType.HOME && (
+        {profile.canRedeemLives &&
+          ![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
+            <div className="flex flex-col items-center">
+              <div className="flex w-16 flex-col items-center font-secondary text-p2 opacity-75 bg-white px-1 rounded-t-xl">
+                <img className="w-8 z-10 pt-4 -mt-2" src="/logo/coin.webp" />
+                <div className="text-p5 mt-1">
+                  {numberOfPointsToRedeem} COINS
+                </div>
+                <div className="-mt-2 text-h3">+</div>
+                <img className="w-6 md:w-8 z-10 -mt-2" src="/base/heart.png" />
+                <div className="text-p5">3 LIVES</div>
+              </div>
+              <PixelButton
+                onClick={() => (profile.canRedeemLives ? redeemLives() : {})}
+                text="REDEEM"
+              ></PixelButton>
+            </div>
+          )}
+        {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
           <div className="flex flex-col items-center">
             <div className="flex w-16 flex-col items-center font-secondary text-p2 opacity-75 bg-white px-1 rounded-t-xl">
               <img className="w-8 z-10 pt-4 -mt-2" src="/logo/coin.webp" />
-              <div className="text-p5 mt-1">{numberOfPointsToRedeem} COINS</div>
+              <div className="text-p5 mt-1">2000 COINS</div>
               <div className="-mt-2 text-h3">+</div>
               <img className="w-6 md:w-8 z-10 -mt-2" src="/base/heart.png" />
-              <div className="text-p5">3 LIVES</div>
+              <div className="text-p5">+DAILY LIVE</div>
             </div>
             <PixelButton
-              onClick={() => (profile.canRedeemLives ? redeemLives() : {})}
-              text="REDEEM"
+              onClick={() => {
+                utils?.shareURL(shareUrl!);
+              }}
+              text="INVITE"
             ></PixelButton>
           </div>
         )}
-        <div className="flex flex-col items-center">
-          <div className="flex w-16 flex-col items-center font-secondary text-p2 opacity-75 bg-white px-1 rounded-t-xl">
-            <img className="w-8 z-10 pt-4 -mt-2" src="/logo/coin.webp" />
-            <div className="text-p5 mt-1">2000 COINS</div>
-            <div className="-mt-2 text-h3">+</div>
-            <img className="w-6 md:w-8 z-10 -mt-2" src="/base/heart.png" />
-            <div className="text-p5">+DAILY LIVE</div>
-          </div>
-          <PixelButton
-            onClick={() => {
-              utils?.shareURL(shareUrl!);
-            }}
-            text="INVITE"
-          ></PixelButton>
-        </div>
       </div>
     </>
   );
