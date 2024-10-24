@@ -111,9 +111,11 @@ function Base() {
 
   useEffect(() => {
     if (cat?.status.EAT === 4) {
-      setGameType(null);
+      setTimeout(() => {
+        setGameType(null);
+      }, 2000);
     }
-  }, [cat, setGameType])
+  }, [cat, setGameType]);
 
   const [isClicked, setIsClicked] = useState(false);
   useEffect(() => {
