@@ -125,7 +125,7 @@ export const GameOptionsModal = ({
           </div>
         )}
         {gameType === GameType.HOME && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 m-auto">
             <PixelButton text="Feed" onClick={onFeedClick} />
           </div>
         )}

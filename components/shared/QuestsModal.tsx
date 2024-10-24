@@ -45,6 +45,7 @@ export enum QUEST {
   FOLLOW_BLOCKGAMES = "FOLLOW_BLOCKGAMES",
   FOLLOW_PUMPKIN = "FOLLOW_PUMPKIN",
   FOLLOW_PRESIDENT = "FOLLOW_PRESIDENT",
+  FOLLOW_KITTY = "FOLLOW_KITTY",
   START_GRAND_JOURNEY = "START_GRAND_JOURNEY",
   FOLLOW_GRAND_JOURNEY = "FOLLOW_GRAND_JOURNEY",
   START_ROYAL_PETS = "START_ROYAL_PETS",
@@ -53,6 +54,8 @@ export enum QUEST {
   FOLLOW_DRATON = "FOLLOW_DRATON",
   START_DRATON = "START_DRATON",
   START_COIN_BUNNY = "START_COIN_BUNNY",
+  START_CONTAINER = "START_CONTAINER",
+  START_KITTY = "START_KITTY",
   FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",
   FOLLOW_TG_GROUP = "FOLLOW_TG_GROUP",
   FOLLOW_X = "FOLLOW_X",
@@ -311,6 +314,26 @@ const allQuests: IQuest[] = [
     },
   },
   {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_KITTY,
+    name: "Start Kitty Slash",
+    link: "https://t.me/kittyslash_bot",
+    icon: "/icons/social/kitty.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_CONTAINER,
+    name: "Container Rush",
+    link: "https://t.me/containerrush_bot",
+    icon: "/icons/social/container.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
     type: QuestType.SOCIAL,
     key: QUEST.FOLLOW_IG,
     name: "Follow on IG",
@@ -416,6 +439,16 @@ const allQuests: IQuest[] = [
     name: "Follow President",
     link: "https://t.me/presidentvote_news",
     icon: "/icons/social/president.webp",
+    reward: {
+      coins: 500,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_KITTY,
+    name: "Follow Kitty Slash",
+    link: "https://t.me/kittyslashofficial",
+    icon: "/icons/social/kitty.webp",
     reward: {
       coins: 500,
     },
