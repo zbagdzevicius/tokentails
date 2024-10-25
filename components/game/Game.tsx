@@ -1,4 +1,3 @@
-import { CatProvider } from "@/context/CatContext";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { GameType } from "@/models/game";
@@ -22,7 +21,7 @@ export const Game = () => {
 
   return (
     <div className="w-full h-screen" style={background}>
-      <div className="fixed inset-0 z-[-1]">
+      <div className="fixed inset-0 z-[1]">
         <img src="/assets/spooky.webp" className="w-16 m-auto draggable" />
       </div>
       {gameType === GameType.CATBASSADORS && profile && (

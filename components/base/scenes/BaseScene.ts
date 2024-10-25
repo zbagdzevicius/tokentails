@@ -44,12 +44,9 @@ export class BaseScene extends Scene {
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.tilemapTiledJSON("tilemap", "base/base.json");
     this.load.image("blocks", "base/blocks.png");
-    this.load.image("bg", "base/bg.svg");
   }
 
   create() {
-    this.add.image(0, -600, "bg").setDisplaySize(2200, 1600);
-
     this.tilemap = this.make.tilemap({ key: "tilemap" });
 
     const sugarTileset = this.tilemap.addTilesetImage(
