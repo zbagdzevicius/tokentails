@@ -113,6 +113,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
               setProfileUpdate={setProfileUpdate}
             />
           )}
+          <div className="fixed inset-0">
+            <img src="/assets/spooky.webp" className="w-16 m-auto draggable" draggable="false" />
+          </div>
           <MobileButtons isHidden={!isStarted} />
 
           {openedModal === GameModal.PROFILE && (
