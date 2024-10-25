@@ -21,9 +21,6 @@ export const Game = () => {
 
   return (
     <div className="w-full h-screen" style={background}>
-      <div className="fixed inset-0 z-[1]">
-        <img src="/assets/spooky.webp" className="w-16 m-auto draggable" />
-      </div>
       {gameType === GameType.CATBASSADORS && profile && (
         <Catbassadors cat={profile?.cat} profile={profile} timer={timer} />
       )}
