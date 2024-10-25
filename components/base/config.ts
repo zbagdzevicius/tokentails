@@ -11,7 +11,7 @@ export const GAME_HEIGHT = window.innerHeight;
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.WEBGL,
   parent: "game-container",
-  backgroundColor: "#fff",
+  transparent: true,
   scene: BaseScene,
   physics: {
     default: "arcade",
