@@ -1,6 +1,6 @@
 "use client";
 
-import { PixelButton } from "@/components/button/PixelButton";
+import { PixelButton } from "@/components/shared/PixelButton";
 import { confirmTransaction } from "@/constants/api";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";

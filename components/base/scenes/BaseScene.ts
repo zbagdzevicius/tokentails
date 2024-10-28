@@ -1,9 +1,7 @@
-import { setIsGameLoaded } from "@/components/game/events";
+import { GameEvent, GameEvents, ICatEvent } from "@/components/Phaser/events";
 import { ZOOM } from "@/constants/utils";
 import { ICat } from "@/models/cats";
 import { Scene } from "phaser";
-import BaseBus from "../BaseBus";
-import { BaseBusEvent } from "../BaseBus.events";
 import { Cat, NPCJobType } from "../objects/Cat";
 import { Food } from "../objects/Food";
 
@@ -63,34 +61,56 @@ export class BaseScene extends Scene {
 
     // Set collision for specific tiles based on property
     this.groundLayer?.setCollisionByExclusion([-1]);
-    BaseBus.emit("current-scene-ready", this);
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(ZOOM);
     this.addSounds();
 
-    BaseBus.addListener(BaseBusEvent.SPAWN_CAT, (args: any) =>
-      this.spawnCat(args)
-    );
-    BaseBus.addListener(BaseBusEvent.MEOW, () => {
-      setTimeout(() => {
-        try {
-          this.sound?.play?.("meow", { volume: 0.5 });
-        } catch {}
-      }, 2000);
+    const catMeowCallback = () => this.meow();
+    GameEvents.CAT_MEOW.addEventListener(catMeowCallback);
+    const catSpawnCallback = (data: ICatEvent<GameEvent.CAT_SPAWN>) =>
+      this.spawnCat(data!);
+    GameEvents.CAT_SPAWN.addEventListener(catSpawnCallback);
+    const catSpawnFoodCallback = () => this.spawnFood();
+    GameEvents.CAT_EAT.addEventListener(catSpawnFoodCallback);
+    GameEvents.GAME_LOADED.push({ scene: this });
+    this.scene.scene.events.once("destroy", () => {
+      GameEvents.CAT_MEOW.removeEventListener(catMeowCallback);
+      GameEvents.CAT_SPAWN.removeEventListener(catSpawnCallback);
+      GameEvents.CAT_EAT.removeEventListener(catSpawnFoodCallback);
     });
+  }
 
-    window.addEventListener(BaseBusEvent.SPAWN_EAT, () => this.spawnFood());
-    setIsGameLoaded();
+  private meow() {
+    setTimeout(() => {
+      try {
+        this.sound?.play?.("meow", { volume: 0.5 });
+      } catch {}
+    }, 2000);
   }
 
   private addSounds() {
     this.blipSound = this.sound.add("blip", { volume: 0.1 });
   }
 
-  async spawnCat(cat: ICat) {
-    if (!cat || cat?.name === this.catDto?.name) {
+  spawnCat({ detail: { cat } }: ICatEvent<GameEvent.CAT_SPAWN>) {
+    const isCatExist = !cat || cat?.name === this.catDto?.name;
+    if (isCatExist) {
       return;
     }
+
+    const isCatChanged = this.catDto && this.catDto?.name !== cat?.name;
+    if (isCatChanged) {
+      this.scene.restart();
+      this.catDto = cat;
+      setTimeout(() => {
+        if (this.scene) {
+          this.spawnCat({ detail: { cat: cat } });
+        }
+      }, 1000);
+
+      return;
+    }
+
     this.catDto = cat;
     this.load.once(
       "complete",
@@ -141,7 +161,7 @@ export class BaseScene extends Scene {
       this.food = null;
       this.sound.play("purr", { volume: 0.5 });
 
-      BaseBus.emit(BaseBusEvent.EATEN);
+      GameEvents.CAT_EATEN.push();
     });
   }
 }

@@ -7,23 +7,15 @@ import {
   useRef,
   useState,
 } from "react";
-import { useCatChangeEvent, useGameLoadedEvent } from "../catbassadors/hooks";
+import { GameEvents, IPhaserGame } from "../Phaser/events";
 import { StatusBar } from "../shared/game/StatusBar";
-import BaseBus from "./BaseBus";
-import { BaseBusEvent } from "./BaseBus.events";
 import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
-import { useGame } from "@/context/GameContext";
-
-export interface IRefPhaserGame {
-  game: Phaser.Game | null;
-  scene: Phaser.Scene | null;
-}
 
 interface IProps {
   currentActiveScene?: (scene_instance: Phaser.Scene) => void;
 }
 
-const BaseGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame(
+const BaseGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
   { currentActiveScene },
   ref
 ) {
@@ -50,72 +42,55 @@ const BaseGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame(
     };
   }, [ref]);
 
-  useEffect(() => {
-    BaseBus.on("current-scene-ready", (scene_instance: Phaser.Scene) => {
-      if (currentActiveScene && typeof currentActiveScene === "function") {
-        currentActiveScene(scene_instance);
-      }
+  GameEvents.GAME_LOADED.use((event) => {
+    if (!event) {
+      return;
+    }
+    const scene = event.scene;
+    if (currentActiveScene && typeof currentActiveScene === "function") {
+      currentActiveScene(scene);
+    }
 
-      if (typeof ref === "function") {
-        ref({ game: game.current, scene: scene_instance });
-      } else if (ref) {
-        ref.current = {
-          game: game.current,
-          scene: scene_instance,
-        };
-      }
-    });
-    return () => {
-      BaseBus.removeListener("current-scene-ready");
-    };
-  }, [currentActiveScene, ref]);
+    if (typeof ref === "function") {
+      ref({ game: game.current, scene });
+    } else if (ref) {
+      ref.current = {
+        game: game.current,
+        scene: event.scene,
+      };
+    }
+  });
 
   return <div id="game-container"></div>;
 });
 
 function Base() {
-  const phaserRef = useRef<IRefPhaserGame | null>(null);
+  const phaserRef = useRef<IPhaserGame | null>(null);
   const { setCatStatus, cat } = useCat();
-  const { setGameType } = useGame();
-  useCatChangeEvent(({ detail: newCat }) => {
-    if (newCat) {
-      phaserRef.current?.scene?.scene.restart();
-      setTimeout(() => {
-        BaseBus.emit(BaseBusEvent.SPAWN_CAT, newCat);
-      }, 1000);
-    }
-  });
-  const isGameLoaded = useGameLoadedEvent();
+
+  const isGameLoaded = GameEvents.GAME_LOADED.use();
   useEffect(() => {
-    if (cat && isGameLoaded) {
-      if (!(phaserRef.current?.scene as any)?.cat) {
-        BaseBus.emit(BaseBusEvent.SPAWN_CAT, cat);
-      }
+    if (cat && isGameLoaded?.scene) {
+      GameEvents.CAT_SPAWN.push({ cat });
 
       if ((cat.status.EAT || 0) < 4) {
-        BaseBus.emit(BaseBusEvent.MEOW);
+        GameEvents.CAT_MEOW.push({ cat });
       }
     }
   }, [cat, isGameLoaded]);
 
   useEffect(() => {
-    BaseBus.addListener(BaseBusEvent.EATEN, () => {
+    const setStatus = () => {
       if ((cat?.status[StatusType.EAT] || 0) < 4) {
         setCatStatus({ type: StatusType.EAT, status: 4 });
       }
-    });
+    };
+    GameEvents.CAT_EATEN.addEventListener(setStatus);
+
     return () => {
-      BaseBus.removeListener(BaseBusEvent.EATEN);
+      GameEvents.CAT_EATEN.removeEventListener(setStatus);
     };
   }, [cat?.status]);
-
-  useEffect(() => {
-    if (cat?.status.EAT === 4) {
-      setTimeout(() => {
-        setGameType(null);
-      }, 2000);
-    }
-  }, [cat, setGameType]);
 
   const [isClicked, setIsClicked] = useState(false);
   useEffect(() => {

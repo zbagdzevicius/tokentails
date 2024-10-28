@@ -1,12 +1,13 @@
 import { catsFetch, setActiveCat } from "@/constants/api";
-import { useProfile } from "@/context/ProfileContext";
-import { useQuery } from "@tanstack/react-query";
-import { PixelButton } from "../button/PixelButton";
-import { ICat } from "@/models/cats";
-import { useToast } from "@/context/ToastContext";
-import { useGame } from "@/context/GameContext";
-import { GameType } from "@/models/game";
 import { MAX_CAT_STATUS } from "@/context/CatContext";
+import { useGame } from "@/context/GameContext";
+import { useProfile } from "@/context/ProfileContext";
+import { useToast } from "@/context/ToastContext";
+import { ICat } from "@/models/cats";
+import { GameType } from "@/models/game";
+import { useQuery } from "@tanstack/react-query";
+import { GameEvents } from "../Phaser/events";
+import { PixelButton } from "./PixelButton";
 
 export const CatsModalContent = ({ close }: { close: () => void }) => {
   const { profile, setProfileUpdate } = useProfile();
@@ -26,8 +27,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
     setProfileUpdate({ cat });
     setActiveCat(cat._id!);
 
-    const event = new CustomEvent("cat-change", { detail: cat });
-    window.dispatchEvent(event);
+    GameEvents.CAT_SPAWN.push({ cat });
 
     toast({});
     if (cat?.status?.EAT !== MAX_CAT_STATUS) {
@@ -56,9 +56,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                   X2
                 </div>
               )}
-              {
-                <div></div>
-              }
+              {<div></div>}
               <div className="relative z-10 items-center flex flex-col">
                 <img className="w-16 z-10" src={cat.catImg} />
                 <img

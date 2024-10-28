@@ -1,10 +1,8 @@
 import { ICat } from "@/models/cats";
-import { IProfile } from "@/models/profile";
 import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
-import CatbassadorsBus from "./CatbassadorsBus";
-import { CatbassadorsBusEvent } from "./CatbassadorsBus.events";
+import { GameEvents, IPhaserGame } from "../Phaser/events";
 import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
-import { useGameLoadedEvent } from "./hooks";
+import { useGame } from "@/context/GameContext";
 
 export interface IGameOverEvent extends Event {
   detail: {
@@ -18,16 +16,11 @@ export interface GameStartEvent extends Event {
   };
 }
 
-export interface IRefPhaserGame {
-  game: Phaser.Game | null;
-  scene: Phaser.Scene | null;
-}
-
 interface IProps {
   currentActiveScene?: (scene_instance: Phaser.Scene) => void;
 }
 
-const CatbassadorsGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame(
+const CatbassadorsGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
   { currentActiveScene },
   ref
 ) {
@@ -54,50 +47,40 @@ const CatbassadorsGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame(
     };
   }, [ref]);
 
-  useEffect(() => {
-    CatbassadorsBus.on(
-      "current-scene-ready",
-      (scene_instance: Phaser.Scene) => {
-        if (currentActiveScene && typeof currentActiveScene === "function") {
-          currentActiveScene(scene_instance);
-        }
+  GameEvents.GAME_LOADED.use((event) => {
+    if (!event) {
+      return;
+    }
+    if (currentActiveScene && typeof currentActiveScene === "function") {
+      currentActiveScene(event.scene);
+    }
 
-        if (typeof ref === "function") {
-          ref({ game: game.current, scene: scene_instance });
-        } else if (ref) {
-          ref.current = {
-            game: game.current,
-            scene: scene_instance,
-          };
-        }
-      }
-    );
-    return () => {
-      CatbassadorsBus.removeListener("current-scene-ready");
-    };
-  }, [currentActiveScene, ref]);
+    if (typeof ref === "function") {
+      ref({ game: game.current, scene: event.scene! });
+    } else if (ref) {
+      ref.current = {
+        game: game.current,
+        scene: event.scene,
+      };
+    }
+  });
 
   return <div id="game-container"></div>;
 });
 
 interface ICatbassadorsProps {
   cat: ICat;
-  profile: IProfile;
   timer: number;
 }
 
-const Catbassadors = ({ cat, profile, timer }: ICatbassadorsProps) => {
-  // The sprite can only be moved in the MainMenu Scene
-  //  References to the PhaserGame component (game and scene are exposed)
-  const phaserRef = useRef<IRefPhaserGame | null>(null);
-  const isGameLoaded = useGameLoadedEvent();
+const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
+  const phaserRef = useRef<IPhaserGame | null>(null);
+  const isGameLoaded = GameEvents.GAME_LOADED.use();
+  const { isStarted } = useGame();
 
   useEffect(() => {
     if (cat && isGameLoaded) {
-      CatbassadorsBus.emit(CatbassadorsBusEvent.SPAWN_CAT, cat);
-      setTimeout(() => {
-        CatbassadorsBus.emit(CatbassadorsBusEvent.SPAWN_CAT, cat);
-      }, 1000);
+      GameEvents.CAT_SPAWN.push({ cat });
     }
   }, [cat, isGameLoaded]);
 
@@ -119,6 +102,40 @@ const Catbassadors = ({ cat, profile, timer }: ICatbassadorsProps) => {
           </>
         )}
       </div>
+
+      {!isStarted && (
+        <div className="absolute top-40 md:top-52 left-1/2 -translate-x-1/2 bg-yellow-300 pt-2 md:pt-10 pb-4 rounded-lg px-4 flex flex-col gap-2">
+          <div className="flex gap-2 items-center justify-center font-secondary text-p4">
+            CATCH AND EARN COINS
+          </div>
+          <div className="flex gap-2 items-center justify-center font-secondary text-p4">
+            <img className="h-8" src="logo/coin.webp"></img>
+            <span className="whitespace-nowrap">GIVES 1</span>
+            <img className="h-8" src="logo/coin.webp"></img>
+          </div>
+          <div className="flex gap-2 items-center justify-center font-secondary text-p4">
+            <img className="h-8" src="icons/pumpkin.png"></img>
+            <span className="whitespace-nowrap">GIVES 5</span>
+            <img className="h-8" src="logo/coin.webp"></img>
+          </div>
+          <div className="flex gap-2 items-center justify-center font-secondary text-p4">
+            <img className="h-8" src="icons/clock.png"></img>
+            <span className="whitespace-nowrap">GIVES 100</span>
+            <img className="h-8" src="logo/coin.webp"></img>
+          </div>
+          <div className="flex gap-2 items-center justify-center font-secondary text-p4">
+            <img className="h-8" src="logo/boss-coin.png"></img>
+            <span className="whitespace-nowrap">GIVES 100</span>
+            <img className="h-8" src="logo/coin.webp"></img>
+          </div>
+          <div className="flex gap-2 justify-center items-center font-secondary text-p3 mt-2">
+            <span>CLICK PLAY BELOW</span>
+          </div>
+          <div className="flex gap-2 justify-center items-center font-secondary text-p3 mt-2">
+            <img className="h-8 rotate-90" src="icons/arrow.webp"></img>
+          </div>
+        </div>
+      )}
       <CatbassadorsGame ref={phaserRef} />
     </div>
   );

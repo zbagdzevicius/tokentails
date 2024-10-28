@@ -1,6 +1,6 @@
 import { CatAbilities, ICat } from "@/models/cats";
 import React, { useMemo, useRef, useState } from "react";
-import { PixelButton } from "../button/PixelButton";
+import { PixelButton } from "./shared/PixelButton";
 import { useProfile } from "@/context/ProfileContext";
 import { adoptCatFetch, catsFetch } from "@/constants/api";
 import { useToast } from "@/context/ToastContext";

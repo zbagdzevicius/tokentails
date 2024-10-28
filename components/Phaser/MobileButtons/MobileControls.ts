@@ -79,7 +79,7 @@ export function setMobileControls(
 
       e.preventDefault();
     };
-    window.addEventListener("joystick-direction", handler as EventListener);
+    window.addEventListener("joystick-direction", handler);
 
     controlledObject.sprite.on("destroy", () => {
       window.removeEventListener("joystick-direction", handler);

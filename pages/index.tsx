@@ -1,5 +1,4 @@
-import { Footer } from "@/components/footer/Footer";
-import { Header } from "@/components/header/Header";
+import { Footer } from "@/layouts/Footer";
 import { BlogPreview } from "@/components/landing/BlogPreview";
 import { CatsHub } from "@/components/landing/catsHub/CatsHub";
 import { CatsSlider } from "@/components/landing/catsSlider/CatsSlider";
@@ -14,6 +13,7 @@ import { Circle } from "@/components/shared/Circle";
 import { CircleWhite } from "@/components/shared/CircleWhite";
 import Head from "next/head";
 import { useEffect, useRef, useState } from "react";
+import { Header } from "@/layouts/Header";
 
 export default function Index() {
   const [activeSection, setActiveSection] = useState("");

@@ -2,7 +2,7 @@ import { useGame } from "@/context/GameContext";
 import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
 import { useState } from "react";
-import { PixelButton } from "../button/PixelButton";
+import { PixelButton } from "../shared/PixelButton";
 
 interface IGameStat {
   title: string;

@@ -1,10 +1,9 @@
-import { useState } from "react";
-import { CatCard } from "../cat/CatCard";
-import { CatGame } from "../catGame/CatGame";
-import { cats } from "./cat.const";
-import { useQuery } from "@tanstack/react-query";
 import { catsForSaleFetch } from "@/constants/api";
 import { useProfile } from "@/context/ProfileContext";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { CatCard } from "../CatCard";
+import { CatGame } from "../CatGame";
 
 function Adopt() {
   const [selectedCat, setSelectedCat] = useState<any>(null);
@@ -27,8 +26,6 @@ function Adopt() {
         />
       </audio>
       <CatGame cats={cats || []} onClickCallback={setSelectedCat} />
-      {/* <Web3ModalProvider>
-        <Web3Provider> */}
       {selectedCat && (
         <CatCard
           onClose={handleCloseModal}

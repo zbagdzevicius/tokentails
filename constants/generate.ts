@@ -19,7 +19,7 @@ export function getRandomNumber(inputString: string, inputDate: Date) {
     const inputDay = inputDate.getDate().toString().padStart(2, '0');
 
     // Construct a date string using the extracted month and date
-    const inputDateStr = `2023-${inputMonth}-${inputDay}`;
+    const inputDateStr = `2025-${inputMonth}-${inputDay}`;
 
     const dateValue = new Date(inputDateStr).getTime();
 

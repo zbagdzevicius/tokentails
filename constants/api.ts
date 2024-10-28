@@ -10,7 +10,6 @@ import { IPublication } from "@/models/publication";
 import { IQuiz } from "@/models/quiz";
 import { EntityType, ISave, ISaved } from "@/models/save";
 import { IGenericSearchParams } from "@/models/search";
-import { IVideo } from "@/models/video";
 import { CurrencyType } from "@/web3/contracts";
 
 const apiUrl = process.env.NEXT_PUBLIC_BE_URL;
@@ -188,23 +187,6 @@ export const findGroupPublicationsFetch = async (
   });
 };
 
-export const publicationFetch = async (slug: string): Promise<IPublication> => {
-  return fetch(`${apiUrl}/publication/${slug}`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-  }).then((response) => {
-    if (response.ok) {
-      return response.json();
-    }
-
-    console.warn(JSON.stringify(response));
-    return null;
-  });
-};
-
 export const quizFetch = (name: string): Promise<IQuiz> =>
   fetch(`${apiUrl}/quiz/${name}`).then((response) => {
     if (response.ok) {
@@ -348,23 +330,6 @@ export const findEntitiesFetch = <T>(
 
     console.warn(JSON.stringify(response));
     return [];
-  });
-};
-
-export const videoFetch = async (slug: string): Promise<IVideo> => {
-  return fetch(`${apiUrl}/video/${slug}`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    } as any,
-  }).then((response) => {
-    if (response.ok) {
-      return response.json();
-    }
-
-    console.warn(JSON.stringify(response));
-    return;
   });
 };
 
@@ -563,7 +528,6 @@ export const updateCatStatus = async (
   status: ICatStatus
 ): Promise<ICat | null> => {
   if (!id || !status.EAT) {
-    console.log('null');
     return null;
   }
   return fetch(`${apiUrl}/cat/${id}`, {

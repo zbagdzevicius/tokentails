@@ -1,17 +1,17 @@
-import {
-  useGameOverEvent,
-  useGameStartEvent,
-  useGameTimerUpdate,
-} from "@/components/catbassadors/hooks";
 import { GameOptionsModal } from "@/components/game/GameOptionsModal";
 import { GameSelect } from "@/components/game/GameSelect";
-import { Leaderboard } from "@/components/leaderboard/Leaderboard";
+import { Leaderboard } from "@/components/Leaderboard";
+import {
+  GameEvent,
+  GameEvents,
+  ICatEventsDetails,
+} from "@/components/Phaser/events";
 import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
 import { CatsModal } from "@/components/shared/CatsModal";
 import { QuestsModal } from "@/components/shared/QuestsModal";
 import { TelegramProfile } from "@/components/shared/TelegramProfile";
 import { TDeleteLive } from "@/constants/telegram-api";
-import { catbassadorsGameDuration, ICat } from "@/models/cats";
+import { catbassadorsGameDuration } from "@/models/cats";
 import { GameModal, GameType } from "@/models/game";
 import * as React from "react";
 import { useProfile } from "./ProfileContext";
@@ -24,50 +24,46 @@ type ContextState = {
   timer: number;
 };
 
-const startGame = (cat?: ICat) => {
-  const event = new CustomEvent("game-start", {
-    detail: { start: true, cat },
-  });
-
-  window.dispatchEvent(event);
-};
-
 const GameContext = React.createContext<ContextState | undefined>(undefined);
 
 let timerInterval: any = null;
 
 const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [isStarted, setIsStarted] = React.useState<boolean>(false);
-  const [gameType, setGameType] = React.useState<GameType | null>(GameType.HOME);
+  const [gameType, setGameType] = React.useState<GameType | null>(
+    GameType.HOME
+  );
   const [openedModal, setOpenedModal] = React.useState<GameModal | null>(null);
   const { profile, setProfileUpdate, utils, shareUrl } = useProfile();
   const showToast = useToast();
 
   const [timer, setTimer] = React.useState<number>(0);
-  useGameOverEvent(async (event) => {
-    if (!profile) {
-      return;
-    }
-    const earnedScore =
-      (event.detail.score || 0) * (profile?.cat.catpoints ? 2 : 1);
-    const message: string = event.detail.message || "";
-    setIsStarted(false);
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-      setTimer(0);
-    }
-    showToast({ message: `You earned ${earnedScore} coins ${message}` });
-    await TDeleteLive(earnedScore);
-    setProfileUpdate({
-      catbassadorsLives: (profile.catbassadorsLives || 1) - 1,
-      catpoints: profile.catpoints + earnedScore,
-    });
-  });
+  const gameStopCallback = React.useCallback(
+    async (event?: ICatEventsDetails[GameEvent.GAME_STOP]) => {
+      if (!profile || !event) {
+        return;
+      }
+      const earnedScore = (event.score || 0) * (profile?.cat.catpoints ? 2 : 1);
+      const message: string = event.message || "";
+      setIsStarted(false);
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        setTimer(0);
+      }
+      showToast({ message: `You earned ${earnedScore} coins ${message}` });
+      await TDeleteLive(earnedScore);
+      setProfileUpdate({
+        catbassadorsLives: (profile.catbassadorsLives || 1) - 1,
+        catpoints: profile.catpoints + earnedScore,
+      });
+    },
+    [profile]
+  );
+  GameEvents.GAME_STOP.use(gameStopCallback);
 
-  useGameStartEvent(() => {
+  GameEvents.GAME_START.use(() => {
     setIsStarted(true);
-
     setTimer(catbassadorsGameDuration);
     timerInterval = setInterval(() => {
       setTimer((v) => {
@@ -78,14 +74,18 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   const playGame = React.useCallback(() => {
     if (profile?.catbassadorsLives) {
-      startGame(profile?.cat);
+      GameEvents.GAME_START.push({ cat: profile?.cat });
       setIsStarted(true);
     } else {
       showToast({ message: "Invite friends to earn lives !" });
     }
   }, [profile]);
 
-  useGameTimerUpdate(setTimer);
+  GameEvents.GAME_UPDATE.use((event) => {
+    if (event) {
+      setTimer((time) => (time || 0) + event.additionalTime!);
+    }
+  });
 
   const value = {
     isStarted,
@@ -114,7 +114,11 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
             />
           )}
           <div className="fixed inset-0">
-            <img src="/assets/spooky.webp" className="w-16 m-auto draggable" draggable="false" />
+            <img
+              src="/catgame/spooky.webp"
+              className="w-16 m-auto draggable"
+              draggable="false"
+            />
           </div>
           <MobileButtons isHidden={!isStarted} />
 
@@ -125,9 +129,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
             <QuestsModal close={() => setOpenedModal(null)} />
           )}
           {[GameModal.LEADERBOARD].includes(openedModal as GameModal) && (
-            <Leaderboard
-              close={() => setOpenedModal(null)}
-            />
+            <Leaderboard close={() => setOpenedModal(null)} />
           )}
           {openedModal === GameModal.CATS && (
             <CatsModal close={() => setOpenedModal(null)} />

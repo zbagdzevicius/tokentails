@@ -1,5 +1,5 @@
 import { GameType } from "@/models/game";
-import { PixelButton } from "../button/PixelButton";
+import { PixelButton } from "../shared/PixelButton";
 import { useCat } from "@/context/CatContext";
 import { useToast } from "@/context/ToastContext";
 

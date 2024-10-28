@@ -1,5 +1,11 @@
+import { Cat } from "@/components/catbassadors/objects/Catbassador";
 import { Enemy, EnemyType } from "@/components/catbassadors/objects/Enemy";
-import { setIsGameLoaded } from "@/components/game/events";
+import {
+  GameEvent,
+  GameEvents,
+  ICatEvent,
+  IPhaserGameSceneProps,
+} from "@/components/Phaser/events";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { ZOOM } from "@/constants/utils";
 import { ICat } from "@/models/cats";
@@ -7,7 +13,6 @@ import { GenerateLevel } from "../level/generateLevel";
 import { Chest } from "../objects/Chest";
 import { MovablePlatform } from "../objects/MovablePlatform";
 import { Pathfinding } from "../utils/Pathfinding";
-import { Cat } from "@/components/catbassadors/objects/Catbassador";
 
 const COLLISION_TILES = [
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 29, 31, 33, 34, 35, 36, 37, 62, 63, 64, 65, 72,
@@ -60,27 +65,24 @@ export class PurrquestScene extends Phaser.Scene {
     this.load.image("key", "purrquest/sprites/key.png");
   }
 
-  create() {
+  create(props: IPhaserGameSceneProps) {
     this.physics.world.setFPS(90);
+    this.startGame();
 
-    const startGameCallback = (props?: { detail: { cat: ICat } } & any) => {
-      if (this) {
-        this.startGame(props?.detail?.cat);
-      } else {
-        removeEventListener("game-start", startGameCallback);
-      }
-    };
-    window.addEventListener("game-start", startGameCallback);
-    setIsGameLoaded();
+    const catSpawnCallback = (data: ICatEvent<GameEvent.GAME_START>) =>
+      this.spawnPlayer(data.detail.cat!);
+    GameEvents.GAME_START.addEventListener(catSpawnCallback);
+
+    this.scene.scene.events.once("destroy", () => {
+      GameEvents.GAME_START.removeEventListener(catSpawnCallback);
+    });
   }
 
-  startGame(cat: ICat) {
+  startGame() {
     this.initializeLevel();
     this.initializePathfinding();
 
     this.renderTilemap();
-
-    this.spawnPlayer(cat);
   }
 
   private renderEverythingAfterCat() {
@@ -120,15 +122,15 @@ export class PurrquestScene extends Phaser.Scene {
       return;
     }
 
-    this.load.on("complete", () => this.createPlayer(), this);
-    this.load.spritesheet("cat", cat.spriteImg, {
+    this.load.on("complete", () => this.createPlayer(cat), this);
+    this.load.spritesheet(cat.name, cat.spriteImg, {
       frameWidth: 48,
       frameHeight: 48,
     });
     this.load.start();
   }
 
-  private createPlayer() {
+  private createPlayer(cat: ICat) {
     const startCoords = this.generateLevel.getStartCoordinates();
     const startX =
       startCoords.x *
@@ -142,7 +144,7 @@ export class PurrquestScene extends Phaser.Scene {
       64 -
       16;
 
-    this.player = new Cat(this, startX, startY);
+    this.player = new Cat(this, startX, startY, cat.name);
     this.cameras.main.startFollow(this.player.sprite);
     this.player.sprite.setDepth(2);
     this.cameras.main.zoom = ZOOM;
@@ -295,25 +297,20 @@ export class PurrquestScene extends Phaser.Scene {
   ) {
     const spikeTiles = SPIKE_TILES;
     if (spikeTiles.includes(tile.index)) {
+      GameEvents.GAME_STOP.push({ score: 0, message: "Try again" });
       this.onDestroy();
-
-      const event = new CustomEvent("game-over", {
-        detail: { score: 0, message: "Try again" },
-      });
-
-      window.dispatchEvent(event);
     }
   }
 
   private onDestroy() {
+    this.player = undefined;
     this.physics.world.colliders.destroy();
     this.platforms.forEach((platform) => platform.destroy());
     this.key.forEach((enemy) => enemy.sprite.destroy());
     this.chest.destroy();
     this.children.removeAll();
-    this.player?.sprite.destroy();
     this.load.removeAllListeners();
-    this.player = undefined;
+    this.scene.restart({ isRestart: true });
   }
 
   private initializeColliders() {
@@ -388,11 +385,7 @@ export class PurrquestScene extends Phaser.Scene {
         this.hasKey = false;
         this.onDestroy();
 
-        const event = new CustomEvent("game-over", {
-          detail: { score: 5000, message: " Congratz !" },
-        });
-
-        window.dispatchEvent(event);
+        GameEvents.GAME_STOP.push({ score: 5000, message: " Congratz ! " });
       } else {
         const chestX = this.chest.x;
         const chestY = this.chest.y - 50;

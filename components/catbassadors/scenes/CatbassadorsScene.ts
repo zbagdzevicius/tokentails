@@ -1,11 +1,14 @@
+import {
+  GameEvent,
+  GameEvents,
+  ICatEvent,
+  IPhaserGameSceneProps,
+} from "@/components/Phaser/events";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { ICat, catbassadorsGameDuration } from "@/models/cats";
 import { Scene } from "phaser";
-import BaseBus from "../CatbassadorsBus";
-import { CatbassadorsBusEvent } from "../CatbassadorsBus.events";
 import { Cat } from "../objects/Catbassador";
 import { Enemy } from "../objects/Enemy";
-import { setIsGameLoaded } from "@/components/game/events";
 const enemyDurationMs = 15000;
 
 const JUMP_LAYER_TILES = [47, 48, 49, 50];
@@ -14,6 +17,7 @@ const TRAMPOLINE_TILES = [51];
 export class CatbassadorsScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
   cat?: Cat;
+  catDto?: ICat;
   enemy?: Enemy | null;
   tilemap!: Phaser.Tilemaps.Tilemap;
   groundLayer!: Phaser.Tilemaps.TilemapLayer;
@@ -29,13 +33,6 @@ export class CatbassadorsScene extends Scene {
 
   constructor() {
     super("CatbassadorsScene");
-    BaseBus.addListener(CatbassadorsBusEvent.SPAWN_CAT, (args: any) =>
-      this.spawnCat(args)
-    );
-
-    BaseBus.addListener(CatbassadorsBusEvent.SPAWN_PLAY, () =>
-      this.spawnEnemy()
-    );
 
     this.lastUpdateTime = 0;
   }
@@ -68,7 +65,7 @@ export class CatbassadorsScene extends Scene {
     });
   }
 
-  create() {
+  create(props: IPhaserGameSceneProps) {
     this.physics.world.setFPS(90);
     this.tilemap = this.make.tilemap({ key: "tilemap" });
 
@@ -125,28 +122,39 @@ export class CatbassadorsScene extends Scene {
       this
     );
 
-    BaseBus.emit("current-scene-ready");
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(1.25);
 
     this.gameSound = this.sound.add("coingame", { loop: true });
     this.backgroundSound = this.sound.add("purr", { loop: true });
     this.setDefaultSound();
-    const startGameCallback = () => {
-      if (this) {
-        this.startGame();
-      } else {
-        removeEventListener("game-start", startGameCallback);
-      }
-    };
-    window.addEventListener("game-start", startGameCallback);
+
     this.lastUpdateTime = performance.now();
     document.addEventListener(
       "visibilitychange",
       this.handleVisibilityChange.bind(this)
     );
 
-    setIsGameLoaded();
+    if (props?.cat) {
+      this.spawnCat({ detail: { cat: props.cat } }, props.isRestart);
+    }
+    const catSpawnCallback = (data: ICatEvent<GameEvent.CAT_SPAWN>) =>
+      this.spawnCat(data!);
+    GameEvents.CAT_SPAWN.addEventListener(catSpawnCallback);
+
+    const startGameCallback = () => {
+      if (this) {
+        this.startGame();
+      } else {
+        GameEvents.GAME_START.removeEventListener(startGameCallback);
+      }
+    };
+    GameEvents.GAME_START.addEventListener(startGameCallback);
+    GameEvents.GAME_LOADED.push({ scene: this });
+    this.scene.scene.events.once("destroy", () => {
+      GameEvents.CAT_SPAWN.removeEventListener(catSpawnCallback);
+      GameEvents.GAME_START.removeEventListener(startGameCallback);
+    });
   }
 
   handleVisibilityChange() {
@@ -162,21 +170,40 @@ export class CatbassadorsScene extends Scene {
     }
   }
 
-  async spawnCat(cat: ICat) {
-    if (this.cat || !cat) {
+  async spawnCat(
+    { detail: { cat } }: ICatEvent<GameEvent.CAT_SPAWN>,
+    isRestart?: boolean
+  ) {
+    const isCatExist = !cat || cat?.name === this.catDto?.name;
+    if (isCatExist && !isRestart) {
       return;
     }
 
-    this.load.on("complete", () => this.createCat(), this);
-    this.load.spritesheet("cat", cat.spriteImg, {
+    const isCatChanged = this.catDto && this.catDto?.name !== cat?.name;
+    if (isCatChanged) {
+      this.cat = undefined;
+      this.catDto = cat;
+      this.scene.restart({ cat, isRestart: true });
+      return;
+    }
+
+    this.catDto = cat;
+    this.load.once(
+      "complete",
+      () => {
+        this.createCat(cat.name);
+      },
+      this
+    );
+    this.load.spritesheet(cat.name, cat.spriteImg, {
       frameWidth: 48,
       frameHeight: 48,
     });
     this.load.start();
   }
 
-  private createCat() {
-    this.cat = new Cat(this, 0, -400);
+  private createCat(catName: string) {
+    this.cat = new Cat(this, 0, -400, catName);
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
 
     this.physics.add.collider(
@@ -273,11 +300,8 @@ export class CatbassadorsScene extends Scene {
       const formattedTime = Number(newTime.toFixed());
 
       this.timer = formattedTime;
-      const event = new CustomEvent("game-update", {
-        detail: { time: enemy.timeReward },
-      });
 
-      window.dispatchEvent(event);
+      GameEvents.GAME_UPDATE.push({ additionalTime: enemy.timeReward });
     }
   }
 
@@ -316,11 +340,7 @@ export class CatbassadorsScene extends Scene {
       this.setDefaultSound();
     }
 
-    const event = new CustomEvent("game-over", {
-      detail: { score: this.score },
-    });
-
-    window.dispatchEvent(event);
+    GameEvents.GAME_STOP.push({ score: this.score });
     this.score = 0;
   }
 

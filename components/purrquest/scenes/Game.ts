@@ -1,4 +1,4 @@
-import { EventBus } from "../EventBus";
+import { GameEvents } from "@/components/Phaser/events";
 import { Scene } from "phaser";
 
 export class Game extends Scene {
@@ -31,7 +31,7 @@ export class Game extends Scene {
       .setOrigin(0.5)
       .setDepth(100);
 
-    EventBus.emit("current-scene-ready", this);
+    GameEvents.GAME_LOADED.push({ scene: this });
   }
 
   preload() {

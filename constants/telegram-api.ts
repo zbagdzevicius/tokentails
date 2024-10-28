@@ -82,7 +82,7 @@ export const TPostReferral = async (telegramId: string): Promise<object> => {
 export const TPostQuest = async (
   quest: QUEST
 ): Promise<{ message: string; success?: boolean }> => {
-  // await waitForLocalStorageKey();
+  await waitForLocalStorageKey();
   return fetch(`${apiUrl}/user/catbassadors/quest/${quest}`, {
     method: "GET",
     headers: {

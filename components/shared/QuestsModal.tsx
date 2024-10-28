@@ -3,7 +3,7 @@ import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
-import { PixelButton } from "../button/PixelButton";
+import { PixelButton } from "./PixelButton";
 
 enum QuestType {
   SOCIAL = "SOCIAL",
@@ -296,7 +296,7 @@ const allQuests: IQuest[] = [
   {
     type: QuestType.PARTNERS,
     key: QUEST.START_PUMPKIN,
-    name: "Start Draton",
+    name: "Start Pumpkin",
     link: "https://t.me/pumpkin_xyz_bot",
     icon: "/icons/social/pumpkin.webp",
     reward: {
@@ -426,7 +426,7 @@ const allQuests: IQuest[] = [
   {
     type: QuestType.SOCIAL,
     key: QUEST.FOLLOW_PUMPKIN,
-    name: "Follow Draton",
+    name: "Follow Pumpkin",
     link: "https://t.me/pumpkin_global",
     icon: "/icons/social/pumpkin.webp",
     reward: {

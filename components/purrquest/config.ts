@@ -1,7 +1,5 @@
 import { AUTO, Game } from "phaser";
 import { PurrquestScene } from "./scenes/PurrquestScene";
-// import { GameOver } from "./scenes/GameOver";
-// import { Preloader } from "./scenes/Preloader";
 
 export const GAME_WIDTH = window.innerWidth;
 export const GAME_HEIGHT = window.innerHeight;
