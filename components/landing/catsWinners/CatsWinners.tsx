@@ -1,4 +1,4 @@
-import { PixelButton } from "@/components/button/PixelButton";
+import { PixelButton } from "@/components/shared/PixelButton";
 
 export const CatsWinners = () => {
   return (

@@ -1,4 +1,4 @@
-import { Avatar } from "@/components/profile/Avatar";
+import { Avatar } from "@/components/blog/feed/Avatar";
 import { commentsFetch, getNextPageFn, submitComment } from "@/constants/api";
 import { fromNow } from "@/constants/utils";
 import { useEntityMetadata } from "@/context/EntityMetadataContext";

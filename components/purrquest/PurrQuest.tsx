@@ -1,19 +1,14 @@
 import { useGame } from "@/context/GameContext";
-import { ICat } from "@/models/cats";
-import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
-import { useBackground } from "../catbassadors/hooks";
+import { forwardRef, useLayoutEffect, useRef } from "react";
+import { useBackground } from "../../constants/hooks";
+import { GameEvents, IPhaserGame } from "../Phaser/events";
 import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
-import { EventBus } from "./EventBus";
-export interface IRefPhaserGame {
-  game: Phaser.Game | null;
-  scene: Phaser.Scene | null;
-}
 
 interface IProps {
   currentActiveScene?: (scene_instance: Phaser.Scene) => void;
 }
 
-const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame(
+const PhaserGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
   { currentActiveScene },
   ref
 ) {
@@ -40,42 +35,36 @@ const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame(
     };
   }, [ref]);
 
-  useEffect(() => {
-    EventBus.on("current-scene-ready", (scene_instance: Phaser.Scene) => {
-      if (currentActiveScene && typeof currentActiveScene === "function") {
-        currentActiveScene(scene_instance);
-      }
+  GameEvents.GAME_LOADED.use((event) => {
+    if (!event) {
+      return;
+    }
+    if (currentActiveScene && typeof currentActiveScene === "function") {
+      currentActiveScene(event.scene);
+    }
 
-      if (typeof ref === "function") {
-        ref({ game: game.current, scene: scene_instance });
-      } else if (ref) {
-        ref.current = {
-          game: game.current,
-          scene: scene_instance,
-        };
-      }
-    });
-    return () => {
-      EventBus.removeListener("current-scene-ready");
-    };
-  }, [currentActiveScene, ref]);
+    if (typeof ref === "function") {
+      ref({ game: game.current, scene: event.scene! });
+    } else if (ref) {
+      ref.current = {
+        game: game.current,
+        scene: event.scene,
+      };
+    }
+  });
 
   return <div id="game-container"></div>;
 });
 
-interface IPurrquestProps {
-  cat: ICat;
-}
-
-const Purrquest = ({ cat }: IPurrquestProps) => {
-  const phaserRef = useRef<IRefPhaserGame | null>(null);
+const Purrquest = () => {
+  const phaserRef = useRef<IPhaserGame | null>(null);
   const { isStarted } = useGame();
   const background = useBackground();
 
   return (
     <div style={background} id="app">
       {!isStarted && (
-        <div className="absolute top-52 left-1/2 -translate-x-1/2">
+        <div className="absolute top-52 left-1/2 -translate-x-1/2 bg-yellow-300 pt-8 pb-4 rounded-lg px-4">
           <div className="flex gap-2 items-center justify-center font-secondary text-p3">
             <span>Find</span>
             <img className="h-8" src="purrquest/sprites/key.png"></img>
@@ -91,7 +80,7 @@ const Purrquest = ({ cat }: IPurrquestProps) => {
             <span>CLICK PLAY BELOW</span>
           </div>
           <div className="flex gap-2 justify-center items-center font-secondary text-p3 mt-2">
-          <img className="h-8 rotate-90" src="icons/arrow.webp"></img>
+            <img className="h-8 rotate-90" src="icons/arrow.webp"></img>
           </div>
         </div>
       )}

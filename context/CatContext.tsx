@@ -61,7 +61,8 @@ const CatProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
       if (shouldAddPoints) {
         toast({
-          message: "9 Lives and 1000 Catpoints added!",
+          message:
+            "Good job on taking care of your cat ! Now roll into adventures !",
         });
       }
 

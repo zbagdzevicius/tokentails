@@ -1,6 +1,6 @@
-import { OptionalLink } from "@/components/shared/OptionalLink";
 import { FEED_OPTION } from "@/constants/api";
 import classnames from "classnames";
+import Link from "next/link";
 import { useRouter } from "next/router";
 import { useMemo } from "react";
 
@@ -24,8 +24,8 @@ export const SidebarItem = ({
   );
 
   return (
-    <OptionalLink
-      href={href}
+    <Link
+      href={href || "/"}
       onClick={onClick}
       className={classnames(
         "flex items-center overflow-hidden space-x-2 rem:h-[52px] rounded-md hover:bg-purple-300 rounded-lg transition-all",
@@ -37,11 +37,11 @@ export const SidebarItem = ({
     >
       <div className="flex items-center space-x-2 px-2 hover:purple-300 rounded-lg transition-all text-gray-600">
         <span className="w-10 h-10 text-h6 rounded-full grid place-items-center bg-gray-300">
-            <img src="/logo/coin.webp" />
+          <img src="/logo/coin.webp" />
         </span>
       </div>
       <div className="text-p2">{name}</div>
-    </OptionalLink>
+    </Link>
   );
 };
 

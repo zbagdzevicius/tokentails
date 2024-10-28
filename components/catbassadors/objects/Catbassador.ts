@@ -51,6 +51,20 @@ const animationConfigurations: {
   { key: PlayerAnimation.WALKING, frames: 8, repeat: 0 },
 ];
 
+type ICatAnimationKey = `${string}_${PlayerAnimation}`;
+export type ICatAnimationKeysMap = Record<PlayerAnimation, ICatAnimationKey>;
+
+function generateCatAnimationConfiguration(
+  catName: string
+): ICatAnimationKeysMap {
+  const map = {} as ICatAnimationKeysMap;
+  Object.keys(PlayerAnimation).map(
+    (key) =>
+      (map[key as PlayerAnimation] = `${catName}_${key as PlayerAnimation}`)
+  );
+  return map;
+}
+
 export class Cat implements IPlayer {
   scene: Scene;
   sprite: Physics.Arcade.Sprite;
@@ -68,8 +82,10 @@ export class Cat implements IPlayer {
   isSliding: boolean = false;
   jumpTimer: number = 0;
   animation: PlayerAnimation = animationConfigurations[0].key;
+  animationKeys: ICatAnimationKeysMap;
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   keys!: KeyMap;
+  private catName: string;
 
   isDashing: boolean = false;
   readonly dashTime: number = 200; // Duration of dash in ms
@@ -81,10 +97,12 @@ export class Cat implements IPlayer {
 
   movement: PlayerMovement;
 
-  constructor(scene: Scene, x: number, y: number) {
+  constructor(scene: Scene, x: number, y: number, catName: string) {
     this.scene = scene;
+    this.catName = catName;
+    this.animationKeys = generateCatAnimationConfiguration(catName);
     this.sprite = this.scene.physics.add
-      .sprite(x, y, "cat")
+      .sprite(x, y, this.catName)
       .setSize(28, 28)
       .setOffset(12, 8);
 
@@ -105,8 +123,8 @@ export class Cat implements IPlayer {
     for (const animationConfiguration of animationConfigurations) {
       const index = animationConfigurations.indexOf(animationConfiguration);
       this.scene.anims.create({
-        key: animationConfiguration.key,
-        frames: this.scene.anims.generateFrameNumbers("cat", {
+        key: this.animationKeys[animationConfiguration.key],
+        frames: this.scene.anims.generateFrameNumbers(this.catName, {
           start: index * maxAnimationFrames,
           end: index * maxAnimationFrames + animationConfiguration.frames - 1,
         }),
@@ -115,8 +133,8 @@ export class Cat implements IPlayer {
       });
     }
     this.scene.anims.create({
-      key: PlayerAnimation.JUMPING_UP,
-      frames: this.scene.anims.generateFrameNumbers("cat", {
+      key: this.animationKeys[PlayerAnimation.JUMPING_UP],
+      frames: this.scene.anims.generateFrameNumbers(this.catName, {
         start: 5 * maxAnimationFrames,
         end: 5 * maxAnimationFrames + 5,
       }),

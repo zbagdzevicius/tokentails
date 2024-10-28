@@ -1,8 +1,8 @@
-import { Header } from "@/components/header/Header";
 import React, { PropsWithChildren } from "react";
 import { Sidebar } from "./Sidebar";
 import { GameSidebar } from "./GameSidebar";
 import { EntityMetadataProvider } from "@/context/EntityMetadataContext";
+import { Header } from "./Header";
 
 const BlogLayout = ({ children }: PropsWithChildren<{}>) => {
   return (

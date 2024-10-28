@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Socials } from "../footer/Socials";
-import { PixelButton } from "../button/PixelButton";
+import { PixelButton } from "../components/shared/PixelButton";
+import { Socials } from "./Socials";
 
 interface navProps {
   title: string;
@@ -107,7 +107,10 @@ export const Header = () => {
           ))}
         </ul>
         <div className="flex items-center space-x-2">
-          <div onClick={() => setIsNavOpen(!isNavOpen)} className="lg:hidden h-12 w-12 flex items-center justify-center bg-gradient-to-b opacity-50 from-yellow-300 to-red-300 mr-4 rounded-xl">
+          <div
+            onClick={() => setIsNavOpen(!isNavOpen)}
+            className="lg:hidden h-12 w-12 flex items-center justify-center bg-gradient-to-b opacity-50 from-yellow-300 to-red-300 mr-4 rounded-xl"
+          >
             {isNavOpen ? (
               <img src="/icons/close.svg" alt="close" width={16} height={16} />
             ) : (
@@ -136,7 +139,10 @@ export const Header = () => {
                     setIsNavOpen(false);
                   }}
                 >
-                  <PixelButton active={activeTitle === navItem.title} text={navItem.title}></PixelButton>
+                  <PixelButton
+                    active={activeTitle === navItem.title}
+                    text={navItem.title}
+                  ></PixelButton>
                 </a>
               </li>
             ))}

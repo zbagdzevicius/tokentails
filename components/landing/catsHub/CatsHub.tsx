@@ -1,4 +1,4 @@
-import { PixelButton } from "@/components/button/PixelButton";
+import { PixelButton } from "@/components/shared/PixelButton";
 import { useCallback, useState } from "react";
 
 interface IProps {
@@ -94,7 +94,7 @@ export const CatsHub = () => {
         alt="crown"
       />
       <div className="w-9/12 max-lg:w-full ">
-        <h2 className="text-center font-secondary uppercase tracking-tight text-8xl max-lg:text-5xl  max-lg:text-balance ">
+        <h2 className="text-center text-gray-800 font-secondary uppercase tracking-tight text-8xl max-lg:text-5xl  max-lg:text-balance ">
           YOUR VIRTUAL COMPANION
         </h2>
 

@@ -2,7 +2,7 @@ import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { GameType } from "@/models/game";
 import dynamic from "next/dynamic";
-import { useBackground } from "../catbassadors/hooks";
+import { useBackground } from "../../constants/hooks";
 
 const Catbassadors = dynamic(
   () => import("@/components/catbassadors/Catbassadors"),
@@ -22,15 +22,13 @@ export const Game = () => {
   return (
     <div className="w-full h-screen" style={background}>
       {gameType === GameType.CATBASSADORS && profile && (
-        <Catbassadors cat={profile?.cat} profile={profile} timer={timer} />
+        <Catbassadors cat={profile?.cat} timer={timer} />
       )}
       {gameType === GameType.HOME && profile && <Base />}
       <span className="">
         {gameType === GameType.SHELTER && profile && <Adopt />}
       </span>
-      {gameType === GameType.PURRQUEST && profile && (
-        <PurrQuest cat={profile?.cat} />
-      )}
+      {gameType === GameType.PURRQUEST && profile && <PurrQuest />}
     </div>
   );
 };

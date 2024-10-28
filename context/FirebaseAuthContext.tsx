@@ -145,16 +145,11 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   React.useEffect(() => {
     onAuthStateChanged(auth, onUserChange);
-    setInterval(() => {
-      onUserChange(user);
-    }, 30 * 60 * 1000);
   }, []);
 
   return (
     <FirebaseAuthContext.Provider value={value}>
-      {isLoginModalDisplayed && (
-        <SignIn close={() => {}} />
-      )}
+      {isLoginModalDisplayed && <SignIn close={() => {}} />}
       {isVerifiedModalDisplayed && (
         <Verify close={() => setIsVerifiedModalDisplayed(false)} />
       )}

@@ -37,8 +37,6 @@ export class PlayerMovement {
     const canWallJump =
       upKeyDown &&
       !sprite.body!.blocked.down &&
-      // ((touchingLeftWall && this.player.lastWallTouched !== "left") ||
-      //   (touchingRightWall && this.player.lastWallTouched !== "right"));
       (touchingLeftWall || touchingRightWall);
 
     const blockedAbove = sprite.body!.blocked.up;
@@ -62,16 +60,25 @@ export class PlayerMovement {
     }
 
     if (this.player.isSliding) {
-      sprite.anims.play(PlayerAnimation.SITTING, true);
+      sprite.anims.play(
+        this.player.animationKeys[PlayerAnimation.SITTING],
+        true
+      );
       this.player.sprite.angle += leftKeyDown ? -4 : 4;
     } else if (this.player.isJumping) {
-      sprite.anims.play(PlayerAnimation.JUMPING_UP, true);
+      sprite.anims.play(
+        this.player.animationKeys[PlayerAnimation.JUMPING_UP],
+        true
+      );
       this.player.sprite.angle += leftKeyDown ? -16 : 16;
     } else if (leftKeyDown || rightKeyDown) {
-      sprite.anims.play(PlayerAnimation.RUNNING, true);
+      sprite.anims.play(
+        this.player.animationKeys[PlayerAnimation.RUNNING],
+        true
+      );
       this.player.sprite.angle = 0;
     } else {
-      sprite.anims.play(PlayerAnimation.IDLE, true);
+      sprite.anims.play(this.player.animationKeys[PlayerAnimation.IDLE], true);
       this.player.sprite.angle = 0;
     }
 

@@ -60,21 +60,10 @@ html {
 .container {
   @apply m-auto max-w-[94rem] px-4 md:px-8 2xl:px-0;
 
-  &.no-p {
-    padding: 0 !important;
-  }
   &.no-p-mobile {
     @include device(mobile) {
       padding: 0 !important;
     }
-  }
-
-  &.no-mb {
-    margin-bottom: 0;
-  }
-
-  &.no-m {
-    margin: 0;
   }
 }
 
@@ -95,29 +84,6 @@ html {
   animation: transition-animation 1s ease-in;
 }
 
-/* TITLE */
-.gradient-text {
-  color: transparent;
-  width: fit-content;
-  background: conic-gradient(
-    #7851a9 12%,
-    #c8a2c8 12%,
-    #9966cc 33%,
-    #7851a9 33%,
-    #6f2da8 55%,
-    #9966cc 55%,
-    #6f2da8 70%,
-    #9966cc 70%,
-    #c8a2c8 87%,
-    #7851a9 87%
-  );
-  background-repeat: repeat;
-  background-size: 50%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  animation: expand-rev 3s ease forwards;
-  animation-iteration-count: infinite;
-}
 
 @keyframes expand-rev {
   0% {
@@ -315,12 +281,6 @@ html {
 
 $n: 20;
 
-.slider-banner {
-  height: 80px;
-  margin: auto;
-  overflow: hidden;
-  width: 110%;
-}
 .slider {
   height: 80px;
   margin: auto;
@@ -419,12 +379,6 @@ $n: 20;
   overflow: hidden;
 }
 
-.game-element {
-  position: absolute;
-  width: 64px;
-  height: 64px;
-}
-
 .text-outline {
   -webkit-text-stroke: 0.5px black;
 }
@@ -511,38 +465,6 @@ $n: 20;
   @apply text-main-ember font-semibold;
 }
 // ARTICLE CONTENT STYLINGS END
-
-// CARD CSS
-.animate-shine:hover {
-  background-position: 0 0, 0 0;
-  position: relative;
-
-  -webkit-transition-duration: 0.5s;
-  -moz-transition-duration: 0.5s;
-  transition-duration: 0.5s;
-}
-.animate-shine:after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 0;
-  width: 100%;
-  background-color: rgba(255, 255, 255, 0.4);
-  -webkit-transition: none;
-  -moz-transition: none;
-  transition: none;
-}
-.animate-shine:hover:after {
-  height: 120%;
-  background-color: rgba(255, 255, 255, 0);
-
-  -webkit-transition: all 0.9s ease-in-out;
-  -moz-transition: all 0.9s ease-in-out;
-  transition: all 0.9s ease-in-out;
-}
-// CARD CSS END
-
 
 // DRAG AROUND ANIMATION
 

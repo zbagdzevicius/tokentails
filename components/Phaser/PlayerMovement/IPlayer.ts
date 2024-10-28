@@ -1,5 +1,8 @@
+import { ICatAnimationKeysMap } from "@/components/catbassadors/objects/Catbassador";
+
 export interface IPlayer {
   sprite: Phaser.Physics.Arcade.Sprite;
+  animationKeys: ICatAnimationKeysMap;
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   keys: {
     up: Phaser.Input.Keyboard.Key;

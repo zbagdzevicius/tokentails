@@ -1,5 +1,5 @@
-import { PixelButton } from "@/components/button/PixelButton";
-import { Socials } from "@/components/footer/Socials";
+import { PixelButton } from "@/components/shared/PixelButton";
+import { Socials } from "@/layouts/Socials";
 import { useEffect, useState } from "react";
 
 interface bannerProps {

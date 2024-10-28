@@ -4,9 +4,9 @@ import { useToast } from "@/context/ToastContext";
 import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BaseBusEvent } from "../base/BaseBus.events";
-import { PixelButton } from "../button/PixelButton";
 import { GameStatsSection } from "../catbassadors/GameStatsSection";
+import { GameEvents } from "../Phaser/events";
+import { PixelButton } from "../shared/PixelButton";
 
 interface IProps {
   profile: IProfile;
@@ -50,6 +50,9 @@ export const GameOptionsModal = ({
       catbassadorsLives:
         (profile.catbassadorsLives || 0) + numberOfLivesToRedeem,
     });
+    toast({
+      message: `You got ${numberOfPointsToRedeem} coins + ${numberOfLivesToRedeem} lives`,
+    });
   }, []);
   useEffect(() => {
     setIsLoading(true);
@@ -59,8 +62,7 @@ export const GameOptionsModal = ({
   }, [gameType]);
 
   const onFeedClick = useCallback(() => {
-    const event = new CustomEvent(BaseBusEvent.SPAWN_EAT, {});
-    window.dispatchEvent(event);
+    GameEvents.CAT_EAT.push();
   }, []);
 
   return (

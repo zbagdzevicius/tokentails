@@ -3,7 +3,7 @@ import { useProfile } from "@/context/ProfileContext";
 import { GameModal } from "@/models/game";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { PixelButton } from "../button/PixelButton";
+import { PixelButton } from "./shared/PixelButton";
 
 const leaderboardTexts: Partial<
   Record<GameModal, { header: string; title: string; subtitle: string }>
