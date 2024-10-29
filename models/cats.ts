@@ -7,6 +7,12 @@ export enum CatAbilitySkill {
   TAILWIND = "TAILWIND",
   SHADOWPOUNCE = "SHADOWPOUNCE",
   AQUAWHISKER = "AQUAWHISKER",
+  BREEZEPAW = "BREEZEPAW", // AIR
+  PAWSQUAKE = "PAWSQUAKE", // EARTH
+  ICECLAW = "ICECLAW", // ICE
+  LEAFPURR = "LEAFPURR", // NATURE
+  SANDSWIPE = "SANDSWIPE", // SAND
+  STELLARROAR = "STELLARROAR", //LEGENDARY
 }
 
 export const catbassadorsGameDuration = 30;
@@ -18,6 +24,12 @@ export enum CatAbilityType {
   WIND = "WIND",
   DARK = "DARK",
   WATER = "WATER",
+  AIR = "AIR",
+  EARTH = "EARTH",
+  ICE = "ICE",
+  NATURE = "NATURE",
+  SAND = "SAND",
+  LEGENDARY = "LEGENDARY",
 }
 
 export interface CatAbility {
@@ -111,5 +123,38 @@ export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {
     type: CatAbilityType.WATER,
     description:
       "A gentle but powerful stream of water that can push opponents away",
+  },
+  [CatAbilitySkill.BREEZEPAW]: {
+    skill: CatAbilitySkill.BREEZEPAW,
+    type: CatAbilityType.AIR,
+    description: "A gusty strike that can disorient foes.",
+  },
+  [CatAbilitySkill.PAWSQUAKE]: {
+    skill: CatAbilitySkill.PAWSQUAKE,
+    type: CatAbilityType.EARTH,
+    description: "A ground-shaking stomp that can cause tremors.",
+  },
+  [CatAbilitySkill.ICECLAW]: {
+    skill: CatAbilitySkill.ICECLAW,
+    type: CatAbilityType.ICE,
+    description: "A chilling swipe that can freeze the ground beneath.",
+  },
+  [CatAbilitySkill.LEAFPURR]: {
+    skill: CatAbilitySkill.LEAFPURR,
+    type: CatAbilityType.NATURE,
+    description:
+      "A soothing purr that encourages nearby plants to grow rapidly.",
+  },
+  [CatAbilitySkill.SANDSWIPE]: {
+    skill: CatAbilitySkill.SANDSWIPE,
+    type: CatAbilityType.SAND,
+    description:
+      "A swift strike that kicks up a cloud of sand to obscure vision.",
+  },
+  [CatAbilitySkill.STELLARROAR]: {
+    skill: CatAbilitySkill.STELLARROAR,
+    type: CatAbilityType.LEGENDARY,
+    description:
+      "A roar that echoes through the cosmos, unleashing starry power.",
   },
 };
