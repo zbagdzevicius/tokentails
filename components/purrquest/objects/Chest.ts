@@ -28,6 +28,7 @@ export class Chest extends Phaser.Physics.Arcade.Sprite {
     this.setImmovable(true);
     this.body!.setSize(64, 32);
     this.body!.setOffset(0, 20);
+    this.setOrigin(0.25, 0.5);
 
     this.initAnimations();
     this.play(ChestAnimation.CLOSED);
