@@ -185,6 +185,6 @@ const config: Config = {
       tertiary: ["Nunito", "sans-serif"],
     },
   },
-  plugins: [require('tailwindcss-convert-px-to-rem')],
+  plugins: [require("tailwindcss-convert-px-to-rem")],
 };
 export default config;

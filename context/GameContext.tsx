@@ -10,6 +10,7 @@ import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
 import { CatsModal } from "@/components/shared/CatsModal";
 import { QuestsModal } from "@/components/shared/QuestsModal";
 import { TelegramProfile } from "@/components/shared/TelegramProfile";
+import { DisplayCoins } from "@/components/Phaser/DisplayCoins";
 import { TDeleteLive } from "@/constants/telegram-api";
 import { catbassadorsGameDuration } from "@/models/cats";
 import { GameModal, GameType } from "@/models/game";
@@ -121,7 +122,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
             />
           </div>
           <MobileButtons isHidden={!isStarted} />
-
+          {isStarted && gameType === GameType.CATBASSADORS && (
+            <DisplayCoins isHidden={false} />
+          )}
           {openedModal === GameModal.PROFILE && (
             <TelegramProfile close={() => setOpenedModal(null)} />
           )}

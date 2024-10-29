@@ -36,6 +36,9 @@ interface IGameUpdateEvent {
 interface IGameLoadedEvent {
   scene: IPhaserScene;
 }
+interface IGameScoreUpdateEvent {
+  score: number;
+}
 
 export type IEventDetail<T> = {
   detail: T;
@@ -47,6 +50,7 @@ export enum GameEvent {
   GAME_STOP = "GAME_STOP",
   GAME_LOADED = "GAME_LOADED",
   GAME_UPDATE = "GAME_UPDATE",
+  GAME_COIN_CAUGHT = "GAME_COIN_CAUGHT",
   CAT_MEOW = "CAT_MEOW",
   CAT_EATEN = "CAT_EATEN",
   CAT_PLAY = "CAT_PLAY",
@@ -64,6 +68,7 @@ export type ICatEventsDetails = {
   [GameEvent.GAME_STOP]: IGameStopEvent;
   [GameEvent.GAME_UPDATE]: IGameUpdateEvent;
   [GameEvent.GAME_LOADED]: IGameLoadedEvent;
+  [GameEvent.GAME_COIN_CAUGHT]: IGameScoreUpdateEvent;
 };
 
 export type ICatEvent<K extends GameEvent> = IEventDetail<ICatEventsDetails[K]>;
@@ -148,4 +153,5 @@ export const GameEvents: GameEventsType = {
   [GameEvent.GAME_STOP]: generateGameEvent(GameEvent.GAME_STOP),
   [GameEvent.GAME_UPDATE]: generateGameEvent(GameEvent.GAME_UPDATE),
   [GameEvent.GAME_LOADED]: generateGameEvent(GameEvent.GAME_LOADED),
+  [GameEvent.GAME_COIN_CAUGHT]: generateGameEvent(GameEvent.GAME_COIN_CAUGHT),
 };
