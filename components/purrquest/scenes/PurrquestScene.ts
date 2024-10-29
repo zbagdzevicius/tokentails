@@ -15,11 +15,12 @@ import { MovablePlatform } from "../objects/MovablePlatform";
 import { Pathfinding } from "../utils/Pathfinding";
 
 const COLLISION_TILES = [
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 29, 31, 33, 34, 35, 36, 37, 62, 63, 64, 65, 72,
-  88, 90, 91, 92, 93, 94, 120, 121, 122, 123, 150, 151, 152,
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 29, 30, 31, 32, 33, 34, 35, 36, 37, 62, 63, 64,
+  65, 72, 88, 90, 91, 92, 93, 94, 120, 121, 122, 123, 149, 150, 151, 152,
 ];
+
 const SPIKE_TILES = [70, 71, 99, 100];
-const JUMP_LAYER_TILES = [47, 48, 49];
+const JUMP_LAYER_TILES = [46, 47, 48, 49];
 
 const PLATFORM_CONFIGS: {
   [key: number]: {
