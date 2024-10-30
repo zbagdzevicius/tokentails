@@ -9,6 +9,7 @@ import { ICat, catbassadorsGameDuration } from "@/models/cats";
 import { Scene } from "phaser";
 import { Cat } from "../objects/Catbassador";
 import { Enemy } from "../objects/Enemy";
+import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 const enemyDurationMs = 15000;
 
 const JUMP_LAYER_TILES = [47, 48, 49, 50];
@@ -30,6 +31,7 @@ export class CatbassadorsScene extends Scene {
   gameSound?: Phaser.Sound.BaseSound;
   backgroundSound?: Phaser.Sound.BaseSound;
   lastUpdateTime: number;
+  trampoline?: Trampoline;
 
   constructor() {
     super("CatbassadorsScene");
@@ -108,7 +110,12 @@ export class CatbassadorsScene extends Scene {
       },
       this
     );
-    this.jumperLayer?.setCollision(TRAMPOLINE_TILES);
+    this.trampoline = new Trampoline(
+      this,
+      this.jumperLayer,
+      -1000,
+      TRAMPOLINE_TILES
+    );
     this.jumperLayer.setTileIndexCallback(
       JUMP_LAYER_TILES,
       (player: Phaser.GameObjects.GameObject) => {
