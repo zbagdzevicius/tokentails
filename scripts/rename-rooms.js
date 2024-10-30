@@ -16,7 +16,6 @@ function updateImageInJSON(inputDir) {
     if (parsedData.tilesets && parsedData.tilesets[0]) {
       parsedData.tilesets[0].image = "../../../base/blocks-original.png";
 
-      // Write the modified JSON back to the file or to a new file in the output directory
       const outputFilePath = path.join(outputDir, file);
       fs.writeFileSync(
         outputFilePath,
