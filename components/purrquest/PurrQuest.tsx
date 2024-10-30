@@ -64,7 +64,7 @@ const Purrquest = () => {
   return (
     <div style={background} id="app">
       {!isStarted && (
-        <div className="absolute top-52 left-1/2 -translate-x-1/2 bg-yellow-300 pt-8 pb-4 rounded-lg px-4">
+        <div className="absolute top-32 md:top-56 left-1/2 -translate-x-1/2 bg-yellow-300 pt-8 pb-4 rounded-lg px-4">
           <div className="flex gap-2 items-center justify-center font-secondary text-p3">
             <span>Find</span>
             <img className="h-8" src="purrquest/sprites/key.png"></img>
@@ -79,8 +79,8 @@ const Purrquest = () => {
           <div className="flex gap-2 justify-center items-center font-secondary text-p3 mt-2">
             <span>CLICK PLAY BELOW</span>
           </div>
-          <div className="flex gap-2 justify-center items-center font-secondary text-p3 mt-2">
-            <img className="h-8 rotate-90" src="icons/arrow.webp"></img>
+          <div className="flex gap-2 justify-center items-center font-secondary text-p3">
+            <img className="h-6 rotate-90" src="icons/arrow.webp"></img>
           </div>
         </div>
       )}
