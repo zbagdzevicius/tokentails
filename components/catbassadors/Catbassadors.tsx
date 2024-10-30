@@ -104,7 +104,7 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
       </div>
 
       {!isStarted && (
-        <div className="absolute top-40 md:top-52 left-1/2 -translate-x-1/2 bg-yellow-300 pt-2 md:pt-10 pb-4 rounded-lg px-4 flex flex-col gap-2">
+        <div className="absolute top-36 md:top-52 left-1/2 -translate-x-1/2 bg-yellow-300 pt-2 md:pt-10 pb-4 rounded-lg px-4 flex flex-col gap-2">
           <div className="flex gap-2 items-center justify-center font-secondary text-p4">
             CATCH AND EARN COINS
           </div>
@@ -128,11 +128,11 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
             <span className="whitespace-nowrap">GIVES 100</span>
             <img className="h-8" src="logo/coin.webp"></img>
           </div>
-          <div className="flex gap-2 justify-center items-center font-secondary text-p3 mt-2">
+          <div className="flex gap-2 justify-center items-center font-secondary text-p3">
             <span>CLICK PLAY BELOW</span>
           </div>
-          <div className="flex gap-2 justify-center items-center font-secondary text-p3 mt-2">
-            <img className="h-8 rotate-90" src="icons/arrow.webp"></img>
+          <div className="flex gap-2 justify-center items-center font-secondary text-p3 -mt-2">
+            <img className="h-6 rotate-90" src="icons/arrow.webp"></img>
           </div>
         </div>
       )}

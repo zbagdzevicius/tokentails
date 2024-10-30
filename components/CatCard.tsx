@@ -122,6 +122,14 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                 height={250}
                 className="w-32 h-32 relative z-10"
               />
+              {/* <img
+              // TODO: release after linking with enchantments
+                src={`/flare-effect/${type}.gif`}
+                alt="Hero cat"
+                width={250}
+                height={250}
+                className="w-32 h-32 absolute top-[15%] z-9"
+              /> */}
             </div>
           </div>
           <div>

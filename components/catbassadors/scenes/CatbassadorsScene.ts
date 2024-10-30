@@ -5,6 +5,7 @@ import {
   IPhaserGameSceneProps,
 } from "@/components/Phaser/events";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
+import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { ICat, catbassadorsGameDuration } from "@/models/cats";
 import { Scene } from "phaser";
 import { Cat } from "../objects/Catbassador";
@@ -30,6 +31,7 @@ export class CatbassadorsScene extends Scene {
   gameSound?: Phaser.Sound.BaseSound;
   backgroundSound?: Phaser.Sound.BaseSound;
   lastUpdateTime: number;
+  trampoline?: Trampoline;
 
   constructor() {
     super("CatbassadorsScene");
@@ -108,19 +110,8 @@ export class CatbassadorsScene extends Scene {
       },
       this
     );
+
     this.jumperLayer?.setCollision(TRAMPOLINE_TILES);
-    this.jumperLayer.setTileIndexCallback(
-      JUMP_LAYER_TILES,
-      (player: Phaser.GameObjects.GameObject) => {
-        const playerSprite = player as Phaser.Physics.Arcade.Sprite;
-        if (playerSprite.body!.velocity.y <= 0) {
-          playerSprite.setVelocityY(200);
-          return true;
-        }
-        return false;
-      },
-      this
-    );
 
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(1.25);
@@ -269,11 +260,14 @@ export class CatbassadorsScene extends Scene {
   }
 
   private onCatCatchTheEnemy(enemy: Enemy) {
-    // Add reward
     this.processEnemyReward(enemy);
     this.sound.play("coin");
 
     if (this.cat) {
+      GameEvents[GameEvent.GAME_COIN_CAUGHT].push({
+        score: enemy.coinReward,
+      });
+
       const starAnimationSprite = this.add.sprite(
         this.cat.sprite.x,
         this.cat.sprite.y,

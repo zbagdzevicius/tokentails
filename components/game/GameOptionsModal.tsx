@@ -90,6 +90,7 @@ export const GameOptionsModal = ({
               <div className="-mt-2 text-p4">LIVES</div>
             </div>
           )}
+
           {[GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!) && (
             <PixelButton
               active={!profile.catbassadorsLives}
@@ -97,8 +98,8 @@ export const GameOptionsModal = ({
                 isLoading
                   ? {}
                   : profile.catbassadorsLives > 0
-                  ? setIsStarted(true)
-                  : toast({ message: "Earn more lives to play" })
+                    ? setIsStarted(true)
+                    : toast({ message: "Earn more lives to play" })
               }
               text={isLoading ? "READY" : "Play"}
             ></PixelButton>

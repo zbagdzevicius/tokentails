@@ -7,10 +7,10 @@ import { Room } from "../objects/Room";
 export class GenerateLevel {
   private scene: Phaser.Scene;
   private readonly tileSize: number = 32;
-  private readonly roomCols: number = 10;
-  private readonly roomRows: number = 8;
-  private readonly levelCols: number = 4;
-  private readonly levelRows: number = 4;
+  private readonly roomCols: number = 12;
+  private readonly roomRows: number = 12;
+  private readonly levelCols: number = 5;
+  private readonly levelRows: number = 5;
   private grid: { room: Room; x: number; y: number }[][] = [];
   private rooms: Room[] = [];
   private solutionPath!: Phaser.GameObjects.Graphics;

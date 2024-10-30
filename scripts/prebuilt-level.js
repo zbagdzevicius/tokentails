@@ -12,14 +12,18 @@ const outputSpawnFileName = "SpawnRoom.ts";
 const outputWithoutFileName = "PrebuiltRoomsWithoutWalls.ts";
 
 const defaultSecondLayer = [
-  "0,0,0,0,0,0,0,0,0,0",
-  "0,0,0,0,0,0,0,0,0,0",
-  "0,0,0,0,0,0,0,0,0,0",
-  "0,0,0,0,0,0,0,0,0,0",
-  "0,0,0,0,0,0,0,0,0,0",
-  "0,0,0,0,0,0,0,0,0,0",
-  "0,0,0,0,0,0,0,0,0,0",
-  "0,0,0,0,0,0,0,0,0,0",
+  "0,0,0,0,0,0,0,0,0,0,0,0,0,0",
+  "0,0,0,0,0,0,0,0,0,0,0,0,0,0",
+  "0,0,0,0,0,0,0,0,0,0,0,0,0,0",
+  "0,0,0,0,0,0,0,0,0,0,0,0,0,0",
+  "0,0,0,0,0,0,0,0,0,0,0,0,0,0",
+  "0,0,0,0,0,0,0,0,0,0,0,0,0,0",
+  "0,0,0,0,0,0,0,0,0,0,0,0,0,0",
+  "0,0,0,0,0,0,0,0,0,0,0,0,0,0",
+  "0,0,0,0,0,0,0,0,0,0,0,0,0,0",
+  "0,0,0,0,0,0,0,0,0,0,0,0,0,0",
+  "0,0,0,0,0,0,0,0,0,0,0,0,0,0",
+  "0,0,0,0,0,0,0,0,0,0,0,0,0,0",
 ];
 
 // Function to read, process, and write data for a given directory
@@ -65,7 +69,7 @@ function processDirectory(
 
 // Function to format the array data (flattening structure)
 function formatArray(arr) {
-  const chunkSize = 10;
+  const chunkSize = 12;
   const result = [];
 
   for (let i = 0; i < arr.length; i += chunkSize) {

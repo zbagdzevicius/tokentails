@@ -13,13 +13,17 @@ import { GenerateLevel } from "../level/generateLevel";
 import { Chest } from "../objects/Chest";
 import { MovablePlatform } from "../objects/MovablePlatform";
 import { Pathfinding } from "../utils/Pathfinding";
+import { Spike } from "../objects/Spikes";
+import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 
 const COLLISION_TILES = [
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 29, 31, 33, 34, 35, 36, 37, 62, 63, 64, 65, 72,
-  88, 90, 91, 92, 93, 94, 120, 121, 122, 123, 150, 151, 152,
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 29, 30, 31, 32, 33, 34, 35, 36, 37, 62, 63, 64,
+  65, 72, 88, 90, 91, 92, 93, 94, 120, 121, 122, 123, 149, 150, 151, 152,
 ];
+
+const TRAMPOLINE_TILES = [50];
 const SPIKE_TILES = [70, 71, 99, 100];
-const JUMP_LAYER_TILES = [47, 48, 49];
+const JUMP_LAYER_TILES = [46, 47, 48, 49];
 
 const PLATFORM_CONFIGS: {
   [key: number]: {
@@ -45,6 +49,9 @@ export class PurrquestScene extends Phaser.Scene {
   private errorMessageText!: Phaser.GameObjects.Text;
   key: Enemy[] = [];
   private platforms: MovablePlatform[] = [];
+  private spikes: Spike[] = [];
+  trampoline?: Trampoline;
+
   constructor() {
     super("PurrquestScene");
   }
@@ -62,6 +69,7 @@ export class PurrquestScene extends Phaser.Scene {
       "platform-movable",
       "purrquest2/icons/platform-movable.png"
     );
+    this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.image("key", "purrquest/sprites/key.png");
   }
 
@@ -89,6 +97,7 @@ export class PurrquestScene extends Phaser.Scene {
     this.spawnMovablePlatformsOnTiles(
       Object.keys(PLATFORM_CONFIGS).map(Number)
     );
+    this.spawnSpikes();
     this.spawnChest(284);
     this.spawnKey();
     this.initializeColliders();
@@ -136,13 +145,12 @@ export class PurrquestScene extends Phaser.Scene {
       startCoords.x *
         this.generateLevel.getTileSize() *
         this.generateLevel.getRoomCols() +
-      32 * 7.5;
+      32 * 5.5;
     const startY =
       startCoords.y *
         this.generateLevel.getTileSize() *
         this.generateLevel.getRoomRows() +
-      64 -
-      16;
+      32 * 7;
 
     this.player = new Cat(this, startX, startY, cat.name);
     this.cameras.main.startFollow(this.player.sprite);
@@ -160,17 +168,6 @@ export class PurrquestScene extends Phaser.Scene {
     this.physics.add.collider(
       this.player!.sprite as Phaser.Physics.Arcade.Sprite,
       this.jumpLayer!
-    );
-    this.physics.add.overlap(
-      this.player!.sprite,
-      this.groundLayer!,
-      (player, tile) =>
-        this.checkSpikeTileCollision(
-          player as Phaser.GameObjects.Sprite,
-          tile as Phaser.Tilemaps.Tile
-        ),
-      undefined,
-      this
     );
   }
 
@@ -234,6 +231,12 @@ export class PurrquestScene extends Phaser.Scene {
         this
       );
     }
+    this.trampoline = new Trampoline(
+      this,
+      this.jumpLayer,
+      -1000,
+      TRAMPOLINE_TILES
+    );
   }
   private spawnMovablePlatformsOnTiles(tileIndices: number[]) {
     if (!this.player?.sprite) {
@@ -291,15 +294,52 @@ export class PurrquestScene extends Phaser.Scene {
     }
   }
 
-  private checkSpikeTileCollision(
-    player: Phaser.GameObjects.Sprite,
-    tile: Phaser.Tilemaps.Tile
-  ) {
-    const spikeTiles = SPIKE_TILES;
-    if (spikeTiles.includes(tile.index)) {
-      GameEvents.GAME_STOP.push({ score: 0, message: "Try again" });
-      this.onDestroy();
+  private spawnSpikes() {
+    if (!this.groundLayer) {
+      console.error("Ground layer is not defined.");
+      return;
     }
+    const spikeTiles = this.groundLayer.filterTiles(
+      (tile: Phaser.Tilemaps.Tile) => SPIKE_TILES.includes(tile.index)
+    );
+
+    spikeTiles.forEach((tile) => {
+      const spikeX = tile.getCenterX();
+      const spikeY = tile.getBottom();
+      const spike = new Spike(this, spikeX, spikeY, 0);
+
+      this.spikes.push(spike);
+
+      switch (tile.index) {
+        case 70:
+          spike.setRotation(Phaser.Math.DegToRad(180));
+          spike.setSize(1, 32);
+          spike.setOffset(0, 0);
+          break;
+        case 71:
+          spike.setRotation(Phaser.Math.DegToRad(90));
+          spike.setSize(32, 1);
+          spike.setOffset(0, 0);
+          break;
+        case 100:
+          spike.setRotation(Phaser.Math.DegToRad(270));
+          spike.setSize(1, 32);
+          spike.setOffset(31, 0);
+          break;
+        case 99:
+          spike.setRotation(Phaser.Math.DegToRad(0));
+          spike.setSize(32, 1);
+          spike.setOffset(0, 31);
+          break;
+        default:
+          break;
+      }
+    });
+  }
+
+  private playerDeathMessage() {
+    GameEvents.GAME_STOP.push({ score: 0, message: "Try again" });
+    this.onDestroy();
   }
 
   private onDestroy() {
@@ -323,7 +363,18 @@ export class PurrquestScene extends Phaser.Scene {
       this.player?.sprite as Phaser.Physics.Arcade.Sprite,
       this.jumpLayer!
     );
-    this.addColliders();
+
+    this.spikes.forEach((spike) => {
+      this.physics.add.overlap(
+        this.player?.sprite as Phaser.Physics.Arcade.Sprite,
+        spike,
+        () => {
+          this.playerDeathMessage();
+        },
+        undefined,
+        this
+      );
+    });
   }
 
   private spawnKey() {
