@@ -276,11 +276,14 @@ export class CatbassadorsScene extends Scene {
   }
 
   private onCatCatchTheEnemy(enemy: Enemy) {
-    // Add reward
     this.processEnemyReward(enemy);
     this.sound.play("coin");
 
     if (this.cat) {
+      GameEvents[GameEvent.GAME_COIN_CAUGHT].push({
+        score: enemy.coinReward,
+      });
+
       const starAnimationSprite = this.add.sprite(
         this.cat.sprite.x,
         this.cat.sprite.y,
