@@ -5,11 +5,11 @@ import {
   IPhaserGameSceneProps,
 } from "@/components/Phaser/events";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
+import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { ICat, catbassadorsGameDuration } from "@/models/cats";
 import { Scene } from "phaser";
 import { Cat } from "../objects/Catbassador";
 import { Enemy } from "../objects/Enemy";
-import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 const enemyDurationMs = 15000;
 
 const JUMP_LAYER_TILES = [47, 48, 49, 50];
@@ -110,24 +110,8 @@ export class CatbassadorsScene extends Scene {
       },
       this
     );
-    this.trampoline = new Trampoline(
-      this,
-      this.jumperLayer,
-      -1000,
-      TRAMPOLINE_TILES
-    );
-    this.jumperLayer.setTileIndexCallback(
-      JUMP_LAYER_TILES,
-      (player: Phaser.GameObjects.GameObject) => {
-        const playerSprite = player as Phaser.Physics.Arcade.Sprite;
-        if (playerSprite.body!.velocity.y <= 0) {
-          playerSprite.setVelocityY(200);
-          return true;
-        }
-        return false;
-      },
-      this
-    );
+
+    this.jumperLayer?.setCollision(TRAMPOLINE_TILES);
 
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(1.25);
