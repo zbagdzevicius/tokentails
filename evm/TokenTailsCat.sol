@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-// Compatible with OpenZeppelin Contracts ^5.0.0
 pragma solidity 0.8.6;
 
 import "@openzeppelin/contracts@4.9.3/token/ERC721/ERC721.sol";
@@ -20,24 +19,51 @@ contract TokenTailsCat is ERC721, AccessControlEnumerable {
         return _baseTokenURI;
     }
 
-    function setBaseURI(string memory newBaseURI) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setBaseURI(string memory newBaseURI) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _baseTokenURI = newBaseURI;
     }
 
     function mintUniqueTokenTo(address to, uint256 tokenId) public onlyRole(MINTER_ROLE) {
-        super._mint(to, tokenId);
+        _mint(to, tokenId);
     }
 
-    // Override tokenURI to dynamically generate the full token URI
-    function tokenURI(uint256 tokenId) public view override(ERC721) returns (string memory) {
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
         require(_exists(tokenId), "URI query for nonexistent token");
-        string memory base = _baseURI();
-        return string(abi.encodePacked(base, Strings.toString(tokenId)));
+        return string(abi.encodePacked(_baseURI(), Strings.toString(tokenId)));
     }
 
     function supportsInterface(
         bytes4 interfaceId
     ) public view override(ERC721, AccessControlEnumerable) returns (bool) {
         return super.supportsInterface(interfaceId);
+    }
+
+    struct PlayData {
+        uint32 playCount;
+        uint32 lastPlayDate;
+    }
+
+    mapping(uint256 => PlayData) private _playData;
+
+    function _getCurrentDay() internal view returns (uint32) {
+        return uint32(block.timestamp / 86400); // Calculate current day as an integer
+    }
+
+    function incrementPlayCount(uint256 tokenId) external {
+        require(ownerOf(tokenId) == msg.sender, "Caller is not the owner of the NFT");
+        
+        uint32 today = _getCurrentDay();
+        require(_playData[tokenId].lastPlayDate != today, "Play count already incremented today");
+
+        _playData[tokenId].playCount += 1;
+        _playData[tokenId].lastPlayDate = today;
+    }
+
+    function getPlayData(uint256 tokenId) public view returns (uint32 playCount, uint32 lastPlayDate) {
+        return (_playData[tokenId].playCount, _playData[tokenId].lastPlayDate);
+    }
+
+    function resetCount(uint256 tokenId) public onlyRole(MINTER_ROLE) {
+        _playData[tokenId] = PlayData(0, 0);
     }
 }

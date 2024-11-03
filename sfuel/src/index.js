@@ -6,6 +6,7 @@ const Distribute = require("./distribute");
 const DistributeBatch = require("./distribute-batch");
 const Balance = require("./balance");
 const { json, urlencoded } = require("express");
+const bodyParser = require('body-parser')
 
 /**
  * Initialize Express Application
@@ -15,6 +16,7 @@ const app = express();
 /** Express Middleware */
 app.use(json());
 app.use(urlencoded());
+app.use(bodyParser.json());
 app.use(cors());
 app.use(helmet());
 app.use((req, res, next) => {
