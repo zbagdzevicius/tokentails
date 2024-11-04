@@ -31,6 +31,21 @@ app.get("/", (_, res) => {
   return res.status(200).send("API Distributor Healthy");
 });
 
+app.post("/claim", async (req, res) => {
+  const body = req.body;
+  console.log(body);
+  const addresses = body.addresses;
+
+  if (addresses.map((address) => !isAddress(address)).includes(true))
+    return res.status(400).send("Invalid Ethereum Address");
+
+  const distribute = await DistributeBatch(addresses);
+
+  return res.status(200).send({
+    distribute,
+  });
+});
+
 app.get("/claim/:address", async (req, res) => {
   const { address } = req.params;
 
@@ -38,20 +53,6 @@ app.get("/claim/:address", async (req, res) => {
     return res.status(400).send("Invalid Ethereum Address");
 
   const distribute = await Distribute({ address });
-
-  return res.status(200).send({
-    distribute,
-  });
-});
-
-app.post("/claim", async (req, res) => {
-  const body = req.body;
-  const addresses = body.addresses;
-
-  if (addresses.map((address) => !isAddress(address)).includes(true))
-    return res.status(400).send("Invalid Ethereum Address");
-
-  const distribute = await DistributeBatch(addresses);
 
   return res.status(200).send({
     distribute,
