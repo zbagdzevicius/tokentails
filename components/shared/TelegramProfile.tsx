@@ -117,23 +117,6 @@ export const TelegramProfileContent = () => {
               </p>
             </li>
           )}
-
-          {profile?.wallets?.aptos.walletAddress && (
-            <li
-              onClick={() => copy(profile?.wallets.aptos.walletAddress)}
-              className="flex flex-col gap-1 mt-3"
-            >
-              <div className="text-p6">
-                Your Aptos wallet address{" "}
-                <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg">
-                  COPY
-                </span>
-              </div>
-              <p className="text-p6 font-bold font-secondary">
-                {profile?.wallets.aptos.walletAddress}
-              </p>
-            </li>
-          )}
         </ul>
       )}
     </div>
