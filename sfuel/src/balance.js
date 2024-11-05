@@ -8,8 +8,8 @@ const {
 const provider = new JsonRpcProvider(RPC_URL);
 const wallet = new Wallet(PRIVATE_KEY, provider);
 
-async function Balance() {
-	const balance = await provider.getBalance(wallet.address);
+async function Balance(walletAddress = wallet.address) {
+	const balance = await provider.getBalance(walletAddress);
 	return balance.toString();
 }
 

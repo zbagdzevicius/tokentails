@@ -6,7 +6,7 @@ const Distribute = require("./distribute");
 const DistributeBatch = require("./distribute-batch");
 const Balance = require("./balance");
 const { json, urlencoded } = require("express");
-const bodyParser = require('body-parser')
+const bodyParser = require("body-parser");
 
 /**
  * Initialize Express Application
@@ -31,15 +31,28 @@ app.get("/", (_, res) => {
   return res.status(200).send("API Distributor Healthy");
 });
 
+async function isClaimable(walletAddress) {
+  const balance = await Balance(walletAddress);
+  return Number(balance) < 10000000000000;
+}
+
 app.post("/claim", async (req, res) => {
   const body = req.body;
-  console.log(body);
   const addresses = body.addresses;
 
   if (addresses.map((address) => !isAddress(address)).includes(true))
     return res.status(400).send("Invalid Ethereum Address");
+  let fundableAddresses = await Promise.all(
+    addresses.map(async (address) => {
+      const claimable = await isClaimable(address);
+      return claimable ? address : null;
+    })
+  );
 
-  const distribute = await DistributeBatch(addresses);
+  // Filter out the null values, leaving only the addresses that are not claimable
+  fundableAddresses = fundableAddresses.filter((address) => address !== null);
+
+  const distribute = await DistributeBatch(fundableAddresses);
 
   return res.status(200).send({
     distribute,
@@ -51,6 +64,12 @@ app.get("/claim/:address", async (req, res) => {
 
   if (!isAddress(address))
     return res.status(400).send("Invalid Ethereum Address");
+
+  if (!(await isClaimable(address))) {
+    return res.status(200).send({
+      distribute: false,
+    });
+  }
 
   const distribute = await Distribute({ address });
 
