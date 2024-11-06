@@ -112,6 +112,7 @@ export class CatbassadorsScene extends Scene {
     );
 
     this.jumperLayer?.setCollision(TRAMPOLINE_TILES);
+    this.trampoline = new Trampoline(this, this.jumperLayer, TRAMPOLINE_TILES);
 
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(1.25);
@@ -201,14 +202,7 @@ export class CatbassadorsScene extends Scene {
       this.cat.sprite as Phaser.Physics.Arcade.Sprite,
       this.platformsLayer
     );
-    this.physics.add.collider(
-      this.cat.sprite as Phaser.Physics.Arcade.Sprite,
-      this.jumperLayer,
-      () => {
-        this.cat?.sprite.setVelocityY(-1000);
-        this.sound.play("powerup");
-      }
-    );
+    this.physics.add.collider(this.cat.sprite, this.jumperLayer);
     this.cameras.main.startFollow(this.cat.sprite);
 
     setMobileControls(this.cat);

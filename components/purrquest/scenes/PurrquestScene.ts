@@ -231,12 +231,8 @@ export class PurrquestScene extends Phaser.Scene {
         this
       );
     }
-    this.trampoline = new Trampoline(
-      this,
-      this.jumpLayer,
-      -1000,
-      TRAMPOLINE_TILES
-    );
+    this.jumpLayer?.setCollision(TRAMPOLINE_TILES);
+    this.trampoline = new Trampoline(this, this.jumpLayer, TRAMPOLINE_TILES);
   }
   private spawnMovablePlatformsOnTiles(tileIndices: number[]) {
     if (!this.player?.sprite) {
