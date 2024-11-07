@@ -636,26 +636,6 @@ export const confirmTransaction = async (
   });
 };
 
-export const getCatsForSale = async (confirmation: {
-  minPrice?: number;
-}): Promise<ICat[]> => {
-  return fetch(`${apiUrl}/cat/for-sale`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    } as any,
-    body: JSON.stringify(confirmation),
-  }).then((response) => {
-    if (response.ok) {
-      return response.json();
-    }
-
-    console.warn(JSON.stringify(response));
-    return [];
-  });
-};
-
 export const setActiveCat = async (id: string): Promise<void> => {
   return fetch(`${apiUrl}/cat/${id}/activate`, {
     method: "GET",
