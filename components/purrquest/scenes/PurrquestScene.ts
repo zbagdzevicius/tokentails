@@ -1,5 +1,9 @@
 import { Cat } from "@/components/catbassadors/objects/Catbassador";
-import { Enemy, EnemyType } from "@/components/catbassadors/objects/Enemy";
+import {
+  Coin as Key,
+  CoinType,
+  Coin,
+} from "@/components/catbassadors/objects/Coin";
 import {
   GameEvent,
   GameEvents,
@@ -15,7 +19,7 @@ import { MovablePlatform } from "../objects/MovablePlatform";
 import { Pathfinding } from "../utils/Pathfinding";
 import { Spike } from "../objects/Spikes";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
-
+import { Enemy } from "@/components/purrquest/objects/Enemy";
 const COLLISION_TILES = [
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 29, 30, 31, 32, 33, 34, 35, 36, 37, 62, 63, 64,
   65, 72, 88, 90, 91, 92, 93, 94, 120, 121, 122, 123, 149, 150, 151, 152,
@@ -40,16 +44,17 @@ const PLATFORM_CONFIGS: {
 
 export class PurrquestScene extends Phaser.Scene {
   private generateLevel!: GenerateLevel;
+  tilemap!: Phaser.Tilemaps.Tilemap;
   private player?: Cat;
   private pathfinding!: Pathfinding;
-  public groundLayer?: Phaser.Tilemaps.TilemapLayer;
-  private jumpLayer?: Phaser.Tilemaps.TilemapLayer;
+  public groundLayer?: Phaser.Tilemaps.TilemapLayer | null;
+  private jumpLayer?: Phaser.Tilemaps.TilemapLayer | null;
   private chest!: Chest;
-  private hasKey: boolean = false;
   private errorMessageText!: Phaser.GameObjects.Text;
-  key: Enemy[] = [];
+  key!: Coin;
   private platforms: MovablePlatform[] = [];
   private spikes: Spike[] = [];
+  private enemies: Enemy[] = [];
   trampoline?: Trampoline;
 
   constructor() {
@@ -59,7 +64,7 @@ export class PurrquestScene extends Phaser.Scene {
   preload() {
     this.groundLayer?.destroy();
     this.jumpLayer?.destroy();
-    this.load.image("blocks", "base/blocks-original.png");
+    this.load.image("blocks", "base/blocks.png");
     this.load.spritesheet("chest", "purrquest2/icons/chest-spritesheet.png", {
       frameWidth: 120,
       frameHeight: 64,
@@ -71,6 +76,18 @@ export class PurrquestScene extends Phaser.Scene {
     );
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.image("key", "purrquest/sprites/key.png");
+    this.load.spritesheet("enemy-pinkie", "enemies/pink-fluffie.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+    this.load.spritesheet("enemy-blue-fluffie", "enemies/blue-fluffie.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+    this.load.spritesheet("enemy-white-owlet", "enemies/white-owlet.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
   }
 
   create(props: IPhaserGameSceneProps) {
@@ -101,9 +118,10 @@ export class PurrquestScene extends Phaser.Scene {
     this.spawnChest(284);
     this.spawnKey();
     this.initializeColliders();
+    this.spawnEnemiesRandomly(4);
   }
 
-  update() {
+  update(time: number, delta: number) {
     if (!this.player?.sprite || !this.platforms?.length) {
       return;
     }
@@ -111,8 +129,11 @@ export class PurrquestScene extends Phaser.Scene {
     this.platforms.forEach((platform) => {
       platform.update();
     });
-    this.key.forEach((enemy) => enemy.update());
+    this.key.update();
     this.checkPlayerProximityToChest();
+    this.enemies.forEach((enemy) => {
+      enemy?.update(time, delta);
+    });
   }
 
   private initializeLevel() {
@@ -130,7 +151,6 @@ export class PurrquestScene extends Phaser.Scene {
     if (this.player || !cat) {
       return;
     }
-
     this.load.on("complete", () => this.createPlayer(cat), this);
     this.load.spritesheet(cat.name, cat.spriteImg, {
       frameWidth: 48,
@@ -153,6 +173,7 @@ export class PurrquestScene extends Phaser.Scene {
       32 * 7;
 
     this.player = new Cat(this, startX, startY, cat.name);
+    this.player.hasKey = false;
     this.cameras.main.startFollow(this.player.sprite);
     this.player.sprite.setDepth(2);
     this.cameras.main.zoom = ZOOM;
@@ -171,24 +192,97 @@ export class PurrquestScene extends Phaser.Scene {
     );
   }
 
+  private spawnEnemiesRandomly(count: number) {
+    const enemySprites = [
+      "enemy-pinkie",
+      "enemy-blue-fluffie",
+      "enemy-white-owlet",
+    ];
+
+    // Filter out all non-colliding tiles where enemies can be placed
+    const walkableTiles = this.groundLayer!.filterTiles((tile: any) => {
+      return !tile.collides && tile.index !== -1; // Ensure the tile exists
+    });
+
+    // Shuffle the array and select the desired number of tiles
+    const shuffledTiles = Phaser.Utils.Array.Shuffle(walkableTiles);
+    const selectedTiles = shuffledTiles.slice(0, count);
+
+    selectedTiles.forEach((tile) => {
+      const x = tile.getCenterX();
+      const y = tile.getCenterY();
+
+      const randomSprite = Phaser.Utils.Array.GetRandom(enemySprites);
+      const enemy = new Enemy(this, x, y, randomSprite);
+
+      this.enemies.push(enemy);
+
+      // Add enemy physics
+      this.physics.add.collider(
+        enemy as Phaser.Physics.Arcade.Sprite,
+        this.groundLayer!
+      );
+      this.physics.add.collider(
+        enemy as Phaser.Physics.Arcade.Sprite,
+        this.jumpLayer!
+      );
+
+      this.platforms.forEach((platform) => {
+        this.physics.add.collider(
+          enemy as Phaser.Physics.Arcade.Sprite,
+          platform as Phaser.GameObjects.GameObject
+        );
+      });
+
+      this.physics.add.overlap(
+        this.player?.sprite as Phaser.Physics.Arcade.Sprite,
+        enemy,
+        this
+          .handlePlayerEnemyCollisions as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+        undefined,
+        this
+      );
+    });
+  }
+
+  handlePlayerEnemyCollisions() {
+    //enemy kills player
+    this.playerDeathMessage();
+  }
+
   private renderTilemap() {
     const { baseLayer, overlayLayer } = this.generateLevel.generateGridData();
-    const tilemap = this.make.tilemap({
+
+    this.tilemap = this.make.tilemap({
       data: baseLayer,
       tileWidth: 32,
       tileHeight: 32,
     });
-    const tileset = tilemap.addTilesetImage("blocks", "blocks");
 
-    if (!tileset) {
+    const sugarTileset = this.tilemap.addTilesetImage(
+      "blocks",
+      "blocks",
+      32,
+      32,
+      1,
+      2
+    );
+
+    if (!sugarTileset) {
       console.error(
         "Tileset could not be loaded. Please check the asset path and name."
       );
       return;
     }
 
-    const baseLayerName = tilemap.layers[0]?.name || "layer";
-    this.groundLayer = tilemap.createLayer(baseLayerName, tileset, 0, 0)!;
+    // Use a valid layer name like "layer" instead of "blocks"
+    const baseLayerName = "layer";
+    this.groundLayer = this.tilemap.createLayer(
+      baseLayerName,
+      sugarTileset,
+      0,
+      0
+    );
     if (!this.groundLayer) {
       console.error("Ground layer could not be created.");
       return;
@@ -196,7 +290,7 @@ export class PurrquestScene extends Phaser.Scene {
     this.groundLayer.setCollision(COLLISION_TILES);
 
     if (overlayLayer) {
-      this.renderOverlayLayer(overlayLayer, tileset, tilemap);
+      this.renderOverlayLayer(overlayLayer, sugarTileset, this.tilemap);
     }
   }
 
@@ -231,12 +325,8 @@ export class PurrquestScene extends Phaser.Scene {
         this
       );
     }
-    this.trampoline = new Trampoline(
-      this,
-      this.jumpLayer,
-      -1000,
-      TRAMPOLINE_TILES
-    );
+    this.jumpLayer?.setCollision(TRAMPOLINE_TILES);
+    this.trampoline = new Trampoline(this, this.jumpLayer, TRAMPOLINE_TILES);
   }
   private spawnMovablePlatformsOnTiles(tileIndices: number[]) {
     if (!this.player?.sprite) {
@@ -346,7 +436,7 @@ export class PurrquestScene extends Phaser.Scene {
     this.player = undefined;
     this.physics.world.colliders.destroy();
     this.platforms.forEach((platform) => platform.destroy());
-    this.key.forEach((enemy) => enemy.sprite.destroy());
+    this.key.sprite.destroy();
     this.chest.destroy();
     this.children.removeAll();
     this.load.removeAllListeners();
@@ -397,13 +487,12 @@ export class PurrquestScene extends Phaser.Scene {
         16;
 
       // Spawn key enemy specifically with type 'KEY'
-      const keyEnemy = new Enemy(this as any, keyX, keyY, EnemyType.KEY);
-      this.key.push(keyEnemy);
-      this.physics.add.collider(keyEnemy.sprite, this.groundLayer!);
+      this.key = new Key(this as any, keyX, keyY, CoinType.KEY);
+      this.physics.add.collider(this.key.sprite, this.groundLayer!);
 
       this.physics.add.overlap(
         this.player?.sprite as Phaser.Physics.Arcade.Sprite,
-        keyEnemy.sprite,
+        this.key.sprite,
         (player, key) => this.collectKey(key as Phaser.GameObjects.Sprite),
         undefined,
         this
@@ -412,7 +501,9 @@ export class PurrquestScene extends Phaser.Scene {
   }
 
   private collectKey(key: Phaser.GameObjects.Sprite) {
-    this.hasKey = true;
+    if (this.player) {
+      this.player.hasKey = true;
+    }
     key.destroy();
   }
 
@@ -431,9 +522,9 @@ export class PurrquestScene extends Phaser.Scene {
       return;
     }
     if (this.physics.overlap(this.player.sprite, this.chest)) {
-      if (this.hasKey) {
+      if (this.player.hasKey) {
         this.chest.open();
-        this.hasKey = false;
+        this.player.hasKey = false;
         this.onDestroy();
 
         GameEvents.GAME_STOP.push({ score: 5000, message: " Congratz ! " });

@@ -1,3 +1,4 @@
+const SPAWN_ENEMY_MILESSTONE = 10000;
 import {
   GameEvent,
   GameEvents,
@@ -9,29 +10,33 @@ import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { ICat, catbassadorsGameDuration } from "@/models/cats";
 import { Scene } from "phaser";
 import { Cat } from "../objects/Catbassador";
-import { Enemy } from "../objects/Enemy";
-const enemyDurationMs = 15000;
+import { Coin } from "../objects/Coin";
+import { Enemy } from "../../purrquest/objects/Enemy";
+const coinDurationMs = 15000;
 
 const JUMP_LAYER_TILES = [47, 48, 49, 50];
 const TRAMPOLINE_TILES = [51];
+const TIME_TO_REMOVE_PER_HIT = 5;
 
 export class CatbassadorsScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
   cat?: Cat;
   catDto?: ICat;
-  enemy?: Enemy | null;
+  coin?: Coin | null;
   tilemap!: Phaser.Tilemaps.Tilemap;
   groundLayer!: Phaser.Tilemaps.TilemapLayer;
   platformsLayer!: Phaser.Tilemaps.TilemapLayer;
   jumperLayer!: Phaser.Tilemaps.TilemapLayer;
-  enemies: Enemy[] = [];
-  enemySpawnInterval: NodeJS.Timeout | null = null;
+  coins: Coin[] = [];
+  coinSpawnInterval: NodeJS.Timeout | null = null;
   timer: number = catbassadorsGameDuration;
   score: number = 0;
   gameSound?: Phaser.Sound.BaseSound;
   backgroundSound?: Phaser.Sound.BaseSound;
   lastUpdateTime: number;
   trampoline?: Trampoline;
+  enemySpawnThreshold = 1500;
+  enemies: Enemy[] = [];
 
   constructor() {
     super("CatbassadorsScene");
@@ -62,6 +67,18 @@ export class CatbassadorsScene extends Scene {
     this.load.tilemapTiledJSON("tilemap", "catbassadors/catbassadors.json");
     this.load.image("blocks", "base/blocks.png");
     this.load.spritesheet("starAnimation", "base/star-animation.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+    this.load.spritesheet("enemy-pinkie", "enemies/pink-fluffie.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+    this.load.spritesheet("enemy-blue-fluffie", "enemies/blue-fluffie.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+    this.load.spritesheet("enemy-white-owlet", "enemies/white-owlet.png", {
       frameWidth: 32,
       frameHeight: 32,
     });
@@ -112,6 +129,7 @@ export class CatbassadorsScene extends Scene {
     );
 
     this.jumperLayer?.setCollision(TRAMPOLINE_TILES);
+    this.trampoline = new Trampoline(this, this.jumperLayer, TRAMPOLINE_TILES);
 
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(1.25);
@@ -201,71 +219,69 @@ export class CatbassadorsScene extends Scene {
       this.cat.sprite as Phaser.Physics.Arcade.Sprite,
       this.platformsLayer
     );
-    this.physics.add.collider(
-      this.cat.sprite as Phaser.Physics.Arcade.Sprite,
-      this.jumperLayer,
-      () => {
-        this.cat?.sprite.setVelocityY(-1000);
-        this.sound.play("powerup");
-      }
-    );
+    this.physics.add.collider(this.cat.sprite, this.jumperLayer);
     this.cameras.main.startFollow(this.cat.sprite);
 
     setMobileControls(this.cat);
   }
 
-  spawnEnemy() {
+  spawnCoin() {
     if (!this.cat) {
       return;
     }
 
-    const enemy = new Enemy(
+    const coin = new Coin(
       this,
-      this.getEnemySpawnPositionX(),
-      this.getEnemySpawnPositionY()
+      this.getCoinSpawnPositionX(),
+      this.getCoinSpawnPositionY()
     );
 
-    this.enemies.push(enemy);
+    this.coins.push(coin);
 
-    this.physics.add.collider(enemy.sprite, this.groundLayer);
+    this.physics.add.collider(coin.sprite, this.groundLayer);
 
     this.physics.add.overlap(
       this.cat.sprite,
-      enemy.sprite,
-      () => this.onCatCatchTheEnemy(enemy),
+      coin.sprite,
+      () => this.onCatCatchTheCoin(coin),
       undefined,
       this
     );
 
-    // Timer to remove the enemy after 5 seconds
-    this.time.delayedCall(enemyDurationMs, () => {
-      if (this.enemies.includes(enemy)) {
-        enemy.sprite.destroy();
-        this.enemies = this.enemies.filter((e) => e !== enemy);
+    // Timer to remove the coin after 5 seconds
+    this.time.delayedCall(coinDurationMs, () => {
+      if (this.coins.includes(coin)) {
+        coin.sprite.destroy();
+        this.coins = this.coins.filter((e) => e !== coin);
       }
     });
   }
 
   update(time: any, delta: any) {
     this.cat?.update();
-    this.enemies.forEach((enemy) => enemy.update());
+    this.coins.forEach((coin) => coin.update());
+
+    this.checkMilestone();
+    this.enemies?.forEach((enemy) => {
+      if (enemy) enemy.update(time, delta);
+    });
 
     this.timer -= delta / 1000;
 
-    if (this.timer <= 0 && this.enemySpawnInterval) {
+    if (this.timer <= 0 && this.coinSpawnInterval) {
       this.endGame();
     }
 
     this.lastUpdateTime = performance.now();
   }
 
-  private onCatCatchTheEnemy(enemy: Enemy) {
-    this.processEnemyReward(enemy);
+  private onCatCatchTheCoin(coin: Coin) {
+    this.processCoinReward(coin);
     this.sound.play("coin");
 
     if (this.cat) {
       GameEvents[GameEvent.GAME_COIN_CAUGHT].push({
-        score: enemy.coinReward,
+        score: coin.coinReward,
       });
 
       const starAnimationSprite = this.add.sprite(
@@ -281,32 +297,84 @@ export class CatbassadorsScene extends Scene {
       });
     }
 
-    // Remove the caught enemy
-    enemy.sprite.destroy();
-    this.enemies = this.enemies.filter((e) => e !== enemy);
+    // Remove the caught coin
+    coin.sprite.destroy();
+    this.coins = this.coins.filter((e) => e !== coin);
+  }
+  private checkMilestone() {
+    if (this.score >= this.enemySpawnThreshold) {
+      this.enemySpawnThreshold =
+        Math.ceil(this.score / SPAWN_ENEMY_MILESSTONE) *
+          SPAWN_ENEMY_MILESSTONE +
+        SPAWN_ENEMY_MILESSTONE;
+      this.spawnEnemy();
+    }
+  }
+  private spawnEnemy() {
+    const enemySprites = [
+      "enemy-pinkie",
+      "enemy-blue-fluffie",
+      "enemy-white-owlet",
+    ];
+    const randomSprite = Phaser.Utils.Array.GetRandom(enemySprites);
+    const enemy = new Enemy(
+      this,
+      this.getCoinSpawnPositionX(),
+      this.getCoinSpawnPositionY(),
+      randomSprite
+    );
+    this.enemies?.push(enemy);
+    this.physics.add.collider(this.enemies, this.groundLayer);
+    this.physics.add.collider(this.enemies, this.jumperLayer);
+    this.physics.add.collider(this.enemies, this.platformsLayer);
+    this.physics.add.overlap(
+      this.cat?.sprite as Phaser.Physics.Arcade.Sprite,
+      enemy,
+      this
+        .handlePlayerEnemyCollisions as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+      undefined,
+      this
+    );
   }
 
-  private processEnemyReward(enemy: Enemy) {
-    this.score += enemy.coinReward;
-    if (enemy.timeReward) {
-      const newTime = this.timer + enemy.timeReward;
+  private handlePlayerEnemyCollisions() {
+    if (this.cat?.isInvulnerable) return;
+
+    this.timer = this.timer - TIME_TO_REMOVE_PER_HIT;
+
+    GameEvents.GAME_UPDATE.push({ additionalTime: -TIME_TO_REMOVE_PER_HIT });
+    this.cat!.isInvulnerable = true;
+
+    if (this.cat) {
+      this.cat.isHit = true;
+    }
+
+    this.time.delayedCall(1000, () => {
+      this.cat!.isInvulnerable = false;
+    });
+  }
+
+  private processCoinReward(coin: Coin) {
+    this.score += coin.coinReward;
+    if (coin.timeReward) {
+      const newTime = this.timer + coin.timeReward;
 
       const formattedTime = Number(newTime.toFixed());
 
       this.timer = formattedTime;
 
-      GameEvents.GAME_UPDATE.push({ additionalTime: enemy.timeReward });
+      GameEvents.GAME_UPDATE.push({ additionalTime: coin.timeReward });
     }
   }
 
-  private getEnemySpawnPositionX(): number {
+  private getCoinSpawnPositionX(): number {
     const leftWall = -440;
     const rightWall = 300;
 
     return Math.floor(Math.random() * (rightWall - leftWall + 1)) + leftWall;
   }
 
-  private getEnemySpawnPositionY(): number {
+  private getCoinSpawnPositionY(): number {
     const leftWall = -1450;
     const rightWall = -400;
 
@@ -318,16 +386,24 @@ export class CatbassadorsScene extends Scene {
   }
 
   private endGame() {
-    clearInterval(this.enemySpawnInterval as NodeJS.Timeout);
-    this.enemySpawnInterval = null;
+    clearInterval(this.coinSpawnInterval as NodeJS.Timeout);
+    this.coinSpawnInterval = null;
 
     this.cat?.sprite.setVelocity(0, 0);
 
     // Clear all enemies
-    this.enemies.forEach((enemy) => {
-      enemy.sprite.destroy();
+    this.coins.forEach((coin) => {
+      coin.sprite.destroy();
     });
-    this.enemies = [];
+
+    this.coins = [];
+
+    if (this.enemies) {
+      this.enemies.forEach((enemy) => {
+        enemy.destroy();
+      });
+      this.enemies = [];
+    }
 
     if (this.gameSound) {
       this.gameSound.stop();
@@ -345,8 +421,8 @@ export class CatbassadorsScene extends Scene {
       this.gameSound?.play();
     } catch {}
 
-    this.enemySpawnInterval = setInterval(() => {
-      this.spawnEnemy();
+    this.coinSpawnInterval = setInterval(() => {
+      this.spawnCoin();
     }, 400);
   }
 }
