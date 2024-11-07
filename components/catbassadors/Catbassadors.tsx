@@ -115,17 +115,17 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
           </div>
           <div className="flex gap-2 items-center justify-center font-secondary text-p4">
             <img className="h-8" src="icons/pumpkin.png"></img>
-            <span className="whitespace-nowrap">GIVES 5</span>
-            <img className="h-8" src="logo/coin.webp"></img>
-          </div>
-          <div className="flex gap-2 items-center justify-center font-secondary text-p4">
-            <img className="h-8" src="icons/clock.png"></img>
-            <span className="whitespace-nowrap">GIVES 100</span>
+            <span className="whitespace-nowrap">GIVES 10</span>
             <img className="h-8" src="logo/coin.webp"></img>
           </div>
           <div className="flex gap-2 items-center justify-center font-secondary text-p4">
             <img className="h-8" src="logo/boss-coin.png"></img>
             <span className="whitespace-nowrap">GIVES 100</span>
+            <img className="h-8" src="logo/coin.webp"></img>
+          </div>
+          <div className="flex gap-2 items-center justify-center font-secondary text-p4">
+            <img className="h-8" src="icons/clock.png"></img>
+            <span className="whitespace-nowrap">GIVES 1000</span>
             <img className="h-8" src="logo/coin.webp"></img>
           </div>
           <div className="flex gap-2 justify-center items-center font-secondary text-p3">

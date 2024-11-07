@@ -51,7 +51,7 @@ const EnemyTypeCoinReward: Record<CoinType, number> = {
   [CoinType.COIN]: 1,
   [CoinType.PUMPKIN]: 10,
   [CoinType.BOSS_COIN]: 100,
-  [CoinType.TIME_COIN]: 100,
+  [CoinType.TIME_COIN]: 1000,
   [CoinType.KEY]: 0,
 };
 
