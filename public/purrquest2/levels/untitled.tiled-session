@@ -253,8 +253,8 @@
             "scale": 2,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 191.75,
-                "y": 191
+                "x": 191.25,
+                "y": 190.5
             }
         },
         "without/without.json#blocks-original": {
@@ -264,8 +264,8 @@
             "scale": 2.169661458333333,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 191.5045309968193,
-                "y": 191.73498169597312
+                "x": 191.04362959851167,
+                "y": 191.2740802976655
             }
         },
         "without/without1.json#blocks-original": {
@@ -275,8 +275,8 @@
             "scale": 2.169661458333333,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 156.7064754245934,
-                "y": 124.44337754305948
+                "x": 191.96543239512695,
+                "y": 191.96543239512695
             }
         },
         "without/without10.json#blocks-original": {
@@ -308,8 +308,8 @@
             "scale": 2.169661458333333,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 191.5045309968193,
-                "y": 190.81317889935787
+                "x": 191.04362959851167,
+                "y": 190.35227750105028
             }
         },
         "without/without2.json#blocks-original": {
@@ -319,7 +319,7 @@
             "scale": 2.169661458333333,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.5045309968193,
+                "x": 191.04362959851167,
                 "y": 192.1958830942808
             }
         },
@@ -330,7 +330,7 @@
             "scale": 2.169661458333333,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 191.5045309968193,
+                "x": 191.04362959851167,
                 "y": 192.1958830942808
             }
         },
@@ -342,7 +342,7 @@
             "selectedLayer": 1,
             "viewCenter": {
                 "x": 190.5827282002041,
-                "y": 189.43047470443497
+                "y": 188.50867190781972
             }
         },
         "without/without5.json#blocks-original": {

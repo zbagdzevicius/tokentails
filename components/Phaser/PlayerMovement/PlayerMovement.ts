@@ -59,7 +59,19 @@ export class PlayerMovement {
       sprite.setVelocityX(0);
     }
 
-    if (this.player.isSliding) {
+    if (this.player.isHit) {
+      if (
+        sprite.anims.currentAnim?.key !==
+        this.player.animationKeys[PlayerAnimation.HIT]
+      ) {
+        sprite.anims.play(this.player.animationKeys[PlayerAnimation.HIT], true);
+
+        sprite.once("animationcomplete", () => {
+          this.player.isHit = false;
+        });
+        sprite.angle = 0;
+      }
+    } else if (this.player.isSliding) {
       sprite.anims.play(
         this.player.animationKeys[PlayerAnimation.SITTING],
         true
