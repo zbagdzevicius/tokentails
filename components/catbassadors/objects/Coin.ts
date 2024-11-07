@@ -16,7 +16,7 @@ interface ExtendedScene extends Scene {
   groundLayer: Phaser.Tilemaps.TilemapLayer;
 }
 
-export enum EnemyType {
+export enum CoinType {
   COIN = "COIN",
   BOSS_COIN = "BOSS_COIN",
   PUMPKIN = "PUMPKIN",
@@ -24,54 +24,54 @@ export enum EnemyType {
   KEY = "KEY",
 }
 
-const EnemyTypeSriteMap: Record<EnemyType, string> = {
-  [EnemyType.COIN]: "coin",
-  [EnemyType.BOSS_COIN]: "bosscoin",
-  [EnemyType.PUMPKIN]: "pumpkin",
-  [EnemyType.TIME_COIN]: "timecoin",
-  [EnemyType.KEY]: "key",
+const EnemyTypeSriteMap: Record<CoinType, string> = {
+  [CoinType.COIN]: "coin",
+  [CoinType.BOSS_COIN]: "bosscoin",
+  [CoinType.PUMPKIN]: "pumpkin",
+  [CoinType.TIME_COIN]: "timecoin",
+  [CoinType.KEY]: "key",
 };
 
-const getEnemyType = (): EnemyType => {
+const getCoinType = (): CoinType => {
   const type = Math.random() * 100;
 
   switch (true) {
     case type < 3:
-      return EnemyType.TIME_COIN;
+      return CoinType.TIME_COIN;
     case type < 8:
-      return EnemyType.BOSS_COIN;
+      return CoinType.BOSS_COIN;
     case type < 25:
-      return EnemyType.PUMPKIN;
+      return CoinType.PUMPKIN;
     default:
-      return EnemyType.COIN;
+      return CoinType.COIN;
   }
 };
 
-const EnemyTypeCoinReward: Record<EnemyType, number> = {
-  [EnemyType.COIN]: 1,
-  [EnemyType.PUMPKIN]: 10,
-  [EnemyType.BOSS_COIN]: 100,
-  [EnemyType.TIME_COIN]: 100,
-  [EnemyType.KEY]: 0,
+const EnemyTypeCoinReward: Record<CoinType, number> = {
+  [CoinType.COIN]: 1,
+  [CoinType.PUMPKIN]: 10,
+  [CoinType.BOSS_COIN]: 100,
+  [CoinType.TIME_COIN]: 100,
+  [CoinType.KEY]: 0,
 };
 
-const EnemyTypeTimeReward: Record<EnemyType, number> = {
-  [EnemyType.COIN]: 0,
-  [EnemyType.PUMPKIN]: 1,
-  [EnemyType.BOSS_COIN]: 3,
-  [EnemyType.TIME_COIN]: 10,
-  [EnemyType.KEY]: 0,
+const EnemyTypeTimeReward: Record<CoinType, number> = {
+  [CoinType.COIN]: 0,
+  [CoinType.PUMPKIN]: 1,
+  [CoinType.BOSS_COIN]: 3,
+  [CoinType.TIME_COIN]: 10,
+  [CoinType.KEY]: 0,
 };
 
-const EnemyTypeVelocity: Record<EnemyType, number> = {
-  [EnemyType.COIN]: 5,
-  [EnemyType.PUMPKIN]: 5,
-  [EnemyType.BOSS_COIN]: 8,
-  [EnemyType.TIME_COIN]: 12,
-  [EnemyType.KEY]: 12,
+const EnemyTypeVelocity: Record<CoinType, number> = {
+  [CoinType.COIN]: 5,
+  [CoinType.PUMPKIN]: 5,
+  [CoinType.BOSS_COIN]: 8,
+  [CoinType.TIME_COIN]: 12,
+  [CoinType.KEY]: 12,
 };
 
-export class Enemy {
+export class Coin {
   scene: ExtendedScene;
   sprite: Physics.Arcade.Sprite;
   vy: number;
@@ -79,11 +79,11 @@ export class Enemy {
   bounce: number = bounceFactor;
   coinReward: number;
   timeReward: number;
-  type: EnemyType;
+  type: CoinType;
 
-  constructor(scene: ExtendedScene, x: number, y: number, type?: EnemyType) {
+  constructor(scene: ExtendedScene, x: number, y: number, type?: CoinType) {
     this.scene = scene;
-    this.type = type || getEnemyType();
+    this.type = type || getCoinType();
     this.vy = EnemyTypeVelocity[this.type];
     this.vx = EnemyTypeVelocity[this.type];
     this.coinReward = EnemyTypeCoinReward[this.type];

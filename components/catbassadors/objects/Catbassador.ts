@@ -38,17 +38,18 @@ const animationConfigurations: {
   key: PlayerAnimation;
   frames: number;
   repeat: -1 | 0;
+  frameRate: number;
 }[] = [
-  { key: PlayerAnimation.SLEEP, frames: 7, repeat: 0 },
-  { key: PlayerAnimation.DIGGING, frames: 4, repeat: -1 },
-  { key: PlayerAnimation.GROOMING, frames: 15, repeat: -1 },
-  { key: PlayerAnimation.HIT, frames: 7, repeat: 0 },
-  { key: PlayerAnimation.IDLE, frames: 12, repeat: -1 },
-  { key: PlayerAnimation.JUMPING, frames: 7, repeat: 0 },
-  { key: PlayerAnimation.LOAF, frames: 9, repeat: -1 },
-  { key: PlayerAnimation.RUNNING, frames: 4, repeat: -1 },
-  { key: PlayerAnimation.SITTING, frames: 5, repeat: -1 },
-  { key: PlayerAnimation.WALKING, frames: 8, repeat: 0 },
+  { key: PlayerAnimation.SLEEP, frames: 7, repeat: 0, frameRate: 8 },
+  { key: PlayerAnimation.DIGGING, frames: 4, repeat: -1, frameRate: 8 },
+  { key: PlayerAnimation.GROOMING, frames: 15, repeat: -1, frameRate: 8 },
+  { key: PlayerAnimation.HIT, frames: 7, repeat: 0, frameRate: 12 },
+  { key: PlayerAnimation.IDLE, frames: 12, repeat: -1, frameRate: 8 },
+  { key: PlayerAnimation.JUMPING, frames: 7, repeat: 0, frameRate: 8 },
+  { key: PlayerAnimation.LOAF, frames: 9, repeat: -1, frameRate: 8 },
+  { key: PlayerAnimation.RUNNING, frames: 4, repeat: -1, frameRate: 8 },
+  { key: PlayerAnimation.SITTING, frames: 5, repeat: -1, frameRate: 8 },
+  { key: PlayerAnimation.WALKING, frames: 8, repeat: 0, frameRate: 8 },
 ];
 
 type ICatAnimationKey = `${string}_${PlayerAnimation}`;
@@ -85,6 +86,9 @@ export class Cat implements IPlayer {
   animationKeys: ICatAnimationKeysMap;
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   keys!: KeyMap;
+  isHit!: boolean;
+  hasKey!: boolean;
+  isInvulnerable: boolean;
   private catName: string;
 
   isDashing: boolean = false;
@@ -105,7 +109,6 @@ export class Cat implements IPlayer {
       .sprite(x, y, this.catName)
       .setSize(28, 28)
       .setOffset(12, 8);
-
     this.cursors = this.scene.input.keyboard!.createCursorKeys();
     this.keys = this.scene.input.keyboard!.addKeys({
       up: "W",
@@ -117,6 +120,7 @@ export class Cat implements IPlayer {
     this.initAnimations();
 
     this.movement = new PlayerMovement(this);
+    this.isInvulnerable = false;
   }
 
   initAnimations() {
@@ -128,7 +132,7 @@ export class Cat implements IPlayer {
           start: index * maxAnimationFrames,
           end: index * maxAnimationFrames + animationConfiguration.frames - 1,
         }),
-        frameRate: 8,
+        frameRate: animationConfiguration.frameRate,
         repeat: animationConfiguration.repeat,
       });
     }
@@ -145,6 +149,7 @@ export class Cat implements IPlayer {
 
   update() {
     this.movement.updateOngoingMovements();
+    console.log(this.hasKey);
   }
 
   addCollider(collider: ColliderType) {

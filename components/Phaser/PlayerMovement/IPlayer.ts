@@ -31,4 +31,7 @@ export interface IPlayer {
   isJumping: boolean;
   wallJumpCount: number;
   scene: Phaser.Scene;
+  isHit: boolean;
+  isInvulnerable: boolean;
+  hasKey: boolean;
 }
