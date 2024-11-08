@@ -17,6 +17,7 @@ const coinDurationMs = 15000;
 const JUMP_LAYER_TILES = [47, 48, 49, 50];
 const TRAMPOLINE_TILES = [51];
 const TIME_TO_REMOVE_PER_HIT = 5;
+const DEFAULT_ENEMY_SPAWN_THRESHOLD = 1500;
 
 export class CatbassadorsScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
@@ -35,7 +36,7 @@ export class CatbassadorsScene extends Scene {
   backgroundSound?: Phaser.Sound.BaseSound;
   lastUpdateTime: number;
   trampoline?: Trampoline;
-  enemySpawnThreshold = 1500;
+  enemySpawnThreshold = DEFAULT_ENEMY_SPAWN_THRESHOLD;
   enemies: Enemy[] = [];
 
   constructor() {
@@ -412,6 +413,7 @@ export class CatbassadorsScene extends Scene {
 
     GameEvents.GAME_STOP.push({ score: this.score });
     this.score = 0;
+    this.enemySpawnThreshold = DEFAULT_ENEMY_SPAWN_THRESHOLD;
   }
 
   private startGame() {
