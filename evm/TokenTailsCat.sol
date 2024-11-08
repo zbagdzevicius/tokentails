@@ -5,9 +5,15 @@ import "@openzeppelin/contracts@4.9.3/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts@4.9.3/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts@4.9.3/utils/Strings.sol";
 
+struct PlayData {
+    uint32 playCount;
+    uint32 lastPlayDate;
+}
+
 contract TokenTailsCat is ERC721, AccessControlEnumerable {
     string private _baseTokenURI;
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    mapping(uint256 => PlayData) public playData;
 
     constructor() ERC721("Token Tails Cat", "TTCAT") {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
@@ -23,7 +29,7 @@ contract TokenTailsCat is ERC721, AccessControlEnumerable {
         _baseTokenURI = newBaseURI;
     }
 
-    function mintUniqueTokenTo(address to, uint256 tokenId) public onlyRole(MINTER_ROLE) {
+    function mintUniqueTokenTo(address to, uint256 tokenId) external onlyRole(MINTER_ROLE) {
         _mint(to, tokenId);
     }
 
@@ -38,32 +44,21 @@ contract TokenTailsCat is ERC721, AccessControlEnumerable {
         return super.supportsInterface(interfaceId);
     }
 
-    struct PlayData {
-        uint32 playCount;
-        uint32 lastPlayDate;
-    }
-
-    mapping(uint256 => PlayData) private _playData;
-
-    function _getCurrentDay() internal view returns (uint32) {
-        return uint32(block.timestamp / 86400); // Calculate current day as an integer
-    }
-
     function incrementPlayCount(uint256 tokenId) external {
         require(ownerOf(tokenId) == msg.sender, "Caller is not the owner of the NFT");
         
-        uint32 today = _getCurrentDay();
-        require(_playData[tokenId].lastPlayDate != today, "Play count already incremented today");
+        uint32 today = uint32(block.timestamp / 86400); // Calculate current day as an integer
+        require(playData[tokenId].lastPlayDate != today, "Play count already incremented today");
 
-        _playData[tokenId].playCount += 1;
-        _playData[tokenId].lastPlayDate = today;
+        playData[tokenId].playCount += 1;
+        playData[tokenId].lastPlayDate = today;
     }
 
     function getPlayData(uint256 tokenId) public view returns (uint32 playCount, uint32 lastPlayDate) {
-        return (_playData[tokenId].playCount, _playData[tokenId].lastPlayDate);
+        return (playData[tokenId].playCount, playData[tokenId].lastPlayDate);
     }
 
     function resetCount(uint256 tokenId) public onlyRole(MINTER_ROLE) {
-        _playData[tokenId] = PlayData(0, 0);
+        delete playData[tokenId];
     }
 }

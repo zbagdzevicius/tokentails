@@ -7,6 +7,7 @@ const DistributeBatch = require("./distribute-batch");
 const Balance = require("./balance");
 const { json, urlencoded } = require("express");
 const bodyParser = require("body-parser");
+const { formatEther } = require("ethers");
 
 /**
  * Initialize Express Application
@@ -34,6 +35,10 @@ app.get("/", (_, res) => {
 async function isClaimable(walletAddress) {
   const balance = await Balance(walletAddress);
   return Number(balance) < 10000000000000;
+}
+
+function convertToTokenUnits(balance, decimals = 18) {
+  return formatEther(balance);
 }
 
 app.post("/claim", async (req, res) => {
@@ -81,6 +86,16 @@ app.get("/claim/:address", async (req, res) => {
 app.get("/balance", async (_, res) => {
   return res.status(200).send({
     balance: await Balance(),
+  });
+});
+
+app.get("/balance/:walletAddress", async (req, res) => {
+  const { walletAddress } = req.params;
+  const balance = await Balance(walletAddress);
+  const tokens = convertToTokenUnits(balance);
+  return res.status(200).send({
+    balance,
+    tokens
   });
 });
 
