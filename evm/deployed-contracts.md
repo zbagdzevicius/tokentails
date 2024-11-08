@@ -1,9 +1,18 @@
 # SKALE nebula testnet
-details: https://testnet.portal.skale.space/chains/lanky-ill-funny-testnet
-RPC endpoint: https://testnet.skalenodes.com/v1/lanky-ill-funny-testnet
-block explorer: https://lanky-ill-funny-testnet.explorer.testnet.skalenodes.com
-chain ID: 37084624
-currency symbol: sFUEL
-faucet: https://www.sfuelstation.com/connect-wallet
-order:
-- TokenTailsCat ERC-721 NFT: 0xE5A09505B5e6c7607eFcFB0bd2425125FBC1ea39
+#### details: `https://testnet.portal.skale.space/chains/lanky-ill-funny-testnet`
+#### RPC endpoint: `https://testnet.skalenodes.com/v1/lanky-ill-funny-testnet`
+#### block explorer: `https://lanky-ill-funny-testnet.explorer.testnet.skalenodes.com`
+#### chain ID: `37084624`
+#### currency symbol: `sFUEL`
+#### faucet: `https://www.sfuelstation.com/connect-wallet`
+#### contracts:
+- ##### TokenTailsCat ERC-721 NFT: `0x319830785404248ae189dC5D18cF292e1b7f9434`
+
+# SKALE nebula mainnet
+#### details: `https://testnet.portal.skale.space/chains/lanky-ill-funny-testnet`
+#### RPC endpoint: `https://mainnet.skalenodes.com/v1/green-giddy-denebola`
+#### block explorer: `https://green-giddy-denebola.explorer.mainnet.skalenodes.com/`
+#### chain ID: `0x585eb4b1`
+#### currency symbol: `sFUEL`
+#### contracts:
+- ##### TokenTailsCat ERC-721 NFT: `0xd51e3c8c7A547523C3AB31483fBF2833f8f01c30`
