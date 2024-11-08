@@ -149,7 +149,6 @@ export class Cat implements IPlayer {
 
   update() {
     this.movement.updateOngoingMovements();
-    console.log(this.hasKey);
   }
 
   addCollider(collider: ColliderType) {
