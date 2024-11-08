@@ -5,6 +5,8 @@ import { useProfile } from "@/context/ProfileContext";
 import { adoptCatFetch, catsFetch } from "@/constants/api";
 import { useToast } from "@/context/ToastContext";
 import { useQuery } from "@tanstack/react-query";
+import { useGame } from "@/context/GameContext";
+import { GameType } from "@/models/game";
 
 interface IProps extends ICat {
   onClose: () => void;
@@ -16,6 +18,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const { profile, setProfileUpdate } = useProfile();
   const [isAdopting, setIsAdopting] = useState(false);
+  const { setGameType } = useGame();
 
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
@@ -23,7 +26,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
   });
   const catpointsInMillions = useMemo(() => {
     if (isAdopting) {
-      return "adopting"
+      return "adopting";
     }
     if (cats?.find((cat) => cat.name === name)) {
       return "adopted";
@@ -58,7 +61,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
       return;
     }
 
-    setIsAdopting(true)
+    setIsAdopting(true);
     const status = await adoptCatFetch(_id!);
     if (status.success) {
       setProfileUpdate({
@@ -69,6 +72,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
 
       toast({ message: "Congratz on your adopted cat !" });
       setIsAdopting(false);
+      setGameType(GameType.HOME);
     }
   };
 
@@ -169,7 +173,11 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                 <PixelButton
                   active={!isForSale}
                   text={catpointsInMillions}
-                  subtext={["adopted", "adopting"].includes(catpointsInMillions) ? "" : "coins"}
+                  subtext={
+                    ["adopted", "adopting"].includes(catpointsInMillions)
+                      ? ""
+                      : "coins"
+                  }
                   onClick={() => adopt()}
                 ></PixelButton>
                 <PixelButton text="CLOSE" onClick={onClose}></PixelButton>
