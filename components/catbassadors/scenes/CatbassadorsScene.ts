@@ -1,4 +1,3 @@
-const SPAWN_ENEMY_MILESSTONE = 10000;
 import {
   GameEvent,
   GameEvents,
@@ -304,11 +303,8 @@ export class CatbassadorsScene extends Scene {
   }
   private checkMilestone() {
     if (this.score >= this.enemySpawnThreshold) {
-      this.enemySpawnThreshold =
-        Math.ceil(this.score / SPAWN_ENEMY_MILESSTONE) *
-          SPAWN_ENEMY_MILESSTONE +
-        SPAWN_ENEMY_MILESSTONE;
       this.spawnEnemy();
+      this.enemySpawnThreshold += DEFAULT_ENEMY_SPAWN_THRESHOLD;
     }
   }
   private spawnEnemy() {
