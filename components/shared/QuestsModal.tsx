@@ -56,6 +56,8 @@ export enum QUEST {
   START_COIN_BUNNY = "START_COIN_BUNNY",
   START_CONTAINER = "START_CONTAINER",
   START_KITTY = "START_KITTY",
+  START_FAMILY = "START_FAMILY",
+  START_BITSNAP = "START_BITSNAP",
   FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",
   FOLLOW_TG_GROUP = "FOLLOW_TG_GROUP",
   FOLLOW_X = "FOLLOW_X",
@@ -319,6 +321,26 @@ const allQuests: IQuest[] = [
     name: "Start Kitty Slash",
     link: "https://t.me/kittyslash_bot",
     icon: "/icons/social/kitty.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_FAMILY,
+    name: "Start Family Cards",
+    link: "https://t.me/family_cards_club_bot/app",
+    icon: "/icons/social/family.webp",
+    reward: {
+      coins: 1000,
+    },
+  },
+  {
+    type: QuestType.PARTNERS,
+    key: QUEST.START_BITSNAP,
+    name: "Start Bitsnap",
+    link: "https://t.me/bitsnap_bot",
+    icon: "/icons/social/bitsnap.webp",
     reward: {
       coins: 1000,
     },

@@ -52,7 +52,7 @@ export const SeoHead = ({
     <Head>
       {!!article && <ArticleMeta {...article} />}
       <title>{mainTitle}</title>
-      <link rel="icon" href={getFilePath("favicon.ico")} />
+      <link rel="icon" href={"/logo/coin.webp"} />
       <meta name="description" content={mainDescription} />
       <meta name="author" content={process.env.NEXT_PUBLIC_SITE_NAME} />
       <meta name="robots" content="index, follow"></meta>
