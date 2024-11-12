@@ -13,7 +13,7 @@ struct PlayData {
 contract TokenTailsCat is ERC721, AccessControlEnumerable {
     string private _baseTokenURI;
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    mapping(uint256 => PlayData) public playData;
+    mapping(uint128 => PlayData) public playData;
 
     constructor() ERC721("Token Tails Cat", "TTCAT") {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
@@ -29,11 +29,11 @@ contract TokenTailsCat is ERC721, AccessControlEnumerable {
         _baseTokenURI = newBaseURI;
     }
 
-    function mintUniqueTokenTo(address to, uint256 tokenId) external onlyRole(MINTER_ROLE) {
+    function mintUniqueTokenTo(address to, uint128 tokenId) external onlyRole(MINTER_ROLE) {
         _mint(to, tokenId);
     }
 
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+    function tokenURI(uint128 tokenId) public view override returns (string memory) {
         require(_exists(tokenId), "URI query for nonexistent token");
         return string(abi.encodePacked(_baseURI(), Strings.toString(tokenId)));
     }
@@ -44,7 +44,7 @@ contract TokenTailsCat is ERC721, AccessControlEnumerable {
         return super.supportsInterface(interfaceId);
     }
 
-    function incrementPlayCount(uint256 tokenId) external {
+    function incrementPlayCount(uint128 tokenId) external {
         require(ownerOf(tokenId) == msg.sender, "Caller is not the owner of the NFT");
         
         uint32 today = uint32(block.timestamp / 86400); // Calculate current day as an integer
@@ -54,11 +54,11 @@ contract TokenTailsCat is ERC721, AccessControlEnumerable {
         playData[tokenId].lastPlayDate = today;
     }
 
-    function getPlayData(uint256 tokenId) public view returns (uint32 playCount, uint32 lastPlayDate) {
+    function getPlayData(uint128 tokenId) public view returns (uint32 playCount, uint32 lastPlayDate) {
         return (playData[tokenId].playCount, playData[tokenId].lastPlayDate);
     }
 
-    function resetCount(uint256 tokenId) public onlyRole(MINTER_ROLE) {
+    function resetCount(uint128 tokenId) public onlyRole(MINTER_ROLE) {
         delete playData[tokenId];
     }
 }
