@@ -11,12 +11,14 @@ import { Scene } from "phaser";
 import { Cat } from "../objects/Catbassador";
 import { Coin } from "../objects/Coin";
 import { Enemy } from "../../purrquest/objects/Enemy";
+import { BossEnemy } from "@/components/purrquest/objects/Boss";
 const coinDurationMs = 15000;
 
 const JUMP_LAYER_TILES = [47, 48, 49, 50];
 const TRAMPOLINE_TILES = [51];
 const TIME_TO_REMOVE_PER_HIT = 5;
 const DEFAULT_ENEMY_SPAWN_THRESHOLD = 1500;
+const DEFAULT_BOSS_SPAWN = 50000;
 
 export class CatbassadorsScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
@@ -37,6 +39,9 @@ export class CatbassadorsScene extends Scene {
   trampoline?: Trampoline;
   enemySpawnThreshold = DEFAULT_ENEMY_SPAWN_THRESHOLD;
   enemies: Enemy[] = [];
+  bossEnemy?: BossEnemy;
+
+  IsBossSpawned = false;
 
   constructor() {
     super("CatbassadorsScene");
@@ -81,6 +86,10 @@ export class CatbassadorsScene extends Scene {
     this.load.spritesheet("enemy-white-owlet", "enemies/white-owlet.png", {
       frameWidth: 32,
       frameHeight: 32,
+    });
+    this.load.spritesheet("boss", "enemies/boss-new.png", {
+      frameWidth: 96,
+      frameHeight: 64,
     });
   }
 
@@ -261,11 +270,14 @@ export class CatbassadorsScene extends Scene {
     this.cat?.update();
     this.coins.forEach((coin) => coin.update());
 
-    this.checkMilestone();
+    this.checkEnemyMilestone();
+
     this.enemies?.forEach((enemy) => {
       if (enemy) enemy.update(time, delta);
     });
-
+    if (this.bossEnemy) {
+      this.bossEnemy.update(time, delta);
+    }
     this.timer -= delta / 1000;
 
     if (this.timer <= 0 && this.coinSpawnInterval) {
@@ -301,12 +313,17 @@ export class CatbassadorsScene extends Scene {
     coin.sprite.destroy();
     this.coins = this.coins.filter((e) => e !== coin);
   }
-  private checkMilestone() {
+  private checkEnemyMilestone() {
     if (this.score >= this.enemySpawnThreshold) {
       this.spawnEnemy();
       this.enemySpawnThreshold += DEFAULT_ENEMY_SPAWN_THRESHOLD;
     }
+    if (this.score >= DEFAULT_BOSS_SPAWN && !this.IsBossSpawned) {
+      this.spawnBossEnemy();
+      this.IsBossSpawned = true;
+    }
   }
+
   private spawnEnemy() {
     const enemySprites = [
       "enemy-pinkie",
@@ -333,7 +350,26 @@ export class CatbassadorsScene extends Scene {
       this
     );
   }
-
+  private spawnBossEnemy() {
+    this.bossEnemy = new BossEnemy(
+      this,
+      this.getCoinSpawnPositionX() + 32,
+      this.getCoinSpawnPositionY(),
+      "boss",
+      this.cat!.sprite
+    );
+    this.physics.add.collider(this.bossEnemy, this.groundLayer);
+    this.physics.add.collider(this.bossEnemy, this.jumperLayer);
+    this.physics.add.collider(this.bossEnemy, this.platformsLayer);
+    this.physics.add.overlap(
+      this.cat!.sprite,
+      this.bossEnemy,
+      this
+        .handlePlayerBossEnemyCollisions as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+      undefined,
+      this
+    );
+  }
   private handlePlayerEnemyCollisions() {
     if (this.cat?.isInvulnerable) return;
 
@@ -349,6 +385,10 @@ export class CatbassadorsScene extends Scene {
     this.time.delayedCall(1000, () => {
       this.cat!.isInvulnerable = false;
     });
+  }
+  private handlePlayerBossEnemyCollisions() {
+    this.bossEnemy!.destroy();
+    this.endGame();
   }
 
   private processCoinReward(coin: Coin) {
@@ -401,7 +441,10 @@ export class CatbassadorsScene extends Scene {
       });
       this.enemies = [];
     }
-
+    if (this.bossEnemy) {
+      this.bossEnemy.destroy();
+      this.IsBossSpawned = false;
+    }
     if (this.gameSound) {
       this.gameSound.stop();
       this.setDefaultSound();
