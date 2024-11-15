@@ -20,6 +20,7 @@ import { Pathfinding } from "../utils/Pathfinding";
 import { Spike } from "../objects/Spikes";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { Enemy } from "@/components/purrquest/objects/Enemy";
+import { BossEnemy } from "../objects/Boss";
 const COLLISION_TILES = [
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 29, 30, 31, 32, 33, 34, 35, 36, 37, 62, 63, 64,
   65, 72, 88, 90, 91, 92, 93, 94, 120, 121, 122, 123, 149, 150, 151, 152,
@@ -55,6 +56,7 @@ export class PurrquestScene extends Phaser.Scene {
   private platforms: MovablePlatform[] = [];
   private spikes: Spike[] = [];
   private enemies: Enemy[] = [];
+  bossEnemy?: BossEnemy;
   trampoline?: Trampoline;
 
   constructor() {
@@ -88,6 +90,10 @@ export class PurrquestScene extends Phaser.Scene {
       frameWidth: 32,
       frameHeight: 32,
     });
+    this.load.spritesheet("boss", "enemies/boss-new.png", {
+      frameWidth: 96,
+      frameHeight: 64,
+    });
   }
 
   create(props: IPhaserGameSceneProps) {
@@ -119,6 +125,7 @@ export class PurrquestScene extends Phaser.Scene {
     this.spawnKey();
     this.initializeColliders();
     this.spawnEnemiesRandomly(4);
+    this.spawnBossEnemy();
   }
 
   update(time: number, delta: number) {
@@ -134,6 +141,7 @@ export class PurrquestScene extends Phaser.Scene {
     this.enemies.forEach((enemy) => {
       enemy?.update(time, delta);
     });
+    this.bossEnemy?.update(time, delta);
   }
 
   private initializeLevel() {
@@ -191,7 +199,28 @@ export class PurrquestScene extends Phaser.Scene {
       this.jumpLayer!
     );
   }
+  private getRandomWalkableTile(): Phaser.Tilemaps.Tile | null {
+    if (!this.groundLayer) {
+      console.error("Ground layer is not defined.");
+      return null;
+    }
 
+    // Filter out all non-colliding tiles where entities can be placed
+    const walkableTiles = this.groundLayer.filterTiles(
+      (tile: Phaser.Tilemaps.Tile) => {
+        return !tile.collides && tile.index !== -1; // Ensure the tile is walkable
+      }
+    );
+
+    // Check if there are any walkable tiles available
+    if (walkableTiles.length === 0) {
+      console.error("No walkable tiles found.");
+      return null;
+    }
+
+    // Return a random tile from the filtered walkable tiles
+    return Phaser.Utils.Array.GetRandom(walkableTiles);
+  }
   private spawnEnemiesRandomly(count: number) {
     const enemySprites = [
       "enemy-pinkie",
@@ -244,9 +273,47 @@ export class PurrquestScene extends Phaser.Scene {
       );
     });
   }
+  private spawnBossEnemy() {
+    const tile = this.getRandomWalkableTile();
+    if (!tile) {
+      console.error("No walkable tile available for boss spawn.");
+      return;
+    }
 
+    const bossX = tile.getCenterX();
+    const bossY = tile.getTop() - 32;
+
+    this.bossEnemy = new BossEnemy(
+      this,
+      bossX,
+      bossY,
+      "boss",
+      this.player!.sprite
+    );
+
+    this.physics.add.existing(this.bossEnemy);
+
+    if (this.bossEnemy) {
+      this.physics.add.collider(this.bossEnemy, this.groundLayer!);
+      this.physics.add.collider(this.bossEnemy, this.jumpLayer!);
+    }
+
+    this.platforms.forEach((platform) => {
+      this.physics.add.collider(
+        this.bossEnemy as Phaser.GameObjects.GameObject,
+        platform
+      );
+    });
+    this.physics.add.overlap(
+      this.player?.sprite as Phaser.Physics.Arcade.Sprite,
+      this.bossEnemy,
+      this
+        .handlePlayerEnemyCollisions as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+      undefined,
+      this
+    );
+  }
   handlePlayerEnemyCollisions() {
-    //enemy kills player
     this.playerDeathMessage();
   }
 
@@ -468,36 +535,26 @@ export class PurrquestScene extends Phaser.Scene {
   }
 
   private spawnKey() {
-    const solutionPath = this.generateLevel.solutionCells;
-
-    if (solutionPath.length > 0) {
-      const middleIndex = Math.floor(solutionPath.length / 2) + 1;
-      const { x, y } = solutionPath[middleIndex];
-
-      const keyX =
-        x *
-          this.generateLevel.getTileSize() *
-          this.generateLevel.getRoomCols() +
-        32 * 6.5;
-      const keyY =
-        y *
-          this.generateLevel.getTileSize() *
-          this.generateLevel.getRoomRows() +
-        64 -
-        16;
-
-      // Spawn key enemy specifically with type 'KEY'
-      this.key = new Key(this as any, keyX, keyY, CoinType.KEY);
-      this.physics.add.collider(this.key.sprite, this.groundLayer!);
-
-      this.physics.add.overlap(
-        this.player?.sprite as Phaser.Physics.Arcade.Sprite,
-        this.key.sprite,
-        (player, key) => this.collectKey(key as Phaser.GameObjects.Sprite),
-        undefined,
-        this
-      );
+    const tile = this.getRandomWalkableTile();
+    if (!tile) {
+      console.error("No walkable tile available for boss spawn.");
+      return;
     }
+
+    const keyX = tile.getCenterX();
+    const keyY = tile.getTop() - 32;
+
+    // Spawn key enemy specifically with type 'KEY'
+    this.key = new Key(this as any, keyX, keyY, CoinType.KEY);
+    this.physics.add.collider(this.key.sprite, this.groundLayer!);
+
+    this.physics.add.overlap(
+      this.player?.sprite as Phaser.Physics.Arcade.Sprite,
+      this.key.sprite,
+      (player, key) => this.collectKey(key as Phaser.GameObjects.Sprite),
+      undefined,
+      this
+    );
   }
 
   private collectKey(key: Phaser.GameObjects.Sprite) {
