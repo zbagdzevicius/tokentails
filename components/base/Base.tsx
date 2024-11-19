@@ -5,7 +5,6 @@ import {
   useEffect,
   useLayoutEffect,
   useRef,
-  useState,
 } from "react";
 import { GameEvents, IPhaserGame } from "../Phaser/events";
 import { StatusBar } from "../shared/game/StatusBar";
@@ -92,23 +91,10 @@ function Base() {
     };
   }, [cat?.status]);
 
-  const [isClicked, setIsClicked] = useState(false);
-  useEffect(() => {
-    window.onclick = () => {
-      setIsClicked(true);
-    };
-  }, []);
+
 
   return (
     <div id="app" className="z-20">
-      {isClicked && (
-        <audio className="display: none" autoPlay>
-          <source
-            src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3"
-            type="audio/mpeg"
-          />
-        </audio>
-      )}
       <div className="fixed right-1/2 translate-x-[50%] z-50">
         {cat && (
           <div className="flex flex-col justify-center relative gap-2 items-end pr-2 md:pr-4 pt-1 md:pt-4">

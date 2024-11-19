@@ -17,7 +17,7 @@ import { GameModal, GameType } from "@/models/game";
 import * as React from "react";
 import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
-
+import { GameMusicPlayer } from "@/components/shared/GameMusicPlayer";
 type ContextState = {
   isStarted?: boolean;
   gameType: GameType | null;
@@ -137,6 +137,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           {openedModal === GameModal.CATS && (
             <CatsModal close={() => setOpenedModal(null)} />
           )}
+          <GameMusicPlayer />
         </>
       )}
       {children}

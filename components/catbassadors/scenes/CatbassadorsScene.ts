@@ -33,7 +33,6 @@ export class CatbassadorsScene extends Scene {
   coinSpawnInterval: NodeJS.Timeout | null = null;
   timer: number = catbassadorsGameDuration;
   score: number = 0;
-  gameSound?: Phaser.Sound.BaseSound;
   backgroundSound?: Phaser.Sound.BaseSound;
   lastUpdateTime: number;
   trampoline?: Trampoline;
@@ -67,7 +66,6 @@ export class CatbassadorsScene extends Scene {
     this.load.image("coin", "logo/coin.png");
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.audio("coin", "purrquest/sounds/score.mp3");
-    this.load.audio("coingame", "catbassadors/sounds/game.mp3");
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.tilemapTiledJSON("tilemap", "catbassadors/catbassadors.json");
     this.load.image("blocks", "base/blocks.png");
@@ -143,7 +141,6 @@ export class CatbassadorsScene extends Scene {
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(1.25);
 
-    this.gameSound = this.sound.add("coingame", { loop: true });
     this.backgroundSound = this.sound.add("purr", { loop: true });
     this.setDefaultSound();
 
@@ -445,10 +442,6 @@ export class CatbassadorsScene extends Scene {
       this.bossEnemy.destroy();
       this.IsBossSpawned = false;
     }
-    if (this.gameSound) {
-      this.gameSound.stop();
-      this.setDefaultSound();
-    }
 
     GameEvents.GAME_STOP.push({ score: this.score });
     this.score = 0;
@@ -457,10 +450,6 @@ export class CatbassadorsScene extends Scene {
 
   private startGame() {
     this.timer = catbassadorsGameDuration;
-
-    try {
-      this.gameSound?.play();
-    } catch {}
 
     this.coinSpawnInterval = setInterval(() => {
       this.spawnCoin();
