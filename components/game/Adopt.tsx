@@ -19,12 +19,6 @@ function Adopt() {
 
   return (
     <>
-      <audio className="display: none" autoPlay>
-        <source
-          src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3"
-          type="audio/mpeg"
-        />
-      </audio>
       <CatGame cats={cats || []} onClickCallback={setSelectedCat} />
       {selectedCat && (
         <CatCard

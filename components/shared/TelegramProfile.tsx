@@ -3,6 +3,7 @@ import { useToast } from "@/context/ToastContext";
 import { useCallback, useMemo } from "react";
 import { GameStatSection } from "../catbassadors/GameStatsSection";
 import { commafy } from "@/constants/utils";
+import { GameMusicToggle } from "./GameMusicToggler";
 
 const features = ["NFTs & Airdrops prizes", "Weekly Rewards & Events"];
 
@@ -80,7 +81,7 @@ export const TelegramProfileContent = () => {
           </li>
           <li className="flex justify-between mb-4">
             {gameStats.map((stat) => (
-              <GameStatSection {...stat} key={stat.title} onClick={() => {}} />
+              <GameStatSection {...stat} key={stat.title} onClick={() => { }} />
             ))}
           </li>
 
@@ -119,6 +120,7 @@ export const TelegramProfileContent = () => {
           )}
         </ul>
       )}
+      <GameMusicToggle />
     </div>
   );
 };
