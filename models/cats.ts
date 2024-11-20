@@ -1,5 +1,24 @@
 import { IStatusValue, StatusType } from "./status";
 
+export enum BlessingType {
+  CAT = "CAT",
+  SUPPLIES = "SUPPLIES",
+  MEDICAL = "MEDICAL",
+  BILLS = "BILLS",
+}
+
+type IBlessing = {
+  type: BlessingType;
+  _id: string;
+  name: string;
+  description: string;
+  // image: IImage;
+  // images: IImage[];
+  price: number;
+  // creator?: IProfile;
+  // owner?: IProfile;
+};
+
 export enum CatAbilitySkill {
   FURSHADOW = "FURSHADOW",
   PURRSTORM = "PURRSTORM",
@@ -99,6 +118,7 @@ export interface ICat {
   expiresAt?: string;
   price: number;
   catpoints: number;
+  blessings: IBlessing[];
 }
 
 export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {
