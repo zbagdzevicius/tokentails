@@ -13,12 +13,19 @@ interface IProps extends ICat {
 }
 
 export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
-  const { _id, catImg, name, type, ability, resqueStory, catpoints, price } =
+  const { _id, catImg, name, type, ability, resqueStory, catpoints, price, blessings } =
     catData;
   const cardRef = useRef<HTMLDivElement>(null);
   const { profile, setProfileUpdate } = useProfile();
   const [isAdopting, setIsAdopting] = useState(false);
   const { setGameType } = useGame();
+
+
+
+  const firstBlessing = (blessings && blessings.length > 0) ? blessings[0] : null;
+  const blessingsToDisplay = blessings ? blessings.slice(1, 5) : [];
+  const positions = ["left-0 top-0", "left-0 bottom-0", "right-0 bottom-0", "right-0 top-0"];
+
 
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
@@ -119,6 +126,16 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                 width={400}
                 height={400}
               />
+              {blessingsToDisplay.map((blessing, index) => (
+                <img
+                  key={index}
+                  src={`/blessings/${blessing.type}_TYPE.png`}
+                  alt={blessing.type}
+                  width={40}
+                  height={40}
+                  className={`w-12 h-12 absolute ${positions[index]}`}
+                />
+              ))}
               <img
                 src={catImg}
                 alt="Hero cat"
@@ -126,21 +143,20 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                 height={250}
                 className="w-32 h-32 relative z-10"
               />
-              {/* <img
-              // TODO: release after linking with enchantments
-                src={`/flare-effect/${type}.gif`}
-                alt="Hero cat"
-                width={250}
-                height={250}
-                className="w-32 h-32 absolute top-[15%] z-9"
-              /> */}
             </div>
           </div>
           <div>
             <div className="text-start m-3 md:m-5 bg">
               <div className="text-outline mb-3 max-sm:mb-2">
                 <div className="flex flex-row items-center">
-                  <h4 className="text-white text-p3 ml-16 max-sm:ml-10 font-bold">
+                  {firstBlessing && (
+                    <img
+                      src={`/blessings/${firstBlessing.type}_TYPE.png`}
+                      alt={firstBlessing.type}
+                      className="w-10 h-10"
+                    />
+                  )}
+                  <h4 className={`text-white text-p3 ${firstBlessing ? "ml-6" : "ml-16"} max-sm:ml-10 font-bold`}>
                     STORY
                   </h4>
                 </div>
