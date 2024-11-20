@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { CatCard } from "../CatCard";
 import { CatGame } from "../CatGame";
-
 function Adopt() {
   const [selectedCat, setSelectedCat] = useState<any>(null);
   const { profile } = useProfile();
