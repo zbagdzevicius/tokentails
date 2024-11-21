@@ -18,6 +18,7 @@ import * as React from "react";
 import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
 import { GameMusicPlayer } from "@/components/shared/GameMusicPlayer";
+import { SpeechBubble } from "@/components/shared/SpeechBubble";
 type ContextState = {
   isStarted?: boolean;
   gameType: GameType | null;
@@ -31,13 +32,14 @@ let timerInterval: any = null;
 
 const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [isStarted, setIsStarted] = React.useState<boolean>(false);
+  const [isBaseSceneStarted, setIsBaseSceneStarted] = React.useState<boolean>(false);
   const [gameType, setGameType] = React.useState<GameType | null>(
     GameType.HOME
   );
   const [openedModal, setOpenedModal] = React.useState<GameModal | null>(null);
   const { profile, setProfileUpdate, utils, shareUrl } = useProfile();
   const showToast = useToast();
-
+  const isGameLoaded = GameEvents.GAME_LOADED.use();
   const [timer, setTimer] = React.useState<number>(0);
   const gameStopCallback = React.useCallback(
     async (event?: ICatEventsDetails[GameEvent.GAME_STOP]) => {
@@ -121,6 +123,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
               draggable="false"
             />
           </div>
+
           <MobileButtons isHidden={!isStarted} />
           {isStarted && gameType === GameType.CATBASSADORS && (
             <DisplayCoins isHidden={false} />
@@ -137,6 +140,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           {openedModal === GameModal.CATS && (
             <CatsModal close={() => setOpenedModal(null)} />
           )}
+          {gameType === GameType.HOME && isGameLoaded && <SpeechBubble />}
           <GameMusicPlayer />
         </>
       )}
