@@ -1,0 +1,33 @@
+import { useState, useEffect } from "react";
+import { TogglePixelButton } from "./TogglePixelButton";
+
+export const GameMusicToggle = () => {
+    const [isMusicOn, setIsMusicOn] = useState<boolean>(() => {
+        const savedMusicSetting = localStorage.getItem("gameMusic");
+        return savedMusicSetting ? JSON.parse(savedMusicSetting) : false;
+    });
+
+    // Update localStorage whenever the toggle changes
+    useEffect(() => {
+        localStorage.setItem("gameMusic", JSON.stringify(isMusicOn));
+
+        // Dispatch a storage event manually to ensure other components react
+        const storageEvent = new StorageEvent("storage", {
+            key: "gameMusic",
+            newValue: JSON.stringify(isMusicOn),
+        });
+        window.dispatchEvent(storageEvent);
+    }, [isMusicOn]);
+
+    return (
+        <div className="flex flex-row items-center justify-center pt-4 w-full">
+            <div className="flex flex-row relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-r from-green-300 to-yellow-300 px-5">
+                <p className="text-p4 pr-5">Music</p>
+                <TogglePixelButton
+                    defaultActive={isMusicOn}
+                    onClick={() => setIsMusicOn((prev) => !prev)}
+                />
+            </div>
+        </div>
+    );
+};

@@ -175,6 +175,23 @@ const config: Config = {
           },
         ],
       },
+      boxShadow: {
+        custom: `
+          0 4px black, 
+          0 8px black, 
+          0 12px black, 
+          0 16px black, 
+          -4px 12px black, 
+          -8px 8px black, 
+          -12px 4px black, 
+          -4px 4px white, 
+          -8px 4px white, 
+          -4px 8px white, 
+          -4px 0 white, 
+          -8px 0 white, 
+          -12px 0 white
+        `,
+      },
       screens: {
         "3xl": "2300px",
       },
@@ -183,6 +200,7 @@ const config: Config = {
       primary: ["Inter", "sans-serif"],
       secondary: ["Bebas Neue", "sans-serif"],
       tertiary: ["Nunito", "sans-serif"],
+      quanternary: ["Pixelify Sans", "sans-serif"],
     },
   },
   plugins: [require("tailwindcss-convert-px-to-rem")],

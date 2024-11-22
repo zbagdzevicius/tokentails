@@ -1,5 +1,24 @@
 import { IStatusValue, StatusType } from "./status";
 
+export enum BlessingType {
+  CAT = "CAT",
+  SUPPLIES = "SUPPLIES",
+  MEDICAL = "MEDICAL",
+  BILLS = "BILLS",
+}
+
+type IBlessing = {
+  type: BlessingType;
+  _id: string;
+  name: string;
+  description: string;
+  // image: IImage;
+  // images: IImage[];
+  price: number;
+  // creator?: IProfile;
+  // owner?: IProfile;
+};
+
 export enum CatAbilitySkill {
   FURSHADOW = "FURSHADOW",
   PURRSTORM = "PURRSTORM",
@@ -12,6 +31,7 @@ export enum CatAbilitySkill {
   ICECLAW = "ICECLAW", // ICE
   LEAFPURR = "LEAFPURR", // NATURE
   SANDSWIPE = "SANDSWIPE", // SAND
+  TAILSPIN = "TAILSPIN", // TAILS
   STELLARROAR = "STELLARROAR", //LEGENDARY
 }
 
@@ -29,6 +49,7 @@ export enum CatAbilityType {
   ICE = "ICE",
   NATURE = "NATURE",
   SAND = "SAND",
+  TAILS = "TAILS",
   LEGENDARY = "LEGENDARY",
 }
 
@@ -69,6 +90,13 @@ export const catAbilitiesSkills = [
   CatAbilitySkill.TAILWIND,
   CatAbilitySkill.SHADOWPOUNCE,
   CatAbilitySkill.AQUAWHISKER,
+  CatAbilitySkill.BREEZEPAW,
+  CatAbilitySkill.PAWSQUAKE,
+  CatAbilitySkill.ICECLAW,
+  CatAbilitySkill.LEAFPURR,
+  CatAbilitySkill.SANDSWIPE,
+  CatAbilitySkill.TAILSPIN,
+  CatAbilitySkill.STELLARROAR,
 ];
 
 export const getCatAbility = () =>
@@ -90,6 +118,7 @@ export interface ICat {
   expiresAt?: string;
   price: number;
   catpoints: number;
+  blessings: IBlessing[];
 }
 
 export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {
@@ -127,34 +156,40 @@ export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {
   [CatAbilitySkill.BREEZEPAW]: {
     skill: CatAbilitySkill.BREEZEPAW,
     type: CatAbilityType.AIR,
-    description: "A gusty strike that can disorient foes.",
+    description: "Creates a gentle breeze that confuses and distracts foes.",
   },
   [CatAbilitySkill.PAWSQUAKE]: {
     skill: CatAbilitySkill.PAWSQUAKE,
     type: CatAbilityType.EARTH,
-    description: "A ground-shaking stomp that can cause tremors.",
+    description:
+      "A heavy stomp that causes the ground to shake and destabilizes enemies.",
   },
   [CatAbilitySkill.ICECLAW]: {
     skill: CatAbilitySkill.ICECLAW,
     type: CatAbilityType.ICE,
-    description: "A chilling swipe that can freeze the ground beneath.",
+    description: "A frigid swipe that slows opponents with a chilling touch.",
   },
   [CatAbilitySkill.LEAFPURR]: {
     skill: CatAbilitySkill.LEAFPURR,
     type: CatAbilityType.NATURE,
     description:
-      "A soothing purr that encourages nearby plants to grow rapidly.",
+      "Emits a calming aura that restores a bit of health to allies.",
   },
   [CatAbilitySkill.SANDSWIPE]: {
     skill: CatAbilitySkill.SANDSWIPE,
     type: CatAbilityType.SAND,
-    description:
-      "A swift strike that kicks up a cloud of sand to obscure vision.",
+    description: "Kicks up a cloud of sand, blinding and disorienting foes.",
   },
   [CatAbilitySkill.STELLARROAR]: {
     skill: CatAbilitySkill.STELLARROAR,
     type: CatAbilityType.LEGENDARY,
     description:
-      "A roar that echoes through the cosmos, unleashing starry power.",
+      "An otherworldly roar that inspires allies and intimidates all enemies.",
+  },
+  [CatAbilitySkill.TAILSPIN]: {
+    skill: CatAbilitySkill.TAILSPIN,
+    type: CatAbilityType.TAILS,
+    description:
+      "Rapid spin using the tail to dodge obstacles and gain extra speed.",
   },
 };

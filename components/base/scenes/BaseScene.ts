@@ -127,11 +127,8 @@ export class BaseScene extends Scene {
   }
 
   private createCat(catName: string) {
-    // Create the player
     this.cat = new Cat(this, 0, -400, catName);
-    // Enable collision between player and tilemap layer
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
-    // Adjust camera to follow the player
     this.cameras.main.startFollow(this.cat.sprite);
     this.cameras.main.zoom = ZOOM;
   }
@@ -147,6 +144,7 @@ export class BaseScene extends Scene {
       type: NPCJobType.RUN,
       callback: () => this.onFoodEat(),
     };
+
     this.physics.add.collider(this.food.sprite, this.groundLayer);
   }
 
@@ -160,7 +158,6 @@ export class BaseScene extends Scene {
       this.food?.sprite.destroy();
       this.food = null;
       this.sound.play("purr", { volume: 0.5 });
-
       GameEvents.CAT_EATEN.push();
     });
   }
