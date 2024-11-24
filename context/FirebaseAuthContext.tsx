@@ -24,6 +24,8 @@ import { useCallback } from "react";
 import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
 
+let reauthInterval: any;
+
 const firebaseConfig = {
   apiKey: "AIzaSyCfitm6sU-lOunY3JpGdn8D4Ng7Dz5m3yk",
   authDomain: "news-ccd33.firebaseapp.com",
@@ -119,17 +121,27 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
         setUser(null);
         setProfile(null);
         sessionStorage.removeItem("accesstoken");
-        // } else if (u && !u?.emailVerified) {
-        //     sendEmailVerification(u);
-        //     signOut(auth);
-        //     setIsVerifiedModalDisplayed(true);
       } else {
-        // setIsVerifiedModalDisplayed(false);
         await u.getIdToken(true).then((token) => {
           sessionStorage.setItem("accesstoken", `fb${token}`);
           setIsLoginModalDisplayed(false);
           setUser(u);
         });
+
+        if (reauthInterval) {
+          clearInterval(reauthInterval);
+        }
+        reauthInterval = setInterval(async () => {
+          if (auth.currentUser) {
+            try {
+              const refreshedToken = await auth.currentUser.getIdToken(true);
+              sessionStorage.setItem("accesstoken", `fb${refreshedToken}`);
+              console.log("Firebase token refreshed:", refreshedToken);
+            } catch (error) {
+              console.error("Error refreshing token:", error);
+            }
+          }
+        }, 29 * 60 * 1000);
       }
     },
     [setIsLoginModalDisplayed, setIsVerifiedModalDisplayed]

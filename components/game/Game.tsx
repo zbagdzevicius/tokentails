@@ -3,7 +3,6 @@ import { useProfile } from "@/context/ProfileContext";
 import { GameType } from "@/models/game";
 import dynamic from "next/dynamic";
 import { useBackground } from "../../constants/hooks";
-
 const Catbassadors = dynamic(
   () => import("@/components/catbassadors/Catbassadors"),
   { ssr: false }

@@ -13,7 +13,7 @@ import { Coin } from "../objects/Coin";
 import { Enemy } from "../../purrquest/objects/Enemy";
 import { BossEnemy } from "@/components/purrquest/objects/Boss";
 const coinDurationMs = 15000;
-
+const BOSS_REWARD_POINTS = 1000;
 const JUMP_LAYER_TILES = [47, 48, 49, 50];
 const TRAMPOLINE_TILES = [51];
 const TIME_TO_REMOVE_PER_HIT = 5;
@@ -33,14 +33,13 @@ export class CatbassadorsScene extends Scene {
   coinSpawnInterval: NodeJS.Timeout | null = null;
   timer: number = catbassadorsGameDuration;
   score: number = 0;
-  gameSound?: Phaser.Sound.BaseSound;
   backgroundSound?: Phaser.Sound.BaseSound;
   lastUpdateTime: number;
   trampoline?: Trampoline;
   enemySpawnThreshold = DEFAULT_ENEMY_SPAWN_THRESHOLD;
   enemies: Enemy[] = [];
   bossEnemy?: BossEnemy;
-
+  canCollectReward: boolean = false;
   IsBossSpawned = false;
 
   constructor() {
@@ -67,7 +66,6 @@ export class CatbassadorsScene extends Scene {
     this.load.image("coin", "logo/coin.png");
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.audio("coin", "purrquest/sounds/score.mp3");
-    this.load.audio("coingame", "catbassadors/sounds/game.mp3");
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.tilemapTiledJSON("tilemap", "catbassadors/catbassadors.json");
     this.load.image("blocks", "base/blocks.png");
@@ -143,7 +141,6 @@ export class CatbassadorsScene extends Scene {
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(1.25);
 
-    this.gameSound = this.sound.add("coingame", { loop: true });
     this.backgroundSound = this.sound.add("purr", { loop: true });
     this.setDefaultSound();
 
@@ -386,9 +383,44 @@ export class CatbassadorsScene extends Scene {
       this.cat!.isInvulnerable = false;
     });
   }
-  private handlePlayerBossEnemyCollisions() {
-    this.bossEnemy!.destroy();
-    this.endGame();
+  private handlePlayerBossEnemyCollisions(
+    player: Phaser.GameObjects.GameObject,
+    enemy: Phaser.GameObjects.GameObject
+  ) {
+    const playerSprite = player as Phaser.Physics.Arcade.Sprite;
+    const enemySprite = enemy as Phaser.Physics.Arcade.Sprite;
+
+    const playerBottom = playerSprite.y + playerSprite.height / 2;
+    const playerLeft = playerSprite.x - playerSprite.width / 2;
+    const playerRight = playerSprite.x + playerSprite.width / 2;
+    const enemyTop = enemySprite.y - enemySprite.height / 2;
+    const enemyLeft = enemySprite.x - enemySprite.width / 2;
+    const enemyRight = enemySprite.x + enemySprite.width / 2;
+
+    const isTopCollision =
+      playerBottom < enemyTop + 32 &&
+      playerBottom > enemyTop - 32 &&
+      playerRight > enemyLeft &&
+      playerLeft < enemyRight;
+
+    if (isTopCollision) {
+      playerSprite.setVelocityY(-1000);
+      if (!this.canCollectReward) {
+        this.canCollectReward = true;
+
+        GameEvents[GameEvent.GAME_COIN_CAUGHT].push({
+          score: BOSS_REWARD_POINTS,
+        });
+        this.score += BOSS_REWARD_POINTS;
+
+        this.time.delayedCall(3000, () => {
+          this.canCollectReward = false;
+        });
+      }
+    } else {
+      this.bossEnemy!.destroy();
+      this.endGame();
+    }
   }
 
   private processCoinReward(coin: Coin) {
@@ -445,10 +477,6 @@ export class CatbassadorsScene extends Scene {
       this.bossEnemy.destroy();
       this.IsBossSpawned = false;
     }
-    if (this.gameSound) {
-      this.gameSound.stop();
-      this.setDefaultSound();
-    }
 
     GameEvents.GAME_STOP.push({ score: this.score });
     this.score = 0;
@@ -457,10 +485,6 @@ export class CatbassadorsScene extends Scene {
 
   private startGame() {
     this.timer = catbassadorsGameDuration;
-
-    try {
-      this.gameSound?.play();
-    } catch {}
 
     this.coinSpawnInterval = setInterval(() => {
       this.spawnCoin();

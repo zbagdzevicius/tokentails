@@ -190,3 +190,34 @@ export const getCurrentMonthDateValue = () => {
 export function getRandomInt(max: number) {
   return Math.floor(Math.random() * max);
 }
+
+export const greetingText = [
+  "I'm too hungry! Press 'Feed' to help me continue!",
+  "Feed me first, or we stay stuck here! Meow!",
+  "I can't take another step! Press 'Feed' to help!",
+  "No food, no fun! Fill my bowl to move forward!",
+  "I'm stuck! Meow! Feed me to set me free!",
+  "Feed me, or no progress! Snacks first, please!",
+  "My belly needs food before we can continue!",
+  "Want progress? I want snacks! Press 'Feed' now!",
+  "I’m not moving until you feed me! Press 'Feed!'",
+  "I'm frozen! Feed me to free me from this hunger!",
+];
+
+export const aftrFeedText = [
+  "Purrfect! Thanks for the meal! Let's explore! Tap 'Get into Adventures' now!",
+  "Yum! That was tasty! Ready for some fun? Press 'Get into Adventures' to start!",
+  "You're the best! Now, let's make memories! Click 'Get into Adventures' to go!",
+  "Meowch appreciated! Let's dive in! Hit 'Get into Adventures' to begin our journey!",
+  "Feeling fabulous! Thanks for feeding me! Ready? Tap 'Get into Adventures' to move!",
+  "So grateful! Time for fun? Click 'Get into Adventures' and start exploring with me!",
+  "Thanks a bunch! Can't wait to see more! Press 'Get into Adventures' to explore now!",
+  "Delicious! Now I'm ready! Let's find out more! Hit 'Get into Adventures' and go!",
+  "Purr, purr! I'm full and ready! Let's make memories! Press 'Get into Adventures'!",
+  "You're awesome! Adventure is calling! Tap 'Get into Adventures' and join the fun!",
+];
+
+export function getRandomItemFromArray(arr: string[]) {
+  const randomItemPosition = Math.floor(Math.random() * arr.length);
+  return arr.at(randomItemPosition);
+}
