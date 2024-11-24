@@ -9,9 +9,7 @@ async function DistributeBatch(addresses) {
   }
 
   for (const batch of batchedAddresses) {
-    const transactions = batch.map((address) => distribute({ address }));
-
-    await Promise.all(transactions);
+    await Promise.all(batch.map((address) => distribute({ address })));
     // Optionally add a delay between batches to avoid rate limiting
     await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay
   }

@@ -1,8 +1,9 @@
 const express = require("express");
 const helmet = require("helmet");
 const cors = require("cors");
+const { DISTRIBUTION_THRESHOLD } = require("./config");
 const { isAddress } = require("ethers");
-const Distribute = require("./distribute");
+const { Distribute, initializeNonce } = require("./distribute");
 const DistributeBatch = require("./distribute-batch");
 const Balance = require("./balance");
 const { json, urlencoded } = require("express");
@@ -34,7 +35,7 @@ app.get("/", (_, res) => {
 
 async function isClaimable(walletAddress) {
   const balance = await Balance(walletAddress);
-  return Number(balance) < 10000000000000;
+  return Number(balance) < DISTRIBUTION_THRESHOLD;
 }
 
 function convertToTokenUnits(balance, decimals = 18) {
@@ -75,11 +76,10 @@ app.get("/claim/:address", async (req, res) => {
       distribute: false,
     });
   }
-
-  const distribute = await Distribute({ address });
+  await Distribute({ address });
 
   return res.status(200).send({
-    distribute,
+    distribute: true,
   });
 });
 
@@ -95,10 +95,11 @@ app.get("/balance/:walletAddress", async (req, res) => {
   const tokens = convertToTokenUnits(balance);
   return res.status(200).send({
     balance,
-    tokens
+    tokens,
   });
 });
 
+initializeNonce();
 app.listen(process.env.PORT || 8888, () => {
   console.log("SKALE API Distributor Listening on ", process.env.PORT || 8888);
 });

@@ -9,7 +9,7 @@
 - ##### TokenTailsCat ERC-721 NFT: `0x319830785404248ae189dC5D18cF292e1b7f9434`
 
 # SKALE nebula mainnet
-#### details: `https://testnet.portal.skale.space/chains/lanky-ill-funny-testnet`
+#### details: `https://mainnet.skalenodes.com/v1/green-giddy-denebola`
 #### RPC endpoint: `https://mainnet.skalenodes.com/v1/green-giddy-denebola`
 #### block explorer: `https://green-giddy-denebola.explorer.mainnet.skalenodes.com/`
 #### chain ID: `0x585eb4b1`
