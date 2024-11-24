@@ -100,6 +100,7 @@ app.get("/balance/:walletAddress", async (req, res) => {
 });
 
 initializeNonce();
+
 app.listen(process.env.PORT || 8888, () => {
   console.log("SKALE API Distributor Listening on ", process.env.PORT || 8888);
 });

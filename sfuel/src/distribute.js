@@ -1,22 +1,15 @@
-const { JsonRpcProvider, Wallet } = require("ethers");
-
-const { DISTRIBUTION_VALUE, PRIVATE_KEY, RPC_URL } = require("./config");
-
-const provider = new JsonRpcProvider(RPC_URL);
-const wallet = new Wallet(PRIVATE_KEY, provider);
-
-let nonce;
+const { DISTRIBUTION_VALUE, WALLET } = require("./config");
 
 async function initializeNonce() {
-  nonce = await provider.getTransactionCount(wallet.address);
+  await WALLET.getNonce("pending");
 }
 
 async function Distribute({ address }) {
-  await wallet.sendTransaction({
+  const tx = await WALLET.sendTransaction({
     to: address,
     value: DISTRIBUTION_VALUE,
-    nonce: nonce++,
   });
+  await tx.wait();
 }
 
 module.exports = { Distribute, initializeNonce };
