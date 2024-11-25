@@ -3,7 +3,7 @@ import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
 import { useState } from "react";
 import { PixelButton } from "../shared/PixelButton";
-
+import { CloseButton } from "../shared/CloseButton";
 interface IGameStat {
   title: string;
   image: string;
@@ -94,6 +94,7 @@ export const GameStatsSection = ({
               ></PixelButton>
             </div>
           </div>
+          <CloseButton onClick={() => setModal(null)} />
         </div>
       )}
     </div>
