@@ -4,7 +4,7 @@ import { useToast } from "@/context/ToastContext";
 import { useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { PixelButton } from "./PixelButton";
-
+import { CloseButton } from "./CloseButton";
 enum QuestType {
   SOCIAL = "SOCIAL",
   MILESTONE = "MILESTONE",
@@ -439,6 +439,7 @@ export const QuestsModalContent = () => {
 export const QuestsModal = ({ close }: { close: () => void }) => {
   return (
     <div className="fixed inset-0 pt-safe w-full z-[100] flex justify-center h-full">
+      <CloseButton onClick={() => close()} />
       <div
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
