@@ -205,16 +205,16 @@ export const greetingText = [
 ];
 
 export const aftrFeedText = [
-  "Purrfect! Thanks for the meal! Let's explore! Tap 'Get into Adventures' now!",
-  "Yum! That was tasty! Ready for some fun? Press 'Get into Adventures' to start!",
-  "You're the best! Now, let's make memories! Click 'Get into Adventures' to go!",
-  "Meowch appreciated! Let's dive in! Hit 'Get into Adventures' to begin our journey!",
-  "Feeling fabulous! Thanks for feeding me! Ready? Tap 'Get into Adventures' to move!",
-  "So grateful! Time for fun? Click 'Get into Adventures' and start exploring with me!",
-  "Thanks a bunch! Can't wait to see more! Press 'Get into Adventures' to explore now!",
-  "Delicious! Now I'm ready! Let's find out more! Hit 'Get into Adventures' and go!",
-  "Purr, purr! I'm full and ready! Let's make memories! Press 'Get into Adventures'!",
-  "You're awesome! Adventure is calling! Tap 'Get into Adventures' and join the fun!",
+  "Purrfect! Thanks for the meal! Let's explore! Tap 'Get into Adventures' now!Purrfect! Thanks for the meal! Let's explore! Tap 'Get into Adventures' now!",
+  "Yum! That was tasty! Ready for some fun? Press 'Get into Adventures' to start!Purrfect! Thanks for the meal! Let's explore! Tap 'Get into Adventures' now!",
+  "You're the best! Now, let's make memories! Click 'Get into Adventures' to go!Purrfect! Thanks for the meal! Let's explore! Tap 'Get into Adventures' now!",
+  "Meowch appreciated! Let's dive in! Hit 'Get into Adventures' to begin our journeyPurrfect! Thanks for the meal! Let's explore! Tap 'Get into Adventures' now!!",
+  "Feeling fabulous! Thanks for feeding me! Ready? Tap 'Get into Adventures' to move!Purrfect! Thanks for the meal! Let's explore! Tap 'Get into Adventures' now!",
+  "So grateful! Time for fun? Click 'Get into Adventures' and start exploring with me!Purrfect! Thanks for the meal! Let's explore! Tap 'Get into Adventures' now!",
+  "Thanks a bunch! Can't wait to see more! Press 'Get into Adventures' to explore now!Purrfect! Thanks for the meal! Let's explore! Tap 'Get into Adventures' now!",
+  "Delicious! Now I'm ready! Let's find out more! Hit 'Get into Adventures' and go!Purrfect! Thanks for the meal! Let's explore! Tap 'Get into Adventures' now!",
+  "Purr, purr! I'm full and ready! Let's make memories! Press 'Get into Adventures'!Purrfect! Thanks for the meal! Let's explore! Tap 'Get into Adventures' now!",
+  "You're awesome! Adventure is calling! Tap 'Get into Adventures' and join the fun!Purrfect! Thanks for the meal! Let's explore! Tap 'Get into Adventures' now!",
 ];
 
 export function getRandomItemFromArray(arr: string[]) {
