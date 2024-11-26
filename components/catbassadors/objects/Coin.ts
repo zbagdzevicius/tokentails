@@ -97,6 +97,7 @@ export class Coin {
   async update() {
     this.applyGravity();
     this.checkCollisions();
+    this.applyRotation();
   }
 
   private applyGravity() {
@@ -104,7 +105,9 @@ export class Coin {
     this.sprite.y += this.vy;
     this.sprite.x += this.vx;
   }
-
+  private applyRotation() {
+    this.sprite.rotation += 0.25;
+  }
   private checkCollisions() {
     // Check collision with ground tiles
     const groundTile = this.scene.groundLayer.getTileAtWorldXY(
