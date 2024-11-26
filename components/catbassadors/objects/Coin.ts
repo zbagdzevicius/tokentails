@@ -19,7 +19,7 @@ interface ExtendedScene extends Scene {
 export enum CoinType {
   COIN = "COIN",
   BOSS_COIN = "BOSS_COIN",
-  PUMPKIN = "PUMPKIN",
+  CANDY_CANE = "CANDY_CANE",
   TIME_COIN = "TIME_COIN",
   KEY = "KEY",
 }
@@ -27,7 +27,7 @@ export enum CoinType {
 const EnemyTypeSriteMap: Record<CoinType, string> = {
   [CoinType.COIN]: "coin",
   [CoinType.BOSS_COIN]: "bosscoin",
-  [CoinType.PUMPKIN]: "pumpkin",
+  [CoinType.CANDY_CANE]: "candy-cane",
   [CoinType.TIME_COIN]: "timecoin",
   [CoinType.KEY]: "key",
 };
@@ -41,7 +41,7 @@ const getCoinType = (): CoinType => {
     case type < 8:
       return CoinType.BOSS_COIN;
     case type < 25:
-      return CoinType.PUMPKIN;
+      return CoinType.CANDY_CANE;
     default:
       return CoinType.COIN;
   }
@@ -49,7 +49,7 @@ const getCoinType = (): CoinType => {
 
 const EnemyTypeCoinReward: Record<CoinType, number> = {
   [CoinType.COIN]: 1,
-  [CoinType.PUMPKIN]: 10,
+  [CoinType.CANDY_CANE]: 10,
   [CoinType.BOSS_COIN]: 100,
   [CoinType.TIME_COIN]: 1000,
   [CoinType.KEY]: 0,
@@ -57,7 +57,7 @@ const EnemyTypeCoinReward: Record<CoinType, number> = {
 
 const EnemyTypeTimeReward: Record<CoinType, number> = {
   [CoinType.COIN]: 0,
-  [CoinType.PUMPKIN]: 1,
+  [CoinType.CANDY_CANE]: 1,
   [CoinType.BOSS_COIN]: 3,
   [CoinType.TIME_COIN]: 10,
   [CoinType.KEY]: 0,
@@ -65,7 +65,7 @@ const EnemyTypeTimeReward: Record<CoinType, number> = {
 
 const EnemyTypeVelocity: Record<CoinType, number> = {
   [CoinType.COIN]: 5,
-  [CoinType.PUMPKIN]: 5,
+  [CoinType.CANDY_CANE]: 5,
   [CoinType.BOSS_COIN]: 8,
   [CoinType.TIME_COIN]: 12,
   [CoinType.KEY]: 12,

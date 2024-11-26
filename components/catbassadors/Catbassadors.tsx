@@ -114,7 +114,7 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
             <img className="h-8" src="logo/coin.webp"></img>
           </div>
           <div className="flex gap-2 items-center justify-center font-secondary text-p4">
-            <img className="h-8" src="icons/pumpkin.png"></img>
+            <img className="h-8" src="icons/candy-cane.png"></img>
             <span className="whitespace-nowrap">GIVES 10</span>
             <img className="h-8" src="logo/coin.webp"></img>
           </div>
