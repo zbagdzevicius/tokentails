@@ -78,18 +78,26 @@ export class PurrquestScene extends Phaser.Scene {
     );
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.image("key", "purrquest/sprites/key.png");
-    this.load.spritesheet("enemy-pinkie", "enemies/pink-fluffie.png", {
+    this.load.spritesheet("enemy-pinkie", "enemies/pink-fluffie-winter.png", {
       frameWidth: 32,
       frameHeight: 32,
     });
-    this.load.spritesheet("enemy-blue-fluffie", "enemies/blue-fluffie.png", {
-      frameWidth: 32,
-      frameHeight: 32,
-    });
-    this.load.spritesheet("enemy-white-owlet", "enemies/white-owlet.png", {
-      frameWidth: 32,
-      frameHeight: 32,
-    });
+    this.load.spritesheet(
+      "enemy-blue-fluffie",
+      "enemies/blue-fluffie-winter.png",
+      {
+        frameWidth: 32,
+        frameHeight: 32,
+      }
+    );
+    this.load.spritesheet(
+      "enemy-white-owlet",
+      "enemies/white-owlet-winter.png",
+      {
+        frameWidth: 32,
+        frameHeight: 32,
+      }
+    );
     this.load.spritesheet("boss", "enemies/boss-new.png", {
       frameWidth: 96,
       frameHeight: 64,

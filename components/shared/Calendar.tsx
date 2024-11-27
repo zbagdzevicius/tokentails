@@ -28,7 +28,7 @@ export const Calendar = () => {
                     src="advent-calendar/calendar.png"
                     alt="Advent calendar"
                 />
-                <h2 className="absolute lg:text-p2 text-p4 uppercase font-quanternary text-yellow-200 font-bold w-full text-center lg:top-[35%] top-[35%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 lg:text-outline-medium text-outline">
+                <h2 className="absolute lg:text-p2 text-p4 uppercase font-secondary text-black font-bold w-full text-center lg:top-[35%] top-[35%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 ">
                     {today >= 25 ? "Christmas" : `${Math.min(today, 25)} DAY`}
                 </h2>
                 {currentDayData && (
@@ -40,8 +40,17 @@ export const Calendar = () => {
                 )}
             </div>
             {isCalendarOpen && (
-                <div className="w-full h-screen fixed z-[80]  overflow-x-hidden overflow-y-scroll">   <AdventCalendar close={handleCalendarClick} /></div>
-
+                <div className="w-[90%] min-h-screen fixed z-[80] flex justify-center items-center ">
+                    <div className="fixed inset-0 pt-safe w-full z-[100] flex justify-center h-full ">
+                        <div
+                            onClick={handleCalendarClick}
+                            className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
+                        ></div>
+                        <div className="z-50 rem:w-full md:w-[90%] transition-from-bottom-animation max-w-full relative absolute inset-0 max-h-screen overflow-y-auto overflow-x-hidden h-fit lg:py-5">
+                            <AdventCalendar close={handleCalendarClick} />
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

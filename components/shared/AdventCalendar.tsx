@@ -142,7 +142,7 @@ export const AdventCalendar = ({ close }: IAdventCalendar) => {
 
     unlockDays();
     return (
-        <div className="lg:px-5 px-2 lg:py-20 py-10 " style={{
+        <div className="lg:px-16 px-2 lg:py-20 py-10 rounded-3xl" style={{
             backgroundImage: `url(${backgroundUrl})`,
             backgroundPosition: 'center',
             backgroundSize: 'cover',
@@ -159,12 +159,14 @@ export const AdventCalendar = ({ close }: IAdventCalendar) => {
                             isUnlocked={content.unlocked}
                         >
                             <div className="relative w-full h-full " onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center justify-center">
+                                <div className="flex items-center justify-center h-full">
+
                                     <img
+                                        className="h-full"
                                         src="advent-calendar/calendar-note.png"
                                         alt={`Day ${dayNumber}`}
                                     />
-                                    <h2 className="absolute lg:text-h6 text-md uppercase font-quanternary text-yellow-200 font-bold w-full text-center top-[33%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 lg:text-outline-medium text-outline">
+                                    <h2 className="absolute lg:text-h6 text-md uppercase font-secondary text-black font-bold w-full text-center top-[33%] left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                                         {dayNumber >= 25 ? "Christmas" : `${Math.min(dayNumber, 25)} DAY`}
                                     </h2>
                                     <img className="absolute lg:bottom-14 bottom-7 lg:w-12 w-6 lg:h-12 h-6 " src={content.isOpened ? content.cat.catImg : content.image} />

@@ -129,7 +129,6 @@ export const TelegramProfileContent = () => {
 export const TelegramProfile = ({ close }: { close: () => void }) => {
   return (
     <div className="fixed inset-0 pt-safe w-full z-[100] flex justify-center h-full">
-      <CloseButton onClick={() => close()} />
       <div
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
@@ -139,6 +138,7 @@ export const TelegramProfile = ({ close }: { close: () => void }) => {
         <button onClick={close} className="absolute right-[0] top-0 group">
           <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>
         </button>
+        <CloseButton onClick={() => close()} />
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ import { Cat } from "../objects/Catbassador";
 import { Coin } from "../objects/Coin";
 import { Enemy } from "../../purrquest/objects/Enemy";
 import { BossEnemy } from "@/components/purrquest/objects/Boss";
+import { currentDayCoin } from "@/constants/utils";
 const coinDurationMs = 15000;
 const BOSS_REWARD_POINTS = 1000;
 const JUMP_LAYER_TILES = [47, 48, 49, 50];
@@ -61,7 +62,7 @@ export class CatbassadorsScene extends Scene {
     });
 
     this.load.image("bosscoin", "logo/boss-coin.png");
-    this.load.image("candy-cane", "icons/candy-cane.png");
+    this.load.image("candy-cane", currentDayCoin);
     this.load.image("timecoin", "icons/clock.png");
     this.load.image("coin", "logo/coin.png");
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
@@ -73,18 +74,26 @@ export class CatbassadorsScene extends Scene {
       frameWidth: 32,
       frameHeight: 32,
     });
-    this.load.spritesheet("enemy-pinkie", "enemies/pink-fluffie.png", {
+    this.load.spritesheet("enemy-pinkie", "enemies/pink-fluffie-winter.png", {
       frameWidth: 32,
       frameHeight: 32,
     });
-    this.load.spritesheet("enemy-blue-fluffie", "enemies/blue-fluffie.png", {
-      frameWidth: 32,
-      frameHeight: 32,
-    });
-    this.load.spritesheet("enemy-white-owlet", "enemies/white-owlet.png", {
-      frameWidth: 32,
-      frameHeight: 32,
-    });
+    this.load.spritesheet(
+      "enemy-blue-fluffie",
+      "enemies/blue-fluffie-winter.png",
+      {
+        frameWidth: 32,
+        frameHeight: 32,
+      }
+    );
+    this.load.spritesheet(
+      "enemy-white-owlet",
+      "enemies/white-owlet-winter.png",
+      {
+        frameWidth: 32,
+        frameHeight: 32,
+      }
+    );
     this.load.spritesheet("boss", "enemies/boss-new.png", {
       frameWidth: 96,
       frameHeight: 64,
@@ -94,7 +103,7 @@ export class CatbassadorsScene extends Scene {
   create(props: IPhaserGameSceneProps) {
     this.physics.world.setFPS(90);
     this.tilemap = this.make.tilemap({ key: "tilemap" });
-
+    console.log(currentDayCoin);
     const sugarTileset = this.tilemap.addTilesetImage(
       "blocks",
       "blocks",
