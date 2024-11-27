@@ -73,24 +73,24 @@ export const LeaderboardContent = () => {
               <th
                 scope="row"
                 className={`text-p4 font-secondary text-center py-4 font-medium whitespace-nowrap border-b ${index > 2
-                    ? "bg-white border-purple-300"
-                    : "bg-yellow-300 border-white"
+                  ? "bg-white border-purple-300"
+                  : "bg-yellow-300 border-white"
                   }`}
               >
                 {index + 1}
               </th>
               <td
                 className={`py-4 text-center bg-gray-700 text-p5 border-l font-bold ${index > 2
-                    ? "border-purple-300 text-purple-300"
-                    : "border-yellow-300 text-yellow-300"
+                  ? "border-purple-300 text-purple-300"
+                  : "border-yellow-300 text-yellow-300"
                   }`}
               >
                 {result.name}
               </td>
               <td
                 className={`p-4 text-center bg-gray-700 text-p5 md:text-p4 border-l font-secondary ${index > 2
-                    ? "border-purple-300 text-purple-300"
-                    : "border-yellow-300 text-yellow-300"
+                  ? "border-purple-300 text-purple-300"
+                  : "border-yellow-300 text-yellow-300"
                   }`}
               >
                 {(type === GameModal.LEADERBOARD
@@ -108,7 +108,6 @@ export const LeaderboardContent = () => {
 export const Leaderboard = ({ close }: { close: () => void }) => {
   return (
     <div className="fixed inset-0 pt-safe w-full z-[100] flex justify-center h-full">
-      <CloseButton onClick={() => close()} />
       <div
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
@@ -118,6 +117,7 @@ export const Leaderboard = ({ close }: { close: () => void }) => {
         <button onClick={close} className="absolute right-[0] top-0 group">
           <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>
         </button>
+        <CloseButton onClick={() => close()} />
       </div>
     </div>
   );

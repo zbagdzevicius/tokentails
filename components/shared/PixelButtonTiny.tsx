@@ -26,7 +26,7 @@ export const PixelButtonTiny = ({
             </div>
             <div className="lg:h-12 h-6 flex flex-col  border-y-4 border-black bg-red-500">
                 <div
-                    className={`lg:h-9 h-4 bg-red-500 font-secondary lg:text-p4 text-p6 flex items-center justify-center lg:w-[13.5rem] w-[4.6125rem] gap-2`}
+                    className={`lg:h-9 h-4 bg-red-500 font-secondary lg:text-p4 text-p6 flex items-center justify-center lg:w-[12.5rem] w-[4.6125rem] gap-2`}
                 >
                     <p className="text-yellow-300 whitespace-nowrap">{text}</p>
                     {subtext && <p className="text-yellow-200">{subtext}</p>}

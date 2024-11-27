@@ -7,7 +7,7 @@ export const Window: React.FC<WindowProps> = ({ children, isUnlocked, isOpened }
 
     return (
         <div className="border-4 border-black h-fit">
-            <div className="relative lg:w-60 lg:h-60 w-24 h-24 border-4 border-[#61412D]  group" onClick={(e) => e.stopPropagation()}>
+            <div className="relative lg:w-56 lg:h-56 w-24 h-24 border-4 border-[#61412D]  group" onClick={(e) => e.stopPropagation()}>
                 <div className="w-full h-full">
                     {children}
                 </div>

@@ -93,8 +93,8 @@ export const GameStatsSection = ({
                 text="Okey"
               ></PixelButton>
             </div>
+            <CloseButton onClick={() => setModal(null)} />
           </div>
-          <CloseButton onClick={() => setModal(null)} />
         </div>
       )}
     </div>

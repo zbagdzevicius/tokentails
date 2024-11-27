@@ -3,6 +3,7 @@ import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
 import { GameEvents, IPhaserGame } from "../Phaser/events";
 import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
 import { useGame } from "@/context/GameContext";
+import { currentDayCoin } from "@/constants/utils";
 
 export interface IGameOverEvent extends Event {
   detail: {
@@ -114,7 +115,7 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
             <img className="h-8" src="logo/coin.webp"></img>
           </div>
           <div className="flex gap-2 items-center justify-center font-secondary text-p4">
-            <img className="h-8" src="icons/candy-cane.png"></img>
+            <img className="h-8" src={currentDayCoin}></img>
             <span className="whitespace-nowrap">GIVES 10</span>
             <img className="h-8" src="logo/coin.webp"></img>
           </div>
