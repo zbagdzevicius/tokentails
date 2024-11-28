@@ -98,7 +98,7 @@ export class PurrquestScene extends Phaser.Scene {
         frameHeight: 32,
       }
     );
-    this.load.spritesheet("boss", "enemies/boss-new.png", {
+    this.load.spritesheet("boss", "enemies/boss/boss-winter.png", {
       frameWidth: 96,
       frameHeight: 64,
     });

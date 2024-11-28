@@ -14,7 +14,7 @@ import { CircleWhite } from "@/components/shared/CircleWhite";
 import Head from "next/head";
 import { useEffect, useRef, useState } from "react";
 import { Header } from "@/layouts/Header";
-
+import Snowfall from "@/components/shared/Snowfall"
 export default function Index() {
   const [activeSection, setActiveSection] = useState("");
   const catssliderRef = useRef(null);
@@ -103,27 +103,35 @@ export default function Index() {
           <Circle />
         </div>
         <div
-          className="pt-24 md:pt-36 fade-in"
+          className="pt-24 md:pt-36 fade-in h-screen"
           style={{
-            backgroundImage: "url(/base/bg-night.gif)",
+            backgroundImage: "url(/base/bg-night-2.gif)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         >
           <div id="homepage">
+            <Snowfall />
             <HomePage />
           </div>
         </div>
-        <div className="pb-4 pt-3 md:pt-0 bg-gradient-to-b from-purple-300 to-blue-300">
+        <div className="pb-4 pt-3 md:pt-0 h-screen"
+          style={{
+            backgroundImage: "url(/base/bg-6.png)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
           <div id="catsslider" ref={catssliderRef}>
             <CatsSlider />
           </div>
         </div>
         <div
-          className="py-4 bg-gradient-to-b from-purple-300"
+          className="py-4 h-screen"
           style={{
-            backgroundImage: "url(/base/bg-2.gif)",
+            backgroundImage: "url(/base/bg-3.gif)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -133,12 +141,24 @@ export default function Index() {
             <CatsHub />
           </div>
         </div>
-        <div className="pb-4 pt-3 md:pt-0 bg-gradient-to-b from-purple-300 to-yellow-300">
+
+        <div className="pb-4 pt-3 md:pt-0 h-screen"
+          style={{
+            backgroundImage: "url(/base/bg-4.gif)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}>
           <div id="catsslider" ref={gamessliderRef}>
             <GameModesSlider />
           </div>
         </div>
-        <div className="py-4 bg-gradient-to-b from-yellow-300 via-yellow-300 to-purple-300">
+        <div className="py-4 h-screen" style={{
+          backgroundImage: "url(/base/bg-2.gif)",
+          backgroundRepeat: "no-repeat",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}>
           <div
             className="relative overflow-hidden"
             id="catswinners"
@@ -152,22 +172,42 @@ export default function Index() {
             </div>
           </div>
         </div>
-        <div className="py-4 pt-24 bg-gradient-to-t from-blue-300 to-purple-300">
+        <div className="py-4 pt-96 h-screen" style={{
+          backgroundImage: "url(/base/bg-5.png)",
+          backgroundRepeat: "no-repeat",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}>
           <div id="roadmap" ref={roadmapRef}>
             <Roadmap />
           </div>
         </div>
-        <div className="py-4 bg-gradient-to-t from-green-300 to-blue-300">
+        <div className="py-4 h-screen" style={{
+          backgroundImage: "url(/base/bg.gif)",
+          backgroundRepeat: "no-repeat",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}>
           <div id="feedbackslider" ref={feedbackSliderRef}>
             <FeedbackSlider />
           </div>
         </div>
-        <div className="bg-gradient-to-b from-green-300 to-blue-300">
+        <div className="h-screen" style={{
+          backgroundImage: "url(/base/bg-night.gif)",
+          backgroundRepeat: "no-repeat",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}>
           <div id="blog">
             <BlogPreview />
           </div>
         </div>
-        <div className="pt-4 bg-gradient-to-b from-green-300 to-yellow-300">
+        <div className="pt-4 h-screen" style={{
+          backgroundImage: "url(/base/bg.svg)",
+          backgroundRepeat: "no-repeat",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}>
           <div id="contact" ref={contactRef}>
             <Contact />
           </div>

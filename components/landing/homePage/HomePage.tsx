@@ -145,13 +145,13 @@ export const HomePage = () => {
         earlyDistance < 0
           ? "PLAY NOW"
           : earlyDays +
-            "d " +
-            earlyHours +
-            "h " +
-            earlyMinutes +
-            "m " +
-            earlySeconds +
-            " s";
+          "d " +
+          earlyHours +
+          "h " +
+          earlyMinutes +
+          "m " +
+          earlySeconds +
+          " s";
 
       setEarlyCountdown(earlyCountdownText);
     }

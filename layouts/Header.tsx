@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { PixelButton } from "../components/shared/PixelButton";
 import { Socials } from "./Socials";
+import NumberIncrementer from "@/components/shared/IncrementNumber";
 
 interface navProps {
   title: string;
@@ -65,18 +66,16 @@ export const Header = () => {
   };
   return (
     <header
-      className={`uppercase font-normal transition-animation fixed top-0 left-0 right-0 z-50 transition duration-300 ease-in-out ${
-        showHeader
-          ? isTop
-            ? ""
-            : "bg-[rgba(45, 30, 107, 1)] lg:bg-opacity-50 bg-yellow-300 shadow-lg"
-          : "-translate-y-full"
-      }`}
+      className={`uppercase font-normal transition-animation fixed top-0 left-0 right-0 z-50 transition duration-300 ease-in-out ${showHeader
+        ? isTop
+          ? ""
+          : "bg-[rgba(45, 30, 107, 1)] lg:bg-opacity-50 bg-yellow-300 shadow-lg"
+        : "-translate-y-full"
+        }`}
     >
       <div
-        className={`flex flex-wrap items-center justify-between relative ${
-          isTop ? "py-6" : "py-2"
-        } px-24 max-lg:px-4 relative`}
+        className={`flex flex-wrap items-center justify-between relative ${isTop ? "py-6" : "py-2"
+          } px-24 max-lg:px-4 relative`}
       >
         <a href="/" className="flex items-center gap-4 transition">
           <img
@@ -94,11 +93,10 @@ export const Header = () => {
             >
               <a
                 href={navItem.link}
-                className={`text-p3 font-secondary hover:custom-gradient-text ${
-                  activeTitle === navItem.title
-                    ? "custom-gradient-text font-bold"
-                    : ""
-                }`}
+                className={`text-p3 font-secondary hover:custom-gradient-text ${activeTitle === navItem.title
+                  ? "custom-gradient-text font-bold"
+                  : ""
+                  }`}
                 onClick={() => handleTitleClick(navItem.title)}
               >
                 {navItem.title}
@@ -122,6 +120,7 @@ export const Header = () => {
               />
             )}
           </div>
+          <NumberIncrementer number={11000000000000000} />
           <a href="/feed">
             <PixelButton text="Blog" isBig></PixelButton>
           </a>
