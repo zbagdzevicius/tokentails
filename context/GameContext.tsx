@@ -20,6 +20,8 @@ import { useToast } from "./ToastContext";
 import { Calendar } from "@/components/shared/Calendar";
 import { GameMusicPlayer } from "@/components/shared/GameMusicPlayer";
 import { SpeechBubble } from "@/components/shared/SpeechBubble";
+import SnowingCanvas from "@/components/shared/SnowingCanvas";
+
 type ContextState = {
   isStarted?: boolean;
   gameType: GameType | null;
@@ -118,11 +120,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
             />
           )}
           <div className="fixed inset-0">
-            <img
-              src="/catgame/spooky.webp"
-              className="w-16 m-auto draggable"
-              draggable="false"
-            />
+            <SnowingCanvas />
           </div>
 
           <MobileButtons isHidden={!isStarted} />

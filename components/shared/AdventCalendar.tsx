@@ -5,7 +5,7 @@ import { CatCard } from "../CatCard";
 import { useQuery } from "@tanstack/react-query";
 import { useProfile } from "@/context/ProfileContext";
 import { catsFetch } from "@/constants/api";
-import { CloseButton } from "./CloseButton";
+import { daysCoins } from "@/constants/utils";
 
 interface AdventDay {
     image?: string;
@@ -13,9 +13,7 @@ interface AdventDay {
     isOpened: boolean;
     cat?: any;
 }
-interface IAdventCalendar {
-    close: () => void
-}
+
 const dataCat = {
     ability: "AQUAWHISKER",
     cardImg:
@@ -70,36 +68,9 @@ export const adventData: Record<number, AdventDay> = {
     25: { image: 'advent-calendar/jesus.png', unlocked: false, isOpened: false },
 };
 
-const daysBackgrounds: Record<number, string> = {
-    1: "advent-calendar/background/1.webp",
-    2: "advent-calendar/background/2.webp",
-    3: "advent-calendar/background/3.webp",
-    4: "advent-calendar/background/4.webp",
-    5: "advent-calendar/background/5.webp",
-    6: "advent-calendar/background/6.webp",
-    7: "advent-calendar/background/7-2.webp",
-    8: "advent-calendar/background/8.webp",
-    9: "advent-calendar/background/9.webp",
-    10: "advent-calendar/background/10.webp",
-    11: "advent-calendar/background/11.webp",
-    12: "advent-calendar/background/12.webp",
-    13: "advent-calendar/background/13.webp",
-    14: "advent-calendar/background/14.webp",
-    15: "advent-calendar/background/15.webp",
-    16: "advent-calendar/background/16.webp",
-    17: "advent-calendar/background/17.webp",
-    18: "advent-calendar/background/18.webp",
-    19: "advent-calendar/background/19.webp",
-    20: "advent-calendar/background/20.webp",
-    21: "advent-calendar/background/21.webp",
-    22: "advent-calendar/background/22.webp",
-    23: "advent-calendar/background/23.webp",
-    24: "advent-calendar/background/24.webp",
-    25: "advent-calendar/background/25.webp",
-};
 
 
-export const AdventCalendar = ({ close }: IAdventCalendar) => {
+export const AdventCalendar = () => {
     const [calendarData, setCalendarData] = useState(adventData);
     const [selectedCat, setSelectedCat] = useState<any | null>(null);
     const { profile, setProfileUpdate } = useProfile();
@@ -108,7 +79,7 @@ export const AdventCalendar = ({ close }: IAdventCalendar) => {
         queryFn: () => catsFetch(),
     });
     const currentDay = new Date().getDate()
-    const backgroundUrl = daysBackgrounds[currentDay] || daysBackgrounds[1]
+
     const unlockDays = () => {
         Object.entries(adventData).forEach(([day, content]) => {
             if (parseInt(day) <= currentDay) {
@@ -142,64 +113,73 @@ export const AdventCalendar = ({ close }: IAdventCalendar) => {
 
     unlockDays();
     return (
-        <div className="lg:px-16 px-2 lg:py-20 py-10 rounded-3xl" style={{
-            backgroundImage: `url(${backgroundUrl})`,
-            backgroundPosition: 'center',
-            backgroundSize: 'cover',
-            backgroundRepeat: 'no-repeat'
-        }} onClick={() => close()} >
-            <div className="flex flex-wrap lg:gap-24 gap-2 justify-between">
+        <div className="relative lg:mx-10 lg:my-16 my-12 mx-3">
+            <div className="flex flex-wrap lg:gapx-4 lg:gap-y-8 gap-x-4 gap-y-8 justify-between">
                 {Object.entries(calendarData).map(([day, content]) => {
                     const dayNumber = parseInt(day);
                     const isAdopted = content.cat && cats?.find((cat) => cat.name === content.cat.name);
                     return (
-                        <Window
-                            key={day}
-                            isOpened={content.isOpened}
-                            isUnlocked={content.unlocked}
-                        >
-                            <div className="relative w-full h-full " onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center justify-center h-full">
+                        <div className="relative" key={day}>
+                            {daysCoins[dayNumber] && (
+                                <img
+                                    className="absolute -top-5 -left-4 w-9 h-9 -rotate-[33deg] -z-10"
+                                    src={daysCoins[dayNumber]}
+                                    alt={`Coin for Day ${dayNumber}`}
+                                />
+                            )}
+                            <Window
+                                key={day}
+                                isOpened={content.isOpened}
+                                isUnlocked={content.unlocked}
+                            >
+                                <div className={`relative w-full h-full 
+                                ${dayNumber <= currentDay ? '' : 'brightness-50'}
+                                ${dayNumber === currentDay && 'brightness-125 animated-garland'}
+                                `}>
 
-                                    <img
-                                        className="h-full"
-                                        src="advent-calendar/calendar-note.png"
-                                        alt={`Day ${dayNumber}`}
-                                    />
-                                    <h2 className="absolute lg:text-h6 text-md uppercase font-secondary text-black font-bold w-full text-center top-[33%] left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                                        {dayNumber >= 25 ? "Christmas" : `${Math.min(dayNumber, 25)} DAY`}
-                                    </h2>
-                                    <img className="absolute lg:bottom-14 bottom-7 lg:w-12 w-6 lg:h-12 h-6 " src={content.isOpened ? content.cat.catImg : content.image} />
-                                </div>
+                                    <div className="flex items-center justify-center h-full">
+                                        <img className="absolute w-full h-full" src="advent-calendar/calendar-note.png" />
+                                        <h2 className="absolute lg:text-2xl text-md uppercase font-secondary text-black font-bold w-full text-center top-[33%] left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                                            {dayNumber >= 25 ? (
+                                                "Christmas"
+                                            ) : (
+                                                <>
+                                                    <span>DAY</span>
+                                                    <span className="ml-1 lg:ml-2">{Math.min(dayNumber, 25)}</span>
+                                                </>
+                                            )}
+                                        </h2>
+                                        <img className="absolute lg:bottom-8 rem:bottom-[22px] lg:w-9 w-5 lg:h-9 h-5 " src={content.isOpened ? content.cat.catImg : content.image} />
+                                    </div>
 
-                                <div className="absolute bottom-0 ">
-                                    <PixelButtonTiny
-                                        text={
-                                            content.isOpened
-                                                ? isAdopted
-                                                    ? "ADOPTED"
-                                                    : "ADOPT"
-                                                : "OPEN"
-                                        }
-                                        onClick={() =>
-                                            content.isOpened
-                                                ? handleOpenModal(dayNumber)
-                                                : handleOpenDay(dayNumber)
-                                        }
-                                        active={content.isOpened && isAdopted}
-                                    />
+                                    <div className="absolute bottom-0 ">
+                                        <PixelButtonTiny
+                                            text={
+                                                content.isOpened
+                                                    ? isAdopted
+                                                        ? "ADOPTED"
+                                                        : "ADOPT"
+                                                    : "OPEN"
+                                            }
+                                            onClick={() =>
+                                                content.isOpened
+                                                    ? handleOpenModal(dayNumber)
+                                                    : handleOpenDay(dayNumber)
+                                            }
+                                            active={content.isOpened && isAdopted}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                        </Window>
+                            </Window>
+                        </div>
                     );
                 })}
             </div>
             {selectedCat && (
-                <div onClick={(e) => e.stopPropagation()}>
+                <div>
                     <CatCard onClose={handleCloseModal} {...selectedCat} />
                 </div>
             )}
-            <CloseButton onClick={() => close()} />
         </div>
     );
 };

@@ -6,6 +6,9 @@
 @import url("https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Pixelify+Sans:wght@400..700&display=swap");
 
+@import "../styles/snow.scss";
+@import "../styles/christmastree.scss";
+
 $breakpoints: (
   "mobile": 767px,
   "md": 768px,
@@ -507,3 +510,28 @@ $n: 20;
 }
 
 // DRAG AROUND ANIMATION ENDS
+@keyframes garlandEffect {
+  0% {
+    filter: drop-shadow(0px 0px 5px rgba(255, 215, 0, 1))
+      drop-shadow(0px 0px 15px rgba(255, 0, 0, 0.8));
+  }
+  25% {
+    filter: drop-shadow(0px 0px 10px rgba(0, 255, 0, 1))
+      drop-shadow(0px 0px 20px rgba(0, 0, 255, 0.8));
+  }
+  50% {
+    filter: drop-shadow(0px 0px 5px rgba(0, 255, 255, 1))
+      drop-shadow(0px 0px 15px rgba(255, 0, 255, 0.8));
+  }
+  75% {
+    filter: drop-shadow(0px 0px 10px rgba(255, 255, 0, 1))
+      drop-shadow(0px 0px 20px rgba(0, 255, 0, 0.8));
+  }
+  100% {
+    filter: drop-shadow(0px 0px 5px rgba(255, 215, 0, 1))
+      drop-shadow(0px 0px 15px rgba(255, 0, 0, 0.8));
+  }
+}
+.animated-garland {
+  animation: garlandEffect 3s infinite ease-in-out;
+}
