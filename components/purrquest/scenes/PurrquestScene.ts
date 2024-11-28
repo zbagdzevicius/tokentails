@@ -66,7 +66,7 @@ export class PurrquestScene extends Phaser.Scene {
   preload() {
     this.groundLayer?.destroy();
     this.jumpLayer?.destroy();
-    this.load.image("blocks", "base/blocks.png");
+    this.load.image("blocks", "base/blocks-winter.png");
     this.load.spritesheet("chest", "purrquest2/icons/chest-spritesheet.png", {
       frameWidth: 120,
       frameHeight: 64,

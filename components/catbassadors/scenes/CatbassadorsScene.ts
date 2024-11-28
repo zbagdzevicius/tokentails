@@ -68,7 +68,7 @@ export class CatbassadorsScene extends Scene {
     this.load.audio("coin", "purrquest/sounds/score.mp3");
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.tilemapTiledJSON("tilemap", "catbassadors/catbassadors.json");
-    this.load.image("blocks", "base/blocks.png");
+    this.load.image("blocks", "base/blocks-winter.png");
     this.load.spritesheet("starAnimation", "base/star-animation.png", {
       frameWidth: 32,
       frameHeight: 32,
