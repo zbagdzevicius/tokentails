@@ -87,9 +87,9 @@ export const Calendar = () => {
                             backgroundAttachment: "absolute",
                         }}
                     >
-                        {/* <div className="sticky top-0 right-0 m-2 z-50">
+                        <div className="sticky top-0 right-0 m-2 z-50">
                             <CloseButton onClick={handleCalendarClick} />
-                        </div> */}
+                        </div>
                         <AdventCalendar />
                     </div>
                 </div>

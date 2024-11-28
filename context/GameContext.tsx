@@ -20,7 +20,7 @@ import { useToast } from "./ToastContext";
 import { Calendar } from "@/components/shared/Calendar";
 import { GameMusicPlayer } from "@/components/shared/GameMusicPlayer";
 import { SpeechBubble } from "@/components/shared/SpeechBubble";
-import SnowingCanvas from "@/components/shared/SnowingCanvas";
+import SnowingCanvas from "@/components/shared/Snowfall";
 
 type ContextState = {
   isStarted?: boolean;
