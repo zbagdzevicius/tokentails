@@ -249,5 +249,5 @@ export const daysCoins: Record<number, string> = {
   24: "icons/coins/snow-man.png",
   25: "icons/coins/christmas-candle.png",
 };
-const currentDay = new Date().getDate();
+const currentDay = new Date().getUTCDate();
 export const currentDayCoin = daysCoins[currentDay] || daysCoins[25];

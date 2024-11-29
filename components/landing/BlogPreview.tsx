@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo } from "react";
-
 const BlogPreviewCard = ({ title, slug, featuredImage, category }: Props) => {
   const link = useMemo(
     () => EntityRouteOption.ARTICLE.details([category?.slug, slug]),

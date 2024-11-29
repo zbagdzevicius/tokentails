@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { adventData } from "./AdventCalendar";
 import { AdventCalendar } from "./AdventCalendar";
 import { CloseButton } from "./CloseButton";
-
+import { Countdown } from "./Countdown";
+import { currentDayCoin } from "@/constants/utils";
 const daysBackgrounds: Record<number, string> = {
     1: "advent-calendar/background/1.webp",
     2: "advent-calendar/background/2.webp",
@@ -30,45 +31,79 @@ const daysBackgrounds: Record<number, string> = {
     24: "advent-calendar/background/24.webp",
     25: "advent-calendar/background/25.webp",
 };
-const currentDay = new Date().getDate()
-const backgroundUrl = daysBackgrounds[currentDay] || daysBackgrounds[1]
+
+const getNextMidnightUTC = () => {
+    const now = new Date();
+    const nextMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    return nextMidnight.toISOString();
+};
 
 export const Calendar = () => {
     const [isCalendarOpen, setCalendarOpen] = useState(false);
-    const today = new Date().getDate();
+    const [currentDay, setCurrentDay] = useState<number>(() => {
+        const today = new Date().getUTCDate();
+        return Math.min(today, 25);
+    });
+    const [targetDate, setTargetDate] = useState<string>(getNextMidnightUTC);
 
-    const getCurrentAdventDay = () => {
-        const day = Math.min(today, 25);
-        return adventData[day] || null;
-    };
+    useEffect(() => {
+        const now = new Date();
+        const nextMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+        const timeUntilMidnight = nextMidnight.getTime() - now.getTime();
 
-    const currentDayData = getCurrentAdventDay();
+        const timer = setTimeout(() => {
+            const today = new Date().getUTCDate();
+            setCurrentDay(Math.min(today, 25));
+            setTargetDate(getNextMidnightUTC());
+        }, timeUntilMidnight);
+
+        return () => clearTimeout(timer);
+    }, [targetDate]);
+
+    const backgroundUrl = daysBackgrounds[currentDay] || daysBackgrounds[1];
 
     const handleCalendarClick = () => {
         setCalendarOpen(!isCalendarOpen);
     };
 
+    const currentDayData = adventData[currentDay] || null;
+
     return (
         <div className="relative">
             <div
-                className="absolute right-0 top-36 lg:w-40 w-28 lg:h-28 h-20 flex items-center justify-center m-5 cursor-pointer"
+                className="absolute right-0 top-36 w-20 h-20 items-center justify-center m-5 cursor-pointer flex flex-col"
                 onClick={handleCalendarClick}
             >
                 <img
-                    className="relative"
+                    className="relative z-10"
                     src="advent-calendar/calendar.png"
                     alt="Advent calendar"
                 />
-                <h2 className="absolute lg:text-p3 text-p4 uppercase font-quanternary text-yellow-200 font-bold w-full text-center lg:top-[35%] top-[35%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 lg:text-outline-medium text-outline">
-                    {today >= 25 ? "Christmas" : `${Math.min(today, 25)} DAY`}
+                <img
+                    className="absolute -left-5 -top-3 w-9 h-9 -rotate-[33deg] z-0"
+                    src={currentDayCoin}
+                    alt={`Coin of the day`}
+                />
+                <h2 className="absolute text-xl  z-10 uppercase font-secondary text-black font-bold w-full text-center top-[43%] left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                    {currentDay >= 25 ? (
+                        "Christmas"
+                    ) : (
+                        <>
+                            <span>DAY</span>
+                            <span className="ml-1 lg:ml-2">{currentDay}</span>
+                        </>
+                    )}
                 </h2>
                 {currentDayData && (
                     <img
-                        className="absolute  bottom-2 lg:w-10 w-8 lg:h-10 h-8"
+                        className="absolute bottom-2 h-7 w-7  z-10"
                         src={currentDayData.image}
-                        alt={`Day ${Math.min(today, 25)} image`}
+                        alt={`Day ${currentDay} image`}
                     />
                 )}
+            </div>
+            <div className="absolute right-0 top-56 m-5 mt-6 w-20">
+                <Countdown targetDate={targetDate} />
             </div>
             {isCalendarOpen && (
                 <div
@@ -93,7 +128,6 @@ export const Calendar = () => {
                         <AdventCalendar />
                     </div>
                 </div>
-
             )}
         </div>
     );

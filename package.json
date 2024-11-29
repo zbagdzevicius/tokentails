@@ -11,7 +11,8 @@
     "postbuild": "next-sitemap",
     "extrude:food": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/food-original.png --output ./public/base/food.png",
     "extrude:blocks": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/blocks-original.png --output ./public/base/blocks.png",
-    "extrude:enemies": "tile-extruder --tileWidth 33 --tileHeight 33 --margin 0 --spacing 0 --input ./public/enemies/white-owlet.png --output ./public/enemies/white-owlet.png"
+    "extrude:enemies": "tile-extruder --tileWidth 33 --tileHeight 33 --margin 0 --spacing 0 --input ./public/enemies/white-owlet.png --output ./public/enemies/white-owlet.png",
+    "extrude:winter": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/blocks-original-winter.png --output ./public/base/blocks-winter.png"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^5.4.1",
@@ -22,6 +23,7 @@
     "@capacitor/ios": "^5.7.4",
     "@tanstack/react-query": "^5.28.9",
     "@telegram-apps/sdk-react": "^1.0.0",
+    "@uidotdev/usehooks": "^2.4.1",
     "@web3modal/wagmi": "^4.1.3",
     "classnames": "^2.5.1",
     "easystarjs": "^0.4.4",
