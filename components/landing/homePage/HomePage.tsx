@@ -191,15 +191,15 @@ export const HomePage = () => {
           </div>
         </div>
         <div className="relative z-10 h-fit flex items-center justify-center">
-          <div className="relative pt-10 md:pt-20 px-8 flex items-center justify-center">
+          <div className="relative pt-10 md:pt-20 md:px-8 flex items-center justify-center">
             <div className="relative w-full">
               <img
                 src="/images/home-page/tamagotchi.webp"
                 alt="Cats Background"
-                className=" rem:w-[500px] md:rem:w-[600px]  rem:pl-[25px] md:rem:pl-[50px] pb-7 md:pb-5 pt-5 md:pt-0 rem:h-[405px] md:rem:h-[640px] relative z-[1] block"
+                className=" rem:w-[500px] md:rem:w-[600px] md:rem:pl-[50px] md:pb-5 rem:h-[405px] md:rem:h-[640px] relative z-[1] block"
               />
               <video
-                className="absolute inset-0 rounded-md -skew-x-[1deg] md:-skew-x-[1deg] skew-y-[6deg]  rem:w-[155px] md:rem:w-[272px] rem:h-[155px] md:rem:h-[272px] overflow-hidden m-auto z-[2]"
+                className="absolute inset-0 rounded-md -skew-x-[1deg] md:-skew-x-[1deg] -translate-x-4 md:translate-x-0 translate-y-2 md:translate-y-0 skew-y-[6deg] rem:w-[184px] md:rem:w-[272px] rem:h-[184px] md:rem:h-[272px] overflow-hidden m-auto z-[2]"
                 autoPlay
                 muted
                 loop
@@ -223,10 +223,10 @@ export const HomePage = () => {
           </div>
         </div>
       </div>
-      <div className="flex flex-col md:flex-row gap-2 md:gap-20 items-center mb-4 mt-4 md:-mt-32 relative z-10 ">
+      <div className="flex gap-16 md:gap-20 items-center mb-4 -mt-24 md:-mt-40 -skew-x-[1deg] md:-skew-x-[1deg] skew-y-[5deg] relative z-10 ">
         <a href="/game" className="relative">
           <span className="relative z-10">
-            <PixelButton text="PLAY ON" isBig subtext="BROWSER"></PixelButton>
+            <PixelButton text="PLAY" isBig subtext="HERE"></PixelButton>
           </span>
 
           <img
@@ -247,7 +247,7 @@ export const HomePage = () => {
           className="font-secondary relative"
         >
           <span className="relative z-10">
-            <PixelButton text="PLAY ON" subtext="TELEGRAM" isBig></PixelButton>
+            <PixelButton text="PLAY ON" subtext="TG" isBig></PixelButton>
           </span>
 
           <img
@@ -262,10 +262,9 @@ export const HomePage = () => {
           />
         </a>
       </div>
-      <span className="relative z-10">
+      <span className="relative z-10 -skew-x-[1deg] md:-skew-x-[1deg] skew-y-[5deg]">
         <Socials />
       </span>
-      {/* <Preregistration /> */}
 
       <div className="my-4"></div>
       <div className="slider relative bg-gradient-to-r from-green-300 to-purple-300">
