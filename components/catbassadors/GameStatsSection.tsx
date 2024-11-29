@@ -78,7 +78,7 @@ export const GameStatsSection = ({
         </div>
       </div>
       {modal && (
-        <div className="fixed inset-0 pt-safe w-full z-50 flex justify-center h-full">
+        < div className="fixed inset-0 pt-safe w-full z-50 flex justify-center h-full">
           <div
             onClick={() => setModal(null)}
             className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
@@ -96,7 +96,8 @@ export const GameStatsSection = ({
             <CloseButton onClick={() => setModal(null)} />
           </div>
         </div>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 };

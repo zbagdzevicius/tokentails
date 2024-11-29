@@ -25,4 +25,5 @@ export interface IProfile {
   catbassadorsLives: number;
   referrals: string[];
   quests: QUEST[];
+  advent: number;
 }

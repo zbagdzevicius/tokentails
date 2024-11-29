@@ -1,11 +1,12 @@
 import { Window } from "./Window";
 import { PixelButtonTiny } from "./PixelButtonTiny";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CatCard } from "../CatCard";
 import { useQuery } from "@tanstack/react-query";
 import { useProfile } from "@/context/ProfileContext";
 import { catsFetch } from "@/constants/api";
 import { daysCoins } from "@/constants/utils";
+import { Countdown } from "./Countdown";
 
 interface AdventDay {
     image?: string;
@@ -69,29 +70,64 @@ export const adventData: Record<number, AdventDay> = {
 };
 
 
+const getNextDayMidnight = () => {
+    const now = new Date();
+    const nextDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    return nextDay.toISOString();
+};
 
 export const AdventCalendar = () => {
     const [calendarData, setCalendarData] = useState(adventData);
     const [selectedCat, setSelectedCat] = useState<any | null>(null);
-    const { profile, setProfileUpdate } = useProfile();
+    const { profile } = useProfile();
     const { data: cats } = useQuery({
         queryKey: ["cats", profile?.cat],
         queryFn: () => catsFetch(),
     });
-    const currentDay = new Date().getDate()
 
-    const unlockDays = () => {
-        Object.entries(adventData).forEach(([day, content]) => {
-            if (parseInt(day) <= currentDay) {
-                content.unlocked = true;
-            }
+
+    const [currentDay, setCurrentDay] = useState<number>(() => {
+        const now = new Date();
+        const day = now.getUTCDate();
+        return Math.min(day, 25);
+    });
+
+    useEffect(() => {
+        const updateCurrentDay = () => {
+            const newNow = new Date();
+            const day = newNow.getUTCDate();
+            setCurrentDay(Math.min(day, 25));
+        };
+
+        const now = new Date();
+        const nextMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+        const timeUntilMidnight = nextMidnight.getTime() - now.getTime();
+
+        const timer = setTimeout(() => {
+            updateCurrentDay();
+            const interval = setInterval(updateCurrentDay, 24 * 60 * 60 * 1000);
+            return () => clearInterval(interval);
+        }, timeUntilMidnight);
+
+        return () => clearTimeout(timer);
+    }, []);
+
+    useEffect(() => {
+        setCalendarData((prevData) => {
+            const updatedData = { ...prevData };
+            Object.entries(updatedData).forEach(([day, content]) => {
+                const dayNumber = parseInt(day);
+                if (dayNumber <= currentDay) {
+                    updatedData[dayNumber] = { ...content, unlocked: true };
+                }
+            });
+            return updatedData;
         });
-    };
+    }, [currentDay]);
 
     const handleOpenDay = (day: number) => {
         setCalendarData((prevData) => {
             const updatedData = { ...prevData };
-
             if (updatedData[day].unlocked && !updatedData[day].isOpened) {
                 updatedData[day] = { ...updatedData[day], isOpened: true };
             }
@@ -110,10 +146,11 @@ export const AdventCalendar = () => {
         setSelectedCat(null);
     };
 
+    const nextDayTargetDate = getNextDayMidnight();
+    const nextDay = currentDay + 1;
 
-    unlockDays();
     return (
-        <div className="relative lg:mx-10 lg:my-16 my-12 mx-3">
+        <div className="relative lg:mx-10 lg:my-16 mb-12 mt-20 mx-3">
             <div className="flex flex-wrap lg:gapx-4 lg:gap-y-8 gap-x-4 gap-y-8 justify-between">
                 {Object.entries(calendarData).map(([day, content]) => {
                     const dayNumber = parseInt(day);
@@ -127,18 +164,27 @@ export const AdventCalendar = () => {
                                     alt={`Coin for Day ${dayNumber}`}
                                 />
                             )}
+
+                            {dayNumber === nextDay && calendarData[currentDay].isOpened && nextDay <= 25 && (
+                                <div className="absolute -top-7 lg:right-7 right-0">
+                                    <Countdown targetDate={nextDayTargetDate} />
+                                </div>
+                            )}
                             <Window
                                 key={day}
                                 isOpened={content.isOpened}
                                 isUnlocked={content.unlocked}
                             >
-                                <div className={`relative w-full h-full 
-                                ${dayNumber <= currentDay ? '' : 'brightness-50'}
-                                ${dayNumber === currentDay && 'brightness-125 animated-garland'}
-                                `}>
-
+                                <div
+                                    className={`relative w-full h-full 
+                                    ${dayNumber <= currentDay ? '' : 'brightness-50'}
+                                    ${dayNumber === currentDay && 'brightness-125 animated-garland'}`}
+                                >
                                     <div className="flex items-center justify-center h-full">
-                                        <img className="absolute w-full h-full" src="advent-calendar/calendar-note.png" />
+                                        <img
+                                            className="absolute w-full h-full"
+                                            src="advent-calendar/calendar-note.png"
+                                        />
                                         <h2 className="absolute lg:text-2xl text-md uppercase font-secondary text-black font-bold w-full text-center top-[33%] left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                                             {dayNumber >= 25 ? (
                                                 "Christmas"
@@ -149,10 +195,16 @@ export const AdventCalendar = () => {
                                                 </>
                                             )}
                                         </h2>
-                                        <img className="absolute lg:bottom-8 rem:bottom-[22px] lg:w-9 w-5 lg:h-9 h-5 " src={content.isOpened ? content.cat.catImg : content.image} />
+                                        <img
+                                            className="absolute lg:bottom-8 rem:bottom-[22px] lg:w-9 w-5 lg:h-9 h-5"
+                                            src={
+                                                content.isOpened && content.cat
+                                                    ? content.cat.catImg
+                                                    : content.image
+                                            }
+                                        />
                                     </div>
-
-                                    <div className="absolute bottom-0 ">
+                                    <div className="absolute bottom-0">
                                         <PixelButtonTiny
                                             text={
                                                 content.isOpened

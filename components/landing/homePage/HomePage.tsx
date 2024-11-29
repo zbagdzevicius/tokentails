@@ -196,15 +196,10 @@ export const HomePage = () => {
               <img
                 src="/images/home-page/tamagotchi.webp"
                 alt="Cats Background"
-                className="absolute w-[600px] rem:pl-[50px] pb-5 h-[640px] md:relative z-[1] hidden md:block"
-              />
-              <img
-                src="/images/home-page/cat-background.webp"
-                alt="Cats Background"
-                className="absolute md:hidden inset-0 h-full w-full z-[1]"
+                className=" rem:w-[500px] md:rem:w-[600px]  rem:pl-[25px] md:rem:pl-[50px] pb-7 md:pb-5 pt-5 md:pt-0 rem:h-[405px] md:rem:h-[640px] relative z-[1] block"
               />
               <video
-                className="relative md:absolute inset-0 rounded-md md:-skew-x-[1deg] p-3 md:p-0 md:skew-y-[6deg] rem:w-[320px] rem:h-[320px] md:rem:w-[272px] md:rem:h-[272px] overflow-hidden m-auto z-[2]"
+                className="absolute inset-0 rounded-md -skew-x-[1deg] md:-skew-x-[1deg] skew-y-[6deg]  rem:w-[155px] md:rem:w-[272px] rem:h-[155px] md:rem:h-[272px] overflow-hidden m-auto z-[2]"
                 autoPlay
                 muted
                 loop
@@ -228,7 +223,7 @@ export const HomePage = () => {
           </div>
         </div>
       </div>
-      <div className="flex flex-col md:flex-row gap-2 md:gap-10 items-center mb-4 mt-4 md:-mt-32 relative z-10">
+      <div className="flex flex-col md:flex-row gap-2 md:gap-20 items-center mb-4 mt-4 md:-mt-32 relative z-10 ">
         <a href="/game" className="relative">
           <span className="relative z-10">
             <PixelButton text="PLAY ON" isBig subtext="BROWSER"></PixelButton>
@@ -245,7 +240,7 @@ export const HomePage = () => {
             className="h-12 w-12 absolute bottom-0 top-0 -right-6"
           />
         </a>
-        <div className="font-secondary text-p3 bg-gradient-to-r from-red-500 to-red-500 px-2 text-yellow-300 border-4 border-black rounded-full">OR</div>
+
         <a
           href="https://t.me/CatbassadorsBot?start=start"
           target="_blank"
@@ -285,6 +280,7 @@ export const HomePage = () => {
           PARTNERS
         </div>
       </div>
+
     </div>
   );
 };
