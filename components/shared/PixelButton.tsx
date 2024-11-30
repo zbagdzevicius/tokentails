@@ -28,8 +28,7 @@ export const PixelButton = ({
 
   useEffect(() => {
     if (hovering) {
-      const audio = new Audio("/purrquest/sounds/blip.mp3");
-      // const audio = new Audio("/audio/button/modern-mix.wav");
+      const audio = new Audio("/audio/button/modern-mix.wav");
       audio.volume = 0.5;
       audio.play();
     }
