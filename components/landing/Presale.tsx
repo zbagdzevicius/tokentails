@@ -10,7 +10,7 @@ export const Presale = () => {
         <h2 className="font-secondary uppercase tracking-tight text-h3 md:text-h2 text-balance mb-4 text-green-900">
           PRESALE IS COMING
         </h2>
-        <div className="animate-colormax">
+        <div className="hover:brightness-125 relative z-10">
           <Countdown
             targetDate={new Date("2024-12-08")}
             isBig

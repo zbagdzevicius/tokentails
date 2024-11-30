@@ -21,7 +21,7 @@ export const Airdrop = () => {
         <div className="sm:w-1/2  hover:brightness-110">
           <ul className="font-secondary text-p3 lg:text-p1 flex flex-col gap-2">
             <a
-              href="https://t.me/+ofyPNIfNX5w4ZjM8"
+              href="https://x.com/tokentails"
               target="_blank"
               className="flex items-center gap-2 justify-center"
             >
@@ -29,7 +29,7 @@ export const Airdrop = () => {
               <div className="">FOLLOWED ON X</div>
             </a>
             <a
-              href="https://x.com/tokentails"
+              href="https://t.me/+ofyPNIfNX5w4ZjM8"
               target="_blank"
               className="flex items-center gap-2 justify-center"
             >

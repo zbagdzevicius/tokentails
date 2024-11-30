@@ -11,7 +11,7 @@ const BlogPreviewCard = ({ title, slug, featuredImage, category }: Props) => {
     [slug, category?.slug]
   );
   return (
-    <Link href={link} className="relative flex aspect-square min-h-[280px] hover:brightness-110 hover:animate-hover">
+    <Link href={link} target="_blank" className="relative flex aspect-square min-h-[280px] hover:brightness-110 hover:animate-hover">
       <Image
         loading="lazy"
         height={350}
