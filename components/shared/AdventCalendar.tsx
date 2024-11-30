@@ -137,7 +137,10 @@ export const AdventCalendar = () => {
   const [currentDay, setCurrentDay] = useState<number>(() => {
     const now = new Date();
     const day = now.getUTCDate();
-    return Math.min(day, 25);
+    if (day > 28) {
+      return 1;
+    }
+    return day;
   });
   const { data: adventCats } = useQuery({
     queryKey: ["advent", currentDay],
@@ -161,7 +164,11 @@ export const AdventCalendar = () => {
     const updateCurrentDay = () => {
       const newNow = new Date();
       const day = newNow.getUTCDate();
-      setCurrentDay(Math.min(day, 25));
+      if (day > 28) {
+        setCurrentDay(day);
+        return;
+      }
+      setCurrentDay(day);
     };
 
     const now = new Date();
