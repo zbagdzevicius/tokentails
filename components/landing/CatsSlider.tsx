@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Slider } from "../../shared/Slider";
+import { Slider } from "../shared/Slider";
 import { PixelButton } from "@/components/shared/PixelButton";
 
 const sliderItems: { img: string; title: string; explanation: string }[] = [

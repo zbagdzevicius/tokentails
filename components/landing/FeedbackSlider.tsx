@@ -1,4 +1,4 @@
-import { Slider } from "../../shared/Slider";
+import { Slider } from "../shared/Slider";
 
 const catReview: {
   name: string;
@@ -46,7 +46,7 @@ const catReview: {
 
 export const FeedbackSlider = () => {
   const items = catReview.map((review) => (
-    <div key={1} className="flex items-center justify-center">
+    <div key={1} className="flex items-center justify-center hover:brightness-110 hover:animate-hover">
       <div className={`p-0.5 w-full ${review.bg} rounded-3xl max-lg:mx-4`}>
         <div className="relative flex items-center justify-center flex-col w-full h-fit p-10 max-lg:p-3">
           <img

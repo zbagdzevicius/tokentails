@@ -28,7 +28,8 @@ export const PixelButton = ({
 
   useEffect(() => {
     if (hovering) {
-      const audio = new Audio("/audio/button/modern-mix.wav");
+      const audio = new Audio("/purrquest/sounds/blip.mp3");
+      // const audio = new Audio("/audio/button/modern-mix.wav");
       audio.volume = 0.5;
       audio.play();
     }
@@ -39,7 +40,7 @@ export const PixelButton = ({
       onClick={handleClick}
       ref={ref}
       style={isWidthFull ? { width: "100% !important" } : {}}
-      className={`flex justify-center items-center h-12 ${isWidthFull && 'w-full'} ${!active ? "hover:animate-colormax hover:pb-1" : ""
+      className={`flex justify-center items-center h-12 ${isWidthFull && 'w-full'} ${!active ? "hover:brightness-125 hover:pb-1" : ""
         } `}
     >
       <div className="h-8 w-1 bg-black"></div>

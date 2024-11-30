@@ -1,47 +1,46 @@
 import { PixelButton } from "@/components/shared/PixelButton";
 import { useCallback, useState } from "react";
+import { Calendar } from "../shared/Calendar";
 
 interface IProps {
   title: string;
   description: string;
   isActive?: boolean;
+  img?: string;
   onSet?: () => void;
 }
 
 const CatsHubProps: IProps[] = [
   {
-    title: "EXPLORE OUR VIRTUAL CAT SHELTER",
+    title: "HOW CAN I SAVE A CAT ?",
+    img: "/images/cats-slider/contribute.jpg",
     description:
-      "Choose your purr-fect companion from a diverse range of lovable felines!",
+      "Adopt virtual NFT cat, 100% of funds are transferred directly to cats shelters",
   },
   {
-    title: "VIRTUAL CAT",
+    title: "HOW TO OWN AN NFT CAT ?",
+    img: "/images/cats-slider/love.jpg",
     description:
-      "Each cat is unique and linked with a real cat in the shelter. By adopting a virtual cat, you're helping a real cat.",
+      "Sign in, get into our virtual cat shelter and adopt you purrfect companion",
   },
   {
-    title: "ACTIVITIES",
+    title: "WHAT ARE THE PERKS FOR CATS HOLDERS",
+    img: "/images/cats-slider/eat.jpg",
     description:
-      "Keep you cat happy - feed, play and fulfill the needs of your cat to earn tokens",
+      "Access to Token Tails gaming hub, elevated coins earnings ratio, eligibility for $TAILS airdrops",
   },
   {
-    title: "SAVE CATS IN REAL-LIFE",
+    title: "WEN LISTING ? WEN AIRDROP ?",
+    img: "/images/cats-slider/play.jpg",
     description:
-      "Buy cats and accessories NFTs - 50% of revenue will be distributed to cat shelters",
+      "To stay up to date follow us on X, big news are coming soon !",
   },
 ];
 
-const CatsSection = ({ title, description, isActive, onSet }: IProps) => {
+const CatsSection = ({ title, description, isActive, img, onSet }: IProps) => {
   return (
-    <div>
-      <div
-        className={`
-            ${
-              isActive
-                ? "bg-gradient-to-br from-main-slate via-main-grape to-main-rusty p-0.5 w-full rounded"
-                : ""
-            }`}
-      >
+    <div className="rounded-lg overflow-hidden hover:brightness-110">
+      <div>
         <a
           onClick={() => onSet?.()}
           className={`flex relative z-10 w-full title items-center py-3 px-5 transition 
@@ -67,11 +66,12 @@ const CatsSection = ({ title, description, isActive, onSet }: IProps) => {
         </a>
       </div>
       <div
-        className={`text-p4 max-lg:text-p5 font-tertiary transition relative z-0 py-4 px-5 border-b ${
+        className={`flex items-center text-p4 bg-yellow-300 max-lg:text-p5 font-tertiary transition relative z-0 py-4 px-2 gap-2 border-b ${
           isActive ? "" : "hidden"
         }`}
       >
-        {description}
+        <img className="rounded-full w-24" src={img} />
+        <div>{description}</div>
       </div>
     </div>
   );
@@ -89,28 +89,27 @@ export const CatsHub = () => {
     <div className="my-20 flex items-center justify-center flex-col container">
       <img
         src="/images/cats-hub/crown.png"
-        width={100}
-        height={100}
+        className="w-12 sm:w-32 sm:-mb-4"
         alt="crown"
       />
       <div className="w-9/12 max-lg:w-full ">
-        <h2 className="text-center text-gray-800 font-secondary uppercase tracking-tight text-8xl max-lg:text-5xl  max-lg:text-balance ">
-          YOUR VIRTUAL COMPANION
+        <h2 className="text-center font-secondary uppercase tracking-tight text-8xl max-lg:text-5xl  max-lg:text-balance ">
+          SAVING CATS
         </h2>
 
-        <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1 max-lg:mx-5 my-0 md:my-10">
-          <div className="relative w-full h-fit">
+        <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1 max-lg:mx-5 my-0 sm:my-10 items-center">
+          <div className="relative m-auto h-fit rounded-2xl sm:rounded-[80px] overflow-hidden -mb-8 sm:mb-0 hover:brightness-110">
             <img
-              src="/images/cats-hub/cat-background.webp"
+              src="/images/cats-hub/cards-bg.webp"
               alt="Cats Background"
-              className="w-full h-full animate-colormax"
+              className="w-40 aspect-square sm:w-full sm:h-full"
               width={500}
               height={200}
             />
             <img
               src="/images/cats-hub/cat-with-hat.webp"
               alt="cats"
-              className="absolute inset-0 w-full h-full object-contain z-3 md:p-2.5 p-1.5"
+              className="absolute inset-0 w-40 aspect-square sm:w-full sm:h-full object-contain z-3"
               width={1000}
               height={1000}
             />
@@ -121,6 +120,7 @@ export const CatsHub = () => {
                 <CatsSection
                   key={index}
                   title={section.title}
+                  img={section.img}
                   description={section.description}
                   isActive={section.title === active.title}
                   onSet={() => onActiveClick(section)}
@@ -134,6 +134,13 @@ export const CatsHub = () => {
               <a target="_blank" href="https://tokentails.com/pitch-deck.pdf">
                 <PixelButton text="PITCH DECK" />
               </a>
+            </div>
+
+            <div className="flex items-center mt-2 gap-4">
+              <Calendar isRelative />
+              <h3 className="font-secondary text-p3 md:text-p2">
+                Advent calendar is LIVE, HURRY !
+              </h3>
             </div>
           </div>
         </div>

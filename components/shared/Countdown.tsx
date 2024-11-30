@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 interface CountdownProps {
-    targetDate: string;
+    targetDate: string | Date;
     isDaysDisplayed?: boolean;
     isBig?: boolean;
 }

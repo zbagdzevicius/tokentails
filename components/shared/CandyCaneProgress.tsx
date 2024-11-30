@@ -10,12 +10,12 @@ export const CandyCaneProgress = ({ }) => {
         setProgress(utcDay);
     }, [utcDay]);
 
-    const maxProgress = 25;
+    const maxProgress = 8;
     const effectiveProgress = Math.min(progress, maxProgress);
     const santaPosition = Math.min((effectiveProgress / maxProgress) * 100, 90);
 
     return (
-        <div className="flex flex-row items-end mt-8 relative w-32">
+        <div className="flex flex-row items-end mt-8 relative w-72">
             <img
                 src="/icons/candy-cane.png"
                 alt="Candy Cane"
@@ -29,7 +29,7 @@ export const CandyCaneProgress = ({ }) => {
             ></progress>
 
             <img
-                className="absolute w-7 h-7 z-20"
+                className="absolute w-16 h-16 z-20"
                 src="/icons/running-santa.gif"
                 style={{
                     bottom: '0',
@@ -40,7 +40,7 @@ export const CandyCaneProgress = ({ }) => {
             />
             <img
                 src="./icons/gift.png"
-                className="absolute w-6 h-6 -right-5 bottom-0"
+                className="absolute w-12 h-12 -right-12 bottom-0"
                 alt="Gift"
             />
         </div>

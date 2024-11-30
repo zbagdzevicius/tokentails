@@ -217,18 +217,6 @@
   }
 }
 
-.shadow-tree {
-  background-color: rgba(0, 0, 0, 0.8);
-  width: calc(var(--leaves-bottom-width) * 2);
-  height: calc(var(--leaves-bottom-width) * 2);
-  filter: blur(calc(var(--leaves-bottom-width) / 2));
-  position: absolute;
-  bottom: calc(var(--leaves-bottom-width) * -1);
-  left: calc(50% - var(--leaves-bottom-width));
-  transform: rotateX(90deg) translateX(-50%);
-  animation: 10s shadow-rotate linear infinite;
-}
-
 @keyframes shadow-rotate {
   0% {
     transform: rotateX(-90deg) rotateZ(0deg);

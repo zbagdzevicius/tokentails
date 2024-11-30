@@ -38,7 +38,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
   };
 
   return (
-    <div className="px-4 pt-4 pb-8 md:px-16 text-gray-800 flex flex-col justify-between items-center">
+    <div className="px-4 pt-4 pb-8 md:px-16 flex flex-col justify-between items-center">
 
       <h2 className="text-center font-secondary uppercase tracking-tight text-8xl max-lg:text-5xl max-lg:text-balance">
         My Cats

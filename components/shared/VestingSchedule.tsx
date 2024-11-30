@@ -2,7 +2,7 @@ import React from "react";
 
 export const VestingSchedule = () => {
   return (
-    <div className="overflow-x-scroll font-secondary">
+    <div className="overflow-x-scroll font-secondary hover:brightness-105 hover:animate-hover">
       <table className="rounded-lg overflow-hidden table-auto bg-blue-300 text-black-900 w-full text-sm text-left text-gray-500 max-2xl:ml-2 max-2xl:mr-2">
         <thead className="text-p4 uppercase text-black-300 bg-gray-50 border-b border-purple-300">
           <tr>
