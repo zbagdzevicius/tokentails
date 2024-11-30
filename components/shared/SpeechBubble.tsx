@@ -35,11 +35,11 @@ export const SpeechBubble = () => {
     }, [typingIndex, isVisible, currentMessageToDisplay]);
 
     return (
-        <div className="absolute h-screen w-screen">
+        <div className="absolute h-full w-full inset-0">
             {isVisible && (
                 <div
-                    className={`absolute top-[38%] left-1/2 transform translate-x-1 text-center text-sm text-black bg-white ${isCatFedded ? "p-px" : "p-3"
-                        } lg:w-60 w-40 shadow-[0_-4px_#fff,0_-8px_#000,4px_0_#fff,4px_-4px_#000,8px_0_#000,0_4px_#fff,0_8px_#000,-4px_0_#fff,-4px_4px_#000,-8px_0_#000,-4px_-4px_#000,4px_4px_#000]`}
+                    className={`absolute bottom-1/2 left-1/2  transform -translate-x-1 -translate-y-9 text-center text-sm text-black bg-white ${isCatFedded ? "p-px" : "p-3"
+                        } lg:w-64 w-40 shadow-[0_-4px_#fff,0_-8px_#000,4px_0_#fff,4px_-4px_#000,8px_0_#000,0_4px_#fff,0_8px_#000,-4px_0_#fff,-4px_4px_#000,-8px_0_#000,-4px_-4px_#000,4px_4px_#000]`}
                 >
                     <p className="font-quanternary lg:text-p5 text-p7 font-semibold">
                         {displayText}

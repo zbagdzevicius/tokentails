@@ -8,6 +8,7 @@ import { GameType } from "@/models/game";
 import { useQuery } from "@tanstack/react-query";
 import { GameEvents } from "../Phaser/events";
 import { PixelButton } from "./PixelButton";
+import { CloseButton } from "./CloseButton";
 
 export const CatsModalContent = ({ close }: { close: () => void }) => {
   const { profile, setProfileUpdate } = useProfile();
@@ -37,7 +38,8 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
   };
 
   return (
-    <div className="px-4 pt-4 pb-8 md:px-16 text-gray-800 flex flex-col justify-between items-center">
+    <div className="px-4 pt-4 pb-8 md:px-16 flex flex-col justify-between items-center">
+
       <h2 className="text-center font-secondary uppercase tracking-tight text-8xl max-lg:text-5xl max-lg:text-balance">
         My Cats
       </h2>
@@ -105,6 +107,7 @@ export const CatsModal = ({ close }: { close: () => void }) => {
         <button onClick={close} className="absolute right-[0] top-0 group">
           <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>
         </button>
+        <CloseButton onClick={() => close()} />
       </div>
     </div>
   );

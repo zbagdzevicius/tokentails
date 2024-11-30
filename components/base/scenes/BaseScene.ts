@@ -41,7 +41,7 @@ export class BaseScene extends Scene {
     this.load.audio("eat", "purrquest/sounds/eat.mp3");
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.tilemapTiledJSON("tilemap", "base/base.json");
-    this.load.image("blocks", "base/blocks.png");
+    this.load.image("blocks", "base/blocks-winter.png");
   }
 
   create() {

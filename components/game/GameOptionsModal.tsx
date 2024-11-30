@@ -8,6 +8,7 @@ import { GameStatsSection } from "../catbassadors/GameStatsSection";
 import { GameEvents } from "../Phaser/events";
 import { PixelButton } from "../shared/PixelButton";
 
+
 interface IProps {
   profile: IProfile;
   utils: IUtils | null;

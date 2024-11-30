@@ -206,18 +206,49 @@ export const greetingText = [
 
 export const aftrFeedText = [
   "Purrfect! Thanks for the meal! Let's explore! Tap 'Get into Adventures' now!",
-  "Yum! That was tasty! Ready for some fun? Press 'Get into Adventures' to start!",
-  "You're the best! Now, let's make memories! Click 'Get into Adventures' to go!",
-  "Meowch appreciated! Let's dive in! Hit 'Get into Adventures' to begin our journey!",
+  "Yum! That was tasty! Ready for some fun? Press 'Get into Adventures' to start",
+  "You're the best! Now, let's make memories! Click 'Get into Adventures' to go",
+  "Meowch appreciated! Let's dive in! Hit 'Get into Adventures' to begin our journey",
   "Feeling fabulous! Thanks for feeding me! Ready? Tap 'Get into Adventures' to move!",
-  "So grateful! Time for fun? Click 'Get into Adventures' and start exploring with me!",
-  "Thanks a bunch! Can't wait to see more! Press 'Get into Adventures' to explore now!",
-  "Delicious! Now I'm ready! Let's find out more! Hit 'Get into Adventures' and go!",
-  "Purr, purr! I'm full and ready! Let's make memories! Press 'Get into Adventures'!",
-  "You're awesome! Adventure is calling! Tap 'Get into Adventures' and join the fun!",
+  "So grateful! Time for fun? Click 'Get into Adventures' and start exploring with me!Purrfect! ",
+  "Thanks a bunch! Can't wait to see more! Press 'Get into Adventures' to explore now!Purrfect! ",
+  "Delicious! Now I'm ready! Let's find out more! Hit 'Get into Adventures' and go!Purrfect!",
+  "Purr, purr! I'm full and ready! Let's make memories! Press 'Get into Adventures'!Purrfect! ",
+  "You're awesome! Adventure is calling! Tap 'Get into Adventures' and join the fun!Purrfect! ",
 ];
 
 export function getRandomItemFromArray(arr: string[]) {
   const randomItemPosition = Math.floor(Math.random() * arr.length);
   return arr.at(randomItemPosition);
 }
+
+export const daysCoins: Record<number, string> = {
+  1: "icons/coins/candy-cane.png",
+  2: "icons/coins/snowflake.png",
+  3: "icons/coins/santa-hat.png",
+  4: "icons/coins/christmas-tree.png",
+  5: "icons/coins/gift-box.png",
+  6: "icons/coins/gingerbread.png",
+  7: "icons/coins/bell.png",
+  8: "icons/coins/star.png",
+  9: "icons/coins/holly-berry.png",
+  10: "icons/coins/ornament.png",
+  11: "icons/coins/rudolf.png",
+  12: "icons/coins/wreath.png",
+  13: "icons/coins/elf-shoe.png",
+  14: "icons/coins/snow-globe.png",
+  15: "icons/coins/candy-wrapper.png",
+  16: "icons/coins/mistletoe.png",
+  17: "icons/coins/stocking.png",
+  18: "icons/coins/peppermint.png",
+  19: "icons/coins/icycle.png",
+  20: "icons/coins/santa-belt.png",
+  21: "icons/coins/poinsettia.png",
+  22: "icons/coins/hot-cocoa.png",
+  23: "icons/coins/nutcracker.png",
+  24: "icons/coins/snow-man.png",
+  25: "icons/coins/christmas-candle.png",
+};
+const currentDay = new Date().getUTCDate();
+export const currentDayCoin = daysCoins[currentDay] || daysCoins[25];
+ 

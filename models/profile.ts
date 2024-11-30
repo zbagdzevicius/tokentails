@@ -23,6 +23,8 @@ export interface IProfile {
   catpointsRecord: number;
   canRedeemLives: boolean;
   catbassadorsLives: number;
+  adventDayRedeemed: number;
   referrals: string[];
   quests: QUEST[];
+  advent: number;
 }

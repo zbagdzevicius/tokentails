@@ -136,7 +136,6 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
             try {
               const refreshedToken = await auth.currentUser.getIdToken(true);
               sessionStorage.setItem("accesstoken", `fb${refreshedToken}`);
-              console.log("Firebase token refreshed:", refreshedToken);
             } catch (error) {
               console.error("Error refreshing token:", error);
             }
@@ -161,7 +160,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   return (
     <FirebaseAuthContext.Provider value={value}>
-      {isLoginModalDisplayed && <SignIn close={() => {}} />}
+      {isLoginModalDisplayed && <SignIn close={() => { }} />}
       {isVerifiedModalDisplayed && (
         <Verify close={() => setIsVerifiedModalDisplayed(false)} />
       )}

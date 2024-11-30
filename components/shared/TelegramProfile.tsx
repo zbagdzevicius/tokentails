@@ -3,6 +3,7 @@ import { useToast } from "@/context/ToastContext";
 import { useCallback, useMemo } from "react";
 import { GameStatSection } from "../catbassadors/GameStatsSection";
 import { commafy } from "@/constants/utils";
+import { CloseButton } from "./CloseButton";
 import { GameMusicToggle } from "./GameMusicToggler";
 
 const features = ["NFTs & Airdrops prizes", "Weekly Rewards & Events"];
@@ -137,6 +138,7 @@ export const TelegramProfile = ({ close }: { close: () => void }) => {
         <button onClick={close} className="absolute right-[0] top-0 group">
           <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>
         </button>
+        <CloseButton onClick={() => close()} />
       </div>
     </div>
   );

@@ -12,19 +12,19 @@ interface navProps {
 const navConsts: navProps[] = [
   {
     title: "Game",
-    link: "/#catsslider",
+    link: "/#game",
   },
   {
     title: "Token",
     link: "/#tokenomics",
   },
   {
-    title: "Team",
-    link: "/#contact",
+    title: "AIRDROP",
+    link: "/#airdrop",
   },
   {
-    title: "Contact",
-    link: "mailto:info@tokentails.com",
+    title: "CATS",
+    link: "/#cats",
   },
 ];
 
@@ -69,7 +69,7 @@ export const Header = () => {
         showHeader
           ? isTop
             ? ""
-            : "bg-[rgba(45, 30, 107, 1)] lg:bg-opacity-50 bg-yellow-300 shadow-lg"
+            : "bg-[rgba(45, 30, 107, 1)] bg-opacity-50 bg-blue-300 shadow-lg"
           : "-translate-y-full"
       }`}
     >
@@ -86,7 +86,7 @@ export const Header = () => {
           />
           <div className="text-p3 font-secondary">TOKEN TAILS</div>
         </a>
-        <ul className="hidden lg:flex space-x-8 py-4 absolute left-1/2 -translate-x-1/2">
+        <ul className="hidden lg:flex space-x-[35px] py-4 absolute left-1/2 -translate-x-1/2">
           {navConsts.map((navItem, index) => (
             <li
               key={index}
@@ -109,7 +109,7 @@ export const Header = () => {
         <div className="flex items-center space-x-2">
           <div
             onClick={() => setIsNavOpen(!isNavOpen)}
-            className="lg:hidden h-12 w-12 flex items-center justify-center bg-gradient-to-b opacity-50 from-yellow-300 to-red-300 mr-4 rounded-xl"
+            className="lg:hidden h-12 w-12 flex items-center justify-center bg-gradient-to-b opacity-50 from-purple-300 to-blue-300 mr-4 rounded-xl"
           >
             {isNavOpen ? (
               <img src="/icons/close.svg" alt="close" width={16} height={16} />
@@ -122,14 +122,14 @@ export const Header = () => {
               />
             )}
           </div>
-          <a href="/feed">
-            <PixelButton text="Blog" isBig></PixelButton>
+          <a href="/#presale">
+            <PixelButton text="Presale" isBig></PixelButton>
           </a>
         </div>
       </div>
       {isNavOpen && (
-        <div className="lg:hidden absolute w-full z-10 bg-gradient-to-b from-yellow-300 via-red-300 to-yellow-300">
-          <ul className="pb-4 flex flex-col items-center">
+        <div className="lg:hidden absolute w-full z-10 bg-gradient-to-b from-transparent via-blue-300 to-blue-300 pb-4">
+          <ul className="pb-2 flex flex-wrap justify-center items-center">
             {navConsts.map((navItem, index) => (
               <li key={index} className="py-2 px-3">
                 <a
@@ -146,8 +146,8 @@ export const Header = () => {
                 </a>
               </li>
             ))}
-            <Socials />
           </ul>
+          <Socials />
         </div>
       )}
     </header>
