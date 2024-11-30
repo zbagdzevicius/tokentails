@@ -1,3 +1,6 @@
+import { useHover } from "@uidotdev/usehooks";
+import { useMemo, useEffect } from "react";
+
 interface IProps {
   text: string;
   subtext?: string | number;
@@ -15,9 +18,26 @@ export const PixelButton = ({
   isBig,
   isWidthFull,
 }: IProps) => {
+  const [ref, hovering] = useHover();
+  const handleClick = () => {
+    const audio = new Audio("/audio/button/click-close.wav");
+    audio.volume = 0.5;
+    audio.play();
+    if (onClick) onClick();
+  };
+
+  useEffect(() => {
+    if (hovering) {
+      const audio = new Audio("/audio/button/modern-mix.wav");
+      audio.volume = 0.5;
+      audio.play();
+    }
+  }, [hovering]);
+
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
+      ref={ref}
       style={isWidthFull ? { width: "100% !important" } : {}}
       className={`flex justify-center items-center h-12 ${isWidthFull && 'w-full'} ${!active ? "hover:animate-colormax hover:pb-1" : ""
         } `}

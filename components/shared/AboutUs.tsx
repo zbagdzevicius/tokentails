@@ -50,7 +50,7 @@ export const AboutUs = () => {
     ));
     return (
         <>
-            <div className="flex items-center justify-center flex-col ">
+            <div className="flex items-center justify-center flex-col">
                 <h2 className="text-left font-secondary uppercase tracking-tight text-h2 text-balance max-lg:text-h6 my-3">
                     Real Verified Cat reviews
                 </h2>

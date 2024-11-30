@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { PixelButton } from "../components/shared/PixelButton";
 import { Socials } from "./Socials";
-import NumberIncrementer from "@/components/shared/IncrementNumber";
 
 interface navProps {
   title: string;
@@ -120,7 +119,6 @@ export const Header = () => {
               />
             )}
           </div>
-          <NumberIncrementer number={11000000000000000} />
           <a href="/feed">
             <PixelButton text="Blog" isBig></PixelButton>
           </a>

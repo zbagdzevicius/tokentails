@@ -251,3 +251,4 @@ export const daysCoins: Record<number, string> = {
 };
 const currentDay = new Date().getUTCDate();
 export const currentDayCoin = daysCoins[currentDay] || daysCoins[25];
+ 

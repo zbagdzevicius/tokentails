@@ -71,7 +71,7 @@ export const Calendar = () => {
     return (
         <div className="relative">
             <div
-                className="absolute right-0 top-36 w-20 h-20 items-center justify-center m-5 cursor-pointer flex flex-col"
+                className="absolute right-0 top-32 w-20 h-20 items-center justify-center m-5 pt-4 cursor-pointer flex flex-col"
                 onClick={handleCalendarClick}
             >
                 <img
@@ -102,7 +102,7 @@ export const Calendar = () => {
                     />
                 )}
             </div>
-            <div className="absolute right-0 top-56 m-5 mt-6 w-20">
+            <div className="absolute right-0 rem:top-[214px] m-5  w-20">
                 <Countdown targetDate={targetDate} />
             </div>
             {isCalendarOpen && (
@@ -114,7 +114,7 @@ export const Calendar = () => {
                         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
                     ></div>
                     <div
-                        className="z-50 w-full md:w-[592px] transition-from-bottom-animation max-w-full relative bg-gradient-to-b from-yellow-300 to-purple-300 inset-0 max-h-[80vh] overflow-y-auto overflow-x-hidden rounded-lg shadow h-fit"
+                        className="z-50 rem:w-[350px] rem:md:w-[592px] transition-from-bottom-animation max-w-full relative bg-gradient-to-b from-yellow-300 to-purple-300 inset-0 max-h-[70vh] overflow-y-auto overflow-x-hidden rounded-lg shadow h-fit"
                         style={{
                             backgroundImage: `url(${backgroundUrl})`,
                             backgroundSize: "cover",

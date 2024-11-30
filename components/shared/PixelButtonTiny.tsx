@@ -1,3 +1,6 @@
+import { useHover } from "@uidotdev/usehooks";
+import { useEffect } from "react";
+
 interface IProps {
     text: string;
     subtext?: string | number;
@@ -12,9 +15,25 @@ export const PixelButtonTiny = ({
     active,
     onClick,
 }: IProps) => {
+    const [ref, hovering] = useHover();
+    const handleClick = () => {
+        const audio = new Audio("/audio/button/click-close.wav");
+        audio.volume = 0.5;
+        audio.play();
+        if (onClick) onClick();
+    };
+
+    useEffect(() => {
+        if (hovering) {
+            const audio = new Audio("/audio/button/modern-mix.wav");
+            audio.volume = 0.5;
+            audio.play();
+        }
+    }, [hovering]);
     return (
         <button
-            onClick={onClick}
+            ref={ref}
+            onClick={handleClick}
             className={`flex justify-center items-center lg:h-6 ${!active ? "hover:animate-colormax lg:hover:pb-1 hover:pb-[1px]" : ""
                 }`}
         >
