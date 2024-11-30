@@ -35,7 +35,7 @@ export const SpeechBubble = () => {
     }, [typingIndex, isVisible, currentMessageToDisplay]);
 
     return (
-        <div className="absolute h-screen w-screen inset-0">
+        <div className="absolute h-full w-full inset-0">
             {isVisible && (
                 <div
                     className={`absolute bottom-1/2 left-1/2  transform -translate-x-1 -translate-y-9 text-center text-sm text-black bg-white ${isCatFedded ? "p-px" : "p-3"
