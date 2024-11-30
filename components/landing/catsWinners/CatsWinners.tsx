@@ -1,9 +1,14 @@
-import { PixelButton } from "@/components/shared/PixelButton";
+import { AboutUs } from "@/components/shared/AboutUs";
+import { ChristmasTree } from "@/components/shared/ChristmasTree";
+import { CandyCaneProgress } from "@/components/shared/CandyCaneProgress";
+import { PresaleCard } from "@/components/shared/PresaleCard";
+import { NumberIncrementer } from "@/components/shared/NumberIncrementer";
+import { Countdown } from "@/components/shared/Countdown";
 
 export const CatsWinners = () => {
   return (
-    <div className="flex items-center justify-center container no-p-mobile">
-      <div className="w-8/12 max-lg:w-full max-lg:m-2">
+    <div className="">
+      {/* <div className="w-8/12 max-lg:w-full max-lg:m-2">
         <h2 className="text-left font-secondary uppercase tracking-tight text-h2 text-balance max-lg:text-h6 my-3">
           we’re the first play to save game in the world
         </h2>
@@ -85,7 +90,15 @@ export const CatsWinners = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
+
+      <ChristmasTree />
+      <CandyCaneProgress />
+      <PresaleCard />
+      <NumberIncrementer number={10000} />
+      <AboutUs />
+      {/* <Countdown/> */}
     </div>
+
   );
 };

@@ -4,7 +4,7 @@ interface NumberIncrementerProps {
     number: number;
 }
 
-const NumberIncrementer: React.FC<NumberIncrementerProps> = ({ number }) => {
+export const NumberIncrementer: React.FC<NumberIncrementerProps> = ({ number }) => {
     const [currentValue, setCurrentValue] = useState<number>(0);
     const [iteration, setIteration] = useState<number>(0);
 
@@ -41,5 +41,3 @@ const NumberIncrementer: React.FC<NumberIncrementerProps> = ({ number }) => {
         </div>
     );
 };
-
-export default NumberIncrementer;

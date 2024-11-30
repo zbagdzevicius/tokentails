@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 
-const CandyCaneProgress = ({ }) => {
+export const CandyCaneProgress = ({ }) => {
     const [progress, setProgress] = useState(0);
     const now = new Date();
 
@@ -46,5 +46,3 @@ const CandyCaneProgress = ({ }) => {
         </div>
     );
 };
-
-export default CandyCaneProgress;

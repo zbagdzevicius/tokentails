@@ -145,7 +145,6 @@ export const AdventCalendar = () => {
     const handleCloseModal = () => {
         setSelectedCat(null);
     };
-
     const nextDayTargetDate = getNextDayMidnight();
     const nextDay = currentDay + 1;
 
@@ -196,7 +195,7 @@ export const AdventCalendar = () => {
                                             )}
                                         </h2>
                                         <img
-                                            className="absolute lg:bottom-8 rem:bottom-[22px] lg:w-9 w-5 lg:h-9 h-5"
+                                            className="absolute lg:bottom-8 rem:bottom-[22px] lg:w-10 w-7 lg:h-10 h-7"
                                             src={
                                                 content.isOpened && content.cat
                                                     ? content.cat.catImg
