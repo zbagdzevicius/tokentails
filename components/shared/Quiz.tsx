@@ -52,7 +52,7 @@ const QuizQuestion = ({
         width={720}
       />
       <h2
-        className="word-break text-p1 font-bold capitalize mb-4 px-4 text-gray-800"
+        className="word-break text-p1 font-bold capitalize mb-4 px-4"
         dangerouslySetInnerHTML={{ __html: question }}
       ></h2>
       <div className="flex flex-col gap-1 px-4">

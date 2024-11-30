@@ -5,18 +5,18 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import "swiper/css/effect-coverflow";
 import "swiper/css/pagination";
-import { EffectCoverflow, Pagination } from "swiper/modules";
+import { Pagination } from "swiper/modules";
 
 interface IProps {
   items: ReactNode[];
   customClass?: string;
   mobileSlides?: number;
+  isCoverflowDisabled?: boolean
 }
 
 export const Slider = ({ items, customClass, mobileSlides }: IProps) => {
   return (
     <Swiper
-      effect={"coverflow"}
       grabCursor={true}
       centeredSlides={true}
       slidesPerView={'auto'}
@@ -47,7 +47,7 @@ export const Slider = ({ items, customClass, mobileSlides }: IProps) => {
       }}
       pagination={{ clickable: true }}
       slideToClickedSlide={true}
-      modules={[EffectCoverflow, Pagination]}
+      modules={[Pagination]}
       className={customClass || ""}
     >
       {items.map((Item, index) => (

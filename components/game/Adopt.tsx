@@ -11,7 +11,6 @@ function Adopt() {
     queryKey: ["sale", profile?.cats],
     queryFn: () => catsForSaleFetch(),
   });
-
   const handleCloseModal = () => {
     setSelectedCat(null);
   };

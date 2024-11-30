@@ -447,6 +447,7 @@ export const catsForSaleFetch = async (): Promise<ICat[]> => {
     return [];
   });
 };
+
 export const adoptCatFetch = async (
   _id: string
 ): Promise<{ success: boolean; message: string }> => {
@@ -651,5 +652,41 @@ export const setActiveCat = async (id: string): Promise<void> => {
 
     console.warn(JSON.stringify(response));
     return;
+  });
+};
+
+export const setAdventDay = async (): Promise<void> => {
+  return fetch(`${apiUrl}/user/advent`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: sessionStorage.getItem("accesstoken"),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return;
+  });
+};
+
+export const exclusiveCatsFetch = async (): Promise<ICat[]> => {
+  return fetch(`${apiUrl}/cat/exclusive`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: sessionStorage.getItem("accesstoken"),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return [];
   });
 };

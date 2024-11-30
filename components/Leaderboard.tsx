@@ -4,6 +4,7 @@ import { GameModal } from "@/models/game";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { PixelButton } from "./shared/PixelButton";
+import { CloseButton } from "./shared/CloseButton";
 
 const leaderboardTexts: Partial<
   Record<GameModal, { header: string; title: string; subtitle: string }>
@@ -66,35 +67,31 @@ export const LeaderboardContent = () => {
           {data?.map((result, index) => (
             <tr
               key={index}
-              className={`border-b ${
-                index > 2 ? "border-purple-300" : "border-yellow-300"
-              }`}
+              className={`border-b ${index > 2 ? "border-purple-300" : "border-yellow-300"
+                }`}
             >
               <th
                 scope="row"
-                className={`text-p4 font-secondary text-center py-4 font-medium whitespace-nowrap border-b ${
-                  index > 2
-                    ? "bg-white border-purple-300"
-                    : "bg-yellow-300 border-white"
-                }`}
+                className={`text-p4 font-secondary text-center py-4 font-medium whitespace-nowrap border-b ${index > 2
+                  ? "bg-white border-purple-300"
+                  : "bg-yellow-300 border-white"
+                  }`}
               >
                 {index + 1}
               </th>
               <td
-                className={`py-4 text-center bg-gray-700 text-p5 border-l font-bold ${
-                  index > 2
-                    ? "border-purple-300 text-purple-300"
-                    : "border-yellow-300 text-yellow-300"
-                }`}
+                className={`py-4 text-center bg-gray-700 text-p5 border-l font-bold ${index > 2
+                  ? "border-purple-300 text-purple-300"
+                  : "border-yellow-300 text-yellow-300"
+                  }`}
               >
                 {result.name}
               </td>
               <td
-                className={`p-4 text-center bg-gray-700 text-p5 md:text-p4 border-l font-secondary ${
-                  index > 2
-                    ? "border-purple-300 text-purple-300"
-                    : "border-yellow-300 text-yellow-300"
-                }`}
+                className={`p-4 text-center bg-gray-700 text-p5 md:text-p4 border-l font-secondary ${index > 2
+                  ? "border-purple-300 text-purple-300"
+                  : "border-yellow-300 text-yellow-300"
+                  }`}
               >
                 {(type === GameModal.LEADERBOARD
                   ? result.catpoints
@@ -120,6 +117,7 @@ export const Leaderboard = ({ close }: { close: () => void }) => {
         <button onClick={close} className="absolute right-[0] top-0 group">
           <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>
         </button>
+        <CloseButton onClick={() => close()} />
       </div>
     </div>
   );

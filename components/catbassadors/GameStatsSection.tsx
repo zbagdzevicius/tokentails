@@ -3,7 +3,7 @@ import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
 import { useState } from "react";
 import { PixelButton } from "../shared/PixelButton";
-
+import { CloseButton } from "../shared/CloseButton";
 interface IGameStat {
   title: string;
   image: string;
@@ -78,7 +78,7 @@ export const GameStatsSection = ({
         </div>
       </div>
       {modal && (
-        <div className="fixed inset-0 pt-safe w-full z-50 flex justify-center h-full">
+        < div className="fixed inset-0 pt-safe w-full z-50 flex justify-center h-full">
           <div
             onClick={() => setModal(null)}
             className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
@@ -93,9 +93,11 @@ export const GameStatsSection = ({
                 text="Okey"
               ></PixelButton>
             </div>
+            <CloseButton onClick={() => setModal(null)} />
           </div>
         </div>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 };

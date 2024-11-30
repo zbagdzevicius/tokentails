@@ -1,22 +1,21 @@
-import { Footer } from "@/layouts/Footer";
+import { Airdrop } from "@/components/landing/Airdrop";
 import { BlogPreview } from "@/components/landing/BlogPreview";
-import { CatsHub } from "@/components/landing/catsHub/CatsHub";
-import { CatsSlider } from "@/components/landing/catsSlider/CatsSlider";
-import { CatsWinners } from "@/components/landing/catsWinners/CatsWinners";
-import Contact from "@/components/landing/contact/Contact";
-import { FeedbackSlider } from "@/components/landing/feedbackSlider/FeedbackSlider";
-import { GameModesSlider } from "@/components/landing/GameModesSlider";
-import { HomePage } from "@/components/landing/homePage/HomePage";
-import Roadmap from "@/components/landing/roadmap/Roadmap";
-import { Tokenomics } from "@/components/landing/tokenomics/Tokenomics";
+import { CatsHub } from "@/components/landing/CatsHub";
+import { FeedbackSlider } from "@/components/landing/FeedbackSlider";
+import { GameModes } from "@/components/landing/GameModes";
+import { HomePage } from "@/components/landing/HomePage";
+import { Presale } from "@/components/landing/Presale";
+import Roadmap from "@/components/landing/Roadmap";
+import { Team } from "@/components/landing/Team";
+import { Tokenomics } from "@/components/landing/Tokenomics";
 import { Circle } from "@/components/shared/Circle";
-import { CircleWhite } from "@/components/shared/CircleWhite";
-import Head from "next/head";
-import { useEffect, useRef, useState } from "react";
+import Snowfall from "@/components/shared/Snowfall";
+import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
+import Head from "next/head";
+import { useEffect, useRef } from "react";
 
 export default function Index() {
-  const [activeSection, setActiveSection] = useState("");
   const catssliderRef = useRef(null);
   const gamessliderRef = useRef(null);
   const catshubRef = useRef(null);
@@ -45,7 +44,6 @@ export default function Index() {
             entry.isIntersecting &&
             !entry.target.classList.contains("animated-block")
           ) {
-            setActiveSection(entry.target.id);
             entry.target.classList.add("animated-block");
           }
         });
@@ -103,25 +101,78 @@ export default function Index() {
           <Circle />
         </div>
         <div
-          className="pt-24 md:pt-36 fade-in"
+          className="pt-24 md:pt-36 fade-in h-screen relative"
           style={{
-            backgroundImage: "url(/base/bg-night.gif)",
+            backgroundImage: "url(/base/bg-night-2.gif)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         >
           <div id="homepage">
+            <Snowfall />
             <HomePage />
           </div>
         </div>
-        <div className="pb-4 pt-3 md:pt-0 bg-gradient-to-b from-purple-300 to-blue-300">
-          <div id="catsslider" ref={catssliderRef}>
-            <CatsSlider />
+        <div
+          className="pb-4 pt-3 md:pt-0 h-screen"
+          style={{
+            backgroundImage: "url(/base/bg-4.gif)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div
+            className="z-10 relative h-full"
+            id="presale"
+            ref={gamessliderRef}
+          >
+            <Presale />
           </div>
         </div>
         <div
-          className="py-4 bg-gradient-to-b from-purple-300"
+          className="pb-4 pt-3 md:pt-0 h-screen"
+          style={{
+            backgroundImage: "url(/base/bg.gif)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div className="h-full" id="game" ref={catssliderRef}>
+            <GameModes />
+          </div>
+        </div>
+
+        <div
+          className="py-4 min-h-screen"
+          style={{
+            backgroundImage: "url(/base/bg-3.gif)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div id="cats" ref={catshubRef}>
+            <CatsHub />
+          </div>
+        </div>
+        <div
+          className="pb-4 pt-3 md:pt-0 min-h-screen flex items-center justify-center"
+          style={{
+            backgroundImage: "url(/base/bg-6.png)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div className="h-full w-full" id="airdrop" ref={catssliderRef}>
+            <Airdrop />
+          </div>
+        </div>
+        <div
+          className="py-4 min-h-screen flex items-center justify-center"
           style={{
             backgroundImage: "url(/base/bg-2.gif)",
             backgroundRepeat: "no-repeat",
@@ -129,47 +180,64 @@ export default function Index() {
             backgroundPosition: "center",
           }}
         >
-          <div id="catshub" ref={catshubRef}>
-            <CatsHub />
-          </div>
-        </div>
-        <div className="pb-4 pt-3 md:pt-0 bg-gradient-to-b from-purple-300 to-yellow-300">
-          <div id="catsslider" ref={gamessliderRef}>
-            <GameModesSlider />
-          </div>
-        </div>
-        <div className="py-4 bg-gradient-to-b from-yellow-300 via-yellow-300 to-purple-300">
           <div
             className="relative overflow-hidden"
-            id="catswinners"
+            id="tokenomics"
             ref={catswinnersRef}
           >
-            <div className="z-10 relative">
-              <CatsWinners />
-            </div>
-            <div className="absolute bottom-0 right-0 md:right-72 z-0">
-              <CircleWhite />
-            </div>
+            <Tokenomics />
           </div>
         </div>
-        <div className="py-4 pt-24 bg-gradient-to-t from-blue-300 to-purple-300">
-          <div id="roadmap" ref={roadmapRef}>
+        <div
+          className="min-h-screen flex items-center justify-center"
+          style={{
+            backgroundImage: "url(/base/bg-5.png)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div className="h-full" id="roadmap" ref={roadmapRef}>
             <Roadmap />
           </div>
         </div>
-        <div className="py-4 bg-gradient-to-t from-green-300 to-blue-300">
+        <div
+          className="py-4 h-screen"
+          style={{
+            backgroundImage: "url(/base/bg-6.png)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
           <div id="feedbackslider" ref={feedbackSliderRef}>
             <FeedbackSlider />
           </div>
         </div>
-        <div className="bg-gradient-to-b from-green-300 to-blue-300">
-          <div id="blog">
+        <div
+          className="h-screen flex items-center"
+          style={{
+            backgroundImage: "url(/base/bg-night.gif)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div className="w-full" id="blog">
             <BlogPreview />
           </div>
         </div>
-        <div className="pt-4 bg-gradient-to-b from-green-300 to-yellow-300">
-          <div id="contact" ref={contactRef}>
-            <Contact />
+        <div
+          className="pt-4 min-h-screen flex items-center justify-center"
+          style={{
+            backgroundImage: "url(/base/bg.svg)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div className="h-full" id="contact" ref={contactRef}>
+            <Team />
           </div>
         </div>
         <Footer />
