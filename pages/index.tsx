@@ -228,7 +228,7 @@ export default function Index() {
           </div>
         </div>
         <div
-          className="pt-4 h-screen"
+          className="pt-4 min-h-screen flex items-center justify-center"
           style={{
             backgroundImage: "url(/base/bg.svg)",
             backgroundRepeat: "no-repeat",

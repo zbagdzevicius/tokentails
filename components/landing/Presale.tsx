@@ -17,7 +17,7 @@ export const Presale = () => {
             isDaysDisplayed
           />
         </div>
-        <div className="-mb-24 w-full hover:brightness-125">
+        <div className="-mb-24 w-full">
           <ChristmasTree />
         </div>
         <CandyCaneProgress />

@@ -3,7 +3,7 @@ import React from 'react';
 
 export const ChristmasTree: React.FC = () => {
     return (
-        <div className="container py-16 animate-hover">
+        <div className="container py-16">
             <div
                 className="tree">
                 <div className="trunk ts-3d">
