@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
-import { adventData } from "./AdventCalendar";
-import { AdventCalendar } from "./AdventCalendar";
+import { currentDayCoin } from "@/constants/utils";
+import { useEffect, useState } from "react";
+import { CatCard } from "../CatCard";
+import { AdventCalendar, adventData } from "./AdventCalendar";
 import { CloseButton } from "./CloseButton";
 import { Countdown } from "./Countdown";
-import { currentDayCoin } from "@/constants/utils";
 const daysBackgrounds: Record<number, string> = {
   1: "advent-calendar/background/1.webp",
   2: "advent-calendar/background/2.webp",
@@ -51,7 +51,11 @@ export const Calendar = ({ isRelative }: IProps) => {
     return Math.min(today, 25);
   });
   const [targetDate, setTargetDate] = useState<string>(getNextMidnightUTC);
+  const [selectedCat, setSelectedCat] = useState<any | null>(null);
 
+  const handleCloseModal = () => {
+    setSelectedCat(null);
+  };
   useEffect(() => {
     const now = new Date();
     const nextMidnight = new Date(
@@ -117,6 +121,11 @@ export const Calendar = ({ isRelative }: IProps) => {
           <Countdown targetDate={targetDate} />
         </div>
       )}
+      {selectedCat && (
+        <div className="z-[110] relative">
+          <CatCard onClose={handleCloseModal} {...selectedCat} />
+        </div>
+      )}
       {isCalendarOpen && !isRelative && (
         <div className="fixed inset-0 pt-safe w-full z-[100] flex justify-center items-center h-full">
           <div
@@ -135,7 +144,7 @@ export const Calendar = ({ isRelative }: IProps) => {
             <div className="sticky top-0 right-0 m-2 z-50">
               <CloseButton onClick={handleCalendarClick} />
             </div>
-            <AdventCalendar />
+            <AdventCalendar setSelectedCat={setSelectedCat} />
           </div>
         </div>
       )}
