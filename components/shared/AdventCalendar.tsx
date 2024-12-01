@@ -151,13 +151,14 @@ export const AdventCalendar = () => {
     queryFn: () => catsFetch(),
   });
   useEffect(() => {
-    Object.keys(adventData).forEach((key: any) => {
-      adventData[key].unlocked = currentDay >= key;
-      adventData[key].isOpened = (profile?.adventDayRedeemed || 0) >= key;
-      adventData[key].cat = adventCats?.find(
+    Object.keys(calendarData).forEach((key: any) => {
+      calendarData[key].unlocked = currentDay >= key;
+      calendarData[key].isOpened = (profile?.adventDayRedeemed || 0) >= key;
+      calendarData[key].cat = adventCats?.find(
         (adventCat) => adventCat.name === catNamesMap[key]
       );
     });
+    setCalendarData({ ...calendarData });
   }, [profile?.adventDayRedeemed, adventCats, currentDay]);
 
   useEffect(() => {

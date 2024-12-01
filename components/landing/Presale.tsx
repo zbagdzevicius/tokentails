@@ -7,10 +7,11 @@ export const Presale = () => {
   return (
     <div className="container h-full flex flex-col items-center justify-center overflow-visible">
       <div className="flex flex-col items-center">
-        <h2 className="font-secondary uppercase tracking-tight text-h3 md:text-h2 text-balance mb-4 text-green-900">
+        <h2 className="font-secondary uppercase tracking-tight text-h3 md:text-h2 text-balance">
           PRESALE IS COMING
         </h2>
-        <div className="hover:brightness-125 relative z-10">
+        <div className="hover:brightness-110 relative z-10 animate-hover">
+          <img className="w-48 -mb-4" src="/images/cats-hub/christmas-cat.webp" />
           <Countdown
             targetDate={new Date("2024-12-08")}
             isBig
@@ -23,10 +24,6 @@ export const Presale = () => {
         <CandyCaneProgress />
         <div className="flex gap-24">
           <a href="/game" className="relative">
-            <span className="relative z-10">
-              <PixelButton text="PLAY" isBig subtext="HERE"></PixelButton>
-            </span>
-
             <img
               src="/logo/coin.webp"
               alt="coin"
@@ -37,16 +34,15 @@ export const Presale = () => {
               alt="coin"
               className="h-12 w-12 absolute bottom-0 top-0 -right-6"
             />
+            <span className="relative z-10">
+              <PixelButton text="PLAY" isBig subtext="HERE"></PixelButton>
+            </span>
           </a>
           <a
             href="https://t.me/CatbassadorsBot?start=start"
             target="_blank"
             className="font-secondary relative"
           >
-            <span className="relative z-10">
-              <PixelButton text="PLAY ON" subtext="TG" isBig></PixelButton>
-            </span>
-
             <img
               src="/logo/boss-coin.png"
               alt="coin"
@@ -57,6 +53,9 @@ export const Presale = () => {
               alt="coin"
               className="h-12 w-12 absolute bottom-0 top-0 -left-6"
             />
+            <span className="relative z-10">
+              <PixelButton text="PLAY ON" subtext="TG" isBig></PixelButton>
+            </span>
           </a>
         </div>
       </div>

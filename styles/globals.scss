@@ -7,7 +7,6 @@
 @import url("https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Pixelify+Sans:wght@400..700&display=swap");
 
 @import "../styles/snow.scss";
-@import "../styles/christmastree.scss";
 
 $breakpoints: (
   "mobile": 767px,
@@ -538,6 +537,7 @@ $n: 20;
 }
 
 .progress {
+  -webkit-appearance: none;
 }
 
 .progress::-webkit-progress-bar {

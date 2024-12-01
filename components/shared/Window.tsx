@@ -15,10 +15,10 @@ export const Window: React.FC<WindowProps> = ({ children, isUnlocked, isOpened }
                     ${isUnlocked && "group-hover:[transform:rotateY(-130deg)]"}
                     ${isOpened && "[transform:rotateY(-130deg)]"}
                     `} >
-                    <div className="lg:border-3 border-2 border-black  lg:w-14 lg:h-24 w-10 h-20">
+                    <div className="lg:border-3 border-2 border-black  lg:w-14 w-10 h-full">
                         <div className="bg-sky-300 opacity-40 w-full h-full"></div>
                     </div>
-                    <div className="lg:border-3 border-2 border-black  lg:w-14 lg:h-24 w-10 h-20">
+                    <div className="lg:border-3 border-2 border-black  lg:w-14 w-10 h-full">
                         <div className="bg-sky-300 opacity-40 w-full h-full"></div>
                     </div>
                     <div className="left-knob w-1 lg:h-4 h-2 bg-gray-300 absolute top-1/2 transform -translate-y-1/2 lg:right-2.5 right-1"></div>
@@ -27,10 +27,10 @@ export const Window: React.FC<WindowProps> = ({ children, isUnlocked, isOpened }
                      ${isUnlocked && "group-hover:[transform:rotateY(130deg)]"}
                       ${isOpened && "[transform:rotateY(130deg)]"}
                      `}>
-                    <div className="lg:border-3 border-2 border-black lg:w-14 lg:h-24 w-10 h-20">
+                    <div className="lg:border-3 border-2 border-black lg:w-14 w-10 h-full">
                         <div className="bg-sky-300 opacity-40 w-full h-full"></div>
                     </div>
-                    <div className="lg:border-3 border-2 border-black lg:w-14 lg:h-24 w-10 h-20">
+                    <div className="lg:border-3 border-2 border-black lg:w-14 w-10 h-full">
                         <div className="bg-sky-300 opacity-40 w-full h-full"></div>
                     </div>
                     <div className="right-knob w-1 lg:h-4  h-2 bg-gray-300 absolute top-1/2 transform -translate-y-1/2 lg:left-2.5 left-1"></div>

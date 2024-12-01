@@ -1,4 +1,3 @@
-import React from "react";
 import { SocialImages } from "./Team";
 
 export const Airdrop = () => {
