@@ -1,9 +1,9 @@
 import { catsFetch, exclusiveCatsFetch, setAdventDay } from "@/constants/api";
 import { daysCoins } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
+import { ICat } from "@/models/cats";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { CatCard } from "../CatCard";
 import { Countdown } from "./Countdown";
 import { PixelButtonTiny } from "./PixelButtonTiny";
 import { Window } from "./Window";
@@ -130,9 +130,12 @@ const getNextDayMidnight = () => {
   return nextDay.toISOString();
 };
 
-export const AdventCalendar = () => {
+interface IProps {
+  setSelectedCat: (cat: ICat) => void;
+}
+
+export const AdventCalendar = ({ setSelectedCat }: IProps) => {
   const [calendarData, setCalendarData] = useState(adventData);
-  const [selectedCat, setSelectedCat] = useState<any | null>(null);
   const { profile, setProfileUpdate } = useProfile();
   const [currentDay, setCurrentDay] = useState<number>(() => {
     const now = new Date();
@@ -151,13 +154,14 @@ export const AdventCalendar = () => {
     queryFn: () => catsFetch(),
   });
   useEffect(() => {
-    Object.keys(adventData).forEach((key: any) => {
-      adventData[key].unlocked = currentDay >= key;
-      adventData[key].isOpened = (profile?.adventDayRedeemed || 0) >= key;
-      adventData[key].cat = adventCats?.find(
+    Object.keys(calendarData).forEach((key: any) => {
+      calendarData[key].unlocked = currentDay >= key;
+      calendarData[key].isOpened = (profile?.adventDayRedeemed || 0) >= key;
+      calendarData[key].cat = adventCats?.find(
         (adventCat) => adventCat.name === catNamesMap[key]
       );
     });
+    setCalendarData({ ...calendarData });
   }, [profile?.adventDayRedeemed, adventCats, currentDay]);
 
   useEffect(() => {
@@ -218,9 +222,6 @@ export const AdventCalendar = () => {
     }
   };
 
-  const handleCloseModal = () => {
-    setSelectedCat(null);
-  };
   const nextDayTargetDate = getNextDayMidnight();
   const nextDay = currentDay + 1;
 
@@ -318,11 +319,6 @@ export const AdventCalendar = () => {
           );
         })}
       </div>
-      {selectedCat && (
-        <div>
-          <CatCard onClose={handleCloseModal} {...selectedCat} />
-        </div>
-      )}
     </div>
   );
 };

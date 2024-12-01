@@ -88,7 +88,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
           setGameType(GameType.SHELTER);
           close();
         }}
-        className="w-36 h-36 rounded-xl hover:animate-hover animate-border"
+        className="w-36 h-36 rounded-xl hover:animate-hover"
         src="/game/select/shelter.jpg"
       />
     </div>
