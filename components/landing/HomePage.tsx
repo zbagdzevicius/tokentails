@@ -216,10 +216,6 @@ export const HomePage = () => {
       </div>
       <div className="flex gap-16 md:gap-20 items-center mb-4 -mt-24 md:-mt-40 -skew-x-[1deg] md:-skew-x-[1deg] skew-y-[5deg] relative z-30 ">
         <a href="/game" className="relative">
-          <span className="relative z-10">
-            <PixelButton text="PLAY" isBig subtext="HERE"></PixelButton>
-          </span>
-
           <img
             src="/logo/coin.webp"
             alt="coin"
@@ -230,6 +226,9 @@ export const HomePage = () => {
             alt="coin"
             className="h-12 w-12 absolute bottom-0 top-0 -right-6"
           />
+          <span className="relative z-10">
+            <PixelButton text="PLAY" isBig subtext="HERE"></PixelButton>
+          </span>
         </a>
 
         <a
@@ -237,10 +236,6 @@ export const HomePage = () => {
           target="_blank"
           className="font-secondary relative"
         >
-          <span className="relative z-10">
-            <PixelButton text="PLAY ON" subtext="TG" isBig></PixelButton>
-          </span>
-
           <img
             src="/logo/boss-coin.png"
             alt="coin"
@@ -251,6 +246,9 @@ export const HomePage = () => {
             alt="coin"
             className="h-12 w-12 absolute bottom-0 top-0 -left-6"
           />
+          <span className="relative z-10">
+            <PixelButton text="PLAY ON" subtext="TG" isBig></PixelButton>
+          </span>
         </a>
       </div>
       <span className="relative z-30 -skew-x-[1deg] md:-skew-x-[1deg] skew-y-[5deg]">
@@ -261,7 +259,7 @@ export const HomePage = () => {
         <div className="slide-track">
           {sponsorImage.map((sponsor, index) => (
             <div key={index} className="slide flex items-center">
-              <img className="h-10 w-full" src={sponsor} />
+              <img className="h-10 w-auto" src={sponsor} />
             </div>
           ))}
         </div>

@@ -10,7 +10,7 @@ export const CandyCaneProgress = ({ }) => {
         setProgress(utcDay);
     }, [utcDay]);
 
-    const maxProgress = 8;
+    const maxProgress = 9;
     const effectiveProgress = Math.min(progress, maxProgress);
     const santaPosition = Math.min((effectiveProgress / maxProgress) * 100, 90);
 
@@ -40,7 +40,7 @@ export const CandyCaneProgress = ({ }) => {
             />
             <img
                 src="./icons/gift.png"
-                className="absolute w-12 h-12 -right-12 bottom-0"
+                className="absolute w-8 h-8 -right-4 md:right-2 bottom-0"
                 alt="Gift"
             />
         </div>

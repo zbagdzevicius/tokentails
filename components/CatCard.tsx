@@ -13,19 +13,30 @@ interface IProps extends ICat {
 }
 
 export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
-  const { _id, catImg, name, type, ability, resqueStory, catpoints, price, blessings } =
-    catData;
+  const {
+    _id,
+    catImg,
+    name,
+    type,
+    ability,
+    resqueStory,
+    catpoints,
+    price,
+    blessings,
+  } = catData;
   const cardRef = useRef<HTMLDivElement>(null);
   const { profile, setProfileUpdate } = useProfile();
   const [isAdopting, setIsAdopting] = useState(false);
   const { setGameType } = useGame();
 
-
-
-  const firstBlessing = (blessings && blessings.length > 0) ? blessings[0] : null;
+  const firstBlessing = blessings && blessings.length > 0 ? blessings[0] : null;
   const blessingsToDisplay = blessings ? blessings.slice(1, 5) : [];
-  const positions = ["left-0 top-0", "left-0 bottom-0", "right-0 bottom-0", "right-0 top-0"];
-
+  const positions = [
+    "left-0 top-0",
+    "left-0 bottom-0",
+    "right-0 bottom-0",
+    "right-0 top-0",
+  ];
 
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
@@ -90,7 +101,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
         onClick={() => onClose()}
       ></div>
       <div
-        className={`max-w-screen-xl rem:h-[540px] md:rem:h-[600px] aspect-[2/3] max-w-screen animate-border ${type.toLocaleLowerCase()}`}
+        className={`max-w-screen-xl border-4 rounded-[16px] border-yellow-300 relative rem:h-[540px] md:rem:h-[600px] aspect-[2/3] max-w-screen ${type.toLocaleLowerCase()}`}
         ref={cardRef}
       >
         <img
@@ -156,7 +167,11 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                       className="w-10 h-10"
                     />
                   )}
-                  <h4 className={`text-white text-p3 ${firstBlessing ? "ml-6" : "ml-16"} max-sm:ml-10 font-bold`}>
+                  <h4
+                    className={`text-white text-p3 ${
+                      firstBlessing ? "ml-6" : "ml-16"
+                    } max-sm:ml-10 font-bold`}
+                  >
                     STORY
                   </h4>
                 </div>
