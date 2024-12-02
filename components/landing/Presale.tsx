@@ -2,6 +2,7 @@ import { CandyCaneProgress } from "@/components/shared/CandyCaneProgress";
 import { ChristmasTree } from "@/components/shared/ChristmasTree";
 import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
+import { PresaleCard } from "../shared/PresaleCard";
 
 export const Presale = () => {
   return (
@@ -59,7 +60,7 @@ export const Presale = () => {
           </a>
         </div>
       </div>
-      {/* <PresaleCard /> */}
+      <PresaleCard />
       {/* <NumberIncrementer number={10000} /> */}
       {/* <AboutUs /> */}
       {/* <Countdown/> */}

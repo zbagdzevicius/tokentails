@@ -115,7 +115,7 @@ export default function Index() {
           </div>
         </div>
         <div
-          className="pb-4 pt-3 md:pt-0 h-screen"
+          className="pb-4 pt-3 md:pt-0 min-h-screen"
           style={{
             backgroundImage: "url(/base/bg-4.gif)",
             backgroundRepeat: "no-repeat",
@@ -132,7 +132,7 @@ export default function Index() {
           </div>
         </div>
         <div
-          className="pb-4 pt-3 md:pt-0 h-screen"
+          className="pb-4 pt-3 md:pt-0 min-h-screen flex items-center justify-center w-full"
           style={{
             backgroundImage: "url(/base/bg.gif)",
             backgroundRepeat: "no-repeat",
@@ -140,7 +140,7 @@ export default function Index() {
             backgroundPosition: "center",
           }}
         >
-          <div className="h-full" id="game" ref={catssliderRef}>
+          <div className="h-full w-full" id="game" ref={catssliderRef}>
             <GameModes />
           </div>
         </div>
