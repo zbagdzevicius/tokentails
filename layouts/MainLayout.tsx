@@ -11,7 +11,7 @@ export const MainLayout = ({ children }: PropsWithChildren<any>) => {
       <ToastProvider>
         <ProfileProvider>
           <CatProvider>
-            <main className="z-10 relative flex flex-col overflow-hidden">
+            <main className="z-10 relative flex flex-col overflow-hidden h-full">
               {children}
             </main>
           </CatProvider>
