@@ -19,7 +19,7 @@ export const Game = () => {
   const background = useBackground();
 
   return (
-    <div className="w-full max-h-screen" style={background}>
+    <div className="w-full max-h-screen h-full" style={background}>
       {gameType === GameType.CATBASSADORS && profile && (
         <Catbassadors cat={profile?.cat} timer={timer} />
       )}

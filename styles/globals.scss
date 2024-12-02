@@ -32,6 +32,10 @@ $custom-background: linear-gradient(90.26deg, #c1260f 0.34%, #ee642a 96.66%);
   }
 }
 
+#__next {
+  height: 100%;
+}
+
 @media (max-width: 640px) {
   html {
     font-size: calc(100vw / 25);

@@ -35,7 +35,6 @@ let timerInterval: any = null;
 
 const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [isStarted, setIsStarted] = React.useState<boolean>(false);
-  const [isBaseSceneStarted, setIsBaseSceneStarted] = React.useState<boolean>(false);
   const [gameType, setGameType] = React.useState<GameType | null>(
     GameType.HOME
   );
@@ -140,9 +139,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
             <CatsModal close={() => setOpenedModal(null)} />
           )}
           {gameType === GameType.HOME && isGameLoaded && <SpeechBubble />}
-          {gameType === GameType.HOME && (
-            <Calendar />
-          )}
+          {(gameType === GameType.HOME || !gameType) && <Calendar />}
           <GameMusicPlayer />
         </>
       )}

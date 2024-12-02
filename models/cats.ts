@@ -111,6 +111,7 @@ export interface ICat {
   type: CatAbilityType;
   resqueStory: string;
   status: ICatStatus;
+  supply: number;
   spriteImg: string;
   catImg: string;
   cardImg: string;
