@@ -60,7 +60,7 @@ export const Presale = () => {
           </a>
         </div>
       </div>
-      <PresaleCard />
+      {/* <PresaleCard /> */}
       {/* <NumberIncrementer number={10000} /> */}
       {/* <AboutUs /> */}
       {/* <Countdown/> */}
