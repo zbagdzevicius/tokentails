@@ -142,7 +142,7 @@ export const CatGame = ({ cats, onClickCallback }: IProps) => {
     transform: `scaleX(${element.speedX < 0 ? -1 : 1})`,
   });
   return (
-    <div className="w-full h-full">
+    <div className="absolute inset-0 w-full h-full overflow-hidden">
       <div
         draggable="false"
         className=" z-0 w-full h-full object-fit"
