@@ -115,7 +115,7 @@ export default function Index() {
           </div>
         </div>
         <div
-          className="pb-4 pt-3 md:pt-0 min-h-screen"
+          className="pb-4 pt-3 md:pt-0 min-h-screen flex items-center justify-center"
           style={{
             backgroundImage: "url(/base/bg-4.gif)",
             backgroundRepeat: "no-repeat",
