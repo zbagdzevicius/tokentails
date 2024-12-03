@@ -81,10 +81,10 @@ export const Calendar = ({ isRelative }: IProps) => {
   const currentDayData = adventData[currentDay] || null;
 
   return (
-    <div className="relative">
+    <>
       <div
         className={`${
-          isRelative ? "relative" : "absolute -right-2 top-32 m-5 pt-4"
+          isRelative ? "relative" : "absolute -right-2 top-32 m-5 pt-4 z-10"
         } w-20 h-20 items-center justify-center cursor-pointer flex flex-col`}
         onClick={handleCalendarClick}
       >
@@ -115,12 +115,12 @@ export const Calendar = ({ isRelative }: IProps) => {
             alt={`Day ${currentDay} image`}
           />
         )}
+        {!isRelative && (
+          <div className="absolute -bottom-16 m-5  w-20">
+            <Countdown targetDate={targetDate} />
+          </div>
+        )}
       </div>
-      {!isRelative && (
-        <div className="absolute -right-2 rem:top-[214px] m-5  w-20">
-          <Countdown targetDate={targetDate} />
-        </div>
-      )}
       {selectedCat && (
         <div className="z-[110] relative">
           <CatCard onClose={handleCloseModal} {...selectedCat} />
@@ -148,6 +148,6 @@ export const Calendar = ({ isRelative }: IProps) => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
