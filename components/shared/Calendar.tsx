@@ -121,11 +121,7 @@ export const Calendar = ({ isRelative }: IProps) => {
           </div>
         )}
       </div>
-      {selectedCat && (
-        <div className="z-[110] relative">
-          <CatCard onClose={handleCloseModal} {...selectedCat} />
-        </div>
-      )}
+      {selectedCat && <CatCard onClose={handleCloseModal} {...selectedCat} />}
       {isCalendarOpen && !isRelative && (
         <div className="fixed inset-0 pt-safe w-full z-[100] flex justify-center items-center h-full">
           <div
