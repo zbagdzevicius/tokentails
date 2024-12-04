@@ -275,12 +275,36 @@ export class PurrquestScene extends Phaser.Scene {
         this.player?.sprite as Phaser.Physics.Arcade.Sprite,
         enemy,
         this
-          .handlePlayerEnemyCollisions as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+          .pushPlayerBack as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
         undefined,
         this
       );
     });
   }
+
+private pushPlayerBack(
+  player: Phaser.Physics.Arcade.Sprite,
+  enemy: Enemy
+) {
+  if (!this.player!.isInvulnerable) {
+    const pushBackForce = 500;
+    const directionX = player.x > enemy.x ? 1 : -1;
+    const directionY = player.y > enemy.y ? 1 : -1;
+
+    this.player!.isHit = true;
+    this.player!.isInvulnerable = true;
+    player.setVelocityX(pushBackForce * directionX);
+    player.setVelocityY(pushBackForce * directionY);
+
+    this.time.delayedCall(1000, () => {
+      this.player!.isInvulnerable = false;
+      this.player!.isHit = false;
+
+    });
+  }
+}
+
+
   private spawnBossEnemy() {
     const tile = this.getRandomWalkableTile();
     if (!tile) {

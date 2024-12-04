@@ -22,13 +22,14 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
     resqueStory,
     catpoints,
     price,
+    multiplier,
     blessings,
+    supply,
   } = catData;
   const cardRef = useRef<HTMLDivElement>(null);
   const { profile, setProfileUpdate } = useProfile();
   const [isAdopting, setIsAdopting] = useState(false);
   const { setGameType } = useGame();
-
   const firstBlessing = blessings && blessings.length > 0 ? blessings[0] : null;
   const blessingsToDisplay = blessings ? blessings.slice(1, 5) : [];
   const positions = [
@@ -37,7 +38,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
     "right-0 bottom-0",
     "right-0 top-0",
   ];
-
+  const outOfStockSupply = supply === undefined || supply <= 0
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
     queryFn: () => catsFetch(),
@@ -113,7 +114,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
             <div>
               <div className="flex justify-between items-center m-1">
                 <div className="flex flex-row space-x-4 items-center pl-4">
-                  <h3 className="text-white text-p3 uppercase font-bold">
+                  <h3 className="text-white text-p3 uppercase font-bold flex items-center">
                     {name}
                   </h3>
                 </div>
@@ -124,7 +125,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                     alt="base"
                   />
                   <h3 className="text-gray-500 italic text-p5 md:text-p4 font-secondary absolute inset-0 font-bold flex justify-center items-center">
-                    KITTEN
+                    KITTEN <span className=" text-p5 font-secondary ml-1 lowercase">{multiplier}</span>
                   </h3>
                 </div>
               </div>
@@ -168,9 +169,8 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                     />
                   )}
                   <h4
-                    className={`text-white text-p3 ${
-                      firstBlessing ? "ml-6" : "ml-16"
-                    } max-sm:ml-10 font-bold`}
+                    className={`text-white text-p3 ${firstBlessing ? "ml-6" : "ml-16"
+                      } max-sm:ml-10 font-bold`}
                   >
                     STORY
                   </h4>
@@ -194,24 +194,30 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                   {CatAbilities[ability].description}
                 </p>
               </div>
-              <div className="flex items-end gap-1 justify-around text-white">
+              <div className="flex items-end gap-1 justify-between text-white">
                 {/* <Web3Transfer
                   price={price}
                   _id={_id!}
                   entityType={EntityType.CAT}
                 /> */}
-
                 <PixelButton
-                  active={!isForSale}
-                  text={catpointsInMillions}
+                  isDisabled={outOfStockSupply}
+                  active={!isForSale || outOfStockSupply}
+                  text={
+                    outOfStockSupply
+                      ? "Out of stock"
+                      : catpointsInMillions
+                  }
                   subtext={
-                    ["adopted", "adopting"].includes(catpointsInMillions)
+                    ["adopted", "adopting"].includes(catpointsInMillions) || outOfStockSupply
                       ? ""
                       : "coins"
                   }
                   onClick={() => adopt()}
-                ></PixelButton>
-                <PixelButton text="CLOSE" onClick={onClose}></PixelButton>
+                />
+
+                {!outOfStockSupply && <PixelButton active={true} isDisabled={true} text={`Total supply`} subtext={supply} />}
+                <PixelButton text="CLOSE" onClick={() => onClose()}></PixelButton>
               </div>
             </div>
           </div>

@@ -1,5 +1,7 @@
 import { IStatusValue, StatusType } from "./status";
 
+ type IMultiplier = 'x2' | 'x3' | 'x5'
+
 export enum BlessingType {
   CAT = "CAT",
   SUPPLIES = "SUPPLIES",
@@ -120,6 +122,7 @@ export interface ICat {
   price: number;
   catpoints: number;
   blessings: IBlessing[];
+  multiplier: IMultiplier;
 }
 
 export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {

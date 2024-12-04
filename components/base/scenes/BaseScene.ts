@@ -152,13 +152,19 @@ export class BaseScene extends Scene {
     this.cat?.update();
   }
 
-  private onFoodEat() {
+private onFoodEat() {
     this.sound.play("eat", { volume: 0.5, duration: 2 });
     this.food?.eaten(() => {
-      this.food?.sprite.destroy();
-      this.food = null;
-      this.sound.play("purr", { volume: 0.5 });
-      GameEvents.CAT_EATEN.push();
+        this.food?.sprite.destroy(); 
+        this.food = null;         
+        this.sound.play("purr", { volume: 0.5 });
+        this.cat?.sprite.setVelocity(0)
+         if (this.cat) {
+            this.cat.sprite.setVelocity(0, 0);
+            this.cat.job = { type: NPCJobType.SLEEP };
+            this.cat.setSleep(); 
+        }
+        GameEvents.CAT_EATEN.push();
     });
-  }
+}
 }

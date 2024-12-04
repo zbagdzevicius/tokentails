@@ -1,0 +1,79 @@
+import { ChainTypeCurrencies } from "@/web3/contracts";
+import { ChainType } from "@/web3/contracts";
+import { useWeb3 } from "@/context/Web3Context";
+import { Web3Transfer } from "../web3/minting/Web3Transfer";
+import React from "react";
+
+export const PaymentInputSelect = () => {
+    const { currencyType, setCurrencyType, price, setPrice, amountOfTails } = useWeb3();
+
+    const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const inputValue = e.target.value;
+        const numericValue = parseFloat(inputValue);
+        setPrice(numericValue);
+    };
+
+    return (
+        <div className="flex items-center justify-center flex-col gap-2">
+            <div className="flex items-center gap-2 mb-2">
+                {ChainTypeCurrencies[ChainType.BNB].map((currency) => (
+                    <button
+                        key={currency}
+                        onClick={() => setCurrencyType(currency)}
+                        className="flex items-center justify-center"
+                    >
+                        <img
+                            className={`transition ${currencyType === currency
+                                ? "w-12"
+                                : "w-12 px-1 grayscale hover:grayscale-0 hover:px-0"
+                                }`}
+                            src={`/currency/${currency}.webp`}
+                            alt={`${currency} icon`}
+                        />
+                    </button>
+                ))}
+            </div>
+            <div className="flex flex-row gap-3">
+                <div>
+                    <label className="text-white font-semibold text-p5">{currencyType} you pay</label>
+                    <div className="flex items-center border rounded-lg overflow-hidden w-40 h-7 relative mt-1">
+                        <input
+                            type="number"
+                            value={price}
+                            onChange={handlePriceChange}
+                            className="flex-grow px-2 py-1 outline-none text-sm"
+                            placeholder="Amount"
+                        />
+                        <div className="flex items-center justify-center px-1">
+                            <img
+                                src={`/currency/${currencyType}.webp`}
+                                alt="Selected currency"
+                                className="w-6 h-6 absolute right-0 top-0"
+                            />
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label className="text-white font-semibold text-p5">$TAILS you receive</label>
+                    <div className="flex items-center border rounded-lg overflow-hidden w-40 h-7 relative mt-1">
+                        <input
+                            type="number"
+                            value={amountOfTails}
+                            className="flex-grow px-2 py-1 outline-none text-sm"
+                            placeholder="Amount"
+                            readOnly // Makes this field read-only
+                        />
+                        <div className="flex items-center justify-center px-1">
+                            <img
+                                src={`/logo/coin.webp`}
+                                alt="Selected currency"
+                                className="w-6 h-6 absolute right-0 top-0"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <Web3Transfer price={price!} />
+        </div>
+    );
+};

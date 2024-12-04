@@ -31,7 +31,7 @@ export const DisplayCoins: React.FC<{ isHidden: boolean }> = ({ isHidden }) => {
     }, []);
 
     return (
-        <div className={`${isHidden ? 'hidden' : ''}`}>
+        <div className={`${isHidden ? 'hidden' : 'z-10'}`}>
             <div className="m-3 flex flex-col w-20 absolute items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300">
                 <img className="w-6 h-6" src="/logo/coin.webp" alt="Coin" />
                 <div className="text-p4 flex items-center gap-1">
