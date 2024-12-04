@@ -95,7 +95,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
   };
 
   return (
-    <div className="flex justify-center w-full h-full fixed top-0 left-0 z-[99]">
+    <div className="flex justify-center w-full h-full fixed top-0 left-0 z-[101]">
       <div
         className="absolute inset-0 z-0 bg-yellow-300 opacity-50"
         onClick={() => onClose()}
