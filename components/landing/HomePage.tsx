@@ -136,13 +136,13 @@ export const HomePage = () => {
         earlyDistance < 0
           ? "PLAY NOW"
           : earlyDays +
-            "d " +
-            earlyHours +
-            "h " +
-            earlyMinutes +
-            "m " +
-            earlySeconds +
-            " s";
+          "d " +
+          earlyHours +
+          "h " +
+          earlyMinutes +
+          "m " +
+          earlySeconds +
+          " s";
 
       setEarlyCountdown(earlyCountdownText);
     }
@@ -187,10 +187,10 @@ export const HomePage = () => {
               <img
                 src="/images/home-page/tamagotchi.webp"
                 alt="Cats Background"
-                className="rem:w-[500px] sm:rem:w-[600px] sm:rem:pl-[50px] lg:pb-5 rem:h-[405px] sm:rem:h-[640px] relative z-[1] block"
+                className="rem:w-[340px] sm:rem:w-[600px] sm:rem:pl-[50px] pt-1 lg:pb-5 rem:h-[400px] sm:rem:h-[640px] relative z-[1] block"
               />
               <video
-                className="absolute inset-0 rounded-md -skew-x-[1deg] sm:-skew-x-[1deg] -translate-x-4 sm:translate-x-0 translate-y-2 sm:translate-y-0 skew-y-[6deg] rem:w-[184px] sm:rem:w-[272px] rem:h-[184px] sm:rem:h-[272px] overflow-hidden m-auto z-[2]"
+                className="absolute inset-0 rounded-md -skew-x-[2deg] sm:-skew-x-[1deg] -translate-x-4 sm:translate-x-0 translate-y-2 sm:translate-y-0 skew-y-[6deg] rem:w-[172px] sm:rem:w-[272px] rem:h-[172px] sm:rem:h-[272px] overflow-hidden m-auto z-[2]"
                 autoPlay
                 muted
                 loop

@@ -4,6 +4,7 @@ export enum GameModal {
   LEADERBOARD = "LEADERBOARD",
   LEADERBOARD_DAILY = "LEADERBOARD_DAILY",
   CATS = "CATS",
+  INVITE = "INVITE"
 }
 
 export enum GameType {

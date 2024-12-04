@@ -1,6 +1,5 @@
 import { SeoHead } from '@/components/seo/SeoHead';
 import { NoMore } from '@/components/shared/NoMore';
-
 const Custom404 = () => {
     return (
         <div>
