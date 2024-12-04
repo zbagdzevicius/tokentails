@@ -16,6 +16,7 @@ interface ExtendedBody extends Physics.Arcade.Body {
 export enum NPCJobType {
   EAT,
   RUN,
+  SLEEP,
 }
 
 export interface NPCJob {
@@ -130,13 +131,14 @@ export class Cat {
     });
   }
 
-  update() {
+update() {
     if (!this.job) {
-      this.updateOngoingMovements();
+        this.updateOngoingMovements();
     } else {
-      this.updateOngoingJob();
+        this.updateOngoingJob();
     }
-  }
+}
+
 
   private updateOngoingJob() {
     if (!this?.sprite?.anims?.play) {
@@ -163,20 +165,24 @@ export class Cat {
       if (!this.timeoutFunction) {
         this.sprite.setVelocityX(0);
         this.timeoutFunction = setTimeout(() => {
-          this.job = null;
+        this.job = { type: NPCJobType.SLEEP };
           this.timeoutFunction = null;
-        }, 3000);
+        }, 0);
       }
       this.sprite.anims.play(PlayerAnimation.GROOMING, true);
     }
   }
-
+setSleep() { if (this.job?.type === NPCJobType.SLEEP) {
+    this.sprite.anims.play(PlayerAnimation.SLEEP, true);
+}
+}
   setJump(isJumping: boolean) {
     this.isJumping = isJumping;
     if (isJumping) {
       this.sprite.anims.play(PlayerAnimation.JUMPING_DOWN);
     }
   }
+
 
   private updateOngoingMovements() {
     if (!this?.sprite?.anims?.play) {

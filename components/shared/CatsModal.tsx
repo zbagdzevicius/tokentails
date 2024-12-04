@@ -9,8 +9,12 @@ import { useQuery } from "@tanstack/react-query";
 import { GameEvents } from "../Phaser/events";
 import { PixelButton } from "./PixelButton";
 import { CloseButton } from "./CloseButton";
+import { CatCard } from "../CatCard";
+import { useState } from "react";
 
 export const CatsModalContent = ({ close }: { close: () => void }) => {
+  const [selectedCat, setSelectedCat] = useState<ICat | null>(null);
+
   const { profile, setProfileUpdate } = useProfile();
   const toast = useToast();
 
@@ -19,10 +23,11 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
     queryKey: ["cats", profile?.cat],
     queryFn: () => catsFetch(),
   });
+
   const onCatSelect = (cat: ICat) => {
     const isSameCat = profile?.cat._id === cat._id;
     if (isSameCat || !cat) {
-      toast({ message: "This cat is selected" });
+      toast({ message: "This cat is already selected" });
       return;
     }
     setProfileUpdate({ cat });
@@ -30,16 +35,19 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
 
     GameEvents.CAT_SPAWN.push({ cat });
 
-    toast({});
+    toast({ message: "Cat selected successfully!" });
     if (cat?.status?.EAT !== MAX_CAT_STATUS) {
       setGameType(GameType.HOME);
     }
     close();
   };
 
+  const handleCloseModal = () => {
+    setSelectedCat(null);
+  };
+
   return (
     <div className="px-4 pt-4 pb-8 md:px-16 flex flex-col justify-between items-center">
-
       <h2 className="text-center font-secondary uppercase tracking-tight text-8xl max-lg:text-5xl max-lg:text-balance">
         My Cats
       </h2>
@@ -52,44 +60,56 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
       <div className="flex flex-wrap justify-center">
         {cats?.map((cat, index) => (
           <div key={index} className="w-1/2 flex justify-center mb-4">
-            <div className="relative overflow-hidden w-36 rounded-xl py-2 border-2 border-black">
+            <div
+              className="relative overflow-hidden w-36 rounded-xl py-2 border-2 border-black"
+              onClick={() => setSelectedCat(cat)}
+            >
               {cat.catpoints && (
                 <div className="absolute left-2 top-1 opacity-75 text-black px-2 text-p5 font-secondary rounded-xl bg-yellow-300 z-20">
-                  X2
+                  {cat.multiplier}
                 </div>
               )}
-              {<div></div>}
               <div className="relative z-10 items-center flex flex-col">
-                <img className="w-16 z-10" src={cat.catImg} />
+                <img className="w-16 z-10" src={cat.catImg} alt={cat.name} />
                 <img
                   className="w-8 mb-2 -mt-8 z-0 animate-spin"
                   src={`ability/${cat.type}.png`}
+                  alt={`${cat.type} icon`}
                 />
-                <div className="text-p4 bg-red-600 font-secondary text-white text-yellow-300 w-full text-center opacity-75 mb-2 border-y-2 border-black">
+                <div className="text-p4 bg-red-600 font-secondary text-white w-full text-center opacity-75 mb-2 border-y-2 border-black">
                   {cat.name}
                 </div>
                 <PixelButton
                   active={profile?.cat._id === cat._id}
-                  text={profile?.cat._id === cat._id ? "Selected" : "select"}
+                  text={profile?.cat._id === cat._id ? "Selected" : "Select"}
                   onClick={() => onCatSelect(cat)}
-                ></PixelButton>
+                />
               </div>
               <img
                 className="absolute inset-0 object-cover w-full h-full z-0"
                 src={`ability/${cat.type}_BG.webp`}
+                alt={`${cat.type} background`}
               />
             </div>
           </div>
         ))}
       </div>
 
+      {selectedCat && (
+        <CatCard
+          onClose={handleCloseModal}
+          {...selectedCat}
+        />
+      )}
+
       <img
         onClick={() => {
           setGameType(GameType.SHELTER);
           close();
         }}
-        className="w-36 h-36 rounded-xl hover:animate-hover"
+        className="w-36 h-36 rounded-xl hover:animate-hover cursor-pointer"
         src="/game/select/shelter.jpg"
+        alt="Go to shelter"
       />
     </div>
   );
@@ -104,10 +124,7 @@ export const CatsModal = ({ close }: { close: () => void }) => {
       ></div>
       <div className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full relative bg-gradient-to-b from-yellow-300 to-purple-300 absolute inset-0 max-h-screen overflow-y-auto rounded-lg shadow h-fit">
         <CatsModalContent close={close} />
-        <button onClick={close} className="absolute right-[0] top-0 group">
-          <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>
-        </button>
-        <CloseButton onClick={() => close()} />
+        <CloseButton onClick={close} />
       </div>
     </div>
   );

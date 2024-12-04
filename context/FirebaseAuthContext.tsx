@@ -160,7 +160,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   return (
     <FirebaseAuthContext.Provider value={value}>
-      {/* {isLoginModalDisplayed && <SignIn close={() => { }} />} */}
+      {isLoginModalDisplayed && <SignIn close={() => { }} />}
       {isVerifiedModalDisplayed && (
         <Verify close={() => setIsVerifiedModalDisplayed(false)} />
       )}
