@@ -6,8 +6,8 @@ export enum NftType {
 
 export interface ITransfer {
     price: number;
-    entityType: EntityType;
-    _id: string;
+    entityType?: EntityType;
+    _id?: string;
 }
 
 export interface ITransaction {

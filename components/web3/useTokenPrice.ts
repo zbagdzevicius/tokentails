@@ -6,7 +6,7 @@ export const useTokenPrice = ({
   price,
   currencyType,
 }: {
-  price: number | string;
+  price: number | string ;
   currencyType: CurrencyType;
 }) => {
   const [tokenPrice, setTokenPrice] = useState<number | null>(null);

@@ -153,21 +153,12 @@ export const GameOptionsModal = ({
             </div>
           )}
         {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
-          <div className="flex flex-col items-center">
-            <div className="flex w-16 flex-col items-center font-secondary text-p2 opacity-75 bg-white px-1 rounded-t-xl">
-              <img className="w-8 z-10 pt-4 -mt-2" src="/logo/coin.webp" />
-              <div className="text-p5 mt-1">2000 COINS</div>
-              <div className="-mt-2 text-h3">+</div>
-              <img className="w-6 md:w-8 z-10 -mt-2" src="/base/heart.png" />
-              <div className="text-p5">+DAILY LIVE</div>
-            </div>
-            <PixelButton
-              onClick={() => {
-                utils?.shareURL(shareUrl!);
-              }}
-              text="INVITE"
-            ></PixelButton>
-          </div>
+          <PixelButton
+            onClick={() => {
+              setOpenedModal(GameModal.INVITE);
+            }}
+            text="GIFT"
+          ></PixelButton>
         )}
       </div>
     </>

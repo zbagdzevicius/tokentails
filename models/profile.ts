@@ -27,4 +27,5 @@ export interface IProfile {
   referrals: string[];
   quests: QUEST[];
   advent: number;
+  gifts: number
 }

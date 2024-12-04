@@ -21,6 +21,7 @@ import { Calendar } from "@/components/shared/Calendar";
 import { GameMusicPlayer } from "@/components/shared/GameMusicPlayer";
 import { SpeechBubble } from "@/components/shared/SpeechBubble";
 import SnowingCanvas from "@/components/shared/Snowfall";
+import { InviteModal } from "@/components/shared/InviteModal";
 
 type ContextState = {
   isStarted?: boolean;
@@ -137,6 +138,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           )}
           {openedModal === GameModal.CATS && (
             <CatsModal close={() => setOpenedModal(null)} />
+          )}
+          {openedModal === GameModal.INVITE && (
+            <InviteModal close={() => setOpenedModal(null)} />
           )}
           {gameType === GameType.HOME && isGameLoaded && <SpeechBubble />}
           {(gameType === GameType.HOME || !gameType) && <Calendar />}
