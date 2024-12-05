@@ -194,7 +194,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                   {CatAbilities[ability].description}
                 </p>
               </div>
-              <div className="flex items-end gap-1 justify-between text-white">
+              <div className="flex flex-row justify-around  text-white">
                 {/* <Web3Transfer
                   price={price}
                   _id={_id!}
@@ -202,7 +202,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                 /> */}
                 <PixelButton
                   isDisabled={outOfStockSupply}
-                  active={!isForSale || outOfStockSupply}
+                  active={!isForSale}
                   text={
                     outOfStockSupply
                       ? "Out of stock"
@@ -216,7 +216,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                   onClick={() => adopt()}
                 />
 
-                {!outOfStockSupply && <PixelButton active={true} isDisabled={true} text={`Total supply`} subtext={supply} />}
+                {!outOfStockSupply && <PixelButton active={true} isSmall isDisabled={true} text={`Supply`} subtext={supply} />}
                 <PixelButton text="CLOSE" onClick={() => onClose()}></PixelButton>
               </div>
             </div>
