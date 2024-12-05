@@ -53,47 +53,63 @@ export const Web3Transfer = ({ price }: Web3TransferProps) => {
   }, [setHash, writeContractHash]);
 
   async function syncChain() {
-    if (chainId !== chainTypeId[paymentsChain]) {
-      await switchChainAsync({ chainId: chainTypeId[paymentsChain] });
+    try {
+      if (chainId !== chainTypeId[paymentsChain]) {
+        await switchChainAsync({ chainId: chainTypeId[paymentsChain] });
+      }
+    } catch (error) {
+      console.error("Error switching chain:", error);
+      toast({ message: "Failed to switch chain. Please try again." });
     }
   }
 
   async function transfer() {
+    if (!isConnected) {
+      toast({ message: "Please login to Metamask" });
+      return false;
+    }
     const amountHex = ethers.parseUnits(price.toString(), 18);
-    await syncChain();
-    if (currencyType !== CurrencyType.BNB) {
-      console.log(balance)
-      if (!balance || amountHex > balance.value) {
-        toast({
-          message: `Top up your ${currencyType} balance or switch currency`,
+    try {
+      await syncChain();
+
+      if (currencyType !== CurrencyType.BNB) {
+        if (!balance || amountHex > balance.value) {
+          toast({
+            message: `Top up your ${currencyType} balance or switch currency`,
+          });
+          return;
+        }
+        await writeContractAsync({
+          abi: erc20Abi,
+          address: bnbTestnetChain.contracts[currencyType].address!,
+          functionName: "transfer",
+          args: [recipient, amountHex],
         });
-        return;
-      }
-      await writeContractAsync({
-        abi: erc20Abi,
-        address: bnbTestnetChain.contracts[currencyType].address!,
-        functionName: "transfer",
-        args: [recipient, amountHex],
-      }).catch((e) => undefined);
-    } else {
-      const amountHex = ethers.parseUnits(
-        bnbPrice?.toFixed(16)?.toString()!,
-        18
-      );
-      if (!balance || amountHex > balance.value) {
-        toast({
-          message: `Top up your ${currencyType} balance or switch currency`,
-        });
-        return;
-      }
-      setHash(
-        await sendTransactionAsync({
+      } else {
+        const bnbAmountHex = ethers.parseUnits(
+          bnbPrice?.toFixed(16)?.toString()!,
+          18
+        );
+
+        if (!balance || bnbAmountHex > balance.value) {
+          toast({
+            message: `Top up your ${currencyType} balance or switch currency`,
+          });
+          return;
+        }
+        const txHash = await sendTransactionAsync({
           to: recipient,
-          value: amountHex,
-        }).catch((e) => undefined)
-      );
+          value: bnbAmountHex,
+        });
+        setHash(txHash);
+        toast({ message: "Transaction sent! Awaiting confirmation..." });
+      }
+    } catch (error) {
+      console.error("Transfer failed:", error);
+      toast({ message: "Transaction failed. Please try again." });
     }
   }
+
   //TODO DELETE IN THE FUTURE
   const entityType = EntityType.CAT
 
@@ -111,10 +127,16 @@ export const Web3Transfer = ({ price }: Web3TransferProps) => {
         chainType: paymentsChain,
         currencyType,
         price,
-        entityType
-      }).then(() => {
-        setState("success");
-      });
+        entityType,
+      })
+        .then(() => {
+          toast({ message: "Transaction successful!" });
+          setState("success");
+        })
+        .catch((error) => {
+          console.error("Confirmation failed:", error);
+          toast({ message: "Transaction confirmation failed. Please try again." });
+        });
     }
   }, [isTaxConfirmed]);
 
@@ -131,20 +153,13 @@ export const Web3Transfer = ({ price }: Web3TransferProps) => {
   if (isPending || isTaxLoading || isTransactionPending) {
     return <PixelButton text="PROCESSING" active></PixelButton>;
   }
-
-  useEffect(() => {
-    if (state === "success") {
-      toast({
-        message: "Transaction successful!",
-      });
-
-    }
-  }, [state]);
+  if (isNaN(price) || price <= 0) {
+    return <PixelButton text="Invalid Price" isDisabled />;
+  }
   return (
     <div className="flex flex-col items-center">
       <PixelButton
         isWidthFull
-        isBig
         isDisabled={isNaN(price) || price <= 0}
         text="Buy"
         subtext={`With ${currencyType}`}
