@@ -6,6 +6,7 @@ interface IProps {
   subtext?: string | number;
   active?: boolean;
   isBig?: boolean;
+  isSmall?: boolean;
   isWidthFull?: boolean;
   isDisabled?: boolean;
   onClick?: () => void;
@@ -19,6 +20,7 @@ export const PixelButton = ({
   isBig,
   isWidthFull,
   isDisabled,
+  isSmall,
 }: IProps) => {
   const [ref, hovering] = useHover();
 
@@ -49,7 +51,9 @@ export const PixelButton = ({
         cursor: isDisabled ? "not-allowed" : "pointer",
       }}
       className={`flex justify-center items-center h-12 ${isWidthFull && "w-full"
-        } ${!active && !isDisabled ? "hover:brightness-125 hover:pb-1" : ""
+        }
+            ${isSmall && 'scale-75'}
+         ${!active && !isDisabled ? "hover:brightness-125 hover:pb-1" : ""
         }`}
     >
       <div className="h-8 w-1 bg-black"></div>
