@@ -9,23 +9,30 @@ export const PaymentInputSelect = () => {
 
     const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const inputValue = e.target.value;
+        if (inputValue === "") {
+            setPrice("");
+            return;
+        }
         const numericValue = parseFloat(inputValue);
-        setPrice(numericValue);
+        if (!isNaN(numericValue)) {
+            setPrice(numericValue);
+        }
     };
 
+
     return (
-        <div className="flex items-center justify-center flex-col gap-2">
-            <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center justify-center flex-col gap-1 md:gap-2">
+            <div className="flex items-center gap-2 md:mb-2">
                 {ChainTypeCurrencies[ChainType.BNB].map((currency) => (
                     <button
                         key={currency}
                         onClick={() => setCurrencyType(currency)}
-                        className="flex items-center justify-center"
+                        className="flex items-center justify-center "
                     >
                         <img
                             className={`transition ${currencyType === currency
-                                ? "w-12"
-                                : "w-12 px-1 grayscale hover:grayscale-0 hover:px-0"
+                                ? "w-7 md:w-9"
+                                : "w-7 md:w-9 px-1 grayscale hover:grayscale-0 hover:px-0"
                                 }`}
                             src={`/currency/${currency}.webp`}
                             alt={`${currency} icon`}
@@ -33,10 +40,10 @@ export const PaymentInputSelect = () => {
                     </button>
                 ))}
             </div>
-            <div className="flex flex-row gap-3">
+            <div className="flex flex-row gap-2  ">
                 <div>
-                    <label className="text-white font-semibold text-p5">{currencyType} you pay</label>
-                    <div className="flex items-center border rounded-lg overflow-hidden w-40 h-7 relative mt-1">
+                    <label className="text-[#FAB12F] font-semibold text-p6 md:text-p5">{currencyType} you pay</label>
+                    <div className="flex items-center border rounded-lg overflow-hidden w-28 md:w-32 h-6 md:h-7 relative mt-1">
                         <input
                             type="number"
                             value={price}
@@ -48,26 +55,26 @@ export const PaymentInputSelect = () => {
                             <img
                                 src={`/currency/${currencyType}.webp`}
                                 alt="Selected currency"
-                                className="w-6 h-6 absolute right-0 top-0"
+                                className="w-5 h-5 md:w-6 md:h-6 absolute right-0 top-0"
                             />
                         </div>
                     </div>
                 </div>
                 <div>
-                    <label className="text-white font-semibold text-p5">$TAILS you receive</label>
-                    <div className="flex items-center border rounded-lg overflow-hidden w-40 h-7 relative mt-1">
+                    <label className="text-[#FAB12F] font-semibold text-p6 md:text-p5">$TAILS you receive</label>
+                    <div className="flex items-center border rounded-lg overflow-hidden w-28 md:w-32  h-6 md:h-7 relative mt-1">
                         <input
                             type="number"
                             value={amountOfTails}
                             className="flex-grow px-2 py-1 outline-none text-sm"
                             placeholder="Amount"
-                            readOnly // Makes this field read-only
+                            readOnly
                         />
                         <div className="flex items-center justify-center px-1">
                             <img
                                 src={`/logo/coin.webp`}
                                 alt="Selected currency"
-                                className="w-6 h-6 absolute right-0 top-0"
+                                className="w-5 h-5 md:w-6 md:h-6 absolute right-0 top-0"
                             />
                         </div>
                     </div>
