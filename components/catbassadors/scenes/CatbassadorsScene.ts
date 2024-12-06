@@ -103,7 +103,6 @@ export class CatbassadorsScene extends Scene {
   create(props: IPhaserGameSceneProps) {
     this.physics.world.setFPS(90);
     this.tilemap = this.make.tilemap({ key: "tilemap" });
-    console.log(currentDayCoin);
     const sugarTileset = this.tilemap.addTilesetImage(
       "blocks",
       "blocks",
