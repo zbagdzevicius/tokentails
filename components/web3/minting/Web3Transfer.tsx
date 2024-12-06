@@ -31,7 +31,7 @@ interface Web3TransferProps {
 }
 
 export const Web3Transfer = ({ price }: Web3TransferProps) => {
-  const { isConnected, chainId, currencyType, setCurrencyType, balance } =
+  const { isConnected, chainId, currencyType, setCurrencyType, balance, setIsTransactionSucces, amountOfTails } =
     useWeb3();
   const { switchChainAsync } = useSwitchChain({ config });
   const bnbPrice = useTokenPrice({ price, currencyType: CurrencyType.BNB });
@@ -130,12 +130,12 @@ export const Web3Transfer = ({ price }: Web3TransferProps) => {
         entityType,
       })
         .then(() => {
-          toast({ message: "Transaction successful!" });
+          setIsTransactionSucces(true)
           setState("success");
         })
         .catch((error) => {
           console.error("Confirmation failed:", error);
-          toast({ message: "Transaction confirmation failed. Please try again." });
+          // toast({ message: "Transaction confirmation failed. Please try again." });
         });
     }
   }, [isTaxConfirmed]);
@@ -143,6 +143,7 @@ export const Web3Transfer = ({ price }: Web3TransferProps) => {
   useEffect(() => {
     if (taxData?.status === "success") {
       setState("success");
+      setIsTransactionSucces(true)
     }
   }, [taxData]);
 
@@ -153,14 +154,24 @@ export const Web3Transfer = ({ price }: Web3TransferProps) => {
   if (isPending || isTaxLoading || isTransactionPending) {
     return <PixelButton text="PROCESSING" active></PixelButton>;
   }
+
+  if (!isConnected) {
+    return <w3m-button />;
+  }
+
   if (isNaN(price) || price <= 0) {
-    return <PixelButton text="Invalid Price" isDisabled />;
+    return <PixelButton text="Enter amount" isDisabled />;
+  }
+
+  if (price < 1) {
+    return <PixelButton text="1$ is minimum amount" isDisabled />;
   }
   return (
     <div className="flex flex-col items-center">
       <PixelButton
         isWidthFull
-        isDisabled={isNaN(price) || price <= 0}
+        isBig
+        isDisabled={isNaN(price) || price < 1 || amountOfTails! <= 0}
         text="Buy"
         subtext={`With ${currencyType}`}
         onClick={() => transfer()}

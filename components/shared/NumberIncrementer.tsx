@@ -35,9 +35,5 @@ export const NumberIncrementer: React.FC<NumberIncrementerProps> = ({ number }) 
         }
     }, [iteration, number, period, totalTime]);
 
-    return (
-        <div className="flex flex-col items-center justify-center p-4">
-            <div className="text-4xl font-bold text-blue-500 mb-4">{currentValue.toFixed(2)}</div>
-        </div>
-    );
+    return currentValue
 };
