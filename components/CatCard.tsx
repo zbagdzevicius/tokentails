@@ -38,7 +38,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
     "right-0 bottom-0",
     "right-0 top-0",
   ];
-  const outOfStockSupply = supply === undefined || supply <= 0
+  const outOfStockSupply = supply === undefined || supply <= 0;
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
     queryFn: () => catsFetch(),
@@ -125,7 +125,10 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                     alt="base"
                   />
                   <h3 className="text-gray-500 italic text-p5 md:text-p4 font-secondary absolute inset-0 font-bold flex justify-center items-center">
-                    KITTEN <span className=" text-p5 font-secondary ml-1 lowercase">{multiplier}</span>
+                    KITTEN{" "}
+                    <span className=" text-p5 font-secondary ml-1 lowercase">
+                      {multiplier}
+                    </span>
                   </h3>
                 </div>
               </div>
@@ -169,8 +172,9 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                     />
                   )}
                   <h4
-                    className={`text-white text-p3 ${firstBlessing ? "ml-6" : "ml-16"
-                      } max-sm:ml-10 font-bold`}
+                    className={`text-white text-p3 ${
+                      firstBlessing ? "ml-6" : "ml-16"
+                    } max-sm:ml-10 font-bold`}
                   >
                     STORY
                   </h4>
@@ -195,29 +199,32 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                 </p>
               </div>
               <div className="flex flex-row justify-around  text-white">
-                {/* <Web3Transfer
-                  price={price}
-                  _id={_id!}
-                  entityType={EntityType.CAT}
-                /> */}
                 <PixelButton
                   isDisabled={outOfStockSupply}
                   active={!isForSale}
-                  text={
-                    outOfStockSupply
-                      ? "Out of stock"
-                      : catpointsInMillions
-                  }
+                  text={outOfStockSupply ? "Out of stock" : catpointsInMillions}
                   subtext={
-                    ["adopted", "adopting"].includes(catpointsInMillions) || outOfStockSupply
+                    ["adopted", "adopting"].includes(catpointsInMillions) ||
+                    outOfStockSupply
                       ? ""
                       : "coins"
                   }
                   onClick={() => adopt()}
                 />
 
-                {!outOfStockSupply && <PixelButton active={true} isSmall isDisabled={true} text={`Supply`} subtext={supply} />}
-                <PixelButton text="CLOSE" onClick={() => onClose()}></PixelButton>
+                {!outOfStockSupply && (
+                  <PixelButton
+                    active={true}
+                    isSmall
+                    isDisabled={true}
+                    text={`Supply`}
+                    subtext={supply}
+                  />
+                )}
+                <PixelButton
+                  text="CLOSE"
+                  onClick={() => onClose()}
+                ></PixelButton>
               </div>
             </div>
           </div>
