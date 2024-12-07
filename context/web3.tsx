@@ -1,6 +1,11 @@
 "use client";
 
-import { metadata, networks, projectId, wagmiAdapter } from "@/web3/web3-config";
+import {
+  metadata,
+  networks,
+  projectId,
+  wagmiAdapter,
+} from "@/web3/web3-config";
 import { ReactNode } from "react";
 
 import { createAppKit } from "@reown/appkit/react";

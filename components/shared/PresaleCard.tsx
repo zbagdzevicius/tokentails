@@ -1,9 +1,13 @@
-import { useWeb3, Web3Provider } from "@/context/Web3Context";
-import Web3ModalProvider from "@/context/web3";
+import { useWeb3 } from "@/context/Web3Context";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Countdown } from "./Countdown";
-import { NumberIncrementer } from "./NumberIncrementer";
-import { PaymentInputSelect } from "./PaymentInputSelect";
+
+import dynamic from "next/dynamic";
+
+const PaymentInputSelect = dynamic(
+  () => import("@/components/shared/PaymentInputSelect"),
+  { ssr: false }
+);
 const TARGET_VALUE = 600000;
 
 const memeCats: Record<number, string> = {
