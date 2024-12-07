@@ -8,7 +8,7 @@ export const NumberIncrementer: React.FC<NumberIncrementerProps> = ({ number }) 
     const [currentValue, setCurrentValue] = useState<number>(0);
     const [iteration, setIteration] = useState<number>(0);
 
-    const totalTime = 4000;
+    const totalTime = 2000;
     const period = 100;
     const totalIterations = Math.ceil(totalTime / period);
 
@@ -35,9 +35,5 @@ export const NumberIncrementer: React.FC<NumberIncrementerProps> = ({ number }) 
         }
     }, [iteration, number, period, totalTime]);
 
-    return (
-        <div className="flex flex-col items-center justify-center p-4">
-            <div className="text-4xl font-bold text-blue-500 mb-4">{currentValue.toFixed(2)}</div>
-        </div>
-    );
+    return currentValue
 };
