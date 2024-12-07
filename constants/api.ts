@@ -107,6 +107,9 @@ export const EntityRouteOption: Omit<
   [EntityType.CAT]: {
     details: ([]) => `/`,
   },
+  [EntityType.PRESALE]: {
+    details: ([]) => `/`,
+  },
 };
 
 export interface ISearchProps {
@@ -614,6 +617,25 @@ export const getCurrencyRate = async (
       return { price: 1000 };
     })
     .then((v) => v.price);
+};
+
+export const getRaised = async (): Promise<number> => {
+  return fetch(`${apiUrl}/web3/raised`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    } as any,
+  })
+    .then((response) => {
+      if (response.ok) {
+        return response.json();
+      }
+
+      console.warn(JSON.stringify(response));
+      return { raised: 0 };
+    })
+    .then((v) => Math.floor(v?.raised));
 };
 
 export const confirmTransaction = async (

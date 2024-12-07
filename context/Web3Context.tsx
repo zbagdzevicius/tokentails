@@ -1,83 +1,134 @@
-import { isProd } from "@/models/app";
-import { CurrencyType } from "@/web3/contracts";
-import { bnbChain, bnbTestnetChain } from "@/web3/web3";
+import { useTokenPrice } from "@/components/web3/useTokenPrice";
+import { getRaised } from "@/constants/api";
+import {
+  ChainNamespace,
+  ChainNamespacesCurrencies,
+  currencyContracts,
+  CurrencyType,
+} from "@/web3/contracts";
+import { idChainType } from "@/web3/web3-config";
+import { useRouter } from "next/router";
 import * as React from "react";
 import { useAccount, useBalance } from "wagmi";
-import { useRouter } from "next/router";
 
 type ContextState = {
-  isConnected: boolean;
-  address?: `0x${string}`;
+  evmConnected: boolean;
+  stellarConnected: boolean;
+  evmAddress?: `0x${string}`;
+  bnbRate?: number;
+  xlmRate?: number;
+  stellarAddress?: string;
+  setStellarConnected: (stellarConnected: boolean) => void;
+  setStellarAddress: (stellarAddress: string) => void;
+  namespace: ChainNamespace;
+  setNamespace: (namespace: ChainNamespace) => void;
   chainId?: number;
+  query: any;
   balance:
-  | {
-    decimals: number;
-    formatted: string;
-    symbol: string;
-    value: bigint;
-  }
-  | undefined;
+    | {
+        decimals: number;
+        formatted: string;
+        symbol: string;
+        value: bigint;
+      }
+    | undefined;
   currencyType: CurrencyType;
   price?: number;
+  currentFunds: number;
   finalTokenPrice?: number;
-  amountOfTails?: number
+  amountOfTails?: number;
   setCurrencyType: (currencyType: CurrencyType) => void;
   setPrice: (price: any) => void;
-  isTransactionSucces: boolean
+  isTransactionSucces: boolean;
   setIsTransactionSucces: (isTransactionSucces: boolean) => void;
 };
 
 const Web3Context = React.createContext<ContextState | undefined>(undefined);
 
-const paymentsChain = isProd ? bnbChain : bnbTestnetChain;
-
 export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
-  const { isConnected, address, chainId, } = useAccount();
+  const { isConnected, address, chainId } = useAccount();
+  const [stellarConnected, setStellarConnected] = React.useState(false);
+  const [currentFunds, setCurrentFunds] = React.useState(0);
+  const [stellarAddress, setStellarAddress] = React.useState<string>();
+  const [namespace, setNamespace] = React.useState<ChainNamespace>(
+    ChainNamespace.BNB
+  );
+
   const [currencyType, setCurrencyType] = React.useState(CurrencyType.USDT);
-  const [price, setPrice] = React.useState(0);
-  const [isTransactionSucces, setIsTransactionSucces] = React.useState(false)
+  const [price, setPrice] = React.useState();
+  const bnbRate = useTokenPrice(CurrencyType.BNB);
+  const xlmRate = useTokenPrice(CurrencyType.XLM);
+  const [isTransactionSucces, setIsTransactionSucces] = React.useState(false);
 
   const router = useRouter();
   const { query } = router;
 
   const { data: balance } = useBalance({
     address,
-    token:
-      currencyType !== CurrencyType.BNB
-        ? paymentsChain.contracts[currencyType].address!
-        : undefined,
+    token: currencyContracts[idChainType[chainId!]]?.[currencyType],
   });
 
-  const startDate = new Date(Date.UTC(2024, 12, 8, 0, 0, 0));
-  const endDate = new Date(Date.UTC(2024, 12, 20, 0, 0, 0));
+  React.useEffect(() => {
+    setCurrencyType(ChainNamespacesCurrencies[namespace][0]);
+  }, [namespace, setCurrencyType]);
 
-  const totalFundraiseTime = endDate.getTime() - startDate.getTime();
-  const currentDate = new Date();
-  const elapsedTime = currentDate.getTime() - startDate.getTime();
+  const finalTokenPrice = React.useMemo(() => {
+    const startDate = new Date(Date.UTC(2024, 12, 8, 0, 0, 0));
+    const endDate = new Date(Date.UTC(2024, 12, 20, 0, 0, 0));
 
-  const progress = Math.min(Math.max(elapsedTime / totalFundraiseTime, 0), 1);
+    const totalFundraiseTime = endDate.getTime() - startDate.getTime();
+    const currentDate = new Date();
+    const elapsedTime = currentDate.getTime() - startDate.getTime();
 
-  const basePrice = 0.03;
-  const discount = 0.25;
-  const hasCoupon = query.code === "meow" ? true : false;
-  const couponDiscount = 0.05
-  const initialPrice = basePrice * (1 - discount);
+    const progress = Math.min(Math.max(elapsedTime / totalFundraiseTime, 0), 1);
 
-  const currentPrice = initialPrice + (basePrice - initialPrice) * progress;
-  const finalTokenPrice = currentPrice * (1 - (hasCoupon ? couponDiscount : 0));
+    const basePrice = 0.03;
+    const discount = 0.28;
+    const hasCoupon = query.code === "meow" ? true : false;
+    const couponDiscount = 0.05;
+    const initialPrice = basePrice * (1 - discount);
 
-  const amountOfTails = price ? Math.floor(price / finalTokenPrice) : 0;
+    const currentPrice = initialPrice + (basePrice - initialPrice) * progress;
+    return currentPrice * (1 - (hasCoupon ? couponDiscount : 0));
+  }, []);
+  React.useEffect(() => {
+    getRaised().then((value) => setCurrentFunds(value));
+  }, [isTransactionSucces]);
+
+  const amountOfTails = React.useMemo(() => {
+    if (!price) {
+      return 0;
+    }
+    if (currencyType === CurrencyType.BNB) {
+      return Math.floor((price / finalTokenPrice) * bnbRate);
+    }
+    if (currencyType === CurrencyType.XLM) {
+      return Math.floor((price / finalTokenPrice) * xlmRate);
+    }
+
+    return Math.floor(price / finalTokenPrice);
+  }, [currencyType, finalTokenPrice, bnbRate, xlmRate, price]);
   return (
     <Web3Context.Provider
       value={{
-        isConnected,
-        address,
+        evmConnected: isConnected,
+        bnbRate,
+        xlmRate,
+        stellarConnected,
+        evmAddress: address,
+        currentFunds,
+        stellarAddress,
         chainId,
         currencyType,
         price,
+        query,
         finalTokenPrice,
         setCurrencyType,
         setPrice,
+        namespace,
+        setNamespace,
+        setStellarConnected,
+        setStellarAddress,
         balance,
         amountOfTails,
         isTransactionSucces,

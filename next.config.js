@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    esmExternals: 'loose', // Enable ESM external support in loose mode
+  },
+  esmExternals: 'loose', // Enable ESM external support in loose mode
   images: {
     // https://nextjs.org/docs/messages/next-image-unconfigured-host
     // If you are using an older version of Next.js prior to 12.3.0, you can use images.domains instead:

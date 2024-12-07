@@ -195,11 +195,6 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                 </p>
               </div>
               <div className="flex flex-row justify-around  text-white">
-                {/* <Web3Transfer
-                  price={price}
-                  _id={_id!}
-                  entityType={EntityType.CAT}
-                /> */}
                 <PixelButton
                   isDisabled={outOfStockSupply}
                   active={!isForSale}

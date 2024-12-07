@@ -5,13 +5,31 @@ import { confirmTransaction } from "@/constants/api";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
 import { isProd } from "@/models/app";
+import { EntityType } from "@/models/save";
 import {
+  ChainNamespace,
   ChainType,
-  ChainTypeCurrencies,
+  currencyContracts,
   CurrencyType,
-  recipient,
+  recipientEvm,
+  recipientStellar,
 } from "@/web3/contracts";
-import { bnbTestnetChain, chainTypeId, config } from "@/web3/web3";
+import {
+  chainTypeId,
+  horizonServer,
+  idChainType,
+  stellarKit,
+  stellarNetworkPassphrase,
+  wagmiAdapter,
+} from "@/web3/web3-config";
+import { ISupportedWallet } from "@creit.tech/stellar-wallets-kit";
+import { useAppKit } from "@reown/appkit/react";
+import {
+  Asset,
+  BASE_FEE,
+  Operation,
+  TransactionBuilder,
+} from "@stellar/stellar-sdk";
 import { ethers } from "ethers";
 import { useEffect, useState } from "react";
 import { erc20Abi } from "viem";
@@ -21,8 +39,6 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { useTokenPrice } from "../useTokenPrice";
-import { EntityType } from "@/models/save";
 
 const paymentsChain = isProd ? ChainType.BNB : ChainType.BNB_TEST;
 
@@ -31,10 +47,25 @@ interface Web3TransferProps {
 }
 
 export const Web3Transfer = ({ price }: Web3TransferProps) => {
-  const { isConnected, chainId, currencyType, setCurrencyType, balance, setIsTransactionSucces, amountOfTails } =
-    useWeb3();
-  const { switchChainAsync } = useSwitchChain({ config });
-  const bnbPrice = useTokenPrice({ price, currencyType: CurrencyType.BNB });
+  const {
+    evmConnected,
+    stellarAddress,
+    evmAddress,
+    stellarConnected,
+    namespace,
+    setStellarAddress,
+    setStellarConnected,
+    chainId,
+    query,
+    currencyType,
+    balance,
+    setIsTransactionSucces,
+    amountOfTails,
+  } = useWeb3();
+  const { switchChainAsync } = useSwitchChain({
+    config: wagmiAdapter.wagmiConfig,
+  });
+  const { open } = useAppKit();
   const { sendTransactionAsync, isPending: isTransactionPending } =
     useSendTransaction();
   const toast = useToast();
@@ -44,7 +75,6 @@ export const Web3Transfer = ({ price }: Web3TransferProps) => {
     writeContractAsync,
     isPending,
   } = useWriteContract();
-  const [state, setState] = useState<null | "success">(null);
 
   useEffect(() => {
     if (writeContractHash) {
@@ -63,8 +93,96 @@ export const Web3Transfer = ({ price }: Web3TransferProps) => {
     }
   }
 
+  async function stellarTransfer(stellarAddress: string) {
+    try {
+      const account = await horizonServer.loadAccount(stellarAddress!);
+
+      const transaction = new TransactionBuilder(account, {
+        fee: BASE_FEE,
+        networkPassphrase: stellarNetworkPassphrase, // Use Networks.TESTNET for testing
+      })
+        .addOperation(
+          Operation.payment({
+            destination: recipientStellar,
+            asset:
+              currencyType === CurrencyType.USDC
+                ? new Asset(
+                    "USDC",
+                    "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"
+                  )
+                : Asset.native(),
+            amount: String(price),
+          })
+        )
+        .setTimeout(300)
+        .build();
+  
+      const xdr = transaction.toXDR(); // Convert to XDR for signing
+  
+      const { signedTxXdr } = await stellarKit.signTransaction(xdr, {
+        address: stellarAddress,
+        networkPassphrase: stellarNetworkPassphrase,
+      });
+  
+      // Convert signed XDR back to a transaction object
+      const signedTransaction = TransactionBuilder.fromXDR(
+        signedTxXdr,
+        stellarNetworkPassphrase
+      );
+  
+      // Submit the transaction to the Stellar Horizon server
+      const result = await horizonServer.submitTransaction(signedTransaction);
+      setIsTransactionSucces(true);
+  
+      confirmTransaction({
+        hash: result?.hash,
+        chainType: paymentsChain,
+        namespace: namespace!,
+        amount: amountOfTails!,
+        walletAddress:
+          namespace === ChainNamespace.BNB ? evmAddress! : stellarAddress!,
+        currencyType,
+        price,
+        ref: query?.ref,
+        entityType,
+      })
+        .then(() => {})
+        .catch((error) => {
+          console.error("Confirmation failed:", error);
+        });
+    } catch {
+      
+    }
+  }
+
+  async function connectStellarWallet(forceTransfer?: boolean) {
+    stellarKit.openModal({
+      onWalletSelected: async (option: ISupportedWallet) => {
+        stellarKit.setWallet(option.id);
+        const { address } = await stellarKit.getAddress();
+        setStellarAddress(address);
+        setStellarConnected(true);
+        if (forceTransfer) {
+          stellarTransfer(address);
+        }
+      },
+    });
+  }
+
   async function transfer() {
-    if (!isConnected) {
+    if (namespace === ChainNamespace.BNB) {
+      evmTransfer();
+    } else if (namespace === ChainNamespace.STELLAR) {
+      if (!stellarConnected) {
+        connectStellarWallet(true);
+      } else {
+        stellarTransfer(stellarAddress!);
+      }
+    }
+  }
+
+  async function evmTransfer() {
+    if (!evmConnected) {
       toast({ message: "Please login to Metamask" });
       return false;
     }
@@ -81,13 +199,13 @@ export const Web3Transfer = ({ price }: Web3TransferProps) => {
         }
         await writeContractAsync({
           abi: erc20Abi,
-          address: bnbTestnetChain.contracts[currencyType].address!,
+          address: currencyContracts[idChainType[chainId!]][currencyType]!,
           functionName: "transfer",
-          args: [recipient, amountHex],
+          args: [recipientEvm, amountHex],
         });
       } else {
         const bnbAmountHex = ethers.parseUnits(
-          bnbPrice?.toFixed(16)?.toString()!,
+          price?.toFixed(16)?.toString()!,
           18
         );
 
@@ -98,7 +216,7 @@ export const Web3Transfer = ({ price }: Web3TransferProps) => {
           return;
         }
         const txHash = await sendTransactionAsync({
-          to: recipient,
+          to: recipientEvm,
           value: bnbAmountHex,
         });
         setHash(txHash);
@@ -110,8 +228,7 @@ export const Web3Transfer = ({ price }: Web3TransferProps) => {
     }
   }
 
-  //TODO DELETE IN THE FUTURE
-  const entityType = EntityType.CAT
+  const entityType = EntityType.PRESALE;
 
   const {
     isLoading: isTaxLoading,
@@ -125,53 +242,70 @@ export const Web3Transfer = ({ price }: Web3TransferProps) => {
       confirmTransaction({
         hash: hash!,
         chainType: paymentsChain,
+        namespace: namespace!,
+        amount: amountOfTails!,
+        walletAddress:
+          namespace === ChainNamespace.BNB ? evmAddress! : stellarAddress!,
         currencyType,
         price,
+        ref: query?.ref,
         entityType,
       })
         .then(() => {
-          setIsTransactionSucces(true)
-          setState("success");
+          setIsTransactionSucces(true);
         })
         .catch((error) => {
           console.error("Confirmation failed:", error);
-          // toast({ message: "Transaction confirmation failed. Please try again." });
         });
     }
   }, [isTaxConfirmed]);
 
   useEffect(() => {
     if (taxData?.status === "success") {
-      setState("success");
-      setIsTransactionSucces(true)
+      setIsTransactionSucces(true);
     }
   }, [taxData]);
-
-  if (isProd) {
-    return <PixelButton text="COMING SOON"></PixelButton>;
-  }
 
   if (isPending || isTaxLoading || isTransactionPending) {
     return <PixelButton text="PROCESSING" active></PixelButton>;
   }
 
-  if (!isConnected) {
-    return <w3m-button />;
+  if (!evmConnected && namespace === ChainNamespace.BNB) {
+    return (
+      <>
+        <PixelButton text="Connect Wallet" onClick={open}></PixelButton>
+      </>
+    );
+  }
+
+  if (!stellarConnected && namespace === ChainNamespace.STELLAR) {
+    return (
+      <>
+        <PixelButton
+          text="Connect Wallet"
+          onClick={connectStellarWallet}
+        ></PixelButton>
+      </>
+    );
   }
 
   if (isNaN(price) || price <= 0) {
     return <PixelButton text="Enter amount" isDisabled />;
   }
 
-  if (price < 1) {
+  if (price < 1 && currencyType !== CurrencyType.BNB) {
     return <PixelButton text="1$ is minimum amount" isDisabled />;
+  }
+
+  if (price < 0.001 && currencyType === CurrencyType.BNB) {
+    return <PixelButton text="0.001 BNB is minimum amount" isDisabled />;
   }
   return (
     <div className="flex flex-col items-center">
       <PixelButton
         isWidthFull
         isBig
-        isDisabled={isNaN(price) || price < 1 || amountOfTails! <= 0}
+        isDisabled={isNaN(price) || amountOfTails! <= 0}
         text="Buy"
         subtext={`With ${currencyType}`}
         onClick={() => transfer()}

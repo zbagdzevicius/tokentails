@@ -26,6 +26,7 @@ const entityTypeComponent: Record<
   [EntityType.PUBLICATION]: FeedPublication,
   [EntityType.GROUP]: FeedGroup,
   [EntityType.CAT]: <></>,
+  [EntityType.PRESALE]: <></>,
 };
 
 export const Feed = ({ items }: IProps) => {

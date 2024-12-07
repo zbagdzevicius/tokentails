@@ -30,7 +30,7 @@ export const Presale = () => {
       {isTransactionSucces && (
         <SuccesPaymentModal close={() => setIsTransactionSucces(false)} />
       )}
-      <div className="container h-full flex flex-col items-center justify-center overflow-visible">
+      <div className="container py-4 h-full flex flex-col items-center justify-center overflow-visible">
         {!isCountdownOver ? (
           <div className="flex flex-col items-center">
             <h2 className="font-secondary uppercase tracking-tight text-h3 md:text-h2 text-balance">
@@ -87,7 +87,7 @@ export const Presale = () => {
             </div>
           </div>
         ) : (
-          <PresaleCard currentFunds={600000} />
+          <PresaleCard currentFunds={0} />
         )}
       </div>
     </>
