@@ -7,7 +7,7 @@ import {
 import React from "react";
 import { Web3Transfer } from "../web3/minting/Web3Transfer";
 
-export const PaymentInputSelect = () => {
+const PaymentInputSelect = () => {
   const {
     currencyType,
     setCurrencyType,
@@ -138,3 +138,5 @@ export const PaymentInputSelect = () => {
     </div>
   );
 };
+
+export default PaymentInputSelect;
