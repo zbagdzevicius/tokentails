@@ -25,13 +25,13 @@ type ContextState = {
   chainId?: number;
   query: any;
   balance:
-    | {
-        decimals: number;
-        formatted: string;
-        symbol: string;
-        value: bigint;
-      }
-    | undefined;
+  | {
+    decimals: number;
+    formatted: string;
+    symbol: string;
+    value: bigint;
+  }
+  | undefined;
   currencyType: CurrencyType;
   price?: number;
   currentFunds: number;
@@ -73,8 +73,8 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
   }, [namespace, setCurrencyType]);
 
   const finalTokenPrice = React.useMemo(() => {
-    const startDate = new Date(Date.UTC(2024, 12, 8, 0, 0, 0));
-    const endDate = new Date(Date.UTC(2024, 12, 20, 0, 0, 0));
+    const startDate = new Date(Date.UTC(2024, 11, 8, 0, 0, 0));
+    const endDate = new Date(Date.UTC(2024, 11, 20, 0, 0, 0));
 
     const totalFundraiseTime = endDate.getTime() - startDate.getTime();
     const currentDate = new Date();
