@@ -12,6 +12,12 @@ This repository uses the recommended structure for a Soroban project:
 │   |   │   └── test.rs -> tests file
 │   |   └── Cargo.toml -> contract configuration file 
 │   └── test_snapshots -> tests results file
+│   └── blessing
+│   |   ├── src
+│   |   │   ├── lib.rs -> smart contract file
+│   |   │   └── test.rs -> tests file
+│   |   └── Cargo.toml -> contract configuration file 
+│   └── test_snapshots -> tests results file
 ├── Cargo.toml -> project configuration file
 └── README.md -> this file
 ```
@@ -82,7 +88,7 @@ stellar contract deploy \
 ### Contracts:
 - Owner testnet public key: GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN
 - Test testnet public key: GBFDHPVUCADXYGDUHJEXKO3BLV26SA5JBHV5MFQ3TH5HWVYZIP73VR4O
-- Cat testnet: CBSLDG3O5CEP6OGHN7YG6VIZSYF7LNA46XEFR24Z2I2BLZCMNCWTKP6S
+- Cat testnet: CBPPEIVCCPQSCPC7HXNSDAZX6PVUCUVNGTGY3Q3GD5DXCG4MST53B4GL
 - Cat mainnet: 
 - testnet explorer: https://stellar.expert/explorer/testnet
 
@@ -97,7 +103,7 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CBSLDG3O5CEP6OGHN7YG6VIZSYF7LNA46XEFR24Z2I2BLZCMNCWTKP6S \
+  --id CBPPEIVCCPQSCPC7HXNSDAZX6PVUCUVNGTGY3Q3GD5DXCG4MST53B4GL \
   --source zygis \
   --network testnet \
   -- \
@@ -113,7 +119,7 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CBSLDG3O5CEP6OGHN7YG6VIZSYF7LNA46XEFR24Z2I2BLZCMNCWTKP6S \
+  --id CBPPEIVCCPQSCPC7HXNSDAZX6PVUCUVNGTGY3Q3GD5DXCG4MST53B4GL \
   --source zygis \
   --network testnet \
   -- \
@@ -129,7 +135,7 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CBSLDG3O5CEP6OGHN7YG6VIZSYF7LNA46XEFR24Z2I2BLZCMNCWTKP6S \
+  --id CBPPEIVCCPQSCPC7HXNSDAZX6PVUCUVNGTGY3Q3GD5DXCG4MST53B4GL \
   --source zygis \
   --network testnet \
   -- \
@@ -143,7 +149,7 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CBSLDG3O5CEP6OGHN7YG6VIZSYF7LNA46XEFR24Z2I2BLZCMNCWTKP6S \
+  --id CBPPEIVCCPQSCPC7HXNSDAZX6PVUCUVNGTGY3Q3GD5DXCG4MST53B4GL \
   --source zygis \
   --network testnet \
   -- \
@@ -158,7 +164,7 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CBSLDG3O5CEP6OGHN7YG6VIZSYF7LNA46XEFR24Z2I2BLZCMNCWTKP6S \
+  --id CBPPEIVCCPQSCPC7HXNSDAZX6PVUCUVNGTGY3Q3GD5DXCG4MST53B4GL \
   --source zygis \
   --network testnet \
   -- \
@@ -172,7 +178,7 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CBSLDG3O5CEP6OGHN7YG6VIZSYF7LNA46XEFR24Z2I2BLZCMNCWTKP6S \
+  --id CBPPEIVCCPQSCPC7HXNSDAZX6PVUCUVNGTGY3Q3GD5DXCG4MST53B4GL \
   --source zygis \
   --network testnet \
   -- \
