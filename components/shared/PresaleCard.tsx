@@ -3,12 +3,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Countdown } from "./Countdown";
 
 import dynamic from "next/dynamic";
+import { PixelButton } from "./PixelButton";
 
 const PaymentInputSelect = dynamic(
   () => import("@/components/shared/PaymentInputSelect"),
   { ssr: false }
 );
-const TARGET_VALUE = 600000;
 
 const memeCats: Record<number, string> = {
   1: "meme-1.gif",
@@ -87,22 +87,26 @@ const happyCats: Record<number, string> = {
 
 export const PresaleCardContent = () => {
   const { finalTokenPrice, currentFunds } = useWeb3();
-  const [fillPercentage, setFillPercentage] = useState(0);
-  const stepIndex = useMemo(() => {
-    const percentage = (currentFunds / TARGET_VALUE) * 100;
-    if (percentage >= 0 && percentage <= 100) {
-      setFillPercentage(Math.max(0, Math.min(percentage, 100)));
-    }
-
-    return Math.min(Math.floor((currentFunds / TARGET_VALUE) * 60), 59);
-  }, [currentFunds]);
+  const [rocketProgress, setRocketProgress] = useState(0);
+  const [rocketLaunched, setRocketLaunched] = useState(false);
   const [currentCat, setCurrentCat] = useState(sadCats[1]);
   const prevFundsRef = useRef<number | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const firePosition = isMobile ? 0 : 3.85;
 
   useEffect(() => {
     const sadKeys = Object.keys(sadCats);
     const randomKey = sadKeys[Math.floor(Math.random() * sadKeys.length)];
     setCurrentCat(sadCats[Number(randomKey)]);
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   useEffect(() => {
@@ -116,6 +120,13 @@ export const PresaleCardContent = () => {
     }
     prevFundsRef.current = currentFunds;
   }, [currentFunds]);
+
+  const handleLaunchClick = () => {
+    setRocketLaunched(true);
+    const progressValue = isMobile ? 82 : 58;
+
+    setRocketProgress(progressValue);
+  };
 
   return (
     <div className="h-screen w-screen relative flex justify-center items-center">
@@ -147,7 +158,7 @@ export const PresaleCardContent = () => {
           <div className="pb-2">
             <img
               className="w-20 h-auto"
-              src={`/meme-cats/${Object.values(memeCats)?.[stepIndex]}`}
+              src={`/meme-cats/${Object.values(memeCats)?.[0]}`}
             />
           </div>
           <div className="z-10 relative">
@@ -205,26 +216,39 @@ export const PresaleCardContent = () => {
         alt="Moon"
       />
       <img
-        className="absolute right-10 w-32 aspect-square md:w-48 object-contain animate-hover hover:brightness-110"
+        className={`absolute pb-3 right-0 md:right-10 w-24 aspect-square md:w-48 object-contain hover:brightness-110 ${rocketLaunched && "animate-hover "}`}
         style={{
-          bottom: `calc(${fillPercentage}% /1.7 + 5rem)`,
-          transition: "bottom 1s ease-in-out",
+          bottom: `calc(${rocketProgress}% - 0rem)`,
+          transition: "bottom 4s ease-in-out",
         }}
         src="/icons/rocket.png"
         alt="Rocket"
       />
+
       <img
-        className={`absolute right-10 w-32 md:w-48 h-20 md:h-28 -z-10 object-contain rotate-180 hover:brightness-110`}
+        className={`absolute right-0 md:right-10 w-24 md:w-48 h-16 md:h-36 -z-10 object-contain rotate-180  hover:brightness-110`}
         style={{
-          bottom: `calc(${fillPercentage}%/1.7 )`,
-          transition: "bottom 1s ease-in-out, opacity 0.5s ease",
+          opacity: rocketLaunched ? 1 : 0,
+          bottom: `calc(${rocketProgress}% - ${firePosition}rem)`,
+          transition: "bottom 4s ease-in-out",
         }}
         src="/icons/fire-2.gif"
         alt="Rocket Fire"
       />
+
+      {!rocketLaunched &&
+        <div className="absolute -bottom-8 right-0 md:rem:right-[88px]">
+          <PixelButton
+            text='Launch'
+            onClick={handleLaunchClick}
+          >
+          </PixelButton>
+        </div>
+      }
     </div>
   );
 };
+
 
 interface IPresaleCard {
   currentFunds: number;
