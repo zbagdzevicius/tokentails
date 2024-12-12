@@ -1,6 +1,6 @@
 import { IArticle, IArticleExcerpt } from "@/models/article";
 import { ICategory } from "@/models/category";
-import { ICat, ICatStatus } from "@/models/cats";
+import { CatType, ICat, ICatStatus } from "@/models/cats";
 import { IComment } from "@/models/comment";
 import { GameModal } from "@/models/game";
 import { IGroup } from "@/models/group";
@@ -433,8 +433,8 @@ export const catsFetch = async (): Promise<ICat[]> => {
   });
 };
 
-export const catsForSaleFetch = async (): Promise<ICat[]> => {
-  return fetch(`${apiUrl}/cat/sale`, {
+export const catsForSaleFetch = async (catType: CatType): Promise<ICat[]> => {
+  return fetch(`${apiUrl}/cat/sale/${catType}`, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -692,23 +692,5 @@ export const setAdventDay = async (): Promise<void> => {
 
     console.warn(JSON.stringify(response));
     return;
-  });
-};
-
-export const exclusiveCatsFetch = async (): Promise<ICat[]> => {
-  return fetch(`${apiUrl}/cat/exclusive`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
-  }).then((response) => {
-    if (response.ok) {
-      return response.json();
-    }
-
-    console.warn(JSON.stringify(response));
-    return [];
   });
 };

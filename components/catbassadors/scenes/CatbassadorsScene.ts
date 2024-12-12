@@ -12,7 +12,7 @@ import { Cat } from "../objects/Catbassador";
 import { Coin } from "../objects/Coin";
 import { Enemy } from "../../purrquest/objects/Enemy";
 import { BossEnemy } from "@/components/purrquest/objects/Boss";
-import { currentDayCoin } from "@/constants/utils";
+import { currentDayCoin, ZOOM } from "@/constants/utils";
 const coinDurationMs = 15000;
 const BOSS_REWARD_POINTS = 1000;
 const JUMP_LAYER_TILES = [47, 48, 49, 50];
@@ -147,7 +147,7 @@ export class CatbassadorsScene extends Scene {
     this.trampoline = new Trampoline(this, this.jumperLayer, TRAMPOLINE_TILES);
 
     this.cameras.main.setScroll(-650, -1000);
-    this.cameras.main.setZoom(1.25);
+    this.cameras.main.setZoom(ZOOM);
 
     this.backgroundSound = this.sound.add("purr", { loop: true });
     this.setDefaultSound();

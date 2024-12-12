@@ -24,9 +24,7 @@ export const Game = () => {
         <Catbassadors cat={profile?.cat} timer={timer} />
       )}
       {gameType === GameType.HOME && profile && <Base />}
-      <span className="">
-        {gameType === GameType.SHELTER && profile && <Adopt />}
-      </span>
+      {gameType === GameType.SHELTER && profile && <Adopt />}
       {gameType === GameType.PURRQUEST && profile && <PurrQuest />}
     </div>
   );
