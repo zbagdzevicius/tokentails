@@ -85,7 +85,7 @@ export const Calendar = ({ isRelative }: IProps) => {
       <div
         className={`${
           isRelative ? "relative" : "absolute -right-2 top-32 m-5 pt-4 z-10"
-        } w-20 h-20 items-center justify-center cursor-pointer flex flex-col`}
+        } w-20 h-20 items-center justify-center cursor-pointer flex hover:brightness-110 flex-col`}
         onClick={handleCalendarClick}
       >
         <img

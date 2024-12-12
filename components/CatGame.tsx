@@ -1,5 +1,5 @@
 "use client";
-import { ICat } from "@/models/cats";
+import { CatType, ICat } from "@/models/cats";
 import { useEffect, useState } from "react";
 
 interface Element {
@@ -15,10 +15,17 @@ interface Element {
 
 interface IProps {
   cats: ICat[];
+  catType: CatType;
   onClickCallback: (cat: ICat) => void;
 }
 
-export const CatGame = ({ cats, onClickCallback }: IProps) => {
+const catTypeBg: Record<CatType, string> = {
+  [CatType.EXCLUSIVE]: "/base/bg-4.gif",
+  [CatType.BLESSED]: "/base/bg.gif",
+  [CatType.REGULAR]: "/base/bg-2.gif",
+};
+
+export const CatGame = ({ cats, onClickCallback, catType }: IProps) => {
   const generateRandomPosition = (img: string, id: string): Element => ({
     id: id,
     axisX: Math.random() * 2 - 1,
@@ -31,7 +38,7 @@ export const CatGame = ({ cats, onClickCallback }: IProps) => {
 
   const [elements, setElements] = useState<Element[]>([]);
   useEffect(() => {
-    if (cats?.length) {
+    if (cats) {
       setElements(
         cats.map(({ catImg, name }, index) =>
           generateRandomPosition(catImg, name!)
@@ -147,9 +154,9 @@ export const CatGame = ({ cats, onClickCallback }: IProps) => {
         draggable="false"
         className=" z-0 w-full h-full object-fit"
         style={{
-          backgroundImage: "url(/catgame/bg.jpg)",
-          backgroundRepeat: "repeat",
-          backgroundSize: "500px",
+          backgroundImage: `url(${catTypeBg[catType]})`,
+          backgroundPosition: "center center",
+          backgroundSize: "cover",
         }}
       ></div>
       {elements.map((element, index) => (

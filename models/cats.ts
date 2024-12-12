@@ -1,3 +1,5 @@
+import { IImage } from "./image";
+import { IProfile } from "./profile";
 import { IStatusValue, StatusType } from "./status";
 
  type IMultiplier = 'x2' | 'x3' | 'x5'
@@ -9,16 +11,24 @@ export enum BlessingType {
   BILLS = "BILLS",
 }
 
+export enum CatType {
+    REGULAR = 'REGULAR',
+    EXCLUSIVE = 'EXCLUSIVE',
+    BLESSED = 'BLESSED',
+}
+
 type IBlessing = {
   type: BlessingType;
   _id: string;
   name: string;
   description: string;
-  // image: IImage;
-  // images: IImage[];
+  ability: CatAbilityType;
+  image: IImage;
+  birthDate: Date;
+  images: IImage[];
   price: number;
-  // creator?: IProfile;
-  // owner?: IProfile;
+  creator?: IProfile;
+  owner?: IProfile;
 };
 
 export enum CatAbilitySkill {

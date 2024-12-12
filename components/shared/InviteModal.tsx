@@ -1,5 +1,3 @@
-import { useProfile } from "@/context/ProfileContext";
-import { useToast } from "@/context/ToastContext";
 import { CloseButton } from "./CloseButton";
 import { PixelButton } from "./PixelButton";
 

@@ -102,14 +102,14 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
         onClick={() => onClose()}
       ></div>
       <div
-        className={`max-w-screen-xl border-4 rounded-[16px] border-yellow-300 relative rem:h-[540px] md:rem:h-[600px] aspect-[2/3] max-w-screen ${type.toLocaleLowerCase()}`}
+        className={`max-w-screen-xl top-1/2 hover:brightness-105 -translate-y-1/2 border-8 rounded-[24px] border-yellow-300 border-opacity-50 hover:border-opacity-100 relative rem:h-[540px] md:rem:h-[600px] aspect-[2/3] max-w-screen`}
         ref={cardRef}
       >
         <img
           src={`/ability/${type}_BG.webp`}
           className="absolute object-cover z-10 h-full w-full brightness-[35%] rounded-[16px]"
         />
-        <div className="relative z-20 inset-0 flex flex-col justify-between h-full">
+        <div className="relative z-20 flex flex-col justify-between h-full">
           <div className="w-full">
             <div>
               <div className="flex justify-between items-center m-1">
@@ -144,20 +144,28 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
               {blessingsToDisplay.map((blessing, index) => (
                 <img
                   key={index}
-                  src={`/blessings/${blessing.type}_TYPE.png`}
+                  src={`/blessings/${blessing.ability}_TYPE.png`}
                   alt={blessing.type}
                   width={40}
                   height={40}
                   className={`w-12 h-12 absolute ${positions[index]}`}
                 />
               ))}
-              <img
-                src={catImg}
-                alt="Hero cat"
-                width={250}
-                height={250}
-                className="w-32 h-32 relative z-10"
-              />
+              <span className="relative">
+                <img
+                  src={catImg}
+                  alt="Hero cat"
+                  width={250}
+                  height={250}
+                  className="w-32 h-32 relative z-10"
+                />
+                {firstBlessing && (
+                  <img
+                    className="absolute inset-0 w-full h-full object-cover"
+                    src={`/flare-effect/${firstBlessing?.ability}.gif`}
+                  ></img>
+                )}
+              </span>
             </div>
           </div>
           <div>
@@ -166,7 +174,7 @@ export const CatCard: React.FC<IProps> = ({ onClose, ...catData }) => {
                 <div className="flex flex-row items-center">
                   {firstBlessing && (
                     <img
-                      src={`/blessings/${firstBlessing.type}_TYPE.png`}
+                      src={`/blessings/${firstBlessing.ability}_TYPE.png`}
                       alt={firstBlessing.type}
                       className="w-10 h-10"
                     />

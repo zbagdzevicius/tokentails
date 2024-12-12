@@ -40,12 +40,12 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
           <div className="flex min-w-0 gap-2">
             <img
               onClick={() => setGameType(GameType.CATBASSADORS)}
-              className="w-24 h-24 rem:min-w-[96px] rounded-xl hover:animate-hover"
+              className="w-24 h-24 hover:brightness-110 rem:min-w-[96px] rounded-xl hover:animate-hover"
               src="/game/select/catbassadors.jpg"
             />
             <img
               onClick={() => setGameType(GameType.PURRQUEST)}
-              className="w-24 h-24 rem:min-w-[96px] rounded-xl hover:animate-hover"
+              className="w-24 h-24 hover:brightness-110 rem:min-w-[96px] rounded-xl hover:animate-hover"
               src="/game/select/purrquest.jpg"
             />
           </div>
