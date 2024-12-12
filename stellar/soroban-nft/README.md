@@ -22,6 +22,14 @@ This repository uses the recommended structure for a Soroban project:
 └── README.md -> this file
 ```
 
+#### contracts TESTNET:
+- ##### TokenTailsCat NFT: `CDA7P7DZ2PTRKAQOFETKWUKVNECQSDMRNXRDMLFMKVQNAPETV5W4IYOA`
+- ##### TokenTailsBlessing NFT: `CA5AVHPGJJKY7RLSXVPAQ5ZANA7OBZWXJCDWP3SZCNFRIUDAV2NDXCXM`
+
+#### contracts PUBLIC/MAINNET:
+- ##### TokenTailsCat NFT: `CC7RTEHQLWLWKU4ZIT2EWR4PO4OX5OYVOPM4LIRW7YB2EJ654CMTZVG6`
+- ##### TokenTailsBlessing NFT: `CAPQCRJEVBPEXTTYXETVIYIKTGKVX65RRDNUFYGFTKHV5YTSL47XUASD`
+
 ### Run tests
 
 `cargo test`
@@ -73,7 +81,7 @@ Gateway provider
 stellar contract deploy \
   --wasm target/wasm32-unknown-unknown/release/cat.wasm \
   --source zygis \
-  --network testnet
+  --network mainnet
 ```
 
 ### Deploy to mainnet
@@ -87,8 +95,7 @@ stellar contract deploy \
 
 ### Contracts:
 - Owner testnet public key: GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN
-- Test testnet public key: GBFDHPVUCADXYGDUHJEXKO3BLV26SA5JBHV5MFQ3TH5HWVYZIP73VR4O
-- Cat testnet: CBPPEIVCCPQSCPC7HXNSDAZX6PVUCUVNGTGY3Q3GD5DXCG4MST53B4GL
+- Owner mainnet public key: GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN
 - Cat mainnet: 
 - testnet explorer: https://stellar.expert/explorer/testnet
 
@@ -103,14 +110,14 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CBPPEIVCCPQSCPC7HXNSDAZX6PVUCUVNGTGY3Q3GD5DXCG4MST53B4GL \
+  --id CA5AVHPGJJKY7RLSXVPAQ5ZANA7OBZWXJCDWP3SZCNFRIUDAV2NDXCXM \
   --source zygis \
   --network testnet \
   -- \
   initialize \
   --admin GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN \
   --minters '["GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN"]' \
-  --base_uri cat
+  --base_uri https://api.tokentails.com/cat/nft/
 ```
 
 ### Contract mint example
@@ -119,7 +126,7 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CBPPEIVCCPQSCPC7HXNSDAZX6PVUCUVNGTGY3Q3GD5DXCG4MST53B4GL \
+  --id CDA7P7DZ2PTRKAQOFETKWUKVNECQSDMRNXRDMLFMKVQNAPETV5W4IYOA \
   --source zygis \
   --network testnet \
   -- \
@@ -135,7 +142,7 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CBPPEIVCCPQSCPC7HXNSDAZX6PVUCUVNGTGY3Q3GD5DXCG4MST53B4GL \
+  --id CDA7P7DZ2PTRKAQOFETKWUKVNECQSDMRNXRDMLFMKVQNAPETV5W4IYOA \
   --source zygis \
   --network testnet \
   -- \
@@ -149,7 +156,7 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CBPPEIVCCPQSCPC7HXNSDAZX6PVUCUVNGTGY3Q3GD5DXCG4MST53B4GL \
+  --id CDA7P7DZ2PTRKAQOFETKWUKVNECQSDMRNXRDMLFMKVQNAPETV5W4IYOA \
   --source zygis \
   --network testnet \
   -- \
@@ -164,7 +171,7 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CBPPEIVCCPQSCPC7HXNSDAZX6PVUCUVNGTGY3Q3GD5DXCG4MST53B4GL \
+  --id CDA7P7DZ2PTRKAQOFETKWUKVNECQSDMRNXRDMLFMKVQNAPETV5W4IYOA \
   --source zygis \
   --network testnet \
   -- \
@@ -178,7 +185,7 @@ e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CBPPEIVCCPQSCPC7HXNSDAZX6PVUCUVNGTGY3Q3GD5DXCG4MST53B4GL \
+  --id CDA7P7DZ2PTRKAQOFETKWUKVNECQSDMRNXRDMLFMKVQNAPETV5W4IYOA \
   --source zygis \
   --network testnet \
   -- \
