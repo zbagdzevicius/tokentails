@@ -1,7 +1,7 @@
-import { catsFetch, exclusiveCatsFetch, setAdventDay } from "@/constants/api";
+import { catsFetch, catsForSaleFetch, setAdventDay } from "@/constants/api";
 import { daysCoins } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
-import { ICat } from "@/models/cats";
+import { CatType, ICat } from "@/models/cats";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Countdown } from "./Countdown";
@@ -24,6 +24,23 @@ const catNamesMap: Record<number, string> = {
   6: "Divine Furritude",
   7: "Beanie Paws",
   8: "Tree Hopper",
+  9: "Blitzen Whiskers",
+  10: "Elf Whiskers",
+  11: "Merry Whiskers",
+  12: "Purr-esent",
+  13: "Gingernap",
+  14: "Hot Cocoa",
+  15: "Mistletoe Paws",
+  16: "Nutty",
+  17: "Polar Paws",
+  18: "Jolly Green",
+  19: "Krispurr Kringle",
+  20: "Snow Globe Paws",
+  21: "Snowtop Paws",
+  22: "Socky Paws",
+  23: "Twinkle Whiskers",
+  24: "Holly Halo",
+  25: "Token tails",
 };
 
 export const adventData: Record<number, AdventDay> = {
@@ -147,7 +164,7 @@ export const AdventCalendar = ({ setSelectedCat }: IProps) => {
   });
   const { data: adventCats } = useQuery({
     queryKey: ["advent", currentDay],
-    queryFn: () => exclusiveCatsFetch(),
+    queryFn: () => catsForSaleFetch(CatType.EXCLUSIVE),
   });
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],

@@ -57,7 +57,7 @@ export const GameStatsSection = ({
       >
         <div
           onClick={() => setModal(coinsText)}
-          className="flex flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300"
+          className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300"
         >
           <img className="w-6 h-6" src="/logo/coin.webp" />
           <div className="text-p4 flex items-center gap-1">
@@ -69,7 +69,7 @@ export const GameStatsSection = ({
         </div>
         <div
           onClick={() => setOpenedModal(GameModal.PROFILE)}
-          className="flex flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300"
+          className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300"
         >
           <img className="w-10 h-10" src={profile.cat?.catImg} />
           <div className="text-p4 flex items-center gap-1">

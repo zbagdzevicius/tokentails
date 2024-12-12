@@ -67,7 +67,7 @@ export const SocialLink = {
   Pinterest: `https://pinterest.com/${process.env.NEXT_PUBLIC_PINTEREST_PAGE}`,
 };
 
-export const ZOOM = IS_MOBILE ? 1.25 : 1.75;
+export const ZOOM = IS_MOBILE ? 1.25 : 2;
 
 type DateInput = Date | number | string;
 
