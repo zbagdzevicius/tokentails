@@ -1,27 +1,20 @@
 import { useWeb3 } from "@/context/Web3Context";
-import {
-  ChainNamespaceImg,
-  ChainNamespaces,
-  ChainNamespacesCurrencies,
-} from "@/web3/contracts";
 import React from "react";
 import { Web3Transfer } from "../web3/minting/Web3Transfer";
+import { ChainSelect } from "./ChainSelect";
 
-const PaymentInputSelect = () => {
-  const {
-    currencyType,
-    setCurrencyType,
-    setNamespace,
-    namespace,
-    price,
-    setPrice,
-    amountOfTails,
-  } = useWeb3();
+interface IProps {
+  amountOfTails: number;
+  price?: number;
+  setPrice: (price?: number) => void;
+}
 
+const PaymentInputSelect = ({ amountOfTails, price, setPrice }: IProps) => {
+  const { currencyType } = useWeb3();
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
     if (inputValue === "") {
-      setPrice("");
+      setPrice(undefined);
       return;
     }
     const numericValue = parseFloat(inputValue);
@@ -32,64 +25,7 @@ const PaymentInputSelect = () => {
 
   return (
     <div className="flex items-center justify-center flex-col gap-1">
-      <div className="flex flex-col items-center gap-1">
-        <div className="font-secondary bg-purple-300 px-4 rounded-full">
-          NETWORK
-        </div>
-        <div className="flex gap-2">
-          {ChainNamespaces.map((namespaceOption) => (
-            <button
-              key={namespaceOption}
-              onClick={() => setNamespace(namespaceOption)}
-              className={`transition group flex items-center justify-center gap-1 bg-purple-300 px-3 py-1 rounded-xl ${
-                namespace === namespaceOption
-                  ? ""
-                  : "grayscale hover:grayscale-0"
-              }`}
-            >
-              <div className="text-p4 font-secondary">{namespaceOption}</div>
-              <img
-                className={`transition ${
-                  namespace === namespaceOption
-                    ? "w-10"
-                    : "w-10 px-1 group-hover:px-0"
-                }`}
-                src={ChainNamespaceImg[namespaceOption]}
-                alt={`${namespaceOption} icon`}
-              />
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="flex flex-col items-center gap-1 mb-4 mt-2">
-        <div className="font-secondary bg-yellow-300 px-4 rounded-full">
-          CURRENCY
-        </div>
-        <div className="flex gap-2">
-          {ChainNamespacesCurrencies[namespace].map((currency) => (
-            <button
-              key={currency}
-              onClick={() => setCurrencyType(currency)}
-              className={`transition group flex items-center justify-center gap-1 bg-yellow-300 px-3 py-1 rounded-xl ${
-                currencyType === currency
-                  ? ""
-                  : "grayscale hover:grayscale-0"
-              }`}
-            >
-              <div className="text-p4 font-secondary">{currency}</div>
-              <img
-                className={`transition ${
-                  currencyType === currency
-                    ? "w-10"
-                    : "w-10 px-1 group-hover:px-0"
-                }`}
-                src={`/currency/${currency}.webp`}
-                alt={`${currency} icon`}
-              />
-            </button>
-          ))}
-        </div>
-      </div>
+      <ChainSelect />
       <div className="flex space-between gap-6 md:gap-8">
         <div>
           <label className="text-white font-secondary font-medium text-p3 flex justify-center">
@@ -134,7 +70,7 @@ const PaymentInputSelect = () => {
           </div>
         </div>
       </div>
-      <Web3Transfer price={price!} />
+      <Web3Transfer price={price!} amount={amountOfTails} />
     </div>
   );
 };

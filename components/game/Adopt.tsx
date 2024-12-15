@@ -2,7 +2,7 @@ import { catsForSaleFetch } from "@/constants/api";
 import { useProfile } from "@/context/ProfileContext";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { CatCard } from "../CatCard";
+import { CatCard, CatCardModal } from "../CatCardModal";
 import { CatGame } from "../CatGame";
 import { PixelButton } from "../shared/PixelButton";
 import { CatType } from "@/models/cats";
@@ -32,7 +32,7 @@ function Adopt() {
   const [selectedCat, setSelectedCat] = useState<any>(null);
   const { profile } = useProfile();
   const [catType, setCatType] = useState<CatType>(CatType.BLESSED);
-  const { data: cats } = useQuery({
+  const { data: cats, isLoading } = useQuery({
     queryKey: ["sale", profile?.cats, catType],
     queryFn: () => catsForSaleFetch(catType),
   });
@@ -48,7 +48,7 @@ function Adopt() {
         onClickCallback={setSelectedCat}
       />
       {selectedCat && (
-        <CatCard
+        <CatCardModal
           onClose={handleCloseModal}
           {...selectedCat}
           isMintable={true}
@@ -85,8 +85,8 @@ function Adopt() {
           <div className="text-p4 bg-gradient-to-r px-4 from-purple-400 to-blue-400 text-white rounded-full font-secondary w-fit">
             {catTypeNote[catType].description}
           </div>
-          {catType === CatType.BLESSED && (
-            <PixelButton isDisabled active text="COMING SOON"></PixelButton>
+          {!isLoading && !cats?.length && (
+            <PixelButton isDisabled active text="OUT OF CATS, COME BACK ALTER"></PixelButton>
           )}
         </div>
       </span>

@@ -1,7 +1,9 @@
-import { useWeb3 } from "@/context/Web3Context";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Countdown } from "./Countdown";
 
+import { getRaised } from "@/constants/api";
+import { useWeb3 } from "@/context/Web3Context";
+import { CurrencyType } from "@/web3/contracts";
 import dynamic from "next/dynamic";
 import { PixelButton } from "./PixelButton";
 
@@ -86,13 +88,54 @@ const happyCats: Record<number, string> = {
 };
 
 export const PresaleCardContent = () => {
-  const { finalTokenPrice, currentFunds } = useWeb3();
   const [rocketProgress, setRocketProgress] = useState(0);
   const [rocketLaunched, setRocketLaunched] = useState(false);
   const [currentCat, setCurrentCat] = useState(sadCats[1]);
   const prevFundsRef = useRef<number | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const firePosition = isMobile ? 0 : 3.85;
+  const [currentFunds, setCurrentFunds] = useState(0);
+  const [price, setPrice] = useState<number>();
+
+  const { currencyType, bnbRate, query, xlmRate } = useWeb3();
+
+  const finalTokenPrice = useMemo(() => {
+    const startDate = new Date(Date.UTC(2024, 11, 8, 0, 0, 0));
+    const endDate = new Date(Date.UTC(2024, 11, 20, 0, 0, 0));
+
+    const totalFundraiseTime = endDate.getTime() - startDate.getTime();
+    const currentDate = new Date();
+    const elapsedTime = currentDate.getTime() - startDate.getTime();
+
+    const progress = Math.min(Math.max(elapsedTime / totalFundraiseTime, 0), 1);
+
+    const basePrice = 0.03;
+    const discount = 0.28;
+    const hasCoupon = query.code === "meow" ? true : false;
+    const couponDiscount = 0.05;
+    const initialPrice = basePrice * (1 - discount);
+
+    const currentPrice = initialPrice + (basePrice - initialPrice) * progress;
+    return currentPrice * (1 - (hasCoupon ? couponDiscount : 0));
+  }, [query]);
+
+  const amountOfTails = useMemo(() => {
+    if (!price || !bnbRate || !xlmRate) {
+      return 0;
+    }
+    if (currencyType === CurrencyType.BNB) {
+      return Math.floor((price / finalTokenPrice) * bnbRate);
+    }
+    if (currencyType === CurrencyType.XLM) {
+      return Math.floor((price / finalTokenPrice) * xlmRate);
+    }
+
+    return Math.floor(price / finalTokenPrice);
+  }, [currencyType, finalTokenPrice, bnbRate, xlmRate, price]);
+
+  useEffect(() => {
+    getRaised().then((value) => setCurrentFunds(value));
+  }, []);
 
   useEffect(() => {
     const sadKeys = Object.keys(sadCats);
@@ -105,8 +148,8 @@ export const PresaleCardContent = () => {
       setIsMobile(window.innerWidth <= 768);
     };
     handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
@@ -206,7 +249,11 @@ export const PresaleCardContent = () => {
           </p>
         </div>
         <div className="bottom-1 md:bottom-1">
-          <PaymentInputSelect />
+          <PaymentInputSelect
+            amountOfTails={amountOfTails}
+            price={price}
+            setPrice={setPrice}
+          />
         </div>
       </div>
 
@@ -216,7 +263,9 @@ export const PresaleCardContent = () => {
         alt="Moon"
       />
       <img
-        className={`absolute pb-3 right-0 md:right-10 w-24 aspect-square md:w-48 object-contain hover:brightness-110 ${rocketLaunched && "animate-hover "}`}
+        className={`absolute pb-3 right-0 md:right-10 w-24 aspect-square md:w-48 object-contain hover:brightness-110 ${
+          rocketLaunched && "animate-hover "
+        }`}
         style={{
           bottom: `calc(${rocketProgress}% - 0rem)`,
           transition: "bottom 4s ease-in-out",
@@ -236,24 +285,15 @@ export const PresaleCardContent = () => {
         alt="Rocket Fire"
       />
 
-      {!rocketLaunched &&
+      {!rocketLaunched && (
         <div className="absolute -bottom-8 right-0 md:rem:right-[88px]">
-          <PixelButton
-            text='Launch'
-            onClick={handleLaunchClick}
-          >
-          </PixelButton>
+          <PixelButton text="Launch" onClick={handleLaunchClick}></PixelButton>
         </div>
-      }
+      )}
     </div>
   );
 };
 
-
-interface IPresaleCard {
-  currentFunds: number;
-}
-
-export const PresaleCard = ({ currentFunds }: IPresaleCard) => {
+export const PresaleCard = () => {
   return <PresaleCardContent />;
 };
