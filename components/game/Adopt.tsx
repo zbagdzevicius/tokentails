@@ -1,11 +1,11 @@
 import { catsForSaleFetch } from "@/constants/api";
 import { useProfile } from "@/context/ProfileContext";
+import { CatType } from "@/models/cats";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { CatCard, CatCardModal } from "../CatCardModal";
+import { CatCardModal } from "../CatCardModal";
 import { CatGame } from "../CatGame";
 import { PixelButton } from "../shared/PixelButton";
-import { CatType } from "@/models/cats";
 
 const catTypeNote: Record<
   CatType,
@@ -75,14 +75,14 @@ function Adopt() {
         </div>
         <div className="flex flex-col items-center gap-2">
           <div className="flex gap-2">
-            <div className="text-p4 bg-gradient-to-r px-4 from-purple-400 to-blue-400 text-white rounded-full font-secondary w-fit">
+            <div className="text-p4 bg-gradient-to-r px-4 from-purple-400 to-blue-400 text-white rounded-full font-secondary w-fit whitespace-nowrap">
               {catTypeNote[catType].title}
             </div>
-            <div className="text-p4 bg-gradient-to-r px-4 from-purple-400 to-blue-400 text-white rounded-full font-secondary w-fit">
+            <div className="text-p4 bg-gradient-to-r px-4 from-purple-400 to-blue-400 text-white rounded-full font-secondary w-fit whitespace-nowrap">
               {catTypeNote[catType].note}
             </div>
           </div>
-          <div className="text-p4 bg-gradient-to-r px-4 from-purple-400 to-blue-400 text-white rounded-full font-secondary w-fit">
+          <div className="text-p4 bg-gradient-to-r px-4 from-purple-400 to-blue-400 text-white rounded-full font-secondary w-fit whitespace-nowrap">
             {catTypeNote[catType].description}
           </div>
           {!isLoading && !cats?.length && (
