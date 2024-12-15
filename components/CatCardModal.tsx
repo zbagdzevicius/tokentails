@@ -179,7 +179,7 @@ export const CatPayment = ({
         return parseFloat((price / bnbRate).toFixed(3));
       }
       if (currencyType === CurrencyType.XLM) {
-        return Math.ceil(price / bnbRate);
+        return Math.ceil(price / xlmRate);
       }
     }
     return cat.price;
