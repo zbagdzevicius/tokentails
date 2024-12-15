@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Countdown } from "./Countdown";
 
-import dynamic from "next/dynamic";
-import { PixelButton } from "./PixelButton";
 import { getRaised } from "@/constants/api";
 import { useWeb3 } from "@/context/Web3Context";
 import { CurrencyType } from "@/web3/contracts";
+import dynamic from "next/dynamic";
+import { PixelButton } from "./PixelButton";
 
 const PaymentInputSelect = dynamic(
   () => import("@/components/shared/PaymentInputSelect"),
@@ -96,7 +96,6 @@ export const PresaleCardContent = () => {
   const firePosition = isMobile ? 0 : 3.85;
   const [currentFunds, setCurrentFunds] = useState(0);
   const [price, setPrice] = useState<number>();
-
 
   const { currencyType, bnbRate, query, xlmRate } = useWeb3();
 
@@ -250,7 +249,11 @@ export const PresaleCardContent = () => {
           </p>
         </div>
         <div className="bottom-1 md:bottom-1">
-          <PaymentInputSelect amountOfTails={amountOfTails} price={price} setPrice={setPrice} />
+          <PaymentInputSelect
+            amountOfTails={amountOfTails}
+            price={price}
+            setPrice={setPrice}
+          />
         </div>
       </div>
 
@@ -291,10 +294,6 @@ export const PresaleCardContent = () => {
   );
 };
 
-interface IPresaleCard {
-  currentFunds: number;
-}
-
-export const PresaleCard = ({ currentFunds }: IPresaleCard) => {
+export const PresaleCard = () => {
   return <PresaleCardContent />;
 };
