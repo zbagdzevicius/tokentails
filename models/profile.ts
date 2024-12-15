@@ -11,6 +11,7 @@ export interface IUserWallets {
 }
 
 export interface IProfile {
+  _id: string;
   avatar?: string;
   name: string;
   streak: number;

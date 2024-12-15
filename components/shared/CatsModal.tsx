@@ -6,17 +6,19 @@ import { useToast } from "@/context/ToastContext";
 import { ICat } from "@/models/cats";
 import { GameType } from "@/models/game";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { CatCardModal, getMultiplier } from "../CatCardModal";
 import { GameEvents } from "../Phaser/events";
-import { PixelButton } from "./PixelButton";
 import { CloseButton } from "./CloseButton";
-import { CatCard } from "../CatCard";
-import { useState } from "react";
+import { PixelButton } from "./PixelButton";
 
 export const CatsModalContent = ({ close }: { close: () => void }) => {
   const [selectedCat, setSelectedCat] = useState<ICat | null>(null);
 
   const { profile, setProfileUpdate } = useProfile();
   const toast = useToast();
+
+  const multiplier = useMemo(() => getMultiplier(selectedCat), [selectedCat]);
 
   const { setGameType } = useGame();
   const { data: cats } = useQuery({
@@ -64,11 +66,9 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
               className="relative overflow-hidden w-36 rounded-xl py-2 border-2 border-black"
               onClick={() => setSelectedCat(cat)}
             >
-              {cat.catpoints && (
-                <div className="absolute left-2 top-1 opacity-75 text-black px-2 text-p5 font-secondary rounded-xl bg-yellow-300 z-20">
-                  {cat.multiplier}
-                </div>
-              )}
+              <div className="absolute left-2 top-1 opacity-75 text-black px-2 text-p5 font-secondary rounded-xl bg-yellow-300 z-20">
+                X{multiplier}
+              </div>
               <div className="relative z-10 items-center flex flex-col">
                 <img className="w-16 z-10" src={cat.catImg} alt={cat.name} />
                 <img
@@ -96,10 +96,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
       </div>
 
       {selectedCat && (
-        <CatCard
-          onClose={handleCloseModal}
-          {...selectedCat}
-        />
+        <CatCardModal onClose={handleCloseModal} {...selectedCat} />
       )}
 
       <img

@@ -19,4 +19,6 @@ export interface IOrder {
   price: number;
   entityType: EntityType;
   cat?: string;
+  blessing?: string;
+  user?: string;
 }

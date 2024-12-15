@@ -24,19 +24,19 @@ export enum ChainType {
 }
 
 export enum ChainNamespace {
-  BNB = 'BNB',
+  EVM = 'EVM',
   STELLAR = 'STELLAR',
 }
 
-export const ChainNamespaces = [ChainNamespace.BNB, ChainNamespace.STELLAR];
+export const ChainNamespaces = [ChainNamespace.EVM, ChainNamespace.STELLAR];
 
 export const ChainNamespaceImg: Record<ChainNamespace, string> = {
-  [ChainNamespace.BNB]: '/currency/BNB.webp',
+  [ChainNamespace.EVM]: '/currency/BNB.webp',
   [ChainNamespace.STELLAR]: '/currency/XLM.webp',
 }
 
 export const ChainNamespacesCurrencies: Record<ChainNamespace, CurrencyType[]> = {
-  [ChainNamespace.BNB]: [CurrencyType.BNB, CurrencyType.USDT, CurrencyType.USDC],
+  [ChainNamespace.EVM]: [CurrencyType.BNB, CurrencyType.USDT, CurrencyType.USDC],
   [ChainNamespace.STELLAR]: [CurrencyType.XLM, CurrencyType.USDC],
 }
 
