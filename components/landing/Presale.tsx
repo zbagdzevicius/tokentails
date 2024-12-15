@@ -4,8 +4,7 @@ import { PresaleCard } from "../shared/PresaleCard";
 import { SuccesPaymentModal } from "../shared/SuccesPaymentModal";
 
 export const Presale = () => {
-  const { isTransactionSucces, setIsTransactionSucces, currentFunds } =
-    useWeb3();
+  const { isTransactionSucces, setIsTransactionSucces } = useWeb3();
 
   useEffect(() => {
     if (isTransactionSucces) {
@@ -24,7 +23,7 @@ export const Presale = () => {
         <SuccesPaymentModal close={() => setIsTransactionSucces(false)} />
       )}
       <div className="container py-4 h-full flex flex-col items-center justify-center overflow-visible">
-        <PresaleCard currentFunds={currentFunds} />
+        <PresaleCard />
       </div>
     </>
   );

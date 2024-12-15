@@ -17,7 +17,7 @@ export enum CatType {
     BLESSED = 'BLESSED',
 }
 
-type IBlessing = {
+export type IBlessing = {
   type: BlessingType;
   _id: string;
   name: string;
@@ -131,8 +131,8 @@ export interface ICat {
   expiresAt?: string;
   price: number;
   catpoints: number;
+  isExclusive: boolean;
   blessings: IBlessing[];
-  multiplier: IMultiplier;
 }
 
 export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {

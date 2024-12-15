@@ -1,5 +1,4 @@
 import { useTokenPrice } from "@/components/web3/useTokenPrice";
-import { getRaised } from "@/constants/api";
 import {
   ChainNamespace,
   ChainNamespacesCurrencies,
@@ -25,18 +24,15 @@ type ContextState = {
   chainId?: number;
   query: any;
   balance:
-  | {
-    decimals: number;
-    formatted: string;
-    symbol: string;
-    value: bigint;
-  }
-  | undefined;
+    | {
+        decimals: number;
+        formatted: string;
+        symbol: string;
+        value: bigint;
+      }
+    | undefined;
   currencyType: CurrencyType;
   price?: number;
-  currentFunds: number;
-  finalTokenPrice?: number;
-  amountOfTails?: number;
   setCurrencyType: (currencyType: CurrencyType) => void;
   setPrice: (price: any) => void;
   isTransactionSucces: boolean;
@@ -48,10 +44,9 @@ const Web3Context = React.createContext<ContextState | undefined>(undefined);
 export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
   const { isConnected, address, chainId } = useAccount();
   const [stellarConnected, setStellarConnected] = React.useState(false);
-  const [currentFunds, setCurrentFunds] = React.useState(0);
   const [stellarAddress, setStellarAddress] = React.useState<string>();
   const [namespace, setNamespace] = React.useState<ChainNamespace>(
-    ChainNamespace.BNB
+    ChainNamespace.EVM
   );
 
   const [currencyType, setCurrencyType] = React.useState(CurrencyType.USDT);
@@ -72,42 +67,6 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
     setCurrencyType(ChainNamespacesCurrencies[namespace][0]);
   }, [namespace, setCurrencyType]);
 
-  const finalTokenPrice = React.useMemo(() => {
-    const startDate = new Date(Date.UTC(2024, 11, 8, 0, 0, 0));
-    const endDate = new Date(Date.UTC(2024, 11, 20, 0, 0, 0));
-
-    const totalFundraiseTime = endDate.getTime() - startDate.getTime();
-    const currentDate = new Date();
-    const elapsedTime = currentDate.getTime() - startDate.getTime();
-
-    const progress = Math.min(Math.max(elapsedTime / totalFundraiseTime, 0), 1);
-
-    const basePrice = 0.03;
-    const discount = 0.28;
-    const hasCoupon = query.code === "meow" ? true : false;
-    const couponDiscount = 0.05;
-    const initialPrice = basePrice * (1 - discount);
-
-    const currentPrice = initialPrice + (basePrice - initialPrice) * progress;
-    return currentPrice * (1 - (hasCoupon ? couponDiscount : 0));
-  }, []);
-  React.useEffect(() => {
-    getRaised().then((value) => setCurrentFunds(value));
-  }, [isTransactionSucces]);
-
-  const amountOfTails = React.useMemo(() => {
-    if (!price) {
-      return 0;
-    }
-    if (currencyType === CurrencyType.BNB) {
-      return Math.floor((price / finalTokenPrice) * bnbRate);
-    }
-    if (currencyType === CurrencyType.XLM) {
-      return Math.floor((price / finalTokenPrice) * xlmRate);
-    }
-
-    return Math.floor(price / finalTokenPrice);
-  }, [currencyType, finalTokenPrice, bnbRate, xlmRate, price]);
   return (
     <Web3Context.Provider
       value={{
@@ -116,13 +75,11 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
         xlmRate,
         stellarConnected,
         evmAddress: address,
-        currentFunds,
         stellarAddress,
         chainId,
         currencyType,
         price,
         query,
-        finalTokenPrice,
         setCurrencyType,
         setPrice,
         namespace,
@@ -130,7 +87,6 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
         setStellarConnected,
         setStellarAddress,
         balance,
-        amountOfTails,
         isTransactionSucces,
         setIsTransactionSucces,
       }}

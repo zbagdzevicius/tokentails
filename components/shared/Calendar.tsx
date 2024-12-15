@@ -1,6 +1,6 @@
 import { currentDayCoin } from "@/constants/utils";
 import { useEffect, useState } from "react";
-import { CatCard } from "../CatCard";
+import { CatCard, CatCardModal } from "../CatCardModal";
 import { AdventCalendar, adventData } from "./AdventCalendar";
 import { CloseButton } from "./CloseButton";
 import { Countdown } from "./Countdown";
@@ -121,7 +121,9 @@ export const Calendar = ({ isRelative }: IProps) => {
           </div>
         )}
       </div>
-      {selectedCat && <CatCard onClose={handleCloseModal} {...selectedCat} />}
+      {selectedCat && (
+        <CatCardModal onClose={handleCloseModal} {...selectedCat} />
+      )}
       {isCalendarOpen && !isRelative && (
         <div className="fixed inset-0 pt-safe w-full z-[100] flex justify-center items-center h-full">
           <div
