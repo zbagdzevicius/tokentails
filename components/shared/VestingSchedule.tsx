@@ -117,7 +117,7 @@ export const VestingSchedule = () => {
               scope="row"
               className="text-p4 py-4 px-6 font-medium whitespace-nowrap bg-yellow-300 border-b border-white"
             >
-              PUBLIC
+              PRESALE
             </th>
             <td className="py-4 px-6 text-center text-yellow-300 bg-gray-700 text-p4">
               29%

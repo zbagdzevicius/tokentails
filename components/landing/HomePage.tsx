@@ -16,6 +16,7 @@ const sponsorImage = [
   "/images/sponsor/brinc.webp",
   "/images/sponsor/blockgames.webp",
   "/images/sponsor/skale.webp",
+  "/images/sponsor/onepiece.png",
   "/images/sponsor/xdc.webp",
   "/images/sponsor/buidlers-tribe.webp",
   "/images/sponsor/crossfi.webp",
