@@ -4,7 +4,9 @@ export const recipientEvm = "0x29D7d5361052c0990879D7926a0c98A63F9860F8";
 // FREIGHTER
 // export const recipientStellar = "GDZYQV5SUMCYIPS5HAGZ6HR73HCWLIKRL2FGMHH42UZNGHHE7MQVFOB3";
 // LOBSTR
-export const recipientStellar = "GD7GM5KP5B7MQ3NLYTLWA2EXEGGCWOTUVDP6WZIQDUPLQ7E2F67QKHSW";
+export const recipientStellar =
+  "GD7GM5KP5B7MQ3NLYTLWA2EXEGGCWOTUVDP6WZIQDUPLQ7E2F67QKHSW";
+export const recipientSolana = "48ReRnWwnw68K2LTQjfUthtiXuQmaKG9zQnXUR8KMDJg";
 
 export enum CurrencyType {
   USDT = "USDT",
@@ -12,6 +14,7 @@ export enum CurrencyType {
   TAILS = "TAILS",
   XLM = "XLM",
   BNB = "BNB",
+  SOL = "SOL",
 }
 
 export enum ChainType {
@@ -21,24 +24,38 @@ export enum ChainType {
   BNB_TEST = "BNB_TEST",
   STELLAR = "STELLAR",
   STELLAR_TEST = "STELLAR_TEST",
+  SOLANA = "SOLANA",
+  SOLANA_TEST = "SOLANA_TEST",
 }
 
 export enum ChainNamespace {
-  EVM = 'EVM',
-  STELLAR = 'STELLAR',
+  EVM = "EVM",
+  STELLAR = "STELLAR",
+  SOLANA = "SOLANA",
 }
 
-export const ChainNamespaces = [ChainNamespace.EVM, ChainNamespace.STELLAR];
+export const ChainNamespaces = [
+  ChainNamespace.EVM,
+  ChainNamespace.STELLAR,
+  ChainNamespace.SOLANA,
+];
 
 export const ChainNamespaceImg: Record<ChainNamespace, string> = {
-  [ChainNamespace.EVM]: '/currency/BNB.webp',
-  [ChainNamespace.STELLAR]: '/currency/XLM.webp',
-}
+  [ChainNamespace.EVM]: "/currency/BNB.webp",
+  [ChainNamespace.STELLAR]: "/currency/XLM.webp",
+  [ChainNamespace.SOLANA]: "/currency/SOL.webp",
+};
 
-export const ChainNamespacesCurrencies: Record<ChainNamespace, CurrencyType[]> = {
-  [ChainNamespace.EVM]: [CurrencyType.BNB, CurrencyType.USDT, CurrencyType.USDC],
-  [ChainNamespace.STELLAR]: [CurrencyType.XLM, CurrencyType.USDC],
-}
+export const ChainNamespacesCurrencies: Record<ChainNamespace, CurrencyType[]> =
+  {
+    [ChainNamespace.EVM]: [
+      CurrencyType.BNB,
+      CurrencyType.USDT,
+      CurrencyType.USDC,
+    ],
+    [ChainNamespace.STELLAR]: [CurrencyType.XLM, CurrencyType.USDC],
+    [ChainNamespace.SOLANA]: [CurrencyType.SOL],
+  };
 
 export const currencyContracts: Record<
   ChainType,
@@ -65,5 +82,11 @@ export const currencyContracts: Record<
   },
   [ChainType.STELLAR_TEST]: {
     [CurrencyType.USDC]: "0x",
+  },
+  [ChainType.SOLANA]: {
+    [CurrencyType.SOL]: "0x",
+  },
+  [ChainType.SOLANA_TEST]: {
+    [CurrencyType.SOL]: "0x",
   },
 };

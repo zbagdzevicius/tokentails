@@ -694,3 +694,21 @@ export const setAdventDay = async (): Promise<void> => {
     return;
   });
 };
+
+export const getAddressTokens = async (
+  walletAddress: string
+): Promise<string> => {
+  return fetch(`${apiUrl}/web3/presale/${walletAddress}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.text();
+    }
+
+    return "0";
+  });
+};
