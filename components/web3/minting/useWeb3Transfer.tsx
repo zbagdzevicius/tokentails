@@ -9,6 +9,7 @@ import {
   currencyContracts,
   CurrencyType,
   recipientEvm,
+  recipientSolana,
   recipientStellar,
 } from "@/web3/contracts";
 import {
@@ -21,6 +22,12 @@ import {
 } from "@/web3/web3-config";
 import { ISupportedWallet } from "@creit.tech/stellar-wallets-kit";
 import { useAppKit } from "@reown/appkit/react";
+import {
+  useConnection,
+  useWallet as useSolanaWallet,
+} from "@solana/wallet-adapter-react";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import {
   Asset,
   BASE_FEE,
@@ -54,22 +61,31 @@ export const useWeb3Transfer = ({
   amount,
   cat,
   blessing,
-  user
+  user,
 }: IProps) => {
   const {
     evmConnected,
     stellarAddress,
     evmAddress,
+    solanaConnected,
     stellarConnected,
     namespace,
+    namespaceDetail,
     setStellarAddress,
     setStellarConnected,
+    solanaAddress,
     chainId,
     query,
     currencyType,
     balance,
     setIsTransactionSucces,
   } = useWeb3();
+  const { setVisible: connectSolana } = useWalletModal();
+  const {
+    signTransaction: signSolanaTransaction,
+    sendTransaction: sendSolanaTransaction,
+  } = useSolanaWallet();
+  const { connection: solanaConnection } = useConnection();
   const { switchChainAsync } = useSwitchChain({
     config: wagmiAdapter.wagmiConfig,
   });
@@ -84,6 +100,7 @@ export const useWeb3Transfer = ({
     isPending,
   } = useWriteContract();
   const [isStellarPending, setIsStellarPending] = useState(false);
+  const [isSolanaPending, setIsSolanaPending] = useState(false);
 
   const {
     isLoading: isTaxLoading,
@@ -94,8 +111,8 @@ export const useWeb3Transfer = ({
   });
 
   const isLoading = useMemo(
-    () => isPending || isStellarPending || isTaxLoading,
-    [isStellarPending, isPending, isTaxLoading]
+    () => isPending || isStellarPending || isTaxLoading || isSolanaPending,
+    [isStellarPending, isPending, isTaxLoading, isSolanaPending]
   );
 
   useEffect(() => {
@@ -162,8 +179,7 @@ export const useWeb3Transfer = ({
         chainType: paymentsChain,
         namespace: namespace!,
         amount,
-        walletAddress:
-          namespace === ChainNamespace.EVM ? evmAddress! : stellarAddress!,
+        walletAddress: namespaceDetail.address!,
         currencyType,
         price,
         ref: query?.ref,
@@ -205,8 +221,74 @@ export const useWeb3Transfer = ({
       } else {
         stellarTransfer(stellarAddress!);
       }
+    } else if (namespace === ChainNamespace.SOLANA) {
+      if (!solanaConnected) {
+        connectSolana(true);
+      } else {
+        solanaTransfer();
+      }
     }
   }
+
+  const solanaTransfer = async () => {
+    if (!solanaConnected) {
+      toast({ message: "Please login to Wallet" });
+      console.error("Wallet not connected!");
+      return;
+    }
+    setIsSolanaPending(true);
+    try {
+      const lamportsToSend = price * 1e9;
+
+      // Create a transaction
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: solanaAddress!, // Sender's public key
+          toPubkey: new PublicKey(recipientSolana), // Recipient's public key
+          lamports: lamportsToSend, // Amount to send in lamports
+        })
+      );
+
+      // Send the transaction
+      const signature = await sendSolanaTransaction(
+        transaction,
+        solanaConnection
+      );
+      const latestBlockHash = await solanaConnection.getLatestBlockhash();
+
+      // Confirm the transaction
+      const confirmation = await solanaConnection.confirmTransaction(
+        {
+          signature,
+          blockhash: latestBlockHash.blockhash,
+          lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+        },
+        "confirmed"
+      );
+      confirmTransaction({
+        hash: signature,
+        chainType: paymentsChain,
+        namespace: namespace!,
+        amount,
+        walletAddress: namespaceDetail.address!,
+        currencyType,
+        price,
+        ref: query?.ref,
+        entityType,
+        cat,
+        blessing,
+        user,
+      })
+        .then(() => {})
+        .catch((error) => {
+          console.error("Confirmation failed:", error);
+        });
+      console.log("Transaction confirmed:", confirmation);
+    } catch (error) {
+      console.error("Error sending SOL:", error);
+    }
+    setIsSolanaPending(false);
+  };
 
   async function evmTransfer() {
     if (!evmConnected) {
@@ -262,8 +344,7 @@ export const useWeb3Transfer = ({
         chainType: paymentsChain,
         namespace: namespace!,
         amount,
-        walletAddress:
-          namespace === ChainNamespace.EVM ? evmAddress! : stellarAddress!,
+        walletAddress: namespaceDetail.address!,
         currencyType,
         price,
         ref: query?.ref,
@@ -292,14 +373,15 @@ export const useWeb3Transfer = ({
       open();
     } else if (namespace === ChainNamespace.STELLAR) {
       connectStellarWallet();
+    } else if (namespace === ChainNamespace.SOLANA) {
+      connectSolana(true);
     }
   };
 
   return {
     isTransactionPending,
     isLoading,
-    walletConnected:
-      namespace === ChainNamespace.STELLAR ? stellarConnected : evmConnected,
+    namespaceDetail,
     connectWallet,
     currencyType,
     transfer,

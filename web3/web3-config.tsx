@@ -12,14 +12,24 @@ import { ChainType } from "./contracts";
 import {
   AlbedoModule,
   FreighterModule,
+  HanaModule,
   LOBSTR_ID,
   LobstrModule,
+  RabetModule,
   StellarWalletsKit,
   WalletNetwork,
   xBullModule,
-  HanaModule,
-  RabetModule
 } from "@creit.tech/stellar-wallets-kit/index";
+import {
+  BitgetWalletAdapter,
+  HuobiWalletAdapter,
+  LedgerWalletAdapter,
+  NightlyWalletAdapter,
+  PhantomWalletAdapter,
+  SolflareWalletAdapter,
+  TorusWalletAdapter,
+  TrustWalletAdapter,
+} from "@solana/wallet-adapter-wallets";
 
 import { Horizon, Networks } from "@stellar/stellar-sdk";
 
@@ -29,7 +39,9 @@ export const projectId = "4ef5743bb63ef48716115119e580ff88";
 export const horizonServer = new Horizon.Server(
   isProd ? "https://horizon.stellar.org" : "https://horizon-testnet.stellar.org"
 );
-export const stellarNetworkPassphrase = isProd ? Networks.PUBLIC : Networks.TESTNET
+export const stellarNetworkPassphrase = isProd
+  ? Networks.PUBLIC
+  : Networks.TESTNET;
 
 export const metadata = {
   name: "Web3Modal",
@@ -58,7 +70,9 @@ export const chainTypeId: Record<ChainType, number> = {
   [ChainType.SKALE]: skaleNebula.id,
   [ChainType.SKALE_TEST]: skaleNebulaTestnet.id,
   [ChainType.STELLAR]: 0,
-  [ChainType.STELLAR_TEST]: 1,
+  [ChainType.STELLAR_TEST]: 0,
+  [ChainType.SOLANA]: 0,
+  [ChainType.SOLANA_TEST]: 0,
 };
 
 export const idChainType: Record<number, ChainType> = {
@@ -70,16 +84,20 @@ export const idChainType: Record<number, ChainType> = {
   [1]: ChainType.STELLAR_TEST,
 };
 
+// 0. Set up Solana Adapter
+export const solanaWallets = [
+  new PhantomWalletAdapter(),
+  new SolflareWalletAdapter(),
+  new TorusWalletAdapter(),
+  new TrustWalletAdapter(),
+  new NightlyWalletAdapter(),
+  new BitgetWalletAdapter(),
+  new HuobiWalletAdapter(),
+  new LedgerWalletAdapter(),
+];
+
 // Create wagmiConfig
-export const networks = isProd
-  ? [
-      bsc,
-      // skaleNebulaMainnet
-    ]
-  : [
-      bscTestnet,
-      // skaleNebulaTestnet
-    ];
+export const networks = isProd ? [bsc] : [bscTestnet];
 
 export const wagmiAdapter = new WagmiAdapter({
   networks,
@@ -90,4 +108,3 @@ export const wagmiAdapter = new WagmiAdapter({
   }),
   multiInjectedProviderDiscovery: true,
 });
-wagmiAdapter.sendTransaction;

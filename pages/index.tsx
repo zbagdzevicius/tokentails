@@ -2,6 +2,7 @@ import { Airdrop } from "@/components/landing/Airdrop";
 import { BlogPreview } from "@/components/landing/BlogPreview";
 import { CatsHub } from "@/components/landing/CatsHub";
 import { FeedbackSlider } from "@/components/landing/FeedbackSlider";
+import { GameAggregators } from "@/components/landing/GameAggregators";
 import { GameModes } from "@/components/landing/GameModes";
 import { HomePage } from "@/components/landing/HomePage";
 import { Presale } from "@/components/landing/Presale";
@@ -10,13 +11,11 @@ import { Team } from "@/components/landing/Team";
 import { Tokenomics } from "@/components/landing/Tokenomics";
 import { Circle } from "@/components/shared/Circle";
 import Snowfall from "@/components/shared/Snowfall";
+import { Web3Providers } from "@/components/web3/Web3Providers";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
 import Head from "next/head";
 import { useEffect, useRef } from "react";
-import { Web3Provider } from "@/context/Web3Context";
-import Web3ModalProvider from "@/context/web3";
-
 
 export default function Index() {
   const catssliderRef = useRef(null);
@@ -118,7 +117,7 @@ export default function Index() {
           </div>
         </div>
         <div
-          className="pb-4 pt-3 md:pt-0 min-h-screen flex items-center justify-center"
+          className="py-6 min-h-screen flex items-center justify-center"
           style={{
             backgroundImage: "url(/base/bg-4.gif)",
             backgroundRepeat: "no-repeat",
@@ -131,12 +130,13 @@ export default function Index() {
             id="presale"
             ref={gamessliderRef}
           >
-            <Web3ModalProvider>
-              <Web3Provider>
-                <Presale />
-              </Web3Provider>
-            </Web3ModalProvider>
+            <Web3Providers>
+              <Presale />
+            </Web3Providers>
           </div>
+        </div>
+        <div className="py-6 flex items-center justify-center bg-gradient-to-r from-blue-300 to-purple-500">
+          <GameAggregators />
         </div>
         <div
           className="pb-4 pt-3 md:pt-0 min-h-screen flex items-center justify-center w-full"
@@ -248,7 +248,7 @@ export default function Index() {
           </div>
         </div>
         <Footer />
-      </div >
+      </div>
     </>
   );
 }

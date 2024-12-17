@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Countdown } from "./Countdown";
 
-import { getRaised } from "@/constants/api";
+import { getAddressTokens, getRaised } from "@/constants/api";
+import { randomObjectFromArray } from "@/constants/utils";
 import { useWeb3 } from "@/context/Web3Context";
 import { CurrencyType } from "@/web3/contracts";
 import dynamic from "next/dynamic";
@@ -96,8 +97,10 @@ export const PresaleCardContent = () => {
   const firePosition = isMobile ? 0 : 3.85;
   const [currentFunds, setCurrentFunds] = useState(0);
   const [price, setPrice] = useState<number>();
+  const [boughtToken, setBoughtTokens] = useState<number>(0);
 
-  const { currencyType, bnbRate, query, xlmRate } = useWeb3();
+  const { currencyType, bnbRate, query, xlmRate, solRate, namespaceDetail } =
+    useWeb3();
 
   const finalTokenPrice = useMemo(() => {
     const startDate = new Date(Date.UTC(2024, 11, 8, 0, 0, 0));
@@ -120,7 +123,7 @@ export const PresaleCardContent = () => {
   }, [query]);
 
   const amountOfTails = useMemo(() => {
-    if (!price || !bnbRate || !xlmRate) {
+    if (!price || !bnbRate || !xlmRate || !solRate) {
       return 0;
     }
     if (currencyType === CurrencyType.BNB) {
@@ -129,14 +132,23 @@ export const PresaleCardContent = () => {
     if (currencyType === CurrencyType.XLM) {
       return Math.floor((price / finalTokenPrice) * xlmRate);
     }
+    if (currencyType === CurrencyType.SOL) {
+      return Math.floor((price / finalTokenPrice) * solRate);
+    }
 
     return Math.floor(price / finalTokenPrice);
-  }, [currencyType, finalTokenPrice, bnbRate, xlmRate, price]);
+  }, [currencyType, finalTokenPrice, bnbRate, xlmRate, solRate, price]);
 
   useEffect(() => {
     getRaised().then((value) => setCurrentFunds(value));
   }, []);
-
+  useEffect(() => {
+    if (namespaceDetail.address) {
+      getAddressTokens(namespaceDetail.address).then((value) =>
+        setBoughtTokens(parseFloat(value))
+      );
+    }
+  }, [namespaceDetail.address]);
   useEffect(() => {
     const sadKeys = Object.keys(sadCats);
     const randomKey = sadKeys[Math.floor(Math.random() * sadKeys.length)];
@@ -195,13 +207,30 @@ export const PresaleCardContent = () => {
               className="w-12 h-12"
             />
           </p>
-          <p className="text-center font-semibold font-secondary text-h5">
+          <div className="text-center font-semibold font-secondary text-h5">
             ${currentFunds} Raised
-          </p>
+          </div>
+          <div className="font-secondary flex items-center gap-2 bg-purple-300 bg-opacity-75 rounded-full mb-1">
+            <img className="w-5 h-5" src="/logo/coin.webp" />
+            <div className="text-p5">TOKENS</div>
+            <img className="w-5 h-5" src="/logo/coin.webp" />
+          </div>
+          <div className="flex gap-2">
+            <div className="font-secondary flex items-center gap-1 bg-purple-300 bg-opacity-75 px-3 rounded-full mb-1">
+              <div className="text-p5">
+                Sold {parseInt((currentFunds / 0.027).toString())}
+              </div>
+            </div>
+            <div className="font-secondary flex items-center gap-1 bg-purple-300 bg-opacity-75 px-3 rounded-full">
+              <div className="text-p5">You own {boughtToken}</div>{" "}
+            </div>
+          </div>
           <div className="pb-2">
             <img
               className="w-20 h-auto"
-              src={`/meme-cats/${Object.values(memeCats)?.[0]}`}
+              src={`/meme-cats/${randomObjectFromArray(
+                Object.values(memeCats)
+              )}`}
             />
           </div>
           <div className="z-10 relative">
