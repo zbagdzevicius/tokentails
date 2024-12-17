@@ -4,6 +4,7 @@ import { PixelButton } from "@/components/shared/PixelButton";
 import { EntityType } from "@/models/save";
 import { CurrencyType } from "@/web3/contracts";
 import { useWeb3Transfer } from "./useWeb3Transfer";
+import { useMemo } from "react";
 
 interface Web3TransferProps {
   price: number;
@@ -28,7 +29,7 @@ export const Web3Transfer = ({
 }: Web3TransferProps) => {
   const {
     isTransactionPending,
-    walletConnected,
+    namespaceDetail,
     connectWallet,
     currencyType,
     isLoading,
@@ -41,11 +42,24 @@ export const Web3Transfer = ({
     blessing,
     user,
   });
+  const address = useMemo(() => {
+    if (!namespaceDetail?.connected) {
+      return "CONNECT";
+    }
+    if (!namespaceDetail?.address) {
+      return "";
+    }
+    return (
+      namespaceDetail.address.slice(0, 3) +
+      "..." +
+      namespaceDetail.address.slice(-3)
+    );
+  }, [namespaceDetail]);
   if (isLoading || isTransactionPending) {
     return <PixelButton text={loadingText || "LOADING"} active></PixelButton>;
   }
 
-  if (!walletConnected) {
+  if (!namespaceDetail?.connected) {
     return (
       <PixelButton text="Connect Wallet" onClick={connectWallet}></PixelButton>
     );
@@ -55,20 +69,35 @@ export const Web3Transfer = ({
     return <PixelButton text="Enter amount" isDisabled />;
   }
 
-  if (price < 1 && currencyType !== CurrencyType.BNB) {
+  if (
+    price < 1 &&
+    ![CurrencyType.BNB, CurrencyType.SOL].includes(currencyType)
+  ) {
     return <PixelButton text="1$ is minimum amount" isDisabled />;
   }
 
   if (price < 0.001 && currencyType === CurrencyType.BNB) {
     return <PixelButton text="0.001 BNB is minimum amount" isDisabled />;
   }
+  if (price < 0.005 && currencyType === CurrencyType.SOL) {
+    return <PixelButton text="0.005 SOL is minimum amount" isDisabled />;
+  }
   return (
-    <PixelButton
-      isWidthFull
-      isBig
-      isDisabled={isNaN(price) || amount <= 0}
-      text={text || "Buy Now"}
-      onClick={() => transfer()}
-    ></PixelButton>
+    <div className="flex justify-center items-center">
+      <PixelButton
+        isWidthFull
+        isBig
+        isDisabled={isNaN(price) || amount <= 0}
+        text={text || "Buy Now"}
+        onClick={() => transfer()}
+      ></PixelButton>
+      {address && (
+        <PixelButton
+          text={address}
+          isSmall
+          onClick={() => connectWallet()}
+        ></PixelButton>
+      )}
+    </div>
   );
 };

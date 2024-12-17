@@ -2,17 +2,17 @@ import { adoptCatFetch, catsFetch } from "@/constants/api";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
-import Web3ModalProvider from "@/context/web3";
-import { useWeb3, Web3Provider } from "@/context/Web3Context";
+import { useWeb3 } from "@/context/Web3Context";
 import { CatAbilities, IBlessing, ICat } from "@/models/cats";
 import { GameType } from "@/models/game";
+import { EntityType } from "@/models/save";
 import { CurrencyType } from "@/web3/contracts";
 import { useQuery } from "@tanstack/react-query";
 import React, { useEffect, useMemo, useState } from "react";
 import { ChainSelect } from "./shared/ChainSelect";
 import { PixelButton } from "./shared/PixelButton";
 import { Web3Transfer } from "./web3/minting/Web3Transfer";
-import { EntityType } from "@/models/save";
+import { Web3Providers } from "./web3/Web3Providers";
 
 interface IProps extends ICat {
   onClose: () => void;
@@ -56,11 +56,11 @@ export const getMultiplier = (cat?: ICat | null) => {
   if (cat.isExclusive) {
     return 5;
   }
-  if (cat.catpoints > 50000) {
-    return 2;
-  }
   if (cat.catpoints > 1000000) {
     return 3;
+  }
+  if (cat.catpoints > 50000) {
+    return 2;
   }
   return 1;
 };
@@ -162,7 +162,8 @@ export const CatPayment = ({
   cat: ICat;
   onClose: () => void;
 }) => {
-  const { currencyType, bnbRate, xlmRate, isTransactionSucces } = useWeb3();
+  const { currencyType, bnbRate, xlmRate, solRate, isTransactionSucces } =
+    useWeb3();
   const { _id, supply, name, catpoints, price } = cat;
   const { profile, setProfileUpdate } = useProfile();
   const [isBuyMode, setIsBuyMode] = useState(false);
@@ -171,9 +172,10 @@ export const CatPayment = ({
   const { setGameType } = useGame();
   const currencyPrice = useMemo(() => {
     if (
-      [CurrencyType.XLM, CurrencyType.BNB].includes(currencyType) &&
+      [CurrencyType.XLM, CurrencyType.BNB, CurrencyType.SOL].includes(currencyType) &&
       bnbRate &&
-      xlmRate
+      xlmRate &&
+      solRate
     ) {
       if (currencyType === CurrencyType.BNB) {
         return parseFloat((price / bnbRate).toFixed(3));
@@ -181,9 +183,12 @@ export const CatPayment = ({
       if (currencyType === CurrencyType.XLM) {
         return Math.ceil(price / xlmRate);
       }
+      if (currencyType === CurrencyType.SOL) {
+        return parseFloat((price / solRate).toFixed(3));
+      }
     }
     return cat.price;
-  }, [currencyType, bnbRate, xlmRate, cat]);
+  }, [currencyType, bnbRate, xlmRate, solRate, cat]);
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
     queryFn: () => catsFetch(),
@@ -284,8 +289,8 @@ export const CatPayment = ({
           />
         )}
         {!isCoinsPayment && isBuyMode && isForSale && (
-          <div className="flex flex-col items-center">
-            <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6">
+          <div className="flex flex-col items-start">
+            <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
               {currencyPrice} {currencyType}
             </div>
             <Web3Transfer
@@ -301,7 +306,7 @@ export const CatPayment = ({
           </div>
         )}
 
-        {cat.supply !== undefined && (
+        {cat.supply !== undefined && !isBuyMode && (
           <div className="flex flex-col bg-gray-600 px-2 text-center rounded-lg font-secondary text-p4 mb-1">
             <div className="text-p5 text-yellow-300">SUPPLY</div>
             <div className="text-yellow-200 -mt-1">{supply}</div>
@@ -387,11 +392,9 @@ export const CatCardModal: React.FC<IProps> = ({ onClose, ...catData }) => {
         onClick={() => onClose()}
       ></div>
 
-      <Web3ModalProvider>
-        <Web3Provider>
-          <CatCard {...catData} onClose={onClose} />
-        </Web3Provider>
-      </Web3ModalProvider>
+      <Web3Providers>
+        <CatCard {...catData} onClose={onClose} />
+      </Web3Providers>
     </div>
   );
 };

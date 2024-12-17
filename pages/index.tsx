@@ -10,13 +10,11 @@ import { Team } from "@/components/landing/Team";
 import { Tokenomics } from "@/components/landing/Tokenomics";
 import { Circle } from "@/components/shared/Circle";
 import Snowfall from "@/components/shared/Snowfall";
+import { Web3Providers } from "@/components/web3/Web3Providers";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
 import Head from "next/head";
 import { useEffect, useRef } from "react";
-import { Web3Provider } from "@/context/Web3Context";
-import Web3ModalProvider from "@/context/web3";
-
 
 export default function Index() {
   const catssliderRef = useRef(null);
@@ -131,11 +129,9 @@ export default function Index() {
             id="presale"
             ref={gamessliderRef}
           >
-            <Web3ModalProvider>
-              <Web3Provider>
-                <Presale />
-              </Web3Provider>
-            </Web3ModalProvider>
+            <Web3Providers>
+              <Presale />
+            </Web3Providers>
           </div>
         </div>
         <div
@@ -248,7 +244,7 @@ export default function Index() {
           </div>
         </div>
         <Footer />
-      </div >
+      </div>
     </>
   );
 }

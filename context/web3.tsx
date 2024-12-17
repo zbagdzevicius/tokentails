@@ -4,7 +4,7 @@ import {
   metadata,
   networks,
   projectId,
-  wagmiAdapter,
+  wagmiAdapter
 } from "@/web3/web3-config";
 import { ReactNode } from "react";
 
