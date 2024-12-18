@@ -1,25 +1,19 @@
 import Web3ModalProvider from "@/context/web3";
 import { Web3Provider } from "@/context/Web3Context";
-import { isProd } from "@/models/app";
 import { solanaWallets } from "@/web3/web3-config";
-import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import {
   ConnectionProvider,
   WalletProvider,
 } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
-import { clusterApiUrl } from "@solana/web3.js";
-import { PropsWithChildren, useMemo } from "react";
+import { PropsWithChildren } from "react";
 require("@solana/wallet-adapter-react-ui/styles.css");
 
 export const Web3Providers = ({ children }: PropsWithChildren<{}>) => {
-  const network = isProd
-    ? WalletAdapterNetwork.Mainnet
-    : WalletAdapterNetwork.Testnet;
-  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
-
   return (
-    <ConnectionProvider endpoint={endpoint}>
+    <ConnectionProvider
+      endpoint={"https://go.getblock.io/3589c7e1595a475e9dbec2eb57f96fa8"}
+    >
       <WalletProvider wallets={solanaWallets} autoConnect>
         <WalletModalProvider>
           <Web3ModalProvider>
