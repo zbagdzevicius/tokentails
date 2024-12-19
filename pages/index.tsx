@@ -117,7 +117,7 @@ export default function Index() {
           </div>
         </div>
         <div
-          className="py-6 min-h-screen flex items-center justify-center"
+          className="py-12 min-h-screen flex items-center justify-center"
           style={{
             backgroundImage: "url(/base/bg-4.gif)",
             backgroundRepeat: "no-repeat",

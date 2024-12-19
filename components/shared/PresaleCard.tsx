@@ -102,7 +102,16 @@ export const PresaleCardContent = () => {
   const { currencyType, bnbRate, query, xlmRate, solRate, namespaceDetail } =
     useWeb3();
 
+  const isEndDateReached = useMemo(() => {
+    return (
+      new Date().getTime() > new Date(Date.UTC(2024, 11, 20, 0, 0, 0)).getTime()
+    );
+  }, []);
+
   const finalTokenPrice = useMemo(() => {
+    if (isEndDateReached) {
+      return 0.03;
+    }
     const startDate = new Date(Date.UTC(2024, 11, 8, 0, 0, 0));
     const endDate = new Date(Date.UTC(2024, 11, 20, 0, 0, 0));
 
@@ -120,7 +129,7 @@ export const PresaleCardContent = () => {
 
     const currentPrice = initialPrice + (basePrice - initialPrice) * progress;
     return currentPrice * (1 - (hasCoupon ? couponDiscount : 0));
-  }, [query]);
+  }, [query, isEndDateReached]);
 
   const amountOfTails = useMemo(() => {
     if (!price || !bnbRate || !xlmRate || !solRate) {
@@ -184,8 +193,8 @@ export const PresaleCardContent = () => {
   };
 
   return (
-    <div className="h-screen w-screen relative flex justify-center items-center">
-      <div className="relative z-20 flex items-center justify-center flex-col rem:w-[320px] md:rem:w-[400px] rem:h-[350px] md:rem:h-[450px]">
+    <div className="h-full w-screen relative flex justify-center items-center">
+      <div className="relative z-20 flex items-center justify-center flex-col rem:w-[320px] md:rem:w-[400px]">
         <div
           className="flex hover:brightness-110 flex-col items-center p-1 md:p-4 pb-6 rounded-3xl border-4 border-main-black"
           style={{
@@ -237,20 +246,33 @@ export const PresaleCardContent = () => {
             <Countdown
               isDaysDisplayed
               isBig
-              targetDate={"2024-12-20T00:00:00"}
+              targetDate={
+                isEndDateReached ? "2025-01-01T00:00:00" : "2024-12-20T00:00:00"
+              }
             />
           </div>
-          <div className="bg-red-500 pt-2 w-fit -z-1 rounded-b-xl ">
-            <div className="text-center text-white px-3 font-bold font-secondary text-p2 pt-1">
-              LAST CHANCE TO BUY!
+          {isEndDateReached ? (
+            <div className="bg-red-500 pt-2 w-fit -z-1 rounded-b-xl ">
+              <div className="text-center text-white px-3 font-bold font-secondary text-p4 pt-1">
+                LAST CHANCE TO GET $TAILS
+              </div>
+              <div className="text-center text-white font-bold font-secondary text-p3 -mt-2">
+                TO THE MOON
+              </div>
             </div>
-            <div className="text-center text-white font-bold font-secondary text-p4 -mt-2">
-              PRICE INCREASES TWICE A DAY
+          ) : (
+            <div className="bg-red-500 pt-2 w-fit -z-1 rounded-b-xl ">
+              <div className="text-center text-white px-3 font-bold font-secondary text-p2 pt-1">
+                LAST CHANCE TO BUY!
+              </div>
+              <div className="text-center text-white font-bold font-secondary text-p4 -mt-2">
+                PRICE INCREASES TWICE A DAY
+              </div>
             </div>
-          </div>
+          )}
         </div>
         <div
-          className="flex hover:brightness-110 relative items-center md:gap-3 pt-6 pb-2 pl-6 pr-8 rounded-2xl mb-4 -mt-4 border-2 border-main-black"
+          className="flex hover:brightness-110 relative items-center py-1 px-6 rounded-2xl mb-4 -mt-4 border-2 border-main-black"
           style={{
             backgroundImage: "url(/base/bg.gif)",
             backgroundSize: "cover",
@@ -258,22 +280,17 @@ export const PresaleCardContent = () => {
           }}
         >
           <img
-            className="w-16 h-auto absolute bottom-0 left-0 opacity-50"
+            className="h-10 w-auto absolute bottom-0 left-0 opacity-50"
             alt="cat"
             src={`/meme-cats/${currentCat}`}
           />
-          <p className="relative text-center font-semibold font-secondary text-p2">
+          <p className="relative text-center font-semibold font-secondary text-p3">
             1 $TAILS =
             <span
               className="
                          inline-block pl-1"
             >
-              <span className="absolute right-0 text-p3 whitespace-nowrap pl-1 -translate-y-4 translate-x-4">
-                &#36;{finalTokenPrice?.toFixed(4)}
-              </span>
-              <span className="text-p3 md:text-p4 line-through text-red-500">
-                &#36;0.03
-              </span>
+              0.03
             </span>
           </p>
         </div>
