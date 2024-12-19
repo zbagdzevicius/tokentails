@@ -256,15 +256,6 @@ export const useWeb3Transfer = ({
       );
       const latestBlockHash = await solanaConnection.getLatestBlockhash();
 
-      // Confirm the transaction
-      const confirmation = await solanaConnection.confirmTransaction(
-        {
-          signature,
-          blockhash: latestBlockHash.blockhash,
-          lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-        },
-        "confirmed"
-      );
       confirmTransaction({
         hash: signature,
         chainType: paymentsChain,
@@ -283,6 +274,16 @@ export const useWeb3Transfer = ({
         .catch((error) => {
           console.error("Confirmation failed:", error);
         });
+
+      // Confirm the transaction
+      const confirmation = await solanaConnection.confirmTransaction(
+        {
+          signature,
+          blockhash: latestBlockHash.blockhash,
+          lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+        },
+        "confirmed"
+      );
       console.log("Transaction confirmed:", confirmation);
     } catch (error) {
       console.error("Error sending SOL:", error);
