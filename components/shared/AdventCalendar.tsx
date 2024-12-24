@@ -273,15 +273,13 @@ export const AdventCalendar = ({ setSelectedCat }: IProps) => {
               >
                 <div
                   className={`relative w-full h-full 
-                                    ${
-                                      dayNumber <= currentDay
-                                        ? ""
-                                        : "brightness-50"
-                                    }
-                                    ${
-                                      dayNumber === currentDay &&
-                                      "brightness-125 animated-garland"
-                                    }`}
+                                    ${dayNumber <= currentDay
+                      ? ""
+                      : "brightness-50"
+                    }
+                                    ${dayNumber === currentDay &&
+                    "brightness-125 animated-garland"
+                    }`}
                 >
                   <div className="flex items-center justify-center h-full">
                     <img
@@ -301,11 +299,10 @@ export const AdventCalendar = ({ setSelectedCat }: IProps) => {
                       )}
                     </h2>
                     <img
-                      className={`absolute aspect-square ${
-                        content.isOpened && content.cat
+                      className={`absolute aspect-square ${content.isOpened && content.cat
                           ? "lg:bottom-8 rem:bottom-[22px] w-16 lg:w-20 -mb-6"
                           : "lg:bottom-8 rem:bottom-[22px] lg:w-10 w-7"
-                      }`}
+                        }`}
                       src={
                         content.isOpened && content.cat
                           ? content.cat.catImg

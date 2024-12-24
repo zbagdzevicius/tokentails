@@ -11,8 +11,7 @@ const PurrQuest = dynamic(() => import("@/components/purrquest/PurrQuest"), {
   ssr: false,
 });
 const Base = dynamic(() => import("@/components/base/Base"), { ssr: false });
-const Adopt = dynamic(() => import("@/components/game/Adopt"), { ssr: false });
-
+const Adopt = dynamic(() => import("@/components/shelter/Shelter"), { ssr: false });
 export const Game = () => {
   const { gameType, timer } = useGame();
   const { profile } = useProfile();

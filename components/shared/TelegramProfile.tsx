@@ -10,7 +10,6 @@ const features = ["NFTs & Airdrops prizes", "Weekly Rewards & Events"];
 
 export const TelegramProfileContent = () => {
   const { profile, position } = useProfile();
-
   const gameStats = useMemo(() => {
     if (!profile) {
       return [];
@@ -63,10 +62,18 @@ export const TelegramProfileContent = () => {
 
   return (
     <div className="pt-4 pb-8 px-4 md:px-16 md:pt-4 md:pb-12 text-gray-700 flex flex-col justify-between items-center">
-      <img
-        className="w-16 m-auto"
-        src={profile?.cat?.catImg || "/logo/logo.webp"}
-      />
+      <div className="relative">
+        <img
+          className="w-16 m-auto"
+          src={profile?.cat?.catImg || "/logo/logo.webp"}
+        />
+        {profile!.cat.blessings?.length > 0 && (
+          <img
+            className="absolute inset-0 object-cover translate-y-1 w-16 h-16"
+            src={`/flare-effect/${profile!.cat.blessings[0].ability}.gif`}
+          ></img>
+        )}
+      </div>
       {profile?.cat && (
         <ul className="m-auto font-primary">
           <li className="text-p3 font-secondary bg-yellow-300 w-fit px-4 mb-2 rounded-lg m-auto">

@@ -104,9 +104,8 @@ export const CatDescription = ({
             />
           )}
           <h4
-            className={`text-white text-p3 ${
-              firstBlessing ? "ml-6" : "ml-16"
-            } max-sm:ml-10 font-bold`}
+            className={`text-white text-p3 ${firstBlessing ? "ml-6" : "ml-16"
+              } max-sm:ml-10 font-bold`}
           >
             STORY
           </h4>
@@ -193,6 +192,7 @@ export const CatPayment = ({
     queryKey: ["cats", profile?.cat],
     queryFn: () => catsFetch(),
   });
+
   const catpointsText = useMemo(() => {
     if (isAdopting) {
       return "adopting";
@@ -321,7 +321,6 @@ export const CatPayment = ({
 export const CatCard = ({ onClose, ...catData }: IProps) => {
   const { catImg, name, type, blessings } = catData;
   const [activeBlessing, setActiveBlessing] = useState<IBlessing | null>(null);
-
   return (
     <div className="max-w-screen-xl top-1/2 hover:brightness-105 -translate-y-1/2 border-8 rounded-[24px] border-yellow-300 border-opacity-50 hover:border-opacity-100 relative rem:h-[540px] md:rem:h-[600px] aspect-[2/3] max-w-screen">
       <img
@@ -356,9 +355,8 @@ export const CatCard = ({ onClose, ...catData }: IProps) => {
                   catImg
                 }
                 alt="Hero cat"
-                className={`${
-                  activeBlessing ? "w-full h-48" : "w-32 h-32"
-                } relative z-10 object-contain`}
+                className={`${activeBlessing ? "w-full h-48" : "w-32 h-32"
+                  } relative z-10 object-contain`}
               />
               {blessings?.length && (
                 <img

@@ -13,6 +13,8 @@ import { Coin } from "../objects/Coin";
 import { Enemy } from "../../purrquest/objects/Enemy";
 import { BossEnemy } from "@/components/purrquest/objects/Boss";
 import { currentDayCoin, ZOOM } from "@/constants/utils";
+import { ObjectPool } from "../objects/ObjectPool";
+
 const coinDurationMs = 15000;
 const BOSS_REWARD_POINTS = 1000;
 const JUMP_LAYER_TILES = [47, 48, 49, 50];
@@ -20,12 +22,14 @@ const TRAMPOLINE_TILES = [51];
 const TIME_TO_REMOVE_PER_HIT = 5;
 const DEFAULT_ENEMY_SPAWN_THRESHOLD = 1500;
 const DEFAULT_BOSS_SPAWN = 50000;
+const MAX_ENEMIES =5;
 
 export class CatbassadorsScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
   cat?: Cat;
   catDto?: ICat;
   coin?: Coin | null;
+  coinPool!: ObjectPool<Coin>;
   tilemap!: Phaser.Tilemaps.Tilemap;
   groundLayer!: Phaser.Tilemaps.TilemapLayer;
   platformsLayer!: Phaser.Tilemaps.TilemapLayer;
@@ -42,13 +46,13 @@ export class CatbassadorsScene extends Scene {
   bossEnemy?: BossEnemy;
   canCollectReward: boolean = false;
   IsBossSpawned = false;
+  blessing!: Phaser.GameObjects.Sprite;
 
   constructor() {
     super("CatbassadorsScene");
 
     this.lastUpdateTime = 0;
   }
-
   preload() {
     this.load.spritesheet("bird", "base/bird.png", {
       frameWidth: 32,
@@ -101,7 +105,13 @@ export class CatbassadorsScene extends Scene {
   }
 
   create(props: IPhaserGameSceneProps) {
-    this.physics.world.setFPS(90);
+    this.physics.world.setFPS(60);
+
+     this.coinPool = new ObjectPool<Coin>(
+      () => new Coin(this, 400, 400), 
+      30, 
+    );
+
     this.tilemap = this.make.tilemap({ key: "tilemap" });
     const sugarTileset = this.tilemap.addTilesetImage(
       "blocks",
@@ -202,6 +212,10 @@ export class CatbassadorsScene extends Scene {
       return;
     }
 
+  if (this.blessing) {
+    this.blessing.setVisible(false);
+  }
+
     const isCatChanged = this.catDto && this.catDto?.name !== cat?.name;
     if (isCatChanged) {
       this.cat = undefined;
@@ -211,13 +225,36 @@ export class CatbassadorsScene extends Scene {
     }
 
     this.catDto = cat;
-    this.load.once(
-      "complete",
-      () => {
-        this.createCat(cat.name);
-      },
-      this
-    );
+
+  const blessingPath = `flare-effect/spritesheets/${cat.blessings[0].ability}.png`;
+
+  this.load.once(
+    "complete",
+    () => {
+      if (cat.blessings && cat.blessings.length > 0) {
+        this.blessing = this.add.sprite(0, 0, `blessing-${cat.blessings[0].ability}`).setVisible(true);
+
+        this.anims.create({
+          key: `blessing_animation_${cat.blessings[0].ability}`,
+          frames: this.anims.generateFrameNumbers(`blessing-${cat.blessings[0].ability}`, { start: 0, end: 59 }),
+          frameRate: 16,
+          repeat: -1,
+        });
+
+        this.blessing.play(`blessing_animation_${cat.blessings[0].ability}`);
+      }
+
+      this.createCat(cat.name, this.blessing);
+    },
+    this
+  );
+
+  this.load.spritesheet(`blessing-${cat.blessings[0].ability}`, blessingPath, {
+    frameWidth: 64,
+    frameHeight: 64,
+  });
+
+  this.catDto = cat;
     this.load.spritesheet(cat.name, cat.spriteImg, {
       frameWidth: 48,
       frameHeight: 48,
@@ -225,8 +262,8 @@ export class CatbassadorsScene extends Scene {
     this.load.start();
   }
 
-  private createCat(catName: string) {
-    this.cat = new Cat(this, 0, -400, catName);
+  private createCat(catName: string, blessing: Phaser.GameObjects.Sprite | null) {
+     this.cat = new Cat(this, 0, -400, catName, blessing!);
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
 
     this.physics.add.collider(
@@ -236,24 +273,32 @@ export class CatbassadorsScene extends Scene {
     this.physics.add.collider(this.cat.sprite, this.jumperLayer);
     this.cameras.main.startFollow(this.cat.sprite);
 
+     if (blessing) {
+    this.time.addEvent({
+      delay: 16,
+      loop: true,
+      callback: () => {
+        if (this.cat?.sprite.active) {
+          blessing.setPosition(this.cat.sprite.x, this.cat.sprite.y - 50);
+        } else {
+          blessing.destroy();
+        }
+      },
+    });
+  }
+    
     setMobileControls(this.cat);
   }
 
-  spawnCoin() {
-    if (!this.cat) {
-      return;
-    }
+ spawnCoin() {
+    if (!this.cat) return;
 
-    const coin = new Coin(
-      this,
-      this.getCoinSpawnPositionX(),
-      this.getCoinSpawnPositionY()
-    );
-
-    this.coins.push(coin);
+    // Acquire a coin from the pool
+    const coin = this.coinPool.acquire();
+    coin.sprite.setPosition(this.getCoinSpawnPositionX(), this.getCoinSpawnPositionY());
+    coin.sprite.setActive(true).setVisible(true);
 
     this.physics.add.collider(coin.sprite, this.groundLayer);
-
     this.physics.add.overlap(
       this.cat.sprite,
       coin.sprite,
@@ -262,13 +307,21 @@ export class CatbassadorsScene extends Scene {
       this
     );
 
-    // Timer to remove the coin after 5 seconds
+    this.coins.push(coin);
     this.time.delayedCall(coinDurationMs, () => {
       if (this.coins.includes(coin)) {
-        coin.sprite.destroy();
-        this.coins = this.coins.filter((e) => e !== coin);
+        this.releaseCoin(coin);
       }
     });
+  }
+
+   private releaseCoin(coin: Coin) {
+    // Remove the coin from active coins list
+    coin.sprite.setActive(false).setVisible(false);
+    this.coins = this.coins.filter((e) => e !== coin);
+
+    // Release the coin back to the pool
+    this.coinPool.release(coin);
   }
 
   update(time: any, delta: any) {
@@ -320,16 +373,27 @@ export class CatbassadorsScene extends Scene {
   }
   private checkEnemyMilestone() {
     if (this.score >= this.enemySpawnThreshold) {
-      this.spawnEnemy();
-      this.enemySpawnThreshold += DEFAULT_ENEMY_SPAWN_THRESHOLD;
+        this.spawnEnemy();
+        this.enemySpawnThreshold += DEFAULT_ENEMY_SPAWN_THRESHOLD;
+
+        this.enemies.forEach((enemy) => {
+            enemy.increaseSpeed();
+        });
+
+        this.enemies.forEach((enemy) => {
+            enemy.reduceUltimateJumpDelay();
+        });
     }
     if (this.score >= DEFAULT_BOSS_SPAWN && !this.IsBossSpawned) {
-      this.spawnBossEnemy();
-      this.IsBossSpawned = true;
+        this.spawnBossEnemy();
+        this.IsBossSpawned = true;
     }
-  }
+}
 
-  private spawnEnemy() {
+private spawnEnemy() {
+  if (this.enemies.length >= MAX_ENEMIES) {
+    return; // Prevent spawning if max limit reached
+  }
     const enemySprites = [
       "enemy-pinkie",
       "enemy-blue-fluffie",
@@ -342,19 +406,22 @@ export class CatbassadorsScene extends Scene {
       this.getCoinSpawnPositionY(),
       randomSprite
     );
-    this.enemies?.push(enemy);
-    this.physics.add.collider(this.enemies, this.groundLayer);
-    this.physics.add.collider(this.enemies, this.jumperLayer);
-    this.physics.add.collider(this.enemies, this.platformsLayer);
-    this.physics.add.overlap(
-      this.cat?.sprite as Phaser.Physics.Arcade.Sprite,
-      enemy,
-      this
-        .handlePlayerEnemyCollisions as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
-      undefined,
-      this
-    );
-  }
+
+    if (enemy) {
+      this.enemies.push(enemy);
+      this.physics.add.collider(this.enemies, this.groundLayer);
+      this.physics.add.collider(this.enemies, this.jumperLayer);
+      this.physics.add.collider(this.enemies, this.platformsLayer);
+      this.physics.add.overlap(
+        this.cat?.sprite as Phaser.Physics.Arcade.Sprite,
+        enemy,
+        this
+          .handlePlayerEnemyCollisions as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+        undefined,
+        this
+      );
+    }
+}
   private spawnBossEnemy() {
     this.bossEnemy = new BossEnemy(
       this,
