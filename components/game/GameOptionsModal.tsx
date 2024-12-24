@@ -133,7 +133,6 @@ export const GameOptionsModal = ({
             <PixelButton text="Feed" onClick={onFeedClick} />
           </div>
         )}
-
         {profile.canRedeemLives &&
           ![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
             <div className="flex flex-col items-center">

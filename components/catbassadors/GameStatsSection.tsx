@@ -71,7 +71,13 @@ export const GameStatsSection = ({
           onClick={() => setOpenedModal(GameModal.PROFILE)}
           className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300"
         >
-          <img className="w-10 h-10" src={profile.cat?.catImg} />
+          <div className="relative">
+            <img className="w-10 h-10" src={profile.cat?.catImg} />
+            <img
+              className="absolute inset-0 l object-cover w-10 h-10"
+              src={`/flare-effect/${profile.cat.blessings[0].ability}.gif`}
+            ></img>
+          </div>
           <div className="text-p4 flex items-center gap-1">
             <div>STATS</div>
           </div>
