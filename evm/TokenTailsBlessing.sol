@@ -9,7 +9,7 @@ contract TokenTailsBlessing is ERC721, AccessControlEnumerable {
     string private _baseTokenURI;
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
-    constructor() ERC721("Token Tails Cat", "TTCAT") {
+    constructor() ERC721("Token Tails Blessing", "TTBLESSING") {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _setupRole(MINTER_ROLE, _msgSender());
         _baseTokenURI = "https://api.tokentails.com/blessing/nft/";
