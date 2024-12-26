@@ -123,7 +123,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
             <SnowingCanvas />
           </div>
 
-          <MobileButtons isHidden={!isStarted} />
+          <MobileButtons isHidden={!isStarted && gameType !== GameType.SHELTER} />
           {isStarted && gameType === GameType.CATBASSADORS && (
             <DisplayCoins isHidden={false} />
           )}
