@@ -15,12 +15,12 @@ export class SpeechBubble extends Phaser.GameObjects.Container {
           background-color: #ef4444;
           color: #FCECBB;
           border: 1px solid black;
-          padding: 1px;
+          padding: 1px 8px;
           border-radius: 5px;
           font-size: 9px;
           font-weight: bold;
           cursor: pointer;
-        ">Adopt</button>
+        ">ADOPT</button>
       </div>
     `;
 
