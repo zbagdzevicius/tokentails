@@ -226,8 +226,6 @@ export class CatbassadorsScene extends Scene {
 
     this.catDto = cat;
 
-  const blessingPath = `flare-effect/spritesheets/${cat.blessings[0].ability}.png`;
-
   this.load.once(
     "complete",
     () => {
@@ -249,10 +247,16 @@ export class CatbassadorsScene extends Scene {
     this
   );
 
-  this.load.spritesheet(`blessing-${cat.blessings[0].ability}`, blessingPath, {
-    frameWidth: 64,
-    frameHeight: 64,
-  });
+  if (cat.blessings?.length) {
+    this.load.spritesheet(
+      `blessing-${cat.blessings[0].ability}`,
+      `flare-effect/spritesheets/${cat.blessings[0].ability}.png`,
+      {
+        frameWidth: 64,
+        frameHeight: 64,
+      }
+    );
+  }
 
   this.catDto = cat;
     this.load.spritesheet(cat.name, cat.spriteImg, {

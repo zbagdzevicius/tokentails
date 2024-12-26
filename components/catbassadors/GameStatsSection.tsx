@@ -53,7 +53,9 @@ export const GameStatsSection = ({
   return (
     <div>
       <div
-        className={`fixed left-4 ${gameType === GameType.SHELTER ? 'pb-safe bottom-4 z-10' : 'top-2 z-10'} right-4 flex justify-between opacity-75`}
+        className={`fixed left-4 ${
+          gameType === GameType.SHELTER ? "pb-safe bottom-4 z-10" : "top-2 z-10"
+        } right-4 flex justify-between opacity-75`}
       >
         <div
           onClick={() => setModal(coinsText)}
@@ -71,20 +73,24 @@ export const GameStatsSection = ({
           onClick={() => setOpenedModal(GameModal.PROFILE)}
           className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300"
         >
-          <div className="relative">
-            <img className="w-10 h-10" src={profile.cat?.catImg} />
-            <img
-              className="absolute inset-0 l object-cover w-10 h-10"
-              src={`/flare-effect/${profile.cat.blessings[0].ability}.gif`}
-            ></img>
-          </div>
+          {profile.cat && (
+            <div className="relative">
+              <img className="w-10 h-10" src={profile.cat?.catImg} />
+              {profile.cat?.blessings?.length && (
+                <img
+                  className="absolute inset-0 l object-cover w-10 h-10"
+                  src={`/flare-effect/${profile.cat.blessings[0].ability}.gif`}
+                ></img>
+              )}
+            </div>
+          )}
           <div className="text-p4 flex items-center gap-1">
             <div>STATS</div>
           </div>
         </div>
       </div>
       {modal && (
-        < div className="fixed inset-0 pt-safe w-full z-50 flex justify-center h-full">
+        <div className="fixed inset-0 pt-safe w-full z-50 flex justify-center h-full">
           <div
             onClick={() => setModal(null)}
             className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
@@ -102,8 +108,7 @@ export const GameStatsSection = ({
             <CloseButton onClick={() => setModal(null)} />
           </div>
         </div>
-      )
-      }
-    </div >
+      )}
+    </div>
   );
 };

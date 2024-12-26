@@ -164,97 +164,105 @@ export class PurrquestScene extends Phaser.Scene {
     this.pathfinding.initializePathfinding();
     this.pathfinding.validatePathExistence(289, 290);
   }
- 
+
   private spawnPlayer(cat: ICat) {
-  if (this.player || !cat) {
-    return;
-  }
+    if (this.player || !cat) {
+      return;
+    }
 
-  if (this.blessing) {
-    this.blessing.setVisible(false);
-  }
+    if (this.blessing) {
+      this.blessing.setVisible(false);
+    }
 
-  const blessingPath = `flare-effect/spritesheets/${cat.blessings[0].ability}.png`;
+    this.load.once(
+      "complete",
+      () => {
+        if (cat.blessings && cat.blessings.length > 0) {
+          this.blessing = this.add
+            .sprite(0, 0, `blessing-${cat.blessings[0].ability}`)
+            .setVisible(true)
+            .setDepth(2);
 
-  this.load.once(
-    "complete",
-    () => {
-      if (cat.blessings && cat.blessings.length > 0) {
-        this.blessing = this.add
-          .sprite(0, 0, `blessing-${cat.blessings[0].ability}`)
-          .setVisible(true)
-          .setDepth(2);
+          this.anims.create({
+            key: `blessing_animation_${cat.blessings[0].ability}`,
+            frames: this.anims.generateFrameNumbers(
+              `blessing-${cat.blessings[0].ability}`,
+              {
+                start: 0,
+                end: 59,
+              }
+            ),
+            frameRate: 16,
+            repeat: -1,
+          });
 
-        this.anims.create({
-          key: `blessing_animation_${cat.blessings[0].ability}`,
-          frames: this.anims.generateFrameNumbers(`blessing-${cat.blessings[0].ability}`, {
-            start: 0,
-            end: 59,
-          }),
-          frameRate: 16,
-          repeat: -1,
-        });
-
-        this.blessing.play(`blessing_animation_${cat.blessings[0].ability}`);
-      }
-
-      this.createPlayer(cat, this.blessing);
-    },
-    this
-  );
-
-  this.load.spritesheet(`blessing-${cat.blessings[0].ability}`, blessingPath, {
-    frameWidth: 64,
-    frameHeight: 64,
-  });
-
-  this.load.spritesheet(cat.name, cat.spriteImg, {
-    frameWidth: 48,
-    frameHeight: 48,
-  });
-
-  this.load.start();
-}
-
-
- private createPlayer(cat: ICat, blessing: Phaser.GameObjects.Sprite | null) {
-  const startCoords = this.generateLevel.getStartCoordinates();
-  const startX =
-    startCoords.x *
-      this.generateLevel.getTileSize() *
-      this.generateLevel.getRoomCols() +
-    32 * 5.5;
-  const startY =
-    startCoords.y *
-      this.generateLevel.getTileSize() *
-      this.generateLevel.getRoomRows() +
-    32 * 7;
-
-  this.player = new Cat(this, startX, startY, cat.name, blessing!);
-  this.player.hasKey = false;
-  this.cameras.main.startFollow(this.player.sprite);
-  this.player.sprite.setDepth(2);
-  this.cameras.main.zoom = ZOOM;
-
-  setMobileControls(this.player);
-  this.renderEverythingAfterCat();
-
-  // Dynamically update the blessing position to follow the player
-  if (blessing) {
-    this.time.addEvent({
-      delay: 16,
-      loop: true,
-      callback: () => {
-        if (this.player?.sprite.active) {
-          blessing.setPosition(this.player.sprite.x, this.player.sprite.y - 50);
-        } else {
-          blessing.destroy();
+          this.blessing.play(`blessing_animation_${cat.blessings[0].ability}`);
         }
-      },
-    });
-  }
-}
 
+        this.createPlayer(cat, this.blessing);
+      },
+      this
+    );
+
+    if (cat.blessings?.length) {
+      this.load.spritesheet(
+        `blessing-${cat.blessings[0].ability}`,
+        `flare-effect/spritesheets/${cat.blessings[0].ability}.png`,
+        {
+          frameWidth: 64,
+          frameHeight: 64,
+        }
+      );
+    }
+
+    this.load.spritesheet(cat.name, cat.spriteImg, {
+      frameWidth: 48,
+      frameHeight: 48,
+    });
+
+    this.load.start();
+  }
+
+  private createPlayer(cat: ICat, blessing: Phaser.GameObjects.Sprite | null) {
+    const startCoords = this.generateLevel.getStartCoordinates();
+    const startX =
+      startCoords.x *
+        this.generateLevel.getTileSize() *
+        this.generateLevel.getRoomCols() +
+      32 * 5.5;
+    const startY =
+      startCoords.y *
+        this.generateLevel.getTileSize() *
+        this.generateLevel.getRoomRows() +
+      32 * 7;
+
+    this.player = new Cat(this, startX, startY, cat.name, blessing!);
+    this.player.hasKey = false;
+    this.cameras.main.startFollow(this.player.sprite);
+    this.player.sprite.setDepth(2);
+    this.cameras.main.zoom = ZOOM;
+
+    setMobileControls(this.player);
+    this.renderEverythingAfterCat();
+
+    // Dynamically update the blessing position to follow the player
+    if (blessing) {
+      this.time.addEvent({
+        delay: 16,
+        loop: true,
+        callback: () => {
+          if (this.player?.sprite.active) {
+            blessing.setPosition(
+              this.player.sprite.x,
+              this.player.sprite.y - 50
+            );
+          } else {
+            blessing.destroy();
+          }
+        },
+      });
+    }
+  }
 
   private getRandomWalkableTile(): Phaser.Tilemaps.Tile | null {
     if (!this.groundLayer) {
@@ -331,52 +339,59 @@ export class PurrquestScene extends Phaser.Scene {
     });
   }
 
-private pushPlayerBack(
-  player: Phaser.Physics.Arcade.Sprite,
-  enemy: Enemy | BossEnemy
-) {
-  if (!this.player!.isInvulnerable) {
-    let pushBackForce = enemy instanceof BossEnemy ? 800 : 500;
+  private pushPlayerBack(
+    player: Phaser.Physics.Arcade.Sprite,
+    enemy: Enemy | BossEnemy
+  ) {
+    if (!this.player!.isInvulnerable) {
+      let pushBackForce = enemy instanceof BossEnemy ? 800 : 500;
 
-    const directions = ["left", "right", "up"];
-    const chosenDirection = Phaser.Utils.Array.GetRandom(directions);
+      const directions = ["left", "right", "up"];
+      const chosenDirection = Phaser.Utils.Array.GetRandom(directions);
 
-    let velocityX = 0;
-    let velocityY = 0;
+      let velocityX = 0;
+      let velocityY = 0;
 
-    switch (chosenDirection) {
-      case "left":
-        velocityX = -pushBackForce;
-        break;
-      case "right":
-        velocityX = pushBackForce;
-        break;
-      case "up":
-        velocityY = -pushBackForce;
-        break;
+      switch (chosenDirection) {
+        case "left":
+          velocityX = -pushBackForce;
+          break;
+        case "right":
+          velocityX = pushBackForce;
+          break;
+        case "up":
+          velocityY = -pushBackForce;
+          break;
+      }
+
+      this.player!.walkSpeed = 100;
+
+      this.player!.isHit = true;
+      this.player!.isInvulnerable = true;
+
+      player.setVelocityX(velocityX);
+      player.setVelocityY(velocityY);
+
+      this.time.delayedCall(
+        2000,
+        () => {
+          this.player!.walkSpeed = 320;
+        },
+        undefined,
+        this
+      );
+
+      this.time.delayedCall(
+        1000,
+        () => {
+          this.player!.isInvulnerable = false;
+          this.player!.isHit = false;
+        },
+        undefined,
+        this
+      );
     }
-
-    this.player!.walkSpeed = 100;
-
-    this.player!.isHit = true;
-    this.player!.isInvulnerable = true;
-
-    player.setVelocityX(velocityX);
-    player.setVelocityY(velocityY);
-
-    this.time.delayedCall(2000, () => {
-      this.player!.walkSpeed = 320;
-    }, undefined, this);
-
-
-    this.time.delayedCall(1000, () => {
-      this.player!.isInvulnerable = false;
-      this.player!.isHit = false;
-    }, undefined, this);
   }
-}
-
-
 
   private spawnBossEnemy() {
     const tile = this.getRandomWalkableTile();
@@ -412,8 +427,7 @@ private pushPlayerBack(
     this.physics.add.overlap(
       this.player?.sprite as Phaser.Physics.Arcade.Sprite,
       this.bossEnemy,
-      this
-        .pushPlayerBack as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+      this.pushPlayerBack as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
       undefined,
       this
     );

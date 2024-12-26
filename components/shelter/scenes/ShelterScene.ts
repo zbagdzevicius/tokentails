@@ -145,7 +145,6 @@ async spawnCat({ detail: { cat } }: ICatEvent<GameEvent.CAT_SPAWN>, isRestart?: 
   }
 
   this.catDto = cat;
-  const blessingPath = `flare-effect/spritesheets/${cat.blessings[0].ability}.png`;
 
   this.load.once(
     "complete",
@@ -168,10 +167,16 @@ async spawnCat({ detail: { cat } }: ICatEvent<GameEvent.CAT_SPAWN>, isRestart?: 
     this
   );
 
-  this.load.spritesheet(`blessing-${cat.blessings[0].ability}`, blessingPath, {
-    frameWidth: 64,
-    frameHeight: 64,
-  });
+  if (cat.blessings?.length) {
+    this.load.spritesheet(
+      `blessing-${cat.blessings[0].ability}`,
+      `flare-effect/spritesheets/${cat.blessings[0].ability}.png`,
+      {
+        frameWidth: 64,
+        frameHeight: 64,
+      }
+    );
+  }
 
   this.load.spritesheet(cat.name, cat.spriteImg, {
     frameWidth: 48,
@@ -184,9 +189,6 @@ async spawnCat({ detail: { cat } }: ICatEvent<GameEvent.CAT_SPAWN>, isRestart?: 
 
 
 private spawnNpc(npcData: ICat, catType: CatType) {
-  const blessingPath = npcData.blessings && npcData.blessings.length > 0
-    ? `flare-effect/spritesheets/${npcData.blessings[0].ability}.png`
-    : null;
   this.load.once("complete", () => {
     const spawnY = FLOOR_Y_POSITIONS[catType] ?? -700;
     const spawnX = Phaser.Math.Between(-850, -100);
@@ -246,11 +248,15 @@ private spawnNpc(npcData: ICat, catType: CatType) {
     );
   });
 
-  if (blessingPath) {
-    this.load.spritesheet(`blessing-${npcData.blessings[0].ability}`, blessingPath, {
-      frameWidth: 64,
-      frameHeight: 64,
-    });
+  if (npcData.blessings?.length) {
+    this.load.spritesheet(
+      `blessing-${npcData.blessings[0].ability}`,
+      `flare-effect/spritesheets/${npcData.blessings[0].ability}.png`,
+      {
+        frameWidth: 64,
+        frameHeight: 64,
+      }
+    );
   }
 
   this.load.spritesheet(npcData.name, npcData.spriteImg, {

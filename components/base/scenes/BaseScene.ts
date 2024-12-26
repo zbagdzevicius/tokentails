@@ -92,86 +92,97 @@ export class BaseScene extends Scene {
     this.blipSound = this.sound.add("blip", { volume: 0.1 });
   }
 
- spawnCat({ detail: { cat } }: ICatEvent<GameEvent.CAT_SPAWN>) {
-  if (this.blessing) {
-    this.blessing.setVisible(false);
-  }
+  spawnCat({ detail: { cat } }: ICatEvent<GameEvent.CAT_SPAWN>) {
+    if (this.blessing) {
+      this.blessing.setVisible(false);
+    }
 
-  const isCatExist = !cat || cat?.name === this.catDto?.name;
-  if (isCatExist) {
-    return;
-  }
+    const isCatExist = !cat || cat?.name === this.catDto?.name;
+    if (isCatExist) {
+      return;
+    }
 
-  const isCatChanged = this.catDto && this.catDto?.name !== cat?.name;
-  if (isCatChanged) {
-    this.scene.restart();
+    const isCatChanged = this.catDto && this.catDto?.name !== cat?.name;
+    if (isCatChanged) {
+      this.scene.restart();
+      this.catDto = cat;
+      setTimeout(() => {
+        if (this.scene) {
+          this.spawnCat({ detail: { cat: cat } });
+        }
+      }, 1000);
+      return;
+    }
+
+    this.load.once(
+      "complete",
+      () => {
+        if (cat.blessings && cat.blessings.length > 0) {
+          this.blessing = this.add
+            .sprite(0, 0, `blessing-${cat.blessings[0].ability}`)
+            .setVisible(true);
+
+          this.anims.create({
+            key: `blessing_animation_${cat.blessings[0].ability}`,
+            frames: this.anims.generateFrameNumbers(
+              `blessing-${cat.blessings[0].ability}`,
+              { start: 0, end: 59 }
+            ),
+            frameRate: 16,
+            repeat: -1,
+          });
+
+          this.blessing.play(`blessing_animation_${cat.blessings[0].ability}`);
+        }
+
+        this.createCat(cat.name, this.blessing);
+      },
+      this
+    );
+
+    if (cat.blessings?.length) {
+      this.load.spritesheet(
+        `blessing-${cat.blessings[0].ability}`,
+        `flare-effect/spritesheets/${cat.blessings[0].ability}.png`,
+        {
+          frameWidth: 64,
+          frameHeight: 64,
+        }
+      );
+    }
+
     this.catDto = cat;
-    setTimeout(() => {
-      if (this.scene) {
-        this.spawnCat({ detail: { cat: cat } });
-      }
-    }, 1000);
-    return;
+
+    this.load.spritesheet(cat.name, cat.spriteImg, {
+      frameWidth: 48,
+      frameHeight: 48,
+    });
+
+    this.load.start();
   }
 
-  const blessingPath = `flare-effect/spritesheets/${cat.blessings[0].ability}.png`;
-  this.load.once(
-    "complete",
-    () => {
-      if (cat.blessings && cat.blessings.length > 0) {
-        this.blessing = this.add.sprite(0, 0, `blessing-${cat.blessings[0].ability}`).setVisible(true);
-
-        this.anims.create({
-          key: `blessing_animation_${cat.blessings[0].ability}`,
-          frames: this.anims.generateFrameNumbers(`blessing-${cat.blessings[0].ability}`, { start: 0, end: 59 }),
-          frameRate: 16,
-          repeat: -1,
-        });
-
-        this.blessing.play(`blessing_animation_${cat.blessings[0].ability}`);
-      }
-
-      this.createCat(cat.name, this.blessing);
-    },
-    this
-  );
-
-  this.load.spritesheet(`blessing-${cat.blessings[0].ability}`, blessingPath, {
-    frameWidth: 64,
-    frameHeight: 64,
-  });
-
-  this.catDto = cat;
-
-  this.load.spritesheet(cat.name, cat.spriteImg, {
-    frameWidth: 48,
-    frameHeight: 48,
-  });
-
-  this.load.start();
-}
-
-
- 
-private createCat(catName: string, blessing: Phaser.GameObjects.Sprite | null) {
-     this.cat = new Cat(this, 0, -400, catName, blessing!);
+  private createCat(
+    catName: string,
+    blessing: Phaser.GameObjects.Sprite | null
+  ) {
+    this.cat = new Cat(this, 0, -400, catName, blessing!);
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
     this.cameras.main.startFollow(this.cat.sprite);
     this.cameras.main.zoom = ZOOM;
 
-     if (blessing) {
-    this.time.addEvent({
-      delay: 16,
-      loop: true,
-      callback: () => {
-        if (this.cat?.sprite.active) {
-          blessing.setPosition(this.cat.sprite.x, this.cat.sprite.y - 5);
-        } else {
-          blessing.destroy();
-        }
-      },
-    });
-  }
+    if (blessing) {
+      this.time.addEvent({
+        delay: 16,
+        loop: true,
+        callback: () => {
+          if (this.cat?.sprite.active) {
+            blessing.setPosition(this.cat.sprite.x, this.cat.sprite.y - 5);
+          } else {
+            blessing.destroy();
+          }
+        },
+      });
+    }
   }
 
   spawnFood() {
@@ -193,19 +204,19 @@ private createCat(catName: string, blessing: Phaser.GameObjects.Sprite | null) {
     this.cat?.update();
   }
 
-private onFoodEat() {
+  private onFoodEat() {
     this.sound.play("eat", { volume: 0.5, duration: 2 });
     this.food?.eaten(() => {
-        this.food?.sprite.destroy(); 
-        this.food = null;         
-        this.sound.play("purr", { volume: 0.5 });
-        this.cat?.sprite.setVelocity(0)
-         if (this.cat) {
-            this.cat.sprite.setVelocity(0, 0);
-            this.cat.job = { type: NPCJobType.SLEEP };
-            this.cat.setSleep(); 
-        }
-        GameEvents.CAT_EATEN.push();
+      this.food?.sprite.destroy();
+      this.food = null;
+      this.sound.play("purr", { volume: 0.5 });
+      this.cat?.sprite.setVelocity(0);
+      if (this.cat) {
+        this.cat.sprite.setVelocity(0, 0);
+        this.cat.job = { type: NPCJobType.SLEEP };
+        this.cat.setSleep();
+      }
+      GameEvents.CAT_EATEN.push();
     });
-}
+  }
 }
