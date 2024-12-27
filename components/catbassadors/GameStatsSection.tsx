@@ -53,9 +53,8 @@ export const GameStatsSection = ({
   return (
     <div>
       <div
-        className={`fixed left-4 ${
-          gameType === GameType.SHELTER ? "pb-safe bottom-4 z-10" : "top-2 z-10"
-        } right-4 flex justify-between opacity-75`}
+        className={`fixed left-4 pb-safe top-4 z-10
+          right-4 flex justify-between opacity-75`}
       >
         <div
           onClick={() => setModal(coinsText)}
