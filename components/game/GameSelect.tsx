@@ -15,9 +15,8 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
 
   return (
     <div
-      className={`fixed left-1/2 right-1/2 translate-x-[50%] z-[11] flex flex-col gap-2 items-center ${
-        gameType === GameType.SHELTER ? `bottom-4 pb-safe` : `top-24 md:top-48`
-      }`}
+      className={`fixed left-1/2 right-1/2 translate-x-[50%] z-[11] flex flex-col gap-2 items-center ${gameType === GameType.SHELTER ? `top-4 pb-safe` : `top-24 md:top-48`
+        }`}
     >
       {gameType && (
         <PixelButton
