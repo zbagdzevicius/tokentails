@@ -25,32 +25,32 @@ interface IQuest {
 }
 
 export enum QUEST {
-  START_VANA_DATA_HERO = 'START_VANA_DATA_HERO',
-  START_NOT_BITCOIN = 'START_NOT_BITCOIN',
-  START_DONZ_SQUAT = 'START_DONZ_SQUAT',
-  START_TAP_WARRIOR = 'START_TAP_WARRIOR',
-  START_RUN_TAP = 'START_RUN_TAP',
-  START_ROYAL_PETS = 'START_ROYAL_PETS',
-  FOLLOW_ROYAL_PETS = 'FOLLOW_ROYAL_PETS',
-  FOLLOW_DRATON = 'FOLLOW_DRATON',
-  START_DRATON = 'START_DRATON',
-  FOLLOW_KITTY = 'FOLLOW_KITTY',
-  START_KITTY = 'START_KITTY',
-  START_BITSNAP = 'START_BITSNAP',
-  FOLLOW_TG_CHANNEL = 'FOLLOW_TG_CHANNEL',
-  FOLLOW_TG_GROUP = 'FOLLOW_TG_GROUP',
-  FOLLOW_X = 'FOLLOW_X',
-  FOLLOW_DISCORD = 'FOLLOW_DISCORD',
-  FOLLOW_IG = 'FOLLOW_IG',
-  FOLLOW_TIKTOK = 'FOLLOW_TIKTOK',
-  FOLLOW_LINKEDIN = 'FOLLOW_LINKEDIN',
-  REACH_COINS_2K = 'REACH_COINS_2K',
-  REACH_COINS_20K = 'REACH_COINS_20K',
-  REACH_COINS_100K = 'REACH_COINS_100K',
-  REACH_COINS_1M = 'REACH_COINS_1M',
-  INVITE_FRIENDS_10 = 'INVITE_FRIENDS_10',
-  INVITE_FRIENDS_35 = 'INVITE_FRIENDS_35',
-  INVITE_FRIENDS_100 = 'INVITE_FRIENDS_100',
+  START_VANA_DATA_HERO = "START_VANA_DATA_HERO",
+  START_NOT_BITCOIN = "START_NOT_BITCOIN",
+  START_DONZ_SQUAT = "START_DONZ_SQUAT",
+  START_TAP_WARRIOR = "START_TAP_WARRIOR",
+  START_RUN_TAP = "START_RUN_TAP",
+  START_ROYAL_PETS = "START_ROYAL_PETS",
+  FOLLOW_ROYAL_PETS = "FOLLOW_ROYAL_PETS",
+  FOLLOW_DRATON = "FOLLOW_DRATON",
+  START_DRATON = "START_DRATON",
+  FOLLOW_KITTY = "FOLLOW_KITTY",
+  START_KITTY = "START_KITTY",
+  START_BITSNAP = "START_BITSNAP",
+  FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",
+  FOLLOW_TG_GROUP = "FOLLOW_TG_GROUP",
+  FOLLOW_X = "FOLLOW_X",
+  FOLLOW_DISCORD = "FOLLOW_DISCORD",
+  FOLLOW_IG = "FOLLOW_IG",
+  FOLLOW_TIKTOK = "FOLLOW_TIKTOK",
+  FOLLOW_LINKEDIN = "FOLLOW_LINKEDIN",
+  REACH_COINS_2K = "REACH_COINS_2K",
+  REACH_COINS_20K = "REACH_COINS_20K",
+  REACH_COINS_100K = "REACH_COINS_100K",
+  REACH_COINS_1M = "REACH_COINS_1M",
+  INVITE_FRIENDS_10 = "INVITE_FRIENDS_10",
+  INVITE_FRIENDS_35 = "INVITE_FRIENDS_35",
+  INVITE_FRIENDS_100 = "INVITE_FRIENDS_100",
 }
 
 const allQuests: IQuest[] = [
@@ -318,7 +318,7 @@ export const QuestsModalContent = () => {
       allQuests.filter((quest) => {
         const isMatchingType = quest.type === questsType;
         const isNotCompleted = !profile?.quests?.includes(quest.key);
-        return isMatchingType && isNotCompleted
+        return isMatchingType && isNotCompleted;
       }),
     [questsType]
   );
@@ -352,11 +352,13 @@ export const QuestsModalContent = () => {
           active={questsType === QuestType.PARTNERS}
           onClick={() => setQuestsType(QuestType.PARTNERS)}
         ></PixelButton>
-        <PixelButton
-          text="MILESTONE"
-          active={questsType === QuestType.MILESTONE}
-          onClick={() => setQuestsType(QuestType.MILESTONE)}
-        ></PixelButton>
+        {(profile?.quests?.length || 0) > 2 && (
+          <PixelButton
+            text="MILESTONE"
+            active={questsType === QuestType.MILESTONE}
+            onClick={() => setQuestsType(QuestType.MILESTONE)}
+          ></PixelButton>
+        )}
       </div>
       {questsType === QuestType.SOCIAL && (
         <>

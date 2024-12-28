@@ -11,10 +11,11 @@ interface IProps {
   items: ReactNode[];
   customClass?: string;
   mobileSlides?: number;
+  slidesPerView?: number;
   isCoverflowDisabled?: boolean
 }
 
-export const Slider = ({ items, customClass, mobileSlides }: IProps) => {
+export const Slider = ({ items, customClass, mobileSlides, slidesPerView }: IProps) => {
   return (
     <Swiper
       grabCursor={true}
@@ -37,11 +38,11 @@ export const Slider = ({ items, customClass, mobileSlides }: IProps) => {
           spaceBetween: 10,
         },
         768: {
-          slidesPerView: 3,
+          slidesPerView: slidesPerView || 3,
           spaceBetween: 15,
         },
         1024: {
-          slidesPerView: 5,
+          slidesPerView: slidesPerView || 5,
           spaceBetween: 20,
         },
       }}

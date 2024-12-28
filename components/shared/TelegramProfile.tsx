@@ -5,11 +5,12 @@ import { GameStatSection } from "../catbassadors/GameStatsSection";
 import { commafy } from "@/constants/utils";
 import { CloseButton } from "./CloseButton";
 import { GameMusicToggle } from "./GameMusicToggler";
+import { PixelButton } from "./PixelButton";
 
 const features = ["NFTs & Airdrops prizes", "Weekly Rewards & Events"];
 
 export const TelegramProfileContent = () => {
-  const { profile, position } = useProfile();
+  const { profile, logout } = useProfile();
   const gameStats = useMemo(() => {
     if (!profile) {
       return [];
@@ -98,9 +99,9 @@ export const TelegramProfileContent = () => {
               onClick={() => copy(profile?.wallets.evm.walletAddress)}
               className="flex flex-col gap-1 mt-3"
             >
-              <div className="text-p6">
-                Your EVM wallet address{" "}
-                <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg">
+              <div className="text-p5 font-secondary">
+                Your EVM wallet address
+                <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg ml-2">
                   COPY
                 </span>
               </div>
@@ -115,9 +116,9 @@ export const TelegramProfileContent = () => {
               onClick={() => copy(profile?.wallets.stellar.walletAddress)}
               className="flex flex-col gap-1 mt-3"
             >
-              <div className="text-p6">
-                Your Stellar wallet address{" "}
-                <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg">
+              <div className="text-p5 font-secondary">
+                Your Stellar wallet address
+                <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg ml-2">
                   COPY
                 </span>
               </div>
@@ -129,18 +130,19 @@ export const TelegramProfileContent = () => {
         </ul>
       )}
       <GameMusicToggle />
+      <PixelButton text="Logout" onClick={logout}/>
     </div>
   );
 };
 
 export const TelegramProfile = ({ close }: { close: () => void }) => {
   return (
-    <div className="fixed inset-0 pt-safe w-full z-[100] flex justify-center h-full">
+    <div className="fixed inset-0 pt-safe w-full z-[100] flex justify-center h-full mb-2">
       <div
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
-      <div className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full relative bg-gradient-to-b from-purple-300 to-blue-300 absolute top-[7rem] md:top-[9rem] rounded-lg shadow h-fit">
+      <div className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full bg-gradient-to-b from-purple-300 to-blue-300 absolute top-[7rem] md:top-[9rem] rounded-lg shadow h-fit">
         <TelegramProfileContent />
         <button onClick={close} className="absolute right-[0] top-0 group">
           <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>

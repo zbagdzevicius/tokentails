@@ -23,6 +23,7 @@ import * as React from "react";
 import { useCallback } from "react";
 import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
+import { TPostReferral } from "@/constants/telegram-api";
 
 let reauthInterval: any;
 
@@ -75,7 +76,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     React.useState(true);
   const [isVerifiedModalDisplayed, setIsVerifiedModalDisplayed] =
     React.useState(false);
-  const { setProfile, setUtils } = useProfile();
+  const { setProfile, setUtils, setShareUrl, setLogout } = useProfile();
 
   const { data: profileResponse, refetch: refetchProfile } = useQuery({
     queryKey: ["profile-details", user],
@@ -87,7 +88,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       navigator.clipboard
         .writeText(text)
         .then(() => {
-          toast({ message: "Invite link is coppied to your clipboard" });
+          toast({ message: "Invite link is coppied to your clipboard, share it with your friend to earn commissions" });
         })
         .catch((err) => {
           throw err;
@@ -105,6 +106,8 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   React.useEffect(() => {
     if (profileResponse) {
       setProfile(profileResponse);
+      TPostReferral(profileResponse?._id);
+      setShareUrl(`https://tokentails.com/game?ref=${profileResponse._id}`);
     }
   }, [profileResponse]);
   React.useEffect(() => {
@@ -112,7 +115,23 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       openLink: (url: string, options: any) =>
         window.open(url, "_blank")?.focus?.(),
       openTelegramLink: (url: string) => window.open(url, "_blank")?.focus?.(),
-      shareURL: (url: string, text?: string) => copy(url),
+      shareURL: (url: string, text?: string) => {
+        copy(url);
+        toast({
+          message:
+            "Your gift url is coppied to your clipboard, share it with your friend",
+        });
+      },
+    });
+    setLogout(() => () => {
+      if (Capacitor.isNativePlatform()) {
+        FirebaseAuthentication.signOut();
+      } else {
+        signOut(auth);
+      }
+      setUser(null);
+      setProfile(null);
+      setIsLoginModalDisplayed(true);
     });
   }, []);
   const onUserChange = useCallback(
@@ -160,7 +179,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   return (
     <FirebaseAuthContext.Provider value={value}>
-      {isLoginModalDisplayed && <SignIn close={() => { }} />}
+      {isLoginModalDisplayed && <SignIn close={() => {}} />}
       {isVerifiedModalDisplayed && (
         <Verify close={() => setIsVerifiedModalDisplayed(false)} />
       )}
@@ -228,12 +247,6 @@ function useFirebaseAuth() {
     },
     []
   );
-  const logout = useCallback(() => {
-    if (Capacitor.isNativePlatform()) {
-      FirebaseAuthentication.signOut();
-    }
-    signOut(auth);
-  }, []);
   const showSignInPopup = useCallback(() => {
     if (!context?.user) {
       context?.setIsVerifiedModalDisplayed(false);
@@ -248,7 +261,6 @@ function useFirebaseAuth() {
   return {
     user: context.user,
     signIn,
-    logout,
     showSignInPopup,
   };
 }

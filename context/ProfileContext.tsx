@@ -15,6 +15,8 @@ type ContextState = {
   position?: number | null;
   shareUrl?: string;
   setShareUrl: (url: string) => void;
+  logout: () => void;
+  setLogout: (logout: () => void) => void;
   setProfile: (profile: IProfile | null) => void;
   setProfileUpdate: (profile: Partial<IProfile>) => void;
   isProfileModalDisplayed: boolean;
@@ -33,6 +35,7 @@ const ProfileProvider = ({ children }: React.PropsWithChildren<{}>) => {
     "https://tokentails.com"
   );
   const [utils, setUtils] = React.useState<IUtils | null>(null);
+  const [logout, setLogout] = React.useState<() => void>(() => {});
   const [isProfileModalDisplayed, setIsProfileModalDisplayed] =
     React.useState(false);
 
@@ -58,6 +61,8 @@ const ProfileProvider = ({ children }: React.PropsWithChildren<{}>) => {
     setUtils,
     shareUrl,
     setShareUrl,
+    logout,
+    setLogout,
   };
 
   return (
@@ -80,6 +85,8 @@ function useProfile() {
     position: context.position,
     utils: context.utils,
     shareUrl: context.shareUrl,
+    logout: context.logout,
+    setLogout: context.setLogout,
     setShareUrl: context.setShareUrl,
     setUtils: context.setUtils,
     setProfile: context.setProfile,

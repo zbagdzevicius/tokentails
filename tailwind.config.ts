@@ -200,7 +200,7 @@ const config: Config = {
       primary: ["Inter", "sans-serif"],
       secondary: ["Bebas Neue", "sans-serif"],
       tertiary: ["Nunito", "sans-serif"],
-      quanternary: ["Pixelify Sans", "sans-serif"],
+      pixel: ["Pixelify Sans", "sans-serif"],
     },
   },
   plugins: [require("tailwindcss-convert-px-to-rem")],

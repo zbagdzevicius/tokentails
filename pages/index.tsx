@@ -4,6 +4,7 @@ import { CatsHub } from "@/components/landing/CatsHub";
 import { FeedbackSlider } from "@/components/landing/FeedbackSlider";
 import { GameAggregators } from "@/components/landing/GameAggregators";
 import { GameModes } from "@/components/landing/GameModes";
+import { HelpCats } from "@/components/landing/HelpCats";
 import { HomePage } from "@/components/landing/HomePage";
 import { Presale } from "@/components/landing/Presale";
 import Roadmap from "@/components/landing/Roadmap";
@@ -12,6 +13,7 @@ import { Tokenomics } from "@/components/landing/Tokenomics";
 import { Circle } from "@/components/shared/Circle";
 import Snowfall from "@/components/shared/Snowfall";
 import { Web3Providers } from "@/components/web3/Web3Providers";
+import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
 import Head from "next/head";
@@ -149,6 +151,21 @@ export default function Index() {
         >
           <div className="h-full w-full" id="game" ref={catssliderRef}>
             <GameModes />
+          </div>
+        </div>
+        <div
+          className="pb-4 pt-3 md:pt-0 min-h-screen flex items-center justify-center w-full"
+          style={{
+            backgroundImage: "url(/base/bg.gif)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div className="h-full w-full" id="game" ref={catssliderRef}>
+            <FirebaseAuthProvider>
+              <HelpCats />
+            </FirebaseAuthProvider>
           </div>
         </div>
 

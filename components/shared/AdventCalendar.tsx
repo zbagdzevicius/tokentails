@@ -1,5 +1,5 @@
 import { catsFetch, catsForSaleFetch, setAdventDay } from "@/constants/api";
-import { daysCoins } from "@/constants/utils";
+import { daysCoins, getNextDayMidnight } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { CatType, ICat } from "@/models/cats";
 import { useQuery } from "@tanstack/react-query";
@@ -137,14 +137,6 @@ export const adventData: Record<number, AdventDay> = {
   },
   24: { image: "advent-calendar/santa.png", unlocked: false, isOpened: false },
   25: { image: "advent-calendar/jesus.png", unlocked: false, isOpened: false },
-};
-
-const getNextDayMidnight = () => {
-  const now = new Date();
-  const nextDay = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
-  );
-  return nextDay.toISOString();
 };
 
 interface IProps {

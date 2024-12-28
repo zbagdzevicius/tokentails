@@ -15,7 +15,9 @@ import { Web3Transfer } from "./web3/minting/Web3Transfer";
 import { Web3Providers } from "./web3/Web3Providers";
 
 interface IProps extends ICat {
-  onClose: () => void;
+  onClose?: () => void;
+  onAdopted?: () => void;
+  relative?: boolean;
 }
 
 interface ICatBlessingsProps {
@@ -104,8 +106,9 @@ export const CatDescription = ({
             />
           )}
           <h4
-            className={`text-white text-p3 ${firstBlessing ? "ml-6" : "ml-16"
-              } max-sm:ml-10 font-bold`}
+            className={`text-white text-p3 ${
+              firstBlessing ? "ml-6" : "ml-16"
+            } max-sm:ml-10 font-bold`}
           >
             STORY
           </h4>
@@ -157,9 +160,13 @@ export const CatDescription = ({
 export const CatPayment = ({
   cat,
   onClose,
+  onAdopted,
+  relative,
 }: {
   cat: ICat;
-  onClose: () => void;
+  onClose?: () => void;
+  onAdopted?: () => void;
+  relative?: boolean;
 }) => {
   const { currencyType, bnbRate, xlmRate, solRate, isTransactionSucces } =
     useWeb3();
@@ -168,10 +175,11 @@ export const CatPayment = ({
   const [isBuyMode, setIsBuyMode] = useState(false);
   const [isAdopting, setIsAdopting] = useState(false);
   const isCoinsPayment = !!cat.catpoints;
-  const { setGameType } = useGame();
   const currencyPrice = useMemo(() => {
     if (
-      [CurrencyType.XLM, CurrencyType.BNB, CurrencyType.SOL].includes(currencyType) &&
+      [CurrencyType.XLM, CurrencyType.BNB, CurrencyType.SOL].includes(
+        currencyType
+      ) &&
       bnbRate &&
       xlmRate &&
       solRate
@@ -218,7 +226,7 @@ export const CatPayment = ({
 
     toast({ message: "Congratz on your adopted cat !" });
     setIsAdopting(false);
-    setGameType(GameType.HOME);
+    onAdopted?.();
   };
 
   useEffect(() => {
@@ -252,7 +260,7 @@ export const CatPayment = ({
   const close = () => {
     if (isBuyMode) {
       setIsBuyMode(false);
-    } else onClose();
+    } else onClose?.();
   };
 
   return (
@@ -312,17 +320,26 @@ export const CatPayment = ({
             <div className="text-yellow-200 -mt-1">{supply}</div>
           </div>
         )}
-        <PixelButton text="CLOSE" onClick={close}></PixelButton>
+        {!relative || isBuyMode && <PixelButton text="CLOSE" onClick={close}></PixelButton>}
       </div>
     </>
   );
 };
 
-export const CatCard = ({ onClose, ...catData }: IProps) => {
+export const CatCard = ({
+  onClose,
+  onAdopted,
+  relative,
+  ...catData
+}: IProps) => {
   const { catImg, name, type, blessings } = catData;
   const [activeBlessing, setActiveBlessing] = useState<IBlessing | null>(null);
   return (
-    <div className="max-w-screen-xl top-1/2 hover:brightness-105 -translate-y-1/2 border-8 rounded-[24px] border-yellow-300 border-opacity-50 hover:border-opacity-100 relative rem:h-[540px] md:rem:h-[600px] aspect-[2/3] max-w-screen">
+    <div
+      className={`${
+        relative ? "" : "top-1/2 -translate-y-1/2"
+      } max-w-screen-xl hover:brightness-105 border-8 rounded-[24px] border-yellow-300 border-opacity-50 hover:border-opacity-100 relative rem:h-[540px] md:rem:h-[600px] aspect-[2/3] max-w-screen`}
+    >
       <img
         src={`/ability/${type}_BG.webp`}
         className="absolute object-cover z-10 h-full w-full brightness-[35%] rounded-[16px]"
@@ -355,8 +372,9 @@ export const CatCard = ({ onClose, ...catData }: IProps) => {
                   catImg
                 }
                 alt="Hero cat"
-                className={`${activeBlessing ? "w-full h-48" : "w-32 h-32"
-                  } relative z-10 object-contain`}
+                className={`${
+                  activeBlessing ? "w-full h-48" : "w-32 h-32"
+                } relative z-10 object-contain`}
               />
               {blessings?.length && (
                 <img
@@ -374,7 +392,12 @@ export const CatCard = ({ onClose, ...catData }: IProps) => {
               setActiveBlessing={setActiveBlessing}
               activeBlessing={activeBlessing}
             />
-            <CatPayment cat={catData} onClose={onClose} />
+            <CatPayment
+              cat={catData}
+              onClose={onClose}
+              onAdopted={() => onAdopted?.()}
+              relative={relative}
+            />
           </div>
         </div>
       </div>
@@ -383,15 +406,21 @@ export const CatCard = ({ onClose, ...catData }: IProps) => {
 };
 
 export const CatCardModal: React.FC<IProps> = ({ onClose, ...catData }) => {
+  const { setGameType } = useGame();
+
   return (
     <div className="flex justify-center w-full h-full fixed top-0 left-0 z-[101]">
       <div
         className="absolute inset-0 z-0 bg-yellow-300 opacity-50"
-        onClick={() => onClose()}
+        onClick={() => onClose?.()}
       ></div>
 
       <Web3Providers>
-        <CatCard {...catData} onClose={onClose} />
+        <CatCard
+          {...catData}
+          onClose={onClose}
+          onAdopted={() => setGameType(GameType.HOME)}
+        />
       </Web3Providers>
     </div>
   );

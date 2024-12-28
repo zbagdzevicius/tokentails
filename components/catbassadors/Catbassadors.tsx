@@ -4,6 +4,9 @@ import { GameEvents, IPhaserGame } from "../Phaser/events";
 import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
 import { useGame } from "@/context/GameContext";
 import { currentDayCoin } from "@/constants/utils";
+import { PixelButton } from "../shared/PixelButton";
+import { useProfile } from "@/context/ProfileContext";
+import { Tag } from "../shared/Tag";
 
 export interface IGameOverEvent extends Event {
   detail: {
@@ -77,7 +80,8 @@ interface ICatbassadorsProps {
 const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
   const phaserRef = useRef<IPhaserGame | null>(null);
   const isGameLoaded = GameEvents.GAME_LOADED.use();
-  const { isStarted } = useGame();
+  const { isStarted, playGame } = useGame();
+  const { profile } = useProfile();
 
   useEffect(() => {
     if (cat && isGameLoaded) {
@@ -105,35 +109,57 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
       </div>
 
       {!isStarted && (
-        <div className="absolute top-36 md:top-52 left-1/2 -translate-x-1/2 bg-yellow-300 pt-2 md:pt-10 pb-4 rounded-lg px-4 flex flex-col gap-2">
-          <div className="flex gap-2 items-center justify-center font-secondary text-p4">
-            CATCH AND EARN COINS
+        <div
+          className="absolute top-16 md:top-24 left-1/2 -translate-x-1/2 bg-yellow-300 pt-2 rounded-lg px-4 flex flex-col"
+          style={{
+            backgroundImage: "url(/base/bg-7.png)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+        <img
+          className="w-28 aspect-square m-auto rounded-t-xl -mb-4 relative z-0"
+          src="/game/select/catbassadors.jpg"
+        />
+        <div className="relative z-10">
+          <Tag>HOW TO PLAY</Tag>
+        </div>
+          <div className="flex gap-2 items-center font-secondary text-p3 pt-2">
+            <span>Control CAT</span>
+            <img className="h-8" src="images/cats-winners/cat.gif"></img>
           </div>
-          <div className="flex gap-2 items-center justify-center font-secondary text-p4">
+          <div className="flex gap-2 items-center font-secondary text-p3 pb-2">
+            <span>CATCH COINS</span>
             <img className="h-8" src="logo/coin.webp"></img>
+          </div>
+          <Tag>COINS REWARDS</Tag>
+          <div className="flex gap-2 items-center justify-center font-secondary text-p4 pt-2">
+            <img className="h-6" src="logo/coin.png"></img>
             <span className="whitespace-nowrap">GIVES 1</span>
-            <img className="h-8" src="logo/coin.webp"></img>
+            <img className="h-6" src="logo/coin.png"></img>
           </div>
           <div className="flex gap-2 items-center justify-center font-secondary text-p4">
-            <img className="h-8" src={currentDayCoin}></img>
+            <img className="h-5" src={currentDayCoin}></img>
             <span className="whitespace-nowrap">GIVES 10</span>
-            <img className="h-8" src="logo/coin.webp"></img>
+            <img className="h-6" src="logo/coin.png"></img>
           </div>
           <div className="flex gap-2 items-center justify-center font-secondary text-p4">
-            <img className="h-8" src="logo/boss-coin.png"></img>
+            <img className="h-5" src="logo/boss-coin.png"></img>
             <span className="whitespace-nowrap">GIVES 100</span>
-            <img className="h-8" src="logo/coin.webp"></img>
+            <img className="h-6" src="logo/coin.png"></img>
           </div>
-          <div className="flex gap-2 items-center justify-center font-secondary text-p4">
-            <img className="h-8" src="icons/clock.png"></img>
+          <div className="flex gap-2 items-center justify-center font-secondary text-p4 pb-2">
+            <img className="h-5" src="icons/clock.png"></img>
             <span className="whitespace-nowrap">GIVES 1000</span>
-            <img className="h-8" src="logo/coin.webp"></img>
+            <img className="h-6" src="logo/coin.png"></img>
           </div>
-          <div className="flex gap-2 justify-center items-center font-secondary text-p3">
-            <span>CLICK PLAY BELOW</span>
-          </div>
-          <div className="flex gap-2 justify-center items-center font-secondary text-p3 -mt-2">
-            <img className="h-6 rotate-90" src="icons/arrow.webp"></img>
+          <div className="flex justify-center -mb-6">
+            <PixelButton
+              active={!profile?.catbassadorsLives}
+              onClick={playGame}
+              text="Play"
+              isBig
+            ></PixelButton>
           </div>
         </div>
       )}

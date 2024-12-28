@@ -78,6 +78,24 @@ export const TPostReferral = async (telegramId: string): Promise<object> => {
     return {};
   });
 };
+export const TPostReferralWeb = async (profileId: string): Promise<object> => {
+  await waitForLocalStorageKey();
+  return fetch(`${apiUrl}/user/catbassadors/referralw/${profileId}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return {};
+  });
+};
 
 export const TPostQuest = async (
   quest: QUEST

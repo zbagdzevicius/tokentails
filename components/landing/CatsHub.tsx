@@ -137,7 +137,6 @@ export const CatsHub = () => {
             </div>
 
             <div className="flex items-center mt-2 gap-4">
-              <Calendar isRelative />
               <h3 className="font-secondary text-p3 md:text-p2">
                 Advent calendar is LIVE, HURRY !
               </h3>

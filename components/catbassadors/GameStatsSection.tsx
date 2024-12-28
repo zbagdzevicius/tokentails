@@ -4,6 +4,7 @@ import { IProfile } from "@/models/profile";
 import { useState } from "react";
 import { PixelButton } from "../shared/PixelButton";
 import { CloseButton } from "../shared/CloseButton";
+import { useToast } from "@/context/ToastContext";
 interface IGameStat {
   title: string;
   image: string;
@@ -23,10 +24,10 @@ export const GameStatSection = ({
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center font-secondary rounded-xl w-24 p-2 bg-gradient-to-r ${bg}`}
+      className={`flex flex-col items-center font-secondary rounded-xl w-16 p-1 bg-gradient-to-r ${bg}`}
     >
       <div className="text-p4">{title}</div>
-      <div className="flex items-center gap-2 -mt-1">
+      <div className="flex items-center gap-1 -mt-1">
         <img className="w-6 h-6" src={image} />
         <div className="text-p2">{stat}</div>
       </div>
@@ -46,36 +47,27 @@ export const GameStatsSection = ({
 }) => {
   const [modal, setModal] = useState<null | string>(null);
   const { gameType } = useGame();
+  const toast = useToast();
 
   if (!profile) {
     return <></>;
   }
   return (
     <div>
-      <div
-        className={`fixed left-4 pb-safe top-4 z-10
-          right-4 flex justify-between opacity-75`}
-      >
-        <div
-          onClick={() => setModal(coinsText)}
-          className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300"
-        >
-          <img className="w-6 h-6" src="/logo/coin.webp" />
-          <div className="text-p4 flex items-center gap-1">
-            <div>COINS</div>
-          </div>
-          <div className="flex items-center gap-2 -mt-1">
-            <div className="text-p5">{profile?.catpoints?.toFixed(0) || 0}</div>
-          </div>
-        </div>
+      <div className="fixed flex-col pb-safe top-4 z-10 right-4 flex justify-between">
         <div
           onClick={() => setOpenedModal(GameModal.PROFILE)}
-          className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300"
+          className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2"
+          style={{
+            backgroundImage: "url(/base/bg-5.png)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
         >
           {profile.cat && (
             <div className="relative">
               <img className="w-10 h-10" src={profile.cat?.catImg} />
-              {profile.cat?.blessings?.length && (
+              {!!profile.cat?.blessings?.length && (
                 <img
                   className="absolute inset-0 l object-cover w-10 h-10"
                   src={`/flare-effect/${profile.cat.blessings[0].ability}.gif`}
@@ -85,6 +77,44 @@ export const GameStatsSection = ({
           )}
           <div className="text-p4 flex items-center gap-1">
             <div>STATS</div>
+          </div>
+        </div>
+        <div className="flex flex-col items-center">
+          {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
+            <div
+              onClick={() =>
+                toast({
+                  message:
+                    "To earn lives - Redeem daily rewards, invite friends and feed your cat at Home",
+                })
+              }
+              className="flex flex-col items-center font-secondary text-p2 bg-purple-300 bg-opacity-80 hover:bg-opacity-100 px-2 rounded-b-xl"
+            >
+              <div className="">{profile.catbassadorsLives || 0}</div>
+              <div className="flex items-center -mt-2">
+                <img className="w-5 z-10 pr-1" src="/base/heart.png" />
+                <div className="text-p5">LIVES</div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="fixed left-4 pb-safe top-4 z-10 flex justify-between">
+        <div
+          onClick={() => setModal(coinsText)}
+          className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2"
+          style={{
+            backgroundImage: "url(/base/bg-6.png)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <img className="w-6 h-6" src="/logo/coin.webp" />
+          <div className="text-p4 flex items-center gap-1">
+            <div>COINS</div>
+          </div>
+          <div className="flex items-center gap-2 -mt-1">
+            <div className="text-p5">{profile?.catpoints?.toFixed(0) || 0}</div>
           </div>
         </div>
       </div>
