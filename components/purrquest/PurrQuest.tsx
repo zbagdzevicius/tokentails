@@ -69,7 +69,7 @@ const Purrquest = () => {
     <div style={background} id="app">
       {!isStarted && (
         <div
-          className="absolute top-16 md:top-24 left-1/2 -translate-x-1/2 pt-2 rounded-lg px-4"
+          className="absolute top-16 md:top-24 z-[2] left-1/2 -translate-x-1/2 pt-2 rounded-lg px-4"
           style={{
             backgroundImage: "url(/base/bg-5.png)",
             backgroundSize: "100% 100%",

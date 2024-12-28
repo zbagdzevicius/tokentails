@@ -110,7 +110,7 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
 
       {!isStarted && (
         <div
-          className="absolute top-16 md:top-24 left-1/2 -translate-x-1/2 bg-yellow-300 pt-2 rounded-lg px-4 flex flex-col"
+          className="absolute top-16 md:top-24 z-[2] left-1/2 -translate-x-1/2 bg-yellow-300 pt-2 rounded-lg px-4 flex flex-col"
           style={{
             backgroundImage: "url(/base/bg-7.png)",
             backgroundSize: "cover",
