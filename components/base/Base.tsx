@@ -60,7 +60,7 @@ const BaseGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
     }
   });
 
-  return <div id="game-container"></div>;
+  return <div id="game-container" className="animate-opacity"></div>;
 });
 
 function Base() {

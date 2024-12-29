@@ -76,7 +76,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     React.useState(true);
   const [isVerifiedModalDisplayed, setIsVerifiedModalDisplayed] =
     React.useState(false);
-  const { setProfile, setUtils, setShareUrl, setLogout } = useProfile();
+  const { setProfile, setUtils, setShareUrl, setLogout, setIsFB } = useProfile();
 
   const { data: profileResponse, refetch: refetchProfile } = useQuery({
     queryKey: ["profile-details", user],
@@ -133,6 +133,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       setProfile(null);
       setIsLoginModalDisplayed(true);
     });
+    setIsFB?.(true);
   }, []);
   const onUserChange = useCallback(
     async (u: User) => {

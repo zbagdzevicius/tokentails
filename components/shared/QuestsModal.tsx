@@ -340,7 +340,7 @@ export const QuestsModalContent = () => {
   }, 200);
 
   return (
-    <div className="px-4 py-8 md:px-16 md:py-12 flex flex-col justify-between items-center">
+    <div className="px-4 py-8 md:px-16 md:py-12 flex flex-col justify-between items-center animate-appear">
       <div className="flex items-center justify-between w-full">
         <PixelButton
           text="SOCIAL"

@@ -5,7 +5,7 @@ import { PixelButton } from "./PixelButton";
 export const InviteModalContent = () => {
   const { utils, shareUrl } = useProfile();
   return (
-    <div className="pt-4 pb-8 px-4 md:px-16 md:pt-4 md:pb-12 text-gray-700 flex flex-col justify-between items-center">
+    <div className="pt-4 pb-8 px-4 md:px-16 md:pt-4 md:pb-12 text-gray-700 flex flex-col justify-between items-center animate-appear">
       <h1 className="text-p3 font-secondary bg-yellow-300 w-fit px-4 mb-2 rounded-lg m-auto">
         GIFT
       </h1>
@@ -26,7 +26,16 @@ export const InviteModalContent = () => {
             src="/icons/invites/gift.png"
           />
           <p className="lg:text-lg text-base font-medium">
-            Get 5k for every gift you send
+            Get 5k for every redeemed gift
+          </p>
+        </div>
+        <div className="flex flex-row items-center">
+          <img
+            className="w-7 h-7  md:w-8 md:h-8 lg:w-10 lg:h-10 mr-1"
+            src="/base/heart.png"
+          />
+          <p className="lg:text-lg text-base font-medium">
+            Get 10 lives for every redeemed gift
           </p>
         </div>
         <div className="flex flex-row items-center">

@@ -10,7 +10,7 @@ import { PixelButton } from "./PixelButton";
 const features = ["NFTs & Airdrops prizes", "Weekly Rewards & Events"];
 
 export const TelegramProfileContent = () => {
-  const { profile, logout } = useProfile();
+  const { profile, logout, isFB } = useProfile();
   const gameStats = useMemo(() => {
     if (!profile) {
       return [];
@@ -62,7 +62,7 @@ export const TelegramProfileContent = () => {
   );
 
   return (
-    <div className="pt-4 pb-8 px-4 md:px-16 md:pt-4 md:pb-12 text-gray-700 flex flex-col justify-between items-center">
+    <div className="pt-4 pb-8 px-4 md:px-16 md:pt-4 md:pb-12 text-gray-700 flex flex-col justify-between items-center animate-appear">
       <div className="relative">
         <img
           className="w-16 m-auto"
@@ -90,7 +90,7 @@ export const TelegramProfileContent = () => {
           </li>
           <li className="flex justify-between mb-4">
             {gameStats.map((stat) => (
-              <GameStatSection {...stat} key={stat.title} onClick={() => { }} />
+              <GameStatSection {...stat} key={stat.title} onClick={() => {}} />
             ))}
           </li>
 
@@ -130,7 +130,7 @@ export const TelegramProfileContent = () => {
         </ul>
       )}
       <GameMusicToggle />
-      <PixelButton text="Logout" onClick={logout}/>
+      {isFB && <PixelButton text="Logout" onClick={logout} />}
     </div>
   );
 };

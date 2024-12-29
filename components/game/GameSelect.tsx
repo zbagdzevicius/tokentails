@@ -21,7 +21,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
     >
       {gameType && (
         <PixelButton
-          text="CHOOSE YOUR ADVENTURE"
+          text="TO THE GAME ZONE →"
           active={cat?.status.EAT !== 4}
           onClick={() => {
             if (cat?.status?.EAT !== 4) {
@@ -35,7 +35,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
       {!gameType && (
         <>
           <div
-            className="font-secondary whitespace-nowrap rem:w-[200px] md:rem:w-[400px] text-center text-p1 md:text-h5 px-2 rounded-lg py-1"
+            className="font-secondary whitespace-nowrap rem:w-[200px] md:rem:w-[400px] text-center text-p1 md:text-h5 px-2 rounded-lg py-1 animate-appear"
             style={{
               backgroundImage: "url(/base/bg-2.gif)",
               backgroundSize: "cover",

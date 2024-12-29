@@ -69,7 +69,7 @@ const CatbassadorsGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
     }
   });
 
-  return <div id="game-container"></div>;
+  return <div id="game-container" className="animate-opacity"></div>;
 });
 
 interface ICatbassadorsProps {
@@ -110,7 +110,7 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
 
       {!isStarted && (
         <div
-          className="absolute top-16 md:top-24 z-[2] left-1/2 -translate-x-1/2 bg-yellow-300 pt-2 rounded-lg px-4 flex flex-col"
+          className="absolute top-16 md:top-24 z-[2] left-1/2 -translate-x-1/2 bg-yellow-300 pt-2 rounded-lg px-4 flex flex-col animate-appear"
           style={{
             backgroundImage: "url(/base/bg-7.png)",
             backgroundSize: "cover",

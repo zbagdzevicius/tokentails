@@ -53,11 +53,21 @@ const config: Config = {
         colormax: "colormax 15s infinite;",
         "spin-slow": "spin 10s infinite;",
         flip: "flip 10s infinite;",
+        appear: "appear 0.5s;",
+        opacity: "opacity 1.5s;",
       },
       keyframes: {
         "loop-scroll": {
           from: { transform: "translateX(0)" },
           to: { transform: "translateX(-100%)" },
+        },
+        appear: {
+          from: { opacity: "0", "margin-top": "-80px" },
+          to: { opacity: "1", "margin-top": "0px" },
+        },
+        opacity: {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
         },
         flip: {
           "0%, 100%": {
