@@ -1,6 +1,7 @@
 import { GameObjects, Physics, Scene } from "phaser";
 import { IPlayer } from "@/components/Phaser/PlayerMovement/IPlayer";
 import { PlayerMovement } from "@/components/Phaser/PlayerMovement/PlayerMovement";
+import { catWalkSpeed } from "@/models/game";
 
 /**
  * Physics objects that could be colliders
@@ -97,13 +98,19 @@ export class Cat implements IPlayer {
   readonly dashTime: number = 200; // Duration of dash in ms
   readonly dashCooldown: number = 300; // Cooldown time before dashing again
   readonly dashSpeed: number = 640; // Speed during dash
-   walkSpeed: number = 320;
+  walkSpeed: number = catWalkSpeed;
   readonly jumpSpeed: number = -448;
   readonly wallSlideSpeed: number = 96;
 
   movement: PlayerMovement;
 
-  constructor(scene: Scene, x: number, y: number, catName: string, blessings: Phaser.GameObjects.Sprite) {
+  constructor(
+    scene: Scene,
+    x: number,
+    y: number,
+    catName: string,
+    blessings: Phaser.GameObjects.Sprite
+  ) {
     this.scene = scene;
     this.catName = catName;
     this.blessings = blessings;
@@ -153,11 +160,11 @@ export class Cat implements IPlayer {
   update() {
     this.movement.updateOngoingMovements();
     if (this.blessings) {
-    const velocityX = this.sprite.body!.velocity.x;
-    const targetX = this.sprite.x + velocityX * 0.01;
-    this.blessings.setVisible(true);
-    this.blessings.setPosition(targetX, this.sprite.y - 5);
-  }
+      const velocityX = this.sprite.body!.velocity.x;
+      const targetX = this.sprite.x + velocityX * 0.01;
+      this.blessings.setVisible(true);
+      this.blessings.setPosition(targetX, this.sprite.y - 5);
+    }
   }
 
   addCollider(collider: ColliderType) {

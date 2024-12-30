@@ -16,3 +16,4 @@ export enum GameType {
 
 export const endScenePeriod = 500;
 export const bossHitRewardsDebounceTime = 500;
+export const catWalkSpeed = 420;

@@ -21,7 +21,7 @@ import { Spike } from "../objects/Spikes";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { Enemy } from "@/components/purrquest/objects/Enemy";
 import { BossEnemy } from "../objects/Boss";
-import { endScenePeriod, GameType } from "@/models/game";
+import { catWalkSpeed, endScenePeriod, GameType } from "@/models/game";
 const COLLISION_TILES = [
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 29, 30, 31, 32, 33, 34, 35, 36, 37, 62, 63, 64,
   65, 72, 88, 90, 91, 92, 93, 94, 120, 121, 122, 123, 149, 150, 151, 152,
@@ -378,7 +378,7 @@ export class PurrquestScene extends Phaser.Scene {
       this.time.delayedCall(
         2000,
         () => {
-          this.player!.walkSpeed = 320;
+          this.player!.walkSpeed = catWalkSpeed;
         },
         undefined,
         this
@@ -626,7 +626,7 @@ export class PurrquestScene extends Phaser.Scene {
     }
     this.time.delayedCall(endScenePeriod, () => {
       if (this.player) {
-        this.player!.walkSpeed = 320;
+        this.player!.walkSpeed = catWalkSpeed;
         this.player.isDeath = false;
         this.player.sprite.clearTint();
       }
