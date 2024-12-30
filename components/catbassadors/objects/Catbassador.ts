@@ -88,6 +88,7 @@ export class Cat implements IPlayer {
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   keys!: KeyMap;
   isHit!: boolean;
+  isDeath!: boolean;
   hasKey!: boolean;
   isInvulnerable: boolean;
   private catName: string;

@@ -21,6 +21,7 @@ import { Spike } from "../objects/Spikes";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { Enemy } from "@/components/purrquest/objects/Enemy";
 import { BossEnemy } from "../objects/Boss";
+import { GameType } from "@/models/game";
 const COLLISION_TILES = [
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 29, 30, 31, 32, 33, 34, 35, 36, 37, 62, 63, 64,
   65, 72, 88, 90, 91, 92, 93, 94, 120, 121, 122, 123, 149, 150, 151, 152,
@@ -59,6 +60,7 @@ export class PurrquestScene extends Phaser.Scene {
   bossEnemy?: BossEnemy;
   trampoline?: Trampoline;
   blessing!: Phaser.GameObjects.Sprite;
+  private gameStartTime: number = 0;
 
   constructor() {
     super("PurrquestScene");
@@ -119,6 +121,7 @@ export class PurrquestScene extends Phaser.Scene {
   }
 
   startGame() {
+    this.gameStartTime = performance.now(); 
     this.initializeLevel();
     this.initializePathfinding();
 
@@ -434,7 +437,7 @@ export class PurrquestScene extends Phaser.Scene {
   }
 
   handlePlayerEnemyCollisions() {
-    this.playerDeathMessage();
+    this.endGame();
   }
 
   private renderTilemap() {
@@ -614,9 +617,23 @@ export class PurrquestScene extends Phaser.Scene {
     });
   }
 
-  private playerDeathMessage() {
-    GameEvents.GAME_STOP.push({ score: 0, message: "Try again" });
+  private endGame() {
+  const totalTimePlayed = (performance.now() - this.gameStartTime) / 1000;
+    if (this.player) {
+       this.player.isDeath = true;
+       this.player!.walkSpeed = 50;
+       this.player.sprite.setTint(0xff0000);
+    }
+     this.time.delayedCall(3000, () => {
+       if (this.player) {
+       this.player!.walkSpeed = 320;
+       this.player.isDeath = false;
+       this.player.sprite.clearTint();
+    }
+    GameEvents.GAME_STOP.push({ score: 0, time:  Math.floor(totalTimePlayed),gameType: GameType.PURRQUEST});
+
     this.onDestroy();
+     })
   }
 
   private onDestroy() {
@@ -646,7 +663,7 @@ export class PurrquestScene extends Phaser.Scene {
         this.player?.sprite as Phaser.Physics.Arcade.Sprite,
         spike,
         () => {
-          this.playerDeathMessage();
+          this.endGame();
         },
         undefined,
         this
@@ -694,28 +711,37 @@ export class PurrquestScene extends Phaser.Scene {
     }
   }
 
-  private checkPlayerProximityToChest() {
-    if (!this.player?.sprite) {
-      return;
-    }
-    if (this.physics.overlap(this.player.sprite, this.chest)) {
-      if (this.player.hasKey) {
-        this.chest.open();
-        this.player.hasKey = false;
-        this.onDestroy();
+private checkPlayerProximityToChest() {
+  if (!this.player?.sprite) {
+    return;
+  }
 
-        GameEvents.GAME_STOP.push({ score: 5000, message: " Congratz ! " });
-      } else {
-        const chestX = this.chest.x;
-        const chestY = this.chest.y - 50;
-        this.displayErrorMessage(
-          "You need a key to open this chest.",
-          chestX,
-          chestY
-        );
-      }
+  if (this.physics.overlap(this.player.sprite, this.chest)) {
+    const totalTimePlayed = (performance.now() - this.gameStartTime) / 1000;
+
+    if (this.player.hasKey) {
+      this.chest.open();
+      this.time.delayedCall(3000, () => {
+        this.player!.hasKey = false;
+        this.onDestroy();
+        GameEvents.GAME_STOP.push({ 
+          score: 5000, 
+          time: Math.floor(totalTimePlayed), 
+          gameType: GameType.PURRQUEST 
+        });
+      });
+    } else {
+      const chestX = this.chest.x;
+      const chestY = this.chest.y - 50;
+      this.displayErrorMessage(
+        "You need a key to open this chest.",
+        chestX,
+        chestY
+      );
     }
   }
+}
+
   private displayErrorMessage(message: string, x?: number, y?: number) {
     const defaultX = this.cameras.main.width / 2;
     const defaultY = this.cameras.main.height / 4;

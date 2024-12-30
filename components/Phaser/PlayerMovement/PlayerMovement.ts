@@ -42,22 +42,43 @@ export class PlayerMovement {
     const blockedAbove = sprite.body!.blocked.up;
     const onGround = sprite.body!.blocked.down;
 
-    const initialWalkSpeed = this.player.walkSpeed / 4;
+
     if (!this.player.disableLeftMovement && leftKeyDown) {
-      if (this.player.sprite.body?.velocity.x! > -initialWalkSpeed) {
-        sprite.setVelocityX(-initialWalkSpeed);
-      }
-      sprite.setAccelerationX(-this.player.walkSpeed * 2);
-      sprite.setFlipX(true);
-    } else if (!this.player.disableRightMovement && rightKeyDown) {
-      if (this.player.sprite.body?.velocity.x! < initialWalkSpeed) {
-        sprite.setVelocityX(initialWalkSpeed);
-      }
-      sprite.setAccelerationX(this.player.walkSpeed * 2);
-      sprite.setFlipX(false);
+  const currentVelocity = sprite.body!.velocity.x;
+
+  const targetVelocity = -this.player.walkSpeed;
+  const newVelocity = Phaser.Math.Linear(currentVelocity, targetVelocity, 0.1); //setted for smooth sliding
+  sprite.setVelocityX(newVelocity);
+
+  sprite.setAccelerationX(-this.player.walkSpeed);
+  sprite.setFlipX(true);
+} else if (!this.player.disableRightMovement && rightKeyDown) {
+  const currentVelocity = sprite.body!.velocity.x;
+
+  const targetVelocity = this.player.walkSpeed;
+  const newVelocity = Phaser.Math.Linear(currentVelocity, targetVelocity, 0.1);
+  sprite.setVelocityX(newVelocity);
+
+  sprite.setAccelerationX(this.player.walkSpeed);
+  sprite.setFlipX(false);
+} else {
+  const currentVelocity = sprite.body!.velocity.x;
+  const decelerationRate = this.player.walkSpeed / 10; // Bigger value, bigger deceleration way.
+
+  if (Math.abs(currentVelocity) <= decelerationRate) {
+    sprite.setVelocityX(0);
+    sprite.setAccelerationX(0);
+  } else {
+    if (currentVelocity > 0) {
+      sprite.setVelocityX(currentVelocity - decelerationRate);
     } else {
-      sprite.setVelocityX(0);
+      sprite.setVelocityX(currentVelocity + decelerationRate);
     }
+  }
+
+  sprite.setAccelerationX(0);
+}
+    
 
     if (this.player.isHit) {
       if (
@@ -71,7 +92,19 @@ export class PlayerMovement {
         });
         sprite.angle = 0;
       }
-    } else if (this.player.isSliding) {
+    }
+    else if (this.player.isDeath) {
+  if (
+    sprite.anims.currentAnim?.key !==
+    this.player.animationKeys[PlayerAnimation.HIT]
+  ) {
+    sprite.anims.play(this.player.animationKeys[PlayerAnimation.HIT], true);
+
+    sprite.angle = 0;
+  }
+
+
+  } else if (this.player.isSliding) {
       sprite.anims.play(
         this.player.animationKeys[PlayerAnimation.SITTING],
         true
@@ -197,7 +230,7 @@ export class PlayerMovement {
           this.player.disableLeftMovement = true;
           this.player.lastWallTouched = "left";
           this.player.scene.time.addEvent({
-            delay: 300,
+            delay: 150,
             callback: () => {
               this.player.disableLeftMovement = false;
             },
@@ -207,7 +240,7 @@ export class PlayerMovement {
           this.player.disableRightMovement = true;
           this.player.lastWallTouched = "right";
           this.player.scene.time.addEvent({
-            delay: 300,
+            delay: 150,
             callback: () => {
               this.player.disableRightMovement = false;
             },
@@ -218,10 +251,7 @@ export class PlayerMovement {
         this.player.scene.time.addEvent({
           delay: 10,
           callback: () => {
-            const currentFps = this.player.scene.game.loop.actualFps;
-
-            const jumpValue = currentFps <= 30 ? 700 : 1500;
-
+            const jumpValue = 650
             const currentVelocity = this.player.sprite.body!.velocity.x;
             const targetVelocity = jumpValue * jumpDirection;
             const newVelocity = Phaser.Math.Linear(

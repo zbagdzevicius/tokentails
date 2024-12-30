@@ -14,6 +14,7 @@ import { Enemy } from "../../purrquest/objects/Enemy";
 import { BossEnemy } from "@/components/purrquest/objects/Boss";
 import { currentDayCoin, ZOOM } from "@/constants/utils";
 import { ObjectPool } from "../objects/ObjectPool";
+import { GameType } from "@/models/game";
 
 const coinDurationMs = 15000;
 const BOSS_REWARD_POINTS = 1000;
@@ -47,7 +48,7 @@ export class CatbassadorsScene extends Scene {
   canCollectReward: boolean = false;
   IsBossSpawned = false;
   blessing!: Phaser.GameObjects.Sprite;
-
+  gameStartTime: number = 0;
   constructor() {
     super("CatbassadorsScene");
 
@@ -534,37 +535,53 @@ private spawnEnemy() {
   }
 
   private endGame() {
-    clearInterval(this.coinSpawnInterval as NodeJS.Timeout);
-    this.coinSpawnInterval = null;
+  if (this.cat) {
+    this.cat.isDeath = true;
+  }
+  clearInterval(this.coinSpawnInterval as NodeJS.Timeout);
+  this.coinSpawnInterval = null;
 
-    this.cat?.sprite.setVelocity(0, 0);
+  this.cat?.sprite.setVelocity(0, 0);
 
-    // Clear all enemies
-    this.coins.forEach((coin) => {
-      coin.sprite.destroy();
+  this.coins.forEach((coin) => {
+    coin.sprite.destroy();
+  });
+
+  this.coins = [];
+
+  if (this.enemies) {
+    this.enemies.forEach((enemy) => {
+      enemy.destroy();
     });
-
-    this.coins = [];
-
-    if (this.enemies) {
-      this.enemies.forEach((enemy) => {
-        enemy.destroy();
-      });
-      this.enemies = [];
-    }
-    if (this.bossEnemy) {
-      this.bossEnemy.destroy();
-      this.IsBossSpawned = false;
-    }
-
-    GameEvents.GAME_STOP.push({ score: this.score });
-    this.score = 0;
-    this.enemySpawnThreshold = DEFAULT_ENEMY_SPAWN_THRESHOLD;
+    this.enemies = [];
+  }
+  if (this.bossEnemy) {
+    this.bossEnemy.destroy();
+    this.IsBossSpawned = false;
   }
 
-  private startGame() {
-    this.timer = catbassadorsGameDuration;
+  const totalPlayTime = (performance.now() - this.gameStartTime) / 1000;
+  this.time.delayedCall(3000, () => {
+    GameEvents.GAME_STOP.push({
+      score: this.score,
+      time: Math.floor(totalPlayTime),
+      gameType: GameType.CATBASSADORS
+    });
+    this.score = 0;
+    this.enemySpawnThreshold = DEFAULT_ENEMY_SPAWN_THRESHOLD;
+    if (this.cat) {
+      this.cat.isDeath = false;
+    }
+  });
+}
 
+
+  private startGame() {
+    if (this.cat) {
+       this.cat.isDeath = false;
+    }
+     this.gameStartTime = performance.now();
+    this.timer = catbassadorsGameDuration;
     this.coinSpawnInterval = setInterval(() => {
       this.spawnCoin();
     }, 400);

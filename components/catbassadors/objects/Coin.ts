@@ -90,7 +90,8 @@ export class Coin {
     this.timeReward = EnemyTypeTimeReward[this.type];
     this.sprite = this.scene.physics.add
       .sprite(x, y, EnemyTypeSriteMap[this.type])
-      .setSize(32, 32);
+      .setSize(32, 32)
+      .setDepth(3);
     this.sprite.setGravityY(-900);
   }
 
