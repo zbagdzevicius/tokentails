@@ -730,7 +730,6 @@ export class PurrquestScene extends Phaser.Scene {
           GameEvents.GAME_STOP.push({
             score: 5000,
             time: Math.floor(totalTimePlayed),
-            gameType: GameType.PURRQUEST,
           });
         });
       } else {
