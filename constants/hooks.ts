@@ -12,8 +12,8 @@ export const useBackground = () => {
       ...coreBg,
       backgroundImage:
         hours > 17 || hours < 6
-          ? "url(/base/bg-night-2.gif)"
-          : "url(/base/bg-4.gif)",
+          ? "url(/base/bg-7.png)"
+          : "url(/base/bg-5.png)",
     };
   }, []);
 

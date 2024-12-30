@@ -3,6 +3,7 @@ import { useProfile } from "@/context/ProfileContext";
 import { GameType } from "@/models/game";
 import dynamic from "next/dynamic";
 import { useBackground } from "../../constants/hooks";
+import Snowfall from "../shared/Snowfall";
 const Catbassadors = dynamic(
   () => import("@/components/catbassadors/Catbassadors"),
   { ssr: false }
@@ -21,6 +22,9 @@ export const Game = () => {
 
   return (
     <div className="w-full max-h-screen h-full absolute" style={background}>
+      <div className="fixed inset-0 z-0">
+        <Snowfall />
+      </div>
       {gameType === GameType.CATBASSADORS && profile && (
         <Catbassadors cat={profile?.cat} timer={timer} />
       )}

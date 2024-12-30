@@ -1,9 +1,23 @@
 import { useProfile } from "@/context/ProfileContext";
 import { CloseButton } from "./CloseButton";
 import { PixelButton } from "./PixelButton";
+import { Countdown } from "./Countdown";
+import { getNextDayMidnight } from "@/constants/utils";
+import { PostFriendInvited } from "@/constants/telegram-api";
 
 export const InviteModalContent = () => {
-  const { utils, shareUrl } = useProfile();
+  const { utils, shareUrl, profile, setProfileUpdate } = useProfile();
+  const nextDayTargetDate = getNextDayMidnight();
+
+  const onInvite = () => {
+    if (!profile?.canInviteFriend) {
+      return;
+    }
+    utils?.shareURL(shareUrl!);
+    setProfileUpdate({ canInviteFriend: false });
+    PostFriendInvited();
+  };
+
   return (
     <div className="pt-4 pb-8 px-4 md:px-16 md:pt-4 md:pb-12 text-gray-700 flex flex-col justify-between items-center animate-appear">
       <h1 className="text-p3 font-secondary bg-yellow-300 w-fit px-4 mb-2 rounded-lg m-auto">
@@ -48,9 +62,14 @@ export const InviteModalContent = () => {
           </p>
         </div>
       </div>
+
+      {!profile?.canInviteFriend && (
+        <Countdown targetDate={nextDayTargetDate} />
+      )}
       <PixelButton
         text="Give a gift"
-        onClick={() => utils?.shareURL(shareUrl!)}
+        isDisabled={!profile?.canInviteFriend}
+        onClick={onInvite}
       />
     </div>
   );

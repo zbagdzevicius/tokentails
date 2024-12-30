@@ -12,7 +12,6 @@ import { CatsModal } from "@/components/shared/CatsModal";
 import { GameMusicPlayer } from "@/components/shared/GameMusicPlayer";
 import { InviteModal } from "@/components/shared/InviteModal";
 import { QuestsModal } from "@/components/shared/QuestsModal";
-import Snowfall from "@/components/shared/Snowfall";
 import { SpeechBubble } from "@/components/shared/SpeechBubble";
 import { TelegramProfile } from "@/components/shared/TelegramProfile";
 import { TDeleteLive } from "@/constants/telegram-api";
@@ -116,9 +115,6 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
               setProfileUpdate={setProfileUpdate}
             />
           )}
-          <div className="fixed inset-0 z-[1]">
-            <Snowfall />
-          </div>
 
           <MobileButtons
             isHidden={!isStarted && gameType !== GameType.SHELTER}

@@ -205,16 +205,16 @@ export const greetingText = [
 ];
 
 export const aftrFeedText = [
-  "Purrfect! Thanks for the meal! Let's explore! Tap 'Get into Adventures' now!",
-  "Yum! That was tasty! Ready for some fun? Press 'Get into Adventures' to start",
-  "You're the best! Now, let's make memories! Click 'Get into Adventures' to go",
-  "Meowch appreciated! Let's dive in! Hit 'Get into Adventures' to begin our journey",
-  "Feeling fabulous! Thanks for feeding me! Ready? Tap 'Get into Adventures' to move!",
-  "So grateful! Time for fun? Click 'Get into Adventures' and start exploring with me!Purrfect! ",
-  "Thanks a bunch! Can't wait to see more! Press 'Get into Adventures' to explore now!Purrfect! ",
-  "Delicious! Now I'm ready! Let's find out more! Hit 'Get into Adventures' and go!Purrfect!",
-  "Purr, purr! I'm full and ready! Let's make memories! Press 'Get into Adventures'!Purrfect! ",
-  "You're awesome! Adventure is calling! Tap 'Get into Adventures' and join the fun!Purrfect! ",
+  "Purrfect! Thanks for the meal! Let's explore! Tap 'TO THE GAME ZONE →' now!",
+  "Yum! That was tasty! Ready for some fun? Press 'TO THE GAME ZONE →' to start",
+  "You're the best! Now, let's make memories! Click 'TO THE GAME ZONE →' to go",
+  "Meowch appreciated! Let's dive in! Hit 'TO THE GAME ZONE →' to begin our journey",
+  "Feeling fabulous! Thanks for feeding me! Ready? Tap 'TO THE GAME ZONE →' to move!",
+  "So grateful! Time for fun? Click 'TO THE GAME ZONE →' and start exploring with me!Purrfect! ",
+  "Thanks a bunch! Can't wait to see more! Press 'TO THE GAME ZONE →' to explore now!Purrfect! ",
+  "Delicious! Now I'm ready! Let's find out more! Hit 'TO THE GAME ZONE →' and go!Purrfect!",
+  "Purr, purr! I'm full and ready! Let's make memories! Press 'TO THE GAME ZONE →'!Purrfect! ",
+  "You're awesome! Adventure is calling! Tap 'TO THE GAME ZONE →' and join the fun!Purrfect! ",
 ];
 
 export function getRandomItemFromArray(arr: string[]) {
