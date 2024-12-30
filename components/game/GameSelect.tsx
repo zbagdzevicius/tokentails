@@ -44,7 +44,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
           >
             GAME ZONES
           </div>
-          <div className="flex min-w-0 gap-2">
+          <div className="flex min-w-0 gap-2 justify-center">
             <img
               onClick={() => setGameType(GameType.CATBASSADORS)}
               className="h-full hover:brightness-110 rem:min-w-[96px] md:rem:min-w-[196px] rounded-xl hover:animate-hover"
