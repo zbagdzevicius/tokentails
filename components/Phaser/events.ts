@@ -1,6 +1,7 @@
 import { ICat } from "@/models/cats";
 import { useEffect, useState } from "react";
 import { CatType } from "@/models/cats";
+import { GameType } from "@/models/game";
 
 export type IPhaserScene = Phaser.Scene & { cat?: any; catDto?: ICat };
 export interface IPhaserGame {
@@ -28,7 +29,8 @@ interface IGameStartEvent {
 }
 interface IGameStopEvent {
   score: number;
-  message?: string;
+  time?: number;
+  gameType: GameType
 }
 interface IGameUpdateEvent {
   time?: number;

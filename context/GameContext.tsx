@@ -20,6 +20,8 @@ import { GameModal, GameType } from "@/models/game";
 import * as React from "react";
 import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
+import { EndGameModal } from "@/components/shared/EndGameModal";
+
 
 type ContextState = {
   isStarted?: boolean;
@@ -39,24 +41,33 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     GameType.HOME
   );
   const [openedModal, setOpenedModal] = React.useState<GameModal | null>(null);
+  const [endGameVisible, setEndGameVisible] = React.useState(false);
+  const [endGameData, setEndGameData] = React.useState({
+    score: 0,
+    playTime: 0,
+    gameType: GameType.CATBASSADORS,
+  });
+
   const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
   const isGameLoaded = GameEvents.GAME_LOADED.use();
   const [timer, setTimer] = React.useState<number>(0);
   const gameStopCallback = React.useCallback(
     async (event?: ICatEventsDetails[GameEvent.GAME_STOP]) => {
-      if (!profile || !event) {
-        return;
-      }
+      if (!profile || !event) return;
+
       const earnedScore = (event.score || 0) * (profile?.cat.catpoints ? 2 : 1);
-      const message: string = event.message || "";
+
       setIsStarted(false);
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-        setTimer(0);
-      }
-      showToast({ message: `You earned ${earnedScore} coins ${message}` });
+      setTimer(0);
+
+      setEndGameData({
+        score: earnedScore,
+        playTime: event.time ?? 0,
+        gameType: event.gameType
+      });
+      setEndGameVisible(true);
+
       await TDeleteLive(earnedScore);
       setProfileUpdate({
         catbassadorsLives: (profile.catbassadorsLives || 1) - 1,
@@ -65,6 +76,8 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     },
     [profile]
   );
+
+
   GameEvents.GAME_STOP.use(gameStopCallback);
 
   GameEvents.GAME_START.use(() => {
@@ -102,6 +115,13 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   return (
     <GameContext.Provider value={value}>
+      <EndGameModal
+        show={endGameVisible}
+        onClose={() => setEndGameVisible(false)}
+        score={endGameData.score}
+        playTime={endGameData.playTime}
+        gameType={endGameData.gameType}
+      />
       {!isStarted && (
         <GameSelect gameType={gameType} setGameType={setGameType} />
       )}
