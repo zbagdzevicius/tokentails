@@ -406,6 +406,39 @@ export const profileFetch = async (): Promise<IProfile> => {
       accesstoken: sessionStorage.getItem("accesstoken"),
     } as any,
   }).then((response) => {
+    return response.json();
+  });
+};
+
+export const stakeFetch = async (
+  _id: string
+): Promise<{ success: boolean; message: string }> => {
+  return fetch(`${apiUrl}/cat/stake/${_id}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: sessionStorage.getItem("accesstoken"),
+    } as any,
+  }).then((response) => {
+    return response.json();
+  });
+};
+
+export const stakeRedeemFetch = async (
+  _id: string
+): Promise<{
+  success: boolean;
+  message: string;
+}> => {
+  return fetch(`${apiUrl}/cat/stake-reward/${_id}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: sessionStorage.getItem("accesstoken"),
+    } as any,
+  }).then((response) => {
     if (response.ok) {
       return response.json();
     }

@@ -79,6 +79,7 @@ const Purrquest = () => {
           <img
             className="w-28 aspect-square m-auto rounded-t-xl -mb-4 relative z-0"
             src="/game/select/purrquest.jpg"
+            draggable="false"
           />
           <div className="relative z-10">
             <Tag>HOW TO PLAY</Tag>

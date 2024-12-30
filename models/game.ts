@@ -13,3 +13,6 @@ export enum GameType {
   PURRQUEST = 'PURRQUEST',
   CATBASSADORS = 'CATBASSADORS',
 }
+
+export const endScenePeriod = 500;
+export const bossHitRewardsDebounceTime = 500;

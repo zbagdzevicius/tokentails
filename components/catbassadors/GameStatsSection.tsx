@@ -124,7 +124,7 @@ export const GameStatsSection = ({
             onClick={() => setModal(null)}
             className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
           ></div>
-          <div className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full relative bg-white absolute top-[4rem] md:top-[9rem] rounded-lg shadow h-fit">
+          <div className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full bg-yellow-300 absolute top-1/2 -translate-y-1/2 rounded-lg shadow h-fit animate-appear">
             <div className="pb-safe rem:min-h-[100px] p-8 text-gray-500 flex flex-col gap-8 justify-between items-center">
               <p className="text-p3 font-secondary whitespace-pre-line text-center">
                 {modal}

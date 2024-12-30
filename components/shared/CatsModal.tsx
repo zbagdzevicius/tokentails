@@ -1,4 +1,9 @@
-import { catsFetch, setActiveCat } from "@/constants/api";
+import {
+  catsFetch,
+  setActiveCat,
+  stakeFetch,
+  stakeRedeemFetch,
+} from "@/constants/api";
 import { MAX_CAT_STATUS } from "@/context/CatContext";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -6,12 +11,16 @@ import { useToast } from "@/context/ToastContext";
 import { ICat } from "@/models/cats";
 import { GameType } from "@/models/game";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { CatCardModal, getMultiplier } from "../CatCardModal";
 import { GameEvents } from "../Phaser/events";
-import { CloseButton } from "./CloseButton";
-import { PixelButton } from "./PixelButton";
 import { Web3Providers } from "../web3/Web3Providers";
+import { CloseButton } from "./CloseButton";
+import { Countdown } from "./Countdown";
+import { PixelButton } from "./PixelButton";
+import { Tag } from "./Tag";
+
+const weekInMs = 604800000;
 
 export const CatsModalContent = ({ close }: { close: () => void }) => {
   const [selectedCat, setSelectedCat] = useState<ICat | null>(null);
@@ -19,13 +28,17 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
   const { profile, setProfileUpdate } = useProfile();
   const toast = useToast();
 
-  const multiplier = useMemo(() => getMultiplier(selectedCat), [selectedCat]);
-
   const { setGameType } = useGame();
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
     queryFn: () => catsFetch(),
   });
+  const [mutatedCats, setMutatedCats] = useState<ICat[]>([]);
+  useEffect(() => {
+    if (cats?.length) {
+      setMutatedCats(cats);
+    }
+  }, [cats]);
 
   const onCatSelect = (cat: ICat) => {
     const isSameCat = profile?.cat._id === cat._id;
@@ -46,7 +59,30 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
   };
   const handleCloseModal = () => {
     setSelectedCat(null);
-
+  };
+  const setCatUpdate = (cat: ICat, update: Partial<ICat>) => {
+    setMutatedCats((prev) =>
+      prev.map((c) => {
+        if (c._id === cat._id) {
+          return { ...c, ...update };
+        }
+        return c;
+      })
+    );
+  };
+  const onStakeRewards = async (cat: ICat) => {
+    const result = await stakeRedeemFetch(cat._id!);
+    if (result.success) {
+      setCatUpdate(cat, { staked: null });
+    }
+    toast({ message: result.message });
+  };
+  const onStakeCat = async (cat: ICat) => {
+    const result = await stakeFetch(cat._id!);
+    if (result.success) {
+      setCatUpdate(cat, { staked: new Date(new Date().getTime() + weekInMs) });
+    }
+    toast({ message: result.message });
   };
 
   return (
@@ -61,23 +97,28 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
         Earn coins to Adopt more cats in the shelter
       </h2>
       <div className="flex flex-wrap justify-center">
-        {cats?.map((cat) => (
+        {mutatedCats?.map((cat) => (
           <div key={cat._id} className="w-1/2 flex justify-center mb-4">
-            <div
-              className="relative overflow-hidden w-36 rounded-xl py-2 border-2 border-black"
-              onClick={() => setSelectedCat(cat)}
-            >
+            <div className="relative overflow-hidden w-36 rounded-xl py-2 border-2 border-black">
               <div className="absolute left-2 top-1 opacity-75 text-black px-2 text-p5 font-secondary rounded-xl bg-yellow-300 z-20">
                 X{getMultiplier(cat)}
               </div>
               <div className="relative z-10 items-center flex flex-col">
-                <img className="w-16 z-10" src={cat.catImg} alt={cat.name} />
+                <img
+                  className="w-16 z-10"
+                  src={cat.catImg}
+                  alt={cat.name}
+                  onClick={() => setSelectedCat(cat)}
+                />
                 <img
                   className="w-8 mb-2 -mt-8 z-0 animate-spin"
                   src={`ability/${cat.type}.png`}
                   alt={`${cat.type} icon`}
                 />
-                <div className="text-p4 bg-red-600 font-secondary text-white w-full text-center opacity-75 mb-2 border-y-2 border-black">
+                <div
+                  className="text-p4 bg-red-600 font-secondary text-white w-full text-center opacity-75 mb-2 border-y-2 border-black"
+                  onClick={() => setSelectedCat(cat)}
+                >
                   {cat.name}
                 </div>
                 <PixelButton
@@ -85,11 +126,42 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                   text={profile?.cat._id === cat._id ? "Selected" : "Select"}
                   onClick={() => onCatSelect(cat)}
                 />
+                {!cat.staked && (
+                  <div className="-mb-2">
+                    <PixelButton
+                      isSmall
+                      text="STAKE TO CRAFT"
+                      onClick={() => onStakeCat(cat)}
+                    />
+                  </div>
+                )}
+                {cat.staked && (
+                  <>
+                    <Countdown
+                      isDaysDisplayed
+                      targetDate={new Date(cat.staked)}
+                    />
+                    {new Date(cat.staked).getTime() < new Date().getTime() ? (
+                      <div className="-my-2">
+                        <PixelButton
+                          isSmall
+                          text="CLAIM REWARDS"
+                          onClick={() => onStakeRewards(cat)}
+                        />
+                      </div>
+                    ) : (
+                      <span className="-mb-1">
+                        <Tag isSmall>Crafting</Tag>
+                      </span>
+                    )}
+                  </>
+                )}
               </div>
               <img
                 className="absolute inset-0 object-cover w-full h-full z-0"
                 src={`ability/${cat.type}_BG.webp`}
                 alt={`${cat.type} background`}
+                onClick={() => setSelectedCat(cat)}
               />
             </div>
           </div>

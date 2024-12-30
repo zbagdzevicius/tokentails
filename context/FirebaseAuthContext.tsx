@@ -1,6 +1,6 @@
 import { SignIn } from "@/components/shared/SignIn";
-import { Verify } from "@/components/shared/Verify";
 import { profileFetch } from "@/constants/api";
+import { TPostReferral } from "@/constants/telegram-api";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { Capacitor } from "@capacitor/core";
 import { useQuery } from "@tanstack/react-query";
@@ -23,7 +23,6 @@ import * as React from "react";
 import { useCallback } from "react";
 import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
-import { TPostReferral } from "@/constants/telegram-api";
 
 let reauthInterval: any;
 
@@ -61,8 +60,6 @@ type ContextState = {
   user: User;
   isLoginModalDisplayed: boolean;
   setIsLoginModalDisplayed: (isDisplayed: boolean) => void;
-  isVerifiedModalDisplayed: boolean;
-  setIsVerifiedModalDisplayed: (isDisplayed: boolean) => void;
 };
 
 const FirebaseAuthContext = React.createContext<ContextState | undefined>(
@@ -74,9 +71,8 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const toast = useToast();
   const [isLoginModalDisplayed, setIsLoginModalDisplayed] =
     React.useState(true);
-  const [isVerifiedModalDisplayed, setIsVerifiedModalDisplayed] =
-    React.useState(false);
-  const { setProfile, setUtils, setShareUrl, setLogout, setIsFB } = useProfile();
+  const { setProfile, setUtils, setShareUrl, setLogout, setIsFB } =
+    useProfile();
 
   const { data: profileResponse, refetch: refetchProfile } = useQuery({
     queryKey: ["profile-details", user],
@@ -88,7 +84,10 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       navigator.clipboard
         .writeText(text)
         .then(() => {
-          toast({ message: "Invite link is coppied to your clipboard, share it with your friend to earn commissions" });
+          toast({
+            message:
+              "Invite link is coppied to your clipboard, share it with your friend to earn commissions",
+          });
         })
         .catch((err) => {
           throw err;
@@ -163,14 +162,12 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
         }, 29 * 60 * 1000);
       }
     },
-    [setIsLoginModalDisplayed, setIsVerifiedModalDisplayed]
+    [setIsLoginModalDisplayed]
   );
   const value = {
     user,
     isLoginModalDisplayed,
     setIsLoginModalDisplayed,
-    isVerifiedModalDisplayed,
-    setIsVerifiedModalDisplayed,
     refetchProfile,
   };
 
@@ -181,9 +178,6 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   return (
     <FirebaseAuthContext.Provider value={value}>
       {isLoginModalDisplayed && <SignIn close={() => {}} />}
-      {isVerifiedModalDisplayed && (
-        <Verify close={() => setIsVerifiedModalDisplayed(false)} />
-      )}
       {children}
     </FirebaseAuthContext.Provider>
   );
@@ -250,7 +244,6 @@ function useFirebaseAuth() {
   );
   const showSignInPopup = useCallback(() => {
     if (!context?.user) {
-      context?.setIsVerifiedModalDisplayed(false);
       context?.setIsLoginModalDisplayed(true);
     }
   }, [context]);

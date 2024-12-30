@@ -6,6 +6,7 @@ import {
   GameEvent,
   GameEvents,
   ICatEventsDetails,
+  IGameStopEvent,
 } from "@/components/Phaser/events";
 import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
 import { CatsModal } from "@/components/shared/CatsModal";
@@ -21,7 +22,7 @@ import * as React from "react";
 import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
 import { EndGameModal } from "@/components/shared/EndGameModal";
-
+import { getMultiplier } from "@/components/CatCardModal";
 
 type ContextState = {
   isStarted?: boolean;
@@ -41,12 +42,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     GameType.HOME
   );
   const [openedModal, setOpenedModal] = React.useState<GameModal | null>(null);
-  const [endGameVisible, setEndGameVisible] = React.useState(false);
-  const [endGameData, setEndGameData] = React.useState({
-    score: 0,
-    playTime: 0,
-    gameType: GameType.CATBASSADORS,
-  });
+  const [gameStop, setGameStop] = React.useState<null | IGameStopEvent>(
+    null
+  );
 
   const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
@@ -56,17 +54,16 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     async (event?: ICatEventsDetails[GameEvent.GAME_STOP]) => {
       if (!profile || !event) return;
 
-      const earnedScore = (event.score || 0) * (profile?.cat.catpoints ? 2 : 1);
+      const multiplier = getMultiplier(profile?.cat);
+      const earnedScore = (event.score || 0) * multiplier;
 
       setIsStarted(false);
       setTimer(0);
 
-      setEndGameData({
+      setGameStop({
         score: earnedScore,
-        playTime: event.time ?? 0,
-        gameType: event.gameType
+        time: event.time ?? 0,
       });
-      setEndGameVisible(true);
 
       await TDeleteLive(earnedScore);
       setProfileUpdate({
@@ -76,7 +73,6 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     },
     [profile]
   );
-
 
   GameEvents.GAME_STOP.use(gameStopCallback);
 
@@ -115,13 +111,13 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   return (
     <GameContext.Provider value={value}>
-      <EndGameModal
-        show={endGameVisible}
-        onClose={() => setEndGameVisible(false)}
-        score={endGameData.score}
-        playTime={endGameData.playTime}
-        gameType={endGameData.gameType}
-      />
+      {gameStop && (
+        <EndGameModal
+          onClose={() => setGameStop(null)}
+          gameStop={gameStop}
+          gameType={gameType!}
+        />
+      )}
       {!isStarted && (
         <GameSelect gameType={gameType} setGameType={setGameType} />
       )}

@@ -27,10 +27,9 @@ interface ICatEatEvent {}
 interface IGameStartEvent {
   cat?: ICat;
 }
-interface IGameStopEvent {
+export interface IGameStopEvent {
   score: number;
-  time?: number;
-  gameType: GameType
+  time: number;
 }
 interface IGameUpdateEvent {
   time?: number;

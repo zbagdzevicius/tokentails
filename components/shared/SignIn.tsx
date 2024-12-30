@@ -59,7 +59,7 @@ export const SignInContent = () => {
   const { signIn, user } = useFirebaseAuth();
 
   return (
-    <div className="pt-8 pb-4 px-4 md:px-16 md:py-8 text-gray-500 flex flex-col justify-between">
+    <div className="pt-8 pb-4 px-4 md:px-16 md:py-8 text-gray-500 flex flex-col justify-between relative">
       <img className="w-16 m-auto mb-2" src="/logo/logo.webp" />
       {!user && (
         <div className="flex flex-col">
@@ -98,6 +98,10 @@ export const SignInContent = () => {
           <SignInForm signIn={signIn} />
         </div>
       )}
+      <img className="absolute bottom-0 right-2 h-8" src="/meme-cats/meme-23.gif" />
+      <img className="absolute bottom-0 left-2 h-8" src="/meme-cats/meme-1.gif" />
+      <img className="absolute top-2 left-2 h-12" src="/meme-cats/meme-46.gif" />
+      <img className="absolute top-0 right-2 h-16" src="/meme-cats/meme-40.gif" />
     </div>
   );
 };
@@ -110,7 +114,7 @@ export const SignIn = ({ close }: { close: () => void }) => {
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
       <div
-        className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full bg-white absolute top-[7rem] md:top-[9rem] rounded-lg shadow h-fit"
+        className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full bg-white absolute top-1/2 -translate-y-1/2  rounded-lg shadow h-fit"
         style={{
           backgroundImage: "url(/base/bg-6.png)",
           backgroundSize: "cover",

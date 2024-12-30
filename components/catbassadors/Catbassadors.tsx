@@ -85,7 +85,7 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
 
   useEffect(() => {
     if (cat && isGameLoaded) {
-      console.log(cat)
+      console.log(cat);
       GameEvents.CAT_SPAWN.push({ cat });
     }
   }, [cat, isGameLoaded]);
@@ -121,6 +121,7 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
           <img
             className="w-28 aspect-square m-auto rounded-t-xl -mb-4 relative z-0"
             src="/game/select/catbassadors.jpg"
+            draggable="false"
           />
           <div className="relative z-10">
             <Tag>HOW TO PLAY</Tag>

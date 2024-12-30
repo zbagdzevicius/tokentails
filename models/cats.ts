@@ -122,6 +122,7 @@ export interface ICat {
   resqueStory: string;
   status: ICatStatus;
   supply: number;
+  staked: Date | null;
   spriteImg: string;
   catImg: string;
   cardImg: string;

@@ -38,7 +38,7 @@ export const Socials = () => {
           draggable="false"
         />
       </a>
-      <a target="_blank" href="mailto:hello@tokentails.com">
+      <a target="_blank" href="mailto:info@tokentails.com">
         <img
           className="w-8"
           src="/icons/social/email.png"

@@ -14,7 +14,11 @@ import { Enemy } from "../../purrquest/objects/Enemy";
 import { BossEnemy } from "@/components/purrquest/objects/Boss";
 import { currentDayCoin, ZOOM } from "@/constants/utils";
 import { ObjectPool } from "../objects/ObjectPool";
-import { GameType } from "@/models/game";
+import {
+  bossHitRewardsDebounceTime,
+  endScenePeriod,
+  GameType,
+} from "@/models/game";
 
 const coinDurationMs = 15000;
 const BOSS_REWARD_POINTS = 1000;
@@ -23,7 +27,7 @@ const TRAMPOLINE_TILES = [51];
 const TIME_TO_REMOVE_PER_HIT = 5;
 const DEFAULT_ENEMY_SPAWN_THRESHOLD = 1500;
 const DEFAULT_BOSS_SPAWN = 50000;
-const MAX_ENEMIES =5;
+const MAX_ENEMIES = 5;
 
 export class CatbassadorsScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
@@ -108,10 +112,7 @@ export class CatbassadorsScene extends Scene {
   create(props: IPhaserGameSceneProps) {
     this.physics.world.setFPS(60);
 
-     this.coinPool = new ObjectPool<Coin>(
-      () => new Coin(this, 400, 400), 
-      30, 
-    );
+    this.coinPool = new ObjectPool<Coin>(() => new Coin(this, 400, 400), 30);
 
     this.tilemap = this.make.tilemap({ key: "tilemap" });
     const sugarTileset = this.tilemap.addTilesetImage(
@@ -213,9 +214,9 @@ export class CatbassadorsScene extends Scene {
       return;
     }
 
-  if (this.blessing) {
-    this.blessing.setVisible(false);
-  }
+    if (this.blessing) {
+      this.blessing.setVisible(false);
+    }
 
     const isCatChanged = this.catDto && this.catDto?.name !== cat?.name;
     if (isCatChanged) {
@@ -227,39 +228,44 @@ export class CatbassadorsScene extends Scene {
 
     this.catDto = cat;
 
-  this.load.once(
-    "complete",
-    () => {
-      if (cat.blessings && cat.blessings.length > 0) {
-        this.blessing = this.add.sprite(0, 0, `blessing-${cat.blessings[0].ability}`).setVisible(true);
+    this.load.once(
+      "complete",
+      () => {
+        if (cat.blessings && cat.blessings.length > 0) {
+          this.blessing = this.add
+            .sprite(0, 0, `blessing-${cat.blessings[0].ability}`)
+            .setVisible(true);
 
-        this.anims.create({
-          key: `blessing_animation_${cat.blessings[0].ability}`,
-          frames: this.anims.generateFrameNumbers(`blessing-${cat.blessings[0].ability}`, { start: 0, end: 59 }),
-          frameRate: 16,
-          repeat: -1,
-        });
+          this.anims.create({
+            key: `blessing_animation_${cat.blessings[0].ability}`,
+            frames: this.anims.generateFrameNumbers(
+              `blessing-${cat.blessings[0].ability}`,
+              { start: 0, end: 59 }
+            ),
+            frameRate: 16,
+            repeat: -1,
+          });
 
-        this.blessing.play(`blessing_animation_${cat.blessings[0].ability}`);
-      }
+          this.blessing.play(`blessing_animation_${cat.blessings[0].ability}`);
+        }
 
-      this.createCat(cat.name, this.blessing);
-    },
-    this
-  );
-
-  if (cat.blessings?.length) {
-    this.load.spritesheet(
-      `blessing-${cat.blessings[0].ability}`,
-      `flare-effect/spritesheets/${cat.blessings[0].ability}.png`,
-      {
-        frameWidth: 64,
-        frameHeight: 64,
-      }
+        this.createCat(cat.name, this.blessing);
+      },
+      this
     );
-  }
 
-  this.catDto = cat;
+    if (cat.blessings?.length) {
+      this.load.spritesheet(
+        `blessing-${cat.blessings[0].ability}`,
+        `flare-effect/spritesheets/${cat.blessings[0].ability}.png`,
+        {
+          frameWidth: 64,
+          frameHeight: 64,
+        }
+      );
+    }
+
+    this.catDto = cat;
     this.load.spritesheet(cat.name, cat.spriteImg, {
       frameWidth: 48,
       frameHeight: 48,
@@ -267,8 +273,11 @@ export class CatbassadorsScene extends Scene {
     this.load.start();
   }
 
-  private createCat(catName: string, blessing: Phaser.GameObjects.Sprite | null) {
-     this.cat = new Cat(this, 0, -400, catName, blessing!);
+  private createCat(
+    catName: string,
+    blessing: Phaser.GameObjects.Sprite | null
+  ) {
+    this.cat = new Cat(this, 0, -400, catName, blessing!);
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
 
     this.physics.add.collider(
@@ -278,29 +287,32 @@ export class CatbassadorsScene extends Scene {
     this.physics.add.collider(this.cat.sprite, this.jumperLayer);
     this.cameras.main.startFollow(this.cat.sprite);
 
-     if (blessing) {
-    this.time.addEvent({
-      delay: 16,
-      loop: true,
-      callback: () => {
-        if (this.cat?.sprite.active) {
-          blessing.setPosition(this.cat.sprite.x, this.cat.sprite.y - 50);
-        } else {
-          blessing.destroy();
-        }
-      },
-    });
-  }
-    
+    if (blessing) {
+      this.time.addEvent({
+        delay: 16,
+        loop: true,
+        callback: () => {
+          if (this.cat?.sprite.active) {
+            blessing.setPosition(this.cat.sprite.x, this.cat.sprite.y - 50);
+          } else {
+            blessing.destroy();
+          }
+        },
+      });
+    }
+
     setMobileControls(this.cat);
   }
 
- spawnCoin() {
+  spawnCoin() {
     if (!this.cat) return;
 
     // Acquire a coin from the pool
     const coin = this.coinPool.acquire();
-    coin.sprite.setPosition(this.getCoinSpawnPositionX(), this.getCoinSpawnPositionY());
+    coin.sprite.setPosition(
+      this.getCoinSpawnPositionX(),
+      this.getCoinSpawnPositionY()
+    );
     coin.sprite.setActive(true).setVisible(true);
 
     this.physics.add.collider(coin.sprite, this.groundLayer);
@@ -320,7 +332,7 @@ export class CatbassadorsScene extends Scene {
     });
   }
 
-   private releaseCoin(coin: Coin) {
+  private releaseCoin(coin: Coin) {
     // Remove the coin from active coins list
     coin.sprite.setActive(false).setVisible(false);
     this.coins = this.coins.filter((e) => e !== coin);
@@ -378,27 +390,27 @@ export class CatbassadorsScene extends Scene {
   }
   private checkEnemyMilestone() {
     if (this.score >= this.enemySpawnThreshold) {
-        this.spawnEnemy();
-        this.enemySpawnThreshold += DEFAULT_ENEMY_SPAWN_THRESHOLD;
+      this.spawnEnemy();
+      this.enemySpawnThreshold += DEFAULT_ENEMY_SPAWN_THRESHOLD;
 
-        this.enemies.forEach((enemy) => {
-            enemy.increaseSpeed();
-        });
+      this.enemies.forEach((enemy) => {
+        enemy.increaseSpeed();
+      });
 
-        this.enemies.forEach((enemy) => {
-            enemy.reduceUltimateJumpDelay();
-        });
+      this.enemies.forEach((enemy) => {
+        enemy.reduceUltimateJumpDelay();
+      });
     }
     if (this.score >= DEFAULT_BOSS_SPAWN && !this.IsBossSpawned) {
-        this.spawnBossEnemy();
-        this.IsBossSpawned = true;
+      this.spawnBossEnemy();
+      this.IsBossSpawned = true;
     }
-}
-
-private spawnEnemy() {
-  if (this.enemies.length >= MAX_ENEMIES) {
-    return; // Prevent spawning if max limit reached
   }
+
+  private spawnEnemy() {
+    if (this.enemies.length >= MAX_ENEMIES) {
+      return; // Prevent spawning if max limit reached
+    }
     const enemySprites = [
       "enemy-pinkie",
       "enemy-blue-fluffie",
@@ -426,7 +438,7 @@ private spawnEnemy() {
         this
       );
     }
-}
+  }
   private spawnBossEnemy() {
     this.bossEnemy = new BossEnemy(
       this,
@@ -493,7 +505,7 @@ private spawnEnemy() {
         });
         this.score += BOSS_REWARD_POINTS;
 
-        this.time.delayedCall(3000, () => {
+        this.time.delayedCall(bossHitRewardsDebounceTime, () => {
           this.canCollectReward = false;
         });
       }
@@ -535,52 +547,50 @@ private spawnEnemy() {
   }
 
   private endGame() {
-  if (this.cat) {
-    this.cat.isDeath = true;
-  }
-  clearInterval(this.coinSpawnInterval as NodeJS.Timeout);
-  this.coinSpawnInterval = null;
-
-  this.cat?.sprite.setVelocity(0, 0);
-
-  this.coins.forEach((coin) => {
-    coin.sprite.destroy();
-  });
-
-  this.coins = [];
-
-  if (this.enemies) {
-    this.enemies.forEach((enemy) => {
-      enemy.destroy();
-    });
-    this.enemies = [];
-  }
-  if (this.bossEnemy) {
-    this.bossEnemy.destroy();
-    this.IsBossSpawned = false;
-  }
-
-  const totalPlayTime = (performance.now() - this.gameStartTime) / 1000;
-  this.time.delayedCall(3000, () => {
-    GameEvents.GAME_STOP.push({
-      score: this.score,
-      time: Math.floor(totalPlayTime),
-      gameType: GameType.CATBASSADORS
-    });
-    this.score = 0;
-    this.enemySpawnThreshold = DEFAULT_ENEMY_SPAWN_THRESHOLD;
     if (this.cat) {
-      this.cat.isDeath = false;
+      this.cat.isDeath = true;
     }
-  });
-}
+    clearInterval(this.coinSpawnInterval as NodeJS.Timeout);
+    this.coinSpawnInterval = null;
 
+    this.cat?.sprite.setVelocity(0, 0);
+
+    this.coins.forEach((coin) => {
+      coin.sprite.destroy();
+    });
+
+    this.coins = [];
+
+    if (this.enemies) {
+      this.enemies.forEach((enemy) => {
+        enemy.destroy();
+      });
+      this.enemies = [];
+    }
+    if (this.bossEnemy) {
+      this.bossEnemy.destroy();
+      this.IsBossSpawned = false;
+    }
+
+    const totalPlayTime = (performance.now() - this.gameStartTime) / 1000;
+    this.time.delayedCall(endScenePeriod, () => {
+      GameEvents.GAME_STOP.push({
+        score: this.score,
+        time: Math.floor(totalPlayTime),
+      });
+      this.score = 0;
+      this.enemySpawnThreshold = DEFAULT_ENEMY_SPAWN_THRESHOLD;
+      if (this.cat) {
+        this.cat.isDeath = false;
+      }
+    });
+  }
 
   private startGame() {
     if (this.cat) {
-       this.cat.isDeath = false;
+      this.cat.isDeath = false;
     }
-     this.gameStartTime = performance.now();
+    this.gameStartTime = performance.now();
     this.timer = catbassadorsGameDuration;
     this.coinSpawnInterval = setInterval(() => {
       this.spawnCoin();
