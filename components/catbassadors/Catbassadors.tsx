@@ -85,7 +85,6 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
 
   useEffect(() => {
     if (cat && isGameLoaded) {
-      console.log(cat);
       GameEvents.CAT_SPAWN.push({ cat });
     }
   }, [cat, isGameLoaded]);
