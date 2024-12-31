@@ -5,12 +5,12 @@ import { GameStatSection } from "../catbassadors/GameStatsSection";
 import { commafy } from "@/constants/utils";
 import { CloseButton } from "./CloseButton";
 import { GameMusicToggle } from "./GameMusicToggler";
+import { PixelButton } from "./PixelButton";
 
 const features = ["NFTs & Airdrops prizes", "Weekly Rewards & Events"];
 
 export const TelegramProfileContent = () => {
-  const { profile, position } = useProfile();
-
+  const { profile, logout, isFB } = useProfile();
   const gameStats = useMemo(() => {
     if (!profile) {
       return [];
@@ -62,11 +62,19 @@ export const TelegramProfileContent = () => {
   );
 
   return (
-    <div className="pt-4 pb-8 px-4 md:px-16 md:pt-4 md:pb-12 text-gray-700 flex flex-col justify-between items-center">
-      <img
-        className="w-16 m-auto"
-        src={profile?.cat?.catImg || "/logo/logo.webp"}
-      />
+    <div className="pt-4 pb-8 px-4 md:px-16 md:pt-4 md:pb-12 text-gray-700 flex flex-col justify-between items-center animate-appear">
+      <div className="relative">
+        <img
+          className="w-16 m-auto"
+          src={profile?.cat?.catImg || "/logo/logo.webp"}
+        />
+        {profile!.cat.blessings?.length > 0 && (
+          <img
+            className="absolute inset-0 object-cover translate-y-1 w-16 h-16"
+            src={`/flare-effect/${profile!.cat.blessings[0].ability}.gif`}
+          ></img>
+        )}
+      </div>
       {profile?.cat && (
         <ul className="m-auto font-primary">
           <li className="text-p3 font-secondary bg-yellow-300 w-fit px-4 mb-2 rounded-lg m-auto">
@@ -82,7 +90,7 @@ export const TelegramProfileContent = () => {
           </li>
           <li className="flex justify-between mb-4">
             {gameStats.map((stat) => (
-              <GameStatSection {...stat} key={stat.title} onClick={() => { }} />
+              <GameStatSection {...stat} key={stat.title} onClick={() => {}} />
             ))}
           </li>
 
@@ -91,9 +99,9 @@ export const TelegramProfileContent = () => {
               onClick={() => copy(profile?.wallets.evm.walletAddress)}
               className="flex flex-col gap-1 mt-3"
             >
-              <div className="text-p6">
-                Your EVM wallet address{" "}
-                <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg">
+              <div className="text-p5 font-secondary">
+                Your EVM wallet address
+                <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg ml-2">
                   COPY
                 </span>
               </div>
@@ -108,9 +116,9 @@ export const TelegramProfileContent = () => {
               onClick={() => copy(profile?.wallets.stellar.walletAddress)}
               className="flex flex-col gap-1 mt-3"
             >
-              <div className="text-p6">
-                Your Stellar wallet address{" "}
-                <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg">
+              <div className="text-p5 font-secondary">
+                Your Stellar wallet address
+                <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg ml-2">
                   COPY
                 </span>
               </div>
@@ -122,18 +130,19 @@ export const TelegramProfileContent = () => {
         </ul>
       )}
       <GameMusicToggle />
+      {isFB && <PixelButton text="Logout" onClick={logout} />}
     </div>
   );
 };
 
 export const TelegramProfile = ({ close }: { close: () => void }) => {
   return (
-    <div className="fixed inset-0 pt-safe w-full z-[100] flex justify-center h-full">
+    <div className="fixed inset-0 pt-safe w-full z-[100] flex justify-center h-full mb-2">
       <div
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
-      <div className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full relative bg-gradient-to-b from-purple-300 to-blue-300 absolute top-[7rem] md:top-[9rem] rounded-lg shadow h-fit">
+      <div className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full bg-gradient-to-b from-purple-300 to-blue-300 absolute top-1/2 -translate-y-1/2  rounded-lg shadow h-fit">
         <TelegramProfileContent />
         <button onClick={close} className="absolute right-[0] top-0 group">
           <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>

@@ -40,13 +40,13 @@ const SignInForm = ({
       />
       <button
         onClick={onSubmit}
-        className="group w-full h-12 px-6 border-2 border-gray-300 hover:border-gray-400 rounded-full"
+        className="group w-fit m-auto h-12 px-6 rounded-full  bg-blue-300"
         type="submit"
       >
         <div className="relative flex justify-between items-center space-x-4">
           <i className="bx bxs-key text-h6 text-blue-600"></i>
-          <div className="flex items-center w-max font-semibold tracking-wide whitespace-nowrap group-hover:text-gray-700">
-            Sign In / Register
+          <div className="flex items-center w-max tracking-wide whitespace-nowrap group-hover:text-gray-700 font-pixel">
+            SIGN IN WITH CREDENTIALS
           </div>
           <div></div>
         </div>
@@ -56,23 +56,22 @@ const SignInForm = ({
 };
 
 export const SignInContent = () => {
-  const { signIn, logout, user } = useFirebaseAuth();
+  const { signIn, user } = useFirebaseAuth();
 
   return (
-    <div className="pt-8 pb-4 px-4 md:px-16 md:py-12 text-gray-500 flex flex-col justify-between">
-      <img className="w-16 m-auto mb-8" src="/logo/logo.webp" />
+    <div className="pt-8 pb-4 px-4 md:px-16 md:py-8 text-gray-500 flex flex-col justify-between relative">
+      <img className="w-16 m-auto mb-2" src="/logo/logo.webp" />
       {!user && (
-        <div>
-          <SignInForm signIn={signIn} />
-          <div className="my-4 text-center text-p3 font-bold">OR</div>
+        <div className="flex flex-col">
+          <div className="text-center font-pixel text-p2 pb-2">WELCOME TO TOKEN TAILS</div>
           <button
             onClick={() => signIn("google")}
-            className="group w-full h-12 px-6 border-2 border-gray-300 hover:border-gray-400 rounded-full mb-4"
+            className="group w-fit m-auto h-12 px-6 rounded-full mb-4 bg-yellow-300 hover:brightness-105"
           >
             <div className="relative flex justify-between items-center space-x-4">
               <i className="bx bxl-google text-h6 text-red-600"></i>
-              <span className="block w-max font-semibold tracking-wide whitespace-nowrap group-hover:text-gray-700">
-                Sign in with <span className="text-blue-600">G</span>
+              <span className="block w-max font-semibold tracking-wide whitespace-nowrap group-hover:text-gray-700 font-pixel">
+                SIGN IN WITH <span className="text-blue-600">G</span>
                 <span className="text-red-600">o</span>
                 <span className="text-yellow-600">o</span>
                 <span className="text-blue-600">g</span>
@@ -84,31 +83,25 @@ export const SignInContent = () => {
           </button>
           <button
             onClick={() => signIn("apple")}
-            className="group w-full h-12 px-6 border-2 bg-black border-gray-300 hover:border-gray-400 rounded-full mb-4"
+            className="group w-fit m-auto h-12 px-7 bg-black rounded-full mb-2"
           >
             <div className="relative flex justify-between items-center space-x-4">
               <i className="bx bxl-apple text-h6 text-white"></i>
-              <span className="block w-max font-semibold tracking-wide whitespace-nowrap group-hover:text-white text-primary-300">
-                Login with <span className="text-white">Apple</span>
+              <span className="block w-max font-semibold tracking-wide whitespace-nowrap group-hover:text-white text-primary-300 font-pixel">
+                SIGN IN WITH <span className="text-white">Apple</span>
               </span>
               <div></div>
             </div>
           </button>
+
+          <div className="my-2 text-center text-p3 font-bold font-pixel">OR</div>
+          <SignInForm signIn={signIn} />
         </div>
       )}
-      <ul className="m-auto">
-        {features.map((feature) => (
-          <li key={feature} className="flex items-center gap-x-2">
-            <img className="w-4" src="/logo/coin.webp" />
-            <div>{feature}</div>
-          </li>
-        ))}
-      </ul>
-      {user && (
-        <button className="text-black" onClick={logout}>
-          Logout
-        </button>
-      )}
+      <img className="absolute bottom-0 right-2 h-8" src="/meme-cats/meme-23.gif" />
+      <img className="absolute bottom-0 left-2 h-8" src="/meme-cats/meme-1.gif" />
+      <img className="absolute top-2 left-2 h-12" src="/meme-cats/meme-46.gif" />
+      <img className="absolute top-0 right-2 h-16" src="/meme-cats/meme-40.gif" />
     </div>
   );
 };
@@ -120,7 +113,14 @@ export const SignIn = ({ close }: { close: () => void }) => {
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
-      <div className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full relative bg-white absolute top-[7rem] md:top-[9rem] rounded-lg shadow h-fit">
+      <div
+        className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full bg-white absolute top-1/2 -translate-y-1/2  rounded-lg shadow h-fit"
+        style={{
+          backgroundImage: "url(/base/bg-6.png)",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
         <SignInContent />
         <button onClick={close} className="absolute right-[0] top-0 group">
           <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>

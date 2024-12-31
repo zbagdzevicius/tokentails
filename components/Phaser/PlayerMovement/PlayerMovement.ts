@@ -2,10 +2,14 @@ import { PlayerAnimation } from "@/components/catbassadors/objects/Catbassador";
 import Phaser from "phaser";
 import { IPlayer } from "../PlayerMovement/IPlayer";
 
+
 const wallSlidingThresholdMs = 200;
 
 export class PlayerMovement {
   private player: IPlayer;
+
+  private jumpStartTime: number = 0;
+  private isJumpHeld: boolean = false;
 
   constructor(player: IPlayer) {
     this.player = player;
@@ -42,21 +46,47 @@ export class PlayerMovement {
     const blockedAbove = sprite.body!.blocked.up;
     const onGround = sprite.body!.blocked.down;
 
-    const initialWalkSpeed = this.player.walkSpeed / 4;
+    const now = this.player.scene.time.now;
+    if (
+      Phaser.Input.Keyboard.JustDown(cursors.up) ||
+      Phaser.Input.Keyboard.JustDown(keys.up) ||
+      (isMobileJumping && !this.player.justJumped)
+    ) {
+      this.jumpStartTime = now;
+      this.isJumpHeld = true;
+    }
+
     if (!this.player.disableLeftMovement && leftKeyDown) {
-      if (this.player.sprite.body?.velocity.x! > -initialWalkSpeed) {
-        sprite.setVelocityX(-initialWalkSpeed);
-      }
-      sprite.setAccelerationX(-this.player.walkSpeed * 2);
+      const currentVelocity = sprite.body!.velocity.x;
+      const targetVelocity = -this.player.walkSpeed;
+      const newVelocity = Phaser.Math.Linear(currentVelocity, targetVelocity, 0.1);
+      sprite.setVelocityX(newVelocity);
+
+      sprite.setAccelerationX(-this.player.walkSpeed);
       sprite.setFlipX(true);
     } else if (!this.player.disableRightMovement && rightKeyDown) {
-      if (this.player.sprite.body?.velocity.x! < initialWalkSpeed) {
-        sprite.setVelocityX(initialWalkSpeed);
-      }
-      sprite.setAccelerationX(this.player.walkSpeed * 2);
+      const currentVelocity = sprite.body!.velocity.x;
+      const targetVelocity = this.player.walkSpeed;
+      const newVelocity = Phaser.Math.Linear(currentVelocity, targetVelocity, 0.1);
+      sprite.setVelocityX(newVelocity);
+
+      sprite.setAccelerationX(this.player.walkSpeed);
       sprite.setFlipX(false);
     } else {
-      sprite.setVelocityX(0);
+      const currentVelocity = sprite.body!.velocity.x;
+      const decelerationRate = this.player.walkSpeed / 10;
+
+      if (Math.abs(currentVelocity) <= decelerationRate) {
+        sprite.setVelocityX(0);
+        sprite.setAccelerationX(0);
+      } else {
+        if (currentVelocity > 0) {
+          sprite.setVelocityX(currentVelocity - decelerationRate);
+        } else {
+          sprite.setVelocityX(currentVelocity + decelerationRate);
+        }
+      }
+      sprite.setAccelerationX(0);
     }
 
     if (this.player.isHit) {
@@ -69,6 +99,14 @@ export class PlayerMovement {
         sprite.once("animationcomplete", () => {
           this.player.isHit = false;
         });
+        sprite.angle = 0;
+      }
+    } else if (this.player.isDeath) {
+      if (
+        sprite.anims.currentAnim?.key !==
+        this.player.animationKeys[PlayerAnimation.HIT]
+      ) {
+        sprite.anims.play(this.player.animationKeys[PlayerAnimation.HIT], true);
         sprite.angle = 0;
       }
     } else if (this.player.isSliding) {
@@ -94,6 +132,7 @@ export class PlayerMovement {
       this.player.sprite.angle = 0;
     }
 
+
     if (touchingLeftWall || touchingRightWall) {
       this.player.wallTouchTime += this.player.scene.game.loop.delta;
     } else {
@@ -115,17 +154,23 @@ export class PlayerMovement {
         blockedAbove,
         onGround,
       });
-    } else if (
+    }
+
+    else if (
       !onGround &&
       (touchingLeftWall || touchingRightWall) &&
       this.player.wallTouchTime > wallSlidingThresholdMs
     ) {
       this.player.isSliding = true;
       sprite.setVelocityY(this.player.wallSlideSpeed);
-    } else if (!onGround) {
+    }
+
+    else if (!onGround) {
       this.player.isJumping = true;
       this.player.isSliding = false;
-    } else {
+    }
+
+    else {
       this.player.isJumping = false;
       this.player.isSliding = false;
       this.player.wallJumpCount = 0;
@@ -136,6 +181,19 @@ export class PlayerMovement {
     if (cursors.up.isUp && keys.up.isUp && !isMobileJumping) {
       this.player.justJumped = false;
     }
+    if ((cursors.up.isDown || keys.up.isDown || isMobileJumping) && this.isJumpHeld) {
+      const timeJumping = now - this.jumpStartTime;
+      if (timeJumping < this.player.coyoteTime) {
+        if (sprite.body!.velocity.y > this.player.maxJumpSpeed) {
+          sprite.setVelocityY(sprite.body!.velocity.y - 10); 
+        }
+      } else {
+        this.isJumpHeld = false;
+      }
+    } else {
+      this.isJumpHeld = false;
+    }
+
     this.applyAdvancedGravity();
   }
 
@@ -168,80 +226,81 @@ export class PlayerMovement {
     this.player.isDashing = false;
   }
 
-  jump({
-    canWallJump,
-    touchingLeftWall,
-    touchingRightWall,
-    blockedAbove,
-    onGround,
-  }: {
-    canWallJump: boolean;
-    touchingLeftWall: boolean;
-    touchingRightWall: boolean;
-    blockedAbove: boolean;
-    onGround: boolean;
-  }) {
-    if (!blockedAbove && (onGround || canWallJump)) {
-      this.player.justJumped = true;
-      this.player.jumpTimer = this.player.scene.time.now;
-      if (canWallJump) {
-        this.player.wallJumpCount++;
-        const jumpDirection = touchingLeftWall ? 1 : -1;
-        this.player.sprite.setVelocityY(this.player.jumpSpeed);
+ jump({
+  canWallJump,
+  touchingLeftWall,
+  touchingRightWall,
+  blockedAbove,
+  onGround,
+}: {
+  canWallJump: boolean;
+  touchingLeftWall: boolean;
+  touchingRightWall: boolean;
+  blockedAbove: boolean;
+  onGround: boolean;
+}) {
+  if (!blockedAbove && (onGround || canWallJump)) {
+    this.player.justJumped = true;
+    this.player.jumpTimer = this.player.scene.time.now;
 
-        this.player.sprite.setVelocityX(
-          this.player.sprite.body?.velocity.x || 0
-        ); // wall jump push
+    const increasedJumpSpeed = this.player.jumpSpeed * 1.1; // Increase jump speed multiplier
 
-        if (touchingLeftWall) {
-          this.player.disableLeftMovement = true;
-          this.player.lastWallTouched = "left";
-          this.player.scene.time.addEvent({
-            delay: 300,
-            callback: () => {
-              this.player.disableLeftMovement = false;
-            },
-            callbackScope: this,
-          });
-        } else if (touchingRightWall) {
-          this.player.disableRightMovement = true;
-          this.player.lastWallTouched = "right";
-          this.player.scene.time.addEvent({
-            delay: 300,
-            callback: () => {
-              this.player.disableRightMovement = false;
-            },
-            callbackScope: this,
-          });
-        }
+    if (canWallJump) {
+      this.player.wallJumpCount++;
+      const jumpDirection = touchingLeftWall ? 1 : -1;
+      this.player.sprite.setVelocityY(increasedJumpSpeed);
 
+      this.player.sprite.setVelocityX(
+        this.player.jumpSpeed 
+      );
+
+      if (touchingLeftWall) {
+        this.player.disableLeftMovement = true;
+        this.player.lastWallTouched = "left";
         this.player.scene.time.addEvent({
-          delay: 10,
+          delay: 150,
           callback: () => {
-            const currentFps = this.player.scene.game.loop.actualFps;
-
-            const jumpValue = currentFps <= 30 ? 700 : 1500;
-
-            const currentVelocity = this.player.sprite.body!.velocity.x;
-            const targetVelocity = jumpValue * jumpDirection;
-            const newVelocity = Phaser.Math.Linear(
-              currentVelocity,
-              targetVelocity,
-              0.1
-            );
-
-            this.player.sprite.setVelocityX(newVelocity);
+            this.player.disableLeftMovement = false;
           },
           callbackScope: this,
-          repeat: 8,
         });
-      } else {
-        this.player.sprite.setVelocityY(this.player.jumpSpeed);
+      } else if (touchingRightWall) {
+        this.player.disableRightMovement = true;
+        this.player.lastWallTouched = "right";
+        this.player.scene.time.addEvent({
+          delay: 150,
+          callback: () => {
+            this.player.disableRightMovement = false;
+          },
+          callbackScope: this,
+        });
       }
-      this.player.isJumping = true;
-      this.player.isSliding = false;
+
+      this.player.scene.time.addEvent({
+        delay: 10,
+        callback: () => {
+          const jumpValue = 250;
+          const currentVelocity = this.player.sprite.body!.velocity.x;
+          const targetVelocity = jumpValue * jumpDirection;
+          const newVelocity = Phaser.Math.Linear(
+            currentVelocity,
+            targetVelocity,
+            0.1
+          );
+          this.player.sprite.setVelocityX(newVelocity);
+        },
+        callbackScope: this,
+        repeat: 8,
+      });
+    } else {
+      this.player.sprite.setVelocityY(increasedJumpSpeed);
     }
+
+    this.player.isJumping = true;
+    this.player.isSliding = false;
   }
+}
+
 
   private applyAdvancedGravity() {
     if (this.player.sprite.body!.velocity.y > 0) {

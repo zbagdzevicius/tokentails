@@ -1,6 +1,7 @@
 import { GameObjects, Physics, Scene } from "phaser";
 import { IPlayer } from "@/components/Phaser/PlayerMovement/IPlayer";
 import { PlayerMovement } from "@/components/Phaser/PlayerMovement/PlayerMovement";
+import { catWalkSpeed } from "@/models/game";
 
 /**
  * Physics objects that could be colliders
@@ -69,6 +70,7 @@ function generateCatAnimationConfiguration(
 export class Cat implements IPlayer {
   scene: Scene;
   sprite: Physics.Arcade.Sprite;
+  blessings: Phaser.GameObjects.Sprite;
   isJumping: boolean = false;
   isMobileJumping: boolean = false;
   isMobileLeft: boolean = false;
@@ -87,6 +89,7 @@ export class Cat implements IPlayer {
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   keys!: KeyMap;
   isHit!: boolean;
+  isDeath!: boolean;
   hasKey!: boolean;
   isInvulnerable: boolean;
   private catName: string;
@@ -95,15 +98,23 @@ export class Cat implements IPlayer {
   readonly dashTime: number = 200; // Duration of dash in ms
   readonly dashCooldown: number = 300; // Cooldown time before dashing again
   readonly dashSpeed: number = 640; // Speed during dash
-  readonly walkSpeed: number = 320;
-  readonly jumpSpeed: number = -448;
+  walkSpeed: number = catWalkSpeed;
+  readonly jumpSpeed: number = -418;
   readonly wallSlideSpeed: number = 96;
-
+  readonly maxJumpSpeed:number = -618;  
+  readonly coyoteTime:number = 200;   
   movement: PlayerMovement;
 
-  constructor(scene: Scene, x: number, y: number, catName: string) {
+  constructor(
+    scene: Scene,
+    x: number,
+    y: number,
+    catName: string,
+    blessings: Phaser.GameObjects.Sprite
+  ) {
     this.scene = scene;
     this.catName = catName;
+    this.blessings = blessings;
     this.animationKeys = generateCatAnimationConfiguration(catName);
     this.sprite = this.scene.physics.add
       .sprite(x, y, this.catName)
@@ -149,6 +160,12 @@ export class Cat implements IPlayer {
 
   update() {
     this.movement.updateOngoingMovements();
+    if (this.blessings) {
+      const velocityX = this.sprite.body!.velocity.x;
+      const targetX = this.sprite.x + velocityX * 0.01;
+      this.blessings.setVisible(true);
+      this.blessings.setPosition(targetX, this.sprite.y - 5);
+    }
   }
 
   addCollider(collider: ColliderType) {

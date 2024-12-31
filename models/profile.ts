@@ -23,6 +23,7 @@ export interface IProfile {
   catpointsToday: number;
   catpointsRecord: number;
   canRedeemLives: boolean;
+  canInviteFriend: boolean;
   catbassadorsLives: number;
   adventDayRedeemed: number;
   referrals: string[];

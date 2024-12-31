@@ -1,5 +1,7 @@
 import { ICat } from "@/models/cats";
 import { useEffect, useState } from "react";
+import { CatType } from "@/models/cats";
+import { GameType } from "@/models/game";
 
 export type IPhaserScene = Phaser.Scene & { cat?: any; catDto?: ICat };
 export interface IPhaserGame {
@@ -25,9 +27,9 @@ interface ICatEatEvent {}
 interface IGameStartEvent {
   cat?: ICat;
 }
-interface IGameStopEvent {
+export interface IGameStopEvent {
   score: number;
-  message?: string;
+  time: number;
 }
 interface IGameUpdateEvent {
   time?: number;
@@ -38,6 +40,13 @@ interface IGameLoadedEvent {
 }
 interface IGameScoreUpdateEvent {
   score: number;
+}
+
+interface INpcSpawnEvent {
+  npc: ICat;
+}
+interface INpcCollisionEvent {
+  npc: ICat;
 }
 
 export type IEventDetail<T> = {
@@ -56,6 +65,11 @@ export enum GameEvent {
   CAT_PLAY = "CAT_PLAY",
   CAT_SPAWN = "CAT_SPAWN",
   CAT_EAT = "CAT_EAT",
+  NPC_SPAWN_REGULAR = "NPC_SPAWN_REGULAR",
+  NPC_SPAWN_BLESSED = "NPC_SPAWN_BLESSED",
+  NPC_SPAWN_EXCLUSIVE = "NPC_SPAWN_EXCLUSIVE",
+  NPC_COLLISION = "NPC_COLLISION",
+  CAT_CARD_DISPLAY = "CAT_CARD_DISPLAY",
 }
 
 export type ICatEventsDetails = {
@@ -69,6 +83,11 @@ export type ICatEventsDetails = {
   [GameEvent.GAME_UPDATE]: IGameUpdateEvent;
   [GameEvent.GAME_LOADED]: IGameLoadedEvent;
   [GameEvent.GAME_COIN_CAUGHT]: IGameScoreUpdateEvent;
+  [GameEvent.NPC_SPAWN_REGULAR]: INpcSpawnEvent,
+  [GameEvent.NPC_SPAWN_BLESSED]: INpcSpawnEvent,
+  [GameEvent.NPC_SPAWN_EXCLUSIVE]: INpcSpawnEvent,
+  [GameEvent.NPC_COLLISION]: INpcCollisionEvent;
+  [GameEvent.CAT_CARD_DISPLAY]: { npc: ICat };
 };
 
 export type ICatEvent<K extends GameEvent> = IEventDetail<ICatEventsDetails[K]>;
@@ -154,4 +173,9 @@ export const GameEvents: GameEventsType = {
   [GameEvent.GAME_UPDATE]: generateGameEvent(GameEvent.GAME_UPDATE),
   [GameEvent.GAME_LOADED]: generateGameEvent(GameEvent.GAME_LOADED),
   [GameEvent.GAME_COIN_CAUGHT]: generateGameEvent(GameEvent.GAME_COIN_CAUGHT),
+  [GameEvent.NPC_SPAWN_REGULAR]: generateGameEvent(GameEvent.NPC_SPAWN_REGULAR),
+  [GameEvent.NPC_SPAWN_BLESSED]: generateGameEvent(GameEvent.NPC_SPAWN_BLESSED),
+  [GameEvent.NPC_SPAWN_EXCLUSIVE]: generateGameEvent(GameEvent.NPC_SPAWN_EXCLUSIVE),
+  [GameEvent.NPC_COLLISION]: generateGameEvent(GameEvent.NPC_COLLISION),
+  [GameEvent.CAT_CARD_DISPLAY]: generateGameEvent(GameEvent.CAT_CARD_DISPLAY),
 };

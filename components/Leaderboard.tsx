@@ -30,7 +30,7 @@ export const LeaderboardContent = () => {
   const { position } = useProfile();
   return (
     <>
-      <div className="flex flex-col bg-gradient-to-b from-purple-300 to-yellow-300">
+      <div className="flex flex-col bg-gradient-to-b from-purple-300 to-yellow-300 animate-appear">
         <div className="py-2 flex gap-6 justify-center">
           <PixelButton
             active={type === GameModal.LEADERBOARD}

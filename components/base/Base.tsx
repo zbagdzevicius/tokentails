@@ -60,7 +60,7 @@ const BaseGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
     }
   });
 
-  return <div id="game-container"></div>;
+  return <div id="game-container" className="animate-opacity"></div>;
 });
 
 function Base() {
@@ -95,7 +95,7 @@ function Base() {
 
   return (
     <div id="app" className="z-20">
-      <div className="fixed right-1/2 translate-x-[50%] z-50">
+      <div className="fixed right-1/2 translate-x-[50%] z-50 bottom-24">
         {cat && (
           <div className="flex flex-col justify-center relative gap-2 items-end pr-2 md:pr-4 pt-1 md:pt-4">
             <StatusBar

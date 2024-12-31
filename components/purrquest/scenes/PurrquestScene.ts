@@ -21,6 +21,7 @@ import { Spike } from "../objects/Spikes";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { Enemy } from "@/components/purrquest/objects/Enemy";
 import { BossEnemy } from "../objects/Boss";
+import { catWalkSpeed, endScenePeriod, GameType } from "@/models/game";
 const COLLISION_TILES = [
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 29, 30, 31, 32, 33, 34, 35, 36, 37, 62, 63, 64,
   65, 72, 88, 90, 91, 92, 93, 94, 120, 121, 122, 123, 149, 150, 151, 152,
@@ -58,6 +59,8 @@ export class PurrquestScene extends Phaser.Scene {
   private enemies: Enemy[] = [];
   bossEnemy?: BossEnemy;
   trampoline?: Trampoline;
+  blessing!: Phaser.GameObjects.Sprite;
+  private gameStartTime: number = 0;
 
   constructor() {
     super("PurrquestScene");
@@ -105,7 +108,7 @@ export class PurrquestScene extends Phaser.Scene {
   }
 
   create(props: IPhaserGameSceneProps) {
-    this.physics.world.setFPS(90);
+    this.physics.world.setFPS(60);
     this.startGame();
 
     const catSpawnCallback = (data: ICatEvent<GameEvent.GAME_START>) =>
@@ -118,6 +121,7 @@ export class PurrquestScene extends Phaser.Scene {
   }
 
   startGame() {
+    this.gameStartTime = performance.now();
     this.initializeLevel();
     this.initializePathfinding();
 
@@ -163,19 +167,66 @@ export class PurrquestScene extends Phaser.Scene {
     this.pathfinding.initializePathfinding();
     this.pathfinding.validatePathExistence(289, 290);
   }
+
   private spawnPlayer(cat: ICat) {
     if (this.player || !cat) {
       return;
     }
-    this.load.on("complete", () => this.createPlayer(cat), this);
+
+    if (this.blessing) {
+      this.blessing.setVisible(false);
+    }
+
+    this.load.once(
+      "complete",
+      () => {
+        if (cat.blessings && cat.blessings.length > 0) {
+          this.blessing = this.add
+            .sprite(0, 0, `blessing-${cat.blessings[0].ability}`)
+            .setVisible(true)
+            .setDepth(2);
+
+          this.anims.create({
+            key: `blessing_animation_${cat.blessings[0].ability}`,
+            frames: this.anims.generateFrameNumbers(
+              `blessing-${cat.blessings[0].ability}`,
+              {
+                start: 0,
+                end: 59,
+              }
+            ),
+            frameRate: 16,
+            repeat: -1,
+          });
+
+          this.blessing.play(`blessing_animation_${cat.blessings[0].ability}`);
+        }
+
+        this.createPlayer(cat, this.blessing);
+      },
+      this
+    );
+
+    if (cat.blessings?.length) {
+      this.load.spritesheet(
+        `blessing-${cat.blessings[0].ability}`,
+        `flare-effect/spritesheets/${cat.blessings[0].ability}.png`,
+        {
+          frameWidth: 64,
+          frameHeight: 64,
+        }
+      );
+    }
+
     this.load.spritesheet(cat.name, cat.spriteImg, {
       frameWidth: 48,
       frameHeight: 48,
     });
+
     this.load.start();
   }
 
-  private createPlayer(cat: ICat) {
+  private createPlayer(cat: ICat, blessing: Phaser.GameObjects.Sprite | null) {
     const startCoords = this.generateLevel.getStartCoordinates();
     const startX =
       startCoords.x *
@@ -188,25 +239,34 @@ export class PurrquestScene extends Phaser.Scene {
         this.generateLevel.getRoomRows() +
       32 * 7;
 
-    this.player = new Cat(this, startX, startY, cat.name);
+    this.player = new Cat(this, startX, startY, cat.name, blessing!);
     this.player.hasKey = false;
     this.cameras.main.startFollow(this.player.sprite);
     this.player.sprite.setDepth(2);
     this.cameras.main.zoom = ZOOM;
+
     setMobileControls(this.player);
     this.renderEverythingAfterCat();
+
+    // Dynamically update the blessing position to follow the player
+    if (blessing) {
+      this.time.addEvent({
+        delay: 16,
+        loop: true,
+        callback: () => {
+          if (this.player?.sprite.active) {
+            blessing.setPosition(
+              this.player.sprite.x,
+              this.player.sprite.y - 50
+            );
+          } else {
+            blessing.destroy();
+          }
+        },
+      });
+    }
   }
 
-  private addColliders() {
-    this.physics.add.collider(
-      this.player!.sprite as Phaser.Physics.Arcade.Sprite,
-      this.groundLayer!
-    );
-    this.physics.add.collider(
-      this.player!.sprite as Phaser.Physics.Arcade.Sprite,
-      this.jumpLayer!
-    );
-  }
   private getRandomWalkableTile(): Phaser.Tilemaps.Tile | null {
     if (!this.groundLayer) {
       console.error("Ground layer is not defined.");
@@ -282,28 +342,59 @@ export class PurrquestScene extends Phaser.Scene {
     });
   }
 
-private pushPlayerBack(
-  player: Phaser.Physics.Arcade.Sprite,
-  enemy: Enemy
-) {
-  if (!this.player!.isInvulnerable) {
-    const pushBackForce = 500;
-    const directionX = player.x > enemy.x ? 1 : -1;
-    const directionY = player.y > enemy.y ? 1 : -1;
+  private pushPlayerBack(
+    player: Phaser.Physics.Arcade.Sprite,
+    enemy: Enemy | BossEnemy
+  ) {
+    if (!this.player!.isInvulnerable) {
+      let pushBackForce = enemy instanceof BossEnemy ? 800 : 500;
 
-    this.player!.isHit = true;
-    this.player!.isInvulnerable = true;
-    player.setVelocityX(pushBackForce * directionX);
-    player.setVelocityY(pushBackForce * directionY);
+      const directions = ["left", "right", "up"];
+      const chosenDirection = Phaser.Utils.Array.GetRandom(directions);
 
-    this.time.delayedCall(1000, () => {
-      this.player!.isInvulnerable = false;
-      this.player!.isHit = false;
+      let velocityX = 0;
+      let velocityY = 0;
 
-    });
+      switch (chosenDirection) {
+        case "left":
+          velocityX = -pushBackForce;
+          break;
+        case "right":
+          velocityX = pushBackForce;
+          break;
+        case "up":
+          velocityY = -pushBackForce;
+          break;
+      }
+
+      this.player!.walkSpeed = 100;
+
+      this.player!.isHit = true;
+      this.player!.isInvulnerable = true;
+
+      player.setVelocityX(velocityX);
+      player.setVelocityY(velocityY);
+
+      this.time.delayedCall(
+        2000,
+        () => {
+          this.player!.walkSpeed = catWalkSpeed;
+        },
+        undefined,
+        this
+      );
+
+      this.time.delayedCall(
+        1000,
+        () => {
+          this.player!.isInvulnerable = false;
+          this.player!.isHit = false;
+        },
+        undefined,
+        this
+      );
+    }
   }
-}
-
 
   private spawnBossEnemy() {
     const tile = this.getRandomWalkableTile();
@@ -339,14 +430,14 @@ private pushPlayerBack(
     this.physics.add.overlap(
       this.player?.sprite as Phaser.Physics.Arcade.Sprite,
       this.bossEnemy,
-      this
-        .handlePlayerEnemyCollisions as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+      this.pushPlayerBack as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
       undefined,
       this
     );
   }
+
   handlePlayerEnemyCollisions() {
-    this.playerDeathMessage();
+    this.endGame();
   }
 
   private renderTilemap() {
@@ -526,9 +617,26 @@ private pushPlayerBack(
     });
   }
 
-  private playerDeathMessage() {
-    GameEvents.GAME_STOP.push({ score: 0, message: "Try again" });
-    this.onDestroy();
+  private endGame() {
+    const totalTimePlayed = (performance.now() - this.gameStartTime) / 1000;
+    if (this.player) {
+      this.player.isDeath = true;
+      this.player!.walkSpeed = 50;
+      this.player.sprite.setTint(0xff0000);
+    }
+    this.time.delayedCall(endScenePeriod, () => {
+      if (this.player) {
+        this.player!.walkSpeed = catWalkSpeed;
+        this.player.isDeath = false;
+        this.player.sprite.clearTint();
+      }
+      GameEvents.GAME_STOP.push({
+        score: 0,
+        time: Math.floor(totalTimePlayed),
+      });
+
+      this.onDestroy();
+    });
   }
 
   private onDestroy() {
@@ -558,7 +666,7 @@ private pushPlayerBack(
         this.player?.sprite as Phaser.Physics.Arcade.Sprite,
         spike,
         () => {
-          this.playerDeathMessage();
+          this.endGame();
         },
         undefined,
         this
@@ -610,13 +718,20 @@ private pushPlayerBack(
     if (!this.player?.sprite) {
       return;
     }
+
     if (this.physics.overlap(this.player.sprite, this.chest)) {
+      const totalTimePlayed = (performance.now() - this.gameStartTime) / 1000;
+
       if (this.player.hasKey) {
         this.chest.open();
-        this.player.hasKey = false;
-        this.onDestroy();
-
-        GameEvents.GAME_STOP.push({ score: 5000, message: " Congratz ! " });
+        this.time.delayedCall(endScenePeriod, () => {
+          this.player!.hasKey = false;
+          this.onDestroy();
+          GameEvents.GAME_STOP.push({
+            score: 5000,
+            time: Math.floor(totalTimePlayed),
+          });
+        });
       } else {
         const chestX = this.chest.x;
         const chestY = this.chest.y - 50;
@@ -628,6 +743,7 @@ private pushPlayerBack(
       }
     }
   }
+
   private displayErrorMessage(message: string, x?: number, y?: number) {
     const defaultX = this.cameras.main.width / 2;
     const defaultY = this.cameras.main.height / 4;
@@ -648,7 +764,7 @@ private pushPlayerBack(
       this.errorMessageText.setVisible(true);
     }
 
-    this.time.delayedCall(3000, () => {
+    this.time.delayedCall(endScenePeriod, () => {
       if (this.errorMessageText) {
         this.errorMessageText.setVisible(false);
       }

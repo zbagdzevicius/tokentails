@@ -60,9 +60,46 @@ export const TRedeemLives = async (): Promise<object> => {
   });
 };
 
+export const PostFriendInvited = async (): Promise<object> => {
+  await waitForLocalStorageKey();
+  return fetch(`${apiUrl}/user/friends/invited`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return {};
+  });
+};
+
 export const TPostReferral = async (telegramId: string): Promise<object> => {
   await waitForLocalStorageKey();
   return fetch(`${apiUrl}/user/catbassadors/referral/${telegramId}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return {};
+  });
+};
+export const TPostReferralWeb = async (profileId: string): Promise<object> => {
+  await waitForLocalStorageKey();
+  return fetch(`${apiUrl}/user/catbassadors/referralw/${profileId}`, {
     method: "GET",
     headers: {
       Accept: "application/json",

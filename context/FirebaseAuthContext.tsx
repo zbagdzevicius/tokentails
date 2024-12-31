@@ -1,6 +1,6 @@
 import { SignIn } from "@/components/shared/SignIn";
-import { Verify } from "@/components/shared/Verify";
 import { profileFetch } from "@/constants/api";
+import { TPostReferral } from "@/constants/telegram-api";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { Capacitor } from "@capacitor/core";
 import { useQuery } from "@tanstack/react-query";
@@ -60,8 +60,6 @@ type ContextState = {
   user: User;
   isLoginModalDisplayed: boolean;
   setIsLoginModalDisplayed: (isDisplayed: boolean) => void;
-  isVerifiedModalDisplayed: boolean;
-  setIsVerifiedModalDisplayed: (isDisplayed: boolean) => void;
 };
 
 const FirebaseAuthContext = React.createContext<ContextState | undefined>(
@@ -73,9 +71,8 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const toast = useToast();
   const [isLoginModalDisplayed, setIsLoginModalDisplayed] =
     React.useState(true);
-  const [isVerifiedModalDisplayed, setIsVerifiedModalDisplayed] =
-    React.useState(false);
-  const { setProfile, setUtils } = useProfile();
+  const { setProfile, setUtils, setShareUrl, setLogout, setIsFB } =
+    useProfile();
 
   const { data: profileResponse, refetch: refetchProfile } = useQuery({
     queryKey: ["profile-details", user],
@@ -87,7 +84,10 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       navigator.clipboard
         .writeText(text)
         .then(() => {
-          toast({ message: "Invite link is coppied to your clipboard" });
+          toast({
+            message:
+              "Invite link is coppied to your clipboard, share it with your friend to earn commissions",
+          });
         })
         .catch((err) => {
           throw err;
@@ -105,6 +105,8 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   React.useEffect(() => {
     if (profileResponse) {
       setProfile(profileResponse);
+      TPostReferral(profileResponse?._id);
+      setShareUrl(`https://tokentails.com/game?ref=${profileResponse._id}`);
     }
   }, [profileResponse]);
   React.useEffect(() => {
@@ -112,8 +114,25 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       openLink: (url: string, options: any) =>
         window.open(url, "_blank")?.focus?.(),
       openTelegramLink: (url: string) => window.open(url, "_blank")?.focus?.(),
-      shareURL: (url: string, text?: string) => copy(url),
+      shareURL: (url: string, text?: string) => {
+        copy(url);
+        toast({
+          message:
+            "Your gift url is coppied to your clipboard, share it with your friend",
+        });
+      },
     });
+    setLogout(() => () => {
+      if (Capacitor.isNativePlatform()) {
+        FirebaseAuthentication.signOut();
+      } else {
+        signOut(auth);
+      }
+      setUser(null);
+      setProfile(null);
+      setIsLoginModalDisplayed(true);
+    });
+    setIsFB?.(true);
   }, []);
   const onUserChange = useCallback(
     async (u: User) => {
@@ -143,14 +162,12 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
         }, 29 * 60 * 1000);
       }
     },
-    [setIsLoginModalDisplayed, setIsVerifiedModalDisplayed]
+    [setIsLoginModalDisplayed]
   );
   const value = {
     user,
     isLoginModalDisplayed,
     setIsLoginModalDisplayed,
-    isVerifiedModalDisplayed,
-    setIsVerifiedModalDisplayed,
     refetchProfile,
   };
 
@@ -160,10 +177,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   return (
     <FirebaseAuthContext.Provider value={value}>
-      {isLoginModalDisplayed && <SignIn close={() => { }} />}
-      {isVerifiedModalDisplayed && (
-        <Verify close={() => setIsVerifiedModalDisplayed(false)} />
-      )}
+      {isLoginModalDisplayed && <SignIn close={() => {}} />}
       {children}
     </FirebaseAuthContext.Provider>
   );
@@ -228,15 +242,8 @@ function useFirebaseAuth() {
     },
     []
   );
-  const logout = useCallback(() => {
-    if (Capacitor.isNativePlatform()) {
-      FirebaseAuthentication.signOut();
-    }
-    signOut(auth);
-  }, []);
   const showSignInPopup = useCallback(() => {
     if (!context?.user) {
-      context?.setIsVerifiedModalDisplayed(false);
       context?.setIsLoginModalDisplayed(true);
     }
   }, [context]);
@@ -248,7 +255,6 @@ function useFirebaseAuth() {
   return {
     user: context.user,
     signIn,
-    logout,
     showSignInPopup,
   };
 }

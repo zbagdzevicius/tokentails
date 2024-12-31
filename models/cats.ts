@@ -2,8 +2,6 @@ import { IImage } from "./image";
 import { IProfile } from "./profile";
 import { IStatusValue, StatusType } from "./status";
 
- type IMultiplier = 'x2' | 'x3' | 'x5'
-
 export enum BlessingType {
   CAT = "CAT",
   SUPPLIES = "SUPPLIES",
@@ -12,9 +10,9 @@ export enum BlessingType {
 }
 
 export enum CatType {
-    REGULAR = 'REGULAR',
-    EXCLUSIVE = 'EXCLUSIVE',
-    BLESSED = 'BLESSED',
+  REGULAR = "REGULAR",
+  EXCLUSIVE = "EXCLUSIVE",
+  BLESSED = "BLESSED",
 }
 
 export type IBlessing = {
@@ -124,6 +122,7 @@ export interface ICat {
   resqueStory: string;
   status: ICatStatus;
   supply: number;
+  staked: Date | null;
   spriteImg: string;
   catImg: string;
   cardImg: string;

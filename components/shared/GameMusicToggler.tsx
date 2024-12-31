@@ -20,8 +20,8 @@ export const GameMusicToggle = () => {
     }, [isMusicOn]);
 
     return (
-        <div className="flex flex-row items-center justify-center pt-4 w-full">
-            <div className="flex flex-row relative items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-r from-green-300 to-yellow-300 px-5">
+        <div className="flex flex-row items-center justify-center pt-2 pb-4 w-full">
+            <div className="flex flex-row relative items-center font-secondary rounded-xl py-2 bg-gradient-to-r from-green-300 to-yellow-300 px-5">
                 <p className="text-p4 pr-5">Music</p>
                 <TogglePixelButton
                     defaultActive={isMusicOn}

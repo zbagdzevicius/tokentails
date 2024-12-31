@@ -29,6 +29,9 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private direction: number;
   private isJumping: boolean = false;
   private collisionCount: number = 0;
+  private ultimateJumpDelay: { min: number; max: number };
+  private speedRange: { min: number; max: number };
+  private canUltimateJump: boolean = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, texture: string) {
     super(scene, x, y, texture);
@@ -36,6 +39,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.speed = 200;
     this.direction = 1;
     this.setDepth(2);
+    this.ultimateJumpDelay = { min: 15000, max: 30000 };
+    this.speedRange = { min: 150, max: 250 };
 
     scene.add.existing(this);
     scene.physics.add.existing(this);
@@ -43,16 +48,19 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
     this.createAnimations();
     this.play(EnemyAnimation.IDLE, true);
-
     scene.time.addEvent({
       delay: Phaser.Math.Between(1500, 3000),
       callback: this.tryIdleJump,
       callbackScope: this,
       loop: true,
     });
+
     scene.time.addEvent({
-      delay: Phaser.Math.Between(15000, 30000),
-      callback: this.ultimateJump,
+      delay: Phaser.Math.Between(this.ultimateJumpDelay.min, this.ultimateJumpDelay.max),
+      callback: () => {
+        this.resetUltimateJump();
+        this.ultimateJump();
+      },
       callbackScope: this,
       loop: true,
     });
@@ -75,7 +83,6 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   public update(time: number, delta: number): void {
-    // Exit early if body no longer exists (e.g., enemy was destroyed)
     if (!this.body) return;
 
     this.setVelocityX(this.speed * this.direction);
@@ -116,13 +123,12 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private maybeChangeMovement() {
     if (this.collisionCount >= 5) {
       this.direction = Math.random() > 0.5 ? 1 : -1;
-      this.speed = Phaser.Math.Between(100, 250);
+      this.speed = Phaser.Math.Between(this.speedRange.min, this.speedRange.max);
       this.collisionCount = 0;
     }
   }
 
   private tryIdleJump() {
-    // Exit early if body is not defined to prevent errors after enemy is removed
     if (!this.body || this.isJumping || !this.body.blocked.down) {
       return;
     }
@@ -133,11 +139,38 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       this.play(EnemyAnimation.JUMP, true);
     }
   }
+
   private ultimateJump() {
-    if (!this.body) return;
+    if (!this.body || !this.body.blocked.down || !this.canUltimateJump) return;
 
     this.setVelocityY(-1000);
     this.isJumping = true;
     this.play(EnemyAnimation.JUMP, true);
+    this.canUltimateJump = false;
+  }
+
+  private resetUltimateJump() {
+    this.canUltimateJump = true;
+  }
+
+  public increaseSpeed() {
+    if (this.speedRange.max < 430) {
+      this.speedRange.min += 10;
+      this.speedRange.max += 10;
+    }
+  }
+
+  public reduceUltimateJumpDelay() {
+    this.ultimateJumpDelay.min = Math.max(this.ultimateJumpDelay.min - 500, 3000);
+    this.ultimateJumpDelay.max = Math.max(this.ultimateJumpDelay.max - 500, 8000);
+    this.scene.time.addEvent({
+      delay: Phaser.Math.Between(this.ultimateJumpDelay.min, this.ultimateJumpDelay.max),
+      callback: () => {
+        this.resetUltimateJump();
+        this.ultimateJump();
+      },
+      callbackScope: this,
+      loop: true,
+    });
   }
 }

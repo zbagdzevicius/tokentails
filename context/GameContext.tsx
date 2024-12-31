@@ -1,33 +1,35 @@
 import { GameOptionsModal } from "@/components/game/GameOptionsModal";
 import { GameSelect } from "@/components/game/GameSelect";
 import { Leaderboard } from "@/components/Leaderboard";
+import { DisplayCoins } from "@/components/Phaser/DisplayCoins";
 import {
   GameEvent,
   GameEvents,
   ICatEventsDetails,
+  IGameStopEvent,
 } from "@/components/Phaser/events";
 import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
 import { CatsModal } from "@/components/shared/CatsModal";
+import { GameMusicPlayer } from "@/components/shared/GameMusicPlayer";
+import { InviteModal } from "@/components/shared/InviteModal";
 import { QuestsModal } from "@/components/shared/QuestsModal";
+import { SpeechBubble } from "@/components/shared/SpeechBubble";
 import { TelegramProfile } from "@/components/shared/TelegramProfile";
-import { DisplayCoins } from "@/components/Phaser/DisplayCoins";
 import { TDeleteLive } from "@/constants/telegram-api";
 import { catbassadorsGameDuration } from "@/models/cats";
 import { GameModal, GameType } from "@/models/game";
 import * as React from "react";
 import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
-import { Calendar } from "@/components/shared/Calendar";
-import { GameMusicPlayer } from "@/components/shared/GameMusicPlayer";
-import { SpeechBubble } from "@/components/shared/SpeechBubble";
-import SnowingCanvas from "@/components/shared/Snowfall";
-import { InviteModal } from "@/components/shared/InviteModal";
+import { EndGameModal } from "@/components/shared/EndGameModal";
+import { getMultiplier } from "@/components/CatCardModal";
 
 type ContextState = {
   isStarted?: boolean;
   gameType: GameType | null;
   setGameType: (gameType: GameType | null) => void;
   timer: number;
+  playGame: () => void;
 };
 
 const GameContext = React.createContext<ContextState | undefined>(undefined);
@@ -40,24 +42,29 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     GameType.HOME
   );
   const [openedModal, setOpenedModal] = React.useState<GameModal | null>(null);
-  const { profile, setProfileUpdate, utils, shareUrl } = useProfile();
+  const [gameStop, setGameStop] = React.useState<null | IGameStopEvent>(
+    null
+  );
+
+  const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
   const isGameLoaded = GameEvents.GAME_LOADED.use();
   const [timer, setTimer] = React.useState<number>(0);
   const gameStopCallback = React.useCallback(
     async (event?: ICatEventsDetails[GameEvent.GAME_STOP]) => {
-      if (!profile || !event) {
-        return;
-      }
-      const earnedScore = (event.score || 0) * (profile?.cat.catpoints ? 2 : 1);
-      const message: string = event.message || "";
+      if (!profile || !event) return;
+
+      const multiplier = getMultiplier(profile?.cat);
+      const earnedScore = (event.score || 0) * multiplier;
+
       setIsStarted(false);
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-        setTimer(0);
-      }
-      showToast({ message: `You earned ${earnedScore} coins ${message}` });
+      setTimer(0);
+
+      setGameStop({
+        score: earnedScore,
+        time: event.time ?? 0,
+      });
+
       await TDeleteLive(earnedScore);
       setProfileUpdate({
         catbassadorsLives: (profile.catbassadorsLives || 1) - 1,
@@ -66,6 +73,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     },
     [profile]
   );
+
   GameEvents.GAME_STOP.use(gameStopCallback);
 
   GameEvents.GAME_START.use(() => {
@@ -95,7 +103,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   const value = {
     isStarted,
-    setIsStarted,
+    playGame,
     gameType,
     setGameType,
     timer,
@@ -103,6 +111,13 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   return (
     <GameContext.Provider value={value}>
+      {gameStop && (
+        <EndGameModal
+          onClose={() => setGameStop(null)}
+          gameStop={gameStop}
+          gameType={gameType!}
+        />
+      )}
       {!isStarted && (
         <GameSelect gameType={gameType} setGameType={setGameType} />
       )}
@@ -110,20 +125,16 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
         <>
           {!isStarted && (
             <GameOptionsModal
-              utils={utils}
               profile={profile}
               gameType={gameType}
-              shareUrl={shareUrl}
               setOpenedModal={setOpenedModal}
-              setIsStarted={playGame}
               setProfileUpdate={setProfileUpdate}
             />
           )}
-          <div className="fixed inset-0">
-            <SnowingCanvas />
-          </div>
 
-          <MobileButtons isHidden={!isStarted} />
+          <MobileButtons
+            isHidden={!isStarted && gameType !== GameType.SHELTER}
+          />
           {isStarted && gameType === GameType.CATBASSADORS && (
             <DisplayCoins isHidden={false} />
           )}
@@ -143,7 +154,6 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
             <InviteModal close={() => setOpenedModal(null)} />
           )}
           {gameType === GameType.HOME && isGameLoaded && <SpeechBubble />}
-          {(gameType === GameType.HOME || !gameType) && <Calendar />}
           <GameMusicPlayer />
         </>
       )}
@@ -162,6 +172,7 @@ function useGame() {
     gameType: context.gameType,
     setGameType: context.setGameType,
     timer: context.timer,
+    playGame: context.playGame,
   };
 }
 
