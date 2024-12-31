@@ -15,6 +15,7 @@ interface Web3TransferProps {
   cat?: string;
   blessing?: string;
   user?: string;
+  disabled?: boolean;
 }
 
 export const Web3Transfer = ({
@@ -23,6 +24,7 @@ export const Web3Transfer = ({
   text,
   loadingText,
   entityType,
+  disabled,
   cat,
   blessing,
   user,
@@ -65,7 +67,7 @@ export const Web3Transfer = ({
     );
   }
 
-  if (isNaN(price) || price <= 0) {
+  if ((isNaN(price) || price <= 0) && !disabled) {
     return <PixelButton text="Enter amount" isDisabled />;
   }
 
@@ -84,13 +86,15 @@ export const Web3Transfer = ({
   }
   return (
     <div className="flex justify-center items-center">
-      <PixelButton
-        isWidthFull
-        isBig
-        isDisabled={isNaN(price) || amount <= 0}
-        text={text || "Buy Now"}
-        onClick={() => transfer()}
-      ></PixelButton>
+      {!disabled && (
+        <PixelButton
+          isWidthFull
+          isBig
+          isDisabled={isNaN(price) || amount <= 0}
+          text={text || "Buy Now"}
+          onClick={() => transfer()}
+        ></PixelButton>
+      )}
       {address && (
         <PixelButton
           text={address}

@@ -104,14 +104,12 @@ export const PresaleCardContent = () => {
 
   const isEndDateReached = useMemo(() => {
     return (
-      new Date().getTime() > new Date(Date.UTC(2024, 11, 20, 0, 0, 0)).getTime()
+      new Date().getTime() > new Date(Date.UTC(2025, 0, 1, 0, 0, 0)).getTime()
     );
   }, []);
 
   const finalTokenPrice = useMemo(() => {
-    if (isEndDateReached) {
-      return 0.03;
-    }
+    return 0.03;
     const startDate = new Date(Date.UTC(2024, 11, 8, 0, 0, 0));
     const endDate = new Date(Date.UTC(2024, 11, 20, 0, 0, 0));
 
@@ -216,9 +214,11 @@ export const PresaleCardContent = () => {
               className="w-12 h-12"
             />
           </p>
-          <div className="text-center font-semibold font-secondary text-h5">
-            ${currentFunds} Raised
-          </div>
+          {!isEndDateReached && (
+            <div className="text-center font-semibold font-secondary text-h5">
+              ${currentFunds} Raised
+            </div>
+          )}
           <div className="font-secondary flex items-center gap-2 bg-purple-300 bg-opacity-75 rounded-full mb-1">
             <img className="w-5 h-5" src="/logo/coin.webp" />
             <div className="text-p5">TOKENS</div>
@@ -242,63 +242,66 @@ export const PresaleCardContent = () => {
               )}`}
             />
           </div>
-          <div className="z-10 relative">
-            <Countdown
-              isDaysDisplayed
-              isBig
-              targetDate={
-                isEndDateReached ? "2025-01-01T00:00:00" : "2024-12-20T00:00:00"
-              }
-            />
-          </div>
+          {!isEndDateReached && (
+            <div className="z-10 relative">
+              <Countdown
+                isDaysDisplayed
+                isBig
+                targetDate="2025-01-01T00:00:00"
+              />
+            </div>
+          )}
           {isEndDateReached ? (
             <div className="bg-red-500 pt-2 w-fit -z-1 rounded-b-xl ">
               <div className="text-center text-white px-3 font-bold font-secondary text-p4 pt-1">
-                LAST CHANCE TO GET $TAILS
+                PRESALE JUST ENDED
               </div>
               <div className="text-center text-white font-bold font-secondary text-p3 -mt-2">
-                TO THE MOON
+                STAY TUNED
               </div>
             </div>
           ) : (
             <div className="bg-red-500 pt-2 w-fit -z-1 rounded-b-xl ">
               <div className="text-center text-white px-3 font-bold font-secondary text-p2 pt-1">
-                LAST CHANCE TO BUY!
+                TO THE MOON
               </div>
-              <div className="text-center text-white font-bold font-secondary text-p4 -mt-2">
-                PRICE INCREASES TWICE A DAY
+              <div className="text-center text-white font-bold font-secondary text-p4 -mt-2 px-4">
+                LAST CHANCE TO GET $TAILS
               </div>
             </div>
           )}
         </div>
-        <div
-          className="flex hover:brightness-110 relative items-center py-1 px-6 rounded-2xl mb-4 -mt-4 border-2 border-main-black"
-          style={{
-            backgroundImage: "url(/base/bg.gif)",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        >
-          <img
-            className="h-10 w-auto absolute bottom-0 left-0 opacity-50"
-            alt="cat"
-            src={`/meme-cats/${currentCat}`}
-          />
-          <p className="relative text-center font-semibold font-secondary text-p3">
-            1 $TAILS =
-            <span
-              className="
+        {!isEndDateReached && (
+          <div
+            className="flex hover:brightness-110 relative items-center py-1 px-6 rounded-2xl mb-4 -mt-4 border-2 border-main-black"
+            style={{
+              backgroundImage: "url(/base/bg.gif)",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          >
+            <img
+              className="h-10 w-auto absolute bottom-0 left-0 opacity-50"
+              alt="cat"
+              src={`/meme-cats/${currentCat}`}
+            />
+            <p className="relative text-center font-semibold font-secondary text-p3">
+              1 $TAILS =
+              <span
+                className="
                          inline-block pl-1"
-            >
-              0.03
-            </span>
-          </p>
-        </div>
-        <div className="bottom-1 md:bottom-1">
+              >
+                0.03
+              </span>
+            </p>
+          </div>
+        )}
+        <div className="bottom-1 md:bottom-1 mt-2">
           <PaymentInputSelect
             amountOfTails={amountOfTails}
             price={price}
             setPrice={setPrice}
+            disabled={isEndDateReached}
           />
         </div>
       </div>
