@@ -30,8 +30,9 @@ export class ShelterScene extends Scene {
   trampoline?: Trampoline;
   npcGroup!: Phaser.Physics.Arcade.Group;
   npcCats: NpcCat[] = []
-  lastNpcCollisionTime: number = 0;
   blessing!: Phaser.GameObjects.Sprite;
+  currentlyCollidingNpc: NpcCat | null = null;
+  speechBubble: any;
 
   constructor() {
     super("ShelterScene");
@@ -191,17 +192,17 @@ async spawnCat({ detail: { cat } }: ICatEvent<GameEvent.CAT_SPAWN>, isRestart?: 
 private spawnNpc(npcData: ICat, catType: CatType) {
   this.load.once("complete", () => {
     const spawnY = FLOOR_Y_POSITIONS[catType] ?? -700;
-    const spawnX = Phaser.Math.Between(-850, -100);
+    const spawnX = Phaser.Math.Between(-900, -100);
 
-    const npcCat = new NpcCat(this, spawnX, spawnY, npcData.name,);
+    const npcCat = new NpcCat(this, spawnX, spawnY, npcData.name);
     (npcCat as any).originalData = npcData;
+
     this.physics.add.collider(npcCat.sprite, this.groundLayer);
     this.physics.add.collider(npcCat.sprite, this.platformsLayer);
 
-
     if (npcData.blessings && npcData.blessings.length > 0) {
-      const blessingAbility = npcData.blessings[0].ability;; 
-      const blessing = this.add.sprite(spawnX, spawnY , `blessing-${blessingAbility}`).setVisible(true);
+      const blessingAbility = npcData.blessings[0].ability;
+      const blessing = this.add.sprite(spawnX, spawnY, `blessing-${blessingAbility}`).setVisible(true);
 
       this.anims.create({
         key: `npc_blessing_animation_${blessingAbility}`,
@@ -226,26 +227,6 @@ private spawnNpc(npcData: ICat, catType: CatType) {
 
     this.npcCats.push(npcCat);
     this.npcGroup.add(npcCat.sprite);
-
-    this.physics.add.overlap(
-      this.cat!.sprite,
-      npcCat.sprite,
-      (_player, npcSprite) => {
-        const currentTime = this.time.now;
-        if (currentTime - this.lastNpcCollisionTime > 500) {
-          const npcCatFound = this.npcCats.find((n) => n.sprite === npcSprite);
-          if (npcCatFound && npcCatFound.handleLoaf) {
-            this.lastNpcCollisionTime = currentTime;
-            npcCatFound.handleLoaf();
-
-            this.showNpcSpeechBubble(
-              npcCatFound,
-              `Hi, I am ${npcCatFound.sprite.texture.key}! Want to adopt me?`
-            );
-          }
-        }
-      }
-    );
   });
 
   if (npcData.blessings?.length) {
@@ -268,6 +249,8 @@ private spawnNpc(npcData: ICat, catType: CatType) {
 }
 
 
+
+
 private showNpcSpeechBubble(npcCat: NpcCat, message: string) {
   this.children.list.forEach((child) => {
     if (child instanceof SpeechBubble) {
@@ -277,11 +260,13 @@ private showNpcSpeechBubble(npcCat: NpcCat, message: string) {
 
   const bubbleX = npcCat.sprite.x + 16; 
   const bubbleY = npcCat.sprite.y - 42;
-  const speechBubble = new SpeechBubble(this, bubbleX, bubbleY, message, npcCat as any);
-  this.add.existing(speechBubble);
-  this.time.delayedCall(1000, () => {
-    speechBubble.destroy();
-  });
+  this.speechBubble = new SpeechBubble(this, bubbleX, bubbleY, message, npcCat as any);
+  this.add.existing(this.speechBubble);
+}
+
+private destroySpeechBubble() {
+    this.speechBubble.destroy();
+
 }
 
 
@@ -309,6 +294,32 @@ private createCat(catName: string, blessing: Phaser.GameObjects.Sprite | null) {
     GameEvents.NPC_COLLISION.push({ npc });
   }
 
+  private handleNpcCollisionWithPlayer() {
+  this.npcCats.forEach((npcCat) => {
+    npcCat.update();
+
+    const isOverlapping = this.physics.overlap(this.cat!.sprite, npcCat.sprite);
+
+    if (isOverlapping) {
+      if (this.currentlyCollidingNpc === null) {
+        this.currentlyCollidingNpc = npcCat;
+
+        npcCat.handleLoaf();
+        this.showNpcSpeechBubble(
+          npcCat,
+          `Hi, I am ${npcCat.sprite.texture.key}! Want to adopt me?`
+        );
+      }
+    } else {
+      if (!isOverlapping && this.currentlyCollidingNpc === npcCat) {
+        npcCat.handleLoafReset();
+        this.destroySpeechBubble()
+        this.currentlyCollidingNpc = null;
+      }
+    }
+  });
+  }
+
   private startGame() {
     if (this.cat) {
       this.cat.sprite.setPosition(0, -400);
@@ -318,11 +329,9 @@ private createCat(catName: string, blessing: Phaser.GameObjects.Sprite | null) {
 
 update(time: number, delta: number) {
   this.cat?.update();
-
-  this.npcCats.forEach((npcCat) => {
-    npcCat.update();
-  });
+  this.handleNpcCollisionWithPlayer()
 }
+
 
 
   private setDefaultSound() {

@@ -46,7 +46,7 @@ export class NpcCat {
   blessings?: Phaser.GameObjects.Sprite;
   animationKeys: ICatAnimationKeysMap;
   direction: number;
-  speed: number = 50;
+  speed: number = 45;
   isLoafing: boolean = false;
   originalData: ICat = {} as ICat;
   randomActionTimer!: Phaser.Time.TimerEvent;
@@ -58,7 +58,9 @@ export class NpcCat {
     this.sprite = this.scene.physics.add.sprite(x, y, catName)
       .setSize(28, 28)
       .setOffset(12, 8);
-
+      this.sprite.body!.setSize(40, 50); // Set larger width and height for the hitbox
+this.sprite.body!.setOffset(0, -12);
+    this.sprite.setCollideWorldBounds(true); 
     this.initAnimations(catName);
     this.sprite.anims.play(this.animationKeys[PlayerAnimation.RUNNING], true);
     this.sprite.setVelocityX(this.speed * this.direction);
@@ -117,7 +119,7 @@ export class NpcCat {
   handleJump() {
     if (!this.sprite.body!.blocked.down) return; 
 
-    this.sprite.setVelocityY(-300);
+    this.sprite.setVelocityY(-250);
     this.sprite.anims.play(this.animationKeys[PlayerAnimation.JUMPING], true);
 
     this.scene.time.delayedCall(500, () => {
@@ -156,10 +158,6 @@ export class NpcCat {
     this.isLoafing = true;
     this.sprite.setVelocityX(0);
     this.sprite.anims.play(this.animationKeys[PlayerAnimation.LOAF], true);
-
-    this.scene.time.delayedCall(2000, () => {
-      this.handleLoafReset();
-    });
   }
 
   handleLoafReset() {

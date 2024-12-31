@@ -99,9 +99,10 @@ export class Cat implements IPlayer {
   readonly dashCooldown: number = 300; // Cooldown time before dashing again
   readonly dashSpeed: number = 640; // Speed during dash
   walkSpeed: number = catWalkSpeed;
-  readonly jumpSpeed: number = -448;
+  readonly jumpSpeed: number = -418;
   readonly wallSlideSpeed: number = 96;
-
+  readonly maxJumpSpeed:number = -618;  
+  readonly coyoteTime:number = 200;   
   movement: PlayerMovement;
 
   constructor(
