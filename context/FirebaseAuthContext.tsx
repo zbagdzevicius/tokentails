@@ -1,6 +1,6 @@
 import { SignIn } from "@/components/shared/SignIn";
 import { profileFetch } from "@/constants/api";
-import { TPostReferral } from "@/constants/telegram-api";
+import { TPostReferralWeb } from "@/constants/telegram-api";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { Capacitor } from "@capacitor/core";
 import { useQuery } from "@tanstack/react-query";
@@ -23,6 +23,7 @@ import * as React from "react";
 import { useCallback } from "react";
 import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
+import { useRouter } from "next/router";
 
 let reauthInterval: any;
 
@@ -46,6 +47,8 @@ const getFirebaseAuth = () => {
   }
 };
 const auth = getFirebaseAuth();
+const router = useRouter();
+const { query } = router;
 
 const googleAuth = new GoogleAuthProvider();
 const appleAuth = new OAuthProvider("apple.com");
@@ -105,10 +108,12 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   React.useEffect(() => {
     if (profileResponse) {
       setProfile(profileResponse);
-      TPostReferral(profileResponse?._id);
       setShareUrl(`https://tokentails.com/game?ref=${profileResponse._id}`);
+      if (query?.ref) {
+        TPostReferralWeb(query?.ref as string);
+      }
     }
-  }, [profileResponse]);
+  }, [profileResponse, query]);
   React.useEffect(() => {
     setUtils({
       openLink: (url: string, options: any) =>
