@@ -2,6 +2,7 @@ import { GameOptionsModal } from "@/components/game/GameOptionsModal";
 import { GameSelect } from "@/components/game/GameSelect";
 import { Leaderboard } from "@/components/Leaderboard";
 import { DisplayCoins } from "@/components/Phaser/DisplayCoins";
+
 import {
   GameEvent,
   GameEvents,
@@ -77,6 +78,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   GameEvents.GAME_STOP.use(gameStopCallback);
 
   GameEvents.GAME_START.use(() => {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+    }
     setIsStarted(true);
     setTimer(catbassadorsGameDuration);
     timerInterval = setInterval(() => {
@@ -135,9 +139,12 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           <MobileButtons
             isHidden={!isStarted && gameType !== GameType.SHELTER}
           />
-          {isStarted && gameType === GameType.CATBASSADORS && (
-            <DisplayCoins isHidden={false} />
+          {isStarted && (gameType === GameType.CATBASSADORS || gameType === GameType.PURRQUEST) && (
+            <>
+              <DisplayCoins isHidden={false} />
+            </>
           )}
+
           {openedModal === GameModal.PROFILE && (
             <TelegramProfile close={() => setOpenedModal(null)} />
           )}

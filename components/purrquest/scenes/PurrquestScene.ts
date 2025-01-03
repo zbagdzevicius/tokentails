@@ -22,6 +22,8 @@ import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { Enemy } from "@/components/purrquest/objects/Enemy";
 import { BossEnemy } from "../objects/Boss";
 import { catWalkSpeed, endScenePeriod, GameType } from "@/models/game";
+import { PowerUp, PowerUpType } from "@/components/catbassadors/objects/PowerUp";
+
 const COLLISION_TILES = [
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 29, 30, 31, 32, 33, 34, 35, 36, 37, 62, 63, 64,
   65, 72, 88, 90, 91, 92, 93, 94, 120, 121, 122, 123, 149, 150, 151, 152,
@@ -30,6 +32,9 @@ const COLLISION_TILES = [
 const TRAMPOLINE_TILES = [50];
 const SPIKE_TILES = [70, 71, 99, 100];
 const JUMP_LAYER_TILES = [46, 47, 48, 49];
+
+const POWERUP_DURATION_MS = 10000;
+const POWERUP_SPAWN_THRESHOLD = 3000;
 
 const PLATFORM_CONFIGS: {
   [key: number]: {
@@ -61,6 +66,10 @@ export class PurrquestScene extends Phaser.Scene {
   trampoline?: Trampoline;
   blessing!: Phaser.GameObjects.Sprite;
   private gameStartTime: number = 0;
+
+  powerUpSpawnTimer: NodeJS.Timeout | null = null;
+  currentPowerUp: PowerUp | null = null;
+  powerUpLifetimeTimer: NodeJS.Timeout | null = null;
 
   constructor() {
     super("PurrquestScene");
@@ -105,10 +114,13 @@ export class PurrquestScene extends Phaser.Scene {
       frameWidth: 96,
       frameHeight: 64,
     });
+
+    this.load.image("speedPowerUp", "power-up/SPEED.png");
+
   }
 
   create(props: IPhaserGameSceneProps) {
-    this.physics.world.setFPS(60);
+    this.physics.world.setFPS(120);
     this.startGame();
 
     const catSpawnCallback = (data: ICatEvent<GameEvent.GAME_START>) =>
@@ -126,6 +138,9 @@ export class PurrquestScene extends Phaser.Scene {
     this.initializePathfinding();
 
     this.renderTilemap();
+     this.powerUpSpawnTimer = setInterval(() => {
+      this.spawnPowerUp();
+    }, POWERUP_SPAWN_THRESHOLD);
   }
 
   private renderEverythingAfterCat() {
@@ -154,6 +169,10 @@ export class PurrquestScene extends Phaser.Scene {
       enemy?.update(time, delta);
     });
     this.bossEnemy?.update(time, delta);
+
+     if (this.currentPowerUp) {
+    this.currentPowerUp.update();
+  }
   }
 
   private initializeLevel() {
@@ -243,7 +262,7 @@ export class PurrquestScene extends Phaser.Scene {
     this.player.hasKey = false;
     this.cameras.main.startFollow(this.player.sprite);
     this.player.sprite.setDepth(2);
-    this.cameras.main.zoom = ZOOM;
+    this.cameras.main.zoom = ZOOM
 
     setMobileControls(this.player);
     this.renderEverythingAfterCat();
@@ -522,6 +541,7 @@ export class PurrquestScene extends Phaser.Scene {
     if (!this.player?.sprite) {
       return;
     }
+    
     this.groundLayer!.forEachTile((tile: Phaser.Tilemaps.Tile) => {
       if (tileIndices.includes(tile.index)) {
         const platformX = tile.getCenterX();
@@ -538,11 +558,10 @@ export class PurrquestScene extends Phaser.Scene {
             config.distance,
             config.oneWay
           );
+          this.physics.add.existing(platform);
           this.platforms.push(platform);
 
-          this.physics.add.existing(platform);
-
-          // Collider between platform and groundLayer (with type assertions)
+          if (this.player?.sprite && this.groundLayer) {
           this.physics.add.collider(
             platform as unknown as Phaser.GameObjects.GameObject, // Cast to ensure compatibility
             this.groundLayer as Phaser.GameObjects.GameObject, // Cast groundLayer to GameObject
@@ -551,7 +570,7 @@ export class PurrquestScene extends Phaser.Scene {
             undefined,
             this
           );
-
+        }
           // Collider between player and platform
           this.physics.add.collider(
             this.player!.sprite as Phaser.GameObjects.Sprite, // Cast player.sprite to Sprite
@@ -615,6 +634,73 @@ export class PurrquestScene extends Phaser.Scene {
           break;
       }
     });
+  }
+
+  private spawnPowerUp() {
+    if (this.currentPowerUp) return;
+         const tile = this.getRandomWalkableTile();
+    if (!tile) {
+      console.error("No walkable tile available for boss spawn.");
+      return;
+    }
+
+    const x = tile.getCenterX();
+    const y = tile.getTop() - 32;
+  
+    this.currentPowerUp = new PowerUp(this as any, x, y);
+  
+    this.physics.add.collider(this.currentPowerUp.sprite, this.groundLayer!);
+    this.physics.add.overlap(
+      this.player?.sprite!,
+      this.currentPowerUp.sprite,
+      this.handlePowerUpCollected,
+      undefined,
+      this
+    );
+  
+    // Auto-destroy PowerUp after 10s if uncollected
+    this.powerUpLifetimeTimer = setTimeout(() => {
+      if (this.currentPowerUp) {
+        this.currentPowerUp.sprite.destroy();
+        this.currentPowerUp = null;
+      }
+    }, POWERUP_DURATION_MS);
+  }
+  
+  private handlePowerUpCollected = () => {
+    if (!this.currentPowerUp) return;
+  
+    if (this.currentPowerUp.type === PowerUpType.SPEED) {
+      this.increasePlayerSpeed();
+    }
+  
+    this.currentPowerUp.destroy();
+    this.currentPowerUp = null;
+  
+    if (this.powerUpLifetimeTimer) {
+      clearTimeout(this.powerUpLifetimeTimer);
+      this.powerUpLifetimeTimer = null;
+    }
+  };
+  
+  
+  private increasePlayerSpeed(): void {
+    if (this.player) {
+      this.player.walkSpeed += 200;
+      
+      GameEvents[GameEvent.CAT_POWER_UP].push({
+        powerup: PowerUpType.SPEED,
+      });
+  
+      this.time.delayedCall(10000, () => {
+        if (this.player) {
+          this.player.walkSpeed -= 200;
+        }
+        GameEvents[GameEvent.CAT_POWER_UP].push({
+          powerup: null,
+        });
+      });
+    }
   }
 
   private endGame() {
