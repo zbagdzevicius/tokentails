@@ -21,6 +21,10 @@ if (typeof window !== "undefined") {
     metadata,
     networks: networks as any,
     projectId,
+    featuredWalletIds: [
+      "38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662",
+      "21c3a371f72f0057186082edb2ddd43566f7e908508ac3e85373c6d1966ed614",
+    ],
     features: {
       analytics: true,
       email: false,

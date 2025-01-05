@@ -257,11 +257,14 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
    */
   private _getBaseStyle(): any {
     const padStyle = {
-      borderRadius: "24px",
+      borderRadius: "16px",
       height: `${this._baseSize}px`,
       width: `${this._baseSize * 2.5}px`,
-      background: "#FCECBB",
+      backgroundImage: "url(/base/bg.gif)",
+      backgroundSize: "cover",
+      backgroundPosition: "center",
       display: "flex",
+      border: '4px solid gray',
       justifyContent: "center",
       alignItems: "center",
     } as any;

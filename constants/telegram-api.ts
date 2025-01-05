@@ -98,6 +98,7 @@ export const TPostReferral = async (telegramId: string): Promise<object> => {
   });
 };
 export const TPostReferralWeb = async (profileId: string): Promise<object> => {
+  if (!profileId) return Promise.resolve({});
   await waitForLocalStorageKey();
   return fetch(`${apiUrl}/user/catbassadors/referralw/${profileId}`, {
     method: "GET",

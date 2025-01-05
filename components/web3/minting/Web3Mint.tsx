@@ -2,6 +2,7 @@
 
 import { PixelButton } from "@/components/shared/PixelButton";
 import { EntityType } from "@/models/save";
+import { ChainImg, ChainType } from "@/web3/contracts";
 import { useMemo } from "react";
 import { useWeb3Minting } from "./useWeb3Minting";
 
@@ -31,25 +32,29 @@ export const Web3Mint = ({ user }: Web3TransferProps) => {
     return <PixelButton text={"MINTING"} active></PixelButton>;
   }
 
-  if (!namespaceDetail?.connected) {
-    return (
-      <PixelButton text="Connect Wallet" onClick={connectWallet}></PixelButton>
-    );
-  }
-
   return (
-    <div className="flex justify-center items-center">
-      <PixelButton
-        isWidthFull
-        isBig
-        text={"Mint Now"}
-        onClick={() => mint()}
-      ></PixelButton>
-      {address && (
+    <div className="flex flex-col justify-center items-center">
+      <img src={ChainImg[ChainType.ZETA]} className="w-12 aspect-square -mb-6" />
+      {namespaceDetail?.connected ? (
+        <>
+          <PixelButton
+            isWidthFull
+            isBig
+            text={"Mint Now"}
+            onClick={() => mint()}
+          ></PixelButton>
+          {address && (
+            <PixelButton
+              text={address}
+              isSmall
+              onClick={() => connectWallet()}
+            ></PixelButton>
+          )}
+        </>
+      ) : (
         <PixelButton
-          text={address}
-          isSmall
-          onClick={() => connectWallet()}
+          text="Connect Wallet"
+          onClick={connectWallet}
         ></PixelButton>
       )}
     </div>

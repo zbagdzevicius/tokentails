@@ -6,6 +6,7 @@ import { commafy } from "@/constants/utils";
 import { CloseButton } from "./CloseButton";
 import { GameMusicToggle } from "./GameMusicToggler";
 import { PixelButton } from "./PixelButton";
+import { Tag } from "./Tag";
 
 const features = ["NFTs & Airdrops prizes", "Weekly Rewards & Events"];
 
@@ -65,21 +66,19 @@ export const TelegramProfileContent = () => {
     <div className="pt-4 pb-8 px-4 md:px-16 md:pt-4 md:pb-12 text-gray-700 flex flex-col justify-between items-center animate-appear">
       <div className="relative">
         <img
-          className="w-16 m-auto"
+          className="w-32 m-auto"
           src={profile?.cat?.catImg || "/logo/logo.webp"}
         />
         {profile!.cat.blessings?.length > 0 && (
           <img
-            className="absolute inset-0 object-cover translate-y-1 w-16 h-16"
+            className="absolute inset-0 object-cover translate-y-1 w-32 h-32"
             src={`/flare-effect/${profile!.cat.blessings[0].ability}.gif`}
           ></img>
         )}
       </div>
       {profile?.cat && (
         <ul className="m-auto font-primary">
-          <li className="text-p3 font-secondary bg-yellow-300 w-fit px-4 mb-2 rounded-lg m-auto">
-            Hello, {profile.name} !
-          </li>
+          <Tag>Hello, {profile.name} !</Tag>
           <li className="flex items-center gap-x-2 mb-4 justify-center mt-4">
             <img className="w-8" src="/logo/chest.webp" />
             <div className="flex font-secondary text-p3 gap-2">
@@ -142,7 +141,7 @@ export const TelegramProfile = ({ close }: { close: () => void }) => {
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
-      <div className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full bg-gradient-to-b from-purple-300 to-blue-300 absolute top-1/2 -translate-y-1/2  rounded-lg shadow h-fit">
+      <div className="z-50 rem:w-[350px] md:w-[480px] max-w-full bg-gradient-to-b from-purple-300 to-blue-300 absolute top-1/2 -translate-y-1/2  rounded-xl shadow h-fit">
         <TelegramProfileContent />
         <button onClick={close} className="absolute right-[0] top-0 group">
           <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>

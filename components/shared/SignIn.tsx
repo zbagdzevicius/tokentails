@@ -114,7 +114,7 @@ export const SignIn = ({ close }: { close: () => void }) => {
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
       <div
-        className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full bg-white absolute top-1/2 -translate-y-1/2  rounded-lg shadow h-fit"
+        className="z-50 rem:w-[350px] md:w-[480px] max-w-full bg-white absolute top-1/2 -translate-y-1/2  rounded-lg shadow h-fit"
         style={{
           backgroundImage: "url(/base/bg-6.png)",
           backgroundSize: "cover",
