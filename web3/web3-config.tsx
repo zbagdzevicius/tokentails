@@ -5,6 +5,7 @@ import {
   bscTestnet,
   skaleNebula,
   skaleNebulaTestnet,
+  zetachain,
 } from "@reown/appkit/networks";
 import { cookieStorage, createStorage } from "wagmi";
 import { ChainType } from "./contracts";
@@ -69,6 +70,7 @@ export const chainTypeId: Record<ChainType, number> = {
   [ChainType.BNB_TEST]: bscTestnet.id,
   [ChainType.SKALE]: skaleNebula.id,
   [ChainType.SKALE_TEST]: skaleNebulaTestnet.id,
+  [ChainType.ZETA]: zetachain.id,
   [ChainType.STELLAR]: 0,
   [ChainType.STELLAR_TEST]: 0,
   [ChainType.SOLANA]: 0,
@@ -80,6 +82,7 @@ export const idChainType: Record<number, ChainType> = {
   [bscTestnet.id]: ChainType.BNB_TEST,
   [skaleNebula.id]: ChainType.SKALE,
   [skaleNebulaTestnet.id]: ChainType.SKALE_TEST,
+  [zetachain.id]: ChainType.ZETA,
   [0]: ChainType.STELLAR,
   [1]: ChainType.STELLAR_TEST,
 };
@@ -97,7 +100,7 @@ export const solanaWallets = [
 ];
 
 // Create wagmiConfig
-export const networks = isProd ? [bsc] : [bscTestnet];
+export const networks = isProd ? [bsc, zetachain] : [bscTestnet, zetachain];
 
 export const wagmiAdapter = new WagmiAdapter({
   networks,

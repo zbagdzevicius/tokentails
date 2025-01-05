@@ -27,6 +27,7 @@ const entityTypeComponent: Record<
   [EntityType.GROUP]: FeedGroup,
   [EntityType.CAT]: <></>,
   [EntityType.PRESALE]: <></>,
+  [EntityType.MYSTERY_BOX]: <></>,
 };
 
 export const Feed = ({ items }: IProps) => {

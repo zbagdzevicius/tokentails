@@ -16,3 +16,5 @@ export interface ITransaction {
     hash: `0x${string}`
     userId: string; 
 }
+
+export const zetachainMysteryBoxAddress = '0xd51e3c8c7A547523C3AB31483fBF2833f8f01c30';

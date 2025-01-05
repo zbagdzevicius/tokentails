@@ -110,6 +110,9 @@ export const EntityRouteOption: Omit<
   [EntityType.PRESALE]: {
     details: ([]) => `/`,
   },
+  [EntityType.MYSTERY_BOX]: {
+    details: ([]) => `/`,
+  },
 };
 
 export interface ISearchProps {

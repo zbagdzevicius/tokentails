@@ -25,6 +25,7 @@ export enum ChainType {
   STELLAR = "STELLAR",
   STELLAR_TEST = "STELLAR_TEST",
   SOLANA = "SOLANA",
+  ZETA = "ZETA",
   SOLANA_TEST = "SOLANA_TEST",
 }
 
@@ -78,6 +79,9 @@ export const currencyContracts: Record<
     [CurrencyType.TAILS]: "0x",
   },
   [ChainType.STELLAR]: {
+    [CurrencyType.USDC]: "0x",
+  },
+  [ChainType.ZETA]: {
     [CurrencyType.USDC]: "0x",
   },
   [ChainType.STELLAR_TEST]: {

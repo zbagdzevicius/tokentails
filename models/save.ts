@@ -1,6 +1,7 @@
 export enum EntityType {
     ARTICLE = 'ARTICLE',
     PRESALE = 'PRESALE',
+    MYSTERY_BOX = 'MYSTERY_BOX',
     QUIZ = 'QUIZ',
     VIDEO = 'VIDEO',
     VIDEO_SLIDER = 'VIDEO_SLIDER',

@@ -47,8 +47,6 @@ const getFirebaseAuth = () => {
   }
 };
 const auth = getFirebaseAuth();
-const router = useRouter();
-const { query } = router;
 
 const googleAuth = new GoogleAuthProvider();
 const appleAuth = new OAuthProvider("apple.com");
@@ -81,6 +79,9 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     queryKey: ["profile-details", user],
     queryFn: () => (user ? profileFetch() : null),
   });
+
+  const router = useRouter();
+  const { query } = router;
 
   const copy = useCallback(
     (text: string) => {
