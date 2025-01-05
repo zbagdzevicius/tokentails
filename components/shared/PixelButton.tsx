@@ -47,7 +47,7 @@ export const PixelButton = ({
       disabled={isDisabled}
       style={{
         ...(isWidthFull ? { width: "100% !important" } : {}),
-        filter: isDisabled ? "brightness(0.7)" : '',
+        filter: isDisabled ? "brightness(0.7)" : 'none',
         cursor: isDisabled ? "not-allowed" : "pointer",
       }}
       className={`flex justify-center items-center h-12 ${isWidthFull && "w-full"

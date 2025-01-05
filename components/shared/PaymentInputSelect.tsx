@@ -1,6 +1,6 @@
 import { useWeb3 } from "@/context/Web3Context";
 import React from "react";
-import { Web3Transfer } from "../web3/minting/Web3Transfer";
+import { Web3Transfer } from "../web3/transfer/Web3Transfer";
 import { ChainSelect } from "./ChainSelect";
 
 interface IProps {

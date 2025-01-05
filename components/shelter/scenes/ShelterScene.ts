@@ -46,7 +46,7 @@ export class ShelterScene extends Scene {
   }
 
   create(props: IPhaserGameSceneProps) {
-    this.physics.world.setFPS(60);
+    this.physics.world.setFPS(120);
     this.tilemap = this.make.tilemap({ key: "tilemap" });
     const sugarTileset = this.tilemap.addTilesetImage("blocks", "blocks", 32, 32, 1, 2)!;
     this.groundLayer = this.tilemap.createLayer("blocks", [sugarTileset])!;
@@ -61,16 +61,15 @@ export class ShelterScene extends Scene {
     this.groundLayer.setCollisionByExclusion([-1]);
     this.platformsLayer.setCollision(JUMP_LAYER_TILES);
     this.platformsLayer.setTileIndexCallback(
-      JUMP_LAYER_TILES,
-      (player: Phaser.GameObjects.GameObject) => {
-        const playerSprite = player as Phaser.Physics.Arcade.Sprite;
-        if (playerSprite.body!.velocity.y <= 0) {
-          return true;
+    JUMP_LAYER_TILES,
+    (player:any) => {
+        if (player.body.velocity.y <= 0) {
+            return true; 
         }
         return false;
-      },
-      this
-    );
+    },
+    this
+);
 
     this.jumperLayer.setCollision(TRAMPOLINE_TILES);
     this.trampoline = new Trampoline(this, this.jumperLayer, TRAMPOLINE_TILES);
@@ -278,6 +277,7 @@ private createCat(catName: string, blessing: Phaser.GameObjects.Sprite | null) {
   this.physics.add.collider(this.cat.sprite as Phaser.Physics.Arcade.Sprite, this.platformsLayer);
   this.physics.add.collider(this.cat.sprite, this.jumperLayer);
   this.cameras.main.startFollow(this.cat.sprite);
+  
 
   setMobileControls(this.cat);
 

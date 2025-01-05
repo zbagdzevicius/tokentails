@@ -3,12 +3,19 @@ import { useProfile } from "@/context/ProfileContext";
 import { GameModal } from "@/models/game";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { PixelButton } from "./shared/PixelButton";
 import { CloseButton } from "./shared/CloseButton";
+import { PixelButton } from "./shared/PixelButton";
+import { Web3Providers } from "./web3/Web3Providers";
+import { Web3Mint } from "./web3/minting/Web3Mint";
 
 const leaderboardTexts: Partial<
   Record<GameModal, { header: string; title: string; subtitle: string }>
 > = {
+  [GameModal.MYSTERY_BOX]: {
+    header: "MYSTERY BOX",
+    title: "Mint Free NFT",
+    subtitle: "Redeemal of NFT will be available starting February 15th",
+  },
   [GameModal.LEADERBOARD]: {
     header: "LEADERS",
     title: "Airdrop - Reach top 200 players !",
@@ -22,16 +29,24 @@ const leaderboardTexts: Partial<
 };
 
 export const LeaderboardContent = () => {
-  const [type, setType] = useState(GameModal.LEADERBOARD);
+  const [type, setType] = useState(GameModal.MYSTERY_BOX);
+  const isTable = [GameModal.LEADERBOARD, GameModal.LEADERBOARD_DAILY].includes(
+    type
+  );
   const { data } = useQuery({
     queryKey: ["leaderboard", type],
-    queryFn: () => getLeaderboard(type),
+    queryFn: () => (isTable ? getLeaderboard(type) : []),
   });
-  const { position } = useProfile();
+  const { position, profile } = useProfile();
   return (
     <>
       <div className="flex flex-col bg-gradient-to-b from-purple-300 to-yellow-300 animate-appear">
         <div className="py-2 flex gap-6 justify-center">
+          <PixelButton
+            active={type === GameModal.MYSTERY_BOX}
+            text={leaderboardTexts[GameModal.MYSTERY_BOX]?.header!}
+            onClick={() => setType(GameModal.MYSTERY_BOX)}
+          ></PixelButton>
           <PixelButton
             active={type === GameModal.LEADERBOARD}
             text={leaderboardTexts[GameModal.LEADERBOARD]?.header!}
@@ -49,58 +64,72 @@ export const LeaderboardContent = () => {
         <h2 className="text-center font-secondary uppercase text-p5 md:text-p4">
           {leaderboardTexts[type]?.subtitle}
         </h2>
-        {position && (
+        {position && isTable && (
           <div className="font-secondary uppercase text-p1 bg-yellow-100 w-fit m-auto rounded-t-xl px-8">
             Your position {position}
           </div>
         )}
+        {!isTable && (
+          <div className="flex py-8 justify-center items-center gap-4 flex-col">
+            <img className="w-64 aspect-square rounded-2xl" src="/utilities/mystery-boxes/mystery-box.jpg" />
+            <Web3Providers>
+              <Web3Mint user={profile?._id!} />
+            </Web3Providers>
+          </div>
+        )}
       </div>
-      <table className="rounded-b-lg overflow-hidden table-auto bg-blue-300 text-black-900 w-full text-sm text-left text-gray-500">
-        <thead className="text-p6 md:text-p5 uppercase text-black-300 bg-gray-50 border-b border-purple-300">
-          <tr>
-            <th className="py-2 md:py-4 text-center">PLACE</th>
-            <th className="py-2 text-center">name</th>
-            <th className="p-2 md:p-4 text-center">score</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data?.map((result, index) => (
-            <tr
-              key={index}
-              className={`border-b ${index > 2 ? "border-purple-300" : "border-yellow-300"
-                }`}
-            >
-              <th
-                scope="row"
-                className={`text-p4 font-secondary text-center py-4 font-medium whitespace-nowrap border-b ${index > 2
-                  ? "bg-white border-purple-300"
-                  : "bg-yellow-300 border-white"
-                  }`}
-              >
-                {index + 1}
-              </th>
-              <td
-                className={`py-4 text-center bg-gray-700 text-p5 border-l font-bold ${index > 2
-                  ? "border-purple-300 text-purple-300"
-                  : "border-yellow-300 text-yellow-300"
-                  }`}
-              >
-                {result.name}
-              </td>
-              <td
-                className={`p-4 text-center bg-gray-700 text-p5 md:text-p4 border-l font-secondary ${index > 2
-                  ? "border-purple-300 text-purple-300"
-                  : "border-yellow-300 text-yellow-300"
-                  }`}
-              >
-                {(type === GameModal.LEADERBOARD
-                  ? result.catpoints
-                  : result.catpointsToday) || 0}
-              </td>
+      {isTable && (
+        <table className="rounded-b-lg overflow-hidden table-auto bg-blue-300 text-black-900 w-full text-sm text-left text-gray-500">
+          <thead className="text-p6 md:text-p5 uppercase text-black-300 bg-gray-50 border-b border-purple-300">
+            <tr>
+              <th className="py-2 md:py-4 text-center">PLACE</th>
+              <th className="py-2 text-center">name</th>
+              <th className="p-2 md:p-4 text-center">score</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data?.map((result, index) => (
+              <tr
+                key={index}
+                className={`border-b ${
+                  index > 2 ? "border-purple-300" : "border-yellow-300"
+                }`}
+              >
+                <th
+                  scope="row"
+                  className={`text-p4 font-secondary text-center py-4 font-medium whitespace-nowrap border-b ${
+                    index > 2
+                      ? "bg-white border-purple-300"
+                      : "bg-yellow-300 border-white"
+                  }`}
+                >
+                  {index + 1}
+                </th>
+                <td
+                  className={`py-4 text-center bg-gray-700 text-p5 border-l font-bold ${
+                    index > 2
+                      ? "border-purple-300 text-purple-300"
+                      : "border-yellow-300 text-yellow-300"
+                  }`}
+                >
+                  {result.name}
+                </td>
+                <td
+                  className={`p-4 text-center bg-gray-700 text-p5 md:text-p4 border-l font-secondary ${
+                    index > 2
+                      ? "border-purple-300 text-purple-300"
+                      : "border-yellow-300 text-yellow-300"
+                  }`}
+                >
+                  {(type === GameModal.LEADERBOARD
+                    ? result.catpoints
+                    : result.catpointsToday) || 0}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </>
   );
 };

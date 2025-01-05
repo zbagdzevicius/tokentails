@@ -10,6 +10,8 @@ import { ICat, catbassadorsGameDuration } from "@/models/cats";
 import { Scene } from "phaser";
 import { Cat } from "../objects/Catbassador";
 import { Coin } from "../objects/Coin";
+import { PowerUp } from "../objects/PowerUp";
+import { PowerUpType } from "../objects/PowerUp";
 import { Enemy } from "../../purrquest/objects/Enemy";
 import { BossEnemy } from "@/components/purrquest/objects/Boss";
 import { currentDayCoin, ZOOM } from "@/constants/utils";
@@ -21,6 +23,8 @@ import {
 } from "@/models/game";
 
 const coinDurationMs = 15000;
+const POWERUP_DURATION_MS = 10000;
+const POWERUP_SPAWN_THRESHOLD = 30000;
 const BOSS_REWARD_POINTS = 1000;
 const JUMP_LAYER_TILES = [47, 48, 49, 50];
 const TRAMPOLINE_TILES = [51];
@@ -53,6 +57,12 @@ export class CatbassadorsScene extends Scene {
   IsBossSpawned = false;
   blessing!: Phaser.GameObjects.Sprite;
   gameStartTime: number = 0;
+
+  powerUpSpawnTimer: NodeJS.Timeout | null = null;
+  currentPowerUp: PowerUp | null = null;
+  powerUpLifetimeTimer: NodeJS.Timeout | null = null;
+
+
   constructor() {
     super("CatbassadorsScene");
 
@@ -74,6 +84,9 @@ export class CatbassadorsScene extends Scene {
     this.load.image("candy-cane", currentDayCoin);
     this.load.image("timecoin", "icons/clock.png");
     this.load.image("coin", "logo/coin.png");
+
+    this.load.image("speedPowerUp", "power-up/SPEED.png");
+
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.audio("coin", "purrquest/sounds/score.mp3");
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
@@ -110,7 +123,7 @@ export class CatbassadorsScene extends Scene {
   }
 
   create(props: IPhaserGameSceneProps) {
-    this.physics.world.setFPS(60);
+    this.physics.world.setFPS(120);
 
     this.coinPool = new ObjectPool<Coin>(() => new Coin(this, 400, 400), 30);
 
@@ -341,11 +354,79 @@ export class CatbassadorsScene extends Scene {
     this.coinPool.release(coin);
   }
 
+private spawnPowerUp() {
+  if (this.currentPowerUp) return;
+  const x = this.getCoinSpawnPositionX();
+  const y = this.getCoinSpawnPositionY();
+
+  this.currentPowerUp = new PowerUp(this, x, y);
+
+  this.physics.add.collider(this.currentPowerUp.sprite, this.groundLayer);
+  this.physics.add.overlap(
+    this.cat?.sprite!,
+    this.currentPowerUp.sprite,
+    this.handlePowerUpCollected,
+    undefined,
+    this
+  );
+
+  // Auto-destroy PowerUp after 10s if uncollected
+  this.powerUpLifetimeTimer = setTimeout(() => {
+    if (this.currentPowerUp) {
+      this.currentPowerUp.sprite.destroy();
+      this.currentPowerUp = null;
+    }
+  }, POWERUP_DURATION_MS);
+}
+
+private handlePowerUpCollected = () => {
+  if (!this.currentPowerUp) return;
+
+  if (this.currentPowerUp.type === PowerUpType.SPEED) {
+    this.increasePlayerSpeed();
+  }
+
+  this.currentPowerUp.destroy();
+  this.currentPowerUp = null;
+
+  if (this.powerUpLifetimeTimer) {
+    clearTimeout(this.powerUpLifetimeTimer);
+    this.powerUpLifetimeTimer = null;
+  }
+};
+
+
+private increasePlayerSpeed(): void {
+  if (this.cat) {
+    this.cat.walkSpeed += 200;
+    
+    GameEvents[GameEvent.CAT_POWER_UP].push({
+      powerup: PowerUpType.SPEED,
+    });
+
+    this.time.delayedCall(10000, () => {
+      if (this.cat) {
+        this.cat.walkSpeed -= 200;
+      }
+      GameEvents[GameEvent.CAT_POWER_UP].push({
+        powerup: null,
+      });
+    });
+  }
+}
+
+
+
+
   update(time: any, delta: any) {
     this.cat?.update();
     this.coins.forEach((coin) => coin.update());
 
     this.checkEnemyMilestone();
+
+    if (this.currentPowerUp) {
+    this.currentPowerUp.update();
+  }
 
     this.enemies?.forEach((enemy) => {
       if (enemy) enemy.update(time, delta);
@@ -391,6 +472,9 @@ export class CatbassadorsScene extends Scene {
   private checkEnemyMilestone() {
     if (this.score >= this.enemySpawnThreshold) {
       this.spawnEnemy();
+       GameEvents[GameEvent.ENEMY_SPAWN].push({
+          amount: +1,
+        });
       this.enemySpawnThreshold += DEFAULT_ENEMY_SPAWN_THRESHOLD;
 
       this.enemies.forEach((enemy) => {
@@ -403,6 +487,9 @@ export class CatbassadorsScene extends Scene {
     }
     if (this.score >= DEFAULT_BOSS_SPAWN && !this.IsBossSpawned) {
       this.spawnBossEnemy();
+       GameEvents[GameEvent.BOSS_SPAWN].push({
+          amount: +1,
+        });
       this.IsBossSpawned = true;
     }
   }
@@ -560,6 +647,18 @@ export class CatbassadorsScene extends Scene {
     });
 
     this.coins = [];
+    if (this.powerUpSpawnTimer) {
+  clearInterval(this.powerUpSpawnTimer);
+  this.powerUpSpawnTimer = null;
+}
+if (this.powerUpLifetimeTimer) {
+  clearTimeout(this.powerUpLifetimeTimer);
+  this.powerUpLifetimeTimer = null;
+}
+if (this.currentPowerUp) {
+  this.currentPowerUp.destroy();
+  this.currentPowerUp = null;
+}
 
     if (this.enemies) {
       this.enemies.forEach((enemy) => {
@@ -595,5 +694,9 @@ export class CatbassadorsScene extends Scene {
     this.coinSpawnInterval = setInterval(() => {
       this.spawnCoin();
     }, 400);
+
+     this.powerUpSpawnTimer = setInterval(() => {
+      this.spawnPowerUp();
+    }, POWERUP_SPAWN_THRESHOLD);
   }
 }

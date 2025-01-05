@@ -67,7 +67,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
               draggable="false"
             />
             <p className="text-p3 lg:text-p2 font-medium  flex items-center gap-1">
-              Played for <Tag>{Math.floor(gameStop.time)}</Tag>
+              Played for <span><Tag>{Math.floor(gameStop.time)}</Tag></span>
               seconds
             </p>
           </div>
