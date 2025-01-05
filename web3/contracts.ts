@@ -47,6 +47,18 @@ export const ChainNamespaceImg: Record<ChainNamespace, string> = {
   [ChainNamespace.SOLANA]: "/currency/SOL.webp",
 };
 
+export const ChainImg: Record<ChainType, string> = {
+  [ChainType.BNB]: "/currency/BNB.webp",
+  [ChainType.BNB_TEST]: "/currency/BNB.webp",
+  [ChainType.STELLAR]: "/currency/XLM.webp",
+  [ChainType.STELLAR_TEST]: "/currency/XLM.webp",
+  [ChainType.SOLANA]: "/currency/SOL.webp",
+  [ChainType.SOLANA_TEST]: "/currency/SOL.webp",
+  [ChainType.SKALE]: "/currency/SKALE.png",
+  [ChainType.SKALE_TEST]: "/currency/SKALE.png",
+  [ChainType.ZETA]: "/currency/ZETA.webp",
+};
+
 export const ChainNamespacesCurrencies: Record<ChainNamespace, CurrencyType[]> =
   {
     [ChainNamespace.EVM]: [

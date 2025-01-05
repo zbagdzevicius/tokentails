@@ -125,7 +125,7 @@ export const GameOptionsModal = ({
               onClick={() => {
                 setOpenedModal(GameModal.LEADERBOARD);
               }}
-              text="CONTEST"
+              text="CHAMPS"
             ></PixelButton>
           </div>
         )}

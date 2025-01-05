@@ -131,7 +131,7 @@ export const Calendar = ({ isRelative }: IProps) => {
             className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
           ></div>
           <div
-            className="z-50 rem:w-[350px] rem:md:w-[592px] transition-from-bottom-animation max-w-full relative bg-gradient-to-b from-yellow-300 to-purple-300 inset-0 max-h-[70vh] overflow-y-auto overflow-x-hidden rounded-lg shadow h-fit"
+            className="z-50 rem:w-[350px] rem:md:w-[592px] max-w-full relative bg-gradient-to-b from-yellow-300 to-purple-300 inset-0 max-h-[70vh] overflow-y-auto overflow-x-hidden rounded-lg shadow h-fit"
             style={{
               backgroundImage: `url(${backgroundUrl})`,
               backgroundSize: "cover",

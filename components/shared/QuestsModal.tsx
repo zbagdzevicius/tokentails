@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { PixelButton } from "./PixelButton";
 import { CloseButton } from "./CloseButton";
+import { Tag } from "./Tag";
 enum QuestType {
   SOCIAL = "SOCIAL",
   MILESTONE = "MILESTONE",
@@ -87,7 +88,7 @@ const allQuests: IQuest[] = [
   {
     type: QuestType.PARTNERS,
     key: QUEST.START_VANA_DATA_HERO,
-    name: "Start Vana Data Hero",
+    name: "Start Vana Hero",
     link: "https://t.me/VanaDataHeroBot/VanaDataHero",
     icon: "/icons/social/vana.webp",
     reward: {
@@ -340,8 +341,9 @@ export const QuestsModalContent = () => {
   }, 200);
 
   return (
-    <div className="px-4 py-8 md:px-16 md:py-12 flex flex-col justify-between items-center animate-appear">
-      <div className="flex items-center justify-between w-full">
+    <div className="px-4 pb-8 pt-4 md:px-16 md:b-12 flex flex-col justify-between items-center animate-appear">
+      <Tag>QUESTS</Tag>
+      <div className="py-2 flex items-center justify-between w-full mb-4">
         <PixelButton
           text="SOCIAL"
           active={questsType === QuestType.SOCIAL}
@@ -362,13 +364,6 @@ export const QuestsModalContent = () => {
       </div>
       {questsType === QuestType.SOCIAL && (
         <>
-          <div className="text-p1 font-secondary w-full flex justify-between items-center">
-            SOCIAL QUESTS
-            <span className="text-p6 flex flex-col">
-              <span>verified every 24 hours</span>
-              <span>complete 3 to unlock milestone rewards</span>
-            </span>
-          </div>
           <div className="flex flex-col gap-2 w-full">
             {quests.map((quest) => (
               <div
@@ -377,9 +372,9 @@ export const QuestsModalContent = () => {
               >
                 <div className="flex gap-2 items-center">
                   {profile?.quests?.includes(quest.key) ? (
-                    <img className="w-6" src="icons/check.webp" />
+                    <img className="w-10" src="icons/check.webp" />
                   ) : (
-                    <img className="w-6" src={quest.icon} />
+                    <img className="w-10" src={quest.icon} />
                   )}
                   <PixelButton
                     text={quest.name}
@@ -401,9 +396,6 @@ export const QuestsModalContent = () => {
       )}
       {questsType !== QuestType.SOCIAL && (
         <>
-          <div className="text-p1 font-secondary w-full flex justify-between items-center">
-            {questsType} QUESTS
-          </div>
           <div className="flex flex-col gap-2 w-full pb-8">
             {quests.map((quest) => (
               <div
@@ -412,9 +404,9 @@ export const QuestsModalContent = () => {
               >
                 <div className="flex relative gap-2 items-center">
                   {profile?.quests?.includes(quest.key) ? (
-                    <img className="w-6" src="icons/check.webp" />
+                    <img className="w-10" src="icons/check.webp" />
                   ) : (
-                    <img className="w-6" src={quest.icon} />
+                    <img className="w-10" src={quest.icon} />
                   )}
                   <PixelButton
                     text={quest.name}
@@ -445,7 +437,7 @@ export const QuestsModal = ({ close }: { close: () => void }) => {
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
-      <div className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full relative bg-gradient-to-b from-yellow-300 to-purple-300 absolute inset-0 max-h-screen overflow-y-auto rounded-lg shadow h-fit">
+      <div className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full bg-gradient-to-b from-yellow-300 to-purple-300 absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow h-fit">
         <QuestsModalContent />
         <button onClick={close} className="absolute right-[0] top-0 group">
           <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>

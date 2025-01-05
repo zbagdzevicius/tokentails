@@ -224,7 +224,7 @@ export const Comments = ({ close, entity, type }: IProps) => {
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-100 opacity-[0.75]"
       ></div>
-      <div className="z-50 w-full md:w-[480px] transition-from-bottom-animation max-w-full mt-safe absolute bg-yellow-50 absolute top-32 bottom-0 rounded-t-[22px] shadow flex flex-col pb-8 pt-6 px-2">
+      <div className="z-50 w-full md:w-[480px] max-w-full mt-safe absolute bg-yellow-50 absolute top-32 bottom-0 rounded-t-[22px] shadow flex flex-col pb-8 pt-6 px-2">
         <div className="flex justify-center gap-2 items-center mb-5">
           <img src="/logo/comments.png" className="w-6 h-6" />
           <div className="text-center">Meows</div>

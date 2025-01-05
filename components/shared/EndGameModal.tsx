@@ -28,7 +28,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
       ></div>
 
       <div
-        className="z-50 rem:w-[350px] font-secondary md:w-[480px] transition-from-bottom-animation max-w-full absolute top-1/2 -translate-y-1/2 rounded-lg shadow h-fit animate-appear"
+        className="m-auto z-50 rem:w-[350px] font-secondary md:w-[480px] max-w-full absolute top-1/2 -translate-y-1/2 rounded-lg shadow h-fit animate-appear"
         style={{
           backgroundImage: "url(/base/bg.gif)",
           backgroundSize: "cover",

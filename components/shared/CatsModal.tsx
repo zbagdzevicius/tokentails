@@ -87,13 +87,11 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
 
   return (
     <div className="px-4 pt-4 pb-8 md:px-16 flex flex-col justify-between items-center animate-appear">
-      <h2 className="text-center font-secondary uppercase tracking-tight text-8xl max-lg:text-5xl max-lg:text-balance">
-        My Cats
-      </h2>
-      <h2 className="text-center font-secondary uppercase text-p5 md:text-p4">
+      <Tag>MY CATS</Tag>
+      <h2 className="text-center font-secondary uppercase text-p5 md:text-p4 pt-2">
         Here you can switch your main cat
       </h2>
-      <h2 className="text-center font-secondary uppercase text-p5 md:text-p4 mb-6">
+      <h2 className="text-center font-secondary uppercase text-p5 md:text-p4 mb-4">
         Earn coins to Adopt more cats in the shelter
       </h2>
       <div className="flex flex-wrap justify-center">
@@ -194,7 +192,7 @@ export const CatsModal = ({ close }: { close: () => void }) => {
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
-      <div className="z-50 rem:w-[350px] md:w-[480px] transition-from-bottom-animation max-w-full relative bg-gradient-to-b from-yellow-300 to-purple-300 absolute inset-0 max-h-screen overflow-y-auto rounded-lg shadow h-fit">
+      <div className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full bg-gradient-to-b from-yellow-300 to-purple-300 absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow h-fit">
         <CatsModalContent close={close} />
         <CloseButton onClick={close} />
       </div>
