@@ -85,9 +85,6 @@ impl BlessingContract {
 
         env.storage().persistent().set(&token_id, &to.clone());
 
-        // Log the mint event
-        env.events().publish((MINT,), (to, token_id));
-
         Ok(())
     }
 
@@ -168,9 +165,6 @@ impl BlessingContract {
 
         // Update the NFT with the new owner
         env.storage().persistent().set(&token_id, &to.clone());
-
-        // Log the transfer event
-        env.events().publish((TRANSFER,), (from, to, token_id));
 
         Ok(())
     }

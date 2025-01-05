@@ -317,3 +317,5 @@ getFeeStats().then((inclusionFees) => {
     console.log("Recommended fee (90th percentile):", inclusionFees.p90);
   }
 });
+
+computeEventsOrReturnValueFee(100)

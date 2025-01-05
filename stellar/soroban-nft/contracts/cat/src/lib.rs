@@ -86,9 +86,6 @@ impl CatContract {
 
         env.storage().persistent().set(&token_id, &to.clone());
 
-        // Log the mint event
-        env.events().publish((MINT,), (to, token_id));
-
         Ok(())
     }
 
@@ -154,9 +151,6 @@ impl CatContract {
         // Remove the token from persistent storage
         env.storage().persistent().remove(&token_id);
 
-        // Log the burn event
-        env.events().publish((BURN,), (invoker, token_id));
-
         Ok(())
     }
 
@@ -195,9 +189,6 @@ impl CatContract {
 
         // Update the NFT with the new owner
         env.storage().persistent().set(&token_id, &to.clone());
-
-        // Log the transfer event
-        env.events().publish((TRANSFER,), (from, to, token_id));
 
         Ok(())
     }
