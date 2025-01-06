@@ -163,8 +163,8 @@ export const HomePage = () => {
           width={80}
           height={80}
         />
-        <h1 className="text-center font-secondary uppercase tracking-tight text-h3 -mt-14 md:text-8xl">
-          PLAY TO SAVE
+        <h1 className="text-center font-secondary uppercase tracking-tight text-h3 -mt-14 md:text-8xl whitespace-nowrap">
+          PLAY TO SAVE CATS
         </h1>
       </div>
       <div className="relative z-20 w-full flex items-center justify-center max-w-[100vw] overflow-hidden">
@@ -183,7 +183,7 @@ export const HomePage = () => {
           </div>
         </div>
         <div className="relative z-10 h-fit flex items-center justify-center">
-          <div className="relative pt-10 md:pt-20 md:px-8 flex items-center justify-center">
+          <div className="relative pt-2 md:pt-20 md:px-8 flex items-center justify-center">
             <div className="relative w-full hover:brightness-110">
               <img
                 src="/images/home-page/tamagotchi.webp"
@@ -202,7 +202,7 @@ export const HomePage = () => {
               <img
                 src="/images/home-page/rocket-cat.webp"
                 alt="Cat Hero"
-                className="absolute -top-10 md:top-5 -right-0 md:-right-8 z-0 w-12 -rotate-45 md:rotate-0 md:w-36 overflow-hidden z-0"
+                className="absolute top-16 md:top-5 -right-2 md:-right-8 w-16 -rotate-45 md:rotate-0 md:w-36 overflow-hidden z-0"
               />
             </div>
             <img

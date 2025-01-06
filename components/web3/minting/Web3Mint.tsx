@@ -2,7 +2,6 @@
 
 import { PixelButton } from "@/components/shared/PixelButton";
 import { EntityType } from "@/models/save";
-import { ChainImg, ChainType } from "@/web3/contracts";
 import { useMemo } from "react";
 import { useWeb3Minting } from "./useWeb3Minting";
 
@@ -34,7 +33,6 @@ export const Web3Mint = ({ user }: Web3TransferProps) => {
 
   return (
     <div className="flex flex-col justify-center items-center">
-      <img src={ChainImg[ChainType.ZETA]} className="w-12 aspect-square -mb-6" />
       {namespaceDetail?.connected ? (
         <>
           <PixelButton

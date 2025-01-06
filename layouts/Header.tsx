@@ -122,8 +122,8 @@ export const Header = () => {
               />
             )}
           </div>
-          <a href="/#presale">
-            <PixelButton text="Presale" isBig></PixelButton>
+          <a href="/#cards">
+            <PixelButton text="CATS" isBig></PixelButton>
           </a>
         </div>
       </div>

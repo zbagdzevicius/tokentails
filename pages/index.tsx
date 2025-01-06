@@ -154,22 +154,6 @@ export default function Index() {
           </div>
         </div>
         <div
-          className="pb-4 pt-3 md:pt-0 min-h-screen flex items-center justify-center w-full"
-          style={{
-            backgroundImage: "url(/base/bg.gif)",
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        >
-          <div className="h-full w-full" id="game" ref={catssliderRef}>
-            <FirebaseAuthProvider>
-              <HelpCats />
-            </FirebaseAuthProvider>
-          </div>
-        </div>
-
-        <div
           className="py-4 min-h-screen"
           style={{
             backgroundImage: "url(/base/bg-3.gif)",
@@ -180,6 +164,21 @@ export default function Index() {
         >
           <div id="cats" ref={catshubRef}>
             <CatsHub />
+          </div>
+        </div>
+        <div
+          className="pb-4 pt-3 md:pt-0 min-h-screen flex items-center justify-center w-full relative"
+          style={{
+            backgroundImage: "url(/base/bg.gif)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div className="h-full w-full" id="cards" ref={catssliderRef}>
+            <FirebaseAuthProvider>
+              <HelpCats />
+            </FirebaseAuthProvider>
           </div>
         </div>
         <div
