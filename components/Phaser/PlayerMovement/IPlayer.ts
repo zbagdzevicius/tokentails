@@ -1,4 +1,6 @@
+import { Abilities } from "@/components/catbassadors/objects/Abilities";
 import { ICatAnimationKeysMap } from "@/components/catbassadors/objects/Catbassador";
+import { CatAbilityType } from "@/models/cats";
 
 export interface IPlayer {
   sprite: Phaser.Physics.Arcade.Sprite;
@@ -9,11 +11,13 @@ export interface IPlayer {
     left: Phaser.Input.Keyboard.Key;
     right: Phaser.Input.Keyboard.Key;
     dash: Phaser.Input.Keyboard.Key;
+    knockback: Phaser.Input.Keyboard.Key;
   };
   isMobileJumping: boolean;
   isMobileLeft: boolean;
   isMobileRight: boolean;
   isMobileDash: boolean;
+  isMobileknockbackSpell: boolean;
   isDashing: boolean;
   walkSpeed: number;
   jumpSpeed: number;
@@ -37,5 +41,6 @@ export interface IPlayer {
   isDeath: boolean;
   isInvulnerable: boolean;
   hasKey: boolean;
-  
+  abilities:Abilities;
+  type:CatAbilityType;
 }

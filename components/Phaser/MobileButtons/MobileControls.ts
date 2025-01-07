@@ -5,11 +5,13 @@ interface ControlledObject {
   isMobileRight: boolean;
   isMobileJumping: boolean;
   isMobileDash: boolean;
+  isMobileknockbackSpell: boolean;
 }
 
 interface Controls {
   jumpButton: HTMLElement | null;
   dashButton: HTMLElement | null;
+  knockbackSpell: HTMLElement | null;
 }
 
 const startEventListenersKeys = ["touchstart", "mousedown"];
@@ -21,12 +23,14 @@ export function setMobileControls(
   const controls: Controls = {
     jumpButton: document.getElementById("jump"),
     dashButton: document.getElementById("dash"),
+    knockbackSpell: document.getElementById("knockback"),
   };
 
   if (
     !controlledObject ||
     !controls.jumpButton ||
-    !controls.dashButton
+    !controls.dashButton ||
+    !controls.knockbackSpell
   ) {
     // console.error("Controlled object or control buttons not found.");
     return;
@@ -127,6 +131,15 @@ export function setMobileControls(
     },
     () => {
       controlledObject.isMobileDash = false;
+    }
+  );
+  addControlListeners(
+    controls.knockbackSpell,
+    () => {
+      controlledObject.isMobileknockbackSpell = true;
+    },
+    () => {
+      controlledObject.isMobileknockbackSpell = false;
     }
   );
 }

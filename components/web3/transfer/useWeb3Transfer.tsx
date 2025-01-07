@@ -147,9 +147,9 @@ export const useWeb3Transfer = ({
             asset:
               currencyType === CurrencyType.USDC
                 ? new Asset(
-                    "USDC",
-                    "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"
-                  )
+                  "USDC",
+                  "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"
+                )
                 : Asset.native(),
             amount: String(price),
           })
@@ -188,7 +188,7 @@ export const useWeb3Transfer = ({
         blessing,
         user,
       })
-        .then(() => {})
+        .then(() => { })
         .catch((error) => {
           console.error("Confirmation failed:", error);
         });
@@ -270,7 +270,7 @@ export const useWeb3Transfer = ({
         blessing,
         user,
       })
-        .then(() => {})
+        .then(() => { })
         .catch((error) => {
           console.error("Confirmation failed:", error);
         });
@@ -284,7 +284,6 @@ export const useWeb3Transfer = ({
         },
         "confirmed"
       );
-      console.log("Transaction confirmed:", confirmation);
     } catch (error) {
       console.error("Error sending SOL:", error);
     }
