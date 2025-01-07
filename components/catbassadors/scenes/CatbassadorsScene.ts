@@ -6,7 +6,7 @@ import {
 } from "@/components/Phaser/events";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
-import { ICat, catbassadorsGameDuration } from "@/models/cats";
+import { CatAbilityType, ICat, catbassadorsGameDuration } from "@/models/cats";
 import { Scene } from "phaser";
 import { Cat } from "../objects/Catbassador";
 import { Coin } from "../objects/Coin";
@@ -51,7 +51,8 @@ export class CatbassadorsScene extends Scene {
   lastUpdateTime: number;
   trampoline?: Trampoline;
   enemySpawnThreshold = DEFAULT_ENEMY_SPAWN_THRESHOLD;
-  enemies: Enemy[] = [];
+  enemy?:Enemy;
+  public enemies: Enemy[] = []
   bossEnemy?: BossEnemy;
   canCollectReward: boolean = false;
   IsBossSpawned = false;
@@ -118,6 +119,11 @@ export class CatbassadorsScene extends Scene {
     );
     this.load.spritesheet("boss", "enemies/boss/boss-winter.png", {
       frameWidth: 96,
+      frameHeight: 64,
+    });
+
+        this.load.spritesheet("knockback-spell", "abilities/knockback-spell/FIRE.png", {
+      frameWidth: 64,
       frameHeight: 64,
     });
   }
@@ -262,7 +268,7 @@ export class CatbassadorsScene extends Scene {
           this.blessing.play(`blessing_animation_${cat.blessings[0].ability}`);
         }
 
-        this.createCat(cat.name, this.blessing);
+        this.createCat(cat.name, this.blessing, cat.type);
       },
       this
     );
@@ -288,11 +294,11 @@ export class CatbassadorsScene extends Scene {
 
   private createCat(
     catName: string,
-    blessing: Phaser.GameObjects.Sprite | null
+    blessing: Phaser.GameObjects.Sprite | null,
+    type : CatAbilityType
   ) {
-    this.cat = new Cat(this, 0, -400, catName, blessing!);
+    this.cat = new Cat(this, 0, -400, catName, blessing!,type);
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
-
     this.physics.add.collider(
       this.cat.sprite as Phaser.Physics.Arcade.Sprite,
       this.platformsLayer
@@ -476,7 +482,6 @@ private increasePlayerSpeed(): void {
           amount: +1,
         });
       this.enemySpawnThreshold += DEFAULT_ENEMY_SPAWN_THRESHOLD;
-
       this.enemies.forEach((enemy) => {
         enemy.increaseSpeed();
       });
@@ -504,21 +509,21 @@ private increasePlayerSpeed(): void {
       "enemy-white-owlet",
     ];
     const randomSprite = Phaser.Utils.Array.GetRandom(enemySprites);
-    const enemy = new Enemy(
+    this.enemy = new Enemy(
       this,
       this.getCoinSpawnPositionX(),
       this.getCoinSpawnPositionY(),
       randomSprite
     );
 
-    if (enemy) {
-      this.enemies.push(enemy);
+    if (this.enemy) {
+      this.enemies.push(this.enemy);
       this.physics.add.collider(this.enemies, this.groundLayer);
       this.physics.add.collider(this.enemies, this.jumperLayer);
       this.physics.add.collider(this.enemies, this.platformsLayer);
       this.physics.add.overlap(
         this.cat?.sprite as Phaser.Physics.Arcade.Sprite,
-        enemy,
+        this.enemy,
         this
           .handlePlayerEnemyCollisions as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
         undefined,

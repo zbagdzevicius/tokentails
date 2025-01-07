@@ -12,7 +12,7 @@ import {
 } from "@/components/Phaser/events";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { ZOOM } from "@/constants/utils";
-import { ICat } from "@/models/cats";
+import { CatAbilityType, ICat } from "@/models/cats";
 import { GenerateLevel } from "../level/generateLevel";
 import { Chest } from "../objects/Chest";
 import { MovablePlatform } from "../objects/MovablePlatform";
@@ -34,7 +34,7 @@ const SPIKE_TILES = [70, 71, 99, 100];
 const JUMP_LAYER_TILES = [46, 47, 48, 49];
 
 const POWERUP_DURATION_MS = 10000;
-const POWERUP_SPAWN_THRESHOLD = 3000;
+const POWERUP_SPAWN_THRESHOLD = 30000;
 
 const PLATFORM_CONFIGS: {
   [key: number]: {
@@ -61,7 +61,7 @@ export class PurrquestScene extends Phaser.Scene {
   key!: Coin;
   private platforms: MovablePlatform[] = [];
   private spikes: Spike[] = [];
-  private enemies: Enemy[] = [];
+  public enemies: Enemy[] = []
   bossEnemy?: BossEnemy;
   trampoline?: Trampoline;
   blessing!: Phaser.GameObjects.Sprite;
@@ -112,6 +112,10 @@ export class PurrquestScene extends Phaser.Scene {
     );
     this.load.spritesheet("boss", "enemies/boss/boss-winter.png", {
       frameWidth: 96,
+      frameHeight: 64,
+    });
+    this.load.spritesheet("knockback-spell", "abilities/knockback-spell/FIRE.png", {
+      frameWidth: 64,
       frameHeight: 64,
     });
 
@@ -191,11 +195,10 @@ export class PurrquestScene extends Phaser.Scene {
     if (this.player || !cat) {
       return;
     }
-
     if (this.blessing) {
       this.blessing.setVisible(false);
     }
-
+    const catType = cat.type;
     this.load.once(
       "complete",
       () => {
@@ -221,7 +224,7 @@ export class PurrquestScene extends Phaser.Scene {
           this.blessing.play(`blessing_animation_${cat.blessings[0].ability}`);
         }
 
-        this.createPlayer(cat, this.blessing);
+        this.createPlayer(cat, this.blessing, catType);
       },
       this
     );
@@ -245,7 +248,7 @@ export class PurrquestScene extends Phaser.Scene {
     this.load.start();
   }
 
-  private createPlayer(cat: ICat, blessing: Phaser.GameObjects.Sprite | null) {
+  private createPlayer(cat: ICat, blessing: Phaser.GameObjects.Sprite | null, type: CatAbilityType) {
     const startCoords = this.generateLevel.getStartCoordinates();
     const startX =
       startCoords.x *
@@ -257,9 +260,12 @@ export class PurrquestScene extends Phaser.Scene {
         this.generateLevel.getTileSize() *
         this.generateLevel.getRoomRows() +
       32 * 7;
-
-    this.player = new Cat(this, startX, startY, cat.name, blessing!);
+    
+    this.player = new Cat(this, startX, startY, cat.name, blessing!,type);
     this.player.hasKey = false;
+
+     this.player
+
     this.cameras.main.startFollow(this.player.sprite);
     this.player.sprite.setDepth(2);
     this.cameras.main.zoom = ZOOM
@@ -286,28 +292,32 @@ export class PurrquestScene extends Phaser.Scene {
     }
   }
 
-  private getRandomWalkableTile(): Phaser.Tilemaps.Tile | null {
+private getRandomWalkableTile(): Phaser.Tilemaps.Tile | null {
     if (!this.groundLayer) {
-      console.error("Ground layer is not defined.");
-      return null;
+        console.error("Ground layer is not defined.");
+        return null;
     }
 
-    // Filter out all non-colliding tiles where entities can be placed
     const walkableTiles = this.groundLayer.filterTiles(
-      (tile: Phaser.Tilemaps.Tile) => {
-        return !tile.collides && tile.index !== -1; // Ensure the tile is walkable
-      }
+        (tile: Phaser.Tilemaps.Tile) => {
+            return !tile.collides && tile.index !== -1;
+        }
     );
 
-    // Check if there are any walkable tiles available
-    if (walkableTiles.length === 0) {
-      console.error("No walkable tiles found.");
-      return null;
+    if (!walkableTiles || walkableTiles.length === 0) {
+        console.error("No walkable tiles found.");
+        return null;
     }
 
-    // Return a random tile from the filtered walkable tiles
-    return Phaser.Utils.Array.GetRandom(walkableTiles);
-  }
+    const randomTile = Phaser.Utils.Array.GetRandom(walkableTiles);
+    if (!randomTile) {
+        console.error("Failed to select a random walkable tile.");
+        return null;
+    }
+
+    return randomTile;
+}
+
   private spawnEnemiesRandomly(count: number) {
     const enemySprites = [
       "enemy-pinkie",

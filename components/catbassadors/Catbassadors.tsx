@@ -88,7 +88,6 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
       GameEvents.CAT_SPAWN.push({ cat });
     }
   }, [cat, isGameLoaded]);
-  console.log(timer)
   return (
     <div id="app">
       <div className="fixed right-0 top-0 z-50">

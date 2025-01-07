@@ -2,7 +2,6 @@ import { PlayerAnimation } from "@/components/catbassadors/objects/Catbassador";
 import Phaser from "phaser";
 import { IPlayer } from "../PlayerMovement/IPlayer";
 
-
 const wallSlidingThresholdMs = 200;
 
 export class PlayerMovement {
@@ -16,6 +15,7 @@ export class PlayerMovement {
     this.player.sprite.setMaxVelocity(this.player.walkSpeed * 2, 1000000);
   }
 
+
   updateOngoingMovements() {
     const {
       sprite,
@@ -24,9 +24,15 @@ export class PlayerMovement {
       isMobileLeft,
       isMobileRight,
       isMobileJumping,
+      isMobileknockbackSpell,
+      abilities,
     } = this.player;
 
     if (this.player.isDashing) return;
+
+    if (Phaser.Input.Keyboard.JustDown(keys.knockback) || isMobileknockbackSpell) {
+      abilities.performKnocbackSpell();
+    }
 
     const leftKeyDown = cursors.left.isDown || keys.left.isDown || isMobileLeft;
     const rightKeyDown =
