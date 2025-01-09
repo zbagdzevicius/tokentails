@@ -22,7 +22,8 @@ import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { Enemy } from "@/components/purrquest/objects/Enemy";
 import { BossEnemy } from "../objects/Boss";
 import { catWalkSpeed, endScenePeriod, GameType } from "@/models/game";
-import { PowerUp, PowerUpType } from "@/components/catbassadors/objects/PowerUp";
+import { BuffType,Buff } from "@/components/catbassadors/objects/Buff";
+import { SpeedEffect } from "@/components/catbassadors/objects/SpeedEffect";
 
 const COLLISION_TILES = [
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 29, 30, 31, 32, 33, 34, 35, 36, 37, 62, 63, 64,
@@ -34,7 +35,7 @@ const SPIKE_TILES = [70, 71, 99, 100];
 const JUMP_LAYER_TILES = [46, 47, 48, 49];
 
 const POWERUP_DURATION_MS = 10000;
-const POWERUP_SPAWN_THRESHOLD = 30000;
+const POWERUP_SPAWN_THRESHOLD = 11000;
 
 const PLATFORM_CONFIGS: {
   [key: number]: {
@@ -67,9 +68,11 @@ export class PurrquestScene extends Phaser.Scene {
   blessing!: Phaser.GameObjects.Sprite;
   private gameStartTime: number = 0;
 
-  powerUpSpawnTimer: NodeJS.Timeout | null = null;
-  currentPowerUp: PowerUp | null = null;
-  powerUpLifetimeTimer: NodeJS.Timeout | null = null;
+ buffSpawnTimer: NodeJS.Timeout | null = null;
+  currentBuff: Buff | null = null;
+  buffLifetimeTimer: NodeJS.Timeout | null = null;
+
+  private speedEffect: SpeedEffect | null = null;
 
   constructor() {
     super("PurrquestScene");
@@ -121,11 +124,17 @@ export class PurrquestScene extends Phaser.Scene {
 
     this.load.image("speedPowerUp", "power-up/SPEED.png");
 
+    this.load.spritesheet("speed-effect", "power-up/SPEED-EFFECT.png", {
+      frameWidth: 64,
+      frameHeight: 64,
+    });
+
   }
 
   create(props: IPhaserGameSceneProps) {
     this.physics.world.setFPS(120);
     this.startGame();
+    this.speedEffect = new SpeedEffect(this);
 
     const catSpawnCallback = (data: ICatEvent<GameEvent.GAME_START>) =>
       this.spawnPlayer(data.detail.cat!);
@@ -142,7 +151,7 @@ export class PurrquestScene extends Phaser.Scene {
     this.initializePathfinding();
 
     this.renderTilemap();
-     this.powerUpSpawnTimer = setInterval(() => {
+     this.buffSpawnTimer = setInterval(() => {
       this.spawnPowerUp();
     }, POWERUP_SPAWN_THRESHOLD);
   }
@@ -174,8 +183,8 @@ export class PurrquestScene extends Phaser.Scene {
     });
     this.bossEnemy?.update(time, delta);
 
-     if (this.currentPowerUp) {
-    this.currentPowerUp.update();
+     if (this.currentBuff) {
+    this.currentBuff.update();
   }
   }
 
@@ -189,6 +198,20 @@ export class PurrquestScene extends Phaser.Scene {
     this.pathfinding = new Pathfinding(this, this.generateLevel);
     this.pathfinding.initializePathfinding();
     this.pathfinding.validatePathExistence(289, 290);
+  }
+
+    private getSpawnPositionX(): number {
+    const leftWall = 200;
+    const rightWall = 1700;
+
+    return Math.floor(Math.random() * (rightWall - leftWall + 1)) + leftWall;
+  }
+
+  private getSpawnPositionY(): number {
+    const leftWall = 200;
+    const rightWall = 1700;
+
+    return Math.floor(Math.random() * (rightWall - leftWall + 1)) + leftWall;
   }
 
   private spawnPlayer(cat: ICat) {
@@ -206,7 +229,6 @@ export class PurrquestScene extends Phaser.Scene {
           this.blessing = this.add
             .sprite(0, 0, `blessing-${cat.blessings[0].ability}`)
             .setVisible(true)
-            .setDepth(2);
 
           this.anims.create({
             key: `blessing_animation_${cat.blessings[0].ability}`,
@@ -375,6 +397,10 @@ private getRandomWalkableTile(): Phaser.Tilemaps.Tile | null {
     player: Phaser.Physics.Arcade.Sprite,
     enemy: Enemy | BossEnemy
   ) {
+
+    if (enemy.isKnockedDown) {
+    return; 
+  }
     if (!this.player!.isInvulnerable) {
       let pushBackForce = enemy instanceof BossEnemy ? 800 : 500;
 
@@ -647,49 +673,47 @@ private getRandomWalkableTile(): Phaser.Tilemaps.Tile | null {
   }
 
   private spawnPowerUp() {
-    if (this.currentPowerUp) return;
+    if (this.currentBuff) return;
          const tile = this.getRandomWalkableTile();
     if (!tile) {
       console.error("No walkable tile available for boss spawn.");
       return;
     }
-
-    const x = tile.getCenterX();
-    const y = tile.getTop() - 32;
   
-    this.currentPowerUp = new PowerUp(this as any, x, y);
+    this.currentBuff = new Buff(this as any, this.getSpawnPositionX(), this.getSpawnPositionY());
   
-    this.physics.add.collider(this.currentPowerUp.sprite, this.groundLayer!);
+    this.physics.add.collider(this.currentBuff!.sprite, this.groundLayer!);
     this.physics.add.overlap(
       this.player?.sprite!,
-      this.currentPowerUp.sprite,
+      this.currentBuff!.sprite,
       this.handlePowerUpCollected,
       undefined,
       this
     );
-  
-    // Auto-destroy PowerUp after 10s if uncollected
-    this.powerUpLifetimeTimer = setTimeout(() => {
-      if (this.currentPowerUp) {
-        this.currentPowerUp.sprite.destroy();
-        this.currentPowerUp = null;
+
+    
+    this.buffLifetimeTimer = setTimeout(() => {
+      if (this.currentBuff) {
+        this.currentBuff.sprite.destroy();
+        this.currentBuff = null;
       }
     }, POWERUP_DURATION_MS);
   }
   
   private handlePowerUpCollected = () => {
-    if (!this.currentPowerUp) return;
+    if (!this.currentBuff) return;
   
-    if (this.currentPowerUp.type === PowerUpType.SPEED) {
-      this.increasePlayerSpeed();
-    }
+     if (this.currentBuff.type === BuffType.SPEED) {
+        this.increasePlayerSpeed();
+        this.speedEffect?.play(this.player!.sprite, POWERUP_DURATION_MS);
+      }
   
-    this.currentPowerUp.destroy();
-    this.currentPowerUp = null;
+    this.currentBuff.destroy();
+    this.currentBuff = null;
   
-    if (this.powerUpLifetimeTimer) {
-      clearTimeout(this.powerUpLifetimeTimer);
-      this.powerUpLifetimeTimer = null;
+    if (this.buffLifetimeTimer) {
+      clearTimeout(this.buffLifetimeTimer);
+      this.buffLifetimeTimer = null;
     }
   };
   
@@ -699,7 +723,8 @@ private getRandomWalkableTile(): Phaser.Tilemaps.Tile | null {
       this.player.walkSpeed += 200;
       
       GameEvents[GameEvent.CAT_POWER_UP].push({
-        powerup: PowerUpType.SPEED,
+        buff: BuffType.SPEED,
+        duration: POWERUP_DURATION_MS,
       });
   
       this.time.delayedCall(10000, () => {
@@ -707,7 +732,8 @@ private getRandomWalkableTile(): Phaser.Tilemaps.Tile | null {
           this.player.walkSpeed -= 200;
         }
         GameEvents[GameEvent.CAT_POWER_UP].push({
-          powerup: null,
+          buff: null,
+          duration:0,
         });
       });
     }

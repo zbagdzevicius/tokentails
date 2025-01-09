@@ -8,7 +8,7 @@ import { CatAbilityType } from "@/models/cats";
 
 type GameScene = PurrquestScene | CatbassadorsScene;
 
-const KNOCKBACK_ABILITY_DELAY_MS = 1800
+const KNOCKBACK_ABILITY_DELAY_MS = 200
 
 export class Abilities {
   private player: IPlayer;
@@ -101,7 +101,6 @@ public performKnocbackSpell(): void {
 
     this.applyHueRotation(knockbackSpell, hueRotation);
 
-    // Ground collision
     this.scene.physics.add.collider(
         knockbackSpell,
         (this.scene as GameScene).groundLayer!,
@@ -159,6 +158,16 @@ private handleSpellHit(
     knockbackSpell: Phaser.Physics.Arcade.Sprite,
     boss: BossEnemy
 ): void {
+    
+    if (!knockbackSpell.active) return; 
+    knockbackSpell.active = false;
+
     boss.takeDamage();
+    this.scene.time.delayedCall(50, () => {
+        if (knockbackSpell.active) {
+            knockbackSpell.destroy();
+        }
+    });
 }
+
 }

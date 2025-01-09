@@ -60,8 +60,8 @@ export type ICatAnimationKeysMap = Record<BossAnimation, IBossAnimationKey>;
 export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
   private health: number;
   private hitCount: number; 
-  private hitsToKnockDown: number = 5;
-  private isKnockedDown: boolean = false;
+  private hitsToKnockDown: number = 10;
+  public isKnockedDown: boolean = false;
   private knockdownDuration: number = 3000;
   private attackCooldown: number;
   private ultimateCooldown: number;
@@ -335,7 +335,6 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
     this.hitCount++; 
     this.play(BossAnimation.DAMAGED, true);
 
-   
     if (this.hitCount >= this.hitsToKnockDown) {
       this.knockDown();
       this.hitCount = 0;
