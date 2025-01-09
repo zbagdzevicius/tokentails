@@ -59,6 +59,10 @@ export type ICatAnimationKeysMap = Record<BossAnimation, IBossAnimationKey>;
 
 export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
   private health: number;
+  private hitCount: number; 
+  private hitsToKnockDown: number = 10;
+  public isKnockedDown: boolean = false;
+  private knockdownDuration: number = 3000;
   private attackCooldown: number;
   private ultimateCooldown: number;
   private isCharging: boolean = false;
@@ -78,8 +82,9 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
     player: Phaser.Physics.Arcade.Sprite
   ) {
     super(scene, x, y, texture);
-    this.player = player;
     this.health = 200;
+    this.hitCount = 0;
+    this.player = player;
     this.attackCooldown = 0;
     this.ultimateCooldown = 0;
     this.ultimateJumpCooldown = 0;
@@ -111,7 +116,9 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   public update(time: number, delta: number): void {
-    if (!this.body) return;
+     if (!this.body || this.isKnockedDown) {
+    this.setVelocity(0, 0); 
+    return;}
     if (this.ultimateCooldown > 0) {
       this.ultimateCooldown -= delta;
     }
@@ -169,7 +176,6 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
 
   private engagePlayer() {
     if (!this.body) return;
-    // Calculate direction to player and set velocity towards them
     const dx = this.player.x - this.x;
     const dy = this.player.y - this.y;
 
@@ -324,12 +330,27 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
-  public takeDamage(amount: number) {
-    this.health -= amount;
+ public takeDamage() {
+    if (this.isKnockedDown) return;
+    this.hitCount++; 
     this.play(BossAnimation.DAMAGED, true);
-    if (this.health <= 0) {
-      this.die();
+
+    if (this.hitCount >= this.hitsToKnockDown) {
+      this.knockDown();
+      this.hitCount = 0;
     }
+ 
+  }
+
+   private knockDown() {
+    this.isKnockedDown = true;
+    this.play(BossAnimation.DAMAGED2, true); 
+    this.setVelocity(0,400);
+
+    this.scene.time.delayedCall(this.knockdownDuration, () => {
+      this.isKnockedDown = false;
+      this.playIdle();
+    });
   }
 
   private die() {

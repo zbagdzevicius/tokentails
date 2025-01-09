@@ -2,7 +2,7 @@ import { Scene } from "phaser";
 import { GameEvent, GameEvents, ICatEvent, IPhaserGameSceneProps } from "@/components/Phaser/events";
 import { Cat } from "../../catbassadors/objects/Catbassador";
 import { NpcCat } from "../objects/NpcCat";
-import { CatType } from "@/models/cats";
+import { CatAbilityType, CatType } from "@/models/cats";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { ICat } from "@/models/cats";
@@ -43,6 +43,11 @@ export class ShelterScene extends Scene {
     this.load.tilemapTiledJSON("tilemap", "catbassadors/shelter.json");
     this.load.image("blocks", "base/blocks-winter.png");
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
+
+    this.load.spritesheet("knockback-spell", "abilities/knockback-spell/FIRE.png", {
+    frameWidth: 64,
+    frameHeight: 64,
+    });
   }
 
   create(props: IPhaserGameSceneProps) {
@@ -162,7 +167,7 @@ async spawnCat({ detail: { cat } }: ICatEvent<GameEvent.CAT_SPAWN>, isRestart?: 
         this.blessing.play(`blessing_animation_${cat.blessings[0].ability}`);
       }
 
-      this.createCat(cat.name, this.blessing);
+      this.createCat(cat.name, this.blessing,cat.type);
     },
     this
   );
@@ -271,13 +276,13 @@ private destroySpeechBubble() {
 
 
 
-private createCat(catName: string, blessing: Phaser.GameObjects.Sprite | null) {
-  this.cat = new Cat(this, -200, -400, catName, blessing!);
+private createCat(catName: string, blessing: Phaser.GameObjects.Sprite | null,type:CatAbilityType) {
+  this.cat = new Cat(this, -200, -400, catName, blessing!,type);
   this.physics.add.collider(this.cat.sprite, this.groundLayer);
   this.physics.add.collider(this.cat.sprite as Phaser.Physics.Arcade.Sprite, this.platformsLayer);
   this.physics.add.collider(this.cat.sprite, this.jumperLayer);
   this.cameras.main.startFollow(this.cat.sprite);
-  
+
 
   setMobileControls(this.cat);
 

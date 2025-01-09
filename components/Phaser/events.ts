@@ -2,7 +2,7 @@ import { ICat } from "@/models/cats";
 import { useEffect, useState } from "react";
 import { CatType } from "@/models/cats";
 import { GameType } from "@/models/game";
-import { PowerUpType } from "../catbassadors/objects/PowerUp";
+import { BuffType } from "../catbassadors/objects/Buff";
 
 export type IPhaserScene = Phaser.Scene & { cat?: any; catDto?: ICat };
 export interface IPhaserGame {
@@ -58,8 +58,12 @@ interface INpcCollisionEvent {
   npc: ICat;
 }
 
-interface IPowerUp {
-  powerup: PowerUpType | null;
+interface IBuff {
+  buff: BuffType | null;
+  duration: number;
+}
+interface IBuffSpawned {
+   buff: BuffType; 
 }
 
 
@@ -88,9 +92,10 @@ export enum GameEvent {
   NPC_SPAWN_EXCLUSIVE = "NPC_SPAWN_EXCLUSIVE",
   NPC_COLLISION = "NPC_COLLISION",
   CAT_CARD_DISPLAY = "CAT_CARD_DISPLAY",
-  CAT_POWER_UP = "CAT_POWER_UP",
+  CAT_BUFF = "CAT_BUFF",
   ENEMY_SPAWN = "ENEMY_SPAWN",
-  BOSS_SPAWN = "BOSS_SPAWN"
+  BOSS_SPAWN = "BOSS_SPAWN",
+  BUFF_SPAWN = "BUFF_SPAWN",
 }
 
 export type ICatEventsDetails = {
@@ -109,9 +114,10 @@ export type ICatEventsDetails = {
   [GameEvent.NPC_SPAWN_EXCLUSIVE]: INpcSpawnEvent,
   [GameEvent.NPC_COLLISION]: INpcCollisionEvent;
   [GameEvent.CAT_CARD_DISPLAY]: { npc: ICat };
-  [GameEvent.CAT_POWER_UP]: IPowerUp;
+  [GameEvent.CAT_BUFF]: IBuff;
   [GameEvent.ENEMY_SPAWN]: IEnemySpawn;
   [GameEvent.BOSS_SPAWN]: IBossSpawn;
+  [GameEvent.BUFF_SPAWN]: IBuffSpawned;
 };
 
 export type ICatEvent<K extends GameEvent> = IEventDetail<ICatEventsDetails[K]>;
@@ -202,7 +208,8 @@ export const GameEvents: GameEventsType = {
   [GameEvent.NPC_SPAWN_EXCLUSIVE]: generateGameEvent(GameEvent.NPC_SPAWN_EXCLUSIVE),
   [GameEvent.NPC_COLLISION]: generateGameEvent(GameEvent.NPC_COLLISION),
   [GameEvent.CAT_CARD_DISPLAY]: generateGameEvent(GameEvent.CAT_CARD_DISPLAY),
-  [GameEvent.CAT_POWER_UP]: generateGameEvent(GameEvent.CAT_POWER_UP),
+  [GameEvent.CAT_BUFF]: generateGameEvent(GameEvent.CAT_BUFF),
+  [GameEvent.BUFF_SPAWN]: generateGameEvent(GameEvent.BUFF_SPAWN),
   [GameEvent.ENEMY_SPAWN]: generateGameEvent(GameEvent.ENEMY_SPAWN),
   [GameEvent.BOSS_SPAWN]: generateGameEvent(GameEvent.BOSS_SPAWN),
 };

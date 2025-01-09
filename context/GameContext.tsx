@@ -20,10 +20,13 @@ import { TDeleteLive } from "@/constants/telegram-api";
 import { catbassadorsGameDuration } from "@/models/cats";
 import { GameModal, GameType } from "@/models/game";
 import * as React from "react";
+import { useState, useEffect } from "react";
 import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
 import { EndGameModal } from "@/components/shared/EndGameModal";
 import { getMultiplier } from "@/components/CatCardModal";
+import { IToast } from "./ToastContext";
+import { Notification } from "@/components/shared/Notification";
 
 type ContextState = {
   isStarted?: boolean;
@@ -31,6 +34,7 @@ type ContextState = {
   setGameType: (gameType: GameType | null) => void;
   timer: number;
   playGame: () => void;
+  addNotification: (notification: IToast) => void;
 };
 
 const GameContext = React.createContext<ContextState | undefined>(undefined);
@@ -38,19 +42,34 @@ const GameContext = React.createContext<ContextState | undefined>(undefined);
 let timerInterval: any = null;
 
 const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
-  const [isStarted, setIsStarted] = React.useState<boolean>(false);
-  const [gameType, setGameType] = React.useState<GameType | null>(
+  const [isStarted, setIsStarted] = useState<boolean>(false);
+  const [gameType, setGameType] = useState<GameType | null>(
     GameType.HOME
   );
-  const [openedModal, setOpenedModal] = React.useState<GameModal | null>(null);
-  const [gameStop, setGameStop] = React.useState<null | IGameStopEvent>(
+  const [openedModal, setOpenedModal] = useState<GameModal | null>(null);
+  const [gameStop, setGameStop] = useState<null | IGameStopEvent>(
     null
   );
 
   const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
   const isGameLoaded = GameEvents.GAME_LOADED.use();
-  const [timer, setTimer] = React.useState<number>(0);
+  const [timer, setTimer] = useState<number>(0);
+  const [notifications, setNotifications] = useState<IToast[]>([]);
+
+  const addNotification = (notification: IToast) => {
+    setNotifications((prev) => [...prev, notification]);
+  };
+
+  useEffect(() => {
+    if (notifications.length > 0) {
+      const timeout = setTimeout(() => {
+        setNotifications((prev) => prev.slice(1));
+      }, 1300);
+      return () => clearTimeout(timeout);
+    }
+  }, [notifications]);
+
   const gameStopCallback = React.useCallback(
     async (event?: ICatEventsDetails[GameEvent.GAME_STOP]) => {
       if (!profile || !event) return;
@@ -104,6 +123,35 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
       setTimer((time) => (time || 0) + event.additionalTime!);
     }
   });
+  GameEvents.ENEMY_SPAWN.use((event) => {
+    if (event) {
+      addNotification({
+        message: `ENEMY APPEARED`,
+        icon: "/enemies/single-fluffie.png",
+        isError: false,
+      });
+    }
+  });
+
+  GameEvents.BOSS_SPAWN.use((event) => {
+    if (event) {
+      addNotification({
+        message: "BOSS APPEARED",
+        icon: "/enemies/boss/boss-simple.png",
+        isError: true,
+      });
+    }
+  });
+
+  GameEvents.BUFF_SPAWN.use((event) => {
+    if (event) {
+      addNotification({
+        message: `BUFF APPEARED`,
+        icon: `/buff/${event.buff}-ICON.png`,
+        isError: false,
+      });
+    }
+  });
 
   const value = {
     isStarted,
@@ -111,6 +159,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     gameType,
     setGameType,
     timer,
+    addNotification,
   };
 
   return (
@@ -135,7 +184,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
               setProfileUpdate={setProfileUpdate}
             />
           )}
-
+          <Notification notifications={notifications} />
           <MobileButtons
             isHidden={!isStarted && gameType !== GameType.SHELTER}
           />

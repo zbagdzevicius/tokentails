@@ -1,96 +1,111 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { GameEvents, GameEvent } from "./events";
 import { ICatEvent } from "./events";
 
 export const DisplayCoins: React.FC<{ isHidden: boolean }> = ({ isHidden }) => {
     const [totalTokens, setTotalTokens] = useState(0);
     const [displayAmount, setDisplayAmount] = useState(0);
+
     const [showAmount, setShowAmount] = useState(false);
+
+    // Buff tracking
     const [showPowerUp, setShowPowerUp] = useState(false);
-    const [fadeOut, setFadeOut] = useState(false);
     const [powerUpType, setPowerUpType] = useState<string | null>(null);
-    const [showEnemySpawn, setShowEnemySpawn] = useState(false);
-    const [showBossSpawn, setShowBossSpawn] = useState(false); // State for boss spawn
-    const [enemyCount, setEnemyCount] = useState(0);
-    const [displayPriority, setDisplayPriority] = useState<"none" | "powerUp" | "enemy" | "boss" | "coin">("none");
+    const [cooldownPercentage, setCooldownPercentage] = useState(100);
+
+    // We keep the current active interval ID, so we can clear it
+    const buffIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         const handleCoinCaught = (event: { detail: { score: number } }) => {
-            if (displayPriority !== "none") return;
-
-            setDisplayPriority("coin");
             const amount = event.detail.score;
             setDisplayAmount(amount);
             setTotalTokens((prevTotal) => prevTotal + amount);
             setShowAmount(true);
-            setFadeOut(false);
 
             setTimeout(() => {
-                setFadeOut(true);
-                setTimeout(() => {
-                    setShowAmount(false);
-                    setDisplayPriority("none");
-                }, 500);
+                setShowAmount(false);
             }, 600);
         };
 
-        const handlePowerUp = (event: ICatEvent<GameEvent.CAT_POWER_UP>) => {
-            if (displayPriority === "powerUp" || displayPriority === "enemy" || displayPriority === "boss") return;
+        const handlePowerUp = (event: ICatEvent<GameEvent.CAT_BUFF>) => {
+            const { buff, duration } = event.detail;
 
-            setDisplayPriority("powerUp");
-            const { powerup } = event.detail;
-            setPowerUpType(powerup);
-            setShowPowerUp(true);
-            setFadeOut(false);
+            // Clear any existing interval so we can start fresh
+            if (buffIntervalRef.current) {
+                clearInterval(buffIntervalRef.current);
+                buffIntervalRef.current = null;
+            }
 
-            setTimeout(() => {
+            if (!buff) {
+                // Means the buff ended
                 setShowPowerUp(false);
-                setDisplayPriority("none");
-            }, 500);
-        };
+                setPowerUpType(null);
+                setCooldownPercentage(100);
+                return;
+            }
 
-        const handleEnemySpawn = (event: ICatEvent<GameEvent.ENEMY_SPAWN>) => {
-            if (displayPriority === "powerUp" || displayPriority === "boss") return;
+            // Start showing the buff icon
+            setPowerUpType(buff);
+            setShowPowerUp(true);
 
-            setDisplayPriority("enemy");
-            setEnemyCount((prevCount) => {
-                if (prevCount < 5) {
-                    setShowEnemySpawn(true);
-                    setTimeout(() => {
-                        setShowEnemySpawn(false);
-                        setDisplayPriority("none");
-                    }, 500);
+            // Reset the cooldown meter to 100%
+            setCooldownPercentage(100);
+            let elapsed = 0;
+            const updateInterval = 100;
+
+            // Start a new interval
+            const newInterval = setInterval(() => {
+                elapsed += updateInterval;
+                const percentage = 100 - (elapsed / duration) * 100;
+                setCooldownPercentage(Math.max(percentage, 0));
+
+                // If we've reached the end of this buff's duration
+                if (elapsed >= duration) {
+                    clearInterval(newInterval);
+                    setShowPowerUp(false);
+                    setPowerUpType(null);
                 }
-                return prevCount + 1;
-            });
+            }, updateInterval);
+
+            buffIntervalRef.current = newInterval;
         };
 
-        const handleBossSpawn = (event: ICatEvent<GameEvent.BOSS_SPAWN>) => {
-            if (displayPriority !== "none") return;
-
-            setDisplayPriority("boss");
-            setShowBossSpawn(true);
-            setTimeout(() => {
-                setShowBossSpawn(false);
-                setDisplayPriority("none");
-            }, 1000);
+        const handleGameStart = () => {
+            // If you need to do something on start
         };
 
+        const handleGameStop = () => {
+            // Reset UI state
+            setShowPowerUp(false);
+            setPowerUpType(null);
+            setCooldownPercentage(100);
+
+            // Clear any leftover buff interval
+            if (buffIntervalRef.current) {
+                clearInterval(buffIntervalRef.current);
+                buffIntervalRef.current = null;
+            }
+        };
+
+        // Attach listeners
         GameEvents[GameEvent.GAME_COIN_CAUGHT].addEventListener(handleCoinCaught);
-        GameEvents[GameEvent.CAT_POWER_UP].addEventListener(handlePowerUp);
-        GameEvents[GameEvent.ENEMY_SPAWN].addEventListener(handleEnemySpawn);
-        GameEvents[GameEvent.BOSS_SPAWN].addEventListener(handleBossSpawn);
+        GameEvents[GameEvent.GAME_START].addEventListener(handleGameStart);
+        GameEvents[GameEvent.GAME_STOP].addEventListener(handleGameStop);
+        GameEvents[GameEvent.CAT_BUFF].addEventListener(handlePowerUp);
 
+        // Cleanup on unmount
         return () => {
             GameEvents[GameEvent.GAME_COIN_CAUGHT].removeEventListener(handleCoinCaught);
-            GameEvents[GameEvent.CAT_POWER_UP].removeEventListener(handlePowerUp);
-            GameEvents[GameEvent.ENEMY_SPAWN].removeEventListener(handleEnemySpawn);
-            GameEvents[GameEvent.BOSS_SPAWN].removeEventListener(handleBossSpawn);
+            GameEvents[GameEvent.GAME_START].removeEventListener(handleGameStart);
+            GameEvents[GameEvent.GAME_STOP].removeEventListener(handleGameStop);
+            GameEvents[GameEvent.CAT_BUFF].removeEventListener(handlePowerUp);
         };
-    }, [displayPriority]);
+    }, []);
 
     return (
         <div className={`${isHidden ? "hidden" : "z-10"}`}>
+            {/* Coin Display */}
             <div className="m-3 flex flex-col w-20 absolute items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300">
                 <img className="w-6 h-6" src="/logo/coin.webp" alt="Coin" />
                 <div className="text-p4 flex items-center gap-1">
@@ -100,50 +115,41 @@ export const DisplayCoins: React.FC<{ isHidden: boolean }> = ({ isHidden }) => {
                     <div className="text-p5">{totalTokens}</div>
                 </div>
             </div>
-            {showAmount && displayPriority === "coin" && (
-                <div
-                    className={`inline-flex items-center justify-center absolute top-[43%] left-1/2 transform -translate-x-[50%] -translate-y-1/2 text-yellow-500 text-p3 font-bold transition-opacity duration-500 ease-in-out ${fadeOut ? "opacity-0" : "opacity-100"}`}
-                >
-                    +{displayAmount}
-                    <img src="/catbassadors/coin.gif" className="w-16 h-16" alt="Coin animation" />
-                </div>
-            )}
-            {showPowerUp && displayPriority === "powerUp" && (
-                <div
-                    className={`inline-flex items-center justify-center absolute top-[43%] left-1/2 transform -translate-x-[50%] -translate-y-1/2 transition-opacity duration-500 ease-in-out ${fadeOut ? "opacity-0" : "opacity-100"}`}
-                >
-                    <div className="inline-flex items-center justify-center text-yellow-500 text-p3 font-bold">
-                        +1
-                        <img
-                            src={`/power-up/${powerUpType}.png`}
-                            className="w-12 h-12"
-                            alt="Power-up animation"
-                        />
-                    </div>
-                </div>
-            )}
-            {showEnemySpawn && displayPriority === "enemy" && (
+
+            {/* Floating +Coin Display */}
+            {showAmount && (
                 <div
                     className="inline-flex items-center justify-center absolute top-[43%] left-1/2 transform -translate-x-[50%] -translate-y-1/2 text-yellow-500 text-p3 font-bold"
                 >
-                    +1 Enemy
+                    +{displayAmount}
                     <img
-                        src={`/enemies/single-fluffie.png`}
-                        className="w-12 h-12"
-                        alt="Enemy"
+                        src="/catbassadors/coin.gif"
+                        className="w-16 h-16"
+                        alt="Coin animation"
                     />
                 </div>
             )}
-            {showBossSpawn && displayPriority === "boss" && (
+
+            {/* Buff Cooldown Display */}
+            {showPowerUp && powerUpType && (
                 <div
-                    className="inline-flex items-center justify-center absolute top-[43%] left-1/2 transform -translate-x-[50%] -translate-y-1/2 text-red-500 text-p3 font-bold"
+                    className="inline-flex items-center justify-center absolute top-10 left-1/2 transform -translate-x-[50%] -translate-y-1/2"
                 >
-                    +1
-                    <img
-                        src={`/enemies/boss/boss-simple.png`}
-                        className="w-14 h-14"
-                        alt="Boss"
-                    />
+                    <div className="relative w-14 h-14">
+                        <img
+                            src={`/buff/${powerUpType}-ICON.png`}
+                            className="absolute top-0 left-0 w-full h-full"
+                            alt="buff icon"
+                        />
+                        <div
+                            className="absolute top-0 left-0 w-full h-full rounded-full"
+
+                            style={{
+                                background: `conic-gradient(rgba(255, 255, 255, 0.6) 0% ${100 - cooldownPercentage
+                                    }%, transparent ${100 - cooldownPercentage}% 100%)`,
+                            }}
+                        ></div>
+                    </div>
                 </div>
             )}
         </div>

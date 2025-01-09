@@ -6,16 +6,16 @@ import {
 } from "@/components/Phaser/events";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
-import { ICat, catbassadorsGameDuration } from "@/models/cats";
+import { CatAbilityType, ICat, catbassadorsGameDuration } from "@/models/cats";
 import { Scene } from "phaser";
 import { Cat } from "../objects/Catbassador";
 import { Coin } from "../objects/Coin";
-import { PowerUp } from "../objects/PowerUp";
-import { PowerUpType } from "../objects/PowerUp";
+import { BuffType,Buff } from "../objects/Buff";
 import { Enemy } from "../../purrquest/objects/Enemy";
 import { BossEnemy } from "@/components/purrquest/objects/Boss";
 import { currentDayCoin, ZOOM } from "@/constants/utils";
 import { ObjectPool } from "../objects/ObjectPool";
+import { SpeedEffect } from "../objects/SpeedEffect";
 import {
   bossHitRewardsDebounceTime,
   endScenePeriod,
@@ -24,7 +24,7 @@ import {
 
 const coinDurationMs = 15000;
 const POWERUP_DURATION_MS = 10000;
-const POWERUP_SPAWN_THRESHOLD = 30000;
+const POWERUP_SPAWN_THRESHOLD = 15000;
 const BOSS_REWARD_POINTS = 1000;
 const JUMP_LAYER_TILES = [47, 48, 49, 50];
 const TRAMPOLINE_TILES = [51];
@@ -51,16 +51,22 @@ export class CatbassadorsScene extends Scene {
   lastUpdateTime: number;
   trampoline?: Trampoline;
   enemySpawnThreshold = DEFAULT_ENEMY_SPAWN_THRESHOLD;
-  enemies: Enemy[] = [];
+  enemy?:Enemy;
+  public enemies: Enemy[] = []
   bossEnemy?: BossEnemy;
   canCollectReward: boolean = false;
   IsBossSpawned = false;
   blessing!: Phaser.GameObjects.Sprite;
   gameStartTime: number = 0;
 
-  powerUpSpawnTimer: NodeJS.Timeout | null = null;
-  currentPowerUp: PowerUp | null = null;
-  powerUpLifetimeTimer: NodeJS.Timeout | null = null;
+buffSpawnTimer: NodeJS.Timeout | null = null;
+  currentBuff: Buff | null = null;
+  buffLifetimeTimer: NodeJS.Timeout | null = null;
+
+  private speedBuffTimer: Phaser.Time.TimerEvent | null = null;
+
+
+  private speedEffect: SpeedEffect | null = null;
 
 
   constructor() {
@@ -85,7 +91,7 @@ export class CatbassadorsScene extends Scene {
     this.load.image("timecoin", "icons/clock.png");
     this.load.image("coin", "logo/coin.png");
 
-    this.load.image("speedPowerUp", "power-up/SPEED.png");
+    this.load.image("speedPowerUp", "buff/SPEED.png");
 
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.audio("coin", "purrquest/sounds/score.mp3");
@@ -120,6 +126,15 @@ export class CatbassadorsScene extends Scene {
       frameWidth: 96,
       frameHeight: 64,
     });
+
+        this.load.spritesheet("knockback-spell", "abilities/knockback-spell/FIRE.png", {
+      frameWidth: 64,
+      frameHeight: 64,
+    });
+     this.load.spritesheet("speed-effect", "buff/SPEED-EFFECT.png", {
+      frameWidth: 64,
+      frameHeight: 64,
+    });
   }
 
   create(props: IPhaserGameSceneProps) {
@@ -142,6 +157,7 @@ export class CatbassadorsScene extends Scene {
     ])!;
     this.tilemap.createLayer("decorations", [sugarTileset]);
     this.jumperLayer = this.tilemap.createLayer("jumper", [sugarTileset])!;
+    this.speedEffect = new SpeedEffect(this);
 
     this.anims.create({
       key: "star",
@@ -262,7 +278,7 @@ export class CatbassadorsScene extends Scene {
           this.blessing.play(`blessing_animation_${cat.blessings[0].ability}`);
         }
 
-        this.createCat(cat.name, this.blessing);
+        this.createCat(cat.name, this.blessing, cat.type);
       },
       this
     );
@@ -288,11 +304,11 @@ export class CatbassadorsScene extends Scene {
 
   private createCat(
     catName: string,
-    blessing: Phaser.GameObjects.Sprite | null
+    blessing: Phaser.GameObjects.Sprite | null,
+    type : CatAbilityType
   ) {
-    this.cat = new Cat(this, 0, -400, catName, blessing!);
+    this.cat = new Cat(this, 0, -400, catName, blessing!,type);
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
-
     this.physics.add.collider(
       this.cat.sprite as Phaser.Physics.Arcade.Sprite,
       this.platformsLayer
@@ -346,77 +362,81 @@ export class CatbassadorsScene extends Scene {
   }
 
   private releaseCoin(coin: Coin) {
-    // Remove the coin from active coins list
+
     coin.sprite.setActive(false).setVisible(false);
     this.coins = this.coins.filter((e) => e !== coin);
 
-    // Release the coin back to the pool
     this.coinPool.release(coin);
   }
 
-private spawnPowerUp() {
-  if (this.currentPowerUp) return;
-  const x = this.getCoinSpawnPositionX();
-  const y = this.getCoinSpawnPositionY();
+ private spawnBuff() {
+    if (this.currentBuff) return;
 
-  this.currentPowerUp = new PowerUp(this, x, y);
+    const x = this.getCoinSpawnPositionX();
+    const y = this.getCoinSpawnPositionY();
+    this.currentBuff = new Buff(this, x, y);
 
-  this.physics.add.collider(this.currentPowerUp.sprite, this.groundLayer);
-  this.physics.add.overlap(
-    this.cat?.sprite!,
-    this.currentPowerUp.sprite,
-    this.handlePowerUpCollected,
-    undefined,
-    this
-  );
+    this.physics.add.collider(this.currentBuff, this.groundLayer);
+    this.physics.add.overlap(
+      this.cat?.sprite!,
+      this.currentBuff,
+      this.handleBuffCollected,
+      undefined,
+      this
+    );
 
-  // Auto-destroy PowerUp after 10s if uncollected
-  this.powerUpLifetimeTimer = setTimeout(() => {
-    if (this.currentPowerUp) {
-      this.currentPowerUp.sprite.destroy();
-      this.currentPowerUp = null;
+
+    GameEvents[GameEvent.BUFF_SPAWN].push({ buff: this.currentBuff.type });
+
+    this.buffLifetimeTimer = setTimeout(() => {
+      if (this.currentBuff) {
+        this.currentBuff.destroy();
+        this.currentBuff = null;
+      }
+    }, POWERUP_DURATION_MS);
+  }
+
+  private handleBuffCollected = () => {
+    if (!this.currentBuff) return;
+
+    if (this.currentBuff.type === BuffType.SPEED) {
+      this.applyOrRefreshSpeedBuff();
+      this.speedEffect?.play(this.cat!.sprite, POWERUP_DURATION_MS);
     }
-  }, POWERUP_DURATION_MS);
-}
 
-private handlePowerUpCollected = () => {
-  if (!this.currentPowerUp) return;
+    this.currentBuff.destroy();
+    this.currentBuff = null;
 
-  if (this.currentPowerUp.type === PowerUpType.SPEED) {
-    this.increasePlayerSpeed();
-  }
+    if (this.buffLifetimeTimer) {
+      clearTimeout(this.buffLifetimeTimer);
+      this.buffLifetimeTimer = null;
+    }
+  };
 
-  this.currentPowerUp.destroy();
-  this.currentPowerUp = null;
+  private applyOrRefreshSpeedBuff(): void {
+    if (!this.cat) return;
 
-  if (this.powerUpLifetimeTimer) {
-    clearTimeout(this.powerUpLifetimeTimer);
-    this.powerUpLifetimeTimer = null;
-  }
-};
+    if (this.speedBuffTimer) {
+      this.speedBuffTimer.remove(false); 
+    } else {
+      if (this.cat.walkSpeed + 200 < 630) {
+        this.cat.walkSpeed += 200;
+      }
+    }
 
-
-private increasePlayerSpeed(): void {
-  if (this.cat) {
-    this.cat.walkSpeed += 200;
-    
-    GameEvents[GameEvent.CAT_POWER_UP].push({
-      powerup: PowerUpType.SPEED,
+    GameEvents[GameEvent.CAT_BUFF].push({
+      buff: BuffType.SPEED,
+      duration: POWERUP_DURATION_MS,
     });
 
-    this.time.delayedCall(10000, () => {
+    this.speedBuffTimer = this.time.delayedCall(POWERUP_DURATION_MS, () => {
       if (this.cat) {
         this.cat.walkSpeed -= 200;
       }
-      GameEvents[GameEvent.CAT_POWER_UP].push({
-        powerup: null,
-      });
+      GameEvents[GameEvent.CAT_BUFF].push({ buff: null, duration: 0 });
+      this.speedBuffTimer = null;
     });
   }
-}
-
-
-
 
   update(time: any, delta: any) {
     this.cat?.update();
@@ -424,8 +444,8 @@ private increasePlayerSpeed(): void {
 
     this.checkEnemyMilestone();
 
-    if (this.currentPowerUp) {
-    this.currentPowerUp.update();
+    if (this.currentBuff) {
+    this.currentBuff.update();
   }
 
     this.enemies?.forEach((enemy) => {
@@ -457,6 +477,7 @@ private increasePlayerSpeed(): void {
         this.cat.sprite.y,
         "starAnimation"
       );
+      starAnimationSprite.setScale(1.3);
 
       starAnimationSprite.play("star");
 
@@ -476,7 +497,6 @@ private increasePlayerSpeed(): void {
           amount: +1,
         });
       this.enemySpawnThreshold += DEFAULT_ENEMY_SPAWN_THRESHOLD;
-
       this.enemies.forEach((enemy) => {
         enemy.increaseSpeed();
       });
@@ -504,21 +524,21 @@ private increasePlayerSpeed(): void {
       "enemy-white-owlet",
     ];
     const randomSprite = Phaser.Utils.Array.GetRandom(enemySprites);
-    const enemy = new Enemy(
+    this.enemy = new Enemy(
       this,
       this.getCoinSpawnPositionX(),
       this.getCoinSpawnPositionY(),
       randomSprite
     );
 
-    if (enemy) {
-      this.enemies.push(enemy);
+    if (this.enemy) {
+      this.enemies.push(this.enemy);
       this.physics.add.collider(this.enemies, this.groundLayer);
       this.physics.add.collider(this.enemies, this.jumperLayer);
       this.physics.add.collider(this.enemies, this.platformsLayer);
       this.physics.add.overlap(
         this.cat?.sprite as Phaser.Physics.Arcade.Sprite,
-        enemy,
+        this.enemy,
         this
           .handlePlayerEnemyCollisions as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
         undefined,
@@ -537,7 +557,7 @@ private increasePlayerSpeed(): void {
     this.physics.add.collider(this.bossEnemy, this.groundLayer);
     this.physics.add.collider(this.bossEnemy, this.jumperLayer);
     this.physics.add.collider(this.bossEnemy, this.platformsLayer);
-    this.physics.add.overlap(
+    this.physics.add.collider(
       this.cat!.sprite,
       this.bossEnemy,
       this
@@ -546,61 +566,58 @@ private increasePlayerSpeed(): void {
       this
     );
   }
-  private handlePlayerEnemyCollisions() {
-    if (this.cat?.isInvulnerable) return;
+private handlePlayerEnemyCollisions(
+  player: Phaser.GameObjects.GameObject,
+  enemy: Phaser.GameObjects.GameObject
+) {
+  const enemyInstance = enemy as Enemy;
+
+   if (enemyInstance.isKnockedDown || this.cat?.isInvulnerable) {
+    return;
+  }
 
     this.timer = this.timer - TIME_TO_REMOVE_PER_HIT;
+  GameEvents.GAME_UPDATE.push({ additionalTime: -TIME_TO_REMOVE_PER_HIT });
 
-    GameEvents.GAME_UPDATE.push({ additionalTime: -TIME_TO_REMOVE_PER_HIT });
-    this.cat!.isInvulnerable = true;
+  this.cat!.isInvulnerable = true;
+  this.cat!.isHit = true;
 
-    if (this.cat) {
-      this.cat.isHit = true;
-    }
-
-    this.time.delayedCall(1000, () => {
-      this.cat!.isInvulnerable = false;
-    });
+  this.time.delayedCall(1000, () => {
+    this.cat!.isInvulnerable = false;
+  });
   }
-  private handlePlayerBossEnemyCollisions(
-    player: Phaser.GameObjects.GameObject,
-    enemy: Phaser.GameObjects.GameObject
-  ) {
-    const playerSprite = player as Phaser.Physics.Arcade.Sprite;
-    const enemySprite = enemy as Phaser.Physics.Arcade.Sprite;
+private handlePlayerBossEnemyCollisions(
+  player: Phaser.GameObjects.GameObject,
+  enemy: Phaser.GameObjects.GameObject
+) {
+  const playerSprite = player as Phaser.Physics.Arcade.Sprite;
+  const bossEnemy = enemy as BossEnemy;
 
-    const playerBottom = playerSprite.y + playerSprite.height / 2;
-    const playerLeft = playerSprite.x - playerSprite.width / 2;
-    const playerRight = playerSprite.x + playerSprite.width / 2;
-    const enemyTop = enemySprite.y - enemySprite.height / 2;
-    const enemyLeft = enemySprite.x - enemySprite.width / 2;
-    const enemyRight = enemySprite.x + enemySprite.width / 2;
+  const playerBottom = playerSprite.y + playerSprite.height / 2;
+  const bossTop = bossEnemy.y - bossEnemy.height / 2;
+  const isTopCollision = playerBottom < bossTop + 32;
 
-    const isTopCollision =
-      playerBottom < enemyTop + 32 &&
-      playerBottom > enemyTop - 32 &&
-      playerRight > enemyLeft &&
-      playerLeft < enemyRight;
+  if (isTopCollision) {
+    playerSprite.setVelocityY(-1000);
 
-    if (isTopCollision) {
-      playerSprite.setVelocityY(-1000);
-      if (!this.canCollectReward) {
-        this.canCollectReward = true;
+    if (!this.canCollectReward) {
+      this.canCollectReward = true;
 
-        GameEvents[GameEvent.GAME_COIN_CAUGHT].push({
-          score: BOSS_REWARD_POINTS,
-        });
-        this.score += BOSS_REWARD_POINTS;
+      GameEvents[GameEvent.GAME_COIN_CAUGHT].push({
+        score: BOSS_REWARD_POINTS,
+      });
+      this.score += BOSS_REWARD_POINTS;
 
-        this.time.delayedCall(bossHitRewardsDebounceTime, () => {
-          this.canCollectReward = false;
-        });
-      }
-    } else {
-      this.bossEnemy!.destroy();
-      this.endGame();
+      this.time.delayedCall(bossHitRewardsDebounceTime, () => {
+        this.canCollectReward = false;
+      });
     }
+  } else if (!bossEnemy.isKnockedDown) {
+    this.endGame();
   }
+}
+
+
 
   private processCoinReward(coin: Coin) {
     this.score += coin.coinReward;
@@ -647,17 +664,17 @@ private increasePlayerSpeed(): void {
     });
 
     this.coins = [];
-    if (this.powerUpSpawnTimer) {
-  clearInterval(this.powerUpSpawnTimer);
-  this.powerUpSpawnTimer = null;
+    if (this.buffSpawnTimer) {
+  clearInterval(this.buffSpawnTimer);
+  this.buffSpawnTimer = null;
 }
-if (this.powerUpLifetimeTimer) {
-  clearTimeout(this.powerUpLifetimeTimer);
-  this.powerUpLifetimeTimer = null;
+if (this.buffLifetimeTimer) {
+  clearTimeout(this.buffLifetimeTimer);
+  this.buffLifetimeTimer = null;
 }
-if (this.currentPowerUp) {
-  this.currentPowerUp.destroy();
-  this.currentPowerUp = null;
+if (this.currentBuff) {
+  this.currentBuff.destroy();
+  this.currentBuff = null;
 }
 
     if (this.enemies) {
@@ -695,8 +712,8 @@ if (this.currentPowerUp) {
       this.spawnCoin();
     }, 400);
 
-     this.powerUpSpawnTimer = setInterval(() => {
-      this.spawnPowerUp();
+     this.buffSpawnTimer = setInterval(() => {
+      this.spawnBuff();
     }, POWERUP_SPAWN_THRESHOLD);
   }
 }

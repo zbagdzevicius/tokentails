@@ -2,7 +2,12 @@ import { GameObjects, Physics, Scene } from "phaser";
 import { IPlayer } from "@/components/Phaser/PlayerMovement/IPlayer";
 import { PlayerMovement } from "@/components/Phaser/PlayerMovement/PlayerMovement";
 import { catWalkSpeed } from "@/models/game";
+import { Abilities } from "./Abilities";
+import { PurrquestScene } from "@/components/purrquest/scenes/PurrquestScene";
+import { CatbassadorsScene } from "../scenes/CatbassadorsScene";
+import { CatAbilityType } from "@/models/cats";
 
+type GameScene = PurrquestScene  | CatbassadorsScene
 /**
  * Physics objects that could be colliders
  */
@@ -18,6 +23,7 @@ type KeyMap = {
   right: Phaser.Input.Keyboard.Key;
   space: Phaser.Input.Keyboard.Key;
   dash: Phaser.Input.Keyboard.Key;
+  knockback: Phaser.Input.Keyboard.Key;
 };
 
 export enum PlayerAnimation {
@@ -75,6 +81,7 @@ export class Cat implements IPlayer {
   isMobileJumping: boolean = false;
   isMobileLeft: boolean = false;
   isMobileDash: boolean = false;
+  isMobileknockbackSpell:boolean = false;
   wallJumpCount: number = 0;
   isMobileRight: boolean = false;
   lastWallTouched: "left" | "right" | null = null;
@@ -93,7 +100,9 @@ export class Cat implements IPlayer {
   hasKey!: boolean;
   isInvulnerable: boolean;
   private catName: string;
-
+  abilities: Abilities;
+  type!:CatAbilityType
+  
   isDashing: boolean = false;
   readonly dashTime: number = 200; // Duration of dash in ms
   readonly dashCooldown: number = 300; // Cooldown time before dashing again
@@ -110,28 +119,33 @@ export class Cat implements IPlayer {
     x: number,
     y: number,
     catName: string,
-    blessings: Phaser.GameObjects.Sprite
+    blessings: Phaser.GameObjects.Sprite,
+    type:CatAbilityType
   ) {
     this.scene = scene;
+    this.type = type;
     this.catName = catName;
     this.blessings = blessings;
     this.animationKeys = generateCatAnimationConfiguration(catName);
     this.sprite = this.scene.physics.add
       .sprite(x, y, this.catName)
       .setSize(28, 28)
-      .setOffset(12, 8);
+      .setOffset(12, 8)
+      .setDepth(4)
     this.cursors = this.scene.input.keyboard!.createCursorKeys();
     this.keys = this.scene.input.keyboard!.addKeys({
       up: "W",
       left: "A",
       right: "D",
       dash: "SPACE",
+      knockback: "Q",
     }) as KeyMap;
 
     this.initAnimations();
 
     this.movement = new PlayerMovement(this);
     this.isInvulnerable = false;
+    this.abilities = new Abilities(this, scene as GameScene, type);
   }
 
   initAnimations() {
@@ -160,6 +174,7 @@ export class Cat implements IPlayer {
 
   update() {
     this.movement.updateOngoingMovements();
+    
     if (this.blessings) {
       const velocityX = this.sprite.body!.velocity.x;
       const targetX = this.sprite.x + velocityX * 0.01;
@@ -171,4 +186,5 @@ export class Cat implements IPlayer {
   addCollider(collider: ColliderType) {
     this.scene.physics.add.collider(this.sprite, collider);
   }
+
 }
