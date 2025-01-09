@@ -2,7 +2,7 @@ import { ICat } from "@/models/cats";
 import { useEffect, useState } from "react";
 import { CatType } from "@/models/cats";
 import { GameType } from "@/models/game";
-import { PowerUpType } from "../catbassadors/objects/PowerUp";
+import { BuffType } from "../catbassadors/objects/Buff";
 
 export type IPhaserScene = Phaser.Scene & { cat?: any; catDto?: ICat };
 export interface IPhaserGame {
@@ -58,8 +58,9 @@ interface INpcCollisionEvent {
   npc: ICat;
 }
 
-interface IPowerUp {
-  powerup: PowerUpType | null;
+interface IBuff {
+  buff: BuffType | null;
+  duration: number;
 }
 
 
@@ -109,7 +110,7 @@ export type ICatEventsDetails = {
   [GameEvent.NPC_SPAWN_EXCLUSIVE]: INpcSpawnEvent,
   [GameEvent.NPC_COLLISION]: INpcCollisionEvent;
   [GameEvent.CAT_CARD_DISPLAY]: { npc: ICat };
-  [GameEvent.CAT_POWER_UP]: IPowerUp;
+  [GameEvent.CAT_POWER_UP]: IBuff;
   [GameEvent.ENEMY_SPAWN]: IEnemySpawn;
   [GameEvent.BOSS_SPAWN]: IBossSpawn;
 };

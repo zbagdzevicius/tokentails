@@ -32,7 +32,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private ultimateJumpDelay: { min: number; max: number };
   private speedRange: { min: number; max: number };
   private canUltimateJump: boolean = false;
-  private isKnockedDown: boolean = false;
+  public isKnockedDown: boolean = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, texture: string) {
     super(scene, x, y, texture);

@@ -7,87 +7,60 @@ export const DisplayCoins: React.FC<{ isHidden: boolean }> = ({ isHidden }) => {
     const [displayAmount, setDisplayAmount] = useState(0);
     const [showAmount, setShowAmount] = useState(false);
     const [showPowerUp, setShowPowerUp] = useState(false);
-    const [fadeOut, setFadeOut] = useState(false);
     const [powerUpType, setPowerUpType] = useState<string | null>(null);
-    const [showEnemySpawn, setShowEnemySpawn] = useState(false);
-    const [showBossSpawn, setShowBossSpawn] = useState(false); // State for boss spawn
-    const [enemyCount, setEnemyCount] = useState(0);
-    const [displayPriority, setDisplayPriority] = useState<"none" | "powerUp" | "enemy" | "boss" | "coin">("none");
+    const [cooldownPercentage, setCooldownPercentage] = useState(100);
+    const [isGameActive, setIsGameActive] = useState(false);
 
     useEffect(() => {
         const handleCoinCaught = (event: { detail: { score: number } }) => {
-            if (displayPriority !== "none") return;
-
-            setDisplayPriority("coin");
             const amount = event.detail.score;
             setDisplayAmount(amount);
             setTotalTokens((prevTotal) => prevTotal + amount);
             setShowAmount(true);
-            setFadeOut(false);
 
             setTimeout(() => {
-                setFadeOut(true);
-                setTimeout(() => {
-                    setShowAmount(false);
-                    setDisplayPriority("none");
-                }, 500);
+                setShowAmount(false);
             }, 600);
         };
 
         const handlePowerUp = (event: ICatEvent<GameEvent.CAT_POWER_UP>) => {
-            if (displayPriority === "powerUp" || displayPriority === "enemy" || displayPriority === "boss") return;
-
-            setDisplayPriority("powerUp");
-            const { powerup } = event.detail;
-            setPowerUpType(powerup);
+            const { buff, duration } = event.detail;
+            setPowerUpType(buff);
             setShowPowerUp(true);
-            setFadeOut(false);
+            let interval: NodeJS.Timeout;
+            let elapsed = 0;
+            const updateInterval = 100;
 
-            setTimeout(() => {
-                setShowPowerUp(false);
-                setDisplayPriority("none");
-            }, 500);
-        };
+            interval = setInterval(() => {
+                elapsed += updateInterval;
+                const percentage = 100 - (elapsed / duration) * 100;
+                setCooldownPercentage(Math.max(percentage, 0));
 
-        const handleEnemySpawn = (event: ICatEvent<GameEvent.ENEMY_SPAWN>) => {
-            if (displayPriority === "powerUp" || displayPriority === "boss") return;
-
-            setDisplayPriority("enemy");
-            setEnemyCount((prevCount) => {
-                if (prevCount < 5) {
-                    setShowEnemySpawn(true);
-                    setTimeout(() => {
-                        setShowEnemySpawn(false);
-                        setDisplayPriority("none");
-                    }, 500);
+                if (elapsed >= duration) {
+                    clearInterval(interval);
+                    setShowPowerUp(false);
                 }
-                return prevCount + 1;
-            });
+            }, updateInterval);
         };
 
-        const handleBossSpawn = (event: ICatEvent<GameEvent.BOSS_SPAWN>) => {
-            if (displayPriority !== "none") return;
-
-            setDisplayPriority("boss");
-            setShowBossSpawn(true);
-            setTimeout(() => {
-                setShowBossSpawn(false);
-                setDisplayPriority("none");
-            }, 1000);
+        const handleGameStart = () => setIsGameActive(true);
+        const handleGameStop = () => {
+            setIsGameActive(false);
+            setShowPowerUp(false);
         };
 
         GameEvents[GameEvent.GAME_COIN_CAUGHT].addEventListener(handleCoinCaught);
+        GameEvents[GameEvent.GAME_START].addEventListener(handleGameStart);
+        GameEvents[GameEvent.GAME_STOP].addEventListener(handleGameStop);
         GameEvents[GameEvent.CAT_POWER_UP].addEventListener(handlePowerUp);
-        GameEvents[GameEvent.ENEMY_SPAWN].addEventListener(handleEnemySpawn);
-        GameEvents[GameEvent.BOSS_SPAWN].addEventListener(handleBossSpawn);
 
         return () => {
             GameEvents[GameEvent.GAME_COIN_CAUGHT].removeEventListener(handleCoinCaught);
+            GameEvents[GameEvent.GAME_START].removeEventListener(handleGameStart);
+            GameEvents[GameEvent.GAME_STOP].removeEventListener(handleGameStop);
             GameEvents[GameEvent.CAT_POWER_UP].removeEventListener(handlePowerUp);
-            GameEvents[GameEvent.ENEMY_SPAWN].removeEventListener(handleEnemySpawn);
-            GameEvents[GameEvent.BOSS_SPAWN].removeEventListener(handleBossSpawn);
         };
-    }, [displayPriority]);
+    }, []);
 
     return (
         <div className={`${isHidden ? "hidden" : "z-10"}`}>
@@ -100,50 +73,31 @@ export const DisplayCoins: React.FC<{ isHidden: boolean }> = ({ isHidden }) => {
                     <div className="text-p5">{totalTokens}</div>
                 </div>
             </div>
-            {showAmount && displayPriority === "coin" && (
+            {showAmount && (
                 <div
-                    className={`inline-flex items-center justify-center absolute top-[43%] left-1/2 transform -translate-x-[50%] -translate-y-1/2 text-yellow-500 text-p3 font-bold transition-opacity duration-500 ease-in-out ${fadeOut ? "opacity-0" : "opacity-100"}`}
+                    className="inline-flex items-center justify-center absolute top-[43%] left-1/2 transform -translate-x-[50%] -translate-y-1/2 text-yellow-500 text-p3 font-bold"
                 >
                     +{displayAmount}
                     <img src="/catbassadors/coin.gif" className="w-16 h-16" alt="Coin animation" />
                 </div>
             )}
-            {showPowerUp && displayPriority === "powerUp" && (
+            {showPowerUp && (
                 <div
-                    className={`inline-flex items-center justify-center absolute top-[43%] left-1/2 transform -translate-x-[50%] -translate-y-1/2 transition-opacity duration-500 ease-in-out ${fadeOut ? "opacity-0" : "opacity-100"}`}
+                    className="inline-flex items-center justify-center absolute top-10 left-1/2 transform -translate-x-[50%] -translate-y-1/2"
                 >
-                    <div className="inline-flex items-center justify-center text-yellow-500 text-p3 font-bold">
-                        +1
+                    <div className="relative w-14 h-14">
                         <img
-                            src={`/power-up/${powerUpType}.png`}
-                            className="w-12 h-12"
-                            alt="Power-up animation"
+                            src={`/power-up/${powerUpType}-ICON.png`}
+                            className="absolute top-0 left-0 w-full h-full"
+                            alt="Power-up icon"
                         />
+                        <div
+                            className="absolute top-0 left-0 w-full h-full rounded-full"
+                            style={{
+                                background: `conic-gradient(rgba(255, 255, 255, 0.6) 0% ${100 - cooldownPercentage}%, transparent ${100 - cooldownPercentage}% 100%)`,
+                            }}
+                        ></div>
                     </div>
-                </div>
-            )}
-            {showEnemySpawn && displayPriority === "enemy" && (
-                <div
-                    className="inline-flex items-center justify-center absolute top-[43%] left-1/2 transform -translate-x-[50%] -translate-y-1/2 text-yellow-500 text-p3 font-bold"
-                >
-                    +1 Enemy
-                    <img
-                        src={`/enemies/single-fluffie.png`}
-                        className="w-12 h-12"
-                        alt="Enemy"
-                    />
-                </div>
-            )}
-            {showBossSpawn && displayPriority === "boss" && (
-                <div
-                    className="inline-flex items-center justify-center absolute top-[43%] left-1/2 transform -translate-x-[50%] -translate-y-1/2 text-red-500 text-p3 font-bold"
-                >
-                    +1
-                    <img
-                        src={`/enemies/boss/boss-simple.png`}
-                        className="w-14 h-14"
-                        alt="Boss"
-                    />
                 </div>
             )}
         </div>

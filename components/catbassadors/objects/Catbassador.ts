@@ -130,7 +130,8 @@ export class Cat implements IPlayer {
     this.sprite = this.scene.physics.add
       .sprite(x, y, this.catName)
       .setSize(28, 28)
-      .setOffset(12, 8);
+      .setOffset(12, 8)
+      .setDepth(4)
     this.cursors = this.scene.input.keyboard!.createCursorKeys();
     this.keys = this.scene.input.keyboard!.addKeys({
       up: "W",
