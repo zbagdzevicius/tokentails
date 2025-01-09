@@ -1,4 +1,3 @@
-import { BaseCoinPhysicsEntity } from "./BaseCoinPhysicsEntity";
 import { ExtendedScene } from "./BaseCoinPhysicsEntity";
 
 export enum BuffType {
@@ -16,22 +15,21 @@ function getRandomPowerUpType(): BuffType {
   return ALL_POWERUPS[randomIndex];
 }
 
-export class Buff extends BaseCoinPhysicsEntity {
-  type: BuffType;
+export class Buff extends Phaser.Physics.Arcade.Sprite {
+    type: BuffType;
 
-  constructor(scene: ExtendedScene, x: number, y: number, type?: BuffType) {
-    const buffUpType = type || getRandomPowerUpType();
-    super(scene, x, y, BuffSpriteMap[buffUpType]);
+    constructor(scene: ExtendedScene, x: number, y: number, type?: BuffType) {
+        const buffType = type || getRandomPowerUpType();
+        super(scene, x, y, BuffSpriteMap[buffType]);
 
-    this.type = buffUpType;
-    this.vx = 12;
-    this.vy = 12;
-  }
+        scene.add.existing(this);
 
-  update() {
-    super.update();
-  }
-   destroy() {
-    this.sprite.destroy();
-  }
+        scene.physics.add.existing(this);
+
+        this.type = buffType;
+
+        const body = this.body as Phaser.Physics.Arcade.Body;
+        body.setImmovable(true);
+        body.allowGravity = false;
+    }
 }

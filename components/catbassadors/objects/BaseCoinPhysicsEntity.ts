@@ -27,10 +27,10 @@ export abstract class BaseCoinPhysicsEntity {
     this.scene = scene;
 
     // Create the sprite
-    this.sprite = this.scene.physics.add
-      .sprite(x, y, texture)
-      .setSize(32, 32)
-      .setDepth(3);
+   this.sprite = this.scene?.physics.add.sprite(x, y, texture)
+
+  this.sprite.setSize(32, 32)
+  .setDepth(3);
 
     // Example: you might want upward gravity if your tilemap is built that way
     this.sprite.setGravityY(-900);

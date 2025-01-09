@@ -63,6 +63,9 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
   currentBuff: Buff | null = null;
   buffLifetimeTimer: NodeJS.Timeout | null = null;
 
+  private speedBuffTimer: Phaser.Time.TimerEvent | null = null;
+
+
   private speedEffect: SpeedEffect | null = null;
 
 
@@ -88,7 +91,7 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
     this.load.image("timecoin", "icons/clock.png");
     this.load.image("coin", "logo/coin.png");
 
-    this.load.image("speedPowerUp", "power-up/SPEED.png");
+    this.load.image("speedPowerUp", "buff/SPEED.png");
 
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.audio("coin", "purrquest/sounds/score.mp3");
@@ -128,7 +131,7 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
       frameWidth: 64,
       frameHeight: 64,
     });
-     this.load.spritesheet("speed-effect", "power-up/SPEED-EFFECT.png", {
+     this.load.spritesheet("speed-effect", "buff/SPEED-EFFECT.png", {
       frameWidth: 64,
       frameHeight: 64,
     });
@@ -155,6 +158,7 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
     this.tilemap.createLayer("decorations", [sugarTileset]);
     this.jumperLayer = this.tilemap.createLayer("jumper", [sugarTileset])!;
     this.speedEffect = new SpeedEffect(this);
+
     this.anims.create({
       key: "star",
       frames: this.anims.generateFrameNumbers("starAnimation", {
@@ -358,81 +362,81 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
   }
 
   private releaseCoin(coin: Coin) {
-    // Remove the coin from active coins list
+
     coin.sprite.setActive(false).setVisible(false);
     this.coins = this.coins.filter((e) => e !== coin);
 
-    // Release the coin back to the pool
     this.coinPool.release(coin);
   }
 
-private spawnPowerUp() {
-  if (this.currentBuff) return;
-  const x = this.getCoinSpawnPositionX();
-  const y = this.getCoinSpawnPositionY();
+ private spawnBuff() {
+    if (this.currentBuff) return;
 
-  this.currentBuff = new Buff(this, x, y);
+    const x = this.getCoinSpawnPositionX();
+    const y = this.getCoinSpawnPositionY();
+    this.currentBuff = new Buff(this, x, y);
 
-  this.physics.add.collider(this.currentBuff.sprite, this.groundLayer);
-  this.physics.add.overlap(
-    this.cat?.sprite!,
-    this.currentBuff.sprite,
-    this.handlePowerUpCollected,
-    undefined,
-    this
-  );
+    this.physics.add.collider(this.currentBuff, this.groundLayer);
+    this.physics.add.overlap(
+      this.cat?.sprite!,
+      this.currentBuff,
+      this.handleBuffCollected,
+      undefined,
+      this
+    );
 
-  // Auto-destroy PowerUp after 10s if uncollected
-  this.buffLifetimeTimer = setTimeout(() => {
-    if (this.currentBuff) {
-      this.currentBuff.sprite.destroy();
-      this.currentBuff = null;
+
+    GameEvents[GameEvent.BUFF_SPAWN].push({ buff: this.currentBuff.type });
+
+    this.buffLifetimeTimer = setTimeout(() => {
+      if (this.currentBuff) {
+        this.currentBuff.destroy();
+        this.currentBuff = null;
+      }
+    }, POWERUP_DURATION_MS);
+  }
+
+  private handleBuffCollected = () => {
+    if (!this.currentBuff) return;
+
+    if (this.currentBuff.type === BuffType.SPEED) {
+      this.applyOrRefreshSpeedBuff();
+      this.speedEffect?.play(this.cat!.sprite, POWERUP_DURATION_MS);
     }
-  }, POWERUP_DURATION_MS);
-}
 
-private handlePowerUpCollected = () => {
-  if (!this.currentBuff) return;
+    this.currentBuff.destroy();
+    this.currentBuff = null;
 
-  if (this.currentBuff.type === BuffType.SPEED) {
-    this.increasePlayerSpeed();
-    this.speedEffect?.play(this.cat!.sprite, POWERUP_DURATION_MS); // Reuse the effect
-  }
+    if (this.buffLifetimeTimer) {
+      clearTimeout(this.buffLifetimeTimer);
+      this.buffLifetimeTimer = null;
+    }
+  };
 
-  this.currentBuff.destroy();
-  this.currentBuff = null;
+  private applyOrRefreshSpeedBuff(): void {
+    if (!this.cat) return;
 
-  if (this.buffLifetimeTimer) {
-    clearTimeout(this.buffLifetimeTimer);
-    this.buffLifetimeTimer = null;
-  }
-};
+    if (this.speedBuffTimer) {
+      this.speedBuffTimer.remove(false); 
+    } else {
+      if (this.cat.walkSpeed + 200 < 630) {
+        this.cat.walkSpeed += 200;
+      }
+    }
 
-
-
-private increasePlayerSpeed(): void {
-  if (this.cat) {
-    this.cat.walkSpeed += 200;
-    
-    GameEvents[GameEvent.CAT_POWER_UP].push({
+    GameEvents[GameEvent.CAT_BUFF].push({
       buff: BuffType.SPEED,
       duration: POWERUP_DURATION_MS,
     });
 
-    this.time.delayedCall(10000, () => {
+    this.speedBuffTimer = this.time.delayedCall(POWERUP_DURATION_MS, () => {
       if (this.cat) {
         this.cat.walkSpeed -= 200;
       }
-      GameEvents[GameEvent.CAT_POWER_UP].push({
-        buff: null,
-        duration:0,
-      });
+      GameEvents[GameEvent.CAT_BUFF].push({ buff: null, duration: 0 });
+      this.speedBuffTimer = null;
     });
   }
-}
-
-
-
 
   update(time: any, delta: any) {
     this.cat?.update();
@@ -473,6 +477,7 @@ private increasePlayerSpeed(): void {
         this.cat.sprite.y,
         "starAnimation"
       );
+      starAnimationSprite.setScale(1.3);
 
       starAnimationSprite.play("star");
 
@@ -708,7 +713,7 @@ if (this.currentBuff) {
     }, 400);
 
      this.buffSpawnTimer = setInterval(() => {
-      this.spawnPowerUp();
+      this.spawnBuff();
     }, POWERUP_SPAWN_THRESHOLD);
   }
 }
