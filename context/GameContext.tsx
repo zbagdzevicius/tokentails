@@ -143,6 +143,16 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     }
   });
 
+  GameEvents.BUFF_SPAWN.use((event) => {
+    if (event) {
+      addNotification({
+        message: `BUFF APPEARED`,
+        icon: `/buff/${event.buff}-ICON.png`,
+        isError: false,
+      });
+    }
+  });
+
   const value = {
     isStarted,
     playGame,

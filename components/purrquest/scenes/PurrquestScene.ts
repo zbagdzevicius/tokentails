@@ -21,7 +21,7 @@ import { Spike } from "../objects/Spikes";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { Enemy } from "@/components/purrquest/objects/Enemy";
 import { BossEnemy } from "../objects/Boss";
-import { catWalkSpeed, endScenePeriod, GameType } from "@/models/game";
+import { catWalkSpeed, endScenePeriod } from "@/models/game";
 import { BuffType,Buff } from "@/components/catbassadors/objects/Buff";
 import { SpeedEffect } from "@/components/catbassadors/objects/SpeedEffect";
 
@@ -71,6 +71,8 @@ export class PurrquestScene extends Phaser.Scene {
  buffSpawnTimer: NodeJS.Timeout | null = null;
   currentBuff: Buff | null = null;
   buffLifetimeTimer: NodeJS.Timeout | null = null;
+
+  private speedBuffTimer: Phaser.Time.TimerEvent | null = null;
 
   private speedEffect: SpeedEffect | null = null;
 
@@ -122,9 +124,9 @@ export class PurrquestScene extends Phaser.Scene {
       frameHeight: 64,
     });
 
-    this.load.image("speedPowerUp", "power-up/SPEED.png");
+    this.load.image("speedPowerUp", "buff/SPEED.png");
 
-    this.load.spritesheet("speed-effect", "power-up/SPEED-EFFECT.png", {
+    this.load.spritesheet("speed-effect", "buff/SPEED-EFFECT.png", {
       frameWidth: 64,
       frameHeight: 64,
     });
@@ -141,6 +143,10 @@ export class PurrquestScene extends Phaser.Scene {
     GameEvents.GAME_START.addEventListener(catSpawnCallback);
 
     this.scene.scene.events.once("destroy", () => {
+  GameEvents[GameEvent.BUFF_SPAWN].removeEventListener(this.handleBuffCollected);
+});
+
+    this.scene.scene.events.once("destroy", () => {
       GameEvents.GAME_START.removeEventListener(catSpawnCallback);
     });
   }
@@ -151,9 +157,13 @@ export class PurrquestScene extends Phaser.Scene {
     this.initializePathfinding();
 
     this.renderTilemap();
-     this.buffSpawnTimer = setInterval(() => {
-      this.spawnPowerUp();
-    }, POWERUP_SPAWN_THRESHOLD);
+     if (this.buffSpawnTimer) {
+    clearInterval(this.buffSpawnTimer);
+  }
+
+  this.buffSpawnTimer = setInterval(() => {
+    this.spawnBuff();
+  }, POWERUP_SPAWN_THRESHOLD);
   }
 
   private renderEverythingAfterCat() {
@@ -672,71 +682,73 @@ private getRandomWalkableTile(): Phaser.Tilemaps.Tile | null {
     });
   }
 
-  private spawnPowerUp() {
+ private spawnBuff() {
     if (this.currentBuff) return;
-         const tile = this.getRandomWalkableTile();
-    if (!tile) {
-      console.error("No walkable tile available for boss spawn.");
-      return;
-    }
-  
-    this.currentBuff = new Buff(this as any, this.getSpawnPositionX(), this.getSpawnPositionY());
-  
-    this.physics.add.collider(this.currentBuff!.sprite, this.groundLayer!);
+
+    const x = this.getSpawnPositionX();
+    const y = this.getSpawnPositionY();
+    this.currentBuff = new Buff(this as any, x, y);
+
+    this.physics.add.collider(this.currentBuff, this.groundLayer!);
     this.physics.add.overlap(
       this.player?.sprite!,
-      this.currentBuff!.sprite,
-      this.handlePowerUpCollected,
+      this.currentBuff,
+      this.handleBuffCollected,
       undefined,
       this
     );
 
-    
+
+    GameEvents[GameEvent.BUFF_SPAWN].push({ buff: this.currentBuff.type });
+
     this.buffLifetimeTimer = setTimeout(() => {
       if (this.currentBuff) {
-        this.currentBuff.sprite.destroy();
+        this.currentBuff.destroy();
         this.currentBuff = null;
       }
     }, POWERUP_DURATION_MS);
   }
-  
-  private handlePowerUpCollected = () => {
+
+  private handleBuffCollected = () => {
     if (!this.currentBuff) return;
-  
-     if (this.currentBuff.type === BuffType.SPEED) {
-        this.increasePlayerSpeed();
-        this.speedEffect?.play(this.player!.sprite, POWERUP_DURATION_MS);
-      }
-  
+
+    if (this.currentBuff.type === BuffType.SPEED) {
+      this.applyOrRefreshSpeedBuff();
+      this.speedEffect?.play(this.player!.sprite, POWERUP_DURATION_MS);
+    }
+
     this.currentBuff.destroy();
     this.currentBuff = null;
-  
+
     if (this.buffLifetimeTimer) {
       clearTimeout(this.buffLifetimeTimer);
       this.buffLifetimeTimer = null;
     }
   };
-  
-  
-  private increasePlayerSpeed(): void {
-    if (this.player) {
-      this.player.walkSpeed += 200;
-      
-      GameEvents[GameEvent.CAT_POWER_UP].push({
-        buff: BuffType.SPEED,
-        duration: POWERUP_DURATION_MS,
-      });
-  
-      this.time.delayedCall(10000, () => {
-        if (this.player) {
-          this.player.walkSpeed -= 200;
-        }
-        GameEvents[GameEvent.CAT_POWER_UP].push({
-          buff: null,
-          duration:0,
-        });
-      });
+
+  private applyOrRefreshSpeedBuff(): void {
+    if (!this.player) return;
+
+    if (this.speedBuffTimer) {
+      this.speedBuffTimer.remove(false); 
+    } else {
+      if (this.player.walkSpeed + 200 < 630) {
+        this.player.walkSpeed += 200;
+      }
     }
+
+    GameEvents[GameEvent.CAT_BUFF].push({
+      buff: BuffType.SPEED,
+      duration: POWERUP_DURATION_MS,
+    });
+
+    this.speedBuffTimer = this.time.delayedCall(POWERUP_DURATION_MS, () => {
+      if (this.player) {
+        this.player.walkSpeed -= 200;
+      }
+      GameEvents[GameEvent.CAT_BUFF].push({ buff: null, duration: 0 });
+      this.speedBuffTimer = null;
+    });
   }
 
   private endGame() {
@@ -761,16 +773,27 @@ private getRandomWalkableTile(): Phaser.Tilemaps.Tile | null {
     });
   }
 
-  private onDestroy() {
-    this.player = undefined;
-    this.physics.world.colliders.destroy();
-    this.platforms.forEach((platform) => platform.destroy());
-    this.key.sprite.destroy();
-    this.chest.destroy();
-    this.children.removeAll();
-    this.load.removeAllListeners();
-    this.scene.restart({ isRestart: true });
+ private onDestroy() {
+  if (this.buffSpawnTimer) {
+    clearInterval(this.buffSpawnTimer);
+    this.buffSpawnTimer = null;
   }
+
+  if (this.buffLifetimeTimer) {
+    clearTimeout(this.buffLifetimeTimer);
+    this.buffLifetimeTimer = null;
+  }
+
+  this.player = undefined;
+  this.physics.world.colliders.destroy();
+  this.platforms.forEach((platform) => platform.destroy());
+  this.key.sprite.destroy();
+  this.chest.destroy();
+  this.children.removeAll();
+  this.load.removeAllListeners();
+  this.scene.restart({ isRestart: true });
+}
+
 
   private initializeColliders() {
     this.physics.add.collider(
