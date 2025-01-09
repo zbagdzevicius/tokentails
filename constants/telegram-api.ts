@@ -1,4 +1,5 @@
 import { QUEST } from "@/components/shared/QuestsModal";
+import { IMatch } from "@/models/match";
 import { IProfile } from "@/models/profile";
 
 const apiUrl = process.env.NEXT_PUBLIC_BE_URL;
@@ -21,11 +22,12 @@ const getAuthHeaders = () => ({
 });
 
 export const TDeleteLive = async (
-  points: string | number
+  match: IMatch
 ): Promise<IProfile[]> => {
   await waitForLocalStorageKey();
-  return fetch(`${apiUrl}/user/catbassadors/live/${points}`, {
-    method: "DELETE",
+  return fetch(`${apiUrl}/user/catbassadors/live`, {
+    method: "POST",
+    body: JSON.stringify(match),
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",

@@ -21,6 +21,9 @@ export interface IProfile {
   wallets: IUserWallets;
   catpoints: number;
   catpointsToday: number;
+  catbassadorsRecord: number;
+  purrquestCount: number;
+  catbassadorsCount: number;
   catpointsRecord: number;
   canRedeemLives: boolean;
   canInviteFriend: boolean;

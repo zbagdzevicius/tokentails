@@ -43,13 +43,9 @@ let timerInterval: any = null;
 
 const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [isStarted, setIsStarted] = useState<boolean>(false);
-  const [gameType, setGameType] = useState<GameType | null>(
-    GameType.HOME
-  );
+  const [gameType, setGameType] = useState<GameType | null>(GameType.HOME);
   const [openedModal, setOpenedModal] = useState<GameModal | null>(null);
-  const [gameStop, setGameStop] = useState<null | IGameStopEvent>(
-    null
-  );
+  const [gameStop, setGameStop] = useState<null | IGameStopEvent>(null);
 
   const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
@@ -85,13 +81,17 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
         time: event.time ?? 0,
       });
 
-      await TDeleteLive(earnedScore);
+      await TDeleteLive({
+        points: earnedScore,
+        time: event.time ?? 0,
+        type: gameType!,
+      });
       setProfileUpdate({
         catbassadorsLives: (profile.catbassadorsLives || 1) - 1,
         catpoints: profile.catpoints + earnedScore,
       });
     },
-    [profile]
+    [profile, gameType]
   );
 
   GameEvents.GAME_STOP.use(gameStopCallback);
@@ -188,11 +188,11 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           <MobileButtons
             isHidden={!isStarted && gameType !== GameType.SHELTER}
           />
-          {isStarted && (gameType === GameType.CATBASSADORS || gameType === GameType.PURRQUEST) && (
-            <>
+          {isStarted &&
+            (gameType === GameType.CATBASSADORS ||
+              gameType === GameType.PURRQUEST) && (
               <DisplayCoins isHidden={false} />
-            </>
-          )}
+            )}
 
           {openedModal === GameModal.PROFILE && (
             <TelegramProfile close={() => setOpenedModal(null)} />
