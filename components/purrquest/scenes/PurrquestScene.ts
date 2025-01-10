@@ -55,7 +55,7 @@ export class PurrquestScene extends Phaser.Scene {
   tilemap!: Phaser.Tilemaps.Tilemap;
   private player?: Cat;
   private pathfinding!: Pathfinding;
-  public groundLayer?: Phaser.Tilemaps.TilemapLayer | null;
+  public groundLayer!: Phaser.Tilemaps.TilemapLayer | null;
   private jumpLayer?: Phaser.Tilemaps.TilemapLayer | null;
   private chest!: Chest;
   private errorMessageText!: Phaser.GameObjects.Text;
@@ -94,6 +94,8 @@ export class PurrquestScene extends Phaser.Scene {
       "purrquest2/icons/platform-movable.png"
     );
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
+    this.load.audio("buff", "purrquest/sounds/buff.mp3");
+
     this.load.image("key", "purrquest/sprites/key.png");
     this.load.spritesheet("enemy-pinkie", "enemies/pink-fluffie-winter.png", {
       frameWidth: 32,
@@ -711,6 +713,7 @@ private getRandomWalkableTile(): Phaser.Tilemaps.Tile | null {
 
   private handleBuffCollected = () => {
     if (!this.currentBuff) return;
+     this.sound.play("buff");
 
     if (this.currentBuff.type === BuffType.SPEED) {
       this.applyOrRefreshSpeedBuff();
