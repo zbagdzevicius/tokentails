@@ -30,8 +30,6 @@ pub struct Roles {
 
 const ROLES: Symbol = symbol_short!("ROLES");
 const BASE_URI: Symbol = symbol_short!("BASE_URI");
-const TRANSFER: Symbol = symbol_short!("TRANSFER");
-const MINT: Symbol = symbol_short!("MINT");
 
 #[contractimpl]
 impl BlessingContract {
@@ -85,6 +83,10 @@ impl BlessingContract {
 
         env.storage().persistent().set(&token_id, &to.clone());
 
+        Ok(())
+    }
+
+    pub fn check() -> Result<(), SdkError> {
         Ok(())
     }
 

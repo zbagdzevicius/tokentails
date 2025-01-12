@@ -5,8 +5,6 @@ pragma solidity 0.8.19;
 import "@openzeppelin/contracts@4.9.3/token/ERC721/ERC721.sol";
 
 contract TokenTailsMysteryBox is ERC721 {
-    uint256 private _nextTokenId;
-
     constructor() ERC721("Token Tails Mystery Box", "TokenTailsMysteryBox") {}
 
     function safeMint(address to) public {

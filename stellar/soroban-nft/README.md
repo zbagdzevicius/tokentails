@@ -23,12 +23,14 @@ This repository uses the recommended structure for a Soroban project:
 ```
 
 #### contracts TESTNET:
-- ##### TokenTailsCat NFT: `CDA7P7DZ2PTRKAQOFETKWUKVNECQSDMRNXRDMLFMKVQNAPETV5W4IYOA`
-- ##### TokenTailsBlessing NFT: `CA5AVHPGJJKY7RLSXVPAQ5ZANA7OBZWXJCDWP3SZCNFRIUDAV2NDXCXM`
+- ##### TokenTailsCat NFT: `CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF`
+- ##### TokenTailsBlessing NFT: `CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF`
 
-#### contracts PUBLIC/MAINNET:
-- ##### TokenTailsCat NFT: `CC7RTEHQLWLWKU4ZIT2EWR4PO4OX5OYVOPM4LIRW7YB2EJ654CMTZVG6`
-- ##### TokenTailsBlessing NFT: `CAPQCRJEVBPEXTTYXETVIYIKTGKVX65RRDNUFYGFTKHV5YTSL47XUASD`
+#### contracts MAINNET:
+- ##### TokenTailsCat NFT: `CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF`
+- ##### TokenTailsBlessing NFT: `CDY53U64IBGRTIABOQDS3ZXAIYP3S3VY42TKOX2G65E2UVBF3YLS7NJ6`
+- Owner public key: GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN
+- explorer: https://stellar.expert/explorer
 
 ### Run tests
 
@@ -81,38 +83,27 @@ Gateway provider
 stellar contract deploy \
   --wasm target/wasm32-unknown-unknown/release/cat.wasm \
   --source zygis \
-  --network mainnet
+  --network testnet
 ```
 
 ### Deploy to mainnet
 
 ```
 stellar contract deploy \
-  --wasm target/wasm32-unknown-unknown/release/cat.wasm \
+  --wasm target/wasm32-unknown-unknown/release/blessing.wasm \
   --source zygis \
   --network mainnet
 ```
 
-### Contracts:
-- Owner testnet public key: GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN
-- Owner mainnet public key: GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN
-- Cat mainnet: 
-- testnet explorer: https://stellar.expert/explorer/testnet
-
-- New Soroban contracts can be put in `contracts`, each in their own directory. There is already a `cat` contract in there to get you started.
-- If you initialized this project with any other example contracts via `--with-example`, those contracts will be in the `contracts` directory as well.
-- Contracts should have their own `Cargo.toml` files that rely on the top-level `Cargo.toml` workspace for their dependencies.
-- Frontend libraries can be added to the top-level directory as well. If you initialized this project with a frontend template via `--frontend-template` you will have those files already included.
-
-### Contract initialization example
+### Contract initialization
 
 e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CA5AVHPGJJKY7RLSXVPAQ5ZANA7OBZWXJCDWP3SZCNFRIUDAV2NDXCXM \
+  --id CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF \
   --source zygis \
-  --network testnet \
+  --network mainnet \
   -- \
   initialize \
   --admin GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN \
@@ -120,74 +111,88 @@ stellar contract invoke \
   --base_uri https://api.tokentails.com/cat/nft/
 ```
 
-### Contract mint example
+### Contract check
 
 e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CDA7P7DZ2PTRKAQOFETKWUKVNECQSDMRNXRDMLFMKVQNAPETV5W4IYOA \
+  --id CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF \
   --source zygis \
-  --network testnet \
+  --network mainnet \
+  --send yes \
+  -- \
+  check
+```
+
+### Contract mint
+
+e.g. on how to interact
+
+```
+stellar contract invoke \
+  --id CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF \
+  --source zygis \
+  --network mainnet \
   -- \
   mint \
   --invoker GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN \
   --to GBFDHPVUCADXYGDUHJEXKO3BLV26SA5JBHV5MFQ3TH5HWVYZIP73VR4O \
-  --token_id cat_3
+  --token_id initialization_test
 ```
 
-### Contract get_token_uri example
+### Contract get_token_uri
 
 e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CDA7P7DZ2PTRKAQOFETKWUKVNECQSDMRNXRDMLFMKVQNAPETV5W4IYOA \
+  --id CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF \
   --source zygis \
-  --network testnet \
+  --network mainnet \
   -- \
   get_token_uri \
   --token_id cat_3
 ```
 
-### Contract set_base_uri example
+### Contract set_base_uri
 
 e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CDA7P7DZ2PTRKAQOFETKWUKVNECQSDMRNXRDMLFMKVQNAPETV5W4IYOA \
+  --id CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF \
   --source zygis \
-  --network testnet \
+  --network mainnet \
   -- \
   set_base_uri \
   --invoker GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN \
   --new_base_uri "api.tokentails.com/cat/nft/"
 ```
 
-### Contract owner_of example
+### Contract owner_of
 
 e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CDA7P7DZ2PTRKAQOFETKWUKVNECQSDMRNXRDMLFMKVQNAPETV5W4IYOA \
+  --id CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF \
   --source zygis \
-  --network testnet \
+  --network mainnet \
   -- \
   owner_of \
   --token_id cat_3
 ```
 
-### Contract transfer_to example
+### Contract transfer_to
 
 e.g. on how to interact
 
 ```
 stellar contract invoke \
-  --id CDA7P7DZ2PTRKAQOFETKWUKVNECQSDMRNXRDMLFMKVQNAPETV5W4IYOA \
+  --id CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF \
   --source zygis \
-  --network testnet \
+  --network mainnet \
   -- \
   transfer_from \
   --invoker GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN \
@@ -198,6 +203,7 @@ stellar contract invoke \
 
 
 #### Protocol 21 (Mainnet, June 18, 2024)
+Kubernetes Stellar RPC deployment example 
 
 ```
     helm install stellar-rpc stellar/soroban-rpc --values pubnet.yaml
