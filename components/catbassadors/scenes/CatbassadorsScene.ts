@@ -86,6 +86,8 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
       spacing: 2,
     });
 
+    this.load.audio("buff", "purrquest/sounds/buff.mp3");
+
     this.load.image("bosscoin", "logo/boss-coin.png");
     this.load.image("candy-cane", currentDayCoin);
     this.load.image("timecoin", "icons/clock.png");
@@ -398,6 +400,7 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
 
   private handleBuffCollected = () => {
     if (!this.currentBuff) return;
+     this.sound.play("buff");
 
     if (this.currentBuff.type === BuffType.SPEED) {
       this.applyOrRefreshSpeedBuff();
