@@ -28,10 +28,12 @@ export class Trampoline {
 
   private handleBounce(player: Phaser.GameObjects.GameObject) {
     const playerSprite = player as Phaser.Physics.Arcade.Sprite;
+    
     if (
       playerSprite.body!.velocity.y > 0 ||
       playerSprite.body!.velocity.y <= 0
     ) {
+      
       playerSprite.setVelocityY(BOUNCE_VELOCITY);
       this.scene.sound.play("powerup");
     }

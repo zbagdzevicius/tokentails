@@ -83,8 +83,9 @@ export const GameAggregators = () => {
         READ ABOUT US
       </div>
       <div className="flex flex-wrap gap-4 justify-center">
-        {sponsorImages.map((sponsorImage) => (
+        {sponsorImages.map((sponsorImage, index) => (
           <a
+            key={index}
             href={sponsorImage.link}
             target="_blank"
             className="hover:brightness-150 hover:scale-110"
@@ -94,9 +95,9 @@ export const GameAggregators = () => {
         ))}
       </div>
       <div className="absolute left-1/2 -translate-x-1/2 rem:-bottom-[52px] px-4">
-      <a href="https://www.cyberscope.io/audits/tails" target="_blank">
-        <PixelButton isSmall text="TOKEN AUDIT" />
-      </a>
+        <a href="https://www.cyberscope.io/audits/tails" target="_blank">
+          <PixelButton isSmall text="TOKEN AUDIT" />
+        </a>
       </div>
     </div>
   );

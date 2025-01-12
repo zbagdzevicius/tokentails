@@ -55,9 +55,9 @@ export const EndGameModal: React.FC<EndGameProps> = ({
               className="w-6 h-6 mr-2"
               draggable="false"
             />
-            <p className="text-p3 lg:text-p2 font-medium flex items-center gap-1">
+            <div className="text-p3 lg:text-p2 font-medium flex items-center gap-1">
               collected <Tag>{gameStop.score}</Tag> coins
-            </p>
+            </div>
           </div>
           <div className="flex justify-center items-center text-md text-gray-700">
             <img
@@ -66,16 +66,16 @@ export const EndGameModal: React.FC<EndGameProps> = ({
               className="w-6 h-6 mr-2"
               draggable="false"
             />
-            <p className="text-p3 lg:text-p2 font-medium  flex items-center gap-1">
+            <div className="text-p3 lg:text-p2 font-medium  flex items-center gap-1">
               Played for <span><Tag>{Math.floor(gameStop.time)}</Tag></span>
               seconds
-            </p>
+            </div>
           </div>
           <div className="flex justify-center items-center text-md text-gray-700">
             <img className="h-8" src="images/cats-winners/cat.gif"></img>
-            <p className="text-p3 lg:text-p2 font-medium mr-1">
+            <div className="text-p3 lg:text-p2 font-medium mr-1">
               Selected cat MULTIPLIER
-            </p>
+            </div>
             <Tag>X{getMultiplier(profile?.cat)}</Tag>
           </div>
           <img
