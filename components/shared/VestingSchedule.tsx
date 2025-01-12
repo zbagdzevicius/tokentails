@@ -97,7 +97,7 @@ export const VestingSchedule = () => {
               SEED
             </th>
             <td className="py-4 px-6 text-center text-purple-300 bg-gray-700 text-p4">
-              8%
+              14%
             </td>
             <td className="py-4 px-6 text-center text-purple-300 bg-gray-700 text-p4 border-l border-purple-300">
               15%
@@ -235,10 +235,10 @@ export const VestingSchedule = () => {
               LIQUIDITY
             </th>
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p4">
-              16%
+              10%
             </td>
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p4 border-l border-white-300">
-              29%
+              36%
             </td>
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p4 border-l border-white-300">
               -
