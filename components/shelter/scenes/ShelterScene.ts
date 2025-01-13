@@ -51,7 +51,6 @@ export class ShelterScene extends Scene {
   }
 
   create(props: IPhaserGameSceneProps) {
-    this.physics.world.setFPS(120);
     this.tilemap = this.make.tilemap({ key: "tilemap" });
     const sugarTileset = this.tilemap.addTilesetImage("blocks", "blocks", 32, 32, 1, 2)!;
     this.groundLayer = this.tilemap.createLayer("blocks", [sugarTileset])!;

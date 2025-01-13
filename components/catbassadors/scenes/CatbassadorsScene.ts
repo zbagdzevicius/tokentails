@@ -137,12 +137,18 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
       frameWidth: 64,
       frameHeight: 64,
     });
+     this.load.spritesheet("puff", "catbassadors/images/puff.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
   }
 
   create(props: IPhaserGameSceneProps) {
-    this.physics.world.setFPS(120);
-
-    this.coinPool = new ObjectPool<Coin>(() => new Coin(this, 400, 400), 30);
+     if (!this.coinPool) {
+        this.coinPool = new ObjectPool<Coin>(() => {
+            return new Coin(this, 400, 400);
+        }, 30);
+    }
 
     this.tilemap = this.make.tilemap({ key: "tilemap" });
     const sugarTileset = this.tilemap.addTilesetImage(
@@ -160,16 +166,6 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
     this.tilemap.createLayer("decorations", [sugarTileset]);
     this.jumperLayer = this.tilemap.createLayer("jumper", [sugarTileset])!;
     this.speedEffect = new SpeedEffect(this);
-
-    this.anims.create({
-      key: "star",
-      frames: this.anims.generateFrameNumbers("starAnimation", {
-        start: 0,
-        end: 3,
-      }),
-      frameRate: 8,
-      repeat: 1,
-    });
 
     // Set collision for specific tiles based on property
     this.groundLayer?.setCollisionByExclusion([-1]);
@@ -221,6 +217,8 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
       GameEvents.CAT_SPAWN.removeEventListener(catSpawnCallback);
       GameEvents.GAME_START.removeEventListener(startGameCallback);
     });
+
+    this.createAnimations()
   }
 
   handleVisibilityChange() {
@@ -234,6 +232,25 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
 
       this.lastUpdateTime = currentTime;
     }
+  }
+
+  createAnimations() {
+         this.anims.create({
+  key: "puff",
+  frames: this.anims.generateFrameNumbers("puff", { start: 0, end: 4 }),
+  frameRate: 16,
+  repeat: 0,
+});
+
+   this.anims.create({
+      key: "star",
+      frames: this.anims.generateFrameNumbers("starAnimation", {
+        start: 0,
+        end: 3,
+      }),
+      frameRate: 8,
+      repeat: 1,
+    });
   }
 
   async spawnCat(
@@ -363,13 +380,23 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
     });
   }
 
-  private releaseCoin(coin: Coin) {
+private releaseCoin(coin: Coin) {
+  const puff = this.add.sprite(coin.sprite.x, coin.sprite.y, "puff");
+  puff.setScale(1.5)
+if (this.anims.exists("puff")) {
+  puff.play("puff");
+}
 
-    coin.sprite.setActive(false).setVisible(false);
-    this.coins = this.coins.filter((e) => e !== coin);
+  puff.on("animationcomplete", () => {
+    puff.destroy();
+  });
 
-    this.coinPool.release(coin);
-  }
+  coin.sprite.setActive(false).setVisible(false);
+  this.coins = this.coins.filter((e) => e !== coin);
+
+  this.coinPool.release(coin);
+}
+
 
  private spawnBuff() {
     if (this.currentBuff) return;
@@ -377,6 +404,7 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
     const x = this.getCoinSpawnPositionX();
     const y = this.getCoinSpawnPositionY();
     this.currentBuff = new Buff(this, x, y);
+     this.add.existing(this.currentBuff);
 
     this.physics.add.collider(this.currentBuff, this.groundLayer);
     this.physics.add.overlap(
@@ -480,6 +508,7 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
         this.cat.sprite.y,
         "starAnimation"
       );
+  
       starAnimationSprite.setScale(1.3);
 
       starAnimationSprite.play("star");

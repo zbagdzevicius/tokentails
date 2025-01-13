@@ -19,6 +19,9 @@ export class Buff extends Phaser.Physics.Arcade.Sprite {
     type: BuffType;
 
     constructor(scene: ExtendedScene, x: number, y: number, type?: BuffType) {
+       if (!scene.physics || !scene.add) {
+      throw new Error("Scene is missing necessary systems for physics or display.");
+    }
         const buffType = type || getRandomPowerUpType();
         super(scene, x, y, BuffSpriteMap[buffType]);
 
@@ -27,6 +30,10 @@ export class Buff extends Phaser.Physics.Arcade.Sprite {
         scene.physics.add.existing(this);
 
         this.type = buffType;
+
+         if (!this.body) {
+      throw new Error("Buff failed to initialize physics body.");
+    }
 
         const body = this.body as Phaser.Physics.Arcade.Body;
         body.setImmovable(true);
