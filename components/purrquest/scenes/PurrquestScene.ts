@@ -136,7 +136,6 @@ export class PurrquestScene extends Phaser.Scene {
   }
 
   create(props: IPhaserGameSceneProps) {
-    this.physics.world.setFPS(120);
     this.startGame();
     this.speedEffect = new SpeedEffect(this);
 
@@ -164,8 +163,10 @@ export class PurrquestScene extends Phaser.Scene {
   }
 
   this.buffSpawnTimer = setInterval(() => {
-    this.spawnBuff();
-  }, POWERUP_SPAWN_THRESHOLD);
+        if (this.player?.sprite) {
+            this.spawnBuff();
+        }
+    }, POWERUP_SPAWN_THRESHOLD);
   }
 
   private renderEverythingAfterCat() {
@@ -685,7 +686,7 @@ private getRandomWalkableTile(): Phaser.Tilemaps.Tile | null {
   }
 
  private spawnBuff() {
-    if (this.currentBuff) return;
+    if (this.currentBuff || !this.player?.sprite) return;
 
     const x = this.getSpawnPositionX();
     const y = this.getSpawnPositionY();
@@ -777,32 +778,37 @@ private getRandomWalkableTile(): Phaser.Tilemaps.Tile | null {
   }
 
  private onDestroy() {
-  if (this.buffSpawnTimer) {
-    clearInterval(this.buffSpawnTimer);
-    this.buffSpawnTimer = null;
-  }
+    if (this.buffSpawnTimer) {
+        clearInterval(this.buffSpawnTimer);
+        this.buffSpawnTimer = null;
+    }
 
-  if (this.buffLifetimeTimer) {
-    clearTimeout(this.buffLifetimeTimer);
-    this.buffLifetimeTimer = null;
-  }
+    if (this.buffLifetimeTimer) {
+        clearTimeout(this.buffLifetimeTimer);
+        this.buffLifetimeTimer = null;
+    }
+      if (this.currentBuff) {
+        this.currentBuff.destroy();
+        this.currentBuff = null;
+    }
 
-  this.player = undefined;
-  this.physics.world.colliders.destroy();
-  this.platforms.forEach((platform) => platform.destroy());
-  this.key.sprite.destroy();
-  this.chest.destroy();
-  this.children.removeAll();
-  this.load.removeAllListeners();
-  this.scene.restart({ isRestart: true });
+    this.player = undefined;
+    this.physics.world.colliders.destroy();
+    this.platforms.forEach((platform) => platform.destroy());
+    this.key?.sprite?.destroy();
+    this.chest?.destroy();
+    this.children.removeAll();
+    this.load.removeAllListeners();
+    this.scene.restart({ isRestart: true });
 }
 
 
+
   private initializeColliders() {
-    this.physics.add.collider(
-      this.player?.sprite as Phaser.Physics.Arcade.Sprite,
-      this.groundLayer!
-    );
+   this.physics.add.collider(
+    this.player?.sprite as Phaser.Physics.Arcade.Sprite,
+    this.groundLayer!
+);
 
     this.physics.add.collider(
       this.player?.sprite as Phaser.Physics.Arcade.Sprite,

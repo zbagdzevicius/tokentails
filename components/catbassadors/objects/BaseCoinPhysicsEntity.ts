@@ -24,10 +24,13 @@ export abstract class BaseCoinPhysicsEntity {
   protected bounce: number = bounceFactor;
 
   constructor(scene: ExtendedScene, x: number, y: number, texture: string) {
+    if (!scene || !scene.physics) {
+        throw new Error("Invalid or uninitialized scene passed to BaseCoinPhysicsEntity.");
+    }
     this.scene = scene;
 
     // Create the sprite
-   this.sprite = this.scene?.physics.add.sprite(x, y, texture)
+  this.sprite = this.scene.physics.add.sprite(x, y, texture);
 
   this.sprite.setSize(32, 32)
   .setDepth(3);
