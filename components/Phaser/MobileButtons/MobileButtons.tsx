@@ -7,7 +7,7 @@ export const MobileButtons: React.FC<{
   return (
     <>
       <div
-        className={`pb-safe z-10 fixed bottom-6 left-0 right-0 w-full flex items-end justify-between ${isHidden ? "hidden" : ""
+        className={`pb-safe z-10 fixed bottom-6 left-0 right-0 w-full flex lg:hidden items-end justify-between ${isHidden ? "hidden" : ""
           }`}
       >
         <Joystick />

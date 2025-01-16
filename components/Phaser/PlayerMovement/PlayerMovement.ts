@@ -37,7 +37,7 @@ export class PlayerMovement {
     const leftKeyDown = cursors.left.isDown || keys.left.isDown || isMobileLeft;
     const rightKeyDown =
       cursors.right.isDown || keys.right.isDown || isMobileRight;
-    const upKeyDown = cursors.up.isDown || keys.up.isDown || isMobileJumping;
+    const upKeyDown = cursors.up.isDown || keys.up.isDown || keys.upW.isDown|| isMobileJumping;
 
     const touchingLeftWall =
       sprite.body!.blocked.left && !sprite.body!.blocked.down;
@@ -95,19 +95,18 @@ export class PlayerMovement {
       sprite.setAccelerationX(0);
     }
 
-    if (this.player.isHit) {
-      if (
-        sprite.anims.currentAnim?.key !==
-        this.player.animationKeys[PlayerAnimation.HIT]
-      ) {
-        sprite.anims.play(this.player.animationKeys[PlayerAnimation.HIT], true);
-
-        sprite.once("animationcomplete", () => {
-          this.player.isHit = false;
-        });
-        sprite.angle = 0;
-      }
-    } else if (this.player.isDeath) {
+  if (this.player.isHit) {
+  if (
+    sprite.anims.currentAnim?.key !==
+    this.player.animationKeys[PlayerAnimation.HIT]
+  ) {
+    sprite.anims.play(this.player.animationKeys[PlayerAnimation.HIT], true);
+    sprite.once("animationcomplete", () => {
+      this.player.isHit = false;
+    });
+  }
+  return;
+}else if (this.player.isDeath) {
       if (
         sprite.anims.currentAnim?.key !==
         this.player.animationKeys[PlayerAnimation.HIT]
@@ -187,7 +186,7 @@ export class PlayerMovement {
     if (cursors.up.isUp && keys.up.isUp && !isMobileJumping) {
       this.player.justJumped = false;
     }
-    if ((cursors.up.isDown || keys.up.isDown || isMobileJumping) && this.isJumpHeld) {
+    if ((cursors.up.isDown || keys.up.isDown || keys.upW.isDown || isMobileJumping) && this.isJumpHeld) {
       const timeJumping = now - this.jumpStartTime;
       if (timeJumping < this.player.coyoteTime) {
         if (sprite.body!.velocity.y > this.player.maxJumpSpeed) {

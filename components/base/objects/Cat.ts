@@ -70,7 +70,13 @@ export class Cat {
   private catName: string;
   blessings?: Phaser.GameObjects.Sprite;
 
-  constructor(scene: Scene, x: number, y: number, catName: string,blessings: Phaser.GameObjects.Sprite) {
+  constructor(
+    scene: Scene,
+    x: number,
+    y: number,
+    catName: string,
+    blessings: Phaser.GameObjects.Sprite
+  ) {
     this.scene = scene;
     this.catName = catName;
     this.sprite = this.scene.physics.add
@@ -132,20 +138,19 @@ export class Cat {
     });
   }
 
-update() {
+  update() {
     if (!this.job) {
-        this.updateOngoingMovements();
+      this.updateOngoingMovements();
     } else {
-        this.updateOngoingJob();
+      this.updateOngoingJob();
     }
     if (this.blessings) {
-    const velocityX = this.sprite.body!.velocity.x;
-    const targetX = this.sprite.x + velocityX * 0.01;
-    this.blessings.setVisible(true);
-    this.blessings.setPosition(targetX, this.sprite.y - 5);
+      const velocityX = this.sprite.body!.velocity.x;
+      const targetX = this.sprite.x + velocityX * 0.01;
+      this.blessings.setVisible(true);
+      this.blessings.setPosition(targetX, this.sprite.y - 5);
+    }
   }
-}
-
 
   private updateOngoingJob() {
     if (!this?.sprite?.anims?.play) {
@@ -172,24 +177,24 @@ update() {
       if (!this.timeoutFunction) {
         this.sprite.setVelocityX(0);
         this.timeoutFunction = setTimeout(() => {
-        this.job = { type: NPCJobType.SLEEP };
+          this.job = { type: NPCJobType.SLEEP };
           this.timeoutFunction = null;
         }, 0);
       }
       this.sprite.anims.play(PlayerAnimation.GROOMING, true);
     }
   }
-setSleep() { if (this.job?.type === NPCJobType.SLEEP) {
-    this.sprite.anims.play(PlayerAnimation.SLEEP, true);
-}
-}
+  setSleep() {
+    if (this.job?.type === NPCJobType.SLEEP) {
+      this.sprite.anims.play(PlayerAnimation.SLEEP, true);
+    }
+  }
   setJump(isJumping: boolean) {
     this.isJumping = isJumping;
     if (isJumping) {
       this.sprite.anims.play(PlayerAnimation.JUMPING_DOWN);
     }
   }
-
 
   private updateOngoingMovements() {
     if (!this?.sprite?.anims?.play) {
