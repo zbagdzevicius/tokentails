@@ -129,16 +129,6 @@ export const GameOptionsModal = ({
             ></PixelButton>
           </div>
         )}
-        {![GameType.HOME].includes(gameType!) && (
-          <div className="absolute sm:bottom-0 left-0 lg: bottom-32">
-            <PixelButton
-              onClick={() => {
-                setOpenedModal(GameModal.CONTROL_SETTINGS);
-              }}
-              text="CONTROLS"
-            ></PixelButton>
-          </div>
-        )}
       </div>
     </>
   );
