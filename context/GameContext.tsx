@@ -36,6 +36,8 @@ type ContextState = {
   timer: number;
   playGame: () => void;
   addNotification: (notification: IToast) => void;
+  setOpenedModal: (modal: GameModal | null) => void;
+
 };
 
 const GameContext = React.createContext<ContextState | undefined>(undefined);
@@ -161,6 +163,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     setGameType,
     timer,
     addNotification,
+    setOpenedModal,
   };
 
   return (
@@ -233,6 +236,7 @@ function useGame() {
     setGameType: context.setGameType,
     timer: context.timer,
     playGame: context.playGame,
+    setOpenedModal: context.setOpenedModal,
   };
 }
 

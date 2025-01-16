@@ -6,6 +6,7 @@ import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
 import { Tag } from "../shared/Tag";
 import { PixelButton } from "../shared/PixelButton";
 import { useProfile } from "@/context/ProfileContext";
+import { GameModal } from "@/models/game";
 
 interface IProps {
   currentActiveScene?: (scene_instance: Phaser.Scene) => void;
@@ -61,7 +62,7 @@ const PhaserGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
 
 const Purrquest = () => {
   const phaserRef = useRef<IPhaserGame | null>(null);
-  const { isStarted, playGame } = useGame();
+  const { isStarted, playGame, setOpenedModal } = useGame();
   const background = useBackground();
   const { profile } = useProfile();
 
@@ -84,17 +85,24 @@ const Purrquest = () => {
           <div className="relative z-10">
             <Tag>HOW TO PLAY</Tag>
           </div>
-          <div className="flex gap-2 items-center font-secondary text-p3 pt-2">
-            <span>Control CAT</span>
-            <img className="h-8" src="images/cats-winners/cat.gif"></img>
-          </div>
           <div className="flex gap-2 items-center font-secondary text-p3">
             <span>Find KEY</span>
             <img className="h-8" src="purrquest/sprites/key.png"></img>
           </div>
-          <div className="flex gap-2 items-center font-secondary text-p3 pb-2">
-            <span>OPEN TREASURE</span>
-            <img className="h-8" src="logo/chest.webp"></img>
+          <div className="flex flex-col items-center">
+            <div className="flex flex-row items-center gap-2  font-secondary text-p3">
+              <span>OPEN TREASURE</span>
+              <img className="h-8" src="logo/chest.webp"></img>
+            </div>
+            <div className="sm:hidden lg:flex ">
+              <PixelButton
+                onClick={() => {
+                  setOpenedModal(GameModal.CONTROL_SETTINGS);
+                }}
+                text="CONTROLS"
+                isSmall
+              ></PixelButton>
+            </div>
           </div>
           <Tag>PRIZE</Tag>
           <div className="flex gap-2 justify-center items-center font-secondary text-p3 mt-2">
