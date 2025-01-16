@@ -8,6 +8,7 @@ export interface IPlayer {
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   keys: {
     up: Phaser.Input.Keyboard.Key;
+    upW: Phaser.Input.Keyboard.Key;
     left: Phaser.Input.Keyboard.Key;
     right: Phaser.Input.Keyboard.Key;
     dash: Phaser.Input.Keyboard.Key;

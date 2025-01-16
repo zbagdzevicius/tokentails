@@ -27,6 +27,7 @@ import { EndGameModal } from "@/components/shared/EndGameModal";
 import { getMultiplier } from "@/components/CatCardModal";
 import { IToast } from "./ToastContext";
 import { Notification } from "@/components/shared/Notification";
+import { ControlModal } from "@/components/shared/ControlModal";
 
 type ContextState = {
   isStarted?: boolean;
@@ -208,6 +209,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           )}
           {openedModal === GameModal.INVITE && (
             <InviteModal close={() => setOpenedModal(null)} />
+          )}
+          {openedModal === GameModal.CONTROL_SETTINGS && (
+            <ControlModal close={() => setOpenedModal(null)} />
           )}
           {gameType === GameType.HOME && isGameLoaded && <SpeechBubble />}
           <GameMusicPlayer />
