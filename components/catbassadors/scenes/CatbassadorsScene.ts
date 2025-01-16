@@ -13,21 +13,18 @@ import { EnemyManager } from "../managers/EnemyManager";
 import { CoinManager } from "../managers/CoinManager";
 import { BuffManager } from "../managers/BuffManager";
 
-import { currentDayCoin, ZOOM } from "@/constants/utils"
-import {
-  endScenePeriod,
-} from "@/models/game";
+import { currentDayCoin, ZOOM } from "@/constants/utils";
+import { endScenePeriod } from "@/models/game";
 
 const JUMP_LAYER_TILES = [47, 48, 49, 50];
 const TRAMPOLINE_TILES = [51];
 
 const DEFAULT_ENEMY_SPAWN_THRESHOLD = 100;
 
-
 export class CatbassadorsScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
   cat?: Cat;
-  catDto?: ICat
+  catDto?: ICat;
   tilemap!: Phaser.Tilemaps.Tilemap;
   groundLayer!: Phaser.Tilemaps.TilemapLayer;
   platformsLayer!: Phaser.Tilemaps.TilemapLayer;
@@ -49,7 +46,6 @@ export class CatbassadorsScene extends Scene {
   private coinManager?: CoinManager;
   private buffManager?: BuffManager;
   enemyManager?: EnemyManager;
-
 
   constructor() {
     super("CatbassadorsScene");
@@ -109,15 +105,19 @@ export class CatbassadorsScene extends Scene {
       frameHeight: 64,
     });
 
-        this.load.spritesheet("knockback-spell", "abilities/knockback-spell/FIRE.png", {
+    this.load.spritesheet(
+      "knockback-spell",
+      "abilities/knockback-spell/FIRE.png",
+      {
+        frameWidth: 64,
+        frameHeight: 64,
+      }
+    );
+    this.load.spritesheet("speed-effect", "buff/SPEED-EFFECT.png", {
       frameWidth: 64,
       frameHeight: 64,
     });
-     this.load.spritesheet("speed-effect", "buff/SPEED-EFFECT.png", {
-      frameWidth: 64,
-      frameHeight: 64,
-    });
-     this.load.spritesheet("puff", "catbassadors/images/puff.png", {
+    this.load.spritesheet("puff", "catbassadors/images/puff.png", {
       frameWidth: 32,
       frameHeight: 32,
     });
@@ -191,7 +191,7 @@ export class CatbassadorsScene extends Scene {
       GameEvents.GAME_START.removeEventListener(startGameCallback);
     });
 
-     this.coinManager = new CoinManager({
+    this.coinManager = new CoinManager({
       scene: this,
       groundLayer: this.groundLayer,
       catSprite: this.cat?.sprite || null,
@@ -222,10 +222,10 @@ export class CatbassadorsScene extends Scene {
       onScoreIncrease: (amount) => {
         this.score += amount;
       },
-      gameType: "catbassadors"
+      gameType: "catbassadors",
     });
 
-    this.createAnimations()
+    this.createAnimations();
   }
 
   handleVisibilityChange() {
@@ -242,14 +242,14 @@ export class CatbassadorsScene extends Scene {
   }
 
   createAnimations() {
-         this.anims.create({
-  key: "puff",
-  frames: this.anims.generateFrameNumbers("puff", { start: 0, end: 4 }),
-  frameRate: 16,
-  repeat: 0,
-});
+    this.anims.create({
+      key: "puff",
+      frames: this.anims.generateFrameNumbers("puff", { start: 0, end: 4 }),
+      frameRate: 16,
+      repeat: 0,
+    });
 
-   this.anims.create({
+    this.anims.create({
       key: "star",
       frames: this.anims.generateFrameNumbers("starAnimation", {
         start: 0,
@@ -331,9 +331,9 @@ export class CatbassadorsScene extends Scene {
   private createCat(
     catName: string,
     blessing: Phaser.GameObjects.Sprite | null,
-    type : CatAbilityType
+    type: CatAbilityType
   ) {
-    this.cat = new Cat(this, 0, -400, catName, blessing!,type);
+    this.cat = new Cat(this, 0, -400, catName, blessing!, type);
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
     this.physics.add.collider(
       this.cat.sprite as Phaser.Physics.Arcade.Sprite,
@@ -363,20 +363,19 @@ export class CatbassadorsScene extends Scene {
     setMobileControls(this.cat);
   }
 
-
   update(time: any, delta: any) {
     this.cat?.update();
-    this.enemyManager?.update(time,delta)
-    this.coinManager?.update()
+    this.enemyManager?.update(time, delta);
+    this.coinManager?.update();
     this.enemyManager?.checkEnemyMilestone(this.score);
-    
+
     this.timer -= delta / 1000;
 
- if (this.timer <= 0 && !this.gameOver) {
-    this.timer = 0; 
-    this.gameOver = true;
-    this.endGame();
-  }
+    if (this.timer <= 0 && !this.gameOver) {
+      this.timer = 0;
+      this.gameOver = true;
+      this.endGame();
+    }
   }
 
   private getCoinSpawnPositionX(): number {
@@ -397,8 +396,8 @@ export class CatbassadorsScene extends Scene {
     this.backgroundSound?.play();
   }
 
- endGame() {
-     if (this.cat) {
+  endGame() {
+    if (this.cat) {
       this.cat.isDeath = true;
     }
     clearInterval(this.coinSpawnInterval as NodeJS.Timeout);

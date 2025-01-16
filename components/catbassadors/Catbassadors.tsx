@@ -1,5 +1,5 @@
 import { ICat } from "@/models/cats";
-import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
+import { forwardRef, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GameEvents, IPhaserGame } from "../Phaser/events";
 import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
 import { useGame } from "@/context/GameContext";
@@ -7,6 +7,9 @@ import { currentDayCoin } from "@/constants/utils";
 import { PixelButton } from "../shared/PixelButton";
 import { useProfile } from "@/context/ProfileContext";
 import { Tag } from "../shared/Tag";
+import { GameModal, GameType } from "@/models/game";
+
+
 
 export interface IGameOverEvent extends Event {
   detail: {
@@ -80,7 +83,7 @@ interface ICatbassadorsProps {
 const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
   const phaserRef = useRef<IPhaserGame | null>(null);
   const isGameLoaded = GameEvents.GAME_LOADED.use();
-  const { isStarted, playGame } = useGame();
+  const { isStarted, playGame, setOpenedModal } = useGame();
   const { profile } = useProfile();
 
   useEffect(() => {
@@ -124,13 +127,23 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
           <div className="relative z-10">
             <Tag>HOW TO PLAY</Tag>
           </div>
-          <div className="flex gap-2 items-center font-secondary text-p3 pt-2">
-            <span>Control CAT</span>
-            <img className="h-8" src="images/cats-winners/cat.gif"></img>
-          </div>
-          <div className="flex gap-2 items-center font-secondary text-p3 pb-2">
-            <span>CATCH COINS</span>
-            <img className="h-8" src="logo/coin.webp"></img>
+          <div className="flex flex-col items-center">
+            <div className="flex flex-row items-center gap-2  font-secondary text-p3">
+              <span>CATCH COINS</span>
+              <img className="h-8" src="logo/coin.webp"></img>
+            </div>
+
+            <div className="sm:hidden lg:flex ">
+              <PixelButton
+                onClick={() => {
+                  setOpenedModal(GameModal.CONTROL_SETTINGS);
+                }}
+                text="CONTROLS"
+                isSmall
+              ></PixelButton>
+            </div>
+
+
           </div>
           <Tag>COINS REWARDS</Tag>
           <div className="flex gap-2 items-center justify-center font-secondary text-p4 pt-2">
