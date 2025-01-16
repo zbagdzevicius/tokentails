@@ -19,6 +19,7 @@ type ColliderType =
 
 type KeyMap = {
   up: Phaser.Input.Keyboard.Key;
+  upW: Phaser.Input.Keyboard.Key;
   left: Phaser.Input.Keyboard.Key;
   right: Phaser.Input.Keyboard.Key;
   space: Phaser.Input.Keyboard.Key;
@@ -97,11 +98,13 @@ export class Cat implements IPlayer {
   keys!: KeyMap;
   isHit!: boolean;
   isDeath!: boolean;
-  hasKey!: boolean;
+  hasKey: boolean = false;
   isInvulnerable: boolean;
   private catName: string;
   abilities: Abilities;
   type!:CatAbilityType
+
+  
   
   isDashing: boolean = false;
   readonly dashTime: number = 200; // Duration of dash in ms
@@ -134,13 +137,18 @@ export class Cat implements IPlayer {
       .setDepth(4)
     this.cursors = this.scene.input.keyboard!.createCursorKeys();
     this.keys = this.scene.input.keyboard!.addKeys({
-      up: "W",
+      up: "SPACE",
+      upW: "W",
       left: "A",
       right: "D",
-      dash: "SPACE",
+      dash: "Z",
       knockback: "Q",
     }) as KeyMap;
 
+    this.isHit = false;
+    this.isDeath = false;
+    this.isInvulnerable = false;
+    this.hasKey = false
     this.initAnimations();
 
     this.movement = new PlayerMovement(this);

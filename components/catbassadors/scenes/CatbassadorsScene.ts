@@ -9,41 +9,29 @@ import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { CatAbilityType, ICat, catbassadorsGameDuration } from "@/models/cats";
 import { Scene } from "phaser";
 import { Cat } from "../objects/Catbassador";
-import { Coin } from "../objects/Coin";
-import { BuffType,Buff } from "../objects/Buff";
-import { Enemy } from "../../purrquest/objects/Enemy";
-import { BossEnemy } from "@/components/purrquest/objects/Boss";
-import { currentDayCoin, ZOOM } from "@/constants/utils";
-import { ObjectPool } from "../objects/ObjectPool";
-import { SpeedEffect } from "../objects/SpeedEffect";
+import { EnemyManager } from "../managers/EnemyManager";
+import { CoinManager } from "../managers/CoinManager";
+import { BuffManager } from "../managers/BuffManager";
+
+import { currentDayCoin, ZOOM } from "@/constants/utils"
 import {
-  bossHitRewardsDebounceTime,
   endScenePeriod,
-  GameType,
 } from "@/models/game";
 
-const coinDurationMs = 15000;
-const POWERUP_DURATION_MS = 10000;
-const POWERUP_SPAWN_THRESHOLD = 15000;
-const BOSS_REWARD_POINTS = 1000;
 const JUMP_LAYER_TILES = [47, 48, 49, 50];
 const TRAMPOLINE_TILES = [51];
-const TIME_TO_REMOVE_PER_HIT = 5;
-const DEFAULT_ENEMY_SPAWN_THRESHOLD = 1500;
-const DEFAULT_BOSS_SPAWN = 50000;
-const MAX_ENEMIES = 5;
+
+const DEFAULT_ENEMY_SPAWN_THRESHOLD = 100;
+
 
 export class CatbassadorsScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
   cat?: Cat;
-  catDto?: ICat;
-  coin?: Coin | null;
-  coinPool!: ObjectPool<Coin>;
+  catDto?: ICat
   tilemap!: Phaser.Tilemaps.Tilemap;
   groundLayer!: Phaser.Tilemaps.TilemapLayer;
   platformsLayer!: Phaser.Tilemaps.TilemapLayer;
   jumperLayer!: Phaser.Tilemaps.TilemapLayer;
-  coins: Coin[] = [];
   coinSpawnInterval: NodeJS.Timeout | null = null;
   timer: number = catbassadorsGameDuration;
   score: number = 0;
@@ -51,22 +39,16 @@ export class CatbassadorsScene extends Scene {
   lastUpdateTime: number;
   trampoline?: Trampoline;
   enemySpawnThreshold = DEFAULT_ENEMY_SPAWN_THRESHOLD;
-  enemy?:Enemy;
-  public enemies: Enemy[] = []
-  bossEnemy?: BossEnemy;
+
   canCollectReward: boolean = false;
   IsBossSpawned = false;
   blessing!: Phaser.GameObjects.Sprite;
   gameStartTime: number = 0;
+  private gameOver: boolean = false;
 
-buffSpawnTimer: NodeJS.Timeout | null = null;
-  currentBuff: Buff | null = null;
-  buffLifetimeTimer: NodeJS.Timeout | null = null;
-
-  private speedBuffTimer: Phaser.Time.TimerEvent | null = null;
-
-
-  private speedEffect: SpeedEffect | null = null;
+  private coinManager?: CoinManager;
+  private buffManager?: BuffManager;
+  enemyManager?: EnemyManager;
 
 
   constructor() {
@@ -85,8 +67,6 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
       margin: 1,
       spacing: 2,
     });
-
-    this.load.audio("buff", "purrquest/sounds/buff.mp3");
 
     this.load.image("bosscoin", "logo/boss-coin.png");
     this.load.image("candy-cane", currentDayCoin);
@@ -144,12 +124,6 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
   }
 
   create(props: IPhaserGameSceneProps) {
-     if (!this.coinPool) {
-        this.coinPool = new ObjectPool<Coin>(() => {
-            return new Coin(this, 400, 400);
-        }, 30);
-    }
-
     this.tilemap = this.make.tilemap({ key: "tilemap" });
     const sugarTileset = this.tilemap.addTilesetImage(
       "blocks",
@@ -165,7 +139,6 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
     ])!;
     this.tilemap.createLayer("decorations", [sugarTileset]);
     this.jumperLayer = this.tilemap.createLayer("jumper", [sugarTileset])!;
-    this.speedEffect = new SpeedEffect(this);
 
     // Set collision for specific tiles based on property
     this.groundLayer?.setCollisionByExclusion([-1]);
@@ -216,6 +189,40 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
     this.scene.scene.events.once("destroy", () => {
       GameEvents.CAT_SPAWN.removeEventListener(catSpawnCallback);
       GameEvents.GAME_START.removeEventListener(startGameCallback);
+    });
+
+     this.coinManager = new CoinManager({
+      scene: this,
+      groundLayer: this.groundLayer,
+      catSprite: this.cat?.sprite || null,
+      coinSpawnBounds: { xMin: -440, xMax: 300, yMin: -1450, yMax: -400 },
+      coinSpawnIntervalMs: 400,
+    });
+
+    this.buffManager = new BuffManager({
+      scene: this,
+      catSprite: this.cat?.sprite || null,
+      groundLayer: this.groundLayer,
+      buffSpawnThresholdMs: 15000,
+      buffBounds: { xMin: -440, xMax: 300, yMin: -1450, yMax: -400 },
+      baseWalkSpeed: 200,
+    });
+
+    this.enemyManager = new EnemyManager({
+      scene: this,
+      cat: this.cat!,
+      groundLayer: this.groundLayer,
+      platformsLayer: this.platformsLayer,
+      jumperLayer: this.jumperLayer,
+      enemySpawnBounds: { xMin: -440, xMax: 300, yMin: -1450, yMax: -400 },
+      onTimerDecrease: (timeToRemove) => {
+        this.timer -= timeToRemove;
+        GameEvents.GAME_UPDATE.push({ additionalTime: -timeToRemove });
+      },
+      onScoreIncrease: (amount) => {
+        this.score += amount;
+      },
+      gameType: "catbassadors"
     });
 
     this.createAnimations()
@@ -349,319 +356,27 @@ buffSpawnTimer: NodeJS.Timeout | null = null;
       });
     }
 
+    this.coinManager && (this.coinManager["catSprite"] = this.cat.sprite);
+    this.buffManager && (this.buffManager["catSprite"] = this.cat.sprite);
+    this.enemyManager && (this.enemyManager["cat"] = this.cat);
+
     setMobileControls(this.cat);
   }
 
-  spawnCoin() {
-    if (!this.cat) return;
-
-    // Acquire a coin from the pool
-    const coin = this.coinPool.acquire();
-    coin.sprite.setPosition(
-      this.getCoinSpawnPositionX(),
-      this.getCoinSpawnPositionY()
-    );
-    coin.sprite.setActive(true).setVisible(true);
-
-    this.physics.add.collider(coin.sprite, this.groundLayer);
-    this.physics.add.overlap(
-      this.cat.sprite,
-      coin.sprite,
-      () => this.onCatCatchTheCoin(coin),
-      undefined,
-      this
-    );
-
-    this.coins.push(coin);
-    this.time.delayedCall(coinDurationMs, () => {
-      if (this.coins.includes(coin)) {
-        this.releaseCoin(coin);
-      }
-    });
-  }
-
-private releaseCoin(coin: Coin) {
-  const puff = this.add.sprite(coin.sprite.x, coin.sprite.y, "puff");
-  puff.setScale(1.5)
-if (this.anims.exists("puff")) {
-  puff.play("puff");
-}
-
-  puff.on("animationcomplete", () => {
-    puff.destroy();
-  });
-
-  coin.sprite.setActive(false).setVisible(false);
-  this.coins = this.coins.filter((e) => e !== coin);
-
-  this.coinPool.release(coin);
-}
-
-
- private spawnBuff() {
-    if (this.currentBuff) return;
-
-    const x = this.getCoinSpawnPositionX();
-    const y = this.getCoinSpawnPositionY();
-    this.currentBuff = new Buff(this, x, y);
-     this.add.existing(this.currentBuff);
-
-    this.physics.add.collider(this.currentBuff, this.groundLayer);
-    this.physics.add.overlap(
-      this.cat?.sprite!,
-      this.currentBuff,
-      this.handleBuffCollected,
-      undefined,
-      this
-    );
-
-
-    GameEvents[GameEvent.BUFF_SPAWN].push({ buff: this.currentBuff.type });
-
-    this.buffLifetimeTimer = setTimeout(() => {
-      if (this.currentBuff) {
-        this.currentBuff.destroy();
-        this.currentBuff = null;
-      }
-    }, POWERUP_DURATION_MS);
-  }
-
-  private handleBuffCollected = () => {
-    if (!this.currentBuff) return;
-     this.sound.play("buff");
-
-    if (this.currentBuff.type === BuffType.SPEED) {
-      this.applyOrRefreshSpeedBuff();
-      this.speedEffect?.play(this.cat!.sprite, POWERUP_DURATION_MS);
-    }
-
-    this.currentBuff.destroy();
-    this.currentBuff = null;
-
-    if (this.buffLifetimeTimer) {
-      clearTimeout(this.buffLifetimeTimer);
-      this.buffLifetimeTimer = null;
-    }
-  };
-
-  private applyOrRefreshSpeedBuff(): void {
-    if (!this.cat) return;
-
-    if (this.speedBuffTimer) {
-      this.speedBuffTimer.remove(false); 
-    } else {
-      if (this.cat.walkSpeed + 200 < 630) {
-        this.cat.walkSpeed += 200;
-      }
-    }
-
-    GameEvents[GameEvent.CAT_BUFF].push({
-      buff: BuffType.SPEED,
-      duration: POWERUP_DURATION_MS,
-    });
-
-    this.speedBuffTimer = this.time.delayedCall(POWERUP_DURATION_MS, () => {
-      if (this.cat) {
-        this.cat.walkSpeed -= 200;
-      }
-      GameEvents[GameEvent.CAT_BUFF].push({ buff: null, duration: 0 });
-      this.speedBuffTimer = null;
-    });
-  }
 
   update(time: any, delta: any) {
     this.cat?.update();
-    this.coins.forEach((coin) => coin.update());
-
-    this.checkEnemyMilestone();
-
-    if (this.currentBuff) {
-    this.currentBuff.update();
-  }
-
-    this.enemies?.forEach((enemy) => {
-      if (enemy) enemy.update(time, delta);
-    });
-    if (this.bossEnemy) {
-      this.bossEnemy.update(time, delta);
-    }
+    this.enemyManager?.update(time,delta)
+    this.coinManager?.update()
+    this.enemyManager?.checkEnemyMilestone(this.score);
+    
     this.timer -= delta / 1000;
 
-    if (this.timer <= 0 && this.coinSpawnInterval) {
-      this.endGame();
-    }
-
-    this.lastUpdateTime = performance.now();
-  }
-
-  private onCatCatchTheCoin(coin: Coin) {
-    this.processCoinReward(coin);
-    this.sound.play("coin");
-
-    if (this.cat) {
-      GameEvents[GameEvent.GAME_COIN_CAUGHT].push({
-        score: coin.coinReward,
-      });
-
-      const starAnimationSprite = this.add.sprite(
-        this.cat.sprite.x,
-        this.cat.sprite.y,
-        "starAnimation"
-      );
-  
-      starAnimationSprite.setScale(1.3);
-
-      starAnimationSprite.play("star");
-
-      starAnimationSprite.on("animationcomplete", () => {
-        starAnimationSprite.destroy();
-      });
-    }
-
-    // Remove the caught coin
-    coin.sprite.destroy();
-    this.coins = this.coins.filter((e) => e !== coin);
-  }
-  private checkEnemyMilestone() {
-    if (this.score >= this.enemySpawnThreshold) {
-      this.spawnEnemy();
-       GameEvents[GameEvent.ENEMY_SPAWN].push({
-          amount: +1,
-        });
-      this.enemySpawnThreshold += DEFAULT_ENEMY_SPAWN_THRESHOLD;
-      this.enemies.forEach((enemy) => {
-        enemy.increaseSpeed();
-      });
-
-      this.enemies.forEach((enemy) => {
-        enemy.reduceUltimateJumpDelay();
-      });
-    }
-    if (this.score >= DEFAULT_BOSS_SPAWN && !this.IsBossSpawned) {
-      this.spawnBossEnemy();
-       GameEvents[GameEvent.BOSS_SPAWN].push({
-          amount: +1,
-        });
-      this.IsBossSpawned = true;
-    }
-  }
-
-  private spawnEnemy() {
-    if (this.enemies.length >= MAX_ENEMIES) {
-      return; // Prevent spawning if max limit reached
-    }
-    const enemySprites = [
-      "enemy-pinkie",
-      "enemy-blue-fluffie",
-      "enemy-white-owlet",
-    ];
-    const randomSprite = Phaser.Utils.Array.GetRandom(enemySprites);
-    this.enemy = new Enemy(
-      this,
-      this.getCoinSpawnPositionX(),
-      this.getCoinSpawnPositionY(),
-      randomSprite
-    );
-
-    if (this.enemy) {
-      this.enemies.push(this.enemy);
-      this.physics.add.collider(this.enemies, this.groundLayer);
-      this.physics.add.collider(this.enemies, this.jumperLayer);
-      this.physics.add.collider(this.enemies, this.platformsLayer);
-      this.physics.add.overlap(
-        this.cat?.sprite as Phaser.Physics.Arcade.Sprite,
-        this.enemy,
-        this
-          .handlePlayerEnemyCollisions as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
-        undefined,
-        this
-      );
-    }
-  }
-  private spawnBossEnemy() {
-    this.bossEnemy = new BossEnemy(
-      this,
-      this.getCoinSpawnPositionX() + 32,
-      this.getCoinSpawnPositionY(),
-      "boss",
-      this.cat!.sprite
-    );
-    this.physics.add.collider(this.bossEnemy, this.groundLayer);
-    this.physics.add.collider(this.bossEnemy, this.jumperLayer);
-    this.physics.add.collider(this.bossEnemy, this.platformsLayer);
-    this.physics.add.collider(
-      this.cat!.sprite,
-      this.bossEnemy,
-      this
-        .handlePlayerBossEnemyCollisions as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
-      undefined,
-      this
-    );
-  }
-private handlePlayerEnemyCollisions(
-  player: Phaser.GameObjects.GameObject,
-  enemy: Phaser.GameObjects.GameObject
-) {
-  const enemyInstance = enemy as Enemy;
-
-   if (enemyInstance.isKnockedDown || this.cat?.isInvulnerable) {
-    return;
-  }
-
-    this.timer = this.timer - TIME_TO_REMOVE_PER_HIT;
-  GameEvents.GAME_UPDATE.push({ additionalTime: -TIME_TO_REMOVE_PER_HIT });
-
-  this.cat!.isInvulnerable = true;
-  this.cat!.isHit = true;
-
-  this.time.delayedCall(1000, () => {
-    this.cat!.isInvulnerable = false;
-  });
-  }
-private handlePlayerBossEnemyCollisions(
-  player: Phaser.GameObjects.GameObject,
-  enemy: Phaser.GameObjects.GameObject
-) {
-  const playerSprite = player as Phaser.Physics.Arcade.Sprite;
-  const bossEnemy = enemy as BossEnemy;
-
-  const playerBottom = playerSprite.y + playerSprite.height / 2;
-  const bossTop = bossEnemy.y - bossEnemy.height / 2;
-  const isTopCollision = playerBottom < bossTop + 32;
-
-  if (isTopCollision) {
-    playerSprite.setVelocityY(-1000);
-
-    if (!this.canCollectReward) {
-      this.canCollectReward = true;
-
-      GameEvents[GameEvent.GAME_COIN_CAUGHT].push({
-        score: BOSS_REWARD_POINTS,
-      });
-      this.score += BOSS_REWARD_POINTS;
-
-      this.time.delayedCall(bossHitRewardsDebounceTime, () => {
-        this.canCollectReward = false;
-      });
-    }
-  } else if (!bossEnemy.isKnockedDown) {
+ if (this.timer <= 0 && !this.gameOver) {
+    this.timer = 0; 
+    this.gameOver = true;
     this.endGame();
   }
-}
-
-
-
-  private processCoinReward(coin: Coin) {
-    this.score += coin.coinReward;
-    if (coin.timeReward) {
-      const newTime = this.timer + coin.timeReward;
-
-      const formattedTime = Number(newTime.toFixed());
-
-      this.timer = formattedTime;
-
-      GameEvents.GAME_UPDATE.push({ additionalTime: coin.timeReward });
-    }
   }
 
   private getCoinSpawnPositionX(): number {
@@ -682,8 +397,8 @@ private handlePlayerBossEnemyCollisions(
     this.backgroundSound?.play();
   }
 
-  private endGame() {
-    if (this.cat) {
+ endGame() {
+     if (this.cat) {
       this.cat.isDeath = true;
     }
     clearInterval(this.coinSpawnInterval as NodeJS.Timeout);
@@ -691,34 +406,12 @@ private handlePlayerBossEnemyCollisions(
 
     this.cat?.sprite.setVelocity(0, 0);
 
-    this.coins.forEach((coin) => {
-      coin.sprite.destroy();
-    });
+    this.coinManager?.stopSpawning();
+    this.coinManager?.clearCoins();
 
-    this.coins = [];
-    if (this.buffSpawnTimer) {
-  clearInterval(this.buffSpawnTimer);
-  this.buffSpawnTimer = null;
-}
-if (this.buffLifetimeTimer) {
-  clearTimeout(this.buffLifetimeTimer);
-  this.buffLifetimeTimer = null;
-}
-if (this.currentBuff) {
-  this.currentBuff.destroy();
-  this.currentBuff = null;
-}
-
-    if (this.enemies) {
-      this.enemies.forEach((enemy) => {
-        enemy.destroy();
-      });
-      this.enemies = [];
-    }
-    if (this.bossEnemy) {
-      this.bossEnemy.destroy();
-      this.IsBossSpawned = false;
-    }
+    this.buffManager?.stopSpawning();
+    this.buffManager?.endGame();
+    this.enemyManager?.clearAllEnemies();
 
     const totalPlayTime = (performance.now() - this.gameStartTime) / 1000;
     this.time.delayedCall(endScenePeriod, () => {
@@ -738,14 +431,12 @@ if (this.currentBuff) {
     if (this.cat) {
       this.cat.isDeath = false;
     }
+    this.gameOver = false;
     this.gameStartTime = performance.now();
     this.timer = catbassadorsGameDuration;
-    this.coinSpawnInterval = setInterval(() => {
-      this.spawnCoin();
-    }, 400);
 
-     this.buffSpawnTimer = setInterval(() => {
-      this.spawnBuff();
-    }, POWERUP_SPAWN_THRESHOLD);
+    this.coinManager?.startSpawning();
+    this.buffManager?.startSpawning();
+    this.buffManager?.startGame();
   }
 }

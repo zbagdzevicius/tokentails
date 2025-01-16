@@ -55,12 +55,14 @@ export class Coin extends BaseCoinPhysicsEntity {
   constructor(scene: ExtendedScene, x: number, y: number, type?: CoinType) {
     const coinType = type || getCoinType();
     super(scene, x, y, EnemyTypeSriteMap[coinType]);
+    
 
     this.type = coinType;
     this.vx = CoinVelocity[coinType];
     this.vy = CoinVelocity[coinType];
     this.coinReward = CoinRewards[coinType].coin;
     this.timeReward = CoinRewards[coinType].time;
+    
   }
 
   update() {

@@ -10,7 +10,7 @@ const gravity = 0.05;
 const bounceFactor = 0.7;
 
 export interface ExtendedScene extends Scene {
-  groundLayer: Phaser.Tilemaps.TilemapLayer;
+  groundLayer: Phaser.Tilemaps.TilemapLayer | null
 }
 
 /**
@@ -57,7 +57,7 @@ export abstract class BaseCoinPhysicsEntity {
 
   protected checkCollisions() {
     // Check collision with ground tiles
-    const groundTile = this.scene.groundLayer.getTileAtWorldXY(
+    const groundTile = this.scene.groundLayer!.getTileAtWorldXY(
       this.sprite.x,
       this.sprite.y + this.sprite.height
     );
@@ -70,7 +70,7 @@ export abstract class BaseCoinPhysicsEntity {
     }
 
     // Check collision with tiles on the left
-    const leftTile = this.scene.groundLayer.getTileAtWorldXY(
+    const leftTile = this.scene.groundLayer!.getTileAtWorldXY(
       this.sprite.x - this.sprite.width / 2,
       this.sprite.y
     );
@@ -80,7 +80,7 @@ export abstract class BaseCoinPhysicsEntity {
     }
 
     // Check collision with tiles on the right
-    const rightTile = this.scene.groundLayer.getTileAtWorldXY(
+    const rightTile = this.scene.groundLayer!.getTileAtWorldXY(
       this.sprite.x + this.sprite.width / 2,
       this.sprite.y
     );
@@ -90,7 +90,7 @@ export abstract class BaseCoinPhysicsEntity {
     }
 
     // Check collision with tiles above
-    const topTile = this.scene.groundLayer.getTileAtWorldXY(
+    const topTile = this.scene.groundLayer!.getTileAtWorldXY(
       this.sprite.x,
       this.sprite.y - this.sprite.height / 2
     );

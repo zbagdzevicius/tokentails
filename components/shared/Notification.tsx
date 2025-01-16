@@ -12,7 +12,7 @@ export const Notification = ({ notifications }: { notifications: IToast[] }) => 
             style={{ transform: "translateX(-50%)" }}
         >
             <div
-                className={`animate-bounce w-[360px] min-h-10 px-2 text-main-black font-secondary`}
+                className={`animate-bounceWithFade w-[360px] min-h-10 px-2 text-main-black font-secondary`}
             >
                 <div className="flex flex-col text-center items-center justify-center">
 

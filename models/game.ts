@@ -5,7 +5,8 @@ export enum GameModal {
   LEADERBOARD_DAILY = "LEADERBOARD_DAILY",
   MYSTERY_BOX = "MYSTERY_BOX",
   CATS = "CATS",
-  INVITE = "INVITE"
+  INVITE = "INVITE",
+  CONTROL_SETTINGS = "CONTROL_SETTINGS"
 }
 
 export enum GameType {

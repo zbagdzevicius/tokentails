@@ -110,9 +110,11 @@ public performKnocbackSpell(): void {
     );
 
     // Enemy collision
+const enemyManager = (this.scene as CatbassadorsScene).enemyManager;
+if (enemyManager) {
     this.scene.physics.add.collider(
         knockbackSpell,
-        (this.scene as GameScene).enemies,
+        enemyManager.enemies, // Access the enemies from the EnemyManager
         (_spell, enemy) => {
             if (enemy instanceof Enemy) {
                 (enemy as Enemy).knockDown();
@@ -120,21 +122,22 @@ public performKnocbackSpell(): void {
             }
         }
     );
+}
 
-    // Boss collision
-    const boss = (this.scene as GameScene).bossEnemy;
-    if (boss) {
-        this.scene.physics.add.collider(
-            knockbackSpell,
-            boss,
-            (_spell, bossEntity) => {
-                if (bossEntity instanceof BossEnemy) {
-                    this.handleSpellHit(knockbackSpell, bossEntity as BossEnemy);
-                    this.handleSpellAnimationAndDestroy(knockbackSpell);
-                }
+const boss = enemyManager?.bossEnemy; // Access the bossEnemy from the EnemyManager
+if (boss) {
+    this.scene.physics.add.collider(
+        knockbackSpell,
+        boss,
+        (_spell, bossEntity) => {
+            if (bossEntity instanceof BossEnemy) {
+                this.handleSpellHit(knockbackSpell, bossEntity as BossEnemy);
+                this.handleSpellAnimationAndDestroy(knockbackSpell);
             }
-        );
-    }
+        }
+    );
+}
+
 
     // Lifetime expiration
     this.scene.time.delayedCall(this.knockbackSpellLifetimeMs, () => {

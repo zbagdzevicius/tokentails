@@ -312,9 +312,8 @@ export const PresaleCardContent = () => {
         alt="Moon"
       />
       <img
-        className={`absolute pb-3 right-0 md:right-10 w-24 aspect-square md:w-48 object-contain hover:brightness-110 ${
-          rocketLaunched && "animate-hover "
-        }`}
+        className={`absolute pb-3 right-0 md:right-10 w-24 aspect-square md:w-48 object-contain hover:brightness-110 ${rocketLaunched && "animate-hover "
+          }`}
         style={{
           bottom: `calc(${rocketProgress}% - 0rem)`,
           transition: "bottom 4s ease-in-out",

@@ -55,11 +55,29 @@ const config: Config = {
         flip: "flip 10s infinite;",
         appear: "appear 0.5s;",
         opacity: "opacity 1.5s;",
+        bounceWithFade: 'bounceWithFade 1.5s ease-in-out',
       },
       keyframes: {
         "loop-scroll": {
           from: { transform: "translateX(0)" },
           to: { transform: "translateX(-100%)" },
+        },
+        bounceWithFade: {
+          '0%': {
+            transform: 'translateY(-25%)',
+            opacity: '0',
+            animationTimingFunction: 'cubic-bezier(0.8, 0, 1, 1)',
+          },
+          '50%': {
+            transform: 'translateY(0)',
+            opacity: '1',
+            animationTimingFunction: 'cubic-bezier(0, 0, 0.2, 1)',
+          },
+          '100%': {
+            transform: 'translateY(-25%)',
+            opacity: '1',
+            animationTimingFunction: 'cubic-bezier(0.8, 0, 1, 1)',
+          },
         },
         appear: {
           from: { opacity: "0", "margin-top": "-80px" },

@@ -36,6 +36,7 @@ export class Buff extends Phaser.Physics.Arcade.Sprite {
     }
 
         const body = this.body as Phaser.Physics.Arcade.Body;
+        body?.setSize(95, 95);
         body.setImmovable(true);
         body.allowGravity = false;
     }
