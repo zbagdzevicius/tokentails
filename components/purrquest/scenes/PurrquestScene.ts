@@ -79,6 +79,8 @@ export class PurrquestScene extends Phaser.Scene {
   preload() {
     this.groundLayer?.destroy();
     this.jumpLayer?.destroy();
+    this.load.audio("jump-sound", "audio/game/jump.mp3");
+    this.load.audio("dash-sound", "audio/game/dash.wav");
     this.load.image("blocks", "base/blocks-winter.png");
     this.load.spritesheet("chest", "purrquest2/icons/chest-spritesheet.png", {
       frameWidth: 120,
@@ -89,6 +91,10 @@ export class PurrquestScene extends Phaser.Scene {
       "platform-movable",
       "purrquest2/icons/platform-movable.png"
     );
+    this.load.spritesheet("jump-wall", "game/effects/jump.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.image("key", "purrquest/sprites/key.png");
     this.load.spritesheet("enemy-pinkie", "enemies/pink-fluffie-winter.png", {
@@ -158,6 +164,19 @@ export class PurrquestScene extends Phaser.Scene {
     this.scene.scene.events.once("destroy", () => {
       GameEvents.GAME_START.removeEventListener(catSpawnCallback);
       this.buffManager?.stopSpawning();
+    });
+    this.createAnimations();
+  }
+
+  createAnimations() {
+    this.anims.create({
+      key: "jump_wall_anim",
+      frames: this.anims.generateFrameNumbers("jump-wall", {
+        start: 0,
+        end: 4,
+      }),
+      frameRate: 10,
+      repeat: 0,
     });
   }
 

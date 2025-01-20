@@ -48,7 +48,12 @@ export class ShelterScene extends Scene {
     this.load.tilemapTiledJSON("tilemap", "catbassadors/shelter.json");
     this.load.image("blocks", "base/blocks-winter.png");
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
-
+    this.load.audio("jump-sound", "audio/game/jump.mp3");
+    this.load.audio("dash-sound", "audio/game/dash.wav");
+    this.load.spritesheet("jump-wall", "game/effects/jump.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
     this.load.spritesheet(
       "knockback-spell",
       "abilities/knockback-spell/FIRE.png",
@@ -153,6 +158,20 @@ export class ShelterScene extends Scene {
       GameEvents.NPC_SPAWN_EXCLUSIVE.removeEventListener(
         npcSpawnExclusiveCallback
       );
+    });
+
+    this.createAnimations();
+  }
+
+  createAnimations() {
+    this.anims.create({
+      key: "jump_wall_anim",
+      frames: this.anims.generateFrameNumbers("jump-wall", {
+        start: 0,
+        end: 4,
+      }),
+      frameRate: 10,
+      repeat: 0,
     });
   }
 
