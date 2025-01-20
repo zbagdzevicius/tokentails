@@ -74,9 +74,15 @@ export class CatbassadorsScene extends Scene {
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.audio("coin", "purrquest/sounds/score.mp3");
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
+    this.load.audio("jump-sound", "audio/game/jump.mp3");
+    this.load.audio("dash-sound", "audio/game/dash.wav");
     this.load.tilemapTiledJSON("tilemap", "catbassadors/catbassadors.json");
     this.load.image("blocks", "base/blocks-winter.png");
     this.load.spritesheet("starAnimation", "base/star-animation.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+    this.load.spritesheet("jump-wall", "game/effects/jump.png", {
       frameWidth: 32,
       frameHeight: 32,
     });
@@ -257,6 +263,16 @@ export class CatbassadorsScene extends Scene {
       }),
       frameRate: 8,
       repeat: 1,
+    });
+
+    this.anims.create({
+      key: "jump_wall_anim",
+      frames: this.anims.generateFrameNumbers("jump-wall", {
+        start: 0,
+        end: 4,
+      }),
+      frameRate: 10,
+      repeat: 0,
     });
   }
 
