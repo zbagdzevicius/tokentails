@@ -401,7 +401,7 @@ export const commentsFetch = (
 };
 
 export const profileFetch = async (): Promise<IProfile> => {
-  return fetch(`${apiUrl}/user/profile/6689871e301e830577c8ea8f`, {
+  return fetch(`${apiUrl}/user/profile`, {
   // return fetch(`${apiUrl}/user/profile/669ad4658b4f9b107ecbe1bb`, {
     method: "GET",
     headers: {
