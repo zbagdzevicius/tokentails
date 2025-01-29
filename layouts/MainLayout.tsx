@@ -1,3 +1,4 @@
+import { Analytics } from "@/components/Analytics";
 import { CatProvider } from "@/context/CatContext";
 import { ProfileProvider } from "@/context/ProfileContext";
 import { ToastProvider } from "@/context/ToastContext";
@@ -8,6 +9,7 @@ import { PropsWithChildren } from "react";
 export const MainLayout = ({ children }: PropsWithChildren<any>) => {
   return (
     <QueryClientProvider client={queryClient}>
+      <Analytics />
       <ToastProvider>
         <ProfileProvider>
           <CatProvider>

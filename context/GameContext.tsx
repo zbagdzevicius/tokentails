@@ -216,7 +216,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           {openedModal === GameModal.CONTROL_SETTINGS && (
             <ControlModal close={() => setOpenedModal(null)} />
           )}
-          {gameType === GameType.HOME && isGameLoaded && <SpeechBubble />}
+          {gameType === GameType.HOME && isGameLoaded && profile.cat && <SpeechBubble />}
           <GameMusicPlayer />
         </>
       )}

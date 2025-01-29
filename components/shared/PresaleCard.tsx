@@ -193,7 +193,7 @@ export const PresaleCardContent = () => {
   return (
     <div className="h-full w-screen relative flex justify-center items-center">
       <div className="relative z-20 flex items-center justify-center flex-col rem:w-[320px] md:rem:w-[400px]">
-        <div
+        {/* <div
           className="flex hover:brightness-110 flex-col items-center p-1 md:p-4 pb-6 rounded-3xl border-4 border-main-black"
           style={{
             backgroundImage: "url(/base/bg.gif)",
@@ -270,7 +270,17 @@ export const PresaleCardContent = () => {
               </div>
             </div>
           )}
-        </div>
+        </div> */}
+
+        <img
+              className="w-20 h-auto"
+              src={`/meme-cats/${randomObjectFromArray(
+                Object.values(memeCats)
+              )}`}
+            />
+        <div className="font-secondary flex items-center gap-1 bg-purple-300 px-3 rounded-full">
+              <div className="text-p5">You bought {boughtToken} $TAILS</div>
+            </div>
         {!isEndDateReached && (
           <div
             className="flex hover:brightness-110 relative items-center py-1 px-6 rounded-2xl mb-4 -mt-4 border-2 border-main-black"
@@ -306,7 +316,7 @@ export const PresaleCardContent = () => {
         </div>
       </div>
 
-      <img
+      {/* <img
         className="absolute top-0 md:right-0 md:top-0 mt-2 md:mr-10 md:mt-5 h-28 w-28 md:w-32 md:h-32 object-contain hover:animate-spin-slow hover:brightness-110"
         src="/icons/moon.png"
         alt="Moon"
@@ -337,7 +347,7 @@ export const PresaleCardContent = () => {
         <div className="absolute -bottom-8 right-0 md:rem:right-[88px]">
           <PixelButton text="Launch" onClick={handleLaunchClick}></PixelButton>
         </div>
-      )}
+      )} */}
     </div>
   );
 };

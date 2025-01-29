@@ -131,7 +131,7 @@ export const CatsHub = () => {
               <a href="https://docs.tokentails.com" target="_blank">
                 <PixelButton text="DOCS" />
               </a>
-              <a target="_blank" href="https://tokentails.com/pitch-deck.pdf">
+              <a target="_blank" href="https://docs.google.com/presentation/d/1G8F_HxNLwxkBSZ9XAcnvtH9SQFBjtI6Wq_2Y6FEXLdQ/">
                 <PixelButton text="PITCH DECK" />
               </a>
             </div>
