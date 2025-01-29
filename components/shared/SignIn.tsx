@@ -111,7 +111,7 @@ export const SignIn = ({ close }: { close: () => void }) => {
     <div className="fixed inset-0 pt-safe w-full flex justify-center h-full z-20">
       <div
         onClick={close}
-        className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
+        className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-90"
       ></div>
       <div
         className="z-50 rem:w-[350px] md:w-[480px] max-w-full bg-white absolute top-1/2 -translate-y-1/2  rounded-lg shadow h-fit"
