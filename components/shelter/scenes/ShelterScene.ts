@@ -14,7 +14,7 @@ import { ICat } from "@/models/cats";
 import { ZOOM } from "@/constants/utils";
 import { SpeechBubble } from "../objects/SpeechBubble";
 
-const JUMP_LAYER_TILES = [47, 48, 49, 50];
+const JUMP_LAYER_TILES = [47, 48, 49, 50, 52];
 const TRAMPOLINE_TILES = [51];
 
 const FLOOR_Y_POSITIONS: Record<CatType | string, number> = {
@@ -38,6 +38,7 @@ export class ShelterScene extends Scene {
   blessing!: Phaser.GameObjects.Sprite;
   currentlyCollidingNpc: NpcCat | null = null;
   speechBubble: any;
+  speechBubblePool: SpeechBubble[] = [];
 
   constructor() {
     super("ShelterScene");
@@ -96,6 +97,8 @@ export class ShelterScene extends Scene {
       },
       this
     );
+    this.groundLayer.skipCull = false;
+    this.platformsLayer.skipCull = false;
 
     this.jumperLayer.setCollision(TRAMPOLINE_TILES);
     this.trampoline = new Trampoline(this, this.jumperLayer, TRAMPOLINE_TILES);
@@ -330,6 +333,46 @@ export class ShelterScene extends Scene {
     this.speechBubble.destroy();
   }
 
+  private handleNpcCollision(npc: ICat) {
+    GameEvents.NPC_COLLISION.push({ npc });
+  }
+
+  private handleNpcVisibility(npc: NpcCat) {
+    const isInView = this.cameras.main.worldView.contains(
+      npc.sprite.x,
+      npc.sprite.y
+    );
+    const wasActive = npc.sprite.active;
+
+    npc.sprite.setActive(isInView);
+    npc.sprite.setVisible(isInView);
+
+    if (wasActive && !isInView) {
+      npc.sprite.setVelocity(0, 0);
+    }
+
+    return isInView;
+  }
+
+  private handleNpcInteraction(npc: NpcCat) {
+    if (!this.cat) return;
+
+    const isOverlapping = this.physics.overlap(this.cat.sprite, npc.sprite);
+
+    if (isOverlapping && this.currentlyCollidingNpc === null) {
+      this.currentlyCollidingNpc = npc;
+      npc.handleLoaf();
+      this.showNpcSpeechBubble(
+        npc,
+        `Hi, I am ${npc.sprite.texture.key}! Want to adopt me?`
+      );
+    } else if (!isOverlapping && this.currentlyCollidingNpc === npc) {
+      npc.handleLoafReset();
+      this.destroySpeechBubble();
+      this.currentlyCollidingNpc = null;
+    }
+  }
+
   private createCat(
     catName: string,
     blessing: Phaser.GameObjects.Sprite | null,
@@ -357,39 +400,6 @@ export class ShelterScene extends Scene {
     );
   }
 
-  private handleNpcCollision(npc: ICat) {
-    GameEvents.NPC_COLLISION.push({ npc });
-  }
-
-  private handleNpcCollisionWithPlayer() {
-    this.npcCats.forEach((npcCat) => {
-      npcCat.update();
-
-      const isOverlapping = this.physics.overlap(
-        this.cat!.sprite,
-        npcCat.sprite
-      );
-
-      if (isOverlapping) {
-        if (this.currentlyCollidingNpc === null) {
-          this.currentlyCollidingNpc = npcCat;
-
-          npcCat.handleLoaf();
-          this.showNpcSpeechBubble(
-            npcCat,
-            `Hi, I am ${npcCat.sprite.texture.key}! Want to adopt me?`
-          );
-        }
-      } else {
-        if (!isOverlapping && this.currentlyCollidingNpc === npcCat) {
-          npcCat.handleLoafReset();
-          this.destroySpeechBubble();
-          this.currentlyCollidingNpc = null;
-        }
-      }
-    });
-  }
-
   private startGame() {
     if (this.cat) {
       this.cat.sprite.setPosition(0, -400);
@@ -399,7 +409,17 @@ export class ShelterScene extends Scene {
 
   update(time: number, delta: number) {
     this.cat?.update();
-    this.handleNpcCollisionWithPlayer();
+
+    // Only process NPCs that are within the camera's view
+    this.npcCats.forEach((npc) => {
+      const isInView = this.handleNpcVisibility(npc);
+
+      // Only update NPC and check collisions if it's in view
+      if (isInView) {
+        npc.update();
+        this.handleNpcInteraction(npc);
+      }
+    });
   }
 
   private setDefaultSound() {
