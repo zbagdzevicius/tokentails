@@ -1,4 +1,4 @@
-import { catsFetch, catsForSaleFetch, setAdventDay } from "@/constants/api";
+import { CAT_API } from "@/api/cat-api";
 import { daysCoins, getNextDayMidnight } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { CatType, ICat } from "@/models/cats";
@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { Countdown } from "./Countdown";
 import { PixelButtonTiny } from "./PixelButtonTiny";
 import { Window } from "./Window";
+import { USER_API } from "@/api/user-api";
 
 interface AdventDay {
   image?: string;
@@ -156,18 +157,18 @@ export const AdventCalendar = ({ setSelectedCat }: IProps) => {
   });
   const { data: adventCats } = useQuery({
     queryKey: ["advent", currentDay],
-    queryFn: () => catsForSaleFetch(CatType.EXCLUSIVE),
+    queryFn: () => CAT_API.catsForSale(CatType.EXCLUSIVE),
   });
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
-    queryFn: () => catsFetch(),
+    queryFn: () => CAT_API.cats(),
   });
   useEffect(() => {
     Object.keys(calendarData).forEach((key: any) => {
       calendarData[key].unlocked = currentDay >= key;
       calendarData[key].isOpened = (profile?.adventDayRedeemed || 0) >= key;
       calendarData[key].cat = adventCats?.find(
-        (adventCat) => adventCat.name === catNamesMap[key]
+        (adventCat: ICat) => adventCat.name === catNamesMap[key]
       );
     });
     setCalendarData({ ...calendarData });
@@ -218,7 +219,7 @@ export const AdventCalendar = ({ setSelectedCat }: IProps) => {
       if (updatedData[day].unlocked && !updatedData[day].isOpened) {
         updatedData[day] = { ...updatedData[day], isOpened: true };
       }
-      setAdventDay();
+      USER_API.setAdventDay();
       setProfileUpdate({ adventDayRedeemed: currentDay });
       return updatedData;
     });
@@ -265,13 +266,15 @@ export const AdventCalendar = ({ setSelectedCat }: IProps) => {
               >
                 <div
                   className={`relative w-full h-full 
-                                    ${dayNumber <= currentDay
-                      ? ""
-                      : "brightness-50"
-                    }
-                                    ${dayNumber === currentDay &&
-                    "brightness-125 animated-garland"
-                    }`}
+                                    ${
+                                      dayNumber <= currentDay
+                                        ? ""
+                                        : "brightness-50"
+                                    }
+                                    ${
+                                      dayNumber === currentDay &&
+                                      "brightness-125 animated-garland"
+                                    }`}
                 >
                   <div className="flex items-center justify-center h-full">
                     <img
@@ -291,10 +294,11 @@ export const AdventCalendar = ({ setSelectedCat }: IProps) => {
                       )}
                     </h2>
                     <img
-                      className={`absolute aspect-square ${content.isOpened && content.cat
+                      className={`absolute aspect-square ${
+                        content.isOpened && content.cat
                           ? "lg:bottom-8 rem:bottom-[22px] w-16 lg:w-20 -mb-6"
                           : "lg:bottom-8 rem:bottom-[22px] lg:w-10 w-7"
-                        }`}
+                      }`}
                       src={
                         content.isOpened && content.cat
                           ? content.cat.catImg

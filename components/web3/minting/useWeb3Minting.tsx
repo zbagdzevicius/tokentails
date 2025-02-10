@@ -1,4 +1,4 @@
-import { confirmTransaction } from "@/constants/api";
+import { ORDER_API } from "@/api/order-api";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
 import { EntityType } from "@/models/save";
@@ -93,7 +93,7 @@ export const useWeb3Minting = ({ entityType, user }: IProps) => {
 
   useEffect(() => {
     if (isTaxConfirmed) {
-      confirmTransaction({
+      ORDER_API.confirm({
         hash: hash!,
         chainType: ChainType.ZETA,
         namespace: namespace!,

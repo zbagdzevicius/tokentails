@@ -1,12 +1,11 @@
 import { Share } from "@/components/shared/Share";
 import { ShareModal } from "@/components/shared/ShareModal";
+import { getRandomNumber } from "@/constants/generate";
 import { useEntityMetadata } from "@/context/EntityMetadataContext";
+import { IComment } from "@/models/comment";
 import { ISave } from "@/models/save";
 import classNames from "classnames";
-import { getRandomNumber } from "@/constants/generate";
 import { useState } from "react";
-import { FeedBlock } from "./FeedBlock";
-import { IComment } from "@/models/comment";
 import { Comment, Comments } from "./Comments";
 
 export interface IFeedActionsProps extends ISave {
@@ -20,43 +19,16 @@ export const FeedActions = ({
   entity,
   comments,
 }: IFeedActionsProps) => {
-  const { likeToggle, saveToggle, getEntityMetadata } = useEntityMetadata({
+  const { likeToggle, getEntityMetadata } = useEntityMetadata({
     entity,
     type,
   });
-  const { isLiked, isSaved } = getEntityMetadata();
+  const { isLiked } = getEntityMetadata();
   const [shareModalOpened, setShareModalOpened] = useState(false);
   const [commentModalOpened, setCommentModalOpened] = useState(false);
 
   return (
     <>
-      {entity && (
-        <button
-          onClick={() => saveToggle()}
-          className="group flex items-center absolute top-4 right-4 text-gray-500"
-        >
-          <i
-            className={classNames("bx bx-bookmarkt text-h5 animate-pulse", {
-              "group-hover:hidden": !isSaved,
-              hidden: isSaved,
-            })}
-          ></i>
-          <i
-            className={classNames(
-              "group-hover:block bx bxs-bookmark-start text-h5",
-              {
-                hidden: !isSaved,
-                "text-accent-600": isSaved,
-              }
-            )}
-          ></i>
-        </button>
-      )}
-      {entity && (
-        <span className="absolute top-4 right-16">
-          <FeedBlock type={type} entity={entity} />
-        </span>
-      )}
       <div className="px-4 py-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center">

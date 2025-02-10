@@ -1,3 +1,4 @@
+import { ITransactionStatus } from "@/api/order-api";
 import { useTokenPrice } from "@/components/web3/useTokenPrice";
 import {
   ChainNamespace,
@@ -44,8 +45,8 @@ type ContextState = {
   price?: number;
   setCurrencyType: (currencyType: CurrencyType) => void;
   setPrice: (price: any) => void;
-  isTransactionSucces: boolean;
-  setIsTransactionSucces: (isTransactionSucces: boolean) => void;
+  transactionStatus: ITransactionStatus | null;
+  setTransactionStatus: (transactionStatus: ITransactionStatus) => void;
 };
 
 const Web3Context = React.createContext<ContextState | undefined>(undefined);
@@ -56,10 +57,8 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
   const [stellarConnected, setStellarConnected] = React.useState(false);
   const [stellarAddress, setStellarAddress] = React.useState<string>();
 
-  const {
-    publicKey: solanaAddress,
-    connected: solanaConnected,
-  } = useSolanaWallet();
+  const { publicKey: solanaAddress, connected: solanaConnected } =
+    useSolanaWallet();
 
   const [namespace, setNamespace] = React.useState<ChainNamespace>(
     ChainNamespace.EVM
@@ -70,7 +69,8 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
   const bnbRate = useTokenPrice(CurrencyType.BNB);
   const xlmRate = useTokenPrice(CurrencyType.XLM);
   const solRate = useTokenPrice(CurrencyType.SOL);
-  const [isTransactionSucces, setIsTransactionSucces] = React.useState(false);
+  const [transactionStatus, setTransactionStatus] =
+    React.useState<ITransactionStatus | null>(null);
 
   const namespaceDetails = React.useMemo(() => {
     return {
@@ -134,8 +134,8 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
         setStellarAddress,
         solanaConnected,
         balance,
-        isTransactionSucces,
-        setIsTransactionSucces,
+        transactionStatus,
+        setTransactionStatus,
       }}
     >
       {children}

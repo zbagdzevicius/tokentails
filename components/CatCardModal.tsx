@@ -1,4 +1,5 @@
-import { adoptCatFetch, catsFetch } from "@/constants/api";
+import { CAT_API } from "@/api/cat-api";
+import { ORDER_API } from "@/api/order-api";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
@@ -96,7 +97,7 @@ export const CatDescription = ({
 
   return (
     <>
-      <div className="text-outline mb-3 max-sm:mb-2">
+      <div className="mb-3 max-sm:mb-2">
         <div className="flex flex-row items-center">
           {firstBlessing && (
             <img
@@ -135,7 +136,7 @@ export const CatDescription = ({
         </audio>
       )}
       {!activeBlessing && (
-        <div className="my-3 text-outline">
+        <div className="my-3">
           <div className="flex flex-row items-center">
             <img
               className="w-10 h-10 max-lg:w-8 max-lg:h-8 max-sm:h-6 max-sm:w-6 "
@@ -168,7 +169,7 @@ export const CatPayment = ({
   onAdopted?: () => void;
   relative?: boolean;
 }) => {
-  const { currencyType, bnbRate, xlmRate, solRate, isTransactionSucces } =
+  const { currencyType, bnbRate, xlmRate, solRate, transactionStatus } =
     useWeb3();
   const { _id, supply, name, catpoints, price } = cat;
   const { profile, setProfileUpdate } = useProfile();
@@ -198,7 +199,7 @@ export const CatPayment = ({
   }, [currencyType, bnbRate, xlmRate, solRate, cat]);
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
-    queryFn: () => catsFetch(),
+    queryFn: () => CAT_API.cats(),
   });
 
   const catpointsText = useMemo(() => {
@@ -217,10 +218,10 @@ export const CatPayment = ({
   const isOwned = cats?.find((cat) => cat.name === name);
   const isForSale = !outOfSupply && !isOwned;
 
-  const onSuccess = () => {
+  const onSuccess = (cat: ICat) => {
     setProfileUpdate({
       cats: [...(cats || []), cat],
-      cat: cat,
+      cat,
       catpoints: profile!.catpoints - catpoints,
     });
 
@@ -230,10 +231,10 @@ export const CatPayment = ({
   };
 
   useEffect(() => {
-    if (isTransactionSucces) {
-      onSuccess();
+    if (transactionStatus?.success) {
+      onSuccess(transactionStatus.cat);
     }
-  }, [isTransactionSucces]);
+  }, [transactionStatus]);
 
   const adoptWithCoins = async () => {
     if (cats?.find((cat) => cat.name === name)) {
@@ -251,9 +252,9 @@ export const CatPayment = ({
     }
 
     setIsAdopting(true);
-    const status = await adoptCatFetch(_id!);
+    const status = await ORDER_API.adopt(_id!);
     if (status.success) {
-      onSuccess();
+      onSuccess(status.cat);
     }
   };
 
@@ -320,7 +321,10 @@ export const CatPayment = ({
             <div className="text-yellow-200 -mt-1">{supply}</div>
           </div>
         )}
-        {!relative || isBuyMode && <PixelButton text="CLOSE" onClick={close}></PixelButton>}
+        {!relative ||
+          (isBuyMode && (
+            <PixelButton text="CLOSE" onClick={close}></PixelButton>
+          ))}
       </div>
     </>
   );
@@ -376,7 +380,7 @@ export const CatCard = ({
                   activeBlessing ? "w-full h-48" : "w-32 h-32"
                 } relative z-10 object-contain`}
               />
-              {blessings?.length && (
+              {!!blessings?.length && (
                 <img
                   className="absolute inset-0 w-full h-full object-cover"
                   src={`/flare-effect/${blessings[0]?.ability}.gif`}

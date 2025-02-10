@@ -1,7 +1,7 @@
+import { EntityRouteOption } from "@/api/routing";
 import { FeedCard } from "@/components/blog/feed/FeedCard";
 import { IArticle } from "@/models/article";
 import { EntityType } from "@/models/save";
-import { EntityRouteOption } from "@/constants/api";
 import Image from "next/image";
 import { useMemo } from "react";
 
@@ -31,7 +31,7 @@ export function ArticleDetails({
       link={link}
       author={category.name}
       authorSubtitle="Andrius Žiužnys"
-      authorImage={'/logo/coin.webp'}
+      authorImage={"/logo/coin.webp"}
       description={excerpt}
       authorLink={category.slug}
       date={createdAt}

@@ -1,11 +1,7 @@
+import { IRouteOption } from "@/api/routing";
 import { FeedArticle } from "@/components/blog/feed/FeedArticle";
-import { FeedGroup } from "@/components/blog/feed/FeedGroup";
-import { FeedPublication } from "@/components/blog/feed/FeedPublication";
-import { FeedQuiz } from "@/components/blog/feed/FeedQuiz";
-import { IRouteOption } from "@/constants/api";
 import { getEntityType } from "@/constants/utils";
 import { IArticleExcerpt } from "@/models/article";
-import { IQuiz } from "@/models/quiz";
 import { EntityType } from "@/models/save";
 import { useEffect, useState } from "react";
 
@@ -15,16 +11,10 @@ interface IProps {
 }
 
 const entityTypeComponent: Record<
-  Exclude<
-    EntityType,
-    EntityType.VIDEO | EntityType.VIDEO_SLIDER | EntityType.COMMENT
-  >,
+  Exclude<EntityType, EntityType.COMMENT>,
   any
 > = {
   [EntityType.ARTICLE]: FeedArticle,
-  [EntityType.QUIZ]: FeedQuiz,
-  [EntityType.PUBLICATION]: FeedPublication,
-  [EntityType.GROUP]: FeedGroup,
   [EntityType.CAT]: <></>,
   [EntityType.PRESALE]: <></>,
   [EntityType.MYSTERY_BOX]: <></>,
@@ -32,7 +22,7 @@ const entityTypeComponent: Record<
 
 export const Feed = ({ items }: IProps) => {
   const [entitiesWithMetadata, setEntitiesWithMetadata] = useState<
-    (IQuiz | IArticleExcerpt)[]
+    IArticleExcerpt[]
   >([]);
   useEffect(() => {
     const entitiesWithMetadata = items.map((item) => ({
@@ -44,10 +34,12 @@ export const Feed = ({ items }: IProps) => {
 
   return (
     <div className="flex flex-col gap-2 md:gap-4">
-      {entitiesWithMetadata.filter(item => !!item.slug).map((item, i) => {
-        const Component = entityTypeComponent[item.type];
-        return <Component key={i} {...item} />;
-      })}
+      {entitiesWithMetadata
+        .filter((item) => !!item.slug)
+        .map((item, i) => {
+          const Component = entityTypeComponent[item.type];
+          return <Component key={i} {...item} />;
+        })}
     </div>
   );
 };

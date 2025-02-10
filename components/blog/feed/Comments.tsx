@@ -1,5 +1,6 @@
+import { ARTICLE_API } from "@/api/article-api";
+import { getNextPageFn } from "@/api/routing";
 import { Avatar } from "@/components/blog/feed/Avatar";
-import { commentsFetch, getNextPageFn, submitComment } from "@/constants/api";
 import { fromNow } from "@/constants/utils";
 import { useEntityMetadata } from "@/context/EntityMetadataContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -31,7 +32,7 @@ export const SafeInput = (
     if (!message?.length) {
       throw Error("Message is empty");
     }
-    return submitComment({ ...props, text: message });
+    return ARTICLE_API.comment({ ...props, text: message });
   }, [profile, message]);
   const { mutate, isPending } = useMutation({
     mutationFn: commentCall,
@@ -87,11 +88,11 @@ export const Comment = ({
   user,
   isReplyDisabled,
 }: IComment & { isReplyDisabled: boolean }) => {
-  const { likeToggle, unlikeToggle, getEntityMetadata } = useEntityMetadata({
+  const { likeToggle, getEntityMetadata } = useEntityMetadata({
     entity: _id!,
     type: EntityType.COMMENT,
   });
-  const { isLiked, isUnliked } = getEntityMetadata();
+  const { isLiked } = getEntityMetadata();
   const [isReplyInputDisplayed, setIsCommentInputDisplayed] = useState(false);
 
   const [postedReplies, setPostedReplies] = useState([] as IComment[]);
@@ -100,7 +101,9 @@ export const Comment = ({
     queryFn: ({ pageParam }) =>
       !isReplyInputDisplayed
         ? []
-        : commentsFetch(EntityType.COMMENT, _id!, { page: pageParam }),
+        : ARTICLE_API.getComments(EntityType.COMMENT, _id!, {
+            page: pageParam,
+          }),
     initialPageParam: 0,
     getNextPageParam: getNextPageFn,
   });
@@ -155,18 +158,6 @@ export const Comment = ({
             <div className="text-p5 font-semibold ml-2">Meows</div>
           </button>
         )}
-        <button
-          onClick={() => (isUnliked ? {} : unlikeToggle())}
-          className={classNames(
-            "px-1 group flex justify-center items-center text-xl rounded-md text-gray-500",
-            {
-              "hover:bg-yellow-100": !isUnliked,
-              "cursor-default": isUnliked,
-            }
-          )}
-        >
-          <div className="text-p5 font-semibold ml-2">Report</div>
-        </button>
       </div>
       <If condition={isReplyInputDisplayed}>
         <Then>
@@ -203,7 +194,7 @@ export const Comments = ({ close, entity, type }: IProps) => {
   const { data, isFetching } = useInfiniteQuery({
     queryKey: ["entity-comments", entity],
     queryFn: ({ pageParam }) =>
-      commentsFetch(type, entity, { page: pageParam }),
+      ARTICLE_API.getComments(type, entity, { page: pageParam }),
     initialPageParam: 0,
     getNextPageParam: getNextPageFn,
   });
@@ -224,7 +215,7 @@ export const Comments = ({ close, entity, type }: IProps) => {
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-100 opacity-[0.75]"
       ></div>
-      <div className="z-50 w-full md:w-[480px] max-w-full mt-safe absolute bg-yellow-50 absolute top-32 bottom-0 rounded-t-[22px] shadow flex flex-col pb-8 pt-6 px-2">
+      <div className="z-50 w-full md:w-[480px] max-w-full mt-safe absolute bg-yellow-50 top-32 bottom-0 rounded-t-[22px] shadow flex flex-col pb-8 pt-6 px-2">
         <div className="flex justify-center gap-2 items-center mb-5">
           <img src="/logo/comments.png" className="w-6 h-6" />
           <div className="text-center">Meows</div>

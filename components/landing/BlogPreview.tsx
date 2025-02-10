@@ -1,17 +1,23 @@
-import { EntityRouteOption, findArticlesFetch } from "@/constants/api";
+import { ARTICLE_API } from "@/api/article-api";
+import { EntityRouteOption } from "@/api/routing";
 import { IArticleExcerpt as Props } from "@/models/article";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Slider } from "../shared/Slider";
+
 const BlogPreviewCard = ({ title, slug, featuredImage, category }: Props) => {
   const link = useMemo(
     () => EntityRouteOption.ARTICLE.details([category?.slug, slug]),
     [slug, category?.slug]
   );
   return (
-    <Link href={link} target="_blank" className="relative flex aspect-square min-h-[280px] hover:brightness-110 hover:animate-hover">
+    <Link
+      href={link}
+      target="_blank"
+      className="relative flex aspect-square min-h-[280px] hover:brightness-110 hover:animate-hover"
+    >
       <Image
         loading="lazy"
         height={350}
@@ -34,7 +40,7 @@ const BlogPreviewCard = ({ title, slug, featuredImage, category }: Props) => {
 export const BlogPreview = () => {
   const { data } = useQuery({
     queryKey: ["todos"],
-    queryFn: () => findArticlesFetch({ page: 0, perPage: 16 }),
+    queryFn: () => ARTICLE_API.getPage({ page: 0, perPage: 16 }),
   });
 
   const items = data?.map((article) => (

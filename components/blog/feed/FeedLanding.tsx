@@ -1,11 +1,8 @@
+import { ARTICLE_API } from "@/api/article-api";
+import { getNextPageFn } from "@/api/routing";
 import { Feed } from "@/components/blog/Feed";
 import { Loader } from "@/components/shared/Loader";
 import { NoMore } from "@/components/shared/NoMore";
-import {
-  findCategoryArticlesFetch,
-  findGroupPublicationsFetch,
-  getNextPageFn,
-} from "@/constants/api";
 import { insertObjectEveryN } from "@/constants/utils";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo } from "react";
@@ -14,37 +11,33 @@ import { useInView } from "react-intersection-observer";
 
 export interface LandingPageProps {
   category?: string;
-  group?: string;
   hasCategory?: boolean;
   entryRecords?: any[];
 }
 
 export const FeedLanding = ({
   category,
-  group,
   hasCategory,
   entryRecords,
 }: LandingPageProps) => {
   const queryFunction = useCallback(
     async ({ pageParam = 0 }) => {
       let articles = [];
-      if (hasCategory && !(category || group)) {
+      if (hasCategory && !category) {
         return [];
       }
       articles.push(
-        ...(await (group
-          ? findGroupPublicationsFetch
-          : findCategoryArticlesFetch)({
-          searchObject: { category, group },
+        ...(await ARTICLE_API.getCategoryPage({
+          searchObject: { category },
           page: pageParam,
         }))
       );
       return articles;
     },
-    [hasCategory, category, group]
+    [hasCategory, category]
   );
   const { data, isFetching, fetchNextPage, hasNextPage } = useInfiniteQuery({
-    queryKey: ["articles", category, group],
+    queryKey: ["articles", category],
     queryFn: queryFunction,
     initialPageParam: 0,
     getNextPageParam: getNextPageFn,

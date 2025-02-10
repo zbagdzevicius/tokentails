@@ -1,15 +1,15 @@
-import { useProfile } from "@/context/ProfileContext";
-import { CloseButton } from "./CloseButton";
-import { PixelButton } from "./PixelButton";
-import { Countdown } from "./Countdown";
+import { QUEST_API } from "@/api/quest-api";
 import { getNextDayMidnight } from "@/constants/utils";
-import { PostFriendInvited } from "@/constants/telegram-api";
+import { useProfile } from "@/context/ProfileContext";
 import { GameModal } from "@/models/game";
+import { ChainImg, ChainType } from "@/web3/contracts";
 import { useState } from "react";
-import { Tag } from "./Tag";
 import { Web3Mint } from "../web3/minting/Web3Mint";
 import { Web3Providers } from "../web3/Web3Providers";
-import { ChainImg, ChainType } from "@/web3/contracts";
+import { CloseButton } from "./CloseButton";
+import { Countdown } from "./Countdown";
+import { PixelButton } from "./PixelButton";
+import { Tag } from "./Tag";
 
 export const InviteModalContent = () => {
   const { utils, shareUrl, profile, setProfileUpdate } = useProfile();
@@ -22,7 +22,7 @@ export const InviteModalContent = () => {
     }
     utils?.shareURL(shareUrl!);
     setProfileUpdate({ canInviteFriend: false });
-    PostFriendInvited();
+    QUEST_API.friendInvited();
   };
 
   return (

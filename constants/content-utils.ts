@@ -1,38 +1,31 @@
-import { IImage } from '@/models/image';
+import { IImage } from "@/models/image";
 
 export function getRefId(content: string): string {
-    return content.replace(/\[img-([^\]]*)\]/, '$1');
+  return content.replace(/\[img-([^\]]*)\]/, "$1");
 }
 
-export function replaceRefsWithImages(content: string, images: IImage[]): string {
-    let updatedContent = content;
-    const refs = content.match(/\[img-[^\]]*\]/gm) || [];
-    for (const ref of refs) {
-        const refId = getRefId(ref);
-        const image = images.find((image) => image._id === refId);
-        if (!image) {
-            console.warn(`No image for ref ${refId}`);
-            return updatedContent;
-        }
-        updatedContent = updatedContent.replace(
-            ref,
-            `<figure class="image-container"><img class="w-full" width="480" height="480" alt="${
-                image.title || ''
-            }" src="https://api.sveikauk.lt/i/image-resizer/resize?width=600&image=${image.url}"><figcaption>${
-                image?.caption || ''
-            }</figcaption></figure>`,
-        );
+export function replaceRefsWithImages(
+  content: string,
+  images: IImage[]
+): string {
+  let updatedContent = content;
+  const refs = content.match(/\[img-[^\]]*\]/gm) || [];
+  for (const ref of refs) {
+    const refId = getRefId(ref);
+    const image = images.find((image) => image._id === refId);
+    if (!image) {
+      console.warn(`No image for ref ${refId}`);
+      return updatedContent;
     }
+    updatedContent = updatedContent.replace(
+      ref,
+      `<figure class="image-container"><img class="w-full" width="480" height="480" alt="${
+        image.title || ""
+      }" src="https://api.sveikauk.lt/i/image-resizer/resize?width=600&image=${
+        image.url
+      }"><figcaption>${image?.caption || ""}</figcaption></figure>`
+    );
+  }
 
-    return updatedContent;
-}
-
-export function getNumberOfAds(htmlString: string, n: number) {
-    let paragraphs = htmlString.split('<p>');
-    const ads: string[] = [];
-    for (let i = n; i < paragraphs.length; i += n + 1) {
-        ads.push('');
-    }
-
-    return ads?.length;
+  return updatedContent;
 }

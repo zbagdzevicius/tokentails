@@ -1,5 +1,4 @@
-import { profileFetch } from "@/constants/api";
-import { TPostReferral, TRedeemLives } from "@/constants/telegram-api";
+import { QUEST_API } from "@/api/quest-api";
 import { useQuery } from "@tanstack/react-query";
 import {
   User,
@@ -11,6 +10,7 @@ import * as React from "react";
 import { useCallback, useEffect } from "react";
 import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
+import { USER_API } from "@/api/user-api";
 
 interface ITelegramUserData {
   raw: string;
@@ -81,12 +81,12 @@ const TelegramAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const { setProfile, setShareUrl } = useProfile();
   const { data: profileResponse, refetch: refetchProfile } = useQuery({
     queryKey: ["t-profile-details", telegramUserData?.raw],
-    queryFn: () => (telegramUserData?.raw ? profileFetch() : null),
+    queryFn: () => (telegramUserData?.raw ? USER_API.profile() : null),
   });
   const redeemLives = useCallback(async () => {
-    await TRedeemLives();
+    await USER_API.redeem();
     refetchProfile();
-    toast({message: 'Come back tomorrow for More !'})
+    toast({ message: "Come back tomorrow for More !" });
   }, []);
   useEffect(() => {
     if (profileResponse) {
@@ -95,7 +95,7 @@ const TelegramAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   }, [profileResponse]);
   useEffect(() => {
     if (telegramUserData?.startParam && profileResponse) {
-      TPostReferral(telegramUserData?.startParam);
+      QUEST_API.setReferralTelegram(telegramUserData?.startParam);
       setShareUrl(
         `https://t.me/CatbassadorsBot/app?startapp=${telegramUserData?.user.id}&startApp=${telegramUserData?.user.id}`
       );

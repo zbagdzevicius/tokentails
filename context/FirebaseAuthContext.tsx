@@ -1,6 +1,5 @@
+import { QUEST_API } from "@/api/quest-api";
 import { SignIn } from "@/components/shared/SignIn";
-import { profileFetch } from "@/constants/api";
-import { TPostReferralWeb } from "@/constants/telegram-api";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { Capacitor } from "@capacitor/core";
 import { useQuery } from "@tanstack/react-query";
@@ -19,11 +18,12 @@ import {
   signInWithPopup,
   signOut,
 } from "firebase/auth";
+import { useRouter } from "next/router";
 import * as React from "react";
 import { useCallback } from "react";
 import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
-import { useRouter } from "next/router";
+import { USER_API } from "@/api/user-api";
 
 let reauthInterval: any;
 
@@ -77,7 +77,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   const { data: profileResponse, refetch: refetchProfile } = useQuery({
     queryKey: ["profile-details", user],
-    queryFn: () => (user ? profileFetch() : null),
+    queryFn: () => (user ? USER_API.profile() : null),
   });
 
   const router = useRouter();
@@ -111,7 +111,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       setProfile(profileResponse);
       setShareUrl(`https://tokentails.com/game?ref=${profileResponse._id}`);
       if (query?.ref) {
-        TPostReferralWeb(query?.ref as string);
+        QUEST_API.setReferralWeb(query?.ref as string);
       }
     }
   }, [profileResponse, query]);

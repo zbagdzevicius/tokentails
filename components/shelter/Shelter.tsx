@@ -1,14 +1,19 @@
+import { CAT_API } from "@/api/cat-api";
 import { useCat } from "@/context/CatContext";
-import { forwardRef, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { GameEvents, IPhaserGame } from "../Phaser/events";
-import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
-import { catsForSaleFetch } from "@/constants/api";
 import { useProfile } from "@/context/ProfileContext";
-import { CatType } from "@/models/cats";
+import { CatType, ICat } from "@/models/cats";
 import { useQuery } from "@tanstack/react-query";
-import { ICat } from "@/models/cats";
+import {
+  forwardRef,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { CatCardModal } from "../CatCardModal";
+import { GameEvents, IPhaserGame } from "../Phaser/events";
 import { Web3Providers } from "../web3/Web3Providers";
+import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
 interface IProps {
   currentActiveScene?: (scene_instance: Phaser.Scene) => void;
 }
@@ -69,15 +74,15 @@ function Shelter() {
 
   const { data: regularCats } = useQuery({
     queryKey: ["regular-cats", profile?._id],
-    queryFn: () => catsForSaleFetch(CatType.REGULAR),
+    queryFn: () => CAT_API.catsForSale(CatType.REGULAR),
   });
   const { data: blessedCats } = useQuery({
     queryKey: ["blessed-cats", profile?._id],
-    queryFn: () => catsForSaleFetch(CatType.BLESSED),
+    queryFn: () => CAT_API.catsForSale(CatType.BLESSED),
   });
   const { data: exclusiveCats } = useQuery({
     queryKey: ["exclusive-cats", profile?._id],
-    queryFn: () => catsForSaleFetch(CatType.EXCLUSIVE),
+    queryFn: () => CAT_API.catsForSale(CatType.EXCLUSIVE),
   });
 
   const { cat } = useCat();
@@ -98,7 +103,13 @@ function Shelter() {
   };
 
   useEffect(() => {
-    if (!hasSpawnedNpc && isGameLoaded?.scene && regularCats && blessedCats && exclusiveCats) {
+    if (
+      !hasSpawnedNpc &&
+      isGameLoaded?.scene &&
+      regularCats &&
+      blessedCats &&
+      exclusiveCats
+    ) {
       const randomRegularNpcs = getRandomCats(regularCats, 7);
       const randomBlessedNpcs = getRandomCats(blessedCats, 7);
       const randomExclusiveNpcs = getRandomCats(exclusiveCats, 7);
@@ -133,7 +144,6 @@ function Shelter() {
             onClick={() => setShowModal(false)}
           ></div>
           <div className="absolute top-1/2">
-
             <Web3Providers>
               <CatCardModal
                 {...selectedNpc}

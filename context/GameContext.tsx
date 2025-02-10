@@ -16,7 +16,6 @@ import { InviteModal } from "@/components/shared/InviteModal";
 import { QuestsModal } from "@/components/shared/QuestsModal";
 import { SpeechBubble } from "@/components/shared/SpeechBubble";
 import { TelegramProfile } from "@/components/shared/TelegramProfile";
-import { TDeleteLive } from "@/constants/telegram-api";
 import { catbassadorsGameDuration } from "@/models/cats";
 import { GameModal, GameType } from "@/models/game";
 import * as React from "react";
@@ -28,6 +27,7 @@ import { getMultiplier } from "@/components/CatCardModal";
 import { IToast } from "./ToastContext";
 import { Notification } from "@/components/shared/Notification";
 import { ControlModal } from "@/components/shared/ControlModal";
+import { USER_API } from "@/api/user-api";
 
 type ContextState = {
   isStarted?: boolean;
@@ -37,7 +37,6 @@ type ContextState = {
   playGame: () => void;
   addNotification: (notification: IToast) => void;
   setOpenedModal: (modal: GameModal | null) => void;
-
 };
 
 const GameContext = React.createContext<ContextState | undefined>(undefined);
@@ -64,7 +63,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     if (notifications.length > 0) {
       const timeout = setTimeout(() => {
         setNotifications((prev) => prev.slice(1));
-      }, 1300);
+      }, 2000);
       return () => clearTimeout(timeout);
     }
   }, [notifications]);
@@ -84,7 +83,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
         time: event.time ?? 0,
       });
 
-      await TDeleteLive({
+      await USER_API.saveMatch({
         points: earnedScore,
         time: event.time ?? 0,
         type: gameType!,
@@ -216,7 +215,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           {openedModal === GameModal.CONTROL_SETTINGS && (
             <ControlModal close={() => setOpenedModal(null)} />
           )}
-          {gameType === GameType.HOME && isGameLoaded && profile.cat && <SpeechBubble />}
+          {gameType === GameType.HOME && isGameLoaded && profile.cat && (
+            <SpeechBubble />
+          )}
           <GameMusicPlayer />
         </>
       )}

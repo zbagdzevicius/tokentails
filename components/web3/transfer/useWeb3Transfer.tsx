@@ -1,4 +1,4 @@
-import { confirmTransaction } from "@/constants/api";
+import { ORDER_API } from "@/api/order-api";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
 import { isProd } from "@/models/app";
@@ -78,7 +78,7 @@ export const useWeb3Transfer = ({
     query,
     currencyType,
     balance,
-    setIsTransactionSucces,
+    setTransactionStatus,
   } = useWeb3();
   const { setVisible: connectSolana } = useWalletModal();
   const {
@@ -109,6 +109,24 @@ export const useWeb3Transfer = ({
   } = useWaitForTransactionReceipt({
     hash,
   });
+
+  const confirm = async (hash: string) => {
+    const status = await ORDER_API.confirm({
+      hash: hash,
+      chainType: paymentsChain,
+      namespace: namespace!,
+      amount,
+      walletAddress: namespaceDetail.address!,
+      currencyType,
+      price,
+      ref: query?.ref,
+      entityType,
+      cat,
+      blessing,
+      user,
+    });
+    setTransactionStatus(status);
+  };
 
   const isLoading = useMemo(
     () => isPending || isStellarPending || isTaxLoading || isSolanaPending,
@@ -147,9 +165,9 @@ export const useWeb3Transfer = ({
             asset:
               currencyType === CurrencyType.USDC
                 ? new Asset(
-                  "USDC",
-                  "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"
-                )
+                    "USDC",
+                    "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"
+                  )
                 : Asset.native(),
             amount: String(price),
           })
@@ -172,23 +190,9 @@ export const useWeb3Transfer = ({
 
       // Submit the transaction to the Stellar Horizon server
       const result = await horizonServer.submitTransaction(signedTransaction);
-      setIsTransactionSucces(true);
 
-      confirmTransaction({
-        hash: result?.hash,
-        chainType: paymentsChain,
-        namespace: namespace!,
-        amount,
-        walletAddress: namespaceDetail.address!,
-        currencyType,
-        price,
-        ref: query?.ref,
-        entityType,
-        cat,
-        blessing,
-        user,
-      })
-        .then(() => { })
+      confirm(result?.hash)
+        .then(() => {})
         .catch((error) => {
           console.error("Confirmation failed:", error);
         });
@@ -256,21 +260,8 @@ export const useWeb3Transfer = ({
       );
       const latestBlockHash = await solanaConnection.getLatestBlockhash();
 
-      confirmTransaction({
-        hash: signature,
-        chainType: paymentsChain,
-        namespace: namespace!,
-        amount,
-        walletAddress: namespaceDetail.address!,
-        currencyType,
-        price,
-        ref: query?.ref,
-        entityType,
-        cat,
-        blessing,
-        user,
-      })
-        .then(() => { })
+      confirm(signature)
+        .then(() => {})
         .catch((error) => {
           console.error("Confirmation failed:", error);
         });
@@ -339,34 +330,15 @@ export const useWeb3Transfer = ({
 
   useEffect(() => {
     if (isTaxConfirmed) {
-      confirmTransaction({
-        hash: hash!,
-        chainType: paymentsChain,
-        namespace: namespace!,
-        amount,
-        walletAddress: namespaceDetail.address!,
-        currencyType,
-        price,
-        ref: query?.ref,
-        entityType,
-        cat,
-        blessing,
-        user,
-      })
+      confirm(hash!)
         .then(() => {
-          setIsTransactionSucces(true);
+          confirm(hash!);
         })
         .catch((error) => {
           console.error("Confirmation failed:", error);
         });
     }
   }, [isTaxConfirmed]);
-
-  useEffect(() => {
-    if (taxData?.status === "success") {
-      setIsTransactionSucces(true);
-    }
-  }, [taxData]);
 
   const connectWallet = () => {
     if (namespace === ChainNamespace.EVM) {

@@ -1,10 +1,10 @@
-import { TPostQuest } from "@/constants/telegram-api";
+import { QUEST_API } from "@/api/quest-api";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
-import { PixelButton } from "./PixelButton";
 import { CloseButton } from "./CloseButton";
+import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
 enum QuestType {
   SOCIAL = "SOCIAL",
@@ -333,7 +333,7 @@ export const QuestsModalContent = () => {
         utils?.openLink(quest.link!);
       }
     }
-    const result = await TPostQuest(quest.key);
+    const result = await QUEST_API.complete(quest.key);
     toast({ message: result.message });
     if (result.success) {
       setProfileUpdate({ quests: [...(profile?.quests || []), quest.key] });
