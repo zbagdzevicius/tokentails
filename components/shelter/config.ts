@@ -12,9 +12,11 @@ const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.WEBGL,
   parent: "game-container",
   transparent: true,
-    dom: {
+  dom: {
     createContainer: true, // Enable DOM element rendering
   },
+  pixelArt: true,
+  roundPixels: true,
   scene: ShelterScene,
   physics: {
     default: "arcade",
