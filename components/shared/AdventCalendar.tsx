@@ -1,13 +1,13 @@
 import { CAT_API } from "@/api/cat-api";
+import { USER_API } from "@/api/user-api";
 import { daysCoins, getNextDayMidnight } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
-import { CatType, ICat } from "@/models/cats";
+import { ICat } from "@/models/cats";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Countdown } from "./Countdown";
 import { PixelButtonTiny } from "./PixelButtonTiny";
 import { Window } from "./Window";
-import { USER_API } from "@/api/user-api";
 
 interface AdventDay {
   image?: string;
@@ -157,7 +157,7 @@ export const AdventCalendar = ({ setSelectedCat }: IProps) => {
   });
   const { data: adventCats } = useQuery({
     queryKey: ["advent", currentDay],
-    queryFn: () => CAT_API.catsForSale(CatType.EXCLUSIVE),
+    queryFn: () => CAT_API.catsForSale(),
   });
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
@@ -167,7 +167,7 @@ export const AdventCalendar = ({ setSelectedCat }: IProps) => {
     Object.keys(calendarData).forEach((key: any) => {
       calendarData[key].unlocked = currentDay >= key;
       calendarData[key].isOpened = (profile?.adventDayRedeemed || 0) >= key;
-      calendarData[key].cat = adventCats?.find(
+      calendarData[key].cat = adventCats?.tokentails?.find(
         (adventCat: ICat) => adventCat.name === catNamesMap[key]
       );
     });

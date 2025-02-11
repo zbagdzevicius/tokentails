@@ -57,8 +57,8 @@ const cats = async (): Promise<ICat[]> => {
   });
 };
 
-const catsForSale = async (catType: CatType): Promise<ICat[]> => {
-  return fetch(`${apiUrl}/cat/sale/${catType}`, {
+const catsForSale = async (): Promise<Record<string, ICat[]>> => {
+  return fetch(`${apiUrl}/cat/sale`, {
     method: "GET",
     headers: {
       Accept: "application/json",

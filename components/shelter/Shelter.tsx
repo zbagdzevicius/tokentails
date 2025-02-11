@@ -72,17 +72,9 @@ function Shelter() {
   const [selectedNpc, setSelectedNpc] = useState<ICat | null>(null);
   const [showModal, setShowModal] = useState(false);
 
-  const { data: regularCats } = useQuery({
-    queryKey: ["regular-cats", profile?._id],
-    queryFn: () => CAT_API.catsForSale(CatType.REGULAR),
-  });
-  const { data: blessedCats } = useQuery({
-    queryKey: ["blessed-cats", profile?._id],
-    queryFn: () => CAT_API.catsForSale(CatType.BLESSED),
-  });
-  const { data: exclusiveCats } = useQuery({
-    queryKey: ["exclusive-cats", profile?._id],
-    queryFn: () => CAT_API.catsForSale(CatType.EXCLUSIVE),
+  const { data: catsForSale } = useQuery({
+    queryKey: ["cats-for-sale", profile?._id],
+    queryFn: () => CAT_API.catsForSale(),
   });
 
   const { cat } = useCat();
@@ -103,29 +95,19 @@ function Shelter() {
   };
 
   useEffect(() => {
-    if (
-      !hasSpawnedNpc &&
-      isGameLoaded?.scene &&
-      regularCats &&
-      blessedCats &&
-      exclusiveCats
-    ) {
-      const randomRegularNpcs = getRandomCats(regularCats, 7);
-      const randomBlessedNpcs = getRandomCats(blessedCats, 7);
-      const randomExclusiveNpcs = getRandomCats(exclusiveCats, 7);
+    if (!hasSpawnedNpc && isGameLoaded?.scene && catsForSale) {
+      const randomRegularNpcs = catsForSale.tokentails;
+      const randomBlessedNpcs = catsForSale["rozine-pedute"];
 
-      randomRegularNpcs.forEach((npcCatRegular) => {
+      randomRegularNpcs?.forEach((npcCatRegular) => {
         GameEvents.NPC_SPAWN_REGULAR.push({ npc: npcCatRegular });
       });
-      randomBlessedNpcs.forEach((npcCatBlessed) => {
+      randomBlessedNpcs?.forEach((npcCatBlessed) => {
         GameEvents.NPC_SPAWN_BLESSED.push({ npc: npcCatBlessed });
-      });
-      randomExclusiveNpcs.forEach((npcCatExclusive) => {
-        GameEvents.NPC_SPAWN_EXCLUSIVE.push({ npc: npcCatExclusive });
       });
       setHasSpawnedNpc(true);
     }
-  }, [regularCats, blessedCats, exclusiveCats, isGameLoaded, hasSpawnedNpc]);
+  }, [catsForSale, isGameLoaded, hasSpawnedNpc]);
 
   GameEvents.CAT_CARD_DISPLAY.use((event) => {
     if (event) {
