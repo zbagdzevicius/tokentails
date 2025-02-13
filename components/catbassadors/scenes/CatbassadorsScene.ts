@@ -16,8 +16,8 @@ import { BuffManager } from "../managers/BuffManager";
 import { currentDayCoin, ZOOM } from "@/constants/utils";
 import { endScenePeriod } from "@/models/game";
 
-const JUMP_LAYER_TILES = [47, 48, 49, 50];
-const TRAMPOLINE_TILES = [51];
+const JUMP_LAYER_TILES = [169, 170, 139, 140, 200, 224, 225, 226, 227];
+const TRAMPOLINE_TILES = [158, 159, 160];
 
 const DEFAULT_ENEMY_SPAWN_THRESHOLD = 100;
 
@@ -77,7 +77,7 @@ export class CatbassadorsScene extends Scene {
     this.load.audio("jump-sound", "audio/game/jump.mp3");
     this.load.audio("dash-sound", "audio/game/dash.wav");
     this.load.tilemapTiledJSON("tilemap", "catbassadors/catbassadors.json");
-    this.load.image("blocks", "base/blocks-winter.png");
+    this.load.image("new-blocks-winter", "base/winter.png");
     this.load.spritesheet("starAnimation", "base/star-animation.png", {
       frameWidth: 32,
       frameHeight: 32,
@@ -132,8 +132,8 @@ export class CatbassadorsScene extends Scene {
   create(props: IPhaserGameSceneProps) {
     this.tilemap = this.make.tilemap({ key: "tilemap" });
     const sugarTileset = this.tilemap.addTilesetImage(
-      "blocks",
-      "blocks",
+      "new-blocks-winter",
+      "new-blocks-winter",
       32,
       32,
       1,

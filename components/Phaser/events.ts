@@ -50,7 +50,6 @@ interface IBossSpawn {
   amount: number;
 }
 
-
 interface INpcSpawnEvent {
   npc: ICat;
 }
@@ -63,12 +62,15 @@ interface IBuff {
   duration: number;
 }
 interface IBuffSpawned {
-   buff: BuffType; 
+  buff: BuffType;
 }
-
 
 interface INpcCollisionEvent {
   npc: ICat;
+}
+
+interface IPlayerCats {
+  cats: ICat[];
 }
 
 export type IEventDetail<T> = {
@@ -87,9 +89,10 @@ export enum GameEvent {
   CAT_PLAY = "CAT_PLAY",
   CAT_SPAWN = "CAT_SPAWN",
   CAT_EAT = "CAT_EAT",
-  NPC_SPAWN_REGULAR = "NPC_SPAWN_REGULAR",
-  NPC_SPAWN_BLESSED = "NPC_SPAWN_BLESSED",
+  NPC_SPAWN_TOKENTAILS = "NPC_SPAWN_TOKENTAILS",
+  NPC_SPAWN_ROZINE_PEDUTE = "NPC_SPAWN_ROZINE_PEDUTE",
   NPC_SPAWN_EXCLUSIVE = "NPC_SPAWN_EXCLUSIVE",
+  PLAYER_CATS = "PLAYER_CATS",
   NPC_COLLISION = "NPC_COLLISION",
   CAT_CARD_DISPLAY = "CAT_CARD_DISPLAY",
   CAT_BUFF = "CAT_BUFF",
@@ -109,15 +112,16 @@ export type ICatEventsDetails = {
   [GameEvent.GAME_UPDATE]: IGameUpdateEvent;
   [GameEvent.GAME_LOADED]: IGameLoadedEvent;
   [GameEvent.GAME_COIN_CAUGHT]: IGameScoreUpdateEvent;
-  [GameEvent.NPC_SPAWN_REGULAR]: INpcSpawnEvent,
-  [GameEvent.NPC_SPAWN_BLESSED]: INpcSpawnEvent,
-  [GameEvent.NPC_SPAWN_EXCLUSIVE]: INpcSpawnEvent,
+  [GameEvent.NPC_SPAWN_TOKENTAILS]: INpcSpawnEvent;
+  [GameEvent.NPC_SPAWN_ROZINE_PEDUTE]: INpcSpawnEvent;
+  [GameEvent.NPC_SPAWN_EXCLUSIVE]: INpcSpawnEvent;
   [GameEvent.NPC_COLLISION]: INpcCollisionEvent;
   [GameEvent.CAT_CARD_DISPLAY]: { npc: ICat };
   [GameEvent.CAT_BUFF]: IBuff;
   [GameEvent.ENEMY_SPAWN]: IEnemySpawn;
   [GameEvent.BOSS_SPAWN]: IBossSpawn;
   [GameEvent.BUFF_SPAWN]: IBuffSpawned;
+  [GameEvent.PLAYER_CATS]: INpcSpawnEvent;
 };
 
 export type ICatEvent<K extends GameEvent> = IEventDetail<ICatEventsDetails[K]>;
@@ -203,13 +207,20 @@ export const GameEvents: GameEventsType = {
   [GameEvent.GAME_UPDATE]: generateGameEvent(GameEvent.GAME_UPDATE),
   [GameEvent.GAME_LOADED]: generateGameEvent(GameEvent.GAME_LOADED),
   [GameEvent.GAME_COIN_CAUGHT]: generateGameEvent(GameEvent.GAME_COIN_CAUGHT),
-  [GameEvent.NPC_SPAWN_REGULAR]: generateGameEvent(GameEvent.NPC_SPAWN_REGULAR),
-  [GameEvent.NPC_SPAWN_BLESSED]: generateGameEvent(GameEvent.NPC_SPAWN_BLESSED),
-  [GameEvent.NPC_SPAWN_EXCLUSIVE]: generateGameEvent(GameEvent.NPC_SPAWN_EXCLUSIVE),
+  [GameEvent.NPC_SPAWN_TOKENTAILS]: generateGameEvent(
+    GameEvent.NPC_SPAWN_TOKENTAILS
+  ),
+  [GameEvent.NPC_SPAWN_ROZINE_PEDUTE]: generateGameEvent(
+    GameEvent.NPC_SPAWN_ROZINE_PEDUTE
+  ),
+  [GameEvent.NPC_SPAWN_EXCLUSIVE]: generateGameEvent(
+    GameEvent.NPC_SPAWN_EXCLUSIVE
+  ),
   [GameEvent.NPC_COLLISION]: generateGameEvent(GameEvent.NPC_COLLISION),
   [GameEvent.CAT_CARD_DISPLAY]: generateGameEvent(GameEvent.CAT_CARD_DISPLAY),
   [GameEvent.CAT_BUFF]: generateGameEvent(GameEvent.CAT_BUFF),
   [GameEvent.BUFF_SPAWN]: generateGameEvent(GameEvent.BUFF_SPAWN),
   [GameEvent.ENEMY_SPAWN]: generateGameEvent(GameEvent.ENEMY_SPAWN),
   [GameEvent.BOSS_SPAWN]: generateGameEvent(GameEvent.BOSS_SPAWN),
+  [GameEvent.PLAYER_CATS]: generateGameEvent(GameEvent.PLAYER_CATS),
 };

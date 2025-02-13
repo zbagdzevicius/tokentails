@@ -3,17 +3,18 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "C:/Users/ernes/Desktop/game/cats/public/catbassadors/story.json",
+    "activeFile": "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.json",
     "expandedProjectPaths": [
-        "spawn",
-        "without",
+        "exit",
         "blocked",
-        "exit"
+        "without",
+        "spawn"
     ],
     "file.lastUsedOpenFilter": "All Files (*)",
     "fileStates": {
         "": {
-            "scaleInDock": 1
+            "scaleInDock": 1,
+            "scaleInEditor": 1
         },
         "#blocks-original": {
             "scaleInDock": 1
@@ -30,14 +31,17 @@
             "scaleInDock": 1
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.json": {
-            "scale": 0.75,
-            "selectedLayer": 1,
+            "scale": 0.33,
+            "selectedLayer": 3,
             "viewCenter": {
-                "x": -256.66666666666663,
-                "y": -512
+                "x": -83.33333333333326,
+                "y": -493.939393939394
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.json#blocks": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.json#new-blocks-winter": {
             "scaleInDock": 1
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.tmx": {
@@ -54,12 +58,76 @@
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.tmx#blocks-winter": {
             "scaleInDock": 1
         },
-        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/shelter.json": {
-            "scale": 0.33,
-            "selectedLayer": 1,
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON": {
+            "scale": 0.75,
+            "selectedLayer": 2,
             "viewCenter": {
-                "x": -253.030303030303,
-                "y": -765.1515151515152
+                "x": -692.6666666666666,
+                "y": -241.33333333333326
+            }
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON#blocks": {
+            "scaleInDock": 0.75
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON#logo": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON#new-blocks-winter": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON#signs": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmj": {
+            "scale": 0.33,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 1365.151515151515,
+                "y": -624.2424242424242
+            }
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmj#blocks": {
+            "scaleInDock": 0.75,
+            "scaleInEditor": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmj#logo": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmj#new-blocks-winter": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmj#signs": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmx": {
+            "scale": 0.75,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 1312.6666666666665,
+                "y": -465.33333333333326
+            }
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmx#blocks": {
+            "scaleInDock": 0.75
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmx#logo": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmx#new-blocks-winter": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmx#signs": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/shelter.json": {
+            "scale": 0.25,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": -294,
+                "y": -816
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/shelter.json#blocks": {
@@ -78,15 +146,66 @@
             "scaleInEditor": 1
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/story.json": {
-            "scale": 0.5,
+            "scale": 2,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": -291,
-                "y": -636
+                "x": -336.75,
+                "y": -779
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/story.json#blocks": {
             "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/untitled.tmj": {
+            "scale": 1,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": -0.5,
+                "y": -2
+            }
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/untitled.tmj#new-blocks-winter": {
+            "scaleInDock": 0.75
+        },
+        "C:/Users/ernes/Downloads/kenney_pixel-platformer (3)/Tiled/tilemap-example-a.tmx": {
+            "scale": 1.7802350427350426,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 234.51959431074837,
+                "y": 135.37538258416853
+            }
+        },
+        "C:/Users/ernes/Downloads/kenney_pixel-platformer (3)/Tiled/tilemap-example-b.tmx": {
+            "scale": 1.7802350427350426,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 233.3961471523735,
+                "y": 130.88159395066913
+            }
+        },
+        "C:/Users/ernes/Downloads/kenney_pixel-platformer (3)/Tiled/tileset-characters.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "C:/Users/ernes/Downloads/kenney_pixel-platformer (3)/Tiled/tileset-tiles.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "C:/Users/ernes/Downloads/kenney_pixel-platformer/Tiled/tilemap-example-a.tmx": {
+            "scale": 1.7802350427350426,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 234.51959431074837,
+                "y": 134.8136590049811
+            }
+        },
+        "C:/Users/ernes/Downloads/kenney_pixel-platformer/Tiled/tilemap-example-b.tmx": {
+            "scale": 1.7802350427350426,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 234.51959431074837,
+                "y": 135.37538258416853
+            }
         },
         "blocked/blcoked3.json": {
             "scale": 2.169661458333333,
@@ -345,8 +464,8 @@
             "scale": 2.169661458333333,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 191.04362959851167,
+                "y": 191.2740802976655
             }
         },
         "without/without10.json#blocks-original": {
@@ -486,8 +605,6 @@
     ],
     "project": "untitled.tiled-project",
     "recentFiles": [
-        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.json",
-        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/shelter.json",
         "without/without.json",
         "without/without1.json",
         "without/without2.json",
@@ -497,9 +614,11 @@
         "without/without6.json",
         "without/without7.json",
         "without/without8.json",
-        "without/without9.json"
+        "without/without9.json",
+        "without/without10.json",
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/shelter.json"
     ],
     "tileset.embedInMap": true,
-    "tileset.margin": 1,
-    "tileset.spacing": 2
+    "tileset.margin": 0,
+    "tileset.spacing": 0
 }

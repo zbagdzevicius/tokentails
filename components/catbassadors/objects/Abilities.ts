@@ -1,11 +1,13 @@
 import { PurrquestScene } from "@/components/purrquest/scenes/PurrquestScene";
 import { CatbassadorsScene } from "../scenes/CatbassadorsScene";
+import { StoryModeScene } from "@/components/storyMode/scenes/StoryModeScene";
 import { IPlayer } from "@/components/Phaser/PlayerMovement/IPlayer";
 import { Enemy } from "@/components/purrquest/objects/Enemy";
 import { BossEnemy } from "@/components/purrquest/objects/Boss";
 import { CatAbilityType } from "@/models/cats";
+import { MovableBlockManager } from "@/components/storyMode/Managers/MovableBlockManager";
 
-type GameScene = PurrquestScene | CatbassadorsScene;
+type GameScene = PurrquestScene | CatbassadorsScene | StoryModeScene;
 
 const KNOCKBACK_ABILITY_DELAY_MS = 200;
 
@@ -15,6 +17,7 @@ export class Abilities {
   private catAbilityType!: CatAbilityType;
   private isOnCooldown: boolean = false;
   private knockbackSpellLifetimeMs: number;
+  knockbackSpellGroup: Phaser.Physics.Arcade.Group;
 
   private static hueRotationMap: Record<string, number> = {
     ELECTRIC: 60, // Yellow
@@ -38,6 +41,7 @@ export class Abilities {
     this.catAbilityType = type;
     this.knockbackSpellLifetimeMs = (15 / 15) * 1000;
 
+    this.knockbackSpellGroup = scene.physics.add.group();
     this.createAnimations();
   }
 
@@ -65,7 +69,7 @@ export class Abilities {
     }
   }
 
-  public performKnocbackSpell(): void {
+  performKnocbackSpell(): void {
     if (this.isOnCooldown) {
       return;
     }
@@ -85,7 +89,7 @@ export class Abilities {
       this.player.sprite.y,
       "knockback-spell"
     );
-
+    this.knockbackSpellGroup.add(knockbackSpell);
     knockbackSpell
       .setScale(0.5)
       .setDepth(3)
@@ -104,13 +108,53 @@ export class Abilities {
         this.handleSpellAnimationAndDestroy(knockbackSpell);
       }
     );
+    if ((this.scene as StoryModeScene).movableBlockManager) {
+      const allBlocks = (this.scene as StoryModeScene).movableBlockManager
+        .map((manager) => manager.getMovableBlocks())
+        .flat();
 
-    // Enemy collision
+      this.scene.physics.add.collider(
+        knockbackSpell,
+        allBlocks,
+        (_spell, block) => {
+          if (block instanceof Phaser.Physics.Arcade.Sprite) {
+            const blockBody = block.body as Phaser.Physics.Arcade.Body;
+
+            const isSpellFromLeft = knockbackSpell.x < block.x;
+            const knockbackDirection = isSpellFromLeft ? 1 : -1;
+
+            if (
+              (knockbackDirection > 0 && !blockBody.blocked.right) ||
+              (knockbackDirection < 0 && !blockBody.blocked.left)
+            ) {
+              const KNOCKBACK_FORCE = 40;
+              block.setVelocityX(knockbackDirection * KNOCKBACK_FORCE);
+
+              this.scene.time.delayedCall(50, () => {
+                block.setVelocityX(0); // Stop horizontal movement
+              });
+            } else {
+              block.setVelocityX(0);
+            }
+
+            // Add temporary drag for smoother knockback stop
+            block.setDrag(1000);
+            this.scene.time.delayedCall(70, () => {
+              block.setDrag(0);
+            });
+          }
+
+          // Destroy the spell after impact
+          this.handleSpellAnimationAndDestroy(knockbackSpell);
+        }
+      );
+    }
+
     const enemyManager = (this.scene as CatbassadorsScene).enemyManager;
     if (enemyManager) {
       this.scene.physics.add.collider(
         knockbackSpell,
-        enemyManager.enemies, // Access the enemies from the EnemyManager
+        enemyManager.enemies,
         (_spell, enemy) => {
           if (enemy instanceof Enemy) {
             (enemy as Enemy).knockDown();
@@ -149,7 +193,10 @@ export class Abilities {
     });
   }
 
-  applyHueRotation(sprite: Phaser.GameObjects.Sprite, hue: number): void {
+  private applyHueRotation(
+    sprite: Phaser.GameObjects.Sprite,
+    hue: number
+  ): void {
     const color = Phaser.Display.Color.HSVToRGB(hue / 360, 1, 1).color;
     sprite.setTint(color);
   }
