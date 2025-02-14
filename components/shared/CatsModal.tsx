@@ -1,9 +1,3 @@
-import {
-  catsFetch,
-  setActiveCat,
-  stakeFetch,
-  stakeRedeemFetch,
-} from "@/constants/api";
 import { MAX_CAT_STATUS } from "@/context/CatContext";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -19,6 +13,7 @@ import { CloseButton } from "./CloseButton";
 import { Countdown } from "./Countdown";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
+import { CAT_API } from "@/api/cat-api";
 
 const weekInMs = 604800000;
 
@@ -31,7 +26,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
   const { setGameType } = useGame();
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
-    queryFn: () => catsFetch(),
+    queryFn: () => CAT_API.cats(),
   });
   const [mutatedCats, setMutatedCats] = useState<ICat[]>([]);
   useEffect(() => {
@@ -47,7 +42,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
       return;
     }
     setProfileUpdate({ cat });
-    setActiveCat(cat._id!);
+    CAT_API.setActive(cat._id!);
 
     GameEvents.CAT_SPAWN.push({ cat });
 
@@ -71,14 +66,14 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
     );
   };
   const onStakeRewards = async (cat: ICat) => {
-    const result = await stakeRedeemFetch(cat._id!);
+    const result = await CAT_API.stakingRedeem(cat._id!);
     if (result.success) {
       setCatUpdate(cat, { staked: null });
     }
     toast({ message: result.message });
   };
   const onStakeCat = async (cat: ICat) => {
-    const result = await stakeFetch(cat._id!);
+    const result = await CAT_API.stake(cat._id!);
     if (result.success) {
       setCatUpdate(cat, { staked: new Date(new Date().getTime() + weekInMs) });
     }

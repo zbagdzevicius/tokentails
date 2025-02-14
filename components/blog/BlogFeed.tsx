@@ -1,55 +1,44 @@
 import { Loader } from "@/components/shared/Loader";
 import { NoMore } from "@/components/shared/NoMore";
-import {
-  findCategoryArticlesFetch,
-  findGroupPublicationsFetch,
-  getNextPageFn,
-} from "@/constants/api";
 import { insertObjectEveryN } from "@/constants/utils";
-import { EntityType } from "@/models/save";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo } from "react";
 import { When } from "react-if";
 import { useInView } from "react-intersection-observer";
 import { Feed } from "./Feed";
 import { FeedCta } from "./feed/FeedCta";
+import { ARTICLE_API } from "@/api/article-api";
+import { getNextPageFn } from "@/api/routing";
 
 export interface LandingPageProps {
   category?: string;
-  group?: string;
   hasCategory?: boolean;
   entryRecords?: any[];
 }
 
 export const BlogFeed = ({
   category,
-  group,
   hasCategory,
   entryRecords,
 }: LandingPageProps) => {
   const queryFunction = useCallback(
     async ({ pageParam = 0 }) => {
       let articles = [];
-      if (hasCategory && !(category || group)) {
+      if (hasCategory && !category) {
         return [];
       }
       articles.push(
-        ...(await (group
-          ? findGroupPublicationsFetch
-          : findCategoryArticlesFetch)({
-          searchObject: { category, group },
+        ...(await ARTICLE_API.getCategoryPage({
+          searchObject: { category },
           page: pageParam,
         }))
       );
-      if (pageParam === 0) {
-        articles.push({ type: EntityType.VIDEO_SLIDER, category: "sveikauk" });
-      }
       return articles;
     },
-    [hasCategory, category, group]
+    [hasCategory, category]
   );
   const { data, isFetching, fetchNextPage, hasNextPage } = useInfiniteQuery({
-    queryKey: ["articles", category, group],
+    queryKey: ["articles", category],
     queryFn: queryFunction,
     initialPageParam: 0,
     getNextPageParam: getNextPageFn,

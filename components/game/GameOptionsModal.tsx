@@ -1,13 +1,12 @@
-import { TRedeemLives } from "@/constants/telegram-api";
+import { getNextDayMidnight } from "@/constants/utils";
 import { useToast } from "@/context/ToastContext";
 import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
 import { useCallback, useMemo } from "react";
 import { GameStatsSection } from "../catbassadors/GameStatsSection";
-import { GameEvents } from "../Phaser/events";
-import { PixelButton } from "../shared/PixelButton";
-import { getNextDayMidnight } from "@/constants/utils";
 import { Countdown } from "../shared/Countdown";
+import { PixelButton } from "../shared/PixelButton";
+import { USER_API } from "@/api/user-api";
 
 interface IProps {
   profile: IProfile;
@@ -38,7 +37,7 @@ export const GameOptionsModal = ({
   const nextDayTargetDate = getNextDayMidnight();
 
   const redeemLives = useCallback(async () => {
-    await TRedeemLives();
+    await USER_API.redeem();
     setProfileUpdate({
       canRedeemLives: false,
       streak: (profile.streak || 0) + 1,
@@ -49,10 +48,6 @@ export const GameOptionsModal = ({
     toast({
       message: `You got ${numberOfPointsToRedeem} coins + ${numberOfLivesToRedeem} lives`,
     });
-  }, []);
-
-  const onFeedClick = useCallback(() => {
-    GameEvents.CAT_EAT.push();
   }, []);
 
   return (
@@ -73,11 +68,6 @@ export const GameOptionsModal = ({
               }}
               text="GIFTS"
             ></PixelButton>
-          </div>
-        )}
-        {gameType === GameType.HOME && (
-          <div className="flex flex-col gap-4 m-auto">
-            <PixelButton text="Feed" onClick={onFeedClick} />
           </div>
         )}
         {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (

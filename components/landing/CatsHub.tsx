@@ -15,25 +15,25 @@ const CatsHubProps: IProps[] = [
     title: "HOW CAN I SAVE A CAT ?",
     img: "/images/cats-slider/contribute.jpg",
     description:
-      "Adopt virtual NFT cat, 100% of funds are transferred directly to cats shelters",
+      "Adopt shelters cats as NFTs, 100% of funds are transferred directly to cats shelters",
   },
   {
     title: "HOW TO OWN AN NFT CAT ?",
     img: "/images/cats-slider/love.jpg",
     description:
-      "Sign in, get into our virtual cat shelter and adopt you purrfect companion",
+      "Sign in, get into our cat shelter and adopt you purrfect companion !",
   },
   {
     title: "WHAT ARE THE PERKS FOR CATS HOLDERS",
     img: "/images/cats-slider/eat.jpg",
     description:
-      "Access to Token Tails gaming hub, elevated coins earnings ratio, eligibility for $TAILS airdrops",
+      "Access to gaming hub, direct connection with cats in a shelter, $TAILS airdrop, AI Cat Agent companion on socials and lots of fun !",
   },
   {
-    title: "WEN LISTING ? WEN AIRDROP ?",
+    title: "WEN $TAILS LISTING ? WEN AIRDROP ?",
     img: "/images/cats-slider/play.jpg",
     description:
-      "To stay up to date follow us on X, big news are coming soon !",
+      "$TAILS TGE, LISTING AND AIRDROP is going to happen in Q2 2025. Follow us on X to stay up to date so you won't miss it !",
   },
 ];
 
@@ -71,7 +71,12 @@ const CatsSection = ({ title, description, isActive, img, onSet }: IProps) => {
         }`}
       >
         <img className="rounded-full w-24" src={img} />
-        <div>{description}</div>
+        <div className="flex flex-col items-start">
+          <div>{description}</div>
+          <a target="_blank" href="/game">
+            <PixelButton isSmall text="START SAVING CATS" />
+          </a>
+        </div>
       </div>
     </div>
   );
@@ -94,7 +99,7 @@ export const CatsHub = () => {
       />
       <div className="w-9/12 max-lg:w-full ">
         <h2 className="text-center font-secondary uppercase tracking-tight text-8xl max-lg:text-5xl  max-lg:text-balance ">
-          SAVING CATS
+          SAVE A CAT
         </h2>
 
         <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1 max-lg:mx-5 my-0 sm:my-10 items-center">
@@ -128,10 +133,16 @@ export const CatsHub = () => {
               ))}
             </div>
             <div className="flex mt-10 max-lg:mt-5 gap-4">
+              <a target="_blank" href="/game">
+                <PixelButton text="START" />
+              </a>
               <a href="https://docs.tokentails.com" target="_blank">
                 <PixelButton text="DOCS" />
               </a>
-              <a target="_blank" href="https://docs.google.com/presentation/d/1G8F_HxNLwxkBSZ9XAcnvtH9SQFBjtI6Wq_2Y6FEXLdQ/">
+              <a
+                target="_blank"
+                href="https://docs.google.com/presentation/d/1G8F_HxNLwxkBSZ9XAcnvtH9SQFBjtI6Wq_2Y6FEXLdQ/"
+              >
                 <PixelButton text="PITCH DECK" />
               </a>
             </div>

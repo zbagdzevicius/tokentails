@@ -1,20 +1,24 @@
-import { useProfile } from "@/context/ProfileContext";
-import { CloseButton } from "./CloseButton";
-import { PixelButton } from "./PixelButton";
-import { Countdown } from "./Countdown";
+import { QUEST_API } from "@/api/quest-api";
 import { getNextDayMidnight } from "@/constants/utils";
-import { PostFriendInvited } from "@/constants/telegram-api";
-import { GameModal } from "@/models/game";
+import { useProfile } from "@/context/ProfileContext";
+import { GameModal, GameType } from "@/models/game";
+import { ChainImg, ChainType } from "@/web3/contracts";
 import { useState } from "react";
-import { Tag } from "./Tag";
 import { Web3Mint } from "../web3/minting/Web3Mint";
 import { Web3Providers } from "../web3/Web3Providers";
-import { ChainImg, ChainType } from "@/web3/contracts";
+import { CloseButton } from "./CloseButton";
+import { Countdown } from "./Countdown";
+import { PixelButton } from "./PixelButton";
+import { Tag } from "./Tag";
+import { useToast } from "@/context/ToastContext";
+import { useGame } from "@/context/GameContext";
 
 export const InviteModalContent = () => {
   const { utils, shareUrl, profile, setProfileUpdate } = useProfile();
   const nextDayTargetDate = getNextDayMidnight();
   const [type, setType] = useState(GameModal.MYSTERY_BOX);
+  const toast = useToast();
+  const { setGameType } = useGame();
 
   const onInvite = () => {
     if (!profile?.canInviteFriend) {
@@ -22,7 +26,20 @@ export const InviteModalContent = () => {
     }
     utils?.shareURL(shareUrl!);
     setProfileUpdate({ canInviteFriend: false });
-    PostFriendInvited();
+    QUEST_API.friendInvited();
+  };
+
+  const onRedeem = async () => {
+    const result = await QUEST_API.redeemContest("zetachain");
+    if (result.success && result.cat) {
+      setProfileUpdate({
+        cats: [...(profile?.cats || []), result.cat],
+        cat: result.cat,
+        quests: [...(profile?.quests || []), "zetachain"],
+      });
+      toast({ message: "Congratz on your adopted cat !" });
+      setGameType(GameType.HOME);
+    }
   };
 
   return (
@@ -94,10 +111,7 @@ export const InviteModalContent = () => {
         <div className="flex justify-center items-center flex-col">
           <Tag isSmall>TIME LIMITED EVENT</Tag>
           <h2 className="text-center font-secondary uppercase text-p5 md:text-p4 mt-2">
-            Mint Free NFT on ZETACHAIN
-          </h2>
-          <h2 className="text-center font-secondary uppercase text-p5 md:text-p4">
-            Redeemal of NFT will be available starting February 15th
+            MINT AND REDEEM ON ZETACHAIN
           </h2>
           <img
             className="w-64 aspect-square rounded-2xl mt-2 mb-4"
@@ -107,10 +121,14 @@ export const InviteModalContent = () => {
             src={ChainImg[ChainType.ZETA]}
             className="w-8 aspect-square mb-8 rem:-mt-[72px]"
           />
-          <Countdown targetDate="2025-02-15" isDaysDisplayed></Countdown>
-          <Web3Providers>
-            <Web3Mint user={profile?._id!} />
-          </Web3Providers>
+          <Countdown targetDate="2025-03-01" isDaysDisplayed></Countdown>
+          {profile?.quests.includes("zetachain") ? (
+            <PixelButton text="REDEEMED" isDisabled></PixelButton>
+          ) : (
+            <Web3Providers>
+              <Web3Mint user={profile?._id!} ownedNFTCallback={onRedeem} />
+            </Web3Providers>
+          )}
         </div>
       )}
     </div>

@@ -39,7 +39,7 @@ export const GameModes = () => {
   return (
     <div className="container h-full flex flex-col items-center justify-center overflow-visible">
       <h2 className="font-secondary uppercase tracking-tight text-h3 md:text-h2 text-balance my-3">
-        Game Modes
+        ADOPT TO PLAY
       </h2>
       <h2 className="font-secondary uppercase tracking-tight text-p4 text-balance -mb-6 text-gray-700 opacity-50">
         EACH MODE IS FULL OF CATS

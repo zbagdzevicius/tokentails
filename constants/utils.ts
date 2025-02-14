@@ -140,22 +140,6 @@ export function fromNow(value: DateInput): { text: string; value?: number } {
 }
 
 export const getEntityType = (entity: any) => {
-  if (entity?.questions) {
-    return EntityType.QUIZ;
-  }
-  if (entity?.gif) {
-    return EntityType.VIDEO;
-  }
-  if (entity?.type === EntityType.VIDEO_SLIDER) {
-    return EntityType.VIDEO_SLIDER;
-  }
-  if (entity?.bgImage) {
-    return EntityType.GROUP;
-  }
-  if (entity?.user) {
-    return EntityType.PUBLICATION;
-  }
-
   return EntityType.ARTICLE;
 };
 

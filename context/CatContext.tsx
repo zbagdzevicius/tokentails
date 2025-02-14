@@ -1,4 +1,3 @@
-import { updateCatStatus } from "@/constants/api";
 import { ICat, ICatStatus } from "@/models/cats";
 import { IStatus, StatusType } from "@/models/status";
 import { useMutation } from "@tanstack/react-query";
@@ -6,6 +5,7 @@ import * as React from "react";
 import { useCallback } from "react";
 import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
+import { CAT_API } from "@/api/cat-api";
 
 type ContextState = {
   cat?: ICat | null;
@@ -41,7 +41,7 @@ const CatProvider = ({ children }: React.PropsWithChildren<{}>) => {
         throw Error("Not signed in");
       }
 
-      await updateCatStatus(cat._id!, params);
+      await CAT_API.update(cat._id!, params);
     },
     [cat]
   );

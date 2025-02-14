@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Countdown } from "./Countdown";
 
-import { getAddressTokens, getRaised } from "@/constants/api";
 import { randomObjectFromArray } from "@/constants/utils";
 import { useWeb3 } from "@/context/Web3Context";
 import { CurrencyType } from "@/web3/contracts";
 import dynamic from "next/dynamic";
 import { PixelButton } from "./PixelButton";
+import { ORDER_API } from "@/api/order-api";
 
 const PaymentInputSelect = dynamic(
   () => import("@/components/shared/PaymentInputSelect"),
@@ -147,11 +147,11 @@ export const PresaleCardContent = () => {
   }, [currencyType, finalTokenPrice, bnbRate, xlmRate, solRate, price]);
 
   useEffect(() => {
-    getRaised().then((value) => setCurrentFunds(value));
+    ORDER_API.raised().then((value) => setCurrentFunds(value));
   }, []);
   useEffect(() => {
     if (namespaceDetail.address) {
-      getAddressTokens(namespaceDetail.address).then((value) =>
+      ORDER_API.addressTokens(namespaceDetail.address).then((value) =>
         setBoughtTokens(parseFloat(value))
       );
     }
@@ -273,14 +273,12 @@ export const PresaleCardContent = () => {
         </div> */}
 
         <img
-              className="w-20 h-auto"
-              src={`/meme-cats/${randomObjectFromArray(
-                Object.values(memeCats)
-              )}`}
-            />
+          className="w-20 h-auto"
+          src={`/meme-cats/${randomObjectFromArray(Object.values(memeCats))}`}
+        />
         <div className="font-secondary flex items-center gap-1 bg-purple-300 px-3 rounded-full">
-              <div className="text-p5">You bought {boughtToken} $TAILS</div>
-            </div>
+          <div className="text-p5">You bought {boughtToken} $TAILS</div>
+        </div>
         {!isEndDateReached && (
           <div
             className="flex hover:brightness-110 relative items-center py-1 px-6 rounded-2xl mb-4 -mt-4 border-2 border-main-black"

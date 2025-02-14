@@ -1,16 +1,10 @@
-import {
-  entityMetadataFetch,
-  likePost,
-  saveDelete,
-  savePost,
-  unlikePost,
-} from "@/constants/api";
 import { ISave, ISaved } from "@/models/save";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import * as React from "react";
 import { useCallback, useState } from "react";
 import { ISavedMetadata } from "../models/save";
 import { useProfile } from "./ProfileContext";
+import { ARTICLE_API } from "@/api/article-api";
 
 type ContextState = {
   entityMetadata: Record<string, ISaved>;
@@ -45,7 +39,7 @@ const EntityMetadataProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   const { state, add, reset } = useStackState([]);
   const { profile } = useProfile();
-  const fetchMetadata = () => entityMetadataFetch(profile ? state : []);
+  const fetchMetadata = () => ARTICLE_API.getMetadata(profile ? state : []);
   const { data } = useQuery({
     queryKey: ["entity-metadata", state, profile],
     queryFn: fetchMetadata,
@@ -83,8 +77,6 @@ const getNewMetadataEntity = (
 
 function useEntityMetadata({ entity, type }: ISave): {
   likeToggle: () => void;
-  saveToggle: () => void;
-  unlikeToggle: () => void;
   getEntityMetadata: () => ISaved;
 } {
   const { profile } = useProfile();
@@ -117,48 +109,6 @@ function useEntityMetadata({ entity, type }: ISave): {
     });
   }, [entityMetadata, setEntityMetadata, entity, type]);
 
-  // UNLIKE
-  const unlikeToggleSave = useCallback(() => {
-    setEntityMetadata({
-      ...entityMetadata,
-      [entity]: getNewMetadataEntity(
-        { ...(entityMetadata[entity] || { entity, type }) },
-        { isUnliked: !entityMetadata[entity]?.isUnliked }
-      ),
-    });
-  }, [entityMetadata, setEntityMetadata, entity, type]);
-
-  const saveToggleSave = useCallback(() => {
-    setEntityMetadata({
-      ...entityMetadata,
-      [entity]: getNewMetadataEntity(
-        { ...(entityMetadata[entity] || { entity, type }) },
-        { isSaved: !entityMetadata[entity]?.isSaved }
-      ),
-    });
-  }, [entityMetadata, setEntityMetadata, entity, type]);
-
-  const saveToggleCall = useCallback(
-    async (params: ISave) => {
-      if (!profile) {
-        throw Error("Not signed in");
-      }
-
-      await (getEntityMetadata().isSaved
-        ? saveDelete(params)
-        : savePost(params));
-    },
-    [profile, getEntityMetadata]
-  );
-
-  // SAVE
-  const saveToggle = useMutation({
-    mutationFn: saveToggleCall,
-    onSuccess: () => {
-      saveToggleSave();
-    },
-  });
-
   const likeToggleCall = useCallback(
     async (params: ISave) => {
       if (!profile) {
@@ -167,7 +117,7 @@ function useEntityMetadata({ entity, type }: ISave): {
       if (getEntityMetadata().isLiked) {
         return {};
       }
-      return likePost(params);
+      return ARTICLE_API.like(params);
     },
     [profile, getEntityMetadata]
   );
@@ -178,29 +128,8 @@ function useEntityMetadata({ entity, type }: ISave): {
     },
   });
 
-  const unlikeToggleCall = useCallback(
-    async (params: ISave) => {
-      if (!profile) {
-        throw Error("Not signed in");
-      }
-      if (getEntityMetadata().isLiked) {
-        return {};
-      }
-      return unlikePost(params);
-    },
-    [profile, getEntityMetadata]
-  );
-  const unlikeToggle = useMutation({
-    mutationFn: unlikeToggleCall,
-    onSuccess: () => {
-      unlikeToggleSave();
-    },
-  });
-
   return {
     likeToggle: () => likeToggle.mutate({ entity, type }),
-    unlikeToggle: () => unlikeToggle.mutate({ entity, type }),
-    saveToggle: () => saveToggle.mutate({ entity, type }),
     getEntityMetadata: memoizedGetEntityMetadata,
   };
 }

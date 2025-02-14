@@ -94,11 +94,6 @@ export const GameAggregators = () => {
           </a>
         ))}
       </div>
-      <div className="absolute left-1/2 -translate-x-1/2 rem:-bottom-[52px] px-4">
-        <a href="https://www.cyberscope.io/audits/tails" target="_blank">
-          <PixelButton isSmall text="TOKEN AUDIT" />
-        </a>
-      </div>
     </div>
   );
 };

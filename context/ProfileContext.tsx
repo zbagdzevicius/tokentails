@@ -1,4 +1,4 @@
-import { getLeaderboardPosition } from "@/constants/api";
+import { USER_API } from "@/api/user-api";
 import { IProfile } from "@/models/profile";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
@@ -44,7 +44,7 @@ const ProfileProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   const { data: position } = useQuery({
     queryKey: ["profile-details", profile],
-    queryFn: () => (profile ? getLeaderboardPosition() : null),
+    queryFn: () => (profile ? USER_API.leaderboardPosition() : null),
   });
 
   const setProfileUpdate = (update: Partial<IProfile>) => {

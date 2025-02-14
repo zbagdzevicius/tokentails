@@ -1,8 +1,12 @@
-import { GameType } from "@/models/game";
-import { PixelButton } from "../shared/PixelButton";
 import { useCat } from "@/context/CatContext";
 import { useToast } from "@/context/ToastContext";
-import { Calendar } from "../shared/Calendar";
+import { GameType } from "@/models/game";
+import classNames from "classnames";
+import { useCallback } from "react";
+import { GameEvents } from "../Phaser/events";
+import { PixelButton } from "../shared/PixelButton";
+import { StatusBar } from "../shared/game/StatusBar";
+import { StatusType } from "@/models/status";
 
 interface IProps {
   gameType: GameType | null;
@@ -13,13 +17,18 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
   const { cat } = useCat();
   const toast = useToast();
 
+  const onFeedClick = useCallback(() => {
+    GameEvents.CAT_EAT.push();
+  }, []);
+
   return (
     <div
-      className={`fixed left-1/2 right-1/2 translate-x-[50%] z-[11] flex flex-col gap-2 items-center ${
-        gameType === GameType.SHELTER ? `top-4 pb-safe` : `top-4`
-      }`}
+      className={classNames("fixed left-1/2 right-1/2 translate-x-[50%] z-[11] flex flex-col gap-2 items-center pb-safe", {
+        "top-1/2 -translate-y-1/2 pt-48" : gameType === GameType.HOME,
+        "top-4" : gameType !== GameType.HOME,
+      })}
     >
-      {gameType && (
+      {gameType && cat && (cat.status.EAT || 0) >= 4 && (
         <PixelButton
           text="TO THE GAME ZONE →"
           active={cat?.status.EAT !== 4}
@@ -31,6 +40,20 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
             }
           }}
         />
+      )}
+      {gameType === GameType.HOME && cat && (cat.status.EAT || 0)< 4 && (
+        <div className="flex flex-col items-center gap-2">
+          <PixelButton text="Feed" onClick={onFeedClick} />
+
+          {cat && (
+                    <div className="w-36">
+                        <StatusBar
+                            status={cat.status[StatusType.EAT]!}
+                            type={StatusType.EAT}
+                        />
+                    </div>
+                )}
+          </div>
       )}
       {!gameType && (
         <>

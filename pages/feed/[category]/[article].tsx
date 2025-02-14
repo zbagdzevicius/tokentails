@@ -1,7 +1,7 @@
+import { ARTICLE_API } from "@/api/article-api";
 import { ArticleContainer } from "@/components/blog/feed/ArticleContainer";
 import { ArticleMicrodata } from "@/components/seo/ArticleMicrodata";
 import { SeoHead } from "@/components/seo/SeoHead";
-import { articleFetch } from "@/constants/api";
 import { getAppStaticProps } from "@/constants/props-functions";
 import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import BlogLayout from "@/layouts/BlogLayout";
@@ -38,7 +38,7 @@ export default function ArticlePage({ article, randomArticles }: Props) {
 }
 
 async function fetchProps(slug: string): Promise<Props> {
-  const singleArticle = await articleFetch(slug);
+  const singleArticle = await ARTICLE_API.articleFetch(slug);
 
   return singleArticle;
 }
@@ -47,12 +47,7 @@ export const getStaticProps = async (params: any) =>
   getAppStaticProps<Promise<Props>>(() => fetchProps(params.params.article));
 
 export async function getStaticPaths() {
-  // const slugs = await getArticlesSlugs();
-
   return {
-    // paths: slugs.map((slug) => ({
-    //     params: { category: slug.category, article: slug.slug },
-    // })),
     paths: [],
     fallback: "blocking",
   };

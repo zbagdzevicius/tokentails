@@ -1,4 +1,4 @@
-import { getLeaderboard } from "@/constants/api";
+import { USER_API } from "@/api/user-api";
 import { useProfile } from "@/context/ProfileContext";
 import { GameModal } from "@/models/game";
 import { useQuery } from "@tanstack/react-query";
@@ -26,7 +26,7 @@ export const LeaderboardContent = () => {
   const [type, setType] = useState(GameModal.LEADERBOARD);
   const { data } = useQuery({
     queryKey: ["leaderboard", type],
-    queryFn: () => getLeaderboard(type),
+    queryFn: () => USER_API.leaderboard(type),
   });
   const { position } = useProfile();
   return (

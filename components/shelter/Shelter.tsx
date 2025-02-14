@@ -1,14 +1,19 @@
+import { CAT_API } from "@/api/cat-api";
 import { useCat } from "@/context/CatContext";
-import { forwardRef, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { GameEvents, IPhaserGame } from "../Phaser/events";
-import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
-import { catsForSaleFetch } from "@/constants/api";
 import { useProfile } from "@/context/ProfileContext";
-import { CatType } from "@/models/cats";
+import { CatType, ICat } from "@/models/cats";
 import { useQuery } from "@tanstack/react-query";
-import { ICat } from "@/models/cats";
+import {
+  forwardRef,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { CatCardModal } from "../CatCardModal";
+import { GameEvents, IPhaserGame } from "../Phaser/events";
 import { Web3Providers } from "../web3/Web3Providers";
+import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
 interface IProps {
   currentActiveScene?: (scene_instance: Phaser.Scene) => void;
 }
@@ -67,17 +72,9 @@ function Shelter() {
   const [selectedNpc, setSelectedNpc] = useState<ICat | null>(null);
   const [showModal, setShowModal] = useState(false);
 
-  const { data: regularCats } = useQuery({
-    queryKey: ["regular-cats", profile?._id],
-    queryFn: () => catsForSaleFetch(CatType.REGULAR),
-  });
-  const { data: blessedCats } = useQuery({
-    queryKey: ["blessed-cats", profile?._id],
-    queryFn: () => catsForSaleFetch(CatType.BLESSED),
-  });
-  const { data: exclusiveCats } = useQuery({
-    queryKey: ["exclusive-cats", profile?._id],
-    queryFn: () => catsForSaleFetch(CatType.EXCLUSIVE),
+  const { data: catsForSale } = useQuery({
+    queryKey: ["cats-for-sale", profile?._id],
+    queryFn: () => CAT_API.catsForSale(),
   });
 
   const { cat } = useCat();
@@ -98,23 +95,19 @@ function Shelter() {
   };
 
   useEffect(() => {
-    if (!hasSpawnedNpc && isGameLoaded?.scene && regularCats && blessedCats && exclusiveCats) {
-      const randomRegularNpcs = getRandomCats(regularCats, 7);
-      const randomBlessedNpcs = getRandomCats(blessedCats, 7);
-      const randomExclusiveNpcs = getRandomCats(exclusiveCats, 7);
+    if (!hasSpawnedNpc && isGameLoaded?.scene && catsForSale) {
+      const randomRegularNpcs = catsForSale.tokentails;
+      const randomBlessedNpcs = catsForSale["rozine-pedute"];
 
-      randomRegularNpcs.forEach((npcCatRegular) => {
+      randomRegularNpcs?.forEach((npcCatRegular) => {
         GameEvents.NPC_SPAWN_REGULAR.push({ npc: npcCatRegular });
       });
-      randomBlessedNpcs.forEach((npcCatBlessed) => {
+      randomBlessedNpcs?.forEach((npcCatBlessed) => {
         GameEvents.NPC_SPAWN_BLESSED.push({ npc: npcCatBlessed });
-      });
-      randomExclusiveNpcs.forEach((npcCatExclusive) => {
-        GameEvents.NPC_SPAWN_EXCLUSIVE.push({ npc: npcCatExclusive });
       });
       setHasSpawnedNpc(true);
     }
-  }, [regularCats, blessedCats, exclusiveCats, isGameLoaded, hasSpawnedNpc]);
+  }, [catsForSale, isGameLoaded, hasSpawnedNpc]);
 
   GameEvents.CAT_CARD_DISPLAY.use((event) => {
     if (event) {
@@ -133,7 +126,6 @@ function Shelter() {
             onClick={() => setShowModal(false)}
           ></div>
           <div className="absolute top-1/2">
-
             <Web3Providers>
               <CatCardModal
                 {...selectedNpc}

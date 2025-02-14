@@ -1,4 +1,4 @@
-import { FEED_OPTION } from "@/constants/api";
+import { FEED_OPTION } from "@/api/routing";
 import classnames from "classnames";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -28,7 +28,7 @@ export const SidebarItem = ({
       href={href || "/"}
       onClick={onClick}
       className={classnames(
-        "flex items-center overflow-hidden space-x-2 rem:h-[52px] rounded-md hover:bg-purple-300 rounded-lg transition-all",
+        "flex items-center overflow-hidden space-x-2 rem:h-[52px] hover:bg-purple-300 rounded-lg transition-all",
         {
           "bg-gray-200": isActive,
           [className || ""]: className,
