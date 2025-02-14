@@ -31,11 +31,11 @@
             "scaleInDock": 1
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.json": {
-            "scale": 0.33,
-            "selectedLayer": 3,
+            "scale": 1,
+            "selectedLayer": 2,
             "viewCenter": {
-                "x": -83.33333333333326,
-                "y": -493.939393939394
+                "x": 100.5,
+                "y": -385
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.json#blocks": {
@@ -59,11 +59,11 @@
             "scaleInDock": 1
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON": {
-            "scale": 0.75,
+            "scale": 1.5,
             "selectedLayer": 2,
             "viewCenter": {
-                "x": -692.6666666666666,
-                "y": -241.33333333333326
+                "x": 1240.3333333333333,
+                "y": -200.66666666666663
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON#blocks": {
@@ -126,8 +126,8 @@
             "scale": 0.25,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": -294,
-                "y": -816
+                "x": -298,
+                "y": -824
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/shelter.json#blocks": {
@@ -146,11 +146,11 @@
             "scaleInEditor": 1
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/story.json": {
-            "scale": 2,
+            "scale": 0.125,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": -336.75,
-                "y": -779
+                "x": -2060,
+                "y": 496
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/story.json#blocks": {
@@ -166,6 +166,17 @@
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/untitled.tmj#new-blocks-winter": {
             "scaleInDock": 0.75
+        },
+        "C:/Users/ernes/Desktop/untitled.tmj": {
+            "scale": 1,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": -0.5,
+                "y": -2
+            }
+        },
+        "C:/Users/ernes/Desktop/untitled.tmj#winter-packed": {
+            "scaleInDock": 1
         },
         "C:/Users/ernes/Downloads/kenney_pixel-platformer (3)/Tiled/tilemap-example-a.tmx": {
             "scale": 1.7802350427350426,
@@ -222,8 +233,8 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.66666666666669,
-                "y": 190.66666666666669
+                "x": 190.33333333333334,
+                "y": 188.66666666666669
             }
         },
         "blocked/blocked0.json#blocks-original": {
@@ -231,10 +242,10 @@
         },
         "blocked/blocked1.json": {
             "scale": 2.206770833333333,
-            "selectedLayer": 0,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 190.54991739438285,
-                "y": 189.8701911729998
+                "x": 189.6436157658721,
+                "y": 188.05758791597827
             }
         },
         "blocked/blocked1.json#blocks-original": {
@@ -244,8 +255,8 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 155,
-                "y": 246.66666666666669
+                "x": 153.66666666666669,
+                "y": 241.3333333333333
             }
         },
         "blocked/blocked10.json#blocks-original": {
@@ -255,8 +266,8 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 150.33333333333334,
-                "y": 144
+                "x": 149.66666666666669,
+                "y": 140
             }
         },
         "blocked/blocked11.json#blocks-original": {
@@ -266,41 +277,41 @@
             "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 118.5,
-                "y": 185
+                "x": 114.5,
+                "y": 177
             }
         },
         "blocked/blocked12.json#blocks-original": {
             "scaleInDock": 1
         },
         "blocked/blocked13.json": {
-            "scale": 1,
+            "scale": 2,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 99.5,
-                "y": 245
+                "x": 197.75,
+                "y": 185
             }
         },
         "blocked/blocked13.json#blocks-original": {
             "scaleInDock": 1
         },
         "blocked/blocked14.json": {
-            "scale": 2.169661458333333,
-            "selectedLayer": 0,
+            "scale": 1.5,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 156.4760247254396,
-                "y": 301.89041589149616
+                "x": 143.66666666666669,
+                "y": 192.66666666666669
             }
         },
         "blocked/blocked14.json#blocks-original": {
             "scaleInDock": 1
         },
         "blocked/blocked15.json": {
-            "scale": 2.169661458333333,
+            "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 156.4760247254396,
-                "y": 123.52157474644424
+                "x": 147,
+                "y": 279.33333333333326
             }
         },
         "blocked/blocked15.json#blocks-original": {
@@ -308,21 +319,21 @@
         },
         "blocked/blocked16.json": {
             "scale": 1,
-            "selectedLayer": 0,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 50.5,
-                "y": 136
+                "x": 130.5,
+                "y": 239
             }
         },
         "blocked/blocked16.json#blocks-original": {
             "scaleInDock": 1
         },
         "blocked/blocked17.json": {
-            "scale": 2.169661458333333,
-            "selectedLayer": 0,
+            "scale": 1,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 156.4760247254396,
-                "y": 123.52157474644424
+                "x": 198.5,
+                "y": 118
             }
         },
         "blocked/blocked17.json#blocks-original": {
@@ -330,10 +341,10 @@
         },
         "blocked/blocked18.json": {
             "scale": 2,
-            "selectedLayer": 0,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 155.75,
-                "y": 184.5
+                "x": 177.75,
+                "y": 180.5
             }
         },
         "blocked/blocked18.json#blocks-original": {
@@ -343,8 +354,8 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 155,
-                "y": 122
+                "x": 153.66666666666669,
+                "y": 116.66666666666669
             }
         },
         "blocked/blocked2.json#blocks-original": {
@@ -354,19 +365,19 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 187.33333333333331,
-                "y": 187.33333333333331
+                "x": 187,
+                "y": 186
             }
         },
         "blocked/blocked4.json#blocks-original": {
             "scaleInDock": 1
         },
         "blocked/blocked5.json": {
-            "scale": 2.169661458333333,
-            "selectedLayer": 0,
+            "scale": 1,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 156.4760247254396,
-                "y": 123.52157474644424
+                "x": 279.5,
+                "y": 349
             }
         },
         "blocked/blocked5.json#blocks-original": {
@@ -376,8 +387,8 @@
             "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 151.5,
-                "y": 152
+                "x": 147.5,
+                "y": 144
             }
         },
         "blocked/blocked6.json#blocks-original": {
@@ -387,19 +398,19 @@
             "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 148.5,
-                "y": 199
+                "x": 147.5,
+                "y": 197
             }
         },
         "blocked/blocked7.json#blocks-original": {
             "scaleInDock": 1
         },
         "blocked/blocked8.json": {
-            "scale": 2.169661458333333,
+            "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 156.4760247254396,
-                "y": 123.52157474644424
+                "x": -23.5,
+                "y": 176
             }
         },
         "blocked/blocked8.json#blocks-original": {
@@ -418,10 +429,10 @@
         },
         "exit/exit.json": {
             "scale": 2,
-            "selectedLayer": 0,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 192.75,
-                "y": 185.5
+                "x": 192.25,
+                "y": 184.5
             }
         },
         "exit/exit.json#blocks-original": {
@@ -429,10 +440,10 @@
         },
         "spawn/start.json": {
             "scale": 2,
-            "selectedLayer": 0,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 172.25,
-                "y": 213.5
+                "x": 170.75,
+                "y": 211
             }
         },
         "spawn/start.json#blocks-original": {
@@ -442,19 +453,19 @@
             "scale": 2,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 191.75,
-                "y": 191.75
+                "x": 190.75,
+                "y": 201.5
             }
         },
         "without/without.json#blocks-original": {
             "scaleInDock": 1
         },
         "without/without1.json": {
-            "scale": 2.169661458333333,
-            "selectedLayer": 1,
+            "scale": 0.75,
+            "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 307.33333333333337,
+                "y": 421.33333333333337
             }
         },
         "without/without1.json#blocks-original": {
@@ -464,8 +475,8 @@
             "scale": 2.169661458333333,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.04362959851167,
-                "y": 191.2740802976655
+                "x": 190.5827282002041,
+                "y": 188.50867190781972
             }
         },
         "without/without10.json#blocks-original": {
@@ -494,77 +505,77 @@
             "scaleInDock": 1
         },
         "without/without2.json": {
-            "scale": 2.169661458333333,
-            "selectedLayer": 1,
+            "scale": 0.75,
+            "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 216.66666666666669,
+                "y": 473.33333333333337
             }
         },
         "without/without2.json#blocks-original": {
             "scaleInDock": 1
         },
         "without/without3.json": {
-            "scale": 2.169661458333333,
-            "selectedLayer": 1,
+            "scale": 0.75,
+            "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 240.66666666666669,
+                "y": 216
             }
         },
         "without/without3.json#blocks-original": {
             "scaleInDock": 1
         },
         "without/without4.json": {
-            "scale": 2.169661458333333,
+            "scale": 1,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 265.5,
+                "y": 218
             }
         },
         "without/without4.json#blocks-original": {
             "scaleInDock": 1
         },
         "without/without5.json": {
-            "scale": 2.169661458333333,
-            "selectedLayer": 1,
+            "scale": 1,
+            "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 136.5,
+                "y": 290
             }
         },
         "without/without5.json#blocks-original": {
             "scaleInDock": 1
         },
         "without/without6.json": {
-            "scale": 2.169661458333333,
+            "scale": 1,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 287.5,
+                "y": 204
             }
         },
         "without/without6.json#blocks-original": {
             "scaleInDock": 1
         },
         "without/without7.json": {
-            "scale": 2.169661458333333,
-            "selectedLayer": 1,
+            "scale": 0.75,
+            "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 386,
+                "y": 353.33333333333337
             }
         },
         "without/without7.json#blocks-original": {
             "scaleInDock": 1
         },
         "without/without8.json": {
-            "scale": 2.169661458333333,
+            "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 142.33333333333334,
+                "y": 214.66666666666669
             }
         },
         "without/without8.json#blocks-original": {
@@ -572,10 +583,10 @@
         },
         "without/without9.json": {
             "scale": 2.169661458333333,
-            "selectedLayer": 0,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 190.5827282002041,
+                "y": 185.74326351797396
             }
         },
         "without/without9.json#blocks-original": {
@@ -605,7 +616,6 @@
     ],
     "project": "untitled.tiled-project",
     "recentFiles": [
-        "without/without.json",
         "without/without1.json",
         "without/without2.json",
         "without/without3.json",
@@ -616,7 +626,8 @@
         "without/without8.json",
         "without/without9.json",
         "without/without10.json",
-        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/shelter.json"
+        "blocked/blocked1.json",
+        "blocked/blocked2.json"
     ],
     "tileset.embedInMap": true,
     "tileset.margin": 0,

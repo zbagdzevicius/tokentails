@@ -86,13 +86,13 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
               src="/game/select/shelter-wide.jpg"
             />
           </div>
-          <div className="flex min-w-0">
+          {/* <div className="flex min-w-0">
             <img
               onClick={() => setGameType(GameType.STORYMODE)}
               className="rem:min-w-[200px] md:rem:min-w-[400px] h-full hover:brightness-110 rounded-xl hover:animate-hover"
               src="/game/select/shelter-wide.jpg"
             />
-          </div>
+          </div> */}
         </>
       )}
     </div>

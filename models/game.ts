@@ -14,7 +14,7 @@ export enum GameType {
   HOME = "HOME",
   PURRQUEST = "PURRQUEST",
   CATBASSADORS = "CATBASSADORS",
-  STORYMODE = "STORYMODE",
+  // STORYMODE = "STORYMODE",
 }
 
 export const endScenePeriod = 500;

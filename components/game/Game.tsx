@@ -34,7 +34,7 @@ export const Game = () => {
       {gameType === GameType.HOME && profile && <Base />}
       {gameType === GameType.SHELTER && profile && <Adopt />}
       {gameType === GameType.PURRQUEST && profile && <PurrQuest />}
-      {gameType === GameType.STORYMODE && profile && <Story />}
+      {/* {gameType === GameType.STORYMODE && profile && <Story />} */}
     </div>
   );
 };

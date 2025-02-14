@@ -60,21 +60,21 @@ export class Room {
     for (let j = 0; j < this.rows; j++) {
       if (!directions.west) {
         if (j === 0) {
-          this.roomData[0][j][0] = 8; // Start tile at the west, index 0
+          this.roomData[0][j][0] = 31; // Start tile at the west, index 0
         } else if (j === this.rows - 1) {
-          this.roomData[0][j][0] = 66; // End tile at the west, last row
+          this.roomData[0][j][0] = 91; // End tile at the west, last row
         } else {
-          this.roomData[0][j][0] = 37; // West side middle tiles
+          this.roomData[0][j][0] = 61; // West side middle tiles
         }
       }
 
       if (!directions.east) {
         if (j === 0) {
-          this.roomData[0][j][this.cols - 1] = 8; // Start tile at the east, index 0
+          this.roomData[0][j][this.cols - 1] = 31; // Start tile at the east, index 0
         } else if (j === this.rows - 1) {
-          this.roomData[0][j][this.cols - 1] = 66; // End tile at the east, last row
+          this.roomData[0][j][this.cols - 1] = 91; // End tile at the east, last row
         } else {
-          this.roomData[0][j][this.cols - 1] = 37; // East side middle tiles
+          this.roomData[0][j][this.cols - 1] = 61; // East side middle tiles
         }
       }
     }
@@ -101,7 +101,7 @@ export class Room {
         const cells = layerData[row].split(",");
         for (let col = 0; col < cells.length; col++) {
           const value = parseInt(cells[col]);
-          if (value >= 1 && value <= 300) {
+          if (value >= 1 && value <= 500) {
             this.roomData[layerIndex][row + offsetY][col + offsetX] = value;
           }
         }

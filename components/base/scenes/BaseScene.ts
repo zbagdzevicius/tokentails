@@ -40,16 +40,16 @@ export class BaseScene extends Scene {
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.audio("eat", "purrquest/sounds/eat.mp3");
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
-    this.load.tilemapTiledJSON("tilemap", "base/base.json");
-    this.load.image("blocks", "base/blocks-winter.png");
+    this.load.tilemapTiledJSON("tilemap", "catbassadors/catbassadors.json");
+    this.load.image("new-blocks-winter", "base/winter.png");
   }
 
   create() {
     this.tilemap = this.make.tilemap({ key: "tilemap" });
 
     const sugarTileset = this.tilemap.addTilesetImage(
-      "blocks",
-      "blocks",
+      "new-blocks-winter",
+      "new-blocks-winter",
       32,
       32,
       1,

@@ -1,8 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 
-const blockedDir = "../public/purrquest2/levels/blocked";
-const outputDir = "../public/purrquest2/levels/blocked";
+const blockedDir = "../public/purrquest2/levels/spawn";
+const outputDir = "../public/purrquest2/levels/spawn";
 
 function updateImageInJSON(inputDir) {
   const files = fs.readdirSync(inputDir);
@@ -14,7 +14,7 @@ function updateImageInJSON(inputDir) {
 
     // Ensure parsedData has the expected structure before modifying
     if (parsedData.tilesets && parsedData.tilesets[0]) {
-      parsedData.tilesets[0].image = "../../../base/blocks-original.png";
+      parsedData.tilesets[0].image = "../../../base/winter-packed.png";
 
       const outputFilePath = path.join(outputDir, file);
       fs.writeFileSync(

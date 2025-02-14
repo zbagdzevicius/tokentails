@@ -252,7 +252,7 @@ export class ShelterScene extends Scene {
     if (isCatChanged) {
       this.cat = undefined;
       this.catDto = cat;
-      this.scene.restart({ cat, isRestart: true });
+      // this.scene.restart({ cat, isRestart: true });
       return;
     }
 
