@@ -23,8 +23,8 @@ const navConsts: navProps[] = [
     link: "/#airdrop",
   },
   {
-    title: "CATS",
-    link: "/#cats",
+    title: "TEAM",
+    link: "/#contact",
   },
 ];
 
@@ -122,8 +122,8 @@ export const Header = () => {
               />
             )}
           </div>
-          <a href="/#cards">
-            <PixelButton text="CATS" isBig></PixelButton>
+          <a href="/#cats">
+            <PixelButton text="SAVE A CAT" isBig></PixelButton>
           </a>
         </div>
       </div>

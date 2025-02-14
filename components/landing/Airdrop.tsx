@@ -6,7 +6,7 @@ export const Airdrop = () => {
       <div className="flex justify-center items-center gap-4 mb-8">
         <img src="/logo/paw.png" className="w-14" />
         <h2 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl text-cyan-900">
-          AIRDROP
+          REWARDS
         </h2>
         <img src="/logo/coin.webp" className="w-14" />
       </div>
@@ -36,15 +36,15 @@ export const Airdrop = () => {
               <div className="">JOINED TELEGRAM</div>
             </a>
             <li className="flex items-center gap-2 justify-center">
+              <img className="w-8 lg:w-16" src="/logo/rocket.png" />
+              <div className="text-nowrap">REACHED 30 DAYS STREAK</div>
+            </li>
+            <li className="flex items-center gap-2 justify-center">
               <img
                 className="w-8 lg:w-16"
                 src="/images/cats-slider/joy-cat.webp"
               />
-              <div className="">OWNED 3+ NFT CATS</div>
-            </li>
-            <li className="flex items-center gap-2 justify-center">
-              <img className="w-8 lg:w-16" src="/logo/rocket.png" />
-              <div className="text-nowrap">REACHED 30 DAYS STREAK</div>
+              <div className="">SAVED A CAT BY ADOPTING NFT</div>
             </li>
             <li className="flex items-center gap-2 justify-center">
               <img
@@ -52,12 +52,13 @@ export const Airdrop = () => {
                 src="/images/cats-slider/coin-cat.webp"
               />
               <div className="md:text-nowrap">
-                GOT 10k COINS IN CATBASSADORS
+                COLLECTED AND SPENT 100k COINS
               </div>
             </li>
             <li className="flex items-center gap-2 text-p5 sm:text-p4 text-center justify-center">
               <div className="sm:text-nowrap">
-                $TAILS AIRDROP AMOUNT WILL BE BASED ON GAME AND SOCIAL ACTIVITY
+                TOTAL $TAILS REWARDS POOL IS $500k USD - SAVE A CAT AND START
+                EARNING
               </div>
             </li>
           </ul>

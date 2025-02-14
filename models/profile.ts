@@ -30,7 +30,7 @@ export interface IProfile {
   catbassadorsLives: number;
   adventDayRedeemed: number;
   referrals: string[];
-  quests: QUEST[];
+  quests: (QUEST | string)[];
   advent: number;
-  gifts: number
+  gifts: number;
 }

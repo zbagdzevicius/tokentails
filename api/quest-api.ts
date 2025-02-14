@@ -1,5 +1,7 @@
 import { QUEST } from "@/components/shared/QuestsModal";
 import { waitForLocalStorageKey, apiUrl, getAuthHeaders } from "./api";
+import { IQuest } from "@/models/quest";
+import { ICat } from "@/models/cats";
 
 const friendInvited = async (): Promise<object> => {
   await waitForLocalStorageKey();
@@ -59,10 +61,10 @@ const setReferralWeb = async (profileId: string): Promise<object> => {
 };
 
 const complete = async (
-  quest: QUEST
+  quest: QUEST | string
 ): Promise<{ message: string; success?: boolean }> => {
   await waitForLocalStorageKey();
-  return fetch(`${apiUrl}/user/catbassadors/quest/${quest}`, {
+  return fetch(`${apiUrl}/quest/complete/${quest}`, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -79,9 +81,52 @@ const complete = async (
   });
 };
 
+const redeemContest = async (
+  contest: string
+): Promise<{ message: string; success?: boolean; cat: ICat }> => {
+  await waitForLocalStorageKey();
+  return fetch(`${apiUrl}/quest/contest/${contest}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return { message: "Please try again later", success: false };
+  });
+};
+
+const find = async (): Promise<IQuest[]> => {
+  await waitForLocalStorageKey();
+  return fetch(`${apiUrl}/quest/search`, {
+    method: "POST",
+    body: JSON.stringify({}),
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return null;
+  });
+};
+
 export const QUEST_API = {
   friendInvited,
   setReferralTelegram,
   setReferralWeb,
   complete,
+  redeemContest,
+  find,
 };

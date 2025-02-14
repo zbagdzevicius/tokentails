@@ -1,8 +1,6 @@
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { ChangeEvent, useState } from "react";
 
-const features = ["Meowgical cats", "Purrfect gameplay", "Pawtastic"];
-
 const SignInForm = ({
   signIn,
 }: {
@@ -63,7 +61,9 @@ export const SignInContent = () => {
       <img className="w-16 m-auto mb-2" src="/logo/logo.webp" />
       {!user && (
         <div className="flex flex-col">
-          <div className="text-center font-pixel text-p2 pb-2">WELCOME TO TOKEN TAILS</div>
+          <div className="text-center font-pixel text-p2 pb-2">
+            WELCOME TO TOKEN TAILS
+          </div>
           <button
             onClick={() => signIn("google")}
             className="group w-fit m-auto h-12 px-6 rounded-full mb-4 bg-yellow-300 hover:brightness-105"
@@ -94,14 +94,28 @@ export const SignInContent = () => {
             </div>
           </button>
 
-          <div className="my-2 text-center text-p3 font-bold font-pixel">OR</div>
+          <div className="my-2 text-center text-p3 font-bold font-pixel">
+            OR
+          </div>
           <SignInForm signIn={signIn} />
         </div>
       )}
-      <img className="absolute bottom-0 right-2 h-8" src="/meme-cats/meme-23.gif" />
-      <img className="absolute bottom-0 left-2 h-8" src="/meme-cats/meme-1.gif" />
-      <img className="absolute top-2 left-2 h-12" src="/meme-cats/meme-46.gif" />
-      <img className="absolute top-0 right-2 h-16" src="/meme-cats/meme-40.gif" />
+      <img
+        className="absolute bottom-0 right-2 h-8"
+        src="/meme-cats/meme-23.gif"
+      />
+      <img
+        className="absolute bottom-0 left-2 h-8"
+        src="/meme-cats/meme-1.gif"
+      />
+      <img
+        className="absolute top-2 left-2 h-12"
+        src="/meme-cats/meme-46.gif"
+      />
+      <img
+        className="absolute top-0 right-2 h-16"
+        src="/meme-cats/meme-40.gif"
+      />
     </div>
   );
 };

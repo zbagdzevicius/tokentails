@@ -9,6 +9,7 @@ import { zetachainMysteryBoxAddress } from "@/web3/web3.model";
 import { useAppKit } from "@reown/appkit/react";
 import { useEffect, useMemo, useState } from "react";
 import {
+  useReadContract,
   useSwitchChain,
   useWaitForTransactionReceipt,
   useWriteContract,
@@ -17,6 +18,12 @@ import {
 interface IProps {
   entityType: EntityType;
   user?: string;
+}
+
+interface NFT {
+  tokenId: number;
+  tokenURI: string;
+  owner: string;
 }
 
 export const useWeb3Minting = ({ entityType, user }: IProps) => {
@@ -35,7 +42,6 @@ export const useWeb3Minting = ({ entityType, user }: IProps) => {
   } = useWriteContract();
   const [isStellarPending, setIsStellarPending] = useState(false);
   const [isSolanaPending, setIsSolanaPending] = useState(false);
-
   const {
     isLoading: isTaxLoading,
     isSuccess: isTaxConfirmed,
@@ -43,6 +49,8 @@ export const useWeb3Minting = ({ entityType, user }: IProps) => {
   } = useWaitForTransactionReceipt({
     hash,
   });
+  const [userNfts, setUserNfts] = useState<NFT[]>([]);
+  const [isLoadingNFTs, setIsLoadingNFTs] = useState(false);
 
   const isLoading = useMemo(
     () => isPending || isStellarPending || isTaxLoading || isSolanaPending,
@@ -123,10 +131,18 @@ export const useWeb3Minting = ({ entityType, user }: IProps) => {
     }
   };
 
+  const { data: userNFTsCount } = useReadContract({
+    abi: abiERC721,
+    address: zetachainMysteryBoxAddress,
+    functionName: "balanceOf",
+    args: evmAddress ? [evmAddress] : undefined,
+  });
+
   return {
     isLoading,
     namespaceDetail,
     connectWallet,
     mint,
+    userNFTsCount,
   };
 };

@@ -7,13 +7,15 @@ import { useWeb3Minting } from "./useWeb3Minting";
 
 interface Web3TransferProps {
   user?: string;
+  ownedNFTCallback?: () => void;
 }
 
-export const Web3Mint = ({ user }: Web3TransferProps) => {
-  const { namespaceDetail, connectWallet, mint, isLoading } = useWeb3Minting({
-    entityType: EntityType.MYSTERY_BOX,
-    user,
-  });
+export const Web3Mint = ({ user, ownedNFTCallback }: Web3TransferProps) => {
+  const { namespaceDetail, connectWallet, mint, isLoading, userNFTsCount } =
+    useWeb3Minting({
+      entityType: EntityType.MYSTERY_BOX,
+      user,
+    });
   const address = useMemo(() => {
     if (!namespaceDetail?.connected) {
       return "CONNECT";
@@ -38,8 +40,12 @@ export const Web3Mint = ({ user }: Web3TransferProps) => {
           <PixelButton
             isWidthFull
             isBig
-            text={"Mint Now"}
-            onClick={() => mint()}
+            text={
+              ownedNFTCallback && (userNFTsCount as bigint) > 0
+                ? "Redeem Now"
+                : "Mint Now"
+            }
+            onClick={() => (ownedNFTCallback ? ownedNFTCallback() : mint())}
           ></PixelButton>
           {address && (
             <PixelButton
