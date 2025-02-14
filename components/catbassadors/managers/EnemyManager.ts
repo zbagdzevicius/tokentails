@@ -54,6 +54,8 @@ export class EnemyManager {
     yMax: 0,
   };
 
+  private isGravityReversed: boolean = false;
+
   constructor(config: IEnemyManagerConfig) {
     this.scene = config.scene as CatbassadorsScene;
     this.cat = config.cat;
@@ -318,6 +320,26 @@ export class EnemyManager {
       this.bossEnemy.destroy();
       this.bossEnemy = undefined;
       this.isBossSpawned = false;
+    }
+  }
+
+  setGravityReversed(reversed: boolean) {
+    this.isGravityReversed = reversed;
+
+    // Apply to regular enemies
+    this.enemies.forEach((enemy) => {
+      const gravity = reversed ? -1000 : 1000;
+      if (enemy.body instanceof Phaser.Physics.Arcade.Body) {
+        enemy.body.setGravityY(gravity);
+        enemy.setFlipY(reversed); // Flip the sprite vertically
+      }
+    });
+
+    // Apply to boss
+    if (this.bossEnemy?.body instanceof Phaser.Physics.Arcade.Body) {
+      const gravity = reversed ? -1000 : 1000;
+      this.bossEnemy.body.setGravityY(gravity);
+      this.bossEnemy.setFlipY(reversed); // Flip the boss sprite vertically
     }
   }
 }

@@ -59,7 +59,7 @@ export type ICatAnimationKeysMap = Record<BossAnimation, IBossAnimationKey>;
 
 export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
   private health: number;
-  private hitCount: number; 
+  private hitCount: number;
   private hitsToKnockDown: number = 10;
   public isKnockedDown: boolean = false;
   private knockdownDuration: number = 3000;
@@ -74,6 +74,7 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
   private targetY: number | null = null;
   private fightMode: boolean = false;
   private ultimateJumpCooldown: number;
+  private isGravityReversed: boolean = false;
   constructor(
     scene: Phaser.Scene,
     x: number,
@@ -116,9 +117,10 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   public update(time: number, delta: number): void {
-     if (!this.body || this.isKnockedDown) {
-    this.setVelocity(0, 0); 
-    return;}
+    if (!this.body || this.isKnockedDown) {
+      this.setVelocity(0, 0);
+      return;
+    }
     if (this.ultimateCooldown > 0) {
       this.ultimateCooldown -= delta;
     }
@@ -299,13 +301,15 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
     }
   }
   private performRegularJump() {
-    this.setVelocityY(-300);
+    const jumpVelocity = this.isGravityReversed ? 300 : -300;
+    this.setVelocityY(jumpVelocity);
     this.play(BossAnimation.MELEE_ATTACK_PREPARE, true);
   }
 
   private performUltimateJump() {
     this.isUltimateAttacking = true;
-    this.setVelocityY(-1000);
+    const jumpVelocity = this.isGravityReversed ? 1000 : -1000;
+    this.setVelocityY(jumpVelocity);
 
     this.play(BossAnimation.MELEE_ATTACK_ULTIMATE, true);
     this.scene.time.delayedCall(1000, () => {
@@ -330,22 +334,21 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
- public takeDamage() {
+  public takeDamage() {
     if (this.isKnockedDown) return;
-    this.hitCount++; 
+    this.hitCount++;
     this.play(BossAnimation.DAMAGED, true);
 
     if (this.hitCount >= this.hitsToKnockDown) {
       this.knockDown();
       this.hitCount = 0;
     }
- 
   }
 
-   private knockDown() {
+  private knockDown() {
     this.isKnockedDown = true;
-    this.play(BossAnimation.DAMAGED2, true); 
-    this.setVelocity(0,400);
+    this.play(BossAnimation.DAMAGED2, true);
+    this.setVelocity(0, 400);
 
     this.scene.time.delayedCall(this.knockdownDuration, () => {
       this.isKnockedDown = false;

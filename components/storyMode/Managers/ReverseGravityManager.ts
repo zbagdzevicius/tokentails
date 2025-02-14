@@ -46,10 +46,14 @@ export class ReverseGravityManager {
         body.allowGravity = false;
 
         this.scene.physics.add.overlap(this.player.sprite, zone, () => {
-          // Set gravity based on tile type
-          this.player.movement.setGravityReversed(
-            tile.index === this.reverseGravityTile
-          );
+          const isReversed = tile.index === this.reverseGravityTile;
+          // Set gravity for player
+          this.player.movement.setGravityReversed(isReversed);
+
+          // Set gravity for enemies through EnemyManager if it exists
+          if ((this.scene as any).enemyManager) {
+            (this.scene as any).enemyManager.setGravityReversed(isReversed);
+          }
         });
 
         this.zones.push(zone);

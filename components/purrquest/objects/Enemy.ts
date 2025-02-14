@@ -33,6 +33,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private speedRange: { min: number; max: number };
   private canUltimateJump: boolean = false;
   public isKnockedDown: boolean = false;
+  private isGravityReversed: boolean = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, texture: string) {
     super(scene, x, y, texture);
@@ -58,7 +59,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     });
 
     scene.time.addEvent({
-      delay: Phaser.Math.Between(this.ultimateJumpDelay.min, this.ultimateJumpDelay.max),
+      delay: Phaser.Math.Between(
+        this.ultimateJumpDelay.min,
+        this.ultimateJumpDelay.max
+      ),
       callback: () => {
         this.resetUltimateJump();
         this.ultimateJump();
@@ -69,24 +73,26 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   private createAnimations() {
-    enemyAnimationConfigurations.forEach(({ key, startFrame, endFrame, frameRate, repeat }) => {
-      this.anims.create({
-        key,
-        frames: this.anims.generateFrameNumbers(this.texture.key, {
-          start: startFrame,
-          end: endFrame,
-        }),
-        frameRate,
-        repeat,
-      });
-    });
+    enemyAnimationConfigurations.forEach(
+      ({ key, startFrame, endFrame, frameRate, repeat }) => {
+        this.anims.create({
+          key,
+          frames: this.anims.generateFrameNumbers(this.texture.key, {
+            start: startFrame,
+            end: endFrame,
+          }),
+          frameRate,
+          repeat,
+        });
+      }
+    );
   }
 
   public update(time: number, delta: number): void {
     if (!this.body) return;
 
     if (this.isKnockedDown) {
-      this.setVelocity(0,300)
+      this.setVelocity(0, 300);
       return;
     }
 
@@ -128,7 +134,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private maybeChangeMovement() {
     if (this.collisionCount >= 5) {
       this.direction = Math.random() > 0.5 ? 1 : -1;
-      this.speed = Phaser.Math.Between(this.speedRange.min, this.speedRange.max);
+      this.speed = Phaser.Math.Between(
+        this.speedRange.min,
+        this.speedRange.max
+      );
       this.collisionCount = 0;
     }
   }
@@ -139,7 +148,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     }
 
     if (Math.random() < 0.4) {
-      this.setVelocityY(-300);
+      const jumpVelocity = this.isGravityReversed ? 300 : -300;
+      this.setVelocityY(jumpVelocity);
       this.isJumping = true;
       this.play(EnemyAnimation.JUMP, true);
     }
@@ -148,7 +158,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private ultimateJump() {
     if (!this.body || !this.body.blocked.down || !this.canUltimateJump) return;
 
-    this.setVelocityY(-1000);
+    const jumpVelocity = this.isGravityReversed ? 1000 : -1000;
+    this.setVelocityY(jumpVelocity);
     this.isJumping = true;
     this.play(EnemyAnimation.JUMP, true);
     this.canUltimateJump = false;
@@ -166,10 +177,19 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   public reduceUltimateJumpDelay() {
-    this.ultimateJumpDelay.min = Math.max(this.ultimateJumpDelay.min - 500, 3000);
-    this.ultimateJumpDelay.max = Math.max(this.ultimateJumpDelay.max - 500, 8000);
+    this.ultimateJumpDelay.min = Math.max(
+      this.ultimateJumpDelay.min - 500,
+      3000
+    );
+    this.ultimateJumpDelay.max = Math.max(
+      this.ultimateJumpDelay.max - 500,
+      8000
+    );
     this.scene.time.addEvent({
-      delay: Phaser.Math.Between(this.ultimateJumpDelay.min, this.ultimateJumpDelay.max),
+      delay: Phaser.Math.Between(
+        this.ultimateJumpDelay.min,
+        this.ultimateJumpDelay.max
+      ),
       callback: () => {
         this.resetUltimateJump();
         this.ultimateJump();
@@ -180,18 +200,17 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   public knockDown() {
-    if (this.isKnockedDown) return; 
+    if (this.isKnockedDown) return;
     this.isKnockedDown = true;
-    this.setTint(0x999999)
-    this.setVelocity(0, 0); 
+    this.setTint(0x999999);
+    this.setVelocity(0, 0);
 
     this.play(EnemyAnimation.DEATH, true);
-
 
     this.scene.time.delayedCall(3000, () => {
       this.isKnockedDown = false;
       this.clearTint();
-      this.play(EnemyAnimation.IDLE, true); 
+      this.play(EnemyAnimation.IDLE, true);
     });
   }
 }

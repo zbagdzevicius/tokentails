@@ -47,6 +47,10 @@ export class CatbassadorsScene extends Scene {
   private buffManager?: BuffManager;
   enemyManager?: EnemyManager;
 
+  private gravityReverseInterval: number = 120000;
+  private nextGravityReverseTime: number = 0;
+  private isGravityReversed: boolean = false;
+
   constructor() {
     super("CatbassadorsScene");
 
@@ -232,6 +236,8 @@ export class CatbassadorsScene extends Scene {
     });
 
     this.createAnimations();
+
+    this.nextGravityReverseTime = this.time.now + this.gravityReverseInterval;
   }
 
   handleVisibilityChange() {
@@ -380,6 +386,11 @@ export class CatbassadorsScene extends Scene {
   }
 
   update(time: any, delta: any) {
+    if (time > this.nextGravityReverseTime && !this.gameOver) {
+      this.reverseGravityForAll();
+      this.nextGravityReverseTime = time + this.gravityReverseInterval;
+    }
+
     this.cat?.update();
     this.enemyManager?.update(time, delta);
     this.coinManager?.update();
@@ -440,6 +451,11 @@ export class CatbassadorsScene extends Scene {
         this.cat.isDeath = false;
       }
     });
+
+    this.isGravityReversed = false;
+    if (this.cat?.movement) {
+      this.cat.movement.setGravityReversed(false);
+    }
   }
 
   private startGame() {
@@ -453,5 +469,21 @@ export class CatbassadorsScene extends Scene {
     this.coinManager?.startSpawning();
     this.buffManager?.startSpawning();
     this.buffManager?.startGame();
+
+    this.isGravityReversed = false;
+    this.nextGravityReverseTime = this.time.now + this.gravityReverseInterval;
+    if (this.cat?.movement) {
+      this.cat.movement.setGravityReversed(false);
+    }
+  }
+
+  private reverseGravityForAll() {
+    this.isGravityReversed = !this.isGravityReversed;
+
+    if (this.cat?.movement) {
+      this.cat.movement.setGravityReversed(this.isGravityReversed);
+    }
+
+    this.enemyManager?.setGravityReversed(this.isGravityReversed);
   }
 }
