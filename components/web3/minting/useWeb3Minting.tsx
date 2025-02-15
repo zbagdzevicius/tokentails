@@ -49,8 +49,6 @@ export const useWeb3Minting = ({ entityType, user }: IProps) => {
   } = useWaitForTransactionReceipt({
     hash,
   });
-  const [userNfts, setUserNfts] = useState<NFT[]>([]);
-  const [isLoadingNFTs, setIsLoadingNFTs] = useState(false);
 
   const isLoading = useMemo(
     () => isPending || isStellarPending || isTaxLoading || isSolanaPending,
