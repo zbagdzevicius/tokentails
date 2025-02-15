@@ -122,7 +122,7 @@ export const InviteModalContent = () => {
             className="w-8 aspect-square mb-8 rem:-mt-[72px]"
           />
           <Countdown targetDate="2025-03-01" isDaysDisplayed></Countdown>
-          {profile?.quests.includes("zetachain") ? (
+          {profile?.quests?.includes("zetachain") ? (
             <PixelButton text="REDEEMED" isDisabled></PixelButton>
           ) : (
             <Web3Providers>
