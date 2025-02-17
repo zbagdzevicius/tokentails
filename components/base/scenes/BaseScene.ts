@@ -19,6 +19,10 @@ export class BaseScene extends Scene {
     | Phaser.Sound.NoAudioSound
     | Phaser.Sound.HTML5AudioSound;
   blessing!: Phaser.GameObjects.Sprite;
+
+  private decorationLayer!: Phaser.Tilemaps.TilemapLayer;
+  private waterTiles: number[] = [74, 44];
+  private waterAnimationInterval: number = 350;
   constructor() {
     super("BaseScene");
   }
@@ -57,7 +61,9 @@ export class BaseScene extends Scene {
     )!;
     this.groundLayer = this.tilemap.createLayer("blocks", [sugarTileset])!;
 
-    this.tilemap.createLayer("decorations", [sugarTileset]);
+    this.decorationLayer = this.tilemap.createLayer("decorations", [
+      sugarTileset,
+    ])!;
 
     // Set collision for specific tiles based on property
     this.groundLayer?.setCollisionByExclusion([-1]);
@@ -78,6 +84,8 @@ export class BaseScene extends Scene {
       GameEvents.CAT_SPAWN.removeEventListener(catSpawnCallback);
       GameEvents.CAT_EAT.removeEventListener(catSpawnFoodCallback);
     });
+
+    this.setupWaterAnimation();
   }
 
   private meow() {
@@ -183,6 +191,34 @@ export class BaseScene extends Scene {
         },
       });
     }
+  }
+
+  private setupWaterAnimation() {
+    const waterTilePositions: { x: number; y: number }[] = [];
+    this.decorationLayer.forEachTile((tile) => {
+      if (tile.index === 74) {
+        waterTilePositions.push({ x: tile.x, y: tile.y });
+      }
+    });
+
+    this.time.addEvent({
+      delay: this.waterAnimationInterval,
+      callback: () => {
+        waterTilePositions.forEach((pos) => {
+          const currentTile = this.decorationLayer.getTileAt(pos.x, pos.y);
+          if (currentTile) {
+            const currentIndex = this.waterTiles.indexOf(currentTile.index);
+            const nextIndex = (currentIndex + 1) % this.waterTiles.length;
+            this.decorationLayer.putTileAt(
+              this.waterTiles[nextIndex],
+              pos.x,
+              pos.y
+            );
+          }
+        });
+      },
+      loop: true,
+    });
   }
 
   spawnFood() {

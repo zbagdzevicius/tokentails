@@ -55,6 +55,9 @@ export class ShelterScene extends Scene {
   private elevator!: Elevator;
   private elevatorTimer: number = 0;
   private readonly ELEVATOR_DELAY: number = 1000;
+  private decorationLayer!: Phaser.Tilemaps.TilemapLayer;
+  private waterTiles: number[] = [74, 44];
+  private waterAnimationInterval: number = 350;
 
   constructor() {
     super("ShelterScene");
@@ -79,6 +82,11 @@ export class ShelterScene extends Scene {
         frameHeight: 64,
       }
     );
+
+    this.load.spritesheet("star-effect", "shelter/stars.png", {
+      frameWidth: 96,
+      frameHeight: 96,
+    });
     this.load.image("shelter-logo", "shelter/logo.png");
     this.load.image("shelter-signs", "shelter/signs.png");
     this.load.image("elevator", "shelter/elevator.png");
@@ -105,11 +113,11 @@ export class ShelterScene extends Scene {
       logoTileset,
       signsTileset,
     ])!;
-    this.tilemap.createLayer("decorations", [
+    this.decorationLayer = this.tilemap.createLayer("decorations", [
       sugarTileset,
       logoTileset,
       signsTileset,
-    ]);
+    ])!;
     this.jumperLayer = this.tilemap.createLayer("jumper", [sugarTileset])!;
     this.events.on(GameEvent.CAT_CARD_DISPLAY, (data: any) => {
       GameEvents.CAT_CARD_DISPLAY.push(data);
@@ -210,6 +218,17 @@ export class ShelterScene extends Scene {
 
     this.createAnimations();
 
+    // Set platform layer depth to ensure it's above other elements
+    this.platformsLayer.setDepth(1);
+
+    const starEffect = this.add.sprite(1360, -220, "star-effect");
+    starEffect.play("star_effect_anim");
+
+    const starEffectExtar = this.add.sprite(1420, -220, "star-effect");
+    starEffectExtar.play("star_effect_anim");
+    starEffectExtar.setDepth(0);
+    starEffect.setDepth(0);
+
     this.elevator = new Elevator(this, 650, -50, this.groundLayer);
 
     if (this.cat) {
@@ -221,6 +240,8 @@ export class ShelterScene extends Scene {
         this
       );
     }
+
+    this.setupWaterAnimation();
   }
 
   createAnimations() {
@@ -232,6 +253,16 @@ export class ShelterScene extends Scene {
       }),
       frameRate: 10,
       repeat: 0,
+    });
+
+    this.anims.create({
+      key: "star_effect_anim",
+      frames: this.anims.generateFrameNumbers("star-effect", {
+        start: 0,
+        end: 6,
+      }),
+      frameRate: 10,
+      repeat: -1,
     });
   }
 
@@ -308,7 +339,6 @@ export class ShelterScene extends Scene {
       let spawnPosition;
       if (isPlayerCat) {
         spawnPosition = PLAYER_NPC_CATS_POSITIONS.PLAYER_CATS;
-        console.log(">>> Spawn position:", spawnPosition);
       } else {
         switch (npcData.shelter?.slug) {
           case "rozine-pedute":
@@ -542,5 +572,34 @@ export class ShelterScene extends Scene {
 
   private setDefaultSound() {
     this.backgroundSound?.play();
+  }
+
+  private setupWaterAnimation() {
+    const waterTilePositions: { x: number; y: number }[] = [];
+
+    this.decorationLayer.forEachTile((tile) => {
+      if (this.waterTiles.includes(tile.index)) {
+        waterTilePositions.push({ x: tile.x, y: tile.y });
+      }
+    });
+
+    this.time.addEvent({
+      delay: this.waterAnimationInterval,
+      callback: () => {
+        waterTilePositions.forEach((pos) => {
+          const currentTile = this.decorationLayer.getTileAt(pos.x, pos.y);
+          if (currentTile) {
+            const currentIndex = this.waterTiles.indexOf(currentTile.index);
+            const nextIndex = (currentIndex + 1) % this.waterTiles.length;
+            this.decorationLayer.putTileAt(
+              this.waterTiles[nextIndex],
+              pos.x,
+              pos.y
+            );
+          }
+        });
+      },
+      loop: true,
+    });
   }
 }

@@ -51,6 +51,11 @@ export class CatbassadorsScene extends Scene {
   private nextGravityReverseTime: number = 0;
   private isGravityReversed: boolean = false;
 
+  private decorationLayer!: Phaser.Tilemaps.TilemapLayer;
+  private waterTiles: number[] = [74, 44];
+  private waterAnimationTimer: number = 0;
+  private waterAnimationInterval: number = 350;
+
   constructor() {
     super("CatbassadorsScene");
 
@@ -147,7 +152,9 @@ export class CatbassadorsScene extends Scene {
     this.platformsLayer = this.tilemap.createLayer("platforms", [
       sugarTileset,
     ])!;
-    this.tilemap.createLayer("decorations", [sugarTileset]);
+    this.decorationLayer = this.tilemap.createLayer("decorations", [
+      sugarTileset,
+    ])!;
     this.jumperLayer = this.tilemap.createLayer("jumper", [sugarTileset])!;
 
     // Set collision for specific tiles based on property
@@ -157,10 +164,14 @@ export class CatbassadorsScene extends Scene {
       JUMP_LAYER_TILES,
       (player: Phaser.GameObjects.GameObject) => {
         const playerSprite = player as Phaser.Physics.Arcade.Sprite;
-        if (playerSprite.body!.velocity.y <= 0) {
-          return true;
+
+        if (this.isGravityReversed) {
+          // Allow collision when moving downward (falling)
+          return playerSprite.body!.velocity.y >= 0;
+        } else {
+          // Allow collision when moving upward (jumping)
+          return playerSprite.body!.velocity.y <= 0;
         }
-        return false;
       },
       this
     );
@@ -238,6 +249,8 @@ export class CatbassadorsScene extends Scene {
     this.createAnimations();
 
     this.nextGravityReverseTime = this.time.now + this.gravityReverseInterval;
+
+    this.setupWaterAnimation();
   }
 
   handleVisibilityChange() {
@@ -485,5 +498,33 @@ export class CatbassadorsScene extends Scene {
     }
 
     this.enemyManager?.setGravityReversed(this.isGravityReversed);
+  }
+
+  private setupWaterAnimation() {
+    const waterTilePositions: { x: number; y: number }[] = [];
+    this.decorationLayer.forEachTile((tile) => {
+      if (tile.index === 74) {
+        waterTilePositions.push({ x: tile.x, y: tile.y });
+      }
+    });
+
+    this.time.addEvent({
+      delay: this.waterAnimationInterval,
+      callback: () => {
+        waterTilePositions.forEach((pos) => {
+          const currentTile = this.decorationLayer.getTileAt(pos.x, pos.y);
+          if (currentTile) {
+            const currentIndex = this.waterTiles.indexOf(currentTile.index);
+            const nextIndex = (currentIndex + 1) % this.waterTiles.length;
+            this.decorationLayer.putTileAt(
+              this.waterTiles[nextIndex],
+              pos.x,
+              pos.y
+            );
+          }
+        });
+      },
+      loop: true,
+    });
   }
 }
