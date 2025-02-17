@@ -31,12 +31,12 @@ export const gameModes = {
     image: "/game/select/shelter.jpg",
     text: "SAVE CATS BY OWNING NFTS",
   },
-  [GameType.STORYMODE]: {
-    video: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/videos/storymode.mp4",
-    title: "Story Mode",
-    image: "/game/select/storymode.jpg",
-    text: "PLAY STORY MODE",
-  },
+  // [GameType.STORYMODE]: {
+  //   video: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/videos/storymode.mp4",
+  //   title: "Story Mode",
+  //   image: "/game/select/storymode.jpg",
+  //   text: "PLAY STORY MODE",
+  // },
 };
 
 export const GameModes = () => {
