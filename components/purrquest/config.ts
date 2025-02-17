@@ -9,6 +9,8 @@ const config: Phaser.Types.Core.GameConfig = {
   parent: "game-container",
   transparent: true,
   scene: [PurrquestScene],
+  pixelArt: true,
+  roundPixels: true,
   physics: {
     default: "arcade",
     arcade: {

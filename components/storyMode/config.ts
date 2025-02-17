@@ -15,6 +15,8 @@ const config: Phaser.Types.Core.GameConfig = {
   dom: {
     createContainer: true, // Enable DOM element rendering
   },
+  pixelArt: true,
+  roundPixels: true,
   scene: StoryModeScene,
   physics: {
     default: "arcade",
