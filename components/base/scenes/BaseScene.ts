@@ -65,6 +65,8 @@ export class BaseScene extends Scene {
       sugarTileset,
     ])!;
 
+    this.decorationLayer.setDepth(10);
+
     // Set collision for specific tiles based on property
     this.groundLayer?.setCollisionByExclusion([-1]);
     this.cameras.main.setScroll(-650, -1000);

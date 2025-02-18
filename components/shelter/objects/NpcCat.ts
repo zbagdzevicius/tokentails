@@ -62,7 +62,7 @@ export class NpcCat {
       .setSize(28, 28)
       .setOffset(12, 8);
     this.sprite.body!.setSize(40, 50); // Set larger width and height for the hitbox
-    this.sprite.body!.setOffset(0, -12);
+    this.sprite.body!.setOffset(0, -14);
     this.sprite.setCollideWorldBounds(true);
     this.initAnimations(catName);
     this.sprite.anims.play(this.animationKeys[PlayerAnimation.RUNNING], true);
@@ -127,7 +127,7 @@ export class NpcCat {
   handleJump() {
     if (!this.sprite.body!.blocked.down) return;
 
-    this.sprite.setVelocityY(-250);
+    this.sprite.setVelocityY(-350);
     this.sprite.anims.play(this.animationKeys[PlayerAnimation.JUMPING], true);
 
     this.scene.time.delayedCall(500, () => {

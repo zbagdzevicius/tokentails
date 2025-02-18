@@ -157,6 +157,8 @@ export class CatbassadorsScene extends Scene {
     ])!;
     this.jumperLayer = this.tilemap.createLayer("jumper", [sugarTileset])!;
 
+    this.decorationLayer.setDepth(10);
+
     // Set collision for specific tiles based on property
     this.groundLayer?.setCollisionByExclusion([-1]);
     this.platformsLayer?.setCollision(JUMP_LAYER_TILES);
