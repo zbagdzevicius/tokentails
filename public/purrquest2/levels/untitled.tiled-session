@@ -34,8 +34,8 @@
             "scale": 0.75,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 180.66666666666669,
-                "y": -448
+                "x": 0.6666666666666856,
+                "y": -511.3333333333333
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.json#blocks": {
@@ -76,11 +76,11 @@
             "scaleInDock": 1
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON": {
-            "scale": 2,
+            "scale": 0.25,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 1020.5,
-                "y": -259.5
+                "x": 1454,
+                "y": 112
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON#blocks": {
@@ -160,8 +160,8 @@
             "scale": 0.25,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": -302,
-                "y": -832
+                "x": -254,
+                "y": -770
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/shelter.json#blocks": {
@@ -183,8 +183,8 @@
             "scale": 0.125,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": -2068,
-                "y": 480
+                "x": -2076,
+                "y": 472
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/story.json#blocks": {
@@ -205,8 +205,8 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 59,
-                "y": 9.333333333333371
+                "x": 191.66666666666663,
+                "y": 192.33333333333331
             }
         },
         "C:/Users/ernes/Desktop/untitled.tmj#new-blocks-winter": {
@@ -295,8 +295,8 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 153.66666666666669,
-                "y": 240
+                "x": 191.66666666666663,
+                "y": 192.33333333333331
             }
         },
         "blocked/blocked10.json#blocks-original": {
@@ -306,8 +306,8 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 149.66666666666669,
-                "y": 138.66666666666669
+                "x": 191.66666666666663,
+                "y": 192.33333333333331
             }
         },
         "blocked/blocked11.json#blocks-original": {
@@ -317,8 +317,8 @@
             "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 113.5,
-                "y": 175
+                "x": 191.5,
+                "y": 192.5
             }
         },
         "blocked/blocked12.json#blocks-original": {
@@ -328,8 +328,8 @@
             "scale": 2,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 197.25,
-                "y": 184.5
+                "x": 191.75,
+                "y": 191.75
             }
         },
         "blocked/blocked13.json#blocks-original": {
@@ -339,8 +339,8 @@
             "scale": 1.5,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 143.66666666666669,
-                "y": 192
+                "x": 191.66666666666663,
+                "y": 192.33333333333331
             }
         },
         "blocked/blocked14.json#blocks-original": {
@@ -361,8 +361,8 @@
             "scale": 1,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 129.5,
-                "y": 238
+                "x": 191.5,
+                "y": 192.5
             }
         },
         "blocked/blocked16.json#blocks-original": {
@@ -372,8 +372,8 @@
             "scale": 1,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 197.5,
-                "y": 117
+                "x": 191.5,
+                "y": 192.5
             }
         },
         "blocked/blocked17.json#blocks-original": {
@@ -383,8 +383,8 @@
             "scale": 2,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 177.25,
-                "y": 180
+                "x": 191.75,
+                "y": 191.75
             }
         },
         "blocked/blocked18.json#blocks-original": {
@@ -394,8 +394,8 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 153.66666666666669,
-                "y": 115.33333333333334
+                "x": 191.66666666666663,
+                "y": 192.33333333333331
             }
         },
         "blocked/blocked2.json#blocks-original": {
@@ -416,8 +416,8 @@
             "scale": 1,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 278.5,
-                "y": 347
+                "x": 191.5,
+                "y": 192.5
             }
         },
         "blocked/blocked5.json#blocks-original": {
@@ -427,8 +427,8 @@
             "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 146.5,
-                "y": 142
+                "x": 191.5,
+                "y": 192.5
             }
         },
         "blocked/blocked6.json#blocks-original": {
@@ -449,8 +449,8 @@
             "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": -24.5,
-                "y": 174
+                "x": 191.5,
+                "y": 192.5
             }
         },
         "blocked/blocked8.json#blocks-original": {
@@ -472,7 +472,7 @@
             "selectedLayer": 1,
             "viewCenter": {
                 "x": 191.75,
-                "y": 183.5
+                "y": 191.75
             }
         },
         "exit/exit.json#blocks-original": {
@@ -482,8 +482,8 @@
             "scale": 2,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 170.25,
-                "y": 210
+                "x": 191.75,
+                "y": 191.75
             }
         },
         "spawn/start.json#blocks-original": {
@@ -504,8 +504,8 @@
             "scale": 0.75,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 307.33333333333337,
-                "y": 420
+                "x": 192.66666666666663,
+                "y": 192.66666666666663
             }
         },
         "without/without1.json#blocks-original": {
@@ -515,8 +515,8 @@
             "scale": 2.169661458333333,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 190.5827282002041,
-                "y": 188.0477705095121
+                "x": 191.96543239512695,
+                "y": 191.96543239512695
             }
         },
         "without/without10.json#blocks-original": {
@@ -548,8 +548,8 @@
             "scale": 0.75,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 215.33333333333337,
-                "y": 472
+                "x": 192.66666666666663,
+                "y": 192.66666666666663
             }
         },
         "without/without2.json#blocks-original": {
@@ -559,8 +559,8 @@
             "scale": 0.75,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 239.33333333333337,
-                "y": 214.66666666666669
+                "x": 192.66666666666663,
+                "y": 192.66666666666663
             }
         },
         "without/without3.json#blocks-original": {
@@ -570,8 +570,8 @@
             "scale": 1,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 264.5,
-                "y": 217
+                "x": 191.5,
+                "y": 192.5
             }
         },
         "without/without4.json#blocks-original": {
@@ -581,8 +581,8 @@
             "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 135.5,
-                "y": 289
+                "x": 191.5,
+                "y": 192.5
             }
         },
         "without/without5.json#blocks-original": {
@@ -592,8 +592,8 @@
             "scale": 1,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 286.5,
-                "y": 203
+                "x": 191.5,
+                "y": 192.5
             }
         },
         "without/without6.json#blocks-original": {
@@ -603,8 +603,8 @@
             "scale": 0.75,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 384.6666666666667,
-                "y": 352
+                "x": 192.66666666666663,
+                "y": 192.66666666666663
             }
         },
         "without/without7.json#blocks-original": {
@@ -614,8 +614,8 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 141.66666666666669,
-                "y": 214
+                "x": 191.66666666666663,
+                "y": 192.33333333333331
             }
         },
         "without/without8.json#blocks-original": {
@@ -625,8 +625,8 @@
             "scale": 2.169661458333333,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 190.5827282002041,
-                "y": 185.28236211966637
+                "x": 191.96543239512695,
+                "y": 191.96543239512695
             }
         },
         "without/without9.json#blocks-original": {
