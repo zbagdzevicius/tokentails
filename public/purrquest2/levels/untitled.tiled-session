@@ -1,6 +1,10 @@
 {
-    "activeFile": "",
+    "activeFile": "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON",
     "expandedProjectPaths": [
+        "exit",
+        "blocked",
+        "without",
+        "spawn"
     ],
     "file.lastUsedOpenFilter": "All Files (*)",
     "fileStates": {
@@ -92,8 +96,8 @@
             "scale": 1.5,
             "selectedLayer": 2,
             "viewCenter": {
-                "x": -782.3333333333333,
-                "y": -245.33333333333331
+                "x": -783,
+                "y": -246
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.json#logo": {
@@ -626,8 +630,37 @@
         }
     },
     "openFiles": [
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/shelter.json",
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.json",
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/story.json",
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON",
+        "exit/exit.json",
+        "C:/Users/ernes/Desktop/untitled.tmj",
+        "spawn/start.json",
+        "blocked/blocked2.json",
+        "blocked/blocked5.json",
+        "blocked/blocked6.json",
+        "blocked/blocked8.json",
+        "blocked/blocked10.json",
+        "blocked/blocked11.json",
+        "blocked/blocked12.json",
+        "blocked/blocked13.json",
+        "blocked/blocked14.json",
+        "blocked/blocked16.json",
+        "blocked/blocked17.json",
+        "blocked/blocked18.json",
+        "without/without1.json",
+        "without/without2.json",
+        "without/without3.json",
+        "without/without4.json",
+        "without/without5.json",
+        "without/without6.json",
+        "without/without7.json",
+        "without/without8.json",
+        "without/without9.json",
+        "without/without10.json"
     ],
-    "project": "",
+    "project": "untitled.tiled-project",
     "recentFiles": [
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.json",
         "without/without1.json",
