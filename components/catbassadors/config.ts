@@ -13,7 +13,9 @@ const config: Phaser.Types.Core.GameConfig = {
   parent: "game-container",
   transparent: true,
   scene: CatbassadorsScene,
- powerPreference: "high-performance",
+  powerPreference: "high-performance",
+  pixelArt: true,
+  roundPixels: true,
   physics: {
     default: "arcade",
     arcade: {

@@ -13,14 +13,27 @@ import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileContr
 import { ICat } from "@/models/cats";
 import { ZOOM } from "@/constants/utils";
 import { SpeechBubble } from "../objects/SpeechBubble";
+import { Elevator } from "../objects/Elevator";
 
-const JUMP_LAYER_TILES = [47, 48, 49, 50, 52];
-const TRAMPOLINE_TILES = [51];
+const JUMP_LAYER_TILES = [169, 170, 139, 140, 200, 224, 225, 226, 227];
+const TRAMPOLINE_TILES = [158, 159];
 
-const FLOOR_Y_POSITIONS: Record<CatType | string, number> = {
-  [CatType.REGULAR]: -700,
-  [CatType.BLESSED]: -1150,
-  [CatType.EXCLUSIVE]: -1300,
+const PLAYER_NPC_CATS_POSITIONS = {
+  PLAYER_CATS: {
+    x: { min: -900, max: -300 },
+    y: -250,
+  },
+};
+
+const SHELTER_SPAWN_POSITIONS = {
+  ROZINE_PEDUTE: {
+    x: { min: 1500, max: 2800 },
+    y: -650,
+  },
+  TOKENTAILS: {
+    x: { min: 1700, max: 2800 },
+    y: -250,
+  },
 };
 
 export class ShelterScene extends Scene {
@@ -39,6 +52,12 @@ export class ShelterScene extends Scene {
   currentlyCollidingNpc: NpcCat | null = null;
   speechBubble: any;
   speechBubblePool: SpeechBubble[] = [];
+  private elevator!: Elevator;
+  private elevatorTimer: number = 0;
+  private readonly ELEVATOR_DELAY: number = 1000;
+  private decorationLayer!: Phaser.Tilemaps.TilemapLayer;
+  private waterTiles: number[] = [74, 44];
+  private waterAnimationInterval: number = 350;
 
   constructor() {
     super("ShelterScene");
@@ -46,8 +65,8 @@ export class ShelterScene extends Scene {
 
   preload() {
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
-    this.load.tilemapTiledJSON("tilemap", "catbassadors/shelter.json");
-    this.load.image("blocks", "base/blocks-winter.png");
+    this.load.tilemapTiledJSON("tilemap", "catbassadors/new-shelter.json");
+    this.load.image("new-blocks-winter", "base/winter.png");
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.audio("jump-sound", "audio/game/jump.mp3");
     this.load.audio("dash-sound", "audio/game/dash.wav");
@@ -63,23 +82,42 @@ export class ShelterScene extends Scene {
         frameHeight: 64,
       }
     );
+
+    this.load.spritesheet("star-effect", "shelter/stars.png", {
+      frameWidth: 96,
+      frameHeight: 96,
+    });
+    this.load.image("shelter-logo", "shelter/logo.png");
+    this.load.image("shelter-signs", "shelter/signs.png");
+    this.load.image("elevator", "shelter/elevator.png");
   }
 
   create(props: IPhaserGameSceneProps) {
     this.tilemap = this.make.tilemap({ key: "tilemap" });
     const sugarTileset = this.tilemap.addTilesetImage(
-      "blocks",
-      "blocks",
+      "new-blocks-winter",
+      "new-blocks-winter",
       32,
       32,
       1,
       2
     )!;
+    const logoTileset = this.tilemap.addTilesetImage("logo", "shelter-logo")!;
+    const signsTileset = this.tilemap.addTilesetImage(
+      "signs",
+      "shelter-signs"
+    )!;
     this.groundLayer = this.tilemap.createLayer("blocks", [sugarTileset])!;
     this.platformsLayer = this.tilemap.createLayer("platforms", [
       sugarTileset,
+      logoTileset,
+      signsTileset,
     ])!;
-    this.tilemap.createLayer("decorations", [sugarTileset]);
+    this.decorationLayer = this.tilemap.createLayer("decorations", [
+      sugarTileset,
+      logoTileset,
+      signsTileset,
+    ])!;
     this.jumperLayer = this.tilemap.createLayer("jumper", [sugarTileset])!;
     this.events.on(GameEvent.CAT_CARD_DISPLAY, (data: any) => {
       GameEvents.CAT_CARD_DISPLAY.push(data);
@@ -129,41 +167,81 @@ export class ShelterScene extends Scene {
     GameEvents.GAME_LOADED.push({ scene: this });
 
     this.scene.scene.events.once("destroy", () => {
-      GameEvents.CAT_SPAWN.removeEventListener(catSpawnCallback);
       GameEvents.GAME_START.removeEventListener(startGameCallback);
     });
 
     const npcSpawnRegularCallback = (
-      data: ICatEvent<GameEvent.NPC_SPAWN_REGULAR>
+      data: ICatEvent<GameEvent.NPC_SPAWN_TOKENTAILS>
     ) => {
-      this.spawnNpc(data.detail.npc, CatType.REGULAR);
+      this.spawnNpc(data.detail.npc, false);
     };
+
     const npcSpawnBlessedCallback = (
-      data: ICatEvent<GameEvent.NPC_SPAWN_BLESSED>
+      data: ICatEvent<GameEvent.NPC_SPAWN_ROZINE_PEDUTE>
     ) => {
-      this.spawnNpc(data.detail.npc, CatType.BLESSED);
+      this.spawnNpc(data.detail.npc, false);
     };
+
     const npcSpawnExclusiveCallback = (
       data: ICatEvent<GameEvent.NPC_SPAWN_EXCLUSIVE>
     ) => {
-      this.spawnNpc(data.detail.npc, CatType.EXCLUSIVE);
+      this.spawnNpc(data.detail.npc, false);
     };
 
-    GameEvents.NPC_SPAWN_REGULAR.addEventListener(npcSpawnRegularCallback);
-    GameEvents.NPC_SPAWN_BLESSED.addEventListener(npcSpawnBlessedCallback);
+    const npcSpawnPlayerCats = (data: ICatEvent<GameEvent.PLAYER_CATS>) => {
+      this.spawnNpc(data.detail.npc, true);
+    };
+
+    GameEvents.PLAYER_CATS.addEventListener(npcSpawnPlayerCats);
+
+    GameEvents.NPC_SPAWN_TOKENTAILS.addEventListener(npcSpawnRegularCallback);
+    GameEvents.NPC_SPAWN_ROZINE_PEDUTE.addEventListener(
+      npcSpawnBlessedCallback
+    );
     GameEvents.NPC_SPAWN_EXCLUSIVE.addEventListener(npcSpawnExclusiveCallback);
+    GameEvents.PLAYER_CATS.addEventListener(npcSpawnPlayerCats);
 
     GameEvents.GAME_LOADED.push({ scene: this });
 
     this.scene.scene.events.once("destroy", () => {
-      GameEvents.NPC_SPAWN_REGULAR.removeEventListener(npcSpawnRegularCallback);
-      GameEvents.NPC_SPAWN_BLESSED.removeEventListener(npcSpawnBlessedCallback);
+      GameEvents.NPC_SPAWN_TOKENTAILS.removeEventListener(
+        npcSpawnRegularCallback
+      );
+      GameEvents.NPC_SPAWN_ROZINE_PEDUTE.removeEventListener(
+        npcSpawnBlessedCallback
+      );
       GameEvents.NPC_SPAWN_EXCLUSIVE.removeEventListener(
         npcSpawnExclusiveCallback
       );
+      GameEvents.PLAYER_CATS.removeEventListener(npcSpawnPlayerCats);
     });
 
     this.createAnimations();
+
+    // Set platform layer depth to ensure it's above other elements
+    this.platformsLayer.setDepth(1);
+
+    const starEffect = this.add.sprite(1360, -220, "star-effect");
+    starEffect.play("star_effect_anim");
+
+    const starEffectExtar = this.add.sprite(1420, -220, "star-effect");
+    starEffectExtar.play("star_effect_anim");
+    starEffectExtar.setDepth(0);
+    starEffect.setDepth(0);
+
+    this.elevator = new Elevator(this, 650, -50, this.groundLayer);
+
+    if (this.cat) {
+      this.physics.add.collider(
+        this.cat.sprite,
+        this.elevator.sprite,
+        this.handleElevatorCollision,
+        undefined,
+        this
+      );
+    }
+
+    this.setupWaterAnimation();
   }
 
   createAnimations() {
@@ -175,6 +253,16 @@ export class ShelterScene extends Scene {
       }),
       frameRate: 10,
       repeat: 0,
+    });
+
+    this.anims.create({
+      key: "star_effect_anim",
+      frames: this.anims.generateFrameNumbers("star-effect", {
+        start: 0,
+        end: 6,
+      }),
+      frameRate: 10,
+      repeat: -1,
     });
   }
 
@@ -195,7 +283,7 @@ export class ShelterScene extends Scene {
     if (isCatChanged) {
       this.cat = undefined;
       this.catDto = cat;
-      this.scene.restart({ cat, isRestart: true });
+      // this.scene.restart({ cat, isRestart: true });
       return;
     }
 
@@ -246,10 +334,29 @@ export class ShelterScene extends Scene {
     this.load.start();
   }
 
-  private spawnNpc(npcData: ICat, catType: CatType) {
+  private spawnNpc(npcData: ICat, isPlayerCat: boolean = false) {
     this.load.once("complete", () => {
-      const spawnY = FLOOR_Y_POSITIONS[catType] ?? -700;
-      const spawnX = Phaser.Math.Between(-900, -100);
+      let spawnPosition;
+      if (isPlayerCat) {
+        spawnPosition = PLAYER_NPC_CATS_POSITIONS.PLAYER_CATS;
+      } else {
+        switch (npcData.shelter?.slug) {
+          case "rozine-pedute":
+            spawnPosition = SHELTER_SPAWN_POSITIONS.ROZINE_PEDUTE;
+            break;
+          default:
+            // For everything else, default to TOKENTAILS
+            spawnPosition = SHELTER_SPAWN_POSITIONS.TOKENTAILS;
+            break;
+        }
+      }
+
+      // Randomized X position within the chosen range
+      const spawnX = Phaser.Math.Between(
+        spawnPosition!.x.min,
+        spawnPosition!.x.max
+      );
+      const spawnY = spawnPosition!.y;
 
       const npcCat = new NpcCat(this, spawnX, spawnY, npcData.name);
       (npcCat as any).originalData = npcData;
@@ -287,10 +394,12 @@ export class ShelterScene extends Scene {
         });
       }
 
+      // Add this NPC cat to our local array and group
       this.npcCats.push(npcCat);
       this.npcGroup.add(npcCat.sprite);
     });
 
+    // If the NPC has blessings, load the sprite for that effect
     if (npcData.blessings?.length) {
       this.load.spritesheet(
         `blessing-${npcData.blessings[0].ability}`,
@@ -302,6 +411,7 @@ export class ShelterScene extends Scene {
       );
     }
 
+    // Load the sprite sheet for the cat itself
     this.load.spritesheet(npcData.name, npcData.spriteImg, {
       frameWidth: 48,
       frameHeight: 48,
@@ -378,7 +488,7 @@ export class ShelterScene extends Scene {
     blessing: Phaser.GameObjects.Sprite | null,
     type: CatAbilityType
   ) {
-    this.cat = new Cat(this, -200, -400, catName, blessing!, type);
+    this.cat = new Cat(this, 350, -100, catName, blessing!, type);
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
     this.physics.add.collider(
       this.cat.sprite as Phaser.Physics.Arcade.Sprite,
@@ -407,22 +517,89 @@ export class ShelterScene extends Scene {
     }
   }
 
+  private handleElevatorCollision(playerSprite: any, elevatorSprite: any) {
+    if (
+      playerSprite.body.touching.down &&
+      elevatorSprite.body.touching.up &&
+      playerSprite.y < elevatorSprite.y
+    ) {
+      this.elevator.setPlayerOn(true);
+    }
+  }
+
   update(time: number, delta: number) {
     this.cat?.update();
 
     // Only process NPCs that are within the camera's view
     this.npcCats.forEach((npc) => {
       const isInView = this.handleNpcVisibility(npc);
-
-      // Only update NPC and check collisions if it's in view
       if (isInView) {
         npc.update();
         this.handleNpcInteraction(npc);
       }
     });
+
+    this.elevator.update(delta);
+
+    // Check if player is no longer colliding with elevator
+    if (
+      this.cat &&
+      !this.physics.overlap(this.cat.sprite, this.elevator.sprite)
+    ) {
+      this.elevatorTimer += delta;
+      if (this.elevatorTimer >= this.ELEVATOR_DELAY) {
+        this.elevator.setPlayerOn(false);
+      }
+    } else {
+      this.elevatorTimer = 0;
+    }
+
+    if (
+      this.cat &&
+      !this.physics.world.colliders
+        .getActive()
+        .some((collider) => collider.object2 === this.elevator.sprite)
+    ) {
+      this.physics.add.collider(
+        this.cat.sprite,
+        this.elevator.sprite,
+        this.handleElevatorCollision,
+        undefined,
+        this
+      );
+    }
   }
 
   private setDefaultSound() {
     this.backgroundSound?.play();
+  }
+
+  private setupWaterAnimation() {
+    const waterTilePositions: { x: number; y: number }[] = [];
+
+    this.decorationLayer.forEachTile((tile) => {
+      if (this.waterTiles.includes(tile.index)) {
+        waterTilePositions.push({ x: tile.x, y: tile.y });
+      }
+    });
+
+    this.time.addEvent({
+      delay: this.waterAnimationInterval,
+      callback: () => {
+        waterTilePositions.forEach((pos) => {
+          const currentTile = this.decorationLayer.getTileAt(pos.x, pos.y);
+          if (currentTile) {
+            const currentIndex = this.waterTiles.indexOf(currentTile.index);
+            const nextIndex = (currentIndex + 1) % this.waterTiles.length;
+            this.decorationLayer.putTileAt(
+              this.waterTiles[nextIndex],
+              pos.x,
+              pos.y
+            );
+          }
+        });
+      },
+      loop: true,
+    });
   }
 }

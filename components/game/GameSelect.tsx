@@ -24,8 +24,8 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
   return (
     <div
       className={classNames("fixed left-1/2 right-1/2 translate-x-[50%] z-[11] flex flex-col gap-2 items-center pb-safe", {
-        "top-1/2 -translate-y-1/2 pt-48" : gameType === GameType.HOME,
-        "top-4" : gameType !== GameType.HOME,
+        "top-1/2 -translate-y-1/2 pt-48": gameType === GameType.HOME,
+        "top-4": gameType !== GameType.HOME,
       })}
     >
       {gameType && cat && (cat.status.EAT || 0) >= 4 && (
@@ -41,19 +41,19 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
           }}
         />
       )}
-      {gameType === GameType.HOME && cat && (cat.status.EAT || 0)< 4 && (
+      {gameType === GameType.HOME && cat && (cat.status.EAT || 0) < 4 && (
         <div className="flex flex-col items-center gap-2">
           <PixelButton text="Feed" onClick={onFeedClick} />
 
           {cat && (
-                    <div className="w-36">
-                        <StatusBar
-                            status={cat.status[StatusType.EAT]!}
-                            type={StatusType.EAT}
-                        />
-                    </div>
-                )}
-          </div>
+            <div className="w-36">
+              <StatusBar
+                status={cat.status[StatusType.EAT]!}
+                type={StatusType.EAT}
+              />
+            </div>
+          )}
+        </div>
       )}
       {!gameType && (
         <>
@@ -86,6 +86,13 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
               src="/game/select/shelter-wide.jpg"
             />
           </div>
+          {/* <div className="flex min-w-0">
+            <img
+              onClick={() => setGameType(GameType.STORYMODE)}
+              className="rem:min-w-[200px] md:rem:min-w-[400px] h-full hover:brightness-110 rounded-xl hover:animate-hover"
+              src="/game/select/shelter-wide.jpg"
+            />
+          </div> */}
         </>
       )}
     </div>

@@ -27,8 +27,8 @@ export interface IPlayer {
   disableRightMovement: boolean;
   justJumped: boolean;
   isSliding: boolean;
-  maxJumpSpeed:number;
-  coyoteTime:number
+  maxJumpSpeed: number;
+  coyoteTime: number;
   wallTouchTime: number;
   lastWallTouched: "left" | "right" | null;
   jumpTimer: number;
@@ -42,6 +42,7 @@ export interface IPlayer {
   isDeath: boolean;
   isInvulnerable: boolean;
   hasKey: boolean;
-  abilities:Abilities;
-  type:CatAbilityType;
+  abilities: Abilities;
+  type: CatAbilityType;
+  isOnIcyTile: boolean;
 }

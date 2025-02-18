@@ -7,7 +7,7 @@ import { PurrquestScene } from "@/components/purrquest/scenes/PurrquestScene";
 import { CatbassadorsScene } from "../scenes/CatbassadorsScene";
 import { CatAbilityType } from "@/models/cats";
 
-type GameScene = PurrquestScene  | CatbassadorsScene
+type GameScene = PurrquestScene | CatbassadorsScene;
 /**
  * Physics objects that could be colliders
  */
@@ -82,7 +82,7 @@ export class Cat implements IPlayer {
   isMobileJumping: boolean = false;
   isMobileLeft: boolean = false;
   isMobileDash: boolean = false;
-  isMobileknockbackSpell:boolean = false;
+  isMobileknockbackSpell: boolean = false;
   wallJumpCount: number = 0;
   isMobileRight: boolean = false;
   lastWallTouched: "left" | "right" | null = null;
@@ -102,20 +102,28 @@ export class Cat implements IPlayer {
   isInvulnerable: boolean;
   private catName: string;
   abilities: Abilities;
-  type!:CatAbilityType
+  type!: CatAbilityType;
+  isOnSlidingTile: boolean = false;
+  isOnIcyTile: boolean = false;
 
-  
-  
+  private collectiveItem: Phaser.Physics.Arcade.Sprite | null = null;
+  collectedItem: Phaser.Physics.Arcade.Sprite | null = null;
+
   isDashing: boolean = false;
   readonly dashTime: number = 200; // Duration of dash in ms
   readonly dashCooldown: number = 300; // Cooldown time before dashing again
   readonly dashSpeed: number = 640; // Speed during dash
   walkSpeed: number = catWalkSpeed;
-  readonly jumpSpeed: number = -418;
+  readonly jumpSpeed: number = 418;
   readonly wallSlideSpeed: number = 96;
-  readonly maxJumpSpeed:number = -618;  
-  readonly coyoteTime:number = 200;   
+  readonly maxJumpSpeed: number = 618;
+  readonly coyoteTime: number = 200;
   movement: PlayerMovement;
+
+  //sliding
+  readonly slideSpeed: number = this.walkSpeed * 1.5;
+  readonly slideDuration: number = 1000;
+  readonly slideDeceleration: number = 30;
 
   constructor(
     scene: Scene,
@@ -123,7 +131,7 @@ export class Cat implements IPlayer {
     y: number,
     catName: string,
     blessings: Phaser.GameObjects.Sprite,
-    type:CatAbilityType
+    type: CatAbilityType
   ) {
     this.scene = scene;
     this.type = type;
@@ -134,7 +142,7 @@ export class Cat implements IPlayer {
       .sprite(x, y, this.catName)
       .setSize(28, 28)
       .setOffset(12, 8)
-      .setDepth(4)
+      .setDepth(4);
     this.cursors = this.scene.input.keyboard!.createCursorKeys();
     this.keys = this.scene.input.keyboard!.addKeys({
       up: "SPACE",
@@ -148,12 +156,18 @@ export class Cat implements IPlayer {
     this.isHit = false;
     this.isDeath = false;
     this.isInvulnerable = false;
-    this.hasKey = false
+    this.hasKey = false;
     this.initAnimations();
 
     this.movement = new PlayerMovement(this);
     this.isInvulnerable = false;
     this.abilities = new Abilities(this, scene as GameScene, type);
+
+    this.collectiveItem = this.scene.physics.add
+      .sprite(x, y, "collective-item")
+      .setScale(0.5) // Adjust scale as needed
+      .setDepth(-1); // Ensure it's behind the player
+    this.collectiveItem.setVisible(false);
   }
 
   initAnimations() {
@@ -179,10 +193,57 @@ export class Cat implements IPlayer {
       repeat: 0,
     });
   }
+  collectItem(item: Phaser.Physics.Arcade.Sprite) {
+    this.collectedItem = item;
+    this.collectedItem.setVisible(true);
+  }
+  dropCollectiveItem() {
+    if (this.collectedItem) {
+      const tileSize = 32;
+      const droppedTileX =
+        Math.round(this.collectedItem.x / tileSize) * tileSize;
+      const droppedTileY =
+        Math.round(this.collectedItem.y / tileSize) * tileSize;
+
+      const droppedItem = this.scene.physics.add.sprite(
+        droppedTileX,
+        droppedTileY,
+        "collective-item"
+      );
+
+      droppedItem.setScale(0.5);
+      droppedItem.setGravityY(500);
+      droppedItem.setCollideWorldBounds(true);
+
+      this.scene.physics.add.overlap(this.sprite, droppedItem, () => {
+        if (droppedItem.active) {
+          this.collectItem(droppedItem);
+          droppedItem.setVisible(false);
+        }
+      });
+
+      this.collectedItem = null;
+    }
+  }
+
+  updateCollectiveItem() {
+    if (this.collectedItem) {
+      const offsetX = this.sprite.flipX ? 20 : -20;
+      this.collectedItem.setPosition(
+        this.sprite.x + offsetX,
+        this.sprite.y - 20
+      );
+      this.collectedItem.setDepth(11);
+      this.collectedItem.setVisible(true);
+    }
+  }
 
   update() {
     this.movement.updateOngoingMovements();
-    
+    if (this.collectedItem) {
+      this.updateCollectiveItem();
+    }
+
     if (this.blessings) {
       const velocityX = this.sprite.body!.velocity.x;
       const targetX = this.sprite.x + velocityX * 0.01;
@@ -194,5 +255,4 @@ export class Cat implements IPlayer {
   addCollider(collider: ColliderType) {
     this.scene.physics.add.collider(this.sprite, collider);
   }
-
 }

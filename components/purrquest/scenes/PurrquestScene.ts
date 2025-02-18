@@ -30,13 +30,20 @@ import { ErrorTextManager } from "../managers/ErrorTextManager";
 import { ChestManager } from "../managers/ChestManager";
 
 const COLLISION_TILES = [
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 29, 30, 31, 32, 33, 34, 35, 36, 37, 62, 63, 64,
-  65, 72, 88, 90, 91, 92, 93, 94, 120, 121, 122, 123, 149, 150, 151, 152,
+  0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 30, 31, 32,
+  33, 34, 35, 36, 46, 47, 48, 49, 60, 61, 62, 63, 67, 68, 69, 70, 76, 77, 78,
+  79, 90, 91, 92, 93, 106, 107, 108, 109, 133, 134, 135, 216, 217, 248, 249,
+  250, 192, 163, 164, 165, 193, 194, 195,
 ];
 
-const TRAMPOLINE_TILES = [50];
-const SPIKE_TILES = [70, 71, 99, 100];
-const JUMP_LAYER_TILES = [46, 47, 48, 49];
+const JUMP_LAYER_TILES = [
+  216, 217, 138, 139, 168, 169, 199, 223, 224, 225, 226,
+];
+const TRAMPOLINE_TILES = [158, 157];
+
+// const TRAMPOLINE_TILES = [50];
+const SPIKE_TILES = [252, 253, 282, 283];
+// const JUMP_LAYER_TILES = [46, 47, 48, 49];
 
 const PLATFORM_CONFIGS: {
   [key: number]: {
@@ -46,9 +53,9 @@ const PLATFORM_CONFIGS: {
     oneWay: boolean;
   };
 } = {
-  270: { image: "platform-movable", speed: 64, distance: 48, oneWay: true },
-  269: { image: "platform", speed: 64, distance: 64, oneWay: false },
-  268: { image: "platform", speed: 48, distance: 96, oneWay: false },
+  475: { image: "platform-movable", speed: 64, distance: 48, oneWay: true },
+  476: { image: "platform", speed: 64, distance: 64, oneWay: false },
+  474: { image: "platform", speed: 48, distance: 96, oneWay: false },
 };
 
 export class PurrquestScene extends Phaser.Scene {
@@ -81,7 +88,7 @@ export class PurrquestScene extends Phaser.Scene {
     this.jumpLayer?.destroy();
     this.load.audio("jump-sound", "audio/game/jump.mp3");
     this.load.audio("dash-sound", "audio/game/dash.wav");
-    this.load.image("blocks", "base/blocks-winter.png");
+    this.load.image("new-blocks-winter", "base/winter.png");
     this.load.spritesheet("chest", "purrquest2/icons/chest-spritesheet.png", {
       frameWidth: 120,
       frameHeight: 64,
@@ -231,7 +238,7 @@ export class PurrquestScene extends Phaser.Scene {
     this.chestManager = new ChestManager({
       scene: this,
       groundLayer: this.groundLayer!,
-      chestTileIndex: 284,
+      chestTileIndex: 473,
       cat: this.cat!,
       onChestOpened: (score) => {
         const totalTimePlayed = (performance.now() - this.gameStartTime) / 1000;
@@ -275,7 +282,7 @@ export class PurrquestScene extends Phaser.Scene {
   private initializePathfinding() {
     this.pathfinding = new Pathfinding(this, this.generateLevel);
     this.pathfinding.initializePathfinding();
-    this.pathfinding.validatePathExistence(289, 300);
+    this.pathfinding.validatePathExistence(479, 480);
   }
 
   private getSpawnPositionX(): number {
@@ -406,8 +413,8 @@ export class PurrquestScene extends Phaser.Scene {
     });
 
     const sugarTileset = this.tilemap.addTilesetImage(
-      "blocks",
-      "blocks",
+      "new-blocks-winter",
+      "new-blocks-winter",
       32,
       32,
       1,
@@ -526,7 +533,6 @@ export class PurrquestScene extends Phaser.Scene {
     // Spawn key enemy specifically with type 'KEY'
     this.key = new Key(this as any, keyX, keyY, CoinType.KEY);
     this.physics.add.collider(this.key.sprite, this.groundLayer!);
-    console.log(this.key);
     this.physics.add.overlap(
       this.cat?.sprite as Phaser.Physics.Arcade.Sprite,
       this.key.sprite,

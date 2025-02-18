@@ -77,6 +77,11 @@ function Shelter() {
     queryFn: () => CAT_API.catsForSale(),
   });
 
+  const { data: userCats } = useQuery({
+    queryKey: ["user-cats", profile?._id],
+    queryFn: () => CAT_API.cats(),
+  });
+
   const { cat } = useCat();
 
   const phaserRef = useRef<IPhaserGame | null>(null);
@@ -89,6 +94,16 @@ function Shelter() {
     }
   }, [cat, isGameLoaded]);
 
+  useEffect(() => {
+    if (userCats && userCats.length > 0 && isGameLoaded?.scene) {
+      userCats.forEach((singleCat) => {
+        GameEvents.PLAYER_CATS.push({ npc: singleCat });
+      });
+    }
+  }, [userCats, isGameLoaded]);
+
+
+
   const getRandomCats = (catsArray: ICat[], count: number) => {
     const shuffled = [...catsArray].sort(() => Math.random() - 0.5);
     return shuffled.slice(0, count);
@@ -96,14 +111,14 @@ function Shelter() {
 
   useEffect(() => {
     if (!hasSpawnedNpc && isGameLoaded?.scene && catsForSale) {
-      const randomRegularNpcs = catsForSale.tokentails;
-      const randomBlessedNpcs = catsForSale["rozine-pedute"];
+      const tokentailsNpcs = catsForSale.tokentails;
+      const rozinePeduteNpcs = catsForSale["rozine-pedute"];
 
-      randomRegularNpcs?.forEach((npcCatRegular) => {
-        GameEvents.NPC_SPAWN_REGULAR.push({ npc: npcCatRegular });
+      tokentailsNpcs?.forEach((npcCatRegular) => {
+        GameEvents.NPC_SPAWN_TOKENTAILS.push({ npc: npcCatRegular });
       });
-      randomBlessedNpcs?.forEach((npcCatBlessed) => {
-        GameEvents.NPC_SPAWN_BLESSED.push({ npc: npcCatBlessed });
+      rozinePeduteNpcs?.forEach((npcCatBlessed) => {
+        GameEvents.NPC_SPAWN_ROZINE_PEDUTE.push({ npc: npcCatBlessed });
       });
       setHasSpawnedNpc(true);
     }

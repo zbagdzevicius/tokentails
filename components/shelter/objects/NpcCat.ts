@@ -32,7 +32,9 @@ export const animationConfigurations = [
 type ICatAnimationKey = `${string}_${PlayerAnimation}`;
 export type ICatAnimationKeysMap = Record<PlayerAnimation, ICatAnimationKey>;
 
-export function generateCatAnimationConfiguration(catName: string): ICatAnimationKeysMap {
+export function generateCatAnimationConfiguration(
+  catName: string
+): ICatAnimationKeysMap {
   const map = {} as ICatAnimationKeysMap;
   for (const key of Object.values(PlayerAnimation)) {
     map[key] = `${catName}_${key}`;
@@ -55,24 +57,30 @@ export class NpcCat {
     this.scene = scene;
     this.animationKeys = generateCatAnimationConfiguration(catName);
     this.direction = 1;
-    this.sprite = this.scene.physics.add.sprite(x, y, catName)
+    this.sprite = this.scene.physics.add
+      .sprite(x, y, catName)
       .setSize(28, 28)
       .setOffset(12, 8);
-      this.sprite.body!.setSize(40, 50); // Set larger width and height for the hitbox
-this.sprite.body!.setOffset(0, -12);
-    this.sprite.setCollideWorldBounds(true); 
+    this.sprite.body!.setSize(40, 50); // Set larger width and height for the hitbox
+    this.sprite.body!.setOffset(0, -12);
+    this.sprite.setCollideWorldBounds(true);
     this.initAnimations(catName);
     this.sprite.anims.play(this.animationKeys[PlayerAnimation.RUNNING], true);
     this.sprite.setVelocityX(this.speed * this.direction);
-    this.sprite?.setDepth(2)
+    this.sprite?.setDepth(2);
     this.startRandomActions();
   }
 
   private initAnimations(catName: string) {
     for (const animationConfiguration of animationConfigurations) {
+      const animKey = this.animationKeys[animationConfiguration.key];
+
+      // Skip if animation already exists
+      if (this.scene.anims.exists(animKey)) continue;
+
       const index = animationConfigurations.indexOf(animationConfiguration);
       this.scene.anims.create({
-        key: this.animationKeys[animationConfiguration.key],
+        key: animKey,
         frames: this.scene.anims.generateFrameNumbers(catName, {
           start: index * maxAnimationFrames,
           end: index * maxAnimationFrames + animationConfiguration.frames - 1,
@@ -117,13 +125,13 @@ this.sprite.body!.setOffset(0, -12);
   }
 
   handleJump() {
-    if (!this.sprite.body!.blocked.down) return; 
+    if (!this.sprite.body!.blocked.down) return;
 
     this.sprite.setVelocityY(-250);
     this.sprite.anims.play(this.animationKeys[PlayerAnimation.JUMPING], true);
 
     this.scene.time.delayedCall(500, () => {
-      this.sprite.anims.play(this.animationKeys[PlayerAnimation.RUNNING], true); 
+      this.sprite.anims.play(this.animationKeys[PlayerAnimation.RUNNING], true);
     });
   }
 
@@ -134,13 +142,13 @@ this.sprite.body!.setOffset(0, -12);
 
     this.scene.time.delayedCall(2000, () => {
       this.isLoafing = false;
-      this.sprite.anims.play(this.animationKeys[PlayerAnimation.RUNNING], true); 
+      this.sprite.anims.play(this.animationKeys[PlayerAnimation.RUNNING], true);
       this.sprite.setVelocityX(this.speed * this.direction);
     });
   }
 
   handleEmote() {
-    const emotes = [PlayerAnimation.GROOMING, PlayerAnimation.IDLE]; 
+    const emotes = [PlayerAnimation.GROOMING, PlayerAnimation.IDLE];
     const randomEmote = Phaser.Math.RND.pick(emotes);
 
     this.isLoafing = true;
@@ -166,7 +174,7 @@ this.sprite.body!.setOffset(0, -12);
     this.sprite.anims.play(this.animationKeys[PlayerAnimation.RUNNING], true);
   }
 
- update() {
+  update() {
     if (!this.sprite.body) return;
 
     if (this.sprite.body.blocked.left) {
