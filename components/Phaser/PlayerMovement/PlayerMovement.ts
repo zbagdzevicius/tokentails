@@ -282,7 +282,7 @@ export class PlayerMovement {
           this.player.disableLeftMovement = true;
           this.player.lastWallTouched = "left";
           this.player.scene.time.addEvent({
-            delay: 150,
+            delay: 250,
             callback: () => {
               this.player.disableLeftMovement = false;
             },
@@ -292,7 +292,7 @@ export class PlayerMovement {
           this.player.disableRightMovement = true;
           this.player.lastWallTouched = "right";
           this.player.scene.time.addEvent({
-            delay: 150,
+            delay: 250,
             callback: () => {
               this.player.disableRightMovement = false;
             },
@@ -303,7 +303,7 @@ export class PlayerMovement {
         this.player.scene.time.addEvent({
           delay: 10,
           callback: () => {
-            const jumpValue = 250;
+            const jumpValue = 350;
             const currentVelocity = this.player.sprite.body!.velocity.x;
             const targetVelocity = jumpValue * jumpDirection;
             const newVelocity = Phaser.Math.Linear(
@@ -326,8 +326,8 @@ export class PlayerMovement {
   }
 
   private applyAdvancedGravity() {
-    const baseGravity = this.isGravityReversed ? -1150 : 450;
-    const fallingGravity = this.isGravityReversed ? -1200 : 500;
+    const baseGravity = this.isGravityReversed ? -1150 : 400;
+    const fallingGravity = this.isGravityReversed ? -1200 : 450;
 
     if (this.isGravityReversed) {
       if (this.player.sprite.body!.velocity.y < 0) {
