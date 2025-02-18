@@ -8,8 +8,9 @@ export class Elevator {
   private isPlayerOn: boolean = false;
   private isMovingUp: boolean = false;
   private readonly ELEVATOR_SPEED: number = 175;
-  private readonly WAIT_TIME: number = 500;
   private groundLayer: Phaser.Tilemaps.TilemapLayer;
+  private lastPlayerOnTime: number = 0;
+  private readonly PLAYER_GRACE_PERIOD: number = 700;
 
   constructor(
     scene: Scene,
@@ -25,14 +26,19 @@ export class Elevator {
     this.sprite = scene.physics.add.sprite(x, y, "elevator");
     this.sprite.setImmovable(true);
     (this.sprite.body as Phaser.Physics.Arcade.Body).allowGravity = false;
-    this.sprite.setDisplaySize(96, 32); // Adjust size as needed
+    this.sprite.setDisplaySize(96, 32);
 
-    // Add collision with ground layer
     scene.physics.add.collider(this.sprite, this.groundLayer);
   }
 
   update(delta: number) {
-    if (this.isPlayerOn) {
+    const currentTime = this.scene.time.now;
+
+    const isWithinGracePeriod =
+      currentTime - this.lastPlayerOnTime < this.PLAYER_GRACE_PERIOD;
+    const shouldMoveUp = this.isPlayerOn || isWithinGracePeriod;
+
+    if (shouldMoveUp) {
       const tileAbove = this.groundLayer.getTileAtWorldXY(
         this.sprite.x,
         this.sprite.y - 96,
@@ -40,34 +46,35 @@ export class Elevator {
       );
 
       if (tileAbove && tileAbove.index !== -1) {
-        // Stop at collision point
         this.sprite.setVelocityY(0);
       } else {
-        // Move up
         this.sprite.setVelocityY(-this.ELEVATOR_SPEED);
       }
     } else {
-      // When player is not on, move down
-      const tileBelow = this.groundLayer.getTileAtWorldXY(
-        this.sprite.x,
-        this.sprite.y + 32,
-        true
-      );
+      if (this.sprite.y < this.startY) {
+        const tileBelow = this.groundLayer.getTileAtWorldXY(
+          this.sprite.x,
+          this.sprite.y + 32,
+          true
+        );
 
-      if (tileBelow && tileBelow.index !== -1) {
-        // Stop at collision point
-        this.sprite.setVelocityY(0);
+        if (tileBelow && tileBelow.index !== -1) {
+          this.sprite.setVelocityY(0);
+        } else {
+          this.sprite.setVelocityY(this.ELEVATOR_SPEED);
+        }
       } else {
-        // Move down
-        this.sprite.setVelocityY(this.ELEVATOR_SPEED);
+        this.sprite.setVelocityY(0);
+        this.sprite.y = this.startY;
       }
     }
   }
 
   setPlayerOn(isOn: boolean) {
     this.isPlayerOn = isOn;
-    if (!isOn) {
-      this.timer = 0;
+    if (isOn) {
+      this.lastPlayerOnTime = this.scene.time.now;
     }
+    this.timer = 0;
   }
 }
