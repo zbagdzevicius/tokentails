@@ -463,8 +463,9 @@ export class PurrquestScene extends Phaser.Scene {
       0,
       0
     )!;
+
+    this.jumpLayer.setDepth(10);
     if (this.jumpLayer) {
-      this.jumpLayer.setDepth(1);
       this.jumpLayer.setCollision(JUMP_LAYER_TILES);
       this.jumpLayer.setTileIndexCallback(
         JUMP_LAYER_TILES,

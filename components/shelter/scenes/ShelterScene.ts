@@ -21,16 +21,25 @@ const TRAMPOLINE_TILES = [158, 159];
 const PLAYER_NPC_CATS_POSITIONS = {
   PLAYER_CATS: {
     x: { min: -900, max: -300 },
-    y: -250,
+    y: -230,
   },
 };
 
+enum Shelters {
+  ROZINE_PEDUTE = "rozine-pedute",
+  TOKENTAILS = "tokentails",
+}
+
+enum Tileset {
+  NEW_BLOCKS_WINTER = "new-blocks-winter",
+}
+
 const SHELTER_SPAWN_POSITIONS = {
-  ROZINE_PEDUTE: {
+  [Shelters.ROZINE_PEDUTE]: {
     x: { min: 1500, max: 2800 },
     y: -650,
   },
-  TOKENTAILS: {
+  [Shelters.TOKENTAILS]: {
     x: { min: 1700, max: 2800 },
     y: -250,
   },
@@ -89,14 +98,14 @@ export class ShelterScene extends Scene {
     });
     this.load.image("shelter-logo", "shelter/logo.png");
     this.load.image("shelter-signs", "shelter/signs.png");
-    this.load.image("elevator", "shelter/elevator.png");
+    this.load.image("elevator", "purrquest2/icons/platform-movable.png");
   }
 
   create(props: IPhaserGameSceneProps) {
     this.tilemap = this.make.tilemap({ key: "tilemap" });
     const sugarTileset = this.tilemap.addTilesetImage(
-      "new-blocks-winter",
-      "new-blocks-winter",
+      Tileset.NEW_BLOCKS_WINTER,
+      Tileset.NEW_BLOCKS_WINTER,
       32,
       32,
       1,
@@ -118,6 +127,9 @@ export class ShelterScene extends Scene {
       logoTileset,
       signsTileset,
     ])!;
+
+    this.decorationLayer.setDepth(10);
+
     this.jumperLayer = this.tilemap.createLayer("jumper", [sugarTileset])!;
     this.events.on(GameEvent.CAT_CARD_DISPLAY, (data: any) => {
       GameEvents.CAT_CARD_DISPLAY.push(data);
@@ -341,12 +353,12 @@ export class ShelterScene extends Scene {
         spawnPosition = PLAYER_NPC_CATS_POSITIONS.PLAYER_CATS;
       } else {
         switch (npcData.shelter?.slug) {
-          case "rozine-pedute":
-            spawnPosition = SHELTER_SPAWN_POSITIONS.ROZINE_PEDUTE;
+          case Shelters.ROZINE_PEDUTE:
+            spawnPosition = SHELTER_SPAWN_POSITIONS[Shelters.ROZINE_PEDUTE];
             break;
           default:
             // For everything else, default to TOKENTAILS
-            spawnPosition = SHELTER_SPAWN_POSITIONS.TOKENTAILS;
+            spawnPosition = SHELTER_SPAWN_POSITIONS[Shelters.TOKENTAILS];
             break;
         }
       }
@@ -363,6 +375,7 @@ export class ShelterScene extends Scene {
 
       this.physics.add.collider(npcCat.sprite, this.groundLayer);
       this.physics.add.collider(npcCat.sprite, this.platformsLayer);
+      this.physics.add.collider(npcCat.sprite, this.jumperLayer);
 
       if (npcData.blessings && npcData.blessings.length > 0) {
         const blessingAbility = npcData.blessings[0].ability;
