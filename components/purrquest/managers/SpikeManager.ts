@@ -1,10 +1,11 @@
+import { Cat } from "@/components/catbassadors/objects/Catbassador";
 import { Spike } from "../objects/Spikes";
 
 export interface ISpikeManagerConfig {
   scene: Phaser.Scene;
   groundLayer: Phaser.Tilemaps.TilemapLayer;
   spikeTiles: number[];
-  catSprite: Phaser.Physics.Arcade.Sprite;
+  cat: Cat;
   onPlayerHitSpike: () => void;
 }
 
@@ -12,7 +13,7 @@ export class SpikeManager {
   private scene: Phaser.Scene;
   private groundLayer: Phaser.Tilemaps.TilemapLayer;
   private spikeTiles: number[];
-  private catSprite: Phaser.Physics.Arcade.Sprite;
+  private cat: Cat;
   private spikes: Spike[] = [];
   private onPlayerHitSpike: () => void;
 
@@ -20,7 +21,7 @@ export class SpikeManager {
     this.scene = config.scene;
     this.groundLayer = config.groundLayer;
     this.spikeTiles = config.spikeTiles;
-    this.catSprite = config.catSprite;
+    this.cat = config.cat;
     this.onPlayerHitSpike = config.onPlayerHitSpike;
 
     this.initializeSpikes();
@@ -70,16 +71,21 @@ export class SpikeManager {
   private setupColliders() {
     this.spikes.forEach((spike) => {
       this.scene.physics.add.overlap(
-        this.catSprite,
+        this.cat.sprite,
         spike,
-        () => {
-          this.onPlayerHitSpike();
-        },
+        this.handleSpikeCollision,
         undefined,
         this
       );
     });
   }
+
+  private handleSpikeCollision = () => {
+    // Skip spike collision if player is invulnerable
+    if (this.cat.sprite && !this.cat.isInvulnerable) {
+      this.onPlayerHitSpike();
+    }
+  };
 
   public destroySpikes() {
     this.spikes.forEach((spike) => spike.destroy());
