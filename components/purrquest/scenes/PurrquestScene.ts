@@ -40,10 +40,7 @@ const JUMP_LAYER_TILES = [
   216, 217, 138, 139, 168, 169, 199, 223, 224, 225, 226,
 ];
 const TRAMPOLINE_TILES = [158, 157];
-
-// const TRAMPOLINE_TILES = [50];
 const SPIKE_TILES = [252, 253, 282, 283];
-// const JUMP_LAYER_TILES = [46, 47, 48, 49];
 
 const PLATFORM_CONFIGS: {
   [key: number]: {
@@ -155,9 +152,9 @@ export class PurrquestScene extends Phaser.Scene {
 
     this.buffManager = new BuffManager({
       scene: this,
-      catSprite: this.cat?.sprite || null,
+      cat: this.cat!,
       groundLayer: this.groundLayer!,
-      buffSpawnThresholdMs: 11000,
+      buffSpawnThresholdMs: 25000,
       buffBounds: {
         xMin: 200,
         xMax: 1700,
@@ -221,11 +218,89 @@ export class PurrquestScene extends Phaser.Scene {
       gameType: "purrquest",
     };
 
+    // Initialize enemy manager first
+    this.enemyManager = new EnemyManager(enemyManagerConfig);
+    this.enemyManager.spawnEnemy();
+    this.enemyManager.initialSpawnForPurrquest();
+
+    // Add enemy collisions after enemies are spawned
+    if (this.cat) {
+      // Handle collisions with regular enemies
+      this.enemyManager.enemies.forEach((enemy) => {
+        this.physics.add.overlap(
+          this.cat!.sprite,
+          enemy,
+          () => {
+            if (this.cat?.hasKey) {
+              this.cat.dropCollectiveItem();
+              // Respawn the key with initial logic
+              const droppedKey = this.key.sprite;
+              if (droppedKey) {
+                // Add collision with ground layer
+                this.physics.add.collider(droppedKey, this.groundLayer!);
+
+                // Add overlap to make it collectable again
+                this.physics.add.overlap(
+                  this.cat!.sprite,
+                  droppedKey,
+                  () => {
+                    if (this.cat && !this.cat.collectedItem) {
+                      this.cat.collectItem(droppedKey);
+                      this.cat.hasKey = true;
+                    }
+                  },
+                  undefined,
+                  this
+                );
+              }
+            }
+          },
+          undefined,
+          this
+        );
+      });
+
+      // Handle collision with boss enemy
+      if (this.enemyManager.bossEnemy) {
+        this.physics.add.overlap(
+          this.cat.sprite,
+          this.enemyManager.bossEnemy,
+          () => {
+            if (this.cat?.hasKey) {
+              this.cat.dropCollectiveItem();
+              // Respawn the key with initial logic
+              const droppedKey = this.key.sprite;
+              if (droppedKey) {
+                // Add collision with ground layer
+                this.physics.add.collider(droppedKey, this.groundLayer!);
+
+                // Add overlap to make it collectable again
+                this.physics.add.overlap(
+                  this.cat!.sprite,
+                  droppedKey,
+                  () => {
+                    if (this.cat && !this.cat.collectedItem) {
+                      this.cat.collectItem(droppedKey);
+                      this.cat.hasKey = true;
+                    }
+                  },
+                  undefined,
+                  this
+                );
+              }
+            }
+          },
+          undefined,
+          this
+        );
+      }
+    }
+
     this.spikeManager = new SpikeManager({
       scene: this,
       groundLayer: this.groundLayer!,
       spikeTiles: SPIKE_TILES,
-      catSprite: this.cat!.sprite,
+      cat: this.cat!,
       onPlayerHitSpike: () => this.endGame(),
     });
 
@@ -256,10 +331,6 @@ export class PurrquestScene extends Phaser.Scene {
         );
       },
     });
-
-    this.enemyManager = new EnemyManager(enemyManagerConfig);
-    this.enemyManager.spawnEnemy();
-    this.enemyManager.initialSpawnForPurrquest();
   }
 
   update(time: number, delta: number) {
@@ -399,7 +470,7 @@ export class PurrquestScene extends Phaser.Scene {
     }
 
     if (this.buffManager) {
-      this.buffManager["catSprite"] = this.cat?.sprite || null;
+      this.buffManager["cat"] = this.cat!;
     }
   }
 
@@ -524,30 +595,30 @@ export class PurrquestScene extends Phaser.Scene {
   private spawnKey() {
     const tile = this.getRandomWalkableTile();
     if (!tile) {
-      console.error("No walkable tile available for boss spawn.");
+      console.error("No walkable tile available for key spawn.");
       return;
     }
 
     const keyX = tile.getCenterX();
     const keyY = tile.getTop() - 32;
 
-    // Spawn key enemy specifically with type 'KEY'
+    // Create key as a collectable sprite
     this.key = new Key(this as any, keyX, keyY, CoinType.KEY);
     this.physics.add.collider(this.key.sprite, this.groundLayer!);
+
+    // Update overlap to use the Cat's collectItem method
     this.physics.add.overlap(
       this.cat?.sprite as Phaser.Physics.Arcade.Sprite,
       this.key.sprite,
-      (player, key) => this.collectKey(key as Phaser.GameObjects.Sprite),
+      () => {
+        if (this.cat && !this.cat.collectedItem) {
+          this.cat.collectItem(this.key.sprite);
+          this.cat.hasKey = true;
+        }
+      },
       undefined,
       this
     );
-  }
-
-  private collectKey(key: Phaser.GameObjects.Sprite) {
-    if (this.cat) {
-      this.cat.hasKey = true;
-    }
-    key.destroy();
   }
 
   endGame() {

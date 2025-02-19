@@ -30,8 +30,8 @@
             "scale": 0.33,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 7.575757575757507,
-                "y": -1060.6060606060607
+                "x": 4.545454545454504,
+                "y": -1066.6666666666667
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.json#blocks": {
@@ -72,11 +72,11 @@
             "scaleInDock": 1
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON": {
-            "scale": 0.25,
+            "scale": 2,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 1454,
-                "y": -456
+                "x": 1587.25,
+                "y": -349
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON#blocks": {
@@ -156,8 +156,8 @@
             "scale": 0.25,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": -306,
-                "y": -836
+                "x": -310,
+                "y": -844
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/shelter.json#blocks": {
@@ -179,8 +179,8 @@
             "scale": 0.125,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": -2076,
-                "y": 464
+                "x": -2084,
+                "y": 448
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/story.json#blocks": {
@@ -201,12 +201,12 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.66666666666663,
-                "y": 192.33333333333331
+                "x": 191,
+                "y": 191.33333333333334
             }
         },
         "C:/Users/ernes/Desktop/untitled.tmj#new-blocks-winter": {
-            "scaleInDock": 1
+            "scaleInDock": 1.5
         },
         "C:/Users/ernes/Desktop/untitled.tmj#winter": {
             "scaleInDock": 1
@@ -291,8 +291,8 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 187.33333333333331,
-                "y": 187.33333333333331
+                "x": 187,
+                "y": 186
             }
         },
         "blocked/blocked10.json#blocks-original": {
@@ -302,8 +302,8 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 187.33333333333331,
-                "y": 187.33333333333331
+                "x": 187,
+                "y": 186
             }
         },
         "blocked/blocked11.json#blocks-original": {
@@ -313,8 +313,8 @@
             "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 42,
-                "y": 7
+                "x": 41.5,
+                "y": 5
             }
         },
         "blocked/blocked12.json#blocks-original": {
@@ -324,8 +324,8 @@
             "scale": 2,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 188.5,
-                "y": 188.5
+                "x": 188.25,
+                "y": 187.5
             }
         },
         "blocked/blocked13.json#blocks-original": {
@@ -335,8 +335,8 @@
             "scale": 1.5,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 187.33333333333331,
-                "y": 187.33333333333331
+                "x": 187,
+                "y": 186
             }
         },
         "blocked/blocked14.json#blocks-original": {
@@ -357,8 +357,8 @@
             "scale": 1,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 42,
-                "y": 7
+                "x": 41.5,
+                "y": 5
             }
         },
         "blocked/blocked16.json#blocks-original": {
@@ -368,8 +368,8 @@
             "scale": 1,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 42,
-                "y": 7
+                "x": 41.5,
+                "y": 6
             }
         },
         "blocked/blocked17.json#blocks-original": {
@@ -379,8 +379,8 @@
             "scale": 2,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 188.5,
-                "y": 188.5
+                "x": 191.75,
+                "y": 191.75
             }
         },
         "blocked/blocked18.json#blocks-original": {
@@ -390,8 +390,8 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 187.33333333333331,
-                "y": 187.33333333333331
+                "x": 187,
+                "y": 186
             }
         },
         "blocked/blocked2.json#blocks-original": {
@@ -412,8 +412,8 @@
             "scale": 1,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 42,
-                "y": 7
+                "x": 41.5,
+                "y": 5
             }
         },
         "blocked/blocked5.json#blocks-original": {
@@ -423,8 +423,8 @@
             "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 42,
-                "y": 7
+                "x": 41.5,
+                "y": 5
             }
         },
         "blocked/blocked6.json#blocks-original": {
@@ -445,8 +445,8 @@
             "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 42,
-                "y": 7
+                "x": 41.5,
+                "y": 5
             }
         },
         "blocked/blocked8.json#blocks-original": {
@@ -467,8 +467,8 @@
             "scale": 2,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 188.5,
-                "y": 188.5
+                "x": 188.25,
+                "y": 187.5
             }
         },
         "exit/exit.json#blocks-original": {
@@ -478,8 +478,8 @@
             "scale": 2,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 188.5,
-                "y": 188.5
+                "x": 188.25,
+                "y": 187.5
             }
         },
         "spawn/start.json#blocks-original": {
@@ -500,8 +500,8 @@
             "scale": 0.75,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 182.66666666666666,
-                "y": 182.66666666666666
+                "x": 192.66666666666663,
+                "y": 192.66666666666663
             }
         },
         "without/without1.json#blocks-original": {
@@ -511,8 +511,8 @@
             "scale": 2.169661458333333,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 188.50867190781975,
-                "y": 188.50867190781975
+                "x": 191.96543239512695,
+                "y": 191.96543239512695
             }
         },
         "without/without10.json#blocks-original": {
@@ -544,8 +544,8 @@
             "scale": 0.75,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 182.66666666666666,
-                "y": 182.66666666666666
+                "x": 192.66666666666663,
+                "y": 192.66666666666663
             }
         },
         "without/without2.json#blocks-original": {
@@ -555,8 +555,8 @@
             "scale": 0.75,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 182.66666666666666,
-                "y": 182.66666666666666
+                "x": 192.66666666666663,
+                "y": 192.66666666666663
             }
         },
         "without/without3.json#blocks-original": {
@@ -566,8 +566,8 @@
             "scale": 1,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 42,
-                "y": 7
+                "x": 191.5,
+                "y": 192.5
             }
         },
         "without/without4.json#blocks-original": {
@@ -577,8 +577,8 @@
             "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 42,
-                "y": 7
+                "x": 191.5,
+                "y": 192.5
             }
         },
         "without/without5.json#blocks-original": {
@@ -588,8 +588,8 @@
             "scale": 1,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 42,
-                "y": 7
+                "x": 191.5,
+                "y": 192.5
             }
         },
         "without/without6.json#blocks-original": {
@@ -599,8 +599,8 @@
             "scale": 0.75,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 182.66666666666666,
-                "y": 182.66666666666666
+                "x": 192.66666666666663,
+                "y": 192.66666666666663
             }
         },
         "without/without7.json#blocks-original": {
@@ -610,8 +610,8 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 187.33333333333331,
-                "y": 187.33333333333331
+                "x": 191.66666666666663,
+                "y": 192.33333333333331
             }
         },
         "without/without8.json#blocks-original": {
@@ -621,8 +621,8 @@
             "scale": 2.169661458333333,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 188.50867190781975,
-                "y": 188.50867190781975
+                "x": 191.96543239512695,
+                "y": 191.96543239512695
             }
         },
         "without/without9.json#blocks-original": {
@@ -662,6 +662,7 @@
     ],
     "project": "untitled.tiled-project",
     "recentFiles": [
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON",
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.json",
         "without/without1.json",
         "without/without8.json",
@@ -672,7 +673,6 @@
         "blocked/blocked6.json",
         "blocked/blocked18.json",
         "blocked/blocked12.json",
-        "blocked/blocked5.json",
-        "blocked/blocked10.json"
+        "blocked/blocked5.json"
     ]
 }

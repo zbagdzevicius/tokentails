@@ -15,7 +15,9 @@ import { ZOOM } from "@/constants/utils";
 import { SpeechBubble } from "../objects/SpeechBubble";
 import { Elevator } from "../objects/Elevator";
 
-const JUMP_LAYER_TILES = [169, 170, 139, 140, 200, 224, 225, 226, 227];
+const JUMP_LAYER_TILES = [
+  169, 170, 139, 140, 200, 224, 225, 226, 227, 51, 52, 82, 83, 84,
+];
 const TRAMPOLINE_TILES = [158, 159];
 
 const PLAYER_NPC_CATS_POSITIONS = {
@@ -371,7 +373,10 @@ export class ShelterScene extends Scene {
       const spawnY = spawnPosition!.y;
 
       const npcCat = new NpcCat(this, spawnX, spawnY, npcData.name);
-      (npcCat as any).originalData = npcData;
+      (npcCat as any).originalData = {
+        ...npcData,
+        isPlayerCat,
+      };
 
       this.physics.add.collider(npcCat.sprite, this.groundLayer);
       this.physics.add.collider(npcCat.sprite, this.platformsLayer);
@@ -481,8 +486,9 @@ export class ShelterScene extends Scene {
     if (!this.cat) return;
 
     const isOverlapping = this.physics.overlap(this.cat.sprite, npc.sprite);
+    const isPlayerCat = (npc as any).originalData?.isPlayerCat;
 
-    if (isOverlapping && this.currentlyCollidingNpc === null) {
+    if (isOverlapping && this.currentlyCollidingNpc === null && !isPlayerCat) {
       this.currentlyCollidingNpc = npc;
       npc.handleLoaf();
       this.showNpcSpeechBubble(
@@ -491,7 +497,9 @@ export class ShelterScene extends Scene {
       );
     } else if (!isOverlapping && this.currentlyCollidingNpc === npc) {
       npc.handleLoafReset();
-      this.destroySpeechBubble();
+      if (this.speechBubble) {
+        this.destroySpeechBubble();
+      }
       this.currentlyCollidingNpc = null;
     }
   }

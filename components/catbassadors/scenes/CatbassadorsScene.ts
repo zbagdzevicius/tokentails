@@ -224,9 +224,9 @@ export class CatbassadorsScene extends Scene {
 
     this.buffManager = new BuffManager({
       scene: this,
-      catSprite: this.cat?.sprite || null,
+      cat: this.cat!,
       groundLayer: this.groundLayer,
-      buffSpawnThresholdMs: 15000,
+      buffSpawnThresholdMs: 25000,
       buffBounds: { xMin: -440, xMax: 300, yMin: -1450, yMax: -400 },
       baseWalkSpeed: 200,
     });
@@ -394,7 +394,7 @@ export class CatbassadorsScene extends Scene {
     }
 
     this.coinManager && (this.coinManager["catSprite"] = this.cat.sprite);
-    this.buffManager && (this.buffManager["catSprite"] = this.cat.sprite);
+    this.buffManager && (this.buffManager["cat"] = this.cat);
     this.enemyManager && (this.enemyManager["cat"] = this.cat);
 
     setMobileControls(this.cat);

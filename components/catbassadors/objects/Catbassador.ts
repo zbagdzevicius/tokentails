@@ -114,7 +114,7 @@ export class Cat implements IPlayer {
   readonly dashCooldown: number = 300; // Cooldown time before dashing again
   readonly dashSpeed: number = 640; // Speed during dash
   walkSpeed: number = catWalkSpeed;
-  readonly jumpSpeed: number = 418;
+  readonly jumpSpeed: number = 468;
   readonly wallSlideSpeed: number = 96;
   readonly maxJumpSpeed: number = 618;
   readonly coyoteTime: number = 200;
@@ -160,7 +160,6 @@ export class Cat implements IPlayer {
     this.initAnimations();
 
     this.movement = new PlayerMovement(this);
-    this.isInvulnerable = false;
     this.abilities = new Abilities(this, scene as GameScene, type);
 
     this.collectiveItem = this.scene.physics.add
@@ -196,35 +195,24 @@ export class Cat implements IPlayer {
   collectItem(item: Phaser.Physics.Arcade.Sprite) {
     this.collectedItem = item;
     this.collectedItem.setVisible(true);
+    this.collectedItem.setCollideWorldBounds(false);
   }
+  // ... existing code ...
+
   dropCollectiveItem() {
     if (this.collectedItem) {
-      const tileSize = 32;
-      const droppedTileX =
-        Math.round(this.collectedItem.x / tileSize) * tileSize;
-      const droppedTileY =
-        Math.round(this.collectedItem.y / tileSize) * tileSize;
-
-      const droppedItem = this.scene.physics.add.sprite(
-        droppedTileX,
-        droppedTileY,
-        "collective-item"
-      );
-
-      droppedItem.setScale(0.5);
-      droppedItem.setGravityY(500);
-      droppedItem.setCollideWorldBounds(true);
-
-      this.scene.physics.add.overlap(this.sprite, droppedItem, () => {
-        if (droppedItem.active) {
-          this.collectItem(droppedItem);
-          droppedItem.setVisible(false);
-        }
-      });
+      // Get the existing key from the scene
+      const purrquestScene = this.scene as PurrquestScene;
+      const key = purrquestScene.key;
+      key.sprite.setVisible(true);
+      key.sprite.setBounce(0.2);
 
       this.collectedItem = null;
+      this.hasKey = false;
     }
   }
+
+  // ... existing code ...
 
   updateCollectiveItem() {
     if (this.collectedItem) {
