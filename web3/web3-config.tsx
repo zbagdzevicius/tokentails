@@ -3,6 +3,7 @@ import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import {
   bsc,
   bscTestnet,
+  defineChain,
   skaleNebula,
   skaleNebulaTestnet,
   zetachain,
@@ -65,12 +66,37 @@ export const stellarKit = new StellarWalletsKit({
   ],
 });
 
+const campTestnet = defineChain({
+  id: 325000,
+  chainNamespace: "eip155",
+  caipNetworkId: `eip155:${325000}`,
+  name: "Camp Network Testnet V2",
+  nativeCurrency: {
+    decimals: 18,
+    name: "Ethereum",
+    symbol: "ETH",
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://rpc-campnetwork.xyz"],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: "Camp",
+      url: "https://camp-network-testnet.blockscout.com",
+    },
+  },
+  testnet: true,
+});
+
 export const chainTypeId: Record<ChainType, number> = {
   [ChainType.BNB]: bsc.id,
   [ChainType.BNB_TEST]: bscTestnet.id,
   [ChainType.SKALE]: skaleNebula.id,
   [ChainType.SKALE_TEST]: skaleNebulaTestnet.id,
   [ChainType.ZETA]: zetachain.id,
+  [ChainType.CAMP_TEST]: campTestnet.id,
   [ChainType.STELLAR]: 0,
   [ChainType.STELLAR_TEST]: 0,
   [ChainType.SOLANA]: 0,
@@ -100,7 +126,7 @@ export const solanaWallets = [
 ];
 
 // Create wagmiConfig
-export const networks = isProd ? [bsc, zetachain] : [bscTestnet, zetachain];
+export const networks = isProd ? [bsc, campTestnet] : [bscTestnet, campTestnet];
 
 export const wagmiAdapter = new WagmiAdapter({
   networks,

@@ -172,26 +172,7 @@ export default function Index() {
           </div>
         </div>
         <div
-          className="py-12 flex items-center justify-center"
-          style={{
-            backgroundImage: "url(/base/bg-4.gif)",
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        >
-          <div
-            className="z-10 relative h-full"
-            id="presale"
-            ref={gamessliderRef}
-          >
-            <Web3Providers>
-              <Presale />
-            </Web3Providers>
-          </div>
-        </div>
-        <div
-          className="py-4 min-h-screen flex items-center justify-center"
+          className="py-8 flex items-center justify-center"
           style={{
             backgroundImage: "url(/base/bg-2.gif)",
             backgroundRepeat: "no-repeat",
@@ -204,11 +185,14 @@ export default function Index() {
             id="tokenomics"
             ref={catswinnersRef}
           >
+            <Web3Providers>
+              <Presale />
+            </Web3Providers>
             <Tokenomics />
           </div>
         </div>
         <div
-          className="py-4 h-screen"
+          className="py-4 min-h-screen"
           style={{
             backgroundImage: "url(/base/bg-6.png)",
             backgroundRepeat: "no-repeat",

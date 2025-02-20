@@ -12,7 +12,7 @@ const catReview: {
     img: "/cats/pinkie/pink-lamiendo-ropa.gif",
     line1: "I meow you",
     line2: "Purrfect place for my meow meow",
-    bg: "bg-gradient-to-r from-yellow-300 to-main-rusty",
+    bg: "bg-gradient-to-r from-yellow-300 to-red-300",
   },
   {
     name: "Peanut",
@@ -46,11 +46,14 @@ const catReview: {
 
 export const FeedbackSlider = () => {
   const items = catReview.map((review) => (
-    <div key={1} className="flex items-center justify-center hover:brightness-110 hover:animate-hover">
+    <div
+      key={1}
+      className="flex items-center justify-center hover:brightness-110 hover:animate-hover"
+    >
       <div className={`p-0.5 w-full ${review.bg} rounded-3xl max-lg:mx-4`}>
         <div className="relative flex items-center justify-center flex-col w-full h-fit p-10 max-lg:p-3">
           <img
-            className="absolute top-[-35px] right-10 z-20"
+            className="absolute top-[-35px] right-10 z-2 brightness-200 opacity-50"
             src="/icons/ditto.svg"
             width={70}
             height={70}

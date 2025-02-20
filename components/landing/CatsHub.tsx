@@ -143,7 +143,7 @@ export const CatsHub = () => {
                 target="_blank"
                 href="https://docs.google.com/presentation/d/1G8F_HxNLwxkBSZ9XAcnvtH9SQFBjtI6Wq_2Y6FEXLdQ/"
               >
-                <PixelButton text="PITCH DECK" />
+                <PixelButton text="PRESENTATION" />
               </a>
             </div>
           </div>

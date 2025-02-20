@@ -1,4 +1,3 @@
-
 interface ISocial {
   img: string;
   link: string;
@@ -45,6 +44,39 @@ const teamMembers: ITeamMember[] = [
     ],
   },
   {
+    img: "/team/krishna.webp",
+    name: "Krishna",
+    role: "Marketing Lead",
+    socials: [
+      {
+        img: SocialImages.LINKEDIN,
+        link: "https://www.linkedin.com/in/krishna-meruva/",
+      },
+    ],
+  },
+  {
+    img: "/team/feta.webp",
+    name: "Feta",
+    role: "Vibe Checker",
+    socials: [
+      {
+        img: SocialImages.EMAIL,
+        link: "https://media.tenor.com/Y3bJsdez11QAAAAj/cute-spin-cute-bubu.gif",
+      },
+    ],
+  },
+  {
+    img: "/team/ernest.webp",
+    name: "Ernest",
+    role: "Game Lead",
+    socials: [
+      {
+        img: SocialImages.LINKEDIN,
+        link: "https://www.linkedin.com/in/ernest-rimkevi%C4%8Dius-0785a521a",
+      },
+    ],
+  },
+  {
     img: "/team/sky.webp",
     name: "Sky Wee",
     role: "BD",
@@ -64,69 +96,6 @@ const teamMembers: ITeamMember[] = [
       {
         img: SocialImages.EMAIL,
         link: "https://councils.forbes.com/profile/Sky-Wee-Managing-Partner-VC-Crypto-Influencer-Strategic-Advisor-Sky-Ventures/950ed4a7-2f34-4b69-a936-cf301062f115",
-      },
-    ],
-  },
-  {
-    img: "/team/feta.webp",
-    name: "Feta",
-    role: "Vibe Checker",
-    socials: [
-      {
-        img: SocialImages.EMAIL,
-        link: "https://media.tenor.com/Y3bJsdez11QAAAAj/cute-spin-cute-bubu.gif",
-      },
-    ],
-  },
-  {
-    img: "/team/krishna.webp",
-    name: "Krishna",
-    role: "Marketing Lead",
-    socials: [
-      {
-        img: SocialImages.LINKEDIN,
-        link: "https://www.linkedin.com/in/krishna-meruva/",
-      },
-    ],
-  },
-  {
-    img: "/team/ernest.webp",
-    name: "Ernest",
-    role: "Game Lead",
-    socials: [
-      {
-        img: SocialImages.LINKEDIN,
-        link: "https://www.linkedin.com/in/ernest-rimkevi%C4%8Dius-0785a521a",
-      },
-    ],
-  },
-  {
-    img: "/team/marcin.webp",
-    name: "Marcin",
-    role: "Business",
-    socials: [
-      {
-        img: SocialImages.LINKEDIN,
-        link: "https://www.linkedin.com/in/marcinkolago/",
-      },
-      {
-        img: SocialImages.EMAIL,
-        link: "https://grow3.ai",
-      },
-    ],
-  },
-  {
-    img: "/team/igor.webp",
-    name: "Igor",
-    role: "Marketing",
-    socials: [
-      {
-        img: SocialImages.LINKEDIN,
-        link: "https://www.linkedin.com/in/igor-plusa/",
-      },
-      {
-        img: SocialImages.EMAIL,
-        link: "https://grow3.ai",
       },
     ],
   },
@@ -153,13 +122,43 @@ const teamMembers: ITeamMember[] = [
     ],
   },
   {
-    img: "/team/eligijus.webp",
-    name: "Eligijus",
-    role: "Web3 Lead",
+    img: "/team/kaciukas.webp",
+    name: "Kačiukas",
+    role: "Nap Lead",
+    socials: [
+      {
+        img: SocialImages.EMAIL,
+        link: "https://media.tenor.com/Y3bJsdez11QAAAAj/cute-spin-cute-bubu.gif",
+      },
+    ],
+  },
+  {
+    img: "/team/marcin.webp",
+    name: "Marcin",
+    role: "BD Advisor",
     socials: [
       {
         img: SocialImages.LINKEDIN,
-        link: "https://www.linkedin.com/in/eligijus-lipskis-b20ab692/",
+        link: "https://www.linkedin.com/in/marcinkolago/",
+      },
+      {
+        img: SocialImages.EMAIL,
+        link: "https://grow3.ai",
+      },
+    ],
+  },
+  {
+    img: "/team/igor.webp",
+    name: "Igor",
+    role: "Marketing",
+    socials: [
+      {
+        img: SocialImages.LINKEDIN,
+        link: "https://www.linkedin.com/in/igor-plusa/",
+      },
+      {
+        img: SocialImages.EMAIL,
+        link: "https://grow3.ai",
       },
     ],
   },
@@ -189,8 +188,8 @@ const TeamMember = ({ img, name, role, socials }: ITeamMember) => {
 export const Team = () => {
   return (
     <div className="container h-full flex flex-col items-center justify-center">
-      <h2 className="mt-12 text-center text-left font-secondary uppercase tracking-tight text-h2 text-balance max-lg:text-h6 my-3">
-        Token Tails Team
+      <h2 className="mt-12 text-center font-secondary uppercase tracking-tight text-h2 text-balance max-lg:text-h6 my-3">
+        United To Save Cats
       </h2>
       <div className="py-8 px-4 mx-auto max-w-screen-xl text-center lg:py-10 lg:px-6">
         <div className="grid gap-8 grid-cols-2 md:grid-cols-5">
