@@ -33,12 +33,12 @@ export const InviteModalContent = () => {
   };
 
   const onRedeem = async () => {
-    const result = await QUEST_API.redeemContest("zetachain");
+    const result = await QUEST_API.redeemContest(mysteryBox.chain);
     if (result.success && result.cat) {
       setProfileUpdate({
         cats: [...(profile?.cats || []), result.cat],
         cat: result.cat,
-        quests: [...(profile?.quests || []), "zetachain"],
+        quests: [...(profile?.quests || []), mysteryBox.chain],
       });
       toast({ message: "Congratz on your adopted cat !" });
       setGameType(GameType.HOME);
