@@ -3,9 +3,9 @@ import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
 import { EntityType } from "@/models/save";
 import { abiERC721 } from "@/web3/abi-erc721";
-import { ChainNamespace, ChainType, CurrencyType } from "@/web3/contracts";
+import { ChainNamespace, CurrencyType } from "@/web3/contracts";
 import { chainTypeId, wagmiAdapter } from "@/web3/web3-config";
-import { zetachainMysteryBoxAddress } from "@/web3/web3.model";
+import { IMysteryBox } from "@/web3/web3.model";
 import { useAppKit } from "@reown/appkit/react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -18,15 +18,10 @@ import {
 interface IProps {
   entityType: EntityType;
   user?: string;
+  mysteryBox: IMysteryBox;
 }
 
-interface NFT {
-  tokenId: number;
-  tokenURI: string;
-  owner: string;
-}
-
-export const useWeb3Minting = ({ entityType, user }: IProps) => {
+export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
   const { evmConnected, evmAddress, namespace, namespaceDetail, chainId } =
     useWeb3();
   const { switchChainAsync } = useSwitchChain({
@@ -41,7 +36,6 @@ export const useWeb3Minting = ({ entityType, user }: IProps) => {
     isPending,
   } = useWriteContract();
   const [isStellarPending, setIsStellarPending] = useState(false);
-  const [isSolanaPending, setIsSolanaPending] = useState(false);
   const {
     isLoading: isTaxLoading,
     isSuccess: isTaxConfirmed,
@@ -51,8 +45,8 @@ export const useWeb3Minting = ({ entityType, user }: IProps) => {
   });
 
   const isLoading = useMemo(
-    () => isPending || isStellarPending || isTaxLoading || isSolanaPending,
-    [isStellarPending, isPending, isTaxLoading, isSolanaPending]
+    () => isPending || isStellarPending || isTaxLoading,
+    [isStellarPending, isPending, isTaxLoading]
   );
 
   useEffect(() => {
@@ -63,8 +57,8 @@ export const useWeb3Minting = ({ entityType, user }: IProps) => {
 
   async function syncChain() {
     try {
-      if (chainId !== chainTypeId[ChainType.ZETA]) {
-        await switchChainAsync({ chainId: chainTypeId[ChainType.ZETA] });
+      if (chainId !== chainTypeId[mysteryBox.chain]) {
+        await switchChainAsync({ chainId: chainTypeId[mysteryBox.chain] });
       }
     } catch (error) {
       console.error("Error switching chain:", error);
@@ -87,7 +81,7 @@ export const useWeb3Minting = ({ entityType, user }: IProps) => {
     try {
       const txHash = await writeContractAsync({
         abi: abiERC721,
-        address: zetachainMysteryBoxAddress,
+        address: mysteryBox.address as any,
         functionName: "safeMint",
         args: [evmAddress!],
       });
@@ -101,7 +95,7 @@ export const useWeb3Minting = ({ entityType, user }: IProps) => {
     if (isTaxConfirmed) {
       ORDER_API.confirm({
         hash: hash!,
-        chainType: ChainType.ZETA,
+        chainType: mysteryBox.chain,
         namespace: namespace!,
         amount: 1,
         walletAddress: namespaceDetail.address!,
@@ -119,6 +113,7 @@ export const useWeb3Minting = ({ entityType, user }: IProps) => {
 
   useEffect(() => {
     if (taxData?.status === "success") {
+      refetchUserNFTsCount();
       toast({ message: "Mystery box is minted successfully" });
     }
   }, [taxData]);
@@ -129,12 +124,13 @@ export const useWeb3Minting = ({ entityType, user }: IProps) => {
     }
   };
 
-  const { data: userNFTsCount } = useReadContract({
-    abi: abiERC721,
-    address: zetachainMysteryBoxAddress,
-    functionName: "balanceOf",
-    args: evmAddress ? [evmAddress] : undefined,
-  });
+  const { data: userNFTsCount, refetch: refetchUserNFTsCount } =
+    useReadContract({
+      abi: abiERC721,
+      address: mysteryBox.address as any,
+      functionName: "balanceOf",
+      args: evmAddress ? [evmAddress] : undefined,
+    });
 
   return {
     isLoading,

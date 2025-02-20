@@ -4,7 +4,7 @@ import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
-import { CatAbilities, IBlessing, ICat } from "@/models/cats";
+import { CatAbilities, CatAbilityType, IBlessing, ICat } from "@/models/cats";
 import { GameType } from "@/models/game";
 import { EntityType } from "@/models/save";
 import { CurrencyType } from "@/web3/contracts";
@@ -14,6 +14,22 @@ import { ChainSelect } from "./shared/ChainSelect";
 import { PixelButton } from "./shared/PixelButton";
 import { Web3Transfer } from "./web3/transfer/Web3Transfer";
 import { Web3Providers } from "./web3/Web3Providers";
+
+const cardsColor: Record<CatAbilityType, string> = {
+  [CatAbilityType.AIR]: "#c3dacd",
+  [CatAbilityType.DARK]: "#e7d6e4",
+  [CatAbilityType.EARTH]: "#f28282",
+  [CatAbilityType.ELECTRIC]: "#fdf599",
+  [CatAbilityType.FIRE]: "#ff7f7f",
+  [CatAbilityType.ICE]: "#d4e7f4",
+  [CatAbilityType.LEGENDARY]: "#f2ab5c",
+  [CatAbilityType.NATURE]: "#a0ca93",
+  [CatAbilityType.SAND]: "#f5f0c5",
+  [CatAbilityType.STORM]: "#e7eae9",
+  [CatAbilityType.TAILS]: "#f3aea4",
+  [CatAbilityType.WATER]: "#9fe1fb",
+  [CatAbilityType.WIND]: "#f6c7ba",
+};
 
 interface IProps extends ICat {
   onClose?: () => void;
@@ -71,7 +87,10 @@ export const getMultiplier = (cat?: ICat | null) => {
 export const CatMultiplier = (cat: ICat) => {
   const multiplier = useMemo(() => getMultiplier(cat), [cat]);
   return (
-    <div className="absolute flex flex-col right-4 bg-yellow-300 bg-opacity-75 border border-yellow-300 hover:bg-opacity-100 px-2 rounded-xl">
+    <div
+      style={{ backgroundColor: cardsColor[cat.type] || "white" }}
+      className="absolute flex flex-col right-4 bg-opacity-75 border border-yellow-300 hover:bg-opacity-100 px-2 rounded-xl"
+    >
       <div className="text-p5 font-secondary flex font-bold justify-center items-center">
         X<span className="font-secondary ml-1 lowercase">{multiplier}</span>
       </div>
@@ -97,19 +116,17 @@ export const CatDescription = ({
 
   return (
     <>
-      <div className="mb-3 max-sm:mb-2">
+      <div className="mb-3 max-sm:mb-2 text-main-black">
         <div className="flex flex-row items-center">
           {firstBlessing && (
             <img
               src={`/blessings/${firstBlessing.ability}_TYPE.png`}
               alt={firstBlessing.type}
-              className="w-10 h-10"
+              className="w-6 h-6 md:w-10 md:h-10"
             />
           )}
           <h4
-            className={`text-white text-p3 ${
-              firstBlessing ? "ml-6" : "ml-16"
-            } max-sm:ml-10 font-bold`}
+            className={`text-p3 ${firstBlessing ? "ml-4" : "ml-16"} font-bold`}
           >
             STORY
           </h4>
@@ -124,7 +141,7 @@ export const CatDescription = ({
           )}
         </div>
         <p
-          className="text-gray-200 text-p5 font-bold"
+          className="text-p5 font-bold"
           dangerouslySetInnerHTML={{
             __html: activeBlessing ? activeBlessing.description : resqueStory,
           }}
@@ -139,17 +156,15 @@ export const CatDescription = ({
         <div className="my-3">
           <div className="flex flex-row items-center">
             <img
-              className="w-10 h-10 max-lg:w-8 max-lg:h-8 max-sm:h-6 max-sm:w-6 "
+              className="w-6 h-6 md:w-10 md:h-10"
               src={`/ability/${type}.png`}
               alt={type}
               width={40}
               height={40}
             />
-            <h4 className="text-white text-p3 ml-4 md:ml-8 font-bold">
-              {ability}
-            </h4>
+            <h4 className="text-p3 ml-4 font-bold">{ability}</h4>
           </div>
-          <p className="text-gray-200 text-p5 font-bold">
+          <p className="text-p5 font-bold">
             {CatAbilities[ability].description}
           </p>
         </div>
@@ -278,7 +293,7 @@ export const CatPayment = ({
           <ChainSelect />
         </div>
       )}
-      <div className="z-10 relative flex items-end flex-row justify-around  text-white">
+      <div className="z-10 relative flex items-end flex-row justify-around">
         {outOfSupply && !isOwned && (
           <PixelButton text="Out of supply" active isDisabled></PixelButton>
         )}
@@ -346,14 +361,18 @@ export const CatCard = ({
     >
       <img
         src={`/ability/${type}_BG.webp`}
-        className="absolute object-cover z-10 h-full w-full brightness-[35%] rounded-[16px]"
+        className="absolute object-cover z-10 h-full w-full rounded-[16px]"
+      />
+      <div
+        className="absolute inset-0 z-10 h-full w-full opacity-80 rounded-[16px]"
+        style={{ backgroundColor: cardsColor[type] || "white" }}
       />
       <div className="relative z-20 flex flex-col justify-between h-full">
         <div className="w-full">
           <div>
             <div className="flex justify-between items-center m-1">
               <div className="flex flex-row space-x-4 items-center pl-4">
-                <h3 className="text-white text-p3 uppercase font-bold flex items-center">
+                <h3 className="text-main-black text-p3 uppercase font-bold flex items-center">
                   {name}
                 </h3>
               </div>

@@ -4,6 +4,8 @@ import { PixelButton } from "@/components/shared/PixelButton";
 import { EntityType } from "@/models/save";
 import { useMemo } from "react";
 import { useWeb3Minting } from "./useWeb3Minting";
+import { ChainType } from "@/web3/contracts";
+import { mysteryBoxes } from "@/web3/web3.model";
 
 interface Web3TransferProps {
   user?: string;
@@ -15,6 +17,7 @@ export const Web3Mint = ({ user, ownedNFTCallback }: Web3TransferProps) => {
     useWeb3Minting({
       entityType: EntityType.MYSTERY_BOX,
       user,
+      mysteryBox: mysteryBoxes[ChainType.CAMP_TEST]!,
     });
   const address = useMemo(() => {
     if (!namespaceDetail?.connected) {
@@ -45,7 +48,11 @@ export const Web3Mint = ({ user, ownedNFTCallback }: Web3TransferProps) => {
                 ? "Redeem Now"
                 : "Mint Now"
             }
-            onClick={() => (ownedNFTCallback ? ownedNFTCallback() : mint())}
+            onClick={() =>
+              ownedNFTCallback && (userNFTsCount as bigint) > 0
+                ? ownedNFTCallback()
+                : mint()
+            }
           ></PixelButton>
           {address && (
             <PixelButton

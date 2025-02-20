@@ -49,7 +49,7 @@ export const BlogPreview = () => {
   return (
     <div>
       <h2 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl">
-        LATEST NEWS
+        What's new ?
       </h2>
       <Slider items={items || []} mobileSlides={1} />
     </div>

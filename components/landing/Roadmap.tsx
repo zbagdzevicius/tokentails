@@ -12,7 +12,7 @@ const Roadmap = () => {
       </div>
       <div className="flex flex-col md:flex-row justify-around gap-16 md:gap-24 pt-16 md:pt-4">
         <div className="flex flex-col items-center gap-4 md:pt-36 hover:brightness-125 hover:animate-hover">
-          <div className="relative bg-gradient-to-r to-main-rusty from-main-grape rounded-full border b-gray-500 w-16 h-16 flex justify-center items-center">
+          <div className="relative bg-gradient-to-t to-purple-300 from-blue-300 rounded-full border-4 border-purple-300 w-16 h-16 flex justify-center items-center">
             <img
               className="w-10 absolute left-0 right-0 -top-14 m-auto"
               src="icons/check.webp"
@@ -39,7 +39,7 @@ const Roadmap = () => {
           </div>
         </div>
         <div className="flex flex-col items-center gap-4 md:pt-12 hover:brightness-125 hover:animate-hover">
-          <div className="relative bg-gradient-to-r to-main-ember from-main-rusty rounded-full border b-gray-500 w-16 h-16 flex justify-center items-center">
+          <div className="relative bg-gradient-to-t to-purple-300 from-blue-300 rounded-full border-4 border-purple-300 w-16 h-16 flex justify-center items-center">
             <img
               className="w-10 absolute left-0 right-0 -top-14 m-auto"
               src="icons/loader.webp"
@@ -66,7 +66,7 @@ const Roadmap = () => {
           </div>
         </div>
         <div className="flex flex-col items-center gap-4 hover:brightness-125 hover:animate-hover">
-          <div className="relative bg-gradient-to-r to-main-grape from-main-rusty rounded-full border b-gray-500 w-16 h-16 flex justify-center items-center">
+          <div className="relative bg-gradient-to-t to-purple-300 from-blue-300 rounded-full border-4 border-purple-300 w-16 h-16 flex justify-center items-center">
             <img
               className="w-10 absolute left-0 right-0 -top-14 m-auto"
               src="icons/loader.webp"

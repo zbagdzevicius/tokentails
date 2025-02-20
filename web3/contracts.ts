@@ -26,6 +26,7 @@ export enum ChainType {
   STELLAR_TEST = "STELLAR_TEST",
   SOLANA = "SOLANA",
   ZETA = "ZETA",
+  CAMP_TEST = "CAMP_TEST",
   SOLANA_TEST = "SOLANA_TEST",
 }
 
@@ -57,6 +58,7 @@ export const ChainImg: Record<ChainType, string> = {
   [ChainType.SKALE]: "/currency/SKALE.png",
   [ChainType.SKALE_TEST]: "/currency/SKALE.png",
   [ChainType.ZETA]: "/currency/ZETA.webp",
+  [ChainType.CAMP_TEST]: "/currency/CAMP.webp",
 };
 
 export const ChainNamespacesCurrencies: Record<ChainNamespace, CurrencyType[]> =

@@ -12,6 +12,9 @@ import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
 import { useToast } from "@/context/ToastContext";
 import { useGame } from "@/context/GameContext";
+import { mysteryBoxes } from "@/web3/web3.model";
+
+const mysteryBox = mysteryBoxes[ChainType.CAMP_TEST]!;
 
 export const InviteModalContent = () => {
   const { utils, shareUrl, profile, setProfileUpdate } = useProfile();
@@ -110,24 +113,25 @@ export const InviteModalContent = () => {
       ) : (
         <div className="flex justify-center items-center flex-col">
           <Tag isSmall>TIME LIMITED EVENT</Tag>
-          <h2 className="text-center font-secondary uppercase text-p5 md:text-p4 mt-2">
-            MINT AND REDEEM ON ZETACHAIN
-          </h2>
           <img
             className="w-64 aspect-square rounded-2xl mt-2 mb-4"
-            src="/utilities/mystery-boxes/mystery-box.jpg"
+            src={mysteryBox.image}
           />
-          <img
-            src={ChainImg[ChainType.ZETA]}
-            className="w-8 aspect-square mb-8 rem:-mt-[72px]"
-          />
-          <Countdown targetDate="2025-03-01" isDaysDisplayed></Countdown>
-          {profile?.quests?.includes("zetachain") ? (
+          <Countdown targetDate="2025-03-10" isDaysDisplayed></Countdown>
+          {profile?.quests?.includes(mysteryBox.chain) ? (
             <PixelButton text="REDEEMED" isDisabled></PixelButton>
           ) : (
             <Web3Providers>
               <Web3Mint user={profile?._id!} ownedNFTCallback={onRedeem} />
             </Web3Providers>
+          )}
+          {mysteryBox.faucet && (
+            <div className="flex font-secondary font-bold text-p4 items-center justify-center pt-4">
+              Out of gas ?{" "}
+              <a href={mysteryBox.faucet}>
+                <PixelButton isSmall text="Get Gas" />
+              </a>
+            </div>
           )}
         </div>
       )}

@@ -2,7 +2,7 @@ import React from "react";
 
 export const VestingSchedule = () => {
   return (
-    <div className="overflow-x-scroll font-secondary hover:brightness-105 hover:animate-hover">
+    <div className="overflow-x-scroll font-secondary hover:brightness-105 mt-8 animate-opacity">
       <table className="rounded-lg overflow-hidden table-auto bg-blue-300 text-black-900 w-full text-sm text-left text-gray-500 max-2xl:ml-2 max-2xl:mr-2">
         <thead className="text-p4 uppercase text-black-300 bg-gray-50 border-b border-purple-300">
           <tr>
@@ -85,7 +85,9 @@ export const VestingSchedule = () => {
                 13
               </div>
             </th>
-            <th className="py-3 px-6 text-center border-l border-blue-300">...</th>
+            <th className="py-3 px-6 text-center border-l border-blue-300">
+              ...
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -105,10 +107,16 @@ export const VestingSchedule = () => {
             <td className="py-4 px-6 text-center text-purple-300 bg-gray-700 text-p4 border-l border-purple-300">
               $0.02
             </td>
-            <td colSpan={2} className="text-center border border-purple-300 text-p4">
+            <td
+              colSpan={2}
+              className="text-center border border-purple-300 text-p4"
+            >
               CLIFF
             </td>
-            <td colSpan={12} className="py-4 px-6 bg-purple-300 text-left text-p4">
+            <td
+              colSpan={12}
+              className="py-4 px-6 bg-purple-300 text-left text-p4"
+            >
               LINEAR VEST - 15 MONTHS
             </td>
           </tr>
@@ -128,7 +136,10 @@ export const VestingSchedule = () => {
             <td className="py-4 px-6 text-center text-yellow-300 bg-gray-700 text-p4 border-l border-yellow-300">
               $0.03
             </td>
-            <td colSpan={8} className="py-4 px-6 bg-yellow-300 text-left text-p4">
+            <td
+              colSpan={8}
+              className="py-4 px-6 bg-yellow-300 text-left text-p4"
+            >
               LINEAR VEST - 8 MONTHS
             </td>
           </tr>
@@ -148,10 +159,16 @@ export const VestingSchedule = () => {
             <td className="py-4 px-6 text-center text-yellow-300 bg-gray-700 text-p4 border-l border-yellow-300">
               -
             </td>
-            <td className="text-center border border-yellow-300 text-p4" colSpan={9}>
+            <td
+              className="text-center border border-yellow-300 text-p4"
+              colSpan={9}
+            >
               CLIFF
             </td>
-            <td colSpan={5} className="py-4 px-6 bg-yellow-300 text-left text-p4">
+            <td
+              colSpan={5}
+              className="py-4 px-6 bg-yellow-300 text-left text-p4"
+            >
               LINEAR VEST - 14 MONTHS
             </td>
           </tr>
@@ -171,10 +188,16 @@ export const VestingSchedule = () => {
             <td className="py-4 px-6 text-center text-green-300 bg-gray-700 text-p4 border-l border-green-300">
               -
             </td>
-            <td className="text-center border border-green-300 text-p4" colSpan={8}>
+            <td
+              className="text-center border border-green-300 text-p4"
+              colSpan={8}
+            >
               CLIFF
             </td>
-            <td colSpan={6} className="py-4 px-6 bg-green-300 text-left text-p4">
+            <td
+              colSpan={6}
+              className="py-4 px-6 bg-green-300 text-left text-p4"
+            >
               LINEAR VEST - 58 MONTHS
             </td>
           </tr>
@@ -194,10 +217,16 @@ export const VestingSchedule = () => {
             <td className="py-4 px-6 text-center text-green-300 bg-gray-700 text-p4 border-l border-green-300">
               -
             </td>
-            <td colSpan={1} className="text-center border border-green-300 text-p4">
+            <td
+              colSpan={1}
+              className="text-center border border-green-300 text-p4"
+            >
               CLIFF
             </td>
-            <td colSpan={13} className="py-4 px-6 bg-green-300 text-left text-p4">
+            <td
+              colSpan={13}
+              className="py-4 px-6 bg-green-300 text-left text-p4"
+            >
               LINEAR VEST - 64 MONTHS
             </td>
           </tr>
@@ -217,14 +246,17 @@ export const VestingSchedule = () => {
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p4 border-l border-white-300">
               -
             </td>
-            <td colSpan={13} className="text-center border border-white text-p4">
+            <td
+              colSpan={13}
+              className="text-center border border-white text-p4"
+            >
               17 months CLIFF
             </td>
             <td colSpan={1} className="px-6 bg-white text-left text-p4">
               <div className="flex flex-col items-center">
                 <div className="text-p4">LINEAR VEST</div>
                 <div className="text-p6">50 months</div>
-                </div>
+              </div>
             </td>
           </tr>
           <tr className="border-b border-white">
