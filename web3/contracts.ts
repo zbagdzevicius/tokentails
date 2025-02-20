@@ -82,6 +82,9 @@ export const currencyContracts: Record<
   [ChainType.SKALE_TEST]: {
     [CurrencyType.TAILS]: "0x",
   },
+  [ChainType.CAMP_TEST]: {
+    [CurrencyType.TAILS]: "0x",
+  },
   [ChainType.BNB]: {
     [CurrencyType.USDT]: "0x55d398326f99059fF775485246999027B3197955",
     [CurrencyType.USDC]: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
