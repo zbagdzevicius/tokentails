@@ -1,19 +1,16 @@
 {
-    "Map/SizeTest": {
-        "height": 4300,
-        "width": 2
-    },
-    "activeFile": "C:/Users/ernes/Desktop/game/cats/public/catbassadors/story.json",
+    "activeFile": "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON",
     "expandedProjectPaths": [
-        "spawn",
-        "without",
+        "exit",
         "blocked",
-        "exit"
+        "without",
+        "spawn"
     ],
     "file.lastUsedOpenFilter": "All Files (*)",
     "fileStates": {
         "": {
-            "scaleInDock": 1
+            "scaleInDock": 1,
+            "scaleInEditor": 1
         },
         "#blocks-original": {
             "scaleInDock": 1
@@ -30,14 +27,17 @@
             "scaleInDock": 1
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.json": {
-            "scale": 0.75,
+            "scale": 0.33,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": -256.66666666666663,
-                "y": -512
+                "x": 4.545454545454504,
+                "y": -1066.6666666666667
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.json#blocks": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.json#new-blocks-winter": {
             "scaleInDock": 1
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.tmx": {
@@ -54,12 +54,110 @@
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.tmx#blocks-winter": {
             "scaleInDock": 1
         },
-        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/shelter.json": {
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter copy.json": {
             "scale": 0.33,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": -253.030303030303,
-                "y": -765.1515151515152
+                "x": -368.18181818181824,
+                "y": -881.8181818181818
+            }
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter copy.json#logo": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter copy.json#new-blocks-winter": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter copy.json#signs": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON": {
+            "scale": 2,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 1587.25,
+                "y": -349
+            }
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON#blocks": {
+            "scaleInDock": 0.75
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON#logo": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON#new-blocks-winter": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON#signs": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.json": {
+            "scale": 1.5,
+            "selectedLayer": 2,
+            "viewCenter": {
+                "x": -783,
+                "y": -246
+            }
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.json#logo": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.json#new-blocks-winter": {
+            "scaleInDock": 0.75
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.json#signs": {
+            "scaleInDock": 0.33
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmj": {
+            "scale": 0.33,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 1365.151515151515,
+                "y": -624.2424242424242
+            }
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmj#blocks": {
+            "scaleInDock": 0.75,
+            "scaleInEditor": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmj#logo": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmj#new-blocks-winter": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmj#signs": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmx": {
+            "scale": 0.75,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 1312.6666666666665,
+                "y": -465.33333333333326
+            }
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmx#blocks": {
+            "scaleInDock": 0.75
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmx#logo": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmx#new-blocks-winter": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.tmx#signs": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/shelter.json": {
+            "scale": 0.25,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": -310,
+                "y": -844
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/shelter.json#blocks": {
@@ -78,15 +176,83 @@
             "scaleInEditor": 1
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/story.json": {
-            "scale": 0.5,
+            "scale": 0.125,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": -291,
-                "y": -636
+                "x": -2084,
+                "y": 448
             }
         },
         "C:/Users/ernes/Desktop/game/cats/public/catbassadors/story.json#blocks": {
             "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/untitled.tmj": {
+            "scale": 1,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": -0.5,
+                "y": -2
+            }
+        },
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/untitled.tmj#new-blocks-winter": {
+            "scaleInDock": 0.75
+        },
+        "C:/Users/ernes/Desktop/untitled.tmj": {
+            "scale": 1.5,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 191,
+                "y": 191.33333333333334
+            }
+        },
+        "C:/Users/ernes/Desktop/untitled.tmj#new-blocks-winter": {
+            "scaleInDock": 1.5
+        },
+        "C:/Users/ernes/Desktop/untitled.tmj#winter": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Desktop/untitled.tmj#winter-packed": {
+            "scaleInDock": 1
+        },
+        "C:/Users/ernes/Downloads/kenney_pixel-platformer (3)/Tiled/tilemap-example-a.tmx": {
+            "scale": 1.7802350427350426,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 234.51959431074837,
+                "y": 135.37538258416853
+            }
+        },
+        "C:/Users/ernes/Downloads/kenney_pixel-platformer (3)/Tiled/tilemap-example-b.tmx": {
+            "scale": 1.7802350427350426,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 233.3961471523735,
+                "y": 130.88159395066913
+            }
+        },
+        "C:/Users/ernes/Downloads/kenney_pixel-platformer (3)/Tiled/tileset-characters.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "C:/Users/ernes/Downloads/kenney_pixel-platformer (3)/Tiled/tileset-tiles.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "C:/Users/ernes/Downloads/kenney_pixel-platformer/Tiled/tilemap-example-a.tmx": {
+            "scale": 1.7802350427350426,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 234.51959431074837,
+                "y": 134.8136590049811
+            }
+        },
+        "C:/Users/ernes/Downloads/kenney_pixel-platformer/Tiled/tilemap-example-b.tmx": {
+            "scale": 1.7802350427350426,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 234.51959431074837,
+                "y": 135.37538258416853
+            }
         },
         "blocked/blcoked3.json": {
             "scale": 2.169661458333333,
@@ -103,8 +269,8 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.66666666666669,
-                "y": 190.66666666666669
+                "x": 190.33333333333334,
+                "y": 188.66666666666669
             }
         },
         "blocked/blocked0.json#blocks-original": {
@@ -112,10 +278,10 @@
         },
         "blocked/blocked1.json": {
             "scale": 2.206770833333333,
-            "selectedLayer": 0,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 190.54991739438285,
-                "y": 189.8701911729998
+                "x": 189.6436157658721,
+                "y": 188.05758791597827
             }
         },
         "blocked/blocked1.json#blocks-original": {
@@ -125,8 +291,8 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 155,
-                "y": 246.66666666666669
+                "x": 187,
+                "y": 186
             }
         },
         "blocked/blocked10.json#blocks-original": {
@@ -136,8 +302,8 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 150.33333333333334,
-                "y": 144
+                "x": 187,
+                "y": 186
             }
         },
         "blocked/blocked11.json#blocks-original": {
@@ -147,41 +313,41 @@
             "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 118.5,
-                "y": 185
+                "x": 41.5,
+                "y": 5
             }
         },
         "blocked/blocked12.json#blocks-original": {
             "scaleInDock": 1
         },
         "blocked/blocked13.json": {
-            "scale": 1,
+            "scale": 2,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 99.5,
-                "y": 245
+                "x": 188.25,
+                "y": 187.5
             }
         },
         "blocked/blocked13.json#blocks-original": {
             "scaleInDock": 1
         },
         "blocked/blocked14.json": {
-            "scale": 2.169661458333333,
-            "selectedLayer": 0,
+            "scale": 1.5,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 156.4760247254396,
-                "y": 301.89041589149616
+                "x": 187,
+                "y": 186
             }
         },
         "blocked/blocked14.json#blocks-original": {
             "scaleInDock": 1
         },
         "blocked/blocked15.json": {
-            "scale": 2.169661458333333,
+            "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 156.4760247254396,
-                "y": 123.52157474644424
+                "x": 147,
+                "y": 279.33333333333326
             }
         },
         "blocked/blocked15.json#blocks-original": {
@@ -189,21 +355,21 @@
         },
         "blocked/blocked16.json": {
             "scale": 1,
-            "selectedLayer": 0,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 50.5,
-                "y": 136
+                "x": 41.5,
+                "y": 5
             }
         },
         "blocked/blocked16.json#blocks-original": {
             "scaleInDock": 1
         },
         "blocked/blocked17.json": {
-            "scale": 2.169661458333333,
-            "selectedLayer": 0,
+            "scale": 1,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 156.4760247254396,
-                "y": 123.52157474644424
+                "x": 41.5,
+                "y": 6
             }
         },
         "blocked/blocked17.json#blocks-original": {
@@ -211,10 +377,10 @@
         },
         "blocked/blocked18.json": {
             "scale": 2,
-            "selectedLayer": 0,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 155.75,
-                "y": 184.5
+                "x": 188.5,
+                "y": 188.5
             }
         },
         "blocked/blocked18.json#blocks-original": {
@@ -224,8 +390,8 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 155,
-                "y": 122
+                "x": 187,
+                "y": 186
             }
         },
         "blocked/blocked2.json#blocks-original": {
@@ -235,19 +401,19 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 187.33333333333331,
-                "y": 187.33333333333331
+                "x": 187,
+                "y": 186
             }
         },
         "blocked/blocked4.json#blocks-original": {
             "scaleInDock": 1
         },
         "blocked/blocked5.json": {
-            "scale": 2.169661458333333,
-            "selectedLayer": 0,
+            "scale": 1,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 156.4760247254396,
-                "y": 123.52157474644424
+                "x": 41.5,
+                "y": 5
             }
         },
         "blocked/blocked5.json#blocks-original": {
@@ -257,8 +423,8 @@
             "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 151.5,
-                "y": 152
+                "x": 41.5,
+                "y": 5
             }
         },
         "blocked/blocked6.json#blocks-original": {
@@ -268,19 +434,19 @@
             "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 148.5,
-                "y": 199
+                "x": 147.5,
+                "y": 197
             }
         },
         "blocked/blocked7.json#blocks-original": {
             "scaleInDock": 1
         },
         "blocked/blocked8.json": {
-            "scale": 2.169661458333333,
+            "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 156.4760247254396,
-                "y": 123.52157474644424
+                "x": 41.5,
+                "y": 5
             }
         },
         "blocked/blocked8.json#blocks-original": {
@@ -299,10 +465,10 @@
         },
         "exit/exit.json": {
             "scale": 2,
-            "selectedLayer": 0,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 192.75,
-                "y": 185.5
+                "x": 188.25,
+                "y": 187.5
             }
         },
         "exit/exit.json#blocks-original": {
@@ -310,10 +476,10 @@
         },
         "spawn/start.json": {
             "scale": 2,
-            "selectedLayer": 0,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 172.25,
-                "y": 213.5
+                "x": 188.25,
+                "y": 187.5
             }
         },
         "spawn/start.json#blocks-original": {
@@ -323,19 +489,19 @@
             "scale": 2,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 191.75,
-                "y": 191.75
+                "x": 190.75,
+                "y": 201.5
             }
         },
         "without/without.json#blocks-original": {
             "scaleInDock": 1
         },
         "without/without1.json": {
-            "scale": 2.169661458333333,
-            "selectedLayer": 1,
+            "scale": 0.75,
+            "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 182.66666666666666,
+                "y": 182.66666666666666
             }
         },
         "without/without1.json#blocks-original": {
@@ -345,8 +511,8 @@
             "scale": 2.169661458333333,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 188.50867190781975,
+                "y": 188.50867190781975
             }
         },
         "without/without10.json#blocks-original": {
@@ -375,77 +541,77 @@
             "scaleInDock": 1
         },
         "without/without2.json": {
-            "scale": 2.169661458333333,
-            "selectedLayer": 1,
+            "scale": 0.75,
+            "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 182.66666666666666,
+                "y": 182.66666666666666
             }
         },
         "without/without2.json#blocks-original": {
             "scaleInDock": 1
         },
         "without/without3.json": {
-            "scale": 2.169661458333333,
-            "selectedLayer": 1,
+            "scale": 0.75,
+            "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 182.66666666666666,
+                "y": 182.66666666666666
             }
         },
         "without/without3.json#blocks-original": {
             "scaleInDock": 1
         },
         "without/without4.json": {
-            "scale": 2.169661458333333,
+            "scale": 1,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 42,
+                "y": 7
             }
         },
         "without/without4.json#blocks-original": {
             "scaleInDock": 1
         },
         "without/without5.json": {
-            "scale": 2.169661458333333,
-            "selectedLayer": 1,
+            "scale": 1,
+            "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 42,
+                "y": 7
             }
         },
         "without/without5.json#blocks-original": {
             "scaleInDock": 1
         },
         "without/without6.json": {
-            "scale": 2.169661458333333,
+            "scale": 1,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 42,
+                "y": 7
             }
         },
         "without/without6.json#blocks-original": {
             "scaleInDock": 1
         },
         "without/without7.json": {
-            "scale": 2.169661458333333,
-            "selectedLayer": 1,
+            "scale": 0.75,
+            "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 182.66666666666666,
+                "y": 182.66666666666666
             }
         },
         "without/without7.json#blocks-original": {
             "scaleInDock": 1
         },
         "without/without8.json": {
-            "scale": 2.169661458333333,
+            "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 187.33333333333331,
+                "y": 187.33333333333331
             }
         },
         "without/without8.json#blocks-original": {
@@ -453,23 +619,36 @@
         },
         "without/without9.json": {
             "scale": 2.169661458333333,
-            "selectedLayer": 0,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 191.96543239512695,
-                "y": 191.96543239512695
+                "x": 188.50867190781975,
+                "y": 188.50867190781975
             }
         },
         "without/without9.json#blocks-original": {
             "scaleInDock": 1
         }
     },
-    "last.imagePath": "C:/Users/ernes/Desktop/game/cats/public/base",
-    "map.height": 12,
-    "map.lastUsedFormat": "json",
-    "map.layerDataFormat": null,
-    "map.width": 12,
     "openFiles": [
-        "without/without.json",
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/shelter.json",
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.json",
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/story.json",
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON",
+        "exit/exit.json",
+        "C:/Users/ernes/Desktop/untitled.tmj",
+        "spawn/start.json",
+        "blocked/blocked2.json",
+        "blocked/blocked5.json",
+        "blocked/blocked6.json",
+        "blocked/blocked8.json",
+        "blocked/blocked10.json",
+        "blocked/blocked11.json",
+        "blocked/blocked12.json",
+        "blocked/blocked13.json",
+        "blocked/blocked14.json",
+        "blocked/blocked16.json",
+        "blocked/blocked17.json",
+        "blocked/blocked18.json",
         "without/without1.json",
         "without/without2.json",
         "without/without3.json",
@@ -479,27 +658,21 @@
         "without/without7.json",
         "without/without8.json",
         "without/without9.json",
-        "without/without10.json",
-        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/shelter.json",
-        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.json",
-        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/story.json"
+        "without/without10.json"
     ],
     "project": "untitled.tiled-project",
     "recentFiles": [
-        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/catbassadors.json",
-        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/shelter.json",
-        "without/without.json",
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.JSON",
+        "C:/Users/ernes/Desktop/game/cats/public/catbassadors/new-shelter.json",
         "without/without1.json",
-        "without/without2.json",
-        "without/without3.json",
-        "without/without4.json",
-        "without/without5.json",
-        "without/without6.json",
-        "without/without7.json",
         "without/without8.json",
-        "without/without9.json"
-    ],
-    "tileset.embedInMap": true,
-    "tileset.margin": 1,
-    "tileset.spacing": 2
+        "blocked/blocked16.json",
+        "blocked/blocked13.json",
+        "blocked/blocked17.json",
+        "without/without7.json",
+        "blocked/blocked6.json",
+        "blocked/blocked18.json",
+        "blocked/blocked12.json",
+        "blocked/blocked5.json"
+    ]
 }

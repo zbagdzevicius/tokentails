@@ -12,7 +12,7 @@
     "extrude:food": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/food-original.png --output ./public/base/food.png",
     "extrude:blocks": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/blocks-original.png --output ./public/base/blocks.png",
     "extrude:enemies": "tile-extruder --tileWidth 33 --tileHeight 33 --margin 0 --spacing 0 --input ./public/enemies/white-owlet.png --output ./public/enemies/white-owlet.png",
-    "extrude:winter": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/blocks-original-winter.png --output ./public/base/blocks-winter.png"
+    "extrude:winter": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/new-blocks-winter.png --output ./public/base/winter.png"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^5.4.1",

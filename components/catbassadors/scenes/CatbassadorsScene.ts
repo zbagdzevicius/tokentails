@@ -16,8 +16,8 @@ import { BuffManager } from "../managers/BuffManager";
 import { currentDayCoin, ZOOM } from "@/constants/utils";
 import { endScenePeriod } from "@/models/game";
 
-const JUMP_LAYER_TILES = [47, 48, 49, 50];
-const TRAMPOLINE_TILES = [51];
+const JUMP_LAYER_TILES = [169, 170, 139, 140, 200, 224, 225, 226, 227];
+const TRAMPOLINE_TILES = [158, 159, 160];
 
 const DEFAULT_ENEMY_SPAWN_THRESHOLD = 100;
 
@@ -46,6 +46,15 @@ export class CatbassadorsScene extends Scene {
   private coinManager?: CoinManager;
   private buffManager?: BuffManager;
   enemyManager?: EnemyManager;
+
+  private gravityReverseInterval: number = 120000;
+  private nextGravityReverseTime: number = 0;
+  private isGravityReversed: boolean = false;
+
+  private decorationLayer!: Phaser.Tilemaps.TilemapLayer;
+  private waterTiles: number[] = [74, 44];
+  private waterAnimationTimer: number = 0;
+  private waterAnimationInterval: number = 350;
 
   constructor() {
     super("CatbassadorsScene");
@@ -77,7 +86,7 @@ export class CatbassadorsScene extends Scene {
     this.load.audio("jump-sound", "audio/game/jump.mp3");
     this.load.audio("dash-sound", "audio/game/dash.wav");
     this.load.tilemapTiledJSON("tilemap", "catbassadors/catbassadors.json");
-    this.load.image("blocks", "base/blocks-winter.png");
+    this.load.image("new-blocks-winter", "base/winter.png");
     this.load.spritesheet("starAnimation", "base/star-animation.png", {
       frameWidth: 32,
       frameHeight: 32,
@@ -132,8 +141,8 @@ export class CatbassadorsScene extends Scene {
   create(props: IPhaserGameSceneProps) {
     this.tilemap = this.make.tilemap({ key: "tilemap" });
     const sugarTileset = this.tilemap.addTilesetImage(
-      "blocks",
-      "blocks",
+      "new-blocks-winter",
+      "new-blocks-winter",
       32,
       32,
       1,
@@ -143,8 +152,12 @@ export class CatbassadorsScene extends Scene {
     this.platformsLayer = this.tilemap.createLayer("platforms", [
       sugarTileset,
     ])!;
-    this.tilemap.createLayer("decorations", [sugarTileset]);
+    this.decorationLayer = this.tilemap.createLayer("decorations", [
+      sugarTileset,
+    ])!;
     this.jumperLayer = this.tilemap.createLayer("jumper", [sugarTileset])!;
+
+    this.decorationLayer.setDepth(10);
 
     // Set collision for specific tiles based on property
     this.groundLayer?.setCollisionByExclusion([-1]);
@@ -153,10 +166,14 @@ export class CatbassadorsScene extends Scene {
       JUMP_LAYER_TILES,
       (player: Phaser.GameObjects.GameObject) => {
         const playerSprite = player as Phaser.Physics.Arcade.Sprite;
-        if (playerSprite.body!.velocity.y <= 0) {
-          return true;
+
+        if (this.isGravityReversed) {
+          // Allow collision when moving downward (falling)
+          return playerSprite.body!.velocity.y >= 0;
+        } else {
+          // Allow collision when moving upward (jumping)
+          return playerSprite.body!.velocity.y <= 0;
         }
-        return false;
       },
       this
     );
@@ -207,9 +224,9 @@ export class CatbassadorsScene extends Scene {
 
     this.buffManager = new BuffManager({
       scene: this,
-      catSprite: this.cat?.sprite || null,
+      cat: this.cat!,
       groundLayer: this.groundLayer,
-      buffSpawnThresholdMs: 15000,
+      buffSpawnThresholdMs: 25000,
       buffBounds: { xMin: -440, xMax: 300, yMin: -1450, yMax: -400 },
       baseWalkSpeed: 200,
     });
@@ -232,6 +249,10 @@ export class CatbassadorsScene extends Scene {
     });
 
     this.createAnimations();
+
+    this.nextGravityReverseTime = this.time.now + this.gravityReverseInterval;
+
+    this.setupWaterAnimation();
   }
 
   handleVisibilityChange() {
@@ -373,13 +394,18 @@ export class CatbassadorsScene extends Scene {
     }
 
     this.coinManager && (this.coinManager["catSprite"] = this.cat.sprite);
-    this.buffManager && (this.buffManager["catSprite"] = this.cat.sprite);
+    this.buffManager && (this.buffManager["cat"] = this.cat);
     this.enemyManager && (this.enemyManager["cat"] = this.cat);
 
     setMobileControls(this.cat);
   }
 
   update(time: any, delta: any) {
+    if (time > this.nextGravityReverseTime && !this.gameOver) {
+      this.reverseGravityForAll();
+      this.nextGravityReverseTime = time + this.gravityReverseInterval;
+    }
+
     this.cat?.update();
     this.enemyManager?.update(time, delta);
     this.coinManager?.update();
@@ -440,6 +466,11 @@ export class CatbassadorsScene extends Scene {
         this.cat.isDeath = false;
       }
     });
+
+    this.isGravityReversed = false;
+    if (this.cat?.movement) {
+      this.cat.movement.setGravityReversed(false);
+    }
   }
 
   private startGame() {
@@ -453,5 +484,49 @@ export class CatbassadorsScene extends Scene {
     this.coinManager?.startSpawning();
     this.buffManager?.startSpawning();
     this.buffManager?.startGame();
+
+    this.isGravityReversed = false;
+    this.nextGravityReverseTime = this.time.now + this.gravityReverseInterval;
+    if (this.cat?.movement) {
+      this.cat.movement.setGravityReversed(false);
+    }
+  }
+
+  private reverseGravityForAll() {
+    this.isGravityReversed = !this.isGravityReversed;
+
+    if (this.cat?.movement) {
+      this.cat.movement.setGravityReversed(this.isGravityReversed);
+    }
+
+    this.enemyManager?.setGravityReversed(this.isGravityReversed);
+  }
+
+  private setupWaterAnimation() {
+    const waterTilePositions: { x: number; y: number }[] = [];
+    this.decorationLayer.forEachTile((tile) => {
+      if (tile.index === 74) {
+        waterTilePositions.push({ x: tile.x, y: tile.y });
+      }
+    });
+
+    this.time.addEvent({
+      delay: this.waterAnimationInterval,
+      callback: () => {
+        waterTilePositions.forEach((pos) => {
+          const currentTile = this.decorationLayer.getTileAt(pos.x, pos.y);
+          if (currentTile) {
+            const currentIndex = this.waterTiles.indexOf(currentTile.index);
+            const nextIndex = (currentIndex + 1) % this.waterTiles.length;
+            this.decorationLayer.putTileAt(
+              this.waterTiles[nextIndex],
+              pos.x,
+              pos.y
+            );
+          }
+        });
+      },
+      loop: true,
+    });
   }
 }

@@ -4,37 +4,24 @@ import { IPlayer } from "../PlayerMovement/IPlayer";
 
 const wallSlidingThresholdMs = 200;
 
-const elementHueRotation = {
-  ELECTRIC: 60, // Yellow
-  STORM: 120, // Green
-  FIRE: 30, // Orange
-  WIND: 180, // Cyan
-  DARK: 240, // Blue
-  WATER: 200, // Aqua Blue
-  AIR: 150, // Greenish Cyan
-  EARTH: 25, // Yellowish Brown
-  ICE: 210, // Light Blue
-  NATURE: 90, // Lime Green
-  SAND: 45, // Yellow Ochre
-  TAILS: 270, // Purple
-  LEGENDARY: 300, // Pinkish Purple
-};
-
 export class PlayerMovement {
   private player: IPlayer;
 
-  private jumpSound: Phaser.Sound.BaseSound;
-  private dashSound: Phaser.Sound.BaseSound;
-
   private jumpStartTime: number = 0;
   private isJumpHeld: boolean = false;
+  isGravityReversed: boolean = false;
 
   constructor(player: IPlayer) {
     this.player = player;
     this.player.sprite.setMaxVelocity(this.player.walkSpeed * 2, 1000000);
+  }
 
-    this.jumpSound = this.player.scene.sound.add("jump-sound");
-    this.dashSound = this.player.scene.sound.add("dash-sound");
+  setGravityReversed(reversed: boolean) {
+    if (this.isGravityReversed === reversed) return;
+
+    this.isGravityReversed = reversed;
+    this.player.sprite.setFlipY(reversed);
+    this.player.sprite.setGravityY(reversed ? -450 : 450);
   }
 
   updateOngoingMovements() {
@@ -47,6 +34,7 @@ export class PlayerMovement {
       isMobileJumping,
       isMobileknockbackSpell,
       abilities,
+      isOnIcyTile,
     } = this.player;
 
     if (this.player.isDashing) return;
@@ -64,18 +52,17 @@ export class PlayerMovement {
     const upKeyDown =
       cursors.up.isDown || keys.up.isDown || keys.upW.isDown || isMobileJumping;
 
-    const touchingLeftWall =
-      sprite.body!.blocked.left && !sprite.body!.blocked.down;
-    const touchingRightWall =
-      sprite.body!.blocked.right && !sprite.body!.blocked.down;
+    const onGround = this.isGravityReversed
+      ? sprite.body!.blocked.up
+      : sprite.body!.blocked.down;
+
+    const touchingLeftWall = sprite.body!.blocked.left && !onGround;
+    const touchingRightWall = sprite.body!.blocked.right && !onGround;
 
     const canWallJump =
-      upKeyDown &&
-      !sprite.body!.blocked.down &&
-      (touchingLeftWall || touchingRightWall);
+      upKeyDown && !onGround && (touchingLeftWall || touchingRightWall);
 
     const blockedAbove = sprite.body!.blocked.up;
-    const onGround = sprite.body!.blocked.down;
 
     const now = this.player.scene.time.now;
     if (
@@ -113,7 +100,9 @@ export class PlayerMovement {
       sprite.setFlipX(false);
     } else {
       const currentVelocity = sprite.body!.velocity.x;
-      const decelerationRate = this.player.walkSpeed / 10;
+      const decelerationRate = isOnIcyTile
+        ? this.player.walkSpeed / 35
+        : this.player.walkSpeed / 10;
 
       if (Math.abs(currentVelocity) <= decelerationRate) {
         sprite.setVelocityX(0);
@@ -177,13 +166,7 @@ export class PlayerMovement {
     }
 
     this.handleDash();
-
-    if (
-      !blockedAbove &&
-      (onGround || canWallJump) &&
-      upKeyDown &&
-      !this.player.justJumped
-    ) {
+    if ((onGround || canWallJump) && upKeyDown && !this.player.justJumped) {
       this.jump({
         canWallJump,
         touchingLeftWall,
@@ -197,7 +180,11 @@ export class PlayerMovement {
       this.player.wallTouchTime > wallSlidingThresholdMs
     ) {
       this.player.isSliding = true;
-      sprite.setVelocityY(this.player.wallSlideSpeed);
+      sprite.setVelocityY(
+        this.isGravityReversed
+          ? -this.player.wallSlideSpeed
+          : this.player.wallSlideSpeed
+      );
     } else if (!onGround) {
       this.player.isJumping = true;
       this.player.isSliding = false;
@@ -241,9 +228,6 @@ export class PlayerMovement {
 
     if (dashKeyDown) {
       this.dash();
-      if (this.dashSound) {
-        this.dashSound.play();
-      }
       this.player.isMobileDash = false;
     }
   }
@@ -266,7 +250,7 @@ export class PlayerMovement {
     this.player.isDashing = false;
   }
 
-  jump({
+  private jump({
     canWallJump,
     touchingLeftWall,
     touchingRightWall,
@@ -279,48 +263,20 @@ export class PlayerMovement {
     blockedAbove: boolean;
     onGround: boolean;
   }) {
-    if (!blockedAbove && (onGround || canWallJump)) {
+    if (onGround || canWallJump) {
       this.player.justJumped = true;
       this.player.jumpTimer = this.player.scene.time.now;
 
-      const increasedJumpSpeed = this.player.jumpSpeed * 1.4;
-
-      if (this.jumpSound) {
-        this.jumpSound.play();
-      }
+      const jumpSpeed = this.isGravityReversed
+        ? this.player.jumpSpeed
+        : -this.player.jumpSpeed;
 
       if (canWallJump) {
         this.player.wallJumpCount++;
         const jumpDirection = touchingLeftWall ? 1 : -1;
+        this.player.sprite.setVelocityY(jumpSpeed);
 
-        const offsetX = touchingLeftWall ? 4 : -0;
-        const offsetY = -20;
-
-        const wallJumpAnimation = this.player.scene.add.sprite(
-          this.player.sprite.x + offsetX,
-          this.player.sprite.y + offsetY,
-          "jump-wall"
-        );
-        wallJumpAnimation.setOrigin(0.5);
-        wallJumpAnimation.setAngle(touchingLeftWall ? 90 : -90);
-        wallJumpAnimation.anims.play("jump_wall_anim", true);
-
-        const elementType = this.player.type;
-        const hueRotation = elementHueRotation[elementType] || 0;
-
-        // Apply hue rotation to the wall jump animation
-        this.applyHueRotation(wallJumpAnimation, hueRotation);
-
-        wallJumpAnimation.once(
-          Phaser.Animations.Events.ANIMATION_COMPLETE,
-          () => {
-            wallJumpAnimation.destroy();
-          }
-        );
-
-        // Apply player velocity
-        this.player.sprite.setVelocityY(increasedJumpSpeed);
-        this.player.sprite.setVelocityX(this.player.jumpSpeed * jumpDirection);
+        this.player.sprite.setVelocityX(this.player.jumpSpeed);
 
         if (touchingLeftWall) {
           this.player.disableLeftMovement = true;
@@ -344,17 +300,16 @@ export class PlayerMovement {
           });
         }
 
-        // Fine-tune jump direction over time
         this.player.scene.time.addEvent({
           delay: 10,
           callback: () => {
-            const jumpValue = 250;
+            const jumpValue = 350;
             const currentVelocity = this.player.sprite.body!.velocity.x;
             const targetVelocity = jumpValue * jumpDirection;
             const newVelocity = Phaser.Math.Linear(
               currentVelocity,
               targetVelocity,
-              0.2
+              0.1
             );
             this.player.sprite.setVelocityX(newVelocity);
           },
@@ -362,24 +317,34 @@ export class PlayerMovement {
           repeat: 8,
         });
       } else {
-        this.player.sprite.setVelocityY(increasedJumpSpeed);
+        this.player.sprite.setVelocityY(jumpSpeed);
+      }
+
+      this.player.isJumping = true;
+      this.player.isSliding = false;
+    }
+  }
+
+  private applyAdvancedGravity() {
+    const baseGravity = this.isGravityReversed ? -1150 : 400;
+    const fallingGravity = this.isGravityReversed ? -1200 : 450;
+
+    if (this.isGravityReversed) {
+      if (this.player.sprite.body!.velocity.y < 0) {
+        this.player.sprite.setGravityY(fallingGravity);
+      } else {
+        this.player.sprite.setGravityY(baseGravity);
+      }
+    } else {
+      if (this.player.sprite.body!.velocity.y > 0) {
+        this.player.sprite.setGravityY(fallingGravity);
+      } else {
+        this.player.sprite.setGravityY(baseGravity);
       }
     }
   }
 
-  private applyHueRotation(
-    sprite: Phaser.GameObjects.Sprite,
-    hue: number
-  ): void {
-    const color = Phaser.Display.Color.HSVToRGB(hue / 360, 1, 1).color;
-    sprite.setTint(color);
-  }
-
-  private applyAdvancedGravity() {
-    if (this.player.sprite.body!.velocity.y > 0) {
-      this.player.sprite.setGravityY(500);
-    } else {
-      this.player.sprite.setGravityY(450);
-    }
+  public toggleGravity() {
+    this.setGravityReversed(!this.isGravityReversed);
   }
 }

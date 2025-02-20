@@ -132,6 +132,7 @@ export interface ICat {
   catpoints: number;
   isExclusive: boolean;
   blessings: IBlessing[];
+  shelter?: any;
 }
 
 export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {

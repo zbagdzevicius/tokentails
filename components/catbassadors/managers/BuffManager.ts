@@ -1,16 +1,16 @@
-// BuffManager.ts
 import Phaser from "phaser";
 import { Buff, BuffType } from "../objects/Buff";
 import { GameEvent, GameEvents } from "@/components/Phaser/events";
 import { SpeedEffect } from "../objects/SpeedEffect";
 import { CatbassadorsScene } from "../scenes/CatbassadorsScene";
 import { PurrquestScene } from "@/components/purrquest/scenes/PurrquestScene";
+import { Cat } from "../objects/Catbassador";
 
-const POWERUP_DURATION_MS = 10000;
+const POWERUP_DURATION_MS = 15000;
 
 export interface IBuffManagerConfig {
   scene: Phaser.Scene;
-  catSprite: Phaser.Physics.Arcade.Sprite | null;
+  cat: Cat;
   groundLayer: Phaser.Tilemaps.TilemapLayer;
   buffSpawnThresholdMs?: number;
   buffBounds?: { xMin: number; xMax: number; yMin: number; yMax: number };
@@ -19,7 +19,7 @@ export interface IBuffManagerConfig {
 
 export class BuffManager {
   private scene: PurrquestScene | CatbassadorsScene;
-  private catSprite: Phaser.Physics.Arcade.Sprite | null;
+  private cat: Cat;
   private groundLayer: Phaser.Tilemaps.TilemapLayer;
   private buffSpawnTimer: NodeJS.Timeout | null = null;
   private currentBuff: Buff | null = null;
@@ -28,19 +28,23 @@ export class BuffManager {
   private speedEffect: SpeedEffect | null = null;
 
   private spawnThresholdMs: number = 1;
-  private spawnBounds: { xMin: number; xMax: number; yMin: number; yMax: number } =
-    {
-      xMin: 0,
-      xMax: 0,
-      yMin: 0,
-      yMax: 0,
-    };
-  private baseWalkSpeed = 200; 
+  private spawnBounds: {
+    xMin: number;
+    xMax: number;
+    yMin: number;
+    yMax: number;
+  } = {
+    xMin: 0,
+    xMax: 0,
+    yMin: 0,
+    yMax: 0,
+  };
+  private baseWalkSpeed = 200;
   private isGameStarted = false;
 
   constructor(config: IBuffManagerConfig) {
     this.scene = config.scene as CatbassadorsScene | PurrquestScene;
-    this.catSprite = config.catSprite;
+    this.cat = config.cat;
     this.groundLayer = config.groundLayer;
 
     if (config.buffSpawnThresholdMs) {
@@ -57,18 +61,18 @@ export class BuffManager {
   }
 
   public startGame(): void {
-    this.isGameStarted = true; 
+    this.isGameStarted = true;
     this.startSpawning();
   }
 
   public endGame(): void {
-    this.isGameStarted = false; 
+    this.isGameStarted = false;
     this.stopSpawning();
   }
 
   public startSpawning(): void {
     this.buffSpawnTimer = setInterval(() => {
-      if (this.isGameStarted) { 
+      if (this.isGameStarted) {
         this.spawnBuff();
       }
     }, this.spawnThresholdMs);
@@ -100,7 +104,7 @@ export class BuffManager {
 
     this.scene.physics.add.collider(this.currentBuff, this.groundLayer);
     this.scene.physics.add.overlap(
-      this.catSprite!,
+      this.cat.sprite!,
       this.currentBuff,
       this.handleBuffCollected,
       undefined,
@@ -120,10 +124,11 @@ export class BuffManager {
   private handleBuffCollected = () => {
     if (!this.currentBuff) return;
     this.scene.sound.play("powerup");
+    this.cat.isInvulnerable = true;
 
     if (this.currentBuff.type === BuffType.SPEED) {
       this.applyOrRefreshSpeedBuff();
-      this.speedEffect?.play(this.catSprite!, POWERUP_DURATION_MS);
+      this.speedEffect?.play(this.cat.sprite!, POWERUP_DURATION_MS);
     }
 
     this.currentBuff.destroy();
@@ -136,15 +141,16 @@ export class BuffManager {
   };
 
   private applyOrRefreshSpeedBuff() {
-    if (!this.catSprite) return;
+    if (!this.cat.sprite) return;
+    this.cat.isInvulnerable = true; // Set invulnerability when buff starts
 
     if (this.speedBuffTimer) {
       this.speedBuffTimer.remove(false);
     } else {
-
-      const currentSpeed = this.catSprite.getData("walkSpeed") || this.baseWalkSpeed;
+      const currentSpeed =
+        this.cat.sprite.getData("walkSpeed") || this.baseWalkSpeed;
       if (currentSpeed + 200 <= 630) {
-        this.catSprite.setData("walkSpeed", currentSpeed + 200);
+        this.cat.sprite.setData("walkSpeed", currentSpeed + 200);
       }
     }
 
@@ -153,12 +159,19 @@ export class BuffManager {
       duration: POWERUP_DURATION_MS,
     });
 
-    this.speedBuffTimer = this.scene.time.delayedCall(POWERUP_DURATION_MS, () => {
-      const currentSpeed = this.catSprite!.getData("walkSpeed") || this.baseWalkSpeed;
-      this.catSprite!.setData("walkSpeed", currentSpeed - 200);
+    this.speedBuffTimer = this.scene.time.delayedCall(
+      POWERUP_DURATION_MS,
+      () => {
+        const currentSpeed =
+          this.cat.sprite!.getData("walkSpeed") || this.baseWalkSpeed;
+        this.cat.sprite!.setData("walkSpeed", currentSpeed - 200);
 
-      GameEvents[GameEvent.CAT_BUFF].push({ buff: null, duration: 0 });
-      this.speedBuffTimer = null;
-    });
+        // Reset invulnerability when the buff expires
+        this.cat.isInvulnerable = false;
+
+        GameEvents[GameEvent.CAT_BUFF].push({ buff: null, duration: 0 });
+        this.speedBuffTimer = null;
+      }
+    );
   }
 }

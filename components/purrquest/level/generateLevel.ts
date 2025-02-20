@@ -418,25 +418,25 @@ export class GenerateLevel {
     for (let y = 0; y < totalRows; y++) {
       for (let x = 0; x < totalCols; x++) {
         if (y === 0 && x === 0) {
-          baseLayerData[y][x] = 91; // Top-left corner
-          overlayLayerData[y][x] = 91; // Top-left corner (overlay)
+          baseLayerData[y][x] = 31; // Top-left corner
+          overlayLayerData[y][x] = 31; // Top-left corner (overlay)
         } else if (y === 0 && x === totalCols - 1) {
-          baseLayerData[y][x] = 93; // Top-right corner
-          overlayLayerData[y][x] = 93; // Top-right corner (overlay)
+          baseLayerData[y][x] = 22; // Top-right corner
+          overlayLayerData[y][x] = 22; // Top-right corner (overlay)
         } else if (y === totalRows - 1 && x === 0) {
-          baseLayerData[y][x] = 149; // Bottom-left corner
-          overlayLayerData[y][x] = 149; // Bottom-left corner (overlay)
+          baseLayerData[y][x] = 91; // Bottom-left corner
+          overlayLayerData[y][x] = 91; // Bottom-left corner (overlay)
         } else if (y === totalRows - 1 && x === totalCols - 1) {
-          baseLayerData[y][x] = 151; // Bottom-right corner
-          overlayLayerData[y][x] = 151; // Bottom-right corner (overlay)
+          baseLayerData[y][x] = 93; // Bottom-right corner
+          overlayLayerData[y][x] = 93; // Bottom-right corner (overlay)
         }
         // Check boundaries
         else if (y === 0 || y === totalRows - 1) {
-          baseLayerData[y][x] = 31; // Top or Bottom boundary
-          overlayLayerData[y][x] = 31; // Top or Bottom boundary (overlay)
+          baseLayerData[y][x] = 2; // Top or Bottom boundary
+          overlayLayerData[y][x] = 2; // Top or Bottom boundary (overlay)
         } else if (x === 0 || x === totalCols - 1) {
-          baseLayerData[y][x] = 123; // Left or Right boundary
-          overlayLayerData[y][x] = 123; // Left or Right boundary (overlay)
+          baseLayerData[y][x] = 60; // Left or Right boundary
+          overlayLayerData[y][x] = 60; // Left or Right boundary (overlay)
         } else {
           // Inner grid tiles
           baseLayerData[y][x] = getTileIndex(x, y, 0);

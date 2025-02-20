@@ -30,13 +30,17 @@ import { ErrorTextManager } from "../managers/ErrorTextManager";
 import { ChestManager } from "../managers/ChestManager";
 
 const COLLISION_TILES = [
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 29, 30, 31, 32, 33, 34, 35, 36, 37, 62, 63, 64,
-  65, 72, 88, 90, 91, 92, 93, 94, 120, 121, 122, 123, 149, 150, 151, 152,
+  0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 30, 31, 32,
+  33, 34, 35, 36, 46, 47, 48, 49, 60, 61, 62, 63, 67, 68, 69, 70, 76, 77, 78,
+  79, 90, 91, 92, 93, 106, 107, 108, 109, 133, 134, 135, 216, 217, 248, 249,
+  250, 192, 163, 164, 165, 193, 194, 195,
 ];
 
-const TRAMPOLINE_TILES = [50];
-const SPIKE_TILES = [70, 71, 99, 100];
-const JUMP_LAYER_TILES = [46, 47, 48, 49];
+const JUMP_LAYER_TILES = [
+  216, 217, 138, 139, 168, 169, 199, 223, 224, 225, 226,
+];
+const TRAMPOLINE_TILES = [158, 157];
+const SPIKE_TILES = [252, 253, 282, 283];
 
 const PLATFORM_CONFIGS: {
   [key: number]: {
@@ -46,9 +50,9 @@ const PLATFORM_CONFIGS: {
     oneWay: boolean;
   };
 } = {
-  270: { image: "platform-movable", speed: 64, distance: 48, oneWay: true },
-  269: { image: "platform", speed: 64, distance: 64, oneWay: false },
-  268: { image: "platform", speed: 48, distance: 96, oneWay: false },
+  475: { image: "platform-movable", speed: 64, distance: 48, oneWay: true },
+  476: { image: "platform", speed: 64, distance: 64, oneWay: false },
+  474: { image: "platform", speed: 48, distance: 96, oneWay: false },
 };
 
 export class PurrquestScene extends Phaser.Scene {
@@ -81,7 +85,7 @@ export class PurrquestScene extends Phaser.Scene {
     this.jumpLayer?.destroy();
     this.load.audio("jump-sound", "audio/game/jump.mp3");
     this.load.audio("dash-sound", "audio/game/dash.wav");
-    this.load.image("blocks", "base/blocks-winter.png");
+    this.load.image("new-blocks-winter", "base/winter.png");
     this.load.spritesheet("chest", "purrquest2/icons/chest-spritesheet.png", {
       frameWidth: 120,
       frameHeight: 64,
@@ -148,9 +152,9 @@ export class PurrquestScene extends Phaser.Scene {
 
     this.buffManager = new BuffManager({
       scene: this,
-      catSprite: this.cat?.sprite || null,
+      cat: this.cat!,
       groundLayer: this.groundLayer!,
-      buffSpawnThresholdMs: 11000,
+      buffSpawnThresholdMs: 25000,
       buffBounds: {
         xMin: 200,
         xMax: 1700,
@@ -214,11 +218,89 @@ export class PurrquestScene extends Phaser.Scene {
       gameType: "purrquest",
     };
 
+    // Initialize enemy manager first
+    this.enemyManager = new EnemyManager(enemyManagerConfig);
+    this.enemyManager.spawnEnemy();
+    this.enemyManager.initialSpawnForPurrquest();
+
+    // Add enemy collisions after enemies are spawned
+    if (this.cat) {
+      // Handle collisions with regular enemies
+      this.enemyManager.enemies.forEach((enemy) => {
+        this.physics.add.overlap(
+          this.cat!.sprite,
+          enemy,
+          () => {
+            if (this.cat?.hasKey) {
+              this.cat.dropCollectiveItem();
+              // Respawn the key with initial logic
+              const droppedKey = this.key.sprite;
+              if (droppedKey) {
+                // Add collision with ground layer
+                this.physics.add.collider(droppedKey, this.groundLayer!);
+
+                // Add overlap to make it collectable again
+                this.physics.add.overlap(
+                  this.cat!.sprite,
+                  droppedKey,
+                  () => {
+                    if (this.cat && !this.cat.collectedItem) {
+                      this.cat.collectItem(droppedKey);
+                      this.cat.hasKey = true;
+                    }
+                  },
+                  undefined,
+                  this
+                );
+              }
+            }
+          },
+          undefined,
+          this
+        );
+      });
+
+      // Handle collision with boss enemy
+      if (this.enemyManager.bossEnemy) {
+        this.physics.add.overlap(
+          this.cat.sprite,
+          this.enemyManager.bossEnemy,
+          () => {
+            if (this.cat?.hasKey) {
+              this.cat.dropCollectiveItem();
+              // Respawn the key with initial logic
+              const droppedKey = this.key.sprite;
+              if (droppedKey) {
+                // Add collision with ground layer
+                this.physics.add.collider(droppedKey, this.groundLayer!);
+
+                // Add overlap to make it collectable again
+                this.physics.add.overlap(
+                  this.cat!.sprite,
+                  droppedKey,
+                  () => {
+                    if (this.cat && !this.cat.collectedItem) {
+                      this.cat.collectItem(droppedKey);
+                      this.cat.hasKey = true;
+                    }
+                  },
+                  undefined,
+                  this
+                );
+              }
+            }
+          },
+          undefined,
+          this
+        );
+      }
+    }
+
     this.spikeManager = new SpikeManager({
       scene: this,
       groundLayer: this.groundLayer!,
       spikeTiles: SPIKE_TILES,
-      catSprite: this.cat!.sprite,
+      cat: this.cat!,
       onPlayerHitSpike: () => this.endGame(),
     });
 
@@ -231,7 +313,7 @@ export class PurrquestScene extends Phaser.Scene {
     this.chestManager = new ChestManager({
       scene: this,
       groundLayer: this.groundLayer!,
-      chestTileIndex: 284,
+      chestTileIndex: 473,
       cat: this.cat!,
       onChestOpened: (score) => {
         const totalTimePlayed = (performance.now() - this.gameStartTime) / 1000;
@@ -249,10 +331,6 @@ export class PurrquestScene extends Phaser.Scene {
         );
       },
     });
-
-    this.enemyManager = new EnemyManager(enemyManagerConfig);
-    this.enemyManager.spawnEnemy();
-    this.enemyManager.initialSpawnForPurrquest();
   }
 
   update(time: number, delta: number) {
@@ -275,7 +353,7 @@ export class PurrquestScene extends Phaser.Scene {
   private initializePathfinding() {
     this.pathfinding = new Pathfinding(this, this.generateLevel);
     this.pathfinding.initializePathfinding();
-    this.pathfinding.validatePathExistence(289, 300);
+    this.pathfinding.validatePathExistence(479, 480);
   }
 
   private getSpawnPositionX(): number {
@@ -392,7 +470,7 @@ export class PurrquestScene extends Phaser.Scene {
     }
 
     if (this.buffManager) {
-      this.buffManager["catSprite"] = this.cat?.sprite || null;
+      this.buffManager["cat"] = this.cat!;
     }
   }
 
@@ -406,8 +484,8 @@ export class PurrquestScene extends Phaser.Scene {
     });
 
     const sugarTileset = this.tilemap.addTilesetImage(
-      "blocks",
-      "blocks",
+      "new-blocks-winter",
+      "new-blocks-winter",
       32,
       32,
       1,
@@ -456,8 +534,9 @@ export class PurrquestScene extends Phaser.Scene {
       0,
       0
     )!;
+
+    this.jumpLayer.setDepth(10);
     if (this.jumpLayer) {
-      this.jumpLayer.setDepth(1);
       this.jumpLayer.setCollision(JUMP_LAYER_TILES);
       this.jumpLayer.setTileIndexCallback(
         JUMP_LAYER_TILES,
@@ -516,31 +595,30 @@ export class PurrquestScene extends Phaser.Scene {
   private spawnKey() {
     const tile = this.getRandomWalkableTile();
     if (!tile) {
-      console.error("No walkable tile available for boss spawn.");
+      console.error("No walkable tile available for key spawn.");
       return;
     }
 
     const keyX = tile.getCenterX();
     const keyY = tile.getTop() - 32;
 
-    // Spawn key enemy specifically with type 'KEY'
+    // Create key as a collectable sprite
     this.key = new Key(this as any, keyX, keyY, CoinType.KEY);
     this.physics.add.collider(this.key.sprite, this.groundLayer!);
-    console.log(this.key);
+
+    // Update overlap to use the Cat's collectItem method
     this.physics.add.overlap(
       this.cat?.sprite as Phaser.Physics.Arcade.Sprite,
       this.key.sprite,
-      (player, key) => this.collectKey(key as Phaser.GameObjects.Sprite),
+      () => {
+        if (this.cat && !this.cat.collectedItem) {
+          this.cat.collectItem(this.key.sprite);
+          this.cat.hasKey = true;
+        }
+      },
       undefined,
       this
     );
-  }
-
-  private collectKey(key: Phaser.GameObjects.Sprite) {
-    if (this.cat) {
-      this.cat.hasKey = true;
-    }
-    key.destroy();
   }
 
   endGame() {
