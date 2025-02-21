@@ -14,6 +14,7 @@ import { ICat } from "@/models/cats";
 import { ZOOM } from "@/constants/utils";
 import { SpeechBubble } from "../objects/SpeechBubble";
 import { Elevator } from "../objects/Elevator";
+import { IS_MOBILE } from "@/constants/utils";
 
 const JUMP_LAYER_TILES = [
   169, 170, 139, 140, 200, 224, 225, 226, 227, 51, 52, 82, 83, 84,
@@ -549,14 +550,33 @@ export class ShelterScene extends Scene {
   }
 
   update(time: number, delta: number) {
-    this.cat?.update();
+    // Only update if cat exists and is within bounds
+    if (this.cat?.sprite.active) {
+      this.cat.update();
+    }
 
-    // Only process NPCs that are within the camera's view
+    // Optimize NPC updates by checking distance from player
+    const playerX = this.cat?.sprite.x ?? 0;
+    const playerY = this.cat?.sprite.y ?? 0;
+    const updateDistance = IS_MOBILE ? 320 : 800;
+
     this.npcCats.forEach((npc) => {
-      const isInView = this.handleNpcVisibility(npc);
-      if (isInView) {
+      if (!npc.sprite.active) return;
+
+      const distance = Phaser.Math.Distance.Between(
+        playerX,
+        playerY,
+        npc.sprite.x,
+        npc.sprite.y
+      );
+
+      if (distance < updateDistance) {
         npc.update();
         this.handleNpcInteraction(npc);
+      } else {
+        // Stop all movement and animations for distant NPCs
+        npc.sprite.setVelocity(0, 0);
+        npc.sprite.anims.stop();
       }
     });
 
@@ -597,7 +617,6 @@ export class ShelterScene extends Scene {
 
   private setupWaterAnimation() {
     const waterTilePositions: { x: number; y: number }[] = [];
-
     this.decorationLayer.forEachTile((tile) => {
       if (this.waterTiles.includes(tile.index)) {
         waterTilePositions.push({ x: tile.x, y: tile.y });
