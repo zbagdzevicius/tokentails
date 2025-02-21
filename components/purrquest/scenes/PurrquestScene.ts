@@ -337,8 +337,12 @@ export class PurrquestScene extends Phaser.Scene {
     if (!this.cat?.sprite) {
       return;
     }
+
+    if (!this.cat.hasKey) {
+      this.key.update();
+    }
     this.cat.update();
-    this.key.update();
+
     this.platformManager.updatePlatforms();
 
     this.enemyManager?.update(time, delta);
