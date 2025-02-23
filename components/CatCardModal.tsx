@@ -396,7 +396,7 @@ export const CatCard = ({
                 }
                 alt="Hero cat"
                 className={`${
-                  activeBlessing ? "w-full h-48" : "w-32 h-32"
+                  activeBlessing ? "w-full h-48 rounded-xl" : "w-32 h-32"
                 } relative z-10 object-contain`}
               />
               {!!blessings?.length && (

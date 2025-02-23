@@ -40,7 +40,7 @@ export const Footer: React.FC = () => {
         <hr className="h-px w-full bg-gray-200 border-0" />
       </div>
       <footer className="text-center py-4 bg-yellow-300">
-        <div className="flex flex-wrap items-center container justify-around max-lg:justify-between lg:px-24">
+        <div className="flex flex-wrap items-center container md:justify-around justify-between lg:px-24">
           <div className="flex items-center gap-4">
             <img
               className="h-24 flex-1 object-contain object-left"
@@ -48,14 +48,14 @@ export const Footer: React.FC = () => {
               alt="logo"
             />
 
-<Socials/>
+            <Socials />
           </div>
-          <ul className="flex flex-1 max-lg:order-3 justify-center">
+          <ul className="flex flex-1 justify-center">
             {navConsts.map((footerItem, index) => (
-              <li key={index} className="max-lg:py-6 px-3 max-lg:rounded">
+              <li key={index} className="py-6 px-3 rounded">
                 <a
                   href={footerItem.link}
-                  className={`text-p5 max-lg:text-p6 cursor-pointer hover:custom-gradient-text ${
+                  className={`text-p5 cursor-pointer hover:custom-gradient-text ${
                     activeTitle === footerItem.title
                       ? "custom-gradient-text font-bold"
                       : ""
@@ -67,8 +67,22 @@ export const Footer: React.FC = () => {
               </li>
             ))}
           </ul>
-          <div className="flex-1 font-secondary text-end whitespace-nowrap">
+          <div className="flex-1 font-secondary text-end whitespace-nowrap flex w-fit gap-2">
             © 2024 All Rights Reserved by Token Tails
+            <a
+              href="https://docs.tokentails.com/community-and-social-impact/terms-and-conditions"
+              target="_blank"
+              className="text-blue-700"
+            >
+              T&C
+            </a>{" "}
+            <a
+              href="https://docs.tokentails.com/community-and-social-impact/privacy-policy"
+              target="_blank"
+              className="text-blue-700"
+            >
+              Privacy Policy
+            </a>
           </div>
         </div>
       </footer>

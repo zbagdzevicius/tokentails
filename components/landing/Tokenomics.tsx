@@ -21,7 +21,7 @@ export const Tokenomics = () => {
           <span className="font-bold">INITIAL MARKET CAP</span> - $0.3m
         </Tag>
         <Tag>
-          <span className="font-bold">TGE</span> - Q3
+          <span className="font-bold">TGE</span> - Q2
         </Tag>
       </div>
       <PixelButton
