@@ -4,11 +4,9 @@ export const Airdrop = () => {
   return (
     <div className="container flex flex-col py-8 justify-center items-center">
       <div className="flex justify-center items-center gap-4 mb-8">
-        <img src="/logo/paw.png" className="w-14" />
         <h2 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl text-cyan-900">
-          REWARDS
+          UNLOCK REWARDS
         </h2>
-        <img src="/logo/coin.webp" className="w-14" />
       </div>
       <div className="flex flex-col sm:flex-row w-full items-center sm:gap-8">
         <div className="sm:w-1/2 flex justify-end">

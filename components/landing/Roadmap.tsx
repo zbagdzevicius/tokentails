@@ -6,7 +6,7 @@ const Roadmap = () => {
       <div className="flex justify-center items-center gap-4 mb-8">
         <img src="/logo/paw.png" className="w-14" />
         <h2 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl">
-          ROADMEOW
+          WHAT'S NEXT?
         </h2>
         <img src="/logo/paw.png" className="w-14" />
       </div>
