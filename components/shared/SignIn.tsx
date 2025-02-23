@@ -21,30 +21,30 @@ const SignInForm = ({
   };
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+    <form className="flex flex-col items-center gap-4" onSubmit={onSubmit}>
       <input
         type="text"
         placeholder="Email"
-        className="outline-none bg-gray-100 hover:bg-gray-200 p2 px-8 rounded-full h-10 w-full"
+        className="outline-none bg-gray-100 hover:bg-gray-200 p2 px-8 rounded-full h-8 w-full max-w-60"
         onChange={handleUsernameChange}
         value={username}
       />
       <input
         placeholder="Password"
-        className="outline-none bg-gray-100 hover:bg-gray-200 p2 px-8 rounded-full h-10 w-full"
+        className="outline-none bg-gray-100 hover:bg-gray-200 p2 px-8 rounded-full h-8 w-full max-w-60"
         onChange={handlePasswordChange}
         value={password}
         type="password"
       />
       <button
         onClick={onSubmit}
-        className="group w-fit m-auto h-12 px-6 rounded-full  bg-blue-300"
+        className="group w-full max-w-60 m-auto h-10 px-6 rounded-full bg-blue-300"
         type="submit"
       >
         <div className="relative flex justify-between items-center space-x-4">
           <i className="bx bxs-key text-h6 text-blue-600"></i>
           <div className="flex items-center w-max tracking-wide whitespace-nowrap group-hover:text-gray-700 font-pixel">
-            SIGN IN WITH CREDENTIALS
+            SIGN IN
           </div>
           <div></div>
         </div>
@@ -94,10 +94,29 @@ export const SignInContent = () => {
             </div>
           </button>
 
-          <div className="my-2 text-center text-p3 font-bold font-pixel">
+          <div className="my-2 text-center text-p4 font-bold font-pixel">
             OR
           </div>
           <SignInForm signIn={signIn} />
+
+          <div className="font-secondary m-auto mt-4">
+            By signing-in you accept{" "}
+            <a
+              href="https://docs.tokentails.com/community-and-social-impact/terms-and-conditions"
+              target="_blank"
+              className="text-blue-700"
+            >
+              T&C
+            </a>{" "}
+            and{" "}
+            <a
+              href="https://docs.tokentails.com/community-and-social-impact/privacy-policy"
+              target="_blank"
+              className="text-blue-700"
+            >
+              Privacy Policy
+            </a>
+          </div>
         </div>
       )}
       <img
