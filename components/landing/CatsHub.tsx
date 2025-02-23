@@ -92,12 +92,7 @@ export const CatsHub = () => {
   );
   return (
     <div className="my-20 flex items-center justify-center flex-col container">
-      <img
-        src="/images/cats-hub/crown.png"
-        className="w-12 sm:w-32 sm:-mb-4"
-        alt="crown"
-      />
-      <div className="w-9/12 max-lg:w-full ">
+      <div className="w-9/12 max-lg:w-full pt-8">
         <h2 className="text-center font-secondary uppercase tracking-tight text-8xl max-lg:text-5xl  max-lg:text-balance ">
           SAVE A CAT
         </h2>
