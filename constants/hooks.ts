@@ -1,5 +1,35 @@
 import { useMemo } from "react";
 
+const bgImages = [
+  "url(/base/bg.gif)",
+  "url(/base/bg-2.gif)",
+  "url(/base/bg-3.gif)",
+  "url(/base/bg-4.gif)",
+  "url(/base/bg-5.png)",
+  "url(/base/bg-6.png)",
+  "url(/base/bg-6.png)",
+  "url(/base/bg-7.png)",
+  "url(/base/bg-8.gif)",
+  "url(/base/bg.gif)",
+  "url(/base/bg-2.gif)",
+  "url(/base/bg-3.gif)",
+  "url(/base/bg-4.gif)",
+  "url(/base/bg-5.png)",
+  "url(/base/bg-6.png)",
+  "url(/base/bg-6.png)",
+  "url(/base/bg-7.png)",
+  "url(/base/bg-8.gif)",
+  "url(/base/bg.gif)",
+  "url(/base/bg-2.gif)",
+  "url(/base/bg-3.gif)",
+  "url(/base/bg-4.gif)",
+  "url(/base/bg-5.png)",
+  "url(/base/bg-6.png)",
+  "url(/base/bg-6.png)",
+  "url(/base/bg-7.png)",
+  "url(/base/bg-8.gif)",
+];
+
 export const useBackground = () => {
   const bgHour = useMemo(() => {
     const coreBg = {
@@ -10,8 +40,7 @@ export const useBackground = () => {
     const hours = new Date().getHours();
     return {
       ...coreBg,
-      backgroundImage:
-        hours > 17 || hours < 6 ? "url(/base/bg-4.png)" : "url(/base/bg-6.png)",
+      backgroundImage: bgImages[hours] || "url(/base/bg-6.png)",
     };
   }, []);
 
