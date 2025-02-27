@@ -1,4 +1,5 @@
 import React from "react";
+import { PixelButton } from "../shared/PixelButton";
 
 const Roadmap = () => {
   return (
@@ -10,6 +11,9 @@ const Roadmap = () => {
         </h2>
         <img src="/logo/paw.png" className="w-14" />
       </div>
+      <a href="/game" className="-mt-6 mb-4">
+        <PixelButton text="PLAY TO SAVE" />
+      </a>
       <div className="flex flex-col md:flex-row justify-around gap-16 md:gap-24 pt-16 md:pt-4">
         <div className="flex flex-col items-center gap-4 md:pt-36 hover:brightness-125 hover:animate-hover">
           <div className="relative bg-gradient-to-t to-purple-300 from-blue-300 rounded-full border-4 border-purple-300 w-16 h-16 flex justify-center items-center">

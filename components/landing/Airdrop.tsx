@@ -1,3 +1,4 @@
+import { PixelButton } from "../shared/PixelButton";
 import { SocialImages } from "./Team";
 
 export const Airdrop = () => {
@@ -17,6 +18,9 @@ export const Airdrop = () => {
         </div>
         <div className="sm:w-1/2  hover:brightness-110">
           <ul className="font-secondary text-p3 lg:text-p1 flex flex-col gap-2">
+            <a href="/game" className="-mt-6 mb-4 flex justify-center">
+              <PixelButton text="PLAY TO SAVE" />
+            </a>
             <a
               href="https://x.com/tokentails"
               target="_blank"

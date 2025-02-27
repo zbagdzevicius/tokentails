@@ -47,9 +47,9 @@ export const GameModes = () => {
       <h2 className="font-secondary uppercase tracking-tight text-h3 md:text-h2 text-balance my-3">
         ADOPT TO PLAY
       </h2>
-      <h2 className="font-secondary uppercase tracking-tight text-p4 text-balance -mb-6 text-gray-700 opacity-50">
-        EACH MODE IS FULL OF CATS
-      </h2>
+      <a className="-mb-6" href="/game">
+        <PixelButton text="PLAY TO SAVE" />
+      </a>
       <div className="flex gap-2 -mb-12 md:-mb-20 relative z-30">
         <div
           className={
@@ -65,10 +65,11 @@ export const GameModes = () => {
           ></img>
         </div>
         <div
-          className={`mt-10 ${gameMode === GameType.PURRQUEST
-            ? "animate-hover"
-            : "opacity-50 hover:opacity-100"
-            }`}
+          className={`mt-10 ${
+            gameMode === GameType.PURRQUEST
+              ? "animate-hover"
+              : "opacity-50 hover:opacity-100"
+          }`}
         >
           <img
             className="w-20 rounded-xl"
@@ -77,10 +78,11 @@ export const GameModes = () => {
           ></img>
         </div>
         <div
-          className={`mt-10 ${gameMode === GameType.HOME
-            ? "animate-hover"
-            : "opacity-50 hover:opacity-100"
-            }`}
+          className={`mt-10 ${
+            gameMode === GameType.HOME
+              ? "animate-hover"
+              : "opacity-50 hover:opacity-100"
+          }`}
         >
           <img
             className="w-20 rounded-xl"

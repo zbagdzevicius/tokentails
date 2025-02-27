@@ -61,7 +61,7 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
     useSolanaWallet();
 
   const [namespace, setNamespace] = React.useState<ChainNamespace>(
-    ChainNamespace.EVM
+    ChainNamespace.STELLAR
   );
 
   const [currencyType, setCurrencyType] = React.useState(CurrencyType.USDT);

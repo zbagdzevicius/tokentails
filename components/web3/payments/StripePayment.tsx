@@ -86,7 +86,7 @@ export const StripePayment = ({
     const initializePayment = async () => {
       try {
         const { clientSecret } = await STRIPE_API.createPaymentIntent(
-          price * 100, // Stripe expects amount in cents
+          price, // Stripe expects amount in cents
           catId
         );
         setClientSecret(clientSecret);
