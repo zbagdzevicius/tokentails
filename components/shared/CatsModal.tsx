@@ -98,7 +98,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
               </div>
               <div className="relative z-10 items-center flex flex-col">
                 <img
-                  className="w-16 z-10"
+                  className="w-16 z-10 pixelated"
                   src={cat.catImg}
                   alt={cat.name}
                   onClick={() => setSelectedCat(cat)}

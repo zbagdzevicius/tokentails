@@ -14,6 +14,7 @@ import { ChainSelect } from "./shared/ChainSelect";
 import { PixelButton } from "./shared/PixelButton";
 import { Web3Transfer } from "./web3/transfer/Web3Transfer";
 import { Web3Providers } from "./web3/Web3Providers";
+import { StripePayment } from "./web3/payments/StripePayment";
 
 const cardsColor: Record<CatAbilityType, string> = {
   [CatAbilityType.AIR]: "#c3dacd",
@@ -141,7 +142,7 @@ export const CatDescription = ({
           )}
         </div>
         <p
-          className="text-p5 font-bold"
+          className="text-p5 font-bold overflow-y-auto max-h-[8rem] md:max-h-[11rem]"
           dangerouslySetInnerHTML={{
             __html: activeBlessing ? activeBlessing.description : resqueStory,
           }}
@@ -279,18 +280,65 @@ export const CatPayment = ({
     } else onClose?.();
   };
 
+  const [paymentMethod, setPaymentMethod] = useState<"web3" | "card">("card");
+
   return (
     <>
       {!isCoinsPayment && isBuyMode && (
         <div
-          className="z-0 absolute bottom-0 pb-24 bg-opacity-85 pt-8 px-4 left-0 right-0 border-t-8 border-yellow-300"
+          className="z-0 absolute bottom-0 pb-4 bg-opacity-85 pt-8 px-4 left-0 right-0 border-t-8 border-yellow-300"
           style={{
             backgroundImage: "url(/base/bg.gif)",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         >
-          <ChainSelect />
+          <div className="flex flex-col gap-4">
+            <div className="flex justify-center gap-4">
+              <PixelButton
+                text="Credit Card"
+                active={paymentMethod === "card"}
+                onClick={() => setPaymentMethod("card")}
+              />
+              <PixelButton
+                text="Crypto"
+                active={paymentMethod === "web3"}
+                onClick={() => setPaymentMethod("web3")}
+              />
+            </div>
+
+            {paymentMethod === "web3" ? (
+              <ChainSelect />
+            ) : (
+              <StripePayment
+                price={price}
+                catId={cat._id!}
+                onSuccess={() => {
+                  onSuccess(cat);
+                }}
+              />
+            )}
+          </div>
+
+          <div className="m-auto">
+            {!isCoinsPayment && isForSale && paymentMethod === "web3" && (
+              <div className="flex flex-col items-start w-fit m-auto">
+                <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
+                  {currencyPrice} {currencyType}
+                </div>
+                <Web3Transfer
+                  price={currencyPrice}
+                  amount={1}
+                  entityType={EntityType.CAT}
+                  cat={cat._id}
+                  blessing={cat.blessings?.[0]?._id}
+                  user={profile?._id}
+                  text="save now"
+                  loadingText="Saving Cat"
+                />
+              </div>
+            )}
+          </div>
         </div>
       )}
       <div className="z-10 relative flex items-end flex-row justify-around">
@@ -311,23 +359,6 @@ export const CatPayment = ({
             onClick={() => setIsBuyMode(true)}
             isDisabled={outOfSupply}
           />
-        )}
-        {!isCoinsPayment && isBuyMode && isForSale && (
-          <div className="flex flex-col items-start">
-            <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
-              {currencyPrice} {currencyType}
-            </div>
-            <Web3Transfer
-              price={currencyPrice}
-              amount={1}
-              entityType={EntityType.CAT}
-              cat={cat._id}
-              blessing={cat.blessings?.[0]?._id}
-              user={profile?._id}
-              text="save now"
-              loadingText="Saving Cat"
-            />
-          </div>
         )}
 
         {cat.supply !== undefined && !isBuyMode && (
@@ -388,7 +419,7 @@ export const CatCard = ({
               height={400}
             />
             <CatBlessings blessings={blessings} />
-            <span className="relative">
+            <span className="relative z-0">
               <img
                 src={
                   (activeBlessing ? activeBlessing.image?.url : catImg) ||
@@ -397,7 +428,7 @@ export const CatCard = ({
                 alt="Hero cat"
                 className={`${
                   activeBlessing ? "w-full h-48 rounded-xl" : "w-32 h-32"
-                } relative z-10 object-contain`}
+                } relative z-10 object-contain pixelated`}
               />
               {!!blessings?.length && (
                 <img

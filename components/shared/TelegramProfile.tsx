@@ -66,7 +66,7 @@ export const TelegramProfileContent = () => {
     <div className="pt-4 pb-8 px-4 md:px-16 md:pt-4 md:pb-12 text-gray-700 flex flex-col justify-between items-center animate-appear">
       <div className="relative">
         <img
-          className="w-32 m-auto"
+          className="w-32 m-auto pixelated"
           src={profile?.cat?.catImg || "/logo/logo.webp"}
         />
         {profile!.cat.blessings?.length > 0 && (
