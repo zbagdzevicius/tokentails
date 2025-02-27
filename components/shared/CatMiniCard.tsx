@@ -11,7 +11,11 @@ export const CatMiniCard = ({ cat }: { cat: ICat }) => {
           X{getMultiplier(cat)}
         </div>
         <div className="relative z-10 items-center flex flex-col">
-          <img className="w-16 z-10" src={cat.catImg} alt={cat.name} />
+          <img
+            className="w-16 z-10 pixelated"
+            src={cat.catImg}
+            alt={cat.name}
+          />
           <img
             className="w-8 mb-2 -mt-8 z-0 animate-spin"
             src={`ability/${cat.type}.png`}
