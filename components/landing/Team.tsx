@@ -1,3 +1,5 @@
+import { PixelButton } from "../shared/PixelButton";
+
 interface ISocial {
   img: string;
   link: string;
@@ -188,10 +190,13 @@ const TeamMember = ({ img, name, role, socials }: ITeamMember) => {
 export const Team = () => {
   return (
     <div className="container h-full flex flex-col items-center justify-center">
-      <h2 className="mt-12 text-center font-secondary uppercase tracking-tight text-h2 text-balance max-lg:text-h6 my-3">
-        United To Save Cats
+      <a href="/game" className="flex justify-center">
+        <PixelButton text="PLAY TO SAVE" />
+      </a>
+      <h2 className="mt-2 text-center font-secondary uppercase tracking-tight text-h2 text-balance max-lg:text-h6 my-3">
+        Unite To Save Cats
       </h2>
-      <div className="py-8 px-4 mx-auto max-w-screen-xl text-center lg:py-10 lg:px-6">
+      <div className="pb-8 px-4 mx-auto max-w-screen-xl text-center lg:px-6">
         <div className="grid gap-8 grid-cols-2 md:grid-cols-5">
           {teamMembers.map((teamMember) => (
             <TeamMember key={teamMember.name} {...teamMember} />

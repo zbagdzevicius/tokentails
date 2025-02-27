@@ -24,6 +24,9 @@ export const Tokenomics = () => {
           <span className="font-bold">TGE</span> - Q2
         </Tag>
       </div>
+      <a href="/game" className="flex mb-4 justify-center">
+        <PixelButton text="PLAY TO SAVE" />
+      </a>
       <PixelButton
         onClick={() => setShowSchedule(!showSchedule)}
         text={showSchedule ? "HIDE VESTING" : "SHOW VESTING"}

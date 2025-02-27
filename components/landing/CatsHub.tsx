@@ -129,7 +129,7 @@ export const CatsHub = () => {
             </div>
             <div className="flex mt-10 max-lg:mt-5 gap-4">
               <a target="_blank" href="/game">
-                <PixelButton text="START" />
+                <PixelButton text="PLAY TO SAVE" />
               </a>
               <a href="https://docs.tokentails.com" target="_blank">
                 <PixelButton text="DOCS" />

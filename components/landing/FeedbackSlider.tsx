@@ -1,6 +1,7 @@
 import { CAT_API } from "@/api/cat-api";
 import { useQuery } from "@tanstack/react-query";
 import { CatMiniCard } from "../shared/CatMiniCard";
+import { PixelButton } from "../shared/PixelButton";
 
 export const FeedbackSlider = () => {
   const { data: catsForSale } = useQuery({
@@ -11,27 +12,34 @@ export const FeedbackSlider = () => {
   return (
     <>
       <div className="flex items-center justify-center flex-col my-32">
-        <h2 className="text-left font-secondary uppercase tracking-tight text-h2 text-balance max-lg:text-h6 my-3">
-          Get to Know our Cats
+        <h2 className="text-left font-secondary uppercase tracking-tight text-h6 md:text-h2 text-balance my-3">
+          Get to Know Shelters Cats
         </h2>
 
-        <div className="w-screen">
-          <div className="flex gap-4 justify-center overflow-x-auto">
-            {catsForSale?.tokentails?.map((cat) => (
-              <CatMiniCard key={cat._id} cat={cat} />
-            ))}
-          </div>
+        <a
+          href="https://www.facebook.com/rozine.pedute"
+          target="_blank"
+          className="relative flex items-center justify-center w-48 h-48 rounded-2xl overflow-hidden hover:brightness-110 transition-all duration-300"
+        >
+          <img
+            src="/logo/shelters/pink-paw.webp"
+            className="pixelated w-32 h-32 relative z-10"
+          />
+          <img src="/logo/shelters/lt.webp" className="absolute inset-0 z-0" />
+        </a>
 
+        <div className="w-screen mt-4">
           {catsForSale?.["rozine-pedute"]?.length && (
-            <div className="m-auto mt-4">
-              <div className="flex m-auto justify-center gap-4 overflow-x-auto">
-                {catsForSale?.["rozine-pedute"]?.map((cat) => (
-                  <CatMiniCard key={cat._id} cat={cat} />
-                ))}
-              </div>
+            <div className="flex justify-center items-center gap-4 overflow-x-auto">
+              {catsForSale?.["rozine-pedute"]?.map((cat) => (
+                <CatMiniCard key={cat._id} cat={cat} />
+              ))}
             </div>
           )}
         </div>
+        <a href="/game" className="flex mb-4 justify-center mt-4">
+          <PixelButton text="PLAY TO SAVE" />
+        </a>
       </div>
     </>
   );

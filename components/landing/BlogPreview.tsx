@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo } from "react";
 import { Slider } from "../shared/Slider";
+import { PixelButton } from "../shared/PixelButton";
 
 const BlogPreviewCard = ({ title, slug, featuredImage, category }: Props) => {
   const link = useMemo(
@@ -52,6 +53,9 @@ export const BlogPreview = () => {
         What's new ?
       </h2>
       <Slider items={items || []} mobileSlides={1} />
+      <a href="/game" className="flex mt-4 justify-center">
+        <PixelButton text="PLAY TO SAVE" />
+      </a>
     </div>
   );
 };
