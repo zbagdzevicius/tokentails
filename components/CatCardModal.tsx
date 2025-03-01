@@ -388,7 +388,7 @@ export const CatCard = ({
     <div
       className={`${
         relative ? "" : "top-1/2 -translate-y-1/2"
-      } max-w-screen-xl hover:brightness-105 border-8 rounded-[24px] border-yellow-300 border-opacity-50 hover:border-opacity-100 relative rem:h-[540px] md:rem:h-[600px] aspect-[2/3] max-w-screen`}
+      } md:scale-[0.6] lg:scale-100 max-w-screen-xl hover:brightness-105 border-8 rounded-[24px] border-yellow-300 border-opacity-50 hover:border-opacity-100 relative rem:h-[540px] md:rem:h-[600px] aspect-[2/3] max-w-screen`}
     >
       <img
         src={`/ability/${type}_BG.webp`}

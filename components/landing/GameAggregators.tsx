@@ -15,6 +15,10 @@ const sponsorImages: { src: string; link: string }[] = [
     link: "https://x.com/BuildOnStellar/status/1796241035766677885",
   },
   {
+    src: "/images/dapp/memecoin.webp",
+    link: "https://memecoinseason.net/p/token-tails",
+  },
+  {
     src: "/images/dapp/carbify.webp",
     link: "https://x.com/tokentails/status/1811408751288529056",
   },

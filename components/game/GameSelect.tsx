@@ -23,10 +23,13 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
 
   return (
     <div
-      className={classNames("fixed left-1/2 right-1/2 translate-x-[50%] z-[11] flex flex-col gap-2 items-center pb-safe", {
-        "top-1/2 -translate-y-1/2 pt-48": gameType === GameType.HOME,
-        "top-4": gameType !== GameType.HOME,
-      })}
+      className={classNames(
+        "fixed left-1/2 right-1/2 translate-x-[50%] z-[11] flex flex-col gap-2 items-center pb-safe",
+        {
+          "top-1/2 -translate-y-1/2 pt-48": gameType === GameType.HOME,
+          "top-4": gameType !== GameType.HOME,
+        }
+      )}
     >
       {gameType && cat && (cat.status.EAT || 0) >= 4 && (
         <PixelButton
@@ -70,16 +73,21 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
           <div className="flex min-w-0 gap-2 justify-center">
             <img
               onClick={() => setGameType(GameType.CATBASSADORS)}
-              className="h-full hover:brightness-110 rem:min-w-[96px] md:rem:min-w-[196px] rounded-xl hover:animate-hover"
+              className="h-full hover:brightness-110 rem:min-w-[96px] md:rem:min-w-[150px] lg:rem:min-w-[196px] xl:rem:min-w-[230px] rounded-xl hover:animate-hover"
               src="/game/select/catbassadors.jpg"
             />
             <img
               onClick={() => setGameType(GameType.PURRQUEST)}
-              className="h-full hover:brightness-110 rem:min-w-[96px] md:rem:min-w-[196px] rounded-xl hover:animate-hover"
+              className="h-full hover:brightness-110 rem:min-w-[96px] md:rem:min-w-[150px] lg:rem:min-w-[196px] xl:rem:min-w-[230px] rounded-xl hover:animate-hover"
               src="/game/select/purrquest.jpg"
             />
+            <img
+              onClick={() => setGameType(GameType.SHELTER)}
+              className="rem:min-w-[96px] md:rem:min-w-[150px] lg:rem:min-w-[196px] xl:rem:min-w-[230px] h-full hover:brightness-110 rounded-xl hover:animate-hover hidden md:block"
+              src="/game/select/shelter.jpg"
+            />
           </div>
-          <div className="flex min-w-0">
+          <div className="flex min-w-0 md:hidden">
             <img
               onClick={() => setGameType(GameType.SHELTER)}
               className="rem:min-w-[200px] md:rem:min-w-[400px] h-full hover:brightness-110 rounded-xl hover:animate-hover"
