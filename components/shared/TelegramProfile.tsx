@@ -7,8 +7,24 @@ import { CloseButton } from "./CloseButton";
 import { GameMusicToggle } from "./GameMusicToggler";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
+import { IProfile } from "@/models/profile";
 
-const features = ["NFTs & Airdrops prizes", "Weekly Rewards & Events"];
+const Cat = ({ profile }: { profile?: IProfile | null }) => {
+  return (
+    <div className="relative">
+      <img
+        className="w-32 m-auto pixelated"
+        src={profile?.cat?.catImg || "/logo/logo.webp"}
+      />
+      {(profile?.cat.blessings?.length || 0) > 0 && (
+        <img
+          className="absolute m-auto inset-0 object-cover translate-y-1 w-32 h-32"
+          src={`/flare-effect/${profile!.cat.blessings[0].ability}.gif`}
+        ></img>
+      )}
+    </div>
+  );
+};
 
 export const TelegramProfileContent = () => {
   const { profile, logout, isFB } = useProfile();
@@ -63,19 +79,10 @@ export const TelegramProfileContent = () => {
   );
 
   return (
-    <div className="pt-4 pb-8 px-4 md:px-16 md:pt-4 md:pb-12 text-gray-700 flex flex-col justify-between items-center animate-appear">
-      <div className="relative">
-        <img
-          className="w-32 m-auto pixelated"
-          src={profile?.cat?.catImg || "/logo/logo.webp"}
-        />
-        {profile!.cat.blessings?.length > 0 && (
-          <img
-            className="absolute inset-0 object-cover translate-y-1 w-32 h-32"
-            src={`/flare-effect/${profile!.cat.blessings[0].ability}.gif`}
-          ></img>
-        )}
-      </div>
+    <div className="pt-4 pb-8 px-4 md:pt-4 text-gray-700 flex flex-col md:flex-row md:gap-8 justify-between items-center animate-appear">
+      <span className="md:hidden">
+        <Cat profile={profile} />
+      </span>
       {profile?.cat && (
         <ul className="m-auto font-primary">
           <Tag>Hello, {profile.name} !</Tag>
@@ -128,8 +135,13 @@ export const TelegramProfileContent = () => {
           )}
         </ul>
       )}
-      <GameMusicToggle />
-      {isFB && <PixelButton text="Logout" onClick={logout} />}
+      <div className="flex flex-col">
+        <span className="hidden md:block">
+          <Cat profile={profile} />
+        </span>
+        <GameMusicToggle />
+        {isFB && <PixelButton text="Logout" onClick={logout} />}
+      </div>
     </div>
   );
 };
@@ -141,7 +153,7 @@ export const TelegramProfile = ({ close }: { close: () => void }) => {
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
-      <div className="z-50 rem:w-[350px] md:w-[480px] max-w-full bg-gradient-to-b from-purple-300 to-blue-300 absolute top-1/2 -translate-y-1/2  rounded-xl shadow h-fit">
+      <div className="z-50 rem:w-[350px] md:w-[540px] max-w-full bg-gradient-to-b from-purple-300 to-blue-300 absolute top-1/2 -translate-y-1/2  rounded-xl shadow h-fit">
         <TelegramProfileContent />
         <button onClick={close} className="absolute right-[0] top-0 group">
           <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>

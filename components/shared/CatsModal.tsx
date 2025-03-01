@@ -91,7 +91,10 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
       </h2>
       <div className="flex flex-wrap justify-center">
         {mutatedCats?.map((cat) => (
-          <div key={cat._id} className="w-1/2 flex justify-center mb-4">
+          <div
+            key={cat._id}
+            className="w-1/2 md:w-1/3 flex justify-center mb-4"
+          >
             <div className="relative overflow-hidden w-36 rounded-xl py-2 border-2 border-black">
               <div className="absolute left-2 top-1 opacity-75 text-black px-2 text-p5 font-secondary rounded-xl bg-yellow-300 z-20">
                 X{getMultiplier(cat)}
@@ -187,7 +190,7 @@ export const CatsModal = ({ close }: { close: () => void }) => {
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
-      <div className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full bg-gradient-to-b from-yellow-300 to-purple-300 absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow h-fit">
+      <div className="m-auto z-50 rem:w-[350px] md:w-[600px] max-w-full bg-gradient-to-b from-yellow-300 to-purple-300 absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow h-fit">
         <CatsModalContent close={close} />
         <CloseButton onClick={close} />
       </div>

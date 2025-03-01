@@ -10,12 +10,13 @@
 
 $breakpoints: (
   "mobile": 767px,
-  "md": 768px,
+  "md": 667px,
   "lg": 1024px,
   "xl": 1280px,
   "2xl": 1536px,
   "3xl": 2300px,
 );
+
 $custom-background: linear-gradient(90.26deg, #c1260f 0.34%, #ee642a 96.66%);
 
 @mixin device($breakpoint) {

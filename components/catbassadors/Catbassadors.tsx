@@ -1,5 +1,11 @@
 import { ICat } from "@/models/cats";
-import { forwardRef, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { GameEvents, IPhaserGame } from "../Phaser/events";
 import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
 import { useGame } from "@/context/GameContext";
@@ -8,8 +14,6 @@ import { PixelButton } from "../shared/PixelButton";
 import { useProfile } from "@/context/ProfileContext";
 import { Tag } from "../shared/Tag";
 import { GameModal, GameType } from "@/models/game";
-
-
 
 export interface IGameOverEvent extends Event {
   detail: {
@@ -112,67 +116,69 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
 
       {!isStarted && (
         <div
-          className="absolute top-16 md:top-24 z-[2] left-1/2 -translate-x-1/2 bg-yellow-300 pt-2 rounded-lg px-4 flex flex-col animate-appear"
+          className="absolute top-16 lg:top-24 z-[2] left-1/2 -translate-x-1/2 bg-yellow-300 pt-2 rounded-lg px-4 flex flex-col md:flex-row lg:flex-col animate-appear"
           style={{
             backgroundImage: "url(/base/bg-7.png)",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         >
-          <img
-            className="w-28 aspect-square m-auto rounded-t-xl -mb-4 relative z-0"
-            src="/game/select/catbassadors.jpg"
-            draggable="false"
-          />
-          <div className="relative z-10">
-            <Tag>HOW TO PLAY</Tag>
-          </div>
-          <div className="flex flex-col items-center">
-            <div className="flex flex-row items-center gap-2  font-secondary text-p3">
-              <span>CATCH COINS</span>
-              <img className="h-8" src="logo/coin.webp"></img>
+          <div className="flex flex-col">
+            <img
+              className="w-28 aspect-square m-auto rounded-t-xl -mb-4 relative z-0"
+              src="/game/select/catbassadors.jpg"
+              draggable="false"
+            />
+            <div className="relative z-10">
+              <Tag>HOW TO PLAY</Tag>
             </div>
+            <div className="flex flex-col items-center">
+              <div className="flex flex-row items-center gap-2  font-secondary text-p3">
+                <span>CATCH COINS</span>
+                <img className="h-8" src="logo/coin.webp"></img>
+              </div>
 
-            <div className="sm:hidden lg:flex ">
+              <div className="sm:hidden lg:flex">
+                <PixelButton
+                  onClick={() => {
+                    setOpenedModal(GameModal.CONTROL_SETTINGS);
+                  }}
+                  text="CONTROLS"
+                  isSmall
+                ></PixelButton>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col">
+            <Tag>COINS REWARDS</Tag>
+            <div className="flex gap-2 items-center justify-center font-secondary text-p4 pt-2">
+              <img className="h-6" src="logo/coin.png"></img>
+              <span className="whitespace-nowrap">GIVES 1</span>
+              <img className="h-6" src="logo/coin.png"></img>
+            </div>
+            <div className="flex gap-2 items-center justify-center font-secondary text-p4">
+              <img className="h-5" src={currentDayCoin}></img>
+              <span className="whitespace-nowrap">GIVES 10</span>
+              <img className="h-6" src="logo/coin.png"></img>
+            </div>
+            <div className="flex gap-2 items-center justify-center font-secondary text-p4">
+              <img className="h-5" src="logo/boss-coin.png"></img>
+              <span className="whitespace-nowrap">GIVES 100</span>
+              <img className="h-6" src="logo/coin.png"></img>
+            </div>
+            <div className="flex gap-2 items-center justify-center font-secondary text-p4 pb-2">
+              <img className="h-5" src="icons/clock.png"></img>
+              <span className="whitespace-nowrap">GIVES 1000</span>
+              <img className="h-6" src="logo/coin.png"></img>
+            </div>
+            <div className="flex justify-center -mb-6">
               <PixelButton
-                onClick={() => {
-                  setOpenedModal(GameModal.CONTROL_SETTINGS);
-                }}
-                text="CONTROLS"
-                isSmall
+                active={!profile?.catbassadorsLives}
+                onClick={playGame}
+                text="Play"
+                isBig
               ></PixelButton>
             </div>
-
-
-          </div>
-          <Tag>COINS REWARDS</Tag>
-          <div className="flex gap-2 items-center justify-center font-secondary text-p4 pt-2">
-            <img className="h-6" src="logo/coin.png"></img>
-            <span className="whitespace-nowrap">GIVES 1</span>
-            <img className="h-6" src="logo/coin.png"></img>
-          </div>
-          <div className="flex gap-2 items-center justify-center font-secondary text-p4">
-            <img className="h-5" src={currentDayCoin}></img>
-            <span className="whitespace-nowrap">GIVES 10</span>
-            <img className="h-6" src="logo/coin.png"></img>
-          </div>
-          <div className="flex gap-2 items-center justify-center font-secondary text-p4">
-            <img className="h-5" src="logo/boss-coin.png"></img>
-            <span className="whitespace-nowrap">GIVES 100</span>
-            <img className="h-6" src="logo/coin.png"></img>
-          </div>
-          <div className="flex gap-2 items-center justify-center font-secondary text-p4 pb-2">
-            <img className="h-5" src="icons/clock.png"></img>
-            <span className="whitespace-nowrap">GIVES 1000</span>
-            <img className="h-6" src="logo/coin.png"></img>
-          </div>
-          <div className="flex justify-center -mb-6">
-            <PixelButton
-              active={!profile?.catbassadorsLives}
-              onClick={playGame}
-              text="Play"
-              isBig
-            ></PixelButton>
           </div>
         </div>
       )}

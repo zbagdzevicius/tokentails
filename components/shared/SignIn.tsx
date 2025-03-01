@@ -94,11 +94,12 @@ export const SignInContent = () => {
             </div>
           </button>
 
-          <div className="my-2 text-center text-p4 font-bold font-pixel">
-            OR
-          </div>
-          <SignInForm signIn={signIn} />
-
+          <span className="md:hidden lg:block">
+            <div className="my-2 text-center text-p4 font-bold font-pixel">
+              OR
+            </div>
+            <SignInForm signIn={signIn} />
+          </span>
           <div className="font-secondary m-auto mt-4">
             By signing-in you accept{" "}
             <a

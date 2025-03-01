@@ -53,8 +53,8 @@ export const GameOptionsModal = ({
   return (
     <>
       <GameStatsSection profile={profile} setOpenedModal={setOpenedModal} />
-      <div className="fixed z-10 bottom-8 left-4 right-4 pb-safe flex justify-between md:justify-center md:gap-8 items-end">
-        {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
+      {!gameType && (
+        <div className="fixed z-10 bottom-8 md:bottom-4 lg:bottom-8 xl:bottom-12 left-4 right-4 pb-safe flex justify-between md:justify-center md:gap-8 items-end">
           <div className="flex flex-col gap-4">
             <PixelButton
               onClick={() => {
@@ -69,8 +69,6 @@ export const GameOptionsModal = ({
               text="GIFTS"
             ></PixelButton>
           </div>
-        )}
-        {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
           <div className="flex flex-col items-center">
             {profile.canRedeemLives && (
               <div
@@ -102,8 +100,6 @@ export const GameOptionsModal = ({
               text="DAILY REWARD"
             ></PixelButton>
           </div>
-        )}
-        {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
           <div className="flex flex-col gap-4">
             <PixelButton
               onClick={() => {
@@ -118,8 +114,8 @@ export const GameOptionsModal = ({
               text="CHAMPS"
             ></PixelButton>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 };

@@ -46,7 +46,7 @@ export const InviteModalContent = () => {
   };
 
   return (
-    <div className="pt-4 pb-8 px-4 md:px-12 md:pt-4 md:pb-12 text-gray-700 flex flex-col justify-between items-center animate-appear">
+    <div className="pt-4 pb-8 px-4 text-gray-700 flex flex-col justify-between items-center animate-appear">
       <Tag>GIFTS</Tag>
       <div className="py-2 flex justify-center gap-4">
         <PixelButton
@@ -111,28 +111,32 @@ export const InviteModalContent = () => {
           />
         </>
       ) : (
-        <div className="flex justify-center items-center flex-col">
-          <Tag isSmall>TIME LIMITED EVENT</Tag>
-          <img
-            className="w-64 aspect-square rounded-2xl mt-2 mb-4"
-            src={mysteryBox.image}
-          />
-          <Countdown targetDate="2025-03-10" isDaysDisplayed></Countdown>
-          {profile?.quests?.includes(mysteryBox.chain) ? (
-            <PixelButton text="REDEEMED" isDisabled></PixelButton>
-          ) : (
-            <Web3Providers>
-              <Web3Mint user={profile?._id!} ownedNFTCallback={onRedeem} />
-            </Web3Providers>
-          )}
-          {mysteryBox.faucet && (
-            <div className="flex font-secondary font-bold text-p4 items-center justify-center pt-4">
-              Out of gas ?{" "}
-              <a href={mysteryBox.faucet}>
-                <PixelButton isSmall text="Get Gas" />
-              </a>
-            </div>
-          )}
+        <div className="flex justify-center items-center flex-col md:flex-row md:gap-4">
+          <div>
+            <img
+              className="w-64 md:w-48 lg:w-64 aspect-square rounded-2xl mt-2 mb-4"
+              src={mysteryBox.image}
+            />
+          </div>
+          <div className="flex flex-col md:gap-2">
+            <Tag isSmall>TIME LIMITED FREE MINT</Tag>
+            <Countdown targetDate="2025-03-10" isDaysDisplayed></Countdown>
+            {profile?.quests?.includes(mysteryBox.chain) ? (
+              <PixelButton text="REDEEMED" isDisabled></PixelButton>
+            ) : (
+              <Web3Providers>
+                <Web3Mint user={profile?._id!} ownedNFTCallback={onRedeem} />
+              </Web3Providers>
+            )}
+            {mysteryBox.faucet && (
+              <div className="flex md:flex-col font-secondary font-bold text-p4 items-center justify-center pt-2">
+                Out of gas ?{" "}
+                <a href={mysteryBox.faucet}>
+                  <PixelButton isSmall text="Get Gas" />
+                </a>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
