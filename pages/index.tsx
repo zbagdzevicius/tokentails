@@ -15,6 +15,7 @@ import { Web3Providers } from "@/components/web3/Web3Providers";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
 import Head from "next/head";
+import { useRouter } from "next/router";
 import { useEffect, useRef } from "react";
 
 export default function Index() {
@@ -26,6 +27,7 @@ export default function Index() {
   const tokenomicsRef = useRef(null);
   const roadmapRef = useRef(null);
   const contactRef = useRef(null);
+  const router = useRouter();
 
   const sections = [
     catssliderRef,
@@ -37,6 +39,12 @@ export default function Index() {
     roadmapRef,
     contactRef,
   ];
+
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_IS_APP === "true") {
+      router.replace("/game");
+    }
+  }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
