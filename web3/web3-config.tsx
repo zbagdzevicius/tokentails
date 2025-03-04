@@ -67,24 +67,24 @@ export const stellarKit = new StellarWalletsKit({
 });
 
 const campTestnet = defineChain({
-  id: 325000,
+  id: 123420001114,
   chainNamespace: "eip155",
   caipNetworkId: `eip155:${325000}`,
-  name: "Camp Network Testnet V2",
+  name: "Camp Testnet",
   nativeCurrency: {
     decimals: 18,
-    name: "Ethereum",
-    symbol: "ETH",
+    name: "Camp Network",
+    symbol: "CAMP",
   },
   rpcUrls: {
     default: {
-      http: ["https://rpc-campnetwork.xyz"],
+      http: ["https://rpc.basecamp.t.raas.gelato.cloud"],
     },
   },
   blockExplorers: {
     default: {
       name: "Camp",
-      url: "https://camp-network-testnet.blockscout.com",
+      url: "https://basecamp.cloud.blockscout.com",
     },
   },
   testnet: true,
