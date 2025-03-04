@@ -3,7 +3,7 @@ import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
 import { EntityType } from "@/models/save";
 import { abiERC721 } from "@/web3/abi-erc721";
-import { ChainNamespace, CurrencyType } from "@/web3/contracts";
+import { ChainNamespace, ChainType, CurrencyType } from "@/web3/contracts";
 import { chainTypeId, wagmiAdapter } from "@/web3/web3-config";
 import { IMysteryBox } from "@/web3/web3.model";
 import { useAppKit } from "@reown/appkit/react";
@@ -22,8 +22,14 @@ interface IProps {
 }
 
 export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
-  const { evmConnected, evmAddress, namespace, namespaceDetail, chainId } =
-    useWeb3();
+  const {
+    evmConnected,
+    evmAddress,
+    namespace,
+    setNamespace,
+    namespaceDetail,
+    chainId,
+  } = useWeb3();
   const { switchChainAsync } = useSwitchChain({
     config: wagmiAdapter.wagmiConfig,
   });
@@ -43,6 +49,13 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
   } = useWaitForTransactionReceipt({
     hash,
   });
+  useEffect(() => {
+    if (
+      ![ChainType.STELLAR, ChainType.STELLAR_TEST].includes(mysteryBox.chain)
+    ) {
+      setNamespace(ChainNamespace.EVM);
+    }
+  }, [mysteryBox]);
 
   const isLoading = useMemo(
     () => isPending || isStellarPending || isTaxLoading,
@@ -119,6 +132,7 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
   }, [taxData]);
 
   const connectWallet = () => {
+    console.log("connectWallet", namespace);
     if (namespace === ChainNamespace.EVM) {
       open();
     }
