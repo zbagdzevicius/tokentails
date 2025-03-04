@@ -69,7 +69,7 @@ export const stellarKit = new StellarWalletsKit({
 const campTestnet = defineChain({
   id: 123420001114,
   chainNamespace: "eip155",
-  caipNetworkId: `eip155:${325000}`,
+  caipNetworkId: `eip155:${123420001114}`,
   name: "Camp Testnet",
   nativeCurrency: {
     decimals: 18,
