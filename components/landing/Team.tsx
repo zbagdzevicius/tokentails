@@ -39,10 +39,6 @@ const teamMembers: ITeamMember[] = [
         img: SocialImages.INSTAGRAM,
         link: "https://instagram.com/zygimantas.bagdzevicius",
       },
-      {
-        img: SocialImages.WARPCAST,
-        link: "https://warpcast.com/skillmatrix",
-      },
     ],
   },
   {

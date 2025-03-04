@@ -1,5 +1,5 @@
 {
-  "name": "skillmatrix",
+  "name": "tokentails",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,15 +12,28 @@
     "extrude:food": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/food-original.png --output ./public/base/food.png",
     "extrude:blocks": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/blocks-original.png --output ./public/base/blocks.png",
     "extrude:enemies": "tile-extruder --tileWidth 33 --tileHeight 33 --margin 0 --spacing 0 --input ./public/enemies/white-owlet.png --output ./public/enemies/white-owlet.png",
-    "extrude:winter": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/new-blocks-winter.png --output ./public/base/winter.png"
+    "extrude:winter": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/new-blocks-winter.png --output ./public/base/winter.png",
+    "build:prod": "env-cmd -f .env.production next build",
+    "build:app": "env-cmd -f .env.app next build",
+    "app:sync": "npx cap copy && npx cap sync",
+    "app:android:open": "npx cap open android",
+    "app:android:build": "npx cap build android",
+    "app:android:run": "npx cap run android -l --external",
+    "app:android": "npm run build:app && npm run app:sync && npm run app:android:open",
+    "app:ios:open": "npx cap open ios",
+    "app:ios:build": "npx cap build ios",
+    "app:ios:ci": "npm run build:app && npm run app:sync",
+    "app:ios:run": "npx cap run ios -l --external",
+    "app:ios": "npm run app:ios:ci && npm run app:ios:open",
+    "app:assets": "capacitor-assets generate --iconBackgroundColor '#fea68e' --iconBackgroundColorDark '#fea68e' --splashBackgroundColor '#fea68e' --splashBackgroundColorDark '#fea68e' --logoSplashScale 0.4"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^5.4.1",
-    "@capacitor/android": "^5.7.4",
+    "@capacitor/android": "^5.7.8",
     "@capacitor/app": "^5.0.7",
     "@capacitor/clipboard": "^5.0.7",
-    "@capacitor/core": "^5.7.4",
-    "@capacitor/ios": "^5.7.4",
+    "@capacitor/core": "^5.7.8",
+    "@capacitor/ios": "^5.7.8",
     "@creit.tech/stellar-wallets-kit": "^1.3.0",
     "@reown/appkit": "^1.5.3",
     "@reown/appkit-adapter-wagmi": "^1.5.3",
@@ -37,6 +50,7 @@
     "@uidotdev/usehooks": "^2.4.1",
     "classnames": "^2.5.1",
     "easystarjs": "^0.4.4",
+    "env-cmd": "^10.1.0",
     "eruda": "^3.0.1",
     "ethers": "^6.13.4",
     "firebase": "^10.10.0",
@@ -62,6 +76,8 @@
     "wagmi": "^2.13.3"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^7.0.1",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

@@ -1,0 +1,100 @@
+{
+  "project_info": {
+    "project_number": "158850509760",
+    "project_id": "news-ccd33",
+    "storage_bucket": "news-ccd33.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:158850509760:android:67745ef7471917d416f625",
+        "android_client_info": {
+          "package_name": "com.tokentails.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "158850509760-tid9g3nbbguoo87utrdfhp5q86oatu0k.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tokentails.app",
+            "certificate_hash": "71a080cf7b949488e4c7514df6d08b52d9c26628"
+          }
+        },
+        {
+          "client_id": "158850509760-guo3a7dkg3sj1t5d854d109khjokfm3s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLZ86jopJkx5PUXu-EOcY93u1hqM4Fy9c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "158850509760-7bt0mrcmur0198ufdl58fndaap3rsrvf.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "158850509760-1mf1p60kat1hlj8kv83mhden3ku36pim.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "lt.sveikauk.ios",
+                "app_store_id": "6470919970"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:158850509760:android:f929812aedfe6d3316f625",
+        "android_client_info": {
+          "package_name": "lt.sveikauk.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "158850509760-7hetor8c3jod12uldd99kj9v306i8en3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "lt.sveikauk.app",
+            "certificate_hash": "d2b0058911730b2bef456168da08d0fddeee4fa2"
+          }
+        },
+        {
+          "client_id": "158850509760-guo3a7dkg3sj1t5d854d109khjokfm3s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLZ86jopJkx5PUXu-EOcY93u1hqM4Fy9c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "158850509760-7bt0mrcmur0198ufdl58fndaap3rsrvf.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "158850509760-1mf1p60kat1hlj8kv83mhden3ku36pim.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "lt.sveikauk.ios",
+                "app_store_id": "6470919970"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -49,6 +49,6 @@ export const mysteryBoxes: Partial<
     name: "Camp Mystery Box",
     chain: ChainType.CAMP_TEST,
     image: "/utilities/mystery-boxes/mystery-box-camp.jpg",
-    faucet: "https://www.campnetwork.xyz/faucet",
+    faucet: "https://www.campnetwork.xyz/faucet_l1",
   },
 };
