@@ -131,7 +131,7 @@ export const InviteModalContent = () => {
             {mysteryBox.faucet && (
               <div className="flex md:flex-col font-secondary font-bold text-p4 items-center justify-center pt-2">
                 Out of gas ?{" "}
-                <a href={mysteryBox.faucet}>
+                <a href={mysteryBox.faucet} target="_blank">
                   <PixelButton isSmall text="Get Gas" />
                 </a>
               </div>
