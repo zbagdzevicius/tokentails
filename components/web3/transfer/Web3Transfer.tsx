@@ -6,6 +6,11 @@ import { CurrencyType } from "@/web3/contracts";
 import { useWeb3Transfer } from "./useWeb3Transfer";
 import { useMemo } from "react";
 
+export interface IGeneratedCat {
+  name: string;
+  image: string;
+}
+
 interface Web3TransferProps {
   price: number;
   amount: number;
@@ -13,6 +18,8 @@ interface Web3TransferProps {
   loadingText?: string;
   entityType?: EntityType;
   cat?: string;
+  generatedCat?: IGeneratedCat;
+  generate?: boolean;
   blessing?: string;
   user?: string;
   disabled?: boolean;
@@ -25,6 +32,7 @@ export const Web3Transfer = ({
   loadingText,
   entityType,
   disabled,
+  generatedCat,
   cat,
   blessing,
   user,
@@ -43,6 +51,7 @@ export const Web3Transfer = ({
     cat,
     blessing,
     user,
+    generatedCat,
   });
   const address = useMemo(() => {
     if (!namespaceDetail?.connected) {

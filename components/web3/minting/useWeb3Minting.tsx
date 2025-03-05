@@ -132,7 +132,6 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
   }, [taxData]);
 
   const connectWallet = () => {
-    console.log("connectWallet", namespace);
     if (namespace === ChainNamespace.EVM) {
       open();
     }

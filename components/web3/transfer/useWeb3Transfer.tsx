@@ -43,6 +43,7 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
+import { IGeneratedCat } from "./Web3Transfer";
 
 interface IProps {
   entityType: EntityType;
@@ -51,6 +52,7 @@ interface IProps {
   cat?: string;
   blessing?: string;
   user?: string;
+  generatedCat?: IGeneratedCat;
 }
 
 const paymentsChain = isProd ? ChainType.BNB : ChainType.BNB_TEST;
@@ -62,6 +64,7 @@ export const useWeb3Transfer = ({
   cat,
   blessing,
   user,
+  generatedCat,
 }: IProps) => {
   const {
     evmConnected,
@@ -124,6 +127,7 @@ export const useWeb3Transfer = ({
       cat,
       blessing,
       user,
+      generatedCat,
     });
     setTransactionStatus(status);
   };

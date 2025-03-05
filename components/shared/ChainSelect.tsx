@@ -1,12 +1,17 @@
 import { useWeb3 } from "@/context/Web3Context";
-import { ChainNamespace, ChainNamespaceImg, ChainNamespaces, ChainNamespacesCurrencies } from "@/web3/contracts";
+import {
+  ChainNamespace,
+  ChainNamespaceImg,
+  ChainNamespaces,
+  ChainNamespacesCurrencies,
+} from "@/web3/contracts";
 import React from "react";
 
 export const ChainSelect = () => {
   const { currencyType, setCurrencyType, setNamespace, namespace } = useWeb3();
 
   return (
-    <div className="flex-col">
+    <div className="flex-col animate-appear">
       <div className="flex flex-col items-center gap-1">
         <div className="font-secondary bg-purple-300 px-4 rounded-full">
           CHAIN
@@ -22,7 +27,11 @@ export const ChainSelect = () => {
                   : "grayscale hover:grayscale-0"
               }`}
             >
-              <div className="text-p4 font-secondary">{namespaceOption === ChainNamespace.EVM ? 'BSC' : namespaceOption}</div>
+              <div className="text-p4 font-secondary">
+                {namespaceOption === ChainNamespace.EVM
+                  ? "BSC"
+                  : namespaceOption}
+              </div>
               <img
                 className={`transition ${
                   namespace === namespaceOption

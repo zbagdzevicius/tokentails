@@ -46,7 +46,7 @@ type ContextState = {
   setCurrencyType: (currencyType: CurrencyType) => void;
   setPrice: (price: any) => void;
   transactionStatus: ITransactionStatus | null;
-  setTransactionStatus: (transactionStatus: ITransactionStatus) => void;
+  setTransactionStatus: (transactionStatus: ITransactionStatus | null) => void;
 };
 
 const Web3Context = React.createContext<ContextState | undefined>(undefined);

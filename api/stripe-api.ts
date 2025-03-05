@@ -1,7 +1,12 @@
+import { IGeneratedCat } from "@/components/web3/transfer/Web3Transfer";
 import { apiUrl, getAuthHeaders } from "./api";
 
 export const STRIPE_API = {
-  createPaymentIntent: async (amount: number, catId: string) => {
+  createPaymentIntent: async (
+    amount: number,
+    catId?: string,
+    generatedCat?: IGeneratedCat
+  ) => {
     const response = await fetch(`${apiUrl}/web3/create-payment`, {
       method: "POST",
       headers: {
@@ -12,6 +17,7 @@ export const STRIPE_API = {
       body: JSON.stringify({
         amount,
         catId,
+        generatedCat,
       }),
     });
 
