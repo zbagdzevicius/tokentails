@@ -73,7 +73,7 @@ export const getMultiplier = (cat?: ICat | null) => {
   if (cat.blessings?.length) {
     return 10;
   }
-  if (cat.isExclusive) {
+  if (cat.isExclusive || cat.price) {
     return 5;
   }
   if (cat.catpoints > 1000000) {
@@ -185,8 +185,14 @@ export const CatPayment = ({
   onAdopted?: () => void;
   relative?: boolean;
 }) => {
-  const { currencyType, bnbRate, xlmRate, solRate, transactionStatus } =
-    useWeb3();
+  const {
+    currencyType,
+    bnbRate,
+    xlmRate,
+    solRate,
+    transactionStatus,
+    setTransactionStatus,
+  } = useWeb3();
   const { _id, supply, name, catpoints, price } = cat;
   const { profile, setProfileUpdate } = useProfile();
   const [isBuyMode, setIsBuyMode] = useState(false);
@@ -240,6 +246,7 @@ export const CatPayment = ({
       cat,
       catpoints: profile!.catpoints - catpoints,
     });
+    setTransactionStatus(null);
 
     toast({ message: "Congratz on your adopted cat !" });
     setIsAdopting(false);
@@ -412,7 +419,7 @@ export const CatCard = ({
           </div>
           <div className="relative mx-4 h-full flex justify-center items-center">
             <img
-              className="w-full h-full rounded-xl absolute z-0"
+              className="w-full h-full rounded-xl absolute z-0 object-cover object-center"
               src={`/ability/${type}_BG.webp`}
               alt="base"
               width={400}

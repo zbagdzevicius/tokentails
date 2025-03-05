@@ -1,5 +1,6 @@
 import { ChainNamespace, ChainType, CurrencyType } from "@/web3/contracts";
 import { EntityType } from "./save";
+import { IGeneratedCat } from "@/components/web3/transfer/Web3Transfer";
 
 export enum OrderStatus {
   COMPLETE = "COMPLETE",
@@ -19,6 +20,7 @@ export interface IOrder {
   price: number;
   entityType: EntityType;
   cat?: string;
+  generatedCat?: IGeneratedCat;
   blessing?: string;
   user?: string;
 }

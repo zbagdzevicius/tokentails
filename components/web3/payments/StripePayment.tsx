@@ -10,6 +10,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { useEffect, useState } from "react";
 import { PixelButton } from "../../shared/PixelButton";
 import { Tag } from "@/components/shared/Tag";
+import { IGeneratedCat } from "../transfer/Web3Transfer";
 
 // Make sure to replace with your publishable key
 const stripePromise = loadStripe(
@@ -71,13 +72,15 @@ const StripeCheckoutForm = ({ onSuccess, price }: StripeCheckoutFormProps) => {
 
 interface StripePaymentProps {
   price: number;
-  catId: string;
+  catId?: string;
+  generatedCat?: IGeneratedCat;
   onSuccess: () => void;
 }
 
 export const StripePayment = ({
   price,
   catId,
+  generatedCat,
   onSuccess,
 }: StripePaymentProps) => {
   const [clientSecret, setClientSecret] = useState<string>();
@@ -86,8 +89,9 @@ export const StripePayment = ({
     const initializePayment = async () => {
       try {
         const { clientSecret } = await STRIPE_API.createPaymentIntent(
-          price, // Stripe expects amount in cents
-          catId
+          price,
+          catId,
+          generatedCat
         );
         setClientSecret(clientSecret);
       } catch (error) {
@@ -100,7 +104,7 @@ export const StripePayment = ({
 
   if (!clientSecret) {
     return (
-      <div className="flex w-full justify-center">
+      <div className="flex w-full justify-center animate-appear">
         <Tag>Loading payment...</Tag>
       </div>
     );

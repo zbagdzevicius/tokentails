@@ -1,6 +1,6 @@
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { GameStatSection } from "../catbassadors/GameStatsSection";
 import { commafy } from "@/constants/utils";
 import { CloseButton } from "./CloseButton";
@@ -13,7 +13,7 @@ const Cat = ({ profile }: { profile?: IProfile | null }) => {
   return (
     <div className="relative">
       <img
-        className="w-32 m-auto pixelated"
+        className="w-32 m-auto pixelated -mt-8"
         src={profile?.cat?.catImg || "/logo/logo.webp"}
       />
       {(profile?.cat.blessings?.length || 0) > 0 && (
@@ -26,6 +26,40 @@ const Cat = ({ profile }: { profile?: IProfile | null }) => {
   );
 };
 
+const ProfileUpdate = () => {
+  const { profile } = useProfile();
+  const [twitter, setTwitter] = useState(profile?.twitter);
+  const [editMode, setEditMode] = useState(false);
+  const buttonText = editMode ? "Save" : twitter ? "Edit" : "Connect";
+  const onButtonClick = () => {
+    if (!editMode) {
+      setEditMode(true);
+    } else {
+      setEditMode(false);
+    }
+  };
+  return (
+    <div className="flex items-center flex-col justify-center md:-mt-6 mb-2">
+      <img className="w-8 mb-1" src="/icons/social/x.webp" draggable="false" />
+      {!editMode ? (
+        <div className="w-56 flex items-center justify-center h-8 bg-yellow-300 rounded-full">
+          {twitter || "X Handle is not connected"}
+        </div>
+      ) : (
+        <input
+          type="text"
+          value={twitter}
+          onChange={(e) => setTwitter(e.target.value?.slice(0, 24))}
+          className="flex-grow px-2 py-1 outline-none text-p5 bg-white rounded-full"
+          placeholder="Your X Handle"
+        />
+      )}
+      <span>
+        <PixelButton isSmall text={buttonText} onClick={onButtonClick} />
+      </span>
+    </div>
+  );
+};
 export const TelegramProfileContent = () => {
   const { profile, logout, isFB } = useProfile();
   const gameStats = useMemo(() => {
@@ -79,7 +113,7 @@ export const TelegramProfileContent = () => {
   );
 
   return (
-    <div className="pt-4 pb-8 px-4 md:pt-4 text-gray-700 flex flex-col md:flex-row md:gap-8 justify-between items-center animate-appear">
+    <div className="pt-4 pb-8 px-4 md:pt-4 text-gray-700 flex flex-col md:flex-row md:gap-4 justify-between items-center animate-appear">
       <span className="md:hidden">
         <Cat profile={profile} />
       </span>
@@ -139,8 +173,9 @@ export const TelegramProfileContent = () => {
         <span className="hidden md:block">
           <Cat profile={profile} />
         </span>
+        <ProfileUpdate />
         <GameMusicToggle />
-        {isFB && <PixelButton text="Logout" onClick={logout} />}
+        {isFB && <PixelButton isSmall text="Logout" onClick={logout} />}
       </div>
     </div>
   );

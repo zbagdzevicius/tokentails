@@ -13,6 +13,7 @@ export interface IUserWallets {
 export interface IProfile {
   _id: string;
   avatar?: string;
+  twitter?: string;
   name: string;
   streak: number;
   cat: ICat;
