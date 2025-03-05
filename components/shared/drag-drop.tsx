@@ -16,7 +16,10 @@ export function Previews({ maxFiles, value, onChange }: IProps) {
       "image/*": [],
     },
     onDrop: async (acceptedFiles: File[]) => {
-      const slicedFiles = acceptedFiles.slice(0, maxFiles - value.length);
+      const slicedFiles = acceptedFiles.slice(
+        0,
+        (maxFiles || 0) - value.length
+      );
       const uploadedImages = await Promise.all(
         slicedFiles.map((slicedFile) =>
           IMAGE_API.uploadImage(slicedFile, { name: slicedFile.name })
@@ -67,7 +70,7 @@ export function Previews({ maxFiles, value, onChange }: IProps) {
 
   return (
     <section className="">
-      {value.length < maxFiles && (
+      {value.length < (maxFiles || 0) && (
         <div
           {...getRootProps({
             className:
