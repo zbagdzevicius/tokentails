@@ -42,7 +42,6 @@ export class SpeechBubble extends Phaser.GameObjects.Container {
     } else {
       console.warn("Button not found in the DOM element.");
     }
-    console.log(this.npcCat.originalData);
     this.add(domElement);
     const bubbleXOffset = 5;
     const bubbleYOffset = 5;

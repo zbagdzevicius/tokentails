@@ -233,7 +233,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
       <Web3Providers>
         <GenerateCat close={close} />
       </Web3Providers>
-      <div className="flex flex-wrap justify-center">
+      <div className="flex flex-wrap justify-center w-full">
         {mutatedCats?.map((cat) => (
           <div
             key={cat._id}

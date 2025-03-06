@@ -106,10 +106,6 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   );
 
   React.useEffect(() => {
-    console.log("show login modal", {
-      isLoading,
-      response: profileResponse?.cat,
-    });
     if (!!profileResponse?.cat && !isLoading && userLoaded) {
       setIsLoginModalDisplayed(false);
     }

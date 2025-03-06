@@ -59,9 +59,9 @@ const ProfileUpdate = () => {
     <div className="flex items-center flex-col justify-center md:-mt-6 mb-2">
       <img className="w-8 -mb-3" src="/icons/social/x.webp" draggable="false" />
       {!editMode ? (
-        <div className="w-48 flex items-center justify-center h-8 bg-yellow-300 rounded-full font-secondary">
+        <Tag isSmall>
           {twitter ? `X: ${twitter}` : "X Handle is not connected"}
-        </div>
+        </Tag>
       ) : (
         <input
           type="text"
