@@ -393,9 +393,8 @@ export const CatCard = ({
   const [activeBlessing, setActiveBlessing] = useState<IBlessing | null>(null);
   return (
     <div
-      className={`${
-        relative ? "" : "top-1/2 -translate-y-1/2"
-      } md:scale-[0.6] lg:scale-100 max-w-screen-xl hover:brightness-105 border-8 rounded-[24px] border-yellow-300 border-opacity-50 hover:border-opacity-100 relative rem:h-[540px] md:rem:h-[600px] aspect-[2/3] max-w-screen`}
+      className={`${relative ? "" : "top-1/2 -translate-y-1/2"
+        } md:scale-[0.6] lg:scale-100 max-w-screen-xl hover:brightness-105 border-8 rounded-[24px] border-yellow-300 border-opacity-50 hover:border-opacity-100 relative rem:h-[540px] md:rem:h-[600px] aspect-[2/3] max-w-screen`}
     >
       <img
         src={`/ability/${type}_BG.webp`}
@@ -433,9 +432,8 @@ export const CatCard = ({
                   catImg
                 }
                 alt="Hero cat"
-                className={`${
-                  activeBlessing ? "w-full h-48 rounded-xl" : "w-32 h-32"
-                } relative z-10 object-contain pixelated`}
+                className={`${activeBlessing ? "w-full h-48 rounded-xl" : "w-32 h-32"
+                  } relative z-10 object-contain pixelated`}
               />
               {!!blessings?.length && (
                 <img

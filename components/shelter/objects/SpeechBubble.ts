@@ -4,7 +4,13 @@ import { ICat } from "@/models/cats";
 export class SpeechBubble extends Phaser.GameObjects.Container {
   private npcCat: any;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, text: string, npcCat: ICat) {
+  constructor(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+    text: string,
+    npcCat: ICat
+  ) {
     super(scene, x, y);
     this.npcCat = npcCat;
 
@@ -29,15 +35,17 @@ export class SpeechBubble extends Phaser.GameObjects.Container {
     const button = domElement.getChildByID("adopt-button");
     if (button) {
       button.addEventListener("click", () => {
-        scene.events.emit(GameEvent.CAT_CARD_DISPLAY, { npc: this.npcCat.originalData });
+        scene.events.emit(GameEvent.CAT_CARD_DISPLAY, {
+          npc: this.npcCat.originalData,
+        });
       });
     } else {
       console.warn("Button not found in the DOM element.");
     }
-
+    console.log(this.npcCat.originalData);
     this.add(domElement);
-    const bubbleXOffset = 5; 
-     const bubbleYOffset = 5; 
+    const bubbleXOffset = 5;
+    const bubbleYOffset = 5;
     this.setPosition(x + bubbleXOffset, y - bubbleYOffset);
 
     const domXOffset = 5;

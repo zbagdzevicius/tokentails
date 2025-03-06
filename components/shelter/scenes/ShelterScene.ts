@@ -20,14 +20,6 @@ const JUMP_LAYER_TILES = [
   169, 170, 139, 140, 200, 224, 225, 226, 227, 51, 52, 82, 83, 84,
 ];
 const TRAMPOLINE_TILES = [158, 159];
-
-const PLAYER_NPC_CATS_POSITIONS = {
-  PLAYER_CATS: {
-    x: { min: -900, max: -300 },
-    y: -230,
-  },
-};
-
 enum Shelters {
   ROZINE_PEDUTE = "rozine-pedute",
   TOKENTAILS = "tokentails",
@@ -188,33 +180,26 @@ export class ShelterScene extends Scene {
     const npcSpawnRegularCallback = (
       data: ICatEvent<GameEvent.NPC_SPAWN_TOKENTAILS>
     ) => {
-      this.spawnNpc(data.detail.npc, false);
+      this.spawnNpc(data.detail.npc);
     };
 
     const npcSpawnBlessedCallback = (
       data: ICatEvent<GameEvent.NPC_SPAWN_ROZINE_PEDUTE>
     ) => {
-      this.spawnNpc(data.detail.npc, false);
+      this.spawnNpc(data.detail.npc);
     };
 
     const npcSpawnExclusiveCallback = (
       data: ICatEvent<GameEvent.NPC_SPAWN_EXCLUSIVE>
     ) => {
-      this.spawnNpc(data.detail.npc, false);
+      this.spawnNpc(data.detail.npc);
     };
-
-    const npcSpawnPlayerCats = (data: ICatEvent<GameEvent.PLAYER_CATS>) => {
-      this.spawnNpc(data.detail.npc, true);
-    };
-
-    GameEvents.PLAYER_CATS.addEventListener(npcSpawnPlayerCats);
 
     GameEvents.NPC_SPAWN_TOKENTAILS.addEventListener(npcSpawnRegularCallback);
     GameEvents.NPC_SPAWN_ROZINE_PEDUTE.addEventListener(
       npcSpawnBlessedCallback
     );
     GameEvents.NPC_SPAWN_EXCLUSIVE.addEventListener(npcSpawnExclusiveCallback);
-    GameEvents.PLAYER_CATS.addEventListener(npcSpawnPlayerCats);
 
     GameEvents.GAME_LOADED.push({ scene: this });
 
@@ -228,7 +213,6 @@ export class ShelterScene extends Scene {
       GameEvents.NPC_SPAWN_EXCLUSIVE.removeEventListener(
         npcSpawnExclusiveCallback
       );
-      GameEvents.PLAYER_CATS.removeEventListener(npcSpawnPlayerCats);
     });
 
     this.createAnimations();
@@ -349,21 +333,18 @@ export class ShelterScene extends Scene {
     this.load.start();
   }
 
-  private spawnNpc(npcData: ICat, isPlayerCat: boolean = false) {
+  private spawnNpc(npcData: ICat) {
     this.load.once("complete", () => {
       let spawnPosition;
-      if (isPlayerCat) {
-        spawnPosition = PLAYER_NPC_CATS_POSITIONS.PLAYER_CATS;
-      } else {
-        switch (npcData.shelter?.slug) {
-          case Shelters.ROZINE_PEDUTE:
-            spawnPosition = SHELTER_SPAWN_POSITIONS[Shelters.ROZINE_PEDUTE];
-            break;
-          default:
-            // For everything else, default to TOKENTAILS
-            spawnPosition = SHELTER_SPAWN_POSITIONS[Shelters.TOKENTAILS];
-            break;
-        }
+
+      switch (npcData.shelter?.slug) {
+        case Shelters.ROZINE_PEDUTE:
+          spawnPosition = SHELTER_SPAWN_POSITIONS[Shelters.ROZINE_PEDUTE];
+          break;
+        default:
+          // For everything else, default to TOKENTAILS
+          spawnPosition = SHELTER_SPAWN_POSITIONS[Shelters.TOKENTAILS];
+          break;
       }
 
       // Randomized X position within the chosen range
@@ -376,7 +357,6 @@ export class ShelterScene extends Scene {
       const npcCat = new NpcCat(this, spawnX, spawnY, npcData.name);
       (npcCat as any).originalData = {
         ...npcData,
-        isPlayerCat,
       };
 
       this.physics.add.collider(npcCat.sprite, this.groundLayer);
@@ -466,36 +446,20 @@ export class ShelterScene extends Scene {
     GameEvents.NPC_COLLISION.push({ npc });
   }
 
-  private handleNpcVisibility(npc: NpcCat) {
-    const isInView = this.cameras.main.worldView.contains(
-      npc.sprite.x,
-      npc.sprite.y
-    );
-    const wasActive = npc.sprite.active;
-
-    npc.sprite.setActive(isInView);
-    npc.sprite.setVisible(isInView);
-
-    if (wasActive && !isInView) {
-      npc.sprite.setVelocity(0, 0);
-    }
-
-    return isInView;
-  }
-
   private handleNpcInteraction(npc: NpcCat) {
     if (!this.cat) return;
 
     const isOverlapping = this.physics.overlap(this.cat.sprite, npc.sprite);
     const isPlayerCat = (npc as any).originalData?.isPlayerCat;
-
-    if (isOverlapping && this.currentlyCollidingNpc === null && !isPlayerCat) {
-      this.currentlyCollidingNpc = npc;
-      npc.handleLoaf();
-      this.showNpcSpeechBubble(
-        npc,
-        `Hi, I am ${npc.sprite.texture.key}! Want to adopt me?`
-      );
+    if (isOverlapping && !isPlayerCat) {
+      if (this.currentlyCollidingNpc === null) {
+        this.currentlyCollidingNpc = npc;
+        npc.handleLoaf();
+        this.showNpcSpeechBubble(
+          npc,
+          `Hi, I am ${npc.sprite.texture.key}! Want to adopt me?`
+        );
+      }
     } else if (!isOverlapping && this.currentlyCollidingNpc === npc) {
       npc.handleLoafReset();
       if (this.speechBubble) {
@@ -554,30 +518,11 @@ export class ShelterScene extends Scene {
     if (this.cat?.sprite.active) {
       this.cat.update();
     }
-
-    // Optimize NPC updates by checking distance from player
-    const playerX = this.cat?.sprite.x ?? 0;
-    const playerY = this.cat?.sprite.y ?? 0;
-    const updateDistance = IS_MOBILE ? 320 : 800;
-
     this.npcCats.forEach((npc) => {
       if (!npc.sprite.active) return;
 
-      const distance = Phaser.Math.Distance.Between(
-        playerX,
-        playerY,
-        npc.sprite.x,
-        npc.sprite.y
-      );
-
-      if (distance < updateDistance) {
-        npc.update();
-        this.handleNpcInteraction(npc);
-      } else {
-        // Stop all movement and animations for distant NPCs
-        npc.sprite.setVelocity(0, 0);
-        npc.sprite.anims.stop();
-      }
+      npc.update();
+      this.handleNpcInteraction(npc);
     });
 
     this.elevator.update(delta);
@@ -641,5 +586,13 @@ export class ShelterScene extends Scene {
       },
       loop: true,
     });
+  }
+
+  removeNpc(npc: NpcCat) {
+    const index = this.npcCats.indexOf(npc);
+    if (index > -1) {
+      npc.destroy();
+      this.npcCats.splice(index, 1);
+    }
   }
 }

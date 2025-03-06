@@ -55,13 +55,17 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [notifications, setNotifications] = useState<IToast[]>([]);
 
   const addNotification = (notification: IToast) => {
-    setNotifications((prev) => [...prev, notification]);
+    if (isStarted && [GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!)) {
+      setNotifications((prev) => [...prev, notification]);
+    }
   };
 
   useEffect(() => {
     if (notifications.length > 0) {
       const timeout = setTimeout(() => {
-        setNotifications((prev) => prev.slice(1));
+        setNotifications((prev) => {
+          return prev.length > 0 ? prev.slice(1) : prev;
+        });
       }, 3000);
       return () => clearTimeout(timeout);
     }
@@ -186,7 +190,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
               setProfileUpdate={setProfileUpdate}
             />
           )}
-          <Notification notifications={notifications} />
+          {isStarted && [GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!) && (
+            <Notification notifications={notifications} />
+          )}
           <MobileButtons
             isHidden={!isStarted && gameType !== GameType.SHELTER}
           />

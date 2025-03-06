@@ -3,6 +3,15 @@ import { StatusType } from "@/models/status";
 import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
 import { GameEvents, IPhaserGame } from "../Phaser/events";
 import { StartGame } from "./config";
+import { useProfile } from "@/context/ProfileContext";
+import { useQuery } from "@tanstack/react-query";
+import { CAT_API } from "@/api/cat-api";
+import { useState } from "react";
+import { ICat } from "@/models/cats";
+import { useToast } from "@/context/ToastContext";
+import { GameType } from "@/models/game";
+import { MAX_CAT_STATUS } from "@/context/CatContext";
+import { useGame } from "@/context/GameContext";
 
 interface IProps {
   currentActiveScene?: (scene_instance: Phaser.Scene) => void;
@@ -60,6 +69,16 @@ const BaseGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
 function Base() {
   const phaserRef = useRef<IPhaserGame | null>(null);
   const { setCatStatus, cat } = useCat();
+  const { profile, setProfileUpdate } = useProfile();
+  const [selectedNpc, setSelectedNpc] = useState<ICat | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const toast = useToast();
+  const { setGameType } = useGame();
+
+  const { data: userCats } = useQuery({
+    queryKey: ["user-cats", profile?._id],
+    queryFn: () => CAT_API.cats(),
+  });
 
   const isGameLoaded = GameEvents.GAME_LOADED.use();
   useEffect(() => {
@@ -85,9 +104,56 @@ function Base() {
     };
   }, [cat?.status]);
 
+  useEffect(() => {
+    if (userCats && userCats.length > 0 && isGameLoaded?.scene) {
+      userCats.forEach((singleCat) => {
+        GameEvents.PLAYER_CATS.push({ npc: singleCat });
+      });
+    }
+  }, [userCats, isGameLoaded]);
+
+  GameEvents.CAT_CARD_DISPLAY.use((event) => {
+    if (event) {
+      setSelectedNpc(event.npc);
+      setShowModal(true);
+    }
+  });
+  GameEvents.CAT_CARD_DISPLAY.use((event) => {
+    if (event) {
+      const cat = event.npc;
+      const isSameCat = profile?.cat._id === cat._id;
+
+      if (isSameCat || !cat) {
+        toast({ message: "This cat is already selected" });
+        return;
+      }
+
+      setProfileUpdate({ cat });
+      CAT_API.setActive(cat._id!);
+      GameEvents.CAT_SPAWN.push({ cat });
+
+      toast({ message: "Cat selected successfully!" });
+      if (cat?.status?.EAT !== MAX_CAT_STATUS) {
+        setGameType(GameType.HOME);
+      }
+
+      setSelectedNpc(cat);
+      setShowModal(true);
+    }
+  });
+
+
   return (
     <div id="app" className="z-20">
       <BaseGame ref={phaserRef} />
+      {showModal && selectedNpc && (
+        <div className="fixed inset-0 z-[101] flex items-center justify-center bg-black bg-opacity-30">
+          <div
+            className="absolute inset-0 z-0"
+            onClick={() => setShowModal(false)}
+          ></div>
+        </div>
+      )}
     </div>
   );
 }

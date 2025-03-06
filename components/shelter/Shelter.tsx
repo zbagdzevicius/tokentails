@@ -1,7 +1,7 @@
 import { CAT_API } from "@/api/cat-api";
 import { useCat } from "@/context/CatContext";
 import { useProfile } from "@/context/ProfileContext";
-import { ICat } from "@/models/cats";
+import { CatType, ICat } from "@/models/cats";
 import { useQuery } from "@tanstack/react-query";
 import {
   forwardRef,
@@ -77,11 +77,6 @@ function Shelter() {
     queryFn: () => CAT_API.catsForSale(),
   });
 
-  const { data: userCats } = useQuery({
-    queryKey: ["user-cats", profile?._id],
-    queryFn: () => CAT_API.cats(),
-  });
-
   const { cat } = useCat();
 
   const phaserRef = useRef<IPhaserGame | null>(null);
@@ -93,19 +88,6 @@ function Shelter() {
       GameEvents.CAT_SPAWN.push({ cat });
     }
   }, [cat, isGameLoaded]);
-
-  useEffect(() => {
-    if (userCats && userCats.length > 0 && isGameLoaded?.scene) {
-      userCats.forEach((singleCat) => {
-        GameEvents.PLAYER_CATS.push({ npc: singleCat });
-      });
-    }
-  }, [userCats, isGameLoaded]);
-
-  const getRandomCats = (catsArray: ICat[], count: number) => {
-    const shuffled = [...catsArray].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, count);
-  };
 
   useEffect(() => {
     if (!hasSpawnedNpc && isGameLoaded?.scene && catsForSale) {

@@ -8,6 +8,9 @@ const config: Phaser.Types.Core.GameConfig = {
   scene: BaseScene,
   pixelArt: true,
   roundPixels: true,
+  dom: {
+    createContainer: true, // Enable DOM element rendering
+  },
   physics: {
     default: "arcade",
     arcade: {
