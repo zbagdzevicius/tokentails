@@ -145,7 +145,7 @@ export const InviteModalContent = () => {
 
 export const InviteModal = ({ close }: { close: () => void }) => {
   return (
-    <div className="fixed inset-0 pt-safe w-full z-[100] flex justify-center h-full">
+    <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center h-full">
       <div
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"

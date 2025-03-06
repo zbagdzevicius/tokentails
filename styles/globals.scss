@@ -60,6 +60,7 @@ html {
   font-family: "Nunito", sans-serif;
   background: #c4e2fc;
   overscroll-behavior: contain;
+  overflow: hidden;
   touch-action: pan-x pan-y;
 }
 
@@ -391,6 +392,22 @@ $n: 20;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+.mt-safe {
+  margin-top: env(safe-area-inset-top);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom);
 }
 
 // swipper override

@@ -125,7 +125,7 @@ export const Calendar = ({ isRelative }: IProps) => {
         <CatCardModal onClose={handleCloseModal} {...selectedCat} />
       )}
       {isCalendarOpen && !isRelative && (
-        <div className="fixed inset-0 pt-safe w-full z-[100] flex justify-center items-center h-full">
+        <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center items-center h-full">
           <div
             onClick={handleCalendarClick}
             className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
