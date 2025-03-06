@@ -63,7 +63,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     if (notifications.length > 0) {
       const timeout = setTimeout(() => {
         setNotifications((prev) => prev.slice(1));
-      }, 2000);
+      }, 3000);
       return () => clearTimeout(timeout);
     }
   }, [notifications]);
@@ -192,9 +192,8 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
             isHidden={!isStarted && gameType !== GameType.SHELTER}
           />
           {isStarted &&
-            (gameType === GameType.CATBASSADORS ||
-              gameType === GameType.PURRQUEST) && (
-              <DisplayCoins isHidden={false} />
+            [GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!) && (
+              <DisplayCoins />
             )}
 
           {openedModal === GameModal.PROFILE && (

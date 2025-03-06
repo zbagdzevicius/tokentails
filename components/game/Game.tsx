@@ -4,6 +4,7 @@ import { GameType } from "@/models/game";
 import dynamic from "next/dynamic";
 import { useBackground } from "../../constants/hooks";
 import Snowfall from "../shared/Snowfall";
+import { useBodyOverflowHidden } from "@/hooks/useBodyOverflowHidden";
 const Catbassadors = dynamic(
   () => import("@/components/catbassadors/Catbassadors"),
   { ssr: false }
@@ -22,6 +23,7 @@ export const Game = () => {
   const { gameType, timer } = useGame();
   const { profile } = useProfile();
   const background = useBackground();
+  useBodyOverflowHidden();
 
   return (
     <div className="w-full max-h-screen h-full absolute" style={background}>

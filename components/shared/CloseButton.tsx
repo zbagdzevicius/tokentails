@@ -1,9 +1,16 @@
 interface ICloseButton {
-    onClick: () => void
+  onClick: () => void;
+  absolute?: boolean;
 }
 
-export const CloseButton = ({ onClick }: ICloseButton) => {
-    return (
-        <img src='/icons/pixel-close.png' className="hover:brightness-150 hover:translate hover:scale-125 lg:w-9 w-7 lg:h-9 h-7 absolute top-0 right-0 md:m-4 m-2 z-[90]" onClick={onClick} />
-    )
-}
+export const CloseButton = ({ onClick, absolute }: ICloseButton) => {
+  return (
+    <img
+      src="/icons/pixel-close.png"
+      className={`hover:brightness-150 hover:translate hover:scale-125 lg:w-9 w-7 lg:h-9 h-7 ${
+        absolute ? "absolute right-2" : "sticky"
+      } top-2 mt-2 -mb-9 lg:-mb-10 ml-auto mr-2 z-[90]`}
+      onClick={onClick}
+    />
+  );
+};

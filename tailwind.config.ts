@@ -55,7 +55,7 @@ const config: Config = {
         flip: "flip 10s infinite;",
         appear: "appear 0.5s;",
         opacity: "opacity 1.5s;",
-        bounceWithFade: "bounceWithFade 2s ease-in-out",
+        bounceWithFade: "bounceWithFade 3s ease-in-out",
       },
       keyframes: {
         "loop-scroll": {
@@ -70,8 +70,13 @@ const config: Config = {
           },
           "25%": {
             transform: "translateY(-25%)",
-            opacity: "0",
+            opacity: "0.5",
             animationTimingFunction: "cubic-bezier(0.2, 0, 0.5, 1)",
+          },
+          "50%": {
+            transform: "translateY(0)",
+            opacity: "1",
+            animationTimingFunction: "cubic-bezier(0, 0, 0.2, 1)",
           },
           "75%": {
             transform: "translateY(0)",

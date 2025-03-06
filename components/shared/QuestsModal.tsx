@@ -364,17 +364,17 @@ export const QuestsModalContent = () => {
 
 export const QuestsModal = ({ close }: { close: () => void }) => {
   return (
-    <div className="fixed inset-0 pt-safe w-full z-[100] flex justify-center h-full">
+    <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center h-full">
       <div
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
-      <div className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full bg-gradient-to-b from-yellow-300 to-purple-300 absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow h-fit">
+      <div className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full bg-gradient-to-b from-yellow-300 to-purple-300 absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow">
+        <CloseButton onClick={() => close()} />
         <QuestsModalContent />
         <button onClick={close} className="absolute right-[0] top-0 group">
           <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>
         </button>
-        <CloseButton onClick={() => close()} />
       </div>
     </div>
   );

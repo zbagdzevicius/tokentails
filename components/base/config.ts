@@ -1,11 +1,6 @@
 import { Game } from "phaser";
 import { BaseScene } from "./scenes/BaseScene";
 
-//  Find out more information about the Game Config at:
-//  https://newdocs.phaser.io/docs/3.70.0/Phaser.Types.Core.GameConfig
-export const GAME_WIDTH = window.innerWidth;
-export const GAME_HEIGHT = window.innerHeight;
-
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.WEBGL,
   parent: "game-container",
@@ -22,6 +17,11 @@ const config: Phaser.Types.Core.GameConfig = {
   },
 };
 
-export const StartGame = (parent: string, width: number, height: number) => {
-  return new Game({ ...config, parent, width, height });
+export const StartGame = () => {
+  return new Game({
+    ...config,
+    parent: "game-container",
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
 };

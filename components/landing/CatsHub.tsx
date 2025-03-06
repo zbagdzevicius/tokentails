@@ -98,7 +98,7 @@ export const CatsHub = () => {
         </h2>
 
         <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1 max-lg:mx-5 my-0 sm:my-10 items-center">
-          <div className="relative m-auto h-fit rounded-2xl sm:rounded-[80px] overflow-hidden -mb-8 sm:mb-0 hover:brightness-110">
+          <div className="relative m-auto rounded-2xl sm:rounded-[80px] overflow-hidden -mb-8 sm:mb-0 hover:brightness-110">
             <img
               src="/images/cats-hub/cards-bg.webp"
               alt="Cats Background"

@@ -1,19 +1,13 @@
-import { ICat } from "@/models/cats";
-import {
-  forwardRef,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
-import { GameEvents, IPhaserGame } from "../Phaser/events";
-import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
-import { useGame } from "@/context/GameContext";
 import { currentDayCoin } from "@/constants/utils";
-import { PixelButton } from "../shared/PixelButton";
+import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
+import { ICat } from "@/models/cats";
+import { GameModal } from "@/models/game";
+import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
+import { GameEvents, IPhaserGame } from "../Phaser/events";
+import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
-import { GameModal, GameType } from "@/models/game";
+import { StartGame } from "./config";
 
 export interface IGameOverEvent extends Event {
   detail: {
@@ -39,7 +33,7 @@ const CatbassadorsGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
 
   useLayoutEffect(() => {
     if (game.current === null) {
-      game.current = StartGame("game-container", GAME_WIDTH, GAME_HEIGHT);
+      game.current = StartGame();
 
       if (typeof ref === "function") {
         ref({ game: game.current, scene: null });

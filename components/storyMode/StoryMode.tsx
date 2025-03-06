@@ -1,10 +1,8 @@
 import { useCat } from "@/context/CatContext";
-import { forwardRef, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { GameEvents, IPhaserGame } from "../Phaser/events";
-import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
-;
 import { useProfile } from "@/context/ProfileContext";
-
+import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
+import { GameEvents, IPhaserGame } from "../Phaser/events";
+import { StartGame } from "./config";
 interface IProps {
   currentActiveScene?: (scene_instance: Phaser.Scene) => void;
 }
@@ -17,7 +15,7 @@ const StoryModeGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
 
   useLayoutEffect(() => {
     if (game.current === null) {
-      game.current = StartGame("game-container", GAME_WIDTH, GAME_HEIGHT);
+      game.current = StartGame();
 
       if (typeof ref === "function") {
         ref({ game: game.current, scene: null });
@@ -71,8 +69,6 @@ function StoryMode() {
       GameEvents.CAT_SPAWN.push({ cat });
     }
   }, [cat, isGameLoaded]);
-
-
 
   return (
     <div id="app" className="z-20">

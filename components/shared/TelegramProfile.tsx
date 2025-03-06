@@ -40,9 +40,9 @@ const ProfileUpdate = () => {
   };
   return (
     <div className="flex items-center flex-col justify-center md:-mt-6 mb-2">
-      <img className="w-8 mb-1" src="/icons/social/x.webp" draggable="false" />
+      <img className="w-8 -mb-3" src="/icons/social/x.webp" draggable="false" />
       {!editMode ? (
-        <div className="w-56 flex items-center justify-center h-8 bg-yellow-300 rounded-full">
+        <div className="w-44 flex items-center justify-center h-8 bg-yellow-300 rounded-full font-secondary">
           {twitter || "X Handle is not connected"}
         </div>
       ) : (
@@ -113,7 +113,7 @@ export const TelegramProfileContent = () => {
   );
 
   return (
-    <div className="pt-4 pb-8 px-4 md:pt-4 text-gray-700 flex flex-col md:flex-row md:gap-4 justify-between items-center animate-appear">
+    <div className="pt-4 pb-8 md:pb-4 px-4 md:pt-4 text-gray-700 flex flex-col md:flex-row md:gap-4 justify-between items-center animate-appear">
       <span className="md:hidden">
         <Cat profile={profile} />
       </span>
@@ -183,17 +183,17 @@ export const TelegramProfileContent = () => {
 
 export const TelegramProfile = ({ close }: { close: () => void }) => {
   return (
-    <div className="fixed inset-0 pt-safe w-full z-[100] flex justify-center h-full mb-2">
+    <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center h-full mb-2">
       <div
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
       <div className="z-50 rem:w-[350px] md:w-[540px] max-w-full bg-gradient-to-b from-purple-300 to-blue-300 absolute top-1/2 -translate-y-1/2  rounded-xl shadow h-fit">
+        <CloseButton onClick={() => close()} />
         <TelegramProfileContent />
         <button onClick={close} className="absolute right-[0] top-0 group">
           <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>
         </button>
-        <CloseButton onClick={() => close()} />
       </div>
     </div>
   );
