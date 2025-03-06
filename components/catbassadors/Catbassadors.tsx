@@ -91,10 +91,10 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
   }, [cat, isGameLoaded]);
   return (
     <div id="app">
-      <div className="fixed right-0 top-0 z-50">
+      <div className="fixed right-2 md:right-4 top-12 z-50">
         {cat && (
           <>
-            <div className="flex flex-col justify-center relative gap-2 items-end pr-2 md:pr-4 pt-1 md:pt-4">
+            <div className="flex flex-col justify-center relative gap-2 items-end">
               {timer !== 0 && (
                 <div className="flex items-center gap-2 ">
                   <p className="font-bold font-secondary text-p3 z-10">

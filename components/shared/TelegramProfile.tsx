@@ -8,17 +8,19 @@ import { GameMusicToggle } from "./GameMusicToggler";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
 import { IProfile } from "@/models/profile";
+import { useMutation } from "@tanstack/react-query";
+import { USER_API } from "@/api/user-api";
 
 const Cat = ({ profile }: { profile?: IProfile | null }) => {
   return (
     <div className="relative">
       <img
-        className="w-32 m-auto pixelated -mt-8"
+        className="w-32 m-auto pixelated -mt-8 relative z-10"
         src={profile?.cat?.catImg || "/logo/logo.webp"}
       />
       {(profile?.cat.blessings?.length || 0) > 0 && (
         <img
-          className="absolute m-auto inset-0 object-cover translate-y-1 w-32 h-32"
+          className="absolute m-auto inset-0 object-cover translate-y-1 w-32 h-32 -mt-4 z-0"
           src={`/flare-effect/${profile!.cat.blessings[0].ability}.gif`}
         ></img>
       )}
@@ -30,20 +32,35 @@ const ProfileUpdate = () => {
   const { profile } = useProfile();
   const [twitter, setTwitter] = useState(profile?.twitter);
   const [editMode, setEditMode] = useState(false);
-  const buttonText = editMode ? "Save" : twitter ? "Edit" : "Connect";
+  const toast = useToast();
+  const { mutate, isPending } = useMutation({
+    mutationFn: USER_API.saveProfileTwitter,
+    onSuccess: () => {
+      toast({ message: "X is successfully connected" });
+      setEditMode(false);
+    },
+  });
+  const buttonText = editMode
+    ? isPending
+      ? "Saving..."
+      : "Save"
+    : twitter
+    ? "Edit"
+    : "Connect";
   const onButtonClick = () => {
     if (!editMode) {
       setEditMode(true);
-    } else {
-      setEditMode(false);
+    } else if (twitter?.length) {
+      mutate({ twitter, _id: profile?._id });
     }
   };
+
   return (
     <div className="flex items-center flex-col justify-center md:-mt-6 mb-2">
       <img className="w-8 -mb-3" src="/icons/social/x.webp" draggable="false" />
       {!editMode ? (
-        <div className="w-44 flex items-center justify-center h-8 bg-yellow-300 rounded-full font-secondary">
-          {twitter || "X Handle is not connected"}
+        <div className="w-48 flex items-center justify-center h-8 bg-yellow-300 rounded-full font-secondary">
+          {twitter ? `X: ${twitter}` : "X Handle is not connected"}
         </div>
       ) : (
         <input
@@ -55,13 +72,20 @@ const ProfileUpdate = () => {
         />
       )}
       <span>
-        <PixelButton isSmall text={buttonText} onClick={onButtonClick} />
+        <PixelButton
+          isDisabled={isPending}
+          isSmall
+          text={buttonText}
+          onClick={onButtonClick}
+        />
       </span>
     </div>
   );
 };
+
 export const TelegramProfileContent = () => {
   const { profile, logout, isFB } = useProfile();
+  const [isWalletsRevealed, setIsWalletsRevealed] = useState(false);
   const gameStats = useMemo(() => {
     if (!profile) {
       return [];
@@ -121,12 +145,11 @@ export const TelegramProfileContent = () => {
         <ul className="m-auto font-primary">
           <Tag>Hello, {profile.name} !</Tag>
           <li className="flex items-center gap-x-2 mb-4 justify-center mt-4">
-            <img className="w-8" src="/logo/chest.webp" />
+            <img className="w-8" src="/logo/coin.webp" />
             <div className="flex font-secondary text-p3 gap-2">
               Coins:{" "}
               <span className="font-bold">{commafy(profile.catpoints)}</span>
             </div>
-            <img className="w-8 rotate-x scale-x-[-1]" src="/logo/chest.webp" />
           </li>
           <li className="flex justify-between mb-4">
             {gameStats.map((stat) => (
@@ -134,7 +157,17 @@ export const TelegramProfileContent = () => {
             ))}
           </li>
 
-          {profile?.wallets?.evm && (
+          {!isWalletsRevealed && (
+            <span className="w-full flex justify-center">
+              <PixelButton
+                isSmall
+                text="Reveal My Wallets"
+                onClick={() => setIsWalletsRevealed(true)}
+              />
+            </span>
+          )}
+
+          {profile?.wallets?.evm && isWalletsRevealed && (
             <li
               onClick={() => copy(profile?.wallets.evm.walletAddress)}
               className="flex flex-col gap-1 mt-3"
@@ -151,7 +184,7 @@ export const TelegramProfileContent = () => {
             </li>
           )}
 
-          {profile?.wallets?.stellar && (
+          {profile?.wallets?.stellar && isWalletsRevealed && (
             <li
               onClick={() => copy(profile?.wallets.stellar.walletAddress)}
               className="flex flex-col gap-1 mt-3"

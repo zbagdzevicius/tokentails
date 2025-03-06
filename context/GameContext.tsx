@@ -3,6 +3,8 @@ import { GameSelect } from "@/components/game/GameSelect";
 import { Leaderboard } from "@/components/Leaderboard";
 import { DisplayCoins } from "@/components/Phaser/DisplayCoins";
 
+import { USER_API } from "@/api/user-api";
+import { getMultiplier } from "@/components/CatCardModal";
 import {
   GameEvent,
   GameEvents,
@@ -11,23 +13,20 @@ import {
 } from "@/components/Phaser/events";
 import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
 import { CatsModal } from "@/components/shared/CatsModal";
+import { ControlModal } from "@/components/shared/ControlModal";
+import { EndGameModal } from "@/components/shared/EndGameModal";
 import { GameMusicPlayer } from "@/components/shared/GameMusicPlayer";
 import { InviteModal } from "@/components/shared/InviteModal";
+import { Notification } from "@/components/shared/Notification";
 import { QuestsModal } from "@/components/shared/QuestsModal";
 import { SpeechBubble } from "@/components/shared/SpeechBubble";
 import { TelegramProfile } from "@/components/shared/TelegramProfile";
 import { catbassadorsGameDuration } from "@/models/cats";
 import { GameModal, GameType } from "@/models/game";
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useProfile } from "./ProfileContext";
-import { useToast } from "./ToastContext";
-import { EndGameModal } from "@/components/shared/EndGameModal";
-import { getMultiplier } from "@/components/CatCardModal";
-import { IToast } from "./ToastContext";
-import { Notification } from "@/components/shared/Notification";
-import { ControlModal } from "@/components/shared/ControlModal";
-import { USER_API } from "@/api/user-api";
+import { IToast, useToast } from "./ToastContext";
 
 type ContextState = {
   isStarted?: boolean;
