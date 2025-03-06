@@ -4,9 +4,16 @@ import { ProfileProvider } from "@/context/ProfileContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { queryClient } from "@/context/query";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { PropsWithChildren } from "react";
+import { PropsWithChildren, useEffect } from "react";
 
 export const MainLayout = ({ children }: PropsWithChildren<any>) => {
+  // DISABLE iOS Pinch to zoom and magnifier
+  useEffect(() => {
+    document.body.addEventListener("touchend", (e) => e.preventDefault(), {
+      passive: false,
+    });
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <Analytics />
