@@ -1,12 +1,12 @@
 import { useGame } from "@/context/GameContext";
+import { useProfile } from "@/context/ProfileContext";
+import { GameModal } from "@/models/game";
 import { forwardRef, useLayoutEffect, useRef } from "react";
 import { useBackground } from "../../constants/hooks";
 import { GameEvents, IPhaserGame } from "../Phaser/events";
-import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
-import { Tag } from "../shared/Tag";
 import { PixelButton } from "../shared/PixelButton";
-import { useProfile } from "@/context/ProfileContext";
-import { GameModal } from "@/models/game";
+import { Tag } from "../shared/Tag";
+import { StartGame } from "./config";
 
 interface IProps {
   currentActiveScene?: (scene_instance: Phaser.Scene) => void;
@@ -20,7 +20,7 @@ const PhaserGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
 
   useLayoutEffect(() => {
     if (game.current === null) {
-      game.current = StartGame("game-container", GAME_WIDTH, GAME_HEIGHT);
+      game.current = StartGame();
 
       if (typeof ref === "function") {
         ref({ game: game.current, scene: null });

@@ -1,7 +1,7 @@
 import { CAT_API } from "@/api/cat-api";
 import { useCat } from "@/context/CatContext";
 import { useProfile } from "@/context/ProfileContext";
-import { CatType, ICat } from "@/models/cats";
+import { ICat } from "@/models/cats";
 import { useQuery } from "@tanstack/react-query";
 import {
   forwardRef,
@@ -13,7 +13,7 @@ import {
 import { CatCardModal } from "../CatCardModal";
 import { GameEvents, IPhaserGame } from "../Phaser/events";
 import { Web3Providers } from "../web3/Web3Providers";
-import { GAME_HEIGHT, GAME_WIDTH, StartGame } from "./config";
+import { StartGame } from "./config";
 interface IProps {
   currentActiveScene?: (scene_instance: Phaser.Scene) => void;
 }
@@ -26,7 +26,7 @@ const ShelterGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
 
   useLayoutEffect(() => {
     if (game.current === null) {
-      game.current = StartGame("game-container", GAME_WIDTH, GAME_HEIGHT);
+      game.current = StartGame();
 
       if (typeof ref === "function") {
         ref({ game: game.current, scene: null });
@@ -101,8 +101,6 @@ function Shelter() {
       });
     }
   }, [userCats, isGameLoaded]);
-
-
 
   const getRandomCats = (catsArray: ICat[], count: number) => {
     const shuffled = [...catsArray].sort(() => Math.random() - 0.5);
