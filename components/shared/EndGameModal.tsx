@@ -35,7 +35,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
           backgroundPosition: "center",
         }}
       >
-        <CloseButton onClick={onClose} />
+        <CloseButton onClick={onClose} absolute />
         <div className="p-6 md:py-4 flex items-center justify-center flex-col gap-1">
           <img
             src={

@@ -119,11 +119,11 @@ export const Leaderboard = ({ close }: { close: () => void }) => {
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
       <div className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow">
+        <CloseButton onClick={() => close()} />
         <LeaderboardContent />
         <button onClick={close} className="absolute right-[0] top-0 group">
           <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>
         </button>
-        <CloseButton onClick={() => close()} />
       </div>
     </div>
   );

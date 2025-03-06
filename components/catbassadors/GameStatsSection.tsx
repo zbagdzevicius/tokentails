@@ -125,6 +125,7 @@ export const GameStatsSection = ({
             className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
           ></div>
           <div className="z-50 rem:w-[350px] md:w-[480px] max-w-full bg-yellow-300 absolute top-1/2 -translate-y-1/2 rounded-xl shadow animate-appear pb-4">
+            <CloseButton onClick={() => setModal(null)} />
             <div className="pb-safe rem:min-h-[100px] p-8 text-gray-500 flex flex-col gap-2 justify-between items-center">
               <p className="text-p3 font-secondary whitespace-pre-line text-center">
                 {modal}
@@ -134,7 +135,6 @@ export const GameStatsSection = ({
                 text="Okey"
               ></PixelButton>
             </div>
-            <CloseButton onClick={() => setModal(null)} />
           </div>
         </div>
       )}
