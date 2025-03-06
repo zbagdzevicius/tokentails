@@ -47,7 +47,7 @@ export class CatbassadorsScene extends Scene {
   private buffManager?: BuffManager;
   enemyManager?: EnemyManager;
 
-  private gravityReverseInterval: number = 120000;
+  private gravityReverseInterval: number = 30000;
   private nextGravityReverseTime: number = 0;
   private isGravityReversed: boolean = false;
 
