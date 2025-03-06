@@ -160,9 +160,8 @@ export const DisplayCoins: React.FC<{}> = () => {
             <div
               className="absolute top-0 left-0 w-full h-full rounded-full"
               style={{
-                background: `conic-gradient(rgba(255, 255, 255, 0.6) 0% ${
-                  100 - cooldownPercentage
-                }%, transparent ${100 - cooldownPercentage}% 100%)`,
+                background: `conic-gradient(rgba(255, 255, 255, 0.6) 0% ${100 - cooldownPercentage
+                  }%, transparent ${100 - cooldownPercentage}% 100%)`,
               }}
             ></div>
           </div>

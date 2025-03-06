@@ -19,7 +19,7 @@ import { endScenePeriod } from "@/models/game";
 const JUMP_LAYER_TILES = [169, 170, 139, 140, 200, 224, 225, 226, 227];
 const TRAMPOLINE_TILES = [158, 159, 160];
 
-const DEFAULT_ENEMY_SPAWN_THRESHOLD = 100;
+const DEFAULT_ENEMY_SPAWN_THRESHOLD = 1000;
 
 export class CatbassadorsScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
@@ -208,10 +208,20 @@ export class CatbassadorsScene extends Scene {
       }
     };
     GameEvents.GAME_START.addEventListener(startGameCallback);
+
+    // Add game stop event listener
+    const stopGameCallback = (event: ICatEvent<GameEvent.GAME_STOP>) => {
+      if (event.detail.time === 0) {
+        this.endGame();
+      }
+    };
+    GameEvents.GAME_STOP.addEventListener(stopGameCallback);
+
     GameEvents.GAME_LOADED.push({ scene: this });
     this.scene.scene.events.once("destroy", () => {
       GameEvents.CAT_SPAWN.removeEventListener(catSpawnCallback);
       GameEvents.GAME_START.removeEventListener(startGameCallback);
+      GameEvents.GAME_STOP.removeEventListener(stopGameCallback);
     });
 
     this.coinManager = new CoinManager({
@@ -449,6 +459,7 @@ export class CatbassadorsScene extends Scene {
 
     this.coinManager?.stopSpawning();
     this.coinManager?.clearCoins();
+    this.coinManager?.destroy();
 
     this.buffManager?.stopSpawning();
     this.buffManager?.endGame();
@@ -474,6 +485,8 @@ export class CatbassadorsScene extends Scene {
   }
 
   private startGame() {
+    this.coinManager?.clearCoins();
+
     if (this.cat) {
       this.cat.isDeath = false;
     }

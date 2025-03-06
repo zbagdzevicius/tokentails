@@ -148,7 +148,17 @@ export class PurrquestScene extends Phaser.Scene {
       this.spawnPlayer(data.detail.cat!);
     GameEvents.GAME_START.addEventListener(catSpawnCallback);
 
-    this.scene.scene.events.once("destroy", () => {});
+    const stopGameCallback = (event: ICatEvent<GameEvent.GAME_STOP>) => {
+      if (event.detail.time === 0) {
+        this.endGame();
+      }
+    };
+    GameEvents.GAME_STOP.addEventListener(stopGameCallback);
+
+    this.scene.scene.events.once("destroy", () => {
+      GameEvents.GAME_START.removeEventListener(catSpawnCallback);
+      GameEvents.GAME_STOP.removeEventListener(stopGameCallback);
+    });
 
     this.buffManager = new BuffManager({
       scene: this,
@@ -165,10 +175,6 @@ export class PurrquestScene extends Phaser.Scene {
     });
     this.buffManager.startSpawning();
 
-    this.scene.scene.events.once("destroy", () => {
-      GameEvents.GAME_START.removeEventListener(catSpawnCallback);
-      this.buffManager?.stopSpawning();
-    });
     this.createAnimations();
   }
 

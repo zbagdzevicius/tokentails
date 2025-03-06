@@ -59,7 +59,7 @@ const animationConfigurations: {
   { key: PlayerAnimation.WALKING, frames: 8, repeat: 0 },
 ];
 
-export class Cat {
+export class CatNpc {
   private scene: Scene;
   sprite: Physics.Arcade.Sprite;
   private isJumping: boolean = false;

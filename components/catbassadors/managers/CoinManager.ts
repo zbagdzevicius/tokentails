@@ -17,19 +17,23 @@ export interface ICoinManagerConfig {
 }
 
 export class CoinManager {
-  private scene: CatbassadorsScene
+  private scene: CatbassadorsScene;
   private groundLayer: Phaser.Tilemaps.TilemapLayer;
   private catSprite: Phaser.Physics.Arcade.Sprite | null;
   private coinPool: ObjectPool<Coin>;
   private coins: Coin[] = [];
   private coinSpawnInterval: NodeJS.Timeout | null = null;
-    private spawnBounds: { xMin: number; xMax: number; yMin: number; yMax: number } =
-    {
-      xMin: 0,
-      xMax: 0,
-      yMin: 0,
-      yMax: 0,
-    };
+  private spawnBounds: {
+    xMin: number;
+    xMax: number;
+    yMin: number;
+    yMax: number;
+  } = {
+    xMin: 0,
+    xMax: 0,
+    yMin: 0,
+    yMax: 0,
+  };
   private spawnIntervalMs = 400;
 
   constructor(config: ICoinManagerConfig) {
@@ -51,7 +55,10 @@ export class CoinManager {
   }
 
   public startSpawning(): void {
-    this.coinSpawnInterval = setInterval(() => this.spawnCoin(), this.spawnIntervalMs);
+    this.coinSpawnInterval = setInterval(
+      () => this.spawnCoin(),
+      this.spawnIntervalMs
+    );
   }
 
   public stopSpawning(): void {
@@ -91,30 +98,27 @@ export class CoinManager {
   }
 
   private onCatCatchTheCoin(coin: Coin): void {
-    
     this.scene.sound.play("coin");
-    
-      if (this.catSprite) {
-    const starAnimationSprite = this.scene.add.sprite(
-      this.catSprite.x,
-      this.catSprite.y ,
-      "starAnimation"
-    );
-    starAnimationSprite.setScale(1.3);
-    starAnimationSprite.play("star");
-    starAnimationSprite.on("animationcomplete", () => {
-      starAnimationSprite.destroy();
-    });
-  }
-    
+
+    if (this.catSprite) {
+      const starAnimationSprite = this.scene.add.sprite(
+        this.catSprite.x,
+        this.catSprite.y,
+        "starAnimation"
+      );
+      starAnimationSprite.setScale(1.3);
+      starAnimationSprite.play("star");
+      starAnimationSprite.on("animationcomplete", () => {
+        starAnimationSprite.destroy();
+      });
+    }
+
     this.processCoinReward(coin); // Process rewards when coin is collected
     coin.sprite.destroy();
     this.coins = this.coins.filter((e) => e !== coin);
   }
 
-
   private processCoinReward(coin: Coin): void {
-
     GameEvents[GameEvent.GAME_COIN_CAUGHT].push({
       score: coin.coinReward,
     });
@@ -128,7 +132,9 @@ export class CoinManager {
       this.scene.timer = formattedTime;
 
       // Dispatch a game update event
-      GameEvents[GameEvent.GAME_UPDATE].push({ additionalTime: coin.timeReward });
+      GameEvents[GameEvent.GAME_UPDATE].push({
+        additionalTime: coin.timeReward,
+      });
     }
   }
 
@@ -159,5 +165,10 @@ export class CoinManager {
     this.coins.forEach((coin) => {
       coin.update();
     });
+  }
+
+  destroy() {
+    this.stopSpawning();
+    this.clearCoins();
   }
 }

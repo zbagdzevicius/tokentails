@@ -56,7 +56,8 @@ export class NpcCat {
   constructor(scene: Scene, x: number, y: number, catName: string) {
     this.scene = scene;
     this.animationKeys = generateCatAnimationConfiguration(catName);
-    this.direction = 1;
+    this.direction = Phaser.Math.Between(0, 1) === 0 ? -1 : 1;
+
     this.sprite = this.scene.physics.add
       .sprite(x, y, catName)
       .setSize(28, 28)
@@ -69,6 +70,8 @@ export class NpcCat {
     this.sprite.setVelocityX(this.speed * this.direction);
     this.sprite?.setDepth(2);
     this.startRandomActions();
+    this.sprite.setFlipX(this.direction === -1);
+    this.sprite.setVelocityX(this.speed * this.direction);
   }
 
   private initAnimations(catName: string) {
@@ -189,5 +192,19 @@ export class NpcCat {
     }
 
     this.updateBlessingPosition();
+  }
+
+  destroy() {
+    if (this.randomActionTimer) {
+      this.randomActionTimer.remove(false);
+    }
+
+    if (this.blessings) {
+      this.blessings.destroy();
+    }
+
+    if (this.sprite) {
+      this.sprite.destroy();
+    }
   }
 }

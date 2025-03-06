@@ -37,6 +37,10 @@ export class PlayerMovement {
       isOnIcyTile,
     } = this.player;
 
+    if (!sprite || !sprite.body) {
+      return;
+    }
+
     if (this.player.isDashing) return;
 
     if (
@@ -53,16 +57,16 @@ export class PlayerMovement {
       cursors.up.isDown || keys.up.isDown || keys.upW.isDown || isMobileJumping;
 
     const onGround = this.isGravityReversed
-      ? sprite.body!.blocked.up
-      : sprite.body!.blocked.down;
+      ? sprite.body.blocked.up
+      : sprite.body.blocked.down;
 
-    const touchingLeftWall = sprite.body!.blocked.left && !onGround;
-    const touchingRightWall = sprite.body!.blocked.right && !onGround;
+    const touchingLeftWall = sprite.body.blocked.left && !onGround;
+    const touchingRightWall = sprite.body.blocked.right && !onGround;
 
     const canWallJump =
       upKeyDown && !onGround && (touchingLeftWall || touchingRightWall);
 
-    const blockedAbove = sprite.body!.blocked.up;
+    const blockedAbove = sprite.body.blocked.up;
 
     const now = this.player.scene.time.now;
     if (
@@ -75,7 +79,7 @@ export class PlayerMovement {
     }
 
     if (!this.player.disableLeftMovement && leftKeyDown) {
-      const currentVelocity = sprite.body!.velocity.x;
+      const currentVelocity = sprite.body.velocity.x;
       const targetVelocity = -this.player.walkSpeed;
       const newVelocity = Phaser.Math.Linear(
         currentVelocity,
@@ -87,7 +91,7 @@ export class PlayerMovement {
       sprite.setAccelerationX(-this.player.walkSpeed);
       sprite.setFlipX(true);
     } else if (!this.player.disableRightMovement && rightKeyDown) {
-      const currentVelocity = sprite.body!.velocity.x;
+      const currentVelocity = sprite.body.velocity.x;
       const targetVelocity = this.player.walkSpeed;
       const newVelocity = Phaser.Math.Linear(
         currentVelocity,
@@ -99,7 +103,7 @@ export class PlayerMovement {
       sprite.setAccelerationX(this.player.walkSpeed);
       sprite.setFlipX(false);
     } else {
-      const currentVelocity = sprite.body!.velocity.x;
+      const currentVelocity = sprite.body.velocity.x;
       const decelerationRate = isOnIcyTile
         ? this.player.walkSpeed / 35
         : this.player.walkSpeed / 10;
@@ -208,8 +212,8 @@ export class PlayerMovement {
     ) {
       const timeJumping = now - this.jumpStartTime;
       if (timeJumping < this.player.coyoteTime) {
-        if (sprite.body!.velocity.y > this.player.maxJumpSpeed) {
-          sprite.setVelocityY(sprite.body!.velocity.y - 10);
+        if (sprite.body.velocity.y > this.player.maxJumpSpeed) {
+          sprite.setVelocityY(sprite.body.velocity.y - 10);
         }
       } else {
         this.isJumpHeld = false;

@@ -175,7 +175,6 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
       setMutatedCats(cats);
     }
   }, [cats]);
-
   const onCatSelect = (cat: ICat) => {
     const isSameCat = profile?.cat._id === cat._id;
     if (isSameCat || !cat) {
