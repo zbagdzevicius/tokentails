@@ -59,6 +59,8 @@ html {
   @apply text-gray-800;
   font-family: "Nunito", sans-serif;
   background: #c4e2fc;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
 }
 
 *,
