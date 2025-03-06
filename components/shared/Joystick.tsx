@@ -260,11 +260,11 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
       borderRadius: "16px",
       height: `${this._baseSize}px`,
       width: `${this._baseSize * 2.5}px`,
-      backgroundImage: "url(/base/bg.gif)",
+      backgroundImage: "url(/base/bg-7.png)",
       backgroundSize: "cover",
       backgroundPosition: "center",
       display: "flex",
-      border: '4px solid gray',
+      border: "4px solid gray",
       justifyContent: "center",
       alignItems: "center",
     } as any;
@@ -304,7 +304,7 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
     return (
       <div
         data-testid="joystick-base"
-        className="z-[100] ml-2 mb-4 relative"
+        className="z-[100] ml-2 md:ml-6 mb-4 md:mb-2 relative"
         ref={this._baseRef}
         style={baseStyle}
       >

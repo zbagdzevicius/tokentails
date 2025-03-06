@@ -69,13 +69,18 @@ const FirebaseAuthContext = React.createContext<ContextState | undefined>(
 
 const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [user, setUser] = React.useState<User>(null);
+  const [userLoaded, setUserLoaded] = React.useState(false);
   const toast = useToast();
   const [isLoginModalDisplayed, setIsLoginModalDisplayed] =
-    React.useState(true);
+    React.useState(false);
   const { setProfile, setUtils, setShareUrl, setLogout, setIsFB } =
     useProfile();
 
-  const { data: profileResponse, refetch: refetchProfile } = useQuery({
+  const {
+    data: profileResponse,
+    refetch: refetchProfile,
+    isLoading,
+  } = useQuery({
     queryKey: ["profile-details", user],
     queryFn: () => (user ? USER_API.profile() : null),
   });
@@ -101,10 +106,17 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   );
 
   React.useEffect(() => {
-    if (!!profileResponse?.cat) {
+    console.log("show login modal", {
+      isLoading,
+      response: profileResponse?.cat,
+    });
+    if (!!profileResponse?.cat && !isLoading && userLoaded) {
       setIsLoginModalDisplayed(false);
     }
-  }, [profileResponse]);
+    if (!isLoading && !profileResponse?.cat && userLoaded) {
+      setIsLoginModalDisplayed(true);
+    }
+  }, [profileResponse, isLoading, userLoaded]);
 
   React.useEffect(() => {
     if (profileResponse) {
@@ -167,6 +179,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
           }
         }, 29 * 60 * 1000);
       }
+      setUserLoaded(true);
     },
     [setIsLoginModalDisplayed]
   );

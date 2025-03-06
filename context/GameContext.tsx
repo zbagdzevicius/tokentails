@@ -192,9 +192,8 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
             isHidden={!isStarted && gameType !== GameType.SHELTER}
           />
           {isStarted &&
-            (gameType === GameType.CATBASSADORS ||
-              gameType === GameType.PURRQUEST) && (
-              <DisplayCoins isHidden={false} />
+            [GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!) && (
+              <DisplayCoins />
             )}
 
           {openedModal === GameModal.PROFILE && (
