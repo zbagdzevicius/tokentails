@@ -40,9 +40,9 @@ const ProfileUpdate = () => {
   };
   return (
     <div className="flex items-center flex-col justify-center md:-mt-6 mb-2">
-      <img className="w-8 mb-1" src="/icons/social/x.webp" draggable="false" />
+      <img className="w-8 -mb-3" src="/icons/social/x.webp" draggable="false" />
       {!editMode ? (
-        <div className="w-56 flex items-center justify-center h-8 bg-yellow-300 rounded-full">
+        <div className="w-44 flex items-center justify-center h-8 bg-yellow-300 rounded-full font-secondary">
           {twitter || "X Handle is not connected"}
         </div>
       ) : (
@@ -113,7 +113,7 @@ export const TelegramProfileContent = () => {
   );
 
   return (
-    <div className="pt-4 pb-8 px-4 md:pt-4 text-gray-700 flex flex-col md:flex-row md:gap-4 justify-between items-center animate-appear">
+    <div className="pt-4 pb-8 md:pb-4 px-4 md:pt-4 text-gray-700 flex flex-col md:flex-row md:gap-4 justify-between items-center animate-appear">
       <span className="md:hidden">
         <Cat profile={profile} />
       </span>
