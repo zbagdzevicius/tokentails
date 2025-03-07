@@ -433,7 +433,9 @@ export class ShelterScene extends Scene {
       bubbleX,
       bubbleY,
       message,
-      npcCat as any
+      npcCat as any,
+      "ADOPT",
+      false
     );
     this.add.existing(this.speechBubble);
   }
@@ -518,11 +520,24 @@ export class ShelterScene extends Scene {
     if (this.cat?.sprite.active) {
       this.cat.update();
     }
-    this.npcCats.forEach((npc) => {
-      if (!npc.sprite.active) return;
+    const activeNpcs = this.npcCats.filter((npc) => npc.sprite.active);
 
+    activeNpcs.forEach((npc) => {
       npc.update();
-      this.handleNpcInteraction(npc);
+
+      // Check interaction only if NPC is near the player
+      if (
+        this.cat &&
+        Phaser.Math.Distance.Between(
+          this.cat.sprite.x,
+          this.cat.sprite.y,
+          npc.sprite.x,
+          npc.sprite.y
+        ) < 100
+      ) {
+        // Adjust distance threshold as needed
+        this.handleNpcInteraction(npc);
+      }
     });
 
     this.elevator.update(delta);

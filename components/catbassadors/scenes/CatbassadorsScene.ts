@@ -85,6 +85,7 @@ export class CatbassadorsScene extends Scene {
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.audio("jump-sound", "audio/game/jump.mp3");
     this.load.audio("dash-sound", "audio/game/dash.wav");
+    this.load.audio("game-end-sound", "audio/game/game-end.mp3");
     this.load.tilemapTiledJSON("tilemap", "catbassadors/catbassadors.json");
     this.load.image("new-blocks-winter", "base/winter.png");
     this.load.spritesheet("starAnimation", "base/star-animation.png", {
@@ -452,6 +453,14 @@ export class CatbassadorsScene extends Scene {
     if (this.cat) {
       this.cat.isDeath = true;
     }
+
+    // Play game end sound with specific configuration
+    const gameEndSound = this.sound.add("game-end-sound", {
+      volume: 1,
+      loop: false,
+    });
+    gameEndSound.play();
+
     clearInterval(this.coinSpawnInterval as NodeJS.Timeout);
     this.coinSpawnInterval = null;
 

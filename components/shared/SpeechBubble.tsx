@@ -37,12 +37,11 @@ export const SpeechBubble = () => {
             return () => clearTimeout(timeout);
         }
 
-        // **New Effect: Hide afterFeedMessage after 3 seconds**
         if (isCatFed && typingIndex === currentMessageToDisplay!.length) {
             const hideTimeout = setTimeout(() => {
                 setIsVisible(false);
-                setDisplayText(""); // Reset text after hiding
-            }, 3000); // **Message disappears after 3 seconds**
+                setDisplayText("");
+            }, 1600);
 
             return () => clearTimeout(hideTimeout);
         }

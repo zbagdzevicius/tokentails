@@ -194,7 +194,11 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
             <Notification notifications={notifications} />
           )}
           <MobileButtons
-            isHidden={!isStarted && gameType !== GameType.SHELTER}
+            isHidden={
+              !isStarted &&
+              gameType !== GameType.SHELTER &&
+              gameType !== GameType.HOME
+            }
           />
           {isStarted &&
             [GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!) && (

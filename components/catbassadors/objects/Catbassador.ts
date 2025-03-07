@@ -190,9 +190,16 @@ export class Cat implements IPlayer {
 
   initAnimations() {
     for (const animationConfiguration of animationConfigurations) {
+      const animKey = this.animationKeys[animationConfiguration.key];
+
+      // Remove existing animation if it exists
+      if (this.scene.anims.exists(animKey)) {
+        this.scene.anims.remove(animKey);
+      }
+
       const index = animationConfigurations.indexOf(animationConfiguration);
       this.scene.anims.create({
-        key: this.animationKeys[animationConfiguration.key],
+        key: animKey,
         frames: this.scene.anims.generateFrameNumbers(this.catName, {
           start: index * maxAnimationFrames,
           end: index * maxAnimationFrames + animationConfiguration.frames - 1,
@@ -201,8 +208,15 @@ export class Cat implements IPlayer {
         repeat: animationConfiguration.repeat,
       });
     }
+
+    // Handle JUMPING_UP animation separately
+    const jumpingUpKey = this.animationKeys[PlayerAnimation.JUMPING_UP];
+    if (this.scene.anims.exists(jumpingUpKey)) {
+      this.scene.anims.remove(jumpingUpKey);
+    }
+
     this.scene.anims.create({
-      key: this.animationKeys[PlayerAnimation.JUMPING_UP],
+      key: jumpingUpKey,
       frames: this.scene.anims.generateFrameNumbers(this.catName, {
         start: 5 * maxAnimationFrames,
         end: 5 * maxAnimationFrames + 5,
@@ -317,8 +331,7 @@ export class Cat implements IPlayer {
 
       if (Math.abs(xPositionDifference) < 10) {
         this.job.callback?.();
-        this.job = null; // Remove job immediately after eating
-        this.timeoutFunction = null;
+        this.job = { type: NPCJobType.EAT }; // Change to EAT after reaching destination
       }
     } else if (this.job?.type === NPCJobType.EAT) {
       if (!this.timeoutFunction) {
@@ -326,18 +339,34 @@ export class Cat implements IPlayer {
         this.timeoutFunction = setTimeout(() => {
           this.job = { type: NPCJobType.SLEEP };
           this.timeoutFunction = null;
-        }, 0);
+        }, 3000); // Add a delay before sleeping (3 seconds of eating)
       }
       this.sprite.anims.play(
         this.animationKeys[PlayerAnimation.GROOMING],
         true
       );
     } else if (this.job?.type === NPCJobType.SLEEP) {
+      this.sprite.setVelocityX(0);
       this.sprite.anims.play(this.animationKeys[PlayerAnimation.SLEEP], true);
     }
   }
 
   addCollider(collider: ColliderType) {
     this.scene.physics.add.collider(this.sprite, collider);
+  }
+
+  // Add these helper methods
+  setSleep() {
+    if (this.job?.type === NPCJobType.SLEEP) {
+      this.sprite.anims.play(this.animationKeys[PlayerAnimation.SLEEP], true);
+    }
+  }
+
+  setJob(job: NPCJob) {
+    this.job = job;
+    if (this.timeoutFunction) {
+      clearTimeout(this.timeoutFunction);
+      this.timeoutFunction = null;
+    }
   }
 }

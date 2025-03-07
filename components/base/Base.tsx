@@ -75,10 +75,15 @@ function Base() {
   const toast = useToast();
   const { setGameType } = useGame();
 
+
   const { data: userCats } = useQuery({
     queryKey: ["user-cats", profile?._id],
     queryFn: () => CAT_API.cats(),
   });
+
+  let catsWithoutPlayerCat = userCats
+    ?.filter((c) => c._id !== cat?._id) //delete current user cat
+
 
   const isGameLoaded = GameEvents.GAME_LOADED.use();
   useEffect(() => {
@@ -105,12 +110,16 @@ function Base() {
   }, [cat?.status]);
 
   useEffect(() => {
-    if (userCats && userCats.length > 0 && isGameLoaded?.scene) {
-      userCats.forEach((singleCat) => {
+    if (catsWithoutPlayerCat && catsWithoutPlayerCat.length > 0 && isGameLoaded?.scene) {
+      // First, clear existing NPCs
+      GameEvents.CLEAR_NPCS.push();
+
+      // Then spawn all cats that aren't the current player cat
+      catsWithoutPlayerCat.forEach((singleCat) => {
         GameEvents.PLAYER_CATS.push({ npc: singleCat });
       });
     }
-  }, [userCats, isGameLoaded]);
+  }, [userCats, isGameLoaded, cat]);
 
   GameEvents.CAT_CARD_DISPLAY.use((event) => {
     if (event) {
