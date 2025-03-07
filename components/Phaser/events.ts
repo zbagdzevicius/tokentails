@@ -99,6 +99,7 @@ export enum GameEvent {
   ENEMY_SPAWN = "ENEMY_SPAWN",
   BOSS_SPAWN = "BOSS_SPAWN",
   BUFF_SPAWN = "BUFF_SPAWN",
+  CLEAR_NPCS = "CLEAR_NPCS",
 }
 
 export type ICatEventsDetails = {
@@ -122,6 +123,7 @@ export type ICatEventsDetails = {
   [GameEvent.BOSS_SPAWN]: IBossSpawn;
   [GameEvent.BUFF_SPAWN]: IBuffSpawned;
   [GameEvent.PLAYER_CATS]: INpcSpawnEvent;
+  [GameEvent.CLEAR_NPCS]: void;
 };
 
 export type ICatEvent<K extends GameEvent> = IEventDetail<ICatEventsDetails[K]>;
@@ -223,4 +225,5 @@ export const GameEvents: GameEventsType = {
   [GameEvent.ENEMY_SPAWN]: generateGameEvent(GameEvent.ENEMY_SPAWN),
   [GameEvent.BOSS_SPAWN]: generateGameEvent(GameEvent.BOSS_SPAWN),
   [GameEvent.PLAYER_CATS]: generateGameEvent(GameEvent.PLAYER_CATS),
+  [GameEvent.CLEAR_NPCS]: generateGameEvent(GameEvent.CLEAR_NPCS),
 };

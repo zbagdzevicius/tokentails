@@ -86,6 +86,7 @@ export class PurrquestScene extends Phaser.Scene {
     this.load.audio("jump-sound", "audio/game/jump.mp3");
     this.load.audio("dash-sound", "audio/game/dash.wav");
     this.load.image("new-blocks-winter", "base/winter.png");
+    this.load.audio("game-end-sound", "audio/game/game-end.mp3");
     this.load.spritesheet("chest", "purrquest2/icons/chest-spritesheet.png", {
       frameWidth: 120,
       frameHeight: 64,
@@ -632,6 +633,12 @@ export class PurrquestScene extends Phaser.Scene {
   }
 
   endGame() {
+    const gameEndSound = this.sound.add("game-end-sound", {
+      volume: 1,
+      loop: false,
+    });
+    gameEndSound.play();
+
     const totalTimePlayed = (performance.now() - this.gameStartTime) / 1000;
     if (this.cat) {
       this.cat.isDeath = true;

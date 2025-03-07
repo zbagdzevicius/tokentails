@@ -8,9 +8,10 @@ import { Cat } from "@/components/catbassadors/objects/Catbassador";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { NpcCat } from "@/components/shelter/objects/NpcCat";
 import { SpeechBubble } from "@/components/shelter/objects/SpeechBubble";
-import { CatType } from "@/models/cats";
 
-const JUMP_LAYER_TILES = [169, 170, 139, 140, 200, 224, 225, 226, 227];
+const JUMP_LAYER_TILES = [
+  169, 170, 139, 140, 200, 224, 225, 226, 227, 31, 32, 33, 35,
+];
 
 export class BaseScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
@@ -29,7 +30,7 @@ export class BaseScene extends Scene {
 
   currentlyCollidingNpc: NpcCat | null = null;
   speechBubble?: SpeechBubble;
-
+  isCatSelected: boolean = false;
   private decorationLayer!: Phaser.Tilemaps.TilemapLayer;
   private waterTiles: number[] = [74, 44];
   private waterAnimationInterval: number = 350;
@@ -84,6 +85,17 @@ export class BaseScene extends Scene {
       sugarTileset,
     ])!;
     this.platformsLayer.setCollision(JUMP_LAYER_TILES);
+    this.platformsLayer.setTileIndexCallback(
+      JUMP_LAYER_TILES,
+      (player: Phaser.GameObjects.GameObject) => {
+        const playerSprite = player as Phaser.Physics.Arcade.Sprite;
+        if (playerSprite.body!.velocity.y <= 0) {
+          return true;
+        }
+        return false;
+      },
+      this
+    );
 
     this.decorationLayer = this.tilemap.createLayer("decorations", [
       sugarTileset,
@@ -149,26 +161,34 @@ export class BaseScene extends Scene {
   }
 
   spawnCat({ detail: { cat } }: ICatEvent<GameEvent.CAT_SPAWN>) {
+    if (!cat) return;
+
+    this.currentlyCollidingNpc = null;
+    this.destroySpeechBubble();
+
+    const existingNpcIndex = this.npcCats.findIndex(
+      (npc) => (npc as any).originalData?._id === cat._id
+    );
+    if (existingNpcIndex !== -1) {
+      const existingNpc = this.npcCats[existingNpcIndex];
+      existingNpc.sprite.destroy();
+      this.npcCats.splice(existingNpcIndex, 1);
+      this.npcGroup.remove(existingNpc.sprite);
+    }
+
     if (this.blessing) {
       this.blessing.setVisible(false);
     }
-
-    if (!cat || cat?.name === this.catDto?.name) {
-      // Same cat or no cat
-      return;
+    if (this.cat) {
+      this.cat.sprite.destroy();
+      this.cat = undefined;
+    }
+    if (this.blessing) {
+      this.blessing.destroy();
     }
 
-    // If a new cat arrives while an old one is active, reset the scene
-    if (this.catDto && this.catDto?.name !== cat?.name) {
-      this.scene.restart();
-      this.catDto = cat;
-      setTimeout(() => {
-        if (this.scene) {
-          this.spawnCat({ detail: { cat } });
-        }
-      }, 1000);
-      return;
-    }
+    // Store new cat data
+    this.catDto = cat;
 
     // Preload cat sprite + blessings
     this.load.once("complete", () => {
@@ -193,6 +213,7 @@ export class BaseScene extends Scene {
       this.createCat(cat.name, this.blessing);
     });
 
+    // Load required assets
     if (cat.blessings?.length) {
       this.load.spritesheet(
         `blessing-${cat.blessings[0].ability}`,
@@ -203,8 +224,6 @@ export class BaseScene extends Scene {
         }
       );
     }
-
-    this.catDto = cat;
 
     this.load.spritesheet(cat.name, cat.spriteImg, {
       frameWidth: 48,
@@ -218,29 +237,26 @@ export class BaseScene extends Scene {
     catName: string,
     blessing: Phaser.GameObjects.Sprite | null
   ) {
-    if (this.catDto) {
-      this.cat = new Cat(
-        this,
-        0,
-        -400,
-        this.catDto.name,
-        blessing!,
-        this.catDto.type
-      );
-    }
+    this.cat = new Cat(
+      this,
+      64,
+      -400,
+      this.catDto!.name,
+      blessing!,
+      this.catDto!.type
+    );
 
     // Collide cat with ground
     this.physics.add.collider(this.cat!.sprite, this.groundLayer);
+    this.physics.add.collider(this.cat!.sprite, this.platformsLayer);
 
     // Camera follows cat
     this.cameras.main.startFollow(this.cat!.sprite);
     this.cameras.main.zoom = ZOOM;
 
-    // By default, disable controls
-    if (this.cat) {
-      this.cat.enableControls = false;
-    }
+    this.cat.enableControls = false;
 
+    setMobileControls(this.cat);
     // Enable controls if EAT status is 4
     if (this.cat && this.catDto?.status?.EAT === 4) {
       this.cat.enableControls = true;
@@ -319,32 +335,51 @@ export class BaseScene extends Scene {
   }
 
   update() {
-    // Update player cat
-    if (this.cat) {
-      this.cat.update();
-    }
-    this.npcCats.forEach((npc) => {
-      if (!npc.sprite.active) return;
+    // Update player cat if it exists
+    this.cat?.update();
 
+    const activeNpcs = this.npcCats.filter((npc) => npc.sprite.active);
+
+    activeNpcs.forEach((npc) => {
       npc.update();
-      this.handleNpcInteraction(npc);
+
+      // Check interaction only if NPC is near the player
+      if (
+        this.cat &&
+        Phaser.Math.Distance.Between(
+          this.cat.sprite.x,
+          this.cat.sprite.y,
+          npc.sprite.x,
+          npc.sprite.y
+        ) < 100
+      ) {
+        // Adjust distance threshold as needed
+        this.handleNpcInteraction(npc);
+      }
     });
   }
   private spawnNpc(npcData: ICat) {
+    const existingNpcIndex = this.npcCats.findIndex(
+      (npc) => (npc as any).originalData?._id === npcData._id
+    );
+    if (existingNpcIndex !== -1) {
+      const existingNpc = this.npcCats[existingNpcIndex];
+      existingNpc.sprite.destroy();
+      this.npcCats.splice(existingNpcIndex, 1);
+      this.npcGroup.remove(existingNpc.sprite);
+    }
+
+    // Load NPC assets before spawning
     this.load.once("complete", () => {
-      // Randomized X position within the chosen range
-      const spawnX = Phaser.Math.Between(-1000, -500);
+      const spawnX = Phaser.Math.Between(32, 300);
       const spawnY = -400;
 
       const npcCat = new NpcCat(this, spawnX, spawnY, npcData.name);
-      (npcCat as any).originalData = {
-        ...npcData,
-      };
-
+      (npcCat as any).originalData = { ...npcData };
       this.physics.add.collider(npcCat.sprite, this.groundLayer);
       this.physics.add.collider(npcCat.sprite, this.platformsLayer);
-      //this.physics.add.collider(npcCat.sprite, this.jumperLayer);
 
+      // Handle blessings
       if (npcData.blessings && npcData.blessings.length > 0) {
         const blessingAbility = npcData.blessings[0].ability;
         const blessing = this.add
@@ -375,24 +410,20 @@ export class BaseScene extends Scene {
         });
       }
 
-      // Add this NPC cat to our local array and group
+      // Add NPC to lists
       this.npcCats.push(npcCat);
       this.npcGroup.add(npcCat.sprite);
     });
 
-    // If the NPC has blessings, load the sprite for that effect
+    // Load NPC assets
     if (npcData.blessings?.length) {
       this.load.spritesheet(
         `blessing-${npcData.blessings[0].ability}`,
         `flare-effect/spritesheets/${npcData.blessings[0].ability}.png`,
-        {
-          frameWidth: 64,
-          frameHeight: 64,
-        }
+        { frameWidth: 64, frameHeight: 64 }
       );
     }
 
-    // Load the sprite sheet for the cat itself
     this.load.spritesheet(npcData.name, npcData.spriteImg, {
       frameWidth: 48,
       frameHeight: 48,
@@ -401,11 +432,42 @@ export class BaseScene extends Scene {
     this.load.start();
   }
 
-  private showNpcSpeechBubble(npcCat: NpcCat, message: string) {
-    console.log(
-      `Showing speech bubble for NPC ${npcCat.sprite.texture.key} at (${npcCat.sprite.x}, ${npcCat.sprite.y})`
-    );
+  private handleNpcCollision(npc: ICat) {
+    GameEvents.NPC_COLLISION.push({ npc });
+  }
 
+  private handleNpcInteraction(npc: NpcCat) {
+    if (!this.cat) return;
+
+    const isOverlapping = this.physics.overlap(this.cat.sprite, npc.sprite);
+    const isPlayerCat = (npc as any).originalData?.isPlayerCat;
+    const isSelected = this.catDto?._id === (npc as any).originalData?._id;
+    this.isCatSelected = isSelected;
+
+    if (isOverlapping && !isPlayerCat) {
+      if (this.currentlyCollidingNpc === null) {
+        this.currentlyCollidingNpc = npc;
+        npc.handleLoaf();
+        this.showNpcSpeechBubble(
+          npc,
+          `Hey, it's me ${npc.sprite.texture.key}. Wanna play with me?`,
+          isSelected ? "SELECTED" : "SELECT"
+        );
+      }
+    } else if (!isOverlapping && this.currentlyCollidingNpc === npc) {
+      npc.handleLoafReset();
+      if (this.speechBubble) {
+        this.destroySpeechBubble();
+      }
+      this.currentlyCollidingNpc = null;
+    }
+  }
+
+  private showNpcSpeechBubble(
+    npcCat: NpcCat,
+    message: string,
+    state: "SELECT" | "SELECTED"
+  ) {
     // Remove existing bubbles
     this.children.list.forEach((child) => {
       if (child instanceof SpeechBubble) {
@@ -413,48 +475,19 @@ export class BaseScene extends Scene {
       }
     });
 
-    const bubbleX = npcCat.sprite.x;
-    const bubbleY = npcCat.sprite.y - npcCat.sprite.displayHeight / 2 - 10;
+    const bubbleX = npcCat.sprite.x + 16;
+    const bubbleY = npcCat.sprite.y - 42;
 
     this.speechBubble = new SpeechBubble(
       this,
       bubbleX,
       bubbleY,
       message,
-      npcCat as any
+      npcCat as any,
+      state,
+      this.isCatSelected
     );
     this.add.existing(this.speechBubble);
-  }
-
-  private handleNpcCollision(npc: ICat) {
-    GameEvents.NPC_COLLISION.push({ npc });
-  }
-
-  private handleNpcInteraction(npc: NpcCat) {
-    if (!this.cat) return;
-    console.log("Checking NPC interaction");
-
-    const distance = Phaser.Math.Distance.Between(
-      this.cat.sprite.x,
-      this.cat.sprite.y,
-      npc.sprite.x,
-      npc.sprite.y
-    );
-
-    const isPlayerCat = (npc as any).originalData?.isPlayerCat;
-
-    if (distance < 50 && this.currentlyCollidingNpc === null && !isPlayerCat) {
-      this.currentlyCollidingNpc = npc;
-      npc.handleLoaf();
-      this.showNpcSpeechBubble(
-        npc,
-        `Hi, I am ${npc.sprite.texture.key}! Want to adopt me?`
-      );
-    } else if (distance >= 50 && this.currentlyCollidingNpc === npc) {
-      npc.handleLoafReset();
-      if (this.speechBubble) this.destroySpeechBubble();
-      this.currentlyCollidingNpc = null;
-    }
   }
 
   private destroySpeechBubble() {
