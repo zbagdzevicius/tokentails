@@ -128,29 +128,50 @@ export class NpcCat {
   }
 
   handleJump() {
-    if (!this.sprite.body!.blocked.down) return;
+    if (
+      !this.sprite?.active ||
+      !this.sprite.body ||
+      !this.sprite.body.blocked.down
+    )
+      return;
 
     this.sprite.setVelocityY(-350);
-    this.sprite.anims.play(this.animationKeys[PlayerAnimation.JUMPING], true);
+    if (this.sprite.anims) {
+      this.sprite.anims.play(this.animationKeys[PlayerAnimation.JUMPING], true);
+    }
 
     this.scene.time.delayedCall(500, () => {
-      this.sprite.anims.play(this.animationKeys[PlayerAnimation.RUNNING], true);
+      if (this.sprite?.active && this.sprite.anims) {
+        this.sprite.anims.play(
+          this.animationKeys[PlayerAnimation.RUNNING],
+          true
+        );
+      }
     });
   }
 
   handleSit() {
+    if (!this.sprite?.active) return;
+
     this.isLoafing = true;
     this.sprite.setVelocityX(0);
     this.sprite.anims.play(this.animationKeys[PlayerAnimation.SITTING], true);
 
     this.scene.time.delayedCall(2000, () => {
-      this.isLoafing = false;
-      this.sprite.anims.play(this.animationKeys[PlayerAnimation.RUNNING], true);
-      this.sprite.setVelocityX(this.speed * this.direction);
+      if (this.sprite?.active) {
+        this.isLoafing = false;
+        this.sprite.anims.play(
+          this.animationKeys[PlayerAnimation.RUNNING],
+          true
+        );
+        this.sprite.setVelocityX(this.speed * this.direction);
+      }
     });
   }
 
   handleEmote() {
+    if (!this.sprite?.active) return;
+
     const emotes = [PlayerAnimation.GROOMING, PlayerAnimation.IDLE];
     const randomEmote = Phaser.Math.RND.pick(emotes);
 
@@ -159,9 +180,14 @@ export class NpcCat {
     this.sprite.anims.play(this.animationKeys[randomEmote], true);
 
     this.scene.time.delayedCall(1500, () => {
-      this.isLoafing = false;
-      this.sprite.anims.play(this.animationKeys[PlayerAnimation.RUNNING], true);
-      this.sprite.setVelocityX(this.speed * this.direction);
+      if (this.sprite?.active) {
+        this.isLoafing = false;
+        this.sprite.anims.play(
+          this.animationKeys[PlayerAnimation.RUNNING],
+          true
+        );
+        this.sprite.setVelocityX(this.speed * this.direction);
+      }
     });
   }
 
