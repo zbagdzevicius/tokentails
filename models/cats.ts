@@ -15,6 +15,11 @@ export enum CatType {
   BLESSED = "BLESSED",
 }
 
+export const Prices = {
+  generatedCat: 5,
+  ai: 10,
+};
+
 export type IBlessing = {
   type: BlessingType;
   _id: string;
@@ -114,9 +119,15 @@ export const getCatAbility = () =>
 
 export type ICatStatus = Partial<Record<StatusType, IStatusValue>>;
 
+export enum CatAIStatus {
+  RUNNING = "RUNNING",
+  PAUSED = "PAUSED",
+}
+
 export interface ICat {
   _id?: string;
   name: string;
+  ai: CatAIStatus;
   ability: CatAbilitySkill;
   type: CatAbilityType;
   resqueStory: string;
@@ -206,4 +217,20 @@ export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {
     description:
       "Rapid spin using the tail to dodge obstacles and gain extra speed.",
   },
+};
+
+export const cardsColor: Record<CatAbilityType, string> = {
+  [CatAbilityType.AIR]: "#c3dacd",
+  [CatAbilityType.DARK]: "#e7d6e4",
+  [CatAbilityType.EARTH]: "#f28282",
+  [CatAbilityType.ELECTRIC]: "#fdf599",
+  [CatAbilityType.FIRE]: "#ff7f7f",
+  [CatAbilityType.ICE]: "#d4e7f4",
+  [CatAbilityType.LEGENDARY]: "#f2ab5c",
+  [CatAbilityType.NATURE]: "#a0ca93",
+  [CatAbilityType.SAND]: "#f5f0c5",
+  [CatAbilityType.STORM]: "#e7eae9",
+  [CatAbilityType.TAILS]: "#f3aea4",
+  [CatAbilityType.WATER]: "#9fe1fb",
+  [CatAbilityType.WIND]: "#f6c7ba",
 };

@@ -5,6 +5,7 @@ import { EntityType } from "@/models/save";
 import { CurrencyType } from "@/web3/contracts";
 import { useWeb3Transfer } from "./useWeb3Transfer";
 import { useMemo } from "react";
+import { BuyMode } from "@/components/CatCardModal";
 
 export interface IGeneratedCat {
   name: string;
@@ -17,6 +18,7 @@ interface Web3TransferProps {
   text?: string;
   loadingText?: string;
   entityType?: EntityType;
+  buyMode?: BuyMode;
   cat?: string;
   generatedCat?: IGeneratedCat;
   generate?: boolean;
@@ -31,6 +33,7 @@ export const Web3Transfer = ({
   text,
   loadingText,
   entityType,
+  buyMode,
   disabled,
   generatedCat,
   cat,
@@ -48,6 +51,7 @@ export const Web3Transfer = ({
     entityType: entityType || EntityType.PRESALE,
     price,
     amount,
+    buyMode,
     cat,
     blessing,
     user,

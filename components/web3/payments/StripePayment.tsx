@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { PixelButton } from "../../shared/PixelButton";
 import { Tag } from "@/components/shared/Tag";
 import { IGeneratedCat } from "../transfer/Web3Transfer";
+import { BuyMode } from "@/components/CatCardModal";
 
 // Make sure to replace with your publishable key
 const stripePromise = loadStripe(
@@ -74,6 +75,7 @@ interface StripePaymentProps {
   price: number;
   catId?: string;
   generatedCat?: IGeneratedCat;
+  buyMode?: BuyMode;
   onSuccess: () => void;
 }
 
@@ -81,6 +83,7 @@ export const StripePayment = ({
   price,
   catId,
   generatedCat,
+  buyMode,
   onSuccess,
 }: StripePaymentProps) => {
   const [clientSecret, setClientSecret] = useState<string>();
@@ -91,7 +94,8 @@ export const StripePayment = ({
         const { clientSecret } = await STRIPE_API.createPaymentIntent(
           price,
           catId,
-          generatedCat
+          generatedCat,
+          buyMode
         );
         setClientSecret(clientSecret);
       } catch (error) {

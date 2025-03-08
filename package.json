@@ -63,7 +63,6 @@
     "nodejs-base64-converter": "^1.0.5",
     "phaser": "^3.88.2",
     "react": "^18.2.0",
-    "react-confetti": "^6.1.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.3.8",
     "react-google-forms-hooks": "^1.2.4",
