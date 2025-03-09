@@ -7,7 +7,6 @@ import { useWeb3 } from "@/context/Web3Context";
 import {
   cardsColor,
   CatAbilities,
-  CatAbilityType,
   IBlessing,
   ICat,
   Prices,
@@ -19,9 +18,9 @@ import { useQuery } from "@tanstack/react-query";
 import React, { useEffect, useMemo, useState } from "react";
 import { ChainSelect } from "./shared/ChainSelect";
 import { PixelButton } from "./shared/PixelButton";
+import { StripePayment } from "./web3/payments/StripePayment";
 import { Web3Transfer } from "./web3/transfer/Web3Transfer";
 import { Web3Providers } from "./web3/Web3Providers";
-import { StripePayment } from "./web3/payments/StripePayment";
 
 interface IProps extends ICat {
   onClose?: () => void;
@@ -187,10 +186,14 @@ export const CatPayment = ({
   } = useWeb3();
   const { _id, supply, name, catpoints, price } = cat;
   const { profile, setProfileUpdate } = useProfile();
+  const [paymentMethod, setPaymentMethod] = useState<"web3" | "card">("card");
   const [buyMode, setBuyMode] = useState<BuyMode | null>(null);
   const [isAdopting, setIsAdopting] = useState(false);
   const currencyPrice = useMemo(() => {
     const corePrice = buyMode === BuyMode.AI ? Prices.ai : price;
+    if (paymentMethod === "card") {
+      return corePrice;
+    }
     if (
       [CurrencyType.XLM, CurrencyType.BNB, CurrencyType.SOL].includes(
         currencyType
@@ -210,7 +213,7 @@ export const CatPayment = ({
       }
     }
     return corePrice;
-  }, [currencyType, bnbRate, xlmRate, solRate, cat, buyMode]);
+  }, [currencyType, bnbRate, xlmRate, solRate, cat, buyMode, paymentMethod]);
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
     queryFn: () => CAT_API.cats(),
@@ -231,16 +234,26 @@ export const CatPayment = ({
   const isCoinsPayment = !!cat.catpoints && !isOwned;
 
   const onSuccess = (cat: ICat) => {
-    setProfileUpdate({
-      cats: [...(cats || []), cat],
-      cat,
-      catpoints: profile!.catpoints - catpoints,
-    });
-    setTransactionStatus(null);
+    if (buyMode === BuyMode.AI) {
+      toast({ message: "Your Cat has been AI-ified!" });
 
-    toast({ message: "Congratz on your adopted cat !" });
-    setIsAdopting(false);
-    onAdopted?.();
+      setProfileUpdate({
+        cats: (cats || []).map((c) => (c._id === cat._id ? cat : c)),
+        cat,
+        catpoints: profile!.catpoints - catpoints,
+      });
+    } else {
+      setProfileUpdate({
+        cats: [...(cats || []), cat],
+        cat,
+        catpoints: profile!.catpoints - catpoints,
+      });
+      setTransactionStatus(null);
+
+      toast({ message: "Congratz on your adopted cat !" });
+      setIsAdopting(false);
+      onAdopted?.();
+    }
   };
 
   useEffect(() => {
@@ -277,8 +290,6 @@ export const CatPayment = ({
     } else onClose?.();
   };
 
-  const [paymentMethod, setPaymentMethod] = useState<"web3" | "card">("card");
-
   return (
     <>
       {!isCoinsPayment && !!buyMode && (
@@ -308,7 +319,7 @@ export const CatPayment = ({
               <ChainSelect />
             ) : (
               <StripePayment
-                price={price}
+                price={currencyPrice}
                 catId={cat._id!}
                 buyMode={buyMode}
                 onSuccess={() => {
@@ -361,7 +372,7 @@ export const CatPayment = ({
               onClick={() => setBuyMode(isForSale ? BuyMode.CAT : BuyMode.AI)}
               isDisabled={outOfSupply}
             />
-            {((isOwned && !cat.ai) || !!cat.blessings?.length) && (
+            {isOwned && !cat.ai && (
               <img
                 src="/logo/ai.webp"
                 className="absolute top-1/2 -translate-y-1/2 -left-2 flex items-center w-6 h-6"
@@ -410,10 +421,9 @@ export const CatCard = ({
           <div>
             <div className="flex justify-between items-center m-1">
               <div className="flex flex-row space-x-2 items-center pl-4">
-                {ai ||
-                  (!!blessings?.length && (
-                    <img src="/logo/ai.webp" className="w-8 h-8 pixelated" />
-                  ))}
+                {(!!ai || !!blessings?.length) && (
+                  <img src="/logo/ai.webp" className="w-8 h-8 pixelated" />
+                )}
                 <h3 className="text-main-black text-p3 uppercase font-bold flex items-center">
                   {name}
                 </h3>
