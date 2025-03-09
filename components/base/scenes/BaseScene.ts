@@ -2,27 +2,39 @@ import { GameEvent, GameEvents, ICatEvent } from "@/components/Phaser/events";
 import { ZOOM } from "@/constants/utils";
 import { ICat } from "@/models/cats";
 import { Scene } from "phaser";
-import { Cat, NPCJobType } from "../objects/Cat";
+import { CatNpc, NPCJobType } from "../objects/Cat";
 import { Food } from "../objects/Food";
+import { Cat } from "@/components/catbassadors/objects/Catbassador";
+import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
+import { NpcCat } from "@/components/shelter/objects/NpcCat";
+import { SpeechBubble } from "@/components/shelter/objects/SpeechBubble";
+
+const JUMP_LAYER_TILES = [
+  169, 170, 139, 140, 200, 224, 225, 226, 227, 31, 32, 33, 35,
+];
 
 export class BaseScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
   cat?: Cat;
   catDto?: ICat;
+  npcGroup!: Phaser.Physics.Arcade.Group;
+  npcCats: NpcCat[] = [];
   food?: Food | null;
   catSpritesheet?: Phaser.Loader.LoaderPlugin;
   tilemap!: Phaser.Tilemaps.Tilemap;
   groundLayer!: Phaser.Tilemaps.TilemapLayer;
   isPlaying: boolean = false;
-  blipSound?:
-    | Phaser.Sound.WebAudioSound
-    | Phaser.Sound.NoAudioSound
-    | Phaser.Sound.HTML5AudioSound;
+  platformsLayer!: Phaser.Tilemaps.TilemapLayer;
+  blipSound?: Phaser.Sound.BaseSound;
   blessing!: Phaser.GameObjects.Sprite;
 
+  currentlyCollidingNpc: NpcCat | null = null;
+  speechBubble?: SpeechBubble;
+  isCatSelected: boolean = false;
   private decorationLayer!: Phaser.Tilemaps.TilemapLayer;
   private waterTiles: number[] = [74, 44];
   private waterAnimationInterval: number = 350;
+
   constructor() {
     super("BaseScene");
   }
@@ -44,8 +56,16 @@ export class BaseScene extends Scene {
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.audio("eat", "purrquest/sounds/eat.mp3");
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
-    this.load.tilemapTiledJSON("tilemap", "catbassadors/catbassadors.json");
+    this.load.tilemapTiledJSON("tilemap", "catbassadors/base.json");
     this.load.image("new-blocks-winter", "base/winter.png");
+    this.load.spritesheet(
+      "knockback-spell",
+      "abilities/knockback-spell/FIRE.png",
+      {
+        frameWidth: 64,
+        frameHeight: 64,
+      }
+    );
   }
 
   create() {
@@ -61,39 +81,77 @@ export class BaseScene extends Scene {
     )!;
     this.groundLayer = this.tilemap.createLayer("blocks", [sugarTileset])!;
 
+    this.platformsLayer = this.tilemap.createLayer("platforms", [
+      sugarTileset,
+    ])!;
+    this.platformsLayer.setCollision(JUMP_LAYER_TILES);
+    this.platformsLayer.setTileIndexCallback(
+      JUMP_LAYER_TILES,
+      (player: Phaser.GameObjects.GameObject) => {
+        const playerSprite = player as Phaser.Physics.Arcade.Sprite;
+        if (playerSprite.body!.velocity.y <= 0) {
+          return true;
+        }
+        return false;
+      },
+      this
+    );
+
     this.decorationLayer = this.tilemap.createLayer("decorations", [
       sugarTileset,
     ])!;
-
     this.decorationLayer.setDepth(10);
 
-    // Set collision for specific tiles based on property
+    // Collisions
     this.groundLayer?.setCollisionByExclusion([-1]);
+
+    // Adjust camera
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(ZOOM);
-    this.addSounds();
 
+    this.addSounds();
+    this.npcGroup = this.physics.add.group();
+    this.events.on(GameEvent.CAT_CARD_DISPLAY, (data: any) => {
+      GameEvents.CAT_CARD_DISPLAY.push(data);
+    });
+    // Listen to relevant events
     const catMeowCallback = () => this.meow();
     GameEvents.CAT_MEOW.addEventListener(catMeowCallback);
-    const catSpawnCallback = (data: ICatEvent<GameEvent.CAT_SPAWN>) =>
-      this.spawnCat(data!);
+
+    const catSpawnCallback = (data: ICatEvent<GameEvent.CAT_SPAWN>) => {
+      this.spawnCat(data);
+    };
     GameEvents.CAT_SPAWN.addEventListener(catSpawnCallback);
-    const catSpawnFoodCallback = () => this.spawnFood();
+
+    const catSpawnFoodCallback = () => {
+      this.spawnFood();
+    };
     GameEvents.CAT_EAT.addEventListener(catSpawnFoodCallback);
+
+    const npcSpawnPlayerCats = (data: ICatEvent<GameEvent.PLAYER_CATS>) => {
+      this.spawnNpc(data.detail.npc);
+    };
+    GameEvents.PLAYER_CATS.addEventListener(npcSpawnPlayerCats);
+
+    // Mark scene as ready
     GameEvents.GAME_LOADED.push({ scene: this });
+
+    // Clean up when scene is destroyed
     this.scene.scene.events.once("destroy", () => {
       GameEvents.CAT_MEOW.removeEventListener(catMeowCallback);
       GameEvents.CAT_SPAWN.removeEventListener(catSpawnCallback);
       GameEvents.CAT_EAT.removeEventListener(catSpawnFoodCallback);
+      GameEvents.PLAYER_CATS.removeEventListener(npcSpawnPlayerCats);
     });
 
+    // Water animation
     this.setupWaterAnimation();
   }
 
   private meow() {
     setTimeout(() => {
       try {
-        this.sound?.play?.("meow", { volume: 0.5 });
+        this.sound?.play("meow", { volume: 0.5 });
       } catch {}
     }, 2000);
   }
@@ -103,53 +161,59 @@ export class BaseScene extends Scene {
   }
 
   spawnCat({ detail: { cat } }: ICatEvent<GameEvent.CAT_SPAWN>) {
+    if (!cat) return;
+
+    this.currentlyCollidingNpc = null;
+    this.destroySpeechBubble();
+
+    const existingNpcIndex = this.npcCats.findIndex(
+      (npc) => (npc as any).originalData?._id === cat._id
+    );
+    if (existingNpcIndex !== -1) {
+      const existingNpc = this.npcCats[existingNpcIndex];
+      existingNpc.sprite.destroy();
+      this.npcCats.splice(existingNpcIndex, 1);
+      this.npcGroup.remove(existingNpc.sprite);
+    }
+
     if (this.blessing) {
       this.blessing.setVisible(false);
     }
-
-    const isCatExist = !cat || cat?.name === this.catDto?.name;
-    if (isCatExist) {
-      return;
+    if (this.cat) {
+      this.cat.sprite.destroy();
+      this.cat = undefined;
+    }
+    if (this.blessing) {
+      this.blessing.destroy();
     }
 
-    const isCatChanged = this.catDto && this.catDto?.name !== cat?.name;
-    if (isCatChanged) {
-      this.scene.restart();
-      this.catDto = cat;
-      setTimeout(() => {
-        if (this.scene) {
-          this.spawnCat({ detail: { cat: cat } });
-        }
-      }, 1000);
-      return;
-    }
+    // Store new cat data
+    this.catDto = cat;
 
-    this.load.once(
-      "complete",
-      () => {
-        if (cat.blessings && cat.blessings.length > 0) {
-          this.blessing = this.add
-            .sprite(0, 0, `blessing-${cat.blessings[0].ability}`)
-            .setVisible(true);
+    // Preload cat sprite + blessings
+    this.load.once("complete", () => {
+      if (cat.blessings && cat.blessings.length > 0) {
+        this.blessing = this.add
+          .sprite(0, 0, `blessing-${cat.blessings[0].ability}`)
+          .setVisible(true);
 
-          this.anims.create({
-            key: `blessing_animation_${cat.blessings[0].ability}`,
-            frames: this.anims.generateFrameNumbers(
-              `blessing-${cat.blessings[0].ability}`,
-              { start: 0, end: 59 }
-            ),
-            frameRate: 16,
-            repeat: -1,
-          });
+        this.anims.create({
+          key: `blessing_animation_${cat.blessings[0].ability}`,
+          frames: this.anims.generateFrameNumbers(
+            `blessing-${cat.blessings[0].ability}`,
+            { start: 0, end: 59 }
+          ),
+          frameRate: 16,
+          repeat: -1,
+        });
 
-          this.blessing.play(`blessing_animation_${cat.blessings[0].ability}`);
-        }
+        this.blessing.play(`blessing_animation_${cat.blessings[0].ability}`);
+      }
 
-        this.createCat(cat.name, this.blessing);
-      },
-      this
-    );
+      this.createCat(cat.name, this.blessing);
+    });
 
+    // Load required assets
     if (cat.blessings?.length) {
       this.load.spritesheet(
         `blessing-${cat.blessings[0].ability}`,
@@ -160,8 +224,6 @@ export class BaseScene extends Scene {
         }
       );
     }
-
-    this.catDto = cat;
 
     this.load.spritesheet(cat.name, cat.spriteImg, {
       frameWidth: 48,
@@ -175,11 +237,32 @@ export class BaseScene extends Scene {
     catName: string,
     blessing: Phaser.GameObjects.Sprite | null
   ) {
-    this.cat = new Cat(this, 0, -400, catName, blessing!);
-    this.physics.add.collider(this.cat.sprite, this.groundLayer);
-    this.cameras.main.startFollow(this.cat.sprite);
+    this.cat = new Cat(
+      this,
+      64,
+      -400,
+      this.catDto!.name,
+      blessing!,
+      this.catDto!.type
+    );
+
+    // Collide cat with ground
+    this.physics.add.collider(this.cat!.sprite, this.groundLayer);
+    this.physics.add.collider(this.cat!.sprite, this.platformsLayer);
+
+    // Camera follows cat
+    this.cameras.main.startFollow(this.cat!.sprite);
     this.cameras.main.zoom = ZOOM;
 
+    this.cat.enableControls = false;
+
+    setMobileControls(this.cat);
+    // Enable controls if EAT status is 4
+    if (this.cat && this.catDto?.status?.EAT === 4) {
+      this.cat.enableControls = true;
+    }
+
+    // If cat has a blessing, keep it trailing the cat
     if (blessing) {
       this.time.addEvent({
         delay: 16,
@@ -193,6 +276,19 @@ export class BaseScene extends Scene {
         },
       });
     }
+    this.physics.add.overlap(
+      this.cat!.sprite,
+      this.npcGroup,
+      (_player, npcSprite) => {
+        const npcName = (npcSprite as Phaser.Physics.Arcade.Sprite).texture.key;
+        const npcData = {
+          name: npcName,
+          spriteImg: "",
+          type: "",
+        };
+        this.handleNpcCollision(npcData as any);
+      }
+    );
   }
 
   private setupWaterAnimation() {
@@ -239,7 +335,166 @@ export class BaseScene extends Scene {
   }
 
   update() {
+    // Update player cat if it exists
     this.cat?.update();
+
+    const activeNpcs = this.npcCats.filter((npc) => npc.sprite.active);
+
+    activeNpcs.forEach((npc) => {
+      npc.update();
+
+      // Check interaction only if NPC is near the player
+      if (
+        this.cat &&
+        Phaser.Math.Distance.Between(
+          this.cat.sprite.x,
+          this.cat.sprite.y,
+          npc.sprite.x,
+          npc.sprite.y
+        ) < 100
+      ) {
+        // Adjust distance threshold as needed
+        this.handleNpcInteraction(npc);
+      }
+    });
+  }
+  private spawnNpc(npcData: ICat) {
+    const existingNpcIndex = this.npcCats.findIndex(
+      (npc) => (npc as any).originalData?._id === npcData._id
+    );
+    if (existingNpcIndex !== -1) {
+      const existingNpc = this.npcCats[existingNpcIndex];
+      existingNpc.sprite.destroy();
+      this.npcCats.splice(existingNpcIndex, 1);
+      this.npcGroup.remove(existingNpc.sprite);
+    }
+
+    // Load NPC assets before spawning
+    this.load.once("complete", () => {
+      const spawnX = Phaser.Math.Between(32, 300);
+      const spawnY = -400;
+
+      const npcCat = new NpcCat(this, spawnX, spawnY, npcData.name);
+      (npcCat as any).originalData = { ...npcData };
+      this.physics.add.collider(npcCat.sprite, this.groundLayer);
+      this.physics.add.collider(npcCat.sprite, this.platformsLayer);
+
+      // Handle blessings
+      if (npcData.blessings && npcData.blessings.length > 0) {
+        const blessingAbility = npcData.blessings[0].ability;
+        const blessing = this.add
+          .sprite(spawnX, spawnY, `blessing-${blessingAbility}`)
+          .setVisible(true);
+
+        this.anims.create({
+          key: `npc_blessing_animation_${blessingAbility}`,
+          frames: this.anims.generateFrameNumbers(
+            `blessing-${blessingAbility}`,
+            { start: 0, end: 59 }
+          ),
+          frameRate: 16,
+          repeat: -1,
+        });
+        blessing.play(`npc_blessing_animation_${blessingAbility}`);
+
+        this.time.addEvent({
+          delay: 16,
+          loop: true,
+          callback: () => {
+            if (npcCat.sprite.active) {
+              blessing.setPosition(npcCat.sprite.x, npcCat.sprite.y - 5);
+            } else {
+              blessing.destroy();
+            }
+          },
+        });
+      }
+
+      // Add NPC to lists
+      this.npcCats.push(npcCat);
+      this.npcGroup.add(npcCat.sprite);
+    });
+
+    // Load NPC assets
+    if (npcData.blessings?.length) {
+      this.load.spritesheet(
+        `blessing-${npcData.blessings[0].ability}`,
+        `flare-effect/spritesheets/${npcData.blessings[0].ability}.png`,
+        { frameWidth: 64, frameHeight: 64 }
+      );
+    }
+
+    this.load.spritesheet(npcData.name, npcData.spriteImg, {
+      frameWidth: 48,
+      frameHeight: 48,
+    });
+
+    this.load.start();
+  }
+
+  private handleNpcCollision(npc: ICat) {
+    GameEvents.NPC_COLLISION.push({ npc });
+  }
+
+  private handleNpcInteraction(npc: NpcCat) {
+    if (!this.cat) return;
+
+    const isOverlapping = this.physics.overlap(this.cat.sprite, npc.sprite);
+    const isPlayerCat = (npc as any).originalData?.isPlayerCat;
+    const isSelected = this.catDto?._id === (npc as any).originalData?._id;
+    this.isCatSelected = isSelected;
+
+    if (isOverlapping && !isPlayerCat) {
+      if (this.currentlyCollidingNpc === null) {
+        this.currentlyCollidingNpc = npc;
+        npc.handleLoaf();
+        this.showNpcSpeechBubble(
+          npc,
+          `Hey, it's me ${npc.sprite.texture.key}. Wanna play with me?`,
+          isSelected ? "SELECTED" : "SELECT"
+        );
+      }
+    } else if (!isOverlapping && this.currentlyCollidingNpc === npc) {
+      npc.handleLoafReset();
+      if (this.speechBubble) {
+        this.destroySpeechBubble();
+      }
+      this.currentlyCollidingNpc = null;
+    }
+  }
+
+  private showNpcSpeechBubble(
+    npcCat: NpcCat,
+    message: string,
+    state: "SELECT" | "SELECTED"
+  ) {
+    // Remove existing bubbles
+    this.children.list.forEach((child) => {
+      if (child instanceof SpeechBubble) {
+        child.destroy();
+      }
+    });
+
+    const bubbleX = npcCat.sprite.x + 16;
+    const bubbleY = npcCat.sprite.y - 42;
+
+    this.speechBubble = new SpeechBubble(
+      this,
+      bubbleX,
+      bubbleY,
+      message,
+      npcCat as any,
+      state,
+      this.isCatSelected
+    );
+    this.add.existing(this.speechBubble);
+  }
+
+  private destroySpeechBubble() {
+    if (this.speechBubble) {
+      this.speechBubble.destroy();
+      this.speechBubble = undefined;
+    }
   }
 
   private onFoodEat() {
@@ -248,13 +503,14 @@ export class BaseScene extends Scene {
       this.food?.sprite.destroy();
       this.food = null;
       this.sound.play("purr", { volume: 0.5 });
-      this.cat?.sprite.setVelocity(0);
-      if (this.cat) {
-        this.cat.sprite.setVelocity(0, 0);
-        this.cat.job = { type: NPCJobType.SLEEP };
-        this.cat.setSleep();
-      }
       GameEvents.CAT_EATEN.push();
+
+      if (this.cat) {
+        // Enable cat controls a bit after eating
+        this.time.delayedCall(1000, () => {
+          this.cat!.enableControls = true;
+        });
+      }
     });
   }
 }

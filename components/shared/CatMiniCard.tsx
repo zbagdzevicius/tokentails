@@ -1,5 +1,4 @@
-import { ICat } from "@/models/cats";
-import React from "react";
+import { cardsColor, ICat } from "@/models/cats";
 import { getMultiplier } from "../CatCardModal";
 import { PixelButton } from "./PixelButton";
 
@@ -7,8 +6,15 @@ export const CatMiniCard = ({ cat }: { cat: ICat }) => {
   return (
     <div>
       <div className="relative overflow-hidden w-48 rounded-xl py-2 border-2 border-black">
-        <div className="absolute left-2 top-1 opacity-75 text-black px-2 text-p5 font-secondary rounded-xl bg-yellow-300 z-20">
+        <div
+          style={{ backgroundColor: cardsColor[cat.type] || "white" }}
+          className="absolute left-0 top-0 opacity-75 text-black pl-1 text-p5 font-secondary rounded-r-xl z-20 flex items-center"
+        >
           X{getMultiplier(cat)}
+          <img src="/logo/coin.webp" className="w-6 h-6 ml-1" />
+        </div>
+        <div className="absolute right-0 top-0 z-20">
+          <img src="/logo/ai.webp" className="w-8 h-8 pixelated" />
         </div>
         <div className="relative z-10 items-center flex flex-col">
           <img

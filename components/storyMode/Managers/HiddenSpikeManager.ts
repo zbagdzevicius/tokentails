@@ -48,7 +48,11 @@ export class HiddenSpikeManager {
     this.scene.physics.add.overlap(
       this.cat.sprite,
       spike,
-      this.handlePlayerCollision,
+      (obj1, obj2) =>
+        this.handlePlayerCollision(
+          obj1 as Phaser.Types.Physics.Arcade.GameObjectWithBody,
+          obj2 as Phaser.Types.Physics.Arcade.GameObjectWithBody
+        ),
       undefined,
       this
     );

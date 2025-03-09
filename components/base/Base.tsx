@@ -1,5 +1,11 @@
-import { useCat } from "@/context/CatContext";
+import { CAT_API } from "@/api/cat-api";
+import { MAX_CAT_STATUS, useCat } from "@/context/CatContext";
+import { useGame } from "@/context/GameContext";
+import { useProfile } from "@/context/ProfileContext";
+import { useToast } from "@/context/ToastContext";
+import { GameType } from "@/models/game";
 import { StatusType } from "@/models/status";
+import { useQuery } from "@tanstack/react-query";
 import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
 import { GameEvents, IPhaserGame } from "../Phaser/events";
 import { StartGame } from "./config";
@@ -60,6 +66,16 @@ const BaseGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
 function Base() {
   const phaserRef = useRef<IPhaserGame | null>(null);
   const { setCatStatus, cat } = useCat();
+  const { profile, setProfileUpdate } = useProfile();
+  const toast = useToast();
+  const { setGameType } = useGame();
+
+  const { data: userCats } = useQuery({
+    queryKey: ["user-cats", profile?._id],
+    queryFn: () => CAT_API.cats(),
+  });
+
+  let catsWithoutPlayerCat = userCats?.filter((c) => c._id !== cat?._id); //delete current user cat
 
   const isGameLoaded = GameEvents.GAME_LOADED.use();
   useEffect(() => {
@@ -84,6 +100,43 @@ function Base() {
       GameEvents.CAT_EATEN.removeEventListener(setStatus);
     };
   }, [cat?.status]);
+
+  useEffect(() => {
+    if (
+      catsWithoutPlayerCat &&
+      catsWithoutPlayerCat.length > 0 &&
+      isGameLoaded?.scene
+    ) {
+      // First, clear existing NPCs
+      GameEvents.CLEAR_NPCS.push();
+
+      // Then spawn all cats that aren't the current player cat
+      catsWithoutPlayerCat.forEach((singleCat) => {
+        GameEvents.PLAYER_CATS.push({ npc: singleCat });
+      });
+    }
+  }, [userCats, isGameLoaded, cat]);
+
+  GameEvents.CAT_CARD_DISPLAY.use((event) => {
+    if (event) {
+      const cat = event.npc;
+      const isSameCat = profile?.cat._id === cat._id;
+
+      if (isSameCat || !cat) {
+        toast({ message: "This cat is already selected" });
+        return;
+      }
+
+      setProfileUpdate({ cat });
+      CAT_API.setActive(cat._id!);
+      GameEvents.CAT_SPAWN.push({ cat });
+
+      toast({ message: "Cat selected successfully!" });
+      if (cat?.status?.EAT !== MAX_CAT_STATUS) {
+        setGameType(GameType.HOME);
+      }
+    }
+  });
 
   return (
     <div id="app" className="z-20">

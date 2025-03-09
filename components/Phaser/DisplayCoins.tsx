@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useRef } from "react";
-import { GameEvents, GameEvent } from "./events";
-import { ICatEvent } from "./events";
+import React, { useEffect, useRef, useState } from "react";
+import { CloseButton } from "../shared/CloseButton";
+import { GameEvent, GameEvents, ICatEvent } from "./events";
+import { useGame } from "@/context/GameContext";
 
 export const DisplayCoins: React.FC<{}> = () => {
   const [totalTokens, setTotalTokens] = useState(0);
@@ -15,6 +16,7 @@ export const DisplayCoins: React.FC<{}> = () => {
 
   // We keep the current active interval ID, so we can clear it
   const buffIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { timer } = useGame();
 
   useEffect(() => {
     const handleCoinCaught = (event: { detail: { score: number } }) => {
@@ -108,7 +110,14 @@ export const DisplayCoins: React.FC<{}> = () => {
   return (
     <div className="z-10">
       {/* Coin Display */}
-      <div className="m-3 flex flex-col w-20 absolute items-center font-secondary rounded-xl px-1 py-2 bg-gradient-to-b from-yellow-300 to-red-300">
+      <div
+        className="fixed left-4 pb-safe top-4 z-10 justify-between flex hover:brightness-110 flex-col w-20 items-center font-secondary rounded-xl px-1 py-2"
+        style={{
+          backgroundImage: "url(/base/bg-7.png)",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
         <img className="w-6 h-6" src="/logo/coin.webp" alt="Coin" />
         <div className="text-p4 flex items-center gap-1">
           <div>COINS</div>
@@ -117,6 +126,15 @@ export const DisplayCoins: React.FC<{}> = () => {
           <div className="text-p5">{totalTokens}</div>
         </div>
       </div>
+      <CloseButton
+        onClick={() =>
+          GameEvents.GAME_STOP.push({
+            score: displayAmount,
+            time: 0,
+          })
+        }
+        absolute
+      />
 
       {/* Floating +Coin Display */}
       {showAmount && (
@@ -142,9 +160,8 @@ export const DisplayCoins: React.FC<{}> = () => {
             <div
               className="absolute top-0 left-0 w-full h-full rounded-full"
               style={{
-                background: `conic-gradient(rgba(255, 255, 255, 0.6) 0% ${
-                  100 - cooldownPercentage
-                }%, transparent ${100 - cooldownPercentage}% 100%)`,
+                background: `conic-gradient(rgba(255, 255, 255, 0.6) 0% ${100 - cooldownPercentage
+                  }%, transparent ${100 - cooldownPercentage}% 100%)`,
               }}
             ></div>
           </div>

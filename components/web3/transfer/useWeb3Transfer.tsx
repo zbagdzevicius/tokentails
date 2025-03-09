@@ -44,7 +44,7 @@ import {
   useWriteContract,
 } from "wagmi";
 import { IGeneratedCat } from "./Web3Transfer";
-
+import { BuyMode } from "@/components/CatCardModal";
 interface IProps {
   entityType: EntityType;
   price: number;
@@ -53,6 +53,7 @@ interface IProps {
   blessing?: string;
   user?: string;
   generatedCat?: IGeneratedCat;
+  buyMode?: BuyMode;
 }
 
 const paymentsChain = isProd ? ChainType.BNB : ChainType.BNB_TEST;
@@ -61,6 +62,7 @@ export const useWeb3Transfer = ({
   entityType,
   price,
   amount,
+  buyMode,
   cat,
   blessing,
   user,
@@ -122,6 +124,7 @@ export const useWeb3Transfer = ({
       walletAddress: namespaceDetail.address!,
       currencyType,
       price,
+      buyMode,
       ref: query?.ref,
       entityType,
       cat,

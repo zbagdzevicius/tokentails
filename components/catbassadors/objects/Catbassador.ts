@@ -6,6 +6,7 @@ import { Abilities } from "./Abilities";
 import { PurrquestScene } from "@/components/purrquest/scenes/PurrquestScene";
 import { CatbassadorsScene } from "../scenes/CatbassadorsScene";
 import { CatAbilityType } from "@/models/cats";
+import { NPCJob, NPCJobType } from "../../base/objects/Cat";
 
 type GameScene = PurrquestScene | CatbassadorsScene;
 /**
@@ -125,13 +126,20 @@ export class Cat implements IPlayer {
   readonly slideDuration: number = 1000;
   readonly slideDeceleration: number = 30;
 
+  // Add new properties for NPC behavior
+  private lastTouchedWall: "left" | "right" = "left";
+  job: null | NPCJob = null;
+  private timeoutFunction: any;
+  enableControls: boolean;
+
   constructor(
     scene: Scene,
     x: number,
     y: number,
     catName: string,
     blessings: Phaser.GameObjects.Sprite,
-    type: CatAbilityType
+    type: CatAbilityType,
+    enableControls: boolean = true
   ) {
     this.scene = scene;
     this.type = type;
@@ -153,6 +161,15 @@ export class Cat implements IPlayer {
       knockback: "Q",
     }) as KeyMap;
 
+    // Disable controls if not enabled
+    if (!enableControls) {
+      this.cursors.up.enabled = false;
+      this.cursors.down.enabled = false;
+      this.cursors.left.enabled = false;
+      this.cursors.right.enabled = false;
+      Object.values(this.keys).forEach((key) => (key.enabled = false));
+    }
+
     this.isHit = false;
     this.isDeath = false;
     this.isInvulnerable = false;
@@ -167,13 +184,22 @@ export class Cat implements IPlayer {
       .setScale(0.5) // Adjust scale as needed
       .setDepth(-1); // Ensure it's behind the player
     this.collectiveItem.setVisible(false);
+
+    this.enableControls = enableControls;
   }
 
   initAnimations() {
     for (const animationConfiguration of animationConfigurations) {
+      const animKey = this.animationKeys[animationConfiguration.key];
+
+      // Remove existing animation if it exists
+      if (this.scene.anims.exists(animKey)) {
+        this.scene.anims.remove(animKey);
+      }
+
       const index = animationConfigurations.indexOf(animationConfiguration);
       this.scene.anims.create({
-        key: this.animationKeys[animationConfiguration.key],
+        key: animKey,
         frames: this.scene.anims.generateFrameNumbers(this.catName, {
           start: index * maxAnimationFrames,
           end: index * maxAnimationFrames + animationConfiguration.frames - 1,
@@ -182,8 +208,15 @@ export class Cat implements IPlayer {
         repeat: animationConfiguration.repeat,
       });
     }
+
+    // Handle JUMPING_UP animation separately
+    const jumpingUpKey = this.animationKeys[PlayerAnimation.JUMPING_UP];
+    if (this.scene.anims.exists(jumpingUpKey)) {
+      this.scene.anims.remove(jumpingUpKey);
+    }
+
     this.scene.anims.create({
-      key: this.animationKeys[PlayerAnimation.JUMPING_UP],
+      key: jumpingUpKey,
       frames: this.scene.anims.generateFrameNumbers(this.catName, {
         start: 5 * maxAnimationFrames,
         end: 5 * maxAnimationFrames + 5,
@@ -227,7 +260,19 @@ export class Cat implements IPlayer {
   }
 
   update() {
-    this.movement.updateOngoingMovements();
+    if (this.enableControls) {
+      // Existing player-controlled behavior
+      this.movement.updateOngoingMovements();
+    } else {
+      // NPC behavior when controls are disabled
+      if (!this.job) {
+        this.updateNPCMovements();
+      } else {
+        this.updateNPCJob();
+      }
+    }
+
+    // Continue with existing update logic
     if (this.collectedItem) {
       this.updateCollectiveItem();
     }
@@ -240,7 +285,88 @@ export class Cat implements IPlayer {
     }
   }
 
+  private updateNPCMovements() {
+    if (!this?.sprite?.anims?.play) return;
+
+    const onGround =
+      this.sprite.body instanceof Phaser.Physics.Arcade.Body &&
+      this.sprite.body.onFloor();
+    if (this.isJumping && onGround) {
+      this.sprite.setVelocityY(-400);
+      this.isJumping = true;
+      return;
+    }
+
+    // Default walking behavior
+    this.sprite.anims.play(this.animationKeys[PlayerAnimation.RUNNING], true);
+    if (this.lastTouchedWall === "left") {
+      this.sprite.setVelocityX(200);
+    } else {
+      this.sprite.setVelocityX(-200);
+    }
+
+    if (this.sprite.body!.blocked.left) {
+      this.lastTouchedWall = "left";
+      this.sprite.setFlipX(false);
+    }
+    if (this.sprite.body!.blocked.right) {
+      this.sprite.setFlipX(true);
+      this.lastTouchedWall = "right";
+    }
+  }
+
+  private updateNPCJob() {
+    if (!this?.sprite?.anims?.play) return;
+
+    if (this.job?.type === NPCJobType.RUN) {
+      this.sprite.anims.play(this.animationKeys[PlayerAnimation.RUNNING], true);
+      const xPositionDifference = (this.sprite.body?.x || 0) - this.job!.x!;
+      this.sprite.setVelocityX(-xPositionDifference);
+
+      if (this.sprite.body?.blocked.right || this.sprite.body?.blocked.left) {
+        this.sprite.setVelocityY(-200);
+      }
+
+      this.sprite.setFlipX(xPositionDifference > 0);
+
+      if (Math.abs(xPositionDifference) < 10) {
+        this.job.callback?.();
+        this.job = { type: NPCJobType.EAT }; // Change to EAT after reaching destination
+      }
+    } else if (this.job?.type === NPCJobType.EAT) {
+      if (!this.timeoutFunction) {
+        this.sprite.setVelocityX(0);
+        this.timeoutFunction = setTimeout(() => {
+          this.job = { type: NPCJobType.SLEEP };
+          this.timeoutFunction = null;
+        }, 3000); // Add a delay before sleeping (3 seconds of eating)
+      }
+      this.sprite.anims.play(
+        this.animationKeys[PlayerAnimation.GROOMING],
+        true
+      );
+    } else if (this.job?.type === NPCJobType.SLEEP) {
+      this.sprite.setVelocityX(0);
+      this.sprite.anims.play(this.animationKeys[PlayerAnimation.SLEEP], true);
+    }
+  }
+
   addCollider(collider: ColliderType) {
     this.scene.physics.add.collider(this.sprite, collider);
+  }
+
+  // Add these helper methods
+  setSleep() {
+    if (this.job?.type === NPCJobType.SLEEP) {
+      this.sprite.anims.play(this.animationKeys[PlayerAnimation.SLEEP], true);
+    }
+  }
+
+  setJob(job: NPCJob) {
+    this.job = job;
+    if (this.timeoutFunction) {
+      clearTimeout(this.timeoutFunction);
+      this.timeoutFunction = null;
+    }
   }
 }

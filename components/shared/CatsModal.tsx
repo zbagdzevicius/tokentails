@@ -3,14 +3,18 @@ import { MAX_CAT_STATUS } from "@/context/CatContext";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
-import { ICat } from "@/models/cats";
+import { useWeb3 } from "@/context/Web3Context";
+import { cardsColor, ICat, Prices } from "@/models/cats";
 import { GameType } from "@/models/game";
 import { IImage } from "@/models/image";
+import { EntityType } from "@/models/save";
+import { CurrencyType } from "@/web3/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { CatCardModal, getMultiplier } from "../CatCardModal";
 import { GameEvents } from "../Phaser/events";
 import { StripePayment } from "../web3/payments/StripePayment";
+import { Web3Transfer } from "../web3/transfer/Web3Transfer";
 import { Web3Providers } from "../web3/Web3Providers";
 import { ChainSelect } from "./ChainSelect";
 import { CloseButton } from "./CloseButton";
@@ -18,17 +22,13 @@ import { Countdown } from "./Countdown";
 import { Previews } from "./drag-drop";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
-import { EntityType } from "@/models/save";
-import { CurrencyType } from "@/web3/contracts";
-import { Web3Transfer } from "../web3/transfer/Web3Transfer";
-import { useWeb3 } from "@/context/Web3Context";
 
 const weekInMs = 604800000;
 
 export const GenerateCat = ({ close }: { close: () => void }) => {
   const [isDisplayed, setIsDisplayed] = useState(false);
   const { profile, setProfileUpdate } = useProfile();
-  const [price, setPrice] = useState(5);
+  const [price, setPrice] = useState(Prices.generatedCat);
   const [name, setName] = useState("");
   const [image, setImage] = useState<IImage[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"web3" | "card">("card");
@@ -175,7 +175,6 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
       setMutatedCats(cats);
     }
   }, [cats]);
-
   const onCatSelect = (cat: ICat) => {
     const isSameCat = profile?.cat._id === cat._id;
     if (isSameCat || !cat) {
@@ -234,16 +233,25 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
       <Web3Providers>
         <GenerateCat close={close} />
       </Web3Providers>
-      <div className="flex flex-wrap justify-center">
+      <div className="flex flex-wrap justify-center w-full">
         {mutatedCats?.map((cat) => (
           <div
             key={cat._id}
             className="w-1/2 md:w-1/3 flex justify-center mb-4"
           >
             <div className="relative overflow-hidden w-36 rounded-xl py-2 border-2 border-black">
-              <div className="absolute left-2 top-1 opacity-75 text-black px-2 text-p5 font-secondary rounded-xl bg-yellow-300 z-20">
+              <div
+                style={{ backgroundColor: cardsColor[cat.type] || "white" }}
+                className="absolute left-0 top-0 opacity-75 text-black pl-1 text-p5 font-secondary rounded-r-xl z-20 flex items-center"
+              >
                 X{getMultiplier(cat)}
+                <img src="/logo/coin.webp" className="w-6 h-6 ml-1" />
               </div>
+              {cat.ai && (
+                <div className="absolute right-0 top-0 z-20">
+                  <img src="/logo/ai.webp" className="w-8 h-8 pixelated" />
+                </div>
+              )}
               <div className="relative z-10 items-center flex flex-col">
                 <img
                   className="w-16 z-10 pixelated"

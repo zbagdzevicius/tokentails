@@ -79,9 +79,9 @@ const setAdventDay = async (): Promise<void> => {
   });
 };
 
-const saveProfile = (profile: IProfile) => {
-  return fetch(`${apiUrl}/user/profile`, {
-    method: "POST",
+const saveProfileTwitter = (profile: Partial<IProfile>) => {
+  return fetch(`${apiUrl}/user/profile/${profile._id}/twitter`, {
+    method: "PUT",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
@@ -141,7 +141,7 @@ export const USER_API = {
   leaderboard,
   leaderboardPosition,
   setAdventDay,
-  saveProfile,
+  saveProfileTwitter,
   saveMatch,
   redeem,
 };

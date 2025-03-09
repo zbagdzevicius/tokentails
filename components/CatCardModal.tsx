@@ -4,7 +4,13 @@ import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
-import { CatAbilities, CatAbilityType, IBlessing, ICat } from "@/models/cats";
+import {
+  cardsColor,
+  CatAbilities,
+  IBlessing,
+  ICat,
+  Prices,
+} from "@/models/cats";
 import { GameType } from "@/models/game";
 import { EntityType } from "@/models/save";
 import { CurrencyType } from "@/web3/contracts";
@@ -12,25 +18,9 @@ import { useQuery } from "@tanstack/react-query";
 import React, { useEffect, useMemo, useState } from "react";
 import { ChainSelect } from "./shared/ChainSelect";
 import { PixelButton } from "./shared/PixelButton";
+import { StripePayment } from "./web3/payments/StripePayment";
 import { Web3Transfer } from "./web3/transfer/Web3Transfer";
 import { Web3Providers } from "./web3/Web3Providers";
-import { StripePayment } from "./web3/payments/StripePayment";
-
-const cardsColor: Record<CatAbilityType, string> = {
-  [CatAbilityType.AIR]: "#c3dacd",
-  [CatAbilityType.DARK]: "#e7d6e4",
-  [CatAbilityType.EARTH]: "#f28282",
-  [CatAbilityType.ELECTRIC]: "#fdf599",
-  [CatAbilityType.FIRE]: "#ff7f7f",
-  [CatAbilityType.ICE]: "#d4e7f4",
-  [CatAbilityType.LEGENDARY]: "#f2ab5c",
-  [CatAbilityType.NATURE]: "#a0ca93",
-  [CatAbilityType.SAND]: "#f5f0c5",
-  [CatAbilityType.STORM]: "#e7eae9",
-  [CatAbilityType.TAILS]: "#f3aea4",
-  [CatAbilityType.WATER]: "#9fe1fb",
-  [CatAbilityType.WIND]: "#f6c7ba",
-};
 
 interface IProps extends ICat {
   onClose?: () => void;
@@ -40,6 +30,11 @@ interface IProps extends ICat {
 
 interface ICatBlessingsProps {
   blessings: IBlessing[];
+}
+
+export enum BuyMode {
+  AI = "AI",
+  CAT = "CAT",
 }
 
 const blessingsPositions = [
@@ -90,14 +85,10 @@ export const CatMultiplier = (cat: ICat) => {
   return (
     <div
       style={{ backgroundColor: cardsColor[cat.type] || "white" }}
-      className="absolute flex flex-col right-4 bg-opacity-75 border border-yellow-300 hover:bg-opacity-100 px-2 rounded-xl"
+      className="absolute flex items-center right-4 bg-opacity-75 border font-secondary text-p5 border-yellow-300 hover:bg-opacity-100 pl-2 rounded-xl"
     >
-      <div className="text-p5 font-secondary flex font-bold justify-center items-center">
-        X<span className="font-secondary ml-1 lowercase">{multiplier}</span>
-      </div>
-      <div className="-mt-2 font-bold rem:text-[13px] font-secondary">
-        rewards
-      </div>
+      X{multiplier}
+      <img src="/logo/coin.webp" className="w-6 h-6 ml-1" />
     </div>
   );
 };
@@ -195,10 +186,14 @@ export const CatPayment = ({
   } = useWeb3();
   const { _id, supply, name, catpoints, price } = cat;
   const { profile, setProfileUpdate } = useProfile();
-  const [isBuyMode, setIsBuyMode] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"web3" | "card">("card");
+  const [buyMode, setBuyMode] = useState<BuyMode | null>(null);
   const [isAdopting, setIsAdopting] = useState(false);
-  const isCoinsPayment = !!cat.catpoints;
   const currencyPrice = useMemo(() => {
+    const corePrice = buyMode === BuyMode.AI ? Prices.ai : price;
+    if (paymentMethod === "card") {
+      return corePrice;
+    }
     if (
       [CurrencyType.XLM, CurrencyType.BNB, CurrencyType.SOL].includes(
         currencyType
@@ -208,17 +203,17 @@ export const CatPayment = ({
       solRate
     ) {
       if (currencyType === CurrencyType.BNB) {
-        return parseFloat((price / bnbRate).toFixed(3));
+        return parseFloat((corePrice / bnbRate).toFixed(3));
       }
       if (currencyType === CurrencyType.XLM) {
-        return Math.ceil(price / xlmRate);
+        return Math.ceil(corePrice / xlmRate);
       }
       if (currencyType === CurrencyType.SOL) {
-        return parseFloat((price / solRate).toFixed(3));
+        return parseFloat((corePrice / solRate).toFixed(3));
       }
     }
-    return cat.price;
-  }, [currencyType, bnbRate, xlmRate, solRate, cat]);
+    return corePrice;
+  }, [currencyType, bnbRate, xlmRate, solRate, cat, buyMode, paymentMethod]);
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
     queryFn: () => CAT_API.cats(),
@@ -228,29 +223,37 @@ export const CatPayment = ({
     if (isAdopting) {
       return "adopting";
     }
-    if (cats?.find((cat) => cat.name === name)) {
-      return "adopted";
-    }
     const inMillions = catpoints / 1000000;
     return `${inMillions.toFixed(2)}m`;
-  }, [price, cats, isAdopting]);
+  }, [price, isAdopting]);
 
   const toast = useToast();
   const outOfSupply = supply === undefined || supply <= 0;
   const isOwned = cats?.find((cat) => cat.name === name);
   const isForSale = !outOfSupply && !isOwned;
+  const isCoinsPayment = !!cat.catpoints && !isOwned;
 
   const onSuccess = (cat: ICat) => {
-    setProfileUpdate({
-      cats: [...(cats || []), cat],
-      cat,
-      catpoints: profile!.catpoints - catpoints,
-    });
-    setTransactionStatus(null);
+    if (buyMode === BuyMode.AI) {
+      toast({ message: "Your Cat has been AI-ified!" });
 
-    toast({ message: "Congratz on your adopted cat !" });
-    setIsAdopting(false);
-    onAdopted?.();
+      setProfileUpdate({
+        cats: (cats || []).map((c) => (c._id === cat._id ? cat : c)),
+        cat,
+        catpoints: profile!.catpoints - catpoints,
+      });
+    } else {
+      setProfileUpdate({
+        cats: [...(cats || []), cat],
+        cat,
+        catpoints: profile!.catpoints - catpoints,
+      });
+      setTransactionStatus(null);
+
+      toast({ message: "Congratz on your adopted cat !" });
+      setIsAdopting(false);
+      onAdopted?.();
+    }
   };
 
   useEffect(() => {
@@ -282,16 +285,14 @@ export const CatPayment = ({
   };
 
   const close = () => {
-    if (isBuyMode) {
-      setIsBuyMode(false);
+    if (buyMode) {
+      setBuyMode(null);
     } else onClose?.();
   };
 
-  const [paymentMethod, setPaymentMethod] = useState<"web3" | "card">("card");
-
   return (
     <>
-      {!isCoinsPayment && isBuyMode && (
+      {!isCoinsPayment && !!buyMode && (
         <div
           className="z-0 absolute bottom-0 pb-4 bg-opacity-85 pt-8 px-4 left-0 right-0 border-t-8 border-yellow-300"
           style={{
@@ -318,8 +319,9 @@ export const CatPayment = ({
               <ChainSelect />
             ) : (
               <StripePayment
-                price={price}
+                price={currencyPrice}
                 catId={cat._id!}
+                buyMode={buyMode}
                 onSuccess={() => {
                   onSuccess(cat);
                 }}
@@ -328,7 +330,7 @@ export const CatPayment = ({
           </div>
 
           <div className="m-auto">
-            {!isCoinsPayment && isForSale && paymentMethod === "web3" && (
+            {paymentMethod === "web3" && (
               <div className="flex flex-col items-start w-fit m-auto">
                 <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
                   {currencyPrice} {currencyType}
@@ -337,6 +339,7 @@ export const CatPayment = ({
                   price={currencyPrice}
                   amount={1}
                   entityType={EntityType.CAT}
+                  buyMode={buyMode}
                   cat={cat._id}
                   blessing={cat.blessings?.[0]?._id}
                   user={profile?._id}
@@ -352,7 +355,9 @@ export const CatPayment = ({
         {outOfSupply && !isOwned && (
           <PixelButton text="Out of supply" active isDisabled></PixelButton>
         )}
-        {isOwned && <PixelButton text="Adopted" active></PixelButton>}
+        {isOwned && !buyMode && (
+          <PixelButton text="Adopted" active isDisabled></PixelButton>
+        )}
         {isCoinsPayment && !outOfSupply && !isOwned && (
           <PixelButton
             text={catpointsText}
@@ -360,24 +365,30 @@ export const CatPayment = ({
             onClick={adoptWithCoins}
           />
         )}
-        {!isCoinsPayment && !isBuyMode && isForSale && (
-          <PixelButton
-            text="SAVE"
-            onClick={() => setIsBuyMode(true)}
-            isDisabled={outOfSupply}
-          />
+        {!isCoinsPayment && !buyMode && (isForSale || (isOwned && !cat.ai)) && (
+          <span className="relative">
+            <PixelButton
+              text={isOwned && !cat.ai ? "Buy AI Plugin" : "Save"}
+              onClick={() => setBuyMode(isForSale ? BuyMode.CAT : BuyMode.AI)}
+              isDisabled={outOfSupply}
+            />
+            {isOwned && !cat.ai && (
+              <img
+                src="/logo/ai.webp"
+                className="absolute top-1/2 -translate-y-1/2 -left-2 flex items-center w-6 h-6"
+              />
+            )}
+          </span>
         )}
 
-        {cat.supply !== undefined && !isBuyMode && (
+        {cat.supply !== undefined && !buyMode && (
           <div className="flex flex-col bg-gray-600 px-2 text-center rounded-lg font-secondary text-p4 mb-1">
             <div className="text-p5 text-yellow-300">SUPPLY</div>
             <div className="text-yellow-200 -mt-1">{supply}</div>
           </div>
         )}
         {!relative ||
-          (isBuyMode && (
-            <PixelButton text="CLOSE" onClick={close}></PixelButton>
-          ))}
+          (buyMode && <PixelButton text="CLOSE" onClick={close}></PixelButton>)}
       </div>
     </>
   );
@@ -389,13 +400,13 @@ export const CatCard = ({
   relative,
   ...catData
 }: IProps) => {
-  const { catImg, name, type, blessings } = catData;
+  const { catImg, name, type, blessings, ai } = catData;
   const [activeBlessing, setActiveBlessing] = useState<IBlessing | null>(null);
   return (
     <div
       className={`${
         relative ? "" : "top-1/2 -translate-y-1/2"
-      } md:scale-[0.6] lg:scale-100 max-w-screen-xl hover:brightness-105 border-8 rounded-[24px] border-yellow-300 border-opacity-50 hover:border-opacity-100 relative rem:h-[540px] md:rem:h-[600px] aspect-[2/3] max-w-screen`}
+      } md:scale-[0.6] lg:scale-100 max-w-screen-xl hover:brightness-105 border-8 rounded-[24px] border-yellow-300 relative rem:h-[540px] md:rem:h-[600px] aspect-[2/3] max-w-screen`}
     >
       <img
         src={`/ability/${type}_BG.webp`}
@@ -409,7 +420,10 @@ export const CatCard = ({
         <div className="w-full">
           <div>
             <div className="flex justify-between items-center m-1">
-              <div className="flex flex-row space-x-4 items-center pl-4">
+              <div className="flex flex-row space-x-2 items-center pl-4">
+                {(!!ai || !!blessings?.length) && (
+                  <img src="/logo/ai.webp" className="w-8 h-8 pixelated" />
+                )}
                 <h3 className="text-main-black text-p3 uppercase font-bold flex items-center">
                   {name}
                 </h3>
@@ -472,7 +486,8 @@ export const CatCardModal: React.FC<IProps> = ({ onClose, ...catData }) => {
   return (
     <div className="flex justify-center w-full h-full fixed top-0 left-0 z-[101]">
       <div
-        className="absolute inset-0 z-0 bg-yellow-300 opacity-50"
+        className="absolute inset-0 z-0 opacity-50"
+        style={{ backgroundColor: cardsColor[catData.type] || "white" }}
         onClick={() => onClose?.()}
       ></div>
 

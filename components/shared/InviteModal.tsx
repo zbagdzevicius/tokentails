@@ -120,7 +120,7 @@ export const InviteModalContent = () => {
           </div>
           <div className="flex flex-col md:gap-2">
             <Tag isSmall>TIME LIMITED FREE MINT</Tag>
-            <Countdown targetDate="2025-03-10" isDaysDisplayed></Countdown>
+            <Countdown targetDate="2025-03-20" isDaysDisplayed></Countdown>
             {profile?.quests?.includes(mysteryBox.chain) ? (
               <PixelButton text="REDEEMED" isDisabled></PixelButton>
             ) : (
