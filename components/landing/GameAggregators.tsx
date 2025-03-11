@@ -19,6 +19,10 @@ const sponsorImages: { src: string; link: string }[] = [
     link: "https://memecoinseason.net/p/token-tails",
   },
   {
+    src: "/images/dapp/bitcourier.webp",
+    link: "https://bitcourier.co.uk/blog/token-tails-review",
+  },
+  {
     src: "/images/dapp/carbify.webp",
     link: "https://x.com/tokentails/status/1811408751288529056",
   },

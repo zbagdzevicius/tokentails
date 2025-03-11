@@ -11,6 +11,8 @@ const sponsorImage = [
   "/images/sponsor/microsoft-for-startups.webp",
   "/images/sponsor/social-shifters.webp",
   "/images/sponsor/diamante.webp",
+  "/images/sponsor/gametech.png",
+  "/images/sponsor/eu.webp",
   "/images/sponsor/stellar.webp",
   "/images/sponsor/immutable.webp",
   "/images/sponsor/brinc.webp",
@@ -137,13 +139,13 @@ export const HomePage = () => {
         earlyDistance < 0
           ? "PLAY NOW"
           : earlyDays +
-          "d " +
-          earlyHours +
-          "h " +
-          earlyMinutes +
-          "m " +
-          earlySeconds +
-          " s";
+            "d " +
+            earlyHours +
+            "h " +
+            earlyMinutes +
+            "m " +
+            earlySeconds +
+            " s";
 
       setEarlyCountdown(earlyCountdownText);
     }

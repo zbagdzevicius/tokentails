@@ -190,7 +190,7 @@ export const Team = () => {
         <PixelButton text="PLAY TO SAVE" />
       </a>
       <h2 className="mt-2 text-center font-secondary uppercase tracking-tight text-h2 text-balance max-lg:text-h6 my-3">
-        Unite To Save Cats
+        United To Save Cats
       </h2>
       <div className="pb-8 px-4 mx-auto max-w-screen-xl text-center lg:px-6">
         <div className="grid gap-8 grid-cols-2 md:grid-cols-5">
