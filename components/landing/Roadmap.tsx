@@ -56,12 +56,12 @@ const Roadmap = () => {
           <h2 className="font-secondary text-h2">2025 Q1</h2>
           <div className="flex flex-col font-bold text-p4">
             <span className="flex gap-2 items-center -ml-6">
-              <img className="h-6" src="icons/loader.webp" />
+              <img className="h-6" src="icons/check.webp" />
               Tokenize your cat
             </span>
             <span className="flex gap-2 items-center -ml-6">
-              <img className="h-6" src="icons/loader.webp" />
-              Story mode game
+              <img className="h-6" src="icons/check.webp" />
+              Social AI Agents
             </span>
             <span className="flex gap-2 items-center -ml-6">
               <img className="h-6" src="icons/loader.webp" />
@@ -88,7 +88,7 @@ const Roadmap = () => {
             </span>
             <span className="flex gap-2 items-center -ml-6">
               <img className="h-6" src="icons/loader.webp" />
-              Social AI Agents
+              Story mode game
             </span>
             <span className="flex gap-2 items-center -ml-6">
               <img className="h-6" src="icons/loader.webp" />

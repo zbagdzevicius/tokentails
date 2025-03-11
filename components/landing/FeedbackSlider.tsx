@@ -25,7 +25,11 @@ export const FeedbackSlider = () => {
             src="/logo/shelters/pink-paw.webp"
             className="pixelated w-32 h-32 relative z-10"
           />
-          <img src="/logo/shelters/lt.webp" className="absolute inset-0 z-0" />
+          <img
+            src="/logo/shelters/lt.webp"
+            className="absolute inset-0 z-0 w-full h-full object-cover"
+            rounded-2xl
+          />
         </a>
 
         <div className="w-screen mt-4">

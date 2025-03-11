@@ -23,7 +23,12 @@ export const CatMiniCard = ({ cat }: { cat: ICat }) => {
             alt={cat.name}
           />
           <img
-            className="w-8 mb-2 -mt-8 z-0 animate-spin"
+            className="h-24 max-w-full mb-2 -mt-4 z-0 rounded-2xl"
+            src={cat.blessings?.[0].image?.url}
+            alt={`${cat.type} icon`}
+          />
+          <img
+            className="w-8 mb-2 -mt-6 z-0 animate-spin"
             src={`ability/${cat.type}.png`}
             alt={`${cat.type} icon`}
           />
@@ -31,7 +36,7 @@ export const CatMiniCard = ({ cat }: { cat: ICat }) => {
             {cat.name}
           </div>
           <a href="/game">
-            <PixelButton text="Play" />
+            <PixelButton text="Save" />
           </a>
         </div>
         <img
