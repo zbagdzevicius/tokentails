@@ -127,7 +127,10 @@ function Base() {
         return;
       }
 
-      setProfileUpdate({ cat });
+      setProfileUpdate({
+        cat,
+        cats: (profile!.cats || []).map((c) => (c._id === cat._id ? cat : c)),
+      });
       CAT_API.setActive(cat._id!);
       GameEvents.CAT_SPAWN.push({ cat });
 

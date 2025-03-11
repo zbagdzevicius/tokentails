@@ -125,6 +125,19 @@ export default function Index() {
           </div>
         </div>
         <div
+          className="py-4 min-h-screen"
+          style={{
+            backgroundImage: "url(/base/bg-6.png)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div id="feedbackslider" ref={feedbackSliderRef}>
+            <FeedbackSlider />
+          </div>
+        </div>
+        <div
           className="pb-4 pt-3 md:pt-0 min-h-screen flex items-center justify-center w-full"
           style={{
             backgroundImage: "url(/base/bg.gif)",
@@ -197,19 +210,6 @@ export default function Index() {
               <Presale />
             </Web3Providers>
             <Tokenomics />
-          </div>
-        </div>
-        <div
-          className="py-4 min-h-screen"
-          style={{
-            backgroundImage: "url(/base/bg-6.png)",
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        >
-          <div id="feedbackslider" ref={feedbackSliderRef}>
-            <FeedbackSlider />
           </div>
         </div>
         <div

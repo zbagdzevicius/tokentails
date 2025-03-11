@@ -55,7 +55,10 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [notifications, setNotifications] = useState<IToast[]>([]);
 
   const addNotification = (notification: IToast) => {
-    if (isStarted && [GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!)) {
+    if (
+      isStarted &&
+      [GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!)
+    ) {
       setNotifications((prev) => [...prev, notification]);
     }
   };
@@ -190,9 +193,10 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
               setProfileUpdate={setProfileUpdate}
             />
           )}
-          {isStarted && [GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!) && (
-            <Notification notifications={notifications} />
-          )}
+          {isStarted &&
+            [GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!) && (
+              <Notification notifications={notifications} />
+            )}
           <MobileButtons
             isHidden={
               !isStarted &&
@@ -223,9 +227,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           {openedModal === GameModal.CONTROL_SETTINGS && (
             <ControlModal close={() => setOpenedModal(null)} />
           )}
-          {gameType === GameType.HOME && isGameLoaded && profile.cat && (
+          {/* {gameType === GameType.HOME && isGameLoaded && profile.cat && (
             <SpeechBubble />
-          )}
+          )} */}
           <GameMusicPlayer />
         </>
       )}

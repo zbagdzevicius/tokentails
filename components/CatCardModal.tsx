@@ -21,6 +21,7 @@ import { PixelButton } from "./shared/PixelButton";
 import { StripePayment } from "./web3/payments/StripePayment";
 import { Web3Transfer } from "./web3/transfer/Web3Transfer";
 import { Web3Providers } from "./web3/Web3Providers";
+import { CloseButton } from "./shared/CloseButton";
 
 interface IProps extends ICat {
   onClose?: () => void;
@@ -118,14 +119,17 @@ export const CatDescription = ({
             />
           )}
           <h4
-            className={`text-p3 ${firstBlessing ? "ml-4" : "ml-16"} font-bold`}
+            className={`text-p3 ${
+              firstBlessing ? "ml-4 md:ml-2 lg:ml-4" : "ml-16"
+            } font-bold`}
           >
             STORY
           </h4>
-          <div className="mx-2"></div>
+          <div className="mx-2 md:hidden lg:block"></div>
           {firstBlessing && (
             <PixelButton
-              text={activeBlessing ? "Show Virtual Cat" : "Read Linked story"}
+              text={activeBlessing ? "Show Virtual Cat" : "Read Shelter story"}
+              isSmall
               onClick={() =>
                 setActiveBlessing(activeBlessing ? null : firstBlessing)
               }
@@ -154,7 +158,9 @@ export const CatDescription = ({
               width={40}
               height={40}
             />
-            <h4 className="text-p3 ml-4 font-bold">{ability}</h4>
+            <h4 className="text-p3 ml-4 md:ml-2 lg:ml-4 font-bold">
+              {ability}
+            </h4>
           </div>
           <p className="text-p5 font-bold">
             {CatAbilities[ability].description}
@@ -294,13 +300,14 @@ export const CatPayment = ({
     <>
       {!isCoinsPayment && !!buyMode && (
         <div
-          className="z-0 absolute bottom-0 pb-4 bg-opacity-85 pt-8 px-4 left-0 right-0 border-t-8 border-yellow-300"
+          className="z-0 absolute bottom-0 pb-4 bg-opacity-85 pt-8 px-4 left-0 right-0 border-t-8 border-yellow-300 max-h-screen overflow-y-auto border-radius-2xl"
           style={{
             backgroundImage: "url(/base/bg.gif)",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         >
+          <CloseButton onClick={close} />
           <div className="flex flex-col gap-4">
             <div className="flex justify-center gap-4">
               <PixelButton
@@ -406,7 +413,7 @@ export const CatCard = ({
     <div
       className={`${
         relative ? "" : "top-1/2 -translate-y-1/2"
-      } md:scale-[0.6] lg:scale-100 max-w-screen-xl hover:brightness-105 border-8 rounded-[24px] border-yellow-300 relative rem:h-[540px] md:rem:h-[600px] aspect-[2/3] max-w-screen`}
+      } md:rem:w-[560px] lg:w-auto max-w-screen-xl hover:brightness-105 border-8 rounded-[24px] border-yellow-300 relative rem:h-[540px] md:h-[360px] lg:h-[600px] aspect-[2/3] max-w-screen`}
     >
       <img
         src={`/ability/${type}_BG.webp`}
@@ -416,7 +423,7 @@ export const CatCard = ({
         className="absolute inset-0 z-10 h-full w-full opacity-80 rounded-[16px]"
         style={{ backgroundColor: cardsColor[type] || "white" }}
       />
-      <div className="relative z-20 flex flex-col justify-between h-full">
+      <div className="relative z-20 flex flex-col md:flex-row lg:flex-col justify-between h-full">
         <div className="w-full">
           <div>
             <div className="flex justify-between items-center m-1">
@@ -424,14 +431,14 @@ export const CatCard = ({
                 {(!!ai || !!blessings?.length) && (
                   <img src="/logo/ai.webp" className="w-8 h-8 pixelated" />
                 )}
-                <h3 className="text-main-black text-p3 uppercase font-bold flex items-center">
+                <h3 className="text-main-black text-p3 whitespace-nowrap uppercase font-bold flex items-center">
                   {name}
                 </h3>
               </div>
               <CatMultiplier {...catData} />
             </div>
           </div>
-          <div className="relative mx-4 h-full flex justify-center items-center">
+          <div className="relative mx-4 h-full md:h-auto lg:h-full flex justify-center items-center">
             <img
               className="w-full h-full rounded-xl absolute z-0 object-cover object-center"
               src={`/ability/${type}_BG.webp`}
@@ -461,7 +468,7 @@ export const CatCard = ({
           </div>
         </div>
         <div>
-          <div className="text-start m-3 md:m-5 bg">
+          <div className="text-start m-3 md:m-5 bg md:mt-10 lg:mt-5">
             <CatDescription
               {...catData}
               setActiveBlessing={setActiveBlessing}
@@ -490,6 +497,7 @@ export const CatCardModal: React.FC<IProps> = ({ onClose, ...catData }) => {
         style={{ backgroundColor: cardsColor[catData.type] || "white" }}
         onClick={() => onClose?.()}
       ></div>
+      <CloseButton absolute onClick={() => onClose?.()} />
 
       <Web3Providers>
         <CatCard
