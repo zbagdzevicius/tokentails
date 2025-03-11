@@ -13,6 +13,8 @@
     "extrude:blocks": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/blocks-original.png --output ./public/base/blocks.png",
     "extrude:enemies": "tile-extruder --tileWidth 33 --tileHeight 33 --margin 0 --spacing 0 --input ./public/enemies/white-owlet.png --output ./public/enemies/white-owlet.png",
     "extrude:winter": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/new-blocks-winter.png --output ./public/base/winter.png",
+    "extrude:spring": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/spring-original.png --output ./public/base/spring.png",
+    "extrude:autumn": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/autumn-original.png --output ./public/base/autumn.png",
     "build:prod": "env-cmd -f .env.production next build",
     "build:app": "env-cmd -f .env.app next build",
     "app:sync": "npx cap copy && npx cap sync",
