@@ -1,5 +1,5 @@
-import { CAT_API } from "@/api/cat-api";
 import { ORDER_API } from "@/api/order-api";
+import { getCatDiscountPercentage, getCatPrice } from "@/constants/cat-status";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
@@ -14,14 +14,16 @@ import {
 import { GameType } from "@/models/game";
 import { EntityType } from "@/models/save";
 import { CurrencyType } from "@/web3/contracts";
-import { useQuery } from "@tanstack/react-query";
 import React, { useEffect, useMemo, useState } from "react";
 import { ChainSelect } from "./shared/ChainSelect";
+import { CloseButton } from "./shared/CloseButton";
 import { PixelButton } from "./shared/PixelButton";
+import { Tag } from "./shared/Tag";
 import { StripePayment } from "./web3/payments/StripePayment";
 import { Web3Transfer } from "./web3/transfer/Web3Transfer";
 import { Web3Providers } from "./web3/Web3Providers";
-import { CloseButton } from "./shared/CloseButton";
+import { CAT_API } from "@/api/cat-api";
+import { useQuery } from "@tanstack/react-query";
 
 interface IProps extends ICat {
   onClose?: () => void;
@@ -176,11 +178,13 @@ export const CatPayment = ({
   onClose,
   onAdopted,
   relative,
+  cats,
 }: {
   cat: ICat;
   onClose?: () => void;
   onAdopted?: () => void;
   relative?: boolean;
+  cats?: ICat[];
 }) => {
   const {
     currencyType,
@@ -195,8 +199,12 @@ export const CatPayment = ({
   const [paymentMethod, setPaymentMethod] = useState<"web3" | "card">("card");
   const [buyMode, setBuyMode] = useState<BuyMode | null>(null);
   const [isAdopting, setIsAdopting] = useState(false);
+  const isOwned = useMemo(
+    () => cats?.find((cat) => cat.name === name),
+    [cats, cat]
+  );
   const currencyPrice = useMemo(() => {
-    const corePrice = buyMode === BuyMode.AI ? Prices.ai : price;
+    const corePrice = buyMode === BuyMode.AI ? Prices.ai : getCatPrice(cat);
     if (paymentMethod === "card") {
       return corePrice;
     }
@@ -220,10 +228,6 @@ export const CatPayment = ({
     }
     return corePrice;
   }, [currencyType, bnbRate, xlmRate, solRate, cat, buyMode, paymentMethod]);
-  const { data: cats } = useQuery({
-    queryKey: ["cats", profile?.cat],
-    queryFn: () => CAT_API.cats(),
-  });
 
   const catpointsText = useMemo(() => {
     if (isAdopting) {
@@ -235,7 +239,6 @@ export const CatPayment = ({
 
   const toast = useToast();
   const outOfSupply = supply === undefined || supply <= 0;
-  const isOwned = cats?.find((cat) => cat.name === name);
   const isForSale = !outOfSupply && !isOwned;
   const isCoinsPayment = !!cat.catpoints && !isOwned;
 
@@ -329,6 +332,7 @@ export const CatPayment = ({
                 price={currencyPrice}
                 catId={cat._id!}
                 buyMode={buyMode}
+                text={buyMode === BuyMode.AI ? "Buy" : undefined}
                 onSuccess={() => {
                   onSuccess(cat);
                 }}
@@ -350,7 +354,7 @@ export const CatPayment = ({
                   cat={cat._id}
                   blessing={cat.blessings?.[0]?._id}
                   user={profile?._id}
-                  text="save now"
+                  text={buyMode === BuyMode.AI ? "Buy now" : "Save Now"}
                   loadingText="Saving Cat"
                 />
               </div>
@@ -375,7 +379,7 @@ export const CatPayment = ({
         {!isCoinsPayment && !buyMode && (isForSale || (isOwned && !cat.ai)) && (
           <span className="relative">
             <PixelButton
-              text={isOwned && !cat.ai ? "Buy AI Plugin" : "Save"}
+              text={isOwned && !cat.ai ? "AI Companion" : "Save"}
               onClick={() => setBuyMode(isForSale ? BuyMode.CAT : BuyMode.AI)}
               isDisabled={outOfSupply}
             />
@@ -388,10 +392,12 @@ export const CatPayment = ({
           </span>
         )}
 
-        {cat.supply !== undefined && !buyMode && (
+        {cat.totalSupply && !buyMode && (
           <div className="flex flex-col bg-gray-600 px-2 text-center rounded-lg font-secondary text-p4 mb-1">
             <div className="text-p5 text-yellow-300">SUPPLY</div>
-            <div className="text-yellow-200 -mt-1">{supply}</div>
+            <div className="text-yellow-200 -mt-1">
+              {cat.supply} / {cat.totalSupply}
+            </div>
           </div>
         )}
         {!relative ||
@@ -409,6 +415,16 @@ export const CatCard = ({
 }: IProps) => {
   const { catImg, name, type, blessings, ai } = catData;
   const [activeBlessing, setActiveBlessing] = useState<IBlessing | null>(null);
+  const { profile } = useProfile();
+  const { data: cats } = useQuery({
+    queryKey: ["cats", profile?.cat],
+    queryFn: () => CAT_API.cats(),
+  });
+  const isOwned = cats?.find((cat) => cat.name === name);
+  const discountPercentage = useMemo(
+    () => (isOwned ? 0 : getCatDiscountPercentage(catData)),
+    [catData, cats]
+  );
   return (
     <div
       className={`${
@@ -446,6 +462,11 @@ export const CatCard = ({
               width={400}
               height={400}
             />
+            {discountPercentage && (
+              <div className="absolute z-0 top-0.5 md:-top-2 right-0.5 md:-right-2 lg:top-1 lg:right-1 flex justify-center">
+                <Tag isSmall>{discountPercentage}% OFF</Tag>
+              </div>
+            )}
             <CatBlessings blessings={blessings} />
             <span className="relative z-0">
               <img
@@ -465,6 +486,11 @@ export const CatCard = ({
                 ></img>
               )}
             </span>
+            {!activeBlessing && (
+              <div className="absolute bottom-2 md:-bottom-8 lg:bottom-2 flex justify-center">
+                <PixelButton text={`${catData.name} owner benefits`} isSmall />
+              </div>
+            )}
           </div>
         </div>
         <div>
@@ -479,6 +505,7 @@ export const CatCard = ({
               onClose={onClose}
               onAdopted={() => onAdopted?.()}
               relative={relative}
+              cats={cats}
             />
           </div>
         </div>

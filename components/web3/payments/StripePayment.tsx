@@ -21,9 +21,14 @@ const stripePromise = loadStripe(
 interface StripeCheckoutFormProps {
   onSuccess: () => void;
   price: number;
+  text?: string;
 }
 
-const StripeCheckoutForm = ({ onSuccess, price }: StripeCheckoutFormProps) => {
+const StripeCheckoutForm = ({
+  onSuccess,
+  price,
+  text,
+}: StripeCheckoutFormProps) => {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -63,7 +68,13 @@ const StripeCheckoutForm = ({ onSuccess, price }: StripeCheckoutFormProps) => {
       <PaymentElement />
       <div className="mt-4 flex justify-center">
         <PixelButton
-          text={isProcessing ? "Processing..." : `Save with $${price}`}
+          text={
+            isProcessing
+              ? "Processing..."
+              : text
+              ? `${text} for $${price}`
+              : `Save with $${price}`
+          }
           isDisabled={isProcessing}
         />
       </div>
@@ -75,6 +86,7 @@ interface StripePaymentProps {
   price: number;
   catId?: string;
   generatedCat?: IGeneratedCat;
+  text?: string;
   buyMode?: BuyMode;
   onSuccess: () => void;
 }
@@ -84,6 +96,7 @@ export const StripePayment = ({
   catId,
   generatedCat,
   buyMode,
+  text,
   onSuccess,
 }: StripePaymentProps) => {
   const [clientSecret, setClientSecret] = useState<string>();
@@ -127,7 +140,7 @@ export const StripePayment = ({
         },
       }}
     >
-      <StripeCheckoutForm onSuccess={onSuccess} price={price} />
+      <StripeCheckoutForm onSuccess={onSuccess} price={price} text={text} />
     </Elements>
   );
 };
