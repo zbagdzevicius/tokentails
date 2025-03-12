@@ -260,7 +260,7 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
       borderRadius: "16px",
       height: `${this._baseSize}px`,
       width: `${this._baseSize * 2.5}px`,
-      backgroundImage: "url(/base/bg-7.png)",
+      backgroundImage: "url(/backgrounds/bg-7.png)",
       backgroundSize: "cover",
       backgroundPosition: "center",
       display: "flex",

@@ -158,13 +158,6 @@ export const HomePage = () => {
   return (
     <div className="mt-14 md:mt-4 flex justify-center items-center flex-col">
       <div className="relative w-full md:w-2/3 xl:w-1/2 px-10 max-lg:text-balance -mb-8 md:-mb-32">
-        <img
-          className="absolute top-0 left-0 "
-          src="/images/home-page/firework.png"
-          alt="fireworks"
-          width={80}
-          height={80}
-        />
         <h1 className="text-center font-secondary uppercase tracking-tight text-h3 -mt-14 md:text-8xl whitespace-nowrap">
           PLAY TO SAVE CATS
         </h1>
@@ -207,13 +200,6 @@ export const HomePage = () => {
                 className="absolute top-16 md:top-5 -right-2 md:-right-8 w-16 -rotate-45 md:rotate-0 md:w-36 overflow-hidden z-0"
               />
             </div>
-            <img
-              src="/images/home-page/crown.png"
-              alt="crown"
-              className="md:w-16 w-10 md:h-16 h-10 absolute md:top-12 right-0"
-              width={100}
-              height={100}
-            />
           </div>
         </div>
       </div>

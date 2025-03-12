@@ -17,7 +17,7 @@ export const MobileButtons: React.FC<{
             id="dash"
             className="absolute bottom-12 right-28 md:right-30 rounded-full h-[70px] w-[70px] bg-cover bg-center flex items-center justify-center border-4 border-gray-500"
             style={{
-              backgroundImage: "url('/base/bg-7.png')",
+              backgroundImage: "url('/backgrounds/bg-7.png')",
             }}
           >
             <img
@@ -30,7 +30,7 @@ export const MobileButtons: React.FC<{
             id="jump"
             className="absolute bottom-4 md:bottom-2 right-2 md:right-4 rounded-full h-[90px] w-[90px] bg-cover bg-center flex items-center justify-center border-4 border-gray-500"
             style={{
-              backgroundImage: "url('/base/bg-7.png')",
+              backgroundImage: "url('/backgrounds/bg-7.png')",
             }}
           >
             <img
@@ -43,7 +43,7 @@ export const MobileButtons: React.FC<{
             id="knockback"
             className="absolute bottom-32 md:bottom-28 right-0 md:right-4 rounded-full h-[70px] w-[70px] bg-cover bg-center flex items-center justify-center border-4 border-gray-500"
             style={{
-              backgroundImage: "url('/base/bg-7.png')",
+              backgroundImage: "url('/backgrounds/bg-7.png')",
             }}
           >
             <img
@@ -52,32 +52,6 @@ export const MobileButtons: React.FC<{
               alt="Jump"
             />
           </button>
-          {/* <button
-            id="knockback"
-            className="absolute bottom-28 right-20 translate-x-5 -translate-y-3  rounded-full h-[70px] w-[70px] bg-cover bg-center flex items-center justify-center border-4 border-gray-500"
-            style={{
-              backgroundImage: "url('/base/bg.gif')",
-            }}
-          >
-            <img
-              className="h-full w-auto"
-              src="game/controls/knockback-spell.png"
-              alt="Jump"
-            />
-          </button>
-          <button
-            id="knockback"
-            className="absolute bottom-40 right-0  rounded-full h-[70px] w-[70px] bg-cover bg-center flex items-center justify-center border-4 border-gray-500"
-            style={{
-              backgroundImage: "url('/base/bg.gif')",
-            }}
-          >
-            <img
-              className="h-full w-auto"
-              src="game/controls/knockback-spell.png"
-              alt="Jump"
-            />
-          </button> */}
         </div>
       </div>
     </>

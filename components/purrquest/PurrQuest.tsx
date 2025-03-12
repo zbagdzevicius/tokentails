@@ -72,7 +72,7 @@ const Purrquest = () => {
         <div
           className="absolute top-16 lg:top-24 z-[2] left-1/2 -translate-x-1/2 pt-2 rounded-lg px-4 animate-appear flex flex-col md:flex-row lg:flex-col"
           style={{
-            backgroundImage: "url(/base/bg-5.png)",
+            backgroundImage: "url(/backgrounds/bg-5.png)",
             backgroundSize: "100% 100%",
             backgroundPosition: "center",
           }}

@@ -343,7 +343,15 @@ export const CatsModal = ({ close }: { close: () => void }) => {
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
-      <div className="m-auto z-50 rem:w-[350px] md:w-[600px] max-w-full bg-gradient-to-b from-yellow-300 to-purple-300 absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow">
+      <div
+        className="m-auto z-50 rem:w-[350px] md:w-[600px] max-w-full absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow"
+        style={{
+          backgroundImage: "url('/backgrounds/bg-6.png')",
+          backgroundRepeat: "no-repeat",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
         <CloseButton onClick={close} />
         <CatsModalContent close={close} />
       </div>

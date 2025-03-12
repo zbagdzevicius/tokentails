@@ -36,7 +36,7 @@ export const CatMiniCard = ({ cat }: { cat: ICat }) => {
             {cat.name}
           </div>
           <a href="/game">
-            <PixelButton text="Save" />
+            <PixelButton text="Save ME" />
           </a>
         </div>
         <img

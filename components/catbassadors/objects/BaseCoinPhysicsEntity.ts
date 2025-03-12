@@ -10,7 +10,7 @@ const gravity = 0.05;
 const bounceFactor = 0.7;
 
 export interface ExtendedScene extends Scene {
-  groundLayer: Phaser.Tilemaps.TilemapLayer | null
+  groundLayer: Phaser.Tilemaps.TilemapLayer | null;
 }
 
 /**
@@ -22,18 +22,27 @@ export abstract class BaseCoinPhysicsEntity {
   protected vx: number = 5;
   protected vy: number = 5;
   protected bounce: number = bounceFactor;
+  private isRotating = true;
 
-  constructor(scene: ExtendedScene, x: number, y: number, texture: string) {
+  constructor(
+    scene: ExtendedScene,
+    x: number,
+    y: number,
+    texture: string,
+    disableRotation: boolean = false
+  ) {
     if (!scene || !scene.physics) {
-        throw new Error("Invalid or uninitialized scene passed to BaseCoinPhysicsEntity.");
+      throw new Error(
+        "Invalid or uninitialized scene passed to BaseCoinPhysicsEntity."
+      );
     }
+    this.isRotating = !disableRotation;
     this.scene = scene;
 
     // Create the sprite
-  this.sprite = this.scene.physics.add.sprite(x, y, texture);
+    this.sprite = this.scene.physics.add.sprite(x, y, texture);
 
-  this.sprite.setSize(32, 32)
-  .setDepth(3);
+    this.sprite.setSize(32, 32).setDepth(3);
 
     // Example: you might want upward gravity if your tilemap is built that way
     this.sprite.setGravityY(-900);
@@ -42,7 +51,9 @@ export abstract class BaseCoinPhysicsEntity {
   update() {
     this.applyGravity();
     this.checkCollisions();
-    this.applyRotation();
+    if (this.isRotating) {
+      this.applyRotation();
+    }
   }
 
   protected applyGravity() {

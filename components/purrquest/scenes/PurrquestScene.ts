@@ -28,6 +28,7 @@ import { PlatformManager } from "../managers/PlatformManager";
 import { SpikeManager } from "../managers/SpikeManager";
 import { ErrorTextManager } from "../managers/ErrorTextManager";
 import { ChestManager } from "../managers/ChestManager";
+import { CoreMap } from "@/components/Phaser/map";
 
 const COLLISION_TILES = [
   0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 30, 31, 32,
@@ -85,17 +86,14 @@ export class PurrquestScene extends Phaser.Scene {
     this.jumpLayer?.destroy();
     this.load.audio("jump-sound", "audio/game/jump.mp3");
     this.load.audio("dash-sound", "audio/game/dash.wav");
-    this.load.image("new-blocks-winter", "base/winter.png");
+    this.load.image("new-blocks-winter", CoreMap);
     this.load.audio("game-end-sound", "audio/game/game-end.mp3");
-    this.load.spritesheet("chest", "purrquest2/icons/chest-spritesheet.png", {
+    this.load.spritesheet("chest", "purrquest/icons/chest-spritesheet.png", {
       frameWidth: 120,
       frameHeight: 64,
     });
-    this.load.image("platform", "purrquest2/icons/platform.png");
-    this.load.image(
-      "platform-movable",
-      "purrquest2/icons/platform-movable.png"
-    );
+    this.load.image("platform", "purrquest/icons/platform.png");
+    this.load.image("platform-movable", "purrquest/icons/platform-movable.png");
     this.load.spritesheet("jump-wall", "game/effects/jump.png", {
       frameWidth: 32,
       frameHeight: 32,
@@ -331,11 +329,7 @@ export class PurrquestScene extends Phaser.Scene {
         this.onDestroy();
       },
       onChestRequiresKey: (x, y) => {
-        this.errorTextManager.displayError(
-          "You need a key to open this chest.",
-          x,
-          y
-        );
+        this.errorTextManager.displayError("Find a key to open", x, y);
       },
     });
   }

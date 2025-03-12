@@ -5,7 +5,6 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Pixelify+Sans:wght@400..700&display=swap");
-// @import "/node_modules/@solana/wallet-adapter-react-ui/styles.css";
 @import "../styles/snow.scss";
 @import "../styles/chamomile.scss";
 
@@ -59,7 +58,7 @@ html {
   height: 100%;
   @apply text-gray-800;
   font-family: "Nunito", sans-serif;
-  background: #c4e2fc;
+  background: #fea68e;
   overscroll-behavior: contain;
   touch-action: pan-x pan-y;
 }
@@ -80,10 +79,6 @@ html {
       padding: 0 !important;
     }
   }
-}
-
-.container-padding {
-  @apply px-4 md:px-8 2xl:px-0;
 }
 
 @keyframes transition-animation {
@@ -219,7 +214,7 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d5f4e5;
+  @apply bg-red-400;
   border-radius: 0.5rem;
 }
 

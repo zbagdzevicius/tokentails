@@ -8,6 +8,7 @@ import { Cat } from "@/components/catbassadors/objects/Catbassador";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { NpcCat } from "@/components/shelter/objects/NpcCat";
 import { SpeechBubble } from "@/components/shelter/objects/SpeechBubble";
+import { CoreMap } from "@/components/Phaser/map";
 
 const JUMP_LAYER_TILES = [
   169, 170, 139, 140, 200, 224, 225, 226, 227, 31, 32, 33, 35,
@@ -40,10 +41,6 @@ export class BaseScene extends Scene {
   }
 
   preload() {
-    this.load.spritesheet("bird", "base/bird.png", {
-      frameWidth: 32,
-      frameHeight: 32,
-    });
     this.load.spritesheet("food", "base/food.png", {
       frameWidth: 32,
       frameHeight: 32,
@@ -57,7 +54,7 @@ export class BaseScene extends Scene {
     this.load.audio("eat", "purrquest/sounds/eat.mp3");
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.tilemapTiledJSON("tilemap", "catbassadors/base.json");
-    this.load.image("new-blocks-winter", "base/winter.png");
+    this.load.image("new-blocks-winter", CoreMap);
     this.load.spritesheet(
       "knockback-spell",
       "abilities/knockback-spell/FIRE.png",

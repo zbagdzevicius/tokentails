@@ -63,7 +63,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
           <div
             className="font-secondary whitespace-nowrap rem:w-[200px] md:rem:w-[400px] text-center text-p1 md:text-h5 px-2 rounded-lg py-1 animate-appear"
             style={{
-              backgroundImage: "url(/base/bg-2.gif)",
+              backgroundImage: "url(/backgrounds/bg-2.gif)",
               backgroundSize: "cover",
               backgroundPosition: "center",
             }}
