@@ -117,7 +117,7 @@ export const Header = () => {
               />
             )}
           </div>
-          <a href="/#cats">
+          <a href="/#feedbackslider">
             <PixelButton text="SAVE A CAT" isBig></PixelButton>
           </a>
         </div>

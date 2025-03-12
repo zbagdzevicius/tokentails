@@ -2,8 +2,12 @@ import { CAT_API } from "@/api/cat-api";
 import { useQuery } from "@tanstack/react-query";
 import { CatMiniCard } from "../shared/CatMiniCard";
 import { PixelButton } from "../shared/PixelButton";
+import { CatBenefits } from "../shared/CatBenefits";
+import { ICat } from "@/models/cats";
+import { useState } from "react";
 
 export const FeedbackSlider = () => {
+  const [selectedCat, setSelectedCat] = useState<ICat | null>(null);
   const { data: catsForSale } = useQuery({
     queryKey: ["cats-for-sale"],
     queryFn: () => CAT_API.catsForSale(),
@@ -36,10 +40,17 @@ export const FeedbackSlider = () => {
           {catsForSale?.["rozine-pedute"]?.length && (
             <div className="flex justify-center items-center gap-4 overflow-x-auto">
               {catsForSale?.["rozine-pedute"]?.map((cat) => (
-                <CatMiniCard key={cat._id} cat={cat} />
+                <CatMiniCard
+                  key={cat._id}
+                  cat={cat}
+                  onClick={() => setSelectedCat(cat)}
+                  active={selectedCat?._id === cat._id}
+                />
               ))}
             </div>
           )}
+
+          {selectedCat && <CatBenefits cat={selectedCat} />}
         </div>
         <a href="/game" className="flex mb-4 justify-center mt-4">
           <PixelButton text="PLAY TO SAVE" />
