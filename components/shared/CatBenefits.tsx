@@ -67,7 +67,7 @@ export const CatBenefits = ({ cat }: { cat: ICat }) => {
             </span>
           </div>
         )}
-        {cat.ai ||
+        {!!cat.ai ||
           (cat.blessings?.length && (
             <div className="text-p4 bg-gray-500 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 bg-opacity-60 hover:bg-opacity-80 mb-2 border-2 rounded-xl border-main-black">
               <img
