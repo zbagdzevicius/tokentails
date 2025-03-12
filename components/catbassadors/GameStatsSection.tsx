@@ -59,7 +59,7 @@ export const GameStatsSection = ({
           onClick={() => setOpenedModal(GameModal.PROFILE)}
           className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2"
           style={{
-            backgroundImage: "url(/base/bg.gif)",
+            backgroundImage: "url(/backgrounds/bg.gif)",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
@@ -76,7 +76,7 @@ export const GameStatsSection = ({
             </div>
           )}
           <div className="text-p4 flex items-center gap-1">
-            <div>STATS</div>
+            <div>ABOUT ME</div>
           </div>
         </div>
         <div className="flex flex-col items-center">
@@ -104,7 +104,7 @@ export const GameStatsSection = ({
           onClick={() => setModal(coinsText)}
           className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2"
           style={{
-            backgroundImage: "url(/base/bg-6.png)",
+            backgroundImage: "url(/backgrounds/bg-6.png)",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
@@ -124,9 +124,17 @@ export const GameStatsSection = ({
             onClick={() => setModal(null)}
             className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
           ></div>
-          <div className="z-50 rem:w-[350px] md:w-[480px] max-w-full bg-yellow-300 absolute top-1/2 -translate-y-1/2 rounded-xl shadow animate-appear pb-4">
+          <div
+            className="z-50 rem:w-[350px] md:w-[480px] max-w-full absolute top-1/2 -translate-y-1/2 rounded-xl shadow animate-appear pb-4"
+            style={{
+              backgroundImage: "url('/backgrounds/bg-6.png')",
+              backgroundRepeat: "no-repeat",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          >
             <CloseButton onClick={() => setModal(null)} />
-            <div className="pb-safe rem:min-h-[100px] p-8 text-gray-500 flex flex-col gap-2 justify-between items-center">
+            <div className="pb-safe rem:min-h-[100px] p-8 flex flex-col gap-2 justify-between items-center">
               <p className="text-p3 font-secondary whitespace-pre-line text-center">
                 {modal}
               </p>

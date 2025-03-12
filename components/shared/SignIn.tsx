@@ -150,7 +150,7 @@ export const SignIn = ({ close }: { close: () => void }) => {
       <div
         className="z-50 rem:w-[350px] md:w-[480px] max-w-full bg-white absolute top-1/2 -translate-y-1/2  rounded-lg shadow-2xl h-fit"
         style={{
-          backgroundImage: "url(/base/bg-6.png)",
+          backgroundImage: "url(/backgrounds/bg-6.png)",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}

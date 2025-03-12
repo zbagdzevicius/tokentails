@@ -113,7 +113,7 @@ export default function Index() {
         <div
           className="pt-24 md:pt-36 fade-in h-screen relative"
           style={{
-            backgroundImage: "url(/base/bg-night-2.gif)",
+            backgroundImage: "url(/backgrounds/bg-night.gif)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -127,7 +127,7 @@ export default function Index() {
         <div
           className="py-4 min-h-screen"
           style={{
-            backgroundImage: "url(/base/bg-6.png)",
+            backgroundImage: "url(/backgrounds/bg-6.png)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -140,7 +140,7 @@ export default function Index() {
         <div
           className="pb-4 pt-3 md:pt-0 min-h-screen flex items-center justify-center w-full"
           style={{
-            backgroundImage: "url(/base/bg.gif)",
+            backgroundImage: "url(/backgrounds/bg.gif)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -153,7 +153,7 @@ export default function Index() {
         <div
           className="py-4 min-h-screen"
           style={{
-            backgroundImage: "url(/base/bg-3.gif)",
+            backgroundImage: "url(/backgrounds/bg-3.gif)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -169,7 +169,7 @@ export default function Index() {
         <div
           className="min-h-screen flex items-center justify-center"
           style={{
-            backgroundImage: "url(/base/bg-5.png)",
+            backgroundImage: "url(/backgrounds/bg-5.png)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -182,7 +182,7 @@ export default function Index() {
         <div
           className="pb-4 pt-3 md:pt-0 min-h-screen flex items-center justify-center"
           style={{
-            backgroundImage: "url(/base/bg-6.png)",
+            backgroundImage: "url(/backgrounds/bg-6.png)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -195,7 +195,7 @@ export default function Index() {
         <div
           className="py-8 flex items-center justify-center"
           style={{
-            backgroundImage: "url(/base/bg-2.gif)",
+            backgroundImage: "url(/backgrounds/bg-2.gif)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -215,7 +215,7 @@ export default function Index() {
         <div
           className="h-screen flex items-center"
           style={{
-            backgroundImage: "url(/base/bg-night.gif)",
+            backgroundImage: "url(/backgrounds/bg-night-2.gif)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -228,7 +228,7 @@ export default function Index() {
         <div
           className="pt-4 min-h-screen flex items-center justify-center"
           style={{
-            backgroundImage: "url(/base/bg.svg)",
+            backgroundImage: "url(/backgrounds/bg.svg)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",

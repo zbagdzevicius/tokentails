@@ -74,7 +74,7 @@ export const GameOptionsModal = ({
               <div
                 className="flex w-28 flex-col font-secondary text-p2 px-2 pt-2 pb-1 rounded-t-xl gap-1 font-bold"
                 style={{
-                  backgroundImage: "url(/base/bg-6.png)",
+                  backgroundImage: "url(/backgrounds/bg-6.png)",
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                 }}

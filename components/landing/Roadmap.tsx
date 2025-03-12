@@ -4,13 +4,9 @@ import { PixelButton } from "../shared/PixelButton";
 const Roadmap = () => {
   return (
     <div className="container flex flex-col py-8 justify-center items-center">
-      <div className="flex justify-center items-center gap-4 mb-8">
-        <img src="/logo/paw.png" className="w-14" />
-        <h2 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl">
-          WHAT'S NEXT?
-        </h2>
-        <img src="/logo/paw.png" className="w-14" />
-      </div>
+      <h2 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl mb-8">
+        WHAT'S NEXT?
+      </h2>
       <a href="/game" className="-mt-6 mb-4">
         <PixelButton text="PLAY TO SAVE" />
       </a>

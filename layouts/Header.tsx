@@ -94,14 +94,9 @@ export const Header = () => {
             >
               <a
                 href={navItem.link}
-                className={`text-p3 font-secondary hover:custom-gradient-text ${
-                  activeTitle === navItem.title
-                    ? "custom-gradient-text font-bold"
-                    : ""
-                }`}
                 onClick={() => handleTitleClick(navItem.title)}
               >
-                {navItem.title}
+                <PixelButton text={navItem.title} isSmall />
               </a>
             </li>
           ))}

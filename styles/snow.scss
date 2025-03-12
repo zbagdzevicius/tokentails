@@ -1,15 +1,3 @@
-@media (min-width: 768px) {
-  .snowflake {
-    $size: 0.5vw;
-    width: $size;
-    height: $size;
-    background: white;
-    border-radius: 50%;
-    position: absolute;
-    top: -5vh;
-  }
-}
-
 @media (max-width: 768px) {
   .snowflake {
     $size: 1vw;

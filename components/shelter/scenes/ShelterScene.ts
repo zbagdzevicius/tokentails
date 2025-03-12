@@ -1,20 +1,19 @@
-import { Scene } from "phaser";
 import {
   GameEvent,
   GameEvents,
   ICatEvent,
   IPhaserGameSceneProps,
 } from "@/components/Phaser/events";
-import { Cat } from "../../catbassadors/objects/Catbassador";
-import { NpcCat } from "../objects/NpcCat";
-import { CatAbilityType, CatType } from "@/models/cats";
-import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
+import { CoreMap } from "@/components/Phaser/map";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
-import { ICat } from "@/models/cats";
+import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { ZOOM } from "@/constants/utils";
-import { SpeechBubble } from "../objects/SpeechBubble";
+import { CatAbilityType, CatType, ICat } from "@/models/cats";
+import { Scene } from "phaser";
+import { Cat } from "../../catbassadors/objects/Catbassador";
 import { Elevator } from "../objects/Elevator";
-import { IS_MOBILE } from "@/constants/utils";
+import { NpcCat } from "../objects/NpcCat";
+import { SpeechBubble } from "../objects/SpeechBubble";
 
 const JUMP_LAYER_TILES = [
   169, 170, 139, 140, 200, 224, 225, 226, 227, 51, 52, 82, 83, 84,
@@ -23,10 +22,6 @@ const TRAMPOLINE_TILES = [158, 159];
 enum Shelters {
   ROZINE_PEDUTE = "rozine-pedute",
   TOKENTAILS = "tokentails",
-}
-
-enum Tileset {
-  NEW_BLOCKS_WINTER = "new-blocks-winter",
 }
 
 const SHELTER_SPAWN_POSITIONS = {
@@ -70,7 +65,7 @@ export class ShelterScene extends Scene {
   preload() {
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.tilemapTiledJSON("tilemap", "catbassadors/new-shelter.json");
-    this.load.image("new-blocks-winter", "base/winter.png");
+    this.load.image("new-blocks-winter", CoreMap);
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.audio("jump-sound", "audio/game/jump.mp3");
     this.load.audio("dash-sound", "audio/game/dash.wav");
@@ -93,14 +88,14 @@ export class ShelterScene extends Scene {
     });
     this.load.image("shelter-logo", "shelter/logo.png");
     this.load.image("shelter-signs", "shelter/signs.png");
-    this.load.image("elevator", "purrquest2/icons/platform-movable.png");
+    this.load.image("elevator", "purrquest/icons/platform-movable.png");
   }
 
   create(props: IPhaserGameSceneProps) {
     this.tilemap = this.make.tilemap({ key: "tilemap" });
     const sugarTileset = this.tilemap.addTilesetImage(
-      Tileset.NEW_BLOCKS_WINTER,
-      Tileset.NEW_BLOCKS_WINTER,
+      "new-blocks-winter",
+      "new-blocks-winter",
       32,
       32,
       1,

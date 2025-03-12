@@ -113,7 +113,7 @@ export const DisplayCoins: React.FC<{}> = () => {
       <div
         className="fixed left-4 pb-safe top-4 z-10 justify-between flex hover:brightness-110 flex-col w-20 items-center font-secondary rounded-xl px-1 py-2"
         style={{
-          backgroundImage: "url(/base/bg-7.png)",
+          backgroundImage: "url(/backgrounds/bg-7.png)",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
@@ -160,8 +160,9 @@ export const DisplayCoins: React.FC<{}> = () => {
             <div
               className="absolute top-0 left-0 w-full h-full rounded-full"
               style={{
-                background: `conic-gradient(rgba(255, 255, 255, 0.6) 0% ${100 - cooldownPercentage
-                  }%, transparent ${100 - cooldownPercentage}% 100%)`,
+                background: `conic-gradient(rgba(255, 255, 255, 0.6) 0% ${
+                  100 - cooldownPercentage
+                }%, transparent ${100 - cooldownPercentage}% 100%)`,
               }}
             ></div>
           </div>

@@ -15,6 +15,7 @@ import { BuffManager } from "../managers/BuffManager";
 
 import { currentDayCoin, ZOOM } from "@/constants/utils";
 import { endScenePeriod } from "@/models/game";
+import { CoreMap } from "@/components/Phaser/map";
 
 const JUMP_LAYER_TILES = [169, 170, 139, 140, 200, 224, 225, 226, 227];
 const TRAMPOLINE_TILES = [158, 159, 160];
@@ -47,7 +48,7 @@ export class CatbassadorsScene extends Scene {
   private buffManager?: BuffManager;
   enemyManager?: EnemyManager;
 
-  private gravityReverseInterval: number = 30000;
+  private gravityReverseInterval: number = 60000;
   private nextGravityReverseTime: number = 0;
   private isGravityReversed: boolean = false;
 
@@ -62,10 +63,6 @@ export class CatbassadorsScene extends Scene {
     this.lastUpdateTime = 0;
   }
   preload() {
-    this.load.spritesheet("bird", "base/bird.png", {
-      frameWidth: 32,
-      frameHeight: 32,
-    });
     this.load.spritesheet("food", "base/food.png", {
       frameWidth: 32,
       frameHeight: 32,
@@ -87,7 +84,7 @@ export class CatbassadorsScene extends Scene {
     this.load.audio("dash-sound", "audio/game/dash.wav");
     this.load.audio("game-end-sound", "audio/game/game-end.mp3");
     this.load.tilemapTiledJSON("tilemap", "catbassadors/catbassadors.json");
-    this.load.image("new-blocks-winter", "base/winter.png");
+    this.load.image("new-blocks-winter", CoreMap);
     this.load.spritesheet("starAnimation", "base/star-animation.png", {
       frameWidth: 32,
       frameHeight: 32,

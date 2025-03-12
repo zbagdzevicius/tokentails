@@ -302,7 +302,7 @@ export const CatPayment = ({
         <div
           className="z-0 absolute bottom-0 pb-4 bg-opacity-85 pt-8 px-4 left-0 right-0 border-t-8 border-yellow-300 max-h-screen overflow-y-auto border-radius-2xl"
           style={{
-            backgroundImage: "url(/base/bg.gif)",
+            backgroundImage: "url(/backgrounds/bg.gif)",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}

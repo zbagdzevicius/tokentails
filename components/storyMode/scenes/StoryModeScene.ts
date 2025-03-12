@@ -32,6 +32,7 @@ import { DogBot } from "../objects/dogBot";
 import { StoryModeManagers } from "../Managers/StoryModeManager";
 import { FallingColumnManager } from "../Managers/FallingColumnManager";
 import { ReverseGravityManager } from "../Managers/ReverseGravityManager";
+import { CoreMap } from "@/components/Phaser/map";
 
 const JUMP_LAYER_TILES = [47, 48, 49, 50];
 const TRAMPOLINE_TILES = [51];
@@ -80,10 +81,10 @@ export class StoryModeScene extends Scene {
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.image("collective-item", "purrquest/sprites/key.png");
     this.load.tilemapTiledJSON("tilemap", "catbassadors/story.json");
-    this.load.image("blocks", "base/blocks-winter.png");
+    this.load.image("blocks", CoreMap);
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
-    this.load.image("platform", "purrquest2/icons/platform.png");
-    this.load.image("movable-block", "purrquest2/icons/platform.png");
+    this.load.image("platform", "purrquest/icons/platform.png");
+    this.load.image("movable-block", "purrquest/icons/platform.png");
     this.load.image("floating-platform", "story/floating-platform.png");
     this.load.image("spiked-ball", "story/spiked-ball.png");
     this.load.image("chain", "story/chain.png");

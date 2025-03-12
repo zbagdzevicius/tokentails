@@ -30,7 +30,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
       <div
         className="m-auto z-50 rem:w-[350px] font-secondary md:w-[480px] flex flex-col md:flex-row max-w-full absolute top-1/2 -translate-y-1/2 rounded-lg shadow h-fit animate-appear"
         style={{
-          backgroundImage: "url(/base/bg.gif)",
+          backgroundImage: "url(/backgrounds/bg.gif)",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
@@ -77,7 +77,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
             </div>
           )}
           <div className="flex justify-center items-center text-md text-gray-700">
-            <img className="h-8" src="images/cats-winners/cat.gif"></img>
+            <img className="h-8" src={profile?.cat?.catImg}></img>
             <div className="text-p3 lg:text-p2 font-medium mr-1">
               Selected cat MULTIPLIER
             </div>

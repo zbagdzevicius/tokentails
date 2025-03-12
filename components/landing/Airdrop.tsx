@@ -5,7 +5,7 @@ export const Airdrop = () => {
   return (
     <div className="container flex flex-col py-8 justify-center items-center">
       <div className="flex justify-center items-center gap-4 mb-8">
-        <h2 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl text-cyan-900">
+        <h2 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl">
           UNLOCK REWARDS
         </h2>
       </div>

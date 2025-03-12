@@ -31,7 +31,7 @@ export const LeaderboardContent = () => {
   const { position } = useProfile();
   return (
     <>
-      <div className="flex flex-col bg-gradient-to-b from-purple-300 to-yellow-300 animate-appear pt-4">
+      <div className="flex flex-col animate-appear pt-4">
         <Tag>CHAMPS</Tag>
         <div className="py-2 gap-4 flex justify-center">
           <PixelButton
@@ -118,7 +118,15 @@ export const Leaderboard = ({ close }: { close: () => void }) => {
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
-      <div className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow">
+      <div
+        className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow"
+        style={{
+          backgroundImage: "url('/backgrounds/bg-5.png')",
+          backgroundRepeat: "no-repeat",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
         <CloseButton onClick={() => close()} />
         <LeaderboardContent />
         <button onClick={close} className="absolute right-[0] top-0 group">
