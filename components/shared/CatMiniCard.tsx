@@ -12,7 +12,7 @@ export const CatMiniCard = ({
   active?: boolean;
 }) => {
   return (
-    <div className="relative overflow-hidden w-48 rounded-xl py-2 border-2 border-black">
+    <div className="relative overflow-hidden w-48 rounded-xl py-2 border-2 border-black rem:min-w-[192px]">
       <div
         style={{ backgroundColor: cardsColor[cat.type] || "white" }}
         className="absolute left-0 top-0 opacity-75 text-black pl-1 text-p5 font-secondary rounded-r-xl z-20 flex items-center"
