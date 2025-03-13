@@ -13,7 +13,7 @@ export const getCatPrice = (cat: ICat) => {
     return cat.price;
   }
 
-  return cat.price * (1 - (cat.supply - 1) / cat.totalSupply);
+  return Math.ceil(cat.price * (1 - (cat.supply - 1) / cat.totalSupply));
 };
 
 export const getCatDiscountPercentage = (cat: ICat) => {
