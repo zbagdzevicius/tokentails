@@ -37,6 +37,10 @@ export abstract class BaseCoinPhysicsEntity {
       );
     }
     this.isRotating = !disableRotation;
+    if (!this.isRotating) {
+      this.vx = 0;
+      this.vy = 0;
+    }
     this.scene = scene;
 
     // Create the sprite
@@ -49,9 +53,9 @@ export abstract class BaseCoinPhysicsEntity {
   }
 
   update() {
-    this.applyGravity();
     this.checkCollisions();
     if (this.isRotating) {
+      this.applyGravity();
       this.applyRotation();
     }
   }

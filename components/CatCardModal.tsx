@@ -24,6 +24,7 @@ import { Web3Transfer } from "./web3/transfer/Web3Transfer";
 import { Web3Providers } from "./web3/Web3Providers";
 import { CAT_API } from "@/api/cat-api";
 import { useQuery } from "@tanstack/react-query";
+import { CatBenefits } from "./shared/CatBenefits";
 
 interface IProps extends ICat {
   onClose?: () => void;
@@ -392,7 +393,7 @@ export const CatPayment = ({
           </span>
         )}
 
-        {cat.totalSupply && !buyMode && (
+        {cat.totalSupply && !buyMode && !isOwned && (
           <div className="flex flex-col bg-gray-600 px-2 text-center rounded-lg font-secondary text-p4 mb-1">
             <div className="text-p5 text-yellow-300">SUPPLY</div>
             <div className="text-yellow-200 -mt-1">
@@ -416,11 +417,12 @@ export const CatCard = ({
   const { catImg, name, type, blessings, ai } = catData;
   const [activeBlessing, setActiveBlessing] = useState<IBlessing | null>(null);
   const { profile } = useProfile();
+  const [showBenefits, setShowBenefits] = useState(false);
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
     queryFn: () => CAT_API.cats(),
   });
-  const isOwned = cats?.find((cat) => cat.name === name);
+  const isOwned = !!cats?.find((cat) => cat.name === name);
   const discountPercentage = useMemo(
     () => (isOwned ? 0 : getCatDiscountPercentage(catData)),
     [catData, cats]
@@ -488,10 +490,32 @@ export const CatCard = ({
             </span>
             {!activeBlessing && (
               <div className="absolute bottom-2 md:-bottom-8 lg:bottom-2 flex justify-center">
-                <PixelButton text={`${catData.name} owner benefits`} isSmall />
+                <PixelButton
+                  onClick={() => setShowBenefits(!showBenefits)}
+                  text={
+                    showBenefits
+                      ? "Hide benefits"
+                      : `${catData.name} owner benefits`
+                  }
+                  isSmall
+                />
               </div>
             )}
           </div>
+          {showBenefits && (
+            <div
+              className="absolute bottom-0 left-0 right-0 w-full rounded-b-2xl z-20 animate-appear"
+              style={{
+                backgroundImage: "url('/backgrounds/bg-6.png')",
+                backgroundRepeat: "no-repeat",
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+            >
+              <CloseButton onClick={() => setShowBenefits(false)} />
+              <CatBenefits cat={catData} isOwned={isOwned} />
+            </div>
+          )}
         </div>
         <div>
           <div className="text-start m-3 md:m-5 bg md:mt-10 lg:mt-5">

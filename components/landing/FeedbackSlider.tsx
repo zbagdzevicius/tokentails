@@ -43,14 +43,16 @@ export const FeedbackSlider = () => {
                 <CatMiniCard
                   key={cat._id}
                   cat={cat}
-                  onClick={() => setSelectedCat(cat)}
+                  onClick={setSelectedCat}
                   active={selectedCat?._id === cat._id}
                 />
               ))}
             </div>
           )}
 
-          {selectedCat && <CatBenefits cat={selectedCat} />}
+          {selectedCat && (
+            <CatBenefits key={selectedCat._id} cat={selectedCat} />
+          )}
         </div>
         <a href="/game" className="flex mb-4 justify-center mt-4">
           <PixelButton text="PLAY TO SAVE" />

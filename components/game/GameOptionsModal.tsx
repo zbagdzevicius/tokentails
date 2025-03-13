@@ -97,7 +97,7 @@ export const GameOptionsModal = ({
             <PixelButton
               isDisabled={!profile.canRedeemLives}
               onClick={() => (profile.canRedeemLives ? redeemLives() : {})}
-              text="DAILY REWARD"
+              text="CLAIM REWARD"
             ></PixelButton>
           </div>
           <div className="flex flex-col gap-4">
