@@ -83,7 +83,12 @@ const complete = async (
 
 const redeemContest = async (
   contest: string
-): Promise<{ message: string; success?: boolean; cat: ICat }> => {
+): Promise<{
+  message: string;
+  success?: boolean;
+  cat?: ICat;
+  catpoints?: number;
+}> => {
   await waitForLocalStorageKey();
   return fetch(`${apiUrl}/quest/contest/${contest}`, {
     method: "GET",

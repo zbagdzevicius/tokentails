@@ -2,22 +2,26 @@
 
 import { PixelButton } from "@/components/shared/PixelButton";
 import { EntityType } from "@/models/save";
+import { IMysteryBox } from "@/web3/web3.model";
 import { useMemo } from "react";
 import { useWeb3Minting } from "./useWeb3Minting";
-import { ChainType } from "@/web3/contracts";
-import { mysteryBoxes } from "@/web3/web3.model";
 
 interface Web3TransferProps {
   user?: string;
   ownedNFTCallback?: () => void;
+  mysteryBox: IMysteryBox;
 }
 
-export const Web3Mint = ({ user, ownedNFTCallback }: Web3TransferProps) => {
+export const Web3Mint = ({
+  user,
+  ownedNFTCallback,
+  mysteryBox,
+}: Web3TransferProps) => {
   const { namespaceDetail, connectWallet, mint, isLoading, userNFTsCount } =
     useWeb3Minting({
       entityType: EntityType.MYSTERY_BOX,
       user,
-      mysteryBox: mysteryBoxes[ChainType.CAMP_TEST]!,
+      mysteryBox,
     });
   const address = useMemo(() => {
     if (!namespaceDetail?.connected) {

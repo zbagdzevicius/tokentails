@@ -1,27 +1,18 @@
 import { QUEST_API } from "@/api/quest-api";
 import { getNextDayMidnight } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
-import { GameModal, GameType } from "@/models/game";
-import { ChainImg, ChainType } from "@/web3/contracts";
+import { GameModal } from "@/models/game";
 import { useState } from "react";
-import { Web3Mint } from "../web3/minting/Web3Mint";
-import { Web3Providers } from "../web3/Web3Providers";
+import { MysteryBox } from "../mystery/MysteryBox";
 import { CloseButton } from "./CloseButton";
 import { Countdown } from "./Countdown";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
-import { useToast } from "@/context/ToastContext";
-import { useGame } from "@/context/GameContext";
-import { mysteryBoxes } from "@/web3/web3.model";
-
-const mysteryBox = mysteryBoxes[ChainType.CAMP_TEST]!;
 
 export const InviteModalContent = () => {
   const { utils, shareUrl, profile, setProfileUpdate } = useProfile();
   const nextDayTargetDate = getNextDayMidnight();
   const [type, setType] = useState(GameModal.MYSTERY_BOX);
-  const toast = useToast();
-  const { setGameType } = useGame();
 
   const onInvite = () => {
     if (!profile?.canInviteFriend) {
@@ -30,19 +21,6 @@ export const InviteModalContent = () => {
     utils?.shareURL(shareUrl!);
     setProfileUpdate({ canInviteFriend: false });
     QUEST_API.friendInvited();
-  };
-
-  const onRedeem = async () => {
-    const result = await QUEST_API.redeemContest(mysteryBox.chain);
-    if (result.success && result.cat) {
-      setProfileUpdate({
-        cats: [...(profile?.cats || []), result.cat],
-        cat: result.cat,
-        quests: [...(profile?.quests || []), mysteryBox.chain],
-      });
-      toast({ message: "Congratz on your adopted cat !" });
-      setGameType(GameType.HOME);
-    }
   };
 
   return (
@@ -111,33 +89,7 @@ export const InviteModalContent = () => {
           />
         </>
       ) : (
-        <div className="flex justify-center items-center flex-col md:flex-row md:gap-4">
-          <div>
-            <img
-              className="w-64 md:w-48 lg:w-64 aspect-square rounded-2xl mt-2 mb-4"
-              src={mysteryBox.image}
-            />
-          </div>
-          <div className="flex flex-col md:gap-2">
-            <Tag isSmall>TIME LIMITED FREE MINT</Tag>
-            <Countdown targetDate="2025-03-20" isDaysDisplayed></Countdown>
-            {profile?.quests?.includes(mysteryBox.chain) ? (
-              <PixelButton text="REDEEMED" isDisabled></PixelButton>
-            ) : (
-              <Web3Providers>
-                <Web3Mint user={profile?._id!} ownedNFTCallback={onRedeem} />
-              </Web3Providers>
-            )}
-            {mysteryBox.faucet && (
-              <div className="flex md:flex-col font-secondary font-bold text-p4 items-center justify-center pt-2">
-                Out of gas ?{" "}
-                <a href={mysteryBox.faucet} target="_blank">
-                  <PixelButton isSmall text="Get Gas" />
-                </a>
-              </div>
-            )}
-          </div>
-        </div>
+        <MysteryBox />
       )}
     </div>
   );
@@ -145,13 +97,13 @@ export const InviteModalContent = () => {
 
 export const InviteModal = ({ close }: { close: () => void }) => {
   return (
-    <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center h-full">
+    <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center max-h-screen h-full">
       <div
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
       <div
-        className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full absolute top-1/2 -translate-y-1/2 rounded-xl shadow h-fit"
+        className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full absolute top-1/2 -translate-y-1/2 rounded-xl shadow h-fit max-h-screen overflow-y-auto"
         style={{
           backgroundImage: "url('/backgrounds/bg-6.png')",
           backgroundRepeat: "no-repeat",
