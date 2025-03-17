@@ -8,10 +8,12 @@ import { CloseButton } from "./CloseButton";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
 import { IQuest } from "@/models/quest";
+import { LeaderboardContent } from "../Leaderboard";
 enum QuestType {
   SOCIAL = "SOCIAL",
-  MILESTONE = "MILESTONE",
-  PARTNERS = "PARTNERS",
+  GOAL = "GOAL",
+  FRIEND = "FRIEND",
+  WIN = "WIN",
 }
 
 interface IQuestReward {
@@ -128,7 +130,7 @@ const allQuests: ILocalQuest[] = [
     },
   },
   {
-    type: QuestType.MILESTONE,
+    type: QuestType.GOAL,
     key: QUEST.REACH_COINS_2K,
     name: "Reach 2k coins",
     icon: "/logo/coin.webp",
@@ -137,7 +139,7 @@ const allQuests: ILocalQuest[] = [
     },
   },
   {
-    type: QuestType.MILESTONE,
+    type: QuestType.GOAL,
     key: QUEST.INVITE_FRIENDS_10,
     name: "Invite 10 friens",
     icon: "/images/cats-hub/cat-with-hat.webp",
@@ -146,7 +148,7 @@ const allQuests: ILocalQuest[] = [
     },
   },
   {
-    type: QuestType.MILESTONE,
+    type: QuestType.GOAL,
     key: QUEST.REACH_COINS_20K,
     name: "Reach 20k coins",
     icon: "/logo/coin.webp",
@@ -155,7 +157,7 @@ const allQuests: ILocalQuest[] = [
     },
   },
   {
-    type: QuestType.MILESTONE,
+    type: QuestType.GOAL,
     key: QUEST.INVITE_FRIENDS_35,
     name: "Invite 35 friens",
     link: "https://www.linkedin.com/company/token-tails",
@@ -165,7 +167,7 @@ const allQuests: ILocalQuest[] = [
     },
   },
   {
-    type: QuestType.MILESTONE,
+    type: QuestType.GOAL,
     key: QUEST.REACH_COINS_100K,
     name: "Reach 100k coins",
     icon: "/logo/boss-coin.png",
@@ -174,7 +176,7 @@ const allQuests: ILocalQuest[] = [
     },
   },
   {
-    type: QuestType.MILESTONE,
+    type: QuestType.GOAL,
     key: QUEST.INVITE_FRIENDS_100,
     name: "Invite 100 friens",
     icon: "/images/cats-hub/cat-with-hat.webp",
@@ -183,7 +185,7 @@ const allQuests: ILocalQuest[] = [
     },
   },
   {
-    type: QuestType.MILESTONE,
+    type: QuestType.GOAL,
     key: QUEST.REACH_COINS_1M,
     name: "Reach 1m coins",
     icon: "/logo/boss-coin.png",
@@ -241,7 +243,7 @@ export const QuestsModalContent = () => {
   }, 200);
 
   return (
-    <div className="px-4 pb-8 pt-4 md:px-16 md:b-12 flex flex-col justify-between items-center animate-appear">
+    <div className="px-2 md:px-4 pb-8 pt-4 md:b-12 flex flex-col justify-between items-center animate-appear">
       <Tag>QUESTS</Tag>
       <div className="py-2 flex items-center justify-between w-full mb-4">
         <PixelButton
@@ -250,114 +252,122 @@ export const QuestsModalContent = () => {
           onClick={() => setQuestsType(QuestType.SOCIAL)}
         ></PixelButton>
         <PixelButton
-          text="PARTNERS"
-          active={questsType === QuestType.PARTNERS}
-          onClick={() => setQuestsType(QuestType.PARTNERS)}
+          text="FRIENDS"
+          active={questsType === QuestType.FRIEND}
+          onClick={() => setQuestsType(QuestType.FRIEND)}
         ></PixelButton>
         {(profile?.quests?.length || 0) > 2 && (
           <PixelButton
-            text="MILESTONE"
-            active={questsType === QuestType.MILESTONE}
-            onClick={() => setQuestsType(QuestType.MILESTONE)}
+            text="GOALS"
+            active={questsType === QuestType.GOAL}
+            onClick={() => setQuestsType(QuestType.GOAL)}
           ></PixelButton>
         )}
+        <PixelButton
+          text="WIN"
+          active={questsType === QuestType.WIN}
+          onClick={() => setQuestsType(QuestType.WIN)}
+        ></PixelButton>
       </div>
-      {questsType === QuestType.SOCIAL && (
-        <>
-          <div className="flex flex-col gap-2 w-full">
-            {quests.map((quest) => (
-              <div
-                key={quest.name}
-                className="flex justify-between items-center w-full"
-              >
-                <div className="flex gap-2 items-center">
-                  {profile?.quests?.includes(quest.key) ? (
-                    <img className="w-10" src="icons/check.webp" />
-                  ) : (
-                    <img className="w-10" src={quest.icon} />
-                  )}
-                  <PixelButton
-                    text={quest.name}
-                    active={profile?.quests?.includes(quest.key)}
-                    onClick={() => redeem(quest)}
-                  ></PixelButton>
+      <span className="lg:px-8 w-full">
+        {questsType === QuestType.SOCIAL && (
+          <>
+            <div className="flex flex-col gap-2 w-full">
+              {quests.map((quest) => (
+                <div
+                  key={quest.name}
+                  className="flex justify-between items-center w-full"
+                >
+                  <div className="flex gap-2 items-center">
+                    {profile?.quests?.includes(quest.key) ? (
+                      <img className="w-10" src="icons/check.webp" />
+                    ) : (
+                      <img className="w-10" src={quest.icon} />
+                    )}
+                    <PixelButton
+                      text={quest.name}
+                      active={profile?.quests?.includes(quest.key)}
+                      onClick={() => redeem(quest)}
+                    ></PixelButton>
+                  </div>
+                  <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
+                    <img
+                      className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
+                      src="/logo/coin.webp"
+                    />
+                    {quest.reward.coins} COINS
+                  </div>
                 </div>
-                <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
-                  <img
-                    className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
-                    src="/logo/coin.webp"
-                  />
-                  {quest.reward.coins} COINS
+              ))}
+            </div>
+          </>
+        )}
+        {questsType === QuestType.GOAL && (
+          <>
+            <div className="flex flex-col gap-2 w-full pb-8">
+              {quests.map((quest) => (
+                <div
+                  key={quest.name}
+                  className="flex justify-between items-center w-full"
+                >
+                  <div className="flex relative gap-2 items-center">
+                    {profile?.quests?.includes(quest.key) ? (
+                      <img className="w-10" src="icons/check.webp" />
+                    ) : (
+                      <img className="w-10" src={quest.icon} />
+                    )}
+                    <PixelButton
+                      text={quest.name}
+                      active={profile?.quests?.includes(quest.key)}
+                      onClick={() => redeem(quest)}
+                    ></PixelButton>
+                  </div>
+                  <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
+                    <img
+                      className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
+                      src="/logo/coin.webp"
+                    />
+                    {quest.reward.coins} COINS
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-      {questsType === QuestType.MILESTONE && (
-        <>
-          <div className="flex flex-col gap-2 w-full pb-8">
-            {quests.map((quest) => (
-              <div
-                key={quest.name}
-                className="flex justify-between items-center w-full"
-              >
-                <div className="flex relative gap-2 items-center">
-                  {profile?.quests?.includes(quest.key) ? (
-                    <img className="w-10" src="icons/check.webp" />
-                  ) : (
-                    <img className="w-10" src={quest.icon} />
-                  )}
-                  <PixelButton
-                    text={quest.name}
-                    active={profile?.quests?.includes(quest.key)}
-                    onClick={() => redeem(quest)}
-                  ></PixelButton>
+              ))}
+            </div>
+          </>
+        )}
+        {questsType === QuestType.FRIEND && (
+          <>
+            <div className="flex flex-col gap-2 w-full pb-8">
+              {partnerQuests?.map((quest) => (
+                <div
+                  key={quest.name}
+                  className="flex justify-between items-center w-full"
+                >
+                  <div className="flex relative gap-2 items-center">
+                    {profile?.quests?.includes(quest._id) ? (
+                      <img className="w-10" src="icons/check.webp" />
+                    ) : (
+                      <img className="w-10" src={quest?.image?.url} />
+                    )}
+                    <PixelButton
+                      text={quest.name}
+                      active={profile?.quests?.includes(quest._id)}
+                      onClick={() => redeemPartner(quest)}
+                    ></PixelButton>
+                  </div>
+                  <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
+                    <img
+                      className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
+                      src="/logo/coin.webp"
+                    />
+                    {quest.catpoints} COINS
+                  </div>
                 </div>
-                <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
-                  <img
-                    className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
-                    src="/logo/coin.webp"
-                  />
-                  {quest.reward.coins} COINS
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-      {questsType === QuestType.PARTNERS && (
-        <>
-          <div className="flex flex-col gap-2 w-full pb-8">
-            {partnerQuests?.map((quest) => (
-              <div
-                key={quest.name}
-                className="flex justify-between items-center w-full"
-              >
-                <div className="flex relative gap-2 items-center">
-                  {profile?.quests?.includes(quest._id) ? (
-                    <img className="w-10" src="icons/check.webp" />
-                  ) : (
-                    <img className="w-10" src={quest?.image?.url} />
-                  )}
-                  <PixelButton
-                    text={quest.name}
-                    active={profile?.quests?.includes(quest._id)}
-                    onClick={() => redeemPartner(quest)}
-                  ></PixelButton>
-                </div>
-                <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
-                  <img
-                    className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
-                    src="/logo/coin.webp"
-                  />
-                  {quest.catpoints} COINS
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+              ))}
+            </div>
+          </>
+        )}
+      </span>
+      {questsType === QuestType.WIN && <LeaderboardContent />}
     </div>
   );
 };
@@ -370,7 +380,7 @@ export const QuestsModal = ({ close }: { close: () => void }) => {
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
       <div
-        className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow"
+        className="m-auto z-50 rem:w-[368px] md:w-[480px] max-w-full absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow"
         style={{
           backgroundImage: "url('/backgrounds/bg-5.png')",
           backgroundRepeat: "no-repeat",

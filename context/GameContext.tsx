@@ -199,9 +199,11 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
             )}
           <MobileButtons
             isHidden={
-              !isStarted &&
-              gameType !== GameType.SHELTER &&
-              gameType !== GameType.HOME
+              !(
+                isStarted ||
+                gameType === GameType.SHELTER ||
+                (gameType === GameType.HOME && !!profile.cat?.status?.EAT)
+              )
             }
           />
           {isStarted &&

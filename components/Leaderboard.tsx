@@ -33,7 +33,7 @@ export const LeaderboardContent = () => {
     <>
       <div className="flex flex-col animate-appear pt-4">
         <Tag>CHAMPS</Tag>
-        <div className="py-2 gap-4 flex justify-center">
+        <div className="py-1 gap-4 pt-2 flex justify-center">
           <PixelButton
             active={type === GameModal.LEADERBOARD}
             text={leaderboardTexts[GameModal.LEADERBOARD]?.header!}
@@ -57,10 +57,10 @@ export const LeaderboardContent = () => {
           </div>
         )}
       </div>
-      <table className="rounded-b-lg overflow-hidden table-auto bg-blue-300 text-black-900 w-full text-sm text-left text-gray-500">
-        <thead className="text-p6 md:text-p5 uppercase text-black-300 bg-gray-50 border-b border-purple-300">
+      <table className="rounded-b-lg overflow-hidden rounded-2xl table-auto bg-blue-300 text-black-900 w-full text-sm text-left text-gray-500">
+        <thead className="text-p5 font-secondary md:text-p5 uppercase text-black-300 bg-gray-50 border-b border-purple-300">
           <tr>
-            <th className="py-2 md:py-4 text-center">PLACE</th>
+            <th className="py-2 px-1 text-center">PLACE</th>
             <th className="py-2 text-center">name</th>
             <th className="p-2 md:p-4 text-center">score</th>
           </tr>
@@ -75,7 +75,7 @@ export const LeaderboardContent = () => {
             >
               <th
                 scope="row"
-                className={`text-p4 font-secondary text-center py-4 font-medium whitespace-nowrap border-b ${
+                className={`text-p4 font-secondary text-center py-1 font-medium whitespace-nowrap border-b ${
                   index > 2
                     ? "bg-white border-purple-300"
                     : "bg-yellow-300 border-white"
@@ -84,7 +84,7 @@ export const LeaderboardContent = () => {
                 {index + 1}
               </th>
               <td
-                className={`py-4 text-center bg-gray-700 text-p5 border-l font-bold ${
+                className={`py-1 text-center bg-gray-700 text-p6 border-l font-bold ${
                   index > 2
                     ? "border-purple-300 text-purple-300"
                     : "border-yellow-300 text-yellow-300"
@@ -93,7 +93,7 @@ export const LeaderboardContent = () => {
                 {result.name}
               </td>
               <td
-                className={`p-4 text-center bg-gray-700 text-p5 md:text-p4 border-l font-secondary ${
+                className={`p-4 text-center bg-gray-700 text-p6 md:text-p6 border-l font-secondary ${
                   index > 2
                     ? "border-purple-300 text-purple-300"
                     : "border-yellow-300 text-yellow-300"

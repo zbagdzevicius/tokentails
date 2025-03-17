@@ -1,21 +1,62 @@
 import { useCat } from "@/context/CatContext";
 import { useToast } from "@/context/ToastContext";
-import { GameType } from "@/models/game";
+import { GameModal, GameType } from "@/models/game";
 import classNames from "classnames";
 import { useCallback } from "react";
 import { GameEvents } from "../Phaser/events";
 import { PixelButton } from "../shared/PixelButton";
 import { StatusBar } from "../shared/game/StatusBar";
 import { StatusType } from "@/models/status";
+import { Tag } from "../shared/Tag";
+import { useProfile } from "@/context/ProfileContext";
+import { useGame } from "@/context/GameContext";
 
 interface IProps {
   gameType: GameType | null;
   setGameType: (gameType: GameType | null) => void;
 }
 
+const gameTypeImages: Record<GameType, string> = {
+  [GameType.CATBASSADORS]: "/game/select/catbassadors.jpg",
+  [GameType.PURRQUEST]: "/game/select/purrquest.jpg",
+  [GameType.SHELTER]: "/game/select/shelter.jpg",
+  [GameType.HOME]: "/game/select/home.jpg",
+};
+
+const GameSelectItem = ({
+  gameType,
+  setGameType,
+}: {
+  gameType: GameType;
+  setGameType: (gameType: GameType | null) => void;
+}) => {
+  return (
+    <div
+      className={classNames("flex flex-col gap-1 transition", {
+        "rotate-12 hover:rotate-0": [
+          GameType.SHELTER,
+          GameType.PURRQUEST,
+        ].includes(gameType),
+        "-rotate-12 hover:rotate-0": [
+          GameType.CATBASSADORS,
+          GameType.HOME,
+        ].includes(gameType),
+      })}
+    >
+      <img
+        onClick={() => setGameType(gameType)}
+        className="w-[120px] hover:brightness-110 rem:min-w-[96px] md:rem:min-w-[120px] lg:rem:min-w-[196px] rounded-xl hover:animate-hover"
+        src={gameTypeImages[gameType]}
+      />
+    </div>
+  );
+};
+
 export const GameSelect = ({ setGameType, gameType }: IProps) => {
   const { cat } = useCat();
   const toast = useToast();
+  const { profile } = useProfile();
+  const { setOpenedModal } = useGame();
 
   const onFeedClick = useCallback(() => {
     GameEvents.CAT_EAT.push();
@@ -24,9 +65,9 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
   return (
     <div
       className={classNames(
-        "fixed left-1/2 right-1/2 translate-x-[50%] z-[11] flex flex-col gap-2 items-center pb-safe",
+        "fixed left-1/2 right-1/2 translate-x-[50%] z-[11] flex flex-col gap-2 items-center pb-safe  pt-24 md:pt-0 lg:pt-12",
         {
-          "top-1/2 -translate-y-1/2 pt-48": gameType === GameType.HOME,
+          "top-1/2 -translate-y-1/2": gameType === GameType.HOME,
           "top-4": gameType !== GameType.HOME,
         }
       )}
@@ -60,57 +101,54 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
       )}
       {!gameType && (
         <>
-          <div
-            className="font-secondary whitespace-nowrap rem:w-[200px] md:rem:w-[400px] text-center text-p1 md:text-h5 px-2 rounded-lg py-1 animate-appear"
-            style={{
-              backgroundImage: "url(/backgrounds/bg-2.gif)",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
-          >
-            GAME ZONES
+          <div className="flex max-w-max lg:gap-8 min-w-0 justify-center items-center lg:mt-8">
+            <div className="flex flex-col gap-1">
+              <GameSelectItem
+                setGameType={setGameType}
+                gameType={GameType.CATBASSADORS}
+              />
+              <div className="flex z-10 -mt-4 -mb-2">
+                <Tag>PLAY GAMES</Tag>
+              </div>
+              <GameSelectItem
+                setGameType={setGameType}
+                gameType={GameType.PURRQUEST}
+              />
+            </div>
+
+            {profile?.cat && (
+              <div className="relative w-24 min-w-24 pixelated flex flex-col items-center justify-center">
+                <img className="w-24 h-24 -mb-6" src={profile.cat?.catImg} />
+                {!!profile.cat?.blessings?.length && (
+                  <img
+                    className="absolute inset-0 l object-cover w-12 h-12"
+                    src={`/flare-effect/${profile.cat.blessings[0].ability}.gif`}
+                  ></img>
+                )}
+
+                <PixelButton
+                  onClick={() => {
+                    setOpenedModal(GameModal.CATS);
+                  }}
+                  text="CATS"
+                ></PixelButton>
+              </div>
+            )}
+            <div className="flex flex-col gap-1">
+              <GameSelectItem
+                setGameType={setGameType}
+                gameType={GameType.SHELTER}
+              />
+              <div className="flex z-10 -mt-4 -mb-2">
+                <Tag>EXPLORE CATS</Tag>
+              </div>
+
+              <GameSelectItem
+                setGameType={setGameType}
+                gameType={GameType.HOME}
+              />
+            </div>
           </div>
-          <div className="flex min-w-0 gap-2 justify-center">
-            <img
-              onClick={() => setGameType(GameType.CATBASSADORS)}
-              className="h-full hover:brightness-110 rem:min-w-[96px] md:rem:min-w-[120px] lg:rem:min-w-[196px] xl:rem:min-w-[230px] rounded-xl hover:animate-hover"
-              src="/game/select/catbassadors.jpg"
-            />
-            <img
-              onClick={() => setGameType(GameType.PURRQUEST)}
-              className="h-full hover:brightness-110 rem:min-w-[96px] md:rem:min-w-[120px] lg:rem:min-w-[196px] xl:rem:min-w-[230px] rounded-xl hover:animate-hover"
-              src="/game/select/purrquest.jpg"
-            />
-            <img
-              onClick={() => setGameType(GameType.SHELTER)}
-              className="hidden md:block rem:min-w-[96px] md:rem:min-w-[120px] lg:rem:min-w-[196px] xl:rem:min-w-[230px] h-full hover:brightness-110 rounded-xl hover:animate-hover"
-              src="/game/select/shelter.jpg"
-            />
-            <img
-              onClick={() => setGameType(GameType.HOME)}
-              className="hidden md:block rem:min-w-[96px] md:rem:min-w-[120px] lg:rem:min-w-[196px] xl:rem:min-w-[230px] h-full hover:brightness-110 rounded-xl hover:animate-hover"
-              src="/game/select/home.jpg"
-            />
-          </div>
-          <div className="flex min-w-0 gap-2 justify-center md:hidden">
-            <img
-              onClick={() => setGameType(GameType.SHELTER)}
-              className="rem:min-w-[96px] md:rem:min-w-[150px] lg:rem:min-w-[196px] xl:rem:min-w-[230px] h-full hover:brightness-110 rounded-xl hover:animate-hover"
-              src="/game/select/shelter.jpg"
-            />
-            <img
-              onClick={() => setGameType(GameType.HOME)}
-              className="rem:min-w-[96px] md:rem:min-w-[150px] lg:rem:min-w-[196px] xl:rem:min-w-[230px] h-full hover:brightness-110 rounded-xl hover:animate-hover"
-              src="/game/select/home.jpg"
-            />
-          </div>
-          {/* <div className="flex min-w-0">
-            <img
-              onClick={() => setGameType(GameType.STORYMODE)}
-              className="rem:min-w-[200px] md:rem:min-w-[400px] h-full hover:brightness-110 rounded-xl hover:animate-hover"
-              src="/game/select/shelter-wide.jpg"
-            />
-          </div> */}
         </>
       )}
     </div>

@@ -90,7 +90,7 @@ export const GameStatsSection = ({
               }
               className="flex flex-col items-center font-secondary text-p2 bg-purple-300 bg-opacity-80 hover:bg-opacity-100 px-2 rounded-b-xl"
             >
-              <div className="">{profile.catbassadorsLives || 0}</div>
+              <div className="text-p4">{profile.catbassadorsLives || 0}</div>
               <div className="flex items-center -mt-2">
                 <img className="w-5 z-10 pr-1" src="/base/heart.png" />
                 <div className="text-p5">LIVES</div>

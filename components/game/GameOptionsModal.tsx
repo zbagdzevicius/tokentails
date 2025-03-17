@@ -55,20 +55,12 @@ export const GameOptionsModal = ({
       <GameStatsSection profile={profile} setOpenedModal={setOpenedModal} />
       {!gameType && (
         <div className="fixed z-10 bottom-8 md:bottom-4 lg:bottom-8 xl:bottom-12 left-4 right-4 pb-safe flex justify-between md:justify-center md:gap-8 items-end">
-          <div className="flex flex-col gap-4">
-            <PixelButton
-              onClick={() => {
-                setOpenedModal(GameModal.CATS);
-              }}
-              text="CATS"
-            ></PixelButton>
-            <PixelButton
-              onClick={() => {
-                setOpenedModal(GameModal.INVITE);
-              }}
-              text="GIFTS"
-            ></PixelButton>
-          </div>
+          <PixelButton
+            onClick={() => {
+              setOpenedModal(GameModal.INVITE);
+            }}
+            text="GIFTS"
+          ></PixelButton>
           <div className="flex flex-col items-center">
             {profile.canRedeemLives && (
               <div
@@ -100,20 +92,12 @@ export const GameOptionsModal = ({
               text="CLAIM REWARD"
             ></PixelButton>
           </div>
-          <div className="flex flex-col gap-4">
-            <PixelButton
-              onClick={() => {
-                setOpenedModal(GameModal.QUESTS);
-              }}
-              text="QUESTS"
-            ></PixelButton>
-            <PixelButton
-              onClick={() => {
-                setOpenedModal(GameModal.LEADERBOARD);
-              }}
-              text="CHAMPS"
-            ></PixelButton>
-          </div>
+          <PixelButton
+            onClick={() => {
+              setOpenedModal(GameModal.QUESTS);
+            }}
+            text="QUESTS"
+          ></PixelButton>
         </div>
       )}
     </>
