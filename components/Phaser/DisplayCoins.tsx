@@ -118,7 +118,12 @@ export const DisplayCoins: React.FC<{}> = () => {
           backgroundPosition: "center",
         }}
       >
-        <img className="w-6 h-6" src="/logo/coin.webp" alt="Coin" />
+        <img
+          draggable={false}
+          className="w-6 h-6"
+          src="/logo/coin.webp"
+          alt="Coin"
+        />
         <div className="text-p4 flex items-center gap-1">
           <div>COINS</div>
         </div>
@@ -141,6 +146,7 @@ export const DisplayCoins: React.FC<{}> = () => {
         <div className="inline-flex items-center justify-center absolute top-[43%] left-1/2 transform -translate-x-[50%] -translate-y-1/2 text-yellow-500 text-p3 font-bold">
           +{displayAmount}
           <img
+            draggable={false}
             src="/catbassadors/coin.gif"
             className="w-16 h-16"
             alt="Coin animation"
@@ -153,6 +159,7 @@ export const DisplayCoins: React.FC<{}> = () => {
         <div className="inline-flex items-center justify-center absolute top-10 left-1/2 transform -translate-x-[50%] -translate-y-1/2">
           <div className="relative w-14 h-14">
             <img
+              draggable={false}
               src={`/buff/${powerUpType}-ICON.png`}
               className="absolute top-0 left-0 w-full h-full"
               alt="buff icon"

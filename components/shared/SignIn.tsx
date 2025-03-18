@@ -121,18 +121,22 @@ export const SignInContent = () => {
         </div>
       )}
       <img
+        draggable={false}
         className="absolute bottom-0 right-2 h-8"
         src="/meme-cats/meme-23.gif"
       />
       <img
+        draggable={false}
         className="absolute bottom-0 left-2 h-8"
         src="/meme-cats/meme-1.gif"
       />
       <img
+        draggable={false}
         className="absolute top-2 left-2 h-12"
         src="/meme-cats/meme-46.gif"
       />
       <img
+        draggable={false}
         className="absolute top-0 right-2 h-16"
         src="/meme-cats/meme-40.gif"
       />

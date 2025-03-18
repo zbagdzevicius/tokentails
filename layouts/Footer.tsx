@@ -43,6 +43,7 @@ export const Footer: React.FC = () => {
         <div className="flex flex-wrap items-center container md:justify-around justify-between lg:px-24">
           <div className="flex items-center gap-4">
             <img
+              draggable={false}
               className="h-24 flex-1 object-contain object-left"
               src="/logo/logo.webp"
               alt="logo"

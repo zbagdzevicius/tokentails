@@ -90,6 +90,30 @@ const campTestnet = defineChain({
   testnet: true,
 });
 
+const torus = defineChain({
+  id: 8192,
+  chainNamespace: "eip155",
+  caipNetworkId: `eip155:${8192}`,
+  name: "Torus Mainnet",
+  nativeCurrency: {
+    decimals: 18,
+    name: "Torus Mainnet",
+    symbol: "TQF",
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://rpc.toruschain.com"],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: "Torus Scan",
+      url: "https://toruscan.com",
+    },
+  },
+  testnet: false,
+});
+
 export const chainTypeId: Record<ChainType, number> = {
   [ChainType.BNB]: bsc.id,
   [ChainType.BNB_TEST]: bscTestnet.id,
@@ -101,6 +125,7 @@ export const chainTypeId: Record<ChainType, number> = {
   [ChainType.STELLAR_TEST]: 0,
   [ChainType.SOLANA]: 0,
   [ChainType.SOLANA_TEST]: 0,
+  [ChainType.TORUS]: torus.id,
 };
 
 export const idChainType: Record<number, ChainType> = {
@@ -109,6 +134,8 @@ export const idChainType: Record<number, ChainType> = {
   [skaleNebula.id]: ChainType.SKALE,
   [skaleNebulaTestnet.id]: ChainType.SKALE_TEST,
   [zetachain.id]: ChainType.ZETA,
+  [campTestnet.id]: ChainType.CAMP_TEST,
+  [torus.id]: ChainType.TORUS,
   [0]: ChainType.STELLAR,
   [1]: ChainType.STELLAR_TEST,
 };
@@ -126,7 +153,9 @@ export const solanaWallets = [
 ];
 
 // Create wagmiConfig
-export const networks = isProd ? [bsc, campTestnet] : [bscTestnet, campTestnet];
+export const networks = isProd
+  ? [bsc, campTestnet, torus]
+  : [bscTestnet, campTestnet, torus];
 
 export const wagmiAdapter = new WagmiAdapter({
   networks,

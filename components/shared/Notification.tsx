@@ -20,12 +20,14 @@ export const Notification = ({
       >
         <div className="flex flex-col text-center items-center justify-center">
           <img
+            draggable={false}
             src="utilities/ui-elements/emblem.png"
             className="relative w-32 md:w-40 lg:w-48 rounded-full"
           />
 
           {icon && (
             <img
+              draggable={false}
               className={`w-14 md:w-[72px] lg:w-20 absolute top-0 translate-y-1 ${
                 isError ? "blur-sm" : ""
               }`}

@@ -166,6 +166,7 @@ const TeamMember = ({ img, name, role, socials }: ITeamMember) => {
   return (
     <div className="text-center hover:brightness-125">
       <img
+        draggable={false}
         className="mx-auto mb-2 w-36 h-36 object-contain"
         src={img}
         alt={name}

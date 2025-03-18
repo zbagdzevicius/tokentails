@@ -51,6 +51,7 @@ const CatsSection = ({ title, description, isActive, img, onSet }: IProps) => {
                 }`}
         >
           <img
+            draggable={false}
             className={`h-8 max-lg:h-4 max-lg:w-4 w-8 shrink-0 fill-accent-100 transition ase-in-out duration-700 ${
               isActive ? "rotate-[-180deg]" : ""
             }`}
@@ -70,7 +71,7 @@ const CatsSection = ({ title, description, isActive, img, onSet }: IProps) => {
           isActive ? "" : "hidden"
         }`}
       >
-        <img className="rounded-full w-24" src={img} />
+        <img draggable={false} className="rounded-full w-24" src={img} />
         <div className="flex flex-col items-start">
           <div>{description}</div>
           <a target="_blank" href="/game">
@@ -100,6 +101,7 @@ export const CatsHub = () => {
         <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1 max-lg:mx-5 my-0 sm:my-10 items-center">
           <div className="relative m-auto rounded-2xl sm:rounded-[80px] overflow-hidden -mb-8 sm:mb-0 hover:brightness-110">
             <img
+              draggable={false}
               src="/images/cats-hub/cards-bg.webp"
               alt="Cats Background"
               className="w-40 aspect-square sm:w-full sm:h-full"
@@ -107,6 +109,7 @@ export const CatsHub = () => {
               height={200}
             />
             <img
+              draggable={false}
               src="/images/cats-hub/cat-with-hat.webp"
               alt="cats"
               className="absolute inset-0 w-40 aspect-square sm:w-full sm:h-full object-contain z-3"

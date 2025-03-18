@@ -26,7 +26,11 @@ export const Airdrop = () => {
               target="_blank"
               className="flex items-center gap-2 justify-center"
             >
-              <img className="w-8 lg:w-16" src={SocialImages.X} />
+              <img
+                draggable={false}
+                className="w-8 lg:w-16"
+                src={SocialImages.X}
+              />
               <div className="">FOLLOWED ON X</div>
             </a>
             <a
@@ -34,15 +38,24 @@ export const Airdrop = () => {
               target="_blank"
               className="flex items-center gap-2 justify-center"
             >
-              <img className="w-8 lg:w-16" src={SocialImages.TELEGRAM} />
+              <img
+                draggable={false}
+                className="w-8 lg:w-16"
+                src={SocialImages.TELEGRAM}
+              />
               <div className="">JOINED TELEGRAM</div>
             </a>
             <li className="flex items-center gap-2 justify-center">
-              <img className="w-8 lg:w-16" src="/logo/rocket.png" />
+              <img
+                draggable={false}
+                className="w-8 lg:w-16"
+                src="/logo/rocket.png"
+              />
               <div className="text-nowrap">REACHED 30 DAYS STREAK</div>
             </li>
             <li className="flex items-center gap-2 justify-center">
               <img
+                draggable={false}
                 className="w-8 lg:w-16"
                 src="/images/cats-slider/joy-cat.webp"
               />
@@ -50,6 +63,7 @@ export const Airdrop = () => {
             </li>
             <li className="flex items-center gap-2 justify-center">
               <img
+                draggable={false}
                 className="w-8 lg:w-16"
                 src="/images/cats-slider/coin-cat.webp"
               />

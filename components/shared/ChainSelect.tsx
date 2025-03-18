@@ -33,6 +33,7 @@ export const ChainSelect = () => {
                   : namespaceOption}
               </div>
               <img
+                draggable={false}
                 className={`transition ${
                   namespace === namespaceOption
                     ? "w-8"
@@ -60,6 +61,7 @@ export const ChainSelect = () => {
             >
               <div className="text-p4 font-secondary">{currency}</div>
               <img
+                draggable={false}
                 className={`transition ${
                   currencyType === currency
                     ? "w-8"

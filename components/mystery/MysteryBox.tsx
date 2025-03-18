@@ -39,9 +39,13 @@ const MysteryBoxEligibility = ({
     >
       <div className="flex items-center gap-2 font-bold font-secondary text-p2">
         {isEligible ? (
-          <img className="w-8" src="/icons/check.webp" />
+          <img draggable={false} className="w-8" src="/icons/check.webp" />
         ) : (
-          <img className="w-8" src="/purrquest/sprites/key.png" />
+          <img
+            draggable={false}
+            className="w-8"
+            src="/purrquest/sprites/key.png"
+          />
         )}
         {text}
       </div>
@@ -137,6 +141,7 @@ export const MysteryBox = () => {
       <div className="flex justify-center items-center flex-col md:flex-row md:gap-4">
         <div>
           <img
+            draggable={false}
             className="w-64 aspect-square rounded-2xl mt-2 mb-4"
             src={mysteryBox.image}
           />
@@ -176,15 +181,23 @@ export const MysteryBox = () => {
         <div className="flex w-full justify-between">
           {mysteryBoxes.CAMP_TEST?.map((box, i) => (
             <div key={i} className="relative rounded-2xl overflow-hidden">
-              <img className="w-16 md:w-24" src={box.image} />
+              <img draggable={false} className="w-16 md:w-24" src={box.image} />
               {i < (unlockedIndex ?? 0) && (
                 <div className="absolute inset-0 flex items-center justify-center bg-green-300/50">
-                  <img className="w-8" src="/icons/check.webp" />
+                  <img
+                    draggable={false}
+                    className="w-8"
+                    src="/icons/check.webp"
+                  />
                 </div>
               )}
               {i > (unlockedIndex ?? 0) && (
                 <div className="absolute inset-0 flex items-center justify-center bg-red-300/50">
-                  <img className="w-8" src="/purrquest/sprites/key.png" />
+                  <img
+                    draggable={false}
+                    className="w-8"
+                    src="/purrquest/sprites/key.png"
+                  />
                 </div>
               )}
             </div>

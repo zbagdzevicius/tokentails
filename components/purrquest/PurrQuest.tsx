@@ -88,12 +88,20 @@ const Purrquest = () => {
             </div>
             <div className="flex gap-2 items-center font-secondary text-p3">
               <span>Find KEY</span>
-              <img className="h-8" src="purrquest/sprites/key.png"></img>
+              <img
+                draggable={false}
+                className="h-8"
+                src="purrquest/sprites/key.png"
+              ></img>
             </div>
             <div className="flex flex-col items-center">
               <div className="flex flex-row items-center gap-2  font-secondary text-p3">
                 <span className="whitespace-nowrap">OPEN TREASURE</span>
-                <img className="h-8" src="logo/chest.webp"></img>
+                <img
+                  draggable={false}
+                  className="h-8"
+                  src="logo/chest.webp"
+                ></img>
               </div>
               <div className="sm:hidden lg:flex ">
                 <PixelButton
@@ -111,9 +119,9 @@ const Purrquest = () => {
               <Tag>PRIZE</Tag>
             </div>
             <div className="flex gap-2 justify-center items-center font-secondary text-p3 mt-2">
-              <img className="h-8" src="logo/coin.webp"></img>
+              <img draggable={false} className="h-8" src="logo/coin.webp"></img>
               <span className="whitespace-nowrap">WIN 5000+</span>
-              <img className="h-8" src="logo/coin.webp"></img>
+              <img draggable={false} className="h-8" src="logo/coin.webp"></img>
             </div>
             <div className="flex gap-2 justify-center items-center font-secondary text-p5">
               <span>REACH THE TOP FOR WEEKLY PRIZE</span>

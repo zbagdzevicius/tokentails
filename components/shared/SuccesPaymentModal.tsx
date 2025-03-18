@@ -12,6 +12,7 @@ export const SuccesPaymentModal = ({ close }: ISuccesPaymentModal) => {
       <div className="relative w-full width: max-w-[85%] md:rem:max-w-[600px] bg-gradient-to-b from-purple-300 to-blue-300 rounded-lg shadow-lg overflow-hidden">
         <CloseButton onClick={close} />
         <img
+          draggable={false}
           className="w-full h-auto object-contain"
           src="/background/succes-payment.jpg"
           alt="Success Payment"

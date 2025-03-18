@@ -15,11 +15,13 @@ const Cat = ({ profile }: { profile?: IProfile | null }) => {
   return (
     <div className="relative">
       <img
+        draggable={false}
         className="w-32 m-auto pixelated -mt-8 -mb-8 md:mb-0 md:-mt-8 relative z-10"
         src={profile?.cat?.catImg || "/logo/logo.webp"}
       />
       {(profile?.cat.blessings?.length || 0) > 0 && (
         <img
+          draggable={false}
           className="absolute m-auto inset-0 object-cover translate-y-1 w-32 h-32 -mt-4 z-0"
           src={`/flare-effect/${profile!.cat.blessings[0].ability}.gif`}
         ></img>
@@ -145,7 +147,7 @@ export const TelegramProfileContent = () => {
         <ul className="m-auto font-primary">
           <Tag>Hello, {profile.name} !</Tag>
           <li className="flex items-center gap-x-2 mb-4 justify-center mt-4">
-            <img className="w-8" src="/logo/coin.webp" />
+            <img draggable={false} className="w-8" src="/logo/coin.webp" />
             <div className="flex font-secondary text-p3 gap-2">
               Coins:{" "}
               <span className="font-bold">{commafy(profile.catpoints)}</span>

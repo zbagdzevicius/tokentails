@@ -7,11 +7,11 @@ export const Tokenomics = () => {
   return (
     <div className="pb-4 md:mx-auto flex flex-col items-center max-w-[1780px]">
       <div className="flex justify-center items-center gap-4">
-        <img src="/logo/coin.webp" className="w-14" />
+        <img draggable={false} src="/logo/coin.webp" className="w-14" />
         <h2 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl">
           $TAILS Tokens
         </h2>
-        <img src="/logo/coin.webp" className="w-14" />
+        <img draggable={false} src="/logo/coin.webp" className="w-14" />
       </div>
       <div className="flex justify-center items-center gap-4 w-full mb-4">
         <a href="/game">

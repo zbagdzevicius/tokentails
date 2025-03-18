@@ -3,14 +3,19 @@ import React, { useEffect } from "react";
 
 export default function giveaway() {
   useEffect(() => {
-    window.location.href = 'https://x.com/tokentails/status/1806277853970825543'
-  }, [])
+    window.location.href =
+      "https://x.com/tokentails/status/1806277853970825543";
+  }, []);
   return (
     <>
       <Head>
         <title>Token Tails - Play to Save</title>
         <meta property="og:image" content="/airdrop-3.jpg" />
-        <meta property="og:title" content="Token Tails Meme contest" key="title" />
+        <meta
+          property="og:title"
+          content="Token Tails Meme contest"
+          key="title"
+        />
         <meta
           name="description"
           content="Think you’ve got the best cat meme? 😸 Show us to win a piece from $1000 in $TAILS! 🎁"
@@ -24,6 +29,7 @@ export default function giveaway() {
       <div className="absolute bottom-0 right-0 flex justify-center">
         <a href="/" className="p-3 md:p-8">
           <img
+            draggable={false}
             className="h-12 md:h-24 flex-1 object-contain object-left"
             src="/logo/logo.webp"
             alt="logo"

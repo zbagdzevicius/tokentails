@@ -33,7 +33,7 @@ export const FeedActions = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <span className="rounded-full grid place-items-center text-p1 text-accent-600 mr-2">
-              <img className="w-4" src="/logo/paw.png" />
+              <img draggable={false} className="w-4" src="/logo/paw.png" />
             </span>
             <span className="text-gray-500 text-p5">
               {getRandomNumber(link, new Date())} Paws
@@ -44,7 +44,7 @@ export const FeedActions = ({
               {Math.ceil(getRandomNumber(`${link}-share`, new Date()) / 10)}{" "}
               Shares
             </span>
-            <img className="w-4 ml-2" src="/logo/coin.webp" />
+            <img draggable={false} className="w-4 ml-2" src="/logo/coin.webp" />
           </div>
         </div>
       </div>
@@ -62,7 +62,11 @@ export const FeedActions = ({
                   }
                 )}
               >
-                <img src="/logo/paw.png" className="w-6 h-6" />
+                <img
+                  draggable={false}
+                  src="/logo/paw.png"
+                  className="w-6 h-6"
+                />
                 <div className="text-p4 font-semibold ml-2">
                   {isLiked ? "Pawed" : "Paw"}
                 </div>
@@ -72,14 +76,22 @@ export const FeedActions = ({
               onClick={() => setCommentModalOpened(true)}
               className="group cursor-pointer w-1/3 flex justify-center items-center hover:bg-gray-100 text-xl rounded-md text-gray-500 rem:h-[38px]"
             >
-              <img src="/logo/comments.png" className="w-6 h-6" />
+              <img
+                draggable={false}
+                src="/logo/comments.png"
+                className="w-6 h-6"
+              />
               <div className="text-p4 font-semibold ml-2 leading-3">Meows</div>
             </a>
             <a
               onClick={() => setShareModalOpened(true)}
               className="w-1/3 cursor-pointer flex group justify-center items-center hover:bg-gray-100 text-xl rounded-md text-gray-500 rem:h-[38px] group relative"
             >
-              <img src="/logo/coin.webp" className="w-6 h-6" />
+              <img
+                draggable={false}
+                src="/logo/coin.webp"
+                className="w-6 h-6"
+              />
               <div className="text-p4 font-semibold ml-2">Share</div>
               <Share url={link!} />
             </a>

@@ -26,10 +26,12 @@ export const FeedbackSlider = () => {
           className="relative flex items-center justify-center w-48 h-48 rounded-2xl overflow-hidden hover:brightness-110 transition-all duration-300"
         >
           <img
+            draggable={false}
             src="/logo/shelters/pink-paw.webp"
             className="pixelated w-32 h-32 relative z-10"
           />
           <img
+            draggable={false}
             src="/logo/shelters/lt.webp"
             className="absolute inset-0 z-0 w-full h-full object-cover"
             rounded-2xl

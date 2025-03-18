@@ -89,11 +89,13 @@ export const Calendar = ({ isRelative }: IProps) => {
         onClick={handleCalendarClick}
       >
         <img
+          draggable={false}
           className="relative z-10"
           src="advent-calendar/calendar.png"
           alt="Advent calendar"
         />
         <img
+          draggable={false}
           className="absolute -left-5 -top-3 w-9 h-9 -rotate-[33deg] z-0"
           src={currentDayCoin}
           alt={`Coin of the day`}
@@ -110,6 +112,7 @@ export const Calendar = ({ isRelative }: IProps) => {
         </h2>
         {currentDayData && (
           <img
+            draggable={false}
             className="absolute bottom-2 h-7 w-7  z-10"
             src={currentDayData.image}
             alt={`Day ${currentDay} image`}

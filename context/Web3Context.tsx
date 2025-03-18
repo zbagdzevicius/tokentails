@@ -1,8 +1,10 @@
 import { ITransactionStatus } from "@/api/order-api";
 import { useTokenPrice } from "@/components/web3/useTokenPrice";
+import { isProd } from "@/models/app";
 import {
   ChainNamespace,
   ChainNamespacesCurrencies,
+  ChainType,
   currencyContracts,
   CurrencyType,
 } from "@/web3/contracts";
@@ -23,6 +25,7 @@ type ContextState = {
   solRate?: number;
   stellarAddress?: string;
   solanaAddress?: PublicKey | null;
+  chainType: ChainType;
   setStellarConnected: (stellarConnected: boolean) => void;
   setStellarAddress: (stellarAddress: string) => void;
   namespace: ChainNamespace;
@@ -56,6 +59,9 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
 
   const [stellarConnected, setStellarConnected] = React.useState(false);
   const [stellarAddress, setStellarAddress] = React.useState<string>();
+  const [chainType, setChainType] = React.useState<ChainType>(
+    isProd ? ChainType.BNB : ChainType.BNB_TEST
+  );
 
   const { publicKey: solanaAddress, connected: solanaConnected } =
     useSolanaWallet();
@@ -63,6 +69,20 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
   const [namespace, setNamespace] = React.useState<ChainNamespace>(
     ChainNamespace.STELLAR
   );
+  React.useEffect(() => {
+    if (namespace === ChainNamespace.TORUS) {
+      setChainType(ChainType.TORUS);
+    }
+    if (namespace === ChainNamespace.EVM) {
+      setChainType(isProd ? ChainType.BNB : ChainType.BNB_TEST);
+    }
+    if (namespace === ChainNamespace.SOLANA) {
+      setChainType(ChainType.SOLANA);
+    }
+    if (namespace === ChainNamespace.STELLAR) {
+      setChainType(isProd ? ChainType.BNB : ChainType.BNB_TEST);
+    }
+  }, [namespace, setChainType]);
 
   const [currencyType, setCurrencyType] = React.useState(CurrencyType.USDT);
   const [price, setPrice] = React.useState();
@@ -85,6 +105,10 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
       [ChainNamespace.SOLANA]: {
         connected: solanaConnected,
         address: solanaAddress?.toString(),
+      },
+      [ChainNamespace.TORUS]: {
+        connected: isConnected,
+        address: address,
       },
     };
   }, [
@@ -125,6 +149,7 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
         currencyType,
         price,
         query,
+        chainType,
         namespaceDetail,
         setCurrencyType,
         setPrice,

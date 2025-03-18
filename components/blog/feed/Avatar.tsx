@@ -12,6 +12,7 @@ export const Avatar = ({
     <>
       {!!avatarSrc ? (
         <img
+          draggable={false}
           className={classNames("", {
             "w-16 h-16": size === "big",
             "w-7 h-7": size === "small",
@@ -22,13 +23,10 @@ export const Avatar = ({
         />
       ) : (
         <div
-          className={classNames(
-            "bx bxs-user-circle text-primary",
-            {
-              "text-h5": ["small", "full"].includes(size),
-              "text-h2": size === "big",
-            }
-          )}
+          className={classNames("bx bxs-user-circle text-primary", {
+            "text-h5": ["small", "full"].includes(size),
+            "text-h2": size === "big",
+          })}
         ></div>
       )}
     </>

@@ -168,6 +168,7 @@ export const HomePage = () => {
             {cats.map((banner, index) => (
               <div key={index} className="slide">
                 <img
+                  draggable={false}
                   src={banner.image}
                   alt={banner.title}
                   width={100}
@@ -181,6 +182,7 @@ export const HomePage = () => {
           <div className="relative pt-2 md:pt-20 md:px-8 flex items-center justify-center">
             <div className="relative w-full hover:brightness-110">
               <img
+                draggable={false}
                 src="/images/home-page/tamagotchi.webp"
                 alt="Cats Background"
                 className="rem:w-[340px] sm:rem:w-[600px] sm:rem:pl-[50px] pt-1 lg:pb-5 rem:h-[400px] sm:rem:h-[640px] relative z-[1] block"
@@ -195,6 +197,7 @@ export const HomePage = () => {
                 <source src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/videos/trailer-2024-09.mp4" />
               </video>
               <img
+                draggable={false}
                 src="/images/home-page/rocket-cat.webp"
                 alt="Cat Hero"
                 className="absolute top-16 md:top-5 -right-2 md:-right-8 w-16 -rotate-45 md:rotate-0 md:w-36 overflow-hidden z-0"
@@ -206,11 +209,13 @@ export const HomePage = () => {
       <div className="flex gap-16 md:gap-20 items-center mb-4 -mt-24 md:-mt-40 -skew-x-[1deg] md:-skew-x-[1deg] skew-y-[5deg] relative z-30 ">
         <a href="/game" className="relative">
           <img
+            draggable={false}
             src="/logo/coin.webp"
             alt="coin"
             className="h-12 w-12 absolute bottom-0 top-0 -left-6"
           />
           <img
+            draggable={false}
             src="/logo/chest.webp"
             alt="coin"
             className="h-12 w-12 absolute bottom-0 top-0 -right-6"
@@ -226,11 +231,13 @@ export const HomePage = () => {
           className="font-secondary relative"
         >
           <img
+            draggable={false}
             src="/logo/boss-coin.png"
             alt="coin"
             className="h-12 w-12 absolute bottom-0 top-0 -right-6"
           />
           <img
+            draggable={false}
             src="/logo/level.png"
             alt="coin"
             className="h-12 w-12 absolute bottom-0 top-0 -left-6"
@@ -248,7 +255,7 @@ export const HomePage = () => {
         <div className="slide-track">
           {sponsorImage.map((sponsor, index) => (
             <div key={index} className="slide flex items-center">
-              <img className="h-10 w-auto" src={sponsor} />
+              <img draggable={false} className="h-10 w-auto" src={sponsor} />
             </div>
           ))}
         </div>

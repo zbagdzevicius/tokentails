@@ -21,6 +21,7 @@ export const MobileButtons: React.FC<{
             }}
           >
             <img
+              draggable={false}
               className="h-full w-auto"
               src="game/controls/dash.png"
               alt="Dash"
@@ -34,6 +35,7 @@ export const MobileButtons: React.FC<{
             }}
           >
             <img
+              draggable={false}
               className="h-full w-auto"
               src="game/controls/jump-moba.png"
               alt="Jump"
@@ -47,6 +49,7 @@ export const MobileButtons: React.FC<{
             }}
           >
             <img
+              draggable={false}
               className="h-full w-auto"
               src="game/controls/knockback-spell.png"
               alt="Jump"

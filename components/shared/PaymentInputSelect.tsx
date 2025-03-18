@@ -48,6 +48,7 @@ const PaymentInputSelect = ({
               />
               <div className="flex items-center justify-center px-1">
                 <img
+                  draggable={false}
                   src={`/currency/${currencyType}.webp`}
                   alt="Selected currency"
                   className="h-12 w-12 absolute -right-0.5"
@@ -69,6 +70,7 @@ const PaymentInputSelect = ({
               />
               <div className="flex items-center justify-center px-1">
                 <img
+                  draggable={false}
                   src={`/logo/coin.webp`}
                   alt="Selected currency"
                   className="w-12 h-12 absolute -right-0.5 group-hover:animate-spin"
@@ -78,7 +80,7 @@ const PaymentInputSelect = ({
           </div>
         </div>
       )}
-      <Web3Transfer price={price!} amount={amountOfTails} disabled={disabled}/>
+      <Web3Transfer price={price!} amount={amountOfTails} disabled={disabled} />
     </div>
   );
 };

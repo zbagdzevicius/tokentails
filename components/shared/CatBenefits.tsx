@@ -19,6 +19,7 @@ export const CatBenefits = ({
           style={{ backgroundColor: cardsColor[cat.type] || "bg-red-600" }}
         >
           <img
+            draggable={false}
             className="w-16 z-10 pixelated -ml-8 -my-1"
             src={cat.catImg}
             alt={cat.name}
@@ -39,6 +40,7 @@ export const CatBenefits = ({
           </span>
           {!!cat.blessings?.length && (
             <img
+              draggable={false}
               className="w-12 rounded-xl z-10 -mr-4 ml-2 -my-1"
               src={cat.blessings?.[0].image?.url}
               alt={cat.name}
@@ -46,7 +48,11 @@ export const CatBenefits = ({
           )}
         </div>
         <div className="text-p4 bg-red-600 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 bg-opacity-60 hover:bg-opacity-80 mb-2 border-2 rounded-xl border-main-black">
-          <img src="/logo/coin.webp" className="w-8 h-8 mr-3 -ml-5" />
+          <img
+            draggable={false}
+            src="/logo/coin.webp"
+            className="w-8 h-8 mr-3 -ml-5"
+          />
           <span className="flex flex-col">
             <span className="text-p5 -mb-1 text-gray-200">EARN MORE COINS</span>
             <span>X{getMultiplier(cat)} multiplier</span>
@@ -54,7 +60,11 @@ export const CatBenefits = ({
         </div>
         {cat.price && (
           <div className="text-p4 bg-green-600 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 bg-opacity-60 hover:bg-opacity-80 mb-2 border-2 rounded-xl border-main-black">
-            <img src="/logo/rocket.png" className="w-8 h-8 mr-3 -ml-4" />
+            <img
+              draggable={false}
+              src="/logo/rocket.png"
+              className="w-8 h-8 mr-3 -ml-4"
+            />
             <span className="flex flex-col text-gray-200">
               <span className="text-p5 -mb-1">GET AIRDROP</span>
               <span>{isOwned ? "BECAME ELIGIBLE" : "BECOME ELIGIBLE"}</span>
@@ -63,7 +73,11 @@ export const CatBenefits = ({
         )}
         {!!discountPercentage && (
           <div className="text-p4 bg-blue-600 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 bg-opacity-60 hover:bg-opacity-80 mb-2 border-2 rounded-xl border-main-black">
-            <img src="/logo/chest.webp" className="w-8 h-7 mr-3 -ml-4" />
+            <img
+              draggable={false}
+              src="/logo/chest.webp"
+              className="w-8 h-7 mr-3 -ml-4"
+            />
             <span className="flex flex-col text-gray-200">
               <span className="text-p5 -mb-1">
                 {isOwned ? "OWNED WITH DISCOUNT" : "EXCLUSIVE PRICE"}
@@ -75,6 +89,7 @@ export const CatBenefits = ({
         {!!cat.blessings?.length && (
           <div className="text-p4 bg-purple-600 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 bg-opacity-60 hover:bg-opacity-80 mb-2 border-2 rounded-xl border-main-black">
             <img
+              draggable={false}
               className="w-12 h-12 mr-3 -ml-6 pixelated"
               src={`/flare-effect/${cat.blessings[0]?.ability}.gif`}
             ></img>
@@ -90,6 +105,7 @@ export const CatBenefits = ({
           (!!cat.blessings?.length && (
             <div className="text-p4 bg-gray-500 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 bg-opacity-60 hover:bg-opacity-80 mb-2 border-2 rounded-xl border-main-black">
               <img
+                draggable={false}
                 src="/logo/ai.webp"
                 className="w-8 h-8 mr-3 -ml-4 pixelated"
               />

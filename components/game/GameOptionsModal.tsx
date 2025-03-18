@@ -72,11 +72,19 @@ export const GameOptionsModal = ({
                 }}
               >
                 <div className="flex items-center gap-1">
-                  <img className="w-6 z-10" src="/base/heart.png" />
+                  <img
+                    draggable={false}
+                    className="w-6 z-10"
+                    src="/base/heart.png"
+                  />
                   <div className="text-p5">3 LIVES</div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <img className="w-6 z-10" src="/logo/coin.webp" />
+                  <img
+                    draggable={false}
+                    className="w-6 z-10"
+                    src="/logo/coin.webp"
+                  />
                   <div className="text-p5 mt-1">
                     {numberOfPointsToRedeem} COINS
                   </div>

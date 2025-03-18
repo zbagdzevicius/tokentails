@@ -246,6 +246,7 @@ export const AdventCalendar = ({ setSelectedCat }: IProps) => {
             <div className="relative" key={day}>
               {daysCoins[dayNumber] && (
                 <img
+                  draggable={false}
                   className="absolute -top-5 -left-4 w-9 h-9 -rotate-[33deg] -z-10"
                   src={daysCoins[dayNumber]}
                   alt={`Coin for Day ${dayNumber}`}
@@ -278,6 +279,7 @@ export const AdventCalendar = ({ setSelectedCat }: IProps) => {
                 >
                   <div className="flex items-center justify-center h-full">
                     <img
+                      draggable={false}
                       className="absolute w-full h-full"
                       src="advent-calendar/calendar-note.png"
                     />
@@ -294,6 +296,7 @@ export const AdventCalendar = ({ setSelectedCat }: IProps) => {
                       )}
                     </h2>
                     <img
+                      draggable={false}
                       className={`absolute aspect-square ${
                         content.isOpened && content.cat
                           ? "lg:bottom-8 rem:bottom-[22px] w-16 lg:w-20 -mb-6"

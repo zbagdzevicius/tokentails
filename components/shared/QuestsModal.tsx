@@ -280,9 +280,17 @@ export const QuestsModalContent = () => {
                 >
                   <div className="flex gap-2 items-center">
                     {profile?.quests?.includes(quest.key) ? (
-                      <img className="w-10" src="icons/check.webp" />
+                      <img
+                        draggable={false}
+                        className="w-10"
+                        src="icons/check.webp"
+                      />
                     ) : (
-                      <img className="w-10" src={quest.icon} />
+                      <img
+                        draggable={false}
+                        className="w-10"
+                        src={quest.icon}
+                      />
                     )}
                     <PixelButton
                       text={quest.name}
@@ -292,6 +300,7 @@ export const QuestsModalContent = () => {
                   </div>
                   <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
                     <img
+                      draggable={false}
                       className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
                       src="/logo/coin.webp"
                     />
@@ -312,9 +321,17 @@ export const QuestsModalContent = () => {
                 >
                   <div className="flex relative gap-2 items-center">
                     {profile?.quests?.includes(quest.key) ? (
-                      <img className="w-10" src="icons/check.webp" />
+                      <img
+                        draggable={false}
+                        className="w-10"
+                        src="icons/check.webp"
+                      />
                     ) : (
-                      <img className="w-10" src={quest.icon} />
+                      <img
+                        draggable={false}
+                        className="w-10"
+                        src={quest.icon}
+                      />
                     )}
                     <PixelButton
                       text={quest.name}
@@ -324,6 +341,7 @@ export const QuestsModalContent = () => {
                   </div>
                   <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
                     <img
+                      draggable={false}
                       className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
                       src="/logo/coin.webp"
                     />
@@ -344,9 +362,17 @@ export const QuestsModalContent = () => {
                 >
                   <div className="flex relative gap-2 items-center">
                     {profile?.quests?.includes(quest._id) ? (
-                      <img className="w-10" src="icons/check.webp" />
+                      <img
+                        draggable={false}
+                        className="w-10"
+                        src="icons/check.webp"
+                      />
                     ) : (
-                      <img className="w-10" src={quest?.image?.url} />
+                      <img
+                        draggable={false}
+                        className="w-10"
+                        src={quest?.image?.url}
+                      />
                     )}
                     <PixelButton
                       text={quest.name}
@@ -356,6 +382,7 @@ export const QuestsModalContent = () => {
                   </div>
                   <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
                     <img
+                      draggable={false}
                       className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
                       src="/logo/coin.webp"
                     />

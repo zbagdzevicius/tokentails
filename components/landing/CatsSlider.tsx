@@ -42,6 +42,7 @@ export const CatsSlider = () => {
       className={`relative flex items-center justify-center aspect-w-16 aspect-h`}
     >
       <img
+        draggable={false}
         src={item.img}
         alt="cats"
         className={`object-cover rounded-3xl w-full ${
@@ -51,7 +52,11 @@ export const CatsSlider = () => {
         height={300}
       />
       <div className="absolute -bottom-4 z-20">
-        <PixelButton active={activeSlide === item.title} text={item.title} isBig></PixelButton>
+        <PixelButton
+          active={activeSlide === item.title}
+          text={item.title}
+          isBig
+        ></PixelButton>
       </div>
       {activeSlide === item.title && (
         <div className="absolute z-30 font-tertiary inset-0 justify-center items-center lg:items-start lg:pt-2 xl:items-center xl:pt-0 flex text-black px-6 md:px-2 text-p5 md:text-p4 font-bold text-center">

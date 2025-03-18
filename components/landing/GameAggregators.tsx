@@ -98,7 +98,11 @@ export const GameAggregators = () => {
             target="_blank"
             className="hover:brightness-150 hover:scale-110"
           >
-            <img src={sponsorImage.src} className="h-12 w-auto" />
+            <img
+              draggable={false}
+              src={sponsorImage.src}
+              className="h-12 w-auto"
+            />
           </a>
         ))}
       </div>

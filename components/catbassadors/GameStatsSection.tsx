@@ -28,7 +28,7 @@ export const GameStatSection = ({
     >
       <div className="text-p4">{title}</div>
       <div className="flex items-center gap-1 -mt-1">
-        <img className="w-6 h-6" src={image} />
+        <img draggable={false} className="w-6 h-6" src={image} />
         <div className="text-p2">{stat}</div>
       </div>
     </button>
@@ -66,9 +66,14 @@ export const GameStatsSection = ({
         >
           {profile.cat && (
             <div className="relative -mb-2">
-              <img className="w-12 h-12" src={profile.cat?.catImg} />
+              <img
+                draggable={false}
+                className="w-12 h-12"
+                src={profile.cat?.catImg}
+              />
               {!!profile.cat?.blessings?.length && (
                 <img
+                  draggable={false}
                   className="absolute inset-0 l object-cover w-12 h-12"
                   src={`/flare-effect/${profile.cat.blessings[0].ability}.gif`}
                 ></img>
@@ -92,7 +97,11 @@ export const GameStatsSection = ({
             >
               <div className="text-p4">{profile.catbassadorsLives || 0}</div>
               <div className="flex items-center -mt-2">
-                <img className="w-5 z-10 pr-1" src="/base/heart.png" />
+                <img
+                  draggable={false}
+                  className="w-5 z-10 pr-1"
+                  src="/base/heart.png"
+                />
                 <div className="text-p5">LIVES</div>
               </div>
             </div>
@@ -109,7 +118,7 @@ export const GameStatsSection = ({
             backgroundPosition: "center",
           }}
         >
-          <img className="w-6 h-6" src="/logo/coin.webp" />
+          <img draggable={false} className="w-6 h-6" src="/logo/coin.webp" />
           <div className="text-p4 flex items-center gap-1">
             <div>COINS</div>
           </div>

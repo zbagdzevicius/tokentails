@@ -43,6 +43,7 @@ export const InviteModalContent = () => {
           <div className="flex flex-col mb-4">
             <div className="flex flex-row items-center">
               <img
+                draggable={false}
                 className="w-7 md:w-8 md:h-8 lg:w-10 lg:h-10 h-7 mr-1"
                 src="/logo/coin.png"
               />
@@ -52,6 +53,7 @@ export const InviteModalContent = () => {
             </div>
             <div className="flex flex-row items-center">
               <img
+                draggable={false}
                 className="w-7 h-7  md:w-8 md:h-8 lg:w-10 lg:h-10 mr-1"
                 src="/icons/invites/gift.png"
               />
@@ -61,6 +63,7 @@ export const InviteModalContent = () => {
             </div>
             <div className="flex flex-row items-center">
               <img
+                draggable={false}
                 className="w-7 h-7  md:w-8 md:h-8 lg:w-10 lg:h-10 mr-1"
                 src="/base/heart.png"
               />
@@ -70,6 +73,7 @@ export const InviteModalContent = () => {
             </div>
             <div className="flex flex-row items-center">
               <img
+                draggable={false}
                 className="w-7 h-6  md:w-8 md:h-7 lg:w-10 lg:h-9 mr-1"
                 src="/icons/invites/gift-coin.png"
               />

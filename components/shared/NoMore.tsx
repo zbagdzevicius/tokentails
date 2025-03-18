@@ -17,7 +17,7 @@ export const NoMore = ({
       <div className="text-md mb-12 px-4 text-center">{subtitle}</div>
       <Link href={`/`}>
         <button className="animate-spin">
-          <img src="/logo/paw.png" />
+          <img draggable={false} src="/logo/paw.png" />
         </button>
       </Link>
     </div>

@@ -59,6 +59,7 @@ export const GameModes = () => {
           }
         >
           <img
+            draggable={false}
             className="w-20 rounded-xl"
             src={gameModes[GameType.CATBASSADORS].image}
             onClick={() => setGameMode(GameType.CATBASSADORS)}
@@ -72,6 +73,7 @@ export const GameModes = () => {
           }`}
         >
           <img
+            draggable={false}
             className="w-20 rounded-xl"
             src={gameModes[GameType.PURRQUEST].image}
             onClick={() => setGameMode(GameType.PURRQUEST)}
@@ -85,6 +87,7 @@ export const GameModes = () => {
           }`}
         >
           <img
+            draggable={false}
             className="w-20 rounded-xl"
             src={gameModes[GameType.HOME].image}
             onClick={() => setGameMode(GameType.HOME)}
@@ -98,6 +101,7 @@ export const GameModes = () => {
           }
         >
           <img
+            draggable={false}
             className="w-20 rounded-xl"
             src={gameModes[GameType.SHELTER].image}
             onClick={() => setGameMode(GameType.SHELTER)}

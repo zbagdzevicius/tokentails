@@ -80,6 +80,7 @@ export const Header = () => {
       >
         <a href="/" className="flex items-center gap-4 transition">
           <img
+            draggable={false}
             className={isTop ? `h-12 md:h-24` : `h-8 md:h-12`}
             src="/logo/logo.webp"
             alt="logo"
@@ -107,9 +108,16 @@ export const Header = () => {
             className="lg:hidden h-12 w-12 flex items-center justify-center bg-gradient-to-b opacity-50 from-purple-300 to-blue-300 mr-4 rounded-xl"
           >
             {isNavOpen ? (
-              <img src="/icons/close.svg" alt="close" width={16} height={16} />
+              <img
+                draggable={false}
+                src="/icons/close.svg"
+                alt="close"
+                width={16}
+                height={16}
+              />
             ) : (
               <img
+                draggable={false}
                 src="/icons/burger.svg"
                 alt="burger"
                 width={16}

@@ -14,10 +14,12 @@ const Roadmap = () => {
         <div className="flex flex-col items-center gap-4 md:pt-36 hover:brightness-125 hover:animate-hover">
           <div className="relative bg-gradient-to-t to-purple-300 from-blue-300 rounded-full border-4 border-purple-300 w-16 h-16 flex justify-center items-center">
             <img
+              draggable={false}
               className="w-10 absolute left-0 right-0 -top-14 m-auto"
               src="icons/check.webp"
             />
             <img
+              draggable={false}
               className="h-32 w-32 max-w-[200px] mt-8"
               src="/cats/grey/Loaf-Clothed-Grey.gif"
             />
@@ -25,15 +27,15 @@ const Roadmap = () => {
           <h2 className="font-secondary text-h2">2024</h2>
           <div className="flex flex-col font-bold text-p4">
             <span className="flex gap-2 items-center">
-              <img className="h-6" src="icons/check.webp" />
+              <img draggable={false} className="h-6" src="icons/check.webp" />
               50k Players
             </span>
             <span className="flex gap-2 items-center">
-              <img className="h-6" src="icons/check.webp" />
+              <img draggable={false} className="h-6" src="icons/check.webp" />
               Launch Game MVP
             </span>
             <span className="flex gap-2 items-center">
-              <img className="h-6" src="icons/check.webp" />
+              <img draggable={false} className="h-6" src="icons/check.webp" />
               Shelters Infrastructure
             </span>
           </div>
@@ -41,10 +43,12 @@ const Roadmap = () => {
         <div className="flex flex-col items-center gap-4 md:pt-12 hover:brightness-125 hover:animate-hover">
           <div className="relative bg-gradient-to-t to-purple-300 from-blue-300 rounded-full border-4 border-purple-300 w-16 h-16 flex justify-center items-center">
             <img
+              draggable={false}
               className="w-10 absolute left-0 right-0 -top-14 m-auto"
               src="icons/loader.webp"
             />
             <img
+              draggable={false}
               className="h-32 w-32 max-w-[200px]"
               src="/cats/siamese/jugando Ropa Siames.gif"
             />
@@ -52,15 +56,15 @@ const Roadmap = () => {
           <h2 className="font-secondary text-h2">2025 Q1</h2>
           <div className="flex flex-col font-bold text-p4">
             <span className="flex gap-2 items-center -ml-6">
-              <img className="h-6" src="icons/check.webp" />
+              <img draggable={false} className="h-6" src="icons/check.webp" />
               Tokenize your cat
             </span>
             <span className="flex gap-2 items-center -ml-6">
-              <img className="h-6" src="icons/check.webp" />
+              <img draggable={false} className="h-6" src="icons/check.webp" />
               Social AI Agents
             </span>
             <span className="flex gap-2 items-center -ml-6">
-              <img className="h-6" src="icons/loader.webp" />
+              <img draggable={false} className="h-6" src="icons/loader.webp" />
               KOLs share platform
             </span>
           </div>
@@ -68,10 +72,12 @@ const Roadmap = () => {
         <div className="flex flex-col items-center gap-4 hover:brightness-125 hover:animate-hover">
           <div className="relative bg-gradient-to-t to-purple-300 from-blue-300 rounded-full border-4 border-purple-300 w-16 h-16 flex justify-center items-center">
             <img
+              draggable={false}
               className="w-10 absolute left-0 right-0 -top-14 m-auto"
               src="icons/loader.webp"
             />
             <img
+              draggable={false}
               className="h-32 w-32 max-w-[200px]"
               src="/cats/yellow/Jump-Hat-Yellow.gif"
             />
@@ -79,15 +85,15 @@ const Roadmap = () => {
           <h2 className="font-secondary text-h2">2025 Q2</h2>
           <div className="flex flex-col text-p4 font-bold">
             <span className="flex gap-2 items-center -ml-6">
-              <img className="h-6" src="icons/loader.webp" />
+              <img draggable={false} className="h-6" src="icons/loader.webp" />
               TGE
             </span>
             <span className="flex gap-2 items-center -ml-6">
-              <img className="h-6" src="icons/loader.webp" />
+              <img draggable={false} className="h-6" src="icons/loader.webp" />
               Story mode game
             </span>
             <span className="flex gap-2 items-center -ml-6">
-              <img className="h-6" src="icons/loader.webp" />
+              <img draggable={false} className="h-6" src="icons/loader.webp" />
               In-game Marketplace
             </span>
           </div>

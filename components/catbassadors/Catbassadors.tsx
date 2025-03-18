@@ -100,7 +100,11 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
                   <p className="font-bold font-secondary text-p3 z-10">
                     {timer} s
                   </p>
-                  <img className="w-8 z-10" src="/icons/clock.png" />
+                  <img
+                    draggable={false}
+                    className="w-8 z-10"
+                    src="/icons/clock.png"
+                  />
                 </div>
               )}
             </div>
@@ -129,7 +133,11 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
             <div className="flex flex-col items-center">
               <div className="flex flex-row items-center gap-2  font-secondary text-p3">
                 <span>CATCH COINS</span>
-                <img className="h-8" src="logo/coin.webp"></img>
+                <img
+                  draggable={false}
+                  className="h-8"
+                  src="logo/coin.webp"
+                ></img>
               </div>
 
               <div className="sm:hidden lg:flex">
@@ -146,24 +154,32 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
           <div className="flex flex-col">
             <Tag>COINS REWARDS</Tag>
             <div className="flex gap-2 items-center justify-center font-secondary text-p4 pt-2">
-              <img className="h-6" src="logo/coin.png"></img>
+              <img draggable={false} className="h-6" src="logo/coin.png"></img>
               <span className="whitespace-nowrap">GIVES 1</span>
-              <img className="h-6" src="logo/coin.png"></img>
+              <img draggable={false} className="h-6" src="logo/coin.png"></img>
             </div>
             <div className="flex gap-2 items-center justify-center font-secondary text-p4">
-              <img className="h-5" src={currentDayCoin}></img>
+              <img draggable={false} className="h-5" src={currentDayCoin}></img>
               <span className="whitespace-nowrap">GIVES 10</span>
-              <img className="h-6" src="logo/coin.png"></img>
+              <img draggable={false} className="h-6" src="logo/coin.png"></img>
             </div>
             <div className="flex gap-2 items-center justify-center font-secondary text-p4">
-              <img className="h-5" src="logo/boss-coin.png"></img>
+              <img
+                draggable={false}
+                className="h-5"
+                src="logo/boss-coin.png"
+              ></img>
               <span className="whitespace-nowrap">GIVES 100</span>
-              <img className="h-6" src="logo/coin.png"></img>
+              <img draggable={false} className="h-6" src="logo/coin.png"></img>
             </div>
             <div className="flex gap-2 items-center justify-center font-secondary text-p4 pb-2">
-              <img className="h-5" src="icons/clock.png"></img>
+              <img
+                draggable={false}
+                className="h-5"
+                src="icons/clock.png"
+              ></img>
               <span className="whitespace-nowrap">GIVES 1000</span>
-              <img className="h-6" src="logo/coin.png"></img>
+              <img draggable={false} className="h-6" src="logo/coin.png"></img>
             </div>
             <div className="flex justify-center -mb-6">
               <PixelButton

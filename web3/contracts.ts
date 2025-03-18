@@ -14,6 +14,7 @@ export enum CurrencyType {
   TAILS = "TAILS",
   XLM = "XLM",
   BNB = "BNB",
+  ODP = "ODP",
   SOL = "SOL",
 }
 
@@ -26,12 +27,14 @@ export enum ChainType {
   STELLAR_TEST = "STELLAR_TEST",
   SOLANA = "SOLANA",
   ZETA = "ZETA",
+  TORUS = "TORUS",
   CAMP_TEST = "CAMP_TEST",
   SOLANA_TEST = "SOLANA_TEST",
 }
 
 export enum ChainNamespace {
   EVM = "EVM",
+  TORUS = "TORUS",
   STELLAR = "STELLAR",
   SOLANA = "SOLANA",
 }
@@ -40,10 +43,12 @@ export const ChainNamespaces = [
   ChainNamespace.EVM,
   ChainNamespace.STELLAR,
   ChainNamespace.SOLANA,
+  ChainNamespace.TORUS,
 ];
 
 export const ChainNamespaceImg: Record<ChainNamespace, string> = {
   [ChainNamespace.EVM]: "/currency/BNB.webp",
+  [ChainNamespace.TORUS]: "/currency/ODP.webp",
   [ChainNamespace.STELLAR]: "/currency/XLM.webp",
   [ChainNamespace.SOLANA]: "/currency/SOL.webp",
 };
@@ -58,6 +63,7 @@ export const ChainImg: Record<ChainType, string> = {
   [ChainType.SKALE]: "/currency/SKALE.png",
   [ChainType.SKALE_TEST]: "/currency/SKALE.png",
   [ChainType.ZETA]: "/currency/ZETA.webp",
+  [ChainType.TORUS]: "/currency/ODP.webp",
   [ChainType.CAMP_TEST]: "/currency/CAMP.webp",
 };
 
@@ -70,6 +76,7 @@ export const ChainNamespacesCurrencies: Record<ChainNamespace, CurrencyType[]> =
     ],
     [ChainNamespace.STELLAR]: [CurrencyType.XLM, CurrencyType.USDC],
     [ChainNamespace.SOLANA]: [CurrencyType.SOL],
+    [ChainNamespace.TORUS]: [CurrencyType.ODP],
   };
 
 export const currencyContracts: Record<
@@ -106,6 +113,9 @@ export const currencyContracts: Record<
   },
   [ChainType.SOLANA]: {
     [CurrencyType.SOL]: "0x",
+  },
+  [ChainType.TORUS]: {
+    [CurrencyType.ODP]: "0xFF47178dAE98Cb1D61c0e46f38EB68bEa5BDE284",
   },
   [ChainType.SOLANA_TEST]: {
     [CurrencyType.SOL]: "0x",

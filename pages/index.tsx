@@ -9,6 +9,7 @@ import { Presale } from "@/components/landing/Presale";
 import Roadmap from "@/components/landing/Roadmap";
 import { Team } from "@/components/landing/Team";
 import { Tokenomics } from "@/components/landing/Tokenomics";
+import { ChainSelect } from "@/components/shared/ChainSelect";
 import { Circle } from "@/components/shared/Circle";
 import Snowfall from "@/components/shared/Snowfall";
 import { Web3Providers } from "@/components/web3/Web3Providers";
@@ -135,6 +136,9 @@ export default function Index() {
         >
           <div id="feedbackslider" ref={feedbackSliderRef}>
             <FeedbackSlider />
+            <Web3Providers>
+              <ChainSelect />
+            </Web3Providers>
           </div>
         </div>
         <div

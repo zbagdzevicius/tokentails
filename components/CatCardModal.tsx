@@ -56,6 +56,7 @@ export const CatBlessings = ({ blessings }: ICatBlessingsProps) => {
           key={index}
           src={`/blessings/${blessing.ability}_TYPE.png`}
           alt={blessing.type}
+          draggable={false}
           width={40}
           height={40}
           className={`w-12 h-12 absolute ${blessingsPositions[index]}`}
@@ -92,7 +93,7 @@ export const CatMultiplier = (cat: ICat) => {
       className="absolute flex items-center right-4 bg-opacity-75 border font-secondary text-p5 border-yellow-300 hover:bg-opacity-100 pl-2 rounded-xl"
     >
       X{multiplier}
-      <img src="/logo/coin.webp" className="w-6 h-6 ml-1" />
+      <img draggable={false} src="/logo/coin.webp" className="w-6 h-6 ml-1" />
     </div>
   );
 };
@@ -116,6 +117,7 @@ export const CatDescription = ({
         <div className="flex flex-row items-center">
           {firstBlessing && (
             <img
+              draggable={false}
               src={`/blessings/${firstBlessing.ability}_TYPE.png`}
               alt={firstBlessing.type}
               className="w-6 h-6 md:w-10 md:h-10"
@@ -155,6 +157,7 @@ export const CatDescription = ({
         <div className="my-3">
           <div className="flex flex-row items-center">
             <img
+              draggable={false}
               className="w-6 h-6 md:w-10 md:h-10"
               src={`/ability/${type}.png`}
               alt={type}
@@ -219,6 +222,9 @@ export const CatPayment = ({
     ) {
       if (currencyType === CurrencyType.BNB) {
         return parseFloat((corePrice / bnbRate).toFixed(3));
+      }
+      if (currencyType === CurrencyType.ODP) {
+        return parseFloat((corePrice * 1000).toFixed(0));
       }
       if (currencyType === CurrencyType.XLM) {
         return Math.ceil(corePrice / xlmRate);
@@ -386,6 +392,7 @@ export const CatPayment = ({
             />
             {isOwned && !cat.ai && (
               <img
+                draggable={false}
                 src="/logo/ai.webp"
                 className="absolute top-1/2 -translate-y-1/2 -left-2 flex items-center w-6 h-6"
               />
@@ -434,6 +441,7 @@ export const CatCard = ({
       } md:rem:w-[560px] lg:w-auto max-w-screen-xl hover:brightness-105 border-8 rounded-[24px] border-yellow-300 relative rem:h-[540px] md:h-[360px] lg:h-[600px] aspect-[2/3] max-w-screen`}
     >
       <img
+        draggable={false}
         src={`/ability/${type}_BG.webp`}
         className="absolute object-cover z-10 h-full w-full rounded-[16px]"
       />
@@ -447,7 +455,11 @@ export const CatCard = ({
             <div className="flex justify-between items-center m-1">
               <div className="flex flex-row space-x-2 items-center pl-4">
                 {(!!ai || !!blessings?.length) && (
-                  <img src="/logo/ai.webp" className="w-8 h-8 pixelated" />
+                  <img
+                    draggable={false}
+                    src="/logo/ai.webp"
+                    className="w-8 h-8 pixelated"
+                  />
                 )}
                 <h3 className="text-main-black text-p3 whitespace-nowrap uppercase font-bold flex items-center">
                   {name}
@@ -458,6 +470,7 @@ export const CatCard = ({
           </div>
           <div className="relative mx-4 h-full md:h-auto lg:h-full flex justify-center items-center">
             <img
+              draggable={false}
               className="w-full h-full rounded-xl absolute z-0 object-cover object-center"
               src={`/ability/${type}_BG.webp`}
               alt="base"
@@ -472,6 +485,7 @@ export const CatCard = ({
             <CatBlessings blessings={blessings} />
             <span className="relative z-0">
               <img
+                draggable={false}
                 src={
                   (activeBlessing ? activeBlessing.image?.url : catImg) ||
                   catImg
@@ -483,6 +497,7 @@ export const CatCard = ({
               />
               {!!blessings?.length && (
                 <img
+                  draggable={false}
                   className="absolute inset-0 w-full h-full object-cover"
                   src={`/flare-effect/${blessings[0]?.ability}.gif`}
                 ></img>

@@ -66,6 +66,9 @@ export const GenerateCat = ({ close }: { close: () => void }) => {
       if (currencyType === CurrencyType.BNB) {
         return parseFloat((price / bnbRate).toFixed(3));
       }
+      if (currencyType === CurrencyType.ODP) {
+        return parseFloat((price * 1000).toFixed(0));
+      }
       if (currencyType === CurrencyType.XLM) {
         return Math.ceil(price / xlmRate);
       }
@@ -245,21 +248,31 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                 className="absolute left-0 top-0 opacity-75 text-black pl-1 text-p5 font-secondary rounded-r-xl z-20 flex items-center"
               >
                 X{getMultiplier(cat)}
-                <img src="/logo/coin.webp" className="w-6 h-6 ml-1" />
+                <img
+                  draggable={false}
+                  src="/logo/coin.webp"
+                  className="w-6 h-6 ml-1"
+                />
               </div>
               {cat.ai && (
                 <div className="absolute right-0 top-0 z-20">
-                  <img src="/logo/ai.webp" className="w-8 h-8 pixelated" />
+                  <img
+                    draggable={false}
+                    src="/logo/ai.webp"
+                    className="w-8 h-8 pixelated"
+                  />
                 </div>
               )}
               <div className="relative z-10 items-center flex flex-col">
                 <img
+                  draggable={false}
                   className="w-16 z-10 pixelated"
                   src={cat.catImg}
                   alt={cat.name}
                   onClick={() => setSelectedCat(cat)}
                 />
                 <img
+                  draggable={false}
                   className="w-8 mb-2 -mt-8 z-0 animate-spin"
                   src={`ability/${cat.type}.png`}
                   alt={`${cat.type} icon`}
@@ -307,6 +320,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                 )}
               </div>
               <img
+                draggable={false}
                 className="absolute inset-0 object-cover w-full h-full z-0"
                 src={`ability/${cat.type}_BG.webp`}
                 alt={`${cat.type} background`}
@@ -324,6 +338,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
       )}
 
       <img
+        draggable={false}
         onClick={() => {
           setGameType(GameType.SHELTER);
           close();

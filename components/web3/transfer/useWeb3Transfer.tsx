@@ -56,8 +56,6 @@ interface IProps {
   buyMode?: BuyMode;
 }
 
-const paymentsChain = isProd ? ChainType.BNB : ChainType.BNB_TEST;
-
 export const useWeb3Transfer = ({
   entityType,
   price,
@@ -77,6 +75,7 @@ export const useWeb3Transfer = ({
     namespace,
     namespaceDetail,
     setStellarAddress,
+    chainType,
     setStellarConnected,
     solanaAddress,
     chainId,
@@ -118,7 +117,7 @@ export const useWeb3Transfer = ({
   const confirm = async (hash: string) => {
     const status = await ORDER_API.confirm({
       hash: hash,
-      chainType: paymentsChain,
+      chainType,
       namespace: namespace!,
       amount,
       walletAddress: namespaceDetail.address!,
@@ -148,8 +147,8 @@ export const useWeb3Transfer = ({
 
   async function syncChain() {
     try {
-      if (chainId !== chainTypeId[paymentsChain]) {
-        await switchChainAsync({ chainId: chainTypeId[paymentsChain] });
+      if (chainId !== chainTypeId[chainType]) {
+        await switchChainAsync({ chainId: chainTypeId[chainType] });
       }
     } catch (error) {
       console.error("Error switching chain:", error);
@@ -232,6 +231,8 @@ export const useWeb3Transfer = ({
       } else {
         stellarTransfer(stellarAddress!);
       }
+    } else if (namespace === ChainNamespace.TORUS) {
+      torusTransfer();
     } else if (namespace === ChainNamespace.SOLANA) {
       if (!solanaConnected) {
         connectSolana(true);
@@ -329,6 +330,33 @@ export const useWeb3Transfer = ({
         setHash(txHash);
         toast({ message: "Transaction sent! Awaiting confirmation..." });
       }
+    } catch (error) {
+      console.error("Transfer failed:", error);
+      toast({ message: "Transaction failed. Please try again." });
+    }
+  }
+
+  async function torusTransfer() {
+    if (!evmConnected) {
+      toast({ message: "Please login to Metamask" });
+      return false;
+    }
+    const amountHex = ethers.parseUnits(price.toString(), 18);
+    try {
+      await syncChain();
+
+      if (!balance || amountHex > balance.value) {
+        toast({
+          message: `Top up your ${currencyType} balance or switch currency`,
+        });
+        return;
+      }
+      await writeContractAsync({
+        abi: erc20Abi,
+        address: currencyContracts[idChainType[chainId!]][currencyType]!,
+        functionName: "transfer",
+        args: [recipientEvm, amountHex],
+      });
     } catch (error) {
       console.error("Transfer failed:", error);
       toast({ message: "Transaction failed. Please try again." });

@@ -6,6 +6,7 @@ interface ICloseButton {
 export const CloseButton = ({ onClick, absolute }: ICloseButton) => {
   return (
     <img
+      draggable={false}
       src="/icons/pixel-close.png"
       className={`hover:brightness-150 hover:translate hover:scale-125 lg:w-9 w-7 lg:h-9 h-7 ${
         absolute ? "absolute right-2" : "sticky"
