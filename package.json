@@ -27,7 +27,7 @@
     "app:ios:ci": "npm run build:app && npm run app:sync",
     "app:ios:run": "npx cap run ios -l --external",
     "app:ios": "npm run app:ios:ci && npm run app:ios:open",
-    "app:assets": "capacitor-assets generate --iconBackgroundColor '#fea68e' --iconBackgroundColorDark '#fea68e' --splashBackgroundColor '#fea68e' --splashBackgroundColorDark '#fea68e' --logoSplashScale 0.4"
+    "app:assets": "capacitor-assets generate --iconBackgroundColor '#fc8b6d' --iconBackgroundColorDark '#fc8b6d' --splashBackgroundColor '#fc8b6d' --splashBackgroundColorDark '#fc8b6d' --logoSplashScale 0.4"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^5.4.1",
@@ -70,7 +70,6 @@
     "react-google-forms-hooks": "^1.2.4",
     "react-if": "^4.1.5",
     "react-intersection-observer": "^9.8.1",
-    "smartlook-client": "^10.0.0",
     "swiper": "^11.0.6",
     "tile-extruder": "^2.1.0",
     "use-debounce": "^10.0.0",

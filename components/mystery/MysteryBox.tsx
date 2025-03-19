@@ -17,6 +17,7 @@ import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
 import { Web3Mint } from "../web3/minting/Web3Mint";
 import { Web3Providers } from "../web3/Web3Providers";
+import { isApp } from "@/models/app";
 
 const MysteryBoxEligibility = ({
   mysteryBox,
@@ -102,7 +103,7 @@ export const MysteryBox = () => {
     if (
       mysteryBox.requirements?.type === MysteryBoxRequirementType.APP_DOWNLOAD
     ) {
-      return !!process.env.NEXT_PUBLIC_IS_APP;
+      return isApp;
     }
     if (mysteryBox.requirements?.type === MysteryBoxRequirementType.PURCHASE) {
       return !!cats?.some(

@@ -7,6 +7,7 @@ import { GameStatsSection } from "../catbassadors/GameStatsSection";
 import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
 import { USER_API } from "@/api/user-api";
+import { isApp } from "@/models/app";
 
 interface IProps {
   profile: IProfile;
@@ -37,6 +38,12 @@ export const GameOptionsModal = ({
   const nextDayTargetDate = getNextDayMidnight();
 
   const redeemLives = useCallback(async () => {
+    if (!isApp) {
+      toast({
+        message: "Download the app to redeem your rewards!",
+      });
+      return;
+    }
     await USER_API.redeem();
     setProfileUpdate({
       canRedeemLives: false,
@@ -94,11 +101,19 @@ export const GameOptionsModal = ({
             {!profile.canRedeemLives && (
               <Countdown targetDate={nextDayTargetDate} />
             )}
-            <PixelButton
-              isDisabled={!profile.canRedeemLives}
-              onClick={() => (profile.canRedeemLives ? redeemLives() : {})}
-              text="CLAIM REWARD"
-            ></PixelButton>
+            <span className={isApp ? "" : "brightness-75 relative"}>
+              <PixelButton
+                isDisabled={!profile.canRedeemLives}
+                onClick={() => (profile.canRedeemLives ? redeemLives() : {})}
+                text="CLAIM REWARD"
+              ></PixelButton>
+              {!isApp && (
+                <img
+                  className="absolute -left-4 bottom-4 w-8 h-8 z-10"
+                  src="/purrquest/sprites/key.png"
+                />
+              )}
+            </span>
           </div>
           <PixelButton
             onClick={() => {

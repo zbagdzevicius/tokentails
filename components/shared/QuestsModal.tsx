@@ -9,6 +9,8 @@ import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
 import { IQuest } from "@/models/quest";
 import { LeaderboardContent } from "../Leaderboard";
+import { isApp } from "@/models/app";
+import { AppCTA } from "./AppCTA";
 enum QuestType {
   SOCIAL = "SOCIAL",
   GOAL = "GOAL",
@@ -311,7 +313,7 @@ export const QuestsModalContent = () => {
             </div>
           </>
         )}
-        {questsType === QuestType.GOAL && (
+        {questsType === QuestType.GOAL && isApp && (
           <>
             <div className="flex flex-col gap-2 w-full pb-8">
               {quests.map((quest) => (
@@ -352,6 +354,7 @@ export const QuestsModalContent = () => {
             </div>
           </>
         )}
+        {questsType === QuestType.GOAL && !isApp && <AppCTA />}
         {questsType === QuestType.FRIEND && (
           <>
             <div className="flex flex-col gap-2 w-full pb-8">
@@ -394,7 +397,8 @@ export const QuestsModalContent = () => {
           </>
         )}
       </span>
-      {questsType === QuestType.WIN && <LeaderboardContent />}
+      {questsType === QuestType.WIN && isApp && <LeaderboardContent />}
+      {questsType === QuestType.WIN && !isApp && <AppCTA />}
     </div>
   );
 };

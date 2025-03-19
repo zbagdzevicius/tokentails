@@ -69,7 +69,8 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
         "fixed left-1/2 right-1/2 translate-x-[50%] z-[11] flex flex-col gap-2 items-center pb-safe md:pt-0 lg:pt-12",
         {
           "top-1/2 -translate-y-1/2": gameType === GameType.HOME,
-          "top-4": gameType !== GameType.HOME,
+          "top-4": gameType && gameType !== GameType.HOME,
+          "top-40 md:top-4": !gameType,
         }
       )}
     >

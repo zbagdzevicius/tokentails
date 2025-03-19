@@ -4,7 +4,8 @@ import { TogglePixelButton } from "./TogglePixelButton";
 export const GameMusicToggle = () => {
   const [isMusicOn, setIsMusicOn] = useState<boolean>(() => {
     const savedMusicSetting = localStorage.getItem("gameMusic");
-    return savedMusicSetting ? JSON.parse(savedMusicSetting) : false;
+    console.log("savedMusicSetting", savedMusicSetting);
+    return savedMusicSetting === null ? true : JSON.parse(savedMusicSetting);
   });
 
   // Update localStorage whenever the toggle changes

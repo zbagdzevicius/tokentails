@@ -15,6 +15,7 @@ import Snowfall from "@/components/shared/Snowfall";
 import { Web3Providers } from "@/components/web3/Web3Providers";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
+import { isApp } from "@/models/app";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useRef } from "react";
@@ -42,7 +43,7 @@ export default function Index() {
   ];
 
   useEffect(() => {
-    if (process.env.NEXT_PUBLIC_IS_APP === "true") {
+    if (isApp) {
       router.replace("/game");
     }
   }, []);
@@ -136,9 +137,6 @@ export default function Index() {
         >
           <div id="feedbackslider" ref={feedbackSliderRef}>
             <FeedbackSlider />
-            <Web3Providers>
-              <ChainSelect />
-            </Web3Providers>
           </div>
         </div>
         <div

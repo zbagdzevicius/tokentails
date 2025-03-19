@@ -9,6 +9,7 @@ import { Feed } from "./Feed";
 import { FeedCta } from "./feed/FeedCta";
 import { ARTICLE_API } from "@/api/article-api";
 import { getNextPageFn } from "@/api/routing";
+import { isApp } from "@/models/app";
 
 export interface LandingPageProps {
   category?: string;
@@ -52,7 +53,7 @@ export const BlogFeed = ({
 
   const articles = useMemo(() => {
     let items = [...(entryRecords || []), ...(data?.pages?.flat(1) || [])];
-    if (!process.env.NEXT_PUBLIC_IS_APP) {
+    if (!isApp) {
       items = insertObjectEveryN(items, 10, { isAd: true });
     }
     return items;

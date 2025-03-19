@@ -25,6 +25,7 @@ import { Web3Providers } from "./web3/Web3Providers";
 import { CAT_API } from "@/api/cat-api";
 import { useQuery } from "@tanstack/react-query";
 import { CatBenefits } from "./shared/CatBenefits";
+import { isApp } from "@/models/app";
 
 interface IProps extends ICat {
   onClose?: () => void;
@@ -306,6 +307,14 @@ export const CatPayment = ({
     } else onClose?.();
   };
 
+  const handleBuyClick = () => {
+    if (isApp) {
+      window.open("https://tokentails.com/game", "_blank");
+    } else {
+      setBuyMode(isForSale ? BuyMode.CAT : BuyMode.AI);
+    }
+  };
+
   return (
     <>
       {!isCoinsPayment && !!buyMode && (
@@ -387,7 +396,7 @@ export const CatPayment = ({
           <span className="relative">
             <PixelButton
               text={isOwned && !cat.ai ? "AI Companion" : "Save"}
-              onClick={() => setBuyMode(isForSale ? BuyMode.CAT : BuyMode.AI)}
+              onClick={handleBuyClick}
               isDisabled={outOfSupply}
             />
             {isOwned && !cat.ai && (
@@ -478,7 +487,7 @@ export const CatCard = ({
               height={400}
             />
             {discountPercentage && (
-              <div className="absolute z-0 top-0.5 md:-top-2 right-0.5 md:-right-2 lg:top-1 lg:right-1 flex justify-center z-19">
+              <div className="absolute top-0.5 md:-top-2 right-0.5 md:-right-2 lg:top-1 lg:right-1 flex justify-center z-10">
                 <Tag isSmall>{discountPercentage}% OFF</Tag>
               </div>
             )}
