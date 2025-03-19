@@ -478,7 +478,7 @@ export const CatCard = ({
               height={400}
             />
             {discountPercentage && (
-              <div className="absolute z-0 top-0.5 md:-top-2 right-0.5 md:-right-2 lg:top-1 lg:right-1 flex justify-center">
+              <div className="absolute z-0 top-0.5 md:-top-2 right-0.5 md:-right-2 lg:top-1 lg:right-1 flex justify-center z-19">
                 <Tag isSmall>{discountPercentage}% OFF</Tag>
               </div>
             )}
@@ -492,7 +492,9 @@ export const CatCard = ({
                 }
                 alt="Hero cat"
                 className={`${
-                  activeBlessing ? "w-full h-48 rounded-xl" : "w-32 h-32"
+                  activeBlessing
+                    ? "w-full h-48 rounded-xl min-w-48"
+                    : "w-32 h-32"
                 } relative z-10 object-contain pixelated`}
               />
               {!!blessings?.length && (
