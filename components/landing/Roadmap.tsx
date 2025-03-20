@@ -65,7 +65,7 @@ const Roadmap = () => {
             </span>
             <span className="flex gap-2 items-center -ml-6">
               <img draggable={false} className="h-6" src="icons/loader.webp" />
-              KOLs share platform
+              APP BETA TESTING
             </span>
           </div>
         </div>
@@ -90,7 +90,7 @@ const Roadmap = () => {
             </span>
             <span className="flex gap-2 items-center -ml-6">
               <img draggable={false} className="h-6" src="icons/loader.webp" />
-              Story mode game
+              MMO GAME
             </span>
             <span className="flex gap-2 items-center -ml-6">
               <img draggable={false} className="h-6" src="icons/loader.webp" />

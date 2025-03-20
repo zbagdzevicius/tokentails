@@ -24,7 +24,7 @@ export const Airdrop = () => {
               draggable={false}
               src="/logo/coin.webp"
             />
-            <span className="text-p2">$TAILS token airdrops</span>
+            <span className="text-p2">$TAILS TOKEN AIRDROP</span>
             <span>
               <span className="text-red-700">600k USD</span> in{" "}
               <span className="text-red-700">$TAILS</span>
@@ -43,7 +43,7 @@ export const Airdrop = () => {
               draggable={false}
               src="/logo/heart.webp"
             />
-            <span className="text-p2">Cats rescuers rewards</span>
+            <span className="text-p2">CATS HEROES AWARDS</span>
             <span>
               <span className="text-red-700">200k USD</span> in{" "}
               <span className="text-red-700">$TAILS</span>
@@ -62,7 +62,7 @@ export const Airdrop = () => {
               draggable={false}
               src="/cats/pinkie/pink-lamiendo-ropa.gif"
             />
-            <span className="text-p2">NFT rewards</span>
+            <span className="text-p2">NFT REWARDS</span>
             <span>
               worth
               <span className="text-red-700 ml-1">$200k USD</span>

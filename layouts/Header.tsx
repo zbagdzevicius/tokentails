@@ -78,16 +78,19 @@ export const Header = () => {
           isTop ? "py-6" : "py-2"
         } px-24 max-lg:px-4 relative`}
       >
-        <a href="/" className="flex items-center gap-4 transition">
+        <a
+          href="/"
+          className="flex items-center transition gap-2 lg:-ml-24 xl:ml-0"
+        >
           <img
             draggable={false}
-            className={isTop ? `h-12 md:h-24` : `h-8 md:h-12`}
+            className={`${isTop ? `h-12 md:h-24` : `h-8 md:h-12`}`}
             src="/logo/logo.webp"
             alt="logo"
           />
-          <div className="text-p3 font-secondary">TOKEN TAILS</div>
+          <div className="text-p4 md:text-p1 font-primary">TOKEN TAILS</div>
         </a>
-        <ul className="hidden lg:flex space-x-[35px] py-4 absolute left-1/2 -translate-x-1/2">
+        <ul className="hidden lg:flex space-x-[35px] lg:space-x-4 xl:space-x-8 py-4 absolute left-1/2 -translate-x-1/2">
           {navConsts.map((navItem, index) => (
             <li
               key={index}
@@ -126,7 +129,7 @@ export const Header = () => {
             )}
           </div>
           <a href="/#feedbackslider">
-            <PixelButton text="SAVE A CAT" isBig></PixelButton>
+            <PixelButton text="SAVE A CAT"></PixelButton>
           </a>
         </div>
       </div>
