@@ -12,7 +12,7 @@ export const CatMiniCard = ({
   active?: boolean;
 }) => {
   return (
-    <div className="relative overflow-hidden w-48 rounded-xl py-2 border-2 border-black min-w-[12rem]">
+    <div className="relative overflow-hidden w-48 rounded-xl pb-2 border-2 border-black min-w-[12rem]">
       <div
         style={{ backgroundColor: cardsColor[cat.type] || "white" }}
         className="absolute left-0 top-0 opacity-75 text-black pl-1 text-p5 font-secondary rounded-r-xl z-20 flex items-center"
@@ -42,7 +42,7 @@ export const CatMiniCard = ({
         />
         <img
           draggable={false}
-          className="w-8 mb-2 -mt-6 z-0 animate-spin"
+          className="w-8 mb-1 -mt-6 z-0 animate-spin"
           src={`ability/${cat.type}.png`}
           alt={`${cat.type} icon`}
         />
@@ -54,7 +54,7 @@ export const CatMiniCard = ({
         </a>
         <PixelButton
           isSmall
-          text={active ? "CLOSE" : "BENEFITS OF SAVING"}
+          text={active ? "CLOSE" : "OWNER BENEFITS"}
           onClick={() => onClick(active ? null : cat)}
         />
       </div>

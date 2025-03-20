@@ -38,7 +38,7 @@ const MysteryBoxEligibility = ({
         backgroundPosition: "center",
       }}
     >
-      <div className="flex items-center gap-2 font-bold font-secondary text-p2">
+      <div className="flex items-center gap-2 font-bold font-primary text-p2">
         {isEligible ? (
           <img draggable={false} className="w-8" src="/icons/check.webp" />
         ) : (

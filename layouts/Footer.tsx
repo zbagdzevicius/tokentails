@@ -11,7 +11,7 @@ interface FooterProps {
 const navConsts: FooterProps[] = [
   {
     title: "Game",
-    link: "#catsslider",
+    link: "#feedbackslider",
   },
   {
     title: "Token",
@@ -51,7 +51,7 @@ export const Footer: React.FC = () => {
 
             <Socials />
           </div>
-          <ul className="flex flex-1 justify-center">
+          <ul className="flex flex-1 justify-center font-secondary font-bold">
             {navConsts.map((footerItem, index) => (
               <li key={index} className="py-6 px-3 rounded">
                 <a

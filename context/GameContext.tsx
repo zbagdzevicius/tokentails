@@ -44,7 +44,7 @@ let timerInterval: any = null;
 
 const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [isStarted, setIsStarted] = useState<boolean>(false);
-  const [gameType, setGameType] = useState<GameType | null>(GameType.HOME);
+  const [gameType, setGameType] = useState<GameType | null>(null);
   const [openedModal, setOpenedModal] = useState<GameModal | null>(null);
   const [gameStop, setGameStop] = useState<null | IGameStopEvent>(null);
 

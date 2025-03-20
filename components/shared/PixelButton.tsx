@@ -8,6 +8,7 @@ interface IProps {
   isBig?: boolean;
   isSmall?: boolean;
   isWidthFull?: boolean;
+  id?: string;
   isDisabled?: boolean;
   onClick?: () => void;
 }
@@ -21,6 +22,7 @@ export const PixelButton = ({
   isWidthFull,
   isDisabled,
   isSmall,
+  id,
 }: IProps) => {
   const [ref, hovering] = useHover();
 
@@ -42,19 +44,20 @@ export const PixelButton = ({
 
   return (
     <button
+      id={id}
       onClick={handleClick}
       ref={ref}
       disabled={isDisabled}
       style={{
         ...(isWidthFull ? { width: "100% !important" } : {}),
-        filter: isDisabled ? "brightness(0.7)" : 'none',
+        filter: isDisabled ? "brightness(0.7)" : "none",
         cursor: isDisabled ? "not-allowed" : "pointer",
       }}
-      className={`flex justify-center items-center h-12 ${isWidthFull && "w-full"
-        }
-            ${isSmall && 'scale-75'}
-         ${!active && !isDisabled ? "hover:brightness-125 hover:pb-1" : ""
-        }`}
+      className={`flex justify-center items-center h-12 ${
+        isWidthFull && "w-full"
+      }
+            ${isSmall && "scale-75"}
+         ${!active && !isDisabled ? "hover:brightness-125 hover:pb-1" : ""}`}
     >
       <div className="h-8 w-1 bg-black"></div>
       <div className="h-10 w-1 flex flex-col bg-red-500 border-y-4 border-black">
@@ -64,13 +67,14 @@ export const PixelButton = ({
       </div>
       <div className={`${isWidthFull && "w-full"}`}>
         <div
-          className={`h-12 flex flex-col border-y-4 border-black bg-red-500 ${isWidthFull && "w-full"
-            }'`}
+          className={`h-12 flex flex-col border-y-4 border-black bg-red-500 ${
+            isWidthFull && "w-full"
+          }'`}
         >
           <div
-            className={`h-9 bg-red-500 px-4 font-secondary ${isWidthFull && "w-full justify-center items-center"
-              } ${isBig ? "text-p3" : "text-p4"
-              } flex items-center gap-2`}
+            className={`h-9 bg-red-500 px-4 font-primary font-normal uppercase ${
+              isWidthFull && "w-full justify-center items-center"
+            } ${isBig ? "text-p3" : "text-p4"} flex items-center gap-2`}
           >
             <p className="text-yellow-300 whitespace-nowrap">{text}</p>
             {subtext && <p className="text-yellow-200">{subtext}</p>}

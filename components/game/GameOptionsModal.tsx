@@ -8,6 +8,7 @@ import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
 import { USER_API } from "@/api/user-api";
 import { isApp } from "@/models/app";
+import { ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 
 interface IProps {
   profile: IProfile;
@@ -67,6 +68,7 @@ export const GameOptionsModal = ({
               setOpenedModal(GameModal.INVITE);
             }}
             text="GIFTS"
+            id={ONBOARDING_MODAL_IDS.GIFTS}
           ></PixelButton>
           <div className="flex flex-col items-center">
             {profile.canRedeemLives && (
@@ -103,6 +105,7 @@ export const GameOptionsModal = ({
             )}
             <span className={isApp ? "" : "brightness-75 relative"}>
               <PixelButton
+                id={ONBOARDING_MODAL_IDS.CLAIM_REWARDS}
                 isDisabled={!profile.canRedeemLives}
                 onClick={() => (profile.canRedeemLives ? redeemLives() : {})}
                 text="CLAIM REWARD"
@@ -116,6 +119,7 @@ export const GameOptionsModal = ({
             </span>
           </div>
           <PixelButton
+            id={ONBOARDING_MODAL_IDS.QUESTS}
             onClick={() => {
               setOpenedModal(GameModal.QUESTS);
             }}

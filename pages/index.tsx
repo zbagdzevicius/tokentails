@@ -113,18 +113,17 @@ export default function Index() {
           <Circle />
         </div>
         <div
-          className="pt-24 md:pt-36 fade-in h-screen relative"
+          className="pt-24 md:pt-24 fade-in h-screen relative flex items-center justify-center"
           style={{
             backgroundImage: "url(/backgrounds/bg-night.gif)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
+          id="homepage"
         >
-          <div id="homepage">
-            <Snowfall />
-            <HomePage />
-          </div>
+          <Snowfall />
+          <HomePage />
         </div>
         <div
           className="py-4 min-h-screen"
@@ -153,7 +152,7 @@ export default function Index() {
           </div>
         </div>
         <div
-          className="py-4 min-h-screen"
+          className="py-4 min-h-screen flex items-center justify-center"
           style={{
             backgroundImage: "url(/backgrounds/bg-3.gif)",
             backgroundRepeat: "no-repeat",

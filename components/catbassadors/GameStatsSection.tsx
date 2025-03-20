@@ -5,6 +5,7 @@ import { useState } from "react";
 import { PixelButton } from "../shared/PixelButton";
 import { CloseButton } from "../shared/CloseButton";
 import { useToast } from "@/context/ToastContext";
+import { ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 interface IGameStat {
   title: string;
   image: string;
@@ -63,6 +64,7 @@ export const GameStatsSection = ({
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
+          id={ONBOARDING_MODAL_IDS.ABOUT_ME}
         >
           {profile.cat && (
             <div className="relative -mb-2">
@@ -80,7 +82,7 @@ export const GameStatsSection = ({
               )}
             </div>
           )}
-          <div className="text-p4 flex items-center gap-1">
+          <div className="text-p4 font-bold flex items-center gap-1">
             <div>ABOUT ME</div>
           </div>
         </div>
@@ -119,7 +121,7 @@ export const GameStatsSection = ({
           }}
         >
           <img draggable={false} className="w-6 h-6" src="/logo/coin.webp" />
-          <div className="text-p4 flex items-center gap-1">
+          <div className="text-p4 font-bold flex items-center gap-1">
             <div>COINS</div>
           </div>
           <div className="flex items-center gap-2 -mt-1">

@@ -49,7 +49,7 @@ export const BlogPreview = () => {
   ));
   return (
     <div>
-      <h2 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl">
+      <h2 className="font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance my-3 text-center">
         What's new ?
       </h2>
       <Slider items={items || []} mobileSlides={1} />

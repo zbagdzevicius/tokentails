@@ -8,7 +8,7 @@ export const Tokenomics = () => {
     <div className="pb-4 md:mx-auto flex flex-col items-center max-w-[1780px]">
       <div className="flex justify-center items-center gap-4">
         <img draggable={false} src="/logo/coin.webp" className="w-14" />
-        <h2 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl">
+        <h2 className="font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance my-3">
           $TAILS Tokens
         </h2>
         <img draggable={false} src="/logo/coin.webp" className="w-14" />

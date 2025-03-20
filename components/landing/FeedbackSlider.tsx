@@ -16,14 +16,14 @@ export const FeedbackSlider = () => {
   return (
     <>
       <div className="flex items-center justify-center flex-col my-32">
-        <h2 className="text-left font-secondary uppercase tracking-tight text-h6 md:text-h2 text-balance my-3">
+        <h2 className="text-left font-primary uppercase tracking-tight text-h6 md:text-h2 lg:text-h1 text-balance my-3">
           Get to Know Shelters Cats
         </h2>
 
         <a
           href="https://www.facebook.com/rozine.pedute"
           target="_blank"
-          className="relative flex items-center justify-center w-48 h-48 rounded-2xl overflow-hidden hover:brightness-110 transition-all duration-300"
+          className="relative flex items-center justify-center w-36 h-36 rounded-full overflow-hidden hover:brightness-110 transition-all duration-300 animate-spin-slow"
         >
           <img
             draggable={false}

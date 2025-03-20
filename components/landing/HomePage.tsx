@@ -113,55 +113,11 @@ const cats: bannerProps[] = [
   },
 ];
 export const HomePage = () => {
-  const [earlyCountdown, setEarlyCountdown] = useState("");
-
-  useEffect(() => {
-    // Set the date we're counting down to
-    const earlyCountDownDate = new Date("Jul 19, 2024 18:30:00").getTime();
-
-    function setCountdownStates() {
-      // Get today's date and time
-      const now = new Date().getTime();
-
-      // Find the distance between now and the count down date
-      const earlyDistance = earlyCountDownDate - now;
-
-      // Time calculations for days, hours, minutes and seconds
-      const earlyDays = Math.floor(earlyDistance / (1000 * 60 * 60 * 24));
-      const earlyHours = Math.floor(
-        (earlyDistance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
-      );
-      const earlyMinutes = Math.floor(
-        (earlyDistance % (1000 * 60 * 60)) / (1000 * 60)
-      );
-      const earlySeconds = Math.floor((earlyDistance % (1000 * 60)) / 1000);
-      let earlyCountdownText =
-        earlyDistance < 0
-          ? "PLAY NOW"
-          : earlyDays +
-            "d " +
-            earlyHours +
-            "h " +
-            earlyMinutes +
-            "m " +
-            earlySeconds +
-            " s";
-
-      setEarlyCountdown(earlyCountdownText);
-    }
-    // Update the count down every 1 second
-    const x = setInterval(setCountdownStates, 1000);
-    setCountdownStates();
-    return () => clearInterval(x);
-  }, [setEarlyCountdown]);
-
   return (
-    <div className="mt-14 md:mt-4 flex justify-center items-center flex-col">
-      <div className="relative w-full md:w-2/3 xl:w-1/2 px-10 max-lg:text-balance -mb-8 md:-mb-32">
-        <h1 className="text-center font-secondary uppercase tracking-tight text-h3 -mt-14 md:text-8xl whitespace-nowrap">
-          PLAY TO SAVE CATS
-        </h1>
-      </div>
+    <div className="mt-14 md:mt-4 flex justify-center items-center flex-col w-full">
+      <h1 className="text-center font-primary uppercase tracking-tight text-h3 -mt-20 md:text-h1 xl:text-[200px] whitespace-nowrap -mb-8 md:-mb-32">
+        PLAY TO SAVE CATS
+      </h1>
       <div className="relative z-20 w-full flex items-center justify-center max-w-[100vw] overflow-hidden">
         <div className="absolute left-0 right-0 top-0 bottom-0 slider transform z-10 rotate-12">
           <div className="slide-track inverse">

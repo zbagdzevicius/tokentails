@@ -10,6 +10,7 @@ import { StatusType } from "@/models/status";
 import { Tag } from "../shared/Tag";
 import { useProfile } from "@/context/ProfileContext";
 import { useGame } from "@/context/GameContext";
+import { ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 
 interface IProps {
   gameType: GameType | null;
@@ -66,7 +67,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
   return (
     <div
       className={classNames(
-        "fixed left-1/2 right-1/2 translate-x-[50%] z-[11] flex flex-col gap-2 items-center pb-safe md:pt-0 lg:pt-12",
+        "fixed left-1/2 right-1/2 translate-x-[50%] z-[11] flex flex-col gap-2 items-center pb-safe md:pt-0 lg:pt-10",
         {
           "top-1/2 -translate-y-1/2": gameType === GameType.HOME,
           "top-4": gameType && gameType !== GameType.HOME,
@@ -74,24 +75,24 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
         }
       )}
     >
-      {gameType && cat && (cat.status.EAT || 0) >= 4 && (
-        <span className={gameType === GameType.HOME ? "mt-32 md:mt-40" : ""}>
+      {gameType && (
+        <span
+          className={classNames("", {
+            "mt-40 md:mt-36":
+              gameType === GameType.HOME && (cat?.status.EAT || 0) >= 4,
+            "mt-64 md:mt-56":
+              gameType === GameType.HOME && (cat?.status.EAT || 0) < 4,
+          })}
+        >
           <PixelButton
             text="TO THE GAME ZONE →"
-            active={cat?.status.EAT !== 4}
-            onClick={() => {
-              if (cat?.status?.EAT !== 4) {
-                toast({ message: "You must feed your cat first" });
-              } else {
-                setGameType(null);
-              }
-            }}
+            onClick={() => setGameType(null)}
           />
         </span>
       )}
       {gameType === GameType.HOME && cat && (cat.status.EAT || 0) < 4 && (
-        <div className="flex flex-col items-center gap-2 mt-32 md:mt-40">
-          <PixelButton text="Feed" onClick={onFeedClick} />
+        <div className="flex flex-col items-center gap-2">
+          <PixelButton text="Feed To Control" onClick={onFeedClick} />
 
           {cat && (
             <div className="w-36">
@@ -107,10 +108,12 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
         <>
           <div className="flex max-w-max md:gap-4 lg:gap-8 min-w-0 justify-center items-center lg:mt-8">
             <div className="flex flex-col gap-1 items-start">
-              <GameSelectItem
-                setGameType={setGameType}
-                gameType={GameType.CATBASSADORS}
-              />
+              <span id={ONBOARDING_MODAL_IDS.CATBASSADORS}>
+                <GameSelectItem
+                  setGameType={setGameType}
+                  gameType={GameType.CATBASSADORS}
+                />
+              </span>
               <div className="flex z-10 -mt-4 -mb-2">
                 <Tag>PLAY GAMES</Tag>
               </div>
@@ -136,6 +139,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
                 )}
 
                 <PixelButton
+                  id={ONBOARDING_MODAL_IDS.MY_CATS}
                   onClick={() => {
                     setOpenedModal(GameModal.CATS);
                   }}
@@ -144,10 +148,12 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
               </div>
             )}
             <div className="flex flex-col gap-1 items-end">
-              <GameSelectItem
-                setGameType={setGameType}
-                gameType={GameType.SHELTER}
-              />
+              <span id={ONBOARDING_MODAL_IDS.SHELTER}>
+                <GameSelectItem
+                  setGameType={setGameType}
+                  gameType={GameType.SHELTER}
+                />
+              </span>
               <div className="flex z-10 -mt-4 -mb-2">
                 <Tag>SAVE CATS</Tag>
               </div>

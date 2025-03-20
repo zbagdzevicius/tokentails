@@ -4,7 +4,7 @@ import { PixelButton } from "../shared/PixelButton";
 const Roadmap = () => {
   return (
     <div className="container flex flex-col py-8 justify-center items-center">
-      <h2 className="text-center font-secondary uppercase tracking-tight text-h3 md:text-8xl mb-8">
+      <h2 className="font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance mb-8">
         WHAT'S NEXT?
       </h2>
       <a href="/game" className="-mt-6 mb-4">
@@ -24,8 +24,8 @@ const Roadmap = () => {
               src="/cats/grey/Loaf-Clothed-Grey.gif"
             />
           </div>
-          <h2 className="font-secondary text-h2">2024</h2>
-          <div className="flex flex-col font-bold text-p4">
+          <h2 className="font-primary text-h2">2024</h2>
+          <div className="flex flex-col font-secondary text-p2 font-bold">
             <span className="flex gap-2 items-center">
               <img draggable={false} className="h-6" src="icons/check.webp" />
               50k Players
@@ -53,8 +53,8 @@ const Roadmap = () => {
               src="/cats/siamese/jugando Ropa Siames.gif"
             />
           </div>
-          <h2 className="font-secondary text-h2">2025 Q1</h2>
-          <div className="flex flex-col font-bold text-p4">
+          <h2 className="font-primary text-h2">2025 Q1</h2>
+          <div className="flex flex-col font-secondary text-p2 font-bold">
             <span className="flex gap-2 items-center -ml-6">
               <img draggable={false} className="h-6" src="icons/check.webp" />
               Tokenize your cat
@@ -82,8 +82,8 @@ const Roadmap = () => {
               src="/cats/yellow/Jump-Hat-Yellow.gif"
             />
           </div>
-          <h2 className="font-secondary text-h2">2025 Q2</h2>
-          <div className="flex flex-col text-p4 font-bold">
+          <h2 className="font-primary text-h2">2025 Q2</h2>
+          <div className="flex flex-col font-secondary text-p2 font-bold">
             <span className="flex gap-2 items-center -ml-6">
               <img draggable={false} className="h-6" src="icons/loader.webp" />
               TGE

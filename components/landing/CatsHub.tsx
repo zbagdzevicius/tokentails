@@ -27,7 +27,7 @@ const CatsHubProps: IProps[] = [
     title: "WHAT ARE THE PERKS FOR CATS HOLDERS",
     img: "/images/cats-slider/eat.jpg",
     description:
-      "Access to gaming hub, direct connection with cats in a shelter, $TAILS airdrop, AI Cat Agent companion on socials and lots of fun !",
+      "Up to 10x elevated token rewards ratio, airdrops, NFT rewards, ability to stake NFT cats and craft tokens, AI companion on X and the most important - saved cats !",
   },
   {
     title: "WEN $TAILS LISTING ? WEN AIRDROP ?",
@@ -43,7 +43,7 @@ const CatsSection = ({ title, description, isActive, img, onSet }: IProps) => {
       <div>
         <a
           onClick={() => onSet?.()}
-          className={`flex relative z-10 w-full title items-center py-3 px-5 transition 
+          className={`flex relative font-bold z-10 w-full title items-center py-3 px-5 transition 
                 ${
                   isActive
                     ? "bg-gradient-to-r from-yellow-300 from-5% to-white"
@@ -93,28 +93,14 @@ export const CatsHub = () => {
   );
   return (
     <div className="my-20 flex items-center justify-center flex-col container">
-      <div className="w-9/12 max-lg:w-full pt-8">
-        <h2 className="text-center font-secondary uppercase tracking-tight text-8xl max-lg:text-5xl  max-lg:text-balance ">
-          SAVE A CAT
-        </h2>
-
+      <div className="w-9/12 max-lg:w-full">
         <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1 max-lg:mx-5 my-0 sm:my-10 items-center">
           <div className="relative m-auto rounded-2xl sm:rounded-[80px] overflow-hidden -mb-8 sm:mb-0 hover:brightness-110">
             <img
               draggable={false}
-              src="/images/cats-hub/cards-bg.webp"
-              alt="Cats Background"
-              className="w-40 aspect-square sm:w-full sm:h-full"
-              width={500}
-              height={200}
-            />
-            <img
-              draggable={false}
-              src="/images/cats-hub/cat-with-hat.webp"
+              src="/images/cats-hub/how-you-can-save.webp"
               alt="cats"
-              className="absolute inset-0 w-40 aspect-square sm:w-full sm:h-full object-contain z-3"
-              width={1000}
-              height={1000}
+              className="w-40 aspect-square sm:w-full sm:h-full object-contain z-3"
             />
           </div>
           <div>
@@ -131,6 +117,12 @@ export const CatsHub = () => {
               ))}
             </div>
             <div className="flex mt-10 max-lg:mt-5 gap-4">
+              <a
+                target="_blank"
+                href="https://tokentails.com/feed/cats-nft/how-to-adopt-and-save-a-shelter-cat-in-token-tails"
+              >
+                <PixelButton text="TUTORIAL" />
+              </a>
               <a target="_blank" href="/game">
                 <PixelButton text="PLAY TO SAVE" />
               </a>
