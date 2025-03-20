@@ -236,7 +236,7 @@ const config: Config = {
       },
     },
     fontFamily: {
-      primary: ["Inter", "sans-serif"],
+      primary: ["Passion One", "sans-serif"],
       secondary: ["Bebas Neue", "sans-serif"],
       tertiary: ["Nunito", "sans-serif"],
       pixel: ["Pixelify Sans", "sans-serif"],

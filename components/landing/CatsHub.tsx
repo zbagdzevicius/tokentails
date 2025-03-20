@@ -78,7 +78,7 @@ const CatsSection = ({
               {title}
             </div>
           </div>
-          <PixelButton text={question} isSmall />
+          <PixelButton text={question || "HOW"} isSmall />
         </a>
       </div>
       <div
