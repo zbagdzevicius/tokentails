@@ -3,8 +3,7 @@ const nextConfig = {
   experimental: {
     esmExternals: "loose", // Enable ESM external support in loose mode
   },
-  output:
-    process.env.NEXT_PUBLIC_IS_APP === "development" ? "export" : undefined,
+  output: undefined,
   images: {
     remotePatterns: [
       {
