@@ -26,6 +26,11 @@ import { CAT_API } from "@/api/cat-api";
 import { useQuery } from "@tanstack/react-query";
 import { CatBenefits } from "./shared/CatBenefits";
 import { isApp } from "@/models/app";
+import {
+  CAT_CARD_ONBOARDING_MODAL_IDS,
+  ONBOARDING_MODAL_IDS,
+} from "@/constants/onboarding";
+import { CatCardOnboarding } from "./onboarding/CardOnboarding";
 
 interface IProps extends ICat {
   onClose?: () => void;
@@ -90,6 +95,7 @@ export const CatMultiplier = (cat: ICat) => {
   const multiplier = useMemo(() => getMultiplier(cat), [cat]);
   return (
     <div
+      id={CAT_CARD_ONBOARDING_MODAL_IDS.MULTIPLIER}
       style={{ backgroundColor: cardsColor[cat.type] || "white" }}
       className="absolute flex items-center right-4 bg-opacity-75 border font-secondary text-p5 border-yellow-300 hover:bg-opacity-100 pl-2 rounded-xl"
     >
@@ -125,6 +131,7 @@ export const CatDescription = ({
             />
           )}
           <h4
+            id={CAT_CARD_ONBOARDING_MODAL_IDS.STORY}
             className={`text-p3 ${
               firstBlessing ? "ml-4 md:ml-2 lg:ml-4" : "ml-16"
             } font-bold`}
@@ -165,7 +172,10 @@ export const CatDescription = ({
               width={40}
               height={40}
             />
-            <h4 className="text-p3 ml-4 md:ml-2 lg:ml-4 font-bold">
+            <h4
+              id={CAT_CARD_ONBOARDING_MODAL_IDS.ABILITY}
+              className="text-p3 ml-4 md:ml-2 lg:ml-4 font-bold"
+            >
               {ability}
             </h4>
           </div>
@@ -449,6 +459,7 @@ export const CatCard = ({
         relative ? "" : "top-1/2 -translate-y-1/2"
       } md:rem:w-[560px] lg:w-auto max-w-screen-xl hover:brightness-105 border-8 rounded-[24px] border-yellow-300 relative rem:h-[540px] md:h-[360px] lg:h-[600px] aspect-[2/3] max-w-screen`}
     >
+      <CatCardOnboarding />
       <img
         draggable={false}
         src={`/ability/${type}_BG.webp`}
@@ -515,7 +526,10 @@ export const CatCard = ({
               )}
             </span>
             {!activeBlessing && (
-              <div className="absolute bottom-2 md:-bottom-8 lg:bottom-2 flex justify-center">
+              <div
+                id={CAT_CARD_ONBOARDING_MODAL_IDS.BENEFITS}
+                className="absolute bottom-2 md:-bottom-8 lg:bottom-2 flex justify-center"
+              >
                 <PixelButton
                   onClick={() => setShowBenefits(!showBenefits)}
                   text={

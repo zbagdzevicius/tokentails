@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { TogglePixelButton } from "./TogglePixelButton";
+import { ABOUT_ME_ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 
 export const GameMusicToggle = () => {
   const [isMusicOn, setIsMusicOn] = useState<boolean>(() => {
@@ -21,7 +22,10 @@ export const GameMusicToggle = () => {
   }, [isMusicOn]);
 
   return (
-    <div className="flex flex-row items-center justify-center my-1 w-full">
+    <div
+      id={ABOUT_ME_ONBOARDING_MODAL_IDS.MUSIC}
+      className="flex flex-row items-center justify-center my-1 w-full"
+    >
       <div className="flex flex-row relative items-center font-secondary rounded-xl bg-gradient-to-r from-green-300 to-yellow-300 px-3">
         <p className="text-p4 pr-4">Music</p>
         <TogglePixelButton

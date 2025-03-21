@@ -10,6 +10,8 @@ import { Tag } from "./Tag";
 import { IProfile } from "@/models/profile";
 import { useMutation } from "@tanstack/react-query";
 import { USER_API } from "@/api/user-api";
+import { AboutMeOnboarding } from "../onboarding/AboutMeOnboarding";
+import { ABOUT_ME_ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 
 const Cat = ({ profile }: { profile?: IProfile | null }) => {
   return (
@@ -58,7 +60,10 @@ const ProfileUpdate = () => {
   };
 
   return (
-    <div className="flex items-center flex-col justify-center md:-mt-6 mb-2">
+    <div
+      id={ABOUT_ME_ONBOARDING_MODAL_IDS.TWITTER}
+      className="flex items-center flex-col justify-center md:-mt-6 mb-2"
+    >
       <img className="w-8 -mb-3" src="/icons/social/x.webp" draggable="false" />
       {!editMode ? (
         <Tag isSmall>
@@ -143,24 +148,34 @@ export const TelegramProfileContent = () => {
       <span className="md:hidden">
         <Cat profile={profile} />
       </span>
+      <AboutMeOnboarding />
       {profile?.cat && (
         <ul className="m-auto font-primary">
           <Tag>Hello, {profile.name} !</Tag>
           <li className="flex items-center gap-x-2 mb-4 justify-center mt-4">
             <img draggable={false} className="w-8" src="/logo/coin.webp" />
-            <div className="flex font-secondary text-p3 gap-2">
+            <div
+              id={ABOUT_ME_ONBOARDING_MODAL_IDS.COINS}
+              className="flex font-secondary text-p3 gap-2"
+            >
               Coins:{" "}
               <span className="font-bold">{commafy(profile.catpoints)}</span>
             </div>
           </li>
-          <li className="flex justify-between mb-4">
+          <li
+            id={ABOUT_ME_ONBOARDING_MODAL_IDS.OPTIONS}
+            className="flex justify-between mb-4"
+          >
             {gameStats.map((stat) => (
               <GameStatSection {...stat} key={stat.title} onClick={() => {}} />
             ))}
           </li>
 
           {!isWalletsRevealed && (
-            <span className="w-full flex justify-center">
+            <span
+              id={ABOUT_ME_ONBOARDING_MODAL_IDS.WALLETS}
+              className="w-full flex justify-center"
+            >
               <PixelButton
                 isSmall
                 text="Reveal My Wallets"

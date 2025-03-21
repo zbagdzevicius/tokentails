@@ -5,6 +5,7 @@ import { PixelButton } from "../shared/PixelButton";
 import { CatBenefits } from "../shared/CatBenefits";
 import { ICat } from "@/models/cats";
 import { useState } from "react";
+import { ShelterBenefits } from "../shared/ShelterBenefits";
 
 export const FeedbackSlider = () => {
   const [selectedCat, setSelectedCat] = useState<ICat | null>(null);
@@ -16,27 +17,30 @@ export const FeedbackSlider = () => {
   return (
     <>
       <div className="flex items-center justify-center flex-col my-32">
-        <h2 className="text-left font-primary uppercase tracking-tight text-h6 md:text-h2 lg:text-h1 text-balance my-3">
+        <h2 className="text-center font-primary uppercase tracking-tight text-h6 md:text-h2 lg:text-h1 text-balance my-3 px-4">
           Get to Know Shelters Cats
         </h2>
 
-        <a
-          href="https://www.facebook.com/rozine.pedute"
-          target="_blank"
-          className="relative flex items-center justify-center w-36 h-36 rounded-full overflow-hidden hover:brightness-110 transition-all duration-300 animate-spin-slow"
-        >
-          <img
-            draggable={false}
-            src="/logo/shelters/pink-paw.webp"
-            className="pixelated w-32 h-32 relative z-10"
-          />
-          <img
-            draggable={false}
-            src="/logo/shelters/lt.webp"
-            className="absolute inset-0 z-0 w-full h-full object-cover"
-            rounded-2xl
-          />
-        </a>
+        <div className="flex items-center justify-center flex-row gap-6">
+          <a
+            href="https://www.facebook.com/rozine.pedute"
+            target="_blank"
+            className="relative border flex items-center justify-center w-36 h-36 rounded-full overflow-hidden hover:brightness-110 transition-all duration-300 animate-spin-slow"
+          >
+            <img
+              draggable={false}
+              src="/logo/shelters/pink-paw.webp"
+              className="pixelated w-32 h-32 relative z-10"
+            />
+            <img
+              draggable={false}
+              src="/logo/shelters/lt.webp"
+              className="absolute inset-0 z-0 w-full h-full object-cover"
+              rounded-2xl
+            />
+          </a>
+          <ShelterBenefits />
+        </div>
 
         <div className="w-screen mt-4">
           {catsForSale?.["rozine-pedute"]?.length && (

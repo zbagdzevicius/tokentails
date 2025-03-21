@@ -108,28 +108,16 @@ export const Header = () => {
         <div className="flex items-center space-x-2">
           <div
             onClick={() => setIsNavOpen(!isNavOpen)}
-            className="lg:hidden h-12 w-12 flex items-center justify-center bg-gradient-to-b opacity-50 from-purple-300 to-blue-300 mr-4 rounded-xl"
+            className="lg:hidden h-12 w-12 flex items-center justify-center bg-gradient-to-b from-purple-300 to-blue-300 rounded-xl"
           >
-            {isNavOpen ? (
-              <img
-                draggable={false}
-                src="/icons/close.svg"
-                alt="close"
-                width={16}
-                height={16}
-              />
-            ) : (
-              <img
-                draggable={false}
-                src="/icons/burger.svg"
-                alt="burger"
-                width={16}
-                height={16}
-              />
-            )}
+            <PixelButton
+              text={isNavOpen ? "CLOSE" : "MENU"}
+              isSmall
+              onClick={() => setIsNavOpen(!isNavOpen)}
+            />
           </div>
           <a href="/#feedbackslider">
-            <PixelButton text="SAVE A CAT"></PixelButton>
+            <PixelButton text="SAVE A CAT" isSmall></PixelButton>
           </a>
         </div>
       </div>

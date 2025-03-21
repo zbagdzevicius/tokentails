@@ -1,16 +1,15 @@
+import { ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 import { useCat } from "@/context/CatContext";
-import { useToast } from "@/context/ToastContext";
+import { useGame } from "@/context/GameContext";
+import { useProfile } from "@/context/ProfileContext";
 import { GameModal, GameType } from "@/models/game";
+import { StatusType } from "@/models/status";
 import classNames from "classnames";
 import { useCallback } from "react";
 import { GameEvents } from "../Phaser/events";
 import { PixelButton } from "../shared/PixelButton";
-import { StatusBar } from "../shared/game/StatusBar";
-import { StatusType } from "@/models/status";
 import { Tag } from "../shared/Tag";
-import { useProfile } from "@/context/ProfileContext";
-import { useGame } from "@/context/GameContext";
-import { ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
+import { StatusBar } from "../shared/game/StatusBar";
 
 interface IProps {
   gameType: GameType | null;
@@ -56,7 +55,6 @@ const GameSelectItem = ({
 
 export const GameSelect = ({ setGameType, gameType }: IProps) => {
   const { cat } = useCat();
-  const toast = useToast();
   const { profile } = useProfile();
   const { setOpenedModal } = useGame();
 
@@ -123,13 +121,19 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
               />
             </div>
 
-            {profile?.cat && (
-              <div className="relative w-24 min-w-24 pixelated flex flex-col items-center justify-center">
+            {profile?.cat ? (
+              <div className="relative w-24 min-w-24 pixelated flex flex-col items-center justify-center animate-appear">
                 <img
                   draggable={false}
                   className="w-24 h-24 -mb-6"
                   src={profile.cat?.catImg}
                 />
+                <img
+                  id={ONBOARDING_MODAL_IDS.CAT}
+                  draggable={false}
+                  src="/logo/logo-text.webp"
+                  className="absolute w-24 h-auto -top-36 md:-top-20 md:w-16 lg:w-24 lg:-top-36"
+                ></img>
                 {!!profile.cat?.blessings?.length && (
                   <img
                     draggable={false}
@@ -146,6 +150,11 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
                   text="CATS"
                 ></PixelButton>
               </div>
+            ) : (
+              <img
+                src="/icons/loader.webp"
+                className="w-24 h-24 -mb-6 animate-spin pixelated"
+              />
             )}
             <div className="flex flex-col gap-1 items-end">
               <span id={ONBOARDING_MODAL_IDS.SHELTER}>

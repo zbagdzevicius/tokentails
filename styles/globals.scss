@@ -778,11 +778,16 @@ $bubble-border: 0 -1 * $px $white, 0 -2 * $px $black, $px 0 $white,
   background-image: url(/backgrounds/bg-5.png) !important;
   background-size: cover !important;
   background-position: center !important;
+  @apply rounded-2xl !important;
 
   button {
     font-size: 1.5rem !important;
     text-transform: uppercase !important;
   }
+}
+
+button.react-joyride__beacon {
+  @apply bg-red-300 rounded-full w-14 h-14 !important;
 }
 
 // REACT JOY END

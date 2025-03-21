@@ -10,9 +10,9 @@ export const Airdrop = () => {
         <h2 className="text-center font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1">
           UNLOCK REWARDS
         </h2>
-        <div className="flex gap-12 text-p3 font-primary">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-2 lg:gap-12 text-p3 font-primary">
           <div
-            className="flex flex-col items-center p-4 rounded-2xl min-w-64"
+            className="flex flex-col items-center p-4 rounded-2xl min-w-64 md:min-w-52 lg:min-w-64"
             style={{
               backgroundImage: "url(/backgrounds/bg.gif)",
               backgroundSize: "cover",
@@ -24,14 +24,14 @@ export const Airdrop = () => {
               draggable={false}
               src="/logo/coin.webp"
             />
-            <span className="text-p2">$TAILS TOKEN AIRDROP</span>
+            <span className="text-p2 text-center">$TAILS TOKEN AIRDROP</span>
             <span>
               <span className="text-red-700">600k USD</span> in{" "}
               <span className="text-red-700">$TAILS</span>
             </span>
           </div>
           <div
-            className="flex flex-col items-center p-4 rounded-2xl min-w-64"
+            className="flex flex-col items-center p-4 rounded-2xl min-w-64 md:min-w-52 lg:min-w-64"
             style={{
               backgroundImage: "url(/backgrounds/bg-night.gif)",
               backgroundSize: "cover",
@@ -43,14 +43,14 @@ export const Airdrop = () => {
               draggable={false}
               src="/logo/heart.webp"
             />
-            <span className="text-p2">CATS HEROES AWARDS</span>
+            <span className="text-p2 text-center">CATS HEROES AWARDS</span>
             <span>
               <span className="text-red-700">200k USD</span> in{" "}
               <span className="text-red-700">$TAILS</span>
             </span>
           </div>
           <div
-            className="flex flex-col items-center p-4 rounded-2xl min-w-64"
+            className="flex flex-col items-center p-4 rounded-2xl min-w-64 md:min-w-52 lg:min-w-64"
             style={{
               backgroundImage: "url(/backgrounds/bg-5.png)",
               backgroundSize: "cover",
@@ -62,7 +62,7 @@ export const Airdrop = () => {
               draggable={false}
               src="/cats/pinkie/pink-lamiendo-ropa.gif"
             />
-            <span className="text-p2">NFT REWARDS</span>
+            <span className="text-p2 text-center">MEGA NFT REWARDS</span>
             <span>
               worth
               <span className="text-red-700 ml-1">$200k USD</span>
@@ -97,7 +97,7 @@ export const Airdrop = () => {
                     className="w-8 lg:w-12"
                     src={SocialImages.X}
                   />
-                  <div className="">FOLLOWED ON X</div>
+                  <PixelButton text="FOLLOWED ON X" />
                 </a>
                 <a
                   href="https://t.me/+ofyPNIfNX5w4ZjM8"
@@ -109,7 +109,7 @@ export const Airdrop = () => {
                     className="w-8 lg:w-12"
                     src={SocialImages.TELEGRAM}
                   />
-                  <div className="">JOINED TELEGRAM</div>
+                  <PixelButton text="JOINED TELEGRAM" />
                 </a>
                 <li className="flex items-center gap-2 justify-center">
                   <img
@@ -117,7 +117,7 @@ export const Airdrop = () => {
                     className="w-8 lg:w-12"
                     src="/logo/rocket.png"
                   />
-                  <div className="text-nowrap">REACHED 30 DAYS STREAK</div>
+                  <PixelButton text="REACHED 30 DAYS STREAK" />
                 </li>
                 <li className="flex items-center gap-2 justify-center">
                   <img
@@ -125,7 +125,7 @@ export const Airdrop = () => {
                     className="w-8 lg:w-12"
                     src="/images/cats-slider/joy-cat.webp"
                   />
-                  <div className="">SAVED A CAT BY ADOPTING NFT</div>
+                  <PixelButton text="SAVED A CAT BY ADOPTING NFT" />
                 </li>
                 <li className="flex items-center gap-2 justify-center">
                   <img
@@ -133,9 +133,7 @@ export const Airdrop = () => {
                     className="w-8 lg:w-12"
                     src="/images/cats-slider/coin-cat.webp"
                   />
-                  <div className="md:text-nowrap">
-                    COLLECTED AND SPENT 100k COINS
-                  </div>
+                  <PixelButton text="COLLECTED AND SPENT 100k COINS" />
                 </li>
                 <li className="flex items-center font-primary gap-2 text-p5 text-center justify-center">
                   <div className="sm:text-nowrap">

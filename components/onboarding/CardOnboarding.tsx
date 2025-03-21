@@ -1,9 +1,9 @@
-import { onboardingSteps } from "@/constants/onboarding";
+import { catCardOnboardingSteps } from "@/constants/onboarding";
 import { useProfile } from "@/context/ProfileContext";
 import { useEffect, useMemo, useState } from "react";
 import Joyride from "react-joyride";
 
-export const Onboarding = () => {
+export const CatCardOnboarding = () => {
   const [isClient, setIsClient] = useState(false);
   const { profile } = useProfile();
   const isOnboardingStarted = useMemo(
@@ -17,5 +17,12 @@ export const Onboarding = () => {
   }, []);
 
   if (!isOnboardingStarted) return <></>;
-  return <Joyride steps={onboardingSteps} continuous />;
+  return (
+    <Joyride
+      steps={catCardOnboardingSteps}
+      continuous={true}
+      run={true}
+      callback={(e) => console.log(e)}
+    />
+  );
 };

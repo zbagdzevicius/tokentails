@@ -115,7 +115,7 @@ export const CatsHub = () => {
               draggable={false}
               src="/images/cats-hub/how-you-can-save.webp"
               alt="cats"
-              className="w-40 aspect-square sm:w-full sm:h-full object-contain z-3"
+              className="aspect-square max-w-96 w-full sm:h-full object-contain z-3"
             />
           </div>
           <div>
@@ -132,21 +132,21 @@ export const CatsHub = () => {
                 />
               ))}
             </div>
-            <div className="flex mt-10 max-lg:mt-5 gap-4">
+            <div className="flex mt-4 max-lg:mt-5 -ml-4 md:ml-0">
               <a
                 target="_blank"
                 href="https://tokentails.com/feed/cats-nft/how-to-adopt-and-save-a-shelter-cat-in-token-tails"
               >
-                <PixelButton text="TUTORIAL" />
+                <PixelButton text="TUTORIAL" isSmall />
               </a>
               <a href="https://docs.tokentails.com" target="_blank">
-                <PixelButton text="DOCS" />
+                <PixelButton text="DOCS" isSmall />
               </a>
               <a
                 target="_blank"
                 href="https://docs.google.com/presentation/d/1G8F_HxNLwxkBSZ9XAcnvtH9SQFBjtI6Wq_2Y6FEXLdQ/"
               >
-                <PixelButton text="PRESENTATION" />
+                <PixelButton text="PRESENTATION" isSmall />
               </a>
             </div>
           </div>

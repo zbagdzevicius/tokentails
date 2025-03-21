@@ -1,4 +1,5 @@
 export const ONBOARDING_MODAL_IDS = {
+  CAT: "cat",
   ABOUT_ME: "about-me",
   MY_CATS: "my-cats",
   CLAIM_REWARDS: "claim-rewards",
@@ -23,9 +24,9 @@ const ONBOARDING_MODAL_SELECTORS: Record<
 
 export const onboardingSteps = [
   {
-    target: ONBOARDING_MODAL_SELECTORS.ABOUT_ME,
+    target: ONBOARDING_MODAL_SELECTORS.CAT,
     content:
-      "Find details about your achievements, change settings and see custodial wallet addresses",
+      "Welcome to the Token Tails! We are happy to have you here and we are ready to help you get started.",
   },
   {
     target: ONBOARDING_MODAL_SELECTORS.MY_CATS,
@@ -56,5 +57,91 @@ export const onboardingSteps = [
     target: ONBOARDING_MODAL_SELECTORS.CATBASSADORS,
     content:
       "Earn coins by playing with your virtual cat to boost your airdrop earnings!",
+  },
+];
+
+export const CAT_CARD_ONBOARDING_MODAL_IDS = {
+  MULTIPLIER: "multiplier",
+  BENEFITS: "BENEFITS",
+  STORY: "STORY",
+  ABILITY: "ABILITY",
+};
+
+const CAT_CARD_MODAL_SELECTORS: Record<
+  keyof typeof CAT_CARD_ONBOARDING_MODAL_IDS,
+  string
+> = Object.entries(CAT_CARD_ONBOARDING_MODAL_IDS).reduce(
+  (acc, [key, value]) => ({
+    ...acc,
+    [key]: `#${value}`,
+  }),
+  {} as Record<keyof typeof CAT_CARD_ONBOARDING_MODAL_IDS, string>
+);
+
+export const catCardOnboardingSteps = [
+  {
+    target: CAT_CARD_MODAL_SELECTORS.MULTIPLIER,
+    content:
+      "Cat multiplier elevates earnings on every step of your play to earn journey!",
+  },
+  {
+    target: CAT_CARD_MODAL_SELECTORS.BENEFITS,
+    content:
+      "Explore cat benefits, each cat is individual and might even be linked with a real cat in a shelter!",
+  },
+  {
+    target: CAT_CARD_MODAL_SELECTORS.STORY,
+    content:
+      "Each cat it's own unique story to tell, while linked ones have a special story to tell resembling it's needs!",
+  },
+  {
+    target: CAT_CARD_MODAL_SELECTORS.ABILITY,
+    content: "Have fun using your cat ability in-game to stop the bad guys!",
+  },
+];
+
+export const ABOUT_ME_ONBOARDING_MODAL_IDS = {
+  COINS: "coins",
+  WALLETS: "WALLETS",
+  OPTIONS: "OPTIONS",
+  MUSIC: "MUSIC",
+  TWITTER: "twitter",
+};
+
+const ABOUT_ME_MODAL_SELECTORS: Record<
+  keyof typeof ABOUT_ME_ONBOARDING_MODAL_IDS,
+  string
+> = Object.entries(ABOUT_ME_ONBOARDING_MODAL_IDS).reduce(
+  (acc, [key, value]) => ({
+    ...acc,
+    [key]: `#${value}`,
+  }),
+  {} as Record<keyof typeof ABOUT_ME_ONBOARDING_MODAL_IDS, string>
+);
+
+export const aboutMeOnboardingSteps = [
+  {
+    target: ABOUT_ME_MODAL_SELECTORS.COINS,
+    content:
+      "See your earned in-game coins! Stack them to increase your airdrop rewards!",
+  },
+  {
+    target: ABOUT_ME_MODAL_SELECTORS.WALLETS,
+    content:
+      "Click here to see your custodial wallets addresses linked with your account!",
+  },
+  {
+    target: ABOUT_ME_MODAL_SELECTORS.OPTIONS,
+    content:
+      "Play everyday to stack your playing streak, own cats to increase your level and invite friends to get commissions of their earnings!",
+  },
+  {
+    target: ABOUT_ME_MODAL_SELECTORS.MUSIC,
+    content: "Got tired of the music? Click here to turn it off!",
+  },
+  {
+    target: ABOUT_ME_MODAL_SELECTORS.TWITTER,
+    content:
+      "Link your X handle if you want to get AI cat companion which is going to interact with you on socials!",
   },
 ];

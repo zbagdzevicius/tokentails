@@ -34,6 +34,19 @@ export type IBlessing = {
   owner?: IProfile;
 };
 
+export type IShelter = {
+  _id: string;
+  name: string;
+  image?: IImage;
+  description?: string;
+  slug: string;
+  address?: string;
+  website?: string;
+  facebook?: string;
+  tiktok?: string;
+  instagram?: string;
+};
+
 export enum CatAbilitySkill {
   FURSHADOW = "FURSHADOW",
   PURRSTORM = "PURRSTORM",
