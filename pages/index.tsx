@@ -126,7 +126,7 @@ export default function Index() {
           <HomePage />
         </div>
         <div
-          className="py-4 min-h-screen"
+          className="py-4 min-h-screen flex items-center justify-center"
           style={{
             backgroundImage: "url(/backgrounds/bg-6.png)",
             backgroundRepeat: "no-repeat",
