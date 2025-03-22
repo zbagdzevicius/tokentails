@@ -34,12 +34,14 @@ export const CatMiniCard = ({
           src={cat.catImg}
           alt={cat.name}
         />
-        <img
-          draggable={false}
-          className="h-24 max-w-full mb-2 -mt-4 z-0 rounded-2xl"
-          src={cat.blessings?.[0].image?.url}
-          alt={`${cat.type} icon`}
-        />
+        {cat?.blessings?.length && (
+          <img
+            draggable={false}
+            className="h-24 max-w-full mb-2 -mt-4 z-0 rounded-2xl"
+            src={cat.blessings?.[0]?.image?.url}
+            alt={`${cat.type} icon`}
+          />
+        )}
         <img
           draggable={false}
           className="w-8 mb-1 -mt-6 z-0 animate-spin"

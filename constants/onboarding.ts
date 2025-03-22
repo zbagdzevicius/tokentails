@@ -145,3 +145,38 @@ export const aboutMeOnboardingSteps = [
       "Link your X handle if you want to get AI cat companion which is going to interact with you on socials!",
   },
 ];
+
+export const CATS_ONBOARDING_MODAL_IDS = {
+  SELECT: "select",
+  CRAFT: "craft",
+  GENERATE: "generate",
+};
+
+export const CATS_MODAL_SELECTORS: Record<
+  keyof typeof CATS_ONBOARDING_MODAL_IDS,
+  string
+> = Object.entries(CATS_ONBOARDING_MODAL_IDS).reduce(
+  (acc, [key, value]) => ({
+    ...acc,
+    [key]: `#${value}`,
+  }),
+  {} as Record<keyof typeof CATS_ONBOARDING_MODAL_IDS, string>
+);
+
+export const catsOnboardingSteps = [
+  {
+    target: CATS_MODAL_SELECTORS.SELECT,
+    content:
+      "Click select to choose your cat and start playing! See which cat you've selected as your playable hero!",
+  },
+  {
+    target: CATS_MODAL_SELECTORS.CRAFT,
+    content:
+      "Craft coins and redeem crafted coins on weekly basis! The higher cats multiplier, the more coins you can craft!",
+  },
+  {
+    target: CATS_MODAL_SELECTORS.GENERATE,
+    content:
+      "Do you have a cat in real life? Generate your cat and see it in-game, make it playable and earn more coins!",
+  },
+];

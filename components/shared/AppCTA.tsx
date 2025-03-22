@@ -14,7 +14,7 @@ export const AppCTA = () => {
         <img
           draggable={false}
           className="w-16 h-16"
-          src="/purrquest/sprites/key.png"
+          src="/purrquest/sprites/key.png pixelated"
         />
         <p className="text-p3 md:text-p2 text-center">
           Download the app to unlock!

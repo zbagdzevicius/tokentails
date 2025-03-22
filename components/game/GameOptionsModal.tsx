@@ -112,7 +112,7 @@ export const GameOptionsModal = ({
               ></PixelButton>
               {!isApp && (
                 <img
-                  className="absolute -left-4 bottom-4 w-8 h-8 z-10"
+                  className="absolute -left-4 bottom-4 w-8 h-8 z-10 pixelated"
                   src="/purrquest/sprites/key.png"
                 />
               )}

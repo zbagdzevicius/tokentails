@@ -113,7 +113,7 @@ export default function Index() {
           <Circle />
         </div>
         <div
-          className="pt-24 md:pt-24 fade-in h-screen relative flex items-center justify-center"
+          className="pt-20 md:pt-24 fade-in h-screen relative flex items-center justify-center"
           style={{
             backgroundImage: "url(/backgrounds/bg-night.gif)",
             backgroundRepeat: "no-repeat",

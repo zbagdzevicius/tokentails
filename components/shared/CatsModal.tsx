@@ -22,6 +22,8 @@ import { Countdown } from "./Countdown";
 import { Previews } from "./drag-drop";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
+import { CatsOnboarding } from "../onboarding/CatsOnboarding";
+import { CATS_ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 
 const weekInMs = 604800000;
 
@@ -153,6 +155,7 @@ export const GenerateCat = ({ close }: { close: () => void }) => {
         </div>
       ) : (
         <PixelButton
+          id={CATS_ONBOARDING_MODAL_IDS.GENERATE}
           onClick={() => setIsDisplayed(true)}
           text="Generate Your Own Cat"
         />
@@ -225,6 +228,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
 
   return (
     <div className="px-4 pt-4 pb-8 md:px-16 flex flex-col justify-between items-center animate-appear">
+      <CatsOnboarding />
       <Tag>MY CATS</Tag>
       <h2 className="text-center font-secondary uppercase text-p4 md:text-p3 pt-2">
         Here you can switch your main cat
@@ -284,6 +288,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                   {cat.name}
                 </div>
                 <PixelButton
+                  id={CATS_ONBOARDING_MODAL_IDS.SELECT}
                   active={profile?.cat._id === cat._id}
                   text={profile?.cat._id === cat._id ? "Selected" : "Select"}
                   onClick={() => onCatSelect(cat)}
@@ -291,8 +296,9 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                 {!cat.staked && (
                   <div className="-mb-2">
                     <PixelButton
+                      id={CATS_ONBOARDING_MODAL_IDS.CRAFT}
                       isSmall
-                      text="STAKE TO CRAFT"
+                      text="CRAFT COINS"
                       onClick={() => onStakeCat(cat)}
                     />
                   </div>

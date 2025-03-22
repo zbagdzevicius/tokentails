@@ -106,16 +106,16 @@ export const Header = () => {
           ))}
         </ul>
         <div className="flex items-center space-x-2">
-          <div
+          <span
             onClick={() => setIsNavOpen(!isNavOpen)}
-            className="lg:hidden h-12 w-12 flex items-center justify-center bg-gradient-to-b from-purple-300 to-blue-300 rounded-xl"
+            className="lg:hidden -ml-4 -mr-4"
           >
             <PixelButton
               text={isNavOpen ? "CLOSE" : "MENU"}
               isSmall
               onClick={() => setIsNavOpen(!isNavOpen)}
             />
-          </div>
+          </span>
           <a href="/#feedbackslider">
             <PixelButton text="SAVE A CAT" isSmall></PixelButton>
           </a>

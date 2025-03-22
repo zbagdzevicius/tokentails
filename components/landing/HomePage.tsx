@@ -114,8 +114,8 @@ const cats: bannerProps[] = [
 ];
 export const HomePage = () => {
   return (
-    <div className="mt-14 md:mt-4 flex justify-center items-center flex-col w-full">
-      <h1 className="text-center font-primary uppercase tracking-tight text-h3 -mt-20 md:text-h1 xl:text-[200px] whitespace-nowrap -mb-8 md:-mb-32">
+    <div className="md:mt-4 flex justify-center items-center flex-col w-full">
+      <h1 className="text-center font-primary uppercase tracking-tight text-h3 -mt-24 md:text-h1 xl:text-[200px] whitespace-nowrap -mb-8 md:-mb-32">
         PLAY TO SAVE CATS
       </h1>
       <div className="relative z-20 w-full flex items-center justify-center max-w-[100vw] overflow-hidden">

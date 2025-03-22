@@ -44,7 +44,7 @@ const MysteryBoxEligibility = ({
         ) : (
           <img
             draggable={false}
-            className="w-8"
+            className="w-8 pixelated"
             src="/purrquest/sprites/key.png"
           />
         )}
@@ -196,7 +196,7 @@ export const MysteryBox = () => {
                 <div className="absolute inset-0 flex items-center justify-center bg-red-300/50">
                   <img
                     draggable={false}
-                    className="w-8"
+                    className="w-8 pixelated"
                     src="/purrquest/sprites/key.png"
                   />
                 </div>

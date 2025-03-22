@@ -1,3 +1,4 @@
+import { useLocalStorage } from "@/constants/hooks";
 import { onboardingSteps } from "@/constants/onboarding";
 import { useProfile } from "@/context/ProfileContext";
 import { useEffect, useMemo, useState } from "react";
@@ -10,19 +11,25 @@ export const Onboarding = () => {
     () => isClient && profile?.cat,
     [profile, isClient]
   );
+  const [isOnboarded, setIsOnboarded] = useLocalStorage("isOnboarded");
   useEffect(() => {
     setTimeout(() => {
       setIsClient(true);
     }, 1000);
   }, []);
+  const handleOnboarding = (handle: any) => {
+    if (handle?.action === "reset") {
+      setIsOnboarded(true);
+    }
+  };
 
-  if (!isOnboardingStarted) return <></>;
+  if (!isOnboardingStarted || isOnboarded) return <></>;
   return (
     <Joyride
       steps={onboardingSteps}
       continuous={true}
       run={true}
-      callback={(e) => console.log(e)}
+      callback={handleOnboarding}
     />
   );
 };
