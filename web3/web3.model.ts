@@ -40,14 +40,14 @@ export interface IMysteryBox {
 export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
   [ChainType.CAMP_TEST]: [
     {
-      address: "0xd51e3c8c7A547523C3AB31483fBF2833f8f01c30",
+      address: "0xa0D4687483F049c53e6EC8cBCbc0332C74180168",
       name: "Camp Mystery Box - Beginner Tier",
       chain: ChainType.CAMP_TEST,
       image: "/utilities/mystery-boxes/mystery-box-camp.jpg",
       faucet: "https://www.campnetwork.xyz/faucet_l1",
     },
     {
-      address: "0x088C74D5cae0A3C08A34B1AEF87c6B0BA2F88A84",
+      address: "0x0A65888A4F76D821A3148620866BC65A5db599BB",
       name: "Camp Mystery Box - Explorer Tier",
       chain: ChainType.CAMP_TEST,
       image: "/utilities/mystery-boxes/mystery-box-camp2.jpg",
@@ -61,7 +61,7 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
       },
     },
     {
-      address: "0x701e95Af733116F119E227Fc96dd84B88619490f",
+      address: "0x5B1793d4AA54a36ad5F53d20C9ad1eEd8609410C",
       name: "Camp Mystery Box - Cat Lover Tier",
       chain: ChainType.CAMP_TEST,
       image: "/utilities/mystery-boxes/mystery-box-camp3.jpg",
@@ -72,7 +72,7 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
       },
     },
     {
-      address: "0x4e4AB24f37CFAdB06C5a2e00e8f1D3dE3c8A3408",
+      address: "0xec735A2Ba32703215b3e40d669C61FBd849b422a",
       name: "Camp Mystery Box - Cat Savior Tier",
       chain: ChainType.CAMP_TEST,
       image: "/utilities/mystery-boxes/mystery-box-camp4.jpg",
