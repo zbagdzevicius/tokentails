@@ -23,7 +23,7 @@ This repository uses the recommended structure for a Soroban project:
 ```
 
 #### contracts TESTNET:
-- ##### TokenTailsCat NFT: `CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF`
+- ##### TokenTailsCat NFT: `CAJRXVUUCM7GKWM4SHAZURJDCJMWQY2OZMOJ243SNOFESW5I6LYUTGFM`
 - ##### TokenTailsBlessing NFT: `CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF`
 
 #### contracts MAINNET:
@@ -92,7 +92,7 @@ stellar contract deploy \
 stellar contract deploy \
   --wasm target/wasm32-unknown-unknown/release/blessing.wasm \
   --source zygis \
-  --network mainnet
+  --network testnet
 ```
 
 ### Contract initialization
