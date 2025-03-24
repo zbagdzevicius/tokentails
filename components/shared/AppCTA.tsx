@@ -13,8 +13,8 @@ export const AppCTA = () => {
       <div className="flex gap-4 items-center justify-center">
         <img
           draggable={false}
-          className="w-16 h-16"
-          src="/purrquest/sprites/key.png pixelated"
+          className="w-16 h-16 pixelated"
+          src="/purrquest/sprites/key.png"
         />
         <p className="text-p3 md:text-p2 text-center">
           Download the app to unlock!

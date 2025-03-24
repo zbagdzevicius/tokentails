@@ -90,8 +90,8 @@ const Purrquest = () => {
               <span>Find KEY</span>
               <img
                 draggable={false}
-                className="h-8"
-                src="purrquest/sprites/key.png pixelated"
+                className="h-8 pixelated"
+                src="purrquest/sprites/key.png"
               ></img>
             </div>
             <div className="flex flex-col items-center">

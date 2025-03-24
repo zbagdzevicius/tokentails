@@ -84,7 +84,7 @@ export const Header = () => {
         >
           <img
             draggable={false}
-            className={`${isTop ? `h-12 md:h-24` : `h-8 md:h-12`}`}
+            className={`${isTop ? `h-12 md:h-20` : `h-8 md:h-12`}`}
             src="/logo/logo.webp"
             alt="logo"
           />
