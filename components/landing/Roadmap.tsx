@@ -5,11 +5,8 @@ const Roadmap = () => {
   return (
     <div className="container flex flex-col py-8 justify-center items-center">
       <h2 className="font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance mb-8">
-        WHAT'S NEXT?
+        $TAILS JOURNEY
       </h2>
-      <a href="/game" className="-mt-6 mb-4">
-        <PixelButton text="PLAY TO SAVE" />
-      </a>
       <div className="flex flex-col md:flex-row justify-around gap-16 lg:gap-24 pt-16 md:pt-4">
         <div className="flex flex-col items-center gap-4 md:pt-36 hover:brightness-125 hover:animate-hover">
           <div className="relative bg-gradient-to-t to-purple-300 from-blue-300 rounded-full border-4 border-purple-300 w-16 h-16 flex justify-center items-center">
@@ -82,7 +79,7 @@ const Roadmap = () => {
               src="/cats/yellow/Jump-Hat-Yellow.gif"
             />
           </div>
-          <h2 className="font-primary text-h2 whitespace-nowrap">2025 Q2</h2>
+          <h2 className="font-primary text-h2 whitespace-nowrap">2025</h2>
           <div className="flex flex-col font-secondary text-p2 font-bold">
             <span className="flex gap-2 items-center -ml-6">
               <img
@@ -90,7 +87,7 @@ const Roadmap = () => {
                 className="h-6 pixelated"
                 src="icons/loader.webp"
               />
-              TGE
+              TGE AT Q2
             </span>
             <span className="flex gap-2 items-center -ml-6">
               <img

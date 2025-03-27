@@ -1,6 +1,5 @@
 import { PixelButton } from "@/components/shared/PixelButton";
 import { useCallback, useState } from "react";
-import { Calendar } from "../shared/Calendar";
 
 interface IProps {
   title: string;
@@ -13,14 +12,14 @@ interface IProps {
 
 const CatsHubProps: IProps[] = [
   {
-    title: "HOW CAN I SAVE A CAT ?",
+    title: "HOW CAN I SAVE A CAT?",
     img: "/images/cats-slider/contribute.jpg",
     question: "HOW",
     description:
       "Adopt shelters cats as NFTs, 100% of funds are transferred directly to cats shelters",
   },
   {
-    title: "HOW TO OWN AN NFT CAT ?",
+    title: "HOW TO OWN AN NFT CAT?",
     img: "/images/cats-slider/love.jpg",
     question: "HOW",
     description:
@@ -31,14 +30,14 @@ const CatsHubProps: IProps[] = [
     img: "/images/cats-slider/eat.jpg",
     question: "WHAT",
     description:
-      "Up to 10x elevated token rewards ratio, airdrops, NFT rewards, ability to stake NFT cats and craft tokens, AI companion on X and the most important - saved cats !",
+      "Up to 10x elevated token rewards ratio, airdrops, NFT rewards, ability to stake NFT cats and craft tokens, AI companion on X and the most important - saved cats!",
   },
   {
-    title: "WEN $TAILS LISTING ? WEN AIRDROP ?",
+    title: "WEN $TAILS LISTING? WEN AIRDROP?",
     img: "/images/cats-slider/play.jpg",
     question: "WEN",
     description:
-      "$TAILS TGE, LISTING AND AIRDROP is going to happen in Q2 2025. Follow us on X to stay up to date so you won't miss it !",
+      "$TAILS TGE, LISTING AND AIRDROP is going to happen in Q2 2025. Follow us on X to stay up to date so you won't miss it!",
   },
 ];
 

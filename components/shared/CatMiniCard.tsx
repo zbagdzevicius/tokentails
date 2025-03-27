@@ -6,10 +6,12 @@ export const CatMiniCard = ({
   cat,
   onClick,
   active,
+  hideBenefits,
 }: {
   cat: ICat;
-  onClick: (cat: ICat | null) => void;
+  onClick?: (cat: ICat | null) => void;
   active?: boolean;
+  hideBenefits?: boolean;
 }) => {
   return (
     <div className="relative overflow-hidden w-48 rounded-xl pb-2 border-2 border-black min-w-[12rem]">
@@ -54,11 +56,13 @@ export const CatMiniCard = ({
         <a href="/game">
           <PixelButton text="Save ME" />
         </a>
-        <PixelButton
-          isSmall
-          text={active ? "CLOSE" : "OWNER BENEFITS"}
-          onClick={() => onClick(active ? null : cat)}
-        />
+        {!hideBenefits && (
+          <PixelButton
+            isSmall
+            text={active ? "CLOSE" : "OWNER BENEFITS"}
+            onClick={() => onClick?.(active ? null : cat)}
+          />
+        )}
       </div>
       <img
         draggable={false}

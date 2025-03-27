@@ -1,4 +1,4 @@
-import { apiUrl } from "./api";
+const apiUrl = process.env.NEXT_PUBLIC_AI_URL;
 
 export interface AirdropUser {
   username: string;

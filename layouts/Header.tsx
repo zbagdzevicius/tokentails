@@ -20,7 +20,7 @@ const navConsts: navProps[] = [
   },
   {
     title: "AIRDROP",
-    link: "/#airdrop",
+    link: "/airdrop",
   },
   {
     title: "TEAM",

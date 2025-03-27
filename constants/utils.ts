@@ -35,7 +35,11 @@ export function insertObjectEveryN<T>(
   objectToInsert: any
 ): (T | any)[] {
   for (let i = n - 1; i < array.length; i += n) {
-    array.splice(i, 0, objectToInsert);
+    array.splice(
+      i,
+      0,
+      typeof objectToInsert === "function" ? objectToInsert() : objectToInsert
+    );
   }
   return array;
 }

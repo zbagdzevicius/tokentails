@@ -75,7 +75,7 @@ const allQuests: ILocalQuest[] = [
     type: QuestType.SOCIAL,
     key: QUEST.FOLLOW_X,
     name: "Follow on X",
-    link: "https://x.com/tokentails",
+    link: "https://x.com/intent/follow?screen_name=tokentails&tw_p=followbutton",
     icon: "/icons/social/x.webp",
     reward: {
       coins: 500,

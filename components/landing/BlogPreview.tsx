@@ -49,13 +49,7 @@ export const BlogPreview = () => {
   ));
   return (
     <div>
-      <h2 className="font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance my-3 text-center">
-        What's new ?
-      </h2>
       <Slider items={items || []} mobileSlides={1} />
-      <a href="/game" className="flex mt-4 justify-center">
-        <PixelButton text="PLAY TO SAVE" />
-      </a>
     </div>
   );
 };

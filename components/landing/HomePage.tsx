@@ -1,6 +1,7 @@
 import { PixelButton } from "@/components/shared/PixelButton";
 import { Socials } from "@/layouts/Socials";
 import { useEffect, useState } from "react";
+import { Countdown } from "../shared/Countdown";
 
 interface bannerProps {
   image: string;
@@ -120,7 +121,7 @@ export const HomePage = () => {
       </h1>
       <div className="absolute z-20 inset-0 w-full h-full left-0 right-0 top-8 md:top-0 lg:top-4 2xl:top-36 flex flex-col items-center">
         <div className="relative z-20 w-full flex items-center justify-center max-w-[100vw] overflow-hidden">
-          <div className="absolute left-0 right-0 top-0 bottom-0 slider transform z-10 rotate-12">
+          <div className="absolute left-0 right-0 top-0 md:top-14 lg:top-24 2xl:top-16 bottom-0 slider transform z-10">
             <div className="slide-track inverse">
               {cats.map((banner, index) => (
                 <div key={index} className="slide">
@@ -173,23 +174,22 @@ export const HomePage = () => {
             />
             <img
               draggable={false}
-              src="/logo/chest.webp"
+              src="/logo/boss-coin.png"
               alt="coin"
               className="h-12 w-12 absolute bottom-0 top-0 -right-6"
             />
             <span className="relative z-10">
-              <PixelButton text="PLAY" isBig subtext="HERE"></PixelButton>
+              <PixelButton text="PLAY" isBig subtext="GAME"></PixelButton>
             </span>
           </a>
 
-          <a
-            href="https://t.me/CatbassadorsBot?start=start"
-            target="_blank"
-            className="font-secondary relative"
-          >
+          <a href="/airdrop" className="font-secondary relative">
+            <span className="absolute -top-7 w-full flex">
+              <Countdown isDaysDisplayed targetDate={new Date("2025-05-31")} />
+            </span>
             <img
               draggable={false}
-              src="/logo/boss-coin.png"
+              src="/logo/chest.webp"
               alt="coin"
               className="h-12 w-12 absolute bottom-0 top-0 -right-6"
             />
@@ -200,7 +200,7 @@ export const HomePage = () => {
               className="h-12 w-12 absolute bottom-0 top-0 -left-6"
             />
             <span className="relative z-10">
-              <PixelButton text="PLAY ON" subtext="TG" isBig></PixelButton>
+              <PixelButton text="GET" subtext="AIRDROP" isBig></PixelButton>
             </span>
           </a>
         </div>

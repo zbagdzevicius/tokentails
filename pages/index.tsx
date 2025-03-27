@@ -151,19 +151,6 @@ export default function Index() {
             <GameModes />
           </div>
         </div>
-        <div
-          className="py-4 min-h-screen flex items-center justify-center"
-          style={{
-            backgroundImage: "url(/backgrounds/bg-3.gif)",
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        >
-          <div id="cats" ref={catshubRef}>
-            <CatsHub />
-          </div>
-        </div>
         <div className="py-6 flex items-center justify-center bg-gradient-to-r from-blue-300 to-purple-500">
           <GameAggregators />
         </div>
@@ -181,40 +168,7 @@ export default function Index() {
           </div>
         </div>
         <div
-          className="pb-4 pt-3 md:pt-0 min-h-screen flex items-center justify-center"
-          style={{
-            backgroundImage: "url(/backgrounds/bg-6.png)",
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        >
-          <div className="h-full w-full" id="airdrop" ref={catssliderRef}>
-            <Airdrop />
-          </div>
-        </div>
-        <div
-          className="py-8 flex items-center justify-center"
-          style={{
-            backgroundImage: "url(/backgrounds/bg-2.gif)",
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        >
-          <div
-            className="relative overflow-hidden"
-            id="tokenomics"
-            ref={catswinnersRef}
-          >
-            <Web3Providers>
-              <Presale />
-            </Web3Providers>
-            <Tokenomics />
-          </div>
-        </div>
-        <div
-          className="h-screen flex items-center"
+          className="min-h-screen flex items-center py-3"
           style={{
             backgroundImage: "url(/backgrounds/bg-night-2.gif)",
             backgroundRepeat: "no-repeat",
@@ -223,8 +177,22 @@ export default function Index() {
           }}
         >
           <div className="w-full" id="blog">
+            <CatsHub />
             <BlogPreview />
           </div>
+        </div>
+        <div
+          className="py-8 flex items-center justify-center"
+          id="tokenomics"
+          ref={catswinnersRef}
+          style={{
+            backgroundImage: "url(/backgrounds/bg-night.gif)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <Tokenomics />
         </div>
         <div
           className="pt-4 min-h-screen flex items-center justify-center"
