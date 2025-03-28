@@ -182,7 +182,7 @@ export default function Index() {
           </div>
         </div>
         <div
-          className="py-8 flex items-center justify-center"
+          className="py-8 flex items-center justify-center max-w-screen min-w-0"
           id="tokenomics"
           ref={catswinnersRef}
           style={{

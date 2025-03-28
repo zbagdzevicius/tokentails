@@ -2,13 +2,15 @@ import React from "react";
 
 export const VestingSchedule = () => {
   return (
-    <div className="font-secondary hover:brightness-105 mt-8 animate-opacity">
-      <table className="rounded-lg overflow-hidden table-auto bg-blue-300 text-black-900 w-full text-sm text-left text-gray-500 max-2xl:ml-2 max-2xl:mr-2">
+    <div className="overflow-x-auto max-w-full min-w-0">
+      <table className="xl:rounded-lg overflow-hidden table-auto bg-blue-300 text-black-900 w-full text-sm text-left text-gray-500 font-secondary hover:brightness-105 mt-8 animate-opacity">
         <thead className="text-p4 uppercase text-black-300 bg-gray-50 border-b border-purple-300 font-primary">
           <tr>
             <th className="py-3 px-6 font-primary">POOL</th>
             <th className="py-3 px-2 text-center font-primary">ALLOCATION</th>
-            <th className="py-3 px-2 text-center font-primary">TGE UNLOCK</th>
+            <th className="py-3 px-2 text-center font-primary whitespace-nowrap">
+              TGE UNLOCK
+            </th>
             <th className="py-3 px-6 text-center border-l border-blue-300 relative bg-gray-50">
               <div className="absolute inset-0 top-3 flex items-center pr-2 rounded-t-lg text-[10px] font-primary leading-[10px] z-0 flex-col whitespace-nowrap px-1">
                 months after <span className="text-p4">TGE</span>
@@ -183,7 +185,7 @@ export const VestingSchedule = () => {
               REWARDS
             </th>
             <td className="py-4 px-6 text-center text-red-300 bg-gray-700 text-p4">
-              25%
+              17%
             </td>
             <td className="py-4 px-6 text-center text-red-300 bg-gray-700 text-p4 border-l border-red-300">
               20%
@@ -224,7 +226,7 @@ export const VestingSchedule = () => {
               FOUNDATION
             </th>
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p4">
-              12%
+              20%
             </td>
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p4 border-l border-white">
               0
@@ -262,22 +264,25 @@ export const VestingSchedule = () => {
               <span className="text-p6 -mt-2">INCL. LIQUIDITY</span>
             </th>
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p4 border-l border-white-300">
-              $1.1m
+              $1m
             </td>
             <td className="py-4 px-6 text-center text-white bg-gray-700 text-p4 border-l border-white">
               32%
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p4 border-l border-white">
-              $1.1m
+              $1m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p4 border-l border-white">
-              $1.5m
+              $1.4m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p4 border-l border-white">
               $1.9m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p4 border-l border-white">
-              $2.1m
+              $2m
+            </td>
+            <td className="py-4 px-4 text-center text-white bg-gray-700 text-p4 border-l border-white">
+              $2.2m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p4 border-l border-white">
               $2.3m
@@ -292,16 +297,13 @@ export const VestingSchedule = () => {
               $2.5m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p4 border-l border-white">
-              $2.6m
+              $2.5m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p4 border-l border-white">
               $2.6m
             </td>
             <td className="py-4 px-4 text-center text-white bg-gray-700 text-p4 border-l border-white">
-              $2.6m
-            </td>
-            <td className="py-4 px-4 text-center text-white bg-gray-700 text-p4 border-l border-white">
-              $2.7m
+              $3.5m
             </td>
           </tr>
         </tbody>

@@ -116,6 +116,8 @@ const Airdrop = () => {
         style={{
           background: "url(/backgrounds/bg-night-2.gif)",
           backgroundAttachment: "fixed",
+          backgroundSize: "cover",
+          backgroundPosition: "bottom",
         }}
         id="social-farming-results"
       >

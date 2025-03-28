@@ -136,7 +136,7 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
                 <span className="whitespace-nowrap text-sm font-primary">
                   Name
                 </span>
-                <div className="relative w-24 md:w-32 lg:w-40">
+                <div className="relative w-40">
                   <input
                     type="text"
                     placeholder="Enter your X handle..."

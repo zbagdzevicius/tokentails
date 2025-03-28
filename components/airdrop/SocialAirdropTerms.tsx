@@ -22,7 +22,7 @@ const whatToDo = [
     href: "https://x.com/intent/post?text=%40tokentails%20Cats%20called%2C%20I%20answered.%20%24TAILS&url=https%3A%2F%2Fx.com%2Ftokentails%2Fstatus%2F1900186546969432232",
   },
   {
-    description: "+ INCLUDE OUR MEME",
+    description: "+ SHARE OUR MEME",
     points: 3,
     image: SocialImages.X,
     href: "https://x.com/intent/post?text=%40tokentails%20My%20soul%20belongs%20to%20the%20cats.%20%24TAILS&url=https%3A%2F%2Fx.com%2Ftokentails%2Fstatus%2F1900186546969432232",
