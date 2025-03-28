@@ -6,7 +6,7 @@ import { Countdown } from "../shared/Countdown";
 export const Tokenomics = () => {
   return (
     <div className="pb-4 flex flex-col items-center">
-      <a href="/airdrop" className="font-secondary relative mt-7">
+      {/* <a href="/airdrop" className="font-secondary relative mt-7">
         <span className="absolute -top-7 w-full flex">
           <Countdown isDaysDisplayed targetDate={new Date("2025-05-31")} />
         </span>
@@ -25,7 +25,7 @@ export const Tokenomics = () => {
         <span className="relative z-10">
           <PixelButton text="GET" subtext="AIRDROP" isBig></PixelButton>
         </span>
-      </a>
+      </a> */}
       <div className="flex items-center font-primary gap-2 mt-1 text-p5 text-center justify-center">
         REDEEMAL AT TOKEN LAUNCH
       </div>

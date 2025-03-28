@@ -18,10 +18,10 @@ const navConsts: navProps[] = [
     title: "Token",
     link: "/#tokenomics",
   },
-  {
-    title: "AIRDROP",
-    link: "/airdrop",
-  },
+  // {
+  //   title: "AIRDROP",
+  //   link: "/airdrop",
+  // },
   {
     title: "TEAM",
     link: "/#contact",

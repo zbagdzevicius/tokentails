@@ -137,8 +137,7 @@ export const Airdrop = () => {
                 </li>
                 <li className="flex items-center font-primary gap-2 text-p5 text-center justify-center">
                   <div className="sm:text-nowrap">
-                    TOTAL $TAILS REWARDS POOL IS $1m USD - SAVE A CAT AND START
-                    EARNING
+                    TOTAL REWARDS POOL IS $1m USD - SAVE A CAT AND START EARNING
                   </div>
                 </li>
               </div>

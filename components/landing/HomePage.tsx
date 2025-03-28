@@ -183,7 +183,7 @@ export const HomePage = () => {
             </span>
           </a>
 
-          <a href="/airdrop" className="font-secondary relative">
+          {/* <a href="/airdrop" className="font-secondary relative">
             <span className="absolute -top-7 w-full flex">
               <Countdown isDaysDisplayed targetDate={new Date("2025-05-31")} />
             </span>
@@ -202,7 +202,7 @@ export const HomePage = () => {
             <span className="relative z-10">
               <PixelButton text="GET" subtext="AIRDROP" isBig></PixelButton>
             </span>
-          </a>
+          </a> */}
         </div>
         <span className="relative z-30 -skew-x-[1deg] md:-skew-x-[1deg] skew-y-[5deg]">
           <Socials />
