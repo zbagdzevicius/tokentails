@@ -116,6 +116,7 @@ const torus = defineChain({
 
 export const chainTypeId: Record<ChainType, number> = {
   [ChainType.BNB]: bsc.id,
+  [ChainType.DIAM]: bsc.id,
   [ChainType.BNB_TEST]: bscTestnet.id,
   [ChainType.SKALE]: skaleNebula.id,
   [ChainType.SKALE_TEST]: skaleNebulaTestnet.id,
