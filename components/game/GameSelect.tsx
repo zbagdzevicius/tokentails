@@ -88,6 +88,14 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
           />
         </span>
       )}
+      {gameType === GameType.SHELTER && (
+        <span>
+          <PixelButton
+            text="HELP CATS IN NEED ♡"
+            onClick={() => setOpenedModal(GameModal.CATS_IN_NEED)}
+          />
+        </span>
+      )}
       {gameType === GameType.HOME && cat && (cat.status.EAT || 0) < 4 && (
         <div className="flex flex-col items-center gap-2">
           <PixelButton text="Feed To Control" onClick={onFeedClick} />

@@ -16,6 +16,7 @@ export enum CurrencyType {
   BNB = "BNB",
   ODP = "ODP",
   SOL = "SOL",
+  DIAM = "DIAM",
 }
 
 export enum ChainType {
@@ -30,6 +31,7 @@ export enum ChainType {
   TORUS = "TORUS",
   CAMP_TEST = "CAMP_TEST",
   SOLANA_TEST = "SOLANA_TEST",
+  DIAM = "DIAM",
 }
 
 export enum ChainNamespace {
@@ -64,6 +66,7 @@ export const ChainImg: Record<ChainType, string> = {
   [ChainType.SKALE_TEST]: "/currency/SKALE.png",
   [ChainType.ZETA]: "/currency/ZETA.webp",
   [ChainType.TORUS]: "/currency/ODP.webp",
+  [ChainType.DIAM]: "/currency/ODP.webp",
   [ChainType.CAMP_TEST]: "/currency/CAMP.webp",
 };
 
@@ -73,6 +76,7 @@ export const ChainNamespacesCurrencies: Record<ChainNamespace, CurrencyType[]> =
       CurrencyType.BNB,
       CurrencyType.USDT,
       CurrencyType.USDC,
+      CurrencyType.DIAM,
     ],
     [ChainNamespace.STELLAR]: [CurrencyType.XLM, CurrencyType.USDC],
     [ChainNamespace.SOLANA]: [CurrencyType.SOL],
@@ -95,6 +99,7 @@ export const currencyContracts: Record<
   [ChainType.BNB]: {
     [CurrencyType.USDT]: "0x55d398326f99059fF775485246999027B3197955",
     [CurrencyType.USDC]: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+    [CurrencyType.DIAM]: "0x1FA0f5ed24a1a2b43741E88F8FEc19633e67082B",
     [CurrencyType.TAILS]: "0x",
   },
   [ChainType.BNB_TEST]: {
@@ -105,6 +110,7 @@ export const currencyContracts: Record<
   [ChainType.STELLAR]: {
     [CurrencyType.USDC]: "0x",
   },
+  [ChainType.DIAM]: {},
   [ChainType.ZETA]: {
     [CurrencyType.USDC]: "0x",
   },

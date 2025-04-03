@@ -27,6 +27,7 @@ import * as React from "react";
 import { useEffect, useState } from "react";
 import { useProfile } from "./ProfileContext";
 import { IToast, useToast } from "./ToastContext";
+import { CatsInNeedModal } from "@/components/shared/CatsInNeed";
 
 type ContextState = {
   isStarted?: boolean;
@@ -45,7 +46,9 @@ let timerInterval: any = null;
 const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [isStarted, setIsStarted] = useState<boolean>(false);
   const [gameType, setGameType] = useState<GameType | null>(null);
-  const [openedModal, setOpenedModal] = useState<GameModal | null>(null);
+  const [openedModal, setOpenedModal] = useState<GameModal | null>(
+    GameModal.CATS_IN_NEED
+  );
   const [gameStop, setGameStop] = useState<null | IGameStopEvent>(null);
 
   const { profile, setProfileUpdate } = useProfile();
@@ -222,6 +225,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           )}
           {openedModal === GameModal.CATS && (
             <CatsModal close={() => setOpenedModal(null)} />
+          )}
+          {openedModal === GameModal.CATS_IN_NEED && (
+            <CatsInNeedModal close={() => setOpenedModal(null)} />
           )}
           {openedModal === GameModal.INVITE && (
             <InviteModal close={() => setOpenedModal(null)} />

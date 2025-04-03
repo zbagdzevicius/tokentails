@@ -5,7 +5,7 @@ import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
 import { cardsColor, ICat, Prices } from "@/models/cats";
-import { GameType } from "@/models/game";
+import { GameModal, GameType } from "@/models/game";
 import { IImage } from "@/models/image";
 import { EntityType } from "@/models/save";
 import { CurrencyType } from "@/web3/contracts";
@@ -170,7 +170,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
   const { profile, setProfileUpdate } = useProfile();
   const toast = useToast();
 
-  const { setGameType } = useGame();
+  const { setGameType, setOpenedModal } = useGame();
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
     queryFn: () => CAT_API.cats(),
@@ -236,6 +236,11 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
       <h2 className="text-center font-secondary uppercase text-p5 md:text-p4 mb-2">
         Earn coins to Adopt more cats in the shelter
       </h2>
+      <PixelButton
+        text="Become a Hero for Cats ♡"
+        onClick={() => setOpenedModal(GameModal.CATS_IN_NEED)}
+      />
+      <div className="mt-1"></div>
 
       <Web3Providers>
         <GenerateCat close={close} />
@@ -246,7 +251,10 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
             key={cat._id}
             className="w-1/2 md:w-1/3 flex justify-center mb-4"
           >
-            <div className="relative overflow-hidden w-36 rounded-xl py-2 border-2 border-black">
+            <div
+              className="relative overflow-hidden w-36 rounded-xl py-2 border-2"
+              style={{ borderColor: cardsColor[cat.type] }}
+            >
               <div
                 style={{ backgroundColor: cardsColor[cat.type] || "white" }}
                 className="absolute left-0 top-0 opacity-75 text-black pl-1 text-p5 font-secondary rounded-r-xl z-20 flex items-center"
@@ -305,12 +313,8 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                 )}
                 {cat.staked && (
                   <>
-                    <Countdown
-                      isDaysDisplayed
-                      targetDate={new Date(cat.staked)}
-                    />
                     {new Date(cat.staked).getTime() < new Date().getTime() ? (
-                      <div className="-my-2">
+                      <div>
                         <PixelButton
                           isSmall
                           text="CLAIM REWARDS"
@@ -318,9 +322,15 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                         />
                       </div>
                     ) : (
-                      <span className="-mb-1">
-                        <Tag isSmall>Crafting</Tag>
-                      </span>
+                      <>
+                        <Countdown
+                          isDaysDisplayed
+                          targetDate={new Date(cat.staked)}
+                        />
+                        <span className="-mb-1">
+                          <Tag isSmall>Crafting</Tag>
+                        </span>
+                      </>
                     )}
                   </>
                 )}

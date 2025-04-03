@@ -49,7 +49,7 @@ export const FeedbackSlider = () => {
                 <CatMiniCard
                   key={cat._id}
                   cat={cat}
-                  onClick={setSelectedCat}
+                  onBenefitsClick={setSelectedCat}
                   active={selectedCat?._id === cat._id}
                 />
               ))}

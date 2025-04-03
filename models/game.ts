@@ -7,6 +7,7 @@ export enum GameModal {
   CATS = "CATS",
   INVITE = "INVITE",
   CONTROL_SETTINGS = "CONTROL_SETTINGS",
+  CATS_IN_NEED = "CATS_IN_NEED",
 }
 
 export enum GameType {

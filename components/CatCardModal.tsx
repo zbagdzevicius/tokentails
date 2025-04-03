@@ -96,8 +96,10 @@ export const CatMultiplier = (cat: ICat) => {
   return (
     <div
       id={CAT_CARD_ONBOARDING_MODAL_IDS.MULTIPLIER}
-      style={{ backgroundColor: cardsColor[cat.type] || "white" }}
-      className="absolute flex items-center right-4 bg-opacity-75 border font-secondary text-p5 border-yellow-300 hover:bg-opacity-100 pl-2 rounded-xl"
+      style={{
+        backgroundColor: cardsColor[cat.type] || "white",
+      }}
+      className="absolute flex items-center right-4 bg-opacity-75 border font-secondary text-p5 hover:bg-opacity-100 pl-2 rounded-xl"
     >
       X{multiplier}
       <img draggable={false} src="/logo/coin.webp" className="w-6 h-6 ml-1" />
@@ -206,6 +208,7 @@ export const CatPayment = ({
     bnbRate,
     xlmRate,
     solRate,
+    diamRate,
     transactionStatus,
     setTransactionStatus,
   } = useWeb3();
@@ -229,7 +232,8 @@ export const CatPayment = ({
       ) &&
       bnbRate &&
       xlmRate &&
-      solRate
+      solRate &&
+      diamRate
     ) {
       if (currencyType === CurrencyType.BNB) {
         return parseFloat((corePrice / bnbRate).toFixed(3));
@@ -243,9 +247,21 @@ export const CatPayment = ({
       if (currencyType === CurrencyType.SOL) {
         return parseFloat((corePrice / solRate).toFixed(3));
       }
+      if (currencyType === CurrencyType.DIAM) {
+        return parseFloat((corePrice / diamRate).toFixed(3));
+      }
     }
     return corePrice;
-  }, [currencyType, bnbRate, xlmRate, solRate, cat, buyMode, paymentMethod]);
+  }, [
+    currencyType,
+    bnbRate,
+    xlmRate,
+    solRate,
+    diamRate,
+    cat,
+    buyMode,
+    paymentMethod,
+  ]);
 
   const catpointsText = useMemo(() => {
     if (isAdopting) {
@@ -455,9 +471,10 @@ export const CatCard = ({
   );
   return (
     <div
+      style={{ borderColor: cardsColor[type] }}
       className={`${
         relative ? "" : "top-1/2 -translate-y-1/2"
-      } md:rem:w-[560px] lg:w-auto max-w-screen-xl hover:brightness-105 border-8 rounded-[24px] border-yellow-300 relative rem:h-[540px] md:h-[360px] lg:h-[600px] aspect-[2/3] max-w-screen`}
+      } md:rem:w-[560px] lg:w-auto max-w-screen-xl hover:brightness-105 border-8 rounded-[24px] relative rem:h-[540px] md:h-[360px] lg:h-[600px] aspect-[2/3] max-w-screen`}
     >
       <CatCardOnboarding />
       <img
@@ -544,7 +561,7 @@ export const CatCard = ({
           </div>
           {showBenefits && (
             <div
-              className="absolute bottom-0 left-0 right-0 w-full rounded-b-2xl z-20 animate-appear"
+              className="absolute bottom-0 left-0 right-0 w-full rounded-2xl z-20 animate-appear"
               style={{
                 backgroundImage: "url('/backgrounds/bg-6.png')",
                 backgroundRepeat: "no-repeat",

@@ -66,7 +66,7 @@ export const SocialAirdropTerms = () => {
         <div className="flex items-center font-primary gap-2 text-p5 pb-4 text-center justify-center">
           TOTAL REWARDS POOL IS $1m USD
         </div>
-        <Countdown isDaysDisplayed isBig targetDate={new Date("2025-05-31")} />
+        <Countdown isDaysDisplayed isBig targetDate={new Date("2025-06-31")} />
         <div className="flex items-center font-primary gap-2 text-p5 pt-4 text-center justify-center">
           ENGAGE ON SOCIALS AND PLAY TO EARN
         </div>

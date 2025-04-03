@@ -22,6 +22,7 @@ type ContextState = {
   evmAddress?: `0x${string}`;
   bnbRate?: number;
   xlmRate?: number;
+  diamRate?: number;
   solRate?: number;
   stellarAddress?: string;
   solanaAddress?: PublicKey | null;
@@ -89,6 +90,7 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
   const bnbRate = useTokenPrice(CurrencyType.BNB);
   const xlmRate = useTokenPrice(CurrencyType.XLM);
   const solRate = useTokenPrice(CurrencyType.SOL);
+  const diamRate = 0.01;
   const [transactionStatus, setTransactionStatus] =
     React.useState<ITransactionStatus | null>(null);
 
@@ -148,6 +150,7 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
         chainId,
         currencyType,
         price,
+        diamRate,
         query,
         chainType,
         namespaceDetail,
