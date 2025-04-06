@@ -88,7 +88,9 @@ export const Header = () => {
             src="/logo/logo.webp"
             alt="logo"
           />
-          <div className="text-p4 md:text-p1 font-primary">TOKEN TAILS</div>
+          <div className="text-p4 md:text-p1 font-primary hidden md:block">
+            TOKEN TAILS
+          </div>
         </a>
         <ul className="hidden lg:flex space-x-[35px] lg:space-x-4 xl:space-x-8 py-4 absolute left-1/2 -translate-x-1/2">
           {navConsts.map((navItem, index) => (
@@ -108,7 +110,7 @@ export const Header = () => {
         <div className="flex items-center space-x-2">
           <span
             onClick={() => setIsNavOpen(!isNavOpen)}
-            className="lg:hidden -ml-4 -mr-4"
+            className="lg:hidden mr-8"
           >
             <PixelButton
               text={isNavOpen ? "CLOSE" : "MENU"}
@@ -116,8 +118,8 @@ export const Header = () => {
               onClick={() => setIsNavOpen(!isNavOpen)}
             />
           </span>
-          <a href="/#feedbackslider">
-            <PixelButton text="SAVE A CAT" isSmall></PixelButton>
+          <a href="/game" className="relative">
+            <PixelButton text="PLAY" isBig subtext="GAME"></PixelButton>
           </a>
         </div>
       </div>

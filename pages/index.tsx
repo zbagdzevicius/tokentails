@@ -1,18 +1,15 @@
-import { Airdrop } from "@/components/landing/Airdrop";
 import { BlogPreview } from "@/components/landing/BlogPreview";
 import { CatsHub } from "@/components/landing/CatsHub";
 import { FeedbackSlider } from "@/components/landing/FeedbackSlider";
 import { GameAggregators } from "@/components/landing/GameAggregators";
 import { GameModes } from "@/components/landing/GameModes";
 import { HomePage } from "@/components/landing/HomePage";
-import { Presale } from "@/components/landing/Presale";
+import { ProcessExplained } from "@/components/landing/ProcessExplained";
 import Roadmap from "@/components/landing/Roadmap";
 import { Team } from "@/components/landing/Team";
 import { Tokenomics } from "@/components/landing/Tokenomics";
-import { ChainSelect } from "@/components/shared/ChainSelect";
 import { Circle } from "@/components/shared/Circle";
 import Snowfall from "@/components/shared/Snowfall";
-import { Web3Providers } from "@/components/web3/Web3Providers";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
 import { isApp } from "@/models/app";
@@ -25,6 +22,7 @@ export default function Index() {
   const gamessliderRef = useRef(null);
   const catshubRef = useRef(null);
   const catswinnersRef = useRef(null);
+  const processExplainedRef = useRef(null);
   const feedbackSliderRef = useRef(null);
   const tokenomicsRef = useRef(null);
   const roadmapRef = useRef(null);
@@ -33,6 +31,7 @@ export default function Index() {
 
   const sections = [
     catssliderRef,
+    processExplainedRef,
     gamessliderRef,
     catshubRef,
     catswinnersRef,
@@ -128,6 +127,19 @@ export default function Index() {
         <div
           className="py-4 min-h-screen flex items-center justify-center"
           style={{
+            backgroundImage: "url(/backgrounds/bg-night-2.gif)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div id="process-explained" ref={processExplainedRef}>
+            <ProcessExplained />
+          </div>
+        </div>
+        <div
+          className="py-4 min-h-screen flex items-center justify-center"
+          style={{
             backgroundImage: "url(/backgrounds/bg-6.png)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
@@ -155,22 +167,9 @@ export default function Index() {
           <GameAggregators />
         </div>
         <div
-          className="min-h-screen flex items-center justify-center"
-          style={{
-            backgroundImage: "url(/backgrounds/bg-5.png)",
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        >
-          <div className="h-full" id="roadmap" ref={roadmapRef}>
-            <Roadmap />
-          </div>
-        </div>
-        <div
           className="min-h-screen flex items-center py-3"
           style={{
-            backgroundImage: "url(/backgrounds/bg-night-2.gif)",
+            backgroundImage: "url(/backgrounds/bg-4.gif)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -186,13 +185,26 @@ export default function Index() {
           id="tokenomics"
           ref={catswinnersRef}
           style={{
-            backgroundImage: "url(/backgrounds/bg-night.gif)",
+            backgroundImage: "url(/backgrounds/bg-8.gif)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         >
           <Tokenomics />
+        </div>
+        <div
+          className="min-h-screen flex items-center justify-center"
+          style={{
+            backgroundImage: "url(/backgrounds/bg-5.png)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div className="h-full" id="roadmap" ref={roadmapRef}>
+            <Roadmap />
+          </div>
         </div>
         <div
           className="pt-4 min-h-screen flex items-center justify-center"

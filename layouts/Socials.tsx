@@ -1,8 +1,8 @@
 import React from "react";
 
-export const Socials = () => {
+export const Socials = ({ isVertical }: { isVertical?: boolean }) => {
   return (
-    <div className="flex gap-2 justify-center">
+    <div className={`flex gap-2 ${isVertical ? "flex-col" : "flex-row"}`}>
       <a
         target="_blank"
         href="https://x.com/intent/follow?screen_name=tokentails&tw_p=followbutton"

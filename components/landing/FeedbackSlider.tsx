@@ -4,7 +4,7 @@ import { CatMiniCard } from "../shared/CatMiniCard";
 import { PixelButton } from "../shared/PixelButton";
 import { CatBenefits } from "../shared/CatBenefits";
 import { ICat } from "@/models/cats";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ShelterBenefits } from "../shared/ShelterBenefits";
 
 export const FeedbackSlider = () => {
@@ -13,7 +13,11 @@ export const FeedbackSlider = () => {
     queryKey: ["cats-for-sale"],
     queryFn: () => CAT_API.catsForSale(),
   });
-
+  const fiveRandomCatsForSale = useMemo(() => {
+    return catsForSale?.["rozine-pedute"]
+      ?.sort(() => Math.random() - 0.5)
+      .slice(0, 5);
+  }, [catsForSale]);
   return (
     <>
       <div className="flex items-center justify-center flex-col my-32">
@@ -45,7 +49,7 @@ export const FeedbackSlider = () => {
         <div className="w-screen mt-4">
           {catsForSale?.["rozine-pedute"]?.length && (
             <div className="flex justify-center items-center gap-4 overflow-x-auto">
-              {catsForSale?.["rozine-pedute"]?.map((cat) => (
+              {fiveRandomCatsForSale?.map((cat) => (
                 <CatMiniCard
                   key={cat._id}
                   cat={cat}
@@ -60,9 +64,6 @@ export const FeedbackSlider = () => {
             <CatBenefits key={selectedCat._id} cat={selectedCat} />
           )}
         </div>
-        <a href="/game" className="flex mb-4 justify-center mt-4">
-          <PixelButton text="PLAY TO SAVE" />
-        </a>
       </div>
     </>
   );

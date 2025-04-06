@@ -188,7 +188,7 @@ export const Team = () => {
   return (
     <div className="container h-full flex flex-col items-center justify-center">
       <a href="/game" className="flex justify-center">
-        <PixelButton text="PLAY TO SAVE" />
+        <PixelButton text="PLAY HERE" />
       </a>
       <h2 className="font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance text-center my-3">
         United To Save Cats

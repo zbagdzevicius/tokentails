@@ -45,10 +45,10 @@ export const GameModes = () => {
   return (
     <div className="container h-full flex flex-col items-center justify-center overflow-visible">
       <h2 className="font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance text-center my-3">
-        ADOPT AND START PLAYING
+        SELECT MODE AND PLAY
       </h2>
       <a className="-mb-6" href="/game">
-        <PixelButton text="PLAY TO SAVE" />
+        <PixelButton text="CLICK TO PLAY" />
       </a>
       <div className="flex gap-2 -mb-12 md:-mb-20 relative z-30">
         <div

@@ -12,6 +12,7 @@ import {
   IGameStopEvent,
 } from "@/components/Phaser/events";
 import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
+import { CatsInNeedModal } from "@/components/shared/CatsInNeed";
 import { CatsModal } from "@/components/shared/CatsModal";
 import { ControlModal } from "@/components/shared/ControlModal";
 import { EndGameModal } from "@/components/shared/EndGameModal";
@@ -19,7 +20,6 @@ import { GameMusicPlayer } from "@/components/shared/GameMusicPlayer";
 import { InviteModal } from "@/components/shared/InviteModal";
 import { Notification } from "@/components/shared/Notification";
 import { QuestsModal } from "@/components/shared/QuestsModal";
-import { SpeechBubble } from "@/components/shared/SpeechBubble";
 import { TelegramProfile } from "@/components/shared/TelegramProfile";
 import { catbassadorsGameDuration } from "@/models/cats";
 import { GameModal, GameType } from "@/models/game";
@@ -27,7 +27,6 @@ import * as React from "react";
 import { useEffect, useState } from "react";
 import { useProfile } from "./ProfileContext";
 import { IToast, useToast } from "./ToastContext";
-import { CatsInNeedModal } from "@/components/shared/CatsInNeed";
 
 type ContextState = {
   isStarted?: boolean;
@@ -46,9 +45,7 @@ let timerInterval: any = null;
 const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [isStarted, setIsStarted] = useState<boolean>(false);
   const [gameType, setGameType] = useState<GameType | null>(null);
-  const [openedModal, setOpenedModal] = useState<GameModal | null>(
-    GameModal.CATS_IN_NEED
-  );
+  const [openedModal, setOpenedModal] = useState<GameModal | null>(null);
   const [gameStop, setGameStop] = useState<null | IGameStopEvent>(null);
 
   const { profile, setProfileUpdate } = useProfile();

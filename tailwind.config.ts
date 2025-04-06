@@ -56,11 +56,17 @@ const config: Config = {
         appear: "appear 0.5s;",
         opacity: "opacity 1.5s;",
         bounceWithFade: "bounceWithFade 3s ease-in-out",
+        brightness: "brightness 3s ease-in-out infinite",
       },
       keyframes: {
         "loop-scroll": {
           from: { transform: "translateX(0)" },
           to: { transform: "translateX(-100%)" },
+        },
+        brightness: {
+          from: { filter: "brightness(1)" },
+          "50%": { filter: "brightness(1.1)" },
+          to: { filter: "brightness(1)" },
         },
         bounceWithFade: {
           "0%": {
