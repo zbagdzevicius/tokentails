@@ -70,7 +70,7 @@ export class HiddenSpikeManager {
       },
     });
 
-    spike.on("animationcomplete", () => {
+    spike.once("animationcomplete", () => {
       this.startSpikeAnimationWithDelay(spike);
     });
   }

@@ -45,4 +45,5 @@ export interface IPlayer {
   abilities: Abilities;
   type: CatAbilityType;
   isOnIcyTile: boolean;
+  isAutoRunMode: boolean;
 }

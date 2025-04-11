@@ -2,7 +2,7 @@ import { GameOptionsModal } from "@/components/game/GameOptionsModal";
 import { GameSelect } from "@/components/game/GameSelect";
 import { Leaderboard } from "@/components/Leaderboard";
 import { DisplayCoins } from "@/components/Phaser/DisplayCoins";
-
+import { CatsInNeedModal } from "@/components/shared/CatsInNeed";
 import { USER_API } from "@/api/user-api";
 import { getMultiplier } from "@/components/CatCardModal";
 import {
@@ -12,7 +12,7 @@ import {
   IGameStopEvent,
 } from "@/components/Phaser/events";
 import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
-import { CatsInNeedModal } from "@/components/shared/CatsInNeed";
+import { MobileJump } from "@/components/Phaser/MobileButtons/MobileJump";
 import { CatsModal } from "@/components/shared/CatsModal";
 import { ControlModal } from "@/components/shared/ControlModal";
 import { EndGameModal } from "@/components/shared/EndGameModal";
@@ -206,6 +206,16 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
               )
             }
           />
+
+          {/* <MobileJump
+            isHidden={
+              !(
+                // isStarted ||
+                gameType === GameType.CATNIP_CHAOS
+              )
+            }
+          /> */}
+
           {isStarted &&
             [GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!) && (
               <DisplayCoins />

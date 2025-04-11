@@ -19,6 +19,9 @@ const Adopt = dynamic(() => import("@/components/shelter/Shelter"), {
 const Story = dynamic(() => import("@/components/storyMode/StoryMode"), {
   ssr: false,
 });
+// const CATNIP_CHAOS = dynamic(() => import("@/components/CatnipChaos/CatnipChaos"), {
+//   ssr: false,
+// });
 export const Game = () => {
   const { gameType, timer } = useGame();
   const { profile } = useProfile();
@@ -33,6 +36,7 @@ export const Game = () => {
       {gameType === GameType.HOME && profile && <Base />}
       {gameType === GameType.SHELTER && profile && <Adopt />}
       {gameType === GameType.PURRQUEST && profile && <PurrQuest />}
+      {/* {gameType === GameType.CATNIP_CHAOS && profile && < CATNIP_CHAOS />} */}
       {/* {gameType === GameType.STORYMODE && profile && <Story />} */}
     </div>
   );

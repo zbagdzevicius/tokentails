@@ -115,7 +115,7 @@ export class Cat implements IPlayer {
   readonly dashCooldown: number = 300; // Cooldown time before dashing again
   readonly dashSpeed: number = 640; // Speed during dash
   walkSpeed: number = catWalkSpeed;
-  readonly jumpSpeed: number = 468;
+  jumpSpeed: number = 468;
   readonly wallSlideSpeed: number = 96;
   readonly maxJumpSpeed: number = 618;
   readonly coyoteTime: number = 200;
@@ -131,6 +131,13 @@ export class Cat implements IPlayer {
   job: null | NPCJob = null;
   private timeoutFunction: any;
   enableControls: boolean;
+
+  isAutoRunMode: boolean = false;
+
+  // Add new properties for double jump
+  canDoubleJump: boolean = false;
+  hasDoubleJumped: boolean = false;
+  inDoubleJumpZone: boolean = false;
 
   constructor(
     scene: Scene,
@@ -230,7 +237,6 @@ export class Cat implements IPlayer {
     this.collectedItem.setVisible(true);
     this.collectedItem.setCollideWorldBounds(false);
   }
-  // ... existing code ...
 
   dropCollectiveItem() {
     if (this.collectedItem) {
@@ -244,8 +250,6 @@ export class Cat implements IPlayer {
       this.hasKey = false;
     }
   }
-
-  // ... existing code ...
 
   updateCollectiveItem() {
     if (this.collectedItem) {
@@ -368,5 +372,45 @@ export class Cat implements IPlayer {
       clearTimeout(this.timeoutFunction);
       this.timeoutFunction = null;
     }
+  }
+
+  setAutoRunMode(speed: number, jumpSpeed: number) {
+    this.isAutoRunMode = true;
+    this.walkSpeed = speed;
+    this.jumpSpeed = jumpSpeed;
+
+    // Disable all controls except jumping
+    if (this.keys) {
+      this.keys.left.enabled = false;
+      this.keys.right.enabled = false;
+      this.keys.dash.enabled = false;
+      this.keys.knockback.enabled = false;
+    }
+
+    if (this.cursors) {
+      this.cursors.left.enabled = false;
+      this.cursors.right.enabled = false;
+    }
+
+    // Update movement system
+    if (this.movement) {
+      this.movement.setAutoRunMode(true, speed, jumpSpeed);
+    }
+  }
+
+  enableDoubleJump() {
+    this.inDoubleJumpZone = true;
+    this.canDoubleJump = true;
+    this.hasDoubleJumped = false;
+    console.log("Double jump enabled!");
+
+    // Optional: Add visual feedback
+    // this.scene.sound.play('powerup');
+  }
+
+  disableDoubleJump() {
+    this.inDoubleJumpZone = false;
+    this.canDoubleJump = false;
+    this.hasDoubleJumped = false;
   }
 }

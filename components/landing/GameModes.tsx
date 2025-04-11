@@ -31,7 +31,7 @@ export const gameModes = {
     image: "/game/select/shelter.jpg",
     text: "SAVE CATS BY OWNING NFTS",
   },
-  // [GameType.STORYMODE]: {
+  // [GameType.CATNIP_CHAOS]: {
   //   video: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/videos/storymode.mp4",
   //   title: "Story Mode",
   //   image: "/game/select/storymode.jpg",
@@ -66,11 +66,10 @@ export const GameModes = () => {
           ></img>
         </div>
         <div
-          className={`mt-10 ${
-            gameMode === GameType.PURRQUEST
-              ? "animate-hover"
-              : "opacity-50 hover:opacity-100"
-          }`}
+          className={`mt-10 ${gameMode === GameType.PURRQUEST
+            ? "animate-hover"
+            : "opacity-50 hover:opacity-100"
+            }`}
         >
           <img
             draggable={false}
@@ -80,11 +79,10 @@ export const GameModes = () => {
           ></img>
         </div>
         <div
-          className={`mt-10 ${
-            gameMode === GameType.HOME
-              ? "animate-hover"
-              : "opacity-50 hover:opacity-100"
-          }`}
+          className={`mt-10 ${gameMode === GameType.HOME
+            ? "animate-hover"
+            : "opacity-50 hover:opacity-100"
+            }`}
         >
           <img
             draggable={false}
