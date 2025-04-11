@@ -7,6 +7,7 @@ export interface ISpikeManagerConfig {
   spikeTiles: number[];
   cat: Cat;
   onPlayerHitSpike: () => void;
+  gameType: "purrquest" | "runner";
 }
 
 export class SpikeManager {
@@ -16,6 +17,7 @@ export class SpikeManager {
   private cat: Cat;
   private spikes: Spike[] = [];
   private onPlayerHitSpike: () => void;
+  private gameType: "purrquest" | "runner";
 
   constructor(config: ISpikeManagerConfig) {
     this.scene = config.scene;
@@ -23,6 +25,7 @@ export class SpikeManager {
     this.spikeTiles = config.spikeTiles;
     this.cat = config.cat;
     this.onPlayerHitSpike = config.onPlayerHitSpike;
+    this.gameType = config.gameType;
 
     this.initializeSpikes();
   }
@@ -37,29 +40,56 @@ export class SpikeManager {
       const spikeY = tile.getBottom();
       const spike = new Spike(this.scene, spikeX, spikeY, 0);
 
-      switch (tile.index) {
-        case 70:
-          spike.setRotation(Phaser.Math.DegToRad(180));
-          spike.setSize(1, 32);
-          spike.setOffset(0, 0);
-          break;
-        case 71:
-          spike.setRotation(Phaser.Math.DegToRad(90));
-          spike.setSize(32, 1);
-          spike.setOffset(0, 0);
-          break;
-        case 100:
-          spike.setRotation(Phaser.Math.DegToRad(270));
-          spike.setSize(1, 32);
-          spike.setOffset(31, 0);
-          break;
-        case 99:
-          spike.setRotation(Phaser.Math.DegToRad(0));
-          spike.setSize(32, 1);
-          spike.setOffset(0, 31);
-          break;
-        default:
-          break;
+      if (this.gameType === "purrquest") {
+        switch (tile.index) {
+          case 252:
+            spike.setRotation(Phaser.Math.DegToRad(180));
+            spike.setSize(1, 32);
+            spike.setOffset(0, 0);
+            break;
+          case 253:
+            spike.setRotation(Phaser.Math.DegToRad(90));
+            spike.setSize(32, 1);
+            spike.setOffset(0, 0);
+            break;
+          case 283:
+            spike.setRotation(Phaser.Math.DegToRad(270));
+            spike.setSize(1, 32);
+            spike.setOffset(31, 0);
+            break;
+          case 282:
+            spike.setRotation(Phaser.Math.DegToRad(0));
+            spike.setSize(32, 1);
+            spike.setOffset(0, 31);
+            break;
+          default:
+            break;
+        }
+      } else if (this.gameType === "runner") {
+        switch (tile.index) {
+          case 253:
+            spike.setRotation(Phaser.Math.DegToRad(180));
+            spike.setSize(1, 32);
+            spike.setOffset(0, 0);
+            break;
+          case 254:
+            spike.setRotation(Phaser.Math.DegToRad(90));
+            spike.setSize(32, 1);
+            spike.setOffset(0, 0);
+            break;
+          case 284:
+            spike.setRotation(Phaser.Math.DegToRad(270));
+            spike.setSize(1, 32);
+            spike.setOffset(31, 0);
+            break;
+          case 283:
+            spike.setRotation(Phaser.Math.DegToRad(0));
+            spike.setSize(32, 1);
+            spike.setOffset(0, 31);
+            break;
+          default:
+            break;
+        }
       }
 
       this.spikes.push(spike);

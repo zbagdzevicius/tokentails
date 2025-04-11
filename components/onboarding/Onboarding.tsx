@@ -7,28 +7,42 @@ import Joyride from "react-joyride";
 export const Onboarding = () => {
   const [isClient, setIsClient] = useState(false);
   const { profile } = useProfile();
+  const [isOnboarded, setIsOnboarded] = useState(false);
+  const [hasCheckedStorage, setHasCheckedStorage] = useState(false);
+
   const isOnboardingStarted = useMemo(
     () => isClient && profile?.cat,
     [profile, isClient]
   );
-  const [isOnboarded, setIsOnboarded] = useLocalStorage("isOnboarded");
+
   useEffect(() => {
     setTimeout(() => {
       setIsClient(true);
     }, 1000);
   }, []);
+
+  useEffect(() => {
+    if (isClient) {
+      const stored = localStorage.getItem("isOnboarded");
+      setIsOnboarded(stored === "true");
+      setHasCheckedStorage(true);
+    }
+  }, [isClient]);
+
   const handleOnboarding = (handle: any) => {
     if (handle?.action === "reset") {
+      localStorage.setItem("isOnboarded", "true");
       setIsOnboarded(true);
     }
   };
 
-  if (!isOnboardingStarted || isOnboarded) return <></>;
+  if (!isOnboardingStarted || isOnboarded || !hasCheckedStorage) return null;
+
   return (
     <Joyride
       steps={onboardingSteps}
-      continuous={true}
-      run={true}
+      continuous
+      run
       callback={handleOnboarding}
     />
   );

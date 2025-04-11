@@ -46,25 +46,24 @@ export class DogBot {
   public sprite: Physics.Arcade.Sprite;
   private animationKeys: IDogAnimationKeysMap;
 
-  private direction = 1;
-  private speed = 150;
-  private detectionRange = 400;
-  private jumpForce = -550;
-  private jumpCooldown = 1000; // ms
+  private direction = -1;
+  private speed = 200;
+  private jumpForce = -200;
+  private jumpCooldown = 5000;
   private lastJumpTime = 0;
   private isJumping = false;
-
-  private player?: Physics.Arcade.Sprite;
-
-  private lastRandomMoveTime = 0;
-  private randomMoveInterval = 2000;
+  private isSpinning = false;
+  private spinDuration = 1000; // Duration of spin animation in ms
+  private lastSpinTime = 0;
+  private spinCooldown = 5000; // Cooldown between spins in ms
+  private spinRotation = 0;
 
   constructor(scene: Scene, x: number, y: number, dogName: string) {
     this.scene = scene;
     this.animationKeys = generateDogAnimationConfiguration(dogName);
 
     this.sprite = scene.physics.add.sprite(x, y, dogName).setSize(32, 38);
-    this.sprite.setOffset(0, 0).setBounce(0.1);
+    this.sprite.setOffset(0, 0).setBounce(0.2);
 
     animationConfigurations.forEach((config, i) => {
       scene.anims.create({
@@ -81,45 +80,32 @@ export class DogBot {
     this.sprite.anims.play(this.animationKeys[DogAnimation.SITTING]);
   }
 
-  public setTarget(player: Physics.Arcade.Sprite) {
-    this.player = player;
-  }
-
   public update() {
-    if (!this.player) return;
-
-    this.handleFleeFromPlayer();
-    this.handleCollisionsAndJumps();
-    this.handleIdleMovement();
+    this.handleMovement();
+    this.handleJumps();
     this.updateAnimations();
   }
 
-  private handleFleeFromPlayer() {
-    const distanceToPlayer = Phaser.Math.Distance.Between(
-      this.sprite.x,
-      this.sprite.y,
-      this.player!.x,
-      this.player!.y
-    );
+  private handleMovement() {
+    const body = this.sprite.body as Phaser.Physics.Arcade.Body;
+    if (!body) return;
 
-    if (distanceToPlayer < this.detectionRange) {
-      // Run away
-      this.direction = this.sprite.x < this.player!.x ? -1 : 1;
-      this.sprite.setVelocityX(this.direction * this.speed);
-      this.sprite.setFlipX(this.direction === -1);
-    } else {
-      // If no threat, dog's velocity is set in handleIdleMovement()
+    this.direction = 1;
+
+    this.sprite.setVelocityX(this.direction * this.speed);
+
+    if (body.blocked.right || body.blocked.left) {
+      this.direction *= -1;
+      this.sprite.setFlipX(this.direction < 0);
+      this.startSpin();
     }
   }
 
-  private handleCollisionsAndJumps() {
+  private handleJumps() {
     const body = this.sprite.body as Phaser.Physics.Arcade.Body;
     if (!body) return;
 
     const onGround = body.blocked.down;
-    const blockedLeft = body.blocked.left;
-    const blockedRight = body.blocked.right;
-    const blockedHorizontally = blockedLeft || blockedRight;
     const timeNow = this.scene.time.now;
 
     if (this.isJumping) {
@@ -129,69 +115,58 @@ export class DogBot {
       return;
     }
 
-    if (
-      onGround &&
-      blockedHorizontally &&
-      timeNow > this.lastJumpTime + this.jumpCooldown
-    ) {
-      this.isJumping = true;
-      this.lastJumpTime = timeNow;
-
-      if (blockedLeft && blockedRight) {
-        this.sprite.setVelocityY(this.jumpForce * 1.2);
-      } else {
+    if (onGround && timeNow > this.lastJumpTime + this.jumpCooldown) {
+      if (Math.random() < 0.1) {
+        this.isJumping = true;
+        this.lastJumpTime = timeNow;
         this.sprite.setVelocityY(this.jumpForce);
+        this.sprite.anims.play(this.animationKeys[DogAnimation.JUMPING], true);
       }
-
-      if (blockedLeft) {
-        this.direction = 1;
-      } else if (blockedRight) {
-        this.direction = -1;
-      }
-      this.sprite.setFlipX(this.direction === -1);
-      this.sprite.anims.play(this.animationKeys[DogAnimation.JUMPING], true);
     }
   }
 
-  private handleIdleMovement() {
-    const body = this.sprite.body as Phaser.Physics.Arcade.Body;
-    if (!body) return;
-
-    if (Math.abs(body.velocity.x) > 10) {
-      return;
-    }
-
+  private startSpin() {
     const timeNow = this.scene.time.now;
-    if (timeNow > this.lastRandomMoveTime + this.randomMoveInterval) {
-      const randomDir = Phaser.Math.Between(0, 1) === 0 ? -1 : 1;
-      this.sprite.setVelocityX(randomDir * (this.speed * 0.5));
 
-      this.sprite.setFlipX(randomDir === -1);
+    // Only start spin if cooldown has passed
+    if (timeNow < this.lastSpinTime + this.spinCooldown) return;
 
-      this.scene.time.delayedCall(500, () => {
-        this.sprite.setVelocityX(0);
-      });
+    this.isSpinning = true;
+    this.lastSpinTime = timeNow;
+    this.spinRotation = 0;
+    this.sprite.anims.play(this.animationKeys[DogAnimation.JUMPING], true);
 
-      this.lastRandomMoveTime = timeNow;
-    }
+    // Update rotation during spin
+    this.scene.time.addEvent({
+      delay: 16, // ~60fps
+      callback: () => {
+        if (this.isSpinning) {
+          this.spinRotation += 0.2; // Adjust this value to control spin speed
+          this.sprite.setRotation(this.spinRotation);
+        }
+      },
+      loop: true,
+    });
+
+    // End spin after duration
+    this.scene.time.delayedCall(this.spinDuration, () => {
+      this.isSpinning = false;
+      this.sprite.setRotation(0);
+    });
   }
 
   private updateAnimations() {
     const body = this.sprite.body as Phaser.Physics.Arcade.Body;
     if (!body) return;
 
-    if (this.isJumping) {
+    if (this.isSpinning) {
+      this.sprite.anims.play(this.animationKeys[DogAnimation.JUMPING], true);
       return;
     }
-
-    if (Math.abs(body.velocity.x) > 20) {
-      this.sprite.anims.play(this.animationKeys[DogAnimation.RUNNING], true);
-    } else {
-      if (Math.random() < 0.2) {
-        this.sprite.anims.play(this.animationKeys[DogAnimation.SNIFFING], true);
-      } else {
-        this.sprite.anims.play(this.animationKeys[DogAnimation.SITTING], true);
-      }
+    if (this.isJumping) {
+      this.sprite.anims.play(this.animationKeys[DogAnimation.JUMPING], true);
+      return;
     }
+    this.sprite.anims.play(this.animationKeys[DogAnimation.RUNNING], true);
   }
 }

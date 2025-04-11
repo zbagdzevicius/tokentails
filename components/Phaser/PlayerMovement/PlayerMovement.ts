@@ -11,6 +11,17 @@ export class PlayerMovement {
   private isJumpHeld: boolean = false;
   isGravityReversed: boolean = false;
 
+  // Add new property for auto-run mode
+  private isAutoRunMode: boolean = false;
+  private autoRunSpeed: number = 0;
+  private autoJumpSpeed: number = 0;
+
+  // Add new properties for gravity settings
+  private baseGravity: number = 700;
+  private fallingGravity: number = 1450;
+  private reversedBaseGravity: number = -1150;
+  private reversedFallingGravity: number = -1200;
+
   constructor(player: IPlayer) {
     this.player = player;
     this.player.sprite.setMaxVelocity(this.player.walkSpeed * 2, 1000000);
@@ -21,7 +32,7 @@ export class PlayerMovement {
 
     this.isGravityReversed = reversed;
     this.player.sprite.setFlipY(reversed);
-    this.player.sprite.setGravityY(reversed ? -450 : 450);
+    this.player.sprite.setGravityY(reversed ? -1450 : 1450);
   }
 
   updateOngoingMovements() {
@@ -76,6 +87,48 @@ export class PlayerMovement {
     ) {
       this.jumpStartTime = now;
       this.isJumpHeld = true;
+    }
+
+    // If in auto-run mode, handle simplified movement
+    if (this.isAutoRunMode) {
+      // Always run right at constant speed
+      sprite.setVelocityX(this.autoRunSpeed);
+      sprite.setFlipX(false);
+
+      // Handle double jump logic
+      if (upKeyDown && !this.player.justJumped) {
+        if (onGround) {
+          // Regular jump from ground
+          this.jump({
+            canWallJump: false,
+            touchingLeftWall: false,
+            touchingRightWall: false,
+            blockedAbove: false,
+            onGround: true,
+          });
+        }
+      }
+
+      // Update animations
+      if (!onGround) {
+        sprite.anims.play(
+          this.player.animationKeys[PlayerAnimation.JUMPING_UP],
+          true
+        );
+      } else {
+        sprite.anims.play(
+          this.player.animationKeys[PlayerAnimation.RUNNING],
+          true
+        );
+      }
+
+      // Reset jump flag when key is released
+      if (cursors.up.isUp && keys.up.isUp && !isMobileJumping) {
+        this.player.justJumped = false;
+      }
+
+      this.applyAdvancedGravity();
+      return;
     }
 
     if (!this.player.disableLeftMovement && leftKeyDown) {
@@ -330,8 +383,12 @@ export class PlayerMovement {
   }
 
   private applyAdvancedGravity() {
-    const baseGravity = this.isGravityReversed ? -1150 : 400;
-    const fallingGravity = this.isGravityReversed ? -1200 : 450;
+    const baseGravity = this.isGravityReversed
+      ? this.reversedBaseGravity
+      : this.baseGravity;
+    const fallingGravity = this.isGravityReversed
+      ? this.reversedFallingGravity
+      : this.fallingGravity;
 
     if (this.isGravityReversed) {
       if (this.player.sprite.body!.velocity.y < 0) {
@@ -348,7 +405,32 @@ export class PlayerMovement {
     }
   }
 
-  public toggleGravity() {
+  toggleGravity() {
     this.setGravityReversed(!this.isGravityReversed);
+  }
+
+  setAutoRunMode(enabled: boolean, speed: number, jumpSpeed: number) {
+    this.isAutoRunMode = enabled;
+    this.autoRunSpeed = speed;
+    this.autoJumpSpeed = jumpSpeed;
+  }
+
+  setGravitySettings(settings: {
+    baseGravity?: number;
+    fallingGravity?: number;
+    reversedBaseGravity?: number;
+    reversedFallingGravity?: number;
+  }) {
+    if (settings.baseGravity !== undefined)
+      this.baseGravity = settings.baseGravity;
+    if (settings.fallingGravity !== undefined)
+      this.fallingGravity = settings.fallingGravity;
+    if (settings.reversedBaseGravity !== undefined)
+      this.reversedBaseGravity = settings.reversedBaseGravity;
+    if (settings.reversedFallingGravity !== undefined)
+      this.reversedFallingGravity = settings.reversedFallingGravity;
+
+    // Apply the new gravity settings immediately
+    this.applyAdvancedGravity();
   }
 }

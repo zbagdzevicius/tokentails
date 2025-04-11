@@ -76,7 +76,7 @@ export class FloatingPlatformManager {
     platform: Phaser.Physics.Arcade.Sprite
   ) {
     if (!this.platformTimers.has(platform)) {
-      const timer = this.scene.time.delayedCall(1000, () => {
+      const timer = this.scene.time.delayedCall(100, () => {
         this.dropPlatform(platform);
       });
       this.platformTimers.set(platform, timer);

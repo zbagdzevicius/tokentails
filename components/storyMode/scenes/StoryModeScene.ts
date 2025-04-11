@@ -465,7 +465,7 @@ export class StoryModeScene extends Scene {
 
     if (this.cat?.sprite) {
       this.physics.add.collider(this.cat.sprite, this.dogBot.sprite);
-      this.dogBot.setTarget(this.cat.sprite);
+      // this.dogBot.setTarget(this.cat.sprite);
     }
   }
 

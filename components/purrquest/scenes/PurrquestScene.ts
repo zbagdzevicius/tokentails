@@ -307,6 +307,7 @@ export class PurrquestScene extends Phaser.Scene {
       spikeTiles: SPIKE_TILES,
       cat: this.cat!,
       onPlayerHitSpike: () => this.endGame(),
+      gameType: "purrquest",
     });
 
     this.errorTextManager = new ErrorTextManager({

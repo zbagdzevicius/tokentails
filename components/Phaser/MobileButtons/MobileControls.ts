@@ -14,6 +14,10 @@ interface Controls {
   knockbackSpell: HTMLElement | null;
 }
 
+interface JumpControlledObject {
+  isMobileJumping: boolean;
+}
+
 const startEventListenersKeys = ["touchstart", "mousedown"];
 const endEventListenersKeys = ["touchend", "mouseleave", "mouseup"];
 
@@ -140,6 +144,58 @@ export function setMobileControls(
     },
     () => {
       controlledObject.isMobileknockbackSpell = false;
+    }
+  );
+}
+
+export function setMobileJumpControl(
+  controlledObject: JumpControlledObject & IPlayer
+) {
+  const jumpButton = document.getElementById("jump");
+
+  if (!controlledObject || !jumpButton) {
+    return;
+  }
+
+  const addControlListeners = (
+    button: HTMLElement,
+    onStart: () => void,
+    onEnd: () => void
+  ): void => {
+    const startHandler = (e: Event) => {
+      e.preventDefault();
+      onStart();
+    };
+
+    const endHandler = (e: Event) => {
+      e.preventDefault();
+      onEnd();
+    };
+
+    startEventListenersKeys.forEach((key) =>
+      button.addEventListener(key, startHandler)
+    );
+    endEventListenersKeys.forEach((key) =>
+      button.addEventListener(key, endHandler)
+    );
+
+    controlledObject.sprite.on("destroy", () => {
+      startEventListenersKeys.forEach((key) =>
+        button.removeEventListener(key, startHandler)
+      );
+      endEventListenersKeys.forEach((key) =>
+        button.removeEventListener(key, endHandler)
+      );
+    });
+  };
+
+  addControlListeners(
+    jumpButton,
+    () => {
+      controlledObject.isMobileJumping = true;
+    },
+    () => {
+      controlledObject.isMobileJumping = false;
     }
   );
 }
