@@ -1,9 +1,17 @@
-import React from "react";
+import React, { useState } from "react";
 import { PixelButton } from "../shared/PixelButton";
+import { Tokenomics } from "./Tokenomics";
 
 const Roadmap = () => {
+  const [isTokenomicsVisible, setIsTokenomicsVisible] = useState(false);
+
   return (
     <div className="container flex flex-col py-8 justify-center items-center">
+      <PixelButton
+        text="TOKEN"
+        onClick={() => setIsTokenomicsVisible(!isTokenomicsVisible)}
+      />
+      {isTokenomicsVisible && <Tokenomics />}
       <h2 className="font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance mb-8">
         OUR JOURNEY
       </h2>
@@ -33,7 +41,7 @@ const Roadmap = () => {
             </span>
             <span className="flex gap-2 items-center whitespace-nowrap">
               <img draggable={false} className="h-6" src="icons/check.webp" />
-              Shelters Infra
+              SHELTERS PLATFORM
             </span>
           </div>
         </div>
@@ -54,15 +62,15 @@ const Roadmap = () => {
           <div className="flex flex-col font-secondary text-p2 font-bold">
             <span className="flex gap-2 items-center -ml-6">
               <img draggable={false} className="h-6" src="icons/check.webp" />
-              Tokenize your cat
+              AI SOCIAL BUDDY
             </span>
             <span className="flex gap-2 items-center -ml-6">
               <img draggable={false} className="h-6" src="icons/check.webp" />
-              Social AI Agents
+              ONBOARD SHELTERS
             </span>
             <span className="flex gap-2 items-center -ml-6">
               <img draggable={false} className="h-6" src="icons/check.webp" />
-              APP BETA TESTING
+              GENERATE VIRTUAL TWIN
             </span>
           </div>
         </div>
@@ -87,7 +95,7 @@ const Roadmap = () => {
                 className="h-6 pixelated"
                 src="icons/loader.webp"
               />
-              TGE AT Q2
+              TGE
             </span>
             <span className="flex gap-2 items-center -ml-6">
               <img
@@ -95,7 +103,7 @@ const Roadmap = () => {
                 className="h-6 pixelated"
                 src="icons/loader.webp"
               />
-              MMO GAME
+              MORE FUN
             </span>
             <span className="flex gap-2 items-center -ml-6">
               <img

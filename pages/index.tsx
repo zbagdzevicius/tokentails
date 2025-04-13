@@ -7,7 +7,6 @@ import { HomePage } from "@/components/landing/HomePage";
 import { ProcessExplained } from "@/components/landing/ProcessExplained";
 import Roadmap from "@/components/landing/Roadmap";
 import { Team } from "@/components/landing/Team";
-import { Tokenomics } from "@/components/landing/Tokenomics";
 import { Circle } from "@/components/shared/Circle";
 import Snowfall from "@/components/shared/Snowfall";
 import { Footer } from "@/layouts/Footer";
@@ -179,19 +178,6 @@ export default function Index() {
             <CatsHub />
             <BlogPreview />
           </div>
-        </div>
-        <div
-          className="py-8 flex items-center justify-center max-w-screen min-w-0"
-          id="tokenomics"
-          ref={catswinnersRef}
-          style={{
-            backgroundImage: "url(/backgrounds/bg-8.gif)",
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        >
-          <Tokenomics />
         </div>
         <div
           className="min-h-screen flex items-center justify-center"

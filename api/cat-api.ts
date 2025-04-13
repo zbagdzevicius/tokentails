@@ -1,4 +1,4 @@
-import { CatType, ICat, ICatStatus } from "@/models/cats";
+import { ICat, ICatStatus } from "@/models/cats";
 import { apiUrl } from "./api";
 
 const stake = async (
@@ -54,6 +54,23 @@ const cats = async (): Promise<ICat[]> => {
 
     console.warn(JSON.stringify(response));
     return [];
+  });
+};
+
+const cat = async (id: string): Promise<ICat | null> => {
+  return fetch(`${apiUrl}/cat/${id}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return null;
   });
 };
 
@@ -124,5 +141,6 @@ export const CAT_API = {
   cats,
   catsForSale,
   update,
+  cat,
   setActive,
 };

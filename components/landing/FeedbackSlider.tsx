@@ -1,10 +1,9 @@
 import { CAT_API } from "@/api/cat-api";
-import { useQuery } from "@tanstack/react-query";
-import { CatMiniCard } from "../shared/CatMiniCard";
-import { PixelButton } from "../shared/PixelButton";
-import { CatBenefits } from "../shared/CatBenefits";
 import { ICat } from "@/models/cats";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { CatBenefits } from "../shared/CatBenefits";
+import { CatMiniCard } from "../shared/CatMiniCard";
 import { ShelterBenefits } from "../shared/ShelterBenefits";
 
 export const FeedbackSlider = () => {

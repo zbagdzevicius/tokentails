@@ -2,7 +2,7 @@ import { PixelButton } from "./PixelButton";
 
 export const ShelterBenefits = () => {
   return (
-    <div className="w-54 rounded-xl flex relative justify-center py-2 m-auto mt-4 transition-animation">
+    <div className="w-54 rounded-xl flex relative justify-center py-2 m-auto mt-4 transition-animation hover:scale-125 transition-all z-10">
       <div className="relative z-10 items-center flex flex-col w-full">
         <div
           style={{
@@ -21,23 +21,28 @@ export const ShelterBenefits = () => {
               className="w-14 z-10 pixelated -ml-10"
               src="/cats/pinkie/pink-lamiendo-ropa.gif"
             />
-            <span>Rožinė Pėdutė</span>
+            <span className="flex flex-col items-center">
+              <span>Rožinė Pėdutė</span>
+              <span className="text-p6 -mt-3">
+                Located in Lithuania - Helped over 700 cats
+              </span>
+            </span>
             <img
               draggable={false}
               className="w-14 z-10 pixelated -mr-10 scale-x-[-1]"
               src="/cats/pinkie/pink-respirando-ropa.gif"
             />
           </div>
-          <div className="text-p4 font-secondary text-main-black w-full flex items-center justify-center gap-1">
+          <div className="text-p4 font-secondary text-main-black mt-1 w-full flex items-center justify-center gap-1">
             <span className="flex flex-row gap-2">
               <a
                 href="https://www.facebook.com/rozine.pedute"
                 target="_blank"
-                className="text-p5 flex gap-2 items-center hover:bg-red-500 p-2 rounded-2xl"
+                className="text-p5 flex gap-2 items-center hover:bg-red-500 hover:bg-opacity-40 px-2 py-1 rounded-2xl"
               >
                 <img
                   className="w-6 h-6"
-                  src="icons/social/facebook.webp"
+                  src="/icons/social/facebook.webp"
                   draggable="false"
                 />
                 FB
@@ -45,11 +50,11 @@ export const ShelterBenefits = () => {
               <a
                 href="https://www.instagram.com/rozine.pedute/"
                 target="_blank"
-                className="text-p5 flex gap-2 items-center hover:bg-red-500 p-2 rounded-2xl"
+                className="text-p5 flex gap-2 items-center hover:bg-red-500 hover:bg-opacity-40 px-2 py-1 rounded-2xl"
               >
                 <img
                   className="w-6 h-6"
-                  src="icons/social/instagram.png"
+                  src="/icons/social/instagram.png"
                   draggable="false"
                 />
                 IG
@@ -57,11 +62,11 @@ export const ShelterBenefits = () => {
               <a
                 href="https://www.tiktok.com/@rozine.pedute"
                 target="_blank"
-                className="text-p5 flex gap-2 items-center hover:bg-red-500 p-2 rounded-2xl"
+                className="text-p5 flex gap-2 items-center hover:bg-red-500 hover:bg-opacity-40 px-2 py-1 rounded-2xl"
               >
                 <img
                   className="w-6 h-6"
-                  src="icons/social/tiktok.png"
+                  src="/icons/social/tiktok.png"
                   draggable="false"
                 />
                 TIKTOK

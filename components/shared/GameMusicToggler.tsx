@@ -5,7 +5,6 @@ import { ABOUT_ME_ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 export const GameMusicToggle = () => {
   const [isMusicOn, setIsMusicOn] = useState<boolean>(() => {
     const savedMusicSetting = localStorage.getItem("gameMusic");
-    console.log("savedMusicSetting", savedMusicSetting);
     return savedMusicSetting === null ? true : JSON.parse(savedMusicSetting);
   });
 

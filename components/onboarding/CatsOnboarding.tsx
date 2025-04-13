@@ -15,7 +15,6 @@ export const CatsOnboarding = () => {
 
   useEffect(() => {
     const checkAndStartOnboarding = () => {
-      console.log("checkAndStartOnboarding");
       if (document.querySelector("#craft")) {
         setIsClient(true); // Element is present, start onboarding
       } else {

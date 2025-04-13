@@ -117,17 +117,23 @@ export const HomePage = () => {
   return (
     <div className="flex items-center flex-col w-full h-full relative">
       <h1 className="md:mt-12 xl:mt-16 text-balance text-center font-primary uppercase z-0 tracking-tight rem:text-[80px] rem:leading-[60px] md:text-h1 lg:text-[142px] xl:text-[176px] 2xl:text-[210px] 3xl:text-[280px]">
-        YOU CAN SAVE A CAT
+        <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)]">
+          YOU
+        </span>{" "}
+        CAN SAVE A{" CAT"}
       </h1>
 
-      <div className="absolute bottom-20 m-auto justify-center w-[800px] hidden md:flex">
+      <div className="absolute bottom-20 m-auto justify-center w-[800px] xl:w-[920px] 3xl:w-[1200px] hidden md:flex">
         <span className="absolute left-0 mt-20">
           <Socials isVertical />
         </span>
-        <img className="w-full h-[400px] z-10" src="devices/macbook.webp" />
+        <img
+          className="w-full h-[400px] xl:h-[450px] 3xl:h-[600px] z-10"
+          src="devices/macbook.webp"
+        />
 
         <video
-          className="absolute w-[650px] top-2 bottom-4 object-cover h-auto"
+          className="absolute w-[650px] xl:w-[750px] 3xl:w-[980px] top-2 bottom-4 object-cover h-auto"
           autoPlay
           muted
           loop

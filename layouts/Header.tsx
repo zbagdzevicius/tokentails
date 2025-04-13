@@ -15,8 +15,8 @@ const navConsts: navProps[] = [
     link: "/#game",
   },
   {
-    title: "Token",
-    link: "/#tokenomics",
+    title: "CATS TO SAVE",
+    link: "/cats",
   },
   // {
   //   title: "AIRDROP",

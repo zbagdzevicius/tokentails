@@ -3,21 +3,10 @@ import { ICat } from "@/models/cats";
 export const MAX_CAT_STATUS = 4;
 
 export const getCatPrice = (cat: ICat) => {
-  if (
-    !cat.price ||
-    cat.price < 5 ||
-    !cat.totalSupply ||
-    !cat.supply ||
-    cat.supply === 1
-  ) {
-    return cat.price;
-  }
-
-  return Math.ceil(cat.price * (1 - (cat.supply - 1) / cat.totalSupply));
+  return Math.ceil(cat.price / cat.totalSupply);
 };
 
-export const getCatDiscountPercentage = (cat: ICat) => {
-  return cat.supply > 1 && cat.price
-    ? Math.floor(((cat.price - getCatPrice(cat)) / cat.price) * 100)
-    : 0;
+export const getCatFundsToRaise = (cat: ICat) => {
+  if (!cat.supply) return 0;
+  return Math.ceil(cat.price / cat.totalSupply) * cat.supply;
 };

@@ -57,7 +57,11 @@ export const PixelButton = ({
         isWidthFull && "w-full"
       }
             ${isSmall && "scale-75"}
-         ${!active && !isDisabled ? "hover:brightness-125 hover:pb-1" : ""}`}
+         ${
+           !active && !isDisabled
+             ? "hover:brightness-125 hover:pb-1 hover:scale-105 transition-all"
+             : ""
+         }`}
     >
       <div className="h-8 w-1 bg-black"></div>
       <div className="h-10 w-1 flex flex-col bg-red-500 border-y-4 border-black">

@@ -26,12 +26,12 @@ export const Tokenomics = () => {
           <PixelButton text="GET" subtext="AIRDROP" isBig></PixelButton>
         </span>
       </a> */}
-      <div className="flex items-center font-primary gap-2 mt-1 text-p5 text-center justify-center">
-        REDEEMAL AT TOKEN LAUNCH
-      </div>
-      <h2 className="font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance my-3 mb-6 z-10">
+      <h2 className="font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance mt-3 mb-0 z-10">
         $TAILS Token
       </h2>
+      <div className="flex items-center font-primary gap-2 text-p5 text-center justify-center mb-4">
+        REDEEMAL AT TOKEN LAUNCH
+      </div>
       <div className="flex justify-center items-center gap-4">
         <div className="flex items-center whitespace-nowrap mr-2 font-primary text-p4 bg-yellow-300 pr-2 hover:bg-opacity-100 rounded-xl">
           <img
@@ -41,17 +41,6 @@ export const Tokenomics = () => {
           />
           100m supply
         </div>
-
-        <span className="relative flex justify-center items-center">
-          <Tag>
-            <span className="font-bold">TGE</span> - Q2
-          </Tag>
-          <img
-            className="w-12 absolute -top-[44px]"
-            src="/logo/logo.webp"
-            alt="airdrop-logo"
-          />
-        </span>
         <div className="flex items-center whitespace-nowrap font-primary text-p4 bg-yellow-300 pl-2 hover:bg-opacity-100 rounded-xl">
           $0.035 at launch
           <img

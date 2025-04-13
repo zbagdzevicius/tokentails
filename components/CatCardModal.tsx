@@ -1,9 +1,12 @@
+import { CAT_API } from "@/api/cat-api";
 import { ORDER_API } from "@/api/order-api";
-import { getCatDiscountPercentage, getCatPrice } from "@/constants/cat-status";
+import { getCatFundsToRaise, getCatPrice } from "@/constants/cat-status";
+import { CAT_CARD_ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
+import { isApp } from "@/models/app";
 import {
   cardsColor,
   CatAbilities,
@@ -14,23 +17,16 @@ import {
 import { GameType } from "@/models/game";
 import { EntityType } from "@/models/save";
 import { CurrencyType } from "@/web3/contracts";
+import { useQuery } from "@tanstack/react-query";
 import React, { useEffect, useMemo, useState } from "react";
+import { CatCardOnboarding } from "./onboarding/CardOnboarding";
+import { CatBenefits } from "./shared/CatBenefits";
 import { ChainSelect } from "./shared/ChainSelect";
 import { CloseButton } from "./shared/CloseButton";
 import { PixelButton } from "./shared/PixelButton";
-import { Tag } from "./shared/Tag";
 import { StripePayment } from "./web3/payments/StripePayment";
 import { Web3Transfer } from "./web3/transfer/Web3Transfer";
 import { Web3Providers } from "./web3/Web3Providers";
-import { CAT_API } from "@/api/cat-api";
-import { useQuery } from "@tanstack/react-query";
-import { CatBenefits } from "./shared/CatBenefits";
-import { isApp } from "@/models/app";
-import {
-  CAT_CARD_ONBOARDING_MODAL_IDS,
-  ONBOARDING_MODAL_IDS,
-} from "@/constants/onboarding";
-import { CatCardOnboarding } from "./onboarding/CardOnboarding";
 
 interface IProps extends ICat {
   onClose?: () => void;
@@ -143,7 +139,7 @@ export const CatDescription = ({
           <div className="mx-2 md:hidden lg:block"></div>
           {firstBlessing && (
             <PixelButton
-              text={activeBlessing ? "Show Virtual Cat" : "Read Shelter story"}
+              text={activeBlessing ? "Show Virtual Twin" : "Read Shelter story"}
               isSmall
               onClick={() =>
                 setActiveBlessing(activeBlessing ? null : firstBlessing)
@@ -196,12 +192,16 @@ export const CatPayment = ({
   onAdopted,
   relative,
   cats,
+  unitsToBuy,
+  handleUnitsToBuy,
 }: {
   cat: ICat;
   onClose?: () => void;
   onAdopted?: () => void;
   relative?: boolean;
   cats?: ICat[];
+  unitsToBuy: number;
+  handleUnitsToBuy: (units: number) => void;
 }) => {
   const {
     currencyType,
@@ -222,7 +222,8 @@ export const CatPayment = ({
     [cats, cat]
   );
   const currencyPrice = useMemo(() => {
-    const corePrice = buyMode === BuyMode.AI ? Prices.ai : getCatPrice(cat);
+    const corePrice =
+      buyMode === BuyMode.AI ? Prices.ai : getCatPrice(cat) * unitsToBuy;
     if (paymentMethod === "card") {
       return corePrice;
     }
@@ -419,44 +420,67 @@ export const CatPayment = ({
           />
         )}
         {!isCoinsPayment && !buyMode && (isForSale || (isOwned && !cat.ai)) && (
-          <span className="relative">
-            <PixelButton
-              text={isOwned && !cat.ai ? "AI Companion" : "Save"}
-              onClick={handleBuyClick}
-              isDisabled={outOfSupply}
-            />
+          <span className="relative flex items-center gap-2">
+            <div className="relative">
+              <span className="z-10 relative">
+                <PixelButton
+                  text={isOwned && !cat.ai ? "AI Companion" : "Save"}
+                  onClick={handleBuyClick}
+                  isDisabled={outOfSupply}
+                />
+              </span>
+
+              {price && (
+                <div className="absolute -top-4 left-0 right-0 justify-center flex z-0">
+                  <div className="bg-red-500 text-yellow-300 px-2 border-2 border-main-black text-p6 font-primary">
+                    ${currencyPrice}
+                  </div>
+                </div>
+              )}
+            </div>
             {isOwned && !cat.ai && (
               <img
                 draggable={false}
-                src="/logo/ai.webp"
+                src="/logo/heart.webp"
                 className="absolute top-1/2 -translate-y-1/2 -left-2 flex items-center w-6 h-6"
               />
             )}
+            <div className="flex items-center">
+              <PixelButton
+                text="-"
+                isSmall
+                onClick={() => handleUnitsToBuy(unitsToBuy - 1)}
+              />
+              <div className="flex gap-1 flex-wrap justify-center">
+                {Array.from({
+                  length: cat.totalSupply - (cat.totalSupply - cat.supply),
+                }).map((_, i) => (
+                  <img
+                    draggable={false}
+                    src={
+                      unitsToBuy < i + 1
+                        ? "/logo/heart-empty.webp"
+                        : "/logo/heart-saved.webp"
+                    }
+                    className="w-4 md:w-5 lg:w-4 h-4 md:h-5 lg:h-4 pixelated"
+                  />
+                ))}
+              </div>
+              <PixelButton
+                text="+"
+                isSmall
+                onClick={() => handleUnitsToBuy(unitsToBuy + 1)}
+              />
+            </div>
           </span>
         )}
-
-        {cat.totalSupply && !buyMode && !isOwned && (
-          <div className="flex flex-col bg-gray-600 px-2 text-center rounded-lg font-secondary text-p4 mb-1">
-            <div className="text-p5 text-yellow-300">SUPPLY</div>
-            <div className="text-yellow-200 -mt-1">
-              {cat.supply} / {cat.totalSupply}
-            </div>
-          </div>
-        )}
-        {!relative ||
-          (buyMode && <PixelButton text="CLOSE" onClick={close}></PixelButton>)}
       </div>
     </>
   );
 };
 
-export const CatCard = ({
-  onClose,
-  onAdopted,
-  relative,
-  ...catData
-}: IProps) => {
-  const { catImg, name, type, blessings, ai } = catData;
+export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
+  const { catImg, name, type, blessings, ai } = cat;
   const [activeBlessing, setActiveBlessing] = useState<IBlessing | null>(null);
   const { profile } = useProfile();
   const [showBenefits, setShowBenefits] = useState(false);
@@ -465,10 +489,18 @@ export const CatCard = ({
     queryFn: () => CAT_API.cats(),
   });
   const isOwned = !!cats?.find((cat) => cat.name === name);
-  const discountPercentage = useMemo(
-    () => (isOwned ? 0 : getCatDiscountPercentage(catData)),
-    [catData, cats]
+  const [unitsToBuy, setUnitsToBuy] = useState(cat.supply >= 1 ? 1 : 0);
+  const donationsToSave = useMemo(
+    () => cat.totalSupply - (cat.totalSupply - cat.supply) - unitsToBuy,
+    [cat.totalSupply, cat.supply, unitsToBuy]
   );
+
+  const handleUnitsToBuy = (units: number) => {
+    if (units < 1 || units > cat.totalSupply - (cat.totalSupply - cat.supply)) {
+      return;
+    }
+    setUnitsToBuy(units);
+  };
   return (
     <div
       style={{ borderColor: cardsColor[type] }}
@@ -487,14 +519,29 @@ export const CatCard = ({
         style={{ backgroundColor: cardsColor[type] || "white" }}
       />
       <div className="relative z-20 flex flex-col md:flex-row lg:flex-col justify-between h-full">
-        <div className="w-full">
+        <CatMultiplier {...cat} />
+        {showBenefits && (
+          <div
+            className="absolute bottom-0 left-0 right-0 w-full rounded-2xl z-20 animate-appear"
+            style={{
+              backgroundImage: "url('/backgrounds/bg-6.png')",
+              backgroundRepeat: "no-repeat",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          >
+            <CloseButton onClick={() => setShowBenefits(false)} />
+            <CatBenefits cat={cat} isOwned={isOwned} />
+          </div>
+        )}
+        <div className="w-full relative">
           <div>
             <div className="flex justify-between items-center m-1">
               <div className="flex flex-row space-x-2 items-center pl-4">
                 {(!!ai || !!blessings?.length) && (
                   <img
                     draggable={false}
-                    src="/logo/ai.webp"
+                    src="/logo/heart.webp"
                     className="w-8 h-8 pixelated"
                   />
                 )}
@@ -502,7 +549,6 @@ export const CatCard = ({
                   {name}
                 </h3>
               </div>
-              <CatMultiplier {...catData} />
             </div>
           </div>
           <div className="relative mx-4 h-full md:h-auto lg:h-full flex justify-center items-center">
@@ -514,11 +560,6 @@ export const CatCard = ({
               width={400}
               height={400}
             />
-            {discountPercentage && (
-              <div className="absolute top-0.5 md:-top-2 right-0.5 md:-right-2 lg:top-1 lg:right-1 flex justify-center z-10">
-                <Tag isSmall>{discountPercentage}% OFF</Tag>
-              </div>
-            )}
             <CatBlessings blessings={blessings} />
             <span className="relative z-0">
               <img
@@ -545,48 +586,60 @@ export const CatCard = ({
             {!activeBlessing && (
               <div
                 id={CAT_CARD_ONBOARDING_MODAL_IDS.BENEFITS}
-                className="absolute bottom-2 md:-bottom-8 lg:bottom-2 flex justify-center"
+                className="absolute bottom-2 md:-bottom-8 lg:bottom-2 flex justify-center z-10"
               >
                 <PixelButton
                   onClick={() => setShowBenefits(!showBenefits)}
                   text={
                     showBenefits
                       ? "Hide benefits"
-                      : `${catData.name} owner benefits`
+                      : `${cat.name} owner benefits`
                   }
                   isSmall
                 />
               </div>
             )}
           </div>
-          {showBenefits && (
-            <div
-              className="absolute bottom-0 left-0 right-0 w-full rounded-2xl z-20 animate-appear"
-              style={{
-                backgroundImage: "url('/backgrounds/bg-6.png')",
-                backgroundRepeat: "no-repeat",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }}
-            >
-              <CloseButton onClick={() => setShowBenefits(false)} />
-              <CatBenefits cat={catData} isOwned={isOwned} />
+          <div className="flex flex-col absolute left-0 right-0 z-0">
+            <div className="flex flex-row-reverse m-auto gap-1 justify-center mt-2 md:mt-8 lg:mt-2">
+              {Array.from({ length: cat.totalSupply || 0 }).map((_, i) => (
+                <img
+                  draggable={false}
+                  src={
+                    cat.supply < i + 1
+                      ? "/logo/heart.webp"
+                      : cat.supply - unitsToBuy < i + 1
+                      ? "/logo/heart-saved.webp"
+                      : "/logo/heart-empty.webp"
+                  }
+                  className="w-4 h-4 pixelated"
+                />
+              ))}
             </div>
-          )}
+            <div className="flex flex-row-reverse m-auto gap-1 justify-center font-primary mb-2">
+              {donationsToSave < 1
+                ? unitsToBuy
+                  ? "MEOW! CLICK SAVE TO RESCUE"
+                  : "SAVED"
+                : `${donationsToSave} MORE DONATIONS TO SAVE`}
+            </div>
+          </div>
         </div>
         <div>
           <div className="text-start m-3 md:m-5 bg md:mt-10 lg:mt-5">
             <CatDescription
-              {...catData}
+              {...cat}
               setActiveBlessing={setActiveBlessing}
               activeBlessing={activeBlessing}
             />
             <CatPayment
-              cat={catData}
+              cat={cat}
               onClose={onClose}
               onAdopted={() => onAdopted?.()}
               relative={relative}
               cats={cats}
+              unitsToBuy={unitsToBuy}
+              handleUnitsToBuy={handleUnitsToBuy}
             />
           </div>
         </div>

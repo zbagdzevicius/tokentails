@@ -1,23 +1,27 @@
-import { cardsColor, ICat } from "@/models/cats";
-import { getMultiplier } from "../CatCardModal";
 import { PixelButton } from "@/components/shared/PixelButton";
+import { getCatFundsToRaise, getCatPrice } from "@/constants/cat-status";
+import { cardsColor, ICat } from "@/models/cats";
+import { useMemo } from "react";
+import { getMultiplier } from "../CatCardModal";
 
-export const CatMiniCard = ({
+export const MarketplaceItem = ({
   cat,
-  onBenefitsClick,
   onClick,
-  active,
-  hideBenefits,
+  hideButton,
 }: {
   cat: ICat;
-  onBenefitsClick?: (cat: ICat | null) => void;
   onClick?: () => void;
-  active?: boolean;
-  hideBenefits?: boolean;
+  hideButton?: boolean;
 }) => {
+  const price = getCatFundsToRaise(cat);
+  const lives = useMemo(() => {
+    return cat.totalSupply - cat.supply;
+  }, [cat]);
   return (
-    <div
-      className="relative overflow-hidden w-48 rounded-xl pb-2 border-4 min-w-[12rem]"
+    <a
+      onClick={onClick}
+      href={`/cats/${cat._id}`}
+      className="relative overflow-hidden w-48 rounded-2xl pb-2 rem:border-[7px] min-w-[12rem] group"
       style={{ borderColor: cardsColor[cat.type] }}
     >
       <div
@@ -27,6 +31,19 @@ export const CatMiniCard = ({
       >
         X{getMultiplier(cat)}
         <img draggable={false} src="/logo/coin.webp" className="w-6 h-6 ml-1" />
+      </div>
+
+      <div
+        onClick={onClick}
+        style={{ backgroundColor: cardsColor[cat.type] || "white" }}
+        className="absolute right-0 top-0 opacity-75 text-black pr-1 text-p5 rounded-tl-xl font-secondary z-20 flex items-center"
+      >
+        <img
+          draggable={false}
+          src="/logo/heart.webp"
+          className="w-6 h-6 mr-0.5 -ml-3"
+        />
+        {lives}/{cat.totalSupply}
       </div>
       <div
         onClick={onClick}
@@ -41,7 +58,7 @@ export const CatMiniCard = ({
         {cat?.blessings?.length && (
           <img
             draggable={false}
-            className="h-24 max-w-full mb-2 -mt-4 z-0 rounded-t-2xl"
+            className="h-24 max-w-full mb-2 -mt-4 z-0 rounded-t-2xl group-hover:scale-150 group-hover:rounded-2xl transition-all duration-300"
             src={cat.blessings?.[0]?.image?.url}
             alt={`${cat.type} icon`}
           />
@@ -58,16 +75,7 @@ export const CatMiniCard = ({
         >
           {cat.name}
         </div>
-        <a onClick={onClick} href={onClick ? undefined : `/cats/${cat._id}`}>
-          <PixelButton text="SAVE THIS CAT" />
-        </a>
-        {!hideBenefits && (
-          <PixelButton
-            isSmall
-            text={active ? "CLOSE" : "OWNER BENEFITS"}
-            onClick={() => onBenefitsClick?.(active ? null : cat)}
-          />
-        )}
+        {!hideButton && <PixelButton text={`ONLY $${price} TO SAVE`} />}
       </div>
       <img
         draggable={false}
@@ -75,6 +83,6 @@ export const CatMiniCard = ({
         src={`/ability/${cat.type}_BG.webp`}
         alt={`${cat.type} background`}
       />
-    </div>
+    </a>
   );
 };

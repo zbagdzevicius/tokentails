@@ -270,7 +270,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                 <div className="absolute right-0 top-0 z-20">
                   <img
                     draggable={false}
-                    src="/logo/ai.webp"
+                    src="/logo/heart.webp"
                     className="w-8 h-8 pixelated"
                   />
                 </div>
