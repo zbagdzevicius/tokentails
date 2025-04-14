@@ -47,7 +47,7 @@ export class DogBot {
   private animationKeys: IDogAnimationKeysMap;
 
   private direction = -1;
-  private speed = 200;
+  private speed = 285;
   private jumpForce = -200;
   private jumpCooldown = 5000;
   private lastJumpTime = 0;
@@ -90,15 +90,15 @@ export class DogBot {
     const body = this.sprite.body as Phaser.Physics.Arcade.Body;
     if (!body) return;
 
-    this.direction = 1;
-
-    this.sprite.setVelocityX(this.direction * this.speed);
-
+    // Only change direction when hitting a wall
     if (body.blocked.right || body.blocked.left) {
       this.direction *= -1;
       this.sprite.setFlipX(this.direction < 0);
       this.startSpin();
     }
+
+    // Always apply velocity based on current direction
+    this.sprite.setVelocityX(this.direction * this.speed);
   }
 
   private handleJumps() {
