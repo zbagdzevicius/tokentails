@@ -1,6 +1,5 @@
 import { MarketplaceItems } from "@/components/marketplace/MarketplaceItems";
 import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
-import { GameProvider } from "@/context/GameContext";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
 

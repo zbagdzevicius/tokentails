@@ -102,7 +102,10 @@ export const Header = () => {
                 href={navItem.link}
                 onClick={() => handleTitleClick(navItem.title)}
               >
-                <PixelButton text={navItem.title} isSmall />
+                <PixelButton
+                  text={navItem.title}
+                  isSmall={navItem.title !== "CATS TO SAVE"}
+                />
               </a>
             </li>
           ))}

@@ -482,7 +482,9 @@ export const CatPayment = ({
 
 export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
   const { catImg, name, type, blessings, ai } = cat;
-  const [activeBlessing, setActiveBlessing] = useState<IBlessing | null>(null);
+  const [activeBlessing, setActiveBlessing] = useState<IBlessing | null>(
+    !!cat.blessings?.length ? cat.blessings[0] : null
+  );
   const { profile } = useProfile();
   const [showBenefits, setShowBenefits] = useState(false);
   const { data: cats } = useQuery({
@@ -535,7 +537,7 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
             <CatBenefits cat={cat} isOwned={isOwned} />
           </div>
         )}
-        <div className="w-full relative">
+        <div className="w-full relative flex flex-col">
           <div>
             <div className="flex justify-between items-center m-1">
               <div className="flex flex-row space-x-2 items-center pl-4">
@@ -573,7 +575,7 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
                 className={`${
                   activeBlessing
                     ? "w-full h-48 rounded-xl min-w-48"
-                    : "w-32 h-32"
+                    : "w-36 h-36"
                 } relative z-10 object-contain pixelated`}
               />
               {!!blessings?.length && (
@@ -587,7 +589,7 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
             {!activeBlessing && (
               <div
                 id={CAT_CARD_ONBOARDING_MODAL_IDS.BENEFITS}
-                className="absolute bottom-2 md:-bottom-8 lg:bottom-2 flex justify-center z-10"
+                className="absolute -bottom-2 md:-bottom-8 lg:-bottom-2 flex justify-center z-10"
               >
                 <PixelButton
                   onClick={() => setShowBenefits(!showBenefits)}
@@ -601,7 +603,7 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
               </div>
             )}
           </div>
-          <div className="flex flex-col absolute left-0 right-0 z-0">
+          <div className="flex flex-col absolute left-0 right-0 -bottom-14 md:bottom-0 lg:-bottom-14 z-0">
             <div className="flex flex-row-reverse m-auto gap-1 justify-center mt-2 md:mt-8 lg:mt-2">
               {Array.from({ length: cat.totalSupply || 0 }).map((_, i) => (
                 <img

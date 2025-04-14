@@ -56,7 +56,7 @@ export const PixelButton = ({
       className={`flex justify-center items-center h-12 ${
         isWidthFull && "w-full"
       }
-            ${isSmall && "scale-75"}
+            ${isSmall && "scale-[0.675]"}
          ${
            !active && !isDisabled
              ? "hover:brightness-125 hover:pb-1 hover:scale-105 transition-all"

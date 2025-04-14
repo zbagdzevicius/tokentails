@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { CatBenefits } from "../shared/CatBenefits";
 import { CatMiniCard } from "../shared/CatMiniCard";
 import { ShelterBenefits } from "../shared/ShelterBenefits";
+import { PixelButton } from "../shared/PixelButton";
 
 export const FeedbackSlider = () => {
   const [selectedCat, setSelectedCat] = useState<ICat | null>(null);
@@ -63,6 +64,10 @@ export const FeedbackSlider = () => {
             <CatBenefits key={selectedCat._id} cat={selectedCat} />
           )}
         </div>
+
+        <a href="/cats" className="mt-8">
+          <PixelButton text="SEE ALL CATS IN NEED" />
+        </a>
       </div>
     </>
   );
