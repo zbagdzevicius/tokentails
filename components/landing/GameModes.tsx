@@ -31,12 +31,13 @@ export const gameModes = {
     image: "/game/select/shelter.jpg",
     text: "SAVE CATS BY OWNING NFTS",
   },
-  // [GameType.CATNIP_CHAOS]: {
-  //   video: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/videos/storymode.mp4",
-  //   title: "Story Mode",
-  //   image: "/game/select/storymode.jpg",
-  //   text: "PLAY STORY MODE",
-  // },
+  [GameType.CATNIP_CHAOS]: {
+    video:
+      "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/videos/catnip-chaos.mp4",
+    title: "Catnip Chaos",
+    image: "/game/select/catnip-chaos.webp",
+    text: "TEST YOUR SKILLS",
+  },
 };
 
 export const GameModes = () => {
@@ -66,10 +67,11 @@ export const GameModes = () => {
           ></img>
         </div>
         <div
-          className={`mt-10 ${gameMode === GameType.PURRQUEST
-            ? "animate-hover"
-            : "opacity-50 hover:opacity-100"
-            }`}
+          className={`mt-10 ${
+            gameMode === GameType.PURRQUEST
+              ? "animate-hover"
+              : "opacity-50 hover:opacity-100"
+          }`}
         >
           <img
             draggable={false}
@@ -79,16 +81,17 @@ export const GameModes = () => {
           ></img>
         </div>
         <div
-          className={`mt-10 ${gameMode === GameType.HOME
-            ? "animate-hover"
-            : "opacity-50 hover:opacity-100"
-            }`}
+          className={`mt-10 ${
+            gameMode === GameType.CATNIP_CHAOS
+              ? "animate-hover"
+              : "opacity-50 hover:opacity-100"
+          }`}
         >
           <img
             draggable={false}
             className="w-20 rounded-xl"
-            src={gameModes[GameType.HOME].image}
-            onClick={() => setGameMode(GameType.HOME)}
+            src={gameModes[GameType.CATNIP_CHAOS].image}
+            onClick={() => setGameMode(GameType.CATNIP_CHAOS)}
           ></img>
         </div>
         <div

@@ -1,15 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { getRandomInt } from "@/constants/utils";
 import { useGame } from "@/context/GameContext";
 import { GameType } from "@/models/game";
-import { getRandomInt } from "@/constants/utils";
+import { useEffect, useRef, useState } from "react";
 
 const gameMusicMap: Record<GameType, string> = {
-  SHELTER:
+  [GameType.SHELTER]:
     "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3",
-  HOME: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3",
-  PURRQUEST: "catbassadors/sounds/menu.mp3",
-  CATBASSADORS: "catbassadors/sounds/game.mp3",
-  //STORYMODE: "catbassadors/sounds/menu.mp3",
+  [GameType.CATNIP_CHAOS]:
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3",
+  [GameType.HOME]:
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3",
+  [GameType.PURRQUEST]: "catbassadors/sounds/menu.mp3",
+  [GameType.CATBASSADORS]: "catbassadors/sounds/game.mp3",
 };
 
 export const GameMusicPlayer = () => {
