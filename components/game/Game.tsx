@@ -1,10 +1,9 @@
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
+import { useBodyOverflowHidden } from "@/hooks/useBodyOverflowHidden";
 import { GameType } from "@/models/game";
 import dynamic from "next/dynamic";
 import { useBackground } from "../../constants/hooks";
-import Snowfall from "../shared/Snowfall";
-import { useBodyOverflowHidden } from "@/hooks/useBodyOverflowHidden";
 const Catbassadors = dynamic(
   () => import("@/components/catbassadors/Catbassadors"),
   { ssr: false }
@@ -19,9 +18,12 @@ const Adopt = dynamic(() => import("@/components/shelter/Shelter"), {
 const Story = dynamic(() => import("@/components/storyMode/StoryMode"), {
   ssr: false,
 });
-// const CATNIP_CHAOS = dynamic(() => import("@/components/CatnipChaos/CatnipChaos"), {
-//   ssr: false,
-// });
+const CATNIP_CHAOS = dynamic(
+  () => import("@/components/CatnipChaos/CatnipChaos"),
+  {
+    ssr: false,
+  }
+);
 export const Game = () => {
   const { gameType, timer } = useGame();
   const { profile } = useProfile();
@@ -36,8 +38,7 @@ export const Game = () => {
       {gameType === GameType.HOME && profile && <Base />}
       {gameType === GameType.SHELTER && profile && <Adopt />}
       {gameType === GameType.PURRQUEST && profile && <PurrQuest />}
-      {/* {gameType === GameType.CATNIP_CHAOS && profile && < CATNIP_CHAOS />} */}
-      {/* {gameType === GameType.STORYMODE && profile && <Story />} */}
+      {gameType === GameType.CATNIP_CHAOS && profile && <CATNIP_CHAOS />}
     </div>
   );
 };

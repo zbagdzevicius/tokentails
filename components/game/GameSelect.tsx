@@ -21,7 +21,7 @@ const gameTypeImages: Record<GameType, string> = {
   [GameType.PURRQUEST]: "/game/select/purrquest.jpg",
   [GameType.SHELTER]: "/game/select/shelter.jpg",
   [GameType.HOME]: "/game/select/home.jpg",
-  // [GameType.CATNIP_CHAOS]: "/game/select/home.jpg",
+  [GameType.CATNIP_CHAOS]: "/game/select/catnip-chaos.webp",
 };
 
 const GameSelectItem = ({
@@ -37,6 +37,7 @@ const GameSelectItem = ({
         "rotate-6 hover:rotate-0": [
           GameType.SHELTER,
           GameType.PURRQUEST,
+          GameType.CATNIP_CHAOS,
         ].includes(gameType),
         "-rotate-6 hover:rotate-0": [
           GameType.CATBASSADORS,
@@ -81,7 +82,6 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
               gameType === GameType.HOME && (cat?.status.EAT || 0) >= 4,
             "mt-64 md:mt-56":
               gameType === GameType.HOME && (cat?.status.EAT || 0) < 4,
-
           })}
         >
           <PixelButton
@@ -127,14 +127,9 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
               </div>
               <GameSelectItem
                 setGameType={setGameType}
-                gameType={GameType.PURRQUEST}
+                gameType={GameType.CATNIP_CHAOS}
               />
             </div>
-
-            {/* <GameSelectItem
-              setGameType={setGameType}
-              gameType={GameType.CATNIP_CHAOS}
-            /> */}
 
             {profile?.cat ? (
               <div className="relative w-24 min-w-24 pixelated flex flex-col items-center justify-center animate-appear">

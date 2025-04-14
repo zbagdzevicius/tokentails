@@ -27,6 +27,7 @@ import { PixelButton } from "./shared/PixelButton";
 import { StripePayment } from "./web3/payments/StripePayment";
 import { Web3Transfer } from "./web3/transfer/Web3Transfer";
 import { Web3Providers } from "./web3/Web3Providers";
+import { useRouter } from "next/router";
 
 interface IProps extends ICat {
   onClose?: () => void;
@@ -336,7 +337,7 @@ export const CatPayment = ({
 
   const handleBuyClick = () => {
     if (isApp) {
-      window.open("https://tokentails.com/game", "_blank");
+      window.open(`https://tokentails.com/cats/${cat._id}`, "_blank");
     } else {
       setBuyMode(isForSale ? BuyMode.CAT : BuyMode.AI);
     }
@@ -650,6 +651,14 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
 
 export const CatCardModal: React.FC<IProps> = ({ onClose, ...catData }) => {
   const { setGameType } = useGame();
+  const router = useRouter();
+  const onAdopted = () => {
+    if (catData.relative) {
+      router.push(`/game`);
+    } else {
+      setGameType(GameType.HOME);
+    }
+  };
 
   return (
     <div className="flex justify-center w-full h-full fixed top-0 left-0 z-[101]">
@@ -661,11 +670,7 @@ export const CatCardModal: React.FC<IProps> = ({ onClose, ...catData }) => {
       <CloseButton absolute onClick={() => onClose?.()} />
 
       <Web3Providers>
-        <CatCard
-          {...catData}
-          onClose={onClose}
-          onAdopted={() => setGameType(GameType.HOME)}
-        />
+        <CatCard {...catData} onClose={onClose} onAdopted={onAdopted} />
       </Web3Providers>
     </div>
   );
