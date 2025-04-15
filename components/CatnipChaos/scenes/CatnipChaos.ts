@@ -9,12 +9,12 @@ import { Cat } from "../../catbassadors/objects/Catbassador";
 import { CatAbilityType, CatType } from "@/models/cats";
 import { setMobileJumpControl } from "@/components/Phaser/MobileButtons/MobileControls";
 import { ICat } from "@/models/cats";
-import { ZOOM } from "@/constants/utils";
+import { isMobile } from "@/constants/utils";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 
 import { CollectiveItem } from "@/components/storyMode/objects/CollectiveItem";
 
-import { CoreMap } from "@/components/Phaser/map";
+import { CoreMap, LevelMap } from "@/components/Phaser/map";
 
 import { DogBot } from "@/components/storyMode/objects/dogBot";
 
@@ -35,6 +35,10 @@ const TRAMPOLINE_TILES = [158, 159, 160];
 const FLOATING_PLATFORM_TILES = [9];
 
 const SPIKE_TILES = [253, 254, 284, 283];
+
+export interface ICatnipChaosProps extends IPhaserGameSceneProps {
+  level?: string;
+}
 
 export class CatnipChaosScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
@@ -65,14 +69,16 @@ export class CatnipChaosScene extends Scene {
     super("CatnipChaosScene");
   }
 
-  preload() {
+  preload(props: ICatnipChaosProps) {
+    const level = props?.level || "1-5";
+
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.image("collective-item", "purrquest/sprites/key.png");
     this.load.tilemapTiledJSON(
       "tilemap",
-      "catnip-chaos/levels/level-three.json"
+      `catnip-chaos/levels/level-${level}.json`
     );
-    this.load.image("blocks", CoreMap);
+    this.load.image("blocks", LevelMap[level]);
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.image("platform", "purrquest/icons/platform.png");
     this.load.spritesheet("hidden-spike", "story/hidden-spike.png", {
@@ -88,9 +94,10 @@ export class CatnipChaosScene extends Scene {
       frameWidth: 48,
       frameHeight: 48,
     });
+    this.load.audio("game-end-sound", "audio/game/game-end.mp3");
   }
 
-  create(props: IPhaserGameSceneProps) {
+  create(props: ICatnipChaosProps) {
     this.initAnimations();
     this.setupTilemap();
     this.setupCamera();
@@ -143,7 +150,7 @@ export class CatnipChaosScene extends Scene {
 
   private setupCamera() {
     this.cameras.main.setScroll(-650, -1000);
-    this.cameras.main.setZoom(1.3);
+    this.cameras.main.setZoom(isMobile() ? 1.1 : 1.5);
   }
 
   private setupSound() {
@@ -238,11 +245,13 @@ export class CatnipChaosScene extends Scene {
         const worldX = this.physicsLayer.tileToWorldX(tile.x);
         const worldY = this.physicsLayer.tileToWorldY(tile.y);
 
-        const dog = new DogBot(this, worldX, worldY, "dog");
-        this.dogs.push(dog);
+        this.time.delayedCall(1000, () => {
+          const dog = new DogBot(this, worldX, worldY, "dog");
+          this.dogs.push(dog);
 
-        this.physics.add.collider(dog.sprite, this.groundLayer);
-        this.physics.add.collider(dog.sprite, this.platformsLayer);
+          this.physics.add.collider(dog.sprite, this.groundLayer);
+          this.physics.add.collider(dog.sprite, this.platformsLayer);
+        });
       }
     });
   }
@@ -322,9 +331,36 @@ export class CatnipChaosScene extends Scene {
   }
 
   endGame() {
-    this.cleanupSound();
-    this.destroyGameObjects();
-    this.cleanupScene();
+    if (this.cat) {
+      this.cat.isHit = true;
+      // Set player color to red
+      this.cat.sprite.setTint(0xff0000);
+      // Stop player movement
+      this.cat.sprite.setVelocity(0, 0);
+      this.cat.sprite.setAcceleration(0, 0);
+      // Disable physics
+      if (this.cat.sprite.body) {
+        this.cat.sprite.body.enable = false;
+      }
+    }
+
+    // Play hit animation if available
+    if (this.cat?.sprite.anims) {
+      this.cat.sprite.anims.play("hit", true);
+    }
+
+    // Play game end sound
+    const gameEndSound = this.sound.add("game-end-sound", {
+      volume: 1,
+      loop: false,
+    });
+    gameEndSound.play();
+
+    this.time.delayedCall(1000, () => {
+      this.cleanupSound();
+      this.destroyGameObjects();
+      this.cleanupScene();
+    });
   }
 
   private cleanupSound() {
@@ -363,7 +399,7 @@ export class CatnipChaosScene extends Scene {
     this.scene.remove();
   }
 
-  setupEventListeners(props: IPhaserGameSceneProps) {
+  setupEventListeners(props: ICatnipChaosProps) {
     const catSpawnCallback = (data: ICatEvent<GameEvent.CAT_SPAWN>) =>
       this.spawnCat(data!);
     GameEvents.CAT_SPAWN.addEventListener(catSpawnCallback);

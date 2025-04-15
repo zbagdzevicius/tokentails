@@ -6,3 +6,12 @@ export enum Map {
 }
 
 export const CoreMap = Map.SPRING;
+
+export const LevelMap: Record<string, Map> = {
+  "1-1": CoreMap,
+  "1-2": CoreMap,
+  "1-3": CoreMap,
+  "1-4": CoreMap,
+  "1-5": CoreMap,
+  "1-6": CoreMap,
+};
