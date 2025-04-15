@@ -50,22 +50,14 @@ export class CatnipChaosScene extends Scene {
   trampoline?: Trampoline;
 
   spikeManager!: SpikeManager;
-
-  // Game objects and managers
   collectiveItem?: CollectiveItem;
 
-  // Add auto-run properties
   autoRunSpeed: number = 275;
-  autoJumpSpeed: number = 450;
+  autoJumpSpeed: number = 440;
   isAutoRunMode: boolean = true;
 
-  // Add new property to track gravity state
   private isGravityReversed: boolean = false;
-
-  // Add new property for dogs
   private dogs: DogBot[] = [];
-
-  // Change to array of managers
   private floatingPlatformManagers: FloatingPlatformManager[] = [];
   private hiddenSpikeManagers: HiddenSpikeManager[] = [];
 
@@ -76,7 +68,7 @@ export class CatnipChaosScene extends Scene {
   preload() {
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.image("collective-item", "purrquest/sprites/key.png");
-    this.load.tilemapTiledJSON("tilemap", "catbassadors/jumper.json");
+    this.load.tilemapTiledJSON("tilemap", "catnip-chaos/levels/level-six.json");
     this.load.image("blocks", CoreMap);
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.image("platform", "purrquest/icons/platform.png");
@@ -106,7 +98,6 @@ export class CatnipChaosScene extends Scene {
       this.spawnCat({ detail: { cat: props.cat } }, props.isRestart);
     }
 
-    // Example of using managers to create game objects
     this.createGameObjects();
   }
 
@@ -131,27 +122,20 @@ export class CatnipChaosScene extends Scene {
     this.jumperLayer = this.tilemap.createLayer("jumper", [sugarTileset])!;
     this.physicsLayer = this.tilemap.createLayer("physics", [sugarTileset])!;
 
-    // Make physics layer visible for debugging
-    this.physicsLayer.setAlpha(0.5);
-
-    // Update collision setup for jumperLayer
     this.jumperLayer?.setCollision(TRAMPOLINE_TILES);
 
-    // Create trampoline after setting up collisions
     this.trampoline = new Trampoline(this, this.jumperLayer, TRAMPOLINE_TILES);
 
-    // Exclude spike tiles from ground layer collision
     this.groundLayer.setCollisionByExclusion([-1, ...SPIKE_TILES]);
     this.platformsLayer.setCollision(JUMP_LAYER_TILES);
 
-    // Create dogs on tile 22
     this.createDogsOnTiles(22);
 
-    // Create floating platforms on specified tiles
     this.createFloatingPlatforms();
 
-    // Create hidden spikes on tile 11
     this.createHiddenSpikes();
+
+    this.physicsLayer.setCollision([162, 192]);
   }
 
   private setupCamera() {
@@ -187,16 +171,12 @@ export class CatnipChaosScene extends Scene {
     // Enable auto-run mode with specified speed
     this.cat.setAutoRunMode(this.autoRunSpeed, this.autoJumpSpeed);
 
-    // Add this specific collision for the trampoline to work
     this.physics.add.collider(this.cat.sprite, this.jumperLayer);
 
-    // Create hidden spikes after cat is created
     this.createHiddenSpikes();
 
-    // Create spikes after cat is created
     this.createSpikes();
 
-    // Create game objects that depend on cat
     this.createGameObjects();
   }
 
@@ -207,9 +187,26 @@ export class CatnipChaosScene extends Scene {
     this.physics.add.collider(this.cat.sprite, this.platformsLayer);
     this.physics.add.collider(this.cat.sprite, this.jumperLayer);
 
-    // Add collision with all floating platforms
     this.floatingPlatformManagers.forEach((manager) => {
       manager.setupPlayerCollision(this.cat!.sprite);
+    });
+
+    this.dogs.forEach((dog) => {
+      this.physics.add.collider(this.cat!.sprite, dog.sprite, () => {
+        this.endGame();
+      });
+    });
+
+    this.physics.add.collider(this.cat.sprite, this.physicsLayer, () => {
+      const tile = this.physicsLayer.getTileAtWorldXY(
+        this.cat!.sprite.x,
+        this.cat!.sprite.y
+      );
+      if (tile && (tile.index === 162 || tile.index === 192)) {
+        // end game when collides with flag
+        GameEvents.GAME_STOP.push({ score: 0, time: 0 });
+        this.endGame();
+      }
     });
   }
 
@@ -241,7 +238,6 @@ export class CatnipChaosScene extends Scene {
         const dog = new DogBot(this, worldX, worldY, "dog");
         this.dogs.push(dog);
 
-        // Set up collisions for the dog
         this.physics.add.collider(dog.sprite, this.groundLayer);
         this.physics.add.collider(dog.sprite, this.platformsLayer);
       }
@@ -281,7 +277,6 @@ export class CatnipChaosScene extends Scene {
   }
 
   private createHiddenSpikes() {
-    // Only create spikes if cat exists
     if (!this.cat) return;
 
     this.physicsLayer.forEachTile((tile) => {
@@ -289,14 +284,13 @@ export class CatnipChaosScene extends Scene {
         const worldX = this.physicsLayer.tileToWorldX(tile.x);
         const worldY = this.physicsLayer.tileToWorldY(tile.y);
 
-        // Adjust the Y position to be at the bottom of the tile
-        const adjustedY = worldY + 16; // 32 is the tile height
+        const adjustedY = worldY + 16;
 
         const spikeConfig: IHiddenSpikeConfig = {
           scene: this,
           texture: "hidden-spike",
           x: worldX,
-          y: adjustedY, // Use the adjusted Y position
+          y: adjustedY,
           animationKey: "spike-anim",
           cat: this.cat!,
         };
@@ -313,12 +307,10 @@ export class CatnipChaosScene extends Scene {
       this.cat.update();
       this.processGravityTiles();
 
-      // Update all dogs
       this.dogs.forEach((dog) => {
         dog.update();
       });
 
-      // Update all spike managers
       this.hiddenSpikeManagers.forEach((manager) => {
         manager.update();
       });
@@ -342,17 +334,12 @@ export class CatnipChaosScene extends Scene {
 
   private destroyGameObjects() {
     this.cat?.sprite.destroy();
-    // Destroy all dogs
     this.dogs.forEach((dog) => dog.sprite.destroy());
     this.dogs = [];
-
-    // Destroy all floating platforms
     this.floatingPlatformManagers.forEach((manager) => {
       manager.destroy();
     });
     this.floatingPlatformManagers = [];
-
-    // Destroy all spike managers
     this.hiddenSpikeManagers.forEach((manager) => {
       manager.destroy();
     });
@@ -397,7 +384,6 @@ export class CatnipChaosScene extends Scene {
       repeat: -1,
     });
 
-    // Add spike animation
     this.anims.create({
       key: "spike-anim",
       frames: this.anims.generateFrameNumbers("hidden-spike", {

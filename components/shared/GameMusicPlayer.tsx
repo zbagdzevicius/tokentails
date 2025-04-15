@@ -45,9 +45,8 @@ export const GameMusicPlayer = () => {
         const musicUrl = [GameType.PURRQUEST, GameType.CATBASSADORS].includes(
           gameType
         )
-          ? `https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/in-game/song${
-              getRandomInt(45) + 1
-            }.mp3`
+          ? `https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/in-game/song${getRandomInt(45) + 1
+          }.mp3`
           : gameMusicMap[gameType];
         if (audioElement.src !== musicUrl) {
           audioElement.src = musicUrl;
