@@ -68,7 +68,10 @@ export class CatnipChaosScene extends Scene {
   preload() {
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.image("collective-item", "purrquest/sprites/key.png");
-    this.load.tilemapTiledJSON("tilemap", "catnip-chaos/levels/level-six.json");
+    this.load.tilemapTiledJSON(
+      "tilemap",
+      "catnip-chaos/levels/level-three.json"
+    );
     this.load.image("blocks", CoreMap);
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.image("platform", "purrquest/icons/platform.png");

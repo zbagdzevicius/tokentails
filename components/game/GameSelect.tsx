@@ -127,12 +127,8 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
               </div>
               <GameSelectItem
                 setGameType={setGameType}
-                gameType={GameType.PURRQUEST}
-              />
-              {/* <GameSelectItem
-                setGameType={setGameType}
                 gameType={GameType.CATNIP_CHAOS}
-              /> */}
+              />
             </div>
 
             {profile?.cat ? (
