@@ -46,17 +46,14 @@ export class DogBot {
   public sprite: Physics.Arcade.Sprite;
   private animationKeys: IDogAnimationKeysMap;
 
-  private direction = -1;
-  private speed = 285;
+  private direction = 1;
+  private speed = 275;
   private jumpForce = -200;
-  private jumpCooldown = 5000;
-  private lastJumpTime = 0;
+  private maxJumps = 2;
+  private jumpsRemaining = 2;
   private isJumping = false;
-  private isSpinning = false;
-  private spinDuration = 1000; // Duration of spin animation in ms
-  private lastSpinTime = 0;
-  private spinCooldown = 5000; // Cooldown between spins in ms
-  private spinRotation = 0;
+  private lastJumpTime = 0;
+  private jumpCooldown = 500;
 
   constructor(scene: Scene, x: number, y: number, dogName: string) {
     this.scene = scene;
@@ -77,7 +74,7 @@ export class DogBot {
       });
     });
 
-    this.sprite.anims.play(this.animationKeys[DogAnimation.SITTING]);
+    this.sprite.anims.play(this.animationKeys[DogAnimation.RUNNING]);
   }
 
   public update() {
@@ -90,15 +87,22 @@ export class DogBot {
     const body = this.sprite.body as Phaser.Physics.Arcade.Body;
     if (!body) return;
 
-    // Only change direction when hitting a wall
+    // Set horizontal velocity based on direction
+    this.sprite.setVelocityX(this.direction * this.speed);
+
+    // Check for wall collision and change direction
     if (body.blocked.right || body.blocked.left) {
       this.direction *= -1;
       this.sprite.setFlipX(this.direction < 0);
-      this.startSpin();
-    }
 
-    // Always apply velocity based on current direction
-    this.sprite.setVelocityX(this.direction * this.speed);
+      // Reset jumps when hitting a wall
+      this.jumpsRemaining = this.maxJumps;
+
+      // Jump when hitting a wall
+      if (this.jumpsRemaining > 0) {
+        this.performJump();
+      }
+    }
   }
 
   private handleJumps() {
@@ -108,65 +112,38 @@ export class DogBot {
     const onGround = body.blocked.down;
     const timeNow = this.scene.time.now;
 
-    if (this.isJumping) {
-      if (onGround) {
-        this.isJumping = false;
-      }
-      return;
+    // Reset jumps when landing
+    if (onGround) {
+      this.jumpsRemaining = this.maxJumps;
+      this.isJumping = false;
     }
 
+    // Random jumps when on ground
     if (onGround && timeNow > this.lastJumpTime + this.jumpCooldown) {
       if (Math.random() < 0.1) {
-        this.isJumping = true;
-        this.lastJumpTime = timeNow;
-        this.sprite.setVelocityY(this.jumpForce);
-        this.sprite.anims.play(this.animationKeys[DogAnimation.JUMPING], true);
+        this.performJump();
       }
     }
   }
 
-  private startSpin() {
-    const timeNow = this.scene.time.now;
-
-    // Only start spin if cooldown has passed
-    if (timeNow < this.lastSpinTime + this.spinCooldown) return;
-
-    this.isSpinning = true;
-    this.lastSpinTime = timeNow;
-    this.spinRotation = 0;
-    this.sprite.anims.play(this.animationKeys[DogAnimation.JUMPING], true);
-
-    // Update rotation during spin
-    this.scene.time.addEvent({
-      delay: 16, // ~60fps
-      callback: () => {
-        if (this.isSpinning) {
-          this.spinRotation += 0.2; // Adjust this value to control spin speed
-          this.sprite.setRotation(this.spinRotation);
-        }
-      },
-      loop: true,
-    });
-
-    // End spin after duration
-    this.scene.time.delayedCall(this.spinDuration, () => {
-      this.isSpinning = false;
-      this.sprite.setRotation(0);
-    });
+  private performJump() {
+    if (this.jumpsRemaining > 0) {
+      this.isJumping = true;
+      this.jumpsRemaining--;
+      this.lastJumpTime = this.scene.time.now;
+      this.sprite.setVelocityY(this.jumpForce);
+      this.sprite.anims.play(this.animationKeys[DogAnimation.JUMPING], true);
+    }
   }
 
   private updateAnimations() {
     const body = this.sprite.body as Phaser.Physics.Arcade.Body;
     if (!body) return;
 
-    if (this.isSpinning) {
+    if (!body.blocked.down) {
       this.sprite.anims.play(this.animationKeys[DogAnimation.JUMPING], true);
-      return;
+    } else {
+      this.sprite.anims.play(this.animationKeys[DogAnimation.RUNNING], true);
     }
-    if (this.isJumping) {
-      this.sprite.anims.play(this.animationKeys[DogAnimation.JUMPING], true);
-      return;
-    }
-    this.sprite.anims.play(this.animationKeys[DogAnimation.RUNNING], true);
   }
 }
