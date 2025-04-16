@@ -49,6 +49,7 @@ export class CatnipChaosScene extends Scene {
   platformsLayer!: Phaser.Tilemaps.TilemapLayer;
   jumperLayer!: Phaser.Tilemaps.TilemapLayer;
   physicsLayer!: Phaser.Tilemaps.TilemapLayer;
+  catnipLayer!: Phaser.Tilemaps.TilemapLayer;
   backgroundSound?: Phaser.Sound.BaseSound;
   blessing!: Phaser.GameObjects.Sprite;
   trampoline?: Trampoline;
@@ -64,6 +65,7 @@ export class CatnipChaosScene extends Scene {
   private dogs: DogBot[] = [];
   private floatingPlatformManagers: FloatingPlatformManager[] = [];
   private hiddenSpikeManagers: HiddenSpikeManager[] = [];
+  private collectedCatnipCoins: number = 0;
 
   constructor() {
     super("CatnipChaosScene");
@@ -81,6 +83,7 @@ export class CatnipChaosScene extends Scene {
     this.load.image("blocks", LevelMap[level]);
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.image("platform", "purrquest/icons/platform.png");
+    this.load.image("catnip-coin", "catnip-chaos/items/catnip-coin.png");
     this.load.spritesheet("hidden-spike", "story/hidden-spike.png", {
       frameWidth: 31,
       frameHeight: 19,
@@ -95,6 +98,10 @@ export class CatnipChaosScene extends Scene {
       frameHeight: 48,
     });
     this.load.audio("game-end-sound", "audio/game/game-end.mp3");
+    this.load.spritesheet("puff", "catbassadors/images/puff.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
   }
 
   create(props: ICatnipChaosProps) {
@@ -128,9 +135,13 @@ export class CatnipChaosScene extends Scene {
     this.platformsLayer = this.tilemap.createLayer("platforms", [
       sugarTileset,
     ])!;
-    this.tilemap.createLayer("decorations", [sugarTileset]);
+    const decorationsLayer = this.tilemap.createLayer("decorations", [
+      sugarTileset,
+    ])!;
+    decorationsLayer.setAlpha(0.8);
     this.jumperLayer = this.tilemap.createLayer("jumper", [sugarTileset])!;
     this.physicsLayer = this.tilemap.createLayer("physics", [sugarTileset])!;
+    this.catnipLayer = this.tilemap.createLayer("catnip", [sugarTileset])!;
 
     this.jumperLayer?.setCollision(TRAMPOLINE_TILES);
 
@@ -158,7 +169,72 @@ export class CatnipChaosScene extends Scene {
     this.backgroundSound.play();
   }
 
-  private createGameObjects() {}
+  private createGameObjects() {
+    this.initializeCatnipCoins();
+  }
+
+  private initializeCatnipCoins() {
+    // Find all catnip coin tiles (index 248)
+    this.catnipLayer.forEachTile((tile) => {
+      if (tile.index === 248) {
+        // Get world coordinates of the tile
+        const worldX = tile.getCenterX();
+        const worldY = tile.getCenterY();
+
+        // Remove the original tile
+        this.catnipLayer.removeTileAt(tile.x, tile.y);
+
+        // Create a rotating sprite at the tile's position
+        const rotatingSprite = this.add.sprite(worldX, worldY, "catnip-coin");
+
+        // Add continuous rotation animation
+        this.tweens.add({
+          targets: rotatingSprite,
+          angle: 360,
+          duration: 1000,
+          repeat: -1,
+        });
+      }
+    });
+  }
+
+  private spawnCatnipCoins() {
+    if (!this.cat) return;
+
+    const playerX = this.cat.sprite.x;
+    const playerY = this.cat.sprite.y;
+
+    this.children.list.forEach((child) => {
+      if (
+        child instanceof Phaser.GameObjects.Sprite &&
+        child.texture.key === "catnip-coin"
+      ) {
+        const distance = Phaser.Math.Distance.Between(
+          playerX,
+          playerY,
+          child.x,
+          child.y
+        );
+        if (distance < 32) {
+          const coinX = child.x;
+          const coinY = child.y;
+          child.destroy();
+
+          // Create and play puff animation
+          const puffSprite = this.add.sprite(coinX, coinY, "puff");
+          puffSprite.play("puff");
+          puffSprite.on("animationcomplete", () => {
+            puffSprite.destroy();
+          });
+
+          this.collectedCatnipCoins++;
+          GameEvents.GAME_COIN_CAUGHT.push({
+            score: this.collectedCatnipCoins,
+          });
+        }
+      }
+    });
+  }
 
   private createCat(
     catName: string,
@@ -214,7 +290,10 @@ export class CatnipChaosScene extends Scene {
       );
       if (tile && (tile.index === 162 || tile.index === 192)) {
         // end game when collides with flag
-        GameEvents.GAME_STOP.push({ score: 0, time: 0 });
+        GameEvents.GAME_STOP.push({
+          score: this.collectedCatnipCoins,
+          time: 0,
+        });
         this.endGame();
       }
     });
@@ -314,10 +393,34 @@ export class CatnipChaosScene extends Scene {
     });
   }
 
+  createProgressBar() {
+    if (!this.cat) return;
+
+    let endX = 0;
+    this.physicsLayer.forEachTile((tile) => {
+      if (tile.index === 162 || tile.index === 192) {
+        endX = this.physicsLayer.tileToWorldX(tile.x);
+      }
+    });
+
+    const startX = -950;
+    const playerX = this.cat.sprite.x;
+    const totalDistance = endX - startX;
+    const currentDistance = playerX - startX;
+    const progress = Math.min(
+      100,
+      Math.max(0, (currentDistance / totalDistance) * 100)
+    );
+
+    GameEvents.GAME_PROGRESS_UPDATE.push({ progress });
+  }
+
   update(time: number, delta: number) {
     if (this.cat) {
       this.cat.update();
       this.processGravityTiles();
+
+      this.spawnCatnipCoins();
 
       this.dogs.forEach((dog) => {
         dog.update();
@@ -326,6 +429,8 @@ export class CatnipChaosScene extends Scene {
       this.hiddenSpikeManagers.forEach((manager) => {
         manager.update();
       });
+
+      this.createProgressBar();
     }
     this.collectiveItem?.update();
   }
@@ -431,6 +536,13 @@ export class CatnipChaosScene extends Scene {
       }),
       frameRate: 12,
       repeat: 1,
+    });
+
+    this.anims.create({
+      key: "puff",
+      frames: this.anims.generateFrameNumbers("puff", { start: 0, end: 4 }),
+      frameRate: 16,
+      repeat: 0,
     });
   }
   async spawnCat(

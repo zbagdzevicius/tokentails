@@ -84,6 +84,7 @@ export enum GameEvent {
   GAME_LOADED = "GAME_LOADED",
   GAME_UPDATE = "GAME_UPDATE",
   GAME_COIN_CAUGHT = "GAME_COIN_CAUGHT",
+  GAME_PROGRESS_UPDATE = "GAME_PROGRESS_UPDATE",
   CAT_MEOW = "CAT_MEOW",
   CAT_EATEN = "CAT_EATEN",
   CAT_PLAY = "CAT_PLAY",
@@ -124,6 +125,7 @@ export type ICatEventsDetails = {
   [GameEvent.BUFF_SPAWN]: IBuffSpawned;
   [GameEvent.PLAYER_CATS]: INpcSpawnEvent;
   [GameEvent.CLEAR_NPCS]: void;
+  [GameEvent.GAME_PROGRESS_UPDATE]: { progress: number };
 };
 
 export type ICatEvent<K extends GameEvent> = IEventDetail<ICatEventsDetails[K]>;
@@ -226,4 +228,7 @@ export const GameEvents: GameEventsType = {
   [GameEvent.BOSS_SPAWN]: generateGameEvent(GameEvent.BOSS_SPAWN),
   [GameEvent.PLAYER_CATS]: generateGameEvent(GameEvent.PLAYER_CATS),
   [GameEvent.CLEAR_NPCS]: generateGameEvent(GameEvent.CLEAR_NPCS),
+  [GameEvent.GAME_PROGRESS_UPDATE]: generateGameEvent(
+    GameEvent.GAME_PROGRESS_UPDATE
+  ),
 };
