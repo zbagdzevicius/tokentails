@@ -87,20 +87,23 @@ export class DogBot {
     const body = this.sprite.body as Phaser.Physics.Arcade.Body;
     if (!body) return;
 
-    // Set horizontal velocity based on direction
     this.sprite.setVelocityX(this.direction * this.speed);
 
-    // Check for wall collision and change direction
+    // Check for wall collision
     if (body.blocked.right || body.blocked.left) {
-      this.direction *= -1;
-      this.sprite.setFlipX(this.direction < 0);
+      // Only initiate wall jump sequence if not already jumping
+      if (!this.isJumping) {
+        this.direction *= -1;
+        this.sprite.setFlipX(this.direction < 0);
 
-      // Reset jumps when hitting a wall
-      this.jumpsRemaining = this.maxJumps;
+        // Reset jumps when hitting a wall to allow chained jumps
+        this.jumpsRemaining = this.maxJumps;
 
-      // Jump when hitting a wall
-      if (this.jumpsRemaining > 0) {
-        this.performJump();
+        // Perform the first jump off the wall
+        if (this.jumpsRemaining > 0) {
+          // Should always be true here now
+          this.performJump();
+        }
       }
     }
   }
@@ -112,15 +115,27 @@ export class DogBot {
     const onGround = body.blocked.down;
     const timeNow = this.scene.time.now;
 
-    // Reset jumps when landing
+    // Reset jumps and jumping state when landing
     if (onGround) {
-      this.jumpsRemaining = this.maxJumps;
+      this.jumpsRemaining = this.maxJumps; // Reset to max (e.g., 2) when landing
       this.isJumping = false;
+    } else {
+      // Automatically perform the second jump if airborne after the first wall jump
+      // Check if isJumping is true, exactly one jump remains, and cooldown passed
+      const readyToJump = timeNow > this.lastJumpTime + this.jumpCooldown;
+      if (
+        this.isJumping &&
+        this.jumpsRemaining === this.maxJumps - 1 &&
+        readyToJump
+      ) {
+        this.performJump(); // Perform the second jump
+      }
     }
 
-    // Random jumps when on ground
+    // Random jumps only when on ground and cooldown passed
     if (onGround && timeNow > this.lastJumpTime + this.jumpCooldown) {
-      if (Math.random() < 0.1) {
+      // Ensure we have jumps available for a random ground jump
+      if (this.jumpsRemaining > 0 && Math.random() < 0.1) {
         this.performJump();
       }
     }
