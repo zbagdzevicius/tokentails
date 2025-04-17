@@ -4,10 +4,7 @@ import {
   ICatEvent,
   IPhaserGameSceneProps,
 } from "@/components/Phaser/events";
-import {
-  setMobileControls,
-  setMobileJumpControl,
-} from "@/components/Phaser/MobileButtons/MobileControls";
+import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { CatAbilityType, ICat, catbassadorsGameDuration } from "@/models/cats";
 import { Scene } from "phaser";
@@ -408,7 +405,7 @@ export class CatbassadorsScene extends Scene {
     this.buffManager && (this.buffManager["cat"] = this.cat);
     this.enemyManager && (this.enemyManager["cat"] = this.cat);
 
-    setMobileJumpControl(this.cat);
+    setMobileControls(this.cat);
   }
 
   update(time: any, delta: any) {

@@ -24,11 +24,40 @@ const endEventListenersKeys = ["touchend", "mouseleave", "mouseup"];
 export function setMobileControls(
   controlledObject: ControlledObject & IPlayer
 ) {
+  console.log("Setting up mobile controls...");
+
   const controls: Controls = {
     jumpButton: document.getElementById("jump"),
     dashButton: document.getElementById("dash"),
     knockbackSpell: document.getElementById("knockback"),
   };
+
+  // Add screen tap detection for jumping
+  const handleScreenTap = (e: Event) => {
+    console.log("Screen tap detected:", e.type);
+    e.preventDefault();
+    controlledObject.isMobileJumping = true;
+    console.log("Jump activated");
+
+    setTimeout(() => {
+      controlledObject.isMobileJumping = false;
+      console.log("Jump deactivated");
+    }, 100); // Reset jump after a short delay
+  };
+
+  // Add screen tap listeners
+  startEventListenersKeys.forEach((key) => {
+    console.log("Adding listener for:", key);
+    document.addEventListener(key, handleScreenTap, { passive: false });
+  });
+
+  // Clean up listeners when sprite is destroyed
+  controlledObject.sprite.on("destroy", () => {
+    console.log("Cleaning up screen tap listeners");
+    startEventListenersKeys.forEach((key) => {
+      document.removeEventListener(key, handleScreenTap);
+    });
+  });
 
   if (
     !controlledObject ||
@@ -36,7 +65,12 @@ export function setMobileControls(
     !controls.dashButton ||
     !controls.knockbackSpell
   ) {
-    // console.error("Controlled object or control buttons not found.");
+    console.log("Some controls not found:", {
+      controlledObject: !!controlledObject,
+      jumpButton: !!controls.jumpButton,
+      dashButton: !!controls.dashButton,
+      knockbackSpell: !!controls.knockbackSpell,
+    });
     return;
   }
 
@@ -46,23 +80,28 @@ export function setMobileControls(
     onEnd: () => void
   ): void => {
     const startHandler = (e: Event) => {
+      console.log("Button pressed:", button.id);
       e.preventDefault();
       onStart();
     };
 
     const endHandler = (e: Event) => {
+      console.log("Button released:", button.id);
       e.preventDefault();
       onEnd();
     };
 
-    startEventListenersKeys.forEach((key) =>
-      button.addEventListener(key, startHandler)
-    );
-    endEventListenersKeys.forEach((key) =>
-      button.addEventListener(key, endHandler)
-    );
+    startEventListenersKeys.forEach((key) => {
+      console.log("Adding button listener for:", key, "on", button.id);
+      button.addEventListener(key, startHandler, { passive: false });
+    });
+    endEventListenersKeys.forEach((key) => {
+      console.log("Adding button listener for:", key, "on", button.id);
+      button.addEventListener(key, endHandler, { passive: false });
+    });
 
     controlledObject.sprite.on("destroy", () => {
+      console.log("Cleaning up button listeners for:", button.id);
       startEventListenersKeys.forEach((key) =>
         button.removeEventListener(key, startHandler)
       );
@@ -74,6 +113,7 @@ export function setMobileControls(
 
   const addMovementListener = () => {
     const handler = (e: any) => {
+      console.log("Joystick direction:", e.detail.direction);
       if (e.detail.direction === "LEFT") {
         controlledObject.isMobileLeft = true;
         controlledObject.isMobileRight = false;
@@ -94,36 +134,16 @@ export function setMobileControls(
     });
   };
 
-  // addControlListeners(
-  //   controls.leftButton,
-  //   () => {
-  //     controlledObject.isMobileLeft = true;
-  //     controlledObject.isMobileRight = false;
-  //   },
-  //   () => {
-  //     controlledObject.isMobileLeft = false;
-  //   }
-  // );
-
-  // addControlListeners(
-  //   controls.rightButton,
-  //   () => {
-  //     controlledObject.isMobileRight = true;
-  //     controlledObject.isMobileLeft = false;
-  //   },
-  //   () => {
-  //     controlledObject.isMobileRight = false;
-  //   }
-  // );
-
   addMovementListener();
 
   addControlListeners(
     controls.jumpButton,
     () => {
+      console.log("Jump button pressed");
       controlledObject.isMobileJumping = true;
     },
     () => {
+      console.log("Jump button released");
       controlledObject.isMobileJumping = false;
     }
   );
@@ -131,18 +151,22 @@ export function setMobileControls(
   addControlListeners(
     controls.dashButton,
     () => {
+      console.log("Dash button pressed");
       controlledObject.isMobileDash = true;
     },
     () => {
+      console.log("Dash button released");
       controlledObject.isMobileDash = false;
     }
   );
   addControlListeners(
     controls.knockbackSpell,
     () => {
+      console.log("Knockback spell button pressed");
       controlledObject.isMobileknockbackSpell = true;
     },
     () => {
+      console.log("Knockback spell button released");
       controlledObject.isMobileknockbackSpell = false;
     }
   );
