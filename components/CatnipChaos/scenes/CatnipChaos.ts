@@ -13,6 +13,7 @@ import { isMobile } from "@/constants/utils";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 
 import { CollectiveItem } from "@/components/storyMode/objects/CollectiveItem";
+import { Food } from "@/components/base/objects/Food";
 
 import { CoreMap, LevelMap } from "@/components/Phaser/map";
 
@@ -53,6 +54,7 @@ export class CatnipChaosScene extends Scene {
   backgroundSound?: Phaser.Sound.BaseSound;
   blessing!: Phaser.GameObjects.Sprite;
   trampoline?: Trampoline;
+  private gameEnded: boolean = false;
 
   spikeManager!: SpikeManager;
   collectiveItem?: CollectiveItem;
@@ -60,6 +62,8 @@ export class CatnipChaosScene extends Scene {
   autoRunSpeed: number = 275;
   autoJumpSpeed: number = 440;
   isAutoRunMode: boolean = true;
+
+  food?: Food | null;
 
   private isGravityReversed: boolean = false;
   private dogs: DogBot[] = [];
@@ -72,9 +76,10 @@ export class CatnipChaosScene extends Scene {
   }
 
   preload(props: ICatnipChaosProps) {
-    const level = props?.level || "1-5";
+    const level = props?.level || "1-6";
 
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
+    this.load.audio("meow", "purrquest/sounds/meow.mp3");
     this.load.image("collective-item", "purrquest/sprites/key.png");
     this.load.tilemapTiledJSON(
       "tilemap",
@@ -101,6 +106,12 @@ export class CatnipChaosScene extends Scene {
     this.load.spritesheet("puff", "catbassadors/images/puff.png", {
       frameWidth: 32,
       frameHeight: 32,
+    });
+    this.load.spritesheet("food", "base/food.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+      margin: 1,
+      spacing: 2,
     });
   }
 
@@ -283,18 +294,26 @@ export class CatnipChaosScene extends Scene {
       });
     });
 
-    this.physics.add.collider(this.cat.sprite, this.physicsLayer, () => {
+    this.physics.add.overlap(this.cat.sprite, this.physicsLayer, () => {
+      if (this.gameEnded) return;
+
       const tile = this.physicsLayer.getTileAtWorldXY(
         this.cat!.sprite.x,
         this.cat!.sprite.y
       );
       if (tile && (tile.index === 162 || tile.index === 192)) {
-        // end game when collides with flag
-        GameEvents.GAME_STOP.push({
-          score: this.collectedCatnipCoins,
-          time: 0,
+        this.gameEnded = true;
+        this.cat!.setSitting(true);
+
+        this.spawnFood();
+
+        this.time.delayedCall(2000, () => {
+          GameEvents.GAME_STOP.push({
+            score: this.collectedCatnipCoins,
+            time: 0,
+          });
+          this.endGame();
         });
-        this.endGame();
       }
     });
   }
@@ -436,6 +455,9 @@ export class CatnipChaosScene extends Scene {
   }
 
   endGame() {
+    if (this.gameEnded) return;
+    this.gameEnded = true;
+
     if (this.cat) {
       this.cat.isHit = true;
       // Set player color to red
@@ -605,6 +627,29 @@ export class CatnipChaosScene extends Scene {
     });
 
     this.load.start();
+  }
+
+  spawnFood() {
+    if (this.food || !this.cat || !this.physics.add) {
+      return;
+    }
+
+    // Find tile 162 position
+    let foodX = 0;
+    let foodY = 0;
+    this.physicsLayer.forEachTile((tile) => {
+      if (tile.index === 162) {
+        foodX = this.physicsLayer.tileToWorldX(tile.x + 1);
+        foodY = this.physicsLayer.tileToWorldY(tile.y);
+      }
+    });
+
+    this.food = new Food(this, foodX, foodY);
+    this.physics.add.collider(this.food.sprite, this.groundLayer);
+
+    // Play meow sound
+    const meowSound = this.sound.add("meow", { volume: 0.5 });
+    meowSound.play();
   }
 
   private startGame() {

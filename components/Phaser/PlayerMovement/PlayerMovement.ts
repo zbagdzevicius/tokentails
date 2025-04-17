@@ -46,6 +46,7 @@ export class PlayerMovement {
       isMobileknockbackSpell,
       abilities,
       isOnIcyTile,
+      isSitting,
     } = this.player;
 
     if (!sprite || !sprite.body) {
@@ -53,6 +54,13 @@ export class PlayerMovement {
     }
 
     if (this.player.isDashing) return;
+
+    // If player is sitting, don't process movement
+    if (isSitting) {
+      sprite.setVelocityX(0);
+      sprite.setAccelerationX(0);
+      return;
+    }
 
     if (
       Phaser.Input.Keyboard.JustDown(keys.knockback) ||
