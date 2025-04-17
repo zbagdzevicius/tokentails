@@ -103,7 +103,6 @@ export class PlayerMovement {
       sprite.setVelocityX(this.autoRunSpeed);
       sprite.setFlipX(false);
 
-      // Handle double jump logic
       if (upKeyDown && !this.player.justJumped) {
         if (onGround) {
           // Regular jump from ground

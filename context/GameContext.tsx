@@ -12,7 +12,6 @@ import {
   IGameStopEvent,
 } from "@/components/Phaser/events";
 import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
-import { MobileJump } from "@/components/Phaser/MobileButtons/MobileJump";
 import { CatsModal } from "@/components/shared/CatsModal";
 import { ControlModal } from "@/components/shared/ControlModal";
 import { EndGameModal } from "@/components/shared/EndGameModal";
@@ -207,14 +206,14 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
             }
           />
 
-          {/* <MobileJump
+          <MobileButtons
             isHidden={
               !(
                 // isStarted ||
                 gameType === GameType.CATNIP_CHAOS
               )
             }
-          /> */}
+          />
 
           {isStarted &&
             [GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!) && (

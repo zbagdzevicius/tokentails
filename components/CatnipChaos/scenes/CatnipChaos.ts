@@ -7,7 +7,7 @@ import {
 } from "@/components/Phaser/events";
 import { Cat } from "../../catbassadors/objects/Catbassador";
 import { CatAbilityType, CatType } from "@/models/cats";
-import { setMobileJumpControl } from "@/components/Phaser/MobileButtons/MobileControls";
+import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { ICat } from "@/models/cats";
 import { isMobile } from "@/constants/utils";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
@@ -253,7 +253,7 @@ export class CatnipChaosScene extends Scene {
     type: CatAbilityType
   ) {
     this.cat = new Cat(this, -950, -900, catName, blessing!, type);
-    setMobileJumpControl(this.cat);
+
     this.setupCatCollisions();
     this.cameras.main.startFollow(this.cat.sprite);
 
@@ -275,6 +275,8 @@ export class CatnipChaosScene extends Scene {
     this.createSpikes();
 
     this.createGameObjects();
+
+    setMobileControls(this.cat);
   }
 
   private setupCatCollisions() {
