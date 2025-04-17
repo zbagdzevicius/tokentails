@@ -10,6 +10,7 @@ import { GameEvents } from "../Phaser/events";
 import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
 import { StatusBar } from "../shared/game/StatusBar";
+import { isProd } from "@/models/app";
 
 interface IProps {
   gameType: GameType | null;
@@ -33,7 +34,7 @@ const GameSelectItem = ({
 }) => {
   return (
     <div
-      className={classNames("flex flex-col gap-1 transition", {
+      className={classNames("flex flex-col gap-1 transition relative", {
         "rotate-6 hover:rotate-0": [
           GameType.SHELTER,
           GameType.PURRQUEST,
@@ -47,10 +48,24 @@ const GameSelectItem = ({
     >
       <img
         draggable={false}
-        onClick={() => setGameType(gameType)}
+        onClick={() =>
+          GameType.CATNIP_CHAOS === gameType && isProd
+            ? {}
+            : setGameType(gameType)
+        }
         className="rem:w-[120px] hover:brightness-110 rem:min-w-[120px] lg:w-[196px] lg:rem:min-w-[196px] rounded-xl hover:animate-hover"
         src={gameTypeImages[gameType]}
       />
+      {gameType === GameType.CATNIP_CHAOS && (
+        <div className="absolute top-0 left-0 w-full h-full rounded-xl overflow-hidden bg-black/50 items-center justify-center flex gap-8 flex-col font-primary text-p4 lg:text-p2 text-green-300">
+          <img
+            draggable={false}
+            src="/icons/loader.webp"
+            className="w-16 h-16 -mb-6 animate-spin-slow pixelated"
+          />
+          COMING SOON
+        </div>
+      )}
     </div>
   );
 };

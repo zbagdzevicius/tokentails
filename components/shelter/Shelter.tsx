@@ -91,7 +91,7 @@ function Shelter() {
 
   useEffect(() => {
     if (!hasSpawnedNpc && isGameLoaded?.scene && catsForSale) {
-      const tokentailsNpcs = catsForSale.tokentails;
+      const tokentailsNpcs = catsForSale["token-tails"];
       const rozinePeduteNpcs = catsForSale["rozine-pedute"];
 
       tokentailsNpcs?.forEach((npcCatRegular) => {

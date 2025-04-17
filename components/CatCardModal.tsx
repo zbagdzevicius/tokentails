@@ -431,7 +431,7 @@ export const CatPayment = ({
                 />
               </span>
 
-              {price && (
+              {!!price && (
                 <div className="absolute -top-4 left-0 right-0 justify-center flex z-0">
                   <div className="bg-red-500 text-yellow-300 px-2 border-2 border-main-black text-p6 font-primary">
                     ${currencyPrice}
@@ -439,40 +439,42 @@ export const CatPayment = ({
                 </div>
               )}
             </div>
-            {isOwned && !cat.ai && (
+            {isOwned && !cat.ai && !!cat.blessings?.length && (
               <img
                 draggable={false}
                 src="/logo/heart.webp"
                 className="absolute top-1/2 -translate-y-1/2 -left-2 flex items-center w-6 h-6"
               />
             )}
-            <div className="flex items-center">
-              <PixelButton
-                text="-"
-                isSmall
-                onClick={() => handleUnitsToBuy(unitsToBuy - 1)}
-              />
-              <div className="flex gap-1 flex-wrap justify-center">
-                {Array.from({
-                  length: cat.totalSupply - (cat.totalSupply - cat.supply),
-                }).map((_, i) => (
-                  <img
-                    draggable={false}
-                    src={
-                      unitsToBuy < i + 1
-                        ? "/logo/heart-empty.webp"
-                        : "/logo/heart-saved.webp"
-                    }
-                    className="w-4 md:w-5 lg:w-4 h-4 md:h-5 lg:h-4 pixelated"
-                  />
-                ))}
+            {!!cat.blessings?.length && (
+              <div className="flex items-center">
+                <PixelButton
+                  text="-"
+                  isSmall
+                  onClick={() => handleUnitsToBuy(unitsToBuy - 1)}
+                />
+                <div className="flex gap-1 flex-wrap justify-center">
+                  {Array.from({
+                    length: cat.totalSupply - (cat.totalSupply - cat.supply),
+                  }).map((_, i) => (
+                    <img
+                      draggable={false}
+                      src={
+                        unitsToBuy < i + 1
+                          ? "/logo/heart-empty.webp"
+                          : "/logo/heart-saved.webp"
+                      }
+                      className="w-4 h-4 pixelated"
+                    />
+                  ))}
+                </div>
+                <PixelButton
+                  text="+"
+                  isSmall
+                  onClick={() => handleUnitsToBuy(unitsToBuy + 1)}
+                />
               </div>
-              <PixelButton
-                text="+"
-                isSmall
-                onClick={() => handleUnitsToBuy(unitsToBuy + 1)}
-              />
-            </div>
+            )}
           </span>
         )}
       </div>
@@ -603,30 +605,32 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
               </div>
             )}
           </div>
-          <div className="flex flex-col absolute left-0 right-0 -bottom-14 md:bottom-0 lg:-bottom-14 z-0">
-            <div className="flex flex-row-reverse m-auto gap-1 justify-center mt-2 md:mt-8 lg:mt-2">
-              {Array.from({ length: cat.totalSupply || 0 }).map((_, i) => (
-                <img
-                  draggable={false}
-                  src={
-                    cat.supply < i + 1
-                      ? "/logo/heart.webp"
-                      : cat.supply - unitsToBuy < i + 1
-                      ? "/logo/heart-saved.webp"
-                      : "/logo/heart-empty.webp"
-                  }
-                  className="w-4 h-4 pixelated"
-                />
-              ))}
+          {!!cat.blessings?.length && (
+            <div className="flex flex-col absolute left-0 right-0 -bottom-14 md:bottom-0 lg:-bottom-14 z-0">
+              <div className="flex flex-row-reverse m-auto gap-1 justify-center mt-2 md:mt-8 lg:mt-2">
+                {Array.from({ length: cat.totalSupply || 0 }).map((_, i) => (
+                  <img
+                    draggable={false}
+                    src={
+                      cat.supply < i + 1
+                        ? "/logo/heart.webp"
+                        : cat.supply - unitsToBuy < i + 1
+                        ? "/logo/heart-saved.webp"
+                        : "/logo/heart-empty.webp"
+                    }
+                    className="w-4 h-4 pixelated"
+                  />
+                ))}
+              </div>
+              <div className="flex flex-row-reverse m-auto gap-1 justify-center font-primary mb-2">
+                {donationsToSave < 1
+                  ? unitsToBuy
+                    ? "MEOW! CLICK SAVE TO RESCUE"
+                    : "SAVED"
+                  : `${donationsToSave} MORE DONATIONS TO SAVE`}
+              </div>
             </div>
-            <div className="flex flex-row-reverse m-auto gap-1 justify-center font-primary mb-2">
-              {donationsToSave < 1
-                ? unitsToBuy
-                  ? "MEOW! CLICK SAVE TO RESCUE"
-                  : "SAVED"
-                : `${donationsToSave} MORE DONATIONS TO SAVE`}
-            </div>
-          </div>
+          )}
         </div>
         <div>
           <div className="text-start m-3 md:m-5 bg md:mt-10 lg:mt-5">
