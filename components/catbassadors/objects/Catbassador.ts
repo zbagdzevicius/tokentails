@@ -139,6 +139,8 @@ export class Cat implements IPlayer {
   hasDoubleJumped: boolean = false;
   inDoubleJumpZone: boolean = false;
 
+  isSitting: boolean = false;
+
   constructor(
     scene: Scene,
     x: number,
@@ -412,5 +414,14 @@ export class Cat implements IPlayer {
     this.inDoubleJumpZone = false;
     this.canDoubleJump = false;
     this.hasDoubleJumped = false;
+  }
+
+  setSitting(sitting: boolean) {
+    this.isSitting = sitting;
+    if (sitting) {
+      this.sprite.setVelocityX(0);
+      this.sprite.setAccelerationX(0);
+      this.sprite.anims.play(this.animationKeys[PlayerAnimation.SITTING], true);
+    }
   }
 }
