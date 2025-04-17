@@ -45,14 +45,14 @@ const GameSelectItem = ({
           GameType.HOME,
         ].includes(gameType),
       })}
+      onClick={() =>
+        GameType.CATNIP_CHAOS === gameType && isProd
+          ? {}
+          : setGameType(gameType)
+      }
     >
       <img
         draggable={false}
-        onClick={() =>
-          GameType.CATNIP_CHAOS === gameType && isProd
-            ? {}
-            : setGameType(gameType)
-        }
         className="rem:w-[120px] hover:brightness-110 rem:min-w-[120px] lg:w-[196px] lg:rem:min-w-[196px] rounded-xl hover:animate-hover"
         src={gameTypeImages[gameType]}
       />
