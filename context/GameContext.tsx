@@ -206,7 +206,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
             }
           />
 
-          <MobileButtons
+          {/* <MobileButtons
             isHidden={
               !(
                 // isStarted ||
