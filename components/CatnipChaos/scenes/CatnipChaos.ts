@@ -122,6 +122,19 @@ export class CatnipChaosScene extends Scene {
     this.setupSound();
     this.setupEventListeners(props);
 
+    // Add click event listener for jumping
+    this.input.on("pointerdown", () => {
+      if (this.cat && !this.cat.isHit) {
+        this.cat.isMobileJumping = true;
+      }
+    });
+
+    this.input.on("pointerup", () => {
+      if (this.cat && !this.cat.isHit) {
+        this.cat.isMobileJumping = false;
+      }
+    });
+
     if (props?.cat) {
       this.spawnCat({ detail: { cat: props.cat } }, props.isRestart);
     }
@@ -359,6 +372,8 @@ export class CatnipChaosScene extends Scene {
   private createFloatingPlatforms() {
     this.physicsLayer.forEachTile((tile) => {
       if (FLOATING_PLATFORM_TILES.includes(tile.index)) {
+        this.physicsLayer.removeTileAt(tile.x, tile.y);
+
         const worldX = this.physicsLayer.tileToWorldX(tile.x);
         const worldY = this.physicsLayer.tileToWorldY(tile.y);
 
