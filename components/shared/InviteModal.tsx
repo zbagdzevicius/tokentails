@@ -8,6 +8,7 @@ import { CloseButton } from "./CloseButton";
 import { Countdown } from "./Countdown";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
+import { MysteryCat } from "../mystery/MysteryCat";
 
 export const InviteModalContent = () => {
   const { utils, shareUrl, profile, setProfileUpdate } = useProfile();
@@ -34,22 +35,32 @@ export const InviteModalContent = () => {
         ></PixelButton>
         <PixelButton
           active={type === GameModal.INVITE}
-          text="SHARING IS CARING"
+          text="INVITE FRIENDS"
           onClick={() => setType(GameModal.INVITE)}
         ></PixelButton>
+        <PixelButton
+          active={type === GameModal.MYSTERY_CAT}
+          text="KEYBOARD CAT"
+          onClick={() => setType(GameModal.MYSTERY_CAT)}
+        ></PixelButton>
       </div>
-      {type === GameModal.INVITE ? (
+      {type === GameModal.INVITE && (
         <>
-          <div className="flex flex-col mb-4">
+          <div
+            className="flex flex-col mb-4 font-primary uppercase px-2  rounded-lg py-2 text-main-black"
+            style={{
+              backgroundImage: "url(/backgrounds/bg-night.png)",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          >
             <div className="flex flex-row items-center">
               <img
                 draggable={false}
                 className="w-7 md:w-8 md:h-8 lg:w-10 lg:h-10 h-7 mr-1"
                 src="/logo/coin.png"
               />
-              <p className="font-secondary text-p4">
-                Get 20% earnings of your friends
-              </p>
+              <p className="text-p4">MORE FRIENS = MORE DAILY REWARDS</p>
             </div>
             <div className="flex flex-row items-center">
               <img
@@ -57,9 +68,7 @@ export const InviteModalContent = () => {
                 className="w-7 h-7  md:w-8 md:h-8 lg:w-10 lg:h-10 mr-1"
                 src="/icons/invites/gift.png"
               />
-              <p className="font-secondary text-p4">
-                Get 5k for every redeemed gift
-              </p>
+              <p className="text-p4">REDEEMED = +5k COINS TO YOU</p>
             </div>
             <div className="flex flex-row items-center">
               <img
@@ -67,9 +76,7 @@ export const InviteModalContent = () => {
                 className="w-7 h-7  md:w-8 md:h-8 lg:w-10 lg:h-10 mr-1"
                 src="/base/heart.png"
               />
-              <p className="font-secondary text-p4">
-                Get 10 lives for every redeemed gift
-              </p>
+              <p className="text-p4">GIFT = +10 LIVES TO YOU</p>
             </div>
             <div className="flex flex-row items-center">
               <img
@@ -77,9 +84,7 @@ export const InviteModalContent = () => {
                 className="w-7 h-6  md:w-8 md:h-7 lg:w-10 lg:h-9 mr-1"
                 src="/icons/invites/gift-coin.png"
               />
-              <p className="font-secondary text-p4">
-                Gift contains 50k coins to your friend
-              </p>
+              <p className="text-p4">+50k COINS FOR YOUR FRIEND</p>
             </div>
           </div>
 
@@ -92,9 +97,9 @@ export const InviteModalContent = () => {
             onClick={onInvite}
           />
         </>
-      ) : (
-        <MysteryBox />
       )}
+      {type === GameModal.MYSTERY_BOX && <MysteryBox />}
+      {type === GameModal.MYSTERY_CAT && <MysteryCat />}
     </div>
   );
 };

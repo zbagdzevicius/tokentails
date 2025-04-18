@@ -27,7 +27,6 @@ export enum ChainType {
   STELLAR = "STELLAR",
   STELLAR_TEST = "STELLAR_TEST",
   SOLANA = "SOLANA",
-  ZETA = "ZETA",
   TORUS = "TORUS",
   CAMP_TEST = "CAMP_TEST",
   SOLANA_TEST = "SOLANA_TEST",

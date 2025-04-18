@@ -31,11 +31,26 @@ export interface IMysteryBox {
   image: string;
   faucet?: string;
   requirements?: {
-    type: MysteryBoxRequirementType;
+    type?: MysteryBoxRequirementType;
     metadata?: any;
     text?: string;
   };
 }
+
+export const chainTypeRpcUrl: Record<ChainType, string> = {
+  [ChainType.SKALE]: "https://mainnet.skalenodes.com/v1/green-giddy-denebola",
+  [ChainType.SKALE_TEST]:
+    "https://testnet.skalenodes.com/v1/lanky-ill-funny-testnet",
+  [ChainType.BNB]: "https://bsc-dataseed.binance.org",
+  [ChainType.TORUS]: "https://rpc.toruschain.com",
+  [ChainType.DIAM]: "https://mainnet.diamcircle.io",
+  [ChainType.BNB_TEST]: "https://data-seed-prebsc-1-s1.binance.org:8545",
+  [ChainType.STELLAR]: "https://rpc-futurenet.stellar.org",
+  [ChainType.STELLAR_TEST]: "https://soroban-testnet.stellar.org:443",
+  [ChainType.SOLANA]: "https://api.mainnet-beta.solana.com",
+  [ChainType.SOLANA_TEST]: "https://api.devnet.solana.com",
+  [ChainType.CAMP_TEST]: "https://rpc.camp.network",
+};
 
 export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
   [ChainType.CAMP_TEST]: [
@@ -80,6 +95,17 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
       requirements: {
         type: MysteryBoxRequirementType.PURCHASE,
         text: "Save a cat",
+      },
+    },
+  ],
+  [ChainType.STELLAR]: [
+    {
+      address: "CBK4KAHLHNWOF4HEZFY2W57NYMSC4DLZGLGCM4HZUPAUU3PDPM3IMRS4",
+      name: "KEYBOARD_CAT",
+      chain: ChainType.STELLAR,
+      image: "/utilities/mystery-boxes/keyboard-cat.webp",
+      requirements: {
+        text: "MINT AND REDEEM TO VIBE",
       },
     },
   ],
