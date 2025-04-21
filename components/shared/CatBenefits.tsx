@@ -84,22 +84,21 @@ export const CatBenefits = ({
             </span>
           </div>
         )}
-        {!!cat.ai ||
-          (!!cat.blessings?.length && (
-            <div className="text-p4 bg-gray-500 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 bg-opacity-60 hover:bg-opacity-80 mb-2 border-2 rounded-xl border-main-black">
-              <img
-                draggable={false}
-                src="/logo/heart.webp"
-                className="w-8 h-8 mr-3 -ml-4 pixelated"
-              />
-              <span className="flex flex-col">
-                <span className="text-p5 -mb-1 text-gray-200">
-                  OWN YOUR BUDDY
-                </span>
-                <span>COMPANION ON X</span>
+        {!!cat.blessings?.length && (
+          <div className="text-p4 bg-gray-500 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 bg-opacity-60 hover:bg-opacity-80 mb-2 border-2 rounded-xl border-main-black">
+            <img
+              draggable={false}
+              src="/logo/heart.webp"
+              className="w-8 h-8 mr-3 -ml-4 pixelated"
+            />
+            <span className="flex flex-col">
+              <span className="text-p5 -mb-1 text-gray-200">
+                OWN YOUR BUDDY
               </span>
-            </div>
-          ))}
+              <span>COMPANION ON X</span>
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

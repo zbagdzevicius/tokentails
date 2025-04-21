@@ -17,7 +17,6 @@ export enum CatType {
 
 export const Prices = {
   generatedCat: 5,
-  ai: 10,
 };
 
 export type IBlessing = {
@@ -140,9 +139,9 @@ export enum CatAIStatus {
 export interface ICat {
   _id?: string;
   name: string;
-  ai: CatAIStatus;
   ability: CatAbilitySkill;
   type: CatAbilityType;
+  owner: string;
   resqueStory: string;
   status: ICatStatus;
   supply: number;

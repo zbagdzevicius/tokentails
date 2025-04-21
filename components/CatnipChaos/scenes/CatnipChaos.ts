@@ -289,7 +289,7 @@ export class CatnipChaosScene extends Scene {
 
     this.createGameObjects();
 
-    setMobileControls(this.cat);
+    setMobileControls(this.cat, true);
   }
 
   private setupCatCollisions() {
@@ -588,10 +588,6 @@ export class CatnipChaosScene extends Scene {
     { detail: { cat } }: ICatEvent<GameEvent.CAT_SPAWN>,
     isRestart?: boolean
   ) {
-    if (this.blessing) {
-      this.blessing.setVisible(false);
-    }
-
     const isCatExist = !cat || cat?.name === this.catDto?.name;
     if (isCatExist && !isRestart) return;
 
@@ -607,9 +603,11 @@ export class CatnipChaosScene extends Scene {
 
     this.load.once("complete", () => {
       if (cat.blessings?.length) {
-        this.blessing = this.add
-          .sprite(0, 0, `blessing-${cat.blessings[0].ability}`)
-          .setVisible(true);
+        this.blessing = this.add.sprite(
+          0,
+          0,
+          `blessing-${cat.blessings[0].ability}`
+        );
 
         this.anims.create({
           key: `blessing_animation_${cat.blessings[0].ability}`,

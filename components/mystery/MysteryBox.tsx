@@ -106,9 +106,7 @@ export const MysteryBox = () => {
       return isApp;
     }
     if (mysteryBox.requirements?.type === MysteryBoxRequirementType.PURCHASE) {
-      return !!cats?.some(
-        (cat) => cat.blessings?.length || cat.price || cat.ai
-      );
+      return !!cats?.some((cat) => cat.blessings?.length || cat.price);
     }
     if (mysteryBox.requirements?.type === MysteryBoxRequirementType.COINS) {
       return (
@@ -149,7 +147,7 @@ export const MysteryBox = () => {
         </div>
         <div className="flex flex-col md:gap-2 w-full md:w-auto">
           <Tag isSmall>TIME LIMITED FREE MINT</Tag>
-          <Countdown targetDate="2025-04-28" isDaysDisplayed></Countdown>
+          <Countdown targetDate="2025-05-19" isDaysDisplayed></Countdown>
           <MysteryBoxEligibility
             mysteryBox={mysteryBox}
             isEligible={isEligible}

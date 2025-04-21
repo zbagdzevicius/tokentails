@@ -22,7 +22,8 @@ const startEventListenersKeys = ["touchstart", "mousedown"];
 const endEventListenersKeys = ["touchend", "mouseleave", "mouseup"];
 
 export function setMobileControls(
-  controlledObject: ControlledObject & IPlayer
+  controlledObject: ControlledObject & IPlayer,
+  enableTapScreen: boolean
 ) {
   console.log("Setting up mobile controls...");
 
@@ -45,19 +46,21 @@ export function setMobileControls(
     }, 100); // Reset jump after a short delay
   };
 
-  // Add screen tap listeners
-  startEventListenersKeys.forEach((key) => {
-    console.log("Adding listener for:", key);
-    document.addEventListener(key, handleScreenTap, { passive: false });
-  });
-
-  // Clean up listeners when sprite is destroyed
-  controlledObject.sprite.on("destroy", () => {
-    console.log("Cleaning up screen tap listeners");
+  if (enableTapScreen) {
+    // Add screen tap listeners
     startEventListenersKeys.forEach((key) => {
-      document.removeEventListener(key, handleScreenTap);
+      console.log("Adding listener for:", key);
+      document.addEventListener(key, handleScreenTap, { passive: false });
     });
-  });
+
+    // Clean up listeners when sprite is destroyed
+    controlledObject.sprite.on("destroy", () => {
+      console.log("Cleaning up screen tap listeners");
+      startEventListenersKeys.forEach((key) => {
+        document.removeEventListener(key, handleScreenTap);
+      });
+    });
+  }
 
   if (
     !controlledObject ||

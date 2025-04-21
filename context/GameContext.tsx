@@ -205,16 +205,6 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
               )
             }
           />
-
-          {/* <MobileButtons
-            isHidden={
-              !(
-                // isStarted ||
-                gameType === GameType.CATNIP_CHAOS
-              )
-            }
-          />
-
           {isStarted &&
             [GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!) && (
               <DisplayCoins />
@@ -241,9 +231,6 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           {openedModal === GameModal.CONTROL_SETTINGS && (
             <ControlModal close={() => setOpenedModal(null)} />
           )}
-          {/* {gameType === GameType.HOME && isGameLoaded && profile.cat && (
-            <SpeechBubble />
-          )} */}
           <GameMusicPlayer />
         </>
       )}

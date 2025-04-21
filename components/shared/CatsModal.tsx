@@ -266,7 +266,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                   className="w-6 h-6 ml-1"
                 />
               </div>
-              {cat.ai && (
+              {cat.owner && (
                 <div className="absolute right-0 top-0 z-20">
                   <img
                     draggable={false}
@@ -278,14 +278,14 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
               <div className="relative z-10 items-center flex flex-col">
                 <img
                   draggable={false}
-                  className="w-16 z-10 pixelated"
+                  className="w-20 mb-2 z-10 pixelated"
                   src={cat.catImg}
                   alt={cat.name}
                   onClick={() => setSelectedCat(cat)}
                 />
                 <img
                   draggable={false}
-                  className="w-8 mb-2 -mt-8 z-0 animate-spin"
+                  className="w-8 -mt-8 -mb-4 z-0 animate-spin"
                   src={`ability/${cat.type}.png`}
                   alt={`${cat.type} icon`}
                 />
@@ -302,14 +302,12 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                   onClick={() => onCatSelect(cat)}
                 />
                 {!cat.staked && (
-                  <div className="-mb-2">
-                    <PixelButton
-                      id={CATS_ONBOARDING_MODAL_IDS.CRAFT}
-                      isSmall
-                      text="CRAFT COINS"
-                      onClick={() => onStakeCat(cat)}
-                    />
-                  </div>
+                  <PixelButton
+                    id={CATS_ONBOARDING_MODAL_IDS.CRAFT}
+                    isSmall
+                    text="CRAFT COINS"
+                    onClick={() => onStakeCat(cat)}
+                  />
                 )}
                 {cat.staked && (
                   <>

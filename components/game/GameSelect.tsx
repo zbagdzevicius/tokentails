@@ -150,30 +150,32 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
               <div className="relative w-24 min-w-24 pixelated flex flex-col items-center justify-center animate-appear">
                 <img
                   draggable={false}
-                  className="w-24 h-24 -mb-6"
+                  className="w-24 h-24 -mb-6 relative z-10"
                   src={profile.cat?.catImg}
                 />
                 <img
                   id={ONBOARDING_MODAL_IDS.CAT}
                   draggable={false}
                   src="/logo/logo-text.webp"
-                  className="absolute w-24 h-auto -top-36 md:-top-20 md:w-16 lg:w-24 lg:-top-36"
+                  className="absolute w-24 h-auto -top-36 md:-top-20 md:w-16 lg:w-24 lg:-top-36 z-10"
                 ></img>
                 {!!profile.cat?.blessings?.length && (
                   <img
                     draggable={false}
-                    className="absolute inset-0 l object-cover w-12 h-12"
+                    className="absolute inset-0 m-auto object-cover w-20 mb-12 h-20 z-0"
                     src={`/flare-effect/${profile.cat.blessings[0].ability}.gif`}
                   ></img>
                 )}
 
-                <PixelButton
-                  id={ONBOARDING_MODAL_IDS.MY_CATS}
-                  onClick={() => {
-                    setOpenedModal(GameModal.CATS);
-                  }}
-                  text="CATS"
-                ></PixelButton>
+                <span className="pt-2">
+                  <PixelButton
+                    id={ONBOARDING_MODAL_IDS.MY_CATS}
+                    onClick={() => {
+                      setOpenedModal(GameModal.CATS);
+                    }}
+                    text="CATS"
+                  ></PixelButton>
+                </span>
               </div>
             ) : (
               <img

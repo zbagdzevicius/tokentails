@@ -45,7 +45,7 @@ export const chainTypeRpcUrl: Record<ChainType, string> = {
   [ChainType.TORUS]: "https://rpc.toruschain.com",
   [ChainType.DIAM]: "https://mainnet.diamcircle.io",
   [ChainType.BNB_TEST]: "https://data-seed-prebsc-1-s1.binance.org:8545",
-  [ChainType.STELLAR]: "https://rpc-futurenet.stellar.org",
+  [ChainType.STELLAR]: "https://mainnet.sorobanrpc.com",
   [ChainType.STELLAR_TEST]: "https://soroban-testnet.stellar.org:443",
   [ChainType.SOLANA]: "https://api.mainnet-beta.solana.com",
   [ChainType.SOLANA_TEST]: "https://api.devnet.solana.com",

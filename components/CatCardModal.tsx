@@ -40,7 +40,6 @@ interface ICatBlessingsProps {
 }
 
 export enum BuyMode {
-  AI = "AI",
   CAT = "CAT",
 }
 
@@ -223,8 +222,7 @@ export const CatPayment = ({
     [cats, cat]
   );
   const currencyPrice = useMemo(() => {
-    const corePrice =
-      buyMode === BuyMode.AI ? Prices.ai : getCatPrice(cat) * unitsToBuy;
+    const corePrice = getCatPrice(cat) * unitsToBuy;
     if (paymentMethod === "card") {
       return corePrice;
     }
@@ -279,26 +277,20 @@ export const CatPayment = ({
   const isCoinsPayment = !!cat.catpoints && !isOwned;
 
   const onSuccess = (cat: ICat) => {
-    if (buyMode === BuyMode.AI) {
-      toast({ message: "Your Cat has been AI-ified!" });
-
-      setProfileUpdate({
-        cats: (cats || []).map((c) => (c._id === cat._id ? cat : c)),
-        cat,
-        catpoints: profile!.catpoints - catpoints,
-      });
-    } else {
-      setProfileUpdate({
-        cats: [...(cats || []), cat],
-        cat,
-        catpoints: profile!.catpoints - catpoints,
-      });
-      setTransactionStatus(null);
-
-      toast({ message: "Congratz on your adopted cat !" });
-      setIsAdopting(false);
-      onAdopted?.();
+    if (buyMode === BuyMode.CAT) {
+      // IMPLEMENT IF WE'LL NEED TO SEPARATE POST-PURCHASE HANDLER
     }
+
+    setProfileUpdate({
+      cats: [...(cats || []), cat],
+      cat,
+      catpoints: profile!.catpoints - catpoints,
+    });
+    setTransactionStatus(null);
+
+    toast({ message: "Congratz on your adopted cat !" });
+    setIsAdopting(false);
+    onAdopted?.();
   };
 
   useEffect(() => {
@@ -339,7 +331,7 @@ export const CatPayment = ({
     if (isApp) {
       window.open(`https://tokentails.com/cats/${cat._id}`, "_blank");
     } else {
-      setBuyMode(isForSale ? BuyMode.CAT : BuyMode.AI);
+      setBuyMode(BuyMode.CAT);
     }
   };
 
@@ -376,7 +368,6 @@ export const CatPayment = ({
                 price={currencyPrice}
                 catId={cat._id!}
                 buyMode={buyMode}
-                text={buyMode === BuyMode.AI ? "Buy" : undefined}
                 onSuccess={() => {
                   onSuccess(cat);
                 }}
@@ -398,7 +389,7 @@ export const CatPayment = ({
                   cat={cat._id}
                   blessing={cat.blessings?.[0]?._id}
                   user={profile?._id}
-                  text={buyMode === BuyMode.AI ? "Buy now" : "Save Now"}
+                  text="Save Now"
                   loadingText="Saving Cat"
                 />
               </div>
@@ -406,7 +397,7 @@ export const CatPayment = ({
           </div>
         </div>
       )}
-      <div className="z-10 relative flex items-end flex-row justify-around">
+      <div className="z-10 relative flex items-end flex-row justify-around w-full">
         {outOfSupply && !isOwned && (
           <PixelButton text="Out of supply" active isDisabled></PixelButton>
         )}
@@ -420,12 +411,12 @@ export const CatPayment = ({
             onClick={adoptWithCoins}
           />
         )}
-        {!isCoinsPayment && !buyMode && (isForSale || (isOwned && !cat.ai)) && (
-          <span className="relative flex items-center gap-2">
+        {!isCoinsPayment && !buyMode && !isOwned && (
+          <span className="relative flex items-center gap-2 w-full">
             <div className="relative">
               <span className="z-10 relative">
                 <PixelButton
-                  text={isOwned && !cat.ai ? "AI Companion" : "Save"}
+                  text="Save"
                   onClick={handleBuyClick}
                   isDisabled={outOfSupply}
                 />
@@ -439,13 +430,6 @@ export const CatPayment = ({
                 </div>
               )}
             </div>
-            {isOwned && !cat.ai && !!cat.blessings?.length && (
-              <img
-                draggable={false}
-                src="/logo/heart.webp"
-                className="absolute top-1/2 -translate-y-1/2 -left-2 flex items-center w-6 h-6"
-              />
-            )}
             {!!cat.blessings?.length && (
               <div className="flex items-center">
                 <PixelButton
@@ -483,7 +467,7 @@ export const CatPayment = ({
 };
 
 export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
-  const { catImg, name, type, blessings, ai } = cat;
+  const { catImg, name, type, blessings } = cat;
   const [activeBlessing, setActiveBlessing] = useState<IBlessing | null>(
     !!cat.blessings?.length ? cat.blessings[0] : null
   );
@@ -543,7 +527,7 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
           <div>
             <div className="flex justify-between items-center m-1">
               <div className="flex flex-row space-x-2 items-center pl-4">
-                {(!!ai || !!blessings?.length) && (
+                {!!blessings?.length && (
                   <img
                     draggable={false}
                     src="/logo/heart.webp"

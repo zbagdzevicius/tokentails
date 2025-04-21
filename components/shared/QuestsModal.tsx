@@ -254,17 +254,10 @@ export const QuestsModalContent = () => {
           onClick={() => setQuestsType(QuestType.SOCIAL)}
         ></PixelButton>
         <PixelButton
-          text="FRIENDS"
-          active={questsType === QuestType.FRIEND}
-          onClick={() => setQuestsType(QuestType.FRIEND)}
+          text="GOALS"
+          active={questsType === QuestType.GOAL}
+          onClick={() => setQuestsType(QuestType.GOAL)}
         ></PixelButton>
-        {(profile?.quests?.length || 0) > 2 && (
-          <PixelButton
-            text="GOALS"
-            active={questsType === QuestType.GOAL}
-            onClick={() => setQuestsType(QuestType.GOAL)}
-          ></PixelButton>
-        )}
         <PixelButton
           text="WIN"
           active={questsType === QuestType.WIN}
@@ -355,47 +348,6 @@ export const QuestsModalContent = () => {
           </>
         )}
         {questsType === QuestType.GOAL && !isApp && <AppCTA />}
-        {questsType === QuestType.FRIEND && (
-          <>
-            <div className="flex flex-col gap-2 w-full pb-8">
-              {partnerQuests?.map((quest) => (
-                <div
-                  key={quest.name}
-                  className="flex justify-between items-center w-full"
-                >
-                  <div className="flex relative gap-2 items-center">
-                    {profile?.quests?.includes(quest._id) ? (
-                      <img
-                        draggable={false}
-                        className="w-10"
-                        src="icons/check.webp"
-                      />
-                    ) : (
-                      <img
-                        draggable={false}
-                        className="w-10"
-                        src={quest?.image?.url}
-                      />
-                    )}
-                    <PixelButton
-                      text={quest.name}
-                      active={profile?.quests?.includes(quest._id)}
-                      onClick={() => redeemPartner(quest)}
-                    ></PixelButton>
-                  </div>
-                  <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
-                    <img
-                      draggable={false}
-                      className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
-                      src="/logo/coin.webp"
-                    />
-                    {quest.catpoints} COINS
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
       </span>
       {questsType === QuestType.WIN && isApp && <LeaderboardContent />}
       {questsType === QuestType.WIN && !isApp && <AppCTA />}

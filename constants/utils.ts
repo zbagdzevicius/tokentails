@@ -247,3 +247,7 @@ export const getNextDayMidnight = () => {
   );
   return nextDay.toISOString();
 };
+
+export const sleep = (ms: number) => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
