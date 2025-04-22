@@ -23,10 +23,8 @@ const endEventListenersKeys = ["touchend", "mouseleave", "mouseup"];
 
 export function setMobileControls(
   controlledObject: ControlledObject & IPlayer,
-  enableTapScreen: boolean
+  enableTapScreen?: boolean
 ) {
-  console.log("Setting up mobile controls...");
-
   const controls: Controls = {
     jumpButton: document.getElementById("jump"),
     dashButton: document.getElementById("dash"),

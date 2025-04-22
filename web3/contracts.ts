@@ -63,7 +63,6 @@ export const ChainImg: Record<ChainType, string> = {
   [ChainType.SOLANA_TEST]: "/currency/SOL.webp",
   [ChainType.SKALE]: "/currency/SKALE.png",
   [ChainType.SKALE_TEST]: "/currency/SKALE.png",
-  [ChainType.ZETA]: "/currency/ZETA.webp",
   [ChainType.TORUS]: "/currency/ODP.webp",
   [ChainType.DIAM]: "/currency/ODP.webp",
   [ChainType.CAMP_TEST]: "/currency/CAMP.webp",
@@ -110,9 +109,6 @@ export const currencyContracts: Record<
     [CurrencyType.USDC]: "0x",
   },
   [ChainType.DIAM]: {},
-  [ChainType.ZETA]: {
-    [CurrencyType.USDC]: "0x",
-  },
   [ChainType.STELLAR_TEST]: {
     [CurrencyType.USDC]: "0x",
   },
