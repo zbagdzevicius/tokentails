@@ -81,7 +81,7 @@ export class CatnipChaosScene extends Scene {
   }
 
   preload(props: ICatnipChaosProps) {
-    const level = props?.level || "2-2";
+    const level = props?.level || "2-6";
 
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.audio("meow", "purrquest/sounds/meow.mp3");
@@ -227,7 +227,7 @@ export class CatnipChaosScene extends Scene {
           x: tile.getCenterX(),
           y: tile.getCenterY(),
           route: "horizontal" as "horizontal" | "vertical",
-          speed: 120,
+          speed: 100,
           distance: 300,
         };
         const saw = new Saw(sawConfig);
@@ -317,7 +317,7 @@ export class CatnipChaosScene extends Scene {
     blessing: Phaser.GameObjects.Sprite | null,
     type: CatAbilityType
   ) {
-    this.cat = new Cat(this, 1050, -900, catName, blessing!, type);
+    this.cat = new Cat(this, 2250, -900, catName, blessing!, type);
 
     this.setupCatCollisions();
     this.cameras.main.startFollow(this.cat.sprite);
@@ -414,7 +414,7 @@ export class CatnipChaosScene extends Scene {
 
   private createDogsOnTiles(tileIndex: number) {
     this.physicsLayer.forEachTile((tile) => {
-      // this.physicsLayer.removeTileAt(tile.x, tile.y);
+      this.physicsLayer.removeTileAt(tile.x, tile.y);
       if (tile.index === tileIndex) {
         const worldX = this.physicsLayer.tileToWorldX(tile.x);
         const worldY = this.physicsLayer.tileToWorldY(tile.y);
