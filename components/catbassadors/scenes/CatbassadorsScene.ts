@@ -78,6 +78,7 @@ export class CatbassadorsScene extends Scene {
     this.load.image("speedPowerUp", "buff/SPEED.png");
 
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
+    this.load.audio("jump", "catnip-chaos/sounds/jump.mp3");
     this.load.audio("coin", "purrquest/sounds/score.mp3");
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.audio("jump-sound", "audio/game/jump.mp3");

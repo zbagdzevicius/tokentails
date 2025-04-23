@@ -331,6 +331,10 @@ export class PlayerMovement {
       this.player.justJumped = true;
       this.player.jumpTimer = this.player.scene.time.now;
 
+      // Play jump sound
+      const jumpSound = this.player.scene.sound.add("jump", { volume: 0.5 });
+      jumpSound.play();
+
       const jumpSpeed = this.isGravityReversed
         ? this.player.jumpSpeed
         : -this.player.jumpSpeed;

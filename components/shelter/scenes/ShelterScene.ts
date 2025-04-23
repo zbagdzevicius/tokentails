@@ -69,6 +69,7 @@ export class ShelterScene extends Scene {
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.audio("jump-sound", "audio/game/jump.mp3");
     this.load.audio("dash-sound", "audio/game/dash.wav");
+    this.load.audio("jump", "catnip-chaos/sounds/jump.mp3");
     this.load.spritesheet("jump-wall", "game/effects/jump.png", {
       frameWidth: 32,
       frameHeight: 32,
