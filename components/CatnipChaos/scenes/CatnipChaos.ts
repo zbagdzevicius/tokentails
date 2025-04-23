@@ -30,6 +30,9 @@ import {
   ISpikeManagerConfig,
 } from "@/components/purrquest/managers/SpikeManager";
 
+import { Saw } from "@/components/storyMode/Managers/SawManager";
+import { SawHalf } from "@/components/storyMode/Managers/SawHalfManager";
+
 const JUMP_LAYER_TILES = [169, 170, 139, 140, 200, 224, 225, 226, 227];
 const TRAMPOLINE_TILES = [158, 159, 160];
 
@@ -63,6 +66,8 @@ export class CatnipChaosScene extends Scene {
   autoJumpSpeed: number = 440;
   isAutoRunMode: boolean = true;
 
+  saws: Array<Saw | SawHalf> = [];
+
   food?: Food | null;
 
   private isGravityReversed: boolean = false;
@@ -76,7 +81,7 @@ export class CatnipChaosScene extends Scene {
   }
 
   preload(props: ICatnipChaosProps) {
-    const level = props?.level || "1-6";
+    const level = props?.level || "2-2";
 
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.audio("meow", "purrquest/sounds/meow.mp3");
@@ -87,6 +92,8 @@ export class CatnipChaosScene extends Scene {
     );
     this.load.image("blocks", LevelMap[level]);
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
+    this.load.audio("catnip", "catnip-chaos/sounds/catnip.mp3");
+    this.load.audio("jump", "catnip-chaos/sounds/jump.mp3");
     this.load.image("platform", "purrquest/icons/platform.png");
     this.load.image("catnip-coin", "catnip-chaos/items/catnip-coin.png");
     this.load.spritesheet("hidden-spike", "story/hidden-spike.png", {
@@ -112,6 +119,14 @@ export class CatnipChaosScene extends Scene {
       frameHeight: 32,
       margin: 1,
       spacing: 2,
+    });
+    this.load.spritesheet("sawHalf", "story/half-saw.png", {
+      frameWidth: 38,
+      frameHeight: 21,
+    });
+    this.load.spritesheet("saw", "story/saw.png", {
+      frameWidth: 38,
+      frameHeight: 38,
     });
   }
 
@@ -195,6 +210,39 @@ export class CatnipChaosScene extends Scene {
 
   private createGameObjects() {
     this.initializeCatnipCoins();
+
+    // Debug: Log all physics layer tiles
+    console.log("Physics Layer Tiles:");
+    this.physicsLayer.forEachTile((tile) => {
+      console.log(`Tile at (${tile.x}, ${tile.y}): index=${tile.index}`);
+    });
+
+    // Create saws on tiles 26 and 25
+    this.catnipLayer.forEachTile((tile) => {
+      this.catnipLayer.removeTileAt(tile.x, tile.y);
+      if (tile.index === 26) {
+        const sawConfig = {
+          scene: this,
+          groundLayer: this.groundLayer,
+          x: tile.getCenterX(),
+          y: tile.getCenterY(),
+          route: "horizontal" as "horizontal" | "vertical",
+          speed: 120,
+          distance: 300,
+        };
+        const saw = new Saw(sawConfig);
+        this.saws.push(saw);
+      } else if (tile.index === 25) {
+        const sawConfig = {
+          scene: this,
+          groundLayer: this.groundLayer,
+          x: tile.getCenterX(),
+          y: tile.getCenterY(),
+        };
+        const saw = new SawHalf(sawConfig);
+        this.saws.push(saw);
+      }
+    });
   }
 
   private initializeCatnipCoins() {
@@ -244,6 +292,10 @@ export class CatnipChaosScene extends Scene {
           const coinY = child.y;
           child.destroy();
 
+          // Play catnip sound
+          const catnipSound = this.sound.add("catnip", { volume: 0.5 });
+          catnipSound.play();
+
           // Create and play puff animation
           const puffSprite = this.add.sprite(coinX, coinY, "puff");
           puffSprite.play("puff");
@@ -265,7 +317,7 @@ export class CatnipChaosScene extends Scene {
     blessing: Phaser.GameObjects.Sprite | null,
     type: CatAbilityType
   ) {
-    this.cat = new Cat(this, -950, -900, catName, blessing!, type);
+    this.cat = new Cat(this, 1050, -900, catName, blessing!, type);
 
     this.setupCatCollisions();
     this.cameras.main.startFollow(this.cat.sprite);
@@ -303,8 +355,16 @@ export class CatnipChaosScene extends Scene {
       manager.setupPlayerCollision(this.cat!.sprite);
     });
 
+    // Add collision with dogs
     this.dogs.forEach((dog) => {
       this.physics.add.collider(this.cat!.sprite, dog.sprite, () => {
+        this.endGame();
+      });
+    });
+
+    // Add collision with saws
+    this.saws.forEach((saw) => {
+      this.physics.add.collider(this.cat!.sprite, saw.getSprite(), () => {
         this.endGame();
       });
     });
@@ -354,6 +414,7 @@ export class CatnipChaosScene extends Scene {
 
   private createDogsOnTiles(tileIndex: number) {
     this.physicsLayer.forEachTile((tile) => {
+      // this.physicsLayer.removeTileAt(tile.x, tile.y);
       if (tile.index === tileIndex) {
         const worldX = this.physicsLayer.tileToWorldX(tile.x);
         const worldY = this.physicsLayer.tileToWorldY(tile.y);
@@ -373,18 +434,15 @@ export class CatnipChaosScene extends Scene {
     this.physicsLayer.forEachTile((tile) => {
       if (FLOATING_PLATFORM_TILES.includes(tile.index)) {
         this.physicsLayer.removeTileAt(tile.x, tile.y);
-
         const worldX = this.physicsLayer.tileToWorldX(tile.x);
         const worldY = this.physicsLayer.tileToWorldY(tile.y);
-
         const platformManager = new FloatingPlatformManager({
           scene: this,
           groundLayer: this.groundLayer,
           platformsLayer: this.platformsLayer,
-          x: worldX,
+          x: worldX - 4,
           y: worldY,
         });
-
         this.floatingPlatformManagers.push(platformManager);
       }
     });
@@ -408,6 +466,7 @@ export class CatnipChaosScene extends Scene {
 
     this.physicsLayer.forEachTile((tile) => {
       if (tile.index === 23) {
+        this.physicsLayer.removeTileAt(tile.x, tile.y);
         const worldX = this.physicsLayer.tileToWorldX(tile.x);
         const worldY = this.physicsLayer.tileToWorldY(tile.y);
 
@@ -458,6 +517,8 @@ export class CatnipChaosScene extends Scene {
 
       this.spawnCatnipCoins();
 
+      this.saws.forEach((saw) => saw.update(delta));
+
       this.dogs.forEach((dog) => {
         dog.update();
       });
@@ -467,6 +528,22 @@ export class CatnipChaosScene extends Scene {
       });
 
       this.createProgressBar();
+
+      // Check if all items are removed
+      const remainingItems = this.children.list.filter(
+        (child) =>
+          child instanceof Phaser.GameObjects.Sprite &&
+          child.texture.key === "catnip-coin"
+      ).length;
+
+      if (remainingItems === 0 && !this.gameEnded) {
+        this.gameEnded = true;
+        GameEvents.GAME_STOP.push({
+          score: this.collectedCatnipCoins,
+          time: 0,
+        });
+        this.endGame();
+      }
     }
     this.collectiveItem?.update();
   }
@@ -582,6 +659,23 @@ export class CatnipChaosScene extends Scene {
       frames: this.anims.generateFrameNumbers("puff", { start: 0, end: 4 }),
       frameRate: 16,
       repeat: 0,
+    });
+
+    this.anims.create({
+      key: "sawHalf-anim",
+      frames: this.anims.generateFrameNumbers("sawHalf", {
+        start: 0,
+        end: 7,
+      }),
+      frameRate: 16,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: "saw-anim",
+      frames: this.anims.generateFrameNumbers("saw", { start: 0, end: 7 }),
+      frameRate: 20,
+      repeat: -1,
     });
   }
   async spawnCat(

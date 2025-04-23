@@ -205,6 +205,10 @@ export class StoryModeScene extends Scene {
       );
     }
 
+    // Create saws on tiles 26 and 25
+    this.managers.createSawsOnTiles(26, this.saws);
+    this.managers.createHalfSawsOnTiles(25, this.saws);
+
     if (this.cat) {
       this.icyGroundManager = this.managers.createIcyGroundManager(
         ICY_TILES,

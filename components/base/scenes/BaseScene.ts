@@ -54,6 +54,7 @@ export class BaseScene extends Scene {
     this.load.audio("eat", "purrquest/sounds/eat.mp3");
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.tilemapTiledJSON("tilemap", "catbassadors/base.json");
+    this.load.audio("jump", "catnip-chaos/sounds/jump.mp3");
     this.load.image("new-blocks-winter", CoreMap);
     this.load.spritesheet(
       "knockback-spell",

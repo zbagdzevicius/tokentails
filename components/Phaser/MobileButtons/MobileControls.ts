@@ -31,29 +31,38 @@ export function setMobileControls(
     knockbackSpell: document.getElementById("knockback"),
   };
 
-  // Add screen tap detection for jumping
   const handleScreenTap = (e: Event) => {
-    console.log("Screen tap detected:", e.type);
+    const target = e.target as HTMLElement;
+    if (
+      target.tagName === "BUTTON" ||
+      target.tagName === "A" ||
+      target.tagName === "INPUT" ||
+      target.tagName === "SELECT" ||
+      target.closest("button") ||
+      target.closest("a") ||
+      target.closest("input") ||
+      target.closest("div") ||
+      target.closest("select")
+    ) {
+      return;
+    }
+
     e.preventDefault();
     controlledObject.isMobileJumping = true;
-    console.log("Jump activated");
 
     setTimeout(() => {
       controlledObject.isMobileJumping = false;
-      console.log("Jump deactivated");
     }, 100); // Reset jump after a short delay
   };
 
   if (enableTapScreen) {
     // Add screen tap listeners
     startEventListenersKeys.forEach((key) => {
-      console.log("Adding listener for:", key);
       document.addEventListener(key, handleScreenTap, { passive: false });
     });
 
     // Clean up listeners when sprite is destroyed
     controlledObject.sprite.on("destroy", () => {
-      console.log("Cleaning up screen tap listeners");
       startEventListenersKeys.forEach((key) => {
         document.removeEventListener(key, handleScreenTap);
       });
@@ -66,12 +75,6 @@ export function setMobileControls(
     !controls.dashButton ||
     !controls.knockbackSpell
   ) {
-    console.log("Some controls not found:", {
-      controlledObject: !!controlledObject,
-      jumpButton: !!controls.jumpButton,
-      dashButton: !!controls.dashButton,
-      knockbackSpell: !!controls.knockbackSpell,
-    });
     return;
   }
 
@@ -81,28 +84,23 @@ export function setMobileControls(
     onEnd: () => void
   ): void => {
     const startHandler = (e: Event) => {
-      console.log("Button pressed:", button.id);
       e.preventDefault();
       onStart();
     };
 
     const endHandler = (e: Event) => {
-      console.log("Button released:", button.id);
       e.preventDefault();
       onEnd();
     };
 
     startEventListenersKeys.forEach((key) => {
-      console.log("Adding button listener for:", key, "on", button.id);
       button.addEventListener(key, startHandler, { passive: false });
     });
     endEventListenersKeys.forEach((key) => {
-      console.log("Adding button listener for:", key, "on", button.id);
       button.addEventListener(key, endHandler, { passive: false });
     });
 
     controlledObject.sprite.on("destroy", () => {
-      console.log("Cleaning up button listeners for:", button.id);
       startEventListenersKeys.forEach((key) =>
         button.removeEventListener(key, startHandler)
       );
@@ -114,7 +112,6 @@ export function setMobileControls(
 
   const addMovementListener = () => {
     const handler = (e: any) => {
-      console.log("Joystick direction:", e.detail.direction);
       if (e.detail.direction === "LEFT") {
         controlledObject.isMobileLeft = true;
         controlledObject.isMobileRight = false;
