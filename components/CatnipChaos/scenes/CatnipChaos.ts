@@ -549,35 +549,35 @@ export class CatnipChaosScene extends Scene {
   }
 
   endGame() {
-    // if (this.gameEnded) return;
-    // this.gameEnded = true;
-    // if (this.cat) {
-    //   this.cat.isHit = true;
-    //   // Set player color to red
-    //   this.cat.sprite.setTint(0xff0000);
-    //   // Stop player movement
-    //   this.cat.sprite.setVelocity(0, 0);
-    //   this.cat.sprite.setAcceleration(0, 0);
-    //   // Disable physics
-    //   if (this.cat.sprite.body) {
-    //     this.cat.sprite.body.enable = false;
-    //   }
-    // }
-    // // Play hit animation if available
-    // if (this.cat?.sprite.anims) {
-    //   this.cat.sprite.anims.play("hit", true);
-    // }
-    // // Play game end sound
-    // const gameEndSound = this.sound.add("game-end-sound", {
-    //   volume: 1,
-    //   loop: false,
-    // });
-    // gameEndSound.play();
-    // this.time.delayedCall(1000, () => {
-    //   this.cleanupSound();
-    //   this.destroyGameObjects();
-    //   this.cleanupScene();
-    // });
+    if (this.gameEnded) return;
+    this.gameEnded = true;
+    if (this.cat) {
+      this.cat.isHit = true;
+      // Set player color to red
+      this.cat.sprite.setTint(0xff0000);
+      // Stop player movement
+      this.cat.sprite.setVelocity(0, 0);
+      this.cat.sprite.setAcceleration(0, 0);
+      // Disable physics
+      if (this.cat.sprite.body) {
+        this.cat.sprite.body.enable = false;
+      }
+    }
+    // Play hit animation if available
+    if (this.cat?.sprite.anims) {
+      this.cat.sprite.anims.play("hit", true);
+    }
+    // Play game end sound
+    const gameEndSound = this.sound.add("game-end-sound", {
+      volume: 1,
+      loop: false,
+    });
+    gameEndSound.play();
+    this.time.delayedCall(1000, () => {
+      this.cleanupSound();
+      this.destroyGameObjects();
+      this.cleanupScene();
+    });
   }
 
   private cleanupSound() {
