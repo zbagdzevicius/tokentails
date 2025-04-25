@@ -97,7 +97,7 @@ const saveProfileTwitter = (profile: Partial<IProfile>) => {
   });
 };
 
-const saveMatch = async (match: IMatch): Promise<IProfile[]> => {
+const saveMatch = async (match: IMatch): Promise<Partial<IProfile>> => {
   await waitForLocalStorageKey();
   return fetch(`${apiUrl}/user/catbassadors/live`, {
     method: "POST",

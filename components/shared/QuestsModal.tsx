@@ -347,8 +347,8 @@ export const QuestsModalContent = () => {
             </div>
           </>
         )}
-        {questsType === QuestType.GOAL && !isApp && <AppCTA />}
       </span>
+      {questsType === QuestType.GOAL && !isApp && <AppCTA />}
       {questsType === QuestType.WIN && isApp && <LeaderboardContent />}
       {questsType === QuestType.WIN && !isApp && <AppCTA />}
     </div>

@@ -442,6 +442,7 @@ export const CatPayment = ({
                     length: cat.totalSupply - (cat.totalSupply - cat.supply),
                   }).map((_, i) => (
                     <img
+                      key={i}
                       draggable={false}
                       src={
                         unitsToBuy < i + 1
@@ -594,6 +595,7 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
               <div className="flex flex-row-reverse m-auto gap-1 justify-center mt-2 md:mt-8 lg:mt-2">
                 {Array.from({ length: cat.totalSupply || 0 }).map((_, i) => (
                   <img
+                    key={i}
                     draggable={false}
                     src={
                       cat.supply < i + 1

@@ -1,5 +1,5 @@
 import { Game } from "phaser";
-import { CatnipChaosScene } from "./scenes/CatnipChaos";
+import { CatnipChaosScene, ICatnipChaosProps } from "./scenes/CatnipChaos";
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.WEBGL,
@@ -18,11 +18,13 @@ const config: Phaser.Types.Core.GameConfig = {
   },
 };
 
-export const StartGame = () => {
-  return new Game({
+export const StartGame = (props: ICatnipChaosProps) => {
+  const game = new Game({
     ...config,
     parent: "game-container",
     width: window.innerWidth,
     height: window.innerHeight,
   });
+  game.scene.start("CatnipChaosScene", props);
+  return game;
 };

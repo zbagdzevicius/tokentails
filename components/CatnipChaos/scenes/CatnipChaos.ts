@@ -1,21 +1,20 @@
-import { Scene } from "phaser";
 import {
   GameEvent,
   GameEvents,
   ICatEvent,
   IPhaserGameSceneProps,
 } from "@/components/Phaser/events";
-import { Cat } from "../../catbassadors/objects/Catbassador";
-import { CatAbilityType, CatType } from "@/models/cats";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
-import { ICat } from "@/models/cats";
-import { isMobile } from "@/constants/utils";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
+import { isMobile } from "@/constants/utils";
+import { CatAbilityType, ICat } from "@/models/cats";
+import { Scene } from "phaser";
+import { Cat } from "../../catbassadors/objects/Catbassador";
 
-import { CollectiveItem } from "@/components/storyMode/objects/CollectiveItem";
 import { Food } from "@/components/base/objects/Food";
+import { CollectiveItem } from "@/components/storyMode/objects/CollectiveItem";
 
-import { CoreMap, LevelMap } from "@/components/Phaser/map";
+import { CatnipChaosLevelMap } from "@/components/Phaser/map";
 
 import { DogBot } from "@/components/storyMode/objects/dogBot";
 
@@ -25,13 +24,10 @@ import {
   IHiddenSpikeConfig,
 } from "@/components/storyMode/Managers/HiddenSpikeManager";
 
-import {
-  SpikeManager,
-  ISpikeManagerConfig,
-} from "@/components/purrquest/managers/SpikeManager";
+import { SpikeManager } from "@/components/purrquest/managers/SpikeManager";
 
-import { Saw } from "@/components/storyMode/Managers/SawManager";
 import { SawHalf } from "@/components/storyMode/Managers/SawHalfManager";
+import { Saw } from "@/components/storyMode/Managers/SawManager";
 
 const JUMP_LAYER_TILES = [169, 170, 139, 140, 200, 224, 225, 226, 227];
 const TRAMPOLINE_TILES = [158, 159, 160];
@@ -40,8 +36,8 @@ const FLOATING_PLATFORM_TILES = [9];
 
 const SPIKE_TILES = [253, 254, 284, 283];
 
-export interface ICatnipChaosProps extends IPhaserGameSceneProps {
-  level?: string;
+export interface ICatnipChaosProps {
+  level: string;
 }
 
 export class CatnipChaosScene extends Scene {
@@ -71,6 +67,7 @@ export class CatnipChaosScene extends Scene {
   food?: Food | null;
 
   private isGravityReversed: boolean = false;
+  private props!: ICatnipChaosProps;
   private dogs: DogBot[] = [];
   private floatingPlatformManagers: FloatingPlatformManager[] = [];
   private hiddenSpikeManagers: HiddenSpikeManager[] = [];
@@ -80,8 +77,8 @@ export class CatnipChaosScene extends Scene {
     super("CatnipChaosScene");
   }
 
-  preload(props: ICatnipChaosProps) {
-    const level = props?.level || "2-6";
+  preload() {
+    const level = this.props.level;
 
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.audio("meow", "purrquest/sounds/meow.mp3");
@@ -90,7 +87,7 @@ export class CatnipChaosScene extends Scene {
       "tilemap",
       `catnip-chaos/levels/level-${level}.json`
     );
-    this.load.image("blocks", LevelMap[level]);
+    this.load.image("blocks", CatnipChaosLevelMap[level]);
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.audio("catnip", "catnip-chaos/sounds/catnip.mp3");
     this.load.audio("jump", "catnip-chaos/sounds/jump.mp3");
@@ -130,12 +127,16 @@ export class CatnipChaosScene extends Scene {
     });
   }
 
-  create(props: ICatnipChaosProps) {
+  init(props: ICatnipChaosProps) {
+    this.props = props;
+  }
+
+  create() {
     this.initAnimations();
     this.setupTilemap();
     this.setupCamera();
     this.setupSound();
-    this.setupEventListeners(props);
+    this.setupEventListeners(this.props);
 
     // Add click event listener for jumping
     this.input.on("pointerdown", () => {
@@ -149,10 +150,6 @@ export class CatnipChaosScene extends Scene {
         this.cat.isMobileJumping = false;
       }
     });
-
-    if (props?.cat) {
-      this.spawnCat({ detail: { cat: props.cat } }, props.isRestart);
-    }
 
     this.createGameObjects();
   }
@@ -212,10 +209,10 @@ export class CatnipChaosScene extends Scene {
     this.initializeCatnipCoins();
 
     // Debug: Log all physics layer tiles
-    console.log("Physics Layer Tiles:");
-    this.physicsLayer.forEachTile((tile) => {
-      console.log(`Tile at (${tile.x}, ${tile.y}): index=${tile.index}`);
-    });
+    // console.log("Physics Layer Tiles:");
+    // this.physicsLayer.forEachTile((tile) => {
+    //   console.log(`Tile at (${tile.x}, ${tile.y}): index=${tile.index}`);
+    // });
 
     // Create saws on tiles 26 and 25
     this.catnipLayer.forEachTile((tile) => {
@@ -358,14 +355,14 @@ export class CatnipChaosScene extends Scene {
     // Add collision with dogs
     this.dogs.forEach((dog) => {
       this.physics.add.collider(this.cat!.sprite, dog.sprite, () => {
-        this.endGame();
+        this.endGame(false);
       });
     });
 
     // Add collision with saws
     this.saws.forEach((saw) => {
       this.physics.add.collider(this.cat!.sprite, saw.getSprite(), () => {
-        this.endGame();
+        this.endGame(false);
       });
     });
 
@@ -377,16 +374,10 @@ export class CatnipChaosScene extends Scene {
         this.cat!.sprite.y
       );
       if (tile && (tile.index === 162 || tile.index === 192)) {
-        this.gameEnded = true;
         this.cat!.setSitting(true);
-
         this.spawnFood();
 
         this.time.delayedCall(2000, () => {
-          GameEvents.GAME_STOP.push({
-            score: this.collectedCatnipCoins,
-            time: 0,
-          });
           this.endGame();
         });
       }
@@ -537,20 +528,23 @@ export class CatnipChaosScene extends Scene {
       ).length;
 
       if (remainingItems === 0 && !this.gameEnded) {
-        this.gameEnded = true;
-        GameEvents.GAME_STOP.push({
-          score: this.collectedCatnipCoins,
-          time: 0,
-        });
         this.endGame();
       }
     }
     this.collectiveItem?.update();
   }
 
-  endGame() {
+  endGame(finished: boolean = true) {
     if (this.gameEnded) return;
     this.gameEnded = true;
+    GameEvents.GAME_STOP.push({
+      score: this.collectedCatnipCoins,
+      time: 0,
+      finished,
+      metadata: {
+        level: this.props.level,
+      },
+    });
     if (this.cat) {
       this.cat.isHit = true;
       // Set player color to red

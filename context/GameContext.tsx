@@ -32,6 +32,7 @@ type ContextState = {
   gameType: GameType | null;
   setGameType: (gameType: GameType | null) => void;
   timer: number;
+  gameStop: IGameStopEvent | null;
   playGame: () => void;
   addNotification: (notification: IToast) => void;
   setOpenedModal: (modal: GameModal | null) => void;
@@ -49,7 +50,6 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
-  const isGameLoaded = GameEvents.GAME_LOADED.use();
   const [timer, setTimer] = useState<number>(0);
   const [notifications, setNotifications] = useState<IToast[]>([]);
 
@@ -78,7 +78,10 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
       if (!profile || !event) return;
 
       const multiplier = getMultiplier(profile?.cat);
-      const earnedScore = (event.score || 0) * multiplier;
+      const earnedScore =
+        gameType === GameType.CATNIP_CHAOS
+          ? event.score
+          : (event.score || 0) * multiplier;
 
       setIsStarted(false);
       setTimer(0);
@@ -88,15 +91,23 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
         time: event.time ?? 0,
       });
 
-      await USER_API.saveMatch({
-        points: earnedScore,
-        time: event.time ?? 0,
-        type: gameType!,
-      });
-      setProfileUpdate({
-        catbassadorsLives: (profile.catbassadorsLives || 1) - 1,
-        catpoints: profile.catpoints + earnedScore,
-      });
+      let catnipChaos = profile.catnipChaos;
+      if (event.finished) {
+        const result = await USER_API.saveMatch({
+          points: earnedScore,
+          time: event.time ?? 0,
+          type: gameType!,
+          level: event.metadata?.level,
+        });
+        catnipChaos = result.catnipChaos || [];
+      }
+      if (gameType === GameType.CATBASSADORS) {
+        setProfileUpdate({
+          catbassadorsLives: (profile.catbassadorsLives || 1) - 1,
+          catpoints: profile.catpoints + earnedScore,
+          catnipChaos,
+        });
+      }
     },
     [profile, gameType]
   );
@@ -168,6 +179,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     timer,
     addNotification,
     setOpenedModal,
+    gameStop,
   };
 
   return (
@@ -251,6 +263,7 @@ function useGame() {
     timer: context.timer,
     playGame: context.playGame,
     setOpenedModal: context.setOpenedModal,
+    gameStop: context.gameStop,
   };
 }
 

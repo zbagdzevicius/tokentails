@@ -167,7 +167,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
                   ></img>
                 )}
 
-                <span className="pt-2">
+                <span className="pt-2 relative z-20">
                   <PixelButton
                     id={ONBOARDING_MODAL_IDS.MY_CATS}
                     onClick={() => {

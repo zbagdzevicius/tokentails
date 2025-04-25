@@ -404,7 +404,6 @@ export class Cat implements IPlayer {
     this.inDoubleJumpZone = true;
     this.canDoubleJump = true;
     this.hasDoubleJumped = false;
-    console.log("Double jump enabled!");
 
     // Optional: Add visual feedback
     // this.scene.sound.play('powerup');

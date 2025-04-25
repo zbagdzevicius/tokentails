@@ -137,11 +137,9 @@ export function setMobileControls(
   addControlListeners(
     controls.jumpButton,
     () => {
-      console.log("Jump button pressed");
       controlledObject.isMobileJumping = true;
     },
     () => {
-      console.log("Jump button released");
       controlledObject.isMobileJumping = false;
     }
   );
@@ -149,22 +147,18 @@ export function setMobileControls(
   addControlListeners(
     controls.dashButton,
     () => {
-      console.log("Dash button pressed");
       controlledObject.isMobileDash = true;
     },
     () => {
-      console.log("Dash button released");
       controlledObject.isMobileDash = false;
     }
   );
   addControlListeners(
     controls.knockbackSpell,
     () => {
-      console.log("Knockback spell button pressed");
       controlledObject.isMobileknockbackSpell = true;
     },
     () => {
-      console.log("Knockback spell button released");
       controlledObject.isMobileknockbackSpell = false;
     }
   );

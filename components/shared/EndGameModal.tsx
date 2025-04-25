@@ -13,6 +13,14 @@ type EndGameProps = {
   gameStop: IGameStopEvent;
 };
 
+const gameTypeToImage = {
+  [GameType.CATBASSADORS]: "/game/select/catbassadors.jpg",
+  [GameType.PURRQUEST]: "/game/select/purrquest.jpg",
+  [GameType.CATNIP_CHAOS]: "/game/select/catnip-chaos.webp",
+  [GameType.SHELTER]: "/game/select/shelter.jpg",
+  [GameType.HOME]: "/game/select/home.jpg",
+};
+
 export const EndGameModal: React.FC<EndGameProps> = ({
   onClose,
   gameStop,
@@ -38,11 +46,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
         <CloseButton onClick={onClose} absolute />
         <div className="p-6 md:py-4 flex items-center justify-center flex-col gap-1">
           <img
-            src={
-              gameType === GameType.CATBASSADORS
-                ? "/game/select/catbassadors.jpg"
-                : "/game/select/purrquest.jpg"
-            }
+            src={gameTypeToImage[gameType]}
             className="w-28 aspect-square rounded-t-lg -mb-4"
             alt="logo"
             draggable="false"
@@ -50,13 +54,18 @@ export const EndGameModal: React.FC<EndGameProps> = ({
           <Tag>Game Summary</Tag>
           <div className="flex justify-center items-center text-md text-gray-700 mt-4">
             <img
-              src="/logo/coin.png"
+              src={
+                gameType === GameType.CATNIP_CHAOS
+                  ? "/logo/catnip.webp"
+                  : "/logo/coin.png"
+              }
               alt="Score Icon"
               className="w-6 h-6 mr-2"
               draggable="false"
             />
             <div className="text-p3 lg:text-p2 font-medium flex items-center gap-1">
-              collected <Tag>{gameStop.score}</Tag> coins
+              collected <Tag>{gameStop.score}</Tag>{" "}
+              {gameType === GameType.CATNIP_CHAOS ? "catnip" : "coins"}
             </div>
           </div>
           {!!gameStop.time && (

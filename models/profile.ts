@@ -23,6 +23,7 @@ export interface IProfile {
   catpoints: number;
   catpointsToday: number;
   catbassadorsRecord: number;
+  catnipChaos: number[];
   purrquestCount: number;
   catbassadorsCount: number;
   catpointsRecord: number;
