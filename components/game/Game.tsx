@@ -8,14 +8,8 @@ const Catbassadors = dynamic(
   () => import("@/components/catbassadors/Catbassadors"),
   { ssr: false }
 );
-const PurrQuest = dynamic(() => import("@/components/purrquest/PurrQuest"), {
-  ssr: false,
-});
 const Base = dynamic(() => import("@/components/base/Base"), { ssr: false });
 const Adopt = dynamic(() => import("@/components/shelter/Shelter"), {
-  ssr: false,
-});
-const Story = dynamic(() => import("@/components/storyMode/StoryMode"), {
   ssr: false,
 });
 const CATNIP_CHAOS = dynamic(
@@ -37,7 +31,6 @@ export const Game = () => {
       )}
       {gameType === GameType.HOME && profile && <Base />}
       {gameType === GameType.SHELTER && profile && <Adopt />}
-      {gameType === GameType.PURRQUEST && profile && <PurrQuest />}
       {gameType === GameType.CATNIP_CHAOS && profile && <CATNIP_CHAOS />}
     </div>
   );

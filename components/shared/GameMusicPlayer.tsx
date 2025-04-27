@@ -10,7 +10,6 @@ const gameMusicMap: Record<GameType, string> = {
     "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3",
   [GameType.HOME]:
     "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3",
-  [GameType.PURRQUEST]: "catbassadors/sounds/menu.mp3",
   [GameType.CATBASSADORS]: "catbassadors/sounds/game.mp3",
 };
 
@@ -42,12 +41,12 @@ export const GameMusicPlayer = () => {
       if (!audioElement || !gameType) return;
 
       if (isMusicOn && isAllowedToPlay) {
-        const musicUrl = [GameType.PURRQUEST, GameType.CATBASSADORS].includes(
-          gameType
-        )
-          ? `https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/in-game/song${getRandomInt(45) + 1
-          }.mp3`
-          : gameMusicMap[gameType];
+        const musicUrl =
+          gameType === GameType.CATBASSADORS
+            ? `https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/in-game/song${
+                getRandomInt(45) + 1
+              }.mp3`
+            : gameMusicMap[gameType];
         if (audioElement.src !== musicUrl) {
           audioElement.src = musicUrl;
           audioElement.currentTime = 0;

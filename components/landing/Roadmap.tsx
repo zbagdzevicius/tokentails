@@ -12,15 +12,15 @@ const Roadmap = () => {
         onClick={() => setIsTokenomicsVisible(!isTokenomicsVisible)}
       />
       {isTokenomicsVisible && <Tokenomics />}
-      <h2 className="font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance mb-8">
+      <h2 className="font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance md:mb-8 mt-8">
         OUR JOURNEY
       </h2>
-      <div className="flex flex-col md:flex-row justify-around gap-16 lg:gap-24 pt-16 md:pt-4">
+      <div className="flex flex-col md:flex-row justify-around gap-12 lg:gap-24 pt-16 md:pt-4">
         <div className="flex flex-col items-center gap-4 md:pt-36 hover:brightness-125 hover:animate-hover">
           <div className="relative bg-gradient-to-t to-purple-300 from-blue-300 rounded-full border-4 border-purple-300 w-16 h-16 flex justify-center items-center">
             <img
               draggable={false}
-              className="w-10 absolute left-0 right-0 -top-14 m-auto"
+              className="w-10 relative md:absolute left-0 right-0 md:-top-14 m-auto"
               src="icons/check.webp"
             />
             <img
@@ -29,8 +29,8 @@ const Roadmap = () => {
               src="/cats/grey/Loaf-Clothed-Grey.gif"
             />
           </div>
-          <h2 className="font-primary text-h2">2024</h2>
-          <div className="flex flex-col font-secondary text-p2 font-bold">
+          <h2 className="font-primary text-h4 md:text-h2">2024</h2>
+          <div className="flex flex-col font-secondary text-p4 md:text-p2 font-bold">
             <span className="flex gap-2 items-center">
               <img draggable={false} className="h-6" src="icons/check.webp" />
               50k Players
@@ -49,7 +49,7 @@ const Roadmap = () => {
           <div className="relative bg-gradient-to-t to-purple-300 from-blue-300 rounded-full border-4 border-purple-300 w-16 h-16 flex justify-center items-center">
             <img
               draggable={false}
-              className="w-10 absolute left-0 right-0 -top-14 m-auto"
+              className="w-10 relative md:absolute left-0 right-0 md:-top-14 m-auto"
               src="icons/check.webp"
             />
             <img
@@ -58,8 +58,10 @@ const Roadmap = () => {
               src="/cats/siamese/jugando Ropa Siames.gif"
             />
           </div>
-          <h2 className="font-primary text-h2 whitespace-nowrap">2025 Q1</h2>
-          <div className="flex flex-col font-secondary text-p2 font-bold">
+          <h2 className="font-primary text-h4 md:text-h2 whitespace-nowrap">
+            2025 Q1
+          </h2>
+          <div className="flex flex-col font-secondary text-p4 md:text-p2 font-bold">
             <span className="flex gap-2 items-center -ml-6">
               <img draggable={false} className="h-6" src="icons/check.webp" />
               AI SOCIAL BUDDY
@@ -78,7 +80,7 @@ const Roadmap = () => {
           <div className="relative bg-gradient-to-t to-purple-300 from-blue-300 rounded-full border-4 border-purple-300 w-16 h-16 flex justify-center items-center">
             <img
               draggable={false}
-              className="w-10 absolute left-0 right-0 -top-14 m-auto pixelated"
+              className="w-10 relative md:absolute left-0 right-0 md:-top-14 m-auto pixelated"
               src="icons/loader.webp"
             />
             <img
@@ -87,8 +89,10 @@ const Roadmap = () => {
               src="/cats/yellow/Jump-Hat-Yellow.gif"
             />
           </div>
-          <h2 className="font-primary text-h2 whitespace-nowrap">2025</h2>
-          <div className="flex flex-col font-secondary text-p2 font-bold">
+          <h2 className="font-primary text-h4 md:text-h2 whitespace-nowrap">
+            2025
+          </h2>
+          <div className="flex flex-col font-secondary text-p4 md:text-p2 font-bold">
             <span className="flex gap-2 items-center -ml-6">
               <img
                 draggable={false}

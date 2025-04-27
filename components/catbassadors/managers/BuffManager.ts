@@ -3,8 +3,8 @@ import { Buff, BuffType } from "../objects/Buff";
 import { GameEvent, GameEvents } from "@/components/Phaser/events";
 import { SpeedEffect } from "../objects/SpeedEffect";
 import { CatbassadorsScene } from "../scenes/CatbassadorsScene";
-import { PurrquestScene } from "@/components/purrquest/scenes/PurrquestScene";
 import { Cat } from "../objects/Catbassador";
+import { GameScene } from "../objects/Abilities";
 
 const POWERUP_DURATION_MS = 15000;
 
@@ -18,7 +18,7 @@ export interface IBuffManagerConfig {
 }
 
 export class BuffManager {
-  private scene: PurrquestScene | CatbassadorsScene;
+  private scene: GameScene;
   private cat: Cat;
   private groundLayer: Phaser.Tilemaps.TilemapLayer;
   private buffSpawnTimer: NodeJS.Timeout | null = null;
@@ -43,7 +43,7 @@ export class BuffManager {
   private isGameStarted = false;
 
   constructor(config: IBuffManagerConfig) {
-    this.scene = config.scene as CatbassadorsScene | PurrquestScene;
+    this.scene = config.scene as GameScene;
     this.cat = config.cat;
     this.groundLayer = config.groundLayer;
 

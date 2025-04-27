@@ -17,13 +17,6 @@ export const gameModes = {
     image: "/game/select/home.jpg",
     text: "TAKE CARE OF YOUR NFT CATS",
   },
-  [GameType.PURRQUEST]: {
-    video:
-      "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/videos/purrquest.mp4",
-    title: "Purrquest",
-    image: "/game/select/purrquest.jpg",
-    text: "EXPLORE TO FIND REWARDS",
-  },
   [GameType.SHELTER]: {
     video:
       "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/videos/shelter.mp4",
@@ -49,7 +42,7 @@ export const GameModes = () => {
         SELECT MODE AND PLAY
       </h2>
       <a className="-mb-6" href="/game">
-        <PixelButton text="CLICK TO PLAY" />
+        <PixelButton text="PLAY" />
       </a>
       <div className="flex gap-2 -mb-12 md:-mb-20 relative z-30">
         <div
@@ -67,8 +60,8 @@ export const GameModes = () => {
           ></img>
         </div>
         <div
-          className={`mt-10 ${
-            gameMode === GameType.PURRQUEST
+          className={`mt-8 ${
+            gameMode === GameType.SHELTER
               ? "animate-hover"
               : "opacity-50 hover:opacity-100"
           }`}
@@ -76,27 +69,13 @@ export const GameModes = () => {
           <img
             draggable={false}
             className="w-20 rounded-xl"
-            src={gameModes[GameType.PURRQUEST].image}
-            onClick={() => setGameMode(GameType.PURRQUEST)}
-          ></img>
-        </div>
-        <div
-          className={`mt-10 ${
-            gameMode === GameType.CATNIP_CHAOS
-              ? "animate-hover"
-              : "opacity-50 hover:opacity-100"
-          }`}
-        >
-          <img
-            draggable={false}
-            className="w-20 rounded-xl"
-            src={gameModes[GameType.CATNIP_CHAOS].image}
-            onClick={() => setGameMode(GameType.CATNIP_CHAOS)}
+            src={gameModes[GameType.SHELTER].image}
+            onClick={() => setGameMode(GameType.SHELTER)}
           ></img>
         </div>
         <div
           className={
-            gameMode === GameType.SHELTER
+            gameMode === GameType.CATNIP_CHAOS
               ? "animate-hover"
               : "opacity-50 hover:opacity-100"
           }
@@ -104,8 +83,8 @@ export const GameModes = () => {
           <img
             draggable={false}
             className="w-20 rounded-xl"
-            src={gameModes[GameType.SHELTER].image}
-            onClick={() => setGameMode(GameType.SHELTER)}
+            src={gameModes[GameType.CATNIP_CHAOS].image}
+            onClick={() => setGameMode(GameType.CATNIP_CHAOS)}
           ></img>
         </div>
       </div>

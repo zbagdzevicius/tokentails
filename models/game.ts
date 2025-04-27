@@ -14,10 +14,8 @@ export enum GameModal {
 export enum GameType {
   SHELTER = "SHELTER",
   HOME = "HOME",
-  PURRQUEST = "PURRQUEST",
   CATBASSADORS = "CATBASSADORS",
-  CATNIP_CHAOS = " CATNIP_CHAOS",
-  // STORYMODE = "STORYMODE",
+  CATNIP_CHAOS = "CATNIP_CHAOS",
 }
 
 export const endScenePeriod = 500;

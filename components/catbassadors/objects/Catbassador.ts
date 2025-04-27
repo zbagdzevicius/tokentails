@@ -2,13 +2,9 @@ import { GameObjects, Physics, Scene } from "phaser";
 import { IPlayer } from "@/components/Phaser/PlayerMovement/IPlayer";
 import { PlayerMovement } from "@/components/Phaser/PlayerMovement/PlayerMovement";
 import { catWalkSpeed } from "@/models/game";
-import { Abilities } from "./Abilities";
-import { PurrquestScene } from "@/components/purrquest/scenes/PurrquestScene";
-import { CatbassadorsScene } from "../scenes/CatbassadorsScene";
+import { Abilities, GameScene } from "./Abilities";
 import { CatAbilityType } from "@/models/cats";
 import { NPCJob, NPCJobType } from "../../base/objects/Cat";
-
-type GameScene = PurrquestScene | CatbassadorsScene;
 /**
  * Physics objects that could be colliders
  */
@@ -238,19 +234,6 @@ export class Cat implements IPlayer {
     this.collectedItem = item;
     this.collectedItem.setVisible(true);
     this.collectedItem.setCollideWorldBounds(false);
-  }
-
-  dropCollectiveItem() {
-    if (this.collectedItem) {
-      // Get the existing key from the scene
-      const purrquestScene = this.scene as PurrquestScene;
-      const key = purrquestScene.key;
-      key.sprite.setVisible(true);
-      key.sprite.setBounce(0.2);
-
-      this.collectedItem = null;
-      this.hasKey = false;
-    }
   }
 
   updateCollectiveItem() {

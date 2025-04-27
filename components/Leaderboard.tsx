@@ -18,7 +18,7 @@ const leaderboardTexts: Partial<
   [GameModal.LEADERBOARD_DAILY]: {
     header: "DAILY",
     title: "STAY IN TOP 20 - GET 2000 coins daily",
-    subtitle: "PLAY CATBASSADORS & PURRQUEST",
+    subtitle: "PLAY TO GET COINS",
   },
 };
 

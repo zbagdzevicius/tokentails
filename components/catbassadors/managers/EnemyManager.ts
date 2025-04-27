@@ -4,8 +4,8 @@ import { BossEnemy } from "@/components/purrquest/objects/Boss";
 import { GameEvent, GameEvents } from "@/components/Phaser/events";
 import { CatbassadorsScene } from "../scenes/CatbassadorsScene";
 import { Cat } from "../objects/Catbassador";
-import { PurrquestScene } from "@/components/purrquest/scenes/PurrquestScene";
 import { catWalkSpeed } from "@/models/game";
+import { GameScene } from "../objects/Abilities";
 
 const DEFAULT_ENEMY_SPAWN_THRESHOLD = 1500;
 const DEFAULT_BOSS_SPAWN = 50000;
@@ -27,7 +27,7 @@ export interface IEnemyManagerConfig {
 }
 
 export class EnemyManager {
-  private scene: CatbassadorsScene | PurrquestScene;
+  private scene: GameScene;
   cat: Cat;
   private groundLayer: Phaser.Tilemaps.TilemapLayer;
   private platformsLayer: Phaser.Tilemaps.TilemapLayer;

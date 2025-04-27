@@ -19,7 +19,6 @@ interface IProps {
 
 const gameTypeImages: Record<GameType, string> = {
   [GameType.CATBASSADORS]: "/game/select/catbassadors.jpg",
-  [GameType.PURRQUEST]: "/game/select/purrquest.jpg",
   [GameType.SHELTER]: "/game/select/shelter.jpg",
   [GameType.HOME]: "/game/select/home.jpg",
   [GameType.CATNIP_CHAOS]: "/game/select/catnip-chaos.webp",
@@ -36,36 +35,21 @@ const GameSelectItem = ({
     <div
       className={classNames("flex flex-col gap-1 transition relative", {
         "rotate-6 hover:rotate-0": [
+          GameType.CATBASSADORS,
           GameType.SHELTER,
-          GameType.PURRQUEST,
-          GameType.CATNIP_CHAOS,
         ].includes(gameType),
         "-rotate-6 hover:rotate-0": [
-          GameType.CATBASSADORS,
+          GameType.CATNIP_CHAOS,
           GameType.HOME,
         ].includes(gameType),
       })}
-      onClick={() =>
-        GameType.CATNIP_CHAOS === gameType && isProd
-          ? {}
-          : setGameType(gameType)
-      }
+      onClick={() => setGameType(gameType)}
     >
       <img
         draggable={false}
         className="rem:w-[120px] hover:brightness-110 rem:min-w-[120px] lg:w-[196px] lg:rem:min-w-[196px] rounded-xl hover:animate-hover"
         src={gameTypeImages[gameType]}
       />
-      {gameType === GameType.CATNIP_CHAOS && (
-        <div className="absolute top-0 left-0 w-full h-full rounded-xl overflow-hidden bg-black/50 items-center justify-center flex gap-8 flex-col font-primary text-p4 lg:text-p2 text-green-300">
-          <img
-            draggable={false}
-            src="/icons/loader.webp"
-            className="w-16 h-16 -mb-6 animate-spin-slow pixelated"
-          />
-          COMING SOON
-        </div>
-      )}
     </div>
   );
 };
@@ -131,19 +115,19 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
         <>
           <div className="flex max-w-max md:gap-4 lg:gap-8 min-w-0 justify-center items-center lg:mt-8">
             <div className="flex flex-col gap-1 items-start">
+              <GameSelectItem
+                setGameType={setGameType}
+                gameType={GameType.CATNIP_CHAOS}
+              />
+              <div className="flex z-10 -mt-4 -mb-2">
+                <Tag>PLAY GAMES</Tag>
+              </div>
               <span id={ONBOARDING_MODAL_IDS.CATBASSADORS}>
                 <GameSelectItem
                   setGameType={setGameType}
                   gameType={GameType.CATBASSADORS}
                 />
               </span>
-              <div className="flex z-10 -mt-4 -mb-2">
-                <Tag>PLAY GAMES</Tag>
-              </div>
-              <GameSelectItem
-                setGameType={setGameType}
-                gameType={GameType.CATNIP_CHAOS}
-              />
             </div>
 
             {profile?.cat ? (

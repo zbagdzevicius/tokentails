@@ -1,9 +1,4 @@
-import {
-  GameEvent,
-  GameEvents,
-  ICatEvent,
-  IPhaserGameSceneProps,
-} from "@/components/Phaser/events";
+import { GameEvent, GameEvents, ICatEvent } from "@/components/Phaser/events";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { isMobile } from "@/constants/utils";

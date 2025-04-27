@@ -15,7 +15,6 @@ type EndGameProps = {
 
 const gameTypeToImage = {
   [GameType.CATBASSADORS]: "/game/select/catbassadors.jpg",
-  [GameType.PURRQUEST]: "/game/select/purrquest.jpg",
   [GameType.CATNIP_CHAOS]: "/game/select/catnip-chaos.webp",
   [GameType.SHELTER]: "/game/select/shelter.jpg",
   [GameType.HOME]: "/game/select/home.jpg",

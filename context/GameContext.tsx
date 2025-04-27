@@ -54,12 +54,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [notifications, setNotifications] = useState<IToast[]>([]);
 
   const addNotification = (notification: IToast) => {
-    if (
-      isStarted &&
-      [GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!)
-    ) {
-      setNotifications((prev) => [...prev, notification]);
-    }
+    setNotifications((prev) => [...prev, notification]);
   };
 
   useEffect(() => {
@@ -204,10 +199,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
               setProfileUpdate={setProfileUpdate}
             />
           )}
-          {isStarted &&
-            [GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!) && (
-              <Notification notifications={notifications} />
-            )}
+          <Notification notifications={notifications} />
           <MobileButtons
             isHidden={
               !(
@@ -217,10 +209,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
               )
             }
           />
-          {isStarted &&
-            [GameType.CATBASSADORS, GameType.PURRQUEST].includes(gameType!) && (
-              <DisplayCoins />
-            )}
+          {isStarted && gameType === GameType.CATBASSADORS && <DisplayCoins />}
 
           {openedModal === GameModal.PROFILE && (
             <TelegramProfile close={() => setOpenedModal(null)} />
