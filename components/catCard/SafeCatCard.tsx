@@ -488,9 +488,9 @@ export const SafeCatCard = ({
           <div>
             <div className="flex justify-between items-center m-1">
               <div className="flex flex-row space-x-2 items-center pl-4">
-                {!!cat.instagram && (
+                {!!blessings?.[0]?.instagram && (
                   <a
-                    href={cat.instagram}
+                    href={blessings?.[0]?.instagram}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
