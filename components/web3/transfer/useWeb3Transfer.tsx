@@ -12,9 +12,7 @@ import {
   recipientStellar,
 } from "@/web3/contracts";
 import {
-  chainTypeId,
   horizonServer,
-  idChainType,
   stellarKit,
   stellarNetworkPassphrase,
   wagmiConfig,
@@ -43,6 +41,7 @@ import {
   useWriteContract,
 } from "wagmi";
 import { IGeneratedCat } from "./Web3Transfer";
+import { chainTypeId, idChainType } from "@/web3/web3-chains";
 interface IProps {
   entityType: EntityType;
   price: number;
