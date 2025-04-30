@@ -1,6 +1,6 @@
 import { cardsColor, ICat } from "@/models/cats";
-import { getMultiplier } from "../CatCardModal";
 import { Tag } from "./Tag";
+import { getMultiplier } from "@/constants/cat-utils";
 
 export const CatBenefits = ({
   cat,

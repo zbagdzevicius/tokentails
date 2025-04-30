@@ -1,3 +1,5 @@
+@use "sass:math";
+
 /* Base heart styling */
 .chamomile-flower {
   position: absolute;
@@ -70,13 +72,13 @@
 /* Generate 30 hearts with random properties */
 @for $i from 1 through 30 {
   .chamomile-flower:nth-child(#{$i}) {
-    --size: #{random(5) * 0.2 + 0.8};
-    --left-ini: #{random(20) - 10}vw;
-    --left-mid: #{random(30) - 15}vw;
-    --left-end: #{random(20) - 10}vw;
-    left: #{random(100)}vw;
-    animation: heartFall #{10 + random(15)}s linear infinite;
-    animation-delay: -#{random(20)}s;
+    --size: #{math.random(5) * 0.2 + 0.8};
+    --left-ini: #{math.random(20) - 10}vw;
+    --left-mid: #{math.random(30) - 15}vw;
+    --left-end: #{math.random(20) - 10}vw;
+    left: #{math.random(100)}vw;
+    animation: heartFall #{10 + math.random(15)}s linear infinite;
+    animation-delay: -#{math.random(20)}s;
     transform: scale(var(--size));
   }
 }

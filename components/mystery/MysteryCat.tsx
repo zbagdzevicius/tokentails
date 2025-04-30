@@ -16,8 +16,19 @@ import { useMemo } from "react";
 import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
-import { Web3MintStellar } from "../web3/minting/Web3MintStellar";
 import { Web3Providers } from "../web3/Web3Providers";
+import dynamic from "next/dynamic";
+
+const Web3MintStellar = dynamic(
+  () =>
+    import("../web3/minting/Web3MintStellar").then(
+      (mod) => mod.Web3MintStellar
+    ),
+  {
+    ssr: false,
+    loading: () => <div className="font-primary font-bold">Loading cat...</div>,
+  }
+);
 
 const MysteryBoxEligibility = ({
   mysteryBox,

@@ -4,11 +4,11 @@ import { useProfile } from "@/context/ProfileContext";
 import { GameModal } from "@/models/game";
 import { useState } from "react";
 import { MysteryBox } from "../mystery/MysteryBox";
+import { MysteryCat } from "../mystery/MysteryCat";
 import { CloseButton } from "./CloseButton";
 import { Countdown } from "./Countdown";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
-import { MysteryCat } from "../mystery/MysteryCat";
 
 export const InviteModalContent = () => {
   const { utils, shareUrl, profile, setProfileUpdate } = useProfile();
@@ -98,7 +98,11 @@ export const InviteModalContent = () => {
           />
         </>
       )}
-      {type === GameModal.MYSTERY_BOX && <MysteryBox />}
+      {type === GameModal.MYSTERY_BOX && (
+        // <ParaProvider paraClientConfig={paraClientConfig}>
+        <MysteryBox />
+        // </ParaProvider>
+      )}
       {type === GameModal.MYSTERY_CAT && <MysteryCat />}
     </div>
   );

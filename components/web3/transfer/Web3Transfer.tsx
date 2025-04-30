@@ -5,7 +5,7 @@ import { EntityType } from "@/models/save";
 import { CurrencyType } from "@/web3/contracts";
 import { useWeb3Transfer } from "./useWeb3Transfer";
 import { useMemo } from "react";
-import { BuyMode } from "@/components/CatCardModal";
+import { BuyMode } from "@/constants/cat-utils";
 
 export interface IGeneratedCat {
   name: string;

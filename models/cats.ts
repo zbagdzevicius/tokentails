@@ -31,6 +31,7 @@ export type IBlessing = {
   price: number;
   creator?: IProfile;
   owner?: IProfile;
+  instagram?: string;
 };
 
 export type IShelter = {
@@ -149,6 +150,7 @@ export interface ICat {
   staked: Date | null;
   spriteImg: string;
   catImg: string;
+  instagram?: string;
   cardImg: string;
   lives: number;
   expiresAt?: string;

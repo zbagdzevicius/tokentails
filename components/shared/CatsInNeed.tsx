@@ -3,7 +3,7 @@ import { useProfile } from "@/context/ProfileContext";
 import { ICat } from "@/models/cats";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { CatCardModal } from "../CatCardModal";
+import { CatCardModal } from "../catCard/CatCardModal";
 import { Web3Providers } from "../web3/Web3Providers";
 import { CatMiniCard } from "./CatMiniCard";
 import { CloseButton } from "./CloseButton";

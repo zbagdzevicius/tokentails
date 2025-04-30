@@ -1,15 +1,6 @@
 import { isProd } from "@/models/app";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
-import {
-  bsc,
-  bscTestnet,
-  defineChain,
-  skaleNebula,
-  skaleNebulaTestnet,
-  zetachain,
-} from "@reown/appkit/networks";
 import { cookieStorage, createStorage } from "wagmi";
-import { ChainType } from "./contracts";
 
 import {
   AlbedoModule,
@@ -22,6 +13,7 @@ import {
   WalletNetwork,
   xBullModule,
 } from "@creit.tech/stellar-wallets-kit/index";
+import { paraConnector } from "@getpara/wagmi-v2-integration";
 import {
   BitgetWalletAdapter,
   HuobiWalletAdapter,
@@ -33,7 +25,10 @@ import {
   TrustWalletAdapter,
 } from "@solana/wallet-adapter-wallets";
 
+import { para } from "@/models/para";
 import { Horizon, Networks } from "@stellar/stellar-sdk";
+import { networks } from "./web3-chains";
+import { OAuthMethod, AuthLayout } from "@getpara/react-sdk";
 
 // Get projectId at https://cloud.walletconnect.com
 export const projectId = "4ef5743bb63ef48716115119e580ff88";
@@ -66,79 +61,6 @@ export const stellarKit = new StellarWalletsKit({
   ],
 });
 
-const campTestnet = defineChain({
-  id: 123420001114,
-  chainNamespace: "eip155",
-  caipNetworkId: `eip155:${123420001114}`,
-  name: "Camp Testnet",
-  nativeCurrency: {
-    decimals: 18,
-    name: "Camp Network",
-    symbol: "CAMP",
-  },
-  rpcUrls: {
-    default: {
-      http: ["https://rpc.basecamp.t.raas.gelato.cloud"],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: "Camp",
-      url: "https://basecamp.cloud.blockscout.com",
-    },
-  },
-  testnet: true,
-});
-
-const torus = defineChain({
-  id: 8192,
-  chainNamespace: "eip155",
-  caipNetworkId: `eip155:${8192}`,
-  name: "Torus Mainnet",
-  nativeCurrency: {
-    decimals: 18,
-    name: "Torus Mainnet",
-    symbol: "TQF",
-  },
-  rpcUrls: {
-    default: {
-      http: ["https://rpc.toruschain.com"],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: "Torus Scan",
-      url: "https://toruscan.com",
-    },
-  },
-  testnet: false,
-});
-
-export const chainTypeId: Record<ChainType, number> = {
-  [ChainType.BNB]: bsc.id,
-  [ChainType.DIAM]: bsc.id,
-  [ChainType.BNB_TEST]: bscTestnet.id,
-  [ChainType.SKALE]: skaleNebula.id,
-  [ChainType.SKALE_TEST]: skaleNebulaTestnet.id,
-  [ChainType.CAMP_TEST]: campTestnet.id,
-  [ChainType.STELLAR]: 0,
-  [ChainType.STELLAR_TEST]: 0,
-  [ChainType.SOLANA]: 0,
-  [ChainType.SOLANA_TEST]: 0,
-  [ChainType.TORUS]: torus.id,
-};
-
-export const idChainType: Record<number, ChainType> = {
-  [bsc.id]: ChainType.BNB,
-  [bscTestnet.id]: ChainType.BNB_TEST,
-  [skaleNebula.id]: ChainType.SKALE,
-  [skaleNebulaTestnet.id]: ChainType.SKALE_TEST,
-  [campTestnet.id]: ChainType.CAMP_TEST,
-  [torus.id]: ChainType.TORUS,
-  [0]: ChainType.STELLAR,
-  [1]: ChainType.STELLAR_TEST,
-};
-
 // 0. Set up Solana Adapter
 export const solanaWallets = [
   new PhantomWalletAdapter(),
@@ -151,12 +73,31 @@ export const solanaWallets = [
   new LedgerWalletAdapter(),
 ];
 
-// Create wagmiConfig
-export const networks = isProd
-  ? [bsc, campTestnet, torus]
-  : [bscTestnet, campTestnet, torus];
+export const paraConnected = paraConnector({
+  para,
+  appName: "Token Tails",
+  logo: "https://tokentails.com/logo/logo.webp",
+  oAuthMethods: [
+    OAuthMethod.GOOGLE,
+    OAuthMethod.DISCORD,
+    OAuthMethod.APPLE,
+    OAuthMethod.FACEBOOK,
+    OAuthMethod.FARCASTER,
+    OAuthMethod.TWITTER,
+  ],
+  theme: {
+    mode: "light",
+  },
+  onRampTestMode: true,
+  disableEmailLogin: false,
+  disablePhoneLogin: false,
+  authLayout: [AuthLayout.AUTH_FULL],
+  recoverySecretStepEnabled: false,
+  options: {},
+});
 
 export const wagmiAdapter = new WagmiAdapter({
+  connectors: [paraConnected as any],
   networks,
   projectId,
   ssr: typeof window === "undefined",
@@ -165,3 +106,5 @@ export const wagmiAdapter = new WagmiAdapter({
   }),
   multiInjectedProviderDiscovery: true,
 });
+
+export const wagmiConfig = wagmiAdapter.wagmiConfig;

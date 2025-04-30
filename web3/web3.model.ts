@@ -59,14 +59,14 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
       name: "Camp Mystery Box - Beginner Tier",
       chain: ChainType.CAMP_TEST,
       image: "/utilities/mystery-boxes/mystery-box-camp.jpg",
-      faucet: "https://www.campnetwork.xyz/faucet_l1",
+      faucet: "https://faucet.campnetwork.xyz",
     },
     {
       address: "0x0A65888A4F76D821A3148620866BC65A5db599BB",
       name: "Camp Mystery Box - Explorer Tier",
       chain: ChainType.CAMP_TEST,
       image: "/utilities/mystery-boxes/mystery-box-camp2.jpg",
-      faucet: "https://www.campnetwork.xyz/faucet_l1",
+      faucet: "https://faucet.campnetwork.xyz",
       requirements: {
         type: MysteryBoxRequirementType.COINS,
         metadata: {
@@ -80,7 +80,7 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
       name: "Camp Mystery Box - Cat Lover Tier",
       chain: ChainType.CAMP_TEST,
       image: "/utilities/mystery-boxes/mystery-box-camp3.jpg",
-      faucet: "https://www.campnetwork.xyz/faucet_l1",
+      faucet: "https://faucet.campnetwork.xyz",
       requirements: {
         type: MysteryBoxRequirementType.APP_DOWNLOAD,
         text: "Coming Soon !",
@@ -91,7 +91,7 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
       name: "Camp Mystery Box - Cat Savior Tier",
       chain: ChainType.CAMP_TEST,
       image: "/utilities/mystery-boxes/mystery-box-camp4.jpg",
-      faucet: "https://www.campnetwork.xyz/faucet_l1",
+      faucet: "https://faucet.campnetwork.xyz",
       requirements: {
         type: MysteryBoxRequirementType.PURCHASE,
         text: "Save a cat",

@@ -1,3 +1,5 @@
+@use "sass:map";
+@use "sass:meta";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,8 +7,8 @@
 @import url("https://fonts.googleapis.com/css2?family=Passion+One:wght@400;700;900&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Pixelify+Sans:wght@400..700&display=swap");
-@import "../styles/snow.scss";
-@import "../styles/chamomile.scss";
+@include meta.load-css("../styles/snow.scss");
+@include meta.load-css("../styles/chamomile.scss");
 
 $breakpoints: (
   "mobile": 767px,
@@ -17,15 +19,19 @@ $breakpoints: (
   "3xl": 2300px,
 );
 
+[data-testid="modal-content"] {
+  @apply bg-white rounded-3xl border-[8px] border-yellow-300 !important;
+}
+
 $custom-background: linear-gradient(90.26deg, #c1260f 0.34%, #ee642a 96.66%);
 
 @mixin device($breakpoint) {
   @if $breakpoint == "mobile" {
-    @media (max-width: map-get($breakpoints, $breakpoint)) {
+    @media (max-width: map.get($breakpoints, $breakpoint)) {
       @content;
     }
-  } @else if map-has-key($breakpoints, $breakpoint) {
-    @media (min-width: map-get($breakpoints, $breakpoint)) {
+  } @else if map.has-key($breakpoints, $breakpoint) {
+    @media (min-width: map.get($breakpoints, $breakpoint)) {
       @content;
     }
   } @else {
@@ -223,57 +229,6 @@ html {
 }
 
 // CUSTOM SCROLLBAR END
-
-// COOL BORDER START
-
-// COOL BORDER END
-
-.animate-border {
-  --border-angle: 0turn; // For animation.
-  --main-bg: conic-gradient(
-    from var(--border-angle),
-    #ee642a,
-    #c1260f 5%,
-    #ee642a 60%,
-    #8726b7 95%
-  );
-
-  border-radius: 24px;
-  --gradient-border: conic-gradient(
-    from var(--border-angle),
-    transparent 25%,
-    #c1260f,
-    #8726b7 99%,
-    transparent
-  );
-  border: solid 5px transparent;
-  @include device(md) {
-    border: solid 10px transparent;
-  }
-
-  background: 
-    // padding-box clip this background in to the overall element except the border.
-    var(--main-bg) padding-box,
-    // border-box extends this background to the border space
-    var(--gradient-border) border-box,
-    // Duplicate main background to fill in behind the gradient border. You can remove this if you want the border to extend "outside" the box background.
-    var(--main-bg) border-box;
-
-  animation: bg-spin 3s linear infinite;
-  @keyframes bg-spin {
-    to {
-      --border-angle: 1turn;
-    }
-  }
-
-  transform: translateY(6%);
-}
-
-@property --border-angle {
-  syntax: "<angle>";
-  inherits: true;
-  initial-value: 0turn;
-}
 
 //CUSTOM GRADIENT TEXT
 

@@ -19,9 +19,9 @@ export const CatnipChaosLevels = ({
     <div className="flex flex-col items-center gap-4 mt-14 lg:mt-24">
       <img
         src="/game/select/catnip-chaos.webp"
-        className="w-48 h-48 rounded-2xl"
+        className="aspect-square w-36 md:w-48 rounded-2xl"
       />
-      <div className="flex font-primary text-h4">SELECT A LEVEL</div>
+      <div className="flex font-primary text-h5 md:text-h4">SELECT A LEVEL</div>
       <div className="flex flex-wrap gap-4 justify-center max-w-[40rem]">
         {catnipChaosLevelsList.map((level, i) => (
           <div
@@ -47,14 +47,14 @@ export const CatnipChaosLevels = ({
           </div>
         ))}
       </div>
-      <div className="flex flex-col items-start">
-        <div className="flex font-secondary text-p2 text-center items-center gap-1">
+      <div className="flex flex-col items-start text-p4 md:text-p2">
+        <div className="flex font-secondary text-center items-center gap-1">
           <img src="/logo/catnip.webp" className="w-8 h-8 mr-2" />
           {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0}
           <span>/120</span>
           <span>COLLECTED</span>
         </div>
-        <div className="flex font-secondary text-p2 text-center items-center gap-1">
+        <div className="flex font-secondary text-center items-center gap-1">
           <img src="/purrquest/sprites/key.png" className="w-8 h-8 mr-2" />
           {profile?.catnipChaos?.length || 0}
           <span>/12</span>

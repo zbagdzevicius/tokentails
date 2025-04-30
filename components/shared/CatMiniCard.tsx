@@ -1,6 +1,6 @@
 import { cardsColor, ICat } from "@/models/cats";
-import { getMultiplier } from "../CatCardModal";
 import { PixelButton } from "@/components/shared/PixelButton";
+import { getMultiplier } from "@/constants/cat-utils";
 
 export const CatMiniCard = ({
   cat,

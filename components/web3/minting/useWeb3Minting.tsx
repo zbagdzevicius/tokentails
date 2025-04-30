@@ -4,7 +4,8 @@ import { useWeb3 } from "@/context/Web3Context";
 import { EntityType } from "@/models/save";
 import { abiERC721 } from "@/web3/abi-erc721";
 import { ChainNamespace, ChainType, CurrencyType } from "@/web3/contracts";
-import { chainTypeId, wagmiAdapter } from "@/web3/web3-config";
+import { chainTypeId } from "@/web3/web3-chains";
+import { wagmiConfig } from "@/web3/web3-config";
 import { IMysteryBox } from "@/web3/web3.model";
 import { useAppKit } from "@reown/appkit/react";
 import { useEffect, useMemo, useState } from "react";
@@ -31,7 +32,7 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
     chainId,
   } = useWeb3();
   const { switchChainAsync } = useSwitchChain({
-    config: wagmiAdapter.wagmiConfig,
+    config: wagmiConfig,
   });
   const { open } = useAppKit();
   const toast = useToast();
@@ -99,8 +100,9 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
         args: [evmAddress!],
       });
       setHash(txHash);
-    } catch {
-      toast({ message: "Failed to mint. Please try again." });
+    } catch (error) {
+      console.error("Error minting:", error);
+      toast({ message: "Get gas and try again." });
     }
   }
 

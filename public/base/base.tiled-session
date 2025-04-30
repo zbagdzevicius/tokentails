@@ -3,7 +3,7 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.tmx",
+    "activeFile": "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/new-shelter.json",
     "expandedProjectPaths": [
         "."
     ],
@@ -41,6 +41,54 @@
         },
         "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.tmx#blocks": {
             "scaleInDock": 0.8545
+        },
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/new-shelter.json": {
+            "scale": 0.8443,
+            "selectedLayer": 3,
+            "viewCenter": {
+                "x": 806.5853369655334,
+                "y": -139.16854198744522
+            }
+        },
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/new-shelter.json#logo": {
+            "scaleInDock": 1
+        },
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/new-shelter.json#new-blocks-winter": {
+            "scaleInDock": 1
+        },
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/new-shelter.json#signs": {
+            "scaleInDock": 1
+        },
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/new-shelter.tmj": {
+            "scale": 0.99,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 838.3838383838383,
+                "y": -204.54545454545462
+            }
+        },
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/new-shelter.tmj#blocks": {
+            "scaleInDock": 1
+        },
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/new-shelter.tmj#logo": {
+            "scaleInDock": 1
+        },
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/new-shelter.tmj#new-blocks-winter": {
+            "scaleInDock": 1
+        },
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/new-shelter.tmj#signs": {
+            "scaleInDock": 1
+        },
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/shelter.tmx": {
+            "scale": 0.4392822265625,
+            "selectedLayer": 3,
+            "viewCenter": {
+                "x": -254.96137386761507,
+                "y": -511.06096815428214
+            }
+        },
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/shelter.tmx#blocks": {
+            "scaleInDock": 1
         },
         "base.tmx": {
             "expandedGroupLayers": [
@@ -117,10 +165,13 @@
     "map.tileHeight": 64,
     "map.tileWidth": 64,
     "openFiles": [
-        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.tmx"
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/new-shelter.json"
     ],
     "project": "base.tiled-project",
     "recentFiles": [
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/new-shelter.json",
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/new-shelter.tmj",
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/shelter.tmx",
         "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.tmx",
         "base.tmx"
     ],

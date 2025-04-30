@@ -1,6 +1,6 @@
 import { IGeneratedCat } from "@/components/web3/transfer/Web3Transfer";
 import { apiUrl, getAuthHeaders } from "./api";
-import { BuyMode } from "@/components/CatCardModal";
+import { BuyMode } from "@/constants/cat-utils";
 
 export const STRIPE_API = {
   createPaymentIntent: async (

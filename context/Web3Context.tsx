@@ -8,7 +8,7 @@ import {
   currencyContracts,
   CurrencyType,
 } from "@/web3/contracts";
-import { idChainType } from "@/web3/web3-config";
+import { idChainType } from "@/web3/web3-chains";
 import { useWallet as useSolanaWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import { useRouter } from "next/router";

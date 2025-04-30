@@ -1,6 +1,6 @@
 import { currentDayCoin } from "@/constants/utils";
 import { useEffect, useState } from "react";
-import { CatCard, CatCardModal } from "../CatCardModal";
+import { CatCardModal } from "../catCard/CatCardModal";
 import { AdventCalendar, adventData } from "./AdventCalendar";
 import { CloseButton } from "./CloseButton";
 import { Countdown } from "./Countdown";

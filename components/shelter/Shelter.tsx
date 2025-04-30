@@ -1,7 +1,7 @@
 import { CAT_API } from "@/api/cat-api";
 import { useCat } from "@/context/CatContext";
 import { useProfile } from "@/context/ProfileContext";
-import { CatType, ICat } from "@/models/cats";
+import { ICat } from "@/models/cats";
 import { useQuery } from "@tanstack/react-query";
 import {
   forwardRef,
@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { CatCardModal } from "../CatCardModal";
+import { CatCardModal } from "../catCard/CatCardModal";
 import { GameEvents, IPhaserGame } from "../Phaser/events";
 import { Web3Providers } from "../web3/Web3Providers";
 import { StartGame } from "./config";

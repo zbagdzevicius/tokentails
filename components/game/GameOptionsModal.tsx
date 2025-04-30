@@ -39,12 +39,6 @@ export const GameOptionsModal = ({
   const nextDayTargetDate = getNextDayMidnight();
 
   const redeemLives = useCallback(async () => {
-    if (!isApp) {
-      toast({
-        message: "Download the app to redeem your rewards!",
-      });
-      return;
-    }
     await USER_API.redeem();
     setProfileUpdate({
       canRedeemLives: false,
@@ -103,20 +97,12 @@ export const GameOptionsModal = ({
             {!profile.canRedeemLives && (
               <Countdown targetDate={nextDayTargetDate} />
             )}
-            <span className={isApp ? "" : "brightness-75 relative"}>
-              <PixelButton
-                id={ONBOARDING_MODAL_IDS.CLAIM_REWARDS}
-                isDisabled={!profile.canRedeemLives}
-                onClick={() => (profile.canRedeemLives ? redeemLives() : {})}
-                text="CLAIM REWARD"
-              ></PixelButton>
-              {!isApp && (
-                <img
-                  className="absolute -left-4 bottom-4 w-8 h-8 z-10 pixelated"
-                  src="/purrquest/sprites/key.png"
-                />
-              )}
-            </span>
+            <PixelButton
+              id={ONBOARDING_MODAL_IDS.CLAIM_REWARDS}
+              isDisabled={!profile.canRedeemLives}
+              onClick={() => (profile.canRedeemLives ? redeemLives() : {})}
+              text="CLAIM REWARD"
+            ></PixelButton>
           </div>
           <PixelButton
             id={ONBOARDING_MODAL_IDS.QUESTS}

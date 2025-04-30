@@ -1,6 +1,5 @@
 import { CAT_API } from "@/api/cat-api";
 import { MarketplaceItemDetails } from "@/components/marketplace/MarketplaceItemDetails";
-import { MarketplaceItems } from "@/components/marketplace/MarketplaceItems";
 import { Web3Providers } from "@/components/web3/Web3Providers";
 import { getAppStaticProps } from "@/constants/props-functions";
 import { Footer } from "@/layouts/Footer";

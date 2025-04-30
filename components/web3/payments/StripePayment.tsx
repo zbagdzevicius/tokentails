@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { PixelButton } from "../../shared/PixelButton";
 import { Tag } from "@/components/shared/Tag";
 import { IGeneratedCat } from "../transfer/Web3Transfer";
-import { BuyMode } from "@/components/CatCardModal";
+import { BuyMode } from "@/constants/cat-utils";
 
 // Make sure to replace with your publishable key
 const stripePromise = loadStripe(

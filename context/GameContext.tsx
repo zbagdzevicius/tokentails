@@ -4,7 +4,6 @@ import { Leaderboard } from "@/components/Leaderboard";
 import { DisplayCoins } from "@/components/Phaser/DisplayCoins";
 import { CatsInNeedModal } from "@/components/shared/CatsInNeed";
 import { USER_API } from "@/api/user-api";
-import { getMultiplier } from "@/components/CatCardModal";
 import {
   GameEvent,
   GameEvents,
@@ -26,6 +25,7 @@ import * as React from "react";
 import { useEffect, useState } from "react";
 import { useProfile } from "./ProfileContext";
 import { IToast, useToast } from "./ToastContext";
+import { getMultiplier } from "@/constants/cat-utils";
 
 type ContextState = {
   isStarted?: boolean;
@@ -100,6 +100,11 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
         setProfileUpdate({
           catbassadorsLives: (profile.catbassadorsLives || 1) - 1,
           catpoints: profile.catpoints + earnedScore,
+        });
+      }
+      if (gameType === GameType.CATNIP_CHAOS) {
+        setProfileUpdate({
+          catbassadorsLives: (profile.catbassadorsLives || 1) - 1,
           catnipChaos,
         });
       }

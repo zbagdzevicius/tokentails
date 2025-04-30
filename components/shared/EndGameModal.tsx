@@ -1,11 +1,11 @@
 import { useProfile } from "@/context/ProfileContext";
 import { GameType } from "@/models/game";
 import React from "react";
-import { getMultiplier } from "../CatCardModal";
 import { CloseButton } from "./CloseButton";
 import { Tag } from "./Tag";
 import { PixelButton } from "./PixelButton";
 import { IGameStopEvent } from "../Phaser/events";
+import { getMultiplier } from "@/constants/cat-utils";
 
 type EndGameProps = {
   onClose: () => void;

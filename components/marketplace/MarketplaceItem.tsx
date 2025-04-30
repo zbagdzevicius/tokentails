@@ -1,8 +1,8 @@
 import { PixelButton } from "@/components/shared/PixelButton";
-import { getCatFundsToRaise, getCatPrice } from "@/constants/cat-status";
+import { getCatFundsToRaise } from "@/constants/cat-status";
+import { getMultiplier } from "@/constants/cat-utils";
 import { cardsColor, ICat } from "@/models/cats";
 import { useMemo } from "react";
-import { getMultiplier } from "../CatCardModal";
 
 export const MarketplaceItem = ({
   cat,

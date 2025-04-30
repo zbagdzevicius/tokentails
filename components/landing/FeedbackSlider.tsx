@@ -39,8 +39,7 @@ export const FeedbackSlider = () => {
             <img
               draggable={false}
               src="/logo/shelters/lt.webp"
-              className="absolute inset-0 z-0 w-full h-full object-cover"
-              rounded-2xl
+              className="absolute inset-0 z-0 w-full h-full object-cover rounded-2xl"
             />
           </a>
           <ShelterBenefits />

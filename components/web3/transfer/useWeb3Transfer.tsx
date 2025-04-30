@@ -1,11 +1,10 @@
 import { ORDER_API } from "@/api/order-api";
+import { BuyMode } from "@/constants/cat-utils";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
-import { isProd } from "@/models/app";
 import { EntityType } from "@/models/save";
 import {
   ChainNamespace,
-  ChainType,
   currencyContracts,
   CurrencyType,
   recipientEvm,
@@ -18,7 +17,7 @@ import {
   idChainType,
   stellarKit,
   stellarNetworkPassphrase,
-  wagmiAdapter,
+  wagmiConfig,
 } from "@/web3/web3-config";
 import { ISupportedWallet } from "@creit.tech/stellar-wallets-kit";
 import { useAppKit } from "@reown/appkit/react";
@@ -44,7 +43,6 @@ import {
   useWriteContract,
 } from "wagmi";
 import { IGeneratedCat } from "./Web3Transfer";
-import { BuyMode } from "@/components/CatCardModal";
 interface IProps {
   entityType: EntityType;
   price: number;
@@ -91,7 +89,7 @@ export const useWeb3Transfer = ({
   } = useSolanaWallet();
   const { connection: solanaConnection } = useConnection();
   const { switchChainAsync } = useSwitchChain({
-    config: wagmiAdapter.wagmiConfig,
+    config: wagmiConfig,
   });
   const { open } = useAppKit();
   const { sendTransactionAsync, isPending: isTransactionPending } =

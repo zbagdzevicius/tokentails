@@ -442,7 +442,7 @@ export class CatnipChaosScene extends Scene {
       groundLayer: this.groundLayer!,
       spikeTiles: SPIKE_TILES,
       cat: this.cat!,
-      onPlayerHitSpike: () => this.endGame(),
+      onPlayerHitSpike: () => this.endGame(false),
       gameType: "runner",
     });
   }
@@ -514,17 +514,6 @@ export class CatnipChaosScene extends Scene {
       });
 
       this.createProgressBar();
-
-      // Check if all items are removed
-      const remainingItems = this.children.list.filter(
-        (child) =>
-          child instanceof Phaser.GameObjects.Sprite &&
-          child.texture.key === "catnip-coin"
-      ).length;
-
-      if (remainingItems === 0 && !this.gameEnded) {
-        this.endGame();
-      }
     }
     this.collectiveItem?.update();
   }
