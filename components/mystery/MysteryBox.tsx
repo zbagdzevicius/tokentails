@@ -24,7 +24,10 @@ const Web3Mint = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="font-primary font-bold">Loading minting...</div>
+      <img
+        src="/icons/loader.webp"
+        className="w-8 h-8 m-auto animate-spin pixelated"
+      />
     ),
   }
 );
@@ -72,39 +75,25 @@ export const MysteryBox = () => {
   const toast = useToast();
   const { setGameType } = useGame();
   const mysteryBox = useMemo(() => {
-    if (
-      !(
-        profile?.quests?.includes(
-          mysteryBoxes[ChainType.CAMP_TEST]![0].chain
-        ) ||
-        !profile?.quests?.includes(mysteryBoxes[ChainType.CAMP_TEST]![0].name)
-      )
-    ) {
+    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP_TEST]![0].key)) {
       return mysteryBoxes[ChainType.CAMP_TEST]![0];
     }
-    if (
-      !profile?.quests?.includes(mysteryBoxes[ChainType.CAMP_TEST]![1].name)
-    ) {
+    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP_TEST]![1].key)) {
       return mysteryBoxes[ChainType.CAMP_TEST]![1];
     }
-    if (
-      !profile?.quests?.includes(mysteryBoxes[ChainType.CAMP_TEST]![2].name)
-    ) {
+    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP_TEST]![2].key)) {
       return mysteryBoxes[ChainType.CAMP_TEST]![2];
     }
     return mysteryBoxes[ChainType.CAMP_TEST]![3];
-  }, []);
+  }, [profile?.quests]);
   const unlockedIndex = useMemo(() => {
     return mysteryBoxes[ChainType.CAMP_TEST]?.findIndex(
-      (box) => box.name === mysteryBox.name
+      (box) => box.key === mysteryBox.key
     );
   }, [mysteryBox]);
   const isRedeemed = useMemo(() => {
-    return (
-      !!profile?.quests?.includes(mysteryBox.name) ||
-      (unlockedIndex === 0 && !!profile?.quests?.includes(mysteryBox.chain))
-    );
-  }, [profile?.quests, mysteryBox.name]);
+    return !!profile?.quests?.includes(mysteryBox.key);
+  }, [profile?.quests, mysteryBox.key]);
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
     queryFn: () => CAT_API.cats(),
@@ -123,22 +112,28 @@ export const MysteryBox = () => {
         (profile?.catpoints || 0) >= mysteryBox.requirements.metadata.catpoints
       );
     }
+    if (mysteryBox.requirements?.type === MysteryBoxRequirementType.CATNIP) {
+      return (
+        (profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0) >=
+        mysteryBox.requirements.metadata.catnip
+      );
+    }
     return true;
-  }, [profile?.quests, mysteryBox.chain, mysteryBox.name]);
+  }, [profile?.quests, mysteryBox.chain, mysteryBox.key]);
 
   const onRedeem = async () => {
-    const result = await QUEST_API.redeemContest(mysteryBox.name);
+    const result = await QUEST_API.redeemContest(mysteryBox.key);
     if (result.success && result.cat) {
       setProfileUpdate({
         cats: [...(profile?.cats || []), result.cat],
         cat: result.cat,
-        quests: [...(profile?.quests || []), mysteryBox.name],
+        quests: [...(profile?.quests || []), mysteryBox.key],
       });
       setGameType(GameType.HOME);
     }
     if (result.success && result.catpoints) {
       setProfileUpdate({
-        quests: [...(profile?.quests || []), mysteryBox.name],
+        quests: [...(profile?.quests || []), mysteryBox.key],
         catpoints: (profile!.catpoints || 0) + result.catpoints,
       });
     }
@@ -157,7 +152,7 @@ export const MysteryBox = () => {
         </div>
         <div className="flex flex-col md:gap-2 w-full md:w-auto">
           <Tag isSmall>TIME LIMITED FREE MINT</Tag>
-          <Countdown targetDate="2025-05-19" isDaysDisplayed></Countdown>
+          <Countdown targetDate="2025-06-01" isDaysDisplayed></Countdown>
           <MysteryBoxEligibility
             mysteryBox={mysteryBox}
             isEligible={isEligible}

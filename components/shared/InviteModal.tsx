@@ -30,30 +30,44 @@ export const InviteModalContent = () => {
       <div className="py-2 flex justify-center gap-4">
         <PixelButton
           active={type === GameModal.MYSTERY_BOX}
-          text="FREE MINT"
+          text="CAMP"
           onClick={() => setType(GameModal.MYSTERY_BOX)}
         ></PixelButton>
         <PixelButton
           active={type === GameModal.INVITE}
-          text="INVITE FRIENDS"
+          text="INVITE"
           onClick={() => setType(GameModal.INVITE)}
         ></PixelButton>
         <PixelButton
           active={type === GameModal.MYSTERY_CAT}
-          text="KEYBOARD CAT"
+          text="FUN"
           onClick={() => setType(GameModal.MYSTERY_CAT)}
         ></PixelButton>
       </div>
       {type === GameModal.INVITE && (
         <>
           <div
-            className="flex flex-col mb-4 font-primary uppercase px-2  rounded-lg py-2 text-main-black"
+            className="flex flex-col mb-4 font-primary uppercase px-2 relative rounded-lg py-2 text-main-black mt-8"
             style={{
               backgroundImage: "url(/backgrounds/bg-night.png)",
               backgroundSize: "cover",
               backgroundPosition: "center",
             }}
           >
+            <div className="absolute -top-3 -left-3 z-0 -rotate-45">
+              <img
+                draggable={false}
+                className="h-6 w-6"
+                src="/logo/heart.webp"
+              />
+            </div>
+            <div className="absolute -top-3 -right-3 z-0 rotate-45">
+              <img
+                draggable={false}
+                className="h-6 w-6"
+                src="/logo/heart.webp"
+              />
+            </div>
             <div className="flex flex-row items-center">
               <img
                 draggable={false}
@@ -98,11 +112,7 @@ export const InviteModalContent = () => {
           />
         </>
       )}
-      {type === GameModal.MYSTERY_BOX && (
-        // <ParaProvider paraClientConfig={paraClientConfig}>
-        <MysteryBox />
-        // </ParaProvider>
-      )}
+      {type === GameModal.MYSTERY_BOX && <MysteryBox />}
       {type === GameModal.MYSTERY_CAT && <MysteryCat />}
     </div>
   );

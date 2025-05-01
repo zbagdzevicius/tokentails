@@ -107,26 +107,6 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
   }
 
   useEffect(() => {
-    if (isTaxConfirmed) {
-      ORDER_API.confirm({
-        hash: hash!,
-        chainType: mysteryBox.chain,
-        namespace: namespace!,
-        amount: 1,
-        walletAddress: namespaceDetail.address!,
-        currencyType: CurrencyType.USDT,
-        price: 0,
-        entityType,
-        user,
-      })
-        .then(() => {})
-        .catch((error) => {
-          console.error("Confirmation failed:", error);
-        });
-    }
-  }, [isTaxConfirmed]);
-
-  useEffect(() => {
     if (taxData?.status === "success") {
       refetchUserNFTsCount();
       toast({ message: "Mystery box is minted successfully" });
