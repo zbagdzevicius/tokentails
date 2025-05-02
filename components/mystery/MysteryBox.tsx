@@ -84,7 +84,10 @@ export const MysteryBox = () => {
     if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP_TEST]![2].key)) {
       return mysteryBoxes[ChainType.CAMP_TEST]![2];
     }
-    return mysteryBoxes[ChainType.CAMP_TEST]![3];
+    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP_TEST]![3].key)) {
+      return mysteryBoxes[ChainType.CAMP_TEST]![3];
+    }
+    return mysteryBoxes[ChainType.CAMP_TEST]![4];
   }, [profile?.quests]);
   const unlockedIndex = useMemo(() => {
     return mysteryBoxes[ChainType.CAMP_TEST]?.findIndex(
@@ -128,6 +131,8 @@ export const MysteryBox = () => {
         cats: [...(profile?.cats || []), result.cat],
         cat: result.cat,
         quests: [...(profile?.quests || []), mysteryBox.key],
+        catbassadorsLives:
+          (profile?.catbassadorsLives || 0) + (result.catbassadorsLives || 0),
       });
       setGameType(GameType.HOME);
     }
@@ -181,11 +186,11 @@ export const MysteryBox = () => {
         </div>
       </div>
       <div className="flex flex-col gap-2">
-        <Tag isSmall>Complete all 4 mints for maximum rewards !</Tag>
+        <Tag isSmall>Complete all 5 mints for maximum rewards !</Tag>
         <div className="flex w-full justify-between">
           {mysteryBoxes.CAMP_TEST?.map((box, i) => (
             <div key={i} className="relative rounded-2xl overflow-hidden">
-              <img draggable={false} className="w-16 md:w-24" src={box.image} />
+              <img draggable={false} className="w-16 md:w-20" src={box.image} />
               {i < (unlockedIndex ?? 0) && (
                 <div className="absolute inset-0 flex items-center justify-center bg-green-300/50">
                   <img

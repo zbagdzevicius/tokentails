@@ -23,6 +23,7 @@ export enum MysteryBoxRequirementType {
   COINS = "COINS",
   PURCHASE = "PURCHASE",
   CATNIP = "CATNIP",
+  STREAK = "STREAK",
 }
 
 export interface IMysteryBox {
@@ -59,6 +60,7 @@ enum MYSTERY_BOX_TYPE {
   CAMP_2 = "CAMP_2",
   CAMP_3 = "CAMP_3",
   CAMP_4 = "CAMP_4",
+  CAMP_5 = "CAMP_5",
   KEYBOARD_CAT = "KEYBOARD_CAT",
 }
 
@@ -113,6 +115,21 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
         type: MysteryBoxRequirementType.CATNIP,
         metadata: {
           catnip: 60,
+        },
+        text: "Collect 60 catnip",
+      },
+    },
+    {
+      address: "0xD6265283Af414697b61a46272669f21e6131628f",
+      name: "Campt Mystery Box - Cats Fan",
+      key: MYSTERY_BOX_TYPE.CAMP_5,
+      chain: ChainType.CAMP_TEST,
+      image: "/utilities/mystery-boxes/mystery-box-camp5.jpg",
+      faucet: "https://faucet.campnetwork.xyz",
+      requirements: {
+        type: MysteryBoxRequirementType.STREAK,
+        metadata: {
+          catnip: 10,
         },
         text: "Collect 60 catnip",
       },

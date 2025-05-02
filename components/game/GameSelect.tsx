@@ -83,10 +83,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
               gameType === GameType.HOME && (cat?.status.EAT || 0) < 4,
           })}
         >
-          <PixelButton
-            text="TO THE GAME ZONE →"
-            onClick={() => setGameType(null)}
-          />
+          <PixelButton text="← GO BACK" onClick={() => setGameType(null)} />
         </span>
       )}
       {gameType === GameType.SHELTER && (

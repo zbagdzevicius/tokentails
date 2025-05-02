@@ -101,7 +101,7 @@ export const GameOptionsModal = ({
               id={ONBOARDING_MODAL_IDS.CLAIM_REWARDS}
               isDisabled={!profile.canRedeemLives}
               onClick={() => (profile.canRedeemLives ? redeemLives() : {})}
-              text="CLAIM REWARD"
+              text={profile.canRedeemLives ? "DAILY CHECK-IN" : "CHECKED-IN"}
             ></PixelButton>
           </div>
           <PixelButton

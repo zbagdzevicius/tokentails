@@ -88,6 +88,7 @@ const redeemContest = async (
   success?: boolean;
   cat?: ICat;
   catpoints?: number;
+  catbassadorsLives?: number;
 }> => {
   await waitForLocalStorageKey();
   return fetch(`${apiUrl}/quest/contest/${contest}`, {
