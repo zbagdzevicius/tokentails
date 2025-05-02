@@ -115,6 +115,9 @@ export const MysteryBox = () => {
         (profile?.catpoints || 0) >= mysteryBox.requirements.metadata.catpoints
       );
     }
+    if (mysteryBox.requirements?.type === MysteryBoxRequirementType.STREAK) {
+      return (profile?.streak || 0) >= mysteryBox.requirements.metadata.streak;
+    }
     if (mysteryBox.requirements?.type === MysteryBoxRequirementType.CATNIP) {
       return (
         (profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0) >=
@@ -135,11 +138,15 @@ export const MysteryBox = () => {
           (profile?.catbassadorsLives || 0) + (result.catbassadorsLives || 0),
       });
       setGameType(GameType.HOME);
-    }
-    if (result.success && result.catpoints) {
+    } else if (
+      result.success &&
+      (result.catpoints || result.catbassadorsLives)
+    ) {
       setProfileUpdate({
         quests: [...(profile?.quests || []), mysteryBox.key],
-        catpoints: (profile!.catpoints || 0) + result.catpoints,
+        catpoints: (profile!.catpoints || 0) + (result.catpoints || 0),
+        catbassadorsLives:
+          (profile?.catbassadorsLives || 0) + (result.catbassadorsLives || 0),
       });
     }
     toast({ message: result.message });
