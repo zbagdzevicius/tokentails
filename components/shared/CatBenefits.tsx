@@ -74,7 +74,7 @@ export const CatBenefits = ({
             <img
               draggable={false}
               className="w-12 h-12 mr-3 -ml-6 pixelated"
-              src={`/flare-effect/${cat.blessings[0]?.ability}.gif`}
+              src={`/flare-effect/${cat.type}.gif`}
             ></img>
             <span className="flex flex-col">
               <span className="text-p5 -mb-1 text-gray-200">

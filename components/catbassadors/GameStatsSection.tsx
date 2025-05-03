@@ -77,7 +77,7 @@ export const GameStatsSection = ({
                 <img
                   draggable={false}
                   className="absolute inset-0 l object-cover w-12 h-12"
-                  src={`/flare-effect/${profile.cat.blessings[0].ability}.gif`}
+                  src={`/flare-effect/${profile.cat.type}.gif`}
                 ></img>
               )}
             </div>

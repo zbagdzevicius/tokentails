@@ -25,7 +25,7 @@ const Cat = ({ profile }: { profile?: IProfile | null }) => {
         <img
           draggable={false}
           className="absolute m-auto inset-0 object-cover translate-y-1 w-32 h-32 -mt-4 z-0"
-          src={`/flare-effect/${profile!.cat.blessings[0].ability}.gif`}
+          src={`/flare-effect/${profile!.cat.type}.gif`}
         ></img>
       )}
     </div>

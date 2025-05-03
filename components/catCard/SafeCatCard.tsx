@@ -46,7 +46,6 @@ export const CatDescription = ({
   blessings,
   resqueStory,
   type,
-  ability,
   activeBlessing,
   setActiveBlessing,
 }: ICat & {
@@ -62,7 +61,7 @@ export const CatDescription = ({
           {firstBlessing && (
             <img
               draggable={false}
-              src={`/blessings/${firstBlessing.ability}_TYPE.png`}
+              src={`/blessings/${type}_TYPE.png`}
               alt={firstBlessing.type}
               className="w-6 h-6 md:w-10 md:h-10"
             />
@@ -113,12 +112,10 @@ export const CatDescription = ({
               id={CAT_CARD_ONBOARDING_MODAL_IDS.ABILITY}
               className="text-p3 ml-4 md:ml-2 lg:ml-4 font-bold"
             >
-              {ability}
+              {CatAbilities[type].skill}
             </h4>
           </div>
-          <p className="text-p5 font-bold">
-            {CatAbilities[ability].description}
-          </p>
+          <p className="text-p5 font-bold">{CatAbilities[type].description}</p>
         </div>
       )}
     </>
@@ -534,7 +531,7 @@ export const SafeCatCard = ({
                 <img
                   draggable={false}
                   className="absolute inset-0 w-full h-full object-cover"
-                  src={`/flare-effect/${blessings[0]?.ability}.gif`}
+                  src={`/flare-effect/${type}.gif`}
                 ></img>
               )}
             </span>

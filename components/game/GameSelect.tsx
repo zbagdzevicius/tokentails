@@ -144,7 +144,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
                   <img
                     draggable={false}
                     className="absolute inset-0 m-auto object-cover w-20 mb-12 h-20 z-0"
-                    src={`/flare-effect/${profile.cat.blessings[0].ability}.gif`}
+                    src={`/flare-effect/${profile.cat.type}.gif`}
                   ></img>
                 )}
 

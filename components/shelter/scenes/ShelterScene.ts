@@ -289,20 +289,20 @@ export class ShelterScene extends Scene {
       () => {
         if (cat.blessings && cat.blessings.length > 0) {
           this.blessing = this.add
-            .sprite(0, 0, `blessing-${cat.blessings[0].ability}`)
+            .sprite(0, 0, `blessing-${cat.type}`)
             .setVisible(true);
 
           this.anims.create({
-            key: `blessing_animation_${cat.blessings[0].ability}`,
-            frames: this.anims.generateFrameNumbers(
-              `blessing-${cat.blessings[0].ability}`,
-              { start: 0, end: 59 }
-            ),
+            key: `blessing_animation_${cat.type}`,
+            frames: this.anims.generateFrameNumbers(`blessing-${cat.type}`, {
+              start: 0,
+              end: 59,
+            }),
             frameRate: 16,
             repeat: -1,
           });
 
-          this.blessing.play(`blessing_animation_${cat.blessings[0].ability}`);
+          this.blessing.play(`blessing_animation_${cat.type}`);
         }
 
         this.createCat(cat.name, this.blessing, cat.type);
@@ -312,8 +312,8 @@ export class ShelterScene extends Scene {
 
     if (cat.blessings?.length) {
       this.load.spritesheet(
-        `blessing-${cat.blessings[0].ability}`,
-        `flare-effect/spritesheets/${cat.blessings[0].ability}.png`,
+        `blessing-${cat.type}`,
+        `flare-effect/spritesheets/${cat.type}.png`,
         {
           frameWidth: 64,
           frameHeight: 64,
@@ -360,7 +360,7 @@ export class ShelterScene extends Scene {
       this.physics.add.collider(npcCat.sprite, this.jumperLayer);
 
       if (npcData.blessings && npcData.blessings.length > 0) {
-        const blessingAbility = npcData.blessings[0].ability;
+        const blessingAbility = npcData.type;
         const blessing = this.add
           .sprite(spawnX, spawnY, `blessing-${blessingAbility}`)
           .setVisible(true);
@@ -397,8 +397,8 @@ export class ShelterScene extends Scene {
     // If the NPC has blessings, load the sprite for that effect
     if (npcData.blessings?.length) {
       this.load.spritesheet(
-        `blessing-${npcData.blessings[0].ability}`,
-        `flare-effect/spritesheets/${npcData.blessings[0].ability}.png`,
+        `blessing-${npcData.type}`,
+        `flare-effect/spritesheets/${npcData.type}.png`,
         {
           frameWidth: 64,
           frameHeight: 64,

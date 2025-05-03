@@ -423,20 +423,20 @@ export class StoryModeScene extends Scene {
     this.load.once("complete", () => {
       if (cat.blessings?.length) {
         this.blessing = this.add
-          .sprite(0, 0, `blessing-${cat.blessings[0].ability}`)
+          .sprite(0, 0, `blessing-${cat.type}`)
           .setVisible(true);
 
         this.anims.create({
-          key: `blessing_animation_${cat.blessings[0].ability}`,
-          frames: this.anims.generateFrameNumbers(
-            `blessing-${cat.blessings[0].ability}`,
-            { start: 0, end: 59 }
-          ),
+          key: `blessing_animation_${cat.type}`,
+          frames: this.anims.generateFrameNumbers(`blessing-${cat.type}`, {
+            start: 0,
+            end: 59,
+          }),
           frameRate: 16,
           repeat: -1,
         });
 
-        this.blessing.play(`blessing_animation_${cat.blessings[0].ability}`);
+        this.blessing.play(`blessing_animation_${cat.type}`);
       }
 
       this.createCat(cat.name, this.blessing, cat.type);
@@ -444,8 +444,8 @@ export class StoryModeScene extends Scene {
 
     if (cat.blessings?.length) {
       this.load.spritesheet(
-        `blessing-${cat.blessings[0].ability}`,
-        `flare-effect/spritesheets/${cat.blessings[0].ability}.png`,
+        `blessing-${cat.type}`,
+        `flare-effect/spritesheets/${cat.type}.png`,
         {
           frameWidth: 64,
           frameHeight: 64,

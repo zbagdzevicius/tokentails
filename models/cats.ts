@@ -24,7 +24,6 @@ export type IBlessing = {
   _id: string;
   name: string;
   description: string;
-  ability: CatAbilityType;
   image: IImage;
   birthDate: Date;
   images: IImage[];
@@ -140,7 +139,6 @@ export enum CatAIStatus {
 export interface ICat {
   _id?: string;
   name: string;
-  ability: CatAbilitySkill;
   type: CatAbilityType;
   owner: string;
   resqueStory: string;
@@ -151,81 +149,79 @@ export interface ICat {
   spriteImg: string;
   catImg: string;
   cardImg: string;
-  lives: number;
   expiresAt?: string;
   price: number;
   catpoints: number;
-  isExclusive: boolean;
   blessings: IBlessing[];
   shelter?: any;
 }
 
-export const CatAbilities: Record<CatAbilitySkill, CatAbility> = {
-  [CatAbilitySkill.FURSHADOW]: {
+export const CatAbilities: Record<CatAbilityType, CatAbility> = {
+  [CatAbilityType.DARK]: {
     skill: CatAbilitySkill.FURSHADOW,
     type: CatAbilityType.DARK,
     description: "Calms wild or aggressive opponents",
   },
-  [CatAbilitySkill.PURRSTORM]: {
+  [CatAbilityType.STORM]: {
     skill: CatAbilitySkill.PURRSTORM,
     type: CatAbilityType.STORM,
     description: "A powerful roar that can stun opponents for a brief moment",
   },
-  [CatAbilitySkill.WHISKERFLAME]: {
+  [CatAbilityType.FIRE]: {
     skill: CatAbilitySkill.WHISKERFLAME,
     type: CatAbilityType.FIRE,
     description: "A high-speed attack that leaves a trail of fire.",
   },
-  [CatAbilitySkill.TAILWIND]: {
+  [CatAbilityType.WIND]: {
     skill: CatAbilitySkill.TAILWIND,
     type: CatAbilityType.WIND,
     description: "A leap so swift, it creates a mini tornado.",
   },
-  [CatAbilitySkill.SHADOWPOUNCE]: {
+  [CatAbilityType.ELECTRIC]: {
     skill: CatAbilitySkill.SHADOWPOUNCE,
-    type: CatAbilityType.DARK,
+    type: CatAbilityType.AIR,
     description: `A stealth attack that's almost impossible to see coming.`,
   },
-  [CatAbilitySkill.AQUAWHISKER]: {
+  [CatAbilityType.WATER]: {
     skill: CatAbilitySkill.AQUAWHISKER,
     type: CatAbilityType.WATER,
     description:
       "A gentle but powerful stream of water that can push opponents away",
   },
-  [CatAbilitySkill.BREEZEPAW]: {
+  [CatAbilityType.AIR]: {
     skill: CatAbilitySkill.BREEZEPAW,
     type: CatAbilityType.AIR,
     description: "Creates a gentle breeze that confuses and distracts foes.",
   },
-  [CatAbilitySkill.PAWSQUAKE]: {
+  [CatAbilityType.EARTH]: {
     skill: CatAbilitySkill.PAWSQUAKE,
     type: CatAbilityType.EARTH,
     description:
       "A heavy stomp that causes the ground to shake and destabilizes enemies.",
   },
-  [CatAbilitySkill.ICECLAW]: {
+  [CatAbilityType.ICE]: {
     skill: CatAbilitySkill.ICECLAW,
     type: CatAbilityType.ICE,
     description: "A frigid swipe that slows opponents with a chilling touch.",
   },
-  [CatAbilitySkill.LEAFPURR]: {
+  [CatAbilityType.NATURE]: {
     skill: CatAbilitySkill.LEAFPURR,
     type: CatAbilityType.NATURE,
     description:
       "Emits a calming aura that restores a bit of health to allies.",
   },
-  [CatAbilitySkill.SANDSWIPE]: {
+  [CatAbilityType.SAND]: {
     skill: CatAbilitySkill.SANDSWIPE,
     type: CatAbilityType.SAND,
     description: "Kicks up a cloud of sand, blinding and disorienting foes.",
   },
-  [CatAbilitySkill.STELLARROAR]: {
+  [CatAbilityType.LEGENDARY]: {
     skill: CatAbilitySkill.STELLARROAR,
     type: CatAbilityType.LEGENDARY,
     description:
       "An otherworldly roar that inspires allies and intimidates all enemies.",
   },
-  [CatAbilitySkill.TAILSPIN]: {
+  [CatAbilityType.TAILS]: {
     skill: CatAbilitySkill.TAILSPIN,
     type: CatAbilityType.TAILS,
     description:

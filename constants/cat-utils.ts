@@ -7,7 +7,7 @@ export const getMultiplier = (cat?: ICat | null) => {
   if (cat.blessings?.length) {
     return 10;
   }
-  if (cat.isExclusive || cat.price) {
+  if (cat.price) {
     return 5;
   }
   if (cat.catpoints > 1000000) {
