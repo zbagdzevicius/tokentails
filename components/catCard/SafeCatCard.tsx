@@ -77,7 +77,7 @@ export const CatDescription = ({
           <div className="mx-2 md:hidden lg:block"></div>
           {firstBlessing && (
             <PixelButton
-              text={activeBlessing ? "Show Virtual Twin" : "Read Shelter story"}
+              text={activeBlessing ? "Show Virtual Twin" : "Read Cat story"}
               isSmall
               onClick={() =>
                 setActiveBlessing(activeBlessing ? null : firstBlessing)
@@ -86,7 +86,7 @@ export const CatDescription = ({
           )}
         </div>
         <p
-          className="text-p5 font-bold overflow-y-auto max-h-[8rem] md:max-h-[11rem]"
+          className="text-p5 font-bold overflow-y-auto max-h-[8rem] md:max-h-[11rem] pb-1"
           dangerouslySetInnerHTML={{
             __html: activeBlessing ? activeBlessing.description : resqueStory,
           }}
@@ -115,7 +115,9 @@ export const CatDescription = ({
               {CatAbilities[type].skill}
             </h4>
           </div>
-          <p className="text-p5 font-bold">{CatAbilities[type].description}</p>
+          <p className="text-p5 font-bold pb-1">
+            {CatAbilities[type].description}
+          </p>
         </div>
       )}
     </>
@@ -597,7 +599,7 @@ export const SafeCatCard = ({
                   ? unitsToBuy
                     ? "MEOW! CLICK SAVE TO SAVE"
                     : "SAVED"
-                  : `${donationsToSave} MORE DONATIONS TO SAVE`}
+                  : `${donationsToSave} MORE DONATIONS NEEDED`}
               </div>
             </div>
           )}
