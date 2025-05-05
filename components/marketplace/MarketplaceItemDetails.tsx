@@ -18,20 +18,7 @@ export const MarketplaceItemDetails = ({ cat }: { cat: ICat }) => {
       <div className="relative mb-16">
         <CatCard {...cat} relative />
         <div className="lg:absolute -bottom-12 -left-1/2 pixelated rounded-full flex flex-col items-center lg:-ml-8">
-          <img
-            draggable={false}
-            src={cat.catImg}
-            className="pixelated hover:rotate-[-30deg] transition-all flex items-center -mb-16 w-48 h-48"
-          />
-          {blessing && (
-            <img
-              draggable={false}
-              src={blessing.image?.url}
-              style={{ borderColor: cardsColor[cat.type] }}
-              className="flex items-center w-48 h-auto rounded-t-full border-4 transition-all hover:scale-110 -mb-8 z-0"
-            />
-          )}
-          {blessing && !isFamous && <ShelterBenefits />}
+          {cat.shelter?.slug === "rozine-pedute" && <ShelterBenefits />}
         </div>
         <div className="lg:absolute bottom-0 -right-1/2 pixelated rounded-full flex items-center lg:-mr-8 -mb-12">
           <CatDonation />

@@ -273,6 +273,8 @@ export const CatPayment = ({
     }
   };
 
+  const buyText = cat.shelter?.slug === "token-tails" ? "Adopt" : "Save";
+
   return (
     <>
       {!isCoinsPayment && !!buyMode && (
@@ -328,7 +330,7 @@ export const CatPayment = ({
                   cat={cat._id}
                   blessing={cat.blessings?.[0]?._id}
                   user={profile?._id}
-                  text="Save Now"
+                  text={buyText}
                   loadingText="Saving Cat"
                 />
               </div>
@@ -355,7 +357,7 @@ export const CatPayment = ({
             <div className="relative">
               <span className="z-10 relative">
                 <PixelButton
-                  text="Save"
+                  text={buyText}
                   onClick={handleBuyClick}
                   isDisabled={outOfSupply}
                 />
@@ -394,7 +396,9 @@ export const CatPayment = ({
                     ))
                   ) : (
                     <div className="flex items-center justify-center gap-1 font-secondary font-bold text-p2 w-12 h-12 relative">
-                      <span className="z-10 pt-1">{unitsToBuy}</span>
+                      <span className={unitsToBuy >= 10 ? `z-10` : `z-10 pt-1`}>
+                        {unitsToBuy}
+                      </span>
                       <img
                         draggable={false}
                         src={
@@ -450,6 +454,9 @@ export const SafeCatCard = ({
     }
     setUnitsToBuy(units);
   };
+
+  const buyText = cat.shelter?.slug === "token-tails" ? "Adopt" : "Save";
+
   return (
     <div
       style={{ borderColor: cardsColor[type] }}
@@ -594,12 +601,16 @@ export const SafeCatCard = ({
                   </div>
                 )}
               </div>
-              <div className="flex flex-row-reverse m-auto gap-1 justify-center font-primary mb-2">
+              <div className="flex flex-row-reverse m-auto gap-1 justify-center font-primary mb-2 text-balance text-center">
                 {donationsToSave < 1
                   ? unitsToBuy
-                    ? "MEOW! CLICK SAVE TO SAVE"
-                    : "SAVED"
-                  : `${donationsToSave} MORE DONATIONS NEEDED`}
+                    ? `MEOW! CLICK ${buyText} TO SAVE`
+                    : "OUT OF SUPPLY"
+                  : `${donationsToSave} Remaining. ${
+                      buyText === "Adopt"
+                        ? "Every sale supports local shelters"
+                        : "Every sale supports the cat"
+                    }`}
               </div>
             </div>
           )}
