@@ -1,7 +1,7 @@
 import Para, { Environment } from "@getpara/react-sdk";
 
 export const para = new Para(
-  Environment.BETA,
-  "c8d0894b02c6c07632baa47da13edc37",
+  Environment.PRODUCTION,
+  "c3faded5228c2c2f6afe7841159f7bd0",
   { externalWalletConnectionOnly: true }
 );
