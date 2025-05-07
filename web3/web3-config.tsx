@@ -82,9 +82,9 @@ export const paraConnected = paraConnector({
     mode: "light",
   },
   onRampTestMode: true,
-  disablePhoneLogin: false,
+  disablePhoneLogin: true,
   authLayout: [AuthLayout.AUTH_FULL],
-  recoverySecretStepEnabled: false,
+  recoverySecretStepEnabled: true,
   options: {},
 });
 
