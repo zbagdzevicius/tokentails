@@ -124,7 +124,7 @@ export const HomePage = () => {
       </h1>
 
       <div className="absolute bottom-20 m-auto justify-center w-[800px] xl:w-[920px] 3xl:w-[1200px] hidden md:flex">
-        <span className="absolute left-0 mt-20">
+        <span className="absolute left-0 mt-20 z-30">
           <Socials isVertical />
         </span>
         <img
