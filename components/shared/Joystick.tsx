@@ -308,11 +308,11 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
         ref={this._baseRef}
         style={baseStyle}
       >
-        <div className="absolute right-4 z-0 opacity-50">
-          <img draggable={false} src="icons/arrow.webp" className="w-12" />
+        <div className="absolute right-2 z-0 opacity-80 rotate-90">
+          <img draggable={false} src="logo/arrow.webp" className="w-[48px]" />
         </div>
-        <div className="absolute left-4 z-0  opacity-50 rotate-180">
-          <img draggable={false} src="icons/arrow.webp" className="w-12" />
+        <div className="absolute left-2 z-0 -rotate-90 opacity-80">
+          <img draggable={false} src="logo/arrow.webp" className="w-[48px]" />
         </div>
         <button
           ref={this._stickRef}

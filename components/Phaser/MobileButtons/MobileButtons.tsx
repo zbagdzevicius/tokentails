@@ -15,7 +15,7 @@ export const MobileButtons: React.FC<{
         <div className="relative flex flex-col items-end space-y-2 bg-red-600">
           <button
             id="dash"
-            className="absolute bottom-12 right-28 md:right-30 rounded-full h-[70px] w-[70px] bg-cover bg-center flex items-center justify-center border-4 border-gray-500"
+            className="absolute bottom-12 right-24 md:right-30 rounded-full h-[70px] w-[70px] bg-cover bg-center flex items-center justify-center border-4 border-gray-500"
             style={{
               backgroundImage: "url('/backgrounds/bg-7.png')",
             }}
@@ -29,21 +29,21 @@ export const MobileButtons: React.FC<{
           </button>
           <button
             id="jump"
-            className="absolute bottom-4 md:bottom-2 right-2 md:right-4 rounded-full h-[90px] w-[90px] bg-cover bg-center flex items-center justify-center border-4 border-gray-500"
+            className="absolute bottom-4 md:bottom-2 right-1 md:right-4 rounded-full h-[90px] w-[90px] bg-cover bg-center flex items-center justify-center border-4 border-gray-500"
             style={{
               backgroundImage: "url('/backgrounds/bg-7.png')",
             }}
           >
             <img
               draggable={false}
-              className="h-full w-auto"
-              src="game/controls/jump-moba.png"
+              className="h-1/2 w-auto"
+              src="logo/arrow.webp"
               alt="Jump"
             />
           </button>
           <button
             id="knockback"
-            className="absolute bottom-32 md:bottom-28 right-0 md:right-4 rounded-full h-[70px] w-[70px] bg-cover bg-center flex items-center justify-center border-4 border-gray-500"
+            className="absolute bottom-28 md:bottom-28 right-1 md:right-4 rounded-full h-[70px] w-[70px] bg-cover bg-center flex items-center justify-center border-4 border-gray-500"
             style={{
               backgroundImage: "url('/backgrounds/bg-7.png')",
             }}
@@ -52,7 +52,7 @@ export const MobileButtons: React.FC<{
               draggable={false}
               className="h-full w-auto"
               src="game/controls/knockback-spell.png"
-              alt="Jump"
+              alt="Spell"
             />
           </button>
         </div>

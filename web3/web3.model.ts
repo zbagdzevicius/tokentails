@@ -129,9 +129,9 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
       requirements: {
         type: MysteryBoxRequirementType.STREAK,
         metadata: {
-          catnip: 10,
+          streak: 10,
         },
-        text: "Collect 60 catnip",
+        text: "Check-in 10 times (10 streak)",
       },
     },
   ],
