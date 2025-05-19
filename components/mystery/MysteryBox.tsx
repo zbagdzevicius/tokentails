@@ -198,7 +198,7 @@ export const MysteryBox = () => {
           {mysteryBoxes.CAMP_TEST?.map((box, i) => (
             <div key={i} className="relative rounded-2xl overflow-hidden">
               <img draggable={false} className="w-16 md:w-20" src={box.image} />
-              {i < (unlockedIndex ?? 0) && (
+              {profile?.quests?.includes(box.key) && (
                 <div className="absolute inset-0 flex items-center justify-center bg-green-300/50">
                   <img
                     draggable={false}

@@ -290,7 +290,7 @@ export const CatPayment = ({
             borderColor: cardsColor[cat.type],
           }}
         >
-          <CloseButton onClick={close} />
+          <CloseButton absolute onClick={close} />
           <div className="flex flex-col gap-4">
             {/* TODO - RESTORE FIAT PAYMENTS */}
             {/* <div className="flex justify-center gap-4">
