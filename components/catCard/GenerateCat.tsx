@@ -22,7 +22,7 @@ export const GenerateCat = ({ close }: { close: () => void }) => {
   const [price, setPrice] = useState(Prices.generatedCat);
   const [name, setName] = useState("");
   const [image, setImage] = useState<IImage[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<"web3" | "card">("card");
+  const [paymentMethod, setPaymentMethod] = useState<"web3" | "card">("web3");
   const toast = useToast();
   const { setGameType } = useGame();
   const {
@@ -92,7 +92,8 @@ export const GenerateCat = ({ close }: { close: () => void }) => {
 
           {!!name && !!image?.length && (
             <>
-              <div className="flex justify-center gap-4 animate-appear">
+              {/* TODO - RESTORE FIAT PAYMENTS */}
+              {/* <div className="flex justify-center gap-4 animate-appear">
                 <PixelButton
                   text="Credit Card"
                   active={paymentMethod === "card"}
@@ -103,7 +104,7 @@ export const GenerateCat = ({ close }: { close: () => void }) => {
                   active={paymentMethod === "web3"}
                   onClick={() => setPaymentMethod("web3")}
                 />
-              </div>
+              </div> */}
               {paymentMethod === "web3" ? (
                 <ChainSelect />
               ) : (

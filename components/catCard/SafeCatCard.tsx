@@ -152,15 +152,18 @@ export const CatPayment = ({
   } = useWeb3();
   const { _id, supply, name, catpoints, price } = cat;
   const { profile, setProfileUpdate } = useProfile();
-  const [paymentMethod, setPaymentMethod] = useState<"web3" | "card">("card");
+  const [paymentMethod, setPaymentMethod] = useState<"web3" | "card">("web3");
   const [buyMode, setBuyMode] = useState<BuyMode | null>(null);
   const [isAdopting, setIsAdopting] = useState(false);
   const isOwned = useMemo(
     () => cats?.find((cat) => cat.name === name),
     [cats, cat]
   );
+  const corePrice = useMemo(
+    () => getCatPrice(cat) * unitsToBuy,
+    [cat, unitsToBuy]
+  );
   const currencyPrice = useMemo(() => {
-    const corePrice = getCatPrice(cat) * unitsToBuy;
     if (paymentMethod === "card") {
       return corePrice;
     }
@@ -196,7 +199,7 @@ export const CatPayment = ({
     xlmRate,
     solRate,
     diamRate,
-    cat,
+    corePrice,
     buyMode,
     paymentMethod,
   ]);
@@ -289,7 +292,8 @@ export const CatPayment = ({
         >
           <CloseButton onClick={close} />
           <div className="flex flex-col gap-4">
-            <div className="flex justify-center gap-4">
+            {/* TODO - RESTORE FIAT PAYMENTS */}
+            {/* <div className="flex justify-center gap-4">
               <PixelButton
                 text="Credit Card"
                 active={paymentMethod === "card"}
@@ -300,7 +304,7 @@ export const CatPayment = ({
                 active={paymentMethod === "web3"}
                 onClick={() => setPaymentMethod("web3")}
               />
-            </div>
+            </div> */}
 
             {paymentMethod === "web3" ? (
               <ChainSelect />
@@ -366,7 +370,7 @@ export const CatPayment = ({
               {!!price && (
                 <div className="absolute -top-4 left-0 right-0 justify-center flex z-0">
                   <div className="bg-red-500 text-yellow-300 px-2 border-2 border-main-black text-p6 font-primary">
-                    ${currencyPrice}
+                    ${corePrice}
                   </div>
                 </div>
               )}
