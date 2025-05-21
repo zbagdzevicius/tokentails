@@ -6,7 +6,8 @@ const nextConfig = {
   sassOptions: {
     silenceDeprecations: ["legacy-js-api"],
   },
-  output: undefined,
+  // output: undefined,
+  output: "export",
   images: {
     remotePatterns: [
       {
