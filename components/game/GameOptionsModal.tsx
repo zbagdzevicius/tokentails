@@ -1,3 +1,5 @@
+import { USER_API } from "@/api/user-api";
+import { ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 import { getNextDayMidnight } from "@/constants/utils";
 import { useToast } from "@/context/ToastContext";
 import { GameModal, GameType } from "@/models/game";
@@ -6,9 +8,6 @@ import { useCallback, useMemo } from "react";
 import { GameStatsSection } from "../catbassadors/GameStatsSection";
 import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
-import { USER_API } from "@/api/user-api";
-import { isApp } from "@/models/app";
-import { ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 
 interface IProps {
   profile: IProfile;

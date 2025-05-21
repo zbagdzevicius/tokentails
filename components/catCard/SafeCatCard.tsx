@@ -1,11 +1,11 @@
 import { CAT_API } from "@/api/cat-api";
 import { ORDER_API } from "@/api/order-api";
 import { getCatPrice } from "@/constants/cat-status";
+import { BuyMode, getMultiplier } from "@/constants/cat-utils";
 import { CAT_CARD_ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
-import { isApp } from "@/models/app";
 import { cardsColor, CatAbilities, IBlessing, ICat } from "@/models/cats";
 import { EntityType } from "@/models/save";
 import { CurrencyType } from "@/web3/contracts";
@@ -18,7 +18,6 @@ import { CloseButton } from "../shared/CloseButton";
 import { PixelButton } from "../shared/PixelButton";
 import { StripePayment } from "../web3/payments/StripePayment";
 import { Web3Transfer } from "../web3/transfer/Web3Transfer";
-import { BuyMode, getMultiplier } from "@/constants/cat-utils";
 
 interface IProps extends ICat {
   onClose?: () => void;
@@ -269,11 +268,7 @@ export const CatPayment = ({
   };
 
   const handleBuyClick = () => {
-    if (isApp) {
-      window.open(`https://tokentails.com/cats/${cat._id}`, "_blank");
-    } else {
-      setBuyMode(BuyMode.CAT);
-    }
+    setBuyMode(BuyMode.CAT);
   };
 
   const buyText = cat.shelter?.slug === "token-tails" ? "Adopt" : "Save";

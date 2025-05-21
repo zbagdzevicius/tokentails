@@ -16,7 +16,7 @@
  # If you're using Flutter or Swift 
  # just install pods by "pod install" command 
  echo "🎯 Stage: List .... "
- ls && cd .. && yarn && yarn app:ios:ci && pod install
+ ls && cd .. && pod install && yarn && yarn app:ios:ci
 
  echo "🎯 Stage: Post-clone is done .... "
 
