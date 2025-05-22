@@ -1,6 +1,6 @@
 import { QUEST } from "@/components/shared/QuestsModal";
 import { waitForLocalStorageKey, apiUrl, getAuthHeaders } from "./api";
-import { IQuest } from "@/models/quest";
+import { IQuest, IQuestStatistics } from "@/models/quest";
 import { ICat } from "@/models/cats";
 
 const friendInvited = async (): Promise<object> => {
@@ -19,6 +19,24 @@ const friendInvited = async (): Promise<object> => {
 
     console.warn(JSON.stringify(response));
     return {};
+  });
+};
+
+const statistics = async (): Promise<IQuestStatistics> => {
+  return fetch(`${apiUrl}/count`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return null;
   });
 };
 
@@ -135,4 +153,5 @@ export const QUEST_API = {
   complete,
   redeemContest,
   find,
+  statistics,
 };

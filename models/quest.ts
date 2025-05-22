@@ -7,3 +7,24 @@ export interface IQuest {
   catpoints: number;
   image: IImage;
 }
+
+export type IDataRecord = Record<string, number>;
+
+export interface IQuestStatistics {
+  users: {
+    count: number;
+    weekly: IDataRecord[];
+  };
+  cats: {
+    count: number;
+    staked: number;
+  };
+  blessings: {
+    count: number;
+    weekly: IDataRecord[];
+  };
+  orders: {
+    count: number;
+    weekly: IDataRecord[];
+  };
+}
