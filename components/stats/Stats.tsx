@@ -2,6 +2,7 @@ import { QUEST_API } from "@/api/quest-api";
 import { useQuery } from "@tanstack/react-query";
 import { Countdown } from "../shared/Countdown";
 import { StatsTable } from "../airdrop/StatsTable";
+import { PixelButton } from "../shared/PixelButton";
 
 export const Stats = () => {
   const { data } = useQuery({
@@ -27,7 +28,7 @@ export const Stats = () => {
           ENGAGE ON SOCIALS AND PLAY TO SAVE
         </div>
         <h2 className="font-primary uppercase lg:mt-3 tracking-tight text-h6 md:text-h3 text-balance px-4">
-          8 WAYS TO
+          9 WAYS TO
           <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] ml-2">
             TRACK
           </span>
@@ -35,6 +36,10 @@ export const Stats = () => {
         <div className="flex items-center font-primary gap-2 -mt-1 text-p5 text-center justify-center">
           LIVE DATA OF TOKEN TAILS
         </div>
+
+        <a href="/airdrop" className="mt-4">
+          <PixelButton text="AIRDROP STATS ->" />
+        </a>
 
         {data && (
           <div className="flex flex-wrap gap-8 justify-center items-center mt-8">

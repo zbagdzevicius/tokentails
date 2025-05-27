@@ -116,7 +116,7 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
 }) => {
   return (
     <div className="w-full">
-      <h2 className="text-center font-primary uppercase tracking-tight text-h6 md:text-h2 lg:text-h1 text-balance px-4 py-4 md:py-0">
+      <h2 className="text-center font-primary uppercase tracking-tight text-h6 md:text-h2 lg:text-h1 text-balance px-4 py-4 md:py-0 mt-4">
         <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] mr-4">
           $TAILS
         </span>
@@ -134,7 +134,7 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
             <th className="py-2 px-2 max-w-16">
               <div className="flex items-center gap-1 md:gap-3 lg:gap-4">
                 <span className="whitespace-nowrap text-sm font-primary">
-                  Name
+                  X Handle
                 </span>
                 <div className="relative w-40">
                   <input
@@ -152,7 +152,7 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
               </div>
             </th>
             <th className="py-3 px-2 text-center max-w-2 font-primary">
-              $TAILS Score
+              $TAILS points
             </th>
           </tr>
         </thead>

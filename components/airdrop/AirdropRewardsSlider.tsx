@@ -20,7 +20,7 @@ export const AirdropRewardsSlider = () => {
     </div>,
     <div
       key="heroes"
-      className="flex flex-col items-center p-4 rounded-t-2xl min-w-64 animate-appear"
+      className="flex flex-col items-center p-4 rounded-t-2xl min-w-64 animate-appear relative"
       style={{
         backgroundImage: "url(/backgrounds/bg-night.gif)",
         backgroundSize: "cover",
@@ -28,15 +28,18 @@ export const AirdropRewardsSlider = () => {
       }}
     >
       <img className="w-12 h-12" draggable={false} src="/logo/heart.webp" />
-      <span className="text-p2 text-center">CATS HEROES AWARDS</span>
+      <span className="text-p2 text-center">CATS GUARD AWARDS</span>
       <span>
         <span className="text-red-700">200k USD</span> in{" "}
         <span className="text-red-700">$TAILS</span>
       </span>
+      <div className="absolute inset-0 flex items-center justify-center bg-white/50 p-1 w-full h-full z-20 rounded-t-2xl">
+        <img className="w-16 h-16" src="/purrquest/sprites/key.png" />
+      </div>
     </div>,
     <div
       key="nft"
-      className="flex flex-col items-center p-4 rounded-t-2xl min-w-64 animate-appear"
+      className="flex flex-col items-center p-4 rounded-t-2xl min-w-64 animate-appear relative"
       style={{
         backgroundImage: "url(/backgrounds/bg-5.png)",
         backgroundSize: "cover",
@@ -53,6 +56,9 @@ export const AirdropRewardsSlider = () => {
         worth
         <span className="text-red-700 ml-1">$200k USD</span>
       </span>
+      <div className="absolute inset-0 flex items-center justify-center bg-white/50 p-1 w-full h-full z-20 rounded-t-2xl">
+        <img className="w-16 h-16" src="/purrquest/sprites/key.png" />
+      </div>
     </div>,
   ];
 

@@ -36,7 +36,7 @@ export const GameStatSection = ({
   );
 };
 
-const coinsText = `Earn coins to receive $TAILS airdrop
+const coinsText = `Earn coins to get $TAILS airdrop
 Top the leaderboard to win extra prizes every week.`;
 
 export const GameStatsSection = ({

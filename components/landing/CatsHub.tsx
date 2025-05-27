@@ -37,7 +37,7 @@ const CatsHubProps: IProps[] = [
     img: "/images/cats-slider/play.jpg",
     question: "WEN",
     description:
-      "$TAILS TGE, LISTING AND AIRDROP is going to happen in Q2 2025. Follow us on X to stay up to date so you won't miss it!",
+      "$TAILS TGE, LISTING AND AIRDROP is going to happen in 2025. Follow us on X to stay up to date so you won't miss it!",
   },
 ];
 

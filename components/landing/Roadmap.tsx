@@ -29,19 +29,19 @@ const Roadmap = () => {
               src="/cats/grey/Loaf-Clothed-Grey.gif"
             />
           </div>
-          <h2 className="font-primary text-h4 md:text-h2">2024</h2>
+          <h2 className="font-primary text-h4 md:text-h2">SO FAR</h2>
           <div className="flex flex-col font-secondary text-p4 md:text-p2 font-bold">
+            <span className="flex gap-2 items-center whitespace-nowrap">
+              <img draggable={false} className="h-6" src="icons/check.webp" />
+              LIVE GAME
+            </span>
             <span className="flex gap-2 items-center">
               <img draggable={false} className="h-6" src="icons/check.webp" />
-              50k Players
+              120k Players
             </span>
             <span className="flex gap-2 items-center whitespace-nowrap">
               <img draggable={false} className="h-6" src="icons/check.webp" />
-              Launch Game MVP
-            </span>
-            <span className="flex gap-2 items-center whitespace-nowrap">
-              <img draggable={false} className="h-6" src="icons/check.webp" />
-              SHELTERS PLATFORM
+              1k+ TOKENIZED CATS
             </span>
           </div>
         </div>
@@ -59,20 +59,20 @@ const Roadmap = () => {
             />
           </div>
           <h2 className="font-primary text-h4 md:text-h2 whitespace-nowrap">
-            2025 Q1
+            RIGHT NOW
           </h2>
           <div className="flex flex-col font-secondary text-p4 md:text-p2 font-bold">
             <span className="flex gap-2 items-center -ml-6">
               <img draggable={false} className="h-6" src="icons/check.webp" />
-              AI SOCIAL BUDDY
+              SHELTERS ONBOARDING
             </span>
             <span className="flex gap-2 items-center -ml-6">
-              <img draggable={false} className="h-6" src="icons/check.webp" />
-              ONBOARD SHELTERS
+              <img draggable={false} className="h-6" src="icons/loader.webp" />
+              AIRDROP CAMPAIGN
             </span>
             <span className="flex gap-2 items-center -ml-6">
-              <img draggable={false} className="h-6" src="icons/check.webp" />
-              GENERATE VIRTUAL TWIN
+              <img draggable={false} className="h-6" src="icons/loader.webp" />
+              $TAILS GUARD
             </span>
           </div>
         </div>
@@ -90,7 +90,7 @@ const Roadmap = () => {
             />
           </div>
           <h2 className="font-primary text-h4 md:text-h2 whitespace-nowrap">
-            2025
+            COMING
           </h2>
           <div className="flex flex-col font-secondary text-p4 md:text-p2 font-bold">
             <span className="flex gap-2 items-center -ml-6">
@@ -115,7 +115,7 @@ const Roadmap = () => {
                 className="h-6 pixelated"
                 src="icons/loader.webp"
               />
-              Marketplace
+              MORE REWARDS
             </span>
           </div>
         </div>
