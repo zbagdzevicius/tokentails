@@ -8,6 +8,7 @@ import { PixelButton } from "@/components/shared/PixelButton";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
 import { useInfiniteQuery } from "@tanstack/react-query";
+import Head from "next/head";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
 
@@ -96,6 +97,13 @@ const Airdrop = () => {
 
   return (
     <div>
+      <Head>
+        <title>Token Tails - Play to Save</title>
+        <meta property="og:image" content="/logo/airdrop.jpg" />
+        <meta property="og:title" content="Token Tails - Airdrop" key="title" />
+        <meta name="description" content="9 ways to earn $TAILS" />
+        <link rel="shortcut icon" href="/logo/coin.webp" />
+      </Head>
       <Header />
       <div
         className="pt-20 md:pt-24 fade-in min-h-screen relative flex flex-col items-center"
