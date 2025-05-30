@@ -72,7 +72,7 @@ export const chainTypeId: Record<ChainType, number> = {
   [ChainType.STELLAR_TEST]: 0,
   [ChainType.SOLANA]: 0,
   [ChainType.SOLANA_TEST]: 0,
-  [ChainType.TORUS]: torus.id,
+  // [ChainType.TORUS]: torus.id,
 };
 
 export const idChainType: Record<number, ChainType> = {
@@ -81,7 +81,7 @@ export const idChainType: Record<number, ChainType> = {
   [skaleNebula.id]: ChainType.SKALE,
   [skaleNebulaTestnet.id]: ChainType.SKALE_TEST,
   [campTestnet.id]: ChainType.CAMP_TEST,
-  [torus.id]: ChainType.TORUS,
+  // [torus.id]: ChainType.TORUS,
   [0]: ChainType.STELLAR,
   [1]: ChainType.STELLAR_TEST,
 };

@@ -8,6 +8,7 @@ import { useCallback, useMemo } from "react";
 import { GameStatsSection } from "../catbassadors/GameStatsSection";
 import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
+import { Tag } from "../shared/Tag";
 
 interface IProps {
   profile: IProfile;
@@ -56,13 +57,18 @@ export const GameOptionsModal = ({
       <GameStatsSection profile={profile} setOpenedModal={setOpenedModal} />
       {!gameType && (
         <div className="fixed z-10 bottom-8 md:bottom-4 lg:bottom-8 xl:bottom-12 left-4 right-4 pb-safe flex justify-between md:justify-center md:gap-8 items-end">
-          <PixelButton
-            onClick={() => {
-              setOpenedModal(GameModal.INVITE);
-            }}
-            text="GIFTS"
-            id={ONBOARDING_MODAL_IDS.GIFTS}
-          ></PixelButton>
+          <div className="relative">
+            <div className="absolute -top-2 -left-5 z-0 -rotate-45">
+              <Tag isSmall> NEW</Tag>
+            </div>
+            <PixelButton
+              onClick={() => {
+                setOpenedModal(GameModal.INVITE);
+              }}
+              text="GIFTS"
+              id={ONBOARDING_MODAL_IDS.GIFTS}
+            ></PixelButton>
+          </div>
           <div className="flex flex-col items-center">
             {profile.canRedeemLives && (
               <div

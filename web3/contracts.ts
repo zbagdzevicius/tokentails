@@ -27,7 +27,7 @@ export enum ChainType {
   STELLAR = "STELLAR",
   STELLAR_TEST = "STELLAR_TEST",
   SOLANA = "SOLANA",
-  TORUS = "TORUS",
+  // TORUS = "TORUS",
   CAMP_TEST = "CAMP_TEST",
   SOLANA_TEST = "SOLANA_TEST",
   DIAM = "DIAM",
@@ -35,7 +35,7 @@ export enum ChainType {
 
 export enum ChainNamespace {
   EVM = "EVM",
-  TORUS = "TORUS",
+  // TORUS = "TORUS",
   STELLAR = "STELLAR",
   SOLANA = "SOLANA",
 }
@@ -44,12 +44,12 @@ export const ChainNamespaces = [
   ChainNamespace.EVM,
   ChainNamespace.STELLAR,
   ChainNamespace.SOLANA,
-  ChainNamespace.TORUS,
+  // ChainNamespace.TORUS,
 ];
 
 export const ChainNamespaceImg: Record<ChainNamespace, string> = {
   [ChainNamespace.EVM]: "/currency/BNB.webp",
-  [ChainNamespace.TORUS]: "/currency/ODP.webp",
+  // [ChainNamespace.TORUS]: "/currency/ODP.webp",
   [ChainNamespace.STELLAR]: "/currency/XLM.webp",
   [ChainNamespace.SOLANA]: "/currency/SOL.webp",
 };
@@ -63,7 +63,7 @@ export const ChainImg: Record<ChainType, string> = {
   [ChainType.SOLANA_TEST]: "/currency/SOL.webp",
   [ChainType.SKALE]: "/currency/SKALE.png",
   [ChainType.SKALE_TEST]: "/currency/SKALE.png",
-  [ChainType.TORUS]: "/currency/ODP.webp",
+  // [ChainType.TORUS]: "/currency/ODP.webp",
   [ChainType.DIAM]: "/currency/ODP.webp",
   [ChainType.CAMP_TEST]: "/currency/CAMP.webp",
 };
@@ -74,11 +74,11 @@ export const ChainNamespacesCurrencies: Record<ChainNamespace, CurrencyType[]> =
       CurrencyType.BNB,
       CurrencyType.USDT,
       CurrencyType.USDC,
-      CurrencyType.DIAM,
+      // CurrencyType.DIAM,
     ],
     [ChainNamespace.STELLAR]: [CurrencyType.XLM, CurrencyType.USDC],
     [ChainNamespace.SOLANA]: [CurrencyType.SOL],
-    [ChainNamespace.TORUS]: [CurrencyType.ODP],
+    // [ChainNamespace.TORUS]: [CurrencyType.ODP],
   };
 
 export const currencyContracts: Record<
@@ -115,9 +115,9 @@ export const currencyContracts: Record<
   [ChainType.SOLANA]: {
     [CurrencyType.SOL]: "0x",
   },
-  [ChainType.TORUS]: {
-    [CurrencyType.ODP]: "0xFF47178dAE98Cb1D61c0e46f38EB68bEa5BDE284",
-  },
+  // [ChainType.TORUS]: {
+  //   [CurrencyType.ODP]: "0xFF47178dAE98Cb1D61c0e46f38EB68bEa5BDE284",
+  // },
   [ChainType.SOLANA_TEST]: {
     [CurrencyType.SOL]: "0x",
   },

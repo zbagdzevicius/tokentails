@@ -45,7 +45,7 @@ export const chainTypeRpcUrl: Record<ChainType, string> = {
   [ChainType.SKALE_TEST]:
     "https://testnet.skalenodes.com/v1/lanky-ill-funny-testnet",
   [ChainType.BNB]: "https://bsc-dataseed.binance.org",
-  [ChainType.TORUS]: "https://rpc.toruschain.com",
+  // [ChainType.TORUS]: "https://rpc.toruschain.com",
   [ChainType.DIAM]: "https://mainnet.diamcircle.io",
   [ChainType.BNB_TEST]: "https://data-seed-prebsc-1-s1.binance.org:8545",
   [ChainType.STELLAR]: "https://mainnet.sorobanrpc.com",

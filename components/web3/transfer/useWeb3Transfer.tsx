@@ -228,8 +228,8 @@ export const useWeb3Transfer = ({
       } else {
         stellarTransfer(stellarAddress!);
       }
-    } else if (namespace === ChainNamespace.TORUS) {
-      torusTransfer();
+      // } else if (namespace === ChainNamespace.TORUS) {
+      //   torusTransfer();
     } else if (namespace === ChainNamespace.SOLANA) {
       if (!solanaConnected) {
         connectSolana(true);

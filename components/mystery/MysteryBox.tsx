@@ -164,7 +164,7 @@ export const MysteryBox = () => {
         </div>
         <div className="flex flex-col md:gap-2 w-full md:w-auto">
           <Tag isSmall>TIME LIMITED FREE MINT</Tag>
-          <Countdown targetDate="2025-06-01" isDaysDisplayed></Countdown>
+          <Countdown targetDate="2025-06-12" isDaysDisplayed></Countdown>
           <MysteryBoxEligibility
             mysteryBox={mysteryBox}
             isEligible={isEligible}

@@ -9,6 +9,21 @@ import { CloseButton } from "./CloseButton";
 import { Countdown } from "./Countdown";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
+import { Web3Providers } from "../web3/Web3Providers";
+import dynamic from "next/dynamic";
+
+const MysteryBoxCat = dynamic(
+  () => import("../mystery/MysteryBoxCat").then((mod) => mod.MysteryBoxCat),
+  {
+    ssr: false,
+    loading: () => (
+      <img
+        src="/icons/loader.webp"
+        className="w-8 h-8 m-auto animate-spin pixelated"
+      />
+    ),
+  }
+);
 
 export const InviteModalContent = () => {
   const { utils, shareUrl, profile, setProfileUpdate } = useProfile();
@@ -38,11 +53,16 @@ export const InviteModalContent = () => {
           text="INVITE"
           onClick={() => setType(GameModal.INVITE)}
         ></PixelButton>
-        {/* <PixelButton
-          active={type === GameModal.MYSTERY_CAT}
-          text="FUN"
-          onClick={() => setType(GameModal.MYSTERY_CAT)}
-        ></PixelButton> */}
+        <div className="relative">
+          <div className="absolute -top-2 -right-3 z-0 rotate-45">
+            <Tag isSmall> NEW</Tag>
+          </div>
+          <PixelButton
+            active={type === GameModal.MYSTERY_CAT}
+            text="EVENT"
+            onClick={() => setType(GameModal.MYSTERY_CAT)}
+          ></PixelButton>
+        </div>
       </div>
       {type === GameModal.INVITE && (
         <>
@@ -113,7 +133,12 @@ export const InviteModalContent = () => {
         </>
       )}
       {type === GameModal.MYSTERY_BOX && <MysteryBox />}
-      {type === GameModal.MYSTERY_CAT && <MysteryCat />}
+      {type === GameModal.MYSTERY_CAT && (
+        <Web3Providers>
+          <MysteryBoxCat />
+        </Web3Providers>
+      )}
+      {/* {type === GameModal.MYSTERY_CAT && <MysteryCat />} */}
     </div>
   );
 };
