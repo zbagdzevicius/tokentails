@@ -7,7 +7,7 @@ import { GameType } from "@/models/game";
 import { StatusType } from "@/models/status";
 import { useQuery } from "@tanstack/react-query";
 import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
-import { GameEvents, IPhaserGame } from "../Phaser/events";
+import { GameEvents, IPhaserGame, NPC_TYPE } from "../Phaser/events";
 import { StartGame } from "./config";
 
 interface IProps {
@@ -112,7 +112,10 @@ function Base() {
 
       // Then spawn all cats that aren't the current player cat
       catsWithoutPlayerCat.forEach((singleCat) => {
-        GameEvents.PLAYER_CATS.push({ npc: singleCat });
+        GameEvents.PLAYER_CATS.push({
+          npc: singleCat,
+          type: NPC_TYPE.PLAYER_CATS,
+        });
       });
     }
   }, [userCats, isGameLoaded, cat]);

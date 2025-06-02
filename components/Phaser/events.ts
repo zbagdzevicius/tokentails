@@ -58,6 +58,7 @@ export enum NPC_TYPE {
   TOKENTAILS = "token-tails",
   TOKENTAILS_2 = "token-tails-2",
   ROZINE_PEDUTE = "rozine-pedute",
+  PLAYER_CATS = "player-cats",
 }
 
 interface INpcSpawnEvent {

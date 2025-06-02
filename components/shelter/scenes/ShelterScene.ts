@@ -37,6 +37,10 @@ const SPAWN_POSITIONS: Record<
     x: { min: 300, max: 1000 },
     y: -250,
   },
+  [NPC_TYPE.PLAYER_CATS]: {
+    x: { min: 300, max: 1000 },
+    y: -250,
+  },
 };
 
 export class ShelterScene extends Scene {
