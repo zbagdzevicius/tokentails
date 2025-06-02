@@ -9,6 +9,7 @@ export const recipientStellar =
 export const recipientSolana = "48ReRnWwnw68K2LTQjfUthtiXuQmaKG9zQnXUR8KMDJg";
 
 export enum CurrencyType {
+  BNUSD = "BNUSD",
   USDT = "USDT",
   USDC = "USDC",
   TAILS = "TAILS",
@@ -74,16 +75,21 @@ export const ChainNamespacesCurrencies: Record<ChainNamespace, CurrencyType[]> =
       CurrencyType.BNB,
       CurrencyType.USDT,
       CurrencyType.USDC,
+      CurrencyType.BNUSD,
       // CurrencyType.DIAM,
     ],
-    [ChainNamespace.STELLAR]: [CurrencyType.XLM, CurrencyType.USDC],
+    [ChainNamespace.STELLAR]: [
+      CurrencyType.XLM,
+      CurrencyType.USDC,
+      CurrencyType.BNUSD,
+    ],
     [ChainNamespace.SOLANA]: [CurrencyType.SOL],
     // [ChainNamespace.TORUS]: [CurrencyType.ODP],
   };
 
 export const currencyContracts: Record<
   ChainType,
-  Partial<Record<CurrencyType, `0x${string}`>>
+  Partial<Record<CurrencyType, any>>
 > = {
   [ChainType.SKALE]: {
     [CurrencyType.TAILS]: "0x",
@@ -96,17 +102,22 @@ export const currencyContracts: Record<
   },
   [ChainType.BNB]: {
     [CurrencyType.USDT]: "0x55d398326f99059fF775485246999027B3197955",
+    [CurrencyType.BNUSD]: "0xc65132325bD4FcF2Ec5F3a9375487163B6999206",
     [CurrencyType.USDC]: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
     [CurrencyType.DIAM]: "0x1FA0f5ed24a1a2b43741E88F8FEc19633e67082B",
     [CurrencyType.TAILS]: "0x",
   },
   [ChainType.BNB_TEST]: {
     [CurrencyType.USDT]: "0x337610d27c682E347C9cD60BD4b3b107C9d34dDd",
+    [CurrencyType.BNUSD]: "0xc65132325bD4FcF2Ec5F3a9375487163B6999206",
     [CurrencyType.USDC]: "0x64544969ed7EBf5f083679233325356EbE738930",
     [CurrencyType.TAILS]: "0x",
   },
   [ChainType.STELLAR]: {
-    [CurrencyType.USDC]: "0x",
+    [CurrencyType.USDC]:
+      "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN",
+    [CurrencyType.BNUSD]:
+      "CCT4ZYIYZ3TUO2AWQFEOFGBZ6HQP3GW5TA37CK7CRZVFRDXYTHTYX7KP",
   },
   [ChainType.DIAM]: {},
   [ChainType.STELLAR_TEST]: {

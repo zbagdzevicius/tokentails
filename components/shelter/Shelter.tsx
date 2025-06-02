@@ -11,9 +11,10 @@ import {
   useState,
 } from "react";
 import { CatCardModal } from "../catCard/CatCardModal";
-import { GameEvents, IPhaserGame } from "../Phaser/events";
+import { GameEvents, IPhaserGame, NPC_TYPE } from "../Phaser/events";
 import { Web3Providers } from "../web3/Web3Providers";
 import { StartGame } from "./config";
+import { getRandomObjectsFromArray } from "@/constants/utils";
 interface IProps {
   currentActiveScene?: (scene_instance: Phaser.Scene) => void;
 }
@@ -92,13 +93,29 @@ function Shelter() {
   useEffect(() => {
     if (!hasSpawnedNpc && isGameLoaded?.scene && catsForSale) {
       const tokentailsNpcs = catsForSale["token-tails"];
-      const rozinePeduteNpcs = catsForSale["rozine-pedute"];
+      const tokentailsCharsNpcs = catsForSale["token-tails-2"];
+      const rozinePeduteNpcs = getRandomObjectsFromArray(
+        catsForSale["rozine-pedute"],
+        10
+      );
 
       tokentailsNpcs?.forEach((npcCatRegular) => {
-        GameEvents.NPC_SPAWN_TOKENTAILS.push({ npc: npcCatRegular });
+        GameEvents.NPC_SPAWN.push({
+          npc: npcCatRegular,
+          type: NPC_TYPE.TOKENTAILS,
+        });
       });
       rozinePeduteNpcs?.forEach((npcCatBlessed) => {
-        GameEvents.NPC_SPAWN_ROZINE_PEDUTE.push({ npc: npcCatBlessed });
+        GameEvents.NPC_SPAWN.push({
+          npc: npcCatBlessed,
+          type: NPC_TYPE.ROZINE_PEDUTE,
+        });
+      });
+      tokentailsCharsNpcs?.forEach((npcCatBlessed) => {
+        GameEvents.NPC_SPAWN.push({
+          npc: npcCatBlessed,
+          type: NPC_TYPE.TOKENTAILS_2,
+        });
       });
       setHasSpawnedNpc(true);
     }

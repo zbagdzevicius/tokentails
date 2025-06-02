@@ -18,6 +18,7 @@ import { CloseButton } from "../shared/CloseButton";
 import { PixelButton } from "../shared/PixelButton";
 import { StripePayment } from "../web3/payments/StripePayment";
 import { Web3Transfer } from "../web3/transfer/Web3Transfer";
+import { getSocialNetworkFromUrl } from "@/constants/utils";
 
 interface IProps extends ICat {
   onClose?: () => void;
@@ -501,7 +502,7 @@ export const SafeCatCard = ({
                   >
                     <img
                       className="w-6 h-6"
-                      src="/icons/social/instagram.png"
+                      src={getSocialNetworkFromUrl(blessings?.[0]?.instagram)}
                       draggable="false"
                     />
                   </a>

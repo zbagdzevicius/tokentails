@@ -3,6 +3,7 @@ import {
   GameEvents,
   ICatEvent,
   IPhaserGameSceneProps,
+  NPC_TYPE,
 } from "@/components/Phaser/events";
 import { CoreMap } from "@/components/Phaser/map";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
@@ -19,18 +20,21 @@ const JUMP_LAYER_TILES = [
   169, 170, 139, 140, 200, 224, 225, 226, 227, 51, 52, 82, 83, 84,
 ];
 const TRAMPOLINE_TILES = [158, 159];
-enum Shelters {
-  ROZINE_PEDUTE = "rozine-pedute",
-  TOKENTAILS = "tokentails",
-}
 
-const SHELTER_SPAWN_POSITIONS = {
-  [Shelters.ROZINE_PEDUTE]: {
+const SPAWN_POSITIONS: Record<
+  NPC_TYPE,
+  { x: { min: number; max: number }; y: number }
+> = {
+  [NPC_TYPE.ROZINE_PEDUTE]: {
     x: { min: 1500, max: 2800 },
     y: -650,
   },
-  [Shelters.TOKENTAILS]: {
+  [NPC_TYPE.TOKENTAILS]: {
     x: { min: 1700, max: 2800 },
+    y: -250,
+  },
+  [NPC_TYPE.TOKENTAILS_2]: {
+    x: { min: 300, max: 1000 },
     y: -250,
   },
 };
@@ -173,42 +177,16 @@ export class ShelterScene extends Scene {
       GameEvents.GAME_START.removeEventListener(startGameCallback);
     });
 
-    const npcSpawnRegularCallback = (
-      data: ICatEvent<GameEvent.NPC_SPAWN_TOKENTAILS>
-    ) => {
-      this.spawnNpc(data.detail.npc);
+    const npcSpawnRegularCallback = (data: ICatEvent<GameEvent.NPC_SPAWN>) => {
+      this.spawnNpc(data.detail.npc, data.detail.type);
     };
 
-    const npcSpawnBlessedCallback = (
-      data: ICatEvent<GameEvent.NPC_SPAWN_ROZINE_PEDUTE>
-    ) => {
-      this.spawnNpc(data.detail.npc);
-    };
-
-    const npcSpawnExclusiveCallback = (
-      data: ICatEvent<GameEvent.NPC_SPAWN_EXCLUSIVE>
-    ) => {
-      this.spawnNpc(data.detail.npc);
-    };
-
-    GameEvents.NPC_SPAWN_TOKENTAILS.addEventListener(npcSpawnRegularCallback);
-    GameEvents.NPC_SPAWN_ROZINE_PEDUTE.addEventListener(
-      npcSpawnBlessedCallback
-    );
-    GameEvents.NPC_SPAWN_EXCLUSIVE.addEventListener(npcSpawnExclusiveCallback);
+    GameEvents.NPC_SPAWN.addEventListener(npcSpawnRegularCallback);
 
     GameEvents.GAME_LOADED.push({ scene: this });
 
     this.scene.scene.events.once("destroy", () => {
-      GameEvents.NPC_SPAWN_TOKENTAILS.removeEventListener(
-        npcSpawnRegularCallback
-      );
-      GameEvents.NPC_SPAWN_ROZINE_PEDUTE.removeEventListener(
-        npcSpawnBlessedCallback
-      );
-      GameEvents.NPC_SPAWN_EXCLUSIVE.removeEventListener(
-        npcSpawnExclusiveCallback
-      );
+      GameEvents.NPC_SPAWN.removeEventListener(npcSpawnRegularCallback);
     });
 
     this.createAnimations();
@@ -329,18 +307,16 @@ export class ShelterScene extends Scene {
     this.load.start();
   }
 
-  private spawnNpc(npcData: ICat) {
+  private spawnNpc(npcData: ICat, type: NPC_TYPE) {
     this.load.once("complete", () => {
       let spawnPosition;
 
-      switch (npcData.shelter?.slug) {
-        case Shelters.ROZINE_PEDUTE:
-          spawnPosition = SHELTER_SPAWN_POSITIONS[Shelters.ROZINE_PEDUTE];
-          break;
-        default:
-          // For everything else, default to TOKENTAILS
-          spawnPosition = SHELTER_SPAWN_POSITIONS[Shelters.TOKENTAILS];
-          break;
+      if (type === NPC_TYPE.ROZINE_PEDUTE) {
+        spawnPosition = SPAWN_POSITIONS[NPC_TYPE.ROZINE_PEDUTE];
+      } else if (type === NPC_TYPE.TOKENTAILS) {
+        spawnPosition = SPAWN_POSITIONS[NPC_TYPE.TOKENTAILS];
+      } else {
+        spawnPosition = SPAWN_POSITIONS[NPC_TYPE.TOKENTAILS_2];
       }
 
       // Randomized X position within the chosen range

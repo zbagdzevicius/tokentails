@@ -8,11 +8,23 @@ export function randomNumber(min: number = 10, max: number = 999) {
   return Math.ceil(Math.random() * (max - min) + min);
 }
 
+export function getRandomObjectsFromArray<T>(items: T[], count: number) {
+  return items.sort(() => Math.random() - 0.5).slice(0, count);
+}
+
 export function randomObjectFromArray<T>(items?: T[]): T | null {
   if (!items?.length) {
     return null;
   }
   return items[Math.floor(Math.random() * items.length)];
+}
+
+export function getSocialNetworkFromUrl(url: string) {
+  if (url.includes("instagram")) {
+    return "/icons/social/instagram.png";
+  } else if (url.includes("x")) {
+    return "/icons/social/x.webp";
+  }
 }
 
 export function commafy(num: number) {
