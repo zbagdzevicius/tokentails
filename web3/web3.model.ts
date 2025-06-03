@@ -55,7 +55,7 @@ export const chainTypeRpcUrl: Record<ChainType, string> = {
   [ChainType.CAMP_TEST]: "https://rpc.camp.network",
 };
 
-enum MYSTERY_BOX_TYPE {
+export enum MYSTERY_BOX_TYPE {
   CAMP_1 = "CAMP_1",
   CAMP_2 = "CAMP_2",
   CAMP_3 = "CAMP_3",

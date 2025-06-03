@@ -3,12 +3,17 @@ import { ORDER_API } from "@/api/order-api";
 import { getCatPrice } from "@/constants/cat-status";
 import { BuyMode, getMultiplier } from "@/constants/cat-utils";
 import { CAT_CARD_ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
+import { getSocialNetworkFromUrl } from "@/constants/utils";
+import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
 import { cardsColor, CatAbilities, IBlessing, ICat } from "@/models/cats";
+import { GameModal } from "@/models/game";
+import { IProfile } from "@/models/profile";
 import { EntityType } from "@/models/save";
 import { CurrencyType } from "@/web3/contracts";
+import { MYSTERY_BOX_TYPE } from "@/web3/web3.model";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { CatCardOnboarding } from "../onboarding/CardOnboarding";
@@ -18,7 +23,6 @@ import { CloseButton } from "../shared/CloseButton";
 import { PixelButton } from "../shared/PixelButton";
 import { StripePayment } from "../web3/payments/StripePayment";
 import { Web3Transfer } from "../web3/transfer/Web3Transfer";
-import { getSocialNetworkFromUrl } from "@/constants/utils";
 
 interface IProps extends ICat {
   onClose?: () => void;
@@ -40,6 +44,16 @@ export const CatMultiplier = (cat: ICat) => {
       <img draggable={false} src="/logo/coin.webp" className="w-6 h-6 ml-1" />
     </div>
   );
+};
+
+const isLocked = (cat: ICat, user: IProfile) => {
+  const catMultiplier = getMultiplier(cat);
+  if (catMultiplier < 15) {
+    return false;
+  }
+
+  const hasMintedNFTMysteryBox = user.quests.includes(MYSTERY_BOX_TYPE.CAMP_5);
+  return !hasMintedNFTMysteryBox;
 };
 
 export const CatDescription = ({
@@ -214,7 +228,6 @@ export const CatPayment = ({
 
   const toast = useToast();
   const outOfSupply = supply === undefined || supply <= 0;
-  const isForSale = !outOfSupply && !isOwned;
   const isCoinsPayment = !!cat.catpoints && !isOwned;
 
   const onSuccess = (cat: ICat) => {
@@ -225,7 +238,7 @@ export const CatPayment = ({
     setProfileUpdate({
       cats: [...(cats || []), cat],
       cat,
-      catpoints: profile!.catpoints - catpoints,
+      catpoints: profile!.catpoints - catpoints || 0,
     });
     setTransactionStatus(null);
 
@@ -454,8 +467,10 @@ export const SafeCatCard = ({
     }
     setUnitsToBuy(units);
   };
+  const isCatLocked = useMemo(() => isLocked(cat, profile!), [cat, profile]);
 
   const buyText = cat.shelter?.slug === "token-tails" ? "Adopt" : "Save";
+  const { setOpenedModal } = useGame();
 
   return (
     <div
@@ -622,15 +637,32 @@ export const SafeCatCard = ({
               setActiveBlessing={setActiveBlessing}
               activeBlessing={activeBlessing}
             />
-            <CatPayment
-              cat={cat}
-              onClose={onClose}
-              onAdopted={() => onAdopted?.()}
-              relative={relative}
-              cats={cats}
-              unitsToBuy={unitsToBuy}
-              handleUnitsToBuy={handleUnitsToBuy}
-            />
+            {isCatLocked ? (
+              <div className="flex items-center -ml-2 -mr-2">
+                <PixelButton text="LOCKED" isDisabled isSmall />
+                <div className="font-secondary text-p5 text-center -ml-2 -mr-2">
+                  COMPLETE CAMP QUESTS TO UNLOCK
+                </div>
+                <PixelButton
+                  text="QUESTS"
+                  isSmall
+                  onClick={() => {
+                    setOpenedModal(GameModal.INVITE);
+                    onClose?.();
+                  }}
+                />
+              </div>
+            ) : (
+              <CatPayment
+                cat={cat}
+                onClose={onClose}
+                onAdopted={() => onAdopted?.()}
+                relative={relative}
+                cats={cats}
+                unitsToBuy={unitsToBuy}
+                handleUnitsToBuy={handleUnitsToBuy}
+              />
+            )}
           </div>
         </div>
       </div>

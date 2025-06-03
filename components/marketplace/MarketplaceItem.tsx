@@ -1,5 +1,5 @@
 import { PixelButton } from "@/components/shared/PixelButton";
-import { getCatFundsToRaise } from "@/constants/cat-status";
+import { getCatFundsToRaise, getCatPrice } from "@/constants/cat-status";
 import { getMultiplier } from "@/constants/cat-utils";
 import { cardsColor, ICat } from "@/models/cats";
 import { useMemo } from "react";
@@ -75,7 +75,9 @@ export const MarketplaceItem = ({
         >
           {cat.name}
         </div>
-        {!hideButton && <PixelButton text={`ONLY $${price} TO SAVE`} />}
+        {!hideButton && (
+          <PixelButton text={`ONLY $${getCatPrice(cat)} TO SAVE`} />
+        )}
       </div>
       <img
         draggable={false}
