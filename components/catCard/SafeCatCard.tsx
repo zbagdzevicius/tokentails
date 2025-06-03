@@ -52,7 +52,9 @@ const isLocked = (cat: ICat, user: IProfile) => {
     return false;
   }
 
-  const hasMintedNFTMysteryBox = user.quests.includes(MYSTERY_BOX_TYPE.CAMP_5);
+  const hasMintedNFTMysteryBox = user?.quests?.includes(
+    MYSTERY_BOX_TYPE.CAMP_5
+  );
   return !hasMintedNFTMysteryBox;
 };
 
@@ -622,7 +624,7 @@ export const SafeCatCard = ({
                     ? `MEOW! CLICK ${buyText} TO SAVE`
                     : "OUT OF SUPPLY"
                   : `${donationsToSave} Remaining. ${
-                      buyText === "Adopt"
+                      buyText === "Adopt" || cat?.price > 1000
                         ? "Every sale supports local shelters"
                         : "Every sale supports the cat"
                     }`}
