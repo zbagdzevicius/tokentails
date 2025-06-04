@@ -1,6 +1,6 @@
 import { useGame } from "@/context/GameContext";
 import { cardsColor, ICat } from "@/models/cats";
-import { GameType } from "@/models/game";
+import { GameModal, GameType } from "@/models/game";
 import { useRouter } from "next/router";
 import React from "react";
 import { CloseButton } from "../shared/CloseButton";
@@ -8,7 +8,7 @@ import { Web3Providers } from "../web3/Web3Providers";
 import { CatCard } from "./CatCard";
 
 interface IProps extends ICat {
-  onClose?: () => void;
+  onClose?: (gameModal?: GameModal) => void;
   onAdopted?: () => void;
   relative?: boolean;
 }

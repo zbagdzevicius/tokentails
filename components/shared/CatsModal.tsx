@@ -60,8 +60,11 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
     }
     close();
   };
-  const handleCloseModal = () => {
+  const handleCloseModal = (gameModal?: GameModal) => {
     setSelectedCat(null);
+    if (gameModal) {
+      setOpenedModal(gameModal);
+    }
   };
   const setCatUpdate = (cat: ICat, update: Partial<ICat>) => {
     setMutatedCats((prev) =>

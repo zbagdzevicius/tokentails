@@ -1,8 +1,9 @@
 import { ICat } from "@/models/cats";
+import { GameModal } from "@/models/game";
 import dynamic from "next/dynamic";
 
 interface IProps extends ICat {
-  onClose?: () => void;
+  onClose?: (gameModal?: GameModal) => void;
   onAdopted?: () => void;
   relative?: boolean;
 }

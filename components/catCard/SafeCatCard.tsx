@@ -4,14 +4,13 @@ import { getCatPrice } from "@/constants/cat-status";
 import { BuyMode, getMultiplier } from "@/constants/cat-utils";
 import { CAT_CARD_ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 import { getSocialNetworkFromUrl } from "@/constants/utils";
-import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
 import { cardsColor, CatAbilities, IBlessing, ICat } from "@/models/cats";
-import { GameModal } from "@/models/game";
 import { IProfile } from "@/models/profile";
 import { EntityType } from "@/models/save";
+import { GameModal } from "@/models/game";
 import { CurrencyType } from "@/web3/contracts";
 import { MYSTERY_BOX_TYPE } from "@/web3/web3.model";
 import { useQuery } from "@tanstack/react-query";
@@ -25,7 +24,7 @@ import { StripePayment } from "../web3/payments/StripePayment";
 import { Web3Transfer } from "../web3/transfer/Web3Transfer";
 
 interface IProps extends ICat {
-  onClose?: () => void;
+  onClose?: (gameModal?: GameModal) => void;
   onAdopted?: () => void;
   relative?: boolean;
 }
@@ -472,7 +471,6 @@ export const SafeCatCard = ({
   const isCatLocked = useMemo(() => isLocked(cat, profile!), [cat, profile]);
 
   const buyText = cat.shelter?.slug === "token-tails" ? "Adopt" : "Save";
-  const { setOpenedModal } = useGame();
 
   return (
     <div
@@ -649,8 +647,7 @@ export const SafeCatCard = ({
                   text="QUESTS"
                   isSmall
                   onClick={() => {
-                    setOpenedModal(GameModal.INVITE);
-                    onClose?.();
+                    onClose?.(GameModal.INVITE);
                   }}
                 />
               </div>

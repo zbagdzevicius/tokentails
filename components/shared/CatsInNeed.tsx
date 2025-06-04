@@ -8,18 +8,24 @@ import { Web3Providers } from "../web3/Web3Providers";
 import { CatMiniCard } from "./CatMiniCard";
 import { CloseButton } from "./CloseButton";
 import { Tag } from "./Tag";
+import { GameModal } from "@/models/game";
+import { useGame } from "@/context/GameContext";
 
 export const CatsInNeedModalContent = ({ close }: { close: () => void }) => {
   const { profile } = useProfile();
   const [selectedCat, setSelectedCat] = useState<ICat | null>(null);
+  const { setOpenedModal } = useGame();
 
   const { data: catsForSale } = useQuery({
     queryKey: ["cats-for-sale", profile?._id],
     queryFn: () => CAT_API.catsForSale(),
   });
 
-  const handleCloseModal = () => {
+  const handleCloseModal = (gameModal?: GameModal) => {
     setSelectedCat(null);
+    if (gameModal) {
+      setOpenedModal(gameModal);
+    }
   };
 
   return (

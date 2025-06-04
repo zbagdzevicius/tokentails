@@ -15,6 +15,8 @@ import { GameEvents, IPhaserGame, NPC_TYPE } from "../Phaser/events";
 import { Web3Providers } from "../web3/Web3Providers";
 import { StartGame } from "./config";
 import { getRandomObjectsFromArray } from "@/constants/utils";
+import { useGame } from "@/context/GameContext";
+import { GameModal } from "@/models/game";
 interface IProps {
   currentActiveScene?: (scene_instance: Phaser.Scene) => void;
 }
@@ -83,6 +85,7 @@ function Shelter() {
   const phaserRef = useRef<IPhaserGame | null>(null);
   const isGameLoaded = GameEvents.GAME_LOADED.use();
   const [hasSpawnedNpc, setHasSpawnedNpc] = useState(false);
+  const { setOpenedModal } = useGame();
 
   useEffect(() => {
     if (cat && isGameLoaded?.scene) {
@@ -128,6 +131,13 @@ function Shelter() {
     }
   });
 
+  const onCloseModal = (gameModal?: GameModal) => {
+    setShowModal(false);
+    if (gameModal) {
+      setOpenedModal(gameModal);
+    }
+  };
+
   return (
     <div id="app" className="z-20">
       <ShelterGame ref={phaserRef} />
@@ -139,10 +149,7 @@ function Shelter() {
           ></div>
           <div className="absolute top-1/2">
             <Web3Providers>
-              <CatCardModal
-                {...selectedNpc}
-                onClose={() => setShowModal(false)}
-              />
+              <CatCardModal {...selectedNpc} onClose={onCloseModal} />
             </Web3Providers>
           </div>
         </div>
