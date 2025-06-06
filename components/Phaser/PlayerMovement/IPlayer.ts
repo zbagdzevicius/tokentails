@@ -47,4 +47,6 @@ export interface IPlayer {
   isOnIcyTile: boolean;
   isAutoRunMode: boolean;
   isSitting: boolean;
+  canDoubleJump: boolean;
+  hasDoubleJumped: boolean;
 }

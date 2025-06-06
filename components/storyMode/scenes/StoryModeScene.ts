@@ -24,6 +24,7 @@ import { LeverAndDoorManager } from "../Managers/LeverAndDoorManager";
 import { HiddenSpikeManager } from "../Managers/HiddenSpikeManager";
 import { FanManager } from "../Managers/FanManager";
 import { Saw } from "../Managers/SawManager";
+import { getMultiplier } from "@/constants/cat-utils";
 import { RisingWaterManager } from "../Managers/RisingWaterManager";
 
 import { CollectiveItem } from "../objects/CollectiveItem";
@@ -241,7 +242,7 @@ export class StoryModeScene extends Scene {
     blessing: Phaser.GameObjects.Sprite | null,
     type: CatAbilityType
   ) {
-    this.cat = new Cat(this, -950, -1000, catName, blessing!, type);
+    this.cat = new Cat(this, -950, -1000, catName, blessing!, type, true, getMultiplier(this.catDto));
     this.setupCatCollisions();
     this.cameras.main.startFollow(this.cat.sprite);
     setMobileControls(this.cat);

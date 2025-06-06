@@ -144,7 +144,8 @@ export class Cat implements IPlayer {
     catName: string,
     blessings: Phaser.GameObjects.Sprite,
     type: CatAbilityType,
-    enableControls: boolean = true
+    enableControls: boolean = true,
+    multiplier: number = 1
   ) {
     this.scene = scene;
     this.type = type;
@@ -191,6 +192,10 @@ export class Cat implements IPlayer {
     this.collectiveItem.setVisible(false);
 
     this.enableControls = enableControls;
+
+    if (multiplier >= 15) {
+      this.enableDoubleJump();
+    }
   }
 
   initAnimations() {
@@ -383,21 +388,6 @@ export class Cat implements IPlayer {
     }
   }
 
-  enableDoubleJump() {
-    this.inDoubleJumpZone = true;
-    this.canDoubleJump = true;
-    this.hasDoubleJumped = false;
-
-    // Optional: Add visual feedback
-    // this.scene.sound.play('powerup');
-  }
-
-  disableDoubleJump() {
-    this.inDoubleJumpZone = false;
-    this.canDoubleJump = false;
-    this.hasDoubleJumped = false;
-  }
-
   setSitting(sitting: boolean) {
     this.isSitting = sitting;
     if (sitting) {
@@ -405,5 +395,10 @@ export class Cat implements IPlayer {
       this.sprite.setAccelerationX(0);
       this.sprite.anims.play(this.animationKeys[PlayerAnimation.SITTING], true);
     }
+  }
+
+  enableDoubleJump() {
+    this.canDoubleJump = true;
+    this.hasDoubleJumped = false;
   }
 }

@@ -22,6 +22,12 @@ export const CatnipChaosLevelMap: Record<string, Map> = {
   "24": Map.SPRING,
   "25": Map.SPRING,
   "26": Map.SPRING,
+  "31": Map.SUMMER,
+  "32": Map.SUMMER,
+  "33": Map.SUMMER,
+  "34": Map.SUMMER,
+  "35": Map.SUMMER,
+  "36": Map.SUMMER,
 };
 
 export const catnipChaosLevelsList: (keyof typeof CatnipChaosLevelMap)[] =

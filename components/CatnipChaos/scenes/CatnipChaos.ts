@@ -3,6 +3,7 @@ import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileContr
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { isMobile } from "@/constants/utils";
 import { CatAbilityType, ICat } from "@/models/cats";
+import { getMultiplier } from "@/constants/cat-utils";
 import { Scene } from "phaser";
 import { Cat } from "../../catbassadors/objects/Catbassador";
 
@@ -23,11 +24,14 @@ import { SpikeManager } from "@/components/purrquest/managers/SpikeManager";
 
 import { SawHalf } from "@/components/storyMode/Managers/SawHalfManager";
 import { Saw } from "@/components/storyMode/Managers/SawManager";
+import { PortalManager } from "@/components/storyMode/Managers/PortalManager";
 
 const JUMP_LAYER_TILES = [169, 170, 139, 140, 200, 224, 225, 226, 227];
 const TRAMPOLINE_TILES = [158, 159, 160];
 
 const FLOATING_PLATFORM_TILES = [9];
+
+
 
 const SPIKE_TILES = [253, 254, 284, 283];
 
@@ -49,6 +53,7 @@ export class CatnipChaosScene extends Scene {
   blessing!: Phaser.GameObjects.Sprite;
   trampoline?: Trampoline;
   private gameEnded: boolean = false;
+  private portalManager?: PortalManager;
 
   spikeManager!: SpikeManager;
   collectiveItem?: CollectiveItem;
@@ -78,9 +83,10 @@ export class CatnipChaosScene extends Scene {
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.audio("meow", "purrquest/sounds/meow.mp3");
     this.load.image("collective-item", "purrquest/sprites/key.png");
+
     this.load.tilemapTiledJSON(
       "tilemap",
-      `catnip-chaos/levels/level-${level}.json`
+   `catnip-chaos/levels/level-${level}.json`
     );
     this.load.image("blocks", CatnipChaosLevelMap[level]);
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
@@ -119,6 +125,10 @@ export class CatnipChaosScene extends Scene {
     this.load.spritesheet("saw", "story/saw.png", {
       frameWidth: 38,
       frameHeight: 38,
+    });
+    this.load.spritesheet("portal", "story/portal.png", {
+      frameWidth: 64,
+      frameHeight: 64,
     });
   }
 
@@ -202,6 +212,7 @@ export class CatnipChaosScene extends Scene {
 
   private createGameObjects() {
     this.initializeCatnipCoins();
+    this.createPortals();
 
     // Debug: Log all physics layer tiles
     // console.log("Physics Layer Tiles:");
@@ -309,7 +320,7 @@ export class CatnipChaosScene extends Scene {
     blessing: Phaser.GameObjects.Sprite | null,
     type: CatAbilityType
   ) {
-    this.cat = new Cat(this, -950, -900, catName, blessing!, type);
+    this.cat = new Cat(this, -950, -900, catName, blessing!, type, true, getMultiplier(this.catDto));
 
     this.setupCatCollisions();
     this.cameras.main.startFollow(this.cat.sprite);
@@ -651,7 +662,15 @@ export class CatnipChaosScene extends Scene {
       frameRate: 20,
       repeat: -1,
     });
+
+    this.anims.create({
+      key: "portal-anim",
+      frames: this.anims.generateFrameNumbers("portal", { start: 0, end: 5 }),
+      frameRate: 10,
+      repeat: -1,
+    });
   }
+
   async spawnCat(
     { detail: { cat } }: ICatEvent<GameEvent.CAT_SPAWN>,
     isRestart?: boolean
@@ -668,6 +687,7 @@ export class CatnipChaosScene extends Scene {
     }
 
     this.catDto = cat;
+    console.log(cat);
 
     this.load.once("complete", () => {
       if (cat.blessings?.length) {
@@ -734,6 +754,57 @@ export class CatnipChaosScene extends Scene {
   private startGame() {
     if (this.cat) {
       this.cat.sprite.setPosition(0, -400);
+    }
+  }
+
+  private createPortals() {
+    if (!this.cat) return;
+
+    const portalPairs: { entranceX: number; entranceY: number; exitX: number; exitY: number }[] = [];
+
+    // Define all portal pairs
+    const portalPairsConfig = [
+      { entrance: 59, exit: 60 },
+      { entrance: 89, exit: 90 },
+      { entrance: 119, exit: 120 },
+      { entrance: 149, exit: 150 }
+    ];
+
+    // Process each portal pair
+    portalPairsConfig.forEach(({ entrance, exit }) => {
+      this.physicsLayer.forEachTile((tile) => {
+        if (tile.index === entrance) { // Enter portal
+          const entranceX = this.physicsLayer.tileToWorldX(tile.x);
+          const entranceY = this.physicsLayer.tileToWorldY(tile.y);
+          this.physicsLayer.removeTileAt(tile.x, tile.y);
+
+          // Find corresponding exit portal
+          this.physicsLayer.forEachTile((exitTile) => {
+            if (exitTile.index === exit) { // Exit portal
+              const exitX = this.physicsLayer.tileToWorldX(exitTile.x);
+              const exitY = this.physicsLayer.tileToWorldY(exitTile.y);
+              this.physicsLayer.removeTileAt(exitTile.x, exitTile.y);
+
+              portalPairs.push({
+                entranceX,
+                entranceY,
+                exitX,
+                exitY
+              });
+            }
+          });
+        }
+      });
+    });
+
+    if (portalPairs.length > 0) {
+      this.portalManager = new PortalManager({
+        scene: this,
+        groundLayer: this.groundLayer,
+        cat: this.cat,
+        portals: portalPairs
+      });
+      this.portalManager.create();
     }
   }
 }
