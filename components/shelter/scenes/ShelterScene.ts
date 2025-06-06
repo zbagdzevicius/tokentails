@@ -15,6 +15,7 @@ import { Cat } from "../../catbassadors/objects/Catbassador";
 import { Elevator } from "../objects/Elevator";
 import { NpcCat } from "../objects/NpcCat";
 import { SpeechBubble } from "../objects/SpeechBubble";
+import { getMultiplier } from "@/constants/cat-utils";
 
 const JUMP_LAYER_TILES = [
   169, 170, 139, 140, 200, 224, 225, 226, 227, 51, 52, 82, 83, 84,
@@ -452,7 +453,7 @@ export class ShelterScene extends Scene {
     blessing: Phaser.GameObjects.Sprite | null,
     type: CatAbilityType
   ) {
-    this.cat = new Cat(this, 350, -100, catName, blessing!, type);
+    this.cat = new Cat(this, 350, -100, catName, blessing!, type, true, getMultiplier(this.catDto));
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
     this.physics.add.collider(
       this.cat.sprite as Phaser.Physics.Arcade.Sprite,

@@ -16,8 +16,16 @@ const config: Phaser.Types.Core.GameConfig = {
     default: "arcade",
     arcade: {
       fps: 60,
-      gravity: { x: 0, y: 700 },
+      gravity: { x: 0, y: 600 },
       debug: false,
+      tileBias: 32,
+      checkCollision: {
+        up: true,
+        down: true,
+        left: true,
+        right: true
+      },
+      overlapBias: 4
     },
   },
 };

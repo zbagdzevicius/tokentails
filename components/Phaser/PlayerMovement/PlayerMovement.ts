@@ -103,15 +103,20 @@ export class PlayerMovement {
       sprite.setVelocityX(this.autoRunSpeed);
       sprite.setFlipX(false);
 
+      // Reset double jump when landing on ground
+      if (onGround) {
+        this.player.hasDoubleJumped = false;
+      }
+
       if (upKeyDown && !this.player.justJumped) {
-        if (onGround) {
-          // Regular jump from ground
+        if (onGround || (this.player.canDoubleJump && !this.player.hasDoubleJumped)) {
+          // Regular jump from ground or double jump in air
           this.jump({
             canWallJump: false,
             touchingLeftWall: false,
             touchingRightWall: false,
             blockedAbove: false,
-            onGround: true,
+            onGround,
           });
         }
       }
@@ -230,7 +235,7 @@ export class PlayerMovement {
     }
 
     this.handleDash();
-    if ((onGround || canWallJump) && upKeyDown && !this.player.justJumped) {
+    if ((onGround || canWallJump || (this.player.canDoubleJump && !this.player.hasDoubleJumped)) && upKeyDown && !this.player.justJumped) {
       this.jump({
         canWallJump,
         touchingLeftWall,
@@ -258,6 +263,7 @@ export class PlayerMovement {
       this.player.wallJumpCount = 0;
       this.player.lastWallTouched = null;
       this.player.wallTouchTime = 0;
+      this.player.hasDoubleJumped = false;
     }
 
     if (cursors.up.isUp && keys.up.isUp && !isMobileJumping) {
@@ -327,7 +333,7 @@ export class PlayerMovement {
     blockedAbove: boolean;
     onGround: boolean;
   }) {
-    if (onGround || canWallJump) {
+    if (onGround || canWallJump || (this.player.canDoubleJump && !this.player.hasDoubleJumped)) {
       this.player.justJumped = true;
       this.player.jumpTimer = this.player.scene.time.now;
 
@@ -386,6 +392,11 @@ export class PlayerMovement {
         });
       } else {
         this.player.sprite.setVelocityY(jumpSpeed);
+        
+        // Handle double jump
+        if (!onGround && this.player.canDoubleJump && !this.player.hasDoubleJumped) {
+          this.player.hasDoubleJumped = true;
+        }
       }
 
       this.player.isJumping = true;

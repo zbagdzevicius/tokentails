@@ -16,6 +16,7 @@ import { BuffManager } from "../managers/BuffManager";
 import { currentDayCoin, ZOOM } from "@/constants/utils";
 import { endScenePeriod } from "@/models/game";
 import { CoreMap } from "@/components/Phaser/map";
+import { getMultiplier } from "@/constants/cat-utils";
 
 const JUMP_LAYER_TILES = [169, 170, 139, 140, 200, 224, 225, 226, 227];
 const TRAMPOLINE_TILES = [158, 159, 160];
@@ -179,6 +180,7 @@ export class CatbassadorsScene extends Scene {
 
     this.jumperLayer?.setCollision(TRAMPOLINE_TILES);
     this.trampoline = new Trampoline(this, this.jumperLayer, TRAMPOLINE_TILES);
+
 
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(ZOOM);
@@ -379,7 +381,7 @@ export class CatbassadorsScene extends Scene {
     blessing: Phaser.GameObjects.Sprite | null,
     type: CatAbilityType
   ) {
-    this.cat = new Cat(this, 0, -400, catName, blessing!, type);
+    this.cat = new Cat(this, 0, -400, catName, blessing!, type, true, getMultiplier(this.catDto));
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
     this.physics.add.collider(
       this.cat.sprite as Phaser.Physics.Arcade.Sprite,
