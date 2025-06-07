@@ -9,6 +9,7 @@ import { getMultiplier } from "@/constants/cat-utils";
 
 type EndGameProps = {
   onClose: () => void;
+  tryAgain: () => void;
   gameType: GameType;
   gameStop: IGameStopEvent;
 };
@@ -22,6 +23,7 @@ const gameTypeToImage = {
 
 export const EndGameModal: React.FC<EndGameProps> = ({
   onClose,
+  tryAgain,
   gameStop,
   gameType,
 }) => {
@@ -37,7 +39,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
       <div
         className="m-auto z-50 rem:w-[350px] font-secondary md:w-[480px] flex flex-col md:flex-row max-w-full absolute top-1/2 -translate-y-1/2 rounded-lg shadow h-fit animate-appear"
         style={{
-          backgroundImage: "url(/backgrounds/bg.gif)",
+          backgroundImage: "url(/backgrounds/bg-5.png)",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
@@ -86,7 +88,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
           )}
           <div className="flex justify-center items-center text-md text-gray-700">
             <img className="h-8" src={profile?.cat?.catImg}></img>
-            <div className="text-p3 lg:text-p2 font-medium mr-1">
+            <div className="text-p3 lg:text-p2 font-medium mr-1 whitespace-nowrap">
               Selected cat MULTIPLIER
             </div>
             <Tag>X{getMultiplier(profile?.cat)}</Tag>
@@ -98,7 +100,8 @@ export const EndGameModal: React.FC<EndGameProps> = ({
             className="w-20 aspect-square"
             draggable="false"
           />
-          <PixelButton text="LET'S ROLL" onClick={onClose} />
+          <PixelButton text="MEOW BACK" isSmall onClick={onClose} />
+          <PixelButton text="TRY AGAIN" onClick={tryAgain} />
         </div>
       </div>
     </div>

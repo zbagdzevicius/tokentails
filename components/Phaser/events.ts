@@ -20,6 +20,7 @@ interface ICatMeowEvent {}
 interface ICatEatenEvent {}
 interface ICatSpawnEvent {
   cat: ICat;
+  isRestart?: boolean;
 }
 interface ICatPlayEvent {}
 interface ICatEatEvent {}
@@ -27,6 +28,7 @@ interface ICatEatEvent {}
 // GAME EVENTS
 interface IGameStartEvent {
   cat?: ICat;
+  isRestart?: boolean;
 }
 export interface IGameStopEvent {
   score: number;

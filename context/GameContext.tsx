@@ -30,6 +30,8 @@ import { getMultiplier } from "@/constants/cat-utils";
 type ContextState = {
   isStarted?: boolean;
   gameType: GameType | null;
+  level: string | null;
+  setLevel: (level: string | null) => void;
   setGameType: (gameType: GameType | null) => void;
   timer: number;
   gameStop: IGameStopEvent | null;
@@ -47,6 +49,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [gameType, setGameType] = useState<GameType | null>(null);
   const [openedModal, setOpenedModal] = useState<GameModal | null>(null);
   const [gameStop, setGameStop] = useState<null | IGameStopEvent>(null);
+  const [level, setLevel] = useState<string | null>(null);
 
   const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
@@ -67,6 +70,12 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
       return () => clearTimeout(timeout);
     }
   }, [notifications]);
+
+  useEffect(() => {
+    if (gameType === null) {
+      setLevel(null);
+    }
+  }, [gameType]);
 
   const gameStopCallback = React.useCallback(
     async (event?: ICatEventsDetails[GameEvent.GAME_STOP]) => {
@@ -180,14 +189,33 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     addNotification,
     setOpenedModal,
     gameStop,
+    level,
+    setLevel,
+  };
+
+  const onClose = () => {
+    setGameStop(null);
+    setLevel(null);
+  };
+
+  const tryAgain = () => {
+    setGameStop(null);
+    setGameType(gameType);
+    if ((profile?.catbassadorsLives || 0) > 0) {
+      GameEvents.GAME_START.push({ cat: profile?.cat, isRestart: true });
+    } else {
+      showToast({ message: "You run out of lives ):" });
+      onClose();
+    }
   };
 
   return (
     <GameContext.Provider value={value}>
       {gameStop && (
         <EndGameModal
-          onClose={() => setGameStop(null)}
+          onClose={onClose}
           gameStop={gameStop}
+          tryAgain={tryAgain}
           gameType={gameType!}
         />
       )}
@@ -258,6 +286,8 @@ function useGame() {
     playGame: context.playGame,
     setOpenedModal: context.setOpenedModal,
     gameStop: context.gameStop,
+    level: context.level,
+    setLevel: context.setLevel,
   };
 }
 

@@ -150,7 +150,6 @@ const allQuests: ILocalQuest[] = [
     type: QuestType.GOAL,
     key: QUEST.INVITE_FRIENDS_35,
     name: "Invite 35 friens",
-    link: "https://www.linkedin.com/company/token-tails",
     icon: "/images/cats-hub/cat-with-hat.webp",
     reward: {
       coins: 3500,
@@ -294,7 +293,7 @@ export const QuestsModalContent = () => {
             </div>
           </>
         )}
-        {questsType === QuestType.GOAL && isApp && (
+        {questsType === QuestType.GOAL && (
           <>
             <div className="flex flex-col gap-2 w-full pb-8">
               {quests.map((quest) => (
@@ -336,9 +335,7 @@ export const QuestsModalContent = () => {
           </>
         )}
       </span>
-      {questsType === QuestType.GOAL && !isApp && <AppCTA />}
-      {questsType === QuestType.WIN && isApp && <LeaderboardContent />}
-      {questsType === QuestType.WIN && !isApp && <AppCTA />}
+      {questsType === QuestType.WIN && <LeaderboardContent />}
     </div>
   );
 };

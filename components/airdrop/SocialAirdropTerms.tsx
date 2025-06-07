@@ -134,8 +134,6 @@ export const SocialAirdropTerms = () => {
                 text="?"
                 isSmall
                 onClick={() => {
-                  console.log("gg");
-                  console.log(modal);
                   setModal(what.help);
                 }}
               />

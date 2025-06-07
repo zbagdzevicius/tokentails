@@ -60,7 +60,7 @@ export const GameStatsSection = ({
           onClick={() => setOpenedModal(GameModal.PROFILE)}
           className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2"
           style={{
-            backgroundImage: "url(/backgrounds/bg.gif)",
+            backgroundImage: "url(/backgrounds/bg-5.png)",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}

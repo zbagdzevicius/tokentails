@@ -29,13 +29,9 @@ const CatnipChaosGame = ({ level }: ICatnipChaosProps) => {
 
 function CatnipChaos() {
   const { cat } = useCat();
-  const { gameStop } = useGame();
+  const { setLevel, level } = useGame();
 
   const isGameLoaded = GameEvents.GAME_LOADED.use();
-  const [level, setLevel] = useState<string | null>(null);
-  useEffect(() => {
-    setLevel(null);
-  }, [gameStop]);
 
   useEffect(() => {
     if (cat && isGameLoaded?.scene) {

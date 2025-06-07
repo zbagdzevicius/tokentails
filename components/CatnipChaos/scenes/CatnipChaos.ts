@@ -1,4 +1,9 @@
-import { GameEvent, GameEvents, ICatEvent } from "@/components/Phaser/events";
+import {
+  GameEvent,
+  GameEvents,
+  ICatEvent,
+  IPhaserGameSceneProps,
+} from "@/components/Phaser/events";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { isMobile } from "@/constants/utils";
@@ -30,8 +35,6 @@ const JUMP_LAYER_TILES = [169, 170, 139, 140, 200, 224, 225, 226, 227];
 const TRAMPOLINE_TILES = [158, 159, 160];
 
 const FLOATING_PLATFORM_TILES = [9];
-
-
 
 const SPIKE_TILES = [253, 254, 284, 283];
 
@@ -86,7 +89,7 @@ export class CatnipChaosScene extends Scene {
 
     this.load.tilemapTiledJSON(
       "tilemap",
-   `catnip-chaos/levels/level-${level}.json`
+      `catnip-chaos/levels/level-${level}.json`
     );
     this.load.image("blocks", CatnipChaosLevelMap[level]);
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
@@ -136,12 +139,12 @@ export class CatnipChaosScene extends Scene {
     this.props = props;
   }
 
-  create() {
+  create(props: { detail?: IPhaserGameSceneProps }) {
     this.initAnimations();
     this.setupTilemap();
     this.setupCamera();
     this.setupSound();
-    this.setupEventListeners(this.props);
+    if (!props.detail?.isRestart) this.setupEventListeners(this.props);
 
     // Add click event listener for jumping
     this.input.on("pointerdown", () => {
@@ -157,6 +160,9 @@ export class CatnipChaosScene extends Scene {
     });
 
     this.createGameObjects();
+    if (props.detail?.cat) {
+      this.spawnCat({ detail: { cat: props.detail.cat } });
+    }
   }
 
   createAnimatedSpikes() {}
@@ -320,7 +326,16 @@ export class CatnipChaosScene extends Scene {
     blessing: Phaser.GameObjects.Sprite | null,
     type: CatAbilityType
   ) {
-    this.cat = new Cat(this, -950, -900, catName, blessing!, type, true, getMultiplier(this.catDto));
+    this.cat = new Cat(
+      this,
+      -950,
+      -900,
+      catName,
+      blessing!,
+      type,
+      true,
+      getMultiplier(this.catDto)
+    );
 
     this.setupCatCollisions();
     this.cameras.main.startFollow(this.cat.sprite);
@@ -532,14 +547,6 @@ export class CatnipChaosScene extends Scene {
   endGame(finished: boolean = true) {
     if (this.gameEnded) return;
     this.gameEnded = true;
-    GameEvents.GAME_STOP.push({
-      score: this.collectedCatnipCoins,
-      time: 0,
-      finished,
-      metadata: {
-        level: this.props.level,
-      },
-    });
     if (this.cat) {
       this.cat.isHit = true;
       // Set player color to red
@@ -562,19 +569,17 @@ export class CatnipChaosScene extends Scene {
       loop: false,
     });
     gameEndSound.play();
-    this.time.delayedCall(1000, () => {
-      this.cleanupSound();
+    this.time.delayedCall(250, () => {
+      GameEvents.GAME_STOP.push({
+        score: this.collectedCatnipCoins,
+        time: 0,
+        finished,
+        metadata: {
+          level: this.props.level,
+        },
+      });
       this.destroyGameObjects();
-      this.cleanupScene();
     });
-  }
-
-  private cleanupSound() {
-    if (this.backgroundSound) {
-      this.backgroundSound.stop();
-      this.backgroundSound.destroy();
-      this.backgroundSound = undefined;
-    }
   }
 
   private destroyGameObjects() {
@@ -597,12 +602,8 @@ export class CatnipChaosScene extends Scene {
 
   private resetGameObjects() {
     this.cat = undefined;
-  }
-
-  private cleanupScene() {
-    this.physics.world.shutdown();
-    this.scene.stop();
-    this.scene.remove();
+    this.catDto = undefined;
+    this.collectedCatnipCoins = 0;
   }
 
   setupEventListeners(props: ICatnipChaosProps) {
@@ -610,7 +611,8 @@ export class CatnipChaosScene extends Scene {
       this.spawnCat(data!);
     GameEvents.CAT_SPAWN.addEventListener(catSpawnCallback);
 
-    const startGameCallback = () => this.startGame();
+    const startGameCallback = (data: ICatEvent<GameEvent.GAME_START>) =>
+      this.startGame(data!);
     GameEvents.GAME_START.addEventListener(startGameCallback);
 
     this.scene.scene.events.once("destroy", () => {
@@ -671,10 +673,9 @@ export class CatnipChaosScene extends Scene {
     });
   }
 
-  async spawnCat(
-    { detail: { cat } }: ICatEvent<GameEvent.CAT_SPAWN>,
-    isRestart?: boolean
-  ) {
+  async spawnCat({
+    detail: { cat, isRestart },
+  }: ICatEvent<GameEvent.CAT_SPAWN>) {
     const isCatExist = !cat || cat?.name === this.catDto?.name;
     if (isCatExist && !isRestart) return;
 
@@ -687,7 +688,6 @@ export class CatnipChaosScene extends Scene {
     }
 
     this.catDto = cat;
-    console.log(cat);
 
     this.load.once("complete", () => {
       if (cat.blessings?.length) {
@@ -751,7 +751,11 @@ export class CatnipChaosScene extends Scene {
     meowSound.play();
   }
 
-  private startGame() {
+  private startGame(data: ICatEvent<GameEvent.GAME_START>) {
+    if (data.detail.isRestart) {
+      this.gameEnded = false;
+      this.scene.restart(data);
+    }
     if (this.cat) {
       this.cat.sprite.setPosition(0, -400);
     }
@@ -760,27 +764,34 @@ export class CatnipChaosScene extends Scene {
   private createPortals() {
     if (!this.cat) return;
 
-    const portalPairs: { entranceX: number; entranceY: number; exitX: number; exitY: number }[] = [];
+    const portalPairs: {
+      entranceX: number;
+      entranceY: number;
+      exitX: number;
+      exitY: number;
+    }[] = [];
 
     // Define all portal pairs
     const portalPairsConfig = [
       { entrance: 59, exit: 60 },
       { entrance: 89, exit: 90 },
       { entrance: 119, exit: 120 },
-      { entrance: 149, exit: 150 }
+      { entrance: 149, exit: 150 },
     ];
 
     // Process each portal pair
     portalPairsConfig.forEach(({ entrance, exit }) => {
       this.physicsLayer.forEachTile((tile) => {
-        if (tile.index === entrance) { // Enter portal
+        if (tile.index === entrance) {
+          // Enter portal
           const entranceX = this.physicsLayer.tileToWorldX(tile.x);
           const entranceY = this.physicsLayer.tileToWorldY(tile.y);
           this.physicsLayer.removeTileAt(tile.x, tile.y);
 
           // Find corresponding exit portal
           this.physicsLayer.forEachTile((exitTile) => {
-            if (exitTile.index === exit) { // Exit portal
+            if (exitTile.index === exit) {
+              // Exit portal
               const exitX = this.physicsLayer.tileToWorldX(exitTile.x);
               const exitY = this.physicsLayer.tileToWorldY(exitTile.y);
               this.physicsLayer.removeTileAt(exitTile.x, exitTile.y);
@@ -789,7 +800,7 @@ export class CatnipChaosScene extends Scene {
                 entranceX,
                 entranceY,
                 exitX,
-                exitY
+                exitY,
               });
             }
           });
@@ -802,7 +813,7 @@ export class CatnipChaosScene extends Scene {
         scene: this,
         groundLayer: this.groundLayer,
         cat: this.cat,
-        portals: portalPairs
+        portals: portalPairs,
       });
       this.portalManager.create();
     }

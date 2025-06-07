@@ -1,9 +1,11 @@
 import React from "react";
 import {
   catnipChaosChapterBGImage,
+  CatnipChaosLevelMap,
   catnipChaosLevelsList,
 } from "../Phaser/map";
 import { useProfile } from "@/context/ProfileContext";
+import { useToast } from "@/context/ToastContext";
 
 export const CatnipChaosLevels = ({
   setSelectedLevel,
@@ -11,9 +13,20 @@ export const CatnipChaosLevels = ({
   setSelectedLevel: (level: string) => void;
 }) => {
   const { profile } = useProfile();
+  const showToast = useToast();
   const unlockedLevels = [...(profile?.catnipChaos || [])].filter(
     (level) => level > 0
   ).length;
+
+  const selectLevel = (level: string) => {
+    if (level.startsWith("3") && profile?.cat?.name !== "Sticky") {
+      showToast({
+        message: "You need to select Sticky to play this level",
+      });
+      return;
+    }
+    setSelectedLevel(level);
+  };
 
   return (
     <div className="flex flex-col items-center gap-4 mt-14 lg:mt-24">
@@ -30,7 +43,7 @@ export const CatnipChaosLevels = ({
         {catnipChaosLevelsList.map((level, i) => (
           <div
             key={i}
-            onClick={() => i <= unlockedLevels && setSelectedLevel(level)}
+            onClick={() => i <= unlockedLevels && selectLevel(level)}
             style={{
               backgroundImage: `url(${catnipChaosChapterBGImage[level[0]]})`,
               backgroundSize: "cover",
@@ -55,13 +68,13 @@ export const CatnipChaosLevels = ({
         <div className="flex font-secondary text-center items-center gap-1">
           <img src="/logo/catnip.webp" className="w-8 h-8 mr-2" />
           {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0}
-          <span>/120</span>
+          <span>/{Object.keys(CatnipChaosLevelMap).length * 10}</span>
           <span>COLLECTED</span>
         </div>
         <div className="flex font-secondary text-center items-center gap-1">
           <img src="/purrquest/sprites/key.png" className="w-8 h-8 mr-2" />
           {profile?.catnipChaos?.length || 0}
-          <span>/12</span>
+          <span>/{Object.keys(CatnipChaosLevelMap).length}</span>
           <span>COMPLETED LEVELS</span>
         </div>
       </div>
