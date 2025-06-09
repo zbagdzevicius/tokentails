@@ -14,9 +14,19 @@ const config: Phaser.Types.Core.GameConfig = {
   physics: {
     default: "arcade",
     arcade: {
-      fps: 60,
-      gravity: { x: 0, y: 700 },
-      debug: true,
+      fps: 240,
+      timeScale: 1,
+      gravity: { x: 0, y: 600 },
+      debug: false,
+      tileBias: 128,
+      checkCollision: {
+        up: true,
+        down: true,
+        left: true,
+        right: true
+      },
+      overlapBias: 64,
+      fixedStep: true
     },
   },
 };
