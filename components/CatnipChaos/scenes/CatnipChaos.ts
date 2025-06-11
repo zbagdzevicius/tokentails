@@ -547,6 +547,7 @@ export class CatnipChaosScene extends Scene {
   endGame(finished: boolean = true) {
     if (this.gameEnded) return;
     this.gameEnded = true;
+    this.backgroundSound?.stop();
     if (this.cat) {
       this.cat.isHit = true;
       // Set player color to red
