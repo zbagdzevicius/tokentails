@@ -196,7 +196,7 @@ export const PresaleCardContent = () => {
         {/* <div
           className="flex hover:brightness-110 flex-col items-center p-1 md:p-4 pb-6 rounded-3xl border-4 border-main-black"
           style={{
-            backgroundImage: "url(/backgrounds/bg.gif)",
+            backgroundImage: "url(/backgrounds/bg-4.webp)",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
@@ -283,7 +283,7 @@ export const PresaleCardContent = () => {
           <div
             className="flex hover:brightness-110 relative items-center py-1 px-6 rounded-2xl mb-4 -mt-4 border-2 border-main-black"
             style={{
-              backgroundImage: "url(/backgrounds/bg.gif)",
+              backgroundImage: "url(/backgrounds/bg-4.webp)",
               backgroundSize: "cover",
               backgroundPosition: "center",
             }}

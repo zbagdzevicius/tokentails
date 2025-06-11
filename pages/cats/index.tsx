@@ -14,7 +14,7 @@ const Cats = () => {
         <div
           className="pt-20 md:pt-24 fade-in min-h-screen relative flex flex-col items-center justify-center pb-16"
           style={{
-            background: "url(/backgrounds/bg-night.gif)",
+            background: "url(/backgrounds/bg-6.webp)",
             backgroundAttachment: "fixed",
             backgroundSize: "cover",
             backgroundPosition: "bottom",

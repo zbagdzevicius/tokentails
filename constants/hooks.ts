@@ -1,33 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
 
 const bgImages = [
-  "url(/backgrounds/bg-5.png)",
-  "url(/backgrounds/bg-6.png)",
-  "url(/backgrounds/bg-6.png)",
-  "url(/backgrounds/bg-7.png)",
-  "url(/backgrounds/bg-5.png)",
-  "url(/backgrounds/bg-6.png)",
-  "url(/backgrounds/bg-6.png)",
-  "url(/backgrounds/bg-7.png)",
-  "url(/backgrounds/bg-7.png)",
-  "url(/backgrounds/bg-night.png)",
-  "url(/backgrounds/bg-night.png)",
-  "url(/backgrounds/bg-night-2.png)",
-  "url(/backgrounds/bg-6.png)",
-  "url(/backgrounds/bg-5.png)",
-  "url(/backgrounds/bg-6.png)",
-  "url(/backgrounds/bg-6.png)",
-  "url(/backgrounds/bg-night.png)",
-  "url(/backgrounds/bg-night.png)",
-  "url(/backgrounds/bg-night-2.png)",
-  "url(/backgrounds/bg-5.png)",
-  "url(/backgrounds/bg-6.png)",
-  "url(/backgrounds/bg-6.png)",
-  "url(/backgrounds/bg-7.png)",
-  "url(/backgrounds/bg-5.png)",
-  "url(/backgrounds/bg-6.png)",
-  "url(/backgrounds/bg-6.png)",
-  "url(/backgrounds/bg-7.png)",
+  "url(/backgrounds/bg-1.webp)",
+  "url(/backgrounds/bg-2.webp)",
+  "url(/backgrounds/bg-3.webp)",
+  "url(/backgrounds/bg-4.webp)",
+  "url(/backgrounds/bg-5.webp)",
+  "url(/backgrounds/bg-6.webp)",
+  "url(/backgrounds/bg-7.webp)",
+  "url(/backgrounds/bg-8.webp)",
+  "url(/backgrounds/bg-1.webp)",
+  "url(/backgrounds/bg-1.webp)",
+  "url(/backgrounds/bg-2.webp)",
+  "url(/backgrounds/bg-3.webp)",
+  "url(/backgrounds/bg-4.webp)",
+  "url(/backgrounds/bg-5.webp)",
+  "url(/backgrounds/bg-6.webp)",
+  "url(/backgrounds/bg-7.webp)",
+  "url(/backgrounds/bg-8.webp)",
+  "url(/backgrounds/bg-1.webp)",
+  "url(/backgrounds/bg-2.webp)",
+  "url(/backgrounds/bg-3.webp)",
+  "url(/backgrounds/bg-4.webp)",
+  "url(/backgrounds/bg-5.webp)",
+  "url(/backgrounds/bg-6.webp)",
+  "url(/backgrounds/bg-7.webp)",
+  "url(/backgrounds/bg-8.webp)",
 ];
 
 export const useBackground = () => {
@@ -40,7 +38,7 @@ export const useBackground = () => {
     const hours = new Date().getHours();
     return {
       ...coreBg,
-      backgroundImage: bgImages[hours] || "url(/backgrounds/bg-night.png)",
+      backgroundImage: bgImages[hours] || "url(/backgrounds/bg-5.webp)",
     };
   }, []);
 

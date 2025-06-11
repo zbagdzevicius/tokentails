@@ -5,7 +5,7 @@ export const AppCTA = () => {
     <div
       className="flex flex-col gap-4 w-full px-2 py-4 rounded-xl font-secondary font-bold"
       style={{
-        backgroundImage: "url(/backgrounds/bg-6.png)",
+        backgroundImage: "url(/backgrounds/bg-5.webp)",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}

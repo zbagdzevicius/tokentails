@@ -14,7 +14,7 @@ export const Airdrop = () => {
           <div
             className="flex flex-col items-center p-4 rounded-2xl min-w-64 md:min-w-52 lg:min-w-64"
             style={{
-              backgroundImage: "url(/backgrounds/bg.gif)",
+              backgroundImage: "url(/backgrounds/bg-4.webp)",
               backgroundSize: "cover",
               backgroundPosition: "center",
             }}
@@ -33,7 +33,7 @@ export const Airdrop = () => {
           <div
             className="flex flex-col items-center p-4 rounded-2xl min-w-64 md:min-w-52 lg:min-w-64"
             style={{
-              backgroundImage: "url(/backgrounds/bg-night.gif)",
+              backgroundImage: "url(/backgrounds/bg-6.webp)",
               backgroundSize: "cover",
               backgroundPosition: "center",
             }}
@@ -52,7 +52,7 @@ export const Airdrop = () => {
           <div
             className="flex flex-col items-center p-4 rounded-2xl min-w-64 md:min-w-52 lg:min-w-64"
             style={{
-              backgroundImage: "url(/backgrounds/bg-5.png)",
+              backgroundImage: "url(/backgrounds/bg-4.webp)",
               backgroundSize: "cover",
               backgroundPosition: "center",
             }}

@@ -49,7 +49,7 @@ const MysteryBoxEligibility = ({
     <div
       className="flex flex-col items-center my-2 md:mb-0 rounded-xl w-full md:w-auto"
       style={{
-        backgroundImage: "url(/backgrounds/bg-5.png)",
+        backgroundImage: "url(/backgrounds/bg-4.webp)",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}

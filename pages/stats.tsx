@@ -24,7 +24,7 @@ const Airdrop = () => {
       <div
         className="pt-20 md:pt-24 fade-in min-h-screen relative flex flex-col items-center"
         style={{
-          backgroundImage: "url(/backgrounds/bg-night.gif)",
+          backgroundImage: "url(/backgrounds/bg-6.webp)",
           backgroundRepeat: "no-repeat",
           backgroundSize: "cover",
           backgroundPosition: "center",

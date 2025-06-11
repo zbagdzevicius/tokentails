@@ -16,7 +16,7 @@ export const ProcessExplained = () => {
         <div className="flex justify-center flex-col md:flex-row gap-4">
           <div
             style={{
-              backgroundImage: "url(/backgrounds/bg-7.png)",
+              backgroundImage: "url(/backgrounds/bg-9.webp)",
               backgroundSize: "cover",
               backgroundPosition: "top",
             }}
@@ -41,7 +41,7 @@ export const ProcessExplained = () => {
           </div>
           <div
             style={{
-              backgroundImage: "url(/backgrounds/bg-5.png)",
+              backgroundImage: "url(/backgrounds/bg-4.webp)",
               backgroundSize: "cover",
               backgroundPosition: "top",
             }}
@@ -68,7 +68,7 @@ export const ProcessExplained = () => {
           </div>
           <div
             style={{
-              backgroundImage: "url(/backgrounds/bg-night.png)",
+              backgroundImage: "url(/backgrounds/bg-6.webp)",
               backgroundSize: "cover",
               backgroundPosition: "top",
             }}
@@ -95,7 +95,7 @@ export const ProcessExplained = () => {
           </div>
           <div
             style={{
-              backgroundImage: "url(/backgrounds/bg-6.png)",
+              backgroundImage: "url(/backgrounds/bg-5.webp)",
               backgroundSize: "cover",
               backgroundPosition: "top",
             }}

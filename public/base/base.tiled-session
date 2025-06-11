@@ -1,13 +1,5 @@
 {
-    "Map/SizeTest": {
-        "height": 4300,
-        "width": 2
-    },
-    "activeFile": "/Users/zygimantasbagdzevicius/me/cats/public/catnip-chaos/levels/level-13.json",
-    "expandedProjectPaths": [
-        "."
-    ],
-    "file.lastUsedOpenFilter": "All Files (*)",
+    "activeFile": "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.json",
     "fileStates": {
         "": {
             "scaleInDock": 1,
@@ -27,6 +19,17 @@
         },
         "#home": {
             "dynamicWrapping": true
+        },
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.json": {
+            "scale": 0.8529,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": -267.90948528549654,
+                "y": -75.03810528784146
+            }
+        },
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.json#new-blocks-winter": {
+            "scaleInDock": 1
         },
         "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.tmx": {
             "expandedGroupLayers": [
@@ -94,11 +97,22 @@
             "scale": 0.8791,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 3353.429643954044,
-                "y": -742.2363781139803
+                "x": 3837.447389375498,
+                "y": -401.5470367421227
             }
         },
         "/Users/zygimantasbagdzevicius/me/cats/public/catnip-chaos/levels/level-13.json#blocks": {
+            "scaleInDock": 1
+        },
+        "base.json": {
+            "scale": 1.0846,
+            "selectedLayer": 3,
+            "viewCenter": {
+                "x": -169.18679697584366,
+                "y": -212.98174442190668
+            }
+        },
+        "base.json#new-blocks-winter": {
             "scaleInDock": 1
         },
         "base.tmx": {
@@ -168,29 +182,19 @@
             "scaleInDock": 2.2835
         }
     },
-    "last.exportedFilePath": "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors",
-    "last.imagePath": "/Users/zygimantasbagdzevicius/Downloads/FREE_Fantasy Forest/Backgrounds",
-    "map.fixedSize": false,
-    "map.lastUsedExportFilter": "All Files (*)",
-    "map.lastUsedFormat": "tmx",
-    "map.tileHeight": 64,
-    "map.tileWidth": 64,
     "openFiles": [
-        "/Users/zygimantasbagdzevicius/me/cats/public/catnip-chaos/levels/level-13.json"
+        "/Users/zygimantasbagdzevicius/me/cats/public/catnip-chaos/levels/level-13.json",
+        "base.json",
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.json"
     ],
-    "project": "base.tiled-project",
     "recentFiles": [
         "/Users/zygimantasbagdzevicius/me/cats/public/catnip-chaos/levels/level-13.json",
+        "base.json",
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.json",
         "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/new-shelter.json",
         "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/new-shelter.tmj",
         "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/shelter.tmx",
         "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.tmx",
         "base.tmx"
-    ],
-    "tileset.embedInMap": true,
-    "tileset.tileSize": {
-        "height": 32,
-        "width": 32
-    },
-    "tileset.type": 0
+    ]
 }

@@ -116,7 +116,7 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
         <div
           className="absolute top-16 lg:top-24 z-[2] left-1/2 -translate-x-1/2 bg-yellow-300 pt-2 rounded-lg px-4 flex flex-col md:flex-row lg:flex-col animate-appear"
           style={{
-            backgroundImage: "url(/backgrounds/bg-7.png)",
+            backgroundImage: "url(/backgrounds/bg-9.webp)",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}

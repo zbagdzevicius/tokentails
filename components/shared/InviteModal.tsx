@@ -69,7 +69,7 @@ export const InviteModalContent = () => {
           <div
             className="flex flex-col mb-4 font-primary uppercase px-2 relative rounded-lg py-2 text-main-black mt-8"
             style={{
-              backgroundImage: "url(/backgrounds/bg-night.png)",
+              backgroundImage: "url(/backgrounds/bg-6.webp)",
               backgroundSize: "cover",
               backgroundPosition: "center",
             }}
@@ -153,7 +153,7 @@ export const InviteModal = ({ close }: { close: () => void }) => {
       <div
         className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full absolute top-1/2 -translate-y-1/2 h-full rounded-xl shadow max-h-screen overflow-y-auto"
         style={{
-          backgroundImage: "url('/backgrounds/bg-6.png')",
+          backgroundImage: "url('/backgrounds/bg-5.webp')",
           backgroundRepeat: "no-repeat",
           backgroundSize: "cover",
           backgroundPosition: "center",

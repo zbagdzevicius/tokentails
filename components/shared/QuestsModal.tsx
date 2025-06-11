@@ -350,7 +350,7 @@ export const QuestsModal = ({ close }: { close: () => void }) => {
       <div
         className="m-auto z-50 rem:w-[386px] md:w-[480px] max-w-full absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow"
         style={{
-          backgroundImage: "url('/backgrounds/bg-5.png')",
+          backgroundImage: "url('/backgrounds/bg-4.webp')",
           backgroundRepeat: "no-repeat",
           backgroundSize: "cover",
           backgroundPosition: "center",

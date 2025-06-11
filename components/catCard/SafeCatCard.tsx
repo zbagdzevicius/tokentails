@@ -294,7 +294,7 @@ export const CatPayment = ({
         <div
           className="z-20 absolute bottom-0 pb-4 bg-opacity-85 pt-8 px-4 left-0 right-0 border-t-8 max-h-screen overflow-y-auto border-radius-2xl"
           style={{
-            backgroundImage: "url(/backgrounds/bg.gif)",
+            backgroundImage: "url(/backgrounds/bg-4.webp)",
             backgroundSize: "cover",
             backgroundPosition: "center",
             borderColor: cardsColor[cat.type],
@@ -495,7 +495,7 @@ export const SafeCatCard = ({
           <div
             className="absolute bottom-0 left-0 right-0 w-full rounded-2xl z-20 animate-appear"
             style={{
-              backgroundImage: "url('/backgrounds/bg-6.png')",
+              backgroundImage: "url('/backgrounds/bg-5.webp')",
               backgroundRepeat: "no-repeat",
               backgroundSize: "cover",
               backgroundPosition: "center",

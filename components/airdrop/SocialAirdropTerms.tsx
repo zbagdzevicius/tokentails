@@ -10,35 +10,35 @@ const whatToDo = [
     help: "Declare your loyalty. 🗣 Speak the Codex - Use #TAILS in a Post. Post on X and be rewarded. It can be combined with other ways.",
     points: "+1",
     image: SocialImages.X,
-    href: "https://x.com/intent/post?text=%40tokentails%20Cats%20called%2C%20I%20answered.%20%24TAILS&url=https%3A%2F%2Fx.com%2Ftokentails%2Fstatus%2F1900186546969432232",
+    href: "https://x.com/intent/post?text=%40tokentails%20The%20Codex%20is%20real.%20So%20is%20the%20fortune.%20Walk%20the%20path%20-%20or%20be%20forgotten.%0Ahttps%3A%2F%2Fx.com%2Ftokentails%2Fstatus%2F1927673989406588989",
   },
   {
     description: "Tag Fellow rescuers",
     help: "Summon Allies - Tag Fellow Rescuers. Tag your friends while you posts. Points stacks up!",
     points: "+1",
     image: SocialImages.X,
-    href: "https://x.com/intent/post?text=%40tokentails%20%24TAILS%20calling.%20Will%20you%20answer%3F&url=https%3A%2F%2Fx.com%2Ftokentails%2Fstatus%2F1900186546969432232",
+    href: "https://x.com/intent/post?text=%40tokentails%20One%20mystery%20box.%20200%20lives%20to%20save.%20The%20Codex%20can't%20wait.%20Who%E2%80%99s%20minting%20with%20me%3F%20%0Ahttps%3A%2F%2Fx.com%2Ftokentails%2Fstatus%2F1928440571057594726%0A",
   },
   {
     description: "tag @Tokentails",
     help: "Amplify the order. Signal the Tailsguard - Mention @TokenTails in Post. All quests can be completed multiple times.",
     points: "+3",
     image: SocialImages.X,
-    href: "https://x.com/intent/post?text=%40tokentails%20Cats%20called%2C%20I%20answered.%20%24TAILS&url=https%3A%2F%2Fx.com%2Ftokentails%2Fstatus%2F1900186546969432232",
+    href: "https://x.com/intent/post?text=The%20Codex%20whispered.%20I%20minted.%20I%20mattered.%0A%40tokentails%0Ahttps%3A%2F%2Fx.com%2Ftokentails%2Fstatus%2F1900186546969432232",
   },
   {
     description: "SHARE OUR MEME",
     help: "Share a Sacred Meme - Post Our Cat Meme Content. Post any meme or craft one on your own! Points stacks up!",
     points: "+3",
     image: SocialImages.X,
-    href: "https://x.com/intent/post?text=%40tokentails%20My%20soul%20belongs%20to%20the%20cats.%20%24TAILS&url=https%3A%2F%2Fx.com%2Ftokentails%2Fstatus%2F1900186546969432232",
+    href: "https://x.com/intent/post?text=%40tokentails%20Even%20the%20Codex%20needs%20a%20laugh.%0AMemes%20with%20meaning%20%3E%20memes%20for%20clout.%0Ahttps%3A%2F%2Fx.com%2Ftokentails%2Fstatus%2F1927673989406588989",
   },
   {
     description: "QUOTE OUR POST",
     help: "Speak your own verse. Echo the Codex - Quote a Tails Post with Your Take. Points stacks up!",
     points: "+1",
     image: SocialImages.X,
-    href: "https://x.com/intent/post?text=%40tokentails%20Cats%20called%2C%20I%20answered.%20%24TAILS&url=https%3A%2F%2Fx.com%2Ftokentails%2Fstatus%2F1900186546969432232",
+    href: "https://x.com/intent/post?text=%40tokentails%20I%20didn%E2%80%99t%20scroll%20past%20this.%0AI%20heard%20the%20Codex%20calling%20-%20and%20I%20stepped%20forward.%0Ahttps%3A%2F%2Fx.com%2Ftokentails%2Fstatus%2F1927673989406588989",
   },
   {
     description: "Get engagement",
@@ -150,7 +150,7 @@ export const SocialAirdropTerms = () => {
           <div
             className="z-50 rem:w-[350px] md:w-[480px] max-w-full absolute top-1/2 -translate-y-1/2 rounded-xl shadow animate-appear pb-4"
             style={{
-              backgroundImage: "url('/backgrounds/bg-6.png')",
+              backgroundImage: "url('/backgrounds/bg-5.webp')",
               backgroundRepeat: "no-repeat",
               backgroundSize: "cover",
               backgroundPosition: "center",

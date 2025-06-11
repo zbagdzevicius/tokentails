@@ -113,7 +113,7 @@ export const DisplayCoins: React.FC<{}> = () => {
       <div
         className="fixed left-4 pb-safe top-4 z-10 justify-between flex hover:brightness-110 flex-col w-20 items-center font-secondary rounded-xl px-1 py-2"
         style={{
-          backgroundImage: "url(/backgrounds/bg-7.png)",
+          backgroundImage: "url(/backgrounds/bg-9.webp)",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}

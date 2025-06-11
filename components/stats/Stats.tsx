@@ -45,7 +45,7 @@ export const Stats = () => {
           <div className="flex flex-wrap gap-8 justify-center items-center mt-8">
             <div
               style={{
-                backgroundImage: "url(/backgrounds/bg-6.png)",
+                backgroundImage: "url(/backgrounds/bg-5.webp)",
                 backgroundSize: "cover",
                 backgroundPosition: "top",
               }}
@@ -60,7 +60,7 @@ export const Stats = () => {
             </div>
             <div
               style={{
-                backgroundImage: "url(/backgrounds/bg-6.png)",
+                backgroundImage: "url(/backgrounds/bg-5.webp)",
                 backgroundSize: "cover",
                 backgroundPosition: "top",
               }}
@@ -75,7 +75,7 @@ export const Stats = () => {
             </div>
             <div
               style={{
-                backgroundImage: "url(/backgrounds/bg-6.png)",
+                backgroundImage: "url(/backgrounds/bg-5.webp)",
                 backgroundSize: "cover",
                 backgroundPosition: "top",
               }}
@@ -90,7 +90,7 @@ export const Stats = () => {
             </div>
             <div
               style={{
-                backgroundImage: "url(/backgrounds/bg-6.png)",
+                backgroundImage: "url(/backgrounds/bg-5.webp)",
                 backgroundSize: "cover",
                 backgroundPosition: "top",
               }}
@@ -105,7 +105,7 @@ export const Stats = () => {
             </div>
             <div
               style={{
-                backgroundImage: "url(/backgrounds/bg-6.png)",
+                backgroundImage: "url(/backgrounds/bg-5.webp)",
                 backgroundSize: "cover",
                 backgroundPosition: "top",
               }}

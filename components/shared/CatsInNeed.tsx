@@ -68,7 +68,7 @@ export const CatsInNeedModal = ({ close }: { close: () => void }) => {
       <div
         className="m-auto z-50 rem:w-[350px] md:w-[600px] max-w-full absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow"
         style={{
-          backgroundImage: "url('/backgrounds/bg-6.png')",
+          backgroundImage: "url('/backgrounds/bg-5.webp')",
           backgroundRepeat: "no-repeat",
           backgroundSize: "cover",
           backgroundPosition: "center",

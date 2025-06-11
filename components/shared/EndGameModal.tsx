@@ -39,7 +39,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
       <div
         className="m-auto z-50 rem:w-[350px] font-secondary md:w-[480px] flex flex-col md:flex-row max-w-full absolute top-1/2 -translate-y-1/2 rounded-lg shadow h-fit animate-appear"
         style={{
-          backgroundImage: "url(/backgrounds/bg-5.png)",
+          backgroundImage: "url(/backgrounds/bg-4.webp)",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}

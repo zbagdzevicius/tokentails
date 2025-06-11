@@ -1,5 +1,5 @@
 import { useHover } from "@uidotdev/usehooks";
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useRef } from "react";
 
 interface IProps {
   text: string;
@@ -25,20 +25,30 @@ export const PixelButton = ({
   id,
 }: IProps) => {
   const [ref, hovering] = useHover();
+  const audioRefs = useRef<Record<"click" | "hover", HTMLAudioElement | null>>({
+    click: null,
+    hover: null,
+  });
+
+  useEffect(() => {
+    const audioCache = {
+      click: new Audio("/audio/button/click-close.wav"),
+      hover: new Audio("/audio/button/modern-mix.wav"),
+    };
+    audioCache.click.volume = 0.5;
+    audioCache.hover.volume = 0.5;
+    audioRefs.current = audioCache;
+  }, []);
 
   const handleClick = () => {
     if (isDisabled) return;
-    const audio = new Audio("/audio/button/click-close.wav");
-    audio.volume = 0.5;
-    audio.play();
+    audioRefs.current.click?.play();
     if (onClick) onClick();
   };
 
   useEffect(() => {
     if (hovering && !isDisabled) {
-      const audio = new Audio("/audio/button/modern-mix.wav");
-      audio.volume = 0.5;
-      audio.play();
+      audioRefs.current.hover?.play();
     }
   }, [hovering, isDisabled]);
 

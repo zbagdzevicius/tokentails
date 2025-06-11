@@ -241,7 +241,7 @@ export const TelegramProfile = ({ close }: { close: () => void }) => {
       <div
         className="z-50 rem:w-[350px] md:w-[540px] max-w-full absolute top-1/2 -translate-y-1/2  rounded-xl shadow h-fit"
         style={{
-          backgroundImage: "url('/backgrounds/bg-5.png')",
+          backgroundImage: "url('/backgrounds/bg-4.webp')",
           backgroundRepeat: "no-repeat",
           backgroundSize: "cover",
           backgroundPosition: "center",

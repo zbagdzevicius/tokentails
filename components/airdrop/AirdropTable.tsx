@@ -123,7 +123,11 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
         LEADERBOARD
       </h2>
       <div className="flex items-center font-primary gap-2 -mt-1 text-p5 text-center justify-center">
-        RESULTS ARE UPDATED EVERY 24 hours
+        SOCIAL TASKS RESULTS ARE UPDATED EVERY 24 hours
+      </div>
+      <div className="flex items-center font-primary gap-2 text-p5 text-center justify-center leading-tight mt-2 px-2">
+        EARNED COINS, CATNIP and MULTIPLIER RESULTS WILL BE COUNTED AND ADDED AT
+        THE END OF THE CAMPAIGN
       </div>
       <table className="max-w-xl m-auto w-full rounded-2xl overflow-hidden table-auto bg-blue-300 text-black-900 text-sm text-gray-500 drop-shadow-[0_2.4px_1.2px_rgba(0,0,0,0.8)]">
         <thead className="uppercase text-black-300 bg-gray-50 border-b border-purple-300 text-sm">

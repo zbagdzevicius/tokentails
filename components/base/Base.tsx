@@ -34,9 +34,6 @@ const BaseGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
     return () => {
       if (game.current) {
         game.current.destroy(true);
-        if (game.current !== null) {
-          game.current = null;
-        }
       }
     };
   }, [ref]);

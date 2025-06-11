@@ -113,7 +113,7 @@ export default function Index() {
         <div
           className="pt-20 md:pt-24 fade-in h-screen relative flex items-center justify-center"
           style={{
-            backgroundImage: "url(/backgrounds/bg-night.gif)",
+            backgroundImage: "url(/backgrounds/bg-6.webp)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -126,7 +126,7 @@ export default function Index() {
         <div
           className="py-4 min-h-screen flex items-center justify-center"
           style={{
-            backgroundImage: "url(/backgrounds/bg-night-2.gif)",
+            backgroundImage: "url(/backgrounds/bg-7.webp)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -139,7 +139,7 @@ export default function Index() {
         <div
           className="py-4 min-h-screen flex items-center justify-center"
           style={{
-            backgroundImage: "url(/backgrounds/bg-6.png)",
+            backgroundImage: "url(/backgrounds/bg-5.webp)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -152,7 +152,7 @@ export default function Index() {
         <div
           className="pb-4 pt-3 md:pt-0 min-h-screen flex items-center justify-center w-full"
           style={{
-            backgroundImage: "url(/backgrounds/bg.gif)",
+            backgroundImage: "url(/backgrounds/bg-4.webp)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -168,7 +168,7 @@ export default function Index() {
         <div
           className="min-h-screen flex items-center py-3"
           style={{
-            backgroundImage: "url(/backgrounds/bg-4.gif)",
+            backgroundImage: "url(/backgrounds/bg-3.webp)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -182,7 +182,7 @@ export default function Index() {
         <div
           className="min-h-screen flex items-center justify-center"
           style={{
-            backgroundImage: "url(/backgrounds/bg-5.png)",
+            backgroundImage: "url(/backgrounds/bg-4.webp)",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",

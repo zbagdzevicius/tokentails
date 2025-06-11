@@ -108,7 +108,7 @@ const Airdrop = () => {
       <div
         className="pt-20 md:pt-24 fade-in min-h-screen relative flex flex-col items-center"
         style={{
-          backgroundImage: "url(/backgrounds/bg-night.gif)",
+          backgroundImage: "url(/backgrounds/bg-6.webp)",
           backgroundRepeat: "no-repeat",
           backgroundSize: "cover",
           backgroundPosition: "center",
@@ -122,7 +122,7 @@ const Airdrop = () => {
       <div
         className="pt-20 md:pt-24 fade-in min-h-screen relative flex flex-col items-center justify-center pb-16"
         style={{
-          background: "url(/backgrounds/bg-night-2.gif)",
+          background: "url(/backgrounds/bg-7.webp)",
           backgroundAttachment: "fixed",
           backgroundSize: "cover",
           backgroundPosition: "bottom",
@@ -150,7 +150,7 @@ const Airdrop = () => {
         <div className="flex gap-6 mt-4">
           <div
             style={{
-              backgroundImage: "url(/backgrounds/bg-7.png)",
+              backgroundImage: "url(/backgrounds/bg-9.webp)",
               backgroundSize: "cover",
               backgroundPosition: "top",
             }}
@@ -168,7 +168,7 @@ const Airdrop = () => {
           </div>
           <div
             style={{
-              backgroundImage: "url(/backgrounds/bg-7.png)",
+              backgroundImage: "url(/backgrounds/bg-9.webp)",
               backgroundSize: "cover",
               backgroundPosition: "top",
             }}
@@ -189,7 +189,7 @@ const Airdrop = () => {
           </div>
           <div
             style={{
-              backgroundImage: "url(/backgrounds/bg-7.png)",
+              backgroundImage: "url(/backgrounds/bg-9.webp)",
               backgroundSize: "cover",
               backgroundPosition: "top",
             }}

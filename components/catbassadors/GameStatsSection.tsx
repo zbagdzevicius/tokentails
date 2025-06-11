@@ -60,7 +60,7 @@ export const GameStatsSection = ({
           onClick={() => setOpenedModal(GameModal.PROFILE)}
           className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2"
           style={{
-            backgroundImage: "url(/backgrounds/bg-5.png)",
+            backgroundImage: "url(/backgrounds/bg-4.webp)",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
@@ -115,7 +115,7 @@ export const GameStatsSection = ({
           onClick={() => setModal(coinsText)}
           className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2"
           style={{
-            backgroundImage: "url(/backgrounds/bg-6.png)",
+            backgroundImage: "url(/backgrounds/bg-5.webp)",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
@@ -138,7 +138,7 @@ export const GameStatsSection = ({
           <div
             className="z-50 rem:w-[350px] md:w-[480px] max-w-full absolute top-1/2 -translate-y-1/2 rounded-xl shadow animate-appear pb-4"
             style={{
-              backgroundImage: "url('/backgrounds/bg-6.png')",
+              backgroundImage: "url('/backgrounds/bg-5.webp')",
               backgroundRepeat: "no-repeat",
               backgroundSize: "cover",
               backgroundPosition: "center",

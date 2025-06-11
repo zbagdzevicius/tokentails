@@ -6,7 +6,7 @@ export const ShelterBenefits = () => {
       <div className="relative z-10 items-center flex flex-col w-full">
         <div
           style={{
-            backgroundImage: "url(/backgrounds/bg-7.png)",
+            backgroundImage: "url(/backgrounds/bg-9.webp)",
             backgroundSize: "cover",
             backgroundPosition: "top",
           }}

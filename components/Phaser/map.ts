@@ -36,7 +36,7 @@ export const catnipChaosLevelsList: (keyof typeof CatnipChaosLevelMap)[] =
   ) as (keyof typeof CatnipChaosLevelMap)[];
 
 export const catnipChaosChapterBGImage: Record<string, string> = {
-  "1": "/backgrounds/bg-6.png",
-  "2": "/backgrounds/bg-night.png",
-  "3": "/backgrounds/bg-5.png",
+  "1": "/backgrounds/bg-5.webp",
+  "2": "/backgrounds/bg-6.webp",
+  "3": "/backgrounds/bg-4.webp",
 };

@@ -68,7 +68,7 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
     useSolanaWallet();
 
   const [namespace, setNamespace] = React.useState<ChainNamespace>(
-    ChainNamespace.STELLAR
+    ChainNamespace.EVM
   );
   React.useEffect(() => {
     // if (namespace === ChainNamespace.TORUS) {

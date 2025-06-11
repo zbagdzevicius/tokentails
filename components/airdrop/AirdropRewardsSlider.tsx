@@ -6,7 +6,7 @@ export const AirdropRewardsSlider = () => {
       key="tails"
       className="flex flex-col items-center p-4 rounded-t-2xl min-w-64 animate-appear"
       style={{
-        backgroundImage: "url(/backgrounds/bg.gif)",
+        backgroundImage: "url(/backgrounds/bg-4.webp)",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
@@ -22,7 +22,7 @@ export const AirdropRewardsSlider = () => {
       key="heroes"
       className="flex flex-col items-center p-4 rounded-t-2xl min-w-64 animate-appear relative"
       style={{
-        backgroundImage: "url(/backgrounds/bg-night.gif)",
+        backgroundImage: "url(/backgrounds/bg-6.webp)",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
@@ -41,7 +41,7 @@ export const AirdropRewardsSlider = () => {
       key="nft"
       className="flex flex-col items-center p-4 rounded-t-2xl min-w-64 animate-appear relative"
       style={{
-        backgroundImage: "url(/backgrounds/bg-5.png)",
+        backgroundImage: "url(/backgrounds/bg-4.webp)",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}

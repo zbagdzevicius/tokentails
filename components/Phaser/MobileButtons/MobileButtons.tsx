@@ -17,7 +17,7 @@ export const MobileButtons: React.FC<{
             id="dash"
             className="absolute bottom-12 right-24 md:right-30 rounded-full h-[70px] w-[70px] bg-cover bg-center flex items-center justify-center border-4 border-gray-500"
             style={{
-              backgroundImage: "url('/backgrounds/bg-7.png')",
+              backgroundImage: "url('/backgrounds/bg-9.webp')",
             }}
           >
             <img
@@ -31,7 +31,7 @@ export const MobileButtons: React.FC<{
             id="jump"
             className="absolute bottom-4 md:bottom-2 right-1 md:right-4 rounded-full h-[90px] w-[90px] bg-cover bg-center flex items-center justify-center border-4 border-gray-500"
             style={{
-              backgroundImage: "url('/backgrounds/bg-7.png')",
+              backgroundImage: "url('/backgrounds/bg-9.webp')",
             }}
           >
             <img
@@ -45,7 +45,7 @@ export const MobileButtons: React.FC<{
             id="knockback"
             className="absolute bottom-28 md:bottom-28 right-1 md:right-4 rounded-full h-[70px] w-[70px] bg-cover bg-center flex items-center justify-center border-4 border-gray-500"
             style={{
-              backgroundImage: "url('/backgrounds/bg-7.png')",
+              backgroundImage: "url('/backgrounds/bg-9.webp')",
             }}
           >
             <img
