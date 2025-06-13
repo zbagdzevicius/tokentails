@@ -412,7 +412,7 @@ export class PlayerMovement {
           this.player.canDoubleJump &&
           !this.player.hasDoubleJumped
         ) {
-          // this.player.hasDoubleJumped = true;
+          this.player.hasDoubleJumped = true;
         }
       }
 
