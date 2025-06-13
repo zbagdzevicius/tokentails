@@ -9,9 +9,9 @@ export const recipientStellar =
 export const recipientSolana = "48ReRnWwnw68K2LTQjfUthtiXuQmaKG9zQnXUR8KMDJg";
 
 export enum CurrencyType {
-  BNUSD = "BNUSD",
   USDT = "USDT",
   USDC = "USDC",
+  XFI = "XFI",
   TAILS = "TAILS",
   XLM = "XLM",
   BNB = "BNB",
@@ -24,6 +24,7 @@ export enum ChainType {
   SKALE = "SKALE",
   SKALE_TEST = "SKALE_TEST",
   BNB = "BNB",
+  XFI = "XFI",
   BNB_TEST = "BNB_TEST",
   STELLAR = "STELLAR",
   STELLAR_TEST = "STELLAR_TEST",
@@ -36,6 +37,7 @@ export enum ChainType {
 
 export enum ChainNamespace {
   EVM = "EVM",
+  XFI = "XFI",
   // TORUS = "TORUS",
   STELLAR = "STELLAR",
   SOLANA = "SOLANA",
@@ -45,11 +47,13 @@ export const ChainNamespaces = [
   ChainNamespace.EVM,
   ChainNamespace.STELLAR,
   ChainNamespace.SOLANA,
+  ChainNamespace.XFI,
   // ChainNamespace.TORUS,
 ];
 
 export const ChainNamespaceImg: Record<ChainNamespace, string> = {
   [ChainNamespace.EVM]: "/currency/BNB.webp",
+  [ChainNamespace.XFI]: "/currency/XFI.webp",
   // [ChainNamespace.TORUS]: "/currency/ODP.webp",
   [ChainNamespace.STELLAR]: "/currency/XLM.webp",
   [ChainNamespace.SOLANA]: "/currency/SOL.webp",
@@ -57,6 +61,7 @@ export const ChainNamespaceImg: Record<ChainNamespace, string> = {
 
 export const ChainImg: Record<ChainType, string> = {
   [ChainType.BNB]: "/currency/BNB.webp",
+  [ChainType.XFI]: "/currency/XFI.webp",
   [ChainType.BNB_TEST]: "/currency/BNB.webp",
   [ChainType.STELLAR]: "/currency/XLM.webp",
   [ChainType.STELLAR_TEST]: "/currency/XLM.webp",
@@ -75,15 +80,11 @@ export const ChainNamespacesCurrencies: Record<ChainNamespace, CurrencyType[]> =
       CurrencyType.BNB,
       CurrencyType.USDT,
       CurrencyType.USDC,
-      CurrencyType.BNUSD,
       // CurrencyType.DIAM,
     ],
-    [ChainNamespace.STELLAR]: [
-      CurrencyType.XLM,
-      CurrencyType.USDC,
-      CurrencyType.BNUSD,
-    ],
+    [ChainNamespace.STELLAR]: [CurrencyType.XLM, CurrencyType.USDC],
     [ChainNamespace.SOLANA]: [CurrencyType.SOL],
+    [ChainNamespace.XFI]: [CurrencyType.XFI],
     // [ChainNamespace.TORUS]: [CurrencyType.ODP],
   };
 
@@ -102,22 +103,18 @@ export const currencyContracts: Record<
   },
   [ChainType.BNB]: {
     [CurrencyType.USDT]: "0x55d398326f99059fF775485246999027B3197955",
-    [CurrencyType.BNUSD]: "0xc65132325bD4FcF2Ec5F3a9375487163B6999206",
     [CurrencyType.USDC]: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
-    [CurrencyType.DIAM]: "0x1FA0f5ed24a1a2b43741E88F8FEc19633e67082B",
+    // [CurrencyType.DIAM]: "0x1FA0f5ed24a1a2b43741E88F8FEc19633e67082B",
     [CurrencyType.TAILS]: "0x",
   },
   [ChainType.BNB_TEST]: {
     [CurrencyType.USDT]: "0x337610d27c682E347C9cD60BD4b3b107C9d34dDd",
-    [CurrencyType.BNUSD]: "0xc65132325bD4FcF2Ec5F3a9375487163B6999206",
     [CurrencyType.USDC]: "0x64544969ed7EBf5f083679233325356EbE738930",
     [CurrencyType.TAILS]: "0x",
   },
   [ChainType.STELLAR]: {
     [CurrencyType.USDC]:
       "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN",
-    [CurrencyType.BNUSD]:
-      "CCT4ZYIYZ3TUO2AWQFEOFGBZ6HQP3GW5TA37CK7CRZVFRDXYTHTYX7KP",
   },
   [ChainType.DIAM]: {},
   [ChainType.STELLAR_TEST]: {
@@ -126,6 +123,7 @@ export const currencyContracts: Record<
   [ChainType.SOLANA]: {
     [CurrencyType.SOL]: "0x",
   },
+  [ChainType.XFI]: {},
   // [ChainType.TORUS]: {
   //   [CurrencyType.ODP]: "0xFF47178dAE98Cb1D61c0e46f38EB68bEa5BDE284",
   // },

@@ -219,6 +219,37 @@ export const useWeb3Transfer = ({
     });
   }
 
+  async function xfiTransfer() {
+    if (!evmConnected) {
+      toast({ message: "Please login to Metamask" });
+      return false;
+    }
+    try {
+      await syncChain();
+
+      const nativeTokenAmountHex = ethers.parseUnits(
+        price?.toFixed(16)?.toString()!,
+        18
+      );
+
+      if (!balance || nativeTokenAmountHex > balance.value) {
+        toast({
+          message: `Top up your ${currencyType} balance or switch currency`,
+        });
+        return;
+      }
+      const txHash = await sendTransactionAsync({
+        to: recipientEvm,
+        value: nativeTokenAmountHex,
+      });
+      setHash(txHash);
+      toast({ message: "Transaction sent! Awaiting confirmation..." });
+    } catch (error) {
+      console.error("Transfer failed:", error);
+      toast({ message: "Transaction failed. Please try again." });
+    }
+  }
+
   async function transfer() {
     if (namespace === ChainNamespace.EVM) {
       evmTransfer();
@@ -228,8 +259,8 @@ export const useWeb3Transfer = ({
       } else {
         stellarTransfer(stellarAddress!);
       }
-      // } else if (namespace === ChainNamespace.TORUS) {
-      //   torusTransfer();
+    } else if (namespace === ChainNamespace.XFI) {
+      xfiTransfer();
     } else if (namespace === ChainNamespace.SOLANA) {
       if (!solanaConnected) {
         connectSolana(true);

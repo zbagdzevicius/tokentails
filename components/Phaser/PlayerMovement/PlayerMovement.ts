@@ -109,7 +109,10 @@ export class PlayerMovement {
       }
 
       if (upKeyDown && !this.player.justJumped) {
-        if (onGround || (this.player.canDoubleJump && !this.player.hasDoubleJumped)) {
+        if (
+          onGround ||
+          (this.player.canDoubleJump && !this.player.hasDoubleJumped)
+        ) {
           // Regular jump from ground or double jump in air
           this.jump({
             canWallJump: false,
@@ -235,7 +238,13 @@ export class PlayerMovement {
     }
 
     this.handleDash();
-    if ((onGround || canWallJump || (this.player.canDoubleJump && !this.player.hasDoubleJumped)) && upKeyDown && !this.player.justJumped) {
+    if (
+      (onGround ||
+        canWallJump ||
+        (this.player.canDoubleJump && !this.player.hasDoubleJumped)) &&
+      upKeyDown &&
+      !this.player.justJumped
+    ) {
       this.jump({
         canWallJump,
         touchingLeftWall,
@@ -333,7 +342,11 @@ export class PlayerMovement {
     blockedAbove: boolean;
     onGround: boolean;
   }) {
-    if (onGround || canWallJump || (this.player.canDoubleJump && !this.player.hasDoubleJumped)) {
+    if (
+      onGround ||
+      canWallJump ||
+      (this.player.canDoubleJump && !this.player.hasDoubleJumped)
+    ) {
       this.player.justJumped = true;
       this.player.jumpTimer = this.player.scene.time.now;
 
@@ -392,10 +405,14 @@ export class PlayerMovement {
         });
       } else {
         this.player.sprite.setVelocityY(jumpSpeed);
-        
+
         // Handle double jump
-        if (!onGround && this.player.canDoubleJump && !this.player.hasDoubleJumped) {
-          this.player.hasDoubleJumped = true;
+        if (
+          !onGround &&
+          this.player.canDoubleJump &&
+          !this.player.hasDoubleJumped
+        ) {
+          // this.player.hasDoubleJumped = true;
         }
       }
 

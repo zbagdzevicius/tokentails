@@ -86,7 +86,9 @@ export const Web3Transfer = ({
 
   if (
     price < 1 &&
-    ![CurrencyType.BNB, CurrencyType.SOL].includes(currencyType)
+    ![CurrencyType.BNB, CurrencyType.SOL, CurrencyType.XFI].includes(
+      currencyType
+    )
   ) {
     return <PixelButton text="1$ is minimum amount" isDisabled />;
   }

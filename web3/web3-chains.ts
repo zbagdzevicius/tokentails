@@ -56,13 +56,38 @@ export const torus = defineChain({
   testnet: false,
 });
 
+export const xfi = defineChain({
+  id: 4158,
+  chainNamespace: "eip155",
+  caipNetworkId: `eip155:${4158}`,
+  name: "CrossFi Mainet",
+  nativeCurrency: {
+    decimals: 18,
+    name: "CrossFi Mainet",
+    symbol: "XFI",
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://rpc.mainnet.ms/"],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: "CrossFi Scan",
+      url: "https://xfiscan.com/",
+    },
+  },
+  testnet: false,
+});
+
 // Create wagmiConfig
 export const networks = isProd
-  ? [bsc, campTestnet, torus]
-  : [bscTestnet, campTestnet, torus];
+  ? [bsc, campTestnet, xfi]
+  : [bscTestnet, campTestnet, xfi];
 
 export const chainTypeId: Record<ChainType, number> = {
   [ChainType.BNB]: bsc.id,
+  [ChainType.XFI]: xfi.id,
   [ChainType.DIAM]: bsc.id,
   [ChainType.BNB_TEST]: bscTestnet.id,
   [ChainType.SKALE]: skaleNebula.id,
@@ -77,6 +102,7 @@ export const chainTypeId: Record<ChainType, number> = {
 
 export const idChainType: Record<number, ChainType> = {
   [bsc.id]: ChainType.BNB,
+  [xfi.id]: ChainType.XFI,
   [bscTestnet.id]: ChainType.BNB_TEST,
   [skaleNebula.id]: ChainType.SKALE,
   [skaleNebulaTestnet.id]: ChainType.SKALE_TEST,

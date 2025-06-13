@@ -34,9 +34,6 @@ export interface IGameStopEvent {
   score: number;
   time: number;
   finished?: boolean;
-  metadata?: {
-    level?: string;
-  };
 }
 interface IGameUpdateEvent {
   time?: number;

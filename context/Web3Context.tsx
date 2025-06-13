@@ -77,6 +77,9 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
     if (namespace === ChainNamespace.EVM) {
       setChainType(isProd ? ChainType.BNB : ChainType.BNB_TEST);
     }
+    if (namespace === ChainNamespace.XFI) {
+      setChainType(ChainType.XFI);
+    }
     if (namespace === ChainNamespace.SOLANA) {
       setChainType(ChainType.SOLANA);
     }
@@ -97,6 +100,10 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
   const namespaceDetails = React.useMemo(() => {
     return {
       [ChainNamespace.EVM]: {
+        connected: isConnected,
+        address: address,
+      },
+      [ChainNamespace.XFI]: {
         connected: isConnected,
         address: address,
       },

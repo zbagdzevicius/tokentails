@@ -101,7 +101,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           points: earnedScore,
           time: event.time ?? 0,
           type: gameType!,
-          level: event.metadata?.level,
+          level: level!,
         });
         catnipChaos = result.catnipChaos || [];
       }
@@ -118,7 +118,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
         });
       }
     },
-    [profile, gameType]
+    [profile, gameType, level]
   );
 
   GameEvents.GAME_STOP.use(gameStopCallback);

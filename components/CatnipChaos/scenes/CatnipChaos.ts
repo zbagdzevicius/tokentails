@@ -575,9 +575,6 @@ export class CatnipChaosScene extends Scene {
         score: this.collectedCatnipCoins,
         time: 0,
         finished,
-        metadata: {
-          level: this.props.level,
-        },
       });
       this.destroyGameObjects();
     });
