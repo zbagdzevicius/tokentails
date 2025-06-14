@@ -1,16 +1,12 @@
-import { QUEST_API } from "@/api/quest-api";
-import { getNextDayMidnight } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { GameModal } from "@/models/game";
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { MysteryBox } from "../mystery/MysteryBox";
-import { MysteryCat } from "../mystery/MysteryCat";
+import { Web3Providers } from "../web3/Web3Providers";
 import { CloseButton } from "./CloseButton";
-import { Countdown } from "./Countdown";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
-import { Web3Providers } from "../web3/Web3Providers";
-import dynamic from "next/dynamic";
 
 const MysteryBoxCat = dynamic(
   () => import("../mystery/MysteryBoxCat").then((mod) => mod.MysteryBoxCat),
@@ -26,17 +22,11 @@ const MysteryBoxCat = dynamic(
 );
 
 export const InviteModalContent = () => {
-  const { utils, shareUrl, profile, setProfileUpdate } = useProfile();
-  const nextDayTargetDate = getNextDayMidnight();
+  const { utils, shareUrl } = useProfile();
   const [type, setType] = useState(GameModal.MYSTERY_BOX);
 
   const onInvite = () => {
-    if (!profile?.canInviteFriend) {
-      return;
-    }
     utils?.shareURL(shareUrl!);
-    setProfileUpdate({ canInviteFriend: false });
-    QUEST_API.friendInvited();
   };
 
   return (
@@ -74,6 +64,44 @@ export const InviteModalContent = () => {
               backgroundPosition: "center",
             }}
           >
+            <div className="flex flex-col gap-4 uppercase text-center">
+              You feel that? That’s what purpose on-chain looks like
+            </div>
+            <Tag isSmall>WHAT I'LL GET FOR INVITING A FRIEND?</Tag>
+
+            <div className="flex flex-row items-center">
+              <img
+                draggable={false}
+                className="w-7 md:w-8 md:h-8 lg:w-10 lg:h-10 h-7 mr-1"
+                src="/logo/coin.png"
+              />
+              <p className="text-p4">5000 COINS</p>
+            </div>
+            <div className="flex flex-row items-center">
+              <img
+                draggable={false}
+                className="w-7 h-7  md:w-8 md:h-8 lg:w-10 lg:h-10 mr-1"
+                src="/base/heart.png"
+              />
+              <p className="text-p4">10 LIVES</p>
+            </div>
+
+            <div className="flex flex-row items-center">
+              <img
+                draggable={false}
+                className="w-7 h-7  md:w-8 md:h-8 lg:w-10 lg:h-10 mr-1"
+                src="/icons/invites/gift.png"
+              />
+              <p className="text-p4">MORE DAILY CHECK-IN REWARDS</p>
+            </div>
+            <div className="flex flex-row items-center">
+              <img
+                draggable={false}
+                className="w-7 h-6  md:w-8 md:h-7 lg:w-10 lg:h-9 mr-1"
+                src="/icons/invites/gift-coin.png"
+              />
+              <p className="text-p4">50000 COINS FOR YOUR FRIEND</p>
+            </div>
             <div className="absolute -top-3 -left-3 z-0 -rotate-45">
               <img
                 draggable={false}
@@ -88,48 +116,8 @@ export const InviteModalContent = () => {
                 src="/logo/heart.webp"
               />
             </div>
-            <div className="flex flex-row items-center">
-              <img
-                draggable={false}
-                className="w-7 md:w-8 md:h-8 lg:w-10 lg:h-10 h-7 mr-1"
-                src="/logo/coin.png"
-              />
-              <p className="text-p4">MORE FRIENS = MORE DAILY REWARDS</p>
-            </div>
-            <div className="flex flex-row items-center">
-              <img
-                draggable={false}
-                className="w-7 h-7  md:w-8 md:h-8 lg:w-10 lg:h-10 mr-1"
-                src="/icons/invites/gift.png"
-              />
-              <p className="text-p4">REDEEMED = +5k COINS TO YOU</p>
-            </div>
-            <div className="flex flex-row items-center">
-              <img
-                draggable={false}
-                className="w-7 h-7  md:w-8 md:h-8 lg:w-10 lg:h-10 mr-1"
-                src="/base/heart.png"
-              />
-              <p className="text-p4">GIFT = +10 LIVES TO YOU</p>
-            </div>
-            <div className="flex flex-row items-center">
-              <img
-                draggable={false}
-                className="w-7 h-6  md:w-8 md:h-7 lg:w-10 lg:h-9 mr-1"
-                src="/icons/invites/gift-coin.png"
-              />
-              <p className="text-p4">+50k COINS FOR YOUR FRIEND</p>
-            </div>
           </div>
-
-          {!profile?.canInviteFriend && (
-            <Countdown targetDate={nextDayTargetDate} />
-          )}
-          <PixelButton
-            text="Give a gift TO EARN"
-            isDisabled={!profile?.canInviteFriend}
-            onClick={onInvite}
-          />
+          <PixelButton text="INVITE YOUR FRIEND" onClick={onInvite} />
         </>
       )}
       {type === GameModal.MYSTERY_BOX && <MysteryBox />}

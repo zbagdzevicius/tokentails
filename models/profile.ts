@@ -28,7 +28,6 @@ export interface IProfile {
   catbassadorsCount: number;
   catpointsRecord: number;
   canRedeemLives: boolean;
-  canInviteFriend: boolean;
   catbassadorsLives: number;
   adventDayRedeemed: number;
   referrals: string[];

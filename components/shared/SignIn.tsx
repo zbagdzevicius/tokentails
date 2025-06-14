@@ -114,7 +114,10 @@ export const SignInContent = () => {
           ) : (
             <SignInForm signIn={signIn} />
           )}
-          <div className="font-secondary m-auto mt-4">
+          <div className="flex flex-col font-secondary text-center mt-2">
+            REGISTRATION HAPPENS ON FIRST SIGN IN
+          </div>
+          <div className="font-secondary m-auto">
             By signing-in you accept{" "}
             <a
               href="https://docs.tokentails.com/community-and-social-impact/terms-and-conditions"

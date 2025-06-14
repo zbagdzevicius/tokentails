@@ -26,6 +26,7 @@ import { useEffect, useState } from "react";
 import { useProfile } from "./ProfileContext";
 import { IToast, useToast } from "./ToastContext";
 import { getMultiplier } from "@/constants/cat-utils";
+import { FeaturedCatModal } from "@/components/shared/FeaturedCatModal";
 
 type ContextState = {
   isStarted?: boolean;
@@ -264,6 +265,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           )}
           {openedModal === GameModal.CONTROL_SETTINGS && (
             <ControlModal close={() => setOpenedModal(null)} />
+          )}
+          {openedModal === GameModal.FEATURED_CAT && (
+            <FeaturedCatModal close={() => setOpenedModal(null)} />
           )}
           <GameMusicPlayer />
         </>

@@ -13,7 +13,7 @@ export const CatBenefits = ({
     <div className="w-64 rounded-xl flex relative justify-center py-2 m-auto mt-4 transition-animation">
       <div className="relative z-10 items-center flex flex-col w-full">
         <div
-          className="text-p4 h-14 font-secondary  w-full flex items-center justify-center gap-1 bg-opacity-60 hover:bg-opacity-80 mb-2 border-2 rounded-xl border-main-black"
+          className="text-p4 overflow-hidden h-14 font-secondary  w-full flex items-center justify-center gap-1 bg-opacity-60 hover:bg-opacity-80 mb-2 border-2 rounded-xl border-main-black"
           style={{ backgroundColor: cardsColor[cat.type] || "bg-red-600" }}
         >
           <img
