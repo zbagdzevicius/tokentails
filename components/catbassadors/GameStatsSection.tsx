@@ -6,6 +6,7 @@ import { PixelButton } from "../shared/PixelButton";
 import { CloseButton } from "../shared/CloseButton";
 import { useToast } from "@/context/ToastContext";
 import { ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
+import { CatnipChaosLevelMap } from "../Phaser/map";
 interface IGameStat {
   title: string;
   image: string;
@@ -27,7 +28,7 @@ export const GameStatSection = ({
       onClick={onClick}
       className={`flex flex-col items-center font-secondary rounded-xl w-16 p-1 bg-gradient-to-r ${bg}`}
     >
-      <div className="text-p4">{title}</div>
+      <div className="text-p4 whitespace-nowrap">{title}</div>
       <div className="flex items-center gap-1 -mt-1">
         <img draggable={false} className="w-6 h-6" src={image} />
         <div className="text-p2">{stat}</div>
@@ -36,8 +37,9 @@ export const GameStatSection = ({
   );
 };
 
-const coinsText = `Earn coins to get $TAILS airdrop
-Top the leaderboard to win extra prizes every week.`;
+const coinsText = `EARN COINS BY CRAFTING WITH YOUR CATS, INVITING FRIENDS, PLAYING CATBASSADORS AND DOING DAILY CHECK-INS.
+EARN CATNIP BY PLAYING CATNIP CHAOS.
+`;
 
 export const GameStatsSection = ({
   profile,
@@ -60,7 +62,7 @@ export const GameStatsSection = ({
           onClick={() => setOpenedModal(GameModal.PROFILE)}
           className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2"
           style={{
-            backgroundImage: "url(/backgrounds/bg-4.webp)",
+            backgroundImage: "url(/backgrounds/bg-min-4.webp)",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
@@ -113,19 +115,31 @@ export const GameStatsSection = ({
       <div className="fixed left-4 pb-safe top-4 z-10 flex justify-between">
         <div
           onClick={() => setModal(coinsText)}
-          className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2"
+          className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-1"
           style={{
-            backgroundImage: "url(/backgrounds/bg-5.webp)",
+            backgroundImage: "url(/backgrounds/bg-min-5.webp)",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         >
-          <img draggable={false} className="w-6 h-6" src="/logo/coin.webp" />
           <div className="text-p4 font-bold flex items-center gap-1">
+            <img draggable={false} className="w-5 h-5" src="/logo/coin.webp" />
             <div>COINS</div>
           </div>
           <div className="flex items-center gap-2 -mt-1">
             <div className="text-p5">{profile?.catpoints?.toFixed(0) || 0}</div>
+          </div>
+          <div className="text-p4 font-bold flex items-center gap-1">
+            <img
+              draggable={false}
+              className="w-5 h-5"
+              src="/logo/catnip.webp"
+            />
+            <div>CATNIP</div>
+          </div>
+          <div className="flex items-center -mt-1 -mb-1 text-p5">
+            {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0} /{" "}
+            {Object.keys(CatnipChaosLevelMap).length * 10}
           </div>
         </div>
       </div>

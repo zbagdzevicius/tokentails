@@ -128,10 +128,10 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
             </div>
 
             {profile?.cat ? (
-              <div className="relative w-24 min-w-24 pixelated flex flex-col items-center justify-center animate-appear">
+              <div className="relative w-24 min-w-24 flex flex-col items-center justify-center animate-appear">
                 <img
                   draggable={false}
-                  className="w-24 h-24 -mb-6 relative z-10"
+                  className="w-24 h-24 -mb-6 relative z-10 pixelated"
                   src={profile.cat?.catImg}
                 />
                 <img
@@ -143,7 +143,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
                 {!!profile.cat?.blessings?.length && (
                   <img
                     draggable={false}
-                    className="absolute inset-0 m-auto object-cover w-20 mb-12 h-20 z-0"
+                    className="absolute inset-0 m-auto object-cover w-20 mb-12 h-20 z-0 pixelated"
                     src={`/flare-effect/${profile.cat.type}.gif`}
                   ></img>
                 )}

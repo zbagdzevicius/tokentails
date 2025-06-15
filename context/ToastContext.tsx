@@ -20,7 +20,7 @@ const ToastProvider = ({ children }: React.PropsWithChildren<{}>) => {
   React.useEffect(() => {
     let timer: NodeJS.Timeout;
     if (toast) {
-      timer = setTimeout(() => setToast(null), 3000);
+      timer = setTimeout(() => setToast(null), 5000);
     }
 
     return () => {

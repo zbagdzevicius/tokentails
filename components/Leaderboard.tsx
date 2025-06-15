@@ -12,13 +12,13 @@ const leaderboardTexts: Partial<
 > = {
   [GameModal.LEADERBOARD]: {
     header: "ALL TIME",
-    title: "Airdrop - Reach top 200 players !",
-    subtitle: "Get into top 200 to get 10000 weekly coins",
+    title: "STAY IN TOP 200 - GET 20k WEEKLY COINS",
+    subtitle: "EARN COINS TO STAY IN THE TOP",
   },
   [GameModal.LEADERBOARD_DAILY]: {
     header: "DAILY",
-    title: "STAY IN TOP 20 - GET 2000 coins daily",
-    subtitle: "PLAY TO GET COINS",
+    title: "STAY IN TOP 20 - GET 5k DAILY COINS",
+    subtitle: "PLAY TODAY TO GET TO THE TOP",
   },
 };
 

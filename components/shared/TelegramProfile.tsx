@@ -12,6 +12,7 @@ import { useMutation } from "@tanstack/react-query";
 import { USER_API } from "@/api/user-api";
 import { AboutMeOnboarding } from "../onboarding/AboutMeOnboarding";
 import { ABOUT_ME_ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
+import { CatnipChaosLevelMap } from "../Phaser/map";
 
 const Cat = ({ profile }: { profile?: IProfile | null }) => {
   return (
@@ -119,7 +120,7 @@ export const TelegramProfileContent = () => {
         + 50 daily coins and +1 daily live`,
       },
       {
-        title: "Streak",
+        title: "CHECK-INS",
         image: "/logo/rocket.png",
         stat: profile.streak || 0,
         bg: "from-green-300 to-yellow-300",
@@ -152,7 +153,7 @@ export const TelegramProfileContent = () => {
       {profile?.cat && (
         <ul className="m-auto font-primary">
           <Tag>Hello, {profile.name} !</Tag>
-          <li className="flex items-center gap-x-2 mb-4 justify-center mt-4">
+          <li className="flex items-center gap-x-2 justify-center mt-4">
             <img draggable={false} className="w-8" src="/logo/coin.webp" />
             <div
               id={ABOUT_ME_ONBOARDING_MODAL_IDS.COINS}
@@ -162,9 +163,22 @@ export const TelegramProfileContent = () => {
               <span className="font-bold">{commafy(profile.catpoints)}</span>
             </div>
           </li>
+          <li className="flex items-center gap-x-2 mb-4 justify-center">
+            <img draggable={false} className="w-8" src="/logo/catnip.webp" />
+            <div
+              id={ABOUT_ME_ONBOARDING_MODAL_IDS.COINS}
+              className="flex font-secondary text-p3 gap-2"
+            >
+              CATNIPS:{" "}
+              <span className="font-bold">
+                {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0} /{" "}
+                {Object.keys(CatnipChaosLevelMap).length * 10}
+              </span>
+            </div>
+          </li>
           <li
             id={ABOUT_ME_ONBOARDING_MODAL_IDS.OPTIONS}
-            className="flex justify-between mb-4"
+            className="flex justify-between mb-4 gap-2"
           >
             {gameStats.map((stat) => (
               <GameStatSection {...stat} key={stat.title} onClick={() => {}} />

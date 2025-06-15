@@ -95,7 +95,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
         .then(() => {
           toast({
             message:
-              "Invite link is coppied to your clipboard, share it with your friend to earn commissions",
+              "Invite link is coppied to your clipboard, share it with your friends to earn",
           });
         })
         .catch((err) => {
@@ -132,7 +132,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
         copy(url);
         toast({
           message:
-            "Your gift url is coppied to your clipboard, share it with your friend",
+            "Your invite url is coppied to your clipboard, share it with your friend",
         });
       },
     });

@@ -64,35 +64,23 @@ export const InviteModalContent = () => {
               backgroundPosition: "center",
             }}
           >
-            <div className="flex flex-col gap-4 uppercase text-center">
-              You feel that? That’s what purpose on-chain looks like
-            </div>
             <Tag isSmall>WHAT I'LL GET FOR INVITING A FRIEND?</Tag>
 
-            <div className="flex flex-row items-center">
-              <img
-                draggable={false}
-                className="w-7 md:w-8 md:h-8 lg:w-10 lg:h-10 h-7 mr-1"
-                src="/logo/coin.png"
-              />
-              <p className="text-p4">5000 COINS</p>
-            </div>
             <div className="flex flex-row items-center">
               <img
                 draggable={false}
                 className="w-7 h-7  md:w-8 md:h-8 lg:w-10 lg:h-10 mr-1"
                 src="/base/heart.png"
               />
-              <p className="text-p4">10 LIVES</p>
+              <p className="text-p4">9 LIVES</p>
             </div>
-
-            <div className="flex flex-row items-center">
+            <div className="flex flex-row items-center mb-1">
               <img
                 draggable={false}
-                className="w-7 h-7  md:w-8 md:h-8 lg:w-10 lg:h-10 mr-1"
-                src="/icons/invites/gift.png"
+                className="w-7 md:w-8 md:h-8 lg:w-10 lg:h-10 h-7 mr-1"
+                src="/logo/coin.webp"
               />
-              <p className="text-p4">MORE DAILY CHECK-IN REWARDS</p>
+              <p className="text-p4">9000 COINS</p>
             </div>
             <div className="flex flex-row items-center">
               <img
@@ -100,7 +88,15 @@ export const InviteModalContent = () => {
                 className="w-7 h-6  md:w-8 md:h-7 lg:w-10 lg:h-9 mr-1"
                 src="/icons/invites/gift-coin.png"
               />
-              <p className="text-p4">50000 COINS FOR YOUR FRIEND</p>
+              <p className="text-p4">9000 COINS FOR YOUR FRIEND</p>
+            </div>
+            <div className="flex flex-row items-center">
+              <img
+                draggable={false}
+                className="w-7 h-7  md:w-8 md:h-8 lg:w-10 lg:h-10 mr-1"
+                src="/icons/invites/gift.png"
+              />
+              <p className="text-p4">MORE DAILY CHECK-IN REWARDS</p>
             </div>
             <div className="absolute -top-3 -left-3 z-0 -rotate-45">
               <img
@@ -116,8 +112,11 @@ export const InviteModalContent = () => {
                 src="/logo/heart.webp"
               />
             </div>
+            <div className="flex flex-col gap-4 uppercase text-center">
+              You feel that? That’s what purpose on-chain looks like
+            </div>
           </div>
-          <PixelButton text="INVITE YOUR FRIEND" onClick={onInvite} />
+          <PixelButton text="GET INVITE LINK" onClick={onInvite} />
         </>
       )}
       {type === GameModal.MYSTERY_BOX && <MysteryBox />}

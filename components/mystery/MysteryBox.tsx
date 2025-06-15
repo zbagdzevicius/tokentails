@@ -3,7 +3,8 @@ import { QUEST_API } from "@/api/quest-api";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
-import { GameType } from "@/models/game";
+import { isApp } from "@/models/app";
+import { GameModal, GameType } from "@/models/game";
 import { ChainType } from "@/web3/contracts";
 import {
   IMysteryBox,
@@ -11,13 +12,11 @@ import {
   MysteryBoxRequirementType,
 } from "@/web3/web3.model";
 import { useQuery } from "@tanstack/react-query";
+import dynamic from "next/dynamic";
 import { useMemo } from "react";
-import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
 import { Web3Providers } from "../web3/Web3Providers";
-import { isApp } from "@/models/app";
-import dynamic from "next/dynamic";
 
 const Web3Mint = dynamic(
   () => import("../web3/minting/Web3Mint").then((mod) => mod.Web3Mint),
@@ -46,7 +45,7 @@ const MysteryBoxEligibility = ({
     <div
       className="flex flex-col items-center my-2 md:mb-0 rounded-xl w-full md:w-auto"
       style={{
-        backgroundImage: "url(/backgrounds/bg-4.webp)",
+        backgroundImage: "url(/backgrounds/bg-min-4.webp)",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
@@ -73,7 +72,7 @@ const MysteryBoxEligibility = ({
 export const MysteryBox = () => {
   const { profile, setProfileUpdate } = useProfile();
   const toast = useToast();
-  const { setGameType } = useGame();
+  const { setGameType, setOpenedModal } = useGame();
   const mysteryBox = useMemo(() => {
     if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP_TEST]![0].key)) {
       return mysteryBoxes[ChainType.CAMP_TEST]![0];
@@ -94,6 +93,11 @@ export const MysteryBox = () => {
       (box) => box.key === mysteryBox.key
     );
   }, [mysteryBox]);
+  const finished = useMemo(() => {
+    return profile?.quests.find(
+      (quest) => quest === mysteryBoxes[ChainType.CAMP_TEST]![4].key
+    );
+  }, [profile?.quests]);
   const isRedeemed = useMemo(() => {
     return !!profile?.quests?.includes(mysteryBox.key);
   }, [profile?.quests, mysteryBox.key]);
@@ -154,45 +158,88 @@ export const MysteryBox = () => {
 
   return (
     <div className="flex flex-col w-full">
-      <div className="flex justify-center items-center flex-col md:flex-row md:gap-4">
-        <div>
-          <img
-            draggable={false}
-            className="w-64 aspect-square rounded-2xl mt-2 mb-4"
-            src={mysteryBox.image}
-          />
+      {!finished ? (
+        <div className="flex justify-center items-center flex-col md:flex-row md:gap-4">
+          <div>
+            <img
+              draggable={false}
+              className="w-64 aspect-square rounded-2xl mt-2 mb-4"
+              src={mysteryBox.image}
+            />
+          </div>
+          <div className="flex flex-col md:gap-2 w-full md:w-auto">
+            <Tag isSmall>TIME LIMITED FREE MINT</Tag>
+            <MysteryBoxEligibility
+              mysteryBox={mysteryBox}
+              isEligible={isEligible}
+              isRedeemed={isRedeemed}
+            />
+            {isEligible &&
+              (isRedeemed ? (
+                <PixelButton text="REDEEMED" isDisabled></PixelButton>
+              ) : (
+                <Web3Providers>
+                  <Web3Mint
+                    user={profile?._id!}
+                    ownedNFTCallback={onRedeem}
+                    mysteryBox={mysteryBox}
+                  />
+                </Web3Providers>
+              ))}
+            {mysteryBox.faucet && isEligible && (
+              <div className="flex md:flex-col font-secondary font-bold text-p4 items-center justify-center">
+                <span className="md:-mb-2">Out of gas ?</span>
+                <a href={mysteryBox.faucet} target="_blank">
+                  <PixelButton isSmall text="Get Gas" />
+                </a>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex flex-col md:gap-2 w-full md:w-auto">
-          <Tag isSmall>TIME LIMITED FREE MINT</Tag>
-          <MysteryBoxEligibility
-            mysteryBox={mysteryBox}
-            isEligible={isEligible}
-            isRedeemed={isRedeemed}
-          />
-          {isEligible &&
-            (isRedeemed ? (
-              <PixelButton text="REDEEMED" isDisabled></PixelButton>
-            ) : (
-              <Web3Providers>
-                <Web3Mint
-                  user={profile?._id!}
-                  ownedNFTCallback={onRedeem}
-                  mysteryBox={mysteryBox}
-                />
-              </Web3Providers>
-            ))}
-          {mysteryBox.faucet && isEligible && (
-            <div className="flex md:flex-col font-secondary font-bold text-p4 items-center justify-center">
-              <span className="md:-mb-2">Out of gas ?</span>
-              <a href={mysteryBox.faucet} target="_blank">
-                <PixelButton isSmall text="Get Gas" />
-              </a>
+      ) : (
+        <div className="flex items-center mb-4">
+          <div className="font-primary uppercase">
+            <Tag isSmall>Congratz! You've Completed Camp tasks</Tag>
+            <div className="mt-4 text-balance text-p5 text-center">
+              This isn’t Web3 hype. This is soulbound proof. The algorithm
+              noticed. So did the Codex.{" "}
+              <div className="font-bold text-p4 text-center">
+                Now you're eligible for Sticky!
+              </div>
+              You feel that? That’s what purpose on-chain looks like.
             </div>
-          )}
+          </div>
+          <div>
+            <img src="/tail/cat-celebrate.webp" className="w-16 -scale-x-100" />
+            <div
+              onClick={() => setOpenedModal(GameModal.FEATURED_CAT)}
+              className="flex hover:brightness-110 flex-col w-24 relative items-center font-secondary rounded-xl px-1 py-2"
+              style={{
+                backgroundImage: "url(/backgrounds/bg-4.webp)",
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+            >
+              <div className="relative -mt-8 -mb-4">
+                <img
+                  draggable={false}
+                  className="w-24 h-24 pixelated"
+                  src={
+                    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/STICKY/base/RUNNING.gif"
+                  }
+                />
+              </div>
+              <div className="text-p4 font-bold flex items-center gap-1">
+                <div>ABOUT STICKY</div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
       <div className="flex flex-col gap-2">
-        <Tag isSmall>Complete all 5 mints for maximum rewards !</Tag>
+        {!finished && (
+          <Tag isSmall>Complete all 5 mints for maximum rewards !</Tag>
+        )}
         <div className="flex w-full justify-between">
           {mysteryBoxes.CAMP_TEST?.map((box, i) => (
             <div key={i} className="relative rounded-2xl overflow-hidden">

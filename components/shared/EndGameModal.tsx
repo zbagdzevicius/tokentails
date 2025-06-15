@@ -6,6 +6,7 @@ import { Tag } from "./Tag";
 import { PixelButton } from "./PixelButton";
 import { IGameStopEvent } from "../Phaser/events";
 import { getMultiplier } from "@/constants/cat-utils";
+import { useGame } from "@/context/GameContext";
 
 type EndGameProps = {
   onClose: () => void;
@@ -28,6 +29,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
   gameType,
 }) => {
   const { profile } = useProfile();
+  const { level } = useGame();
 
   return (
     <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center h-full">
@@ -52,7 +54,9 @@ export const EndGameModal: React.FC<EndGameProps> = ({
             alt="logo"
             draggable="false"
           />
-          <Tag>Game Summary</Tag>
+          <Tag>
+            {level ? `Level ${level.split("").join("-")}` : "Match"} Summary
+          </Tag>
           <div className="flex justify-center items-center text-md text-gray-700 mt-4">
             <img
               src={

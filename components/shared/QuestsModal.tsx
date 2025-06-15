@@ -236,7 +236,7 @@ export const QuestsModalContent = () => {
       <Tag>QUESTS</Tag>
       <div className="py-2 flex items-center justify-between w-full mb-4">
         <PixelButton
-          text="FAMILY"
+          text="SOCIAL"
           active={questsType === QuestType.SOCIAL}
           onClick={() => setQuestsType(QuestType.SOCIAL)}
         ></PixelButton>
