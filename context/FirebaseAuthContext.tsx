@@ -17,6 +17,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import { useRouter } from "next/router";
 import * as React from "react";
@@ -61,6 +62,7 @@ type ContextState = {
   user: User;
   isLoginModalDisplayed: boolean;
   setIsLoginModalDisplayed: (isDisplayed: boolean) => void;
+  resetPassword: (email: string) => void;
 };
 
 const FirebaseAuthContext = React.createContext<ContextState | undefined>(
@@ -103,6 +105,12 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
         });
     },
     [toast]
+  );
+  const resetPassword = useCallback(
+    (email: string) => {
+      sendPasswordResetEmail(auth, email);
+    },
+    [auth]
   );
 
   React.useEffect(() => {
@@ -184,6 +192,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     isLoginModalDisplayed,
     setIsLoginModalDisplayed,
     refetchProfile,
+    resetPassword,
   };
 
   React.useEffect(() => {
@@ -271,6 +280,7 @@ function useFirebaseAuth() {
     user: context.user,
     signIn,
     showSignInPopup,
+    resetPassword: context?.resetPassword,
   };
 }
 

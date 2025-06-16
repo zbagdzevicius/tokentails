@@ -1,10 +1,14 @@
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { ChangeEvent, useState } from "react";
+import { PixelButton } from "./PixelButton";
+import { useToast } from "@/context/ToastContext";
 
 const SignInForm = ({
   signIn,
+  resetPassword,
 }: {
   signIn: (username: string, password: string) => void;
+  resetPassword: (email: string) => void;
 }) => {
   const [username, setUsername] = useState("");
   const handleUsernameChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -14,6 +18,8 @@ const SignInForm = ({
   const handlePasswordChange = (event: ChangeEvent<HTMLInputElement>) => {
     setPassword(event?.target?.value);
   };
+  const toast = useToast();
+  const [isPasswordResetSent, setIsPasswordResetSent] = useState(false);
 
   const onSubmit = (e: any) => {
     e?.preventDefault?.();
@@ -49,12 +55,34 @@ const SignInForm = ({
           <div></div>
         </div>
       </button>
+      <PixelButton
+        isSmall
+        isDisabled={isPasswordResetSent}
+        onClick={() => {
+          if (username?.length && !isPasswordResetSent) {
+            resetPassword(username);
+            toast({
+              message: "Password reset email sent",
+            });
+            setIsPasswordResetSent(true);
+          } else {
+            toast({
+              message: "Please enter your email first",
+            });
+          }
+        }}
+        text={
+          isPasswordResetSent
+            ? "Password Reset Email Sent"
+            : "I Forgot Password"
+        }
+      />
     </form>
   );
 };
 
 export const SignInContent = () => {
-  const { signIn, user } = useFirebaseAuth();
+  const { signIn, user, resetPassword } = useFirebaseAuth();
   const [signInWithPasswordEnabled, setSignInWithPasswordEnabled] =
     useState(false);
 
@@ -112,7 +140,7 @@ export const SignInContent = () => {
               </div>
             </button>
           ) : (
-            <SignInForm signIn={signIn} />
+            <SignInForm signIn={signIn} resetPassword={resetPassword} />
           )}
           <div className="flex flex-col font-secondary text-center mt-2">
             REGISTRATION HAPPENS ON FIRST SIGN IN
