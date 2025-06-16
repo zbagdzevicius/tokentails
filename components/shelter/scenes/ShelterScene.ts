@@ -22,7 +22,7 @@ const JUMP_LAYER_TILES = [
 ];
 const TRAMPOLINE_TILES = [158, 159];
 
-const SPAWN_POSITIONS: Record<
+  const SPAWN_POSITIONS: Record<
   NPC_TYPE,
   { x: { min: number; max: number }; y: number }
 > = {
@@ -32,14 +32,14 @@ const SPAWN_POSITIONS: Record<
   },
   [NPC_TYPE.TOKENTAILS]: {
     x: { min: 1700, max: 2800 },
-    y: -250,
+    y: -200,
   },
   [NPC_TYPE.TOKENTAILS_2]: {
-    x: { min: 300, max: 1000 },
+    x: { min: 600, max: 1200 },
     y: -250,
   },
   [NPC_TYPE.PLAYER_CATS]: {
-    x: { min: 300, max: 1000 },
+    x: { min: 600, max: 1200 },
     y: -250,
   },
 };

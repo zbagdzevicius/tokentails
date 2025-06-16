@@ -26,7 +26,7 @@ const config: Phaser.Types.Core.GameConfig = {
         left: true,
         right: true
       },
-      overlapBias: 64,
+      overlapBias: 32,
       fixedStep: true
     },
   },

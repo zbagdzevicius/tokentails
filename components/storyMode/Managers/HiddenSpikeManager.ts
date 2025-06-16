@@ -66,12 +66,18 @@ export class HiddenSpikeManager {
     this.scene.time.addEvent({
       delay: randomDelay,
       callback: () => {
-        spike.play(this.config.animationKey);
+        // Check if spike is still valid and active in the scene
+        if (spike && spike.active && spike.scene) {
+          spike.play(this.config.animationKey);
+        }
       },
     });
 
     spike.once("animationcomplete", () => {
-      this.startSpikeAnimationWithDelay(spike);
+      // Only restart animation if spike is still valid
+      if (spike && spike.active && spike.scene) {
+        this.startSpikeAnimationWithDelay(spike);
+      }
     });
   }
 
