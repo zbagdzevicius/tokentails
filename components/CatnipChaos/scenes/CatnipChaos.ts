@@ -61,7 +61,7 @@ export class CatnipChaosScene extends Scene {
   spikeManager!: SpikeManager;
   collectiveItem?: CollectiveItem;
 
-  autoRunSpeed: number = 275;
+  autoRunSpeed: number = 265;
   autoJumpSpeed: number = 440;
   isAutoRunMode: boolean = true;
 
