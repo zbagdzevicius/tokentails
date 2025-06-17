@@ -1,18 +1,20 @@
+import { USER_API } from "@/api/user-api";
+import { ABOUT_ME_ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
+import { commafy } from "@/constants/utils";
+import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
+import { GameModal } from "@/models/game";
+import { IProfile } from "@/models/profile";
+import { useMutation } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { GameStatSection } from "../catbassadors/GameStatsSection";
-import { commafy } from "@/constants/utils";
+import { AboutMeOnboarding } from "../onboarding/AboutMeOnboarding";
+import { CatnipChaosLevelMap } from "../Phaser/map";
 import { CloseButton } from "./CloseButton";
 import { GameMusicToggle } from "./GameMusicToggler";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
-import { IProfile } from "@/models/profile";
-import { useMutation } from "@tanstack/react-query";
-import { USER_API } from "@/api/user-api";
-import { AboutMeOnboarding } from "../onboarding/AboutMeOnboarding";
-import { ABOUT_ME_ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
-import { CatnipChaosLevelMap } from "../Phaser/map";
 
 const Cat = ({ profile }: { profile?: IProfile | null }) => {
   return (
@@ -94,6 +96,7 @@ const ProfileUpdate = () => {
 export const TelegramProfileContent = () => {
   const { profile, logout, isFB } = useProfile();
   const [isWalletsRevealed, setIsWalletsRevealed] = useState(false);
+  const { setOpenedModal } = useGame();
   const gameStats = useMemo(() => {
     if (!profile) {
       return [];
@@ -153,6 +156,13 @@ export const TelegramProfileContent = () => {
       {profile?.cat && (
         <ul className="m-auto font-primary">
           <Tag>Hello, {profile.name} !</Tag>
+          <div className="flex justify-center -mb-4">
+            <PixelButton
+              isSmall
+              text="CONTACT US"
+              onClick={() => setOpenedModal(GameModal.SUPPORT)}
+            />
+          </div>
           <li className="flex items-center gap-x-2 justify-center mt-4">
             <img draggable={false} className="w-8" src="/logo/coin.webp" />
             <div
@@ -178,7 +188,7 @@ export const TelegramProfileContent = () => {
           </li>
           <li
             id={ABOUT_ME_ONBOARDING_MODAL_IDS.OPTIONS}
-            className="flex justify-between mb-4 gap-2"
+            className="flex justify-between mb-1 gap-2"
           >
             {gameStats.map((stat) => (
               <GameStatSection {...stat} key={stat.title} onClick={() => {}} />
@@ -188,13 +198,16 @@ export const TelegramProfileContent = () => {
           {!isWalletsRevealed && (
             <span
               id={ABOUT_ME_ONBOARDING_MODAL_IDS.WALLETS}
-              className="w-full flex justify-center"
+              className="w-full flex justify-center flex-col"
             >
               <PixelButton
                 isSmall
                 text="Reveal My Wallets"
                 onClick={() => setIsWalletsRevealed(true)}
               />
+              <div className="font-primary text-center text-p6 -mt-2 mb-2">
+                GENERATED WALLETS FOR IN-GAME USAGE
+              </div>
             </span>
           )}
 

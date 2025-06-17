@@ -230,7 +230,7 @@ export const MysteryBox = () => {
                 />
               </div>
               <div className="text-p4 font-bold flex items-center gap-1">
-                <div>ABOUT STICKY</div>
+                ABOUT STICKY
               </div>
             </div>
           </div>

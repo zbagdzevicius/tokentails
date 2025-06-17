@@ -104,8 +104,8 @@ export const CatnipChaosLevels = ({
               }
             />
           </div>
-          <div className="text-p4 font-bold flex items-center gap-1">
-            <div>ABOUT STICKY</div>
+          <div className="text-p4 font-bold flex items-center gap-1 whitespace-nowrap">
+            ABOUT STICKY
           </div>
         </div>
       </div>

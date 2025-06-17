@@ -40,7 +40,7 @@ function CatnipChaos() {
   }, [cat, isGameLoaded]);
 
   return (
-    <div id="app" className="z-20">
+    <div id="app" className="z-20 overflow-y-auto max-h-screen">
       {!level && <CatnipChaosLevels setSelectedLevel={setLevel} />}
       {level && <CatnipChaosGame level={level} />}
     </div>

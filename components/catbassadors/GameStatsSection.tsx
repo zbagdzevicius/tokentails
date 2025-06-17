@@ -112,7 +112,7 @@ export const GameStatsSection = ({
           )}
         </div>
       </div>
-      <div className="fixed left-4 pb-safe top-4 z-10 flex justify-between">
+      <div className="fixed left-4 pb-safe top-4 z-10 flex flex-col justify-between">
         <div
           onClick={() => setModal(coinsText)}
           className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-1"
@@ -141,6 +141,13 @@ export const GameStatsSection = ({
             {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0} /{" "}
             {Object.keys(CatnipChaosLevelMap).length * 10}
           </div>
+        </div>
+        <div className="flex flex-col items-center">
+          {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
+            <div className="flex flex-col items-center font-secondary text-p2 bg-purple-300 bg-opacity-80 hover:bg-opacity-100 px-2 rounded-b-xl">
+              <div className="text-p6 pt-1">CODEX 06-22</div>
+            </div>
+          )}
         </div>
       </div>
       {modal && (

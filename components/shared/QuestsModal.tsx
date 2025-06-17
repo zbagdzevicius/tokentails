@@ -186,7 +186,7 @@ const allQuests: ILocalQuest[] = [
 
 export const QuestsModalContent = () => {
   const { profile, setProfileUpdate, utils } = useProfile();
-  const [questsType, setQuestsType] = useState(QuestType.SOCIAL);
+  const [questsType, setQuestsType] = useState(QuestType.WIN);
   const quests = useMemo(
     () =>
       allQuests.filter((quest) => {
@@ -236,6 +236,11 @@ export const QuestsModalContent = () => {
       <Tag>QUESTS</Tag>
       <div className="py-2 flex items-center justify-between w-full mb-4">
         <PixelButton
+          text="TOP"
+          active={questsType === QuestType.WIN}
+          onClick={() => setQuestsType(QuestType.WIN)}
+        ></PixelButton>
+        <PixelButton
           text="SOCIAL"
           active={questsType === QuestType.SOCIAL}
           onClick={() => setQuestsType(QuestType.SOCIAL)}
@@ -244,11 +249,6 @@ export const QuestsModalContent = () => {
           text="GOALS"
           active={questsType === QuestType.GOAL}
           onClick={() => setQuestsType(QuestType.GOAL)}
-        ></PixelButton>
-        <PixelButton
-          text="WIN"
-          active={questsType === QuestType.WIN}
-          onClick={() => setQuestsType(QuestType.WIN)}
         ></PixelButton>
       </div>
       <span className="lg:px-8 w-full">

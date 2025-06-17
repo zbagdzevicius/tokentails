@@ -27,6 +27,7 @@ import { useProfile } from "./ProfileContext";
 import { IToast, useToast } from "./ToastContext";
 import { getMultiplier } from "@/constants/cat-utils";
 import { FeaturedCatModal } from "@/components/shared/FeaturedCatModal";
+import { SupportModal } from "@/components/shared/SupportModal";
 
 type ContextState = {
   isStarted?: boolean;
@@ -268,6 +269,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           )}
           {openedModal === GameModal.FEATURED_CAT && (
             <FeaturedCatModal close={() => setOpenedModal(null)} />
+          )}
+          {openedModal === GameModal.SUPPORT && (
+            <SupportModal close={() => setOpenedModal(null)} />
           )}
           <GameMusicPlayer />
         </>
