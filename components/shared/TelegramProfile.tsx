@@ -117,7 +117,7 @@ export const TelegramProfileContent = () => {
       {
         title: "Friends",
         image: "/logo/friends.png",
-        stat: profile.referrals?.length || 0,
+        stat: profile.referralsCount || 0,
         bg: "from-green-300 to-green-300",
         text: `Earn 2000 coins for each friend
         + 50 daily coins and +1 daily live`,

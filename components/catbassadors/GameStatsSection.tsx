@@ -7,6 +7,7 @@ import { CloseButton } from "../shared/CloseButton";
 import { useToast } from "@/context/ToastContext";
 import { ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 import { CatnipChaosLevelMap } from "../Phaser/map";
+import { Tag } from "../shared/Tag";
 interface IGameStat {
   title: string;
   image: string;
@@ -144,8 +145,16 @@ export const GameStatsSection = ({
         </div>
         <div className="flex flex-col items-center">
           {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
-            <div className="flex flex-col items-center font-secondary text-p2 bg-purple-300 bg-opacity-80 hover:bg-opacity-100 px-2 rounded-b-xl">
-              <div className="text-p6 pt-1">CODEX 06-22</div>
+            <div
+              onClick={() => setOpenedModal(GameModal.CODEX)}
+              className="flex flex-col items-center font-secondary text-p2 bg-yellow-300 hover:scale-125 transition-all hover:mt-1 hover:bg-amber-300 bg-opacity-80 hover:bg-opacity-100 px-2 rounded-b-xl relative"
+            >
+              <img src="/codex/codex-1.webp" className="h-8 -mb-1" />
+              <div className="text-p4 pt-1 -mt-1 -mb-1">CODEX</div>
+
+              <div className="absolute flex justify-center left-0 right-0 -bottom-5">
+                <Tag isSmall> NEW</Tag>
+              </div>
             </div>
           )}
         </div>

@@ -122,7 +122,7 @@ export const Comment = ({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex gap-2">
-        <Avatar avatar={user?.avatar} />
+        <Avatar avatar={user?.cat?.catImg} />
         <div className="flex flex-col bg-blue-300 rounded-lg px-2 py-1">
           <div className="text-p6 text-primary font-medium">{user?.name}</div>
           <div className="text-p5 text-primary">{text}</div>

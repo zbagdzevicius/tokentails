@@ -24,17 +24,17 @@ export const GameOptionsModal = ({
   setOpenedModal,
 }: IProps) => {
   const numberOfPointsToRedeem = useMemo(() => {
-    const referralsPoints = (profile?.referrals?.length || 0) * 50;
+    const referralsPoints = (profile?.referralsCount || 0) * 50;
     const streakPoints = (profile?.streak || 0) * 25;
     const basePoints = 250;
 
     return referralsPoints + streakPoints + basePoints;
-  }, [profile?.referrals, profile?.streak]);
+  }, [profile?.referralsCount, profile?.streak]);
   const toast = useToast();
 
   const numberOfLivesToRedeem = useMemo(() => {
-    return (profile?.referrals?.length || 0) + 3;
-  }, [profile?.referrals]);
+    return (profile?.referralsCount || 0) + 3;
+  }, [profile?.referralsCount]);
 
   const nextDayTargetDate = getNextDayMidnight();
 
@@ -46,6 +46,7 @@ export const GameOptionsModal = ({
       catpoints: (profile.catpoints || 0) + numberOfPointsToRedeem,
       catbassadorsLives:
         (profile.catbassadorsLives || 0) + numberOfLivesToRedeem,
+      monthStreak: (profile.monthStreak || 0) + 1,
     });
     toast({
       message: `You got ${numberOfPointsToRedeem} coins + ${numberOfLivesToRedeem} lives`,
@@ -57,18 +58,13 @@ export const GameOptionsModal = ({
       <GameStatsSection profile={profile} setOpenedModal={setOpenedModal} />
       {!gameType && (
         <div className="fixed z-10 bottom-8 md:bottom-4 lg:bottom-8 xl:bottom-12 left-4 right-4 pb-safe flex justify-between md:justify-center md:gap-8 items-end">
-          <div className="relative">
-            <div className="absolute -top-2 -left-5 z-0 -rotate-45">
-              <Tag isSmall> NEW</Tag>
-            </div>
-            <PixelButton
-              onClick={() => {
-                setOpenedModal(GameModal.INVITE);
-              }}
-              text="GIFTS"
-              id={ONBOARDING_MODAL_IDS.GIFTS}
-            ></PixelButton>
-          </div>
+          <PixelButton
+            onClick={() => {
+              setOpenedModal(GameModal.INVITE);
+            }}
+            text="GIFTS"
+            id={ONBOARDING_MODAL_IDS.GIFTS}
+          ></PixelButton>
           <div className="flex flex-col items-center">
             {profile.canRedeemLives && (
               <div

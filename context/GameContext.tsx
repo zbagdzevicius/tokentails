@@ -28,6 +28,7 @@ import { IToast, useToast } from "./ToastContext";
 import { getMultiplier } from "@/constants/cat-utils";
 import { FeaturedCatModal } from "@/components/shared/FeaturedCatModal";
 import { SupportModal } from "@/components/shared/SupportModal";
+import { CodexModal } from "@/components/shared/CodexModal";
 
 type ContextState = {
   isStarted?: boolean;
@@ -111,12 +112,17 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
         setProfileUpdate({
           catbassadorsLives: (profile.catbassadorsLives || 1) - 1,
           catpoints: profile.catpoints + earnedScore,
+          monthCatbassadorsLivesSpent:
+            (profile.monthCatbassadorsLivesSpent || 0) + 1,
+          monthCatpoints: (profile.monthCatpoints || 0) + earnedScore,
         });
       }
       if (gameType === GameType.CATNIP_CHAOS) {
         setProfileUpdate({
           catbassadorsLives: (profile.catbassadorsLives || 1) - 1,
           catnipChaos,
+          monthCatbassadorsLivesSpent:
+            (profile.monthCatbassadorsLivesSpent || 0) + 1,
         });
       }
     },
@@ -248,6 +254,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
           {openedModal === GameModal.PROFILE && (
             <TelegramProfile close={() => setOpenedModal(null)} />
+          )}
+          {openedModal === GameModal.CODEX && (
+            <CodexModal close={() => setOpenedModal(null)} />
           )}
           {openedModal === GameModal.QUESTS && (
             <QuestsModal close={() => setOpenedModal(null)} />

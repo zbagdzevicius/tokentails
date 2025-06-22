@@ -246,6 +246,7 @@ export const CatPayment = ({
       cats: [...(cats || []), cat],
       cat,
       catpoints: profile!.catpoints - catpoints || 0,
+      monthCatsAdopted: (profile?.monthCatsAdopted || 0) + 1,
     });
     setTransactionStatus(null);
 
@@ -554,8 +555,8 @@ export const SafeCatCard = ({
                 className={`${
                   activeBlessing
                     ? "w-full h-48 rounded-xl min-w-48"
-                    : "w-36 h-36"
-                } relative z-10 object-contain pixelated`}
+                    : "w-36 h-36 pixelated"
+                } relative z-10 object-contain`}
               />
               {!!blessings?.length && (
                 <img

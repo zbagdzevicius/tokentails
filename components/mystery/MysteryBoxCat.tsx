@@ -29,6 +29,7 @@ export const MysteryBoxCat = () => {
       setProfileUpdate({
         cats: [...(profile?.cats || []), cat],
         cat,
+        monthBoxes: (profile?.monthBoxes || 0) + 1,
       });
       setTransactionStatus(null);
       setRolledCat(cat);

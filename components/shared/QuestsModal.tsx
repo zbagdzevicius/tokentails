@@ -265,7 +265,7 @@ export const QuestsModalContent = () => {
                       <img
                         draggable={false}
                         className="w-10"
-                        src="icons/check.webp"
+                        src="/icons/check.webp"
                       />
                     ) : (
                       <img
@@ -306,7 +306,7 @@ export const QuestsModalContent = () => {
                       <img
                         draggable={false}
                         className="w-10"
-                        src="icons/check.webp"
+                        src="/icons/check.webp"
                       />
                     ) : (
                       <img

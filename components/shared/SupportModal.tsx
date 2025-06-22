@@ -5,10 +5,12 @@ import { CloseButton } from "./CloseButton";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
 import { useQuery } from "@tanstack/react-query";
+import { useProfile } from "@/context/ProfileContext";
 
 export const SupportContent = ({ close }: { close: () => void }) => {
   const [mode, setMode] = useState<"create" | "my-tickets">("create");
   const [message, setMessage] = useState("");
+  const { setProfileUpdate, profile } = useProfile();
   const toast = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const { data: tickets } = useQuery({
@@ -28,6 +30,9 @@ export const SupportContent = ({ close }: { close: () => void }) => {
           toast({
             message: "Ticket created successfully",
             isError: false,
+          });
+          setProfileUpdate({
+            monthTicketCount: (profile?.monthTicketCount || 0) + 1,
           });
         }
       } catch (error) {

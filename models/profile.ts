@@ -12,10 +12,10 @@ export interface IUserWallets {
 
 export interface IProfile {
   _id: string;
-  avatar?: string;
   twitter?: string;
   name: string;
   streak: number;
+  codex: {};
   cat: ICat;
   cats: ICat[];
   score: number;
@@ -24,14 +24,22 @@ export interface IProfile {
   catpointsToday: number;
   catbassadorsRecord: number;
   catnipChaos: number[];
-  purrquestCount: number;
   catbassadorsCount: number;
   catpointsRecord: number;
   canRedeemLives: boolean;
   catbassadorsLives: number;
   adventDayRedeemed: number;
-  referrals: string[];
+  referralsCount: number;
   quests: (QUEST | string)[];
   advent: number;
-  gifts: number;
+
+  monthCatpoints: number;
+  monthCatbassadorsLivesSpent: number;
+  monthCatsAdopted: number;
+  monthBoxes: number;
+  monthFeeded: number;
+  monthStreak: number;
+  monthReferrals: number;
+  monthTicketCount: number;
+  monthCoinsCrafted: number;
 }

@@ -80,6 +80,11 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
     const result = await CAT_API.stakingRedeem(cat._id!);
     if (result.success) {
       setCatUpdate(cat, { staked: null });
+      const coins = 5000 * getMultiplier(cat);
+      setProfileUpdate({
+        catpoints: (profile?.catpoints || 0) + coins,
+        monthCoinsCrafted: (profile?.monthCoinsCrafted || 0) + coins,
+      });
     }
     toast({ message: result.message });
   };

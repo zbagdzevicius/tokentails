@@ -43,16 +43,11 @@ export const InviteModalContent = () => {
           text="INVITE"
           onClick={() => setType(GameModal.INVITE)}
         ></PixelButton>
-        <div className="relative">
-          <div className="absolute -top-2 -right-3 z-0 rotate-45">
-            <Tag isSmall> NEW</Tag>
-          </div>
-          <PixelButton
-            active={type === GameModal.MYSTERY_CAT}
-            text="EVENT"
-            onClick={() => setType(GameModal.MYSTERY_CAT)}
-          ></PixelButton>
-        </div>
+        <PixelButton
+          active={type === GameModal.MYSTERY_CAT}
+          text="EVENT"
+          onClick={() => setType(GameModal.MYSTERY_CAT)}
+        ></PixelButton>
       </div>
       {type === GameModal.INVITE && (
         <>
