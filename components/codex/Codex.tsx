@@ -214,7 +214,7 @@ export const Codex = () => {
   }, [completedCount]);
   const firstDayOfNextMonth = useMemo(() => {
     const now = new Date();
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 9);
     return nextMonth;
   }, []);
   return (
@@ -262,7 +262,9 @@ export const Codex = () => {
           <Tag isSmall>What do I need to do?</Tag>
           <div className="font-primary mb-1">COMPLETE ALL 9 QUESTS</div>
           <Tag isSmall>What do I need to know?</Tag>
-          <div className="font-primary mb-1">QUESTS RESETS EVERY MONTH</div>
+          <div className="font-primary mb-1">
+            RESETS ON 9TH DAY OF EVERY MONTH
+          </div>
           <Tag isSmall>What I'll get?</Tag>
           <div className="font-primary mb-1">$TAILS GUARD TITLE</div>
           <Tag isSmall>WHAT ARE THE BENEFITS OF $TAILS GUARD?</Tag>
