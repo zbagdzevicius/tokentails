@@ -34,6 +34,11 @@ export const SupportContent = ({ close }: { close: () => void }) => {
           setProfileUpdate({
             monthTicketCount: (profile?.monthTicketCount || 0) + 1,
           });
+        } else {
+          toast({
+            message: "You can create only 1 ticket per day",
+            isError: true,
+          });
         }
       } catch (error) {
         toast({
