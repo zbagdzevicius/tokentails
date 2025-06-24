@@ -261,14 +261,15 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           )}
           <Notification notifications={notifications} />
           <MobileButtons
-            isHidden={
-              !(
-                isStarted ||
-                gameType === GameType.SHELTER ||
-                (gameType === GameType.HOME && !!profile.cat?.status?.EAT)
-              )
-            }
-          />
+  isHidden={
+    !(
+      isStarted &&
+      gameType !== GameType.CATNIP_CHAOS
+    ) &&
+    gameType !== GameType.SHELTER &&
+    !(gameType === GameType.HOME && !!profile.cat?.status?.EAT)
+  }
+/>
           {isStarted && gameType === GameType.CATBASSADORS && <DisplayCoins />}
 
           {openedModal === GameModal.PROFILE && (
