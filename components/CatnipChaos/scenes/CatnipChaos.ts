@@ -133,6 +133,14 @@ export class CatnipChaosScene extends Scene {
       frameWidth: 64,
       frameHeight: 64,
     });
+    this.load.spritesheet(
+      "knockback-spell",
+      "abilities/knockback-spell/FIRE.png",
+      {
+        frameWidth: 64,
+        frameHeight: 64,
+      }
+    );
   }
 
   init(props: ICatnipChaosProps) {
