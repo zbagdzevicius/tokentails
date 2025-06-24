@@ -35,6 +35,7 @@ export class CoinManager {
     yMax: 0,
   };
   private spawnIntervalMs = 400;
+  private lastSpawnTime = Date.now();
 
   constructor(config: ICoinManagerConfig) {
     this.scene = config.scene as CatbassadorsScene;
@@ -170,5 +171,26 @@ export class CoinManager {
   destroy() {
     this.stopSpawning();
     this.clearCoins();
+  }
+
+  private spawnCoinsIfNeeded() {
+    const now = Date.now();
+    const elapsed = now - this.lastSpawnTime;
+    const interval = this.spawnIntervalMs;
+
+    // Calculate how many intervals have passed
+    const missedSpawns = Math.floor(elapsed / interval);
+    for (let i = 0; i < missedSpawns; i++) {
+      this.spawnCoin();
+    }
+    this.lastSpawnTime = now;
+  }
+
+  private addVisibilityListener() {
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        this.spawnCoinsIfNeeded();
+      }
+    });
   }
 }

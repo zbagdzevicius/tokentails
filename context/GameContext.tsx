@@ -22,7 +22,7 @@ import { TelegramProfile } from "@/components/shared/TelegramProfile";
 import { catbassadorsGameDuration } from "@/models/cats";
 import { GameModal, GameType } from "@/models/game";
 import * as React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useProfile } from "./ProfileContext";
 import { IToast, useToast } from "./ToastContext";
 import { getMultiplier } from "@/constants/cat-utils";
@@ -57,6 +57,8 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
   const [timer, setTimer] = useState<number>(0);
+  const startTimeRef = useRef<number | null>(null);
+  const durationRef = useRef<number>(0);
   const [notifications, setNotifications] = useState<IToast[]>([]);
 
   const addNotification = (notification: IToast) => {
@@ -92,6 +94,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
       setIsStarted(false);
       setTimer(0);
+      clearInterval(timerInterval);
+      startTimeRef.current = null;
+      durationRef.current = 0;
 
       setGameStop({
         score: earnedScore,
@@ -137,10 +142,20 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     }
     setIsStarted(true);
     setTimer(catbassadorsGameDuration);
+
+    startTimeRef.current = Date.now();
+    durationRef.current = catbassadorsGameDuration;
+
     timerInterval = setInterval(() => {
-      setTimer((v) => {
-        return v === 0 ? 0 : v - 1;
-      });
+      if (startTimeRef.current !== null) {
+        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+        const remaining = Math.max(durationRef.current - elapsed, 0);
+        setTimer(remaining);
+
+        if (remaining <= 0) {
+          clearInterval(timerInterval);
+        }
+      }
     }, 1000);
   });
 
@@ -154,8 +169,12 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   }, [profile]);
 
   GameEvents.GAME_UPDATE.use((event) => {
-    if (event) {
-      setTimer((time) => (time || 0) + event.additionalTime!);
+    if (event && typeof event.additionalTime === "number") {
+      durationRef.current += event.additionalTime;
+      if (startTimeRef.current !== null) {
+        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+        setTimer(Math.max(durationRef.current - elapsed, 0));
+      }
     }
   });
   GameEvents.ENEMY_SPAWN.use((event) => {

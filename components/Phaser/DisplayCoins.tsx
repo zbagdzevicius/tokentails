@@ -51,18 +51,15 @@ export const DisplayCoins: React.FC<{}> = () => {
       setPowerUpType(buff);
       setShowPowerUp(true);
 
-      // Reset the cooldown meter to 100%
       setCooldownPercentage(100);
       let elapsed = 0;
       const updateInterval = 100;
 
-      // Start a new interval
       const newInterval = setInterval(() => {
         elapsed += updateInterval;
         const percentage = 100 - (elapsed / duration) * 100;
         setCooldownPercentage(Math.max(percentage, 0));
 
-        // If we've reached the end of this buff's duration
         if (elapsed >= duration) {
           clearInterval(newInterval);
           setShowPowerUp(false);
