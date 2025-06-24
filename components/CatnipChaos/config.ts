@@ -15,15 +15,15 @@ const config: Phaser.Types.Core.GameConfig = {
       timeScale: 1,
       gravity: { x: 0, y: 600 },
       debug: false,
-      tileBias: 64,
+      tileBias: 32,
       checkCollision: {
-        up: true,
+        up: true, 
         down: true,
         left: true,
         right: true
       },
       overlapBias: 32,
-      fixedStep: true
+
     },
     
   },
