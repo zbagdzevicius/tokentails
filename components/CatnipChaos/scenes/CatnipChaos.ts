@@ -81,7 +81,7 @@ export class CatnipChaosScene extends Scene {
   }
 
   preload() {
-    const level = 32
+    const level = this.props.level;
 
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.audio("meow", "purrquest/sounds/meow.mp3");
