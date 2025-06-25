@@ -1,5 +1,4 @@
 import { USER_API } from "@/api/user-api";
-import { ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 import { getNextDayMidnight } from "@/constants/utils";
 import { useToast } from "@/context/ToastContext";
 import { GameModal, GameType } from "@/models/game";
@@ -8,7 +7,6 @@ import { useCallback, useMemo } from "react";
 import { GameStatsSection } from "../catbassadors/GameStatsSection";
 import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
-import { Tag } from "../shared/Tag";
 
 interface IProps {
   profile: IProfile;
@@ -63,7 +61,6 @@ export const GameOptionsModal = ({
               setOpenedModal(GameModal.INVITE);
             }}
             text="GIFTS"
-            id={ONBOARDING_MODAL_IDS.GIFTS}
           ></PixelButton>
           <div className="flex flex-col items-center">
             {profile.canRedeemLives && (
@@ -99,14 +96,12 @@ export const GameOptionsModal = ({
               <Countdown targetDate={nextDayTargetDate} />
             )}
             <PixelButton
-              id={ONBOARDING_MODAL_IDS.CLAIM_REWARDS}
               isDisabled={!profile.canRedeemLives}
               onClick={() => (profile.canRedeemLives ? redeemLives() : {})}
               text={profile.canRedeemLives ? "DAILY CHECK-IN" : "CHECKED-IN"}
             ></PixelButton>
           </div>
           <PixelButton
-            id={ONBOARDING_MODAL_IDS.QUESTS}
             onClick={() => {
               setOpenedModal(GameModal.QUESTS);
             }}

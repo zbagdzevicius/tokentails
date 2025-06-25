@@ -2,7 +2,6 @@ import { Game } from "@/components/game/Game";
 import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import { GameProvider } from "@/context/GameContext";
 
-import { Onboarding } from "@/components/onboarding/Onboarding";
 import Head from "next/head";
 
 export default function game() {
@@ -19,7 +18,6 @@ export default function game() {
         <link rel="shortcut icon" href="/logo/coin.webp" />
       </Head>
       <GameProvider>
-        <Onboarding />
         <Game />
       </GameProvider>
     </FirebaseAuthProvider>

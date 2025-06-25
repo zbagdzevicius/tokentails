@@ -1,4 +1,3 @@
-import { CATS_ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
@@ -151,7 +150,6 @@ export const GenerateCat = ({ close }: { close: () => void }) => {
         </div>
       ) : (
         <PixelButton
-          id={CATS_ONBOARDING_MODAL_IDS.GENERATE}
           onClick={() => setIsDisplayed(true)}
           text="Generate Your Own Cat"
         />

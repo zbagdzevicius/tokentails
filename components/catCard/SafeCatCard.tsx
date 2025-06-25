@@ -2,7 +2,6 @@ import { CAT_API } from "@/api/cat-api";
 import { ORDER_API } from "@/api/order-api";
 import { getCatPrice } from "@/constants/cat-status";
 import { BuyMode, getMultiplier } from "@/constants/cat-utils";
-import { CAT_CARD_ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 import { getSocialNetworkFromUrl } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
@@ -15,7 +14,6 @@ import { CurrencyType } from "@/web3/contracts";
 import { MYSTERY_BOX_TYPE } from "@/web3/web3.model";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { CatCardOnboarding } from "../onboarding/CardOnboarding";
 import { CatBenefits } from "../shared/CatBenefits";
 import { ChainSelect } from "../shared/ChainSelect";
 import { CloseButton } from "../shared/CloseButton";
@@ -33,7 +31,6 @@ export const CatMultiplier = (cat: ICat) => {
   const multiplier = useMemo(() => getMultiplier(cat), [cat]);
   return (
     <div
-      id={CAT_CARD_ONBOARDING_MODAL_IDS.MULTIPLIER}
       style={{
         backgroundColor: cardsColor[cat.type] || "white",
       }}
@@ -82,7 +79,6 @@ export const CatDescription = ({
             />
           )}
           <h4
-            id={CAT_CARD_ONBOARDING_MODAL_IDS.STORY}
             className={`text-p3 ${
               firstBlessing ? "ml-4 md:ml-2 lg:ml-4" : "ml-16"
             } font-bold`}
@@ -123,10 +119,7 @@ export const CatDescription = ({
               width={40}
               height={40}
             />
-            <h4
-              id={CAT_CARD_ONBOARDING_MODAL_IDS.ABILITY}
-              className="text-p3 ml-4 md:ml-2 lg:ml-4 font-bold"
-            >
+            <h4 className="text-p3 ml-4 md:ml-2 lg:ml-4 font-bold">
               {CatAbilities[type].skill}
             </h4>
           </div>
@@ -486,7 +479,6 @@ export const SafeCatCard = ({
         relative ? "" : "top-1/2 -translate-y-1/2"
       } md:rem:w-[560px] lg:w-auto max-w-screen-xl hover:brightness-105 border-8 rounded-[24px] relative rem:h-[540px] md:h-[360px] lg:h-[600px] aspect-[2/3] max-w-screen`}
     >
-      <CatCardOnboarding />
       <img
         draggable={false}
         src={`/ability/${type}_BG.webp`}
@@ -567,10 +559,7 @@ export const SafeCatCard = ({
               )}
             </span>
             {!activeBlessing && (
-              <div
-                id={CAT_CARD_ONBOARDING_MODAL_IDS.BENEFITS}
-                className="absolute -bottom-2 md:-bottom-8 lg:-bottom-2 flex justify-center z-10"
-              >
+              <div className="absolute -bottom-2 md:-bottom-8 lg:-bottom-2 flex justify-center z-10">
                 <PixelButton
                   onClick={() => setShowBenefits(!showBenefits)}
                   text={

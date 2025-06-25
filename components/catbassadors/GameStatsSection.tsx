@@ -5,7 +5,6 @@ import { useState } from "react";
 import { PixelButton } from "../shared/PixelButton";
 import { CloseButton } from "../shared/CloseButton";
 import { useToast } from "@/context/ToastContext";
-import { ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 import { CatnipChaosLevelMap } from "../Phaser/map";
 import { Tag } from "../shared/Tag";
 interface IGameStat {
@@ -67,7 +66,6 @@ export const GameStatsSection = ({
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
-          id={ONBOARDING_MODAL_IDS.ABOUT_ME}
         >
           {profile.cat && (
             <div className="relative -mb-2">

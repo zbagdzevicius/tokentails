@@ -1,5 +1,4 @@
 import { USER_API } from "@/api/user-api";
-import { ABOUT_ME_ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 import { commafy } from "@/constants/utils";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -9,7 +8,6 @@ import { IProfile } from "@/models/profile";
 import { useMutation } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { GameStatSection } from "../catbassadors/GameStatsSection";
-import { AboutMeOnboarding } from "../onboarding/AboutMeOnboarding";
 import { CatnipChaosLevelMap } from "../Phaser/map";
 import { CloseButton } from "./CloseButton";
 import { GameMusicToggle } from "./GameMusicToggler";
@@ -63,10 +61,7 @@ const ProfileUpdate = () => {
   };
 
   return (
-    <div
-      id={ABOUT_ME_ONBOARDING_MODAL_IDS.TWITTER}
-      className="flex items-center flex-col justify-center md:-mt-6 mb-2"
-    >
+    <div className="flex items-center flex-col justify-center md:-mt-6 mb-2">
       <img className="w-8 -mb-3" src="/icons/social/x.webp" draggable="false" />
       {!editMode ? (
         <Tag isSmall>
@@ -152,7 +147,6 @@ export const TelegramProfileContent = () => {
       <span className="md:hidden">
         <Cat profile={profile} />
       </span>
-      <AboutMeOnboarding />
       {profile?.cat && (
         <ul className="m-auto font-primary">
           <Tag>Hello, {profile.name} !</Tag>
@@ -165,20 +159,14 @@ export const TelegramProfileContent = () => {
           </div>
           <li className="flex items-center gap-x-2 justify-center mt-4">
             <img draggable={false} className="w-8" src="/logo/coin.webp" />
-            <div
-              id={ABOUT_ME_ONBOARDING_MODAL_IDS.COINS}
-              className="flex font-secondary text-p3 gap-2"
-            >
+            <div className="flex font-secondary text-p3 gap-2">
               Coins:{" "}
               <span className="font-bold">{commafy(profile.catpoints)}</span>
             </div>
           </li>
           <li className="flex items-center gap-x-2 mb-4 justify-center">
             <img draggable={false} className="w-8" src="/logo/catnip.webp" />
-            <div
-              id={ABOUT_ME_ONBOARDING_MODAL_IDS.COINS}
-              className="flex font-secondary text-p3 gap-2"
-            >
+            <div className="flex font-secondary text-p3 gap-2">
               CATNIPS:{" "}
               <span className="font-bold">
                 {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0} /{" "}
@@ -186,20 +174,14 @@ export const TelegramProfileContent = () => {
               </span>
             </div>
           </li>
-          <li
-            id={ABOUT_ME_ONBOARDING_MODAL_IDS.OPTIONS}
-            className="flex justify-between mb-1 gap-2"
-          >
+          <li className="flex justify-between mb-1 gap-2">
             {gameStats.map((stat) => (
               <GameStatSection {...stat} key={stat.title} onClick={() => {}} />
             ))}
           </li>
 
           {!isWalletsRevealed && (
-            <span
-              id={ABOUT_ME_ONBOARDING_MODAL_IDS.WALLETS}
-              className="w-full flex justify-center flex-col"
-            >
+            <span className="w-full flex justify-center flex-col">
               <PixelButton
                 isSmall
                 text="Reveal My Wallets"

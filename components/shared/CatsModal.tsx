@@ -1,6 +1,5 @@
 import { CAT_API } from "@/api/cat-api";
 import { getMultiplier } from "@/constants/cat-utils";
-import { CATS_ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 import { MAX_CAT_STATUS } from "@/context/CatContext";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -10,7 +9,6 @@ import { GameModal, GameType } from "@/models/game";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { CatCardModal } from "../catCard/CatCardModal";
-import { CatsOnboarding } from "../onboarding/CatsOnboarding";
 import { GameEvents } from "../Phaser/events";
 import { Web3Providers } from "../web3/Web3Providers";
 import { CloseButton } from "./CloseButton";
@@ -98,7 +96,6 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
 
   return (
     <div className="px-4 pt-4 pb-8 md:px-16 flex flex-col justify-between items-center animate-appear">
-      <CatsOnboarding />
       <Tag>MY CATS</Tag>
       <h2 className="text-center font-secondary uppercase text-p4 md:text-p3 pt-2">
         Here you can switch your main cat
@@ -157,14 +154,12 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                   {cat.name}
                 </div>
                 <PixelButton
-                  id={CATS_ONBOARDING_MODAL_IDS.SELECT}
                   active={profile?.cat._id === cat._id}
                   text={profile?.cat._id === cat._id ? "Selected" : "Select"}
                   onClick={() => onCatSelect(cat)}
                 />
                 {!cat.staked && (
                   <PixelButton
-                    id={CATS_ONBOARDING_MODAL_IDS.CRAFT}
                     isSmall
                     text="CRAFT COINS"
                     onClick={() => onStakeCat(cat)}

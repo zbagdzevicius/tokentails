@@ -1,4 +1,3 @@
-import { ONBOARDING_MODAL_IDS } from "@/constants/onboarding";
 import { useCat } from "@/context/CatContext";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -10,7 +9,6 @@ import { GameEvents } from "../Phaser/events";
 import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
 import { StatusBar } from "../shared/game/StatusBar";
-import { isProd } from "@/models/app";
 
 interface IProps {
   gameType: GameType | null;
@@ -119,12 +117,10 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
               <div className="flex z-10 -mt-4 -mb-2">
                 <Tag>PLAY GAMES</Tag>
               </div>
-              <span id={ONBOARDING_MODAL_IDS.CATBASSADORS}>
-                <GameSelectItem
-                  setGameType={setGameType}
-                  gameType={GameType.CATBASSADORS}
-                />
-              </span>
+              <GameSelectItem
+                setGameType={setGameType}
+                gameType={GameType.CATBASSADORS}
+              />
             </div>
 
             {profile?.cat ? (
@@ -135,7 +131,6 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
                   src={profile.cat?.catImg}
                 />
                 <img
-                  id={ONBOARDING_MODAL_IDS.CAT}
                   draggable={false}
                   src="/logo/logo-text.webp"
                   className="absolute w-24 h-auto -top-36 md:-top-20 md:w-16 lg:w-24 lg:-top-36 z-10"
@@ -150,7 +145,6 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
 
                 <span className="pt-2 relative z-20">
                   <PixelButton
-                    id={ONBOARDING_MODAL_IDS.MY_CATS}
                     onClick={() => {
                       setOpenedModal(GameModal.CATS);
                     }}
@@ -165,12 +159,10 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
               />
             )}
             <div className="flex flex-col gap-1 items-end">
-              <span id={ONBOARDING_MODAL_IDS.SHELTER}>
-                <GameSelectItem
-                  setGameType={setGameType}
-                  gameType={GameType.SHELTER}
-                />
-              </span>
+              <GameSelectItem
+                setGameType={setGameType}
+                gameType={GameType.SHELTER}
+              />
               <div className="flex z-10 -mt-4 -mb-2">
                 <Tag>SAVE CATS</Tag>
               </div>
