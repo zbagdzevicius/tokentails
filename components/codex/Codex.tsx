@@ -64,7 +64,7 @@ const codex: ICodex[] = [
     title: "#4 Coins Must Flow Where Compassion Leads",
     description:
       "Half of all gained must give. Every game played, every trade made — that fuels their future. And in doing so, ensures ours.",
-    how: "Open mystery box or loot box 2 times",
+    how: "Open mystery box or loot box 2 times in 'GIFT' section's 'EVENT' tab",
     image: "/codex/codex-4.webp",
     task: "OPEN A BOX",
     verification: (profile) => (profile?.monthBoxes || 0) >= 2,

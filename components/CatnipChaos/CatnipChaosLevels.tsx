@@ -46,7 +46,7 @@ export const CatnipChaosLevels = ({
         {catnipChaosLevelsList.map((level, i) => (
           <div
             key={i}
-            onClick={() => selectLevel(level)}
+            onClick={() => i <= unlockedLevels && selectLevel(level)}
             style={{
               backgroundImage: `url(${catnipChaosChapterBGImage[level[0]]})`,
               backgroundSize: "cover",
