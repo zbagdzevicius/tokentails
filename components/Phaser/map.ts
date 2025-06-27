@@ -28,6 +28,12 @@ export const CatnipChaosLevelMap: Record<string, Map> = {
   "34": Map.SUMMER,
   "35": Map.SUMMER,
   "36": Map.SUMMER,
+  "41": Map.CANDY,
+  "42": Map.CANDY,
+  "43": Map.CANDY,
+  "44": Map.CANDY,
+  "45": Map.CANDY,
+  "46": Map.CANDY,
 };
 
 export const catnipChaosLevelsList: (keyof typeof CatnipChaosLevelMap)[] =
@@ -39,4 +45,5 @@ export const catnipChaosChapterBGImage: Record<string, string> = {
   "1": "/backgrounds/bg-5.webp",
   "2": "/backgrounds/bg-6.webp",
   "3": "/backgrounds/bg-4.webp",
+  "4": "/backgrounds/bg-3.webp",
 };
