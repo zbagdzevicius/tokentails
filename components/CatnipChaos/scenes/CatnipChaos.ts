@@ -75,6 +75,7 @@ export class CatnipChaosScene extends Scene {
   private floatingPlatformManagers: FloatingPlatformManager[] = [];
   private hiddenSpikeManagers: HiddenSpikeManager[] = [];
   private collectedCatnipCoins: number = 0;
+  private currentLevel:string = ''
 
   constructor() {
     super("CatnipChaosScene");
@@ -82,6 +83,7 @@ export class CatnipChaosScene extends Scene {
 
   preload() {
     const level = this.props.level;
+
 
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.audio("meow", "purrquest/sounds/meow.mp3");
@@ -145,6 +147,7 @@ export class CatnipChaosScene extends Scene {
 
   init(props: ICatnipChaosProps) {
     this.props = props;
+    this.currentLevel = this.props.level
   }
 
   create(props: { detail?: IPhaserGameSceneProps }) {
@@ -348,15 +351,30 @@ export class CatnipChaosScene extends Scene {
     this.setupCatCollisions();
     this.cameras.main.startFollow(this.cat.sprite);
 
-    // Set custom gravity settings for runner mode
-    this.cat.movement.setGravitySettings({
-      baseGravity: 700,
-      fallingGravity: 2000,
-      reversedBaseGravity: -2000,
-      reversedFallingGravity: -3000,
-    });
+ 
+    if (this.currentLevel && this.currentLevel.startsWith('4')) {
+      this.cat.setGeometryDashMode(true);
 
-    // Enable auto-run mode with specified speed
+
+      this.cat.movement.setGravitySettings({
+        baseGravity: 700,
+        fallingGravity: 1500,
+        reversedBaseGravity: -2000,
+        reversedFallingGravity: -3000,
+      });
+    } else {
+      this.cat.setGeometryDashMode(false);
+
+
+
+      this.cat.movement.setGravitySettings({
+        baseGravity: 700,
+        fallingGravity: 2000,
+        reversedBaseGravity: -2000,
+        reversedFallingGravity: -3000,
+      });
+    }
+    // Also enable auto-run mode for horizontal movement
     this.cat.setAutoRunMode(this.autoRunSpeed, this.autoJumpSpeed);
 
     this.physics.add.collider(this.cat.sprite, this.jumperLayer);

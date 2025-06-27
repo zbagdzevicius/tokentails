@@ -11,8 +11,9 @@ const config: Phaser.Types.Core.GameConfig = {
   roundPixels: true,
   physics: {
     default: "arcade",
+    
     arcade: {
-      fps: 240,
+      fps: 10,
       timeScale: 1,
       gravity: { x: 0, y: 600 },
       debug: false,
@@ -23,6 +24,7 @@ const config: Phaser.Types.Core.GameConfig = {
         left: true,
         right: true
       },
+      
       overlapBias: 64,
       fixedStep: true
     },

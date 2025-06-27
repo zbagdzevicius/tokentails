@@ -6,6 +6,7 @@ const wallSlidingThresholdMs = 200;
 
 export class PlayerMovement {
   private player: IPlayer;
+  public dashDisabled: boolean = false;
 
   private jumpStartTime: number = 0;
   private isJumpHeld: boolean = false;
@@ -15,6 +16,9 @@ export class PlayerMovement {
   private isAutoRunMode: boolean = false;
   private autoRunSpeed: number = 0;
   private autoJumpSpeed: number = 0;
+
+  // Add new property for Geometry Dash-style gravity flip
+  private isGeometryDashMode: boolean = false;
 
   // Add new properties for gravity settings
   private baseGravity: number = 700;
@@ -33,6 +37,15 @@ export class PlayerMovement {
     this.isGravityReversed = reversed;
     this.player.sprite.setFlipY(reversed);
     this.player.sprite.setGravityY(reversed ? -1450 : 1450);
+  }
+
+  // Add method to enable Geometry Dash mode
+  setGeometryDashMode(enabled: boolean) {
+    this.isGeometryDashMode = enabled;
+    if (enabled) {
+      // Set initial gravity to normal (down)
+      this.setGravityReversed(false);
+    }
   }
 
   updateOngoingMovements() {
@@ -75,6 +88,11 @@ export class PlayerMovement {
     const upKeyDown =
       cursors.up.isDown || keys.up.isDown || keys.upW.isDown || isMobileJumping;
 
+    // Handle Geometry Dash-style gravity flip
+    if (this.isGeometryDashMode) {
+      this.handleGeometryDashGravity(upKeyDown);
+    }
+
     const onGround = this.isGravityReversed
       ? sprite.body.blocked.up
       : sprite.body.blocked.down;
@@ -108,7 +126,8 @@ export class PlayerMovement {
         this.player.hasDoubleJumped = false;
       }
 
-      if (upKeyDown && !this.player.justJumped) {
+      // In Geometry Dash mode, don't handle jumping at all - let the gravity system handle it
+      if (!this.isGeometryDashMode && upKeyDown && !this.player.justJumped) {
         if (
           onGround ||
           (this.player.canDoubleJump && !this.player.hasDoubleJumped)
@@ -238,13 +257,15 @@ export class PlayerMovement {
     }
 
     this.handleDash();
-    if (
+    
+    // Disable regular jumping when in Geometry Dash mode
+    if (!this.isGeometryDashMode && (
       (onGround ||
         canWallJump ||
         (this.player.canDoubleJump && !this.player.hasDoubleJumped)) &&
       upKeyDown &&
       !this.player.justJumped
-    ) {
+    )) {
       this.jump({
         canWallJump,
         touchingLeftWall,
@@ -278,13 +299,15 @@ export class PlayerMovement {
     if (cursors.up.isUp && keys.up.isUp && !isMobileJumping) {
       this.player.justJumped = false;
     }
-    if (
+    
+    // Disable jump hold logic when in Geometry Dash mode
+    if (!this.isGeometryDashMode && (
       (cursors.up.isDown ||
         keys.up.isDown ||
         keys.upW.isDown ||
         isMobileJumping) &&
       this.isJumpHeld
-    ) {
+    )) {
       const timeJumping = now - this.jumpStartTime;
       if (timeJumping < this.player.coyoteTime) {
         if (sprite.body.velocity.y > this.player.maxJumpSpeed) {
@@ -301,6 +324,7 @@ export class PlayerMovement {
   }
 
   private handleDash() {
+    if (this.dashDisabled) return;
     const dashKeyDown =
       Phaser.Input.Keyboard.JustDown(this.player.keys.dash) ||
       this.player.isMobileDash;
@@ -452,6 +476,20 @@ export class PlayerMovement {
     this.isAutoRunMode = enabled;
     this.autoRunSpeed = speed;
     this.autoJumpSpeed = jumpSpeed;
+  }
+
+  // Add method to handle Geometry Dash-style gravity
+  private handleGeometryDashGravity(upKeyDown: boolean) {
+
+    if (upKeyDown) {
+      if (this.isGravityReversed) {
+        this.player.sprite.setVelocityY(250); 
+      } else {
+        // Normal gravity: go up
+        this.player.sprite.setVelocityY(-250);
+      }
+    }
+
   }
 
   setGravitySettings(settings: {
