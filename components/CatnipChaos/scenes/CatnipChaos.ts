@@ -428,6 +428,16 @@ export class CatnipChaosScene extends Scene {
           this.endGame();
         });
       }
+      // Handle collision with tile 121
+      if (tile && tile.index === 121) {
+        this.cat!.setGeometryDashMode(true);
+        this.cat!.movement.setGravitySettings({
+          baseGravity: 700,
+          fallingGravity: 1500,
+          reversedBaseGravity: -2000,
+          reversedFallingGravity: -3000,
+        });
+      }
     });
   }
 
