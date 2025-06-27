@@ -388,6 +388,13 @@ export class Cat implements IPlayer {
     }
   }
 
+  // Add method to enable Geometry Dash mode
+  setGeometryDashMode(enabled: boolean) {
+    if (this.movement) {
+      this.movement.setGeometryDashMode(enabled);
+    }
+  }
+
   setSitting(sitting: boolean) {
     this.isSitting = sitting;
     if (sitting) {

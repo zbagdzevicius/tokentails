@@ -58,6 +58,8 @@ export class CatbassadorsScene extends Scene {
   private waterAnimationTimer: number = 0;
   private waterAnimationInterval: number = 350;
 
+  private continuousCollisionCheck = true;
+
   constructor() {
     super("CatbassadorsScene");
 
@@ -159,7 +161,6 @@ export class CatbassadorsScene extends Scene {
 
     this.decorationLayer.setDepth(10);
 
-    // Set collision for specific tiles based on property
     this.groundLayer?.setCollisionByExclusion([-1]);
     this.platformsLayer?.setCollision(JUMP_LAYER_TILES);
     this.platformsLayer.setTileIndexCallback(
@@ -168,10 +169,8 @@ export class CatbassadorsScene extends Scene {
         const playerSprite = player as Phaser.Physics.Arcade.Sprite;
 
         if (this.isGravityReversed) {
-          // Allow collision when moving downward (falling)
           return playerSprite.body!.velocity.y >= 0;
         } else {
-          // Allow collision when moving upward (jumping)
           return playerSprite.body!.velocity.y <= 0;
         }
       },
@@ -180,7 +179,7 @@ export class CatbassadorsScene extends Scene {
 
     this.jumperLayer?.setCollision(TRAMPOLINE_TILES);
     this.trampoline = new Trampoline(this, this.jumperLayer, TRAMPOLINE_TILES);
-
+    this.physics.world.setFPS(60);
 
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(ZOOM);
@@ -411,7 +410,47 @@ export class CatbassadorsScene extends Scene {
     setMobileControls(this.cat);
   }
 
+  private monitorPerformance() {
+    if (this.cat?.sprite?.body) {
+      const body = this.cat.sprite.body as Phaser.Physics.Arcade.Body;
+      console.log({
+        position: { x: this.cat.sprite.x, y: this.cat.sprite.y },
+        velocity: { x: body.velocity.x, y: body.velocity.y },
+        fps: this.game.loop.actualFps,
+        deltaTime: this.game.loop.delta
+      });
+    }
+  }
+
   update(time: any, delta: any) {
+    //this.monitorPerformance()
+    this.checkForWorldFallthrough()
+
+    const fps = this.game.loop.actualFps;
+    if (fps && fps < 15) {
+      if (this.cat && this.cat.movement) {
+        this.cat.movement.dashDisabled = true;
+      }
+      if (this.trampoline) {
+        this.trampoline.bounceVelocity = -500;
+      }
+    } else {
+      if (this.cat && this.cat.movement) {
+        this.cat.movement.dashDisabled = false;
+      }
+      if (this.trampoline) {
+        this.trampoline.bounceVelocity = -1000;
+      }
+    }
+
+    // Continuous collision checking for high-speed movement
+    if (this.continuousCollisionCheck && this.cat?.sprite) {
+      this.performContinuousCollisionCheck();
+    }
+
+   
+   // this.clampCatVelocity();
+
     if (time > this.nextGravityReverseTime && !this.gameOver) {
       this.reverseGravityForAll();
       this.nextGravityReverseTime = time + this.gravityReverseInterval;
@@ -430,6 +469,89 @@ export class CatbassadorsScene extends Scene {
       this.endGame();
     }
   }
+
+  
+  private performContinuousCollisionCheck() {
+    if (!this.cat?.sprite?.body) return;
+
+    const body = this.cat.sprite.body as Phaser.Physics.Arcade.Body;
+    const currentPos = { x: body.x, y: body.y };
+    const velocity = { x: body.velocity.x, y: body.velocity.y };
+
+    // Calculate where the cat will be next frame
+    const nextPos = {
+      x: currentPos.x + (velocity.x * 0.016), // Assuming 60fps
+      y: currentPos.y + (velocity.y * 0.016)
+    };
+
+    // Check for collision along the movement path
+    if (this.wouldCollideAtPosition(nextPos.x, nextPos.y)) {
+      // If collision detected, perform raycast to find exact collision point
+      this.performRaycastCollision(currentPos, nextPos);
+    }
+  }
+
+  private wouldCollideAtPosition(x: number, y: number): boolean {
+    // Convert world position to tile coordinates
+    const tileX = Math.floor(x / 32);
+    const tileY = Math.floor(y / 32);
+
+    // Check ground layer
+    const groundTile = this.groundLayer?.getTileAt(tileX, tileY);
+    if (groundTile && groundTile.collides) {
+      return true;
+    }
+
+    // Check platforms layer
+    const platformTile = this.platformsLayer?.getTileAt(tileX, tileY);
+    if (platformTile && platformTile.collides) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private performRaycastCollision(start: {x: number, y: number}, end: {x: number, y: number}) {
+    if (!this.cat?.sprite?.body) return;
+
+    // Simple raycast - check multiple points along the path
+    const steps = 5;
+    const deltaX = (end.x - start.x) / steps;
+    const deltaY = (end.y - start.y) / steps;
+
+    for (let i = 1; i <= steps; i++) {
+      const checkX = start.x + (deltaX * i);
+      const checkY = start.y + (deltaY * i);
+
+      if (this.wouldCollideAtPosition(checkX, checkY)) {
+        const body = this.cat.sprite.body as Phaser.Physics.Arcade.Body;
+        const safeX = start.x + (deltaX * (i - 1));
+        const safeY = start.y + (deltaY * (i - 1));
+        
+        this.cat.sprite.setPosition(safeX, safeY);
+        body.velocity.x = 0;
+        body.velocity.y = Math.min(body.velocity.y, 0);
+        
+        break;
+      }
+    }
+  }
+
+  // private clampCatVelocity() {
+  //   if (!this.cat?.sprite?.body) return;
+
+  //   const body = this.cat.sprite.body as Phaser.Physics.Arcade.Body;
+    
+  //   // Clamp horizontal velocity
+  //   if (Math.abs(body.velocity.x) > this.maxSafeVelocity.x) {
+  //     body.velocity.x = Math.sign(body.velocity.x) * this.maxSafeVelocity.x;
+  //   }
+
+  //   // Clamp vertical velocity
+  //   if (Math.abs(body.velocity.y) > this.maxSafeVelocity.y) {
+  //     body.velocity.y = Math.sign(body.velocity.y) * this.maxSafeVelocity.y;
+  //   }
+  // }
 
   private getCoinSpawnPositionX(): number {
     const leftWall = -440;
@@ -454,7 +576,6 @@ export class CatbassadorsScene extends Scene {
       this.cat.isDeath = true;
     }
 
-    // Play game end sound with specific configuration
     const gameEndSound = this.sound.add("game-end-sound", {
       volume: 1,
       loop: false,
@@ -551,5 +672,40 @@ export class CatbassadorsScene extends Scene {
       },
       loop: true,
     });
+  }
+
+  private safePositions: Array<{x: number, y: number}> = [
+    {x: 100, y: -630},
+  ];
+  
+  private checkForWorldFallthrough() {
+    if (!this.cat?.sprite) return;
+  
+    let fellOut = false;
+    if (this.isGravityReversed) {
+      fellOut = this.cat.sprite.y < -1600;
+    } else {
+      fellOut = this.cat.sprite.y > 500;
+    }
+  
+    if (fellOut) {
+      const nearestSafe = this.safePositions.reduce((nearest, pos) => {
+        const distToNearest = Math.abs(this.cat!.sprite.x - nearest.x);
+        const distToPos = Math.abs(this.cat!.sprite.x - pos.x);
+        return distToPos < distToNearest ? pos : nearest;
+      });
+  
+      this.cat.sprite.setPosition(nearestSafe.x, nearestSafe.y);
+      const body = this.cat.sprite.body as Phaser.Physics.Arcade.Body;
+      body.setVelocity(0, 0);
+  
+      this.createTeleportEffect(nearestSafe.x, nearestSafe.y);
+    }
+  }
+  
+  private createTeleportEffect(x: number, y: number) {
+    const puff = this.add.sprite(x, y, 'puff');
+    puff.play('puff');
+    puff.once('animationcomplete', () => puff.destroy());
   }
 }

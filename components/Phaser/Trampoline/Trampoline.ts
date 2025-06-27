@@ -1,9 +1,8 @@
-const BOUNCE_VELOCITY = -1000;
-
 export class Trampoline {
   private scene: Phaser.Scene;
   private tileLayer: Phaser.Tilemaps.TilemapLayer;
   private trampolineTiles: number[];
+  public bounceVelocity: number = -1000;
 
   constructor(
     scene: Phaser.Scene,
@@ -33,7 +32,7 @@ export class Trampoline {
       playerSprite.body!.velocity.y > 0 ||
       playerSprite.body!.velocity.y <= 0
     ) {
-      playerSprite.setVelocityY(BOUNCE_VELOCITY);
+      playerSprite.setVelocityY(this.bounceVelocity);
       this.scene.sound.play("powerup", { volume: 0.3 });
     }
     return true;
