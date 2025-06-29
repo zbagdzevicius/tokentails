@@ -38,7 +38,7 @@ export const projectId = randomObjectFromArray([
   "3e393963240614a0d229b0af8960f434",
   "905bdc970aa83b821ecc2d1729f0b7b0",
   "b034902eefee7e0b309bc7089089ca85",
-]);
+])!;
 
 export const horizonServer = new Horizon.Server(
   isProd ? "https://horizon.stellar.org" : "https://horizon-testnet.stellar.org"

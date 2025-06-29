@@ -78,7 +78,6 @@ export const useWeb3Transfer = ({
     chainId,
     query,
     currencyType,
-    balance,
     setTransactionStatus,
   } = useWeb3();
   const { setVisible: connectSolana } = useWalletModal();
@@ -232,12 +231,6 @@ export const useWeb3Transfer = ({
         18
       );
 
-      if (!balance || nativeTokenAmountHex > balance.value) {
-        toast({
-          message: `Top up your ${currencyType} balance or switch currency`,
-        });
-        return;
-      }
       const txHash = await sendTransactionAsync({
         to: recipientEvm,
         value: nativeTokenAmountHex,
@@ -327,12 +320,6 @@ export const useWeb3Transfer = ({
       await syncChain();
 
       if (currencyType !== CurrencyType.BNB) {
-        if (!balance || amountHex > balance.value) {
-          toast({
-            message: `Top up your ${currencyType} balance or switch currency`,
-          });
-          return;
-        }
         await writeContractAsync({
           abi: erc20Abi,
           address: currencyContracts[idChainType[chainId!]][currencyType]!,
@@ -345,12 +332,6 @@ export const useWeb3Transfer = ({
           18
         );
 
-        if (!balance || bnbAmountHex > balance.value) {
-          toast({
-            message: `Top up your ${currencyType} balance or switch currency`,
-          });
-          return;
-        }
         const txHash = await sendTransactionAsync({
           to: recipientEvm,
           value: bnbAmountHex,
@@ -373,12 +354,6 @@ export const useWeb3Transfer = ({
     try {
       await syncChain();
 
-      if (!balance || amountHex > balance.value) {
-        toast({
-          message: `Top up your ${currencyType} balance or switch currency`,
-        });
-        return;
-      }
       await writeContractAsync({
         abi: erc20Abi,
         address: currencyContracts[idChainType[chainId!]][currencyType]!,

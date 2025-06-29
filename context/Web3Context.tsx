@@ -5,15 +5,13 @@ import {
   ChainNamespace,
   ChainNamespacesCurrencies,
   ChainType,
-  currencyContracts,
   CurrencyType,
 } from "@/web3/contracts";
-import { idChainType } from "@/web3/web3-chains";
 import { useWallet as useSolanaWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import { useRouter } from "next/router";
 import * as React from "react";
-import { useAccount, useBalance } from "wagmi";
+import { useAccount } from "wagmi";
 
 type ContextState = {
   evmConnected: boolean;
@@ -33,14 +31,6 @@ type ContextState = {
   setNamespace: (namespace: ChainNamespace) => void;
   chainId?: number;
   query: any;
-  balance:
-    | {
-        decimals: number;
-        formatted: string;
-        symbol: string;
-        value: bigint;
-      }
-    | undefined;
   currencyType: CurrencyType;
   namespaceDetail: {
     connected: boolean;
@@ -134,11 +124,6 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
   const router = useRouter();
   const { query } = router;
 
-  const { data: balance } = useBalance({
-    address,
-    token: currencyContracts[idChainType[chainId!]]?.[currencyType],
-  });
-
   React.useEffect(() => {
     setCurrencyType(ChainNamespacesCurrencies[namespace][0]);
   }, [namespace, setCurrencyType]);
@@ -168,7 +153,6 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
         setStellarConnected,
         setStellarAddress,
         solanaConnected,
-        balance,
         transactionStatus,
         setTransactionStatus,
       }}
