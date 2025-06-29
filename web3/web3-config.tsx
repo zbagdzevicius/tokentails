@@ -29,9 +29,16 @@ import { para } from "@/models/para";
 import { Horizon, Networks } from "@stellar/stellar-sdk";
 import { networks } from "./web3-chains";
 import { OAuthMethod, AuthLayout } from "@getpara/react-sdk";
+import { randomObjectFromArray } from "@/constants/utils";
 
 // Get projectId at https://cloud.walletconnect.com
-export const projectId = "4ef5743bb63ef48716115119e580ff88";
+export const projectId = randomObjectFromArray([
+  "4ef5743bb63ef48716115119e580ff88",
+  "71977b8c06fe43e4e97a85a767a52abe",
+  "3e393963240614a0d229b0af8960f434",
+  "905bdc970aa83b821ecc2d1729f0b7b0",
+  "b034902eefee7e0b309bc7089089ca85",
+]);
 
 export const horizonServer = new Horizon.Server(
   isProd ? "https://horizon.stellar.org" : "https://horizon-testnet.stellar.org"

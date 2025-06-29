@@ -18,7 +18,6 @@ import { CatBenefits } from "../shared/CatBenefits";
 import { ChainSelect } from "../shared/ChainSelect";
 import { CloseButton } from "../shared/CloseButton";
 import { PixelButton } from "../shared/PixelButton";
-import { StripePayment } from "../web3/payments/StripePayment";
 import { Web3Transfer } from "../web3/transfer/Web3Transfer";
 
 interface IProps extends ICat {
@@ -160,7 +159,6 @@ export const CatPayment = ({
   } = useWeb3();
   const { _id, supply, name, catpoints, price } = cat;
   const { profile, setProfileUpdate } = useProfile();
-  const [paymentMethod, setPaymentMethod] = useState<"web3" | "card">("web3");
   const [buyMode, setBuyMode] = useState<BuyMode | null>(null);
   const [isAdopting, setIsAdopting] = useState(false);
   const isOwned = useMemo(
@@ -172,9 +170,6 @@ export const CatPayment = ({
     [cat, unitsToBuy]
   );
   const currencyPrice = useMemo(() => {
-    if (paymentMethod === "card") {
-      return corePrice;
-    }
     if (
       [
         CurrencyType.XLM,
@@ -207,16 +202,7 @@ export const CatPayment = ({
       }
     }
     return corePrice;
-  }, [
-    currencyType,
-    bnbRate,
-    xlmRate,
-    solRate,
-    diamRate,
-    corePrice,
-    buyMode,
-    paymentMethod,
-  ]);
+  }, [currencyType, bnbRate, xlmRate, solRate, diamRate, corePrice, buyMode]);
 
   const catpointsText = useMemo(() => {
     if (isAdopting) {
@@ -302,53 +288,26 @@ export const CatPayment = ({
         >
           <CloseButton absolute onClick={close} />
           <div className="flex flex-col gap-4">
-            {/* TODO - RESTORE FIAT PAYMENTS */}
-            {/* <div className="flex justify-center gap-4">
-              <PixelButton
-                text="Credit Card"
-                active={paymentMethod === "card"}
-                onClick={() => setPaymentMethod("card")}
-              />
-              <PixelButton
-                text="Crypto"
-                active={paymentMethod === "web3"}
-                onClick={() => setPaymentMethod("web3")}
-              />
-            </div> */}
-
-            {paymentMethod === "web3" ? (
-              <ChainSelect />
-            ) : (
-              <StripePayment
-                price={currencyPrice}
-                catId={cat._id!}
-                buyMode={buyMode}
-                onSuccess={() => {
-                  onSuccess(cat);
-                }}
-              />
-            )}
+            <ChainSelect />
           </div>
 
           <div className="m-auto">
-            {paymentMethod === "web3" && (
-              <div className="flex flex-col items-start w-fit m-auto">
-                <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
-                  {currencyPrice} {currencyType}
-                </div>
-                <Web3Transfer
-                  price={currencyPrice}
-                  amount={1}
-                  entityType={EntityType.CAT}
-                  buyMode={buyMode}
-                  cat={cat._id}
-                  blessing={cat.blessings?.[0]?._id}
-                  user={profile?._id}
-                  text={buyText}
-                  loadingText="Saving Cat"
-                />
+            <div className="flex flex-col items-start w-fit m-auto">
+              <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
+                {currencyPrice} {currencyType}
               </div>
-            )}
+              <Web3Transfer
+                price={currencyPrice}
+                amount={1}
+                entityType={EntityType.CAT}
+                buyMode={buyMode}
+                cat={cat._id}
+                blessing={cat.blessings?.[0]?._id}
+                user={profile?._id}
+                text={buyText}
+                loadingText="Saving Cat"
+              />
+            </div>
           </div>
         </div>
       )}

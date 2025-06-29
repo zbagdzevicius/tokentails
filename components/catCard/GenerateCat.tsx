@@ -12,7 +12,6 @@ import { ChainSelect } from "../shared/ChainSelect";
 import { Previews } from "../shared/drag-drop";
 import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
-import { StripePayment } from "../web3/payments/StripePayment";
 import { Web3Transfer } from "../web3/transfer/Web3Transfer";
 
 export const GenerateCat = ({ close }: { close: () => void }) => {
@@ -21,7 +20,6 @@ export const GenerateCat = ({ close }: { close: () => void }) => {
   const [price, setPrice] = useState(Prices.generatedCat);
   const [name, setName] = useState("");
   const [image, setImage] = useState<IImage[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<"web3" | "card">("web3");
   const toast = useToast();
   const { setGameType } = useGame();
   const {
@@ -97,53 +95,25 @@ export const GenerateCat = ({ close }: { close: () => void }) => {
 
           {!!name && !!image?.length && (
             <>
-              {/* TODO - RESTORE FIAT PAYMENTS */}
-              {/* <div className="flex justify-center gap-4 animate-appear">
-                <PixelButton
-                  text="Credit Card"
-                  active={paymentMethod === "card"}
-                  onClick={() => setPaymentMethod("card")}
-                />
-                <PixelButton
-                  text="Crypto"
-                  active={paymentMethod === "web3"}
-                  onClick={() => setPaymentMethod("web3")}
-                />
-              </div> */}
-              {paymentMethod === "web3" ? (
-                <ChainSelect />
-              ) : (
-                <StripePayment
-                  price={price}
-                  generatedCat={{
-                    name,
-                    image: image[0]?._id!,
-                  }}
-                  onSuccess={() => {
-                    onSuccess();
-                  }}
-                />
-              )}
+              <ChainSelect />
               <div className="m-auto animate-appear">
-                {paymentMethod === "web3" && (
-                  <div className="flex flex-col items-start w-fit m-auto">
-                    <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
-                      {currencyPrice} {currencyType}
-                    </div>
-                    <Web3Transfer
-                      price={currencyPrice}
-                      amount={1}
-                      entityType={EntityType.CAT}
-                      user={profile?._id}
-                      generatedCat={{
-                        name,
-                        image: image[0]?._id!,
-                      }}
-                      text="Generate"
-                      loadingText="Generating..."
-                    />
+                <div className="flex flex-col items-start w-fit m-auto">
+                  <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
+                    {currencyPrice} {currencyType}
                   </div>
-                )}
+                  <Web3Transfer
+                    price={currencyPrice}
+                    amount={1}
+                    entityType={EntityType.CAT}
+                    user={profile?._id}
+                    generatedCat={{
+                      name,
+                      image: image[0]?._id!,
+                    }}
+                    text="Generate"
+                    loadingText="Generating..."
+                  />
+                </div>
               </div>
             </>
           )}
