@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { Loader } from "@/components/shared/Loader";
 import { NoMore } from "@/components/shared/NoMore";
 import { AirdropTableProps } from "@/models/airdrop";
+import { PixelButton } from "../shared/PixelButton";
 
 const memeCats: Record<number, string> = {
   1: "meme-40.gif",
@@ -113,7 +114,10 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
   hasNextPage,
   onSearch,
   isSearching,
+  phase,
+  setPhase,
 }) => {
+  const [isHowToConnectXOpen, setIsHowToConnectXOpen] = useState(false);
   return (
     <div className="w-full">
       <h2 className="text-center font-primary uppercase tracking-tight text-h6 md:text-h2 lg:text-h1 text-balance px-4 py-4 md:py-0 mt-4">
@@ -126,10 +130,42 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
         SOCIAL TASKS RESULTS ARE UPDATED EVERY 24 hours
       </div>
       <div className="flex items-center font-primary gap-2 -mt-1 text-p5 text-center justify-center">
-        EVERYTHING YOU NEED TO DO TO EARN IS POST AND PLAY!
+        EVERYTHING YOU NEED TO DO TO EARN IS CONNECT X, POST AND PLAY!
       </div>
       <div className="flex items-center font-primary gap-2 text-p5 text-center justify-center leading-tight mt-1 mb-1 px-2">
         IMPORTANT! IN-GAME EARNINGS WILL BE ADDED AT THE END OF THE CAMPAIGN
+      </div>
+      <div className="flex flex-col items-center font-primary gap-2 text-p5 text-center justify-center leading-tight mt-1 mb-1 px-2">
+        <PixelButton
+          text="HOW TO CONNECT X"
+          active={isHowToConnectXOpen}
+          onClick={() => {
+            setIsHowToConnectXOpen(!isHowToConnectXOpen);
+          }}
+        />
+        {isHowToConnectXOpen && (
+          <a href="/game" target="_blank" rel="noopener noreferrer">
+            {" "}
+            <img
+              className="w-full max-w-md"
+              src="/airdrop/connect.webp"
+              alt="how-to-connect-x"
+            />
+          </a>
+        )}
+      </div>
+
+      <div className="flex items-center justify-center gap-2 mb-2">
+        <PixelButton
+          text="PHASE 1 - ended"
+          active={phase === 1}
+          onClick={() => setPhase(1)}
+        />
+        <PixelButton
+          text="PHASE 2 - ongoing"
+          active={phase === 2}
+          onClick={() => setPhase(2)}
+        />
       </div>
       <table className="max-w-xl m-auto w-full rounded-2xl overflow-hidden table-auto bg-blue-300 text-black-900 text-sm text-gray-500 drop-shadow-[0_2.4px_1.2px_rgba(0,0,0,0.8)]">
         <thead className="uppercase text-black-300 bg-gray-50 border-b border-purple-300 text-sm">
@@ -158,7 +194,7 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
               </div>
             </th>
             <th className="py-3 px-2 text-center max-w-2 font-primary">
-              $TAILS points
+              $TAILS
             </th>
           </tr>
         </thead>
@@ -212,7 +248,7 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
                     : "border-yellow-300 text-yellow-300"
                 }`}
               >
-                {result.totalScore}
+                {phase === 1 ? result.totalScore * 15 : result.totalScoreJuly}
               </td>
             </tr>
           ))}

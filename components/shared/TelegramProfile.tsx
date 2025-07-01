@@ -157,16 +157,27 @@ export const TelegramProfileContent = () => {
               onClick={() => setOpenedModal(GameModal.SUPPORT)}
             />
           </div>
-          <li className="flex items-center gap-x-2 justify-center mt-4">
-            <img draggable={false} className="w-8" src="/logo/coin.webp" />
-            <div className="flex font-secondary text-p3 gap-2">
+          <li className="flex items-center gap-x-2 justify-center mt-4 ">
+            <img
+              draggable={false}
+              className="w-7 mb-1 -mr-1"
+              src="/logo/logo.webp"
+            />
+            <div className="flex font-secondary text-p4 gap-2">
+              $Tails:{" "}
+              <span className="font-bold">{commafy(profile.tails || 0)}</span>
+            </div>
+          </li>
+          <li className="flex items-center gap-x-2 justify-center">
+            <img draggable={false} className="w-5" src="/logo/coin.webp" />
+            <div className="flex font-secondary text-p4 gap-2">
               Coins:{" "}
               <span className="font-bold">{commafy(profile.catpoints)}</span>
             </div>
           </li>
           <li className="flex items-center gap-x-2 mb-4 justify-center">
-            <img draggable={false} className="w-8" src="/logo/catnip.webp" />
-            <div className="flex font-secondary text-p3 gap-2">
+            <img draggable={false} className="w-5" src="/logo/catnip.webp" />
+            <div className="flex font-secondary text-p4 gap-2">
               CATNIPS:{" "}
               <span className="font-bold">
                 {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0} /{" "}

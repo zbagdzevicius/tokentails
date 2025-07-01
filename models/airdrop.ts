@@ -1,13 +1,12 @@
-export type AirdropScore = {
-  username: string;
-  totalScore: number;
-};
+import { AirdropUser } from "@/api/ai-api";
 
 export interface AirdropTableProps {
-  scores: AirdropScore[];
+  scores: AirdropUser[];
   loaderRef: (node?: Element | null) => void;
   isFetchingNextPage: boolean;
   hasNextPage: boolean | undefined;
   onSearch: (username: string) => void;
   isSearching: boolean;
+  phase: number;
+  setPhase: (phase: number) => void;
 }

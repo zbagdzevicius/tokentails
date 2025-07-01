@@ -3,20 +3,23 @@ const apiUrl = process.env.NEXT_PUBLIC_AI_URL;
 export interface AirdropUser {
   username: string;
   totalScore: number;
+  totalScoreJuly: number;
 }
 
 export const getAirdropScores = async ({
   pageParam = 0,
+  sortBy = "totalScore",
 }: {
   pageParam?: number;
   username?: string;
+  sortBy?: "totalScore" | "totalScoreJuly";
 }): Promise<AirdropUser[]> => {
   const res = await fetch(`${apiUrl}/users/score`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ page: pageParam + 1 }),
+    body: JSON.stringify({ page: pageParam + 1, sortBy }),
   });
 
   if (!res.ok) {

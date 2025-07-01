@@ -15,6 +15,7 @@ export interface IProfile {
   twitter?: string;
   name: string;
   streak: number;
+  tails: number;
   codex: {};
   cat: ICat;
   cats: ICat[];

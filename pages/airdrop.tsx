@@ -32,11 +32,16 @@ const Airdrop = () => {
   const [section, setSection] = useState<"leaderboard" | "memes" | "cats">(
     "leaderboard"
   );
+  const [phase, setPhase] = useState(2);
 
   const { data, isFetchingNextPage, fetchNextPage, hasNextPage, isLoading } =
     useInfiniteQuery({
-      queryKey: ["airdrop"],
-      queryFn: ({ pageParam = 0 }) => getAirdropScores({ pageParam }),
+      queryKey: ["airdrop", phase],
+      queryFn: ({ pageParam = 0 }) =>
+        getAirdropScores({
+          pageParam,
+          sortBy: phase === 1 ? "totalScore" : "totalScoreJuly",
+        }),
       initialPageParam: 0,
       getNextPageParam: (lastPage, allPages) => {
         if (!lastPage || lastPage.length === 0) return undefined;
@@ -211,7 +216,6 @@ const Airdrop = () => {
         </div>
         {section === "memes" && <AirdropMemes />}
         {section === "cats" && <AirdropCats />}
-
         {section === "leaderboard" && (
           <AirdropTable
             scores={scores}
@@ -220,6 +224,8 @@ const Airdrop = () => {
             hasNextPage={!searchTerm && hasNextPage}
             onSearch={handleSearch}
             isSearching={isSearching}
+            phase={phase}
+            setPhase={setPhase}
           />
         )}
       </div>

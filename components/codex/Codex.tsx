@@ -212,10 +212,23 @@ export const Codex = () => {
   const isCompleted = useMemo(() => {
     return completedCount >= codex.length;
   }, [completedCount]);
-  const firstDayOfNextMonth = useMemo(() => {
+  const dateUntilNearest9thDay = useMemo(() => {
     const now = new Date();
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 9);
-    return nextMonth;
+    const currentDay = now.getDate();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    let nearest9thDay;
+
+    if (currentDay < 9) {
+      // 9th day of current month
+      nearest9thDay = new Date(currentYear, currentMonth, 9);
+    } else {
+      // 9th day of next month
+      nearest9thDay = new Date(currentYear, currentMonth + 1, 9);
+    }
+
+    return nearest9thDay;
   }, []);
   return (
     <div className="flex flex-col items-center relative">
@@ -253,7 +266,7 @@ export const Codex = () => {
             <span className="-mt-1">$TAILS GUARD TITLE UNLOCKED</span>
           </div>
         )}
-        <Countdown targetDate={firstDayOfNextMonth} isDaysDisplayed />
+        <Countdown targetDate={dateUntilNearest9thDay} isDaysDisplayed />
       </div>
       {isFAQOpen ? (
         <div className="flex flex-col items-center mt-2">

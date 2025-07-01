@@ -62,7 +62,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
               src={
                 gameType === GameType.CATNIP_CHAOS
                   ? "/logo/catnip.webp"
-                  : "/logo/coin.png"
+                  : "/logo/coin.webp"
               }
               alt="Score Icon"
               className="w-6 h-6 mr-2"
