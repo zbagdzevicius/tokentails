@@ -94,7 +94,7 @@ export const MysteryBox = () => {
     );
   }, [mysteryBox]);
   const finished = useMemo(() => {
-    return profile?.quests.find(
+    return profile?.quests?.find(
       (quest) => quest === mysteryBoxes[ChainType.CAMP_TEST]![4].key
     );
   }, [profile?.quests]);

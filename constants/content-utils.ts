@@ -12,7 +12,7 @@ export function replaceRefsWithImages(
   const refs = content.match(/\[img-[^\]]*\]/gm) || [];
   for (const ref of refs) {
     const refId = getRefId(ref);
-    const image = images.find((image) => image._id === refId);
+    const image = images?.find((image) => image._id === refId);
     if (!image) {
       console.warn(`No image for ref ${refId}`);
       return updatedContent;
