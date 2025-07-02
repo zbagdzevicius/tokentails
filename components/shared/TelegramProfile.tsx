@@ -56,7 +56,10 @@ const ProfileUpdate = () => {
     if (!editMode) {
       setEditMode(true);
     } else if (twitter?.length) {
-      mutate({ twitter, _id: profile?._id });
+      mutate({
+        twitter: twitter.trim().replace("@", "").toLowerCase(),
+        _id: profile?._id,
+      });
     }
   };
 
