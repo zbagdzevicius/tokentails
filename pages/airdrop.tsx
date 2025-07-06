@@ -153,7 +153,9 @@ const Airdrop = () => {
         </div>
 
         <div className="flex gap-6 mt-4">
-          <div
+          <a
+            href="https://tokentails.com/feed/announcements/how-to-farm-dollartails-airdrop-earn-while-you-play-and-engage"
+            target="_blank"
             style={{
               backgroundImage: "url(/backgrounds/bg-9.webp)",
               backgroundSize: "cover",
@@ -170,14 +172,16 @@ const Airdrop = () => {
             <div className="w-14 h-14 -mb-6 rounded-full hover:brightness-110 bg-yellow-300 text-h5 font-primary flex justify-center items-center border-2 border-main-black">
               1
             </div>
-          </div>
-          <div
+          </a>
+          <a
+            href="https://guard.tokentails.io"
+            target="_blank"
             style={{
               backgroundImage: "url(/backgrounds/bg-9.webp)",
               backgroundSize: "cover",
               backgroundPosition: "top",
             }}
-            className="animate-brightness relative border flex flex-col items-center justify-center w-24 h-24 rounded-full hover:brightness-110 opacity-50 scale-75"
+            className="animate-brightness relative border flex flex-col items-center justify-center w-24 h-24 rounded-full hover:brightness-110"
           >
             <div className="z-10 text-center pt-2 rounded-full flex items-center flex-col justify-center text-p4 leading-none font-primary">
               <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] w-full text-center">
@@ -188,10 +192,7 @@ const Airdrop = () => {
             <div className="w-14 h-14 -mb-6 rounded-full hover:brightness-110 bg-yellow-300 text-h5 font-primary flex justify-center items-center border-2 border-main-black">
               2
             </div>
-            <div className="absolute inset-0 flex items-center justify-center p-1 w-full h-full z-20 rounded-t-2xl">
-              <img className="w-16 h-16" src="/purrquest/sprites/key.png" />
-            </div>
-          </div>
+          </a>
           <div
             style={{
               backgroundImage: "url(/backgrounds/bg-9.webp)",

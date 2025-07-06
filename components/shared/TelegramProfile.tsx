@@ -33,6 +33,104 @@ const Cat = ({ profile }: { profile?: IProfile | null }) => {
   );
 };
 
+interface DonationBreakdown {
+  extendedCare: number;
+  emergencyMedical: number;
+  spayNeuter: number;
+  checkupVaccines: number;
+  dailyCare: number;
+  remaining: number;
+}
+
+const calculateDonationBreakdown = (amount: number): DonationBreakdown => {
+  let remaining = amount;
+  const breakdown: DonationBreakdown = {
+    extendedCare: 0,
+    emergencyMedical: 0,
+    spayNeuter: 0,
+    checkupVaccines: 0,
+    dailyCare: 0,
+    remaining: 0,
+  };
+
+  // Extended care - $200
+  breakdown.extendedCare = Math.floor(remaining / 200);
+  remaining -= breakdown.extendedCare * 200;
+
+  // Emergency medical - $150
+  breakdown.emergencyMedical = Math.floor(remaining / 150);
+  remaining -= breakdown.emergencyMedical * 150;
+
+  // Checkup/vaccines - $40
+  breakdown.checkupVaccines = Math.floor(remaining / 40);
+  remaining -= breakdown.checkupVaccines * 40;
+
+  // Daily care - $5
+  breakdown.dailyCare = Math.floor(remaining / 5);
+  remaining -= breakdown.dailyCare * 5;
+
+  // Store any remaining amount
+  breakdown.remaining = remaining;
+
+  return breakdown;
+};
+
+const getDonationSummary = (breakdown: DonationBreakdown): string => {
+  const parts: string[] = [];
+
+  if (breakdown.extendedCare > 0) {
+    parts.push(
+      `✅ ${breakdown.extendedCare} ${
+        breakdown.extendedCare === 1
+          ? "extended care & recovery"
+          : "extended care & recoveries"
+      }`
+    );
+  }
+
+  if (breakdown.emergencyMedical > 0) {
+    parts.push(
+      `✅ ${breakdown.emergencyMedical} ${
+        breakdown.emergencyMedical === 1
+          ? "emergency medical treatment"
+          : "emergency medical treatments"
+      }`
+    );
+  }
+
+  if (breakdown.spayNeuter > 0) {
+    parts.push(
+      `✅ ${breakdown.spayNeuter} ${
+        breakdown.spayNeuter === 1
+          ? "spay/neuter surgery"
+          : "spay/neuter surgeries"
+      }`
+    );
+  }
+
+  if (breakdown.checkupVaccines > 0) {
+    parts.push(
+      `✅ ${breakdown.checkupVaccines} ${
+        breakdown.checkupVaccines === 1
+          ? "full checkup & vaccinations"
+          : "full checkups & vaccinations"
+      }`
+    );
+  }
+
+  if (breakdown.dailyCare > 0) {
+    parts.push(
+      `✅ ${breakdown.dailyCare} ${
+        breakdown.dailyCare === 1 ? "day" : "days"
+      } of daily food & care`
+    );
+  }
+
+  return parts.length > 0
+    ? `Your donation funded:\n${parts.join("\n")}`
+    : "Your donation will help cats in need";
+};
+
 const ProfileUpdate = () => {
   const { profile } = useProfile();
   const [twitter, setTwitter] = useState(profile?.twitter);
@@ -95,42 +193,8 @@ export const TelegramProfileContent = () => {
   const { profile, logout, isFB } = useProfile();
   const [isWalletsRevealed, setIsWalletsRevealed] = useState(false);
   const { setOpenedModal } = useGame();
-  const gameStats = useMemo(() => {
-    if (!profile) {
-      return [];
-    }
-    const level = profile.catpoints?.toFixed(0).toString().length;
-    return [
-      {
-        title: "Level",
-        image: "/logo/level.png",
-        stat: level || 0,
-        bg: "from-yellow-300 to-green-300",
-        text: `Earn coins to level up
-        1 digit coins = 1 level
-        e.g. 1000 coins = level 4
-        Higher level = More Rewards
-        `,
-      },
-      {
-        title: "Friends",
-        image: "/logo/friends.png",
-        stat: profile.referralsCount || 0,
-        bg: "from-green-300 to-green-300",
-        text: `Earn 2000 coins for each friend
-        + 50 daily coins and +1 daily live`,
-      },
-      {
-        title: "CHECK-INS",
-        image: "/logo/rocket.png",
-        stat: profile.streak || 0,
-        bg: "from-green-300 to-yellow-300",
-        text: `Streak of days you played in a row
-        1 day = +25 daily coins`,
-      },
-    ];
-  }, [profile]);
   const toast = useToast();
+  const [activeTab, setActiveTab] = useState("stats");
   const copy = useCallback(
     (stringToCopy: string) => {
       navigator.clipboard
@@ -151,61 +215,174 @@ export const TelegramProfileContent = () => {
         <Cat profile={profile} />
       </span>
       {profile?.cat && (
-        <ul className="m-auto font-primary">
+        <div className="m-auto font-primary">
           <Tag>Hello, {profile.name} !</Tag>
           <div className="flex justify-center -mb-4">
+            <PixelButton
+              isSmall
+              text="STATS"
+              active={activeTab === "stats"}
+              onClick={() => setActiveTab("stats")}
+            />
+            <PixelButton
+              isSmall
+              text="ACHIEVEMENTS"
+              active={activeTab === "achievements"}
+              onClick={() => setActiveTab("achievements")}
+            />
+          </div>
+          {activeTab === "stats" && (
+            <ul className="flex flex-col items-center mt-4">
+              <li className="flex items-center gap-x-2">
+                <img draggable={false} className="w-5" src="/logo/coin.webp" />
+                <div className="flex font-secondary text-p4 gap-2">
+                  Coins:{" "}
+                  <span className="font-bold">
+                    {commafy(profile.catpoints)}
+                  </span>
+                </div>
+              </li>
+              <li className="flex items-center gap-x-2">
+                <img
+                  draggable={false}
+                  className="w-5"
+                  src="/logo/catnip.webp"
+                />
+                <div className="flex font-secondary text-p4 gap-2">
+                  CATNIPS:{" "}
+                  <span className="font-bold">
+                    {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0} /{" "}
+                    {Object.keys(CatnipChaosLevelMap).length * 10}
+                  </span>
+                </div>
+              </li>
+              <li className="flex items-center gap-x-2">
+                <img
+                  draggable={false}
+                  className="w-7 mb-1 -mr-1 -ml-1"
+                  src="/logo/logo.webp"
+                />
+                <div className="flex font-secondary text-p4 gap-2">
+                  $Tails:{" "}
+                  <span className="font-bold">
+                    {commafy(profile.tails || 0)}
+                  </span>
+                </div>
+              </li>
+              <li className="flex items-center gap-x-2">
+                <img draggable={false} className="w-5" src="/logo/rocket.png" />
+                <div className="flex font-secondary text-p4 gap-2">
+                  STREAK:{" "}
+                  <span className="font-bold">{profile?.streak || 0}</span>
+                </div>
+              </li>
+              <li className="flex items-center gap-x-2">
+                <img
+                  draggable={false}
+                  className="w-5"
+                  src="/logo/friends.png"
+                />
+                <div className="flex font-secondary text-p4 gap-2">
+                  FRIENDS:{" "}
+                  <span className="font-bold">
+                    {profile?.referralsCount || 0}
+                  </span>
+                </div>
+              </li>
+            </ul>
+          )}
+
+          {activeTab === "achievements" && (
+            <ul>
+              <li className="flex items-center gap-x-2 mt-4 justify-center">
+                <img draggable={false} className="w-5" src="/logo/coin.webp" />
+                <div className="flex font-secondary text-p4 gap-2">
+                  CATBASSADORS RECORD:{" "}
+                  <span className="font-bold">
+                    {profile?.catbassadorsRecord || 0}
+                  </span>
+                </div>
+              </li>
+              {profile?.spent > 0 && (
+                <li className="flex flex-col gap-x-2">
+                  <div className="flex font-secondary text-p4 gap-2 text-center m-auto mt-2 -mb-1">
+                    YOUR DONATIONS FUNDED
+                  </div>
+                  {(() => {
+                    const breakdown = calculateDonationBreakdown(profile.spent);
+                    const items = [
+                      {
+                        value: breakdown.extendedCare,
+                        label: "extended care & recovery",
+                        pluralLabel: "extended care & recoveries",
+                      },
+                      {
+                        value: breakdown.emergencyMedical,
+                        label: "emergency medical treatment",
+                        pluralLabel: "emergency medical treatments",
+                      },
+                      {
+                        value: breakdown.spayNeuter,
+                        label: "spay/neuter surgery",
+                        pluralLabel: "spay/neuter surgeries",
+                      },
+                      {
+                        value: breakdown.checkupVaccines,
+                        label: "full checkup & vaccinations",
+                        pluralLabel: "full checkups & vaccinations",
+                      },
+                      {
+                        value: breakdown.dailyCare,
+                        label: "day of daily food & care",
+                        pluralLabel: "days of daily food & care",
+                      },
+                    ];
+
+                    return (
+                      <div className="m-auto">
+                        {items
+                          .filter((item) => item.value > 0)
+                          .map((item, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center gap-x-2 mt-1"
+                            >
+                              <img
+                                draggable={false}
+                                className="w-4"
+                                src="/logo/heart.webp"
+                              />
+                              <div className="font-secondary text-p5">
+                                {item.value}{" "}
+                                {item.value === 1
+                                  ? item.label
+                                  : item.pluralLabel}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    );
+                  })()}
+                </li>
+              )}
+            </ul>
+          )}
+          <div className="flex justify-center -mb-2">
             <PixelButton
               isSmall
               text="CONTACT US"
               onClick={() => setOpenedModal(GameModal.SUPPORT)}
             />
-          </div>
-          <li className="flex items-center gap-x-2 justify-center mt-4 ">
-            <img
-              draggable={false}
-              className="w-7 mb-1 -mr-1"
-              src="/logo/logo.webp"
-            />
-            <div className="flex font-secondary text-p4 gap-2">
-              $Tails:{" "}
-              <span className="font-bold">{commafy(profile.tails || 0)}</span>
-            </div>
-          </li>
-          <li className="flex items-center gap-x-2 justify-center">
-            <img draggable={false} className="w-5" src="/logo/coin.webp" />
-            <div className="flex font-secondary text-p4 gap-2">
-              Coins:{" "}
-              <span className="font-bold">{commafy(profile.catpoints)}</span>
-            </div>
-          </li>
-          <li className="flex items-center gap-x-2 mb-4 justify-center">
-            <img draggable={false} className="w-5" src="/logo/catnip.webp" />
-            <div className="flex font-secondary text-p4 gap-2">
-              CATNIPS:{" "}
-              <span className="font-bold">
-                {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0} /{" "}
-                {Object.keys(CatnipChaosLevelMap).length * 10}
+            {!isWalletsRevealed && (
+              <span className="w-full flex justify-center flex-col">
+                <PixelButton
+                  isSmall
+                  text="Reveal My Wallets"
+                  onClick={() => setIsWalletsRevealed(true)}
+                />
               </span>
-            </div>
-          </li>
-          <li className="flex justify-between mb-1 gap-2">
-            {gameStats.map((stat) => (
-              <GameStatSection {...stat} key={stat.title} onClick={() => {}} />
-            ))}
-          </li>
-
-          {!isWalletsRevealed && (
-            <span className="w-full flex justify-center flex-col">
-              <PixelButton
-                isSmall
-                text="Reveal My Wallets"
-                onClick={() => setIsWalletsRevealed(true)}
-              />
-              <div className="font-primary text-center text-p6 -mt-2 mb-2">
-                GENERATED WALLETS FOR IN-GAME USAGE
-              </div>
-            </span>
-          )}
+            )}
+          </div>
 
           {profile?.wallets?.evm && isWalletsRevealed && (
             <li
@@ -238,9 +415,12 @@ export const TelegramProfileContent = () => {
               <p className="text-p6 font-bold font-secondary">
                 {profile?.wallets.stellar.walletAddress}
               </p>
+              <div className="font-primary text-center text-p6 mt-1">
+                GENERATED WALLETS FOR IN-GAME USAGE
+              </div>
             </li>
           )}
-        </ul>
+        </div>
       )}
       <div className="flex flex-col">
         <span className="hidden md:block">
