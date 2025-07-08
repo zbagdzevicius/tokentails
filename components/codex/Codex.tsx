@@ -288,7 +288,7 @@ export const Codex = () => {
       <div className="flex flex-col items-center mt-1">
         <span className="text-yellow-300 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] text-p1">
           TITLES EARNED:{" "}
-          {profile?.codex.filter((item) => item === 1).length || 0}
+          {profile?.codex?.filter((item) => item === 1)?.length || 0}
         </span>
       </div>
       <div className="flex flex-col items-center mt-1">
