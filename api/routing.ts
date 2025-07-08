@@ -66,7 +66,7 @@ export const EntityRouteOption: Omit<
       list?: (slugs: string[]) => string;
     }
   >,
-  EntityType.COMMENT
+  EntityType.COMMENT | EntityType.LOOT_BOX
 > = {
   [EntityType.ARTICLE]: {
     details: ([category, article]) =>

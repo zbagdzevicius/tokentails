@@ -11,7 +11,7 @@ interface IProps {
 }
 
 const entityTypeComponent: Record<
-  Exclude<EntityType, EntityType.COMMENT>,
+  Exclude<EntityType, EntityType.COMMENT | EntityType.LOOT_BOX>,
   any
 > = {
   [EntityType.ARTICLE]: FeedArticle,
