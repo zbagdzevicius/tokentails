@@ -245,6 +245,12 @@ export const Codex = () => {
 
     return nearest9thDay;
   }, []);
+  const isLessThan8hoursLeft = useMemo(() => {
+    const now = new Date();
+    return (
+      now.getTime() < dateUntilNearest9thDay.getTime() + 8 * 60 * 60 * 1000
+    );
+  }, [dateUntilNearest9thDay]);
   const phase = useMemo(() => {
     // Use UTC date to ensure consistent date calculation globally
     const now = new Date();
@@ -320,7 +326,7 @@ export const Codex = () => {
           </div>
         )}
         <span className="bg-gradient-to-r text-p6 font-primary from-yellow-300 to-yellow-400 text-gray-700 px-3 -mb-2 pb-1 rounded-t-md font-bold">
-          REWARDS IN
+          NEXT PHASE IN
         </span>
         <Countdown targetDate={dateUntilNearest9thDay} isDaysDisplayed />
       </div>
@@ -352,12 +358,17 @@ export const Codex = () => {
           <PixelButton isSmall text="FAQ" onClick={() => setIsFAQOpen(true)} />
         </div>
       )}
-      <div className="flex flex-col gap-4 divide-y-4 divide-yellow-300/50">
-        {codex.map((item, i) => (
-          <CodexSection key={i} {...item} progress={i + 1} />
-        ))}
-      </div>
-      <img src="/tail/guard.webp" className="w-32 mt-12" />
+      {isLessThan8hoursLeft ? (
+        <div className="flex flex-col gap-4 divide-y-4 divide-yellow-300/50">
+          <div className="font-primary text-p5">CALCULATING REWARDS...</div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4 divide-y-4 divide-yellow-300/50">
+          {codex.map((item, i) => (
+            <CodexSection key={i} {...item} progress={i + 1} />
+          ))}
+        </div>
+      )}
     </div>
   );
 };
