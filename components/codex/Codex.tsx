@@ -203,6 +203,8 @@ export const CodexSection = ({
   );
 };
 
+const date = 9;
+
 export const Codex = () => {
   const [isFAQOpen, setIsFAQOpen] = useState(false);
   const { profile } = useProfile();
@@ -214,21 +216,52 @@ export const Codex = () => {
   }, [completedCount]);
   const dateUntilNearest9thDay = useMemo(() => {
     const now = new Date();
-    const currentDay = now.getDate();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+    const currentDayUTC = now.getUTCDate();
+    const currentMonthUTC = now.getUTCMonth();
+    const currentYearUTC = now.getUTCFullYear();
 
     let nearest9thDay;
 
-    if (currentDay < 9) {
-      // 9th day of current month
-      nearest9thDay = new Date(currentYear, currentMonth, 9);
+    if (currentDayUTC < 9) {
+      // 9th day of current month in UTC
+      nearest9thDay = new Date(Date.UTC(currentYearUTC, currentMonthUTC, date));
     } else {
-      // 9th day of next month
-      nearest9thDay = new Date(currentYear, currentMonth + 1, 9);
+      // 9th day of next month in UTC
+      nearest9thDay = new Date(
+        Date.UTC(currentYearUTC, currentMonthUTC + 1, date)
+      );
     }
 
     return nearest9thDay;
+  }, []);
+  const phase = useMemo(() => {
+    // Use UTC date to ensure consistent date calculation globally
+    const now = new Date();
+    const nowUTC = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+    );
+    const startDate = new Date(Date.UTC(2025, 5, date)); // June 9, 2025 in UTC
+
+    // If now is before the start date, return phase 1
+    if (nowUTC < startDate) {
+      return 1;
+    }
+
+    // Calculate how many months have passed since the start date
+    const monthsPassed =
+      (nowUTC.getUTCFullYear() - startDate.getUTCFullYear()) * 12 +
+      (nowUTC.getUTCMonth() - startDate.getUTCMonth());
+
+    // Calculate how many 9th days have been passed
+    // Add 1 because we start with phase 1
+    let phaseCount = monthsPassed;
+
+    // If we're past the 9th day in the current month, add one more phase
+    if (nowUTC.getUTCDate() >= date) {
+      phaseCount += 1;
+    }
+
+    return phaseCount;
   }, []);
   return (
     <div className="flex flex-col items-center relative">
@@ -238,6 +271,9 @@ export const Codex = () => {
         className="w-32 -mb-8"
       />
       <Tag>The codex of the nine lives</Tag>
+      <span className="bg-gradient-to-r text-p6 font-primary from-yellow-300 to-yellow-400 text-gray-700 px-3 rounded-b-md font-bold animate-pulse">
+        PHASE {phase}
+      </span>
       <div className="flex flex-col items-center mt-1">
         <div className="w-full flex rounded-full overflow-hidden gap-1">
           {Array.from({ length: codex.length }).map((_, index) => (

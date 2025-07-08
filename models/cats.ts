@@ -17,6 +17,7 @@ export enum CatType {
 
 export const Prices = {
   generatedCat: 5,
+  lootBox: 3,
 };
 
 export type IBlessing = {

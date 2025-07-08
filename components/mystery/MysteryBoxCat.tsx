@@ -9,13 +9,13 @@ import { CatBenefits } from "../shared/CatBenefits";
 import { ChainSelect } from "../shared/ChainSelect";
 import { PixelButton } from "../shared/PixelButton";
 import { Web3Transfer } from "../web3/transfer/Web3Transfer";
-
-const price = Prices.generatedCat;
+import { Countdown } from "../shared/Countdown";
 
 export const MysteryBoxCat = () => {
   const { profile, setProfileUpdate } = useProfile();
   const toast = useToast();
   const [rolledCat, setRolledCat] = useState<null | ICat>();
+  const [boxType, setBoxType] = useState<EntityType>(EntityType.MYSTERY_BOX);
   const {
     currencyType,
     bnbRate,
@@ -36,6 +36,12 @@ export const MysteryBoxCat = () => {
     }
     toast({ message: "Congratz on your Mystery Cat !" });
   };
+  const price = useMemo(() => {
+    if (boxType === EntityType.MYSTERY_BOX) {
+      return Prices.generatedCat;
+    }
+    return Prices.lootBox;
+  }, [boxType]);
   const currencyPrice = useMemo(() => {
     if (
       [
@@ -79,8 +85,25 @@ export const MysteryBoxCat = () => {
         className={`w-48 md:w-32 lg:w-52 mb-4 ${
           rolledCat?.catImg ? "pixelated" : ""
         }`}
-        src={rolledCat?.catImg || "/elements/mystery-box.webp"}
+        src={
+          rolledCat?.catImg ||
+          (boxType === EntityType.MYSTERY_BOX
+            ? "/elements/mystery-box.webp"
+            : "/elements/loot-box.webp")
+        }
       />
+      <div className="flex gap-2 -mt-2 mb-2 items-center justify-center">
+        <PixelButton
+          onClick={() => setBoxType(EntityType.MYSTERY_BOX)}
+          active={boxType === EntityType.MYSTERY_BOX}
+          text="Mystery Box"
+        />
+        <PixelButton
+          onClick={() => setBoxType(EntityType.LOOT_BOX)}
+          active={boxType === EntityType.LOOT_BOX}
+          text="Loot Box"
+        />
+      </div>
       {!rolledCat ? (
         <>
           <ChainSelect />
@@ -89,11 +112,18 @@ export const MysteryBoxCat = () => {
               <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
                 {currencyPrice} {currencyType}
               </div>
+              {boxType === EntityType.LOOT_BOX && (
+                <Countdown
+                  isDaysDisplayed
+                  targetDate={new Date("2025-07-14")}
+                />
+              )}
               <Web3Transfer
                 price={currencyPrice}
                 amount={1}
-                entityType={EntityType.MYSTERY_BOX}
+                entityType={boxType}
                 user={profile?._id}
+                disabled={boxType === EntityType.LOOT_BOX}
                 text="Open THE Box"
                 loadingText="Opening..."
               />
