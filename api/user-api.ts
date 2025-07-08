@@ -79,6 +79,24 @@ const setAdventDay = async (): Promise<void> => {
   });
 };
 
+const saveCodex = async (): Promise<void> => {
+  return fetch(`${apiUrl}/user/codex`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: sessionStorage.getItem("accesstoken"),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return;
+  });
+};
+
 const saveProfileTwitter = (profile: Partial<IProfile>) => {
   return fetch(`${apiUrl}/user/profile/${profile._id}/twitter`, {
     method: "PUT",
@@ -144,4 +162,5 @@ export const USER_API = {
   saveProfileTwitter,
   saveMatch,
   redeem,
+  saveCodex,
 };

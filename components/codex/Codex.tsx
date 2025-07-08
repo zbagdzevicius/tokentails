@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from "react";
-import { Tag } from "../shared/Tag";
-import { PixelButton } from "../shared/PixelButton";
 import { useProfile } from "@/context/ProfileContext";
 import { IProfile } from "@/models/profile";
+import { useEffect, useMemo, useState } from "react";
 import { Countdown } from "../shared/Countdown";
+import { PixelButton } from "../shared/PixelButton";
+import { Tag } from "../shared/Tag";
+import { USER_API } from "@/api/user-api";
+import { useDebouncedCallback } from "use-debounce";
 
 export interface ICodex {
   title: string;
@@ -214,6 +216,15 @@ export const Codex = () => {
   const isCompleted = useMemo(() => {
     return completedCount >= codex.length;
   }, [completedCount]);
+
+  const saveCodex = useDebouncedCallback(async () => {
+    await USER_API.saveCodex();
+  }, 1000);
+  useEffect(() => {
+    if (isCompleted) {
+      saveCodex();
+    }
+  }, [isCompleted]);
   const dateUntilNearest9thDay = useMemo(() => {
     const now = new Date();
     const currentDayUTC = now.getUTCDate();
@@ -272,8 +283,14 @@ export const Codex = () => {
       />
       <Tag>The codex of the nine lives</Tag>
       <span className="bg-gradient-to-r text-p6 font-primary from-yellow-300 to-yellow-400 text-gray-700 px-3 rounded-b-md font-bold animate-pulse">
-        PHASE {phase}
+        PHASE {phase} - {isCompleted ? "COMPLETED" : "IN PROGRESS"}
       </span>
+      <div className="flex flex-col items-center mt-1">
+        <span className="text-yellow-300 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] text-p1">
+          TITLES EARNED:{" "}
+          {profile?.codex.filter((item) => item === 1).length || 0}
+        </span>
+      </div>
       <div className="flex flex-col items-center mt-1">
         <div className="w-full flex rounded-full overflow-hidden gap-1">
           {Array.from({ length: codex.length }).map((_, index) => (
@@ -302,6 +319,9 @@ export const Codex = () => {
             <span className="-mt-1">$TAILS GUARD TITLE UNLOCKED</span>
           </div>
         )}
+        <span className="bg-gradient-to-r text-p6 font-primary from-yellow-300 to-yellow-400 text-gray-700 px-3 -mb-2 pb-1 rounded-t-md font-bold">
+          REWARDS IN
+        </span>
         <Countdown targetDate={dateUntilNearest9thDay} isDaysDisplayed />
       </div>
       {isFAQOpen ? (
@@ -315,7 +335,8 @@ export const Codex = () => {
             RESETS ON 9TH DAY OF EVERY MONTH
           </div>
           <Tag isSmall>What I'll get?</Tag>
-          <div className="font-primary mb-1">$TAILS GUARD TITLE</div>
+          <div className="font-primary">$TAILS GUARD TITLE</div>
+          <div className="font-primary mb-1">1 TITLE = 1 CONTEST ENTRY</div>
           <Tag isSmall>WHAT ARE THE BENEFITS OF $TAILS GUARD?</Tag>
           <div className="font-primary">DISCOUNTED NFTs</div>
           <div className="font-primary">PRIORITY SUPPORT</div>

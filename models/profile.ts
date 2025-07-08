@@ -17,7 +17,7 @@ export interface IProfile {
   streak: number;
   spent: number;
   tails: number;
-  codex: {};
+  codex: number[];
   cat: ICat;
   cats: ICat[];
   score: number;
