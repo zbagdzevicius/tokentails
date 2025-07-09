@@ -328,7 +328,7 @@ export const Codex = () => {
           </div>
         )}
         <span className="bg-gradient-to-r text-p6 font-primary from-yellow-300 to-yellow-400 text-gray-700 px-3 -mb-2 pb-1 rounded-t-md font-bold">
-          NEXT PHASE IN
+          PHASE ENDS IN
         </span>
         <Countdown targetDate={dateUntilNearest9thDay} isDaysDisplayed />
       </div>

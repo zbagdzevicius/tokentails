@@ -35,6 +35,7 @@ export enum QUEST {
   FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",
   FOLLOW_TG_GROUP = "FOLLOW_TG_GROUP",
   FOLLOW_X = "FOLLOW_X",
+  FOLLOW_X_FOUNDER = "FOLLOW_X_FOUNDER",
   FOLLOW_DISCORD = "FOLLOW_DISCORD",
   FOLLOW_IG = "FOLLOW_IG",
   FOLLOW_TIKTOK = "FOLLOW_TIKTOK",
@@ -66,7 +67,17 @@ const allQuests: ILocalQuest[] = [
     link: "https://x.com/intent/follow?screen_name=tokentails&tw_p=followbutton",
     icon: "/icons/social/x.webp",
     reward: {
-      coins: 500,
+      coins: 2500,
+    },
+  },
+  {
+    type: QuestType.SOCIAL,
+    key: QUEST.FOLLOW_X_FOUNDER,
+    name: "Follow Commander",
+    link: "https://x.com/intent/follow?screen_name=zbagdz&tw_p=followbutton",
+    icon: "/icons/social/x.webp",
+    reward: {
+      coins: 2500,
     },
   },
   {
