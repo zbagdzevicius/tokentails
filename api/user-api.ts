@@ -79,7 +79,7 @@ const setAdventDay = async (): Promise<void> => {
   });
 };
 
-const saveCodex = async (): Promise<void> => {
+const saveCodex = async (): Promise<Partial<IProfile>> => {
   return fetch(`${apiUrl}/user/codex`, {
     method: "GET",
     headers: {
@@ -93,7 +93,7 @@ const saveCodex = async (): Promise<void> => {
     }
 
     console.warn(JSON.stringify(response));
-    return;
+    return {};
   });
 };
 

@@ -209,7 +209,7 @@ const date = 9;
 
 export const Codex = () => {
   const [isFAQOpen, setIsFAQOpen] = useState(false);
-  const { profile } = useProfile();
+  const { profile, setProfileUpdate } = useProfile();
   const completedCount = useMemo(() => {
     return codex.filter((item) => item.verification?.(profile!)).length;
   }, [profile]);
@@ -218,7 +218,9 @@ export const Codex = () => {
   }, [completedCount]);
 
   const saveCodex = useDebouncedCallback(async () => {
-    await USER_API.saveCodex();
+    await USER_API.saveCodex().then((response) => {
+      setProfileUpdate({ codex: response?.codex || profile?.codex });
+    });
   }, 1000);
   useEffect(() => {
     if (isCompleted) {
@@ -247,9 +249,8 @@ export const Codex = () => {
   }, []);
   const isLessThan8hoursLeft = useMemo(() => {
     const now = new Date();
-    return (
-      now.getTime() < dateUntilNearest9thDay.getTime() + 8 * 60 * 60 * 1000
-    );
+    const timeDifference = dateUntilNearest9thDay.getTime() - now.getTime();
+    return timeDifference > 0 && timeDifference < 8 * 60 * 60 * 1000;
   }, [dateUntilNearest9thDay]);
   const phase = useMemo(() => {
     // Use UTC date to ensure consistent date calculation globally
@@ -281,7 +282,7 @@ export const Codex = () => {
     return phaseCount;
   }, []);
   return (
-    <div className="flex flex-col items-center relative">
+    <div className="flex flex-col items-center relative pb-14">
       <img
         src={isCompleted ? "/tail/guard.webp" : "/tail/seeker.webp"}
         alt="codex"
@@ -289,7 +290,8 @@ export const Codex = () => {
       />
       <Tag>The codex of the nine lives</Tag>
       <span className="bg-gradient-to-r text-p6 font-primary from-yellow-300 to-yellow-400 text-gray-700 px-3 rounded-b-md font-bold animate-pulse">
-        PHASE {phase} - {isCompleted ? "COMPLETED" : "IN PROGRESS"}
+        PHASE {phase} -{" "}
+        {profile?.codex?.[phase - 1] ? "COMPLETED" : "IN PROGRESS"}
       </span>
       <div className="flex flex-col items-center mt-1">
         <span className="text-yellow-300 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] text-p1">
