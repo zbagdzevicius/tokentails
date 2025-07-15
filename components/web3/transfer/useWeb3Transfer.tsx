@@ -377,13 +377,9 @@ export const useWeb3Transfer = ({
 
   useEffect(() => {
     if (isTaxConfirmed) {
-      confirm(hash!)
-        .then(() => {
-          confirm(hash!);
-        })
-        .catch((error) => {
-          console.error("Confirmation failed:", error);
-        });
+      confirm(hash!).catch((error) => {
+        console.error("Confirmation failed:", error);
+      });
     }
   }, [isTaxConfirmed]);
 
