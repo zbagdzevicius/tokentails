@@ -37,11 +37,11 @@ const Roadmap = () => {
             </span>
             <span className="flex gap-2 items-center">
               <img draggable={false} className="h-6" src="icons/check.webp" />
-              120k Players
+              400k Players
             </span>
             <span className="flex gap-2 items-center whitespace-nowrap">
               <img draggable={false} className="h-6" src="icons/check.webp" />
-              1k+ TOKENIZED CATS
+              10k+ TOKENIZED CATS
             </span>
           </div>
         </div>

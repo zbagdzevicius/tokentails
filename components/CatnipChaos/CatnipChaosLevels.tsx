@@ -6,17 +6,22 @@ import {
 } from "../Phaser/map";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
-import { GameModal } from "@/models/game";
+import { GameModal, GameType } from "@/models/game";
 import { useGame } from "@/context/GameContext";
 import { PixelButton } from "../shared/PixelButton";
 import { Countdown } from "../shared/Countdown";
+import { ConnectWallet, Web3Mint } from "../web3/minting/Web3Mint";
+import { Web3Providers } from "../web3/Web3Providers";
+import { chaptersBadges, IMysteryBox } from "@/web3/web3.model";
+import { QUEST_API } from "@/api/quest-api";
+import { ChainType } from "@/web3/contracts";
 
 export const CatnipChaosLevels = ({
   setSelectedLevel,
 }: {
   setSelectedLevel: (level: string) => void;
 }) => {
-  const { profile } = useProfile();
+  const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
   const { setOpenedModal } = useGame();
   const unlockedLevels = [...(profile?.catnipChaos || [])].filter(
@@ -34,6 +39,30 @@ export const CatnipChaosLevels = ({
     setSelectedLevel(level);
   };
 
+  const onRedeem = async (mysteryBox: IMysteryBox) => {
+    const result = await QUEST_API.redeemContest(mysteryBox.key);
+    if (result.success && result.cat) {
+      setProfileUpdate({
+        cats: [...(profile?.cats || []), result.cat],
+        cat: result.cat,
+        quests: [...(profile?.quests || []), mysteryBox.key],
+        catbassadorsLives:
+          (profile?.catbassadorsLives || 0) + (result.catbassadorsLives || 0),
+      });
+    } else if (
+      result.success &&
+      (result.catpoints || result.catbassadorsLives)
+    ) {
+      setProfileUpdate({
+        quests: [...(profile?.quests || []), mysteryBox.key],
+        catpoints: (profile!.catpoints || 0) + (result.catpoints || 0),
+        catbassadorsLives:
+          (profile?.catbassadorsLives || 0) + (result.catbassadorsLives || 0),
+      });
+    }
+    showToast({ message: result.message });
+  };
+
   return (
     <div className="flex flex-col items-center gap-4 mt-14 lg:mt-24 pb-20">
       <div className="flex flex-col md:flex-row lg:flex-col gap-4 items-center">
@@ -48,9 +77,12 @@ export const CatnipChaosLevels = ({
           <Countdown
             isBig
             isDaysDisplayed
-            targetDate={new Date(Date.UTC(2025, 7, 23))}
+            targetDate={new Date(Date.UTC(2025, 6, 23))}
           />
         </div>
+        <Web3Providers>
+          <ConnectWallet />
+        </Web3Providers>
       </div>
       <div className="flex flex-wrap gap-4 justify-center max-w-[44rem]">
         {catnipChaosLevelsList.map((level, i) => (
@@ -87,12 +119,25 @@ export const CatnipChaosLevels = ({
                 }`}
               >
                 {unlockedLevels >= i && (
-                  <div className="flex flex-col items-center absolute -bottom-2">
-                    {/* <PixelButton text="MINT BADGE" isSmall /> */}
-                    <Countdown
-                      isDaysDisplayed
-                      targetDate={new Date(Date.UTC(2025, 7, 23))}
-                    />
+                  <div className="flex flex-col items-center absolute -bottom-5">
+                    <Web3Providers>
+                      <Web3Mint
+                        hideAddress
+                        user={profile?._id!}
+                        ownedNFTCallback={() =>
+                          onRedeem(
+                            chaptersBadges[ChainType.CAMP_TEST]![
+                              parseInt(level[0])
+                            ]
+                          )
+                        }
+                        mysteryBox={
+                          chaptersBadges[ChainType.CAMP_TEST]![
+                            parseInt(level[0])
+                          ]
+                        }
+                      />
+                    </Web3Providers>
                   </div>
                 )}
                 <img
