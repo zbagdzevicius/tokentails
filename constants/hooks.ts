@@ -9,6 +9,7 @@ const bgImages = [
   "url(/backgrounds/bg-6.webp)",
   "url(/backgrounds/bg-7.webp)",
   "url(/backgrounds/bg-8.webp)",
+  "url(/backgrounds/bg-10.webp)",
   "url(/backgrounds/bg-1.webp)",
   "url(/backgrounds/bg-1.webp)",
   "url(/backgrounds/bg-2.webp)",
@@ -18,14 +19,13 @@ const bgImages = [
   "url(/backgrounds/bg-6.webp)",
   "url(/backgrounds/bg-7.webp)",
   "url(/backgrounds/bg-8.webp)",
+  "url(/backgrounds/bg-10.webp)",
   "url(/backgrounds/bg-1.webp)",
   "url(/backgrounds/bg-2.webp)",
   "url(/backgrounds/bg-3.webp)",
   "url(/backgrounds/bg-4.webp)",
   "url(/backgrounds/bg-5.webp)",
   "url(/backgrounds/bg-6.webp)",
-  "url(/backgrounds/bg-7.webp)",
-  "url(/backgrounds/bg-8.webp)",
 ];
 
 export const useBackground = () => {
