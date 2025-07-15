@@ -1,3 +1,4 @@
+import { getRewardsPropName, ITransactionStatus } from "@/api/order-api";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
@@ -9,13 +10,12 @@ import { CatBenefits } from "../shared/CatBenefits";
 import { ChainSelect } from "../shared/ChainSelect";
 import { PixelButton } from "../shared/PixelButton";
 import { Web3Transfer } from "../web3/transfer/Web3Transfer";
-import { Countdown } from "../shared/Countdown";
 
 export const MysteryBoxCat = () => {
   const { profile, setProfileUpdate } = useProfile();
   const toast = useToast();
   const [rolledCat, setRolledCat] = useState<null | ICat>();
-  const [boxType, setBoxType] = useState<EntityType>(EntityType.MYSTERY_BOX);
+  const [boxType, setBoxType] = useState<EntityType>(EntityType.LOOT_BOX);
   const {
     currencyType,
     bnbRate,
@@ -24,7 +24,8 @@ export const MysteryBoxCat = () => {
     transactionStatus,
     setTransactionStatus,
   } = useWeb3();
-  const onSuccess = (cat?: ICat) => {
+  const onSuccess = (transactionStatus: ITransactionStatus) => {
+    const { cat, type, amount } = transactionStatus;
     if (cat) {
       setProfileUpdate({
         cats: [...(profile?.cats || []), cat],
@@ -33,8 +34,14 @@ export const MysteryBoxCat = () => {
       });
       setTransactionStatus(null);
       setRolledCat(cat);
+      toast({ message: `You just got ${cat.name} !`, img: cat.catImg });
     }
-    toast({ message: "Congratz on your Mystery Cat !" });
+    if (type) {
+      toast({
+        message: `You got ${amount} ${getRewardsPropName(type)} !`,
+        symbol: type,
+      });
+    }
   };
   const price = useMemo(() => {
     if (boxType === EntityType.MYSTERY_BOX) {
@@ -75,7 +82,7 @@ export const MysteryBoxCat = () => {
 
   useEffect(() => {
     if (transactionStatus?.success) {
-      onSuccess(transactionStatus.cat);
+      onSuccess(transactionStatus);
     }
   }, [transactionStatus]);
 
@@ -94,14 +101,14 @@ export const MysteryBoxCat = () => {
       />
       <div className="flex gap-2 -mt-2 mb-2 items-center justify-center">
         <PixelButton
-          onClick={() => setBoxType(EntityType.MYSTERY_BOX)}
-          active={boxType === EntityType.MYSTERY_BOX}
-          text="Mystery Box"
-        />
-        <PixelButton
           onClick={() => setBoxType(EntityType.LOOT_BOX)}
           active={boxType === EntityType.LOOT_BOX}
           text="Loot Box"
+        />
+        <PixelButton
+          onClick={() => setBoxType(EntityType.MYSTERY_BOX)}
+          active={boxType === EntityType.MYSTERY_BOX}
+          text="Mystery Box"
         />
       </div>
       {!rolledCat ? (
@@ -112,18 +119,11 @@ export const MysteryBoxCat = () => {
               <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
                 {currencyPrice} {currencyType}
               </div>
-              {boxType === EntityType.LOOT_BOX && (
-                <Countdown
-                  isDaysDisplayed
-                  targetDate={new Date("2025-07-14")}
-                />
-              )}
               <Web3Transfer
                 price={currencyPrice}
                 amount={1}
                 entityType={boxType}
                 user={profile?._id}
-                disabled={boxType === EntityType.LOOT_BOX}
                 text="Open THE Box"
                 loadingText="Opening..."
               />

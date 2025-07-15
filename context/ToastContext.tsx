@@ -6,33 +6,47 @@ type ContextState = {
   setToast: (toast: IToast) => void;
 };
 
+export type ICollectibleProperty = "catbassadorsLives" | "tails" | "catpoints";
+
 export interface IToast {
   message?: string;
   icon?: string;
   isError?: boolean;
+  symbol?: ICollectibleProperty;
+  img?: string;
 }
 
 const ToastContext = React.createContext<ContextState | undefined>(undefined);
 
 const ToastProvider = ({ children }: React.PropsWithChildren<{}>) => {
-  const [toast, setToast] = React.useState<IToast | null>(null);
+  const [currentToast, setCurrentToast] = React.useState<IToast | null>(null);
+  const [toastQueue, setToastQueue] = React.useState<IToast[]>([]);
+
+  const setToast = React.useCallback((toast: IToast) => {
+    setToastQueue((prevQueue) => [...prevQueue, toast]);
+  }, []);
 
   React.useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (toast) {
-      timer = setTimeout(() => setToast(null), 5000);
+    if (toastQueue.length > 0 && !currentToast) {
+      // Display the first toast in the queue
+      setCurrentToast(toastQueue[0]);
+      setToastQueue((prevQueue) => prevQueue.slice(1));
     }
+  }, [toastQueue, currentToast]);
 
-    return () => {
-      if (timer) {
-        clearTimeout(timer);
-      }
-    };
-  }, [toast, setToast]);
+  React.useEffect(() => {
+    if (currentToast) {
+      const timer = setTimeout(() => {
+        setCurrentToast(null);
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [currentToast]);
 
   return (
     <ToastContext.Provider value={{ setToast }}>
-      {toast?.message && <Toast {...toast} />}
+      {currentToast && <Toast {...currentToast} />}
       {children}
     </ToastContext.Provider>
   );

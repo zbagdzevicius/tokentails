@@ -52,7 +52,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
 
     GameEvents.CAT_SPAWN.push({ cat });
 
-    toast({ message: "Cat selected successfully!" });
+    toast({ message: `${cat.name} selected successfully!`, img: cat.catImg });
     if (cat?.status?.EAT !== MAX_CAT_STATUS) {
       setGameType(GameType.HOME);
     }

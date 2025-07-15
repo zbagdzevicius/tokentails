@@ -5,6 +5,7 @@ export enum Map {
   SUMMER = "base/summer.png",
   CONSTRUCTION = "base/construct.png",
   CANDY = "base/candy.png",
+  CAMP = "base/camp.png",
 }
 
 export const CoreMap = Map.SPRING;
@@ -34,6 +35,12 @@ export const CatnipChaosLevelMap: Record<string, Map> = {
   "44": Map.CANDY,
   "45": Map.CANDY,
   "46": Map.CANDY,
+  // "51": Map.CAMP,
+  // "52": Map.CAMP,
+  // "53": Map.CAMP,
+  // "54": Map.CAMP,
+  // "55": Map.CAMP,
+  // "56": Map.CAMP,
 };
 
 export const catnipChaosLevelsList: (keyof typeof CatnipChaosLevelMap)[] =
@@ -44,6 +51,7 @@ export const catnipChaosLevelsList: (keyof typeof CatnipChaosLevelMap)[] =
 export const catnipChaosChapterBGImage: Record<string, string> = {
   "1": "/backgrounds/bg-5.webp",
   "2": "/backgrounds/bg-6.webp",
-  "3": "/backgrounds/bg-4.webp",
-  "4": "/backgrounds/bg-3.webp",
+  "3": "/backgrounds/bg-3.webp",
+  "4": "/backgrounds/bg-4.webp",
+  "5": "/backgrounds/bg-7.webp",
 };

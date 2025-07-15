@@ -174,7 +174,7 @@ const Airdrop = () => {
             </div>
           </a>
           <a
-            href="https://guard.tokentails.io"
+            href="https://tokentails.com/game"
             target="_blank"
             style={{
               backgroundImage: "url(/backgrounds/bg-9.webp)",

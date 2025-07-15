@@ -239,7 +239,10 @@ export const useWeb3Transfer = ({
       toast({ message: "Transaction sent! Awaiting confirmation..." });
     } catch (error) {
       console.error("Transfer failed:", error);
-      toast({ message: "Transaction failed. Please try again." });
+      toast({
+        message: "Transaction failed. Please try again.",
+        isError: true,
+      });
     }
   }
 
@@ -341,7 +344,10 @@ export const useWeb3Transfer = ({
       }
     } catch (error) {
       console.error("Transfer failed:", error);
-      toast({ message: "Transaction failed. Please try again." });
+      toast({
+        message: "Transaction failed. Please try again.",
+        isError: true,
+      });
     }
   }
 
@@ -362,7 +368,10 @@ export const useWeb3Transfer = ({
       });
     } catch (error) {
       console.error("Transfer failed:", error);
-      toast({ message: "Transaction failed. Please try again." });
+      toast({
+        message: "Transaction failed. Please try again.",
+        isError: true,
+      });
     }
   }
 

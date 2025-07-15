@@ -38,7 +38,7 @@ export const ShareModal = ({ url, close }: IProps) => {
         string: absoluteUrl,
       })
         .then(() => {
-          toast({ message: "Nuoroda sėkmingai nukopijuota" });
+          toast({ message: "Link coppied successfully" });
           close();
         })
         .catch((err) => {
@@ -49,7 +49,7 @@ export const ShareModal = ({ url, close }: IProps) => {
       navigator.clipboard
         .writeText(absoluteUrl)
         .then(() => {
-          toast({ message: "Nuoroda sėkmingai nukopijuota" });
+          toast({ message: "Link coppied successfully" });
           close();
         })
         .catch((err) => {

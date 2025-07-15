@@ -48,6 +48,7 @@ export const GameOptionsModal = ({
     });
     toast({
       message: `You got ${numberOfPointsToRedeem} coins + ${numberOfLivesToRedeem} lives`,
+      img: "/logo/chest.webp",
     });
   }, []);
 

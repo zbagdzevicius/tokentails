@@ -229,7 +229,7 @@ export const CatPayment = ({
     });
     setTransactionStatus(null);
 
-    toast({ message: "Congratz on your adopted cat !" });
+    toast({ message: "Congratz on your adopted cat !", img: cat.catImg });
     setIsAdopting(false);
     onAdopted?.();
   };
