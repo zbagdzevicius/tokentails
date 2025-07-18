@@ -84,13 +84,14 @@ export class CatnipChaosScene extends Scene {
   private wasOnFlightOffBlock: boolean = false;
   private wasOnTile309: boolean = false;
   private flightXEffectBlocks: Phaser.GameObjects.Sprite[] = [];
+  private flightCloudSprite?: Phaser.GameObjects.Sprite;
 
   constructor() {
     super("CatnipChaosScene");
   }
 
   preload() {
-    const level = this.props.level;
+    const level = 51
 
 
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
@@ -107,6 +108,10 @@ export class CatnipChaosScene extends Scene {
     this.load.audio("jump", "catnip-chaos/sounds/jump.mp3");
     this.load.image("platform", "purrquest/icons/platform.png");
     this.load.image("catnip-coin", "catnip-chaos/items/catnip-coin.png");
+    this.load.spritesheet("cloud", "catnip-chaos/items/cloud.png",{
+      frameWidth: 72,
+      frameHeight: 51,
+    });
     this.load.spritesheet("flight-on", "catnip-chaos/items/flighttrue.png",{
       frameWidth: 16,
       frameHeight: 16,
@@ -168,6 +173,11 @@ export class CatnipChaosScene extends Scene {
   }
 
   create(props: { detail?: IPhaserGameSceneProps }) {
+    // Ensure cloud is reset at scene start
+    if (this.flightCloudSprite) {
+      this.flightCloudSprite.destroy();
+      this.flightCloudSprite = undefined;
+    }
     this.initAnimations();
     this.setupTilemap();
     this.setupCamera();
@@ -626,27 +636,54 @@ export class CatnipChaosScene extends Scene {
       if (onFlightOnBlock && !this.wasOnFlightOnBlock) {
         this.cat.movement.setFlightMode(true);
         this.isInFlightMode = true;
-        // Set running animation when entering flight mode
+
         if (this.cat.animationKeys && this.cat.sprite.anims) {
-          this.cat.sprite.anims.play(this.cat.animationKeys['RUNNING'], true);
+          this.cat.sprite.anims.play(this.cat.animationKeys['SITTING'], true);
+        }
+
+        if (!this.flightCloudSprite) {
+          this.flightCloudSprite = this.add.sprite(this.cat.sprite.x, this.cat.sprite.y  , "cloud");
+          this.flightCloudSprite.setDisplaySize(72, 51);
+          this.flightCloudSprite.setDepth(this.cat.sprite.depth - 1); 
+          this.flightCloudSprite.play("cloud-anim");
         }
       }
       // Entering flight-off block
       if (onFlightOffBlock && !this.wasOnFlightOffBlock) {
         this.cat.movement.setFlightMode(false);
         this.isInFlightMode = false;
+        // Remove cloud sprite
+        if (this.flightCloudSprite) {
+          this.flightCloudSprite.destroy();
+          this.flightCloudSprite = undefined;
+        }
       }
       // Entering tile 309
       if (onTile309 && !this.wasOnTile309) {
         this.cat.movement.setFlightMode(false);
         this.cat.sprite.setRotation(0); // Reset rotation to normal
         this.isInFlightMode = false;
+        // Remove cloud sprite
+        if (this.flightCloudSprite) {
+          this.flightCloudSprite.destroy();
+          this.flightCloudSprite = undefined;
+        }
       }
 
       // Update previous state trackers
       this.wasOnFlightOnBlock = onFlightOnBlock;
       this.wasOnFlightOffBlock = onFlightOffBlock;
       this.wasOnTile309 = onTile309;
+
+      if (this.flightCloudSprite && this.cat) {
+        this.flightCloudSprite.setPosition(this.cat.sprite.x +3, this.cat.sprite.y + 10);
+        if(this.isGravityReversed) {
+          this.flightCloudSprite.setPosition(this.cat.sprite.x + 3, this.cat.sprite.y - 10);
+        }
+        // Set cloud rotation to match player rotation
+        this.flightCloudSprite.setRotation(this.cat.sprite.rotation);
+        this.flightCloudSprite.setFlipY(this.isGravityReversed);
+      }
 
       if (this.flightEffectSprite && this.cat) {
         this.flightEffectSprite.setPosition(this.cat.sprite.x, this.cat.sprite.y);
@@ -714,6 +751,16 @@ export class CatnipChaosScene extends Scene {
     this.cat = undefined;
     this.catDto = undefined;
     this.collectedCatnipCoins = 0;
+    this.wasOnFlightOnBlock = false;
+    this.wasOnFlightOffBlock = false;
+    this.wasOnTile309 = false;
+    this.flightOnBlocks = [];
+    this.flightOffBlocks = [];
+    // Always destroy and reset the cloud sprite
+    if (this.flightCloudSprite) {
+      this.flightCloudSprite.destroy();
+      this.flightCloudSprite = undefined;
+    }
   }
 
   setupEventListeners(props: ICatnipChaosProps) {
@@ -784,6 +831,12 @@ export class CatnipChaosScene extends Scene {
     this.anims.create({
       key: "flight-on-anim",
       frames: this.anims.generateFrameNumbers("flight-on", { start: 0, end: 3 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    this.anims.create({
+      key: "cloud-anim",
+      frames: this.anims.generateFrameNumbers("cloud", { start: 0, end: 6 }),
       frameRate: 8,
       repeat: -1,
     });
