@@ -1,7 +1,20 @@
 import React from "react";
-import { ConnectWallet } from "../web3/minting/Web3Mint";
 import { Web3Providers } from "../web3/Web3Providers";
 import { PixelButton } from "../shared/PixelButton";
+import dynamic from "next/dynamic";
+
+const ConnectWallet = dynamic(
+  () => import("../web3/minting/Web3Mint").then((mod) => mod.ConnectWallet),
+  {
+    ssr: false,
+    loading: () => (
+      <img
+        src="/icons/loader.webp"
+        className="w-8 h-8 m-auto animate-spin pixelated"
+      />
+    ),
+  }
+);
 
 export const TrailheadsRedeem = () => {
   return (

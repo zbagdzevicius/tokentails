@@ -85,7 +85,7 @@ export const CatnipChaosLevels = ({
           <div className="flex items-center">
             <div
               key={i}
-              onClick={() => i <= unlockedLevels && selectLevel(level)}
+              onClick={() => selectLevel(level)}
               style={{
                 backgroundImage: `url(${catnipChaosChapterBGImage[level[0]]})`,
                 backgroundSize: "cover",
