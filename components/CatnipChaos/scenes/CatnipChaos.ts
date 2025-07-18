@@ -76,6 +76,14 @@ export class CatnipChaosScene extends Scene {
   private hiddenSpikeManagers: HiddenSpikeManager[] = [];
   private collectedCatnipCoins: number = 0;
   private currentLevel:string = ''
+  private flightOnBlocks: Phaser.GameObjects.Sprite[] = [];
+  private flightOffBlocks: Phaser.GameObjects.Sprite[] = [];
+  private flightEffectSprite?: Phaser.GameObjects.Sprite;
+  private isInFlightMode: boolean = false;
+  private wasOnFlightOnBlock: boolean = false;
+  private wasOnFlightOffBlock: boolean = false;
+  private wasOnTile309: boolean = false;
+  private flightXEffectBlocks: Phaser.GameObjects.Sprite[] = [];
 
   constructor() {
     super("CatnipChaosScene");
@@ -99,6 +107,14 @@ export class CatnipChaosScene extends Scene {
     this.load.audio("jump", "catnip-chaos/sounds/jump.mp3");
     this.load.image("platform", "purrquest/icons/platform.png");
     this.load.image("catnip-coin", "catnip-chaos/items/catnip-coin.png");
+    this.load.spritesheet("flight-on", "catnip-chaos/items/flighttrue.png",{
+      frameWidth: 16,
+      frameHeight: 16,
+    });
+    this.load.spritesheet("flight-off", "catnip-chaos/items/flightfalse.png",{
+      frameWidth: 16,
+      frameHeight: 16,
+    });
     this.load.spritesheet("hidden-spike", "story/hidden-spike.png", {
       frameWidth: 31,
       frameHeight: 19,
@@ -143,6 +159,7 @@ export class CatnipChaosScene extends Scene {
         frameHeight: 64,
       }
     );
+    this.load.image("speedPowerUp", "buff/SPEED.png");
   }
 
   init(props: ICatnipChaosProps) {
@@ -215,6 +232,43 @@ export class CatnipChaosScene extends Scene {
     this.createHiddenSpikes();
 
     this.physicsLayer.setCollision([162, 192]);
+    // Remove tiles 308 and 309 and spawn animated flight blocks
+    this.physicsLayer.forEachTile((tile) => {
+      if (tile.index === 308 || tile.index === 309) {
+        const worldX = this.physicsLayer.tileToWorldX(tile.x);
+        const worldY = this.physicsLayer.tileToWorldY(tile.y);
+        this.physicsLayer.removeTileAt(tile.x, tile.y);
+        const key = tile.index === 308 ? "flight-on" : "flight-off";
+        const animKey = tile.index === 308 ? "flight-on-anim" : "flight-off-anim";
+        const sprite = this.add.sprite(worldX , worldY , key);
+        sprite.setDisplaySize(132, 64);
+        sprite.play(animKey);
+        if (tile.index === 308) {
+          this.flightOnBlocks.push(sprite);
+        } else {
+          this.flightOffBlocks.push(sprite);
+        }
+      }
+    });
+    this.physicsLayer.forEachTile((tile) => {
+      if (tile.index === 58) {
+        const worldX = this.physicsLayer.tileToWorldX(tile.x);
+        const worldY = this.physicsLayer.tileToWorldY(tile.y);
+        this.physicsLayer.removeTileAt(tile.x, tile.y);
+
+        const effectSprite = this.add.sprite(worldX, worldY, "speedPowerUp");
+        effectSprite.setDisplaySize(32, 32);
+
+        this.tweens.add({
+          targets: effectSprite,
+          angle: 360,
+          duration: 1000,
+          repeat: -1,
+        });
+
+        this.flightXEffectBlocks.push(effectSprite);
+      }
+    });
   }
 
   private setupCamera() {
@@ -348,32 +402,9 @@ export class CatnipChaosScene extends Scene {
       getMultiplier(this.catDto)
     );
 
+    this.cat.sprite.setRotation(0); // Ensure upright on spawn
     this.setupCatCollisions();
     this.cameras.main.startFollow(this.cat.sprite);
-
- 
-    if (this.currentLevel && this.currentLevel.startsWith('4')) {
-      this.cat.setGeometryDashMode(true);
-
-
-      this.cat.movement.setGravitySettings({
-        baseGravity: 700,
-        fallingGravity: 1500,
-        reversedBaseGravity: -2000,
-        reversedFallingGravity: -3000,
-      });
-    } else {
-      this.cat.setGeometryDashMode(false);
-
-
-
-      this.cat.movement.setGravitySettings({
-        baseGravity: 700,
-        fallingGravity: 2000,
-        reversedBaseGravity: -2000,
-        reversedFallingGravity: -3000,
-      });
-    }
     // Also enable auto-run mode for horizontal movement
     this.cat.setAutoRunMode(this.autoRunSpeed, this.autoJumpSpeed);
 
@@ -562,20 +593,64 @@ export class CatnipChaosScene extends Scene {
     if (this.cat) {
       this.cat.update();
       this.processGravityTiles();
-
       this.spawnCatnipCoins();
-
       this.saws.forEach((saw) => saw.update(delta));
-
       this.dogs.forEach((dog) => {
         dog.update();
       });
-
       this.hiddenSpikeManagers.forEach((manager) => {
         manager.update();
       });
-
       this.createProgressBar();
+
+      // Check for collision with flightXEffectBlocks
+      this.flightXEffectBlocks.forEach(effectSprite => {
+        if (Phaser.Geom.Intersects.RectangleToRectangle(
+          this.cat!.sprite.getBounds(),
+          effectSprite.getBounds()
+        )) {
+          this.collectFlightXEffect(effectSprite);
+        }
+      });
+
+      const player = this.cat.sprite;
+      let onFlightOnBlock = this.flightOnBlocks.some(block => Phaser.Geom.Intersects.RectangleToRectangle(player.getBounds(), block.getBounds()));
+      let onFlightOffBlock = this.flightOffBlocks.some(block => Phaser.Geom.Intersects.RectangleToRectangle(player.getBounds(), block.getBounds()));
+      let onTile309 = false;
+      if (this.physicsLayer) {
+        const tile = this.physicsLayer.getTileAtWorldXY(this.cat.sprite.x, this.cat.sprite.y);
+        onTile309 = !!(tile && tile.index === 309);
+      }
+
+      // Entering flight-on block
+      if (onFlightOnBlock && !this.wasOnFlightOnBlock) {
+        this.cat.movement.setFlightMode(true);
+        this.isInFlightMode = true;
+        // Set running animation when entering flight mode
+        if (this.cat.animationKeys && this.cat.sprite.anims) {
+          this.cat.sprite.anims.play(this.cat.animationKeys['RUNNING'], true);
+        }
+      }
+      // Entering flight-off block
+      if (onFlightOffBlock && !this.wasOnFlightOffBlock) {
+        this.cat.movement.setFlightMode(false);
+        this.isInFlightMode = false;
+      }
+      // Entering tile 309
+      if (onTile309 && !this.wasOnTile309) {
+        this.cat.movement.setFlightMode(false);
+        this.cat.sprite.setRotation(0); // Reset rotation to normal
+        this.isInFlightMode = false;
+      }
+
+      // Update previous state trackers
+      this.wasOnFlightOnBlock = onFlightOnBlock;
+      this.wasOnFlightOffBlock = onFlightOffBlock;
+      this.wasOnTile309 = onTile309;
+
+      if (this.flightEffectSprite && this.cat) {
+        this.flightEffectSprite.setPosition(this.cat.sprite.x, this.cat.sprite.y);
+      }
     }
     this.collectiveItem?.update();
   }
@@ -595,6 +670,7 @@ export class CatnipChaosScene extends Scene {
       if (this.cat.sprite.body) {
         this.cat.sprite.body.enable = false;
       }
+      this.cat.sprite.setRotation(0); // Reset rotation on end
     }
     // Play hit animation if available
     if (this.cat?.sprite.anims) {
@@ -703,6 +779,27 @@ export class CatnipChaosScene extends Scene {
       key: "portal-anim",
       frames: this.anims.generateFrameNumbers("portal", { start: 0, end: 5 }),
       frameRate: 10,
+      repeat: -1,
+    });
+    this.anims.create({
+      key: "flight-on-anim",
+      frames: this.anims.generateFrameNumbers("flight-on", { start: 0, end: 3 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    this.anims.create({
+      key: "flight-off-anim",
+      frames: this.anims.generateFrameNumbers("flight-off", { start: 0, end: 3 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    this.anims.create({
+      key: "speed-effect",
+      frames: this.anims.generateFrameNumbers("speed-effect", {
+        start: 0,
+        end: 7,
+      }),
+      frameRate: 16,
       repeat: -1,
     });
   }
@@ -851,5 +948,18 @@ export class CatnipChaosScene extends Scene {
       });
       this.portalManager.create();
     }
+  }
+
+  private collectFlightXEffect(effectSprite: Phaser.GameObjects.Sprite) {
+    // Increase the PlayerMovement's flightXSpeed
+    if (this.cat && this.cat.movement) {
+      this.cat.movement.flightXSpeed += 40;
+    }
+
+    // Remove the effect sprite from the scene and the array
+    effectSprite.destroy();
+    this.flightXEffectBlocks = this.flightXEffectBlocks.filter(sprite => sprite !== effectSprite);
+
+    // (Optional) Play a sound or animation here if you want
   }
 }
