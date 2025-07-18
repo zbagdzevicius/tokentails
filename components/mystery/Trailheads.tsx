@@ -2,6 +2,7 @@ import React from "react";
 import { Web3Providers } from "../web3/Web3Providers";
 import { PixelButton } from "../shared/PixelButton";
 import dynamic from "next/dynamic";
+import { TrailheadsImgs } from "../shared/QuestsModal";
 
 const ConnectWallet = dynamic(
   () => import("../web3/minting/Web3Mint").then((mod) => mod.ConnectWallet),
@@ -31,30 +32,9 @@ export const Trailheads = () => {
       <img src="/catnip-chaos/trailheads.gif" className="w-52 rounded-2xl" />
 
       <div className="flex flex-row items-center gap-2 pixelated -mt-12">
-        <img
-          src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/BEAVER/base/RUNNING.gif"
-          className="w-20 rounded-2xl -mx-6"
-        />
-        <img
-          src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/FOX/base/IDLE.gif"
-          className="w-20 rounded-2xl -mx-6"
-        />
-        <img
-          src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/GOAT/base/JUMPING.gif"
-          className="w-20 rounded-2xl -mx-6"
-        />
-        <img
-          src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/OWL/base/RUNNING.gif"
-          className="w-20 rounded-2xl -mx-6"
-        />
-        <img
-          src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/MOOSE/base/JUMPING.gif"
-          className="w-20 rounded-2xl -mx-6"
-        />
-        <img
-          src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/RACCON/base/WALKING.gif"
-          className="w-20 rounded-2xl -mx-6"
-        />
+        {TrailheadsImgs.map((trailhead, index) => (
+          <img key={index} src={trailhead} className="w-20 rounded-2xl -mx-6" />
+        ))}
         <img
           src="/blessings/CAMP_TYPE.png"
           className="w-24 -mt-8 rounded-2xl"

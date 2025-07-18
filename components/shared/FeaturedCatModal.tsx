@@ -23,13 +23,13 @@ export const FeaturedCatContent = ({ close }: { close: () => void }) => {
       </div>
       <Tag isSmall>YOU DON'T HAVE STICKY YET?</Tag>
       <div className="flex flex-col gap-4 text-center">
-        YOU NEED TO COMPLETE CAMP'S QUESTS TO UNLOCK HIM AND YOU'LL FIND HIM IN
+        YOU NEED TO COMPLETE CAMP'S TASKS TO UNLOCK HIM AND YOU'LL FIND HIM IN
         THE SHELTER!
       </div>
 
       <div className="flex items-center justify-center gap-2">
         <PixelButton
-          text="CAMP'S QUESTS"
+          text="CAMP'S TASKS"
           onClick={() => {
             setOpenedModal(GameModal.INVITE);
           }}

@@ -16,6 +16,8 @@ import { chaptersBadges, IMysteryBox } from "@/web3/web3.model";
 import { QUEST_API } from "@/api/quest-api";
 import { ChainType } from "@/web3/contracts";
 import { getMultiplier } from "@/constants/cat-utils";
+import { Trailheads } from "../mystery/Trailheads";
+import { TrailheadsImgs } from "../shared/QuestsModal";
 
 export const CatnipChaosLevels = ({
   setSelectedLevel,
@@ -107,6 +109,12 @@ export const CatnipChaosLevels = ({
                 <img src="/logo/catnip.webp" className="w-4 h-4 mr-1" />
                 <span className="">{profile?.catnipChaos?.[i] || 0} / 10</span>
               </span>
+              {level[0] === "5" && (
+                <img
+                  src={TrailheadsImgs[parseInt(level[1]) - 1]}
+                  className="w-20 rounded-2xl -mx-6 absolute -left-4 z-40"
+                />
+              )}
             </div>
             {level[1] === "6" && (
               <div
