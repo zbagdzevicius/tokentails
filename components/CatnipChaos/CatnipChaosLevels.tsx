@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import {
   catnipChaosChapterBGImage,
   CatnipChaosLevelMap,
@@ -15,6 +15,7 @@ import { Web3Providers } from "../web3/Web3Providers";
 import { chaptersBadges, IMysteryBox } from "@/web3/web3.model";
 import { QUEST_API } from "@/api/quest-api";
 import { ChainType } from "@/web3/contracts";
+import { getMultiplier } from "@/constants/cat-utils";
 
 export const CatnipChaosLevels = ({
   setSelectedLevel,
@@ -27,11 +28,12 @@ export const CatnipChaosLevels = ({
   const unlockedLevels = [...(profile?.catnipChaos || [])].filter(
     (level) => level > 0
   ).length;
+  const multiplier = getMultiplier(profile?.cat);
 
   const selectLevel = (level: string) => {
-    if (level.startsWith("3") && profile?.cat?.name !== "Sticky") {
+    if (level.startsWith("3") && multiplier >= 15) {
       showToast({
-        message: "You need to select Sticky to play this level",
+        message: "You need to select Sticky OR Trailhead to play this level",
         img: "/purrquest/sprites/key.png",
       });
       return;
@@ -40,28 +42,22 @@ export const CatnipChaosLevels = ({
   };
 
   const onRedeem = async (mysteryBox: IMysteryBox) => {
-    const result = await QUEST_API.redeemContest(mysteryBox.key);
-    if (result.success && result.cat) {
-      setProfileUpdate({
-        cats: [...(profile?.cats || []), result.cat],
-        cat: result.cat,
-        quests: [...(profile?.quests || []), mysteryBox.key],
-        catbassadorsLives:
-          (profile?.catbassadorsLives || 0) + (result.catbassadorsLives || 0),
-      });
-    } else if (
-      result.success &&
-      (result.catpoints || result.catbassadorsLives)
-    ) {
+    const result = await QUEST_API.complete(mysteryBox.key);
+    if (result.success) {
       setProfileUpdate({
         quests: [...(profile?.quests || []), mysteryBox.key],
-        catpoints: (profile!.catpoints || 0) + (result.catpoints || 0),
-        catbassadorsLives:
-          (profile?.catbassadorsLives || 0) + (result.catbassadorsLives || 0),
+        catpoints: (profile?.catpoints || 0) + 10000,
       });
+      showToast({ message: result.message });
     }
-    showToast({ message: result.message });
   };
+
+  const isRedeemed = useCallback(
+    (mysteryBox: IMysteryBox) => {
+      return !!profile?.quests?.includes(mysteryBox.key);
+    },
+    [profile?.quests]
+  );
 
   return (
     <div className="flex flex-col items-center gap-4 mt-14 lg:mt-24 pb-20">
@@ -120,24 +116,34 @@ export const CatnipChaosLevels = ({
               >
                 {unlockedLevels >= i && (
                   <div className="flex flex-col items-center absolute -bottom-5">
-                    <Web3Providers>
-                      <Web3Mint
-                        hideAddress
-                        user={profile?._id!}
-                        ownedNFTCallback={() =>
-                          onRedeem(
+                    {isRedeemed(
+                      chaptersBadges[ChainType.CAMP_TEST]![parseInt(level[0])]
+                    ) ? (
+                      <PixelButton
+                        text="REDEEMED"
+                        isDisabled
+                        isSmall
+                      ></PixelButton>
+                    ) : (
+                      <Web3Providers>
+                        <Web3Mint
+                          hideAddress
+                          user={profile?._id!}
+                          ownedNFTCallback={() =>
+                            onRedeem(
+                              chaptersBadges[ChainType.CAMP_TEST]![
+                                parseInt(level[0])
+                              ]
+                            )
+                          }
+                          mysteryBox={
                             chaptersBadges[ChainType.CAMP_TEST]![
                               parseInt(level[0])
                             ]
-                          )
-                        }
-                        mysteryBox={
-                          chaptersBadges[ChainType.CAMP_TEST]![
-                            parseInt(level[0])
-                          ]
-                        }
-                      />
-                    </Web3Providers>
+                          }
+                        />
+                      </Web3Providers>
+                    )}
                   </div>
                 )}
                 <img

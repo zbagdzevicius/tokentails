@@ -7,6 +7,7 @@ import { Web3Providers } from "../web3/Web3Providers";
 import { CloseButton } from "./CloseButton";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
+import { Trailheads } from "../mystery/Trailheads";
 
 const MysteryBoxCat = dynamic(
   () => import("../mystery/MysteryBoxCat").then((mod) => mod.MysteryBoxCat),
@@ -23,7 +24,8 @@ const MysteryBoxCat = dynamic(
 
 export const InviteModalContent = () => {
   const { utils, shareUrl } = useProfile();
-  const [type, setType] = useState(GameModal.MYSTERY_BOX);
+  const [type, setType] = useState(GameModal.CAMP);
+  const [campView, setCampView] = useState<"mystery" | "trailheads">("mystery");
 
   const onInvite = () => {
     utils?.shareURL(shareUrl!);
@@ -34,9 +36,9 @@ export const InviteModalContent = () => {
       <Tag>GIFTS</Tag>
       <div className="py-2 flex justify-center gap-4">
         <PixelButton
-          active={type === GameModal.MYSTERY_BOX}
+          active={type === GameModal.CAMP}
           text="CAMP"
-          onClick={() => setType(GameModal.MYSTERY_BOX)}
+          onClick={() => setType(GameModal.CAMP)}
         ></PixelButton>
         <PixelButton
           active={type === GameModal.INVITE}
@@ -114,7 +116,26 @@ export const InviteModalContent = () => {
           <PixelButton text="GET INVITE LINK" onClick={onInvite} />
         </>
       )}
-      {type === GameModal.MYSTERY_BOX && <MysteryBox />}
+      {type === GameModal.CAMP && (
+        <div className="flex flex-col items-center">
+          <div className="flex flex-row items-center gap-2">
+            <PixelButton
+              isSmall
+              text="TASKS"
+              active={campView === "mystery"}
+              onClick={() => setCampView("mystery")}
+            />
+            <PixelButton
+              isSmall
+              text="Trail heads"
+              active={campView === "trailheads"}
+              onClick={() => setCampView("trailheads")}
+            />
+          </div>
+          {campView === "mystery" && <MysteryBox />}
+          {campView === "trailheads" && <Trailheads />}
+        </div>
+      )}
       {type === GameModal.MYSTERY_CAT && (
         <Web3Providers>
           <MysteryBoxCat />

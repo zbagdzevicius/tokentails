@@ -87,7 +87,7 @@ export const CatDescription = ({
           <div className="mx-2 md:hidden lg:block"></div>
           {firstBlessing && (
             <PixelButton
-              text={activeBlessing ? "Show Virtual Twin" : "Read Cat story"}
+              text={activeBlessing ? "Show Virtual Twin" : "Read story"}
               isSmall
               onClick={() =>
                 setActiveBlessing(activeBlessing ? null : firstBlessing)

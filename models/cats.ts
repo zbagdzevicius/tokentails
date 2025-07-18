@@ -54,6 +54,7 @@ export enum CatAbilitySkill {
   TAILWIND = "TAILWIND",
   SHADOWPOUNCE = "SHADOWPOUNCE",
   AQUAWHISKER = "AQUAWHISKER",
+  CAMPING = "CAMPING",
   BREEZEPAW = "BREEZEPAW", // AIR
   PAWSQUAKE = "PAWSQUAKE", // EARTH
   ICECLAW = "ICECLAW", // ICE
@@ -79,6 +80,7 @@ export enum CatAbilityType {
   SAND = "SAND",
   TAILS = "TAILS",
   LEGENDARY = "LEGENDARY",
+  CAMP = "CAMP",
 }
 
 export interface CatAbility {
@@ -125,6 +127,7 @@ export const catAbilitiesSkills = [
   CatAbilitySkill.SANDSWIPE,
   CatAbilitySkill.TAILSPIN,
   CatAbilitySkill.STELLARROAR,
+  CatAbilitySkill.CAMPING,
 ];
 
 export const getCatAbility = () =>
@@ -162,6 +165,11 @@ export const CatAbilities: Record<CatAbilityType, CatAbility> = {
     skill: CatAbilitySkill.FURSHADOW,
     type: CatAbilityType.DARK,
     description: "Calms wild or aggressive opponents",
+  },
+  [CatAbilityType.CAMP]: {
+    skill: CatAbilitySkill.CAMPING,
+    type: CatAbilityType.CAMP,
+    description: "Makes everyone go to the Camp.",
   },
   [CatAbilityType.STORM]: {
     skill: CatAbilitySkill.PURRSTORM,
@@ -244,4 +252,5 @@ export const cardsColor: Record<CatAbilityType, string> = {
   [CatAbilityType.TAILS]: "#f3aea4",
   [CatAbilityType.WATER]: "#9fe1fb",
   [CatAbilityType.WIND]: "#f6c7ba",
+  [CatAbilityType.CAMP]: "#ff6d01",
 };
