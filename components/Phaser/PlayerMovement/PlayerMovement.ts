@@ -26,6 +26,14 @@ export class PlayerMovement {
   private reversedBaseGravity: number = -1150;
   private reversedFallingGravity: number = -1200;
 
+  // Add flight mode properties
+  private isFlightMode: boolean = false;
+  private flightAscendSpeed: number = 340;
+  private flightDescendSpeed: number = 340;
+  private flightSmoothing: number = 0.18;
+  private targetFlightVelocityY: number = 0;
+   flightXSpeed: number = 270; // Adjust as needed
+
   constructor(player: IPlayer) {
     this.player = player;
     this.player.sprite.setMaxVelocity(this.player.walkSpeed * 2, 1000000);
@@ -48,6 +56,20 @@ export class PlayerMovement {
     }
   }
 
+  public setFlightMode(enabled: boolean) {
+    this.isFlightMode = enabled;
+    if (this.player.sprite.body) {
+      const body = this.player.sprite.body as Phaser.Physics.Arcade.Body;
+      if (enabled) {
+        body.setAllowGravity(false);
+        this.player.sprite.setVelocityY(0);
+      } else {
+        body.setAllowGravity(true);
+        this.player.sprite.setAngle(0); // Reset rotation when flight mode is disabled
+      }
+    }
+  }
+
   updateOngoingMovements() {
     const {
       sprite,
@@ -63,6 +85,39 @@ export class PlayerMovement {
     } = this.player;
 
     if (!sprite || !sprite.body) {
+      return;
+    }
+
+    if (this.isFlightMode) {
+      // Flight mode: smooth ascend/descend with lerp
+      const ascendKey =
+        cursors.up.isDown ||
+        keys.up.isDown ||
+        keys.upW.isDown ||
+        isMobileJumping;
+
+      if (ascendKey) {
+        this.targetFlightVelocityY = -this.flightAscendSpeed;
+      } else {
+        this.targetFlightVelocityY = this.flightDescendSpeed;
+      }
+
+      const currentVelY = sprite.body.velocity.y;
+      const newVelY = Phaser.Math.Linear(
+        currentVelY,
+        this.targetFlightVelocityY,
+        this.flightSmoothing
+      );
+      sprite.setVelocityY(newVelY);
+
+      // Set constant X velocity for flight mode
+      sprite.setVelocityX(this.flightXSpeed);
+
+      sprite.setAngle(Phaser.Math.Clamp(newVelY, -180, 180) * 0.1);
+
+      // Optionally play a flying animation here
+      // sprite.anims.play('flying', true);
+
       return;
     }
 
