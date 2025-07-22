@@ -157,7 +157,7 @@ export const MysteryBox = () => {
   };
 
   return (
-    <div className="flex flex-col w-full">
+    <div className="flex flex-col w-full animate-opacity">
       {!finished ? (
         <div className="flex justify-center items-center flex-col md:flex-row md:gap-4">
           <div>

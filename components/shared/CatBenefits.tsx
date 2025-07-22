@@ -1,4 +1,4 @@
-import { cardsColor, ICat } from "@/models/cats";
+import { cardsColor, CatAbilityType, ICat } from "@/models/cats";
 import { Tag } from "./Tag";
 import { getMultiplier } from "@/constants/cat-utils";
 
@@ -26,7 +26,9 @@ export const CatBenefits = ({
             <span className="text-p5 -mb-1 text-center">
               {cat.blessings?.length
                 ? isOwned
-                  ? "SAVED REAL CAT"
+                  ? getMultiplier(cat) >= 15
+                    ? "DOUBLE JUMP"
+                    : "SAVED REAL CAT"
                   : "SAVE REAL CAT"
                 : isOwned
                 ? "SUPPORTED SHELTER"

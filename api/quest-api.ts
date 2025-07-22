@@ -40,6 +40,26 @@ const statistics = async (): Promise<IQuestStatistics> => {
   });
 };
 
+const redeemTrailheads = async (
+  walletAddress: string
+): Promise<{ success: true; message: string; owned: string[] }> => {
+  return fetch(`${apiUrl}/web3/trailheads/${walletAddress}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return null;
+  });
+};
+
 const setReferralTelegram = async (telegramId: string): Promise<object> => {
   await waitForLocalStorageKey();
   return fetch(`${apiUrl}/user/catbassadors/referral/${telegramId}`, {
@@ -154,4 +174,5 @@ export const QUEST_API = {
   redeemContest,
   find,
   statistics,
+  redeemTrailheads,
 };

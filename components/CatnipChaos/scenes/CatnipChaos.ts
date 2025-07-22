@@ -75,7 +75,7 @@ export class CatnipChaosScene extends Scene {
   private floatingPlatformManagers: FloatingPlatformManager[] = [];
   private hiddenSpikeManagers: HiddenSpikeManager[] = [];
   private collectedCatnipCoins: number = 0;
-  private currentLevel:string = ''
+  private currentLevel: string = "";
   private flightOnBlocks: Phaser.GameObjects.Sprite[] = [];
   private flightOffBlocks: Phaser.GameObjects.Sprite[] = [];
   private flightEffectSprite?: Phaser.GameObjects.Sprite;
@@ -91,32 +91,29 @@ export class CatnipChaosScene extends Scene {
   }
 
   preload() {
-    const level = 51
-
-
     this.load.audio("purr", "purrquest/sounds/purr.mp3");
     this.load.audio("meow", "purrquest/sounds/meow.mp3");
     this.load.image("collective-item", "purrquest/sprites/key.png");
 
     this.load.tilemapTiledJSON(
       "tilemap",
-      `catnip-chaos/levels/level-${level}.json`
+      `catnip-chaos/levels/level-${this.currentLevel}.json`
     );
-    this.load.image("blocks", CatnipChaosLevelMap[level]);
+    this.load.image("blocks", CatnipChaosLevelMap[this.currentLevel]);
     this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
     this.load.audio("catnip", "catnip-chaos/sounds/catnip.mp3");
     this.load.audio("jump", "catnip-chaos/sounds/jump.mp3");
     this.load.image("platform", "purrquest/icons/platform.png");
     this.load.image("catnip-coin", "catnip-chaos/items/catnip-coin.png");
-    this.load.spritesheet("cloud", "catnip-chaos/items/cloud.png",{
+    this.load.spritesheet("cloud", "catnip-chaos/items/cloud.png", {
       frameWidth: 72,
       frameHeight: 51,
     });
-    this.load.spritesheet("flight-on", "catnip-chaos/items/flighttrue.png",{
+    this.load.spritesheet("flight-on", "catnip-chaos/items/flighttrue.png", {
       frameWidth: 16,
       frameHeight: 16,
     });
-    this.load.spritesheet("flight-off", "catnip-chaos/items/flightfalse.png",{
+    this.load.spritesheet("flight-off", "catnip-chaos/items/flightfalse.png", {
       frameWidth: 16,
       frameHeight: 16,
     });
@@ -169,7 +166,7 @@ export class CatnipChaosScene extends Scene {
 
   init(props: ICatnipChaosProps) {
     this.props = props;
-    this.currentLevel = this.props.level
+    this.currentLevel = this.props.level;
   }
 
   create(props: { detail?: IPhaserGameSceneProps }) {
@@ -249,8 +246,9 @@ export class CatnipChaosScene extends Scene {
         const worldY = this.physicsLayer.tileToWorldY(tile.y);
         this.physicsLayer.removeTileAt(tile.x, tile.y);
         const key = tile.index === 308 ? "flight-on" : "flight-off";
-        const animKey = tile.index === 308 ? "flight-on-anim" : "flight-off-anim";
-        const sprite = this.add.sprite(worldX , worldY , key);
+        const animKey =
+          tile.index === 308 ? "flight-on-anim" : "flight-off-anim";
+        const sprite = this.add.sprite(worldX, worldY, key);
         sprite.setDisplaySize(132, 64);
         sprite.play(animKey);
         if (tile.index === 308) {
@@ -614,21 +612,36 @@ export class CatnipChaosScene extends Scene {
       this.createProgressBar();
 
       // Check for collision with flightXEffectBlocks
-      this.flightXEffectBlocks.forEach(effectSprite => {
-        if (Phaser.Geom.Intersects.RectangleToRectangle(
-          this.cat!.sprite.getBounds(),
-          effectSprite.getBounds()
-        )) {
+      this.flightXEffectBlocks.forEach((effectSprite) => {
+        if (
+          Phaser.Geom.Intersects.RectangleToRectangle(
+            this.cat!.sprite.getBounds(),
+            effectSprite.getBounds()
+          )
+        ) {
           this.collectFlightXEffect(effectSprite);
         }
       });
 
       const player = this.cat.sprite;
-      let onFlightOnBlock = this.flightOnBlocks.some(block => Phaser.Geom.Intersects.RectangleToRectangle(player.getBounds(), block.getBounds()));
-      let onFlightOffBlock = this.flightOffBlocks.some(block => Phaser.Geom.Intersects.RectangleToRectangle(player.getBounds(), block.getBounds()));
+      let onFlightOnBlock = this.flightOnBlocks.some((block) =>
+        Phaser.Geom.Intersects.RectangleToRectangle(
+          player.getBounds(),
+          block.getBounds()
+        )
+      );
+      let onFlightOffBlock = this.flightOffBlocks.some((block) =>
+        Phaser.Geom.Intersects.RectangleToRectangle(
+          player.getBounds(),
+          block.getBounds()
+        )
+      );
       let onTile309 = false;
       if (this.physicsLayer) {
-        const tile = this.physicsLayer.getTileAtWorldXY(this.cat.sprite.x, this.cat.sprite.y);
+        const tile = this.physicsLayer.getTileAtWorldXY(
+          this.cat.sprite.x,
+          this.cat.sprite.y
+        );
         onTile309 = !!(tile && tile.index === 309);
       }
 
@@ -638,13 +651,17 @@ export class CatnipChaosScene extends Scene {
         this.isInFlightMode = true;
 
         if (this.cat.animationKeys && this.cat.sprite.anims) {
-          this.cat.sprite.anims.play(this.cat.animationKeys['SITTING'], true);
+          this.cat.sprite.anims.play(this.cat.animationKeys["SITTING"], true);
         }
 
         if (!this.flightCloudSprite) {
-          this.flightCloudSprite = this.add.sprite(this.cat.sprite.x, this.cat.sprite.y  , "cloud");
+          this.flightCloudSprite = this.add.sprite(
+            this.cat.sprite.x,
+            this.cat.sprite.y,
+            "cloud"
+          );
           this.flightCloudSprite.setDisplaySize(72, 51);
-          this.flightCloudSprite.setDepth(this.cat.sprite.depth - 1); 
+          this.flightCloudSprite.setDepth(this.cat.sprite.depth - 1);
           this.flightCloudSprite.play("cloud-anim");
         }
       }
@@ -676,9 +693,15 @@ export class CatnipChaosScene extends Scene {
       this.wasOnTile309 = onTile309;
 
       if (this.flightCloudSprite && this.cat) {
-        this.flightCloudSprite.setPosition(this.cat.sprite.x +3, this.cat.sprite.y + 10);
-        if(this.isGravityReversed) {
-          this.flightCloudSprite.setPosition(this.cat.sprite.x + 3, this.cat.sprite.y - 10);
+        this.flightCloudSprite.setPosition(
+          this.cat.sprite.x + 3,
+          this.cat.sprite.y + 10
+        );
+        if (this.isGravityReversed) {
+          this.flightCloudSprite.setPosition(
+            this.cat.sprite.x + 3,
+            this.cat.sprite.y - 10
+          );
         }
         // Set cloud rotation to match player rotation
         this.flightCloudSprite.setRotation(this.cat.sprite.rotation);
@@ -686,7 +709,10 @@ export class CatnipChaosScene extends Scene {
       }
 
       if (this.flightEffectSprite && this.cat) {
-        this.flightEffectSprite.setPosition(this.cat.sprite.x, this.cat.sprite.y);
+        this.flightEffectSprite.setPosition(
+          this.cat.sprite.x,
+          this.cat.sprite.y
+        );
       }
     }
     this.collectiveItem?.update();
@@ -830,7 +856,10 @@ export class CatnipChaosScene extends Scene {
     });
     this.anims.create({
       key: "flight-on-anim",
-      frames: this.anims.generateFrameNumbers("flight-on", { start: 0, end: 3 }),
+      frames: this.anims.generateFrameNumbers("flight-on", {
+        start: 0,
+        end: 3,
+      }),
       frameRate: 8,
       repeat: -1,
     });
@@ -842,7 +871,10 @@ export class CatnipChaosScene extends Scene {
     });
     this.anims.create({
       key: "flight-off-anim",
-      frames: this.anims.generateFrameNumbers("flight-off", { start: 0, end: 3 }),
+      frames: this.anims.generateFrameNumbers("flight-off", {
+        start: 0,
+        end: 3,
+      }),
       frameRate: 8,
       repeat: -1,
     });
@@ -874,35 +906,8 @@ export class CatnipChaosScene extends Scene {
     this.catDto = cat;
 
     this.load.once("complete", () => {
-      if (cat.blessings?.length) {
-        this.blessing = this.add.sprite(0, 0, `blessing-${cat.type}`);
-
-        this.anims.create({
-          key: `blessing_animation_${cat.type}`,
-          frames: this.anims.generateFrameNumbers(`blessing-${cat.type}`, {
-            start: 0,
-            end: 59,
-          }),
-          frameRate: 16,
-          repeat: -1,
-        });
-
-        this.blessing.play(`blessing_animation_${cat.type}`);
-      }
-
-      this.createCat(cat.name, this.blessing, cat.type);
+      this.createCat(cat.name, null, cat.type);
     });
-
-    if (cat.blessings?.length) {
-      this.load.spritesheet(
-        `blessing-${cat.type}`,
-        `flare-effect/spritesheets/${cat.type}.png`,
-        {
-          frameWidth: 64,
-          frameHeight: 64,
-        }
-      );
-    }
 
     this.load.spritesheet(cat.name, cat.spriteImg, {
       frameWidth: 48,
@@ -1011,7 +1016,9 @@ export class CatnipChaosScene extends Scene {
 
     // Remove the effect sprite from the scene and the array
     effectSprite.destroy();
-    this.flightXEffectBlocks = this.flightXEffectBlocks.filter(sprite => sprite !== effectSprite);
+    this.flightXEffectBlocks = this.flightXEffectBlocks.filter(
+      (sprite) => sprite !== effectSprite
+    );
 
     // (Optional) Play a sound or animation here if you want
   }

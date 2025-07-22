@@ -115,6 +115,14 @@ export const CatnipChaosLevels = ({
                   className="w-20 rounded-2xl -mx-6 absolute -left-4 z-40"
                 />
               )}
+              {level === "41" && (
+                <img
+                  src={
+                    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/STICKY/base/RUNNING.gif"
+                  }
+                  className="w-20 rounded-2xl -mx-6 absolute -left-4 z-40"
+                />
+              )}
             </div>
             {level[1] === "6" && (
               <div

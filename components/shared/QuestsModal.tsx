@@ -31,14 +31,36 @@ interface ILocalQuest {
   reward: IQuestReward;
 }
 
-export const TrailheadsImgs = [
-  "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/BEAVER/base/RUNNING.gif",
-  "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/FOX/base/IDLE.gif",
-  "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/GOAT/base/JUMPING.gif",
-  "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/OWL/bandage/RUNNING.gif",
-  "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/MOOSE/base/JUMPING.gif",
-  "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/RACCON/base/WALKING.gif",
+export const TrailheadsData = [
+  {
+    name: "beaver",
+    icon: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/BEAVER/base/RUNNING.gif",
+  },
+  {
+    name: "fox",
+    icon: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/FOX/base/IDLE.gif",
+  },
+  {
+    name: "goat",
+    icon: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/GOAT/base/JUMPING.gif",
+  },
+  {
+    name: "owl",
+    icon: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/OWL/bandage/RUNNING.gif",
+  },
+  {
+    name: "moose",
+    icon: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/MOOSE/base/JUMPING.gif",
+  },
+  {
+    name: "raccoon",
+    icon: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/RACCON/base/WALKING.gif",
+  },
 ];
+
+export const TrailheadsTypes = TrailheadsData.map(
+  (trailhead) => trailhead.name
+);
 
 export enum QUEST {
   FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",

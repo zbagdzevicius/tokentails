@@ -1,8 +1,12 @@
-import React from "react";
-import { Web3Providers } from "../web3/Web3Providers";
-import { PixelButton } from "../shared/PixelButton";
+import { QUEST_API } from "@/api/quest-api";
+import { useProfile } from "@/context/ProfileContext";
+import { useWeb3 } from "@/context/Web3Context";
 import dynamic from "next/dynamic";
-import { TrailheadsImgs } from "../shared/QuestsModal";
+import { useEffect, useMemo, useState } from "react";
+import { PixelButton } from "../shared/PixelButton";
+import { TrailheadsData, TrailheadsTypes } from "../shared/QuestsModal";
+import { Web3Providers } from "../web3/Web3Providers";
+import { Tag } from "../shared/Tag";
 
 const ConnectWallet = dynamic(
   () => import("../web3/minting/Web3Mint").then((mod) => mod.ConnectWallet),
@@ -18,31 +22,90 @@ const ConnectWallet = dynamic(
 );
 
 export const TrailheadsRedeem = () => {
+  const { namespaceDetail } = useWeb3();
+  const { setProfileUpdate, profile } = useProfile();
+  const [redeemStatus, setRedeemStatus] = useState<
+    null | "loading" | "success"
+  >();
+  useEffect(() => {
+    if (redeemStatus === "success") {
+      setRedeemStatus(null);
+    }
+  }, [namespaceDetail?.address]);
+
+  const redeem = async () => {
+    if (namespaceDetail?.connected) {
+      setRedeemStatus("loading");
+      const response = await QUEST_API.redeemTrailheads(
+        namespaceDetail.address!
+      );
+      if (response) {
+        setProfileUpdate({
+          quests: [...(profile?.quests || []), ...response.owned],
+        });
+      }
+      setRedeemStatus("success");
+    }
+  };
+
   return (
     <div className="flex flex-col items-center gap-2">
-      <PixelButton text="REDEEM" />
+      {namespaceDetail?.connected && (
+        <PixelButton
+          isDisabled={redeemStatus === "loading" || redeemStatus === "success"}
+          active={redeemStatus === "success"}
+          text={
+            redeemStatus === "loading"
+              ? "REDEEMING..."
+              : redeemStatus === "success"
+              ? "REDEEMED"
+              : "REDEEM"
+          }
+          onClick={() => redeem()}
+        />
+      )}
       <ConnectWallet />
     </div>
   );
 };
 
 export const Trailheads = () => {
+  const { profile } = useProfile();
+  const ownedSkins = useMemo(() => {
+    return profile?.quests
+      ? profile.quests.filter((quest) =>
+          TrailheadsTypes.some((type) => type === quest)
+        )
+      : [];
+  }, [profile]);
+
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center animate-opacity">
       <img src="/catnip-chaos/trailheads.gif" className="w-52 rounded-2xl" />
 
       <div className="flex flex-row items-center gap-2 pixelated -mt-12">
-        {TrailheadsImgs.map((trailhead, index) => (
-          <img key={index} src={trailhead} className="w-20 rounded-2xl -mx-6" />
+        {TrailheadsData.filter(
+          (trailhead) => !ownedSkins.includes(trailhead.name)
+        ).map((trailhead, index) => (
+          <img
+            key={index}
+            src={trailhead.icon}
+            className="w-16 md:w-20 rounded-2xl -mx-4 md:-mx-6"
+          />
         ))}
         <img
           src="/blessings/CAMP_TYPE.png"
-          className="w-24 -mt-8 rounded-2xl"
+          className="w-20 md:w-28 -mt-8 md:-mt-14 rounded-2xl pixelated"
         />
-        <img
-          src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/STICKY/base/IDLE.gif"
-          className="w-20 rounded-2xl -mx-6 scale-x-[-1]"
-        />
+        {TrailheadsData.filter((trailhead) =>
+          ownedSkins.includes(trailhead.name)
+        ).map((trailhead, index) => (
+          <img
+            key={index}
+            src={trailhead.icon}
+            className="w-16 md:w-20 rounded-2xl -mx-4 md:-mx-6 scale-x-[-1]"
+          />
+        ))}
       </div>
       <div className="flex flex-col items-center font-primary">
         <div className="text-p1">
@@ -56,6 +119,12 @@ export const Trailheads = () => {
         <Web3Providers>
           <TrailheadsRedeem />
         </Web3Providers>
+      </div>
+      <div className="flex flex-col items-center font-primary mt-2 text-p5">
+        <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)]">
+          REDEEMED
+        </span>
+        <Tag isSmall>{ownedSkins.length} / 6</Tag>
       </div>
     </div>
   );
