@@ -79,12 +79,13 @@ export class CatnipChaosScene extends Scene {
   private flightOnBlocks: Phaser.GameObjects.Sprite[] = [];
   private flightOffBlocks: Phaser.GameObjects.Sprite[] = [];
   private flightEffectSprite?: Phaser.GameObjects.Sprite;
+  private flightCloudSprite?: Phaser.GameObjects.Sprite;
+  private geometryDashCloudSprite?: Phaser.GameObjects.Sprite;
   private isInFlightMode: boolean = false;
   private wasOnFlightOnBlock: boolean = false;
   private wasOnFlightOffBlock: boolean = false;
   private wasOnTile309: boolean = false;
   private flightXEffectBlocks: Phaser.GameObjects.Sprite[] = [];
-  private flightCloudSprite?: Phaser.GameObjects.Sprite;
 
   constructor() {
     super("CatnipChaosScene");
@@ -174,6 +175,10 @@ export class CatnipChaosScene extends Scene {
     if (this.flightCloudSprite) {
       this.flightCloudSprite.destroy();
       this.flightCloudSprite = undefined;
+    }
+    if (this.geometryDashCloudSprite) {
+      this.geometryDashCloudSprite.destroy();
+      this.geometryDashCloudSprite = undefined;
     }
     this.initAnimations();
     this.setupTilemap();
@@ -637,12 +642,14 @@ export class CatnipChaosScene extends Scene {
         )
       );
       let onTile309 = false;
+      let onTile121 = false;
       if (this.physicsLayer) {
         const tile = this.physicsLayer.getTileAtWorldXY(
           this.cat.sprite.x,
           this.cat.sprite.y
         );
         onTile309 = !!(tile && tile.index === 309);
+        onTile121 = !!(tile && tile.index === 121);
       }
 
       // Entering flight-on block
@@ -687,6 +694,28 @@ export class CatnipChaosScene extends Scene {
         }
       }
 
+      // Handle cloud for tile 121 (Geometry Dash mode)
+      if (onTile121) {
+        if (this.cat.animationKeys && this.cat.sprite.anims) {
+          this.cat.sprite.anims.play(this.cat.animationKeys["SITTING"], true);
+        }
+        if (!this.geometryDashCloudSprite) {
+          this.geometryDashCloudSprite = this.add.sprite(
+            this.cat.sprite.x,
+            this.cat.sprite.y,
+            "cloud"
+          );
+          this.geometryDashCloudSprite.setDisplaySize(72, 51);
+          this.geometryDashCloudSprite.setDepth(this.cat.sprite.depth - 1);
+          this.geometryDashCloudSprite.play("cloud-anim");
+        }
+      }
+      if (!onTile121 && this.geometryDashCloudSprite) {
+        if (this.cat.animationKeys && this.cat.sprite.anims) {
+          this.cat.sprite.anims.play(this.cat.animationKeys["SITTING"], true);
+        }
+      }
+
       // Update previous state trackers
       this.wasOnFlightOnBlock = onFlightOnBlock;
       this.wasOnFlightOffBlock = onFlightOffBlock;
@@ -706,6 +735,21 @@ export class CatnipChaosScene extends Scene {
         // Set cloud rotation to match player rotation
         this.flightCloudSprite.setRotation(this.cat.sprite.rotation);
         this.flightCloudSprite.setFlipY(this.isGravityReversed);
+      }
+
+      if (this.geometryDashCloudSprite && this.cat) {
+        this.geometryDashCloudSprite.setPosition(
+          this.cat.sprite.x + 3,
+          this.cat.sprite.y + 10
+        );
+        if (this.isGravityReversed) {
+          this.geometryDashCloudSprite.setPosition(
+            this.cat.sprite.x + 3,
+            this.cat.sprite.y - 10
+          );
+        }
+        this.geometryDashCloudSprite.setRotation(this.cat.sprite.rotation);
+        this.geometryDashCloudSprite.setFlipY(this.isGravityReversed);
       }
 
       if (this.flightEffectSprite && this.cat) {
@@ -786,6 +830,10 @@ export class CatnipChaosScene extends Scene {
     if (this.flightCloudSprite) {
       this.flightCloudSprite.destroy();
       this.flightCloudSprite = undefined;
+    }
+    if (this.geometryDashCloudSprite) {
+      this.geometryDashCloudSprite.destroy();
+      this.geometryDashCloudSprite = undefined;
     }
   }
 
