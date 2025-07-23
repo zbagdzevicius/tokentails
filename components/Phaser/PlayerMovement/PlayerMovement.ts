@@ -56,6 +56,10 @@ export class PlayerMovement {
     }
   }
 
+  public get geometryDashMode(): boolean {
+    return this.isGeometryDashMode;
+  }
+
   public setFlightMode(enabled: boolean) {
     this.isFlightMode = enabled;
     if (this.player.sprite.body) {
