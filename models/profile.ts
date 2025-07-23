@@ -18,6 +18,7 @@ export interface IProfile {
   spent: number;
   tails: number;
   codex: number[];
+  boxes: number;
   cat: ICat;
   cats: ICat[];
   score: number;

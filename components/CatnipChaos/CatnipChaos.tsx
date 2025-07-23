@@ -1,6 +1,6 @@
 import { useCat } from "@/context/CatContext";
 import { useGame } from "@/context/GameContext";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { GameEvents } from "../Phaser/events";
 import { CatnipChaosLevels } from "./CatnipChaosLevels";
 import { StartGame } from "./config";

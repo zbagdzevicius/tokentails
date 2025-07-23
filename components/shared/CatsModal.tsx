@@ -98,10 +98,10 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
     <div className="px-4 pt-4 pb-8 md:px-16 flex flex-col justify-between items-center animate-appear">
       <Tag>MY CATS</Tag>
       <h2 className="text-center font-secondary uppercase text-p4 md:text-p3 pt-2">
-        Here you can switch your main cat
+        Here you can switch your character
       </h2>
       <h2 className="text-center font-secondary uppercase text-p5 md:text-p4 mb-2">
-        Earn coins to Adopt more cats in the shelter
+        Earn coins to Adopt more in the shelter
       </h2>
       <PixelButton
         text="Become a Hero for Cats ♡"

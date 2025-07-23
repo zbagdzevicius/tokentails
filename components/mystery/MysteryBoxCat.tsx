@@ -10,11 +10,13 @@ import { CatBenefits } from "../shared/CatBenefits";
 import { ChainSelect } from "../shared/ChainSelect";
 import { PixelButton } from "../shared/PixelButton";
 import { Web3Transfer } from "../web3/transfer/Web3Transfer";
+import { QUEST_API } from "@/api/quest-api";
 
 export const MysteryBoxCat = () => {
   const { profile, setProfileUpdate } = useProfile();
   const toast = useToast();
   const [rolledCat, setRolledCat] = useState<null | ICat>();
+  const [lootBoxRewards, setLootBoxRewards] = useState<null | string>(null);
   const [boxType, setBoxType] = useState<EntityType>(EntityType.LOOT_BOX);
   const {
     currencyType,
@@ -41,8 +43,25 @@ export const MysteryBoxCat = () => {
         message: `You got ${amount} ${getRewardsPropName(type)} !`,
         symbol: type,
       });
+      setLootBoxRewards(
+        `You just got ${amount} ${getRewardsPropName(
+          type
+        )} from this box. Open a new box to get more rewards!`
+      );
     }
   };
+
+  const openFreeBox = async () => {
+    const result = await QUEST_API.openLootBox();
+    const { type, amount } = result;
+    setProfileUpdate({ boxes: (profile?.boxes || 0) - 1 });
+    setLootBoxRewards(
+      `You just got ${amount} ${getRewardsPropName(
+        type
+      )} from this box. Open a new box to get more rewards!`
+    );
+  };
+
   const price = useMemo(() => {
     if (boxType === EntityType.MYSTERY_BOX) {
       return Prices.generatedCat;
@@ -111,22 +130,36 @@ export const MysteryBoxCat = () => {
           text="Mystery Box"
         />
       </div>
+      {lootBoxRewards && (
+        <div className="font-primary my-2 animate-opacity text-p4 text-center text-balance">
+          {lootBoxRewards.toUpperCase()}
+        </div>
+      )}
       {!rolledCat ? (
         <>
           <ChainSelect />
           <div className="m-auto animate-appear">
             <div className="flex flex-col items-start w-fit m-auto">
-              <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
-                {currencyPrice} {currencyType}
-              </div>
-              <Web3Transfer
-                price={currencyPrice}
-                amount={1}
-                entityType={boxType}
-                user={profile?._id}
-                text="Open THE Box"
-                loadingText="Opening..."
-              />
+              {!profile?.boxes && boxType !== EntityType.LOOT_BOX && (
+                <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
+                  {currencyPrice} {currencyType}
+                </div>
+              )}
+              {!!profile?.boxes && boxType === EntityType.LOOT_BOX ? (
+                <PixelButton
+                  text="Open FREE Box"
+                  onClick={() => openFreeBox()}
+                />
+              ) : (
+                <Web3Transfer
+                  price={currencyPrice}
+                  amount={1}
+                  entityType={boxType}
+                  user={profile?._id}
+                  text="Open THE Box"
+                  loadingText="Opening..."
+                />
+              )}
             </div>
           </div>
         </>

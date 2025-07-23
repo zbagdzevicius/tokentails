@@ -12,7 +12,6 @@ import {
   CatnipChaosLevelMap,
   catnipChaosLevelsList,
 } from "../Phaser/map";
-import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
 import { TrailheadsData } from "../shared/QuestsModal";
 import { ConnectWallet, Web3Mint } from "../web3/minting/Web3Mint";
@@ -30,26 +29,20 @@ export const CatnipChaosLevels = ({
     (level) => level > 0
   ).length;
   const multiplier = getMultiplier(profile?.cat);
+  const isGuard = profile?.codex?.filter((item) => item === 1)?.length || 0;
 
-  const isDateReached = new Date(Date.UTC(2025, 6, 23, 14)) < new Date();
-  const selectLevel = (level: string) => {
-    if (level.startsWith("3") && multiplier >= 15) {
+  const selectLevel = (level: string, index: number) => {
+    if (index > unlockedLevels) {
       showToast({
-        message: "You need to select Sticky OR Trailhead to play this level",
+        message: "You need to complete previous levels to play this level",
         img: "/purrquest/sprites/key.png",
       });
       return;
     }
-    if (level.startsWith("5")) {
-      if (!isDateReached) {
-        showToast({
-          message: "Level opens up once badges mints",
-          img: "/purrquest/sprites/key.png",
-        });
-        return;
-      }
+    if (["5", "4"].includes(level[0]) && (multiplier < 15 || !isGuard)) {
       showToast({
-        message: "You need to select Trailhead to play this level",
+        message:
+          "To play this level you need: Select Sticky, Trailhead OR OWN $TAILS guard title in the codex",
         img: "/purrquest/sprites/key.png",
       });
       return;
@@ -75,22 +68,12 @@ export const CatnipChaosLevels = ({
     [profile?.quests]
   );
   return (
-    <div className="flex flex-col items-center gap-4 mt-14 lg:mt-24 pb-20">
+    <div className="flex flex-col items-center gap-4 mt-14 lg:mt-24 pb-20 animate-opacity">
       <div className="flex flex-col md:flex-row lg:flex-col gap-4 items-center">
         <img
           src="/game/select/catnip-chaos.webp"
           className="aspect-square w-36 md:w-20 lg:w-48 rounded-2xl"
         />
-        <div className="mb-4 flex flex-col justify-center items-center">
-          <div className="text-p4 font-bold flex items-center gap-1 whitespace-nowrap mb-4 font-primary md:mt-4 lg:mt-0">
-            BADGES MINT IN
-          </div>
-          <Countdown
-            isBig
-            isDaysDisplayed
-            targetDate={new Date(Date.UTC(2025, 6, 23, 14))}
-          />
-        </div>
         <Web3Providers>
           <ConnectWallet />
         </Web3Providers>
@@ -100,7 +83,7 @@ export const CatnipChaosLevels = ({
           <div className="flex items-center">
             <div
               key={i}
-              onClick={() => i <= unlockedLevels && selectLevel(level)}
+              onClick={() => selectLevel(level, i)}
               style={{
                 backgroundImage: `url(${catnipChaosChapterBGImage[level[0]]})`,
                 backgroundSize: "cover",
@@ -125,7 +108,7 @@ export const CatnipChaosLevels = ({
               {level[0] === "5" && (
                 <img
                   src={TrailheadsData[parseInt(level[1]) - 1].icon}
-                  className="w-20 rounded-2xl -mx-6 absolute -left-4 z-40"
+                  className="w-20 rounded-2xl -mx-6 absolute -left-4 z-40 pixelated"
                 />
               )}
               {level === "41" && (
@@ -133,7 +116,7 @@ export const CatnipChaosLevels = ({
                   src={
                     "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/STICKY/base/RUNNING.gif"
                   }
-                  className="w-20 rounded-2xl -mx-6 absolute -left-4 z-40"
+                  className="w-20 rounded-2xl -mx-6 absolute -left-4 z-40 pixelated"
                 />
               )}
             </div>
@@ -143,10 +126,12 @@ export const CatnipChaosLevels = ({
                   unlockedLevels >= i ? "pb-8 -mt-3" : ""
                 }`}
               >
-                {unlockedLevels >= i && isDateReached ? (
+                {unlockedLevels >= i && (
                   <div className="flex flex-col items-center absolute -bottom-5">
                     {isRedeemed(
-                      chaptersBadges[ChainType.CAMP_TEST]![parseInt(level[0])]
+                      chaptersBadges[ChainType.CAMP_TEST]![
+                        parseInt(level[0]) - 1
+                      ]
                     ) ? (
                       <PixelButton
                         text="REDEEMED"
@@ -161,29 +146,19 @@ export const CatnipChaosLevels = ({
                           ownedNFTCallback={() =>
                             onRedeem(
                               chaptersBadges[ChainType.CAMP_TEST]![
-                                parseInt(level[0])
+                                parseInt(level[0]) - 1
                               ]
                             )
                           }
                           mysteryBox={
                             chaptersBadges[ChainType.CAMP_TEST]![
-                              parseInt(level[0])
+                              parseInt(level[0]) - 1
                             ]
                           }
                         />
                       </Web3Providers>
                     )}
                   </div>
-                ) : (
-                  unlockedLevels >= i && (
-                    <div className="flex flex-col items-center absolute -bottom-5">
-                      <PixelButton
-                        text="COMING SOON"
-                        isDisabled
-                        isSmall
-                      ></PixelButton>
-                    </div>
-                  )
                 )}
                 <img
                   src={`/catnip-chaos/badges/chapter${level[0]}.webp`}

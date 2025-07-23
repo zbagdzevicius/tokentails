@@ -117,7 +117,7 @@ export const InviteModalContent = () => {
         </>
       )}
       {type === GameModal.CAMP && (
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center mt-1">
           <div className="flex flex-row items-center gap-2">
             <PixelButton
               isSmall
@@ -125,12 +125,19 @@ export const InviteModalContent = () => {
               active={campView === "mystery"}
               onClick={() => setCampView("mystery")}
             />
-            <PixelButton
-              isSmall
-              text="Trail heads"
-              active={campView === "trailheads"}
-              onClick={() => setCampView("trailheads")}
-            />
+            <div className="relative">
+              <span className="z-10 relative">
+                <PixelButton
+                  isSmall
+                  text="Trail heads"
+                  active={campView === "trailheads"}
+                  onClick={() => setCampView("trailheads")}
+                />
+              </span>
+              <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-0">
+                <Tag isSmall> NEW</Tag>
+              </div>
+            </div>
           </div>
           {campView === "mystery" && <MysteryBox />}
           {campView === "trailheads" && <Trailheads />}

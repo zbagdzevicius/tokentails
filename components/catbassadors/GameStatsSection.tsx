@@ -149,10 +149,6 @@ export const GameStatsSection = ({
             >
               <img src="/codex/codex-1.webp" className="h-8 -mb-1" />
               <div className="text-p4 pt-1 -mt-1 -mb-1">CODEX</div>
-
-              <div className="absolute flex justify-center left-0 right-0 -bottom-5">
-                <Tag isSmall> NEW</Tag>
-              </div>
             </div>
           )}
         </div>

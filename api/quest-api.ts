@@ -2,6 +2,7 @@ import { QUEST } from "@/components/shared/QuestsModal";
 import { waitForLocalStorageKey, apiUrl, getAuthHeaders } from "./api";
 import { IQuest, IQuestStatistics } from "@/models/quest";
 import { ICat } from "@/models/cats";
+import { ITransactionStatus } from "./order-api";
 
 const friendInvited = async (): Promise<object> => {
   await waitForLocalStorageKey();
@@ -44,6 +45,24 @@ const redeemTrailheads = async (
   walletAddress: string
 ): Promise<{ success: true; message: string; owned: string[] }> => {
   return fetch(`${apiUrl}/web3/trailheads/${walletAddress}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return null;
+  });
+};
+
+const openLootBox = async (): Promise<ITransactionStatus> => {
+  return fetch(`${apiUrl}/web3/open`, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -175,4 +194,5 @@ export const QUEST_API = {
   find,
   statistics,
   redeemTrailheads,
+  openLootBox,
 };

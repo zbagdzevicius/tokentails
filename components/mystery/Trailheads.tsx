@@ -8,6 +8,7 @@ import { TrailheadsData, TrailheadsTypes } from "../shared/QuestsModal";
 import { Web3Providers } from "../web3/Web3Providers";
 import { Tag } from "../shared/Tag";
 import { Countdown } from "../shared/Countdown";
+import { useToast } from "@/context/ToastContext";
 
 const ConnectWallet = dynamic(
   () => import("../web3/minting/Web3Mint").then((mod) => mod.ConnectWallet),
@@ -25,6 +26,7 @@ const ConnectWallet = dynamic(
 export const TrailheadsRedeem = () => {
   const { namespaceDetail } = useWeb3();
   const { setProfileUpdate, profile } = useProfile();
+  const toast = useToast();
   const [redeemStatus, setRedeemStatus] = useState<
     null | "loading" | "success"
   >();
@@ -46,6 +48,7 @@ export const TrailheadsRedeem = () => {
         });
       }
       setRedeemStatus("success");
+      toast({ message: response.message });
     }
   };
 
@@ -80,8 +83,6 @@ export const Trailheads = () => {
       : [];
   }, [profile]);
 
-  const isDateReached = new Date(Date.UTC(2025, 6, 23, 14)) < new Date();
-
   return (
     <div className="flex flex-col items-center animate-opacity">
       <img src="/catnip-chaos/trailheads.gif" className="w-52 rounded-2xl" />
@@ -111,7 +112,7 @@ export const Trailheads = () => {
         ))}
       </div>
       <div className="flex flex-col items-center font-primary">
-        <div className="text-p1">
+        <div className="text-p2 md:text-p1">
           Do you own{" "}
           <span className="text-yellow-300 drop-shadow-[0_1.6px_1.8px_rgba(0,0,0)]">
             TrailHeads NFT
@@ -119,26 +120,16 @@ export const Trailheads = () => {
           ?
         </div>
         <div className="mb-4 text-p4">REDEEM YOUR PLAYABLE CHARACTERS</div>
-        {isDateReached ? (
-          <Web3Providers>
-            <TrailheadsRedeem />
-          </Web3Providers>
-        ) : (
-          <Countdown
-            isBig
-            isDaysDisplayed
-            targetDate={new Date(Date.UTC(2025, 6, 23, 14))}
-          />
-        )}
+        <Web3Providers>
+          <TrailheadsRedeem />
+        </Web3Providers>
       </div>
-      {isDateReached && (
-        <div className="flex flex-col items-center font-primary mt-2 text-p5">
-          <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)]">
-            REDEEMED
-          </span>
-          <Tag isSmall>{ownedSkins.length} / 6</Tag>
-        </div>
-      )}
+      <div className="flex flex-col items-center font-primary mt-2 text-p5">
+        <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)]">
+          REDEEMED
+        </span>
+        <Tag isSmall>{ownedSkins.length} / 6</Tag>
+      </div>
     </div>
   );
 };
