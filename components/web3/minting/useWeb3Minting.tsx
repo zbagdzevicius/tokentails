@@ -1,9 +1,8 @@
-import { ORDER_API } from "@/api/order-api";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
 import { EntityType } from "@/models/save";
 import { abiERC721 } from "@/web3/abi-erc721";
-import { ChainNamespace, ChainType, CurrencyType } from "@/web3/contracts";
+import { ChainNamespace, ChainType } from "@/web3/contracts";
 import { chainTypeId } from "@/web3/web3-chains";
 import { wagmiConfig } from "@/web3/web3-config";
 import { IMysteryBox } from "@/web3/web3.model";
@@ -42,14 +41,10 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
     writeContractAsync,
     isPending,
   } = useWriteContract();
-  const [isStellarPending, setIsStellarPending] = useState(false);
-  const {
-    isLoading: isTaxLoading,
-    isSuccess: isTaxConfirmed,
-    data: taxData,
-  } = useWaitForTransactionReceipt({
-    hash,
-  });
+  const { isLoading: isTaxLoading, data: taxData } =
+    useWaitForTransactionReceipt({
+      hash,
+    });
   useEffect(() => {
     if (
       ![ChainType.STELLAR, ChainType.STELLAR_TEST].includes(mysteryBox.chain)
@@ -57,10 +52,11 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
       setNamespace(ChainNamespace.EVM);
     }
   }, [mysteryBox]);
+  const [isMinted, setIsMinted] = useState(false);
 
   const isLoading = useMemo(
-    () => isPending || isStellarPending || isTaxLoading,
-    [isStellarPending, isPending, isTaxLoading]
+    () => isPending || isTaxLoading,
+    [isPending, isTaxLoading]
   );
 
   useEffect(() => {
@@ -109,7 +105,8 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
   useEffect(() => {
     if (taxData?.status === "success") {
       refetchUserNFTsCount();
-      toast({ message: "Mystery box is minted successfully" });
+      toast({ message: "NFT is minted successfully" });
+      setIsMinted(true);
     }
   }, [taxData]);
 
@@ -132,6 +129,6 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
     namespaceDetail,
     connectWallet,
     mint,
-    userNFTsCount,
+    userNFTsCount: userNFTsCount || (isMinted ? 1 : 0),
   };
 };

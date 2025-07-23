@@ -30,16 +30,18 @@ export const CatnipChaosLevels = ({
   ).length;
   const multiplier = getMultiplier(profile?.cat);
   const isGuard = profile?.codex?.filter((item) => item === 1)?.length || 0;
+  const havePassToPlay = multiplier >= 15 || isGuard;
+  console.log(havePassToPlay);
 
   const selectLevel = (level: string, index: number) => {
-    if (index > unlockedLevels) {
+    if (index > unlockedLevels && !havePassToPlay) {
       showToast({
         message: "You need to complete previous levels to play this level",
         img: "/purrquest/sprites/key.png",
       });
       return;
     }
-    if (["5", "4"].includes(level[0]) && (multiplier < 15 || !isGuard)) {
+    if (["5"].includes(level[0]) && !havePassToPlay) {
       showToast({
         message:
           "To play this level you need: Select Sticky, Trailhead OR OWN $TAILS guard title in the codex",
@@ -96,7 +98,7 @@ export const CatnipChaosLevels = ({
                   {level?.split("").join("-")}
                 </span>
               </div>
-              {unlockedLevels < i && (
+              {!(unlockedLevels >= i || havePassToPlay) && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full p-1 w-full h-full z-20">
                   <img className="w-8 h-8" src="/purrquest/sprites/key.png" />
                 </div>
@@ -164,7 +166,7 @@ export const CatnipChaosLevels = ({
                   src={`/catnip-chaos/badges/chapter${level[0]}.webp`}
                   className="w-20 h-20 rounded-t-xl"
                 />
-                {unlockedLevels < i && (
+                {!(unlockedLevels >= i || havePassToPlay) && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/50 p-1 w-full h-full z-20">
                     <img className="w-8 h-8" src="/purrquest/sprites/key.png" />
                   </div>
