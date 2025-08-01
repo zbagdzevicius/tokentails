@@ -31,20 +31,11 @@ export const CatnipChaosLevels = ({
   const multiplier = getMultiplier(profile?.cat);
   const isGuard = profile?.codex?.filter((item) => item === 1)?.length || 0;
   const havePassToPlay = multiplier >= 15 || isGuard;
-  console.log(havePassToPlay);
 
   const selectLevel = (level: string, index: number) => {
     if (index > unlockedLevels && !havePassToPlay) {
       showToast({
         message: "You need to complete previous levels to play this level",
-        img: "/purrquest/sprites/key.png",
-      });
-      return;
-    }
-    if (["5"].includes(level[0]) && !havePassToPlay) {
-      showToast({
-        message:
-          "To play this level you need: Select Sticky, Trailhead OR OWN $TAILS guard title in the codex",
         img: "/purrquest/sprites/key.png",
       });
       return;
