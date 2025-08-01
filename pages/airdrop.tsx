@@ -25,6 +25,15 @@ function debounce<T extends (...args: any[]) => any>(
   };
 }
 
+const phaseProps: Record<
+  number,
+  "totalScore" | "totalScoreJuly" | "totalScoreAugust"
+> = {
+  1: "totalScore",
+  2: "totalScoreJuly",
+  3: "totalScoreAugust",
+};
+
 const Airdrop = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -40,7 +49,7 @@ const Airdrop = () => {
       queryFn: ({ pageParam = 0 }) =>
         getAirdropScores({
           pageParam,
-          sortBy: phase === 1 ? "totalScore" : "totalScoreJuly",
+          sortBy: phaseProps[phase],
         }),
       initialPageParam: 0,
       getNextPageParam: (lastPage, allPages) => {
@@ -185,9 +194,9 @@ const Airdrop = () => {
           >
             <div className="z-10 text-center pt-2 rounded-full flex items-center flex-col justify-center text-p4 leading-none font-primary">
               <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] w-full text-center">
-                GUARD
+                $TAILS
               </span>
-              <div>CAMPAIGN</div>
+              <div>GUARD</div>
             </div>
             <div className="w-14 h-14 -mb-6 rounded-full hover:brightness-110 bg-yellow-300 text-h5 font-primary flex justify-center items-center border-2 border-main-black">
               2
@@ -203,7 +212,7 @@ const Airdrop = () => {
           >
             <div className="z-10 text-center pt-2 rounded-full flex items-center flex-col justify-center text-p4 leading-none font-primary">
               <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] w-full text-center">
-                AWARDS
+                NFT PFP
               </span>
               <div>CAMPAIGN</div>
             </div>

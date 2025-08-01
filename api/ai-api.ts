@@ -4,6 +4,7 @@ export interface AirdropUser {
   username: string;
   totalScore: number;
   totalScoreJuly: number;
+  totalScoreAugust: number;
 }
 
 export const getAirdropScores = async ({
@@ -12,7 +13,7 @@ export const getAirdropScores = async ({
 }: {
   pageParam?: number;
   username?: string;
-  sortBy?: "totalScore" | "totalScoreJuly";
+  sortBy?: "totalScore" | "totalScoreJuly" | "totalScoreAugust";
 }): Promise<AirdropUser[]> => {
   const res = await fetch(`${apiUrl}/users/score`, {
     method: "POST",

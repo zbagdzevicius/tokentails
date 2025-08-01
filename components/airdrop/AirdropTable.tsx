@@ -3,6 +3,7 @@ import { Loader } from "@/components/shared/Loader";
 import { NoMore } from "@/components/shared/NoMore";
 import { AirdropTableProps } from "@/models/airdrop";
 import { PixelButton } from "../shared/PixelButton";
+import { AirdropUser } from "@/api/ai-api";
 
 const memeCats: Record<number, string> = {
   1: "meme-40.gif",
@@ -107,6 +108,15 @@ const memeCats: Record<number, string> = {
   100: "meme-100.png",
 };
 
+const phaseProps: Record<
+  number,
+  "totalScore" | "totalScoreJuly" | "totalScoreAugust"
+> = {
+  1: "totalScore",
+  2: "totalScoreJuly",
+  3: "totalScoreAugust",
+};
+
 export const AirdropTable: React.FC<AirdropTableProps> = ({
   scores,
   loaderRef,
@@ -162,9 +172,14 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
           onClick={() => setPhase(1)}
         />
         <PixelButton
-          text="PHASE 2 - ongoing"
+          text="PHASE 2 - ended"
           active={phase === 2}
           onClick={() => setPhase(2)}
+        />
+        <PixelButton
+          text="PHASE 3 - ongoing"
+          active={phase === 3}
+          onClick={() => setPhase(3)}
         />
       </div>
       <table className="max-w-xl m-auto w-full rounded-2xl overflow-hidden table-auto bg-blue-300 text-black-900 text-sm text-gray-500 drop-shadow-[0_2.4px_1.2px_rgba(0,0,0,0.8)]">
@@ -248,7 +263,8 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
                     : "border-yellow-300 text-yellow-300"
                 }`}
               >
-                {phase === 1 ? result.totalScore * 15 : result.totalScoreJuly}
+                {((result[phaseProps[phase] as keyof AirdropUser] as number) ||
+                  0) * (phase <= 2 ? 15 : 1)}
               </td>
             </tr>
           ))}

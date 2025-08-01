@@ -31,14 +31,14 @@ const whatToDo = [
     help: "Share a Sacred Meme - Post Our Cat Meme Content. Post any meme or craft one on your own! Points stacks up!",
     points: "+3",
     image: SocialImages.X,
-    href: "https://x.com/intent/post?text=%40tokentails%20Even%20the%20Codex%20needs%20a%20laugh.%0AMemes%20with%20meaning%20%3E%20memes%20for%20clout.%20%24TAILS%0Ahttps%3A%2F%2Fx.com%2Ftokentails%2Fstatus%2F1927673989406588989",
+    href: "https://x.com/intent/post?text=%40tokentails%20Even%20the%20Codex%20needs%20a%20laugh.%0AMemes%20with%20meaning%20%3E%20memes%20for%20clout.%20%24TAILS%0Ahttps%3A%2F%2Fx.com%2Ftokentails%2Fstatus%2F1948065811681427542",
   },
   {
     description: "QUOTE OUR POST",
     help: "Speak your own verse. Echo the Codex - Quote a Tails Post with Your Take. Points stacks up!",
     points: "+1",
     image: SocialImages.X,
-    href: "https://x.com/intent/post?text=%40tokentails%20I%20didn%E2%80%99t%20scroll%20past%20this.%0AI%20heard%20the%20Codex%20calling%20-%20and%20I%20stepped%20forward.%20%24TAILS%0Ahttps%3A%2F%2Fx.com%2Ftokentails%2Fstatus%2F1927673989406588989",
+    href: "https://x.com/intent/post?text=%40tokentails%20I%20didn%E2%80%99t%20scroll%20past%20this.%0AI%20heard%20the%20Codex%20calling%20-%20and%20I%20stepped%20forward.%20%24TAILS%0Ahttps%3A%2F%2Fx.com%2Ftokentails%2Fstatus%2F1942698433154048437",
   },
   {
     description: "Get engagement",
@@ -54,9 +54,9 @@ const whatToDo = [
     href: "https://tokentails.com/game",
   },
   {
-    description: "Collect 200 catnip",
+    description: "Collect 300 catnip",
     help: "Play catnip to complete levels and collect catnip.",
-    points: "+420",
+    points: "+690",
     image: "logo/catnip.webp",
     href: "https://tokentails.com/game",
   },
@@ -86,9 +86,13 @@ export const SocialAirdropTerms = () => {
           ENGAGE ON SOCIALS AND PLAY TO EARN
         </div>
         <span className="bg-gradient-to-r font-primary from-yellow-300 to-yellow-400 text-black px-3 py-1 pb-2 rounded-md font-bold shadow-lg border-4 border-main-black animate-pulse">
-          PHASE 2
+          PHASE 3
         </span>
-        <Countdown isDaysDisplayed isBig targetDate={new Date("2025-07-31")} />
+        <Countdown
+          isDaysDisplayed
+          isBig
+          targetDate={new Date(Date.UTC(2025, 8, 1))}
+        />
         <div className="flex items-center font-primary gap-2 text-p5 pt-4 text-center justify-center">
           TOTAL REWARDS POOL IS WORTH $1m USD
         </div>
