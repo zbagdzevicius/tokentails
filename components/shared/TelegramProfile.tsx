@@ -350,6 +350,28 @@ export const TelegramProfileContent = () => {
                   </span>
                 </div>
               </li>
+              <li className="flex items-center gap-x-2 justify-center">
+                <img
+                  draggable={false}
+                  className="w-5"
+                  src="/logo/catnip.webp"
+                />
+                <div className="flex font-secondary text-p4 gap-2">
+                  COLLECTED CATNIP:{" "}
+                  <span className="font-bold">
+                    {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0}
+                  </span>
+                </div>
+              </li>
+              <li className="flex items-center gap-x-2 justify-center">
+                <img draggable={false} className="w-5" src="/logo/human.webp" />
+                <div className="flex font-secondary text-p4 gap-2">
+                  COMPLETED QUESTS:{" "}
+                  <span className="font-bold">
+                    {profile?.quests?.length || 0}
+                  </span>
+                </div>
+              </li>
               {profile?.spent > 0 && (
                 <li className="flex flex-col gap-x-2">
                   <div className="flex font-secondary text-p4 gap-2 text-center m-auto mt-2 -mb-1">

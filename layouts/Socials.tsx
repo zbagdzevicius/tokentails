@@ -2,7 +2,11 @@ import React from "react";
 
 export const Socials = ({ isVertical }: { isVertical?: boolean }) => {
   return (
-    <div className={`flex gap-2 ${isVertical ? "flex-col" : "flex-row"}`}>
+    <div
+      className={`flex gap-2 ${
+        isVertical ? "flex-col" : "flex-row justify-center"
+      }`}
+    >
       <a
         target="_blank"
         href="https://x.com/intent/follow?screen_name=tokentails&tw_p=followbutton"
@@ -32,6 +36,19 @@ export const Socials = ({ isVertical }: { isVertical?: boolean }) => {
           src="/icons/social/discord.png"
           draggable="false"
         />
+      </a>
+      <a
+        target="_blank"
+        href="https://play.google.com/store/apps/details?id=com.tokentails.app"
+      >
+        <img
+          className="w-8"
+          src="/icons/social/android.webp"
+          draggable="false"
+        />
+      </a>
+      <a target="_blank" href="https://apps.apple.com/app/id6745582489">
+        <img className="w-8" src="/icons/social/ios.webp" draggable="false" />
       </a>
       <a target="_blank" href="mailto:info@tokentails.com">
         <img className="w-8" src="/icons/social/email.png" draggable="false" />
