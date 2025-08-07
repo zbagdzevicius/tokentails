@@ -7,13 +7,13 @@ export const ControlModalContent = () => {
       <Tag>Game Controls</Tag>
       <ul className="list-disc pl-5">
         <li>
-          <strong>Up (W,SPACE):</strong> Move your character upward.
+          <strong>Up (W,SPACE):</strong> Move your pet upward.
         </li>
         <li>
-          <strong>Left (A):</strong> Move your character to the left.
+          <strong>Left (A):</strong> Move your pet to the left.
         </li>
         <li>
-          <strong>Right (D):</strong> Move your character to the right.
+          <strong>Right (D):</strong> Move your pet to the right.
         </li>
         <li>
           <strong>Dash (Z):</strong> Perform a quick dash in the direction

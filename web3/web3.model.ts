@@ -69,6 +69,7 @@ export enum MYSTERY_BOX_TYPE {
   CATNIP_CHAOS_3 = "CATNIP_CHAOS_3",
   CATNIP_CHAOS_4 = "CATNIP_CHAOS_4",
   CATNIP_CHAOS_5 = "CATNIP_CHAOS_5",
+  CATNIP_CHAOS_6 = "CATNIP_CHAOS_6",
 }
 
 export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
@@ -216,6 +217,18 @@ export const chaptersBadges: Partial<Record<ChainType, IMysteryBox[]>> = {
       requirements: {
         type: MysteryBoxRequirementType.CHAPTER,
         text: "Complete 5th chapter of Catnip Chaos",
+      },
+    },
+    {
+      address: "0x06aB205c8ee7295d36732bced75Ce837Df5911f7",
+      name: "Catnip Chaos - Chapter 6 Badge",
+      key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_6,
+      chain: ChainType.CAMP_TEST,
+      image: "/catnip-chaos/badges/chapter6.webp",
+      faucet: "https://faucet.campnetwork.xyz",
+      requirements: {
+        type: MysteryBoxRequirementType.CHAPTER,
+        text: "Complete 6th chapter of Catnip Chaos",
       },
     },
   ],

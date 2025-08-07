@@ -89,7 +89,10 @@ export const CatnipChaosLevels = ({
                   {level?.split("").join("-")}
                 </span>
               </div>
-              {!(unlockedLevels >= i || havePassToPlay) && (
+              {!(
+                unlockedLevels >= i ||
+                (havePassToPlay && level[0] === "5")
+              ) && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full p-1 w-full h-full z-20">
                   <img className="w-8 h-8" src="/purrquest/sprites/key.png" />
                 </div>
@@ -108,6 +111,14 @@ export const CatnipChaosLevels = ({
                 <img
                   src={
                     "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/STICKY/base/RUNNING.gif"
+                  }
+                  className="w-20 rounded-2xl -mx-6 absolute -left-4 z-40 pixelated"
+                />
+              )}
+              {level === "61" && (
+                <img
+                  src={
+                    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/YAK/base/RUNNING.gif"
                   }
                   className="w-20 rounded-2xl -mx-6 absolute -left-4 z-40 pixelated"
                 />

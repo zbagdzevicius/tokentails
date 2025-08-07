@@ -96,9 +96,9 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
 
   return (
     <div className="px-4 pt-4 pb-8 md:px-16 flex flex-col justify-between items-center animate-appear">
-      <Tag>MY CATS</Tag>
+      <Tag>MY PETS</Tag>
       <h2 className="text-center font-secondary uppercase text-p4 md:text-p3 pt-2">
-        Here you can switch your character
+        Here you can switch your pet
       </h2>
       <h2 className="text-center font-secondary uppercase text-p5 md:text-p4 mb-2">
         Earn coins to Adopt more in the shelter

@@ -119,7 +119,7 @@ export const Trailheads = () => {
           </span>{" "}
           ?
         </div>
-        <div className="mb-4 text-p4">REDEEM YOUR PLAYABLE CHARACTERS</div>
+        <div className="mb-4 text-p4">REDEEM YOUR PLAYABLE PETS</div>
         <Web3Providers>
           <TrailheadsRedeem />
         </Web3Providers>

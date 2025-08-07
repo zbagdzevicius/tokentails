@@ -18,8 +18,8 @@ export const FeaturedCatContent = ({ close }: { close: () => void }) => {
       </div>
       <Tag isSmall>WHO IS STICKY?</Tag>
       <div className="flex flex-col gap-4 text-center">
-        STICKY IS EXCLUSIVE CAMP'S MASCOT CHARACTER THAT GIVES DOUBLE JUMP, X15
-        COINS MULTIPLIER AND UNIQUE ABILITY TO PLAY CHAPTER 3 OF CATNIP CHAOS
+        STICKY IS EXCLUSIVE CAMP'S MASCOT PET THAT GIVES DOUBLE JUMP, X15 COINS
+        MULTIPLIER AND UNIQUE ABILITY TO PLAY CHAPTER 3 OF CATNIP CHAOS
       </div>
       <Tag isSmall>YOU DON'T HAVE STICKY YET?</Tag>
       <div className="flex flex-col gap-4 text-center">
