@@ -13,6 +13,7 @@ export interface IUserWallets {
 export interface IProfile {
   _id: string;
   twitter?: string;
+  discord?: string;
   name: string;
   streak: number;
   spent: number;

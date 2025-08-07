@@ -6,8 +6,7 @@ import { useToast } from "@/context/ToastContext";
 import { GameModal } from "@/models/game";
 import { IProfile } from "@/models/profile";
 import { useMutation } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
-import { GameStatSection } from "../catbassadors/GameStatsSection";
+import { useCallback, useState } from "react";
 import { CatnipChaosLevelMap } from "../Phaser/map";
 import { CloseButton } from "./CloseButton";
 import { GameMusicToggle } from "./GameMusicToggler";
@@ -19,13 +18,13 @@ const Cat = ({ profile }: { profile?: IProfile | null }) => {
     <div className="relative">
       <img
         draggable={false}
-        className="w-32 m-auto pixelated -mt-8 -mb-8 md:mb-0 md:-mt-8 relative z-10"
+        className="w-24 m-auto pixelated -mt-8 -mb-8 md:mb-0 md:-mt-8 relative z-10"
         src={profile?.cat?.catImg || "/logo/logo.webp"}
       />
       {(profile?.cat.blessings?.length || 0) > 0 && (
         <img
           draggable={false}
-          className="absolute m-auto inset-0 object-cover translate-y-1 w-32 h-32 -mt-4 z-0"
+          className="absolute m-auto inset-0 object-cover translate-y-1 w-24 h-24 -mt-2 z-0"
           src={`/flare-effect/${profile!.cat.type}.gif`}
         ></img>
       )}
@@ -134,25 +133,28 @@ const getDonationSummary = (breakdown: DonationBreakdown): string => {
 const ProfileUpdate = () => {
   const { profile } = useProfile();
   const [twitter, setTwitter] = useState(profile?.twitter);
-  const [editMode, setEditMode] = useState(false);
+  const [discord, setDiscord] = useState(profile?.discord);
+  const [twitterEditMode, setTwitterEditMode] = useState(false);
+  const [discordEditMode, setDiscordEditMode] = useState(false);
   const toast = useToast();
   const { mutate, isPending } = useMutation({
     mutationFn: USER_API.saveProfileTwitter,
     onSuccess: () => {
-      toast({ message: "X is successfully connected" });
-      setEditMode(false);
+      toast({ message: "Successfully connected" });
+      setTwitterEditMode(false);
+      setDiscordEditMode(false);
     },
   });
-  const buttonText = editMode
+  const twitterButtonText = twitterEditMode
     ? isPending
       ? "Saving..."
       : "Save"
     : twitter
     ? "Edit"
     : "Connect";
-  const onButtonClick = () => {
-    if (!editMode) {
-      setEditMode(true);
+  const onTwitterButtonClick = () => {
+    if (!twitterEditMode) {
+      setTwitterEditMode(true);
     } else if (twitter?.length) {
       mutate({
         twitter: twitter.trim().replace("@", "").toLowerCase(),
@@ -160,11 +162,28 @@ const ProfileUpdate = () => {
       });
     }
   };
+  const discordButtonText = discordEditMode
+    ? isPending
+      ? "Saving..."
+      : "Save"
+    : discord
+    ? "Edit"
+    : "Connect";
+  const onDiscordButtonClick = () => {
+    if (!discordEditMode) {
+      setDiscordEditMode(true);
+    } else if (discord?.length) {
+      mutate({
+        discord: discord.trim().replace("@", "").toLowerCase(),
+        _id: profile?._id,
+      });
+    }
+  };
 
   return (
-    <div className="flex items-center flex-col justify-center md:-mt-6 mb-2">
+    <div className="flex items-center flex-col justify-center mt-2 mb-2">
       <img className="w-8 -mb-3" src="/icons/social/x.webp" draggable="false" />
-      {!editMode ? (
+      {!twitterEditMode ? (
         <Tag isSmall>
           {twitter ? `X: ${twitter}` : "X Handle is not connected"}
         </Tag>
@@ -177,12 +196,38 @@ const ProfileUpdate = () => {
           placeholder="Your X Handle"
         />
       )}
-      <span>
+      <span className="-mt-2">
         <PixelButton
           isDisabled={isPending}
           isSmall
-          text={buttonText}
-          onClick={onButtonClick}
+          text={twitterButtonText}
+          onClick={onTwitterButtonClick}
+        />
+      </span>
+      <img
+        className="w-8 -mb-3"
+        src="/icons/social/discord.png"
+        draggable="false"
+      />
+      {!discordEditMode ? (
+        <Tag isSmall>
+          {discord ? `Discord: ${discord}` : "Discord Handle is not connected"}
+        </Tag>
+      ) : (
+        <input
+          type="text"
+          value={discord}
+          onChange={(e) => setDiscord(e.target.value?.slice(0, 24))}
+          className="flex-grow px-2 py-1 outline-none text-p5 bg-white rounded-full"
+          placeholder="Your Discord Handle"
+        />
+      )}
+      <span className="-mt-2">
+        <PixelButton
+          isDisabled={isPending}
+          isSmall
+          text={discordButtonText}
+          onClick={onDiscordButtonClick}
         />
       </span>
     </div>
@@ -211,12 +256,14 @@ export const TelegramProfileContent = () => {
 
   return (
     <div className="pt-4 pb-8 md:pb-4 px-4 md:pt-4 text-gray-700 flex flex-col md:flex-row md:gap-4 justify-between items-center animate-appear">
-      <span className="md:hidden">
-        <Cat profile={profile} />
-      </span>
       {profile?.cat && (
         <div className="m-auto font-primary">
-          <Tag>Hello, {profile.name} !</Tag>
+          <span className="relative z-0">
+            <Cat profile={profile} />
+          </span>
+          <div className="relative z-10 md:-mt-8">
+            <Tag>Hello, {profile.name} !</Tag>
+          </div>
           <div className="flex justify-center -mb-4">
             <PixelButton
               isSmall
@@ -422,10 +469,7 @@ export const TelegramProfileContent = () => {
           )}
         </div>
       )}
-      <div className="flex flex-col">
-        <span className="hidden md:block">
-          <Cat profile={profile} />
-        </span>
+      <div className="flex flex-col justify-center">
         <ProfileUpdate />
         <GameMusicToggle />
         {isFB && <PixelButton isSmall text="Logout" onClick={logout} />}
