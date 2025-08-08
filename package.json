@@ -18,6 +18,7 @@
     "extrude:construct": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/construct-original.png --output ./public/base/construct.png",
     "extrude:candy": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/candy-original.png --output ./public/base/candy.png",
     "extrude:camp": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/camp-original.png --output ./public/base/camp.png",
+    "extrude:summit": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/summit-original.png --output ./public/base/summit.png",
     "build:prod": "env-cmd -f .env.production next build",
     "build:app": "env-cmd -f .env.app next build",
     "app:sync": "npx cap copy && npx cap sync",
