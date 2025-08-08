@@ -236,6 +236,19 @@ export class CatnipChaosScene extends Scene {
 
     this.groundLayer.setCollisionByExclusion([-1, ...SPIKE_TILES]);
     this.platformsLayer.setCollision(JUMP_LAYER_TILES);
+      this.platformsLayer.setTileIndexCallback(
+      JUMP_LAYER_TILES,
+      (player: Phaser.GameObjects.GameObject) => {
+        const playerSprite = player as Phaser.Physics.Arcade.Sprite;
+
+        if (this.isGravityReversed) {
+          return playerSprite.body!.velocity.y >= 0;
+        } else {
+          return playerSprite.body!.velocity.y <= 0;
+        }
+      },
+      this
+    );
 
     this.createDogsOnTiles(22);
 
