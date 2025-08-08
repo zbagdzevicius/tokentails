@@ -575,7 +575,11 @@ export const SafeCatCard = ({
                 {donationsToSave < 1
                   ? unitsToBuy
                     ? `MEOW! CLICK ${buyText} TO SAVE`
-                    : "OUT OF SUPPLY"
+                    : !isOwned
+                    ? "OUT OF SUPPLY"
+                    : ""
+                  : isOwned
+                  ? `YOU OWN #${cat.totalSupply - donationsToSave}`
                   : `${donationsToSave} Remaining. ${
                       buyText === "Adopt" || cat?.price > 1000
                         ? "Every sale supports local shelters"

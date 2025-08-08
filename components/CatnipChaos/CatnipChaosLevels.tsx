@@ -73,7 +73,7 @@ export const CatnipChaosLevels = ({
       </div>
       <div className="flex flex-wrap gap-4 justify-center max-w-[44rem]">
         {catnipChaosLevelsList.map((level, i) => (
-          <div className="flex items-center">
+          <div className="flex items-center" key={i}>
             <div
               key={i}
               onClick={() => selectLevel(level, i)}

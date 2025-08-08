@@ -29,6 +29,7 @@ import { getMultiplier } from "@/constants/cat-utils";
 import { FeaturedCatModal } from "@/components/shared/FeaturedCatModal";
 import { SupportModal } from "@/components/shared/SupportModal";
 import { CodexModal } from "@/components/shared/CodexModal";
+import { OfferWallModal } from "@/components/ads/OfferWall";
 
 type ContextState = {
   isStarted?: boolean;
@@ -261,15 +262,12 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           )}
           <Notification notifications={notifications} />
           <MobileButtons
-  isHidden={
-    !(
-      isStarted &&
-      gameType !== GameType.CATNIP_CHAOS
-    ) &&
-    gameType !== GameType.SHELTER &&
-    !(gameType === GameType.HOME && !!profile.cat?.status?.EAT)
-  }
-/>
+            isHidden={
+              !(isStarted && gameType !== GameType.CATNIP_CHAOS) &&
+              gameType !== GameType.SHELTER &&
+              !(gameType === GameType.HOME && !!profile.cat?.status?.EAT)
+            }
+          />
           {isStarted && gameType === GameType.CATBASSADORS && <DisplayCoins />}
 
           {openedModal === GameModal.PROFILE && (
@@ -295,6 +293,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           )}
           {openedModal === GameModal.CONTROL_SETTINGS && (
             <ControlModal close={() => setOpenedModal(null)} />
+          )}
+          {openedModal === GameModal.OFFER_WALL && (
+            <OfferWallModal close={() => setOpenedModal(null)} />
           )}
           {openedModal === GameModal.FEATURED_CAT && (
             <FeaturedCatModal close={() => setOpenedModal(null)} />
