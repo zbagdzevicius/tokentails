@@ -14,10 +14,6 @@ const navConsts: FooterProps[] = [
     link: "#feedbackslider",
   },
   {
-    title: "Token",
-    link: "/#tokenomics",
-  },
-  {
     title: "Blog",
     link: "/feed",
   },
