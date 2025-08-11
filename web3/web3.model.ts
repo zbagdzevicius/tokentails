@@ -11,13 +11,6 @@ export interface ITransfer {
   _id?: string;
 }
 
-export interface ITransaction {
-  transfer: ITransfer;
-  address: string;
-  hash: `0x${string}`;
-  userId: string;
-}
-
 export enum MysteryBoxRequirementType {
   APP_DOWNLOAD = "APP_DOWNLOAD",
   COINS = "COINS",

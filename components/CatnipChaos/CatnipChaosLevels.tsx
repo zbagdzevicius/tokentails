@@ -33,7 +33,7 @@ export const CatnipChaosLevels = ({
   const havePassToPlay = multiplier >= 15 || isGuard;
 
   const selectLevel = (level: string, index: number) => {
-    if (index > unlockedLevels && !havePassToPlay) {
+    if (index > unlockedLevels && havePassToPlay) {
       showToast({
         message: "You need to complete previous levels to play this level",
         img: "/purrquest/sprites/key.png",
