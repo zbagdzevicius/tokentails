@@ -82,7 +82,7 @@ export const CatnipChaosLevels = ({
                 backgroundSize: "cover",
                 backgroundPosition: "top",
               }}
-              className="hover:brightness-125 clickable relative border flex flex-col items-center justify-center w-20 h-20 rounded-full"
+              className="hover:brightness-110 clickable relative border hover:border-4 hover:border-yellow-300 hover:scale-110 transition-all flex flex-col items-center justify-center w-20 h-20 rounded-full"
             >
               <div className="z-10 text-center rounded-full flex items-center justify-center text-p1 leading-none font-primary">
                 <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] w-full text-center">

@@ -9,7 +9,6 @@ const symbolImage: Record<ICollectibleProperty, string> = {
 
 export const Toast = ({ message, icon, isError, symbol, img }: IToast) => {
   const symbolImg = symbol ? symbolImage[symbol] : null;
-  console.log(img);
   return (
     <div
       className="fixed z-[110] top-32 left-1/2 "

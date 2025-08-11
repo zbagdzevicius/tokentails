@@ -18,6 +18,19 @@ import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
 import { Web3Providers } from "../web3/Web3Providers";
 
+const ConnectWallet = dynamic(
+  () => import("../web3/minting/Web3Mint").then((mod) => mod.ConnectWallet),
+  {
+    ssr: false,
+    loading: () => (
+      <img
+        src="/icons/loader.webp"
+        className="w-8 h-8 m-auto animate-spin pixelated"
+      />
+    ),
+  }
+);
+
 const Web3Mint = dynamic(
   () => import("../web3/minting/Web3Mint").then((mod) => mod.Web3Mint),
   {
@@ -199,7 +212,7 @@ export const MysteryBox = () => {
       ) : (
         <div className="flex items-center mb-4">
           <div className="font-primary uppercase">
-            <Tag isSmall>Congratz! You've Completed Camp tasks</Tag>
+            <Tag isSmall>You've Completed Camp tasks!</Tag>
             <div className="mt-4 text-balance text-p5 text-center">
               This isn’t Web3 hype. This is soulbound proof. The algorithm
               noticed. So did the Codex.{" "}
@@ -236,16 +249,24 @@ export const MysteryBox = () => {
           </div>
         </div>
       )}
-      <div className="flex flex-col gap-2">
+
+      <Web3Providers>
+        <ConnectWallet />
+      </Web3Providers>
+      <div className="flex flex-col gap-2 mt-2">
         {!finished && (
           <Tag isSmall>Complete all 5 mints for maximum rewards !</Tag>
         )}
-        <div className="flex w-full justify-between">
+        <div className="flex w-full justify-center gap-2 gap-y-8 flex-wrap">
           {mysteryBoxes.CAMP_TEST?.map((box, i) => (
-            <div key={i} className="relative rounded-2xl overflow-hidden">
-              <img draggable={false} className="w-16 md:w-20" src={box.image} />
+            <div key={i} className="relative rounded-2xl">
+              <img
+                draggable={false}
+                className="w-24 md:w-20 rounded-2xl"
+                src={box.image}
+              />
               {profile?.quests?.includes(box.key) && (
-                <div className="absolute inset-0 flex items-center justify-center bg-green-300/50">
+                <div className="absolute inset-0 flex items-center justify-center bg-green-300/50 rounded-2xl">
                   <img
                     draggable={false}
                     className="w-8"
@@ -253,11 +274,23 @@ export const MysteryBox = () => {
                   />
                 </div>
               )}
+              {profile?.quests?.includes(box.key) && (
+                <div className="absolute left-0 right-0 flex items-center justify-center -bottom-8 -mx-4 rounded-2xl">
+                  <Web3Providers>
+                    <Web3Mint
+                      hideAddress
+                      user={profile?._id!}
+                      mysteryBox={box}
+                      text="REMINT"
+                    />
+                  </Web3Providers>
+                </div>
+              )}
               {i > (unlockedIndex ?? 0) && (
-                <div className="absolute inset-0 flex items-center justify-center bg-red-300/50">
+                <div className="absolute inset-0 flex items-center justify-center bg-red-300/50 rounded-2xl">
                   <img
                     draggable={false}
-                    className="w-8 pixelated"
+                    className="w-8 pixelated overflow-hidden"
                     src="/purrquest/sprites/key.png"
                   />
                 </div>

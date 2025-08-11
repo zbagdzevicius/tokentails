@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { CloseButton } from "../shared/CloseButton";
 import { useProfile } from "@/context/ProfileContext";
+import { useToast } from "@/context/ToastContext";
 
 export const OfferWallContent = ({ close }: { close: () => void }) => {
   const { profile } = useProfile();
@@ -15,6 +16,15 @@ export const OfferWallContent = ({ close }: { close: () => void }) => {
 };
 
 export const OfferWallModal = ({ close }: { close: () => void }) => {
+  const toast = useToast();
+
+  useEffect(() => {
+    toast({
+      message:
+        "Complete tasks to earn $TAILS. Earned $TAILS will be added to your balance in 5 minutes",
+    });
+  }, []);
+
   return (
     <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center h-full ">
       <div

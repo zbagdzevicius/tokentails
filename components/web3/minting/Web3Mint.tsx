@@ -14,6 +14,7 @@ interface Web3TransferProps {
   ownedNFTCallback?: () => void;
   mysteryBox: IMysteryBox;
   hideAddress?: boolean;
+  text?: string;
 }
 
 export const ConnectWallet = () => {
@@ -60,6 +61,7 @@ export const Web3Mint = ({
   ownedNFTCallback,
   mysteryBox,
   hideAddress,
+  text,
 }: Web3TransferProps) => {
   const { namespaceDetail, connectWallet, mint, isLoading, userNFTsCount } =
     useWeb3Minting({
@@ -86,6 +88,10 @@ export const Web3Mint = ({
     );
   }
 
+  if (!ownedNFTCallback && (userNFTsCount as bigint) > 0) {
+    return <></>;
+  }
+
   return (
     <div className="flex flex-col justify-center items-center">
       {namespaceDetail?.connected ? (
@@ -95,14 +101,10 @@ export const Web3Mint = ({
             isBig
             isSmall={hideAddress}
             text={
-              ownedNFTCallback && (userNFTsCount as bigint) > 0
-                ? "Redeem Now"
-                : "Mint Now"
+              (userNFTsCount as bigint) > 0 ? "Redeem Now" : text || "Mint Now"
             }
             onClick={() =>
-              ownedNFTCallback && (userNFTsCount as bigint) > 0
-                ? ownedNFTCallback()
-                : mint()
+              (userNFTsCount as bigint) > 0 ? ownedNFTCallback?.() : mint()
             }
           ></PixelButton>
           {address && !hideAddress && (

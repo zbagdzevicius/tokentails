@@ -71,13 +71,13 @@ export const GameStatsSection = ({
             <div className="relative -mb-2">
               <img
                 draggable={false}
-                className="w-12 h-12"
+                className="w-20 h-20 -mt-6 pixelated"
                 src={profile.cat?.catImg}
               />
               {!!profile.cat?.blessings?.length && (
                 <img
                   draggable={false}
-                  className="absolute inset-0 l object-cover w-12 h-12"
+                  className="absolute inset-0 l object-cover w-20 h-20 -mt-6 pixelated"
                   src={`/flare-effect/${profile.cat.type}.gif`}
                 ></img>
               )}
@@ -96,7 +96,7 @@ export const GameStatsSection = ({
                     "To earn lives - Redeem daily rewards, invite friends and feed your cat at Home",
                 })
               }
-              className="flex flex-col items-center font-secondary text-p2 bg-purple-300 bg-opacity-80 hover:bg-opacity-100 px-2 rounded-b-xl"
+              className="flex flex-col items-center font-secondary text-p2 bg-purple-300 hover:bg-red-300 transition-colors px-2 rounded-b-xl"
             >
               <div className="text-p4">{profile.catbassadorsLives || 0}</div>
               <div className="flex items-center -mt-2">
@@ -145,10 +145,22 @@ export const GameStatsSection = ({
           {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
             <div
               onClick={() => setOpenedModal(GameModal.CODEX)}
-              className="flex flex-col items-center font-secondary text-p2 bg-yellow-300 hover:scale-125 transition-all hover:mt-1 hover:bg-amber-300 bg-opacity-80 hover:bg-opacity-100 px-2 rounded-b-xl relative"
+              className="flex flex-col items-center font-primary text-p2 bg-blue-300 hover:scale-110 transition-all hover:mt-1 hover:border-yellow-300 hover:border-4 px-2 rounded-b-xl hover:rounded-xl relative"
             >
-              <img src="/codex/codex-1.webp" className="h-8 -mb-1" />
+              <img src="/codex/codex-1.webp" className="h-10 -my-1 -mb-1" />
               <div className="text-p4 pt-1 -mt-1 -mb-1">CODEX</div>
+            </div>
+          )}
+        </div>
+        <div className="absolute left-20 top-2 flex-col items-center">
+          {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
+            <div
+              onClick={() => setOpenedModal(GameModal.OFFER_WALL)}
+              className="flex flex-col items-center font-primary text-p2 bg-blue-300 hover:scale-110 transition-all hover:mt-1 hover:border-yellow-300 hover:border-4 hover:rounded-xl px-2 rounded-r-xl relative"
+            >
+              <img src="/logo/logo.webp" className="h-8 -mb-1 -mt-3" />
+              <div className="text-p4 pt-1 -mt-1 -mb-1">EARN</div>
+              <div className="text-p4 pt-1 -mt-3 -mb-1">$TAILS</div>
             </div>
           )}
         </div>

@@ -47,7 +47,7 @@ export const InviteModalContent = () => {
         ></PixelButton>
         <PixelButton
           active={type === GameModal.MYSTERY_CAT}
-          text="EVENT"
+          text="BOXES"
           onClick={() => setType(GameModal.MYSTERY_CAT)}
         ></PixelButton>
       </div>
@@ -118,26 +118,19 @@ export const InviteModalContent = () => {
       )}
       {type === GameModal.CAMP && (
         <div className="flex flex-col items-center mt-1">
-          <div className="flex flex-row items-center gap-2">
+          <div className="flex flex-row items-center">
             <PixelButton
               isSmall
-              text="TASKS"
+              text="MATCHSTICKS TASKS"
               active={campView === "mystery"}
               onClick={() => setCampView("mystery")}
             />
-            <div className="relative">
-              <span className="z-10 relative">
-                <PixelButton
-                  isSmall
-                  text="Trail heads"
-                  active={campView === "trailheads"}
-                  onClick={() => setCampView("trailheads")}
-                />
-              </span>
-              <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-0">
-                <Tag isSmall> NEW</Tag>
-              </div>
-            </div>
+            <PixelButton
+              isSmall
+              text="Trail heads"
+              active={campView === "trailheads"}
+              onClick={() => setCampView("trailheads")}
+            />
           </div>
           {campView === "mystery" && <MysteryBox />}
           {campView === "trailheads" && <Trailheads />}
@@ -161,7 +154,7 @@ export const InviteModal = ({ close }: { close: () => void }) => {
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
       <div
-        className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full absolute top-1/2 -translate-y-1/2 h-full rounded-xl shadow max-h-screen overflow-y-auto"
+        className="m-auto z-50 rem:w-[370px] md:w-[480px] max-w-full absolute top-1/2 -translate-y-1/2 h-full rounded-xl shadow max-h-screen overflow-y-auto"
         style={{
           backgroundImage: "url('/backgrounds/bg-5.webp')",
           backgroundRepeat: "no-repeat",

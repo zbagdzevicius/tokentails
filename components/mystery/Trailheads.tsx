@@ -1,14 +1,13 @@
 import { QUEST_API } from "@/api/quest-api";
 import { useProfile } from "@/context/ProfileContext";
+import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { PixelButton } from "../shared/PixelButton";
 import { TrailheadsData, TrailheadsTypes } from "../shared/QuestsModal";
-import { Web3Providers } from "../web3/Web3Providers";
 import { Tag } from "../shared/Tag";
-import { Countdown } from "../shared/Countdown";
-import { useToast } from "@/context/ToastContext";
+import { Web3Providers } from "../web3/Web3Providers";
 
 const ConnectWallet = dynamic(
   () => import("../web3/minting/Web3Mint").then((mod) => mod.ConnectWallet),

@@ -70,11 +70,11 @@ const config: Config = {
         },
         bounceWithFade: {
           "0%": {
-            transform: "translateY(-25%)",
+            transform: "translateY(-100%)",
             opacity: "0",
             animationTimingFunction: "cubic-bezier(0.8, 0, 1, 1)",
           },
-          "25%": {
+          "5%": {
             transform: "translateY(-25%)",
             opacity: "0.5",
             animationTimingFunction: "cubic-bezier(0.2, 0, 0.5, 1)",
@@ -84,13 +84,13 @@ const config: Config = {
             opacity: "1",
             animationTimingFunction: "cubic-bezier(0, 0, 0.2, 1)",
           },
-          "75%": {
+          "90%": {
             transform: "translateY(0)",
             opacity: "1",
             animationTimingFunction: "cubic-bezier(0, 0, 0.2, 1)",
           },
           "100%": {
-            transform: "translateY(-25%)",
+            transform: "translateY(-100%)",
             opacity: "0",
             animationTimingFunction: "cubic-bezier(0.8, 0, 1, 1)",
           },

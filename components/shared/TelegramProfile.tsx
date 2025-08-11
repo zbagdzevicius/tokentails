@@ -261,8 +261,8 @@ export const TelegramProfileContent = () => {
           <span className="relative z-0">
             <Cat profile={profile} />
           </span>
-          <div className="relative z-10 md:-mt-8">
-            <Tag>Hello, {profile.name} !</Tag>
+          <div className="relative z-10 md:-mt-6">
+            <Tag isSmall>Hello, {profile.name} !</Tag>
           </div>
           <div className="flex justify-center -mb-4">
             <PixelButton

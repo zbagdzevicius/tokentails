@@ -161,7 +161,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                 {!cat.staked && (
                   <PixelButton
                     isSmall
-                    text="CRAFT COINS"
+                    text={`CRAFT ${5 * getMultiplier(cat)}k COINS`}
                     onClick={() => onStakeCat(cat)}
                   />
                 )}

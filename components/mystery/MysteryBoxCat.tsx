@@ -140,7 +140,7 @@ export const MysteryBoxCat = () => {
           <ChainSelect />
           <div className="m-auto animate-appear">
             <div className="flex flex-col items-start w-fit m-auto">
-              {!profile?.boxes && boxType !== EntityType.LOOT_BOX && (
+              {(!profile?.boxes || boxType === EntityType.MYSTERY_BOX) && (
                 <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
                   {currencyPrice} {currencyType}
                 </div>
@@ -171,6 +171,42 @@ export const MysteryBoxCat = () => {
           </div>
           <PixelButton onClick={() => setRolledCat(null)} text="Try again" />
           <CatBenefits cat={rolledCat}></CatBenefits>
+        </div>
+      )}
+      {boxType === EntityType.LOOT_BOX && (
+        <div className="flex flex-col items-center justify-center w-48">
+          <div className="text-p4 font-secondary text-center mt-2">
+            WHAT CAN I WIN?
+          </div>
+          <div className="text-p4 bg-amber-500 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 hover:scale-110 transition-transform mb-2 border-2 rounded-xl border-main-black">
+            <img draggable={false} src="/logo/logo.webp" className="w-8 mr-3" />
+            <span className="flex flex-col">
+              <span className="text-p5 -mb-1 text-amber-900">WIN $TAILS</span>
+              <span>UP TO $3k in $TAILS</span>
+            </span>
+          </div>
+          <div className="text-p4 bg-green-600 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 hover:scale-110 transition-transform mb-2 border-2 rounded-xl border-main-black">
+            <img
+              draggable={false}
+              src="/logo/coin.webp"
+              className="w-8 h-8 mr-3 -ml-5"
+            />
+            <span className="flex flex-col">
+              <span className="text-p5 -mb-1 text-green-900">WIN COINS</span>
+              <span>UP TO 1 000 000</span>
+            </span>
+          </div>
+          <div className="text-p4 bg-red-600 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 hover:scale-110 transition-transform mb-2 border-2 rounded-xl border-main-black">
+            <img
+              draggable={false}
+              src="/logo/heart.webp"
+              className="w-8 h-8 mr-3 -ml-1 pixelated"
+            />
+            <span className="flex flex-col">
+              <span className="text-p5 -mb-1 text-red-900">WIN LIVES</span>
+              <span>UP TO 10000 LIVES</span>
+            </span>
+          </div>
         </div>
       )}
     </div>
