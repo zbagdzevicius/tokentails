@@ -438,7 +438,7 @@ export class CatnipChaosScene extends Scene {
 
     this.createHiddenSpikes();
 
-    //this.createSpikes();
+    this.createSpikes();
 
     this.createGameObjects();
 
