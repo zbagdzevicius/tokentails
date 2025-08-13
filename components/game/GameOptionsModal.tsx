@@ -110,12 +110,27 @@ export const GameOptionsModal = ({
               text={profile.canRedeemLives ? "DAILY CHECK-IN" : "CHECKED-IN"}
             ></PixelButton>
           </div>
-          <PixelButton
-            onClick={() => {
-              setOpenedModal(GameModal.QUESTS);
-            }}
-            text="QUESTS"
-          ></PixelButton>
+          <span className="relative">
+            <PixelButton
+              onClick={() => {
+                setOpenedModal(GameModal.QUESTS);
+              }}
+              text="QUESTS"
+            ></PixelButton>
+            <div className="absolute -top-8 flex-col items-center left-1/2 -translate-x-1/2">
+              {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
+                <div
+                  onClick={() => setOpenedModal(GameModal.OFFER_WALL)}
+                  className="flex flex-col items-center font-primary bg-blue-300 hover:scale-110 transition-all hover:mt-1 hover:border-yellow-300 hover:border-4 hover:rounded-xl px-2 rounded-t-xl relative"
+                >
+                  <img src="/logo/logo.webp" className="h-8 -mb-1 -mt-3" />
+                  <div className="text-p5 pt-1 -mt-1 -mb-1 whitespace-nowrap">
+                    EARN $TAILS
+                  </div>
+                </div>
+              )}
+            </div>
+          </span>
         </div>
       )}
     </>

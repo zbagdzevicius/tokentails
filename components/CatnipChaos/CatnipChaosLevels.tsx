@@ -61,7 +61,7 @@ export const CatnipChaosLevels = ({
     [profile?.quests]
   );
   return (
-    <div className="flex flex-col items-center gap-4 mt-14 lg:mt-24 pb-20 animate-opacity">
+    <div className="flex flex-col items-center gap-4 mt-14 lg:mt-24 pb-20 animate-opacity pt-8">
       <div className="flex flex-col md:flex-row lg:flex-col gap-4 items-center">
         <img
           src="/game/select/catnip-chaos.webp"

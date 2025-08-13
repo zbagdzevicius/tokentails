@@ -30,6 +30,7 @@ import { FeaturedCatModal } from "@/components/shared/FeaturedCatModal";
 import { SupportModal } from "@/components/shared/SupportModal";
 import { CodexModal } from "@/components/shared/CodexModal";
 import { OfferWallModal } from "@/components/ads/OfferWall";
+import { CloseButton } from "@/components/shared/CloseButton";
 
 type ContextState = {
   isStarted?: boolean;
@@ -80,6 +81,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   useEffect(() => {
     if (gameType === null) {
       setLevel(null);
+      setIsStarted(false);
     }
   }, [gameType]);
 
@@ -102,6 +104,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
       setGameStop({
         score: earnedScore,
         time: event.time ?? 0,
+        completedLevel: event.finished ? level : null,
       });
 
       let catnipChaos = profile.catnipChaos;
@@ -218,19 +221,31 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     setOpenedModal,
     gameStop,
     level,
-    setLevel,
+    setLevel: (level: string | null) => {
+      setLevel(level);
+      setIsStarted(!!level);
+    },
   };
 
   const onClose = () => {
     setGameStop(null);
     setLevel(null);
+    setIsStarted(false);
   };
 
-  const tryAgain = () => {
+  const tryAgain = (nextLevel?: string) => {
     setGameStop(null);
     setGameType(gameType);
     if ((profile?.catbassadorsLives || 0) > 0) {
-      GameEvents.GAME_START.push({ cat: profile?.cat, isRestart: true });
+      if (nextLevel) {
+        setLevel(null);
+        setTimeout(() => {
+          setLevel(nextLevel);
+          setIsStarted(true);
+        }, 200);
+      } else {
+        GameEvents.GAME_START.push({ cat: profile?.cat, isRestart: true });
+      }
     } else {
       showToast({ message: "You run out of lives ):" });
       onClose();
@@ -269,6 +284,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
             }
           />
           {isStarted && gameType === GameType.CATBASSADORS && <DisplayCoins />}
+          {/* {isStarted && gameType === GameType.CATNIP_CHAOS && (
+            <CloseButton onClick={onClose} absolute />
+          )} */}
 
           {openedModal === GameModal.PROFILE && (
             <TelegramProfile close={() => setOpenedModal(null)} />

@@ -1,12 +1,11 @@
 import { useGame } from "@/context/GameContext";
+import { useToast } from "@/context/ToastContext";
 import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
 import { useState } from "react";
-import { PixelButton } from "../shared/PixelButton";
-import { CloseButton } from "../shared/CloseButton";
-import { useToast } from "@/context/ToastContext";
 import { CatnipChaosLevelMap } from "../Phaser/map";
-import { Tag } from "../shared/Tag";
+import { CloseButton } from "../shared/CloseButton";
+import { PixelButton } from "../shared/PixelButton";
 interface IGameStat {
   title: string;
   image: string;
@@ -149,18 +148,6 @@ export const GameStatsSection = ({
             >
               <img src="/codex/codex-1.webp" className="h-10 -my-1 -mb-1" />
               <div className="text-p4 pt-1 -mt-1 -mb-1">CODEX</div>
-            </div>
-          )}
-        </div>
-        <div className="absolute left-20 top-2 flex-col items-center">
-          {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
-            <div
-              onClick={() => setOpenedModal(GameModal.OFFER_WALL)}
-              className="flex flex-col items-center font-primary text-p2 bg-blue-300 hover:scale-110 transition-all hover:mt-1 hover:border-yellow-300 hover:border-4 hover:rounded-xl px-2 rounded-r-xl relative"
-            >
-              <img src="/logo/logo.webp" className="h-8 -mb-1 -mt-3" />
-              <div className="text-p4 pt-1 -mt-1 -mb-1">EARN</div>
-              <div className="text-p4 pt-1 -mt-3 -mb-1">$TAILS</div>
             </div>
           )}
         </div>

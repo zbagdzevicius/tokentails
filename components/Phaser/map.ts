@@ -55,6 +55,14 @@ export const catnipChaosLevelsList: (keyof typeof CatnipChaosLevelMap)[] =
     (a, b) => parseInt(a) - parseInt(b)
   ) as (keyof typeof CatnipChaosLevelMap)[];
 
+export const lastCatnipChaosLevel =
+  catnipChaosLevelsList[catnipChaosLevelsList.length - 1];
+
+export const getNextCatnipChaosLevel = (level: string) => {
+  const index = catnipChaosLevelsList.indexOf(level);
+  return catnipChaosLevelsList[index + 1];
+};
+
 export const catnipChaosChapterBGImage: Record<string, string> = {
   "1": "/backgrounds/bg-5.webp",
   "2": "/backgrounds/bg-6.webp",

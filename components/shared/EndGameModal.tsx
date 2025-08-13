@@ -7,10 +7,11 @@ import { PixelButton } from "./PixelButton";
 import { IGameStopEvent } from "../Phaser/events";
 import { getMultiplier } from "@/constants/cat-utils";
 import { useGame } from "@/context/GameContext";
+import { getNextCatnipChaosLevel, lastCatnipChaosLevel } from "../Phaser/map";
 
 type EndGameProps = {
   onClose: () => void;
-  tryAgain: () => void;
+  tryAgain: (nextLevel?: string) => void;
   gameType: GameType;
   gameStop: IGameStopEvent;
 };
@@ -104,8 +105,33 @@ export const EndGameModal: React.FC<EndGameProps> = ({
             className="w-20 aspect-square"
             draggable="false"
           />
-          <PixelButton text="MEOW BACK" isSmall onClick={onClose} />
-          <PixelButton text="TRY AGAIN" onClick={tryAgain} />
+          <span
+            className={`${
+              !!gameStop.completedLevel &&
+              gameStop.completedLevel !== lastCatnipChaosLevel
+                ? "-mb-4"
+                : "-mb-2"
+            }`}
+          >
+            <PixelButton text="MEOW BACK" isSmall onClick={onClose} />
+          </span>
+          <PixelButton
+            text="TRY AGAIN"
+            onClick={tryAgain}
+            isSmall={
+              !!gameStop.completedLevel &&
+              gameStop.completedLevel !== lastCatnipChaosLevel
+            }
+          />
+          {!!gameStop.completedLevel &&
+            gameStop.completedLevel !== lastCatnipChaosLevel && (
+              <PixelButton
+                text="NEXT LEVEL"
+                onClick={() =>
+                  tryAgain(getNextCatnipChaosLevel(gameStop.completedLevel!))
+                }
+              />
+            )}
         </div>
       </div>
     </div>
