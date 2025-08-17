@@ -293,11 +293,26 @@ export const Codex = () => {
         PHASE {phase} -{" "}
         {profile?.codex?.[phase - 1] ? "COMPLETED" : "IN PROGRESS"}
       </span>
-      <div className="flex flex-col items-center mt-1">
+      <div className="text-p5 mt-3">
+        1 TITLE ={" "}
+        <span className="text-yellow-300 text-p4 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)]">
+          300 $TAILS
+        </span>{" "}
+        ON MONTHLY BASIS
+      </div>
+      <div className="flex flex-col items-center -my-2">
         <span className="text-yellow-300 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] text-p1">
           TITLES EARNED:{" "}
           {profile?.codex?.filter((item) => item === 1)?.length || 0}
         </span>
+      </div>
+      <div className="text-p4 mb-2">
+        YOU GET{" "}
+        <span className="text-yellow-300 text-p3 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)]">
+          {(profile?.codex?.reduce((acc, item) => acc + item, 0) || 0) * 300}{" "}
+          $TAILS
+        </span>{" "}
+        PER MONTH
       </div>
       <div className="flex flex-col items-center mt-1">
         <div className="w-full flex rounded-full overflow-hidden gap-1">
@@ -319,7 +334,8 @@ export const Codex = () => {
         </div>
         {!isCompleted ? (
           <div className="font-primary text-p5">
-            COMPLETE {codex.length - completedCount} MORE TO BECOME $TAILS GUARD
+            COMPLETE {codex.length - completedCount} MORE TO EARN $TAILS GUARD
+            TITLE
           </div>
         ) : (
           <div className="font-primary text-p5 flex flex-col items-center">
@@ -350,7 +366,6 @@ export const Codex = () => {
           <div className="font-primary">PRIORITY SUPPORT</div>
           <div className="font-primary">WHITELISTED NFT DROPS</div>
           <div className="font-primary">EARLY ACCESS TO NEW UPDATES</div>
-          <div className="font-primary">EXCLUSIVE MONTHLY NFT DROPS</div>
           <div className="font-primary">
             $TAILS AIRDROP ELIGIBILITY CRITERIA
           </div>

@@ -257,7 +257,7 @@ export const MysteryBox = () => {
         {!finished && (
           <Tag isSmall>Complete all 5 mints for maximum rewards !</Tag>
         )}
-        <div className="flex w-full justify-center gap-2 gap-y-8 flex-wrap">
+        <div className="flex w-full justify-center gap-4 gap-y-8 flex-wrap">
           {mysteryBoxes.CAMP_TEST?.map((box, i) => (
             <div key={i} className="relative rounded-2xl">
               <img
@@ -275,7 +275,7 @@ export const MysteryBox = () => {
                 </div>
               )}
               {profile?.quests?.includes(box.key) && (
-                <div className="absolute left-0 right-0 flex items-center justify-center -bottom-8 -mx-4 rounded-2xl">
+                <div className="absolute left-0 right-0 flex items-center justify-center -bottom-8 -mx-4 rounded-2xl overflow-hidden">
                   <Web3Providers>
                     <Web3Mint
                       hideAddress
