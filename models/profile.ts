@@ -1,4 +1,4 @@
-import { QUEST } from "@/components/shared/QuestsModal";
+import { QUEST } from "@/models/quest";
 import { ICat } from "./cats";
 
 export interface IWallet {

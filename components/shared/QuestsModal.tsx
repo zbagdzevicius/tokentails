@@ -1,35 +1,14 @@
 import { QUEST_API } from "@/api/quest-api";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
+import { allQuests, ILocalQuest, IQuest, QuestType } from "@/models/quest";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
+import { LeaderboardContent } from "../Leaderboard";
 import { CloseButton } from "./CloseButton";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
-import { IQuest } from "@/models/quest";
-import { LeaderboardContent } from "../Leaderboard";
-import { isApp } from "@/models/app";
-import { AppCTA } from "./AppCTA";
-enum QuestType {
-  SOCIAL = "SOCIAL",
-  GOAL = "GOAL",
-  FRIEND = "FRIEND",
-  WIN = "WIN",
-}
-
-interface IQuestReward {
-  coins: number;
-}
-
-interface ILocalQuest {
-  type: QuestType;
-  name: string;
-  key: QUEST;
-  link?: string;
-  icon: string;
-  reward: IQuestReward;
-}
 
 export const TrailheadsData = [
   {
@@ -62,190 +41,21 @@ export const TrailheadsTypes = TrailheadsData.map(
   (trailhead) => trailhead.name
 );
 
-export enum QUEST {
-  FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",
-  FOLLOW_TG_GROUP = "FOLLOW_TG_GROUP",
-  FOLLOW_X = "FOLLOW_X",
-  FOLLOW_X_FOUNDER = "FOLLOW_X_FOUNDER",
-  FOLLOW_DISCORD = "FOLLOW_DISCORD",
-  FOLLOW_IG = "FOLLOW_IG",
-  FOLLOW_TIKTOK = "FOLLOW_TIKTOK",
-  FOLLOW_LINKEDIN = "FOLLOW_LINKEDIN",
-  REACH_COINS_2K = "REACH_COINS_2K",
-  REACH_COINS_20K = "REACH_COINS_20K",
-  REACH_COINS_100K = "REACH_COINS_100K",
-  REACH_COINS_1M = "REACH_COINS_1M",
-  INVITE_FRIENDS_10 = "INVITE_FRIENDS_10",
-  INVITE_FRIENDS_35 = "INVITE_FRIENDS_35",
-  INVITE_FRIENDS_100 = "INVITE_FRIENDS_100",
-  CATNIP_CHAOS_1 = "CATNIP_CHAOS_1",
-  CATNIP_CHAOS_2 = "CATNIP_CHAOS_2",
-  CATNIP_CHAOS_3 = "CATNIP_CHAOS_3",
-  CATNIP_CHAOS_4 = "CATNIP_CHAOS_4",
-  CATNIP_CHAOS_5 = "CATNIP_CHAOS_5",
-}
-
-const allQuests: ILocalQuest[] = [
-  {
-    type: QuestType.SOCIAL,
-    key: QUEST.FOLLOW_TG_CHANNEL,
-    name: "Subscribe channel",
-    link: "https://t.me/tokentails",
-    icon: "/icons/social/telegram.png",
-    reward: {
-      coins: 500,
-    },
-  },
-  {
-    type: QuestType.SOCIAL,
-    key: QUEST.FOLLOW_X,
-    name: "Follow on X",
-    link: "https://x.com/intent/follow?screen_name=tokentails&tw_p=followbutton",
-    icon: "/icons/social/x.webp",
-    reward: {
-      coins: 2500,
-    },
-  },
-  {
-    type: QuestType.SOCIAL,
-    key: QUEST.FOLLOW_X_FOUNDER,
-    name: "Follow Commander",
-    link: "https://x.com/intent/follow?screen_name=zbagdz&tw_p=followbutton",
-    icon: "/icons/social/x.webp",
-    reward: {
-      coins: 2500,
-    },
-  },
-  {
-    type: QuestType.SOCIAL,
-    key: QUEST.FOLLOW_TG_GROUP,
-    name: "Join group",
-    link: "https://t.me/tokentailsgroup",
-    icon: "/icons/social/telegram.png",
-    reward: {
-      coins: 500,
-    },
-  },
-  {
-    type: QuestType.SOCIAL,
-    key: QUEST.FOLLOW_DISCORD,
-    name: "Join Discord",
-    link: "https://discord.gg/4FVYmnd7Hg",
-    icon: "/icons/social/discord.png",
-    reward: {
-      coins: 500,
-    },
-  },
-  {
-    type: QuestType.SOCIAL,
-    key: QUEST.FOLLOW_LINKEDIN,
-    name: "Follow on LinkedIn",
-    link: "https://www.linkedin.com/company/token-tails",
-    icon: "/icons/social/linkedin.png",
-    reward: {
-      coins: 500,
-    },
-  },
-  {
-    type: QuestType.SOCIAL,
-    key: QUEST.FOLLOW_IG,
-    name: "Follow on Instagram",
-    link: "https://www.instagram.com/tokentails",
-    icon: "/icons/social/instagram.png",
-    reward: {
-      coins: 500,
-    },
-  },
-  {
-    type: QuestType.SOCIAL,
-    key: QUEST.FOLLOW_TIKTOK,
-    name: "Follow on Tiktok",
-    link: "https://www.tiktok.com/@tokentails",
-    icon: "/icons/social/tiktok.png",
-    reward: {
-      coins: 500,
-    },
-  },
-  {
-    type: QuestType.GOAL,
-    key: QUEST.REACH_COINS_2K,
-    name: "Reach 2k coins",
-    icon: "/logo/coin.webp",
-    reward: {
-      coins: 500,
-    },
-  },
-  {
-    type: QuestType.GOAL,
-    key: QUEST.INVITE_FRIENDS_10,
-    name: "Invite 10 friens",
-    icon: "/images/cats-hub/cat-with-hat.webp",
-    reward: {
-      coins: 1000,
-    },
-  },
-  {
-    type: QuestType.GOAL,
-    key: QUEST.REACH_COINS_20K,
-    name: "Reach 20k coins",
-    icon: "/logo/coin.webp",
-    reward: {
-      coins: 1000,
-    },
-  },
-  {
-    type: QuestType.GOAL,
-    key: QUEST.INVITE_FRIENDS_35,
-    name: "Invite 35 friens",
-    icon: "/images/cats-hub/cat-with-hat.webp",
-    reward: {
-      coins: 3500,
-    },
-  },
-  {
-    type: QuestType.GOAL,
-    key: QUEST.REACH_COINS_100K,
-    name: "Reach 100k coins",
-    icon: "/logo/boss-coin.png",
-    reward: {
-      coins: 5000,
-    },
-  },
-  {
-    type: QuestType.GOAL,
-    key: QUEST.INVITE_FRIENDS_100,
-    name: "Invite 100 friens",
-    icon: "/images/cats-hub/cat-with-hat.webp",
-    reward: {
-      coins: 10000,
-    },
-  },
-  {
-    type: QuestType.GOAL,
-    key: QUEST.REACH_COINS_1M,
-    name: "Reach 1m coins",
-    icon: "/logo/boss-coin.png",
-    reward: {
-      coins: 50000,
-    },
-  },
-];
-
 export const QuestsModalContent = () => {
   const { profile, setProfileUpdate, utils } = useProfile();
   const [questsType, setQuestsType] = useState(QuestType.WIN);
-  const quests = useMemo(
-    () =>
-      allQuests.filter((quest) => {
-        const isMatchingType = quest.type === questsType;
-        return isMatchingType;
-      }),
-    [questsType]
-  );
   const { data: partnerQuests } = useQuery({
     queryKey: ["quests"],
     queryFn: () => QUEST_API.find(),
   });
+  const quests = useMemo(
+    () =>
+      [...(partnerQuests || []), ...allQuests].filter((quest) => {
+        const isMatchingType = quest.type === questsType;
+        return isMatchingType;
+      }),
+    [questsType, partnerQuests]
+  );
   const toast = useToast();
 
   const redeem = useDebouncedCallback(async (quest: ILocalQuest) => {
@@ -260,21 +70,6 @@ export const QuestsModalContent = () => {
     toast({ message: result.message });
     if (result.success) {
       setProfileUpdate({ quests: [...(profile?.quests || []), quest.key] });
-    }
-  }, 200);
-
-  const redeemPartner = useDebouncedCallback(async (quest: IQuest) => {
-    if (quest.link) {
-      if (quest.link?.startsWith("https://t.me")) {
-        utils?.openTelegramLink(quest.link!);
-      } else {
-        utils?.openLink(quest.link!);
-      }
-    }
-    const result = await QUEST_API.complete(quest._id);
-    toast({ message: result.message });
-    if (result.success) {
-      setProfileUpdate({ quests: [...(profile?.quests || []), quest._id] });
     }
   }, 200);
 
@@ -327,14 +122,26 @@ export const QuestsModalContent = () => {
                       onClick={() => redeem(quest)}
                     ></PixelButton>
                   </div>
-                  <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
-                    <img
-                      draggable={false}
-                      className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
-                      src="/logo/coin.webp"
-                    />
-                    {quest.reward.coins} COINS
-                  </div>
+                  {!!quest.reward.coins && (
+                    <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
+                      <img
+                        draggable={false}
+                        className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
+                        src="/logo/coin.webp"
+                      />
+                      {quest.reward.coins} COINS
+                    </div>
+                  )}
+                  {!!quest.reward.tails && (
+                    <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
+                      <img
+                        draggable={false}
+                        className="w-8 -left-6 -top-2 bottom-0 z-10 absolute"
+                        src="/logo/logo.webp"
+                      />
+                      {quest.reward.tails} $TAILS
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

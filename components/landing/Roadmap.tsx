@@ -37,7 +37,7 @@ const Roadmap = () => {
             </span>
             <span className="flex gap-2 items-center">
               <img draggable={false} className="h-6" src="icons/check.webp" />
-              400k Players
+              0.5M Players
             </span>
             <span className="flex gap-2 items-center whitespace-nowrap">
               <img draggable={false} className="h-6" src="icons/check.webp" />
@@ -107,7 +107,7 @@ const Roadmap = () => {
                 className="h-6 pixelated"
                 src="icons/loader.webp"
               />
-              MORE FUN
+              3D game
             </span>
             <span className="flex gap-2 items-center -ml-6">
               <img

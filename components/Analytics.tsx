@@ -41,13 +41,6 @@ export const Analytics = () => {
             });
             `}
       </Script>
-      <Script
-        strategy="afterInteractive"
-        src="https://v1.mychips.io/SDK/latest/my-chips-sdk.bundle.js"
-        onLoad={() => {
-          (window as any).myChipsSDK("init");
-        }}
-      />
     </div>
   );
 };

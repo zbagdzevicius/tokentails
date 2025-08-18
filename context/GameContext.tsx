@@ -1,9 +1,8 @@
+import { USER_API } from "@/api/user-api";
 import { GameOptionsModal } from "@/components/game/GameOptionsModal";
 import { GameSelect } from "@/components/game/GameSelect";
 import { Leaderboard } from "@/components/Leaderboard";
 import { DisplayCoins } from "@/components/Phaser/DisplayCoins";
-import { CatsInNeedModal } from "@/components/shared/CatsInNeed";
-import { USER_API } from "@/api/user-api";
 import {
   GameEvent,
   GameEvents,
@@ -11,26 +10,25 @@ import {
   IGameStopEvent,
 } from "@/components/Phaser/events";
 import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
+import { CatsInNeedModal } from "@/components/shared/CatsInNeed";
 import { CatsModal } from "@/components/shared/CatsModal";
+import { CodexModal } from "@/components/shared/CodexModal";
 import { ControlModal } from "@/components/shared/ControlModal";
 import { EndGameModal } from "@/components/shared/EndGameModal";
+import { FeaturedCatModal } from "@/components/shared/FeaturedCatModal";
 import { GameMusicPlayer } from "@/components/shared/GameMusicPlayer";
 import { InviteModal } from "@/components/shared/InviteModal";
 import { Notification } from "@/components/shared/Notification";
 import { QuestsModal } from "@/components/shared/QuestsModal";
+import { SupportModal } from "@/components/shared/SupportModal";
 import { TelegramProfile } from "@/components/shared/TelegramProfile";
+import { getMultiplier } from "@/constants/cat-utils";
 import { catbassadorsGameDuration } from "@/models/cats";
 import { GameModal, GameType } from "@/models/game";
 import * as React from "react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useProfile } from "./ProfileContext";
 import { IToast, useToast } from "./ToastContext";
-import { getMultiplier } from "@/constants/cat-utils";
-import { FeaturedCatModal } from "@/components/shared/FeaturedCatModal";
-import { SupportModal } from "@/components/shared/SupportModal";
-import { CodexModal } from "@/components/shared/CodexModal";
-import { OfferWallModal } from "@/components/ads/OfferWall";
-import { CloseButton } from "@/components/shared/CloseButton";
 
 type ContextState = {
   isStarted?: boolean;
@@ -311,9 +309,6 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           )}
           {openedModal === GameModal.CONTROL_SETTINGS && (
             <ControlModal close={() => setOpenedModal(null)} />
-          )}
-          {openedModal === GameModal.OFFER_WALL && (
-            <OfferWallModal close={() => setOpenedModal(null)} />
           )}
           {openedModal === GameModal.FEATURED_CAT && (
             <FeaturedCatModal close={() => setOpenedModal(null)} />

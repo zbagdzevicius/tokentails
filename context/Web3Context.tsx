@@ -61,14 +61,8 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
     ChainNamespace.EVM
   );
   React.useEffect(() => {
-    // if (namespace === ChainNamespace.TORUS) {
-    //   setChainType(ChainType.TORUS);
-    // }
     if (namespace === ChainNamespace.EVM) {
       setChainType(isProd ? ChainType.BNB : ChainType.BNB_TEST);
-    }
-    if (namespace === ChainNamespace.XFI) {
-      setChainType(ChainType.XFI);
     }
     if (namespace === ChainNamespace.SOLANA) {
       setChainType(ChainType.SOLANA);
@@ -93,10 +87,6 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
         connected: isConnected,
         address: address,
       },
-      [ChainNamespace.XFI]: {
-        connected: isConnected,
-        address: address,
-      },
       [ChainNamespace.STELLAR]: {
         connected: stellarConnected,
         address: stellarAddress,
@@ -105,10 +95,6 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
         connected: solanaConnected,
         address: solanaAddress?.toString(),
       },
-      // [ChainNamespace.TORUS]: {
-      //   connected: isConnected,
-      //   address: address,
-      // },
     };
   }, [
     namespace,

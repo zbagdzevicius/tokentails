@@ -255,8 +255,6 @@ export const useWeb3Transfer = ({
       } else {
         stellarTransfer(stellarAddress!);
       }
-    } else if (namespace === ChainNamespace.XFI) {
-      xfiTransfer();
     } else if (namespace === ChainNamespace.SOLANA) {
       if (!solanaConnected) {
         connectSolana(true);
@@ -342,30 +340,6 @@ export const useWeb3Transfer = ({
         setHash(txHash);
         toast({ message: "Transaction sent! Awaiting confirmation..." });
       }
-    } catch (error) {
-      console.error("Transfer failed:", error);
-      toast({
-        message: "Transaction failed. Please try again.",
-        isError: true,
-      });
-    }
-  }
-
-  async function torusTransfer() {
-    if (!evmConnected) {
-      toast({ message: "Please login to Metamask" });
-      return false;
-    }
-    const amountHex = ethers.parseUnits(price.toString(), 18);
-    try {
-      await syncChain();
-
-      await writeContractAsync({
-        abi: erc20Abi,
-        address: currencyContracts[idChainType[chainId!]][currencyType]!,
-        functionName: "transfer",
-        args: [recipientEvm, amountHex],
-      });
     } catch (error) {
       console.error("Transfer failed:", error);
       toast({

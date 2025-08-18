@@ -21,15 +21,14 @@ import {
   NightlyWalletAdapter,
   PhantomWalletAdapter,
   SolflareWalletAdapter,
-  TorusWalletAdapter,
   TrustWalletAdapter,
 } from "@solana/wallet-adapter-wallets";
 
+import { randomObjectFromArray } from "@/constants/utils";
 import { para } from "@/models/para";
+import { AuthLayout, OAuthMethod } from "@getpara/react-sdk";
 import { Horizon, Networks } from "@stellar/stellar-sdk";
 import { networks } from "./web3-chains";
-import { OAuthMethod, AuthLayout } from "@getpara/react-sdk";
-import { randomObjectFromArray } from "@/constants/utils";
 
 // Get projectId at https://cloud.walletconnect.com
 export const projectId = randomObjectFromArray([
@@ -72,7 +71,6 @@ export const stellarKit = new StellarWalletsKit({
 export const solanaWallets = [
   new PhantomWalletAdapter(),
   new SolflareWalletAdapter(),
-  new TorusWalletAdapter(),
   new TrustWalletAdapter(),
   new NightlyWalletAdapter(),
   new BitgetWalletAdapter(),

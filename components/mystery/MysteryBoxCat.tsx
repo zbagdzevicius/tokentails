@@ -70,24 +70,15 @@ export const MysteryBoxCat = () => {
   }, [boxType]);
   const currencyPrice = useMemo(() => {
     if (
-      [
-        CurrencyType.XLM,
-        CurrencyType.BNB,
-        CurrencyType.SOL,
-        CurrencyType.XFI,
-      ].includes(currencyType) &&
+      [CurrencyType.XLM, CurrencyType.BNB, CurrencyType.SOL].includes(
+        currencyType
+      ) &&
       bnbRate &&
       xlmRate &&
       solRate
     ) {
       if (currencyType === CurrencyType.BNB) {
         return parseFloat((price / bnbRate).toFixed(3));
-      }
-      if (currencyType === CurrencyType.ODP) {
-        return parseFloat((price * 1000).toFixed(0));
-      }
-      if (currencyType === CurrencyType.XFI) {
-        return parseFloat((price * 10).toFixed(0));
       }
       if (currencyType === CurrencyType.XLM) {
         return Math.ceil(price / xlmRate);

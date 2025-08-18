@@ -75,8 +75,8 @@ const config: Config = {
             animationTimingFunction: "cubic-bezier(0.8, 0, 1, 1)",
           },
           "5%": {
-            transform: "translateY(-25%)",
-            opacity: "0.5",
+            transform: "translateY(0)",
+            opacity: "1",
             animationTimingFunction: "cubic-bezier(0.2, 0, 0.5, 1)",
           },
           "50%": {

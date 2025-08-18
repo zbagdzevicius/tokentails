@@ -1,6 +1,11 @@
-import { QUEST } from "@/components/shared/QuestsModal";
+import { QUEST } from "@/models/quest";
 import { waitForLocalStorageKey, apiUrl, getAuthHeaders } from "./api";
-import { IQuest, IQuestStatistics } from "@/models/quest";
+import {
+  ILocalQuest,
+  IQuest,
+  IQuestStatistics,
+  QuestType,
+} from "@/models/quest";
 import { ICat } from "@/models/cats";
 import { ITransactionStatus } from "./order-api";
 
@@ -165,7 +170,7 @@ const redeemContest = async (
   });
 };
 
-const find = async (): Promise<IQuest[]> => {
+const find = async (): Promise<ILocalQuest[]> => {
   await waitForLocalStorageKey();
   return fetch(`${apiUrl}/quest/search`, {
     method: "POST",
@@ -175,14 +180,29 @@ const find = async (): Promise<IQuest[]> => {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     } as any,
-  }).then((response) => {
-    if (response.ok) {
-      return response.json();
-    }
-
-    console.warn(JSON.stringify(response));
-    return null;
-  });
+  })
+    .then((response) => {
+      if (response.ok) {
+        return response.json();
+      }
+      return [];
+    })
+    .then((data: IQuest[]) => {
+      return data.map(
+        (dataPoint: IQuest) =>
+          ({
+            type: QuestType.SOCIAL,
+            key: dataPoint._id,
+            name: dataPoint.name,
+            icon: dataPoint.image.url,
+            link: dataPoint.link,
+            reward: {
+              coins: dataPoint.catpoints,
+              tails: dataPoint.tails,
+            },
+          } as ILocalQuest)
+      );
+    });
 };
 
 export const QUEST_API = {

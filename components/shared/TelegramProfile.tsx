@@ -508,7 +508,7 @@ export const TelegramProfile = ({ close }: { close: () => void }) => {
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
       <div
-        className="z-50 rem:w-[350px] md:w-[540px] max-w-full absolute top-1/2 -translate-y-1/2  rounded-xl shadow h-fit"
+        className="m-auto z-50 rem:w-[386px] md:w-[549px] max-w-full lg:top-1/2 lg:-translate-y-1/2 lg:h-fit lg:absolute overflow-y-auto max-h-screen rounded-xl shadow"
         style={{
           backgroundImage: "url('/backgrounds/bg-4.webp')",
           backgroundRepeat: "no-repeat",
