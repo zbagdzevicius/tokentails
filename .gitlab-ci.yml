@@ -1,0 +1,28 @@
+stages:
+  - upload
+
+variables:
+  SPACE_NAME: "tokentails-nfts"
+  SPACE_ENDPOINT: "fra1.digitaloceanspaces.com"
+
+before_script:
+  - apt-get update && apt-get install -y s3cmd
+  - |
+    cat > ~/.s3cfg <<EOF
+    [default]
+    access_key = $DO_SPACES_KEY
+    secret_key = $DO_SPACES_SECRET
+    host_base = $SPACE_ENDPOINT
+    host_bucket = %(bucket)s.$SPACE_ENDPOINT
+    signature_v2 = False
+    use_https = True
+    EOF
+
+upload_to_do_spaces:
+  stage: upload
+  script:
+    - echo "Uploading files to Digital Ocean Space..."
+    - ls -la .
+    - s3cmd sync --acl-public ./public/ s3://$SPACE_NAME/w/
+  only:
+    - main
