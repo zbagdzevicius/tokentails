@@ -1,5 +1,4 @@
 import { Scene } from "phaser";
-import { StoryModeScene } from "../scenes/StoryModeScene";
 
 export interface IKey {
   id: string;
@@ -49,7 +48,7 @@ export class PlumbDoorManager {
   private tryOpenDoor() {
     if (this.isOpening) return;
 
-    const keys = (this.scene as StoryModeScene).getKeys();
+    const keys = (this.scene as any).getKeys();
     if (keys.length > 0) {
       keys.pop();
       this.openDoor();
