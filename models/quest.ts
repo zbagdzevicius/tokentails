@@ -1,3 +1,4 @@
+import { cdnFile } from "@/constants/utils";
 import { IImage } from "./image";
 
 export interface IQuest {
@@ -80,7 +81,7 @@ export const allQuests: ILocalQuest[] = [
     key: QUEST.FOLLOW_TG_CHANNEL,
     name: "Subscribe channel",
     link: "https://t.me/tokentails",
-    icon: "/icons/social/telegram.png",
+    icon: cdnFile("icons/social/telegram.png"),
     reward: {
       coins: 500,
     },
@@ -90,7 +91,7 @@ export const allQuests: ILocalQuest[] = [
     key: QUEST.FOLLOW_X,
     name: "Follow on X",
     link: "https://x.com/intent/follow?screen_name=tokentails&tw_p=followbutton",
-    icon: "/icons/social/x.webp",
+    icon: cdnFile("icons/social/x.webp"),
     reward: {
       coins: 2500,
     },
@@ -100,7 +101,7 @@ export const allQuests: ILocalQuest[] = [
     key: QUEST.FOLLOW_X_FOUNDER,
     name: "Follow Commander",
     link: "https://x.com/intent/follow?screen_name=zbagdz&tw_p=followbutton",
-    icon: "/icons/social/x.webp",
+    icon: cdnFile("icons/social/x.webp"),
     reward: {
       coins: 2500,
     },
@@ -110,7 +111,7 @@ export const allQuests: ILocalQuest[] = [
     key: QUEST.FOLLOW_TG_GROUP,
     name: "Join group",
     link: "https://t.me/tokentailsgroup",
-    icon: "/icons/social/telegram.png",
+    icon: cdnFile("icons/social/telegram.png"),
     reward: {
       coins: 500,
     },
@@ -120,7 +121,7 @@ export const allQuests: ILocalQuest[] = [
     key: QUEST.FOLLOW_DISCORD,
     name: "Join Discord",
     link: "https://discord.gg/4FVYmnd7Hg",
-    icon: "/icons/social/discord.png",
+    icon: cdnFile("icons/social/discord.png"),
     reward: {
       coins: 500,
     },
@@ -130,7 +131,7 @@ export const allQuests: ILocalQuest[] = [
     key: QUEST.FOLLOW_LINKEDIN,
     name: "Follow on LinkedIn",
     link: "https://www.linkedin.com/company/token-tails",
-    icon: "/icons/social/linkedin.png",
+    icon: cdnFile("icons/social/linkedin.png"),
     reward: {
       coins: 500,
     },
@@ -140,7 +141,7 @@ export const allQuests: ILocalQuest[] = [
     key: QUEST.FOLLOW_IG,
     name: "Follow on Instagram",
     link: "https://www.instagram.com/tokentails",
-    icon: "/icons/social/instagram.png",
+    icon: cdnFile("icons/social/instagram.png"),
     reward: {
       coins: 500,
     },
@@ -150,7 +151,7 @@ export const allQuests: ILocalQuest[] = [
     key: QUEST.FOLLOW_TIKTOK,
     name: "Follow on Tiktok",
     link: "https://www.tiktok.com/@tokentails",
-    icon: "/icons/social/tiktok.png",
+    icon: cdnFile("icons/social/tiktok.png"),
     reward: {
       coins: 500,
     },
@@ -159,7 +160,7 @@ export const allQuests: ILocalQuest[] = [
     type: QuestType.GOAL,
     key: QUEST.REACH_COINS_2K,
     name: "Reach 2k coins",
-    icon: "/logo/coin.webp",
+    icon: cdnFile("logo/coin.webp"),
     reward: {
       coins: 500,
     },
@@ -168,7 +169,7 @@ export const allQuests: ILocalQuest[] = [
     type: QuestType.GOAL,
     key: QUEST.INVITE_FRIENDS_10,
     name: "Invite 10 friens",
-    icon: "/images/cats-hub/cat-with-hat.webp",
+    icon: cdnFile("images/cats-hub/cat-with-hat.webp"),
     reward: {
       coins: 1000,
     },
@@ -177,7 +178,7 @@ export const allQuests: ILocalQuest[] = [
     type: QuestType.GOAL,
     key: QUEST.REACH_COINS_20K,
     name: "Reach 20k coins",
-    icon: "/logo/coin.webp",
+    icon: cdnFile("logo/coin.webp"),
     reward: {
       coins: 1000,
     },
@@ -186,7 +187,7 @@ export const allQuests: ILocalQuest[] = [
     type: QuestType.GOAL,
     key: QUEST.INVITE_FRIENDS_35,
     name: "Invite 35 friens",
-    icon: "/images/cats-hub/cat-with-hat.webp",
+    icon: cdnFile("images/cats-hub/cat-with-hat.webp"),
     reward: {
       coins: 3500,
     },
@@ -195,7 +196,7 @@ export const allQuests: ILocalQuest[] = [
     type: QuestType.GOAL,
     key: QUEST.REACH_COINS_100K,
     name: "Reach 100k coins",
-    icon: "/logo/boss-coin.png",
+    icon: cdnFile("logo/boss-coin.png"),
     reward: {
       coins: 5000,
     },
@@ -204,7 +205,7 @@ export const allQuests: ILocalQuest[] = [
     type: QuestType.GOAL,
     key: QUEST.INVITE_FRIENDS_100,
     name: "Invite 100 friens",
-    icon: "/images/cats-hub/cat-with-hat.webp",
+    icon: cdnFile("images/cats-hub/cat-with-hat.webp"),
     reward: {
       coins: 10000,
     },
@@ -213,7 +214,7 @@ export const allQuests: ILocalQuest[] = [
     type: QuestType.GOAL,
     key: QUEST.REACH_COINS_1M,
     name: "Reach 1m coins",
-    icon: "/logo/boss-coin.png",
+    icon: cdnFile("logo/boss-coin.png"),
     reward: {
       coins: 50000,
     },

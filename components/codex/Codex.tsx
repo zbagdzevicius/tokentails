@@ -6,6 +6,7 @@ import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
 import { USER_API } from "@/api/user-api";
 import { useDebouncedCallback } from "use-debounce";
+import { cdnFile } from "@/constants/utils";
 
 export interface ICodex {
   title: string;
@@ -36,7 +37,7 @@ const codex: ICodex[] = [
     description:
       "Every NFT cat reflects a real soul. Digital twins of the forgotten, the wounded, the waiting. To adopt one is to guard both — in code and in flesh.",
     how: "Visit cat shelter, find a cat which you like and adopt it",
-    image: "/codex/codex-1.webp",
+    image: cdnFile("codex/codex-1.webp"),
     task: "ADOPT NFT CAT",
     verification: (profile) => (profile?.monthCatsAdopted || 0) >= 1,
     status: (profile) => `${profile?.monthCatsAdopted || 0} / 1`,
@@ -46,7 +47,7 @@ const codex: ICodex[] = [
     description:
       "When we quest, we serve. When we mint, we mend. Every action echoes in shelters, clinics, and cages.",
     how: "Play Catbassadors game and collect coins. The more you play, the more coins you can collect.",
-    image: "/codex/codex-2.webp",
+    image: cdnFile("codex/codex-2.webp"),
     task: "COLLECT 100,000 COINS",
     verification: (profile) => (profile?.monthCatpoints || 0) >= 100000,
     status: (profile) => `${profile?.monthCatpoints || 0} / 100,000`,
@@ -56,7 +57,7 @@ const codex: ICodex[] = [
     description:
       "We are not collectors. We are chosen — called to bind our wallets to the weak. Every cat we save leaves a mark on our legacy… and our fortune.",
     how: "Play Catbassadors game or Catnip chaos game so much, that you'll end up spending 50 lives.",
-    image: "/codex/codex-3.webp",
+    image: cdnFile("codex/codex-3.webp"),
     task: "SPEND 50 LIVES PLAYING",
     verification: (profile) =>
       (profile?.monthCatbassadorsLivesSpent || 0) >= 50,
@@ -67,7 +68,7 @@ const codex: ICodex[] = [
     description:
       "Half of all gained must give. Every game played, every trade made — that fuels their future. And in doing so, ensures ours.",
     how: "Open mystery box or loot box 2 times in 'GIFT' section's 'BOXES' tab",
-    image: "/codex/codex-4.webp",
+    image: cdnFile("codex/codex-4.webp"),
     task: "OPEN A BOX",
     verification: (profile) => (profile?.monthBoxes || 0) >= 2,
     status: (profile) => `${profile?.monthBoxes || 0} / 2`,
@@ -77,7 +78,7 @@ const codex: ICodex[] = [
     description:
       "Not the last-born kitten in a shelter. Not the unloved token in the chain. We rescue what others abandon. That is our oath.",
     how: "Go to HOME and feed your cat by clicki 'FEED TO CONTROL' button.",
-    image: "/codex/codex-5.webp",
+    image: cdnFile("codex/codex-5.webp"),
     task: "FEED YOUR CATS",
     verification: (profile) => (profile?.monthFeeded || 0) >= 1,
     status: (profile) => `${profile?.monthFeeded || 0} / 1`,
@@ -87,7 +88,7 @@ const codex: ICodex[] = [
     description:
       "Your cat is not your possession — it is your mirror. To neglect it is to neglect yourself. To care is to evolve.",
     how: "Click 'CHECK-IN' button 10 times! You can do it once a day.",
-    image: "/codex/codex-6.webp",
+    image: cdnFile("codex/codex-6.webp"),
     task: "CHECK-IN 10 times",
     verification: (profile) => (profile?.monthStreak || 0) >= 10,
     status: (profile) => `${profile?.monthStreak || 0} / 10`,
@@ -97,7 +98,7 @@ const codex: ICodex[] = [
     description:
       "For every life saved, the world shifts. The more we rescue, the stronger our network. Our magic multiplies.",
     how: "Go to 'GIFTS' section, click 'INVITE' button and invite a friend. Once they onboard, you'll be rewarded.",
-    image: "/codex/codex-7.webp",
+    image: cdnFile("codex/codex-7.webp"),
     task: "ONBOARD 1 FRIEND",
     verification: (profile) => (profile?.monthReferrals || 0) >= 1,
     status: (profile) => `${profile?.monthReferrals || 0} / 1`,
@@ -107,7 +108,7 @@ const codex: ICodex[] = [
     description:
       "These cats are more than metadata. They are stories. Beacons. Proof that Web3 can matter. And we, their guardians, become legends. Your feedback is CODEX fuel.",
     how: "Go to 'ABOUT ME' section, click 'CONTACT US' button and create a ticket with your feedback or bug report",
-    image: "/codex/codex-8.webp",
+    image: cdnFile("codex/codex-8.webp"),
     task: "CREATE A TICKET",
     verification: (profile) => (profile?.monthTicketCount || 0) >= 1,
     status: (profile) => `${profile?.monthTicketCount || 0} / 1`,
@@ -117,7 +118,7 @@ const codex: ICodex[] = [
     description:
       "To save a cat is to unlock its ninth life. But in return, it unlocks yours. Every rescuer earns a fortune not just in token — but in legacy, in status, in soul.",
     how: "Craft 100,000 coins by staking your cats. You can do it once every 7 days with each of your cat, head over to 'CATS' section and click 'CRAFT COINS' button. The more cats you have, the more coins you can craft.",
-    image: "/codex/codex-9.webp",
+    image: cdnFile("codex/codex-9.webp"),
     task: "CRAFT COINS",
     verification: (profile) => (profile?.monthCoinsCrafted || 0) >= 100000,
     status: (profile) => `${profile.monthCoinsCrafted || 0} / 100000`,
@@ -167,7 +168,11 @@ export const CodexSection = ({
         className={`font-primary text-center animate-opacity w-fit flex items-center gap-1`}
       >
         <img
-          src={isCompleted ? "/icons/check.webp" : "/icons/loader.webp"}
+          src={
+            isCompleted
+              ? cdnFile("icons/check.webp")
+              : cdnFile("icons/loader.webp")
+          }
           className={`w-4 h-4 -mt-1 ${isCompleted ? "" : "animate-spin-slow"}`}
         />
         {task}
@@ -284,7 +289,9 @@ export const Codex = () => {
   return (
     <div className="flex flex-col items-center relative pb-14">
       <img
-        src={isCompleted ? "/tail/guard.webp" : "/tail/seeker.webp"}
+        src={
+          isCompleted ? cdnFile("tail/guard.webp") : cdnFile("tail/seeker.webp")
+        }
         alt="codex"
         className="w-32 -mb-8"
       />
@@ -325,7 +332,7 @@ export const Codex = () => {
             >
               {index < completedCount && (
                 <img
-                  src="/logo/heart.webp"
+                  src={cdnFile("logo/heart.webp")}
                   className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3"
                 />
               )}

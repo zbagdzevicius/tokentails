@@ -1,34 +1,35 @@
 import { GameType } from "@/models/game";
 import React, { useState } from "react";
 import { PixelButton } from "../shared/PixelButton";
+import { cdnFile } from "@/constants/utils";
 
 export const gameModes = {
   [GameType.CATBASSADORS]: {
     video:
       "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/videos/catbassadors.mp4",
     title: "Catbassadors",
-    image: "/game/select/catbassadors.jpg",
+    image: cdnFile("game/select/catbassadors.jpg"),
     text: "PLAY TO EARN COINS",
   },
   [GameType.HOME]: {
     video:
       "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/videos/home.mp4",
     title: "Home",
-    image: "/game/select/home.jpg",
+    image: cdnFile("game/select/home.jpg"),
     text: "TAKE CARE OF YOUR NFT CATS",
   },
   [GameType.SHELTER]: {
     video:
       "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/videos/shelter.mp4",
     title: "Shelter",
-    image: "/game/select/shelter.jpg",
+    image: cdnFile("game/select/shelter.jpg"),
     text: "SAVE CATS BY OWNING NFTS",
   },
   [GameType.CATNIP_CHAOS]: {
     video:
       "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/videos/catnip-chaos.mp4",
     title: "Catnip Chaos",
-    image: "/game/select/catnip-chaos.webp",
+    image: cdnFile("game/select/catnip-chaos.webp"),
     text: "TEST YOUR SKILLS",
   },
 };

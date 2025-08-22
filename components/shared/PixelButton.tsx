@@ -1,3 +1,4 @@
+import { cdnFile } from "@/constants/utils";
 import { useHover } from "@uidotdev/usehooks";
 import { useMemo, useEffect, useRef } from "react";
 
@@ -32,8 +33,8 @@ export const PixelButton = ({
 
   useEffect(() => {
     const audioCache = {
-      click: new Audio("/audio/button/click-close.wav"),
-      hover: new Audio("/audio/button/modern-mix.wav"),
+      click: new Audio(cdnFile("audio/button/click-close.wav")),
+      hover: new Audio(cdnFile("audio/button/modern-mix.wav")),
     };
     audioCache.click.volume = 0.5;
     audioCache.hover.volume = 0.5;

@@ -1,5 +1,5 @@
 import { USER_API } from "@/api/user-api";
-import { commafy } from "@/constants/utils";
+import { bgStyle, cdnFile, commafy } from "@/constants/utils";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
@@ -25,7 +25,7 @@ const Cat = ({ profile }: { profile?: IProfile | null }) => {
         <img
           draggable={false}
           className="absolute m-auto inset-0 object-cover translate-y-1 w-24 h-24 -mt-2 z-0"
-          src={`/flare-effect/${profile!.cat.type}.gif`}
+          src={cdnFile(`flare-effect/${profile!.cat.type}.gif`)}
         ></img>
       )}
     </div>
@@ -182,7 +182,11 @@ const ProfileUpdate = () => {
 
   return (
     <div className="flex items-center flex-col justify-center mt-2 mb-2">
-      <img className="w-8 -mb-3" src="/icons/social/x.webp" draggable="false" />
+      <img
+        className="w-8 -mb-3"
+        src={cdnFile("icons/social/x.webp")}
+        draggable="false"
+      />
       {!twitterEditMode ? (
         <Tag isSmall>
           {twitter ? `X: ${twitter}` : "X Handle is not connected"}
@@ -206,7 +210,7 @@ const ProfileUpdate = () => {
       </span>
       <img
         className="w-8 -mb-3"
-        src="/icons/social/discord.png"
+        src={cdnFile("icons/social/discord.png")}
         draggable="false"
       />
       {!discordEditMode ? (
@@ -281,7 +285,11 @@ export const TelegramProfileContent = () => {
           {activeTab === "stats" && (
             <ul className="flex flex-col items-center mt-4">
               <li className="flex items-center gap-x-2">
-                <img draggable={false} className="w-5" src="/logo/coin.webp" />
+                <img
+                  draggable={false}
+                  className="w-5"
+                  src={cdnFile("logo/coin.webp")}
+                />
                 <div className="flex font-secondary text-p4 gap-2">
                   Coins:{" "}
                   <span className="font-bold">
@@ -293,7 +301,7 @@ export const TelegramProfileContent = () => {
                 <img
                   draggable={false}
                   className="w-5"
-                  src="/logo/catnip.webp"
+                  src={cdnFile("logo/catnip.webp")}
                 />
                 <div className="flex font-secondary text-p4 gap-2">
                   CATNIPS:{" "}
@@ -307,7 +315,7 @@ export const TelegramProfileContent = () => {
                 <img
                   draggable={false}
                   className="w-7 mb-1 -mr-1 -ml-1"
-                  src="/logo/logo.webp"
+                  src={cdnFile("logo/logo.webp")}
                 />
                 <div className="flex font-secondary text-p4 gap-2">
                   $Tails:{" "}
@@ -317,7 +325,11 @@ export const TelegramProfileContent = () => {
                 </div>
               </li>
               <li className="flex items-center gap-x-2">
-                <img draggable={false} className="w-5" src="/logo/rocket.png" />
+                <img
+                  draggable={false}
+                  className="w-5"
+                  src={cdnFile("logo/rocket.png")}
+                />
                 <div className="flex font-secondary text-p4 gap-2">
                   STREAK:{" "}
                   <span className="font-bold">{profile?.streak || 0}</span>
@@ -327,7 +339,7 @@ export const TelegramProfileContent = () => {
                 <img
                   draggable={false}
                   className="w-5"
-                  src="/logo/friends.png"
+                  src={cdnFile("logo/friends.png")}
                 />
                 <div className="flex font-secondary text-p4 gap-2">
                   FRIENDS:{" "}
@@ -342,7 +354,11 @@ export const TelegramProfileContent = () => {
           {activeTab === "achievements" && (
             <ul>
               <li className="flex items-center gap-x-2 mt-4 justify-center">
-                <img draggable={false} className="w-5" src="/logo/coin.webp" />
+                <img
+                  draggable={false}
+                  className="w-5"
+                  src={cdnFile("logo/coin.webp")}
+                />
                 <div className="flex font-secondary text-p4 gap-2">
                   CATBASSADORS RECORD:{" "}
                   <span className="font-bold">
@@ -354,7 +370,7 @@ export const TelegramProfileContent = () => {
                 <img
                   draggable={false}
                   className="w-5"
-                  src="/logo/catnip.webp"
+                  src={cdnFile("logo/catnip.webp")}
                 />
                 <div className="flex font-secondary text-p4 gap-2">
                   COLLECTED CATNIP:{" "}
@@ -364,7 +380,11 @@ export const TelegramProfileContent = () => {
                 </div>
               </li>
               <li className="flex items-center gap-x-2 justify-center">
-                <img draggable={false} className="w-5" src="/logo/human.webp" />
+                <img
+                  draggable={false}
+                  className="w-5"
+                  src={cdnFile("logo/human.webp")}
+                />
                 <div className="flex font-secondary text-p4 gap-2">
                   COMPLETED QUESTS:{" "}
                   <span className="font-bold">
@@ -419,7 +439,7 @@ export const TelegramProfileContent = () => {
                               <img
                                 draggable={false}
                                 className="w-4"
-                                src="/logo/heart.webp"
+                                src={cdnFile("logo/heart.webp")}
                               />
                               <div className="font-secondary text-p5">
                                 {item.value}{" "}
@@ -509,12 +529,7 @@ export const TelegramProfile = ({ close }: { close: () => void }) => {
       ></div>
       <div
         className="m-auto z-50 rem:w-[386px] md:w-[549px] max-w-full lg:top-1/2 lg:-translate-y-1/2 lg:h-fit lg:absolute overflow-y-auto max-h-screen rounded-xl shadow"
-        style={{
-          backgroundImage: "url('/backgrounds/bg-4.webp')",
-          backgroundRepeat: "no-repeat",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
+        style={bgStyle("4")}
       >
         <CloseButton onClick={() => close()} />
         <TelegramProfileContent />

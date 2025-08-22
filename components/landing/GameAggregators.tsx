@@ -1,85 +1,84 @@
-import React from "react";
-import { PixelButton } from "../shared/PixelButton";
+import { cdnFile } from "@/constants/utils";
 
 const sponsorImages: { src: string; link: string }[] = [
   {
-    src: "/images/dapp/dappradar.webp",
+    src: cdnFile("images/dapp/dappradar.webp"),
     link: "https://dappradar.com/dapp/token-tails/",
   },
   {
-    src: "/images/dapp/dapplist.webp",
+    src: cdnFile("images/dapp/dapplist.webp"),
     link: "https://thedapplist.com/project/token-tails",
   },
   {
-    src: "/currency/XLM.webp",
+    src: cdnFile("currency/XLM.webp"),
     link: "https://x.com/BuildOnStellar/status/1796241035766677885",
   },
   {
-    src: "/images/dapp/memecoin.webp",
+    src: cdnFile("images/dapp/memecoin.webp"),
     link: "https://memecoinseason.net/p/token-tails",
   },
   {
-    src: "/images/dapp/bitcourier.webp",
+    src: cdnFile("images/dapp/bitcourier.webp"),
     link: "https://bitcourier.co.uk/blog/token-tails-review",
   },
   {
-    src: "/images/dapp/carbify.webp",
+    src: cdnFile("images/dapp/carbify.webp"),
     link: "https://x.com/tokentails/status/1811408751288529056",
   },
   {
-    src: "/images/dapp/gamefi.webp",
+    src: cdnFile("images/dapp/gamefi.webp"),
     link: "https://gamefi.org/games/token-tails",
   },
   {
-    src: "/images/dapp/skale.png",
+    src: cdnFile("images/dapp/skale.png"),
     link: "https://skale.space/blog/a-purrfect-match-token-tails-partners-with-skale-for-gas-free-gaming-experience",
   },
   {
-    src: "/images/dapp/diamante.webp",
+    src: cdnFile("images/dapp/diamante.webp"),
     link: "https://diam-io.medium.com/diamante-blockchain-joins-forces-with-token-tails-to-lead-the-web3-gaming-revolution-e2e7f95d1b0a",
   },
   {
-    src: "/images/dapp/sekuya_logo.jpeg",
+    src: cdnFile("images/dapp/sekuya_logo.jpeg"),
     link: "https://sekuya.io/news/sekuya-x-token-tails-partnership",
   },
   {
-    src: "/images/dapp/ggem.webp",
+    src: cdnFile("images/dapp/ggem.webp"),
     link: "https://ggem.gg/news/ggem-partners-with-token-tails-to-save-real-cats-through-gaming",
   },
   {
-    src: "/images/dapp/data.webp",
+    src: cdnFile("images/dapp/data.webp"),
     link: "https://www.rootdata.com/Projects/detail/Token%20Tails?k=MTQ3NjA%3D",
   },
   {
-    src: "/images/dapp/playtoearn.webp",
+    src: cdnFile("images/dapp/playtoearn.webp"),
     link: "https://playtoearn.com/blockchaingame/token-tails?rel=search",
   },
   {
-    src: "/images/dapp/chronicle.webp",
+    src: cdnFile("images/dapp/chronicle.webp"),
     link: "https://markets.chroniclejournal.com/chroniclejournal/news/article/marketersmedia-2024-12-10-token-tails-launches-groundbreaking-blockchain-game-to-save-shelter-cats-and-boost-investments",
   },
   {
-    src: "/images/dapp/isotopic.webp",
+    src: cdnFile("images/dapp/isotopic.webp"),
     link: "https://isotopic.io/game/?game=Token_Tails",
   },
   {
-    src: "/images/sponsor/earn-alliance.webp",
+    src: cdnFile("images/sponsor/earn-alliance.webp"),
     link: "https://www.earnalliance.com/games/token-tails",
   },
   {
-    src: "/images/dapp/magic.webp",
+    src: cdnFile("images/dapp/magic.webp"),
     link: "https://magicsquare.io/store/app/token-tails",
   },
   {
-    src: "/images/dapp/doglibre.webp",
+    src: cdnFile("images/dapp/doglibre.webp"),
     link: "https://blog.doglibre.com/doglibre-x-token-tails-a-partnership-for-paws-and-play-81a7210a7635",
   },
   {
-    src: "/images/dapp/spintop.webp",
+    src: cdnFile("images/dapp/spintop.webp"),
     link: "https://spintop.network/gamepedia/games/token-tails",
   },
   {
-    src: "/images/dapp/tonapp.webp",
+    src: cdnFile("images/dapp/tonapp.webp"),
     link: "https://ton.app/games/token-tails?id=3901",
   },
 ];

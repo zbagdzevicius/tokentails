@@ -1,6 +1,7 @@
 import { PixelButton } from "@/components/shared/PixelButton";
 import { getCatFundsToRaise, getCatPrice } from "@/constants/cat-status";
 import { getMultiplier } from "@/constants/cat-utils";
+import { cdnFile } from "@/constants/utils";
 import { cardsColor, ICat } from "@/models/cats";
 import { useMemo } from "react";
 
@@ -30,7 +31,11 @@ export const MarketplaceItem = ({
         className="absolute left-0 top-0 opacity-75 text-black pl-1 text-p5 font-secondary rounded-r-xl z-20 flex items-center"
       >
         X{getMultiplier(cat)}
-        <img draggable={false} src="/logo/coin.webp" className="w-6 h-6 ml-1" />
+        <img
+          draggable={false}
+          src={cdnFile("logo/coin.webp")}
+          className="w-6 h-6 ml-1"
+        />
       </div>
 
       <div
@@ -40,7 +45,7 @@ export const MarketplaceItem = ({
       >
         <img
           draggable={false}
-          src="/logo/heart.webp"
+          src={cdnFile("logo/heart.webp")}
           className="w-6 h-6 mr-0.5 -ml-3"
         />
         {lives}/{cat.totalSupply}
@@ -66,7 +71,7 @@ export const MarketplaceItem = ({
         <img
           draggable={false}
           className="w-8 -mb-4 -mt-6 z-0 animate-spin"
-          src={`/ability/${cat.type}.png`}
+          src={cdnFile(`ability/${cat.type}.png`)}
           alt={`${cat.type} icon`}
         />
         <div
@@ -82,7 +87,7 @@ export const MarketplaceItem = ({
       <img
         draggable={false}
         className="absolute inset-0 object-cover w-full h-full z-0"
-        src={`/ability/${cat.type}_BG.webp`}
+        src={cdnFile(`ability/${cat.type}_BG.webp`)}
         alt={`${cat.type} background`}
       />
     </a>

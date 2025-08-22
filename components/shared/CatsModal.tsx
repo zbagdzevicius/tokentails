@@ -16,6 +16,7 @@ import { Countdown } from "./Countdown";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
 import dynamic from "next/dynamic";
+import { bgStyle, cdnFile } from "@/constants/utils";
 
 const GenerateCat = dynamic(
   () => import("../catCard/GenerateCat").then((mod) => mod.GenerateCat),
@@ -129,7 +130,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                 X{getMultiplier(cat)}
                 <img
                   draggable={false}
-                  src="/logo/coin.webp"
+                  src={cdnFile("logo/coin.webp")}
                   className="w-6 h-6 ml-1"
                 />
               </div>
@@ -144,7 +145,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                 <img
                   draggable={false}
                   className="w-8 -mt-8 -mb-4 z-0 animate-spin"
-                  src={`ability/${cat.type}.png`}
+                  src={cdnFile(`ability/${cat.type}.png`)}
                   alt={`${cat.type} icon`}
                 />
                 <div
@@ -192,7 +193,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
               <img
                 draggable={false}
                 className="absolute inset-0 object-cover w-full h-full z-0"
-                src={`ability/${cat.type}_BG.webp`}
+                src={cdnFile(`ability/${cat.type}_BG.webp`)}
                 alt={`${cat.type} background`}
                 onClick={() => setSelectedCat(cat)}
               />
@@ -214,7 +215,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
           close();
         }}
         className="w-full h-auto rounded-xl hover:animate-hover cursor-pointer"
-        src="/game/select/shelter-wide.jpg"
+        src={cdnFile("game/select/shelter-wide.jpg")}
         alt="Go to shelter"
       />
     </div>
@@ -230,12 +231,7 @@ export const CatsModal = ({ close }: { close: () => void }) => {
       ></div>
       <div
         className="m-auto z-50 rem:w-[350px] md:w-[600px] max-w-full absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow"
-        style={{
-          backgroundImage: "url('/backgrounds/bg-5.webp')",
-          backgroundRepeat: "no-repeat",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
+        style={bgStyle("5")}
       >
         <CloseButton onClick={close} />
         <CatsModalContent close={close} />

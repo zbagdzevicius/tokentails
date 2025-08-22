@@ -1,5 +1,6 @@
 import { EntityRouteOption } from "@/api/routing";
 import { FeedCard } from "@/components/blog/feed/FeedCard";
+import { cdnFile } from "@/constants/utils";
 import { IArticle } from "@/models/article";
 import { EntityType } from "@/models/save";
 import Image from "next/image";
@@ -31,7 +32,7 @@ export function ArticleDetails({
       link={link}
       author={category.name}
       authorSubtitle="Andrius Žiužnys"
-      authorImage={"/logo/coin.webp"}
+      authorImage={cdnFile("logo/coin.webp")}
       description={excerpt}
       authorLink={category.slug}
       date={createdAt}

@@ -5,6 +5,7 @@ import { AirdropRewardsSlider } from "@/components/airdrop/AirdropRewardsSlider"
 import { AirdropTable } from "@/components/airdrop/AirdropTable";
 import SocialAirdropTerms from "@/components/airdrop/SocialAirdropTerms";
 import { PixelButton } from "@/components/shared/PixelButton";
+import { bgStyle, cdnFile } from "@/constants/utils";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -113,20 +114,15 @@ const Airdrop = () => {
     <div>
       <Head>
         <title>Token Tails - Play to Save</title>
-        <meta property="og:image" content="/logo/airdrop.jpg" />
+        <meta property="og:image" content={cdnFile("logo/airdrop.jpg")} />
         <meta property="og:title" content="Token Tails - Airdrop" key="title" />
         <meta name="description" content="9 ways to earn $TAILS" />
-        <link rel="shortcut icon" href="/logo/coin.webp" />
+        <link rel="shortcut icon" href={cdnFile("logo/coin.webp")} />
       </Head>
       <Header />
       <div
         className="pt-20 md:pt-24 fade-in min-h-screen relative flex flex-col items-center"
-        style={{
-          backgroundImage: "url(/backgrounds/bg-6.webp)",
-          backgroundRepeat: "no-repeat",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
+        style={bgStyle("6")}
         id="social-farmin"
       >
         <SocialAirdropTerms />
@@ -135,12 +131,7 @@ const Airdrop = () => {
 
       <div
         className="pt-20 md:pt-24 fade-in min-h-screen relative flex flex-col items-center justify-center pb-16"
-        style={{
-          background: "url(/backgrounds/bg-7.webp)",
-          backgroundAttachment: "fixed",
-          backgroundSize: "cover",
-          backgroundPosition: "bottom",
-        }}
+        style={bgStyle("7")}
         id="social-farming-results"
       >
         <div className="flex justify-center items-center gap-4">
@@ -165,11 +156,7 @@ const Airdrop = () => {
           <a
             href="https://tokentails.com/feed/announcements/how-to-farm-dollartails-airdrop-earn-while-you-play-and-engage"
             target="_blank"
-            style={{
-              backgroundImage: "url(/backgrounds/bg-9.webp)",
-              backgroundSize: "cover",
-              backgroundPosition: "top",
-            }}
+            style={bgStyle("9")}
             className="animate-brightness relative border flex flex-col items-center justify-center w-24 h-24 rounded-full hover:brightness-110"
           >
             <div className="z-10 text-center pt-2 rounded-full flex items-center flex-col justify-center text-p4 leading-none font-primary">
@@ -185,11 +172,7 @@ const Airdrop = () => {
           <a
             href="https://tokentails.com/game"
             target="_blank"
-            style={{
-              backgroundImage: "url(/backgrounds/bg-9.webp)",
-              backgroundSize: "cover",
-              backgroundPosition: "top",
-            }}
+            style={bgStyle("9")}
             className="animate-brightness relative border flex flex-col items-center justify-center w-24 h-24 rounded-full hover:brightness-110"
           >
             <div className="z-10 text-center pt-2 rounded-full flex items-center flex-col justify-center text-p4 leading-none font-primary">
@@ -203,11 +186,7 @@ const Airdrop = () => {
             </div>
           </a>
           <div
-            style={{
-              backgroundImage: "url(/backgrounds/bg-9.webp)",
-              backgroundSize: "cover",
-              backgroundPosition: "top",
-            }}
+            style={bgStyle("9")}
             className="animate-brightness relative border flex flex-col items-center justify-center w-24 h-24 rounded-full hover:brightness-110 opacity-50 scale-75"
           >
             <div className="z-10 text-center pt-2 rounded-full flex items-center flex-col justify-center text-p4 leading-none font-primary">
@@ -220,7 +199,10 @@ const Airdrop = () => {
               3
             </div>
             <div className="absolute inset-0 flex items-center justify-center p-1 w-full h-full z-20 rounded-t-2xl">
-              <img className="w-16 h-16" src="/purrquest/sprites/key.png" />
+              <img
+                className="w-16 h-16"
+                src={cdnFile("purrquest/sprites/key.png")}
+              />
             </div>
           </div>
         </div>

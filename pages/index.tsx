@@ -9,6 +9,7 @@ import Roadmap from "@/components/landing/Roadmap";
 import { Team } from "@/components/landing/Team";
 import { Circle } from "@/components/shared/Circle";
 import Snowfall from "@/components/shared/Snowfall";
+import { bgStyle, cdnFile } from "@/constants/utils";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
 import { isApp } from "@/models/app";
@@ -88,7 +89,7 @@ export default function Index() {
     <>
       <Head>
         <title>Token Tails - Play to Save</title>
-        <meta property="og:image" content="/logo/ogg.jpg" />
+        <meta property="og:image" content={cdnFile("logo/ogg.jpg")} />
         <meta
           property="og:title"
           content="Token Tails - Play to Save"
@@ -98,7 +99,7 @@ export default function Index() {
           name="description"
           content="PLAY WITH YOUR VIRTUAL CAT TO SAVE A CAT IN A SHELTER"
         />
-        <link rel="shortcut icon" href="/logo/coin.webp" />
+        <link rel="shortcut icon" href={cdnFile("logo/coin.webp")} />
       </Head>
 
       <Header />
@@ -112,12 +113,7 @@ export default function Index() {
         </div>
         <div
           className="pt-20 md:pt-24 fade-in h-screen relative flex items-center justify-center"
-          style={{
-            backgroundImage: "url(/backgrounds/bg-6.webp)",
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
+          style={bgStyle("6")}
           id="homepage"
         >
           <Snowfall />
@@ -125,12 +121,7 @@ export default function Index() {
         </div>
         <div
           className="py-4 min-h-screen flex items-center justify-center"
-          style={{
-            backgroundImage: "url(/backgrounds/bg-7.webp)",
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
+          style={bgStyle("7")}
         >
           <div id="process-explained" ref={processExplainedRef}>
             <ProcessExplained />
@@ -138,12 +129,7 @@ export default function Index() {
         </div>
         <div
           className="py-4 min-h-screen flex items-center justify-center"
-          style={{
-            backgroundImage: "url(/backgrounds/bg-5.webp)",
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
+          style={bgStyle("5")}
         >
           <div id="feedbackslider" ref={feedbackSliderRef}>
             <FeedbackSlider />
@@ -151,12 +137,7 @@ export default function Index() {
         </div>
         <div
           className="pb-4 pt-3 md:pt-0 min-h-screen flex items-center justify-center w-full"
-          style={{
-            backgroundImage: "url(/backgrounds/bg-4.webp)",
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
+          style={bgStyle("4")}
         >
           <div className="h-full w-full" id="game" ref={catssliderRef}>
             <GameModes />
@@ -167,12 +148,7 @@ export default function Index() {
         </div>
         <div
           className="min-h-screen flex items-center py-3"
-          style={{
-            backgroundImage: "url(/backgrounds/bg-3.webp)",
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
+          style={bgStyle("3")}
         >
           <div className="w-full" id="blog">
             <CatsHub />
@@ -181,12 +157,7 @@ export default function Index() {
         </div>
         <div
           className="min-h-screen flex items-center justify-center"
-          style={{
-            backgroundImage: "url(/backgrounds/bg-4.webp)",
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
+          style={bgStyle("4")}
         >
           <div className="h-full" id="roadmap" ref={roadmapRef}>
             <Roadmap />

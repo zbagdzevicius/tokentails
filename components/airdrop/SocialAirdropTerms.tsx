@@ -3,6 +3,7 @@ import { SocialImages } from "../landing/Team";
 import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
 import { CloseButton } from "../shared/CloseButton";
+import { bgStyle, cdnFile } from "@/constants/utils";
 
 const whatToDo = [
   {
@@ -50,21 +51,21 @@ const whatToDo = [
     description: "1000 game coins + 1",
     help: "Complete a Mission to fulfill your destiny - Earn 1000 Game Coins in Token Tails playing Catbassadors and be rewarded!",
     points: "+∞",
-    image: "logo/coin.webp",
+    image: cdnFile("logo/coin.webp"),
     href: "https://tokentails.com/game",
   },
   {
     description: "Collect 300 catnip",
     help: "Play catnip to complete levels and collect catnip.",
     points: "+690",
-    image: "logo/catnip.webp",
+    image: cdnFile("logo/catnip.webp"),
     href: "https://tokentails.com/game",
   },
   {
     description: "ADOPT NFT CAT",
     help: "The bond is sealed in adoption. Multiply Your Blessings - Adopt a Cat NFT to Boost Your $TAILS",
     points: "Multiply",
-    image: "images/cats-slider/joy-cat.webp",
+    image: cdnFile("images/cats-slider/joy-cat.webp"),
     href: "https://tokentails.com/game",
   },
 ];
@@ -75,7 +76,11 @@ export const SocialAirdropTerms = () => {
   return (
     <div className="flex flex-col lg:flex-row items-center lg:items-start lg:mt-8 2xl:mt-16 gap-2 lg:gap-16">
       <div className="flex flex-col items-center">
-        <img className="w-32" src="/logo/logo.webp" alt="airdrop-logo" />
+        <img
+          className="w-32"
+          src={cdnFile("logo/logo.webp")}
+          alt="airdrop-logo"
+        />
         <h2 className="text-center font-primary uppercase tracking-tight text-h6 md:text-h1 text-balance px-4">
           <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] mr-4">
             $TAILS
@@ -130,7 +135,7 @@ export const SocialAirdropTerms = () => {
                 {what.points}
                 <img
                   draggable={false}
-                  src="/logo/coin.webp"
+                  src={cdnFile("logo/coin.webp")}
                   className="min-w-8 w-8 h-8 ml-1 -mr-1"
                 />
               </a>
@@ -156,12 +161,7 @@ export const SocialAirdropTerms = () => {
           ></div>
           <div
             className="z-50 rem:w-[350px] md:w-[480px] max-w-full absolute top-1/2 -translate-y-1/2 rounded-xl shadow animate-appear pb-4"
-            style={{
-              backgroundImage: "url('/backgrounds/bg-5.webp')",
-              backgroundRepeat: "no-repeat",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
+            style={bgStyle("5")}
           >
             <CloseButton onClick={() => setModal(null)} />
             <div className="pb-safe rem:min-h-[100px] p-8 flex flex-col gap-2 justify-between items-center">

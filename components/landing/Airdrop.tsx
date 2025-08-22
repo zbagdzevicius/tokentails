@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PixelButton } from "../shared/PixelButton";
 import { SocialImages } from "./Team";
+import { bgStyle, cdnFile } from "@/constants/utils";
 
 export const Airdrop = () => {
   const [showEligibilityCriteria, setShowEligibilityCriteria] = useState(false);
@@ -13,16 +14,12 @@ export const Airdrop = () => {
         <div className="flex flex-col md:flex-row gap-4 md:gap-2 lg:gap-12 text-p3 font-primary">
           <div
             className="flex flex-col items-center p-4 rounded-2xl min-w-64 md:min-w-52 lg:min-w-64"
-            style={{
-              backgroundImage: "url(/backgrounds/bg-4.webp)",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
+            style={bgStyle("4")}
           >
             <img
               className="w-12 h-12"
               draggable={false}
-              src="/logo/coin.webp"
+              src={cdnFile("logo/coin.webp")}
             />
             <span className="text-p2 text-center">$TAILS TOKEN AIRDROP</span>
             <span>
@@ -32,16 +29,12 @@ export const Airdrop = () => {
           </div>
           <div
             className="flex flex-col items-center p-4 rounded-2xl min-w-64 md:min-w-52 lg:min-w-64"
-            style={{
-              backgroundImage: "url(/backgrounds/bg-6.webp)",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
+            style={bgStyle("6")}
           >
             <img
               className="w-12 h-12"
               draggable={false}
-              src="/logo/heart.webp"
+              src={cdnFile("logo/heart.webp")}
             />
             <span className="text-p2 text-center">CATS HEROES AWARDS</span>
             <span>
@@ -51,16 +44,12 @@ export const Airdrop = () => {
           </div>
           <div
             className="flex flex-col items-center p-4 rounded-2xl min-w-64 md:min-w-52 lg:min-w-64"
-            style={{
-              backgroundImage: "url(/backgrounds/bg-4.webp)",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
+            style={bgStyle("4")}
           >
             <img
               className="w-36 h-36 pixelated -mt-14 -mb-10"
               draggable={false}
-              src="/cats/pinkie/pink-lamiendo-ropa.gif"
+              src={cdnFile("cats/pinkie/pink-lamiendo-ropa.gif")}
             />
             <span className="text-p2 text-center">MEGA NFT REWARDS</span>
             <span>
@@ -74,7 +63,7 @@ export const Airdrop = () => {
         <div className="sm:w-1/2 flex justify-end">
           <img
             className="w-48 md:w-96 animate-hover hover:brightness-125"
-            src="/images/cats-hub/airdrop.webp"
+            src={cdnFile("images/cats-hub/airdrop.webp")}
           />
         </div>
         <div className="sm:w-1/2">
@@ -115,7 +104,7 @@ export const Airdrop = () => {
                   <img
                     draggable={false}
                     className="w-8 lg:w-12"
-                    src="/logo/rocket.png"
+                    src={cdnFile("logo/rocket.png")}
                   />
                   <PixelButton text="REACHED 10 DAYS STREAK" />
                 </li>
@@ -123,7 +112,7 @@ export const Airdrop = () => {
                   <img
                     draggable={false}
                     className="w-8 lg:w-12"
-                    src="/images/cats-slider/joy-cat.webp"
+                    src={cdnFile("images/cats-slider/joy-cat.webp")}
                   />
                   <PixelButton text="SAVED A CAT BY ADOPTING NFT" />
                 </li>
@@ -131,7 +120,7 @@ export const Airdrop = () => {
                   <img
                     draggable={false}
                     className="w-8 lg:w-12"
-                    src="/images/cats-slider/coin-cat.webp"
+                    src={cdnFile("images/cats-slider/coin-cat.webp")}
                   />
                   <PixelButton text="COLLECTED AND SPENT 100k COINS" />
                 </li>

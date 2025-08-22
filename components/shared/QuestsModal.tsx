@@ -9,6 +9,7 @@ import { LeaderboardContent } from "../Leaderboard";
 import { CloseButton } from "./CloseButton";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
+import { bgStyle, cdnFile } from "@/constants/utils";
 
 export const TrailheadsData = [
   {
@@ -107,7 +108,7 @@ export const QuestsModalContent = () => {
                       <img
                         draggable={false}
                         className="w-10"
-                        src="/icons/check.webp"
+                        src={cdnFile("icons/check.webp")}
                       />
                     ) : (
                       <img
@@ -127,7 +128,7 @@ export const QuestsModalContent = () => {
                       <img
                         draggable={false}
                         className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
-                        src="/logo/coin.webp"
+                        src={cdnFile("logo/coin.webp")}
                       />
                       {quest.reward.coins} COINS
                     </div>
@@ -137,7 +138,7 @@ export const QuestsModalContent = () => {
                       <img
                         draggable={false}
                         className="w-8 -left-6 -top-2 bottom-0 z-10 absolute"
-                        src="/logo/logo.webp"
+                        src={cdnFile("logo/logo.webp")}
                       />
                       {quest.reward.tails} $TAILS
                     </div>
@@ -160,7 +161,7 @@ export const QuestsModalContent = () => {
                       <img
                         draggable={false}
                         className="w-10"
-                        src="/icons/check.webp"
+                        src={cdnFile("icons/check.webp")}
                       />
                     ) : (
                       <img
@@ -179,7 +180,7 @@ export const QuestsModalContent = () => {
                     <img
                       draggable={false}
                       className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
-                      src="/logo/coin.webp"
+                      src={cdnFile("logo/coin.webp")}
                     />
                     {quest.reward.coins} COINS
                   </div>
@@ -203,12 +204,7 @@ export const QuestsModal = ({ close }: { close: () => void }) => {
       ></div>
       <div
         className="m-auto z-50 rem:w-[386px] md:w-[480px] max-w-full absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow"
-        style={{
-          backgroundImage: "url('/backgrounds/bg-4.webp')",
-          backgroundRepeat: "no-repeat",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
+        style={bgStyle("4")}
       >
         <CloseButton onClick={() => close()} />
         <QuestsModalContent />

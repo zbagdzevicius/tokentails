@@ -1,4 +1,4 @@
-import { currentDayCoin } from "@/constants/utils";
+import { bgStyle, cdnFile, currentDayCoin } from "@/constants/utils";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { ICat } from "@/models/cats";
@@ -103,7 +103,7 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
                   <img
                     draggable={false}
                     className="w-8 z-10"
-                    src="/icons/clock.png"
+                    src={cdnFile("icons/clock.png")}
                   />
                 </div>
               )}
@@ -115,16 +115,12 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
       {!isStarted && (
         <div
           className="absolute top-16 lg:top-24 z-[2] left-1/2 -translate-x-1/2 bg-yellow-300 pt-2 rounded-lg px-4 flex flex-col md:flex-row lg:flex-col animate-appear"
-          style={{
-            backgroundImage: "url(/backgrounds/bg-9.webp)",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
+          style={bgStyle("9")}
         >
           <div className="flex flex-col">
             <img
               className="w-28 aspect-square m-auto rounded-t-xl -mb-4 relative z-0"
-              src="/game/select/catbassadors.jpg"
+              src={cdnFile("game/select/catbassadors.jpg")}
               draggable="false"
             />
             <div className="relative z-10">
@@ -136,7 +132,7 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
                 <img
                   draggable={false}
                   className="h-8"
-                  src="logo/coin.webp"
+                  src={cdnFile("logo/coin.webp")}
                 ></img>
               </div>
 
@@ -154,28 +150,52 @@ const Catbassadors = ({ cat, timer }: ICatbassadorsProps) => {
           <div className="flex flex-col">
             <Tag>COINS REWARDS</Tag>
             <div className="flex gap-2 items-center justify-center font-secondary text-p4 pt-2">
-              <img draggable={false} className="h-6" src="logo/coin.png"></img>
+              <img
+                draggable={false}
+                className="h-6"
+                src={cdnFile("logo/coin.png")}
+              ></img>
               <span className="whitespace-nowrap">GIVES 1</span>
-              <img draggable={false} className="h-6" src="logo/coin.png"></img>
+              <img
+                draggable={false}
+                className="h-6"
+                src={cdnFile("logo/coin.png")}
+              ></img>
             </div>
             <div className="flex gap-2 items-center justify-center font-secondary text-p4">
               <img draggable={false} className="h-5" src={currentDayCoin}></img>
               <span className="whitespace-nowrap">GIVES 10</span>
-              <img draggable={false} className="h-6" src="logo/coin.png"></img>
+              <img
+                draggable={false}
+                className="h-6"
+                src={cdnFile("logo/coin.png")}
+              ></img>
             </div>
             <div className="flex gap-2 items-center justify-center font-secondary text-p4">
-              <img draggable={false} className="h-5" src="logo/coin.webp"></img>
+              <img
+                draggable={false}
+                className="h-5"
+                src={cdnFile("logo/coin.webp")}
+              ></img>
               <span className="whitespace-nowrap">GIVES 100</span>
-              <img draggable={false} className="h-6" src="logo/coin.png"></img>
+              <img
+                draggable={false}
+                className="h-6"
+                src={cdnFile("logo/coin.png")}
+              ></img>
             </div>
             <div className="flex gap-2 items-center justify-center font-secondary text-p4 pb-2">
               <img
                 draggable={false}
                 className="h-5"
-                src="icons/clock.png"
+                src={cdnFile("icons/clock.png")}
               ></img>
               <span className="whitespace-nowrap">GIVES 1000</span>
-              <img draggable={false} className="h-6" src="logo/coin.png"></img>
+              <img
+                draggable={false}
+                className="h-6"
+                src={cdnFile("logo/coin.png")}
+              ></img>
             </div>
             <div className="flex justify-center -mb-6">
               <PixelButton

@@ -1,3 +1,4 @@
+import { cdnFile } from "@/constants/utils";
 import Link from "next/link";
 
 interface IProps {
@@ -17,7 +18,7 @@ export const NoMore = ({
       <div className="text-md mb-12 px-4 text-center">{subtitle}</div>
       <Link href={`/`}>
         <button className="animate-spin">
-          <img draggable={false} src="/logo/paw.png" />
+          <img draggable={false} src={cdnFile("logo/paw.png")} />
         </button>
       </Link>
     </div>

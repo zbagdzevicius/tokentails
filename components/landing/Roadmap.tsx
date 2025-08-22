@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { PixelButton } from "../shared/PixelButton";
 import { Tokenomics } from "./Tokenomics";
+import { cdnFile } from "@/constants/utils";
 
 const Roadmap = () => {
   const [isTokenomicsVisible, setIsTokenomicsVisible] = useState(false);
@@ -21,26 +22,38 @@ const Roadmap = () => {
             <img
               draggable={false}
               className="w-10 relative md:absolute left-0 right-0 md:-top-14 m-auto"
-              src="icons/check.webp"
+              src={cdnFile("icons/check.webp")}
             />
             <img
               draggable={false}
               className="h-32 w-32 max-w-[200px] mt-8"
-              src="/cats/grey/Loaf-Clothed-Grey.gif"
+              src={cdnFile("cats/grey/Loaf-Clothed-Grey.gif")}
             />
           </div>
           <h2 className="font-primary text-h4 md:text-h2">SO FAR</h2>
           <div className="flex flex-col font-secondary text-p4 md:text-p2 font-bold">
             <span className="flex gap-2 items-center whitespace-nowrap">
-              <img draggable={false} className="h-6" src="icons/check.webp" />
+              <img
+                draggable={false}
+                className="h-6"
+                src={cdnFile("icons/check.webp")}
+              />
               LIVE GAME
             </span>
             <span className="flex gap-2 items-center">
-              <img draggable={false} className="h-6" src="icons/check.webp" />
+              <img
+                draggable={false}
+                className="h-6"
+                src={cdnFile("icons/check.webp")}
+              />
               0.5M Players
             </span>
             <span className="flex gap-2 items-center whitespace-nowrap">
-              <img draggable={false} className="h-6" src="icons/check.webp" />
+              <img
+                draggable={false}
+                className="h-6"
+                src={cdnFile("icons/check.webp")}
+              />
               10k+ TOKENIZED CATS
             </span>
           </div>
@@ -50,12 +63,12 @@ const Roadmap = () => {
             <img
               draggable={false}
               className="w-10 relative md:absolute left-0 right-0 md:-top-14 m-auto"
-              src="icons/check.webp"
+              src={cdnFile("icons/check.webp")}
             />
             <img
               draggable={false}
               className="h-32 w-32 max-w-[200px]"
-              src="/cats/siamese/jugando Ropa Siames.gif"
+              src={cdnFile("cats/siamese/jugando Ropa Siames.gif")}
             />
           </div>
           <h2 className="font-primary text-h4 md:text-h2 whitespace-nowrap">
@@ -63,15 +76,27 @@ const Roadmap = () => {
           </h2>
           <div className="flex flex-col font-secondary text-p4 md:text-p2 font-bold">
             <span className="flex gap-2 items-center -ml-6">
-              <img draggable={false} className="h-6" src="icons/check.webp" />
+              <img
+                draggable={false}
+                className="h-6"
+                src={cdnFile("icons/check.webp")}
+              />
               SHELTERS ONBOARDING
             </span>
             <span className="flex gap-2 items-center -ml-6">
-              <img draggable={false} className="h-6" src="icons/loader.webp" />
+              <img
+                draggable={false}
+                className="h-6"
+                src={cdnFile("icons/loader.webp")}
+              />
               AIRDROP CAMPAIGN
             </span>
             <span className="flex gap-2 items-center -ml-6">
-              <img draggable={false} className="h-6" src="icons/loader.webp" />
+              <img
+                draggable={false}
+                className="h-6"
+                src={cdnFile("icons/loader.webp")}
+              />
               $TAILS GUARD
             </span>
           </div>
@@ -81,12 +106,12 @@ const Roadmap = () => {
             <img
               draggable={false}
               className="w-10 relative md:absolute left-0 right-0 md:-top-14 m-auto pixelated"
-              src="icons/loader.webp"
+              src={cdnFile("icons/loader.webp")}
             />
             <img
               draggable={false}
               className="h-32 w-32 max-w-[200px]"
-              src="/cats/yellow/Jump-Hat-Yellow.gif"
+              src={cdnFile("cats/yellow/Jump-Hat-Yellow.gif")}
             />
           </div>
           <h2 className="font-primary text-h4 md:text-h2 whitespace-nowrap">
@@ -97,7 +122,7 @@ const Roadmap = () => {
               <img
                 draggable={false}
                 className="h-6 pixelated"
-                src="icons/loader.webp"
+                src={cdnFile("icons/loader.webp")}
               />
               TGE
             </span>
@@ -105,7 +130,7 @@ const Roadmap = () => {
               <img
                 draggable={false}
                 className="h-6 pixelated"
-                src="icons/loader.webp"
+                src={cdnFile("icons/loader.webp")}
               />
               3D game
             </span>
@@ -113,7 +138,7 @@ const Roadmap = () => {
               <img
                 draggable={false}
                 className="h-6 pixelated"
-                src="icons/loader.webp"
+                src={cdnFile("icons/loader.webp")}
               />
               MORE REWARDS
             </span>

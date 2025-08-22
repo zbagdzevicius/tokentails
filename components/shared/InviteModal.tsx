@@ -8,6 +8,7 @@ import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
 import { MysteryBox } from "../mystery/MysteryBox";
 import { Trailheads } from "../mystery/Trailheads";
+import { bgStyle, cdnFile } from "@/constants/utils";
 
 const MysteryBoxCat = dynamic(
   () => import("../mystery/MysteryBoxCat").then((mod) => mod.MysteryBoxCat),
@@ -15,7 +16,7 @@ const MysteryBoxCat = dynamic(
     ssr: false,
     loading: () => (
       <img
-        src="/icons/loader.webp"
+        src={cdnFile("icons/loader.webp")}
         className="w-8 h-8 m-auto animate-spin pixelated"
       />
     ),
@@ -55,11 +56,7 @@ export const InviteModalContent = () => {
         <>
           <div
             className="flex flex-col mb-4 font-primary uppercase px-2 relative rounded-lg py-2 text-main-black mt-8"
-            style={{
-              backgroundImage: "url(/backgrounds/bg-6.webp)",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
+            style={bgStyle("6")}
           >
             <Tag isSmall>WHAT I'LL GET FOR INVITING A FRIEND?</Tag>
 
@@ -67,7 +64,7 @@ export const InviteModalContent = () => {
               <img
                 draggable={false}
                 className="w-7 h-7  md:w-8 md:h-8 lg:w-10 lg:h-10 mr-1"
-                src="/base/heart.png"
+                src={cdnFile("base/heart.png")}
               />
               <p className="text-p4">9 LIVES</p>
             </div>
@@ -75,7 +72,7 @@ export const InviteModalContent = () => {
               <img
                 draggable={false}
                 className="w-7 md:w-8 md:h-8 lg:w-10 lg:h-10 h-7 mr-1"
-                src="/logo/coin.webp"
+                src={cdnFile("logo/coin.webp")}
               />
               <p className="text-p4">9000 COINS</p>
             </div>
@@ -83,7 +80,7 @@ export const InviteModalContent = () => {
               <img
                 draggable={false}
                 className="w-7 h-6  md:w-8 md:h-7 lg:w-10 lg:h-9 mr-1"
-                src="/icons/invites/gift-coin.png"
+                src={cdnFile("icons/invites/gift-coin.png")}
               />
               <p className="text-p4">9000 COINS FOR YOUR FRIEND</p>
             </div>
@@ -91,7 +88,7 @@ export const InviteModalContent = () => {
               <img
                 draggable={false}
                 className="w-7 h-7  md:w-8 md:h-8 lg:w-10 lg:h-10 mr-1"
-                src="/icons/invites/gift.png"
+                src={cdnFile("icons/invites/gift.png")}
               />
               <p className="text-p4">MORE DAILY CHECK-IN REWARDS</p>
             </div>
@@ -99,14 +96,14 @@ export const InviteModalContent = () => {
               <img
                 draggable={false}
                 className="h-6 w-6"
-                src="/logo/heart.webp"
+                src={cdnFile("logo/heart.webp")}
               />
             </div>
             <div className="absolute -top-3 -right-3 z-0 rotate-45">
               <img
                 draggable={false}
                 className="h-6 w-6"
-                src="/logo/heart.webp"
+                src={cdnFile("logo/heart.webp")}
               />
             </div>
             <div className="flex flex-col gap-4 uppercase text-center">
@@ -155,12 +152,7 @@ export const InviteModal = ({ close }: { close: () => void }) => {
       ></div>
       <div
         className="m-auto z-50 rem:w-[370px] md:w-[480px] max-w-full absolute top-1/2 -translate-y-1/2 h-full rounded-xl shadow max-h-screen overflow-y-auto"
-        style={{
-          backgroundImage: "url('/backgrounds/bg-5.webp')",
-          backgroundRepeat: "no-repeat",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
+        style={bgStyle("5")}
       >
         <CloseButton onClick={() => close()} />
         <InviteModalContent />

@@ -1,5 +1,5 @@
 import { GameEvent, GameEvents, ICatEvent } from "@/components/Phaser/events";
-import { ZOOM } from "@/constants/utils";
+import { cdnFile, ZOOM } from "@/constants/utils";
 import { ICat } from "@/models/cats";
 import { Scene } from "phaser";
 import { CatNpc, NPCJobType } from "../objects/Cat";
@@ -41,24 +41,24 @@ export class BaseScene extends Scene {
   }
 
   preload() {
-    this.load.spritesheet("food", "base/food.png", {
+    this.load.spritesheet("food", cdnFile("base/food.png"), {
       frameWidth: 32,
       frameHeight: 32,
       margin: 1,
       spacing: 2,
     });
-    this.load.image("coin", "logo/coin.webp");
-    this.load.audio("blip", "purrquest/sounds/blip.mp3");
-    this.load.audio("meow", "purrquest/sounds/meow.mp3");
-    this.load.audio("purr", "purrquest/sounds/purr.mp3");
-    this.load.audio("eat", "purrquest/sounds/eat.mp3");
-    this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
+    this.load.image("coin", cdnFile("logo/coin.webp"));
+    this.load.audio("blip", cdnFile("purrquest/sounds/blip.mp3"));
+    this.load.audio("meow", cdnFile("purrquest/sounds/meow.mp3"));
+    this.load.audio("purr", cdnFile("purrquest/sounds/purr.mp3"));
+    this.load.audio("eat", cdnFile("purrquest/sounds/eat.mp3"));
+    this.load.audio("powerup", cdnFile("purrquest/sounds/powerup.mp3"));
     this.load.tilemapTiledJSON("tilemap", "catbassadors/base.json");
-    this.load.audio("jump", "catnip-chaos/sounds/jump.mp3");
-    this.load.image("new-blocks-winter", CoreMap);
+    this.load.audio("jump", cdnFile("catnip-chaos/sounds/jump.mp3"));
+    this.load.image("new-blocks-winter", cdnFile(CoreMap));
     this.load.spritesheet(
       "knockback-spell",
-      "abilities/knockback-spell/FIRE.png",
+      cdnFile("abilities/knockback-spell/FIRE.png"),
       {
         frameWidth: 64,
         frameHeight: 64,
@@ -215,7 +215,7 @@ export class BaseScene extends Scene {
     if (cat.blessings?.length) {
       this.load.spritesheet(
         `blessing-${cat.type}`,
-        `flare-effect/spritesheets/${cat.type}.png`,
+        cdnFile(`flare-effect/spritesheets/${cat.type}.png`),
         {
           frameWidth: 64,
           frameHeight: 64,
@@ -417,7 +417,7 @@ export class BaseScene extends Scene {
     if (npcData.blessings?.length) {
       this.load.spritesheet(
         `blessing-${npcData.type}`,
-        `flare-effect/spritesheets/${npcData.type}.png`,
+        cdnFile(`flare-effect/spritesheets/${npcData.type}.png`),
         { frameWidth: 64, frameHeight: 64 }
       );
     }

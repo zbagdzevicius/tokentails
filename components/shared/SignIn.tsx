@@ -2,6 +2,7 @@ import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { ChangeEvent, useState } from "react";
 import { PixelButton } from "./PixelButton";
 import { useToast } from "@/context/ToastContext";
+import { cdnFile } from "@/constants/utils";
 
 const SignInForm = ({
   signIn,
@@ -88,7 +89,7 @@ export const SignInContent = () => {
 
   return (
     <div className="pt-8 pb-4 px-4 md:px-16 md:py-8 text-gray-500 flex flex-col justify-between relative">
-      <img className="w-16 m-auto mb-2" src="/logo/logo.webp" />
+      <img className="w-16 m-auto mb-2" src={cdnFile("logo/logo.webp")} />
       {!user && (
         <div className="flex flex-col">
           <div className="text-center font-pixel text-p2 pb-2">
@@ -168,22 +169,22 @@ export const SignInContent = () => {
       <img
         draggable={false}
         className="absolute bottom-0 right-2 h-8"
-        src="/meme-cats/meme-23.gif"
+        src={cdnFile("meme-cats/meme-23.gif")}
       />
       <img
         draggable={false}
         className="absolute bottom-0 left-2 h-8"
-        src="/meme-cats/meme-1.gif"
+        src={cdnFile("meme-cats/meme-1.gif")}
       />
       <img
         draggable={false}
         className="absolute top-2 left-2 h-12"
-        src="/meme-cats/meme-46.gif"
+        src={cdnFile("meme-cats/meme-46.gif")}
       />
       <img
         draggable={false}
         className="absolute top-0 right-2 h-16"
-        src="/meme-cats/meme-40.gif"
+        src={cdnFile("meme-cats/meme-40.gif")}
       />
     </div>
   );

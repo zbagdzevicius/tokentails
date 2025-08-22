@@ -7,6 +7,7 @@ import { ISave } from "@/models/save";
 import classNames from "classnames";
 import { useState } from "react";
 import { Comment, Comments } from "./Comments";
+import { cdnFile } from "@/constants/utils";
 
 export interface IFeedActionsProps extends ISave {
   link: string;
@@ -33,7 +34,11 @@ export const FeedActions = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <span className="rounded-full grid place-items-center text-p1 text-accent-600 mr-2">
-              <img draggable={false} className="w-4" src="/logo/paw.png" />
+              <img
+                draggable={false}
+                className="w-4"
+                src={cdnFile("logo/paw.png")}
+              />
             </span>
             <span className="text-gray-500 text-p5">
               {getRandomNumber(link, new Date())} Paws
@@ -44,7 +49,11 @@ export const FeedActions = ({
               {Math.ceil(getRandomNumber(`${link}-share`, new Date()) / 10)}{" "}
               Shares
             </span>
-            <img draggable={false} className="w-4 ml-2" src="/logo/coin.webp" />
+            <img
+              draggable={false}
+              className="w-4 ml-2"
+              src={cdnFile("logo/coin.webp")}
+            />
           </div>
         </div>
       </div>
@@ -64,7 +73,7 @@ export const FeedActions = ({
               >
                 <img
                   draggable={false}
-                  src="/logo/paw.png"
+                  src={cdnFile("logo/paw.png")}
                   className="w-6 h-6"
                 />
                 <div className="text-p4 font-semibold ml-2">
@@ -78,7 +87,7 @@ export const FeedActions = ({
             >
               <img
                 draggable={false}
-                src="/logo/comments.png"
+                src={cdnFile("logo/comments.png")}
                 className="w-6 h-6"
               />
               <div className="text-p4 font-semibold ml-2 leading-3">Meows</div>
@@ -89,7 +98,7 @@ export const FeedActions = ({
             >
               <img
                 draggable={false}
-                src="/logo/coin.webp"
+                src={cdnFile("logo/coin.webp")}
                 className="w-6 h-6"
               />
               <div className="text-p4 font-semibold ml-2">Share</div>

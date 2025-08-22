@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { CloseButton } from "../shared/CloseButton";
 import { GameEvent, GameEvents, ICatEvent } from "./events";
 import { useGame } from "@/context/GameContext";
+import { bgStyle, cdnFile } from "@/constants/utils";
 
 export const DisplayCoins: React.FC<{}> = () => {
   const [totalTokens, setTotalTokens] = useState(0);
@@ -109,16 +110,12 @@ export const DisplayCoins: React.FC<{}> = () => {
       {/* Coin Display */}
       <div
         className="fixed left-4 pb-safe top-4 z-10 justify-between flex hover:brightness-110 flex-col w-20 items-center font-secondary rounded-xl px-1 py-2"
-        style={{
-          backgroundImage: "url(/backgrounds/bg-9.webp)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
+        style={bgStyle("9")}
       >
         <img
           draggable={false}
           className="w-6 h-6"
-          src="/logo/coin.webp"
+          src={cdnFile("logo/coin.webp")}
           alt="Coin"
         />
         <div className="text-p4 flex items-center gap-1">
@@ -144,7 +141,7 @@ export const DisplayCoins: React.FC<{}> = () => {
           +{displayAmount}
           <img
             draggable={false}
-            src="/catbassadors/coin.gif"
+            src={cdnFile("catbassadors/coin.gif")}
             className="w-16 h-16"
             alt="Coin animation"
           />
@@ -157,7 +154,7 @@ export const DisplayCoins: React.FC<{}> = () => {
           <div className="relative w-14 h-14">
             <img
               draggable={false}
-              src={`/buff/${powerUpType}-ICON.png`}
+              src={cdnFile(`buff/${powerUpType}-ICON.png`)}
               className="absolute top-0 left-0 w-full h-full"
               alt="buff icon"
             />

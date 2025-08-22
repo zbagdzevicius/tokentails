@@ -2,6 +2,7 @@ import { PixelButton } from "@/components/shared/PixelButton";
 import { Socials } from "@/layouts/Socials";
 import { useEffect, useState } from "react";
 import { Countdown } from "../shared/Countdown";
+import { cdnFile } from "@/constants/utils";
 
 interface bannerProps {
   image: string;
@@ -9,107 +10,107 @@ interface bannerProps {
 }
 
 const sponsorImage = [
-  "/images/sponsor/microsoft-for-startups.webp",
-  "/images/sponsor/social-shifters.webp",
-  "/images/sponsor/diamante.webp",
-  "/images/sponsor/gametech.png",
-  "/images/sponsor/eu.webp",
-  "/images/sponsor/stellar.webp",
-  "/images/sponsor/immutable.webp",
-  "/images/sponsor/brinc.webp",
-  "/images/sponsor/blockgames.webp",
-  "/images/sponsor/skale.webp",
-  "/images/sponsor/onepiece.png",
-  "/images/sponsor/xdc.webp",
-  "/images/sponsor/buidlers-tribe.webp",
-  "/images/sponsor/crossfi.webp",
-  "/images/sponsor/digitalocean.webp",
-  "/images/sponsor/earn-alliance.webp",
-  "/images/sponsor/unicorn-ultra.webp",
-  "/images/sponsor/iexec.webp",
-  "/images/sponsor/h7.webp",
-  "/images/sponsor/mexc.webp",
+  "images/sponsor/microsoft-for-startups.webp",
+  "images/sponsor/social-shifters.webp",
+  "images/sponsor/diamante.webp",
+  "images/sponsor/gametech.png",
+  "images/sponsor/eu.webp",
+  "images/sponsor/stellar.webp",
+  "images/sponsor/immutable.webp",
+  "images/sponsor/brinc.webp",
+  "images/sponsor/blockgames.webp",
+  "images/sponsor/skale.webp",
+  "images/sponsor/onepiece.png",
+  "images/sponsor/xdc.webp",
+  "images/sponsor/buidlers-tribe.webp",
+  "images/sponsor/crossfi.webp",
+  "images/sponsor/digitalocean.webp",
+  "images/sponsor/earn-alliance.webp",
+  "images/sponsor/unicorn-ultra.webp",
+  "images/sponsor/iexec.webp",
+  "images/sponsor/h7.webp",
+  "images/sponsor/mexc.webp",
 ];
 
 const cats: bannerProps[] = [
   {
-    image: "/cats/pinkie/pink-caminando-ropa.gif",
+    image: "cats/pinkie/pink-caminando-ropa.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/grey/Playing-Clothed-Grey.gif",
+    image: "cats/grey/Playing-Clothed-Grey.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/pinkie/pink-lamiendo-ropa.gif",
+    image: "cats/pinkie/pink-lamiendo-ropa.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/pinkie/pink-respirando-ropa.gif",
+    image: "cats/pinkie/pink-respirando-ropa.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/grey/Running-Clothed-Grey.gif",
+    image: "cats/grey/Running-Clothed-Grey.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/pinkie/pink-corriendo-ropa.gif",
+    image: "cats/pinkie/pink-corriendo-ropa.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/pinkie/pink-lamiendo-ropa.gif",
+    image: "cats/pinkie/pink-lamiendo-ropa.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/grey/Walking-Clothed-Grey.gif",
+    image: "cats/grey/Walking-Clothed-Grey.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/pinkie/pink-caminando-ropa.gif",
+    image: "cats/pinkie/pink-caminando-ropa.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/pinkie/pink-corriendo-ropa.gif",
+    image: "cats/pinkie/pink-corriendo-ropa.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/yellow/Jump-Hat-Yellow.gif",
+    image: "cats/yellow/Jump-Hat-Yellow.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/pinkie/pink-respirando-ropa.gif",
+    image: "cats/pinkie/pink-respirando-ropa.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/pinkie/pink-caminando-ropa.gif",
+    image: "cats/pinkie/pink-caminando-ropa.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/black/Jump-Hat-Black.gif",
+    image: "cats/black/Jump-Hat-Black.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/black/Licking-Hat-Black.gif",
+    image: "cats/black/Licking-Hat-Black.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/black/Loaf-Hat-Black.gif",
+    image: "cats/black/Loaf-Hat-Black.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/black/Playing-Hat-Black.gif",
+    image: "cats/black/Playing-Hat-Black.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/black/Sitting-Hat-Black.gif",
+    image: "cats/black/Sitting-Hat-Black.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/yellow/Idle-Hat-Yellow.gif",
+    image: "cats/yellow/Idle-Hat-Yellow.gif",
     title: "Play logo",
   },
   {
-    image: "/cats/pinkie/pink-respirando-ropa.gif",
+    image: "cats/pinkie/pink-respirando-ropa.gif",
     title: "Play logo",
   },
 ];
@@ -129,7 +130,7 @@ export const HomePage = () => {
         </span>
         <img
           className="w-full h-[400px] xl:h-[450px] 3xl:h-[600px] z-10"
-          src="devices/macbook.webp"
+          src={cdnFile("devices/macbook.webp")}
         />
 
         <video
@@ -149,7 +150,7 @@ export const HomePage = () => {
         </span>
         <img
           className="w-full rem:h-[492px] z-10 relative"
-          src="devices/iphone-trimmed.webp"
+          src={cdnFile("devices/iphone-trimmed.webp")}
         />
 
         <video
@@ -170,7 +171,7 @@ export const HomePage = () => {
               <div key={index} className="slide">
                 <img
                   draggable={false}
-                  src={banner.image}
+                  src={cdnFile(banner.image)}
                   alt={banner.title}
                   width={100}
                   height={100}
@@ -185,7 +186,11 @@ export const HomePage = () => {
         <div className="slide-track">
           {sponsorImage.map((sponsor, index) => (
             <div key={index} className="slide flex items-center">
-              <img draggable={false} className="h-10 w-auto" src={sponsor} />
+              <img
+                draggable={false}
+                className="h-10 w-auto"
+                src={cdnFile(sponsor)}
+              />
             </div>
           ))}
         </div>

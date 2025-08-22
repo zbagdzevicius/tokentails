@@ -1,3 +1,4 @@
+import { cdnFile } from "@/constants/utils";
 import { PixelButton } from "../shared/PixelButton";
 
 interface ISocial {
@@ -12,18 +13,18 @@ interface ITeamMember {
   socials: ISocial[];
 }
 
-export enum SocialImages {
-  LINKEDIN = "/icons/social/linkedin.png",
-  INSTAGRAM = "/icons/social/instagram.png",
-  X = "/icons/social/x.webp",
-  WARPCAST = "/icons/social/warpcast.png",
-  EMAIL = "/icons/social/email.png",
-  TELEGRAM = "/icons/social/telegram.png",
-}
+export const SocialImages = {
+  LINKEDIN: cdnFile("icons/social/linkedin.png"),
+  INSTAGRAM: cdnFile("icons/social/instagram.png"),
+  X: cdnFile("icons/social/x.webp"),
+  WARPCAST: cdnFile("icons/social/warpcast.png"),
+  EMAIL: cdnFile("icons/social/email.png"),
+  TELEGRAM: cdnFile("icons/social/telegram.png"),
+};
 
 const teamMembers: ITeamMember[] = [
   {
-    img: "/team/zygimantas.webp",
+    img: cdnFile("team/zygimantas.webp"),
     name: "Žygimantas",
     role: "Founder, CTO",
     socials: [
@@ -42,7 +43,7 @@ const teamMembers: ITeamMember[] = [
     ],
   },
   {
-    img: "/team/krishna.webp",
+    img: cdnFile("team/krishna.webp"),
     name: "Krishna",
     role: "Marketing Lead",
     socials: [
@@ -53,7 +54,7 @@ const teamMembers: ITeamMember[] = [
     ],
   },
   {
-    img: "/team/feta.webp",
+    img: cdnFile("team/feta.webp"),
     name: "Feta",
     role: "Vibe Checker",
     socials: [
@@ -64,7 +65,7 @@ const teamMembers: ITeamMember[] = [
     ],
   },
   {
-    img: "/team/ernest.webp",
+    img: cdnFile("team/ernest.webp"),
     name: "Ernest",
     role: "Game Lead",
     socials: [
@@ -75,7 +76,7 @@ const teamMembers: ITeamMember[] = [
     ],
   },
   {
-    img: "/team/sky.webp",
+    img: cdnFile("team/sky.webp"),
     name: "Sky Wee",
     role: "BD",
     socials: [
@@ -98,7 +99,7 @@ const teamMembers: ITeamMember[] = [
     ],
   },
   {
-    img: "/team/lukas.webp",
+    img: cdnFile("team/lukas.webp"),
     name: "Lukas",
     role: "Web Lead",
     socials: [
@@ -109,7 +110,7 @@ const teamMembers: ITeamMember[] = [
     ],
   },
   {
-    img: "/team/domas.webp",
+    img: cdnFile("team/domas.webp"),
     name: "Domas",
     role: "Graphics",
     socials: [
@@ -120,7 +121,7 @@ const teamMembers: ITeamMember[] = [
     ],
   },
   {
-    img: "/team/kaciukas.webp",
+    img: cdnFile("team/kaciukas.webp"),
     name: "Kačiukas",
     role: "Nap Lead",
     socials: [
@@ -131,7 +132,7 @@ const teamMembers: ITeamMember[] = [
     ],
   },
   {
-    img: "/team/marcin.webp",
+    img: cdnFile("team/marcin.webp"),
     name: "Marcin",
     role: "BD Advisor",
     socials: [
@@ -146,7 +147,7 @@ const teamMembers: ITeamMember[] = [
     ],
   },
   {
-    img: "/team/igor.webp",
+    img: cdnFile("team/igor.webp"),
     name: "Igor",
     role: "Marketing",
     socials: [

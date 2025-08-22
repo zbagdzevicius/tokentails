@@ -6,6 +6,7 @@ import { useState } from "react";
 import { CloseButton } from "./shared/CloseButton";
 import { PixelButton } from "./shared/PixelButton";
 import { Tag } from "./shared/Tag";
+import { bgStyle } from "@/constants/utils";
 
 const leaderboardTexts: Partial<
   Record<GameModal, { header: string; title: string; subtitle: string }>
@@ -120,12 +121,7 @@ export const Leaderboard = ({ close }: { close: () => void }) => {
       ></div>
       <div
         className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow"
-        style={{
-          backgroundImage: "url('/backgrounds/bg-4.webp')",
-          backgroundRepeat: "no-repeat",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
+        style={bgStyle("4")}
       >
         <CloseButton onClick={() => close()} />
         <LeaderboardContent />

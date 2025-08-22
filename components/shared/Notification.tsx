@@ -1,5 +1,6 @@
 import React from "react";
 import { IToast } from "@/context/ToastContext";
+import { cdnFile } from "@/constants/utils";
 
 export const Notification = ({
   notifications,
@@ -21,7 +22,7 @@ export const Notification = ({
         <div className="flex flex-col text-center items-center justify-center">
           <img
             draggable={false}
-            src="utilities/ui-elements/emblem.png"
+            src={cdnFile("utilities/ui-elements/emblem.png")}
             className="relative w-32 md:w-40 lg:w-48 rounded-full"
           />
 

@@ -1,6 +1,7 @@
 import { cardsColor, ICat } from "@/models/cats";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { getMultiplier } from "@/constants/cat-utils";
+import { cdnFile } from "@/constants/utils";
 
 export const CatMiniCard = ({
   cat,
@@ -26,7 +27,11 @@ export const CatMiniCard = ({
         className="absolute left-0 top-0 opacity-75 text-black pl-1 text-p5 font-secondary rounded-r-xl z-20 flex items-center"
       >
         X{getMultiplier(cat)}
-        <img draggable={false} src="/logo/coin.webp" className="w-6 h-6 ml-1" />
+        <img
+          draggable={false}
+          src={cdnFile("logo/coin.webp")}
+          className="w-6 h-6 ml-1"
+        />
       </div>
       <div
         onClick={onClick}
@@ -49,7 +54,7 @@ export const CatMiniCard = ({
         <img
           draggable={false}
           className="w-8 -mb-4 -mt-6 z-0 animate-spin"
-          src={`/ability/${cat.type}.png`}
+          src={cdnFile(`ability/${cat.type}.png`)}
           alt={`${cat.type} icon`}
         />
         <div
@@ -72,7 +77,7 @@ export const CatMiniCard = ({
       <img
         draggable={false}
         className="absolute inset-0 object-cover w-full h-full z-0"
-        src={`/ability/${cat.type}_BG.webp`}
+        src={cdnFile(`ability/${cat.type}_BG.webp`)}
         alt={`${cat.type} background`}
       />
     </div>

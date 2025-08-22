@@ -2,7 +2,7 @@ import { CAT_API } from "@/api/cat-api";
 import { ORDER_API } from "@/api/order-api";
 import { getCatPrice } from "@/constants/cat-status";
 import { BuyMode, getMultiplier } from "@/constants/cat-utils";
-import { getSocialNetworkFromUrl } from "@/constants/utils";
+import { bgStyle, cdnFile, getSocialNetworkFromUrl } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
@@ -36,7 +36,11 @@ export const CatMultiplier = (cat: ICat) => {
       className="absolute flex items-center top-2 right-2 bg-opacity-75 border font-secondary text-p5 hover:bg-opacity-100 pl-2 rounded-xl"
     >
       X{multiplier}
-      <img draggable={false} src="/logo/coin.webp" className="w-6 h-6 ml-1" />
+      <img
+        draggable={false}
+        src={cdnFile("logo/coin.webp")}
+        className="w-6 h-6 ml-1"
+      />
     </div>
   );
 };
@@ -72,7 +76,7 @@ export const CatDescription = ({
           {firstBlessing && (
             <img
               draggable={false}
-              src={`/blessings/${type}_TYPE.png`}
+              src={cdnFile(`blessings/${type}_TYPE.png`)}
               alt={firstBlessing.type}
               className="w-6 h-6 md:w-10 md:h-10"
             />
@@ -104,7 +108,7 @@ export const CatDescription = ({
       </div>
       {activeBlessing && (
         <audio className="hidden" loop autoPlay>
-          <source src="/purrquest/sounds/meow.mp3" />
+          <source src={cdnFile("purrquest/sounds/meow.mp3")} />
         </audio>
       )}
       {!activeBlessing && (
@@ -113,7 +117,7 @@ export const CatDescription = ({
             <img
               draggable={false}
               className="w-6 h-6 md:w-10 md:h-10"
-              src={`/ability/${type}.png`}
+              src={cdnFile(`ability/${type}.png`)}
               alt={type}
               width={40}
               height={40}
@@ -270,12 +274,7 @@ export const CatPayment = ({
       {!isCoinsPayment && !!buyMode && (
         <div
           className="z-20 absolute bottom-0 pb-4 bg-opacity-85 pt-8 px-4 left-0 right-0 border-t-8 max-h-screen overflow-y-auto border-radius-2xl"
-          style={{
-            backgroundImage: "url(/backgrounds/bg-4.webp)",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            borderColor: cardsColor[cat.type],
-          }}
+          style={bgStyle("4")}
         >
           <CloseButton absolute onClick={close} />
           <div className="flex flex-col gap-4">
@@ -352,8 +351,8 @@ export const CatPayment = ({
                         draggable={false}
                         src={
                           unitsToBuy < i + 1
-                            ? "/logo/heart-empty.webp"
-                            : "/logo/heart-saved.webp"
+                            ? cdnFile("logo/heart-empty.webp")
+                            : cdnFile("logo/heart-saved.webp")
                         }
                         className="w-4 h-4 pixelated"
                       />
@@ -367,8 +366,8 @@ export const CatPayment = ({
                         draggable={false}
                         src={
                           unitsToBuy >= cat.supply
-                            ? "/logo/heart-saved.webp"
-                            : "/logo/heart.webp"
+                            ? cdnFile("logo/heart-saved.webp")
+                            : cdnFile("logo/heart.webp")
                         }
                         className="w-full h-full pixelated absolute inset-0 z-0"
                       />
@@ -431,7 +430,7 @@ export const SafeCatCard = ({
     >
       <img
         draggable={false}
-        src={`/ability/${type}_BG.webp`}
+        src={cdnFile(`ability/${type}_BG.webp`)}
         className="absolute object-cover z-10 h-full w-full rounded-[16px]"
       />
       <div
@@ -443,12 +442,7 @@ export const SafeCatCard = ({
         {showBenefits && (
           <div
             className="absolute bottom-0 left-0 right-0 w-full rounded-2xl z-20 animate-appear"
-            style={{
-              backgroundImage: "url('/backgrounds/bg-5.webp')",
-              backgroundRepeat: "no-repeat",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
+            style={bgStyle("5")}
           >
             <CloseButton onClick={() => setShowBenefits(false)} />
             <CatBenefits cat={cat} isOwned={isOwned} />
@@ -481,7 +475,7 @@ export const SafeCatCard = ({
             <img
               draggable={false}
               className="w-full h-full rounded-xl absolute z-0 object-cover object-center"
-              src={`/ability/${type}_BG.webp`}
+              src={cdnFile(`ability/${type}_BG.webp`)}
               alt="base"
               width={400}
               height={400}
@@ -504,7 +498,7 @@ export const SafeCatCard = ({
                 <img
                   draggable={false}
                   className="absolute inset-0 w-full h-full object-cover"
-                  src={`/flare-effect/${type}.gif`}
+                  src={cdnFile(`flare-effect/${type}.gif`)}
                 ></img>
               )}
             </span>
@@ -532,10 +526,10 @@ export const SafeCatCard = ({
                       draggable={false}
                       src={
                         cat.supply < i + 1
-                          ? "/logo/heart.webp"
+                          ? cdnFile("logo/heart.webp")
                           : cat.supply - unitsToBuy < i + 1
-                          ? "/logo/heart-saved.webp"
-                          : "/logo/heart-empty.webp"
+                          ? cdnFile("logo/heart-saved.webp")
+                          : cdnFile("logo/heart-empty.webp")
                       }
                       className="w-4 h-4 pixelated"
                     />
@@ -544,7 +538,7 @@ export const SafeCatCard = ({
                   <div className="flex gap-1 justify-center items-center font-secondary">
                     <img
                       draggable={false}
-                      src="/logo/heart.webp"
+                      src={cdnFile("logo/heart.webp")}
                       className="w-4 h-4 pixelated"
                     />
                     <div className="text-p5">
@@ -554,8 +548,8 @@ export const SafeCatCard = ({
                       draggable={false}
                       src={
                         donationsToSave < 1
-                          ? "/logo/heart-saved.webp"
-                          : "/logo/heart-empty.webp"
+                          ? cdnFile("logo/heart-saved.webp")
+                          : cdnFile("logo/heart-empty.webp")
                       }
                       className="w-4 h-4 pixelated"
                     />

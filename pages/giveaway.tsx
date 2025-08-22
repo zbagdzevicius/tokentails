@@ -1,3 +1,4 @@
+import { cdnFile } from "@/constants/utils";
 import Head from "next/head";
 import React, { useEffect } from "react";
 
@@ -10,7 +11,7 @@ export default function giveaway() {
     <>
       <Head>
         <title>Token Tails - Play to Save</title>
-        <meta property="og:image" content="/airdrop-3.jpg" />
+        <meta property="og:image" content={cdnFile("airdrop-3.jpg")} />
         <meta
           property="og:title"
           content="Token Tails Meme contest"
@@ -20,7 +21,7 @@ export default function giveaway() {
           name="description"
           content="Think you’ve got the best cat meme? 😸 Show us to win a piece from $1000 in $TAILS! 🎁"
         />
-        <link rel="shortcut icon" href="/logo/coin.webp" />
+        <link rel="shortcut icon" href={cdnFile("logo/coin.webp")} />
       </Head>
       <iframe
         className="w-screen h-screen"
@@ -31,7 +32,7 @@ export default function giveaway() {
           <img
             draggable={false}
             className="h-12 md:h-24 flex-1 object-contain object-left"
-            src="/logo/logo.webp"
+            src={cdnFile("logo/logo.webp")}
             alt="logo"
           />
         </a>

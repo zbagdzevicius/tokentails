@@ -8,7 +8,7 @@ import {
 import { CoreMap } from "@/components/Phaser/map";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
-import { ZOOM } from "@/constants/utils";
+import { cdnFile, ZOOM } from "@/constants/utils";
 import { CatAbilityType, CatType, ICat } from "@/models/cats";
 import { Scene } from "phaser";
 import { Cat } from "../../catbassadors/objects/Catbassador";
@@ -22,7 +22,7 @@ const JUMP_LAYER_TILES = [
 ];
 const TRAMPOLINE_TILES = [158, 159];
 
-  const SPAWN_POSITIONS: Record<
+const SPAWN_POSITIONS: Record<
   NPC_TYPE,
   { x: { min: number; max: number }; y: number }
 > = {
@@ -72,33 +72,39 @@ export class ShelterScene extends Scene {
   }
 
   preload() {
-    this.load.audio("purr", "purrquest/sounds/purr.mp3");
-    this.load.tilemapTiledJSON("tilemap", "catbassadors/new-shelter.json");
-    this.load.image("new-blocks-winter", CoreMap);
-    this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
-    this.load.audio("jump-sound", "audio/game/jump.mp3");
-    this.load.audio("dash-sound", "audio/game/dash.wav");
-    this.load.audio("jump", "catnip-chaos/sounds/jump.mp3");
-    this.load.spritesheet("jump-wall", "game/effects/jump.png", {
+    this.load.audio("purr", cdnFile("purrquest/sounds/purr.mp3"));
+    this.load.tilemapTiledJSON(
+      "tilemap",
+      cdnFile("catbassadors/new-shelter.json")
+    );
+    this.load.image("new-blocks-winter", cdnFile(CoreMap));
+    this.load.audio("powerup", cdnFile("purrquest/sounds/powerup.mp3"));
+    this.load.audio("jump-sound", cdnFile("audio/game/jump.mp3"));
+    this.load.audio("dash-sound", cdnFile("audio/game/dash.wav"));
+    this.load.audio("jump", cdnFile("catnip-chaos/sounds/jump.mp3"));
+    this.load.spritesheet("jump-wall", cdnFile("game/effects/jump.png"), {
       frameWidth: 32,
       frameHeight: 32,
     });
     this.load.spritesheet(
       "knockback-spell",
-      "abilities/knockback-spell/FIRE.png",
+      cdnFile("abilities/knockback-spell/FIRE.png"),
       {
         frameWidth: 64,
         frameHeight: 64,
       }
     );
 
-    this.load.spritesheet("star-effect", "shelter/stars.png", {
+    this.load.spritesheet("star-effect", cdnFile("shelter/stars.png"), {
       frameWidth: 96,
       frameHeight: 96,
     });
-    this.load.image("shelter-logo", "shelter/logo.png");
-    this.load.image("shelter-signs", "shelter/signs.png");
-    this.load.image("elevator", "purrquest/icons/platform-movable.png");
+    this.load.image("shelter-logo", cdnFile("shelter/logo.png"));
+    this.load.image("shelter-signs", cdnFile("shelter/signs.png"));
+    this.load.image(
+      "elevator",
+      cdnFile("purrquest/icons/platform-movable.png")
+    );
   }
 
   create(props: IPhaserGameSceneProps) {
@@ -296,7 +302,7 @@ export class ShelterScene extends Scene {
     if (cat.blessings?.length) {
       this.load.spritesheet(
         `blessing-${cat.type}`,
-        `flare-effect/spritesheets/${cat.type}.png`,
+        cdnFile(`flare-effect/spritesheets/${cat.type}.png`),
         {
           frameWidth: 64,
           frameHeight: 64,
@@ -379,7 +385,7 @@ export class ShelterScene extends Scene {
     if (npcData.blessings?.length) {
       this.load.spritesheet(
         `blessing-${npcData.type}`,
-        `flare-effect/spritesheets/${npcData.type}.png`,
+        cdnFile(`flare-effect/spritesheets/${npcData.type}.png`),
         {
           frameWidth: 64,
           frameHeight: 64,
@@ -453,7 +459,16 @@ export class ShelterScene extends Scene {
     blessing: Phaser.GameObjects.Sprite | null,
     type: CatAbilityType
   ) {
-    this.cat = new Cat(this, 350, -100, catName, blessing!, type, true, getMultiplier(this.catDto));
+    this.cat = new Cat(
+      this,
+      350,
+      -100,
+      catName,
+      blessing!,
+      type,
+      true,
+      getMultiplier(this.catDto)
+    );
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
     this.physics.add.collider(
       this.cat.sprite as Phaser.Physics.Arcade.Sprite,

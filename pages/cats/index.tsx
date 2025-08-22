@@ -1,4 +1,5 @@
 import { MarketplaceItems } from "@/components/marketplace/MarketplaceItems";
+import { bgStyle } from "@/constants/utils";
 import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
@@ -13,12 +14,7 @@ const Cats = () => {
         <Header />
         <div
           className="pt-20 md:pt-24 fade-in min-h-screen relative flex flex-col items-center justify-center pb-16"
-          style={{
-            background: "url(/backgrounds/bg-6.webp)",
-            backgroundAttachment: "fixed",
-            backgroundSize: "cover",
-            backgroundPosition: "bottom",
-          }}
+          style={bgStyle("6")}
           id="social-farming-results"
         >
           <h2 className="text-center font-primary uppercase tracking-tight text-h6 md:text-h2 lg:text-h1 text-balance mt-3 px-4">

@@ -6,7 +6,7 @@ import {
 } from "@/components/Phaser/events";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
-import { isMobile } from "@/constants/utils";
+import { cdnFile, isMobile } from "@/constants/utils";
 import { CatAbilityType, ICat } from "@/models/cats";
 import { getMultiplier } from "@/constants/cat-utils";
 import { Scene } from "phaser";
@@ -92,77 +92,91 @@ export class CatnipChaosScene extends Scene {
   }
 
   preload() {
-    this.load.audio("purr", "purrquest/sounds/purr.mp3");
-    this.load.audio("meow", "purrquest/sounds/meow.mp3");
-    this.load.image("collective-item", "purrquest/sprites/key.png");
+    this.load.audio("purr", cdnFile("purrquest/sounds/purr.mp3"));
+    this.load.audio("meow", cdnFile("purrquest/sounds/meow.mp3"));
+    this.load.image("collective-item", cdnFile("purrquest/sprites/key.png"));
 
     this.load.tilemapTiledJSON(
       "tilemap",
-      `catnip-chaos/levels/level-${this.currentLevel}.json`
+      cdnFile(`catnip-chaos/levels/level-${this.currentLevel}.json`)
     );
-    this.load.image("blocks", CatnipChaosLevelMap[this.currentLevel]);
-    this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
-    this.load.audio("catnip", "catnip-chaos/sounds/catnip.mp3");
-    this.load.audio("jump", "catnip-chaos/sounds/jump.mp3");
-    this.load.image("platform", "purrquest/icons/platform.png");
-    this.load.image("catnip-coin", "catnip-chaos/items/catnip-coin.png");
-    this.load.spritesheet("cloud", "catnip-chaos/items/cloud.png", {
+    this.load.image("blocks", cdnFile(CatnipChaosLevelMap[this.currentLevel]));
+    this.load.audio("powerup", cdnFile("purrquest/sounds/powerup.mp3"));
+    this.load.audio("catnip", cdnFile("catnip-chaos/sounds/catnip.mp3"));
+    this.load.audio("jump", cdnFile("catnip-chaos/sounds/jump.mp3"));
+    this.load.image("platform", cdnFile("purrquest/icons/platform.png"));
+    this.load.image(
+      "catnip-coin",
+      cdnFile("catnip-chaos/items/catnip-coin.png")
+    );
+    this.load.spritesheet("cloud", cdnFile("catnip-chaos/items/cloud.png"), {
       frameWidth: 72,
       frameHeight: 51,
     });
-    this.load.spritesheet("flight-on", "catnip-chaos/items/flighttrue.png", {
-      frameWidth: 16,
-      frameHeight: 16,
-    });
-    this.load.spritesheet("flight-off", "catnip-chaos/items/flightfalse.png", {
-      frameWidth: 16,
-      frameHeight: 16,
-    });
-    this.load.spritesheet("hidden-spike", "story/hidden-spike.png", {
+    this.load.spritesheet(
+      "flight-on",
+      cdnFile("catnip-chaos/items/flighttrue.png"),
+      {
+        frameWidth: 16,
+        frameHeight: 16,
+      }
+    );
+    this.load.spritesheet(
+      "flight-off",
+      cdnFile("catnip-chaos/items/flightfalse.png"),
+      {
+        frameWidth: 16,
+        frameHeight: 16,
+      }
+    );
+    this.load.spritesheet("hidden-spike", cdnFile("story/hidden-spike.png"), {
       frameWidth: 31,
       frameHeight: 19,
     });
-    this.load.image("floating-platform", "story/floating-platform.png");
-    this.load.spritesheet("jump", "jumper/jump.png", {
+    this.load.image(
+      "floating-platform",
+      cdnFile("story/floating-platform.png")
+    );
+    this.load.spritesheet("jump", cdnFile("jumper/jump.png"), {
       frameWidth: 96,
       frameHeight: 96,
     });
-    this.load.spritesheet("dog", "runner/brown.png", {
+    this.load.spritesheet("dog", cdnFile("runner/brown.png"), {
       frameWidth: 48,
       frameHeight: 48,
     });
-    this.load.audio("game-end-sound", "audio/game/game-end.mp3");
-    this.load.spritesheet("puff", "catbassadors/images/puff.png", {
+    this.load.audio("game-end-sound", cdnFile("audio/game/game-end.mp3"));
+    this.load.spritesheet("puff", cdnFile("catbassadors/images/puff.png"), {
       frameWidth: 32,
       frameHeight: 32,
     });
-    this.load.spritesheet("food", "base/food.png", {
+    this.load.spritesheet("food", cdnFile("base/food.png"), {
       frameWidth: 32,
       frameHeight: 32,
       margin: 1,
       spacing: 2,
     });
-    this.load.spritesheet("sawHalf", "story/half-saw.png", {
+    this.load.spritesheet("sawHalf", cdnFile("story/half-saw.png"), {
       frameWidth: 38,
       frameHeight: 21,
     });
-    this.load.spritesheet("saw", "story/saw.png", {
+    this.load.spritesheet("saw", cdnFile("story/saw.png"), {
       frameWidth: 38,
       frameHeight: 38,
     });
-    this.load.spritesheet("portal", "story/portal.png", {
+    this.load.spritesheet("portal", cdnFile("story/portal.png"), {
       frameWidth: 64,
       frameHeight: 64,
     });
     this.load.spritesheet(
       "knockback-spell",
-      "abilities/knockback-spell/FIRE.png",
+      cdnFile("abilities/knockback-spell/FIRE.png"),
       {
         frameWidth: 64,
         frameHeight: 64,
       }
     );
-    this.load.image("speedPowerUp", "buff/SPEED.png");
+    this.load.image("speedPowerUp", cdnFile("buff/SPEED.png"));
   }
 
   init(props: ICatnipChaosProps) {
@@ -236,7 +250,7 @@ export class CatnipChaosScene extends Scene {
 
     this.groundLayer.setCollisionByExclusion([-1, ...SPIKE_TILES]);
     this.platformsLayer.setCollision(JUMP_LAYER_TILES);
-      this.platformsLayer.setTileIndexCallback(
+    this.platformsLayer.setTileIndexCallback(
       JUMP_LAYER_TILES,
       (player: Phaser.GameObjects.GameObject) => {
         const playerSprite = player as Phaser.Physics.Arcade.Sprite;

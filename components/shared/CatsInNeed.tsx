@@ -10,6 +10,7 @@ import { CloseButton } from "./CloseButton";
 import { Tag } from "./Tag";
 import { GameModal } from "@/models/game";
 import { useGame } from "@/context/GameContext";
+import { bgStyle } from "@/constants/utils";
 
 export const CatsInNeedModalContent = ({ close }: { close: () => void }) => {
   const { profile } = useProfile();
@@ -67,12 +68,7 @@ export const CatsInNeedModal = ({ close }: { close: () => void }) => {
       ></div>
       <div
         className="m-auto z-50 rem:w-[350px] md:w-[600px] max-w-full absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow"
-        style={{
-          backgroundImage: "url('/backgrounds/bg-5.webp')",
-          backgroundRepeat: "no-repeat",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
+        style={bgStyle("5")}
       >
         <CloseButton onClick={close} />
         <CatsInNeedModalContent close={close} />

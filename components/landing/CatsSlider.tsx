@@ -1,32 +1,33 @@
 import { useState } from "react";
 import { Slider } from "../shared/Slider";
 import { PixelButton } from "@/components/shared/PixelButton";
+import { cdnFile } from "@/constants/utils";
 
 const sliderItems: { img: string; title: string; explanation: string }[] = [
   {
-    img: "/images/cats-slider/love.jpg",
+    img: cdnFile("images/cats-slider/love.jpg"),
     title: "Love",
     explanation:
       "Show your NFT cat love by giving them what they crave most – your attention!",
   },
   {
-    img: "/images/cats-slider/customize.jpg",
+    img: cdnFile("images/cats-slider/customize.jpg"),
     title: "Customize",
     explanation: "Buy a hat for your cat to have cat wif hat",
   },
   {
-    img: "/images/cats-slider/eat.jpg",
+    img: cdnFile("images/cats-slider/eat.jpg"),
     title: "feed",
     explanation: "Feed your adorable feline friend to fill their energy tank",
   },
   {
-    img: "/images/cats-slider/play.jpg",
+    img: cdnFile("images/cats-slider/play.jpg"),
     title: "Engage",
     explanation:
       "Play with your cat daily to level up their Joy and unlock exciting rewards!",
   },
   {
-    img: "/images/cats-slider/contribute.jpg",
+    img: cdnFile("images/cats-slider/contribute.jpg"),
     title: "Contribute",
     explanation:
       "50% of every NFT purchase goes directly to supporting cat shelters!",

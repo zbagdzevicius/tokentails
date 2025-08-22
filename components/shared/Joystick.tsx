@@ -1,3 +1,4 @@
+import { cdnFile } from "@/constants/utils";
 import * as React from "react";
 
 export enum JoystickShape {
@@ -260,7 +261,7 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
       borderRadius: "16px",
       height: `${this._baseSize}px`,
       width: `${this._baseSize * 2.5}px`,
-      backgroundImage: "url(/backgrounds/bg-9.webp)",
+      backgroundImage: `url(${cdnFile("backgrounds/bg-9.webp")})`,
       backgroundSize: "cover",
       backgroundPosition: "center",
       display: "flex",
@@ -309,10 +310,18 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
         style={baseStyle}
       >
         <div className="absolute right-2 z-0 opacity-80 rotate-90">
-          <img draggable={false} src="logo/arrow.webp" className="w-[48px]" />
+          <img
+            draggable={false}
+            src={cdnFile("logo/arrow.webp")}
+            className="w-[48px]"
+          />
         </div>
         <div className="absolute left-2 z-0 -rotate-90 opacity-80">
-          <img draggable={false} src="logo/arrow.webp" className="w-[48px]" />
+          <img
+            draggable={false}
+            src={cdnFile("logo/arrow.webp")}
+            className="w-[48px]"
+          />
         </div>
         <button
           ref={this._stickRef}
@@ -322,7 +331,11 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
           style={stickStyle}
         >
           <div className="flex w-full justify-center">
-            <img className="w-12" draggable="false" src="logo/paw.png" />
+            <img
+              className="w-12"
+              draggable="false"
+              src={cdnFile("logo/paw.png")}
+            />
           </div>
         </button>
       </div>

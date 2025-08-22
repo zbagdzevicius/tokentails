@@ -4,6 +4,7 @@ import { NoMore } from "@/components/shared/NoMore";
 import { AirdropTableProps } from "@/models/airdrop";
 import { PixelButton } from "../shared/PixelButton";
 import { AirdropUser } from "@/api/ai-api";
+import { cdnFile } from "@/constants/utils";
 
 const memeCats: Record<number, string> = {
   1: "meme-40.gif",
@@ -158,7 +159,7 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
             {" "}
             <img
               className="w-full max-w-md"
-              src="/airdrop/connect.webp"
+              src={cdnFile("airdrop/connect.webp")}
               alt="how-to-connect-x"
             />
           </a>
@@ -247,7 +248,7 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
                 >
                   {memeCats[index + 1] && (
                     <img
-                      src={`meme-cats/${memeCats[index + 1]}`}
+                      src={cdnFile(`meme-cats/${memeCats[index + 1]}`)}
                       className="w-8 lg:w-12 left-0 translate-x-2 -translate-y-2 lg:translate-x-4 absolute"
                       alt={`meme-${index + 1}`}
                     />

@@ -8,6 +8,7 @@ import { PixelButton } from "../shared/PixelButton";
 import { TrailheadsData, TrailheadsTypes } from "../shared/QuestsModal";
 import { Tag } from "../shared/Tag";
 import { Web3Providers } from "../web3/Web3Providers";
+import { cdnFile } from "@/constants/utils";
 
 const ConnectWallet = dynamic(
   () => import("../web3/minting/Web3Mint").then((mod) => mod.ConnectWallet),
@@ -15,7 +16,7 @@ const ConnectWallet = dynamic(
     ssr: false,
     loading: () => (
       <img
-        src="/icons/loader.webp"
+        src={cdnFile("icons/loader.webp")}
         className="w-8 h-8 m-auto animate-spin pixelated"
       />
     ),
@@ -84,7 +85,10 @@ export const Trailheads = () => {
 
   return (
     <div className="flex flex-col items-center animate-opacity">
-      <img src="/catnip-chaos/trailheads.gif" className="w-52 rounded-2xl" />
+      <img
+        src={cdnFile("catnip-chaos/trailheads.gif")}
+        className="w-52 rounded-2xl"
+      />
 
       <div className="flex flex-row items-center gap-2 pixelated -mt-12">
         {TrailheadsData.filter(
@@ -97,7 +101,7 @@ export const Trailheads = () => {
           />
         ))}
         <img
-          src="/blessings/CAMP_TYPE.png"
+          src={cdnFile("blessings/CAMP_TYPE.png")}
           className="w-20 md:w-28 -mt-8 md:-mt-14 rounded-2xl pixelated"
         />
         {TrailheadsData.filter((trailhead) =>

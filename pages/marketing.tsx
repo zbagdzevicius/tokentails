@@ -1,3 +1,4 @@
+import { cdnFile } from "@/constants/utils";
 import { Header } from "@/layouts/Header";
 import Head from "next/head";
 import React from "react";
@@ -7,14 +8,14 @@ export default function marketing() {
     <>
       <Head>
         <title>Token Tails - Partnerships</title>
-        <meta property="og:image" content="/logo/ogg.jpg" />
+        <meta property="og:image" content={cdnFile("logo/ogg.jpg")} />
         <meta
           property="og:title"
           content="Token Tails - Marketing proposal"
           key="title"
         />
         <meta name="description" content="Do you want to work with us ?" />
-        <link rel="shortcut icon" href="/logo/coin.webp" />
+        <link rel="shortcut icon" href={cdnFile("logo/coin.webp")} />
       </Head>
 
       <Header />

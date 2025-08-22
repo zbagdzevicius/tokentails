@@ -1,3 +1,4 @@
+import { isProd } from "@/models/app";
 import { EntityType } from "@/models/save";
 
 export function getFilePath(path: string) {
@@ -21,9 +22,9 @@ export function randomObjectFromArray<T>(items?: T[]): T | null {
 
 export function getSocialNetworkFromUrl(url: string) {
   if (url.includes("instagram")) {
-    return "/icons/social/instagram.png";
+    return cdnFile("icons/social/instagram.png");
   } else if (url.includes("x")) {
-    return "/icons/social/x.webp";
+    return cdnFile("icons/social/x.webp");
   }
 }
 
@@ -76,12 +77,6 @@ export function isMobile() {
 }
 
 export const IS_MOBILE = isMobile();
-
-export const SocialLink = {
-  Facebook: `https://facebook.com/${process.env.NEXT_PUBLIC_FB_PAGE}`,
-  Twitter: `https://twitter.com/${process.env.NEXT_PUBLIC_TWITTER_PAGE}`,
-  Pinterest: `https://pinterest.com/${process.env.NEXT_PUBLIC_PINTEREST_PAGE}`,
-};
 
 export const ZOOM = IS_MOBILE ? 1.25 : 2;
 
@@ -262,4 +257,34 @@ export const getNextDayMidnight = () => {
 
 export const sleep = (ms: number) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
+export const cdnFile = (path: string) => {
+  return isProd
+    ? `https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/w/${path}`
+    : `/${path}`;
+};
+
+export const bgStyle = (
+  path:
+    | "1"
+    | "2"
+    | "3"
+    | "4"
+    | "5"
+    | "6"
+    | "7"
+    | "8"
+    | "9"
+    | "10"
+    | "min-4"
+    | "min-5"
+    | "min-6"
+) => {
+  return {
+    backgroundImage: `url(${cdnFile("backgrounds/bg-" + path + ".webp")})`,
+    backgroundRepeat: "no-repeat",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+  };
 };

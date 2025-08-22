@@ -2,6 +2,7 @@ import { CAT_API } from "@/api/cat-api";
 import { MarketplaceItemDetails } from "@/components/marketplace/MarketplaceItemDetails";
 import { Web3Providers } from "@/components/web3/Web3Providers";
 import { getAppStaticProps } from "@/constants/props-functions";
+import { bgStyle } from "@/constants/utils";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
 import { ICat } from "@/models/cats";
@@ -16,12 +17,7 @@ export default function CatPage({ cat }: Props) {
       <Header />
       <div
         className="pt-20 md:pt-24 fade-in min-h-screen relative flex flex-col items-center justify-center pb-16"
-        style={{
-          background: "url(/backgrounds/bg-6.webp)",
-          backgroundAttachment: "fixed",
-          backgroundSize: "cover",
-          backgroundPosition: "bottom",
-        }}
+        style={bgStyle("6")}
         id="social-farming-results"
       >
         <Web3Providers>

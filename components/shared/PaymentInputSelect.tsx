@@ -2,6 +2,7 @@ import { useWeb3 } from "@/context/Web3Context";
 import React from "react";
 import { Web3Transfer } from "../web3/transfer/Web3Transfer";
 import { ChainSelect } from "./ChainSelect";
+import { cdnFile } from "@/constants/utils";
 
 interface IProps {
   amountOfTails: number;
@@ -49,7 +50,7 @@ const PaymentInputSelect = ({
               <div className="flex items-center justify-center px-1">
                 <img
                   draggable={false}
-                  src={`/currency/${currencyType}.webp`}
+                  src={cdnFile(`currency/${currencyType}.webp`)}
                   alt="Selected currency"
                   className="h-12 w-12 absolute -right-0.5"
                 />
@@ -71,7 +72,7 @@ const PaymentInputSelect = ({
               <div className="flex items-center justify-center px-1">
                 <img
                   draggable={false}
-                  src={`/logo/coin.webp`}
+                  src={cdnFile("logo/coin.webp")}
                   alt="Selected currency"
                   className="w-12 h-12 absolute -right-0.5 group-hover:animate-spin"
                 />

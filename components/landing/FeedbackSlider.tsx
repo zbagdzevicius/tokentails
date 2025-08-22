@@ -6,6 +6,7 @@ import { CatBenefits } from "../shared/CatBenefits";
 import { CatMiniCard } from "../shared/CatMiniCard";
 import { ShelterBenefits } from "../shared/ShelterBenefits";
 import { PixelButton } from "../shared/PixelButton";
+import { cdnFile } from "@/constants/utils";
 
 export const FeedbackSlider = () => {
   const [selectedCat, setSelectedCat] = useState<ICat | null>(null);
@@ -33,12 +34,12 @@ export const FeedbackSlider = () => {
           >
             <img
               draggable={false}
-              src="/logo/shelters/pink-paw.webp"
+              src={cdnFile("logo/shelters/pink-paw.webp")}
               className="pixelated w-32 h-32 relative z-10"
             />
             <img
               draggable={false}
-              src="/logo/shelters/lt.webp"
+              src={cdnFile("logo/shelters/lt.webp")}
               className="absolute inset-0 z-0 w-full h-full object-cover rounded-2xl"
             />
           </a>

@@ -1,4 +1,5 @@
 import { Joystick } from "@/components/shared/Joystick";
+import { bgStyle, cdnFile } from "@/constants/utils";
 import React from "react";
 
 export const MobileButtons: React.FC<{
@@ -15,43 +16,37 @@ export const MobileButtons: React.FC<{
         <div className="relative flex flex-col items-end space-y-2 bg-red-600">
           <button
             id="dash"
-            className="absolute bottom-12 right-24 md:right-30 rounded-full h-[70px] w-[70px] bg-cover bg-center flex items-center justify-center border-4 border-gray-500"
-            style={{
-              backgroundImage: "url('/backgrounds/bg-9.webp')",
-            }}
+            className="absolute bottom-12 right-24 md:right-30 rounded-full h-[70px] w-[70px] flex items-center justify-center border-4 border-gray-500"
+            style={bgStyle("9")}
           >
             <img
               draggable={false}
               className="h-full w-auto"
-              src="game/controls/dash.png"
+              src={cdnFile("game/controls/dash.png")}
               alt="Dash"
             />
           </button>
           <button
             id="jump"
-            className="absolute bottom-4 md:bottom-2 right-1 md:right-4 rounded-full h-[90px] w-[90px] bg-cover bg-center flex items-center justify-center border-4 border-gray-500"
-            style={{
-              backgroundImage: "url('/backgrounds/bg-9.webp')",
-            }}
+            className="absolute bottom-4 md:bottom-2 right-1 md:right-4 rounded-full h-[90px] w-[90px] flex items-center justify-center border-4 border-gray-500"
+            style={bgStyle("9")}
           >
             <img
               draggable={false}
               className="h-1/2 w-auto"
-              src="logo/arrow.webp"
+              src={cdnFile("logo/arrow.webp")}
               alt="Jump"
             />
           </button>
           <button
             id="knockback"
-            className="absolute bottom-28 md:bottom-28 right-1 md:right-4 rounded-full h-[70px] w-[70px] bg-cover bg-center flex items-center justify-center border-4 border-gray-500"
-            style={{
-              backgroundImage: "url('/backgrounds/bg-9.webp')",
-            }}
+            className="absolute bottom-28 md:bottom-28 right-1 md:right-4 rounded-full h-[70px] w-[70px] flex items-center justify-center border-4 border-gray-500"
+            style={bgStyle("9")}
           >
             <img
               draggable={false}
               className="h-full w-auto"
-              src="game/controls/knockback-spell.png"
+              src={cdnFile("game/controls/knockback-spell.png")}
               alt="Spell"
             />
           </button>

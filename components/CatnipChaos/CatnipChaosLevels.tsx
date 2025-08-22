@@ -16,6 +16,7 @@ import { PixelButton } from "../shared/PixelButton";
 import { TrailheadsData } from "../shared/QuestsModal";
 import { ConnectWallet, Web3Mint } from "../web3/minting/Web3Mint";
 import { Web3Providers } from "../web3/Web3Providers";
+import { bgStyle, cdnFile } from "@/constants/utils";
 
 export const CatnipChaosLevels = ({
   setSelectedLevel,
@@ -36,7 +37,7 @@ export const CatnipChaosLevels = ({
     if (index > unlockedLevels && havePassToPlay) {
       showToast({
         message: "You need to complete previous levels to play this level",
-        img: "/purrquest/sprites/key.png",
+        img: cdnFile("purrquest/sprites/key.png"),
       });
       return;
     }
@@ -64,7 +65,7 @@ export const CatnipChaosLevels = ({
     <div className="flex flex-col items-center gap-4 mt-14 lg:mt-24 pb-20 animate-opacity pt-8">
       <div className="flex flex-col md:flex-row lg:flex-col gap-4 items-center">
         <img
-          src="/game/select/catnip-chaos.webp"
+          src={cdnFile("game/select/catnip-chaos.webp")}
           className="aspect-square w-36 md:w-20 lg:w-48 rounded-2xl"
         />
         <Web3Providers>
@@ -94,11 +95,17 @@ export const CatnipChaosLevels = ({
                 (havePassToPlay && level[0] === "5")
               ) && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full p-1 w-full h-full z-20">
-                  <img className="w-8 h-8" src="/purrquest/sprites/key.png" />
+                  <img
+                    className="w-8 h-8"
+                    src={cdnFile("purrquest/sprites/key.png")}
+                  />
                 </div>
               )}
               <span className="font-primary text-p6 flex items-center">
-                <img src="/logo/catnip.webp" className="w-4 h-4 mr-1" />
+                <img
+                  src={cdnFile("logo/catnip.webp")}
+                  className="w-4 h-4 mr-1"
+                />
                 <span className="">{profile?.catnipChaos?.[i] || 0} / 10</span>
               </span>
               {level[0] === "5" && (
@@ -165,12 +172,15 @@ export const CatnipChaosLevels = ({
                   </div>
                 )}
                 <img
-                  src={`/catnip-chaos/badges/chapter${level[0]}.webp`}
+                  src={cdnFile(`catnip-chaos/badges/chapter${level[0]}.webp`)}
                   className="w-20 h-20 rounded-t-xl"
                 />
                 {!(unlockedLevels >= i || havePassToPlay) && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/50 p-1 w-full h-full z-20">
-                    <img className="w-8 h-8" src="/purrquest/sprites/key.png" />
+                    <img
+                      className="w-8 h-8"
+                      src={cdnFile("purrquest/sprites/key.png")}
+                    />
                   </div>
                 )}
               </div>
@@ -181,13 +191,16 @@ export const CatnipChaosLevels = ({
       <div className="flex flex-row items-center gap-8">
         <div className="flex flex-col items-start text-p4 md:text-p2">
           <div className="flex font-secondary text-center items-center gap-1">
-            <img src="/logo/catnip.webp" className="w-8 h-8 mr-2" />
+            <img src={cdnFile("logo/catnip.webp")} className="w-8 h-8 mr-2" />
             {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0}
             <span>/{Object.keys(CatnipChaosLevelMap).length * 10}</span>
             <span>COLLECTED</span>
           </div>
           <div className="flex font-secondary text-center items-center gap-1">
-            <img src="/purrquest/sprites/key.png" className="w-8 h-8 mr-2" />
+            <img
+              src={cdnFile("purrquest/sprites/key.png")}
+              className="w-8 h-8 mr-2"
+            />
             {profile?.catnipChaos?.length || 0}
             <span>/{Object.keys(CatnipChaosLevelMap).length}</span>
             <span>COMPLETED LEVELS</span>
@@ -196,11 +209,7 @@ export const CatnipChaosLevels = ({
         <div
           onClick={() => setOpenedModal(GameModal.FEATURED_CAT)}
           className="flex hover:brightness-110 flex-col w-24 relative items-center font-secondary rounded-xl px-1 py-2"
-          style={{
-            backgroundImage: "url(/backgrounds/bg-4.webp)",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
+          style={bgStyle("4")}
         >
           <div className="relative -mt-8 -mb-4">
             <img

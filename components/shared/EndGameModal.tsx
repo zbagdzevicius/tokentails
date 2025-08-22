@@ -8,6 +8,7 @@ import { IGameStopEvent } from "../Phaser/events";
 import { getMultiplier } from "@/constants/cat-utils";
 import { useGame } from "@/context/GameContext";
 import { getNextCatnipChaosLevel, lastCatnipChaosLevel } from "../Phaser/map";
+import { bgStyle, cdnFile } from "@/constants/utils";
 
 type EndGameProps = {
   onClose: () => void;
@@ -17,10 +18,10 @@ type EndGameProps = {
 };
 
 const gameTypeToImage = {
-  [GameType.CATBASSADORS]: "/game/select/catbassadors.jpg",
-  [GameType.CATNIP_CHAOS]: "/game/select/catnip-chaos.webp",
-  [GameType.SHELTER]: "/game/select/shelter.jpg",
-  [GameType.HOME]: "/game/select/home.jpg",
+  [GameType.CATBASSADORS]: cdnFile("game/select/catbassadors.jpg"),
+  [GameType.CATNIP_CHAOS]: cdnFile("game/select/catnip-chaos.webp"),
+  [GameType.SHELTER]: cdnFile("game/select/shelter.jpg"),
+  [GameType.HOME]: cdnFile("game/select/home.jpg"),
 };
 
 export const EndGameModal: React.FC<EndGameProps> = ({
@@ -41,11 +42,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
 
       <div
         className="m-auto z-50 rem:w-[350px] font-secondary md:w-[480px] flex flex-col md:flex-row max-w-full absolute top-1/2 -translate-y-1/2 rounded-lg shadow h-fit animate-appear"
-        style={{
-          backgroundImage: "url(/backgrounds/bg-4.webp)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
+        style={bgStyle("4")}
       >
         <CloseButton onClick={onClose} absolute />
         <div className="p-6 md:py-4 flex items-center justify-center flex-col gap-1">
@@ -62,8 +59,8 @@ export const EndGameModal: React.FC<EndGameProps> = ({
             <img
               src={
                 gameType === GameType.CATNIP_CHAOS
-                  ? "/logo/catnip.webp"
-                  : "/logo/coin.webp"
+                  ? cdnFile("logo/catnip.webp")
+                  : cdnFile("logo/coin.webp")
               }
               alt="Score Icon"
               className="w-6 h-6 mr-2"
@@ -77,7 +74,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
           {!!gameStop.time && (
             <div className="flex justify-center items-center text-md text-gray-700">
               <img
-                src="/icons/clock.png"
+                src={cdnFile("icons/clock.png")}
                 alt="Time Icon"
                 className="w-6 h-6 mr-2"
                 draggable="false"
@@ -101,7 +98,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
         </div>
         <div className="flex flex-col items-center justify-center gap-2 pb-4 md:pb-0">
           <img
-            src="/meme-cats/meme-48.gif"
+            src={cdnFile("meme-cats/meme-48.gif")}
             className="w-20 aspect-square"
             draggable="false"
           />

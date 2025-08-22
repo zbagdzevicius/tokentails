@@ -13,7 +13,7 @@ import { EnemyManager } from "../managers/EnemyManager";
 import { CoinManager } from "../managers/CoinManager";
 import { BuffManager } from "../managers/BuffManager";
 
-import { currentDayCoin, ZOOM } from "@/constants/utils";
+import { cdnFile, currentDayCoin, ZOOM } from "@/constants/utils";
 import { endScenePeriod } from "@/models/game";
 import { CoreMap } from "@/components/Phaser/map";
 import { getMultiplier } from "@/constants/cat-utils";
@@ -66,44 +66,51 @@ export class CatbassadorsScene extends Scene {
     this.lastUpdateTime = 0;
   }
   preload() {
-    this.load.spritesheet("food", "base/food.png", {
+    this.load.spritesheet("food", cdnFile("base/food.png"), {
       frameWidth: 32,
       frameHeight: 32,
       margin: 1,
       spacing: 2,
     });
 
-    this.load.image("bosscoin", "logo/boss-coin.png");
+    this.load.image("bosscoin", cdnFile("logo/boss-coin.png"));
     this.load.image("candy-cane", currentDayCoin);
-    this.load.image("timecoin", "icons/clock.png");
-    this.load.image("coin", "logo/coin.png");
+    this.load.image("timecoin", cdnFile("icons/clock.png"));
+    this.load.image("coin", cdnFile("logo/coin.png"));
 
-    this.load.image("speedPowerUp", "buff/SPEED.png");
+    this.load.image("speedPowerUp", cdnFile("buff/SPEED.png"));
 
-    this.load.audio("powerup", "purrquest/sounds/powerup.mp3");
-    this.load.audio("jump", "catnip-chaos/sounds/jump.mp3");
-    this.load.audio("coin", "purrquest/sounds/score.mp3");
-    this.load.audio("purr", "purrquest/sounds/purr.mp3");
-    this.load.audio("jump-sound", "audio/game/jump.mp3");
-    this.load.audio("dash-sound", "audio/game/dash.wav");
-    this.load.audio("game-end-sound", "audio/game/game-end.mp3");
-    this.load.tilemapTiledJSON("tilemap", "catbassadors/catbassadors.json");
-    this.load.image("new-blocks-winter", CoreMap);
-    this.load.spritesheet("starAnimation", "base/star-animation.png", {
+    this.load.audio("powerup", cdnFile("purrquest/sounds/powerup.mp3"));
+    this.load.audio("jump", cdnFile("catnip-chaos/sounds/jump.mp3"));
+    this.load.audio("coin", cdnFile("purrquest/sounds/score.mp3"));
+    this.load.audio("purr", cdnFile("purrquest/sounds/purr.mp3"));
+    this.load.audio("jump-sound", cdnFile("audio/game/jump.mp3"));
+    this.load.audio("dash-sound", cdnFile("audio/game/dash.wav"));
+    this.load.audio("game-end-sound", cdnFile("audio/game/game-end.mp3"));
+    this.load.tilemapTiledJSON(
+      "tilemap",
+      cdnFile("catbassadors/catbassadors.json")
+    );
+    this.load.image("new-blocks-winter", cdnFile(CoreMap));
+    this.load.spritesheet("starAnimation", cdnFile("base/star-animation.png"), {
       frameWidth: 32,
       frameHeight: 32,
     });
-    this.load.spritesheet("jump-wall", "game/effects/jump.png", {
-      frameWidth: 32,
-      frameHeight: 32,
-    });
-    this.load.spritesheet("enemy-pinkie", "enemies/pink-fluffie-winter.png", {
+    this.load.spritesheet("jump-wall", cdnFile("game/effects/jump.png"), {
       frameWidth: 32,
       frameHeight: 32,
     });
     this.load.spritesheet(
+      "enemy-pinkie",
+      cdnFile("enemies/pink-fluffie-winter.png"),
+      {
+        frameWidth: 32,
+        frameHeight: 32,
+      }
+    );
+    this.load.spritesheet(
       "enemy-blue-fluffie",
-      "enemies/blue-fluffie-winter.png",
+      cdnFile("enemies/blue-fluffie-winter.png"),
       {
         frameWidth: 32,
         frameHeight: 32,
@@ -111,30 +118,30 @@ export class CatbassadorsScene extends Scene {
     );
     this.load.spritesheet(
       "enemy-white-owlet",
-      "enemies/white-owlet-winter.png",
+      cdnFile("enemies/white-owlet-winter.png"),
       {
         frameWidth: 32,
         frameHeight: 32,
       }
     );
-    this.load.spritesheet("boss", "enemies/boss/boss-winter.png", {
+    this.load.spritesheet("boss", cdnFile("enemies/boss/boss-winter.png"), {
       frameWidth: 96,
       frameHeight: 64,
     });
 
     this.load.spritesheet(
       "knockback-spell",
-      "abilities/knockback-spell/FIRE.png",
+      cdnFile("abilities/knockback-spell/FIRE.png"),
       {
         frameWidth: 64,
         frameHeight: 64,
       }
     );
-    this.load.spritesheet("speed-effect", "buff/SPEED-EFFECT.png", {
+    this.load.spritesheet("speed-effect", cdnFile("buff/SPEED-EFFECT.png"), {
       frameWidth: 64,
       frameHeight: 64,
     });
-    this.load.spritesheet("puff", "catbassadors/images/puff.png", {
+    this.load.spritesheet("puff", cdnFile("catbassadors/images/puff.png"), {
       frameWidth: 32,
       frameHeight: 32,
     });
@@ -359,7 +366,7 @@ export class CatbassadorsScene extends Scene {
     if (cat.blessings?.length) {
       this.load.spritesheet(
         `blessing-${cat.type}`,
-        `flare-effect/spritesheets/${cat.type}.png`,
+        cdnFile(`flare-effect/spritesheets/${cat.type}.png`),
         {
           frameWidth: 64,
           frameHeight: 64,
@@ -380,7 +387,16 @@ export class CatbassadorsScene extends Scene {
     blessing: Phaser.GameObjects.Sprite | null,
     type: CatAbilityType
   ) {
-    this.cat = new Cat(this, 0, -400, catName, blessing!, type, true, getMultiplier(this.catDto));
+    this.cat = new Cat(
+      this,
+      0,
+      -400,
+      catName,
+      blessing!,
+      type,
+      true,
+      getMultiplier(this.catDto)
+    );
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
     this.physics.add.collider(
       this.cat.sprite as Phaser.Physics.Arcade.Sprite,
@@ -417,14 +433,14 @@ export class CatbassadorsScene extends Scene {
         position: { x: this.cat.sprite.x, y: this.cat.sprite.y },
         velocity: { x: body.velocity.x, y: body.velocity.y },
         fps: this.game.loop.actualFps,
-        deltaTime: this.game.loop.delta
+        deltaTime: this.game.loop.delta,
       });
     }
   }
 
   update(time: any, delta: any) {
     //this.monitorPerformance()
-    this.checkForWorldFallthrough()
+    this.checkForWorldFallthrough();
 
     const fps = this.game.loop.actualFps;
     if (fps && fps < 15) {
@@ -448,8 +464,7 @@ export class CatbassadorsScene extends Scene {
       this.performContinuousCollisionCheck();
     }
 
-   
-   // this.clampCatVelocity();
+    // this.clampCatVelocity();
 
     if (time > this.nextGravityReverseTime && !this.gameOver) {
       this.reverseGravityForAll();
@@ -470,7 +485,6 @@ export class CatbassadorsScene extends Scene {
     }
   }
 
-  
   private performContinuousCollisionCheck() {
     if (!this.cat?.sprite?.body) return;
 
@@ -480,8 +494,8 @@ export class CatbassadorsScene extends Scene {
 
     // Calculate where the cat will be next frame
     const nextPos = {
-      x: currentPos.x + (velocity.x * 0.016), // Assuming 60fps
-      y: currentPos.y + (velocity.y * 0.016)
+      x: currentPos.x + velocity.x * 0.016, // Assuming 60fps
+      y: currentPos.y + velocity.y * 0.016,
     };
 
     // Check for collision along the movement path
@@ -511,7 +525,10 @@ export class CatbassadorsScene extends Scene {
     return false;
   }
 
-  private performRaycastCollision(start: {x: number, y: number}, end: {x: number, y: number}) {
+  private performRaycastCollision(
+    start: { x: number; y: number },
+    end: { x: number; y: number }
+  ) {
     if (!this.cat?.sprite?.body) return;
 
     // Simple raycast - check multiple points along the path
@@ -520,18 +537,18 @@ export class CatbassadorsScene extends Scene {
     const deltaY = (end.y - start.y) / steps;
 
     for (let i = 1; i <= steps; i++) {
-      const checkX = start.x + (deltaX * i);
-      const checkY = start.y + (deltaY * i);
+      const checkX = start.x + deltaX * i;
+      const checkY = start.y + deltaY * i;
 
       if (this.wouldCollideAtPosition(checkX, checkY)) {
         const body = this.cat.sprite.body as Phaser.Physics.Arcade.Body;
-        const safeX = start.x + (deltaX * (i - 1));
-        const safeY = start.y + (deltaY * (i - 1));
-        
+        const safeX = start.x + deltaX * (i - 1);
+        const safeY = start.y + deltaY * (i - 1);
+
         this.cat.sprite.setPosition(safeX, safeY);
         body.velocity.x = 0;
         body.velocity.y = Math.min(body.velocity.y, 0);
-        
+
         break;
       }
     }
@@ -541,7 +558,7 @@ export class CatbassadorsScene extends Scene {
   //   if (!this.cat?.sprite?.body) return;
 
   //   const body = this.cat.sprite.body as Phaser.Physics.Arcade.Body;
-    
+
   //   // Clamp horizontal velocity
   //   if (Math.abs(body.velocity.x) > this.maxSafeVelocity.x) {
   //     body.velocity.x = Math.sign(body.velocity.x) * this.maxSafeVelocity.x;
@@ -674,38 +691,38 @@ export class CatbassadorsScene extends Scene {
     });
   }
 
-  private safePositions: Array<{x: number, y: number}> = [
-    {x: 100, y: -630},
+  private safePositions: Array<{ x: number; y: number }> = [
+    { x: 100, y: -630 },
   ];
-  
+
   private checkForWorldFallthrough() {
     if (!this.cat?.sprite) return;
-  
+
     let fellOut = false;
     if (this.isGravityReversed) {
       fellOut = this.cat.sprite.y < -1600;
     } else {
       fellOut = this.cat.sprite.y > 500;
     }
-  
+
     if (fellOut) {
       const nearestSafe = this.safePositions.reduce((nearest, pos) => {
         const distToNearest = Math.abs(this.cat!.sprite.x - nearest.x);
         const distToPos = Math.abs(this.cat!.sprite.x - pos.x);
         return distToPos < distToNearest ? pos : nearest;
       });
-  
+
       this.cat.sprite.setPosition(nearestSafe.x, nearestSafe.y);
       const body = this.cat.sprite.body as Phaser.Physics.Arcade.Body;
       body.setVelocity(0, 0);
-  
+
       this.createTeleportEffect(nearestSafe.x, nearestSafe.y);
     }
   }
-  
+
   private createTeleportEffect(x: number, y: number) {
-    const puff = this.add.sprite(x, y, 'puff');
-    puff.play('puff');
-    puff.once('animationcomplete', () => puff.destroy());
+    const puff = this.add.sprite(x, y, "puff");
+    puff.play("puff");
+    puff.once("animationcomplete", () => puff.destroy());
   }
 }

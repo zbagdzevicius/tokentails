@@ -1,5 +1,6 @@
 import { EntityType } from "@/models/save";
 import { ChainType } from "./contracts";
+import { cdnFile } from "@/constants/utils";
 
 export enum NftType {
   CAT = "CAT",
@@ -117,7 +118,7 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
       name: "Camp Mystery Box - Beginner Tier",
       key: MYSTERY_BOX_TYPE.CAMP_1,
       chain: ChainType.CAMP_TEST,
-      image: "/utilities/mystery-boxes/mystery-box-camp.jpg",
+      image: cdnFile("utilities/mystery-boxes/mystery-box-camp.jpg"),
       faucet: "https://faucet.campnetwork.xyz",
       requirements: {
         text: "Joined Token Tails",
@@ -128,7 +129,7 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
       name: "Camp Mystery Box - Explorer Tier",
       key: MYSTERY_BOX_TYPE.CAMP_2,
       chain: ChainType.CAMP_TEST,
-      image: "/utilities/mystery-boxes/mystery-box-camp2.jpg",
+      image: cdnFile("utilities/mystery-boxes/mystery-box-camp2.jpg"),
       faucet: "https://faucet.campnetwork.xyz",
       requirements: {
         type: MysteryBoxRequirementType.COINS,
@@ -143,7 +144,7 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
       name: "Camp Mystery Box - Cat Savior Tier",
       key: MYSTERY_BOX_TYPE.CAMP_3,
       chain: ChainType.CAMP_TEST,
-      image: "/utilities/mystery-boxes/mystery-box-camp3.jpg",
+      image: cdnFile("utilities/mystery-boxes/mystery-box-camp3.jpg"),
       faucet: "https://faucet.campnetwork.xyz",
       requirements: {
         type: MysteryBoxRequirementType.PURCHASE,
@@ -155,7 +156,7 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
       name: "Camp Mystery Box - Cat Lover Tier",
       key: MYSTERY_BOX_TYPE.CAMP_4,
       chain: ChainType.CAMP_TEST,
-      image: "/utilities/mystery-boxes/mystery-box-camp4.jpg",
+      image: cdnFile("utilities/mystery-boxes/mystery-box-camp4.jpg"),
       faucet: "https://faucet.campnetwork.xyz",
       requirements: {
         type: MysteryBoxRequirementType.CATNIP,
@@ -170,7 +171,7 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
       name: "Campt Mystery Box - Cats Fan",
       key: MYSTERY_BOX_TYPE.CAMP_5,
       chain: ChainType.CAMP_TEST,
-      image: "/utilities/mystery-boxes/mystery-box-camp5.jpg",
+      image: cdnFile("utilities/mystery-boxes/mystery-box-camp5.jpg"),
       faucet: "https://faucet.campnetwork.xyz",
       requirements: {
         type: MysteryBoxRequirementType.STREAK,
@@ -187,7 +188,7 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
       key: MYSTERY_BOX_TYPE.KEYBOARD_CAT,
       name: "KEYBOARD_CAT",
       chain: ChainType.STELLAR,
-      image: "/utilities/mystery-boxes/keyboard-cat.webp",
+      image: cdnFile("utilities/mystery-boxes/keyboard-cat.webp"),
       requirements: {
         text: "MINT AND REDEEM TO VIBE",
       },
@@ -202,7 +203,7 @@ export const chaptersBadges: Partial<Record<ChainType, IMysteryBox[]>> = {
       name: "Catnip Chaos - Chapter 1 Badge",
       key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_1,
       chain: ChainType.CAMP_TEST,
-      image: "/catnip-chaos/badges/chapter1.webp",
+      image: cdnFile("catnip-chaos/badges/chapter1.webp"),
       faucet: "https://faucet.campnetwork.xyz",
       requirements: {
         type: MysteryBoxRequirementType.CHAPTER,
@@ -214,7 +215,7 @@ export const chaptersBadges: Partial<Record<ChainType, IMysteryBox[]>> = {
       name: "Catnip Chaos - Chapter 2 Badge",
       key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_2,
       chain: ChainType.CAMP_TEST,
-      image: "/catnip-chaos/badges/chapter2.webp",
+      image: cdnFile("catnip-chaos/badges/chapter2.webp"),
       faucet: "https://faucet.campnetwork.xyz",
       requirements: {
         type: MysteryBoxRequirementType.CHAPTER,
@@ -226,7 +227,7 @@ export const chaptersBadges: Partial<Record<ChainType, IMysteryBox[]>> = {
       name: "Catnip Chaos - Chapter 3 Badge",
       key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_3,
       chain: ChainType.CAMP_TEST,
-      image: "/catnip-chaos/badges/chapter3.webp",
+      image: cdnFile("catnip-chaos/badges/chapter3.webp"),
       faucet: "https://faucet.campnetwork.xyz",
       requirements: {
         type: MysteryBoxRequirementType.CHAPTER,
@@ -238,7 +239,7 @@ export const chaptersBadges: Partial<Record<ChainType, IMysteryBox[]>> = {
       name: "Catnip Chaos - Chapter 4 Badge",
       key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_4,
       chain: ChainType.CAMP_TEST,
-      image: "/catnip-chaos/badges/chapter4.webp",
+      image: cdnFile("catnip-chaos/badges/chapter4.webp"),
       faucet: "https://faucet.campnetwork.xyz",
       requirements: {
         type: MysteryBoxRequirementType.CHAPTER,
@@ -250,7 +251,7 @@ export const chaptersBadges: Partial<Record<ChainType, IMysteryBox[]>> = {
       name: "Catnip Chaos - Chapter 5 Badge",
       key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_5,
       chain: ChainType.CAMP_TEST,
-      image: "/catnip-chaos/badges/chapter5.webp",
+      image: cdnFile("catnip-chaos/badges/chapter5.webp"),
       faucet: "https://faucet.campnetwork.xyz",
       requirements: {
         type: MysteryBoxRequirementType.CHAPTER,
@@ -262,7 +263,7 @@ export const chaptersBadges: Partial<Record<ChainType, IMysteryBox[]>> = {
       name: "Catnip Chaos - Chapter 6 Badge",
       key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_6,
       chain: ChainType.CAMP_TEST,
-      image: "/catnip-chaos/badges/chapter6.webp",
+      image: cdnFile("catnip-chaos/badges/chapter6.webp"),
       faucet: "https://faucet.campnetwork.xyz",
       requirements: {
         type: MysteryBoxRequirementType.CHAPTER,

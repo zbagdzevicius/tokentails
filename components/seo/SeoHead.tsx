@@ -1,5 +1,5 @@
 import { IArticle } from "@/models/article";
-import { getFilePath } from "@/constants/utils";
+import { cdnFile, getFilePath } from "@/constants/utils";
 import Head from "next/head";
 import { useMemo } from "react";
 import { ArticleMeta } from "./ArticleMeta";
@@ -15,7 +15,7 @@ interface IProps {
 export const SeoHead = ({
   name,
   description,
-  image = `${process.env.NEXT_PUBLIC_DOMAIN}/logo.webp`,
+  image = cdnFile("logo/logo.webp"),
   article,
   page,
 }: IProps) => {
@@ -52,7 +52,7 @@ export const SeoHead = ({
     <Head>
       {!!article && <ArticleMeta {...article} />}
       <title>{mainTitle}</title>
-      <link rel="icon" href={"/logo/coin.webp"} />
+      <link rel="icon" href={cdnFile("logo/coin.webp")} />
       <meta name="description" content={mainDescription} />
       <meta name="author" content={process.env.NEXT_PUBLIC_SITE_NAME} />
       <meta name="robots" content="index, follow"></meta>
@@ -82,7 +82,7 @@ export const SeoHead = ({
       <meta name="twitter:title" content={mainTitle} />
       <meta name="twitter:description" content={mainDescription} />
       <meta name="twitter:image" content={mainImage} />
-      <link rel="shortcut icon" href="/logo/coin.webp" />
+      <link rel="shortcut icon" href={cdnFile("logo/coin.webp")} />
     </Head>
   );
 };

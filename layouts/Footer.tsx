@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Socials } from "./Socials";
+import { cdnFile } from "@/constants/utils";
 
 interface FooterProps {
   title: string;
@@ -41,7 +42,7 @@ export const Footer: React.FC = () => {
             <img
               draggable={false}
               className="h-24 flex-1 object-contain object-left"
-              src="/logo/logo.webp"
+              src={cdnFile("logo/logo.webp")}
               alt="logo"
             />
 

@@ -1,3 +1,5 @@
+import { cdnFile } from "@/constants/utils";
+
 export enum Map {
   AUTUMN = "base/autumn.png",
   WINTER = "base/winter.png",
@@ -64,10 +66,10 @@ export const getNextCatnipChaosLevel = (level: string) => {
 };
 
 export const catnipChaosChapterBGImage: Record<string, string> = {
-  "1": "/backgrounds/bg-5.webp",
-  "2": "/backgrounds/bg-6.webp",
-  "3": "/backgrounds/bg-3.webp",
-  "4": "/backgrounds/bg-4.webp",
-  "5": "/backgrounds/bg-min-camp.webp",
-  "6": "/backgrounds/bg-min-summit.webp",
+  "1": cdnFile("backgrounds/bg-5.webp"),
+  "2": cdnFile("backgrounds/bg-6.webp"),
+  "3": cdnFile("backgrounds/bg-3.webp"),
+  "4": cdnFile("backgrounds/bg-4.webp"),
+  "5": cdnFile("backgrounds/bg-min-camp.webp"),
+  "6": cdnFile("backgrounds/bg-min-summit.webp"),
 };

@@ -1,7 +1,7 @@
 import { ARTICLE_API } from "@/api/article-api";
 import { getNextPageFn } from "@/api/routing";
 import { Avatar } from "@/components/blog/feed/Avatar";
-import { fromNow } from "@/constants/utils";
+import { cdnFile, fromNow } from "@/constants/utils";
 import { useEntityMetadata } from "@/context/EntityMetadataContext";
 import { useProfile } from "@/context/ProfileContext";
 import { IComment } from "@/models/comment";
@@ -75,7 +75,7 @@ export const SafeInput = (
         onClick={() => onSubmit("Enter")}
         className="bx bxs-send absolute right-0 pr-2 top-0 bottom-0 flex justify-center items-center cursor-pointer"
       >
-        <img draggable={false} className="w-6" src="/logo/paw.png" />
+        <img draggable={false} className="w-6" src={cdnFile("logo/paw.png")} />
       </div>
     </div>
   );
@@ -140,7 +140,11 @@ export const Comment = ({
             }
           )}
         >
-          <img draggable={false} className="w-4" src="/logo/paw.png" />
+          <img
+            draggable={false}
+            className="w-4"
+            src={cdnFile("logo/paw.png")}
+          />
           <div className="text-p5 font-semibold ml-2">Paw</div>
         </button>
         {!isReplyDisabled && (
@@ -154,7 +158,11 @@ export const Comment = ({
               }
             )}
           >
-            <img draggable={false} src="/logo/comments.png" className="w-5" />
+            <img
+              draggable={false}
+              src={cdnFile("logo/comments.png")}
+              className="w-5"
+            />
             <div className="text-p5 font-semibold ml-2">Meows</div>
           </button>
         )}
@@ -217,11 +225,15 @@ export const Comments = ({ close, entity, type }: IProps) => {
       ></div>
       <div className="z-50 w-full md:w-[480px] max-w-full mt-safe absolute bg-yellow-50 top-32 bottom-0 rounded-t-[22px] shadow flex flex-col pb-8 pt-6 px-2">
         <div className="flex justify-center gap-2 items-center mb-5">
-          <img draggable={false} src="/logo/comments.png" className="w-6 h-6" />
+          <img
+            draggable={false}
+            src={cdnFile("logo/comments.png")}
+            className="w-6 h-6"
+          />
           <div className="text-center">Meows</div>
           <img
             draggable={false}
-            src="/logo/comments.png"
+            src={cdnFile("logo/comments.png")}
             className="w-6 h-6 scale-x-[-100%]"
           />
         </div>

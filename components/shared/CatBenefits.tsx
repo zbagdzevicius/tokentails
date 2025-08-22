@@ -1,6 +1,7 @@
 import { cardsColor, CatAbilityType, ICat } from "@/models/cats";
 import { Tag } from "./Tag";
 import { getMultiplier } from "@/constants/cat-utils";
+import { cdnFile } from "@/constants/utils";
 
 export const CatBenefits = ({
   cat,
@@ -50,7 +51,7 @@ export const CatBenefits = ({
         <div className="text-p4 bg-red-600 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 bg-opacity-60 hover:bg-opacity-80 mb-2 border-2 rounded-xl border-main-black">
           <img
             draggable={false}
-            src="/logo/coin.webp"
+            src={cdnFile("logo/coin.webp")}
             className="w-8 h-8 mr-3 -ml-5"
           />
           <span className="flex flex-col">
@@ -62,7 +63,7 @@ export const CatBenefits = ({
           <div className="text-p4 bg-green-600 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 bg-opacity-60 hover:bg-opacity-80 mb-2 border-2 rounded-xl border-main-black">
             <img
               draggable={false}
-              src="/logo/rocket.png"
+              src={cdnFile("logo/rocket.png")}
               className="w-8 h-8 mr-3 -ml-4"
             />
             <span className="flex flex-col text-gray-200">
@@ -76,7 +77,7 @@ export const CatBenefits = ({
             <img
               draggable={false}
               className="w-12 h-12 mr-3 -ml-6 pixelated"
-              src={`/flare-effect/${cat.type}.gif`}
+              src={cdnFile(`flare-effect/${cat.type}.gif`)}
             ></img>
             <span className="flex flex-col">
               <span className="text-p5 -mb-1 text-gray-200">
@@ -90,7 +91,7 @@ export const CatBenefits = ({
           <div className="text-p4 bg-gray-500 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 bg-opacity-60 hover:bg-opacity-80 mb-2 border-2 rounded-xl border-main-black">
             <img
               draggable={false}
-              src="/logo/heart.webp"
+              src={cdnFile("logo/heart.webp")}
               className="w-8 h-8 mr-3 -ml-4 pixelated"
             />
             <span className="flex flex-col">

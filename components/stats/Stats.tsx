@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Countdown } from "../shared/Countdown";
 import { StatsTable } from "../airdrop/StatsTable";
 import { PixelButton } from "../shared/PixelButton";
+import { cdnFile } from "@/constants/utils";
 
 export const Stats = () => {
   const { data } = useQuery({
@@ -13,7 +14,11 @@ export const Stats = () => {
   return (
     <div className="flex flex-col lg:flex-row items-center lg:items-start lg:mt-8 2xl:mt-16 gap-2 lg:gap-16">
       <div className="flex flex-col items-center">
-        <img className="w-32" src="/logo/logo.webp" alt="airdrop-logo" />
+        <img
+          className="w-32"
+          src={cdnFile("logo/logo.webp")}
+          alt="airdrop-logo"
+        />
         <h2 className="text-center font-primary uppercase tracking-tight text-h6 md:text-h1 text-balance px-4">
           <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] mr-4">
             Token Tails

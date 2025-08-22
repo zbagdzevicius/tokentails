@@ -17,6 +17,7 @@ import { useMemo } from "react";
 import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
 import { Web3Providers } from "../web3/Web3Providers";
+import { bgStyle, cdnFile } from "@/constants/utils";
 
 const ConnectWallet = dynamic(
   () => import("../web3/minting/Web3Mint").then((mod) => mod.ConnectWallet),
@@ -24,7 +25,7 @@ const ConnectWallet = dynamic(
     ssr: false,
     loading: () => (
       <img
-        src="/icons/loader.webp"
+        src={cdnFile("icons/loader.webp")}
         className="w-8 h-8 m-auto animate-spin pixelated"
       />
     ),
@@ -37,7 +38,7 @@ const Web3Mint = dynamic(
     ssr: false,
     loading: () => (
       <img
-        src="/icons/loader.webp"
+        src={cdnFile("icons/loader.webp")}
         className="w-8 h-8 m-auto animate-spin pixelated"
       />
     ),
@@ -57,20 +58,20 @@ const MysteryBoxEligibility = ({
   return (
     <div
       className="flex flex-col items-center my-2 md:mb-0 rounded-xl w-full md:w-auto"
-      style={{
-        backgroundImage: "url(/backgrounds/bg-min-4.webp)",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
+      style={bgStyle("min-4")}
     >
       <div className="flex items-center gap-2 font-bold font-primary text-p2">
         {isEligible ? (
-          <img draggable={false} className="w-8" src="/icons/check.webp" />
+          <img
+            draggable={false}
+            className="w-8"
+            src={cdnFile("icons/check.webp")}
+          />
         ) : (
           <img
             draggable={false}
             className="w-8 pixelated"
-            src="/purrquest/sprites/key.png"
+            src={cdnFile("purrquest/sprites/key.png")}
           />
         )}
         {text}
@@ -223,15 +224,14 @@ export const MysteryBox = () => {
             </div>
           </div>
           <div>
-            <img src="/tail/cat-celebrate.webp" className="w-16 -scale-x-100" />
+            <img
+              src={cdnFile("tail/cat-celebrate.webp")}
+              className="w-16 -scale-x-100"
+            />
             <div
               onClick={() => setOpenedModal(GameModal.FEATURED_CAT)}
               className="flex hover:brightness-110 flex-col w-24 relative items-center font-secondary rounded-xl px-1 py-2"
-              style={{
-                backgroundImage: "url(/backgrounds/bg-4.webp)",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }}
+              style={bgStyle("4")}
             >
               <div className="relative -mt-8 -mb-4">
                 <img
@@ -270,7 +270,7 @@ export const MysteryBox = () => {
                   <img
                     draggable={false}
                     className="w-8"
-                    src="/icons/check.webp"
+                    src={cdnFile("icons/check.webp")}
                   />
                 </div>
               )}
@@ -291,7 +291,7 @@ export const MysteryBox = () => {
                   <img
                     draggable={false}
                     className="w-8 pixelated overflow-hidden"
-                    src="/purrquest/sprites/key.png"
+                    src={cdnFile("purrquest/sprites/key.png")}
                   />
                 </div>
               )}

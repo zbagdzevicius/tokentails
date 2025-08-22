@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { CloseButton } from "./CloseButton";
+import { cdnFile } from "@/constants/utils";
 
 interface ISuccesPaymentModal {
   close: () => void;
@@ -14,7 +15,7 @@ export const SuccesPaymentModal = ({ close }: ISuccesPaymentModal) => {
         <img
           draggable={false}
           className="w-full h-auto object-contain"
-          src="/background/succes-payment.jpg"
+          src={cdnFile("background/succes-payment.jpg")}
           alt="Success Payment"
         />
       </div>

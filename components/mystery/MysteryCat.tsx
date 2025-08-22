@@ -18,6 +18,7 @@ import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
 import { Web3Providers } from "../web3/Web3Providers";
 import dynamic from "next/dynamic";
+import { bgStyle, cdnFile } from "@/constants/utils";
 
 const Web3MintStellar = dynamic(
   () =>
@@ -28,7 +29,7 @@ const Web3MintStellar = dynamic(
     ssr: false,
     loading: () => (
       <img
-        src="/icons/loader.webp"
+        src={cdnFile("icons/loader.webp")}
         className="w-8 h-8 m-auto animate-spin pixelated"
       />
     ),
@@ -48,20 +49,20 @@ const MysteryBoxEligibility = ({
   return (
     <div
       className="flex flex-col items-center my-2 md:mb-0 rounded-xl w-full md:w-auto"
-      style={{
-        backgroundImage: "url(/backgrounds/bg-4.webp)",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
+      style={bgStyle("4")}
     >
       <div className="flex items-center gap-2 font-bold font-primary text-p2">
         {isEligible ? (
-          <img draggable={false} className="w-8" src="/icons/check.webp" />
+          <img
+            draggable={false}
+            className="w-8"
+            src={cdnFile("icons/check.webp")}
+          />
         ) : (
           <img
             draggable={false}
             className="w-8 pixelated"
-            src="/purrquest/sprites/key.png"
+            src={cdnFile("purrquest/sprites/key.png")}
           />
         )}
         {text}

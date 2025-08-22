@@ -1,3 +1,4 @@
+import { cdnFile } from "@/constants/utils";
 import { useWeb3 } from "@/context/Web3Context";
 import {
   ChainNamespace,
@@ -67,7 +68,7 @@ export const ChainSelect = () => {
                     ? "w-8"
                     : "w-8 px-1 group-hover:px-0"
                 }`}
-                src={`/currency/${currency}.webp`}
+                src={cdnFile(`currency/${currency}.webp`)}
                 alt={`${currency} icon`}
               />
             </button>

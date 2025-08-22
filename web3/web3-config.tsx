@@ -24,7 +24,7 @@ import {
   TrustWalletAdapter,
 } from "@solana/wallet-adapter-wallets";
 
-import { randomObjectFromArray } from "@/constants/utils";
+import { cdnFile, randomObjectFromArray } from "@/constants/utils";
 import { para } from "@/models/para";
 import { AuthLayout, OAuthMethod } from "@getpara/react-sdk";
 import { Horizon, Networks } from "@stellar/stellar-sdk";
@@ -50,7 +50,7 @@ export const metadata = {
   name: "Web3Modal",
   description: "TokenTails wallet connect",
   url: "https://tokentails.com", // origin must match your domain & subdomain
-  icons: ["https://tokentails.com/logo/logo.webp"],
+  icons: [cdnFile("logo/logo.webp")],
   projectId,
 };
 
@@ -81,7 +81,7 @@ export const solanaWallets = [
 export const paraConnected = paraConnector({
   para,
   appName: "Token Tails",
-  logo: "https://tokentails.com/logo/logo.webp",
+  logo: cdnFile("logo/logo.webp"),
   oAuthMethods: [OAuthMethod.GOOGLE, OAuthMethod.TWITTER],
   theme: {
     mode: "light",

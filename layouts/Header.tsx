@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { PixelButton } from "../components/shared/PixelButton";
 import { Socials } from "./Socials";
+import { cdnFile } from "@/constants/utils";
 
 interface navProps {
   title: string;
@@ -81,7 +82,7 @@ export const Header = () => {
           <img
             draggable={false}
             className={`${isTop ? `h-12 md:h-20` : `h-8 md:h-12`}`}
-            src="/logo/logo.webp"
+            src={cdnFile("logo/logo.webp")}
             alt="logo"
           />
           <div className="text-p4 md:text-p1 font-primary hidden md:block">

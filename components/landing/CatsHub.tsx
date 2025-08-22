@@ -1,4 +1,5 @@
 import { PixelButton } from "@/components/shared/PixelButton";
+import { cdnFile } from "@/constants/utils";
 import { useCallback, useState } from "react";
 
 interface IProps {
@@ -13,28 +14,28 @@ interface IProps {
 const CatsHubProps: IProps[] = [
   {
     title: "HOW CAN I SAVE A CAT?",
-    img: "/images/cats-slider/contribute.jpg",
+    img: cdnFile("images/cats-slider/contribute.jpg"),
     question: "HOW",
     description:
       "Adopt shelters cats as NFTs, 100% of funds are transferred directly to cats shelters",
   },
   {
     title: "HOW TO OWN AN NFT CAT?",
-    img: "/images/cats-slider/love.jpg",
+    img: cdnFile("images/cats-slider/love.jpg"),
     question: "HOW",
     description:
       "Sign in, get into our cat shelter and adopt you purrfect companion !",
   },
   {
     title: "WHAT ARE THE PERKS FOR CATS HOLDERS",
-    img: "/images/cats-slider/eat.jpg",
+    img: cdnFile("images/cats-slider/eat.jpg"),
     question: "WHAT",
     description:
       "Up to 10x elevated token rewards ratio, airdrops, NFT rewards, ability to stake NFT cats and craft tokens, AI companion on X and the most important - saved cats!",
   },
   {
     title: "WEN $TAILS LISTING? WEN AIRDROP?",
-    img: "/images/cats-slider/play.jpg",
+    img: cdnFile("images/cats-slider/play.jpg"),
     question: "WEN",
     description:
       "$TAILS TGE, LISTING AND AIRDROP is going to happen in 2025. Follow us on X to stay up to date so you won't miss it!",
@@ -67,7 +68,7 @@ const CatsSection = ({
               className={`h-8 max-lg:h-4 max-lg:w-4 w-8 shrink-0 fill-accent-100 transition ase-in-out duration-700 ${
                 isActive ? "rotate-[-180deg]" : ""
               }`}
-              src="/cursor/cursor-sand.png"
+              src={cdnFile("cursor/cursor-sand.png")}
               alt="arrow down"
               width={60}
               height={60}
@@ -112,7 +113,7 @@ export const CatsHub = () => {
           <div className="relative rounded-2xl sm:rounded-[80px] overflow-hidden -mb-8 sm:mb-0 hover:brightness-110 m-auto">
             <img
               draggable={false}
-              src="/images/cats-hub/how-you-can-save.webp"
+              src={cdnFile("images/cats-hub/how-you-can-save.webp")}
               alt="cats"
               className="aspect-square max-w-96 w-full sm:h-full object-contain z-3"
             />

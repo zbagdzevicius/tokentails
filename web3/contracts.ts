@@ -1,3 +1,5 @@
+import { cdnFile } from "@/constants/utils";
+
 export const recipientEvm = "0x29D7d5361052c0990879D7926a0c98A63F9860F8";
 // FREIGHTER TEST
 // export const recipientStellar = "GBNJSE2FWUTCPX5CPY2QPJHF3JCXGNXU6KYP4J3VGUD7PLXP4TD64PSU";
@@ -43,21 +45,9 @@ export const ChainNamespaces = [
 ];
 
 export const ChainNamespaceImg: Record<ChainNamespace, string> = {
-  [ChainNamespace.EVM]: "/currency/BNB.webp",
-  [ChainNamespace.STELLAR]: "/currency/XLM.webp",
-  [ChainNamespace.SOLANA]: "/currency/SOL.webp",
-};
-
-export const ChainImg: Record<ChainType, string> = {
-  [ChainType.BNB]: "/currency/BNB.webp",
-  [ChainType.BNB_TEST]: "/currency/BNB.webp",
-  [ChainType.STELLAR]: "/currency/XLM.webp",
-  [ChainType.STELLAR_TEST]: "/currency/XLM.webp",
-  [ChainType.SOLANA]: "/currency/SOL.webp",
-  [ChainType.SOLANA_TEST]: "/currency/SOL.webp",
-  [ChainType.SKALE]: "/currency/SKALE.png",
-  [ChainType.SKALE_TEST]: "/currency/SKALE.png",
-  [ChainType.CAMP_TEST]: "/currency/CAMP.webp",
+  [ChainNamespace.EVM]: cdnFile("currency/BNB.webp"),
+  [ChainNamespace.STELLAR]: cdnFile("currency/XLM.webp"),
+  [ChainNamespace.SOLANA]: cdnFile("currency/SOL.webp"),
 };
 
 export const ChainNamespacesCurrencies: Record<ChainNamespace, CurrencyType[]> =

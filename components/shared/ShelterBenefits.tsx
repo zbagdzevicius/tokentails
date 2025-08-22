@@ -1,3 +1,4 @@
+import { cdnFile } from "@/constants/utils";
 import { PixelButton } from "./PixelButton";
 
 export const ShelterBenefits = () => {
@@ -19,7 +20,7 @@ export const ShelterBenefits = () => {
             <img
               draggable={false}
               className="w-14 z-10 pixelated -ml-10"
-              src="/cats/pinkie/pink-lamiendo-ropa.gif"
+              src={cdnFile("cats/pinkie/pink-lamiendo-ropa.gif")}
             />
             <span className="flex flex-col items-center">
               <span>Rožinė Pėdutė</span>
@@ -30,7 +31,7 @@ export const ShelterBenefits = () => {
             <img
               draggable={false}
               className="w-14 z-10 pixelated -mr-10 scale-x-[-1]"
-              src="/cats/pinkie/pink-respirando-ropa.gif"
+              src={cdnFile("cats/pinkie/pink-respirando-ropa.gif")}
             />
           </div>
           <div className="text-p4 font-secondary text-main-black mt-1 w-full flex items-center justify-center gap-1">
@@ -42,7 +43,7 @@ export const ShelterBenefits = () => {
               >
                 <img
                   className="w-6 h-6"
-                  src="/icons/social/facebook.webp"
+                  src={cdnFile("icons/social/facebook.webp")}
                   draggable="false"
                 />
                 FB
@@ -54,7 +55,7 @@ export const ShelterBenefits = () => {
               >
                 <img
                   className="w-6 h-6"
-                  src="/icons/social/instagram.png"
+                  src={cdnFile("icons/social/instagram.png")}
                   draggable="false"
                 />
                 IG
@@ -66,7 +67,7 @@ export const ShelterBenefits = () => {
               >
                 <img
                   className="w-6 h-6"
-                  src="/icons/social/tiktok.png"
+                  src={cdnFile("icons/social/tiktok.png")}
                   draggable="false"
                 />
                 TIKTOK

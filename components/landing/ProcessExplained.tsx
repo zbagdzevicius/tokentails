@@ -1,3 +1,5 @@
+import { bgStyle, cdnFile } from "@/constants/utils";
+
 export const ProcessExplained = () => {
   return (
     <>
@@ -15,11 +17,7 @@ export const ProcessExplained = () => {
 
         <div className="flex justify-center flex-col md:flex-row gap-4">
           <div
-            style={{
-              backgroundImage: "url(/backgrounds/bg-9.webp)",
-              backgroundSize: "cover",
-              backgroundPosition: "top",
-            }}
+            style={bgStyle("9")}
             className="animate-brightness md:mt-48 relative border flex flex-col items-center justify-center w-40 h-40 rounded-full hover:brightness-110"
           >
             <div className="z-10 text-center pt-2 rounded-full flex items-center flex-col justify-center text-p2 leading-none font-primary">
@@ -30,21 +28,17 @@ export const ProcessExplained = () => {
             </div>
             <img
               className="w-24 h-24 -mb-6 rounded-full hover:brightness-110"
-              src="team/feta-sad.webp"
+              src={cdnFile("team/feta-sad.webp")}
             />
           </div>
           <div className="md:mt-40 flex flex-col items-center justify-center pt-2 md:pt-0">
             <img
               className="w-12 rotate-180 md:rotate-[60deg]"
-              src="logo/arrow.webp"
+              src={cdnFile("logo/arrow.webp")}
             />
           </div>
           <div
-            style={{
-              backgroundImage: "url(/backgrounds/bg-4.webp)",
-              backgroundSize: "cover",
-              backgroundPosition: "top",
-            }}
+            style={bgStyle("4")}
             className="animate-brightness animate-delay-1000 md:mt-32 relative border flex flex-col items-center justify-center w-40 h-40 rounded-full hover:brightness-110"
           >
             <img
@@ -63,15 +57,11 @@ export const ProcessExplained = () => {
           <div className="md:mt-8 flex flex-col items-center justify-center">
             <img
               className="w-12 rotate-180 md:rotate-[60deg]"
-              src="logo/arrow.webp"
+              src={cdnFile("logo/arrow.webp")}
             />
           </div>
           <div
-            style={{
-              backgroundImage: "url(/backgrounds/bg-6.webp)",
-              backgroundSize: "cover",
-              backgroundPosition: "top",
-            }}
+            style={bgStyle("6")}
             className="animate-hover animate-delay-2000 md:mt-16 relative border flex flex-col items-center justify-center w-40 h-40 rounded-full hover:brightness-110"
           >
             <div className="z-10 text-center pt-2 text-pretty rounded-full flex items-center justify-center text-p2 leading-none font-primary">
@@ -84,26 +74,22 @@ export const ProcessExplained = () => {
             </div>
             <img
               className="w-16 h-auto pixelated -mb-4"
-              src="logo/human.webp"
+              src={cdnFile("logo/human.webp")}
             />
           </div>
           <div className="md:-mt-28 flex flex-col items-center justify-center">
             <img
               className="w-12 rotate-180 md:rotate-[60deg]"
-              src="logo/arrow.webp"
+              src={cdnFile("logo/arrow.webp")}
             />
           </div>
           <div
-            style={{
-              backgroundImage: "url(/backgrounds/bg-5.webp)",
-              backgroundSize: "cover",
-              backgroundPosition: "top",
-            }}
+            style={bgStyle("5")}
             className="animate-brightness relative border flex flex-col items-center justify-center w-40 h-40 rounded-full hover:brightness-110"
           >
             <img
               className="w-24 h-24 md:-mt-6 rounded-full hover:brightness-110"
-              src="team/feta-happy.webp"
+              src={cdnFile("team/feta-happy.webp")}
             />
             <div className="z-10 text-center pt-2 text-pretty rounded-full flex items-center justify-center text-p2 leading-none font-primary">
               <div>

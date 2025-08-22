@@ -1,4 +1,5 @@
 import { Game } from "@/components/game/Game";
+import { cdnFile } from "@/constants/utils";
 import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import { GameProvider } from "@/context/GameContext";
 
@@ -9,13 +10,13 @@ export default function game() {
     <FirebaseAuthProvider>
       <Head>
         <title>Token Tails - Play to Save</title>
-        <meta property="og:image" content="/logo/ogg.jpg" />
+        <meta property="og:image" content={cdnFile("logo/ogg.jpg")} />
         <meta property="og:title" content="Token Tails - Game" key="title" />
         <meta
           name="description"
           content="PLAY WITH YOUR VIRTUAL CAT TO SAVE A CAT IN A SHELTER"
         />
-        <link rel="shortcut icon" href="/logo/coin.webp" />
+        <link rel="shortcut icon" href={cdnFile("logo/coin.webp")} />
       </Head>
       <GameProvider>
         <Game />

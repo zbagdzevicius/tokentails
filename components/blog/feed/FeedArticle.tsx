@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { FeedCard } from "./FeedCard";
 import { EntityRouteOption } from "@/api/routing";
+import { cdnFile } from "@/constants/utils";
 
 export const FeedArticle = ({
   _id,
@@ -25,7 +26,7 @@ export const FeedArticle = ({
       entity={_id}
       description={excerpt}
       author={category.name}
-      authorImage={"/logo/coin.webp"}
+      authorImage={cdnFile("logo/coin.webp")}
       authorLink={category.slug}
       date={createdAt}
       link={link}

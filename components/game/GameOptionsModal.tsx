@@ -1,5 +1,5 @@
 import { USER_API } from "@/api/user-api";
-import { getNextDayMidnight } from "@/constants/utils";
+import { bgStyle, cdnFile, getNextDayMidnight } from "@/constants/utils";
 import { useToast } from "@/context/ToastContext";
 import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
@@ -49,7 +49,7 @@ export const GameOptionsModal = ({
     });
     toast({
       message: `You got ${numberOfPointsToRedeem} coins + ${numberOfLivesToRedeem} lives`,
-      img: "/logo/chest.webp",
+      img: cdnFile("logo/chest.webp"),
     });
   }, []);
 
@@ -72,17 +72,13 @@ export const GameOptionsModal = ({
             {profile.canRedeemLives && (
               <div
                 className="flex w-26 flex-col font-secondary text-p2 px-2 pt-2 pb-1 rounded-t-xl gap-1 font-bold"
-                style={{
-                  backgroundImage: "url(/backgrounds/bg-min-6.webp)",
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
+                style={bgStyle("min-6")}
               >
                 <div className="flex items-center gap-1">
                   <img
                     draggable={false}
                     className="w-6 z-10"
-                    src="/base/heart.png"
+                    src={cdnFile("base/heart.png")}
                   />
                   <div className="text-p5">3 LIVES</div>
                 </div>
@@ -90,7 +86,7 @@ export const GameOptionsModal = ({
                   <img
                     draggable={false}
                     className="w-6 z-10"
-                    src="/logo/coin.webp"
+                    src={cdnFile("logo/coin.webp")}
                   />
                   <div className="text-p5 mt-1">
                     {numberOfPointsToRedeem} COINS

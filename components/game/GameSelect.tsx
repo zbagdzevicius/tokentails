@@ -9,6 +9,7 @@ import { GameEvents } from "../Phaser/events";
 import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
 import { StatusBar } from "../shared/game/StatusBar";
+import { cdnFile } from "@/constants/utils";
 
 interface IProps {
   gameType: GameType | null;
@@ -16,10 +17,10 @@ interface IProps {
 }
 
 const gameTypeImages: Record<GameType, string> = {
-  [GameType.CATBASSADORS]: "/game/select/catbassadors.jpg",
-  [GameType.SHELTER]: "/game/select/shelter.jpg",
-  [GameType.HOME]: "/game/select/home.jpg",
-  [GameType.CATNIP_CHAOS]: "/game/select/catnip-chaos.webp",
+  [GameType.CATBASSADORS]: cdnFile("game/select/catbassadors.jpg"),
+  [GameType.SHELTER]: cdnFile("game/select/shelter.jpg"),
+  [GameType.HOME]: cdnFile("game/select/home.jpg"),
+  [GameType.CATNIP_CHAOS]: cdnFile("game/select/catnip-chaos.webp"),
 };
 
 const GameSelectItem = ({
@@ -132,7 +133,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
                 />
                 <img
                   draggable={false}
-                  src="/logo/logo-text.webp"
+                  src={cdnFile("logo/logo-text.webp")}
                   className="absolute w-24 h-auto -top-36 md:-top-20 md:w-16 lg:w-24 lg:-top-36 z-10"
                 ></img>
 
@@ -147,7 +148,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
               </div>
             ) : (
               <img
-                src="/icons/loader.webp"
+                src={cdnFile("icons/loader.webp")}
                 className="w-24 h-24 -mb-6 animate-spin pixelated"
               />
             )}

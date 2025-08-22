@@ -11,6 +11,7 @@ import { ChainSelect } from "../shared/ChainSelect";
 import { PixelButton } from "../shared/PixelButton";
 import { Web3Transfer } from "../web3/transfer/Web3Transfer";
 import { QUEST_API } from "@/api/quest-api";
+import { cdnFile } from "@/constants/utils";
 
 export const MysteryBoxCat = () => {
   const { profile, setProfileUpdate } = useProfile();
@@ -105,8 +106,8 @@ export const MysteryBoxCat = () => {
         src={
           rolledCat?.catImg ||
           (boxType === EntityType.MYSTERY_BOX
-            ? "/elements/mystery-box.webp"
-            : "/elements/loot-box.webp")
+            ? cdnFile("elements/mystery-box.webp")
+            : cdnFile("elements/loot-box.webp"))
         }
       />
       <div className="flex gap-2 -mt-2 mb-2 items-center justify-center">
@@ -170,7 +171,11 @@ export const MysteryBoxCat = () => {
             WHAT CAN I WIN?
           </div>
           <div className="text-p4 bg-amber-500 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 hover:scale-110 transition-transform mb-2 border-2 rounded-xl border-main-black">
-            <img draggable={false} src="/logo/logo.webp" className="w-8 mr-3" />
+            <img
+              draggable={false}
+              src={cdnFile("logo/logo.webp")}
+              className="w-8 mr-3"
+            />
             <span className="flex flex-col">
               <span className="text-p5 -mb-1 text-amber-900">WIN $TAILS</span>
               <span>UP TO $3k in $TAILS</span>
@@ -179,7 +184,7 @@ export const MysteryBoxCat = () => {
           <div className="text-p4 bg-green-600 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 hover:scale-110 transition-transform mb-2 border-2 rounded-xl border-main-black">
             <img
               draggable={false}
-              src="/logo/coin.webp"
+              src={cdnFile("logo/coin.webp")}
               className="w-8 h-8 mr-3 -ml-5"
             />
             <span className="flex flex-col">
@@ -190,7 +195,7 @@ export const MysteryBoxCat = () => {
           <div className="text-p4 bg-red-600 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 hover:scale-110 transition-transform mb-2 border-2 rounded-xl border-main-black">
             <img
               draggable={false}
-              src="/logo/heart.webp"
+              src={cdnFile("logo/heart.webp")}
               className="w-8 h-8 mr-3 -ml-1 pixelated"
             />
             <span className="flex flex-col">

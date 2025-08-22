@@ -1,3 +1,4 @@
+import { bgStyle, cdnFile } from "@/constants/utils";
 import { useGame } from "@/context/GameContext";
 import { useToast } from "@/context/ToastContext";
 import { GameModal, GameType } from "@/models/game";
@@ -60,11 +61,7 @@ export const GameStatsSection = ({
         <div
           onClick={() => setOpenedModal(GameModal.PROFILE)}
           className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2"
-          style={{
-            backgroundImage: "url(/backgrounds/bg-min-4.webp)",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
+          style={bgStyle("min-4")}
         >
           {profile.cat && (
             <div className="relative -mb-2">
@@ -77,7 +74,7 @@ export const GameStatsSection = ({
                 <img
                   draggable={false}
                   className="absolute inset-0 l object-cover w-20 h-20 -mt-6 pixelated"
-                  src={`/flare-effect/${profile.cat.type}.gif`}
+                  src={cdnFile(`flare-effect/${profile.cat.type}.gif`)}
                 ></img>
               )}
             </div>
@@ -102,7 +99,7 @@ export const GameStatsSection = ({
                 <img
                   draggable={false}
                   className="w-5 z-10 pr-1"
-                  src="/base/heart.png"
+                  src={cdnFile("base/heart.png")}
                 />
                 <div className="text-p5">LIVES</div>
               </div>
@@ -114,14 +111,14 @@ export const GameStatsSection = ({
         <div
           onClick={() => setModal(coinsText)}
           className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-1"
-          style={{
-            backgroundImage: "url(/backgrounds/bg-min-5.webp)",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
+          style={bgStyle("min-5")}
         >
           <div className="text-p4 font-bold flex items-center gap-1">
-            <img draggable={false} className="w-5 h-5" src="/logo/coin.webp" />
+            <img
+              draggable={false}
+              className="w-5 h-5"
+              src={cdnFile("logo/coin.webp")}
+            />
             <div>COINS</div>
           </div>
           <div className="flex items-center gap-2 -mt-1">
@@ -131,7 +128,7 @@ export const GameStatsSection = ({
             <img
               draggable={false}
               className="w-5 h-5"
-              src="/logo/catnip.webp"
+              src={cdnFile("logo/catnip.webp")}
             />
             <div>CATNIP</div>
           </div>
@@ -146,7 +143,10 @@ export const GameStatsSection = ({
               onClick={() => setOpenedModal(GameModal.CODEX)}
               className="flex flex-col items-center font-primary text-p2 bg-blue-300 hover:scale-110 transition-all hover:mt-1 hover:border-yellow-300 hover:border-4 px-2 rounded-b-xl hover:rounded-xl relative"
             >
-              <img src="/codex/codex-1.webp" className="h-10 -my-1 -mb-1" />
+              <img
+                src={cdnFile("codex/codex-1.webp")}
+                className="h-10 -my-1 -mb-1"
+              />
               <div className="text-p4 pt-1 -mt-1 -mb-1">CODEX</div>
             </div>
           )}
@@ -160,12 +160,7 @@ export const GameStatsSection = ({
           ></div>
           <div
             className="z-50 rem:w-[350px] md:w-[480px] max-w-full absolute top-1/2 -translate-y-1/2 rounded-xl shadow animate-appear pb-4"
-            style={{
-              backgroundImage: "url('/backgrounds/bg-5.webp')",
-              backgroundRepeat: "no-repeat",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
+            style={bgStyle("5")}
           >
             <CloseButton onClick={() => setModal(null)} />
             <div className="pb-safe rem:min-h-[100px] p-8 flex flex-col gap-2 justify-between items-center">
