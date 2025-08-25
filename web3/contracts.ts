@@ -28,7 +28,7 @@ export enum ChainType {
   STELLAR = "STELLAR",
   STELLAR_TEST = "STELLAR_TEST",
   SOLANA = "SOLANA",
-  CAMP_TEST = "CAMP_TEST",
+  CAMP = "CAMP",
   SOLANA_TEST = "SOLANA_TEST",
 }
 
@@ -72,7 +72,7 @@ export const currencyContracts: Record<
   [ChainType.SKALE_TEST]: {
     [CurrencyType.TAILS]: "0x",
   },
-  [ChainType.CAMP_TEST]: {
+  [ChainType.CAMP]: {
     [CurrencyType.TAILS]: "0x",
   },
   [ChainType.BNB]: {

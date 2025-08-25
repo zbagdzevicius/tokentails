@@ -140,9 +140,7 @@ export const CatnipChaosLevels = ({
                 {unlockedLevels >= i && (
                   <div className="flex flex-col items-center absolute -bottom-5">
                     {isRedeemed(
-                      chaptersBadges[ChainType.CAMP_TEST]![
-                        parseInt(level[0]) - 1
-                      ]
+                      chaptersBadges[ChainType.CAMP]![parseInt(level[0]) - 1]
                     ) ? (
                       <PixelButton
                         text="REDEEMED"
@@ -156,13 +154,13 @@ export const CatnipChaosLevels = ({
                           user={profile?._id!}
                           ownedNFTCallback={() =>
                             onRedeem(
-                              chaptersBadges[ChainType.CAMP_TEST]![
+                              chaptersBadges[ChainType.CAMP]![
                                 parseInt(level[0]) - 1
                               ]
                             )
                           }
                           mysteryBox={
-                            chaptersBadges[ChainType.CAMP_TEST]![
+                            chaptersBadges[ChainType.CAMP]![
                               parseInt(level[0]) - 1
                             ]
                           }

@@ -88,28 +88,40 @@ export const MysteryBox = () => {
   const toast = useToast();
   const { setGameType, setOpenedModal } = useGame();
   const mysteryBox = useMemo(() => {
-    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP_TEST]![0].key)) {
-      return mysteryBoxes[ChainType.CAMP_TEST]![0];
+    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP]![0].key)) {
+      return mysteryBoxes[ChainType.CAMP]![0];
     }
-    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP_TEST]![1].key)) {
-      return mysteryBoxes[ChainType.CAMP_TEST]![1];
+    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP]![1].key)) {
+      return mysteryBoxes[ChainType.CAMP]![1];
     }
-    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP_TEST]![2].key)) {
-      return mysteryBoxes[ChainType.CAMP_TEST]![2];
+    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP]![2].key)) {
+      return mysteryBoxes[ChainType.CAMP]![2];
     }
-    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP_TEST]![3].key)) {
-      return mysteryBoxes[ChainType.CAMP_TEST]![3];
+    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP]![3].key)) {
+      return mysteryBoxes[ChainType.CAMP]![3];
     }
-    return mysteryBoxes[ChainType.CAMP_TEST]![4];
+    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP]![4].key)) {
+      return mysteryBoxes[ChainType.CAMP]![4];
+    }
+    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP]![5].key)) {
+      return mysteryBoxes[ChainType.CAMP]![5];
+    }
+    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP]![6].key)) {
+      return mysteryBoxes[ChainType.CAMP]![6];
+    }
+    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP]![7].key)) {
+      return mysteryBoxes[ChainType.CAMP]![7];
+    }
+    return mysteryBoxes[ChainType.CAMP]![8];
   }, [profile?.quests]);
   const unlockedIndex = useMemo(() => {
-    return mysteryBoxes[ChainType.CAMP_TEST]?.findIndex(
+    return mysteryBoxes[ChainType.CAMP]?.findIndex(
       (box) => box.key === mysteryBox.key
     );
   }, [mysteryBox]);
   const finished = useMemo(() => {
     return profile?.quests?.find(
-      (quest) => quest === mysteryBoxes[ChainType.CAMP_TEST]![4].key
+      (quest) => quest === mysteryBoxes[ChainType.CAMP]![4].key
     );
   }, [profile?.quests]);
   const isRedeemed = useMemo(() => {
@@ -258,7 +270,7 @@ export const MysteryBox = () => {
           <Tag isSmall>Complete all 5 mints for maximum rewards !</Tag>
         )}
         <div className="flex w-full justify-center gap-4 gap-y-8 flex-wrap">
-          {mysteryBoxes.CAMP_TEST?.map((box, i) => (
+          {mysteryBoxes.CAMP?.map((box, i) => (
             <div key={i} className="relative rounded-2xl">
               <img
                 draggable={false}

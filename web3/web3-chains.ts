@@ -8,11 +8,11 @@ import {
 import { ChainType } from "./contracts";
 import { isProd } from "@/models/app";
 
-export const campTestnet = defineChain({
-  id: 123420001114,
+export const campMainnet = defineChain({
+  id: 484,
   chainNamespace: "eip155",
-  caipNetworkId: `eip155:${123420001114}`,
-  name: "Camp Testnet",
+  caipNetworkId: `eip155:${484}`,
+  name: "Camp Mainnet",
   nativeCurrency: {
     decimals: 18,
     name: "Camp Network",
@@ -20,27 +20,27 @@ export const campTestnet = defineChain({
   },
   rpcUrls: {
     default: {
-      http: ["https://rpc.basecamp.t.raas.gelato.cloud"],
+      http: ["https://rpc.camp.raas.gelato.cloud"],
     },
   },
   blockExplorers: {
     default: {
       name: "Camp",
-      url: "https://basecamp.cloud.blockscout.com",
+      url: "https://camp.cloud.blockscout.com",
     },
   },
   testnet: true,
 });
 
 // Create wagmiConfig
-export const networks = isProd ? [bsc, campTestnet] : [bscTestnet, campTestnet];
+export const networks = isProd ? [bsc, campMainnet] : [bscTestnet, campMainnet];
 
 export const chainTypeId: Record<ChainType, number> = {
   [ChainType.BNB]: bsc.id,
   [ChainType.BNB_TEST]: bscTestnet.id,
   [ChainType.SKALE]: skaleNebula.id,
   [ChainType.SKALE_TEST]: skaleNebulaTestnet.id,
-  [ChainType.CAMP_TEST]: campTestnet.id,
+  [ChainType.CAMP]: campMainnet.id,
   [ChainType.STELLAR]: 0,
   [ChainType.STELLAR_TEST]: 0,
   [ChainType.SOLANA]: 0,
@@ -52,7 +52,7 @@ export const idChainType: Record<number, ChainType> = {
   [bscTestnet.id]: ChainType.BNB_TEST,
   [skaleNebula.id]: ChainType.SKALE,
   [skaleNebulaTestnet.id]: ChainType.SKALE_TEST,
-  [campTestnet.id]: ChainType.CAMP_TEST,
+  [campMainnet.id]: ChainType.CAMP,
   [0]: ChainType.STELLAR,
   [1]: ChainType.STELLAR_TEST,
 };
