@@ -9,6 +9,7 @@ export enum Map {
   CANDY = "base/candy.png",
   CAMP = "base/camp.png",
   SUMMIT = "base/summit.png",
+  STOCKS = "base/stocks.png",
 }
 
 export const CoreMap = Map.SPRING;
@@ -50,6 +51,12 @@ export const CatnipChaosLevelMap: Record<string, Map> = {
   "64": Map.SUMMIT,
   "65": Map.SUMMIT,
   "66": Map.SUMMIT,
+  "71": Map.STOCKS,
+  "72": Map.STOCKS,
+  "73": Map.STOCKS,
+  "74": Map.STOCKS,
+  "75": Map.STOCKS,
+  "76": Map.STOCKS,
 };
 
 export const catnipChaosLevelsList: (keyof typeof CatnipChaosLevelMap)[] =
