@@ -32,7 +32,7 @@ import { Saw } from "@/components/storyMode/Managers/SawManager";
 import { PortalManager } from "@/components/storyMode/Managers/PortalManager";
 
 const JUMP_LAYER_TILES = [169, 170, 139, 140, 200, 224, 225, 226, 227];
-const TRAMPOLINE_TILES = [158, 159, 160];
+const TRAMPOLINE_TILES = [158, 159, 160,255,256,285,286];
 
 const FLOATING_PLATFORM_TILES = [9];
 
