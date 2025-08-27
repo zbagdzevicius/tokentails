@@ -114,7 +114,7 @@ export const CatnipChaosLevels = ({
                   className="w-20 rounded-2xl -mx-6 absolute -left-4 z-40 pixelated"
                 />
               )}
-              {level === "41" && (
+              {!!["41", "71"].includes(level) && (
                 <img
                   src={
                     "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/STICKY/base/RUNNING.gif"
@@ -139,7 +139,7 @@ export const CatnipChaosLevels = ({
               >
                 {unlockedLevels >= i && (
                   <div className="flex flex-col items-center absolute -bottom-5">
-                    {isRedeemed(
+                    {!isRedeemed(
                       chaptersBadges[ChainType.CAMP]![parseInt(level[0]) - 1]
                     ) ? (
                       <PixelButton
