@@ -111,11 +111,12 @@ const memeCats: Record<number, string> = {
 
 const phaseProps: Record<
   number,
-  "totalScore" | "totalScoreJuly" | "totalScoreAugust"
+  "totalScore" | "totalScoreJuly" | "totalScoreAugust" | "totalScoreSeptember"
 > = {
   1: "totalScore",
   2: "totalScoreJuly",
   3: "totalScoreAugust",
+  4: "totalScoreSeptember",
 };
 
 export const AirdropTable: React.FC<AirdropTableProps> = ({
@@ -166,21 +167,35 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
         )}
       </div>
 
-      <div className="flex items-center justify-center gap-2 mb-2">
+      <div className="flex items-center justify-center mb-2">
+        <span className="-mr-4">
+          <PixelButton
+            text="PHASE 1"
+            active={phase === 1}
+            isSmall
+            onClick={() => setPhase(1)}
+          />
+        </span>
+        <span className="">
+          <PixelButton
+            text="PHASE 2"
+            active={phase === 2}
+            isSmall
+            onClick={() => setPhase(2)}
+          />
+        </span>
+        <span className="-ml-4">
+          <PixelButton
+            text="PHASE 3"
+            active={phase === 3}
+            isSmall
+            onClick={() => setPhase(3)}
+          />
+        </span>
         <PixelButton
-          text="PHASE 1 - ended"
-          active={phase === 1}
-          onClick={() => setPhase(1)}
-        />
-        <PixelButton
-          text="PHASE 2 - ended"
-          active={phase === 2}
-          onClick={() => setPhase(2)}
-        />
-        <PixelButton
-          text="PHASE 3 - ongoing"
-          active={phase === 3}
-          onClick={() => setPhase(3)}
+          text="PHASE 4"
+          active={phase === 4}
+          onClick={() => setPhase(4)}
         />
       </div>
       <table className="max-w-xl m-auto w-full rounded-2xl overflow-hidden table-auto bg-blue-300 text-black-900 text-sm text-gray-500 drop-shadow-[0_2.4px_1.2px_rgba(0,0,0,0.8)]">
@@ -265,7 +280,7 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
                 }`}
               >
                 {((result[phaseProps[phase] as keyof AirdropUser] as number) ||
-                  0) * (phase <= 2 ? 15 : 1)}
+                  0) * (phase <= 3 ? 15 : 1)}
               </td>
             </tr>
           ))}

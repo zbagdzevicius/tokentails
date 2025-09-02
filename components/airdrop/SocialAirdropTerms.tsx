@@ -55,7 +55,7 @@ const whatToDo = [
     href: "https://tokentails.com/game",
   },
   {
-    description: "Collect 300 catnip",
+    description: "Collect 420 catnip",
     help: "Play catnip to complete levels and collect catnip.",
     points: "+690",
     image: cdnFile("logo/catnip.webp"),
@@ -91,12 +91,12 @@ export const SocialAirdropTerms = () => {
           ENGAGE ON SOCIALS AND PLAY TO EARN
         </div>
         <span className="bg-gradient-to-r font-primary from-yellow-300 to-yellow-400 text-black px-3 py-1 pb-2 rounded-md font-bold shadow-lg border-4 border-main-black animate-pulse">
-          PHASE 3
+          PHASE 4
         </span>
         <Countdown
           isDaysDisplayed
           isBig
-          targetDate={new Date(Date.UTC(2025, 8, 1))}
+          targetDate={new Date(Date.UTC(2025, 9, 1))}
         />
         <div className="flex items-center font-primary gap-2 text-p5 pt-4 text-center justify-center">
           TOTAL REWARDS POOL IS WORTH $1m USD
