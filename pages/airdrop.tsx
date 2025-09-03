@@ -28,11 +28,12 @@ function debounce<T extends (...args: any[]) => any>(
 
 const phaseProps: Record<
   number,
-  "totalScore" | "totalScoreJuly" | "totalScoreAugust"
+  "totalScore" | "totalScoreJuly" | "totalScoreAugust" | "totalScoreSeptember"
 > = {
   1: "totalScore",
   2: "totalScoreJuly",
   3: "totalScoreAugust",
+  4: "totalScoreSeptember",
 };
 
 const Airdrop = () => {
