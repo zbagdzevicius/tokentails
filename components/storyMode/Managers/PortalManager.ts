@@ -6,6 +6,7 @@ export interface IPortalConfig {
   groundLayer: Phaser.Tilemaps.TilemapLayer;
   cat:Cat;
   portals: { entranceX: number; entranceY: number; exitX: number; exitY: number }[];
+  onTeleport?: () => void;
 }
 
 export class PortalManager {
@@ -13,12 +14,14 @@ export class PortalManager {
   private portalPairs: IPortalConfig["portals"];
   private groundLayer: Phaser.Tilemaps.TilemapLayer;
   private cat:Cat;
+  private onTeleport?: () => void;
 
   constructor(config: IPortalConfig) {
     this.scene = config.scene;
     this.portalPairs = config.portals;
     this.groundLayer = config.groundLayer;
     this.cat! = config.cat;
+    this.onTeleport = config.onTeleport;
   }
 
   create() {
@@ -64,5 +67,6 @@ body.setImmovable(true);
     this.cat.sprite.setPosition(x, y);
 
     // this.scene.sound.play("powerup");
+    if (this.onTeleport) this.onTeleport();
   }
 }
