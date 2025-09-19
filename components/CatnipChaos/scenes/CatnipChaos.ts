@@ -32,7 +32,7 @@ import { Saw } from "@/components/storyMode/Managers/SawManager";
 import { PortalManager } from "@/components/storyMode/Managers/PortalManager";
 
 const JUMP_LAYER_TILES = [169, 170, 139, 140, 200, 224, 225, 226, 227];
-const TRAMPOLINE_TILES = [158, 159, 160,255,256,285,286];
+const TRAMPOLINE_TILES = [158, 159, 160,255,256];
 
 const FLOATING_PLATFORM_TILES = [9];
 
@@ -86,6 +86,7 @@ export class CatnipChaosScene extends Scene {
   private wasOnFlightOffBlock: boolean = false;
   private wasOnTile309: boolean = false;
   private flightXEffectBlocks: Phaser.GameObjects.Sprite[] = [];
+  private useTileSpikeChecks: boolean = false;
 
   constructor() {
     super("CatnipChaosScene");
@@ -570,14 +571,23 @@ export class CatnipChaosScene extends Scene {
   private createSpikes() {
     if (!this.cat) return;
 
-    this.spikeManager = new SpikeManager({
-      scene: this,
-      groundLayer: this.groundLayer!,
-      spikeTiles: SPIKE_TILES,
-      cat: this.cat!,
-      onPlayerHitSpike: () => this.endGame(false),
-      gameType: "runner",
-    });
+    // Count spikes once to choose optimal strategy
+    const spikeCount = this.groundLayer
+      .filterTiles((tile: any) => SPIKE_TILES.includes(tile.index)).length;
+
+    // For large maps, avoid instantiating thousands of sprites and overlaps
+    this.useTileSpikeChecks = spikeCount > 200;
+
+    if (!this.useTileSpikeChecks) {
+      this.spikeManager = new SpikeManager({
+        scene: this,
+        groundLayer: this.groundLayer!,
+        spikeTiles: SPIKE_TILES,
+        cat: this.cat!,
+        onPlayerHitSpike: () => this.endGame(false),
+        gameType: "runner",
+      });
+    }
   }
 
   private createHiddenSpikes() {
@@ -641,6 +651,12 @@ export class CatnipChaosScene extends Scene {
       this.hiddenSpikeManagers.forEach((manager) => {
         manager.update();
       });
+
+      // Lightweight spike collision for very large spike maps
+      if (this.useTileSpikeChecks && !this.gameEnded) {
+        this.checkSpikeTilesOverlap();
+      }
+
       this.createProgressBar();
 
       // Check for collision with flightXEffectBlocks
@@ -1096,5 +1112,29 @@ export class CatnipChaosScene extends Scene {
     );
 
     // (Optional) Play a sound or animation here if you want
+  }
+
+  private checkSpikeTilesOverlap() {
+    if (!this.cat || !this.groundLayer) return;
+
+    const body = this.cat.sprite.body as Phaser.Physics.Arcade.Body | undefined;
+    const bounds = body
+      ? new Phaser.Geom.Rectangle(body.x, body.y, body.width, body.height)
+      : this.cat.sprite.getBounds();
+
+    const tiles = this.groundLayer.getTilesWithinWorldXY(
+      bounds.x,
+      bounds.y,
+      bounds.width,
+      bounds.height,
+      { isNotEmpty: true }
+    );
+
+    for (let i = 0; i < tiles.length; i++) {
+      if (SPIKE_TILES.includes(tiles[i].index)) {
+        this.endGame(false);
+        return;
+      }
+    }
   }
 }
