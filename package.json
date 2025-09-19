@@ -20,6 +20,7 @@
     "extrude:camp": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/camp-original.png --output ./public/base/camp.png",
     "extrude:summit": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/summit-original.png --output ./public/base/summit.png",
     "extrude:stocks": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/stocks-original.png --output ./public/base/stocks.png",
+"extrude:combined": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/combined-original.png --output ./public/base/combined.png",
     "build:prod": "env-cmd -f .env.production next build",
     "build:app": "env-cmd -f .env.app next build",
     "app:sync": "npx cap copy && npx cap sync",
