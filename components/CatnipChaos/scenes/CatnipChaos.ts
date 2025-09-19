@@ -87,6 +87,7 @@ export class CatnipChaosScene extends Scene {
   private wasOnTile309: boolean = false;
   private flightXEffectBlocks: Phaser.GameObjects.Sprite[] = [];
   private useTileSpikeChecks: boolean = false;
+  private catnipCoins: Phaser.GameObjects.Sprite[] = [];
 
   constructor() {
     super("CatnipChaosScene");
@@ -374,6 +375,9 @@ export class CatnipChaosScene extends Scene {
         // Create a rotating sprite at the tile's position
         const rotatingSprite = this.add.sprite(worldX, worldY, "catnip-coin");
 
+        // Hide initially
+        rotatingSprite.setVisible(false);
+
         // Add continuous rotation animation
         this.tweens.add({
           targets: rotatingSprite,
@@ -381,8 +385,20 @@ export class CatnipChaosScene extends Scene {
           duration: 1000,
           repeat: -1,
         });
+
+        // Track coin
+        this.catnipCoins.push(rotatingSprite);
       }
     });
+
+    // Reveal all catnips after 20 seconds
+    this.time.delayedCall(20000, () => {
+      this.setAllCatnipVisible(true);
+    });
+  }
+
+  private setAllCatnipVisible(visible: boolean) {
+    this.catnipCoins.forEach((coin) => coin.setVisible(visible));
   }
 
   private spawnCatnipCoins() {
@@ -391,38 +407,36 @@ export class CatnipChaosScene extends Scene {
     const playerX = this.cat.sprite.x;
     const playerY = this.cat.sprite.y;
 
-    this.children.list.forEach((child) => {
-      if (
-        child instanceof Phaser.GameObjects.Sprite &&
-        child.texture.key === "catnip-coin"
-      ) {
-        const distance = Phaser.Math.Distance.Between(
-          playerX,
-          playerY,
-          child.x,
-          child.y
-        );
-        if (distance < 32) {
-          const coinX = child.x;
-          const coinY = child.y;
-          child.destroy();
+    this.catnipCoins.forEach((coin) => {
+      if (!coin.visible) return;
+      const distance = Phaser.Math.Distance.Between(
+        playerX,
+        playerY,
+        coin.x,
+        coin.y
+      );
+      if (distance < 32) {
+        const coinX = coin.x;
+        const coinY = coin.y;
 
-          // Play catnip sound
-          const catnipSound = this.sound.add("catnip", { volume: 0.5 });
-          catnipSound.play();
+        // Hide coin instead of destroying
+        coin.setVisible(false);
 
-          // Create and play puff animation
-          const puffSprite = this.add.sprite(coinX, coinY, "puff");
-          puffSprite.play("puff");
-          puffSprite.on("animationcomplete", () => {
-            puffSprite.destroy();
-          });
+        // Play catnip sound
+        const catnipSound = this.sound.add("catnip", { volume: 0.5 });
+        catnipSound.play();
 
-          this.collectedCatnipCoins++;
-          GameEvents.GAME_COIN_CAUGHT.push({
-            score: this.collectedCatnipCoins,
-          });
-        }
+        // Create and play puff animation
+        const puffSprite = this.add.sprite(coinX, coinY, "puff");
+        puffSprite.play("puff");
+        puffSprite.on("animationcomplete", () => {
+          puffSprite.destroy();
+        });
+
+        this.collectedCatnipCoins++;
+        GameEvents.GAME_COIN_CAUGHT.push({
+          score: this.collectedCatnipCoins,
+        });
       }
     });
   }
@@ -857,6 +871,9 @@ export class CatnipChaosScene extends Scene {
 
     this.spikeManager?.destroySpikes();
 
+    // Clear catnip coins references
+    this.catnipCoins = [];
+
     this.resetGameObjects();
   }
 
@@ -1094,6 +1111,7 @@ export class CatnipChaosScene extends Scene {
         groundLayer: this.groundLayer,
         cat: this.cat,
         portals: portalPairs,
+        onTeleport: () => this.setAllCatnipVisible(true),
       });
       this.portalManager.create();
     }
