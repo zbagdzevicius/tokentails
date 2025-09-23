@@ -17,13 +17,7 @@ import { CollectiveItem } from "@/components/storyMode/objects/CollectiveItem";
 
 import { CatnipChaosLevelMap } from "@/components/Phaser/map";
 
-import { DogBot } from "@/components/storyMode/objects/dogBot";
-
 import { FloatingPlatformManager } from "@/components/storyMode/Managers/FloatingPlatformManager";
-import {
-  HiddenSpikeManager,
-  IHiddenSpikeConfig,
-} from "@/components/storyMode/Managers/HiddenSpikeManager";
 
 import { SpikeManager } from "@/components/purrquest/managers/SpikeManager";
 
@@ -32,7 +26,7 @@ import { Saw } from "@/components/storyMode/Managers/SawManager";
 import { PortalManager } from "@/components/storyMode/Managers/PortalManager";
 
 const JUMP_LAYER_TILES = [169, 170, 139, 140, 200, 224, 225, 226, 227];
-const TRAMPOLINE_TILES = [158, 159, 160,255,256];
+const TRAMPOLINE_TILES = [158, 159, 160, 255, 256];
 
 const FLOATING_PLATFORM_TILES = [9];
 
@@ -71,9 +65,7 @@ export class CatnipChaosScene extends Scene {
 
   private isGravityReversed: boolean = false;
   private props!: ICatnipChaosProps;
-  private dogs: DogBot[] = [];
   private floatingPlatformManagers: FloatingPlatformManager[] = [];
-  private hiddenSpikeManagers: HiddenSpikeManager[] = [];
   private collectedCatnipCoins: number = 0;
   private currentLevel: string = "";
   private flightOnBlocks: Phaser.GameObjects.Sprite[] = [];
@@ -131,10 +123,6 @@ export class CatnipChaosScene extends Scene {
         frameHeight: 16,
       }
     );
-    this.load.spritesheet("hidden-spike", cdnFile("story/hidden-spike.png"), {
-      frameWidth: 31,
-      frameHeight: 19,
-    });
     this.load.image(
       "floating-platform",
       cdnFile("story/floating-platform.png")
@@ -142,10 +130,6 @@ export class CatnipChaosScene extends Scene {
     this.load.spritesheet("jump", cdnFile("jumper/jump.png"), {
       frameWidth: 96,
       frameHeight: 96,
-    });
-    this.load.spritesheet("dog", cdnFile("runner/brown.png"), {
-      frameWidth: 48,
-      frameHeight: 48,
     });
     this.load.audio("game-end-sound", cdnFile("audio/game/game-end.mp3"));
     this.load.spritesheet("puff", cdnFile("catbassadors/images/puff.png"), {
@@ -266,32 +250,11 @@ export class CatnipChaosScene extends Scene {
       this
     );
 
-    this.createDogsOnTiles(22);
-
     this.createFloatingPlatforms();
 
-    this.createHiddenSpikes();
+    // kas čia?
+    // this.physicsLayer.setCollision([162, 192]);
 
-    this.physicsLayer.setCollision([162, 192]);
-    // Remove tiles 308 and 309 and spawn animated flight blocks
-    this.physicsLayer.forEachTile((tile) => {
-      if (tile.index === 308 || tile.index === 309) {
-        const worldX = this.physicsLayer.tileToWorldX(tile.x);
-        const worldY = this.physicsLayer.tileToWorldY(tile.y);
-        this.physicsLayer.removeTileAt(tile.x, tile.y);
-        const key = tile.index === 308 ? "flight-on" : "flight-off";
-        const animKey =
-          tile.index === 308 ? "flight-on-anim" : "flight-off-anim";
-        const sprite = this.add.sprite(worldX, worldY, key);
-        sprite.setDisplaySize(132, 64);
-        sprite.play(animKey);
-        if (tile.index === 308) {
-          this.flightOnBlocks.push(sprite);
-        } else {
-          this.flightOffBlocks.push(sprite);
-        }
-      }
-    });
     this.physicsLayer.forEachTile((tile) => {
       if (tile.index === 58) {
         const worldX = this.physicsLayer.tileToWorldX(tile.x);
@@ -310,6 +273,22 @@ export class CatnipChaosScene extends Scene {
 
         this.flightXEffectBlocks.push(effectSprite);
       }
+      if (tile.index === 308 || tile.index === 309) {
+        const worldX = this.physicsLayer.tileToWorldX(tile.x);
+        const worldY = this.physicsLayer.tileToWorldY(tile.y);
+        this.physicsLayer.removeTileAt(tile.x, tile.y);
+        const key = tile.index === 308 ? "flight-on" : "flight-off";
+        const animKey =
+          tile.index === 308 ? "flight-on-anim" : "flight-off-anim";
+        const sprite = this.add.sprite(worldX, worldY, key);
+        sprite.setDisplaySize(132, 64);
+        sprite.play(animKey);
+        if (tile.index === 308) {
+          this.flightOnBlocks.push(sprite);
+        } else {
+          this.flightOffBlocks.push(sprite);
+        }
+      }
     });
   }
 
@@ -325,14 +304,7 @@ export class CatnipChaosScene extends Scene {
 
   private createGameObjects() {
     this.initializeCatnipCoins();
-    this.createPortals();
-
-    // Debug: Log all physics layer tiles
-    // console.log("Physics Layer Tiles:");
-    // this.physicsLayer.forEachTile((tile) => {
-    //   console.log(`Tile at (${tile.x}, ${tile.y}): index=${tile.index}`);
-    // });
-
+    // this.createPortals();
     // Create saws on tiles 26 and 25
     this.catnipLayer.forEachTile((tile) => {
       this.catnipLayer.removeTileAt(tile.x, tile.y);
@@ -465,8 +437,6 @@ export class CatnipChaosScene extends Scene {
 
     this.physics.add.collider(this.cat.sprite, this.jumperLayer);
 
-    this.createHiddenSpikes();
-
     this.createSpikes();
 
     this.createGameObjects();
@@ -485,13 +455,6 @@ export class CatnipChaosScene extends Scene {
       manager.setupPlayerCollision(this.cat!.sprite);
     });
 
-    // Add collision with dogs
-    this.dogs.forEach((dog) => {
-      this.physics.add.collider(this.cat!.sprite, dog.sprite, () => {
-        this.endGame(false);
-      });
-    });
-
     // Add collision with saws
     this.saws.forEach((saw) => {
       this.physics.add.collider(this.cat!.sprite, saw.getSprite(), () => {
@@ -508,7 +471,7 @@ export class CatnipChaosScene extends Scene {
       );
       if (tile && (tile.index === 162 || tile.index === 192)) {
         this.cat!.setSitting(true);
-        this.spawnFood();
+        // this.spawnFood();
 
         this.time.delayedCall(2000, () => {
           this.endGame();
@@ -546,24 +509,6 @@ export class CatnipChaosScene extends Scene {
     }
   }
 
-  private createDogsOnTiles(tileIndex: number) {
-    this.physicsLayer.forEachTile((tile) => {
-      if (tile.index === tileIndex) {
-        const worldX = this.physicsLayer.tileToWorldX(tile.x);
-        const worldY = this.physicsLayer.tileToWorldY(tile.y);
-        this.physicsLayer.removeTileAt(tile.x, tile.y);
-
-        this.time.delayedCall(1000, () => {
-          const dog = new DogBot(this, worldX, worldY, "dog");
-          this.dogs.push(dog);
-
-          this.physics.add.collider(dog.sprite, this.groundLayer);
-          this.physics.add.collider(dog.sprite, this.platformsLayer);
-        });
-      }
-    });
-  }
-
   private createFloatingPlatforms() {
     this.physicsLayer.forEachTile((tile) => {
       if (FLOATING_PLATFORM_TILES.includes(tile.index)) {
@@ -586,8 +531,9 @@ export class CatnipChaosScene extends Scene {
     if (!this.cat) return;
 
     // Count spikes once to choose optimal strategy
-    const spikeCount = this.groundLayer
-      .filterTiles((tile: any) => SPIKE_TILES.includes(tile.index)).length;
+    const spikeCount = this.groundLayer.filterTiles((tile: any) =>
+      SPIKE_TILES.includes(tile.index)
+    ).length;
 
     // For large maps, avoid instantiating thousands of sprites and overlaps
     this.useTileSpikeChecks = spikeCount > 200;
@@ -602,33 +548,6 @@ export class CatnipChaosScene extends Scene {
         gameType: "runner",
       });
     }
-  }
-
-  private createHiddenSpikes() {
-    if (!this.cat) return;
-
-    this.physicsLayer.forEachTile((tile) => {
-      if (tile.index === 23) {
-        this.physicsLayer.removeTileAt(tile.x, tile.y);
-        const worldX = this.physicsLayer.tileToWorldX(tile.x);
-        const worldY = this.physicsLayer.tileToWorldY(tile.y);
-
-        const adjustedY = worldY + 16;
-
-        const spikeConfig: IHiddenSpikeConfig = {
-          scene: this,
-          texture: "hidden-spike",
-          x: worldX,
-          y: adjustedY,
-          animationKey: "spike-anim",
-          cat: this.cat!,
-        };
-
-        const spikeManager = new HiddenSpikeManager(this, spikeConfig);
-        spikeManager.createSpike(worldX, adjustedY);
-        this.hiddenSpikeManagers.push(spikeManager);
-      }
-    });
   }
 
   createProgressBar() {
@@ -659,86 +578,80 @@ export class CatnipChaosScene extends Scene {
       this.processGravityTiles();
       this.spawnCatnipCoins();
       this.saws.forEach((saw) => saw.update(delta));
-      this.dogs.forEach((dog) => {
-        dog.update();
-      });
-      this.hiddenSpikeManagers.forEach((manager) => {
-        manager.update();
-      });
 
       // Lightweight spike collision for very large spike maps
       if (this.useTileSpikeChecks && !this.gameEnded) {
         this.checkSpikeTilesOverlap();
       }
 
-      this.createProgressBar();
+      // this.createProgressBar();
 
       // Check for collision with flightXEffectBlocks
-      this.flightXEffectBlocks.forEach((effectSprite) => {
-        if (
-          Phaser.Geom.Intersects.RectangleToRectangle(
-            this.cat!.sprite.getBounds(),
-            effectSprite.getBounds()
-          )
-        ) {
-          this.collectFlightXEffect(effectSprite);
-        }
-      });
+      // this.flightXEffectBlocks.forEach((effectSprite) => {
+      //   if (
+      //     Phaser.Geom.Intersects.RectangleToRectangle(
+      //       this.cat!.sprite.getBounds(),
+      //       effectSprite.getBounds()
+      //     )
+      //   ) {
+      //     this.collectFlightXEffect(effectSprite);
+      //   }
+      // });
 
       const player = this.cat.sprite;
-      let onFlightOnBlock = this.flightOnBlocks.some((block) =>
-        Phaser.Geom.Intersects.RectangleToRectangle(
-          player.getBounds(),
-          block.getBounds()
-        )
-      );
-      let onFlightOffBlock = this.flightOffBlocks.some((block) =>
-        Phaser.Geom.Intersects.RectangleToRectangle(
-          player.getBounds(),
-          block.getBounds()
-        )
-      );
+      // let onFlightOnBlock = this.flightOnBlocks.some((block) =>
+      //   Phaser.Geom.Intersects.RectangleToRectangle(
+      //     player.getBounds(),
+      //     block.getBounds()
+      //   )
+      // );
+      // let onFlightOffBlock = this.flightOffBlocks.some((block) =>
+      //   Phaser.Geom.Intersects.RectangleToRectangle(
+      //     player.getBounds(),
+      //     block.getBounds()
+      //   )
+      // );
       let onTile309 = false;
       let onTile121 = false;
-      if (this.physicsLayer) {
-        const tile = this.physicsLayer.getTileAtWorldXY(
-          this.cat.sprite.x,
-          this.cat.sprite.y
-        );
-        onTile309 = !!(tile && tile.index === 309);
-        onTile121 = !!(tile && tile.index === 121);
-      }
+      // if (this.physicsLayer) {
+      //   const tile = this.physicsLayer.getTileAtWorldXY(
+      //     this.cat.sprite.x,
+      //     this.cat.sprite.y
+      //   );
+      //   onTile309 = !!(tile && tile.index === 309);
+      //   onTile121 = !!(tile && tile.index === 121);
+      // }
 
       // Entering flight-on block
-      if (onFlightOnBlock && !this.wasOnFlightOnBlock) {
-        this.cat.movement.setFlightMode(true);
-        this.isInFlightMode = true;
+      // if (onFlightOnBlock && !this.wasOnFlightOnBlock) {
+      //   this.cat.movement.setFlightMode(true);
+      //   this.isInFlightMode = true;
 
-        if (this.cat.animationKeys && this.cat.sprite.anims) {
-          this.cat.sprite.anims.play(this.cat.animationKeys["SITTING"], true);
-        }
+      //   if (this.cat.animationKeys && this.cat.sprite.anims) {
+      //     this.cat.sprite.anims.play(this.cat.animationKeys["SITTING"], true);
+      //   }
 
-        if (!this.flightCloudSprite) {
-          this.flightCloudSprite = this.add.sprite(
-            this.cat.sprite.x,
-            this.cat.sprite.y,
-            "cloud"
-          );
-          this.flightCloudSprite.setDisplaySize(72, 51);
-          this.flightCloudSprite.setDepth(this.cat.sprite.depth - 1);
-          this.flightCloudSprite.play("cloud-anim");
-        }
-      }
+      //   if (!this.flightCloudSprite) {
+      //     this.flightCloudSprite = this.add.sprite(
+      //       this.cat.sprite.x,
+      //       this.cat.sprite.y,
+      //       "cloud"
+      //     );
+      //     this.flightCloudSprite.setDisplaySize(72, 51);
+      //     this.flightCloudSprite.setDepth(this.cat.sprite.depth - 1);
+      //     this.flightCloudSprite.play("cloud-anim");
+      //   }
+      // }
       // Entering flight-off block
-      if (onFlightOffBlock && !this.wasOnFlightOffBlock) {
-        this.cat.movement.setFlightMode(false);
-        this.isInFlightMode = false;
-        // Remove cloud sprite
-        if (this.flightCloudSprite) {
-          this.flightCloudSprite.destroy();
-          this.flightCloudSprite = undefined;
-        }
-      }
+      // if (onFlightOffBlock && !this.wasOnFlightOffBlock) {
+      //   this.cat.movement.setFlightMode(false);
+      //   this.isInFlightMode = false;
+      //   // Remove cloud sprite
+      //   if (this.flightCloudSprite) {
+      //     this.flightCloudSprite.destroy();
+      //     this.flightCloudSprite = undefined;
+      //   }
+      // }
       // Entering tile 309
       if (onTile309 && !this.wasOnTile309) {
         this.cat.movement.setFlightMode(false);
@@ -774,8 +687,8 @@ export class CatnipChaosScene extends Scene {
       }
 
       // Update previous state trackers
-      this.wasOnFlightOnBlock = onFlightOnBlock;
-      this.wasOnFlightOffBlock = onFlightOffBlock;
+      // this.wasOnFlightOnBlock = onFlightOnBlock;
+      // this.wasOnFlightOffBlock = onFlightOffBlock;
       this.wasOnTile309 = onTile309;
 
       if (this.flightCloudSprite && this.cat) {
@@ -858,16 +771,10 @@ export class CatnipChaosScene extends Scene {
 
   private destroyGameObjects() {
     this.cat?.sprite.destroy();
-    this.dogs.forEach((dog) => dog.sprite.destroy());
-    this.dogs = [];
     this.floatingPlatformManagers.forEach((manager) => {
       manager.destroy();
     });
     this.floatingPlatformManagers = [];
-    this.hiddenSpikeManagers.forEach((manager) => {
-      manager.destroy();
-    });
-    this.hiddenSpikeManagers = [];
 
     this.spikeManager?.destroySpikes();
 
@@ -920,16 +827,6 @@ export class CatnipChaosScene extends Scene {
       frames: this.anims.generateFrameNumbers("jump", { start: 0, end: 5 }),
       frameRate: 12,
       repeat: -1,
-    });
-
-    this.anims.create({
-      key: "spike-anim",
-      frames: this.anims.generateFrameNumbers("hidden-spike", {
-        start: 0,
-        end: 12,
-      }),
-      frameRate: 12,
-      repeat: 1,
     });
 
     this.anims.create({
