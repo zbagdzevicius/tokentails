@@ -13,7 +13,6 @@ import { Scene } from "phaser";
 import { Cat } from "../../catbassadors/objects/Catbassador";
 
 import { Food } from "@/components/base/objects/Food";
-import { CollectiveItem } from "@/components/storyMode/objects/CollectiveItem";
 
 import { CatnipChaosLevelMap } from "@/components/Phaser/map";
 
@@ -21,8 +20,6 @@ import { FloatingPlatformManager } from "@/components/storyMode/Managers/Floatin
 
 import { SpikeManager } from "@/components/purrquest/managers/SpikeManager";
 
-import { SawHalf } from "@/components/storyMode/Managers/SawHalfManager";
-import { Saw } from "@/components/storyMode/Managers/SawManager";
 import { PortalManager } from "@/components/storyMode/Managers/PortalManager";
 
 const JUMP_LAYER_TILES = [169, 170, 139, 140, 200, 224, 225, 226, 227];
@@ -53,13 +50,11 @@ export class CatnipChaosScene extends Scene {
   private portalManager?: PortalManager;
 
   spikeManager!: SpikeManager;
-  collectiveItem?: CollectiveItem;
 
   autoRunSpeed: number = 265;
   autoJumpSpeed: number = 440;
   isAutoRunMode: boolean = true;
 
-  saws: Array<Saw | SawHalf> = [];
 
   food?: Food | null;
 
@@ -252,9 +247,6 @@ export class CatnipChaosScene extends Scene {
 
     this.createFloatingPlatforms();
 
-    // kas čia?
-    // this.physicsLayer.setCollision([162, 192]);
-
     this.physicsLayer.forEachTile((tile) => {
       if (tile.index === 58) {
         const worldX = this.physicsLayer.tileToWorldX(tile.x);
@@ -304,33 +296,8 @@ export class CatnipChaosScene extends Scene {
 
   private createGameObjects() {
     this.initializeCatnipCoins();
-    // this.createPortals();
+    this.createPortals();
     // Create saws on tiles 26 and 25
-    this.catnipLayer.forEachTile((tile) => {
-      this.catnipLayer.removeTileAt(tile.x, tile.y);
-      if (tile.index === 26) {
-        const sawConfig = {
-          scene: this,
-          groundLayer: this.groundLayer,
-          x: tile.getCenterX(),
-          y: tile.getCenterY(),
-          route: "horizontal" as "horizontal" | "vertical",
-          speed: 100,
-          distance: 300,
-        };
-        const saw = new Saw(sawConfig);
-        this.saws.push(saw);
-      } else if (tile.index === 25) {
-        const sawConfig = {
-          scene: this,
-          groundLayer: this.groundLayer,
-          x: tile.getCenterX(),
-          y: tile.getCenterY(),
-        };
-        const saw = new SawHalf(sawConfig);
-        this.saws.push(saw);
-      }
-    });
   }
 
   private initializeCatnipCoins() {
@@ -341,14 +308,11 @@ export class CatnipChaosScene extends Scene {
         const worldX = tile.getCenterX();
         const worldY = tile.getCenterY();
 
-        // Remove the original tile
-        this.catnipLayer.removeTileAt(tile.x, tile.y);
 
-        // Create a rotating sprite at the tile's position
+        this.catnipLayer.removeTileAt(tile.x, tile.y);
         const rotatingSprite = this.add.sprite(worldX, worldY, "catnip-coin");
 
-        // Hide initially
-        rotatingSprite.setVisible(false);
+        rotatingSprite.setVisible(true);
 
         // Add continuous rotation animation
         this.tweens.add({
@@ -363,10 +327,7 @@ export class CatnipChaosScene extends Scene {
       }
     });
 
-    // Reveal all catnips after 20 seconds
-    this.time.delayedCall(20000, () => {
-      this.setAllCatnipVisible(true);
-    });
+
   }
 
   private setAllCatnipVisible(visible: boolean) {
@@ -453,13 +414,6 @@ export class CatnipChaosScene extends Scene {
 
     this.floatingPlatformManagers.forEach((manager) => {
       manager.setupPlayerCollision(this.cat!.sprite);
-    });
-
-    // Add collision with saws
-    this.saws.forEach((saw) => {
-      this.physics.add.collider(this.cat!.sprite, saw.getSprite(), () => {
-        this.endGame(false);
-      });
     });
 
     this.physics.add.overlap(this.cat.sprite, this.physicsLayer, () => {
@@ -577,8 +531,7 @@ export class CatnipChaosScene extends Scene {
       this.cat.update();
       this.processGravityTiles();
       this.spawnCatnipCoins();
-      this.saws.forEach((saw) => saw.update(delta));
-
+ 
       // Lightweight spike collision for very large spike maps
       if (this.useTileSpikeChecks && !this.gameEnded) {
         this.checkSpikeTilesOverlap();
@@ -586,72 +539,70 @@ export class CatnipChaosScene extends Scene {
 
       // this.createProgressBar();
 
-      // Check for collision with flightXEffectBlocks
-      // this.flightXEffectBlocks.forEach((effectSprite) => {
-      //   if (
-      //     Phaser.Geom.Intersects.RectangleToRectangle(
-      //       this.cat!.sprite.getBounds(),
-      //       effectSprite.getBounds()
-      //     )
-      //   ) {
-      //     this.collectFlightXEffect(effectSprite);
-      //   }
-      // });
+      this.flightXEffectBlocks.forEach((effectSprite) => {
+        if (
+          Phaser.Geom.Intersects.RectangleToRectangle(
+            this.cat!.sprite.getBounds(),
+            effectSprite.getBounds()
+          )
+        ) {
+          this.collectFlightXEffect(effectSprite);
+        }
+      });
 
       const player = this.cat.sprite;
-      // let onFlightOnBlock = this.flightOnBlocks.some((block) =>
-      //   Phaser.Geom.Intersects.RectangleToRectangle(
-      //     player.getBounds(),
-      //     block.getBounds()
-      //   )
-      // );
-      // let onFlightOffBlock = this.flightOffBlocks.some((block) =>
-      //   Phaser.Geom.Intersects.RectangleToRectangle(
-      //     player.getBounds(),
-      //     block.getBounds()
-      //   )
-      // );
+      let onFlightOnBlock = this.flightOnBlocks.some((block) =>
+        Phaser.Geom.Intersects.RectangleToRectangle(
+          player.getBounds(),
+          block.getBounds()
+        )
+      );
+      let onFlightOffBlock = this.flightOffBlocks.some((block) =>
+        Phaser.Geom.Intersects.RectangleToRectangle(
+          player.getBounds(),
+          block.getBounds()
+        )
+      );
       let onTile309 = false;
       let onTile121 = false;
-      // if (this.physicsLayer) {
-      //   const tile = this.physicsLayer.getTileAtWorldXY(
-      //     this.cat.sprite.x,
-      //     this.cat.sprite.y
-      //   );
-      //   onTile309 = !!(tile && tile.index === 309);
-      //   onTile121 = !!(tile && tile.index === 121);
-      // }
+      if (this.physicsLayer) {
+        const tile = this.physicsLayer.getTileAtWorldXY(
+          this.cat.sprite.x,
+          this.cat.sprite.y
+        );
+        onTile309 = !!(tile && tile.index === 309);
+        onTile121 = !!(tile && tile.index === 121);
+      }
 
-      // Entering flight-on block
-      // if (onFlightOnBlock && !this.wasOnFlightOnBlock) {
-      //   this.cat.movement.setFlightMode(true);
-      //   this.isInFlightMode = true;
+      if (onFlightOnBlock && !this.wasOnFlightOnBlock) {
+        this.cat.movement.setFlightMode(true);
+        this.isInFlightMode = true;
 
-      //   if (this.cat.animationKeys && this.cat.sprite.anims) {
-      //     this.cat.sprite.anims.play(this.cat.animationKeys["SITTING"], true);
-      //   }
+        if (this.cat.animationKeys && this.cat.sprite.anims) {
+          this.cat.sprite.anims.play(this.cat.animationKeys["SITTING"], true);
+        }
 
-      //   if (!this.flightCloudSprite) {
-      //     this.flightCloudSprite = this.add.sprite(
-      //       this.cat.sprite.x,
-      //       this.cat.sprite.y,
-      //       "cloud"
-      //     );
-      //     this.flightCloudSprite.setDisplaySize(72, 51);
-      //     this.flightCloudSprite.setDepth(this.cat.sprite.depth - 1);
-      //     this.flightCloudSprite.play("cloud-anim");
-      //   }
-      // }
-      // Entering flight-off block
-      // if (onFlightOffBlock && !this.wasOnFlightOffBlock) {
-      //   this.cat.movement.setFlightMode(false);
-      //   this.isInFlightMode = false;
-      //   // Remove cloud sprite
-      //   if (this.flightCloudSprite) {
-      //     this.flightCloudSprite.destroy();
-      //     this.flightCloudSprite = undefined;
-      //   }
-      // }
+        if (!this.flightCloudSprite) {
+          this.flightCloudSprite = this.add.sprite(
+            this.cat.sprite.x,
+            this.cat.sprite.y,
+            "cloud"
+          );
+          this.flightCloudSprite.setDisplaySize(72, 51);
+          this.flightCloudSprite.setDepth(this.cat.sprite.depth - 1);
+          this.flightCloudSprite.play("cloud-anim");
+        }
+      }
+
+      if (onFlightOffBlock && !this.wasOnFlightOffBlock) {
+        this.cat.movement.setFlightMode(false);
+        this.isInFlightMode = false;
+        // Remove cloud sprite
+        if (this.flightCloudSprite) {
+          this.flightCloudSprite.destroy();
+          this.flightCloudSprite = undefined;
+        }
+      }
       // Entering tile 309
       if (onTile309 && !this.wasOnTile309) {
         this.cat.movement.setFlightMode(false);
@@ -687,8 +638,8 @@ export class CatnipChaosScene extends Scene {
       }
 
       // Update previous state trackers
-      // this.wasOnFlightOnBlock = onFlightOnBlock;
-      // this.wasOnFlightOffBlock = onFlightOffBlock;
+      this.wasOnFlightOnBlock = onFlightOnBlock;
+      this.wasOnFlightOffBlock = onFlightOffBlock;
       this.wasOnTile309 = onTile309;
 
       if (this.flightCloudSprite && this.cat) {
@@ -729,7 +680,7 @@ export class CatnipChaosScene extends Scene {
         );
       }
     }
-    this.collectiveItem?.update();
+
   }
 
   endGame(finished: boolean = true) {
@@ -778,7 +729,6 @@ export class CatnipChaosScene extends Scene {
 
     this.spikeManager?.destroySpikes();
 
-    // Clear catnip coins references
     this.catnipCoins = [];
 
     this.resetGameObjects();

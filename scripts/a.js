@@ -2,10 +2,10 @@ const fs = require('fs');
 const path = require('path');
 
 // Configuration
-const INPUT_FILE = 'C:\\Users\\ernes\\Desktop\\tokentails-cats\\cats\\public\\catnip-chaos\\levels\\level-81-modified-1.json';
+const INPUT_FILE = 'C:\\Users\\ernes\\Desktop\\tokentails-cats\\cats\\public\\catnip-chaos\\levels\\level-81.json';
 const OUTPUT_FILE = 'C:\\Users\\ernes\\Desktop\\tokentails-cats\\cats\\public\\catnip-chaos\\levels\\level-81-modified-1.json';
-const VALUES_TO_REPLACE = [1903, 1933, 1963, 1993, 2023, 2053, 2083];
-const REPLACEMENT_VALUE = 283;
+const VALUES_TO_REPLACE = [1058, 1059, 1088, 1089, 1148, 1149, 1178, 1179, 1208, 1209, 1238, 1239,1118, 1119];
+const REPLACEMENT_VALUE = 159;
 
 /**
  * Processes all layers and their chunks to find and replace tile values
