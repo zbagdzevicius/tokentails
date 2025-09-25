@@ -30,12 +30,11 @@ export const CatnipChaosLevels = ({
   const unlockedLevels = [...(profile?.catnipChaos || [])].filter(
     (level) => level > 0
   ).length;
-  const multiplier = getMultiplier(profile?.cat);
   const isGuard = profile?.codex?.filter((item) => item === 1)?.length || 0;
-  const havePassToPlay = multiplier >= 15 || isGuard;
+  const havePassToPlay = isGuard;
 
   const selectLevel = (level: string, index: number) => {
-    if (index > unlockedLevels && havePassToPlay) {
+    if (index > unlockedLevels) {
       showToast({
         message: "You need to complete previous levels to play this level",
         img: cdnFile("purrquest/sprites/key.png"),
@@ -131,7 +130,7 @@ export const CatnipChaosLevels = ({
                     className="w-4 h-4 mr-1"
                   />
                   <span className="">
-                    {profile?.catnipChaos?.[i] || 0} / 10
+                    {profile?.catnipChaos?.[i + 1] || 0} / 10
                   </span>
                 </span>
                 {level[0] === "5" && (

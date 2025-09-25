@@ -113,7 +113,10 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           type: gameType!,
           level: level!,
         });
-        catnipChaos = result.catnipChaos || [];
+        catnipChaos = result?.catnipChaos || profile.catnipChaos || [];
+        if (result === null) {
+          showToast({ message: "You run out of lives ):" });
+        }
       }
       if (gameType === GameType.CATBASSADORS) {
         setProfileUpdate({

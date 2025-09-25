@@ -131,7 +131,7 @@ const saveMatch = async (match: IMatch): Promise<Partial<IProfile>> => {
     }
 
     console.warn(JSON.stringify(response));
-    return {};
+    return null;
   });
 };
 
