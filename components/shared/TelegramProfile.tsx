@@ -7,7 +7,7 @@ import { GameModal } from "@/models/game";
 import { IProfile } from "@/models/profile";
 import { useMutation } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
-import { CatnipChaosLevelMap } from "../Phaser/map";
+import { totalCatnip } from "../Phaser/map";
 import { CloseButton } from "./CloseButton";
 import { GameMusicToggle } from "./GameMusicToggler";
 import { PixelButton } from "./PixelButton";
@@ -307,7 +307,7 @@ export const TelegramProfileContent = () => {
                   CATNIPS:{" "}
                   <span className="font-bold">
                     {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0} /{" "}
-                    {Object.keys(CatnipChaosLevelMap).length * 10}
+                    {totalCatnip}
                   </span>
                 </div>
               </li>

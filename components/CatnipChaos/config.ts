@@ -17,15 +17,13 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false,
       tileBias: 32,
       checkCollision: {
-        up: true, 
+        up: true,
         down: true,
         left: true,
-        right: true
+        right: true,
       },
       overlapBias: 32,
-
     },
-    
   },
 };
 
@@ -36,6 +34,7 @@ export const StartGame = (props: ICatnipChaosProps) => {
     width: window.innerWidth,
     height: window.innerHeight,
   });
+  console.log("Starting game with props:", props);
   game.scene.start("CatnipChaosScene", props);
   return game;
 };

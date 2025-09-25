@@ -4,7 +4,7 @@ import { useToast } from "@/context/ToastContext";
 import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
 import { useState } from "react";
-import { CatnipChaosLevelMap } from "../Phaser/map";
+import { CatnipChaosLevelMap, totalCatnip } from "../Phaser/map";
 import { CloseButton } from "../shared/CloseButton";
 import { PixelButton } from "../shared/PixelButton";
 interface IGameStat {
@@ -134,7 +134,7 @@ export const GameStatsSection = ({
           </div>
           <div className="flex items-center -mt-1 -mb-1 text-p5">
             {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0} /{" "}
-            {Object.keys(CatnipChaosLevelMap).length * 10}
+            {totalCatnip}
           </div>
         </div>
         <div className="flex flex-col items-center">

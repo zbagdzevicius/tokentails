@@ -17,6 +17,14 @@ type EndGameProps = {
   gameStop: IGameStopEvent;
 };
 
+const getGameLevelName = (level: string) => {
+  if (!level.startsWith("0")) {
+    return `Level ${level.split("").join("-")}`;
+  }
+
+  return "PURRSUIT";
+};
+
 const gameTypeToImage = {
   [GameType.CATBASSADORS]: cdnFile("game/select/catbassadors.jpg"),
   [GameType.CATNIP_CHAOS]: cdnFile("game/select/catnip-chaos.webp"),
@@ -52,9 +60,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
             alt="logo"
             draggable="false"
           />
-          <Tag>
-            {level ? `Level ${level.split("").join("-")}` : "Match"} Summary
-          </Tag>
+          <Tag>{level ? getGameLevelName(level) : "Match"} Summary</Tag>
           <div className="flex justify-center items-center text-md text-gray-700 mt-4">
             <img
               src={

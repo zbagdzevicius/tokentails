@@ -10,12 +10,13 @@ export enum Map {
   CAMP = "base/camp.png",
   SUMMIT = "base/summit.png",
   STOCKS = "base/stocks.png",
-  ENDLESS = "base/combined.png"
+  ENDLESS = "base/combined.png",
 }
 
 export const CoreMap = Map.SPRING;
 
 export const CatnipChaosLevelMap: Record<string, Map> = {
+  "01": Map.ENDLESS,
   "11": Map.CONSTRUCTION,
   "12": Map.CONSTRUCTION,
   "13": Map.CONSTRUCTION,
@@ -58,8 +59,10 @@ export const CatnipChaosLevelMap: Record<string, Map> = {
   "74": Map.STOCKS,
   "75": Map.STOCKS,
   "76": Map.STOCKS,
-  "81": Map.ENDLESS
 };
+
+export const totalCatnip =
+  (Object.keys(CatnipChaosLevelMap).length - 1) * 10 + 420;
 
 export const catnipChaosLevelsList: (keyof typeof CatnipChaosLevelMap)[] =
   Object.keys(CatnipChaosLevelMap).sort(
@@ -75,6 +78,7 @@ export const getNextCatnipChaosLevel = (level: string) => {
 };
 
 export const catnipChaosChapterBGImage: Record<string, string> = {
+  "0": cdnFile("backgrounds/bg-10.webp"),
   "1": cdnFile("backgrounds/bg-5.webp"),
   "2": cdnFile("backgrounds/bg-6.webp"),
   "3": cdnFile("backgrounds/bg-3.webp"),
