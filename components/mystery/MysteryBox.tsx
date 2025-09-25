@@ -121,7 +121,7 @@ export const MysteryBox = () => {
   }, [mysteryBox]);
   const finished = useMemo(() => {
     return profile?.quests?.find(
-      (quest) => quest === mysteryBoxes[ChainType.CAMP]![4].key
+      (quest) => quest === mysteryBoxes[ChainType.CAMP]![8].key
     );
   }, [profile?.quests]);
   const isRedeemed = useMemo(() => {
@@ -147,6 +147,12 @@ export const MysteryBox = () => {
     }
     if (mysteryBox.requirements?.type === MysteryBoxRequirementType.STREAK) {
       return (profile?.streak || 0) >= mysteryBox.requirements.metadata.streak;
+    }
+    if (mysteryBox.requirements?.type === MysteryBoxRequirementType.TITLES) {
+      return (
+        (profile?.codex?.filter((item) => item === 1)?.length || 0) >=
+        mysteryBox.requirements.metadata.titles
+      );
     }
     if (mysteryBox.requirements?.type === MysteryBoxRequirementType.CATNIP) {
       return (

@@ -19,6 +19,7 @@ export enum MysteryBoxRequirementType {
   CATNIP = "CATNIP",
   STREAK = "STREAK",
   CHAPTER = "CHAPTER",
+  TITLES = "TITLES",
 }
 
 export interface IMysteryBox {
@@ -140,11 +141,11 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
       chain: ChainType.CAMP,
       image: cdnFile("utilities/mystery-boxes/mystery-box-camp6.jpg"),
       requirements: {
-        type: MysteryBoxRequirementType.STREAK,
+        type: MysteryBoxRequirementType.TITLES,
         metadata: {
-          streak: 10,
+          titles: 1,
         },
-        text: "Check-in 10 times (10 streak)",
+        text: "Complete the Codex",
       },
     },
     {
@@ -154,11 +155,11 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
       chain: ChainType.CAMP,
       image: cdnFile("utilities/mystery-boxes/mystery-box-camp7.jpg"),
       requirements: {
-        type: MysteryBoxRequirementType.STREAK,
+        type: MysteryBoxRequirementType.CATNIP,
         metadata: {
-          streak: 10,
+          catnip: 120,
         },
-        text: "Check-in 10 times (10 streak)",
+        text: "Collect 120 catnip",
       },
     },
     {
@@ -170,9 +171,9 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
       requirements: {
         type: MysteryBoxRequirementType.STREAK,
         metadata: {
-          streak: 10,
+          streak: 20,
         },
-        text: "Check-in 10 times (10 streak)",
+        text: "Check-in 20 times",
       },
     },
     {
@@ -182,11 +183,11 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
       chain: ChainType.CAMP,
       image: cdnFile("utilities/mystery-boxes/mystery-box-camp9.jpg"),
       requirements: {
-        type: MysteryBoxRequirementType.STREAK,
+        type: MysteryBoxRequirementType.TITLES,
         metadata: {
-          streak: 10,
+          titles: 2,
         },
-        text: "Check-in 10 times (10 streak)",
+        text: "Earn 2 $TAILS guard titles",
       },
     },
   ],
