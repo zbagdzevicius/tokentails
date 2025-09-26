@@ -55,6 +55,7 @@ export class CatnipChaosScene extends Scene {
   autoJumpSpeed: number = 440;
   isAutoRunMode: boolean = true;
 
+
   food?: Food | null;
 
   private isGravityReversed: boolean = false;
@@ -67,6 +68,7 @@ export class CatnipChaosScene extends Scene {
   private flightEffectSprite?: Phaser.GameObjects.Sprite;
   private flightCloudSprite?: Phaser.GameObjects.Sprite;
   private geometryDashCloudSprite?: Phaser.GameObjects.Sprite;
+  private isInFlightMode: boolean = false;
   private wasOnFlightOnBlock: boolean = false;
   private wasOnFlightOffBlock: boolean = false;
   private wasOnTile309: boolean = false;
@@ -306,6 +308,7 @@ export class CatnipChaosScene extends Scene {
         const worldX = tile.getCenterX();
         const worldY = tile.getCenterY();
 
+
         this.catnipLayer.removeTileAt(tile.x, tile.y);
         const rotatingSprite = this.add.sprite(worldX, worldY, "catnip-coin");
 
@@ -323,6 +326,8 @@ export class CatnipChaosScene extends Scene {
         this.catnipCoins.push(rotatingSprite);
       }
     });
+
+
   }
 
   private setAllCatnipVisible(visible: boolean) {
@@ -479,22 +484,15 @@ export class CatnipChaosScene extends Scene {
   private createSpikes() {
     if (!this.cat) return;
 
-    // Count spikes once to choose optimal strategy
-    const spikeCount = this.groundLayer.filterTiles((tile: any) =>
-      SPIKE_TILES.includes(tile.index)
-    ).length;
 
-    // For large maps, avoid instantiating thousands of sprites and overlaps
-    this.useTileSpikeChecks = spikeCount > 200;
 
     if (!this.useTileSpikeChecks) {
       this.spikeManager = new SpikeManager({
         scene: this,
         groundLayer: this.groundLayer!,
         spikeTiles: SPIKE_TILES,
-        cat: this.cat!,
+        catSprite: this.cat.sprite!,
         onPlayerHitSpike: () => this.endGame(false),
-        gameType: "runner",
       });
     }
   }
@@ -526,7 +524,7 @@ export class CatnipChaosScene extends Scene {
       this.cat.update();
       this.processGravityTiles();
       this.spawnCatnipCoins();
-
+ 
       // Lightweight spike collision for very large spike maps
       if (this.useTileSpikeChecks && !this.gameEnded) {
         this.checkSpikeTilesOverlap();
@@ -571,6 +569,7 @@ export class CatnipChaosScene extends Scene {
 
       if (onFlightOnBlock && !this.wasOnFlightOnBlock) {
         this.cat.movement.setFlightMode(true);
+        this.isInFlightMode = true;
 
         if (this.cat.animationKeys && this.cat.sprite.anims) {
           this.cat.sprite.anims.play(this.cat.animationKeys["SITTING"], true);
@@ -590,6 +589,7 @@ export class CatnipChaosScene extends Scene {
 
       if (onFlightOffBlock && !this.wasOnFlightOffBlock) {
         this.cat.movement.setFlightMode(false);
+        this.isInFlightMode = false;
         // Remove cloud sprite
         if (this.flightCloudSprite) {
           this.flightCloudSprite.destroy();
@@ -600,6 +600,7 @@ export class CatnipChaosScene extends Scene {
       if (onTile309 && !this.wasOnTile309) {
         this.cat.movement.setFlightMode(false);
         this.cat.sprite.setRotation(0); // Reset rotation to normal
+        this.isInFlightMode = false;
         // Remove cloud sprite
         if (this.flightCloudSprite) {
           this.flightCloudSprite.destroy();
@@ -672,6 +673,7 @@ export class CatnipChaosScene extends Scene {
         );
       }
     }
+
   }
 
   endGame(finished: boolean = true) {
