@@ -29,6 +29,7 @@ This repository uses the recommended structure for a Soroban project:
 #### contracts MAINNET:
 - ##### TokenTailsCat NFT: `CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF`
 - ##### TokenTailsBlessing NFT: `CDY53U64IBGRTIABOQDS3ZXAIYP3S3VY42TKOX2G65E2UVBF3YLS7NJ6`
+- ##### TokenTailsPass NFT: `CBK4KAHLHNWOF4HEZFY2W57NYMSC4DLZGLGCM4HZUPAUU3PDPM3IMRS4`
 - Owner public key: GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN
 - explorer: https://stellar.expert/explorer
 
@@ -59,6 +60,13 @@ stellar network add \
 ```
 
 ### Add mainnet network
+
+```
+stellar network add \
+  --global mainnet \
+  --rpc-url https://soroban-rpc.mainnet.stellar.gateway.fm \
+  --network-passphrase "Public Global Stellar Network ; September 2015"
+```
 
 ```
 stellar network add \
@@ -110,6 +118,16 @@ stellar contract invoke \
   --minters '["GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN"]' \
   --base_uri https://api.tokentails.com/cat/nft/
 ```
+```
+stellar contract invoke \
+  --id CBK4KAHLHNWOF4HEZFY2W57NYMSC4DLZGLGCM4HZUPAUU3PDPM3IMRS4 \
+  --source zygis \
+  --network mainnet \
+  -- \
+  initialize \
+  --admin GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN \
+  --base_uri https://api.tokentails.com/cat/mint/
+```
 
 ### Contract check
 
@@ -140,6 +158,17 @@ stellar contract invoke \
   --to GBFDHPVUCADXYGDUHJEXKO3BLV26SA5JBHV5MFQ3TH5HWVYZIP73VR4O \
   --token_id initialization_test
 ```
+
+```
+stellar contract invoke \
+  --id CBK4KAHLHNWOF4HEZFY2W57NYMSC4DLZGLGCM4HZUPAUU3PDPM3IMRS4 \
+  --source zygis \
+  --network mainnet \
+  -- \
+  mint \
+  --to GBFDHPVUCADXYGDUHJEXKO3BLV26SA5JBHV5MFQ3TH5HWVYZIP73VR4O
+```
+
 
 ### Contract get_token_uri
 

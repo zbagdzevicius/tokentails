@@ -10,55 +10,59 @@ struct PlayData {
     uint32 lastPlayDate;
 }
 
-contract TokenTailsCat is ERC721, AccessControlEnumerable {
+/// @notice Custom errors (cheaper than revert strings)
+error NotOwner();
+error AlreadyIncremented();
+error NonexistentToken();
+
+contract TokenTailsCat is ERC721, AccessControl {
     string private _baseTokenURI;
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    mapping(uint128 => PlayData) public playData;
+    mapping(uint256 => PlayData) public playData;
+    string private constant BASE = "https://api.tokentails.com/cat/nft/";
 
     constructor() ERC721("Token Tails Cat", "TTCAT") {
-        _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(MINTER_ROLE, _msgSender());
-        _baseTokenURI = "https://api.tokentails.com/cat/nft/";
     }
 
-    function _baseURI() internal view override returns (string memory) {
-        return _baseTokenURI;
-    }
-
-    function setBaseURI(string memory newBaseURI) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _baseTokenURI = newBaseURI;
-    }
-
-    function mintUniqueTokenTo(address to, uint128 tokenId) external onlyRole(MINTER_ROLE) {
+    function mintUniqueTokenTo(
+        address to,
+        uint256 tokenId
+    ) external onlyRole(MINTER_ROLE) {
         _mint(to, tokenId);
     }
 
-    function tokenURI(uint128 tokenId) public view override returns (string memory) {
-        require(_exists(tokenId), "URI query for nonexistent token");
-        return string(abi.encodePacked(_baseURI(), Strings.toString(tokenId)));
+    function tokenURI(
+        uint256 tokenId
+    ) public view override returns (string memory) {
+        if (!_exists(tokenId)) revert NonexistentToken();
+        return string(abi.encodePacked(BASE, Strings.toString(tokenId)));
     }
 
     function supportsInterface(
         bytes4 interfaceId
-    ) public view override(ERC721, AccessControlEnumerable) returns (bool) {
+    ) public view override(ERC721, AccessControl) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 
-    function incrementPlayCount(uint128 tokenId) external {
-        require(ownerOf(tokenId) == msg.sender, "Caller is not the owner of the NFT");
-        
-        uint32 today = uint32(block.timestamp / 86400); // Calculate current day as an integer
-        require(playData[tokenId].lastPlayDate != today, "Play count already incremented today");
+    function incrementPlayCount(uint256 tokenId) external {
+        if (ownerOf(tokenId) != msg.sender) revert NotOwner();
 
-        playData[tokenId].playCount += 1;
+        uint32 today = uint32(block.timestamp / 86400); // Calculate current day as an integer
+        if (playData[tokenId].lastPlayDate == today)
+            revert AlreadyIncremented();
+
+        unchecked {
+            playData[tokenId].playCount += 1;
+        }
         playData[tokenId].lastPlayDate = today;
     }
 
-    function getPlayData(uint128 tokenId) public view returns (uint32 playCount, uint32 lastPlayDate) {
-        return (playData[tokenId].playCount, playData[tokenId].lastPlayDate);
-    }
-
-    function resetCount(uint128 tokenId) public onlyRole(MINTER_ROLE) {
-        delete playData[tokenId];
+    function getPlayData(
+        uint256 tokenId
+    ) external view returns (uint32 playCount, uint32 lastPlayDate) {
+        PlayData memory d = playData[tokenId];
+        return (d.playCount, d.lastPlayDate);
     }
 }

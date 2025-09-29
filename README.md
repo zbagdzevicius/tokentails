@@ -1,8 +1,12 @@
 # WELCOME TO TOKEN TAILS SMART CONTRACTS !
 
-testnet integrated environment WEB: https://test.tokentails.com
-testnet integrated environment TG App: https://t.me/CatbassadorsTestBot
+WEB: https://tokentails.com
+ANDROID: https://play.google.com/store/apps/details?id=com.tokentails.app
+IOS: https://apps.apple.com/lt/app/token-tails/id6745582489
 
-official offchain environment WEB: https://tokentails.com
-official offchain environment TG App: https://t.me/catbassadorsbot/app
-On-chain is coming-soon !
+
+## HOW TO VERIFY AFTER DEPLOYMENT?
+1. deploy through remix
+2. export remix compiled data standard-input
+3. jq -r '.compilerInput' TokenTailsMysteryBox_compData.json > standard-input.json
+4. validate on block explorer
