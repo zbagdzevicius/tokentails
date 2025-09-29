@@ -19,6 +19,7 @@ import { ChainSelect } from "../shared/ChainSelect";
 import { CloseButton } from "../shared/CloseButton";
 import { PixelButton } from "../shared/PixelButton";
 import { Web3Transfer } from "../web3/transfer/Web3Transfer";
+import { useGame } from "@/context/GameContext";
 
 interface IProps extends ICat {
   onClose?: (gameModal?: GameModal) => void;
@@ -203,12 +204,9 @@ export const CatPayment = ({
   const toast = useToast();
   const outOfSupply = supply === undefined || supply <= 0;
   const isCoinsPayment = !!cat.catpoints && !isOwned;
+  const { setOpenedModal } = useGame();
 
   const onSuccess = (cat: ICat) => {
-    if (buyMode === BuyMode.CAT) {
-      // IMPLEMENT IF WE'LL NEED TO SEPARATE POST-PURCHASE HANDLER
-    }
-
     setProfileUpdate({
       cats: [...(cats || []), cat],
       cat,
@@ -220,6 +218,8 @@ export const CatPayment = ({
     toast({ message: "Congratz on your adopted cat !", img: cat.catImg });
     setIsAdopting(false);
     onAdopted?.();
+    onClose?.();
+    setOpenedModal?.(null);
   };
 
   useEffect(() => {

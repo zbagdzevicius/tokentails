@@ -61,6 +61,9 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
     if (namespace === ChainNamespace.EVM) {
       setChainType(isProd ? ChainType.BNB : ChainType.BNB_TEST);
     }
+    if (namespace === ChainNamespace.SEI) {
+      setChainType(ChainType.SEI);
+    }
     if (namespace === ChainNamespace.SOLANA) {
       setChainType(ChainType.SOLANA);
     }

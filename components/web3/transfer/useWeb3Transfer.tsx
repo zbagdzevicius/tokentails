@@ -81,10 +81,7 @@ export const useWeb3Transfer = ({
     setTransactionStatus,
   } = useWeb3();
   const { setVisible: connectSolana } = useWalletModal();
-  const {
-    signTransaction: signSolanaTransaction,
-    sendTransaction: sendSolanaTransaction,
-  } = useSolanaWallet();
+  const { sendTransaction: sendSolanaTransaction } = useSolanaWallet();
   const { connection: solanaConnection } = useConnection();
   const { switchChainAsync } = useSwitchChain({
     config: wagmiConfig,
@@ -142,6 +139,7 @@ export const useWeb3Transfer = ({
   }, [setHash, writeContractHash]);
 
   async function syncChain() {
+    console.log("syncChain", chainId, chainTypeId[chainType]);
     try {
       if (chainId !== chainTypeId[chainType]) {
         await switchChainAsync({ chainId: chainTypeId[chainType] });
@@ -330,7 +328,7 @@ export const useWeb3Transfer = ({
   }, [isTaxConfirmed]);
 
   const connectWallet = () => {
-    if (namespace === ChainNamespace.EVM) {
+    if ([ChainNamespace.EVM, ChainNamespace.SEI].includes(namespace)) {
       open();
     } else if (namespace === ChainNamespace.STELLAR) {
       connectStellarWallet();
