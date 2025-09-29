@@ -96,10 +96,6 @@ export const EndGameModal: React.FC<EndGameProps> = ({
           )}
           <div className="flex justify-center items-center text-md text-gray-700">
             <img className="h-8" src={profile?.cat?.catImg}></img>
-            <div className="text-p3 lg:text-p2 font-medium mr-1 whitespace-nowrap">
-              Selected cat MULTIPLIER
-            </div>
-            <Tag>X{getMultiplier(profile?.cat)}</Tag>
           </div>
         </div>
         <div className="flex flex-col items-center justify-center gap-2 pb-4 md:pb-0">

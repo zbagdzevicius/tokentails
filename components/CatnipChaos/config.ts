@@ -14,7 +14,7 @@ const config: Phaser.Types.Core.GameConfig = {
       fps: 240,
       timeScale: 1,
       gravity: { x: 0, y: 600 },
-      debug: true,
+      debug: false,
       tileBias: 32,
       checkCollision: {
         up: true,
@@ -34,7 +34,6 @@ export const StartGame = (props: ICatnipChaosProps) => {
     width: window.innerWidth,
     height: window.innerHeight,
   });
-  console.log("Starting game with props:", props);
   game.scene.start("CatnipChaosScene", props);
   return game;
 };
