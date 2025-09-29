@@ -210,7 +210,6 @@ export const CatPayment = ({
     setProfileUpdate({
       cats: [...(cats || []), cat],
       cat,
-      catpoints: profile!.catpoints - catpoints || 0,
       monthCatsAdopted: (profile?.monthCatsAdopted || 0) + 1,
     });
     setTransactionStatus(null);
