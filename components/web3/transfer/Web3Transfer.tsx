@@ -1,11 +1,10 @@
 "use client";
 
 import { PixelButton } from "@/components/shared/PixelButton";
-import { EntityType } from "@/models/save";
-import { CurrencyType } from "@/web3/contracts";
-import { useWeb3Transfer } from "./useWeb3Transfer";
-import { useMemo } from "react";
 import { BuyMode } from "@/constants/cat-utils";
+import { EntityType } from "@/models/save";
+import { useMemo } from "react";
+import { useWeb3Transfer } from "./useWeb3Transfer";
 
 export interface IGeneratedCat {
   name: string;
@@ -17,7 +16,7 @@ interface Web3TransferProps {
   amount: number;
   text?: string;
   loadingText?: string;
-  entityType?: EntityType;
+  entityType: EntityType;
   buyMode?: BuyMode;
   cat?: string;
   generatedCat?: IGeneratedCat;
@@ -48,7 +47,7 @@ export const Web3Transfer = ({
     isLoading,
     transfer,
   } = useWeb3Transfer({
-    entityType: entityType || EntityType.PRESALE,
+    entityType,
     price,
     amount,
     buyMode,
@@ -80,23 +79,6 @@ export const Web3Transfer = ({
     );
   }
 
-  if ((isNaN(price) || price <= 0) && !disabled) {
-    return <PixelButton text="Enter amount" isDisabled />;
-  }
-
-  if (
-    price < 1 &&
-    ![CurrencyType.BNB, CurrencyType.SOL].includes(currencyType)
-  ) {
-    return <PixelButton text="1$ is minimum amount" isDisabled />;
-  }
-
-  if (price < 0.001 && currencyType === CurrencyType.BNB) {
-    return <PixelButton text="0.001 BNB is minimum amount" isDisabled />;
-  }
-  if (price < 0.005 && currencyType === CurrencyType.SOL) {
-    return <PixelButton text="0.005 SOL is minimum amount" isDisabled />;
-  }
   return (
     <div className="flex justify-center items-center">
       {!disabled && (

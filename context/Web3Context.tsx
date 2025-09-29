@@ -1,5 +1,5 @@
 import { ITransactionStatus } from "@/api/order-api";
-import { useTokenPrice } from "@/components/web3/useTokenPrice";
+import { useRates } from "@/components/web3/useRates";
 import { isProd } from "@/models/app";
 import {
   ChainNamespace,
@@ -18,10 +18,7 @@ type ContextState = {
   stellarConnected: boolean;
   solanaConnected: boolean;
   evmAddress?: `0x${string}`;
-  bnbRate?: number;
-  xlmRate?: number;
-  diamRate?: number;
-  solRate?: number;
+  rates?: Record<CurrencyType, number>;
   stellarAddress?: string;
   solanaAddress?: PublicKey | null;
   chainType: ChainType;
@@ -74,16 +71,17 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
 
   const [currencyType, setCurrencyType] = React.useState(CurrencyType.USDT);
   const [price, setPrice] = React.useState();
-  const bnbRate = useTokenPrice(CurrencyType.BNB);
-  const xlmRate = useTokenPrice(CurrencyType.XLM);
-  const solRate = useTokenPrice(CurrencyType.SOL);
-  const diamRate = 0.01;
+  const rates = useRates();
   const [transactionStatus, setTransactionStatus] =
     React.useState<ITransactionStatus | null>(null);
 
   const namespaceDetails = React.useMemo(() => {
     return {
       [ChainNamespace.EVM]: {
+        connected: isConnected,
+        address: address,
+      },
+      [ChainNamespace.SEI]: {
         connected: isConnected,
         address: address,
       },
@@ -118,9 +116,7 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
     <Web3Context.Provider
       value={{
         evmConnected: isConnected,
-        bnbRate,
-        xlmRate,
-        solRate,
+        rates,
         stellarConnected,
         evmAddress: address,
         stellarAddress,
@@ -128,7 +124,6 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
         chainId,
         currencyType,
         price,
-        diamRate,
         query,
         chainType,
         namespaceDetail,

@@ -3,22 +3,6 @@ import { IOrder } from "@/models/order";
 import { CurrencyType } from "@/web3/contracts";
 import { apiUrl } from "./api";
 
-const addressTokens = async (walletAddress: string): Promise<string> => {
-  return fetch(`${apiUrl}/web3/presale/${walletAddress}`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    } as any,
-  }).then((response) => {
-    if (response.ok) {
-      return response.text();
-    }
-
-    return "0";
-  });
-};
-
 export const rewardsConfig = {
   tails: { chance: 0.05, cap: 10000, likely: 300, name: "$TAILS" },
   catbassadorsLives: { chance: 0.2, cap: 1000, likely: 20, name: "Lives" },
@@ -76,6 +60,18 @@ const confirm = async (order: IOrder): Promise<ITransactionStatus> => {
   });
 };
 
+const currencyRates = async (): Promise<Record<CurrencyType, number>> => {
+  return fetch(`${apiUrl}/cat/rates`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    } as any,
+  }).then((response) => {
+    return response.json();
+  });
+};
+
 const currencyRate = async (currencyType: CurrencyType): Promise<string> => {
   return fetch(`${apiUrl}/cat/rate/${currencyType}`, {
     method: "GET",
@@ -115,9 +111,9 @@ const raised = async (): Promise<number> => {
 };
 
 export const ORDER_API = {
-  addressTokens,
   adopt,
   confirm,
   currencyRate,
+  currencyRates,
   raised,
 };

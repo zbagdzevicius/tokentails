@@ -1,8 +1,5 @@
-import { PixelButton } from "@/components/shared/PixelButton";
-import { Socials } from "@/layouts/Socials";
-import { useEffect, useState } from "react";
-import { Countdown } from "../shared/Countdown";
 import { cdnFile } from "@/constants/utils";
+import { Socials } from "@/layouts/Socials";
 
 interface bannerProps {
   image: string;
@@ -10,25 +7,20 @@ interface bannerProps {
 }
 
 const sponsorImage = [
+  "images/sponsor/sei.webp",
   "images/sponsor/microsoft-for-startups.webp",
   "images/sponsor/social-shifters.webp",
-  "images/sponsor/diamante.webp",
   "images/sponsor/gametech.png",
   "images/sponsor/eu.webp",
-  "images/sponsor/stellar.webp",
-  "images/sponsor/immutable.webp",
   "images/sponsor/brinc.webp",
-  "images/sponsor/blockgames.webp",
-  "images/sponsor/skale.webp",
+  "images/sponsor/sei.webp",
   "images/sponsor/onepiece.png",
-  "images/sponsor/xdc.webp",
   "images/sponsor/buidlers-tribe.webp",
-  "images/sponsor/crossfi.webp",
-  "images/sponsor/digitalocean.webp",
   "images/sponsor/earn-alliance.webp",
-  "images/sponsor/unicorn-ultra.webp",
+  "images/sponsor/stellar.webp",
   "images/sponsor/iexec.webp",
   "images/sponsor/h7.webp",
+  "images/sponsor/sei.webp",
   "images/sponsor/mexc.webp",
 ];
 

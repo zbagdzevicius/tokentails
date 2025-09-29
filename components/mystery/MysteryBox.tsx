@@ -165,25 +165,20 @@ export const MysteryBox = () => {
 
   const onRedeem = async () => {
     const result = await QUEST_API.redeemContest(mysteryBox.key);
-    if (result.success && result.cat) {
+    if (result.success) {
       setProfileUpdate({
-        cats: [...(profile?.cats || []), result.cat],
-        cat: result.cat,
+        cats: result.cat
+          ? [...(profile?.cats || []), result.cat]
+          : profile?.cats,
+        cat: result.cat || profile?.cat,
         quests: [...(profile?.quests || []), mysteryBox.key],
         catbassadorsLives:
           (profile?.catbassadorsLives || 0) + (result.catbassadorsLives || 0),
-      });
-      setGameType(GameType.HOME);
-    } else if (
-      result.success &&
-      (result.catpoints || result.catbassadorsLives)
-    ) {
-      setProfileUpdate({
-        quests: [...(profile?.quests || []), mysteryBox.key],
         catpoints: (profile!.catpoints || 0) + (result.catpoints || 0),
-        catbassadorsLives:
-          (profile?.catbassadorsLives || 0) + (result.catbassadorsLives || 0),
       });
+      if (result.cat) {
+        setGameType(GameType.HOME);
+      }
     }
     toast({ message: result.message });
   };

@@ -16,7 +16,6 @@ const entityTypeComponent: Record<
 > = {
   [EntityType.ARTICLE]: FeedArticle,
   [EntityType.CAT]: <></>,
-  [EntityType.PRESALE]: <></>,
   [EntityType.MYSTERY_BOX]: <></>,
 };
 

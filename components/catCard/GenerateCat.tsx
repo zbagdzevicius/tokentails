@@ -14,22 +14,16 @@ import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
 import { Web3Transfer } from "../web3/transfer/Web3Transfer";
 
+const price = Prices.generatedCat;
 export const GenerateCat = ({ close }: { close: () => void }) => {
   const [isDisplayed, setIsDisplayed] = useState(false);
   const { profile, setProfileUpdate } = useProfile();
-  const [price, setPrice] = useState(Prices.generatedCat);
   const [name, setName] = useState("");
   const [image, setImage] = useState<IImage[]>([]);
   const toast = useToast();
   const { setGameType } = useGame();
-  const {
-    currencyType,
-    bnbRate,
-    xlmRate,
-    solRate,
-    transactionStatus,
-    setTransactionStatus,
-  } = useWeb3();
+  const { currencyType, rates, transactionStatus, setTransactionStatus } =
+    useWeb3();
   const onSuccess = (cat?: ICat) => {
     if (cat) {
       setProfileUpdate({
@@ -44,25 +38,29 @@ export const GenerateCat = ({ close }: { close: () => void }) => {
   };
   const currencyPrice = useMemo(() => {
     if (
-      [CurrencyType.XLM, CurrencyType.BNB, CurrencyType.SOL].includes(
-        currencyType
-      ) &&
-      bnbRate &&
-      xlmRate &&
-      solRate
+      [
+        CurrencyType.XLM,
+        CurrencyType.BNB,
+        CurrencyType.SOL,
+        CurrencyType.SEI,
+      ].includes(currencyType) &&
+      rates
     ) {
       if (currencyType === CurrencyType.BNB) {
-        return parseFloat((price / bnbRate).toFixed(3));
+        return parseFloat((price / rates[CurrencyType.BNB]).toFixed(3));
+      }
+      if (currencyType === CurrencyType.SEI) {
+        return Math.ceil(price / rates[CurrencyType.SEI]);
       }
       if (currencyType === CurrencyType.XLM) {
-        return Math.ceil(price / xlmRate);
+        return Math.ceil(price / rates[CurrencyType.XLM]);
       }
       if (currencyType === CurrencyType.SOL) {
-        return parseFloat((price / solRate).toFixed(3));
+        return parseFloat((price / rates[CurrencyType.SOL]).toFixed(3));
       }
     }
     return price;
-  }, [currencyType, bnbRate, xlmRate, solRate, price]);
+  }, [currencyType, rates, price]);
 
   useEffect(() => {
     if (transactionStatus?.success) {

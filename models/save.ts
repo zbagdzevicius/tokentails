@@ -1,6 +1,5 @@
 export enum EntityType {
   ARTICLE = "ARTICLE",
-  PRESALE = "PRESALE",
   MYSTERY_BOX = "MYSTERY_BOX",
   LOOT_BOX = "LOOT_BOX",
   COMMENT = "COMMENT",

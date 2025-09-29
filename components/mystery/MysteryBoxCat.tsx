@@ -19,14 +19,8 @@ export const MysteryBoxCat = () => {
   const [rolledCat, setRolledCat] = useState<null | ICat>();
   const [lootBoxRewards, setLootBoxRewards] = useState<null | string>(null);
   const [boxType, setBoxType] = useState<EntityType>(EntityType.LOOT_BOX);
-  const {
-    currencyType,
-    bnbRate,
-    xlmRate,
-    solRate,
-    transactionStatus,
-    setTransactionStatus,
-  } = useWeb3();
+  const { currencyType, rates, transactionStatus, setTransactionStatus } =
+    useWeb3();
   const onSuccess = (transactionStatus: ITransactionStatus) => {
     const { cat, type, amount } = transactionStatus;
     if (cat) {
@@ -71,25 +65,29 @@ export const MysteryBoxCat = () => {
   }, [boxType]);
   const currencyPrice = useMemo(() => {
     if (
-      [CurrencyType.XLM, CurrencyType.BNB, CurrencyType.SOL].includes(
-        currencyType
-      ) &&
-      bnbRate &&
-      xlmRate &&
-      solRate
+      [
+        CurrencyType.XLM,
+        CurrencyType.BNB,
+        CurrencyType.SOL,
+        CurrencyType.SEI,
+      ].includes(currencyType) &&
+      rates
     ) {
       if (currencyType === CurrencyType.BNB) {
-        return parseFloat((price / bnbRate).toFixed(3));
+        return parseFloat((price / rates[CurrencyType.BNB]).toFixed(3));
+      }
+      if (currencyType === CurrencyType.SEI) {
+        return Math.ceil(price / rates[CurrencyType.SEI]);
       }
       if (currencyType === CurrencyType.XLM) {
-        return Math.ceil(price / xlmRate);
+        return Math.ceil(price / rates[CurrencyType.XLM]);
       }
       if (currencyType === CurrencyType.SOL) {
-        return parseFloat((price / solRate).toFixed(3));
+        return parseFloat((price / rates[CurrencyType.SOL]).toFixed(3));
       }
     }
     return price;
-  }, [currencyType, bnbRate, xlmRate, solRate, price]);
+  }, [currencyType, rates, price]);
 
   useEffect(() => {
     if (transactionStatus?.success) {

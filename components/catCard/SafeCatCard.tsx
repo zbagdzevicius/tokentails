@@ -152,15 +152,8 @@ export const CatPayment = ({
   unitsToBuy: number;
   handleUnitsToBuy: (units: number) => void;
 }) => {
-  const {
-    currencyType,
-    bnbRate,
-    xlmRate,
-    solRate,
-    diamRate,
-    transactionStatus,
-    setTransactionStatus,
-  } = useWeb3();
+  const { currencyType, rates, transactionStatus, setTransactionStatus } =
+    useWeb3();
   const { _id, supply, name, catpoints, price } = cat;
   const { profile, setProfileUpdate } = useProfile();
   const [buyMode, setBuyMode] = useState<BuyMode | null>(null);
@@ -175,29 +168,29 @@ export const CatPayment = ({
   );
   const currencyPrice = useMemo(() => {
     if (
-      [CurrencyType.XLM, CurrencyType.BNB, CurrencyType.SOL].includes(
-        currencyType
-      ) &&
-      bnbRate &&
-      xlmRate &&
-      solRate &&
-      diamRate
+      [
+        CurrencyType.XLM,
+        CurrencyType.BNB,
+        CurrencyType.SOL,
+        CurrencyType.SEI,
+      ].includes(currencyType) &&
+      rates
     ) {
       if (currencyType === CurrencyType.BNB) {
-        return parseFloat((corePrice / bnbRate).toFixed(3));
+        return parseFloat((corePrice / rates[CurrencyType.BNB]).toFixed(3));
+      }
+      if (currencyType === CurrencyType.SEI) {
+        return Math.ceil(corePrice / rates[CurrencyType.SEI]);
       }
       if (currencyType === CurrencyType.XLM) {
-        return Math.ceil(corePrice / xlmRate);
+        return Math.ceil(corePrice / rates[CurrencyType.XLM]);
       }
       if (currencyType === CurrencyType.SOL) {
-        return parseFloat((corePrice / solRate).toFixed(3));
-      }
-      if (currencyType === CurrencyType.DIAM) {
-        return parseFloat((corePrice / diamRate).toFixed(3));
+        return parseFloat((corePrice / rates[CurrencyType.SOL]).toFixed(3));
       }
     }
     return corePrice;
-  }, [currencyType, bnbRate, xlmRate, solRate, diamRate, corePrice, buyMode]);
+  }, [currencyType, rates, corePrice, buyMode]);
 
   const catpointsText = useMemo(() => {
     if (isAdopting) {

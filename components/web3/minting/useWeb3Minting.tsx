@@ -53,6 +53,9 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
     }
   }, [mysteryBox]);
   const [isMinted, setIsMinted] = useState(false);
+  useEffect(() => {
+    setIsMinted(false);
+  }, [mysteryBox]);
 
   const isLoading = useMemo(
     () => isPending || isTaxLoading,

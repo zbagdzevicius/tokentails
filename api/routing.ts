@@ -75,9 +75,6 @@ export const EntityRouteOption: Omit<
   [EntityType.CAT]: {
     details: ([]) => `/`,
   },
-  [EntityType.PRESALE]: {
-    details: ([]) => `/`,
-  },
   [EntityType.MYSTERY_BOX]: {
     details: ([]) => `/`,
   },

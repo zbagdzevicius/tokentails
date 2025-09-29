@@ -37,9 +37,6 @@ export interface IMysteryBox {
 }
 
 export const chainTypeRpcUrl: Record<ChainType, string> = {
-  [ChainType.SKALE]: "https://mainnet.skalenodes.com/v1/green-giddy-denebola",
-  [ChainType.SKALE_TEST]:
-    "https://testnet.skalenodes.com/v1/lanky-ill-funny-testnet",
   [ChainType.BNB]: "https://bsc-dataseed.binance.org",
   [ChainType.BNB_TEST]: "https://data-seed-prebsc-1-s1.binance.org:8545",
   [ChainType.STELLAR]: "https://mainnet.sorobanrpc.com",
@@ -47,6 +44,7 @@ export const chainTypeRpcUrl: Record<ChainType, string> = {
   [ChainType.SOLANA]: "https://api.mainnet-beta.solana.com",
   [ChainType.SOLANA_TEST]: "https://api.devnet.solana.com",
   [ChainType.CAMP]: "https://rpc.camp.network",
+  [ChainType.SEI]: "https://evm-rpc.sei-apis.com",
 };
 
 export enum MYSTERY_BOX_TYPE {
