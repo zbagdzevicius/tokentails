@@ -218,36 +218,8 @@ export const useWeb3Transfer = ({
     });
   }
 
-  async function xfiTransfer() {
-    if (!evmConnected) {
-      toast({ message: "Please login to Metamask" });
-      return false;
-    }
-    try {
-      await syncChain();
-
-      const nativeTokenAmountHex = ethers.parseUnits(
-        price?.toFixed(16)?.toString()!,
-        18
-      );
-
-      const txHash = await sendTransactionAsync({
-        to: recipientEvm,
-        value: nativeTokenAmountHex,
-      });
-      setHash(txHash);
-      toast({ message: "Transaction sent! Awaiting confirmation..." });
-    } catch (error) {
-      console.error("Transfer failed:", error);
-      toast({
-        message: "Transaction failed. Please try again.",
-        isError: true,
-      });
-    }
-  }
-
   async function transfer() {
-    if (namespace === ChainNamespace.EVM) {
+    if ([ChainNamespace.EVM, ChainNamespace.SEI].includes(namespace)) {
       evmTransfer();
     } else if (namespace === ChainNamespace.STELLAR) {
       if (!stellarConnected) {
@@ -320,7 +292,7 @@ export const useWeb3Transfer = ({
     try {
       await syncChain();
 
-      if (currencyType !== CurrencyType.BNB) {
+      if (![CurrencyType.BNB, CurrencyType.SEI].includes(currencyType)) {
         await writeContractAsync({
           abi: erc20Abi,
           address: currencyContracts[idChainType[chainId!]][currencyType]!,
