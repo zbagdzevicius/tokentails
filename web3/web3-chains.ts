@@ -27,7 +27,9 @@ export const campMainnet = defineChain({
 });
 
 // Create wagmiConfig
-export const networks = isProd ? [bsc, campMainnet] : [bscTestnet, campMainnet];
+export const networks = isProd
+  ? [bsc, campMainnet, sei]
+  : [bscTestnet, campMainnet, sei];
 
 export const chainTypeId: Record<ChainType, number> = {
   [ChainType.BNB]: bsc.id,
