@@ -14,7 +14,7 @@ const config: Phaser.Types.Core.GameConfig = {
       fps: 240,
       timeScale: 1,
       gravity: { x: 0, y: 600 },
-      debug: false,
+      debug: true,
       tileBias: 32,
       checkCollision: {
         up: true,
