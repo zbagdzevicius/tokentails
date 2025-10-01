@@ -55,7 +55,6 @@ export class CatnipChaosScene extends Scene {
   autoJumpSpeed: number = 440;
   isAutoRunMode: boolean = true;
 
-
   food?: Food | null;
 
   private isGravityReversed: boolean = false;
@@ -308,7 +307,6 @@ export class CatnipChaosScene extends Scene {
         const worldX = tile.getCenterX();
         const worldY = tile.getCenterY();
 
-
         this.catnipLayer.removeTileAt(tile.x, tile.y);
         const rotatingSprite = this.add.sprite(worldX, worldY, "catnip-coin");
 
@@ -326,8 +324,6 @@ export class CatnipChaosScene extends Scene {
         this.catnipCoins.push(rotatingSprite);
       }
     });
-
-
   }
 
   private setAllCatnipVisible(visible: boolean) {
@@ -484,15 +480,13 @@ export class CatnipChaosScene extends Scene {
   private createSpikes() {
     if (!this.cat) return;
 
-
-
     if (!this.useTileSpikeChecks) {
       this.spikeManager = new SpikeManager({
         scene: this,
         groundLayer: this.groundLayer!,
         spikeTiles: SPIKE_TILES,
         catSprite: this.cat.sprite!,
-        onPlayerHitSpike: () => this.endGame(false),
+        onPlayerHitSpike: () => this.endGame(),
       });
     }
   }
@@ -524,7 +518,7 @@ export class CatnipChaosScene extends Scene {
       this.cat.update();
       this.processGravityTiles();
       this.spawnCatnipCoins();
- 
+
       // Lightweight spike collision for very large spike maps
       if (this.useTileSpikeChecks && !this.gameEnded) {
         this.checkSpikeTilesOverlap();
@@ -673,10 +667,9 @@ export class CatnipChaosScene extends Scene {
         );
       }
     }
-
   }
 
-  endGame(finished: boolean = true) {
+  endGame() {
     if (this.gameEnded) return;
     this.gameEnded = true;
     this.backgroundSound?.stop();
@@ -707,7 +700,6 @@ export class CatnipChaosScene extends Scene {
       GameEvents.GAME_STOP.push({
         score: this.collectedCatnipCoins,
         time: 0,
-        finished,
       });
       this.destroyGameObjects();
     });
@@ -990,7 +982,7 @@ export class CatnipChaosScene extends Scene {
 
     for (let i = 0; i < tiles.length; i++) {
       if (SPIKE_TILES.includes(tiles[i].index)) {
-        this.endGame(false);
+        this.endGame();
         return;
       }
     }

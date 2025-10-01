@@ -617,7 +617,6 @@ export class CatbassadorsScene extends Scene {
       GameEvents.GAME_STOP.push({
         score: this.score,
         time: Math.floor(totalPlayTime),
-        finished: true,
       });
       this.score = 0;
       this.enemySpawnThreshold = DEFAULT_ENEMY_SPAWN_THRESHOLD;

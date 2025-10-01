@@ -1,5 +1,5 @@
 import { QUEST_API } from "@/api/quest-api";
-import { getMultiplier } from "@/constants/cat-utils";
+import { bgStyle, cdnFile } from "@/constants/utils";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
@@ -17,7 +17,6 @@ import { PixelButton } from "../shared/PixelButton";
 import { TrailheadsData } from "../shared/QuestsModal";
 import { ConnectWallet, Web3Mint } from "../web3/minting/Web3Mint";
 import { Web3Providers } from "../web3/Web3Providers";
-import { bgStyle, cdnFile } from "@/constants/utils";
 
 export const CatnipChaosLevels = ({
   setSelectedLevel,

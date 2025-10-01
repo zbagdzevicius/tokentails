@@ -33,7 +33,6 @@ interface IGameStartEvent {
 export interface IGameStopEvent {
   score: number;
   time: number;
-  finished?: boolean;
   completedLevel?: string | null;
 }
 interface IGameUpdateEvent {

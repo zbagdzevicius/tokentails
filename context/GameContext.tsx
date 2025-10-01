@@ -102,21 +102,19 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
       setGameStop({
         score: earnedScore,
         time: event.time ?? 0,
-        completedLevel: event.finished ? level : null,
+        completedLevel: level,
       });
 
       let catnipChaos = profile.catnipChaos;
-      if (event.finished) {
-        const result = await USER_API.saveMatch({
-          points: earnedScore,
-          time: event.time ?? 0,
-          type: gameType!,
-          level: level!,
-        });
-        catnipChaos = result?.catnipChaos || profile.catnipChaos || [];
-        if (result === null) {
-          showToast({ message: "You run out of lives ):" });
-        }
+      const result = await USER_API.saveMatch({
+        points: earnedScore,
+        time: event.time ?? 0,
+        type: gameType!,
+        level: level!,
+      });
+      catnipChaos = result?.catnipChaos || profile.catnipChaos || [];
+      if (result === null) {
+        showToast({ message: "You run out of lives ):" });
       }
       if (gameType === GameType.CATBASSADORS) {
         setProfileUpdate({
