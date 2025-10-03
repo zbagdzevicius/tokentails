@@ -4,19 +4,20 @@ pragma solidity 0.8.19;
 import "@openzeppelin/contracts@4.9.3/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts@4.9.3/access/Ownable.sol";
 import "@openzeppelin/contracts@4.9.3/utils/Strings.sol";
+import "@openzeppelin/contracts@4.9.3/security/ReentrancyGuard.sol";
 
 error NotOwner();
-error AlreadyIncremented();
 error NonexistentToken();
 error NotMinter();
+error LengthMismatch();
+error SweepFailed();
+error InsufficientTreasury();
 
-contract TokenTailsCat is ERC721, Ownable {
+contract TokenTailsCat is ERC721, Ownable, ReentrancyGuard {
     mapping(address => bool) public minter;
     event MinterAdded(address indexed account);
     event MinterRemoved(address indexed account);
-    event Played(address indexed player, uint256 indexed tokenId, uint32 day);
-
-    mapping(uint256 => uint64) public playData;
+    event Checked(address indexed player, uint256 indexed tokenId);
     string private constant BASE = "https://api.tokentails.com/cat/nft/";
 
     constructor() ERC721("Token Tails Cat", "TTCAT") {
@@ -26,6 +27,26 @@ contract TokenTailsCat is ERC721, Ownable {
     function mintUniqueTokenTo(address to, uint256 tokenId) external {
         if (!minter[msg.sender]) revert NotMinter();
         _mint(to, tokenId);
+    }
+
+    receive() external payable {}
+    fallback() external payable {}
+
+    function mintToMany(
+        address[] calldata addresses,
+        uint256[] calldata tokenIds
+    ) external {
+        if (!minter[msg.sender]) revert NotMinter();
+        if (addresses.length != tokenIds.length) revert LengthMismatch();
+
+        unchecked {
+            for (uint256 i = 0; i < addresses.length; ++i) {
+                if (_exists(tokenIds[i])) {
+                    continue;
+                }
+                _mint(addresses[i], tokenIds[i]);
+            }
+        }
     }
 
     function addMinter(address account) external onlyOwner {
@@ -46,32 +67,42 @@ contract TokenTailsCat is ERC721, Ownable {
         return string(abi.encodePacked(BASE, Strings.toString(tokenId)));
     }
 
-    function incrementPlayCount(uint256 tokenId) external {
+    function checkIn(uint256 tokenId) external {
         if (ownerOf(tokenId) != msg.sender) revert NotOwner();
 
-        uint32 today = uint32(block.timestamp / 86400);
-        uint64 packed = playData[tokenId];
+        emit Checked(msg.sender, tokenId);
+    }
 
-        uint32 last = uint32(packed >> 32);
-        if (last == today) revert AlreadyIncremented();
+    function sweep(
+        address payable to,
+        uint256 value
+    ) external onlyOwner nonReentrant {
+        (bool ok, ) = to.call{value: value}("");
+        if (!ok) revert SweepFailed();
+    }
 
-        uint32 count = uint32(packed);
+    function distributeIfBelowFromTreasury(
+        address payable[] calldata recipients,
+        uint256 amount,
+        uint256 threshold
+    ) external onlyOwner nonReentrant {
+        uint256 len = recipients.length;
+        uint256 need;
         unchecked {
-            count += 1;
+            for (uint256 i = 0; i < len; ++i) {
+                if (recipients[i].balance < threshold) need += amount;
+            }
         }
+        if (address(this).balance < need) revert InsufficientTreasury();
 
-        playData[tokenId] = (uint64(today) << 32) | uint64(count);
-    }
-
-    function getPlayData(
-        uint256 tokenId
-    ) external view returns (uint32 playCount, uint32 lastPlayDate) {
-        uint64 p = playData[tokenId];
-        return (uint32(p), uint32(p >> 32));
-    }
-
-    function checkIn(uint256 tokenId) external {
-        uint32 today = uint32(block.timestamp / 86400);
-        emit Played(msg.sender, tokenId, today);
+        for (uint256 i = 0; i < len; ++i) {
+            address payable to = recipients[i];
+            if (to == address(0)) {
+                continue;
+            }
+            if (to.balance < threshold) {
+                (bool ok, ) = to.call{value: amount}("");
+            }
+        }
     }
 }
