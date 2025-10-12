@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/browser";
 import { useRouter } from "next/router";
 import Script from "next/script";
 import { useEffect } from "react";
@@ -16,12 +15,6 @@ export const Analytics = () => {
       router.events.off("routeChangeComplete", handleRouteChange);
     };
   }, [router.events]);
-  useEffect(() => {
-    Sentry.init({
-      dsn: "https://71bb87b9dcc24b6eb84f68d9594a26bc@glitchtip-hqvww.ondigitalocean.app/1",
-      tracesSampleRate: 0.01,
-    });
-  }, []);
 
   return (
     <div className="hidden">

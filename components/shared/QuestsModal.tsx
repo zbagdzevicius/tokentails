@@ -182,7 +182,7 @@ export const QuestsModalContent = () => {
                       className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
                       src={cdnFile("logo/coin.webp")}
                     />
-                    {quest.reward.coins} COINS
+                    {quest.reward.tails} $TAILS
                   </div>
                 </div>
               ))}

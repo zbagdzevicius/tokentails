@@ -2,7 +2,6 @@ import { BlogPreview } from "@/components/landing/BlogPreview";
 import { CatsHub } from "@/components/landing/CatsHub";
 import { FeedbackSlider } from "@/components/landing/FeedbackSlider";
 import { GameAggregators } from "@/components/landing/GameAggregators";
-import { GameModes } from "@/components/landing/GameModes";
 import { HomePage } from "@/components/landing/HomePage";
 import { ProcessExplained } from "@/components/landing/ProcessExplained";
 import Roadmap from "@/components/landing/Roadmap";
@@ -133,14 +132,6 @@ export default function Index() {
         >
           <div id="feedbackslider" ref={feedbackSliderRef}>
             <FeedbackSlider />
-          </div>
-        </div>
-        <div
-          className="pb-4 pt-3 md:pt-0 min-h-screen flex items-center justify-center w-full"
-          style={bgStyle("4")}
-        >
-          <div className="h-full w-full" id="game" ref={catssliderRef}>
-            <GameModes />
           </div>
         </div>
         <div className="py-6 flex items-center justify-center bg-gradient-to-r from-blue-300 to-purple-500">

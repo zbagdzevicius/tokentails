@@ -14,7 +14,7 @@ export interface ITransfer {
 
 export enum MysteryBoxRequirementType {
   APP_DOWNLOAD = "APP_DOWNLOAD",
-  COINS = "COINS",
+  TAILS = "TAILS",
   PURCHASE = "PURCHASE",
   CATNIP = "CATNIP",
   STREAK = "STREAK",
@@ -48,16 +48,10 @@ export const chainTypeRpcUrl: Record<ChainType, string> = {
 };
 
 export enum MYSTERY_BOX_TYPE {
-  CAMP_1 = "CAMP_1",
-  CAMP_2 = "CAMP_2",
-  CAMP_3 = "CAMP_3",
-  CAMP_4 = "CAMP_4",
-  CAMP_5 = "CAMP_5",
   CAMP_6 = "CAMP_6",
   CAMP_7 = "CAMP_7",
   CAMP_8 = "CAMP_8",
   CAMP_9 = "CAMP_9",
-  KEYBOARD_CAT = "KEYBOARD_CAT",
   CATNIP_CHAOS_1 = "CATNIP_CHAOS_1",
   CATNIP_CHAOS_2 = "CATNIP_CHAOS_2",
   CATNIP_CHAOS_3 = "CATNIP_CHAOS_3",
@@ -69,69 +63,6 @@ export enum MYSTERY_BOX_TYPE {
 
 export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
   [ChainType.CAMP]: [
-    {
-      address: "0x0A65888A4F76D821A3148620866BC65A5db599BB",
-      name: "Camp Mystery Box - Beginner Tier",
-      key: MYSTERY_BOX_TYPE.CAMP_1,
-      chain: ChainType.CAMP,
-      image: cdnFile("utilities/mystery-boxes/mystery-box-camp.jpg"),
-      requirements: {
-        text: "Joined Token Tails",
-      },
-    },
-    {
-      address: "0x5B1793d4AA54a36ad5F53d20C9ad1eEd8609410C",
-      name: "Camp Mystery Box - Explorer Tier",
-      key: MYSTERY_BOX_TYPE.CAMP_2,
-      chain: ChainType.CAMP,
-      image: cdnFile("utilities/mystery-boxes/mystery-box-camp2.jpg"),
-      requirements: {
-        type: MysteryBoxRequirementType.COINS,
-        metadata: {
-          catpoints: 50000,
-        },
-        text: "Collect 50k coins",
-      },
-    },
-    {
-      address: "0xec735A2Ba32703215b3e40d669C61FBd849b422a",
-      name: "Camp Mystery Box - Cat Savior Tier",
-      key: MYSTERY_BOX_TYPE.CAMP_3,
-      chain: ChainType.CAMP,
-      image: cdnFile("utilities/mystery-boxes/mystery-box-camp3.jpg"),
-      requirements: {
-        type: MysteryBoxRequirementType.PURCHASE,
-        text: "Save a cat",
-      },
-    },
-    {
-      address: "0x9B3873b545301B12E5bA1D7a6cB6fD672f4aBfc0",
-      name: "Camp Mystery Box - Cat Lover Tier",
-      key: MYSTERY_BOX_TYPE.CAMP_4,
-      chain: ChainType.CAMP,
-      image: cdnFile("utilities/mystery-boxes/mystery-box-camp4.jpg"),
-      requirements: {
-        type: MysteryBoxRequirementType.CATNIP,
-        metadata: {
-          catnip: 60,
-        },
-        text: "Collect 60 catnip",
-      },
-    },
-    {
-      address: "0xD6265283Af414697b61a46272669f21e6131628f",
-      name: "Campt Mystery Box - Cats Fan",
-      key: MYSTERY_BOX_TYPE.CAMP_5,
-      chain: ChainType.CAMP,
-      image: cdnFile("utilities/mystery-boxes/mystery-box-camp5.jpg"),
-      requirements: {
-        type: MysteryBoxRequirementType.STREAK,
-        metadata: {
-          streak: 10,
-        },
-        text: "Check-in 10 times (10 streak)",
-      },
-    },
     {
       address: "0xaE09454FA54F84E2eDAa43FA3A29d762335bBc73",
       name: "Campt Mystery Box - Cats Fan",

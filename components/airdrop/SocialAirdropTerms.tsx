@@ -48,14 +48,7 @@ const whatToDo = [
     image: SocialImages.X,
   },
   {
-    description: "1000 game coins + 1",
-    help: "Complete a Mission to fulfill your destiny - Earn 1000 Game Coins in Token Tails playing Catbassadors and be rewarded!",
-    points: "+∞",
-    image: cdnFile("logo/coin.webp"),
-    href: "https://tokentails.com/game",
-  },
-  {
-    description: "Collect 420 catnip",
+    description: "Collect 690 catnip",
     help: "Play catnip to complete levels and collect catnip.",
     points: "+690",
     image: cdnFile("logo/catnip.webp"),
@@ -66,6 +59,13 @@ const whatToDo = [
     help: "The bond is sealed in adoption. Multiply Your Blessings - Adopt a Cat NFT to Boost Your $TAILS",
     points: "Multiply",
     image: cdnFile("images/cats-slider/joy-cat.webp"),
+    href: "https://tokentails.com/game",
+  },
+  {
+    description: "Engage In-game",
+    help: "Do Quests, redeem on daily basis",
+    points: "+∞",
+    image: cdnFile("logo/catnip.webp"),
     href: "https://tokentails.com/game",
   },
 ];
@@ -96,7 +96,7 @@ export const SocialAirdropTerms = () => {
         <Countdown
           isDaysDisplayed
           isBig
-          targetDate={new Date(Date.UTC(2025, 9, 1))}
+          targetDate={new Date(Date.UTC(2025, 12, 1))}
         />
         <div className="flex items-center font-primary gap-2 text-p5 pt-4 text-center justify-center">
           TOTAL REWARDS POOL IS WORTH $1m USD

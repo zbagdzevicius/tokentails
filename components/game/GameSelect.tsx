@@ -1,3 +1,4 @@
+import { cdnFile } from "@/constants/utils";
 import { useCat } from "@/context/CatContext";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -7,9 +8,7 @@ import classNames from "classnames";
 import { useCallback } from "react";
 import { GameEvents } from "../Phaser/events";
 import { PixelButton } from "../shared/PixelButton";
-import { Tag } from "../shared/Tag";
 import { StatusBar } from "../shared/game/StatusBar";
-import { cdnFile } from "@/constants/utils";
 
 interface IProps {
   gameType: GameType | null;
@@ -17,7 +16,6 @@ interface IProps {
 }
 
 const gameTypeImages: Record<GameType, string> = {
-  [GameType.CATBASSADORS]: cdnFile("game/select/catbassadors.jpg"),
   [GameType.SHELTER]: cdnFile("game/select/shelter.jpg"),
   [GameType.HOME]: cdnFile("game/select/home.jpg"),
   [GameType.CATNIP_CHAOS]: cdnFile("game/select/catnip-chaos.webp"),
@@ -33,20 +31,14 @@ const GameSelectItem = ({
   return (
     <div
       className={classNames("flex flex-col gap-1 transition relative", {
-        "rotate-6 hover:rotate-0": [
-          GameType.CATBASSADORS,
-          GameType.SHELTER,
-        ].includes(gameType),
-        "-rotate-6 hover:rotate-0": [
-          GameType.CATNIP_CHAOS,
-          GameType.HOME,
-        ].includes(gameType),
+        "rotate-6 hover:rotate-0": [GameType.SHELTER].includes(gameType),
+        "-rotate-6 hover:rotate-0": [GameType.HOME].includes(gameType),
       })}
       onClick={() => setGameType(gameType)}
     >
       <img
         draggable={false}
-        className="rem:w-[120px] hover:brightness-110 rem:min-w-[120px] lg:w-[196px] lg:rem:min-w-[196px] rounded-xl hover:animate-hover"
+        className="rem:w-[120px] hover:brightness-110 rem:min-w-[120px] rounded-xl hover:animate-hover"
         src={gameTypeImages[gameType]}
       />
     </div>
@@ -109,42 +101,46 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
       )}
       {!gameType && (
         <>
-          <div className="flex max-w-max md:gap-4 lg:gap-8 min-w-0 justify-center items-center lg:mt-8">
-            <div className="flex flex-col gap-1 items-start">
+          <div className="flex flex-col max-w-max md:gap-4 lg:gap-8 min-w-0 items-center lg:mt-8 relative">
+            <div className="flex gap-28 mt-28 items-end absolute">
               <GameSelectItem
                 setGameType={setGameType}
-                gameType={GameType.CATNIP_CHAOS}
+                gameType={GameType.SHELTER}
               />
-              <div className="flex z-10 -mt-4 -mb-2">
-                <Tag>PLAY GAMES</Tag>
-              </div>
+
               <GameSelectItem
                 setGameType={setGameType}
-                gameType={GameType.CATBASSADORS}
+                gameType={GameType.HOME}
               />
             </div>
-
             {profile?.cat ? (
               <div className="relative w-24 min-w-24 flex flex-col items-center justify-center animate-appear">
+                <img
+                  draggable={false}
+                  src={cdnFile("logo/logo-text.webp")}
+                  className="w-24 h-auto md:-top-20 md:w-16 lg:w-24 z-10"
+                ></img>
                 <img
                   draggable={false}
                   className="w-28 min-w-28 h-28 -mx-4 -mb-9 relative z-10 pixelated"
                   src={profile.cat?.catImg}
                 />
-                <img
-                  draggable={false}
-                  src={cdnFile("logo/logo-text.webp")}
-                  className="absolute w-24 h-auto -top-36 md:-top-20 md:w-16 lg:w-24 lg:-top-36 z-10"
-                ></img>
 
                 <span className="pt-2 relative z-20">
                   <PixelButton
                     onClick={() => {
                       setOpenedModal(GameModal.CATS);
                     }}
-                    text="PETS"
+                    text="MY PETS"
                   ></PixelButton>
                 </span>
+                <div className="flex flex-col gap-1 items-start scale-150 mt-8">
+                  <PixelButton
+                    isBig
+                    text="PLAY"
+                    onClick={() => setGameType(GameType.CATNIP_CHAOS)}
+                  />
+                </div>
               </div>
             ) : (
               <img
@@ -152,20 +148,6 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
                 className="w-24 h-24 -mb-6 animate-spin pixelated"
               />
             )}
-            <div className="flex flex-col gap-1 items-end">
-              <GameSelectItem
-                setGameType={setGameType}
-                gameType={GameType.SHELTER}
-              />
-              <div className="flex z-10 -mt-4 -mb-2">
-                <Tag>SAVE CATS</Tag>
-              </div>
-
-              <GameSelectItem
-                setGameType={setGameType}
-                gameType={GameType.HOME}
-              />
-            </div>
           </div>
         </>
       )}

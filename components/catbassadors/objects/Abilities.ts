@@ -2,15 +2,13 @@ import { IPlayer } from "@/components/Phaser/PlayerMovement/IPlayer";
 import { BossEnemy } from "@/components/purrquest/objects/Boss";
 import { Enemy } from "@/components/purrquest/objects/Enemy";
 import { CatAbilityType } from "@/models/cats";
-import { CatbassadorsScene } from "../scenes/CatbassadorsScene";
-
-export type GameScene = CatbassadorsScene;
+import { Scene } from "phaser";
 
 const KNOCKBACK_ABILITY_DELAY_MS = 200;
 
 export class Abilities {
   private player: IPlayer;
-  private scene: GameScene;
+  private scene: Scene;
   private catAbilityType!: CatAbilityType;
   private isOnCooldown: boolean = false;
   private knockbackSpellLifetimeMs: number;
@@ -32,7 +30,7 @@ export class Abilities {
     LEGENDARY: 300, // Pinkish Purple
   };
 
-  constructor(player: IPlayer, scene: GameScene, type: CatAbilityType) {
+  constructor(player: IPlayer, scene: Scene, type: CatAbilityType) {
     this.player = player;
     this.scene = scene;
     this.catAbilityType = type;
@@ -100,39 +98,11 @@ export class Abilities {
 
     this.scene.physics.add.collider(
       knockbackSpell,
-      (this.scene as GameScene).groundLayer!,
+      (this.scene as Scene).groundLayer!,
       () => {
         this.handleSpellAnimationAndDestroy(knockbackSpell);
       }
     );
-
-    const enemyManager = (this.scene as CatbassadorsScene).enemyManager;
-    if (enemyManager) {
-      this.scene.physics.add.collider(
-        knockbackSpell,
-        enemyManager.enemies,
-        (_spell, enemy) => {
-          if (enemy instanceof Enemy) {
-            (enemy as Enemy).knockDown();
-            this.handleSpellAnimationAndDestroy(knockbackSpell);
-          }
-        }
-      );
-    }
-
-    const boss = enemyManager?.bossEnemy; // Access the bossEnemy from the EnemyManager
-    if (boss) {
-      this.scene.physics.add.collider(
-        knockbackSpell,
-        boss,
-        (_spell, bossEntity) => {
-          if (bossEntity instanceof BossEnemy) {
-            this.handleSpellHit(knockbackSpell, bossEntity as BossEnemy);
-            this.handleSpellAnimationAndDestroy(knockbackSpell);
-          }
-        }
-      );
-    }
 
     // Lifetime expiration
     this.scene.time.delayedCall(this.knockbackSpellLifetimeMs, () => {

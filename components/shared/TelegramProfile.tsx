@@ -288,19 +288,6 @@ export const TelegramProfileContent = () => {
                 <img
                   draggable={false}
                   className="w-5"
-                  src={cdnFile("logo/coin.webp")}
-                />
-                <div className="flex font-secondary text-p4 gap-2">
-                  Coins:{" "}
-                  <span className="font-bold">
-                    {commafy(profile.catpoints)}
-                  </span>
-                </div>
-              </li>
-              <li className="flex items-center gap-x-2">
-                <img
-                  draggable={false}
-                  className="w-5"
                   src={cdnFile("logo/catnip.webp")}
                 />
                 <div className="flex font-secondary text-p4 gap-2">
@@ -353,19 +340,6 @@ export const TelegramProfileContent = () => {
 
           {activeTab === "achievements" && (
             <ul>
-              <li className="flex items-center gap-x-2 mt-4 justify-center">
-                <img
-                  draggable={false}
-                  className="w-5"
-                  src={cdnFile("logo/coin.webp")}
-                />
-                <div className="flex font-secondary text-p4 gap-2">
-                  CATBASSADORS RECORD:{" "}
-                  <span className="font-bold">
-                    {profile?.catbassadorsRecord || 0}
-                  </span>
-                </div>
-              </li>
               <li className="flex items-center gap-x-2 justify-center">
                 <img
                   draggable={false}

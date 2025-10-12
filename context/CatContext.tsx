@@ -71,8 +71,7 @@ const CatProvider = ({ children }: React.PropsWithChildren<{}>) => {
         status: { ...(cat.status || {}), [status.type]: status.status },
       };
       setProfileUpdate({
-        catbassadorsLives: (profile?.catbassadorsLives || 0) + 9,
-        catpoints: (profile?.catpoints || 0) + 1000,
+        tails: (profile?.tails || 0) + 10,
         cat: newStatus,
       });
       await saveStatus.mutate(newStatus.status);

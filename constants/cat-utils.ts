@@ -13,12 +13,6 @@ export const getMultiplier = (cat?: ICat | null) => {
   if (cat.price) {
     return 5;
   }
-  if (cat.catpoints > 1000000) {
-    return 3;
-  }
-  if (cat.catpoints > 50000) {
-    return 2;
-  }
   return 1;
 };
 

@@ -6,7 +6,7 @@ type ContextState = {
   setToast: (toast: IToast) => void;
 };
 
-export type ICollectibleProperty = "catbassadorsLives" | "tails" | "catpoints";
+export type ICollectibleProperty = "tails";
 
 export interface IToast {
   message?: string;

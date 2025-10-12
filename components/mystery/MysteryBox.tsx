@@ -97,22 +97,7 @@ export const MysteryBox = () => {
     if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP]![2].key)) {
       return mysteryBoxes[ChainType.CAMP]![2];
     }
-    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP]![3].key)) {
-      return mysteryBoxes[ChainType.CAMP]![3];
-    }
-    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP]![4].key)) {
-      return mysteryBoxes[ChainType.CAMP]![4];
-    }
-    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP]![5].key)) {
-      return mysteryBoxes[ChainType.CAMP]![5];
-    }
-    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP]![6].key)) {
-      return mysteryBoxes[ChainType.CAMP]![6];
-    }
-    if (!profile?.quests?.includes(mysteryBoxes[ChainType.CAMP]![7].key)) {
-      return mysteryBoxes[ChainType.CAMP]![7];
-    }
-    return mysteryBoxes[ChainType.CAMP]![8];
+    return mysteryBoxes[ChainType.CAMP]![3];
   }, [profile?.quests]);
   const unlockedIndex = useMemo(() => {
     return mysteryBoxes[ChainType.CAMP]?.findIndex(
@@ -121,7 +106,7 @@ export const MysteryBox = () => {
   }, [mysteryBox]);
   const finished = useMemo(() => {
     return profile?.quests?.find(
-      (quest) => quest === mysteryBoxes[ChainType.CAMP]![8].key
+      (quest) => quest === mysteryBoxes[ChainType.CAMP]![3].key
     );
   }, [profile?.quests]);
   const isRedeemed = useMemo(() => {
@@ -140,10 +125,8 @@ export const MysteryBox = () => {
     if (mysteryBox.requirements?.type === MysteryBoxRequirementType.PURCHASE) {
       return !!cats?.some((cat) => cat.blessings?.length || cat.price);
     }
-    if (mysteryBox.requirements?.type === MysteryBoxRequirementType.COINS) {
-      return (
-        (profile?.catpoints || 0) >= mysteryBox.requirements.metadata.catpoints
-      );
+    if (mysteryBox.requirements?.type === MysteryBoxRequirementType.TAILS) {
+      return (profile?.tails || 0) >= mysteryBox.requirements.metadata.tails;
     }
     if (mysteryBox.requirements?.type === MysteryBoxRequirementType.STREAK) {
       return (profile?.streak || 0) >= mysteryBox.requirements.metadata.streak;
@@ -172,9 +155,7 @@ export const MysteryBox = () => {
           : profile?.cats,
         cat: result.cat || profile?.cat,
         quests: [...(profile?.quests || []), mysteryBox.key],
-        catbassadorsLives:
-          (profile?.catbassadorsLives || 0) + (result.catbassadorsLives || 0),
-        catpoints: (profile!.catpoints || 0) + (result.catpoints || 0),
+        tails: (profile?.tails || 0) + (result.tails || 0),
       });
       if (result.cat) {
         setGameType(GameType.HOME);
@@ -268,7 +249,7 @@ export const MysteryBox = () => {
       </Web3Providers>
       <div className="flex flex-col gap-2 mt-2">
         {!finished && (
-          <Tag isSmall>Complete all 5 mints for maximum rewards !</Tag>
+          <Tag isSmall>Complete all 4 mints for maximum rewards !</Tag>
         )}
         <div className="flex w-full justify-center gap-4 gap-y-8 flex-wrap">
           {mysteryBoxes.CAMP?.map((box, i) => (

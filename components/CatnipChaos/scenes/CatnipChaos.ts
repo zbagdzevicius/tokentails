@@ -67,7 +67,6 @@ export class CatnipChaosScene extends Scene {
   private flightEffectSprite?: Phaser.GameObjects.Sprite;
   private flightCloudSprite?: Phaser.GameObjects.Sprite;
   private geometryDashCloudSprite?: Phaser.GameObjects.Sprite;
-  private isInFlightMode: boolean = false;
   private wasOnFlightOnBlock: boolean = false;
   private wasOnFlightOffBlock: boolean = false;
   private wasOnTile309: boolean = false;
@@ -583,7 +582,6 @@ export class CatnipChaosScene extends Scene {
 
       if (onFlightOffBlock && !this.wasOnFlightOffBlock) {
         this.cat.movement.setFlightMode(false);
-        this.isInFlightMode = false;
         // Remove cloud sprite
         if (this.flightCloudSprite) {
           this.flightCloudSprite.destroy();
@@ -594,7 +592,6 @@ export class CatnipChaosScene extends Scene {
       if (onTile309 && !this.wasOnTile309) {
         this.cat.movement.setFlightMode(false);
         this.cat.sprite.setRotation(0); // Reset rotation to normal
-        this.isInFlightMode = false;
         // Remove cloud sprite
         if (this.flightCloudSprite) {
           this.flightCloudSprite.destroy();

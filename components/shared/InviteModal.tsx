@@ -1,14 +1,14 @@
+import { bgStyle, cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { GameModal } from "@/models/game";
 import dynamic from "next/dynamic";
 import { useState } from "react";
+import { MysteryBox } from "../mystery/MysteryBox";
+import { Trailheads } from "../mystery/Trailheads";
 import { Web3Providers } from "../web3/Web3Providers";
 import { CloseButton } from "./CloseButton";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
-import { MysteryBox } from "../mystery/MysteryBox";
-import { Trailheads } from "../mystery/Trailheads";
-import { bgStyle, cdnFile } from "@/constants/utils";
 
 const MysteryBoxCat = dynamic(
   () => import("../mystery/MysteryBoxCat").then((mod) => mod.MysteryBoxCat),
@@ -138,7 +138,6 @@ export const InviteModalContent = () => {
           <MysteryBoxCat />
         </Web3Providers>
       )}
-      {/* {type === GameModal.MYSTERY_CAT && <MysteryCat />} */}
     </div>
   );
 };

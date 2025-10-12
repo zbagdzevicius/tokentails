@@ -155,7 +155,6 @@ export interface ICat {
   cardImg: string;
   expiresAt?: string;
   price: number;
-  catpoints: number;
   blessings: IBlessing[];
   shelter?: any;
 }

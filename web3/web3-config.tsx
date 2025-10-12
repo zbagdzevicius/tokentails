@@ -13,7 +13,6 @@ import {
   WalletNetwork,
   xBullModule,
 } from "@creit.tech/stellar-wallets-kit/index";
-import { paraConnector } from "@getpara/wagmi-v2-integration";
 import {
   BitgetWalletAdapter,
   HuobiWalletAdapter,
@@ -25,8 +24,6 @@ import {
 } from "@solana/wallet-adapter-wallets";
 
 import { cdnFile, randomObjectFromArray } from "@/constants/utils";
-import { para } from "@/models/para";
-import { AuthLayout, OAuthMethod } from "@getpara/react-sdk";
 import { Horizon, Networks } from "@stellar/stellar-sdk";
 import { networks } from "./web3-chains";
 
@@ -78,23 +75,7 @@ export const solanaWallets = [
   new LedgerWalletAdapter(),
 ];
 
-export const paraConnected = paraConnector({
-  para,
-  appName: "Token Tails",
-  logo: cdnFile("logo/logo.webp"),
-  oAuthMethods: [OAuthMethod.GOOGLE, OAuthMethod.TWITTER],
-  theme: {
-    mode: "light",
-  },
-  onRampTestMode: true,
-  disablePhoneLogin: true,
-  authLayout: [AuthLayout.AUTH_FULL],
-  recoverySecretStepEnabled: true,
-  options: {},
-});
-
 export const wagmiAdapter = new WagmiAdapter({
-  connectors: [paraConnected as any],
   networks,
   projectId,
   ssr: typeof window === "undefined",

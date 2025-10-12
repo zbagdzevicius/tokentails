@@ -217,36 +217,6 @@ export function getRandomItemFromArray(arr: string[]) {
   return arr.at(randomItemPosition);
 }
 
-export const daysCoins: Record<number, string> = {
-  1: "icons/coins/candy-cane.png",
-  2: "icons/coins/snowflake.png",
-  3: "icons/coins/santa-hat.png",
-  4: "icons/coins/christmas-tree.png",
-  5: "icons/coins/gift-box.png",
-  6: "icons/coins/gingerbread.png",
-  7: "icons/coins/bell.png",
-  8: "icons/coins/star.png",
-  9: "icons/coins/holly-berry.png",
-  10: "icons/coins/ornament.png",
-  11: "icons/coins/rudolf.png",
-  12: "icons/coins/wreath.png",
-  13: "icons/coins/elf-shoe.png",
-  14: "icons/coins/snow-globe.png",
-  15: "icons/coins/candy-wrapper.png",
-  16: "icons/coins/mistletoe.png",
-  17: "icons/coins/stocking.png",
-  18: "icons/coins/peppermint.png",
-  19: "icons/coins/icycle.png",
-  20: "icons/coins/santa-belt.png",
-  21: "icons/coins/poinsettia.png",
-  22: "icons/coins/hot-cocoa.png",
-  23: "icons/coins/nutcracker.png",
-  24: "icons/coins/snow-man.png",
-  25: "icons/coins/christmas-candle.png",
-};
-const currentDay = new Date().getUTCDate();
-export const currentDayCoin = daysCoins[currentDay] || daysCoins[25];
-
 export const getNextDayMidnight = () => {
   const now = new Date();
   const nextDay = new Date(

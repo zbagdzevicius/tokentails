@@ -18,18 +18,13 @@ const profile = async (): Promise<IProfile> => {
 };
 
 const leaderboard = async (gameModal: GameModal): Promise<IProfile[]> => {
-  return fetch(
-    `${apiUrl}/user/leaderboard${
-      gameModal === GameModal.LEADERBOARD_DAILY ? "/daily" : ""
-    }`,
-    {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      } as any,
-    }
-  )
+  return fetch(`${apiUrl}/user/leaderboard`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    } as any,
+  })
     .then((response) => {
       if (response.ok) {
         return response.json();
@@ -59,24 +54,6 @@ const leaderboardPosition = async (): Promise<number> => {
       return { position: "999" };
     })
     .then((v) => v.position);
-};
-
-const setAdventDay = async (): Promise<void> => {
-  return fetch(`${apiUrl}/user/advent`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
-  }).then((response) => {
-    if (response.ok) {
-      return response.json();
-    }
-
-    console.warn(JSON.stringify(response));
-    return;
-  });
 };
 
 const saveCodex = async (): Promise<Partial<IProfile>> => {
@@ -158,7 +135,6 @@ export const USER_API = {
   profile,
   leaderboard,
   leaderboardPosition,
-  setAdventDay,
   saveProfileTwitter,
   saveMatch,
   redeem,

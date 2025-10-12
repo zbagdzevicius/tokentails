@@ -2,7 +2,7 @@ import { ICat } from "@/models/cats";
 import { GameModal } from "@/models/game";
 import { useRouter } from "next/router";
 import { useMemo } from "react";
-import { CatCard } from "../catCard/CatCard";
+import { CatCard } from "../catCard/CatCardModal";
 import { CatDonation } from "../shared/CatDonation";
 import { PixelButton } from "../shared/PixelButton";
 import { ShelterBenefits } from "../shared/ShelterBenefits";

@@ -13,13 +13,8 @@ const leaderboardTexts: Partial<
 > = {
   [GameModal.LEADERBOARD]: {
     header: "ALL TIME",
-    title: "STAY IN TOP 200 - GET 20k WEEKLY COINS",
-    subtitle: "EARN COINS TO STAY IN THE TOP",
-  },
-  [GameModal.LEADERBOARD_DAILY]: {
-    header: "DAILY",
-    title: "STAY IN TOP 20 - GET 5k DAILY COINS",
-    subtitle: "PLAY TODAY TO GET TO THE TOP",
+    title: "STAY IN TOP 200 - GET 100 WEEKLY $TAILS",
+    subtitle: "EARN $TAILS TO STAY IN THE TOP",
   },
 };
 
@@ -39,11 +34,6 @@ export const LeaderboardContent = () => {
             active={type === GameModal.LEADERBOARD}
             text={leaderboardTexts[GameModal.LEADERBOARD]?.header!}
             onClick={() => setType(GameModal.LEADERBOARD)}
-          ></PixelButton>
-          <PixelButton
-            active={type === GameModal.LEADERBOARD_DAILY}
-            text={leaderboardTexts[GameModal.LEADERBOARD_DAILY]?.header!}
-            onClick={() => setType(GameModal.LEADERBOARD_DAILY)}
           ></PixelButton>
         </div>
         <h2 className="text-center font-secondary uppercase text-p5 md:text-p4">
@@ -101,8 +91,8 @@ export const LeaderboardContent = () => {
                 }`}
               >
                 {(type === GameModal.LEADERBOARD
-                  ? result.catpoints
-                  : result.catpointsToday) || 0}
+                  ? result.tails
+                  : result.catnipCount) || 0}
               </td>
             </tr>
           ))}

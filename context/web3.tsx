@@ -23,7 +23,6 @@ if (typeof window !== "undefined") {
     networks: networks as any,
     projectId,
     themeMode: "light",
-    featuredWalletIds: ["para"],
     features: {
       analytics: true,
       email: false,

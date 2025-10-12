@@ -2,7 +2,6 @@ import { USER_API } from "@/api/user-api";
 import { GameOptionsModal } from "@/components/game/GameOptionsModal";
 import { GameSelect } from "@/components/game/GameSelect";
 import { Leaderboard } from "@/components/Leaderboard";
-import { DisplayCoins } from "@/components/Phaser/DisplayCoins";
 import {
   GameEvent,
   GameEvents,
@@ -44,8 +43,6 @@ type ContextState = {
 };
 
 const GameContext = React.createContext<ContextState | undefined>(undefined);
-
-let timerInterval: any = null;
 
 const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [isStarted, setIsStarted] = useState<boolean>(false);
@@ -94,8 +91,6 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           : (event.score || 0) * multiplier;
 
       setIsStarted(false);
-      setTimer(0);
-      clearInterval(timerInterval);
       startTimeRef.current = null;
       durationRef.current = 0;
 
@@ -116,23 +111,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
       if (result === null) {
         showToast({ message: "You run out of lives ):" });
       }
-      if (gameType === GameType.CATBASSADORS) {
-        setProfileUpdate({
-          catbassadorsLives: (profile.catbassadorsLives || 1) - 1,
-          catpoints: profile.catpoints + earnedScore,
-          monthCatbassadorsLivesSpent:
-            (profile.monthCatbassadorsLivesSpent || 0) + 1,
-          monthCatpoints: (profile.monthCatpoints || 0) + earnedScore,
-        });
-      }
-      if (gameType === GameType.CATNIP_CHAOS) {
-        setProfileUpdate({
-          catbassadorsLives: (profile.catbassadorsLives || 1) - 1,
-          catnipChaos,
-          monthCatbassadorsLivesSpent:
-            (profile.monthCatbassadorsLivesSpent || 0) + 1,
-        });
-      }
+      setProfileUpdate({
+        catnipChaos,
+      });
     },
     [profile, gameType, level]
   );
@@ -140,35 +121,14 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   GameEvents.GAME_STOP.use(gameStopCallback);
 
   GameEvents.GAME_START.use(() => {
-    if (timerInterval) {
-      clearInterval(timerInterval);
-    }
     setIsStarted(true);
-    setTimer(catbassadorsGameDuration);
 
     startTimeRef.current = Date.now();
     durationRef.current = catbassadorsGameDuration;
-
-    timerInterval = setInterval(() => {
-      if (startTimeRef.current !== null) {
-        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-        const remaining = Math.max(durationRef.current - elapsed, 0);
-        setTimer(remaining);
-
-        if (remaining <= 0) {
-          clearInterval(timerInterval);
-        }
-      }
-    }, 1000);
   });
 
   const playGame = React.useCallback(() => {
-    if (profile?.catbassadorsLives) {
-      GameEvents.GAME_START.push({ cat: profile?.cat });
-      setIsStarted(true);
-    } else {
-      showToast({ message: "Invite friends to earn lives !" });
-    }
+    GameEvents.GAME_START.push({ cat: profile?.cat });
   }, [profile]);
 
   GameEvents.GAME_UPDATE.use((event) => {
@@ -235,19 +195,14 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const tryAgain = (nextLevel?: string) => {
     setGameStop(null);
     setGameType(gameType);
-    if ((profile?.catbassadorsLives || 0) > 0) {
-      if (nextLevel) {
-        setLevel(null);
-        setTimeout(() => {
-          setLevel(nextLevel);
-          setIsStarted(true);
-        }, 200);
-      } else {
-        GameEvents.GAME_START.push({ cat: profile?.cat, isRestart: true });
-      }
+    if (nextLevel) {
+      setLevel(null);
+      setTimeout(() => {
+        setLevel(nextLevel);
+        setIsStarted(true);
+      }, 200);
     } else {
-      showToast({ message: "You run out of lives ):" });
-      onClose();
+      GameEvents.GAME_START.push({ cat: profile?.cat, isRestart: true });
     }
   };
 
@@ -282,10 +237,6 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
               !(gameType === GameType.HOME && !!profile.cat?.status?.EAT)
             }
           />
-          {isStarted && gameType === GameType.CATBASSADORS && <DisplayCoins />}
-          {/* {isStarted && gameType === GameType.CATNIP_CHAOS && (
-            <CloseButton onClick={onClose} absolute />
-          )} */}
 
           {openedModal === GameModal.PROFILE && (
             <TelegramProfile close={() => setOpenedModal(null)} />

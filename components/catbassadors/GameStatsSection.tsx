@@ -4,7 +4,7 @@ import { useToast } from "@/context/ToastContext";
 import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
 import { useState } from "react";
-import { CatnipChaosLevelMap, totalCatnip } from "../Phaser/map";
+import { totalCatnip } from "../Phaser/map";
 import { CloseButton } from "../shared/CloseButton";
 import { PixelButton } from "../shared/PixelButton";
 interface IGameStat {
@@ -37,7 +37,7 @@ export const GameStatSection = ({
   );
 };
 
-const coinsText = `EARN COINS BY CRAFTING WITH YOUR CATS, INVITING FRIENDS, PLAYING CATBASSADORS AND DOING DAILY CHECK-INS.
+const tailsText = `EARN $TAILS BY CRAFTING WITH YOUR CATS, INVITING FRIENDS, PLAYING AND DOING DAILY CHECK-INS.
 EARN CATNIP BY PLAYING CATNIP CHAOS.
 `;
 
@@ -83,33 +83,10 @@ export const GameStatsSection = ({
             <div>ABOUT ME</div>
           </div>
         </div>
-        <div className="flex flex-col items-center">
-          {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
-            <div
-              onClick={() =>
-                toast({
-                  message:
-                    "To earn lives - Redeem daily rewards, invite friends and feed your cat at Home",
-                })
-              }
-              className="flex flex-col items-center font-secondary text-p2 bg-purple-300 hover:bg-red-300 transition-colors px-2 rounded-b-xl"
-            >
-              <div className="text-p4">{profile.catbassadorsLives || 0}</div>
-              <div className="flex items-center -mt-2">
-                <img
-                  draggable={false}
-                  className="w-5 z-10 pr-1"
-                  src={cdnFile("base/heart.png")}
-                />
-                <div className="text-p5">LIVES</div>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
       <div className="fixed left-4 pb-safe top-4 z-10 flex flex-col justify-between">
         <div
-          onClick={() => setModal(coinsText)}
+          onClick={() => setModal(tailsText)}
           className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-1"
           style={bgStyle("min-5")}
         >
@@ -117,12 +94,12 @@ export const GameStatsSection = ({
             <img
               draggable={false}
               className="w-5 h-5"
-              src={cdnFile("logo/coin.webp")}
+              src={cdnFile("logo/logo.webp")}
             />
-            <div>COINS</div>
+            <div>$TAILS</div>
           </div>
           <div className="flex items-center gap-2 -mt-1">
-            <div className="text-p5">{profile?.catpoints?.toFixed(0) || 0}</div>
+            <div className="text-p5">{profile?.tails?.toFixed(0) || 0}</div>
           </div>
           <div className="text-p4 font-bold flex items-center gap-1">
             <img

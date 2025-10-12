@@ -2,7 +2,6 @@ export enum GameModal {
   QUESTS = "QUESTS",
   PROFILE = "PROFILE",
   LEADERBOARD = "LEADERBOARD",
-  LEADERBOARD_DAILY = "LEADERBOARD_DAILY",
   CAMP = "CAMP",
   CATS = "CATS",
   INVITE = "INVITE",
@@ -18,7 +17,6 @@ export enum GameModal {
 export enum GameType {
   SHELTER = "SHELTER",
   HOME = "HOME",
-  CATBASSADORS = "CATBASSADORS",
   CATNIP_CHAOS = "CATNIP_CHAOS",
 }
 

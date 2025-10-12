@@ -5,13 +5,11 @@ import { apiUrl } from "./api";
 
 export const rewardsConfig = {
   tails: { chance: 0.05, cap: 10000, likely: 300, name: "$TAILS" },
-  catbassadorsLives: { chance: 0.2, cap: 1000, likely: 20, name: "Lives" },
-  catpoints: { chance: 0.75, cap: 1000000, likely: 20000, name: "Coins" },
 };
 
-export const getRewardsPropName = (
-  type: "catbassadorsLives" | "tails" | "catpoints"
-) => {
+export type IRewardConfig = "tails";
+
+export const getRewardsPropName = (type: IRewardConfig) => {
   return rewardsConfig[type].name;
 };
 
@@ -19,7 +17,7 @@ export interface ITransactionStatus {
   success: boolean;
   message: string;
   cat: ICat;
-  type: "catbassadorsLives" | "tails" | "catpoints";
+  type: IRewardConfig;
   amount: number;
 }
 

@@ -149,8 +149,7 @@ const redeemContest = async (
   message: string;
   success?: boolean;
   cat?: ICat;
-  catpoints?: number;
-  catbassadorsLives?: number;
+  tails?: number;
 }> => {
   await waitForLocalStorageKey();
   return fetch(`${apiUrl}/quest/contest/${contest}`, {
@@ -197,7 +196,6 @@ const find = async (): Promise<ILocalQuest[]> => {
             icon: dataPoint.image.url,
             link: dataPoint.link,
             reward: {
-              coins: dataPoint.catpoints,
               tails: dataPoint.tails,
             },
           } as ILocalQuest)

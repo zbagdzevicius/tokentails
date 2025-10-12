@@ -24,26 +24,18 @@ export interface IProfile {
   cats: ICat[];
   score: number;
   wallets: IUserWallets;
-  catpoints: number;
-  catpointsToday: number;
-  catbassadorsRecord: number;
   catnipChaos: number[];
-  catbassadorsCount: number;
-  catpointsRecord: number;
-  canRedeemLives: boolean;
-  catbassadorsLives: number;
-  adventDayRedeemed: number;
+  catnipCount: number;
   referralsCount: number;
   quests: (QUEST | string)[];
-  advent: number;
-
-  monthCatpoints: number;
-  monthCatbassadorsLivesSpent: number;
+  monthTails: number;
+  monthSpent: number;
+  canRedeemLives: boolean;
   monthCatsAdopted: number;
   monthBoxes: number;
   monthFeeded: number;
   monthStreak: number;
   monthReferrals: number;
   monthTicketCount: number;
-  monthCoinsCrafted: number;
+  monthTailsCrafted: number;
 }

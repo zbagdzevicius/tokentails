@@ -48,7 +48,7 @@ export const CatnipChaosLevels = ({
     if (result.success) {
       setProfileUpdate({
         quests: [...(profile?.quests || []), mysteryBox.key],
-        catpoints: (profile?.catpoints || 0) + 10000,
+        tails: (profile?.tails || 0) + 100,
       });
       showToast({ message: result.message });
     }

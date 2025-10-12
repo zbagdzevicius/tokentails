@@ -3,9 +3,7 @@ import { ICollectibleProperty, IToast } from "@/context/ToastContext";
 import React from "react";
 
 const symbolImage: Record<ICollectibleProperty, string> = {
-  catbassadorsLives: cdnFile("logo/heart.webp"),
   tails: cdnFile("logo/logo.webp"),
-  catpoints: cdnFile("logo/coin.webp"),
 };
 
 export const Toast = ({ message, icon, isError, symbol, img }: IToast) => {

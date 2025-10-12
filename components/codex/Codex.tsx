@@ -46,22 +46,21 @@ const codex: ICodex[] = [
     title: "#2 Play Is Prayer",
     description:
       "When we quest, we serve. When we mint, we mend. Every action echoes in shelters, clinics, and cages.",
-    how: "Play Catbassadors game and collect coins. The more you play, the more coins you can collect.",
+    how: "Earn $TAILS through playing or participating in Airdrop event",
     image: cdnFile("codex/codex-2.webp"),
-    task: "COLLECT 100,000 COINS",
-    verification: (profile) => (profile?.monthCatpoints || 0) >= 100000,
-    status: (profile) => `${profile?.monthCatpoints || 0} / 100,000`,
+    task: "COLLECT 100 $TAILS",
+    verification: (profile) => (profile?.monthTails || 0) >= 100,
+    status: (profile) => `${profile?.monthTails || 0} / 100`,
   },
   {
     title: "#3 The Saviors Are Marked",
     description:
       "We are not collectors. We are chosen — called to bind our wallets to the weak. Every cat we save leaves a mark on our legacy… and our fortune.",
-    how: "Play Catbassadors game or Catnip chaos game so much, that you'll end up spending 50 lives.",
+    how: "Save a cat!",
     image: cdnFile("codex/codex-3.webp"),
-    task: "SPEND 50 LIVES PLAYING",
-    verification: (profile) =>
-      (profile?.monthCatbassadorsLivesSpent || 0) >= 50,
-    status: (profile) => `${profile?.monthCatbassadorsLivesSpent || 0} / 50`,
+    task: "SPEND $1",
+    verification: (profile) => (profile?.monthSpent || 0) >= 50,
+    status: (profile) => `${profile?.monthSpent || 0} / 1`,
   },
   {
     title: "#4 Coins Must Flow Where Compassion Leads",
@@ -117,11 +116,11 @@ const codex: ICodex[] = [
     title: "#9 Destiny Is Shared",
     description:
       "To save a cat is to unlock its ninth life. But in return, it unlocks yours. Every rescuer earns a fortune not just in token — but in legacy, in status, in soul.",
-    how: "Craft 100,000 coins by staking your cats. You can do it once every 7 days with each of your cat, head over to 'CATS' section and click 'CRAFT COINS' button. The more cats you have, the more coins you can craft.",
+    how: "Craft 100,000 tails by staking your cats. You can do it once every 7 days with each of your cat, head over to 'CATS' section and click 'CRAFT $TAILS' button. The more cats you have, the more $TAILS you can craft.",
     image: cdnFile("codex/codex-9.webp"),
-    task: "CRAFT COINS",
-    verification: (profile) => (profile?.monthCoinsCrafted || 0) >= 100000,
-    status: (profile) => `${profile.monthCoinsCrafted || 0} / 100000`,
+    task: "CRAFT TAILS",
+    verification: (profile) => (profile?.monthTailsCrafted || 0) >= 100000,
+    status: (profile) => `${profile.monthTailsCrafted || 0} / 100000`,
   },
 ];
 

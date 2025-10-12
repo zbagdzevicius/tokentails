@@ -1,14 +1,14 @@
-import { GameEvent, GameEvents, ICatEvent } from "@/components/Phaser/events";
-import { cdnFile, ZOOM } from "@/constants/utils";
-import { ICat } from "@/models/cats";
-import { Scene } from "phaser";
-import { CatNpc, NPCJobType } from "../objects/Cat";
-import { Food } from "../objects/Food";
 import { Cat } from "@/components/catbassadors/objects/Catbassador";
+import { GameEvent, GameEvents, ICatEvent } from "@/components/Phaser/events";
+import { CoreMap } from "@/components/Phaser/map";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { NpcCat } from "@/components/shelter/objects/NpcCat";
 import { SpeechBubble } from "@/components/shelter/objects/SpeechBubble";
-import { CoreMap } from "@/components/Phaser/map";
+import { cdnFile, ZOOM } from "@/constants/utils";
+import { ICat } from "@/models/cats";
+import { Scene } from "phaser";
+import { NPCJobType } from "../objects/Cat";
+import { Food } from "../objects/Food";
 
 const JUMP_LAYER_TILES = [
   169, 170, 139, 140, 200, 224, 225, 226, 227, 31, 32, 33, 35,

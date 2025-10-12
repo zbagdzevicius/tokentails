@@ -7,7 +7,6 @@ import { useCallback, useMemo } from "react";
 import { GameStatsSection } from "../catbassadors/GameStatsSection";
 import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
-import { Tag } from "../shared/Tag";
 
 interface IProps {
   profile: IProfile;
@@ -23,17 +22,13 @@ export const GameOptionsModal = ({
   setOpenedModal,
 }: IProps) => {
   const numberOfPointsToRedeem = useMemo(() => {
-    const referralsPoints = (profile?.referralsCount || 0) * 50;
-    const streakPoints = (profile?.streak || 0) * 25;
-    const basePoints = 250;
+    const referralsPoints = (profile?.referralsCount || 0) * 1;
+    const streakPoints = (profile?.streak || 0) * 1;
+    const basePoints = 10;
 
     return referralsPoints + streakPoints + basePoints;
   }, [profile?.referralsCount, profile?.streak]);
   const toast = useToast();
-
-  const numberOfLivesToRedeem = useMemo(() => {
-    return (profile?.referralsCount || 0) + 3;
-  }, [profile?.referralsCount]);
 
   const nextDayTargetDate = getNextDayMidnight();
 
@@ -42,13 +37,11 @@ export const GameOptionsModal = ({
     setProfileUpdate({
       canRedeemLives: false,
       streak: (profile.streak || 0) + 1,
-      catpoints: (profile.catpoints || 0) + numberOfPointsToRedeem,
-      catbassadorsLives:
-        (profile.catbassadorsLives || 0) + numberOfLivesToRedeem,
+      tails: (profile.tails || 0) + numberOfPointsToRedeem,
       monthStreak: (profile.monthStreak || 0) + 1,
     });
     toast({
-      message: `You got ${numberOfPointsToRedeem} coins + ${numberOfLivesToRedeem} lives`,
+      message: `You got ${numberOfPointsToRedeem} $TAILS`,
       img: cdnFile("logo/chest.webp"),
     });
   }, []);
@@ -78,18 +71,10 @@ export const GameOptionsModal = ({
                   <img
                     draggable={false}
                     className="w-6 z-10"
-                    src={cdnFile("base/heart.png")}
-                  />
-                  <div className="text-p5">3 LIVES</div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <img
-                    draggable={false}
-                    className="w-6 z-10"
                     src={cdnFile("logo/coin.webp")}
                   />
                   <div className="text-p5 mt-1">
-                    {numberOfPointsToRedeem} COINS
+                    {numberOfPointsToRedeem} $TAILS
                   </div>
                 </div>
               </div>
