@@ -1,7 +1,7 @@
+import { REWARDS } from "@/constants/rewards";
 import { bgStyle, cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { GameModal } from "@/models/game";
-import dynamic from "next/dynamic";
 import { useState } from "react";
 import { MysteryBox } from "../mystery/MysteryBox";
 import { Trailheads } from "../mystery/Trailheads";
@@ -9,19 +9,7 @@ import { Web3Providers } from "../web3/Web3Providers";
 import { CloseButton } from "./CloseButton";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
-
-const MysteryBoxCat = dynamic(
-  () => import("../mystery/MysteryBoxCat").then((mod) => mod.MysteryBoxCat),
-  {
-    ssr: false,
-    loading: () => (
-      <img
-        src={cdnFile("icons/loader.webp")}
-        className="w-8 h-8 m-auto animate-spin pixelated"
-      />
-    ),
-  }
-);
+import { MysteryBoxCat } from "../mystery/MysteryBoxCat";
 
 export const InviteModalContent = () => {
   const { utils, shareUrl } = useProfile();
@@ -60,21 +48,13 @@ export const InviteModalContent = () => {
           >
             <Tag isSmall>WHAT I'LL GET FOR INVITING A FRIEND?</Tag>
 
-            <div className="flex flex-row items-center">
-              <img
-                draggable={false}
-                className="w-7 h-7  md:w-8 md:h-8 lg:w-10 lg:h-10 mr-1"
-                src={cdnFile("base/heart.png")}
-              />
-              <p className="text-p4">9 LIVES</p>
-            </div>
             <div className="flex flex-row items-center mb-1">
               <img
                 draggable={false}
-                className="w-7 md:w-8 md:h-8 lg:w-10 lg:h-10 h-7 mr-1"
-                src={cdnFile("logo/coin.webp")}
+                className="md:h-8 lg:h-10 h-7 mr-1"
+                src={cdnFile("logo/logo.webp")}
               />
-              <p className="text-p4">9000 COINS</p>
+              <p className="text-p4">{REWARDS.INVITE_FRIEND} $TAILS</p>
             </div>
             <div className="flex flex-row items-center">
               <img
@@ -82,15 +62,9 @@ export const InviteModalContent = () => {
                 className="w-7 h-6  md:w-8 md:h-7 lg:w-10 lg:h-9 mr-1"
                 src={cdnFile("icons/invites/gift-coin.png")}
               />
-              <p className="text-p4">9000 COINS FOR YOUR FRIEND</p>
-            </div>
-            <div className="flex flex-row items-center">
-              <img
-                draggable={false}
-                className="w-7 h-7  md:w-8 md:h-8 lg:w-10 lg:h-10 mr-1"
-                src={cdnFile("icons/invites/gift.png")}
-              />
-              <p className="text-p4">MORE DAILY CHECK-IN REWARDS</p>
+              <p className="text-p4">
+                {REWARDS.INVITE_FRIEND} $TAILS FOR YOUR FRIEND
+              </p>
             </div>
             <div className="absolute -top-3 -left-3 z-0 -rotate-45">
               <img

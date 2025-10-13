@@ -15,7 +15,7 @@ export default function marketing() {
           key="title"
         />
         <meta name="description" content="Do you want to work with us ?" />
-        <link rel="shortcut icon" href={cdnFile("logo/coin.webp")} />
+        <link rel="shortcut icon" href={cdnFile("logo/logo.webp")} />
       </Head>
 
       <Header />

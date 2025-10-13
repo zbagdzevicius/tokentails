@@ -123,16 +123,6 @@ export const QuestsModalContent = () => {
                       onClick={() => redeem(quest)}
                     ></PixelButton>
                   </div>
-                  {!!quest.reward.coins && (
-                    <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
-                      <img
-                        draggable={false}
-                        className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
-                        src={cdnFile("logo/coin.webp")}
-                      />
-                      {quest.reward.coins} COINS
-                    </div>
-                  )}
                   {!!quest.reward.tails && (
                     <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
                       <img
@@ -179,8 +169,8 @@ export const QuestsModalContent = () => {
                   <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
                     <img
                       draggable={false}
-                      className="w-6 h-6 -left-3 top-0 bottom-0 z-10 absolute"
-                      src={cdnFile("logo/coin.webp")}
+                      className="h-6 -left-3 top-0 bottom-0 z-10 absolute"
+                      src={cdnFile("logo/logo.webp")}
                     />
                     {quest.reward.tails} $TAILS
                   </div>

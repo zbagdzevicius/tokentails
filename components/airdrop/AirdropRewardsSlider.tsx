@@ -8,11 +8,7 @@ export const AirdropRewardsSlider = () => {
       className="flex flex-col items-center p-4 rounded-t-2xl min-w-64 animate-appear"
       style={bgStyle("4")}
     >
-      <img
-        className="w-12 h-12"
-        draggable={false}
-        src={cdnFile("logo/coin.webp")}
-      />
+      <img className="h-12" draggable={false} src={cdnFile("logo/logo.webp")} />
       <span className="text-p2 text-center">$TAILS AIRDROP</span>
       <span>
         <span className="text-red-700">600k USD</span> in{" "}

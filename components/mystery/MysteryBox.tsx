@@ -1,5 +1,6 @@
 import { CAT_API } from "@/api/cat-api";
 import { QUEST_API } from "@/api/quest-api";
+import { bgStyle, cdnFile } from "@/constants/utils";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
@@ -12,38 +13,11 @@ import {
   MysteryBoxRequirementType,
 } from "@/web3/web3.model";
 import { useQuery } from "@tanstack/react-query";
-import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
 import { Web3Providers } from "../web3/Web3Providers";
-import { bgStyle, cdnFile } from "@/constants/utils";
-
-const ConnectWallet = dynamic(
-  () => import("../web3/minting/Web3Mint").then((mod) => mod.ConnectWallet),
-  {
-    ssr: false,
-    loading: () => (
-      <img
-        src={cdnFile("icons/loader.webp")}
-        className="w-8 h-8 m-auto animate-spin pixelated"
-      />
-    ),
-  }
-);
-
-const Web3Mint = dynamic(
-  () => import("../web3/minting/Web3Mint").then((mod) => mod.Web3Mint),
-  {
-    ssr: false,
-    loading: () => (
-      <img
-        src={cdnFile("icons/loader.webp")}
-        className="w-8 h-8 m-auto animate-spin pixelated"
-      />
-    ),
-  }
-);
+import { ConnectWallet, Web3Mint } from "../web3/minting/Web3Mint";
 
 const MysteryBoxEligibility = ({
   mysteryBox,

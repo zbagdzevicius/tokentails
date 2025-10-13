@@ -106,21 +106,21 @@ const codex: ICodex[] = [
     title: "#8 From the Blockchain to the Beyond",
     description:
       "These cats are more than metadata. They are stories. Beacons. Proof that Web3 can matter. And we, their guardians, become legends. Your feedback is CODEX fuel.",
-    how: "Go to 'ABOUT ME' section, click 'CONTACT US' button and create a ticket with your feedback or bug report",
+    how: "Go to 'QUESTS' section and complete 10 quests",
     image: cdnFile("codex/codex-8.webp"),
-    task: "CREATE A TICKET",
-    verification: (profile) => (profile?.monthTicketCount || 0) >= 1,
-    status: (profile) => `${profile?.monthTicketCount || 0} / 1`,
+    task: "COMPLETE 10 QUESTS",
+    verification: (profile) => (profile?.quests?.length || 0) >= 10,
+    status: (profile) => `${profile?.quests?.length || 0} / 10`,
   },
   {
     title: "#9 Destiny Is Shared",
     description:
       "To save a cat is to unlock its ninth life. But in return, it unlocks yours. Every rescuer earns a fortune not just in token — but in legacy, in status, in soul.",
-    how: "Craft 100,000 tails by staking your cats. You can do it once every 7 days with each of your cat, head over to 'CATS' section and click 'CRAFT $TAILS' button. The more cats you have, the more $TAILS you can craft.",
+    how: "Craft 20 $TAILS by staking your cats. You can do it once every 7 days with each of your cat, head over to 'CATS' section and click 'CRAFT $TAILS' button. The more cats you have, the more $TAILS you can craft.",
     image: cdnFile("codex/codex-9.webp"),
     task: "CRAFT TAILS",
-    verification: (profile) => (profile?.monthTailsCrafted || 0) >= 100000,
-    status: (profile) => `${profile.monthTailsCrafted || 0} / 100000`,
+    verification: (profile) => (profile?.monthTailsCrafted || 0) >= 20,
+    status: (profile) => `${profile.monthTailsCrafted || 0} / 20`,
   },
 ];
 
@@ -140,8 +140,12 @@ export const CodexSection = ({
   const { profile } = useProfile();
   const isCompleted = useMemo(() => verification?.(profile!), [profile]);
   return (
-    <div className="flex flex-col items-center relative font-primary pt-4">
-      <img src={image} alt="codex" className="h-16 -mb-2" />
+    <div
+      className={`flex flex-col items-center relative font-primary pt-4 border-4 rounded-2xl bg-gradient-to-bl from-rose-400 to-orange-300 ${
+        isCompleted ? "border-green-400" : "border-red-300"
+      }`}
+    >
+      <img src={image} alt="codex" className="h-16 -mb-2 -mt-12" />
       <Tag isSmall>{title}</Tag>
       {info && (
         <div
@@ -177,7 +181,7 @@ export const CodexSection = ({
         {task}
       </div>
       <div
-        className={`font-primary text-center animate-opacity w-fit px-2 rounded-2xl ${
+        className={`font-primary text-center animate-opacity w-fit px-2 rounded-2xl border-yellow-300 border-2 ${
           isCompleted ? "bg-green-400" : "bg-red-300"
         }`}
       >
@@ -365,6 +369,7 @@ export const Codex = () => {
             RESETS ON 9TH DAY OF EVERY MONTH
           </div>
           <Tag isSmall>What I'll get?</Tag>
+          <div className="font-primary">UP TO 3K MONTHLY $TAILS</div>
           <div className="font-primary">$TAILS GUARD TITLE</div>
           <div className="font-primary mb-1">1 TITLE = 1 CONTEST ENTRY</div>
           <Tag isSmall>WHAT ARE THE BENEFITS OF $TAILS GUARD?</Tag>
@@ -382,11 +387,11 @@ export const Codex = () => {
         </div>
       )}
       {isLessThan8hoursLeft ? (
-        <div className="flex flex-col gap-4 divide-y-4 divide-yellow-300/50">
+        <div className="flex flex-col gap-4">
           <div className="font-primary text-p5">CALCULATING REWARDS...</div>
         </div>
       ) : (
-        <div className="flex flex-col gap-4 divide-y-4 divide-yellow-300/50">
+        <div className="flex flex-col gap-12 mt-14">
           {codex.map((item, i) => (
             <CodexSection key={i} {...item} progress={i + 1} />
           ))}

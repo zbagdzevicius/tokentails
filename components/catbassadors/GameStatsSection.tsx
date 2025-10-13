@@ -93,7 +93,7 @@ export const GameStatsSection = ({
           <div className="text-p4 font-bold flex items-center gap-1">
             <img
               draggable={false}
-              className="w-5 h-5"
+              className="h-5"
               src={cdnFile("logo/logo.webp")}
             />
             <div>$TAILS</div>

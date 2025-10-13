@@ -17,9 +17,9 @@ export const Airdrop = () => {
             style={bgStyle("4")}
           >
             <img
-              className="w-12 h-12"
+              className="h-12"
               draggable={false}
-              src={cdnFile("logo/coin.webp")}
+              src={cdnFile("logo/logo.webp")}
             />
             <span className="text-p2 text-center">$TAILS TOKEN AIRDROP</span>
             <span>
@@ -122,7 +122,7 @@ export const Airdrop = () => {
                     className="w-8 lg:w-12"
                     src={cdnFile("images/cats-slider/coin-cat.webp")}
                   />
-                  <PixelButton text="COLLECTED AND SPENT 100k COINS" />
+                  <PixelButton text="COLLECTED 100 Catnips" />
                 </li>
                 <li className="flex items-center font-primary gap-2 text-p5 text-center justify-center">
                   <div className="sm:text-nowrap">

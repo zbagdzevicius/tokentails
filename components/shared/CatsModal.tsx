@@ -15,13 +15,9 @@ import { CloseButton } from "./CloseButton";
 import { Countdown } from "./Countdown";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
-import dynamic from "next/dynamic";
 import { bgStyle, cdnFile } from "@/constants/utils";
-
-const GenerateCat = dynamic(
-  () => import("../catCard/GenerateCat").then((mod) => mod.GenerateCat),
-  { ssr: false }
-);
+import { REWARDS } from "@/constants/rewards";
+import { GenerateCat } from "../catCard/GenerateCat";
 
 const weekInMs = 604800000;
 
@@ -130,8 +126,8 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                 X{getMultiplier(cat)}
                 <img
                   draggable={false}
-                  src={cdnFile("logo/coin.webp")}
-                  className="w-6 h-6 ml-1"
+                  src={cdnFile("logo/logo.webp")}
+                  className="h-6 ml-1"
                 />
               </div>
               <div className="relative z-10 items-center flex flex-col">
@@ -162,7 +158,9 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                 {!cat.staked && (
                   <PixelButton
                     isSmall
-                    text={`CRAFT ${5 * getMultiplier(cat)}k COINS`}
+                    text={`CRAFT ${
+                      REWARDS.WEEKLY_CRAFT * getMultiplier(cat)
+                    } $TAILS`}
                     onClick={() => onStakeCat(cat)}
                   />
                 )}

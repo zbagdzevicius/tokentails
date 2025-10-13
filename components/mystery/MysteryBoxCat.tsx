@@ -182,8 +182,8 @@ export const MysteryBoxCat = () => {
           <div className="text-p4 bg-green-600 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 hover:scale-110 transition-transform mb-2 border-2 rounded-xl border-main-black">
             <img
               draggable={false}
-              src={cdnFile("logo/coin.webp")}
-              className="w-8 h-8 mr-3 -ml-5"
+              src={cdnFile("logo/logo.webp")}
+              className="h-8 mr-3 -ml-5"
             />
             <span className="flex flex-col">
               <span className="text-p5 -mb-1 text-green-900">WIN COINS</span>

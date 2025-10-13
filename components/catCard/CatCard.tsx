@@ -8,10 +8,8 @@ import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
 import { cardsColor, CatAbilities, IBlessing, ICat } from "@/models/cats";
 import { GameModal } from "@/models/game";
-import { IProfile } from "@/models/profile";
 import { EntityType } from "@/models/save";
 import { CurrencyType } from "@/web3/contracts";
-import { MYSTERY_BOX_TYPE } from "@/web3/web3.model";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { CatBenefits } from "../shared/CatBenefits";
@@ -38,23 +36,11 @@ export const CatMultiplier = (cat: ICat) => {
       X{multiplier}
       <img
         draggable={false}
-        src={cdnFile("logo/coin.webp")}
-        className="w-6 h-6 ml-1"
+        src={cdnFile("logo/logo.webp")}
+        className="h-6 ml-1"
       />
     </div>
   );
-};
-
-const isLocked = (cat: ICat, user: IProfile) => {
-  const catMultiplier = getMultiplier(cat);
-  if (catMultiplier < 15) {
-    return false;
-  }
-
-  const hasMintedNFTMysteryBox = user?.quests?.includes(
-    MYSTERY_BOX_TYPE.CAMP_5
-  );
-  return !hasMintedNFTMysteryBox;
 };
 
 export const CatDescription = ({
@@ -341,12 +327,7 @@ export const CatPayment = ({
   );
 };
 
-export const SafeCatCard = ({
-  onClose,
-  onAdopted,
-  relative,
-  ...cat
-}: IProps) => {
+export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
   const { catImg, name, type, blessings } = cat;
   const [activeBlessing, setActiveBlessing] = useState<IBlessing | null>(
     !!cat.blessings?.length ? cat.blessings[0] : null
@@ -370,7 +351,6 @@ export const SafeCatCard = ({
     }
     setUnitsToBuy(units);
   };
-  const isCatLocked = useMemo(() => isLocked(cat, profile!), [cat, profile]);
 
   const buyText = cat.shelter?.slug === "token-tails" ? "Adopt" : "Save";
 
@@ -534,31 +514,15 @@ export const SafeCatCard = ({
               setActiveBlessing={setActiveBlessing}
               activeBlessing={activeBlessing}
             />
-            {isCatLocked ? (
-              <div className="flex items-center -ml-2 -mr-2">
-                <PixelButton text="LOCKED" isDisabled isSmall />
-                <div className="font-secondary text-p5 text-center -ml-2 -mr-2">
-                  COMPLETE CAMP QUESTS TO UNLOCK
-                </div>
-                <PixelButton
-                  text="QUESTS"
-                  isSmall
-                  onClick={() => {
-                    onClose?.(GameModal.INVITE);
-                  }}
-                />
-              </div>
-            ) : (
-              <CatPayment
-                cat={cat}
-                onClose={onClose}
-                onAdopted={() => onAdopted?.()}
-                relative={relative}
-                cats={cats}
-                unitsToBuy={unitsToBuy}
-                handleUnitsToBuy={handleUnitsToBuy}
-              />
-            )}
+            <CatPayment
+              cat={cat}
+              onClose={onClose}
+              onAdopted={() => onAdopted?.()}
+              relative={relative}
+              cats={cats}
+              unitsToBuy={unitsToBuy}
+              handleUnitsToBuy={handleUnitsToBuy}
+            />
           </div>
         </div>
       </div>

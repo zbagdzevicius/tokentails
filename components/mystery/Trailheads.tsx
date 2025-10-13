@@ -2,26 +2,13 @@ import { QUEST_API } from "@/api/quest-api";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
-import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { PixelButton } from "../shared/PixelButton";
 import { TrailheadsData, TrailheadsTypes } from "../shared/QuestsModal";
 import { Tag } from "../shared/Tag";
 import { Web3Providers } from "../web3/Web3Providers";
 import { cdnFile } from "@/constants/utils";
-
-const ConnectWallet = dynamic(
-  () => import("../web3/minting/Web3Mint").then((mod) => mod.ConnectWallet),
-  {
-    ssr: false,
-    loading: () => (
-      <img
-        src={cdnFile("icons/loader.webp")}
-        className="w-8 h-8 m-auto animate-spin pixelated"
-      />
-    ),
-  }
-);
+import { ConnectWallet } from "../web3/minting/Web3Mint";
 
 export const TrailheadsRedeem = () => {
   const { namespaceDetail } = useWeb3();

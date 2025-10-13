@@ -33,8 +33,8 @@ export const MarketplaceItem = ({
         X{getMultiplier(cat)}
         <img
           draggable={false}
-          src={cdnFile("logo/coin.webp")}
-          className="w-6 h-6 ml-1"
+          src={cdnFile("logo/logo.webp")}
+          className="h-6 ml-1"
         />
       </div>
 

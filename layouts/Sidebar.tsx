@@ -38,7 +38,7 @@ export const SidebarItem = ({
     >
       <div className="flex items-center space-x-2 px-2 hover:purple-300 rounded-lg transition-all text-gray-600">
         <span className="w-10 h-10 text-h6 rounded-full grid place-items-center bg-gray-300">
-          <img src={cdnFile("logo/coin.webp")} />
+          <img src={cdnFile("logo/logo.webp")} />
         </span>
       </div>
       <div className="text-p2">{name}</div>

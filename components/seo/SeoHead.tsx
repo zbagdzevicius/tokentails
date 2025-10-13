@@ -52,7 +52,7 @@ export const SeoHead = ({
     <Head>
       {!!article && <ArticleMeta {...article} />}
       <title>{mainTitle}</title>
-      <link rel="icon" href={cdnFile("logo/coin.webp")} />
+      <link rel="icon" href={cdnFile("logo/logo.webp")} />
       <meta name="description" content={mainDescription} />
       <meta name="author" content={process.env.NEXT_PUBLIC_SITE_NAME} />
       <meta name="robots" content="index, follow"></meta>
@@ -82,7 +82,7 @@ export const SeoHead = ({
       <meta name="twitter:title" content={mainTitle} />
       <meta name="twitter:description" content={mainDescription} />
       <meta name="twitter:image" content={mainImage} />
-      <link rel="shortcut icon" href={cdnFile("logo/coin.webp")} />
+      <link rel="shortcut icon" href={cdnFile("logo/logo.webp")} />
     </Head>
   );
 };

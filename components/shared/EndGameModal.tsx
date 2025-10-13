@@ -25,13 +25,6 @@ const getGameLevelName = (level: string) => {
   return "PURRSUIT";
 };
 
-const gameTypeToImage = {
-  [GameType.CATBASSADORS]: cdnFile("game/select/catbassadors.jpg"),
-  [GameType.CATNIP_CHAOS]: cdnFile("game/select/catnip-chaos.webp"),
-  [GameType.SHELTER]: cdnFile("game/select/shelter.jpg"),
-  [GameType.HOME]: cdnFile("game/select/home.jpg"),
-};
-
 export const EndGameModal: React.FC<EndGameProps> = ({
   onClose,
   tryAgain,
@@ -54,20 +47,23 @@ export const EndGameModal: React.FC<EndGameProps> = ({
       >
         <CloseButton onClick={onClose} absolute />
         <div className="p-6 md:py-4 flex items-center justify-center flex-col gap-1">
-          <img
-            src={gameTypeToImage[gameType]}
-            className="w-28 aspect-square rounded-t-lg -mb-4"
-            alt="logo"
-            draggable="false"
-          />
+          <div className="flex">
+            <img
+              src={cdnFile("meme-cats/meme-48.gif")}
+              className="w-12 -mb-2 aspect-square"
+              draggable="false"
+            />
+            <div className="flex justify-center items-center text-md text-gray-700">
+              <img
+                className="h-24 -mt-6 pixelated -mb-8"
+                src={profile?.cat?.catImg}
+              ></img>
+            </div>
+          </div>
           <Tag>{level ? getGameLevelName(level) : "Match"} Summary</Tag>
           <div className="flex justify-center items-center text-md text-gray-700 mt-4">
             <img
-              src={
-                gameType === GameType.CATNIP_CHAOS
-                  ? cdnFile("logo/catnip.webp")
-                  : cdnFile("logo/coin.webp")
-              }
+              src={cdnFile("logo/catnip.webp")}
               alt="Score Icon"
               className="w-6 h-6 mr-2"
               draggable="false"
@@ -94,16 +90,8 @@ export const EndGameModal: React.FC<EndGameProps> = ({
               </div>
             </div>
           )}
-          <div className="flex justify-center items-center text-md text-gray-700">
-            <img className="h-8" src={profile?.cat?.catImg}></img>
-          </div>
         </div>
         <div className="flex flex-col items-center justify-center gap-2 pb-4 md:pb-0">
-          <img
-            src={cdnFile("meme-cats/meme-48.gif")}
-            className="w-20 aspect-square"
-            draggable="false"
-          />
           <span
             className={`${
               !!gameStop.completedLevel &&

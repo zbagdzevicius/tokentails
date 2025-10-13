@@ -51,8 +51,8 @@ export const CatBenefits = ({
         <div className="text-p4 bg-red-600 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 bg-opacity-60 hover:bg-opacity-80 mb-2 border-2 rounded-xl border-main-black">
           <img
             draggable={false}
-            src={cdnFile("logo/coin.webp")}
-            className="w-8 h-8 mr-3 -ml-5"
+            src={cdnFile("logo/logo.webp")}
+            className="h-8 mr-3 -ml-5"
           />
           <span className="flex flex-col">
             <span className="text-p5 -mb-1 text-gray-200">EARN MORE COINS</span>

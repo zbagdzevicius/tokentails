@@ -16,7 +16,7 @@ export default function game() {
           name="description"
           content="PLAY WITH YOUR VIRTUAL CAT TO SAVE A CAT IN A SHELTER"
         />
-        <link rel="shortcut icon" href={cdnFile("logo/coin.webp")} />
+        <link rel="shortcut icon" href={cdnFile("logo/logo.webp")} />
       </Head>
       <GameProvider>
         <Game />

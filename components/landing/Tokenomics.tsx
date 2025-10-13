@@ -13,7 +13,7 @@ export const Tokenomics = () => {
         <div className="flex items-center whitespace-nowrap mr-2 font-primary text-p4 bg-yellow-300 pr-2 hover:bg-opacity-100 rounded-xl">
           <img
             draggable={false}
-            src={cdnFile("logo/coin.webp")}
+            src={cdnFile("logo/logo.webp")}
             className="min-w-8 w-8 h-8 -ml-1 mr-1"
           />
           100m supply

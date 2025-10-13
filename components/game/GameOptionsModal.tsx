@@ -7,6 +7,7 @@ import { useCallback, useMemo } from "react";
 import { GameStatsSection } from "../catbassadors/GameStatsSection";
 import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
+import { REWARDS } from "@/constants/rewards";
 
 interface IProps {
   profile: IProfile;
@@ -37,11 +38,11 @@ export const GameOptionsModal = ({
     setProfileUpdate({
       canRedeemLives: false,
       streak: (profile.streak || 0) + 1,
-      tails: (profile.tails || 0) + numberOfPointsToRedeem,
+      tails: (profile.tails || 0) + REWARDS.DAILY_REWARD,
       monthStreak: (profile.monthStreak || 0) + 1,
     });
     toast({
-      message: `You got ${numberOfPointsToRedeem} $TAILS`,
+      message: `You got ${REWARDS.DAILY_REWARD} $TAILS`,
       img: cdnFile("logo/chest.webp"),
     });
   }, []);
@@ -71,7 +72,7 @@ export const GameOptionsModal = ({
                   <img
                     draggable={false}
                     className="w-6 z-10"
-                    src={cdnFile("logo/coin.webp")}
+                    src={cdnFile("logo/logo.webp")}
                   />
                   <div className="text-p5 mt-1">
                     {numberOfPointsToRedeem} $TAILS

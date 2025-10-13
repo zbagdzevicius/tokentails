@@ -21,7 +21,7 @@ export default function giveaway() {
           name="description"
           content="Think you’ve got the best cat meme? 😸 Show us to win a piece from $1000 in $TAILS! 🎁"
         />
-        <link rel="shortcut icon" href={cdnFile("logo/coin.webp")} />
+        <link rel="shortcut icon" href={cdnFile("logo/logo.webp")} />
       </Head>
       <iframe
         className="w-screen h-screen"

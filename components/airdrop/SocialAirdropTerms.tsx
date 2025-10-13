@@ -135,8 +135,8 @@ export const SocialAirdropTerms = () => {
                 {what.points}
                 <img
                   draggable={false}
-                  src={cdnFile("logo/coin.webp")}
-                  className="min-w-8 w-8 h-8 ml-1 -mr-1"
+                  src={cdnFile("logo/logo.webp")}
+                  className="min-w-8 h-8 ml-1 -mr-1"
                 />
               </a>
               <a href={what.href} target="_blank">

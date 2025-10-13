@@ -17,7 +17,7 @@ const profile = async (): Promise<IProfile> => {
   });
 };
 
-const leaderboard = async (gameModal: GameModal): Promise<IProfile[]> => {
+const leaderboard = async (): Promise<IProfile[]> => {
   return fetch(`${apiUrl}/user/leaderboard`, {
     method: "GET",
     headers: {

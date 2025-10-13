@@ -1,47 +1,37 @@
 import { USER_API } from "@/api/user-api";
+import { bgStyle, cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
-import { GameModal } from "@/models/game";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { CloseButton } from "./shared/CloseButton";
-import { PixelButton } from "./shared/PixelButton";
 import { Tag } from "./shared/Tag";
-import { bgStyle } from "@/constants/utils";
-
-const leaderboardTexts: Partial<
-  Record<GameModal, { header: string; title: string; subtitle: string }>
-> = {
-  [GameModal.LEADERBOARD]: {
-    header: "ALL TIME",
-    title: "STAY IN TOP 200 - GET 100 WEEKLY $TAILS",
-    subtitle: "EARN $TAILS TO STAY IN THE TOP",
-  },
-};
 
 export const LeaderboardContent = () => {
-  const [type, setType] = useState(GameModal.LEADERBOARD);
   const { data } = useQuery({
-    queryKey: ["leaderboard", type],
-    queryFn: () => USER_API.leaderboard(type),
+    queryKey: ["leaderboard"],
+    queryFn: () => USER_API.leaderboard(),
   });
   const { position } = useProfile();
   return (
     <>
-      <div className="flex flex-col animate-appear pt-4">
+      <span className="-mt-6 -mb-6 relative z-0">
+        <svg viewBox="0 0 400 100" className="w-full">
+          <defs>
+            <path id="curve" d="M0,100 Q200,10 400,100" />
+          </defs>
+          <text className="fill-current text-yellow-300 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] text-p2 font-primary relative z-0">
+            <textPath href="#curve" startOffset="50%" text-anchor="middle">
+              TOP 200 GETS 200 $TAILS WEEKLY
+            </textPath>
+          </text>
+        </svg>
+      </span>
+      <div className="flex flex-col animate-appear items-center relative z-10">
+        <img
+          src={cdnFile("tail/guard.webp")}
+          alt="champs"
+          className="w-32 -mb-20"
+        />
         <Tag>CHAMPS</Tag>
-        <div className="py-1 gap-4 pt-2 flex justify-center">
-          <PixelButton
-            active={type === GameModal.LEADERBOARD}
-            text={leaderboardTexts[GameModal.LEADERBOARD]?.header!}
-            onClick={() => setType(GameModal.LEADERBOARD)}
-          ></PixelButton>
-        </div>
-        <h2 className="text-center font-secondary uppercase text-p5 md:text-p4">
-          {leaderboardTexts[type]?.title}
-        </h2>
-        <h2 className="text-center font-secondary uppercase text-p5 md:text-p4">
-          {leaderboardTexts[type]?.subtitle}
-        </h2>
         {position && (
           <div className="font-secondary uppercase text-p1 bg-yellow-100 w-fit m-auto rounded-t-xl px-8">
             Your position {position}
@@ -53,7 +43,7 @@ export const LeaderboardContent = () => {
           <tr>
             <th className="py-2 px-1 text-center">PLACE</th>
             <th className="py-2 text-center">name</th>
-            <th className="p-2 md:p-4 text-center">score</th>
+            <th className="p-2 md:p-4 text-center">$TAILS</th>
           </tr>
         </thead>
         <tbody>
@@ -90,9 +80,7 @@ export const LeaderboardContent = () => {
                     : "border-yellow-300 text-yellow-300"
                 }`}
               >
-                {(type === GameModal.LEADERBOARD
-                  ? result.tails
-                  : result.catnipCount) || 0}
+                {result.tails}
               </td>
             </tr>
           ))}

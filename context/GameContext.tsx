@@ -35,7 +35,6 @@ type ContextState = {
   level: string | null;
   setLevel: (level: string | null) => void;
   setGameType: (gameType: GameType | null) => void;
-  timer: number;
   gameStop: IGameStopEvent | null;
   playGame: () => void;
   addNotification: (notification: IToast) => void;
@@ -53,9 +52,6 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
-  const [timer, setTimer] = useState<number>(0);
-  const startTimeRef = useRef<number | null>(null);
-  const durationRef = useRef<number>(0);
   const [notifications, setNotifications] = useState<IToast[]>([]);
 
   const addNotification = (notification: IToast) => {
@@ -91,8 +87,6 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           : (event.score || 0) * multiplier;
 
       setIsStarted(false);
-      startTimeRef.current = null;
-      durationRef.current = 0;
 
       setGameStop({
         score: earnedScore,
@@ -122,24 +116,12 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   GameEvents.GAME_START.use(() => {
     setIsStarted(true);
-
-    startTimeRef.current = Date.now();
-    durationRef.current = catbassadorsGameDuration;
   });
 
   const playGame = React.useCallback(() => {
     GameEvents.GAME_START.push({ cat: profile?.cat });
   }, [profile]);
 
-  GameEvents.GAME_UPDATE.use((event) => {
-    if (event && typeof event.additionalTime === "number") {
-      durationRef.current += event.additionalTime;
-      if (startTimeRef.current !== null) {
-        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-        setTimer(Math.max(durationRef.current - elapsed, 0));
-      }
-    }
-  });
   GameEvents.ENEMY_SPAWN.use((event) => {
     if (event) {
       addNotification({
@@ -175,7 +157,6 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     playGame,
     gameType,
     setGameType,
-    timer,
     addNotification,
     setOpenedModal,
     gameStop,
@@ -285,7 +266,6 @@ function useGame() {
     isStarted: context.isStarted,
     gameType: context.gameType,
     setGameType: context.setGameType,
-    timer: context.timer,
     playGame: context.playGame,
     setOpenedModal: context.setOpenedModal,
     gameStop: context.gameStop,

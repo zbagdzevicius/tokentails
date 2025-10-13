@@ -7,21 +7,24 @@ interface bannerProps {
 }
 
 const sponsorImage = [
-  "images/sponsor/sei.webp",
-  "images/sponsor/microsoft-for-startups.webp",
-  "images/sponsor/social-shifters.webp",
-  "images/sponsor/gametech.png",
-  "images/sponsor/eu.webp",
   "images/sponsor/brinc.webp",
-  "images/sponsor/sei.webp",
   "images/sponsor/onepiece.png",
-  "images/sponsor/buidlers-tribe.webp",
-  "images/sponsor/earn-alliance.webp",
-  "images/sponsor/stellar.webp",
-  "images/sponsor/iexec.webp",
-  "images/sponsor/h7.webp",
-  "images/sponsor/sei.webp",
+  "images/sponsor/bga.webp",
   "images/sponsor/mexc.webp",
+  "images/sponsor/sei.webp",
+  "images/sponsor/stellar.webp",
+  "images/sponsor/brinc.webp",
+  "images/sponsor/onepiece.png",
+  "images/sponsor/bga.webp",
+  "images/sponsor/mexc.webp",
+  "images/sponsor/sei.webp",
+  "images/sponsor/stellar.webp",
+  "images/sponsor/brinc.webp",
+  "images/sponsor/onepiece.png",
+  "images/sponsor/bga.webp",
+  "images/sponsor/mexc.webp",
+  "images/sponsor/sei.webp",
+  "images/sponsor/stellar.webp",
 ];
 
 const cats: bannerProps[] = [

@@ -18,7 +18,6 @@ interface IProps {
 const gameTypeImages: Record<GameType, string> = {
   [GameType.SHELTER]: cdnFile("game/select/shelter.jpg"),
   [GameType.HOME]: cdnFile("game/select/home.jpg"),
-  [GameType.CATNIP_CHAOS]: cdnFile("game/select/catnip-chaos.webp"),
 };
 
 const GameSelectItem = ({
@@ -38,7 +37,7 @@ const GameSelectItem = ({
     >
       <img
         draggable={false}
-        className="rem:w-[120px] hover:brightness-110 rem:min-w-[120px] rounded-xl hover:animate-hover"
+        className="rem:w-[110px] hover:brightness-110 rem:min-w-[110px] rounded-xl hover:animate-hover"
         src={gameTypeImages[gameType]}
       />
     </div>
@@ -61,7 +60,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
         {
           "top-1/2 -translate-y-1/2": gameType === GameType.HOME,
           "top-4": gameType && gameType !== GameType.HOME,
-          "top-40 md:top-4": !gameType,
+          "lg:top-40": !gameType,
         }
       )}
     >
@@ -102,7 +101,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
       {!gameType && (
         <>
           <div className="flex flex-col max-w-max md:gap-4 lg:gap-8 min-w-0 items-center lg:mt-8 relative">
-            <div className="flex gap-28 mt-28 items-end absolute">
+            <div className="flex gap-36 mt-48 md:mt-20 lg:mt-48 items-end absolute">
               <GameSelectItem
                 setGameType={setGameType}
                 gameType={GameType.SHELTER}
@@ -118,11 +117,11 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
                 <img
                   draggable={false}
                   src={cdnFile("logo/logo-text.webp")}
-                  className="w-24 h-auto md:-top-20 md:w-16 lg:w-24 z-10"
+                  className="w-24 h-auto md:w-16 lg:w-24 z-10 md:hidden lg:block"
                 ></img>
                 <img
                   draggable={false}
-                  className="w-28 min-w-28 h-28 -mx-4 -mb-9 relative z-10 pixelated"
+                  className="w-28 min-w-28 h-28 -mx-4 -mb-9 md:-mt-4 lg:mt-0 relative z-10 pixelated"
                   src={profile.cat?.catImg}
                 />
 
@@ -134,7 +133,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
                     text="MY PETS"
                   ></PixelButton>
                 </span>
-                <div className="flex flex-col gap-1 items-start scale-150 mt-8">
+                <div className="flex flex-col gap-1 items-start scale-150 mt-8 md:mt-4 lg:mt-8">
                   <PixelButton
                     isBig
                     text="PLAY"
