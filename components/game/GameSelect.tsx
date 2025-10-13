@@ -15,7 +15,7 @@ interface IProps {
   setGameType: (gameType: GameType | null) => void;
 }
 
-const gameTypeImages: Record<GameType, string> = {
+const gameTypeImages: Partial<Record<GameType, string>> = {
   [GameType.SHELTER]: cdnFile("game/select/shelter.jpg"),
   [GameType.HOME]: cdnFile("game/select/home.jpg"),
 };

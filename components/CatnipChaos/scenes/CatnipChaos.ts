@@ -562,7 +562,6 @@ export class CatnipChaosScene extends Scene {
 
       if (onFlightOnBlock && !this.wasOnFlightOnBlock) {
         this.cat.movement.setFlightMode(true);
-        this.isInFlightMode = true;
 
         if (this.cat.animationKeys && this.cat.sprite.anims) {
           this.cat.sprite.anims.play(this.cat.animationKeys["SITTING"], true);

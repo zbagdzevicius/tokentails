@@ -1,6 +1,6 @@
+import { cdnFile } from "@/constants/utils";
 import { EntityType } from "@/models/save";
 import { ChainType } from "./contracts";
-import { cdnFile } from "@/constants/utils";
 
 export enum NftType {
   CAT = "CAT",
@@ -117,18 +117,6 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
           titles: 2,
         },
         text: "Earn 2 $TAILS guard titles",
-      },
-    },
-  ],
-  [ChainType.STELLAR]: [
-    {
-      address: "CBK4KAHLHNWOF4HEZFY2W57NYMSC4DLZGLGCM4HZUPAUU3PDPM3IMRS4",
-      key: MYSTERY_BOX_TYPE.KEYBOARD_CAT,
-      name: "KEYBOARD_CAT",
-      chain: ChainType.STELLAR,
-      image: cdnFile("utilities/mystery-boxes/keyboard-cat.webp"),
-      requirements: {
-        text: "MINT AND REDEEM TO VIBE",
       },
     },
   ],

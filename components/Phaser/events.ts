@@ -1,8 +1,5 @@
 import { ICat } from "@/models/cats";
 import { useEffect, useState } from "react";
-import { CatType } from "@/models/cats";
-import { GameType } from "@/models/game";
-import { BuffType } from "../catbassadors/objects/Buff";
 
 export type IPhaserScene = Phaser.Scene & { cat?: any; catDto?: ICat };
 export interface IPhaserGame {
@@ -68,14 +65,6 @@ interface INpcCollisionEvent {
   npc: ICat;
 }
 
-interface IBuff {
-  buff: BuffType | null;
-  duration: number;
-}
-interface IBuffSpawned {
-  buff: BuffType;
-}
-
 interface INpcCollisionEvent {
   npc: ICat;
 }
@@ -105,10 +94,8 @@ export enum GameEvent {
   PLAYER_CATS = "PLAYER_CATS",
   NPC_COLLISION = "NPC_COLLISION",
   CAT_CARD_DISPLAY = "CAT_CARD_DISPLAY",
-  CAT_BUFF = "CAT_BUFF",
   ENEMY_SPAWN = "ENEMY_SPAWN",
   BOSS_SPAWN = "BOSS_SPAWN",
-  BUFF_SPAWN = "BUFF_SPAWN",
   CLEAR_NPCS = "CLEAR_NPCS",
 }
 
@@ -126,10 +113,8 @@ export type ICatEventsDetails = {
   [GameEvent.NPC_SPAWN]: INpcSpawnEvent;
   [GameEvent.NPC_COLLISION]: INpcCollisionEvent;
   [GameEvent.CAT_CARD_DISPLAY]: { npc: ICat };
-  [GameEvent.CAT_BUFF]: IBuff;
   [GameEvent.ENEMY_SPAWN]: IEnemySpawn;
   [GameEvent.BOSS_SPAWN]: IBossSpawn;
-  [GameEvent.BUFF_SPAWN]: IBuffSpawned;
   [GameEvent.PLAYER_CATS]: INpcSpawnEvent;
   [GameEvent.CLEAR_NPCS]: void;
   [GameEvent.GAME_PROGRESS_UPDATE]: { progress: number };
@@ -221,8 +206,6 @@ export const GameEvents: GameEventsType = {
   [GameEvent.NPC_SPAWN]: generateGameEvent(GameEvent.NPC_SPAWN),
   [GameEvent.NPC_COLLISION]: generateGameEvent(GameEvent.NPC_COLLISION),
   [GameEvent.CAT_CARD_DISPLAY]: generateGameEvent(GameEvent.CAT_CARD_DISPLAY),
-  [GameEvent.CAT_BUFF]: generateGameEvent(GameEvent.CAT_BUFF),
-  [GameEvent.BUFF_SPAWN]: generateGameEvent(GameEvent.BUFF_SPAWN),
   [GameEvent.ENEMY_SPAWN]: generateGameEvent(GameEvent.ENEMY_SPAWN),
   [GameEvent.BOSS_SPAWN]: generateGameEvent(GameEvent.BOSS_SPAWN),
   [GameEvent.PLAYER_CATS]: generateGameEvent(GameEvent.PLAYER_CATS),

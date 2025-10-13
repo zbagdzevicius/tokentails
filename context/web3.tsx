@@ -16,21 +16,19 @@ import { networks } from "@/web3/web3-chains";
 import { WagmiProvider } from "wagmi";
 
 export const queryClient = new QueryClient();
-if (typeof window !== "undefined") {
-  createAppKit({
-    adapters: [wagmiAdapter],
-    metadata,
-    networks: networks as any,
-    projectId,
-    themeMode: "light",
-    features: {
-      analytics: true,
-      email: false,
-      socials: false,
-      smartSessions: true,
-    },
-  });
-}
+createAppKit({
+  adapters: [wagmiAdapter],
+  metadata,
+  networks: networks as any,
+  projectId,
+  themeMode: "light",
+  features: {
+    analytics: true,
+    email: false,
+    socials: false,
+    smartSessions: true,
+  },
+});
 
 export default function Web3ModalProvider({
   children,

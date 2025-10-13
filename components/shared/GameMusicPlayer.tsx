@@ -1,4 +1,4 @@
-import { cdnFile, getRandomInt } from "@/constants/utils";
+import { getRandomInt } from "@/constants/utils";
 import { useGame } from "@/context/GameContext";
 import { GameType } from "@/models/game";
 import { useEffect, useRef, useState } from "react";
@@ -10,7 +10,6 @@ const gameMusicMap: Record<GameType, string> = {
     "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3",
   [GameType.HOME]:
     "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3",
-  [GameType.CATBASSADORS]: cdnFile("catbassadors/sounds/game.mp3"),
 };
 
 export const GameMusicPlayer = () => {
@@ -42,7 +41,7 @@ export const GameMusicPlayer = () => {
 
       if (isMusicOn && isAllowedToPlay) {
         const musicUrl =
-          gameType === GameType.CATBASSADORS
+          gameType === GameType.CATNIP_CHAOS
             ? `https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/in-game/song${
                 getRandomInt(45) + 1
               }.mp3`

@@ -22,10 +22,9 @@ import { QuestsModal } from "@/components/shared/QuestsModal";
 import { SupportModal } from "@/components/shared/SupportModal";
 import { TelegramProfile } from "@/components/shared/TelegramProfile";
 import { getMultiplier } from "@/constants/cat-utils";
-import { catbassadorsGameDuration } from "@/models/cats";
 import { GameModal, GameType } from "@/models/game";
 import * as React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useProfile } from "./ProfileContext";
 import { IToast, useToast } from "./ToastContext";
 
@@ -138,16 +137,6 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
         message: "BOSS APPEARED",
         icon: "/enemies/boss/boss-simple.png",
         isError: true,
-      });
-    }
-  });
-
-  GameEvents.BUFF_SPAWN.use((event) => {
-    if (event) {
-      addNotification({
-        message: `BUFF APPEARED`,
-        icon: `/buff/${event.buff}-ICON.png`,
-        isError: false,
       });
     }
   });

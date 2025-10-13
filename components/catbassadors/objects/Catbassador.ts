@@ -2,7 +2,7 @@ import { GameObjects, Physics, Scene } from "phaser";
 import { IPlayer } from "@/components/Phaser/PlayerMovement/IPlayer";
 import { PlayerMovement } from "@/components/Phaser/PlayerMovement/PlayerMovement";
 import { catWalkSpeed } from "@/models/game";
-import { Abilities, GameScene } from "./Abilities";
+import { Abilities } from "./Abilities";
 import { CatAbilityType } from "@/models/cats";
 import { NPCJob, NPCJobType } from "../../base/objects/Cat";
 /**
@@ -183,7 +183,7 @@ export class Cat implements IPlayer {
     this.initAnimations();
 
     this.movement = new PlayerMovement(this);
-    this.abilities = new Abilities(this, scene as GameScene, type);
+    this.abilities = new Abilities(this, scene as Scene, type);
 
     this.collectiveItem = this.scene.physics.add
       .sprite(x, y, "collective-item")

@@ -98,7 +98,7 @@ export class Abilities {
 
     this.scene.physics.add.collider(
       knockbackSpell,
-      (this.scene as Scene).groundLayer!,
+      (this.scene as any).groundLayer!,
       () => {
         this.handleSpellAnimationAndDestroy(knockbackSpell);
       }
