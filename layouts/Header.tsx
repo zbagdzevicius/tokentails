@@ -16,7 +16,7 @@ const navConsts: navProps[] = [
     link: "/#game",
   },
   {
-    title: "CATS TO SAVE",
+    title: "COLLECTIBLE CATS",
     link: "/cats",
   },
   {
@@ -101,7 +101,7 @@ export const Header = () => {
               >
                 <PixelButton
                   text={navItem.title}
-                  isSmall={navItem.title !== "CATS TO SAVE"}
+                  isSmall={navItem.title !== "COLLECTIBLE CATS"}
                 />
               </a>
             </li>

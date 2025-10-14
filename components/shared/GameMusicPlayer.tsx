@@ -13,7 +13,7 @@ const gameMusicMap: Record<GameType, string> = {
 };
 
 export const GameMusicPlayer = () => {
-  const { gameType } = useGame();
+  const { gameType, level } = useGame();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isAllowedToPlay, setIsAllowedToPlay] = useState(false);
 
@@ -38,6 +38,7 @@ export const GameMusicPlayer = () => {
 
       const audioElement = audioRef.current;
       if (!audioElement || !gameType) return;
+      audioElement.volume = 0.05;
 
       if (isMusicOn && isAllowedToPlay) {
         const musicUrl =
@@ -66,7 +67,7 @@ export const GameMusicPlayer = () => {
     return () => {
       window.removeEventListener("storage", handleStorageChange);
     };
-  }, [gameType, isAllowedToPlay]);
+  }, [gameType, isAllowedToPlay, level]);
 
   if (!gameType) return null;
 

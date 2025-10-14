@@ -35,6 +35,17 @@ export const CatMiniCard = ({
       </div>
       <div
         onClick={onClick}
+        style={{ backgroundColor: cardsColor[cat.type] || "white" }}
+        className="absolute right-0 top-0 opacity-75 text-black py-0.5 text-p5 font-secondary rounded-l-xl z-20 flex items-center"
+      >
+        <img
+          draggable={false}
+          src={cdnFile("currency/SEI.webp")}
+          className="h-5 ml-1"
+        />
+      </div>
+      <div
+        onClick={onClick}
         className="relative z-10 items-center flex flex-col"
       >
         <img
@@ -64,7 +75,7 @@ export const CatMiniCard = ({
           {cat.name}
         </div>
         <a onClick={onClick} href={onClick ? undefined : `/cats/${cat._id}`}>
-          <PixelButton text="SAVE THIS CAT" />
+          <PixelButton text="ADOPT" />
         </a>
         {!hideBenefits && (
           <PixelButton

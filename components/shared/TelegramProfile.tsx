@@ -18,7 +18,7 @@ const Cat = ({ profile }: { profile?: IProfile | null }) => {
     <div className="relative">
       <img
         draggable={false}
-        className="w-24 m-auto pixelated -mt-8 -mb-8 md:mb-0 md:-mt-8 relative z-10"
+        className="w-24 m-auto pixelated -mt-2 -mb-8 md:mb-0 md:-mt-8 relative z-10"
         src={profile?.cat?.catImg || "/logo/logo.webp"}
       />
       {(profile?.cat.blessings?.length || 0) > 0 && (
@@ -268,7 +268,7 @@ export const TelegramProfileContent = () => {
           <div className="relative z-10 md:-mt-6">
             <Tag isSmall>Hello, {profile.name} !</Tag>
           </div>
-          <div className="flex justify-center -mb-4">
+          <div className="flex justify-center -mb-4 mt-2">
             <PixelButton
               isSmall
               text="STATS"
@@ -280,6 +280,11 @@ export const TelegramProfileContent = () => {
               text="MY IMPACT"
               active={activeTab === "achievements"}
               onClick={() => setActiveTab("achievements")}
+            />
+            <PixelButton
+              isSmall
+              text="CONTACT US"
+              onClick={() => setOpenedModal(GameModal.SUPPORT)}
             />
           </div>
           {activeTab === "stats" && (
@@ -409,22 +414,6 @@ export const TelegramProfileContent = () => {
               )}
             </ul>
           )}
-          <div className="flex justify-center -mb-2">
-            <PixelButton
-              isSmall
-              text="CONTACT US"
-              onClick={() => setOpenedModal(GameModal.SUPPORT)}
-            />
-            {!isWalletsRevealed && (
-              <span className="w-full flex justify-center flex-col">
-                <PixelButton
-                  isSmall
-                  text="Reveal My Wallets"
-                  onClick={() => setIsWalletsRevealed(true)}
-                />
-              </span>
-            )}
-          </div>
 
           {profile?.wallets?.evm && isWalletsRevealed && (
             <li

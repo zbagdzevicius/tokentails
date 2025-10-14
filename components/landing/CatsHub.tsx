@@ -13,14 +13,13 @@ interface IProps {
 
 const CatsHubProps: IProps[] = [
   {
-    title: "HOW CAN I SAVE A CAT?",
+    title: "HOW CAN I SUPPORT A CAT?",
     img: cdnFile("images/cats-slider/contribute.jpg"),
     question: "HOW",
-    description:
-      "Adopt shelters cats as NFTs, 100% of funds are transferred directly to cats shelters",
+    description: "Adopt shelters cats as collectibless",
   },
   {
-    title: "HOW TO OWN AN NFT CAT?",
+    title: "HOW TO OWN AN COLLECTIBLE CAT?",
     img: cdnFile("images/cats-slider/love.jpg"),
     question: "HOW",
     description:
@@ -31,14 +30,14 @@ const CatsHubProps: IProps[] = [
     img: cdnFile("images/cats-slider/eat.jpg"),
     question: "WHAT",
     description:
-      "Up to 10x elevated token rewards ratio, airdrops, NFT rewards, ability to stake NFT cats and craft tokens, AI companion on X and the most important - saved cats!",
+      "Up to 10x elevated token rewards ratio, airdrops, COLLECTIBLE rewards, ability to stake COLLECTIBLE cats and craft tokens, AI companion on X and the most important - saved cats!",
   },
   {
     title: "WEN $TAILS LISTING? WEN AIRDROP?",
     img: cdnFile("images/cats-slider/play.jpg"),
     question: "WEN",
     description:
-      "$TAILS TGE, LISTING AND AIRDROP is going to happen in 2025. Follow us on X to stay up to date so you won't miss it!",
+      "$TAILS TGE, LISTING AND AIRDROP is going to happen SOON. Follow us on X to stay up to date so you won't miss it!",
   },
 ];
 
@@ -90,7 +89,7 @@ const CatsSection = ({
         <div className="flex flex-col items-start">
           <div>{description}</div>
           <a target="_blank" href="/game">
-            <PixelButton isSmall text="START SAVING CATS" />
+            <PixelButton isSmall text="ADOPT A CAT" />
           </a>
         </div>
       </div>
@@ -141,12 +140,6 @@ export const CatsHub = () => {
               </a>
               <a href="https://docs.tokentails.com" target="_blank">
                 <PixelButton text="DOCS" isSmall />
-              </a>
-              <a
-                target="_blank"
-                href="https://docs.google.com/presentation/d/1G8F_HxNLwxkBSZ9XAcnvtH9SQFBjtI6Wq_2Y6FEXLdQ/"
-              >
-                <PixelButton text="PRESENTATION" isSmall />
               </a>
             </div>
           </div>

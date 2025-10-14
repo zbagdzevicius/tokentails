@@ -64,19 +64,12 @@ export const GameStatsSection = ({
           style={bgStyle("min-4")}
         >
           {profile.cat && (
-            <div className="relative -mb-2">
+            <div className="relative -mb-4">
               <img
                 draggable={false}
-                className="w-20 h-20 -mt-6 pixelated"
+                className="w-20 h-20 -mt-8 pixelated"
                 src={profile.cat?.catImg}
               />
-              {!!profile.cat?.blessings?.length && (
-                <img
-                  draggable={false}
-                  className="absolute inset-0 l object-cover w-20 h-20 -mt-6 pixelated"
-                  src={cdnFile(`flare-effect/${profile.cat.type}.gif`)}
-                ></img>
-              )}
             </div>
           )}
           <div className="text-p4 font-bold flex items-center gap-1">

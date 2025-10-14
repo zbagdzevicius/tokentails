@@ -33,7 +33,7 @@ export class Trampoline {
       playerSprite.body!.velocity.y <= 0
     ) {
       playerSprite.setVelocityY(this.bounceVelocity);
-      this.scene.sound.play("powerup", { volume: 0.3 });
+      this.scene.sound.play("powerup", { volume: 0.05 });
     }
     return true;
   }

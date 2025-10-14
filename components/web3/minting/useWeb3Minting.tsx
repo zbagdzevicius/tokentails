@@ -108,7 +108,7 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
   useEffect(() => {
     if (taxData?.status === "success") {
       refetchUserNFTsCount();
-      toast({ message: "NFT is minted successfully" });
+      toast({ message: "COLLECTIBLE is minted successfully" });
       setIsMinted(true);
     }
   }, [taxData]);

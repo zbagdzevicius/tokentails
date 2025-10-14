@@ -1,5 +1,5 @@
 import { PixelButton } from "@/components/shared/PixelButton";
-import { getCatFundsToRaise, getCatPrice } from "@/constants/cat-status";
+import { getCatPrice } from "@/constants/cat-status";
 import { getMultiplier } from "@/constants/cat-utils";
 import { cdnFile } from "@/constants/utils";
 import { cardsColor, ICat } from "@/models/cats";
@@ -14,7 +14,6 @@ export const MarketplaceItem = ({
   onClick?: () => void;
   hideButton?: boolean;
 }) => {
-  const price = getCatFundsToRaise(cat);
   const lives = useMemo(() => {
     return cat.totalSupply - cat.supply;
   }, [cat]);
@@ -80,9 +79,7 @@ export const MarketplaceItem = ({
         >
           {cat.name}
         </div>
-        {!hideButton && (
-          <PixelButton text={`ONLY $${getCatPrice(cat)} TO SAVE`} />
-        )}
+        {!hideButton && <PixelButton text={`ADOPT FOR $${getCatPrice(cat)}`} />}
       </div>
       <img
         draggable={false}

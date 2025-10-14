@@ -2,11 +2,10 @@ import { CAT_API } from "@/api/cat-api";
 import { getCatPrice } from "@/constants/cat-status";
 import { BuyMode, getMultiplier } from "@/constants/cat-utils";
 import { bgStyle, cdnFile, getSocialNetworkFromUrl } from "@/constants/utils";
-import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
-import { cardsColor, CatAbilities, IBlessing, ICat } from "@/models/cats";
+import { cardsColor, ICat } from "@/models/cats";
 import { GameModal } from "@/models/game";
 import { EntityType } from "@/models/save";
 import { CurrencyType } from "@/web3/contracts";
@@ -31,7 +30,7 @@ export const CatMultiplier = (cat: ICat) => {
       style={{
         backgroundColor: cardsColor[cat.type] || "white",
       }}
-      className="absolute flex items-center top-2 right-2 bg-opacity-75 border font-secondary text-p5 hover:bg-opacity-100 pl-2 rounded-xl"
+      className="absolute flex items-center top-2 md:top-11 lg:top-2 right-2 bg-opacity-75 border font-secondary text-p5 hover:bg-opacity-100 pl-2 rounded-xl"
     >
       X{multiplier}
       <img
@@ -43,80 +42,51 @@ export const CatMultiplier = (cat: ICat) => {
   );
 };
 
-export const CatDescription = ({
-  blessings,
-  resqueStory,
-  type,
-  activeBlessing,
-  setActiveBlessing,
-}: ICat & {
-  activeBlessing: IBlessing | null;
-  setActiveBlessing: (blessing: IBlessing | null) => void;
-}) => {
+export const CatDescription = ({ blessings, resqueStory, type }: ICat) => {
   const firstBlessing = blessings && blessings.length > 0 ? blessings[0] : null;
 
   return (
     <>
+      <div
+        className="flex flex-row items-center justify-center w-fit m-auto rounded-3xl"
+        style={{ backgroundColor: cardsColor[type] || "white" }}
+      >
+        <img
+          draggable={false}
+          className="w-8 h-8 -ml-2"
+          src={cdnFile(`ability/${type}.png`)}
+          alt={type}
+          width={40}
+          height={40}
+        />
+        <span className="text-yellow-300 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] text-p3 font-primary px-2">
+          {type} TYPE
+        </span>
+        <img
+          draggable={false}
+          className="w-8 h-8 -mr-2"
+          src={cdnFile(`ability/${type}.png`)}
+          alt={type}
+          width={40}
+          height={40}
+        />
+      </div>
       <div className="mb-3 max-sm:mb-2 text-main-black">
-        <div className="flex flex-row items-center">
-          {firstBlessing && (
-            <img
-              draggable={false}
-              src={cdnFile(`blessings/${type}_TYPE.png`)}
-              alt={firstBlessing.type}
-              className="w-6 h-6 md:w-10 md:h-10"
-            />
-          )}
-          <h4
-            className={`text-p3 ${
-              firstBlessing ? "ml-4 md:ml-2 lg:ml-4" : "ml-16"
-            } font-bold`}
-          >
-            STORY
-          </h4>
-          <div className="mx-2 md:hidden lg:block"></div>
-          {firstBlessing && (
-            <PixelButton
-              text={activeBlessing ? "Show Virtual Twin" : "Read story"}
-              isSmall
-              onClick={() =>
-                setActiveBlessing(activeBlessing ? null : firstBlessing)
-              }
-            ></PixelButton>
-          )}
+        <div className="flex flex-row items-center justify-center font-primary">
+          <span className="text-yellow-300 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] text-p1">
+            PET STORY
+          </span>
         </div>
         <p
-          className="text-p5 font-bold overflow-y-auto max-h-[8rem] md:max-h-[11rem] pb-1"
+          className="text-p5 font-bold overflow-y-auto max-h-[12rem] md:max-h-[12rem] pb-1"
           dangerouslySetInnerHTML={{
-            __html: activeBlessing ? activeBlessing.description : resqueStory,
+            __html: firstBlessing?.description || resqueStory,
           }}
         ></p>
       </div>
-      {activeBlessing && (
-        <audio className="hidden" loop autoPlay>
-          <source src={cdnFile("purrquest/sounds/meow.mp3")} />
-        </audio>
-      )}
-      {!activeBlessing && (
-        <div className="my-3">
-          <div className="flex flex-row items-center">
-            <img
-              draggable={false}
-              className="w-6 h-6 md:w-10 md:h-10"
-              src={cdnFile(`ability/${type}.png`)}
-              alt={type}
-              width={40}
-              height={40}
-            />
-            <h4 className="text-p3 ml-4 md:ml-2 lg:ml-4 font-bold">
-              {CatAbilities[type].skill}
-            </h4>
-          </div>
-          <p className="text-p5 font-bold pb-1">
-            {CatAbilities[type].description}
-          </p>
-        </div>
-      )}
+      <audio className="hidden" loop autoPlay>
+        <source src={cdnFile("purrquest/sounds/meow.mp3")} />
+      </audio>
     </>
   );
 };
@@ -125,33 +95,23 @@ export const CatPayment = ({
   cat,
   onClose,
   onAdopted,
-  relative,
   cats,
-  unitsToBuy,
-  handleUnitsToBuy,
 }: {
   cat: ICat;
   onClose?: () => void;
   onAdopted?: () => void;
-  relative?: boolean;
   cats?: ICat[];
-  unitsToBuy: number;
-  handleUnitsToBuy: (units: number) => void;
 }) => {
   const { currencyType, rates, transactionStatus, setTransactionStatus } =
     useWeb3();
-  const { _id, supply, name, price } = cat;
+  const { supply, name, price } = cat;
   const { profile, setProfileUpdate } = useProfile();
   const [buyMode, setBuyMode] = useState<BuyMode | null>(null);
-  const [isAdopting, setIsAdopting] = useState(false);
   const isOwned = useMemo(
     () => cats?.find((cat) => cat.name === name),
     [cats, cat]
   );
-  const corePrice = useMemo(
-    () => getCatPrice(cat) * unitsToBuy,
-    [cat, unitsToBuy]
-  );
+  const corePrice = useMemo(() => getCatPrice(cat), [cat]);
   const currencyPrice = useMemo(() => {
     if (
       [
@@ -180,7 +140,6 @@ export const CatPayment = ({
 
   const toast = useToast();
   const outOfSupply = supply === undefined || supply <= 0;
-  const { setOpenedModal } = useGame();
 
   const onSuccess = (cat: ICat) => {
     setProfileUpdate({
@@ -191,10 +150,8 @@ export const CatPayment = ({
     setTransactionStatus(null);
 
     toast({ message: "Congratz on your adopted cat !", img: cat.catImg });
-    setIsAdopting(false);
     onAdopted?.();
     onClose?.();
-    setOpenedModal?.(null);
   };
 
   useEffect(() => {
@@ -213,7 +170,7 @@ export const CatPayment = ({
     setBuyMode(BuyMode.CAT);
   };
 
-  const buyText = cat.shelter?.slug === "token-tails" ? "Adopt" : "Save";
+  const buyText = "ADOPT";
 
   return (
     <>
@@ -247,15 +204,12 @@ export const CatPayment = ({
           </div>
         </div>
       )}
-      <div className="z-10 relative flex items-end flex-row justify-around w-full">
+      <div className="z-10 relative flex flex-row w-full pt-2">
         {outOfSupply && !isOwned && (
           <PixelButton text="Out of supply" active isDisabled></PixelButton>
         )}
-        {isOwned && !buyMode && (
-          <PixelButton text="Adopted" active isDisabled></PixelButton>
-        )}
         {!buyMode && !isOwned && (
-          <span className="relative flex items-center gap-2 w-full">
+          <span className="relative flex items-center gap-2 w-full justify-center">
             <div className="relative">
               <span className="z-10 relative">
                 <PixelButton
@@ -266,60 +220,13 @@ export const CatPayment = ({
               </span>
 
               {!!price && (
-                <div className="absolute -top-4 left-0 right-0 justify-center flex z-0">
-                  <div className="bg-red-500 text-yellow-300 px-2 border-2 border-main-black text-p6 font-primary">
+                <div className="absolute top-2 -left-10 right-0 flex z-0">
+                  <div className="bg-red-500 text-yellow-300 px-2 border-2 border-main-black text-p4 font-primary pr-4">
                     ${corePrice}
                   </div>
                 </div>
               )}
             </div>
-            {!!cat.blessings?.length && (
-              <div className="flex items-center">
-                <PixelButton
-                  text="-"
-                  isSmall
-                  onClick={() => handleUnitsToBuy(unitsToBuy - 1)}
-                />
-                <div className="flex gap-1 flex-wrap justify-center">
-                  {cat.totalSupply <= 10 ? (
-                    Array.from({
-                      length: cat.totalSupply - (cat.totalSupply - cat.supply),
-                    }).map((_, i) => (
-                      <img
-                        key={i}
-                        draggable={false}
-                        src={
-                          unitsToBuy < i + 1
-                            ? cdnFile("logo/heart-empty.webp")
-                            : cdnFile("logo/heart-saved.webp")
-                        }
-                        className="w-4 h-4 pixelated"
-                      />
-                    ))
-                  ) : (
-                    <div className="flex items-center justify-center gap-1 font-secondary font-bold text-p2 w-12 h-12 relative">
-                      <span className={unitsToBuy >= 10 ? `z-10` : `z-10 pt-1`}>
-                        {unitsToBuy}
-                      </span>
-                      <img
-                        draggable={false}
-                        src={
-                          unitsToBuy >= cat.supply
-                            ? cdnFile("logo/heart-saved.webp")
-                            : cdnFile("logo/heart.webp")
-                        }
-                        className="w-full h-full pixelated absolute inset-0 z-0"
-                      />
-                    </div>
-                  )}
-                </div>
-                <PixelButton
-                  text="+"
-                  isSmall
-                  onClick={() => handleUnitsToBuy(unitsToBuy + 1)}
-                />
-              </div>
-            )}
           </span>
         )}
       </div>
@@ -329,30 +236,27 @@ export const CatPayment = ({
 
 export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
   const { catImg, name, type, blessings } = cat;
-  const [activeBlessing, setActiveBlessing] = useState<IBlessing | null>(
-    !!cat.blessings?.length ? cat.blessings[0] : null
-  );
   const { profile } = useProfile();
   const [showBenefits, setShowBenefits] = useState(false);
+  const [showBlessingImage, setShowBlessingImage] = useState(false);
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
     queryFn: () => CAT_API.cats(),
   });
   const isOwned = !!cats?.find((cat) => cat.name === name);
-  const [unitsToBuy, setUnitsToBuy] = useState(cat.supply >= 1 ? 1 : 0);
-  const donationsToSave = useMemo(
-    () => cat.totalSupply - (cat.totalSupply - cat.supply) - unitsToBuy,
-    [cat.totalSupply, cat.supply, unitsToBuy]
-  );
 
-  const handleUnitsToBuy = (units: number) => {
-    if (units < 1 || units > cat.totalSupply - (cat.totalSupply - cat.supply)) {
-      return;
+  // Image rotation effect - only if blessing image exists
+  useEffect(() => {
+    if (!blessings?.[0]?.image?.url) {
+      return; // No blessing image, no rotation needed
     }
-    setUnitsToBuy(units);
-  };
 
-  const buyText = cat.shelter?.slug === "token-tails" ? "Adopt" : "Save";
+    const interval = setInterval(() => {
+      setShowBlessingImage((prev) => !prev);
+    }, 5000); // Toggle every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [blessings]);
 
   return (
     <div
@@ -370,7 +274,7 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
         className="absolute inset-0 z-10 h-full w-full opacity-80 rounded-[16px]"
         style={{ backgroundColor: cardsColor[type] || "white" }}
       />
-      <div className="relative z-20 flex flex-col md:flex-row lg:flex-col justify-between h-full">
+      <div className="relative z-20 flex flex-col md:flex-row lg:flex-col flex-start h-full">
         <CatMultiplier {...cat} />
         {showBenefits && (
           <div
@@ -381,11 +285,11 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
             <CatBenefits cat={cat} isOwned={isOwned} />
           </div>
         )}
-        <div className="w-full relative flex flex-col">
+        <div className="w-full relative flex flex-col min-w-64">
           <div>
             <div className="flex justify-between items-center m-1">
               <div className="flex flex-row space-x-2 items-center pl-4">
-                {!!blessings?.[0]?.instagram && (
+                {!!blessings?.[0]?.instagram ? (
                   <a
                     href={blessings?.[0]?.instagram}
                     target="_blank"
@@ -397,6 +301,12 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
                       draggable="false"
                     />
                   </a>
+                ) : (
+                  <img
+                    className="w-6 h-6"
+                    src={cdnFile("currency/sei.webp")}
+                    draggable="false"
+                  />
                 )}
                 <h3 className="text-main-black text-p3 whitespace-nowrap uppercase font-bold flex items-center">
                   {name}
@@ -415,17 +325,17 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
             />
             <span className="relative z-0">
               <img
+                key={showBlessingImage ? "blessing" : "cat"}
                 draggable={false}
                 src={
-                  (activeBlessing ? activeBlessing.image?.url : catImg) ||
-                  catImg
+                  blessings?.[0]?.image?.url && showBlessingImage
+                    ? blessings[0].image.url
+                    : catImg
                 }
                 alt="Hero cat"
-                className={`${
-                  activeBlessing
-                    ? "w-full h-48 rounded-xl min-w-48"
-                    : "w-36 h-36 pixelated"
-                } relative z-10 object-contain`}
+                className={`w-36 h-36 ${
+                  showBlessingImage ? "" : "pixelated"
+                } relative z-10 object-contain animate-opacity`}
               />
               {!!blessings?.length && (
                 <img
@@ -435,93 +345,25 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
                 ></img>
               )}
             </span>
-            {!activeBlessing && (
-              <div className="absolute -bottom-2 md:-bottom-8 lg:-bottom-2 flex justify-center z-10">
+            {!showBenefits && (
+              <div className="absolute -bottom-2 md:-bottom-8 lg:-bottom-2 flex justify-center z-10 animate-appear">
                 <PixelButton
                   onClick={() => setShowBenefits(!showBenefits)}
-                  text={
-                    showBenefits
-                      ? "Hide benefits"
-                      : `${cat.name} owner benefits`
-                  }
+                  text="benefits"
                   isSmall
                 />
               </div>
             )}
           </div>
-          {!!cat.blessings?.length && (
-            <div className="flex flex-col absolute left-0 right-0 -bottom-14 md:bottom-0 lg:-bottom-14 z-0">
-              <div className="flex flex-row-reverse m-auto gap-1 justify-center mt-2 md:mt-8 lg:mt-2">
-                {cat.totalSupply <= 10 ? (
-                  Array.from({ length: cat.totalSupply || 0 }).map((_, i) => (
-                    <img
-                      key={i}
-                      draggable={false}
-                      src={
-                        cat.supply < i + 1
-                          ? cdnFile("logo/heart.webp")
-                          : cat.supply - unitsToBuy < i + 1
-                          ? cdnFile("logo/heart-saved.webp")
-                          : cdnFile("logo/heart-empty.webp")
-                      }
-                      className="w-4 h-4 pixelated"
-                    />
-                  ))
-                ) : (
-                  <div className="flex gap-1 justify-center items-center font-secondary">
-                    <img
-                      draggable={false}
-                      src={cdnFile("logo/heart.webp")}
-                      className="w-4 h-4 pixelated"
-                    />
-                    <div className="text-p5">
-                      {cat.totalSupply - donationsToSave} / {cat.totalSupply}
-                    </div>
-                    <img
-                      draggable={false}
-                      src={
-                        donationsToSave < 1
-                          ? cdnFile("logo/heart-saved.webp")
-                          : cdnFile("logo/heart-empty.webp")
-                      }
-                      className="w-4 h-4 pixelated"
-                    />
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-row-reverse m-auto gap-1 justify-center font-primary mb-2 text-balance text-center">
-                {donationsToSave < 1
-                  ? unitsToBuy
-                    ? `MEOW! CLICK ${buyText} TO SAVE`
-                    : !isOwned
-                    ? "OUT OF SUPPLY"
-                    : ""
-                  : isOwned
-                  ? `YOU OWN #${cat.totalSupply - donationsToSave}`
-                  : `${donationsToSave} Remaining. ${
-                      buyText === "Adopt" || cat?.price > 1000
-                        ? "Every sale supports local shelters"
-                        : "Every sale supports the cat"
-                    }`}
-              </div>
-            </div>
-          )}
         </div>
         <div>
-          <div className="text-start m-3 md:m-5 bg md:mt-10 lg:mt-5">
-            <CatDescription
-              {...cat}
-              setActiveBlessing={setActiveBlessing}
-              activeBlessing={activeBlessing}
-            />
+          <div className="text-start mx-3 mb-3 md:mx-5 md:mb-5 bg">
+            <CatDescription {...cat} />
             <CatPayment
               cat={cat}
               onClose={onClose}
               onAdopted={() => onAdopted?.()}
-              relative={relative}
               cats={cats}
-              unitsToBuy={unitsToBuy}
-              handleUnitsToBuy={handleUnitsToBuy}
             />
           </div>
         </div>

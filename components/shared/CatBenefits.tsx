@@ -30,7 +30,7 @@ export const CatBenefits = ({
                   ? getMultiplier(cat) >= 15
                     ? "DOUBLE JUMP"
                     : "SAVED REAL PET"
-                  : "SAVE REAL PET"
+                  : "SUPPORT REAL CAT"
                 : isOwned
                 ? "SUPPORTED SHELTER"
                 : "HELP REAL SHELTER"}

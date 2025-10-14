@@ -15,7 +15,7 @@ export const ChainSelect = () => {
     <div className="flex-col animate-appear">
       <div className="flex flex-col items-center gap-1">
         <div className="font-secondary bg-purple-300 px-4 rounded-full">
-          CHAIN
+          PAYMENT CHAIN
         </div>
         <div className="flex gap-2">
           {ChainNamespaces.map((namespaceOption) => (
@@ -49,7 +49,7 @@ export const ChainSelect = () => {
       </div>
       <div className="flex flex-col items-center gap-1 mb-4 mt-2">
         <div className="font-secondary bg-yellow-300 px-4 rounded-full">
-          CURRENCY
+          PAYMENT CURRENCY
         </div>
         <div className="flex gap-2">
           {ChainNamespacesCurrencies[namespace].map((currency) => (

@@ -149,7 +149,7 @@ export class BaseScene extends Scene {
   private meow() {
     setTimeout(() => {
       try {
-        this.sound?.play("meow", { volume: 0.5 });
+        this.sound?.play("meow", { volume: 0.3 });
       } catch {}
     }, 2000);
   }
@@ -496,7 +496,7 @@ export class BaseScene extends Scene {
   }
 
   private onFoodEat() {
-    this.sound.play("eat", { volume: 0.5, duration: 2 });
+    this.sound.play("eat", { volume: 0.3, duration: 2 });
     this.food?.eaten(() => {
       this.food?.sprite.destroy();
       this.food = null;

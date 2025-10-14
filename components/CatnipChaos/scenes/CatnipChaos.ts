@@ -289,7 +289,7 @@ export class CatnipChaosScene extends Scene {
 
   private setupSound() {
     this.backgroundSound = this.sound.add("purr", { loop: true });
-    this.backgroundSound.play();
+    this.backgroundSound.play({ volume: 0.5 });
   }
 
   private createGameObjects() {
@@ -688,7 +688,7 @@ export class CatnipChaosScene extends Scene {
     }
     // Play game end sound
     const gameEndSound = this.sound.add("game-end-sound", {
-      volume: 1,
+      volume: 0.5,
       loop: false,
     });
     gameEndSound.play();

@@ -6,6 +6,8 @@ import { useCallback } from "react";
 import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
 import { CAT_API } from "@/api/cat-api";
+import { REWARDS } from "@/constants/rewards";
+import { getMultiplier } from "@/constants/cat-utils";
 
 type ContextState = {
   cat?: ICat | null;
@@ -71,7 +73,7 @@ const CatProvider = ({ children }: React.PropsWithChildren<{}>) => {
         status: { ...(cat.status || {}), [status.type]: status.status },
       };
       setProfileUpdate({
-        tails: (profile?.tails || 0) + 10,
+        tails: (profile?.tails || 0) + REWARDS.FEED * getMultiplier(cat),
         cat: newStatus,
       });
       await saveStatus.mutate(newStatus.status);

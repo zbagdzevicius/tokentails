@@ -55,8 +55,8 @@ const whatToDo = [
     href: "https://tokentails.com/game",
   },
   {
-    description: "ADOPT NFT CAT",
-    help: "The bond is sealed in adoption. Multiply Your Blessings - Adopt a Cat NFT to Boost Your $TAILS",
+    description: "ADOPT COLLECTIBLE CAT",
+    help: "The bond is sealed in adoption. Multiply Your Blessings - Adopt COLLECTIBLE CAT to Boost Your $TAILS",
     points: "Multiply",
     image: cdnFile("images/cats-slider/joy-cat.webp"),
     href: "https://tokentails.com/game",

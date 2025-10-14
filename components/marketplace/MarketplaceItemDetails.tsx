@@ -28,13 +28,10 @@ export const MarketplaceItemDetails = ({ cat }: { cat: ICat }) => {
         <div className="lg:absolute -bottom-12 -left-1/2 pixelated rounded-full flex flex-col items-center lg:-ml-8">
           {cat.shelter?.slug === "rozine-pedute" && <ShelterBenefits />}
         </div>
-        <div className="lg:absolute bottom-0 -right-1/2 pixelated rounded-full flex items-center lg:-mr-8 -mb-12">
-          <CatDonation />
-        </div>
       </div>
       {!isFamous && (
         <a href="/cats">
-          <PixelButton isBig text="SEE ALL CATS IN NEED" />
+          <PixelButton isBig text="SEE ALL SHELTER CATS" />
         </a>
       )}
     </div>

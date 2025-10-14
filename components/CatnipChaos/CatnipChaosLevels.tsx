@@ -224,24 +224,6 @@ export const CatnipChaosLevels = ({
             <span>COMPLETED LEVELS</span>
           </div>
         </div>
-        <div
-          onClick={() => setOpenedModal(GameModal.FEATURED_CAT)}
-          className="flex hover:brightness-110 flex-col w-24 relative items-center font-secondary rounded-xl px-1 py-2"
-          style={bgStyle("4")}
-        >
-          <div className="relative -mt-8 -mb-4">
-            <img
-              draggable={false}
-              className="w-24 h-24 pixelated"
-              src={
-                "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/STICKY/base/RUNNING.gif"
-              }
-            />
-          </div>
-          <div className="text-p4 font-bold flex items-center gap-1 whitespace-nowrap">
-            ABOUT STICKY
-          </div>
-        </div>
       </div>
     </div>
   );

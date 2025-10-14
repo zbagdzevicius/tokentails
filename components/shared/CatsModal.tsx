@@ -130,6 +130,16 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                   className="h-6 ml-1"
                 />
               </div>
+              <div
+                style={{ backgroundColor: cardsColor[cat.type] || "white" }}
+                className="absolute right-0 top-0 opacity-75 text-black py-0.5 text-p5 font-secondary rounded-l-xl z-20 flex items-center"
+              >
+                <img
+                  draggable={false}
+                  src={cdnFile("currency/SEI.webp")}
+                  className="h-5 ml-1"
+                />
+              </div>
               <div className="relative z-10 items-center flex flex-col">
                 <img
                   draggable={false}

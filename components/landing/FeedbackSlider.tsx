@@ -23,7 +23,10 @@ export const FeedbackSlider = () => {
     <>
       <div className="flex items-center justify-center flex-col my-32">
         <h2 className="text-center font-primary uppercase tracking-tight text-h6 md:text-h2 lg:text-h1 text-balance my-3 px-4">
-          Get to Know Shelters Cats
+          <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)]">
+            ADOPT
+          </span>{" "}
+          AND PLAY
         </h2>
 
         <div className="flex items-center justify-center flex-row gap-6">
@@ -66,7 +69,7 @@ export const FeedbackSlider = () => {
         </div>
 
         <a href="/cats" className="mt-8">
-          <PixelButton text="SEE ALL CATS IN NEED" />
+          <PixelButton text="SEE ALL SHELTER CATS" />
         </a>
       </div>
     </>

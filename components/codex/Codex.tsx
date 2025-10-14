@@ -35,10 +35,10 @@ const codex: ICodex[] = [
   {
     title: "#1 One Spirit, Two Bodies",
     description:
-      "Every NFT cat reflects a real soul. Digital twins of the forgotten, the wounded, the waiting. To adopt one is to guard both — in code and in flesh.",
+      "Every COLLECTIBLE cat reflects a real soul. Digital twins of the forgotten, the wounded, the waiting. To adopt one is to guard both — in code and in flesh.",
     how: "Visit cat shelter, find a cat which you like and adopt it",
     image: cdnFile("codex/codex-1.webp"),
-    task: "ADOPT NFT CAT",
+    task: "ADOPT COLLECTIBLE CAT",
     verification: (profile) => (profile?.monthCatsAdopted || 0) >= 1,
     status: (profile) => `${profile?.monthCatsAdopted || 0} / 1`,
   },
@@ -373,10 +373,9 @@ export const Codex = () => {
           <div className="font-primary">$TAILS GUARD TITLE</div>
           <div className="font-primary mb-1">1 TITLE = 1 CONTEST ENTRY</div>
           <Tag isSmall>WHAT ARE THE BENEFITS OF $TAILS GUARD?</Tag>
-          <div className="font-primary">DISCOUNTED NFTs</div>
+          <div className="font-primary">DISCOUNTED COLLECTIBLES</div>
           <div className="font-primary">PRIORITY SUPPORT</div>
-          <div className="font-primary">WHITELISTED NFT DROPS</div>
-          <div className="font-primary">EARLY ACCESS TO NEW UPDATES</div>
+          <div className="font-primary">EARLY ACCESS TO UPDATES</div>
           <div className="font-primary">
             $TAILS AIRDROP ELIGIBILITY CRITERIA
           </div>

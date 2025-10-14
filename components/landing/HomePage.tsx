@@ -12,18 +12,21 @@ const sponsorImage = [
   "images/sponsor/bga.webp",
   "images/sponsor/mexc.webp",
   "images/sponsor/sei.webp",
+  "images/sponsor/camp.webp",
   "images/sponsor/stellar.webp",
   "images/sponsor/brinc.webp",
   "images/sponsor/onepiece.png",
   "images/sponsor/bga.webp",
   "images/sponsor/mexc.webp",
   "images/sponsor/sei.webp",
+  "images/sponsor/camp.webp",
   "images/sponsor/stellar.webp",
   "images/sponsor/brinc.webp",
   "images/sponsor/onepiece.png",
   "images/sponsor/bga.webp",
   "images/sponsor/mexc.webp",
   "images/sponsor/sei.webp",
+  "images/sponsor/camp.webp",
   "images/sponsor/stellar.webp",
 ];
 
@@ -114,9 +117,9 @@ export const HomePage = () => {
     <div className="flex items-center flex-col w-full h-full relative">
       <h1 className="md:mt-12 xl:mt-16 text-balance text-center font-primary uppercase z-0 tracking-tight rem:text-[80px] rem:leading-[60px] md:text-h1 lg:text-[142px] xl:text-[176px] 2xl:text-[210px] 3xl:text-[280px]">
         <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)]">
-          YOU
+          YOUR
         </span>{" "}
-        CAN SAVE A{" CAT"}
+        PLAYABLE CAT
       </h1>
 
       <div className="absolute bottom-20 m-auto justify-center w-[800px] xl:w-[920px] 3xl:w-[1200px] hidden md:flex">

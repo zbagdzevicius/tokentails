@@ -32,7 +32,7 @@ export class PlayerMovement {
   private flightDescendSpeed: number = 340;
   private flightSmoothing: number = 0.18;
   private targetFlightVelocityY: number = 0;
-   flightXSpeed: number = 270; // Adjust as needed
+  flightXSpeed: number = 270; // Adjust as needed
 
   constructor(player: IPlayer) {
     this.player = player;
@@ -316,15 +316,16 @@ export class PlayerMovement {
     }
 
     this.handleDash();
-    
+
     // Disable regular jumping when in Geometry Dash mode
-    if (!this.isGeometryDashMode && (
+    if (
+      !this.isGeometryDashMode &&
       (onGround ||
         canWallJump ||
         (this.player.canDoubleJump && !this.player.hasDoubleJumped)) &&
       upKeyDown &&
       !this.player.justJumped
-    )) {
+    ) {
       this.jump({
         canWallJump,
         touchingLeftWall,
@@ -358,15 +359,16 @@ export class PlayerMovement {
     if (cursors.up.isUp && keys.up.isUp && !isMobileJumping) {
       this.player.justJumped = false;
     }
-    
+
     // Disable jump hold logic when in Geometry Dash mode
-    if (!this.isGeometryDashMode && (
+    if (
+      !this.isGeometryDashMode &&
       (cursors.up.isDown ||
         keys.up.isDown ||
         keys.upW.isDown ||
         isMobileJumping) &&
       this.isJumpHeld
-    )) {
+    ) {
       const timeJumping = now - this.jumpStartTime;
       if (timeJumping < this.player.coyoteTime) {
         if (sprite.body.velocity.y > this.player.maxJumpSpeed) {
@@ -434,7 +436,7 @@ export class PlayerMovement {
       this.player.jumpTimer = this.player.scene.time.now;
 
       // Play jump sound
-      const jumpSound = this.player.scene.sound.add("jump", { volume: 0.5 });
+      const jumpSound = this.player.scene.sound.add("jump", { volume: 0.2 });
       jumpSound.play();
 
       const jumpSpeed = this.isGravityReversed
@@ -539,16 +541,14 @@ export class PlayerMovement {
 
   // Add method to handle Geometry Dash-style gravity
   private handleGeometryDashGravity(upKeyDown: boolean) {
-
     if (upKeyDown) {
       if (this.isGravityReversed) {
-        this.player.sprite.setVelocityY(250); 
+        this.player.sprite.setVelocityY(250);
       } else {
         // Normal gravity: go up
         this.player.sprite.setVelocityY(-250);
       }
     }
-
   }
 
   setGravitySettings(settings: {
