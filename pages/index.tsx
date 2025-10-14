@@ -3,7 +3,6 @@ import { CatsHub } from "@/components/landing/CatsHub";
 import { FeedbackSlider } from "@/components/landing/FeedbackSlider";
 import { GameAggregators } from "@/components/landing/GameAggregators";
 import { HomePage } from "@/components/landing/HomePage";
-import { ProcessExplained } from "@/components/landing/ProcessExplained";
 import Roadmap from "@/components/landing/Roadmap";
 import { Team } from "@/components/landing/Team";
 import { Circle } from "@/components/shared/Circle";

@@ -2,10 +2,9 @@ import { ICat } from "@/models/cats";
 import { GameModal } from "@/models/game";
 import { useRouter } from "next/router";
 import { useMemo } from "react";
-import { CatDonation } from "../shared/CatDonation";
+import { CatCard } from "../catCard/CatCard";
 import { PixelButton } from "../shared/PixelButton";
 import { ShelterBenefits } from "../shared/ShelterBenefits";
-import { CatCard } from "../catCard/CatCard";
 
 export const MarketplaceItemDetails = ({ cat }: { cat: ICat }) => {
   const blessing = useMemo(() => {
