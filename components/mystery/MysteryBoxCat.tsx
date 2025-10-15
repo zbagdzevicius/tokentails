@@ -176,29 +176,7 @@ export const MysteryBoxCat = () => {
             />
             <span className="flex flex-col">
               <span className="text-p5 -mb-1 text-amber-900">WIN $TAILS</span>
-              <span>UP TO $3k in $TAILS</span>
-            </span>
-          </div>
-          <div className="text-p4 bg-green-600 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 hover:scale-110 transition-transform mb-2 border-2 rounded-xl border-main-black">
-            <img
-              draggable={false}
-              src={cdnFile("logo/logo.webp")}
-              className="h-8 mr-3 -ml-5"
-            />
-            <span className="flex flex-col">
-              <span className="text-p5 -mb-1 text-green-900">WIN COINS</span>
-              <span>UP TO 1 000 000</span>
-            </span>
-          </div>
-          <div className="text-p4 bg-red-600 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 hover:scale-110 transition-transform mb-2 border-2 rounded-xl border-main-black">
-            <img
-              draggable={false}
-              src={cdnFile("logo/heart.webp")}
-              className="w-8 h-8 mr-3 -ml-1 pixelated"
-            />
-            <span className="flex flex-col">
-              <span className="text-p5 -mb-1 text-red-900">WIN LIVES</span>
-              <span>UP TO 10000 LIVES</span>
+              <span>UP TO 1000000 $TAILS</span>
             </span>
           </div>
         </div>
