@@ -55,9 +55,9 @@ const whatToDo = [
     href: "https://tokentails.com/game",
   },
   {
-    description: "ADOPT COLLECTIBLE CAT",
+    description: "ADOPT PLAYABLE CAT",
     help: "The bond is sealed in adoption. Multiply Your Blessings - Adopt COLLECTIBLE CAT to Boost Your $TAILS",
-    points: "Multiply",
+    points: "+∞",
     image: cdnFile("images/cats-slider/joy-cat.webp"),
     href: "https://tokentails.com/game",
   },
@@ -87,9 +87,6 @@ export const SocialAirdropTerms = () => {
           </span>
           Airdrop
         </h2>
-        <div className="flex items-center font-primary gap-2 text-p5 pb-4 text-center justify-center">
-          ENGAGE ON SOCIALS AND PLAY TO EARN
-        </div>
         <span className="bg-gradient-to-r font-primary from-yellow-300 to-yellow-400 text-black px-3 py-1 pb-2 rounded-md font-bold shadow-lg border-4 border-main-black animate-pulse">
           PHASE 4
         </span>
@@ -98,10 +95,7 @@ export const SocialAirdropTerms = () => {
           isBig
           targetDate={new Date(Date.UTC(2025, 12, 1))}
         />
-        <div className="flex items-center font-primary gap-2 text-p5 pt-4 text-center justify-center">
-          TOTAL REWARDS POOL IS WORTH $1m USD
-        </div>
-        <h2 className="font-primary uppercase lg:mt-3 tracking-tight text-h6 md:text-h3 text-balance px-4">
+        <h2 className="font-primary uppercase lg:mt-3 tracking-tight text-h6 md:text-h3 text-balance px-4 pt-4">
           9 WAYS TO
           <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] ml-2">
             EARN
@@ -136,7 +130,7 @@ export const SocialAirdropTerms = () => {
                 <img
                   draggable={false}
                   src={cdnFile("logo/logo.webp")}
-                  className="min-w-8 h-8 ml-1 -mr-1"
+                  className="w-8 ml-1 -mr-1"
                 />
               </a>
               <a href={what.href} target="_blank">

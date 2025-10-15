@@ -1,31 +1,11 @@
 import { useCat } from "@/context/CatContext";
 import { useGame } from "@/context/GameContext";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect } from "react";
 import { GameEvents } from "../Phaser/events";
 import { CatnipChaosLevels } from "./CatnipChaosLevels";
-import { StartGame } from "./config";
-import { ICatnipChaosProps } from "./scenes/CatnipChaos";
+import dynamic from "next/dynamic";
 
-const CatnipChaosGame = ({ level }: ICatnipChaosProps) => {
-  const game = useRef<Phaser.Game | null>(null!);
-
-  useLayoutEffect(() => {
-    if (game.current === null) {
-      game.current = StartGame({ level });
-    }
-
-    return () => {
-      if (game.current) {
-        game.current.destroy(true);
-        if (game.current !== null) {
-          game.current = null;
-        }
-      }
-    };
-  }, []);
-
-  return <div id="game-container" className="animate-opacity"></div>;
-};
+const CatnipChaosGame = dynamic(() => import("./config"), { ssr: false });
 
 function CatnipChaos() {
   const { cat } = useCat();

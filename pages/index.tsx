@@ -40,12 +40,6 @@ export default function Index() {
   ];
 
   useEffect(() => {
-    if (isApp) {
-      router.replace("/game");
-    }
-  }, []);
-
-  useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {

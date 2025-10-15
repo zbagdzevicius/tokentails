@@ -22,13 +22,6 @@ export const GameOptionsModal = ({
   setProfileUpdate,
   setOpenedModal,
 }: IProps) => {
-  const numberOfPointsToRedeem = useMemo(() => {
-    const referralsPoints = (profile?.referralsCount || 0) * 1;
-    const streakPoints = (profile?.streak || 0) * 1;
-    const basePoints = 10;
-
-    return referralsPoints + streakPoints + basePoints;
-  }, [profile?.referralsCount, profile?.streak]);
   const toast = useToast();
 
   const nextDayTargetDate = getNextDayMidnight();
@@ -75,7 +68,7 @@ export const GameOptionsModal = ({
                     src={cdnFile("logo/logo.webp")}
                   />
                   <div className="text-p5 mt-1">
-                    {numberOfPointsToRedeem} $TAILS
+                    {REWARDS.DAILY_REWARD} $TAILS
                   </div>
                 </div>
               </div>

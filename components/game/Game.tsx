@@ -5,16 +5,11 @@ import { GameType } from "@/models/game";
 import dynamic from "next/dynamic";
 import { useBackground } from "../../constants/hooks";
 import Snowfall from "../shared/Snowfall";
+import CatnipChaos from "@/components/CatnipChaos/CatnipChaos";
 const Base = dynamic(() => import("@/components/base/Base"), { ssr: false });
 const Adopt = dynamic(() => import("@/components/shelter/Shelter"), {
   ssr: false,
 });
-const CATNIP_CHAOS = dynamic(
-  () => import("@/components/CatnipChaos/CatnipChaos"),
-  {
-    ssr: false,
-  }
-);
 export const Game = () => {
   const { gameType, isStarted } = useGame();
   const { profile } = useProfile();
@@ -26,7 +21,7 @@ export const Game = () => {
       {!isStarted && <Snowfall />}
       {gameType === GameType.HOME && profile && <Base />}
       {gameType === GameType.SHELTER && profile && <Adopt />}
-      {gameType === GameType.CATNIP_CHAOS && profile && <CATNIP_CHAOS />}
+      {gameType === GameType.CATNIP_CHAOS && profile && <CatnipChaos />}
     </div>
   );
 };

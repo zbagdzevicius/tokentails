@@ -144,9 +144,6 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
       <div className="flex items-center font-primary gap-2 -mt-1 text-p5 text-center justify-center">
         EVERYTHING YOU NEED TO DO TO EARN IS CONNECT X, POST AND PLAY!
       </div>
-      <div className="flex items-center font-primary gap-2 text-p5 text-center justify-center leading-tight mt-1 mb-1 px-2">
-        IMPORTANT! IN-GAME EARNINGS WILL BE ADDED AT THE END OF THE CAMPAIGN
-      </div>
       <div className="flex flex-col items-center font-primary gap-2 text-p5 text-center justify-center leading-tight mt-1 mb-1 px-2">
         <PixelButton
           text="HOW TO CONNECT X"
@@ -280,7 +277,7 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
                 }`}
               >
                 {((result[phaseProps[phase] as keyof AirdropUser] as number) ||
-                  0) * (phase <= 3 ? 15 : 1)}
+                  0) * 15}
               </td>
             </tr>
           ))}

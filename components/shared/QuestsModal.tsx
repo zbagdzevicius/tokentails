@@ -127,7 +127,7 @@ export const QuestsModalContent = () => {
                     <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
                       <img
                         draggable={false}
-                        className="w-8 -left-6 -top-2 bottom-0 z-10 absolute"
+                        className="w-8 -left-5 -top-2 bottom-0 z-10 absolute"
                         src={cdnFile("logo/logo.webp")}
                       />
                       {quest.reward.tails} $TAILS
@@ -169,7 +169,7 @@ export const QuestsModalContent = () => {
                   <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
                     <img
                       draggable={false}
-                      className="h-6 -left-3 top-0 bottom-0 z-10 absolute"
+                      className="w-8 -left-5 -top-2 bottom-0 z-10 absolute"
                       src={cdnFile("logo/logo.webp")}
                     />
                     {quest.reward.tails} $TAILS

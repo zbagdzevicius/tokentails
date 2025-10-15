@@ -188,9 +188,7 @@ const ProfileUpdate = () => {
         draggable="false"
       />
       {!twitterEditMode ? (
-        <Tag isSmall>
-          {twitter ? `X: ${twitter}` : "X Handle is not connected"}
-        </Tag>
+        <Tag isSmall>{twitter ? `X: ${twitter}` : "X is not connected"}</Tag>
       ) : (
         <input
           type="text"
@@ -215,7 +213,7 @@ const ProfileUpdate = () => {
       />
       {!discordEditMode ? (
         <Tag isSmall>
-          {discord ? `Discord: ${discord}` : "Discord Handle is not connected"}
+          {discord ? `Discord: ${discord}` : "Discord is not connected"}
         </Tag>
       ) : (
         <input
@@ -283,7 +281,7 @@ export const TelegramProfileContent = () => {
             />
             <PixelButton
               isSmall
-              text="CONTACT US"
+              text="SUPPORT"
               onClick={() => setOpenedModal(GameModal.SUPPORT)}
             />
           </div>

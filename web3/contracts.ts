@@ -34,10 +34,10 @@ export enum ChainNamespace {
 }
 
 export const ChainNamespaces = [
+  ChainNamespace.SEI,
   ChainNamespace.EVM,
   ChainNamespace.STELLAR,
   ChainNamespace.SOLANA,
-  ChainNamespace.SEI,
 ];
 
 export const ChainNamespaceImg: Record<ChainNamespace, string> = {

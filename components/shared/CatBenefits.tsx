@@ -29,8 +29,8 @@ export const CatBenefits = ({
                 ? isOwned
                   ? getMultiplier(cat) >= 15
                     ? "DOUBLE JUMP"
-                    : "SAVED REAL PET"
-                  : "SUPPORT REAL CAT"
+                    : "SUPPORTED"
+                  : "SUPPORT"
                 : isOwned
                 ? "SUPPORTED SHELTER"
                 : "HELP REAL SHELTER"}
@@ -55,7 +55,9 @@ export const CatBenefits = ({
             className="h-8 mr-3 -ml-5"
           />
           <span className="flex flex-col">
-            <span className="text-p5 -mb-1 text-gray-200">EARN MORE COINS</span>
+            <span className="text-p5 -mb-1 text-gray-200">
+              EARN MORE $TAILS
+            </span>
             <span>X{getMultiplier(cat)} multiplier</span>
           </span>
         </div>
