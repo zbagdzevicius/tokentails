@@ -59,8 +59,10 @@ const codex: ICodex[] = [
     how: "Save a cat!",
     image: cdnFile("codex/codex-3.webp"),
     task: "SPEND $1",
-    verification: (profile) => (profile?.monthSpent || 0) >= 1,
-    status: (profile) => `${profile?.monthSpent || 0} / 1`,
+    verification: (profile) =>
+      !!profile?.monthCatsAdopted || (profile?.monthSpent || 0) >= 1,
+    status: (profile) =>
+      `${profile?.monthSpent || profile?.monthCatsAdopted || 0 * 1} / 1`,
   },
   {
     title: "#4 Coins Must Flow Where Compassion Leads",
