@@ -12,6 +12,7 @@ import { CloseButton } from "./CloseButton";
 import { GameMusicToggle } from "./GameMusicToggler";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
+import { isApp } from "@/models/app";
 
 const Cat = ({ profile }: { profile?: IProfile | null }) => {
   return (
@@ -239,6 +240,8 @@ const ProfileUpdate = () => {
 export const TelegramProfileContent = () => {
   const { profile, logout, isFB } = useProfile();
   const [isWalletsRevealed, setIsWalletsRevealed] = useState(false);
+  const [isDeleteRequestModalOpen, setIsDeleteRequestModalOpen] =
+    useState(false);
   const { setOpenedModal } = useGame();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState("stats");
@@ -455,6 +458,19 @@ export const TelegramProfileContent = () => {
         <ProfileUpdate />
         <GameMusicToggle />
         {isFB && <PixelButton isSmall text="Logout" onClick={logout} />}
+        {isApp && (
+          <PixelButton
+            isSmall
+            text="Delete Account"
+            onClick={() => {
+              setIsDeleteRequestModalOpen(true),
+                toast({
+                  message:
+                    "Delete request sent to support. It'll be handled within 24 hours",
+                });
+            }}
+          />
+        )}
       </div>
     </div>
   );

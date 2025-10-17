@@ -89,7 +89,7 @@ const Roadmap = () => {
                 className="h-6"
                 src={cdnFile("icons/loader.webp")}
               />
-              AIRDROP CAMPAIGN
+              $TAILS CAMPAIGNS
             </span>
             <span className="flex gap-2 items-center -ml-6">
               <img
@@ -97,7 +97,7 @@ const Roadmap = () => {
                 className="h-6"
                 src={cdnFile("icons/loader.webp")}
               />
-              $TAILS GUARD
+              3D GAME
             </span>
           </div>
         </div>
@@ -132,7 +132,7 @@ const Roadmap = () => {
                 className="h-6 pixelated"
                 src={cdnFile("icons/loader.webp")}
               />
-              3D game
+              STAKE TO SAVE
             </span>
             <span className="flex gap-2 items-center -ml-6">
               <img
@@ -140,7 +140,7 @@ const Roadmap = () => {
                 className="h-6 pixelated"
                 src={cdnFile("icons/loader.webp")}
               />
-              MORE REWARDS
+              MARKETPLACE
             </span>
           </div>
         </div>

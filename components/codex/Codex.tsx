@@ -59,7 +59,7 @@ const codex: ICodex[] = [
     how: "Save a cat!",
     image: cdnFile("codex/codex-3.webp"),
     task: "SPEND $1",
-    verification: (profile) => (profile?.monthSpent || 0) >= 50,
+    verification: (profile) => (profile?.monthSpent || 0) >= 1,
     status: (profile) => `${profile?.monthSpent || 0} / 1`,
   },
   {
