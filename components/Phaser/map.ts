@@ -11,6 +11,7 @@ export enum Map {
   SUMMIT = "base/summit.png",
   STOCKS = "base/stocks.png",
   ENDLESS = "base/combined.png",
+  SEI = "base/sei.png",
 }
 
 export const CoreMap = Map.SPRING;
@@ -59,6 +60,12 @@ export const CatnipChaosLevelMap: Record<string, Map> = {
   "74": Map.STOCKS,
   "75": Map.STOCKS,
   "76": Map.STOCKS,
+  "81": Map.SEI,
+  "82": Map.SEI,
+  "83": Map.SEI,
+  "84": Map.SEI,
+  "85": Map.SEI,
+  "86": Map.SEI,
 };
 
 export const totalCatnip =
