@@ -31,6 +31,7 @@ const SPIKE_TILES = [253, 254, 284, 283];
 
 export interface ICatnipChaosProps {
   level: string;
+  coinImage: string;
 }
 
 export class CatnipChaosScene extends Scene {
@@ -62,6 +63,7 @@ export class CatnipChaosScene extends Scene {
   private floatingPlatformManagers: FloatingPlatformManager[] = [];
   private collectedCatnipCoins: number = 0;
   private currentLevel: string = "";
+  private coinImage: string = "";
   private flightOnBlocks: Phaser.GameObjects.Sprite[] = [];
   private flightOffBlocks: Phaser.GameObjects.Sprite[] = [];
   private flightEffectSprite?: Phaser.GameObjects.Sprite;
@@ -92,10 +94,16 @@ export class CatnipChaosScene extends Scene {
     this.load.audio("catnip", cdnFile("catnip-chaos/sounds/catnip.mp3"));
     this.load.audio("jump", cdnFile("catnip-chaos/sounds/jump.mp3"));
     this.load.image("platform", cdnFile("purrquest/icons/platform.png"));
+    //on level 8 load sei coin image on other loads catnip coin
     this.load.image(
       "catnip-coin",
-      cdnFile("catnip-chaos/items/catnip-coin.png")
+      cdnFile(this.coinImage)
     );
+    // this.load.image(
+    //   "catnip-coin",
+    //   cdnFile("catnip-chaos/items/catnip-coin.png")
+    // );
+
     this.load.spritesheet("cloud", cdnFile("catnip-chaos/items/cloud.png"), {
       frameWidth: 72,
       frameHeight: 51,
@@ -161,6 +169,7 @@ export class CatnipChaosScene extends Scene {
   init(props: ICatnipChaosProps) {
     this.props = props;
     this.currentLevel = this.props.level;
+    this.coinImage = this.props.coinImage;
   }
 
   create(props: { detail?: IPhaserGameSceneProps }) {
@@ -308,7 +317,10 @@ export class CatnipChaosScene extends Scene {
 
         this.catnipLayer.removeTileAt(tile.x, tile.y);
         const rotatingSprite = this.add.sprite(worldX, worldY, "catnip-coin");
-
+        rotatingSprite.width = 32;
+        rotatingSprite.height = 32;
+        rotatingSprite.setDisplaySize(32, 32);
+  
         rotatingSprite.setVisible(true);
 
         // Add continuous rotation animation
