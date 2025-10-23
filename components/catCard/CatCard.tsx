@@ -257,7 +257,6 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
 
     return () => clearInterval(interval);
   }, [blessings]);
-
   return (
     <div
       style={{ borderColor: cardsColor[type] }}
@@ -307,6 +306,7 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
                     src={cdnFile("currency/SEI.webp")}
                     draggable="false"
                   />
+                 
                 )}
                 <h3 className="text-main-black text-p3 whitespace-nowrap uppercase font-bold flex items-center">
                   {name}
