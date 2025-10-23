@@ -304,7 +304,7 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
                 ) : (
                   <img
                     className="w-6 h-6"
-                    src={cdnFile("currency/sei.webp")}
+                    src={cdnFile("currency/SEI.webp")}
                     draggable="false"
                   />
                 )}
