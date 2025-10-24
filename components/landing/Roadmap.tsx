@@ -1,7 +1,6 @@
-import React, { useState } from "react";
-import { PixelButton } from "../shared/PixelButton";
-import { Tokenomics } from "./Tokenomics";
 import { cdnFile } from "@/constants/utils";
+import { useState } from "react";
+import { PixelButton } from "../shared/PixelButton";
 
 const Roadmap = () => {
   const [isTokenomicsVisible, setIsTokenomicsVisible] = useState(false);
@@ -9,10 +8,18 @@ const Roadmap = () => {
   return (
     <div className="container flex flex-col py-8 justify-center items-center">
       <PixelButton
-        text="TOKEN"
+        text="TGE"
         onClick={() => setIsTokenomicsVisible(!isTokenomicsVisible)}
       />
-      {isTokenomicsVisible && <Tokenomics />}
+      {isTokenomicsVisible && (
+        <h1 className="md:mt-12 xl:mt-16 text-balance text-center font-primary uppercase z-0 tracking-tight rem:text-[80px] rem:leading-[60px] md:text-h1 lg:text-[142px] xl:text-[176px] 2xl:text-[210px] 3xl:text-[280px]">
+          <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)]">
+            TGE
+          </span>{" "}
+          COMING SOON
+        </h1>
+      )}
+      {/* {isTokenomicsVisible && <Tokenomics />} */}
       <h2 className="font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance md:mb-8 mt-8">
         OUR JOURNEY
       </h2>

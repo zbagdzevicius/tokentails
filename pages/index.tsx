@@ -10,34 +10,15 @@ import Snowfall from "@/components/shared/Snowfall";
 import { bgStyle, cdnFile } from "@/constants/utils";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
-import { isApp } from "@/models/app";
 import Head from "next/head";
-import { useRouter } from "next/router";
 import { useEffect, useRef } from "react";
 
 export default function Index() {
-  const catssliderRef = useRef(null);
-  const gamessliderRef = useRef(null);
-  const catshubRef = useRef(null);
-  const catswinnersRef = useRef(null);
-  const processExplainedRef = useRef(null);
   const feedbackSliderRef = useRef(null);
-  const tokenomicsRef = useRef(null);
   const roadmapRef = useRef(null);
   const contactRef = useRef(null);
-  const router = useRouter();
 
-  const sections = [
-    catssliderRef,
-    processExplainedRef,
-    gamessliderRef,
-    catshubRef,
-    catswinnersRef,
-    feedbackSliderRef,
-    tokenomicsRef,
-    roadmapRef,
-    contactRef,
-  ];
+  const sections = [feedbackSliderRef, roadmapRef, contactRef];
 
   useEffect(() => {
     const observer = new IntersectionObserver(

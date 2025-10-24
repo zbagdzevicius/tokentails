@@ -43,13 +43,13 @@ const teamMembers: ITeamMember[] = [
     ],
   },
   {
-    img: cdnFile("team/krishna.webp"),
-    name: "Krishna",
-    role: "Marketing Lead",
+    img: cdnFile("team/arturas.webp"),
+    name: "Artūras",
+    role: "AI Engineer",
     socials: [
       {
         img: SocialImages.LINKEDIN,
-        link: "https://www.linkedin.com/in/krishna-meruva/",
+        link: "https://www.linkedin.com/in/art%C5%ABras-dr%C5%ABteika-34309b195/",
       },
     ],
   },
@@ -134,7 +134,7 @@ const teamMembers: ITeamMember[] = [
   {
     img: cdnFile("team/marcin.webp"),
     name: "Marcin",
-    role: "BD Advisor",
+    role: "Legal",
     socials: [
       {
         img: SocialImages.LINKEDIN,
