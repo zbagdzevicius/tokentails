@@ -39,12 +39,19 @@ export const StartGame = (props: ICatnipChaosProps) => {
   return game;
 };
 
+const getImageForLevel = (level: number): string => {
+  return level.toString().startsWith("8")
+    ? "currency/SEI.webp"
+    : "catnip-chaos/items/catnip-coin.png";
+};
+
 const CatnipChaosGame = ({ level }: { level: string }) => {
   const game = useRef<Phaser.Game | null>(null!);
+  const coinImage = getImageForLevel(parseInt(level, 10));
 
   useLayoutEffect(() => {
     if (game.current === null) {
-      game.current = StartGame({ level });
+      game.current = StartGame({ level, coinImage });
     }
 
     return () => {
