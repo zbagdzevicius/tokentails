@@ -12,7 +12,7 @@ const Box = () => {
       <Head>
         <title>Token Tails - Mystery Boxes</title>
         <meta property="og:image" content={cdnFile("logo/airdrop.jpg")} />
-        <meta property="og:title" content="Token Tails - Airdrop" key="title" />
+        <meta property="og:title" content="Token Tails - REWARDS" key="title" />
         <meta name="description" content="9 ways to earn $TAILS" />
         <link rel="shortcut icon" href={cdnFile("logo/logo.webp")} />
       </Head>

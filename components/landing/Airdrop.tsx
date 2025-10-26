@@ -21,7 +21,7 @@ export const Airdrop = () => {
               draggable={false}
               src={cdnFile("logo/logo.webp")}
             />
-            <span className="text-p2 text-center">$TAILS TOKEN AIRDROP</span>
+            <span className="text-p2 text-center">$TAILS TOKEN REWARDS</span>
             <span>
               <span className="text-red-700">600k USD</span> in{" "}
               <span className="text-red-700">$TAILS</span>

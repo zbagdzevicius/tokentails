@@ -85,7 +85,7 @@ export const SocialAirdropTerms = () => {
           <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] mr-4">
             $TAILS
           </span>
-          Airdrop
+          REWARDS
         </h2>
         <span className="bg-gradient-to-r font-primary from-yellow-300 to-yellow-400 text-black px-3 py-1 pb-2 rounded-md font-bold shadow-lg border-4 border-main-black animate-pulse">
           PHASE 4

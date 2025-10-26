@@ -9,7 +9,7 @@ export const AirdropRewardsSlider = () => {
       style={bgStyle("4")}
     >
       <img className="h-12" draggable={false} src={cdnFile("logo/logo.webp")} />
-      <span className="text-p2 text-center">$TAILS AIRDROP</span>
+      <span className="text-p2 text-center">$TAILS REWARDS</span>
       <span>
         <span className="text-red-700">600k USD</span> in{" "}
         <span className="text-red-700">$TAILS</span>

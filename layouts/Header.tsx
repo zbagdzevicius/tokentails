@@ -16,7 +16,7 @@ const navConsts: navProps[] = [
     link: "/cats",
   },
   {
-    title: "AIRDROP",
+    title: "REWARDS",
     link: "/airdrop",
   },
 ];

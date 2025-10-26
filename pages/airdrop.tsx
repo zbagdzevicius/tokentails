@@ -162,7 +162,7 @@ const Airdrop = () => {
           >
             <div className="z-10 text-center pt-2 rounded-full flex items-center flex-col justify-center text-p4 leading-none font-primary">
               <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] w-full text-center">
-                AIRDROP
+                REWARDS
               </span>
               <div>CAMPAIGN</div>
             </div>

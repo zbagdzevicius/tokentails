@@ -379,7 +379,7 @@ export const Codex = () => {
           <div className="font-primary">PRIORITY SUPPORT</div>
           <div className="font-primary">EARLY ACCESS TO UPDATES</div>
           <div className="font-primary">
-            $TAILS AIRDROP ELIGIBILITY CRITERIA
+            $TAILS REWARDS ELIGIBILITY CRITERIA
           </div>
         </div>
       ) : (

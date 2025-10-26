@@ -33,7 +33,7 @@ const CatsHubProps: IProps[] = [
       "Up to 10x elevated token rewards ratio, airdrops, COLLECTIBLE rewards, ability to stake COLLECTIBLE cats and craft tokens, AI companion on X and the most important - saved cats!",
   },
   {
-    title: "WEN $TAILS LISTING? WEN AIRDROP?",
+    title: "WEN $TAILS LISTING? WEN REWARDS?",
     img: cdnFile("images/cats-slider/play.jpg"),
     question: "WEN",
     description:
