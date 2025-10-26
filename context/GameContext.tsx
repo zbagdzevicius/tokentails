@@ -259,6 +259,7 @@ function useGame() {
     setOpenedModal: context.setOpenedModal,
     gameStop: context.gameStop,
     level: context.level,
+    addNotification: context.addNotification,
     setLevel: context.setLevel,
   };
 }

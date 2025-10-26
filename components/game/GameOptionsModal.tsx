@@ -1,13 +1,14 @@
 import { USER_API } from "@/api/user-api";
+import { REWARDS } from "@/constants/rewards";
 import { bgStyle, cdnFile, getNextDayMidnight } from "@/constants/utils";
+import { useGame } from "@/context/GameContext";
 import { useToast } from "@/context/ToastContext";
 import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { GameStatsSection } from "../catbassadors/GameStatsSection";
 import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
-import { REWARDS } from "@/constants/rewards";
 
 interface IProps {
   profile: IProfile;
@@ -23,7 +24,7 @@ export const GameOptionsModal = ({
   setOpenedModal,
 }: IProps) => {
   const toast = useToast();
-
+  const { addNotification } = useGame();
   const nextDayTargetDate = getNextDayMidnight();
 
   const redeemLives = useCallback(async () => {
@@ -34,9 +35,10 @@ export const GameOptionsModal = ({
       tails: (profile.tails || 0) + REWARDS.DAILY_REWARD,
       monthStreak: (profile.monthStreak || 0) + 1,
     });
-    toast({
+
+    addNotification({
       message: `You got ${REWARDS.DAILY_REWARD} $TAILS`,
-      img: cdnFile("logo/chest.webp"),
+      icon: cdnFile("logo/logo.webp"),
     });
   }, []);
 

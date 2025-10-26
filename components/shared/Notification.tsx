@@ -10,6 +10,7 @@ export const Notification = ({
   if (notifications.length === 0) return null;
 
   const { message, icon, isError } = notifications[0];
+  console.log(icon);
 
   return (
     <div
@@ -20,22 +21,24 @@ export const Notification = ({
         className={`animate-bounceWithFade rem:w-[240px] md:w-[300px] lg:w-[360px] min-h-10 px-2 text-main-black font-secondary`}
       >
         <div className="flex flex-col text-center items-center justify-center">
-          <img
-            draggable={false}
-            src={cdnFile("utilities/ui-elements/emblem.png")}
-            className="relative w-32 md:w-40 lg:w-48 rounded-full"
-          />
-
-          {icon && (
+          <div className="relative">
             <img
               draggable={false}
-              className={`w-14 md:w-[72px] lg:w-20 absolute top-0 translate-y-1 ${
-                isError ? "blur-sm" : ""
-              }`}
-              src={icon}
-              alt="Notification Icon"
+              src={cdnFile("utilities/ui-elements/emblem.png")}
+              className="relative w-32 md:w-40 lg:w-48 rounded-full"
             />
-          )}
+            {icon && (
+              <img
+                draggable={false}
+                className={`w-14 md:w-[72px] lg:w-20 absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 ${
+                  isError ? "blur-sm" : ""
+                }`}
+                src={icon}
+                alt="Notification Icon"
+              />
+            )}
+          </div>
+
           <p
             className="text-p2 md:text-p1 font-bold text-yellow-300"
             style={{
