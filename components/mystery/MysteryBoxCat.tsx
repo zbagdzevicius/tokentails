@@ -121,8 +121,13 @@ export const MysteryBoxCat = () => {
         />
       </div>
       {lootBoxRewards && (
-        <div className="font-primary my-2 animate-opacity text-p4 text-center text-balance">
-          {lootBoxRewards.toUpperCase()}
+        <div className="font-primary relative my-2 animate-opacity text-p4 text-center text-balance bg-gradient-to-b from-purple-300 to-blue-300 border-yellow-300 border-4 rounded-2xl px-2 mt-12 mb-8">
+          <span className="relative z-10">{lootBoxRewards.toUpperCase()}</span>
+          <img
+            className="absolute -top-14 left-1/2 -translate-x-1/2 z-0 w-12"
+            draggable={false}
+            src={cdnFile("logo/logo.webp")}
+          />
         </div>
       )}
       {!rolledCat ? (

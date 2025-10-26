@@ -53,7 +53,7 @@ export const GameOptionsModal = ({
                 onClick={() => {
                   setOpenedModal(GameModal.INVITE);
                 }}
-                text="GIFTS"
+                text="EVENTS"
               ></PixelButton>
             </span>
           </div>

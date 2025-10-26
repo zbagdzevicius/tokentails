@@ -13,7 +13,7 @@ import { MysteryBoxCat } from "../mystery/MysteryBoxCat";
 
 export const InviteModalContent = () => {
   const { utils, shareUrl } = useProfile();
-  const [type, setType] = useState(GameModal.CAMP);
+  const [type, setType] = useState(GameModal.MYSTERY_CAT);
   const [campView, setCampView] = useState<"mystery" | "trailheads">("mystery");
 
   const onInvite = () => {
@@ -22,12 +22,12 @@ export const InviteModalContent = () => {
 
   return (
     <div className="pt-4 pb-8 px-4 text-gray-700 flex flex-col justify-between items-center animate-appear">
-      <Tag>GIFTS</Tag>
+      <Tag>EVENTS</Tag>
       <div className="py-2 flex justify-center gap-4">
         <PixelButton
-          active={type === GameModal.CAMP}
-          text="CAMP"
-          onClick={() => setType(GameModal.CAMP)}
+          active={type === GameModal.MYSTERY_CAT}
+          text="BOXES"
+          onClick={() => setType(GameModal.MYSTERY_CAT)}
         ></PixelButton>
         <PixelButton
           active={type === GameModal.INVITE}
@@ -35,9 +35,9 @@ export const InviteModalContent = () => {
           onClick={() => setType(GameModal.INVITE)}
         ></PixelButton>
         <PixelButton
-          active={type === GameModal.MYSTERY_CAT}
-          text="BOXES"
-          onClick={() => setType(GameModal.MYSTERY_CAT)}
+          active={type === GameModal.CAMP}
+          text="CAMP"
+          onClick={() => setType(GameModal.CAMP)}
         ></PixelButton>
       </div>
       {type === GameModal.INVITE && (
@@ -92,7 +92,7 @@ export const InviteModalContent = () => {
           <div className="flex flex-row items-center">
             <PixelButton
               isSmall
-              text="MATCHSTICKS TASKS"
+              text="QUESTS"
               active={campView === "mystery"}
               onClick={() => setCampView("mystery")}
             />
