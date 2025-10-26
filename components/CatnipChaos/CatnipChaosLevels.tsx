@@ -25,8 +25,9 @@ export const CatnipChaosLevels = ({
 }) => {
   const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
-  const { setOpenedModal } = useGame();
-  const unlockedLevels = 64;
+  const unlockedLevels = [...(profile?.catnipChaos || [])].filter(
+    (level) => level > 0
+  ).length;
   const isGuard = profile?.codex?.filter((item) => item === 1)?.length || 0;
   const havePassToPlay = isGuard;
 
