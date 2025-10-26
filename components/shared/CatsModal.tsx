@@ -215,17 +215,6 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
           <CatCardModal onClose={handleCloseModal} {...selectedCat} />
         </Web3Providers>
       )}
-
-      <img
-        draggable={false}
-        onClick={() => {
-          setGameType(GameType.SHELTER);
-          close();
-        }}
-        className="w-full h-auto rounded-xl hover:animate-hover cursor-pointer"
-        src={cdnFile("game/select/shelter-wide.jpg")}
-        alt="Go to shelter"
-      />
     </div>
   );
 };

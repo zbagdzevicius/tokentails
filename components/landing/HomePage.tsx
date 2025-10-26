@@ -115,7 +115,7 @@ const cats: bannerProps[] = [
 export const HomePage = () => {
   return (
     <div className="flex items-center flex-col w-full h-full relative">
-      <h1 className="md:mt-12 xl:mt-16 text-balance text-center font-primary uppercase z-0 tracking-tight rem:text-[80px] rem:leading-[60px] md:text-h1 lg:text-[142px] xl:text-[176px] 2xl:text-[210px] 3xl:text-[280px]">
+      <h1 className="z-100 relative md:mt-12 xl:mt-16 text-balance text-center font-primary uppercase z-0 tracking-tight rem:text-[80px] rem:leading-[60px] md:text-h1 lg:text-[142px] xl:text-[176px] 2xl:text-[210px] 3xl:text-[280px]">
         <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)]">
           YOUR
         </span>{" "}

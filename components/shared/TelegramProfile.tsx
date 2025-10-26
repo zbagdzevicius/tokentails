@@ -346,7 +346,7 @@ export const TelegramProfileContent = () => {
 
           {activeTab === "achievements" && (
             <ul>
-              {profile?.spent > 0 && (
+              {profile?.spent > 0 ? (
                 <li className="flex flex-col gap-x-2 mt-2">
                   <div className="flex font-secondary text-p4 gap-2 text-center m-auto mt-2 -mb-1">
                     <img
@@ -412,6 +412,10 @@ export const TelegramProfileContent = () => {
                     );
                   })()}
                 </li>
+              ) : (
+                <div className="text-p5 font-secondary text-center m-auto mt-4 -mb-1">
+                  FIRST ADOPT A CAT
+                </div>
               )}
             </ul>
           )}

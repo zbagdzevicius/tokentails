@@ -61,7 +61,7 @@ export const CatBenefits = ({
             <span>X{getMultiplier(cat)} multiplier</span>
           </span>
         </div>
-        {cat.price && (
+        {!!cat.price && (
           <div className="text-p4 bg-green-600 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 bg-opacity-60 hover:bg-opacity-80 mb-2 border-2 rounded-xl border-main-black">
             <img
               draggable={false}

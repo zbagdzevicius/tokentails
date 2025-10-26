@@ -12,10 +12,6 @@ interface navProps {
 
 const navConsts: navProps[] = [
   {
-    title: "Game",
-    link: "/#game",
-  },
-  {
     title: "COLLECTIBLE CATS",
     link: "/cats",
   },
@@ -89,7 +85,7 @@ export const Header = () => {
             TOKEN TAILS
           </div>
         </a>
-        <ul className="hidden lg:flex space-x-[35px] lg:space-x-4 xl:space-x-8 py-4 absolute left-1/2 -translate-x-1/2">
+        <ul className="hidden lg:flex space-x-[35px] lg:space-x-0 py-4 absolute left-1/2 -translate-x-1/2">
           {navConsts.map((navItem, index) => (
             <li
               key={index}
@@ -99,10 +95,7 @@ export const Header = () => {
                 href={navItem.link}
                 onClick={() => handleTitleClick(navItem.title)}
               >
-                <PixelButton
-                  text={navItem.title}
-                  isSmall={navItem.title !== "COLLECTIBLE CATS"}
-                />
+                <PixelButton text={navItem.title} isSmall />
               </a>
             </li>
           ))}

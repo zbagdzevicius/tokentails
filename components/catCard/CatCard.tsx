@@ -16,6 +16,9 @@ import { ChainSelect } from "../shared/ChainSelect";
 import { CloseButton } from "../shared/CloseButton";
 import { PixelButton } from "../shared/PixelButton";
 import { Web3Transfer } from "../web3/transfer/Web3Transfer";
+import { StripePayment } from "../web3/StripePayment";
+import { isApp } from "@/models/app";
+import { Browser } from "@capacitor/browser";
 
 interface IProps extends ICat {
   onClose?: (gameModal?: GameModal) => void;
@@ -111,6 +114,9 @@ export const CatPayment = ({
     () => cats?.find((cat) => cat.name === name),
     [cats, cat]
   );
+  const [paymentMethod, setPaymentMethod] = useState<"crypto" | "card">(
+    "crypto"
+  );
   const corePrice = useMemo(() => getCatPrice(cat), [cat]);
   const currencyPrice = useMemo(() => {
     if (
@@ -180,28 +186,60 @@ export const CatPayment = ({
           style={bgStyle("4")}
         >
           <CloseButton absolute onClick={close} />
+          <div className="font-secondary bg-purple-300 px-4 rounded-full w-fit m-auto">
+            PAYMENT METHOD
+          </div>
+          <div className="flex flex-row justify-center items-center">
+            <PixelButton
+              isSmall
+              text="CRYPTO"
+              active={paymentMethod === "crypto"}
+              onClick={() => setPaymentMethod("crypto")}
+            />
+            <PixelButton
+              isSmall
+              text="CARD / APPLE PAY"
+              active={paymentMethod === "card"}
+              onClick={() =>
+                isApp
+                  ? Browser.open({
+                      url: `https://tokentails.com/cats/${cat._id}`,
+                    })
+                  : setPaymentMethod("card")
+              }
+            />
+          </div>
           <div className="flex flex-col gap-4">
-            <ChainSelect />
+            {paymentMethod === "crypto" && <ChainSelect />}
+            {paymentMethod === "card" && (
+              <StripePayment
+                price={currencyPrice}
+                catId={cat._id!}
+                onSuccess={() => onSuccess(cat)}
+              />
+            )}
           </div>
 
-          <div className="m-auto">
-            <div className="flex flex-col items-start w-fit m-auto">
-              <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
-                {currencyPrice} {currencyType}
+          {paymentMethod === "crypto" && (
+            <div className="m-auto">
+              <div className="flex flex-col items-start w-fit m-auto">
+                <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
+                  {currencyPrice} {currencyType}
+                </div>
+                <Web3Transfer
+                  price={currencyPrice}
+                  amount={1}
+                  entityType={EntityType.CAT}
+                  buyMode={buyMode}
+                  cat={cat._id}
+                  blessing={cat.blessings?.[0]?._id}
+                  user={profile?._id}
+                  text={buyText}
+                  loadingText="Saving Cat"
+                />
               </div>
-              <Web3Transfer
-                price={currencyPrice}
-                amount={1}
-                entityType={EntityType.CAT}
-                buyMode={buyMode}
-                cat={cat._id}
-                blessing={cat.blessings?.[0]?._id}
-                user={profile?._id}
-                text={buyText}
-                loadingText="Saving Cat"
-              />
             </div>
-          </div>
+          )}
         </div>
       )}
       <div className="z-10 relative flex flex-row w-full pt-2">
@@ -306,7 +344,6 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
                     src={cdnFile("currency/SEI.webp")}
                     draggable="false"
                   />
-                 
                 )}
                 <h3 className="text-main-black text-p3 whitespace-nowrap uppercase font-bold flex items-center">
                   {name}

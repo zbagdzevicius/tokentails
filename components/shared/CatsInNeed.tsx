@@ -32,14 +32,8 @@ export const CatsInNeedModalContent = ({ close }: { close: () => void }) => {
   return (
     <div className="px-4 pt-4 pb-8 md:px-16 flex flex-col justify-between items-center animate-appear">
       <Tag>CATS IN NEED</Tag>
-      <h2 className="text-center font-secondary uppercase text-p4 md:text-p3 pt-2">
-        Here you can save a real cat in a shelter
-      </h2>
-      <h2 className="text-center font-secondary uppercase text-p5 md:text-p4 mb-2">
-        Adopt now or forever be haunted by ghost cats
-      </h2>
 
-      <div className="flex flex-wrap justify-center w-full gap-8">
+      <div className="flex flex-wrap justify-center w-full gap-8 mt-8">
         {catsForSale?.["rozine-pedute"]?.map((cat) => (
           <CatMiniCard
             key={cat._id}

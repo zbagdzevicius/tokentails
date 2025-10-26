@@ -60,7 +60,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
         {
           "top-1/2 -translate-y-1/2": gameType === GameType.HOME,
           "top-4": gameType && gameType !== GameType.HOME,
-          "lg:top-40": !gameType,
+          "lg:top-20": !gameType,
         }
       )}
     >
@@ -100,8 +100,8 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
       )}
       {!gameType && (
         <>
-          <div className="flex flex-col max-w-max md:gap-4 lg:gap-8 min-w-0 items-center lg:mt-8 relative">
-            <div className="flex gap-36 mt-48 md:mt-20 lg:mt-48 items-end absolute">
+          <div className="flex flex-col max-w-max md:gap-4 lg:gap-8 min-w-0 items-center lg:-mt-8 relative">
+            <div className="flex gap-36 mt-48 md:mt-20 lg:mt-32 items-end absolute">
               <GameSelectItem
                 setGameType={setGameType}
                 gameType={GameType.SHELTER}

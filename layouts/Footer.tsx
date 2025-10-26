@@ -11,10 +11,6 @@ interface FooterProps {
 
 const navConsts: FooterProps[] = [
   {
-    title: "Game",
-    link: "#feedbackslider",
-  },
-  {
     title: "Blog",
     link: "/feed",
   },

@@ -26,9 +26,7 @@ export const CatnipChaosLevels = ({
   const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
   const { setOpenedModal } = useGame();
-  const unlockedLevels = [...(profile?.catnipChaos || [])].filter(
-    (level) => level > 0
-  ).length;
+  const unlockedLevels = 64;
   const isGuard = profile?.codex?.filter((item) => item === 1)?.length || 0;
   const havePassToPlay = isGuard;
 
@@ -56,6 +54,11 @@ export const CatnipChaosLevels = ({
 
   const isRedeemed = useCallback(
     (mysteryBox: IMysteryBox) => {
+      console.log(
+        mysteryBox.key,
+        profile?.quests,
+        !!profile?.quests?.includes(mysteryBox.key)
+      );
       return !!profile?.quests?.includes(mysteryBox.key);
     },
     [profile?.quests]
@@ -119,7 +122,7 @@ export const CatnipChaosLevels = ({
                     />
                   </div>
                 )}
-                <span className="font-primary text-p6 flex items-center">
+                <span className="font-primary text-p6 flex items-center pl-1 pr-1 rounded-full bg-yellow-300/50">
                   <img
                     src={cdnFile("logo/catnip.webp")}
                     className="w-4 h-4 mr-1"
@@ -150,6 +153,30 @@ export const CatnipChaosLevels = ({
                     className="w-20 rounded-2xl -mx-6 absolute -left-4 z-40 pixelated"
                   />
                 )}
+                {level === "81" && (
+                  <img
+                    src={
+                      "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/SEI/base/SITTING.gif"
+                    }
+                    className="w-16 rounded-2xl -mx-6 absolute -left-4 z-40 pixelated"
+                  />
+                )}
+                {level === "83" && (
+                  <img
+                    src={
+                      "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/ELDREM/base/RUNNING.gif"
+                    }
+                    className="w-20 mb-24 rounded-2xl -mx-6 absolute -left-4 z-40 pixelated"
+                  />
+                )}
+                {level === "85" && (
+                  <img
+                    src={
+                      "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/AMBERCLAW/base/RUNNING.gif"
+                    }
+                    className="w-14 mt-8 rounded-2xl -mx-6 absolute -left-4 z-40 pixelated"
+                  />
+                )}
               </div>
               {level[1] === "6" && (
                 <div
@@ -159,9 +186,7 @@ export const CatnipChaosLevels = ({
                 >
                   {unlockedLevels >= i && (
                     <div className="flex flex-col items-center absolute -bottom-5">
-                      {!isRedeemed(
-                        chaptersBadges[ChainType.CAMP]![parseInt(level[0]) - 1]
-                      ) ? (
+                      {!!isRedeemed(chaptersBadges[parseInt(level[0]) - 1]) ? (
                         <PixelButton
                           text="REDEEMED"
                           isDisabled
@@ -173,17 +198,9 @@ export const CatnipChaosLevels = ({
                             hideAddress
                             user={profile?._id!}
                             ownedNFTCallback={() =>
-                              onRedeem(
-                                chaptersBadges[ChainType.CAMP]![
-                                  parseInt(level[0]) - 1
-                                ]
-                              )
+                              onRedeem(chaptersBadges[parseInt(level[0]) - 1])
                             }
-                            mysteryBox={
-                              chaptersBadges[ChainType.CAMP]![
-                                parseInt(level[0]) - 1
-                              ]
-                            }
+                            mysteryBox={chaptersBadges[parseInt(level[0]) - 1]}
                           />
                         </Web3Providers>
                       )}
