@@ -61,7 +61,7 @@ const StripeCheckoutForm = ({ onSuccess, price }: StripeCheckoutFormProps) => {
       <PaymentElement />
       <div className="mt-4 flex justify-center">
         <PixelButton
-          text={isProcessing ? "Processing..." : `Save with $${price}`}
+          text={isProcessing ? "Processing..." : `ADOPT FOR $${price}`}
           isDisabled={isProcessing}
         />
       </div>

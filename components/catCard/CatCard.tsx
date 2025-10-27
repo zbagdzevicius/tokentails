@@ -213,7 +213,7 @@ export const CatPayment = ({
             {paymentMethod === "crypto" && <ChainSelect />}
             {paymentMethod === "card" && (
               <StripePayment
-                price={currencyPrice}
+                price={corePrice}
                 catId={cat._id!}
                 onSuccess={() => onSuccess(cat)}
               />
