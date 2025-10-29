@@ -1,5 +1,7 @@
 import { CAT_API } from "@/api/cat-api";
 import { getMultiplier } from "@/constants/cat-utils";
+import { REWARDS } from "@/constants/rewards";
+import { bgStyle, cdnFile } from "@/constants/utils";
 import { MAX_CAT_STATUS } from "@/context/CatContext";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -9,15 +11,13 @@ import { GameModal, GameType } from "@/models/game";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { CatCardModal } from "../catCard/CatCardModal";
+import { RedeemCard } from "../catCard/RedeemCard";
 import { GameEvents } from "../Phaser/events";
 import { Web3Providers } from "../web3/Web3Providers";
 import { CloseButton } from "./CloseButton";
 import { Countdown } from "./Countdown";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
-import { bgStyle, cdnFile } from "@/constants/utils";
-import { REWARDS } from "@/constants/rewards";
-import { GenerateCat } from "../catCard/GenerateCat";
 
 const weekInMs = 604800000;
 
@@ -106,9 +106,11 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
       />
       <div className="mt-1"></div>
 
-      <Web3Providers>
+      <RedeemCard close={close} />
+
+      {/* <Web3Providers>
         <GenerateCat close={close} />
-      </Web3Providers>
+      </Web3Providers> */}
       <div className="flex flex-wrap justify-center w-full">
         {mutatedCats?.map((cat) => (
           <div

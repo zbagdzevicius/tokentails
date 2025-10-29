@@ -135,6 +135,26 @@ const setActive = async (id: string): Promise<void> => {
   });
 };
 
+const redeem = async (
+  code: string
+): Promise<{ cat: ICat; message: string; success: boolean }> => {
+  return fetch(`${apiUrl}/cat/redeem/${code}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: sessionStorage.getItem("accesstoken"),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return;
+  });
+};
+
 export const CAT_API = {
   stake,
   stakingRedeem,
@@ -143,4 +163,5 @@ export const CAT_API = {
   update,
   cat,
   setActive,
+  redeem,
 };
