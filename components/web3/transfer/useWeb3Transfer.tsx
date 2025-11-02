@@ -139,7 +139,6 @@ export const useWeb3Transfer = ({
   }, [setHash, writeContractHash]);
 
   async function syncChain() {
-    console.log("syncChain", chainId, chainTypeId[chainType]);
     try {
       if (chainId !== chainTypeId[chainType]) {
         await switchChainAsync({ chainId: chainTypeId[chainType] });

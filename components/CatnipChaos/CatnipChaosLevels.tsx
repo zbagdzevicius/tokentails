@@ -55,11 +55,6 @@ export const CatnipChaosLevels = ({
 
   const isRedeemed = useCallback(
     (mysteryBox: IMysteryBox) => {
-      console.log(
-        mysteryBox.key,
-        profile?.quests,
-        !!profile?.quests?.includes(mysteryBox.key)
-      );
       return !!profile?.quests?.includes(mysteryBox.key);
     },
     [profile?.quests]
@@ -224,7 +219,7 @@ export const CatnipChaosLevels = ({
             </div>
           ))}
       </div>
-      <div className="flex flex-row items-center gap-8">
+      <div className="flex flex-row items-center gap-8 pb-32">
         <div className="flex flex-col items-start text-p4 md:text-p2">
           <div className="flex font-secondary text-center items-center gap-1">
             <img src={cdnFile("logo/catnip.webp")} className="w-8 h-8 mr-2" />

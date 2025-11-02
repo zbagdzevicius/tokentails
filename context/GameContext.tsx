@@ -48,6 +48,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [openedModal, setOpenedModal] = useState<GameModal | null>(null);
   const [gameStop, setGameStop] = useState<null | IGameStopEvent>(null);
   const [level, setLevel] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number>(0);
 
   const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
@@ -72,8 +73,19 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     if (gameType === null) {
       setLevel(null);
       setIsStarted(false);
+      setProgress(0);
     }
   }, [gameType]);
+
+  const gameProgressUpdateCallback = (
+    event?: ICatEventsDetails[GameEvent.GAME_PROGRESS_UPDATE]
+  ) => {
+    if (!event) return;
+
+    setProgress(event.progress);
+  };
+
+  GameEvents.GAME_PROGRESS_UPDATE.use(gameProgressUpdateCallback);
 
   const gameStopCallback = React.useCallback(
     async (event?: ICatEventsDetails[GameEvent.GAME_STOP]) => {
@@ -145,6 +157,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     isStarted,
     playGame,
     gameType,
+    progress,
     setGameType,
     addNotification,
     setOpenedModal,
@@ -254,6 +267,7 @@ function useGame() {
   return {
     isStarted: context.isStarted,
     gameType: context.gameType,
+    progress: context.progress,
     setGameType: context.setGameType,
     playGame: context.playGame,
     setOpenedModal: context.setOpenedModal,

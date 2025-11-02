@@ -10,7 +10,6 @@ export const Notification = ({
   if (notifications.length === 0) return null;
 
   const { message, icon, isError } = notifications[0];
-  console.log(icon);
 
   return (
     <div

@@ -1,14 +1,13 @@
+import { bgStyle, cdnFile } from "@/constants/utils";
+import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { GameType } from "@/models/game";
 import React from "react";
-import { CloseButton } from "./CloseButton";
-import { Tag } from "./Tag";
-import { PixelButton } from "./PixelButton";
 import { IGameStopEvent } from "../Phaser/events";
-import { getMultiplier } from "@/constants/cat-utils";
-import { useGame } from "@/context/GameContext";
 import { getNextCatnipChaosLevel, lastCatnipChaosLevel } from "../Phaser/map";
-import { bgStyle, cdnFile } from "@/constants/utils";
+import { CloseButton } from "./CloseButton";
+import { PixelButton } from "./PixelButton";
+import { Tag } from "./Tag";
 
 type EndGameProps = {
   onClose: () => void;

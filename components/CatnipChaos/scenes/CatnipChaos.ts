@@ -48,6 +48,8 @@ export class CatnipChaosScene extends Scene {
   blessing!: Phaser.GameObjects.Sprite;
   trampoline?: Trampoline;
   private gameEnded: boolean = false;
+  private endXCoordinate: number = 0;
+
   private portalManager?: PortalManager;
 
   spikeManager!: SpikeManager;
@@ -95,10 +97,7 @@ export class CatnipChaosScene extends Scene {
     this.load.audio("jump", cdnFile("catnip-chaos/sounds/jump.mp3"));
     this.load.image("platform", cdnFile("purrquest/icons/platform.png"));
     //on level 8 load sei coin image on other loads catnip coin
-    this.load.image(
-      "catnip-coin",
-      cdnFile(this.coinImage)
-    );
+    this.load.image("catnip-coin", cdnFile(this.coinImage));
     // this.load.image(
     //   "catnip-coin",
     //   cdnFile("catnip-chaos/items/catnip-coin.png")
@@ -205,9 +204,13 @@ export class CatnipChaosScene extends Scene {
     if (props.detail?.cat) {
       this.spawnCat({ detail: { cat: props.detail.cat } });
     }
+    this.time.addEvent({
+      delay: 100, // run every second
+      callback: () => this.createProgressBar(),
+      callbackScope: this,
+      loop: true,
+    });
   }
-
-  createAnimatedSpikes() {}
 
   private setupTilemap() {
     this.tilemap = this.make.tilemap({ key: "tilemap" });
@@ -253,8 +256,10 @@ export class CatnipChaosScene extends Scene {
     );
 
     this.createFloatingPlatforms();
-
     this.physicsLayer.forEachTile((tile) => {
+      if (tile.index === 162 || tile.index === 192) {
+        this.endXCoordinate = this.physicsLayer.tileToWorldX(tile.x);
+      }
       if (tile.index === 58) {
         const worldX = this.physicsLayer.tileToWorldX(tile.x);
         const worldY = this.physicsLayer.tileToWorldY(tile.y);
@@ -320,7 +325,7 @@ export class CatnipChaosScene extends Scene {
         rotatingSprite.width = 32;
         rotatingSprite.height = 32;
         rotatingSprite.setDisplaySize(32, 32);
-  
+
         rotatingSprite.setVisible(true);
 
         // Add continuous rotation animation
@@ -504,17 +509,9 @@ export class CatnipChaosScene extends Scene {
 
   createProgressBar() {
     if (!this.cat) return;
-
-    let endX = 0;
-    this.physicsLayer.forEachTile((tile) => {
-      if (tile.index === 162 || tile.index === 192) {
-        endX = this.physicsLayer.tileToWorldX(tile.x);
-      }
-    });
-
     const startX = -950;
     const playerX = this.cat.sprite.x;
-    const totalDistance = endX - startX;
+    const totalDistance = this.endXCoordinate - startX;
     const currentDistance = playerX - startX;
     const progress = Math.min(
       100,
@@ -534,8 +531,6 @@ export class CatnipChaosScene extends Scene {
       if (this.useTileSpikeChecks && !this.gameEnded) {
         this.checkSpikeTilesOverlap();
       }
-
-      // this.createProgressBar();
 
       this.flightXEffectBlocks.forEach((effectSprite) => {
         if (
