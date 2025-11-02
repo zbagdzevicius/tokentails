@@ -32,6 +32,7 @@ type ContextState = {
   isStarted?: boolean;
   gameType: GameType | null;
   level: string | null;
+  progress: number;
   setLevel: (level: string | null) => void;
   setGameType: (gameType: GameType | null) => void;
   gameStop: IGameStopEvent | null;
