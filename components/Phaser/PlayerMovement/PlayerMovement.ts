@@ -70,6 +70,12 @@ export class PlayerMovement {
       } else {
         body.setAllowGravity(true);
         this.player.sprite.setAngle(0); // Reset rotation when flight mode is disabled
+        // Reset velocities to prevent carrying over flight momentum
+        this.player.sprite.setVelocityY(0);
+        // Reset horizontal velocity if in auto-run mode, otherwise let normal movement take over
+        if (this.isAutoRunMode) {
+          this.player.sprite.setVelocityX(this.autoRunSpeed);
+        }
       }
     }
   }
