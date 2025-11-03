@@ -60,6 +60,7 @@ export enum MYSTERY_BOX_TYPE {
   CATNIP_CHAOS_6 = "CATNIP_CHAOS_6",
   CATNIP_CHAOS_7 = "CATNIP_CHAOS_7",
   CATNIP_CHAOS_8 = "CATNIP_CHAOS_8",
+  CATNIP_CHAOS_9 = "CATNIP_CHAOS_9",
 }
 
 export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
@@ -125,10 +126,10 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
 
 export const chaptersBadges: IMysteryBox[] = [
   {
-    address: "0x2E7801A267Ac403fB9C2Ebd2D596F7A049C0C413",
+    address: "0x40a41BA829F36edaD073Ae768bE4DC29F14CDD25",
     name: "Catnip Chaos - Chapter 1 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_1,
-    chain: ChainType.CAMP,
+    chain: ChainType.SEI,
     image: cdnFile("catnip-chaos/badges/chapter1.webp"),
     requirements: {
       type: MysteryBoxRequirementType.CHAPTER,
@@ -136,10 +137,10 @@ export const chaptersBadges: IMysteryBox[] = [
     },
   },
   {
-    address: "0x088C74D5cae0A3C08A34B1AEF87c6B0BA2F88A84",
+    address: "0xe7246BdB86e0abEeFA83ce81d967709ce1cDdd25",
     name: "Catnip Chaos - Chapter 2 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_2,
-    chain: ChainType.CAMP,
+    chain: ChainType.SEI,
     image: cdnFile("catnip-chaos/badges/chapter2.webp"),
     requirements: {
       type: MysteryBoxRequirementType.CHAPTER,
@@ -147,10 +148,10 @@ export const chaptersBadges: IMysteryBox[] = [
     },
   },
   {
-    address: "0x701e95Af733116F119E227Fc96dd84B88619490f",
+    address: "0xa518F2f416b90250e0CC46FbD9920a0EC7940bA0",
     name: "Catnip Chaos - Chapter 3 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_3,
-    chain: ChainType.CAMP,
+    chain: ChainType.SEI,
     image: cdnFile("catnip-chaos/badges/chapter3.webp"),
     requirements: {
       type: MysteryBoxRequirementType.CHAPTER,
@@ -158,10 +159,10 @@ export const chaptersBadges: IMysteryBox[] = [
     },
   },
   {
-    address: "0x4e4AB24f37CFAdB06C5a2e00e8f1D3dE3c8A3408",
+    address: "0x92B355908a597Aac295aee96131DD88Fe220E6E3",
     name: "Catnip Chaos - Chapter 4 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_4,
-    chain: ChainType.CAMP,
+    chain: ChainType.SEI,
     image: cdnFile("catnip-chaos/badges/chapter4.webp"),
     requirements: {
       type: MysteryBoxRequirementType.CHAPTER,
@@ -169,10 +170,10 @@ export const chaptersBadges: IMysteryBox[] = [
     },
   },
   {
-    address: "0xeEE8C60861bDD9CF0b0C3c0A54021F5153220408",
+    address: "0xb2b912D64B154Ac73C5bf5564a21F5852025A4B2",
     name: "Catnip Chaos - Chapter 5 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_5,
-    chain: ChainType.CAMP,
+    chain: ChainType.SEI,
     image: cdnFile("catnip-chaos/badges/chapter5.webp"),
     requirements: {
       type: MysteryBoxRequirementType.CHAPTER,
@@ -180,10 +181,10 @@ export const chaptersBadges: IMysteryBox[] = [
     },
   },
   {
-    address: "0xa0D4687483F049c53e6EC8cBCbc0332C74180168",
+    address: "0x2e9F67A2Ca352e2672491a9c75dB7769B83bbef0",
     name: "Catnip Chaos - Chapter 6 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_6,
-    chain: ChainType.CAMP,
+    chain: ChainType.SEI,
     image: cdnFile("catnip-chaos/badges/chapter6.webp"),
     requirements: {
       type: MysteryBoxRequirementType.CHAPTER,
@@ -191,10 +192,10 @@ export const chaptersBadges: IMysteryBox[] = [
     },
   },
   {
-    address: "0x3ebb468B41569307D69648022ee9a3B415977461",
+    address: "0x413E1D2C1df418544b615ee2716e386D736eeA73",
     name: "Catnip Chaos - Chapter 7 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_7,
-    chain: ChainType.CAMP,
+    chain: ChainType.SEI,
     image: cdnFile("catnip-chaos/badges/chapter7.webp"),
     requirements: {
       type: MysteryBoxRequirementType.CHAPTER,
@@ -210,6 +211,17 @@ export const chaptersBadges: IMysteryBox[] = [
     requirements: {
       type: MysteryBoxRequirementType.CHAPTER,
       text: "Complete 8th chapter of Catnip Chaos",
+    },
+  },
+  {
+    address: "0xEBd5f0EFAd954096a4442C13293337af0B5B9D79",
+    name: "Catnip Chaos - Chapter 9 Badge",
+    key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_9,
+    chain: ChainType.SEI,
+    image: cdnFile("catnip-chaos/badges/chapter9.webp"),
+    requirements: {
+      type: MysteryBoxRequirementType.CHAPTER,
+      text: "Complete 9th chapter of Catnip Chaos",
     },
   },
 ];

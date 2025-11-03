@@ -67,12 +67,12 @@ export const CatnipChaosLevelMap: Record<string, Map> = {
   "84": Map.SEI,
   "85": Map.SEI,
   "86": Map.SEI,
-  // "91": Map.DAEMON,
-  // "92": Map.DAEMON,
-  // "93": Map.DAEMON,
-  // "94": Map.DAEMON,
-  // "95": Map.DAEMON,
-  // "96": Map.DAEMON,
+  "91": Map.DAEMON,
+  "92": Map.DAEMON,
+  "93": Map.DAEMON,
+  "94": Map.DAEMON,
+  "95": Map.DAEMON,
+  "96": Map.DAEMON,
 };
 
 export const totalCatnip =
@@ -101,5 +101,5 @@ export const catnipChaosChapterBGImage: Record<string, string> = {
   "6": cdnFile("backgrounds/bg-min-summit.webp"),
   "7": cdnFile("backgrounds/bg-min-camp-green.webp"),
   "8": cdnFile("backgrounds/bg-min-sei.webp"),
-  // "9": cdnFile("backgrounds/bg-min-daemon.webp"),
+  "9": cdnFile("backgrounds/bg-min-daemon.webp"),
 };

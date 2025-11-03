@@ -39,6 +39,7 @@ const chaptersBackgroundImages = {
   "6": `url(${cdnFile("backgrounds/bg-2.webp")})`,
   "7": `url(${cdnFile("backgrounds/bg-7.webp")})`,
   "8": `url(${cdnFile("backgrounds/bg-8.webp")})`,
+  "9": `url(${cdnFile("backgrounds/bg-6.webp")})`,
 };
 
 export const useBackground = ({ level }: { level?: string | null }) => {

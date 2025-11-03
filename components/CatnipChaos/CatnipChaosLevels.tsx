@@ -173,6 +173,14 @@ export const CatnipChaosLevels = ({
                     className="w-14 mt-8 rounded-2xl -mx-6 absolute -left-4 z-40 pixelated"
                   />
                 )}
+                {level === "93" && (
+                  <img
+                    src={
+                      "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/SOLO-SURVIVOR/base/IDLE.gif"
+                    }
+                    className="w-16 mt-5 rounded-2xl -mx-4 absolute -left-4 z-40 pixelated"
+                  />
+                )}
               </div>
               {level[1] === "6" && (
                 <div
