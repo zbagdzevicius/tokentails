@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Socials } from "./Socials";
 import { cdnFile } from "@/constants/utils";
+import { PixelButton } from "@/components/shared/PixelButton";
 
 interface FooterProps {
   title: string;
@@ -15,8 +16,12 @@ const navConsts: FooterProps[] = [
     link: "/feed",
   },
   {
-    title: "Contact",
-    link: "mailto:info@tokentails.com",
+    title: "CATS",
+    link: "/cats",
+  },
+  {
+    title: "REWARDS",
+    link: "/airdrop",
   },
 ];
 
@@ -45,21 +50,18 @@ export const Footer: React.FC = () => {
             <Socials />
           </div>
           <ul className="flex flex-1 justify-center font-secondary font-bold">
-            {navConsts.map((footerItem, index) => (
-              <li key={index} className="py-6 px-3 rounded">
-                <a
-                  href={footerItem.link}
-                  className={`text-p5 cursor-pointer hover:custom-gradient-text ${
-                    activeTitle === footerItem.title
-                      ? "custom-gradient-text font-bold"
-                      : ""
-                  }`}
-                  onClick={() => handleTitleClick(footerItem.title)}
-                >
-                  {footerItem.title}
-                </a>
-              </li>
-            ))}
+            <ul className="hidden lg:flex">
+              {navConsts.map((navItem, index) => (
+                <li key={index} className="max-lg:border-b max-lg:rounded">
+                  <a
+                    href={navItem.link}
+                    onClick={() => handleTitleClick(navItem.title)}
+                  >
+                    <PixelButton text={navItem.title} isSmall />
+                  </a>
+                </li>
+              ))}
+            </ul>
           </ul>
           <div className="flex-1 font-secondary text-end whitespace-nowrap flex w-fit gap-2">
             © 2024 All Rights Reserved by Token Tails

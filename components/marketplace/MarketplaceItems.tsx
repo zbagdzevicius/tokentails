@@ -1,6 +1,6 @@
 import { CAT_API } from "@/api/cat-api";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { PixelButton } from "../shared/PixelButton";
 import { MarketplaceItem } from "./MarketplaceItem";
 

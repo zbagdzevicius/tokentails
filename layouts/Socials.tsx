@@ -46,23 +46,6 @@ export const Socials = ({ isVertical }: { isVertical?: boolean }) => {
           draggable="false"
         />
       </a>
-      <a
-        target="_blank"
-        href="https://play.google.com/store/apps/details?id=com.tokentails.app"
-      >
-        <img
-          className="w-8"
-          src={cdnFile("icons/social/android.webp")}
-          draggable="false"
-        />
-      </a>
-      <a target="_blank" href="https://apps.apple.com/app/id6745582489">
-        <img
-          className="w-8"
-          src={cdnFile("icons/social/ios.webp")}
-          draggable="false"
-        />
-      </a>
       <a target="_blank" href="mailto:info@tokentails.com">
         <img
           className="w-8"

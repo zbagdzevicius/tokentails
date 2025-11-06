@@ -4,14 +4,21 @@ import { FeedbackSlider } from "@/components/landing/FeedbackSlider";
 import { GameAggregators } from "@/components/landing/GameAggregators";
 import { HomePage } from "@/components/landing/HomePage";
 import Roadmap from "@/components/landing/Roadmap";
+import { Sponsors } from "@/components/landing/Sponsors";
 import { Team } from "@/components/landing/Team";
 import { Circle } from "@/components/shared/Circle";
+import { PixelButton } from "@/components/shared/PixelButton";
 import Snowfall from "@/components/shared/Snowfall";
 import { bgStyle, cdnFile } from "@/constants/utils";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
+import dynamic from "next/dynamic";
 import Head from "next/head";
 import { useEffect, useRef } from "react";
+
+const Preview = dynamic(() => import("@/components/landing/Preview"), {
+  ssr: false,
+});
 
 export default function Index() {
   const feedbackSliderRef = useRef(null);
@@ -91,6 +98,35 @@ export default function Index() {
         >
           <Snowfall />
           <HomePage />
+          <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+            <Preview />
+          </div>
+
+          <div className="absolute  top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pt-48 flex flex-col justify-center items-center">
+            <a href="/game">
+              <PixelButton text="PLAY" isBig subtext="GAME" />
+            </a>
+
+            <div className="flex gap-8 mt-4">
+              <a target="_blank" href="https://apps.apple.com/app/id6745582489">
+                <img
+                  className="w-10 opacity-75 hover:opacity-100 hover:w-12 transition-all duration-300"
+                  src={cdnFile("icons/social/ios.webp")}
+                  draggable="false"
+                />
+              </a>
+              <a
+                target="_blank"
+                href="https://play.google.com/store/apps/details?id=com.tokentails.app"
+              >
+                <img
+                  className="w-10 opacity-75 hover:opacity-100 hover:w-12 transition-all duration-300"
+                  src={cdnFile("icons/social/android.webp")}
+                  draggable="false"
+                />
+              </a>
+            </div>
+          </div>
         </div>
         <div
           className="py-4 min-h-screen flex items-center justify-center"
@@ -121,7 +157,7 @@ export default function Index() {
           </div>
         </div>
         <div
-          className="pt-4 min-h-screen flex items-center justify-center"
+          className="pt-4 min-h-screen flex items-center justify-center relative"
           style={{
             backgroundImage: "url(/backgrounds/bg.svg)",
             backgroundRepeat: "no-repeat",
@@ -129,6 +165,7 @@ export default function Index() {
             backgroundPosition: "center",
           }}
         >
+          <Sponsors />
           <div className="h-full" id="contact" ref={contactRef}>
             <Team />
           </div>

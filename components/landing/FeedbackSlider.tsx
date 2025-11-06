@@ -1,12 +1,12 @@
 import { CAT_API } from "@/api/cat-api";
+import { cdnFile } from "@/constants/utils";
 import { ICat } from "@/models/cats";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { MarketplaceItem } from "../marketplace/MarketplaceItem";
 import { CatBenefits } from "../shared/CatBenefits";
-import { CatMiniCard } from "../shared/CatMiniCard";
-import { ShelterBenefits } from "../shared/ShelterBenefits";
 import { PixelButton } from "../shared/PixelButton";
-import { cdnFile } from "@/constants/utils";
+import { ShelterBenefits } from "../shared/ShelterBenefits";
 
 export const FeedbackSlider = () => {
   const [selectedCat, setSelectedCat] = useState<ICat | null>(null);
@@ -51,14 +51,9 @@ export const FeedbackSlider = () => {
 
         <div className="w-screen mt-4">
           {catsForSale?.["rozine-pedute"]?.length && (
-            <div className="flex justify-center items-center gap-4 overflow-x-auto">
-              {fiveRandomCatsForSale?.map((cat) => (
-                <CatMiniCard
-                  key={cat._id}
-                  cat={cat}
-                  onBenefitsClick={setSelectedCat}
-                  active={selectedCat?._id === cat._id}
-                />
+            <div className="flex justify-center gap-4 overflow-x-auto">
+              {fiveRandomCatsForSale?.map((cat, index) => (
+                <MarketplaceItem cat={cat} key={index} />
               ))}
             </div>
           )}

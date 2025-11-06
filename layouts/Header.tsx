@@ -1,29 +1,9 @@
-import { useEffect, useState } from "react";
-import { PixelButton } from "../components/shared/PixelButton";
-import { Socials } from "./Socials";
 import { cdnFile } from "@/constants/utils";
-
-interface navProps {
-  title: string;
-  link: string;
-  isActive?: boolean;
-  onSet?: () => void;
-}
-
-const navConsts: navProps[] = [
-  {
-    title: "COLLECTIBLE CATS",
-    link: "/cats",
-  },
-  {
-    title: "REWARDS",
-    link: "/airdrop",
-  },
-];
+import { useEffect, useState } from "react";
+import { Socials } from "./Socials";
 
 export const Header = () => {
   const [activeTitle, setActiveTitle] = useState<string | null>(null);
-  const [isNavOpen, setIsNavOpen] = useState(false);
 
   // pop-up header on scroll up and hide on scroll down
   const [showHeader, setShowHeader] = useState(true);
@@ -85,60 +65,8 @@ export const Header = () => {
             TOKEN TAILS
           </div>
         </a>
-        <ul className="hidden lg:flex space-x-[35px] lg:space-x-0 py-4 absolute left-1/2 -translate-x-1/2">
-          {navConsts.map((navItem, index) => (
-            <li
-              key={index}
-              className="max-lg:border-b max-lg:py-2 px-3 max-lg:rounded"
-            >
-              <a
-                href={navItem.link}
-                onClick={() => handleTitleClick(navItem.title)}
-              >
-                <PixelButton text={navItem.title} isSmall />
-              </a>
-            </li>
-          ))}
-        </ul>
-        <div className="flex items-center space-x-2">
-          <span
-            onClick={() => setIsNavOpen(!isNavOpen)}
-            className="lg:hidden mr-8"
-          >
-            <PixelButton
-              text={isNavOpen ? "CLOSE" : "MENU"}
-              isSmall
-              onClick={() => setIsNavOpen(!isNavOpen)}
-            />
-          </span>
-          <a href="/game" className="relative">
-            <PixelButton text="PLAY" isBig subtext="GAME"></PixelButton>
-          </a>
-        </div>
+        <Socials />
       </div>
-      {isNavOpen && (
-        <div className="lg:hidden absolute w-full z-10 bg-gradient-to-b from-transparent via-blue-300 to-blue-300 pb-4">
-          <ul className="pb-2 flex flex-wrap justify-center items-center">
-            {navConsts.map((navItem, index) => (
-              <li key={index} className="py-2 px-3">
-                <a
-                  href={navItem.link}
-                  onClick={() => {
-                    handleTitleClick(navItem.title);
-                    setIsNavOpen(false);
-                  }}
-                >
-                  <PixelButton
-                    active={activeTitle === navItem.title}
-                    text={navItem.title}
-                  ></PixelButton>
-                </a>
-              </li>
-            ))}
-          </ul>
-          <Socials />
-        </div>
-      )}
     </header>
   );
 };

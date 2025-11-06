@@ -16,7 +16,7 @@ const CatsHubProps: IProps[] = [
     title: "HOW CAN I SUPPORT A CAT?",
     img: cdnFile("images/cats-slider/contribute.jpg"),
     question: "HOW",
-    description: "Adopt shelters cats as collectibless",
+    description: "Adopt shelters cats as collectibles",
   },
   {
     title: "HOW TO OWN AN COLLECTIBLE CAT?",
@@ -30,7 +30,7 @@ const CatsHubProps: IProps[] = [
     img: cdnFile("images/cats-slider/eat.jpg"),
     question: "WHAT",
     description:
-      "Up to 10x elevated token rewards ratio, airdrops, COLLECTIBLE rewards, ability to stake COLLECTIBLE cats and craft tokens, AI companion on X and the most important - saved cats!",
+      "Up to 15x elevated token rewards ratio, airdrops, COLLECTIBLE rewards, ability to stake COLLECTIBLE cats and craft tokens, AI companion the most important - saved cats!",
   },
   {
     title: "WEN $TAILS LISTING? WEN REWARDS?",
