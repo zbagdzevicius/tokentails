@@ -270,26 +270,13 @@ function Preview() {
   const isGameLoaded = GameEvents.GAME_LOADED.use();
   useEffect(() => {
     if (cat && isGameLoaded?.scene) {
-      GameEvents.CAT_SPAWN.push({ cat });
+      GameEvents.CAT_SPAWN.push({ cat: cat as any });
 
       if ((cat.status.EAT || 0) < 4) {
         GameEvents.CAT_MEOW.push({ cat });
       }
     }
   }, [cat, isGameLoaded]);
-
-  useEffect(() => {
-    const setStatus = () => {
-      if ((cat?.status[StatusType.EAT] || 0) < 4) {
-        setCatStatus({ type: StatusType.EAT, status: 4 });
-      }
-    };
-    GameEvents.CAT_EATEN.addEventListener(setStatus);
-
-    return () => {
-      GameEvents.CAT_EATEN.removeEventListener(setStatus);
-    };
-  }, [cat?.status]);
 
   useEffect(() => {
     if (isGameLoaded?.scene) {
