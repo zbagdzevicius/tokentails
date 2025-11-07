@@ -13,28 +13,29 @@ interface IProps {
 
 const CatsHubProps: IProps[] = [
   {
-    title: "HOW CAN I SUPPORT A CAT?",
-    img: cdnFile("images/cats-slider/contribute.jpg"),
-    question: "HOW",
-    description: "Adopt shelters cats as collectibles",
-  },
-  {
-    title: "HOW TO OWN AN COLLECTIBLE CAT?",
-    img: cdnFile("images/cats-slider/love.jpg"),
+    title: "HOW CATS GETS HELPED?",
+    img: cdnFile("images/cats-slider/decide.webp"),
     question: "HOW",
     description:
-      "Sign in, get into our cat shelter and adopt you purrfect companion !",
+      "In-game cat is linked with a real cat in a shelter. \nWe're making sure that money is used to treat them and to get them adopted in real life.",
+  },
+  {
+    title: "OKEY, SO HOW DO I OWN A CAT?",
+    img: cdnFile("images/cats-slider/heal.webp"),
+    question: "HOW",
+    description:
+      "1. Sign in\n2. Get into our cat shelter\n3. Purchase your purrfect companion !",
   },
   {
     title: "WHAT ARE THE PERKS FOR CATS HOLDERS",
-    img: cdnFile("images/cats-slider/eat.jpg"),
+    img: cdnFile("images/cats-slider/benefits.webp"),
     question: "WHAT",
     description:
-      "Up to 15x elevated token rewards ratio, airdrops, COLLECTIBLE rewards, ability to stake COLLECTIBLE cats and craft tokens, AI companion the most important - saved cats!",
+      "1. Staking option \n2. Real world impact \n3. Double Jump \n4. Meowgical experience \n5. Purrfect companion \n\nTHE MOST IMPORTANT - Purrtastic connection with a real cat in a shelter.",
   },
   {
     title: "WEN $TAILS LISTING? WEN REWARDS?",
-    img: cdnFile("images/cats-slider/play.jpg"),
+    img: cdnFile("images/cats-slider/rewards.webp"),
     question: "WEN",
     description:
       "$TAILS TGE, LISTING AND AIRDROP is going to happen SOON. Follow us on X to stay up to date so you won't miss it!",
@@ -85,9 +86,11 @@ const CatsSection = ({
           isActive ? "" : "hidden"
         }`}
       >
-        <img draggable={false} className="rounded-full w-24" src={img} />
+        <img draggable={false} className="w-24" src={img} />
         <div className="flex flex-col items-start">
-          <div>{description}</div>
+          <div className="text-p4 leading-5 font-primary whitespace-pre-line">
+            {description}
+          </div>
           <a target="_blank" href="/game">
             <PixelButton isSmall text="ADOPT A CAT" />
           </a>
@@ -130,17 +133,6 @@ export const CatsHub = () => {
                   onSet={() => onActiveClick(section)}
                 />
               ))}
-            </div>
-            <div className="flex mt-4 max-lg:mt-5 -ml-4 md:ml-0">
-              <a
-                target="_blank"
-                href="https://tokentails.com/feed/cats-nft/how-to-adopt-and-save-a-shelter-cat-in-token-tails"
-              >
-                <PixelButton text="TUTORIAL" isSmall />
-              </a>
-              <a href="https://docs.tokentails.com" target="_blank">
-                <PixelButton text="DOCS" isSmall />
-              </a>
             </div>
           </div>
         </div>

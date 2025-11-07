@@ -112,7 +112,7 @@ export const Airdrop = () => {
                   <img
                     draggable={false}
                     className="w-8 lg:w-12"
-                    src={cdnFile("images/cats-slider/joy-cat.webp")}
+                    src={cdnFile("images/cats-slider/benefits.webp")}
                   />
                   <PixelButton text="SAVED A CAT BY ADOPTING NFT" />
                 </li>
@@ -120,7 +120,7 @@ export const Airdrop = () => {
                   <img
                     draggable={false}
                     className="w-8 lg:w-12"
-                    src={cdnFile("images/cats-slider/coin-cat.webp")}
+                    src={cdnFile("images/cats-slider/heal.webp")}
                   />
                   <PixelButton text="COLLECTED 100 Catnips" />
                 </li>

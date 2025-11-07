@@ -58,7 +58,7 @@ const whatToDo = [
     description: "ADOPT PLAYABLE CAT",
     help: "The bond is sealed in adoption. Multiply Your Blessings - Adopt COLLECTIBLE CAT to Boost Your $TAILS",
     points: "+∞",
-    image: cdnFile("images/cats-slider/joy-cat.webp"),
+    image: cdnFile("images/cats-slider/benefits.webp"),
     href: "https://tokentails.com/game",
   },
   {

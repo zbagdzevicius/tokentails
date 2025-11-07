@@ -98,7 +98,7 @@ export default function Index() {
         >
           <Snowfall />
           <HomePage />
-          <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+          <div className="absolute inset-0 w-full h-full pointer-events-none">
             <Preview />
           </div>
 
@@ -136,9 +136,6 @@ export default function Index() {
             <FeedbackSlider />
           </div>
         </div>
-        <div className="py-6 flex items-center justify-center bg-gradient-to-r from-blue-300 to-purple-500">
-          <GameAggregators />
-        </div>
         <div
           className="min-h-screen flex items-center py-3"
           style={bgStyle("3")}
@@ -148,6 +145,9 @@ export default function Index() {
             <BlogPreview />
           </div>
         </div>
+        {/* <div className="py-6 flex items-center justify-center bg-gradient-to-r from-blue-300 to-purple-500">
+          <GameAggregators />
+        </div> */}
         <div
           className="min-h-screen flex items-center justify-center"
           style={bgStyle("4")}
@@ -166,7 +166,7 @@ export default function Index() {
           }}
         >
           <Sponsors />
-          <div className="h-full" id="contact" ref={contactRef}>
+          <div className="h-full mb-16" id="contact" ref={contactRef}>
             <Team />
           </div>
         </div>

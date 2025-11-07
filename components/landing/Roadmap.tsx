@@ -1,14 +1,97 @@
 import { cdnFile } from "@/constants/utils";
 import { Laptop } from "./Laptop";
 
+const cats = [
+  {
+    image: "cats/pinkie/pink-caminando-ropa.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/grey/Playing-Clothed-Grey.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/pinkie/pink-lamiendo-ropa.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/pinkie/pink-respirando-ropa.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/grey/Running-Clothed-Grey.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/pinkie/pink-corriendo-ropa.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/pinkie/pink-lamiendo-ropa.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/grey/Walking-Clothed-Grey.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/pinkie/pink-caminando-ropa.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/pinkie/pink-corriendo-ropa.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/yellow/Jump-Hat-Yellow.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/pinkie/pink-respirando-ropa.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/pinkie/pink-caminando-ropa.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/black/Jump-Hat-Black.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/black/Licking-Hat-Black.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/black/Loaf-Hat-Black.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/black/Playing-Hat-Black.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/black/Sitting-Hat-Black.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/yellow/Idle-Hat-Yellow.gif",
+    title: "Play logo",
+  },
+  {
+    image: "cats/pinkie/pink-respirando-ropa.gif",
+    title: "Play logo",
+  },
+];
+
 const Roadmap = () => {
   return (
     <div className="container flex flex-col py-8 justify-center items-center">
-      <Laptop />
-      <h2 className="font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance md:mb-8">
+      <h2 className="font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance md:mb-8 mt-8 mb-4">
         OUR JOURNEY
       </h2>
-      <div className="flex flex-col md:flex-row justify-around gap-12 lg:gap-24 pt-16 md:pt-4">
+      <Laptop />
+      <div className="flex flex-col md:flex-row justify-around gap-12 lg:gap-24 pt-16 md:pt-4 mb-12">
         <div className="flex flex-col items-center gap-4 md:pt-36 hover:brightness-125 hover:animate-hover">
           <div className="relative bg-gradient-to-t to-purple-300 from-blue-300 rounded-full border-4 border-purple-300 w-16 h-16 flex justify-center items-center">
             <img
@@ -81,7 +164,7 @@ const Roadmap = () => {
                 className="h-6"
                 src={cdnFile("icons/loader.webp")}
               />
-              $TAILS CAMPAIGNS
+              COMMUNITY CAMPAIGNS
             </span>
             <span className="flex gap-2 items-center -ml-6">
               <img
@@ -89,7 +172,7 @@ const Roadmap = () => {
                 className="h-6"
                 src={cdnFile("icons/loader.webp")}
               />
-              3D GAME
+              3D GAME LAUNCH
             </span>
           </div>
         </div>
@@ -124,7 +207,7 @@ const Roadmap = () => {
                 className="h-6 pixelated"
                 src={cdnFile("icons/loader.webp")}
               />
-              STAKE TO SAVE
+              CATS TREASURY
             </span>
             <span className="flex gap-2 items-center -ml-6">
               <img

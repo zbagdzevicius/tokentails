@@ -166,12 +166,14 @@ const teamMembers: ITeamMember[] = [
 const TeamMember = ({ img, name, role, socials }: ITeamMember) => {
   return (
     <div className="text-center hover:brightness-125">
-      <img
-        draggable={false}
-        className="mx-auto mb-2 w-36 h-36 object-contain"
-        src={img}
-        alt={name}
-      />
+      <a href={socials[0].link} target="_blank">
+        <img
+          draggable={false}
+          className="mx-auto mb-2 w-36 h-36 object-contain hover:scale-105 transition-all duration-300"
+          src={img}
+          alt={name}
+        />
+      </a>
       <h3 className="text-p3 md:text-p3 font-secondary">{name}</h3>
       <p className="w-fit m-auto text-primary">{role}</p>
       <ul className="flex justify-center mt-2 space-x-4">
@@ -188,10 +190,6 @@ const TeamMember = ({ img, name, role, socials }: ITeamMember) => {
 export const Team = () => {
   return (
     <div className="container h-full flex flex-col items-center justify-center">
-      <a href="/game" className="flex justify-center">
-        <PixelButton text="PLAY HERE" />
-      </a>
-
       <h2 className="font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance text-center my-3">
         United To Save Cats
       </h2>
@@ -202,6 +200,9 @@ export const Team = () => {
           ))}
         </div>
       </div>
+      <a href="/game" className="flex justify-center mb-8 md:mb-4">
+        <PixelButton text="PLAY NOW" />
+      </a>
     </div>
   );
 };

@@ -294,7 +294,7 @@ function Preview() {
   }, [isGameLoaded, cat]);
 
   return (
-    <div id="app" className="z-20">
+    <div id="app" className="z-20 h-full">
       <PreviewGame ref={phaserRef} />
     </div>
   );
