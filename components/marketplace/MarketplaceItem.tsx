@@ -25,12 +25,7 @@ export const MarketplaceItem = ({
         style={{ backgroundColor: cardsColor[cat.type] || "white" }}
         className="absolute left-0 top-0 opacity-75 text-black pl-1 text-p5 font-secondary rounded-r-xl z-20 flex items-center"
       >
-        X{getMultiplier(cat)}
-        <img
-          draggable={false}
-          src={cdnFile("logo/logo.webp")}
-          className="h-6 ml-1"
-        />
+        {getMultiplier(cat)}
       </div>
 
       <div

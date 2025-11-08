@@ -65,7 +65,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
         setNotifications((prev) => {
           return prev.length > 0 ? prev.slice(1) : prev;
         });
-      }, 5000);
+      }, 2500);
       return () => clearTimeout(timeout);
     }
   }, [notifications]);

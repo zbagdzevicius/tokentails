@@ -38,7 +38,7 @@ const ToastProvider = ({ children }: React.PropsWithChildren<{}>) => {
     if (currentToast) {
       const timer = setTimeout(() => {
         setCurrentToast(null);
-      }, 5000);
+      }, 2500);
 
       return () => clearTimeout(timer);
     }

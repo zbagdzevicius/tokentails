@@ -16,8 +16,8 @@ interface IProps {
 }
 
 const gameTypeImages: Partial<Record<GameType, string>> = {
-  [GameType.SHELTER]: cdnFile("game/select/shelter.jpg"),
-  [GameType.HOME]: cdnFile("game/select/home.jpg"),
+  [GameType.SHELTER]: cdnFile("game/select/shelter.webp"),
+  [GameType.HOME]: cdnFile("game/select/home.webp"),
 };
 
 const GameSelectItem = ({
@@ -37,7 +37,7 @@ const GameSelectItem = ({
     >
       <img
         draggable={false}
-        className="rem:w-[110px] hover:brightness-110 rem:min-w-[110px] rounded-xl hover:animate-hover"
+        className="rem:w-[80px] hover:brightness-110 rem:min-w-[80px] rounded-xl hover:animate-hover border-[3px] border-black"
         src={gameTypeImages[gameType]}
       />
     </div>
@@ -101,7 +101,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
       {!gameType && (
         <>
           <div className="flex flex-col max-w-max md:gap-4 lg:gap-8 min-w-0 items-center lg:-mt-8 relative">
-            <div className="flex gap-36 mt-48 md:mt-20 lg:mt-32 items-end absolute">
+            <div className="flex gap-36 mt-48 md:mt-20 lg:mt-40 items-end absolute">
               <GameSelectItem
                 setGameType={setGameType}
                 gameType={GameType.SHELTER}

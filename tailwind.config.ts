@@ -55,7 +55,7 @@ const config: Config = {
         flip: "flip 10s infinite;",
         appear: "appear 0.5s;",
         opacity: "opacity 1.5s;",
-        bounceWithFade: "bounceWithFade 5s ease-in-out",
+        bounceWithFade: "bounceWithFade 2.5s ease-in-out",
         brightness: "brightness 3s ease-in-out infinite",
       },
       keyframes: {

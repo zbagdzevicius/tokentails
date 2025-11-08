@@ -189,7 +189,7 @@ export const allQuests: ILocalQuest[] = [
     type: QuestType.GOAL,
     key: QUEST.REACH_TAILS_50k,
     name: "Reach 50k $TAILS",
-    icon: cdnFile("logo/boss-coin.png"),
+    icon: cdnFile("logo/logo.webp"),
     reward: {
       tails: 5000,
     },
@@ -207,7 +207,7 @@ export const allQuests: ILocalQuest[] = [
     type: QuestType.GOAL,
     key: QUEST.REACH_TAILS_100k,
     name: "Reach 100k $TAILS",
-    icon: cdnFile("logo/boss-coin.png"),
+    icon: cdnFile("logo/logo.webp"),
     reward: {
       tails: 10000,
     },
