@@ -1,5 +1,8 @@
 {
     "activeFile": "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.json",
+    "expandedProjectPaths": [
+    ],
+    "file.lastUsedOpenFilter": "All Files (*)",
     "fileStates": {
         "": {
             "scaleInDock": 1,
@@ -21,11 +24,11 @@
             "dynamicWrapping": true
         },
         "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.json": {
-            "scale": 0.8529,
+            "scale": 0.2999,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": -267.90948528549654,
-                "y": -75.03810528784146
+                "x": -920.3067689229742,
+                "y": -71.69056352117366
             }
         },
         "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.json#new-blocks-winter": {
@@ -97,8 +100,8 @@
             "scale": 0.8791,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 3837.447389375498,
-                "y": -401.5470367421227
+                "x": 3836.8786258673645,
+                "y": -400.97827323398934
             }
         },
         "/Users/zygimantasbagdzevicius/me/cats/public/catnip-chaos/levels/level-13.json#blocks": {
@@ -183,14 +186,13 @@
         }
     },
     "openFiles": [
-        "/Users/zygimantasbagdzevicius/me/cats/public/catnip-chaos/levels/level-13.json",
-        "base.json",
         "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.json"
     ],
+    "project": "",
     "recentFiles": [
+        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.json",
         "/Users/zygimantasbagdzevicius/me/cats/public/catnip-chaos/levels/level-13.json",
         "base.json",
-        "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/base.json",
         "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/new-shelter.json",
         "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/new-shelter.tmj",
         "/Users/zygimantasbagdzevicius/me/cats/public/catbassadors/shelter.tmx",

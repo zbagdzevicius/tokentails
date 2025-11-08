@@ -25,7 +25,6 @@ export class BaseScene extends Scene {
   tilemap!: Phaser.Tilemaps.Tilemap;
   groundLayer!: Phaser.Tilemaps.TilemapLayer;
   isPlaying: boolean = false;
-  platformsLayer!: Phaser.Tilemaps.TilemapLayer;
   blipSound?: Phaser.Sound.BaseSound;
   blessing!: Phaser.GameObjects.Sprite;
 
@@ -78,22 +77,6 @@ export class BaseScene extends Scene {
       2
     )!;
     this.groundLayer = this.tilemap.createLayer("blocks", [sugarTileset])!;
-
-    this.platformsLayer = this.tilemap.createLayer("platforms", [
-      sugarTileset,
-    ])!;
-    this.platformsLayer.setCollision(JUMP_LAYER_TILES);
-    this.platformsLayer.setTileIndexCallback(
-      JUMP_LAYER_TILES,
-      (player: Phaser.GameObjects.GameObject) => {
-        const playerSprite = player as Phaser.Physics.Arcade.Sprite;
-        if (playerSprite.body!.velocity.y <= 0) {
-          return true;
-        }
-        return false;
-      },
-      this
-    );
 
     this.decorationLayer = this.tilemap.createLayer("decorations", [
       sugarTileset,
@@ -246,7 +229,6 @@ export class BaseScene extends Scene {
 
     // Collide cat with ground
     this.physics.add.collider(this.cat!.sprite, this.groundLayer);
-    this.physics.add.collider(this.cat!.sprite, this.platformsLayer);
 
     // Camera follows cat
     this.cameras.main.startFollow(this.cat!.sprite);
@@ -356,6 +338,7 @@ export class BaseScene extends Scene {
       }
     });
   }
+
   private spawnNpc(npcData: ICat) {
     const existingNpcIndex = this.npcCats.findIndex(
       (npc) => (npc as any).originalData?._id === npcData._id
@@ -375,7 +358,6 @@ export class BaseScene extends Scene {
       const npcCat = new NpcCat(this, spawnX, spawnY, npcData.name);
       (npcCat as any).originalData = { ...npcData };
       this.physics.add.collider(npcCat.sprite, this.groundLayer);
-      this.physics.add.collider(npcCat.sprite, this.platformsLayer);
 
       // Handle blessings
       if (npcData.blessings && npcData.blessings.length > 0) {
