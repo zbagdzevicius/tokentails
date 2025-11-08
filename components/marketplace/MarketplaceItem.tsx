@@ -22,31 +22,11 @@ export const MarketplaceItem = ({
     >
       <div
         onClick={onClick}
-        style={{ backgroundColor: cardsColor[cat.type] || "white" }}
-        className="absolute left-0 top-0 opacity-75 text-black pl-1 text-p5 font-secondary rounded-r-xl z-20 flex items-center"
-      >
-        {getMultiplier(cat)}
-      </div>
-
-      <div
-        onClick={onClick}
-        style={{ backgroundColor: cardsColor[cat.type] || "white" }}
-        className="absolute right-0 top-0 opacity-75 text-black pr-1 text-p5 rounded-tl-xl font-secondary z-20 flex items-center"
-      >
-        <img
-          draggable={false}
-          src={cdnFile("logo/heart.webp")}
-          className="w-6 h-6 mr-0.5 -ml-3"
-        />
-        {lives}/{cat.totalSupply}
-      </div>
-      <div
-        onClick={onClick}
         className="relative z-10 items-center flex flex-col h-full"
       >
         <img
           draggable={false}
-          className="w-16 z-10 pixelated -mt-2 -m-2"
+          className="w-20 z-10 pixelated -mt-2 -m-2 absolute bottom-6 left-0"
           src={cat.catImg}
           alt={cat.name}
         />
