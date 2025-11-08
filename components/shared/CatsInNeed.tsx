@@ -1,16 +1,16 @@
 import { CAT_API } from "@/api/cat-api";
+import { bgStyle } from "@/constants/utils";
+import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { ICat } from "@/models/cats";
+import { GameModal } from "@/models/game";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { CatCardModal } from "../catCard/CatCardModal";
 import { Web3Providers } from "../web3/Web3Providers";
-import { CatMiniCard } from "./CatMiniCard";
 import { CloseButton } from "./CloseButton";
 import { Tag } from "./Tag";
-import { GameModal } from "@/models/game";
-import { useGame } from "@/context/GameContext";
-import { bgStyle } from "@/constants/utils";
+import { MarketplaceItem } from "../marketplace/MarketplaceItem";
 
 export const CatsInNeedModalContent = ({ close }: { close: () => void }) => {
   const { profile } = useProfile();
@@ -35,10 +35,9 @@ export const CatsInNeedModalContent = ({ close }: { close: () => void }) => {
 
       <div className="flex flex-wrap justify-center w-full gap-8 mt-8">
         {catsForSale?.["rozine-pedute"]?.map((cat) => (
-          <CatMiniCard
+          <MarketplaceItem
             key={cat._id}
             cat={cat}
-            hideBenefits
             onClick={() => setSelectedCat(cat)}
           />
         ))}

@@ -1,7 +1,5 @@
-import { getMultiplier } from "@/constants/cat-utils";
 import { cdnFile } from "@/constants/utils";
 import { cardsColor, ICat } from "@/models/cats";
-import { useMemo } from "react";
 
 export const MarketplaceItem = ({
   cat,
@@ -10,13 +8,10 @@ export const MarketplaceItem = ({
   cat: ICat;
   onClick?: () => void;
 }) => {
-  const lives = useMemo(() => {
-    return cat.totalSupply - cat.supply;
-  }, [cat]);
   return (
     <a
       onClick={onClick}
-      href={`/cats/${cat._id}`}
+      href={onClick ? "#" : `/cats/${cat._id}`}
       className="relative overflow-hidden w-48 rounded-2xl rem:border-[7px] min-w-[12rem] group"
       style={{ borderColor: cardsColor[cat.type] }}
     >

@@ -1,6 +1,6 @@
 import { CAT_API } from "@/api/cat-api";
 import { useQuery } from "@tanstack/react-query";
-import { CatMiniCard } from "../shared/CatMiniCard";
+import { MarketplaceItem } from "../marketplace/MarketplaceItem";
 
 export const AirdropCats = () => {
   const { data: catsForSale } = useQuery({
@@ -13,7 +13,7 @@ export const AirdropCats = () => {
       {catsForSale?.["rozine-pedute"]?.length && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4 justify-items-center">
           {catsForSale?.["rozine-pedute"]?.map((cat) => (
-            <CatMiniCard hideBenefits key={cat._id} cat={cat} />
+            <MarketplaceItem key={cat._id} cat={cat} />
           ))}
         </div>
       )}
