@@ -1,7 +1,6 @@
 import { USER_API } from "@/api/user-api";
 import { GameOptionsModal } from "@/components/game/GameOptionsModal";
 import { GameSelect } from "@/components/game/GameSelect";
-import { Leaderboard } from "@/components/Leaderboard";
 import {
   GameEvent,
   GameEvents,
