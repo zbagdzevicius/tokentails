@@ -225,6 +225,10 @@ const date = 9;
 export const Codex = () => {
   const [isFAQOpen, setIsFAQOpen] = useState(false);
   const { profile, setProfileUpdate } = useProfile();
+
+  const completedMonths = useMemo(() => {
+    return profile?.codex?.filter((item) => item === 1)?.length || 0;
+  }, [profile]);
   const completedCount = useMemo(() => {
     return codex.filter((item) => item.verification?.(profile!)).length;
   }, [profile]);
@@ -309,12 +313,12 @@ export const Codex = () => {
       />
       <div className="flex flex-col items-center -my-2">
         <span className="text-yellow-300 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] text-p1">
-          MY BADGES: {profile?.codex?.filter((item) => item === 1)?.length || 0}
+          MY BADGES: {completedMonths}
         </span>
       </div>
       {!!completedCount && (
         <div className="flex justify-center gap-1 my-1">
-          {Array.from({ length: completedCount }).map((_, index) => (
+          {Array.from({ length: completedMonths }).map((_, index) => (
             <img
               key={index}
               src={cdnFile("logo/heart.webp")}
