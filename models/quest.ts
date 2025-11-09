@@ -35,6 +35,7 @@ export enum QuestType {
   GOAL = "GOAL",
   FRIEND = "FRIEND",
   WIN = "WIN",
+  CATNIP = "CATNIP",
 }
 
 interface IQuestReward {

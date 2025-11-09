@@ -13,6 +13,7 @@ export interface IUtils {
 type ContextState = {
   profile?: IProfile | null;
   position?: number | null;
+  catnipPosition?: number | null;
   shareUrl?: string;
   isFB?: boolean;
   setIsFB?: (isFB: boolean) => void;
@@ -43,8 +44,13 @@ const ProfileProvider = ({ children }: React.PropsWithChildren<{}>) => {
     React.useState(false);
 
   const { data: position } = useQuery({
-    queryKey: ["profile-details", profile],
+    queryKey: ["profile-position", profile],
     queryFn: () => (profile ? USER_API.leaderboardPosition() : null),
+  });
+
+  const { data: catnipPosition } = useQuery({
+    queryKey: ["profile-position-catnip", profile],
+    queryFn: () => (profile ? USER_API.leaderboardCatnipPosition() : null),
   });
 
   const setProfileUpdate = (update: Partial<IProfile>) => {
@@ -58,6 +64,7 @@ const ProfileProvider = ({ children }: React.PropsWithChildren<{}>) => {
     setProfile,
     setProfileUpdate,
     position,
+    catnipPosition,
     isProfileModalDisplayed,
     setIsProfileModalDisplayed,
     utils,
@@ -88,6 +95,7 @@ function useProfile() {
   return {
     profile: context.profile,
     position: context.position,
+    catnipPosition: context.catnipPosition,
     utils: context.utils,
     shareUrl: context.shareUrl,
     isFB: context.isFB,

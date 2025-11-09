@@ -36,8 +36,47 @@ const leaderboard = async (): Promise<IProfile[]> => {
     .then();
 };
 
+const leaderboardCatnip = async (): Promise<IProfile[]> => {
+  return fetch(`${apiUrl}/user/leaderboard/catnip`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    } as any,
+  })
+    .then((response) => {
+      if (response.ok) {
+        return response.json();
+      }
+
+      console.warn(JSON.stringify(response));
+      return [];
+    })
+    .then();
+};
+
 const leaderboardPosition = async (): Promise<number> => {
   return fetch(`${apiUrl}/user/leaderboard/position`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: sessionStorage.getItem("accesstoken"),
+    } as any,
+  })
+    .then((response) => {
+      if (response.ok) {
+        return response.json();
+      }
+
+      console.warn(JSON.stringify(response));
+      return { position: "999" };
+    })
+    .then((v) => v.position);
+};
+
+const leaderboardCatnipPosition = async (): Promise<number> => {
+  return fetch(`${apiUrl}/user/leaderboard/catnip/position`, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -134,7 +173,9 @@ const redeem = async (): Promise<object> => {
 export const USER_API = {
   profile,
   leaderboard,
+  leaderboardCatnip,
   leaderboardPosition,
+  leaderboardCatnipPosition,
   saveProfileTwitter,
   saveMatch,
   redeem,

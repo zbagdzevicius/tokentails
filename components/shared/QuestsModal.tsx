@@ -10,6 +10,7 @@ import { CloseButton } from "./CloseButton";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
 import { bgStyle, cdnFile } from "@/constants/utils";
+import { LeaderboardCatnipContent } from "../LeaderboardCatnip";
 
 export const TrailheadsData = [
   {
@@ -80,16 +81,25 @@ export const QuestsModalContent = () => {
       <div className="py-2 flex items-center justify-between w-full mb-4">
         <PixelButton
           text="TOP"
+          isSmall
           active={questsType === QuestType.WIN}
           onClick={() => setQuestsType(QuestType.WIN)}
         ></PixelButton>
         <PixelButton
+          text="CATNIP"
+          isSmall
+          active={questsType === QuestType.CATNIP}
+          onClick={() => setQuestsType(QuestType.CATNIP)}
+        ></PixelButton>
+        <PixelButton
           text="SOCIAL"
+          isSmall
           active={questsType === QuestType.SOCIAL}
           onClick={() => setQuestsType(QuestType.SOCIAL)}
         ></PixelButton>
         <PixelButton
           text="GOALS"
+          isSmall
           active={questsType === QuestType.GOAL}
           onClick={() => setQuestsType(QuestType.GOAL)}
         ></PixelButton>
@@ -181,6 +191,7 @@ export const QuestsModalContent = () => {
         )}
       </span>
       {questsType === QuestType.WIN && <LeaderboardContent />}
+      {questsType === QuestType.CATNIP && <LeaderboardCatnipContent />}
     </div>
   );
 };

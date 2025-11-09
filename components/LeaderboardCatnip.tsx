@@ -4,12 +4,12 @@ import { useProfile } from "@/context/ProfileContext";
 import { useQuery } from "@tanstack/react-query";
 import { Tag } from "./shared/Tag";
 
-export const LeaderboardContent = () => {
+export const LeaderboardCatnipContent = () => {
   const { data } = useQuery({
-    queryKey: ["leaderboard"],
-    queryFn: () => USER_API.leaderboard(),
+    queryKey: ["leaderboard-catnip"],
+    queryFn: () => USER_API.leaderboardCatnip(),
   });
-  const { position } = useProfile();
+  const { catnipPosition } = useProfile();
   return (
     <>
       <span className="-mt-6 -mb-6 relative z-0">
@@ -19,7 +19,7 @@ export const LeaderboardContent = () => {
           </defs>
           <text className="fill-current text-yellow-300 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] text-p2 font-primary relative z-0">
             <textPath href="#curve" startOffset="50%" text-anchor="middle">
-              TOP 200 GETS 200 $TAILS WEEKLY
+              TOP 200 GETS 100 $TAILS WEEKLY
             </textPath>
           </text>
         </svg>
@@ -30,10 +30,10 @@ export const LeaderboardContent = () => {
           alt="champs"
           className="w-32 -mb-20"
         />
-        <Tag>$TAILS CHAMPS</Tag>
-        {position && (
+        <Tag>CATNIP CHAMPS</Tag>
+        {catnipPosition && (
           <div className="font-secondary uppercase text-p1 bg-yellow-100 w-fit m-auto rounded-t-xl px-8">
-            Your position {position}
+            Your position {catnipPosition}
           </div>
         )}
       </div>
@@ -42,7 +42,7 @@ export const LeaderboardContent = () => {
           <tr>
             <th className="py-2 px-1 text-center">PLACE</th>
             <th className="py-2 text-center">name</th>
-            <th className="p-2 md:p-4 text-center">$TAILS</th>
+            <th className="p-2 md:p-4 text-center">CATNIPS</th>
           </tr>
         </thead>
         <tbody>
@@ -79,7 +79,7 @@ export const LeaderboardContent = () => {
                     : "border-yellow-300 text-yellow-300"
                 }`}
               >
-                {result.tails}
+                {result.catnipCount}
               </td>
             </tr>
           ))}

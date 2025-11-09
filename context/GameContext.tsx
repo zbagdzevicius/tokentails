@@ -231,9 +231,6 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           {openedModal === GameModal.QUESTS && (
             <QuestsModal close={() => setOpenedModal(null)} />
           )}
-          {[GameModal.LEADERBOARD].includes(openedModal as GameModal) && (
-            <Leaderboard close={() => setOpenedModal(null)} />
-          )}
           {openedModal === GameModal.CATS && (
             <CatsModal close={() => setOpenedModal(null)} />
           )}
