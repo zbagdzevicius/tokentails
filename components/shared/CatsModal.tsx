@@ -78,6 +78,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
       const tails = 1 * getMultiplier(cat);
       setProfileUpdate({
         tails: (profile?.tails || 0) + tails,
+        monthTailsCrafted: (profile?.monthTailsCrafted || 0) + tails,
         monthTails: (profile?.monthTails || 0) + tails,
       });
     }

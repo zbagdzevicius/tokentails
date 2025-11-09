@@ -111,13 +111,13 @@ export const GameStatsSection = ({
           {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
             <div
               onClick={() => setOpenedModal(GameModal.CODEX)}
-              className="flex flex-col items-center font-primary text-p2 bg-blue-300 hover:scale-110 transition-all hover:mt-1 hover:border-yellow-300 hover:border-4 px-2 rounded-b-xl hover:rounded-xl relative"
+              className="flex flex-col items-center font-primary text-p2 bg-blue-300 hover:scale-110 transition-all hover:mt-1 hover:border-yellow-300 hover:border-4 px-1 rounded-b-xl hover:rounded-xl relative"
             >
               <img
                 src={cdnFile("codex/codex-1.webp")}
                 className="h-10 -my-1 -mb-1"
               />
-              <div className="text-p4 pt-1 -mt-1 -mb-1">CODEX</div>
+              <div className="text-p5 pt-1 -mt-1 -mb-1">PROGRESS</div>
             </div>
           )}
         </div>

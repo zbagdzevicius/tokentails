@@ -147,8 +147,13 @@ export const CodexSection = ({
         isCompleted ? "border-green-400" : "border-red-300"
       }`}
     >
+      {!info && (
+        <div className="flex items-center gap-1 absolute top-0 left-0">
+          <Tag isSmall>{title.slice(0, 2)}</Tag>
+        </div>
+      )}
       <img src={image} alt="codex" className="h-16 -mb-2 -mt-12" />
-      <Tag isSmall>{title}</Tag>
+      {info && <Tag isSmall>{title}</Tag>}
       {info && (
         <div
           key={info?.type}
@@ -182,14 +187,7 @@ export const CodexSection = ({
         />
         {task}
       </div>
-      <div
-        className={`font-primary text-center animate-opacity w-fit px-2 rounded-2xl border-yellow-300 border-2 ${
-          isCompleted ? "bg-green-400" : "bg-red-300"
-        }`}
-      >
-        {status(profile!)}
-      </div>
-      <div className="flex">
+      <div className="flex items-center -mt-2">
         <PixelButton
           isSmall
           text="WHY?"
@@ -200,6 +198,13 @@ export const CodexSection = ({
             )
           }
         />
+        <div
+          className={`font-primary text-center animate-opacity w-fit px-2 h-fit rounded-2xl border-yellow-300 border-2 ${
+            isCompleted ? "bg-green-400" : "bg-red-300"
+          }`}
+        >
+          {status(profile!)}
+        </div>
         <PixelButton
           isSmall
           text="HOW?"
@@ -295,37 +300,49 @@ export const Codex = () => {
     <div className="flex flex-col items-center relative pb-14">
       <img
         src={
-          isCompleted ? cdnFile("tail/guard.webp") : cdnFile("tail/seeker.webp")
+          isCompleted
+            ? cdnFile("tail/guard.webp")
+            : cdnFile("images/cats-slider/heal.webp")
         }
         alt="codex"
-        className="w-32 -mb-8"
+        className="h-24 mb-2"
       />
-      <Tag>The codex of the nine lives</Tag>
-      <span className="bg-gradient-to-r text-p6 font-primary from-yellow-300 to-yellow-400 text-gray-700 px-3 rounded-b-md font-bold animate-pulse">
-        PHASE {phase} -{" "}
-        {profile?.codex?.[phase - 1] ? "COMPLETED" : "IN PROGRESS"}
-      </span>
-      <div className="text-p5 mt-3">
-        1 TITLE ={" "}
-        <span className="text-yellow-300 text-p4 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)]">
-          300 $TAILS
-        </span>{" "}
-        ON MONTHLY BASIS
-      </div>
       <div className="flex flex-col items-center -my-2">
         <span className="text-yellow-300 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] text-p1">
-          TITLES EARNED:{" "}
-          {profile?.codex?.filter((item) => item === 1)?.length || 0}
+          MY BADGES: {profile?.codex?.filter((item) => item === 1)?.length || 0}
         </span>
       </div>
-      <div className="text-p4 mb-2">
-        YOU GET{" "}
-        <span className="text-yellow-300 text-p3 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)]">
+      {!!completedCount && (
+        <div className="flex justify-center gap-1 my-1">
+          {Array.from({ length: completedCount }).map((_, index) => (
+            <img
+              key={index}
+              src={cdnFile("logo/heart.webp")}
+              className="w-4 h-4"
+            />
+          ))}
+        </div>
+      )}
+      <div className="text-p4">
+        I GET
+        <span className="text-yellow-300 text-p4 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] ml-1">
           {(profile?.codex?.reduce((acc, item) => acc + item, 0) || 0) * 300}{" "}
           $TAILS
         </span>{" "}
         PER MONTH
       </div>
+      <div className="text-p6 mb-6">
+        1 BADGE GIVES YOU
+        <span className="text-yellow-300 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] ml-1">
+          300 $TAILS
+        </span>{" "}
+        PER MONTH
+      </div>
+
+      <Tag>THIS MONTH MISSIONS</Tag>
+      <span className="bg-gradient-to-r text-p6 font-primary from-yellow-300 to-yellow-400 text-gray-700 px-3 rounded-b-md font-bold animate-pulse">
+        {profile?.codex?.[phase - 1] ? "COMPLETED" : "IN PROGRESS"}
+      </span>
       <div className="flex flex-col items-center mt-1">
         <div className="w-full flex rounded-full overflow-hidden gap-1">
           {Array.from({ length: codex.length }).map((_, index) => (
@@ -344,10 +361,11 @@ export const Codex = () => {
             </div>
           ))}
         </div>
+
         {!isCompleted ? (
           <div className="font-primary text-p5">
-            COMPLETE {codex.length - completedCount} MORE TO EARN $TAILS GUARD
-            TITLE
+            COMPLETE {codex.length - completedCount} MORE TO EARN CAT LOVER
+            BADGE
           </div>
         ) : (
           <div className="font-primary text-p5 flex flex-col items-center">
@@ -356,30 +374,25 @@ export const Codex = () => {
           </div>
         )}
         <span className="bg-gradient-to-r text-p6 font-primary from-yellow-300 to-yellow-400 text-gray-700 px-3 -mb-2 pb-1 rounded-t-md font-bold">
-          PHASE ENDS IN
+          MONTH RESETS IN
         </span>
         <Countdown targetDate={dateUntilNearest9thDay} isDaysDisplayed />
       </div>
       {isFAQOpen ? (
         <div className="flex flex-col items-center mt-2">
-          <Tag isSmall>what is the codex?</Tag>
-          <div className="font-primary mb-1">$TAILS GUARD PROGRESS SYSTEM</div>
-          <Tag isSmall>What do I need to do?</Tag>
-          <div className="font-primary mb-1">COMPLETE ALL 9 QUESTS</div>
-          <Tag isSmall>What do I need to know?</Tag>
+          <Tag isSmall>WHAT DO I NEED TO DO?</Tag>
+          <div className="font-primary mb-1">COMPLETE ALL 9 MISSIONS</div>
+          <Tag isSmall>WHAT DO I NEED TO KNOW?</Tag>
           <div className="font-primary mb-1">
             RESETS ON 9TH DAY OF EVERY MONTH
           </div>
-          <Tag isSmall>What I'll get?</Tag>
-          <div className="font-primary">UP TO 3K MONTHLY $TAILS</div>
-          <div className="font-primary">$TAILS GUARD TITLE</div>
-          <div className="font-primary mb-1">1 TITLE = 1 CONTEST ENTRY</div>
-          <Tag isSmall>WHAT ARE THE BENEFITS OF $TAILS GUARD?</Tag>
+          <Tag isSmall>WHAT ARE THE BENEFITS OF CAT LOVER BADGES?</Tag>
           <div className="font-primary">DISCOUNTED COLLECTIBLES</div>
           <div className="font-primary">PRIORITY SUPPORT</div>
           <div className="font-primary">EARLY ACCESS TO UPDATES</div>
+          <div className="font-primary">$TAILS DROPS</div>
           <div className="font-primary">
-            $TAILS REWARDS ELIGIBILITY CRITERIA
+            $TAILS AIRDROP ELIGIBILITY CRITERIA
           </div>
         </div>
       ) : (
