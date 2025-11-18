@@ -246,6 +246,7 @@ const config: Config = {
       secondary: ["Bebas Neue", "sans-serif"],
       tertiary: ["Nunito", "sans-serif"],
       pixel: ["Pixelify Sans", "sans-serif"],
+      paws: ["paws", "sans-serif"],
     },
   },
   plugins: [require("tailwindcss-convert-px-to-rem")],

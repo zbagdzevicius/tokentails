@@ -74,7 +74,7 @@ const CatsSection = ({
               height={60}
             />
 
-            <div className="text-p4 max-lg:text-p5 font-tertiary pl-4">
+            <div className="text-p4 max-lg:text-p5 font-primary pl-4">
               {title}
             </div>
           </div>

@@ -61,7 +61,7 @@ export const Header = () => {
             src={cdnFile("logo/logo.webp")}
             alt="logo"
           />
-          <div className="text-p4 md:text-p1 font-primary hidden md:block">
+          <div className="text-h3 font-primary hidden md:block">
             TOKEN TAILS
           </div>
         </a>

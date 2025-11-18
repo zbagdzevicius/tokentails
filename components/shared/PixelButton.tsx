@@ -1,6 +1,6 @@
 import { cdnFile } from "@/constants/utils";
 import { useHover } from "@uidotdev/usehooks";
-import { useMemo, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 interface IProps {
   text: string;

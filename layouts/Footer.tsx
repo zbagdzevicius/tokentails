@@ -63,8 +63,8 @@ export const Footer: React.FC = () => {
               ))}
             </ul>
           </ul>
-          <div className="flex-1 font-secondary text-end whitespace-nowrap flex w-fit gap-2">
-            © 2024 All Rights Reserved by Token Tails
+          <div className="flex-1 font-primary text-end whitespace-nowrap flex w-fit gap-2">
+            © 2025 All Rights Reserved by Token Tails
             <a
               href="https://docs.tokentails.com/community-and-social-impact/terms-and-conditions"
               target="_blank"

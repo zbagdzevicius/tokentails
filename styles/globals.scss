@@ -19,6 +19,11 @@ $breakpoints: (
   "3xl": 2300px,
 );
 
+@font-face {
+  font-family: "paws";
+  src: url("/font.woff2") format("woff2");
+}
+
 [data-testid="modal-content"] {
   @apply bg-white rounded-3xl border-[8px] border-yellow-300 !important;
 }

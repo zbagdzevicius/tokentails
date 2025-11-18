@@ -49,7 +49,7 @@ export function ArticleDetails({
         />
         <h1
           dangerouslySetInnerHTML={{ __html: title }}
-          className="text-main-black px-4 capitalize text-balance text-center text-p2 font-secondary md:text-p1 font-normal mb-6 md:mb-8"
+          className="text-main-black px-4 capitalize text-balance text-center text-p1 font-paws md:text-h5 font-normal mb-6 md:mb-8"
         ></h1>
 
         <div

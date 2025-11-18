@@ -44,7 +44,7 @@ const teamMembers: ITeamMember[] = [
   },
   {
     img: cdnFile("team/arturas.webp"),
-    name: "Artūras",
+    name: "Arturas",
     role: "AI Engineer",
     socials: [
       {
@@ -78,7 +78,7 @@ const teamMembers: ITeamMember[] = [
   {
     img: cdnFile("team/sky.webp"),
     name: "Sky Wee",
-    role: "BD",
+    role: "Business Development",
     socials: [
       {
         img: SocialImages.LINKEDIN,
@@ -122,7 +122,7 @@ const teamMembers: ITeamMember[] = [
   },
   {
     img: cdnFile("team/kaciukas.webp"),
-    name: "Kačiukas",
+    name: "Kaciukas",
     role: "Nap Lead",
     socials: [
       {
@@ -174,8 +174,10 @@ const TeamMember = ({ img, name, role, socials }: ITeamMember) => {
           alt={name}
         />
       </a>
-      <h3 className="text-p3 md:text-p3 font-secondary">{name}</h3>
-      <p className="w-fit m-auto text-primary">{role}</p>
+      <h3 className="text-p1 font-paws">{name}</h3>
+      <p className="w-fit m-auto font-primary font-bold text-p6 -mt-3">
+        {role}
+      </p>
       <ul className="flex justify-center mt-2 space-x-4">
         {socials.map((social) => (
           <a key={social.link} target="_blank" href={social.link}>
@@ -190,11 +192,11 @@ const TeamMember = ({ img, name, role, socials }: ITeamMember) => {
 export const Team = () => {
   return (
     <div className="container h-full flex flex-col items-center justify-center">
-      <h2 className="font-primary uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance text-center my-3">
+      <h2 className="font-paws uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance text-center my-3">
         United To Save Cats
       </h2>
       <div className="pb-8 px-4 mx-auto max-w-screen-xl text-center lg:px-6">
-        <div className="grid gap-8 grid-cols-2 md:grid-cols-5">
+        <div className="grid gap-8 grid-cols-2 lg:grid-cols-5">
           {teamMembers.map((teamMember) => (
             <TeamMember key={teamMember.name} {...teamMember} />
           ))}

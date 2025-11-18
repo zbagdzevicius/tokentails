@@ -63,7 +63,9 @@ export const FeedAuthor = ({
           </span>
         )}
         <div className="flex flex-col justify-center">
-          <div className="font-semibold text-gray-600">{author}</div>
+          <div className="font-semibold font-primary uppercase text-gray-600">
+            {author}
+          </div>
           <span className="text-sm text-gray-500 text-p4">{randomText}</span>
         </div>
       </div>

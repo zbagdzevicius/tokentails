@@ -92,7 +92,7 @@ export default function Index() {
           <Circle />
         </div>
         <div
-          className="pt-20 md:pt-24 fade-in h-screen relative flex items-center justify-center"
+          className="pt-20 md:pt-32 fade-in h-screen relative flex items-center justify-center"
           style={bgStyle("6")}
           id="homepage"
         >
