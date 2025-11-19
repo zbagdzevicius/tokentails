@@ -30,10 +30,10 @@ export const CatsInNeedModalContent = ({ close }: { close: () => void }) => {
   };
 
   return (
-    <div className="px-4 pt-4 pb-8 md:px-16 flex flex-col justify-between items-center animate-appear">
-      <Tag>CATS IN NEED</Tag>
+    <div className=" pt-4 pb-8 flex flex-col justify-between items-center animate-appear">
+      <div className="font-paws text-h5 md:text-h2 mt-4">CATS IN NEED</div>
 
-      <div className="flex flex-wrap justify-center w-full gap-8 mt-8">
+      <div className="flex flex-wrap justify-center w-full gap-8 mt-8 px-4 md:px-16">
         {catsForSale?.["rozine-pedute"]?.map((cat) => (
           <MarketplaceItem
             key={cat._id}

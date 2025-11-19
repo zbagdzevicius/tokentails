@@ -67,7 +67,7 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
   [ChainType.CAMP]: [
     {
       address: "0xaE09454FA54F84E2eDAa43FA3A29d762335bBc73",
-      name: "Campt Mystery Box - Cats Fan",
+      name: "Mystery Box - Cats Fan",
       key: MYSTERY_BOX_TYPE.CAMP_6,
       chain: ChainType.CAMP,
       image: cdnFile("utilities/mystery-boxes/mystery-box-camp6.jpg"),
@@ -76,12 +76,12 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
         metadata: {
           titles: 1,
         },
-        text: "Complete the Codex",
+        text: "COMPLETE MISSIONS",
       },
     },
     {
       address: "0x4F83314E4752E7f732210D043B218B269989a181",
-      name: "Campt Mystery Box - Cats Fan",
+      name: "Mystery Box - Cats Fan",
       key: MYSTERY_BOX_TYPE.CAMP_7,
       chain: ChainType.CAMP,
       image: cdnFile("utilities/mystery-boxes/mystery-box-camp7.jpg"),
@@ -95,7 +95,7 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
     },
     {
       address: "0x650048c5A9b864Fd24b61680030FDEDbdaf39304",
-      name: "Campt Mystery Box - Cats Fan",
+      name: "Mystery Box - Cats Fan",
       key: MYSTERY_BOX_TYPE.CAMP_8,
       chain: ChainType.CAMP,
       image: cdnFile("utilities/mystery-boxes/mystery-box-camp8.jpg"),
@@ -109,7 +109,7 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
     },
     {
       address: "0xcCDF4C5EE94CCB06640545b7D7088A19870C0e4F",
-      name: "Campt Mystery Box - Cats Fan",
+      name: "Mystery Box - Cats Fan",
       key: MYSTERY_BOX_TYPE.CAMP_9,
       chain: ChainType.CAMP,
       image: cdnFile("utilities/mystery-boxes/mystery-box-camp9.jpg"),
@@ -118,7 +118,7 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
         metadata: {
           titles: 2,
         },
-        text: "Earn 2 $TAILS guard titles",
+        text: "GET 2 BADGES",
       },
     },
   ],
@@ -127,7 +127,7 @@ export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
 export const chaptersBadges: IMysteryBox[] = [
   {
     address: "0x40a41BA829F36edaD073Ae768bE4DC29F14CDD25",
-    name: "Catnip Chaos - Chapter 1 Badge",
+    name: "Chapter 1 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_1,
     chain: ChainType.SEI,
     image: cdnFile("catnip-chaos/badges/chapter1.webp"),
@@ -138,7 +138,7 @@ export const chaptersBadges: IMysteryBox[] = [
   },
   {
     address: "0xe7246BdB86e0abEeFA83ce81d967709ce1cDdd25",
-    name: "Catnip Chaos - Chapter 2 Badge",
+    name: "Chapter 2 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_2,
     chain: ChainType.SEI,
     image: cdnFile("catnip-chaos/badges/chapter2.webp"),
@@ -149,7 +149,7 @@ export const chaptersBadges: IMysteryBox[] = [
   },
   {
     address: "0xa518F2f416b90250e0CC46FbD9920a0EC7940bA0",
-    name: "Catnip Chaos - Chapter 3 Badge",
+    name: "Chapter 3 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_3,
     chain: ChainType.SEI,
     image: cdnFile("catnip-chaos/badges/chapter3.webp"),
@@ -160,68 +160,68 @@ export const chaptersBadges: IMysteryBox[] = [
   },
   {
     address: "0x92B355908a597Aac295aee96131DD88Fe220E6E3",
-    name: "Catnip Chaos - Chapter 4 Badge",
+    name: "Chapter 4 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_4,
     chain: ChainType.SEI,
     image: cdnFile("catnip-chaos/badges/chapter4.webp"),
     requirements: {
       type: MysteryBoxRequirementType.CHAPTER,
-      text: "Complete 4th chapter of Catnip Chaos",
+      text: "Complete 4th chapter",
     },
   },
   {
     address: "0xb2b912D64B154Ac73C5bf5564a21F5852025A4B2",
-    name: "Catnip Chaos - Chapter 5 Badge",
+    name: "Chapter 5 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_5,
     chain: ChainType.SEI,
     image: cdnFile("catnip-chaos/badges/chapter5.webp"),
     requirements: {
       type: MysteryBoxRequirementType.CHAPTER,
-      text: "Complete 5th chapter of Catnip Chaos",
+      text: "Complete 5th chapter",
     },
   },
   {
     address: "0x2e9F67A2Ca352e2672491a9c75dB7769B83bbef0",
-    name: "Catnip Chaos - Chapter 6 Badge",
+    name: "Chapter 6 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_6,
     chain: ChainType.SEI,
     image: cdnFile("catnip-chaos/badges/chapter6.webp"),
     requirements: {
       type: MysteryBoxRequirementType.CHAPTER,
-      text: "Complete 6th chapter of Catnip Chaos",
+      text: "Complete 6th chapter",
     },
   },
   {
     address: "0x413E1D2C1df418544b615ee2716e386D736eeA73",
-    name: "Catnip Chaos - Chapter 7 Badge",
+    name: "Chapter 7 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_7,
     chain: ChainType.SEI,
     image: cdnFile("catnip-chaos/badges/chapter7.webp"),
     requirements: {
       type: MysteryBoxRequirementType.CHAPTER,
-      text: "Complete 7th chapter of Catnip Chaos",
+      text: "Complete 7th chapter",
     },
   },
   {
     address: "0x5399A2BB42B9D7e04599b6c26deFc76A568e3C29",
-    name: "Catnip Chaos - Chapter 8 Badge",
+    name: "Chapter 8 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_8,
     chain: ChainType.SEI,
     image: cdnFile("catnip-chaos/badges/chapter8.webp"),
     requirements: {
       type: MysteryBoxRequirementType.CHAPTER,
-      text: "Complete 8th chapter of Catnip Chaos",
+      text: "Complete 8th chapter",
     },
   },
   {
     address: "0xEBd5f0EFAd954096a4442C13293337af0B5B9D79",
-    name: "Catnip Chaos - Chapter 9 Badge",
+    name: "Chapter 9 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_9,
     chain: ChainType.SEI,
     image: cdnFile("catnip-chaos/badges/chapter9.webp"),
     requirements: {
       type: MysteryBoxRequirementType.CHAPTER,
-      text: "Complete 9th chapter of Catnip Chaos",
+      text: "Complete 9th chapter",
     },
   },
 ];

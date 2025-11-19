@@ -22,13 +22,6 @@ const Cat = ({ profile }: { profile?: IProfile | null }) => {
         className="w-24 m-auto pixelated -mt-2 -mb-8 md:mb-0 md:-mt-8 relative z-10"
         src={profile?.cat?.catImg || "/logo/logo.webp"}
       />
-      {(profile?.cat.blessings?.length || 0) > 0 && (
-        <img
-          draggable={false}
-          className="absolute m-auto inset-0 object-cover translate-y-1 w-24 h-24 -mt-2 z-0"
-          src={cdnFile(`flare-effect/${profile!.cat.type}.gif`)}
-        ></img>
-      )}
     </div>
   );
 };
@@ -267,9 +260,11 @@ export const TelegramProfileContent = () => {
             <Cat profile={profile} />
           </span>
           <div className="relative z-10 md:-mt-6">
-            <Tag isSmall>Hello, {profile.name} !</Tag>
+            <div className="font-paws text-p3 text-center">
+              Hello, {profile.name}
+            </div>
           </div>
-          <div className="flex justify-center -mb-4 mt-2">
+          <div className="flex justify-center -mb-4">
             <PixelButton
               isSmall
               text="STATS"
@@ -324,7 +319,7 @@ export const TelegramProfileContent = () => {
                   src={cdnFile("logo/rocket.png")}
                 />
                 <div className="flex font-secondary text-p4 gap-2">
-                  STREAK:{" "}
+                  CHECK-INS:{" "}
                   <span className="font-bold">{profile?.streak || 0}</span>
                 </div>
               </li>

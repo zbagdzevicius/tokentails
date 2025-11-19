@@ -37,9 +37,8 @@ export const GameStatSection = ({
   );
 };
 
-const tailsText = `EARN $TAILS BY CRAFTING WITH YOUR CATS, INVITING FRIENDS, PLAYING AND DOING DAILY CHECK-INS.
-EARN CATNIP BY PLAYING CATNIP CHAOS.
-`;
+const tailsText = `EARN $TAILS BY:\n- CRAFTING WITH YOUR CATS\n- INVITING FRIENDS\n- RANKING UP IN LEADERBOARDS\n- DOING DAILY CHECK-INS\n
+EARN CATNIP BY PLAYING`;
 
 export const GameStatsSection = ({
   profile,
@@ -50,7 +49,6 @@ export const GameStatsSection = ({
 }) => {
   const [modal, setModal] = useState<null | string>(null);
   const { gameType } = useGame();
-  const toast = useToast();
 
   if (!profile) {
     return <></>;
@@ -80,7 +78,7 @@ export const GameStatsSection = ({
       <div className="fixed left-4 pb-safe top-4 z-10 flex flex-col justify-between">
         <div
           onClick={() => setModal(tailsText)}
-          className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-1"
+          className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-1 whitespace-pre-line"
           style={bgStyle("min-5")}
         >
           <div className="text-p4 font-bold flex items-center gap-1">
@@ -134,7 +132,7 @@ export const GameStatsSection = ({
           >
             <CloseButton onClick={() => setModal(null)} />
             <div className="pb-safe rem:min-h-[100px] p-8 flex flex-col gap-2 justify-between items-center">
-              <p className="text-p3 font-secondary whitespace-pre-line text-center">
+              <p className="text-p3 font-secondary whitespace-pre-line">
                 {modal}
               </p>
               <PixelButton

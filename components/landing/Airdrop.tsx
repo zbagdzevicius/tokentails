@@ -106,7 +106,7 @@ export const Airdrop = () => {
                     className="w-8 lg:w-12"
                     src={cdnFile("logo/rocket.png")}
                   />
-                  <PixelButton text="REACHED 10 DAYS STREAK" />
+                  <PixelButton text="REACHED 10 CHECK-INS" />
                 </li>
                 <li className="flex items-center gap-2 justify-center">
                   <img

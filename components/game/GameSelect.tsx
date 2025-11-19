@@ -142,10 +142,9 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
                 </div>
               </div>
             ) : (
-              <img
-                src={cdnFile("icons/loader.webp")}
-                className="w-24 h-24 -mb-6 animate-spin pixelated"
-              />
+              <div className="text-p2 mt-48 md:mt-24 font-paws animate-pulse">
+                LOADING...
+              </div>
             )}
           </div>
         </>

@@ -132,7 +132,7 @@ export const AirdropTable: React.FC<AirdropTableProps> = ({
   const [isHowToConnectXOpen, setIsHowToConnectXOpen] = useState(false);
   return (
     <div className="w-full">
-      <h2 className="text-center font-primary uppercase tracking-tight text-h6 md:text-h2 lg:text-h1 text-balance px-4 py-4 md:py-0 mt-4">
+      <h2 className="text-center font-paws uppercase tracking-tight text-p1 md:text-h3 lg:text-h1 text-balance px-4 py-4 lg:py-0 mt-4">
         <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] mr-4">
           $TAILS
         </span>

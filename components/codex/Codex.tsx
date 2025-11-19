@@ -311,19 +311,13 @@ export const Codex = () => {
         alt="codex"
         className="h-24 mb-2"
       />
-      <div className="flex flex-col items-center -my-2">
-        <span className="text-yellow-300 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] text-p1">
-          MY BADGES: {completedMonths}
-        </span>
+      <div className="flex flex-col items-center font-paws text-yellow-300 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] text-h5">
+        MY BADGES: {completedMonths}
       </div>
       {!!completedCount && (
         <div className="flex justify-center gap-1 my-1">
           {Array.from({ length: completedMonths }).map((_, index) => (
-            <img
-              key={index}
-              src={cdnFile("logo/heart.webp")}
-              className="w-4 h-4"
-            />
+            <img key={index} src={cdnFile("logo/heart.webp")} className="w-6" />
           ))}
         </div>
       )}
@@ -373,8 +367,8 @@ export const Codex = () => {
           </div>
         ) : (
           <div className="font-primary text-p5 flex flex-col items-center">
-            <span>THE CODEX OPENS FOR GUARDIANS</span>
-            <span className="-mt-1">$TAILS GUARD TITLE UNLOCKED</span>
+            <span>THE BADGES OPEN FOR GUARDIANS</span>
+            <span className="-mt-1">MISSIONS COMPLETED</span>
           </div>
         )}
         <span className="bg-gradient-to-r text-p6 font-primary from-yellow-300 to-yellow-400 text-gray-700 px-3 -mb-2 pb-1 rounded-t-md font-bold">

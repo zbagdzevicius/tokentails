@@ -22,7 +22,7 @@ export const InviteModalContent = () => {
 
   return (
     <div className="pt-4 pb-8 px-4 text-gray-700 flex flex-col justify-between items-center animate-appear">
-      <Tag>EVENTS</Tag>
+      <div className="font-paws text-h2">EVENTS</div>
       <div className="py-2 flex justify-center gap-4">
         <PixelButton
           active={type === GameModal.MYSTERY_CAT}

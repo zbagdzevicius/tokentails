@@ -163,7 +163,7 @@ export const allQuests: ILocalQuest[] = [
     type: QuestType.GOAL,
     key: QUEST.INVITE_FRIENDS_10,
     name: "Invite 10 friens",
-    icon: cdnFile("images/cats-hub/cat-with-hat.webp"),
+    icon: cdnFile("logo/friends.png"),
     reward: {
       tails: 100,
     },
@@ -181,7 +181,7 @@ export const allQuests: ILocalQuest[] = [
     type: QuestType.GOAL,
     key: QUEST.INVITE_FRIENDS_50,
     name: "Invite 50 friens",
-    icon: cdnFile("images/cats-hub/cat-with-hat.webp"),
+    icon: cdnFile("logo/friends.png"),
     reward: {
       tails: 500,
     },
@@ -199,7 +199,7 @@ export const allQuests: ILocalQuest[] = [
     type: QuestType.GOAL,
     key: QUEST.INVITE_FRIENDS_100,
     name: "Invite 100 friens",
-    icon: cdnFile("images/cats-hub/cat-with-hat.webp"),
+    icon: cdnFile("logo/friends.png"),
     reward: {
       tails: 1000,
     },

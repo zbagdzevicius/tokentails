@@ -77,8 +77,8 @@ export const QuestsModalContent = () => {
 
   return (
     <div className="px-2 md:px-4 pb-8 pt-4 md:b-12 flex flex-col justify-between items-center animate-appear">
-      <Tag>QUESTS</Tag>
-      <div className="py-2 flex items-center justify-between w-full mb-4">
+      <div className="font-paws text-h2">QUESTS</div>
+      <div className="pb-2 flex items-center justify-between w-full">
         <PixelButton
           text="TOP"
           isSmall

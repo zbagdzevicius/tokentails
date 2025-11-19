@@ -137,8 +137,8 @@ const Roadmap = () => {
           <div className="relative bg-gradient-to-t to-purple-300 from-blue-300 rounded-full border-4 border-purple-300 w-16 h-16 flex justify-center items-center">
             <img
               draggable={false}
-              className="w-10 relative md:absolute left-0 right-0 md:-top-14 m-auto"
-              src={cdnFile("icons/check.webp")}
+              className="w-10 relative md:absolute left-0 right-0 md:-top-14 m-auto animate-spin-slow"
+              src={cdnFile("icons/loader.webp")}
             />
             <img
               draggable={false}
@@ -153,15 +153,15 @@ const Roadmap = () => {
             <span className="flex gap-2 items-center -ml-6">
               <img
                 draggable={false}
-                className="h-6"
-                src={cdnFile("icons/check.webp")}
+                className="h-6 animate-spin-slow"
+                src={cdnFile("icons/loader.webp")}
               />
               SHELTERS ONBOARDING
             </span>
             <span className="flex gap-2 items-center -ml-6">
               <img
                 draggable={false}
-                className="h-6"
+                className="h-6 animate-spin-slow"
                 src={cdnFile("icons/loader.webp")}
               />
               COMMUNITY CAMPAIGNS
@@ -169,10 +169,10 @@ const Roadmap = () => {
             <span className="flex gap-2 items-center -ml-6">
               <img
                 draggable={false}
-                className="h-6"
+                className="h-6 animate-spin-slow"
                 src={cdnFile("icons/loader.webp")}
               />
-              3D GAME LAUNCH
+              3D GAME DEVELOPMENT
             </span>
           </div>
         </div>
