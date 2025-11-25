@@ -61,6 +61,17 @@ export enum MYSTERY_BOX_TYPE {
   CATNIP_CHAOS_7 = "CATNIP_CHAOS_7",
   CATNIP_CHAOS_8 = "CATNIP_CHAOS_8",
   CATNIP_CHAOS_9 = "CATNIP_CHAOS_9",
+  CATNIP_CHAOS_10 = "CATNIP_CHAOS_10",
+  CATNIP_CHAOS_11 = "CATNIP_CHAOS_11",
+  CATNIP_CHAOS_12 = "CATNIP_CHAOS_12",
+  CATNIP_CHAOS_13 = "CATNIP_CHAOS_13",
+  CATNIP_CHAOS_14 = "CATNIP_CHAOS_14",
+  CATNIP_CHAOS_15 = "CATNIP_CHAOS_15",
+  CATNIP_CHAOS_16 = "CATNIP_CHAOS_16",
+  CATNIP_CHAOS_17 = "CATNIP_CHAOS_17",
+  CATNIP_CHAOS_18 = "CATNIP_CHAOS_18",
+  CATNIP_CHAOS_19 = "CATNIP_CHAOS_19",
+  CATNIP_CHAOS_20 = "CATNIP_CHAOS_20",
 }
 
 export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
@@ -217,6 +228,17 @@ export const chaptersBadges: IMysteryBox[] = [
     address: "0xEBd5f0EFAd954096a4442C13293337af0B5B9D79",
     name: "Chapter 9 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_9,
+    chain: ChainType.SEI,
+    image: cdnFile("catnip-chaos/badges/chapter9.webp"),
+    requirements: {
+      type: MysteryBoxRequirementType.CHAPTER,
+      text: "Complete 9th chapter",
+    },
+  },
+  {
+    address: "0xEBd5f0EFAd954096a4442C13293337af0B5B9D79",
+    name: "Chapter 10 Badge",
+    key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_10,
     chain: ChainType.SEI,
     image: cdnFile("catnip-chaos/badges/chapter9.webp"),
     requirements: {

@@ -102,7 +102,7 @@ export default function Index() {
             <Preview />
           </div>
 
-          <div className="absolute  top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pt-48 flex flex-col justify-center items-center">
+          <div className="absolute z-20 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pt-48 flex flex-col justify-center items-center">
             <a href="/game">
               <PixelButton text="PLAY" isBig subtext="GAME" />
             </a>

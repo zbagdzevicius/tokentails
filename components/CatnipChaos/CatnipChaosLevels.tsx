@@ -1,10 +1,7 @@
 import { QUEST_API } from "@/api/quest-api";
-import { bgStyle, cdnFile } from "@/constants/utils";
-import { useGame } from "@/context/GameContext";
+import { cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
-import { GameModal } from "@/models/game";
-import { ChainType } from "@/web3/contracts";
 import { chaptersBadges, IMysteryBox } from "@/web3/web3.model";
 import { useCallback } from "react";
 import {
@@ -18,6 +15,21 @@ import { TrailheadsData } from "../shared/QuestsModal";
 import { ConnectWallet, Web3Mint } from "../web3/minting/Web3Mint";
 import { Web3Providers } from "../web3/Web3Providers";
 
+const levelCharacter: Record<string, string> = {
+  "41": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/STICKY/base/RUNNING.gif",
+  "51": TrailheadsData[0].icon,
+  "52": TrailheadsData[1].icon,
+  "53": TrailheadsData[2].icon,
+  "54": TrailheadsData[3].icon,
+  "55": TrailheadsData[4].icon,
+  "56": TrailheadsData[5].icon,
+  "61": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/YAK/base/RUNNING.gif",
+  "81": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/SEI/base/SITTING.gif",
+  "83": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/ELDREM/base/RUNNING.gif",
+  "85": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/AMBERCLAW/base/RUNNING.gif",
+  "93": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/SOLO-SURVIVOR/base/IDLE.gif",
+};
+
 export const CatnipChaosLevels = ({
   setSelectedLevel,
 }: {
@@ -28,8 +40,6 @@ export const CatnipChaosLevels = ({
   const unlockedLevels = [...(profile?.catnipChaos || [])].filter(
     (level) => level > 0
   ).length;
-  const isGuard = profile?.codex?.filter((item) => item === 1)?.length || 0;
-  const havePassToPlay = isGuard;
 
   const selectLevel = (level: string, index: number) => {
     if (index > unlockedLevels) {
@@ -104,13 +114,12 @@ export const CatnipChaosLevels = ({
               >
                 <div className="z-10 text-center rounded-full flex items-center justify-center text-p1 leading-none font-primary">
                   <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] w-full text-center">
-                    {level?.split("").join("-")}
+                    {level?.length === 3
+                      ? `${level[0]}${level[1]}-${level[2]}`
+                      : level?.split("").join("-")}
                   </span>
                 </div>
-                {!(
-                  unlockedLevels >= i ||
-                  (havePassToPlay && level[0] === "5")
-                ) && (
+                {!(unlockedLevels >= i) && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full p-1 w-full h-full z-20">
                     <img
                       className="w-8 h-8"
@@ -127,62 +136,14 @@ export const CatnipChaosLevels = ({
                     {profile?.catnipChaos?.[i + 1] || 0} / 10
                   </span>
                 </span>
-                {level[0] === "5" && (
+                {!!levelCharacter[level] && (
                   <img
-                    src={TrailheadsData[parseInt(level[1]) - 1].icon}
-                    className="w-20 rounded-2xl -mx-6 absolute -left-4 z-40 pixelated"
-                  />
-                )}
-                {!!["41", "71"].includes(level) && (
-                  <img
-                    src={
-                      "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/STICKY/base/RUNNING.gif"
-                    }
-                    className="w-20 rounded-2xl -mx-6 absolute -left-4 z-40 pixelated"
-                  />
-                )}
-                {level === "61" && (
-                  <img
-                    src={
-                      "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/YAK/base/RUNNING.gif"
-                    }
-                    className="w-20 rounded-2xl -mx-6 absolute -left-4 z-40 pixelated"
-                  />
-                )}
-                {level === "81" && (
-                  <img
-                    src={
-                      "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/SEI/base/SITTING.gif"
-                    }
-                    className="w-16 rounded-2xl -mx-6 absolute -left-4 z-40 pixelated"
-                  />
-                )}
-                {level === "83" && (
-                  <img
-                    src={
-                      "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/ELDREM/base/RUNNING.gif"
-                    }
-                    className="w-20 mb-24 rounded-2xl -mx-6 absolute -left-4 z-40 pixelated"
-                  />
-                )}
-                {level === "85" && (
-                  <img
-                    src={
-                      "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/AMBERCLAW/base/RUNNING.gif"
-                    }
-                    className="w-14 mt-8 rounded-2xl -mx-6 absolute -left-4 z-40 pixelated"
-                  />
-                )}
-                {level === "93" && (
-                  <img
-                    src={
-                      "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/SOLO-SURVIVOR/base/IDLE.gif"
-                    }
-                    className="w-16 mt-5 rounded-2xl -mx-4 absolute -left-4 z-40 pixelated"
+                    src={levelCharacter[level]}
+                    className="w-12 mb-24 rounded-2xl absolute left-1/2 -translate-x-1/2 z-40 pixelated -top-6"
                   />
                 )}
               </div>
-              {level[1] === "6" && (
+              {(level.length === 3 ? level[2] === "6" : level[1] === "6") && (
                 <div
                   className={`flex flex-col items-center ml-4 xl:ml-8 h-full relative ${
                     unlockedLevels >= i ? "pb-8 -mt-3" : ""
@@ -214,7 +175,7 @@ export const CatnipChaosLevels = ({
                     src={cdnFile(`catnip-chaos/badges/chapter${level[0]}.webp`)}
                     className="w-20 h-20 rounded-t-xl"
                   />
-                  {!(unlockedLevels >= i || havePassToPlay) && (
+                  {!(unlockedLevels >= i) && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/50 p-1 w-full h-full z-20">
                       <img
                         className="w-8 h-8"
