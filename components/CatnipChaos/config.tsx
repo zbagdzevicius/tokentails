@@ -2,6 +2,15 @@ import { Game } from "phaser";
 import { CatnipChaosScene, ICatnipChaosProps } from "./scenes/CatnipChaos";
 import { useLayoutEffect, useRef } from "react";
 
+const catImages: Record<number, string> = {
+  101: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/EGGY/base.png",
+  102: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/SABLE/base.png",
+  103: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/CHARMIE/base.png",
+  104: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/NOELLE/base.png",
+  105: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/LAVA/base.png",
+  106: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/TROUFAS/base.png",
+};
+
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.WEBGL,
   parent: "game-container",
@@ -46,6 +55,7 @@ const getImageForLevel = (level: number): string => {
 };
 
 const getCatForLevel = (level: number): string | undefined => {
+  if (catImages[level]) return catImages[level];
   return level.toString().startsWith("10")
     ? "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/YELLOW/santa.png"
     : undefined;
