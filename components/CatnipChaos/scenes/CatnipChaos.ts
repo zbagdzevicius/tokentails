@@ -73,6 +73,7 @@ export class CatnipChaosScene extends Scene {
   private flightOffBlocks: Phaser.GameObjects.Sprite[] = [];
   private flightEffectSprite?: Phaser.GameObjects.Sprite;
   private flightCloudSprite?: Phaser.GameObjects.Sprite;
+ private ghostCloudSprite?: Phaser.GameObjects.Sprite;
   private geometryDashCloudSprite?: Phaser.GameObjects.Sprite;
   private wasOnFlightOnBlock: boolean = false;
   private wasOnFlightOffBlock: boolean = false;
@@ -450,13 +451,25 @@ export class CatnipChaosScene extends Scene {
     if (this.ghostImage) {
       if (this.textures.exists("cat-spirit")) {
         this.catSpirit = this.add.sprite(
-          this.cat.sprite.x + 64,
+          this.cat.sprite.x - 96,
           this.cat.sprite.y,
           "cat-spirit"
         );
         this.catSpirit.setAlpha(0.8);
         this.catSpirit.setDepth(this.cat.sprite.depth - 2);
         this.catSpirit.play("cat-spirit-anim");
+
+      
+          this.ghostCloudSprite = this.add.sprite(
+            this.catSpirit.x,
+            this.catSpirit.y,
+            "cloud"
+          );
+          this.ghostCloudSprite.setDisplaySize(72, 51);
+          this.ghostCloudSprite.setDepth(this.catSpirit.depth - 1);
+          this.ghostCloudSprite.play("cloud-anim");
+          this.ghostCloudSprite.setTint(0xff69b4)
+        
       }
     }
 
@@ -760,7 +773,7 @@ export class CatnipChaosScene extends Scene {
         const body = this.cat.sprite.body as Phaser.Physics.Arcade.Body;
         const direction = body.velocity.x >= 0 ? 1 : -1;
         this.catSpirit.setPosition(
-          this.cat.sprite.x + direction * 64,
+          this.cat.sprite.x - direction * 64,
           this.cat.sprite.y
         );
         // Mirror flip if cat is flipped
@@ -769,6 +782,15 @@ export class CatnipChaosScene extends Scene {
         this.catSpirit.setRotation(this.cat.sprite.rotation);
         this.catSpirit.setFlipY(this.isGravityReversed);
       }
+
+         if (this.catSpirit && this.ghostCloudSprite) {
+      this.ghostCloudSprite.setPosition(
+        this.catSpirit.x + 3,
+        this.catSpirit.y + 10
+      );
+      this.ghostCloudSprite.setRotation(this.catSpirit.rotation);
+      this.ghostCloudSprite.setFlipY(this.isGravityReversed);
+    }
     }
   }
 
@@ -837,15 +859,18 @@ export class CatnipChaosScene extends Scene {
     this.wasOnTile309 = false;
     this.flightOnBlocks = [];
     this.flightOffBlocks = [];
-    // Always destroy and reset the cloud sprite
     if (this.flightCloudSprite) {
-      this.flightCloudSprite.destroy();
-      this.flightCloudSprite = undefined;
-    }
-    if (this.geometryDashCloudSprite) {
-      this.geometryDashCloudSprite.destroy();
-      this.geometryDashCloudSprite = undefined;
-    }
+    this.flightCloudSprite.destroy();
+    this.flightCloudSprite = undefined;
+  }
+  if (this.geometryDashCloudSprite) {
+    this.geometryDashCloudSprite.destroy();
+    this.geometryDashCloudSprite = undefined;
+  }
+   if (this.ghostCloudSprite) {
+    this.ghostCloudSprite.destroy();
+    this.ghostCloudSprite = undefined;
+  }
   }
 
   setupEventListeners(props: ICatnipChaosProps) {
@@ -958,8 +983,8 @@ export class CatnipChaosScene extends Scene {
       this.anims.create({
         key: "cat-spirit-anim",
         frames: this.anims.generateFrameNumbers("cat-spirit", {
-          start: 105, 
-          end: 108,  
+          start: 120, 
+          end: 123,  
         }),
         frameRate: 8,
         repeat: -1,
