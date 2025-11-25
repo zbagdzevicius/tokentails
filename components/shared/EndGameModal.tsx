@@ -18,7 +18,11 @@ type EndGameProps = {
 
 const getGameLevelName = (level: string) => {
   if (!level.startsWith("0")) {
-    return `Level ${level.split("").join("-")}`;
+    return `Level ${
+      level.length === 3
+        ? `${level[0]}${level[1]}-${level[2]}`
+        : level.split("").join("-")
+    }`;
   }
 
   return "PURRSUIT";
