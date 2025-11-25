@@ -1,6 +1,6 @@
 export const HomePage = () => {
   return (
-    <div className="flex items-center flex-col w-full h-full relative">
+    <div className="flex items-center flex-col w-full h-full relative z-10">
       <h1 className="xl:mt-6 text-balance text-center font-paws uppercase z-0 tracking-tight text-h5 sm:text-h2 lg:text-[120px] xl:text-[140px] 2xl:text-[180px] 3xl:text-[200px] lg:mb-4">
         <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)]">
           YOUR
