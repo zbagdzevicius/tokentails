@@ -13,6 +13,7 @@ export enum Map {
   ENDLESS = "base/combined.png",
   SEI = "base/sei.png",
   DAEMON = "base/daemons.png",
+  CAT_WINTER = "base/cat-winter.png",
 }
 
 export const CoreMap = Map.SPRING;
@@ -73,6 +74,12 @@ export const CatnipChaosLevelMap: Record<string, Map> = {
   "94": Map.DAEMON,
   "95": Map.DAEMON,
   "96": Map.DAEMON,
+  "101": Map.CAT_WINTER,
+  "102": Map.CAT_WINTER,
+  "103": Map.CAT_WINTER,
+  "104": Map.CAT_WINTER,
+  "105": Map.CAT_WINTER,
+  "106": Map.CAT_WINTER,
 };
 
 export const totalCatnip =
@@ -102,4 +109,5 @@ export const catnipChaosChapterBGImage: Record<string, string> = {
   "7": cdnFile("backgrounds/bg-min-camp-green.webp"),
   "8": cdnFile("backgrounds/bg-min-sei.webp"),
   "9": cdnFile("backgrounds/bg-min-daemon.webp"),
+  "10": cdnFile("backgrounds/bg-min-cat-winter.webp"),
 };

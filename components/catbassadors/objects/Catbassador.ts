@@ -5,6 +5,7 @@ import { catWalkSpeed } from "@/models/game";
 import { Abilities } from "./Abilities";
 import { CatAbilityType } from "@/models/cats";
 import { NPCJob, NPCJobType } from "../../base/objects/Cat";
+import { log } from "console";
 /**
  * Physics objects that could be colliders
  */
@@ -102,6 +103,7 @@ export class Cat implements IPlayer {
   type!: CatAbilityType;
   isOnSlidingTile: boolean = false;
   isOnIcyTile: boolean = false;
+  currentRotation: boolean = false;
 
   private collectiveItem: Phaser.Physics.Arcade.Sprite | null = null;
   collectedItem: Phaser.Physics.Arcade.Sprite | null = null;
@@ -301,10 +303,10 @@ export class Cat implements IPlayer {
 
     if (this.sprite.body!.blocked.left) {
       this.lastTouchedWall = "left";
-      this.sprite.setFlipX(false);
+      this.sprite.setFlipX(this.currentRotation);
     }
     if (this.sprite.body!.blocked.right) {
-      this.sprite.setFlipX(true);
+      this.sprite.setFlipX(!this.currentRotation);
       this.lastTouchedWall = "right";
     }
   }
@@ -408,4 +410,9 @@ export class Cat implements IPlayer {
     this.canDoubleJump = true;
     this.hasDoubleJumped = false;
   }
+
+  setCurrentRotation(reversed: boolean) {
+    this.currentRotation = reversed;
+    console.log("Current Rotation set to:", this.currentRotation);
+}
 }
