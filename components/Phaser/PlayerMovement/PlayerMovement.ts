@@ -26,17 +26,24 @@ export class PlayerMovement {
   private reversedBaseGravity: number = -1150;
   private reversedFallingGravity: number = -1200;
 
+  private midAirJumpUsed: boolean = false;
+  private canMidAirJump: boolean = false;
+
   // Add flight mode properties
   private isFlightMode: boolean = false;
   private flightAscendSpeed: number = 340;
   private flightDescendSpeed: number = 340;
   private flightSmoothing: number = 0.18;
   private targetFlightVelocityY: number = 0;
-  flightXSpeed: number = 270; // Adjust as needed
+  flightXSpeed: number = 270; 
+
+ private readonly midAirJumpVelocity: number;
+
 
   constructor(player: IPlayer) {
     this.player = player;
     this.player.sprite.setMaxVelocity(this.player.walkSpeed * 2, 1000000);
+    this.midAirJumpVelocity = -this.player.jumpSpeed * 1.15;
   }
 
   setGravityReversed(reversed: boolean) {
@@ -53,6 +60,13 @@ export class PlayerMovement {
     if (enabled) {
       // Set initial gravity to normal (down)
       this.setGravityReversed(false);
+    }
+  }
+
+  public setMidAirJump(enabled: boolean) {
+    this.canMidAirJump = enabled;
+    if (!enabled) {
+      this.midAirJumpUsed = false;
     }
   }
 
@@ -97,7 +111,6 @@ export class PlayerMovement {
     if (!sprite || !sprite.body) {
       return;
     }
-
     if (this.isFlightMode) {
       // Flight mode: smooth ascend/descend with lerp
       const ascendKey =
@@ -158,9 +171,13 @@ export class PlayerMovement {
       this.handleGeometryDashGravity(upKeyDown);
     }
 
-    const onGround = this.isGravityReversed
+    let onGround = this.isGravityReversed
       ? sprite.body.blocked.up
       : sprite.body.blocked.down;
+
+    if (this.canMidAirJump && !this.midAirJumpUsed) {
+      onGround = true;
+    }
 
     const touchingLeftWall = sprite.body.blocked.left && !onGround;
     const touchingRightWall = sprite.body.blocked.right && !onGround;
@@ -184,7 +201,7 @@ export class PlayerMovement {
     if (this.isAutoRunMode) {
       // Always run right at constant speed
       sprite.setVelocityX(this.autoRunSpeed);
-      sprite.setFlipX(false);
+      sprite.setFlipX(this.player.currentRotation);
 
       // Reset double jump when landing on ground
       if (onGround) {
@@ -241,7 +258,7 @@ export class PlayerMovement {
       sprite.setVelocityX(newVelocity);
 
       sprite.setAccelerationX(-this.player.walkSpeed);
-      sprite.setFlipX(true);
+      sprite.setFlipX(!this.player  .currentRotation);
     } else if (!this.player.disableRightMovement && rightKeyDown) {
       const currentVelocity = sprite.body.velocity.x;
       const targetVelocity = this.player.walkSpeed;
@@ -253,7 +270,7 @@ export class PlayerMovement {
       sprite.setVelocityX(newVelocity);
 
       sprite.setAccelerationX(this.player.walkSpeed);
-      sprite.setFlipX(false);
+      sprite.setFlipX(this.player.currentRotation);
     } else {
       const currentVelocity = sprite.body.velocity.x;
       const decelerationRate = isOnIcyTile
@@ -328,9 +345,9 @@ export class PlayerMovement {
       !this.isGeometryDashMode &&
       (onGround ||
         canWallJump ||
-        (this.player.canDoubleJump && !this.player.hasDoubleJumped)) &&
-      upKeyDown &&
-      !this.player.justJumped
+        (this.player.canDoubleJump && !this.player.hasDoubleJumped) ||
+        (this.canMidAirJump && !this.midAirJumpUsed)) &&
+      upKeyDown
     ) {
       this.jump({
         canWallJump,
@@ -360,6 +377,7 @@ export class PlayerMovement {
       this.player.lastWallTouched = null;
       this.player.wallTouchTime = 0;
       this.player.hasDoubleJumped = false;
+      this.midAirJumpUsed = false;
     }
 
     if (cursors.up.isUp && keys.up.isUp && !isMobileJumping) {
@@ -436,7 +454,8 @@ export class PlayerMovement {
     if (
       onGround ||
       canWallJump ||
-      (this.player.canDoubleJump && !this.player.hasDoubleJumped)
+      (this.player.canDoubleJump && !this.player.hasDoubleJumped) ||
+      (this.canMidAirJump && !this.midAirJumpUsed)
     ) {
       this.player.justJumped = true;
       this.player.jumpTimer = this.player.scene.time.now;
@@ -444,6 +463,27 @@ export class PlayerMovement {
       // Play jump sound
       const jumpSound = this.player.scene.sound.add("jump", { volume: 0.2 });
       jumpSound.play();
+
+      
+      if(onGround && this.player.scene.anims.exists("splash-anim")) {
+    let offsetX = this.player.currentRotation ? -20 : 20;
+    let offsetY = -20;
+  
+        const splash = this.player.scene.add.sprite(
+    this.player.sprite.x + offsetX,
+    this.player.sprite.y + offsetY,
+    "splash"
+);
+
+        splash.setDepth(this.player.sprite.depth - 1); // Ensure it's behind the player
+        splash.play("splash-anim");
+
+        // Destroy the splash sprite after the animation completes   
+        splash.on("animationcomplete", () => { 
+          splash.destroy();
+        });
+      }
+
 
       const jumpSpeed = this.isGravityReversed
         ? this.player.jumpSpeed
@@ -495,7 +535,16 @@ export class PlayerMovement {
           repeat: 8,
         });
       } else {
-        this.player.sprite.setVelocityY(jumpSpeed);
+        const actuallyOnGround = this.isGravityReversed
+          ? this.player.sprite.body!.blocked.up
+          : this.player.sprite.body!.blocked.down;
+
+        if (!actuallyOnGround && this.canMidAirJump && !this.midAirJumpUsed) {
+          this.player.sprite.setVelocityY(this.midAirJumpVelocity);
+          this.midAirJumpUsed = true;
+        } else {
+          this.player.sprite.setVelocityY(jumpSpeed);
+        }
 
         // Handle double jump
         if (

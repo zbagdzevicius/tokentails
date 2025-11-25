@@ -32,12 +32,14 @@ const SPIKE_TILES = [253, 254, 284, 283];
 export interface ICatnipChaosProps {
   level: string;
   coinImage: string;
+  ghostImage: string;
 }
 
 export class CatnipChaosScene extends Scene {
   platform!: Phaser.GameObjects.Rectangle;
   cat?: Cat;
   catDto?: ICat;
+  catSpirit?: Phaser.GameObjects.Sprite;
   tilemap!: Phaser.Tilemaps.Tilemap;
   groundLayer!: Phaser.Tilemaps.TilemapLayer;
   platformsLayer!: Phaser.Tilemaps.TilemapLayer;
@@ -66,6 +68,7 @@ export class CatnipChaosScene extends Scene {
   private collectedCatnipCoins: number = 0;
   private currentLevel: string = "";
   private coinImage: string = "";
+  private ghostImage?: string = "";
   private flightOnBlocks: Phaser.GameObjects.Sprite[] = [];
   private flightOffBlocks: Phaser.GameObjects.Sprite[] = [];
   private flightEffectSprite?: Phaser.GameObjects.Sprite;
@@ -77,6 +80,7 @@ export class CatnipChaosScene extends Scene {
   private flightXEffectBlocks: Phaser.GameObjects.Sprite[] = [];
   private useTileSpikeChecks: boolean = false;
   private catnipCoins: Phaser.GameObjects.Sprite[] = [];
+  private jumpingEffectBlocks: Phaser.GameObjects.Sprite[] = [];
 
   constructor() {
     super("CatnipChaosScene");
@@ -86,6 +90,15 @@ export class CatnipChaosScene extends Scene {
     this.load.audio("purr", cdnFile("purrquest/sounds/purr.mp3"));
     this.load.audio("meow", cdnFile("purrquest/sounds/meow.mp3"));
     this.load.image("collective-item", cdnFile("purrquest/sprites/key.png"));
+    this.load.spritesheet(
+      "jumping-effect",
+      cdnFile("catnip-chaos/jumping.png"),
+      {
+        frameWidth: 50,
+        frameHeight: 50,
+      }
+    );
+    
 
     this.load.tilemapTiledJSON(
       "tilemap",
@@ -106,6 +119,10 @@ export class CatnipChaosScene extends Scene {
     this.load.spritesheet("cloud", cdnFile("catnip-chaos/items/cloud.png"), {
       frameWidth: 72,
       frameHeight: 51,
+    });
+        this.load.spritesheet("splash", cdnFile("catnip-chaos/splash.png"), {
+      frameWidth: 72,
+      frameHeight: 72,
     });
     this.load.spritesheet(
       "flight-on",
@@ -154,6 +171,10 @@ export class CatnipChaosScene extends Scene {
       frameWidth: 64,
       frameHeight: 64,
     });
+      this.load.spritesheet("glitch-portal", cdnFile("catnip-chaos/glitch-portal.png"), {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
     this.load.spritesheet(
       "knockback-spell",
       cdnFile("abilities/knockback-spell/FIRE.png"),
@@ -163,16 +184,24 @@ export class CatnipChaosScene extends Scene {
       }
     );
     this.load.image("speedPowerUp", cdnFile("buff/SPEED.png"));
+    if (this.props?.ghostImage) {
+      this.load.spritesheet("cat-spirit", this.props.ghostImage, {
+        frameWidth: 48,
+        frameHeight: 48,
+      });
+    }
   }
 
   init(props: ICatnipChaosProps) {
-    this.props = props;
-    this.currentLevel = this.props.level;
-    this.coinImage = this.props.coinImage;
+    if (props.coinImage) {
+      this.props = props;
+      this.currentLevel = this.props.level;
+      this.coinImage = this.props.coinImage;
+      this.ghostImage = this.props.ghostImage;
+    }
   }
 
   create(props: { detail?: IPhaserGameSceneProps }) {
-    // Ensure cloud is reset at scene start
     if (this.flightCloudSprite) {
       this.flightCloudSprite.destroy();
       this.flightCloudSprite = undefined;
@@ -293,6 +322,17 @@ export class CatnipChaosScene extends Scene {
           this.flightOffBlocks.push(sprite);
         }
       }
+      if (tile.index === 310) {
+        const worldX = this.physicsLayer.tileToWorldX(tile.x);
+        const worldY = this.physicsLayer.tileToWorldY(tile.y);
+        this.physicsLayer.removeTileAt(tile.x, tile.y);
+
+        const effectSprite = this.add.sprite(worldX+16, worldY-4, "jumping-effect");
+        effectSprite.setDisplaySize(64, 64);
+        effectSprite.play("jumping-effect-anim");
+
+        this.jumpingEffectBlocks.push(effectSprite);
+      }
     });
   }
 
@@ -402,15 +442,25 @@ export class CatnipChaosScene extends Scene {
       getMultiplier(this.catDto)
     );
 
-    this.cat.sprite.setRotation(0); // Ensure upright on spawn
+    this.cat.sprite.setRotation(0);
     this.setupCatCollisions();
     this.cameras.main.startFollow(this.cat.sprite);
-    // Also enable auto-run mode for horizontal movement
     this.cat.setAutoRunMode(this.autoRunSpeed, this.autoJumpSpeed);
+    
+    if (this.ghostImage) {
+      if (this.textures.exists("cat-spirit")) {
+        this.catSpirit = this.add.sprite(
+          this.cat.sprite.x + 64,
+          this.cat.sprite.y,
+          "cat-spirit"
+        );
+        this.catSpirit.setAlpha(0.8);
+        this.catSpirit.setDepth(this.cat.sprite.depth - 2);
+        this.catSpirit.play("cat-spirit-anim");
+      }
+    }
 
     this.physics.add.collider(this.cat.sprite, this.jumperLayer);
-
-    this.createSpikes();
 
     this.createGameObjects();
 
@@ -475,6 +525,27 @@ export class CatnipChaosScene extends Scene {
     }
   }
 
+  private processDirectionTiles() {
+    if (!this.cat) return;
+
+    const playerX = this.cat.sprite.x;
+    const playerY = this.cat.sprite.y;
+
+    const tile = this.physicsLayer.getTileAtWorldXY(playerX, playerY);
+
+    if (tile) {
+      if (tile.index === 311) {
+        this.cat.setAutoRunMode(-this.autoRunSpeed, this.autoJumpSpeed);
+        this.cat.setCurrentRotation(true);
+      } else if (tile.index === 312) {
+        this.cat.setAutoRunMode(this.autoRunSpeed, this.autoJumpSpeed);
+        this.cat.setCurrentRotation(false);
+        
+      }
+    }
+  } 
+
+
   private createFloatingPlatforms() {
     this.physicsLayer.forEachTile((tile) => {
       if (FLOATING_PLATFORM_TILES.includes(tile.index)) {
@@ -526,6 +597,7 @@ export class CatnipChaosScene extends Scene {
       this.cat.update();
       this.processGravityTiles();
       this.spawnCatnipCoins();
+      this.processDirectionTiles();
 
       // Lightweight spike collision for very large spike maps
       if (this.useTileSpikeChecks && !this.gameEnded) {
@@ -565,6 +637,19 @@ export class CatnipChaosScene extends Scene {
         );
         onTile309 = !!(tile && tile.index === 309);
         onTile121 = !!(tile && tile.index === 121);
+      }
+
+      const inJumpingEffectBlock = this.jumpingEffectBlocks.some((block) =>
+        Phaser.Geom.Intersects.RectangleToRectangle(
+          player.getBounds(),
+          block.getBounds()
+        )
+      );
+
+      if (inJumpingEffectBlock) {
+        this.cat.movement.setMidAirJump(true);
+      } else {
+        this.cat.movement.setMidAirJump(false);
       }
 
       if (onFlightOnBlock && !this.wasOnFlightOnBlock) {
@@ -669,6 +754,21 @@ export class CatnipChaosScene extends Scene {
           this.cat.sprite.y
         );
       }
+
+      // Update spirit cat position if it exists
+      if (this.catSpirit && this.cat?.sprite.body) {
+        const body = this.cat.sprite.body as Phaser.Physics.Arcade.Body;
+        const direction = body.velocity.x >= 0 ? 1 : -1;
+        this.catSpirit.setPosition(
+          this.cat.sprite.x + direction * 64,
+          this.cat.sprite.y
+        );
+        // Mirror flip if cat is flipped
+        this.catSpirit.setFlipX(this.cat.sprite.flipX);
+        // Match rotation for modes like geometry dash / gravity reverse
+        this.catSpirit.setRotation(this.cat.sprite.rotation);
+        this.catSpirit.setFlipY(this.isGravityReversed);
+      }
     }
   }
 
@@ -710,12 +810,17 @@ export class CatnipChaosScene extends Scene {
 
   private destroyGameObjects() {
     this.cat?.sprite.destroy();
+    if (this.catSpirit) {
+      this.catSpirit.destroy();
+      this.catSpirit = undefined;
+    }
     this.floatingPlatformManagers.forEach((manager) => {
       manager.destroy();
     });
     this.floatingPlatformManagers = [];
 
     this.spikeManager?.destroySpikes();
+    this.spikeManager = undefined!;
 
     this.catnipCoins = [];
 
@@ -725,6 +830,7 @@ export class CatnipChaosScene extends Scene {
   private resetGameObjects() {
     this.cat = undefined;
     this.catDto = undefined;
+    this.catSpirit = undefined;
     this.collectedCatnipCoins = 0;
     this.wasOnFlightOnBlock = false;
     this.wasOnFlightOffBlock = false;
@@ -768,6 +874,16 @@ export class CatnipChaosScene extends Scene {
     });
 
     this.anims.create({
+      key: "jumping-effect-anim",
+      frames: this.anims.generateFrameNumbers("jumping-effect", {
+        start: 0,
+        end: 7,
+      }),
+      frameRate: 16,
+      repeat: -1,
+    });
+
+    this.anims.create({
       key: "puff",
       frames: this.anims.generateFrameNumbers("puff", { start: 0, end: 4 }),
       frameRate: 16,
@@ -794,6 +910,13 @@ export class CatnipChaosScene extends Scene {
     this.anims.create({
       key: "portal-anim",
       frames: this.anims.generateFrameNumbers("portal", { start: 0, end: 5 }),
+      frameRate: 10,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: "glitch-portal-anim",
+      frames: this.anims.generateFrameNumbers("glitch-portal", { start: 0, end: 9 }),
       frameRate: 10,
       repeat: -1,
     });
@@ -830,6 +953,29 @@ export class CatnipChaosScene extends Scene {
       frameRate: 16,
       repeat: -1,
     });
+
+    if (this.props?.ghostImage) {
+      this.anims.create({
+        key: "cat-spirit-anim",
+        frames: this.anims.generateFrameNumbers("cat-spirit", {
+          start: 105, 
+          end: 108,  
+        }),
+        frameRate: 8,
+        repeat: -1,
+      });
+    }
+
+      this.anims.create({
+      key: "splash-anim",
+      frames: this.anims.generateFrameNumbers("splash", {
+        start: 0,
+        end: 3,
+      }),
+      frameRate: 14,
+      repeat: 0,
+    });
+
   }
 
   async spawnCat({
@@ -842,7 +988,7 @@ export class CatnipChaosScene extends Scene {
     if (isCatChanged) {
       this.cat = undefined;
       this.catDto = cat;
-      this.scene.restart({ cat, isRestart: true });
+          this.scene.restart({ cat, isRestart: true });
       return;
     }
 
@@ -850,6 +996,7 @@ export class CatnipChaosScene extends Scene {
 
     this.load.once("complete", () => {
       this.createCat(cat.name, null, cat.type);
+      this.createSpikes();
     });
 
     this.load.spritesheet(cat.name, cat.spriteImg, {
@@ -886,7 +1033,8 @@ export class CatnipChaosScene extends Scene {
   private startGame(data: ICatEvent<GameEvent.GAME_START>) {
     if (data.detail.isRestart) {
       this.gameEnded = false;
-      this.scene.restart(data);
+      this.catSpirit = undefined; // Reset ghost so it gets recreated
+       this.scene.restart(data);
     }
     if (this.cat) {
       this.cat.sprite.setPosition(0, -400);
@@ -901,6 +1049,7 @@ export class CatnipChaosScene extends Scene {
       entranceY: number;
       exitX: number;
       exitY: number;
+      isGlitch: boolean;
     }[] = [];
 
     // Define all portal pairs
@@ -911,34 +1060,48 @@ export class CatnipChaosScene extends Scene {
       { entrance: 149, exit: 150 },
     ];
 
-    // Process each portal pair
-    portalPairsConfig.forEach(({ entrance, exit }) => {
-      this.physicsLayer.forEachTile((tile) => {
-        if (tile.index === entrance) {
-          // Enter portal
-          const entranceX = this.physicsLayer.tileToWorldX(tile.x);
-          const entranceY = this.physicsLayer.tileToWorldY(tile.y);
-          this.physicsLayer.removeTileAt(tile.x, tile.y);
+portalPairsConfig.forEach(({ entrance, exit }) => {
+  this.physicsLayer.forEachTile((tile) => {
+    if (tile.index === entrance) {
+      const entranceX = this.physicsLayer.tileToWorldX(tile.x);
+      const entranceY = this.physicsLayer.tileToWorldY(tile.y);
+      this.physicsLayer.removeTileAt(tile.x, tile.y);
 
-          // Find corresponding exit portal
-          this.physicsLayer.forEachTile((exitTile) => {
-            if (exitTile.index === exit) {
-              // Exit portal
-              const exitX = this.physicsLayer.tileToWorldX(exitTile.x);
-              const exitY = this.physicsLayer.tileToWorldY(exitTile.y);
-              this.physicsLayer.removeTileAt(exitTile.x, exitTile.y);
+      this.physicsLayer.forEachTile((exitTile) => {
+        if (exitTile.index === exit) {
+          const exitX = this.physicsLayer.tileToWorldX(exitTile.x);
+          const exitY = this.physicsLayer.tileToWorldY(exitTile.y);
+          this.physicsLayer.removeTileAt(exitTile.x, exitTile.y);
 
-              portalPairs.push({
-                entranceX,
-                entranceY,
-                exitX,
-                exitY,
-              });
-            }
+          portalPairs.push({
+            entranceX,
+            entranceY,
+            exitX,
+            exitY,
+            isGlitch: entrance === 149 && exit === 150,
           });
-        }
+
+          if (entrance === 149 && exit === 150) {
+            const glitchEntrance = this.add.sprite(entranceX, entranceY, "glitch-portal");
+            glitchEntrance.setDisplaySize(64, 64);
+            glitchEntrance.play("glitch-portal-anim");
+
+            const glitchExit = this.add.sprite(exitX, exitY, "glitch-portal");
+            glitchExit.setDisplaySize(64, 64);
+            glitchExit.play("glitch-portal-anim");
+          }else{
+            const entrancePortal = this.add.sprite(entranceX, entranceY, "portal");
+            entrancePortal.setDisplaySize(64, 64);
+            entrancePortal.play("portal-anim"); 
+
+            const exitPortal = this.add.sprite(exitX, exitY, "portal");
+            exitPortal.setDisplaySize(64, 64);
+            exitPortal.play("portal-anim");
+        }}
       });
-    });
+    }
+  });
+});
 
     if (portalPairs.length > 0) {
       this.portalManager = new PortalManager({

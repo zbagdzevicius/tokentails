@@ -2,71 +2,72 @@ import { Scene } from "phaser";
 import { Cat } from "@/components/catbassadors/objects/Catbassador";
 
 export interface IPortalConfig {
-  scene: Scene;
-  groundLayer: Phaser.Tilemaps.TilemapLayer;
-  cat:Cat;
-  portals: { entranceX: number; entranceY: number; exitX: number; exitY: number }[];
-  onTeleport?: () => void;
+  scene: Scene;
+  groundLayer: Phaser.Tilemaps.TilemapLayer;
+  cat:Cat;
+  portals: { 
+    entranceX: number; 
+    entranceY: number; 
+    exitX: number; 
+    exitY: number; 
+    isGlitch: boolean;
+  }[];
+  onTeleport?: () => void;
 }
 
 export class PortalManager {
-  private scene: Scene;
-  private portalPairs: IPortalConfig["portals"];
-  private groundLayer: Phaser.Tilemaps.TilemapLayer;
-  private cat:Cat;
-  private onTeleport?: () => void;
+  private scene: Scene;
+  private portalPairs: IPortalConfig["portals"];
+  private groundLayer: Phaser.Tilemaps.TilemapLayer;
+  private cat:Cat;
+  private onTeleport?: () => void;
 
-  constructor(config: IPortalConfig) {
-    this.scene = config.scene;
-    this.portalPairs = config.portals;
-    this.groundLayer = config.groundLayer;
-    this.cat! = config.cat;
-    this.onTeleport = config.onTeleport;
-  }
+  constructor(config: IPortalConfig) {
+    this.scene = config.scene;
+    this.portalPairs = config.portals;
+    this.groundLayer = config.groundLayer;
+    this.cat! = config.cat;
+    this.onTeleport = config.onTeleport;
+  }
 
-  create() {
-    
-    this.portalPairs.forEach(({ entranceX, entranceY, exitX, exitY }) => {
-      // Create entrance portal
-      const entrancePortal = this.createPortalSprite(entranceX, entranceY);
+  create() {
+    
+    this.portalPairs.forEach(({ entranceX, entranceY, exitX, exitY, isGlitch }) => {
+          
+      const entranceHitbox = this.createPortalHitbox(entranceX, entranceY, isGlitch);
 
-      // Create exit portal (optional if you want it visible)
-      const exitPortal = this.createPortalSprite(exitX, exitY);
-      this.scene.physics.add.overlap(
-        this.cat.sprite,
-        entrancePortal,
-        () => this.teleportPlayer(exitX, exitY),
-        undefined,
-        this
-      );
-    });
-  }
+      this.scene.physics.add.overlap(
+        this.cat.sprite,
+        entranceHitbox,
+        () => this.teleportPlayer(exitX, exitY),
+        undefined,
+        this
+      );
 
-  private createPortalSprite(x: number, y: number) {
-    const portal = this.scene.add
-      .sprite(x, y, "portal")
-      .setOrigin(0.5, 0.75)
-      .setDepth(1)
+    });
+  }
 
-    portal.play("portal-anim");
+  private createPortalHitbox(x: number, y: number, isGlitch: boolean): Phaser.GameObjects.Zone {
+    const zone = this.scene.add.zone(x, y, 64, 64).setOrigin(0.5, 0.75); 
+    this.scene.physics.add.existing(zone);
+    
+    const body = zone.body as Phaser.Physics.Arcade.Body;
+    body.setSize(64, 64);
+    body.allowGravity = false; 
+    body.setImmovable(true);
+    body.debugShowBody = false;
+    return zone;
+  }
 
-    this.scene.physics.add.existing(portal);
-    const body = portal.body as Phaser.Physics.Arcade.Body;
-    body.setSize(64, 64).setOffset(0, 0)
-    body.allowGravity = false; 
-body.setImmovable(true);
+  private teleportPlayer(x: number, y: number) {
+    
+    this.cat.sprite.disableBody(true, true);
+    this.cat.sprite.setPosition(x, y);
 
- 
-    body.allowGravity = false; 
-    this.scene.physics.add.collider(portal, this.groundLayer!);
-    return portal;
-  }
+    this.scene.time.delayedCall(100, () => {
+      this.cat.sprite.enableBody(false, x, y, true, true);
+    });
 
-  private teleportPlayer(x: number, y: number) {
-    
-    this.cat.sprite.setPosition(x, y);
-
-    // this.scene.sound.play("powerup");
-    if (this.onTeleport) this.onTeleport();
-  }
+    if (this.onTeleport) this.onTeleport();
+  }
 }

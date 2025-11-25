@@ -49,4 +49,5 @@ export interface IPlayer {
   isSitting: boolean;
   canDoubleJump: boolean;
   hasDoubleJumped: boolean;
+  currentRotation: boolean;
 }

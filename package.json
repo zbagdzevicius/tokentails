@@ -23,6 +23,7 @@
     "extrude:combined": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/combined-original.png --output ./public/base/combined.png",
     "extrude:sei": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/sei-original.png --output ./public/base/sei.png",
     "extrude:daemons": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/daemons-original.png --output ./public/base/daemons.png",
+    "extrude:catwinter": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/cat-winter-original.png --output ./public/base/cat-winter.png",
     "build:prod": "env-cmd -f .env.production next build",
     "build:app": "env-cmd -f .env.app next build",
     "app:sync": "npx cap copy && npx cap sync",
