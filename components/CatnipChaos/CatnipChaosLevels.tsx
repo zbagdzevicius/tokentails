@@ -28,6 +28,18 @@ const levelCharacter: Record<string, string> = {
   "83": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/ELDREM/base/RUNNING.gif",
   "85": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/AMBERCLAW/base/RUNNING.gif",
   "93": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/SOLO-SURVIVOR/base/IDLE.gif",
+  "101":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/EGGY/base/IDLE.gif",
+  "102":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/SABLE/base/IDLE.gif",
+  "103":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/CHARMIE/base/IDLE.gif",
+  "104":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/NOELLE/base/IDLE.gif",
+  "105":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/LAVA/base/IDLE.gif",
+  "106":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/TROUFAS/base/IDLE.gif",
 };
 
 export const CatnipChaosLevels = ({
@@ -105,7 +117,9 @@ export const CatnipChaosLevels = ({
                 onClick={() => selectLevel(level, i)}
                 style={{
                   backgroundImage: `url(${
-                    catnipChaosChapterBGImage[level[0]]
+                    catnipChaosChapterBGImage[
+                      level.length === 3 ? `${level[0]}${level[1]}` : level[0]
+                    ]
                   })`,
                   backgroundSize: "cover",
                   backgroundPosition: "top",
@@ -151,7 +165,15 @@ export const CatnipChaosLevels = ({
                 >
                   {unlockedLevels >= i && (
                     <div className="flex flex-col items-center absolute -bottom-5">
-                      {!!isRedeemed(chaptersBadges[parseInt(level[0]) - 1]) ? (
+                      {!!isRedeemed(
+                        chaptersBadges[
+                          parseInt(
+                            level.length === 3
+                              ? `${level[0]}${level[1]}`
+                              : level[0]
+                          ) - 1
+                        ]
+                      ) ? (
                         <PixelButton
                           text="REDEEMED"
                           isDisabled
@@ -163,16 +185,36 @@ export const CatnipChaosLevels = ({
                             hideAddress
                             user={profile?._id!}
                             ownedNFTCallback={() =>
-                              onRedeem(chaptersBadges[parseInt(level[0]) - 1])
+                              onRedeem(
+                                chaptersBadges[
+                                  parseInt(
+                                    level.length === 3
+                                      ? `${level[0]}${level[1]}`
+                                      : level[0]
+                                  ) - 1
+                                ]
+                              )
                             }
-                            mysteryBox={chaptersBadges[parseInt(level[0]) - 1]}
+                            mysteryBox={
+                              chaptersBadges[
+                                parseInt(
+                                  level.length === 3
+                                    ? `${level[0]}${level[1]}`
+                                    : level[0]
+                                ) - 1
+                              ]
+                            }
                           />
                         </Web3Providers>
                       )}
                     </div>
                   )}
                   <img
-                    src={cdnFile(`catnip-chaos/badges/chapter${level[0]}.webp`)}
+                    src={cdnFile(
+                      `catnip-chaos/badges/chapter${
+                        level.length === 3 ? `${level[0]}${level[1]}` : level[0]
+                      }.webp`
+                    )}
                     className="w-20 h-20 rounded-t-xl"
                   />
                   {!(unlockedLevels >= i) && (

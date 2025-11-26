@@ -236,14 +236,14 @@ export const chaptersBadges: IMysteryBox[] = [
     },
   },
   {
-    address: "0xEBd5f0EFAd954096a4442C13293337af0B5B9D79",
+    address: "0xc7f42A7c096734c551c06cBa51Ff972425AE405f",
     name: "Chapter 10 Badge",
     key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_10,
     chain: ChainType.SEI,
-    image: cdnFile("catnip-chaos/badges/chapter9.webp"),
+    image: cdnFile("catnip-chaos/badges/chapter10.webp"),
     requirements: {
       type: MysteryBoxRequirementType.CHAPTER,
-      text: "Complete 9th chapter",
+      text: "Complete 10th chapter",
     },
   },
 ];

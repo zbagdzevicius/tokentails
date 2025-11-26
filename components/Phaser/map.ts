@@ -109,5 +109,5 @@ export const catnipChaosChapterBGImage: Record<string, string> = {
   "7": cdnFile("backgrounds/bg-min-camp-green.webp"),
   "8": cdnFile("backgrounds/bg-min-sei.webp"),
   "9": cdnFile("backgrounds/bg-min-daemon.webp"),
-  "10": cdnFile("backgrounds/bg-min-cat-winter.webp"),
+  "10": cdnFile("backgrounds/bg-min-10.webp"),
 };

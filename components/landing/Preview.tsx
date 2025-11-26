@@ -218,7 +218,7 @@ const PreviewGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
     }
   });
 
-  return <div id="game-container" className="animate-opacity"></div>;
+  return <div id="game-container" className="animate-opacity flex"></div>;
 });
 
 function Preview() {
