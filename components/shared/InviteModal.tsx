@@ -34,11 +34,11 @@ export const InviteModalContent = () => {
           text="INVITE"
           onClick={() => setType(GameModal.INVITE)}
         ></PixelButton>
-        <PixelButton
+        {/* <PixelButton
           active={type === GameModal.CAMP}
           text="CAMP"
           onClick={() => setType(GameModal.CAMP)}
-        ></PixelButton>
+        ></PixelButton> */}
       </div>
       {type === GameModal.INVITE && (
         <>
