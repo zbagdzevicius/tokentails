@@ -413,6 +413,5 @@ export class Cat implements IPlayer {
 
   setCurrentRotation(reversed: boolean) {
     this.currentRotation = reversed;
-    console.log("Current Rotation set to:", this.currentRotation);
 }
 }

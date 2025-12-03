@@ -548,12 +548,26 @@ export class CatnipChaosScene extends Scene {
 
     if (tile) {
       if (tile.index === 311) {
+  
         this.cat.setAutoRunMode(-this.autoRunSpeed, this.autoJumpSpeed);
         this.cat.setCurrentRotation(true);
+        
+        if (this.cat.movement) {
+          this.cat.movement.flightXSpeed = -Math.abs(this.cat.movement.flightXSpeed);
+        }
+        
+        this.cat.sprite.setFlipX(true);
       } else if (tile.index === 312) {
+
         this.cat.setAutoRunMode(this.autoRunSpeed, this.autoJumpSpeed);
         this.cat.setCurrentRotation(false);
         
+    
+        if (this.cat.movement) {
+          this.cat.movement.flightXSpeed = Math.abs(this.cat.movement.flightXSpeed);
+        }
+
+        this.cat.sprite.setFlipX(false);
       }
     }
   } 
