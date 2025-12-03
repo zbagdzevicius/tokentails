@@ -9,6 +9,13 @@ const catImages: Record<number, string> = {
   104: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/NOELLE/base.png",
   105: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/LAVA/base.png",
   106: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/TROUFAS/base.png",
+
+  111: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/OBI/base.png",
+  112: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/ALBUS/base.png",
+  113: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/IZZY/base.png",
+  114: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/MERLOT/base.png",
+  115: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/PICKLES/base.png",
+  116: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/OLIVE/base.png",
 };
 
 const config: Phaser.Types.Core.GameConfig = {
