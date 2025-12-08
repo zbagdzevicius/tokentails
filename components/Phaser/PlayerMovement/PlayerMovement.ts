@@ -43,7 +43,7 @@ export class PlayerMovement {
   constructor(player: IPlayer) {
     this.player = player;
     this.player.sprite.setMaxVelocity(this.player.walkSpeed * 2, 1000000);
-    this.midAirJumpVelocity = -this.player.jumpSpeed * 1.15;
+    this.midAirJumpVelocity = -this.player.jumpSpeed * 1.13;
   }
 
   setGravityReversed(reversed: boolean) {

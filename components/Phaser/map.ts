@@ -85,7 +85,13 @@ export const CatnipChaosLevelMap: Record<string, Map> = {
   "113": Map.CAT_WINTER,
   "114": Map.CAT_WINTER,
   "115": Map.CAT_WINTER,
-  "116": Map.CAT_WINTER
+  "116": Map.CAT_WINTER,
+  "121": Map.CAT_WINTER,
+  "122": Map.CAT_WINTER,
+  "123": Map.CAT_WINTER,
+  "124": Map.CAT_WINTER,
+  "125": Map.CAT_WINTER,
+  "126": Map.CAT_WINTER
 };
 
 export const totalCatnip =
@@ -117,4 +123,5 @@ export const catnipChaosChapterBGImage: Record<string, string> = {
   "9": cdnFile("backgrounds/bg-min-daemon.webp"),
   "10": cdnFile("backgrounds/bg-min-10.webp"),
   "11": cdnFile("backgrounds/bg-min-11.webp"),
+  "12": cdnFile("backgrounds/bg-min-12.webp"),
 };
