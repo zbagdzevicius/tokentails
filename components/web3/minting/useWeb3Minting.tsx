@@ -47,7 +47,7 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
     });
   useEffect(() => {
     if (
-      ![ChainType.STELLAR, ChainType.STELLAR_TEST].includes(mysteryBox.chain)
+      ![ChainType.STELLAR, ChainType.STELLAR_TEST].includes(mysteryBox?.chain)
     ) {
       setNamespace(ChainNamespace.EVM);
     }
@@ -122,7 +122,7 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
   const { data: userNFTsCount, refetch: refetchUserNFTsCount } =
     useReadContract({
       abi: abiERC721,
-      address: mysteryBox.address as any,
+      address: mysteryBox?.address as any,
       functionName: "balanceOf",
       args: evmAddress ? [evmAddress] : undefined,
     });
