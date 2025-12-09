@@ -139,7 +139,7 @@ function Shelter() {
   };
 
   return (
-    <div id="app" className="z-20">
+    <div id="app" className="relative z-20">
       <ShelterGame ref={phaserRef} />
       {showModal && selectedNpc && (
         <div className="fixed inset-0 z-[101] flex items-center justify-center bg-black bg-opacity-30">

@@ -25,11 +25,11 @@ export const MarketplaceItem = ({
           src={cat.catImg}
           alt={cat.name}
         />
-        {cat?.blessings?.length && (
+        {cat?.blessing && (
           <img
             draggable={false}
             className="w-full max-h-[200px] object-cover mb-2 -mt-4 z-0 rounded-t-2xl group-hover:scale-150 group-hover:rounded-2xl transition-all duration-300"
-            src={cat.blessings?.[0]?.image?.url}
+            src={cat.blessing.image?.url}
             alt={`${cat.type} icon`}
           />
         )}

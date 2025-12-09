@@ -55,7 +55,7 @@ export const GameStatsSection = ({
   }
   return (
     <div>
-      <div className="fixed flex-col pb-safe top-4 z-10 right-4 flex justify-between">
+      <div className="fixed flex-col pb-safe top-4 z-30 right-4 flex justify-between">
         <div
           onClick={() => setOpenedModal(GameModal.PROFILE)}
           className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2"
@@ -75,7 +75,7 @@ export const GameStatsSection = ({
           </div>
         </div>
       </div>
-      <div className="fixed left-4 pb-safe top-4 z-10 flex flex-col justify-between">
+      <div className="fixed left-4 pb-safe top-4 z-30 flex flex-col justify-between">
         <div
           onClick={() => setModal(tailsText)}
           className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-1 whitespace-pre-line"

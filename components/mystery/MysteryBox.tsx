@@ -97,7 +97,7 @@ export const MysteryBox = () => {
       return isApp;
     }
     if (mysteryBox.requirements?.type === MysteryBoxRequirementType.PURCHASE) {
-      return !!cats?.some((cat) => cat.blessings?.length || cat.price);
+      return !!cats?.some((cat) => cat.blessing);
     }
     if (mysteryBox.requirements?.type === MysteryBoxRequirementType.TAILS) {
       return (profile?.tails || 0) >= mysteryBox.requirements.metadata.tails;

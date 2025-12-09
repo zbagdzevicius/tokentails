@@ -1,36 +1,26 @@
 import { IImage } from "./image";
-import { IProfile } from "./profile";
 import { IStatusValue, StatusType } from "./status";
-
-export enum BlessingType {
-  CAT = "CAT",
-  SUPPLIES = "SUPPLIES",
-  MEDICAL = "MEDICAL",
-  BILLS = "BILLS",
-}
-
-export enum CatType {
-  REGULAR = "REGULAR",
-  EXCLUSIVE = "EXCLUSIVE",
-  BLESSED = "BLESSED",
-}
 
 export const Prices = {
   generatedCat: 5,
   lootBox: 3,
 };
 
+export enum BlessingStatus {
+    WAITING = 'WAITING',
+    RECOVERING = 'RECOVERING',
+    ADOPTED = 'ADOPTED',
+    HEAVEN = 'HEAVEN',
+}
+
 export type IBlessing = {
-  type: BlessingType;
+  status: BlessingStatus;
   _id: string;
   name: string;
   description: string;
   image: IImage;
+  savior?: IImage;
   birthDate: Date;
-  images: IImage[];
-  price: number;
-  creator?: IProfile;
-  owner?: IProfile;
   instagram?: string;
 };
 
@@ -47,25 +37,6 @@ export type IShelter = {
   instagram?: string;
 };
 
-export enum CatAbilitySkill {
-  FURSHADOW = "FURSHADOW",
-  PURRSTORM = "PURRSTORM",
-  WHISKERFLAME = "WHISKERFLAME",
-  TAILWIND = "TAILWIND",
-  SHADOWPOUNCE = "SHADOWPOUNCE",
-  AQUAWHISKER = "AQUAWHISKER",
-  CAMPING = "CAMPING",
-  BREEZEPAW = "BREEZEPAW", // AIR
-  PAWSQUAKE = "PAWSQUAKE", // EARTH
-  ICECLAW = "ICECLAW", // ICE
-  LEAFPURR = "LEAFPURR", // NATURE
-  SANDSWIPE = "SANDSWIPE", // SAND
-  TAILSPIN = "TAILSPIN", // TAILS
-  STELLARROAR = "STELLARROAR", //LEGENDARY
-}
-
-export const catbassadorsGameDuration = 30;
-
 export enum CatAbilityType {
   ELECTRIC = "ELECTRIC",
   STORM = "STORM",
@@ -81,12 +52,6 @@ export enum CatAbilityType {
   TAILS = "TAILS",
   LEGENDARY = "LEGENDARY",
   CAMP = "CAMP",
-}
-
-export interface CatAbility {
-  skill: CatAbilitySkill;
-  type: CatAbilityType;
-  description: string;
 }
 
 export const names = [
@@ -113,26 +78,6 @@ export const resqueStory = (name: string) => {
   return stories[name];
 };
 
-export const catAbilitiesSkills = [
-  CatAbilitySkill.FURSHADOW,
-  CatAbilitySkill.PURRSTORM,
-  CatAbilitySkill.WHISKERFLAME,
-  CatAbilitySkill.TAILWIND,
-  CatAbilitySkill.SHADOWPOUNCE,
-  CatAbilitySkill.AQUAWHISKER,
-  CatAbilitySkill.BREEZEPAW,
-  CatAbilitySkill.PAWSQUAKE,
-  CatAbilitySkill.ICECLAW,
-  CatAbilitySkill.LEAFPURR,
-  CatAbilitySkill.SANDSWIPE,
-  CatAbilitySkill.TAILSPIN,
-  CatAbilitySkill.STELLARROAR,
-  CatAbilitySkill.CAMPING,
-];
-
-export const getCatAbility = () =>
-  catAbilitiesSkills[Math.floor(Math.random() * catAbilitiesSkills.length)];
-
 export type ICatStatus = Partial<Record<StatusType, IStatusValue>>;
 
 export enum CatAIStatus {
@@ -152,90 +97,10 @@ export interface ICat {
   staked: Date | null;
   spriteImg: string;
   catImg: string;
-  cardImg: string;
   expiresAt?: string;
-  price: number;
-  blessings: IBlessing[];
+  blessing: IBlessing;
   shelter?: any;
 }
-
-export const CatAbilities: Record<CatAbilityType, CatAbility> = {
-  [CatAbilityType.DARK]: {
-    skill: CatAbilitySkill.FURSHADOW,
-    type: CatAbilityType.DARK,
-    description: "Calms wild or aggressive opponents",
-  },
-  [CatAbilityType.CAMP]: {
-    skill: CatAbilitySkill.CAMPING,
-    type: CatAbilityType.CAMP,
-    description: "Makes everyone go to the Camp.",
-  },
-  [CatAbilityType.STORM]: {
-    skill: CatAbilitySkill.PURRSTORM,
-    type: CatAbilityType.STORM,
-    description: "A powerful roar that can stun opponents for a brief moment",
-  },
-  [CatAbilityType.FIRE]: {
-    skill: CatAbilitySkill.WHISKERFLAME,
-    type: CatAbilityType.FIRE,
-    description: "A high-speed attack that leaves a trail of fire.",
-  },
-  [CatAbilityType.WIND]: {
-    skill: CatAbilitySkill.TAILWIND,
-    type: CatAbilityType.WIND,
-    description: "A leap so swift, it creates a mini tornado.",
-  },
-  [CatAbilityType.ELECTRIC]: {
-    skill: CatAbilitySkill.SHADOWPOUNCE,
-    type: CatAbilityType.AIR,
-    description: `A stealth attack that's almost impossible to see coming.`,
-  },
-  [CatAbilityType.WATER]: {
-    skill: CatAbilitySkill.AQUAWHISKER,
-    type: CatAbilityType.WATER,
-    description:
-      "A gentle but powerful stream of water that can push opponents away",
-  },
-  [CatAbilityType.AIR]: {
-    skill: CatAbilitySkill.BREEZEPAW,
-    type: CatAbilityType.AIR,
-    description: "Creates a gentle breeze that confuses and distracts foes.",
-  },
-  [CatAbilityType.EARTH]: {
-    skill: CatAbilitySkill.PAWSQUAKE,
-    type: CatAbilityType.EARTH,
-    description:
-      "A heavy stomp that causes the ground to shake and destabilizes enemies.",
-  },
-  [CatAbilityType.ICE]: {
-    skill: CatAbilitySkill.ICECLAW,
-    type: CatAbilityType.ICE,
-    description: "A frigid swipe that slows opponents with a chilling touch.",
-  },
-  [CatAbilityType.NATURE]: {
-    skill: CatAbilitySkill.LEAFPURR,
-    type: CatAbilityType.NATURE,
-    description:
-      "Emits a calming aura that restores a bit of health to allies.",
-  },
-  [CatAbilityType.SAND]: {
-    skill: CatAbilitySkill.SANDSWIPE,
-    type: CatAbilityType.SAND,
-    description: "Kicks up a cloud of sand, blinding and disorienting foes.",
-  },
-  [CatAbilityType.LEGENDARY]: {
-    skill: CatAbilitySkill.STELLARROAR,
-    type: CatAbilityType.LEGENDARY,
-    description:
-      "An otherworldly roar that inspires allies and intimidates all enemies.",
-  },
-  [CatAbilityType.TAILS]: {
-    skill: CatAbilitySkill.TAILSPIN,
-    type: CatAbilityType.TAILS,
-    description:
-      "Rapid spin using the tail to dodge obstacles and gain extra speed.",
-  },
-};
 
 export const cardsColor: Record<CatAbilityType, string> = {
   [CatAbilityType.AIR]: "#c3dacd",

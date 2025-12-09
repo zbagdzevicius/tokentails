@@ -68,14 +68,13 @@ export class CatNpc {
   job: null | NPCJob = null;
   private timeoutFunction: any;
   private catName: string;
-  blessings?: Phaser.GameObjects.Sprite;
+  blessing?: Phaser.GameObjects.Sprite;
 
   constructor(
     scene: Scene,
     x: number,
     y: number,
-    catName: string,
-    blessings: Phaser.GameObjects.Sprite
+    catName: string
   ) {
     this.scene = scene;
     this.catName = catName;
@@ -144,11 +143,11 @@ export class CatNpc {
     } else {
       this.updateOngoingJob();
     }
-    if (this.blessings) {
+    if (this.blessing) {
       const velocityX = this.sprite.body!.velocity.x;
       const targetX = this.sprite.x + velocityX * 0.01;
-      this.blessings.setVisible(true);
-      this.blessings.setPosition(targetX, this.sprite.y - 5);
+      this.blessing.setVisible(true);
+      this.blessing.setPosition(targetX, this.sprite.y - 5);
     }
   }
 

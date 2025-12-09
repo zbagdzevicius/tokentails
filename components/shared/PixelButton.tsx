@@ -68,6 +68,7 @@ export const PixelButton = ({
         isWidthFull && "w-full"
       }
             ${isSmall && "scale-[0.675]"}
+            ${isBig && "glow-box"}
          ${
            !active && !isDisabled
              ? "hover:brightness-125 hover:pb-1 hover:scale-105 transition-all"

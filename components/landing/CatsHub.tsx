@@ -111,7 +111,7 @@ export const CatsHub = () => {
   return (
     <div className="my-20 flex items-center justify-center flex-col container">
       <div className="w-9/12 max-lg:w-full">
-        <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1 max-lg:mx-5 my-0 sm:my-10 items-center justify-center">
+        <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1 max-lg:mx-5 my-0 my-10 items-center justify-center">
           <div className="relative rounded-2xl sm:rounded-[80px] overflow-hidden -mb-8 sm:mb-0 hover:brightness-110 m-auto">
             <img
               draggable={false}

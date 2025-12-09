@@ -1,4 +1,6 @@
 import { getRewardsPropName, ITransactionStatus } from "@/api/order-api";
+import { QUEST_API } from "@/api/quest-api";
+import { cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
@@ -6,12 +8,9 @@ import { ICat, Prices } from "@/models/cats";
 import { EntityType } from "@/models/save";
 import { CurrencyType } from "@/web3/contracts";
 import { useEffect, useMemo, useState } from "react";
-import { CatBenefits } from "../shared/CatBenefits";
 import { ChainSelect } from "../shared/ChainSelect";
 import { PixelButton } from "../shared/PixelButton";
 import { Web3Transfer } from "../web3/transfer/Web3Transfer";
-import { QUEST_API } from "@/api/quest-api";
-import { cdnFile } from "@/constants/utils";
 
 export const MysteryBoxCat = () => {
   const { profile, setProfileUpdate } = useProfile();
@@ -108,18 +107,6 @@ export const MysteryBoxCat = () => {
             : cdnFile("elements/loot-box.webp"))
         }
       />
-      <div className="flex gap-2 -mt-2 mb-2 items-center justify-center">
-        <PixelButton
-          onClick={() => setBoxType(EntityType.LOOT_BOX)}
-          active={boxType === EntityType.LOOT_BOX}
-          text="Loot Box"
-        />
-        <PixelButton
-          onClick={() => setBoxType(EntityType.MYSTERY_BOX)}
-          active={boxType === EntityType.MYSTERY_BOX}
-          text="Mystery Box"
-        />
-      </div>
       {lootBoxRewards && (
         <div className="font-primary relative my-2 animate-opacity text-p4 text-center text-balance bg-gradient-to-b from-purple-300 to-blue-300 border-yellow-300 border-4 rounded-2xl px-2 mt-12 mb-8">
           <span className="relative z-10">{lootBoxRewards.toUpperCase()}</span>
@@ -130,13 +117,11 @@ export const MysteryBoxCat = () => {
           />
         </div>
       )}
-      {!rolledCat ? (
-        <>
-          <ChainSelect />
-          <div className="m-auto animate-appear">
-            <div className="flex flex-col items-start w-fit m-auto">
-              {(!profile?.boxes || boxType === EntityType.MYSTERY_BOX) && (
-                <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
+      <ChainSelect />
+      <div className="m-auto animate-appear">
+        <div className="flex flex-col items-start w-fit m-auto">
+          {(!profile?.boxes || boxType === EntityType.MYSTERY_BOX) && (
+            <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
                   {currencyPrice} {currencyType}
                 </div>
               )}
@@ -155,19 +140,8 @@ export const MysteryBoxCat = () => {
                   loadingText="Opening..."
                 />
               )}
-            </div>
           </div>
-        </>
-      ) : (
-        <div className="flex flex-col">
-          <div className="text-p3 font-primary -mt-12 text-center">
-            YOU JUST GOT{" "}
-            <span className="text-outline text-p1">{rolledCat?.name}!</span>
-          </div>
-          <PixelButton onClick={() => setRolledCat(null)} text="Try again" />
-          <CatBenefits cat={rolledCat}></CatBenefits>
         </div>
-      )}
       {boxType === EntityType.LOOT_BOX && (
         <div className="flex flex-col items-center justify-center w-48">
           <div className="text-p4 font-secondary text-center mt-2">

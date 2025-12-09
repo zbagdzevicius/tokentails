@@ -1,16 +1,18 @@
 import { QUEST_API } from "@/api/quest-api";
+import { REWARDS } from "@/constants/rewards";
+import { bgStyle, cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
-import { allQuests, ILocalQuest, IQuest, QuestType } from "@/models/quest";
+import { allQuests, ILocalQuest, QuestType } from "@/models/quest";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { LeaderboardContent } from "../Leaderboard";
+import { LeaderboardCatnipContent } from "../LeaderboardCatnip";
 import { CloseButton } from "./CloseButton";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
-import { bgStyle, cdnFile } from "@/constants/utils";
-import { LeaderboardCatnipContent } from "../LeaderboardCatnip";
+import { LeaderboardRescuerContent } from "../LeaderboardRescuer";
 
 export const TrailheadsData = [
   {
@@ -52,13 +54,16 @@ export const QuestsModalContent = () => {
   });
   const quests = useMemo(
     () =>
-      [...(partnerQuests || []), ...allQuests].filter((quest) => {
-        const isMatchingType = quest.type === questsType;
-        return isMatchingType;
-      }),
-    [questsType, partnerQuests]
+      [...(partnerQuests || []), ...allQuests].filter(quest => !profile?.quests.includes(quest.key)),
+    [partnerQuests]
   );
   const toast = useToast();
+
+  const { shareUrl } = useProfile();
+
+  const onInvite = () => {
+    utils?.shareURL(shareUrl!);
+  };
 
   const redeem = useDebouncedCallback(async (quest: ILocalQuest) => {
     if (quest.link) {
@@ -77,10 +82,16 @@ export const QuestsModalContent = () => {
 
   return (
     <div className="px-2 md:px-4 pb-8 pt-4 md:b-12 flex flex-col justify-between items-center animate-appear">
-      <div className="font-paws text-h2">QUESTS</div>
+      <div className="font-paws text-h2 glow text-gray-700">EVENTS</div>
       <div className="pb-2 flex items-center justify-between w-full">
         <PixelButton
-          text="TOP"
+          text="Rescuer"
+          isSmall
+          active={questsType === QuestType.RESCUE}
+          onClick={() => setQuestsType(QuestType.RESCUE)}
+        ></PixelButton>
+        <PixelButton
+          text="$TAILS"
           isSmall
           active={questsType === QuestType.WIN}
           onClick={() => setQuestsType(QuestType.WIN)}
@@ -92,16 +103,10 @@ export const QuestsModalContent = () => {
           onClick={() => setQuestsType(QuestType.CATNIP)}
         ></PixelButton>
         <PixelButton
-          text="SOCIAL"
+          text="QUESTS"
           isSmall
           active={questsType === QuestType.SOCIAL}
           onClick={() => setQuestsType(QuestType.SOCIAL)}
-        ></PixelButton>
-        <PixelButton
-          text="GOALS"
-          isSmall
-          active={questsType === QuestType.GOAL}
-          onClick={() => setQuestsType(QuestType.GOAL)}
         ></PixelButton>
       </div>
       <span className="lg:px-8 w-full">
@@ -146,52 +151,58 @@ export const QuestsModalContent = () => {
                 </div>
               ))}
             </div>
-          </>
-        )}
-        {questsType === QuestType.GOAL && (
-          <>
-            <div className="flex flex-col gap-2 w-full pb-8">
-              {quests.map((quest) => (
-                <div
-                  key={quest.name}
-                  className="flex justify-between items-center w-full"
-                >
-                  <div className="flex relative gap-2 items-center">
-                    {profile?.quests?.includes(quest.key) ? (
-                      <img
-                        draggable={false}
-                        className="w-10"
-                        src={cdnFile("icons/check.webp")}
-                      />
-                    ) : (
-                      <img
-                        draggable={false}
-                        className="w-10"
-                        src={quest.icon}
-                      />
-                    )}
-                    <PixelButton
-                      text={quest.name}
-                      active={profile?.quests?.includes(quest.key)}
-                      onClick={() => redeem(quest)}
-                    ></PixelButton>
-                  </div>
-                  <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-yellow-300 rounded-full pr-1 pl-4 relative">
-                    <img
-                      draggable={false}
-                      className="w-8 -left-5 -top-2 bottom-0 z-10 absolute"
-                      src={cdnFile("logo/logo.webp")}
-                    />
-                    {quest.reward.tails} $TAILS
-                  </div>
-                </div>
-              ))}
-            </div>
+
+                    <>
+                      <div
+                        className="flex flex-col mb-4 font-primary uppercase px-2 relative rounded-lg py-2 text-main-black mt-8"
+                        style={bgStyle("6")}
+                      >
+                        <Tag isSmall>WHAT I'LL GET FOR INVITING A FRIEND?</Tag>
+            
+                        <div className="flex flex-row items-center mb-1">
+                          <img
+                            draggable={false}
+                            className="md:h-8 lg:h-10 h-7 mr-1"
+                            src={cdnFile("logo/logo.webp")}
+                          />
+                          <p className="text-p4">{REWARDS.INVITE_FRIEND} $TAILS</p>
+                        </div>
+                        <div className="flex flex-row items-center">
+                          <img
+                            draggable={false}
+                            className="w-7 h-6  md:w-8 md:h-7 lg:w-10 lg:h-9 mr-1"
+                            src={cdnFile("icons/invites/gift-coin.png")}
+                          />
+                          <p className="text-p4">
+                            {REWARDS.INVITE_FRIEND} $TAILS FOR YOUR FRIEND
+                          </p>
+                        </div>
+                        <div className="absolute -top-3 -left-3 z-0 -rotate-45">
+                          <img
+                            draggable={false}
+                            className="h-6 w-6"
+                            src={cdnFile("logo/heart.webp")}
+                          />
+                        </div>
+                        <div className="absolute -top-3 -right-3 z-0 rotate-45">
+                          <img
+                            draggable={false}
+                            className="h-6 w-6"
+                            src={cdnFile("logo/heart.webp")}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-4 uppercase text-center">
+                          You feel that? That’s what purpose on-chain looks like
+                        </div>
+                      </div>
+                      <PixelButton text="GET INVITE LINK" onClick={onInvite} isWidthFull/>
+                    </>
           </>
         )}
       </span>
       {questsType === QuestType.WIN && <LeaderboardContent />}
       {questsType === QuestType.CATNIP && <LeaderboardCatnipContent />}
+      {questsType === QuestType.RESCUE && <LeaderboardRescuerContent />}
     </div>
   );
 };

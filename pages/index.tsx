@@ -1,7 +1,6 @@
 import { BlogPreview } from "@/components/landing/BlogPreview";
 import { CatsHub } from "@/components/landing/CatsHub";
 import { FeedbackSlider } from "@/components/landing/FeedbackSlider";
-import { GameAggregators } from "@/components/landing/GameAggregators";
 import { HomePage } from "@/components/landing/HomePage";
 import Roadmap from "@/components/landing/Roadmap";
 import { Sponsors } from "@/components/landing/Sponsors";
@@ -102,8 +101,8 @@ export default function Index() {
             <Preview />
           </div>
 
-          <div className="absolute z-20 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pt-48 flex flex-col justify-center items-center">
-            <a href="/game">
+          <div className="absolute z-30 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pt-48 flex flex-col justify-center items-center">
+            <a className="relative" href="/game">
               <PixelButton text="PLAY" isBig subtext="GAME" />
             </a>
 
@@ -127,6 +126,11 @@ export default function Index() {
               </a>
             </div>
           </div>
+          <div className="absolute z-20 flex md:flex-col gap-2 p-8 bottom-0 justify-center max-sm:left-0 right-0 opacity-60">
+            <img draggable={false} className="h-4 md:h-8" src={cdnFile("images/sponsor/mantle.webp")} />
+            <img draggable={false} className="h-4 md:h-8" src={cdnFile("images/sponsor/bga.webp")} />
+            <img draggable={false} className="h-4 md:h-8" src={cdnFile("images/sponsor/bybit.webp")} />
+          </div>
         </div>
         <div
           className="py-4 min-h-screen flex items-center justify-center"
@@ -140,7 +144,7 @@ export default function Index() {
           className="min-h-screen flex items-center py-3"
           style={bgStyle("3")}
         >
-          <div className="w-full" id="blog">
+          <div className="w-full py-16" id="blog">
             <CatsHub />
             <BlogPreview />
           </div>

@@ -142,7 +142,7 @@ function Base() {
   });
 
   return (
-    <div id="app" className="z-20">
+    <div id="app" className="relative z-20">
       <BaseGame ref={phaserRef} />
     </div>
   );

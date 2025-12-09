@@ -173,7 +173,7 @@ export class BaseScene extends Scene {
 
     // Preload cat sprite + blessings
     this.load.once("complete", () => {
-      if (cat.blessings && cat.blessings.length > 0) {
+      if (cat.blessing) {
         this.blessing = this.add
           .sprite(0, 0, `blessing-${cat.type}`)
           .setVisible(true);
@@ -195,7 +195,7 @@ export class BaseScene extends Scene {
     });
 
     // Load required assets
-    if (cat.blessings?.length) {
+    if (cat.blessing) {
       this.load.spritesheet(
         `blessing-${cat.type}`,
         cdnFile(`flare-effect/spritesheets/${cat.type}.png`),
@@ -360,7 +360,7 @@ export class BaseScene extends Scene {
       this.physics.add.collider(npcCat.sprite, this.groundLayer);
 
       // Handle blessings
-      if (npcData.blessings && npcData.blessings.length > 0) {
+      if (npcData.blessing) {
         const blessingAbility = npcData.type;
         const blessing = this.add
           .sprite(spawnX, spawnY, `blessing-${blessingAbility}`)
@@ -396,7 +396,7 @@ export class BaseScene extends Scene {
     });
 
     // Load NPC assets
-    if (npcData.blessings?.length) {
+    if (npcData.blessing) {
       this.load.spritesheet(
         `blessing-${npcData.type}`,
         cdnFile(`flare-effect/spritesheets/${npcData.type}.png`),

@@ -86,8 +86,8 @@ const cats = [
 
 const Roadmap = () => {
   return (
-    <div className="container flex flex-col py-8 justify-center items-center">
-      <h2 className="font-paws uppercase tracking-tight text-h3 text-center md:text-h2 lg:text-h1 text-balance md:mb-8 mt-8 mb-4">
+    <div className="container flex flex-col py-8 max-sm:mt-4 justify-center items-center">
+      <h2 className="font-paws uppercase tracking-tight text-h3 text-center max-sm:mb-14 md:text-h2 lg:text-h1 text-balance md:mb-8 mt-8 mb-4 glow text-gray-700">
         OUR JOURNEY
       </h2>
       <Laptop />
@@ -105,7 +105,7 @@ const Roadmap = () => {
               src={cdnFile("cats/grey/Loaf-Clothed-Grey.gif")}
             />
           </div>
-          <h2 className="font-paws text-h4 md:text-h2">SO FAR</h2>
+          <h2 className="font-paws text-h4 md:text-h2 text-gray-700 glow">SO FAR</h2>
           <div className="flex flex-col font-secondary text-p4 md:text-p2 font-bold">
             <span className="flex gap-2 items-center whitespace-nowrap">
               <img
@@ -146,7 +146,7 @@ const Roadmap = () => {
               src={cdnFile("cats/siamese/jugando Ropa Siames.gif")}
             />
           </div>
-          <h2 className="font-paws text-h4 md:text-h2 whitespace-nowrap">
+          <h2 className="font-paws text-h4 md:text-h2 text-gray-700 glow whitespace-nowrap">
             RIGHT NOW
           </h2>
           <div className="flex flex-col font-secondary text-p4 md:text-p2 font-bold">
@@ -189,7 +189,7 @@ const Roadmap = () => {
               src={cdnFile("cats/yellow/Jump-Hat-Yellow.gif")}
             />
           </div>
-          <h2 className="font-paws text-h4 md:text-h2 whitespace-nowrap">
+          <h2 className="font-paws text-h4 md:text-h2 text-gray-700 glow whitespace-nowrap">
             COMING
           </h2>
           <div className="flex flex-col font-secondary text-p4 md:text-p2 font-bold">

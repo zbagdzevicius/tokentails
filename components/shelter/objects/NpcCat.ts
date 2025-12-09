@@ -45,7 +45,7 @@ export function generateCatAnimationConfiguration(
 export class NpcCat {
   scene: Scene;
   sprite: Physics.Arcade.Sprite;
-  blessings?: Phaser.GameObjects.Sprite;
+  blessing?: Phaser.GameObjects.Sprite;
   animationKeys: ICatAnimationKeysMap;
   direction: number;
   speed: number = 45;
@@ -95,8 +95,8 @@ export class NpcCat {
   }
 
   private updateBlessingPosition() {
-    if (this.blessings) {
-      this.blessings.setPosition(this.sprite.x, this.sprite.y - 5);
+    if (this.blessing) {
+      this.blessing.setPosition(this.sprite.x, this.sprite.y - 5);
     }
   }
   startRandomActions() {
@@ -225,8 +225,8 @@ export class NpcCat {
       this.randomActionTimer.remove(false);
     }
 
-    if (this.blessings) {
-      this.blessings.destroy();
+    if (this.blessing) {
+      this.blessing.destroy();
     }
 
     if (this.sprite) {

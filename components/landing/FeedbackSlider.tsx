@@ -1,15 +1,12 @@
 import { CAT_API } from "@/api/cat-api";
 import { cdnFile } from "@/constants/utils";
-import { ICat } from "@/models/cats";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { MarketplaceItem } from "../marketplace/MarketplaceItem";
-import { CatBenefits } from "../shared/CatBenefits";
 import { PixelButton } from "../shared/PixelButton";
 import { ShelterBenefits } from "../shared/ShelterBenefits";
 
 export const FeedbackSlider = () => {
-  const [selectedCat, setSelectedCat] = useState<ICat | null>(null);
   const { data: catsForSale } = useQuery({
     queryKey: ["cats-for-sale"],
     queryFn: () => CAT_API.catsForSale(),
@@ -26,7 +23,7 @@ export const FeedbackSlider = () => {
           <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)]">
             ADOPT
           </span>{" "}
-          AND PLAY
+          <span className="glow text-gray-700">AND PLAY</span>
         </h2>
 
         <div className="flex items-center justify-center flex-row gap-6">
@@ -56,10 +53,6 @@ export const FeedbackSlider = () => {
                 <MarketplaceItem cat={cat} key={index} />
               ))}
             </div>
-          )}
-
-          {selectedCat && (
-            <CatBenefits key={selectedCat._id} cat={selectedCat} />
           )}
         </div>
 

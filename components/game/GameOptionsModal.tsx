@@ -53,7 +53,7 @@ export const GameOptionsModal = ({
                 onClick={() => {
                   setOpenedModal(GameModal.INVITE);
                 }}
-                text="EVENTS"
+                text="SHOP"
               ></PixelButton>
             </span>
           </div>
@@ -78,18 +78,22 @@ export const GameOptionsModal = ({
             {!profile.canRedeemLives && (
               <Countdown targetDate={nextDayTargetDate} />
             )}
+            <span className="-mt-4 -mb-2">
+
             <PixelButton
               isDisabled={!profile.canRedeemLives}
               onClick={() => (profile.canRedeemLives ? redeemLives() : {})}
+              isSmall={!profile.canRedeemLives}
               text={profile.canRedeemLives ? "DAILY CHECK-IN" : "CHECKED-IN"}
             ></PixelButton>
+            </span>
           </div>
           <span className="relative">
             <PixelButton
               onClick={() => {
                 setOpenedModal(GameModal.QUESTS);
               }}
-              text="QUESTS"
+              text="EVENTS"
             ></PixelButton>
           </span>
         </div>

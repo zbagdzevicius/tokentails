@@ -7,12 +7,9 @@ import { PixelButton } from "../shared/PixelButton";
 import { ShelterBenefits } from "../shared/ShelterBenefits";
 
 export const MarketplaceItemDetails = ({ cat }: { cat: ICat }) => {
-  const blessing = useMemo(() => {
-    return cat.blessings?.[0];
-  }, [cat]);
   const isFamous = useMemo(() => {
     return cat.shelter.slug === "token-tails";
-  }, [blessing]);
+  }, [cat.blessing]);
   const router = useRouter();
   const onClose = (gameModal?: GameModal) => {
     if (gameModal) {

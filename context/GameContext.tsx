@@ -8,7 +8,6 @@ import {
   IGameStopEvent,
 } from "@/components/Phaser/events";
 import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
-import { CatsInNeedModal } from "@/components/shared/CatsInNeed";
 import { CatsModal } from "@/components/shared/CatsModal";
 import { CodexModal } from "@/components/shared/CodexModal";
 import { ControlModal } from "@/components/shared/ControlModal";
@@ -232,9 +231,6 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           )}
           {openedModal === GameModal.CATS && (
             <CatsModal close={() => setOpenedModal(null)} />
-          )}
-          {openedModal === GameModal.CATS_IN_NEED && (
-            <CatsInNeedModal close={() => setOpenedModal(null)} />
           )}
           {openedModal === GameModal.INVITE && (
             <InviteModal close={() => setOpenedModal(null)} />

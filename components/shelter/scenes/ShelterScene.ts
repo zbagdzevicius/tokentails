@@ -9,7 +9,7 @@ import { CoreMap } from "@/components/Phaser/map";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { cdnFile, ZOOM } from "@/constants/utils";
-import { CatAbilityType, CatType, ICat } from "@/models/cats";
+import { CatAbilityType, ICat } from "@/models/cats";
 import { Scene } from "phaser";
 import { Cat } from "../../catbassadors/objects/Catbassador";
 import { Elevator } from "../objects/Elevator";
@@ -276,7 +276,7 @@ export class ShelterScene extends Scene {
     this.load.once(
       "complete",
       () => {
-        if (cat.blessings && cat.blessings.length > 0) {
+        if (cat.blessing) {
           this.blessing = this.add
             .sprite(0, 0, `blessing-${cat.type}`)
             .setVisible(true);
@@ -299,7 +299,7 @@ export class ShelterScene extends Scene {
       this
     );
 
-    if (cat.blessings?.length) {
+    if (cat.blessing) {
       this.load.spritesheet(
         `blessing-${cat.type}`,
         cdnFile(`flare-effect/spritesheets/${cat.type}.png`),
@@ -346,7 +346,7 @@ export class ShelterScene extends Scene {
       this.physics.add.collider(npcCat.sprite, this.platformsLayer);
       this.physics.add.collider(npcCat.sprite, this.jumperLayer);
 
-      if (npcData.blessings && npcData.blessings.length > 0) {
+      if (npcData.blessing) {
         const blessingAbility = npcData.type;
         const blessing = this.add
           .sprite(spawnX, spawnY, `blessing-${blessingAbility}`)
@@ -382,7 +382,7 @@ export class ShelterScene extends Scene {
     });
 
     // If the NPC has blessings, load the sprite for that effect
-    if (npcData.blessings?.length) {
+    if (npcData.blessing) {
       this.load.spritesheet(
         `blessing-${npcData.type}`,
         cdnFile(`flare-effect/spritesheets/${npcData.type}.png`),
@@ -484,7 +484,7 @@ export class ShelterScene extends Scene {
       this.npcGroup,
       (_player, npcSprite) => {
         const npcName = (npcSprite as Phaser.Physics.Arcade.Sprite).texture.key;
-        const npcData = { name: npcName, spriteImg: "", type: CatType.REGULAR };
+        const npcData = { name: npcName, spriteImg: "" };
         this.handleNpcCollision(npcData as any);
       }
     );

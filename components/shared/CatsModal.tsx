@@ -95,11 +95,6 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
   return (
     <div className="px-4 pt-4 pb-8 md:px-16 flex flex-col justify-between items-center animate-appear">
       <div className="font-paws text-h2">MY PETS</div>
-      <PixelButton
-        text="Become a Hero for Cats ♡"
-        onClick={() => setOpenedModal(GameModal.CATS_IN_NEED)}
-      />
-      <div className="mt-1"></div>
 
       <RedeemCard close={close} />
 

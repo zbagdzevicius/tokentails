@@ -29,7 +29,7 @@ const GameSelectItem = ({
 }) => {
   return (
     <div
-      className={classNames("flex flex-col gap-1 transition relative", {
+      className={classNames("flex flex-col gap-1 transition relative glow-box", {
         "rotate-6 hover:rotate-0": [GameType.SHELTER].includes(gameType),
         "-rotate-6 hover:rotate-0": [GameType.HOME].includes(gameType),
       })}
@@ -56,7 +56,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
   return (
     <div
       className={classNames(
-        "fixed left-1/2 right-1/2 translate-x-[50%] z-[11] flex flex-col gap-2 items-center pb-safe pt-2 lg:pt-10",
+        "fixed left-1/2 right-1/2 translate-x-[50%] z-[30] flex flex-col gap-2 items-center pb-safe pt-2 lg:pt-10",
         {
           "top-1/2 -translate-y-1/2": gameType === GameType.HOME,
           "top-4": gameType && gameType !== GameType.HOME,
@@ -74,14 +74,6 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
           })}
         >
           <PixelButton text="← GO BACK" onClick={() => setGameType(null)} />
-        </span>
-      )}
-      {gameType === GameType.SHELTER && (
-        <span>
-          <PixelButton
-            text="HELP CATS IN NEED ♡"
-            onClick={() => setOpenedModal(GameModal.CATS_IN_NEED)}
-          />
         </span>
       )}
       {gameType === GameType.HOME && cat && (cat.status.EAT || 0) < 4 && (

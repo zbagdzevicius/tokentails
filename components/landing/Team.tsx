@@ -192,7 +192,7 @@ const TeamMember = ({ img, name, role, socials }: ITeamMember) => {
 export const Team = () => {
   return (
     <div className="container h-full flex flex-col items-center justify-center">
-      <h2 className="font-paws uppercase tracking-tight text-h3 md:text-h2 lg:text-h1 text-balance text-center my-3">
+      <h2 className="font-paws uppercase tracking-tight text-h3 md:text-h2 text-gray-700 lg:text-h1 text-balance text-center my-12 sm:my-12 glow">
         United To Save Cats
       </h2>
       <div className="pb-8 px-4 mx-auto max-w-screen-xl text-center lg:px-6">

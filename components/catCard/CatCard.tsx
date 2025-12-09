@@ -1,5 +1,4 @@
 import { CAT_API } from "@/api/cat-api";
-import { getCatPrice } from "@/constants/cat-status";
 import { BuyMode, getMultiplier } from "@/constants/cat-utils";
 import { bgStyle, cdnFile, getSocialNetworkFromUrl } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
@@ -11,7 +10,6 @@ import { EntityType } from "@/models/save";
 import { CurrencyType } from "@/web3/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { CatBenefits } from "../shared/CatBenefits";
 import { ChainSelect } from "../shared/ChainSelect";
 import { CloseButton } from "../shared/CloseButton";
 import { PixelButton } from "../shared/PixelButton";
@@ -45,8 +43,7 @@ export const CatMultiplier = (cat: ICat) => {
   );
 };
 
-export const CatDescription = ({ blessings, resqueStory, type }: ICat) => {
-  const firstBlessing = blessings && blessings.length > 0 ? blessings[0] : null;
+export const CatDescription = ({ blessing, resqueStory, type }: ICat) => {
 
   return (
     <>
@@ -83,7 +80,7 @@ export const CatDescription = ({ blessings, resqueStory, type }: ICat) => {
         <p
           className="text-p5 font-bold overflow-y-auto max-h-[12rem] md:max-h-[12rem] pb-1"
           dangerouslySetInnerHTML={{
-            __html: firstBlessing?.description || resqueStory,
+            __html: blessing?.description || resqueStory,
           }}
         ></p>
       </div>
@@ -107,7 +104,8 @@ export const CatPayment = ({
 }) => {
   const { currencyType, rates, transactionStatus, setTransactionStatus } =
     useWeb3();
-  const { supply, name, price } = cat;
+  const { supply, name } = cat;
+  const corePrice = 10;
   const { profile, setProfileUpdate } = useProfile();
   const [buyMode, setBuyMode] = useState<BuyMode | null>(null);
   const isOwned = useMemo(
@@ -117,7 +115,6 @@ export const CatPayment = ({
   const [paymentMethod, setPaymentMethod] = useState<"crypto" | "card">(
     "crypto"
   );
-  const corePrice = useMemo(() => getCatPrice(cat), [cat]);
   const currencyPrice = useMemo(() => {
     if (
       [
@@ -232,7 +229,7 @@ export const CatPayment = ({
                   entityType={EntityType.CAT}
                   buyMode={buyMode}
                   cat={cat._id}
-                  blessing={cat.blessings?.[0]?._id}
+                  blessing={cat.blessing?._id}
                   user={profile?._id}
                   text={buyText}
                   loadingText="Saving Cat"
@@ -256,14 +253,11 @@ export const CatPayment = ({
                   isDisabled={outOfSupply}
                 />
               </span>
-
-              {!!price && (
-                <div className="absolute top-2 -left-10 right-0 flex z-0">
-                  <div className="bg-red-500 text-yellow-300 px-2 border-2 border-main-black text-p4 font-primary pr-4">
-                    ${corePrice}
-                  </div>
+              <div className="absolute top-2 -left-10 right-0 flex z-0">
+                <div className="bg-red-500 text-yellow-300 px-2 border-2 border-main-black text-p4 font-primary pr-4">
+                  ${corePrice}
                 </div>
-              )}
+              </div>
             </div>
           </span>
         )}
@@ -273,9 +267,8 @@ export const CatPayment = ({
 };
 
 export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
-  const { catImg, name, type, blessings } = cat;
+  const { catImg, name, type, blessing } = cat;
   const { profile } = useProfile();
-  const [showBenefits, setShowBenefits] = useState(false);
   const [showBlessingImage, setShowBlessingImage] = useState(false);
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
@@ -285,7 +278,7 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
 
   // Image rotation effect - only if blessing image exists
   useEffect(() => {
-    if (!blessings?.[0]?.image?.url) {
+    if (!blessing?.image?.url) {
       return; // No blessing image, no rotation needed
     }
 
@@ -294,7 +287,7 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
     }, 5000); // Toggle every 5 seconds
 
     return () => clearInterval(interval);
-  }, [blessings]);
+  }, [blessing]);
   return (
     <div
       style={{ borderColor: cardsColor[type] }}
@@ -313,28 +306,19 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
       />
       <div className="relative z-20 flex flex-col md:flex-row lg:flex-col flex-start h-full">
         <CatMultiplier {...cat} />
-        {showBenefits && (
-          <div
-            className="absolute bottom-0 left-0 right-0 w-full rounded-2xl z-20 animate-appear"
-            style={bgStyle("5")}
-          >
-            <CloseButton onClick={() => setShowBenefits(false)} />
-            <CatBenefits cat={cat} isOwned={isOwned} />
-          </div>
-        )}
         <div className="w-full relative flex flex-col min-w-64">
           <div>
             <div className="flex justify-between items-center m-1">
               <div className="flex flex-row space-x-2 items-center pl-4">
-                {!!blessings?.[0]?.instagram ? (
+                {!!blessing?.instagram ? (
                   <a
-                    href={blessings?.[0]?.instagram}
+                    href={blessing?.instagram}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
                     <img
                       className="w-6 h-6"
-                      src={getSocialNetworkFromUrl(blessings?.[0]?.instagram)}
+                      src={getSocialNetworkFromUrl(blessing?.instagram)}
                       draggable="false"
                     />
                   </a>
@@ -365,8 +349,8 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
                 key={showBlessingImage ? "blessing" : "cat"}
                 draggable={false}
                 src={
-                  blessings?.[0]?.image?.url && showBlessingImage
-                    ? blessings[0].image.url
+                  blessing?.image?.url && showBlessingImage
+                    ? blessing.image.url
                     : catImg
                 }
                 alt="Hero cat"
@@ -374,7 +358,7 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
                   showBlessingImage ? "" : "pixelated"
                 } relative z-10 object-contain animate-opacity`}
               />
-              {!!blessings?.length && (
+              {!!blessing && (
                 <img
                   draggable={false}
                   className="absolute inset-0 w-full h-full object-cover"
@@ -382,15 +366,6 @@ export const CatCard = ({ onClose, onAdopted, relative, ...cat }: IProps) => {
                 ></img>
               )}
             </span>
-            {!showBenefits && (
-              <div className="absolute -bottom-2 md:-bottom-8 lg:-bottom-2 flex justify-center z-10 animate-appear">
-                <PixelButton
-                  onClick={() => setShowBenefits(!showBenefits)}
-                  text="benefits"
-                  isSmall
-                />
-              </div>
-            )}
           </div>
         </div>
         <div>

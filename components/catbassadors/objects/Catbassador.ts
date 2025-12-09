@@ -75,7 +75,7 @@ function generateCatAnimationConfiguration(
 export class Cat implements IPlayer {
   scene: Scene;
   sprite: Physics.Arcade.Sprite;
-  blessings: Phaser.GameObjects.Sprite;
+  blessing: Phaser.GameObjects.Sprite;
   isJumping: boolean = false;
   isMobileJumping: boolean = false;
   isMobileLeft: boolean = false;
@@ -144,7 +144,7 @@ export class Cat implements IPlayer {
     x: number,
     y: number,
     catName: string,
-    blessings: Phaser.GameObjects.Sprite,
+    blessing: Phaser.GameObjects.Sprite,
     type: CatAbilityType,
     enableControls: boolean = true,
     multiplier: number = 1
@@ -152,7 +152,7 @@ export class Cat implements IPlayer {
     this.scene = scene;
     this.type = type;
     this.catName = catName;
-    this.blessings = blessings;
+    this.blessing = blessing;
     this.animationKeys = generateCatAnimationConfiguration(catName);
     this.sprite = this.scene.physics.add
       .sprite(x, y, this.catName)
@@ -273,11 +273,11 @@ export class Cat implements IPlayer {
       this.updateCollectiveItem();
     }
 
-    if (this.blessings) {
+    if (this.blessing) {
       const velocityX = this.sprite.body!.velocity.x;
       const targetX = this.sprite.x + velocityX * 0.01;
-      this.blessings.setVisible(true);
-      this.blessings.setPosition(targetX, this.sprite.y - 5);
+      this.blessing.setVisible(true);
+      this.blessing.setPosition(targetX, this.sprite.y - 5);
     }
   }
 
