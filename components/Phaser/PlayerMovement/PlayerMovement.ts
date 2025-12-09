@@ -31,9 +31,9 @@ export class PlayerMovement {
 
   // Add flight mode properties
   private isFlightMode: boolean = false;
-  private flightAscendSpeed: number = 340;
-  private flightDescendSpeed: number = 340;
-  private flightSmoothing: number = 0.18;
+  private flightAscendSpeed: number = 390;
+  private flightDescendSpeed: number = 390;
+  private flightSmoothing: number = 0.13 ;
   private targetFlightVelocityY: number = 0;
   flightXSpeed: number = 270; 
 
