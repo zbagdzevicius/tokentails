@@ -91,7 +91,13 @@ export const CatnipChaosLevelMap: Record<string, Map> = {
   "123": Map.CAT_WINTER,
   "124": Map.CAT_WINTER,
   "125": Map.CAT_WINTER,
-  "126": Map.CAT_WINTER
+  "126": Map.CAT_WINTER,
+  "131": Map.CAT_WINTER,
+  "132": Map.CAT_WINTER,
+  "133": Map.CAT_WINTER,
+  "134": Map.CAT_WINTER,
+  "135": Map.CAT_WINTER,
+  "136": Map.CAT_WINTER
 };
 
 export const totalCatnip =
