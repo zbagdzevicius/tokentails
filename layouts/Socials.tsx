@@ -4,7 +4,7 @@ import React from "react";
 export const Socials = ({ isVertical }: { isVertical?: boolean }) => {
   return (
     <div
-      className={`flex gap-2 ${
+      className={`flex gap-2 opacity-70 hover:opacity-100 transition-all duration-300 ${
         isVertical ? "flex-col" : "flex-row justify-center"
       }`}
     >

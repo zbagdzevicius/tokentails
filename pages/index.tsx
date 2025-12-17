@@ -126,11 +126,6 @@ export default function Index() {
               </a>
             </div>
           </div>
-          <div className="absolute z-20 flex md:flex-col gap-2 p-8 bottom-0 justify-center max-sm:left-0 right-0 opacity-60">
-            <img draggable={false} className="h-4 md:h-8" src={cdnFile("images/sponsor/mantle.webp")} />
-            <img draggable={false} className="h-4 md:h-8" src={cdnFile("images/sponsor/bga.webp")} />
-            <img draggable={false} className="h-4 md:h-8" src={cdnFile("images/sponsor/bybit.webp")} />
-          </div>
         </div>
         <div
           className="py-4 min-h-screen flex items-center justify-center"

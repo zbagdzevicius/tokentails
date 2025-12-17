@@ -71,7 +71,7 @@ const teamMembers: ITeamMember[] = [
     socials: [
       {
         img: SocialImages.LINKEDIN,
-        link: "https://www.linkedin.com/in/ernest-rimkevi%C4%8Dius-0785a521a",
+        link: "https://www.linkedin.com/in/urnestos",
       },
     ],
   },

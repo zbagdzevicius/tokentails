@@ -1,29 +1,20 @@
 import { cdnFile } from "@/constants/utils";
 
 const sponsorImage = [
-  "images/sponsor/brinc.webp",
-  "images/sponsor/onepiece.png",
   "images/sponsor/bga.webp",
   "images/sponsor/bybit.webp",
   "images/sponsor/mantle.webp",
   "images/sponsor/sei.webp",
-  "images/sponsor/camp.webp",
   "images/sponsor/stellar.webp",
-  "images/sponsor/brinc.webp",
-  "images/sponsor/onepiece.png",
   "images/sponsor/bga.webp",
   "images/sponsor/bybit.webp",
   "images/sponsor/mantle.webp",
   "images/sponsor/sei.webp",
-  "images/sponsor/camp.webp",
   "images/sponsor/stellar.webp",
-  "images/sponsor/brinc.webp",
-  "images/sponsor/onepiece.png",
   "images/sponsor/bga.webp",
   "images/sponsor/bybit.webp",
   "images/sponsor/mantle.webp",
   "images/sponsor/sei.webp",
-  "images/sponsor/camp.webp",
   "images/sponsor/stellar.webp",
 ];
 
