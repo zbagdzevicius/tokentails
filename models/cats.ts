@@ -22,6 +22,7 @@ export type IBlessing = {
   savior?: IImage;
   birthDate: Date;
   instagram?: string;
+  shelter?: IShelter;
 };
 
 export type IShelter = {
@@ -29,6 +30,8 @@ export type IShelter = {
   name: string;
   image?: IImage;
   description?: string;
+  // USE COUNTRY SHORTCODE and FIND AN IMAGE TO EMBED INTO CARDS, e.g. LT, US, UK, DE, FR, ES, IT, CH, CA, AU, NZ
+  country?: string;
   slug: string;
   address?: string;
   website?: string;
@@ -38,51 +41,27 @@ export type IShelter = {
 };
 
 export enum CatAbilityType {
+  ICE = "ICE",
+
   ELECTRIC = "ELECTRIC",
-  STORM = "STORM",
   FIRE = "FIRE",
   WIND = "WIND",
   DARK = "DARK",
   WATER = "WATER",
   AIR = "AIR",
-  EARTH = "EARTH",
-  ICE = "ICE",
-  NATURE = "NATURE",
+  GRASS = "GRASS",
   SAND = "SAND",
-  TAILS = "TAILS",
-  LEGENDARY = "LEGENDARY",
-  CAMP = "CAMP",
+  FAIRY = "FAIRY",
+  STELLAR = "STELLAR",
 }
-
-export const names = [
-  "Peanut",
-  "Snowball",
-  "Pinkie",
-  "Cookie",
-  "Pickle",
-  "Rainbow",
-  "Bagel",
-];
-
-export const resqueStory = (name: string) => {
-  const stories = {
-    [names[0]]: `Found wandering near an ancient temple, ${name} now uses its mystical powers to help lost and scared kittens find their way.`,
-    [names[1]]: `Once caught in a fierce storm, ${name} now harnesses the power of thunder to protect its companions from danger.`,
-    [names[2]]: `Found in a cold, abandoned building, ${name}'s fiery spirit helped her survive and now inspires resilience in others.`,
-    [names[3]]: `Once a shy, elusive shadow, ${name} now uses its speed to deliver messages and help between shelters.`,
-    [names[4]]: `Emerging from the shadows of the streets, ${name} now uses its stealth to protect the shelter from threats unseen.`,
-    [names[5]]: `Once adrift and alone, ${name} now soothes troubled spirits with its serene presence.`,
-    [names[6]]: `Once left, ${name} now dreams to find a loving owner.`,
-  };
-
-  return stories[name];
-};
 
 export type ICatStatus = Partial<Record<StatusType, IStatusValue>>;
 
-export enum CatAIStatus {
-  RUNNING = "RUNNING",
-  PAUSED = "PAUSED",
+export enum Tier {
+    COMMON = 'COMMON',
+    RARE = 'RARE',
+    EPIC = 'EPIC',
+    LEGENDARY = 'LEGENDARY',
 }
 
 export interface ICat {
@@ -100,6 +79,7 @@ export interface ICat {
   expiresAt?: string;
   blessing: IBlessing;
   shelter?: any;
+  tier: Tier;
 }
 
 export const cardsColor: Record<CatAbilityType, string> = {
