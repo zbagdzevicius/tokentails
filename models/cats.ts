@@ -68,6 +68,7 @@ export interface ICat {
   _id?: string;
   name: string;
   type: CatAbilityType;
+  catAvatar: string;
   owner: string;
   resqueStory: string;
   status: ICatStatus;
