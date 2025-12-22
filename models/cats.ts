@@ -13,6 +13,13 @@ export enum BlessingStatus {
   HEAVEN = "HEAVEN",
 }
 
+export const BlessingStatusTexts: Record<BlessingStatus, string> = {
+  [BlessingStatus.WAITING]: "Waiting for home",
+  [BlessingStatus.RECOVERING]: "Recovering",
+  [BlessingStatus.ADOPTED]: "Adopted",
+  [BlessingStatus.HEAVEN]: "Heaven",
+};
+
 export type IBlessing = {
   _id: string;
   name: string;
@@ -76,6 +83,7 @@ export interface ICat {
   _id?: string;
   name: string;
   type: CatAbilityType;
+  catAvatar: string;
   owner: string;
   resqueStory: string;
   status: ICatStatus;
@@ -86,8 +94,8 @@ export interface ICat {
   spriteImg: string;
   catImg: string;
   expiresAt?: string;
-  blessings?: IBlessing[];
-  shelter?: string | IShelter;
+  blessing: IBlessing;
+  shelter?: IShelter;
   tier: Tier;
   tokenId?: number;
   token?: {
