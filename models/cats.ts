@@ -7,22 +7,30 @@ export const Prices = {
 };
 
 export enum BlessingStatus {
-    WAITING = 'WAITING',
-    RECOVERING = 'RECOVERING',
-    ADOPTED = 'ADOPTED',
-    HEAVEN = 'HEAVEN',
+  WAITING = "WAITING",
+  RECOVERING = "RECOVERING",
+  ADOPTED = "ADOPTED",
+  HEAVEN = "HEAVEN",
 }
 
 export type IBlessing = {
-  status: BlessingStatus;
   _id: string;
   name: string;
   description: string;
   image: IImage;
-  savior?: IImage;
-  birthDate: Date;
+  images: IImage[];
+  birthDate: string;
+  price: number;
   instagram?: string;
-  shelter?: IShelter;
+  creator: string;
+  cat: string;
+  shelter?: string | IShelter;
+  owner: string;
+  status?: BlessingStatus;
+  savior?: IImage;
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
 };
 
 export type IShelter = {
@@ -58,10 +66,10 @@ export enum CatAbilityType {
 export type ICatStatus = Partial<Record<StatusType, IStatusValue>>;
 
 export enum Tier {
-    COMMON = 'COMMON',
-    RARE = 'RARE',
-    EPIC = 'EPIC',
-    LEGENDARY = 'LEGENDARY',
+  COMMON = "COMMON",
+  RARE = "RARE",
+  EPIC = "EPIC",
+  LEGENDARY = "LEGENDARY",
 }
 
 export interface ICat {
@@ -72,14 +80,22 @@ export interface ICat {
   resqueStory: string;
   status: ICatStatus;
   supply: number;
+  origin: string;
   totalSupply: number;
-  staked: Date | null;
+  staked?: Date | null;
   spriteImg: string;
   catImg: string;
   expiresAt?: string;
-  blessing: IBlessing;
-  shelter?: any;
+  blessings?: IBlessing[];
+  shelter?: string | IShelter;
   tier: Tier;
+  tokenId?: number;
+  token?: {
+    sei: string | null;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
 }
 
 export const cardsColor: Record<CatAbilityType, string> = {

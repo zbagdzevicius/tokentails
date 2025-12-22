@@ -5,6 +5,7 @@ import { AirdropRewardsSlider } from "@/components/airdrop/AirdropRewardsSlider"
 import { AirdropTable } from "@/components/airdrop/AirdropTable";
 import SocialAirdropTerms from "@/components/airdrop/SocialAirdropTerms";
 import { PixelButton } from "@/components/shared/PixelButton";
+import TailsCard from "@/components/tailsCard/TailsCard";
 import { bgStyle, cdnFile } from "@/constants/utils";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
@@ -128,6 +129,10 @@ const Airdrop = () => {
       >
         <SocialAirdropTerms />
         <AirdropRewardsSlider />
+      </div>
+
+      <div className="flex justify-center items-center py-16">
+        <TailsCard />
       </div>
 
       <div
