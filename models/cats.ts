@@ -79,7 +79,7 @@ export interface ICat {
   catImg: string;
   expiresAt?: string;
   blessing: IBlessing;
-  shelter?: any;
+  shelter?: IShelter;
   tier: Tier;
 }
 
