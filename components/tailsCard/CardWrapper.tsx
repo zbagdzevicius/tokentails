@@ -1,5 +1,7 @@
 import React, { useRef } from "react";
+import Image from "next/image";
 import background from "./assets/backgrounds/fire.png";
+import sparkle from "./assets/backgrounds/sparkle.png";
 
 type CardWrapperProps = {
   children: React.ReactNode;
@@ -9,6 +11,7 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({ children }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const innerCardRef = useRef<HTMLDivElement>(null);
   const glareRef = useRef<HTMLDivElement>(null);
+  const backfaceRef = useRef<HTMLDivElement>(null);
 
   const calculateAngle = (
     e: React.MouseEvent,
@@ -94,7 +97,61 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({ children }) => {
           filter: "drop-shadow(0 15px 15px rgba(0, 0, 0, 0.3))",
         }}
       >
-        {children}
+        <div
+          ref={backfaceRef}
+          className="absolute"
+          style={{
+            inset: "45px",
+            background: "linear-gradient(45deg, #0b0b2a, #0b0b2a)",
+            borderRadius: "20px",
+          }}
+        />
+
+        {/* Main Pink Card */}
+        <div
+          className="relative w-full h-full overflow-visible cursor-pointer"
+          style={{
+            background:
+              "radial-gradient(circle at 60% 30%, #FFDBF1 0%, #FF6F71 100%)",
+            borderRadius: "20px",
+            border: "5px solid #ffffffff",
+          }}
+        >
+          {/* Sparkles on borders */}
+          <Image
+            src={sparkle}
+            alt="Sparkle"
+            width={100}
+            height={100}
+            className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]"
+            style={{ pointerEvents: "none" }}
+          />
+          <Image
+            src={sparkle}
+            alt="Sparkle"
+            width={100}
+            height={100}
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 z-[100]"
+            style={{ pointerEvents: "none" }}
+          />
+          <Image
+            src={sparkle}
+            alt="Sparkle"
+            width={75}
+            height={75}
+            className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]"
+            style={{ pointerEvents: "none" }}
+          />
+          <Image
+            src={sparkle}
+            alt="Sparkle"
+            width={75}
+            height={75}
+            className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 z-[100]"
+            style={{ pointerEvents: "none" }}
+          />
+          {children}
+        </div>
       </div>
     </div>
   );
