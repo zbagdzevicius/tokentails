@@ -12,7 +12,7 @@ type Props = {
 };
 
 export const TailsCard = ({ cat = fakeCat }): Props => {
-  const blessing = cat.blessings?.[0];
+  const blessing = cat.blessing;
   const shelterName =
     typeof cat.shelter === "string" ? "" : cat.shelter?.name || "";
 
