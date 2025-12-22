@@ -13,6 +13,13 @@ export enum BlessingStatus {
     HEAVEN = 'HEAVEN',
 }
 
+export const BlessingStatusTexts: Record<BlessingStatus, string> = {
+    [BlessingStatus.WAITING]: 'Waiting for home',
+    [BlessingStatus.RECOVERING]: 'Recovering',
+    [BlessingStatus.ADOPTED]: 'Adopted',
+    [BlessingStatus.HEAVEN]: 'Heaven',
+}
+
 export type IBlessing = {
   status: BlessingStatus;
   _id: string;
