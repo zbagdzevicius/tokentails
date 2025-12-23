@@ -56,9 +56,9 @@ export const CardFront: React.FC<CardFrontProps> = ({
           <div className="relative w-full aspect-[5/3] rounded-[8px] overflow-hidden">
             {/* Ellipse Overlay */}
             <div className="absolute inset-0 flex items-center justify-center z-0">
-              <Image 
-                src={ellipse} 
-                alt="Ellipse" 
+              <Image
+                src={ellipse}
+                alt="Ellipse"
                 fill
                 className="object-contain"
                 style={{ opacity: 0.8 }}
@@ -133,9 +133,13 @@ export const CardFront: React.FC<CardFrontProps> = ({
             style={{ fontSize: "clamp(10px, 2.2vw, 13px)" }}
           >
             {blessing?.description ? (
-              <p className="line-clamp-6">{limitWords(getPlainText(blessing.description), 45)}</p>
+              <p className="line-clamp-6">
+                {limitWords(getPlainText(blessing.description), 45)}
+              </p>
             ) : (
-              <p className="line-clamp-6">{limitWords(getPlainText(cat.resqueStory), 45)}</p>
+              <p className="line-clamp-6">
+                {limitWords(getPlainText(cat.resqueStory), 45)}
+              </p>
             )}
           </div>
         </div>
