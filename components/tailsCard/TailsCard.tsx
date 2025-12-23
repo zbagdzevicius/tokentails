@@ -71,12 +71,11 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
         >
           <CardWrapper>
             <div
+              className="w-full h-full max-w-[550px] max-h-[800px]"
               style={{
                 backgroundImage: `url(${background.src})`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
-                width: "100%",
-                height: "618px",
               }}
             ></div>
           </CardWrapper>

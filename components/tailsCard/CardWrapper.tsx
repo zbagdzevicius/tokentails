@@ -79,8 +79,9 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
   return (
     <div
       ref={cardRef}
-      className="relative w-full max-w-md"
+      className="relative w-[90vw] max-w-[400px]"
       style={{
+        aspectRatio: "17 / 23",
         transformStyle: "preserve-3d",
         transition: "all 0.2s ease-out",
         ...style,
@@ -97,7 +98,6 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
           backgroundSize: "cover",
           backgroundPosition: "center",
           borderRadius: "40px",
-          padding: "45px",
           transformStyle: "preserve-3d",
           transform: "rotateX(0deg) rotateY(0deg) scale(1)",
           transition: "all 0.15s ease-out",
@@ -105,34 +105,26 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
           filter: "drop-shadow(0 15px 15px rgba(0, 0, 0, 0.3))",
         }}
       >
+        {/* Backface - positioned behind pink card area */}
         <div
           ref={backfaceRef}
-          className="absolute"
+          className="absolute inset-[6%]"
           style={{
-            inset: "45px",
             background: "linear-gradient(45deg, #0b0b2a, #0b0b2a)",
             borderRadius: "20px",
           }}
         />
 
-        {/* Main Pink Card */}
-        <div
-          className="relative w-full h-full overflow-visible cursor-pointer"
-          style={{
-            background:
-              "radial-gradient(circle at 60% 30%, #FFDBF1 0%, #FF6F71 100%)",
-            borderRadius: "20px",
-            border: "5px solid #ffffffff",
-          }}
-        >
-          {/* Sparkles on borders */}
+        {/* Pink Card Container - centered in fire frame */}
+        <div className="absolute inset-[6%]">
+          {/* Sparkles on pink card borders */}
           <Image
             src={sparkle}
             alt="Sparkle"
             width={SPARKLE_TOP_BOTTOM_SIZE}
             height={SPARKLE_TOP_BOTTOM_SIZE}
             className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]"
-            style={{ pointerEvents: "none" }}
+            style={{ pointerEvents: "none", width: "12%", height: "auto" }}
           />
           <Image
             src={sparkle}
@@ -140,7 +132,7 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
             width={SPARKLE_TOP_BOTTOM_SIZE}
             height={SPARKLE_TOP_BOTTOM_SIZE}
             className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 z-[100]"
-            style={{ pointerEvents: "none" }}
+            style={{ pointerEvents: "none", width: "12%", height: "auto" }}
           />
           <Image
             src={sparkle}
@@ -148,7 +140,7 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
             width={SPARKLE_SIDE_SIZE}
             height={SPARKLE_SIDE_SIZE}
             className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]"
-            style={{ pointerEvents: "none" }}
+            style={{ pointerEvents: "none", width: "8%", height: "auto" }}
           />
           <Image
             src={sparkle}
@@ -156,9 +148,35 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
             width={SPARKLE_SIDE_SIZE}
             height={SPARKLE_SIDE_SIZE}
             className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 z-[100]"
-            style={{ pointerEvents: "none" }}
+            style={{ pointerEvents: "none", width: "8%", height: "auto" }}
           />
-          {children}
+
+          {/* Main Pink Card */}
+          <div
+            className="relative w-full h-full overflow-visible cursor-pointer flex items-center justify-center"
+            style={{
+              background:
+                "radial-gradient(circle at 60% 30%, #FFDBF1 0%, #FF6F71 100%)",
+              borderRadius: "20px",
+              border: "5px solid #ffffffff",
+            }}
+          >
+            {children}
+          </div>
+        </div>
+
+        {/* Token Tails Text */}
+        <div
+          className="absolute left-1/2 -translate-x-1/2 bottom-[0.5%]"
+          style={{
+            color: "white",
+            fontSize: "clamp(14px, 3vw, 20px)",
+            fontWeight: "bold",
+            textShadow: "0 2px 4px rgba(0,0,0,0.3)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          TOKEN TAILS
         </div>
       </div>
     </div>

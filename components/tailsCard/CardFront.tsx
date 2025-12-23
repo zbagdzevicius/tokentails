@@ -24,12 +24,15 @@ export const CardFront: React.FC<CardFrontProps> = ({
     countryFlagMap[shelterCountry.toUpperCase()] || countryFlagMap["US"];
 
   return (
-    <>
+    <div className="w-[88%] h-[93%] flex flex-col">
       {/* Card Content */}
-      <div className="relative p-6 pb-8 z-10">
+      <div className="flex-1 flex flex-col p-[3.5%]">
         {/* Header with Name and Flag */}
-        <div className="flex justify-between items-start mb-6">
-          <h2 className="text-4xl font-black text-black drop-shadow-md">
+        <div className="flex justify-between items-center mb-[2.5%] gap-2">
+          <h2
+            className="font-black text-black drop-shadow-md flex-1 leading-tight"
+            style={{ fontSize: "clamp(18px, 4.5vw, 28px)" }}
+          >
             {blessing?.name || cat.name}
           </h2>
           <Image
@@ -37,19 +40,29 @@ export const CardFront: React.FC<CardFrontProps> = ({
             alt="Country Flag"
             width={64}
             height={48}
-            className="object-cover border-[2px] border-white rounded-[10px]"
+            className="object-cover border-[2px] border-white rounded-[8px] flex-shrink-0"
+            style={{
+              width: "clamp(38px, 13%, 55px)",
+              height: "auto",
+            }}
           />
         </div>
 
         {/* Cat Image */}
         <div
-          className="bg-white rounded-[20px] mb-6 shadow-xl"
-          style={{ padding: "5px" }}
+          className="bg-white rounded-[12px] mb-[2.5%] shadow-xl flex-shrink-0"
+          style={{ padding: "1.8%" }}
         >
-          <div className="relative w-full aspect-[525/300] rounded-xl overflow-hidden">
+          <div className="relative w-full aspect-[5/3] rounded-[8px] overflow-hidden">
             {/* Ellipse Overlay */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Image src={ellipse} alt="Ellipse" className="object-contain" />
+            <div className="absolute inset-0 flex items-center justify-center z-0">
+              <Image 
+                src={ellipse} 
+                alt="Ellipse" 
+                fill
+                className="object-contain"
+                style={{ opacity: 0.8 }}
+              />
             </div>
             {blessing?.image?.url ? (
               <Image
@@ -70,35 +83,64 @@ export const CardFront: React.FC<CardFrontProps> = ({
         </div>
 
         {/* Shelter and Status Info */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-2 gap-[2.5%] mb-[2.5%]">
           <div>
-            <h3 className="text-xl font-black text-black mb-1">Shelter</h3>
-            <p className="text-base font-bold text-black">
+            <h3
+              className="font-black text-black mb-1 leading-tight"
+              style={{ fontSize: "clamp(12px, 3vw, 18px)" }}
+            >
+              Shelter
+            </h3>
+            <p
+              className="font-bold text-black leading-tight"
+              style={{ fontSize: "clamp(11px, 2.5vw, 15px)" }}
+            >
               {shelterName || "Unknown"}
             </p>
           </div>
           <div>
-            <h3 className="text-xl font-black text-black mb-1">Status</h3>
-            <p className="text-base font-bold text-black">Waiting for home</p>
+            <h3
+              className="font-black text-black mb-1 leading-tight"
+              style={{ fontSize: "clamp(12px, 3vw, 18px)" }}
+            >
+              Status
+            </h3>
+            <p
+              className="font-bold text-black leading-tight"
+              style={{ fontSize: "clamp(11px, 2.5vw, 15px)" }}
+            >
+              Waiting for home
+            </p>
           </div>
         </div>
 
         {/* Divider */}
-        <div className="h-1 bg-black/20 rounded-full mb-6"></div>
+        <div
+          className="bg-white rounded-full mb-[2.5%]"
+          style={{ height: "2.5px" }}
+        ></div>
 
         {/* Pet Story */}
-        <div>
-          <h3 className="text-2xl font-black text-black mb-3">Pet Story</h3>
-          <div className="text-sm font-semibold text-black leading-relaxed space-y-2">
+        <div className="flex-1 min-h-0">
+          <h3
+            className="font-black text-black mb-1 leading-tight"
+            style={{ fontSize: "clamp(14px, 3.5vw, 20px)" }}
+          >
+            Pet Story
+          </h3>
+          <div
+            className="font-semibold text-black leading-snug overflow-hidden"
+            style={{ fontSize: "clamp(10px, 2.2vw, 13px)" }}
+          >
             {blessing?.description ? (
-              <p>{limitWords(getPlainText(blessing.description))}</p>
+              <p className="line-clamp-6">{limitWords(getPlainText(blessing.description), 45)}</p>
             ) : (
-              <p>{limitWords(getPlainText(cat.resqueStory))}</p>
+              <p className="line-clamp-6">{limitWords(getPlainText(cat.resqueStory), 45)}</p>
             )}
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
