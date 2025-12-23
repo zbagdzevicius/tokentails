@@ -15,7 +15,7 @@ class MyDocument extends Document {
             content="black-translucent"
           />
           <meta name="mobile-web-app-capable" content="yes" />
-          <meta name="theme-color" content="#fea68e" />
+          <meta name="theme-color" content="#f7a600" />
           <meta name="format-detection" content="telephone=no" />
         </Head>
         <body>

@@ -9,6 +9,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Pixelify+Sans:wght@400..700&display=swap");
 @include meta.load-css("../styles/snow.scss");
 @include meta.load-css("../styles/chamomile.scss");
+@include meta.load-css("../styles/fireflies.scss");
 
 $breakpoints: (
   "mobile": 767px,
@@ -19,23 +20,33 @@ $breakpoints: (
   "3xl": 2300px,
 );
 
-
 .glow {
   -webkit-text-stroke: 2px #ffe89a; /* thick outer rim */
-  text-shadow:
-      0 0 5px #ffe89a,
-      0 0 12px #ffcf66,
-      0 0 25px #ffb84d;
+  text-shadow: 0 0 5px #ffe89a, 0 0 12px #ffcf66, 0 0 25px #ffb84d;
+}
+
+@keyframes glow-box {
+  from {
+    box-shadow: 0 0 3px #ffe89a, 0 0 8px #ffe89a, 0 0 12px #ffdd71,
+      0 0 15px #ffcc55;
+  }
+  50% {
+    box-shadow: 0 0 3px #ffcc55, 0 0 8px #ffcc55, 0 0 12px #ffcc55,
+      0 0 15px #ffcc55;
+  }
+  to {
+    box-shadow: 0 0 3px #ffe89a, 0 0 8px #ffe89a, 0 0 12px #ffdd71,
+      0 0 15px #ffcc55;
+  }
 }
 
 .glow-box {
   border-radius: 20px;
 
-  box-shadow:
-    0 0 3px  #ffe89a,
-    0 0 8px  #ffe89a,
-    0 0 12px  #ffdd71,
-    0 0 15px  #ffcc55;
+  box-shadow: 0 0 3px #ffe89a, 0 0 8px #ffe89a, 0 0 12px #ffdd71,
+    0 0 15px #ffcc55;
+
+  animation: glow-box 1s ease-in-out infinite;
 }
 
 @font-face {
@@ -88,7 +99,7 @@ html {
   height: 100%;
   @apply text-gray-800;
   font-family: "Nunito", sans-serif;
-  background: #fea68e;
+  @apply bg-yellow-300;
   overscroll-behavior: contain;
   touch-action: pan-x pan-y;
 }
@@ -236,23 +247,6 @@ html {
   }
 }
 // SWIPER STYLES END
-
-// CUSTOM SCROLLBAR START
-
-::-webkit-scrollbar {
-  width: 16px;
-}
-
-::-webkit-scrollbar-thumb {
-  @apply bg-red-400;
-  border-radius: 0.5rem;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-// CUSTOM SCROLLBAR END
 
 //CUSTOM GRADIENT TEXT
 

@@ -64,46 +64,54 @@ export const PixelButton = ({
         filter: isDisabled ? "brightness(0.7)" : "none",
         cursor: isDisabled ? "not-allowed" : "pointer",
       }}
-      className={`flex justify-center items-center h-12 ${
+      className={`flex justify-center relative items-center h-12 ${
         isWidthFull && "w-full"
       }
-            ${isSmall && "scale-[0.675]"}
-            ${isBig && "glow-box"}
+            ${isSmall && "scale-[0.675] hover:scale-75"}
+            ${
+              isBig &&
+              "glow-box scale-125 md:scale-[2] hover:scale-150 md:hover:scale-[2.5]"
+            }
+            ${!isBig && !isSmall && "hover:scale-105"}
          ${
            !active && !isDisabled
-             ? "hover:brightness-125 hover:pb-1 hover:scale-105 transition-all"
+             ? "hover:brightness-125 hover:pb-1 transition-all"
              : ""
          }`}
     >
-      <div className="h-8 w-1 bg-black"></div>
-      <div className="h-10 w-1 flex flex-col bg-red-500 border-y-4 border-black">
-        <div className="h-6 bg-red-500"></div>
-        <div className="h-1 bg-yellow-300"></div>
-        {!active && <div className="h-2 bg-red-700"></div>}
+      <img
+        src="/landing/bg.jpg"
+        className="absolute inset-0 h-full w-full object-cover mix-blend-darken brightness-125 rounded-xl animate-pulseWeak"
+      />
+      <div className="h-8 w-1 bg-yellow-900"></div>
+      <div className="h-10 w-1 flex flex-col bg-yellow-300 border-y-4 border-yellow-900">
+        <div className="h-6 bg-yellow-300"></div>
+        <div className="h-1 bg-yellow-900"></div>
+        {!active && <div className="h-2 bg-[#e2c05a]"></div>}
       </div>
       <div className={`${isWidthFull && "w-full"}`}>
         <div
-          className={`h-12 flex flex-col border-y-4 border-black bg-red-500 ${
+          className={`h-12 flex flex-col border-y-4 border-yellow-900 bg-yellow-300 ${
             isWidthFull && "w-full"
           }'`}
         >
           <div
-            className={`h-9 bg-red-500 px-4 font-primary font-normal uppercase ${
+            className={`h-9 bg-yellow-300 px-4 font-primary font-normal uppercase ${
               isWidthFull && "w-full justify-center items-center"
             } ${isBig ? "text-p3" : "text-p4"} flex items-center gap-2`}
           >
-            <p className="text-yellow-300 whitespace-nowrap">{text}</p>
-            {subtext && <p className="text-yellow-200">{subtext}</p>}
+            <p className="text-yellow-900 whitespace-nowrap">{text}</p>
+            {subtext && <p className="text-yellow-800">{subtext}</p>}
           </div>
-          <div className="h-1 bg-yellow-300"></div>
-          {!active && <div className="h-2 bg-red-700"></div>}
+          <div className="h-1 bg-yellow-900"></div>
+          {!active && <div className="h-2 bg-[#e2c05a]"></div>}
         </div>
       </div>
-      <div className="h-10 w-1 flex flex-col bg-red-500 border-y-4 border-black">
-        <div className="h-8 bg-yellow-300"></div>
-        {!active && <div className="h-2 bg-red-700"></div>}
+      <div className="h-10 w-1 flex flex-col bg-yellow-300 border-y-4 border-yellow-800">
+        <div className="h-8 bg-yellow-900"></div>
+        {!active && <div className="h-2 bg-[#e2c05a]"></div>}
       </div>
-      <div className="h-8 w-1 bg-black"></div>
+      <div className="h-8 w-1 bg-yellow-900"></div>
     </button>
   );
 };

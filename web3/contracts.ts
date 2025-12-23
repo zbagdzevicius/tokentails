@@ -8,7 +8,6 @@ export const recipientSolana = "48ReRnWwnw68K2LTQjfUthtiXuQmaKG9zQnXUR8KMDJg";
 export enum CurrencyType {
   USDT = "USDT",
   USDC = "USDC",
-  TAILS = "TAILS",
   XLM = "XLM",
   BNB = "BNB",
   SOL = "SOL",
@@ -63,18 +62,15 @@ export const currencyContracts: Record<
   ChainType,
   Partial<Record<CurrencyType, any>>
 > = {
-  [ChainType.CAMP]: {
-    [CurrencyType.TAILS]: "0x",
+  [ChainType.MANTLE]: {
   },
   [ChainType.BNB]: {
     [CurrencyType.USDT]: "0x55d398326f99059fF775485246999027B3197955",
     [CurrencyType.USDC]: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
-    [CurrencyType.TAILS]: "0x",
   },
   [ChainType.BNB_TEST]: {
     [CurrencyType.USDT]: "0x337610d27c682E347C9cD60BD4b3b107C9d34dDd",
     [CurrencyType.USDC]: "0x64544969ed7EBf5f083679233325356EbE738930",
-    [CurrencyType.TAILS]: "0x",
   },
   [ChainType.SEI]: {
     [CurrencyType.USDC]: "0xe15fC38F6D8c56aF07bbCBe3BAf5708A2Bf42392",

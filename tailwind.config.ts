@@ -50,6 +50,7 @@ const config: Config = {
       animation: {
         "loop-scroll": "loop-scroll 50s linear infinite",
         hover: "hover 5s infinite;",
+        hoverSlow: "hover 25s infinite;",
         colormax: "colormax 15s infinite;",
         "spin-slow": "spin 10s infinite;",
         flip: "flip 10s infinite;",
@@ -57,6 +58,7 @@ const config: Config = {
         opacity: "opacity 1.5s;",
         bounceWithFade: "bounceWithFade 2.5s ease-in-out",
         brightness: "brightness 3s ease-in-out infinite",
+        pulseWeak: "pulseWeak 3s ease-in-out infinite",
       },
       keyframes: {
         "loop-scroll": {
@@ -67,6 +69,11 @@ const config: Config = {
           from: { filter: "brightness(1)" },
           "50%": { filter: "brightness(1.1)" },
           to: { filter: "brightness(1)" },
+        },
+        pulseWeak: {
+          from: { opacity: "30%" },
+          "50%": { opacity: "50%" },
+          to: { opacity: "30%" },
         },
         bounceWithFade: {
           "0%": {

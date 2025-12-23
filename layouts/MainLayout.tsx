@@ -42,9 +42,7 @@ export const MainLayout = ({ children }: PropsWithChildren<any>) => {
       <ToastProvider>
         <ProfileProvider>
           <CatProvider>
-            <main className="z-10 flex flex-col overflow-hidden h-full">
-              {children}
-            </main>
+            <main className="">{children}</main>
           </CatProvider>
         </ProfileProvider>
       </ToastProvider>

@@ -4,7 +4,7 @@ import React from "react";
 export const Socials = ({ isVertical }: { isVertical?: boolean }) => {
   return (
     <div
-      className={`flex gap-2 opacity-70 hover:opacity-100 transition-all duration-300 ${
+      className={`flex gap-2 transition-all duration-300 ${
         isVertical ? "flex-col" : "flex-row justify-center"
       }`}
     >
@@ -13,43 +13,36 @@ export const Socials = ({ isVertical }: { isVertical?: boolean }) => {
         href="https://x.com/intent/follow?screen_name=tokentails&tw_p=followbutton"
       >
         <img
-          className="w-8 hover:scale-125 transition-all duration-300"
+          className="w-8 md:w-12 hover:scale-125 transition-all duration-300"
           src={cdnFile("icons/social/x.webp")}
           draggable="false"
         />
       </a>
       <a target="_blank" href="https://instagram.com/tokentails">
         <img
-          className="w-8 hover:scale-125 transition-all duration-300"
-          src={cdnFile("icons/social/instagram.png")}
+          className="w-8 md:w-12 hover:scale-125 transition-all duration-300"
+          src={cdnFile("icons/social/ig.webp")}
           draggable="false"
         />
       </a>
       <a target="_blank" href="https://tiktok.com/@tokentails">
         <img
-          className="w-8 hover:scale-125 transition-all duration-300"
-          src={cdnFile("icons/social/tiktok.png")}
+          className="w-8 md:w-12 hover:scale-125 transition-all duration-300"
+          src={cdnFile("icons/social/tiktok.webp")}
           draggable="false"
         />
       </a>
       <a target="_blank" href="https://t.me/+ofyPNIfNX5w4ZjM8">
         <img
-          className="w-8 hover:scale-125 transition-all duration-300"
-          src={cdnFile("icons/social/telegram.png")}
+          className="w-8 md:w-12 hover:scale-125 transition-all duration-300"
+          src={cdnFile("icons/social/telegram.webp")}
           draggable="false"
         />
       </a>
       <a target="_blank" href="https://discord.gg/4FVYmnd7Hg">
         <img
-          className="w-8 hover:scale-125 transition-all duration-300"
-          src={cdnFile("icons/social/discord.png")}
-          draggable="false"
-        />
-      </a>
-      <a target="_blank" href="mailto:info@tokentails.com">
-        <img
-          className="w-8 hover:scale-125 transition-all duration-300"
-          src={cdnFile("icons/social/email.png")}
+          className="w-8 md:w-12 hover:scale-125 transition-all duration-300"
+          src={cdnFile("icons/social/discord.webp")}
           draggable="false"
         />
       </a>
