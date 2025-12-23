@@ -1,8 +1,8 @@
 import React from "react";
 import { ICat } from "@/models/cats";
 import Image from "next/image";
-import flag from "./assets/usa.png";
 import ellipse from "./assets/backgrounds/ellipse.png";
+import { countryFlagMap } from "./data";
 
 type CardFrontProps = {
   cat: ICat;
@@ -19,6 +19,10 @@ export const CardFront: React.FC<CardFrontProps> = ({
   getPlainText,
   limitWords,
 }) => {
+  const shelterCountry = cat.shelter?.country || "US";
+  const flagPath =
+    countryFlagMap[shelterCountry.toUpperCase()] || countryFlagMap["US"];
+
   return (
     <>
       {/* Card Content */}
@@ -29,11 +33,11 @@ export const CardFront: React.FC<CardFrontProps> = ({
             {blessing?.name || cat.name}
           </h2>
           <Image
-            src={flag}
+            src={flagPath}
             alt="Country Flag"
             width={64}
             height={48}
-            className="object-cover"
+            className="object-cover border-[2px] border-white rounded-[10px]"
           />
         </div>
 

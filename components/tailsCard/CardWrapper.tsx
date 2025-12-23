@@ -5,9 +5,16 @@ import sparkle from "./assets/backgrounds/sparkle.png";
 
 type CardWrapperProps = {
   children: React.ReactNode;
+  style?: React.CSSProperties;
 };
 
-export const CardWrapper: React.FC<CardWrapperProps> = ({ children }) => {
+const SPARKLE_TOP_BOTTOM_SIZE = 100;
+const SPARKLE_SIDE_SIZE = 55;
+
+export const CardWrapper: React.FC<CardWrapperProps> = ({
+  children,
+  style,
+}) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const innerCardRef = useRef<HTMLDivElement>(null);
   const glareRef = useRef<HTMLDivElement>(null);
@@ -76,6 +83,7 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({ children }) => {
       style={{
         transformStyle: "preserve-3d",
         transition: "all 0.2s ease-out",
+        ...style,
       }}
       onMouseEnter={handleMouseEnter}
       onMouseMove={handleMouseMove}
@@ -121,32 +129,32 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({ children }) => {
           <Image
             src={sparkle}
             alt="Sparkle"
-            width={100}
-            height={100}
+            width={SPARKLE_TOP_BOTTOM_SIZE}
+            height={SPARKLE_TOP_BOTTOM_SIZE}
             className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]"
             style={{ pointerEvents: "none" }}
           />
           <Image
             src={sparkle}
             alt="Sparkle"
-            width={100}
-            height={100}
+            width={SPARKLE_TOP_BOTTOM_SIZE}
+            height={SPARKLE_TOP_BOTTOM_SIZE}
             className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 z-[100]"
             style={{ pointerEvents: "none" }}
           />
           <Image
             src={sparkle}
             alt="Sparkle"
-            width={75}
-            height={75}
+            width={SPARKLE_SIDE_SIZE}
+            height={SPARKLE_SIDE_SIZE}
             className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]"
             style={{ pointerEvents: "none" }}
           />
           <Image
             src={sparkle}
             alt="Sparkle"
-            width={75}
-            height={75}
+            width={SPARKLE_SIDE_SIZE}
+            height={SPARKLE_SIDE_SIZE}
             className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 z-[100]"
             style={{ pointerEvents: "none" }}
           />
