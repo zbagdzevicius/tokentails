@@ -3,7 +3,7 @@ import { ICat, CatAbilityType } from "@/models/cats";
 import { fakeCat } from "./data";
 import { CardWrapper } from "./CardWrapper";
 import { CardFront } from "./CardFront";
-import background from "./assets/backgrounds/sample.png";
+import { CardBack } from "./CardBack";
 
 type Props = {
   cat?: ICat;
@@ -35,7 +35,10 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
     <div>
       {/* Type Selector for Testing */}
       <div style={{ marginBottom: "20px", textAlign: "center" }}>
-        <label htmlFor="catType" style={{ marginRight: "10px", fontWeight: "bold" }}>
+        <label
+          htmlFor="catType"
+          style={{ marginRight: "10px", fontWeight: "bold" }}
+        >
           Cat Type:
         </label>
         <select
@@ -98,15 +101,8 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
               transform: "rotateY(180deg)",
             }}
           >
-            <CardWrapper catType={selectedType}>
-              <div
-                className="w-full h-full max-w-[550px] max-h-[800px]"
-                style={{
-                  backgroundImage: `url(${background.src})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
-              ></div>
+            <CardWrapper catType={selectedType} isBackSide={true}>
+              <CardBack cat={testCat} />
             </CardWrapper>
           </div>
         </div>

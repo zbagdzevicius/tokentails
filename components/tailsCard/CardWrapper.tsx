@@ -14,6 +14,7 @@ type CardWrapperProps = {
   cardNumber?: number;
   totalCards?: number;
   catType: CatAbilityType;
+  isBackSide?: boolean;
 };
 
 export const CardWrapper: React.FC<CardWrapperProps> = ({
@@ -22,6 +23,7 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
   cardNumber = 1,
   totalCards = 200,
   catType,
+  isBackSide = false,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const innerCardRef = useRef<HTMLDivElement>(null);
@@ -117,14 +119,16 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
           filter: "drop-shadow(0 15px 15px rgba(0, 0, 0, 0.3))",
         }}
       >
-        <div
-          ref={backfaceRef}
-          className="absolute inset-[6%]"
-          style={{
-            background: "linear-gradient(45deg, #0b0b2a, #0b0b2a)",
-            borderRadius: "20px",
-          }}
-        />
+        {!isBackSide && (
+          <div
+            ref={backfaceRef}
+            className="absolute inset-[6%]"
+            style={{
+              background: "linear-gradient(45deg, #0b0b2a, #0b0b2a)",
+              borderRadius: "20px",
+            }}
+          />
+        )}
         <div className="absolute inset-[6%]">
           <Image
             src={sparkle}
@@ -155,7 +159,7 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
           <div
             className="relative w-full h-full overflow-visible cursor-pointer flex items-center justify-center"
             style={{
-              background: bodyGradient,
+              background: isBackSide ? "transparent" : bodyGradient,
               borderRadius: "20px",
               border: `3px solid ${borderColor}`,
             }}
