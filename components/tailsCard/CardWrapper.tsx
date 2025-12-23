@@ -6,14 +6,15 @@ import sparkle from "./assets/backgrounds/sparkle.png";
 type CardWrapperProps = {
   children: React.ReactNode;
   style?: React.CSSProperties;
+  cardNumber?: number;
+  totalCards?: number;
 };
-
-const SPARKLE_TOP_BOTTOM_SIZE = 100;
-const SPARKLE_SIDE_SIZE = 55;
 
 export const CardWrapper: React.FC<CardWrapperProps> = ({
   children,
   style,
+  cardNumber = 1,
+  totalCards = 200,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const innerCardRef = useRef<HTMLDivElement>(null);
@@ -105,7 +106,6 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
           filter: "drop-shadow(0 15px 15px rgba(0, 0, 0, 0.3))",
         }}
       >
-        {/* Backface - positioned behind pink card area */}
         <div
           ref={backfaceRef}
           className="absolute inset-[6%]"
@@ -114,41 +114,30 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
             borderRadius: "20px",
           }}
         />
-
-        {/* Pink Card Container - centered in fire frame */}
         <div className="absolute inset-[6%]">
-          {/* Sparkles on pink card borders */}
           <Image
             src={sparkle}
             alt="Sparkle"
-            width={SPARKLE_TOP_BOTTOM_SIZE}
-            height={SPARKLE_TOP_BOTTOM_SIZE}
             className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]"
-            style={{ pointerEvents: "none", width: "12%", height: "auto" }}
+            style={{ pointerEvents: "none", width: "18%", height: "auto" }}
           />
           <Image
             src={sparkle}
             alt="Sparkle"
-            width={SPARKLE_TOP_BOTTOM_SIZE}
-            height={SPARKLE_TOP_BOTTOM_SIZE}
             className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 z-[100]"
+            style={{ pointerEvents: "none", width: "18%", height: "auto" }}
+          />
+          <Image
+            src={sparkle}
+            alt="Sparkle"
+            className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]"
             style={{ pointerEvents: "none", width: "12%", height: "auto" }}
           />
           <Image
             src={sparkle}
             alt="Sparkle"
-            width={SPARKLE_SIDE_SIZE}
-            height={SPARKLE_SIDE_SIZE}
-            className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]"
-            style={{ pointerEvents: "none", width: "8%", height: "auto" }}
-          />
-          <Image
-            src={sparkle}
-            alt="Sparkle"
-            width={SPARKLE_SIDE_SIZE}
-            height={SPARKLE_SIDE_SIZE}
             className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 z-[100]"
-            style={{ pointerEvents: "none", width: "8%", height: "auto" }}
+            style={{ pointerEvents: "none", width: "12%", height: "auto" }}
           />
 
           {/* Main Pink Card */}
@@ -165,9 +154,19 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
           </div>
         </div>
 
-        {/* Token Tails Text */}
         <div
-          className="absolute left-1/2 -translate-x-1/2 bottom-[0.5%]"
+          className="absolute left-[10%] bottom-[1%] font-primary"
+          style={{
+            color: "white",
+            fontSize: "clamp(12px, 2.5vw, 16px)",
+            fontWeight: "bold",
+          }}
+        >
+          C{cardNumber} / {totalCards}
+        </div>
+
+        <div
+          className="absolute left-1/2 -translate-x-1/2 bottom-[0.5%] font-primary"
           style={{
             color: "white",
             fontSize: "clamp(14px, 3vw, 20px)",

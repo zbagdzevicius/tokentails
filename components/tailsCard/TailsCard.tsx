@@ -13,8 +13,7 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
   const [flipped, setFlipped] = useState(false);
 
   const blessing = cat.blessing;
-  const shelterName =
-    typeof cat.shelter === "string" ? "" : cat.shelter?.name || "";
+  const shelterName = cat.shelter?.name || "";
 
   // Parse HTML description to plain text
   const getPlainText = (html: string) => {
