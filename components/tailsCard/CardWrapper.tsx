@@ -1,13 +1,19 @@
 import React, { useRef } from "react";
 import Image from "next/image";
-import background from "./assets/backgrounds/fire.png";
-import sparkle from "./assets/backgrounds/sparkle.png";
+import {
+  CatAbilityType,
+  cardsBackground,
+  cardsBorderColor,
+  cardsGradient,
+} from "@/models/cats";
+import sparkle from "@/public/cards/backgrounds/sparkle.png";
 
 type CardWrapperProps = {
   children: React.ReactNode;
   style?: React.CSSProperties;
   cardNumber?: number;
   totalCards?: number;
+  catType: CatAbilityType;
 };
 
 export const CardWrapper: React.FC<CardWrapperProps> = ({
@@ -15,11 +21,16 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
   style,
   cardNumber = 1,
   totalCards = 200,
+  catType,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const innerCardRef = useRef<HTMLDivElement>(null);
   const glareRef = useRef<HTMLDivElement>(null);
   const backfaceRef = useRef<HTMLDivElement>(null);
+
+  const backgroundImage = cardsBackground[catType];
+  const borderColor = cardsBorderColor[catType];
+  const bodyGradient = cardsGradient[catType];
 
   const calculateAngle = (
     e: React.MouseEvent,
@@ -95,7 +106,7 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
         ref={innerCardRef}
         className="relative w-full h-full"
         style={{
-          backgroundImage: `url(${background.src})`,
+          backgroundImage: `url(${backgroundImage})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
           borderRadius: "40px",
@@ -144,10 +155,9 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
           <div
             className="relative w-full h-full overflow-visible cursor-pointer flex items-center justify-center"
             style={{
-              background:
-                "radial-gradient(circle at 60% 30%, #FFDBF1 0%, #FF6F71 100%)",
+              background: bodyGradient,
               borderRadius: "20px",
-              border: "5px solid #ffffffff",
+              border: `3px solid ${borderColor}`,
             }}
           >
             {children}
@@ -155,10 +165,10 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
         </div>
 
         <div
-          className="absolute left-[10%] bottom-[1%] font-primary"
+          className="absolute left-[10%] bottom-[1.25%] font-primary"
           style={{
-            color: "white",
-            fontSize: "clamp(12px, 2.5vw, 16px)",
+            color: borderColor,
+            fontSize: "clamp(12px, 2.5vw, 12px)",
             fontWeight: "bold",
           }}
         >
@@ -168,8 +178,8 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
         <div
           className="absolute left-1/2 -translate-x-1/2 bottom-[0.5%] font-primary"
           style={{
-            color: "white",
-            fontSize: "clamp(14px, 3vw, 20px)",
+            color: borderColor,
+            fontSize: "clamp(14px, 3vw, 18px)",
             fontWeight: "bold",
             textShadow: "0 2px 4px rgba(0,0,0,0.3)",
             whiteSpace: "nowrap",

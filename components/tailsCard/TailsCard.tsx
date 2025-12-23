@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ICat } from "@/models/cats";
+import { ICat, CatAbilityType } from "@/models/cats";
 import { fakeCat } from "./data";
 import { CardWrapper } from "./CardWrapper";
 import { CardFront } from "./CardFront";
@@ -11,6 +11,7 @@ type Props = {
 
 export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
   const [flipped, setFlipped] = useState(false);
+  const [selectedType, setSelectedType] = useState<CatAbilityType>(cat.type);
 
   const blessing = cat.blessing;
   const shelterName = cat.shelter?.name || "";
@@ -27,57 +28,87 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
     return words.slice(0, maxWords).join(" ") + "...";
   };
 
+  // Create cat with selected type for testing
+  const testCat = { ...cat, type: selectedType };
+
   return (
-    <div
-      onClick={() => setFlipped((prev) => !prev)}
-      style={{
-        perspective: "1000px",
-        cursor: "pointer",
-        display: "inline-block",
-      }}
-    >
+    <div>
+      {/* Type Selector for Testing */}
+      <div style={{ marginBottom: "20px", textAlign: "center" }}>
+        <label htmlFor="catType" style={{ marginRight: "10px", fontWeight: "bold" }}>
+          Cat Type:
+        </label>
+        <select
+          id="catType"
+          value={selectedType}
+          onChange={(e) => setSelectedType(e.target.value as CatAbilityType)}
+          style={{
+            padding: "8px 12px",
+            borderRadius: "8px",
+            border: "2px solid #ccc",
+            fontSize: "14px",
+            cursor: "pointer",
+          }}
+        >
+          {Object.values(CatAbilityType).map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div
+        onClick={() => setFlipped((prev) => !prev)}
         style={{
-          position: "relative",
-          transformStyle: "preserve-3d",
-          transition: "transform 0.6s",
-          transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
+          perspective: "1000px",
+          cursor: "pointer",
+          display: "inline-block",
         }}
       >
         <div
           style={{
-            backfaceVisibility: "hidden",
+            position: "relative",
+            transformStyle: "preserve-3d",
+            transition: "transform 0.6s",
+            transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
           }}
         >
-          <CardWrapper>
-            <CardFront
-              cat={cat}
-              blessing={blessing}
-              shelterName={shelterName}
-              getPlainText={getPlainText}
-              limitWords={limitWords}
-            />
-          </CardWrapper>
-        </div>
+          <div
+            style={{
+              backfaceVisibility: "hidden",
+            }}
+          >
+            <CardWrapper catType={selectedType}>
+              <CardFront
+                cat={testCat}
+                blessing={blessing}
+                shelterName={shelterName}
+                getPlainText={getPlainText}
+                limitWords={limitWords}
+              />
+            </CardWrapper>
+          </div>
 
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            backfaceVisibility: "hidden",
-            transform: "rotateY(180deg)",
-          }}
-        >
-          <CardWrapper>
-            <div
-              className="w-full h-full max-w-[550px] max-h-[800px]"
-              style={{
-                backgroundImage: `url(${background.src})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }}
-            ></div>
-          </CardWrapper>
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              backfaceVisibility: "hidden",
+              transform: "rotateY(180deg)",
+            }}
+          >
+            <CardWrapper catType={selectedType}>
+              <div
+                className="w-full h-full max-w-[550px] max-h-[800px]"
+                style={{
+                  backgroundImage: `url(${background.src})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
+              ></div>
+            </CardWrapper>
+          </div>
         </div>
       </div>
     </div>

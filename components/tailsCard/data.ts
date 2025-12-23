@@ -1,5 +1,8 @@
 import { CatAbilityType, ICat, Tier } from "@/models/cats";
 
+// Card styling constants
+export const CARD_BORDER_COLOR = "#FFDBF1";
+
 // Map of country codes to flag images
 export const countryFlagMap: Record<string, string> = {
   AD: "/flags/ad.png",
@@ -265,7 +268,7 @@ export const fakeCat: ICat = {
   supply: 180,
   totalSupply: 200,
   tier: Tier.LEGENDARY,
-  type: CatAbilityType.FIRE,
+  type: CatAbilityType.DARK,
   spriteImg:
     "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/RASCAL/bow-tie-red.png",
   catImg:

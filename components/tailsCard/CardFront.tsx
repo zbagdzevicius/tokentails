@@ -1,7 +1,6 @@
 import React from "react";
-import { ICat } from "@/models/cats";
+import { ICat, cardsBorderColor } from "@/models/cats";
 import Image from "next/image";
-import ellipse from "./assets/backgrounds/ellipse.png";
 import { countryFlagMap } from "./data";
 
 type CardFrontProps = {
@@ -22,6 +21,7 @@ export const CardFront: React.FC<CardFrontProps> = ({
   const shelterCountry = cat.shelter?.country || "US";
   const flagPath =
     countryFlagMap[shelterCountry.toUpperCase()] || countryFlagMap["US"];
+  const borderColor = cardsBorderColor[cat.type];
 
   return (
     <div className="w-[88%] h-[93%] flex flex-col">
@@ -40,7 +40,7 @@ export const CardFront: React.FC<CardFrontProps> = ({
             alt="Country Flag"
             width={64}
             height={48}
-            className="object-cover border-[2px] border-white rounded-[8px] flex-shrink-0"
+            className="object-cover border-2 border-white rounded-[8px] flex-shrink-0"
             style={{
               width: "clamp(48px, 13%, 65px)",
               height: "auto",
@@ -49,24 +49,41 @@ export const CardFront: React.FC<CardFrontProps> = ({
         </div>
 
         {/* Cat Image */}
-        <div
-          className="bg-white rounded-[12px] mb-[2.5%] shadow-xl flex-shrink-0"
-          style={{ padding: "1.8%" }}
-        >
-          <div className="relative w-full aspect-[5/3] rounded-[8px] overflow-hidden">
+        <div className="relative w-full aspect-[5/3] rounded-[12px] overflow-hidden mb-[2.5%] shadow-xl flex-shrink-0">
+          {/* Background image for border effect */}
+          {blessing?.image?.url ? (
+            <Image
+              src={blessing.image.url}
+              alt={blessing.name}
+              fill
+              className="object-cover"
+            />
+          ) : (
+            <Image
+              src={cat.catImg}
+              alt={cat.name}
+              fill
+              className="object-cover"
+            />
+          )}
+          <div
+            className="absolute inset-0 opacity-50"
+            style={{ backgroundColor: borderColor }}
+          ></div>
+          <div className="absolute inset-[2px] rounded-[10px] overflow-hidden">
             {blessing?.image?.url ? (
               <Image
                 src={blessing.image.url}
                 alt={blessing.name}
                 fill
-                className="object-cover relative z-10"
+                className="object-cover"
               />
             ) : (
               <Image
                 src={cat.catImg}
                 alt={cat.name}
                 fill
-                className="object-cover relative z-10"
+                className="object-cover"
               />
             )}
           </div>
@@ -114,8 +131,8 @@ export const CardFront: React.FC<CardFrontProps> = ({
 
         {/* Divider */}
         <div
-          className="bg-white rounded-full mb-[2.5%]"
-          style={{ height: "2.5px" }}
+          className="rounded-full mb-[2.5%]"
+          style={{ height: "2.5px", backgroundColor: borderColor }}
         ></div>
 
         {/* Pet Story */}
