@@ -7,6 +7,7 @@ import {
   cardsGradient,
 } from "@/models/cats";
 import sparkle from "@/public/cards/backgrounds/sparkle.png";
+import glare from "@/public/cards/backgrounds/glare.png";
 
 type CardWrapperProps = {
   children: React.ReactNode;
@@ -28,6 +29,7 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
   const cardRef = useRef<HTMLDivElement>(null);
   const innerCardRef = useRef<HTMLDivElement>(null);
   const glareRef = useRef<HTMLDivElement>(null);
+  const rainbowRef = useRef<HTMLDivElement>(null);
   const backfaceRef = useRef<HTMLDivElement>(null);
 
   const backgroundImage = cardsBackground[catType];
@@ -41,20 +43,79 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
   ) => {
     const dropShadowColor = "rgba(0, 0, 0, 0.3)";
 
-    const x = Math.abs(item.getBoundingClientRect().x - e.clientX);
-    const y = Math.abs(item.getBoundingClientRect().y - e.clientY);
+    // Get bounding rect and mouse position relative to card
+    const rect = item.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const halfWidth = rect.width / 2;
+    const halfHeight = rect.height / 2;
 
-    const halfWidth = item.getBoundingClientRect().width / 2;
-    const halfHeight = item.getBoundingClientRect().height / 2;
+    // Calculate rotation for card tilt
+    const calcAngleX = (mouseX - halfWidth) / 6;
+    const calcAngleY = (mouseY - halfHeight) / 14;
 
-    const calcAngleX = (x - halfWidth) / 6;
-    const calcAngleY = (y - halfHeight) / 14;
+    // Calculate angle from card center to mouse (0deg = right, 90deg = down)
+    const dx = mouseX - halfWidth;
+    const dy = mouseY - halfHeight;
+    let angle = Math.atan2(dy, dx) * (180 / Math.PI) + 180;
+    if (angle < 0) angle += 360;
+    const centerX = 50;
+    const centerY = 50;
 
-    const gX = (1 - x / (halfWidth * 2)) * 100;
-    const gY = (1 - y / (halfHeight * 2)) * 100;
+    // Clamp the arc to max 180deg and fallback for NaN
+    const arcStart = angle - 60;
+    const arcEnd = angle + 120;
+    const safeArcStart = isNaN(arcStart) ? 0 : arcStart;
+    const safeArcEnd = isNaN(arcEnd) ? 180 : arcEnd;
 
+    // Glare image reveal effect - white/bright highlight only
     if (glareRef.current) {
-      glareRef.current.style.background = `radial-gradient(circle at ${gX}% ${gY}%, rgb(199 198 243), transparent)`;
+      const maskGradient = `conic-gradient(from ${safeArcStart}deg at ${centerX}% ${centerY}%,
+        transparent 0deg,
+        rgba(255,255,255,0.10) 10deg,
+        rgba(255,255,255,0.25) 30deg,
+        rgba(255,255,255,0.55) 55deg,
+        rgba(255,255,255,0.85) 80deg,
+        rgba(255,255,255,1) 100deg,
+        rgba(255,255,255,0.85) 120deg,
+        rgba(255,255,255,0.55) 145deg,
+        rgba(255,255,255,0.25) 170deg,
+        transparent 180deg,
+        transparent 360deg)`;
+      glareRef.current.style.maskImage = maskGradient;
+      glareRef.current.style.webkitMaskImage = maskGradient;
+      glareRef.current.style.opacity = "1";
+    }
+
+    // Rainbow overlay effect - true full-spectrum, vibrant, feathered
+    if (rainbowRef.current) {
+      const rainbowMask = `conic-gradient(from ${safeArcStart}deg at ${centerX}% ${centerY}%,
+        transparent 0deg,
+        rgba(0,0,0,0.04) 10deg,
+        rgba(0,0,0,0.10) 30deg,
+        rgba(0,0,0,0.18) 60deg,
+        rgba(0,0,0,0.25) 100deg,
+        rgba(0,0,0,0.18) 140deg,
+        rgba(0,0,0,0.10) 170deg,
+        transparent 180deg,
+        transparent 360deg)`;
+      rainbowRef.current.style.maskImage = rainbowMask;
+      rainbowRef.current.style.webkitMaskImage = rainbowMask;
+      rainbowRef.current.style.opacity = "1";
+      rainbowRef.current.style.background = `conic-gradient(from ${safeArcStart}deg at ${centerX}% ${centerY}%,
+        rgba(255,0,0,0.85) 0deg,
+        rgba(255,154,0,0.85) 30deg,
+        rgba(208,222,33,0.85) 60deg,
+        rgba(79,220,74,0.85) 90deg,
+        rgba(63,218,216,0.85) 120deg,
+        rgba(47,201,226,0.85) 150deg,
+        rgba(28,127,238,0.85) 180deg,
+        rgba(95,21,242,0.85) 210deg,
+        rgba(186,12,248,0.85) 240deg,
+        rgba(251,7,217,0.85) 270deg,
+        rgba(255,0,0,0.85) 300deg,
+        transparent 330deg,
+        transparent 360deg)`;
     }
 
     parent.style.perspective = `${halfWidth * 6}px`;
@@ -62,8 +123,8 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
 
     item.style.transform = `rotateY(${calcAngleX}deg) rotateX(${-calcAngleY}deg) scale(1.04)`;
 
-    const calcShadowX = (x - halfWidth) / 3;
-    const calcShadowY = (y - halfHeight) / 6;
+    const calcShadowX = (mouseX - halfWidth) / 3;
+    const calcShadowY = (mouseY - halfHeight) / 6;
 
     item.style.filter = `drop-shadow(${-calcShadowX}px ${-calcShadowY}px 15px ${dropShadowColor})`;
   };
@@ -87,6 +148,29 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
       innerCardRef.current.style.transform =
         "rotateY(0deg) rotateX(0deg) scale(1)";
       innerCardRef.current.style.filter = `drop-shadow(0 15px 15px ${dropShadowColor})`;
+    }
+
+    // Hide glare overlay naturally
+    if (glareRef.current) {
+      glareRef.current.style.opacity = "0";
+      setTimeout(() => {
+        if (glareRef.current) {
+          glareRef.current.style.maskImage = "none";
+          glareRef.current.style.webkitMaskImage = "none";
+        }
+      }, 200); // matches transition duration
+    }
+
+    // Hide rainbow overlay naturally
+    if (rainbowRef.current) {
+      rainbowRef.current.style.opacity = "0";
+      setTimeout(() => {
+        if (rainbowRef.current) {
+          rainbowRef.current.style.maskImage = "none";
+          rainbowRef.current.style.webkitMaskImage = "none";
+          rainbowRef.current.style.background = "none";
+        }
+      }, 200);
     }
   };
 
@@ -119,6 +203,41 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
           filter: "drop-shadow(0 15px 15px rgba(0, 0, 0, 0.3))",
         }}
       >
+        {/* Glare image reveal effect - shows glare image in 1/4 cone */}
+        <div
+          ref={glareRef}
+          className="absolute inset-0 pointer-events-none z-[200]"
+          style={{
+            borderRadius: "40px",
+            overflow: "hidden",
+            opacity: 0,
+            transition: "opacity 0.15s ease-out",
+          }}
+        >
+          <Image
+            src={glare}
+            alt="Glare Effect"
+            fill
+            style={{
+              objectFit: "cover",
+              mixBlendMode: "plus-lighter",
+            }}
+          />
+        </div>
+
+        {/* Rainbow overlay effect - follows same angle as glare */}
+        <div
+          ref={rainbowRef}
+          className="absolute inset-0 pointer-events-none z-[201]"
+          style={{
+            borderRadius: "40px",
+            overflow: "hidden",
+            opacity: 0,
+            transition: "opacity 0.15s ease-out",
+            mixBlendMode: "color-dodge",
+          }}
+        />
+
         {!isBackSide && (
           <div
             ref={backfaceRef}
