@@ -128,7 +128,9 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
     item.style.perspective = `${halfWidth * 6}px`;
 
     // This transform makes the corner under the cursor uplifted (correct direction)
-    item.style.transform = `rotateX(${(mouseY - halfWidth) / 10}deg) rotateY(${-(mouseX - halfHeight) / 10}deg) scale(1.04)`;
+    item.style.transform = `rotateX(${(mouseY - halfWidth) / 10}deg) rotateY(${
+      -(mouseX - halfHeight) / 10
+    }deg) scale(1.04)`;
 
     const calcShadowX = (mouseX - halfWidth) / 3;
     const calcShadowY = (mouseY - halfHeight) / 6;
