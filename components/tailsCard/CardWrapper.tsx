@@ -7,7 +7,7 @@ import {
   cardsGradient,
 } from "@/models/cats";
 import sparkle from "@/public/cards/backgrounds/sparkle.png";
-import glare from "@/public/cards/backgrounds/glare.png";
+import pattern from "@/public/cards/backgrounds/pattern.png";
 
 type CardWrapperProps = {
   children: React.ReactNode;
@@ -164,29 +164,6 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
           filter: "drop-shadow(0 15px 15px rgba(0, 0, 0, 0.3))",
         }}
       >
-        {/* Glare image reveal effect - shows glare image in 1/4 cone */}
-        <div
-          ref={glareRef}
-          className="absolute inset-0 pointer-events-none z-[200]"
-          style={{
-            borderRadius: "40px",
-            overflow: "hidden",
-            opacity: 0,
-            transition: "opacity 0.15s ease-out",
-          }}
-        >
-          <Image
-            src={glare}
-            alt="Glare Effect"
-            fill
-            style={{
-              objectFit: "cover",
-              mixBlendMode: "plus-lighter",
-              opacity: 0.5,
-            }}
-          />
-        </div>
-
         {/* Rainbow overlay effect - follows same angle as glare */}
         <div
           ref={rainbowRef}
@@ -245,6 +222,28 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
               border: `3px solid ${borderColor}`,
             }}
           >
+            <div
+              ref={glareRef}
+              className="absolute inset-0 pointer-events-none z-[1]"
+              style={{
+                borderRadius: "40px",
+                overflow: "hidden",
+                opacity: 0,
+                transition: "opacity 0.15s ease-out",
+                mixBlendMode: "color-dodge",
+              }}
+            >
+              <Image
+                src={pattern}
+                alt="Card pattern"
+                fill
+                style={{
+                  objectFit: "cover",
+                  mixBlendMode: "color-dodge",
+                  opacity: 0.5,
+                }}
+              />
+            </div>
             {children}
           </div>
         </div>
