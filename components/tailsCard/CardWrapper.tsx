@@ -57,30 +57,29 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
     // Calculate angle from card center to mouse (0deg = right, 90deg = down)
     const dx = mouseX - halfWidth;
     const dy = mouseY - halfHeight;
+
     let angle = Math.atan2(dy, dx) * (180 / Math.PI) + 180;
     if (angle < 0) angle += 360;
     const centerX = 50;
     const centerY = 50;
 
-    // Clamp the arc to max 180deg and fallback for NaN
-    const arcStart = angle - 60;
-    const arcEnd = angle + 120;
+    // Wide, soft arc for both glare and rainbow, always centered on the opposite of cursor direction
+    const arcStart = angle - 90;
     const safeArcStart = isNaN(arcStart) ? 0 : arcStart;
-    const safeArcEnd = isNaN(arcEnd) ? 180 : arcEnd;
 
     // Glare image reveal effect - white/bright highlight only
     if (glareRef.current) {
       const maskGradient = `conic-gradient(from ${safeArcStart}deg at ${centerX}% ${centerY}%,
         transparent 0deg,
-        rgba(255,255,255,0.10) 10deg,
-        rgba(255,255,255,0.25) 30deg,
-        rgba(255,255,255,0.55) 55deg,
-        rgba(255,255,255,0.85) 80deg,
-        rgba(255,255,255,1) 100deg,
-        rgba(255,255,255,0.85) 120deg,
-        rgba(255,255,255,0.55) 145deg,
-        rgba(255,255,255,0.25) 170deg,
-        transparent 180deg,
+        rgba(255,255,255,0.10) 30deg,
+        rgba(255,255,255,0.25) 60deg,
+        rgba(255,255,255,0.55) 120deg,
+        rgba(255,255,255,0.85) 160deg,
+        rgba(255,255,255,1) 180deg,
+        rgba(255,255,255,0.85) 200deg,
+        rgba(255,255,255,0.55) 240deg,
+        rgba(255,255,255,0.25) 300deg,
+        transparent 330deg,
         transparent 360deg)`;
       glareRef.current.style.maskImage = maskGradient;
       glareRef.current.style.webkitMaskImage = maskGradient;
@@ -91,13 +90,13 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
     if (rainbowRef.current) {
       const rainbowMask = `conic-gradient(from ${safeArcStart}deg at ${centerX}% ${centerY}%,
         transparent 0deg,
-        rgba(0,0,0,0.04) 10deg,
-        rgba(0,0,0,0.10) 30deg,
-        rgba(0,0,0,0.18) 60deg,
-        rgba(0,0,0,0.25) 100deg,
-        rgba(0,0,0,0.18) 140deg,
-        rgba(0,0,0,0.10) 170deg,
-        transparent 180deg,
+        rgba(0,0,0,0.04) 30deg,
+        rgba(0,0,0,0.10) 60deg,
+        rgba(0,0,0,0.18) 120deg,
+        rgba(0,0,0,0.25) 180deg,
+        rgba(0,0,0,0.18) 240deg,
+        rgba(0,0,0,0.10) 300deg,
+        transparent 330deg,
         transparent 360deg)`;
       rainbowRef.current.style.maskImage = rainbowMask;
       rainbowRef.current.style.webkitMaskImage = rainbowMask;
