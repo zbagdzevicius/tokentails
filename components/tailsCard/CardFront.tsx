@@ -93,15 +93,15 @@ export const CardFront: React.FC<CardFrontProps> = ({
         <div className="grid grid-cols-2 gap-[2.5%] mb-[2.5%]">
           <div>
             <h3
-              className="font-black text-black mb-1 leading-tight font-primary"
-              style={{ fontSize: "clamp(12px, 3vw, 18px)" }}
+              className="text-black mb-1 leading-tight font-primary"
+              style={{ fontSize: "clamp(12px, 3vw, 22px)" }}
             >
               Shelter
             </h3>
             <p
               className="text-black leading-tight"
               style={{
-                fontSize: "clamp(11px, 2.5vw, 15px)",
+                fontSize: "clamp(11px, 2.5vw, 13px)",
                 fontFamily: "Nunito, sans-serif",
                 fontWeight: 700,
               }}
@@ -111,15 +111,15 @@ export const CardFront: React.FC<CardFrontProps> = ({
           </div>
           <div>
             <h3
-              className="font-black text-black mb-1 leading-tight font-primary"
-              style={{ fontSize: "clamp(12px, 3vw, 18px)" }}
+              className="text-black mb-1 leading-tight font-primary"
+              style={{ fontSize: "clamp(12px, 3vw, 22px)" }}
             >
               Status
             </h3>
             <p
               className="text-black leading-tight"
               style={{
-                fontSize: "clamp(11px, 2.5vw, 15px)",
+                fontSize: "clamp(11px, 2.5vw, 13px)",
                 fontFamily: "Nunito, sans-serif",
                 fontWeight: 700,
               }}
@@ -138,8 +138,8 @@ export const CardFront: React.FC<CardFrontProps> = ({
         {/* Pet Story */}
         <div className="flex-1 min-h-0">
           <h3
-            className="font-black text-black mb-1 leading-tight font-primary"
-            style={{ fontSize: "clamp(14px, 3.5vw, 20px)" }}
+            className="text-black mb-1 leading-tight font-primary"
+            style={{ fontSize: "clamp(14px, 3.5vw, 22px)" }}
           >
             Pet Story
           </h3>

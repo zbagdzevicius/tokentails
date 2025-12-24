@@ -77,8 +77,8 @@ export const CardBack: React.FC<CardBackProps> = ({ cat }) => {
             <Image
               src={powerIcon}
               alt="power"
-              width={16}
-              height={16}
+              width={22}
+              height={22}
               style={{ objectFit: "contain" }}
             />
           </div>
