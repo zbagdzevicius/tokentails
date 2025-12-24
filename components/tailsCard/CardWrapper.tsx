@@ -63,57 +63,64 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
     const centerX = 50;
     const centerY = 50;
 
-    // Wide, soft arc for both glare and rainbow, always centered on the opposite of cursor direction
+    // Calculate distance from center
+    const distanceFromCenter = Math.sqrt(
+      (mouseX - halfWidth) ** 2 + (mouseY - halfHeight) ** 2
+    );
+    const shouldReveal = distanceFromCenter > halfWidth * 0.2; // Only reveal when mouse is away from center
+
+    // Narrow cone for glare and rainbow, centered on the opposite of cursor direction
     const arcStart = angle - 90;
     const safeArcStart = isNaN(arcStart) ? 0 : arcStart;
 
-    // Glare image reveal effect - white/bright highlight only
+    // Glare image reveal effect - shows glare image in narrow 1/4 cone, only when mouse is away from center
     if (glareRef.current) {
       const maskGradient = `conic-gradient(from ${safeArcStart}deg at ${centerX}% ${centerY}%,
         transparent 0deg,
-        rgba(255,255,255,0.10) 30deg,
-        rgba(255,255,255,0.25) 60deg,
-        rgba(255,255,255,0.55) 120deg,
-        rgba(255,255,255,0.85) 160deg,
-        rgba(255,255,255,1) 180deg,
-        rgba(255,255,255,0.85) 200deg,
-        rgba(255,255,255,0.55) 240deg,
-        rgba(255,255,255,0.25) 300deg,
-        transparent 330deg,
+        rgba(255,255,255,0.10) 135deg,
+        rgba(255,255,255,0.25) 150deg,
+        rgba(255,255,255,0.55) 165deg,
+        rgba(255,255,255,0.85) 180deg,
+        rgba(255,255,255,1) 195deg,
+        rgba(255,255,255,0.85) 210deg,
+        rgba(255,255,255,0.55) 225deg,
+        rgba(255,255,255,0.25) 240deg,
+        rgba(255,255,255,0.10) 255deg,
+        transparent 270deg,
         transparent 360deg)`;
       glareRef.current.style.maskImage = maskGradient;
       glareRef.current.style.webkitMaskImage = maskGradient;
-      glareRef.current.style.opacity = "1";
+      glareRef.current.style.opacity = shouldReveal ? "1" : "0";
     }
 
-    // Rainbow overlay effect - true full-spectrum, vibrant, feathered
+    // Rainbow overlay effect - narrow cone for vibrant reveal, only when mouse is away from center
     if (rainbowRef.current) {
       const rainbowMask = `conic-gradient(from ${safeArcStart}deg at ${centerX}% ${centerY}%,
         transparent 0deg,
-        rgba(0,0,0,0.04) 30deg,
-        rgba(0,0,0,0.10) 60deg,
-        rgba(0,0,0,0.18) 120deg,
+        rgba(0,0,0,0.04) 135deg,
+        rgba(0,0,0,0.10) 150deg,
+        rgba(0,0,0,0.18) 165deg,
         rgba(0,0,0,0.25) 180deg,
-        rgba(0,0,0,0.18) 240deg,
-        rgba(0,0,0,0.10) 300deg,
-        transparent 330deg,
+        rgba(0,0,0,0.18) 195deg,
+        rgba(0,0,0,0.10) 210deg,
+        rgba(0,0,0,0.04) 225deg,
+        transparent 240deg,
         transparent 360deg)`;
       rainbowRef.current.style.maskImage = rainbowMask;
       rainbowRef.current.style.webkitMaskImage = rainbowMask;
-      rainbowRef.current.style.opacity = "1";
+      rainbowRef.current.style.opacity = shouldReveal ? "1" : "0";
       rainbowRef.current.style.background = `conic-gradient(from ${safeArcStart}deg at ${centerX}% ${centerY}%,
-        rgba(255,0,0,0.85) 0deg,
-        rgba(255,154,0,0.85) 30deg,
-        rgba(208,222,33,0.85) 60deg,
-        rgba(79,220,74,0.85) 90deg,
-        rgba(63,218,216,0.85) 120deg,
-        rgba(47,201,226,0.85) 150deg,
-        rgba(28,127,238,0.85) 180deg,
-        rgba(95,21,242,0.85) 210deg,
-        rgba(186,12,248,0.85) 240deg,
+        rgba(255,0,0,0.85) 135deg,
+        rgba(255,154,0,0.85) 150deg,
+        rgba(208,222,33,0.85) 165deg,
+        rgba(79,220,74,0.85) 180deg,
+        rgba(63,218,216,0.85) 195deg,
+        rgba(47,201,226,0.85) 210deg,
+        rgba(28,127,238,0.85) 225deg,
+        rgba(95,21,242,0.85) 240deg,
+        rgba(186,12,248,0.85) 255deg,
         rgba(251,7,217,0.85) 270deg,
-        rgba(255,0,0,0.85) 300deg,
-        transparent 330deg,
+        transparent 285deg,
         transparent 360deg)`;
     }
 
