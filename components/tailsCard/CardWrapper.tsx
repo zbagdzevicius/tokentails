@@ -50,9 +50,9 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
     const halfWidth = rect.width / 2;
     const halfHeight = rect.height / 2;
 
-    // Calculate rotation for card tilt
-    const calcAngleX = (mouseX - halfWidth) / 6;
-    const calcAngleY = (mouseY - halfHeight) / 14;
+    // Calculate rotation for card tilt so the corner under the cursor is uplifted
+    const calcRotateX = -((mouseY - halfHeight) / 10); // top is positive, bottom is negative
+    const calcRotateY = (mouseX - halfWidth) / 10; // right is positive, left is negative
 
     // Calculate angle from card center to mouse (0deg = right, 90deg = down)
     const dx = mouseX - halfWidth;
@@ -127,7 +127,8 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
     parent.style.perspective = `${halfWidth * 6}px`;
     item.style.perspective = `${halfWidth * 6}px`;
 
-    item.style.transform = `rotateY(${calcAngleX}deg) rotateX(${-calcAngleY}deg) scale(1.04)`;
+    // This transform makes the corner under the cursor uplifted (correct direction)
+    item.style.transform = `rotateX(${(mouseY - halfWidth) / 10}deg) rotateY(${-(mouseX - halfHeight) / 10}deg) scale(1.04)`;
 
     const calcShadowX = (mouseX - halfWidth) / 3;
     const calcShadowY = (mouseY - halfHeight) / 6;
