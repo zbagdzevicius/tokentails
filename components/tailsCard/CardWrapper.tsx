@@ -29,7 +29,6 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
   const cardRef = useRef<HTMLDivElement>(null);
   const innerCardRef = useRef<HTMLDivElement>(null);
   const glareRef = useRef<HTMLDivElement>(null);
-  const rainbowRef = useRef<HTMLDivElement>(null);
   const backfaceRef = useRef<HTMLDivElement>(null);
 
   const backgroundImage = cardsBackground[catType];
@@ -121,18 +120,6 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
         }
       }, 200); // matches transition duration
     }
-
-    // Hide rainbow overlay naturally
-    if (rainbowRef.current) {
-      rainbowRef.current.style.opacity = "0";
-      setTimeout(() => {
-        if (rainbowRef.current) {
-          rainbowRef.current.style.maskImage = "none";
-          rainbowRef.current.style.webkitMaskImage = "none";
-          rainbowRef.current.style.background = "none";
-        }
-      }, 200);
-    }
   };
 
   return (
@@ -164,19 +151,6 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
           filter: "drop-shadow(0 15px 15px rgba(0, 0, 0, 0.3))",
         }}
       >
-        {/* Rainbow overlay effect - follows same angle as glare */}
-        <div
-          ref={rainbowRef}
-          className="absolute inset-0 pointer-events-none z-[201]"
-          style={{
-            borderRadius: "40px",
-            overflow: "hidden",
-            opacity: 0,
-            transition: "opacity 0.15s ease-out",
-            mixBlendMode: "color-dodge",
-          }}
-        />
-
         {!isBackSide && (
           <div
             ref={backfaceRef}
