@@ -118,7 +118,7 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
           glareRef.current.style.maskImage = "none";
           glareRef.current.style.webkitMaskImage = "none";
         }
-      }, 200); // matches transition duration
+      }, 200);
     }
   };
 
@@ -186,8 +186,6 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
             className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 z-[100]"
             style={{ pointerEvents: "none", width: "12%", height: "auto" }}
           />
-
-          {/* Main Pink Card */}
           <div
             className="relative w-full h-full overflow-visible cursor-pointer flex items-center justify-center"
             style={{

@@ -25,9 +25,7 @@ export const CardFront: React.FC<CardFrontProps> = ({
 
   return (
     <div className="w-[88%] h-[93%] flex flex-col">
-      {/* Card Content */}
       <div className="flex-1 flex flex-col p-[3.5%]">
-        {/* Header with Name and Flag */}
         <div className="flex justify-between items-center mb-[2.5%] gap-2">
           <h2
             className="font-normal text-black drop-shadow-md flex-1 leading-tight font-primary"
@@ -48,9 +46,7 @@ export const CardFront: React.FC<CardFrontProps> = ({
           />
         </div>
 
-        {/* Cat Image */}
         <div className="relative w-full aspect-[5/3] rounded-[12px] overflow-hidden mb-[2.5%] shadow-xl flex-shrink-0">
-          {/* Background image for border effect */}
           {blessing?.image?.url ? (
             <Image
               src={blessing.image.url}
@@ -89,7 +85,6 @@ export const CardFront: React.FC<CardFrontProps> = ({
           </div>
         </div>
 
-        {/* Shelter and Status Info */}
         <div className="grid grid-cols-2 gap-[2.5%] mb-[2.5%]">
           <div>
             <h3
@@ -129,7 +124,6 @@ export const CardFront: React.FC<CardFrontProps> = ({
           </div>
         </div>
 
-        {/* Divider */}
         <div
           className="rounded-full mb-[2.5%]"
           style={{
@@ -139,7 +133,6 @@ export const CardFront: React.FC<CardFrontProps> = ({
           }}
         />
 
-        {/* Pet Story */}
         <div className="flex-1 min-h-0">
           <h3
             className="text-black mb-1 leading-tight font-primary"
