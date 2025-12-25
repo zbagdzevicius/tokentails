@@ -288,7 +288,7 @@ export const fakeCat: ICat = {
     birthDate: "2025-05-04T12:16:53.934Z",
     image: {
       _id: "68175aaa2493c85932c93ea3",
-      url: "https://tokentails.fra1.cdn.digitaloceanspaces.com/23471893785.webp",
+      url: "https://tokentails.fra1.cdn.digitaloceanspaces.com/23471893785.png",
     },
     images: [],
     price: 1000,

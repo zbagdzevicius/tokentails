@@ -1,8 +1,5 @@
+import { ICat, cardsBorderColor, cardsIcon } from "@/models/cats";
 import React from "react";
-import Image from "next/image";
-import background from "./sample.png";
-import { ICat, cardsIcon, cardsBorderColor } from "@/models/cats";
-import powerIcon from "@/public/cards/icons/power.webp";
 
 type CardBackProps = {
   cat: ICat;
@@ -19,15 +16,11 @@ export const CardBack: React.FC<CardBackProps> = ({ cat }) => {
       className="w-full h-full relative"
       style={{ borderRadius: "20px", overflow: "hidden" }}
     >
-      <Image
-        src={background}
+      <img
+        draggable={false}
+        src={"/sample.png"}
         alt="Card Back"
-        fill
-        style={{
-          objectFit: "cover",
-          opacity: 0.9,
-          borderRadius: "20px",
-        }}
+        className="opacity-90 object-cover"
       />
 
       <div className="absolute top-[2%] left-[5%] flex items-center gap-2 z-10">
@@ -35,12 +28,11 @@ export const CardBack: React.FC<CardBackProps> = ({ cat }) => {
           className="relative w-7 h-7 rounded-full flex items-center justify-center"
           style={{ backgroundColor: borderColor }}
         >
-          <Image
+          <img
+            draggable={false}
             src={typeIcon}
             alt={cat.type}
-            width={22}
-            height={22}
-            style={{ objectFit: "contain" }}
+            className="object-contain w-[22px] h-[22px]"
           />
         </div>
         <span
@@ -77,12 +69,10 @@ export const CardBack: React.FC<CardBackProps> = ({ cat }) => {
               boxShadow: "0px 1.5px 0px 0px #00000040",
             }}
           >
-            <Image
-              src={powerIcon}
+            <img
+              src="/cards/icons/power.webp"
               alt="power"
-              width={22}
-              height={22}
-              style={{ objectFit: "contain" }}
+              className="object-contain w-[22px] h-[22px]"
             />
           </div>
         ))}

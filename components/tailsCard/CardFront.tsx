@@ -1,6 +1,5 @@
-import React from "react";
 import { IBlessing, ICat, cardsBorderColor } from "@/models/cats";
-import Image from "next/image";
+import React from "react";
 import { countryFlagMap } from "./data";
 
 type CardFrontProps = {
@@ -33,14 +32,13 @@ export const CardFront: React.FC<CardFrontProps> = ({
           >
             {blessing?.name || cat.name}
           </h2>
-          <Image
+          <img
+            draggable={false}
             src={flagPath}
             alt="Country Flag"
-            width={64}
-            height={48}
             className="object-cover border-2 border-white rounded-[8px] flex-shrink-0"
             style={{
-              width: "clamp(48px, 13%, 65px)",
+              width: "clamp(52px, 25%, 82px)",
               height: "auto",
             }}
           />
@@ -48,17 +46,17 @@ export const CardFront: React.FC<CardFrontProps> = ({
 
         <div className="relative w-full aspect-[5/3] rounded-[12px] overflow-hidden mb-[2.5%] shadow-xl flex-shrink-0">
           {blessing?.image?.url ? (
-            <Image
+            <img
+              draggable={false}
               src={blessing.image.url}
               alt={blessing.name}
-              fill
               className="object-cover"
             />
           ) : (
-            <Image
+            <img
+              draggable={false}
               src={cat.catImg}
               alt={cat.name}
-              fill
               className="object-cover"
             />
           )}
@@ -68,17 +66,17 @@ export const CardFront: React.FC<CardFrontProps> = ({
           ></div>
           <div className="absolute inset-[2px] rounded-[10px] overflow-hidden">
             {blessing?.image?.url ? (
-              <Image
+              <img
+                draggable={false}
                 src={blessing.image.url}
                 alt={blessing.name}
-                fill
                 className="object-cover"
               />
             ) : (
-              <Image
+              <img
+                draggable={false}
                 src={cat.catImg}
                 alt={cat.name}
-                fill
                 className="object-cover"
               />
             )}

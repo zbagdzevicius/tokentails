@@ -1,13 +1,10 @@
-import React, { useRef } from "react";
-import Image from "next/image";
 import {
   CatAbilityType,
   cardsBackground,
   cardsBorderColor,
   cardsGradient,
 } from "@/models/cats";
-import sparkle from "@/public/cards/backgrounds/sparkle.webp";
-import pattern from "@/public/cards/backgrounds/pattern.webp";
+import React, { useRef } from "react";
 
 type CardWrapperProps = {
   children: React.ReactNode;
@@ -162,29 +159,29 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
           />
         )}
         <div className="absolute inset-[6%]">
-          <Image
-            src={sparkle}
+          <img
+            draggable={false}
+            src={"/cards/backgrounds/sparkle.webp"}
             alt="Sparkle"
-            className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]"
-            style={{ pointerEvents: "none", width: "18%", height: "auto" }}
+            className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-[18%] h-auto"
           />
-          <Image
-            src={sparkle}
+          <img
+            draggable={false}
+            src={"/cards/backgrounds/sparkle.webp"}
             alt="Sparkle"
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 z-[100]"
-            style={{ pointerEvents: "none", width: "18%", height: "auto" }}
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 z-[100] w-[18%] h-auto"
           />
-          <Image
-            src={sparkle}
+          <img
+            draggable={false}
+            src={"/cards/backgrounds/sparkle.webp"}
             alt="Sparkle"
-            className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]"
-            style={{ pointerEvents: "none", width: "12%", height: "auto" }}
+            className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-[12%] h-auto"
           />
-          <Image
-            src={sparkle}
+          <img
+            draggable={false}
+            src={"/cards/backgrounds/sparkle.webp"}
             alt="Sparkle"
-            className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 z-[100]"
-            style={{ pointerEvents: "none", width: "12%", height: "auto" }}
+            className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 z-[100] w-[12%] h-auto"
           />
           <div
             className="relative w-full h-full overflow-visible cursor-pointer flex items-center justify-center"
@@ -205,15 +202,11 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
                 mixBlendMode: "color-dodge",
               }}
             >
-              <Image
-                src={pattern}
+              <img
+                draggable={false}
+                src={"/cards/backgrounds/pattern.webp"}
                 alt="Card pattern"
-                fill
-                style={{
-                  objectFit: "cover",
-                  mixBlendMode: "color-dodge",
-                  opacity: 0.5,
-                }}
+                className="absolute inset-0 object-cover mix-blend-color-dodge opacity-50"
               />
             </div>
             {children}
