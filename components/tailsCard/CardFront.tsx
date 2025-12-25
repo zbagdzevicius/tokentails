@@ -135,7 +135,7 @@ export const CardFront: React.FC<CardFrontProps> = ({
           style={{
             height: "2.5px",
             backgroundColor: borderColor,
-            boxShadow: "0px 2.5px 0px 0px #00000040"
+            boxShadow: "0px 2.5px 0px 0px #00000040",
           }}
         />
 
