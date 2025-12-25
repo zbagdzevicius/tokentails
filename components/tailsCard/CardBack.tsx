@@ -72,7 +72,10 @@ export const CardBack: React.FC<CardBackProps> = ({ cat }) => {
           <div
             key={index}
             className="relative w-6 h-6 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: borderColor }}
+            style={{
+              backgroundColor: borderColor,
+              boxShadow: "0px 1.5px 0px 0px #00000040",
+            }}
           >
             <Image
               src={powerIcon}

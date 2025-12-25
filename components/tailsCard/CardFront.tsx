@@ -1,11 +1,11 @@
 import React from "react";
-import { ICat, cardsBorderColor } from "@/models/cats";
+import { IBlessing, ICat, cardsBorderColor } from "@/models/cats";
 import Image from "next/image";
 import { countryFlagMap } from "./data";
 
 type CardFrontProps = {
   cat: ICat;
-  blessing: any;
+  blessing: IBlessing;
   shelterName: string;
   getPlainText: (html: string) => string;
   limitWords: (text: string, maxWords?: number) => string;
@@ -132,8 +132,12 @@ export const CardFront: React.FC<CardFrontProps> = ({
         {/* Divider */}
         <div
           className="rounded-full mb-[2.5%]"
-          style={{ height: "2.5px", backgroundColor: borderColor }}
-        ></div>
+          style={{
+            height: "2.5px",
+            backgroundColor: borderColor,
+            boxShadow: "0px 2.5px 0px 0px #00000040"
+          }}
+        />
 
         {/* Pet Story */}
         <div className="flex-1 min-h-0">
