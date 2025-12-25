@@ -6,8 +6,8 @@ import {
   cardsBorderColor,
   cardsGradient,
 } from "@/models/cats";
-import sparkle from "@/public/cards/backgrounds/sparkle.png";
-import pattern from "@/public/cards/backgrounds/pattern.png";
+import sparkle from "@/public/cards/backgrounds/sparkle.webp";
+import pattern from "@/public/cards/backgrounds/pattern.webp";
 
 type CardWrapperProps = {
   children: React.ReactNode;

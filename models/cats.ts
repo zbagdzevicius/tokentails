@@ -144,17 +144,17 @@ export const cardsBodyColor: Record<CatAbilityType, string> = {
 };
 
 export const cardsBackground: Record<CatAbilityType, string> = {
-  [CatAbilityType.DARK]: "/cards/backgrounds/dark.png",
-  [CatAbilityType.ELECTRIC]: "/cards/backgrounds/electric.png",
-  [CatAbilityType.FIRE]: "/cards/backgrounds/fire.png",
-  [CatAbilityType.ICE]: "/cards/backgrounds/ice.png",
-  [CatAbilityType.SAND]: "/cards/backgrounds/sand.png",
-  [CatAbilityType.WATER]: "/cards/backgrounds/water.png",
-  [CatAbilityType.WIND]: "/cards/backgrounds/wind.png",
-  [CatAbilityType.AIR]: "/cards/backgrounds/wind.png",
-  [CatAbilityType.GRASS]: "/cards/backgrounds/grass.png",
-  [CatAbilityType.FAIRY]: "/cards/backgrounds/fairy.png",
-  [CatAbilityType.STELLAR]: "/cards/backgrounds/stellar.png",
+  [CatAbilityType.DARK]: "/cards/backgrounds/dark.webp",
+  [CatAbilityType.ELECTRIC]: "/cards/backgrounds/electric.webp",
+  [CatAbilityType.FIRE]: "/cards/backgrounds/fire.webp",
+  [CatAbilityType.ICE]: "/cards/backgrounds/ice.webp",
+  [CatAbilityType.SAND]: "/cards/backgrounds/sand.webp",
+  [CatAbilityType.WATER]: "/cards/backgrounds/water.webp",
+  [CatAbilityType.WIND]: "/cards/backgrounds/wind.webp",
+  [CatAbilityType.AIR]: "/cards/backgrounds/wind.webp",
+  [CatAbilityType.GRASS]: "/cards/backgrounds/grass.webp",
+  [CatAbilityType.FAIRY]: "/cards/backgrounds/fairy.webp",
+  [CatAbilityType.STELLAR]: "/cards/backgrounds/stellar.webp",
 };
 
 export const cardsGradient: Record<CatAbilityType, string> = {
@@ -183,15 +183,15 @@ export const cardsGradient: Record<CatAbilityType, string> = {
 };
 
 export const cardsIcon: Record<CatAbilityType, string> = {
-  [CatAbilityType.DARK]: "/cards/icons/dark.png",
-  [CatAbilityType.ELECTRIC]: "/cards/icons/electric.png",
-  [CatAbilityType.FIRE]: "/cards/icons/fire.png",
-  [CatAbilityType.ICE]: "/cards/icons/ice.png",
-  [CatAbilityType.SAND]: "/cards/icons/sand.png",
-  [CatAbilityType.WATER]: "/cards/icons/water.png",
-  [CatAbilityType.WIND]: "/cards/icons/wind.png",
-  [CatAbilityType.AIR]: "/cards/icons/air.png",
-  [CatAbilityType.GRASS]: "/cards/icons/grass.png",
-  [CatAbilityType.STELLAR]: "/cards/icons/stellar.png",
-  [CatAbilityType.FAIRY]: "/cards/icons/fairy.png",
+  [CatAbilityType.DARK]: "/cards/icons/dark.webp",
+  [CatAbilityType.ELECTRIC]: "/cards/icons/electric.webp",
+  [CatAbilityType.FIRE]: "/cards/icons/fire.webp",
+  [CatAbilityType.ICE]: "/cards/icons/ice.webp",
+  [CatAbilityType.SAND]: "/cards/icons/sand.webp",
+  [CatAbilityType.WATER]: "/cards/icons/water.webp",
+  [CatAbilityType.WIND]: "/cards/icons/wind.webp",
+  [CatAbilityType.AIR]: "/cards/icons/air.webp",
+  [CatAbilityType.GRASS]: "/cards/icons/grass.webp",
+  [CatAbilityType.STELLAR]: "/cards/icons/stellar.webp",
+  [CatAbilityType.FAIRY]: "/cards/icons/fairy.webp",
 };

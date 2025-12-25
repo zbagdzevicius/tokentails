@@ -2,7 +2,7 @@ import React from "react";
 import Image from "next/image";
 import background from "./sample.png";
 import { ICat, cardsIcon, cardsBorderColor } from "@/models/cats";
-import powerIcon from "@/public/cards/icons/power.png";
+import powerIcon from "@/public/cards/icons/power.webp";
 
 type CardBackProps = {
   cat: ICat;
