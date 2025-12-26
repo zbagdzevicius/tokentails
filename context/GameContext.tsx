@@ -203,7 +203,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
       )}
       {profile && (
         <>
-          {!isStarted && (
+          {!gameType && (
             <GameOptionsModal
               profile={profile}
               gameType={gameType}

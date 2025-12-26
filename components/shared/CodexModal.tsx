@@ -19,12 +19,12 @@ export const CodexModal = ({ close }: { close: () => void }) => {
       ></div>
       <div
         style={{
-          background: `url(${cdnFile("landing/hero-bg.webp")})`,
+          background: `url(${cdnFile("backgrounds/bg-5.webp")})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
         }}
-        className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full bg-gradient-to-b from-purple-300 to-blue-300 max-h-screen overflow-y-auto rounded-xl shadow h-fit"
+        className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full max-h-screen overflow-y-auto rounded-xl shadow h-fit"
       >
         <CloseButton onClick={() => close()} />
         <CodexModalContent close={close} />

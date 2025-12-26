@@ -68,6 +68,19 @@ export enum CatAbilityType {
   STELLAR = "STELLAR",
 }
 
+export const CatAbilityTypes = [
+  CatAbilityType.ICE,
+  CatAbilityType.ELECTRIC,
+  CatAbilityType.FIRE,
+  CatAbilityType.WIND,
+  CatAbilityType.DARK,
+  CatAbilityType.WATER,
+  CatAbilityType.GRASS,
+  CatAbilityType.SAND,
+  CatAbilityType.FAIRY,
+  CatAbilityType.STELLAR,
+];
+
 export type ICatStatus = Partial<Record<StatusType, IStatusValue>>;
 
 export enum Tier {

@@ -6,8 +6,7 @@ import { ICat } from "@/models/cats";
 import { GameModal } from "@/models/game";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { CatCardModal } from "../catCard/CatCardModal";
-import { Web3Providers } from "../web3/Web3Providers";
+import { TailsCardModal } from "../tailsCard/TailsCardModal";
 import { CloseButton } from "./CloseButton";
 import { Tag } from "./Tag";
 import { MarketplaceItem } from "../marketplace/MarketplaceItem";
@@ -44,9 +43,10 @@ export const CatsInNeedModalContent = ({ close }: { close: () => void }) => {
       </div>
 
       {selectedCat && (
-        <Web3Providers>
-          <CatCardModal onClose={handleCloseModal} {...selectedCat} />
-        </Web3Providers>
+        <TailsCardModal
+          onClose={() => handleCloseModal()}
+          {...selectedCat}
+        />
       )}
     </div>
   );

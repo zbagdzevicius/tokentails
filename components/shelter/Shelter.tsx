@@ -10,9 +10,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { CatCardModal } from "../catCard/CatCardModal";
+import { TailsCardModal } from "../tailsCard/TailsCardModal";
 import { GameEvents, IPhaserGame, NPC_TYPE } from "../Phaser/events";
-import { Web3Providers } from "../web3/Web3Providers";
 import { StartGame } from "./config";
 import { getRandomObjectsFromArray } from "@/constants/utils";
 import { useGame } from "@/context/GameContext";
@@ -142,17 +141,10 @@ function Shelter() {
     <div id="app" className="relative z-20">
       <ShelterGame ref={phaserRef} />
       {showModal && selectedNpc && (
-        <div className="fixed inset-0 z-[101] flex items-center justify-center bg-black bg-opacity-30">
-          <div
-            className="absolute inset-0 z-0"
-            onClick={() => setShowModal(false)}
-          ></div>
-          <div className="absolute top-1/2">
-            <Web3Providers>
-              <CatCardModal {...selectedNpc} onClose={onCloseModal} />
-            </Web3Providers>
-          </div>
-        </div>
+        <TailsCardModal
+          {...selectedNpc}
+          onClose={() => onCloseModal()}
+        />
       )}
     </div>
   );

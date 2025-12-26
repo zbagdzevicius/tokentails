@@ -1,23 +1,19 @@
 import { CAT_API } from "@/api/cat-api";
 import { getMultiplier } from "@/constants/cat-utils";
-import { REWARDS } from "@/constants/rewards";
-import { bgStyle, cdnFile } from "@/constants/utils";
+import { bgStyle } from "@/constants/utils";
 import { MAX_CAT_STATUS } from "@/context/CatContext";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
-import { cardsColor, ICat } from "@/models/cats";
+import { ICat } from "@/models/cats";
 import { GameModal, GameType } from "@/models/game";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { CatCardModal } from "../catCard/CatCardModal";
 import { RedeemCard } from "../catCard/RedeemCard";
 import { GameEvents } from "../Phaser/events";
-import { Web3Providers } from "../web3/Web3Providers";
+import { TailsCardMini } from "../tailsCard/TailsCardMini";
+import { TailsCardModal } from "../tailsCard/TailsCardModal";
 import { CloseButton } from "./CloseButton";
-import { Countdown } from "./Countdown";
-import { PixelButton } from "./PixelButton";
-import { Tag } from "./Tag";
 
 const weekInMs = 604800000;
 
@@ -75,6 +71,10 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
     const result = await CAT_API.stakingRedeem(cat._id!);
     if (result.success) {
       setCatUpdate(cat, { staked: null });
+      // Update selectedCat if it's the same cat
+      if (selectedCat?._id === cat._id) {
+        setSelectedCat((prev) => (prev ? { ...prev, staked: null } : null));
+      }
       const tails = 1 * getMultiplier(cat);
       setProfileUpdate({
         tails: (profile?.tails || 0) + tails,
@@ -87,7 +87,14 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
   const onStakeCat = async (cat: ICat) => {
     const result = await CAT_API.stake(cat._id!);
     if (result.success) {
-      setCatUpdate(cat, { staked: new Date(new Date().getTime() + weekInMs) });
+      const stakedDate = new Date(new Date().getTime() + weekInMs);
+      setCatUpdate(cat, { staked: stakedDate });
+      // Update selectedCat if it's the same cat
+      if (selectedCat?._id === cat._id) {
+        setSelectedCat((prev) =>
+          prev ? { ...prev, staked: stakedDate } : null
+        );
+      }
     }
     toast({ message: result.message });
   };
@@ -101,111 +108,27 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
       {/* <Web3Providers>
         <GenerateCat close={close} />
       </Web3Providers> */}
-      <div className="flex flex-wrap justify-center w-full">
+      <div className="flex flex-wrap justify-center items-center w-full gap-2 lg:gap-5">
         {mutatedCats?.map((cat) => (
-          <div
+          <TailsCardMini
             key={cat._id}
-            className="w-1/2 md:w-1/3 flex justify-center mb-4"
-          >
-            <div
-              className="relative overflow-hidden w-36 rounded-xl py-2 border-2"
-              style={{ borderColor: cardsColor[cat.type] }}
-            >
-              <div
-                style={{ backgroundColor: cardsColor[cat.type] || "white" }}
-                className="absolute left-0 top-0 opacity-75 text-black pl-1 text-p5 font-secondary rounded-r-xl z-20 flex items-center"
-              >
-                X{getMultiplier(cat)}
-                <img
-                  draggable={false}
-                  src={cdnFile("logo/logo.webp")}
-                  className="h-6 ml-1"
-                />
-              </div>
-              <div
-                style={{ backgroundColor: cardsColor[cat.type] || "white" }}
-                className="absolute right-0 top-0 opacity-75 text-black py-0.5 text-p5 font-secondary rounded-l-xl z-20 flex items-center"
-              >
-                <img
-                  draggable={false}
-                  src={cdnFile("currency/SEI.webp")}
-                  className="h-5 ml-1"
-                />
-              </div>
-              <div className="relative z-10 items-center flex flex-col">
-                <img
-                  draggable={false}
-                  className="w-20 mb-2 z-10 pixelated"
-                  src={cat.catImg}
-                  alt={cat.name}
-                  onClick={() => setSelectedCat(cat)}
-                />
-                <img
-                  draggable={false}
-                  className="w-8 -mt-8 -mb-4 z-0 animate-spin"
-                  src={cdnFile(`ability/${cat.type}.png`)}
-                  alt={`${cat.type} icon`}
-                />
-                <div
-                  className="text-p4 bg-red-600 font-secondary text-white w-full text-center opacity-75 mb-2 border-y-2 border-yellow-900"
-                  onClick={() => setSelectedCat(cat)}
-                >
-                  {cat.name}
-                </div>
-                <PixelButton
-                  active={profile?.cat._id === cat._id}
-                  text={profile?.cat._id === cat._id ? "Selected" : "Select"}
-                  onClick={() => onCatSelect(cat)}
-                />
-                {!cat.staked && (
-                  <PixelButton
-                    isSmall
-                    text={`CRAFT ${
-                      REWARDS.WEEKLY_CRAFT * getMultiplier(cat)
-                    } $TAILS`}
-                    onClick={() => onStakeCat(cat)}
-                  />
-                )}
-                {cat.staked && (
-                  <>
-                    {new Date(cat.staked).getTime() < new Date().getTime() ? (
-                      <div>
-                        <PixelButton
-                          isSmall
-                          text="CLAIM REWARDS"
-                          onClick={() => onStakeRewards(cat)}
-                        />
-                      </div>
-                    ) : (
-                      <>
-                        <Countdown
-                          isDaysDisplayed
-                          targetDate={new Date(cat.staked)}
-                        />
-                        <span className="-mb-1">
-                          <Tag isSmall>Crafting</Tag>
-                        </span>
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
-              <img
-                draggable={false}
-                className="absolute inset-0 object-cover w-full h-full z-0"
-                src={cdnFile(`ability/${cat.type}_BG.webp`)}
-                alt={`${cat.type} background`}
-                onClick={() => setSelectedCat(cat)}
-              />
-            </div>
-          </div>
+            cat={cat}
+            onClick={() => setSelectedCat(cat)}
+          />
         ))}
       </div>
 
       {selectedCat && (
-        <Web3Providers>
-          <CatCardModal onClose={handleCloseModal} {...selectedCat} />
-        </Web3Providers>
+        <TailsCardModal
+          onClose={() => setSelectedCat(null)}
+          showSelect={true}
+          showStake={true}
+          profileCatId={profile?.cat._id}
+          onSelect={onCatSelect}
+          onStake={onStakeCat}
+          onStakeRewards={onStakeRewards}
+          {...selectedCat}
+        />
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { ICat, CatAbilityType } from "@/models/cats";
+import { ICat, CatAbilityType, CatAbilityTypes } from "@/models/cats";
 import { fakeCat } from "./data";
 import { CardWrapper } from "./CardWrapper";
 import { CardFront } from "./CardFront";
@@ -19,6 +19,10 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
 
   const blessing = cat.blessing;
   const shelterName = cat.shelter?.name || "";
+
+  if (!CatAbilityTypes.includes(cat.type)) {
+    cat.type = CatAbilityType.FAIRY;
+  }
 
   // Memoize functions to prevent recreation on each render
   const getPlainText = useCallback((html: string) => {
