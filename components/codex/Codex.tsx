@@ -311,7 +311,7 @@ export const Codex = () => {
         alt="codex"
         className="h-24 mb-2"
       />
-      <div className="flex flex-col items-center font-paws text-yellow-300 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] text-h5">
+      <div className="flex flex-col items-center font-paws text-yellow-300 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] text-h5 glow">
         MY BADGES: {completedMonths}
       </div>
       {!!completedCount && (
@@ -321,7 +321,7 @@ export const Codex = () => {
           ))}
         </div>
       )}
-      <div className="text-p4">
+      <div className="text-p4 bg-yellow-300 border-4 border-yellow-900 rounded-lg px-2">
         I GET
         <span className="text-yellow-300 text-p4 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] ml-1">
           {(profile?.codex?.reduce((acc, item) => acc + item, 0) || 0) * 300}{" "}
@@ -338,9 +338,6 @@ export const Codex = () => {
       </div>
 
       <Tag>THIS MONTH MISSIONS</Tag>
-      <span className="bg-gradient-to-r text-p6 font-primary from-yellow-300 to-yellow-400 text-yellow-900 px-3 rounded-b-md font-bold animate-pulse">
-        {profile?.codex?.[phase - 1] ? "COMPLETED" : "IN PROGRESS"}
-      </span>
       <div className="flex flex-col items-center mt-1">
         <div className="w-full flex rounded-full overflow-hidden gap-1">
           {Array.from({ length: codex.length }).map((_, index) => (
@@ -361,7 +358,7 @@ export const Codex = () => {
         </div>
 
         {!isCompleted ? (
-          <div className="font-primary text-p5">
+          <div className="font-primary text-p6">
             COMPLETE {codex.length - completedCount} MORE TO EARN CAT LOVER
             BADGE
           </div>
@@ -371,10 +368,6 @@ export const Codex = () => {
             <span className="-mt-1">MISSIONS COMPLETED</span>
           </div>
         )}
-        <span className="bg-gradient-to-r text-p6 font-primary from-yellow-300 to-yellow-400 text-yellow-900 px-3 -mb-2 pb-1 rounded-t-md font-bold">
-          MONTH RESETS IN
-        </span>
-        <Countdown targetDate={dateUntilNearest9thDay} isDaysDisplayed />
       </div>
       {isFAQOpen ? (
         <div className="flex flex-col items-center mt-2">

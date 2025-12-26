@@ -38,7 +38,7 @@ export const InviteModal = ({ close }: { close: () => void }) => {
       ></div>
       <div
         className="m-auto z-50 rem:w-[370px] md:w-[480px] max-w-full absolute top-1/2 -translate-y-1/2 h-full rounded-xl shadow max-h-screen overflow-y-auto"
-        style={bgStyle("5")}
+        style={bgStyle("4")}
       >
         <CloseButton onClick={() => close()} />
         <InviteModalContent />

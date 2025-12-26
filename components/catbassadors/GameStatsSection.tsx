@@ -129,7 +129,7 @@ export const GameStatsSection = ({
           ></div>
           <div
             className="z-50 rem:w-[350px] md:w-[480px] max-w-full absolute top-1/2 -translate-y-1/2 rounded-xl shadow animate-appear pb-4"
-            style={bgStyle("5")}
+            style={bgStyle("4")}
           >
             <CloseButton onClick={() => setModal(null)} />
             <div className="pb-safe rem:min-h-[100px] p-8 flex flex-col gap-2 justify-between items-center">

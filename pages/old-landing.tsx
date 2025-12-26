@@ -129,7 +129,7 @@ export default function Index() {
         </div>
         <div
           className="py-4 min-h-screen flex items-center justify-center"
-          style={bgStyle("5")}
+          style={bgStyle("4")}
         >
           <div id="feedbackslider" ref={feedbackSliderRef}>
             <FeedbackSlider />

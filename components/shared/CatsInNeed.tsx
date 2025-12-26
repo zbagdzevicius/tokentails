@@ -43,10 +43,7 @@ export const CatsInNeedModalContent = ({ close }: { close: () => void }) => {
       </div>
 
       {selectedCat && (
-        <TailsCardModal
-          onClose={() => handleCloseModal()}
-          {...selectedCat}
-        />
+        <TailsCardModal onClose={() => handleCloseModal()} {...selectedCat} />
       )}
     </div>
   );
@@ -61,7 +58,7 @@ export const CatsInNeedModal = ({ close }: { close: () => void }) => {
       ></div>
       <div
         className="m-auto z-50 rem:w-[350px] md:w-[600px] max-w-full absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow"
-        style={bgStyle("5")}
+        style={bgStyle("4")}
       >
         <CloseButton onClick={close} />
         <CatsInNeedModalContent close={close} />

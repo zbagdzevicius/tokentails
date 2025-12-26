@@ -1,6 +1,5 @@
 import { Codex } from "@/components/codex/Codex";
 import { CloseButton } from "./CloseButton";
-import { cdnFile } from "@/constants/utils";
 
 export const CodexModalContent = ({ close }: { close: () => void }) => {
   return (
@@ -17,15 +16,7 @@ export const CodexModal = ({ close }: { close: () => void }) => {
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
-      <div
-        style={{
-          background: `url(${cdnFile("backgrounds/bg-5.webp")})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        }}
-        className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full max-h-screen overflow-y-auto rounded-xl shadow h-fit"
-      >
+      <div className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full bg-gradient-to-b from-yellow-800 to-yellow-300 max-h-screen overflow-y-auto rounded-xl shadow h-fit">
         <CloseButton onClick={() => close()} />
         <CodexModalContent close={close} />
         <button onClick={close} className="absolute right-[0] top-0 group">
