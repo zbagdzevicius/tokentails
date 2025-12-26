@@ -14,7 +14,7 @@ export const StatusBar = ({ status: currentStatus, type }: IStatus) => {
         <div className="h-3 w-1 bg-gray-600"></div>
         <div className="h-5 w-1 bg-gray-800"></div>
         <div className="h-7 w-1 bg-black"></div>
-        <div className="w-full h-full p-0.5 border-y-4 border-black bg-white">
+        <div className="w-full h-full p-0.5 border-y-4 border-yellow-900 bg-white">
           <div
             className={`flex w-full h-full gap-0.5 ${
               currentStatus < 3 ? "animate-pulse" : ""

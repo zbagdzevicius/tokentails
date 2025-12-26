@@ -55,7 +55,7 @@ export const ShelterBenefits = () => {
               >
                 <img
                   className="w-6 h-6"
-                  src={cdnFile("icons/social/instagram.png")}
+                  src={cdnFile("icons/social/ig.webp")}
                   draggable="false"
                 />
                 IG
@@ -67,7 +67,7 @@ export const ShelterBenefits = () => {
               >
                 <img
                   className="w-6 h-6"
-                  src={cdnFile("icons/social/tiktok.png")}
+                  src={cdnFile("icons/social/tiktok.webp")}
                   draggable="false"
                 />
                 TIKTOK

@@ -3,7 +3,7 @@ import { Tag } from "./Tag";
 
 export const ControlModalContent = () => {
   return (
-    <div className="pt-4 pb-8 px-4 md:px-12 md:pt-4 md:pb-12 text-gray-700 flex flex-col gap-4 animate-appear">
+    <div className="pt-4 pb-8 px-4 md:px-12 md:pt-4 md:pb-12 text-yellow-900 flex flex-col gap-4 animate-appear">
       <Tag>Game Controls</Tag>
       <ul className="list-disc pl-5">
         <li>

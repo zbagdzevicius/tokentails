@@ -11,7 +11,7 @@ export const InviteModalContent = () => {
   const [type, setType] = useState(GameModal.MYSTERY_CAT);
 
   return (
-    <div className="pt-4 pb-8 px-4 text-gray-700 flex flex-col justify-between items-center animate-appear">
+    <div className="pt-4 pb-8 px-4 text-yellow-900 flex flex-col justify-between items-center animate-appear">
       <div className="font-paws text-h2 glow">SHOP</div>
       <div className="py-2 flex justify-center gap-4">
         <PixelButton

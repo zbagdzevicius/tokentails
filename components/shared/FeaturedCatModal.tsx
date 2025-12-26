@@ -7,7 +7,7 @@ import { Tag } from "./Tag";
 export const FeaturedCatContent = ({ close }: { close: () => void }) => {
   const { setOpenedModal, setGameType } = useGame();
   return (
-    <div className="pt-4 pb-8 px-4 md:px-12 md:pt-4 md:pb-12 text-gray-700 flex flex-col gap-2 animate-appear font-primary">
+    <div className="pt-4 pb-8 px-4 md:px-12 md:pt-4 md:pb-12 text-yellow-900 flex flex-col gap-2 animate-appear font-primary">
       <Tag>Sticky</Tag>
       <img
         src="https://tokentails.fra1.cdn.digitaloceanspaces.com/81576503959.png"

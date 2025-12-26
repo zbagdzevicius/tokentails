@@ -15,11 +15,11 @@ interface ITeamMember {
 
 export const SocialImages = {
   LINKEDIN: cdnFile("icons/social/linkedin.png"),
-  INSTAGRAM: cdnFile("icons/social/instagram.png"),
+  INSTAGRAM: cdnFile("icons/social/ig.webp"),
   X: cdnFile("icons/social/x.webp"),
   WARPCAST: cdnFile("icons/social/warpcast.png"),
   EMAIL: cdnFile("icons/social/email.png"),
-  TELEGRAM: cdnFile("icons/social/telegram.png"),
+  TELEGRAM: cdnFile("icons/social/telegram.webp"),
 };
 
 const teamMembers: ITeamMember[] = [
@@ -192,7 +192,7 @@ const TeamMember = ({ img, name, role, socials }: ITeamMember) => {
 export const Team = () => {
   return (
     <div className="container h-full flex flex-col items-center justify-center">
-      <h2 className="font-paws uppercase tracking-tight text-h3 md:text-h2 text-gray-700 lg:text-h1 text-balance text-center my-12 sm:my-12 glow">
+      <h2 className="font-paws uppercase tracking-tight text-h3 md:text-h2 text-yellow-900 lg:text-h1 text-balance text-center my-12 sm:my-12 glow">
         United To Save Cats
       </h2>
       <div className="pb-8 px-4 mx-auto max-w-screen-xl text-center lg:px-6">

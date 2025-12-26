@@ -1,5 +1,5 @@
 import { ICat, cardsBorderColor, cardsIcon } from "@/models/cats";
-import React from "react";
+import React, { useMemo } from "react";
 
 type CardBackProps = {
   cat: ICat;
@@ -7,25 +7,26 @@ type CardBackProps = {
 
 const POWER = 7; // TODO: Replace with actual cat power value
 
-export const CardBack: React.FC<CardBackProps> = ({ cat }) => {
-  const typeIcon = cardsIcon[cat.type];
-  const borderColor = cardsBorderColor[cat.type];
+export const CardBack: React.FC<CardBackProps> = React.memo(({ cat }) => {
+  // Memoize lookups
+  const typeIcon = useMemo(() => cardsIcon[cat.type], [cat.type]);
+  const borderColor = useMemo(() => cardsBorderColor[cat.type], [cat.type]);
+
+  // Memoize power array to prevent recreation
+  const powerArray = useMemo(() => Array.from({ length: POWER }), []);
 
   return (
-    <div
-      className="w-full h-full relative"
-      style={{ borderRadius: "20px", overflow: "hidden" }}
-    >
+    <div className="w-full h-full relative">
       <img
         draggable={false}
         src={"/sample.png"}
         alt="Card Back"
-        className="opacity-90 object-cover"
+        className="opacity-90 w-full h-full object-cover"
       />
 
       <div className="absolute top-[2%] left-[5%] flex items-center gap-2 z-10">
         <div
-          className="relative w-7 h-7 rounded-full flex items-center justify-center"
+          className="w-7 h-7 rounded-full flex items-center justify-center"
           style={{ backgroundColor: borderColor }}
         >
           <img
@@ -36,12 +37,9 @@ export const CardBack: React.FC<CardBackProps> = ({ cat }) => {
           />
         </div>
         <span
-          className="text-black font-bold"
+          className="text-black font-bold font-primary text-[28px] [text-shadow:2px_2px_4px_rgba(0,0,0,0.3)]"
           style={{
-            fontSize: "28px",
-            fontFamily: "Passion One",
             WebkitTextStroke: `1px ${borderColor}`,
-            textShadow: "2px 2px 4px rgba(0,0,0,0.3)",
           }}
         >
           {cat.name}
@@ -50,26 +48,23 @@ export const CardBack: React.FC<CardBackProps> = ({ cat }) => {
 
       <div className="absolute bottom-[2%] left-[5%] flex items-center gap-2 z-10">
         <span
-          className="text-black font-bold"
+          className="text-black font-bold font-primary text-2xl [text-shadow:2px_2px_4px_rgba(0,0,0,0.3)]"
           style={{
-            fontSize: "24px",
-            fontFamily: "Passion One",
             WebkitTextStroke: `1px ${borderColor}`,
-            textShadow: "2px 2px 4px rgba(0,0,0,0.3)",
           }}
         >
           Power
         </span>
-        {Array.from({ length: POWER }).map((_, index) => (
+        {powerArray.map((_, index) => (
           <div
             key={index}
-            className="relative w-6 h-6 rounded-full flex items-center justify-center"
+            className="w-6 h-6 rounded-full flex items-center justify-center [box-shadow:0px_1.5px_0px_0px_rgba(0,0,0,0.25)]"
             style={{
               backgroundColor: borderColor,
-              boxShadow: "0px 1.5px 0px 0px #00000040",
             }}
           >
             <img
+              draggable={false}
               src="/cards/icons/power.webp"
               alt="power"
               className="object-contain w-[22px] h-[22px]"
@@ -79,6 +74,4 @@ export const CardBack: React.FC<CardBackProps> = ({ cat }) => {
       </div>
     </div>
   );
-};
-
-export default CardBack;
+});

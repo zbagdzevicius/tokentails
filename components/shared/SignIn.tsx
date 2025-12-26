@@ -50,7 +50,7 @@ const SignInForm = ({
       >
         <div className="relative flex justify-between items-center space-x-4 font-semibold">
           <i className="bx bxs-key text-h6 text-blue-600"></i>
-          <div className="flex items-center w-max tracking-wide whitespace-nowrap group-hover:text-gray-700 font-pixel">
+          <div className="flex items-center w-max tracking-wide whitespace-nowrap group-hover:text-yellow-900 font-pixel">
             SIGN IN
           </div>
           <div></div>
@@ -102,7 +102,7 @@ export const SignInContent = () => {
             >
               <div className="relative flex justify-between items-center space-x-4">
                 <i className="bx bxl-google text-h6 text-red-600"></i>
-                <span className="block w-max font-semibold tracking-wide whitespace-nowrap group-hover:text-gray-700 font-pixel">
+                <span className="block w-max font-semibold tracking-wide whitespace-nowrap group-hover:text-yellow-900 font-pixel">
                   SIGN IN WITH <span className="text-blue-600">G</span>
                   <span className="text-red-600">o</span>
                   <span className="text-yellow-600">o</span>

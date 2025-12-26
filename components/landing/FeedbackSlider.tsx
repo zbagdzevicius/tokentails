@@ -23,7 +23,7 @@ export const FeedbackSlider = () => {
           <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)]">
             ADOPT
           </span>{" "}
-          <span className="glow text-gray-700">AND PLAY</span>
+          <span className="glow text-yellow-900">AND PLAY</span>
         </h2>
 
         <div className="flex items-center justify-center flex-row gap-6">

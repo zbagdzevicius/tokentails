@@ -22,7 +22,7 @@ export function randomObjectFromArray<T>(items?: T[]): T | null {
 
 export function getSocialNetworkFromUrl(url: string) {
   if (url.includes("instagram")) {
-    return cdnFile("icons/social/instagram.png");
+    return cdnFile("icons/social/ig.webp");
   } else if (url.includes("x")) {
     return cdnFile("icons/social/x.webp");
   }

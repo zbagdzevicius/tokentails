@@ -76,7 +76,7 @@ export const allQuests: ILocalQuest[] = [
     key: QUEST.FOLLOW_TG_CHANNEL,
     name: "Subscribe channel",
     link: "https://t.me/tokentails",
-    icon: cdnFile("icons/social/telegram.png"),
+    icon: cdnFile("icons/social/telegram.webp"),
     reward: {
       tails: 10,
     },
@@ -106,7 +106,7 @@ export const allQuests: ILocalQuest[] = [
     key: QUEST.FOLLOW_TG_GROUP,
     name: "Join group",
     link: "https://t.me/tokentailsgroup",
-    icon: cdnFile("icons/social/telegram.png"),
+    icon: cdnFile("icons/social/telegram.webp"),
     reward: {
       tails: 10,
     },
@@ -116,17 +116,7 @@ export const allQuests: ILocalQuest[] = [
     key: QUEST.FOLLOW_DISCORD,
     name: "Join Discord",
     link: "https://discord.gg/4FVYmnd7Hg",
-    icon: cdnFile("icons/social/discord.png"),
-    reward: {
-      tails: 10,
-    },
-  },
-  {
-    type: QuestType.SOCIAL,
-    key: QUEST.FOLLOW_LINKEDIN,
-    name: "Follow on LinkedIn",
-    link: "https://www.linkedin.com/company/token-tails",
-    icon: cdnFile("icons/social/linkedin.png"),
+    icon: cdnFile("icons/social/discord.webp"),
     reward: {
       tails: 10,
     },
@@ -136,7 +126,7 @@ export const allQuests: ILocalQuest[] = [
     key: QUEST.FOLLOW_IG,
     name: "Follow on Instagram",
     link: "https://www.instagram.com/tokentails",
-    icon: cdnFile("icons/social/instagram.png"),
+    icon: cdnFile("icons/social/ig.webp"),
     reward: {
       tails: 10,
     },
@@ -146,7 +136,7 @@ export const allQuests: ILocalQuest[] = [
     key: QUEST.FOLLOW_TIKTOK,
     name: "Follow on Tiktok",
     link: "https://www.tiktok.com/@tokentails",
-    icon: cdnFile("icons/social/tiktok.png"),
+    icon: cdnFile("icons/social/tiktok.webp"),
     reward: {
       tails: 10,
     },

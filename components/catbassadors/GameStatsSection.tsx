@@ -58,7 +58,7 @@ export const GameStatsSection = ({
       <div className="fixed flex-col pb-safe top-4 z-30 right-4 flex justify-between">
         <div
           onClick={() => setOpenedModal(GameModal.PROFILE)}
-          className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2"
+          className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-2 border-4 border-yellow-900"
           style={bgStyle("min-4")}
         >
           {profile.cat && (
@@ -78,8 +78,8 @@ export const GameStatsSection = ({
       <div className="fixed left-4 pb-safe top-4 z-30 flex flex-col justify-between">
         <div
           onClick={() => setModal(tailsText)}
-          className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-1 whitespace-pre-line"
-          style={bgStyle("min-5")}
+          className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl px-1 py-1 whitespace-pre-line border-4 border-yellow-900"
+          style={bgStyle("min-4")}
         >
           <div className="text-p4 font-bold flex items-center gap-1">
             <img
@@ -105,11 +105,12 @@ export const GameStatsSection = ({
             {totalCatnip}
           </div>
         </div>
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center ">
           {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
             <div
               onClick={() => setOpenedModal(GameModal.CODEX)}
-              className="flex flex-col items-center font-primary text-p2 bg-blue-300 hover:scale-110 transition-all hover:mt-1 hover:border-yellow-300 hover:border-4 px-1 rounded-b-xl hover:rounded-xl relative"
+              style={bgStyle("min-4")}
+              className="flex flex-col items-center font-primary text-p2 hover:scale-110 transition-all hover:mt-1 hover:border-yellow-300 hover:border-4 px-1 rounded-b-xl hover:rounded-xl relative border-x-4 border-b-4 border-yellow-900 -mt-0.5"
             >
               <img
                 src={cdnFile("codex/codex-1.webp")}

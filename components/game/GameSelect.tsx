@@ -29,15 +29,18 @@ const GameSelectItem = ({
 }) => {
   return (
     <div
-      className={classNames("flex flex-col gap-1 transition relative glow-box", {
-        "rotate-6 hover:rotate-0": [GameType.SHELTER].includes(gameType),
-        "-rotate-6 hover:rotate-0": [GameType.HOME].includes(gameType),
-      })}
+      className={classNames(
+        "flex flex-col gap-1 transition relative glow-box opacity-50 brightness-125 hover:opacity-100 hover:brightness-100",
+        {
+          "rotate-6 hover:rotate-0": [GameType.SHELTER].includes(gameType),
+          "-rotate-6 hover:rotate-0": [GameType.HOME].includes(gameType),
+        }
+      )}
       onClick={() => setGameType(gameType)}
     >
       <img
         draggable={false}
-        className="rem:w-[80px] hover:brightness-110 rem:min-w-[80px] rounded-xl hover:animate-hover border-[3px] border-black"
+        className="rem:w-[80px] hover:brightness-110 rem:min-w-[80px] rounded-xl hover:animate-hover border-[3px] border-yellow-900"
         src={gameTypeImages[gameType]}
       />
     </div>
@@ -109,7 +112,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
                 <img
                   draggable={false}
                   src={cdnFile("logo/logo-text.webp")}
-                  className="w-24 h-auto md:w-16 lg:w-24 z-10 md:hidden lg:block"
+                  className="min-w-36 h-auto md:min-w-16 lg:min-w-64 z-10 md:hidden lg:block"
                 ></img>
                 <img
                   draggable={false}
@@ -125,7 +128,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
                     text="MY PETS"
                   ></PixelButton>
                 </span>
-                <div className="flex flex-col gap-1 items-start scale-150 mt-8 md:mt-4 lg:mt-8">
+                <div className="flex flex-col gap-1 items-start mt-8 md:mt-4 lg:mt-8">
                   <PixelButton
                     isBig
                     text="PLAY"

@@ -1,85 +1,95 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { ICat, CatAbilityType } from "@/models/cats";
 import { fakeCat } from "./data";
 import { CardWrapper } from "./CardWrapper";
 import { CardFront } from "./CardFront";
 import { CardBack } from "./CardBack";
+import { isProd } from "@/models/app";
 
 type Props = {
   cat?: ICat;
 };
 
+// Extract constants outside component
+const HTML_TAG_REGEX = /<[^>]*>/g;
+
 export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
-  const [flipped, setFlipped] = useState(false);
+  const [flipped, setFlipped] = useState(true);
   const [selectedType, setSelectedType] = useState<CatAbilityType>(cat.type);
 
   const blessing = cat.blessing;
   const shelterName = cat.shelter?.name || "";
 
-  // Parse HTML description to plain text
-  const getPlainText = (html: string) => {
-    return html.replace(/<[^>]*>/g, "");
-  };
+  // Memoize functions to prevent recreation on each render
+  const getPlainText = useCallback((html: string) => {
+    return html.replace(HTML_TAG_REGEX, "");
+  }, []);
 
-  // Limit description to max words
-  const limitWords = (text: string, maxWords: number = 50) => {
+  const limitWords = useCallback((text: string, maxWords: number = 50) => {
     const words = text.split(/\s+/);
     if (words.length <= maxWords) return text;
     return words.slice(0, maxWords).join(" ") + "...";
-  };
+  }, []);
 
-  // Create cat with selected type for testing
-  const testCat = { ...cat, type: selectedType };
+  // Memoize testCat to prevent unnecessary re-renders
+  const testCat = useMemo(
+    () => ({ ...cat, type: selectedType }),
+    [cat, selectedType]
+  );
+
+  const handleFlip = useCallback(() => {
+    setFlipped((prev) => !prev);
+  }, []);
+
+  const handleTypeChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setSelectedType(e.target.value as CatAbilityType);
+    },
+    []
+  );
+
+  const catTypeOptions = useMemo(() => Object.values(CatAbilityType), []);
 
   return (
-    <div>
+    <>
       {/* Type Selector for Testing */}
-      <div style={{ marginBottom: "20px", textAlign: "center" }}>
-        <label
-          htmlFor="catType"
-          style={{ marginRight: "10px", fontWeight: "bold" }}
-        >
-          Cat Type:
-        </label>
-        <select
-          id="catType"
-          value={selectedType}
-          onChange={(e) => setSelectedType(e.target.value as CatAbilityType)}
-          style={{
-            padding: "8px 12px",
-            borderRadius: "8px",
-            border: "2px solid #ccc",
-            fontSize: "14px",
-            cursor: "pointer",
-          }}
-        >
-          {Object.values(CatAbilityType).map((type) => (
-            <option key={type} value={type}>
-              {type}
-            </option>
-          ))}
-        </select>
-      </div>
+      {isProd && (
+        <div className="pb-5 pt-[120px] text-center">
+          <label htmlFor="catType" className="mr-2.5 font-bold">
+            Cat Type:
+          </label>
+          <select
+            id="catType"
+            value={selectedType}
+            onChange={handleTypeChange}
+            className="px-3 py-2 rounded-lg border-2 border-gray-300 text-sm cursor-pointer"
+          >
+            {catTypeOptions.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div
-        onClick={() => setFlipped((prev) => !prev)}
-        style={{
-          perspective: "1000px",
-          cursor: "pointer",
-          display: "inline-block",
-        }}
+        onClick={handleFlip}
+        className="animate-opacity cursor-pointer inline-block [perspective:1000px]"
+        style={{ WebkitPerspective: "1000px" }}
       >
         <div
+          className="relative touch-none max-sm:pointer-events-none select-none transition-transform [transition-duration:0.6s] [transform-style:preserve-3d]"
           style={{
-            position: "relative",
-            transformStyle: "preserve-3d",
-            transition: "transform 0.6s",
             transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
+            WebkitTransformStyle: "preserve-3d",
           }}
         >
           <div
+            className="[backface-visibility:hidden] [transform:translateZ(0)]"
             style={{
-              backfaceVisibility: "hidden",
+              WebkitBackfaceVisibility: "hidden",
+              WebkitTransform: "translateZ(0)",
             }}
           >
             <CardWrapper catType={selectedType}>
@@ -94,11 +104,10 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
           </div>
 
           <div
+            className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)_translateZ(0)]"
             style={{
-              position: "absolute",
-              inset: 0,
-              backfaceVisibility: "hidden",
-              transform: "rotateY(180deg)",
+              WebkitBackfaceVisibility: "hidden",
+              WebkitTransform: "rotateY(180deg) translateZ(0)",
             }}
           >
             <CardWrapper catType={selectedType} isBackSide={true}>
@@ -107,8 +116,6 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
-
-export default TailsCard;

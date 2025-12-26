@@ -56,7 +56,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
               className="w-12 -mb-2 aspect-square"
               draggable="false"
             />
-            <div className="flex justify-center items-center text-md text-gray-700">
+            <div className="flex justify-center items-center text-md text-yellow-900">
               <img
                 className="h-24 -mt-6 pixelated -mb-8"
                 src={profile?.cat?.catImg}
@@ -64,7 +64,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
             </div>
           </div>
           <Tag>{level ? getGameLevelName(level) : "Match"} Summary</Tag>
-          <div className="flex justify-center items-center text-md text-gray-700 mt-4">
+          <div className="flex justify-center items-center text-md text-yellow-900 mt-4">
             <img
               src={cdnFile("logo/catnip.webp")}
               alt="Score Icon"
@@ -77,7 +77,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
             </div>
           </div>
           {!!gameStop.time && (
-            <div className="flex justify-center items-center text-md text-gray-700">
+            <div className="flex justify-center items-center text-md text-yellow-900">
               <img
                 src={cdnFile("icons/clock.png")}
                 alt="Time Icon"

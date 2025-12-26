@@ -40,24 +40,42 @@ const levelCharacter: Record<string, string> = {
     "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/LAVA/base/IDLE.gif",
   "106":
     "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/TROUFAS/base/IDLE.gif",
-  "111": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/OBI/base/DIGGING.gif",
-  "112": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/ALBUS/base/DIGGING.gif",
-  "113": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/IZZY/base/DIGGING.gif",
-  "114": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/MERLOT/base/DIGGING.gif",
-  "115": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/PICKLES/base/DIGGING.gif",
-  "116": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/OLIVE/base/DIGGING.gif",
-  "121": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/RASCAL/base/SITTING.gif",
-  "122": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/FICUS/base/SITTING.gif",
-  "123": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/MILTON/base/SITTING.gif",
-  "124": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/COCO/base/SITTING.gif",
-  "125": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/ROY/base/SITTING.gif",
-  "126": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/BOB/base/SITTING.gif",
-  "131": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/MINNIE/base/RUNNING.gif",
-  "132": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/CHESTER/base/RUNNING.gif",
-  "133": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/LADY/base/RUNNING.gif",
-  "134": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/TOM/base/RUNNING.gif",
-  "135": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/PORK/base/RUNNING.gif",
-  "136": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/WALLACE/base/RUNNING.gif",
+  "111":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/OBI/base/DIGGING.gif",
+  "112":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/ALBUS/base/DIGGING.gif",
+  "113":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/IZZY/base/DIGGING.gif",
+  "114":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/MERLOT/base/DIGGING.gif",
+  "115":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/PICKLES/base/DIGGING.gif",
+  "116":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/OLIVE/base/DIGGING.gif",
+  "121":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/RASCAL/base/SITTING.gif",
+  "122":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/FICUS/base/SITTING.gif",
+  "123":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/MILTON/base/SITTING.gif",
+  "124":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/COCO/base/SITTING.gif",
+  "125":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/ROY/base/SITTING.gif",
+  "126":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/BOB/base/SITTING.gif",
+  "131":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/MINNIE/base/RUNNING.gif",
+  "132":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/CHESTER/base/RUNNING.gif",
+  "133":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/LADY/base/RUNNING.gif",
+  "134":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/TOM/base/RUNNING.gif",
+  "135":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/PORK/base/RUNNING.gif",
+  "136":
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/WALLACE/base/RUNNING.gif",
 };
 
 export const CatnipChaosLevels = ({
@@ -113,7 +131,7 @@ export const CatnipChaosLevels = ({
           backgroundSize: "cover",
           backgroundPosition: "top",
         }}
-        className="hover:brightness-110 clickable relative border hover:border-4 hover:border-yellow-300 hover:scale-110 transition-all flex flex-col items-center justify-center w-20 h-20 rounded-full"
+        className="hover:brightness-110 clickable relative border-4 border-yellow-900 hover:border-4 hover:border-yellow-300 hover:scale-110 transition-all flex flex-col items-center justify-center w-20 h-20 rounded-full"
       >
         <div className="z-10 text-center rounded-full flex items-center justify-center text-p1 leading-none font-primary">
           <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] w-full text-center">
@@ -142,7 +160,7 @@ export const CatnipChaosLevels = ({
                   backgroundSize: "cover",
                   backgroundPosition: "top",
                 }}
-                className="hover:brightness-110 clickable relative border hover:border-4 hover:border-yellow-300 hover:scale-110 transition-all flex flex-col items-center justify-center w-20 h-20 rounded-full"
+                className="hover:brightness-110 clickable relative border-4 border-yellow-900 hover:border-4 hover:border-yellow-300 hover:scale-110 transition-all flex flex-col items-center justify-center w-20 h-20 rounded-full"
               >
                 <div className="z-10 text-center rounded-full flex items-center justify-center text-p1 leading-none font-primary">
                   <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] w-full text-center">

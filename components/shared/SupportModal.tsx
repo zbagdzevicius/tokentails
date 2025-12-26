@@ -52,7 +52,7 @@ export const SupportContent = ({ close }: { close: () => void }) => {
   };
 
   return (
-    <div className="pt-4 pb-4 px-4 md:px-12 md:pt-4 text-gray-700 flex flex-col gap-2 animate-appear font-primary relative">
+    <div className="pt-4 pb-4 px-4 md:px-12 md:pt-4 text-yellow-900 flex flex-col gap-2 animate-appear font-primary relative">
       <Tag>{mode === "create" ? "CREATE A TICKET" : "MY TICKETS"}</Tag>
       <Tag isSmall>Faced a problem? We're here to help!</Tag>
       {mode === "create" && (

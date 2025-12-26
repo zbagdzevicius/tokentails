@@ -61,17 +61,15 @@ export const GameOptionsModal = ({
             {profile.canRedeemLives && (
               <div
                 className="flex w-26 flex-col font-secondary text-p2 px-2 pt-2 pb-1 rounded-t-xl gap-1 font-bold"
-                style={bgStyle("min-6")}
+                style={bgStyle("min-4")}
               >
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 mb-3">
                   <img
                     draggable={false}
                     className="w-6 z-10"
                     src={cdnFile("logo/logo.webp")}
                   />
-                  <div className="text-p5 mt-1">
-                    {REWARDS.DAILY_REWARD} $TAILS
-                  </div>
+                  <div className="text-p5">{REWARDS.DAILY_REWARD} $TAILS</div>
                 </div>
               </div>
             )}
@@ -79,13 +77,12 @@ export const GameOptionsModal = ({
               <Countdown targetDate={nextDayTargetDate} />
             )}
             <span className="-mt-4 -mb-2">
-
-            <PixelButton
-              isDisabled={!profile.canRedeemLives}
-              onClick={() => (profile.canRedeemLives ? redeemLives() : {})}
-              isSmall={!profile.canRedeemLives}
-              text={profile.canRedeemLives ? "DAILY CHECK-IN" : "CHECKED-IN"}
-            ></PixelButton>
+              <PixelButton
+                isDisabled={!profile.canRedeemLives}
+                onClick={() => (profile.canRedeemLives ? redeemLives() : {})}
+                isSmall={!profile.canRedeemLives}
+                text={profile.canRedeemLives ? "DAILY CHECK-IN" : "CHECKED-IN"}
+              ></PixelButton>
             </span>
           </div>
           <span className="relative">

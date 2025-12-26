@@ -12,16 +12,12 @@ export const LeaderboardRescuerContent = () => {
   const { catnipPosition } = useProfile();
   return (
     <>
-    <h2 className="text-gray-700 border-yellow-300/50 border-4 mb-2 mt-4 text-balance text-center font-primary uppercase z-0 tracking-tight text-p6 md:text-p5 bg-yellow-300/50 2xl:mt-4 px-4 md:px-8 rounded-full">
-      EVENT HOSTED BY
-    </h2>
-    <div className="flex justify-between items-center gap-8 mb-8 opacity-80">
-        <img draggable={false} className="h-4 lg:h-8" src={cdnFile("images/sponsor/mantle.webp")} />
-        <img draggable={false} className="h-4 lg:h-8" src={cdnFile("images/sponsor/bga.webp")} />
-        <img draggable={false} className="h-4 lg:h-8" src={cdnFile("images/sponsor/bybit.webp")} />
+      <div className="font-paws text-h4 text-yellow-900">
+        SAVE <span className="">CATS</span>
       </div>
-    <div className="font-paws text-h4 text-gray-700">SAVE <span className="">CATS</span></div>
-    <div className="font-paws text-p1 text-gray-700 -mt-2">WIN <span className="">REWARDS</span></div>
+      <div className="font-paws text-p1 text-yellow-900 -mt-2">
+        WIN <span className="">REWARDS</span>
+      </div>
       <span className="-mt-6 -mb-6 relative z-0">
         <svg viewBox="0 0 400 100" className="w-full">
           <defs>

@@ -63,11 +63,13 @@ export const PixelGlobe = () => {
   const [selectedCountry, setSelectedCountry] = useState<GeoJsonFeature | null>(
     null
   );
-
+  const [isInView, setIsInView] = useState(false);
   const partnershipStatusMap = partnerships.reduce((acc, p) => {
     acc[p.countryName] = p.status;
     return acc;
   }, {} as Record<string, string>);
+
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Load World Topology
@@ -83,15 +85,38 @@ export const PixelGlobe = () => {
       });
   }, []);
 
+  // Intersection Observer to detect when component is in view
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          setIsInView(entry.isIntersecting);
+        });
+      },
+      {
+        threshold: 0.1, // Trigger when at least 10% is visible
+        rootMargin: "50px", // Start rendering slightly before it comes into view
+      }
+    );
+
+    observer.observe(container);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [rotation, setRotation] = useState<[number, number]>([0, 0]);
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [time, setTime] = useState(0);
 
-  // Constants for the pixel look
+  // Constants for the pixel look - reduced on mobile for performance
   const RENDER_SIZE = 1024;
-  const DISPLAY_SIZE = 600;
   const GLOBE_RADIUS = RENDER_SIZE * 0.42;
 
   // Pre-calculate centroids and area
@@ -137,13 +162,16 @@ export const PixelGlobe = () => {
   }, [countries]);
 
   // Automatic Rotation and Animation Time - throttled for performance
+  // Only animate when component is in view
   useEffect(() => {
+    if (!isInView) return;
+
     let animationFrameId: number;
     let lastTime = 0;
     const animate = (currentTime: number) => {
-      // Throttle to ~30fps for smoother performance
-      if (currentTime - lastTime >= 33) {
-        setTime((t) => t + 0.03);
+      // Throttle based on device type
+      if (currentTime - lastTime >= 50) {
+        setTime((t) => t + 0.02);
         if (!isDragging) {
           setRotation((curr) => [curr[0] + 0.1, curr[1]]);
         }
@@ -153,11 +181,11 @@ export const PixelGlobe = () => {
     };
     animationFrameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isDragging]);
+  }, [isDragging, isInView]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || countriesWithCentroids.length === 0) return;
+    if (!canvas || countriesWithCentroids.length === 0 || !isInView) return;
 
     const context = canvas.getContext("2d");
     if (!context) return;
@@ -169,22 +197,6 @@ export const PixelGlobe = () => {
       .translate([RENDER_SIZE / 2, RENDER_SIZE / 2]);
 
     const path = d3.geoPath(projection, context);
-
-    const drawPixelRect = (
-      x: number,
-      y: number,
-      w: number,
-      h: number,
-      color: string
-    ) => {
-      context.fillStyle = color;
-      context.fillRect(
-        Math.round(x),
-        Math.round(y),
-        Math.round(w),
-        Math.round(h)
-      );
-    };
 
     // Cache color conversions
     const colorCache = new Map<string, { r: number; g: number; b: number }>();
@@ -220,12 +232,15 @@ export const PixelGlobe = () => {
     };
 
     // Optimized neon glow with smooth gradient effect
+    // Simplified on mobile for performance
     const drawNeonGlow = (
       drawPath: () => void,
       glowColor: string,
       baseLineWidth: number = 2
     ) => {
-      // More layers for smoother gradient, drawn from outer to inner
+      const { r, g, b } = parseColor(glowColor);
+
+      // More layers for smoother gradient on desktop, drawn from outer to inner
       const glowLayers = [
         { width: baseLineWidth * 12, opacity: 0.05 },
         { width: baseLineWidth * 10, opacity: 0.1 },
@@ -236,10 +251,6 @@ export const PixelGlobe = () => {
         { width: baseLineWidth * 1.5, opacity: 0.8 },
         { width: baseLineWidth, opacity: 1.0 },
       ];
-
-      const { r, g, b } = parseColor(glowColor);
-
-      // Draw from outer to inner for proper gradient layering
       glowLayers.forEach((layer) => {
         context.beginPath();
         drawPath();
@@ -249,173 +260,8 @@ export const PixelGlobe = () => {
       });
     };
 
-    // Draw cat traits inside the globe - reduced count for performance
-    const drawCatTraitsInsideGlobe = () => {
-      const catTypes = Object.values(CatAbilityType);
-      const traitCount = 10; // Reduced from 20 to 10
-
-      const rot = projection.rotate();
-      for (let i = 0; i < traitCount; i++) {
-        const traitType = catTypes[i % catTypes.length];
-        const color = cardsColor[traitType] || "#ffffff";
-
-        // Create geographic positions that will be properly projected
-        const baseLon = ((time * 5 + i * (360 / traitCount)) % 360) - 180;
-        const baseLat = Math.sin(time * 0.15 + i * 0.3) * 60;
-        const lon = baseLon + Math.sin(time * 0.2 + i) * 10;
-        const lat = baseLat + Math.cos(time * 0.25 + i) * 15;
-
-        const proj = projection([lon, lat]);
-        if (!proj) continue;
-
-        const distance = d3.geoDistance([lon, lat], [-rot[0], -rot[1]]);
-        if (distance < 1.4) {
-          const x = proj[0];
-          const y = proj[1];
-          const size = 6 + Math.sin(time * 2 + i) * 2;
-          const alpha = 0.6 + Math.sin(time * 3 + i) * 0.3;
-
-          const { r, g, b } = parseColor(color);
-          context.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-          drawPixelRect(x - size / 2, y - size / 2, size, size, color);
-        }
-      }
-    };
-
-    // Draw cat traits orbiting around the globe - optimized
-    const drawCatTraitsAroundGlobe = () => {
-      const catTypes = Object.values(CatAbilityType);
-      const orbitCount = catTypes.length;
-
-      catTypes.forEach((traitType, index) => {
-        const color = cardsColor[traitType] || "#ffffff";
-        const { r, g, b } = parseColor(color);
-
-        const orbitSpeed = 0.2 + (index % 3) * 0.1;
-        const orbitAngle =
-          (time * orbitSpeed + (index * Math.PI * 2) / orbitCount) %
-          (Math.PI * 2);
-        const inclination = Math.sin(index * 0.7) * 0.4;
-        const distance = GLOBE_RADIUS * (1.25 + (index % 3) * 0.1);
-
-        const x = RENDER_SIZE / 2 + Math.cos(orbitAngle) * distance;
-        const y =
-          RENDER_SIZE / 2 + Math.sin(orbitAngle) * distance * inclination;
-
-        const size = 12 + Math.sin(time * 3 + index) * 3;
-
-        // Reduced trail from 5 to 3 points
-        for (let i = 1; i < 4; i++) {
-          const trailAngle = orbitAngle - i * 0.05;
-          const trailX = RENDER_SIZE / 2 + Math.cos(trailAngle) * distance;
-          const trailY =
-            RENDER_SIZE / 2 + Math.sin(trailAngle) * distance * inclination;
-          const trailAlpha = (1 - i / 4) * 0.3;
-          context.fillStyle = `rgba(${r}, ${g}, ${b}, ${trailAlpha})`;
-          drawPixelRect(trailX - 3, trailY - 3, 6, 6, color);
-        }
-
-        // Draw main trait icon
-        context.fillStyle = color;
-        drawPixelRect(x - size / 2, y - size / 2, size, size, color);
-      });
-    };
-
-    const drawParticleTrails = () => {
-      // Reduced particle counts for performance
-      const yellowTrailPoints = 15; // Reduced from 30
-      for (let i = 0; i < yellowTrailPoints; i++) {
-        const t = (time * 0.3 + i * 0.1) % (Math.PI * 2);
-        const angle = t + Math.PI / 4;
-        const radius = GLOBE_RADIUS * 1.15;
-        const x = RENDER_SIZE / 2 + Math.cos(angle) * radius;
-        const y = RENDER_SIZE / 2 + Math.sin(angle) * radius * 0.6;
-        const alpha = (1 - i / yellowTrailPoints) * 0.8;
-        const size = 3;
-        context.fillStyle = `rgba(252, 236, 187, ${alpha})`;
-        context.fillRect(x - size / 2, y - size / 2, size, size);
-      }
-
-      const purpleTrailPoints = 12; // Reduced from 25
-      for (let i = 0; i < purpleTrailPoints; i++) {
-        const t = (time * -0.25 + i * 0.12) % (Math.PI * 2);
-        const angle = t - Math.PI / 3;
-        const radius = GLOBE_RADIUS * 1.2;
-        const x = RENDER_SIZE / 2 + Math.cos(angle) * radius;
-        const y = RENDER_SIZE / 2 + Math.sin(angle) * radius * 0.7;
-        const alpha = (1 - i / purpleTrailPoints) * 0.7;
-        const size = 4;
-        context.fillStyle = `rgba(192, 132, 252, ${alpha})`;
-        context.fillRect(x - size / 2, y - size / 2, size, size);
-      }
-    };
-
-    const drawPixelatedFace = (lon: number, lat: number) => {
-      const proj = projection([lon, lat]);
-      if (!proj) return;
-
-      const r = projection.rotate();
-      const distance = d3.geoDistance([lon, lat], [-r[0], -r[1]]);
-      if (distance > 1.4) return;
-
-      const x = proj[0];
-      const y = proj[1];
-      const faceSize = 12;
-
-      // Light brown face background
-      context.fillStyle = "#d4a574";
-      context.fillRect(x - faceSize / 2, y - faceSize / 2, faceSize, faceSize);
-
-      // Black square eyes
-      context.fillStyle = "#000000";
-      context.fillRect(x - faceSize / 2 + 2, y - faceSize / 2 + 2, 3, 3);
-      context.fillRect(x + faceSize / 2 - 5, y - faceSize / 2 + 2, 3, 3);
-
-      // Black square mouth
-      context.fillRect(x - 2, y + faceSize / 2 - 4, 4, 2);
-    };
-
-    const drawBrazilSparkles = (feature: any) => {
-      if (feature.properties.name !== "Brazil") return;
-
-      context.save();
-      context.beginPath();
-      path(feature as any);
-      context.clip();
-
-      // Reduced sparkle count for performance
-      const sparkleCount = 12; // Reduced from 25
-      const rot = projection.rotate();
-      for (let i = 0; i < sparkleCount; i++) {
-        const t = (time * 2 + i * 0.25) % (Math.PI * 2);
-        const lon = -55 + Math.sin(t) * 8;
-        const lat = -10 + Math.cos(t) * 6;
-        const brazilProj = projection([lon, lat]);
-
-        if (
-          brazilProj &&
-          d3.geoDistance([lon, lat], [-rot[0], -rot[1]]) < 1.4
-        ) {
-          const sparkleSize = 2 + Math.sin(time * 5 + i) * 1.5;
-          const sparkleAlpha = 0.7 + Math.sin(time * 4 + i) * 0.2;
-          context.fillStyle = `rgba(255, 200, 100, ${sparkleAlpha})`;
-          context.fillRect(
-            brazilProj[0] - sparkleSize / 2,
-            brazilProj[1] - sparkleSize / 2,
-            sparkleSize,
-            sparkleSize
-          );
-        }
-      }
-
-      context.restore();
-    };
-
     const render = () => {
       context.clearRect(0, 0, RENDER_SIZE, RENDER_SIZE);
-
-      // 1. Draw particle trails and sparkles
-      drawParticleTrails();
 
       // 2. Globe - translucent with glowing wireframe
       // Base sphere with soft yellow interior glow
@@ -434,16 +280,6 @@ export const PixelGlobe = () => {
       context.beginPath();
       path({ type: "Sphere" } as any);
       context.fill();
-
-      // Simplified wireframe grid - single layer for performance
-      context.beginPath();
-      path(d3.geoGraticule()());
-      context.strokeStyle = "rgba(252, 236, 187, 0.6)";
-      context.lineWidth = 1.5;
-      context.stroke();
-
-      // Draw cat traits inside the globe
-      drawCatTraitsInsideGlobe();
 
       // 3. Countries - translucent blue-white continents
       countriesWithCentroids.forEach((feature) => {
@@ -488,25 +324,6 @@ export const PixelGlobe = () => {
         }
       });
 
-      // Draw US pixelated face
-      countriesWithCentroids.forEach((feature) => {
-        if (feature.properties.name === "United States of America") {
-          const [lon, lat] = feature.properties.centroid;
-          drawPixelatedFace(lon, lat);
-        }
-      });
-
-      // Draw Brazil sparkles
-      countriesWithCentroids.forEach((feature) => {
-        if (feature.properties.name === "Brazil") {
-          context.save();
-          drawBrazilSparkles(feature);
-        }
-      });
-
-      // Draw cat traits orbiting around the globe
-      drawCatTraitsAroundGlobe();
-
       // 4. Globe outline with optimized neon glow
       drawNeonGlow(
         () => path({ type: "Sphere" } as any),
@@ -522,6 +339,7 @@ export const PixelGlobe = () => {
     hoveredCountry,
     partnershipStatusMap,
     time,
+    isInView,
   ]);
 
   // Drag Handling
@@ -569,14 +387,15 @@ export const PixelGlobe = () => {
   };
 
   return (
-    <div className="relative flex justify-center items-center">
+    <div
+      ref={containerRef}
+      className="relative flex justify-center items-center"
+    >
       <canvas
         ref={canvasRef}
         width={RENDER_SIZE}
         height={RENDER_SIZE}
         style={{
-          width: DISPLAY_SIZE,
-          height: DISPLAY_SIZE,
           imageRendering: "pixelated",
           cursor: hoveredCountry ? "pointer" : isDragging ? "grabbing" : "grab",
         }}
@@ -589,14 +408,14 @@ export const PixelGlobe = () => {
             )!
           )
         }
-        className="touch-none"
+        className="touch-none w-[400px] h-[400px] md:w-[600px] md:h-[600px]"
       />
 
-      <div className="absolute -top-24">
-        <img src="/meme-cats/meme-23.gif" className="w-48" />
+      <div className="absolute -top-8">
+        <img src="/meme-cats/meme-7.gif" className="w-36" />
       </div>
       {hoveredCountry && (
-        <div className="absolute top-0 font-primary glow text-h5 text-yellow-300 bg-black/25 px-4 py-2 rounded-full">
+        <div className="absolute top-0 font-primary glow text-p1 md:text-h5 text-yellow-300 bg-black/25 px-4 py-2 rounded-full">
           {hoveredCountry}
         </div>
       )}

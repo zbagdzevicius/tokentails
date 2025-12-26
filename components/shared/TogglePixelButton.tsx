@@ -24,15 +24,15 @@ export const TogglePixelButton = ({
       onClick={handleClick}
       className={`relative flex justify-center items-center h-12`}
     >
-      <div className="h-6 w-1 bg-black"></div>
+      <div className="h-6 w-1 bg-yellow-900"></div>
 
       <div
-        className={`h-8 w-16 flex flex-col justify-center items-center border-y-4 border-black ${
-          isActive ? "bg-green-500" : "bg-red-500"
+        className={`h-8 w-16 flex flex-col justify-center items-center border-y-4 border-yellow-900 ${
+          isActive ? "bg-green-300" : "bg-red-300"
         }`}
       >
         <div
-          className={`text-white mx-2 font-bold text-p4 ${
+          className={`text-yellow-900 mx-2 font-bold text-p4 ${
             !isActive ? "text-right pr-1" : "text-left pl-1"
           } w-full`}
         >
@@ -44,32 +44,32 @@ export const TogglePixelButton = ({
             isActive ? " right-2" : " left-2"
           } transition-transform duration-300`}
         >
-          <div className="h-4 w-1 bg-gray-700"></div>
+          <div className="h-4 w-1 bg-yellow-900"></div>
           <div
-            className={`h-5 w-3 flex flex-col border-y-4 border-gray-700 ${
-              isActive ? "bg-green-500" : "bg-red-500"
+            className={`h-5 w-3 flex flex-col border-y-4 border-yellow-900 ${
+              isActive ? "bg-green-300" : "bg-red-300"
             }`}
           >
             <div className="h-0.5 w-4 bg-yellow-300"></div>
           </div>
           <div
             className={`h-5 w-1 flex flex-col ${
-              isActive ? "bg-green-500" : "bg-red-500"
-            } border-y-4 border-gray-700`}
+              isActive ? "bg-green-300" : "bg-red-300"
+            } border-y-4 border-yellow-900`}
           >
             <div className="h-0.5 w-1 bg-yellow-300"></div>
           </div>
 
-          <div className="h-4 w-1 bg-gray-700"></div>
+          <div className="h-4 w-1 bg-yellow-900"></div>
         </div>
       </div>
       <div
         className={`h-8 w-1 flex flex-col ${
-          isActive ? "bg-green-500" : "bg-red-500"
-        } border-y-4 border-black`}
+          isActive ? "bg-green-300" : "bg-red-300"
+        } border-y-4 border-yellow-900`}
       ></div>
 
-      <div className="h-6 w-1 bg-black"></div>
+      <div className="h-6 w-1 bg-yellow-900"></div>
     </button>
   );
 };

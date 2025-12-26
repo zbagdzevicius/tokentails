@@ -49,14 +49,13 @@ export const useBackground = ({ level }: { level?: string | null }) => {
       backgroundSize: "cover",
       backgroundPosition: "center bottom",
     };
-    const hours = new Date().getHours();
     return {
       ...coreBg,
       backgroundImage: level
         ? chaptersBackgroundImages[
             level[0] as keyof typeof chaptersBackgroundImages
           ]
-        : bgImages[hours] || "url(/backgrounds/bg-5.webp)",
+        : "url(/landing/game-bg-2.webp)",
     };
   }, [level]);
 

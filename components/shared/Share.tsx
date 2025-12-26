@@ -28,7 +28,7 @@ export const Share = ({ url }: IProps) => {
   }, [absoluteUrl, toast]);
 
   return (
-    <div className="z-50 overflow-hidden rem:top-[38px] absolute hidden group-hover:md:flex bg-white rounded-lg shadow w-full text-gray-700 flex-col">
+    <div className="z-50 overflow-hidden rem:top-[38px] absolute hidden group-hover:md:flex bg-white rounded-lg shadow w-full text-yellow-900 flex-col">
       <FacebookShareButton
         url={absoluteUrl}
         hashtag={process.env.NEXT_PUBLIC_SITE_NAME}

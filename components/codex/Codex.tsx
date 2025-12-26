@@ -338,7 +338,7 @@ export const Codex = () => {
       </div>
 
       <Tag>THIS MONTH MISSIONS</Tag>
-      <span className="bg-gradient-to-r text-p6 font-primary from-yellow-300 to-yellow-400 text-gray-700 px-3 rounded-b-md font-bold animate-pulse">
+      <span className="bg-gradient-to-r text-p6 font-primary from-yellow-300 to-yellow-400 text-yellow-900 px-3 rounded-b-md font-bold animate-pulse">
         {profile?.codex?.[phase - 1] ? "COMPLETED" : "IN PROGRESS"}
       </span>
       <div className="flex flex-col items-center mt-1">
@@ -371,7 +371,7 @@ export const Codex = () => {
             <span className="-mt-1">MISSIONS COMPLETED</span>
           </div>
         )}
-        <span className="bg-gradient-to-r text-p6 font-primary from-yellow-300 to-yellow-400 text-gray-700 px-3 -mb-2 pb-1 rounded-t-md font-bold">
+        <span className="bg-gradient-to-r text-p6 font-primary from-yellow-300 to-yellow-400 text-yellow-900 px-3 -mb-2 pb-1 rounded-t-md font-bold">
           MONTH RESETS IN
         </span>
         <Countdown targetDate={dateUntilNearest9thDay} isDaysDisplayed />

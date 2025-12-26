@@ -147,7 +147,7 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
                   alt={`${cat.type} icon`}
                 />
                 <div
-                  className="text-p4 bg-red-600 font-secondary text-white w-full text-center opacity-75 mb-2 border-y-2 border-black"
+                  className="text-p4 bg-red-600 font-secondary text-white w-full text-center opacity-75 mb-2 border-y-2 border-yellow-900"
                   onClick={() => setSelectedCat(cat)}
                 >
                   {cat.name}

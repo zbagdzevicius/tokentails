@@ -63,25 +63,25 @@ export const Countdown = ({
 
   return (
     <div className="flex justify-center items-center h-9 w-full drop-shadow-[0_1.4px_1.2px_rgba(0,0,0,0.8)]">
-      <div className={`w-1 bg-black ${isBig ? "h-12" : "h-5"}`}></div>
+      <div className={`w-1 bg-yellow-900 ${isBig ? "h-12" : "h-5"}`}></div>
       <div
-        className={`w-1 flex flex-col bg-red-500 border-black ${
+        className={`w-1 flex flex-col bg-yellow-300 border-yellow-900 ${
           isBig ? "h-12 md:h-14 border-y-4" : "h-7 rem:border-y-[3px]"
         }`}
       >
-        <div className={`bg-red-500 ${isBig ? "h-14" : "h-6"}`}></div>
+        <div className={`bg-yellow-300 ${isBig ? "h-14" : "h-6"}`}></div>
       </div>
       <div
-        className={`flex flex-row border-black bg-red-500 ${
+        className={`flex flex-row border-yellow-900 bg-yellow-300 ${
           isBig ? "h-16 border-y-4" : "h-7 rem:border-y-[3px]"
         }`}
       >
         <div
-          className={`bg-red-500 font-secondary flex items-center ${
+          className={`bg-yellow-300 font-secondary flex items-center ${
             isBig ? "h-14 px-2" : "h-6 px-px"
           }`}
         >
-          <div className="flex flex-row items-center justify-around bg-red-500 text-yellow-300 w-full h-full">
+          <div className="flex flex-row items-center justify-around bg-yellow-300 text-yellow-900 w-full h-full">
             {isDaysDisplayed && (
               <div
                 className={`${
@@ -102,7 +102,7 @@ export const Countdown = ({
             )}
             {isDaysDisplayed && (
               <div
-                className={`w-[1px] bg-yellow-300 ${
+                className={`w-[1px] bg-yellow-900 ${
                   isBig ? "h-9 mx-1 md:mx-2" : "h-5 rem:mx-[2px]"
                 }`}
               ></div>
@@ -122,7 +122,7 @@ export const Countdown = ({
               </p>
             </div>
             <div
-              className={`w-[1px] bg-yellow-300 ${
+              className={`w-[1px] bg-yellow-900 ${
                 isBig ? "h-9 mx-1 md:mx-2" : "h-5 rem:mx-[2px]"
               }`}
             ></div>
@@ -141,7 +141,7 @@ export const Countdown = ({
               </p>
             </div>
             <div
-              className={`w-[1px] bg-yellow-300 ${
+              className={`w-[1px] bg-yellow-900 ${
                 isBig ? "h-9 mx-1 md:mx-2" : "h-5 rem:mx-[2px]"
               }`}
             ></div>
@@ -163,11 +163,11 @@ export const Countdown = ({
         </div>
       </div>
       <div
-        className={`w-1 flex flex-col bg-red-500 border-black ${
+        className={`w-1 flex flex-col bg-yellow-300 border-yellow-900 ${
           isBig ? "h-14 border-y-4" : "h-7 rem:border-y-[4px]"
         }`}
       ></div>
-      <div className={`w-1 bg-black ${isBig ? "h-12" : "h-5"}`}></div>
+      <div className={`w-1 bg-yellow-900 ${isBig ? "h-12" : "h-5"}`}></div>
     </div>
   );
 };

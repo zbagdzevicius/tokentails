@@ -62,7 +62,6 @@ export enum CatAbilityType {
   WIND = "WIND",
   DARK = "DARK",
   WATER = "WATER",
-  AIR = "AIR",
   GRASS = "GRASS",
   SAND = "SAND",
   FAIRY = "FAIRY",

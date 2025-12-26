@@ -5,9 +5,9 @@ export const HomePage = () => {
         <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)]">
           YOUR
         </span>{" "}
-        <span className="glow text-gray-700">CAT AWAITS</span>
+        <span className="glow text-yellow-900">CAT AWAITS</span>
       </h1>
-      <h2 className="text-gray-700 border-yellow-300/50 border-4 text-balance text-center font-primary uppercase z-0 tracking-tight text-p5 md:text-p2 bg-yellow-300/50 2xl:mt-4 px-4 md:px-8 rounded-full">
+      <h2 className="text-yellow-900 border-yellow-300/50 border-4 text-balance text-center font-primary uppercase z-0 tracking-tight text-p5 md:text-p2 bg-yellow-300/50 2xl:mt-4 px-4 md:px-8 rounded-full">
         READY TO{" "}
         <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)]">
           PLAY

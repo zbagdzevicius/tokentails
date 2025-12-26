@@ -202,7 +202,7 @@ const ProfileUpdate = () => {
       </span>
       <img
         className="w-8 -mb-3"
-        src={cdnFile("icons/social/discord.png")}
+        src={cdnFile("icons/social/discord.webp")}
         draggable="false"
       />
       {!discordEditMode ? (
@@ -253,7 +253,7 @@ export const TelegramProfileContent = () => {
   );
 
   return (
-    <div className="pt-4 pb-8 md:pb-4 px-4 md:pt-4 text-gray-700 flex flex-col md:flex-row md:gap-4 justify-between items-center animate-appear">
+    <div className="pt-4 pb-8 md:pb-4 px-4 md:pt-4 text-yellow-900 flex flex-col md:flex-row md:gap-4 justify-between items-center animate-appear">
       {profile?.cat && (
         <div className="m-auto font-primary">
           <span className="relative z-0">

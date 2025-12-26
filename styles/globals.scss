@@ -21,32 +21,81 @@ $breakpoints: (
 );
 
 .glow {
-  -webkit-text-stroke: 2px #ffe89a; /* thick outer rim */
+  // -webkit-text-stroke: 2px #ffe89a; /* thick outer rim */
   text-shadow: 0 0 5px #ffe89a, 0 0 12px #ffcf66, 0 0 25px #ffb84d;
 }
 
-@keyframes glow-box {
-  from {
-    box-shadow: 0 0 3px #ffe89a, 0 0 8px #ffe89a, 0 0 12px #ffdd71,
-      0 0 15px #ffcc55;
-  }
-  50% {
-    box-shadow: 0 0 3px #ffcc55, 0 0 8px #ffcc55, 0 0 12px #ffcc55,
-      0 0 15px #ffcc55;
-  }
-  to {
-    box-shadow: 0 0 3px #ffe89a, 0 0 8px #ffe89a, 0 0 12px #ffdd71,
-      0 0 15px #ffcc55;
-  }
-}
-
 .glow-box {
-  border-radius: 20px;
+  border-radius: 16px;
 
   box-shadow: 0 0 3px #ffe89a, 0 0 8px #ffe89a, 0 0 12px #ffdd71,
     0 0 15px #ffcc55;
+}
 
-  animation: glow-box 1s ease-in-out infinite;
+.glow-box-ELECTRIC {
+  border-radius: 20px;
+  box-shadow: 0 0 3px #fff9b8, 0 0 8px #fff9b8, 0 0 12px #ffdd71,
+    0 0 15px #ffcc55;
+}
+
+.glow-box-FIRE {
+  border-radius: 20px;
+  box-shadow: 0 0 3px #ffdbf1, 0 0 8px #ffdbf1, 0 0 12px #f95f5f,
+    0 0 15px #ef5151;
+}
+
+.glow-box-ICE {
+  border-radius: 20px;
+  box-shadow: 0 0 3px #d4e7f4, 0 0 8px #d4e7f4, 0 0 12px #a0d1f0,
+    0 0 15px #90c5e9;
+}
+
+.glow-box-SAND {
+  border-radius: 20px;
+  box-shadow: 0 0 3px #fcddc3, 0 0 8px #fcddc3, 0 0 12px #f9ba88,
+    0 0 15px #f8b27a;
+}
+
+.glow-box-WATER {
+  border-radius: 20px;
+  box-shadow: 0 0 3px #80c5ff, 0 0 8px #80c5ff, 0 0 12px #68b3e7,
+    0 0 15px #57a2d6;
+}
+
+.glow-box-WIND {
+  border-radius: 20px;
+  box-shadow: 0 0 3px #ffffff, 0 0 8px #ffffff, 0 0 12px #d2d2d2,
+    0 0 15px #c2c2c2;
+}
+
+.glow-box-AIR {
+  border-radius: 20px;
+  box-shadow: 0 0 3px #ffffff, 0 0 8px #ffffff, 0 0 12px #d2d2d2,
+    0 0 15px #c2c2c2;
+}
+
+.glow-box-GRASS {
+  border-radius: 20px;
+  box-shadow: 0 0 3px #b3e7db, 0 0 8px #b3e7db, 0 0 12px #68d0b6,
+    0 0 15px #57c2a5;
+}
+
+.glow-box-STELLAR {
+  border-radius: 20px;
+  box-shadow: 0 0 3px #c5bdff, 0 0 8px #c5bdff, 0 0 12px #8b7cff,
+    0 0 15px #7a6cf0;
+}
+
+.glow-box-FAIRY {
+  border-radius: 20px;
+  box-shadow: 0 0 3px #ff6fc6, 0 0 8px #ff6fc6, 0 0 12px #f9ba88,
+    0 0 15px #f8b27a;
+}
+
+.glow-box-DARK {
+  border-radius: 20px;
+  box-shadow: 0 0 3px #a9a9a9, 0 0 8px #a9a9a9, 0 0 12px #545454,
+    0 0 15px #434343;
 }
 
 @font-face {

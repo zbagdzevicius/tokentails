@@ -6,7 +6,7 @@ export const Tag = ({
 }: PropsWithChildren<{ isSmall?: boolean }>) => {
   return (
     <div
-      className={`m-auto w-fit px-4 bg-gradient-to-r from-purple-400 to-blue-400 text-white rounded-full font-primary font-normal whitespace-nowrap ${
+      className={`m-auto w-fit px-4 bg-gradient-to-r from-purple-400 to-yellow-900 text-yellow-50 rounded-md font-primary font-normal whitespace-nowrap ${
         isSmall ? "text-p5" : "text-p3"
       }`}
     >

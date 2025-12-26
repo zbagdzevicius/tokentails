@@ -268,7 +268,7 @@ export const fakeCat: ICat = {
   supply: 180,
   totalSupply: 200,
   tier: Tier.LEGENDARY,
-  type: CatAbilityType.DARK,
+  type: CatAbilityType.ELECTRIC,
   spriteImg:
     "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/RASCAL/bow-tie-red.webp",
   catImg:

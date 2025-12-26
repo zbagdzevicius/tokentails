@@ -42,7 +42,7 @@ export const MainLayout = ({ children }: PropsWithChildren<any>) => {
       <ToastProvider>
         <ProfileProvider>
           <CatProvider>
-            <main className="">{children}</main>
+            <main className="text-yellow-900">{children}</main>
           </CatProvider>
         </ProfileProvider>
       </ToastProvider>
