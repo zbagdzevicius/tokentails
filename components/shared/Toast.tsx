@@ -16,8 +16,8 @@ export const Toast = ({ message, icon, isError, symbol, img }: IToast) => {
       <div
         key={message}
         className={`animate-bounceWithFade rem:w-[360px] min-h-10 px-2 rounded-lg shadow border-2 text-p3 ${
-          isError ? "border-red-500" : "border-main-black"
-        } bg-gradient-to-bl from-rose-400 to-orange-300 flex flex-col items-center justify-center text-main-black font-primary uppercase font-bold`}
+          isError ? "border-red-500" : "border-yellow-900"
+        } bg-gradient-to-bl from-rose-400 to-orange-300 flex flex-col items-center justify-center text-yellow-900 font-primary uppercase font-bold`}
       >
         {img && <img src={img} className="w-12 mt-1 mb-1" />}
         <div className="flex items-center gap-2 text-center">

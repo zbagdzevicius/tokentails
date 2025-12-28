@@ -48,7 +48,7 @@ export const LeaderboardRescuerContent = () => {
           alt="champs"
           className="w-32 -mb-20"
         />
-        <Tag>Rescue CHAMPS</Tag>
+        <Tag>RESCUE CHAMPS</Tag>
         {catnipPosition && (
           <div className="font-secondary uppercase text-p1 bg-yellow-100 w-fit m-auto rounded-t-xl px-8">
             Your position {catnipPosition}
@@ -60,7 +60,7 @@ export const LeaderboardRescuerContent = () => {
           <tr>
             <th className="py-2 px-1 text-center">PLACE</th>
             <th className="py-2 text-center">name</th>
-            <th className="p-2 md:p-4 text-center">RescuerS</th>
+            <th className="p-2 md:p-4 text-center">Score</th>
           </tr>
         </thead>
         <tbody>

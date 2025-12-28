@@ -54,12 +54,12 @@ export const Stats = () => {
                 backgroundSize: "cover",
                 backgroundPosition: "top",
               }}
-              className="text-p4 w-48 h-24 relative font-secondary flex flex-col items-center justify-center gap-1 border-2 rounded-xl border-main-black"
+              className="text-p4 w-48 h-24 relative font-secondary flex flex-col items-center justify-center gap-1 border-2 rounded-xl border-yellow-900"
             >
-              <div className="absolute top-0 bg-gradient-to-b w-fit px-4 from-purple-300 to-blue-300 rounded-xl whitespace-nowrap text-p5 -mt-3 border border-main-black">
+              <div className="absolute top-0 bg-gradient-to-b w-fit px-4 from-purple-300 to-blue-300 rounded-xl whitespace-nowrap text-p5 -mt-3 border border-yellow-900">
                 USERS COUNT
               </div>
-              <div className="text-h5 font-secondary text-main-black mt-1 w-full flex items-center justify-center gap-1">
+              <div className="text-h5 font-secondary text-yellow-900 mt-1 w-full flex items-center justify-center gap-1">
                 {data.users.count}
               </div>
             </div>
@@ -69,12 +69,12 @@ export const Stats = () => {
                 backgroundSize: "cover",
                 backgroundPosition: "top",
               }}
-              className="text-p4 w-48 h-24 relative font-secondary flex flex-col items-center justify-center gap-1 border-2 rounded-xl border-main-black"
+              className="text-p4 w-48 h-24 relative font-secondary flex flex-col items-center justify-center gap-1 border-2 rounded-xl border-yellow-900"
             >
-              <div className="absolute top-0 bg-gradient-to-b w-fit px-4 from-purple-300 to-blue-300 rounded-xl whitespace-nowrap text-p5 -mt-3 border border-main-black">
+              <div className="absolute top-0 bg-gradient-to-b w-fit px-4 from-purple-300 to-blue-300 rounded-xl whitespace-nowrap text-p5 -mt-3 border border-yellow-900">
                 DONATIONS COUNT
               </div>
-              <div className="text-h5 font-secondary text-main-black mt-1 w-full flex items-center justify-center gap-1">
+              <div className="text-h5 font-secondary text-yellow-900 mt-1 w-full flex items-center justify-center gap-1">
                 {data.orders.count}
               </div>
             </div>
@@ -84,12 +84,12 @@ export const Stats = () => {
                 backgroundSize: "cover",
                 backgroundPosition: "top",
               }}
-              className="text-p4 w-48 h-24 relative font-secondary flex flex-col items-center justify-center gap-1 border-2 rounded-xl border-main-black"
+              className="text-p4 w-48 h-24 relative font-secondary flex flex-col items-center justify-center gap-1 border-2 rounded-xl border-yellow-900"
             >
-              <div className="absolute top-0 bg-gradient-to-b w-fit px-4 from-purple-300 to-blue-300 rounded-xl whitespace-nowrap text-p5 -mt-3 border border-main-black">
+              <div className="absolute top-0 bg-gradient-to-b w-fit px-4 from-purple-300 to-blue-300 rounded-xl whitespace-nowrap text-p5 -mt-3 border border-yellow-900">
                 STAKED CATS
               </div>
-              <div className="text-h5 font-secondary text-main-black mt-1 w-full flex items-center justify-center gap-1">
+              <div className="text-h5 font-secondary text-yellow-900 mt-1 w-full flex items-center justify-center gap-1">
                 {data.cats.staked}
               </div>
             </div>
@@ -99,12 +99,12 @@ export const Stats = () => {
                 backgroundSize: "cover",
                 backgroundPosition: "top",
               }}
-              className="text-p4 w-48 h-24 relative font-secondary flex flex-col items-center justify-center gap-1 border-2 rounded-xl border-main-black"
+              className="text-p4 w-48 h-24 relative font-secondary flex flex-col items-center justify-center gap-1 border-2 rounded-xl border-yellow-900"
             >
-              <div className="absolute top-0 bg-gradient-to-b w-fit px-4 from-purple-300 to-blue-300 rounded-xl whitespace-nowrap text-p5 -mt-3 border border-main-black">
+              <div className="absolute top-0 bg-gradient-to-b w-fit px-4 from-purple-300 to-blue-300 rounded-xl whitespace-nowrap text-p5 -mt-3 border border-yellow-900">
                 USERS CATS
               </div>
-              <div className="text-h5 font-secondary text-main-black mt-1 w-full flex items-center justify-center gap-1">
+              <div className="text-h5 font-secondary text-yellow-900 mt-1 w-full flex items-center justify-center gap-1">
                 {data.cats.count}
               </div>
             </div>
@@ -114,12 +114,12 @@ export const Stats = () => {
                 backgroundSize: "cover",
                 backgroundPosition: "top",
               }}
-              className="text-p4 w-48 h-24 relative font-secondary flex flex-col items-center justify-center gap-1 border-2 rounded-xl border-main-black"
+              className="text-p4 w-48 h-24 relative font-secondary flex flex-col items-center justify-center gap-1 border-2 rounded-xl border-yellow-900"
             >
-              <div className="absolute top-0 bg-gradient-to-b w-fit px-4 from-purple-300 to-blue-300 rounded-xl whitespace-nowrap text-p5 -mt-3 border border-main-black">
+              <div className="absolute top-0 bg-gradient-to-b w-fit px-4 from-purple-300 to-blue-300 rounded-xl whitespace-nowrap text-p5 -mt-3 border border-yellow-900">
                 TOKENIZED CATS
               </div>
-              <div className="text-h5 font-secondary text-main-black mt-1 w-full flex items-center justify-center gap-1">
+              <div className="text-h5 font-secondary text-yellow-900 mt-1 w-full flex items-center justify-center gap-1">
                 {data.blessings.count}
               </div>
             </div>

@@ -31,8 +31,8 @@ function CatnipChaos() {
           <div className="absolute top-0 right-0 mt-safe">
             <img
               draggable={false}
-              src={cdnFile("icons/pixel-close.png")}
-              className={`hover:brightness-150 hover:translate hover:scale-125 lg:w-9 w-7 lg:h-9 h-7 mt-3 -mb-9 lg:-mb-10 ml-auto mr-4 z-[90]`}
+              src={cdnFile("icons/close.webp")}
+              className={`hover:brightness-150 hover:translate brightness-70 opacity-70 transition-all duration-300 hover:opacity-100 hover:scale-125 lg:w-24 w-16 h-auto mt-3 -mb-9 lg:-mb-10 ml-auto mr-3 z-[90]`}
               onClick={() => setLevel(null)}
             />
           </div>

@@ -11,9 +11,9 @@ export const ShelterBenefits = () => {
             backgroundSize: "cover",
             backgroundPosition: "top",
           }}
-          className="text-p4 h-24 relative font-secondary w-full flex flex-col items-center justify-center gap-1 border-2 rounded-xl border-main-black"
+          className="text-p4 h-24 relative font-secondary w-full flex flex-col items-center justify-center gap-1 border-2 rounded-xl border-yellow-900"
         >
-          <div className="absolute top-0 bg-gradient-to-b w-fit px-4 from-purple-300 to-blue-300 rounded-xl whitespace-nowrap text-p5 -mt-3 border border-main-black">
+          <div className="absolute top-0 bg-gradient-to-b w-fit px-4 from-purple-300 to-blue-300 rounded-xl whitespace-nowrap text-p5 -mt-3 border border-yellow-900">
             Shelter Bio
           </div>
           <div className="text-p2 h-14 font-secondary w-full flex items-center justify-center -mb-4">
@@ -34,7 +34,7 @@ export const ShelterBenefits = () => {
               src={cdnFile("cats/pinkie/pink-respirando-ropa.gif")}
             />
           </div>
-          <div className="text-p4 font-secondary text-main-black mt-1 w-full flex items-center justify-center gap-1">
+          <div className="text-p4 font-secondary text-yellow-900 mt-1 w-full flex items-center justify-center gap-1">
             <span className="flex flex-row gap-2">
               <a
                 href="https://www.facebook.com/rozine.pedute"

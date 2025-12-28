@@ -143,8 +143,8 @@ export const CodexSection = ({
   const isCompleted = useMemo(() => verification?.(profile!), [profile]);
   return (
     <div
-      className={`flex flex-col items-center relative font-primary pt-4 border-4 rounded-2xl bg-gradient-to-bl from-rose-400 to-orange-300 ${
-        isCompleted ? "border-green-400" : "border-red-300"
+      className={`flex flex-col items-center relative font-primary pt-4 border-4 rounded-2xl bg-gradient-to-bl from-yellow-300 to-orange-300 ${
+        isCompleted ? "border-yellow-300" : "border-red-300"
       }`}
     >
       {!info && (
@@ -158,7 +158,7 @@ export const CodexSection = ({
         <div
           key={info?.type}
           className={`flex flex-col w-64 animate-opacity font-primary text-balance text-center animate-opacit rounded-2xl border-4 border-yellow-300 px-0.5 py-1 ${
-            isCompleted ? "bg-green-400" : "bg-red-300"
+            isCompleted ? "bg-yellow-300" : "bg-red-300"
           }`}
         >
           <div className="text-p5 font-bold">
@@ -169,7 +169,7 @@ export const CodexSection = ({
       )}
       <span
         className={`px-2 text-p6 rounded-b-xl border-x-4 border-yellow-300 ${
-          isCompleted ? "bg-green-400" : "bg-red-300"
+          isCompleted ? "bg-yellow-300" : "bg-red-300"
         }`}
       >
         MISSION
@@ -200,7 +200,7 @@ export const CodexSection = ({
         />
         <div
           className={`font-primary text-center animate-opacity w-fit px-2 h-fit rounded-2xl border-yellow-300 border-2 ${
-            isCompleted ? "bg-green-400" : "bg-red-300"
+            isCompleted ? "bg-yellow-300" : "bg-red-300"
           }`}
         >
           {status(profile!)}
@@ -344,7 +344,7 @@ export const Codex = () => {
             <div
               key={index}
               className={`h-4 w-6 flex-1 relative ${
-                index < completedCount ? "bg-green-400" : "bg-red-300"
+                index < completedCount ? "bg-yellow-300" : "bg-red-300"
               }`}
             >
               {index < completedCount && (

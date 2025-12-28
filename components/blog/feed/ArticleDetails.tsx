@@ -49,11 +49,11 @@ export function ArticleDetails({
         />
         <h1
           dangerouslySetInnerHTML={{ __html: title }}
-          className="text-main-black px-4 capitalize text-balance text-center text-p1 font-paws md:text-h5 font-normal mb-6 md:mb-8"
+          className="text-yellow-900 px-4 capitalize text-balance text-center text-p1 font-paws md:text-h5 font-normal mb-6 md:mb-8"
         ></h1>
 
         <div
-          className="article-content text-main-black px-4 lg:text-p4 max-w-[44rem] m-auto mt-6 md:mt-8"
+          className="article-content text-yellow-900 px-4 lg:text-p4 max-w-[44rem] m-auto mt-6 md:mt-8"
           dangerouslySetInnerHTML={{ __html: content }}
         ></div>
       </article>

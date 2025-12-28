@@ -105,7 +105,7 @@ const Roadmap = () => {
               src={cdnFile("cats/grey/Loaf-Clothed-Grey.gif")}
             />
           </div>
-          <h2 className="font-paws text-h4 md:text-h2 text-yellow-900 glow">
+          <h2 className="font-primary text-h4 md:text-h2 text-yellow-900">
             SO FAR
           </h2>
           <div className="flex flex-col font-secondary text-p4 md:text-p2 font-bold">
@@ -148,7 +148,7 @@ const Roadmap = () => {
               src={cdnFile("cats/siamese/jugando Ropa Siames.gif")}
             />
           </div>
-          <h2 className="font-paws text-h4 md:text-h2 text-yellow-900 glow whitespace-nowrap">
+          <h2 className="font-primary text-h4 md:text-h2 text-yellow-900 whitespace-nowrap">
             RIGHT NOW
           </h2>
           <div className="flex flex-col font-secondary text-p4 md:text-p2 font-bold">
@@ -191,7 +191,7 @@ const Roadmap = () => {
               src={cdnFile("cats/yellow/Jump-Hat-Yellow.gif")}
             />
           </div>
-          <h2 className="font-paws text-h4 md:text-h2 text-yellow-900 glow whitespace-nowrap">
+          <h2 className="font-primary text-h4 md:text-h2 text-yellow-900 whitespace-nowrap">
             COMING
           </h2>
           <div className="flex flex-col font-secondary text-p4 md:text-p2 font-bold">

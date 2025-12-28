@@ -1,7 +1,7 @@
 import { CAT_API } from "@/api/cat-api";
 import { useCat } from "@/context/CatContext";
 import { useProfile } from "@/context/ProfileContext";
-import { ICat } from "@/models/cats";
+import { CatAbilityType, CatAbilityTypes, ICat } from "@/models/cats";
 import { useQuery } from "@tanstack/react-query";
 import {
   forwardRef,
@@ -125,6 +125,9 @@ function Shelter() {
 
   GameEvents.CAT_CARD_DISPLAY.use((event) => {
     if (event) {
+      if (!CatAbilityTypes.includes(event.npc.type)) {
+        event.npc.type = CatAbilityType.FAIRY;
+      }
       setSelectedNpc(event.npc);
       setShowModal(true);
     }
@@ -141,10 +144,7 @@ function Shelter() {
     <div id="app" className="relative z-20">
       <ShelterGame ref={phaserRef} />
       {showModal && selectedNpc && (
-        <TailsCardModal
-          {...selectedNpc}
-          onClose={() => onCloseModal()}
-        />
+        <TailsCardModal {...selectedNpc} onClose={() => onCloseModal()} />
       )}
     </div>
   );

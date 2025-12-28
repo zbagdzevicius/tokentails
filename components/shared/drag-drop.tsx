@@ -82,7 +82,7 @@ export function Previews({ maxFiles, value, onChange }: IProps) {
         <div
           {...getRootProps({
             className:
-              "dropzone py-4 bg-red-500 text-yellow-300 font-secondary text-p4 px-4 rounded-lg border-4 border-dashed border-main-black relative",
+              "dropzone py-4 bg-red-500 text-yellow-300 font-secondary text-p4 px-4 rounded-lg border-4 border-dashed border-yellow-900 relative",
           })}
         >
           <input {...getInputProps()} />
@@ -93,7 +93,7 @@ export function Previews({ maxFiles, value, onChange }: IProps) {
           </p>
           {isUploading && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-12 h-12 border-t-4 border-b-4 border-main-black border-dashed rounded-full animate-spin"></div>
+              <div className="w-12 h-12 border-t-4 border-b-4 border-yellow-900 border-dashed rounded-full animate-spin"></div>
             </div>
           )}
         </div>

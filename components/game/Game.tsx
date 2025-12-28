@@ -13,7 +13,7 @@ const Adopt = dynamic(() => import("@/components/shelter/Shelter"), {
 export const Game = () => {
   const { gameType, isStarted, level } = useGame();
   const { profile } = useProfile();
-  const background = useBackground({ level });
+  const background = useBackground({ level, gameType });
   useBodyOverflowHidden();
 
   return (

@@ -121,41 +121,40 @@ export const MysteryBoxCat = () => {
       <div className="m-auto animate-appear">
         <div className="flex flex-col items-start w-fit m-auto">
           {(!profile?.boxes || boxType === EntityType.MYSTERY_BOX) && (
-            <div className="text-main-black font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
-                  {currencyPrice} {currencyType}
-                </div>
-              )}
-              {!!profile?.boxes && boxType === EntityType.LOOT_BOX ? (
-                <PixelButton
-                  text="Open FREE Box"
-                  onClick={() => openFreeBox()}
-                />
-              ) : (
-                <Web3Transfer
-                  price={currencyPrice}
-                  amount={1}
-                  entityType={boxType}
-                  user={profile?._id}
-                  text="Open THE Box"
-                  loadingText="Opening..."
-                />
-              )}
-          </div>
+            <div className="text-yellow-900 font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
+              {currencyPrice} {currencyType}
+            </div>
+          )}
+          {!!profile?.boxes && boxType === EntityType.LOOT_BOX ? (
+            <PixelButton text="Open FREE Box" onClick={() => openFreeBox()} />
+          ) : (
+            <Web3Transfer
+              price={currencyPrice}
+              amount={1}
+              entityType={boxType}
+              user={profile?._id}
+              text="Open THE Box"
+              loadingText="Opening..."
+            />
+          )}
         </div>
+      </div>
       {boxType === EntityType.LOOT_BOX && (
         <div className="flex flex-col items-center justify-center w-48">
           <div className="text-p4 font-secondary text-center mt-2">
             WHAT CAN I WIN?
           </div>
-          <div className="text-p4 bg-amber-500 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 hover:scale-110 transition-transform mb-2 border-2 rounded-xl border-main-black">
+          <div className="text-p4 bg-gradient-to-r from-yellow-600 to-yellow-900 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 hover:scale-110 transition-transform mb-2 border-4 rounded-lg border-yellow-900">
             <img
               draggable={false}
               src={cdnFile("logo/logo.webp")}
               className="w-8 mr-3"
             />
             <span className="flex flex-col">
-              <span className="text-p5 -mb-1 text-amber-900">WIN $TAILS</span>
-              <span>UP TO 1000000 $TAILS</span>
+              <span className="text-p5 -mb-1 text-amber-900 font-primary glow">
+                WIN $TAILS
+              </span>
+              <span className="text-yellow-50">UP TO 1000000</span>
             </span>
           </div>
         </div>

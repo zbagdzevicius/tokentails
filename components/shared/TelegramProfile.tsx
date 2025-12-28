@@ -284,59 +284,63 @@ export const TelegramProfileContent = () => {
             />
           </div>
           {activeTab === "stats" && (
-            <ul className="flex flex-col items-center mt-4">
-              <li className="flex items-center gap-x-2">
-                <img
-                  draggable={false}
-                  className="w-5"
-                  src={cdnFile("logo/catnip.webp")}
-                />
-                <div className="flex font-secondary text-p4 gap-2">
-                  CATNIPS:{" "}
-                  <span className="font-bold">
-                    {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0} /{" "}
-                    {totalCatnip}
-                  </span>
+            <section className="flex justify-between mt-4">
+              <div className="flex flex-col items-center gap-x-2">
+                <div className="text-p5 flex items-center gap-1">
+                  <img
+                    draggable={false}
+                    className="w-4 h-4"
+                    src={cdnFile("logo/catnip.webp")}
+                  />
+                  <div>CATNIP</div>
                 </div>
-              </li>
-              <li className="flex items-center gap-x-2">
-                <img
-                  draggable={false}
-                  className="w-7 mb-1 -mr-1 -ml-1"
-                  src={cdnFile("logo/logo.webp")}
-                />
-                <div className="flex font-secondary text-p4 gap-2">
-                  $Tails:{" "}
-                  <span className="font-bold">
-                    {commafy(profile.tails || 0)}
-                  </span>
+                <div className="flex items-center text-p6 bg-green-300/50 border border-yellow-900 rounded-lg w-full justify-center">
+                  {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0} /{" "}
+                  {totalCatnip}
                 </div>
-              </li>
-              <li className="flex items-center gap-x-2">
-                <img
-                  draggable={false}
-                  className="w-5"
-                  src={cdnFile("logo/rocket.png")}
-                />
-                <div className="flex font-secondary text-p4 gap-2">
-                  CHECK-INS:{" "}
-                  <span className="font-bold">{profile?.streak || 0}</span>
+              </div>
+              <div className="flex flex-col items-center gap-x-2">
+                <div className="text-p5 flex items-center gap-1">
+                  <img
+                    draggable={false}
+                    className="h-4"
+                    src={cdnFile("logo/logo.webp")}
+                  />
+                  <div>$TAILS</div>
                 </div>
-              </li>
-              <li className="flex items-center gap-x-2">
-                <img
-                  draggable={false}
-                  className="w-5"
-                  src={cdnFile("logo/friends.png")}
-                />
-                <div className="flex font-secondary text-p4 gap-2">
-                  FRIENDS:{" "}
-                  <span className="font-bold">
-                    {profile?.referralsCount || 0}
-                  </span>
+                <div className="flex items-center gap-2 bg-yellow-300/50 border border-yellow-900 rounded-lg w-full justify-center">
+                  <div className="text-p6">
+                    {profile?.tails?.toFixed(0) || 0}
+                  </div>
                 </div>
-              </li>
-            </ul>
+              </div>
+              <div className="flex flex-col items-center gap-x-2">
+                <div className="text-p5 flex items-center gap-1">
+                  <img
+                    draggable={false}
+                    className="w-5"
+                    src={cdnFile("logo/rocket.png")}
+                  />
+                  <div>CHECKS</div>
+                </div>
+                <div className="flex items-center text-p6 bg-blue-300/50 border border-yellow-900 rounded-lg w-full justify-center">
+                  <div className="text-p6">{profile?.streak || 0}</div>
+                </div>
+              </div>
+              <div className="flex flex-col items-center gap-x-2">
+                <div className="text-p5 flex items-center gap-1">
+                  <img
+                    draggable={false}
+                    className="w-4 h-4"
+                    src={cdnFile("logo/friends.png")}
+                  />
+                  <div>INVITES</div>
+                </div>
+                <div className="flex items-center text-p6 bg-red-300/50 border border-yellow-900 rounded-lg w-full justify-center">
+                  <div className="text-p6">{profile?.referralsCount || 0}</div>
+                </div>
+              </div>
+            </section>
           )}
 
           {activeTab === "achievements" && (
@@ -415,6 +419,12 @@ export const TelegramProfileContent = () => {
             </ul>
           )}
 
+          {isFB && (
+            <div className="mt-4">
+              <PixelButton isSmall text="Logout :(" onClick={logout} />
+            </div>
+          )}
+
           {profile?.wallets?.evm && isWalletsRevealed && (
             <li
               onClick={() => copy(profile?.wallets.evm.walletAddress)}
@@ -456,7 +466,6 @@ export const TelegramProfileContent = () => {
       <div className="flex flex-col justify-center">
         <ProfileUpdate />
         <GameMusicToggle />
-        {isFB && <PixelButton isSmall text="Logout" onClick={logout} />}
         {isApp && (
           <PixelButton
             isSmall

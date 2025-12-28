@@ -64,7 +64,7 @@ export const PixelButton = ({
         filter: isDisabled ? "brightness(0.7)" : "none",
         cursor: isDisabled ? "not-allowed" : "pointer",
       }}
-      className={`flex justify-center relative items-center h-12 ${
+      className={`flex justify-center relative items-center m-auto h-12 ${
         isWidthFull && "w-full"
       }
             ${isSmall && "scale-[0.675] hover:scale-75"}

@@ -9,9 +9,9 @@ export const CloseButton = ({ onClick, absolute }: ICloseButton) => {
   return (
     <img
       draggable={false}
-      src={cdnFile("icons/pixel-close.png")}
-      className={`hover:brightness-150 hover:translate hover:scale-125 lg:w-9 w-7 lg:h-9 h-7 ${
-        absolute ? "absolute right-2 mt-2" : "sticky pt-2 px-1"
+      src={cdnFile("icons/close.webp")}
+      className={`hover:brightness-150 hover:translate brightness-70 opacity-70 transition-all duration-300 hover:opacity-100 hover:scale-125 lg:w-16 w-12 h-auto ${
+        absolute ? "absolute right-0" : "sticky pt-2"
       } top-2 -mb-9 lg:-mb-10 ml-auto mr-2 z-[90]`}
       onClick={onClick}
     />

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { cdnFile } from "./utils";
+import { GameType } from "@/models/game";
 
 const bgImages = [
   `url(${cdnFile("backgrounds/bg-1.webp")})`,
@@ -42,7 +43,23 @@ const chaptersBackgroundImages = {
   "9": `url(${cdnFile("backgrounds/bg-6.webp")})`,
 };
 
-export const useBackground = ({ level }: { level?: string | null }) => {
+export const useBackground = ({
+  level,
+  gameType,
+}: {
+  level?: string | null;
+  gameType?: GameType | null;
+}) => {
+  const bgImage = useMemo(() => {
+    if (gameType === GameType.HOME) {
+      return `url(${cdnFile("backgrounds/bg-2.webp")})`;
+    }
+    if (gameType === GameType.SHELTER) {
+      return `url(${cdnFile("backgrounds/bg-10.webp")})`;
+    }
+    return null;
+  }, [gameType]);
+  console.log(bgImage);
   const bgHour = useMemo(() => {
     const coreBg = {
       backgroundRepeat: "no-repeat",
@@ -51,13 +68,15 @@ export const useBackground = ({ level }: { level?: string | null }) => {
     };
     return {
       ...coreBg,
-      backgroundImage: level
+      backgroundImage: bgImage
+        ? bgImage
+        : level
         ? chaptersBackgroundImages[
             level[0] as keyof typeof chaptersBackgroundImages
           ]
-        : "url(/landing/game-bg-2.webp)",
+        : `url(${cdnFile("landing/game-bg-2.webp")})`,
     };
-  }, [level]);
+  }, [level, gameType]);
 
   return bgHour;
 };

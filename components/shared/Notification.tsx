@@ -17,7 +17,7 @@ export const Notification = ({
       style={{ transform: "translateX(-50%)" }}
     >
       <div
-        className={`animate-bounceWithFade rem:w-[240px] md:w-[300px] lg:w-[360px] min-h-10 px-2 text-main-black font-secondary`}
+        className={`animate-bounceWithFade rem:w-[240px] md:w-[300px] lg:w-[360px] min-h-10 px-2 text-yellow-900 font-secondary`}
       >
         <div className="flex flex-col text-center items-center justify-center">
           <div className="relative">
@@ -39,7 +39,7 @@ export const Notification = ({
           </div>
 
           <p
-            className="text-p2 md:text-p1 font-bold text-yellow-300"
+            className="text-p2 md:text-p1 font-bold text-yellow-300 glow"
             style={{
               textShadow: "1px 1px 2px black, 0 0 1em red, 0 0 0.2em black",
             }}

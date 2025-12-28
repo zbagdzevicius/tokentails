@@ -85,31 +85,51 @@ export const QuestsModalContent = () => {
   return (
     <div className="px-2 md:px-4 pb-8 pt-4 md:b-12 flex flex-col justify-between items-center animate-appear">
       <div className="font-paws text-h2 glow text-yellow-900">EVENTS</div>
-      <div className="pb-2 flex items-center justify-between w-full">
-        <PixelButton
-          text="Rescuer"
-          isSmall
-          active={questsType === QuestType.RESCUE}
-          onClick={() => setQuestsType(QuestType.RESCUE)}
-        ></PixelButton>
-        <PixelButton
-          text="$TAILS"
-          isSmall
-          active={questsType === QuestType.WIN}
-          onClick={() => setQuestsType(QuestType.WIN)}
-        ></PixelButton>
-        <PixelButton
-          text="CATNIP"
-          isSmall
-          active={questsType === QuestType.CATNIP}
-          onClick={() => setQuestsType(QuestType.CATNIP)}
-        ></PixelButton>
-        <PixelButton
-          text="QUESTS"
-          isSmall
-          active={questsType === QuestType.SOCIAL}
-          onClick={() => setQuestsType(QuestType.SOCIAL)}
-        ></PixelButton>
+      <div className="pb-2 flex items-center justify-between w-full -ml-4 -mr-4">
+        <div className="flex flex-col items-center gap-x-2 relative -mr-4">
+          <img
+            src={cdnFile("logo/heart.webp")}
+            className="w-4 absolute top-0 left-3 z-0 -rotate-45"
+          />
+          <img
+            src={cdnFile("logo/heart.webp")}
+            className="w-8 absolute -top-2 left-1/2 -translate-x-1/2 z-0"
+          />
+          <img
+            src={cdnFile("logo/heart.webp")}
+            className="w-4 absolute top-0 right-3 z-0 rotate-45"
+          />
+          <PixelButton
+            text="Valentine"
+            isSmall
+            active={questsType === QuestType.RESCUE}
+            onClick={() => setQuestsType(QuestType.RESCUE)}
+          ></PixelButton>
+        </div>
+        <div className="-ml-2">
+          <PixelButton
+            text="$TAILS"
+            isSmall
+            active={questsType === QuestType.WIN}
+            onClick={() => setQuestsType(QuestType.WIN)}
+          ></PixelButton>
+        </div>
+        <div className="-ml-4">
+          <PixelButton
+            text="CATNIP"
+            isSmall
+            active={questsType === QuestType.CATNIP}
+            onClick={() => setQuestsType(QuestType.CATNIP)}
+          ></PixelButton>
+        </div>
+        <div className="-ml-4">
+          <PixelButton
+            text="QUESTS"
+            isSmall
+            active={questsType === QuestType.SOCIAL}
+            onClick={() => setQuestsType(QuestType.SOCIAL)}
+          ></PixelButton>
+        </div>
       </div>
       <span className="lg:px-8 w-full">
         {questsType === QuestType.SOCIAL && (
@@ -156,7 +176,7 @@ export const QuestsModalContent = () => {
 
             <>
               <div
-                className="flex flex-col mb-4 font-primary uppercase px-2 relative rounded-lg py-2 text-main-black mt-8"
+                className="flex flex-col mb-4 font-primary uppercase px-2 relative rounded-lg py-2 text-yellow-900 mt-8"
                 style={bgStyle("6")}
               >
                 <Tag isSmall>WHAT I'LL GET FOR INVITING A FRIEND?</Tag>
