@@ -31,7 +31,7 @@ export type IBlessing = {
   instagram?: string;
   creator: string;
   cat: string;
-  shelter?: string | IShelter;
+  shelter?: IShelter;
   owner: string;
   status?: BlessingStatus;
   savior?: IImage;

@@ -1,39 +1,24 @@
-import React, { useState, useCallback, useMemo } from "react";
-import { ICat, CatAbilityType, CatAbilityTypes } from "@/models/cats";
-import { fakeCat } from "./data";
-import { CardWrapper } from "./CardWrapper";
-import { CardFront } from "./CardFront";
-import { CardBack } from "./CardBack";
 import { isProd } from "@/models/app";
+import { CatAbilityType, CatAbilityTypes, ICat } from "@/models/cats";
+import React, { useCallback, useMemo, useState } from "react";
+import { CardBack } from "./CardBack";
+import { CardFront } from "./CardFront";
+import { CardWrapper } from "./CardWrapper";
+import { fakeCat } from "./data";
 
 type Props = {
   cat?: ICat;
 };
-
-// Extract constants outside component
-const HTML_TAG_REGEX = /<[^>]*>/g;
 
 export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
   const [flipped, setFlipped] = useState(true);
   const [selectedType, setSelectedType] = useState<CatAbilityType>(cat.type);
 
   const blessing = cat.blessing;
-  const shelterName = cat.shelter?.name || "";
 
   if (!CatAbilityTypes.includes(cat.type)) {
     cat.type = CatAbilityType.FAIRY;
   }
-
-  // Memoize functions to prevent recreation on each render
-  const getPlainText = useCallback((html: string) => {
-    return html.replace(HTML_TAG_REGEX, "");
-  }, []);
-
-  const limitWords = useCallback((text: string, maxWords: number = 50) => {
-    const words = text.split(/\s+/);
-    if (words.length <= maxWords) return text;
-    return words.slice(0, maxWords).join(" ") + "...";
-  }, []);
 
   // Memoize testCat to prevent unnecessary re-renders
   const testCat = useMemo(
@@ -97,13 +82,7 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
             }}
           >
             <CardWrapper catType={selectedType}>
-              <CardFront
-                cat={testCat}
-                blessing={blessing}
-                shelterName={shelterName}
-                getPlainText={getPlainText}
-                limitWords={limitWords}
-              />
+              <CardFront cat={testCat} blessing={blessing} />
             </CardWrapper>
           </div>
 

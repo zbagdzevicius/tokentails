@@ -1,27 +1,13 @@
 import { IBlessing, ICat, cardsBorderColor } from "@/models/cats";
 import React, { useMemo } from "react";
-import { countryFlagMap } from "./data";
 
 type CardFrontProps = {
   cat: ICat;
   blessing: IBlessing;
-  shelterName: string;
-  getPlainText: (html: string) => string;
-  limitWords: (text: string, maxWords?: number) => string;
 };
 
 export const CardFront: React.FC<CardFrontProps> = React.memo(
-  ({ cat, blessing, shelterName, getPlainText, limitWords }) => {
-    // Memoize computed values
-    const shelterCountry = useMemo(
-      () => cat.shelter?.country || "US",
-      [cat.shelter?.country]
-    );
-    const flagPath = useMemo(
-      () =>
-        countryFlagMap[shelterCountry.toUpperCase()] || countryFlagMap["US"],
-      [shelterCountry]
-    );
+  ({ cat, blessing }) => {
     const borderColor = useMemo(() => cardsBorderColor[cat.type], [cat.type]);
     const imageUrl = useMemo(
       () => blessing?.image?.url || cat.catImg,
@@ -36,9 +22,11 @@ export const CardFront: React.FC<CardFrontProps> = React.memo(
       [blessing?.name, cat.name]
     );
     const description = useMemo(
-      () => blessing?.description || cat.resqueStory,
+      () => blessing?.description || cat.resqueStory.replace(/<[^>]*>/g, ""),
       [blessing?.description, cat.resqueStory]
     );
+
+    const shelterName = cat.shelter?.name || "";
 
     return (
       <div className="w-[88%] h-[93%] flex flex-col">
@@ -47,12 +35,25 @@ export const CardFront: React.FC<CardFrontProps> = React.memo(
             <h2 className="font-normal text-black drop-shadow-md flex-1 leading-tight font-primary text-[clamp(18px,4.5vw,28px)]">
               {displayName}
             </h2>
-            <img
-              draggable={false}
-              src={flagPath}
-              alt="Country Flag"
-              className="object-cover border-2 border-white rounded-[8px] flex-shrink-0 w-[clamp(52px,25%,82px)] h-auto"
-            />
+            <div className="relative">
+              {cat.shelter?.image?.url && (
+                <div className="absolute inset-0 opacity-50 flex items-center">
+                  <img
+                    src={cat.shelter?.image?.url}
+                    draggable={false}
+                    className="object-contain w-full h-3/4 m-auto"
+                  />
+                </div>
+              )}
+              <img
+                draggable={false}
+                src={`/flags/${
+                  cat.shelter?.country?.toLowerCase() || "lt"
+                }.webp`}
+                alt="Country Flag"
+                className="object-cover border-2 border-white rounded-[8px] flex-shrink-0 h-8 w-auto"
+              />
+            </div>
           </div>
 
           <div className="relative border-b-2 border-[#00000040] w-full aspect-[5/3] rounded-[12px] overflow-hidden mb-[4.5%] shadow-xl flex-shrink-0">
@@ -105,9 +106,10 @@ export const CardFront: React.FC<CardFrontProps> = React.memo(
               Pet Story
             </h3>
             <div className="text-black leading-snug overflow-hidden font-tertiary font-bold text-[clamp(10px,2.2vw,13px)]">
-              <p className="line-clamp-6">
-                {limitWords(getPlainText(description), 45)}
-              </p>
+              <p
+                className="line-clamp-6"
+                dangerouslySetInnerHTML={{ __html: description }}
+              ></p>
             </div>
           </div>
         </div>
