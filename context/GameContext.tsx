@@ -19,7 +19,6 @@ import { Notification } from "@/components/shared/Notification";
 import { QuestsModal } from "@/components/shared/QuestsModal";
 import { SupportModal } from "@/components/shared/SupportModal";
 import { TelegramProfile } from "@/components/shared/TelegramProfile";
-import { getMultiplier } from "@/constants/cat-utils";
 import { GameModal, GameType } from "@/models/game";
 import * as React from "react";
 import { useEffect, useState } from "react";
@@ -90,11 +89,8 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     async (event?: ICatEventsDetails[GameEvent.GAME_STOP]) => {
       if (!profile || !event) return;
 
-      const multiplier = getMultiplier(profile?.cat);
       const earnedScore =
-        gameType === GameType.CATNIP_CHAOS
-          ? event.score
-          : (event.score || 0) * multiplier;
+        gameType === GameType.CATNIP_CHAOS ? event.score : event.score || 0;
 
       setIsStarted(false);
 

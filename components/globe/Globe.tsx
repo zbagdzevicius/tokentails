@@ -43,13 +43,13 @@ const INITIAL_PARTNERSHIPS: PartnershipData[] = [
     since: "1985",
   },
   {
-    countryName: "Japan",
+    countryName: "United Kingdom",
     status: "active",
     description: "Tokyo Uplink. Robotics division sync complete.",
     since: "1992",
   },
   {
-    countryName: "Brazil",
+    countryName: "Lithuania",
     status: "pending",
     description: "Data stream initializing via Amazonia fiber.",
     since: "2024",
@@ -58,16 +58,10 @@ const INITIAL_PARTNERSHIPS: PartnershipData[] = [
 
 export const PixelGlobe = () => {
   const [countries, setCountries] = useState<GeoJsonFeature[]>([]);
-  const [partnerships, setPartnerships] =
-    useState<PartnershipData[]>(INITIAL_PARTNERSHIPS);
-  const [selectedCountry, setSelectedCountry] = useState<GeoJsonFeature | null>(
-    null
+  const [partnerships, setPartnerships] = useState<string[]>(
+    INITIAL_PARTNERSHIPS.map((p) => p.countryName)
   );
   const [isInView, setIsInView] = useState(false);
-  const partnershipStatusMap = partnerships.reduce((acc, p) => {
-    acc[p.countryName] = p.status;
-    return acc;
-  }, {} as Record<string, string>);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -290,38 +284,27 @@ export const PixelGlobe = () => {
         path(feature as any);
 
         // Default: translucent blue-white for continents
-        if (countryName === "United States of America") {
+        if (partnerships.includes(countryName)) {
           // US: Yellow glow matching globe
           context.fillStyle = isHovered
             ? "rgba(252, 236, 187, 0.7)"
             : "rgba(252, 236, 187, 0.6)";
-        } else if (countryName === "Brazil") {
-          // Brazil: Yellow glow matching globe
-          context.fillStyle = isHovered
-            ? "rgba(252, 236, 187, 0.7)"
-            : "rgba(252, 236, 187, 0.6)";
+
+          // Stroke for partnered countries
+          drawNeonGlow(() => path(feature as any), "#FCECBB", 1);
         } else {
           // Other countries: translucent blue-white
           context.fillStyle = isHovered
             ? "rgba(200, 220, 255, 0.4)"
             : "rgba(180, 200, 255, 0.3)";
-        }
 
-        context.fill();
-
-        // Only apply neon glow to major countries for performance
-        if (
-          countryName === "United States of America" ||
-          countryName === "Brazil"
-        ) {
-          // Use same yellow glow as globe
-          drawNeonGlow(() => path(feature as any), "#FCECBB", 1);
-        } else {
-          // Simple stroke for other countries
+          // Stroke for other countries
           context.lineWidth = 1;
           context.strokeStyle = "rgba(252, 236, 187, 0.4)";
           context.stroke();
         }
+
+        context.fill();
       });
 
       // 4. Globe outline with optimized neon glow
@@ -333,14 +316,7 @@ export const PixelGlobe = () => {
     };
 
     render();
-  }, [
-    countriesWithCentroids,
-    rotation,
-    hoveredCountry,
-    partnershipStatusMap,
-    time,
-    isInView,
-  ]);
+  }, [countriesWithCentroids, rotation, hoveredCountry, time, isInView]);
 
   // Drag Handling
   useEffect(() => {
@@ -400,14 +376,7 @@ export const PixelGlobe = () => {
           cursor: hoveredCountry ? "pointer" : isDragging ? "grabbing" : "grab",
         }}
         onMouseMove={handleMouseMove}
-        onClick={() =>
-          hoveredCountry &&
-          setSelectedCountry(
-            countriesWithCentroids.find(
-              (c) => c.properties.name === hoveredCountry
-            )!
-          )
-        }
+        onClick={() => hoveredCountry}
         className="touch-none w-[400px] h-[400px] md:w-[600px] md:h-[600px]"
       />
 

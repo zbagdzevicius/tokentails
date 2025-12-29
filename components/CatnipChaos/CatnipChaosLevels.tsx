@@ -12,8 +12,6 @@ import {
 } from "../Phaser/map";
 import { PixelButton } from "../shared/PixelButton";
 import { TrailheadsData } from "../shared/QuestsModal";
-import { ConnectWallet, Web3Mint } from "../web3/minting/Web3Mint";
-import { Web3Providers } from "../web3/Web3Providers";
 
 const levelCharacter: Record<string, string> = {
   "41": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/STICKY/base/RUNNING.gif",
@@ -119,10 +117,36 @@ export const CatnipChaosLevels = ({
   );
   return (
     <div className="flex flex-col items-center gap-4 mt-14 lg:mt-24 pb-20 animate-opacity pt-8">
-      <div className="flex flex-col md:flex-row lg:flex-col gap-4 items-center">
-        <Web3Providers>
-          <ConnectWallet />
-        </Web3Providers>
+      <div className="flex flex-row items-center gap-8 font-primary">
+        <div className="flex flex-col items-center gap-x-2 bg-yellow-300/80 rounded-lg px-2 pb-2">
+          <div className="text-p4 flex items-center gap-1">
+            <img
+              draggable={false}
+              className="w-4 h-4"
+              src={cdnFile("logo/catnip.webp")}
+            />
+            <div>CATNIP</div>
+          </div>
+          <div className="flex items-center text-p5 bg-green-300/50 border border-yellow-900 rounded-lg w-full justify-center">
+            {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0} /{" "}
+            {totalCatnip}
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center gap-x-2 bg-yellow-300/80 rounded-lg px-2 pb-2">
+          <div className="text-p4 flex items-center gap-1">
+            <img
+              draggable={false}
+              className="w-4 h-4"
+              src={cdnFile("purrquest/sprites/key.png")}
+            />
+            <div>COMPLETED</div>
+          </div>
+          <div className="flex items-center text-p5 bg-yellow-900/20 border border-yellow-900 rounded-lg w-full justify-center">
+            {profile?.catnipChaos?.length || 0}
+            <span>/{Object.keys(CatnipChaosLevelMap).length}</span>
+          </div>
+        </div>
       </div>
       <div
         onClick={() => setSelectedLevel("01")}
@@ -143,7 +167,7 @@ export const CatnipChaosLevels = ({
           <span className="">{profile?.catnipChaos?.[0] || 0} / 420</span>
         </span>
       </div>
-      <div className="flex flex-wrap gap-4 justify-center max-w-[44rem]">
+      <div className="flex flex-wrap gap-4 justify-center max-w-[44rem] bg-gradient-to-b from-yellow-900/50 to-yellow-900/70 rounded-lg pb-32">
         {catnipChaosLevelsList
           .filter((level) => !level.startsWith("0"))
           .map((level, i) => (
@@ -216,22 +240,11 @@ export const CatnipChaosLevels = ({
                           isSmall
                         ></PixelButton>
                       ) : (
-                        <Web3Providers>
-                          <Web3Mint
-                            hideAddress
-                            user={profile?._id!}
-                            ownedNFTCallback={() =>
-                              onRedeem(
-                                chaptersBadges[
-                                  parseInt(
-                                    level.length === 3
-                                      ? `${level[0]}${level[1]}`
-                                      : level[0]
-                                  ) - 1
-                                ]
-                              )
-                            }
-                            mysteryBox={
+                        <PixelButton
+                          text="REDEEM"
+                          isSmall
+                          onClick={() =>
+                            onRedeem(
                               chaptersBadges[
                                 parseInt(
                                   level.length === 3
@@ -239,9 +252,9 @@ export const CatnipChaosLevels = ({
                                     : level[0]
                                 ) - 1
                               ]
-                            }
-                          />
-                        </Web3Providers>
+                            )
+                          }
+                        ></PixelButton>
                       )}
                     </div>
                   )}
@@ -265,25 +278,6 @@ export const CatnipChaosLevels = ({
               )}
             </div>
           ))}
-      </div>
-      <div className="flex flex-row items-center gap-8 pb-32">
-        <div className="flex flex-col items-start text-p4 md:text-p2">
-          <div className="flex font-secondary text-center items-center gap-1">
-            <img src={cdnFile("logo/catnip.webp")} className="w-8 h-8 mr-2" />
-            {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0}
-            <span>/{totalCatnip}</span>
-            <span>COLLECTED</span>
-          </div>
-          <div className="flex font-secondary text-center items-center gap-1">
-            <img
-              src={cdnFile("purrquest/sprites/key.png")}
-              className="w-8 h-8 mr-2"
-            />
-            {profile?.catnipChaos?.length || 0}
-            <span>/{Object.keys(CatnipChaosLevelMap).length}</span>
-            <span>COMPLETED LEVELS</span>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -14,7 +14,7 @@ export class Abilities {
   private knockbackSpellLifetimeMs: number;
   knockbackSpellGroup: Phaser.Physics.Arcade.Group;
 
-  private static hueRotationMap: Record<string, number> = {
+  private static hueRotationMap: Record<CatAbilityType | string, number> = {
     ELECTRIC: 60, // Yellow
     STORM: 120, // Green
     FIRE: 30, // Orange

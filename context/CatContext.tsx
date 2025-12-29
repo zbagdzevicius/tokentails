@@ -1,3 +1,5 @@
+import { CAT_API } from "@/api/cat-api";
+import { REWARDS } from "@/constants/rewards";
 import { ICat, ICatStatus } from "@/models/cats";
 import { IStatus, StatusType } from "@/models/status";
 import { useMutation } from "@tanstack/react-query";
@@ -5,9 +7,6 @@ import * as React from "react";
 import { useCallback } from "react";
 import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
-import { CAT_API } from "@/api/cat-api";
-import { REWARDS } from "@/constants/rewards";
-import { getMultiplier } from "@/constants/cat-utils";
 
 type ContextState = {
   cat?: ICat | null;
@@ -73,7 +72,7 @@ const CatProvider = ({ children }: React.PropsWithChildren<{}>) => {
         status: { ...(cat.status || {}), [status.type]: status.status },
       };
       setProfileUpdate({
-        tails: (profile?.tails || 0) + REWARDS.FEED * getMultiplier(cat),
+        tails: (profile?.tails || 0) + REWARDS.FEED,
         cat: newStatus,
       });
       await saveStatus.mutate(newStatus.status);

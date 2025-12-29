@@ -146,8 +146,7 @@ export class Cat implements IPlayer {
     catName: string,
     blessing: Phaser.GameObjects.Sprite,
     type: CatAbilityType,
-    enableControls: boolean = true,
-    multiplier: number = 1
+    enableControls: boolean = true
   ) {
     this.scene = scene;
     this.type = type;
@@ -195,9 +194,7 @@ export class Cat implements IPlayer {
 
     this.enableControls = enableControls;
 
-    if (multiplier >= 15) {
-      this.enableDoubleJump();
-    }
+    this.enableDoubleJump();
   }
 
   initAnimations() {
@@ -413,5 +410,5 @@ export class Cat implements IPlayer {
 
   setCurrentRotation(reversed: boolean) {
     this.currentRotation = reversed;
-}
+  }
 }

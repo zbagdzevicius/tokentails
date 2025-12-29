@@ -8,7 +8,6 @@ import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileContr
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { cdnFile, isMobile } from "@/constants/utils";
 import { CatAbilityType, ICat } from "@/models/cats";
-import { getMultiplier } from "@/constants/cat-utils";
 import { Scene } from "phaser";
 import { Cat } from "../../catbassadors/objects/Catbassador";
 
@@ -73,7 +72,7 @@ export class CatnipChaosScene extends Scene {
   private flightOffBlocks: Phaser.GameObjects.Sprite[] = [];
   private flightEffectSprite?: Phaser.GameObjects.Sprite;
   private flightCloudSprite?: Phaser.GameObjects.Sprite;
- private ghostCloudSprite?: Phaser.GameObjects.Sprite;
+  private ghostCloudSprite?: Phaser.GameObjects.Sprite;
   private geometryDashCloudSprite?: Phaser.GameObjects.Sprite;
   private wasOnFlightOnBlock: boolean = false;
   private wasOnFlightOffBlock: boolean = false;
@@ -99,7 +98,6 @@ export class CatnipChaosScene extends Scene {
         frameHeight: 50,
       }
     );
-    
 
     this.load.tilemapTiledJSON(
       "tilemap",
@@ -121,7 +119,7 @@ export class CatnipChaosScene extends Scene {
       frameWidth: 72,
       frameHeight: 51,
     });
-        this.load.spritesheet("splash", cdnFile("catnip-chaos/splash.png"), {
+    this.load.spritesheet("splash", cdnFile("catnip-chaos/splash.png"), {
       frameWidth: 72,
       frameHeight: 72,
     });
@@ -172,10 +170,14 @@ export class CatnipChaosScene extends Scene {
       frameWidth: 64,
       frameHeight: 64,
     });
-      this.load.spritesheet("glitch-portal", cdnFile("catnip-chaos/glitch-portal.png"), {
-      frameWidth: 32,
-      frameHeight: 32,
-    });
+    this.load.spritesheet(
+      "glitch-portal",
+      cdnFile("catnip-chaos/glitch-portal.png"),
+      {
+        frameWidth: 32,
+        frameHeight: 32,
+      }
+    );
     this.load.spritesheet(
       "knockback-spell",
       cdnFile("abilities/knockback-spell/FIRE.png"),
@@ -328,7 +330,11 @@ export class CatnipChaosScene extends Scene {
         const worldY = this.physicsLayer.tileToWorldY(tile.y);
         this.physicsLayer.removeTileAt(tile.x, tile.y);
 
-        const effectSprite = this.add.sprite(worldX+16, worldY-4, "jumping-effect");
+        const effectSprite = this.add.sprite(
+          worldX + 16,
+          worldY - 4,
+          "jumping-effect"
+        );
         effectSprite.setDisplaySize(64, 64);
         effectSprite.play("jumping-effect-anim");
 
@@ -432,22 +438,13 @@ export class CatnipChaosScene extends Scene {
     blessing: Phaser.GameObjects.Sprite | null,
     type: CatAbilityType
   ) {
-    this.cat = new Cat(
-      this,
-      -950,
-      -900,
-      catName,
-      blessing!,
-      type,
-      true,
-      getMultiplier(this.catDto)
-    );
+    this.cat = new Cat(this, -950, -900, catName, blessing!, type, true);
 
     this.cat.sprite.setRotation(0);
     this.setupCatCollisions();
     this.cameras.main.startFollow(this.cat.sprite);
     this.cat.setAutoRunMode(this.autoRunSpeed, this.autoJumpSpeed);
-    
+
     if (this.ghostImage) {
       if (this.textures.exists("cat-spirit")) {
         this.catSpirit = this.add.sprite(
@@ -459,17 +456,15 @@ export class CatnipChaosScene extends Scene {
         this.catSpirit.setDepth(this.cat.sprite.depth - 2);
         this.catSpirit.play("cat-spirit-anim");
 
-      
-          this.ghostCloudSprite = this.add.sprite(
-            this.catSpirit.x,
-            this.catSpirit.y,
-            "cloud"
-          );
-          this.ghostCloudSprite.setDisplaySize(72, 51);
-          this.ghostCloudSprite.setDepth(this.catSpirit.depth - 1);
-          this.ghostCloudSprite.play("cloud-anim");
-          this.ghostCloudSprite.setTint(0xff69b4)
-        
+        this.ghostCloudSprite = this.add.sprite(
+          this.catSpirit.x,
+          this.catSpirit.y,
+          "cloud"
+        );
+        this.ghostCloudSprite.setDisplaySize(72, 51);
+        this.ghostCloudSprite.setDepth(this.catSpirit.depth - 1);
+        this.ghostCloudSprite.play("cloud-anim");
+        this.ghostCloudSprite.setTint(0xff69b4);
       }
     }
 
@@ -548,30 +543,30 @@ export class CatnipChaosScene extends Scene {
 
     if (tile) {
       if (tile.index === 311) {
-  
         this.cat.setAutoRunMode(-this.autoRunSpeed, this.autoJumpSpeed);
         this.cat.setCurrentRotation(true);
-        
+
         if (this.cat.movement) {
-          this.cat.movement.flightXSpeed = -Math.abs(this.cat.movement.flightXSpeed);
+          this.cat.movement.flightXSpeed = -Math.abs(
+            this.cat.movement.flightXSpeed
+          );
         }
-        
+
         this.cat.sprite.setFlipX(true);
       } else if (tile.index === 312) {
-
         this.cat.setAutoRunMode(this.autoRunSpeed, this.autoJumpSpeed);
         this.cat.setCurrentRotation(false);
-        
-    
+
         if (this.cat.movement) {
-          this.cat.movement.flightXSpeed = Math.abs(this.cat.movement.flightXSpeed);
+          this.cat.movement.flightXSpeed = Math.abs(
+            this.cat.movement.flightXSpeed
+          );
         }
 
         this.cat.sprite.setFlipX(false);
       }
     }
-  } 
-
+  }
 
   private createFloatingPlatforms() {
     this.physicsLayer.forEachTile((tile) => {
@@ -797,14 +792,14 @@ export class CatnipChaosScene extends Scene {
         this.catSpirit.setFlipY(this.isGravityReversed);
       }
 
-         if (this.catSpirit && this.ghostCloudSprite) {
-      this.ghostCloudSprite.setPosition(
-        this.catSpirit.x + 3,
-        this.catSpirit.y + 10
-      );
-      this.ghostCloudSprite.setRotation(this.catSpirit.rotation);
-      this.ghostCloudSprite.setFlipY(this.isGravityReversed);
-    }
+      if (this.catSpirit && this.ghostCloudSprite) {
+        this.ghostCloudSprite.setPosition(
+          this.catSpirit.x + 3,
+          this.catSpirit.y + 10
+        );
+        this.ghostCloudSprite.setRotation(this.catSpirit.rotation);
+        this.ghostCloudSprite.setFlipY(this.isGravityReversed);
+      }
     }
   }
 
@@ -874,17 +869,17 @@ export class CatnipChaosScene extends Scene {
     this.flightOnBlocks = [];
     this.flightOffBlocks = [];
     if (this.flightCloudSprite) {
-    this.flightCloudSprite.destroy();
-    this.flightCloudSprite = undefined;
-  }
-  if (this.geometryDashCloudSprite) {
-    this.geometryDashCloudSprite.destroy();
-    this.geometryDashCloudSprite = undefined;
-  }
-   if (this.ghostCloudSprite) {
-    this.ghostCloudSprite.destroy();
-    this.ghostCloudSprite = undefined;
-  }
+      this.flightCloudSprite.destroy();
+      this.flightCloudSprite = undefined;
+    }
+    if (this.geometryDashCloudSprite) {
+      this.geometryDashCloudSprite.destroy();
+      this.geometryDashCloudSprite = undefined;
+    }
+    if (this.ghostCloudSprite) {
+      this.ghostCloudSprite.destroy();
+      this.ghostCloudSprite = undefined;
+    }
   }
 
   setupEventListeners(props: ICatnipChaosProps) {
@@ -955,7 +950,10 @@ export class CatnipChaosScene extends Scene {
 
     this.anims.create({
       key: "glitch-portal-anim",
-      frames: this.anims.generateFrameNumbers("glitch-portal", { start: 0, end: 9 }),
+      frames: this.anims.generateFrameNumbers("glitch-portal", {
+        start: 0,
+        end: 9,
+      }),
       frameRate: 10,
       repeat: -1,
     });
@@ -997,15 +995,15 @@ export class CatnipChaosScene extends Scene {
       this.anims.create({
         key: "cat-spirit-anim",
         frames: this.anims.generateFrameNumbers("cat-spirit", {
-          start: 120, 
-          end: 123,  
+          start: 120,
+          end: 123,
         }),
         frameRate: 8,
         repeat: -1,
       });
     }
 
-      this.anims.create({
+    this.anims.create({
       key: "splash-anim",
       frames: this.anims.generateFrameNumbers("splash", {
         start: 0,
@@ -1014,7 +1012,6 @@ export class CatnipChaosScene extends Scene {
       frameRate: 14,
       repeat: 0,
     });
-
   }
 
   async spawnCat({
@@ -1027,7 +1024,7 @@ export class CatnipChaosScene extends Scene {
     if (isCatChanged) {
       this.cat = undefined;
       this.catDto = cat;
-          this.scene.restart({ cat, isRestart: true });
+      this.scene.restart({ cat, isRestart: true });
       return;
     }
 
@@ -1073,7 +1070,7 @@ export class CatnipChaosScene extends Scene {
     if (data.detail.isRestart) {
       this.gameEnded = false;
       this.catSpirit = undefined; // Reset ghost so it gets recreated
-       this.scene.restart(data);
+      this.scene.restart(data);
     }
     if (this.cat) {
       this.cat.sprite.setPosition(0, -400);
@@ -1099,48 +1096,61 @@ export class CatnipChaosScene extends Scene {
       { entrance: 149, exit: 150 },
     ];
 
-portalPairsConfig.forEach(({ entrance, exit }) => {
-  this.physicsLayer.forEachTile((tile) => {
-    if (tile.index === entrance) {
-      const entranceX = this.physicsLayer.tileToWorldX(tile.x);
-      const entranceY = this.physicsLayer.tileToWorldY(tile.y);
-      this.physicsLayer.removeTileAt(tile.x, tile.y);
+    portalPairsConfig.forEach(({ entrance, exit }) => {
+      this.physicsLayer.forEachTile((tile) => {
+        if (tile.index === entrance) {
+          const entranceX = this.physicsLayer.tileToWorldX(tile.x);
+          const entranceY = this.physicsLayer.tileToWorldY(tile.y);
+          this.physicsLayer.removeTileAt(tile.x, tile.y);
 
-      this.physicsLayer.forEachTile((exitTile) => {
-        if (exitTile.index === exit) {
-          const exitX = this.physicsLayer.tileToWorldX(exitTile.x);
-          const exitY = this.physicsLayer.tileToWorldY(exitTile.y);
-          this.physicsLayer.removeTileAt(exitTile.x, exitTile.y);
+          this.physicsLayer.forEachTile((exitTile) => {
+            if (exitTile.index === exit) {
+              const exitX = this.physicsLayer.tileToWorldX(exitTile.x);
+              const exitY = this.physicsLayer.tileToWorldY(exitTile.y);
+              this.physicsLayer.removeTileAt(exitTile.x, exitTile.y);
 
-          portalPairs.push({
-            entranceX,
-            entranceY,
-            exitX,
-            exitY,
-            isGlitch: entrance === 149 && exit === 150,
+              portalPairs.push({
+                entranceX,
+                entranceY,
+                exitX,
+                exitY,
+                isGlitch: entrance === 149 && exit === 150,
+              });
+
+              if (entrance === 149 && exit === 150) {
+                const glitchEntrance = this.add.sprite(
+                  entranceX,
+                  entranceY,
+                  "glitch-portal"
+                );
+                glitchEntrance.setDisplaySize(64, 64);
+                glitchEntrance.play("glitch-portal-anim");
+
+                const glitchExit = this.add.sprite(
+                  exitX,
+                  exitY,
+                  "glitch-portal"
+                );
+                glitchExit.setDisplaySize(64, 64);
+                glitchExit.play("glitch-portal-anim");
+              } else {
+                const entrancePortal = this.add.sprite(
+                  entranceX,
+                  entranceY,
+                  "portal"
+                );
+                entrancePortal.setDisplaySize(64, 64);
+                entrancePortal.play("portal-anim");
+
+                const exitPortal = this.add.sprite(exitX, exitY, "portal");
+                exitPortal.setDisplaySize(64, 64);
+                exitPortal.play("portal-anim");
+              }
+            }
           });
-
-          if (entrance === 149 && exit === 150) {
-            const glitchEntrance = this.add.sprite(entranceX, entranceY, "glitch-portal");
-            glitchEntrance.setDisplaySize(64, 64);
-            glitchEntrance.play("glitch-portal-anim");
-
-            const glitchExit = this.add.sprite(exitX, exitY, "glitch-portal");
-            glitchExit.setDisplaySize(64, 64);
-            glitchExit.play("glitch-portal-anim");
-          }else{
-            const entrancePortal = this.add.sprite(entranceX, entranceY, "portal");
-            entrancePortal.setDisplaySize(64, 64);
-            entrancePortal.play("portal-anim"); 
-
-            const exitPortal = this.add.sprite(exitX, exitY, "portal");
-            exitPortal.setDisplaySize(64, 64);
-            exitPortal.play("portal-anim");
-        }}
+        }
       });
-    }
-  });
-});
+    });
 
     if (portalPairs.length > 0) {
       this.portalManager = new PortalManager({

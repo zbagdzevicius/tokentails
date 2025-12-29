@@ -1,5 +1,4 @@
 import { CAT_API } from "@/api/cat-api";
-import { getMultiplier } from "@/constants/cat-utils";
 import { bgStyle } from "@/constants/utils";
 import { MAX_CAT_STATUS } from "@/context/CatContext";
 import { useGame } from "@/context/GameContext";
@@ -75,10 +74,10 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
       if (selectedCat?._id === cat._id) {
         setSelectedCat((prev) => (prev ? { ...prev, staked: null } : null));
       }
-      const tails = 1 * getMultiplier(cat);
+      const tails = 1;
       setProfileUpdate({
         tails: (profile?.tails || 0) + tails,
-        monthTailsCrafted: (profile?.monthTailsCrafted || 0) + tails,
+        monthTailsCrafted: profile?.monthTailsCrafted || 0,
         monthTails: (profile?.monthTails || 0) + tails,
       });
     }

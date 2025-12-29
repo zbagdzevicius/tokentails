@@ -59,7 +59,6 @@ export const useBackground = ({
     }
     return null;
   }, [gameType]);
-  console.log(bgImage);
   const bgHour = useMemo(() => {
     const coreBg = {
       backgroundRepeat: "no-repeat",
