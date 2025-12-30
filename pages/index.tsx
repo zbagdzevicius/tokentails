@@ -108,7 +108,7 @@ export default function newPage() {
         </div>
       </section>
 
-      <section className="sticky top-0 h-screen w-fullglow-box">
+      <section className="sticky top-0 h-screen w-full glow-box">
         <img
           src={cdnFile("landing/globe.webp")}
           className="w-full h-full object-cover   inset-0 absolute"
