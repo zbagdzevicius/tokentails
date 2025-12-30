@@ -184,6 +184,23 @@ html {
   animation: transition-animation 1s ease-in;
 }
 
+@keyframes scrollImage {
+  0% {
+    object-position: center top;
+  }
+  50% {
+    object-position: center bottom;
+  }
+  100% {
+    object-position: center top;
+  }
+}
+
+.scroll-image-animation {
+  animation: scrollImage 15s ease-in-out infinite;
+  object-position: center top;
+}
+
 @keyframes expand-rev {
   0% {
     background-position: 0 0;

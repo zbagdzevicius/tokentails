@@ -367,6 +367,13 @@ export const PixelGlobe = () => {
       ref={containerRef}
       className="relative flex justify-center items-center"
     >
+      <div className="absolute -top-[128px] md:-top-[112px]">
+        <img
+          src="/tail/cat-promo.webp"
+          className="w-[144px]"
+          draggable={false}
+        />
+      </div>
       <canvas
         ref={canvasRef}
         width={RENDER_SIZE}
@@ -380,9 +387,6 @@ export const PixelGlobe = () => {
         className="touch-none w-[400px] h-[400px] md:w-[600px] md:h-[600px]"
       />
 
-      <div className="absolute -top-8">
-        <img src="/meme-cats/meme-7.gif" className="w-36" />
-      </div>
       {hoveredCountry && (
         <div className="absolute top-0 font-primary glow text-p1 md:text-h5 text-yellow-300 bg-black/25 px-4 py-2 rounded-full">
           {hoveredCountry}

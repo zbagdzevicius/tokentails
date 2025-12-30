@@ -78,7 +78,7 @@ export const CardFront: React.FC<CardFrontProps> = React.memo(
                 draggable={false}
                 src={imageUrl}
                 alt={imageAlt}
-                className={`object-cover object-top w-full h-full ${
+                className={`object-cover w-full h-full scroll-image-animation ${
                   blessing ? "" : "pixelated"
                 }`}
               />

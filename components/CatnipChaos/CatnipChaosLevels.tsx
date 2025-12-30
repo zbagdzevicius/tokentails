@@ -12,6 +12,7 @@ import {
 } from "../Phaser/map";
 import { PixelButton } from "../shared/PixelButton";
 import { TrailheadsData } from "../shared/QuestsModal";
+import { Countdown } from "../shared/Countdown";
 
 const levelCharacter: Record<string, string> = {
   "41": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/STICKY/base/RUNNING.gif",
@@ -155,11 +156,11 @@ export const CatnipChaosLevels = ({
           backgroundSize: "cover",
           backgroundPosition: "top",
         }}
-        className="hover:brightness-110 clickable relative border-4 border-yellow-900 hover:border-4 hover:border-yellow-300 hover:scale-110 transition-all flex flex-col items-center justify-center w-20 h-20 rounded-full"
+        className="hover:brightness-110 clickable relative border-4 border-yellow-900 hover:border-4 hover:border-yellow-300 hover:scale-110 transition-all flex flex-col items-center justify-center w-20 h-20 glow-box"
       >
-        <div className="z-10 text-center rounded-full flex items-center justify-center text-p1 leading-none font-primary">
+        <div className="z-10 text-center flex items-center justify-center text-p1 leading-none font-primary">
           <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] w-full text-center">
-            PURRSUIT
+            INFINITE
           </span>
         </div>
         <span className="font-primary text-p6 flex items-center">
@@ -167,7 +168,20 @@ export const CatnipChaosLevels = ({
           <span className="">{profile?.catnipChaos?.[0] || 0} / 420</span>
         </span>
       </div>
-      <div className="flex flex-wrap gap-4 justify-center max-w-[44rem] bg-gradient-to-b from-yellow-900/50 to-yellow-900/70 md:rounded-lg pb-32 pt-4 border-y-4 md:border-4 border-yellow-900">
+
+      <div className="flex flex-wrap gap-4 relative justify-center max-w-[44rem] bg-gradient-to-b from-yellow-900/20 to-yellow-900/70 md:rounded-lg pb-32 pt-8 mt-8 md:mt-16 border-y-4 md:border-4 border-yellow-300/50">
+        <img
+          src="tail/cat-promo.webp"
+          className="absolute -top-36 md:-top-44 right-0 w-32 md:w-36 h-auto"
+        />
+        <img
+          src="catnip-chaos/top-border.webp"
+          className="absolute -top-8 md:-top-16 left-0 right-0 w-full h-auto"
+        />
+        <img
+          src="catnip-chaos/top-border.webp"
+          className="absolute -bottom-6 md:-bottom-12 left-0 right-0 w-full h-auto"
+        />
         {catnipChaosLevelsList
           .filter((level) => !level.startsWith("0"))
           .map((level, i) => (
@@ -184,9 +198,9 @@ export const CatnipChaosLevels = ({
                   backgroundSize: "cover",
                   backgroundPosition: "top",
                 }}
-                className="hover:brightness-110 clickable relative border-4 border-yellow-900 hover:border-4 hover:border-yellow-300 hover:scale-110 transition-all flex flex-col items-center justify-center w-20 h-20 rounded-full"
+                className="hover:brightness-110 clickable relative border-4 border-yellow-900 hover:border-4 hover:border-yellow-300 hover:scale-110 transition-all flex flex-col items-center justify-center w-20 h-20 glow-box"
               >
-                <div className="z-10 text-center rounded-full flex items-center justify-center text-p1 leading-none font-primary">
+                <div className="z-10 text-center flex items-center justify-center text-p1 leading-none font-primary">
                   <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] w-full text-center">
                     {level?.length === 3
                       ? `${level[0]}${level[1]}-${level[2]}`
@@ -194,14 +208,14 @@ export const CatnipChaosLevels = ({
                   </span>
                 </div>
                 {!(unlockedLevels >= i) && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full p-1 w-full h-full z-20">
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg p-1 w-full h-full z-20">
                     <img
                       className="w-8 h-8"
                       src={cdnFile("purrquest/sprites/key.png")}
                     />
                   </div>
                 )}
-                <span className="font-primary text-p6 flex items-center pl-1 pr-1 rounded-full bg-yellow-300/50">
+                <span className="font-primary text-p6 flex items-center pl-1 pr-1 bg-yellow-300/50">
                   <img
                     src={cdnFile("logo/catnip.webp")}
                     className="w-4 h-4 mr-1"
@@ -220,7 +234,7 @@ export const CatnipChaosLevels = ({
               {(level.length === 3 ? level[2] === "6" : level[1] === "6") && (
                 <div
                   className={`flex flex-col items-center ml-4 xl:ml-8 h-full relative ${
-                    unlockedLevels >= i ? "pb-8 -mt-3" : ""
+                    unlockedLevels >= i ? "pb-8 -mt-2" : ""
                   }`}
                 >
                   {unlockedLevels >= i && (
@@ -264,10 +278,10 @@ export const CatnipChaosLevels = ({
                         level.length === 3 ? `${level[0]}${level[1]}` : level[0]
                       }.webp`
                     )}
-                    className="w-20 h-20 rounded-t-xl"
+                    className="w-16 h-16 rounded-t-xl glow-box"
                   />
                   {!(unlockedLevels >= i) && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 p-1 w-full h-full z-20">
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 p-1 w-full h-full z-20 rounded-xl">
                       <img
                         className="w-8 h-8"
                         src={cdnFile("purrquest/sprites/key.png")}
@@ -278,6 +292,15 @@ export const CatnipChaosLevels = ({
               )}
             </div>
           ))}
+        <div className="flex flex-col items-center justify-center w-full mt-16">
+          <Countdown isBig isDaysDisplayed targetDate={new Date(2026, 1, 0)} />
+          <div className="text-h4 text-center font-primary mt-4 glow">
+            MORE COMING SOON
+          </div>
+          <div className="text-p4 text-center font-primary -mt-2">
+            STAY TUNED FOR MORE INFO ABOUT PURRSUIT!
+          </div>
+        </div>
       </div>
     </div>
   );

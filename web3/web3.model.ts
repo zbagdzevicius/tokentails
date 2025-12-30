@@ -246,4 +246,37 @@ export const chaptersBadges: IMysteryBox[] = [
       text: "Complete 10th chapter",
     },
   },
+  {
+    address: "0xc7f42A7c096734c551c06cBa51Ff972425AE405f",
+    name: "Chapter 11 Badge",
+    key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_11,
+    chain: ChainType.SEI,
+    image: cdnFile("catnip-chaos/badges/chapter11.webp"),
+    requirements: {
+      type: MysteryBoxRequirementType.CHAPTER,
+      text: "Complete 11th chapter",
+    },
+  },
+  {
+    address: "0xc7f42A7c096734c551c06cBa51Ff972425AE405f",
+    name: "Chapter 12 Badge",
+    key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_12,
+    chain: ChainType.SEI,
+    image: cdnFile("catnip-chaos/badges/chapter12.webp"),
+    requirements: {
+      type: MysteryBoxRequirementType.CHAPTER,
+      text: "Complete 12th chapter",
+    },
+  },
+  {
+    address: "0xc7f42A7c096734c551c06cBa51Ff972425AE405f",
+    name: "Chapter 13 Badge",
+    key: MYSTERY_BOX_TYPE.CATNIP_CHAOS_13,
+    chain: ChainType.SEI,
+    image: cdnFile("catnip-chaos/badges/chapter13.webp"),
+    requirements: {
+      type: MysteryBoxRequirementType.CHAPTER,
+      text: "Complete 13th chapter",
+    },
+  },
 ];
