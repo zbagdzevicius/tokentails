@@ -116,7 +116,7 @@ export interface ICat {
   __v?: number;
 }
 
-export const cardsColor: Record<CatAbilityType, string> = {
+export const cardsColor: Record<string, string> = {
   [CatAbilityType.DARK]: "#e7d6e4",
   [CatAbilityType.ELECTRIC]: "#fdf599",
   [CatAbilityType.FIRE]: "#ff7f7f",
@@ -134,7 +134,6 @@ export const cardsBorderColor: Record<CatAbilityType, string> = {
   [CatAbilityType.SAND]: "#FCDDC3",
   [CatAbilityType.WATER]: "#80C5FF",
   [CatAbilityType.WIND]: "#FFFFFF",
-  [CatAbilityType.AIR]: "#FFFFFF",
   [CatAbilityType.GRASS]: "#B3E7DB",
   [CatAbilityType.STELLAR]: "#C5BDFF",
   [CatAbilityType.FAIRY]: "#FFFFFF",
@@ -148,7 +147,6 @@ export const cardsBodyColor: Record<CatAbilityType, string> = {
   [CatAbilityType.SAND]: "#FCDDC3",
   [CatAbilityType.WATER]: "#80C5FF",
   [CatAbilityType.WIND]: "#FFFFFF",
-  [CatAbilityType.AIR]: "#FFFFFF",
   [CatAbilityType.GRASS]: "#B3E7DB",
   [CatAbilityType.STELLAR]: "#C5BDFF",
   [CatAbilityType.FAIRY]: "#FF6FC6",
@@ -162,7 +160,6 @@ export const cardsBackground: Record<CatAbilityType, string> = {
   [CatAbilityType.SAND]: "/cards/backgrounds/sand.webp",
   [CatAbilityType.WATER]: "/cards/backgrounds/water.webp",
   [CatAbilityType.WIND]: "/cards/backgrounds/wind.webp",
-  [CatAbilityType.AIR]: "/cards/backgrounds/wind.webp",
   [CatAbilityType.GRASS]: "/cards/backgrounds/grass.webp",
   [CatAbilityType.FAIRY]: "/cards/backgrounds/fairy.webp",
   [CatAbilityType.STELLAR]: "/cards/backgrounds/stellar.webp",
@@ -185,8 +182,6 @@ export const cardsGradient: Record<CatAbilityType, string> = {
     "radial-gradient(circle at 60% 30%, #A9A9A9 0%, #545454 100%)",
   [CatAbilityType.WIND]:
     "radial-gradient(circle at 60% 30%, #FFFFFF 0%, #D2D2D2 100%)",
-  [CatAbilityType.AIR]:
-    "radial-gradient(circle at 60% 30%, #FFFFFF 0%, #D2D2D2 100%)",
   [CatAbilityType.ICE]:
     "radial-gradient(circle at 60% 30%, #d4e7f4 0%, #a0d1f0 100%)",
   [CatAbilityType.FAIRY]:
@@ -201,7 +196,6 @@ export const cardsIcon: Record<CatAbilityType, string> = {
   [CatAbilityType.SAND]: "/cards/icons/sand.webp",
   [CatAbilityType.WATER]: "/cards/icons/water.webp",
   [CatAbilityType.WIND]: "/cards/icons/wind.webp",
-  [CatAbilityType.AIR]: "/cards/icons/air.webp",
   [CatAbilityType.GRASS]: "/cards/icons/grass.webp",
   [CatAbilityType.STELLAR]: "/cards/icons/stellar.webp",
   [CatAbilityType.FAIRY]: "/cards/icons/fairy.webp",

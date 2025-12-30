@@ -65,7 +65,7 @@ export const Web3Mint = ({
 }: Web3TransferProps) => {
   const { namespaceDetail, connectWallet, mint, isLoading, userNFTsCount } =
     useWeb3Minting({
-      entityType: EntityType.MYSTERY_BOX,
+      entityType: EntityType.PACK,
       user,
       mysteryBox,
     });

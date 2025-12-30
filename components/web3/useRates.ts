@@ -10,7 +10,6 @@ export const useRates = () => {
     [CurrencyType.SEI]: 1000,
     [CurrencyType.USDT]: 1,
     [CurrencyType.USDC]: 1,
-    [CurrencyType.TAILS]: 1000,
   });
   useEffect(() => {
     ORDER_API.currencyRates().then((rates) => setRates(rates));

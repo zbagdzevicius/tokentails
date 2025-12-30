@@ -36,7 +36,7 @@ export class FanManager {
   }
 
   setupPlayerInteraction(player: Phaser.Physics.Arcade.Sprite) {
-    this.scene.physics.add.overlap(player, this.windZone, () => {
+    this.scene.physics.add.overlap(player, this.windZone as any, () => {
       const windForce = this.windDirection.clone().scale(this.windStrength);
       player.setVelocity(
         player.body!.velocity.x + windForce.x,

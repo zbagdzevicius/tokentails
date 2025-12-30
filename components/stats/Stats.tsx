@@ -1,7 +1,6 @@
 import { QUEST_API } from "@/api/quest-api";
 import { useQuery } from "@tanstack/react-query";
 import { Countdown } from "../shared/Countdown";
-import { StatsTable } from "../airdrop/StatsTable";
 import { PixelButton } from "../shared/PixelButton";
 import { cdnFile } from "@/constants/utils";
 
@@ -122,12 +121,6 @@ export const Stats = () => {
               <div className="text-h5 font-secondary text-yellow-900 mt-1 w-full flex items-center justify-center gap-1">
                 {data.blessings.count}
               </div>
-            </div>
-
-            <div className="flex items-start w-full gap-8 justify-center mb-8 flex-wrap">
-              <StatsTable title="New Cats" records={data.blessings.weekly} />
-              <StatsTable title="Donations" records={data.orders.weekly} />
-              <StatsTable title="New Users" records={data.users.weekly} />
             </div>
           </div>
         )}

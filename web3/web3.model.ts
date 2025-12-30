@@ -43,8 +43,8 @@ export const chainTypeRpcUrl: Record<ChainType, string> = {
   [ChainType.STELLAR_TEST]: "https://soroban-testnet.stellar.org:443",
   [ChainType.SOLANA]: "https://api.mainnet-beta.solana.com",
   [ChainType.SOLANA_TEST]: "https://api.devnet.solana.com",
-  [ChainType.CAMP]: "https://rpc.camp.network",
   [ChainType.SEI]: "https://evm-rpc.sei-apis.com",
+  [ChainType.MANTLE]: "https://rpc.mantle.xyz",
 };
 
 export enum MYSTERY_BOX_TYPE {
@@ -73,67 +73,6 @@ export enum MYSTERY_BOX_TYPE {
   CATNIP_CHAOS_19 = "CATNIP_CHAOS_19",
   CATNIP_CHAOS_20 = "CATNIP_CHAOS_20",
 }
-
-export const mysteryBoxes: Partial<Record<ChainType, IMysteryBox[]>> = {
-  [ChainType.CAMP]: [
-    {
-      address: "0xaE09454FA54F84E2eDAa43FA3A29d762335bBc73",
-      name: "Mystery Box - Cats Fan",
-      key: MYSTERY_BOX_TYPE.CAMP_6,
-      chain: ChainType.CAMP,
-      image: cdnFile("utilities/mystery-boxes/mystery-box-camp6.jpg"),
-      requirements: {
-        type: MysteryBoxRequirementType.TITLES,
-        metadata: {
-          titles: 1,
-        },
-        text: "COMPLETE MISSIONS",
-      },
-    },
-    {
-      address: "0x4F83314E4752E7f732210D043B218B269989a181",
-      name: "Mystery Box - Cats Fan",
-      key: MYSTERY_BOX_TYPE.CAMP_7,
-      chain: ChainType.CAMP,
-      image: cdnFile("utilities/mystery-boxes/mystery-box-camp7.jpg"),
-      requirements: {
-        type: MysteryBoxRequirementType.CATNIP,
-        metadata: {
-          catnip: 120,
-        },
-        text: "Collect 120 catnip",
-      },
-    },
-    {
-      address: "0x650048c5A9b864Fd24b61680030FDEDbdaf39304",
-      name: "Mystery Box - Cats Fan",
-      key: MYSTERY_BOX_TYPE.CAMP_8,
-      chain: ChainType.CAMP,
-      image: cdnFile("utilities/mystery-boxes/mystery-box-camp8.jpg"),
-      requirements: {
-        type: MysteryBoxRequirementType.STREAK,
-        metadata: {
-          streak: 20,
-        },
-        text: "Check-in 20 times",
-      },
-    },
-    {
-      address: "0xcCDF4C5EE94CCB06640545b7D7088A19870C0e4F",
-      name: "Mystery Box - Cats Fan",
-      key: MYSTERY_BOX_TYPE.CAMP_9,
-      chain: ChainType.CAMP,
-      image: cdnFile("utilities/mystery-boxes/mystery-box-camp9.jpg"),
-      requirements: {
-        type: MysteryBoxRequirementType.TITLES,
-        metadata: {
-          titles: 2,
-        },
-        text: "GET 2 BADGES",
-      },
-    },
-  ],
-};
 
 export const chaptersBadges: IMysteryBox[] = [
   {

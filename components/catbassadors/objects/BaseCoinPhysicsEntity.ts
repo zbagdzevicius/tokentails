@@ -117,7 +117,7 @@ export abstract class BaseCoinPhysicsEntity {
 
   addCollider(collider: ColliderType) {
     if (this.sprite) {
-      this.scene.physics.add.collider(this.sprite, collider);
+      this.scene.physics.add.collider(this.sprite, collider as any);
     }
   }
 }

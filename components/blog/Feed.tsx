@@ -16,7 +16,7 @@ const entityTypeComponent: Record<
 > = {
   [EntityType.ARTICLE]: FeedArticle,
   [EntityType.CAT]: <></>,
-  [EntityType.MYSTERY_BOX]: <></>,
+  [EntityType.PACK]: <></>,
 };
 
 export const Feed = ({ items }: IProps) => {

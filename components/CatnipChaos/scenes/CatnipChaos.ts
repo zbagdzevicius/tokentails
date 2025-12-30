@@ -40,11 +40,13 @@ export class CatnipChaosScene extends Scene {
   catDto?: ICat;
   catSpirit?: Phaser.GameObjects.Sprite;
   tilemap!: Phaser.Tilemaps.Tilemap;
-  groundLayer!: Phaser.Tilemaps.TilemapLayer;
-  platformsLayer!: Phaser.Tilemaps.TilemapLayer;
-  jumperLayer!: Phaser.Tilemaps.TilemapLayer;
-  physicsLayer!: Phaser.Tilemaps.TilemapLayer;
-  catnipLayer!: Phaser.Tilemaps.TilemapLayer;
+  groundLayer!: Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer;
+  platformsLayer!:
+    | Phaser.Tilemaps.TilemapLayer
+    | Phaser.Tilemaps.TilemapGPULayer;
+  jumperLayer!: Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer;
+  physicsLayer!: Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer;
+  catnipLayer!: Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer;
   backgroundSound?: Phaser.Sound.BaseSound;
   blessing!: Phaser.GameObjects.Sprite;
   trampoline?: Trampoline;
@@ -269,7 +271,11 @@ export class CatnipChaosScene extends Scene {
 
     this.jumperLayer?.setCollision(TRAMPOLINE_TILES);
 
-    this.trampoline = new Trampoline(this, this.jumperLayer, TRAMPOLINE_TILES);
+    this.trampoline = new Trampoline(
+      this,
+      this.jumperLayer as Phaser.Tilemaps.TilemapLayer,
+      TRAMPOLINE_TILES
+    );
 
     this.groundLayer.setCollisionByExclusion([-1, ...SPIKE_TILES]);
     this.platformsLayer.setCollision(JUMP_LAYER_TILES);
@@ -468,7 +474,7 @@ export class CatnipChaosScene extends Scene {
       }
     }
 
-    this.physics.add.collider(this.cat.sprite, this.jumperLayer);
+    this.physics.add.collider(this.cat.sprite, this.jumperLayer as any);
 
     this.createGameObjects();
 
@@ -478,15 +484,15 @@ export class CatnipChaosScene extends Scene {
   private setupCatCollisions() {
     if (!this.cat) return;
 
-    this.physics.add.collider(this.cat.sprite, this.groundLayer);
-    this.physics.add.collider(this.cat.sprite, this.platformsLayer);
-    this.physics.add.collider(this.cat.sprite, this.jumperLayer);
+    this.physics.add.collider(this.cat.sprite, this.groundLayer as any);
+    this.physics.add.collider(this.cat.sprite, this.platformsLayer as any);
+    this.physics.add.collider(this.cat.sprite, this.jumperLayer as any);
 
     this.floatingPlatformManagers.forEach((manager) => {
       manager.setupPlayerCollision(this.cat!.sprite);
     });
 
-    this.physics.add.overlap(this.cat.sprite, this.physicsLayer, () => {
+    this.physics.add.overlap(this.cat.sprite, this.physicsLayer as any, () => {
       if (this.gameEnded) return;
 
       const tile = this.physicsLayer.getTileAtWorldXY(
@@ -576,8 +582,8 @@ export class CatnipChaosScene extends Scene {
         const worldY = this.physicsLayer.tileToWorldY(tile.y);
         const platformManager = new FloatingPlatformManager({
           scene: this,
-          groundLayer: this.groundLayer,
-          platformsLayer: this.platformsLayer,
+          groundLayer: this.groundLayer as Phaser.Tilemaps.TilemapLayer,
+          platformsLayer: this.platformsLayer as Phaser.Tilemaps.TilemapLayer,
           x: worldX - 4,
           y: worldY,
         });
@@ -592,7 +598,7 @@ export class CatnipChaosScene extends Scene {
     if (!this.useTileSpikeChecks) {
       this.spikeManager = new SpikeManager({
         scene: this,
-        groundLayer: this.groundLayer!,
+        groundLayer: this.groundLayer as Phaser.Tilemaps.TilemapLayer,
         spikeTiles: SPIKE_TILES,
         catSprite: this.cat.sprite!,
         onPlayerHitSpike: () => this.endGame(),
@@ -1059,7 +1065,7 @@ export class CatnipChaosScene extends Scene {
     });
 
     this.food = new Food(this, foodX, foodY);
-    this.physics.add.collider(this.food.sprite, this.groundLayer);
+    this.physics.add.collider(this.food.sprite, this.groundLayer as any);
 
     // Play meow sound
     const meowSound = this.sound.add("meow", { volume: 0.5 });
@@ -1155,7 +1161,7 @@ export class CatnipChaosScene extends Scene {
     if (portalPairs.length > 0) {
       this.portalManager = new PortalManager({
         scene: this,
-        groundLayer: this.groundLayer,
+        groundLayer: this.groundLayer as Phaser.Tilemaps.TilemapLayer,
         cat: this.cat,
         portals: portalPairs,
         onTeleport: () => this.setAllCatnipVisible(true),

@@ -345,7 +345,7 @@ export class Cat implements IPlayer {
   }
 
   addCollider(collider: ColliderType) {
-    this.scene.physics.add.collider(this.sprite, collider);
+    this.scene.physics.add.collider(this.sprite, collider as any);
   }
 
   // Add these helper methods

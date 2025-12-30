@@ -70,12 +70,7 @@ export class CatNpc {
   private catName: string;
   blessing?: Phaser.GameObjects.Sprite;
 
-  constructor(
-    scene: Scene,
-    x: number,
-    y: number,
-    catName: string
-  ) {
+  constructor(scene: Scene, x: number, y: number, catName: string) {
     this.scene = scene;
     this.catName = catName;
     this.sprite = this.scene.physics.add
@@ -254,6 +249,6 @@ export class CatNpc {
   }
 
   addCollider(collider: ColliderType) {
-    this.scene.physics.add.collider(this.sprite, collider);
+    this.scene.physics.add.collider(this.sprite, collider as any);
   }
 }

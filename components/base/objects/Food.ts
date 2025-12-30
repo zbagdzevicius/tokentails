@@ -74,6 +74,6 @@ export class Food {
   }
 
   addCollider(collider: ColliderType) {
-    this.scene.physics.add.collider(this.sprite, collider);
+    this.scene.physics.add.collider(this.sprite, collider as any);
   }
 }

@@ -6,8 +6,8 @@ import { TailsCard } from "../tailsCard/TailsCard";
 
 export const MarketplaceItemDetails = ({ cat }: { cat: ICat }) => {
   const isFamous = useMemo(() => {
-    return cat.shelter.slug === "token-tails";
-  }, [cat.blessing]);
+    return cat.shelter?.slug === "token-tails" || false;
+  }, [cat.shelter?.slug]);
 
   return (
     <div className="flex flex-col items-center">

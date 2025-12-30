@@ -1,8 +1,7 @@
-import React, { useEffect, useRef, useState, useMemo } from "react";
 import * as d3 from "d3";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import * as topojson from "topojson-client";
-import { CatAbilityType, cardsColor } from "@/models/cats";
 
 export interface CountryData {
   id: string; // ISO numeric code or Name

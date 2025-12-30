@@ -23,7 +23,7 @@ export class BaseScene extends Scene {
   food?: Food | null;
   catSpritesheet?: Phaser.Loader.LoaderPlugin;
   tilemap!: Phaser.Tilemaps.Tilemap;
-  groundLayer!: Phaser.Tilemaps.TilemapLayer;
+  groundLayer!: Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer;
   isPlaying: boolean = false;
   blipSound?: Phaser.Sound.BaseSound;
   blessing!: Phaser.GameObjects.Sprite;
@@ -31,7 +31,9 @@ export class BaseScene extends Scene {
   currentlyCollidingNpc: NpcCat | null = null;
   speechBubble?: SpeechBubble;
   isCatSelected: boolean = false;
-  private decorationLayer!: Phaser.Tilemaps.TilemapLayer;
+  private decorationLayer!:
+    | Phaser.Tilemaps.TilemapLayer
+    | Phaser.Tilemaps.TilemapGPULayer;
   private waterTiles: number[] = [74, 44];
   private waterAnimationInterval: number = 350;
 
@@ -228,7 +230,7 @@ export class BaseScene extends Scene {
     );
 
     // Collide cat with ground
-    this.physics.add.collider(this.cat!.sprite, this.groundLayer);
+    this.physics.add.collider(this.cat!.sprite, this.groundLayer as any);
 
     // Camera follows cat
     this.cameras.main.startFollow(this.cat!.sprite);
@@ -311,7 +313,7 @@ export class BaseScene extends Scene {
       callback: () => this.onFoodEat(),
     };
 
-    this.physics.add.collider(this.food.sprite, this.groundLayer);
+    this.physics.add.collider(this.food.sprite, this.groundLayer as any);
   }
 
   update() {
@@ -357,7 +359,7 @@ export class BaseScene extends Scene {
 
       const npcCat = new NpcCat(this, spawnX, spawnY, npcData.name);
       (npcCat as any).originalData = { ...npcData };
-      this.physics.add.collider(npcCat.sprite, this.groundLayer);
+      this.physics.add.collider(npcCat.sprite, this.groundLayer as any);
 
       // Handle blessings
       if (npcData.blessing) {

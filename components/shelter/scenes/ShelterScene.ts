@@ -48,9 +48,11 @@ export class ShelterScene extends Scene {
   cat?: Cat;
   catDto?: ICat;
   tilemap!: Phaser.Tilemaps.Tilemap;
-  groundLayer!: Phaser.Tilemaps.TilemapLayer;
-  platformsLayer!: Phaser.Tilemaps.TilemapLayer;
-  jumperLayer!: Phaser.Tilemaps.TilemapLayer;
+  groundLayer!: Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer;
+  platformsLayer!:
+    | Phaser.Tilemaps.TilemapLayer
+    | Phaser.Tilemaps.TilemapGPULayer;
+  jumperLayer!: Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer;
   backgroundSound?: Phaser.Sound.BaseSound;
   trampoline?: Trampoline;
   npcGroup!: Phaser.Physics.Arcade.Group;
@@ -62,7 +64,9 @@ export class ShelterScene extends Scene {
   private elevator!: Elevator;
   private elevatorTimer: number = 0;
   private readonly ELEVATOR_DELAY: number = 1000;
-  private decorationLayer!: Phaser.Tilemaps.TilemapLayer;
+  private decorationLayer!:
+    | Phaser.Tilemaps.TilemapLayer
+    | Phaser.Tilemaps.TilemapGPULayer;
   private waterTiles: number[] = [74, 44];
   private waterAnimationInterval: number = 350;
 
@@ -152,11 +156,15 @@ export class ShelterScene extends Scene {
       },
       this
     );
-    this.groundLayer.skipCull = false;
-    this.platformsLayer.skipCull = false;
+    (this.groundLayer as any).skipCull = false;
+    (this.platformsLayer as any).skipCull = false;
 
     this.jumperLayer.setCollision(TRAMPOLINE_TILES);
-    this.trampoline = new Trampoline(this, this.jumperLayer, TRAMPOLINE_TILES);
+    this.trampoline = new Trampoline(
+      this,
+      this.jumperLayer as Phaser.Tilemaps.TilemapLayer,
+      TRAMPOLINE_TILES
+    );
 
     this.cameras.main.setScroll(-650, -1000);
     this.cameras.main.setZoom(ZOOM);
@@ -212,7 +220,12 @@ export class ShelterScene extends Scene {
     starEffectExtar.setDepth(0);
     starEffect.setDepth(0);
 
-    this.elevator = new Elevator(this, 650, -50, this.groundLayer);
+    this.elevator = new Elevator(
+      this,
+      650,
+      -50,
+      this.groundLayer as Phaser.Tilemaps.TilemapLayer
+    );
 
     if (this.cat) {
       this.physics.add.collider(
@@ -341,9 +354,9 @@ export class ShelterScene extends Scene {
         ...npcData,
       };
 
-      this.physics.add.collider(npcCat.sprite, this.groundLayer);
-      this.physics.add.collider(npcCat.sprite, this.platformsLayer);
-      this.physics.add.collider(npcCat.sprite, this.jumperLayer);
+      this.physics.add.collider(npcCat.sprite, this.groundLayer as any);
+      this.physics.add.collider(npcCat.sprite, this.platformsLayer as any);
+      this.physics.add.collider(npcCat.sprite, this.jumperLayer as any);
 
       if (npcData.blessing) {
         const blessingAbility = npcData.type;
@@ -459,12 +472,12 @@ export class ShelterScene extends Scene {
     type: CatAbilityType
   ) {
     this.cat = new Cat(this, 350, -100, catName, blessing!, type, true);
-    this.physics.add.collider(this.cat.sprite, this.groundLayer);
+    this.physics.add.collider(this.cat.sprite, this.groundLayer as any);
     this.physics.add.collider(
       this.cat.sprite as Phaser.Physics.Arcade.Sprite,
-      this.platformsLayer
+      this.platformsLayer as any
     );
-    this.physics.add.collider(this.cat.sprite, this.jumperLayer);
+    this.physics.add.collider(this.cat.sprite, this.jumperLayer as any);
     this.cameras.main.startFollow(this.cat.sprite);
 
     setMobileControls(this.cat);
