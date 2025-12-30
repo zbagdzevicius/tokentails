@@ -1,4 +1,3 @@
-import { isProd } from "@/models/app";
 import { CatAbilityType, CatAbilityTypes, ICat } from "@/models/cats";
 import React, { useCallback, useMemo, useState } from "react";
 import { CardBack } from "./CardBack";
@@ -30,38 +29,8 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
     setFlipped((prev) => !prev);
   }, []);
 
-  const handleTypeChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      setSelectedType(e.target.value as CatAbilityType);
-    },
-    []
-  );
-
-  const catTypeOptions = useMemo(() => Object.values(CatAbilityType), []);
-
   return (
     <>
-      {/* Type Selector for Testing */}
-      {isProd && (
-        <div className="pb-5 pt-[120px] text-center">
-          <label htmlFor="catType" className="mr-2.5 font-bold">
-            Cat Type:
-          </label>
-          <select
-            id="catType"
-            value={selectedType}
-            onChange={handleTypeChange}
-            className="px-3 py-2 rounded-lg border-2 border-gray-300 text-sm cursor-pointer"
-          >
-            {catTypeOptions.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
       <div
         onClick={handleFlip}
         className="animate-opacity cursor-pointer inline-block [perspective:1000px]"
