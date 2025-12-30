@@ -1,5 +1,5 @@
 import { CatAbilityType, CatAbilityTypes, ICat } from "@/models/cats";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { CardBack } from "./CardBack";
 import { CardFront } from "./CardFront";
 import { CardWrapper } from "./CardWrapper";
@@ -11,19 +11,12 @@ type Props = {
 
 export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
   const [flipped, setFlipped] = useState(true);
-  const [selectedType, setSelectedType] = useState<CatAbilityType>(cat.type);
 
   const blessing = cat.blessing;
 
   if (!CatAbilityTypes.includes(cat.type)) {
     cat.type = CatAbilityType.FAIRY;
   }
-
-  // Memoize testCat to prevent unnecessary re-renders
-  const testCat = useMemo(
-    () => ({ ...cat, type: selectedType }),
-    [cat, selectedType]
-  );
 
   const handleFlip = useCallback(() => {
     setFlipped((prev) => !prev);
@@ -50,8 +43,8 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
               WebkitTransform: "translateZ(0)",
             }}
           >
-            <CardWrapper catType={selectedType}>
-              <CardFront cat={testCat} blessing={blessing} />
+            <CardWrapper catType={cat.type}>
+              <CardFront cat={cat} blessing={blessing} />
             </CardWrapper>
           </div>
 
@@ -62,8 +55,8 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
               WebkitTransform: "rotateY(180deg) translateZ(0)",
             }}
           >
-            <CardWrapper catType={selectedType} isBackSide={true}>
-              <CardBack cat={testCat} blessing={blessing} />
+            <CardWrapper catType={cat.type} isBackSide={true}>
+              <CardBack cat={cat} blessing={blessing} />
             </CardWrapper>
           </div>
         </div>
