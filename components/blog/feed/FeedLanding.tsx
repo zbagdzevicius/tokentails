@@ -6,7 +6,6 @@ import { NoMore } from "@/components/shared/NoMore";
 import { insertObjectEveryN } from "@/constants/utils";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo } from "react";
-import { When } from "react-if";
 import { useInView } from "react-intersection-observer";
 
 export interface LandingPageProps {
@@ -60,17 +59,13 @@ export const FeedLanding = ({
   return (
     <>
       <Feed items={articles} />
-      <div ref={ref}>
-        <When condition={isFetching}>
-          <Loader />
-        </When>
-      </div>
-      <When condition={!hasNextPage && !isFetching}>
+      <div ref={ref}>{isFetching && <Loader />}</div>
+      {!hasNextPage && !isFetching && (
         <NoMore
           title="We are out of meows"
           subtitle="Click the paw to continue"
         />
-      </When>
+      )}
     </>
   );
 };

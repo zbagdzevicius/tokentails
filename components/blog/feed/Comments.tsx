@@ -9,7 +9,6 @@ import { EntityType, ISave } from "@/models/save";
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import classNames from "classnames";
 import { ChangeEvent, useCallback, useMemo, useState } from "react";
-import { If, Then } from "react-if";
 import { useDebouncedCallback } from "use-debounce";
 
 interface IProps extends ISave {
@@ -167,32 +166,30 @@ export const Comment = ({
           </button>
         )}
       </div>
-      <If condition={isReplyInputDisplayed}>
-        <Then>
-          <div className="flex mb-2">
-            <div className="w-1 mr-2 backdrop-contrast-75 rounded-lg"></div>
-            <div className="pt-2 flex-1">
-              <div className="flex flex-col gap-2 overflow-y-auto flex-1">
-                {!replies.length && (
-                  <span className="text-center">No meows, Write a meow</span>
-                )}
-                {replies.map((reply) => (
-                  <Comment key={reply._id!} isReplyDisabled={true} {...reply} />
-                ))}
-              </div>
-              <div className="pt-2"></div>
-              {!isReplyDisabled && (
-                <SafeInput
-                  entity={_id!}
-                  type={EntityType.COMMENT}
-                  onComment={onReply}
-                  placeholder="Meow"
-                />
+      {isReplyInputDisplayed && (
+        <div className="flex mb-2">
+          <div className="w-1 mr-2 backdrop-contrast-75 rounded-lg"></div>
+          <div className="pt-2 flex-1">
+            <div className="flex flex-col gap-2 overflow-y-auto flex-1">
+              {!replies.length && (
+                <span className="text-center">No meows, Write a meow</span>
               )}
+              {replies.map((reply) => (
+                <Comment key={reply._id!} isReplyDisabled={true} {...reply} />
+              ))}
             </div>
+            <div className="pt-2"></div>
+            {!isReplyDisabled && (
+              <SafeInput
+                entity={_id!}
+                type={EntityType.COMMENT}
+                onComment={onReply}
+                placeholder="Meow"
+              />
+            )}
           </div>
-        </Then>
-      </If>
+        </div>
+      )}
     </div>
   );
 };

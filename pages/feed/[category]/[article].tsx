@@ -7,7 +7,6 @@ import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import BlogLayout from "@/layouts/BlogLayout";
 import { IArticle, IArticleExcerpt } from "@/models/article";
 import Custom404 from "@/pages/404";
-import { Else, If, Then } from "react-if";
 
 interface Props {
   article: IArticle;
@@ -16,24 +15,25 @@ interface Props {
 
 export default function ArticlePage({ article, randomArticles }: Props) {
   return (
-    <If condition={Boolean(article)}>
-      <Then>
-        <SeoHead article={article} />
-        <ArticleMicrodata {...article!} />
+    <>
+      {article && (
+        <>
+          <SeoHead article={article} />
+          <ArticleMicrodata {...article!} />
 
-        <FirebaseAuthProvider>
-          <BlogLayout>
-            <ArticleContainer
-              article={article}
-              randomArticles={randomArticles}
-            />
-          </BlogLayout>
-        </FirebaseAuthProvider>
-      </Then>
-      <Else>
-        <Custom404 />
-      </Else>
-    </If>
+          <FirebaseAuthProvider>
+            <BlogLayout>
+              <ArticleContainer
+                article={article}
+                randomArticles={randomArticles}
+              />
+            </BlogLayout>
+          </FirebaseAuthProvider>
+        </>
+      )}
+
+      {!article && <Custom404 />}
+    </>
   );
 }
 
