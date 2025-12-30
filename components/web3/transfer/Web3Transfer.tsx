@@ -84,7 +84,6 @@ export const Web3Transfer = ({
       {!disabled && (
         <PixelButton
           isWidthFull
-          isBig
           isDisabled={isNaN(price) || amount <= 0}
           text={text || "Buy Now"}
           onClick={() => transfer()}

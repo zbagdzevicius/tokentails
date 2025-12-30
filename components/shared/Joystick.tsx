@@ -80,9 +80,9 @@ export interface IJoystickCoordinates {
 }
 
 class Joystick extends React.Component<IJoystickProps, IJoystickState> {
-  private readonly _stickRef: React.RefObject<HTMLButtonElement> =
+  private readonly _stickRef: React.RefObject<HTMLButtonElement | null> =
     React.createRef();
-  private readonly _baseRef: React.RefObject<HTMLDivElement> =
+  private readonly _baseRef: React.RefObject<HTMLDivElement | null> =
     React.createRef();
   private _baseSize: number = 90;
   private frameId: number | null = null;

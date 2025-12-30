@@ -31,7 +31,7 @@ export const InviteModalContent = () => {
         </Web3Providers>
       )}
       {type === EntityType.PACK && (
-        <div className="flex flex-col items-center justify-center">
+        <div className="flex flex-col items-center justify-center animate-appear">
           <img
             src={cdnFile("tail/cat-celebrate.webp")}
             alt="pack"

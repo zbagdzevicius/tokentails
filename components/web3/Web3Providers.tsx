@@ -7,7 +7,6 @@ import {
 } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { PropsWithChildren } from "react";
-require("@solana/wallet-adapter-react-ui/styles.css");
 
 export const Web3Providers = ({ children }: PropsWithChildren<{}>) => {
   return (

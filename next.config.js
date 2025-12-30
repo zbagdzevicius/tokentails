@@ -1,8 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    esmExternals: "loose", // Enable ESM external support in loose mode
-  },
   sassOptions: {
     silenceDeprecations: ["legacy-js-api"],
   },
