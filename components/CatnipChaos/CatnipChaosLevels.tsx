@@ -118,7 +118,7 @@ export const CatnipChaosLevels = ({
   return (
     <div className="flex flex-col items-center gap-4 mt-14 lg:mt-24 pb-20 animate-opacity pt-8">
       <div className="flex flex-row items-center gap-8 font-primary">
-        <div className="flex flex-col items-center gap-x-2 bg-yellow-300/80 rounded-lg px-2 pb-2">
+        <div className="flex flex-col items-center gap-x-2 bg-yellow-300/50 rounded-lg px-2 pb-2 border-4 border-yellow-900">
           <div className="text-p4 flex items-center gap-1">
             <img
               draggable={false}
@@ -133,7 +133,7 @@ export const CatnipChaosLevels = ({
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-x-2 bg-yellow-300/80 rounded-lg px-2 pb-2">
+        <div className="flex flex-col items-center gap-x-2 bg-yellow-300/50 rounded-lg px-2 pb-2 border-4 border-yellow-900">
           <div className="text-p4 flex items-center gap-1">
             <img
               draggable={false}
@@ -167,7 +167,7 @@ export const CatnipChaosLevels = ({
           <span className="">{profile?.catnipChaos?.[0] || 0} / 420</span>
         </span>
       </div>
-      <div className="flex flex-wrap gap-4 justify-center max-w-[44rem] bg-gradient-to-b from-yellow-900/50 to-yellow-900/70 rounded-lg pb-32">
+      <div className="flex flex-wrap gap-4 justify-center max-w-[44rem] bg-gradient-to-b from-yellow-900/50 to-yellow-900/70 md:rounded-lg pb-32 pt-4 border-y-4 md:border-4 border-yellow-900">
         {catnipChaosLevelsList
           .filter((level) => !level.startsWith("0"))
           .map((level, i) => (

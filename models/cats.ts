@@ -16,8 +16,8 @@ export enum BlessingStatus {
 export const BlessingStatusTexts: Record<BlessingStatus, string> = {
   [BlessingStatus.WAITING]: "Waiting for home",
   [BlessingStatus.RECOVERING]: "Recovering",
-  [BlessingStatus.ADOPTED]: "Adopted",
-  [BlessingStatus.HEAVEN]: "Heaven",
+  [BlessingStatus.ADOPTED]: "Happily adopted",
+  [BlessingStatus.HEAVEN]: "In Heaven",
 };
 
 export type IBlessing = {
@@ -25,7 +25,7 @@ export type IBlessing = {
   name: string;
   description: string;
   image: IImage;
-  images: IImage[];
+  catAvatar: IImage;
   birthDate: string;
   price: number;
   instagram?: string;
@@ -94,7 +94,6 @@ export interface ICat {
   _id?: string;
   name: string;
   type: CatAbilityType;
-  catAvatar: string;
   owner: string;
   resqueStory: string;
   status: ICatStatus;

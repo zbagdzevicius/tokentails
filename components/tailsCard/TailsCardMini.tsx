@@ -7,6 +7,7 @@ import {
 } from "@/models/cats";
 import React, { useMemo } from "react";
 import { CardWrapper } from "./CardWrapper";
+import { cdnFile } from "@/constants/utils";
 
 type Props = {
   cat?: ICat;
@@ -51,7 +52,10 @@ export const TailsCardMini: React.FC<Props> = ({ cat, onClick }) => {
               <div className="w-full h-full relative">
                 <img
                   draggable={false}
-                  src={"/sample.png"}
+                  src={
+                    cat.blessing?.catAvatar?.url ||
+                    cdnFile("cards/backgrounds/card-placeholder.webp")
+                  }
                   alt="Card Back"
                   className="opacity-90 w-full h-full object-cover"
                 />

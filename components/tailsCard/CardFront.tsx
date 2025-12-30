@@ -1,4 +1,10 @@
-import { IBlessing, ICat, cardsBorderColor } from "@/models/cats";
+import {
+  BlessingStatus,
+  BlessingStatusTexts,
+  IBlessing,
+  ICat,
+  cardsBorderColor,
+} from "@/models/cats";
 import React, { useMemo } from "react";
 
 type CardFrontProps = {
@@ -61,7 +67,7 @@ export const CardFront: React.FC<CardFrontProps> = React.memo(
               draggable={false}
               src={imageUrl}
               alt={imageAlt}
-              className="object-cover w-full h-full"
+              className="object-cover object-top w-full h-full"
             />
             <div
               className="absolute inset-0 opacity-50"
@@ -72,7 +78,9 @@ export const CardFront: React.FC<CardFrontProps> = React.memo(
                 draggable={false}
                 src={imageUrl}
                 alt={imageAlt}
-                className="object-cover w-full h-full"
+                className={`object-cover object-top w-full h-full ${
+                  blessing ? "" : "pixelated"
+                }`}
               />
             </div>
           </div>
@@ -91,7 +99,9 @@ export const CardFront: React.FC<CardFrontProps> = React.memo(
                 Status
               </h3>
               <p className="text-black leading-tight font-tertiary font-bold text-[clamp(11px,2.5vw,13px)]">
-                Waiting for home
+                {blessing?.status
+                  ? BlessingStatusTexts[blessing?.status]
+                  : "Adopted"}
               </p>
             </div>
           </div>

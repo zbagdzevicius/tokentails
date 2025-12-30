@@ -1,29 +1,50 @@
-import { bgStyle } from "@/constants/utils";
-import { useProfile } from "@/context/ProfileContext";
-import { GameModal } from "@/models/game";
+import { bgStyle, cdnFile } from "@/constants/utils";
+import { EntityType } from "@/models/save";
 import { useState } from "react";
 import { MysteryBoxCat } from "../mystery/MysteryBoxCat";
 import { Web3Providers } from "../web3/Web3Providers";
 import { CloseButton } from "./CloseButton";
+import { Countdown } from "./Countdown";
 import { PixelButton } from "./PixelButton";
 
 export const InviteModalContent = () => {
-  const [type, setType] = useState(GameModal.MYSTERY_CAT);
+  const [type, setType] = useState(EntityType.LOOT_BOX);
 
   return (
     <div className="pt-4 pb-8 px-4 text-yellow-900 flex flex-col justify-between items-center animate-appear">
       <div className="font-paws text-h2 glow">SHOP</div>
       <div className="py-2 flex justify-center gap-4">
         <PixelButton
-          active={type === GameModal.MYSTERY_CAT}
-          text="BOXES"
-          onClick={() => setType(GameModal.MYSTERY_CAT)}
+          active={type === EntityType.LOOT_BOX}
+          text="LOOT BOX"
+          onClick={() => setType(EntityType.LOOT_BOX)}
+        ></PixelButton>
+        <PixelButton
+          active={type === EntityType.PACK}
+          text="PACKS"
+          onClick={() => setType(EntityType.PACK)}
         ></PixelButton>
       </div>
-      {type === GameModal.MYSTERY_CAT && (
+      {type === EntityType.LOOT_BOX && (
         <Web3Providers>
           <MysteryBoxCat />
         </Web3Providers>
+      )}
+      {type === EntityType.PACK && (
+        <div className="flex flex-col items-center justify-center">
+          <img
+            src={cdnFile("tail/cat-celebrate.webp")}
+            alt="pack"
+            className="w-32 -mb-4"
+          />
+          <Countdown isBig isDaysDisplayed targetDate={new Date(2026, 0, 15)} />
+          <div className="text-h4 text-center font-primary mt-4">
+            COMING SOON
+          </div>
+          <div className="text-p4 text-center font-primary -mt-2">
+            STAY TUNED FOR MORE INFO ABOUT PACKS!
+          </div>
+        </div>
       )}
     </div>
   );

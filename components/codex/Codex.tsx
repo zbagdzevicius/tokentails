@@ -321,7 +321,7 @@ export const Codex = () => {
           ))}
         </div>
       )}
-      <div className="text-p4 bg-yellow-300 border-4 border-yellow-900 rounded-lg px-2">
+      <div className="text-p4 bg-gradient-to-r from-yellow-500 to-yellow-900 border-4 text-yellow-50 border-yellow-900 rounded-lg px-2">
         I GET
         <span className="text-yellow-300 text-p4 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] ml-1">
           {(profile?.codex?.reduce((acc, item) => acc + item, 0) || 0) * 300}{" "}

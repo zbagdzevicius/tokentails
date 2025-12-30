@@ -1,9 +1,9 @@
 export enum EntityType {
   ARTICLE = "ARTICLE",
-  MYSTERY_BOX = "MYSTERY_BOX",
   LOOT_BOX = "LOOT_BOX",
   COMMENT = "COMMENT",
   CAT = "CAT",
+  PACK = "PACK",
 }
 
 export interface ISave {

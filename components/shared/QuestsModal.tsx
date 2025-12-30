@@ -101,8 +101,9 @@ export const QuestsModalContent = () => {
           />
           <PixelButton
             text="Valentine"
+            isDisabled
             isSmall
-            active={questsType === QuestType.RESCUE}
+            active={true}
             onClick={() => setQuestsType(QuestType.RESCUE)}
           ></PixelButton>
         </div>

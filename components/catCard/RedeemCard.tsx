@@ -32,20 +32,22 @@ export const RedeemCard = ({ close }: { close: () => void }) => {
     <div className="flex flex-col items-center justify-center mb-4">
       {isDisplayed ? (
         <div className="flex flex-col items-center justify-center mb-8 gap-3 animate-appear">
-          <Tag>REDEEM YOUR CAT</Tag>
+          <Tag>REDEEM YOUR COUPON</Tag>
           <input
             type="text"
             value={code}
             onChange={(e) => setCode(e.target.value?.slice(0, 24))}
-            className="flex-grow px-2 py-1 outline-none text-p3 bg-white rounded-full"
-            placeholder="ENTER YOUR CODE"
+            className="flex-grow px-3 py-2 outline-none text-p4 font-bold bg-white rounded-full border-4 border-yellow-900"
+            placeholder="ENTER COUPON CODE"
+            autoFocus
           />
           {!!code && <PixelButton text="REDEEM" onClick={() => redeem()} />}
         </div>
       ) : (
         <PixelButton
+          isSmall
           onClick={() => setIsDisplayed(true)}
-          text="REDEEM YOUR CAT ⚝"
+          text="REDEEM COUPON ⚝"
         />
       )}
     </div>

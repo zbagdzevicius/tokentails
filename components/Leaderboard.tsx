@@ -26,9 +26,9 @@ export const LeaderboardContent = () => {
       </span>
       <div className="flex flex-col animate-appear items-center relative z-10">
         <img
-          src={cdnFile("tail/guard.webp")}
+          src={cdnFile("tail/cat-promo.webp")}
           alt="champs"
-          className="w-32 -mb-20"
+          className="w-48 -mb-1 -ml-6"
         />
         <Tag>$TAILS CHAMPS</Tag>
         {position && (

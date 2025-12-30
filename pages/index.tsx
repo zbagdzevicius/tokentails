@@ -33,7 +33,7 @@ export default function newPage() {
       <MusicPlayer
         src={cdnFile("music/Adam Dib - Over the River Through the Woods.mp3")}
       />
-      <section className="sticky top-0 h-screen w-screen">
+      <section className="sticky top-0 h-screen w-full">
         <span className="absolute inset-0 z-20 animate-appear">
           <img src={cdnFile("landing/hero-top.webp")} className="w-full " />
         </span>
@@ -84,7 +84,7 @@ export default function newPage() {
         </div>
       </section>
 
-      <section className="sticky top-0 h-screen w-screen glow-box">
+      <section className="sticky top-0 h-screen w-full glow-box">
         <img
           src={cdnFile("landing/card-bg.webp")}
           className="w-full h-full object-cover pixelated inset-0 absolute"
@@ -108,7 +108,7 @@ export default function newPage() {
         </div>
       </section>
 
-      <section className="sticky top-0 h-screen w-screen glow-box">
+      <section className="sticky top-0 h-screen w-fullglow-box">
         <img
           src={cdnFile("landing/globe.webp")}
           className="w-full h-full object-cover   inset-0 absolute"

@@ -94,7 +94,7 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
             }}
           >
             <CardWrapper catType={selectedType} isBackSide={true}>
-              <CardBack cat={testCat} />
+              <CardBack cat={testCat} blessing={blessing} />
             </CardWrapper>
           </div>
         </div>

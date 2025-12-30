@@ -12,12 +12,13 @@ import { ChainSelect } from "../shared/ChainSelect";
 import { PixelButton } from "../shared/PixelButton";
 import { Web3Transfer } from "../web3/transfer/Web3Transfer";
 
+const price = Prices.lootBox;
+
 export const MysteryBoxCat = () => {
   const { profile, setProfileUpdate } = useProfile();
   const toast = useToast();
   const [rolledCat, setRolledCat] = useState<null | ICat>();
   const [lootBoxRewards, setLootBoxRewards] = useState<null | string>(null);
-  const [boxType, setBoxType] = useState<EntityType>(EntityType.LOOT_BOX);
   const { currencyType, rates, transactionStatus, setTransactionStatus } =
     useWeb3();
   const onSuccess = (transactionStatus: ITransactionStatus) => {
@@ -56,12 +57,6 @@ export const MysteryBoxCat = () => {
     );
   };
 
-  const price = useMemo(() => {
-    if (boxType === EntityType.MYSTERY_BOX) {
-      return Prices.generatedCat;
-    }
-    return Prices.lootBox;
-  }, [boxType]);
   const currencyPrice = useMemo(() => {
     if (
       [
@@ -100,12 +95,7 @@ export const MysteryBoxCat = () => {
         className={`w-48 md:w-32 lg:w-52 mb-4 ${
           rolledCat?.catImg ? "pixelated" : ""
         }`}
-        src={
-          rolledCat?.catImg ||
-          (boxType === EntityType.MYSTERY_BOX
-            ? cdnFile("elements/mystery-box.webp")
-            : cdnFile("elements/loot-box.webp"))
-        }
+        src={rolledCat?.catImg || cdnFile("elements/loot-box.webp")}
       />
       {lootBoxRewards && (
         <div className="font-primary relative my-2 animate-opacity text-p4 text-center text-balance bg-gradient-to-b from-purple-300 to-blue-300 border-yellow-300 border-4 rounded-2xl px-2 mt-12 mb-8">
@@ -120,18 +110,18 @@ export const MysteryBoxCat = () => {
       <ChainSelect />
       <div className="m-auto animate-appear">
         <div className="flex flex-col items-start w-fit m-auto">
-          {(!profile?.boxes || boxType === EntityType.MYSTERY_BOX) && (
+          {!profile?.boxes && (
             <div className="text-yellow-900 font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
               {currencyPrice} {currencyType}
             </div>
           )}
-          {!!profile?.boxes && boxType === EntityType.LOOT_BOX ? (
+          {!!profile?.boxes ? (
             <PixelButton text="Open FREE Box" onClick={() => openFreeBox()} />
           ) : (
             <Web3Transfer
               price={currencyPrice}
               amount={1}
-              entityType={boxType}
+              entityType={EntityType.LOOT_BOX}
               user={profile?._id}
               text="Open THE Box"
               loadingText="Opening..."
@@ -139,26 +129,24 @@ export const MysteryBoxCat = () => {
           )}
         </div>
       </div>
-      {boxType === EntityType.LOOT_BOX && (
-        <div className="flex flex-col items-center justify-center w-48">
-          <div className="text-p4 font-secondary text-center mt-2">
-            WHAT CAN I WIN?
-          </div>
-          <div className="text-p4 bg-gradient-to-r from-yellow-600 to-yellow-900 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 hover:scale-110 transition-transform mb-2 border-4 rounded-lg border-yellow-900">
-            <img
-              draggable={false}
-              src={cdnFile("logo/logo.webp")}
-              className="w-8 mr-3"
-            />
-            <span className="flex flex-col">
-              <span className="text-p5 -mb-1 text-amber-900 font-primary glow">
-                WIN $TAILS
-              </span>
-              <span className="text-yellow-50">UP TO 1000000</span>
-            </span>
-          </div>
+      <div className="flex flex-col items-center justify-center w-48">
+        <div className="text-p4 font-secondary text-center mt-2">
+          WHAT CAN I WIN?
         </div>
-      )}
+        <div className="text-p4 bg-gradient-to-r from-yellow-600 to-yellow-900 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 hover:scale-110 transition-transform mb-2 border-4 rounded-lg border-yellow-900">
+          <img
+            draggable={false}
+            src={cdnFile("logo/logo.webp")}
+            className="w-8 mr-3"
+          />
+          <span className="flex flex-col">
+            <span className="text-p5 -mb-1 text-amber-900 font-primary glow">
+              WIN $TAILS
+            </span>
+            <span className="text-yellow-50">UP TO 1000000</span>
+          </span>
+        </div>
+      </div>
     </div>
   );
 };

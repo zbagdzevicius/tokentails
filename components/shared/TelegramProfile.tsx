@@ -188,8 +188,9 @@ const ProfileUpdate = () => {
           type="text"
           value={twitter}
           onChange={(e) => setTwitter(e.target.value?.slice(0, 24))}
-          className="flex-grow px-2 py-1 outline-none text-p5 bg-white rounded-full"
+          className="flex-grow px-2 py-1 outline-none text-p5 bg-white rounded-full border-1 border-yellow-900"
           placeholder="Your X Handle"
+          autoFocus
         />
       )}
       <span className="-mt-2">
@@ -214,8 +215,9 @@ const ProfileUpdate = () => {
           type="text"
           value={discord}
           onChange={(e) => setDiscord(e.target.value?.slice(0, 24))}
-          className="flex-grow px-2 py-1 outline-none text-p5 bg-white rounded-full"
+          className="flex-grow px-2 py-1 outline-none text-p5 bg-white rounded-full border-1 border-yellow-900"
           placeholder="Your Discord Handle"
+          autoFocus
         />
       )}
       <span className="-mt-2">
