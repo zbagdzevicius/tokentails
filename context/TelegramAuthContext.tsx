@@ -2,9 +2,21 @@ import { QUEST_API } from "@/api/quest-api";
 import { useQuery } from "@tanstack/react-query";
 import {
   User,
-  useInitData,
   useLaunchParams,
-  useUtils,
+  useRawInitData,
+  useSignal,
+  initData,
+  openLink,
+  openTelegramLink,
+  shareURL,
+  initDataHash,
+  initDataQueryId,
+  initDataChatType,
+  initDataChatInstance,
+  initDataAuthDate,
+  initDataStartParam,
+  initDataCanSendAfterDate,
+  initDataUser,
 } from "@telegram-apps/sdk-react";
 import * as React from "react";
 import { useCallback, useEffect } from "react";
@@ -35,48 +47,63 @@ const TelegramAuthContext = React.createContext<ContextState | undefined>(
 
 const TelegramAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const launchParams = useLaunchParams(true);
-  const initData = useInitData(true);
+  const parsedInitData = useSignal(initData.state);
+  const rawInitData = useRawInitData();
+  const hash = useSignal(initDataHash);
+  const queryId = useSignal(initDataQueryId);
+  const chatType = useSignal(initDataChatType);
+  const chatInstance = useSignal(initDataChatInstance);
+  const authDate = useSignal(initDataAuthDate);
+  const startParam = useSignal(initDataStartParam);
+  const canSendAfterDate = useSignal(initDataCanSendAfterDate);
+  const user = useSignal(initDataUser);
   const { setUtils } = useProfile();
   const toast = useToast();
 
-  const utils = useUtils(true);
-
-  utils?.openLink;
   useEffect(() => {
-    if (utils) {
-      setUtils(utils);
-    }
-  }, [utils]);
+    setUtils({
+      openLink: (url: string, options?: any) => {
+        openLink(url, options);
+      },
+      openTelegramLink: (url: string) => {
+        openTelegramLink(url);
+      },
+      shareURL: (url: string, text?: string) => {
+        shareURL(url, text);
+      },
+    });
+  }, [setUtils]);
 
   const telegramUserData = React.useMemo<ITelegramUserData | null>(() => {
-    if (!initData || !launchParams?.initDataRaw) {
+    if (!parsedInitData || !rawInitData || !user) {
       return null;
     }
 
-    sessionStorage.setItem("accesstoken", launchParams.initDataRaw);
+    sessionStorage.setItem("accesstoken", rawInitData);
 
-    const {
-      hash,
-      queryId,
-      chatType,
-      chatInstance,
-      authDate,
-      startParam,
-      canSendAfterDate,
-      user,
-    } = initData;
     return {
-      raw: launchParams.initDataRaw!,
-      authDate,
+      raw: rawInitData,
+      authDate: authDate!,
       canSendAfterDate,
-      hash,
+      hash: hash!,
       chatType,
       queryId,
       startParam,
       chatInstance,
       user: user!,
     };
-  }, [initData, launchParams]);
+  }, [
+    parsedInitData,
+    rawInitData,
+    hash,
+    queryId,
+    chatType,
+    chatInstance,
+    authDate,
+    startParam,
+    canSendAfterDate,
+    user,
+  ]);
 
   const { setProfile, setShareUrl } = useProfile();
   const { data: profileResponse, refetch: refetchProfile } = useQuery({
@@ -87,12 +114,12 @@ const TelegramAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     await USER_API.redeem();
     refetchProfile();
     toast({ message: "Come back tomorrow for More !" });
-  }, []);
+  }, [refetchProfile, toast]);
   useEffect(() => {
     if (profileResponse) {
       setProfile(profileResponse);
     }
-  }, [profileResponse]);
+  }, [profileResponse, setProfile]);
   useEffect(() => {
     if (telegramUserData?.startParam && profileResponse) {
       QUEST_API.setReferralTelegram(telegramUserData?.startParam);
