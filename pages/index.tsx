@@ -34,7 +34,7 @@ export default function newPage() {
         src={cdnFile("music/Adam Dib - Over the River Through the Woods.mp3")}
       />
       <section className="sticky top-0 h-screen w-full">
-        <span className="absolute inset-0 z-20 animate-appear">
+        <span className="absolute inset-0 z-20 animate-opacity">
           <img src={cdnFile("landing/hero-top.webp")} className="w-full " />
         </span>
         <img
@@ -53,7 +53,7 @@ export default function newPage() {
           <Socials />
         </span>
 
-        <div className="absolute z-50 bottom-32 sm:bottom-12 lg:bottom-14 xl:bottom-16 2xl:bottom-20 3xl:bottom-32 left-1/2 -translate-x-1/2 animate-appear flex flex-col sm:flex-row justify-center items-center">
+        <div className="absolute z-50 bottom-32 sm:bottom-12 lg:bottom-14 xl:bottom-16 2xl:bottom-20 3xl:bottom-32 left-1/2 -translate-x-1/2 flex flex-col sm:flex-row justify-center items-center">
           {(isDesktop || isIOS) && (
             <a
               target="_blank"

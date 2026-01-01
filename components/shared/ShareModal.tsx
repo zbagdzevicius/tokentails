@@ -82,7 +82,7 @@ export const ShareModal = ({ url, close }: IProps) => {
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-white opacity-[0.75]"
       ></div>
-      <div className="z-50 w-full md:w-[480px] max-w-full bg-white absolute bottom-0 rounded-t-[22px] overflow-hidden shadow h-fit flex flex-col pb-8 pt-6">
+      <div className="z-50 w-full md:w-[480px] max-w-full bg-white absolute bottom-0 md:rounded-t-[22px] overflow-hidden shadow h-fit flex flex-col pb-8 pt-6 md:border-4 border-yellow-300 glow-box">
         <FacebookShareButton
           url={absoluteUrl}
           hashtag={process.env.NEXT_PUBLIC_SITE_NAME}

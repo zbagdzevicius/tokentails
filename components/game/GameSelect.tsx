@@ -96,23 +96,25 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
       {!gameType && (
         <>
           <div className="flex flex-col max-w-max md:gap-4 lg:gap-8 min-w-0 items-center lg:-mt-8 relative">
-            <div className="flex gap-36 mt-48 md:mt-20 lg:mt-40 items-end absolute">
-              <GameSelectItem
-                setGameType={setGameType}
-                gameType={GameType.SHELTER}
-              />
+            {profile?.cat && (
+              <div className="flex gap-36 mt-48 md:mt-20 lg:mt-40 items-end absolute">
+                <GameSelectItem
+                  setGameType={setGameType}
+                  gameType={GameType.SHELTER}
+                />
 
-              <GameSelectItem
-                setGameType={setGameType}
-                gameType={GameType.HOME}
-              />
-            </div>
+                <GameSelectItem
+                  setGameType={setGameType}
+                  gameType={GameType.HOME}
+                />
+              </div>
+            )}
             {profile?.cat ? (
               <div className="relative w-24 min-w-24 flex flex-col items-center justify-center animate-appear">
                 <img
                   draggable={false}
                   src={cdnFile("logo/logo-text.webp")}
-                  className="min-w-36 h-auto md:min-w-16 lg:min-w-64 z-10 md:hidden lg:block"
+                  className="min-w-36 h-auto md:min-w-16 lg:min-w-64 z-10"
                 ></img>
                 <img
                   draggable={false}
@@ -137,8 +139,11 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
                 </div>
               </div>
             ) : (
-              <div className="text-p2 mt-48 md:mt-24 font-paws animate-pulse">
-                LOADING...
+              <div className="mt-48 md:mt-24 animate-pulse">
+                <img
+                  src={cdnFile("logo/paw.webp")}
+                  className="w-24 min-w-24 animate-spin-slow"
+                />
               </div>
             )}
           </div>

@@ -37,7 +37,7 @@ export const FeedActions = ({
               <img
                 draggable={false}
                 className="w-4"
-                src={cdnFile("logo/paw.png")}
+                src={cdnFile("logo/paw.webp")}
               />
             </span>
             <span className="text-gray-500 text-p5">
@@ -73,7 +73,7 @@ export const FeedActions = ({
               >
                 <img
                   draggable={false}
-                  src={cdnFile("logo/paw.png")}
+                  src={cdnFile("logo/paw.webp")}
                   className="w-6 h-6"
                 />
                 <div className="text-p4 font-semibold ml-2">

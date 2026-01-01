@@ -45,8 +45,8 @@ export const TailsCardModal: React.FC<IProps> = ({
       ></div>
       <CloseButton absolute onClick={() => onClose?.()} />
 
-      <div className="relative z-10 flex flex-col md:flex-row items-center justify-center h-full gap-4 md:gap-8 p-4">
-        <div className="flex-shrink-0">
+      <div className="relative z-10 flex flex-col md:flex-row items-center justify-center h-full lg:gap-8 p-4">
+        <div className="flex-shrink-0 md:scale-[0.65] lg:scale-100">
           <TailsCard cat={catData} />
         </div>
 
