@@ -54,8 +54,8 @@ const config: Config = {
         colormax: "colormax 15s infinite;",
         "spin-slow": "spin 10s infinite;",
         flip: "flip 10s infinite;",
-        appear: "appear 0.5s;",
-        opacity: "opacity 1.5s;",
+        appear: "appear 0.6s linear",
+        opacity: "opacity 1s;",
         bounceWithFade: "bounceWithFade 2.5s ease-in-out",
         brightness: "brightness 3s ease-in-out infinite",
         pulseWeak: "pulseWeak 3s ease-in-out infinite",
@@ -103,8 +103,26 @@ const config: Config = {
           },
         },
         appear: {
-          from: { opacity: "0", "margin-top": "-80px" },
-          to: { opacity: "1", "margin-top": "0px" },
+          "0%": {
+            opacity: "0",
+            transform: "translateY(-80px) scale(0.9)",
+          },
+          "40%": {
+            opacity: "0.8",
+            transform: "translateY(10px) scale(1.02)",
+          },
+          "60%": {
+            opacity: "0.9",
+            transform: "translateY(-5px) scale(0.98)",
+          },
+          "80%": {
+            opacity: "0.95",
+            transform: "translateY(2px) scale(1.01)",
+          },
+          "100%": {
+            opacity: "1",
+            transform: "translateY(0) scale(1)",
+          },
         },
         opacity: {
           from: { opacity: "0" },

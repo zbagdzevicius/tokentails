@@ -16,7 +16,34 @@ import { CloseButton } from "./CloseButton";
 
 const weekInMs = 604800000;
 
-export const CatsModalContent = ({ close }: { close: () => void }) => {
+export const CatsModalContent = ({
+  close,
+  setSelectedCat,
+  mutatedCats,
+}: {
+  close: () => void;
+  setSelectedCat: (cat: ICat) => void;
+  mutatedCats: ICat[];
+}) => {
+  return (
+    <div className="px-0 pt-4 pb-8 md:px-16 flex flex-col justify-between items-center animate-appear">
+      <div className="font-paws text-h2 glow">MY PETS</div>
+
+      <RedeemCard close={close} />
+      <div className="flex flex-wrap justify-center items-center w-full gap-x-4 gap-y-8 sm:gap-5">
+        {mutatedCats?.map((cat) => (
+          <TailsCardMini
+            key={cat._id}
+            cat={cat}
+            onClick={() => setSelectedCat(cat)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export const CatsModal = ({ close }: { close: () => void }) => {
   const [selectedCat, setSelectedCat] = useState<ICat | null>(null);
 
   const { profile, setProfileUpdate } = useProfile();
@@ -99,24 +126,24 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
   };
 
   return (
-    <div className="px-4 pt-4 pb-8 md:px-16 flex flex-col justify-between items-center animate-appear">
-      <div className="font-paws text-h2 glow">MY PETS</div>
-
-      <RedeemCard close={close} />
-
-      {/* <Web3Providers>
-        <GenerateCat close={close} />
-      </Web3Providers> */}
-      <div className="flex flex-wrap justify-center items-center w-full gap-2 lg:gap-5">
-        {mutatedCats?.map((cat) => (
-          <TailsCardMini
-            key={cat._id}
-            cat={cat}
-            onClick={() => setSelectedCat(cat)}
+    <>
+      <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center h-full">
+        <div
+          onClick={close}
+          className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
+        ></div>
+        <div
+          className="m-auto z-50 w-full md:w-[610px] max-w-full absolute inset-0 max-h-screen overflow-y-auto md:rounded-xl shadow md:border-4 border-yellow-300 glow-box"
+          style={bgStyle("4")}
+        >
+          <CloseButton onClick={close} />
+          <CatsModalContent
+            close={close}
+            setSelectedCat={setSelectedCat}
+            mutatedCats={mutatedCats}
           />
-        ))}
+        </div>
       </div>
-
       {selectedCat && (
         <TailsCardModal
           onClose={() => setSelectedCat(null)}
@@ -129,24 +156,6 @@ export const CatsModalContent = ({ close }: { close: () => void }) => {
           {...selectedCat}
         />
       )}
-    </div>
-  );
-};
-
-export const CatsModal = ({ close }: { close: () => void }) => {
-  return (
-    <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center h-full">
-      <div
-        onClick={close}
-        className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
-      ></div>
-      <div
-        className="m-auto z-50 rem:w-[350px] md:w-[600px] max-w-full absolute inset-0 max-h-screen overflow-y-auto rounded-xl shadow"
-        style={bgStyle("4")}
-      >
-        <CloseButton onClick={close} />
-        <CatsModalContent close={close} />
-      </div>
-    </div>
+    </>
   );
 };

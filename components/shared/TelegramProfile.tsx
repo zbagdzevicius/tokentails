@@ -494,7 +494,7 @@ export const TelegramProfile = ({ close }: { close: () => void }) => {
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
       ></div>
       <div
-        className="m-auto z-50 rem:w-[386px] md:w-[549px] max-w-full lg:top-1/2 lg:-translate-y-1/2 lg:h-fit lg:absolute overflow-y-auto max-h-screen rounded-xl shadow"
+        className="m-auto z-50 rem:w-[400px] md:w-[600px] max-w-full lg:top-1/2 lg:-translate-y-1/2 lg:h-fit lg:absolute overflow-y-auto max-h-screen rounded-xl shadow border-4 border-yellow-300 glow-box"
         style={bgStyle("4")}
       >
         <CloseButton onClick={() => close()} />

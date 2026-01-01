@@ -1,12 +1,9 @@
 import { bgStyle, cdnFile } from "@/constants/utils";
 import { useGame } from "@/context/GameContext";
-import { useToast } from "@/context/ToastContext";
 import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
 import { useState } from "react";
 import { totalCatnip } from "../Phaser/map";
-import { CloseButton } from "../shared/CloseButton";
-import { PixelButton } from "../shared/PixelButton";
 interface IGameStat {
   title: string;
   image: string;
@@ -36,9 +33,6 @@ export const GameStatSection = ({
     </button>
   );
 };
-
-const tailsText = `EARN $TAILS BY:\n- CRAFTING WITH YOUR CATS\n- INVITING FRIENDS\n- RANKING UP IN LEADERBOARDS\n- DOING DAILY CHECK-INS\n
-EARN CATNIP BY PLAYING`;
 
 export const GameStatsSection = ({
   profile,
@@ -77,7 +71,7 @@ export const GameStatsSection = ({
       </div>
       <div className="fixed left-4 pb-safe top-4 z-30 flex flex-col justify-between">
         <div
-          onClick={() => setModal(tailsText)}
+          onClick={() => setOpenedModal(GameModal.PROFILE)}
           className="flex hover:brightness-110 flex-col w-20 relative items-center font-primary rounded-xl px-1 py-1 whitespace-pre-line border-4 border-yellow-900"
           style={bgStyle("min-4")}
         >
@@ -121,29 +115,6 @@ export const GameStatsSection = ({
           )}
         </div>
       </div>
-      {modal && (
-        <div className="fixed inset-0 mt-safe w-full z-50 flex justify-center h-full">
-          <div
-            onClick={() => setModal(null)}
-            className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
-          ></div>
-          <div
-            className="z-50 rem:w-[350px] md:w-[480px] max-w-full absolute top-1/2 -translate-y-1/2 rounded-xl shadow animate-appear pb-4"
-            style={bgStyle("4")}
-          >
-            <CloseButton onClick={() => setModal(null)} />
-            <div className="pb-safe rem:min-h-[100px] p-8 flex flex-col gap-2 justify-between items-center">
-              <p className="text-p3 font-secondary whitespace-pre-line">
-                {modal}
-              </p>
-              <PixelButton
-                onClick={() => setModal(null)}
-                text="Okey"
-              ></PixelButton>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

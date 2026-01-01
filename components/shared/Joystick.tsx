@@ -334,7 +334,7 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
             <img
               className="w-12"
               draggable="false"
-              src={cdnFile("logo/paw.png")}
+              src={cdnFile("logo/paw.webp")}
             />
           </div>
         </button>

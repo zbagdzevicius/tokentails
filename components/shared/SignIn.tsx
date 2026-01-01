@@ -50,7 +50,7 @@ const SignInForm = ({
       >
         <div className="relative flex justify-between items-center space-x-4 font-semibold">
           <i className="bx bxs-key text-h6 text-blue-600"></i>
-          <div className="flex items-center w-max tracking-wide whitespace-nowrap group-hover:text-yellow-900 font-pixel">
+          <div className="flex items-center w-max tracking-wide whitespace-nowrap group-hover:text-yellow-900">
             SIGN IN
           </div>
           <div></div>
@@ -88,13 +88,11 @@ export const SignInContent = () => {
     useState(false);
 
   return (
-    <div className="pt-8 pb-4 px-4 md:px-16 md:py-8 text-gray-500 flex flex-col justify-between relative">
+    <div className="pt-8 pb-4 px-4 md:px-16 md:py-8 text-gray-500 flex flex-col justify-between relative font-primary">
       <img className="w-16 m-auto mb-2" src={cdnFile("logo/logo.webp")} />
       {!user && (
         <div className="flex flex-col">
-          <div className="text-center font-pixel text-p2 pb-2">
-            WELCOME TO TOKEN TAILS
-          </div>
+          <div className="text-center text-p2 pb-2">WELCOME TO TOKEN TAILS</div>
           <div className="flex md:gap-2 lg:gap-0 flex-col md:flex-row lg:flex-col justify-center">
             <button
               onClick={() => signIn("google")}
@@ -102,7 +100,7 @@ export const SignInContent = () => {
             >
               <div className="relative flex justify-between items-center space-x-4">
                 <i className="bx bxl-google text-h6 text-red-600"></i>
-                <span className="block w-max font-semibold tracking-wide whitespace-nowrap group-hover:text-yellow-900 font-pixel">
+                <span className="block w-max font-semibold tracking-wide whitespace-nowrap group-hover:text-yellow-900">
                   SIGN IN WITH <span className="text-blue-600">G</span>
                   <span className="text-red-600">o</span>
                   <span className="text-yellow-600">o</span>
@@ -119,7 +117,7 @@ export const SignInContent = () => {
             >
               <div className="relative flex justify-between items-center space-x-4">
                 <i className="bx bxl-apple text-h6 text-white"></i>
-                <span className="block w-max font-semibold tracking-wide whitespace-nowrap group-hover:text-white text-gray-400 font-pixel">
+                <span className="block w-max font-semibold tracking-wide whitespace-nowrap group-hover:text-white text-gray-400">
                   SIGN IN WITH <span className="text-white">Apple</span>
                 </span>
                 <div></div>
@@ -134,7 +132,7 @@ export const SignInContent = () => {
             >
               <div className="relative flex justify-between items-center space-x-4">
                 <i className="bx bxl-apple text-h6 text-white"></i>
-                <span className="block w-max font-semibold tracking-wide whitespace-nowrap group-hover:text-white text-gray-400 font-pixel">
+                <span className="block w-max font-semibold tracking-wide whitespace-nowrap group-hover:text-white text-gray-400">
                   SIGN IN WITH <span className="text-white">Password</span>
                 </span>
                 <div></div>
@@ -192,7 +190,7 @@ export const SignInContent = () => {
 
 export const SignIn = ({ close }: { close: () => void }) => {
   return (
-    <div className="fixed inset-0 mt-safe w-full flex justify-center h-full z-20">
+    <div className="fixed inset-0 mt-safe w-full flex justify-center h-full z-[60]">
       <div
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-white opacity-50"

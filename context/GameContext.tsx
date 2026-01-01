@@ -10,9 +10,7 @@ import {
 import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
 import { CatsModal } from "@/components/shared/CatsModal";
 import { CodexModal } from "@/components/shared/CodexModal";
-import { ControlModal } from "@/components/shared/ControlModal";
 import { EndGameModal } from "@/components/shared/EndGameModal";
-import { FeaturedCatModal } from "@/components/shared/FeaturedCatModal";
 import { GameMusicPlayer } from "@/components/shared/GameMusicPlayer";
 import { InviteModal } from "@/components/shared/InviteModal";
 import { Notification } from "@/components/shared/Notification";
@@ -230,12 +228,6 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           )}
           {openedModal === GameModal.INVITE && (
             <InviteModal close={() => setOpenedModal(null)} />
-          )}
-          {openedModal === GameModal.CONTROL_SETTINGS && (
-            <ControlModal close={() => setOpenedModal(null)} />
-          )}
-          {openedModal === GameModal.FEATURED_CAT && (
-            <FeaturedCatModal close={() => setOpenedModal(null)} />
           )}
           {openedModal === GameModal.SUPPORT && (
             <SupportModal close={() => setOpenedModal(null)} />
