@@ -1,3 +1,5 @@
+"use client";
+
 import { QUEST_API } from "@/api/quest-api";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -60,6 +62,45 @@ const TelegramAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const { setUtils } = useProfile();
   const toast = useToast();
 
+  // Try to get raw init data from launchParams as fallback
+  const rawInitDataFromParams = React.useMemo(() => {
+    if (rawInitData) return rawInitData;
+    if (launchParams?.initData) return launchParams.initData;
+    if (typeof window !== "undefined") {
+      // Try to get from URL or window object as last resort
+      const urlParams = new URLSearchParams(window.location.search);
+      const initDataParam =
+        urlParams.get("tgWebAppData") || urlParams.get("_auth");
+      if (initDataParam) return decodeURIComponent(initDataParam);
+    }
+    return null;
+  }, [rawInitData, launchParams]);
+
+  // Debug: Log SDK state
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      console.log("Telegram SDK State:", {
+        hasLaunchParams: !!launchParams,
+        launchParamsInitData: launchParams?.initData,
+        hasParsedInitData: !!parsedInitData,
+        hasRawInitData: !!rawInitData,
+        rawInitDataValue: rawInitData,
+        rawInitDataFromParams: rawInitDataFromParams,
+        hasUser: !!user,
+        hasHash: !!hash,
+        hasAuthDate: !!authDate,
+      });
+    }
+  }, [
+    launchParams,
+    parsedInitData,
+    rawInitData,
+    rawInitDataFromParams,
+    user,
+    hash,
+    authDate,
+  ]);
+
   useEffect(() => {
     setUtils({
       openLink: (url: string, options?: any) => {
@@ -75,26 +116,63 @@ const TelegramAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   }, [setUtils]);
 
   const telegramUserData = React.useMemo<ITelegramUserData | null>(() => {
-    if (!parsedInitData || !rawInitData || !user) {
+    // Use rawInitDataFromParams which includes fallbacks
+    const effectiveRawInitData = rawInitDataFromParams;
+
+    // Check if we have the minimum required data - we need rawInitData as a string
+    if (!effectiveRawInitData || typeof effectiveRawInitData !== "string") {
       return null;
     }
 
-    sessionStorage.setItem("accesstoken", rawInitData);
+    // If we don't have user yet, we can still create the data object with raw data
+    // This allows the query to run even if user hasn't loaded yet
+    if (!user) {
+      // Still return data with raw init data so the query can run
+      if (typeof window !== "undefined") {
+        try {
+          sessionStorage.setItem("accesstoken", effectiveRawInitData);
+        } catch (e) {
+          console.warn("Failed to set accesstoken in sessionStorage:", e);
+        }
+      }
+
+      return {
+        raw: effectiveRawInitData,
+        authDate: authDate || new Date(),
+        canSendAfterDate,
+        hash: hash || "",
+        chatType,
+        queryId,
+        startParam,
+        chatInstance,
+        user: {} as User, // Temporary empty user until it loads
+      };
+    }
+
+    // hash and authDate might be optional in some cases, but let's be more lenient
+    // Only require them if we're in a strict validation scenario
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem("accesstoken", effectiveRawInitData);
+      } catch (e) {
+        console.warn("Failed to set accesstoken in sessionStorage:", e);
+      }
+    }
 
     return {
-      raw: rawInitData,
-      authDate: authDate!,
+      raw: effectiveRawInitData,
+      authDate: authDate || new Date(),
       canSendAfterDate,
-      hash: hash!,
+      hash: hash || "",
       chatType,
       queryId,
       startParam,
       chatInstance,
-      user: user!,
+      user,
     };
   }, [
     parsedInitData,
-    rawInitData,
+    rawInitDataFromParams,
     hash,
     queryId,
     chatType,
@@ -106,10 +184,41 @@ const TelegramAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   ]);
 
   const { setProfile, setShareUrl } = useProfile();
-  const { data: profileResponse, refetch: refetchProfile } = useQuery({
+  const {
+    data: profileResponse,
+    refetch: refetchProfile,
+    error: profileError,
+    isLoading: profileLoading,
+  } = useQuery({
     queryKey: ["t-profile-details", telegramUserData?.raw],
-    queryFn: () => (telegramUserData?.raw ? USER_API.profile() : null),
+    queryFn: async () => {
+      if (!telegramUserData?.raw) {
+        return null;
+      }
+      try {
+        return await USER_API.profile();
+      } catch (error) {
+        console.error("Failed to fetch profile:", error);
+        throw error;
+      }
+    },
+    enabled: !!telegramUserData?.raw,
+    retry: 1,
   });
+
+  // Debug: Log query state
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      console.log("Profile Query State:", {
+        hasTelegramUserData: !!telegramUserData,
+        hasRawData: !!telegramUserData?.raw,
+        isEnabled: !!telegramUserData?.raw,
+        isLoading: profileLoading,
+        hasError: !!profileError,
+        hasProfileResponse: !!profileResponse,
+      });
+    }
+  }, [telegramUserData, profileLoading, profileError, profileResponse]);
   const redeemLives = useCallback(async () => {
     await USER_API.redeem();
     refetchProfile();
