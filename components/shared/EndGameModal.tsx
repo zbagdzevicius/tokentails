@@ -45,7 +45,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
       ></div>
 
       <div
-        className="m-auto z-50 rem:w-[350px] font-secondary md:w-[480px] flex flex-col md:flex-row max-w-full absolute top-1/2 -translate-y-1/2 rounded-lg shadow h-fit animate-appear border-4 border-yellow-300 glow-box"
+        className="m-auto z-50 rem:w-[350px] font-secondary md:w-[480px] flex flex-col md:flex-row max-w-full absolute top-1/2 -translate-y-1/2 rounded-lg shadow h-fit animate-opacity border-4 border-yellow-300 glow-box"
         style={bgStyle("4")}
       >
         <CloseButton onClick={onClose} absolute />

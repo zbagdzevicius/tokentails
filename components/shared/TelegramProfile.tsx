@@ -68,62 +68,6 @@ const calculateDonationBreakdown = (amount: number): DonationBreakdown => {
   return breakdown;
 };
 
-const getDonationSummary = (breakdown: DonationBreakdown): string => {
-  const parts: string[] = [];
-
-  if (breakdown.extendedCare > 0) {
-    parts.push(
-      `✅ ${breakdown.extendedCare} ${
-        breakdown.extendedCare === 1
-          ? "extended care & recovery"
-          : "extended care & recoveries"
-      }`
-    );
-  }
-
-  if (breakdown.emergencyMedical > 0) {
-    parts.push(
-      `✅ ${breakdown.emergencyMedical} ${
-        breakdown.emergencyMedical === 1
-          ? "emergency medical treatment"
-          : "emergency medical treatments"
-      }`
-    );
-  }
-
-  if (breakdown.spayNeuter > 0) {
-    parts.push(
-      `✅ ${breakdown.spayNeuter} ${
-        breakdown.spayNeuter === 1
-          ? "spay/neuter surgery"
-          : "spay/neuter surgeries"
-      }`
-    );
-  }
-
-  if (breakdown.checkupVaccines > 0) {
-    parts.push(
-      `✅ ${breakdown.checkupVaccines} ${
-        breakdown.checkupVaccines === 1
-          ? "full checkup & vaccinations"
-          : "full checkups & vaccinations"
-      }`
-    );
-  }
-
-  if (breakdown.dailyCare > 0) {
-    parts.push(
-      `✅ ${breakdown.dailyCare} ${
-        breakdown.dailyCare === 1 ? "day" : "days"
-      } of daily food & care`
-    );
-  }
-
-  return parts.length > 0
-    ? `Your donation funded:\n${parts.join("\n")}`
-    : "Your donation will help cats in need";
-};
-
 const ProfileUpdate = () => {
   const { profile } = useProfile();
   const [twitter, setTwitter] = useState(profile?.twitter);
