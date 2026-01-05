@@ -81,7 +81,7 @@
     "topojson-client": "^3.1.0",
     "use-debounce": "^10.0.0",
     "uuid": "^13.0.0",
-    "wagmi": "^2.15.1"
+    "wagmi": "^2.19.5"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",

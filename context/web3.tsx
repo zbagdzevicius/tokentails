@@ -18,6 +18,9 @@ import { WagmiProvider } from "wagmi";
 export const queryClient = new QueryClient();
 createAppKit({
   adapters: [wagmiAdapter],
+  featuredWalletIds: [
+    "67f1ec404dbf3bddc509b5fcf615850e05b28c287ccd7167b4fe81b4293ac9df",
+  ],
   metadata,
   networks: networks as any,
   projectId,

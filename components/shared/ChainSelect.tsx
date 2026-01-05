@@ -3,10 +3,8 @@ import { useWeb3 } from "@/context/Web3Context";
 import {
   ChainNamespace,
   ChainNamespaceImg,
-  ChainNamespaces,
   ChainNamespacesCurrencies,
 } from "@/web3/contracts";
-import React from "react";
 
 export const ChainSelect = () => {
   const { currencyType, setCurrencyType, setNamespace, namespace } = useWeb3();
@@ -18,7 +16,7 @@ export const ChainSelect = () => {
           PAYMENT CHAIN
         </div>
         <div className="flex gap-2">
-          {ChainNamespaces.map((namespaceOption) => (
+          {[ChainNamespace.SEI].map((namespaceOption) => (
             <button
               key={namespaceOption}
               onClick={() => setNamespace(namespaceOption)}
