@@ -84,7 +84,7 @@ export const useWeb3Transfer = ({
   const { sendTransaction: sendSolanaTransaction } = useSolanaWallet();
   const { connection: solanaConnection } = useConnection();
   const { switchChainAsync } = useSwitchChain({
-    config: wagmiConfig,
+    config: wagmiConfig as any,
   });
   const { open } = useAppKit();
   const { sendTransactionAsync, isPending: isTransactionPending } =

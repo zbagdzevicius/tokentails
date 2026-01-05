@@ -31,7 +31,7 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
     chainId,
   } = useWeb3();
   const { switchChainAsync } = useSwitchChain({
-    config: wagmiConfig,
+    config: wagmiConfig as any,
   });
   const { open } = useAppKit();
   const toast = useToast();

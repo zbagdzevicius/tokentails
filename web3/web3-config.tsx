@@ -81,7 +81,7 @@ export const wagmiAdapter = new WagmiAdapter({
   ssr: typeof window === "undefined",
   storage: createStorage({
     storage: cookieStorage,
-  }),
+  }) as any,
   multiInjectedProviderDiscovery: true,
 });
 

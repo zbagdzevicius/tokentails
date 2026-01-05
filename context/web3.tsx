@@ -39,7 +39,7 @@ export default function Web3ModalProvider({
   children: ReactNode;
 }) {
   return (
-    <WagmiProvider config={wagmiConfig}>
+    <WagmiProvider config={wagmiConfig as any}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </WagmiProvider>
   );
