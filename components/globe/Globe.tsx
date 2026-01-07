@@ -34,32 +34,22 @@ export enum ModalType {
   ADD_PARTNERSHIP,
 }
 
-const INITIAL_PARTNERSHIPS: PartnershipData[] = [
-  {
-    countryName: "United States of America",
-    status: "active",
-    description: "HQ Node. Mainframe access established.",
-    since: "1985",
-  },
-  {
-    countryName: "United Kingdom",
-    status: "active",
-    description: "Tokyo Uplink. Robotics division sync complete.",
-    since: "1992",
-  },
-  {
-    countryName: "Lithuania",
-    status: "pending",
-    description: "Data stream initializing via Amazonia fiber.",
-    since: "2024",
-  },
+export const INITIAL_PARTNERSHIPS: string[] = [
+  "United States of America",
+  "United Kingdom",
+  "Lithuania",
+  "Colombia",
+  "Poland",
+  "Greece",
+  "Vietnam",
+  "Japan",
+  "France",
 ];
 
 export const PixelGlobe = () => {
   const [countries, setCountries] = useState<GeoJsonFeature[]>([]);
-  const [partnerships, setPartnerships] = useState<string[]>(
-    INITIAL_PARTNERSHIPS.map((p) => p.countryName)
-  );
+  const [partnerships, setPartnerships] =
+    useState<string[]>(INITIAL_PARTNERSHIPS);
   const [isInView, setIsInView] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);

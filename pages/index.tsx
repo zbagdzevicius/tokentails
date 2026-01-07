@@ -1,6 +1,6 @@
 "use client";
 
-import { PixelGlobe } from "@/components/globe/Globe";
+import { INITIAL_PARTNERSHIPS, PixelGlobe } from "@/components/globe/Globe";
 import { Fireflies } from "@/components/shared/Fireflies";
 import { MusicPlayer } from "@/components/shared/MusicPlayer";
 import { PixelButton } from "@/components/shared/PixelButton";
@@ -135,7 +135,7 @@ export default function newPage() {
           {/* Left side: 12 COUNTRIES ONBOARDED */}
           <div className="absolute pt-20 left-4 lg:left-16 top-1/2 -translate-y-1/2 z-40 flex flex-col items-start">
             <span className="lg:text-[200px] text-[100px] font-bold text-yellow-300 drop-shadow-lg font-primary glow lg:-mb-4">
-              3
+              {INITIAL_PARTNERSHIPS.length}
             </span>
             <span className="text-p1 lg:text-[68px] uppercase font-semibold tracking-wide font-primary -mt-12 text-yellow-50 opacity-90">
               COUNTRIES
