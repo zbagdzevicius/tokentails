@@ -3,7 +3,7 @@ import { IStatusValue, StatusType } from "./status";
 
 export const Prices = {
   generatedCat: 5,
-  lootBox: 3,
+  lootBox: 1,
 };
 
 export enum BlessingStatus {
