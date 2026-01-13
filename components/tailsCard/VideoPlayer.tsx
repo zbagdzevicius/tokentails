@@ -1,6 +1,6 @@
+import { cdnFile } from "@/constants/utils";
 import React, { useRef, useEffect } from "react";
 
-const VIDEO_OPENING = "/cards/video-opening.webm";
 const VIDEO_PLAY_DELAY = 50;
 
 type VideoPlayerProps = {
@@ -30,7 +30,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     <div className="fixed inset-0 z-[9999] bg-black">
       <video
         ref={videoRef}
-        src={VIDEO_OPENING}
+        src={cdnFile("cards/openings/starter.webm")}
         className="w-full h-full object-cover"
         onEnded={onEnded}
         playsInline

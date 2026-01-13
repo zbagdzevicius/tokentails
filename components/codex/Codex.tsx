@@ -1,12 +1,11 @@
+import { USER_API } from "@/api/user-api";
+import { cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { IProfile } from "@/models/profile";
 import { useEffect, useMemo, useState } from "react";
-import { Countdown } from "../shared/Countdown";
+import { useDebouncedCallback } from "use-debounce";
 import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
-import { USER_API } from "@/api/user-api";
-import { useDebouncedCallback } from "use-debounce";
-import { cdnFile } from "@/constants/utils";
 
 export interface ICodex {
   title: string;
@@ -271,35 +270,7 @@ export const Codex = () => {
     const timeDifference = dateUntilNearest9thDay.getTime() - now.getTime();
     return timeDifference > 0 && timeDifference < 8 * 60 * 60 * 1000;
   }, [dateUntilNearest9thDay]);
-  const phase = useMemo(() => {
-    // Use UTC date to ensure consistent date calculation globally
-    const now = new Date();
-    const nowUTC = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
-    );
-    const startDate = new Date(Date.UTC(2025, 5, date)); // June 9, 2025 in UTC
 
-    // If now is before the start date, return phase 1
-    if (nowUTC < startDate) {
-      return 1;
-    }
-
-    // Calculate how many months have passed since the start date
-    const monthsPassed =
-      (nowUTC.getUTCFullYear() - startDate.getUTCFullYear()) * 12 +
-      (nowUTC.getUTCMonth() - startDate.getUTCMonth());
-
-    // Calculate how many 9th days have been passed
-    // Add 1 because we start with phase 1
-    let phaseCount = monthsPassed;
-
-    // If we're past the 9th day in the current month, add one more phase
-    if (nowUTC.getUTCDate() >= date) {
-      phaseCount += 1;
-    }
-
-    return phaseCount;
-  }, []);
   return (
     <div className="flex flex-col items-center relative pb-14">
       <img
@@ -321,9 +292,9 @@ export const Codex = () => {
           ))}
         </div>
       )}
-      <div className="text-p4 bg-gradient-to-r from-yellow-500 to-yellow-900 border-4 text-yellow-50 border-yellow-900 rounded-lg px-2">
+      <div className="text-p4 bg-gradient-to-r from-pink-500 to-yellow-900 border-4 text-pink-100 border-yellow-900 rounded-lg px-2">
         I GET
-        <span className="text-yellow-300 text-p4 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] ml-1">
+        <span className="text-pink-200 text-p4 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] ml-1">
           {(profile?.codex?.reduce((acc, item) => acc + item, 0) || 0) * 300}{" "}
           $TAILS
         </span>{" "}

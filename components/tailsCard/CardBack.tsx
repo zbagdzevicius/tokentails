@@ -39,11 +39,11 @@ export const CardBack: React.FC<CardBackProps> = React.memo(
               draggable={false}
               src={typeIcon}
               alt={cat.type}
-              className="object-contain w-[22px] h-[22px]"
+              className="object-contain rem:w-[22px] rem:h-[22px]"
             />
           </div>
           <span
-            className="text-black font-bold font-primary text-[28px] [text-shadow:2px_2px_4px_rgba(0,0,0,0.3)]"
+            className="text-black font-bold font-primary rem:text-[28px] [text-shadow:2px_2px_4px_rgba(0,0,0,0.3)]"
             style={{
               WebkitTextStroke: `1px ${borderColor}`,
             }}
@@ -73,7 +73,7 @@ export const CardBack: React.FC<CardBackProps> = React.memo(
                 draggable={false}
                 src="/cards/icons/power.webp"
                 alt="power"
-                className="object-contain w-[22px] h-[22px]"
+                className="object-contain rem:w-[22px] rem:h-[22px]"
               />
             </div>
           ))}

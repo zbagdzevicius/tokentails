@@ -1,7 +1,6 @@
 "use client";
 
 import { PixelButton } from "@/components/shared/PixelButton";
-import { BuyMode } from "@/constants/cat-utils";
 import { EntityType } from "@/models/save";
 import { useMemo } from "react";
 import { useWeb3Transfer } from "./useWeb3Transfer";
@@ -13,48 +12,35 @@ export interface IGeneratedCat {
 
 interface Web3TransferProps {
   price: number;
-  amount: number;
   text?: string;
   loadingText?: string;
   entityType: EntityType;
-  buyMode?: BuyMode;
-  cat?: string;
-  generatedCat?: IGeneratedCat;
-  generate?: boolean;
-  blessing?: string;
+  id?: string;
   user?: string;
-  disabled?: boolean;
+  discount?: string;
 }
 
 export const Web3Transfer = ({
   price,
-  amount,
   text,
   loadingText,
   entityType,
-  buyMode,
-  disabled,
-  generatedCat,
-  cat,
-  blessing,
+  id,
   user,
+  discount,
 }: Web3TransferProps) => {
   const {
     isTransactionPending,
     namespaceDetail,
     connectWallet,
-    currencyType,
     isLoading,
     transfer,
   } = useWeb3Transfer({
     entityType,
     price,
-    amount,
-    buyMode,
-    cat,
-    blessing,
+    id,
     user,
-    generatedCat,
+    discount,
   });
   const address = useMemo(() => {
     if (!namespaceDetail?.connected) {
@@ -81,14 +67,13 @@ export const Web3Transfer = ({
 
   return (
     <div className="flex justify-center items-center">
-      {!disabled && (
+      <div className="glow-box">
         <PixelButton
           isWidthFull
-          isDisabled={isNaN(price) || amount <= 0}
           text={text || "Buy Now"}
           onClick={() => transfer()}
         ></PixelButton>
-      )}
+      </div>
       {address && (
         <PixelButton
           text={address}

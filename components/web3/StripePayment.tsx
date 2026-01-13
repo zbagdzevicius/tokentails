@@ -7,7 +7,7 @@ import {
   useStripe,
 } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Tag } from "@/components/shared/Tag";
 import { PixelButton } from "@/components/shared/PixelButton";
 
@@ -18,10 +18,9 @@ const stripePromise = loadStripe(
 
 interface StripeCheckoutFormProps {
   onSuccess: () => void;
-  price: number;
 }
 
-const StripeCheckoutForm = ({ onSuccess, price }: StripeCheckoutFormProps) => {
+const StripeCheckoutForm = ({ onSuccess }: StripeCheckoutFormProps) => {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -49,7 +48,7 @@ const StripeCheckoutForm = ({ onSuccess, price }: StripeCheckoutFormProps) => {
       } else {
         onSuccess();
       }
-    } catch (err) {
+    } catch {
       toast({ message: "Payment failed" });
     } finally {
       setIsProcessing(false);
@@ -57,11 +56,12 @@ const StripeCheckoutForm = ({ onSuccess, price }: StripeCheckoutFormProps) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full">
+    <form onSubmit={handleSubmit} className="w-full rem:max-w-[400px] m-auto">
       <PaymentElement />
-      <div className="mt-4 flex justify-center">
+      <div className="mt-8 flex justify-center w-fit m-auto">
         <PixelButton
-          text={isProcessing ? "Processing..." : `ADOPT FOR $${price}`}
+          text={isProcessing ? "Processing..." : `BUY NOW`}
+          isBig
           isDisabled={isProcessing}
         />
       </div>
@@ -71,32 +71,51 @@ const StripeCheckoutForm = ({ onSuccess, price }: StripeCheckoutFormProps) => {
 
 interface StripePaymentProps {
   price: number;
-  catId: string;
+  id: string;
   onSuccess: () => void;
+  discount?: string;
 }
 
 export const StripePayment = ({
   price,
-  catId,
+  id,
   onSuccess,
+  discount,
 }: StripePaymentProps) => {
   const [clientSecret, setClientSecret] = useState<string>();
+  const isInitializingRef = useRef(false);
 
   useEffect(() => {
+    // Only initialize payment when we have all required data
+    // This prevents calling the API on every input change
+    if (!price || !id || isInitializingRef.current) return;
+
     const initializePayment = async () => {
+      isInitializingRef.current = true;
       try {
         const { clientSecret } = await STRIPE_API.createPaymentIntent(
           price, // Stripe expects amount in cents
-          catId
+          id,
+          discount
         );
         setClientSecret(clientSecret);
       } catch (error) {
         console.error("Failed to initialize payment:", error);
+      } finally {
+        isInitializingRef.current = false;
       }
     };
 
-    initializePayment();
-  }, [price, catId]);
+    // Add a small delay to debounce rapid changes (e.g., when discount code is being typed)
+    const timeoutId = setTimeout(() => {
+      initializePayment();
+    }, 500);
+
+    return () => {
+      clearTimeout(timeoutId);
+      isInitializingRef.current = false;
+    };
+  }, [price, id, discount]);
 
   if (!clientSecret) {
     return (
@@ -119,7 +138,7 @@ export const StripePayment = ({
         },
       }}
     >
-      <StripeCheckoutForm onSuccess={onSuccess} price={price} />
+      <StripeCheckoutForm onSuccess={onSuccess} />
     </Elements>
   );
 };

@@ -120,7 +120,6 @@ export const MysteryBoxCat = () => {
           ) : (
             <Web3Transfer
               price={currencyPrice}
-              amount={1}
               entityType={EntityType.LOOT_BOX}
               user={profile?._id}
               text="Open THE Box"

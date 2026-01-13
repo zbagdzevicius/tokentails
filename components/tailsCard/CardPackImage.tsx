@@ -1,4 +1,6 @@
+import { cdnFile } from "@/constants/utils";
 import React, { useRef, useCallback } from "react";
+import { PackType } from "@/models/order";
 
 // 3D effect constants
 const PERSPECTIVE_MULTIPLIER = 6;
@@ -13,45 +15,46 @@ const RESET_DROP_SHADOW = `drop-shadow(0 ${SHADOW_BLUR}px ${SHADOW_BLUR}px ${DRO
 const RESET_TRANSFORM = "rotateY(0deg) rotateX(0deg) scale(1)";
 
 type CardPackImageProps = {
-  imageSrc: string;
-  isOpening: boolean;
-  onClick: () => void;
+  packType: PackType;
+  isOpening?: boolean;
+  onClick?: () => void;
   disabled?: boolean;
 };
 
+const calculateAngle = (
+  e: React.MouseEvent,
+  item: HTMLDivElement,
+  parent: HTMLDivElement
+) => {
+  const rect = item.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+  const halfWidth = rect.width / 2;
+  const halfHeight = rect.height / 2;
+
+  const perspective = halfWidth * PERSPECTIVE_MULTIPLIER;
+  parent.style.perspective = `${perspective}px`;
+  item.style.perspective = `${perspective}px`;
+
+  const rotateX = (mouseY - halfWidth) / ROTATION_DIVISOR;
+  const rotateY = -(mouseX - halfHeight) / ROTATION_DIVISOR;
+  const transformValue = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${HOVER_SCALE})`;
+  item.style.transform = transformValue;
+  item.style.webkitTransform = transformValue;
+
+  const calcShadowX = (mouseX - halfWidth) / SHADOW_X_DIVISOR;
+  const calcShadowY = (mouseY - halfHeight) / SHADOW_Y_DIVISOR;
+  item.style.filter = `drop-shadow(${-calcShadowX}px ${-calcShadowY}px ${SHADOW_BLUR}px ${DROP_SHADOW_COLOR})`;
+};
+
 export const CardPackImage: React.FC<CardPackImageProps> = ({
-  imageSrc,
+  packType,
   isOpening,
   onClick,
   disabled = false,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const innerCardRef = useRef<HTMLDivElement>(null);
-
-  const calculateAngle = useCallback(
-    (e: React.MouseEvent, item: HTMLDivElement, parent: HTMLDivElement) => {
-      const rect = item.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-      const halfWidth = rect.width / 2;
-      const halfHeight = rect.height / 2;
-
-      const perspective = halfWidth * PERSPECTIVE_MULTIPLIER;
-      parent.style.perspective = `${perspective}px`;
-      item.style.perspective = `${perspective}px`;
-
-      const rotateX = (mouseY - halfWidth) / ROTATION_DIVISOR;
-      const rotateY = -(mouseX - halfHeight) / ROTATION_DIVISOR;
-      const transformValue = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${HOVER_SCALE})`;
-      item.style.transform = transformValue;
-      item.style.webkitTransform = transformValue;
-
-      const calcShadowX = (mouseX - halfWidth) / SHADOW_X_DIVISOR;
-      const calcShadowY = (mouseY - halfHeight) / SHADOW_Y_DIVISOR;
-      item.style.filter = `drop-shadow(${-calcShadowX}px ${-calcShadowY}px ${SHADOW_BLUR}px ${DROP_SHADOW_COLOR})`;
-    },
-    []
-  );
 
   const handleMouseInteraction = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -75,7 +78,7 @@ export const CardPackImage: React.FC<CardPackImageProps> = ({
   return (
     <div
       ref={cardRef}
-      className={`relative w-[90vw] max-w-[400px] aspect-[17/23] ${preserve3dClass} cursor-pointer ${
+      className={`relative w-[90vw] max-w-[400px] m-auto aspect-[17/23] ${preserve3dClass} cursor-pointer ${
         isOpening ? "z-[101]" : ""
       }`}
       onMouseEnter={handleMouseInteraction}
@@ -89,7 +92,7 @@ export const CardPackImage: React.FC<CardPackImageProps> = ({
           isOpening ? "animate-shake opacity-0" : "opacity-100"
         }`}
         style={{
-          backgroundImage: `url(${imageSrc})`,
+          backgroundImage: `url(${cdnFile(`cards/packs/${packType}.webp`)})`,
           transform: RESET_TRANSFORM,
           WebkitTransform: RESET_TRANSFORM,
           transition: isOpening

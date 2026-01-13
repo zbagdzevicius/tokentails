@@ -12,6 +12,7 @@ import {
   LegendaryElectricBorder,
   LegendaryElectricBorderSVG,
 } from "./cardEffects/LegendaryElectricBorder";
+import { cdnFile } from "@/constants/utils";
 
 type CardWrapperProps = {
   children: React.ReactNode;
@@ -27,17 +28,13 @@ const DROP_SHADOW_COLOR = "rgba(0, 0, 0, 0.3)";
 const RESET_DROP_SHADOW = "drop-shadow(0 15px 15px rgba(0, 0, 0, 0.3))";
 const RESET_TRANSFORM = "rotateY(0deg) rotateX(0deg) scale(1)";
 const GLARE_HIDE_DELAY = 200;
-const SPARKLE_IMAGE = "/cards/backgrounds/sparkle.webp";
+const SPARKLE_IMAGE = cdnFile("cards/backgrounds/sparkle.webp");
 
-const getPatternImage = (tier: Tier): string => {
-  const patternImages: Record<Tier, string> = {
-    [Tier.COMMON]: "/cards/backgrounds/pattern-COMMON.webp",
-    [Tier.RARE]: "/cards/backgrounds/pattern-RARE.webp",
-    [Tier.EPIC]: "/cards/backgrounds/pattern-EPIC.webp",
-    [Tier.LEGENDARY]: "/cards/backgrounds/pattern-LEGENDARY.webp",
-  };
-
-  return patternImages[tier];
+const patternImages: Record<Tier, string> = {
+  [Tier.COMMON]: cdnFile("cards/backgrounds/pattern-COMMON.webp"),
+  [Tier.RARE]: cdnFile("cards/backgrounds/pattern-RARE.webp"),
+  [Tier.EPIC]: cdnFile("cards/backgrounds/pattern-EPIC.webp"),
+  [Tier.LEGENDARY]: cdnFile("cards/backgrounds/pattern-LEGENDARY.webp"),
 };
 
 export const CardWrapper: React.FC<CardWrapperProps> = ({
@@ -168,7 +165,9 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
           }}
         >
           <DivineGlowEffect tier={tier} />
-          <LegendaryElectricBorder tier={tier} borderColor={borderColor} />
+          {tier === Tier.LEGENDARY && (
+            <LegendaryElectricBorder borderColor={borderColor} />
+          )}
           {!isBackSide && (
             <div className="absolute inset-[6%] rounded-[20px] bg-[#0b0b2a]" />
           )}
@@ -211,7 +210,7 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
               >
                 <img
                   draggable={false}
-                  src={getPatternImage(tier)}
+                  src={patternImages[tier]}
                   alt="Card pattern"
                   className="absolute inset-0 object-cover opacity-100"
                 />

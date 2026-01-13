@@ -9,7 +9,7 @@ export const fakeCat: ICat = {
   resqueStory: '<p class="p1">Rascal is a proper trooper.</p>',
   supply: 180,
   totalSupply: 200,
-  tier: Tier.LEGENDARY,
+  tier: Tier.COMMON,
   type: CatAbilityType.ELECTRIC,
   spriteImg:
     "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/RASCAL/bow-tie-red.webp",

@@ -1,11 +1,16 @@
 import React from "react";
 import { TailsCard } from "./TailsCard";
 import { ICat } from "@/models/cats";
+import { cdnFile } from "@/constants/utils";
 
-const REVEAL_CARD_BG = "/cards/backgrounds/opening-reveal-card-bg.webp";
-const REVEAL_SPARKLE_1 = "/cards/backgrounds/opening-reveal-sparkle1.webp";
-const REVEAL_SPARKLE_2 = "/cards/backgrounds/opening-reveal-sparkle2.webp";
-const REVEAL_BG = "/cards/backgrounds/opening-reveal-bg.webp";
+const REVEAL_CARD_BG = cdnFile("cards/backgrounds/opening-reveal-card-bg.webp");
+const REVEAL_SPARKLE_1 = cdnFile(
+  "cards/backgrounds/opening-reveal-sparkle1.webp"
+);
+const REVEAL_SPARKLE_2 = cdnFile(
+  "cards/backgrounds/opening-reveal-sparkle2.webp"
+);
+const REVEAL_BG = cdnFile("cards/backgrounds/opening-reveal-bg.webp");
 
 type RevealAnimationProps = {
   cat?: ICat;

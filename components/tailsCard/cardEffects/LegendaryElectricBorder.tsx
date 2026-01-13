@@ -1,8 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { Tier } from "@/models/cats";
 
 type LegendaryElectricBorderProps = {
-  tier: Tier;
   borderColor: string;
 };
 
@@ -145,11 +143,7 @@ export const LegendaryElectricBorderSVG: React.FC = () => {
 
 export const LegendaryElectricBorder: React.FC<
   LegendaryElectricBorderProps
-> = ({ tier, borderColor }) => {
-  if (tier !== Tier.LEGENDARY) {
-    return null;
-  }
-
+> = ({ borderColor }) => {
   // Convert hex color to RGB for opacity calculations
   const hexToRgb = (hex: string) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);

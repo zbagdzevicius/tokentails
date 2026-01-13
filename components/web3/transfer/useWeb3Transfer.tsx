@@ -1,5 +1,4 @@
 import { ORDER_API } from "@/api/order-api";
-import { BuyMode } from "@/constants/cat-utils";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
 import { EntityType } from "@/models/save";
@@ -11,6 +10,7 @@ import {
   recipientSolana,
   recipientStellar,
 } from "@/web3/contracts";
+import { chainTypeId, idChainType } from "@/web3/web3-chains";
 import {
   horizonServer,
   stellarKit,
@@ -40,33 +40,24 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { IGeneratedCat } from "./Web3Transfer";
-import { chainTypeId, idChainType } from "@/web3/web3-chains";
 interface IProps {
   entityType: EntityType;
   price: number;
-  amount: number;
-  cat?: string;
-  blessing?: string;
+  id?: string;
   user?: string;
-  generatedCat?: IGeneratedCat;
-  buyMode?: BuyMode;
+  discount?: string;
 }
 
 export const useWeb3Transfer = ({
   entityType,
   price,
-  amount,
-  buyMode,
-  cat,
-  blessing,
+  id,
   user,
-  generatedCat,
+  discount,
 }: IProps) => {
   const {
     evmConnected,
     stellarAddress,
-    evmAddress,
     solanaConnected,
     stellarConnected,
     namespace,
@@ -112,17 +103,14 @@ export const useWeb3Transfer = ({
       hash: hash,
       chainType,
       namespace: namespace!,
-      amount,
       walletAddress: namespaceDetail.address!,
       currencyType,
       price,
-      buyMode,
       ref: query?.ref,
       entityType,
-      cat,
-      blessing,
+      id,
       user,
-      generatedCat,
+      discount,
     });
     setTransactionStatus(status);
   };

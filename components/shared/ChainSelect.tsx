@@ -6,7 +6,16 @@ import {
   ChainNamespacesCurrencies,
 } from "@/web3/contracts";
 
-export const ChainSelect = () => {
+export const ChainSelect = ({
+  chainNamespaces = [
+    ChainNamespace.EVM,
+    ChainNamespace.SEI,
+    ChainNamespace.SOLANA,
+    ChainNamespace.STELLAR,
+  ],
+}: {
+  chainNamespaces?: ChainNamespace[];
+}) => {
   const { currencyType, setCurrencyType, setNamespace, namespace } = useWeb3();
 
   return (
@@ -16,7 +25,7 @@ export const ChainSelect = () => {
           PAYMENT CHAIN
         </div>
         <div className="flex gap-2">
-          {[ChainNamespace.SEI].map((namespaceOption) => (
+          {chainNamespaces.map((namespaceOption) => (
             <button
               key={namespaceOption}
               onClick={() => setNamespace(namespaceOption)}

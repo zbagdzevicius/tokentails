@@ -108,10 +108,32 @@ const raised = async (): Promise<number> => {
     .then((v) => Math.floor(v?.raised));
 };
 
+const validateDiscount = async (
+  discount: string
+): Promise<{ valid: boolean; message?: string; percentage?: number }> => {
+  return fetch(`${apiUrl}/web3/validate-discount`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: sessionStorage.getItem("accesstoken"),
+    } as any,
+    body: JSON.stringify({ discount }),
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return { valid: false, message: "Failed to validate discount code" };
+  });
+};
+
 export const ORDER_API = {
   adopt,
   confirm,
   currencyRate,
   currencyRates,
   raised,
+  validateDiscount,
 };

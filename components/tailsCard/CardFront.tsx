@@ -1,5 +1,4 @@
 import {
-  BlessingStatus,
   BlessingStatusTexts,
   IBlessing,
   ICat,
@@ -38,7 +37,7 @@ export const CardFront: React.FC<CardFrontProps> = React.memo(
       <div className="w-[88%] h-[93%] flex flex-col">
         <div className="flex-1 flex flex-col p-[3.5%]">
           <div className="flex justify-between items-center mb-[2.5%] gap-2">
-            <h2 className="font-normal text-black drop-shadow-md flex-1 leading-tight font-primary text-[clamp(18px,4.5vw,28px)]">
+            <h2 className="font-normal text-black drop-shadow-md flex-1 leading-tight font-primary rem:text-[28px]">
               {displayName}
             </h2>
             <div className="relative">
@@ -87,18 +86,18 @@ export const CardFront: React.FC<CardFrontProps> = React.memo(
 
           <div className="flex justify-between mb-[4.5%]">
             <div>
-              <h3 className="text-black mb-0.5 leading-tight font-primary text-[clamp(12px,3vw,22px)]">
+              <h3 className="text-black mb-0.5 leading-tight font-primary rem:text-[22px]">
                 Shelter
               </h3>
-              <p className="text-black leading-tight font-tertiary font-bold text-[clamp(11px,2.5vw,13px)]">
+              <p className="text-black leading-tight font-tertiary font-bold rem:text-[12px]">
                 {shelterName || "Unknown"}
               </p>
             </div>
             <div>
-              <h3 className="text-black mb-0.5 leading-tight font-primary text-[clamp(12px,3vw,22px)]">
+              <h3 className="text-black mb-0.5 leading-tight font-primary rem:text-[22px]">
                 Status
               </h3>
-              <p className="text-black leading-tight font-tertiary font-bold text-[clamp(11px,2.5vw,13px)]">
+              <p className="text-black leading-tight font-tertiary font-bold rem:text-[12px]">
                 {blessing?.status
                   ? BlessingStatusTexts[blessing?.status]
                   : "Adopted"}
@@ -107,17 +106,17 @@ export const CardFront: React.FC<CardFrontProps> = React.memo(
           </div>
 
           <div
-            className="mb-[4.5%] rounded-full border-b-2 border-[#00000060] h-[5px]"
+            className="mb-[4.5%] rounded-full border-b-2 border-[#00000060] rem:h-[5px]"
             style={{ backgroundColor: borderColor }}
           ></div>
 
           <div className="flex-1 min-h-0">
-            <h3 className="text-black mb-0.5 leading-tight font-primary text-[clamp(14px,3.5vw,22px)]">
+            <h3 className="text-black mb-0.5 leading-tight font-primary rem:text-[22px]">
               Pet Story
             </h3>
-            <div className="text-black leading-snug overflow-hidden font-tertiary font-bold text-[clamp(10px,2.2vw,13px)]">
+            <div className="text-black leading-snug overflow-hidden font-tertiary font-bold rem:text-[12px]">
               <p
-                className="line-clamp-6"
+                className="line-clamp-5 sm:line-clamp-4 md:line-clamp-6"
                 dangerouslySetInnerHTML={{ __html: description }}
               ></p>
             </div>
