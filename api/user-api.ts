@@ -1,7 +1,6 @@
-import { GameModal } from "@/models/game";
+import { IMatch } from "@/models/match";
 import { IProfile } from "@/models/profile";
 import { apiUrl, getAuthHeaders, waitForLocalStorageKey } from "./api";
-import { IMatch } from "@/models/match";
 
 const profile = async (): Promise<IProfile> => {
   return fetch(`${apiUrl}/user/profile`, {

@@ -22,6 +22,8 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
     setFlipped((prev) => !prev);
   }, []);
 
+  console.log(cat.tier);
+
   return (
     <>
       <div
@@ -43,7 +45,7 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
               WebkitTransform: "translateZ(0)",
             }}
           >
-            <CardWrapper catType={cat.type}>
+            <CardWrapper catType={cat.type} tier={cat.tier}>
               <CardFront cat={cat} blessing={blessing} />
             </CardWrapper>
           </div>
@@ -55,7 +57,7 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
               WebkitTransform: "rotateY(180deg) translateZ(0)",
             }}
           >
-            <CardWrapper catType={cat.type} isBackSide={true}>
+            <CardWrapper catType={cat.type} tier={cat.tier} isBackSide={true}>
               <CardBack cat={cat} blessing={blessing} />
             </CardWrapper>
           </div>

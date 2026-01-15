@@ -1,10 +1,17 @@
 import { IImage } from "./image";
+import { PackType } from "./order";
 import { IStatusValue, StatusType } from "./status";
 
 export const Prices = {
   generatedCat: 5,
   lootBox: 1,
 };
+
+export interface IMessage {
+  success: boolean;
+  message: string;
+  cat?: ICat;
+}
 
 export enum BlessingStatus {
   WAITING = "WAITING",
@@ -93,6 +100,8 @@ export enum Tier {
 export interface ICat {
   _id?: string;
   name: string;
+  packed: boolean;
+  packType: PackType;
   type: CatAbilityType;
   owner: string;
   resqueStory: string;

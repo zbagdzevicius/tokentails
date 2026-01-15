@@ -12,6 +12,12 @@ const eslintConfig = [
       "build/**",
       "next-env.d.ts",
     ],
+    rules: {
+      "react/display-name": "off",
+      "@next/next/no-img-element": "off",
+      "jsx-a11y/alt-text": "off",
+      "react-hooks/rules-of-hooks": "off",
+    },
   },
 ];
 

@@ -1,4 +1,5 @@
 import { BlessingStatus, CatAbilityType, ICat, Tier } from "@/models/cats";
+import { PackType } from "@/models/order";
 
 // Card styling constants
 export const CARD_BORDER_COLOR = "#FFDBF1";
@@ -8,8 +9,10 @@ export const fakeCat: ICat = {
   name: "Elena",
   resqueStory: '<p class="p1">Rascal is a proper trooper.</p>',
   supply: 180,
+  packed: true,
+  packType: PackType.STARTER,
   totalSupply: 200,
-  tier: Tier.LEGENDARY,
+  tier: Tier.COMMON,
   type: CatAbilityType.ELECTRIC,
   spriteImg:
     "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/RASCAL/bow-tie-red.webp",

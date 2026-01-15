@@ -106,9 +106,7 @@ export default function newPage() {
             className="w-full h-full object-cover pixelated inset-0 absolute"
           />
           <div className="absolute inset-0 flex justify-center items-center gap-8">
-            <div className="animate-hover">
-              <TailsCard />
-            </div>
+            <TailsCard />
           </div>
           <div className="absolute bottom-8 md:bottom-12 lg:bottom-16 left-1/2 -translate-x-1/2 z-40 mb-safe">
             <span className="text-p1 md:text-h4 xl:text-h1 2xl:text-[142px] 3xl:text-[196px] font-bold text- uppercase drop-shadow-lg font-primary whitespace-nowrap text-white">

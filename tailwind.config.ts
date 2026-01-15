@@ -52,7 +52,12 @@ const config: Config = {
         hover: "hover 5s infinite;",
         hoverSlow: "hover 25s infinite;",
         colormax: "colormax 15s infinite;",
-        "spin-slow": "spin 10s infinite;",
+        "spin-slow": "spin-fade 1.5s linear forwards",
+        "spin-slow-reverse": "spin-reverse 1.5s linear forwards",
+        "spin-reveal": "spin-reveal 3s linear infinite",
+        "spin-reveal-reverse": "spin-reveal-reverse 3s linear infinite",
+        shake: "shake 0.15s ease-in-out 10",
+        "paw-pulse": "paw-pulse 1.5s ease-out forwards",
         flip: "flip 10s infinite;",
         appear: "appear 0.6s linear",
         opacity: "opacity 1s;",
@@ -64,6 +69,44 @@ const config: Config = {
         "loop-scroll": {
           from: { transform: "translateX(0)" },
           to: { transform: "translateX(-100%)" },
+        },
+        "spin-reverse": {
+          from: { transform: "rotate(0deg)", opacity: "0" },
+          "20%": { opacity: "1" },
+          to: { transform: "rotate(-360deg)", opacity: "1" },
+        },
+        "spin-fade": {
+          from: { transform: "rotate(0deg)", opacity: "0" },
+          "20%": { opacity: "1" },
+          to: { transform: "rotate(360deg)", opacity: "1" },
+        },
+        "spin-reveal": {
+          from: { transform: "rotate(0deg)" },
+          to: { transform: "rotate(360deg)" },
+        },
+        "spin-reveal-reverse": {
+          from: { transform: "rotate(0deg)" },
+          to: { transform: "rotate(-360deg)" },
+        },
+        shake: {
+          "0%, 100%": { transform: "translateX(0) rotate(0deg)" },
+          "25%": { transform: "translateX(-3px) rotate(-1deg)" },
+          "50%": { transform: "translateX(3px) rotate(1deg)" },
+          "75%": { transform: "translateX(-2px) rotate(-0.5deg)" },
+        },
+        "paw-pulse": {
+          "0%": {
+            opacity: "0",
+            transform: "scale(1)",
+          },
+          "50%": {
+            opacity: "0.7",
+            transform: "scale(1)",
+          },
+          "100%": {
+            opacity: "1",
+            transform: "scale(1)",
+          },
         },
         brightness: {
           from: { filter: "brightness(1)" },

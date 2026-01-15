@@ -1,7 +1,12 @@
+import { ICat, IMessage } from "@/models/cats";
 import { apiUrl, getAuthHeaders } from "./api";
 
 export const STRIPE_API = {
-  createPaymentIntent: async (amount: number, catId: string) => {
+  createPaymentIntent: async (
+    amount: number,
+    id: string,
+    discount?: string
+  ) => {
     const response = await fetch(`${apiUrl}/web3/create-payment`, {
       method: "POST",
       headers: {
@@ -11,7 +16,8 @@ export const STRIPE_API = {
       } as any,
       body: JSON.stringify({
         amount,
-        catId,
+        id,
+        discount,
       }),
     });
 
@@ -28,7 +34,7 @@ export const STRIPE_API = {
   }: {
     paymentIntent: string;
     clientSecret: string;
-  }) => {
+  }): Promise<IMessage> => {
     const response = await fetch(`${apiUrl}/web3/confirm-payment`, {
       method: "POST",
       headers: {

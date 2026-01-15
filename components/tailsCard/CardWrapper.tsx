@@ -1,10 +1,18 @@
 import {
   CatAbilityType,
+  Tier,
   cardsBackground,
   cardsBorderColor,
   cardsGradient,
 } from "@/models/cats";
 import React, { useRef, useCallback, useMemo } from "react";
+import { CardEffects } from "./CardEffects";
+import { DivineGlowEffect } from "./cardEffects/DivineGlowEffect";
+import {
+  LegendaryElectricBorder,
+  LegendaryElectricBorderSVG,
+} from "./cardEffects/LegendaryElectricBorder";
+import { cdnFile } from "@/constants/utils";
 
 type CardWrapperProps = {
   children: React.ReactNode;
@@ -13,15 +21,21 @@ type CardWrapperProps = {
   totalCards?: number;
   catType: CatAbilityType;
   isBackSide?: boolean;
+  tier: Tier;
 };
 
-// Extract constants outside component
 const DROP_SHADOW_COLOR = "rgba(0, 0, 0, 0.3)";
 const RESET_DROP_SHADOW = "drop-shadow(0 15px 15px rgba(0, 0, 0, 0.3))";
 const RESET_TRANSFORM = "rotateY(0deg) rotateX(0deg) scale(1)";
 const GLARE_HIDE_DELAY = 200;
-const SPARKLE_IMAGE = "/cards/backgrounds/sparkle.webp";
-const PATTERN_IMAGE = "/cards/backgrounds/pattern-mini-2.webp";
+const SPARKLE_IMAGE = cdnFile("cards/backgrounds/sparkle.webp");
+
+const patternImages: Record<Tier, string> = {
+  [Tier.COMMON]: cdnFile("cards/backgrounds/pattern-COMMON.webp"),
+  [Tier.RARE]: cdnFile("cards/backgrounds/pattern-RARE.webp"),
+  [Tier.EPIC]: cdnFile("cards/backgrounds/pattern-EPIC.webp"),
+  [Tier.LEGENDARY]: cdnFile("cards/backgrounds/pattern-LEGENDARY.webp"),
+};
 
 export const CardWrapper: React.FC<CardWrapperProps> = ({
   children,
@@ -30,6 +44,7 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
   totalCards = 200,
   catType,
   isBackSide = false,
+  tier,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const innerCardRef = useRef<HTMLDivElement>(null);
@@ -123,93 +138,102 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
   }, []);
 
   return (
-    <div
-      ref={cardRef}
-      className="relative w-[90vw] max-w-[400px] aspect-[17/23] [transform-style:preserve-3d] [backface-visibility:hidden]"
-      style={{
-        WebkitTransformStyle: "preserve-3d",
-        WebkitBackfaceVisibility: "hidden",
-        ...style,
-      }}
-      onMouseEnter={handleMouseEnter}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-    >
+    <>
+      {/* SVG Filter Definition - Always mounted */}
+      <LegendaryElectricBorderSVG />
       <div
-        ref={innerCardRef}
-        className={`relative w-full h-full glow-box-${catType} bg-cover bg-center rounded-[20px] transition-[transform,filter] duration-150 ease-out [transform-style:preserve-3d] [will-change:transform,filter] [backface-visibility:hidden] [drop-shadow:0_15px_15px_rgba(0,0,0,0.3)]`}
+        ref={cardRef}
+        className="relative w-[90vw] max-w-[400px] aspect-[17/23] [transform-style:preserve-3d] [backface-visibility:hidden]"
         style={{
-          backgroundImage: `url(${backgroundImage})`,
-          transform: "rotateX(0deg) rotateY(0deg) scale(1)",
-          WebkitTransform: "rotateX(0deg) rotateY(0deg) scale(1)",
           WebkitTransformStyle: "preserve-3d",
           WebkitBackfaceVisibility: "hidden",
+          ...style,
         }}
+        onMouseEnter={handleMouseEnter}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       >
-        {!isBackSide && (
-          <div className="absolute inset-[6%] rounded-[20px] bg-[#0b0b2a]" />
-        )}
-        <div className="absolute inset-[6%]">
-          <img
-            draggable={false}
-            src={SPARKLE_IMAGE}
-            alt="Sparkle"
-            className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-[18%] h-auto"
-          />
-          <img
-            draggable={false}
-            src={SPARKLE_IMAGE}
-            alt="Sparkle"
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 z-[100] w-[18%] h-auto"
-          />
-          <img
-            draggable={false}
-            src={SPARKLE_IMAGE}
-            alt="Sparkle"
-            className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-[12%] h-auto"
-          />
-          <img
-            draggable={false}
-            src={SPARKLE_IMAGE}
-            alt="Sparkle"
-            className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 z-[100] w-[12%] h-auto"
-          />
-          <div
-            className="relative w-full h-full overflow-hidden cursor-pointer flex items-center justify-center rounded-xl border-[3px]"
-            style={{
-              background: isBackSide ? "transparent" : bodyGradient,
-              borderColor: borderColor,
-            }}
-          >
+        <div
+          ref={innerCardRef}
+          className={`relative w-full h-full glow-box-${catType} bg-cover bg-center rounded-[20px] transition-[transform,filter] duration-150 ease-out [transform-style:preserve-3d] [will-change:transform,filter] [backface-visibility:hidden] [drop-shadow:0_15px_15px_rgba(0,0,0,0.3)]`}
+          style={{
+            backgroundImage: `url(${backgroundImage})`,
+            transform: "rotateX(0deg) rotateY(0deg) scale(1)",
+            WebkitTransform: "rotateX(0deg) rotateY(0deg) scale(1)",
+            WebkitTransformStyle: "preserve-3d",
+            WebkitBackfaceVisibility: "hidden",
+          }}
+        >
+          <DivineGlowEffect tier={tier} />
+          {tier === Tier.LEGENDARY && (
+            <LegendaryElectricBorder borderColor={borderColor} />
+          )}
+          {!isBackSide && (
+            <div className="absolute inset-[6%] rounded-[20px] bg-[#0b0b2a]" />
+          )}
+          <div className="absolute inset-[6%]">
+            <img
+              draggable={false}
+              src={SPARKLE_IMAGE}
+              alt="Sparkle"
+              className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-[18%] h-auto"
+            />
+            <img
+              draggable={false}
+              src={SPARKLE_IMAGE}
+              alt="Sparkle"
+              className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 z-[100] w-[18%] h-auto"
+            />
+            <img
+              draggable={false}
+              src={SPARKLE_IMAGE}
+              alt="Sparkle"
+              className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-[12%] h-auto"
+            />
+            <img
+              draggable={false}
+              src={SPARKLE_IMAGE}
+              alt="Sparkle"
+              className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 z-[100] w-[12%] h-auto"
+            />
+            <CardEffects tier={tier} />
             <div
-              ref={glareRef}
-              className="absolute inset-0 pointer-events-none z-[1] mix-blend-color-dodge opacity-0 transition-opacity duration-150 ease-out"
+              className="relative w-full h-full overflow-hidden cursor-pointer flex items-center justify-center rounded-xl border-[3px]"
+              style={{
+                background: isBackSide ? "transparent" : bodyGradient,
+                borderColor: borderColor,
+              }}
             >
-              <img
-                draggable={false}
-                src={PATTERN_IMAGE}
-                alt="Card pattern"
-                className="absolute inset-0 object-cover opacity-50"
-              />
+              <div
+                ref={glareRef}
+                className="absolute inset-0 pointer-events-none z-[1] mix-blend-color-dodge opacity-0 transition-opacity duration-150 ease-out"
+              >
+                <img
+                  draggable={false}
+                  src={patternImages[tier]}
+                  alt="Card pattern"
+                  className="absolute inset-0 object-cover opacity-100"
+                />
+              </div>
+              {children}
             </div>
-            {children}
+          </div>
+
+          <div
+            className="absolute left-[10%] bottom-[1.25%] font-primary font-bold text-[clamp(12px,2.5vw,12px)]"
+            style={{ color: borderColor }}
+          >
+            {tier}: {cardNumber} / {totalCards}
+          </div>
+
+          <div
+            className="absolute left-1/2 -translate-x-1/2 bottom-[0.5%] font-primary font-bold text-[clamp(14px,3vw,18px)] whitespace-nowrap [text-shadow:0_2px_4px_rgba(0,0,0,0.3)]"
+            style={{ color: borderColor }}
+          >
+            TOKEN TAILS
           </div>
         </div>
-
-        <div
-          className="absolute left-[10%] bottom-[1.25%] font-primary font-bold text-[clamp(12px,2.5vw,12px)]"
-          style={{ color: borderColor }}
-        >
-          C{cardNumber} / {totalCards}
-        </div>
-
-        <div
-          className="absolute left-1/2 -translate-x-1/2 bottom-[0.5%] font-primary font-bold text-[clamp(14px,3vw,18px)] whitespace-nowrap [text-shadow:0_2px_4px_rgba(0,0,0,0.3)]"
-          style={{ color: borderColor }}
-        >
-          TOKEN TAILS
-        </div>
       </div>
-    </div>
+    </>
   );
 };

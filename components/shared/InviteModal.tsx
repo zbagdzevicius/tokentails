@@ -1,14 +1,23 @@
 import { bgStyle, cdnFile } from "@/constants/utils";
 import { EntityType } from "@/models/save";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MysteryBoxCat } from "../mystery/MysteryBoxCat";
 import { Web3Providers } from "../web3/Web3Providers";
 import { CloseButton } from "./CloseButton";
 import { Countdown } from "./Countdown";
 import { PixelButton } from "./PixelButton";
+import { useGame } from "@/context/GameContext";
+import { GameModal } from "@/models/game";
 
 export const InviteModalContent = () => {
   const [type, setType] = useState(EntityType.LOOT_BOX);
+  const { setOpenedModal } = useGame();
+
+  useEffect(() => {
+    if (type === EntityType.PACK) {
+      setOpenedModal(GameModal.PACKS);
+    }
+  }, [type]);
 
   return (
     <div className="pt-4 pb-8 px-4 text-yellow-900 flex flex-col justify-between items-center animate-appear">
