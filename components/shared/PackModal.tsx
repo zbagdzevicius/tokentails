@@ -14,8 +14,8 @@ export const PackModal = ({ close, cat }: { close: () => void; cat: ICat }) => {
         backgroundRepeat: "no-repeat",
       }}
     >
-      <div className="relative z-[10000“]">
-        <CloseButton absolute onClick={() => close?.()} />
+      <div className="mt-safe z-[100000] absolute top-0 right-0">
+        <CloseButton onClick={() => close?.()} />
       </div>
       <TailsCardPack cat={cat} packType={cat.packType} />
     </div>

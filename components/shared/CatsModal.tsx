@@ -61,7 +61,7 @@ export const CatsModalContent = ({
             <img
               key={cat._id}
               src={packImages[cat.packType as PackType]}
-              className="rem:w-[143px] object-cover"
+              className="rem:w-[143px] object-cover hover:brightness-110 transition-all duration-300"
               onClick={() => {
                 setSelectedCat(cat);
               }}
