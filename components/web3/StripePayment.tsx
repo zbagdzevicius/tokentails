@@ -19,9 +19,13 @@ const stripePromise = loadStripe(
 
 interface StripeCheckoutFormProps {
   onSuccess: (response: IMessage) => void;
+  discount?: string;
 }
 
-const StripeCheckoutForm = ({ onSuccess }: StripeCheckoutFormProps) => {
+const StripeCheckoutForm = ({
+  onSuccess,
+  discount,
+}: StripeCheckoutFormProps) => {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -51,6 +55,7 @@ const StripeCheckoutForm = ({ onSuccess }: StripeCheckoutFormProps) => {
         const response = await STRIPE_API.confirmPayment({
           paymentIntent: paymentIntent.id,
           clientSecret: paymentIntent.client_secret!,
+          discount,
         });
 
         if (response.success) {
@@ -68,7 +73,7 @@ const StripeCheckoutForm = ({ onSuccess }: StripeCheckoutFormProps) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full rem:max-w-[400px] m-auto">
+    <form onSubmit={handleSubmit} className="w-full rem:max-w-[380px] m-auto">
       <PaymentElement />
       <div className="mt-8 flex justify-center w-fit m-auto">
         <PixelButton
@@ -150,7 +155,7 @@ export const StripePayment = ({
         },
       }}
     >
-      <StripeCheckoutForm onSuccess={onSuccess} />
+      <StripeCheckoutForm onSuccess={onSuccess} discount={discount} />
     </Elements>
   );
 };

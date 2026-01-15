@@ -6,6 +6,8 @@ import { RevealAnimation } from "./RevealAnimation";
 import { VideoPlayer } from "./VideoPlayer";
 import { PackType } from "@/models/order";
 import { CAT_API } from "@/api/cat-api";
+import { PixelButton } from "../shared/PixelButton";
+import { useRouter } from "next/router";
 
 // Animation timing constants (in milliseconds)
 const ANIMATION_SPIN_DURATION = 1500;
@@ -15,6 +17,7 @@ const REVEAL_OVERLAY_FADE_DELAY = 1000;
 type TailsCardPackProps = {
   packType: PackType;
   cat?: ICat;
+  showGoToGame?: boolean;
 };
 
 const setAsOpened = async (cat: ICat) => {
@@ -26,12 +29,13 @@ const setAsOpened = async (cat: ICat) => {
 export const TailsCardPack: React.FC<TailsCardPackProps> = ({
   packType,
   cat,
+  showGoToGame = false,
 }) => {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
   const [showCard, setShowCard] = useState(false);
   const [showRevealOverlay, setShowRevealOverlay] = useState(false);
-
+  const router = useRouter();
   useEffect(() => {
     if (showCard && cat?._id) {
       setAsOpened(cat);
@@ -62,6 +66,10 @@ export const TailsCardPack: React.FC<TailsCardPackProps> = ({
 
   const isInteractionDisabled = isVideoPlaying || isOpening;
 
+  const handleGoToGame = useCallback(() => {
+    router.push("/game");
+  }, [router]);
+
   return (
     <>
       {showCard ? (
@@ -73,6 +81,12 @@ export const TailsCardPack: React.FC<TailsCardPackProps> = ({
           onClick={handleCardClick}
           disabled={isInteractionDisabled}
         />
+      )}
+
+      {showCard && showGoToGame && (
+        <div className="relative z-[10000]">
+          <PixelButton text="GO TO GAME" onClick={handleGoToGame} />
+        </div>
       )}
 
       <OpeningAnimation isOpening={isOpening} />

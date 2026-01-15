@@ -39,6 +39,11 @@ export const CatsModalContent = ({
           <Tag>YOUR DISCOUNT CODE: {profile?.discount.toUpperCase()}</Tag>
         </span>
       )}
+      {profile?.affiliated && (
+        <span className="mb-4 -mt-6">
+          <Tag>YOUR REVENUE SHARE: ${Math.ceil(profile?.affiliated)}</Tag>
+        </span>
+      )}
 
       <span className="relative mb-4">
         <PixelButton

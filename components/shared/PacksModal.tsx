@@ -215,7 +215,7 @@ const PacksSelect = ({
   );
 };
 
-export const PacksModalContent = ({ close }: { close: () => void }) => {
+export const PacksModalContent = ({ close }: { close?: () => void }) => {
   const [packType, setPackType] = useState<PackType | null>(null);
   const [showRaritySummary, setShowRaritySummary] = useState(false);
 
@@ -236,7 +236,7 @@ export const PacksModalContent = ({ close }: { close: () => void }) => {
   };
 
   return (
-    <div className="mt-safe pb-24 relative z-10">
+    <div className="pb-24 relative z-10">
       <div className="flex flex-col items-center relative mb-6 md:mb-12 mt-4">
         <img
           src={cdnFile("logo/logo-pure-text.webp")}
@@ -294,12 +294,14 @@ bg-clip-text text-transparent -mt-4 relative z-30"
           />
         </>
       )}
-      {cat && <TailsCardPack packType={packType!} cat={cat} />}
+      {cat && (
+        <TailsCardPack packType={packType!} cat={cat} showGoToGame={!close} />
+      )}
     </div>
   );
 };
 
-export const PacksModal = ({ close }: { close: () => void }) => {
+export const PacksModal = ({ close }: { close?: () => void }) => {
   return (
     <Web3Providers>
       <div
@@ -316,7 +318,7 @@ export const PacksModal = ({ close }: { close: () => void }) => {
           className="z-40 h-full w-full absolute inset-0 opacity-50"
         ></div>
         <div className="m-auto z-50 max-w-full w-full absolute inset-0 max-h-screen overflow-y-auto">
-          <CloseButton onClick={close} />
+          {close && <CloseButton onClick={() => close?.()} />}
           <PacksModalContent close={close} />
           <div className="fixed z-0 bottom-0 left-1/2 -translate-x-1/2">
             <img

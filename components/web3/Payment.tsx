@@ -71,6 +71,7 @@ export const Payment = ({
   const [discountPercentage, setDiscountPercentage] = useState<number | null>(
     null
   );
+  const [showOverview, setShowOverview] = useState(false);
   const toast = useToast();
 
   // Calculate discounted price and savings
@@ -136,13 +137,39 @@ export const Payment = ({
         {/* Product Info */}
         {productName && (
           <div className="flex items-center justify-between mb-2 text-pink-100 relative z-10">
+            {id &&
+            entityType === EntityType.PACK &&
+            id in productNameOverviewMap ? (
+              <button
+                onClick={() => setShowOverview(!showOverview)}
+                className="text-gray-300/75 hover:text-blue-400 cursor-pointer -mt-1 border-4 rounded-full p-1 border-gray-300/50 hover:border-blue-400 transition-all duration-300"
+                aria-label="Show product info"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="6 4 12 16"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M12 17.25h.008v.008H12v-.008z"
+                  />
+                </svg>
+              </button>
+            ) : (
+              <div className="w-[33px]"></div>
+            )}
             <span className="text-p3 font-bold font-primary text-center m-auto">
               {productName}
             </span>
-            {onRemove && (
+            {onRemove ? (
               <button
                 onClick={onRemove}
-                className="text-gray-300/75 hover:text-red-400 transition-colors cursor-pointer -mt-1 border-4 rounded-full p-1 border-gray-300/50 hover:border-red-400 transition-all duration-300"
+                className="text-gray-300/75 hover:text-red-400 cursor-pointer -mt-1 border-4 rounded-full p-1 border-gray-300/50 hover:border-red-400 transition-all duration-300"
                 aria-label="Remove item"
               >
                 <svg
@@ -160,12 +187,15 @@ export const Payment = ({
                   />
                 </svg>
               </button>
+            ) : (
+              <div className="w-[33px]"></div>
             )}
           </div>
         )}
 
         {/* Product Overview */}
-        {id &&
+        {showOverview &&
+          id &&
           entityType === EntityType.PACK &&
           id in productNameOverviewMap && (
             <div className="mb-4 text-pink-100 relative z-10">
@@ -207,7 +237,7 @@ export const Payment = ({
         {!(discountPercentage !== null && discountPercentage > 0) && (
           <div className="mb-3 relative z-10">
             {!showDiscountField ? (
-              <div className="flex justify-center -mt-2 -mb-2">
+              <div className="flex justify-center -mt-2 -mb-5">
                 <PixelButton
                   text="I have a discount code"
                   onClick={() => setShowDiscountField(true)}
@@ -269,31 +299,6 @@ export const Payment = ({
                   -${savings.toFixed(2)} ({discountPercentage}% OFF{" "}
                   {discountCode})
                 </span>
-                <button
-                  onClick={() => {
-                    setDiscountCode("");
-                    setDiscountPercentage(null);
-                    setIsDiscountValid(null);
-                    setShowDiscountField(false);
-                  }}
-                  className="text-white hover:text-gray-200 transition-colors cursor-pointer"
-                  aria-label="Remove discount"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
               </div>
             </div>
           </div>
@@ -339,7 +344,7 @@ export const Payment = ({
             user={user}
             text={text}
             loadingText={loadingText}
-            discount={discountCode || undefined}
+            discount={discountCode}
             onSuccess={onSuccess}
           />
         </div>
@@ -348,7 +353,7 @@ export const Payment = ({
           price={discountedPrice}
           id={id || ""}
           onSuccess={onSuccess || (() => {})}
-          discount={discountCode || undefined}
+          discount={discountCode}
         />
       )}
     </div>

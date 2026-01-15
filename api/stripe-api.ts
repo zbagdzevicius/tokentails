@@ -31,9 +31,11 @@ export const STRIPE_API = {
   confirmPayment: async ({
     paymentIntent,
     clientSecret,
+    discount,
   }: {
     paymentIntent: string;
     clientSecret: string;
+    discount?: string;
   }): Promise<IMessage> => {
     const response = await fetch(`${apiUrl}/web3/confirm-payment`, {
       method: "POST",
@@ -45,6 +47,7 @@ export const STRIPE_API = {
       body: JSON.stringify({
         paymentIntent,
         clientSecret,
+        discount,
       }),
     });
 

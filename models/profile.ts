@@ -17,6 +17,7 @@ export interface IProfile {
   name: string;
   streak: number;
   discount: string;
+  affiliated: number;
   spent: number;
   tails: number;
   codex: number[];
