@@ -13,6 +13,7 @@ import {
 import { PixelButton } from "../shared/PixelButton";
 import { TrailheadsData } from "../shared/QuestsModal";
 import { Countdown } from "../shared/Countdown";
+import { Tag } from "../shared/Tag";
 
 const levelCharacter: Record<string, string> = {
   "41": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/STICKY/base/RUNNING.gif",
@@ -149,6 +150,12 @@ export const CatnipChaosLevels = ({
           </div>
         </div>
       </div>
+
+      {profile?.catnipChaos?.length && profile?.catnipChaos?.length >= 6 && (
+        <span className="mb-2">
+          <Tag>YOUR DISCOUNT CODE: SEI</Tag>
+        </span>
+      )}
       <div
         onClick={() => setSelectedLevel("01")}
         style={{
