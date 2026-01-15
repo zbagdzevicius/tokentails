@@ -1,12 +1,15 @@
+import { ORDER_API } from "@/api/order-api";
+import { useToast } from "@/context/ToastContext";
+import { PackType } from "@/models/order";
 import { EntityType } from "@/models/save";
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ChainSelect } from "../shared/ChainSelect";
 import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
 import { StripePayment } from "./StripePayment";
 import { Web3Transfer } from "./transfer/Web3Transfer";
-import { ORDER_API } from "@/api/order-api";
-import { useToast } from "@/context/ToastContext";
+import { cdnFile } from "@/constants/utils";
+import { IMessage } from "@/models/cats";
 
 type PaymentMethod = "crypto" | "stripe";
 
@@ -17,10 +20,37 @@ interface PaymentProps {
   user?: string;
   text?: string;
   loadingText?: string;
-  onSuccess?: () => void;
+  onSuccess?: (response: IMessage) => void;
   productName?: string;
   onRemove?: () => void;
 }
+
+const productNameOverviewMap = {
+  [PackType.STARTER]: {
+    description:
+      "Perfect for newcomers.\nStart your collection journey with this starter pack.",
+    subtitle: "DROP CHANCES",
+    text: "90% Common, 9% Rare, 1% Epic",
+    supply: 300,
+    patternImg: cdnFile(`cards/backgrounds/pattern-COMMON.webp`),
+  },
+  [PackType.INFLUENCER]: {
+    description:
+      "For those who play smart.\nLimited to 50 influencer cats only.",
+    subtitle: "DROP CHANCES",
+    text: "75% Common, 21% Rare, 3.5% Epic, 0.5% Legendary",
+    supply: 50,
+    patternImg: cdnFile(`cards/backgrounds/pattern-EPIC.webp`),
+  },
+  [PackType.LEGENDARY]: {
+    description:
+      "For ultimate impact. Exclusive cards await.\nLimited to 300 shelter cats only.",
+    subtitle: "DROP CHANCES",
+    text: "20% rare, 50% epic, 30% legendary",
+    supply: 300,
+    patternImg: cdnFile(`cards/backgrounds/pattern-LEGENDARY.webp`),
+  },
+};
 
 export const Payment = ({
   price,
@@ -87,9 +117,17 @@ export const Payment = ({
   return (
     <div className="flex flex-col gap-4 relative z-10 animate-appear">
       {/* Checkout Summary */}
-      <div className="bg-gradient-to-b from-yellow-900/95 to-yellow-700/95 glow-box w-[95%] md:rem:w-[336px] max-w-none m-auto rounded-2xl p-4 relative z-10">
+      <div className="bg-gradient-to-b from-yellow-900/95 to-yellow-700/95 glow-box w-[95%] md:rem:w-[400px] max-w-none m-auto rounded-2xl p-4 relative z-10">
+        <img
+          src={cdnFile(`tail/mascot-point-right.webp`)}
+          className="absolute -top-[8.25rem] -left-2 w-36 z-0 -mb-2 animate-opacity"
+        />
+        <img
+          src={productNameOverviewMap[id as PackType]?.patternImg}
+          className="absolute inset-0 w-full h-full -mb-2 object-cover opacity-25 mix-blend-color-dodge z-10"
+        />
         {/* Header */}
-        <div className="bg-gradient-to-br from-yellow-300 to-yellow-500 rounded-lg px-2 -mt-8 mb-2 text-center w-fit m-auto border-4 border-yellow-200">
+        <div className="bg-gradient-to-br from-yellow-300 to-yellow-500 rounded-lg px-2 -mt-8 mb-2 text-center w-fit m-auto border-4 border-yellow-200 relative">
           <span className="text-p5 font-bold text-yellow-900 font-primary uppercase">
             CHECKOUT SUMMARY
           </span>
@@ -97,14 +135,14 @@ export const Payment = ({
 
         {/* Product Info */}
         {productName && (
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-p3 font-bold text-gray-100 font-primary">
+          <div className="flex items-center justify-between mb-2 text-pink-100 relative z-10">
+            <span className="text-p3 font-bold font-primary text-center m-auto">
               {productName}
             </span>
             {onRemove && (
               <button
                 onClick={onRemove}
-                className="text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
+                className="text-gray-300/75 hover:text-red-400 transition-colors cursor-pointer -mt-1 border-4 rounded-full p-1 border-gray-300/50 hover:border-red-400 transition-all duration-300"
                 aria-label="Remove item"
               >
                 <svg
@@ -126,9 +164,36 @@ export const Payment = ({
           </div>
         )}
 
+        {/* Product Overview */}
+        {id &&
+          entityType === EntityType.PACK &&
+          id in productNameOverviewMap && (
+            <div className="mb-4 text-pink-100 relative z-10">
+              {(() => {
+                const packData = productNameOverviewMap[id as PackType];
+
+                return (
+                  <>
+                    {/* Description */}
+                    <p className="text-p5 text-pink-100 font-secondary whitespace-pre-line text-center -mt-2 mb-4">
+                      {packData.description}
+                    </p>
+
+                    <Tag isSmall>{packData.subtitle}</Tag>
+
+                    {/* Drop Chances */}
+                    <p className="text-p5 font-secondary text-center mt-2">
+                      {packData.text}
+                    </p>
+                  </>
+                );
+              })()}
+            </div>
+          )}
+
         {/* Original Price - Only show when discount IS applied */}
         {discountPercentage !== null && discountPercentage > 0 && (
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 relative z-10">
             <span className="text-p5 text-gray-200 font-secondary">
               Original Price:
             </span>
@@ -140,7 +205,7 @@ export const Payment = ({
 
         {/* Discount Code Input - Inside Checkout Summary - Hide when discount is applied */}
         {!(discountPercentage !== null && discountPercentage > 0) && (
-          <div className="mb-3">
+          <div className="mb-3 relative z-10">
             {!showDiscountField ? (
               <div className="flex justify-center -mt-2 -mb-2">
                 <PixelButton
@@ -275,6 +340,7 @@ export const Payment = ({
             text={text}
             loadingText={loadingText}
             discount={discountCode || undefined}
+            onSuccess={onSuccess}
           />
         </div>
       ) : (

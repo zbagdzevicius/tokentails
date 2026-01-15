@@ -16,6 +16,7 @@ export interface IProfile {
   discord?: string;
   name: string;
   streak: number;
+  discount: string;
   spent: number;
   tails: number;
   codex: number[];

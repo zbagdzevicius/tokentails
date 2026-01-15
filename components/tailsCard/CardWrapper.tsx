@@ -223,7 +223,7 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
             className="absolute left-[10%] bottom-[1.25%] font-primary font-bold text-[clamp(12px,2.5vw,12px)]"
             style={{ color: borderColor }}
           >
-            C{cardNumber} / {totalCards}
+            {tier}: {cardNumber} / {totalCards}
           </div>
 
           <div

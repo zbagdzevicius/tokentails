@@ -6,13 +6,17 @@ import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { ICat } from "@/models/cats";
 import { GameModal, GameType } from "@/models/game";
+import { PackType } from "@/models/order";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { RedeemCard } from "../catCard/RedeemCard";
 import { GameEvents } from "../Phaser/events";
 import { TailsCardMini } from "../tailsCard/TailsCardMini";
 import { TailsCardModal } from "../tailsCard/TailsCardModal";
 import { CloseButton } from "./CloseButton";
+import { PackModal } from "./PackModal";
+import { packImages } from "./PacksModal";
+import { Tag } from "./Tag";
+import { PixelButton } from "./PixelButton";
 
 const weekInMs = 604800000;
 
@@ -25,19 +29,46 @@ export const CatsModalContent = ({
   setSelectedCat: (cat: ICat) => void;
   mutatedCats: ICat[];
 }) => {
+  const { profile } = useProfile();
+  const { setOpenedModal } = useGame();
   return (
     <div className="px-0 pt-4 pb-8 md:px-16 flex flex-col justify-between items-center animate-appear">
       <div className="font-paws text-h2 glow">MY PETS</div>
+      {profile?.discount && (
+        <span className="mb-4">
+          <Tag>YOUR DISCOUNT CODE: {profile?.discount.toUpperCase()}</Tag>
+        </span>
+      )}
 
-      <RedeemCard close={close} />
+      <span className="relative mb-4">
+        <PixelButton
+          onClick={() => {
+            setOpenedModal(GameModal.PACKS);
+          }}
+          text="BUY PACKS"
+        ></PixelButton>
+      </span>
+
+      {/* <RedeemCard close={close} /> */}
       <div className="flex flex-wrap justify-center items-center w-full gap-x-4 gap-y-8 sm:gap-5">
-        {mutatedCats?.map((cat) => (
-          <TailsCardMini
-            key={cat._id}
-            cat={cat}
-            onClick={() => setSelectedCat(cat)}
-          />
-        ))}
+        {mutatedCats?.map((cat) =>
+          cat.packed ? (
+            <img
+              key={cat._id}
+              src={packImages[cat.packType as PackType]}
+              className="rem:w-[143px] object-cover"
+              onClick={() => {
+                setSelectedCat(cat);
+              }}
+            />
+          ) : (
+            <TailsCardMini
+              key={cat._id}
+              cat={cat}
+              onClick={() => setSelectedCat(cat)}
+            />
+          )
+        )}
       </div>
     </div>
   );
@@ -49,7 +80,7 @@ export const CatsModal = ({ close }: { close: () => void }) => {
   const { profile, setProfileUpdate } = useProfile();
   const toast = useToast();
 
-  const { setGameType, setOpenedModal } = useGame();
+  const { setGameType } = useGame();
   const { data: cats } = useQuery({
     queryKey: ["cats", profile?.cat],
     queryFn: () => CAT_API.cats(),
@@ -76,12 +107,6 @@ export const CatsModal = ({ close }: { close: () => void }) => {
       setGameType(GameType.HOME);
     }
     close();
-  };
-  const handleCloseModal = (gameModal?: GameModal) => {
-    setSelectedCat(null);
-    if (gameModal) {
-      setOpenedModal(gameModal);
-    }
   };
   const setCatUpdate = (cat: ICat, update: Partial<ICat>) => {
     setMutatedCats((prev) =>
@@ -144,17 +169,21 @@ export const CatsModal = ({ close }: { close: () => void }) => {
           />
         </div>
       </div>
-      {selectedCat && (
-        <TailsCardModal
-          onClose={() => setSelectedCat(null)}
-          showSelect={true}
-          showStake={true}
-          profileCatId={profile?.cat._id}
-          onSelect={onCatSelect}
-          onStake={onStakeCat}
-          onStakeRewards={onStakeRewards}
-          {...selectedCat}
-        />
+      {selectedCat?.packed ? (
+        <PackModal cat={selectedCat} close={() => setSelectedCat(null)} />
+      ) : (
+        selectedCat && (
+          <TailsCardModal
+            onClose={() => setSelectedCat(null)}
+            showSelect={true}
+            showStake={true}
+            profileCatId={profile?.cat._id}
+            onSelect={onCatSelect}
+            onStake={onStakeCat}
+            onStakeRewards={onStakeRewards}
+            {...selectedCat}
+          />
+        )
       )}
     </>
   );

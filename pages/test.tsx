@@ -1,5 +1,6 @@
 import { TailsCardPack } from "@/components/tailsCard/TailsCardPack";
 import { cdnFile } from "@/constants/utils";
+import { PackType } from "@/models/order";
 
 export default function TestPage() {
   return (
@@ -12,7 +13,7 @@ export default function TestPage() {
         backgroundRepeat: "no-repeat",
       }}
     >
-      <TailsCardPack packType="starter" />
+      <TailsCardPack packType={PackType.STARTER} />
     </div>
   );
 }

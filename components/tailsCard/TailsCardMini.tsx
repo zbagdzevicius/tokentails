@@ -40,6 +40,7 @@ export const TailsCardMini: React.FC<Props> = ({ cat, onClick }) => {
           className="animate-opacity cursor-pointer inline-block"
         >
           <CardWrapper
+            tier={cat.tier}
             catType={cat.type}
             isBackSide={true}
             style={{

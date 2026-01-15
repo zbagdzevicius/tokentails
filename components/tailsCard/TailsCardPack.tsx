@@ -1,10 +1,11 @@
 import { ICat } from "@/models/cats";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { CardPackImage } from "./CardPackImage";
 import { OpeningAnimation } from "./OpeningAnimation";
 import { RevealAnimation } from "./RevealAnimation";
 import { VideoPlayer } from "./VideoPlayer";
 import { PackType } from "@/models/order";
+import { CAT_API } from "@/api/cat-api";
 
 // Animation timing constants (in milliseconds)
 const ANIMATION_SPIN_DURATION = 1500;
@@ -16,6 +17,12 @@ type TailsCardPackProps = {
   cat?: ICat;
 };
 
+const setAsOpened = async (cat: ICat) => {
+  if (cat?._id) {
+    await CAT_API.setAsOpened(cat._id!);
+  }
+};
+
 export const TailsCardPack: React.FC<TailsCardPackProps> = ({
   packType,
   cat,
@@ -24,6 +31,12 @@ export const TailsCardPack: React.FC<TailsCardPackProps> = ({
   const [isOpening, setIsOpening] = useState(false);
   const [showCard, setShowCard] = useState(false);
   const [showRevealOverlay, setShowRevealOverlay] = useState(false);
+
+  useEffect(() => {
+    if (showCard && cat?._id) {
+      setAsOpened(cat);
+    }
+  }, [cat, showCard]);
 
   const handleCardClick = useCallback(() => {
     setIsOpening(true);

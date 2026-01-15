@@ -1,5 +1,6 @@
 export enum GameModal {
   QUESTS = "QUESTS",
+  PACKS = "PACKS",
   PROFILE = "PROFILE",
   LEADERBOARD = "LEADERBOARD",
   CATS = "CATS",

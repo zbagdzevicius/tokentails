@@ -1,3 +1,4 @@
+import { ICat, IMessage } from "@/models/cats";
 import { apiUrl, getAuthHeaders } from "./api";
 
 export const STRIPE_API = {
@@ -33,7 +34,7 @@ export const STRIPE_API = {
   }: {
     paymentIntent: string;
     clientSecret: string;
-  }) => {
+  }): Promise<IMessage> => {
     const response = await fetch(`${apiUrl}/web3/confirm-payment`, {
       method: "POST",
       headers: {

@@ -10,6 +10,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { useEffect, useState, useRef } from "react";
 import { Tag } from "@/components/shared/Tag";
 import { PixelButton } from "@/components/shared/PixelButton";
+import { IMessage } from "@/models/cats";
 
 // Make sure to replace with your publishable key
 const stripePromise = loadStripe(
@@ -17,7 +18,7 @@ const stripePromise = loadStripe(
 );
 
 interface StripeCheckoutFormProps {
-  onSuccess: () => void;
+  onSuccess: (response: IMessage) => void;
 }
 
 const StripeCheckoutForm = ({ onSuccess }: StripeCheckoutFormProps) => {
@@ -36,17 +37,28 @@ const StripeCheckoutForm = ({ onSuccess }: StripeCheckoutFormProps) => {
     setIsProcessing(true);
 
     try {
-      const { error } = await stripe.confirmPayment({
+      const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/payment-success`,
         },
+        redirect: "if_required",
       });
 
       if (error) {
         toast({ message: error.message || "Payment failed" });
       } else {
-        onSuccess();
+        const response = await STRIPE_API.confirmPayment({
+          paymentIntent: paymentIntent.id,
+          clientSecret: paymentIntent.client_secret!,
+        });
+
+        if (response.success) {
+          toast({ message: "Payment successful! Cat saved successfully." });
+        } else {
+          toast({ message: response.message || "Failed to confirm payment" });
+        }
+        onSuccess(response);
       }
     } catch {
       toast({ message: "Payment failed" });
@@ -72,7 +84,7 @@ const StripeCheckoutForm = ({ onSuccess }: StripeCheckoutFormProps) => {
 interface StripePaymentProps {
   price: number;
   id: string;
-  onSuccess: () => void;
+  onSuccess: (response: IMessage) => void;
   discount?: string;
 }
 

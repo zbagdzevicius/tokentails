@@ -39,6 +39,29 @@ const stakingRedeem = async (
   });
 };
 
+const setAsOpened = async (
+  _id: string
+): Promise<{
+  success: boolean;
+  message: string;
+}> => {
+  return fetch(`${apiUrl}/user/opened-pack/${_id}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      accesstoken: sessionStorage.getItem("accesstoken"),
+    } as any,
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return null;
+  });
+};
+
 const cats = async (): Promise<ICat[]> => {
   return fetch(`${apiUrl}/user/cats`, {
     method: "GET",
@@ -164,4 +187,5 @@ export const CAT_API = {
   cat,
   setActive,
   redeem,
+  setAsOpened,
 };

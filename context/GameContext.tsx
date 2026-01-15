@@ -14,6 +14,7 @@ import { EndGameModal } from "@/components/shared/EndGameModal";
 import { GameMusicPlayer } from "@/components/shared/GameMusicPlayer";
 import { InviteModal } from "@/components/shared/InviteModal";
 import { Notification } from "@/components/shared/Notification";
+import { PacksModal } from "@/components/shared/PacksModal";
 import { QuestsModal } from "@/components/shared/QuestsModal";
 import { SupportModal } from "@/components/shared/SupportModal";
 import { TelegramProfile } from "@/components/shared/TelegramProfile";
@@ -228,6 +229,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           )}
           {openedModal === GameModal.INVITE && (
             <InviteModal close={() => setOpenedModal(null)} />
+          )}
+          {openedModal === GameModal.PACKS && (
+            <PacksModal close={() => setOpenedModal(null)} />
           )}
           {openedModal === GameModal.SUPPORT && (
             <SupportModal close={() => setOpenedModal(null)} />
