@@ -55,7 +55,7 @@ export const QuestsModalContent = () => {
   const quests = useMemo(
     () =>
       [...(partnerQuests || []), ...allQuests].filter(
-        (quest) => !profile?.quests.includes(quest.key)
+        (quest) => !profile?.quests?.includes?.(quest.key)
       ),
     [partnerQuests]
   );
