@@ -190,7 +190,7 @@ export const SignInContent = () => {
 
 export const SignIn = ({ close }: { close: () => void }) => {
   return (
-    <div className="fixed inset-0 mt-safe w-full flex justify-center h-full z-[60]">
+    <div className="fixed inset-0 mt-safe w-full flex justify-center h-full z-[10000]">
       <div
         onClick={close}
         className="z-40 h-full w-full absolute inset-0 bg-white opacity-50"
