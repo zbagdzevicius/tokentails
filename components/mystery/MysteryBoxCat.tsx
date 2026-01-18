@@ -6,7 +6,7 @@ import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
 import { ICat, Prices } from "@/models/cats";
 import { EntityType } from "@/models/save";
-import { CurrencyType } from "@/web3/contracts";
+import { ChainType, CurrencyType } from "@/web3/contracts";
 import { useEffect, useMemo, useState } from "react";
 import { ChainSelect } from "../shared/ChainSelect";
 import { PixelButton } from "../shared/PixelButton";
@@ -107,7 +107,7 @@ export const MysteryBoxCat = () => {
           />
         </div>
       )}
-      <ChainSelect />
+      <ChainSelect chains={[ChainType.SEI]} />
       <div className="m-auto animate-appear">
         <div className="flex flex-col items-start w-fit m-auto">
           {!profile?.boxes && (

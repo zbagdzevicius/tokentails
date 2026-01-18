@@ -26,11 +26,12 @@ export const InviteModalContent = () => {
         <PixelButton
           active={type === EntityType.LOOT_BOX}
           text="LOOT BOX"
+          isSmall
           onClick={() => setType(EntityType.LOOT_BOX)}
         ></PixelButton>
         <PixelButton
           active={type === EntityType.PACK}
-          text="PACKS"
+          text="BUY CARDS PACKS"
           onClick={() => setType(EntityType.PACK)}
         ></PixelButton>
       </div>
