@@ -38,20 +38,14 @@ export interface IMysteryBox {
 
 export const chainTypeRpcUrl: Record<ChainType, string> = {
   [ChainType.BNB]: "https://bsc-dataseed.binance.org",
-  [ChainType.BNB_TEST]: "https://data-seed-prebsc-1-s1.binance.org:8545",
   [ChainType.STELLAR]: "https://mainnet.sorobanrpc.com",
-  [ChainType.STELLAR_TEST]: "https://soroban-testnet.stellar.org:443",
   [ChainType.SOLANA]: "https://api.mainnet-beta.solana.com",
-  [ChainType.SOLANA_TEST]: "https://api.devnet.solana.com",
+  [ChainType.TORUS]: "https://rpc-v2.toruschain.com",
   [ChainType.SEI]: "https://evm-rpc.sei-apis.com",
   [ChainType.MANTLE]: "https://rpc.mantle.xyz",
 };
 
 export enum MYSTERY_BOX_TYPE {
-  CAMP_6 = "CAMP_6",
-  CAMP_7 = "CAMP_7",
-  CAMP_8 = "CAMP_8",
-  CAMP_9 = "CAMP_9",
   CATNIP_CHAOS_1 = "CATNIP_CHAOS_1",
   CATNIP_CHAOS_2 = "CATNIP_CHAOS_2",
   CATNIP_CHAOS_3 = "CATNIP_CHAOS_3",

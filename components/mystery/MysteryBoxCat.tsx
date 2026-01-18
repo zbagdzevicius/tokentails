@@ -119,7 +119,7 @@ export const MysteryBoxCat = () => {
             <PixelButton text="Open FREE Box" onClick={() => openFreeBox()} />
           ) : (
             <Web3Transfer
-              price={currencyPrice}
+              price={price}
               entityType={EntityType.LOOT_BOX}
               user={profile?._id}
               text="Open THE Box"

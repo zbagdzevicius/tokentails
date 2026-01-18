@@ -2,7 +2,7 @@ import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
 import { EntityType } from "@/models/save";
 import { abiERC721 } from "@/web3/abi-erc721";
-import { ChainNamespace, ChainType } from "@/web3/contracts";
+import { ChainType, EVM_CHAINS } from "@/web3/contracts";
 import { chainTypeId } from "@/web3/web3-chains";
 import { wagmiConfig } from "@/web3/web3-config";
 import { IMysteryBox } from "@/web3/web3.model";
@@ -25,9 +25,9 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
   const {
     evmConnected,
     evmAddress,
-    namespace,
-    setNamespace,
-    namespaceDetail,
+    chainType,
+    setChainType,
+    chainStatusDetail,
     chainId,
   } = useWeb3();
   const { switchChainAsync } = useSwitchChain({
@@ -46,10 +46,8 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
       hash,
     });
   useEffect(() => {
-    if (
-      ![ChainType.STELLAR, ChainType.STELLAR_TEST].includes(mysteryBox?.chain)
-    ) {
-      setNamespace(ChainNamespace.EVM);
+    if (![ChainType.STELLAR].includes(mysteryBox?.chain)) {
+      setChainType(ChainType.SEI);
     }
   }, [mysteryBox]);
   const [isMinted, setIsMinted] = useState(false);
@@ -80,7 +78,7 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
   }
 
   async function mint() {
-    if (namespace === ChainNamespace.EVM) {
+    if (EVM_CHAINS.includes(chainType)) {
       evmMint();
     }
   }
@@ -114,7 +112,7 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
   }, [taxData]);
 
   const connectWallet = () => {
-    if (namespace === ChainNamespace.EVM) {
+    if (EVM_CHAINS.includes(chainType)) {
       open();
     }
   };
@@ -129,7 +127,7 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
 
   return {
     isLoading,
-    namespaceDetail,
+    chainStatusDetail,
     connectWallet,
     mint,
     userNFTsCount: userNFTsCount || (isMinted ? 1 : 0),

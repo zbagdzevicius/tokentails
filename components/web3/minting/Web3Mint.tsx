@@ -3,7 +3,7 @@
 import { PixelButton } from "@/components/shared/PixelButton";
 import { useWeb3 } from "@/context/Web3Context";
 import { EntityType } from "@/models/save";
-import { ChainNamespace } from "@/web3/contracts";
+import { ChainType } from "@/web3/contracts";
 import { IMysteryBox } from "@/web3/web3.model";
 import { useAppKit } from "@reown/appkit/react";
 import { useMemo } from "react";
@@ -18,25 +18,25 @@ interface Web3TransferProps {
 }
 
 export const ConnectWallet = () => {
-  const { setNamespace, namespaceDetail } = useWeb3();
+  const { setChainType, chainStatusDetail } = useWeb3();
   const { open } = useAppKit();
   const connectWallet = () => {
-    setNamespace(ChainNamespace.EVM);
+    setChainType(ChainType.SEI);
     open();
   };
   const address = useMemo(() => {
-    if (!namespaceDetail?.connected) {
+    if (!chainStatusDetail?.connected) {
       return "CONNECT";
     }
-    if (!namespaceDetail?.address) {
+    if (!chainStatusDetail?.address) {
       return "";
     }
     return (
-      namespaceDetail.address.slice(0, 3) +
+      chainStatusDetail.address.slice(0, 3) +
       "..." +
-      namespaceDetail.address.slice(-3)
+      chainStatusDetail.address.slice(-3)
     );
-  }, [namespaceDetail]);
+  }, [chainStatusDetail]);
   if (address) {
     return (
       <div className="flex flex-col justify-center items-center font-primary -my-2">
@@ -63,25 +63,25 @@ export const Web3Mint = ({
   hideAddress,
   text,
 }: Web3TransferProps) => {
-  const { namespaceDetail, connectWallet, mint, isLoading, userNFTsCount } =
+  const { chainStatusDetail, connectWallet, mint, isLoading, userNFTsCount } =
     useWeb3Minting({
       entityType: EntityType.PACK,
       user,
       mysteryBox,
     });
   const address = useMemo(() => {
-    if (!namespaceDetail?.connected) {
+    if (!chainStatusDetail?.connected) {
       return "CONNECT";
     }
-    if (!namespaceDetail?.address) {
+    if (!chainStatusDetail?.address) {
       return "";
     }
     return (
-      namespaceDetail.address.slice(0, 3) +
+      chainStatusDetail.address.slice(0, 3) +
       "..." +
-      namespaceDetail.address.slice(-3)
+      chainStatusDetail.address.slice(-3)
     );
-  }, [namespaceDetail]);
+  }, [chainStatusDetail]);
   if (isLoading) {
     return (
       <PixelButton text={"MINTING"} active isSmall={hideAddress}></PixelButton>
@@ -94,7 +94,7 @@ export const Web3Mint = ({
 
   return (
     <div className="flex flex-col justify-center items-center">
-      {namespaceDetail?.connected ? (
+      {chainStatusDetail?.connected ? (
         <>
           <PixelButton
             isWidthFull

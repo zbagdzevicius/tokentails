@@ -1,4 +1,4 @@
-import { ChainNamespace, ChainType, CurrencyType } from "@/web3/contracts";
+import { ChainType, CurrencyType } from "@/web3/contracts";
 import { EntityType } from "./save";
 
 export enum OrderStatus {
@@ -13,7 +13,6 @@ export interface IOrder {
   hash: string;
   walletAddress: string;
   chainType: ChainType;
-  namespace: ChainNamespace;
   currencyType: CurrencyType;
   price: number;
   entityType: EntityType;

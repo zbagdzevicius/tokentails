@@ -1,12 +1,6 @@
 import { ITransactionStatus } from "@/api/order-api";
 import { useRates } from "@/components/web3/useRates";
-import { isProd } from "@/models/app";
-import {
-  ChainNamespace,
-  ChainNamespacesCurrencies,
-  ChainType,
-  CurrencyType,
-} from "@/web3/contracts";
+import { ChainCurrencies, ChainType, CurrencyType } from "@/web3/contracts";
 import { useWallet as useSolanaWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import { useRouter } from "next/router";
@@ -22,14 +16,13 @@ type ContextState = {
   stellarAddress?: string;
   solanaAddress?: PublicKey | null;
   chainType: ChainType;
+  setChainType: (chainType: ChainType) => void;
   setStellarConnected: (stellarConnected: boolean) => void;
   setStellarAddress: (stellarAddress: string) => void;
-  namespace: ChainNamespace;
-  setNamespace: (namespace: ChainNamespace) => void;
   chainId?: number;
   query: any;
   currencyType: CurrencyType;
-  namespaceDetail: {
+  chainStatusDetail: {
     connected: boolean;
     address: string | undefined;
   };
@@ -47,30 +40,10 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
 
   const [stellarConnected, setStellarConnected] = React.useState(false);
   const [stellarAddress, setStellarAddress] = React.useState<string>();
-  const [chainType, setChainType] = React.useState<ChainType>(
-    isProd ? ChainType.BNB : ChainType.BNB_TEST
-  );
+  const [chainType, setChainType] = React.useState<ChainType>(ChainType.SEI);
 
   const { publicKey: solanaAddress, connected: solanaConnected } =
     useSolanaWallet();
-
-  const [namespace, setNamespace] = React.useState<ChainNamespace>(
-    ChainNamespace.SEI
-  );
-  React.useEffect(() => {
-    if (namespace === ChainNamespace.EVM) {
-      setChainType(isProd ? ChainType.BNB : ChainType.BNB_TEST);
-    }
-    if (namespace === ChainNamespace.SEI) {
-      setChainType(ChainType.SEI);
-    }
-    if (namespace === ChainNamespace.SOLANA) {
-      setChainType(ChainType.SOLANA);
-    }
-    if (namespace === ChainNamespace.STELLAR) {
-      setChainType(isProd ? ChainType.BNB : ChainType.BNB_TEST);
-    }
-  }, [namespace, setChainType]);
 
   const [currencyType, setCurrencyType] = React.useState(CurrencyType.USDT);
   const [price, setPrice] = React.useState();
@@ -78,27 +51,31 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
   const [transactionStatus, setTransactionStatus] =
     React.useState<ITransactionStatus | null>(null);
 
-  const namespaceDetails = React.useMemo(() => {
+  const chainStatus = React.useMemo(() => {
     return {
-      [ChainNamespace.EVM]: {
+      [ChainType.BNB]: {
         connected: isConnected,
         address: address,
       },
-      [ChainNamespace.SEI]: {
+      [ChainType.SEI]: {
         connected: isConnected,
         address: address,
       },
-      [ChainNamespace.STELLAR]: {
-        connected: stellarConnected,
-        address: stellarAddress,
-      },
-      [ChainNamespace.SOLANA]: {
+      [ChainType.SOLANA]: {
         connected: solanaConnected,
         address: solanaAddress?.toString(),
       },
+      [ChainType.STELLAR]: {
+        connected: stellarConnected,
+        address: stellarAddress,
+      },
+      [ChainType.TORUS]: {
+        connected: isConnected,
+        address: address,
+      },
     };
   }, [
-    namespace,
+    chainType,
     solanaConnected,
     solanaAddress,
     isConnected,
@@ -106,14 +83,14 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
     stellarAddress,
     stellarAddress,
   ]);
-  const namespaceDetail = namespaceDetails[namespace];
+  const chainStatusDetail = chainStatus[chainType as keyof typeof chainStatus];
 
   const router = useRouter();
   const { query } = router;
 
   React.useEffect(() => {
-    setCurrencyType(ChainNamespacesCurrencies[namespace][0]);
-  }, [namespace, setCurrencyType]);
+    setCurrencyType(ChainCurrencies[chainType][0]);
+  }, [chainType, setCurrencyType]);
 
   return (
     <Web3Context.Provider
@@ -129,11 +106,10 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
         price,
         query,
         chainType,
-        namespaceDetail,
+        setChainType,
+        chainStatusDetail,
         setCurrencyType,
         setPrice,
-        namespace,
-        setNamespace,
         setStellarConnected,
         setStellarAddress,
         solanaConnected,

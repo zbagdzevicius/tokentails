@@ -3,9 +3,10 @@ import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
 import { EntityType } from "@/models/save";
 import {
-  ChainNamespace,
+  ChainType,
   currencyContracts,
   CurrencyType,
+  EVM_CHAINS,
   recipientEvm,
   recipientSolana,
   recipientStellar,
@@ -60,10 +61,9 @@ export const useWeb3Transfer = ({
     stellarAddress,
     solanaConnected,
     stellarConnected,
-    namespace,
-    namespaceDetail,
-    setStellarAddress,
     chainType,
+    chainStatusDetail,
+    setStellarAddress,
     setStellarConnected,
     solanaAddress,
     chainId,
@@ -102,8 +102,7 @@ export const useWeb3Transfer = ({
     const status = await ORDER_API.confirm({
       hash: hash,
       chainType,
-      namespace: namespace!,
-      walletAddress: namespaceDetail.address!,
+      walletAddress: chainStatusDetail.address!,
       currencyType,
       price,
       ref: query?.ref,
@@ -204,15 +203,15 @@ export const useWeb3Transfer = ({
   }
 
   async function transfer() {
-    if ([ChainNamespace.EVM, ChainNamespace.SEI].includes(namespace)) {
+    if (EVM_CHAINS.includes(chainType)) {
       evmTransfer();
-    } else if (namespace === ChainNamespace.STELLAR) {
+    } else if (chainType === ChainType.STELLAR) {
       if (!stellarConnected) {
         connectStellarWallet(true);
       } else {
         stellarTransfer(stellarAddress!);
       }
-    } else if (namespace === ChainNamespace.SOLANA) {
+    } else if (chainType === ChainType.SOLANA) {
       if (!solanaConnected) {
         connectSolana(true);
       } else {
@@ -315,11 +314,11 @@ export const useWeb3Transfer = ({
   }, [isTaxConfirmed]);
 
   const connectWallet = () => {
-    if ([ChainNamespace.EVM, ChainNamespace.SEI].includes(namespace)) {
+    if (EVM_CHAINS.includes(chainType)) {
       open();
-    } else if (namespace === ChainNamespace.STELLAR) {
+    } else if (chainType === ChainType.STELLAR) {
       connectStellarWallet();
-    } else if (namespace === ChainNamespace.SOLANA) {
+    } else if (chainType === ChainType.SOLANA) {
       connectSolana(true);
     }
   };
@@ -327,7 +326,7 @@ export const useWeb3Transfer = ({
   return {
     isTransactionPending,
     isLoading,
-    namespaceDetail,
+    chainStatusDetail,
     connectWallet,
     currencyType,
     transfer,

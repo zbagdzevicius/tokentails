@@ -1,78 +1,84 @@
 import { cdnFile } from "@/constants/utils";
 import { useWeb3 } from "@/context/Web3Context";
-import {
-  ChainNamespace,
-  ChainNamespaceImg,
-  ChainNamespacesCurrencies,
-} from "@/web3/contracts";
+import { ChainType, ChainImg, ChainCurrencies } from "@/web3/contracts";
 
 export const ChainSelect = ({
-  chainNamespaces = [
-    ChainNamespace.EVM,
-    ChainNamespace.SEI,
-    ChainNamespace.SOLANA,
-    ChainNamespace.STELLAR,
+  chains = [
+    ChainType.SEI,
+    ChainType.BNB,
+    ChainType.SOLANA,
+    ChainType.STELLAR,
+    ChainType.TORUS,
   ],
 }: {
-  chainNamespaces?: ChainNamespace[];
+  chains?: ChainType[];
 }) => {
-  const { currencyType, setCurrencyType, setNamespace, namespace } = useWeb3();
+  const { currencyType, setCurrencyType, setChainType, chainType } = useWeb3();
 
   return (
     <div className="flex-col animate-appear">
       <div className="flex flex-col items-center gap-1">
-        <div className="font-secondary bg-purple-300 px-4 rounded-full">
-          PAYMENT CHAIN
+        <div className="font-primary text-p5 px-8 rounded-lg bg-gradient-to-br from-pink-400 to-yellow-500 border-4 border-yellow-900">
+          1. SELECT PAYMENT CHAIN
         </div>
-        <div className="flex gap-2">
-          {chainNamespaces.map((namespaceOption) => (
+        <div className="flex gap-2 mt-2">
+          {chains.map((chain) => (
             <button
-              key={namespaceOption}
-              onClick={() => setNamespace(namespaceOption)}
-              className={`transition group flex items-center justify-center gap-1 bg-purple-300 pl-2 rounded-full ${
-                namespace === namespaceOption
-                  ? ""
-                  : "grayscale hover:grayscale-0"
+              key={chain}
+              onClick={() => setChainType(chain)}
+              className={`transition group flex flex-col w-[4.37rem] h-[4.37rem] items-center justify-center rounded-2xl border-2 border-yellow-900 ${
+                chainType === chain
+                  ? "glow-box bg-gradient-to-br from-pink-400 to-yellow-500"
+                  : "grayscale hover:grayscale-30 bg-yellow-100 brightness-90"
               }`}
             >
-              <div className="text-p4 font-secondary">
-                {namespaceOption === ChainNamespace.EVM
-                  ? "BSC"
-                  : namespaceOption}
-              </div>
               <img
                 draggable={false}
-                className={`transition ${
-                  namespace === namespaceOption
-                    ? "w-8"
-                    : "w-8 px-1 group-hover:px-0"
+                className={`transition-all duration-300 ${
+                  chainType === chain
+                    ? "w-9 mt-1"
+                    : "w-8 px-1 group-hover:px-0 -mt-8"
                 }`}
-                src={ChainNamespaceImg[namespaceOption]}
-                alt={`${namespaceOption} icon`}
+                src={ChainImg[chain]}
               />
+              <div
+                className={`text-p4 font-primary ${
+                  chainType === chain ? "glow" : "text-yellow-900"
+                }`}
+              >
+                {chain}
+              </div>
             </button>
           ))}
         </div>
       </div>
-      <div className="flex flex-col items-center gap-1 mb-4 mt-2">
-        <div className="font-secondary bg-yellow-300 px-4 rounded-full">
-          PAYMENT CURRENCY
+      <div className="flex flex-col items-center gap-1 mb-4 mt-3">
+        <div className="font-primary text-p5 px-4 rounded-lg bg-gradient-to-br from-pink-400 to-yellow-500 border-4 border-yellow-900">
+          2. SELECT PAYMENT CURRENCY
         </div>
-        <div className="flex gap-2">
-          {ChainNamespacesCurrencies[namespace].map((currency) => (
+        <div className="flex gap-2 mt-2 h-8">
+          {ChainCurrencies[chainType].map((currency) => (
             <button
               key={currency}
               onClick={() => setCurrencyType(currency)}
-              className={`transition group flex items-center justify-center gap-1 bg-yellow-300 pl-2 rounded-full ${
-                currencyType === currency ? "" : "grayscale hover:grayscale-0"
+              className={`transition-all duration-300 group flex items-center justify-center gap-1 pl-2 rounded-2xl border-2 border-yellow-900 ${
+                currencyType === currency
+                  ? "glow-box bg-gradient-to-br from-pink-400 to-yellow-500"
+                  : "grayscale hover:grayscale-0 bg-yellow-100 brightness-90"
               }`}
             >
-              <div className="text-p4 font-secondary">{currency}</div>
+              <div
+                className={`text-p4 font-primary ${
+                  currencyType === currency ? "glow" : "text-yellow-900"
+                }`}
+              >
+                {currency}
+              </div>
               <img
                 draggable={false}
                 className={`transition ${
                   currencyType === currency
-                    ? "w-8"
+                    ? "w-8 hl"
                     : "w-8 px-1 group-hover:px-0"
                 }`}
                 src={cdnFile(`currency/${currency}.webp`)}

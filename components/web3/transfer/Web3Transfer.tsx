@@ -65,7 +65,7 @@ export const Web3Transfer = ({
 
   const {
     isTransactionPending,
-    namespaceDetail,
+    chainStatusDetail,
     connectWallet,
     isLoading,
     transfer,
@@ -85,23 +85,23 @@ export const Web3Transfer = ({
   }, [transactionStatus, onSuccess, setTransactionStatus]);
 
   const address = useMemo(() => {
-    if (!namespaceDetail?.connected) {
+    if (!chainStatusDetail?.connected) {
       return "CONNECT";
     }
-    if (!namespaceDetail?.address) {
+    if (!chainStatusDetail?.address) {
       return "";
     }
     return (
-      namespaceDetail.address.slice(0, 3) +
+      chainStatusDetail.address.slice(0, 3) +
       "..." +
-      namespaceDetail.address.slice(-3)
+      chainStatusDetail.address.slice(-3)
     );
-  }, [namespaceDetail]);
+  }, [chainStatusDetail]);
   if (isLoading || isTransactionPending) {
     return <PixelButton text={loadingText || "LOADING"} active></PixelButton>;
   }
 
-  if (!namespaceDetail?.connected) {
+  if (!chainStatusDetail?.connected) {
     return (
       <PixelButton text="Connect Wallet" onClick={connectWallet}></PixelButton>
     );
