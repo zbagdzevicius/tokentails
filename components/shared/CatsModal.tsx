@@ -34,12 +34,12 @@ export const CatsModalContent = ({
   return (
     <div className="px-0 pt-4 pb-8 md:px-16 flex flex-col justify-between items-center animate-appear">
       <div className="font-paws text-h2 glow">MY PETS</div>
-      {profile?.discount && (
+      {!!profile?.discount && (
         <span className="mb-4">
           <Tag>YOUR DISCOUNT CODE: {profile?.discount.toUpperCase()}</Tag>
         </span>
       )}
-      {profile?.affiliated && (
+      {!!profile?.affiliated && (
         <span className="mb-4 -mt-6">
           <Tag>YOUR REVENUE SHARE: ${Math.ceil(profile?.affiliated)}</Tag>
         </span>
@@ -57,7 +57,7 @@ export const CatsModalContent = ({
       {/* <RedeemCard close={close} /> */}
       <div className="flex flex-wrap justify-center items-center w-full gap-x-4 gap-y-8 sm:gap-5">
         {mutatedCats?.map((cat) =>
-          cat.packed ? (
+          !!cat.packed && !!cat.packType ? (
             <img
               key={cat._id}
               src={packImages[cat.packType as PackType]}
