@@ -44,6 +44,8 @@ export const Web3Transfer = ({
         CurrencyType.BNB,
         CurrencyType.SOL,
         CurrencyType.SEI,
+        CurrencyType.ETH,
+        CurrencyType.MNT,
       ].includes(currencyType) &&
       rates
     ) {
@@ -55,6 +57,12 @@ export const Web3Transfer = ({
       }
       if (currencyType === CurrencyType.XLM) {
         return Math.ceil(price / rates[CurrencyType.XLM]);
+      }
+      if (currencyType === CurrencyType.ETH) {
+        return parseFloat((price / rates[CurrencyType.ETH]).toFixed(3));
+      }
+      if (currencyType === CurrencyType.MNT) {
+        return parseFloat((price / rates[CurrencyType.MNT]).toFixed(3));
       }
       if (currencyType === CurrencyType.SOL) {
         return parseFloat((price / rates[CurrencyType.SOL]).toFixed(3));

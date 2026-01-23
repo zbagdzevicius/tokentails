@@ -73,6 +73,18 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
         connected: isConnected,
         address: address,
       },
+      [ChainType.ETH]: {
+        connected: isConnected,
+        address: address,
+      },
+      [ChainType.BASE]: {
+        connected: isConnected,
+        address: address,
+      },
+      [ChainType.MANTLE]: {
+        connected: isConnected,
+        address: address,
+      },
     };
   }, [
     chainType,

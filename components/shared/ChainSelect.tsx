@@ -9,6 +9,9 @@ export const ChainSelect = ({
     ChainType.SOLANA,
     ChainType.STELLAR,
     ChainType.TORUS,
+    ChainType.ETH,
+    ChainType.BASE,
+    ChainType.MANTLE,
   ],
 }: {
   chains?: ChainType[];
@@ -25,7 +28,7 @@ export const ChainSelect = ({
           </div>
         )}
         {moreThanOneChain && (
-          <div className="flex gap-2 mt-2">
+          <div className="grid grid-cols-4 gap-2 mt-2">
             {chains.map((chain) => (
               <button
                 key={chain}
@@ -81,7 +84,7 @@ export const ChainSelect = ({
               </div>
               <img
                 draggable={false}
-                className={`transition ${
+                className={`transition -mr-1 ${
                   currencyType === currency
                     ? "w-8 hl"
                     : "w-8 px-1 group-hover:px-0"
