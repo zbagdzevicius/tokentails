@@ -163,7 +163,7 @@ export const CatsModal = ({ close }: { close: () => void }) => {
           className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
         ></div>
         <div
-          className="m-auto z-50 w-full md:w-[610px] max-w-full absolute inset-0 max-h-screen overflow-y-auto md:rounded-xl shadow md:border-4 border-yellow-300 glow-box"
+          className="m-auto z-50 w-full md:w-[610px] max-w-full absolute inset-0 max-h-screen overflow-y-auto md:rounded-xl shadow md:border-4 border-yellow-300 glow-box overflow-x-hidden"
           style={bgStyle("4")}
         >
           <CloseButton onClick={close} />

@@ -56,7 +56,7 @@ export const RevealAnimation: React.FC<RevealAnimationProps> = ({
       </div>
 
       {/* TailsCard */}
-      <div className="relative inline-block z-[1]">
+      <div className="relative inline-block z-[1] md:scale-[0.65] lg:scale-100">
         <TailsCard cat={cat} />
       </div>
 
@@ -65,7 +65,7 @@ export const RevealAnimation: React.FC<RevealAnimationProps> = ({
         className={`${fixedFullscreenClass} flex items-center justify-center z-[4]`}
       >
         <div
-          className={`pointer-events-none w-[90vw] max-w-[400px] aspect-[17/23] bg-cover bg-center bg-no-repeat scale-[2] ${opacityTransitionClass} ${
+          className={`pointer-events-none w-[90vw] max-h-[90vh] max-w-[400px] aspect-[17/23] bg-cover bg-center bg-no-repeat scale-[2] ${opacityTransitionClass} ${
             showRevealOverlay ? "opacity-100" : "opacity-0"
           }`}
           style={{ backgroundImage: `url(${REVEAL_CARD_BG})` }}

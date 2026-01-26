@@ -78,7 +78,7 @@ export const CardPackImage: React.FC<CardPackImageProps> = ({
   return (
     <div
       ref={cardRef}
-      className={`relative w-[90vw] max-w-[400px] m-auto aspect-[17/23] ${preserve3dClass} cursor-pointer ${
+      className={`relative w-[90vw] max-h-[90vh] max-w-[400px] m-auto aspect-[17/23] ${preserve3dClass} cursor-pointer ${
         isOpening ? "z-[101]" : ""
       }`}
       onMouseEnter={handleMouseInteraction}
