@@ -1,6 +1,7 @@
 import { PlayerAnimation } from "@/components/catbassadors/objects/Catbassador";
 import Phaser from "phaser";
 import { IPlayer } from "../PlayerMovement/IPlayer";
+import { Tier } from "@/models/cats";
 
 const wallSlidingThresholdMs = 200;
 
@@ -33,12 +34,11 @@ export class PlayerMovement {
   private isFlightMode: boolean = false;
   private flightAscendSpeed: number = 390;
   private flightDescendSpeed: number = 390;
-  private flightSmoothing: number = 0.13 ;
+  private flightSmoothing: number = 0.13;
   private targetFlightVelocityY: number = 0;
-  flightXSpeed: number = 270; 
+  flightXSpeed: number = 270;
 
- private readonly midAirJumpVelocity: number;
-
+  private readonly midAirJumpVelocity: number;
 
   constructor(player: IPlayer) {
     this.player = player;
@@ -129,7 +129,7 @@ export class PlayerMovement {
       const newVelY = Phaser.Math.Linear(
         currentVelY,
         this.targetFlightVelocityY,
-        this.flightSmoothing
+        this.flightSmoothing,
       );
       sprite.setVelocityY(newVelY);
 
@@ -154,8 +154,9 @@ export class PlayerMovement {
     }
 
     if (
-      Phaser.Input.Keyboard.JustDown(keys.knockback) ||
-      isMobileknockbackSpell
+      (Phaser.Input.Keyboard.JustDown(keys.knockback) ||
+        isMobileknockbackSpell) &&
+      (this.player.tier === Tier.EPIC || this.player.tier === Tier.LEGENDARY)
     ) {
       abilities.performKnocbackSpell();
     }
@@ -229,12 +230,12 @@ export class PlayerMovement {
       if (!onGround) {
         sprite.anims.play(
           this.player.animationKeys[PlayerAnimation.JUMPING_UP],
-          true
+          true,
         );
       } else {
         sprite.anims.play(
           this.player.animationKeys[PlayerAnimation.RUNNING],
-          true
+          true,
         );
       }
 
@@ -253,19 +254,19 @@ export class PlayerMovement {
       const newVelocity = Phaser.Math.Linear(
         currentVelocity,
         targetVelocity,
-        0.1
+        0.1,
       );
       sprite.setVelocityX(newVelocity);
 
       sprite.setAccelerationX(-this.player.walkSpeed);
-      sprite.setFlipX(!this.player  .currentRotation);
+      sprite.setFlipX(!this.player.currentRotation);
     } else if (!this.player.disableRightMovement && rightKeyDown) {
       const currentVelocity = sprite.body.velocity.x;
       const targetVelocity = this.player.walkSpeed;
       const newVelocity = Phaser.Math.Linear(
         currentVelocity,
         targetVelocity,
-        0.1
+        0.1,
       );
       sprite.setVelocityX(newVelocity);
 
@@ -312,19 +313,23 @@ export class PlayerMovement {
     } else if (this.player.isSliding) {
       sprite.anims.play(
         this.player.animationKeys[PlayerAnimation.SITTING],
-        true
+        true,
       );
       this.player.sprite.angle += leftKeyDown ? -4 : 4;
     } else if (this.player.isJumping) {
       sprite.anims.play(
         this.player.animationKeys[PlayerAnimation.JUMPING_UP],
-        true
+        true,
       );
-      this.player.sprite.angle += leftKeyDown ? -16 : 16;
+      if (this.player.hasDoubleJumped) {
+        this.player.sprite.angle += leftKeyDown ? -16 : 16;
+      } else {
+        this.player.sprite.angle = 0;
+      }
     } else if (leftKeyDown || rightKeyDown) {
       sprite.anims.play(
         this.player.animationKeys[PlayerAnimation.RUNNING],
-        true
+        true,
       );
       this.player.sprite.angle = 0;
     } else {
@@ -365,7 +370,7 @@ export class PlayerMovement {
       sprite.setVelocityY(
         this.isGravityReversed
           ? -this.player.wallSlideSpeed
-          : this.player.wallSlideSpeed
+          : this.player.wallSlideSpeed,
       );
     } else if (!onGround) {
       this.player.isJumping = true;
@@ -409,7 +414,7 @@ export class PlayerMovement {
   }
 
   private handleDash() {
-    if (this.dashDisabled) return;
+    if (this.dashDisabled || this.player.tier !== Tier.LEGENDARY) return;
     const dashKeyDown =
       Phaser.Input.Keyboard.JustDown(this.player.keys.dash) ||
       this.player.isMobileDash;
@@ -430,7 +435,7 @@ export class PlayerMovement {
       this.player.dashTime,
       this.stopDash,
       [],
-      this
+      this,
     );
   }
 
@@ -464,26 +469,24 @@ export class PlayerMovement {
       const jumpSound = this.player.scene.sound.add("jump", { volume: 0.2 });
       jumpSound.play();
 
-      
-      if(onGround && this.player.scene.anims.exists("splash-anim")) {
-    let offsetX = this.player.currentRotation ? -20 : 20;
-    let offsetY = -20;
-  
+      if (onGround && this.player.scene.anims.exists("splash-anim")) {
+        let offsetX = this.player.currentRotation ? -20 : 20;
+        let offsetY = -20;
+
         const splash = this.player.scene.add.sprite(
-    this.player.sprite.x + offsetX,
-    this.player.sprite.y + offsetY,
-    "splash"
-);
+          this.player.sprite.x + offsetX,
+          this.player.sprite.y + offsetY,
+          "splash",
+        );
 
         splash.setDepth(this.player.sprite.depth - 1); // Ensure it's behind the player
         splash.play("splash-anim");
 
-        // Destroy the splash sprite after the animation completes   
-        splash.on("animationcomplete", () => { 
+        // Destroy the splash sprite after the animation completes
+        splash.on("animationcomplete", () => {
           splash.destroy();
         });
       }
-
 
       const jumpSpeed = this.isGravityReversed
         ? this.player.jumpSpeed
@@ -527,7 +530,7 @@ export class PlayerMovement {
             const newVelocity = Phaser.Math.Linear(
               currentVelocity,
               targetVelocity,
-              0.1
+              0.1,
             );
             this.player.sprite.setVelocityX(newVelocity);
           },

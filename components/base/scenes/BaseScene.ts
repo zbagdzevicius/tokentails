@@ -392,12 +392,11 @@ export class BaseScene extends Scene {
         });
       }
 
-      // Add NPC to lists
       this.npcCats.push(npcCat);
       this.npcGroup.add(npcCat.sprite);
     });
 
-    // Load NPC assets
+
     if (npcData.blessing) {
       this.load.spritesheet(
         `blessing-${npcData.type}`,

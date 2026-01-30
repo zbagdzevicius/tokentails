@@ -11,6 +11,7 @@ import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
 import { CatsModal } from "@/components/shared/CatsModal";
 import { CodexModal } from "@/components/shared/CodexModal";
 import { EndGameModal } from "@/components/shared/EndGameModal";
+import { PixelRescueEndGameModal } from "@/components/shared/PixelRescueEndGameModal";
 import { GameMusicPlayer } from "@/components/shared/GameMusicPlayer";
 import { InviteModal } from "@/components/shared/InviteModal";
 import { Notification } from "@/components/shared/Notification";
@@ -75,7 +76,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   }, [gameType]);
 
   const gameProgressUpdateCallback = (
-    event?: ICatEventsDetails[GameEvent.GAME_PROGRESS_UPDATE]
+    event?: ICatEventsDetails[GameEvent.GAME_PROGRESS_UPDATE],
   ) => {
     if (!event) return;
 
@@ -89,14 +90,16 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
       if (!profile || !event) return;
 
       const earnedScore =
-        gameType === GameType.CATNIP_CHAOS ? event.score : event.score || 0;
+        gameType === GameType.CATNIP_CHAOS || GameType.PIXEL_RESCUE
+          ? event.score
+          : event.score || 0;
 
       setIsStarted(false);
 
       setGameStop({
         score: earnedScore,
         time: event.time ?? 0,
-        completedLevel: level,
+        completedLevel: event.completedLevel ?? null,
       });
 
       let catnipChaos = profile.catnipChaos;
@@ -114,7 +117,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
         catnipChaos,
       });
     },
-    [profile, gameType, level]
+    [profile, gameType, level],
   );
 
   GameEvents.GAME_STOP.use(gameStopCallback);
@@ -185,14 +188,22 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   return (
     <GameContext.Provider value={value}>
-      {gameStop && (
-        <EndGameModal
-          onClose={onClose}
-          gameStop={gameStop}
-          tryAgain={tryAgain}
-          gameType={gameType!}
-        />
-      )}
+      {gameStop &&
+        (gameType === GameType.PIXEL_RESCUE ? (
+          <PixelRescueEndGameModal
+            onClose={onClose}
+            gameStop={gameStop}
+            tryAgain={tryAgain}
+            gameType={gameType!}
+          />
+        ) : (
+          <EndGameModal
+            onClose={onClose}
+            gameStop={gameStop}
+            tryAgain={tryAgain}
+            gameType={gameType!}
+          />
+        ))}
       {!isStarted && (
         <GameSelect gameType={gameType} setGameType={setGameType} />
       )}
@@ -210,6 +221,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           <MobileButtons
             isHidden={
               !(isStarted && gameType !== GameType.CATNIP_CHAOS) &&
+              !(isStarted && gameType !== GameType.PIXEL_RESCUE) &&
               gameType !== GameType.SHELTER &&
               !(gameType === GameType.HOME && !!profile.cat?.status?.EAT)
             }

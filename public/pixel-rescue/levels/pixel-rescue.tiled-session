@@ -1,0 +1,180 @@
+{
+    "activeFile": "level-14.json",
+    "expandedProjectPaths": [
+        "."
+    ],
+    "fileStates": {
+        "level-1.json": {
+            "scale": 1.5,
+            "selectedLayer": 3,
+            "viewCenter": {
+                "x": 1808,
+                "y": -283.3333333333333
+            }
+        },
+        "level-1.json#valentine": {
+            "scaleInDock": 1
+        },
+        "level-10.json": {
+            "scale": 2,
+            "selectedLayer": 2,
+            "viewCenter": {
+                "x": 1476,
+                "y": -698.5
+            }
+        },
+        "level-10.json#valentine": {
+            "scaleInDock": 0.75
+        },
+        "level-11.json": {
+            "scale": 1.5,
+            "selectedLayer": 2,
+            "viewCenter": {
+                "x": 958.6666666666665,
+                "y": -679.3333333333333
+            }
+        },
+        "level-11.json#valentine": {
+            "scaleInDock": 1
+        },
+        "level-12.json": {
+            "scale": 0.5,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": -338,
+                "y": -448
+            }
+        },
+        "level-12.json#valentine": {
+            "scaleInDock": 0.5
+        },
+        "level-13.json": {
+            "scale": 0.33,
+            "selectedLayer": 4,
+            "viewCenter": {
+                "x": 390.9090909090909,
+                "y": -842.4242424242423
+            }
+        },
+        "level-13.json#valentine": {
+            "scaleInDock": 0.75
+        },
+        "level-14.json": {
+            "scale": 0.33,
+            "selectedLayer": 3,
+            "viewCenter": {
+                "x": 1636.3636363636363,
+                "y": -566.6666666666667
+            }
+        },
+        "level-14.json#valentine": {
+            "scaleInDock": 1
+        },
+        "level-2.json": {
+            "scale": 0.125,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 1264,
+                "y": -1056
+            }
+        },
+        "level-2.json#valentine": {
+            "scaleInDock": 0.75
+        },
+        "level-3.json": {
+            "scale": 1.5,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": -2550,
+                "y": -766
+            }
+        },
+        "level-3.json#valentine": {
+            "scaleInDock": 1
+        },
+        "level-4.json": {
+            "scale": 1,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 2129,
+                "y": -619
+            }
+        },
+        "level-4.json#valentine": {
+            "scaleInDock": 0.5
+        },
+        "level-5.json": {
+            "scale": 0.75,
+            "selectedLayer": 4,
+            "viewCenter": {
+                "x": -286.66666666666663,
+                "y": 69.33333333333337
+            }
+        },
+        "level-5.json#valentine": {
+            "scaleInDock": 1
+        },
+        "level-6.json": {
+            "scale": 0.10970458984374999,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 0,
+                "y": -255.23088906197836
+            }
+        },
+        "level-6.json#valentine": {
+            "scaleInDock": 1
+        },
+        "level-7.json": {
+            "scale": 0.75,
+            "selectedLayer": 4,
+            "viewCenter": {
+                "x": 146.66666666666669,
+                "y": -304
+            }
+        },
+        "level-7.json#valentine": {
+            "scaleInDock": 1
+        },
+        "level-8.json": {
+            "scale": 0.17552734374999998,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 1025.481250695449,
+                "y": -256.3703126738619
+            }
+        },
+        "level-8.json#valentine": {
+            "scaleInDock": 1
+        },
+        "level-9.json": {
+            "scale": 0.75,
+            "selectedLayer": 4,
+            "viewCenter": {
+                "x": 578.6666666666665,
+                "y": -353.33333333333326
+            }
+        },
+        "level-9.json#valentine": {
+            "scaleInDock": 1
+        }
+    },
+    "openFiles": [
+        "level-14.json"
+    ],
+    "project": "pixel-rescue.tiled-project",
+    "recentFiles": [
+        "level-14.json",
+        "level-6.json",
+        "level-7.json",
+        "level-12.json",
+        "level-13.json",
+        "level-11.json",
+        "level-10.json",
+        "level-9.json",
+        "level-8.json",
+        "level-5.json",
+        "level-4.json",
+        "level-3.json"
+    ]
+}

@@ -1,6 +1,6 @@
 import { Abilities } from "@/components/catbassadors/objects/Abilities";
 import { ICatAnimationKeysMap } from "@/components/catbassadors/objects/Catbassador";
-import { CatAbilityType } from "@/models/cats";
+import { CatAbilityType, Tier } from "@/models/cats";
 
 export interface IPlayer {
   sprite: Phaser.Physics.Arcade.Sprite;
@@ -50,4 +50,6 @@ export interface IPlayer {
   canDoubleJump: boolean;
   hasDoubleJumped: boolean;
   currentRotation: boolean;
+
+  tier: Tier;
 }

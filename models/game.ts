@@ -17,6 +17,7 @@ export enum GameType {
   SHELTER = "SHELTER",
   HOME = "HOME",
   CATNIP_CHAOS = "CATNIP_CHAOS",
+  PIXEL_RESCUE = "PIXEL_RESCUE",
 }
 
 export const endScenePeriod = 500;
