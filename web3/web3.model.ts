@@ -36,15 +36,6 @@ export interface IMysteryBox {
   };
 }
 
-export const chainTypeRpcUrl: Record<ChainType, string> = {
-  [ChainType.BNB]: "https://bsc-dataseed.binance.org",
-  [ChainType.STELLAR]: "https://mainnet.sorobanrpc.com",
-  [ChainType.SOLANA]: "https://api.mainnet-beta.solana.com",
-  [ChainType.TORUS]: "https://rpc-v2.toruschain.com",
-  [ChainType.SEI]: "https://evm-rpc.sei-apis.com",
-  [ChainType.MANTLE]: "https://rpc.mantle.xyz",
-};
-
 export enum MYSTERY_BOX_TYPE {
   CATNIP_CHAOS_1 = "CATNIP_CHAOS_1",
   CATNIP_CHAOS_2 = "CATNIP_CHAOS_2",

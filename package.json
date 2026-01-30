@@ -38,7 +38,10 @@
     "app:ios:ci": "npm run build:app && npm run app:sync",
     "app:ios:run": "npx cap run ios -l --external",
     "app:ios": "npm run app:ios:ci && npm run app:ios:open",
-    "app:assets": "capacitor-assets generate --iconBackgroundColor '#fc8b6d' --iconBackgroundColorDark '#fc8b6d' --splashBackgroundColor '#fc8b6d' --splashBackgroundColorDark '#fc8b6d' --logoSplashScale 0.4"
+    "app:assets": "capacitor-assets generate --iconBackgroundColor '#fc8b6d' --iconBackgroundColorDark '#fc8b6d' --splashBackgroundColor '#fc8b6d' --splashBackgroundColorDark '#fc8b6d' --logoSplashScale 0.4",
+    "test": "jest",
+    "coverage:check": "jest --coverage --passWithNoTests",
+    "coverage": "jest --coverage --coverageReporters=cobertura && mv coverage/cobertura-coverage.xml coverage.xml"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^7.0.0",
@@ -88,6 +91,10 @@
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^7.0.0",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
@@ -96,10 +103,14 @@
     "autoprefixer": "^10.0.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
+    "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.2.0",
     "postcss": "^8",
     "sass": "^1.69.7",
     "tailwindcss": "^3.3.0",
     "tailwindcss-convert-px-to-rem": "^1.0.4",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   },
   "overrides": {

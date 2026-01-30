@@ -12,6 +12,7 @@ export const useRates = () => {
     [CurrencyType.USDC]: 1,
     [CurrencyType.ODP]: 1,
     [CurrencyType.MNT]: 1,
+    [CurrencyType.ETH]: 1,
   });
   useEffect(() => {
     ORDER_API.currencyRates().then((rates) => setRates(rates));

@@ -64,8 +64,8 @@ const PackRaritySummary = ({ close }: { close: () => void }) => {
   ];
 
   return (
-    <div className="bg-gradient-to-b from-yellow-900/95 to-yellow-700/95 glow-box w-[95%] md:rem:w-[800px] max-w-none m-auto rounded-2xl p-4 pt-0 relative z-10 mb-8 animate-appear mt-8">
-      <div className="absolute top-0 md:-top-8 right-0 md:-right-8">
+    <div className="bg-gradient-to-b from-yellow-900/95 to-yellow-700/95 glow-box w-[95%] lg:rem:w-[800px] max-w-none m-auto rounded-2xl p-4 pt-0 relative z-10 mb-8 animate-appear mt-8">
+      <div className="absolute top-0 lg:-top-8 right-0 lg:-right-8">
         <CloseButton onClick={close} />
       </div>
 
@@ -83,7 +83,7 @@ const PackRaritySummary = ({ close }: { close: () => void }) => {
       </div>
 
       {/* Rarity Columns */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4 relative z-10 uppercase pt-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-x-12 lg:gap-x-4 mb-4 relative z-10 uppercase pt-8">
         {rarities.map((rarity) => (
           <div
             key={rarity.tier}
@@ -97,16 +97,16 @@ const PackRaritySummary = ({ close }: { close: () => void }) => {
               />
               <img
                 src={cdnFile(`cards/packs/teaser/${rarity.tier}.webp`)}
-                className="object-cover h-24 md:h-32"
+                className="object-cover h-24 lg:h-32"
               />
             </div>
 
             {/* Title */}
             <div
-              className={`relative z-10 px-2 ${rarity.bgColor} rounded-lg -mt-8 w-full md:w-fit`}
+              className={`relative z-10 px-2 ${rarity.bgColor} rounded-lg -mt-8 w-full lg:w-fit`}
             >
               <h3
-                className={`text-p5 md:text-p4 font-bold font-primary ${rarity.textColor} bg-clip-text text-transparent bg-gradient-to-r `}
+                className={`text-p5 lg:text-p4 font-bold font-primary ${rarity.textColor} bg-clip-text text-transparent bg-gradient-to-r `}
               >
                 {rarity.tier}: {rarity.quantity}
               </h3>
@@ -137,31 +137,31 @@ const PacksSelect = ({
   onSelect: (packType: PackType) => void;
 }) => {
   return (
-    <div className="flex lg:gap-24 justify-center flex-col md:flex-row gap-16 md:gap-0 overflow-hidden md:overflow-visible animate-appear">
+    <div className="flex justify-center flex-col md:flex-row gap-16 md:gap-0 overflow-hidden lg:overflow-visible animate-appear">
       <div
-        className="flex flex-col items-center relative z-10 justify-center md:-rotate-6 hover:rotate-0 transition-all duration-500 group md:hover:mr-8 md:scale-75 hover:scale-100"
+        className="flex flex-col items-center relative z-10 justify-center lg:-rotate-6 hover:rotate-0 transition-all duration-500 group lg:hover:mr-8 md:scale-75 hover:scale-100"
         onClick={() => onSelect(PackType.STARTER)}
       >
         <img
           src={cdnFile(`tail/mascot-matters.webp`)}
-          className="w-36 mt-48 z-[10] absolute top-0 mr-16 md:group-hover:-mt-48 transition-all duration-500 hidden md:block"
+          className="w-36 mt-48 z-[10] absolute top-0 mr-16 lg:group-hover:-mt-48 transition-all duration-500 hidden lg:block"
         />
         <div className="font-primary text-h5 glow mb-2 text-yellow-50">
           STARTER
         </div>
         <img
           src={packImages[PackType.STARTER]}
-          className="h-72 md:h-96 w-auto z-10 relative md:group-hover:-mt-12 transition-all duration-500 md:group-hover:scale-125 max-w-none"
+          className="h-72 lg:h-96 w-auto z-10 relative lg:group-hover:-mt-12 transition-all duration-500 lg:group-hover:scale-125 max-w-none"
         />
-        <div className="-mt-8 relative z-30 md:group-hover:z-10 md:group-hover:opacity-0 transition-all duration-500">
+        <div className="-mt-8 relative z-30 lg:group-hover:z-10 lg:group-hover:opacity-0 transition-all duration-500">
           <Tag>BEST FOR NEWCOMERS</Tag>
         </div>
-        <div className="mt-2 md:mt-4 md:group-hover:opacity-0 transition-all duration-500">
+        <div className="mt-2 lg:mt-4 lg:group-hover:opacity-0 transition-all duration-500">
           <PixelButton text="$5" />
         </div>
       </div>
       <div
-        className="flex flex-col items-center justify-center relative md:scale-110 group -mt-4"
+        className="flex flex-col items-center justify-center relative md:scale-[0.9] lg:scale-110 group -mt-4"
         onClick={() => onSelect(PackType.INFLUENCER)}
       >
         <div className="font-primary text-h5 glow mb-2 text-pink-100 animate-colormax">
@@ -169,32 +169,32 @@ const PacksSelect = ({
         </div>
         <img
           src={packImages[PackType.INFLUENCER]}
-          className="h-72 md:h-96 w-auto z-20 relative mb-0 md:group-hover:-mt-12 animate-colormax transition-all duration-500 md:group-hover:scale-125 max-w-none"
+          className="h-72 lg:h-96 w-auto z-20 relative mb-0 lg:group-hover:-mt-12 animate-colormax transition-all duration-500 lg:group-hover:scale-125 max-w-none"
         />
         <img
           src={cdnFile(`cards/packs/most-popular.webp`)}
-          className="w-16 md:w-24 absolute top-12 z-40 right-20 md:-right-8 md:group-hover:opacity-0 transition-all duration-500 md:group-hover:z-0"
+          className="w-16 lg:w-24 absolute top-12 z-40 right-20 lg:-right-8 lg:group-hover:opacity-0 transition-all duration-500 lg:group-hover:z-0"
         />
         <img
           src={cdnFile(`cards/packs/influencer-bg.webp`)}
           className="rem:w-[500px] min-w-0 max-w-none absolute z-0 animate-pulseWeak"
         />
-        <div className="-mt-10 relative z-30 md:group-hover:z-10 md:group-hover:opacity-0 transition-all duration-500">
+        <div className="-mt-10 relative z-30 lg:group-hover:z-10 lg:group-hover:opacity-0 transition-all duration-500">
           <Tag isSmall>MOST POPULAR</Tag>
         </div>
-        <div className="mt-6 md:mt-5 md:group-hover:opacity-0 transition-all duration-500 glow-box">
+        <div className="mt-6 lg:mt-5 lg:group-hover:opacity-0 transition-all duration-500 glow-box">
           <PixelButton text="$25" />
         </div>
       </div>
       <div
-        className="flex flex-col items-center justify-center md:rotate-6 hover:rotate-0 transition-all duration-500 group md:hover:ml-8 md:scale-75 hover:scale-100"
+        className="flex flex-col items-center justify-center lg:rotate-6 hover:rotate-0 transition-all duration-500 group lg:hover:ml-8 md:scale-75 hover:scale-100"
         onClick={() => onSelect(PackType.LEGENDARY)}
       >
         <img
           src={cdnFile("tail/mascot-card.webp")}
-          className="w-40 mt-48 z-[10] absolute top-0 ml-8 md:group-hover:-mt-44 transition-all duration-500 hidden md:block"
+          className="w-40 mt-48 z-[10] absolute top-0 ml-8 lg:group-hover:-mt-44 transition-all duration-500 hidden lg:block"
         />
-        <div className="-mt-8 md:group-hover:opacity-0 transition-all duration-500 relative z-20">
+        <div className="-mt-8 lg:group-hover:opacity-0 transition-all duration-500 relative z-20">
           <Countdown isDaysDisplayed targetDate={endDate} />
         </div>
         <div className="font-primary text-h5 glow mb-2 text-yellow-200">
@@ -202,12 +202,12 @@ const PacksSelect = ({
         </div>
         <img
           src={packImages[PackType.LEGENDARY]}
-          className="h-72 md:h-96 w-auto z-10 relative  md:group-hover:-mt-12 transition-all duration-500 md:group-hover:scale-125 max-w-none"
+          className="h-72 lg:h-96 w-auto z-10 relative  lg:group-hover:-mt-12 transition-all duration-500 lg:group-hover:scale-125 max-w-none"
         />
-        <div className="-mt-8 relative z-30 md:group-hover:z-10 md:group-hover:opacity-0 transition-all duration-500">
+        <div className="-mt-8 relative z-30 lg:group-hover:z-10 lg:group-hover:opacity-0 transition-all duration-500">
           <Tag>TIME LIMITED CHANCE</Tag>
         </div>
-        <div className="mt-2 md:mt-4 md:group-hover:opacity-0 transition-all duration-500">
+        <div className="mt-2 lg:mt-4 lg:group-hover:opacity-0 transition-all duration-500">
           <PixelButton text="$350" />
         </div>
       </div>
@@ -237,7 +237,7 @@ export const PacksModalContent = ({ close }: { close?: () => void }) => {
 
   return (
     <div className="pb-24 relative z-10">
-      <div className="flex flex-col items-center relative mb-6 md:mb-12 mt-4">
+      <div className="flex flex-col items-center relative mb-6 lg:mb-12 mt-4">
         <img
           src={cdnFile("logo/logo-pure-text.webp")}
           className="w-96 relative z-20"
@@ -264,7 +264,7 @@ bg-clip-text text-transparent -mt-4 relative z-30"
         <>
           <PacksSelect onSelect={(packType) => setPackType(packType)} />
           {!showRaritySummary ? (
-            <div className="flex justify-center mt-8">
+            <div className="flex justify-center mt-8 md:mt-0 lg:mt-8">
               <PixelButton
                 isSmall
                 text="PACKS RARITY SUMMARY"

@@ -151,7 +151,7 @@ export const CatnipChaosLevels = ({
         </div>
       </div>
 
-      {profile?.catnipChaos?.length && profile?.catnipChaos?.length >= 6 && (
+      {!!profile?.catnipChaos?.length && profile?.catnipChaos?.length >= 6 && (
         <span className="mb-2">
           <Tag>YOUR DISCOUNT CODE: SEI</Tag>
         </span>

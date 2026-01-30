@@ -1,4 +1,4 @@
-import { bsc, mantle, sei } from "@reown/appkit/networks";
+import { bsc, mantle, sei, mainnet, base } from "@reown/appkit/networks";
 import { defineChain } from "viem";
 import { ChainType } from "./contracts";
 
@@ -25,7 +25,7 @@ export const torus = defineChain({
 });
 
 // Create wagmiConfig
-export const networks = [bsc, sei, torus];
+export const networks = [bsc, sei, torus, mainnet, base, mantle];
 
 export const chainTypeId: Record<ChainType, number> = {
   [ChainType.BNB]: bsc.id,
@@ -34,6 +34,8 @@ export const chainTypeId: Record<ChainType, number> = {
   [ChainType.STELLAR]: 0,
   [ChainType.SOLANA]: 0,
   [ChainType.TORUS]: torus.id,
+  [ChainType.ETH]: mainnet.id,
+  [ChainType.BASE]: base.id,
 };
 
 export const idChainType: Record<number, ChainType> = {
@@ -41,5 +43,7 @@ export const idChainType: Record<number, ChainType> = {
   [sei.id]: ChainType.SEI,
   [mantle.id]: ChainType.MANTLE,
   [torus.id]: ChainType.TORUS,
+  [mainnet.id]: ChainType.ETH,
+  [base.id]: ChainType.BASE,
   [0]: ChainType.STELLAR,
 };

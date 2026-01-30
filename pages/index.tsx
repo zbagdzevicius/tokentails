@@ -105,7 +105,7 @@ export default function newPage() {
             src={cdnFile("landing/card-bg.webp")}
             className="w-full h-full object-cover pixelated inset-0 absolute"
           />
-          <div className="absolute inset-0 flex justify-center items-center gap-8">
+          <div className="absolute inset-0 flex justify-center items-center gap-8 md:scale-[0.65] lg:scale-100">
             <TailsCard />
           </div>
           <div className="absolute bottom-8 md:bottom-12 lg:bottom-16 left-1/2 -translate-x-1/2 z-40 mb-safe">

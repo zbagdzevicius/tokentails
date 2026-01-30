@@ -276,10 +276,17 @@ export const useWeb3Transfer = ({
     try {
       await syncChain();
 
-      if (![CurrencyType.BNB, CurrencyType.SEI].includes(currencyType)) {
+      if (
+        ![
+          CurrencyType.BNB,
+          CurrencyType.SEI,
+          CurrencyType.ETH,
+          CurrencyType.MNT,
+        ].includes(currencyType)
+      ) {
         await writeContractAsync({
           abi: erc20Abi,
-          address: currencyContracts[idChainType[chainId!]][currencyType]!,
+          address: currencyContracts[chainType][currencyType]!,
           functionName: "transfer",
           args: [recipientEvm, amountHex],
         });
