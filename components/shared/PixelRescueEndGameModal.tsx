@@ -66,7 +66,7 @@ export const PixelRescueEndGameModal: React.FC<EndGameProps> = ({
           <Tag>{level ? getGameLevelName(level) : "Match"} Summary</Tag>
           <div className="flex justify-center items-center text-md text-yellow-900 mt-4">
             <img
-              src={cdnFile("pixel-rescue/items/heart.png")}
+              src={cdnFile("pixel-rescue/items/heart.webp")}
               alt="Score Icon"
               className="w-6 h-6 mr-2"
               draggable="false"

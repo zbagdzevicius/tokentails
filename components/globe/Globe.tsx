@@ -1,6 +1,6 @@
 import * as d3 from "d3";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-
+import { cdnFile } from "../../constants/utils";
 import * as topojson from "topojson-client";
 
 export interface CountryData {
@@ -62,7 +62,7 @@ export const PixelGlobe = () => {
         // @ts-ignore - topojson typings are tricky in single file
         const featureCollection = topojson.feature(
           worldData,
-          worldData.objects.countries
+          worldData.objects.countries,
         );
         setCountries((featureCollection as any).features);
       });
@@ -82,7 +82,7 @@ export const PixelGlobe = () => {
       {
         threshold: 0.1, // Trigger when at least 10% is visible
         rootMargin: "50px", // Start rendering slightly before it comes into view
-      }
+      },
     );
 
     observer.observe(container);
@@ -219,7 +219,7 @@ export const PixelGlobe = () => {
     const drawNeonGlow = (
       drawPath: () => void,
       glowColor: string,
-      baseLineWidth: number = 2
+      baseLineWidth: number = 2,
     ) => {
       const { r, g, b } = parseColor(glowColor);
 
@@ -254,7 +254,7 @@ export const PixelGlobe = () => {
         GLOBE_RADIUS * 0.3,
         RENDER_SIZE / 2,
         RENDER_SIZE / 2,
-        GLOBE_RADIUS
+        GLOBE_RADIUS,
       );
       grd.addColorStop(0, "rgba(252, 236, 187, 0.3)");
       grd.addColorStop(0.5, "rgba(252, 236, 187, 0.15)");
@@ -300,7 +300,7 @@ export const PixelGlobe = () => {
       drawNeonGlow(
         () => path({ type: "Sphere" } as any),
         "#FCECBB", // Yellow neon
-        6
+        6,
       );
     };
 
@@ -320,7 +320,7 @@ export const PixelGlobe = () => {
           const newLambda = curr[0] + event.dx * sensitivity;
           const newPhi = Math.max(
             -90,
-            Math.min(90, curr[1] + event.dy * sensitivity)
+            Math.min(90, curr[1] + event.dy * sensitivity),
           );
           return [newLambda, newPhi];
         });
@@ -343,7 +343,7 @@ export const PixelGlobe = () => {
     const invert = projection.invert?.([x, y]);
     if (invert) {
       const found = countriesWithCentroids.find((country) =>
-        d3.geoContains(country as any, invert)
+        d3.geoContains(country as any, invert),
       );
       setHoveredCountry(found ? found.properties.name : null);
     } else {
@@ -358,7 +358,7 @@ export const PixelGlobe = () => {
     >
       <div className="absolute -top-[128px] md:-top-[112px]">
         <img
-          src="/tail/cat-promo.webp"
+          src={cdnFile("tail/cat-promo.webp")}
           className="w-[144px]"
           draggable={false}
         />

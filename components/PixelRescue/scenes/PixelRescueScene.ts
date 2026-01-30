@@ -108,7 +108,6 @@ export class PixelRescueScene extends Scene {
       "tilemap",
       cdnFile(`pixel-rescue/levels/level-${this.currentLevel}.json`),
     );
-    console.log(this.props.level, "game props");
     this.load.image(
       "valentine",
       cdnFile(PixelRescueLevelMap[this.currentLevel]),
@@ -132,7 +131,7 @@ export class PixelRescueScene extends Scene {
 
     this.load.spritesheet(
       "exit-portal",
-      cdnFile("pixel-rescue/items/exit-portal.png"),
+      cdnFile("pixel-rescue/items/exit-portal.webp"),
       {
         frameWidth: 90,
         frameHeight: 91,
@@ -142,12 +141,12 @@ export class PixelRescueScene extends Scene {
       frameWidth: 32,
       frameHeight: 32,
     });
-    this.load.spritesheet("hearts", cdnFile("pixel-rescue/items/hearts.png"), {
+    this.load.spritesheet("hearts", cdnFile("pixel-rescue/items/hearts.webp"), {
       frameWidth: 48,
       frameHeight: 48,
     });
 
-    this.load.image("crate", cdnFile("pixel-rescue/items/rusty-crate.png"));
+    this.load.image("crate", cdnFile("pixel-rescue/items/rusty-crate.webp"));
     this.load.spritesheet(
       "knockback-spell",
       cdnFile("abilities/knockback-spell/FIRE.png"),
@@ -176,7 +175,7 @@ export class PixelRescueScene extends Scene {
 
     this.load.spritesheet(
       "enemy-blocker",
-      cdnFile("pixel-rescue/enemies/blocker.png"),
+      cdnFile("pixel-rescue/enemies/blocker.webp"),
       {
         frameWidth: 96,
         frameHeight: 96,
@@ -184,7 +183,7 @@ export class PixelRescueScene extends Scene {
     );
     this.load.spritesheet(
       "enemy-runner",
-      cdnFile("pixel-rescue/enemies/runner.png"),
+      cdnFile("pixel-rescue/enemies/runner.webp"),
       {
         frameWidth: 96,
         frameHeight: 96,
@@ -192,11 +191,11 @@ export class PixelRescueScene extends Scene {
     );
     this.load.image(
       "hearth-coin",
-      cdnFile("pixel-rescue/items/hearth-coin.png"),
+      cdnFile("pixel-rescue/items/hearth-coin.webp"),
     );
     this.load.image(
       "hearth-shield",
-      cdnFile("pixel-rescue/items/hearth-shield.png"),
+      cdnFile("pixel-rescue/items/hearth-shield.webp"),
     );
     this.load.spritesheet(
       "jumping-effect",
@@ -222,12 +221,12 @@ export class PixelRescueScene extends Scene {
       frameHeight: 9,
     });
 
-    this.load.spritesheet("shield", cdnFile("pixel-rescue/items/shield.png"), {
+    this.load.spritesheet("shield", cdnFile("pixel-rescue/items/shield.webp"), {
       frameWidth: 48,
       frameHeight: 48,
     });
 
-    this.load.image("particle", cdnFile("pixel-rescue/items/particle2.png"));
+    this.load.image("particle", cdnFile("pixel-rescue/items/particle2.webp"));
   }
 
   init(props: IPixelRescueProps) {
@@ -324,7 +323,7 @@ export class PixelRescueScene extends Scene {
 
     this.createForestAtmosphere();
 
-    this.tutorialManager = new TutorialManager(this);
+    this.tutorialManager = new TutorialManager(this, this.currentLevel);
 
     this.startCountdown();
   }
@@ -773,7 +772,7 @@ export class PixelRescueScene extends Scene {
         this.timerEvent = undefined;
       }
 
-      TutorialManager.resetTutorial();
+      TutorialManager.resetTutorial(this.currentLevel);
       this.scene.restart(data);
       return;
     }

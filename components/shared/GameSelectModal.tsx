@@ -41,14 +41,14 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
         className="relative scale-90 md:scale-100 z-100 h-[30rem] flex items-center justify-center"
         onClick={(e) => e.stopPropagation()}
         style={{
-          backgroundImage: `url(${cdnFile("catnip-chaos/modal.png")})`,
+          backgroundImage: `url(${cdnFile("catnip-chaos/modal.webp")})`,
           backgroundSize: "contain",
           backgroundRepeat: "no-repeat",
           backgroundPosition: "center",
         }}
       >
         <img
-          src={cdnFile("catnip-chaos/banner.png")}
+          src={cdnFile("catnip-chaos/banner.webp")}
           alt="Modal"
           className="absolute top-5 md:-top-5 left-0 w-full h-28 md:h-32  object-contain"
         />
@@ -56,7 +56,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
           <div className="flex flex-col items-center ">
             <div className="w-36 h-36 md:w-52 md:h-52 flex flex-col items-center justify-center">
               <img
-                src="utilities/game-modal/pixel-rescue.webp"
+                src={cdnFile("utilities/game-modal/pixel-rescue.webp")}
                 alt="Pixel Rescue"
                 className="max-w-full max-h-full object-contain"
               />
@@ -76,7 +76,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
           <div className="flex flex-col items-center  ">
             <div className="w-36 h-36 md:w-52 md:h-52 flex flex-col items-center justify-center">
               <img
-                src="utilities/game-modal/catnip-chaos.webp"
+                src={cdnFile("utilities/game-modal/catnip-chaos.webp")}
                 alt="Catnip Chaos"
                 className="max-w-full max-h-full object-contain"
               />

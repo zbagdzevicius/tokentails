@@ -85,7 +85,7 @@ export const PixelButton = ({
          }`}
     >
       <img
-        src="/landing/button-bg.webp"
+        src={cdnFile("landing/button-bg.webp")}
         className="absolute inset-0 h-full w-full object-cover mix-blend-darken brightness-125 rounded-xl animate-pulseWeak"
       />
       <div className="h-8 w-1 bg-yellow-900"></div>

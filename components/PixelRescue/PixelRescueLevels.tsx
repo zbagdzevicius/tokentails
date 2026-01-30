@@ -63,7 +63,7 @@ export const PixelRescueLevels = ({
   //TODO REMOVE mopckEventData
   const mockEventData = {
     event: {
-      number: [3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      number: [3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0],
       eventScore: 12,
     },
   };
@@ -81,7 +81,7 @@ export const PixelRescueLevels = ({
         message: `💝 This level unlocks on February ${
           index + 1
         }! (${daysUntil} day${daysUntil !== 1 ? "s" : ""} to go)`,
-        img: cdnFile("purrquest/sprites/key.png"),
+        img: cdnFile("purrquest/sprites/key.webp"),
       });
       return;
     }
@@ -104,7 +104,7 @@ export const PixelRescueLevels = ({
             <img
               draggable={false}
               className="w-4 h-4"
-              src={cdnFile("pixel-rescue/items/heart.png")}
+              src={cdnFile("pixel-rescue/items/heart.webp")}
             />
             <div>HEARTS</div>
           </div>
@@ -136,11 +136,11 @@ export const PixelRescueLevels = ({
         }}
       >
         <img
-          src="/pixel-rescue/images/banner.png"
+          src={cdnFile("pixel-rescue/images/banner.webp")}
           className="absolute  -top-8 md:-top-20 left-0 right-0 w-[80%] h-auto mx-auto"
         />
         <img
-          src="/pixel-rescue/images/cuppid.png"
+          src={cdnFile("pixel-rescue/images/cuppid.webp")}
           className="absolute -top-16 md:-top-22 -right-8 w-32 md:w-36 h-auto"
         />
         {pixelRescueLevelsList.map((level, i) => {
@@ -151,17 +151,16 @@ export const PixelRescueLevels = ({
           const isCleared = (eventData?.number?.[i] || 0) > 0;
           const heartsRequired = getHeartsForLevel(i);
 
-          let imageSrc = `/pixel-rescue/images/day-${i + 1}.png`;
+          let imageSrc = `pixel-rescue/images/day-${i + 1}.webp`;
           if (isCleared) {
-            imageSrc = `/pixel-rescue/images/cleared.png`;
+            imageSrc = `pixel-rescue/images/cleared.webp`;
           } else if (isFullyUnlocked) {
-            imageSrc = `/pixel-rescue/images/unlocked.png`;
+            imageSrc = `pixel-rescue/images/unlocked.webp`;
           }
 
           return (
-            <div className="flex flex-col items-center">
+            <div key={i} className="flex flex-col items-center">
               <div
-                key={i}
                 onClick={() => selectLevel(level, i)}
                 style={{
                   gridColumn: i === 12 ? 2 : i === 13 ? 3 : "auto",
@@ -169,7 +168,7 @@ export const PixelRescueLevels = ({
                 className="hover:brightness-110 clickable relative hover:scale-110 transition-all flex flex-col items-center justify-center  w-20 h-20 md:w-32 md:h-32 "
               >
                 <img
-                  src={imageSrc}
+                  src={cdnFile(imageSrc)}
                   alt={`Day ${i + 1}`}
                   className="absolute inset-0 w-full h-full object-contain rounded-lg"
                 />
@@ -177,7 +176,7 @@ export const PixelRescueLevels = ({
                 {isCleared && (
                   <div className="absolute -top-1 -left-2 md-top-2 md:-left-4 z-20 flex items-center justify-center w-10 h-10 md:w-16   md:h-16">
                     <img
-                      src={cdnFile("pixel-rescue/images/heart.png")}
+                      src={cdnFile("pixel-rescue/images/heart.webp")}
                       className="w-full h-full object-contain"
                       alt="Heart"
                     />
@@ -197,7 +196,7 @@ export const PixelRescueLevels = ({
 
                 {isFullyUnlocked && !isCleared && (
                   <img
-                    src={cdnFile("pixel-rescue/images/gift.png")}
+                    src={cdnFile("pixel-rescue/images/gift.webp")}
                     alt="Gift"
                     className="absolute -bottom-0 -right-2 w-8 h-8 md:w-10 md:h-10 z-20 pixelated"
                     draggable={false}
@@ -206,7 +205,7 @@ export const PixelRescueLevels = ({
 
                 <span className="font-primary text-p6 flex items-center pl-1 pr-1 bg-yellow-300/50">
                   <img
-                    src={cdnFile("pixel-rescue/items/hearth-coin.png")}
+                    src={cdnFile("pixel-rescue/items/hearth-coin.webp")}
                     className="w-5 h-5 mr-1"
                   />
                   <span>{profile?.event?.number?.[i + 1] || 0}</span>

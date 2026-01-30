@@ -71,7 +71,7 @@ export const CardBack: React.FC<CardBackProps> = React.memo(
             >
               <img
                 draggable={false}
-                src="/cards/icons/power.webp"
+                src={cdnFile("cards/icons/power.webp")}
                 alt="power"
                 className="object-contain rem:w-[22px] rem:h-[22px]"
               />
@@ -80,5 +80,5 @@ export const CardBack: React.FC<CardBackProps> = React.memo(
         </div>
       </div>
     );
-  }
+  },
 );
