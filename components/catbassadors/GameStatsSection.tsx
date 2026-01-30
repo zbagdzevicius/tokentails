@@ -69,7 +69,7 @@ export const GameStatsSection = ({
           </div>
         </div>
       </div>
-      <div className="fixed left-4 pb-safe top-4 z-30 flex flex-col justify-between">
+      <div className="fixed left-4 pb-safe top-4 z-20 flex flex-col justify-between">
         <div
           onClick={() => setOpenedModal(GameModal.PROFILE)}
           className="flex hover:brightness-110 flex-col w-20 relative items-center font-primary rounded-xl px-1 py-1 whitespace-pre-line border-4 border-yellow-900"

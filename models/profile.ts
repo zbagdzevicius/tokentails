@@ -40,4 +40,8 @@ export interface IProfile {
   monthReferrals: number;
   monthTicketCount: number;
   monthTailsCrafted: number;
+  event: {
+    number: number[];
+    eventScore: number;
+  };
 }

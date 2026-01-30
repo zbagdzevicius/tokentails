@@ -22,8 +22,6 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
     setFlipped((prev) => !prev);
   }, []);
 
-  console.log(cat.tier);
-
   return (
     <>
       <div

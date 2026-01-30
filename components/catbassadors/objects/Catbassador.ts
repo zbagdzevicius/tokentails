@@ -3,9 +3,9 @@ import { IPlayer } from "@/components/Phaser/PlayerMovement/IPlayer";
 import { PlayerMovement } from "@/components/Phaser/PlayerMovement/PlayerMovement";
 import { catWalkSpeed } from "@/models/game";
 import { Abilities } from "./Abilities";
-import { CatAbilityType } from "@/models/cats";
+import { CatAbilityType, Tier } from "@/models/cats";
 import { NPCJob, NPCJobType } from "../../base/objects/Cat";
-import { log } from "console";
+
 /**
  * Physics objects that could be colliders
  */
@@ -62,12 +62,12 @@ type ICatAnimationKey = `${string}_${PlayerAnimation}`;
 export type ICatAnimationKeysMap = Record<PlayerAnimation, ICatAnimationKey>;
 
 function generateCatAnimationConfiguration(
-  catName: string
+  catName: string,
 ): ICatAnimationKeysMap {
   const map = {} as ICatAnimationKeysMap;
   Object.keys(PlayerAnimation).map(
     (key) =>
-      (map[key as PlayerAnimation] = `${catName}_${key as PlayerAnimation}`)
+      (map[key as PlayerAnimation] = `${catName}_${key as PlayerAnimation}`),
   );
   return map;
 }
@@ -75,7 +75,7 @@ function generateCatAnimationConfiguration(
 export class Cat implements IPlayer {
   scene: Scene;
   sprite: Physics.Arcade.Sprite;
-  blessing: Phaser.GameObjects.Sprite;
+  blessing?: Phaser.GameObjects.Sprite | null;
   isJumping: boolean = false;
   isMobileJumping: boolean = false;
   isMobileLeft: boolean = false;
@@ -104,6 +104,10 @@ export class Cat implements IPlayer {
   isOnSlidingTile: boolean = false;
   isOnIcyTile: boolean = false;
   currentRotation: boolean = false;
+
+  tier: Tier;
+  maxHealth: number = 1;
+  currentHealth: number = 1;
 
   private collectiveItem: Phaser.Physics.Arcade.Sprite | null = null;
   collectedItem: Phaser.Physics.Arcade.Sprite | null = null;
@@ -144,14 +148,16 @@ export class Cat implements IPlayer {
     x: number,
     y: number,
     catName: string,
-    blessing: Phaser.GameObjects.Sprite,
+    blessing: Phaser.GameObjects.Sprite | null | undefined,
     type: CatAbilityType,
-    enableControls: boolean = true
+    enableControls: boolean = true,
+    tier: Tier,
   ) {
     this.scene = scene;
     this.type = type;
     this.catName = catName;
     this.blessing = blessing;
+    this.tier = tier;
     this.animationKeys = generateCatAnimationConfiguration(catName);
     this.sprite = this.scene.physics.add
       .sprite(x, y, this.catName)
@@ -245,7 +251,7 @@ export class Cat implements IPlayer {
       const offsetX = this.sprite.flipX ? 20 : -20;
       this.collectedItem.setPosition(
         this.sprite.x + offsetX,
-        this.sprite.y - 20
+        this.sprite.y - 20,
       );
       this.collectedItem.setDepth(11);
       this.collectedItem.setVisible(true);
@@ -336,7 +342,7 @@ export class Cat implements IPlayer {
       }
       this.sprite.anims.play(
         this.animationKeys[PlayerAnimation.GROOMING],
-        true
+        true,
       );
     } else if (this.job?.type === NPCJobType.SLEEP) {
       this.sprite.setVelocityX(0);
@@ -406,6 +412,11 @@ export class Cat implements IPlayer {
   enableDoubleJump() {
     this.canDoubleJump = true;
     this.hasDoubleJumped = false;
+  }
+
+  hit(): boolean {
+    this.currentHealth--;
+    return this.currentHealth <= 0;
   }
 
   setCurrentRotation(reversed: boolean) {

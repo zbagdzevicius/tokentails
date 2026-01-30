@@ -77,8 +77,8 @@ export class RotatingMorgensternTrapManager {
     this.speed = -this.speed;
   }
 
-  update(): void {
-    this.angle += this.speed;
+  update(time: number, delta: number): void {
+    this.angle += this.speed * (delta / 16.66);
 
     const x = this.centerX + this.radius * Math.cos(this.angle);
     const y = this.centerY + this.radius * Math.sin(this.angle);

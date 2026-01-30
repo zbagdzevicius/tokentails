@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useBackground } from "../../constants/hooks";
 import Snowfall from "../shared/Snowfall";
+import PixelRescue from "../PixelRescue/PixelRescue";
 const Base = dynamic(() => import("@/components/base/Base"), { ssr: false });
 const Adopt = dynamic(() => import("@/components/shelter/Shelter"), {
   ssr: false,
@@ -37,6 +38,7 @@ export const Game = () => {
       {gameType === GameType.HOME && profile && <Base />}
       {gameType === GameType.SHELTER && profile && <Adopt />}
       {gameType === GameType.CATNIP_CHAOS && profile && <CatnipChaos />}
+      {gameType === GameType.PIXEL_RESCUE && profile && <PixelRescue />}
       <style jsx>{`
         .intro-pinwheel {
           position: fixed;

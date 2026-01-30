@@ -7,10 +7,9 @@ import {
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { cdnFile, isMobile } from "@/constants/utils";
-import { CatAbilityType, ICat } from "@/models/cats";
+import { CatAbilityType, ICat, Tier } from "@/models/cats";
 import { Scene } from "phaser";
 import { Cat } from "../../catbassadors/objects/Catbassador";
-
 import { Food } from "@/components/base/objects/Food";
 
 import { CatnipChaosLevelMap } from "@/components/Phaser/map";
@@ -98,12 +97,12 @@ export class CatnipChaosScene extends Scene {
       {
         frameWidth: 50,
         frameHeight: 50,
-      }
+      },
     );
 
     this.load.tilemapTiledJSON(
       "tilemap",
-      cdnFile(`catnip-chaos/levels/level-${this.currentLevel}.json`)
+      cdnFile(`catnip-chaos/levels/level-${this.currentLevel}.json`),
     );
     this.load.image("blocks", cdnFile(CatnipChaosLevelMap[this.currentLevel]));
     this.load.audio("powerup", cdnFile("purrquest/sounds/powerup.mp3"));
@@ -131,7 +130,7 @@ export class CatnipChaosScene extends Scene {
       {
         frameWidth: 16,
         frameHeight: 16,
-      }
+      },
     );
     this.load.spritesheet(
       "flight-off",
@@ -139,11 +138,11 @@ export class CatnipChaosScene extends Scene {
       {
         frameWidth: 16,
         frameHeight: 16,
-      }
+      },
     );
     this.load.image(
       "floating-platform",
-      cdnFile("story/floating-platform.png")
+      cdnFile("story/floating-platform.png"),
     );
     this.load.spritesheet("jump", cdnFile("jumper/jump.png"), {
       frameWidth: 96,
@@ -178,7 +177,7 @@ export class CatnipChaosScene extends Scene {
       {
         frameWidth: 32,
         frameHeight: 32,
-      }
+      },
     );
     this.load.spritesheet(
       "knockback-spell",
@@ -186,7 +185,7 @@ export class CatnipChaosScene extends Scene {
       {
         frameWidth: 64,
         frameHeight: 64,
-      }
+      },
     );
     this.load.image("speedPowerUp", cdnFile("buff/SPEED.png"));
     if (this.props?.ghostImage) {
@@ -254,7 +253,7 @@ export class CatnipChaosScene extends Scene {
       32,
       32,
       1,
-      2
+      2,
     )!;
 
     this.groundLayer = this.tilemap.createLayer("blocks", [sugarTileset])!;
@@ -274,7 +273,7 @@ export class CatnipChaosScene extends Scene {
     this.trampoline = new Trampoline(
       this,
       this.jumperLayer as Phaser.Tilemaps.TilemapLayer,
-      TRAMPOLINE_TILES
+      TRAMPOLINE_TILES,
     );
 
     this.groundLayer.setCollisionByExclusion([-1, ...SPIKE_TILES]);
@@ -290,7 +289,7 @@ export class CatnipChaosScene extends Scene {
           return playerSprite.body!.velocity.y <= 0;
         }
       },
-      this
+      this,
     );
 
     this.createFloatingPlatforms();
@@ -339,7 +338,7 @@ export class CatnipChaosScene extends Scene {
         const effectSprite = this.add.sprite(
           worldX + 16,
           worldY - 4,
-          "jumping-effect"
+          "jumping-effect",
         );
         effectSprite.setDisplaySize(64, 64);
         effectSprite.play("jumping-effect-anim");
@@ -411,7 +410,7 @@ export class CatnipChaosScene extends Scene {
         playerX,
         playerY,
         coin.x,
-        coin.y
+        coin.y,
       );
       if (distance < 32) {
         const coinX = coin.x;
@@ -442,9 +441,10 @@ export class CatnipChaosScene extends Scene {
   private createCat(
     catName: string,
     blessing: Phaser.GameObjects.Sprite | null,
-    type: CatAbilityType
+    type: CatAbilityType,
+    tier: Tier,
   ) {
-    this.cat = new Cat(this, -950, -900, catName, blessing!, type, true);
+    this.cat = new Cat(this, -950, -900, catName, blessing!, type, true, tier);
 
     this.cat.sprite.setRotation(0);
     this.setupCatCollisions();
@@ -456,7 +456,7 @@ export class CatnipChaosScene extends Scene {
         this.catSpirit = this.add.sprite(
           this.cat.sprite.x - 96,
           this.cat.sprite.y,
-          "cat-spirit"
+          "cat-spirit",
         );
         this.catSpirit.setAlpha(0.8);
         this.catSpirit.setDepth(this.cat.sprite.depth - 2);
@@ -465,7 +465,7 @@ export class CatnipChaosScene extends Scene {
         this.ghostCloudSprite = this.add.sprite(
           this.catSpirit.x,
           this.catSpirit.y,
-          "cloud"
+          "cloud",
         );
         this.ghostCloudSprite.setDisplaySize(72, 51);
         this.ghostCloudSprite.setDepth(this.catSpirit.depth - 1);
@@ -497,7 +497,7 @@ export class CatnipChaosScene extends Scene {
 
       const tile = this.physicsLayer.getTileAtWorldXY(
         this.cat!.sprite.x,
-        this.cat!.sprite.y
+        this.cat!.sprite.y,
       );
       if (tile && (tile.index === 162 || tile.index === 192)) {
         this.cat!.setSitting(true);
@@ -554,7 +554,7 @@ export class CatnipChaosScene extends Scene {
 
         if (this.cat.movement) {
           this.cat.movement.flightXSpeed = -Math.abs(
-            this.cat.movement.flightXSpeed
+            this.cat.movement.flightXSpeed,
           );
         }
 
@@ -565,7 +565,7 @@ export class CatnipChaosScene extends Scene {
 
         if (this.cat.movement) {
           this.cat.movement.flightXSpeed = Math.abs(
-            this.cat.movement.flightXSpeed
+            this.cat.movement.flightXSpeed,
           );
         }
 
@@ -614,7 +614,7 @@ export class CatnipChaosScene extends Scene {
     const currentDistance = playerX - startX;
     const progress = Math.min(
       100,
-      Math.max(0, (currentDistance / totalDistance) * 100)
+      Math.max(0, (currentDistance / totalDistance) * 100),
     );
 
     GameEvents.GAME_PROGRESS_UPDATE.push({ progress });
@@ -636,7 +636,7 @@ export class CatnipChaosScene extends Scene {
         if (
           Phaser.Geom.Intersects.RectangleToRectangle(
             this.cat!.sprite.getBounds(),
-            effectSprite.getBounds()
+            effectSprite.getBounds(),
           )
         ) {
           this.collectFlightXEffect(effectSprite);
@@ -647,21 +647,21 @@ export class CatnipChaosScene extends Scene {
       let onFlightOnBlock = this.flightOnBlocks.some((block) =>
         Phaser.Geom.Intersects.RectangleToRectangle(
           player.getBounds(),
-          block.getBounds()
-        )
+          block.getBounds(),
+        ),
       );
       let onFlightOffBlock = this.flightOffBlocks.some((block) =>
         Phaser.Geom.Intersects.RectangleToRectangle(
           player.getBounds(),
-          block.getBounds()
-        )
+          block.getBounds(),
+        ),
       );
       let onTile309 = false;
       let onTile121 = false;
       if (this.physicsLayer) {
         const tile = this.physicsLayer.getTileAtWorldXY(
           this.cat.sprite.x,
-          this.cat.sprite.y
+          this.cat.sprite.y,
         );
         onTile309 = !!(tile && tile.index === 309);
         onTile121 = !!(tile && tile.index === 121);
@@ -670,8 +670,8 @@ export class CatnipChaosScene extends Scene {
       const inJumpingEffectBlock = this.jumpingEffectBlocks.some((block) =>
         Phaser.Geom.Intersects.RectangleToRectangle(
           player.getBounds(),
-          block.getBounds()
-        )
+          block.getBounds(),
+        ),
       );
 
       if (inJumpingEffectBlock) {
@@ -691,7 +691,7 @@ export class CatnipChaosScene extends Scene {
           this.flightCloudSprite = this.add.sprite(
             this.cat.sprite.x,
             this.cat.sprite.y,
-            "cloud"
+            "cloud",
           );
           this.flightCloudSprite.setDisplaySize(72, 51);
           this.flightCloudSprite.setDepth(this.cat.sprite.depth - 1);
@@ -727,7 +727,7 @@ export class CatnipChaosScene extends Scene {
           this.geometryDashCloudSprite = this.add.sprite(
             this.cat.sprite.x,
             this.cat.sprite.y,
-            "cloud"
+            "cloud",
           );
           this.geometryDashCloudSprite.setDisplaySize(72, 51);
           this.geometryDashCloudSprite.setDepth(this.cat.sprite.depth - 1);
@@ -748,12 +748,12 @@ export class CatnipChaosScene extends Scene {
       if (this.flightCloudSprite && this.cat) {
         this.flightCloudSprite.setPosition(
           this.cat.sprite.x + 3,
-          this.cat.sprite.y + 10
+          this.cat.sprite.y + 10,
         );
         if (this.isGravityReversed) {
           this.flightCloudSprite.setPosition(
             this.cat.sprite.x + 3,
-            this.cat.sprite.y - 10
+            this.cat.sprite.y - 10,
           );
         }
         // Set cloud rotation to match player rotation
@@ -764,12 +764,12 @@ export class CatnipChaosScene extends Scene {
       if (this.geometryDashCloudSprite && this.cat) {
         this.geometryDashCloudSprite.setPosition(
           this.cat.sprite.x + 3,
-          this.cat.sprite.y + 10
+          this.cat.sprite.y + 10,
         );
         if (this.isGravityReversed) {
           this.geometryDashCloudSprite.setPosition(
             this.cat.sprite.x + 3,
-            this.cat.sprite.y - 10
+            this.cat.sprite.y - 10,
           );
         }
         this.geometryDashCloudSprite.setRotation(this.cat.sprite.rotation);
@@ -779,7 +779,7 @@ export class CatnipChaosScene extends Scene {
       if (this.flightEffectSprite && this.cat) {
         this.flightEffectSprite.setPosition(
           this.cat.sprite.x,
-          this.cat.sprite.y
+          this.cat.sprite.y,
         );
       }
 
@@ -789,7 +789,7 @@ export class CatnipChaosScene extends Scene {
         const direction = body.velocity.x >= 0 ? 1 : -1;
         this.catSpirit.setPosition(
           this.cat.sprite.x - direction * 64,
-          this.cat.sprite.y
+          this.cat.sprite.y,
         );
         // Mirror flip if cat is flipped
         this.catSpirit.setFlipX(this.cat.sprite.flipX);
@@ -801,7 +801,7 @@ export class CatnipChaosScene extends Scene {
       if (this.catSpirit && this.ghostCloudSprite) {
         this.ghostCloudSprite.setPosition(
           this.catSpirit.x + 3,
-          this.catSpirit.y + 10
+          this.catSpirit.y + 10,
         );
         this.ghostCloudSprite.setRotation(this.catSpirit.rotation);
         this.ghostCloudSprite.setFlipY(this.isGravityReversed);
@@ -1008,7 +1008,6 @@ export class CatnipChaosScene extends Scene {
         repeat: -1,
       });
     }
-
     this.anims.create({
       key: "splash-anim",
       frames: this.anims.generateFrameNumbers("splash", {
@@ -1037,7 +1036,7 @@ export class CatnipChaosScene extends Scene {
     this.catDto = cat;
 
     this.load.once("complete", () => {
-      this.createCat(cat.name, null, cat.type);
+      this.createCat(cat.name, null, cat.type, cat.tier);
       this.createSpikes();
     });
 
@@ -1127,7 +1126,7 @@ export class CatnipChaosScene extends Scene {
                 const glitchEntrance = this.add.sprite(
                   entranceX,
                   entranceY,
-                  "glitch-portal"
+                  "glitch-portal",
                 );
                 glitchEntrance.setDisplaySize(64, 64);
                 glitchEntrance.play("glitch-portal-anim");
@@ -1135,7 +1134,7 @@ export class CatnipChaosScene extends Scene {
                 const glitchExit = this.add.sprite(
                   exitX,
                   exitY,
-                  "glitch-portal"
+                  "glitch-portal",
                 );
                 glitchExit.setDisplaySize(64, 64);
                 glitchExit.play("glitch-portal-anim");
@@ -1143,7 +1142,7 @@ export class CatnipChaosScene extends Scene {
                 const entrancePortal = this.add.sprite(
                   entranceX,
                   entranceY,
-                  "portal"
+                  "portal",
                 );
                 entrancePortal.setDisplaySize(64, 64);
                 entrancePortal.play("portal-anim");
@@ -1179,7 +1178,7 @@ export class CatnipChaosScene extends Scene {
     // Remove the effect sprite from the scene and the array
     effectSprite.destroy();
     this.flightXEffectBlocks = this.flightXEffectBlocks.filter(
-      (sprite) => sprite !== effectSprite
+      (sprite) => sprite !== effectSprite,
     );
 
     // (Optional) Play a sound or animation here if you want
@@ -1198,7 +1197,7 @@ export class CatnipChaosScene extends Scene {
       bounds.y,
       bounds.width,
       bounds.height,
-      { isNotEmpty: true }
+      { isNotEmpty: true },
     );
 
     for (let i = 0; i < tiles.length; i++) {

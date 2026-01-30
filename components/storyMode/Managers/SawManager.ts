@@ -37,8 +37,8 @@ export class Saw {
     (this.sprite.body as Phaser.Physics.Arcade.Body).setImmovable(true);
   }
 
-  update(delta: number) {
-    const movementDelta = (this.speed * delta) / 1000; // Calculate movement per frame in pixels
+  update(time: number, delta: number): void {
+    const movementDelta = (this.speed * delta) / 1000;
 
     if (this.route === "horizontal") {
       // Move horizontally

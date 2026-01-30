@@ -7,10 +7,12 @@ interface IProps {
   subtext?: string | number;
   active?: boolean;
   isBig?: boolean;
+  isMedium?: boolean;
   isSmall?: boolean;
   isWidthFull?: boolean;
   id?: string;
   isDisabled?: boolean;
+  className?: string;
   onClick?: () => void;
 }
 
@@ -20,9 +22,11 @@ export const PixelButton = ({
   active,
   onClick,
   isBig,
+  isMedium,
   isWidthFull,
   isDisabled,
   isSmall,
+  className,
   id,
 }: IProps) => {
   const [ref, hovering] = useHover();
@@ -64,10 +68,11 @@ export const PixelButton = ({
         filter: isDisabled ? "brightness(0.7)" : "none",
         cursor: isDisabled ? "not-allowed" : "pointer",
       }}
-      className={`flex justify-center relative items-center m-auto h-12 ${
+      className={`flex justify-center relative items-center m-auto h-12 ${className} ${
         isWidthFull && "w-full"
       }
             ${isSmall && "scale-[0.675] hover:scale-75"}
+            ${isMedium && "scale-[1.35] hover:scale-100"}
             ${
               isBig &&
               "glow-box scale-125 md:scale-[2] hover:scale-150 md:hover:scale-[2.5]"

@@ -10,6 +10,7 @@ export interface IPhaserGame {
 export interface IPhaserGameSceneProps {
   cat: ICat;
   isRestart: boolean;
+  catToRescue?: string; // Image URL for rescued cat sprite
 }
 
 // CAT EVENTS
@@ -32,6 +33,7 @@ export interface IGameStopEvent {
   time: number;
   completedLevel?: string | null;
 }
+
 interface IGameUpdateEvent {
   time?: number;
   additionalTime?: number;
@@ -69,6 +71,16 @@ interface INpcCollisionEvent {
   npc: ICat;
 }
 
+interface ICatHealthUpdate {
+  health: number;
+  maxHealth: number;
+}
+
+interface IObjectiveUpdate {
+  objective: string;
+  completed: boolean;
+}
+
 interface IPlayerCats {
   cats: ICat[];
 }
@@ -97,6 +109,8 @@ export enum GameEvent {
   ENEMY_SPAWN = "ENEMY_SPAWN",
   BOSS_SPAWN = "BOSS_SPAWN",
   CLEAR_NPCS = "CLEAR_NPCS",
+  CAT_HEALTH_UPDATE = "CAT_HEALTH_UPDATE",
+  OBJECTIVE_UPDATE = "OBJECTIVE_UPDATE",
 }
 
 export type ICatEventsDetails = {
@@ -118,13 +132,15 @@ export type ICatEventsDetails = {
   [GameEvent.PLAYER_CATS]: INpcSpawnEvent;
   [GameEvent.CLEAR_NPCS]: void;
   [GameEvent.GAME_PROGRESS_UPDATE]: { progress: number };
+  [GameEvent.CAT_HEALTH_UPDATE]: ICatHealthUpdate;
+  [GameEvent.OBJECTIVE_UPDATE]: IObjectiveUpdate;
 };
 
 export type ICatEvent<K extends GameEvent> = IEventDetail<ICatEventsDetails[K]>;
 
 const useEvent = <K extends GameEvent>(
   gameEvent: K,
-  callback?: (event: ICatEventsDetails[K]) => void
+  callback?: (event: ICatEventsDetails[K]) => void,
 ) => {
   const [object, setObject] = useState<ICatEventsDetails[K] | null>(null);
   useEffect(() => {
@@ -135,13 +151,13 @@ const useEvent = <K extends GameEvent>(
 
     window.addEventListener(
       gameEvent,
-      handleGameStart as unknown as EventListener
+      handleGameStart as unknown as EventListener,
     );
 
     return () => {
       window.removeEventListener(
         gameEvent,
-        handleGameStart as unknown as EventListener
+        handleGameStart as unknown as EventListener,
       );
     };
   }, [callback]);
@@ -151,23 +167,23 @@ const useEvent = <K extends GameEvent>(
 
 const pushEvent = <K extends GameEvent>(
   gameEvent: GameEvent,
-  event?: ICatEventsDetails[K]
+  event?: ICatEventsDetails[K],
 ) => {
   window.dispatchEvent(
     new CustomEvent(gameEvent, {
       detail: event,
-    })
+    }),
   );
 };
 
 const addEventListener = <K extends GameEvent>(
   gameEvent: GameEvent,
-  callback: (event: ICatEvent<K>) => void
+  callback: (event: ICatEvent<K>) => void,
 ) => window.addEventListener(gameEvent, callback as unknown as EventListener);
 
 const removeEventListener = <K extends GameEvent>(
   gameEvent: GameEvent,
-  callback: (event: ICatEvent<K>) => void
+  callback: (event: ICatEvent<K>) => void,
 ) =>
   window.removeEventListener(gameEvent, callback as unknown as EventListener);
 
@@ -184,7 +200,7 @@ const generateGameEvent = <K extends GameEvent>(gameEvent: K) => ({
 type GameEventsType = {
   [K in GameEvent]: {
     use: (
-      callback?: (event?: ICatEventsDetails[K]) => void
+      callback?: (event?: ICatEventsDetails[K]) => void,
     ) => ICatEventsDetails[K] | null;
     push: (event?: ICatEventsDetails[K]) => void;
     addEventListener: (callback: (event: ICatEvent<K>) => void) => void;
@@ -210,7 +226,9 @@ export const GameEvents: GameEventsType = {
   [GameEvent.BOSS_SPAWN]: generateGameEvent(GameEvent.BOSS_SPAWN),
   [GameEvent.PLAYER_CATS]: generateGameEvent(GameEvent.PLAYER_CATS),
   [GameEvent.CLEAR_NPCS]: generateGameEvent(GameEvent.CLEAR_NPCS),
+  [GameEvent.CAT_HEALTH_UPDATE]: generateGameEvent(GameEvent.CAT_HEALTH_UPDATE),
   [GameEvent.GAME_PROGRESS_UPDATE]: generateGameEvent(
-    GameEvent.GAME_PROGRESS_UPDATE
+    GameEvent.GAME_PROGRESS_UPDATE,
   ),
+  [GameEvent.OBJECTIVE_UPDATE]: generateGameEvent(GameEvent.OBJECTIVE_UPDATE),
 };

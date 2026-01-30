@@ -14,6 +14,7 @@ export enum Map {
   SEI = "base/sei.png",
   DAEMON = "base/daemons.png",
   CAT_WINTER = "base/cat-winter.png",
+  VALENTINE = "base/valentine.png",
 }
 
 export const CoreMap = Map.SPRING;
@@ -100,12 +101,29 @@ export const CatnipChaosLevelMap: Record<string, Map> = {
   "136": Map.CAT_WINTER,
 };
 
+export const PixelRescueLevelMap: Record<string, Map> = {
+  "1": Map.VALENTINE,
+  "2": Map.VALENTINE,
+  "3": Map.VALENTINE,
+  "4": Map.VALENTINE,
+  "5": Map.VALENTINE,
+  "6": Map.VALENTINE,
+  "7": Map.VALENTINE,
+  "8": Map.VALENTINE,
+  "9": Map.VALENTINE,
+  "10": Map.VALENTINE,
+  "11": Map.VALENTINE,
+  "12": Map.VALENTINE,
+  "13": Map.VALENTINE,
+  "14": Map.VALENTINE,
+};
+
 export const totalCatnip =
   (Object.keys(CatnipChaosLevelMap).length - 1) * 10 + 420;
 
 export const catnipChaosLevelsList: (keyof typeof CatnipChaosLevelMap)[] =
   Object.keys(CatnipChaosLevelMap).sort(
-    (a, b) => parseInt(a) - parseInt(b)
+    (a, b) => parseInt(a) - parseInt(b),
   ) as (keyof typeof CatnipChaosLevelMap)[];
 
 export const lastCatnipChaosLevel =
@@ -114,6 +132,19 @@ export const lastCatnipChaosLevel =
 export const getNextCatnipChaosLevel = (level: string) => {
   const index = catnipChaosLevelsList.indexOf(level);
   return catnipChaosLevelsList[index + 1];
+};
+
+export const pixelRescueLevelsList: (keyof typeof PixelRescueLevelMap)[] =
+  Object.keys(PixelRescueLevelMap).sort(
+    (a, b) => parseInt(a) - parseInt(b),
+  ) as (keyof typeof PixelRescueLevelMap)[];
+
+export const lastPixelRescueLevel =
+  pixelRescueLevelsList[pixelRescueLevelsList.length - 1];
+
+export const getNextPixelRescueLevel = (level: string) => {
+  const index = pixelRescueLevelsList.indexOf(level);
+  return pixelRescueLevelsList[index + 1];
 };
 
 export const catnipChaosChapterBGImage: Record<string, string> = {
