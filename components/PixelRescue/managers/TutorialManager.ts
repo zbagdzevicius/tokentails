@@ -10,14 +10,49 @@ export class TutorialManager {
   private tutorialBackground?: Phaser.GameObjects.Rectangle;
 
   private isMobile: boolean;
+  private currentLevel: string;
+  private speedMultiplier: number = 1;
 
-  private static hasCompletedTutorial: boolean = false;
+  private static readonly TUTORIAL_STORAGE_KEY =
+    "pixelrescue_tutorial_completed_level_";
 
-  constructor(scene: Scene) {
+  constructor(scene: Scene, currentLevel: string) {
     this.scene = scene;
+    this.currentLevel = currentLevel;
     this.isMobile = this.detectMobile();
 
-    this.isCompleted = TutorialManager.hasCompletedTutorial;
+    this.speedMultiplier = currentLevel === "1" ? 1 : 0.5;
+
+    this.isCompleted = this.hasCompletedTutorialForLevel(currentLevel);
+  }
+
+  private hasCompletedTutorialForLevel(level: string): boolean {
+    try {
+      const completed = localStorage.getItem(
+        `${TutorialManager.TUTORIAL_STORAGE_KEY}${level}`,
+      );
+      return completed === "true";
+    } catch (error) {
+      console.warn(
+        "Failed to read tutorial completion from localStorage:",
+        error,
+      );
+      return false;
+    }
+  }
+
+  private saveTutorialCompletion(level: string): void {
+    try {
+      localStorage.setItem(
+        `${TutorialManager.TUTORIAL_STORAGE_KEY}${level}`,
+        "true",
+      );
+    } catch (error) {
+      console.warn(
+        "Failed to save tutorial completion to localStorage:",
+        error,
+      );
+    }
   }
 
   private detectMobile(): boolean {
@@ -71,33 +106,46 @@ export class TutorialManager {
     const crateX = catCrate.x;
     const crateY = catCrate.y;
 
-    this.scene.cameras.main.pan(crateX, crateY, 1900, "Power2", false, () => {
-      this.scene.cameras.main.zoomTo(ZOOM * 1.1, 550, "Power2", false, () => {
-        this.createTutorialText("SAVE THIS CAT!", crateX, crateY, 20);
+    this.scene.cameras.main.pan(
+      crateX,
+      crateY,
+      1900 * this.speedMultiplier,
+      "Power2",
+      false,
+      () => {
+        this.scene.cameras.main.zoomTo(
+          ZOOM * 1.1,
+          550 * this.speedMultiplier,
+          "Power2",
+          false,
+          () => {
+            this.createTutorialText("SAVE THIS CAT!", crateX, crateY, 20);
 
-        const catSprite = catCrate.getCatSprite();
-        if (catSprite) {
-          this.scene.tweens.add({
-            targets: catSprite,
-            y: catSprite.y - 6,
-            duration: 400,
-            yoyo: true,
-            repeat: 4,
-          });
-        }
+            const catSprite = catCrate.getCatSprite();
+            if (catSprite) {
+              this.scene.tweens.add({
+                targets: catSprite,
+                y: catSprite.y - 6,
+                duration: 400 * this.speedMultiplier,
+                yoyo: true,
+                repeat: 4,
+              });
+            }
 
-        this.scene.time.delayedCall(2800, () => {
-          this.step2_ShowHearthCoins(
-            cat,
-            catCrate,
-            hearthCoins,
-            exitPortalSprite,
-            exitPortalX,
-            exitPortalY,
-          );
-        });
-      });
-    });
+            this.scene.time.delayedCall(2800 * this.speedMultiplier, () => {
+              this.step2_ShowHearthCoins(
+                cat,
+                catCrate,
+                hearthCoins,
+                exitPortalSprite,
+                exitPortalX,
+                exitPortalY,
+              );
+            });
+          },
+        );
+      },
+    );
   }
 
   private step2_ShowHearthCoins(
@@ -124,34 +172,41 @@ export class TutorialManager {
     const coinX = firstCoin.x;
     const coinY = firstCoin.y;
 
-    this.scene.cameras.main.pan(coinX, coinY, 1900, "Power2", false, () => {
-      this.createTutorialText(
-        "AND THERE'S A KEY FROM A CAGE",
-        coinX,
-        coinY,
-        20,
-      );
-
-      this.scene.tweens.add({
-        targets: firstCoin,
-        scaleX: 1.8,
-        scaleY: 1.8,
-        duration: 400,
-        yoyo: true,
-        repeat: 4,
-      });
-
-      this.scene.time.delayedCall(2800, () => {
-        this.step3_ShowExit(
-          cat,
-          catCrate,
-          hearthCoins,
-          exitPortalSprite,
-          exitPortalX,
-          exitPortalY,
+    this.scene.cameras.main.pan(
+      coinX,
+      coinY,
+      1900 * this.speedMultiplier,
+      "Power2",
+      false,
+      () => {
+        this.createTutorialText(
+          "AND THERE'S A KEY FROM A CAGE",
+          coinX,
+          coinY,
+          20,
         );
-      });
-    });
+
+        this.scene.tweens.add({
+          targets: firstCoin,
+          scaleX: 1.8,
+          scaleY: 1.8,
+          duration: 400 * this.speedMultiplier,
+          yoyo: true,
+          repeat: 4,
+        });
+
+        this.scene.time.delayedCall(2800 * this.speedMultiplier, () => {
+          this.step3_ShowExit(
+            cat,
+            catCrate,
+            hearthCoins,
+            exitPortalSprite,
+            exitPortalX,
+            exitPortalY,
+          );
+        });
+      },
+    );
   }
 
   private step3_ShowExit(
@@ -165,7 +220,7 @@ export class TutorialManager {
     this.scene.cameras.main.pan(
       exitPortalX,
       exitPortalY,
-      1900,
+      1900 * this.speedMultiplier,
       "Power2",
       false,
       () => {
@@ -180,12 +235,12 @@ export class TutorialManager {
           targets: exitPortalSprite,
           scaleX: 1.3,
           scaleY: 1.3,
-          duration: 400,
+          duration: 400 * this.speedMultiplier,
           yoyo: true,
           repeat: 4,
         });
 
-        this.scene.time.delayedCall(2500, () => {
+        this.scene.time.delayedCall(2500 * this.speedMultiplier, () => {
           this.step4_BackToCat(cat, catCrate, hearthCoins, exitPortalSprite);
         });
       },
@@ -201,13 +256,20 @@ export class TutorialManager {
     const crateX = catCrate.x;
     const crateY = catCrate.y;
 
-    this.scene.cameras.main.pan(crateX, crateY, 1200, "Power2", false, () => {
-      this.createTutorialText("LET'S SAVE THIS CAT", crateX, crateY, 20);
+    this.scene.cameras.main.pan(
+      crateX,
+      crateY,
+      1200 * this.speedMultiplier,
+      "Power2",
+      false,
+      () => {
+        this.createTutorialText("LET'S SAVE THIS CAT", crateX, crateY, 20);
 
-      this.scene.time.delayedCall(2500, () => {
-        this.end(cat, catCrate, hearthCoins, exitPortalSprite);
-      });
-    });
+        this.scene.time.delayedCall(2500 * this.speedMultiplier, () => {
+          this.end(cat, catCrate, hearthCoins, exitPortalSprite);
+        });
+      },
+    );
   }
 
   public end(
@@ -219,7 +281,7 @@ export class TutorialManager {
     this.isActive = false;
     this.isCompleted = true;
 
-    TutorialManager.hasCompletedTutorial = true;
+    this.saveTutorialCompletion(this.currentLevel);
 
     // Reset object scales and tweens first
     hearthCoins.forEach((coin) => {
@@ -246,7 +308,7 @@ export class TutorialManager {
       this.scene.cameras.main.pan(
         cat.sprite.x,
         cat.sprite.y,
-        1400,
+        1400 * this.speedMultiplier,
         "Power2",
         false,
         () => {
@@ -260,11 +322,17 @@ export class TutorialManager {
             this.tutorialBackground = undefined;
           }
 
-          this.scene.cameras.main.zoomTo(ZOOM, 340, "Power2", false, () => {
-            if (cat) {
-              this.scene.cameras.main.startFollow(cat.sprite, true, 0.1, 0.1);
-            }
-          });
+          this.scene.cameras.main.zoomTo(
+            ZOOM,
+            340 * this.speedMultiplier,
+            "Power2",
+            false,
+            () => {
+              if (cat) {
+                this.scene.cameras.main.startFollow(cat.sprite, true, 0.1, 0.1);
+              }
+            },
+          );
         },
       );
     }
@@ -310,7 +378,22 @@ export class TutorialManager {
     return this.isCompleted;
   }
 
-  public static resetTutorial(): void {
-    TutorialManager.hasCompletedTutorial = false;
+  public static resetTutorial(level?: string): void {
+    try {
+      if (level) {
+        localStorage.removeItem(
+          `${TutorialManager.TUTORIAL_STORAGE_KEY}${level}`,
+        );
+      } else {
+        const keys = Object.keys(localStorage);
+        keys.forEach((key) => {
+          if (key.startsWith(TutorialManager.TUTORIAL_STORAGE_KEY)) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+    } catch (error) {
+      console.warn("Failed to reset tutorial in localStorage:", error);
+    }
   }
 }

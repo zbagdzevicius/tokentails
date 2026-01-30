@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { useBackground } from "../../constants/hooks";
 import Snowfall from "../shared/Snowfall";
 import PixelRescue from "../PixelRescue/PixelRescue";
+import { cdnFile } from "../../constants/utils";
 const Base = dynamic(() => import("@/components/base/Base"), { ssr: false });
 const Adopt = dynamic(() => import("@/components/shelter/Shelter"), {
   ssr: false,
@@ -30,7 +31,11 @@ export const Game = () => {
         <div className="intro-pinwheel">
           <div className="intro-pinwheel-bg" />
           <div className="intro-coin-wrapper">
-            <img src="/logo/coin.webp" alt="Coin" className="intro-coin" />
+            <img
+              src={cdnFile("logo/coin.webp")}
+              alt="Coin"
+              className="intro-coin"
+            />
           </div>
         </div>
       )}

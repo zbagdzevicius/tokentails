@@ -178,16 +178,16 @@ export const CatnipChaosLevels = ({
 
       <div className="flex flex-wrap gap-4 relative justify-center max-w-[44rem] bg-gradient-to-b from-yellow-900/20 to-yellow-900/70 md:rounded-lg pb-32 pt-8 mt-8 md:mt-16 border-y-4 md:border-4 border-yellow-300/50">
         <img
-          src="tail/cat-promo.webp"
+          src={cdnFile("tail/cat-promo.webp")}
           className="absolute -top-36 md:-top-44 right-0 w-32 md:w-36 h-auto"
         />
         <img
-          src="catnip-chaos/top-border.webp"
+          src={cdnFile("catnip-chaos/top-border.webp")}
           className="absolute -top-8 md:-top-16 left-0 right-0 w-full h-auto"
         />
 
         <img
-          src="catnip-chaos/top-border.webp"
+          src={cdnFile("catnip-chaos/top-border.webp")}
           className="absolute -bottom-6 md:-bottom-12 left-0 right-0 w-full h-auto"
         />
         {catnipChaosLevelsList

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { GameEvents } from "../Phaser/events";
 import { catnipChaosChapterBGImage } from "../Phaser/map";
 import { PixelRescueLevels } from "./PixelRescueLevels";
+import { cdnFile } from "../../constants/utils";
 
 import dynamic from "next/dynamic";
 
@@ -72,7 +73,7 @@ function PixelRescue() {
         <div className="fixed top-20 left-4 md:left-6 z-50 flex items-center transition-all duration-300">
           <div className="relative w-8 h-8 md:w-12 md:h-12 z-10">
             <img
-              src="/pixel-rescue/items/heart.png"
+              src={cdnFile("pixel-rescue/items/heart.webp")}
               alt="Health"
               className="w-full h-full object-contain"
               style={{
