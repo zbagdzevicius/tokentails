@@ -56,7 +56,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
           <div className="flex flex-col items-center ">
             <div className="w-36 h-36 md:w-52 md:h-52 flex flex-col items-center justify-center">
               <img
-                src="utilities/game-modal/pixel-rescue.png"
+                src="utilities/game-modal/pixel-rescue.webp"
                 alt="Pixel Rescue"
                 className="max-w-full max-h-full object-contain"
               />
@@ -67,7 +67,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
                 onClick={() => handleGameSelect(GameType.PIXEL_RESCUE)}
                 className="glow-box-FIRE"
               />
-              <p className="text-p6 glow  leading-none md:text-p4 text-white pt-4 text-center font-medium">
+              <p className="text-p6 text-shadow-lg drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] font-primary text-red-100 leading-none md:text-p4 pt-4 text-center uppercase text-balance">
                 Save cat locked in a cage every day
               </p>
             </div>
@@ -76,9 +76,9 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
           <div className="flex flex-col items-center  ">
             <div className="w-36 h-36 md:w-52 md:h-52 flex flex-col items-center justify-center">
               <img
-                src="utilities/game-modal/catnip-chaos.png"
+                src="utilities/game-modal/catnip-chaos.webp"
                 alt="Catnip Chaos"
-                className="max-w-full max-h-full object-contain "
+                className="max-w-full max-h-full object-contain"
               />
               <PixelButton
                 isMedium={isMediumScreen}
@@ -86,7 +86,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
                 onClick={() => handleGameSelect(GameType.CATNIP_CHAOS)}
                 className="glow-box-WATER"
               />
-              <p className="text-p6 glow leading-none md:text-p4 text-white pt-4 text-center font-medium">
+              <p className="text-p6 text-shadow-lg drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] font-primary text-blue-100 leading-none md:text-p4 pt-4 text-center uppercase text-balance">
                 Get through challenges with your cat
               </p>
             </div>
