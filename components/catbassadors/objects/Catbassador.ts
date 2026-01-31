@@ -62,12 +62,12 @@ type ICatAnimationKey = `${string}_${PlayerAnimation}`;
 export type ICatAnimationKeysMap = Record<PlayerAnimation, ICatAnimationKey>;
 
 function generateCatAnimationConfiguration(
-  catName: string,
+  catName: string
 ): ICatAnimationKeysMap {
   const map = {} as ICatAnimationKeysMap;
   Object.keys(PlayerAnimation).map(
     (key) =>
-      (map[key as PlayerAnimation] = `${catName}_${key as PlayerAnimation}`),
+      (map[key as PlayerAnimation] = `${catName}_${key as PlayerAnimation}`)
   );
   return map;
 }
@@ -151,7 +151,7 @@ export class Cat implements IPlayer {
     blessing: Phaser.GameObjects.Sprite | null | undefined,
     type: CatAbilityType,
     enableControls: boolean = true,
-    tier: Tier,
+    tier: Tier = Tier.LEGENDARY
   ) {
     this.scene = scene;
     this.type = type;
@@ -251,7 +251,7 @@ export class Cat implements IPlayer {
       const offsetX = this.sprite.flipX ? 20 : -20;
       this.collectedItem.setPosition(
         this.sprite.x + offsetX,
-        this.sprite.y - 20,
+        this.sprite.y - 20
       );
       this.collectedItem.setDepth(11);
       this.collectedItem.setVisible(true);
@@ -342,7 +342,7 @@ export class Cat implements IPlayer {
       }
       this.sprite.anims.play(
         this.animationKeys[PlayerAnimation.GROOMING],
-        true,
+        true
       );
     } else if (this.job?.type === NPCJobType.SLEEP) {
       this.sprite.setVelocityX(0);
