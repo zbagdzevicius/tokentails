@@ -28,6 +28,8 @@ export interface IProfile {
   wallets: IUserWallets;
   catnipChaos: number[];
   catnipCount: number;
+  seasonEvent: number[];
+  seasonEventCount: number;
   referralsCount: number;
   quests: (QUEST | string)[];
   monthTails: number;
@@ -35,13 +37,10 @@ export interface IProfile {
   canRedeemLives: boolean;
   monthCatsAdopted: number;
   monthBoxes: number;
+  monthPacks: number;
   monthFeeded: number;
   monthStreak: number;
   monthReferrals: number;
   monthTicketCount: number;
   monthTailsCrafted: number;
-  event: {
-    number: number[];
-    eventScore: number;
-  };
 }

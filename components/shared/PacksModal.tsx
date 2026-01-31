@@ -13,12 +13,12 @@ import { PackType } from "@/models/order";
 import { EntityType } from "@/models/save";
 import { useState } from "react";
 
-const endDate = new Date("2026-02-01");
+const endDate = new Date("2026-02-15");
 
 const packPrices = {
   [PackType.STARTER]: 5,
   [PackType.INFLUENCER]: 25,
-  [PackType.LEGENDARY]: 350,
+  [PackType.LEGENDARY]: 400,
 };
 
 export const packImages = {
@@ -205,10 +205,10 @@ const PacksSelect = ({
           className="h-72 lg:h-96 w-auto z-10 relative  lg:group-hover:-mt-12 transition-all duration-500 lg:group-hover:scale-125 max-w-none"
         />
         <div className="-mt-8 relative z-30 lg:group-hover:z-10 lg:group-hover:opacity-0 transition-all duration-500">
-          <Tag>TIME LIMITED CHANCE</Tag>
+          <Tag>LAST CHANCE TO GET</Tag>
         </div>
         <div className="mt-2 lg:mt-4 lg:group-hover:opacity-0 transition-all duration-500">
-          <PixelButton text="$350" />
+          <PixelButton text="$400" />
         </div>
       </div>
     </div>
@@ -228,7 +228,7 @@ export const PacksModalContent = ({ close }: { close?: () => void }) => {
     if (cat) {
       setProfileUpdate({
         cats: [...(profile?.cats || []), cat],
-        monthBoxes: (profile?.monthBoxes || 0) + 1,
+        monthPacks: (profile?.monthPacks || 0) + 1,
       });
       setRolledCat(cat);
       toast({ message: `Now let's roll into adventures`, img: cat.catImg });
@@ -282,7 +282,6 @@ bg-clip-text text-transparent -mt-4 relative z-30"
             src={cdnFile(`cards/packs/${packType}.webp`)}
             className="w-48 m-auto relative z-10 animate-colormax"
           />
-          {/* <TailsCardPack packType={packType} /> */}
 
           <Payment
             price={packPrices[packType]}

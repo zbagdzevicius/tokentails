@@ -86,7 +86,7 @@ export const CatnipChaosLevels = ({
   const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
   const unlockedLevels = [...(profile?.catnipChaos || [])].filter(
-    (level) => level > 0,
+    (level) => level > 0
   ).length;
 
   const selectLevel = (level: string, index: number) => {
@@ -115,7 +115,7 @@ export const CatnipChaosLevels = ({
     (mysteryBox: IMysteryBox) => {
       return !!profile?.quests?.includes(mysteryBox.key);
     },
-    [profile?.quests],
+    [profile?.quests]
   );
   return (
     <div className="flex flex-col items-center gap-4 mt-14 lg:mt-24 pb-20 animate-opacity pt-8">
@@ -150,12 +150,6 @@ export const CatnipChaosLevels = ({
           </div>
         </div>
       </div>
-
-      {!!profile?.catnipChaos?.length && profile?.catnipChaos?.length >= 6 && (
-        <span className="mb-2">
-          <Tag>YOUR DISCOUNT CODE: SEI</Tag>
-        </span>
-      )}
       <div
         onClick={() => setSelectedLevel("01")}
         style={{
@@ -252,9 +246,9 @@ export const CatnipChaosLevels = ({
                           parseInt(
                             level.length === 3
                               ? `${level[0]}${level[1]}`
-                              : level[0],
+                              : level[0]
                           ) - 1
-                        ],
+                        ]
                       ) ? (
                         <PixelButton
                           text="REDEEMED"
@@ -271,9 +265,9 @@ export const CatnipChaosLevels = ({
                                 parseInt(
                                   level.length === 3
                                     ? `${level[0]}${level[1]}`
-                                    : level[0],
+                                    : level[0]
                                 ) - 1
-                              ],
+                              ]
                             )
                           }
                         ></PixelButton>
@@ -284,7 +278,7 @@ export const CatnipChaosLevels = ({
                     src={cdnFile(
                       `catnip-chaos/badges/chapter${
                         level.length === 3 ? `${level[0]}${level[1]}` : level[0]
-                      }.webp`,
+                      }.webp`
                     )}
                     className="w-16 h-16 rounded-t-xl glow-box"
                   />

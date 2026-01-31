@@ -50,43 +50,54 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
         <img
           src={cdnFile("catnip-chaos/banner.webp")}
           alt="Modal"
+          draggable={false}
           className="absolute top-5 md:-top-5 left-0 w-full h-28 md:h-32  object-contain"
         />
-        <div className="relative z-10 flex flex-row gap-4 md:gap-12 items-start justify-start  p-12 w-full">
+        <div className="relative z-10 flex flex-row gap-4 md:gap-12 items-start justify-start p-12 mt-8 w-full">
           <div className="flex flex-col items-center ">
-            <div className="w-36 h-36 md:w-52 md:h-52 flex flex-col items-center justify-center">
+            <div className="w-36 h-36 md:w-52 md:h-52 flex flex-col items-center justify-center hover:brightness-125 transition-all duration-300">
               <img
+                onClick={() => handleGameSelect(GameType.PIXEL_RESCUE)}
                 src={cdnFile("utilities/game-modal/pixel-rescue.webp")}
                 alt="Pixel Rescue"
+                draggable={false}
                 className="max-w-full max-h-full object-contain"
               />
 
               <PixelButton
                 isMedium={isMediumScreen}
-                text="Pixel Rescue"
+                text="CUPID CAT"
                 onClick={() => handleGameSelect(GameType.PIXEL_RESCUE)}
                 className="glow-box-FIRE"
               />
-              <p className="text-p6 text-shadow-lg drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] font-primary text-red-100 leading-none md:text-p4 pt-4 text-center uppercase text-balance">
+              <p
+                onClick={() => handleGameSelect(GameType.PIXEL_RESCUE)}
+                className="text-p6 text-shadow-lg drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] font-primary text-red-100 leading-none md:text-p4 pt-4 text-center uppercase text-balance"
+              >
                 Save cat locked in a cage every day
               </p>
             </div>
           </div>
 
           <div className="flex flex-col items-center  ">
-            <div className="w-36 h-36 md:w-52 md:h-52 flex flex-col items-center justify-center">
+            <div className="w-36 h-36 md:w-52 md:h-52 flex flex-col items-center justify-center hover:brightness-125 transition-all duration-300">
               <img
+                onClick={() => handleGameSelect(GameType.CATNIP_CHAOS)}
                 src={cdnFile("utilities/game-modal/catnip-chaos.webp")}
                 alt="Catnip Chaos"
-                className="max-w-full max-h-full object-contain"
+                className="max-w-full max-h-full object-contain glow-box-WATER"
+                draggable={false}
               />
               <PixelButton
                 isMedium={isMediumScreen}
-                text="Catnip Chaos"
+                text="PURRSUIT"
                 onClick={() => handleGameSelect(GameType.CATNIP_CHAOS)}
                 className="glow-box-WATER"
               />
-              <p className="text-p6 text-shadow-lg drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] font-primary text-blue-100 leading-none md:text-p4 pt-4 text-center uppercase text-balance">
+              <p
+                onClick={() => handleGameSelect(GameType.CATNIP_CHAOS)}
+                className="text-p6 text-shadow-lg drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] font-primary text-blue-100 leading-none md:text-p4 pt-4 text-center uppercase text-balance"
+              >
                 Get through challenges with your cat
               </p>
             </div>

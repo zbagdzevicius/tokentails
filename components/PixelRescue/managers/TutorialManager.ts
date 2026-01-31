@@ -5,7 +5,6 @@ import { CatCrate } from "../objects/CatCrate";
 export class TutorialManager {
   private scene: Scene;
   private isActive: boolean = false;
-  private isCompleted: boolean = false;
   private tutorialText?: Phaser.GameObjects.Text;
   private tutorialBackground?: Phaser.GameObjects.Rectangle;
 
@@ -22,20 +21,18 @@ export class TutorialManager {
     this.isMobile = this.detectMobile();
 
     this.speedMultiplier = currentLevel === "1" ? 1 : 0.5;
-
-    this.isCompleted = this.hasCompletedTutorialForLevel(currentLevel);
   }
 
   private hasCompletedTutorialForLevel(level: string): boolean {
     try {
       const completed = localStorage.getItem(
-        `${TutorialManager.TUTORIAL_STORAGE_KEY}${level}`,
+        `${TutorialManager.TUTORIAL_STORAGE_KEY}${level}`
       );
       return completed === "true";
     } catch (error) {
       console.warn(
         "Failed to read tutorial completion from localStorage:",
-        error,
+        error
       );
       return false;
     }
@@ -45,12 +42,12 @@ export class TutorialManager {
     try {
       localStorage.setItem(
         `${TutorialManager.TUTORIAL_STORAGE_KEY}${level}`,
-        "true",
+        "true"
       );
     } catch (error) {
       console.warn(
         "Failed to save tutorial completion to localStorage:",
-        error,
+        error
       );
     }
   }
@@ -58,7 +55,7 @@ export class TutorialManager {
   private detectMobile(): boolean {
     return (
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        navigator.userAgent,
+        navigator.userAgent
       ) || window.innerWidth < 768
     );
   }
@@ -66,10 +63,10 @@ export class TutorialManager {
   public start(
     cat: any,
     catCrate: CatCrate,
-    hearthCoins: Phaser.GameObjects.Sprite[],
+    heartCoins: Phaser.GameObjects.Sprite[],
     exitPortalSprite: Phaser.GameObjects.Sprite,
     exitPortalX: number,
-    exitPortalY: number,
+    exitPortalY: number
   ) {
     if (!cat || !catCrate) {
       console.warn("Cannot start tutorial: cat or crate not found");
@@ -77,7 +74,6 @@ export class TutorialManager {
     }
 
     this.isActive = true;
-    this.isCompleted = false;
 
     if (cat && cat.sprite.body) {
       const body = cat.sprite.body as Phaser.Physics.Arcade.Body;
@@ -85,23 +81,28 @@ export class TutorialManager {
       body.setAllowGravity(true);
     }
 
+    if (this.hasCompletedTutorialForLevel(this.currentLevel)) {
+      this.end(cat, catCrate, heartCoins, exitPortalSprite);
+      return;
+    }
+
     this.step1_ShowCagedCat(
       cat,
       catCrate,
-      hearthCoins,
+      heartCoins,
       exitPortalSprite,
       exitPortalX,
-      exitPortalY,
+      exitPortalY
     );
   }
 
   private step1_ShowCagedCat(
     cat: any,
     catCrate: CatCrate,
-    hearthCoins: Phaser.GameObjects.Sprite[],
+    heartCoins: Phaser.GameObjects.Sprite[],
     exitPortalSprite: Phaser.GameObjects.Sprite,
     exitPortalX: number,
-    exitPortalY: number,
+    exitPortalY: number
   ) {
     const crateX = catCrate.x;
     const crateY = catCrate.y;
@@ -133,42 +134,42 @@ export class TutorialManager {
             }
 
             this.scene.time.delayedCall(2800 * this.speedMultiplier, () => {
-              this.step2_ShowHearthCoins(
+              this.step2_ShowheartCoins(
                 cat,
                 catCrate,
-                hearthCoins,
+                heartCoins,
                 exitPortalSprite,
                 exitPortalX,
-                exitPortalY,
+                exitPortalY
               );
             });
-          },
+          }
         );
-      },
+      }
     );
   }
 
-  private step2_ShowHearthCoins(
+  private step2_ShowheartCoins(
     cat: any,
     catCrate: CatCrate,
-    hearthCoins: Phaser.GameObjects.Sprite[],
+    heartCoins: Phaser.GameObjects.Sprite[],
     exitPortalSprite: Phaser.GameObjects.Sprite,
     exitPortalX: number,
-    exitPortalY: number,
+    exitPortalY: number
   ) {
-    if (hearthCoins.length === 0) {
+    if (heartCoins.length === 0) {
       this.step3_ShowExit(
         cat,
         catCrate,
-        hearthCoins,
+        heartCoins,
         exitPortalSprite,
         exitPortalX,
-        exitPortalY,
+        exitPortalY
       );
       return;
     }
 
-    const firstCoin = hearthCoins[0];
+    const firstCoin = heartCoins[0];
     const coinX = firstCoin.x;
     const coinY = firstCoin.y;
 
@@ -183,7 +184,7 @@ export class TutorialManager {
           "AND THERE'S A KEY FROM A CAGE",
           coinX,
           coinY,
-          20,
+          20
         );
 
         this.scene.tweens.add({
@@ -199,23 +200,23 @@ export class TutorialManager {
           this.step3_ShowExit(
             cat,
             catCrate,
-            hearthCoins,
+            heartCoins,
             exitPortalSprite,
             exitPortalX,
-            exitPortalY,
+            exitPortalY
           );
         });
-      },
+      }
     );
   }
 
   private step3_ShowExit(
     cat: any,
     catCrate: CatCrate,
-    hearthCoins: Phaser.GameObjects.Sprite[],
+    heartCoins: Phaser.GameObjects.Sprite[],
     exitPortalSprite: Phaser.GameObjects.Sprite,
     exitPortalX: number,
-    exitPortalY: number,
+    exitPortalY: number
   ) {
     this.scene.cameras.main.pan(
       exitPortalX,
@@ -228,7 +229,7 @@ export class TutorialManager {
           "HERE'S AN EXIT, BUT FIRST!",
           exitPortalX,
           exitPortalY,
-          20,
+          20
         );
 
         this.scene.tweens.add({
@@ -241,17 +242,17 @@ export class TutorialManager {
         });
 
         this.scene.time.delayedCall(2500 * this.speedMultiplier, () => {
-          this.step4_BackToCat(cat, catCrate, hearthCoins, exitPortalSprite);
+          this.step4_BackToCat(cat, catCrate, heartCoins, exitPortalSprite);
         });
-      },
+      }
     );
   }
 
   private step4_BackToCat(
     cat: any,
     catCrate: CatCrate,
-    hearthCoins: Phaser.GameObjects.Sprite[],
-    exitPortalSprite: Phaser.GameObjects.Sprite,
+    heartCoins: Phaser.GameObjects.Sprite[],
+    exitPortalSprite: Phaser.GameObjects.Sprite
   ) {
     const crateX = catCrate.x;
     const crateY = catCrate.y;
@@ -266,25 +267,24 @@ export class TutorialManager {
         this.createTutorialText("LET'S SAVE THIS CAT", crateX, crateY, 20);
 
         this.scene.time.delayedCall(2500 * this.speedMultiplier, () => {
-          this.end(cat, catCrate, hearthCoins, exitPortalSprite);
+          this.end(cat, catCrate, heartCoins, exitPortalSprite);
         });
-      },
+      }
     );
   }
 
   public end(
     cat: any,
     catCrate: CatCrate,
-    hearthCoins: Phaser.GameObjects.Sprite[],
-    exitPortalSprite: Phaser.GameObjects.Sprite,
+    heartCoins: Phaser.GameObjects.Sprite[],
+    exitPortalSprite: Phaser.GameObjects.Sprite
   ) {
     this.isActive = false;
-    this.isCompleted = true;
 
     this.saveTutorialCompletion(this.currentLevel);
 
     // Reset object scales and tweens first
-    hearthCoins.forEach((coin) => {
+    heartCoins.forEach((coin) => {
       coin.setScale(1.0);
     });
     if (exitPortalSprite) {
@@ -331,9 +331,9 @@ export class TutorialManager {
               if (cat) {
                 this.scene.cameras.main.startFollow(cat.sprite, true, 0.1, 0.1);
               }
-            },
+            }
           );
-        },
+        }
       );
     }
   }
@@ -342,7 +342,7 @@ export class TutorialManager {
     text: string,
     x: number,
     y: number,
-    fontSize: number = 20,
+    fontSize: number = 20
   ) {
     if (this.tutorialText) {
       this.tutorialText.destroy();
@@ -374,15 +374,11 @@ export class TutorialManager {
     return this.isActive;
   }
 
-  public get completed(): boolean {
-    return this.isCompleted;
-  }
-
   public static resetTutorial(level?: string): void {
     try {
       if (level) {
         localStorage.removeItem(
-          `${TutorialManager.TUTORIAL_STORAGE_KEY}${level}`,
+          `${TutorialManager.TUTORIAL_STORAGE_KEY}${level}`
         );
       } else {
         const keys = Object.keys(localStorage);

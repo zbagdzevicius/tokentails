@@ -51,9 +51,9 @@ export const GameOptionsModal = ({
             <span className="z-10 relative">
               <PixelButton
                 onClick={() => {
-                  setOpenedModal(GameModal.INVITE);
+                  setOpenedModal(GameModal.PACKS);
                 }}
-                text="SHOP"
+                text="PACKS"
               ></PixelButton>
             </span>
           </div>

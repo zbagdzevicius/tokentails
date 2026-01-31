@@ -106,7 +106,7 @@ export const EndGameModal: React.FC<EndGameProps> = ({
             <PixelButton text="MEOW BACK" isSmall onClick={onClose} />
           </span>
           <PixelButton
-            text="TRY AGAIN"
+            text="PLAY AGAIN"
             onClick={tryAgain}
             isSmall={
               !!gameStop.completedLevel &&
@@ -114,7 +114,8 @@ export const EndGameModal: React.FC<EndGameProps> = ({
             }
           />
           {!!gameStop.completedLevel &&
-            gameStop.completedLevel !== lastCatnipChaosLevel && (
+            gameStop.completedLevel !== lastCatnipChaosLevel &&
+            gameType === GameType.CATNIP_CHAOS && (
               <PixelButton
                 text="NEXT LEVEL"
                 onClick={() =>

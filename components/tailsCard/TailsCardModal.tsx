@@ -1,4 +1,4 @@
-import { ICat } from "@/models/cats";
+import { ICat, Tier } from "@/models/cats";
 import React, { useMemo } from "react";
 import { CloseButton } from "../shared/CloseButton";
 import { Countdown } from "../shared/Countdown";
@@ -16,6 +16,22 @@ interface IProps extends ICat {
   onStake?: (cat: ICat) => void;
   onStakeRewards?: (cat: ICat) => void;
 }
+
+const getTailsCraft = (cat: ICat) => {
+  if (!cat.blessing) {
+    return 10;
+  }
+  if (cat.tier === Tier.COMMON) {
+    return 100;
+  }
+  if (cat.tier === Tier.RARE) {
+    return 500;
+  }
+  if (cat.tier === Tier.EPIC) {
+    return 2000;
+  }
+  return 10000;
+};
 
 export const TailsCardModal: React.FC<IProps> = ({
   onClose,
@@ -73,7 +89,7 @@ export const TailsCardModal: React.FC<IProps> = ({
               <>
                 {!isStaked && (
                   <PixelButton
-                    text="CRAFT 100 $TAILS"
+                    text={`CRAFT ${getTailsCraft(catData)} $TAILS`}
                     onClick={() => onStake?.(catData)}
                   />
                 )}

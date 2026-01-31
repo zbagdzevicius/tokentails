@@ -76,7 +76,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   }, [gameType]);
 
   const gameProgressUpdateCallback = (
-    event?: ICatEventsDetails[GameEvent.GAME_PROGRESS_UPDATE],
+    event?: ICatEventsDetails[GameEvent.GAME_PROGRESS_UPDATE]
   ) => {
     if (!event) return;
 
@@ -109,15 +109,25 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
         type: gameType!,
         level: level!,
       });
-      catnipChaos = result?.catnipChaos || profile.catnipChaos || [];
-      if (result === null) {
-        showToast({ message: "You run out of lives ):" });
+      if (gameType === GameType.PIXEL_RESCUE) {
+        setProfileUpdate({
+          seasonEvent: result?.seasonEvent || profile.seasonEvent || [],
+          seasonEventCount:
+            result?.seasonEventCount || profile.seasonEventCount || 0,
+        });
       }
-      setProfileUpdate({
-        catnipChaos,
-      });
+      if (gameType === GameType.CATNIP_CHAOS) {
+        catnipChaos = result?.catnipChaos || profile.catnipChaos || [];
+        if (result === null) {
+          showToast({ message: "You run out of lives ):" });
+        }
+        setProfileUpdate({
+          catnipChaos,
+          catnipCount: result.catnipCount || profile.catnipCount + 1,
+        });
+      }
     },
-    [profile, gameType, level],
+    [profile, gameType, level]
   );
 
   GameEvents.GAME_STOP.use(gameStopCallback);

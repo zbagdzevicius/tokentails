@@ -61,7 +61,7 @@ const config: Config = {
         flip: "flip 10s infinite;",
         appear: "appear 0.6s linear",
         opacity: "opacity 1s;",
-        bounceWithFade: "bounceWithFade 2.5s ease-in-out",
+        bounceWithFade: "bounceWithFade 2.7s ease-in-out",
         brightness: "brightness 3s ease-in-out infinite",
         pulseWeak: "pulseWeak 3s ease-in-out infinite",
       },

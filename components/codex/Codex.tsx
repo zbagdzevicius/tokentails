@@ -38,8 +38,8 @@ const codex: ICodex[] = [
     how: "Visit cat shelter, find a cat which you like and adopt it",
     image: cdnFile("codex/codex-1.webp"),
     task: "ADOPT COLLECTIBLE CAT",
-    verification: (profile) => (profile?.monthCatsAdopted || 0) >= 1,
-    status: (profile) => `${profile?.monthCatsAdopted || 0} / 1`,
+    verification: (profile) => (profile?.monthPacks || 0) >= 1,
+    status: (profile) => `${profile?.monthPacks || 0} / 1`,
   },
   {
     title: "#2 Play Is Prayer",
@@ -52,29 +52,7 @@ const codex: ICodex[] = [
     status: (profile) => `${profile?.monthTails || 0} / 100`,
   },
   {
-    title: "#3 The Saviors Are Marked",
-    description:
-      "We are not collectors. We are chosen — called to bind our wallets to the weak. Every cat we save leaves a mark on our legacy… and our fortune.",
-    how: "Save a cat!",
-    image: cdnFile("codex/codex-3.webp"),
-    task: "SPEND $1",
-    verification: (profile) =>
-      !!profile?.monthCatsAdopted || (profile?.monthSpent || 0) >= 1,
-    status: (profile) =>
-      `${profile?.monthSpent || profile?.monthCatsAdopted || 0 * 1} / 1`,
-  },
-  {
-    title: "#4 Coins Must Flow Where Compassion Leads",
-    description:
-      "Half of all gained must give. Every game played, every trade made — that fuels their future. And in doing so, ensures ours.",
-    how: "Open mystery box or loot box 2 times in 'GIFT' section's 'BOXES' tab",
-    image: cdnFile("codex/codex-4.webp"),
-    task: "OPEN A BOX",
-    verification: (profile) => (profile?.monthBoxes || 0) >= 2,
-    status: (profile) => `${profile?.monthBoxes || 0} / 2`,
-  },
-  {
-    title: "#5 No Life is Left Behind",
+    title: "#3 No Life is Left Behind",
     description:
       "Not the last-born kitten in a shelter. Not the unloved token in the chain. We rescue what others abandon. That is our oath.",
     how: "Go to HOME and feed your cat by clicki 'FEED TO CONTROL' button.",
@@ -84,7 +62,7 @@ const codex: ICodex[] = [
     status: (profile) => `${profile?.monthFeeded || 0} / 1`,
   },
   {
-    title: "#6 The Bond Cannot Break",
+    title: "#4 The Bond Cannot Break",
     description:
       "Your cat is not your possession — it is your mirror. To neglect it is to neglect yourself. To care is to evolve.",
     how: "Click 'CHECK-IN' button 10 times! You can do it once a day.",
@@ -94,17 +72,17 @@ const codex: ICodex[] = [
     status: (profile) => `${profile?.monthStreak || 0} / 10`,
   },
   {
-    title: "#7 The Tailsguard Ascends Together",
+    title: "#5 The Tailsguard Ascends Together",
     description:
       "For every life saved, the world shifts. The more we rescue, the stronger our network. Our magic multiplies.",
-    how: "Go to 'GIFTS' section, click 'INVITE' button and invite a friend. Once they onboard, you'll be rewarded.",
+    how: "Go to 'EVENTS' section, then 'QUESTS' click 'INVITE' button and invite a friend. Once they onboard, you'll be rewarded.",
     image: cdnFile("codex/codex-7.webp"),
     task: "ONBOARD 1 FRIEND",
     verification: (profile) => (profile?.monthReferrals || 0) >= 1,
     status: (profile) => `${profile?.monthReferrals || 0} / 1`,
   },
   {
-    title: "#8 From the Blockchain to the Beyond",
+    title: "#6 From the Blockchain to the Beyond",
     description:
       "These cats are more than metadata. They are stories. Beacons. Proof that Web3 can matter. And we, their guardians, become legends. Your feedback is CODEX fuel.",
     how: "Go to 'QUESTS' section and complete 10 quests",
@@ -114,14 +92,14 @@ const codex: ICodex[] = [
     status: (profile) => `${profile?.quests?.length || 0} / 10`,
   },
   {
-    title: "#9 Destiny Is Shared",
+    title: "#7 Destiny Is Shared",
     description:
       "To save a cat is to unlock its ninth life. But in return, it unlocks yours. Every rescuer earns a fortune not just in token — but in legacy, in status, in soul.",
-    how: "Craft 20 $TAILS by staking your cats. You can do it once every 7 days with each of your cat, head over to 'CATS' section and click 'CRAFT $TAILS' button. The more cats you have, the more $TAILS you can craft.",
+    how: "Craft $TAILS by staking your cats. You can do it once every 7 days with each of your cat, head over to 'CATS' section, select a cat and click 'CRAFT $TAILS' button. The more cats you have, the more $TAILS you can craft.",
     image: cdnFile("codex/codex-9.webp"),
     task: "CRAFT TAILS",
-    verification: (profile) => (profile?.monthTailsCrafted || 0) >= 20,
-    status: (profile) => `${profile.monthTailsCrafted || 0} / 20`,
+    verification: (profile) => (profile?.monthTailsCrafted || 0) >= 100,
+    status: (profile) => `${profile.monthTailsCrafted || 0} / 100`,
   },
 ];
 

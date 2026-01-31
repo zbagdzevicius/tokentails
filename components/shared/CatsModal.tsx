@@ -50,7 +50,7 @@ export const CatsModalContent = ({
           onClick={() => {
             setOpenedModal(GameModal.PACKS);
           }}
-          text="BUY PACKS FOR MORE CATS <3"
+          text="GET MORE CATS <3"
         ></PixelButton>
       </span>
 

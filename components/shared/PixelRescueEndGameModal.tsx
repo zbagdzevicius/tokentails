@@ -4,7 +4,6 @@ import { useProfile } from "@/context/ProfileContext";
 import { GameType } from "@/models/game";
 import React from "react";
 import { IGameStopEvent } from "../Phaser/events";
-import { getNextPixelRescueLevel, lastPixelRescueLevel } from "../Phaser/map";
 import { CloseButton } from "./CloseButton";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
@@ -94,33 +93,10 @@ export const PixelRescueEndGameModal: React.FC<EndGameProps> = ({
           )}
         </div>
         <div className="flex flex-col items-center justify-center gap-2 pb-4 md:pb-0">
-          <span
-            className={`${
-              !!gameStop.completedLevel &&
-              gameStop.completedLevel !== lastPixelRescueLevel
-                ? "-mb-4"
-                : "-mb-2"
-            }`}
-          >
+          <span className="-mt-4 md:-mb-8 md:mt-6">
             <PixelButton text="MEOW BACK" isSmall onClick={onClose} />
           </span>
-          <PixelButton
-            text="TRY AGAIN"
-            onClick={tryAgain}
-            isSmall={
-              !!gameStop.completedLevel &&
-              gameStop.completedLevel !== lastPixelRescueLevel
-            }
-          />
-          {!!gameStop.completedLevel &&
-            gameStop.completedLevel !== lastPixelRescueLevel && (
-              <PixelButton
-                text="NEXT LEVEL"
-                onClick={() =>
-                  tryAgain(getNextPixelRescueLevel(gameStop.completedLevel!))
-                }
-              />
-            )}
+          <PixelButton text="PLAY AGAIN" onClick={tryAgain} />
         </div>
       </div>
     </div>

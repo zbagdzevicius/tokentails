@@ -51,10 +51,10 @@ export class PixelRescueScene extends Scene {
   trampoline?: Trampoline;
   blessing?: Phaser.GameObjects.Sprite;
   private decorationLayer!: Phaser.Tilemaps.TilemapLayer;
-  private hearthLayer!: Phaser.Tilemaps.TilemapLayer;
-  private hearthCoins: Phaser.Physics.Arcade.Sprite[] = [];
-  private totalHearthCoins: number = 0;
-  private collectedHearthCoins: number = 0;
+  private heartLayer!: Phaser.Tilemaps.TilemapLayer;
+  private heartCoins: Phaser.Physics.Arcade.Sprite[] = [];
+  private totalheartCoins: number = 0;
+  private collectedheartCoins: number = 0;
   private shields: Phaser.Physics.Arcade.Sprite[] = [];
   private hasActiveShield: boolean = false;
   private shieldSprite?: Phaser.GameObjects.Sprite;
@@ -106,11 +106,11 @@ export class PixelRescueScene extends Scene {
     this.load.audio("purr", cdnFile("purrquest/sounds/purr.mp3"));
     this.load.tilemapTiledJSON(
       "tilemap",
-      cdnFile(`pixel-rescue/levels/level-${this.currentLevel}.json`),
+      cdnFile(`pixel-rescue/levels/level-${this.currentLevel}.json`)
     );
     this.load.image(
       "valentine",
-      cdnFile(PixelRescueLevelMap[this.currentLevel]),
+      cdnFile(PixelRescueLevelMap[this.currentLevel])
     );
     this.load.audio("powerup", cdnFile("purrquest/sounds/powerup.mp3"));
     this.load.audio("jump-sound", cdnFile("audio/game/jump.mp3"));
@@ -122,7 +122,7 @@ export class PixelRescueScene extends Scene {
     this.load.audio("open", cdnFile("pixel-rescue/sounds/open.wav"));
     this.load.audio(
       "protection",
-      cdnFile("pixel-rescue/sounds/protection.wav"),
+      cdnFile("pixel-rescue/sounds/protection.wav")
     );
 
     this.load.font("pixel-font", cdnFile("pixel-rescue/fonts/pixel-text2.ttf"));
@@ -135,7 +135,7 @@ export class PixelRescueScene extends Scene {
       {
         frameWidth: 90,
         frameHeight: 91,
-      },
+      }
     );
     this.load.spritesheet("jump-wall", cdnFile("game/effects/jump.png"), {
       frameWidth: 32,
@@ -153,7 +153,7 @@ export class PixelRescueScene extends Scene {
       {
         frameWidth: 64,
         frameHeight: 64,
-      },
+      }
     );
 
     this.load.spritesheet("cloud", cdnFile("catnip-chaos/items/cloud.png"), {
@@ -179,7 +179,7 @@ export class PixelRescueScene extends Scene {
       {
         frameWidth: 96,
         frameHeight: 96,
-      },
+      }
     );
     this.load.spritesheet(
       "enemy-runner",
@@ -187,15 +187,15 @@ export class PixelRescueScene extends Scene {
       {
         frameWidth: 96,
         frameHeight: 96,
-      },
+      }
     );
     this.load.image(
-      "hearth-coin",
-      cdnFile("pixel-rescue/items/hearth-coin.webp"),
+      "heart-coin",
+      cdnFile("pixel-rescue/items/hearth-coin.webp")
     );
     this.load.image(
-      "hearth-shield",
-      cdnFile("pixel-rescue/items/hearth-shield.webp"),
+      "heart-shield",
+      cdnFile("pixel-rescue/items/hearth-shield.webp")
     );
     this.load.spritesheet(
       "jumping-effect",
@@ -203,7 +203,7 @@ export class PixelRescueScene extends Scene {
       {
         frameWidth: 50,
         frameHeight: 50,
-      },
+      }
     );
 
     this.load.spritesheet("saw", cdnFile("story/saw.png"), {
@@ -244,7 +244,7 @@ export class PixelRescueScene extends Scene {
       32,
       32,
       1,
-      2,
+      2
     )!;
 
     this.groundLayer = this.tilemap.createLayer("blocks", [
@@ -260,7 +260,7 @@ export class PixelRescueScene extends Scene {
     this.physicsLayer = this.tilemap.createLayer("physics", [
       sugarTileset,
     ]) as Phaser.Tilemaps.TilemapLayer;
-    this.hearthLayer = this.tilemap.createLayer("hearth", [
+    this.heartLayer = this.tilemap.createLayer("hearth", [
       sugarTileset,
     ]) as Phaser.Tilemaps.TilemapLayer;
 
@@ -292,7 +292,7 @@ export class PixelRescueScene extends Scene {
         }
         return false;
       },
-      this,
+      this
     );
     this.groundLayer.skipCull = false;
     this.platformsLayer.skipCull = false;
@@ -480,7 +480,7 @@ export class PixelRescueScene extends Scene {
         this.createCat(cat.name, this.blessing, cat.type, cat.tier);
         this.createSpikes();
       },
-      this,
+      this
     );
     if (cat.blessing && cat.tier !== Tier.COMMON) {
       this.load.spritesheet(
@@ -489,7 +489,7 @@ export class PixelRescueScene extends Scene {
         {
           frameWidth: 64,
           frameHeight: 64,
-        },
+        }
       );
     }
 
@@ -519,7 +519,7 @@ export class PixelRescueScene extends Scene {
     catName: string,
     blessing: Phaser.GameObjects.Sprite | null | undefined,
     type: CatAbilityType,
-    tier: Tier,
+    tier: Tier
   ) {
     this.cat = new Cat(this, -850, -100, catName, blessing!, type, true, tier);
 
@@ -535,7 +535,7 @@ export class PixelRescueScene extends Scene {
     this.physics.add.collider(this.cat.sprite, this.groundLayer);
     this.physics.add.collider(
       this.cat.sprite as Phaser.Physics.Arcade.Sprite,
-      this.platformsLayer,
+      this.platformsLayer
     );
     this.physics.add.collider(this.cat.sprite, this.jumperLayer);
 
@@ -546,30 +546,30 @@ export class PixelRescueScene extends Scene {
       this.cratesGroup,
       this.handleCrateCollision,
       undefined,
-      this,
+      this
     );
 
     this.spawnEnemies();
     this.spawnCatCrates();
     this.spawnHazards();
-    this.initializeHearthCoins();
+    this.initializeheartCoins();
     this.initializeShields();
     this.spawnExitPortal();
 
-    if (!this.tutorialManager?.completed) {
+    if (!this.tutorialManager?.active) {
       this.time.delayedCall(1000, () => {
         this.tutorialManager?.start(
           this.cat,
           this.catCrate!,
-          this.hearthCoins,
+          this.heartCoins,
           this.exitPortalSprite!,
           this.exitPortalX,
-          this.exitPortalY,
+          this.exitPortalY
         );
       });
     }
 
-    if (this.tutorialManager?.completed) {
+    if (this.tutorialManager?.active) {
       this.cameras.main.startFollow(this.cat.sprite);
     }
   }
@@ -600,7 +600,7 @@ export class PixelRescueScene extends Scene {
           tile.getCenterX(),
           tile.getCenterY(),
           "crate",
-          catKey,
+          catKey
         );
         this.cratesGroup.add(this.catCrate);
 
@@ -664,7 +664,7 @@ export class PixelRescueScene extends Scene {
             texture: RUNNER_TEXTURE_KEY,
             groundLayer: this.groundLayer,
           },
-          this.cat!.sprite,
+          this.cat!.sprite
         );
         this.listEnemies.push(runner);
         this.enemiesGroup.add(runner);
@@ -679,7 +679,7 @@ export class PixelRescueScene extends Scene {
             texture: BLOCKER_TEXTURE_KEY,
             groundLayer: this.groundLayer,
           },
-          this.cat!.sprite,
+          this.cat!.sprite
         );
         this.listEnemies.push(blocker);
         this.enemiesGroup.add(blocker);
@@ -700,7 +700,7 @@ export class PixelRescueScene extends Scene {
         this.exitPortalSprite = this.add.sprite(
           this.exitPortalX,
           this.exitPortalY,
-          "exit-portal",
+          "exit-portal"
         );
         this.exitPortalSprite.setDisplaySize(64, 64);
         this.exitPortalSprite.setDepth(6);
@@ -745,7 +745,7 @@ export class PixelRescueScene extends Scene {
       bounds.y,
       bounds.width,
       bounds.height,
-      { isNotEmpty: true },
+      { isNotEmpty: true }
     );
 
     for (let i = 0; i < tiles.length; i++) {
@@ -824,10 +824,7 @@ export class PixelRescueScene extends Scene {
   }
 
   private onTimerTick() {
-    if (
-      this.gameEnded ||
-      (this.tutorialManager && !this.tutorialManager.completed)
-    )
+    if (this.gameEnded || (this.tutorialManager && this.tutorialManager.active))
       return;
 
     this.timer--;
@@ -893,7 +890,7 @@ export class PixelRescueScene extends Scene {
           this.cat.sprite.x,
           this.cat.sprite.y,
           sawSprite.x,
-          sawSprite.y,
+          sawSprite.y
         );
 
         if (distance < 30) {
@@ -913,7 +910,7 @@ export class PixelRescueScene extends Scene {
           this.cat.sprite.x,
           this.cat.sprite.y,
           morgensternSprite.x,
-          morgensternSprite.y,
+          morgensternSprite.y
         );
 
         if (distance < 30) {
@@ -932,7 +929,7 @@ export class PixelRescueScene extends Scene {
       if (
         isColliding &&
         this.catCrate.hasCat() &&
-        this.hearthCoins.length === 0
+        this.heartCoins.length === 0
       ) {
         const rescued = this.catCrate.updateCollision(time);
 
@@ -953,7 +950,7 @@ export class PixelRescueScene extends Scene {
           this.applyCatRescueSlowdown();
 
           // Objective handler: if coins are done, next is exit
-          if (this.hearthCoins.length === 0) {
+          if (this.heartCoins.length === 0) {
             GameEvents.OBJECTIVE_UPDATE.push({
               objective: "Reach the portal.",
               completed: false,
@@ -969,7 +966,7 @@ export class PixelRescueScene extends Scene {
               this.exitPortalX,
               this.exitPortalY,
               2000,
-              "Power2",
+              "Power2"
             );
 
             this.time.delayedCall(1000, () => {
@@ -979,7 +976,7 @@ export class PixelRescueScene extends Scene {
               this.showNotification(
                 this.exitPortalX,
                 this.exitPortalY - 70,
-                "Bring cat here!",
+                "Bring cat here!"
               );
 
               this.time.delayedCall(2500, () => {
@@ -991,7 +988,7 @@ export class PixelRescueScene extends Scene {
                     this.cat.sprite,
                     true,
                     0.1,
-                    0.1,
+                    0.1
                   );
                 }
               });
@@ -1006,7 +1003,7 @@ export class PixelRescueScene extends Scene {
       } else if (
         isColliding &&
         this.catCrate.hasCat() &&
-        this.hearthCoins.length > 0
+        this.heartCoins.length > 0
       ) {
         const currentTime = this.time.now;
         if (
@@ -1022,15 +1019,15 @@ export class PixelRescueScene extends Scene {
       }
     }
 
-    for (let i = this.hearthCoins.length - 1; i >= 0; i--) {
-      const coin = this.hearthCoins[i];
+    for (let i = this.heartCoins.length - 1; i >= 0; i--) {
+      const coin = this.heartCoins[i];
       if (this.physics.overlap(this.cat!.sprite, coin)) {
         coin.destroy();
-        this.hearthCoins.splice(i, 1);
-        this.collectedHearthCoins++;
+        this.heartCoins.splice(i, 1);
+        this.collectedheartCoins++;
 
-        const hearthSound = this.sound.add("catnip", { volume: 0.5 });
-        hearthSound.play();
+        const heartSound = this.sound.add("catnip", { volume: 0.5 });
+        heartSound.play();
 
         const puffSprite = this.add.sprite(coin.x, coin.y, "puff");
         puffSprite.play("puff");
@@ -1039,14 +1036,14 @@ export class PixelRescueScene extends Scene {
         });
 
         //Objective handler
-        if (this.hearthCoins.length === 1) {
+        if (this.heartCoins.length === 1) {
           GameEvents.OBJECTIVE_UPDATE.push({
-            objective: `Collect ${this.hearthCoins.length} hearth`,
+            objective: `Collect ${this.heartCoins.length} heart`,
             completed: false,
           });
-        } else if (this.hearthCoins.length > 1) {
+        } else if (this.heartCoins.length > 1) {
           GameEvents.OBJECTIVE_UPDATE.push({
-            objective: `Collect ${this.hearthCoins.length} hearths`,
+            objective: `Collect ${this.heartCoins.length} hearts`,
             completed: false,
           });
         } else {
@@ -1108,7 +1105,7 @@ export class PixelRescueScene extends Scene {
         this.cat.sprite.x,
         this.cat.sprite.y,
         this.exitPortalX,
-        this.exitPortalY,
+        this.exitPortalY
       );
 
       if (distanceToPortal < 64) {
@@ -1123,7 +1120,7 @@ export class PixelRescueScene extends Scene {
             this.showNotification(
               this.exitPortalX,
               this.exitPortalY - 70,
-              "Save cat first!",
+              "Save cat first!"
             );
             this.lastPortalNotificationTime = currentTime;
           }
@@ -1145,7 +1142,7 @@ export class PixelRescueScene extends Scene {
       this.cat.sprite,
       catImageUrl,
       catKey,
-      cratePosition,
+      cratePosition
     );
 
     const followDistance = 40;
@@ -1173,7 +1170,7 @@ export class PixelRescueScene extends Scene {
   private checkWinCondition() {
     if (
       this.catsRescued >= this.MAX_CATS_TO_RESCUE &&
-      this.hearthCoins.length === 0
+      this.heartCoins.length === 0
     ) {
       this.openExitPortal();
     }
@@ -1258,7 +1255,7 @@ export class PixelRescueScene extends Scene {
     this.timerEvent?.destroy();
 
     GameEvents.GAME_STOP.push({
-      score: this.collectedHearthCoins,
+      score: this.collectedheartCoins,
       time: 0,
       completedLevel: this.currentLevel,
     });
@@ -1296,18 +1293,18 @@ export class PixelRescueScene extends Scene {
     this.backgroundSound?.play();
   }
 
-  private initializeHearthCoins() {
-    this.hearthLayer.forEachTile((tile) => {
+  private initializeheartCoins() {
+    this.heartLayer.forEachTile((tile) => {
       if (tile.index === 428) {
         const worldX = tile.getCenterX();
         const worldY = tile.getCenterY();
-        this.totalHearthCoins++;
+        this.totalheartCoins++;
 
-        this.hearthLayer.removeTileAt(tile.x, tile.y);
+        this.heartLayer.removeTileAt(tile.x, tile.y);
         const rotatingSprite = this.physics.add.sprite(
           worldX,
           worldY,
-          "hearth-coin",
+          "heart-coin"
         );
         rotatingSprite.width = 32;
         rotatingSprite.height = 32;
@@ -1323,19 +1320,19 @@ export class PixelRescueScene extends Scene {
         });
 
         rotatingSprite.body.setAllowGravity(false);
-        this.hearthCoins.push(rotatingSprite);
+        this.heartCoins.push(rotatingSprite);
       }
     });
 
     //Objective handler
-    if (this.totalHearthCoins === 1) {
+    if (this.totalheartCoins === 1) {
       GameEvents.OBJECTIVE_UPDATE.push({
-        objective: `Collect ${this.totalHearthCoins} hearth`,
+        objective: `Collect ${this.totalheartCoins} heart`,
         completed: false,
       });
-    } else if (this.totalHearthCoins > 1) {
+    } else if (this.totalheartCoins > 1) {
       GameEvents.OBJECTIVE_UPDATE.push({
-        objective: `Collect ${this.totalHearthCoins} hearths`,
+        objective: `Collect ${this.totalheartCoins} hearts`,
         completed: false,
       });
     }
@@ -1354,7 +1351,7 @@ export class PixelRescueScene extends Scene {
         const shieldSprite = this.physics.add.sprite(
           worldX,
           worldY,
-          "hearth-shield",
+          "heart-shield"
         );
         shieldSprite.setDisplaySize(32, 32);
         shieldSprite.setVisible(true);
@@ -1384,7 +1381,7 @@ export class PixelRescueScene extends Scene {
       this.shieldSprite = this.add.sprite(
         this.cat.sprite.x,
         this.cat.sprite.y,
-        "shield",
+        "shield"
       );
       this.shieldSprite.setSize(32, 32);
       this.shieldSprite.setDepth(100);
@@ -1427,7 +1424,7 @@ export class PixelRescueScene extends Scene {
       const puffSprite = this.add.sprite(
         this.shieldSprite.x,
         this.shieldSprite.y,
-        "puff",
+        "puff"
       );
       puffSprite.setScale(2);
       puffSprite.play("puff");
@@ -1495,19 +1492,19 @@ export class PixelRescueScene extends Scene {
     const playerX = this.cat.sprite.x;
     const playerY = this.cat.sprite.y;
 
-    this.hearthCoins.forEach((coin) => {
+    this.heartCoins.forEach((coin) => {
       if (!coin.visible) return;
       const distance = Phaser.Math.Distance.Between(
         playerX,
         playerY,
         coin.x,
-        coin.y,
+        coin.y
       );
       if (distance < 32) {
-        this.collectedHearthCoins++;
+        this.collectedheartCoins++;
 
         GameEvents.GAME_COIN_CAUGHT.push({
-          score: this.collectedHearthCoins,
+          score: this.collectedheartCoins,
         });
       }
     });
@@ -1611,7 +1608,7 @@ export class PixelRescueScene extends Scene {
 
     this.time.delayedCall(250, () => {
       GameEvents.GAME_STOP.push({
-        score: this.collectedHearthCoins,
+        score: this.collectedheartCoins,
         time: 0,
         completedLevel: null,
       });
@@ -1627,8 +1624,8 @@ export class PixelRescueScene extends Scene {
     this.cat = undefined;
     this.catDto = undefined;
 
-    this.collectedHearthCoins = 0;
-    this.totalHearthCoins = 0;
+    this.collectedheartCoins = 0;
+    this.totalheartCoins = 0;
     this.catsRescued = 0;
     this.isPlayerCarryingCat = false;
     this.speedSlowdownMultiplier = 1;
@@ -1662,8 +1659,8 @@ export class PixelRescueScene extends Scene {
       this.rescuedCat = undefined;
     }
 
-    this.hearthCoins.forEach((coin) => coin.destroy());
-    this.hearthCoins = [];
+    this.heartCoins.forEach((coin) => coin.destroy());
+    this.heartCoins = [];
 
     this.shields.forEach((shield) => shield.destroy());
     this.shields = [];
@@ -1688,7 +1685,7 @@ export class PixelRescueScene extends Scene {
       this.tilemap,
       this.groundLayer,
       this.physicsLayer,
-      this.hearthLayer,
+      this.heartLayer
     );
     this.forestAtmosphere.create();
   }
@@ -1703,7 +1700,7 @@ export class PixelRescueScene extends Scene {
   private showCrateNotification() {
     if (!this.catCrate) return;
 
-    const coinsNeeded = this.hearthCoins.length;
+    const coinsNeeded = this.heartCoins.length;
     const message = `Need ${coinsNeeded} more heart${
       coinsNeeded === 1 ? "" : "s"
     }!`;

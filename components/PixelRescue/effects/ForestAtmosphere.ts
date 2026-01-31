@@ -5,7 +5,7 @@ export class ForestAtmosphere {
   private tilemap: Phaser.Tilemaps.Tilemap;
   private groundLayer: Phaser.Tilemaps.TilemapLayer;
   private physicsLayer?: Phaser.Tilemaps.TilemapLayer;
-  private hearthLayer?: Phaser.Tilemaps.TilemapLayer;
+  private heartLayer?: Phaser.Tilemaps.TilemapLayer;
 
   private particleEmitters: Phaser.GameObjects.Particles.ParticleEmitter[] = [];
   private lightningGraphics?: Phaser.GameObjects.Graphics;
@@ -18,13 +18,13 @@ export class ForestAtmosphere {
     tilemap: Phaser.Tilemaps.Tilemap,
     groundLayer: Phaser.Tilemaps.TilemapLayer,
     physicsLayer?: Phaser.Tilemaps.TilemapLayer,
-    hearthLayer?: Phaser.Tilemaps.TilemapLayer
+    heartLayer?: Phaser.Tilemaps.TilemapLayer
   ) {
     this.scene = scene;
     this.tilemap = tilemap;
     this.groundLayer = groundLayer;
     this.physicsLayer = physicsLayer;
-    this.hearthLayer = hearthLayer;
+    this.heartLayer = heartLayer;
   }
 
   create() {
@@ -277,12 +277,12 @@ export class ForestAtmosphere {
   }
 
   private createHeartParticles() {
-    if (!this.hearthLayer) return;
+    if (!this.heartLayer) return;
 
     const heartTile = 428;
     const heartPositions: { x: number; y: number }[] = [];
 
-    this.hearthLayer.forEachTile((tile) => {
+    this.heartLayer.forEachTile((tile) => {
       if (tile.index === heartTile) {
         heartPositions.push({
           x: tile.getCenterX(),
@@ -292,7 +292,7 @@ export class ForestAtmosphere {
     });
 
     heartPositions.forEach((pos) => {
-      const emitter = this.scene.add.particles(0, 0, "hearth-coin", {
+      const emitter = this.scene.add.particles(0, 0, "heart-coin", {
         x: { min: pos.x - 40, max: pos.x + 40 },
         y: { min: pos.y - 40, max: pos.y + 40 },
         speed: { min: 5, max: 15 },
@@ -311,12 +311,12 @@ export class ForestAtmosphere {
   }
 
   private createHeartPathParticles() {
-    if (!this.hearthLayer) return;
+    if (!this.heartLayer) return;
 
     const heartTile = 428;
     const heartPositions: { x: number; y: number }[] = [];
 
-    this.hearthLayer.forEachTile((tile) => {
+    this.heartLayer.forEachTile((tile) => {
       if (tile.index === heartTile) {
         heartPositions.push({
           x: tile.getCenterX(),
@@ -359,7 +359,7 @@ export class ForestAtmosphere {
         }
 
         // Create small heart particle emitter at each waypoint (only in empty spaces)
-        const emitter = this.scene.add.particles(0, 0, "hearth-coin", {
+        const emitter = this.scene.add.particles(0, 0, "heart-coin", {
           x: { min: waypointX - 20, max: waypointX + 20 },
           y: { min: waypointY - 20, max: waypointY + 20 },
           speed: { min: 3, max: 8 },
