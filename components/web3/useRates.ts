@@ -10,7 +10,7 @@ export const useRates = () => {
     [CurrencyType.SEI]: 1000,
     [CurrencyType.USDT]: 1,
     [CurrencyType.USDC]: 1,
-    [CurrencyType.ODP]: 1,
+    [CurrencyType.ODP]: 0.001,
     [CurrencyType.MNT]: 1,
     [CurrencyType.ETH]: 1,
   });

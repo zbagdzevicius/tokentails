@@ -46,6 +46,7 @@ export const Web3Transfer = ({
         CurrencyType.SEI,
         CurrencyType.ETH,
         CurrencyType.MNT,
+        CurrencyType.ODP,
       ].includes(currencyType) &&
       rates
     ) {
@@ -54,6 +55,9 @@ export const Web3Transfer = ({
       }
       if (currencyType === CurrencyType.SEI) {
         return Math.ceil(price / rates[CurrencyType.SEI]);
+      }
+      if (currencyType === CurrencyType.ODP) {
+        return parseFloat((price / rates[CurrencyType.ODP]).toFixed(3));
       }
       if (currencyType === CurrencyType.XLM) {
         return Math.ceil(price / rates[CurrencyType.XLM]);
