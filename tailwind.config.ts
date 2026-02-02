@@ -5,6 +5,7 @@ const config: Config = {
     "./pages/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
     "./layouts/**/*.{ts,tsx}",
+    "./features/**/*.{ts,tsx}",
   ],
   theme: {
     extend: {
@@ -46,6 +47,43 @@ const config: Config = {
           midnight: "#1E293B",
           gray: "#CBD5E1",
         },
+        // Portrait page colors (only available when data-portrait-page="true")
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        gold: "hsl(var(--gold))",
+        "gold-muted": "hsl(var(--gold-muted))",
+        "gold-light": "hsl(var(--gold-light))",
       },
       animation: {
         "loop-scroll": "loop-scroll 50s linear infinite",
