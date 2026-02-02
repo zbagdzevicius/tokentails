@@ -16,11 +16,12 @@ const config: Config = {
           300: "#9966CC",
           400: "#7851A9",
           500: "#4B0082",
-          DEFAULT: "#4B0082",
           600: "#6F2DA8",
           700: "#431C53",
           800: "#702963",
           900: "#301934",
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
         },
         yellow: {
           300: "#FCECBB",
@@ -69,10 +70,6 @@ const config: Config = {
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
-        },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
         },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
