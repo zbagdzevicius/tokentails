@@ -44,6 +44,16 @@ const PortraitPage = () => {
     });
   }, []);
 
+  // Add data attribute to body and html so drawer portal can access CSS variables
+  useEffect(() => {
+    document.body.setAttribute("data-portrait-page", "true");
+    document.documentElement.setAttribute("data-portrait-page", "true");
+    return () => {
+      document.body.removeAttribute("data-portrait-page");
+      document.documentElement.removeAttribute("data-portrait-page");
+    };
+  }, []);
+
   const handleImageUpload = useCallback(
     (file: File) => {
       const reader = new FileReader();

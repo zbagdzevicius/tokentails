@@ -77,7 +77,7 @@ export const StylePickerDrawer = ({ selectedStyle, onStyleChange }: StylePickerD
       </DrawerTrigger>
       <DrawerContent className="bg-card border-border">
         <DrawerHeader className="pb-2">
-          <DrawerTitle className="text-display text-lg tracking-[0.1em] text-center">
+          <DrawerTitle className="text-display text-lg tracking-[0.1em] text-center text-foreground">
             Select Style
           </DrawerTitle>
         </DrawerHeader>
