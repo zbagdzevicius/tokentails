@@ -21,55 +21,56 @@ interface StylePickerDrawerProps {
   onStyleChange: (style: PortraitStyle) => void;
 }
 
-const styles: { 
-  id: PortraitStyle; 
-  name: string; 
+const styles: {
+  id: PortraitStyle;
+  name: string;
   description: string;
   icon: typeof Crown;
   preview?: string | any;
 }[] = [
-  { 
-    id: "ai", 
-    name: "AI Choice", 
+  {
+    id: "ai",
+    name: "AI Choice",
     description: "Let AI select the perfect style",
     icon: Sparkles,
   },
-  { 
-    id: "king", 
-    name: "Monarch", 
+  {
+    id: "king",
+    name: "Monarch",
     description: "Regal & commanding presence",
     icon: Crown,
     preview: catKing,
   },
-  { 
-    id: "duchess", 
-    name: "Aristocrat", 
+  {
+    id: "duchess",
+    name: "Aristocrat",
     description: "Elegant & refined nobility",
     icon: Gem,
     preview: catDuchess,
   },
-  { 
-    id: "general", 
-    name: "Commander", 
+  {
+    id: "general",
+    name: "Commander",
     description: "Military distinction & honor",
     icon: Medal,
     preview: catGeneral,
   },
 ];
 
-export const StylePickerDrawer = ({ selectedStyle, onStyleChange }: StylePickerDrawerProps) => {
+export const StylePickerDrawer = ({
+  selectedStyle,
+  onStyleChange,
+}: StylePickerDrawerProps) => {
   const [open, setOpen] = useState(false);
-  
-  const currentStyle = styles.find(s => s.id === selectedStyle) || styles[0];
+
+  const currentStyle = styles.find((s) => s.id === selectedStyle) || styles[0];
   const CurrentIcon = currentStyle.icon;
   const displayName = selectedStyle === "ai" ? "Pick Style" : currentStyle.name;
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
-        <button 
-          className="flex items-center gap-1 text-[9px] tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors"
-        >
+        <button className="flex items-center gap-1 text-[9px] tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors">
           <CurrentIcon className="w-2.5 h-2.5" />
           <span>{displayName}</span>
           <ChevronDown className="w-2 h-2" />
@@ -86,7 +87,7 @@ export const StylePickerDrawer = ({ selectedStyle, onStyleChange }: StylePickerD
             {styles.map((style) => {
               const Icon = style.icon;
               const isSelected = selectedStyle === style.id;
-              
+
               return (
                 <motion.button
                   key={style.id}
@@ -104,7 +105,7 @@ export const StylePickerDrawer = ({ selectedStyle, onStyleChange }: StylePickerD
                   {/* Preview Image or Icon */}
                   {style.preview ? (
                     <div className="w-full aspect-[3/4] rounded-sm overflow-hidden mb-1">
-                      <img 
+                      <img
                         src={style.preview}
                         alt={style.name}
                         className="w-full h-full object-cover"
@@ -112,26 +113,36 @@ export const StylePickerDrawer = ({ selectedStyle, onStyleChange }: StylePickerD
                     </div>
                   ) : (
                     <div className="w-full aspect-[3/4] rounded-sm bg-muted/20 flex items-center justify-center mb-1">
-                      <Icon className={`w-8 h-8 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
+                      <Icon
+                        className={`w-8 h-8 ${
+                          isSelected ? "text-primary" : "text-muted-foreground"
+                        }`}
+                      />
                     </div>
                   )}
-                  
+
                   <div className="text-center">
-                    <p className={`text-xs tracking-[0.1em] uppercase font-medium ${
-                      isSelected ? "text-foreground" : "text-muted-foreground"
-                    }`}>
+                    <p
+                      className={`text-xs tracking-[0.1em] uppercase font-medium ${
+                        isSelected ? "text-foreground" : "text-muted-foreground"
+                      }`}
+                    >
                       {style.name}
                     </p>
                     <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
                       {style.description}
                     </p>
                   </div>
-                  
+
                   {isSelected && (
                     <motion.div
                       layoutId="selected-style"
                       className="absolute inset-0 border-2 border-primary rounded-sm pointer-events-none"
-                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      transition={{
+                        type: "spring",
+                        bounce: 0.2,
+                        duration: 0.6,
+                      }}
                     />
                   )}
                 </motion.button>
