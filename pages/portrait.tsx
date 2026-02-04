@@ -1,16 +1,22 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/router";
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import { UploadZone } from "@/features/portrait/components/UploadZone";
 import { PortraitStyle } from "@/features/portrait/components/StylePickerDrawer";
 import { AsSeenOn } from "@/features/portrait/components/AsSeenOn";
-import { PreviewPage } from "@/features/portrait/components/PreviewPage";
+import {
+  PreviewPage,
+  purchaseOptions,
+} from "@/features/portrait/components/PreviewPage";
 import { Button } from "@/features/portrait/ui/button";
 import { useToast } from "@/features/portrait/hooks/use-toast";
 import { Toaster } from "@/features/portrait/ui/toaster";
-import { trackFacebookEvent } from "@/components/FacebookPixel";
+import { trackEvent } from "@/components/GoogleTagManager";
+import { IMAGE_API } from "@/api/image-api";
+import { IImage } from "@/models/image";
 import {
   FloatingParticles,
   AmbientGlow,
@@ -27,22 +33,35 @@ const catNoble = "/portrait/example-cat-noble.jpg";
 const catScholar = "/portrait/example-cat-scholar.jpg";
 
 const PortraitPage = () => {
+  const router = useRouter();
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<PortraitStyle>("ai");
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [eventId, setEventId] = useState<string | undefined>(undefined);
+  const [uploadedImageId, setUploadedImageId] = useState<string | undefined>(
+    undefined
+  );
   const { toast } = useToast();
 
-  // Track ViewContent event on page load
+  // Check for product_id query param and redirect to preview
   useEffect(() => {
-    trackFacebookEvent("ViewContent", {
-      content_name: "Royal Feline Portrait",
-      content_category: "Portrait Service",
-      content_ids: ["portrait"],
-    });
-  }, []);
+    const { product_id } = router.query;
+    if (product_id && typeof product_id === "string") {
+      setEventId(product_id);
+      // Generate demo images and show preview
+      const demoVariations: Record<PortraitStyle, string> = {
+        ai: [catKing, catDuchess, catGeneral][Math.floor(Math.random() * 3)],
+        king: catKing,
+        duchess: catDuchess,
+        general: catGeneral,
+      };
+      setGeneratedImages([demoVariations[selectedStyle]]);
+      setShowPreview(true);
+    }
+  }, [router.query, selectedStyle]);
 
   // Add data attribute to body and html so drawer portal can access CSS variables
   useEffect(() => {
@@ -55,47 +74,66 @@ const PortraitPage = () => {
   }, []);
 
   const handleImageUpload = useCallback(
-    (file: File) => {
+    async (file: File) => {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const imageData = e.target?.result as string;
         setUploadedImage(imageData);
         setUploadedFile(file);
         setGeneratedImages([]);
         setShowPreview(false);
 
-        // Track AddToCart event when image is uploaded
-        trackFacebookEvent("AddToCart", {
-          content_name: "Royal Feline Portrait",
-          content_category: "Portrait Service",
-          content_ids: ["portrait"],
-          value: 19.0,
+        // Use first purchase option as default
+        const defaultOption = purchaseOptions[0];
+        trackEvent("view_item", {
+          item_name: "Royal Feline Portrait",
+          item_category: "Portrait Service",
+          item_id: defaultOption.id,
+          value: defaultOption.price,
           currency: "USD",
         });
 
-        // Auto-start portrait generation
+        // Upload image and generate portrait
         setIsGenerating(true);
-        setTimeout(() => {
-          const demoVariations: Record<PortraitStyle, string> = {
-            ai: [catKing, catDuchess, catGeneral][
-              Math.floor(Math.random() * 3)
-            ],
-            king: catKing,
-            duchess: catDuchess,
-            general: catGeneral,
-          };
+        try {
+          const uploadedImage: IImage | null = await IMAGE_API.uploadImage(
+            file,
+            {
+              name: file.name,
+            }
+          );
+
+          if (uploadedImage && uploadedImage._id) {
+            setUploadedImageId(uploadedImage._id);
+            // Use the AI-generated URL if available, otherwise use the regular URL
+            const imageUrl = uploadedImage.aiUrl || uploadedImage.url;
+            if (imageUrl) {
+              toast({
+                title: "Portrait created! 👑",
+                description: "Your royal masterpiece is ready.",
+              });
+              setGeneratedImages([imageUrl]);
+              setIsGenerating(false);
+              setShowPreview(true);
+            } else {
+              throw new Error("No image URL returned");
+            }
+          } else {
+            throw new Error("Failed to upload image");
+          }
+        } catch (error) {
+          console.error("Error uploading image:", error);
           toast({
-            title: "Portrait created! 👑",
-            description: "Your royal masterpiece is ready.",
+            title: "Upload failed",
+            description: "Please try again.",
+            variant: "destructive",
           });
-          setGeneratedImages([demoVariations[selectedStyle]]);
           setIsGenerating(false);
-          setShowPreview(true);
-        }, 3000);
+        }
       };
       reader.readAsDataURL(file);
     },
-    [selectedStyle, toast]
+    [toast]
   );
 
   const handleClear = useCallback(() => {
@@ -106,7 +144,7 @@ const PortraitPage = () => {
   }, []);
 
   const handleGenerate = useCallback(async () => {
-    if (!uploadedImage) {
+    if (!uploadedFile) {
       toast({
         title: "No image uploaded",
         description: "Please upload a photo of your cat first.",
@@ -117,39 +155,78 @@ const PortraitPage = () => {
 
     setIsGenerating(true);
 
-    // Simulate AI generation - generates 1 variation
-    // In production, this would call Lovable AI with the uploaded image
-    setTimeout(() => {
-      // Demo: Use example image as the generated variation
-      const demoVariations: Record<PortraitStyle, string> = {
-        ai: [catKing, catDuchess, catGeneral][Math.floor(Math.random() * 3)],
-        king: catKing,
-        duchess: catDuchess,
-        general: catGeneral,
-      };
+    try {
+      const uploadedImage: IImage | null = await IMAGE_API.uploadImage(
+        uploadedFile,
+        {
+          name: uploadedFile.name,
+        }
+      );
 
+      if (uploadedImage && uploadedImage._id) {
+        setUploadedImageId(uploadedImage._id);
+        const imageUrl = uploadedImage.aiUrl || uploadedImage.url;
+        if (imageUrl) {
+          toast({
+            title: "Portrait created! 👑",
+            description: "Your royal masterpiece is ready.",
+          });
+          setGeneratedImages([imageUrl]);
+          setIsGenerating(false);
+          setShowPreview(true);
+        } else {
+          throw new Error("No image URL returned");
+        }
+      } else {
+        throw new Error("Failed to generate portrait");
+      }
+    } catch (error) {
+      console.error("Error generating portrait:", error);
       toast({
-        title: "Portrait created! 👑",
-        description: "Your royal masterpiece is ready.",
+        title: "Generation failed",
+        description: "Please try again.",
+        variant: "destructive",
       });
-      setGeneratedImages([demoVariations[selectedStyle]]);
       setIsGenerating(false);
-      setShowPreview(true);
-    }, 3000);
-  }, [uploadedImage, selectedStyle, toast]);
+    }
+  }, [uploadedFile, toast]);
 
-  const handleRetry = useCallback(() => {
+  const handleRetry = useCallback(async () => {
+    if (!uploadedImageId) {
+      toast({
+        title: "No image to regenerate",
+        description: "Please upload an image first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsGenerating(true);
-    // Simulate regeneration - single variation
-    setTimeout(() => {
-      const allImages = [catKing, catDuchess, catGeneral, catNoble, catScholar];
-      // Pick 1 random image
-      const randomImage =
-        allImages[Math.floor(Math.random() * allImages.length)];
-      setGeneratedImages([randomImage]);
+    try {
+      const regeneratedImage: IImage | null =
+        await IMAGE_API.regeneratePortrait(uploadedImageId);
+
+      if (regeneratedImage) {
+        const imageUrl = regeneratedImage.aiUrl || regeneratedImage.url;
+        if (imageUrl) {
+          setGeneratedImages([imageUrl]);
+          setIsGenerating(false);
+        } else {
+          throw new Error("No image URL returned");
+        }
+      } else {
+        throw new Error("Failed to regenerate portrait");
+      }
+    } catch (error) {
+      console.error("Error regenerating portrait:", error);
+      toast({
+        title: "Regeneration failed",
+        description: "Please try again.",
+        variant: "destructive",
+      });
       setIsGenerating(false);
-    }, 2000);
-  }, []);
+    }
+  }, [uploadedImageId, toast]);
 
   const handleReset = useCallback(() => {
     setUploadedImage(null);
@@ -168,6 +245,8 @@ const PortraitPage = () => {
           generatedImages={generatedImages}
           onRetry={handleRetry}
           onBack={handleReset}
+          eventId={eventId}
+          imageId={uploadedImageId}
         />
       </div>
     );

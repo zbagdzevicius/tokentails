@@ -4,4 +4,5 @@ export interface IImage {
   caption?: string;
   name?: string;
   url: string;
+  aiUrl?: string;
 }

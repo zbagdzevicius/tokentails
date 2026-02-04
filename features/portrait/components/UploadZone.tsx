@@ -61,7 +61,7 @@ export const UploadZone = ({ onImageUpload, uploadedImage, onClear, selectedStyl
             <img
               src={uploadedImage}
               alt="Uploaded cat"
-              className="w-full h-56 object-cover"
+              className="w-full aspect-[3/4] object-cover"
             />
             <button
               onClick={onClear}

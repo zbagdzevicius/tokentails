@@ -1,5 +1,4 @@
-import { Analytics } from "@/components/Analytics";
-import { FacebookPixel } from "@/components/FacebookPixel";
+import { GoogleTagManager } from "@/components/GoogleTagManager";
 import { CatProvider } from "@/context/CatContext";
 import { ProfileProvider } from "@/context/ProfileContext";
 import { ToastProvider } from "@/context/ToastContext";
@@ -39,8 +38,7 @@ export const MainLayout = ({ children }: PropsWithChildren<any>) => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Analytics />
-      <FacebookPixel />
+      <GoogleTagManager />
       <ToastProvider>
         <ProfileProvider>
           <CatProvider>

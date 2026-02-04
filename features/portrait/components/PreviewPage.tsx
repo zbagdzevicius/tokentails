@@ -1,11 +1,24 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Check, Download, PawPrint, Cat, Clock, Truck, RefreshCw, Sparkles, Timer } from "lucide-react";
+import {
+  Check,
+  Download,
+  PawPrint,
+  Cat,
+  Clock,
+  Truck,
+  RefreshCw,
+  Sparkles,
+  Timer,
+} from "lucide-react";
 import { Button } from "@/features/portrait/ui/button";
 import { TrustpilotReviews } from "@/features/portrait/components/TrustpilotReviews";
 import { Testimonials } from "@/features/portrait/components/Testimonials";
 import { useCountdown } from "@/features/portrait/hooks/useCountdown";
-import { trackFacebookEvent } from "@/components/FacebookPixel";
+import { trackEvent } from "@/components/GoogleTagManager";
+import { IMAGE_API } from "@/api/image-api";
+import { IImage } from "@/models/image";
+import { useToast } from "@/features/portrait/hooks/use-toast";
 
 interface PurchaseOption {
   id: string;
@@ -22,14 +35,15 @@ interface PurchaseOption {
   includesDigital?: boolean;
 }
 
-const purchaseOptions: PurchaseOption[] = [
+export const purchaseOptions: PurchaseOption[] = [
   {
     id: "digital",
     title: "Instant Masterpiece",
     price: 19,
     originalPrice: 29,
     badge: "Most Popular",
-    description: "Instant high-resolution download — perfect for sharing or saving.",
+    description:
+      "Instant high-resolution download — perfect for sharing or saving.",
     features: ["No Watermark", "Instant Download", "High-Resolution Portrait"],
     icon: Download,
     ctaText: "Download Now",
@@ -39,8 +53,13 @@ const purchaseOptions: PurchaseOption[] = [
     title: "Fine Art Print",
     price: 69,
     badge: "Recommended",
-    description: "Printed on museum-quality archival paper with fade-resistant inks.",
-    features: ["Museum-quality archival paper", "Fade-resistant inks", "Made to last decades"],
+    description:
+      "Printed on museum-quality archival paper with fade-resistant inks.",
+    features: [
+      "Museum-quality archival paper",
+      "Fade-resistant inks",
+      "Made to last decades",
+    ],
     icon: PawPrint,
     ctaText: "Order Print",
     size: '12" x 16"',
@@ -53,7 +72,11 @@ const purchaseOptions: PurchaseOption[] = [
     price: 199,
     badge: "The Perfect Gift 🐱",
     description: "Gallery-quality canvas on wood — arrives ready to hang.",
-    features: ["Ready to hang", 'Cotton-blend canvas, 1.25" thick', "Mounting included"],
+    features: [
+      "Ready to hang",
+      'Cotton-blend canvas, 1.25" thick',
+      "Mounting included",
+    ],
     icon: Cat,
     ctaText: "Order Canvas",
     size: '18" x 24"',
@@ -66,32 +89,105 @@ interface PreviewPageProps {
   generatedImages: string[];
   onRetry: () => void;
   onBack: () => void;
+  eventId?: string;
+  imageId?: string;
 }
 
-export const PreviewPage = ({ generatedImages, onRetry, onBack }: PreviewPageProps) => {
+export const PreviewPage = ({
+  generatedImages,
+  onRetry,
+  onBack,
+  eventId,
+  imageId,
+}: PreviewPageProps) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [currentImages, setCurrentImages] = useState<string[]>(generatedImages);
   const { formattedTime, isExpired } = useCountdown(15);
+  const { toast } = useToast();
 
-  // Track InitiateCheckout event when preview page loads
+  // Get default option (first option - digital)
+  const defaultOption = purchaseOptions[0];
+
+  // Sync currentImages with generatedImages prop
   useEffect(() => {
-    trackFacebookEvent("InitiateCheckout", {
-      content_name: "Royal Feline Portrait",
-      content_category: "Portrait Service",
-      content_ids: ["portrait"],
-      num_items: 1,
+    setCurrentImages(generatedImages);
+  }, [generatedImages]);
+
+  // Sync currentImages with generatedImages prop
+  useEffect(() => {
+    setCurrentImages(generatedImages);
+  }, [generatedImages]);
+
+  // Track AddToCart event when preview page loads
+  useEffect(() => {
+    trackEvent("add_to_cart", {
+      event_id: eventId,
+      item_name: "Royal Feline Portrait",
+      item_category: "Portrait Service",
+      item_id: purchaseOptions[0].id,
+      value: purchaseOptions[0].price,
+      currency: "USD",
+      quantity: 1,
     });
-  }, []);
+  }, [eventId]);
+
+  const handleRetry = async () => {
+    if (!imageId) {
+      toast({
+        title: "No image to regenerate",
+        description: "Please upload an image first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsRegenerating(true);
+    try {
+      const regeneratedImage: IImage | null =
+        await IMAGE_API.regeneratePortrait(imageId);
+
+      if (regeneratedImage) {
+        const imageUrl = regeneratedImage.aiUrl || regeneratedImage.url;
+        if (imageUrl) {
+          setCurrentImages([imageUrl]);
+          toast({
+            title: "Portrait regenerated! 👑",
+            description: "Your new masterpiece is ready.",
+          });
+          setIsRegenerating(false);
+        } else {
+          throw new Error("No image URL returned");
+        }
+      } else {
+        throw new Error("Failed to regenerate portrait");
+      }
+    } catch (error) {
+      console.error("Error regenerating portrait:", error);
+      toast({
+        title: "Regeneration failed",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+      setIsRegenerating(false);
+    }
+  };
 
   const handlePurchase = (optionId: string, price: number) => {
+    // Find the selected option
+    const selectedOption =
+      purchaseOptions.find((opt) => opt.id === optionId) || defaultOption;
+
     // Track Purchase event
-    trackFacebookEvent("Purchase", {
-      content_name: "Royal Feline Portrait",
-      content_category: "Portrait Service",
-      content_ids: [optionId],
+    trackEvent("purchase", {
+      event_id: eventId,
+      transaction_id: eventId || optionId,
+      item_id: selectedOption.id,
+      item_name: "Royal Feline Portrait",
       value: price,
       currency: "USD",
     });
-    
+
     // This would integrate with Stripe
     console.log("Purchase:", optionId, price);
   };
@@ -126,39 +222,44 @@ export const PreviewPage = ({ generatedImages, onRetry, onBack }: PreviewPagePro
         >
           {/* Main Image */}
           <div className="relative mb-4">
-            <div 
+            <div
               className="portrait-frame rounded-lg overflow-hidden max-w-lg mx-auto select-none"
               onContextMenu={(e) => e.preventDefault()}
               onDragStart={(e) => e.preventDefault()}
             >
               <img
-                src={generatedImages[selectedImageIndex]}
+                src={
+                  currentImages[selectedImageIndex] ||
+                  generatedImages[selectedImageIndex]
+                }
                 alt="Generated royal portrait"
-                className="w-full aspect-square object-cover pointer-events-none"
+                className="w-full aspect-[3/4] object-cover pointer-events-none"
                 draggable={false}
               />
               {/* Repeating logo watermark overlay */}
-              <div 
+              <div
                 className="absolute inset-[-50%] pointer-events-none select-none"
                 style={{
                   backgroundImage: `url(/portrait/watermark-logo.webp)`,
-                  backgroundSize: '18%',
-                  backgroundRepeat: 'space',
-                  backgroundPosition: 'center',
+                  backgroundSize: "18%",
+                  backgroundRepeat: "space",
+                  backgroundPosition: "center",
                   opacity: 0.07,
-                  transform: 'rotate(-25deg)',
+                  transform: "rotate(-25deg)",
                 }}
               />
             </div>
             <button
-              onClick={onRetry}
-              className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-sm text-sm hover:bg-background transition-colors border border-border"
+              onClick={handleRetry}
+              disabled={isRegenerating || !imageId}
+              className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-sm text-sm hover:bg-background transition-colors border border-border disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <RefreshCw className="w-3 h-3" />
-              Retry
+              <RefreshCw
+                className={`w-3 h-3 ${isRegenerating ? "animate-spin" : ""}`}
+              />
+              {isRegenerating ? "Regenerating..." : "Retry"}
             </button>
           </div>
-
         </motion.div>
 
         {/* Purchase Options */}
@@ -167,7 +268,9 @@ export const PreviewPage = ({ generatedImages, onRetry, onBack }: PreviewPagePro
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <h2 className="text-display text-2xl text-center mb-8">Choose Your Format</h2>
+          <h2 className="text-display text-2xl text-center mb-8">
+            Choose Your Format
+          </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {purchaseOptions.map((option, index) => {
@@ -183,17 +286,22 @@ export const PreviewPage = ({ generatedImages, onRetry, onBack }: PreviewPagePro
                   }`}
                 >
                   {option.badge && (
-                    <div className={`absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-medium ${
-                      option.badge === "Most Popular" || option.badge === "Recommended"
-                        ? "bg-primary text-primary-foreground" 
-                        : "bg-gold text-background"
-                    }`}>
+                    <div
+                      className={`absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-medium ${
+                        option.badge === "Most Popular" ||
+                        option.badge === "Recommended"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-gold text-background"
+                      }`}
+                    >
                       {option.badge}
                     </div>
                   )}
 
                   <div className="text-center mb-4">
-                    <h3 className="font-display text-xl mb-2">{option.title}</h3>
+                    <h3 className="font-display text-xl mb-2">
+                      {option.title}
+                    </h3>
                     <div className="flex items-center justify-center gap-2">
                       {option.originalPrice && !isExpired && (
                         <span className="text-muted-foreground line-through text-lg">
@@ -201,7 +309,10 @@ export const PreviewPage = ({ generatedImages, onRetry, onBack }: PreviewPagePro
                         </span>
                       )}
                       <span className="text-3xl font-bold">
-                        ${option.id === "digital" && isExpired ? option.originalPrice : option.price}
+                        $
+                        {option.id === "digital" && isExpired
+                          ? option.originalPrice
+                          : option.price}
                       </span>
                     </div>
                     {/* Countdown Timer for Digital Option */}
@@ -209,7 +320,9 @@ export const PreviewPage = ({ generatedImages, onRetry, onBack }: PreviewPagePro
                       <div className="flex items-center justify-center gap-1.5 mt-2 text-sm text-primary">
                         <Timer className="w-4 h-4" />
                         <span>Expires in</span>
-                        <span className="font-mono font-semibold">{formattedTime}</span>
+                        <span className="font-mono font-semibold">
+                          {formattedTime}
+                        </span>
                       </div>
                     )}
                     {option.id === "digital" && isExpired && (
@@ -227,7 +340,10 @@ export const PreviewPage = ({ generatedImages, onRetry, onBack }: PreviewPagePro
                   {option.size && (
                     <div className="mb-4">
                       <p className="text-sm text-muted-foreground">
-                        Size: <span className="text-foreground font-medium">{option.size}</span>
+                        Size:{" "}
+                        <span className="text-foreground font-medium">
+                          {option.size}
+                        </span>
                       </p>
                     </div>
                   )}
@@ -235,7 +351,10 @@ export const PreviewPage = ({ generatedImages, onRetry, onBack }: PreviewPagePro
                   {/* Features */}
                   <ul className="space-y-2 mb-4 flex-1">
                     {option.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-sm">
+                      <li
+                        key={feature}
+                        className="flex items-start gap-2 text-sm"
+                      >
                         <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                         <span>{feature}</span>
                       </li>
@@ -267,7 +386,14 @@ export const PreviewPage = ({ generatedImages, onRetry, onBack }: PreviewPagePro
                     variant={option.id === "digital" ? "hero" : "baroque"}
                     size="lg"
                     className="w-full"
-                    onClick={() => handlePurchase(option.id, option.id === "digital" && isExpired ? (option.originalPrice || option.price) : option.price)}
+                    onClick={() =>
+                      handlePurchase(
+                        option.id,
+                        option.id === "digital" && isExpired
+                          ? option.originalPrice || option.price
+                          : option.price
+                      )
+                    }
                   >
                     <Icon className="w-4 h-4" />
                     {option.ctaText}
