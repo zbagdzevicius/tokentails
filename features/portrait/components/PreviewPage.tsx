@@ -99,6 +99,7 @@ interface PreviewPageProps {
   orderStatus?: OrderStatus | null;
   isPollingOrder?: boolean;
   orderProductType?: string | null;
+  sessionId?: string;
 }
 
 export const PreviewPage = ({
@@ -110,6 +111,7 @@ export const PreviewPage = ({
   orderStatus,
   isPollingOrder = false,
   orderProductType,
+  sessionId,
 }: PreviewPageProps) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isRegenerating, setIsRegenerating] = useState(false);
@@ -370,16 +372,18 @@ export const PreviewPage = ({
                 />
               )}
             </div>
-            <button
-              onClick={handleRetry}
-              disabled={isRegenerating || !imageId}
-              className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-sm text-sm hover:bg-background transition-colors border border-border disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <RefreshCw
-                className={`w-3 h-3 ${isRegenerating ? "animate-spin" : ""}`}
-              />
-              {isRegenerating ? "Regenerating..." : "Retry"}
-            </button>
+            {!sessionId && (
+              <button
+                onClick={handleRetry}
+                disabled={isRegenerating || !imageId}
+                className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-sm text-sm hover:bg-background transition-colors border border-border disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw
+                  className={`w-3 h-3 ${isRegenerating ? "animate-spin" : ""}`}
+                />
+                {isRegenerating ? "Regenerating..." : "Retry"}
+              </button>
+            )}
           </div>
         </motion.div>
 

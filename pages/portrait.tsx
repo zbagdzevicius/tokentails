@@ -434,6 +434,7 @@ const PortraitPage = () => {
           orderStatus={orderStatus}
           isPollingOrder={isPollingOrder}
           orderProductType={orderProductType}
+          sessionId={router.query.session_id as string | undefined}
         />
       </div>
     );
