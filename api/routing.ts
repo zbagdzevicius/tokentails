@@ -78,4 +78,7 @@ export const EntityRouteOption: Omit<
   [EntityType.PACK]: {
     details: ([]) => `/`,
   },
+  [EntityType.IMAGE]: {
+    details: ([]) => `/`,
+  },
 };
