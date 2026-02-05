@@ -1,6 +1,3 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Crown, Gem, Medal, Sparkles, ChevronDown } from "lucide-react";
 import {
   Drawer,
   DrawerContent,
@@ -8,11 +5,13 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/features/portrait/ui/drawer";
-import { Button } from "@/features/portrait/ui/button";
+import { motion } from "framer-motion";
+import { ChevronDown, Crown, Gem, Medal, Sparkles } from "lucide-react";
+import { useState } from "react";
 
-const catKing = "/portrait/example-cat-king.jpg";
-const catDuchess = "/portrait/example-cat-duchess.jpg";
-const catGeneral = "/portrait/example-cat-general.jpg";
+const catKing = "/portrait/portrait-aristocrat.webp";
+const catDuchess = "/portrait/portrait-cats.webp";
+const catGeneral = "/portrait/portrait-commander.webp";
 
 export type PortraitStyle = "ai" | "king" | "duchess" | "general";
 
@@ -69,13 +68,14 @@ export const StylePickerDrawer = ({
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
+      {/* TODO - UNHIDE DISPLAY ICON AFTER IMPLEMENTATION */}
+      {/* <DrawerTrigger asChild>
         <button className="flex items-center gap-1 text-[9px] tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors">
           <CurrentIcon className="w-2.5 h-2.5" />
           <span>{displayName}</span>
           <ChevronDown className="w-2 h-2" />
         </button>
-      </DrawerTrigger>
+      </DrawerTrigger> */}
       <DrawerContent className="bg-card border-border">
         <DrawerHeader className="pb-2">
           <DrawerTitle className="text-display text-lg tracking-[0.1em] text-center text-foreground">

@@ -10,6 +10,9 @@ import {
   RefreshCw,
   Sparkles,
   Timer,
+  X,
+  Mail,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/features/portrait/ui/button";
 import { TrustpilotReviews } from "@/features/portrait/components/TrustpilotReviews";
@@ -19,6 +22,8 @@ import { trackEvent } from "@/components/GoogleTagManager";
 import { IMAGE_API } from "@/api/image-api";
 import { IImage } from "@/models/image";
 import { useToast } from "@/features/portrait/hooks/use-toast";
+import { STRIPE_API } from "@/api/stripe-api";
+import { OrderStatus } from "@/models/order";
 
 interface PurchaseOption {
   id: string;
@@ -63,7 +68,7 @@ export const purchaseOptions: PurchaseOption[] = [
     icon: PawPrint,
     ctaText: "Order Print",
     size: '12" x 16"',
-    delivery: "5-14 days",
+    delivery: "3-12 days",
     includesDigital: true,
   },
   {
@@ -80,7 +85,7 @@ export const purchaseOptions: PurchaseOption[] = [
     icon: Cat,
     ctaText: "Order Canvas",
     size: '18" x 24"',
-    delivery: "5-14 days",
+    delivery: "3-12 days",
     includesDigital: true,
   },
 ];
@@ -91,6 +96,9 @@ interface PreviewPageProps {
   onBack: () => void;
   eventId?: string;
   imageId?: string;
+  orderStatus?: OrderStatus | null;
+  isPollingOrder?: boolean;
+  orderProductType?: string | null;
 }
 
 export const PreviewPage = ({
@@ -99,10 +107,21 @@ export const PreviewPage = ({
   onBack,
   eventId,
   imageId,
+  orderStatus,
+  isPollingOrder = false,
+  orderProductType,
 }: PreviewPageProps) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isProcessingPurchase, setIsProcessingPurchase] = useState(false);
   const [currentImages, setCurrentImages] = useState<string[]>(generatedImages);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [pendingPurchase, setPendingPurchase] = useState<{
+    optionId: string;
+    price: number;
+  } | null>(null);
   const { formattedTime, isExpired } = useCountdown(15);
   const { toast } = useToast();
 
@@ -173,7 +192,38 @@ export const PreviewPage = ({
     }
   };
 
-  const handlePurchase = (optionId: string, price: number) => {
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handlePurchaseClick = (optionId: string, price: number) => {
+    // Store the pending purchase and show email modal
+    setPendingPurchase({ optionId, price });
+    setShowEmailModal(true);
+    setEmail("");
+    setEmailError("");
+  };
+
+  const handleEmailSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+
+    if (!email.trim()) {
+      setEmailError("Email is required");
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+
+    if (!pendingPurchase) {
+      return;
+    }
+
+    const { optionId, price } = pendingPurchase;
+
     // Find the selected option
     const selectedOption =
       purchaseOptions.find((opt) => opt.id === optionId) || defaultOption;
@@ -188,8 +238,41 @@ export const PreviewPage = ({
       currency: "USD",
     });
 
-    // This would integrate with Stripe
-    console.log("Purchase:", optionId, price);
+    setShowEmailModal(false);
+    setIsProcessingPurchase(true);
+
+    try {
+      // Create Stripe Checkout Session with email
+      const { url } = await STRIPE_API.createCheckoutSession({
+        amount: Math.round(price * 100), // Convert to cents
+        productType: optionId as "digital" | "print" | "canvas",
+        imageId: imageId,
+        email: email.trim(),
+      });
+
+      // Redirect to Stripe Checkout
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      toast({
+        title: "Checkout failed",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+      setIsProcessingPurchase(false);
+      setPendingPurchase(null);
+    }
+  };
+
+  const handleCloseEmailModal = () => {
+    setShowEmailModal(false);
+    setEmail("");
+    setEmailError("");
+    setPendingPurchase(null);
   };
 
   return (
@@ -210,8 +293,44 @@ export const PreviewPage = ({
           animate={{ opacity: 1, y: 0 }}
           className="text-display text-4xl md:text-5xl text-center mb-8"
         >
-          Your Masterpiece is Ready!
+          {orderStatus === OrderStatus.COMPLETE
+            ? "Purchase Complete! 🎉"
+            : isPollingOrder
+            ? "Processing Your Order..."
+            : "Your Masterpiece is Ready!"}
         </motion.h1>
+
+        {/* Order Status Loader */}
+        {isPollingOrder && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center gap-4 mb-8"
+          >
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <p className="text-muted-foreground text-sm">
+              Waiting for payment confirmation...
+            </p>
+          </motion.div>
+        )}
+
+        {/* Success Message for Print/Canvas */}
+        {orderStatus === OrderStatus.COMPLETE &&
+          (orderProductType === "print" || orderProductType === "canvas") && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-2xl mx-auto mb-8 p-6 card-baroque rounded-xl text-center"
+            >
+              <p className="text-lg mb-2">
+                Your product will be shipped to you in 3-12 days
+              </p>
+              <p className="text-muted-foreground">
+                Thanks for your purchase{" "}
+                <span className="text-primary">❤️</span>
+              </p>
+            </motion.div>
+          )}
 
         {/* Generated Images */}
         <motion.div
@@ -236,18 +355,20 @@ export const PreviewPage = ({
                 className="w-full aspect-[3/4] object-cover pointer-events-none"
                 draggable={false}
               />
-              {/* Repeating logo watermark overlay */}
-              <div
-                className="absolute inset-[-50%] pointer-events-none select-none"
-                style={{
-                  backgroundImage: `url(/portrait/watermark-logo.webp)`,
-                  backgroundSize: "18%",
-                  backgroundRepeat: "space",
-                  backgroundPosition: "center",
-                  opacity: 0.07,
-                  transform: "rotate(-25deg)",
-                }}
-              />
+              {/* Repeating logo watermark overlay - hide if order is complete */}
+              {orderStatus !== OrderStatus.COMPLETE && (
+                <div
+                  className="absolute inset-[-50%] pointer-events-none select-none"
+                  style={{
+                    backgroundImage: `url(/portrait/watermark-logo.webp)`,
+                    backgroundSize: "18%",
+                    backgroundRepeat: "space",
+                    backgroundPosition: "center",
+                    opacity: 0.07,
+                    transform: "rotate(-25deg)",
+                  }}
+                />
+              )}
             </div>
             <button
               onClick={handleRetry}
@@ -262,147 +383,183 @@ export const PreviewPage = ({
           </div>
         </motion.div>
 
-        {/* Purchase Options */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <h2 className="text-display text-2xl text-center mb-8">
-            Choose Your Format
-          </h2>
+        {/* Download Button for Completed Orders */}
+        {orderStatus === OrderStatus.COMPLETE && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-center mb-8"
+          >
+            <Button
+              variant="hero"
+              size="lg"
+              onClick={() => {
+                const imageUrl =
+                  currentImages[selectedImageIndex] ||
+                  generatedImages[selectedImageIndex];
+                if (imageUrl) {
+                  const link = document.createElement("a");
+                  link.href = imageUrl;
+                  link.download = `portrait-${imageId || "download"}.jpg`;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }
+              }}
+              className="min-w-[200px]"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              DOWNLOAD
+            </Button>
+          </motion.div>
+        )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {purchaseOptions.map((option, index) => {
-              const Icon = option.icon;
-              return (
-                <motion.div
-                  key={option.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 + index * 0.1 }}
-                  className={`relative card-baroque rounded-xl p-6 flex flex-col ${
-                    option.badge === "Most Popular" ? "ring-2 ring-primary" : ""
-                  }`}
-                >
-                  {option.badge && (
-                    <div
-                      className={`absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-medium ${
-                        option.badge === "Most Popular" ||
-                        option.badge === "Recommended"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-gold text-background"
-                      }`}
-                    >
-                      {option.badge}
-                    </div>
-                  )}
+        {/* Purchase Options - hide if order is complete */}
+        {orderStatus !== OrderStatus.COMPLETE && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <h2 className="text-display text-2xl text-center mb-8">
+              Choose Your Format
+            </h2>
 
-                  <div className="text-center mb-4">
-                    <h3 className="font-display text-xl mb-2">
-                      {option.title}
-                    </h3>
-                    <div className="flex items-center justify-center gap-2">
-                      {option.originalPrice && !isExpired && (
-                        <span className="text-muted-foreground line-through text-lg">
-                          ${option.originalPrice}
-                        </span>
-                      )}
-                      <span className="text-3xl font-bold">
-                        $
-                        {option.id === "digital" && isExpired
-                          ? option.originalPrice
-                          : option.price}
-                      </span>
-                    </div>
-                    {/* Countdown Timer for Digital Option */}
-                    {option.id === "digital" && !isExpired && (
-                      <div className="flex items-center justify-center gap-1.5 mt-2 text-sm text-primary">
-                        <Timer className="w-4 h-4" />
-                        <span>Expires in</span>
-                        <span className="font-mono font-semibold">
-                          {formattedTime}
-                        </span>
-                      </div>
-                    )}
-                    {option.id === "digital" && isExpired && (
-                      <div className="mt-2 text-sm text-muted-foreground">
-                        Discount expired
-                      </div>
-                    )}
-                  </div>
-
-                  <p className="text-sm text-muted-foreground text-center mb-4">
-                    {option.description}
-                  </p>
-
-                  {/* Size Display */}
-                  {option.size && (
-                    <div className="mb-4">
-                      <p className="text-sm text-muted-foreground">
-                        Size:{" "}
-                        <span className="text-foreground font-medium">
-                          {option.size}
-                        </span>
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Features */}
-                  <ul className="space-y-2 mb-4 flex-1">
-                    {option.features.map((feature) => (
-                      <li
-                        key={feature}
-                        className="flex items-start gap-2 text-sm"
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              {purchaseOptions.map((option, index) => {
+                const Icon = option.icon;
+                return (
+                  <motion.div
+                    key={option.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 + index * 0.1 }}
+                    className={`relative card-baroque rounded-xl p-6 flex flex-col ${
+                      option.badge === "Most Popular"
+                        ? "ring-2 ring-primary"
+                        : ""
+                    }`}
+                  >
+                    {option.badge && (
+                      <div
+                        className={`absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-medium ${
+                          option.badge === "Most Popular" ||
+                          option.badge === "Recommended"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-gold text-background"
+                        }`}
                       >
-                        <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
+                        {option.badge}
+                      </div>
+                    )}
 
-                  {/* Delivery & Extras */}
-                  {option.delivery && (
-                    <div className="mb-4 space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-gold">
-                        <Truck className="w-4 h-4" />
-                        <span>Free Shipping ($20 value)</span>
+                    <div className="text-center mb-4">
+                      <h3 className="font-display text-xl mb-2">
+                        {option.title}
+                      </h3>
+                      <div className="flex items-center justify-center gap-2">
+                        {option.originalPrice && !isExpired && (
+                          <span className="text-muted-foreground line-through text-lg">
+                            ${option.originalPrice}
+                          </span>
+                        )}
+                        <span className="text-3xl font-bold">
+                          $
+                          {option.id === "digital" && isExpired
+                            ? option.originalPrice
+                            : option.price}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Clock className="w-4 h-4" />
-                        <span>Delivery: {option.delivery}</span>
-                      </div>
-                      {option.includesDigital && (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Sparkles className="w-4 h-4" />
-                          <span>+ Includes digital download</span>
+                      {/* Countdown Timer for Digital Option */}
+                      {option.id === "digital" && !isExpired && (
+                        <div className="flex items-center justify-center gap-1.5 mt-2 text-sm text-primary">
+                          <Timer className="w-4 h-4" />
+                          <span>Expires in</span>
+                          <span className="font-mono font-semibold">
+                            {formattedTime}
+                          </span>
+                        </div>
+                      )}
+                      {option.id === "digital" && isExpired && (
+                        <div className="mt-2 text-sm text-muted-foreground">
+                          Discount expired
                         </div>
                       )}
                     </div>
-                  )}
 
-                  {/* CTA */}
-                  <Button
-                    variant={option.id === "digital" ? "hero" : "baroque"}
-                    size="lg"
-                    className="w-full"
-                    onClick={() =>
-                      handlePurchase(
-                        option.id,
-                        option.id === "digital" && isExpired
-                          ? option.originalPrice || option.price
-                          : option.price
-                      )
-                    }
-                  >
-                    <Icon className="w-4 h-4" />
-                    {option.ctaText}
-                  </Button>
-                </motion.div>
-              );
-            })}
-          </div>
-        </motion.div>
+                    <p className="text-sm text-muted-foreground text-center mb-4">
+                      {option.description}
+                    </p>
+
+                    {/* Size Display */}
+                    {option.size && (
+                      <div className="mb-4">
+                        <p className="text-sm text-muted-foreground">
+                          Size:{" "}
+                          <span className="text-foreground font-medium">
+                            {option.size}
+                          </span>
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Features */}
+                    <ul className="space-y-2 mb-4 flex-1">
+                      {option.features.map((feature) => (
+                        <li
+                          key={feature}
+                          className="flex items-start gap-2 text-sm"
+                        >
+                          <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {/* Delivery & Extras */}
+                    {option.delivery && (
+                      <div className="mb-4 space-y-2 text-sm">
+                        <div className="flex items-center gap-2 text-gold">
+                          <Truck className="w-4 h-4" />
+                          <span>Free Shipping ($20 value)</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Clock className="w-4 h-4" />
+                          <span>Delivery: {option.delivery}</span>
+                        </div>
+                        {option.includesDigital && (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Sparkles className="w-4 h-4" />
+                            <span>+ Includes digital download</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* CTA */}
+                    <Button
+                      variant={option.id === "digital" ? "hero" : "baroque"}
+                      size="lg"
+                      className="w-full"
+                      onClick={() =>
+                        handlePurchaseClick(
+                          option.id,
+                          option.id === "digital" && isExpired
+                            ? option.originalPrice || option.price
+                            : option.price
+                        )
+                      }
+                      disabled={isProcessingPurchase}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {isProcessingPurchase ? "Processing..." : option.ctaText}
+                    </Button>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
 
         {/* Trustpilot Reviews */}
         <TrustpilotReviews />
@@ -417,6 +574,79 @@ export const PreviewPage = ({
           </Button>
         </div>
       </div>
+
+      {/* Email Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative bg-background border border-border rounded-xl p-6 w-full max-w-md mx-4 card-baroque"
+          >
+            <button
+              onClick={handleCloseEmailModal}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="mb-4">
+              <h3 className="text-display text-2xl mb-2">Enter Your Email</h3>
+              <p className="text-sm text-muted-foreground">
+                We need your email to process your order.
+              </p>
+            </div>
+
+            <form onSubmit={handleEmailSubmit} className="space-y-4">
+              <div>
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium mb-2"
+                >
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setEmailError("");
+                    }}
+                    placeholder="your.email@example.com"
+                    className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    autoFocus
+                  />
+                </div>
+                {emailError && (
+                  <p className="mt-2 text-sm text-destructive">{emailError}</p>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleCloseEmailModal}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="hero"
+                  className="flex-1"
+                  disabled={isProcessingPurchase}
+                >
+                  Continue to Checkout
+                </Button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

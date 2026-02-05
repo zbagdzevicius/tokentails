@@ -4,6 +4,7 @@ export enum EntityType {
   COMMENT = "COMMENT",
   CAT = "CAT",
   PACK = "PACK",
+  IMAGE = "IMAGE",
 }
 
 export interface ISave {

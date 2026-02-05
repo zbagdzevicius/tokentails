@@ -17,6 +17,7 @@ import { Toaster } from "@/features/portrait/ui/toaster";
 import { trackEvent } from "@/components/GoogleTagManager";
 import { IMAGE_API } from "@/api/image-api";
 import { IImage } from "@/models/image";
+import { IOrder, OrderStatus } from "@/models/order";
 import {
   FloatingParticles,
   AmbientGlow,
@@ -26,11 +27,9 @@ import {
 } from "@/features/portrait/components/LuxuryEffects";
 
 // Import all example images for demo - using public paths
-const catKing = "/portrait/example-cat-king.jpg";
-const catDuchess = "/portrait/example-cat-duchess.jpg";
-const catGeneral = "/portrait/example-cat-general.jpg";
-const catNoble = "/portrait/example-cat-noble.jpg";
-const catScholar = "/portrait/example-cat-scholar.jpg";
+const catKing = "/portrait/cat-example.webp";
+const catDuchess = "/portrait/portrait-dogs.webp";
+const catGeneral = "/portrait/portrait-monarch.webp";
 
 const PortraitPage = () => {
   const router = useRouter();
@@ -44,24 +43,169 @@ const PortraitPage = () => {
   const [uploadedImageId, setUploadedImageId] = useState<string | undefined>(
     undefined
   );
+  const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
+  const [isPollingOrder, setIsPollingOrder] = useState(false);
+  const [orderProductType, setOrderProductType] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Check for product_id query param and redirect to preview
-  useEffect(() => {
-    const { product_id } = router.query;
-    if (product_id && typeof product_id === "string") {
-      setEventId(product_id);
-      // Generate demo images and show preview
-      const demoVariations: Record<PortraitStyle, string> = {
-        ai: [catKing, catDuchess, catGeneral][Math.floor(Math.random() * 3)],
-        king: catKing,
-        duchess: catDuchess,
-        general: catGeneral,
+  // Poll order status
+  const pollOrderStatus = useCallback(
+    (sessionId: string) => {
+      let pollInterval: NodeJS.Timeout;
+      let timeoutId: NodeJS.Timeout;
+
+      pollInterval = setInterval(async () => {
+        try {
+          const order: IOrder | null = await IMAGE_API.getOrderById(sessionId);
+
+          if (order) {
+            if (order.status === OrderStatus.COMPLETE) {
+              setOrderStatus(OrderStatus.COMPLETE);
+              setOrderProductType(order.id || null); // id is productType
+              setIsPollingOrder(false);
+              clearInterval(pollInterval);
+              if (timeoutId) clearTimeout(timeoutId);
+            } else if (order.status === OrderStatus.FAILED) {
+              setOrderStatus(OrderStatus.FAILED);
+              setIsPollingOrder(false);
+              clearInterval(pollInterval);
+              if (timeoutId) clearTimeout(timeoutId);
+              toast({
+                title: "Order failed",
+                description: "Your payment could not be processed.",
+                variant: "destructive",
+              });
+            }
+            // If PENDING, continue polling
+          }
+        } catch (error) {
+          console.error("Error polling order status:", error);
+          // Continue polling on error
+        }
+      }, 2000); // Poll every 2 seconds
+
+      // Cleanup interval after 5 minutes (max polling time)
+      timeoutId = setTimeout(() => {
+        clearInterval(pollInterval);
+        setIsPollingOrder((prev) => {
+          if (prev) {
+            toast({
+              title: "Order status check timeout",
+              description:
+                "Please refresh the page to check your order status.",
+              variant: "destructive",
+            });
+          }
+          return false;
+        });
+      }, 5 * 60 * 1000);
+
+      return () => {
+        clearInterval(pollInterval);
+        if (timeoutId) clearTimeout(timeoutId);
       };
-      setGeneratedImages([demoVariations[selectedStyle]]);
-      setShowPreview(true);
+    },
+    [toast]
+  );
+
+  // Check for image_id and session_id query params
+  useEffect(() => {
+    const { image_id, session_id } = router.query;
+
+    // If both image_id and session_id exist, fetch image and poll order status
+    if (
+      image_id &&
+      typeof image_id === "string" &&
+      session_id &&
+      typeof session_id === "string"
+    ) {
+      setUploadedImageId(image_id);
+      setEventId(image_id);
+      setIsGenerating(true);
+      setIsPollingOrder(true);
+
+      // Fetch existing image from API
+      IMAGE_API.get(image_id)
+        .then((image: IImage | null) => {
+          if (image) {
+            const imageUrl = image.aiUrl || image.url;
+            if (imageUrl) {
+              setGeneratedImages([imageUrl]);
+              setShowPreview(true);
+              setIsGenerating(false);
+
+              // Start polling for order status
+              pollOrderStatus(session_id);
+            } else {
+              throw new Error("No image URL in response");
+            }
+          } else {
+            throw new Error("Failed to fetch image");
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching image:", error);
+          toast({
+            title: "Failed to load image",
+            description: "Please try again or upload a new image.",
+            variant: "destructive",
+          });
+          setIsGenerating(false);
+          setIsPollingOrder(false);
+          // Remove invalid image_id from URL
+          const { image_id: _, ...restQuery } = router.query;
+          router.replace(
+            {
+              pathname: router.pathname,
+              query: restQuery,
+            },
+            undefined,
+            { shallow: true }
+          );
+        });
+    } else if (image_id && typeof image_id === "string") {
+      // Only image_id exists, fetch image without polling
+      setUploadedImageId(image_id);
+      setEventId(image_id);
+      setIsGenerating(true);
+
+      // Fetch existing image from API
+      IMAGE_API.get(image_id)
+        .then((image: IImage | null) => {
+          if (image) {
+            const imageUrl = image.aiUrl || image.url;
+            if (imageUrl) {
+              setGeneratedImages([imageUrl]);
+              setShowPreview(true);
+              setIsGenerating(false);
+            } else {
+              throw new Error("No image URL in response");
+            }
+          } else {
+            throw new Error("Failed to fetch image");
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching image:", error);
+          toast({
+            title: "Failed to load image",
+            description: "Please try again or upload a new image.",
+            variant: "destructive",
+          });
+          setIsGenerating(false);
+          // Remove invalid image_id from URL
+          const { image_id: _, ...restQuery } = router.query;
+          router.replace(
+            {
+              pathname: router.pathname,
+              query: restQuery,
+            },
+            undefined,
+            { shallow: true }
+          );
+        });
     }
-  }, [router.query, selectedStyle]);
+  }, [router.query, toast, router, pollOrderStatus]);
 
   // Add data attribute to body and html so drawer portal can access CSS variables
   useEffect(() => {
@@ -105,6 +249,15 @@ const PortraitPage = () => {
 
           if (uploadedImage && uploadedImage._id) {
             setUploadedImageId(uploadedImage._id);
+            // Update URL with image_id
+            router.replace(
+              {
+                pathname: router.pathname,
+                query: { ...router.query, image_id: uploadedImage._id },
+              },
+              undefined,
+              { shallow: true }
+            );
             // Use the AI-generated URL if available, otherwise use the regular URL
             const imageUrl = uploadedImage.aiUrl || uploadedImage.url;
             if (imageUrl) {
@@ -141,7 +294,18 @@ const PortraitPage = () => {
     setUploadedFile(null);
     setGeneratedImages([]);
     setShowPreview(false);
-  }, []);
+    setUploadedImageId(undefined);
+    // Remove image_id from URL
+    const { image_id, ...restQuery } = router.query;
+    router.replace(
+      {
+        pathname: router.pathname,
+        query: restQuery,
+      },
+      undefined,
+      { shallow: true }
+    );
+  }, [router]);
 
   const handleGenerate = useCallback(async () => {
     if (!uploadedFile) {
@@ -165,6 +329,15 @@ const PortraitPage = () => {
 
       if (uploadedImage && uploadedImage._id) {
         setUploadedImageId(uploadedImage._id);
+        // Update URL with image_id
+        router.replace(
+          {
+            pathname: router.pathname,
+            query: { ...router.query, image_id: uploadedImage._id },
+          },
+          undefined,
+          { shallow: true }
+        );
         const imageUrl = uploadedImage.aiUrl || uploadedImage.url;
         if (imageUrl) {
           toast({
@@ -234,7 +407,18 @@ const PortraitPage = () => {
     setGeneratedImages([]);
     setIsGenerating(false);
     setShowPreview(false);
-  }, []);
+    setUploadedImageId(undefined);
+    // Remove image_id from URL
+    const { image_id, ...restQuery } = router.query;
+    router.replace(
+      {
+        pathname: router.pathname,
+        query: restQuery,
+      },
+      undefined,
+      { shallow: true }
+    );
+  }, [router]);
 
   // Show preview/purchase page after generation
   if (showPreview && generatedImages.length > 0) {
@@ -247,6 +431,9 @@ const PortraitPage = () => {
           onBack={handleReset}
           eventId={eventId}
           imageId={uploadedImageId}
+          orderStatus={orderStatus}
+          isPollingOrder={isPollingOrder}
+          orderProductType={orderProductType}
         />
       </div>
     );

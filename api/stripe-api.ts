@@ -57,4 +57,37 @@ export const STRIPE_API = {
 
     return response.json();
   },
+
+  createCheckoutSession: async ({
+    amount,
+    productType,
+    imageId,
+    email,
+  }: {
+    amount: number; // in cents
+    productType: "digital" | "print" | "canvas";
+    imageId?: string;
+    email: string; // Required
+  }): Promise<{ url: string }> => {
+    const response = await fetch(`${apiUrl}/portrait/create-checkout-session`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      } as any,
+      body: JSON.stringify({
+        amount,
+        productType,
+        imageId,
+        email,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to create checkout session");
+    }
+
+    return response.json();
+  },
 };
