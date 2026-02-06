@@ -106,7 +106,6 @@ export const PreviewPage = ({
   generatedImages,
   onRetry,
   onBack,
-  eventId,
   imageId,
   orderStatus,
   isPollingOrder = false,
@@ -143,15 +142,15 @@ export const PreviewPage = ({
   // Track AddToCart event when preview page loads
   useEffect(() => {
     trackEvent("add_to_cart", {
-      event_id: eventId,
-      item_name: "Royal Feline Portrait",
-      item_category: "Portrait Service",
+      event_id: imageId,
+      item_name: purchaseOptions[0].id,
+      item_category: "portrait",
       item_id: purchaseOptions[0].id,
       value: purchaseOptions[0].price,
       currency: "USD",
       quantity: 1,
     });
-  }, [eventId]);
+  }, [imageId]);
 
   const handleRetry = async () => {
     if (!imageId) {
@@ -230,12 +229,11 @@ export const PreviewPage = ({
     const selectedOption =
       purchaseOptions.find((opt) => opt.id === optionId) || defaultOption;
 
-    // Track Purchase event
-    trackEvent("purchase", {
-      event_id: eventId,
-      transaction_id: eventId || optionId,
+    // Track Begin Checkout event
+    trackEvent("begin_checkout", {
+      event_id: imageId,
       item_id: selectedOption.id,
-      item_name: "Royal Feline Portrait",
+      item_name: selectedOption.id,
       value: price,
       currency: "USD",
     });

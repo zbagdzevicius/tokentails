@@ -1,4 +1,4 @@
-import { ICat, IMessage } from "@/models/cats";
+import { IMessage } from "@/models/cats";
 import { apiUrl, getAuthHeaders } from "./api";
 
 export const STRIPE_API = {
@@ -69,7 +69,7 @@ export const STRIPE_API = {
     imageId?: string;
     email: string; // Required
   }): Promise<{ url: string }> => {
-    const response = await fetch(`${apiUrl}/portrait/create-checkout-session`, {
+    const response = await fetch(`${apiUrl}/image/create-checkout-session`, {
       method: "POST",
       headers: {
         Accept: "application/json",

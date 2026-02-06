@@ -50,7 +50,7 @@ const PortraitPage = () => {
 
   // Poll order status
   const pollOrderStatus = useCallback(
-    (sessionId: string) => {
+    (sessionId: string, imageId: string) => {
       let pollInterval: NodeJS.Timeout;
       let timeoutId: NodeJS.Timeout;
 
@@ -65,6 +65,16 @@ const PortraitPage = () => {
               setIsPollingOrder(false);
               clearInterval(pollInterval);
               if (timeoutId) clearTimeout(timeoutId);
+
+              // Track Purchase event after successful verification
+              trackEvent("purchase", {
+                event_id: imageId,
+                transaction_id: sessionId,
+                item_id: order.id || "unknown",
+                item_name: order.id || "unknown",
+                value: order.price || 0,
+                currency: "USD",
+              });
             } else if (order.status === OrderStatus.FAILED) {
               setOrderStatus(OrderStatus.FAILED);
               setIsPollingOrder(false);
@@ -135,7 +145,7 @@ const PortraitPage = () => {
               setIsGenerating(false);
 
               // Start polling for order status
-              pollOrderStatus(session_id);
+              pollOrderStatus(session_id, image_id);
             } else {
               throw new Error("No image URL in response");
             }
@@ -230,8 +240,8 @@ const PortraitPage = () => {
         // Use first purchase option as default
         const defaultOption = purchaseOptions[0];
         trackEvent("view_item", {
-          item_name: "Royal Feline Portrait",
-          item_category: "Portrait Service",
+          item_name: defaultOption.id,
+          item_category: "portrait",
           item_id: defaultOption.id,
           value: defaultOption.price,
           currency: "USD",
