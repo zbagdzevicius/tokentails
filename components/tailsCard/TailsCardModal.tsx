@@ -30,7 +30,10 @@ const getTailsCraft = (cat: ICat) => {
   if (cat.tier === Tier.EPIC) {
     return 2000;
   }
-  return 10000;
+  if (cat.tier === Tier.LEGENDARY) {
+    return 10000;
+  }
+  return 10;
 };
 
 export const TailsCardModal: React.FC<IProps> = ({

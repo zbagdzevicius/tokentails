@@ -46,7 +46,57 @@ const PortraitPage = () => {
   const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
   const [isPollingOrder, setIsPollingOrder] = useState(false);
   const [orderProductType, setOrderProductType] = useState<string | null>(null);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [generationMessage, setGenerationMessage] = useState("");
   const { toast } = useToast();
+
+  // Progress messages based on percentage
+  const getProgressMessage = (percentage: number): string => {
+    if (percentage < 10) return "Identifying lovely pets...";
+    if (percentage < 20) return "Analyzing royal features...";
+    if (percentage < 30) return "Selecting perfect style...";
+    if (percentage < 40) return "Sketching majestic portrait...";
+    if (percentage < 50) return "Painting prestigious artwork...";
+    if (percentage < 60) return "Adding regal details...";
+    if (percentage < 70) return "Enhancing royal elegance...";
+    if (percentage < 80) return "Perfecting the masterpiece...";
+    if (percentage < 90) return "Applying final touches...";
+    if (percentage < 95) return "Polishing to perfection...";
+    return "Almost ready...";
+  };
+
+  // Simulate progress during generation
+  useEffect(() => {
+    if (!isGenerating) {
+      setGenerationProgress(0);
+      setGenerationMessage("");
+      return;
+    }
+
+    const startTime = Date.now();
+    const duration = 60000; // 60 seconds max
+    let animationFrame: number;
+
+    const updateProgress = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min((elapsed / duration) * 100, 99); // Cap at 99% until actually done
+
+      setGenerationProgress(progress);
+      setGenerationMessage(getProgressMessage(progress));
+
+      if (isGenerating && progress < 99) {
+        animationFrame = requestAnimationFrame(updateProgress);
+      }
+    };
+
+    animationFrame = requestAnimationFrame(updateProgress);
+
+    return () => {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, [isGenerating]);
 
   // Poll order status
   const pollOrderStatus = useCallback(
@@ -271,13 +321,18 @@ const PortraitPage = () => {
             // Use the AI-generated URL if available, otherwise use the regular URL
             const imageUrl = uploadedImage.aiUrl || uploadedImage.url;
             if (imageUrl) {
-              toast({
-                title: "Portrait created! 👑",
-                description: "Your royal masterpiece is ready.",
-              });
-              setGeneratedImages([imageUrl]);
-              setIsGenerating(false);
-              setShowPreview(true);
+              setGenerationProgress(100);
+              setGenerationMessage("Complete!");
+              // Small delay to show 100% before transitioning
+              setTimeout(() => {
+                toast({
+                  title: "Portrait created! 👑",
+                  description: "Your royal masterpiece is ready.",
+                });
+                setGeneratedImages([imageUrl]);
+                setIsGenerating(false);
+                setShowPreview(true);
+              }, 500);
             } else {
               throw new Error("No image URL returned");
             }
@@ -350,13 +405,18 @@ const PortraitPage = () => {
         );
         const imageUrl = uploadedImage.aiUrl || uploadedImage.url;
         if (imageUrl) {
-          toast({
-            title: "Portrait created! 👑",
-            description: "Your royal masterpiece is ready.",
-          });
-          setGeneratedImages([imageUrl]);
-          setIsGenerating(false);
-          setShowPreview(true);
+          setGenerationProgress(100);
+          setGenerationMessage("Complete!");
+          // Small delay to show 100% before transitioning
+          setTimeout(() => {
+            toast({
+              title: "Portrait created! 👑",
+              description: "Your royal masterpiece is ready.",
+            });
+            setGeneratedImages([imageUrl]);
+            setIsGenerating(false);
+            setShowPreview(true);
+          }, 500);
         } else {
           throw new Error("No image URL returned");
         }
@@ -553,7 +613,7 @@ const PortraitPage = () => {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="flex flex-col items-center gap-4 py-8"
+                  className="flex flex-col items-center gap-6 py-8 w-full"
                 >
                   <div className="relative">
                     <div className="w-16 h-16 rounded-full border-2 border-muted" />
@@ -567,13 +627,28 @@ const PortraitPage = () => {
                       }}
                     />
                   </div>
-                  <div className="text-center">
-                    <p className="text-sm tracking-wider uppercase text-foreground">
-                      Creating masterpiece
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-2 tracking-wide">
-                      This may take a moment
-                    </p>
+                  <div className="text-center w-full px-4">
+                    <motion.p
+                      key={generationMessage}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-sm tracking-wider uppercase text-foreground font-medium"
+                    >
+                      {generationMessage || "Creating masterpiece"}
+                    </motion.p>
+                    <div className="mt-4 w-full">
+                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                        <motion.div
+                          className="h-full bg-primary rounded-full"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${generationProgress}%` }}
+                          transition={{ duration: 0.3, ease: "easeOut" }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2 text-center">
+                        {Math.round(generationProgress)}%
+                      </p>
+                    </div>
                   </div>
                 </motion.div>
               ) : (
