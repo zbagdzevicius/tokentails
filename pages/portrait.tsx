@@ -100,13 +100,13 @@ const PortraitPage = () => {
 
   // Poll order status
   const pollOrderStatus = useCallback(
-    (sessionId: string, imageId: string) => {
+    (orderId: string, imageId: string) => {
       let pollInterval: NodeJS.Timeout;
       let timeoutId: NodeJS.Timeout;
 
       pollInterval = setInterval(async () => {
         try {
-          const order: IOrder | null = await IMAGE_API.getOrderById(sessionId);
+          const order: IOrder | null = await IMAGE_API.getOrderById(orderId);
 
           if (order) {
             if (order.status === OrderStatus.COMPLETE) {
@@ -119,7 +119,7 @@ const PortraitPage = () => {
               // Track Purchase event after successful verification
               trackEvent("purchase", {
                 event_id: imageId,
-                transaction_id: sessionId,
+                transaction_id: orderId,
                 item_id: order.id || "unknown",
                 item_name: order.id || "unknown",
                 value: order.price || 0,
@@ -168,16 +168,16 @@ const PortraitPage = () => {
     [toast]
   );
 
-  // Check for image_id and session_id query params
+  // Check for image_id and _id (order id) query params
   useEffect(() => {
-    const { image_id, session_id } = router.query;
+    const { image_id, _id } = router.query;
 
-    // If both image_id and session_id exist, fetch image and poll order status
+    // If both image_id and _id exist, fetch image and poll order status
     if (
       image_id &&
       typeof image_id === "string" &&
-      session_id &&
-      typeof session_id === "string"
+      _id &&
+      typeof _id === "string"
     ) {
       setUploadedImageId(image_id);
       setEventId(image_id);
@@ -195,7 +195,7 @@ const PortraitPage = () => {
               setIsGenerating(false);
 
               // Start polling for order status
-              pollOrderStatus(session_id, image_id);
+              pollOrderStatus(_id, image_id);
             } else {
               throw new Error("No image URL in response");
             }
@@ -504,7 +504,7 @@ const PortraitPage = () => {
           orderStatus={orderStatus}
           isPollingOrder={isPollingOrder}
           orderProductType={orderProductType}
-          sessionId={router.query.session_id as string | undefined}
+          orderId={router.query._id as string | undefined}
         />
       </div>
     );

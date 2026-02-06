@@ -99,7 +99,7 @@ interface PreviewPageProps {
   orderStatus?: OrderStatus | null;
   isPollingOrder?: boolean;
   orderProductType?: string | null;
-  sessionId?: string;
+  orderId?: string;
 }
 
 export const PreviewPage = ({
@@ -110,7 +110,7 @@ export const PreviewPage = ({
   orderStatus,
   isPollingOrder = false,
   orderProductType,
-  sessionId,
+  orderId,
 }: PreviewPageProps) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isRegenerating, setIsRegenerating] = useState(false);
@@ -370,7 +370,7 @@ export const PreviewPage = ({
                 />
               )}
             </div>
-            {!sessionId && (
+            {!orderId && (
               <button
                 onClick={handleRetry}
                 disabled={isRegenerating || !imageId}

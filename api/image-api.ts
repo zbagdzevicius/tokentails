@@ -51,8 +51,8 @@ async function get(imageId: string): Promise<IImage> {
   });
 }
 
-async function getOrderById(hash: string): Promise<IOrder> {
-  return fetch(`${apiUrl}/image/order/status?hash=${hash}`, {
+async function getOrderById(_id: string): Promise<IOrder> {
+  return fetch(`${apiUrl}/image/order/status?_id=${_id}`, {
     method: "GET",
     headers: {
       Accept: "application/json",
