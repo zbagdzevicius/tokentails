@@ -37,7 +37,9 @@ const PortraitPage = () => {
   const router = useRouter();
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [selectedStyle, setSelectedStyle] = useState<PortraitStyle>("ai");
+  const [selectedStyle, setSelectedStyle] = useState<PortraitStyle>(
+    PortraitStyle.HIGHNESS
+  );
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
