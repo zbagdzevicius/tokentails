@@ -35,9 +35,9 @@ const codex: ICodex[] = [
     title: "#1 One Spirit, Two Bodies",
     description:
       "Every COLLECTIBLE cat reflects a real soul. Digital twins of the forgotten, the wounded, the waiting. To adopt one is to guard both — in code and in flesh.",
-    how: "Visit cat shelter, find a cat which you like and adopt it",
+    how: "CLICK 'SHOP`, Purchase a pack and open it!",
     image: cdnFile("codex/codex-1.webp"),
-    task: "ADOPT COLLECTIBLE CAT",
+    task: "PURCHASE CAT PACK",
     verification: (profile) => (profile?.monthPacks || 0) >= 1,
     status: (profile) => `${profile?.monthPacks || 0} / 1`,
   },
