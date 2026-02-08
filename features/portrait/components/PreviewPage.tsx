@@ -49,7 +49,7 @@ export const purchaseOptions: PurchaseOption[] = [
     badge: "Most Popular",
     description:
       "Instant high-resolution download — perfect for sharing or saving.",
-    features: ["No Watermark", "Instant Download", "High-Resolution Portrait"],
+    features: ["No Watermark", "High-Resolution Portrait ", "Instant Download"],
     icon: Download,
     ctaText: "Download Now",
   },
@@ -61,8 +61,8 @@ export const purchaseOptions: PurchaseOption[] = [
     description:
       "Printed on museum-quality archival paper with fade-resistant inks.",
     features: [
-      "Museum-quality archival paper",
       "Fade-resistant inks",
+      "Museum-quality archival paper",
       "Made to last decades",
     ],
     icon: PawPrint,

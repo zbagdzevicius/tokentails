@@ -302,10 +302,11 @@ const PortraitPage = () => {
         // Upload image and generate portrait
         setIsGenerating(true);
         try {
-          const uploadedImage: IImage | null = await IMAGE_API.uploadImage(
+          const uploadedImage: IImage | null = await IMAGE_API.generatePortrait(
             file,
             {
               name: file.name,
+              style: selectedStyle,
             }
           );
 
@@ -353,7 +354,7 @@ const PortraitPage = () => {
       };
       reader.readAsDataURL(file);
     },
-    [toast]
+    [toast, selectedStyle]
   );
 
   const handleClear = useCallback(() => {
@@ -387,10 +388,11 @@ const PortraitPage = () => {
     setIsGenerating(true);
 
     try {
-      const uploadedImage: IImage | null = await IMAGE_API.uploadImage(
+      const uploadedImage: IImage | null = await IMAGE_API.generatePortrait(
         uploadedFile,
         {
           name: uploadedFile.name,
+          style: selectedStyle,
         }
       );
 
@@ -434,7 +436,7 @@ const PortraitPage = () => {
       });
       setIsGenerating(false);
     }
-  }, [uploadedFile, toast]);
+  }, [uploadedFile, toast, selectedStyle]);
 
   const handleRetry = useCallback(async () => {
     if (!uploadedImageId) {

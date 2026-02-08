@@ -12,7 +12,7 @@ const reviews = [
   {
     name: "James T.",
     rating: 5,
-    text: "Ordered as a gift for my wife - she cried happy tears. The detail is incredible.",
+    text: "Ordered as a gift for my wife - she cried happy tears. The detail is incredible. I can't stop staring at it.",
     date: "1 week ago",
     verified: true,
   },
@@ -39,7 +39,10 @@ export const TrustpilotReviews = () => {
           <span className="text-sm font-medium text-foreground">Excellent</span>
           <div className="flex items-center">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="w-6 h-6 bg-[#00b67a] flex items-center justify-center">
+              <div
+                key={i}
+                className="w-6 h-6 bg-[#00b67a] flex items-center justify-center"
+              >
                 <Star className="w-4 h-4 text-white fill-white" />
               </div>
             ))}
@@ -50,7 +53,9 @@ export const TrustpilotReviews = () => {
         </p>
         <div className="flex items-center gap-1.5 mt-1">
           <Star className="w-5 h-5 text-[#00b67a] fill-[#00b67a]" />
-          <span className="font-semibold text-foreground tracking-tight">Trustpilot</span>
+          <span className="font-semibold text-foreground tracking-tight">
+            Trustpilot
+          </span>
         </div>
       </div>
 
@@ -67,22 +72,27 @@ export const TrustpilotReviews = () => {
             {/* Stars */}
             <div className="flex items-center gap-0.5 mb-3">
               {[...Array(review.rating)].map((_, i) => (
-                <div key={i} className="w-5 h-5 bg-[#00b67a] flex items-center justify-center">
+                <div
+                  key={i}
+                  className="w-5 h-5 bg-[#00b67a] flex items-center justify-center"
+                >
                   <Star className="w-3 h-3 text-white fill-white" />
                 </div>
               ))}
             </div>
-            
+
             {/* Review text */}
-            <p className="text-sm text-foreground mb-4 leading-relaxed">{review.text}</p>
-            
+            <p className="text-sm text-foreground mb-4 leading-relaxed">
+              {review.text}
+            </p>
+
             {/* Footer */}
             <div className="flex items-center justify-between text-xs text-muted-foreground pt-3 border-t border-border/50">
               <div className="flex items-center gap-1">
-                <span className="font-medium text-foreground">{review.name}</span>
-                {review.verified && (
-                  <span className="text-[#00b67a]">✓</span>
-                )}
+                <span className="font-medium text-foreground">
+                  {review.name}
+                </span>
+                {review.verified && <span className="text-[#00b67a]">✓</span>}
               </div>
               <span>{review.date}</span>
             </div>

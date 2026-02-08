@@ -1,3 +1,4 @@
+import { cdnFile } from "@/constants/utils";
 import {
   Drawer,
   DrawerContent,
@@ -9,11 +10,17 @@ import { motion } from "framer-motion";
 import { ChevronDown, Crown, Gem, Medal, Sparkles } from "lucide-react";
 import { useState } from "react";
 
-const catKing = "/portrait/portrait-aristocrat.webp";
-const catDuchess = "/portrait/portrait-cats.webp";
-const catGeneral = "/portrait/portrait-commander.webp";
+const catHighness = "/portrait/portrait-kitten.webp";
+const catAristocrat = "/portrait/portrait-aristocrat.webp";
+const catMonarch = "/portrait/portrait-monarch.webp";
+const catCommander = "/portrait/portrait-commander.webp";
 
-export type PortraitStyle = "ai" | "king" | "duchess" | "general";
+export enum PortraitStyle {
+  HIGHNESS = "highness",
+  MONARCH = "monarch",
+  ARISTOCRAT = "aristocrat",
+  COMMANDER = "commander",
+}
 
 interface StylePickerDrawerProps {
   selectedStyle: PortraitStyle;
@@ -25,34 +32,30 @@ const styles: {
   name: string;
   description: string;
   icon: typeof Crown;
-  preview?: string | any;
 }[] = [
   {
-    id: "ai",
-    name: "AI Choice",
-    description: "Let AI select the perfect style",
+    id: PortraitStyle.HIGHNESS,
+    name: "Highness",
+    description: "Let us choose the perfect style for you",
     icon: Sparkles,
   },
   {
-    id: "king",
+    id: PortraitStyle.MONARCH,
     name: "Monarch",
     description: "Regal & commanding presence",
     icon: Crown,
-    preview: catKing,
   },
   {
-    id: "duchess",
+    id: PortraitStyle.ARISTOCRAT,
     name: "Aristocrat",
     description: "Elegant & refined nobility",
     icon: Gem,
-    preview: catDuchess,
   },
   {
-    id: "general",
+    id: PortraitStyle.COMMANDER,
     name: "Commander",
     description: "Military distinction & honor",
     icon: Medal,
-    preview: catGeneral,
   },
 ];
 
@@ -64,18 +67,18 @@ export const StylePickerDrawer = ({
 
   const currentStyle = styles.find((s) => s.id === selectedStyle) || styles[0];
   const CurrentIcon = currentStyle.icon;
-  const displayName = selectedStyle === "ai" ? "Pick Style" : currentStyle.name;
+  const [isStylePickedOnce, setIsStylePickedOnce] = useState(false);
+  const displayName = isStylePickedOnce ? currentStyle.name : "Pick Style";
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
-      {/* TODO - UNHIDE DISPLAY ICON AFTER IMPLEMENTATION */}
-      {/* <DrawerTrigger asChild>
+      <DrawerTrigger asChild>
         <button className="flex items-center gap-1 text-[9px] tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors">
           <CurrentIcon className="w-2.5 h-2.5" />
           <span>{displayName}</span>
           <ChevronDown className="w-2 h-2" />
         </button>
-      </DrawerTrigger> */}
+      </DrawerTrigger>
       <DrawerContent className="bg-card border-border">
         <DrawerHeader className="pb-2">
           <DrawerTitle className="text-display text-lg tracking-[0.1em] text-center text-foreground">
@@ -93,6 +96,7 @@ export const StylePickerDrawer = ({
                   key={style.id}
                   onClick={() => {
                     onStyleChange(style.id);
+                    setIsStylePickedOnce(true);
                     setOpen(false);
                   }}
                   whileTap={{ scale: 0.98 }}
@@ -103,23 +107,13 @@ export const StylePickerDrawer = ({
                   }`}
                 >
                   {/* Preview Image or Icon */}
-                  {style.preview ? (
-                    <div className="w-full aspect-[3/4] rounded-sm overflow-hidden mb-1">
-                      <img
-                        src={style.preview}
-                        alt={style.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-full aspect-[3/4] rounded-sm bg-muted/20 flex items-center justify-center mb-1">
-                      <Icon
-                        className={`w-8 h-8 ${
-                          isSelected ? "text-primary" : "text-muted-foreground"
-                        }`}
-                      />
-                    </div>
-                  )}
+                  <div className="w-full aspect-[3/4] rounded-sm overflow-hidden mb-1">
+                    <img
+                      src={cdnFile(`portrait/${style.id}.webp`)}
+                      alt={style.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
 
                   <div className="text-center">
                     <p

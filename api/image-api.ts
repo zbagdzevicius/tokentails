@@ -4,12 +4,15 @@ import { IOrder } from "@/models/order";
 
 async function uploadImage(
   blob: File,
-  { name }: { name?: string } = {}
+  { name, style }: { name?: string; style?: string } = {}
 ): Promise<IImage> {
   const formData: FormData = new FormData();
   formData.append("file", blob);
   formData.append("name", name || "");
   formData.append("isTemporary", "true");
+  if (style) {
+    formData.append("style", style);
+  }
 
   return fetch(`${apiUrl}/image/portrait`, {
     method: "POST",
@@ -29,9 +32,9 @@ async function uploadImage(
 
 async function generatePortrait(
   blob: File,
-  { name }: { name?: string } = {}
+  { name, style }: { name?: string; style?: string } = {}
 ): Promise<IImage> {
-  return uploadImage(blob, { name });
+  return uploadImage(blob, { name, style });
 }
 
 async function get(imageId: string): Promise<IImage> {
