@@ -413,36 +413,38 @@ export const PreviewPage = ({
                 </div>
               )}
               {/* High quality detail preview circle - bottom right */}
-              <div className="absolute bottom-4 right-4 pointer-events-none z-10 group">
-                {/* Quality tag on top */}
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-background/95 backdrop-blur-md px-2 pb-8 rounded-lg shadow-lg border border-primary/20">
-                  <span className="text-[9px] font-bold text-primary uppercase tracking-widest whitespace-nowrap">
-                    4K Details
-                  </span>
-                </div>
-                {/* Circle container */}
-                <div className="relative w-28 h-28 rounded-full overflow-hidden border-[3px] border-primary/80 shadow-2xl">
-                  <div className="relative w-full h-full">
-                    <img
-                      src={
-                        currentImages[selectedImageIndex] ||
-                        generatedImages[selectedImageIndex]
-                      }
-                      alt=""
-                      className="absolute inset-0 w-full h-full object-cover"
-                      style={{
-                        objectPosition: "center center",
-                        transform: "scale(10)",
-                        transformOrigin: "center center",
-                      }}
-                    />
-                    {/* Gradient overlay for better contrast */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/20 rounded-full" />
+              {orderStatus !== OrderStatus.COMPLETE && (
+                <div className="absolute bottom-4 right-4 pointer-events-none z-10 group">
+                  {/* Quality tag on top */}
+                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-background/95 backdrop-blur-md px-2 pb-8 rounded-lg shadow-lg border border-primary/20">
+                    <span className="text-[9px] font-bold text-primary uppercase tracking-widest whitespace-nowrap">
+                      4K Details
+                    </span>
                   </div>
-                  {/* Outer glow ring */}
-                  <div className="absolute -inset-1 rounded-full bg-primary/20 blur-sm pointer-events-none" />
+                  {/* Circle container */}
+                  <div className="relative w-28 h-28 rounded-full overflow-hidden border-[3px] border-primary/80 shadow-2xl">
+                    <div className="relative w-full h-full">
+                      <img
+                        src={
+                          currentImages[selectedImageIndex] ||
+                          generatedImages[selectedImageIndex]
+                        }
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover"
+                        style={{
+                          objectPosition: "center center",
+                          transform: "scale(10)",
+                          transformOrigin: "center center",
+                        }}
+                      />
+                      {/* Gradient overlay for better contrast */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/20 rounded-full" />
+                    </div>
+                    {/* Outer glow ring */}
+                    <div className="absolute -inset-1 rounded-full bg-primary/20 blur-sm pointer-events-none" />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             {!orderId && (
               <button
