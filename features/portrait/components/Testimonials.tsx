@@ -1,20 +1,26 @@
 import { motion } from "framer-motion";
-import { Avatar, AvatarFallback, AvatarImage } from "@/features/portrait/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/features/portrait/ui/avatar";
 import { Cat } from "lucide-react";
 
 const testimonials = [
   {
     name: "Amanda Chen",
     avatar: "AC",
-    avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face",
+    avatarUrl:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face",
     location: "New York, NY",
-    text: "I've ordered portraits from other sites before, but Meowjesty is in a league of its own. The baroque styling is authentic and my cat Sir Whiskers has never looked more distinguished.",
+    text: "I've ordered portraits from other sites before, but this is in a league of its own. The baroque styling is authentic and my cat Sir Whiskers has never looked more distinguished.",
     petName: "Sir Whiskers",
   },
   {
     name: "Michael Rodriguez",
     avatar: "MR",
-    avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
+    avatarUrl:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
     location: "Austin, TX",
     text: "Bought the canvas for my mom's birthday. She literally gasped when she unwrapped it. Her cat Mr. Fluffington now has a permanent spot above the fireplace.",
     petName: "Mr. Fluffington",
@@ -22,15 +28,17 @@ const testimonials = [
   {
     name: "Jessica Williams",
     avatar: "JW",
-    avatarUrl: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face",
+    avatarUrl:
+      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face",
     location: "London, UK",
-    text: "The attention to detail is remarkable. You can see each whisker rendered with care. I've recommended Meowjesty to all my cat-loving friends.",
+    text: "The attention to detail is remarkable. You can see each whisker rendered with care. I've recommended this to all my cat-loving friends.",
     petName: "Princess Luna",
   },
   {
     name: "David Park",
     avatar: "DP",
-    avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
+    avatarUrl:
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
     location: "Seattle, WA",
     text: "As a professional photographer, I'm very particular about image quality. The print exceeded my expectations - museum quality is not an exaggeration.",
     petName: "Duke Wellington",
@@ -59,18 +67,25 @@ export const Testimonials = () => {
             className="relative card-baroque rounded-xl p-6"
           >
             <Cat className="absolute top-4 right-4 w-8 h-8 text-gold/20" />
-            
+
             <div className="flex items-start gap-4">
               <Avatar className="w-12 h-12 border-2 border-gold/30">
-                <AvatarImage src={testimonial.avatarUrl} alt={testimonial.name} />
+                <AvatarImage
+                  src={testimonial.avatarUrl}
+                  alt={testimonial.name}
+                />
                 <AvatarFallback className="bg-secondary text-foreground font-medium">
                   {testimonial.avatar}
                 </AvatarFallback>
               </Avatar>
-              
+
               <div className="flex-1">
-                <p className="font-medium text-foreground">{testimonial.name}</p>
-                <p className="text-xs text-muted-foreground">{testimonial.location}</p>
+                <p className="font-medium text-foreground">
+                  {testimonial.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {testimonial.location}
+                </p>
               </div>
             </div>
 

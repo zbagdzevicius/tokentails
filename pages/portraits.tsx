@@ -33,7 +33,7 @@ const catKing = "/portrait/cat-example.webp";
 const catDuchess = "/portrait/portrait-dogs.webp";
 const catGeneral = "/portrait/portrait-monarch.webp";
 
-const PortraitPage = () => {
+const PortraitsPage = () => {
   const router = useRouter();
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -564,6 +564,8 @@ const PortraitPage = () => {
             isPollingOrder={isPollingOrder}
             orderProductType={orderProductType}
             orderId={router.query._id as string | undefined}
+            blurHalf={orderStatus !== OrderStatus.COMPLETE}
+            showWatermark={false}
           />
         </div>
       </>
@@ -841,4 +843,4 @@ const PortraitPage = () => {
   );
 };
 
-export default PortraitPage;
+export default PortraitsPage;

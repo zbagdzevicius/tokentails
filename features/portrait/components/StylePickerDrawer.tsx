@@ -10,11 +10,6 @@ import { motion } from "framer-motion";
 import { ChevronDown, Crown, Gem, Medal, Sparkles } from "lucide-react";
 import { useState } from "react";
 
-const catHighness = "/portrait/portrait-kitten.webp";
-const catAristocrat = "/portrait/portrait-aristocrat.webp";
-const catMonarch = "/portrait/portrait-monarch.webp";
-const catCommander = "/portrait/portrait-commander.webp";
-
 export enum PortraitStyle {
   HIGHNESS = "highness",
   MONARCH = "monarch",

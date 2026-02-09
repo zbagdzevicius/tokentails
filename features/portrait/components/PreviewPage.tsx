@@ -1,29 +1,27 @@
-import { useState, useEffect } from "react";
+import { STRIPE_API } from "@/api/stripe-api";
+import { trackEvent } from "@/components/GoogleTagManager";
+import { Testimonials } from "@/features/portrait/components/Testimonials";
+import { TrustpilotReviews } from "@/features/portrait/components/TrustpilotReviews";
+import { useToast } from "@/features/portrait/hooks/use-toast";
+import { useCountdown } from "@/features/portrait/hooks/useCountdown";
+import { Button } from "@/features/portrait/ui/button";
+import { OrderStatus } from "@/models/order";
 import { motion } from "framer-motion";
 import {
-  Check,
-  Download,
-  PawPrint,
   Cat,
+  Check,
   Clock,
-  Truck,
+  Download,
+  Loader2,
+  Mail,
+  PawPrint,
   RefreshCw,
   Sparkles,
   Timer,
+  Truck,
   X,
-  Mail,
-  Loader2,
 } from "lucide-react";
-import { Button } from "@/features/portrait/ui/button";
-import { TrustpilotReviews } from "@/features/portrait/components/TrustpilotReviews";
-import { Testimonials } from "@/features/portrait/components/Testimonials";
-import { useCountdown } from "@/features/portrait/hooks/useCountdown";
-import { trackEvent } from "@/components/GoogleTagManager";
-import { IMAGE_API } from "@/api/image-api";
-import { IImage } from "@/models/image";
-import { useToast } from "@/features/portrait/hooks/use-toast";
-import { STRIPE_API } from "@/api/stripe-api";
-import { OrderStatus } from "@/models/order";
+import { useEffect, useRef, useState } from "react";
 
 interface PurchaseOption {
   id: string;
@@ -100,6 +98,8 @@ interface PreviewPageProps {
   isPollingOrder?: boolean;
   orderProductType?: string | null;
   orderId?: string;
+  blurHalf?: boolean;
+  showWatermark?: boolean;
 }
 
 export const PreviewPage = ({
@@ -111,6 +111,8 @@ export const PreviewPage = ({
   isPollingOrder = false,
   orderProductType,
   orderId,
+  blurHalf = false,
+  showWatermark = true,
 }: PreviewPageProps) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isRegenerating, setIsRegenerating] = useState(false);
@@ -125,19 +127,31 @@ export const PreviewPage = ({
   } | null>(null);
   const { formattedTime, isExpired } = useCountdown(15);
   const { toast } = useToast();
+  const regenerationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get default option (first option - digital)
   const defaultOption = purchaseOptions[0];
 
   // Sync currentImages with generatedImages prop
+  const prevImageUrlRef = useRef<string>(generatedImages[0] || "");
   useEffect(() => {
+    const currentImageUrl = generatedImages[0] || "";
+    // Check if image URL changed (regeneration completed)
+    if (
+      isRegenerating &&
+      currentImageUrl &&
+      currentImageUrl !== prevImageUrlRef.current
+    ) {
+      // Clear timeout if image updated
+      if (regenerationTimeoutRef.current) {
+        clearTimeout(regenerationTimeoutRef.current);
+        regenerationTimeoutRef.current = null;
+      }
+      setIsRegenerating(false);
+    }
+    prevImageUrlRef.current = currentImageUrl;
     setCurrentImages(generatedImages);
-  }, [generatedImages]);
-
-  // Sync currentImages with generatedImages prop
-  useEffect(() => {
-    setCurrentImages(generatedImages);
-  }, [generatedImages]);
+  }, [generatedImages, isRegenerating]);
 
   // Track AddToCart event when preview page loads
   useEffect(() => {
@@ -163,32 +177,26 @@ export const PreviewPage = ({
     }
 
     setIsRegenerating(true);
-    try {
-      const regeneratedImage: IImage | null =
-        await IMAGE_API.regeneratePortrait(imageId);
+    // Clear any existing timeout
+    if (regenerationTimeoutRef.current) {
+      clearTimeout(regenerationTimeoutRef.current);
+    }
+    // Fallback: reset after 60 seconds if no update
+    regenerationTimeoutRef.current = setTimeout(() => {
+      setIsRegenerating(false);
+      regenerationTimeoutRef.current = null;
+    }, 60000);
 
-      if (regeneratedImage) {
-        const imageUrl = regeneratedImage.aiUrl || regeneratedImage.url;
-        if (imageUrl) {
-          setCurrentImages([imageUrl]);
-          toast({
-            title: "Portrait regenerated! 👑",
-            description: "Your new masterpiece is ready.",
-          });
-          setIsRegenerating(false);
-        } else {
-          throw new Error("No image URL returned");
-        }
-      } else {
-        throw new Error("Failed to regenerate portrait");
-      }
+    try {
+      // Use parent's onRetry which handles style rotation
+      // The parent will update generatedImages, which will sync to currentImages via useEffect
+      await onRetry();
     } catch (error) {
-      console.error("Error regenerating portrait:", error);
-      toast({
-        title: "Regeneration failed",
-        description: "Please try again.",
-        variant: "destructive",
-      });
+      // Reset loading state on error
+      if (regenerationTimeoutRef.current) {
+        clearTimeout(regenerationTimeoutRef.current);
+        regenerationTimeoutRef.current = null;
+      }
       setIsRegenerating(false);
     }
   };
@@ -342,7 +350,7 @@ export const PreviewPage = ({
           {/* Main Image */}
           <div className="relative mb-4">
             <div
-              className="portrait-frame rounded-lg overflow-hidden max-w-lg mx-auto select-none"
+              className="portrait-frame rounded-lg overflow-hidden max-w-lg mx-auto select-none relative"
               onContextMenu={(e) => e.preventDefault()}
               onDragStart={(e) => e.preventDefault()}
             >
@@ -355,8 +363,35 @@ export const PreviewPage = ({
                 className="w-full aspect-[3/4] object-cover pointer-events-none"
                 draggable={false}
               />
-              {/* Repeating logo watermark overlay - hide if order is complete */}
-              {orderStatus !== OrderStatus.COMPLETE && (
+              {/* Blur overlay for right half - visible but blurred */}
+              {blurHalf && (
+                <>
+                  {/* Strongly blurred right half */}
+                  <div className="absolute top-0 right-0 w-1/2 h-full pointer-events-none overflow-hidden">
+                    <img
+                      src={
+                        currentImages[selectedImageIndex] ||
+                        generatedImages[selectedImageIndex]
+                      }
+                      alt=""
+                      className="w-full h-full object-cover"
+                      style={{
+                        filter: "blur(40px)",
+                        transform: "scale(1.1)",
+                      }}
+                    />
+                  </div>
+                  {/* Subtle overlay to enhance the blur effect without hiding the image */}
+                  <div className="absolute top-0 right-0 w-1/2 h-full pointer-events-none bg-background/10" />
+                  {/* Hard edge divider line */}
+                  <div
+                    className="absolute top-0 left-1/2 h-full w-px bg-border pointer-events-none"
+                    style={{ transform: "translateX(-50%)" }}
+                  />
+                </>
+              )}
+              {/* Repeating logo watermark overlay - hide if order is complete or showWatermark is false */}
+              {showWatermark && orderStatus !== OrderStatus.COMPLETE && (
                 <div
                   className="absolute inset-[-50%] pointer-events-none select-none"
                   style={{
@@ -364,22 +399,61 @@ export const PreviewPage = ({
                     backgroundSize: "18%",
                     backgroundRepeat: "space",
                     backgroundPosition: "center",
-                    opacity: 0.07,
+                    opacity: 0.1,
                     transform: "rotate(-25deg)",
                   }}
                 />
               )}
+              {/* FREE PREVIEW badge - top right */}
+              {orderStatus !== OrderStatus.COMPLETE && (
+                <div className="absolute top-4 right-4 flex items-center px-2.5 py-1 rounded-full bg-background/80 backdrop-blur-sm border border-border pointer-events-none z-20">
+                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                    FREE PREVIEW
+                  </span>
+                </div>
+              )}
+              {/* High quality detail preview circle - bottom right */}
+              <div className="absolute bottom-4 right-4 pointer-events-none z-10 group">
+                {/* Quality tag on top */}
+                <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-background/95 backdrop-blur-md px-2 pb-8 rounded-lg shadow-lg border border-primary/20">
+                  <span className="text-[9px] font-bold text-primary uppercase tracking-widest whitespace-nowrap">
+                    4K Details
+                  </span>
+                </div>
+                {/* Circle container */}
+                <div className="relative w-28 h-28 rounded-full overflow-hidden border-[3px] border-primary/80 shadow-2xl">
+                  <div className="relative w-full h-full">
+                    <img
+                      src={
+                        currentImages[selectedImageIndex] ||
+                        generatedImages[selectedImageIndex]
+                      }
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-cover"
+                      style={{
+                        objectPosition: "center center",
+                        transform: "scale(10)",
+                        transformOrigin: "center center",
+                      }}
+                    />
+                    {/* Gradient overlay for better contrast */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/20 rounded-full" />
+                  </div>
+                  {/* Outer glow ring */}
+                  <div className="absolute -inset-1 rounded-full bg-primary/20 blur-sm pointer-events-none" />
+                </div>
+              </div>
             </div>
             {!orderId && (
               <button
                 onClick={handleRetry}
                 disabled={isRegenerating || !imageId}
-                className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-sm text-sm hover:bg-background transition-colors border border-border disabled:opacity-50 disabled:cursor-not-allowed"
+                className="absolute top-16 right-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-sm text-sm hover:bg-background transition-colors border border-border disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <RefreshCw
                   className={`w-3 h-3 ${isRegenerating ? "animate-spin" : ""}`}
                 />
-                {isRegenerating ? "Regenerating..." : "Retry"}
+                {isRegenerating ? "Redrawing..." : "Redraw"}
               </button>
             )}
           </div>

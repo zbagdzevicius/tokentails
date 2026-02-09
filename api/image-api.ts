@@ -70,13 +70,17 @@ async function getOrderById(_id: string): Promise<IOrder> {
   });
 }
 
-async function regeneratePortrait(imageId: string): Promise<IImage> {
+async function regeneratePortrait(
+  imageId: string,
+  style?: string
+): Promise<IImage> {
   return fetch(`${apiUrl}/image/portrait/${imageId}/regenerate`, {
     method: "PUT",
     headers: {
       Accept: "application/json",
+      "Content-Type": "application/json",
     } as any,
-    body: null as any,
+    body: style ? JSON.stringify({ style }) : (null as any),
   }).then((response) => {
     if (response.ok) {
       return response.json();
