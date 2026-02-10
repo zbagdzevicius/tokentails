@@ -2,7 +2,6 @@
 
 import { INITIAL_PARTNERSHIPS, PixelGlobe } from "@/components/globe/Globe";
 import { Fireflies } from "@/components/shared/Fireflies";
-import { MusicPlayer } from "@/components/shared/MusicPlayer";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { TailsCard } from "@/components/tailsCard/TailsCard";
 import { cdnFile, isMobile } from "@/constants/utils";
@@ -46,10 +45,7 @@ export default function newPage() {
         <link rel="shortcut icon" href={cdnFile("logo/coin.webp")} />
       </Head>
       <div className="relative">
-        <MusicPlayer
-          src={cdnFile("music/Adam Dib - Over the River Through the Woods.mp3")}
-        />
-        <section className="sticky top-0 h-screen w-full">
+        <section className="relative h-screen w-full">
           <span className="absolute inset-0 z-20 animate-appear">
             <img src={cdnFile("landing/hero-top.webp")} className="w-full " />
           </span>
@@ -100,29 +96,93 @@ export default function newPage() {
           </div>
         </section>
 
-        <section className="sticky top-0 h-screen w-full glow-box">
+        {/* CTA SECTION */}
+        <section className="relative min-h-screen w-full glow-box overflow-hidden flex flex-col md:justify-center">
           <img
             src={cdnFile("landing/card-bg.webp")}
             className="w-full h-full object-cover pixelated inset-0 absolute"
           />
-          <div className="absolute inset-0 flex justify-center items-center gap-8 md:scale-[0.65] lg:scale-100">
-            <TailsCard />
-          </div>
-          <div className="absolute bottom-8 md:bottom-12 lg:bottom-16 left-1/2 -translate-x-1/2 z-40 mb-safe">
-            <span className="text-p1 md:text-h4 xl:text-h1 2xl:text-[142px] 3xl:text-[196px] font-bold text- uppercase drop-shadow-lg font-primary whitespace-nowrap text-white">
-              CATS <span className="glow text-yellow-300">NEED</span>{" "}
-              <span className="text-yellow-300">YOU</span>
-            </span>
-          </div>
-          <div className="absolute top-8 md:top-12 lg:top-16 left-1/2 -translate-x-1/2 z-40">
-            <span className="text-p1 md:text-h4 xl:text-h1 2xl:text-[142px] 3xl:text-[196px] font-bold text- uppercase drop-shadow-lg font-primary whitespace-nowrap text-white">
-              LEGENDS <span className="glow text-yellow-300">NEED</span>{" "}
-              <span className="text-yellow-300">HEROES</span>
-            </span>
+
+          {/* Content Wrapper - centered on desktop */}
+          <div className="relative z-30 flex flex-col flex-1 md:flex-none md:justify-center">
+            {/* Top Title - LEGENDS NEED HEROES */}
+            <div className="relative text-center left-1/2 -translate-x-1/2 z-40 pt-8 md:pt-0">
+              <span className="text-p1 md:text-h4 xl:text-h1 2xl:text-[142px] 3xl:text-[196px] font-bold text- uppercase drop-shadow-lg font-primary whitespace-nowrap text-white">
+                LEGENDS <span className="glow text-yellow-300">NEED</span>{" "}
+                <span className="text-yellow-300">HEROES</span>
+              </span>
+            </div>
+
+            {/* Two Column Layout */}
+            <div className="relative flex items-center justify-center z-30 px-4 md:px-8 lg:px-16 py-8 md:py-12 lg:py-16">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 max-w-7xl w-full">
+                {/* Left Column - COLLECT REAL IMPACT */}
+                <div className="flex flex-col items-center text-center">
+                  <h2 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-primary text-yellow-300 mb-3 uppercase tracking-wide">
+                    COLLECT REAL IMPACT
+                  </h2>
+                  <p className="text-sm md:text-base lg:text-lg text-white/90 mb-6 max-w-md text-balance">
+                    Each Token Tails card adds to real-world impact. The more
+                    you hold, the more you unlock.
+                  </p>
+                  <a href="/packs">
+                    <PixelButton text="BUY PACKS" />
+                  </a>
+                  <div className="scale-75 -mt-8 md:-mt-12 -mb-12">
+                    <TailsCard />
+                  </div>
+                </div>
+
+                {/* Right Column - IMMORTALIZE YOUR PET */}
+                <div className="flex flex-col items-center text-center">
+                  <h2 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-primary text-yellow-300 mb-3 uppercase tracking-wide">
+                    IMMORTALIZE YOUR PET
+                  </h2>
+                  <p className="text-sm md:text-base lg:text-lg text-white/90 mb-6 max-w-md">
+                    Turn your cat into a lasting memory as a portrait and a
+                    playable character inside Token Tails.
+                  </p>
+                  <a href="/portrait" className="mb-8">
+                    <PixelButton text="ORDER PET PORTRAIT" />
+                  </a>
+                  <div className="flex gap-3 md:gap-4 mb-6">
+                    <div className="w-24 md:w-32 lg:w-36 aspect-[3/4] rounded-sm overflow-hidden border-2 border-yellow-500/50 shadow-lg glow-box">
+                      <img
+                        src={cdnFile("portrait/aristocrat.webp")}
+                        alt="Royal cat portrait"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="w-24 md:w-32 lg:w-36 aspect-[3/4] rounded-sm overflow-hidden border-2 border-yellow-500 shadow-lg -mt-4 glow-box-ELECTRIC">
+                      <img
+                        src={cdnFile("portrait/monarch.webp")}
+                        alt="Royal dog portrait"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="w-24 md:w-32 lg:w-36 aspect-[3/4] rounded-sm overflow-hidden border-2 border-yellow-500/30 shadow-lg glow-box">
+                      <img
+                        src={cdnFile("portrait/highness.webp")}
+                        alt="Royal cat portrait"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Title - CATS NEED YOU */}
+            <div className="relative text-center left-1/2 -translate-x-1/2 z-40 mb-safe pb-8 md:pb-0">
+              <span className="text-p1 md:text-h4 xl:text-h1 2xl:text-[142px] 3xl:text-[196px] font-bold text- uppercase drop-shadow-lg font-primary whitespace-nowrap text-white">
+                CATS <span className="glow text-yellow-300">NEED</span>{" "}
+                <span className="text-yellow-300">YOU</span>
+              </span>
+            </div>
           </div>
         </section>
 
-        <section className="sticky top-0 h-screen w-full glow-box">
+        <section className="relative min-h-screen w-full glow-box">
           <img
             src={cdnFile("landing/globe.webp")}
             className="w-full h-full object-cover   inset-0 absolute"
@@ -131,21 +191,21 @@ export default function newPage() {
             <PixelGlobe />
           </div>
           {/* Left side: 12 COUNTRIES ONBOARDED */}
-          <div className="absolute pt-20 left-4 lg:left-16 top-1/2 -translate-y-1/2 z-40 flex flex-col items-start">
+          <div className="absolute md:pt-20 left-4 lg:left-16 md:top-1/2 md:-translate-y-1/2 z-40 flex flex-col items-start">
             <span className="lg:text-[200px] text-[100px] font-bold text-yellow-300 drop-shadow-lg font-primary glow lg:-mb-4">
               {INITIAL_PARTNERSHIPS.length}
             </span>
-            <span className="text-p1 lg:text-[68px] uppercase font-semibold tracking-wide font-primary -mt-12 text-yellow-50 opacity-90">
+            <span className="text-p3 md:text-p1 lg:text-[68px] uppercase font-semibold tracking-wide font-primary -mt-8 md:-mt-12 text-yellow-50 opacity-90">
               COUNTRIES
             </span>
           </div>
           {/* Right side: 800+ cats saved */}
-          <div className="absolute pb-64  right-4 lg:right-16 top-1/2 -translate-y-1/2 z-40 flex flex-col items-end ">
+          <div className="absolute pb-64 right-4 lg:right-16 md:top-1/2 md:-translate-y-1/2 z-40 flex flex-col items-end ">
             <span className="lg:text-[200px] text-[100px] font-bold text-yellow-300 drop-shadow-lg font-primary glow lg:-mb-4">
               800+
             </span>
-            <span className="text-p1 lg:text-[68px] uppercase font-semibold tracking-wide font-primary -mt-12 text-yellow-50 opacity-90">
-              cats saved
+            <span className="text-p3 md:text-p1 lg:text-[68px] uppercase font-semibold tracking-wide font-primary -mt-8 md:-mt-12 text-yellow-50 opacity-90">
+              strays saved
             </span>
           </div>
           {/* Bottom: OWN REAL-WORLD IMPACT */}

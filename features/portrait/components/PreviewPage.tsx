@@ -1,11 +1,14 @@
 import { STRIPE_API } from "@/api/stripe-api";
 import { trackEvent } from "@/components/GoogleTagManager";
+import { cdnFile } from "@/constants/utils";
 import { Testimonials } from "@/features/portrait/components/Testimonials";
 import { TrustpilotReviews } from "@/features/portrait/components/TrustpilotReviews";
+import { LuxuryReveal } from "@/features/portrait/components/LuxuryEffects";
 import { useToast } from "@/features/portrait/hooks/use-toast";
 import { useCountdown } from "@/features/portrait/hooks/useCountdown";
 import { Button } from "@/features/portrait/ui/button";
 import { OrderStatus } from "@/models/order";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Cat,
@@ -42,8 +45,8 @@ export const purchaseOptions: PurchaseOption[] = [
   {
     id: "digital",
     title: "Instant Masterpiece",
-    price: 19,
-    originalPrice: 29,
+    price: 9,
+    originalPrice: 30,
     badge: "Most Popular",
     description:
       "Instant high-resolution download — perfect for sharing or saving.",
@@ -72,7 +75,7 @@ export const purchaseOptions: PurchaseOption[] = [
   {
     id: "canvas",
     title: "Large Canvas",
-    price: 199,
+    price: 129,
     badge: "The Perfect Gift 🐱",
     description: "Gallery-quality canvas on wood — arrives ready to hang.",
     features: [
@@ -286,14 +289,42 @@ export const PreviewPage = ({
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="container mx-auto px-4">
+        {/* Logo */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="flex justify-center mb-8"
+        >
+          <Link
+            href="/"
+            className="cursor-pointer hover:opacity-80 transition-opacity"
+          >
+            <img
+              src={cdnFile("logo/logo-pure-text.webp")}
+              alt="Logo"
+              className="h-8 md:h-10 w-auto"
+            />
+          </Link>
+        </motion.div>
+
         {/* Progress Steps */}
-        <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground mb-8">
-          <span className="text-primary">Upload</span>
-          <span className="w-8 h-px bg-primary" />
-          <span className="text-primary">Preview</span>
-          <span className="w-8 h-px bg-border" />
-          <span>Download or Order</span>
-        </div>
+        <LuxuryReveal delay={0.1}>
+          <div className="flex items-center justify-center gap-3 md:gap-6 text-[10px] md:text-xs tracking-[0.15em] md:tracking-[0.2em] uppercase text-muted-foreground mb-6">
+            <motion.button
+              onClick={onBack}
+              className="text-primary hover:text-foreground transition-colors cursor-pointer"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              UPLOAD
+            </motion.button>
+            <motion.span className="w-6 md:w-12 h-px bg-primary" />
+            <motion.span className="text-primary">Preview</motion.span>
+            <span className="w-6 md:w-12 h-px bg-border" />
+            <span>Order</span>
+          </div>
+        </LuxuryReveal>
 
         {/* Title */}
         <motion.h1
@@ -593,6 +624,16 @@ export const PreviewPage = ({
                         </li>
                       ))}
                     </ul>
+
+                    {/* In-game pet for digital option */}
+                    {option.id === "digital" && (
+                      <div className="mb-4 space-y-2 text-sm">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Sparkles className="w-4 h-4" />
+                          <span>+ Includes in-game pet</span>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Delivery & Extras */}
                     {option.delivery && (

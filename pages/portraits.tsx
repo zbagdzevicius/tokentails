@@ -614,6 +614,24 @@ const PortraitsPage = () => {
             <AmbientGlow className="w-[400px] h-[400px] bottom-0 -left-32" />
             <AmbientGlow className="w-[400px] h-[400px] bottom-0 -right-32" />
 
+            {/* Logo */}
+            <LuxuryReveal delay={0.05} className="mb-8">
+              <a
+                href="/"
+                onClick={(e) => {
+                  e.preventDefault();
+                  router.push("/");
+                }}
+                className="cursor-pointer hover:opacity-80 transition-opacity"
+              >
+                <img
+                  src={cdnFile("logo/logo-pure-text.webp")}
+                  alt="Logo"
+                  className="h-8 md:h-10 w-auto"
+                />
+              </a>
+            </LuxuryReveal>
+
             {/* Progress Steps */}
             <LuxuryReveal delay={0.1}>
               <div className="flex items-center gap-3 md:gap-6 text-[10px] md:text-xs tracking-[0.15em] md:tracking-[0.2em] uppercase text-muted-foreground mb-6">
@@ -677,7 +695,7 @@ const PortraitsPage = () => {
                 Your Pet Deserves
               </motion.p>
               <p className="text-muted-foreground text-sm tracking-wider">
-                Free Preview · From $29 to purchase
+                Free Preview · From $9 to purchase
               </p>
             </LuxuryReveal>
 
@@ -780,7 +798,7 @@ const PortraitsPage = () => {
                   Excellent
                 </span>
                 <div className="flex items-center gap-0.5">
-                  {[...Array(5)].map((_, i) => (
+                  {[...Array(4)].map((_, i) => (
                     <div
                       key={i}
                       className="w-4 h-4 bg-[#00b67a] flex items-center justify-center"
@@ -793,6 +811,23 @@ const PortraitsPage = () => {
                       </svg>
                     </div>
                   ))}
+                  {/* 5th star - half green, half grey */}
+                  <div className="w-4 h-4 relative flex items-center justify-center bg-gray-300">
+                    <div className="absolute left-0 top-0 bottom-0 w-1/2 bg-[#00b67a] flex items-center justify-center">
+                      <svg
+                        className="w-2.5 h-2.5 text-white fill-white"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                      </svg>
+                    </div>
+                    <svg
+                      className="w-2.5 h-2.5 text-gray-400 fill-gray-400"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1 ml-1">
                   <svg

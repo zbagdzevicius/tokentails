@@ -13,17 +13,16 @@ const testimonials = [
     avatarUrl:
       "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face",
     location: "New York, NY",
-    text: "I've ordered portraits from other sites before, but this is in a league of its own. The baroque styling is authentic and my cat Sir Whiskers has never looked more distinguished.",
+    text: "I've ordered portraits from other sites before, but this is in a league of its own. The monarch styling is authentic and my cat Sir Whiskers has never looked more distinguished.",
     petName: "Sir Whiskers",
   },
   {
-    name: "Michael Rodriguez",
+    name: "Zygimantas Bagdzevicius",
     avatar: "MR",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
-    location: "Austin, TX",
-    text: "Bought the canvas for my mom's birthday. She literally gasped when she unwrapped it. Her cat Mr. Fluffington now has a permanent spot above the fireplace.",
-    petName: "Mr. Fluffington",
+    avatarUrl: "/team/zygimantas.webp",
+    location: "Vilnius, LT",
+    text: "Bought the canvas for my birthday. I'm literally gasped when I unwrapped it. My cat Mr. Kaciukas now has a permanent spot above the scratch post.",
+    petName: "Mr. Kaciukas",
   },
   {
     name: "Jessica Williams",
@@ -35,12 +34,11 @@ const testimonials = [
     petName: "Princess Luna",
   },
   {
-    name: "David Park",
+    name: "Sky Wee",
     avatar: "DP",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
-    location: "Seattle, WA",
-    text: "As a professional photographer, I'm very particular about image quality. The print exceeded my expectations - museum quality is not an exaggeration.",
+    avatarUrl: "/team/sky.webp",
+    location: "Singapore, SG",
+    text: "As a professional collector, I'm very particular about image quality. The print exceeded my expectations - museum quality is not an exaggeration.",
     petName: "Duke Wellington",
   },
 ];
