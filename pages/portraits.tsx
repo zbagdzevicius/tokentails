@@ -9,6 +9,7 @@ import { cdnFile } from "@/constants/utils";
 import { UploadZone } from "@/features/portrait/components/UploadZone";
 import { PortraitStyle } from "@/features/portrait/components/StylePickerDrawer";
 import { AsSeenOn } from "@/features/portrait/components/AsSeenOn";
+import { PortraitFooter } from "@/features/portrait/components/PortraitFooter";
 import {
   PreviewPage,
   purchaseOptions,
@@ -881,6 +882,7 @@ const PortraitsPage = () => {
             </div>
           </section>
         </main>
+        <PortraitFooter />
       </div>
     </>
   );

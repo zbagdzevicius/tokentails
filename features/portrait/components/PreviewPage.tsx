@@ -4,6 +4,7 @@ import { cdnFile } from "@/constants/utils";
 import { Testimonials } from "@/features/portrait/components/Testimonials";
 import { TrustpilotReviews } from "@/features/portrait/components/TrustpilotReviews";
 import { LuxuryReveal } from "@/features/portrait/components/LuxuryEffects";
+import { PortraitFooter } from "@/features/portrait/components/PortraitFooter";
 import { useToast } from "@/features/portrait/hooks/use-toast";
 import { useCountdown } from "@/features/portrait/hooks/useCountdown";
 import { Button } from "@/features/portrait/ui/button";
@@ -766,6 +767,7 @@ export const PreviewPage = ({
           </motion.div>
         </div>
       )}
+      <PortraitFooter />
     </div>
   );
 };
