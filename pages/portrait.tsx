@@ -28,10 +28,14 @@ import {
   AttentionPulse,
 } from "@/features/portrait/components/LuxuryEffects";
 
-// Import all example images for demo - using public paths
-const catKing = "/portrait/cat-example.webp";
-const catDuchess = "/portrait/portrait-dogs.webp";
-const catGeneral = "/portrait/portrait-monarch.webp";
+// Function to get style-specific gallery images
+const getStyleImages = (style: PortraitStyle): string[] => {
+  return [
+    `/portrait/${style}-1.webp`,
+    `/portrait/${style}-2.webp`,
+    `/portrait/${style}-3.webp`,
+  ];
+};
 
 const PortraitPage = () => {
   const router = useRouter();
@@ -55,6 +59,7 @@ const PortraitPage = () => {
   const [orderProductType, setOrderProductType] = useState<string | null>(null);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationMessage, setGenerationMessage] = useState("");
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const { toast } = useToast();
 
   // Style rotation array
@@ -758,6 +763,8 @@ const PortraitPage = () => {
                       onClear={handleClear}
                       selectedStyle={selectedStyle}
                       onStyleChange={setSelectedStyle}
+                      drawerOpen={drawerOpen}
+                      onDrawerOpenChange={setDrawerOpen}
                     />
 
                     {uploadedImage && (
@@ -840,17 +847,18 @@ const PortraitPage = () => {
             {/* Gallery Section - clean museum style */}
             <LuxuryReveal delay={0.5} className="mt-6 w-full max-w-2xl">
               <div className="flex justify-center gap-4">
-                {[catKing, catDuchess, catGeneral].map((img, index) => (
+                {getStyleImages(selectedStyle).map((img, index) => (
                   <motion.div
-                    key={index}
+                    key={`${selectedStyle}-${index}`}
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 + index * 0.15 }}
-                    className="gallery-image w-24 md:w-32 aspect-[3/4] rounded-sm overflow-hidden"
+                    className="gallery-image w-24 md:w-32 aspect-[3/4] rounded-sm overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => setDrawerOpen(true)}
                   >
                     <img
                       src={img}
-                      alt={`Example portrait ${index + 1}`}
+                      alt={`${selectedStyle} portrait example ${index + 1}`}
                       className="w-full h-full object-cover"
                     />
                   </motion.div>

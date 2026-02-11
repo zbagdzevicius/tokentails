@@ -9,9 +9,11 @@ interface UploadZoneProps {
   onClear: () => void;
   selectedStyle: PortraitStyle;
   onStyleChange: (style: PortraitStyle) => void;
+  drawerOpen?: boolean;
+  onDrawerOpenChange?: (open: boolean) => void;
 }
 
-export const UploadZone = ({ onImageUpload, uploadedImage, onClear, selectedStyle, onStyleChange }: UploadZoneProps) => {
+export const UploadZone = ({ onImageUpload, uploadedImage, onClear, selectedStyle, onStyleChange, drawerOpen, onDrawerOpenChange }: UploadZoneProps) => {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -47,6 +49,8 @@ export const UploadZone = ({ onImageUpload, uploadedImage, onClear, selectedStyl
         <StylePickerDrawer
           selectedStyle={selectedStyle}
           onStyleChange={onStyleChange}
+          open={drawerOpen}
+          onOpenChange={onDrawerOpenChange}
         />
       </div>
       <AnimatePresence mode="wait">

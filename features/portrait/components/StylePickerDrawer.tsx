@@ -20,6 +20,8 @@ export enum PortraitStyle {
 interface StylePickerDrawerProps {
   selectedStyle: PortraitStyle;
   onStyleChange: (style: PortraitStyle) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const styles: {
@@ -57,8 +59,12 @@ const styles: {
 export const StylePickerDrawer = ({
   selectedStyle,
   onStyleChange,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: StylePickerDrawerProps) => {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
 
   const currentStyle = styles.find((s) => s.id === selectedStyle) || styles[0];
   const CurrentIcon = currentStyle.icon;
