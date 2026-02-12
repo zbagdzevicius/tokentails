@@ -46,8 +46,8 @@ export const purchaseOptions: PurchaseOption[] = [
   {
     id: "digital",
     title: "Instant Masterpiece",
-    price: 9,
-    originalPrice: 30,
+    price: 1,
+    originalPrice: 29,
     badge: "Most Popular",
     description:
       "Instant high-resolution download — perfect for sharing or saving.",
@@ -58,7 +58,7 @@ export const purchaseOptions: PurchaseOption[] = [
   {
     id: "print",
     title: "Fine Art Print",
-    price: 69,
+    price: 49,
     badge: "Recommended",
     description:
       "Printed on museum-quality archival paper with fade-resistant inks.",
@@ -75,8 +75,8 @@ export const purchaseOptions: PurchaseOption[] = [
   },
   {
     id: "canvas",
-    title: "Large Canvas",
-    price: 129,
+    title: "Gallery Canvas",
+    price: 69,
     badge: "The Perfect Gift 🐱",
     description: "Gallery-quality canvas on wood — arrives ready to hang.",
     features: [
@@ -86,7 +86,7 @@ export const purchaseOptions: PurchaseOption[] = [
     ],
     icon: Cat,
     ctaText: "Order Canvas",
-    size: '18" x 24"',
+    size: '12" x 16"',
     delivery: "3-12 days",
     includesDigital: true,
   },
@@ -627,14 +627,14 @@ export const PreviewPage = ({
                     </ul>
 
                     {/* In-game pet for digital option */}
-                    {option.id === "digital" && (
+                    {/* {option.id === "digital" && (
                       <div className="mb-4 space-y-2 text-sm">
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Sparkles className="w-4 h-4" />
                           <span>+ Includes in-game pet</span>
                         </div>
                       </div>
-                    )}
+                    )} */}
 
                     {/* Delivery & Extras */}
                     {option.delivery && (
