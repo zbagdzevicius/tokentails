@@ -59,6 +59,7 @@ export const purchaseOptions: PurchaseOption[] = [
     id: "print",
     title: "Fine Art Print",
     price: 49,
+    originalPrice: 99,
     badge: "Recommended",
     description:
       "Printed on museum-quality archival paper with fade-resistant inks.",
@@ -77,6 +78,7 @@ export const purchaseOptions: PurchaseOption[] = [
     id: "canvas",
     title: "Gallery Canvas",
     price: 69,
+    originalPrice: 199,
     badge: "The Perfect Gift 🐱",
     description: "Gallery-quality canvas on wood — arrives ready to hang.",
     features: [
