@@ -35,17 +35,13 @@ const getDaysUntilUnlock = (levelIndex: number): number => {
   const unlockDay = levelIndex + 1;
 
   const unlockDate = new Date(currentYear, 1, unlockDay);
-  console.log(unlockDate);
-  console.log(now);
-  console.log(new Date());
+
   if (now >= unlockDate) {
-    console.log("unlocked");
     return 0;
   }
 
   const diffTime = unlockDate.getTime() - now.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  console.log(diffDays);
 
   return diffDays;
 };
@@ -59,7 +55,7 @@ export const PixelRescueLevels = ({
   const showToast = useToast();
 
   const unlockedLevels = [...(profile?.seasonEvent || [])].filter(
-    (level) => level > 0
+    (level) => level > 0,
   ).length;
 
   const selectLevel = (level: string, index: number) => {
@@ -118,7 +114,7 @@ export const PixelRescueLevels = ({
       <div
         style={{
           backgroundImage: `url(${cdnFile(
-            "pixel-rescue/images/bg-paws.webp"
+            "pixel-rescue/images/bg-paws.webp",
           )})`,
         }}
         className="flex justify-center items-center flex-wrap glow-box-FIRE pt-16 md:px-8 gap-2 relative justify-items-center max-w-[40rem] rounded-2xl py-8 w-full mt-8 md:mt-16 animate-appear"

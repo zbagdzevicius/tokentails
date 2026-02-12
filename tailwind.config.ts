@@ -99,6 +99,7 @@ const config: Config = {
         bounceWithFade: "bounceWithFade 2.7s ease-in-out",
         brightness: "brightness 3s ease-in-out infinite",
         pulseWeak: "pulseWeak 3s ease-in-out infinite",
+        blink: "blink 0.5s ease-in-out infinite",
       },
       keyframes: {
         "loop-scroll": {
@@ -152,6 +153,10 @@ const config: Config = {
           from: { opacity: "30%" },
           "50%": { opacity: "50%" },
           to: { opacity: "30%" },
+        },
+        blink: {
+          "0%, 100%": { opacity: "0" },
+          "50%": { opacity: "1" },
         },
         bounceWithFade: {
           "0%": {

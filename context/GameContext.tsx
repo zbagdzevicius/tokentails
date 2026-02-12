@@ -24,6 +24,7 @@ import * as React from "react";
 import { useEffect, useState } from "react";
 import { useProfile } from "./ProfileContext";
 import { IToast, useToast } from "./ToastContext";
+import { WheelModal } from "@/components/shared/WheelModal";
 
 type ContextState = {
   isStarted?: boolean;
@@ -76,7 +77,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
   }, [gameType]);
 
   const gameProgressUpdateCallback = (
-    event?: ICatEventsDetails[GameEvent.GAME_PROGRESS_UPDATE]
+    event?: ICatEventsDetails[GameEvent.GAME_PROGRESS_UPDATE],
   ) => {
     if (!event) return;
 
@@ -127,7 +128,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
         });
       }
     },
-    [profile, gameType, level]
+    [profile, gameType, level],
   );
 
   GameEvents.GAME_STOP.use(gameStopCallback);
@@ -257,6 +258,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           )}
           {openedModal === GameModal.SUPPORT && (
             <SupportModal close={() => setOpenedModal(null)} />
+          )}
+          {openedModal === GameModal.SPIN_WHEEL && (
+            <WheelModal close={() => setOpenedModal(null)} />
           )}
           <GameMusicPlayer />
         </>

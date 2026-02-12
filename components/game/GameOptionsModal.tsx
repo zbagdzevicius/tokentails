@@ -1,11 +1,9 @@
-import { USER_API } from "@/api/user-api";
 import { REWARDS } from "@/constants/rewards";
 import { bgStyle, cdnFile, getNextDayMidnight } from "@/constants/utils";
 import { useGame } from "@/context/GameContext";
 import { useToast } from "@/context/ToastContext";
 import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
-import { useCallback } from "react";
 import { GameStatsSection } from "../catbassadors/GameStatsSection";
 import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
@@ -23,24 +21,24 @@ export const GameOptionsModal = ({
   setProfileUpdate,
   setOpenedModal,
 }: IProps) => {
-  const toast = useToast();
-  const { addNotification } = useGame();
+  // const toast = useToast();
+  // const { addNotification } = useGame();
   const nextDayTargetDate = getNextDayMidnight();
 
-  const redeemLives = useCallback(async () => {
-    await USER_API.redeem();
-    setProfileUpdate({
-      canRedeemLives: false,
-      streak: (profile.streak || 0) + 1,
-      tails: (profile.tails || 0) + REWARDS.DAILY_REWARD,
-      monthStreak: (profile.monthStreak || 0) + 1,
-    });
+  // const redeemLives = useCallback(async () => {
+  //   await USER_API.redeem();
+  //   setProfileUpdate({
+  //     canRedeemLives: false,
+  //     streak: (profile.streak || 0) + 1,
+  //     tails: (profile.tails || 0) + REWARDS.DAILY_REWARD,
+  //     monthStreak: (profile.monthStreak || 0) + 1,
+  //   });
 
-    addNotification({
-      message: `You got ${REWARDS.DAILY_REWARD} $TAILS`,
-      icon: cdnFile("logo/logo.webp"),
-    });
-  }, []);
+  //   addNotification({
+  //     message: `You got ${REWARDS.DAILY_REWARD} $TAILS`,
+  //     icon: cdnFile("logo/logo.webp"),
+  //   });
+  // }, []);
 
   return (
     <>
@@ -69,7 +67,10 @@ export const GameOptionsModal = ({
                     className="w-6 z-10"
                     src={cdnFile("logo/logo.webp")}
                   />
-                  <div className="text-p5">{REWARDS.DAILY_REWARD} $TAILS</div>
+                  <div className="text-p5">
+                    {REWARDS.DAILY_REWARD_MIN} - {REWARDS.DAILY_REWARD_MAX}{" "}
+                    $TAILS
+                  </div>
                 </div>
               </div>
             )}
@@ -79,7 +80,7 @@ export const GameOptionsModal = ({
             <span className="-mt-4 -mb-2">
               <PixelButton
                 isDisabled={!profile.canRedeemLives}
-                onClick={() => (profile.canRedeemLives ? redeemLives() : {})}
+                onClick={() => setOpenedModal(GameModal.SPIN_WHEEL)}
                 isSmall={!profile.canRedeemLives}
                 text={profile.canRedeemLives ? "DAILY CHECK-IN" : "CHECKED-IN"}
               ></PixelButton>

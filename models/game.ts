@@ -11,6 +11,7 @@ export enum GameModal {
   SUPPORT = "SUPPORT",
   CODEX = "CODEX",
   OFFER_WALL = "OFFER_WALL",
+  SPIN_WHEEL = "SPIN_WHEEL",
 }
 
 export enum GameType {

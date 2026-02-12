@@ -5,4 +5,6 @@ export const REWARDS = {
   FEED: 1,
   MYSTERY_BOX: 100,
   WEEKLY_TOP: 200,
+  DAILY_REWARD_MIN: 1,
+  DAILY_REWARD_MAX: 1000,
 };
