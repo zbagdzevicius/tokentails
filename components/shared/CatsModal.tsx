@@ -143,7 +143,6 @@ const PackRow = ({
           className="bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 px-6 py-3 cursor-pointer hover:brightness-110 active:scale-[0.99] transition-all duration-300 relative overflow-hidden group"
           onClick={() => setIsExpanded(!isExpanded)}
         >
-          {/* Animated shimmer effect */}
           <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           <div
             className="absolute inset-0  pointer-events-none object-cover opacity-20 group-hover:opacity-35 transition-opacity duration-500"
@@ -181,16 +180,16 @@ const PackRow = ({
               onClick={() => setIsExpanded(!isExpanded)}
             >
               {packedCats.length > 0 ? (
-                packedCats.map((cat) => (
+                packedCats.map((cat, index) => (
                   <div
-                    key={cat._id}
-                    className="w-full  aspect-[3/4] relative glow-box-FIRE hover:scale-105 hover:rotate-1 transition-all duration-500 cursor-pointer group/pack"
+                    key={cat._id! + index}
+                    className="w-full  aspect-[3/4] relative hover:scale-105 hover:rotate-1 transition-all duration-500 cursor-pointer group/pack"
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedCat(cat);
                     }}
                   >
-                    <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-amber-900 via-amber-700 to-amber-900 p-[3px] glow-box-FITER shadow-2xl group-hover/pack:shadow-amber-500/50 transition-all duration-500">
+                    <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-amber-900 via-amber-700 to-amber-900 p-[3px]  shadow-2xl group-hover/pack:shadow-amber-500/50 transition-all duration-500">
                       <div className="w-full h-full rounded-3xl bg-gradient-to-br from-amber-50 via-white to-amber-100 shadow-inner relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-50" />
 
@@ -225,23 +224,15 @@ const PackRow = ({
               <div className="flex gap-2">
                 {packedCats.length > 0 ? (
                   <>
-                    {packedCats.slice(0, count).map((cat) => (
+                    {packedCats.slice(0, count).map((cat, index) => (
                       <div
-                        key={cat._id}
-                        className="flex-shrink-0 glow-box-FIRE w-28 h-36 md:w-32 md:h-40 relative hover:scale-105 hover:rotate-1 transition-all duration-500 cursor-pointer group/pack"
+                        key={cat._id! + index}
+                        className="flex-shrink-0 w-28 h-36 md:w-32 md:h-40 relative hover:scale-105 hover:rotate-1 transition-all duration-500 cursor-pointer group/pack"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedCat(cat);
                         }}
                       >
-                        <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-amber-900 via-amber-700 to-amber-900 p-[3px] shadow-2xl group-hover/pack:shadow-amber-500/50 transition-all duration-500">
-                          <div className="w-full h-full rounded-3xl bg-gradient-to-br from-amber-50 via-white to-amber-100 shadow-inner relative overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-50" />
-
-                            <div className="absolute inset-0 bg-gradient-to-br from-amber-400/0 via-amber-300/0 to-amber-400/0 group-hover/pack:from-amber-400/20 group-hover/pack:via-amber-300/10 group-hover/pack:to-amber-400/20 transition-all duration-700" />
-                          </div>
-                        </div>
-
                         <img
                           src={packImages[cat.packType as PackType]}
                           alt={cat.packType}
@@ -350,7 +341,6 @@ const TierRow = ({
           className={`${config.bgColor} px-6 py-3 cursor-pointer hover:brightness-110 active:scale-[0.99] transition-all duration-300 relative overflow-hidden group`}
           onClick={() => setIsExpanded(!isExpanded)}
         >
-          {/* Animated shimmer effect */}
           <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           <div
             className="absolute inset-0 pointer-events-none opacity-20 group-hover:opacity-40 transition-opacity duration-500"
@@ -436,9 +426,9 @@ const TierRow = ({
               onClick={() => setIsExpanded(!isExpanded)}
             >
               {cats.length > 0 ? (
-                cats.map((cat) => (
+                cats.map((cat, index) => (
                   <div
-                    key={cat._id}
+                    key={cat._id! + index}
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedCat(cat);
@@ -476,8 +466,8 @@ const TierRow = ({
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 relative">
                 {cats.length > 0 ? (
                   <>
-                    {cats.slice(0, count).map((cat) => (
-                      <div key={cat._id} className="flex-shrink-0">
+                    {cats.slice(0, count).map((cat, index) => (
+                      <div key={cat._id! + index} className="flex-shrink-0">
                         <TailsCardMini
                           cat={cat}
                           onClick={() => setSelectedCat(cat)}

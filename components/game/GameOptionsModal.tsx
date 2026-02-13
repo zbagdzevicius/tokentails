@@ -82,7 +82,7 @@ export const GameOptionsModal = ({
                 isDisabled={!profile.canRedeemLives}
                 onClick={() => setOpenedModal(GameModal.SPIN_WHEEL)}
                 isSmall={!profile.canRedeemLives}
-                text={profile.canRedeemLives ? "DAILY CHECK-IN" : "CHECKED-IN"}
+                text={profile.canRedeemLives ? "DAILY SPIN" : "SPINNED"}
               ></PixelButton>
             </span>
           </div>
