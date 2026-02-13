@@ -1,10 +1,12 @@
 import { cdnFile } from "@/constants/utils";
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import { CloseButton } from "./CloseButton";
 import { PixelButton } from "./PixelButton";
 import WheelComponent, { WheelRef } from "../shared/Wheel";
 import { useToast } from "@/context/ToastContext";
 import { useProfile } from "@/context/ProfileContext";
+import { USER_API } from "@/api/user-api";
+import { useGame } from "@/context/GameContext";
 
 type Values = 1 | 5 | 10 | 25 | 50 | 100 | 250 | 1000;
 
@@ -27,9 +29,34 @@ export const WheelModal: React.FC<WheelModalProps> = ({
   const [targetSegment, setTargetSegment] = useState<Values | undefined>(
     winningSegment,
   );
+
+  const { addNotification } = useGame();
   const wheelRef = useRef<WheelRef>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const hasRedeemedRef = useRef(false);
   const toast = useToast();
+
+  const redeemReward = useCallback(async () => {
+    await USER_API.redeem();
+    setProfileUpdate({
+      canRedeemLives: false,
+      streak: (profile!.streak || 0) + 1,
+      tails: (profile!.tails || 0) + wonSegment!,
+      monthStreak: (profile!.monthStreak || 0) + 1,
+    });
+
+    addNotification({
+      message: `You got ${wonSegment!} $TAILS`,
+      icon: cdnFile("logo/logo.webp"),
+    });
+  }, [wonSegment, profile, addNotification, setProfileUpdate]);
+
+  useEffect(() => {
+    if (wonSegment && hasSpin && !hasRedeemedRef.current) {
+      hasRedeemedRef.current = true;
+      redeemReward();
+    }
+  }, [wonSegment, hasSpin, redeemReward]);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -59,6 +86,7 @@ export const WheelModal: React.FC<WheelModalProps> = ({
     setShowWinningNumber(false);
     setWonSegment(undefined);
     setTargetSegment(undefined);
+    hasRedeemedRef.current = false;
     close();
   };
 
