@@ -165,7 +165,7 @@ const redeem = async (): Promise<{tails: number}> => {
     }
 
     console.warn(JSON.stringify(response));
-    return {};
+    return {tails: 0};
   });
 };
 
