@@ -113,7 +113,7 @@ const PackRow = ({
     () => mutatedCats.filter((cat) => cat.packed && cat.packType),
     [mutatedCats],
   );
-
+  const { setOpenedModal } = useGame();
   const getCountFromWidth = () => {
     if (typeof window === "undefined") return 3;
     if (window.innerWidth >= 1024) return 5;
@@ -253,13 +253,13 @@ const PackRow = ({
                   </div>
                 )}
               </div>
-              {!isExpanded && packedCats.length > 0 && (
-                <PixelButton
-                  onClick={() => setIsExpanded(true)}
-                  text="See all"
-                  isSmall
-                />
-              )}
+              
+        <PixelButton
+          onClick={() => {
+            setOpenedModal(GameModal.PACKS);
+          }}
+          text="GET PACKS"
+        ></PixelButton>
             </div>
           )}
         </div>
@@ -578,15 +578,6 @@ export const CatsModalContent = ({
           <Tag>YOUR REVENUE SHARE: ${Math.ceil(profile?.affiliated)}</Tag>
         </span>
       )}
-
-      <span className="relative mb-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-        <PixelButton
-          onClick={() => {
-            setOpenedModal(GameModal.PACKS);
-          }}
-          text="GET MORE CATS <3"
-        ></PixelButton>
-      </span>
 
       <div className="w-full px-2">
         <PackRow mutatedCats={mutatedCats} setSelectedCat={setSelectedCat} />

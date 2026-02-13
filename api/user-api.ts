@@ -150,7 +150,7 @@ const saveMatch = async (match: IMatch): Promise<Partial<IProfile>> => {
   });
 };
 
-const redeem = async (): Promise<object> => {
+const redeem = async (): Promise<{tails: number}> => {
   await waitForLocalStorageKey();
   return fetch(`${apiUrl}/user/catbassadors/lives/redeem`, {
     method: "GET",

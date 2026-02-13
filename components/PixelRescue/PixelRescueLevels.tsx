@@ -1,9 +1,13 @@
+import { QUEST_API } from "@/api/quest-api";
 import { cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
+import { QUEST } from "@/models/quest";
+import { useCallback } from "react";
 
 import { PixelRescueLevelMap, pixelRescueLevelsList } from "../Phaser/map";
 import { Countdown } from "../shared/Countdown";
+import { PixelButton } from "../shared/PixelButton";
 
 const NOW_DATE: Date | null = new Date();
 
@@ -51,16 +55,36 @@ export const PixelRescueLevels = ({
 }: {
   setSelectedLevel: (level: string) => void;
 }) => {
-  const { profile } = useProfile();
+  const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
 
   const unlockedLevels = [...(profile?.seasonEvent || [])].filter(
     (level) => level > 0,
   ).length;
 
+  const remainingLevels =
+    Object.keys(PixelRescueLevelMap).length -
+    (profile?.seasonEvent?.length || 0);
+
+  const isRedeemed = useCallback(() => {
+    return !!profile?.quests?.includes(QUEST.PIXEL_RESCUE_LEVEL);
+  }, [profile?.quests]);
+
+  const isRedeemable = remainingLevels <= 0 && !isRedeemed();
+
+  const onRedeem = async () => {
+    const result = await QUEST_API.complete(QUEST.PIXEL_RESCUE_LEVEL);
+    if (result.success) {
+      setProfileUpdate({
+        quests: [...(profile?.quests || []), QUEST.PIXEL_RESCUE_LEVEL],
+        tails: (profile?.tails || 0) + 100,
+      });
+      showToast({ message: result.message });
+    }
+  };
+
   const selectLevel = (level: string, index: number) => {
     if (!isLevelUnlockedByDate(index)) {
-      const daysUntil = getDaysUntilUnlock(index);
       showToast({
         message: `This level unlocks on February ${index + 1}`,
         img: cdnFile("purrquest/sprites/key.png"),
@@ -185,20 +209,39 @@ export const PixelRescueLevels = ({
         })}
 
         <div className="flex items-center justify-center flex-col max-w-28">
-          <img
-            src={cdnFile("pixel-rescue/images/gift.webp")}
-            alt="Gift"
-            className="w-20 h-20 z-20 pixelated hover:brightness-125 hover:scale-110 transition-all duration-300"
-            draggable={false}
-          />
-          <div className="text-p6 font-primary text-yellow-900 leading-0 text-balance text-center">
-            <p className="glow font-bold text-p4 -mb-2">
-              {Object.keys(PixelRescueLevelMap).length -
-                (profile?.seasonEvent?.reduce((a, b) => a + b, 0) || 0)}{" "}
-              LEVELS
-            </p>{" "}
-            TO UNLOCK A GIFT
+          <div className="relative">
+            <img
+              src={cdnFile("pixel-rescue/images/gift.webp")}
+              alt="Gift"
+              className={`w-20 h-20 z-20 pixelated transition-all duration-300 ${
+                isRedeemable
+                  ? "hover:brightness-125 hover:scale-110 animate-pulse"
+                  : isRedeemed()
+                  ? "opacity-60"
+                  : "hover:brightness-125 hover:scale-110"
+              }`}
+              draggable={false}
+            />
+            {isRedeemable && (
+              <div className="absolute -top-2 -right-2 w-6 h-6 bg-yellow-300 rounded-full border-2 border-yellow-900 animate-ping"></div>
+            )}
           </div>
+          {isRedeemed() ? (
+            <div className="mt-2">
+              <PixelButton text="REDEEMED" isDisabled isSmall />
+            </div>
+          ) : isRedeemable ? (
+            <div className="mt-2">
+              <PixelButton text="REDEEM GIFT" isSmall onClick={onRedeem} />
+            </div>
+          ) : (
+            <div className="text-p6 font-primary text-yellow-900 leading-0 text-balance text-center">
+              <p className="glow font-bold text-p4 -mb-2">
+                {remainingLevels} LEVELS
+              </p>{" "}
+              TO UNLOCK A GIFT
+            </div>
+          )}
         </div>
       </div>
     </div>
