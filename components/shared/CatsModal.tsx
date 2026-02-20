@@ -56,10 +56,17 @@ const patternImages: Record<Tier, string> = {
 const weekInMs = 604800000;
 
 const cornerImg = {
-  [Tier.LEGENDARY]: cdnFile("utilities/legendary.webp"),
-  [Tier.EPIC]: cdnFile("utilities/epic.webp"),
-  [Tier.RARE]: cdnFile("utilities/rare.webp"),
-  [Tier.COMMON]: cdnFile("utilities/common.webp"),
+  [Tier.LEGENDARY]: cdnFile("utilities/cats-modal/legendary.webp"),
+  [Tier.EPIC]: cdnFile("utilities/cats-modal/epic.webp"),
+  [Tier.RARE]: cdnFile("utilities/cats-modal/rare.webp"),
+  [Tier.COMMON]: cdnFile("utilities/cats-modal/common.webp"),
+};
+
+const shardImages = {
+  [Tier.LEGENDARY]: cdnFile("utilities/cats-modal/legendary_shard.webp"),
+  [Tier.EPIC]: cdnFile("utilities/cats-modal/epic_shard.webp"),
+  [Tier.RARE]: cdnFile("utilities/cats-modal/rare_shard.webp"),
+  [Tier.COMMON]: cdnFile("utilities/cats-modal/common_shard.webp"),
 };
 
 const CornerDecoration = ({
@@ -88,7 +95,9 @@ const CornerDecoration = ({
       className={`absolute ${positions[position]} w-10 h-10 md:w-12 md:h-12 lg:w-14 lg:h-14 pointer-events-none z-50`}
     >
       <img
-        src={tier ? cornerImg[tier] : cdnFile("utilities/corner.webp")}
+        src={
+          tier ? cornerImg[tier] : cdnFile("utilities/cats-modal/corner.webp")
+        }
         alt=""
         className="w-full h-full object-contain"
         style={{
@@ -115,7 +124,7 @@ const PackRow = ({
   );
   const { setOpenedModal } = useGame();
   const getCountFromWidth = () => {
-    if (typeof window === "undefined") return 3;
+    if (typeof window === "undefined") return 5;
     if (window.innerWidth >= 1024) return 5;
     if (window.innerWidth >= 768) return 4;
     return 3;
@@ -132,102 +141,54 @@ const PackRow = ({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  return (
-    <div className="w-full mb-6 relative">
-      <CornerDecoration position="bl" />
-      <CornerDecoration position="br" />
-      <CornerDecoration position="tr" />
-      <CornerDecoration position="tl" />
-      <div className="w-full rounded-2xl glow-box-FIRE overflow-hidden border-[6px] border-amber-900 shadow-2xl hover:shadow-amber-500/30 transition-all duration-500 animate-in fade-in slide-in-from-bottom-4 relative">
+  const chunkPacks = (packs: ICat[], size: number) => {
+    const chunks: ICat[][] = [];
+    for (let i = 0; i < packs.length; i += size) {
+      chunks.push(packs.slice(i, i + size));
+    }
+    return chunks;
+  };
+
+  if (isExpanded) {
+    const packsPerRow = count;
+    const rows = chunkPacks(packedCats, packsPerRow);
+
+    return (
+      <div className="w-full mb-8">
+        {/* One big bookshelf - click background to collapse */}
         <div
-          className="bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 px-6 py-3 cursor-pointer hover:brightness-110 active:scale-[0.99] transition-all duration-300 relative overflow-hidden group"
-          onClick={() => setIsExpanded(!isExpanded)}
+          className="relative cursor-pointer"
+          onClick={() => setIsExpanded(false)}
         >
-          <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-          <div
-            className="absolute inset-0  pointer-events-none object-cover opacity-20 group-hover:opacity-35 transition-opacity duration-500"
-            style={{
-              backgroundImage: `url(${patternImages[Tier.LEGENDARY]})`,
-              backgroundSize: "180px 220px",
-              backgroundRepeat: "repeat",
-              mixBlendMode: "overlay",
-            }}
-          />
-          <div className="flex justify-between items-center relative z-10">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl md:text-2xl font-primary text-amber-50 uppercase tracking-widest font-bold ">
-                PACKS
-              </h2>
-              <div
-                className={`text-amber-50 text-2xl font-bold transition-all duration-500 ease-out ${
-                  isExpanded ? "rotate-90 scale-110" : "scale-100"
-                }`}
-              >
-                <ArrowIcon width={20} height={20} color={"#fff"} />
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-base md:text-lg font-primary text-amber-50 font-bold bg-amber-800/30 px-3 py-1 rounded-full backdrop-blur-sm">
-                {packedCats.length}
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="bg-gradient-to-b  from-amber-100/90 via-amber-50/90 to-amber-100/90 p-4 transition-all duration-500 overflow-hidden backdrop-blur-sm">
-          {isExpanded ? (
-            <div
-              className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 cursor-pointer "
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
-              {packedCats.length > 0 ? (
-                packedCats.map((cat, index) => (
+          {packedCats.length > 0 ? (
+            <div className="">
+              {rows.map((rowPacks, rowIndex) => (
+                <div key={rowIndex} className="relative w-full">
+                  {/* Shelf image - THE PARENT that defines size */}
+                  <img
+                    src={cdnFile("utilities/cats-modal/shelf.webp")}
+                    alt="shelf"
+                    className="w-[200%] lg:w-full h-auto"
+                    draggable={false}
+                  />
+
+                  {/* Packs positioned absolutely based on shelf */}
                   <div
-                    key={cat._id! + index}
-                    className="w-full  aspect-[3/4] relative hover:scale-105 hover:rotate-1 transition-all duration-500 cursor-pointer group/pack"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedCat(cat);
-                    }}
+                    className="absolute inset-0 flex justify-center items-end gap-10 lg:gap-2 pb-[10%] px-[3%]"
+                    style={{ height: "95%" }}
                   >
-                    <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-amber-900 via-amber-700 to-amber-900 p-[3px]  shadow-2xl group-hover/pack:shadow-amber-500/50 transition-all duration-500">
-                      <div className="w-full h-full rounded-3xl bg-gradient-to-br from-amber-50 via-white to-amber-100 shadow-inner relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-50" />
-
-                        <div className="absolute inset-0 bg-gradient-to-br from-amber-400/0 via-amber-300/0 to-amber-400/0 group-hover/pack:from-amber-400/20 group-hover/pack:via-amber-300/10 group-hover/pack:to-amber-400/20 transition-all duration-700" />
-                      </div>
-                    </div>
-
-                    <img
-                      src={packImages[cat.packType as PackType]}
-                      alt={cat.packType}
-                      className="relative z-10 w-full h-full object-contain p-3 group-hover/pack:scale-105 transition-transform duration-500"
-                      draggable={false}
-                      style={{
-                        filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.15))",
-                      }}
-                    />
-                  </div>
-                ))
-              ) : (
-                <div className="col-span-full text-center py-8">
-                  <p className="text-base font-primary text-amber-800 opacity-50">
-                    No packs available
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div
-              className="flex flex-col gap-3 cursor-pointer"
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
-              <div className="flex gap-2">
-                {packedCats.length > 0 ? (
-                  <>
-                    {packedCats.slice(0, count).map((cat, index) => (
+                    {rowPacks.map((cat, index) => (
                       <div
                         key={cat._id! + index}
-                        className="flex-shrink-0 w-28 h-36 md:w-32 md:h-40 relative hover:scale-105 hover:rotate-1 transition-all duration-500 cursor-pointer group/pack"
+                        className="flex-1 hover:scale-105 hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+                        style={{
+                          maxWidth:
+                            typeof window !== "undefined" &&
+                            window.innerWidth < 1024
+                              ? `${60 / Math.min(count, packedCats.length)}%`
+                              : `${85 / Math.min(count, packedCats.length)}%`,
+                          maxHeight: "100%",
+                        }}
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedCat(cat);
@@ -236,33 +197,100 @@ const PackRow = ({
                         <img
                           src={packImages[cat.packType as PackType]}
                           alt={cat.packType}
-                          className="relative z-10 w-full h-full object-contain p-3 group-hover/pack:scale-105 transition-transform duration-500"
+                          className="w-full h-auto object-contain"
                           draggable={false}
                           style={{
-                            filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.15))",
+                            filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.5))",
                           }}
                         />
                       </div>
                     ))}
-                  </>
-                ) : (
-                  <div className="w-full text-center py-8">
-                    <p className="text-base font-primary text-amber-800 opacity-50">
-                      No packs available
-                    </p>
                   </div>
-                )}
-              </div>
-              
-        <PixelButton
-          onClick={() => {
-            setOpenedModal(GameModal.PACKS);
-          }}
-          text="GET PACKS"
-        ></PixelButton>
+                </div>
+              ))}
             </div>
+          ) : (
+            <PixelButton
+              onClick={() => {
+                setOpenedModal(GameModal.PACKS);
+              }}
+              text="GET PACKS"
+            ></PixelButton>
           )}
         </div>
+      </div>
+    );
+  }
+
+  // Collapsed - single shelf view
+  return (
+    <div className="w-full mb-8">
+      {/* Single bookshelf */}
+      <div
+        className="relative w-full cursor-pointer group"
+        onClick={() => packedCats.length > 0 && setIsExpanded(true)}
+      >
+        <img
+          src={cdnFile("utilities/cats-modal/shelf.webp")}
+          alt="shelf"
+          className="w-[200%] lg:w-full h-auto"
+          draggable={false}
+        />
+        {packedCats.length > 0 ? (
+          <div
+            className="absolute inset-0 flex justify-center items-end gap-5 lg:gap-2 pb-[10%] px-[3%]"
+            style={{
+              height:
+                typeof window !== "undefined" && window.innerWidth < 1024
+                  ? "100%"
+                  : "95%",
+            }}
+          >
+            {packedCats.slice(0, count).map((cat, index) => (
+              <div
+                key={cat._id! + index}
+                className="flex-1 hover:scale-105 hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+                style={{
+                  maxWidth:
+                    typeof window !== "undefined" && window.innerWidth < 1024
+                      ? `${65 / Math.min(count, packedCats.length)}%`
+                      : `${85 / Math.min(count, packedCats.length)}%`,
+                  maxHeight: "100%",
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedCat(cat);
+                }}
+              >
+                <img
+                  src={packImages[cat.packType as PackType]}
+                  alt={cat.packType}
+                  className="w-full h-auto object-contain"
+                  draggable={false}
+                  style={{
+                    filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.5))",
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <p className="text-lg font-primary text-white">
+              No packs available
+            </p>
+          </div>
+        )}
+
+        {packedCats.length > count && (
+          <div className="absolute bottom-0 lg:bottom-2 left-1/2 -translate-x-1/2 z-10">
+            <PixelButton
+              onClick={() => setIsExpanded(true)}
+              text="See all"
+              isSmall
+            />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -338,7 +366,7 @@ const TierRow = ({
         }-500/40 transition-all duration-500 animate-in fade-in slide-in-from-bottom-4`}
       >
         <div
-          className={`${config.bgColor} px-6 py-3 cursor-pointer hover:brightness-110 active:scale-[0.99] transition-all duration-300 relative overflow-hidden group`}
+          className={`${config.bgColor} px-4 lg:px-6 py-1 cursor-pointer hover:brightness-110 active:scale-[0.99] transition-all duration-300 relative overflow-hidden group`}
           onClick={() => setIsExpanded(!isExpanded)}
         >
           <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
@@ -352,8 +380,17 @@ const TierRow = ({
             }}
           />
 
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+            <img
+              src={shardImages[tier]}
+              alt={`${tier} Shard`}
+              className="w-24 h-24 lg:w-40 lg:h-40 object-contain drop-shadow-lg"
+              draggable={false}
+            />
+          </div>
+
           <div className="flex justify-between items-center relative z-10">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 lg:gap-3">
               <h2
                 className={`text-xl md:text-2xl font-primary ${config.textColor} uppercase tracking-widest font-bold drop-shadow-lg`}
               >
