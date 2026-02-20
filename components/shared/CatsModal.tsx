@@ -251,10 +251,12 @@ const PackRow = ({
                 key={cat._id! + index}
                 className="flex-1 hover:scale-105 hover:-translate-y-1 transition-all duration-300 cursor-pointer"
                 style={{
-                  maxWidth:
-                    typeof window !== "undefined" && window.innerWidth < 1024
-                      ? `${65 / Math.min(count, packedCats.length)}%`
-                      : `${85 / Math.min(count, packedCats.length)}%`,
+                  maxWidth: `${Math.min(
+                    20,
+                    (typeof window !== "undefined" && window.innerWidth < 1024
+                      ? 65
+                      : 85) / Math.min(count, packedCats.length),
+                  )}%`,
                   maxHeight: "100%",
                 }}
                 onClick={(e) => {
@@ -275,10 +277,17 @@ const PackRow = ({
             ))}
           </div>
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center flex-col gap-4 justify-center">
             <p className="text-lg font-primary text-white">
               No packs available
             </p>
+            <PixelButton
+              className="!m-0"
+              onClick={() => {
+                setOpenedModal(GameModal.PACKS);
+              }}
+              text="GET PACKS"
+            />
           </div>
         )}
 
