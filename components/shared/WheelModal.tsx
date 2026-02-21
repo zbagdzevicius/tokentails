@@ -6,6 +6,7 @@ import { useToast } from "@/context/ToastContext";
 import { useProfile } from "@/context/ProfileContext";
 import { USER_API } from "@/api/user-api";
 import { useGame } from "@/context/GameContext";
+import { isMobile } from "@/constants/utils";
 
 type Values = 1 | 5 | 10 | 25 | 50 | 100 | 250 | 1000;
 
@@ -63,6 +64,7 @@ export const WheelModal: React.FC<WheelModalProps> = ({
     hover: null,
   });
   const [isButtonHovering, setIsButtonHovering] = useState(false);
+  const [showMascotVideo, setShowMascotVideo] = useState(true);
   const toast = useToast();
 
   useEffect(() => {
@@ -85,13 +87,25 @@ export const WheelModal: React.FC<WheelModalProps> = ({
     if (videoRef.current) {
       if (isSpinning) {
         videoRef.current.currentTime = 0;
-        videoRef.current.play();
+        videoRef.current.play().catch(() => {
+          // Some mobile browsers reject programmatic play.
+        });
       } else if (hasSpin) {
         videoRef.current.pause();
         videoRef.current.currentTime = videoRef.current.duration;
       }
     }
   }, [isSpinning, hasSpin]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (!isMobile()) return;
+
+    const testVideo = document.createElement("video");
+    const webmSupport = testVideo.canPlayType('video/webm; codecs="vp9,opus"');
+    // Mobile Safari does not support transparent WebM and shows black background.
+    setShowMascotVideo(Boolean(webmSupport));
+  }, []);
 
   const handleFinished = (segment: Values) => {
     setHasSpin(true);
@@ -215,14 +229,24 @@ export const WheelModal: React.FC<WheelModalProps> = ({
             isOnlyOnce={true}
           />
 
-          <video
-            ref={videoRef}
-            src={cdnFile("roulette/mascot.webm")}
-            className="absolute -right-1 bottom-0 md:w-52 md:h-52 w-28 h-28"
-            draggable="false"
-            muted
-            playsInline
-          />
+          {showMascotVideo ? (
+            <video
+              ref={videoRef}
+              src={cdnFile("roulette/mascot.webm")}
+              className="absolute -right-1 bottom-0 md:w-52 md:h-52 w-28 h-28"
+              draggable="false"
+              muted
+              playsInline
+              preload="metadata"
+            />
+          ) : (
+            <img
+              src={cdnFile("roulette/mascot.webp")}
+              className="absolute -right-1 bottom-0 md:w-52 md:h-52 w-28 h-28 object-contain"
+              draggable="false"
+              alt="Mascot"
+            />
+          )}
 
           <div className="absolute left-1/2 -translate-x-1/2 top-0 md:top-3 w-[65%] md:w-[60%] -z-50">
             <img

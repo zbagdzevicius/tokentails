@@ -1,8 +1,6 @@
 import { cdnFile } from "@/constants/utils";
 import React, { useRef, useEffect } from "react";
 
-const VIDEO_PLAY_DELAY = 50;
-
 type VideoPlayerProps = {
   isPlaying: boolean;
   onEnded: () => void;
@@ -16,13 +14,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   useEffect(() => {
     if (isPlaying && videoRef.current) {
-      const timer = setTimeout(() => {
-        videoRef.current?.play();
-      }, VIDEO_PLAY_DELAY);
-
-      return () => clearTimeout(timer);
+      videoRef.current.currentTime = 0;
+      videoRef.current.play().catch(() => {
+        // If the browser cannot play this WebM, continue flow without video.
+        onEnded();
+      });
     }
-  }, [isPlaying]);
+  }, [isPlaying, onEnded]);
 
   if (!isPlaying) return null;
 
@@ -30,11 +28,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     <div className="fixed inset-0 z-[9999] bg-black">
       <video
         ref={videoRef}
-        src={cdnFile("cards/openings/starter.webm")}
+        autoPlay
+        muted
+        playsInline
+        preload="auto"
         className="w-full h-full object-cover"
         onEnded={onEnded}
-        playsInline
-      />
+        onError={onEnded}
+      >
+        <source
+          src={cdnFile("cards/openings/starter.webm")}
+          type="video/webm; codecs=vp9"
+        />
+      </video>
     </div>
   );
 };

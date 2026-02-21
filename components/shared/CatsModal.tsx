@@ -113,9 +113,11 @@ const CornerDecoration = ({
 const PackRow = ({
   mutatedCats,
   setSelectedCat,
+  isMobileView,
 }: {
   mutatedCats: ICat[];
   setSelectedCat: (cat: ICat) => void;
+  isMobileView: boolean;
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const packedCats = useMemo(
@@ -131,6 +133,7 @@ const PackRow = ({
   };
 
   const [count, setCount] = useState(getCountFromWidth);
+  const isDesktop = count >= 5;
 
   useEffect(() => {
     function handleResize() {
@@ -174,7 +177,7 @@ const PackRow = ({
 
                   {/* Packs positioned absolutely based on shelf */}
                   <div
-                    className="absolute inset-0 flex justify-center items-end gap-10 lg:gap-2 pb-[10%] px-[3%]"
+                    className="absolute inset-0 flex justify-center items-end gap-5 lg:gap-2 pb-[10%] px-[3%]"
                     style={{ height: "95%" }}
                   >
                     {rowPacks.map((cat, index) => (
@@ -182,11 +185,10 @@ const PackRow = ({
                         key={cat._id! + index}
                         className="flex-1 hover:scale-105 hover:-translate-y-1 transition-all duration-300 cursor-pointer"
                         style={{
-                          maxWidth:
-                            typeof window !== "undefined" &&
-                            window.innerWidth < 1024
-                              ? `${60 / Math.min(count, packedCats.length)}%`
-                              : `${85 / Math.min(count, packedCats.length)}%`,
+                          maxWidth: `${
+                            (isDesktop ? 85 : 60) /
+                            Math.min(count, packedCats.length)
+                          }%`,
                           maxHeight: "100%",
                         }}
                         onClick={(e) => {
@@ -200,7 +202,9 @@ const PackRow = ({
                           className="w-full h-auto object-contain"
                           draggable={false}
                           style={{
-                            filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.5))",
+                            filter: isMobileView
+                              ? undefined
+                              : "drop-shadow(0 10px 20px rgba(0,0,0,0.5))",
                           }}
                         />
                       </div>
@@ -240,10 +244,7 @@ const PackRow = ({
           <div
             className="absolute inset-0 flex justify-center items-end gap-5 lg:gap-2 pb-[10%] px-[3%]"
             style={{
-              height:
-                typeof window !== "undefined" && window.innerWidth < 1024
-                  ? "100%"
-                  : "95%",
+              height: isDesktop ? "95%" : "100%",
             }}
           >
             {packedCats.slice(0, count).map((cat, index) => (
@@ -253,9 +254,7 @@ const PackRow = ({
                 style={{
                   maxWidth: `${Math.min(
                     20,
-                    (typeof window !== "undefined" && window.innerWidth < 1024
-                      ? 65
-                      : 85) / Math.min(count, packedCats.length),
+                    (isDesktop ? 85 : 65) / Math.min(count, packedCats.length),
                   )}%`,
                   maxHeight: "100%",
                 }}
@@ -270,7 +269,9 @@ const PackRow = ({
                   className="w-full h-auto object-contain"
                   draggable={false}
                   style={{
-                    filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.5))",
+                    filter: isMobileView
+                      ? undefined
+                      : "drop-shadow(0 10px 20px rgba(0,0,0,0.5))",
                   }}
                 />
               </div>
@@ -310,6 +311,7 @@ interface TierRowProps {
   cats: ICat[];
   totalAvailable: number;
   setSelectedCat: (cat: ICat) => void;
+  isMobileView: boolean;
 }
 
 const TierRow = ({
@@ -317,6 +319,7 @@ const TierRow = ({
   cats,
   totalAvailable,
   setSelectedCat,
+  isMobileView,
 }: TierRowProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const config = TierConfig[tier];
@@ -356,15 +359,21 @@ const TierRow = ({
 
   return (
     <div className="w-full mb-6 relative">
-      <CornerDecoration position="bl" tier={tier} />
-      <CornerDecoration position="br" tier={tier} />
-      <CornerDecoration position="tr" tier={tier} />
-      <CornerDecoration position="tl" tier={tier} />
+      {!isMobileView && (
+        <>
+          <CornerDecoration position="bl" tier={tier} />
+          <CornerDecoration position="br" tier={tier} />
+          <CornerDecoration position="tr" tier={tier} />
+          <CornerDecoration position="tl" tier={tier} />
+        </>
+      )}
 
       <div
         className={`w-full rounded-2xl overflow-hidden border-[6px] ${
           borderColors[tier]
-        } shadow-2xl hover:shadow-${
+        } ${
+          isMobileView ? "shadow-lg" : "shadow-2xl"
+        } hover:shadow-${
           tier === Tier.LEGENDARY
             ? "yellow"
             : tier === Tier.EPIC
@@ -375,28 +384,34 @@ const TierRow = ({
         }-500/40 transition-all duration-500 animate-in fade-in slide-in-from-bottom-4`}
       >
         <div
-          className={`${config.bgColor} px-4 lg:px-6 py-1 cursor-pointer hover:brightness-110 active:scale-[0.99] transition-all duration-300 relative overflow-hidden group`}
+          className={`${config.bgColor} px-4 lg:px-6 py-1 cursor-pointer ${
+            isMobileView ? "" : "hover:brightness-110"
+          } active:scale-[0.99] transition-all duration-300 relative overflow-hidden group`}
           onClick={() => setIsExpanded(!isExpanded)}
         >
-          <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-          <div
-            className="absolute inset-0 pointer-events-none opacity-20 group-hover:opacity-40 transition-opacity duration-500"
-            style={{
-              backgroundImage: `url(${patternImages[tier]})`,
-              backgroundSize: "180px 220px",
-              backgroundRepeat: "repeat",
-              mixBlendMode: "overlay",
-            }}
-          />
+          {!isMobileView && (
+            <>
+              <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+              <div
+                className="absolute inset-0 pointer-events-none opacity-20 group-hover:opacity-40 transition-opacity duration-500"
+                style={{
+                  backgroundImage: `url(${patternImages[tier]})`,
+                  backgroundSize: "180px 220px",
+                  backgroundRepeat: "repeat",
+                  mixBlendMode: "overlay",
+                }}
+              />
 
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
-            <img
-              src={shardImages[tier]}
-              alt={`${tier} Shard`}
-              className="w-24 h-24 lg:w-40 lg:h-40 object-contain drop-shadow-lg"
-              draggable={false}
-            />
-          </div>
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+                <img
+                  src={shardImages[tier]}
+                  alt={`${tier} Shard`}
+                  className="w-24 h-24 lg:w-40 lg:h-40 object-contain drop-shadow-lg"
+                  draggable={false}
+                />
+              </div>
+            </>
+          )}
 
           <div className="flex justify-between items-center relative z-10">
             <div className="flex items-center gap-1 lg:gap-3">
@@ -442,7 +457,11 @@ const TierRow = ({
                   style={{ width: `${progress}%` }}
                 >
                   {/* Shimmer animation on progress bar */}
-                  <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+                  <div
+                    className={`absolute inset-0 ${
+                      isMobileView ? "" : "animate-pulse"
+                    } bg-gradient-to-r from-transparent via-white/40 to-transparent`}
+                  />
                 </div>
               </div>
               <span
@@ -464,7 +483,9 @@ const TierRow = ({
           </div>
         </div>
         <div
-          className={`${contentBg[tier]} p-4 transition-all duration-500 overflow-hidden backdrop-blur-sm`}
+          className={`${contentBg[tier]} p-4 transition-all duration-500 overflow-hidden ${
+            isMobileView ? "" : "backdrop-blur-sm"
+          }`}
         >
           {isExpanded ? (
             <div
@@ -585,16 +606,22 @@ const TierRow = ({
 };
 
 export const CatsModalContent = ({
-  close,
   setSelectedCat,
   mutatedCats,
 }: {
-  close: () => void;
   setSelectedCat: (cat: ICat) => void;
   mutatedCats: ICat[];
 }) => {
   const { profile } = useProfile();
-  const { setOpenedModal } = useGame();
+  const [isMobileView, setIsMobileView] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const updateIsMobileView = () => setIsMobileView(window.innerWidth < 768);
+    updateIsMobileView();
+    window.addEventListener("resize", updateIsMobileView);
+    return () => window.removeEventListener("resize", updateIsMobileView);
+  }, []);
 
   const catsByTier = useMemo(() => {
     const unpackedCats = mutatedCats.filter((cat) => !cat.packed);
@@ -626,31 +653,39 @@ export const CatsModalContent = ({
       )}
 
       <div className="w-full px-2">
-        <PackRow mutatedCats={mutatedCats} setSelectedCat={setSelectedCat} />
+        <PackRow
+          mutatedCats={mutatedCats}
+          setSelectedCat={setSelectedCat}
+          isMobileView={isMobileView}
+        />
 
         <TierRow
           tier={Tier.LEGENDARY}
           cats={catsByTier[Tier.LEGENDARY]}
           totalAvailable={350}
           setSelectedCat={setSelectedCat}
+          isMobileView={isMobileView}
         />
         <TierRow
           tier={Tier.EPIC}
           cats={catsByTier[Tier.EPIC]}
           totalAvailable={350}
           setSelectedCat={setSelectedCat}
+          isMobileView={isMobileView}
         />
         <TierRow
           tier={Tier.RARE}
           cats={catsByTier[Tier.RARE]}
           totalAvailable={350}
           setSelectedCat={setSelectedCat}
+          isMobileView={isMobileView}
         />
         <TierRow
           tier={Tier.COMMON}
           cats={catsByTier[Tier.COMMON]}
           totalAvailable={350}
           setSelectedCat={setSelectedCat}
+          isMobileView={isMobileView}
         />
       </div>
     </div>
@@ -668,12 +703,17 @@ export const CatsModal = ({ close }: { close: () => void }) => {
     queryKey: ["cats", profile?.cat],
     queryFn: () => CAT_API.cats(),
   });
-  const [mutatedCats, setMutatedCats] = useState<ICat[]>([]);
-  useEffect(() => {
-    if (cats?.length) {
-      setMutatedCats(cats);
-    }
-  }, [cats]);
+  const [catOverrides, setCatOverrides] = useState<Record<string, Partial<ICat>>>(
+    {},
+  );
+  const mutatedCats = useMemo(
+    () =>
+      (cats || []).map((cat) => {
+        if (!cat._id || !catOverrides[cat._id]) return cat;
+        return { ...cat, ...catOverrides[cat._id] };
+      }),
+    [cats, catOverrides],
+  );
   const onCatSelect = (cat: ICat) => {
     const isSameCat = profile?.cat._id === cat._id;
     if (isSameCat || !cat) {
@@ -692,14 +732,11 @@ export const CatsModal = ({ close }: { close: () => void }) => {
     close();
   };
   const setCatUpdate = (cat: ICat, update: Partial<ICat>) => {
-    setMutatedCats((prev) =>
-      prev.map((c) => {
-        if (c._id === cat._id) {
-          return { ...c, ...update };
-        }
-        return c;
-      }),
-    );
+    if (!cat._id) return;
+    setCatOverrides((prev) => ({
+      ...prev,
+      [cat._id!]: { ...(prev[cat._id!] || {}), ...update },
+    }));
   };
   const onStakeRewards = async (cat: ICat) => {
     const result = await CAT_API.stakingRedeem(cat._id!);
@@ -736,7 +773,7 @@ export const CatsModal = ({ close }: { close: () => void }) => {
       <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center h-full">
         <div
           onClick={close}
-          className="z-40 h-full w-full absolute inset-0 bg-yellow-300/50 backdrop-blur-md animate-in fade-in duration-300"
+          className="z-40 h-full w-full absolute inset-0 bg-yellow-300/50 md:backdrop-blur-md animate-in fade-in duration-300"
         ></div>
         <div
           className="m-auto z-50 w-full md:w-[700px] lg:w-[900px] max-w-full absolute inset-0 max-h-screen overflow-y-auto  shadow-2xl md:border-4 border-yellow-300 glow-box animate-in fade-in zoom-in-95 slide-in-from-bottom-8 duration-500"
@@ -747,7 +784,6 @@ export const CatsModal = ({ close }: { close: () => void }) => {
         >
           <CloseButton onClick={close} />
           <CatsModalContent
-            close={close}
             setSelectedCat={setSelectedCat}
             mutatedCats={mutatedCats}
           />
