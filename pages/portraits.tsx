@@ -38,22 +38,25 @@ const getStyleImages = (style: PortraitStyle): string[] => {
   ];
 };
 
-const PortraitsPage = () => {
+const CANVAS_VIDEO_URL =
+  "https://tokentails.fra1.cdn.digitaloceanspaces.com/pet.mp4";
+
+const PortraitPage = () => {
   const router = useRouter();
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<PortraitStyle>(
-    PortraitStyle.HIGHNESS
+    PortraitStyle.HIGHNESS,
   );
   const [currentImageStyle, setCurrentImageStyle] = useState<PortraitStyle>(
-    PortraitStyle.HIGHNESS
+    PortraitStyle.HIGHNESS,
   );
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [eventId, setEventId] = useState<string | undefined>(undefined);
   const [uploadedImageId, setUploadedImageId] = useState<string | undefined>(
-    undefined
+    undefined,
   );
   const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
   const [isPollingOrder, setIsPollingOrder] = useState(false);
@@ -186,7 +189,7 @@ const PortraitsPage = () => {
         if (timeoutId) clearTimeout(timeoutId);
       };
     },
-    [toast]
+    [toast],
   );
 
   // Check for image_id and _id (order id) query params
@@ -217,7 +220,7 @@ const PortraitsPage = () => {
               // Set current image style (default to HIGHNESS if not available)
               setCurrentImageStyle(
                 ((image as any).style as PortraitStyle) ||
-                  PortraitStyle.HIGHNESS
+                  PortraitStyle.HIGHNESS,
               );
 
               // Start polling for order status
@@ -246,7 +249,7 @@ const PortraitsPage = () => {
               query: restQuery,
             },
             undefined,
-            { shallow: true }
+            { shallow: true },
           );
         });
     } else if (image_id && typeof image_id === "string") {
@@ -267,7 +270,7 @@ const PortraitsPage = () => {
               // Set current image style (default to HIGHNESS if not available)
               setCurrentImageStyle(
                 ((image as any).style as PortraitStyle) ||
-                  PortraitStyle.HIGHNESS
+                  PortraitStyle.HIGHNESS,
               );
             } else {
               throw new Error("No image URL in response");
@@ -292,7 +295,7 @@ const PortraitsPage = () => {
               query: restQuery,
             },
             undefined,
-            { shallow: true }
+            { shallow: true },
           );
         });
     }
@@ -336,7 +339,7 @@ const PortraitsPage = () => {
             {
               name: file.name,
               style: selectedStyle,
-            }
+            },
           );
 
           if (uploadedImage && uploadedImage._id) {
@@ -348,7 +351,7 @@ const PortraitsPage = () => {
                 query: { ...router.query, image_id: uploadedImage._id },
               },
               undefined,
-              { shallow: true }
+              { shallow: true },
             );
             // Use the AI-generated URL if available, otherwise use the regular URL
             const imageUrl = uploadedImage.aiUrl || uploadedImage.url;
@@ -385,7 +388,7 @@ const PortraitsPage = () => {
       };
       reader.readAsDataURL(file);
     },
-    [toast, selectedStyle]
+    [toast, selectedStyle],
   );
 
   const handleClear = useCallback(() => {
@@ -402,7 +405,7 @@ const PortraitsPage = () => {
         query: restQuery,
       },
       undefined,
-      { shallow: true }
+      { shallow: true },
     );
   }, [router]);
 
@@ -424,7 +427,7 @@ const PortraitsPage = () => {
         {
           name: uploadedFile.name,
           style: selectedStyle,
-        }
+        },
       );
 
       if (uploadedImage && uploadedImage._id) {
@@ -436,7 +439,7 @@ const PortraitsPage = () => {
             query: { ...router.query, image_id: uploadedImage._id },
           },
           undefined,
-          { shallow: true }
+          { shallow: true },
         );
         const imageUrl = uploadedImage.aiUrl || uploadedImage.url;
         if (imageUrl) {
@@ -530,7 +533,7 @@ const PortraitsPage = () => {
         query: restQuery,
       },
       undefined,
-      { shallow: true }
+      { shallow: true },
     );
   }, [router]);
 
@@ -570,8 +573,6 @@ const PortraitsPage = () => {
             isPollingOrder={isPollingOrder}
             orderProductType={orderProductType}
             orderId={router.query._id as string | undefined}
-            blurHalf={orderStatus !== OrderStatus.COMPLETE}
-            showWatermark={false}
           />
         </div>
       </>
@@ -701,7 +702,7 @@ const PortraitsPage = () => {
                 Your Pet Deserves
               </motion.p>
               <p className="text-muted-foreground text-sm tracking-wider">
-                Free Preview · From $1 to purchase
+                Free Preview · From $5 to purchase
               </p>
             </LuxuryReveal>
 
@@ -794,6 +795,34 @@ const PortraitsPage = () => {
               </motion.div>
             </div>
 
+            {/* Canvas video teaser on upload step */}
+            {!isGenerating && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="mt-4 w-full max-w-md"
+              >
+                <div className="card-baroque rounded-sm overflow-hidden">
+                  <video
+                    src={CANVAS_VIDEO_URL}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    preload="metadata"
+                    poster="/portrait/commander-2.webp"
+                    className="w-full aspect-square object-cover"
+                  />
+                  <div className="px-3 py-2 border-t border-border/70">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground text-center">
+                      Canvas in real life
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {/* Trustpilot Badge */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -812,7 +841,7 @@ const PortraitsPage = () => {
                       className="w-4 h-4 bg-[#00b67a] flex items-center justify-center"
                     >
                       <svg
-                        className="w-2.5 h-2.5 text-white fill-white"
+                        className="w-3 h-3 text-white fill-white"
                         viewBox="0 0 24 24"
                       >
                         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
@@ -821,16 +850,9 @@ const PortraitsPage = () => {
                   ))}
                   {/* 5th star - half green, half grey */}
                   <div className="w-4 h-4 relative flex items-center justify-center bg-gray-300">
-                    <div className="absolute left-0 top-0 bottom-0 w-1/2 bg-[#00b67a] flex items-center justify-center">
-                      <svg
-                        className="w-2.5 h-2.5 text-white fill-white"
-                        viewBox="0 0 24 24"
-                      >
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                      </svg>
-                    </div>
+                    <div className="absolute left-0 top-0 bottom-0 w-1/2 bg-[#00b67a] flex items-center justify-center"></div>
                     <svg
-                      className="w-2.5 h-2.5 text-gray-400 fill-gray-400"
+                      className="w-3 h-3 text-white fill-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
                       viewBox="0 0 24 24"
                     >
                       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
@@ -888,4 +910,4 @@ const PortraitsPage = () => {
   );
 };
 
-export default PortraitsPage;
+export default PortraitPage;

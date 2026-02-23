@@ -1130,3 +1130,158 @@ html[data-portrait-page="true"] {
     mix-blend-mode: overlay;
   }
 }
+
+// Portrait playful variant used by /portraits (keeps /portrait untouched for A/B)
+[data-portrait-page="true"][data-portrait-variant="playful"],
+body[data-portrait-page="true"][data-portrait-variant="playful"],
+html[data-portrait-page="true"][data-portrait-variant="playful"] {
+  --background: 40 100% 99%;
+  --foreground: 235 18% 12%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 235 18% 12%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 235 18% 12%;
+
+  --primary: 12 90% 62%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 230 24% 96%;
+  --secondary-foreground: 235 18% 12%;
+
+  --muted: 225 25% 94%;
+  --muted-foreground: 227 12% 45%;
+
+  --accent: 24 95% 58%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 75% 56%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 225 22% 88%;
+  --input: 225 22% 88%;
+  --ring: 12 90% 62%;
+
+  --gold: 24 95% 56%;
+  --gold-muted: 26 38% 40%;
+  --gold-light: 32 90% 72%;
+
+  --gradient-hero: radial-gradient(
+    ellipse 80% 60% at 50% 0%,
+    hsl(16 96% 65% / 0.14) 0%,
+    transparent 70%
+  );
+  --gradient-card: linear-gradient(
+    180deg,
+    hsl(0 0% 100%) 0%,
+    hsl(36 100% 98%) 100%
+  );
+  --gradient-gold: linear-gradient(
+    135deg,
+    hsl(12 90% 62%) 0%,
+    hsl(24 95% 58%) 100%
+  );
+  --gradient-frame: linear-gradient(
+    135deg,
+    hsl(12 90% 62%) 0%,
+    hsl(24 95% 58%) 100%
+  );
+
+  --shadow-elegant: 0 22px 40px -24px hsl(230 20% 20% / 0.35);
+  --shadow-card: 0 24px 44px -28px hsl(230 20% 20% / 0.32),
+    0 0 0 1px hsl(225 22% 88%);
+  --shadow-glow: 0 0 45px hsl(16 96% 62% / 0.18);
+  --shadow-inner: inset 0 1px 0 hsl(0 0% 100%);
+}
+
+[data-portrait-page="true"][data-portrait-variant="playful"],
+body[data-portrait-page="true"][data-portrait-variant="playful"],
+html[data-portrait-page="true"][data-portrait-variant="playful"] {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Space Grotesk", "Bebas Neue", "Inter", sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-transform: none;
+  }
+
+  .text-display {
+    font-family: "Space Grotesk", "Bebas Neue", "Inter", sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-transform: none;
+  }
+
+  .text-display-italic {
+    font-family: "Nunito", "Inter", sans-serif;
+    font-style: normal;
+    font-weight: 700;
+    letter-spacing: normal;
+  }
+
+  .card-baroque {
+    background: var(--gradient-card);
+    border: 1px solid hsl(var(--border));
+    border-radius: 1rem;
+    box-shadow: var(--shadow-card);
+  }
+
+  .card-baroque::before {
+    display: none;
+  }
+
+  .upload-zone {
+    background: hsl(0 0% 100%);
+    border: 1px dashed hsl(225 24% 86%);
+    border-radius: 1rem;
+    box-shadow: inset 0 1px 0 hsl(0 0% 100%),
+      0 18px 30px -24px hsl(230 20% 20% / 0.28);
+  }
+
+  .upload-zone::before {
+    inset: 10px;
+    border: 1px dashed hsl(16 95% 70% / 0.55);
+    border-radius: 0.75rem;
+  }
+
+  .upload-zone:hover,
+  .upload-zone.dragging {
+    border-color: hsl(var(--primary));
+    background: hsl(16 100% 97%);
+    box-shadow: 0 16px 30px -24px hsl(16 96% 62% / 0.4);
+  }
+
+  .upload-zone:hover::before,
+  .upload-zone.dragging::before {
+    border-color: hsl(var(--primary) / 0.55);
+  }
+
+  .portrait-frame {
+    border: 4px solid hsl(0 0% 100%);
+    border-radius: 1rem;
+    box-shadow: 0 28px 40px -30px hsl(230 20% 20% / 0.48),
+      0 0 0 1px hsl(225 22% 88%);
+  }
+
+  .portrait-frame::before,
+  .portrait-frame::after {
+    display: none;
+  }
+
+  .gallery-image {
+    box-shadow: 0 16px 30px -24px hsl(230 20% 20% / 0.4);
+  }
+
+  .gallery-image::before {
+    background: linear-gradient(
+      180deg,
+      transparent 72%,
+      hsl(230 18% 12% / 0.18) 100%
+    );
+  }
+}

@@ -46,7 +46,7 @@ export const purchaseOptions: PurchaseOption[] = [
   {
     id: "digital",
     title: "Instant Masterpiece",
-    price: 1,
+    price: 5,
     originalPrice: 29,
     badge: "Most Popular",
     description:
@@ -440,7 +440,7 @@ export const PreviewPage = ({
               )}
               {/* FREE PREVIEW badge - top right */}
               {orderStatus !== OrderStatus.COMPLETE && (
-                <div className="absolute top-4 right-4 flex items-center px-2.5 py-1 rounded-full bg-background/80 backdrop-blur-sm border border-border pointer-events-none z-20">
+                <div className="absolute top-4 left-4 flex items-center px-2.5 py-1 rounded-full bg-background/80 backdrop-blur-sm border border-border pointer-events-none z-20">
                   <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">
                     FREE PREVIEW
                   </span>
@@ -668,7 +668,7 @@ export const PreviewPage = ({
                           option.id,
                           option.id === "digital" && isExpired
                             ? option.originalPrice || option.price
-                            : option.price
+                            : option.price,
                         )
                       }
                       disabled={isProcessingPurchase}
