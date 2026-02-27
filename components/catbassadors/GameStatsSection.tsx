@@ -104,13 +104,27 @@ export const GameStatsSection = ({
             <div
               onClick={() => setOpenedModal(GameModal.CODEX)}
               style={bgStyle("min-4")}
-              className="flex flex-col items-center font-primary text-p2 hover:scale-110 transition-all hover:mt-1 hover:border-yellow-300 hover:border-4 px-1 rounded-b-xl hover:rounded-xl relative border-x-4 border-b-4 border-yellow-900 -mt-0.5"
+              className="group w-16 flex flex-col items-center font-primary text-p2 transition-all duration-300 hover:scale-110 px-1 py-0.5 rounded-2xl relative border-4 border-yellow-900 overflow-hidden cursor-pointer shadow-[0_6px_0_0_rgba(120,53,15,0.25)]"
             >
               <img
-                src={cdnFile("codex/codex-1.webp")}
-                className="h-10 -my-1 -mb-1"
+                src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
+                className="absolute inset-0 h-full w-full object-cover opacity-20 mix-blend-multiply pointer-events-none"
+                alt="progress pattern"
               />
-              <div className="text-p6 pt-1 -mt-1">PROGRESS</div>
+              <img
+                src={cdnFile("cards/backgrounds/legendary-sparkle.webp")}
+                className="absolute -top-3 left-1/2 -translate-x-1/2 h-8 w-8 object-contain opacity-60 animate-spin-slow pointer-events-none"
+                alt="progress sparkle"
+              />
+              <div className="absolute inset-x-0 bottom-0 h-3 bg-gradient-to-r from-yellow-300/0 via-yellow-300/70 to-yellow-300/0 animate-pulse pointer-events-none" />
+              <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-yellow-300 border border-yellow-900 animate-ping pointer-events-none" />
+              <img
+                src={cdnFile("codex/codex-1.webp")}
+                className="h-9 -my-1 -mb-1 relative z-10 drop-shadow-[0_2px_3px_rgba(0,0,0,0.45)] transition-transform duration-300 group-hover:scale-110"
+              />
+              <div className="text-p6 pt-1 -mt-1 relative z-10 rounded-md border border-yellow-900 bg-yellow-50/90 px-1 font-bold tracking-wide">
+                PROGRESS
+              </div>
             </div>
           )}
         </div>

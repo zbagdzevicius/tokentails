@@ -43,4 +43,9 @@ export interface IProfile {
   monthReferrals: number;
   monthTicketCount: number;
   monthTailsCrafted: number;
+  portraitPurchases: number;
+  monthPortraitPurchases: number;
+  airdropRewardsClaimed: string[];
+  airdropChallengesClaimed?: string[];
+  airdropMilestonesClaimed?: string[];
 }

@@ -1,16 +1,26 @@
 import { IMatch } from "@/models/match";
 import { IProfile } from "@/models/profile";
-import { apiUrl, getAuthHeaders, waitForLocalStorageKey } from "./api";
+import {
+  IAirdropProgression,
+  IAirdropTierClaimResponse,
+} from "@/models/airdrop";
+import { apiUrl, waitForLocalStorageKey } from "./api";
+
+const baseHeaders: HeadersInit = {
+  Accept: "application/json",
+  "Content-Type": "application/json",
+};
+
+const authHeaders = (): HeadersInit => ({
+  ...baseHeaders,
+  accesstoken: sessionStorage.getItem("accesstoken") || "",
+});
 
 const profile = async (): Promise<IProfile> => {
   return fetch(`${apiUrl}/user/profile`, {
     // return fetch(`${apiUrl}/user/profile/669ad4658b4f9b107ecbe1bb`, {
     method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    headers: authHeaders(),
   }).then((response) => {
     return response.json();
   });
@@ -19,10 +29,7 @@ const profile = async (): Promise<IProfile> => {
 const leaderboard = async (): Promise<IProfile[]> => {
   return fetch(`${apiUrl}/user/leaderboard`, {
     method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    } as any,
+    headers: baseHeaders,
   })
     .then((response) => {
       if (response.ok) {
@@ -38,10 +45,7 @@ const leaderboard = async (): Promise<IProfile[]> => {
 const leaderboardCatnip = async (): Promise<IProfile[]> => {
   return fetch(`${apiUrl}/user/leaderboard/catnip`, {
     method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    } as any,
+    headers: baseHeaders,
   })
     .then((response) => {
       if (response.ok) {
@@ -57,11 +61,7 @@ const leaderboardCatnip = async (): Promise<IProfile[]> => {
 const leaderboardPosition = async (): Promise<number> => {
   return fetch(`${apiUrl}/user/leaderboard/position`, {
     method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    headers: authHeaders(),
   })
     .then((response) => {
       if (response.ok) {
@@ -77,11 +77,7 @@ const leaderboardPosition = async (): Promise<number> => {
 const leaderboardCatnipPosition = async (): Promise<number> => {
   return fetch(`${apiUrl}/user/leaderboard/catnip/position`, {
     method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    headers: authHeaders(),
   })
     .then((response) => {
       if (response.ok) {
@@ -97,11 +93,7 @@ const leaderboardCatnipPosition = async (): Promise<number> => {
 const saveCodex = async (): Promise<Partial<IProfile>> => {
   return fetch(`${apiUrl}/user/codex`, {
     method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    headers: authHeaders(),
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -115,11 +107,7 @@ const saveCodex = async (): Promise<Partial<IProfile>> => {
 const saveProfileTwitter = (profile: Partial<IProfile>) => {
   return fetch(`${apiUrl}/user/profile/${profile._id}/twitter`, {
     method: "PUT",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    headers: authHeaders(),
     body: JSON.stringify(profile),
   }).then((response) => {
     if (response.ok) {
@@ -135,11 +123,7 @@ const saveMatch = async (match: IMatch): Promise<Partial<IProfile>> => {
   return fetch(`${apiUrl}/user/catbassadors/live`, {
     method: "POST",
     body: JSON.stringify(match),
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-    } as any,
+    headers: authHeaders(),
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -150,22 +134,89 @@ const saveMatch = async (match: IMatch): Promise<Partial<IProfile>> => {
   });
 };
 
-const redeem = async (): Promise<{tails: number}> => {
+const redeem = async (): Promise<{ tails: number }> => {
   await waitForLocalStorageKey();
   return fetch(`${apiUrl}/user/catbassadors/lives/redeem`, {
     method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-    } as any,
+    headers: authHeaders(),
   }).then((response) => {
     if (response.ok) {
       return response.json();
     }
 
     console.warn(JSON.stringify(response));
-    return {tails: 0};
+    return { tails: 0 };
+  });
+};
+
+const airdropProgression = async (): Promise<IAirdropProgression | null> => {
+  await waitForLocalStorageKey();
+  return fetch(`${apiUrl}/user/airdrop/progression`, {
+    method: "GET",
+    headers: authHeaders(),
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+    console.warn(JSON.stringify(response));
+    return null;
+  });
+};
+
+const claimAirdropTier = async (
+  tierId: string
+): Promise<IAirdropTierClaimResponse> => {
+  await waitForLocalStorageKey();
+  return fetch(`${apiUrl}/user/airdrop/claim/${tierId}`, {
+    method: "POST",
+    headers: authHeaders(),
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return { success: false, message: "Unable to claim this tier right now." };
+  });
+};
+
+const claimAirdropChallenge = async (
+  challengeId: string
+): Promise<IAirdropTierClaimResponse> => {
+  await waitForLocalStorageKey();
+  return fetch(`${apiUrl}/user/airdrop/challenge/claim/${challengeId}`, {
+    method: "POST",
+    headers: authHeaders(),
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return {
+      success: false,
+      message: "Unable to claim this challenge reward right now.",
+    };
+  });
+};
+
+const claimAirdropMilestone = async (
+  milestoneId: string
+): Promise<IAirdropTierClaimResponse> => {
+  await waitForLocalStorageKey();
+  return fetch(`${apiUrl}/user/airdrop/milestone/claim/${milestoneId}`, {
+    method: "POST",
+    headers: authHeaders(),
+  }).then((response) => {
+    if (response.ok) {
+      return response.json();
+    }
+
+    console.warn(JSON.stringify(response));
+    return {
+      success: false,
+      message: "Unable to claim this milestone reward right now.",
+    };
   });
 };
 
@@ -179,4 +230,8 @@ export const USER_API = {
   saveMatch,
   redeem,
   saveCodex,
+  airdropProgression,
+  claimAirdropTier,
+  claimAirdropChallenge,
+  claimAirdropMilestone,
 };
