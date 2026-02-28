@@ -702,7 +702,7 @@ const PortraitPage = () => {
                 Your Pet Deserves
               </motion.p>
               <p className="text-muted-foreground text-sm tracking-wider">
-                Free Preview · From $5 to purchase
+                Free Preview · From $6 to purchase
               </p>
             </LuxuryReveal>
 

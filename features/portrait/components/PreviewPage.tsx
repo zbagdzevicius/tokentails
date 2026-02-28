@@ -46,7 +46,7 @@ export const purchaseOptions: PurchaseOption[] = [
   {
     id: "digital",
     title: "Instant Masterpiece",
-    price: 7,
+    price: 6,
     originalPrice: 29,
     badge: "Most Popular",
     description:

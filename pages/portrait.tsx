@@ -831,7 +831,7 @@ const PortraitsPage = () => {
             >
               🐾
             </motion.span>
-            Your cat deserves a glow up. Portraits from $5.
+            Your cat deserves a glow up. Portraits from $6.
             <button
               onClick={() =>
                 handleScrollToCreate(
@@ -1773,7 +1773,7 @@ const PortraitsPage = () => {
                       Your cat portrait is one click away
                     </h2>
                     <p className="mb-6 text-lg text-white/85">
-                      Start from $5 and see your cat transformed into royalty.
+                      Start from $6 and see your cat transformed into royalty.
                     </p>
                     <button
                       onClick={() =>
