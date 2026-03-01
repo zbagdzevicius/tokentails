@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { type ReactNode, useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Cat, PawPrint, X, Sparkles } from "lucide-react";
 import { StylePickerDrawer, PortraitStyle } from "@/features/portrait/components/StylePickerDrawer";
@@ -11,9 +11,21 @@ interface UploadZoneProps {
   onStyleChange: (style: PortraitStyle) => void;
   drawerOpen?: boolean;
   onDrawerOpenChange?: (open: boolean) => void;
+  stylePickerControl?: ReactNode;
+  uploadButtonLabel?: string;
 }
 
-export const UploadZone = ({ onImageUpload, uploadedImage, onClear, selectedStyle, onStyleChange, drawerOpen, onDrawerOpenChange }: UploadZoneProps) => {
+export const UploadZone = ({
+  onImageUpload,
+  uploadedImage,
+  onClear,
+  selectedStyle,
+  onStyleChange,
+  drawerOpen,
+  onDrawerOpenChange,
+  stylePickerControl,
+  uploadButtonLabel,
+}: UploadZoneProps) => {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -46,12 +58,14 @@ export const UploadZone = ({ onImageUpload, uploadedImage, onClear, selectedStyl
     <div className="w-full max-w-md mx-auto relative">
       {/* Style Picker - absolute top right with padding */}
       <div className="absolute top-4 right-4 z-10">
-        <StylePickerDrawer
-          selectedStyle={selectedStyle}
-          onStyleChange={onStyleChange}
-          open={drawerOpen}
-          onOpenChange={onDrawerOpenChange}
-        />
+        {stylePickerControl ?? (
+          <StylePickerDrawer
+            selectedStyle={selectedStyle}
+            onStyleChange={onStyleChange}
+            open={drawerOpen}
+            onOpenChange={onDrawerOpenChange}
+          />
+        )}
       </div>
       <AnimatePresence mode="wait">
         {uploadedImage ? (
@@ -112,6 +126,16 @@ export const UploadZone = ({ onImageUpload, uploadedImage, onClear, selectedStyl
                   Use a well-lit photo
                 </p>
               </div>
+              {uploadButtonLabel && (
+                <span className="inline-flex items-center rounded-md border border-border bg-background/90 px-3 py-1 text-xs font-semibold tracking-wide uppercase text-foreground shadow-sm">
+                  {uploadButtonLabel}
+                </span>
+              )}
+              {uploadButtonLabel && (
+                <p className="text-[11px] text-muted-foreground tracking-wide">
+                  or drag and drop
+                </p>
+              )}
               <input
                 type="file"
                 accept="image/*"

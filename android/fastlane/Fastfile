@@ -1,0 +1,19 @@
+default_platform(:android)
+
+platform :android do
+  desc "Build Android AAB and upload to Google Play internal track"
+  lane :internal do
+    gradle(task: "clean")
+    gradle(task: "bundle", build_type: "Release")
+
+    upload_to_play_store(
+      track: "internal",
+      aab: "app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      skip_upload_changelogs: true,
+      validate_only: false
+    )
+  end
+end

@@ -1,6 +1,7 @@
 import { STRIPE_API } from "@/api/stripe-api";
 import { trackEvent } from "@/components/GoogleTagManager";
 import { cdnFile } from "@/constants/utils";
+import { useProfile } from "@/context/ProfileContext";
 import { Testimonials } from "@/features/portrait/components/Testimonials";
 import { TrustpilotReviews } from "@/features/portrait/components/TrustpilotReviews";
 import { LuxuryReveal } from "@/features/portrait/components/LuxuryEffects";
@@ -133,6 +134,7 @@ export const PreviewPage = ({
   } | null>(null);
   const { formattedTime, isExpired } = useCountdown(15);
   const { toast } = useToast();
+  const { profile } = useProfile();
   const regenerationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get default option (first option - digital)
@@ -212,9 +214,72 @@ export const PreviewPage = ({
     return emailRegex.test(email);
   };
 
+  const startCheckout = async ({
+    optionId,
+    price,
+    emailValue,
+  }: {
+    optionId: string;
+    price: number;
+    emailValue?: string;
+  }) => {
+    // Find the selected option
+    const selectedOption =
+      purchaseOptions.find((opt) => opt.id === optionId) || defaultOption;
+
+    // Track Begin Checkout event
+    trackEvent("begin_checkout", {
+      event_id: imageId,
+      item_id: selectedOption.id,
+      item_name: selectedOption.id,
+      value: price,
+      currency: "USD",
+    });
+
+    setShowEmailModal(false);
+    setIsProcessingPurchase(true);
+
+    try {
+      const checkoutPayload = {
+        amount: Math.round(price * 100),
+        productType: optionId as "digital" | "print" | "canvas",
+        imageId: imageId,
+      };
+
+      // Signed users use auth-bound checkout and skip email collection.
+      const { url } = profile?._id && !emailValue
+        ? await STRIPE_API.createSignedCheckoutSession(checkoutPayload)
+        : await STRIPE_API.createCheckoutSession({
+            ...checkoutPayload,
+            email: emailValue,
+          });
+
+      // Redirect to Stripe Checkout
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      toast({
+        title: "Checkout failed",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+      setIsProcessingPurchase(false);
+      setPendingPurchase(null);
+    }
+  };
+
   const handlePurchaseClick = (optionId: string, price: number) => {
-    // Store the pending purchase and show email modal
     setPendingPurchase({ optionId, price });
+    if (profile?._id) {
+      void startCheckout({ optionId, price });
+      return;
+    }
+
+    // Fallback for unsigned users
     setShowEmailModal(true);
     setEmail("");
     setEmailError("");
@@ -238,48 +303,7 @@ export const PreviewPage = ({
     }
 
     const { optionId, price } = pendingPurchase;
-
-    // Find the selected option
-    const selectedOption =
-      purchaseOptions.find((opt) => opt.id === optionId) || defaultOption;
-
-    // Track Begin Checkout event
-    trackEvent("begin_checkout", {
-      event_id: imageId,
-      item_id: selectedOption.id,
-      item_name: selectedOption.id,
-      value: price,
-      currency: "USD",
-    });
-
-    setShowEmailModal(false);
-    setIsProcessingPurchase(true);
-
-    try {
-      // Create Stripe Checkout Session with email
-      const { url } = await STRIPE_API.createCheckoutSession({
-        amount: Math.round(price * 100), // Convert to cents
-        productType: optionId as "digital" | "print" | "canvas",
-        imageId: imageId,
-        email: email.trim(),
-      });
-
-      // Redirect to Stripe Checkout
-      if (url) {
-        window.location.href = url;
-      } else {
-        throw new Error("No checkout URL returned");
-      }
-    } catch (error) {
-      console.error("Error creating checkout session:", error);
-      toast({
-        title: "Checkout failed",
-        description: "Please try again.",
-        variant: "destructive",
-      });
-      setIsProcessingPurchase(false);
-      setPendingPurchase(null);
-    }
+    await startCheckout({ optionId, price, emailValue: email.trim() });
   };
 
   const handleCloseEmailModal = () => {

@@ -16,12 +16,15 @@ import { useDebouncedCallback } from "use-debounce";
 import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
+import { ImmortalizePetFlow } from "./ImmortalizePetFlow";
 
 const TGE_TARGET_DATE = "2026-11-19T00:00:00Z";
 
 const getNextMonthStartUtc = (): Date => {
   const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0));
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0),
+  );
 };
 
 export interface ICodex {
@@ -47,12 +50,18 @@ export enum CODEX_LIFE {
   NINE = "9",
 }
 
-type IProgressTab = "OVERVIEW" | "MISSIONS" | "TIERS" | "BADGES";
+type IProgressTab =
+  | "OVERVIEW"
+  | "MISSIONS"
+  | "TIERS"
+  | "BADGES"
+  | "IMMORTALIZE";
 
 const progressTabs: Array<{ id: IProgressTab; label: string }> = [
   { id: "OVERVIEW", label: "INFO" },
   { id: "MISSIONS", label: "GOALS" },
   { id: "TIERS", label: "TIERS" },
+  { id: "IMMORTALIZE", label: "PET ART" },
   { id: "BADGES", label: "BADGES" },
 ];
 
@@ -1084,41 +1093,41 @@ export const Codex = () => {
         </div>
       </div>
       <div className="mb-4">
-        <div className="flex flex-wrap items-center justify-center gap-2 -mr-2">
+        <div className="flex flex-wrap items-center justify-center gap-y-1 gap-x-2 -mr-2">
           {progressTabs.map((tab) => {
             const isActive = activeProgressTab === tab.id;
             return (
-              <span key={tab.id} className="-ml-2">
-                <PixelButton
-                  isSmall
-                  active={isActive}
-                  className="!m-0"
-                  text={tab.label}
-                  onClick={() => setActiveProgressTab(tab.id)}
-                />
-              </span>
+              <PixelButton
+                key={tab.id}
+                active={isActive}
+                className="!m-0"
+                text={tab.label}
+                onClick={() => setActiveProgressTab(tab.id)}
+              />
             );
           })}
         </div>
       </div>
 
-      <div className="w-full max-w-[1320px] mb-8 flex flex-col items-center gap-3">
-        {activeProgressTab !== "BADGES" && isAirdropLoading && (
-          <div className="font-primary text-p4">LOADING PROGRESSION...</div>
-        )}
-        {activeProgressTab !== "BADGES" && isAirdropError && (
-          <div className="w-full rounded-xl border-2 border-red-400 bg-red-100 p-3 flex flex-col items-center gap-1.5">
-            <div className="font-primary text-p5 text-red-700">
-              Could not load progression right now.
+      <div className="w-full max-w-[1320px] mb-8 flex flex-col items-center gap-3 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        {["OVERVIEW", "MISSIONS", "TIERS"].includes(activeProgressTab) &&
+          isAirdropLoading && (
+            <div className="font-primary text-p4">LOADING PROGRESSION...</div>
+          )}
+        {["OVERVIEW", "MISSIONS", "TIERS"].includes(activeProgressTab) &&
+          isAirdropError && (
+            <div className="w-full rounded-xl border-2 border-red-400 bg-red-100 p-3 flex flex-col items-center gap-1.5">
+              <div className="font-primary text-p5 text-red-700">
+                Could not load progression right now.
+              </div>
+              <PixelButton
+                isSmall
+                className="md:!scale-[0.92] md:hover:!scale-100"
+                text="RETRY"
+                onClick={() => refetchAirdropProgression()}
+              />
             </div>
-            <PixelButton
-              isSmall
-              className="md:!scale-[0.92] md:hover:!scale-100"
-              text="RETRY"
-              onClick={() => refetchAirdropProgression()}
-            />
-          </div>
-        )}
+          )}
         {activeProgressTab === "BADGES" && (
           <div className="w-full max-w-[1320px] rounded-2xl border-4 border-yellow-300 bg-gradient-to-r from-yellow-100 via-orange-100 to-pink-100 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(120,53,15,0.2)]">
             <img
@@ -1154,14 +1163,16 @@ export const Codex = () => {
                 <div className="mt-2 rounded-lg border-2 border-yellow-900 bg-yellow-100/95 px-2 py-2 min-h-[44px] flex items-center">
                   {completedMonths > 0 ? (
                     <div className="flex flex-wrap items-center gap-1">
-                      {Array.from({ length: completedMonths }).map((_, index) => (
-                        <img
-                          key={index}
-                          src={cdnFile("logo/heart.webp")}
-                          className="w-6"
-                          alt="badge heart"
-                        />
-                      ))}
+                      {Array.from({ length: completedMonths }).map(
+                        (_, index) => (
+                          <img
+                            key={index}
+                            src={cdnFile("logo/heart.webp")}
+                            className="w-6"
+                            alt="badge heart"
+                          />
+                        ),
+                      )}
                     </div>
                   ) : (
                     <span className="font-primary text-p6 md:text-p5 text-yellow-900">
@@ -1176,7 +1187,9 @@ export const Codex = () => {
                   BADGE YIELD
                 </div>
                 <div className="mt-2 rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-3 py-2 font-primary text-yellow-900">
-                  <div className="text-p6 md:text-p5">Current Monthly Boost</div>
+                  <div className="text-p6 md:text-p5">
+                    Current Monthly Boost
+                  </div>
                   <div className="text-p4 md:text-p3 font-bold leading-none">
                     +{monthlyBadgeYield} $TAILS
                   </div>
@@ -1593,10 +1606,20 @@ export const Codex = () => {
             )}
           </>
         )}
+        {activeProgressTab === "IMMORTALIZE" && (
+          <>
+            <Tag>IMMORTALIZE PET FLOW</Tag>
+            <ImmortalizePetFlow
+              onPurchaseComplete={() => {
+                void syncAirdropProgression();
+              }}
+            />
+          </>
+        )}
       </div>
 
       {activeProgressTab === "BADGES" && (
-        <>
+        <div className="w-full flex flex-col items-center pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <div className="w-full max-w-[1320px] rounded-2xl border-4 border-yellow-300 bg-gradient-to-r from-yellow-100 via-orange-100 to-pink-100 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(120,53,15,0.2)]">
             <img
               src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
@@ -1678,8 +1701,8 @@ export const Codex = () => {
                 <div className="rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-3 py-2 md:col-span-2">
                   <Tag isSmall>WHAT ARE THE BENEFITS?</Tag>
                   <div className="font-primary text-p6 md:text-p5">
-                    DISCOUNTED COLLECTIBLES • PRIORITY SUPPORT • EARLY ACCESS
-                    TO UPDATES • $TAILS DROPS • AIRDROP ELIGIBILITY CRITERIA
+                    DISCOUNTED COLLECTIBLES • PRIORITY SUPPORT • EARLY ACCESS TO
+                    UPDATES • $TAILS DROPS • AIRDROP ELIGIBILITY CRITERIA
                   </div>
                 </div>
               </div>
@@ -1696,7 +1719,7 @@ export const Codex = () => {
               ))}
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

@@ -11,6 +11,7 @@ import { useEffect, useState, useRef } from "react";
 import { Tag } from "@/components/shared/Tag";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { IMessage } from "@/models/cats";
+import { EntityType } from "@/models/save";
 
 // Make sure to replace with your publishable key
 const stripePromise = loadStripe(
@@ -20,11 +21,17 @@ const stripePromise = loadStripe(
 interface StripeCheckoutFormProps {
   onSuccess: (response: IMessage) => void;
   discount?: string;
+  entityType?: EntityType;
+  productType?: "digital" | "print" | "canvas";
+  imageId?: string;
 }
 
 const StripeCheckoutForm = ({
   onSuccess,
   discount,
+  entityType,
+  productType,
+  imageId,
 }: StripeCheckoutFormProps) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -56,10 +63,19 @@ const StripeCheckoutForm = ({
           paymentIntent: paymentIntent.id,
           clientSecret: paymentIntent.client_secret!,
           discount,
+          entityType,
+          productType,
+          imageId,
         });
 
         if (response.success) {
-          toast({ message: "Payment successful! Cat saved successfully." });
+          toast({
+            message:
+              response.message ||
+              (entityType === EntityType.IMAGE
+                ? "Payment successful! Pet immortalized."
+                : "Payment successful! Cat saved successfully."),
+          });
         } else {
           toast({ message: response.message || "Failed to confirm payment" });
         }
@@ -91,6 +107,9 @@ interface StripePaymentProps {
   id: string;
   onSuccess: (response: IMessage) => void;
   discount?: string;
+  entityType?: EntityType;
+  productType?: "digital" | "print" | "canvas";
+  imageId?: string;
 }
 
 export const StripePayment = ({
@@ -98,8 +117,14 @@ export const StripePayment = ({
   id,
   onSuccess,
   discount,
+  entityType,
+  productType,
+  imageId,
 }: StripePaymentProps) => {
   const [clientSecret, setClientSecret] = useState<string>();
+  const [initializationError, setInitializationError] = useState<string | null>(
+    null,
+  );
   const isInitializingRef = useRef(false);
 
   useEffect(() => {
@@ -109,15 +134,23 @@ export const StripePayment = ({
 
     const initializePayment = async () => {
       isInitializingRef.current = true;
+      setInitializationError(null);
+      setClientSecret(undefined);
       try {
         const { clientSecret } = await STRIPE_API.createPaymentIntent(
           price, // Stripe expects amount in cents
           id,
-          discount
+          discount,
+          {
+            entityType,
+            productType,
+            imageId,
+          },
         );
         setClientSecret(clientSecret);
       } catch (error) {
         console.error("Failed to initialize payment:", error);
+        setInitializationError("Card checkout is unavailable right now.");
       } finally {
         isInitializingRef.current = false;
       }
@@ -132,7 +165,15 @@ export const StripePayment = ({
       clearTimeout(timeoutId);
       isInitializingRef.current = false;
     };
-  }, [price, id, discount]);
+  }, [price, id, discount, entityType, productType, imageId]);
+
+  if (initializationError) {
+    return (
+      <div className="mx-auto w-full max-w-[420px] rounded-lg border-2 border-red-700 bg-red-100 px-3 py-2 text-center font-primary text-p6 md:text-p5 text-red-900">
+        {initializationError}
+      </div>
+    );
+  }
 
   if (!clientSecret) {
     return (
@@ -155,7 +196,13 @@ export const StripePayment = ({
         },
       }}
     >
-      <StripeCheckoutForm onSuccess={onSuccess} discount={discount} />
+      <StripeCheckoutForm
+        onSuccess={onSuccess}
+        discount={discount}
+        entityType={entityType}
+        productType={productType}
+        imageId={imageId}
+      />
     </Elements>
   );
 };
