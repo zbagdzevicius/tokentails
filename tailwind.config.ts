@@ -350,7 +350,7 @@ const config: Config = {
       },
     },
     fontFamily: {
-      primary: ["Passion One", "sans-serif"],
+      primary: ["Passion One", "Impact", "Arial Black", "sans-serif"],
       secondary: ["Bebas Neue", "sans-serif"],
       tertiary: ["Nunito", "sans-serif"],
       pixel: ["Pixelify Sans", "sans-serif"],

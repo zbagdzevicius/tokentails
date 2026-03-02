@@ -1,5 +1,10 @@
 @use "sass:map";
 @use "sass:meta";
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Passion+One:wght@400;700;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Pixelify+Sans:wght@400..700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Cinzel:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap");
 @keyframes claw-glow {
   0%,
   100% {
@@ -130,10 +135,6 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Passion+One:wght@400;700;900&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Pixelify+Sans:wght@400..700&display=swap");
 @include meta.load-css("../styles/snow.scss");
 @include meta.load-css("../styles/chamomile.scss");
 @include meta.load-css("../styles/fireflies.scss");
@@ -873,9 +874,6 @@ $bubble-border: 0 -1 * $px $white, 0 -2 * $px $black, $px 0 $white,
       -2 * $px -1 * $px $black, -1 * $px -2 * $px $black, 0 -1 * $px $white;
   }
 }
-
-// ROYAL FELINE PORTRAITS STYLES
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Cinzel:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap");
 
 // Portrait page specific CSS variables - only apply on portrait page
 // Applied to both the page container and body (for portal components like Drawer)
