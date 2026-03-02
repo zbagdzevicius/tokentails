@@ -7,7 +7,11 @@ import { TailsCard } from "@/components/tailsCard/TailsCard";
 import { cdnFile, isMobile } from "@/constants/utils";
 import { Socials } from "@/layouts/Socials";
 import Head from "next/head";
+import Link from "next/link";
 import { useEffect, useState } from "react";
+
+const CANVAS_VIDEO_URL =
+  "https://tokentails.fra1.cdn.digitaloceanspaces.com/pet.mp4";
 
 export default function newPage() {
   const [isIOS, setIsIOS] = useState(false);
@@ -97,87 +101,129 @@ export default function newPage() {
         </section>
 
         {/* CTA SECTION */}
-        <section className="relative min-h-screen w-full glow-box overflow-hidden flex flex-col md:justify-center">
+        <section className="relative min-h-screen w-full overflow-hidden">
           <img
             src={cdnFile("landing/card-bg.webp")}
             className="w-full h-full object-cover pixelated inset-0 absolute"
           />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/55" />
 
-          {/* Content Wrapper - centered on desktop */}
-          <div className="relative z-30 flex flex-col flex-1 md:flex-none md:justify-center">
-            {/* Top Title - LEGENDS NEED HEROES */}
-            <div className="relative text-center left-1/2 -translate-x-1/2 z-40 pt-8 md:pt-0">
-              <span className="text-p1 md:text-h4 xl:text-h1 2xl:text-[142px] 3xl:text-[196px] font-bold text- uppercase drop-shadow-lg font-primary whitespace-nowrap text-white">
-                LEGENDS <span className="glow text-yellow-300">NEED</span>{" "}
-                <span className="text-yellow-300">HEROES</span>
-              </span>
-            </div>
+          <div className="relative z-30 px-4 md:px-8 lg:px-16 py-10 md:py-16 lg:py-20">
+            <div className="max-w-[1400px] mx-auto">
+              <div className="rounded-2xl border-4 border-yellow-300/70 bg-black/35 backdrop-blur-[2px] p-4 md:p-6 lg:p-8">
+                <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_auto] items-center gap-4 md:gap-6">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-xl border-2 border-yellow-300 bg-yellow-300/20 px-3 py-1 font-primary text-p6 md:text-p5 text-yellow-100 uppercase tracking-wide">
+                      <img
+                        src={cdnFile("icons/check.webp")}
+                        alt="mission icon"
+                        className="h-4 w-4 object-contain"
+                      />
+                      Rescue Mission Hub
+                    </div>
+                    <div className="mt-2">
+                      <span className="text-p2 md:text-h5 xl:text-h2 2xl:text-[120px] font-bold uppercase drop-shadow-lg font-primary text-white leading-none">
+                        LEGENDS <span className="glow text-yellow-300">NEED</span>{" "}
+                        <span className="text-yellow-300">HEROES</span>
+                      </span>
+                    </div>
+                    <p className="mt-2 md:mt-3 text-p5 md:text-p4 text-yellow-50/90 max-w-2xl">
+                      Collect cards, immortalize real pets, and convert play
+                      into real-world shelter impact.
+                    </p>
+                  </div>
+                  <img
+                    src={cdnFile("tail/cat-promo.webp")}
+                    className="w-28 md:w-36 lg:w-48 justify-self-center lg:justify-self-end drop-shadow-[0_8px_0_rgba(0,0,0,0.25)]"
+                    alt="Token Tails mascot"
+                  />
+                </div>
 
-            {/* Two Column Layout */}
-            <div className="relative flex items-center justify-center z-30 px-4 md:px-8 lg:px-16 py-8 md:py-12 lg:py-16">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 max-w-7xl w-full">
-                {/* Left Column - COLLECT REAL IMPACT */}
-                <div className="flex flex-col items-center text-center">
-                  <h2 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-primary text-yellow-300 mb-3 uppercase tracking-wide">
-                    COLLECT REAL IMPACT
-                  </h2>
-                  <p className="text-sm md:text-base lg:text-lg text-white/90 mb-6 max-w-md text-balance">
-                    Each Token Tails card adds to real-world impact. The more
-                    you hold, the more you unlock.
-                  </p>
-                  <a href="/packs">
-                    <PixelButton text="BUY PACKS" />
-                  </a>
-                  <div className="scale-75 -mt-8 md:-mt-12 -mb-12">
-                    <TailsCard />
+                <div className="mt-5 md:mt-7 grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-stretch">
+                  <div className="rounded-2xl border-4 border-yellow-300 bg-gradient-to-b from-yellow-200/95 to-orange-200/95 p-4 md:p-5 h-full flex flex-col">
+                    <h2 className="text-p2 md:text-h5 font-primary text-yellow-900 uppercase leading-none">
+                      COLLECT REAL IMPACT
+                    </h2>
+                    <p className="mt-2 text-p5 md:text-p4 text-yellow-900/90 max-w-lg">
+                      Every pack expands your collection and strengthens
+                      progression rewards tied to rescue outcomes.
+                    </p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 font-primary text-p5 text-yellow-900">
+                      <span className="rounded-lg border-2 border-yellow-900 bg-yellow-100 px-2 py-1">
+                        + More collectibles
+                      </span>
+                      <span className="rounded-lg border-2 border-yellow-900 bg-yellow-100 px-2 py-1">
+                        + Better unlock paths
+                      </span>
+                    </div>
+                    <div className="mt-4">
+                      <Link href="/packs" className="inline-block">
+                        <PixelButton text="BUY PACKS" />
+                      </Link>
+                    </div>
+                    <div className="mt-1 flex-1 flex items-end justify-center lg:justify-start min-h-[210px] md:min-h-[240px]">
+                      <TailsCard
+                        cardStyle={{
+                          width: "clamp(260px, 31vw, 390px)",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border-4 border-yellow-300 bg-gradient-to-b from-pink-200/95 to-yellow-200/95 p-4 md:p-5 h-full flex flex-col">
+                    <h2 className="text-p2 md:text-h5 font-primary text-yellow-900 uppercase leading-none">
+                      IMMORTALIZE YOUR PET
+                    </h2>
+                    <p className="mt-2 text-p5 md:text-p4 text-yellow-900/90 max-w-lg">
+                      Turn your real pet into premium portrait art and bring it
+                      into the Token Tails universe.
+                    </p>
+                    <div className="mt-4">
+                      <Link href="/portrait" className="inline-block">
+                        <PixelButton text="ORDER PET PORTRAIT" />
+                      </Link>
+                    </div>
+                    <div className="mt-3 flex-1 flex items-end min-h-[210px] md:min-h-[240px]">
+                      <div className="grid grid-cols-[1.15fr_1fr] gap-2.5 md:gap-3 w-full max-w-[520px] mx-auto lg:mx-0">
+                        <div className="rounded-md overflow-hidden border-2 border-yellow-900 shadow-[0_6px_0_rgba(120,53,15,0.25)] bg-black">
+                          <video
+                            src={CANVAS_VIDEO_URL}
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                            preload="metadata"
+                            poster={cdnFile("portrait/commander-2.webp")}
+                            className="w-full h-full object-cover aspect-[4/5]"
+                          />
+                        </div>
+                        <div className="grid grid-rows-2 gap-2.5 md:gap-3">
+                          <div className="rounded-md overflow-hidden border-2 border-yellow-900 shadow-[0_6px_0_rgba(120,53,15,0.2)]">
+                            <img
+                              src={cdnFile("portrait/monarch.webp")}
+                              alt="Royal pet portrait"
+                              className="w-full h-full object-cover aspect-[4/5]"
+                            />
+                          </div>
+                          <div className="rounded-md overflow-hidden border-2 border-yellow-900 shadow-[0_6px_0_rgba(120,53,15,0.2)]">
+                            <img
+                              src={cdnFile("portrait/highness.webp")}
+                              alt="Royal cat portrait"
+                              className="w-full h-full object-cover aspect-[4/5]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Right Column - IMMORTALIZE YOUR PET */}
-                <div className="flex flex-col items-center text-center">
-                  <h2 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-primary text-yellow-300 mb-3 uppercase tracking-wide">
-                    IMMORTALIZE YOUR PET
-                  </h2>
-                  <p className="text-sm md:text-base lg:text-lg text-white/90 mb-6 max-w-md">
-                    Turn your cat into a lasting memory as a portrait and a
-                    playable character inside Token Tails.
-                  </p>
-                  <a href="/portrait" className="mb-8">
-                    <PixelButton text="ORDER PET PORTRAIT" />
-                  </a>
-                  <div className="flex gap-3 md:gap-4 mb-6">
-                    <div className="w-24 md:w-32 lg:w-36 aspect-[3/4] rounded-sm overflow-hidden border-2 border-yellow-500/50 shadow-lg glow-box">
-                      <img
-                        src={cdnFile("portrait/aristocrat.webp")}
-                        alt="Royal cat portrait"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="w-24 md:w-32 lg:w-36 aspect-[3/4] rounded-sm overflow-hidden border-2 border-yellow-500 shadow-lg -mt-4 glow-box-ELECTRIC">
-                      <img
-                        src={cdnFile("portrait/monarch.webp")}
-                        alt="Royal dog portrait"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="w-24 md:w-32 lg:w-36 aspect-[3/4] rounded-sm overflow-hidden border-2 border-yellow-500/30 shadow-lg glow-box">
-                      <img
-                        src={cdnFile("portrait/highness.webp")}
-                        alt="Royal cat portrait"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </div>
+                <div className="mt-4 md:mt-6 rounded-2xl border-4 border-yellow-300 bg-gradient-to-r from-yellow-300/95 via-orange-300/95 to-pink-300/95 px-4 py-3 text-center">
+                  <span className="text-p2 md:text-h5 xl:text-h3 font-bold uppercase font-primary text-yellow-900 leading-none">
+                    CATS <span className="glow text-white">NEED</span> YOU
+                  </span>
                 </div>
               </div>
-            </div>
-
-            {/* Bottom Title - CATS NEED YOU */}
-            <div className="relative text-center left-1/2 -translate-x-1/2 z-40 mb-safe pb-8 md:pb-0">
-              <span className="text-p1 md:text-h4 xl:text-h1 2xl:text-[142px] 3xl:text-[196px] font-bold text- uppercase drop-shadow-lg font-primary whitespace-nowrap text-white">
-                CATS <span className="glow text-yellow-300">NEED</span>{" "}
-                <span className="text-yellow-300">YOU</span>
-              </span>
             </div>
           </div>
         </section>

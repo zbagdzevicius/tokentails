@@ -7,16 +7,21 @@ import { fakeCat } from "./data";
 
 type Props = {
   cat?: ICat;
+  className?: string;
+  cardStyle?: React.CSSProperties;
 };
 
-export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
+export const TailsCard: React.FC<Props> = ({
+  cat = fakeCat,
+  className,
+  cardStyle,
+}) => {
   const [flipped, setFlipped] = useState(true);
 
   const blessing = cat.blessing;
-
-  if (!CatAbilityTypes.includes(cat.type)) {
-    cat.type = CatAbilityType.FAIRY;
-  }
+  const normalizedCatType = CatAbilityTypes.includes(cat.type)
+    ? cat.type
+    : CatAbilityType.FAIRY;
 
   const handleFlip = useCallback(() => {
     setFlipped((prev) => !prev);
@@ -26,7 +31,7 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
     <>
       <div
         onClick={handleFlip}
-        className="animate-opacity cursor-pointer inline-block [perspective:1000px]"
+        className={`animate-opacity cursor-pointer inline-block [perspective:1000px] ${className || ""}`}
         style={{ WebkitPerspective: "1000px" }}
       >
         <div
@@ -43,7 +48,11 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
               WebkitTransform: "translateZ(0)",
             }}
           >
-            <CardWrapper catType={cat.type} tier={cat.tier}>
+            <CardWrapper
+              catType={normalizedCatType}
+              tier={cat.tier}
+              style={cardStyle}
+            >
               <CardFront cat={cat} blessing={blessing} />
             </CardWrapper>
           </div>
@@ -55,7 +64,12 @@ export const TailsCard: React.FC<Props> = ({ cat = fakeCat }) => {
               WebkitTransform: "rotateY(180deg) translateZ(0)",
             }}
           >
-            <CardWrapper catType={cat.type} tier={cat.tier} isBackSide={true}>
+            <CardWrapper
+              catType={normalizedCatType}
+              tier={cat.tier}
+              isBackSide={true}
+              style={cardStyle}
+            >
               <CardBack cat={cat} blessing={blessing} />
             </CardWrapper>
           </div>
