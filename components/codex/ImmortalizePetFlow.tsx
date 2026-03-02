@@ -381,12 +381,37 @@ export const ImmortalizePetFlow = ({
               </div>
             ) : generatedImageUrl ? (
               <>
-                <div className="rounded-xl border-2 border-yellow-900 overflow-hidden bg-black/10">
+                <div
+                  className="rounded-xl border-2 border-yellow-900 overflow-hidden bg-black/10 relative select-none"
+                  onContextMenu={(e) => e.preventDefault()}
+                  onDragStart={(e) => e.preventDefault()}
+                >
                   <img
                     src={generatedImageUrl}
                     alt="Generated pet portrait"
-                    className="w-full aspect-[3/4] object-cover"
+                    className="w-full aspect-[3/4] object-cover pointer-events-none"
+                    draggable={false}
                   />
+                  {!isPurchaseCompleted && (
+                    <>
+                      <div
+                        className="absolute inset-[-50%] pointer-events-none select-none"
+                        style={{
+                          backgroundImage: "url(/portrait/watermark-logo.webp)",
+                          backgroundSize: "18%",
+                          backgroundRepeat: "space",
+                          backgroundPosition: "center",
+                          opacity: 0.1,
+                          transform: "rotate(-25deg)",
+                        }}
+                      />
+                      <div className="absolute top-3 left-3 flex items-center px-2.5 py-1 rounded-full bg-background/80 backdrop-blur-sm border border-border pointer-events-none z-20">
+                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                          FREE PREVIEW
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="mt-2 rounded-lg border border-yellow-900 bg-yellow-100/95 px-2 py-1 font-primary text-p6 md:text-p5 text-yellow-900">
                   Includes high-resolution digital portrait and in-game pet
