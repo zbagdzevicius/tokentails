@@ -1,11 +1,16 @@
 import { CAT_API } from "@/api/cat-api";
 import { MarketplaceItemDetails } from "@/components/marketplace/MarketplaceItemDetails";
-import { Web3Providers } from "@/components/web3/Web3Providers";
 import { getAppStaticProps } from "@/constants/props-functions";
 import { bgStyle } from "@/constants/utils";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
 import { ICat } from "@/models/cats";
+import dynamic from "next/dynamic";
+
+const Web3Providers = dynamic(
+  () => import("@/components/web3/Web3Providers").then((mod) => mod.Web3Providers),
+  { ssr: false },
+);
 
 interface Props {
   cat: ICat | null;

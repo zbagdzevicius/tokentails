@@ -82,3 +82,7 @@ TODO / next agent:
   - reduced per-world card footprint and switched world tabs to responsive grid (`2/3/6` columns) so all 6 worlds fit on one desktop line.
   - added richer decorative backdrop to world selector block (layered radial/linear gradients + glow accents) while keeping existing visual palette.
 - Verification: Next compile stage passed for updated component; full build still blocked by pre-existing `/box` SSR/AppKit issue.
+- Build unblock fixes:
+  - `/box` and `/cats/[cat]` now load `Web3Providers` via `next/dynamic` with `ssr:false` to prevent AppKit/Wallet SSR crash during prerender.
+  - `next-sitemap.config.js` now handles missing/unreachable `NEXT_PUBLIC_BE_URL` gracefully (returns empty additional paths instead of throwing), so postbuild does not fail offline.
+- Verification: `npm run build` now completes successfully (Next build + postbuild sitemap generation).

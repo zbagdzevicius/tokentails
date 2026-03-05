@@ -1,10 +1,15 @@
 import { MysteryBoxCat } from "@/components/mystery/MysteryBoxCat";
-import { Web3Providers } from "@/components/web3/Web3Providers";
 import { bgStyle, cdnFile } from "@/constants/utils";
 import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
+import dynamic from "next/dynamic";
 import Head from "next/head";
+
+const Web3Providers = dynamic(
+  () => import("@/components/web3/Web3Providers").then((mod) => mod.Web3Providers),
+  { ssr: false },
+);
 
 const Box = () => {
   return (

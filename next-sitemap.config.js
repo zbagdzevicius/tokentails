@@ -19,9 +19,26 @@ module.exports = {
         if (process.env.NEXT_PUBLIC_IS_APP) {
             return [];
         }
-        const slugs = await fetch(`${process.env.NEXT_PUBLIC_BE_URL}/feed/slugs`).then((response) => response.json());
+        const baseUrl = process.env.NEXT_PUBLIC_BE_URL;
+        if (!baseUrl) {
+            return [];
+        }
+
+        let slugs = { article: [] };
+        try {
+            const response = await fetch(`${baseUrl}/feed/slugs`);
+            if (!response.ok) {
+                return [];
+            }
+            slugs = await response.json();
+        } catch (error) {
+            // Keep build resilient when API is unavailable during CI/local builds.
+            return [];
+        }
+
+        const articles = Array.isArray(slugs?.article) ? slugs.article : [];
         return [
-            ...slugs.article.map((article) => ({
+            ...articles.map((article) => ({
                 ...getRecord(`/${article.category}/${article.slug}`, article.updatedAt),
                 images: [{ loc: article.featuredImage }],
                 news: {

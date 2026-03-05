@@ -6,7 +6,7 @@
     "dev": "next dev --webpack",
     "dev:turbo": "next dev",
     "dev:https": "next dev --webpack --experimental-https",
-    "build": "next build",
+    "build": "next build --webpack",
     "ngrok": "ngrok http --domain=game-doe-poorly.ngrok-free.app http://192.168.68.104:3000",
     "start": "next start",
     "postbuild": "next-sitemap",
