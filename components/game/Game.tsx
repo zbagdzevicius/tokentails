@@ -13,6 +13,9 @@ const Base = dynamic(() => import("@/components/base/Base"), { ssr: false });
 const Adopt = dynamic(() => import("@/components/shelter/Shelter"), {
   ssr: false,
 });
+const Match3 = dynamic(() => import("@/components/Match3/Match3"), {
+  ssr: false,
+});
 export const Game = () => {
   const { gameType, isStarted, level } = useGame();
   const { profile } = useProfile();
@@ -44,6 +47,7 @@ export const Game = () => {
       {gameType === GameType.SHELTER && profile && <Adopt />}
       {gameType === GameType.CATNIP_CHAOS && profile && <CatnipChaos />}
       {gameType === GameType.PIXEL_RESCUE && profile && <PixelRescue />}
+      {gameType === GameType.MATCH_3 && profile && <Match3 />}
       <style jsx>{`
         .intro-pinwheel {
           position: fixed;

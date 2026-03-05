@@ -1,0 +1,84 @@
+Original prompt: create players leaderboard of this game mode for each level
+
+- Added per-level Paw Match leaderboard panel in Match3 level selection UI.
+- Source data currently uses USER_API.leaderboardCatnip() and derives level ranking from each player's match3[levelIndex].
+- Added level switcher (current world levels) and top-rank table with player's own rank highlight.
+- Kept ranking by highest level catnip, tie-break by total capped Paw Match catnip.
+
+TODO / next agent:
+- If backend exposes dedicated endpoint for Paw Match per-level leaderboard, switch queryFn to that endpoint.
+- Consider pagination/top 50 for very active datasets.
+
+- Visual polish pass (Paw Match in-game): upgraded backdrop layering, orbited glow rings, ornate gold/plum UI cards, richer board frame, and premium control button styling.
+- Updated top title banner to "TOKEN TAILS • PAW MATCH" and moved level/day context into subtitle line.
+- Added progress-bar glow layer and refined side panel row styling for better readability and hierarchy.
+- Fixed EndGame modal title overflow: replaced nowrap Tag title with wrap-capable gradient title block and constrained left column width against action buttons.
+- Added buffered swap queue for Paw Match: swipes during busy resolve are queued (up to 6) and drained sequentially once board is ready.
+- Input now captures swipes while busy instead of dropping them, improving rapid-play fluidity without unsafe concurrent board mutations.
+- Added unique special-item field backgrounds in Match3 (ROW/COL/BOMB/RAINBOW): colored field layer under special tiles with per-power visual style.
+- Synced special fields with tile movement, clear animations, spawn animations, and board destruction lifecycle.
+
+## 2026-03-05
+- Switched Paw Match per-level leaderboard from capped catnip ranking to uncapped score ranking.
+- Updated frontend save flow to transmit both values:
+  - `points` = catnip earned (economy)
+  - `score` = raw run score (leaderboards)
+- Match3 end event now publishes `rawScore` and `catnipEarned` so UI + persistence can use correct semantics.
+- Added profile score fields usage in frontend (`match3Score`, `match3ScoreCount`) for fallback row/rank rendering.
+- Updated leaderboard table copy/column from `Catnip` to `Score` and ranking text to score-based language.
+- Backend now persists per-level Match3 score in user profile (`match3Score[]`, `match3ScoreCount`) and sanitizes these values.
+- `/user/leaderboard/paw-match/:level` now returns `levelScore` + `match3ScoreCount`, sorted by score.
+- Backend build verified (`npm run build` passed).
+- Frontend build still blocked by pre-existing `/box` SSR/AppKit issue and optional wallet dependency warnings, unrelated to this patch.
+- Added dedicated small-landscape Paw Match HUD mode (`<=860x430` landscape) to improve 667x375 fit:
+  - hides top `TOKEN TAILS • PAW MATCH` banner,
+  - moves primary stats to side panels (`TIME/SCORE` left, `GOAL/MOVES` right),
+  - reduces board safe top/bottom reserves and allows smaller tile size on that breakpoint,
+  - tightens progress/combo/mission/fever/reward text sizing and spacing for landscape phones.
+- Verified scene compiles through Next build stage; full build still stops at existing unrelated `/box` SSR/AppKit issue.
+- Added procedural in-game SFX system for Paw Match (WebAudio, no external files):
+  - audio unlock on first pointer down,
+  - synthesized tone/noise events with per-effect envelopes.
+- Wired SFX across gameplay flow:
+  - tap/select, queued swaps, successful swap, invalid swap,
+  - match clears and combo escalations,
+  - special tile spawn and special-vs-special combo,
+  - drop/refill, reshuffle/reset,
+  - thunder/lightning board effects,
+  - objective completion, star milestones, fever activation,
+  - low-time countdown beeps and time-up,
+  - win/lose end-state sounds.
+- Build verification:
+  - Match3 code compiles successfully in Next build compile stage.
+  - Full build still blocked by pre-existing unrelated `/box` SSR/AppKit issue.
+- Tweaked Paw Match landscape HUD for wider short devices (including 932x430):
+  - extended small-landscape breakpoint to `width<=960 && height<=450`,
+  - increased top safe area and adjusted objective row offset to prevent top overlap,
+  - compacted top streak label in small-landscape to `LEVEL <id> • D<streak>` format,
+  - added text width clamp helper for streak text to avoid overflow on long states.
+- Verified compile stage passes; full Next build remains blocked by existing unrelated `/box` SSR/AppKit issue.
+- Paw Match leaderboard performance pass:
+  - frontend now requests top 300 rows (was 2000 default) and uses longer query caching (`staleTime` 5m, `gcTime` 10m, keep previous data, no refetch on focus).
+  - backend `/user/leaderboard/paw-match/:level` now enforces tighter top bounds and caches responses for 15s by `level:top` key.
+  - cache invalidates immediately after MATCH_3 score saves (`POST /user/catbassadors/live`) to keep fresh results.
+- Paw Match level selection now surfaces score per level (best score chip) while keeping catnip cap progress visible as secondary.
+- Paw Match leaderboard reliability + speed hardening:
+  - frontend leaderboard fetch now uses top 120 and short stale cache (15s) instead of long stale cache; keeps previous rows while refetching.
+  - added authenticated per-level endpoint usage for exact self rank/score display (`/user/leaderboard/paw-match/:level/position`).
+  - GameContext now invalidates Paw Match leaderboard queries immediately after MATCH_3 save, and shows a toast when save fails.
+- Backend Paw Match endpoint changes:
+  - replaced heavy aggregate with direct find/sort/limit on `match3Score.<levelIndex>` + normalization fallback.
+  - reduced default/max top to 120/500 and kept short in-memory cache.
+  - added legacy numeric-key object normalization for level arrays (handles older malformed `match3Score`/`match3` shapes).
+  - save path now force-normalizes non-array score/progress fields back to arrays and clears leaderboard cache on MATCH_3 save.
+- Small-landscape Paw Match UX pass (targets: 667x375 and 932x430):
+  - board sizing updated to prioritize vertical play area (`safeTop`/`safeBottom` reduced, higher tile cap for landscape phones), so board now takes near full height,
+  - side HUD cards now consume available side columns with dynamic widths/heights,
+  - moved streak/level context into left side card header,
+  - moved objective progress (collect target), stars, bonus mission, fever, combo hint, and catnip cap progress into side cards,
+  - removed dependency on bottom-centered metadata in small-landscape to preserve board space.
+- Compile verification: Next compile stage passes; full build still blocked by existing unrelated `/box` SSR/AppKit prerender issue.
+- Match3 world selector polish:
+  - reduced per-world card footprint and switched world tabs to responsive grid (`2/3/6` columns) so all 6 worlds fit on one desktop line.
+  - added richer decorative backdrop to world selector block (layered radial/linear gradients + glow accents) while keeping existing visual palette.
+- Verification: Next compile stage passed for updated component; full build still blocked by pre-existing `/box` SSR/AppKit issue.

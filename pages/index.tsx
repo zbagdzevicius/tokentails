@@ -1,268 +1,1144 @@
-"use client";
-
-import { INITIAL_PARTNERSHIPS, PixelGlobe } from "@/components/globe/Globe";
-import { Fireflies } from "@/components/shared/Fireflies";
-import { PixelButton } from "@/components/shared/PixelButton";
-import { TailsCard } from "@/components/tailsCard/TailsCard";
-import { cdnFile, isMobile } from "@/constants/utils";
-import { Socials } from "@/layouts/Socials";
 import Head from "next/head";
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
+import { motion } from "framer-motion";
+import {
+  ArrowRight,
+  ChevronRight,
+  Crown,
+  Gamepad2,
+  Globe,
+  HandHeart,
+  Heart,
+  Home,
+  PawPrint as PawPrintIcon,
+  Scroll,
+  Shield,
+  Star,
+  Swords,
+  Trophy,
+  Users,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
+import { ShaderAnimation } from "@/components/ui/shader-animation";
 
-const CANVAS_VIDEO_URL =
-  "https://tokentails.fra1.cdn.digitaloceanspaces.com/pet.mp4";
+const ASSETS = {
+  logo: "/forever-feline/logo-token-tails.webp",
+  portraitHighness1: "/forever-feline/portrait-highness-1.webp",
+  portraitAristocrat1: "/forever-feline/portrait-aristocrat-1.webp",
+  portraitHighnessFull: "/forever-feline/portrait-highness-full.webp",
+  gameHero: "/forever-feline/game-hero.webp",
+  shelterCat: "/forever-feline/shelter-cat.jpg",
+};
 
-export default function newPage() {
-  const [isIOS, setIsIOS] = useState(false);
-  const [isAndroid, setIsAndroid] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(true);
+const DISPLAY_FONT = "'Bebas Neue', 'Inter', sans-serif";
+const BODY_FONT = "'Nunito', 'Inter', sans-serif";
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const mobile = isMobile();
-      setIsDesktop(!mobile);
+const navLinks = [
+  { label: "Explore", href: "#features" },
+  { label: "Shelter Impact", href: "#impact" },
+  { label: "Reviews", href: "#reviews" },
+  { label: "FAQ", href: "#faq" },
+];
 
-      if (mobile) {
-        const userAgent = window.navigator.userAgent.toLowerCase();
-        const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
-        const isAndroidDevice = /android/.test(userAgent);
-        setIsIOS(isIOSDevice);
-        setIsAndroid(isAndroidDevice);
-      }
-    }
-  }, []);
+const socials = [
+  {
+    name: "X",
+    href: "https://x.com/intent/follow?screen_name=tokentails",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+      </svg>
+    ),
+  },
+  {
+    name: "Instagram",
+    href: "https://instagram.com/tokentails",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
+      </svg>
+    ),
+  },
+  {
+    name: "TikTok",
+    href: "https://tiktok.com/@tokentails",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+        <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.34-6.34V8.87a8.16 8.16 0 004.76 1.52v-3.4a4.85 4.85 0 01-1-.3z" />
+      </svg>
+    ),
+  },
+  {
+    name: "Telegram",
+    href: "https://t.me/+ofyPNIfNX5w4ZjM8",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+        <path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0h-.056zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+      </svg>
+    ),
+  },
+  {
+    name: "Discord",
+    href: "https://discord.gg/4FVYmnd7Hg",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+        <path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+      </svg>
+    ),
+  },
+];
+
+const stats: Array<{
+  icon: LucideIcon;
+  value: string;
+  label: string;
+  incentive: string;
+  progress: number;
+}> = [
+  {
+    icon: PawPrintIcon,
+    value: "50K+",
+    label: "Portraits Created",
+    incentive: "35,000,000 $TAILS earned",
+    progress: 85,
+  },
+  {
+    icon: Heart,
+    value: "800+",
+    label: "Strays Saved",
+    incentive: "15,000,000 $TAILS earned",
+    progress: 65,
+  },
+  {
+    icon: Globe,
+    value: "9",
+    label: "Countries",
+    incentive: "75,000,000 $TAILS potential",
+    progress: 92,
+  },
+  {
+    icon: Users,
+    value: "10K+",
+    label: "Cat Parents",
+    incentive: "100,000,000 $TAILS potential",
+    progress: 78,
+  },
+];
+
+const products: Array<{
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  image: string;
+  cta: string;
+  href: string;
+  rarity: "Legendary" | "Epic" | "Rare";
+  incentive: string;
+}> = [
+  {
+    icon: Crown,
+    title: "Royal Portraits",
+    description:
+      "Upload a photo. Get a masterpiece. 20+ styles from Renaissance to Samurai. Starting at $6.",
+    image: ASSETS.portraitHighnessFull,
+    cta: "Create Portrait",
+    href: "/portrait",
+    rarity: "Legendary",
+    incentive: "+250K $TAILS potential",
+  },
+  {
+    icon: Gamepad2,
+    title: "Play & Adventure",
+    description:
+      "Your cat becomes a playable hero. Explore worlds, collect treasures, level up together.",
+    image: ASSETS.gameHero,
+    cta: "Play Now",
+    href: "/gaming",
+    rarity: "Epic",
+    incentive: "+500K $TAILS potential",
+  },
+  {
+    icon: Heart,
+    title: "Save Real Cats",
+    description:
+      "Collect cards of real shelter cats. Every pack funds rescue, rehoming, and care across 9 countries.",
+    image: ASSETS.shelterCat,
+    cta: "Buy Packs",
+    href: "/packs",
+    rarity: "Rare",
+    incentive: "+100K $TAILS potential",
+  },
+];
+
+const testimonials = [
+  {
+    name: "Sarah M.",
+    location: "London, UK",
+    avatar: "🇬🇧",
+    rating: 5,
+    text: "I ordered a Renaissance portrait of my cat Muffin and cried when I saw it. It's now framed above my fireplace. The fact that it helps shelter cats too? Incredible.",
+    tag: "Portrait",
+  },
+  {
+    name: "Jake R.",
+    location: "Austin, TX",
+    avatar: "🇺🇸",
+    rating: 5,
+    text: "The health tracker caught that my cat's activity dropped. Took her to the vet early, turned out she had a UTI. Token Tails literally saved my cat's life.",
+    tag: "Health Tracking",
+  },
+  {
+    name: "Emilie D.",
+    location: "Paris, France",
+    avatar: "🇫🇷",
+    rating: 5,
+    text: "My kids play the adventure mode every day with our cat as the character. It's the only screen time I encourage. And we've helped rehome 3 cats through donations.",
+    tag: "Adventure & Impact",
+  },
+  {
+    name: "Tom K.",
+    location: "Melbourne, AU",
+    avatar: "🇦🇺",
+    rating: 5,
+    text: "Bought the Legendary pack as a gift. Best decision ever. Four stunning portraits, a playable character, and shelter donation included.",
+    tag: "Pack Purchase",
+  },
+  {
+    name: "Yuki T.",
+    location: "Tokyo, Japan",
+    avatar: "🇯🇵",
+    rating: 5,
+    text: "I tried PetStudio and Petcasso, Token Tails blows them away. The quality is museum-grade, plus app features make it way more than portraits.",
+    tag: "Top Quality",
+  },
+  {
+    name: "Maria L.",
+    location: "Sao Paulo, Brazil",
+    avatar: "🇧🇷",
+    rating: 5,
+    text: "As a shelter volunteer, seeing Token Tails donate to real shelters is amazing. It's not a gimmick; our shelter received funding directly.",
+    tag: "Shelter Partner",
+  },
+];
+
+const quests: Array<{
+  step: string;
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+  description: string;
+  reward: string;
+  status: string;
+}> = [
+  {
+    step: "I",
+    icon: Scroll,
+    title: "Begin Your Quest",
+    subtitle: "Create Profile",
+    description:
+      "Upload a photo and bring your cat into the Token Tails world.",
+    reward: "+100K $TAILS potential",
+    status: "AVAILABLE",
+  },
+  {
+    step: "II",
+    icon: Swords,
+    title: "Explore & Collect",
+    subtitle: "Main Quest",
+    description:
+      "Create portraits, play adventures, collect cards of real shelter cats.",
+    reward: "+500K $TAILS potential",
+    status: "UNLOCKED",
+  },
+  {
+    step: "III",
+    icon: Shield,
+    title: "Make an Impact",
+    subtitle: "Legendary Quest",
+    description:
+      "Every action you take helps fund real cat shelters worldwide.",
+    reward: "+1M $TAILS potential",
+    status: "EPIC",
+  },
+];
+
+const faqs = [
+  {
+    question: "How does Token Tails help shelter cats?",
+    answer:
+      "A portion of every purchase goes directly to partner shelters across 9 countries. These funds cover food, medical treatment, spaying/neutering, and rehoming operations.",
+  },
+  {
+    question: "What kind of portraits can I create?",
+    answer:
+      "We offer 30+ art styles including Renaissance, Victorian, Royal, Warrior, Samurai, Astronaut, and more. Upload a photo and get a high-resolution portrait in seconds.",
+  },
+  {
+    question: "Is Token Tails just a game?",
+    answer:
+      "No. Token Tails combines portraits, health tracking, interactive mini-games, and adventure worlds while supporting real shelter cats.",
+  },
+  {
+    question: "How does health tracking work?",
+    answer:
+      "The dashboard helps log feeding, activity, mood, weight, and vet visits. It also provides reminders and practical insights to support your cat's routine care.",
+  },
+  {
+    question: "Can I try Token Tails for free?",
+    answer:
+      "Yes. You can explore the app and portrait styles for free. Paid portraits and packs fund shelter partnerships.",
+  },
+];
+
+function PawPrint({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" fill="currentColor" className={className} aria-hidden="true">
+      <ellipse cx="32" cy="42" rx="14" ry="12" />
+      <ellipse cx="18" cy="24" rx="7" ry="8" transform="rotate(-15 18 24)" />
+      <ellipse cx="32" cy="20" rx="7" ry="8" />
+      <ellipse cx="46" cy="24" rx="7" ry="8" transform="rotate(15 46 24)" />
+    </svg>
+  );
+}
+
+function CatSilhouette({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 100 80" fill="currentColor" className={className} aria-hidden="true">
+      <polygon points="20,35 10,5 30,20" />
+      <polygon points="50,35 60,5 40,20" />
+      <ellipse cx="35" cy="40" rx="22" ry="18" />
+      <ellipse cx="55" cy="55" rx="30" ry="20" />
+      <path
+        d="M82,45 Q95,25 90,15"
+        strokeWidth="4"
+        stroke="currentColor"
+        fill="none"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function Whiskers({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 120 40"
+      className={className}
+      aria-hidden="true"
+      stroke="currentColor"
+      fill="none"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+    >
+      <line x1="60" y1="20" x2="10" y2="8" />
+      <line x1="60" y1="20" x2="10" y2="20" />
+      <line x1="60" y1="20" x2="10" y2="32" />
+      <line x1="60" y1="20" x2="110" y2="8" />
+      <line x1="60" y1="20" x2="110" y2="20" />
+      <line x1="60" y1="20" x2="110" y2="32" />
+      <polygon points="55,17 65,17 60,22" fill="currentColor" />
+    </svg>
+  );
+}
+
+function ShineBorder({
+  children,
+  className = "",
+  borderWidth = 2,
+  duration = 14,
+  shineColor = ["#F97316"],
+}: {
+  children: ReactNode;
+  className?: string;
+  borderWidth?: number;
+  duration?: number;
+  shineColor?: string[];
+}) {
+  const style = {
+    "--duration": `${duration}s`,
+    padding: `${borderWidth}px`,
+    backgroundImage: `radial-gradient(transparent, transparent, ${shineColor.join(",")}, transparent, transparent)`,
+    backgroundSize: "300% 300%",
+  } as CSSProperties;
+
+  return (
+    <div className={`relative rounded-2xl ${className}`}>
+      <div style={style} className="absolute inset-0 rounded-[inherit] animate-shine-border" />
+      <div className="relative rounded-[inherit] overflow-hidden">{children}</div>
+    </div>
+  );
+}
+
+export default function HomePage() {
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+  const currentYear = new Date().getFullYear();
+
   return (
     <>
       <Head>
-        <title>Token Tails - Play to Save</title>
-        <meta property="og:image" content={cdnFile("logo/ogg.jpg")} />
-        <meta
-          property="og:title"
-          content="Token Tails - Play to Save"
-          key="title"
-        />
+        <title>Token Tails | Forever Feline</title>
         <meta
           name="description"
-          content="PLAY WITH YOUR VIRTUAL CAT TO SAVE A CAT IN A SHELTER"
+          content="Take care of your cat, create royal portraits, and help save real shelter cats with every action."
         />
-        <link rel="shortcut icon" href={cdnFile("logo/coin.webp")} />
       </Head>
-      <div className="relative">
-        <section className="relative h-screen w-full">
-          <span className="absolute inset-0 z-20 animate-appear">
-            <img src={cdnFile("landing/hero-top.webp")} className="w-full " />
-          </span>
-          <img
-            src={cdnFile("landing/hero-bg.webp")}
-            className="w-full h-full pixelated object-cover absolute inset-0 animate-hoverSlow"
-          />
-          <img
-            src={cdnFile("landing/electric.gif")}
-            className="w-[1000px] md:w-[500px] pixelated jusitfy-center absolute top-0 left-1/2 -translate-x-1/2 opacity-50 rotate-90 hue-rotate-180"
-          />
-          <img
-            src={cdnFile("landing/hero-cat-with-ground.webp")}
-            className="w-full h-full pixelated object-cover absolute inset-0 animate-opacity"
-          />
-          <span className="absolute max-sm:top-32 sm:top-2 z-40 max-sm:left-1/2 max-sm:-translate-x-1/2 sm:right-2">
-            <Socials />
-          </span>
 
-          <div className="absolute z-50 bottom-32 sm:bottom-12 lg:bottom-14 xl:bottom-16 2xl:bottom-20 3xl:bottom-32 left-1/2 -translate-x-1/2 flex flex-col sm:flex-row justify-center items-center">
-            {(isDesktop || isIOS) && (
-              <a
-                target="_blank"
-                href="https://apps.apple.com/app/id6745582489"
-                className="mr-24 max-md:mr-8 max-sm:mr-0 max-sm:mb-2 max-sm:order-1"
-              >
-                <img
-                  src={cdnFile("icons/social/app-store.webp")}
-                  className="w-48 hover:scale-110 min-w-48 max-lg:w-32 max-lg:min-w-32 transition-all duration-300"
-                />
-              </a>
-            )}
-            <a href="game" className="max-sm:order-2">
-              <PixelButton text="PLAY" isBig subtext="GAME" />
+      <div
+        data-forever-feline-page="true"
+        className="min-h-screen bg-background text-foreground"
+        style={{ fontFamily: BODY_FONT }}
+      >
+        <motion.nav
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-background/80 border-b border-border"
+        >
+          <div className="container mx-auto flex items-center justify-between py-4 px-6">
+            <a href="#" className="flex items-center gap-2" aria-label="Token Tails home">
+              <img src={ASSETS.logo} alt="Token Tails" className="h-8 w-auto" />
             </a>
-            {(isDesktop || isAndroid) && (
-              <a
-                target="_blank"
-                href="https://play.google.com/store/apps/details?id=com.tokentails.app"
-                className="ml-24 max-md:ml-8 max-sm:ml-0 max-sm:mb-2 max-sm:order-1"
+
+            <div className="hidden md:flex items-center gap-8">
+              {navLinks.map((link) => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-primary after:scale-x-0 after:origin-right after:transition-transform after:duration-300 hover:after:scale-x-100 hover:after:origin-left"
+                >
+                  {link.label}
+                </a>
+              ))}
+            </div>
+
+            <motion.a
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              href="/game"
+              className="portrait-btn-primary inline-flex items-center justify-center px-5 py-2.5 text-sm font-bold"
+            >
+              Play Game
+            </motion.a>
+          </div>
+        </motion.nav>
+
+        <section className="relative overflow-hidden pt-24 pb-16 md:pt-28 md:pb-20">
+          <div className="absolute inset-0 bg-gradient-to-b from-warm-light via-background to-background" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/3 w-[600px] h-[600px] rounded-full bg-primary/[0.06] blur-[120px] pointer-events-none" />
+
+          <PawPrint className="absolute top-32 left-[8%] w-8 h-8 text-primary/[0.07] rotate-[-20deg]" />
+          <PawPrint className="absolute top-48 right-[12%] w-6 h-6 text-primary/[0.05] rotate-[15deg]" />
+          <PawPrint className="absolute bottom-24 left-[15%] w-5 h-5 text-primary/[0.04] rotate-[45deg]" />
+          <PawPrint className="absolute bottom-16 right-[18%] w-9 h-9 text-primary/[0.06] rotate-[-35deg]" />
+          <CatSilhouette className="absolute top-24 right-[5%] w-24 h-20 text-primary/[0.05] rotate-[10deg]" />
+          <CatSilhouette className="absolute bottom-10 left-[6%] w-20 h-16 text-primary/[0.04] -scale-x-100 rotate-[-8deg]" />
+
+          {[
+            { left: "20%", top: "22%", size: "w-4 h-4", rotate: -10, delay: 0.2 },
+            { left: "26%", top: "28%", size: "w-5 h-5", rotate: 14, delay: 0.6 },
+            { left: "32%", top: "34%", size: "w-4 h-4", rotate: -18, delay: 1.0 },
+            { left: "68%", top: "26%", size: "w-4 h-4", rotate: 10, delay: 0.4 },
+            { left: "74%", top: "32%", size: "w-5 h-5", rotate: -12, delay: 0.9 },
+          ].map((paw, i) => (
+            <motion.div
+              key={`hero-paw-${i}`}
+              className="absolute pointer-events-none"
+              style={{ left: paw.left, top: paw.top }}
+              initial={{ opacity: 0.25 }}
+              animate={{
+                y: [0, -7, 0],
+                x: [0, 3, 0],
+                rotate: [paw.rotate, paw.rotate + 6, paw.rotate],
+                opacity: [0.2, 0.34, 0.2],
+              }}
+              transition={{
+                duration: 5.5 + paw.delay,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: paw.delay,
+              }}
+            >
+              <PawPrint className={`${paw.size} text-primary/[0.16]`} />
+            </motion.div>
+          ))}
+
+          <div className="container mx-auto px-6 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.15 }}
+              className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6"
+            >
+              <span className="inline-flex items-center gap-1.5 bg-secondary text-foreground px-4 py-1.5 rounded-full text-sm font-medium">
+                <PawPrint className="w-3.5 h-3.5 text-primary/70" />
+                Charity-driven · Every action helps shelter cats
+                <PawPrint className="w-3.5 h-3.5 text-primary/70" />
+              </span>
+              <span className="inline-flex items-center gap-1.5 bg-card border border-border px-3 py-1.5 rounded-full text-sm text-muted-foreground">
+                <span className="flex">
+                  {[...Array(5)].map((_, i) => (
+                    <svg key={i} className="w-3.5 h-3.5 text-primary fill-primary" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                  ))}
+                </span>
+                <span className="inline-block text-foreground">
+                  4.9 · 10K+ cat parents
+                </span>
+              </span>
+            </motion.div>
+
+        <motion.h1
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.25 }}
+          className="text-center text-5xl md:text-7xl lg:text-8xl font-display font-extrabold tracking-tight text-foreground leading-[0.95]"
+          style={{ fontFamily: DISPLAY_FONT }}
+        >
+              Take care of
+              <br />
+              <span
+                style={
+                  {
+                    "--color-from": "#F97316",
+                    "--color-to": "#D97706",
+                    "--bg-size": "300%",
+                    "--speed": "5.3s",
+                  } as CSSProperties
+                }
+                className="animate-gradient-text inline bg-gradient-to-r from-[var(--color-from)] via-[var(--color-to)] to-[var(--color-from)] bg-[length:var(--bg-size)_100%] bg-clip-text text-transparent"
               >
-                <img
-                  src={cdnFile("icons/social/play-store.webp")}
-                  className="w-48 min-w-48 hover:scale-110 transition-all duration-300 max-lg:w-32 max-lg:min-w-32"
-                />
-              </a>
-            )}
+                your cat
+              </span>
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+              className="mt-5 text-center text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed"
+            >
+              Immortalize your cat as art. Track their health. Play together.
+              <br className="hidden md:block" />
+              <strong className="text-foreground">And help save stray cats with every step.</strong>
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.5 }}
+              className="mt-10 flex justify-center items-end gap-3 md:gap-5"
+            >
+              <div className="w-[90px] md:w-[130px] -rotate-6 animate-float">
+                <ShineBorder borderWidth={2} duration={10} shineColor={["#F97316", "#D97706"]} className="rounded-2xl">
+                  <div className="rounded-2xl overflow-hidden shadow-2xl">
+                    <img src={ASSETS.portraitHighness1} alt="Cat portrait Highness style" className="w-full h-auto" />
+                  </div>
+                </ShineBorder>
+              </div>
+
+              <div className="w-[140px] md:w-[200px] -translate-y-3 z-10 animate-float-delayed">
+                <ShineBorder borderWidth={2} duration={8} shineColor={["#F97316", "#fb923c", "#D97706"]} className="rounded-2xl">
+                  <div className="rounded-2xl overflow-hidden shadow-2xl">
+                    <video
+                      src="https://tokentails.fra1.cdn.digitaloceanspaces.com/pet.mp4"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      className="w-full h-auto"
+                    />
+                  </div>
+                </ShineBorder>
+              </div>
+
+              <div className="w-[90px] md:w-[130px] rotate-6 animate-float">
+                <ShineBorder borderWidth={2} duration={12} shineColor={["#D97706", "#F97316"]} className="rounded-2xl">
+                  <div className="rounded-2xl overflow-hidden shadow-2xl">
+                    <img src={ASSETS.portraitAristocrat1} alt="Cat portrait Aristocrat style" className="w-full h-auto" />
+                  </div>
+                </ShineBorder>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.65 }}
+              className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
+            >
+              <motion.a
+                whileHover={{ scale: 1.07, boxShadow: "0 0 50px hsl(28 92% 53% / 0.3)" }}
+                whileTap={{ scale: 0.95 }}
+                href="/portrait"
+                className="portrait-btn-primary group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold"
+              >
+                Start With Your Cat
+              </motion.a>
+              <motion.a
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                href="/gaming"
+                className="portrait-btn-secondary inline-flex items-center justify-center px-8 py-4 text-lg font-semibold"
+              >
+                Explore the App
+              </motion.a>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.8 }}
+              className="mt-6 flex items-center justify-center gap-3"
+            >
+              {socials.map((s) => (
+                <a
+                  key={s.name}
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={s.name}
+                  className="text-muted-foreground hover:text-primary transition-colors p-2 rounded-full hover:bg-secondary"
+                >
+                  {s.icon}
+                </a>
+              ))}
+            </motion.div>
           </div>
         </section>
 
-        {/* CTA SECTION */}
-        <section className="relative min-h-screen w-full overflow-hidden">
-          <img
-            src={cdnFile("landing/card-bg.webp")}
-            className="w-full h-full object-cover pixelated inset-0 absolute"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/55" />
+        <section className="py-16 bg-charcoal relative overflow-hidden">
+          <PawPrint className="absolute top-4 left-[5%] w-8 h-8 text-primary-foreground/[0.03] rotate-[-15deg]" />
+          <PawPrint className="absolute bottom-4 right-[8%] w-7 h-7 text-primary-foreground/[0.03] rotate-[20deg]" />
+          <CatSilhouette className="absolute top-1/2 right-[3%] w-24 h-20 text-primary-foreground/[0.03] -translate-y-1/2" />
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-40" />
 
-          <div className="relative z-30 px-4 md:px-8 lg:px-16 py-10 md:py-16 lg:py-20">
-            <div className="max-w-[1400px] mx-auto">
-              <div className="rounded-2xl border-4 border-yellow-300/70 bg-black/35 backdrop-blur-[2px] p-4 md:p-6 lg:p-8">
-                <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_auto] items-center gap-4 md:gap-6">
-                  <div>
-                    <div className="inline-flex items-center gap-2 rounded-xl border-2 border-yellow-300 bg-yellow-300/20 px-3 py-1 font-primary text-p6 md:text-p5 text-yellow-100 uppercase tracking-wide">
-                      <img
-                        src={cdnFile("icons/check.webp")}
-                        alt="mission icon"
-                        className="h-4 w-4 object-contain"
-                      />
-                      Rescue Mission Hub
-                    </div>
-                    <div className="mt-2">
-                      <span className="text-p2 md:text-h5 xl:text-h2 2xl:text-[120px] font-bold uppercase drop-shadow-lg font-primary text-white leading-none">
-                        LEGENDS <span className="glow text-yellow-300">NEED</span>{" "}
-                        <span className="text-yellow-300">HEROES</span>
-                      </span>
-                    </div>
-                    <p className="mt-2 md:mt-3 text-p5 md:text-p4 text-yellow-50/90 max-w-2xl">
-                      Collect cards, immortalize real pets, and convert play
-                      into real-world shelter impact.
-                    </p>
+          <div className="container mx-auto px-6 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="flex items-center justify-center gap-2 mb-8"
+            >
+              <Trophy className="w-5 h-5 text-primary" />
+              <span className="text-sm font-display font-bold text-primary uppercase tracking-widest">Community Achievements</span>
+              <Trophy className="w-5 h-5 text-primary" />
+            </motion.div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {stats.map((stat, i) => (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  whileHover={{ scale: 1.05, transition: { type: "spring", stiffness: 300 } }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  className="relative bg-primary-foreground/[0.05] border border-primary-foreground/10 rounded-xl p-5 text-center cursor-default group hover:border-primary/40 transition-all duration-300"
+                >
+                  <stat.icon className="w-5 h-5 text-primary mx-auto mb-2" />
+                  <div className="font-display font-bold text-2xl md:text-3xl text-primary-foreground">{stat.value}</div>
+                  <div className="text-xs text-primary-foreground/60 mt-1 mb-3">{stat.label}</div>
+                  <div className="w-full bg-primary-foreground/10 rounded-full h-1.5 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      whileInView={{ width: `${stat.progress}%` }}
+                      viewport={{ once: true }}
+                      transition={{ delay: i * 0.1 + 0.3, duration: 1, ease: "easeOut" }}
+                      className="h-full bg-gradient-to-r from-primary to-warm-dark rounded-full"
+                    />
                   </div>
-                  <img
-                    src={cdnFile("tail/cat-promo.webp")}
-                    className="w-28 md:w-36 lg:w-48 justify-self-center lg:justify-self-end drop-shadow-[0_8px_0_rgba(0,0,0,0.25)]"
-                    alt="Token Tails mascot"
-                  />
-                </div>
-
-                <div className="mt-5 md:mt-7 grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-stretch">
-                  <div className="rounded-2xl border-4 border-yellow-300 bg-gradient-to-b from-yellow-200/95 to-orange-200/95 p-4 md:p-5 h-full flex flex-col">
-                    <h2 className="text-p2 md:text-h5 font-primary text-yellow-900 uppercase leading-none">
-                      COLLECT REAL IMPACT
-                    </h2>
-                    <p className="mt-2 text-p5 md:text-p4 text-yellow-900/90 max-w-lg">
-                      Every pack expands your collection and strengthens
-                      progression rewards tied to rescue outcomes.
-                    </p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2 font-primary text-p5 text-yellow-900">
-                      <span className="rounded-lg border-2 border-yellow-900 bg-yellow-100 px-2 py-1">
-                        + More collectibles
-                      </span>
-                      <span className="rounded-lg border-2 border-yellow-900 bg-yellow-100 px-2 py-1">
-                        + Better unlock paths
-                      </span>
-                    </div>
-                    <div className="mt-4">
-                      <Link href="/packs" className="inline-block">
-                        <PixelButton text="BUY PACKS" />
-                      </Link>
-                    </div>
-                    <div className="mt-1 flex-1 flex items-end justify-center lg:justify-start min-h-[210px] md:min-h-[240px]">
-                      <TailsCard
-                        cardStyle={{
-                          width: "clamp(260px, 31vw, 390px)",
-                        }}
-                      />
-                    </div>
+                  <div className="flex items-center justify-center gap-1 mt-2">
+                    <Zap className="w-3 h-3 text-primary" />
+                    <span className="text-[10px] font-display font-semibold text-primary">{stat.incentive}</span>
                   </div>
-
-                  <div className="rounded-2xl border-4 border-yellow-300 bg-gradient-to-b from-pink-200/95 to-yellow-200/95 p-4 md:p-5 h-full flex flex-col">
-                    <h2 className="text-p2 md:text-h5 font-primary text-yellow-900 uppercase leading-none">
-                      IMMORTALIZE YOUR PET
-                    </h2>
-                    <p className="mt-2 text-p5 md:text-p4 text-yellow-900/90 max-w-lg">
-                      Turn your real pet into premium portrait art and bring it
-                      into the Token Tails universe.
-                    </p>
-                    <div className="mt-4">
-                      <Link href="/portrait" className="inline-block">
-                        <PixelButton text="ORDER PET PORTRAIT" />
-                      </Link>
-                    </div>
-                    <div className="mt-3 flex-1 flex items-end min-h-[210px] md:min-h-[240px]">
-                      <div className="grid grid-cols-[1.15fr_1fr] gap-2.5 md:gap-3 w-full max-w-[520px] mx-auto lg:mx-0">
-                        <div className="rounded-md overflow-hidden border-2 border-yellow-900 shadow-[0_6px_0_rgba(120,53,15,0.25)] bg-black">
-                          <video
-                            src={CANVAS_VIDEO_URL}
-                            autoPlay
-                            muted
-                            loop
-                            playsInline
-                            preload="metadata"
-                            poster={cdnFile("portrait/commander-2.webp")}
-                            className="w-full h-full object-cover aspect-[4/5]"
-                          />
-                        </div>
-                        <div className="grid grid-rows-2 gap-2.5 md:gap-3">
-                          <div className="rounded-md overflow-hidden border-2 border-yellow-900 shadow-[0_6px_0_rgba(120,53,15,0.2)]">
-                            <img
-                              src={cdnFile("portrait/monarch.webp")}
-                              alt="Royal pet portrait"
-                              className="w-full h-full object-cover aspect-[4/5]"
-                            />
-                          </div>
-                          <div className="rounded-md overflow-hidden border-2 border-yellow-900 shadow-[0_6px_0_rgba(120,53,15,0.2)]">
-                            <img
-                              src={cdnFile("portrait/highness.webp")}
-                              alt="Royal cat portrait"
-                              className="w-full h-full object-cover aspect-[4/5]"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 md:mt-6 rounded-2xl border-4 border-yellow-300 bg-gradient-to-r from-yellow-300/95 via-orange-300/95 to-pink-300/95 px-4 py-3 text-center">
-                  <span className="text-p2 md:text-h5 xl:text-h3 font-bold uppercase font-primary text-yellow-900 leading-none">
-                    CATS <span className="glow text-white">NEED</span> YOU
-                  </span>
-                </div>
-              </div>
+                </motion.div>
+              ))}
             </div>
           </div>
         </section>
 
-        <section className="relative min-h-screen w-full glow-box">
-          <img
-            src={cdnFile("landing/globe.webp")}
-            className="w-full h-full object-cover   inset-0 absolute"
-          />
-          <div className="absolute top-0 left-0 w-full h-full flex justify-center items-center z-30 overflow-hidden">
-            <PixelGlobe />
+        <section className="py-24 bg-cream relative overflow-hidden">
+          <div className="absolute inset-0">
+            <ShaderAnimation />
           </div>
-          {/* Left side: 12 COUNTRIES ONBOARDED */}
-          <div className="absolute md:pt-20 left-4 lg:left-16 md:top-1/2 md:-translate-y-1/2 z-40 flex flex-col items-start">
-            <span className="lg:text-[200px] text-[100px] font-bold text-yellow-300 drop-shadow-lg font-primary glow lg:-mb-4">
-              {INITIAL_PARTNERSHIPS.length}
-            </span>
-            <span className="text-p3 md:text-p1 lg:text-[68px] uppercase font-semibold tracking-wide font-primary -mt-8 md:-mt-12 text-yellow-50 opacity-90">
-              COUNTRIES
-            </span>
+          <div className="absolute inset-0 bg-cream/85" />
+          <PawPrint className="absolute top-16 left-[5%] w-10 h-10 text-primary/[0.05] rotate-[-20deg]" />
+          <PawPrint className="absolute bottom-20 right-[7%] w-8 h-8 text-primary/[0.04] rotate-[25deg]" />
+          <Whiskers className="absolute top-[28%] right-[8%] w-20 h-7 text-primary/[0.08]" />
+
+          <div className="container mx-auto px-6 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="max-w-3xl mx-auto text-center"
+            >
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-primary uppercase tracking-wider">
+                <PawPrint className="w-4 h-4 text-primary/70" />
+                More than an app
+                <PawPrint className="w-4 h-4 text-primary/70" />
+              </span>
+              <h2 className="font-display font-bold text-5xl md:text-6xl text-foreground mt-3 leading-tight">
+                A world built
+                <br />
+                <span className="text-gradient">around cats.</span>
+              </h2>
+              <p className="text-muted-foreground mt-6 text-lg md:text-xl leading-relaxed max-w-2xl mx-auto">
+                Token Tails is where cat lovers collect, play, and make a real difference. Turn your cat into royalty
+                with AI portraits, explore adventure worlds with your cat as the hero, collect cards of real shelter cats,
+                and fund their rescue with every action you take.
+              </p>
+            </motion.div>
           </div>
-          {/* Right side: 800+ cats saved */}
-          <div className="absolute pb-64 right-4 lg:right-16 md:top-1/2 md:-translate-y-1/2 z-40 flex flex-col items-end ">
-            <span className="lg:text-[200px] text-[100px] font-bold text-yellow-300 drop-shadow-lg font-primary glow lg:-mb-4">
-              800+
-            </span>
-            <span className="text-p3 md:text-p1 lg:text-[68px] uppercase font-semibold tracking-wide font-primary -mt-8 md:-mt-12 text-yellow-50 opacity-90">
-              strays saved
-            </span>
-          </div>
-          {/* Bottom: OWN REAL-WORLD IMPACT */}
-          <div className="absolute bottom-8 md:bottom-12 lg:bottom-16 left-1/2 -translate-x-1/2 z-40">
-            <span className="text-p1 md:text-h4 xl:text-h1 2xl:text-[142px] 3xl:text-[196px] font-bold text- uppercase drop-shadow-lg font-primary whitespace-nowrap text-white">
-              OWN <span className="glow text-yellow-300">REAL-WORLD</span>{" "}
-              <span className="text-yellow-300">IMPACT</span>
-            </span>
-          </div>
-          <Fireflies />
         </section>
+
+        <section id="features" className="py-24 bg-background relative overflow-hidden">
+          <CatSilhouette className="absolute -bottom-4 -left-6 w-32 h-32 text-primary/[0.03]" />
+          <CatSilhouette className="absolute top-12 right-[2%] w-20 h-16 text-primary/[0.03] -scale-x-100" />
+          <PawPrint className="absolute top-20 right-[6%] w-9 h-9 text-primary/[0.05] rotate-[15deg]" />
+          <PawPrint className="absolute bottom-16 left-[4%] w-7 h-7 text-primary/[0.04] rotate-[-20deg]" />
+
+          <div className="container mx-auto px-6 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center max-w-2xl mx-auto mb-16"
+            >
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-primary uppercase tracking-wider">
+                <PawPrint className="w-4 h-4 text-primary/70" />
+                Explore Token Tails
+              </span>
+              <h2 className="font-display font-bold text-5xl md:text-6xl text-foreground mt-3">
+                Three worlds.
+                <br />
+                <span className="text-gradient">One platform.</span>
+              </h2>
+            </motion.div>
+
+            <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {products.map((product, i) => (
+                <motion.a
+                  key={product.title}
+                  href={product.href}
+                  initial={{ opacity: 0, y: 40 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  whileHover={{ y: -6, transition: { duration: 0.25 } }}
+                  whileTap={{ scale: 0.98 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.12 }}
+                  className="group bg-card border border-border rounded-3xl overflow-hidden hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 block"
+                >
+                  <div className="aspect-[4/3] overflow-hidden relative">
+                    <img src={product.image} alt={product.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent" />
+                    <PawPrint className="absolute bottom-3 right-3 w-6 h-6 text-white/80 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300" />
+                    <span
+                      className={`absolute top-3 left-3 text-[10px] font-display font-bold uppercase tracking-wider px-2.5 py-1 rounded-full backdrop-blur-sm ${
+                        product.rarity === "Legendary"
+                          ? "bg-primary/90 text-primary-foreground"
+                          : product.rarity === "Epic"
+                            ? "bg-purple-600/90 text-white"
+                            : "bg-blue-500/90 text-white"
+                      }`}
+                    >
+                      {product.rarity}
+                    </span>
+                  </div>
+                  <div className="p-6">
+                    <div className="inline-flex items-center gap-2 bg-warm-light text-primary px-3 py-1 rounded-full text-sm font-medium mb-3">
+                      <product.icon className="w-4 h-4 group-hover:rotate-12 transition-transform duration-300" />
+                      {product.title}
+                    </div>
+                    <p className="text-muted-foreground leading-relaxed mb-4">{product.description}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1.5 text-primary font-display font-semibold text-sm group-hover:gap-3 transition-all duration-300">
+                        {product.cta}
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                      </span>
+                      <span className="text-[10px] font-display font-bold text-primary bg-warm-light px-2 py-0.5 rounded-full">
+                        {product.incentive}
+                      </span>
+                    </div>
+                  </div>
+                </motion.a>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="py-24 bg-background relative overflow-hidden" id="impact">
+          <PawPrint className="absolute top-20 right-[6%] w-10 h-10 text-primary/[0.05] rotate-[25deg]" />
+          <PawPrint className="absolute bottom-24 left-[4%] w-8 h-8 text-primary/[0.04] rotate-[-20deg]" />
+          <PawPrint className="absolute top-[50%] left-[3%] w-6 h-6 text-primary/[0.04] rotate-[40deg]" />
+
+          <div className="container mx-auto px-6 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center max-w-3xl mx-auto mb-16"
+            >
+              <span className="inline-flex items-center gap-2 bg-destructive/10 text-destructive px-4 py-1.5 rounded-full text-sm font-semibold mb-4">
+                <Heart className="w-4 h-4 fill-current" />
+                Charity-Driven Platform
+              </span>
+              <h2 className="font-display font-bold text-5xl md:text-6xl text-foreground mt-3 leading-tight">
+                We exist to save
+                <br />
+                <span className="text-gradient">stray cats.</span>
+              </h2>
+              <p className="text-muted-foreground mt-5 text-lg leading-relaxed max-w-2xl mx-auto">
+                Token Tails is a charity-driven movement. Every portrait you create, every card you collect, and every game
+                you play helps fund shelters rescuing and rehoming stray cats worldwide.
+              </p>
+            </motion.div>
+
+            <div className="grid lg:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+              >
+                <div className="rounded-3xl overflow-hidden shadow-2xl">
+                  <img src={ASSETS.shelterCat} alt="Rescued stray cat" className="w-full h-auto" />
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: 30 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+              >
+                <div className="space-y-6">
+                  <motion.div whileHover={{ x: 4 }} transition={{ duration: 0.2 }} className="flex items-start gap-4 cursor-default">
+                    <motion.div whileHover={{ scale: 1.1, rotate: -5 }} transition={{ type: "spring", stiffness: 400 }} className="w-12 h-12 rounded-xl bg-warm-light flex items-center justify-center shrink-0">
+                      <HandHeart className="w-6 h-6 text-primary" />
+                    </motion.div>
+                    <div>
+                      <h3 className="font-display font-bold text-lg text-foreground">Direct shelter funding</h3>
+                      <p className="text-muted-foreground mt-1">A portion of every purchase goes directly to partner shelters for food, treatment, and care.</p>
+                    </div>
+                  </motion.div>
+
+                  <motion.div whileHover={{ x: 4 }} transition={{ duration: 0.2 }} className="flex items-start gap-4 cursor-default">
+                    <motion.div whileHover={{ scale: 1.1, rotate: -5 }} transition={{ type: "spring", stiffness: 400 }} className="w-12 h-12 rounded-xl bg-warm-light flex items-center justify-center shrink-0">
+                      <Home className="w-6 h-6 text-primary" />
+                    </motion.div>
+                    <div>
+                      <h3 className="font-display font-bold text-lg text-foreground">800+ cats rehomed</h3>
+                      <p className="text-muted-foreground mt-1">Our community has already helped over 800 stray cats find loving forever homes.</p>
+                    </div>
+                  </motion.div>
+
+                  <motion.div whileHover={{ x: 4 }} transition={{ duration: 0.2 }} className="flex items-start gap-4 cursor-default">
+                    <motion.div whileHover={{ scale: 1.1, rotate: -5 }} transition={{ type: "spring", stiffness: 400 }} className="w-12 h-12 rounded-xl bg-warm-light flex items-center justify-center shrink-0">
+                      <Globe className="w-6 h-6 text-primary" />
+                    </motion.div>
+                    <div>
+                      <h3 className="font-display font-bold text-lg text-foreground">9 countries, growing fast</h3>
+                      <p className="text-muted-foreground mt-1">We partner with shelters across 9 countries and keep expanding the rescue network.</p>
+                    </div>
+                  </motion.div>
+                </div>
+
+                <motion.a
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.97 }}
+                  href="/packs"
+                  className="portrait-btn-primary mt-8 inline-flex items-center justify-center px-8 py-4 text-lg font-bold"
+                >
+                  Support Shelter Cats
+                </motion.a>
+              </motion.div>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-24 bg-background relative overflow-hidden" id="reviews">
+          <PawPrint className="absolute top-12 left-[6%] w-8 h-8 text-primary/[0.05] rotate-[-20deg]" />
+          <PawPrint className="absolute top-20 right-[8%] w-7 h-7 text-primary/[0.04] rotate-[20deg]" />
+          <PawPrint className="absolute bottom-16 left-[10%] w-6 h-6 text-primary/[0.04] rotate-[30deg]" />
+          <CatSilhouette className="absolute bottom-6 right-[4%] w-24 h-20 text-primary/[0.03]" />
+
+          <div className="container mx-auto px-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center max-w-2xl mx-auto mb-4"
+            >
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-primary uppercase tracking-wider">
+                <PawPrint className="w-4 h-4 text-primary/70" />
+                Testimonials
+              </span>
+              <h2 className="font-display font-bold text-5xl md:text-6xl text-foreground mt-3">
+                Loved by <span className="text-gradient">10,000+</span> cat parents
+              </h2>
+              <p className="text-muted-foreground mt-4 text-lg">
+                Join a global community of cat lovers who immortalize, care for, and play with their cats while saving strays.
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="flex items-center justify-center gap-2 mb-12"
+            >
+              <div className="flex">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-5 h-5 text-primary fill-primary" />
+                ))}
+              </div>
+              <span className="font-display font-bold text-foreground">4.9/5</span>
+              <span className="text-muted-foreground text-sm">from 2,400+ reviews</span>
+            </motion.div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {testimonials.map((testimonial, i) => (
+                <motion.div
+                  key={testimonial.name}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.08 }}
+                  className="bg-card border border-border rounded-2xl p-6 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 cursor-default"
+                >
+                  <div className="flex items-center gap-1 mb-3">
+                    {[...Array(testimonial.rating)].map((_, j) => (
+                      <Star key={j} className="w-4 h-4 text-primary fill-primary" />
+                    ))}
+                  </div>
+                  <p className="text-foreground leading-relaxed mb-4">&quot;{testimonial.text}&quot;</p>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{testimonial.avatar}</span>
+                      <div>
+                        <p className="font-display font-semibold text-sm text-foreground">{testimonial.name}</p>
+                        <p className="text-xs text-muted-foreground">{testimonial.location}</p>
+                      </div>
+                    </div>
+                    <span className="text-xs bg-warm-light text-primary px-2 py-1 rounded-full font-medium whitespace-nowrap">
+                      {testimonial.tag}
+                    </span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="py-24 bg-cream relative overflow-hidden">
+          <PawPrint className="absolute top-12 left-[6%] w-7 h-7 text-primary/[0.06] rotate-[-25deg]" />
+          <PawPrint className="absolute top-20 right-[10%] w-8 h-8 text-primary/[0.05] rotate-[20deg]" />
+          <PawPrint className="absolute bottom-16 right-[8%] w-6 h-6 text-primary/[0.04] rotate-[35deg]" />
+
+          <div className="container mx-auto px-6 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center max-w-2xl mx-auto mb-16"
+            >
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-primary uppercase tracking-wider">
+                <Star className="w-4 h-4" /> Quest Log <Star className="w-4 h-4" />
+              </span>
+              <h2 className="font-display font-bold text-5xl md:text-6xl text-foreground mt-3">
+                Your adventure <span className="text-gradient">begins here.</span>
+              </h2>
+            </motion.div>
+
+            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto relative">
+              <div className="hidden md:block absolute top-1/2 left-[18%] right-[18%] h-0.5 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 -translate-y-1/2 z-0" />
+
+              {quests.map((quest, i) => (
+                <motion.a
+                  key={quest.step}
+                  href={i === 0 ? "/portrait" : "/gaming"}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  whileHover={{ y: -8, transition: { duration: 0.25 } }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.15 }}
+                  className="relative z-10 bg-card border border-border rounded-2xl p-6 group hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300"
+                >
+                  <span
+                    className={`absolute -top-3 right-4 text-[10px] font-display font-bold uppercase tracking-wider px-3 py-1 rounded-full ${
+                      quest.status === "EPIC"
+                        ? "bg-gradient-to-r from-primary to-warm-dark text-primary-foreground"
+                        : "bg-secondary text-primary"
+                    }`}
+                  >
+                    {quest.status}
+                  </span>
+
+                  <motion.div
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    transition={{ type: "spring", stiffness: 400 }}
+                    className="w-14 h-14 rounded-xl bg-warm-light flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300"
+                  >
+                    <quest.icon className="w-6 h-6 text-primary group-hover:text-primary-foreground transition-colors duration-300" />
+                  </motion.div>
+
+                  <p className="text-xs font-display font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                    Quest {quest.step} · {quest.subtitle}
+                  </p>
+                  <h3 className="font-display font-bold text-xl text-foreground mb-2">{quest.title}</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed mb-4">{quest.description}</p>
+
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1 bg-warm-light text-primary px-3 py-1 rounded-full text-xs font-display font-bold">
+                      <Star className="w-3 h-3 fill-primary" />
+                      {quest.reward}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
+                  </div>
+                </motion.a>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="py-24 bg-background relative overflow-hidden" id="faq">
+          <PawPrint className="absolute top-10 left-[8%] w-7 h-7 text-primary/[0.05] rotate-[-15deg]" />
+          <PawPrint className="absolute bottom-14 right-[7%] w-8 h-8 text-primary/[0.04] rotate-[18deg]" />
+          <Whiskers className="absolute top-[35%] right-[3%] w-16 h-6 text-primary/[0.06]" />
+
+          <div className="container mx-auto px-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center max-w-2xl mx-auto mb-16"
+            >
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-primary uppercase tracking-wider">
+                <PawPrint className="w-4 h-4 text-primary/70" />
+                FAQ
+              </span>
+              <h2 className="font-display font-bold text-5xl md:text-6xl text-foreground mt-3">Got questions?</h2>
+              <p className="text-muted-foreground mt-4 text-lg">Everything you need to know about Token Tails.</p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="max-w-3xl mx-auto space-y-3"
+            >
+              {faqs.map((faq, index) => {
+                const isOpen = openFaqIndex === index;
+                return (
+                  <div
+                    key={faq.question}
+                    className={`bg-card border rounded-2xl px-6 transition-all duration-300 ${
+                      isOpen
+                        ? "border-primary/30 shadow-md shadow-primary/5"
+                        : "border-border hover:border-primary/20"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                      className="w-full py-5 flex items-center justify-between gap-4 font-display font-semibold text-left text-foreground"
+                      aria-expanded={isOpen}
+                      aria-controls={`faq-${index}`}
+                    >
+                      <span>{faq.question}</span>
+                      <ChevronRight className={`w-4 h-4 shrink-0 transition-transform ${isOpen ? "rotate-90" : ""}`} />
+                    </button>
+                    {isOpen && (
+                      <p id={`faq-${index}`} className="text-muted-foreground leading-relaxed pb-5">
+                        {faq.answer}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </motion.div>
+          </div>
+        </section>
+
+        <section className="py-32 bg-charcoal relative overflow-hidden">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-[600px] h-[600px] rounded-full bg-primary/10 blur-[120px]" />
+          </div>
+
+          <PawPrint className="absolute top-16 left-[8%] w-10 h-10 text-primary-foreground/[0.04] rotate-[-20deg]" />
+          <PawPrint className="absolute top-28 right-[12%] w-8 h-8 text-primary-foreground/[0.03] rotate-[15deg]" />
+          <PawPrint className="absolute bottom-20 left-[15%] w-7 h-7 text-primary-foreground/[0.04] rotate-[30deg]" />
+          <PawPrint className="absolute bottom-16 right-[10%] w-9 h-9 text-primary-foreground/[0.03] rotate-[-25deg]" />
+          <Whiskers className="absolute top-[40%] left-[3%] w-24 h-10 text-primary-foreground/[0.04] rotate-[-5deg]" />
+          <Whiskers className="absolute bottom-[35%] right-[3%] w-20 h-8 text-primary-foreground/[0.03] rotate-[5deg]" />
+
+          <div className="container mx-auto px-6 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center max-w-3xl mx-auto"
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                whileInView={{ scale: 1, opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ type: "spring", stiffness: 200 }}
+                className="inline-flex items-center gap-2 bg-primary/20 border border-primary/30 text-primary px-4 py-2 rounded-full text-sm font-display font-bold mb-6"
+              >
+                Level Up Your Cat
+              </motion.div>
+              <h2 className="font-display font-bold text-5xl md:text-6xl text-primary-foreground leading-tight">
+                Ready to start
+                <br />
+                your adventure?
+              </h2>
+              <p className="text-primary-foreground/60 mt-5 text-lg max-w-xl mx-auto">
+                Join 10K+ cat heroes creating portraits, conquering quests, and saving real shelter cats worldwide.
+              </p>
+              <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+                <motion.a
+                  whileHover={{ scale: 1.07, boxShadow: "0 0 50px hsl(28 92% 53% / 0.3)" }}
+                  whileTap={{ scale: 0.96 }}
+                  href="/portrait"
+                  className="portrait-btn-primary inline-flex items-center justify-center px-10 py-4 text-lg font-bold"
+                >
+                  Create Portrait Now
+                </motion.a>
+                <motion.a
+                  whileHover={{ scale: 1.05, borderColor: "rgba(255,255,255,0.4)" }}
+                  whileTap={{ scale: 0.96 }}
+                  href="https://apps.apple.com/app/id6745582489"
+                  className="portrait-btn-dark inline-flex items-center justify-center px-8 py-4 text-lg font-bold"
+                >
+                  Download App
+                </motion.a>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+
+        <footer className="bg-charcoal border-t border-primary-foreground/10 py-12">
+          <div className="container mx-auto px-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-2">
+                <img src={ASSETS.logo} alt="Token Tails" className="h-6 w-auto" />
+              </div>
+
+              <div className="flex items-center gap-6 flex-wrap justify-center">
+                <a href="https://x.com/tokentails" className="text-primary-foreground/50 hover:text-primary-foreground text-sm transition-colors">Twitter</a>
+                <a href="https://instagram.com/tokentails" className="text-primary-foreground/50 hover:text-primary-foreground text-sm transition-colors">Instagram</a>
+                <a href="https://tiktok.com/@tokentails" className="text-primary-foreground/50 hover:text-primary-foreground text-sm transition-colors">TikTok</a>
+                <a href="https://discord.gg/4FVYmnd7Hg" className="text-primary-foreground/50 hover:text-primary-foreground text-sm transition-colors">Discord</a>
+                <a href="https://t.me/+ofyPNIfNX5w4ZjM8" className="text-primary-foreground/50 hover:text-primary-foreground text-sm transition-colors">Telegram</a>
+              </div>
+
+              <p className="text-primary-foreground/30 text-sm">© {currentYear} Token Tails. All rights reserved.</p>
+            </div>
+          </div>
+        </footer>
       </div>
     </>
   );

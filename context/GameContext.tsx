@@ -20,6 +20,8 @@ import { QuestsModal } from "@/components/shared/QuestsModal";
 import { SupportModal } from "@/components/shared/SupportModal";
 import { TelegramProfile } from "@/components/shared/TelegramProfile";
 import { GameModal, GameType } from "@/models/game";
+import { buildCatnipProfilePatch } from "@/constants/catnip-accounting";
+import { useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { useProfile } from "./ProfileContext";
@@ -41,9 +43,9 @@ type ContextState = {
 
 const GameContext = React.createContext<ContextState | undefined>(undefined);
 
-const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
+const GameProvider = ({ children }: React.PropsWithChildren<object>) => {
   const [isStarted, setIsStarted] = useState<boolean>(false);
-  const [gameType, setGameType] = useState<GameType | null>(null);
+  const [gameType, setCurrentGameType] = useState<GameType | null>(null);
   const [openedModal, setOpenedModal] = useState<GameModal | null>(null);
   const [gameStop, setGameStop] = useState<null | IGameStopEvent>(null);
   const [level, setLevel] = useState<string | null>(null);
@@ -51,6 +53,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
+  const queryClient = useQueryClient();
   const [notifications, setNotifications] = useState<IToast[]>([]);
 
   const addNotification = (notification: IToast) => {
@@ -68,13 +71,14 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
     }
   }, [notifications]);
 
-  useEffect(() => {
-    if (gameType === null) {
+  const setGameType = (nextGameType: GameType | null) => {
+    setCurrentGameType(nextGameType);
+    if (nextGameType === null) {
       setLevel(null);
       setIsStarted(false);
       setProgress(0);
     }
-  }, [gameType]);
+  };
 
   const gameProgressUpdateCallback = (
     event?: ICatEventsDetails[GameEvent.GAME_PROGRESS_UPDATE],
@@ -88,47 +92,73 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   const gameStopCallback = React.useCallback(
     async (event?: ICatEventsDetails[GameEvent.GAME_STOP]) => {
-      if (!profile || !event) return;
+      if (!profile || !event || !gameType) return;
 
-      const earnedScore =
-        gameType === GameType.CATNIP_CHAOS || GameType.PIXEL_RESCUE
-          ? event.score
-          : event.score || 0;
+      const earnedCatnip = Number(event.catnipEarned ?? event.score ?? 0);
+      const rawScore = Number(event.rawScore ?? event.score ?? 0);
 
       setIsStarted(false);
 
       setGameStop({
-        score: earnedScore,
+        score: earnedCatnip,
         time: event.time ?? 0,
         completedLevel: event.completedLevel ?? null,
+        rawScore,
+        catnipEarned: earnedCatnip,
       });
 
-      let catnipChaos = profile.catnipChaos;
       const result = await USER_API.saveMatch({
-        points: earnedScore,
+        points: earnedCatnip,
+        score: gameType === GameType.MATCH_3 ? rawScore : undefined,
         time: event.time ?? 0,
-        type: gameType!,
-        level: level!,
+        type: gameType,
+        level: level || undefined,
       });
+
+      if (result === null) {
+        if (gameType === GameType.CATNIP_CHAOS) {
+          showToast({ message: "You run out of lives ):" });
+        }
+        if (gameType === GameType.MATCH_3) {
+          showToast({ message: "Paw Match score was not saved. Please try again." });
+        }
+        return;
+      }
+
+      const catnipPatch = buildCatnipProfilePatch({
+        catnipChaos: result?.catnipChaos ?? profile.catnipChaos ?? [],
+        match3: result?.match3 ?? profile.match3 ?? [],
+      });
+
       if (gameType === GameType.PIXEL_RESCUE) {
         setProfileUpdate({
+          ...catnipPatch,
           seasonEvent: result?.seasonEvent || profile.seasonEvent || [],
           seasonEventCount:
             result?.seasonEventCount || profile.seasonEventCount || 0,
         });
       }
       if (gameType === GameType.CATNIP_CHAOS) {
-        catnipChaos = result?.catnipChaos || profile.catnipChaos || [];
-        if (result === null) {
-          showToast({ message: "You run out of lives ):" });
-        }
         setProfileUpdate({
-          catnipChaos,
-          catnipCount: result.catnipCount || profile.catnipCount + 1,
+          ...catnipPatch,
+        });
+      }
+      if (gameType === GameType.MATCH_3) {
+        setProfileUpdate({
+          ...catnipPatch,
+          match3Score: result?.match3Score ?? profile.match3Score ?? [],
+          match3ScoreCount:
+            result?.match3ScoreCount ?? profile.match3ScoreCount ?? 0,
+        });
+        void queryClient.invalidateQueries({
+          queryKey: ["paw-match-level-leaderboard"],
+        });
+        void queryClient.invalidateQueries({
+          queryKey: ["paw-match-level-position"],
         });
       }
     },
-    [profile, gameType, level],
+    [profile, gameType, level, setProfileUpdate, showToast, queryClient],
   );
 
   GameEvents.GAME_STOP.use(gameStopCallback);
@@ -192,6 +222,12 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
         setLevel(nextLevel);
         setIsStarted(true);
       }, 200);
+    } else if (gameType === GameType.MATCH_3 && level) {
+      setLevel(null);
+      setTimeout(() => {
+        setLevel(level);
+        setIsStarted(true);
+      }, 200);
     } else {
       GameEvents.GAME_START.push({ cat: profile?.cat, isRestart: true });
     }
@@ -231,6 +267,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<{}>) => {
           <Notification notifications={notifications} />
           <MobileButtons
             isHidden={
+              gameType === GameType.MATCH_3 ||
               !(isStarted && gameType !== GameType.CATNIP_CHAOS) &&
               !(isStarted && gameType !== GameType.PIXEL_RESCUE) &&
               gameType !== GameType.SHELTER &&

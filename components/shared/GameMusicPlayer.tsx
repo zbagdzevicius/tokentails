@@ -12,6 +12,8 @@ const gameMusicMap: Record<GameType, string> = {
     "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3",
   [GameType.PIXEL_RESCUE]:
     "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3",
+  [GameType.MATCH_3]:
+    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3",
 };
 
 export const GameMusicPlayer = () => {

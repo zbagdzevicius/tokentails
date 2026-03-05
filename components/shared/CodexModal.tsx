@@ -14,7 +14,7 @@ export const CodexModal = ({ close }: { close: () => void }) => {
     <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center h-full">
       <div
         onClick={close}
-        className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
+        className="z-40 h-full w-full absolute inset-0 bg-yellow-300/50 md:backdrop-blur-md animate-in fade-in duration-300"
       ></div>
       <div className="m-auto z-50 w-full md:w-[96vw] xl:w-[95vw] md:max-w-[1460px] bg-gradient-to-b from-yellow-800 to-yellow-300 max-h-screen overflow-y-auto md:rounded-xl shadow h-fit md:border-4 border-yellow-300 glow-box">
         <CloseButton onClick={() => close()} />

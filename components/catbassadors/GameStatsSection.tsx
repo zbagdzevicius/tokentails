@@ -3,7 +3,10 @@ import { useGame } from "@/context/GameContext";
 import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
 import { useState } from "react";
-import { totalCatnip } from "../Phaser/map";
+import {
+  getCatnipBreakdown,
+  TOTAL_CATNIP_CAP,
+} from "@/constants/catnip-accounting";
 interface IGameStat {
   title: string;
   image: string;
@@ -43,6 +46,10 @@ export const GameStatsSection = ({
 }) => {
   const [modal, setModal] = useState<null | string>(null);
   const { gameType } = useGame();
+  const catnipBreakdown = getCatnipBreakdown({
+    catnipChaos: profile?.catnipChaos,
+    match3: profile?.match3,
+  });
 
   if (!profile) {
     return <></>;
@@ -95,8 +102,7 @@ export const GameStatsSection = ({
             <div>CATNIP</div>
           </div>
           <div className="flex items-center text-p6 bg-green-300/50 border border-yellow-900 rounded-lg w-full justify-center">
-            {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0} /{" "}
-            {totalCatnip}
+            {catnipBreakdown.totalCount} / {TOTAL_CATNIP_CAP}
           </div>
         </div>
         <div className="flex flex-col items-center ">
@@ -104,7 +110,7 @@ export const GameStatsSection = ({
             <div
               onClick={() => setOpenedModal(GameModal.CODEX)}
               style={bgStyle("min-4")}
-              className="group w-16 flex flex-col items-center font-primary text-p2 transition-all duration-300 hover:scale-110 px-1 py-0.5 rounded-2xl relative border-4 border-yellow-900 overflow-hidden cursor-pointer shadow-[0_6px_0_0_rgba(120,53,15,0.25)]"
+              className="group w-20 flex flex-col items-center font-primary text-p2 transition-all duration-300 hover:scale-110 px-1 py-0.5 rounded-xl relative border-4 border-yellow-900 overflow-hidden cursor-pointer shadow-[0_6px_0_0_rgba(120,53,15,0.25)]"
             >
               <img
                 src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}

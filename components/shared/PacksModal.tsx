@@ -3,15 +3,19 @@ import { Countdown } from "@/components/shared/Countdown";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { Tag } from "@/components/shared/Tag";
 import { TailsCardPack } from "@/components/tailsCard/TailsCardPack";
-import { Payment } from "@/components/web3/Payment";
-import { Web3Providers } from "@/components/web3/Web3Providers";
 import { cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { ICat, IMessage } from "@/models/cats";
 import { PackType } from "@/models/order";
 import { EntityType } from "@/models/save";
+import dynamic from "next/dynamic";
 import { useState } from "react";
+
+const Payment = dynamic(
+  () => import("@/components/web3/Payment").then((module) => module.Payment),
+  { ssr: false }
+);
 
 const endDate = new Date("2026-02-15");
 
@@ -302,31 +306,29 @@ bg-clip-text text-transparent -mt-4 relative z-30"
 
 export const PacksModal = ({ close }: { close?: () => void }) => {
   return (
-    <Web3Providers>
+    <div
+      className="fixed inset-0 mt-safe w-full z-[100] flex justify-center h-full"
+      style={{
+        backgroundImage: `url(${cdnFile("landing/card-bg.webp")})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
       <div
-        className="fixed inset-0 mt-safe w-full z-[100] flex justify-center h-full"
-        style={{
-          backgroundImage: `url(${cdnFile("landing/card-bg.webp")})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        }}
-      >
-        <div
-          onClick={close}
-          className="z-40 h-full w-full absolute inset-0 opacity-50"
-        ></div>
-        <div className="m-auto z-50 max-w-full w-full absolute inset-0 max-h-screen overflow-y-auto">
-          {close && <CloseButton onClick={() => close?.()} />}
-          <PacksModalContent close={close} />
-          <div className="fixed z-0 bottom-0 left-1/2 -translate-x-1/2">
-            <img
-              src={cdnFile("cards/packs/packs-bg.webp")}
-              className="rem:w-[1000px] max-w-none"
-            />
-          </div>
+        onClick={close}
+        className="z-40 h-full w-full absolute inset-0 opacity-50"
+      ></div>
+      <div className="m-auto z-50 max-w-full w-full absolute inset-0 max-h-screen overflow-y-auto">
+        {close && <CloseButton onClick={() => close?.()} />}
+        <PacksModalContent close={close} />
+        <div className="fixed z-0 bottom-0 left-1/2 -translate-x-1/2">
+          <img
+            src={cdnFile("cards/packs/packs-bg.webp")}
+            className="rem:w-[1000px] max-w-none"
+          />
         </div>
       </div>
-    </Web3Providers>
+    </div>
   );
 };

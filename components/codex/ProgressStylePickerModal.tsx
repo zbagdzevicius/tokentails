@@ -81,7 +81,7 @@ export const ProgressStylePickerModal = ({
                   type="button"
                   aria-label="Close style picker"
                   onClick={() => setOpen(false)}
-                  className="fixed inset-0 z-[230] bg-black/80"
+                  className="fixed inset-0 z-[230] bg-black/80 md:backdrop-blur-md"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}

@@ -5,7 +5,6 @@ import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
 import { TailsCard } from "./TailsCard";
-import { cdnFile } from "@/constants/utils";
 
 interface IProps extends ICat {
   onClose?: () => void;
@@ -58,16 +57,11 @@ export const TailsCardModal: React.FC<IProps> = ({
     new Date(catData.staked).getTime() < new Date().getTime();
 
   return (
-    <div
-      className="flex justify-center w-full h-full fixed top-0 left-0 z-[101]"
-      style={{
-        backgroundImage: `url(${cdnFile("landing/card-bg.webp")})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }}
-    >
-      <div className="absolute inset-0 z-0" onClick={() => onClose?.()}></div>
+    <div className="flex justify-center w-full h-full fixed top-0 left-0 z-[101]">
+      <div
+        className="absolute inset-0 z-0 bg-yellow-300/50 md:backdrop-blur-md animate-in fade-in duration-300"
+        onClick={() => onClose?.()}
+      ></div>
       <CloseButton absolute onClick={() => onClose?.()} />
 
       <div className="relative z-10 flex flex-col md:flex-row items-center justify-center h-full lg:gap-8 p-4">

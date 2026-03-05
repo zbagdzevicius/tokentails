@@ -40,20 +40,30 @@ export const PixelButton = ({
       click: new Audio(cdnFile("audio/button/click-close.wav")),
       hover: new Audio(cdnFile("audio/button/modern-mix.wav")),
     };
-    audioCache.click.volume = 0.5;
+    audioCache.click.volume = 0.04;
     audioCache.hover.volume = 0.5;
     audioRefs.current = audioCache;
   }, []);
 
   const handleClick = () => {
     if (isDisabled) return;
-    audioRefs.current.click?.play();
-    if (onClick) onClick();
+    onClick?.();
+    try {
+      const playPromise = audioRefs.current.click?.play();
+      if (playPromise) {
+        void playPromise.catch(() => {});
+      }
+    } catch {}
   };
 
   useEffect(() => {
     if (hovering && !isDisabled) {
-      audioRefs.current.hover?.play();
+      try {
+        const playPromise = audioRefs.current.hover?.play();
+        if (playPromise) {
+          void playPromise.catch(() => {});
+        }
+      } catch {}
     }
   }, [hovering, isDisabled]);
 

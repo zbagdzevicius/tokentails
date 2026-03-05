@@ -7,7 +7,10 @@ import { GameModal } from "@/models/game";
 import { IProfile } from "@/models/profile";
 import { useMutation } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
-import { totalCatnip } from "../Phaser/map";
+import {
+  getCatnipBreakdown,
+  TOTAL_CATNIP_CAP,
+} from "@/constants/catnip-accounting";
 import { CloseButton } from "./CloseButton";
 import { GameMusicToggle } from "./GameMusicToggler";
 import { PixelButton } from "./PixelButton";
@@ -178,6 +181,10 @@ const ProfileUpdate = () => {
 
 export const TelegramProfileContent = () => {
   const { profile, logout, isFB } = useProfile();
+  const catnipBreakdown = getCatnipBreakdown({
+    catnipChaos: profile?.catnipChaos,
+    match3: profile?.match3,
+  });
   const [isWalletsRevealed, setIsWalletsRevealed] = useState(false);
   const [isDeleteRequestModalOpen, setIsDeleteRequestModalOpen] =
     useState(false);
@@ -241,8 +248,7 @@ export const TelegramProfileContent = () => {
                   <div>CATNIP</div>
                 </div>
                 <div className="flex items-center text-p6 bg-green-300/50 border border-yellow-900 rounded-lg w-full justify-center">
-                  {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0} /{" "}
-                  {totalCatnip}
+                  {catnipBreakdown.totalCount} / {TOTAL_CATNIP_CAP}
                 </div>
               </div>
               <div className="flex flex-col items-center gap-x-2">
@@ -435,7 +441,7 @@ export const TelegramProfile = ({ close }: { close: () => void }) => {
     <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center h-full mb-2">
       <div
         onClick={close}
-        className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
+        className="z-40 h-full w-full absolute inset-0 bg-yellow-300/50 md:backdrop-blur-md animate-in fade-in duration-300"
       ></div>
       <div
         className="m-auto z-50 rem:w-[400px] md:w-[600px] max-w-full lg:top-1/2 lg:-translate-y-1/2 lg:h-fit lg:absolute overflow-y-auto max-h-screen rounded-xl shadow border-4 border-yellow-300 glow-box"

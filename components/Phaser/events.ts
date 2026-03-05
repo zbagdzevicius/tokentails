@@ -32,6 +32,8 @@ export interface IGameStopEvent {
   score: number;
   time: number;
   completedLevel?: string | null;
+  rawScore?: number;
+  catnipEarned?: number;
 }
 
 interface IGameUpdateEvent {

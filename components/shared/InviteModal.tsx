@@ -65,7 +65,7 @@ export const InviteModal = ({ close }: { close: () => void }) => {
     <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center max-h-screen h-full">
       <div
         onClick={close}
-        className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
+        className="z-40 h-full w-full absolute inset-0 bg-yellow-300/50 md:backdrop-blur-md animate-in fade-in duration-300"
       ></div>
       <div
         className="m-auto z-50 w-full md:w-[480px] max-w-full absolute top-1/2 -translate-y-1/2 h-full md:rounded-xl shadow max-h-screen overflow-y-auto md:border-4 border-yellow-300 glow-box"

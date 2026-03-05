@@ -58,6 +58,54 @@ const leaderboardCatnip = async (): Promise<IProfile[]> => {
     .then();
 };
 
+const leaderboardPawMatchLevel = async (
+  level: string,
+  top: number = 120,
+): Promise<
+  Array<{
+    _id: string;
+    name: string;
+    levelScore: number;
+    match3ScoreCount: number;
+  }>
+> => {
+  return fetch(`${apiUrl}/user/leaderboard/paw-match/${level}?top=${top}`, {
+    method: "GET",
+    headers: baseHeaders,
+  })
+    .then((response) => {
+      if (response.ok) {
+        return response.json();
+      }
+
+      console.warn(JSON.stringify(response));
+      return [];
+    })
+    .then();
+};
+
+const leaderboardPawMatchLevelPosition = async (
+  level: string,
+): Promise<{
+  position: number | null;
+  levelScore: number;
+  match3ScoreCount: number;
+}> => {
+  return fetch(`${apiUrl}/user/leaderboard/paw-match/${level}/position`, {
+    method: "GET",
+    headers: authHeaders(),
+  })
+    .then((response) => {
+      if (response.ok) {
+        return response.json();
+      }
+
+      console.warn(JSON.stringify(response));
+      return { position: null, levelScore: 0, match3ScoreCount: 0 };
+    })
+    .then();
+};
+
 const leaderboardPosition = async (): Promise<number> => {
   return fetch(`${apiUrl}/user/leaderboard/position`, {
     method: "GET",
@@ -224,6 +272,8 @@ export const USER_API = {
   profile,
   leaderboard,
   leaderboardCatnip,
+  leaderboardPawMatchLevel,
+  leaderboardPawMatchLevelPosition,
   leaderboardPosition,
   leaderboardCatnipPosition,
   saveProfileTwitter,

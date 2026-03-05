@@ -182,7 +182,7 @@ export const WheelModal: React.FC<WheelModalProps> = ({
     <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center items-center h-full">
       <div
         onClick={handleClose}
-        className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
+        className="z-40 h-full w-full absolute inset-0 bg-yellow-300/50 md:backdrop-blur-md animate-in fade-in duration-300"
       ></div>
 
       <div

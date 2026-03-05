@@ -31,7 +31,6 @@ export const PixelRescueEndGameModal: React.FC<EndGameProps> = ({
   onClose,
   tryAgain,
   gameStop,
-  gameType,
 }) => {
   const { profile } = useProfile();
   const { level } = useGame();
@@ -40,15 +39,15 @@ export const PixelRescueEndGameModal: React.FC<EndGameProps> = ({
     <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center h-full">
       <div
         onClick={onClose}
-        className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
+        className="z-40 h-full w-full absolute inset-0 bg-yellow-300/50 md:backdrop-blur-md animate-in fade-in duration-300"
       ></div>
 
       <div
-        className="m-auto z-50 rem:w-[350px] font-secondary md:w-[480px] flex flex-col md:flex-row max-w-full absolute top-1/2 -translate-y-1/2 rounded-lg shadow h-fit animate-opacity border-4 border-yellow-300 glow-box"
+        className="m-auto z-50 rem:w-[350px] font-secondary md:w-[520px] flex flex-col md:flex-row max-w-full absolute top-1/2 -translate-y-1/2 rounded-lg shadow h-fit animate-opacity border-4 border-yellow-300 glow-box overflow-hidden"
         style={bgStyle("4")}
       >
         <CloseButton onClick={onClose} absolute />
-        <div className="p-6 md:py-4 flex items-center justify-center flex-col gap-1">
+        <div className="p-6 md:py-4 md:pr-2 flex items-center justify-center flex-col gap-1">
           <div className="flex">
             <img
               src={cdnFile("meme-cats/meme-48.gif")}
@@ -92,11 +91,9 @@ export const PixelRescueEndGameModal: React.FC<EndGameProps> = ({
             </div>
           )}
         </div>
-        <div className="flex flex-col items-center justify-center gap-2 pb-4 md:pb-0">
-          <span className="-mt-4 md:-mb-8 md:mt-6">
-            <PixelButton text="MEOW BACK" isSmall onClick={onClose} />
-          </span>
+        <div className="flex w-full flex-col items-center justify-end gap-3 px-4 pb-4 pt-2 md:w-[220px] md:justify-center md:gap-2 md:pb-4 md:pt-14">
           <PixelButton text="PLAY AGAIN" onClick={tryAgain} />
+          <PixelButton text="MEOW BACK" isSmall onClick={onClose} />
         </div>
       </div>
     </div>

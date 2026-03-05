@@ -1,4 +1,8 @@
 import { QUEST_API } from "@/api/quest-api";
+import {
+  CATNIP_CHAOS_TOTAL_CAP,
+  getCatnipBreakdown,
+} from "@/constants/catnip-accounting";
 import { cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
@@ -8,7 +12,6 @@ import {
   catnipChaosChapterBGImage,
   CatnipChaosLevelMap,
   catnipChaosLevelsList,
-  totalCatnip,
 } from "../Phaser/map";
 import { PixelButton } from "../shared/PixelButton";
 import { TrailheadsData } from "../shared/QuestsModal";
@@ -85,8 +88,12 @@ export const CatnipChaosLevels = ({
 }) => {
   const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
-  const unlockedLevels = [...(profile?.catnipChaos || [])].filter(
-    (level) => level > 0
+  const catnipBreakdown = getCatnipBreakdown({
+    catnipChaos: profile?.catnipChaos,
+    match3: profile?.match3,
+  });
+  const unlockedLevels = catnipBreakdown.catnipChaos.filter(
+    (level) => level > 0,
   ).length;
 
   const selectLevel = (level: string, index: number) => {
@@ -130,8 +137,7 @@ export const CatnipChaosLevels = ({
             <div>CATNIP</div>
           </div>
           <div className="flex items-center text-p5 bg-green-300/50 border border-yellow-900 rounded-lg w-full justify-center">
-            {profile?.catnipChaos?.reduce((a, b) => a + b, 0) || 0} /{" "}
-            {totalCatnip}
+            {catnipBreakdown.catnipChaosCount} / {CATNIP_CHAOS_TOTAL_CAP}
           </div>
         </div>
 
@@ -145,7 +151,7 @@ export const CatnipChaosLevels = ({
             <div>COMPLETED</div>
           </div>
           <div className="flex items-center text-p5 bg-yellow-900/20 border border-yellow-900 rounded-lg w-full justify-center">
-            {profile?.catnipChaos?.length || 0}
+            {unlockedLevels}
             <span>/{Object.keys(CatnipChaosLevelMap).length}</span>
           </div>
         </div>
@@ -166,7 +172,7 @@ export const CatnipChaosLevels = ({
         </div>
         <span className="font-primary text-p6 flex items-center">
           <img src={cdnFile("logo/catnip.webp")} className="w-4 h-4 mr-1" />
-          <span className="">{profile?.catnipChaos?.[0] || 0} / 420</span>
+          <span className="">{catnipBreakdown.catnipChaos?.[0] || 0} / 420</span>
         </span>
       </div>
 
@@ -223,7 +229,7 @@ export const CatnipChaosLevels = ({
                     className="w-4 h-4 mr-1"
                   />
                   <span className="">
-                    {profile?.catnipChaos?.[i + 1] || 0} / 10
+                    {catnipBreakdown.catnipChaos?.[i + 1] || 0} / 10
                   </span>
                 </span>
                 {!!levelCharacter[level] && (

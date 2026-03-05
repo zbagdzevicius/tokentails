@@ -1,6 +1,5 @@
 import { PacksModal } from "@/components/shared/PacksModal";
 import { cdnFile } from "@/constants/utils";
-import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import Head from "next/head";
 
 export default function Packs() {
@@ -20,9 +19,7 @@ export default function Packs() {
         />
         <link rel="shortcut icon" href={cdnFile("logo/coin.webp")} />
       </Head>
-      <FirebaseAuthProvider>
-        <PacksModal />
-      </FirebaseAuthProvider>
+      <PacksModal />
     </>
   );
 }

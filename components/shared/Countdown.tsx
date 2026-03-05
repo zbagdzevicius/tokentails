@@ -22,19 +22,36 @@ export const Countdown = ({
 
   useEffect(() => {
     const targetCountdownDate = new Date(targetDate).getTime();
+    let intervalId: ReturnType<typeof setInterval> | null = null;
 
     function updateCountdown() {
       const now = new Date().getTime();
       const distance = targetCountdownDate - now;
 
       if (distance < 0) {
-        setTimeValues({
-          days: "00",
-          hours: "00",
-          minutes: "00",
-          seconds: "00",
+        setTimeValues((prev) => {
+          const isAlreadyZero =
+            prev.days === "00" &&
+            prev.hours === "00" &&
+            prev.minutes === "00" &&
+            prev.seconds === "00";
+
+          if (isAlreadyZero) {
+            return prev;
+          }
+
+          return {
+            days: "00",
+            hours: "00",
+            minutes: "00",
+            seconds: "00",
+          };
         });
+
         if (onEnd) onEnd();
+        if (intervalId) {
+          clearInterval(intervalId);
+        }
         return;
       }
 
@@ -56,9 +73,13 @@ export const Countdown = ({
       setTimeValues({ days, hours, minutes, seconds });
     }
 
-    const interval = setInterval(updateCountdown, 1000);
+    intervalId = setInterval(updateCountdown, 1000);
     updateCountdown();
-    return () => clearInterval(interval);
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
   }, [targetDate, onEnd]);
 
   return (

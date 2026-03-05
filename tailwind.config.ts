@@ -75,6 +75,17 @@ const config: Config = {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
+        warm: {
+          DEFAULT: "hsl(var(--warm))",
+          light: "hsl(var(--warm-light))",
+          dark: "hsl(var(--warm-dark))",
+        },
+        cream: "hsl(var(--cream))",
+        charcoal: "hsl(var(--charcoal))",
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -100,6 +111,11 @@ const config: Config = {
         brightness: "brightness 3s ease-in-out infinite",
         pulseWeak: "pulseWeak 3s ease-in-out infinite",
         blink: "blink 0.5s ease-in-out infinite",
+        float: "float 6s ease-in-out infinite",
+        "float-delayed": "float-delayed 7s ease-in-out infinite 1s",
+        "gradient-text": "gradient-text var(--speed, 8s) linear infinite",
+        "shiny-text": "shiny-text 8s linear infinite",
+        "shine-border": "shine-border var(--duration, 14s) linear infinite",
       },
       keyframes: {
         "loop-scroll": {
@@ -129,6 +145,26 @@ const config: Config = {
           "25%": { transform: "translateX(-3px) rotate(-1deg)" },
           "50%": { transform: "translateX(3px) rotate(1deg)" },
           "75%": { transform: "translateX(-2px) rotate(-0.5deg)" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0px) rotate(0deg)" },
+          "50%": { transform: "translateY(-20px) rotate(2deg)" },
+        },
+        "float-delayed": {
+          "0%, 100%": { transform: "translateY(0px) rotate(0deg)" },
+          "50%": { transform: "translateY(-15px) rotate(-2deg)" },
+        },
+        "gradient-text": {
+          to: { backgroundPosition: "var(--bg-size, 300%) 0" },
+        },
+        "shiny-text": {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
+        "shine-border": {
+          "0%": { backgroundPosition: "0% 0%" },
+          "50%": { backgroundPosition: "100% 100%" },
+          "100%": { backgroundPosition: "0% 0%" },
         },
         "paw-pulse": {
           "0%": {
@@ -350,6 +386,8 @@ const config: Config = {
       },
     },
     fontFamily: {
+      display: ["Plus Jakarta Sans", "Nunito", "sans-serif"],
+      body: ["Plus Jakarta Sans", "Nunito", "sans-serif"],
       primary: ["Passion One", "sans-serif"],
       secondary: ["Bebas Neue", "sans-serif"],
       tertiary: ["Nunito", "sans-serif"],

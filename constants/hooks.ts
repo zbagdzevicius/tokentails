@@ -1,34 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { cdnFile } from "./utils";
 import { GameType } from "@/models/game";
-
-const bgImages = [
-  `url(${cdnFile("backgrounds/bg-1.webp")})`,
-  `url(${cdnFile("backgrounds/bg-2.webp")})`,
-  `url(${cdnFile("backgrounds/bg-3.webp")})`,
-  `url(${cdnFile("backgrounds/bg-4.webp")})`,
-  `url(${cdnFile("backgrounds/bg-5.webp")})`,
-  `url(${cdnFile("backgrounds/bg-6.webp")})`,
-  `url(${cdnFile("backgrounds/bg-7.webp")})`,
-  `url(${cdnFile("backgrounds/bg-8.webp")})`,
-  `url(${cdnFile("backgrounds/bg-10.webp")})`,
-  `url(${cdnFile("backgrounds/bg-1.webp")})`,
-  `url(${cdnFile("backgrounds/bg-1.webp")})`,
-  `url(${cdnFile("backgrounds/bg-2.webp")})`,
-  `url(${cdnFile("backgrounds/bg-3.webp")})`,
-  `url(${cdnFile("backgrounds/bg-4.webp")})`,
-  `url(${cdnFile("backgrounds/bg-5.webp")})`,
-  `url(${cdnFile("backgrounds/bg-6.webp")})`,
-  `url(${cdnFile("backgrounds/bg-7.webp")})`,
-  `url(${cdnFile("backgrounds/bg-8.webp")})`,
-  `url(${cdnFile("backgrounds/bg-10.webp")})`,
-  `url(${cdnFile("backgrounds/bg-1.webp")})`,
-  `url(${cdnFile("backgrounds/bg-2.webp")})`,
-  `url(${cdnFile("backgrounds/bg-3.webp")})`,
-  `url(${cdnFile("backgrounds/bg-4.webp")})`,
-  `url(${cdnFile("backgrounds/bg-5.webp")})`,
-  `url(${cdnFile("backgrounds/bg-6.webp")})`,
-];
 
 const chaptersBackgroundImages = {
   "0": `url(${cdnFile("backgrounds/bg-10.webp")})`,
@@ -57,6 +29,9 @@ export const useBackground = ({
     if (gameType === GameType.SHELTER) {
       return `url(${cdnFile("backgrounds/bg-10.webp")})`;
     }
+    if (gameType === GameType.MATCH_3) {
+      return `url(${cdnFile("landing/game-bg-2.webp")})`;
+    }
     return null;
   }, [gameType]);
   const bgHour = useMemo(() => {
@@ -75,7 +50,7 @@ export const useBackground = ({
           ]
         : `url(${cdnFile("landing/game-bg-2.webp")})`,
     };
-  }, [level, gameType]);
+  }, [bgImage, level]);
 
   return bgHour;
 };

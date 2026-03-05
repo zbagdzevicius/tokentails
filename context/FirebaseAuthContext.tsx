@@ -196,8 +196,16 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   };
 
   React.useEffect(() => {
-    onAuthStateChanged(auth, onUserChange);
-  }, []);
+    const unsubscribe = onAuthStateChanged(auth, onUserChange);
+
+    return () => {
+      unsubscribe();
+      if (reauthInterval) {
+        clearInterval(reauthInterval);
+        reauthInterval = null;
+      }
+    };
+  }, [onUserChange]);
 
   return (
     <FirebaseAuthContext.Provider value={value}>

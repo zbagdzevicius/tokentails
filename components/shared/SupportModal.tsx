@@ -127,7 +127,7 @@ export const SupportModal = ({ close }: { close: () => void }) => {
     <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center h-full">
       <div
         onClick={close}
-        className="z-40 h-full w-full absolute inset-0 bg-yellow-300 opacity-50"
+        className="z-40 h-full w-full absolute inset-0 bg-yellow-300/50 md:backdrop-blur-md animate-in fade-in duration-300"
       ></div>
       <div className="m-auto z-50 rem:w-[350px] md:w-[480px] max-w-full bg-gradient-to-b from-purple-300 to-blue-300 max-h-screen overflow-y-auto rounded-xl shadow h-fit border-4 border-yellow-300 glow-box">
         <CloseButton onClick={() => close()} />

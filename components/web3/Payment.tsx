@@ -10,6 +10,7 @@ import { StripePayment } from "./StripePayment";
 import { Web3Transfer } from "./transfer/Web3Transfer";
 import { cdnFile } from "@/constants/utils";
 import { IMessage } from "@/models/cats";
+import { Web3Providers } from "./Web3Providers";
 
 type PaymentMethod = "crypto" | "stripe";
 
@@ -335,19 +336,21 @@ export const Payment = ({
 
       {/* Payment Content */}
       {paymentMethod === "crypto" ? (
-        <div className="flex flex-col items-center">
-          <ChainSelect />
-          <Web3Transfer
-            price={discountedPrice}
-            entityType={entityType}
-            id={id}
-            user={user}
-            text={text}
-            loadingText={loadingText}
-            discount={discountCode}
-            onSuccess={onSuccess}
-          />
-        </div>
+        <Web3Providers>
+          <div className="flex flex-col items-center">
+            <ChainSelect />
+            <Web3Transfer
+              price={discountedPrice}
+              entityType={entityType}
+              id={id}
+              user={user}
+              text={text}
+              loadingText={loadingText}
+              discount={discountCode}
+              onSuccess={onSuccess}
+            />
+          </div>
+        </Web3Providers>
       ) : (
         <StripePayment
           price={discountedPrice}

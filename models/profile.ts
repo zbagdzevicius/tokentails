@@ -27,9 +27,14 @@ export interface IProfile {
   score: number;
   wallets: IUserWallets;
   catnipChaos: number[];
+  catnipChaosCount: number;
   catnipCount: number;
   seasonEvent: number[];
   seasonEventCount: number;
+  match3: number[];
+  match3Count: number;
+  match3Score?: number[];
+  match3ScoreCount?: number;
   referralsCount: number;
   quests: (QUEST | string)[];
   monthTails: number;
