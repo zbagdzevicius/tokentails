@@ -1,6 +1,7 @@
 import { ORDER_API } from "@/api/order-api";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
+import { openAppKitModal } from "@/context/web3";
 import { EntityType } from "@/models/save";
 import {
   ChainType,
@@ -8,10 +9,9 @@ import {
   CurrencyType,
   EVM_CHAINS,
   recipientEvm,
-  recipientSolana,
   recipientStellar,
 } from "@/web3/contracts";
-import { chainTypeId, idChainType } from "@/web3/web3-chains";
+import { chainTypeId } from "@/web3/web3-chains";
 import {
   horizonServer,
   stellarKit,
@@ -19,13 +19,6 @@ import {
   wagmiConfig,
 } from "@/web3/web3-config";
 import { ISupportedWallet } from "@creit.tech/stellar-wallets-kit";
-import { useAppKit } from "@reown/appkit/react";
-import {
-  useConnection,
-  useWallet as useSolanaWallet,
-} from "@solana/wallet-adapter-react";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import {
   Asset,
   BASE_FEE,
@@ -59,25 +52,19 @@ export const useWeb3Transfer = ({
   const {
     evmConnected,
     stellarAddress,
-    solanaConnected,
     stellarConnected,
     chainType,
     chainStatusDetail,
     setStellarAddress,
     setStellarConnected,
-    solanaAddress,
     chainId,
     query,
     currencyType,
     setTransactionStatus,
   } = useWeb3();
-  const { setVisible: connectSolana } = useWalletModal();
-  const { sendTransaction: sendSolanaTransaction } = useSolanaWallet();
-  const { connection: solanaConnection } = useConnection();
   const { switchChainAsync } = useSwitchChain({
     config: wagmiConfig as any,
   });
-  const { open } = useAppKit();
   const { sendTransactionAsync, isPending: isTransactionPending } =
     useSendTransaction();
   const toast = useToast();
@@ -88,7 +75,6 @@ export const useWeb3Transfer = ({
     isPending,
   } = useWriteContract();
   const [isStellarPending, setIsStellarPending] = useState(false);
-  const [isSolanaPending, setIsSolanaPending] = useState(false);
 
   const {
     isLoading: isTaxLoading,
@@ -115,8 +101,8 @@ export const useWeb3Transfer = ({
   };
 
   const isLoading = useMemo(
-    () => isPending || isStellarPending || isTaxLoading || isSolanaPending,
-    [isStellarPending, isPending, isTaxLoading, isSolanaPending]
+    () => isPending || isStellarPending || isTaxLoading,
+    [isStellarPending, isPending, isTaxLoading],
   );
 
   useEffect(() => {
@@ -153,10 +139,10 @@ export const useWeb3Transfer = ({
                 ? Asset.native()
                 : new Asset(
                     currencyType,
-                    currencyContracts.STELLAR[currencyType]
+                    currencyContracts.STELLAR[currencyType],
                   ),
             amount: String(price),
-          })
+          }),
         )
         .setTimeout(300)
         .build();
@@ -171,7 +157,7 @@ export const useWeb3Transfer = ({
       // Convert signed XDR back to a transaction object
       const signedTransaction = TransactionBuilder.fromXDR(
         signedTxXdr,
-        stellarNetworkPassphrase
+        stellarNetworkPassphrase,
       );
 
       // Submit the transaction to the Stellar Horizon server
@@ -211,61 +197,8 @@ export const useWeb3Transfer = ({
       } else {
         stellarTransfer(stellarAddress!);
       }
-    } else if (chainType === ChainType.SOLANA) {
-      if (!solanaConnected) {
-        connectSolana(true);
-      } else {
-        solanaTransfer();
-      }
     }
   }
-
-  const solanaTransfer = async () => {
-    if (!solanaConnected) {
-      toast({ message: "Please login to Wallet" });
-      console.error("Wallet not connected!");
-      return;
-    }
-    setIsSolanaPending(true);
-    try {
-      const lamportsToSend = price * 1e9;
-
-      // Create a transaction
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: solanaAddress!, // Sender's public key
-          toPubkey: new PublicKey(recipientSolana), // Recipient's public key
-          lamports: lamportsToSend, // Amount to send in lamports
-        })
-      );
-
-      // Send the transaction
-      const signature = await sendSolanaTransaction(
-        transaction,
-        solanaConnection
-      );
-      const latestBlockHash = await solanaConnection.getLatestBlockhash();
-
-      confirm(signature)
-        .then(() => {})
-        .catch((error) => {
-          console.error("Confirmation failed:", error);
-        });
-
-      // Confirm the transaction
-      const confirmation = await solanaConnection.confirmTransaction(
-        {
-          signature,
-          blockhash: latestBlockHash.blockhash,
-          lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-        },
-        "confirmed"
-      );
-    } catch (error) {
-      console.error("Error sending SOL:", error);
-    }
-    setIsSolanaPending(false);
-  };
 
   async function evmTransfer() {
     if (!evmConnected) {
@@ -293,7 +226,7 @@ export const useWeb3Transfer = ({
       } else {
         const bnbAmountHex = ethers.parseUnits(
           price?.toFixed(16)?.toString()!,
-          18
+          18,
         );
 
         const txHash = await sendTransactionAsync({
@@ -322,11 +255,9 @@ export const useWeb3Transfer = ({
 
   const connectWallet = () => {
     if (EVM_CHAINS.includes(chainType)) {
-      open();
+      void openAppKitModal();
     } else if (chainType === ChainType.STELLAR) {
       connectStellarWallet();
-    } else if (chainType === ChainType.SOLANA) {
-      connectSolana(true);
     }
   };
 

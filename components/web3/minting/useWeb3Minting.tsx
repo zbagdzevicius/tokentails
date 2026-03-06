@@ -1,12 +1,12 @@
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
+import { openAppKitModal } from "@/context/web3";
 import { EntityType } from "@/models/save";
 import { abiERC721 } from "@/web3/abi-erc721";
 import { ChainType, EVM_CHAINS } from "@/web3/contracts";
 import { chainTypeId } from "@/web3/web3-chains";
 import { wagmiConfig } from "@/web3/web3-config";
 import { IMysteryBox } from "@/web3/web3.model";
-import { useAppKit } from "@reown/appkit/react";
 import { useEffect, useMemo, useState } from "react";
 import {
   useReadContract,
@@ -33,7 +33,6 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
   const { switchChainAsync } = useSwitchChain({
     config: wagmiConfig as any,
   });
-  const { open } = useAppKit();
   const toast = useToast();
   const [hash, setHash] = useState<undefined | `0x${string}`>();
   const {
@@ -113,7 +112,7 @@ export const useWeb3Minting = ({ entityType, user, mysteryBox }: IProps) => {
 
   const connectWallet = () => {
     if (EVM_CHAINS.includes(chainType)) {
-      open();
+      void openAppKitModal();
     }
   };
 

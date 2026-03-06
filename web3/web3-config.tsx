@@ -13,15 +13,6 @@ import {
   WalletNetwork,
   xBullModule,
 } from "@creit.tech/stellar-wallets-kit/index";
-import {
-  BitgetWalletAdapter,
-  HuobiWalletAdapter,
-  LedgerWalletAdapter,
-  NightlyWalletAdapter,
-  PhantomWalletAdapter,
-  SolflareWalletAdapter,
-  TrustWalletAdapter,
-} from "@solana/wallet-adapter-wallets";
 
 import { cdnFile, randomObjectFromArray } from "@/constants/utils";
 import { Horizon, Networks } from "@stellar/stellar-sdk";
@@ -37,7 +28,9 @@ export const projectId = randomObjectFromArray([
 ])!;
 
 export const horizonServer = new Horizon.Server(
-  isProd ? "https://horizon.stellar.org" : "https://horizon-testnet.stellar.org"
+  isProd
+    ? "https://horizon.stellar.org"
+    : "https://horizon-testnet.stellar.org",
 );
 export const stellarNetworkPassphrase = isProd
   ? Networks.PUBLIC
@@ -63,17 +56,6 @@ export const stellarKit = new StellarWalletsKit({
     new RabetModule(),
   ],
 });
-
-// 0. Set up Solana Adapter
-export const solanaWallets = [
-  new PhantomWalletAdapter(),
-  new SolflareWalletAdapter(),
-  new TrustWalletAdapter(),
-  new NightlyWalletAdapter(),
-  new BitgetWalletAdapter(),
-  new HuobiWalletAdapter(),
-  new LedgerWalletAdapter(),
-];
 
 export const wagmiAdapter = new WagmiAdapter({
   networks,

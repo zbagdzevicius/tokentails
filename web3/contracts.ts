@@ -3,7 +3,6 @@ import { cdnFile } from "@/constants/utils";
 export const recipientEvm = "0x29D7d5361052c0990879D7926a0c98A63F9860F8";
 export const recipientStellar =
   "GD7GM5KP5B7MQ3NLYTLWA2EXEGGCWOTUVDP6WZIQDUPLQ7E2F67QKHSW";
-export const recipientSolana = "48ReRnWwnw68K2LTQjfUthtiXuQmaKG9zQnXUR8KMDJg";
 
 export enum CurrencyType {
   USDT = "USDT",
@@ -21,7 +20,6 @@ export enum ChainType {
   BNB = "BNB",
   BASE = "BASE",
   STELLAR = "STELLAR",
-  SOLANA = "SOLANA",
   SEI = "SEI",
   TORUS = "TORUS",
   ETH = "ETH",
@@ -43,7 +41,6 @@ export const ChainImg: Record<ChainType, string> = {
   [ChainType.BASE]: cdnFile("currency/BASE.webp"),
   [ChainType.ETH]: cdnFile("currency/ETH.webp"),
   [ChainType.STELLAR]: cdnFile("currency/XLM.webp"),
-  [ChainType.SOLANA]: cdnFile("currency/SOL.webp"),
   [ChainType.SEI]: cdnFile("currency/SEI.webp"),
   [ChainType.TORUS]: cdnFile("currency/ODP.webp"),
   [ChainType.MANTLE]: cdnFile("currency/MANTLE.webp"),
@@ -55,7 +52,6 @@ export const ChainCurrencies: Record<ChainType, CurrencyType[]> = {
   [ChainType.ETH]: [CurrencyType.ETH, CurrencyType.USDT, CurrencyType.USDC],
   [ChainType.SEI]: [CurrencyType.SEI, CurrencyType.USDC],
   [ChainType.STELLAR]: [CurrencyType.XLM, CurrencyType.USDC],
-  [ChainType.SOLANA]: [CurrencyType.SOL],
   [ChainType.TORUS]: [CurrencyType.ODP],
   [ChainType.MANTLE]: [CurrencyType.MNT],
 };
@@ -86,8 +82,5 @@ export const currencyContracts: Record<
   [ChainType.STELLAR]: {
     [CurrencyType.USDC]:
       "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN",
-  },
-  [ChainType.SOLANA]: {
-    [CurrencyType.SOL]: "0x",
   },
 };

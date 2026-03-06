@@ -2,10 +2,10 @@
 
 import { PixelButton } from "@/components/shared/PixelButton";
 import { useWeb3 } from "@/context/Web3Context";
+import { openAppKitModal } from "@/context/web3";
 import { EntityType } from "@/models/save";
 import { ChainType } from "@/web3/contracts";
 import { IMysteryBox } from "@/web3/web3.model";
-import { useAppKit } from "@reown/appkit/react";
 import { useMemo } from "react";
 import { useWeb3Minting } from "./useWeb3Minting";
 
@@ -19,10 +19,9 @@ interface Web3TransferProps {
 
 export const ConnectWallet = () => {
   const { setChainType, chainStatusDetail } = useWeb3();
-  const { open } = useAppKit();
   const connectWallet = () => {
     setChainType(ChainType.SEI);
-    open();
+    void openAppKitModal();
   };
   const address = useMemo(() => {
     if (!chainStatusDetail?.connected) {

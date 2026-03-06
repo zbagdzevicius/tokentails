@@ -1,8 +1,6 @@
 import { ITransactionStatus } from "@/api/order-api";
 import { useRates } from "@/components/web3/useRates";
 import { ChainCurrencies, ChainType, CurrencyType } from "@/web3/contracts";
-import { useWallet as useSolanaWallet } from "@solana/wallet-adapter-react";
-import { PublicKey } from "@solana/web3.js";
 import { useRouter } from "next/router";
 import * as React from "react";
 import { useAccount } from "wagmi";
@@ -10,11 +8,9 @@ import { useAccount } from "wagmi";
 type ContextState = {
   evmConnected: boolean;
   stellarConnected: boolean;
-  solanaConnected: boolean;
   evmAddress?: `0x${string}`;
   rates?: Record<CurrencyType, number>;
   stellarAddress?: string;
-  solanaAddress?: PublicKey | null;
   chainType: ChainType;
   setChainType: (chainType: ChainType) => void;
   setStellarConnected: (stellarConnected: boolean) => void;
@@ -42,9 +38,6 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
   const [stellarAddress, setStellarAddress] = React.useState<string>();
   const [chainType, setChainType] = React.useState<ChainType>(ChainType.SEI);
 
-  const { publicKey: solanaAddress, connected: solanaConnected } =
-    useSolanaWallet();
-
   const [currencyType, setCurrencyType] = React.useState(CurrencyType.USDT);
   const [price, setPrice] = React.useState();
   const rates = useRates();
@@ -60,10 +53,6 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
       [ChainType.SEI]: {
         connected: isConnected,
         address: address,
-      },
-      [ChainType.SOLANA]: {
-        connected: solanaConnected,
-        address: solanaAddress?.toString(),
       },
       [ChainType.STELLAR]: {
         connected: stellarConnected,
@@ -86,15 +75,7 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
         address: address,
       },
     };
-  }, [
-    chainType,
-    solanaConnected,
-    solanaAddress,
-    isConnected,
-    address,
-    stellarAddress,
-    stellarAddress,
-  ]);
+  }, [chainType, isConnected, address, stellarAddress, stellarAddress]);
   const chainStatusDetail = chainStatus[chainType as keyof typeof chainStatus];
 
   const router = useRouter();
@@ -112,7 +93,6 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
         stellarConnected,
         evmAddress: address,
         stellarAddress,
-        solanaAddress,
         chainId,
         currencyType,
         price,
@@ -124,7 +104,6 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
         setPrice,
         setStellarConnected,
         setStellarAddress,
-        solanaConnected,
         transactionStatus,
         setTransactionStatus,
       }}

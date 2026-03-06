@@ -19,5 +19,5 @@ export default function myImageLoader({ src, width = 600 }) {
   if (!cdnDomains.find((url) => src.includes(url))) {
     return src;
   }
-  return `https://api.sveikauk.lt/i/image-resizer/resize?width=${width}&image=${src}`;
+  return src;
 }

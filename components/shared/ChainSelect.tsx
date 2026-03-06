@@ -6,7 +6,6 @@ export const ChainSelect = ({
   chains = [
     ChainType.SEI,
     ChainType.BNB,
-    ChainType.SOLANA,
     ChainType.STELLAR,
     ChainType.TORUS,
     ChainType.ETH,

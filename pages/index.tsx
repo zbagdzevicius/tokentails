@@ -46,7 +46,12 @@ const socials = [
     name: "X",
     href: "https://x.com/intent/follow?screen_name=tokentails",
     icon: (
-      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className="w-5 h-5"
+        aria-hidden="true"
+      >
         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
       </svg>
     ),
@@ -55,7 +60,12 @@ const socials = [
     name: "Instagram",
     href: "https://instagram.com/tokentails",
     icon: (
-      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className="w-5 h-5"
+        aria-hidden="true"
+      >
         <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
       </svg>
     ),
@@ -64,7 +74,12 @@ const socials = [
     name: "TikTok",
     href: "https://tiktok.com/@tokentails",
     icon: (
-      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className="w-5 h-5"
+        aria-hidden="true"
+      >
         <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.34-6.34V8.87a8.16 8.16 0 004.76 1.52v-3.4a4.85 4.85 0 01-1-.3z" />
       </svg>
     ),
@@ -73,7 +88,12 @@ const socials = [
     name: "Telegram",
     href: "https://t.me/+ofyPNIfNX5w4ZjM8",
     icon: (
-      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className="w-5 h-5"
+        aria-hidden="true"
+      >
         <path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0h-.056zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
       </svg>
     ),
@@ -82,7 +102,12 @@ const socials = [
     name: "Discord",
     href: "https://discord.gg/4FVYmnd7Hg",
     icon: (
-      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className="w-5 h-5"
+        aria-hidden="true"
+      >
         <path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
       </svg>
     ),
@@ -293,7 +318,12 @@ const faqs = [
 
 function PawPrint({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 64 64" fill="currentColor" className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 64 64"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
       <ellipse cx="32" cy="42" rx="14" ry="12" />
       <ellipse cx="18" cy="24" rx="7" ry="8" transform="rotate(-15 18 24)" />
       <ellipse cx="32" cy="20" rx="7" ry="8" />
@@ -304,7 +334,12 @@ function PawPrint({ className = "" }: { className?: string }) {
 
 function CatSilhouette({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 100 80" fill="currentColor" className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 100 80"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
       <polygon points="20,35 10,5 30,20" />
       <polygon points="50,35 60,5 40,20" />
       <ellipse cx="35" cy="40" rx="22" ry="18" />
@@ -358,14 +393,21 @@ function ShineBorder({
   const style = {
     "--duration": `${duration}s`,
     padding: `${borderWidth}px`,
-    backgroundImage: `radial-gradient(transparent, transparent, ${shineColor.join(",")}, transparent, transparent)`,
+    backgroundImage: `radial-gradient(transparent, transparent, ${shineColor.join(
+      ",",
+    )}, transparent, transparent)`,
     backgroundSize: "300% 300%",
   } as CSSProperties;
 
   return (
     <div className={`relative rounded-2xl ${className}`}>
-      <div style={style} className="absolute inset-0 rounded-[inherit] animate-shine-border" />
-      <div className="relative rounded-[inherit] overflow-hidden">{children}</div>
+      <div
+        style={style}
+        className="absolute inset-0 rounded-[inherit] animate-shine-border"
+      />
+      <div className="relative rounded-[inherit] overflow-hidden">
+        {children}
+      </div>
     </div>
   );
 }
@@ -396,7 +438,11 @@ export default function HomePage() {
           className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-background/80 border-b border-border"
         >
           <div className="container mx-auto flex items-center justify-between py-4 px-6">
-            <a href="#" className="flex items-center gap-2" aria-label="Token Tails home">
+            <a
+              href="#"
+              className="flex items-center gap-2"
+              aria-label="Token Tails home"
+            >
               <img src={ASSETS.logo} alt="Token Tails" className="h-8 w-auto" />
             </a>
 
@@ -434,35 +480,6 @@ export default function HomePage() {
           <CatSilhouette className="absolute top-24 right-[5%] w-24 h-20 text-primary/[0.05] rotate-[10deg]" />
           <CatSilhouette className="absolute bottom-10 left-[6%] w-20 h-16 text-primary/[0.04] -scale-x-100 rotate-[-8deg]" />
 
-          {[
-            { left: "20%", top: "22%", size: "w-4 h-4", rotate: -10, delay: 0.2 },
-            { left: "26%", top: "28%", size: "w-5 h-5", rotate: 14, delay: 0.6 },
-            { left: "32%", top: "34%", size: "w-4 h-4", rotate: -18, delay: 1.0 },
-            { left: "68%", top: "26%", size: "w-4 h-4", rotate: 10, delay: 0.4 },
-            { left: "74%", top: "32%", size: "w-5 h-5", rotate: -12, delay: 0.9 },
-          ].map((paw, i) => (
-            <motion.div
-              key={`hero-paw-${i}`}
-              className="absolute pointer-events-none"
-              style={{ left: paw.left, top: paw.top }}
-              initial={{ opacity: 0.25 }}
-              animate={{
-                y: [0, -7, 0],
-                x: [0, 3, 0],
-                rotate: [paw.rotate, paw.rotate + 6, paw.rotate],
-                opacity: [0.2, 0.34, 0.2],
-              }}
-              transition={{
-                duration: 5.5 + paw.delay,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: paw.delay,
-              }}
-            >
-              <PawPrint className={`${paw.size} text-primary/[0.16]`} />
-            </motion.div>
-          ))}
-
           <div className="container mx-auto px-6 relative z-10">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -478,7 +495,12 @@ export default function HomePage() {
               <span className="inline-flex items-center gap-1.5 bg-card border border-border px-3 py-1.5 rounded-full text-sm text-muted-foreground">
                 <span className="flex">
                   {[...Array(5)].map((_, i) => (
-                    <svg key={i} className="w-3.5 h-3.5 text-primary fill-primary" viewBox="0 0 24 24" aria-hidden="true">
+                    <svg
+                      key={i}
+                      className="w-3.5 h-3.5 text-primary fill-primary"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
                       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                     </svg>
                   ))}
@@ -489,13 +511,13 @@ export default function HomePage() {
               </span>
             </motion.div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.25 }}
-          className="text-center text-5xl md:text-7xl lg:text-8xl font-display font-extrabold tracking-tight text-foreground leading-[0.95]"
-          style={{ fontFamily: DISPLAY_FONT }}
-        >
+            <motion.h1
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.25 }}
+              className="text-center text-5xl md:text-7xl lg:text-8xl font-display font-extrabold tracking-tight text-foreground leading-[0.95]"
+              style={{ fontFamily: DISPLAY_FONT }}
+            >
               Take care of
               <br />
               <span
@@ -521,7 +543,9 @@ export default function HomePage() {
             >
               Immortalize your cat as art. Track their health. Play together.
               <br className="hidden md:block" />
-              <strong className="text-foreground">And help save stray cats with every step.</strong>
+              <strong className="text-foreground">
+                And help save stray cats with every step.
+              </strong>
             </motion.p>
 
             <motion.div
@@ -531,15 +555,29 @@ export default function HomePage() {
               className="mt-10 flex justify-center items-end gap-3 md:gap-5"
             >
               <div className="w-[90px] md:w-[130px] -rotate-6 animate-float">
-                <ShineBorder borderWidth={2} duration={10} shineColor={["#F97316", "#D97706"]} className="rounded-2xl">
+                <ShineBorder
+                  borderWidth={2}
+                  duration={10}
+                  shineColor={["#F97316", "#D97706"]}
+                  className="rounded-2xl"
+                >
                   <div className="rounded-2xl overflow-hidden shadow-2xl">
-                    <img src={ASSETS.portraitHighness1} alt="Cat portrait Highness style" className="w-full h-auto" />
+                    <img
+                      src={ASSETS.portraitHighness1}
+                      alt="Cat portrait Highness style"
+                      className="w-full h-auto"
+                    />
                   </div>
                 </ShineBorder>
               </div>
 
               <div className="w-[140px] md:w-[200px] -translate-y-3 z-10 animate-float-delayed">
-                <ShineBorder borderWidth={2} duration={8} shineColor={["#F97316", "#fb923c", "#D97706"]} className="rounded-2xl">
+                <ShineBorder
+                  borderWidth={2}
+                  duration={8}
+                  shineColor={["#F97316", "#fb923c", "#D97706"]}
+                  className="rounded-2xl"
+                >
                   <div className="rounded-2xl overflow-hidden shadow-2xl">
                     <video
                       src="https://tokentails.fra1.cdn.digitaloceanspaces.com/pet.mp4"
@@ -554,9 +592,18 @@ export default function HomePage() {
               </div>
 
               <div className="w-[90px] md:w-[130px] rotate-6 animate-float">
-                <ShineBorder borderWidth={2} duration={12} shineColor={["#D97706", "#F97316"]} className="rounded-2xl">
+                <ShineBorder
+                  borderWidth={2}
+                  duration={12}
+                  shineColor={["#D97706", "#F97316"]}
+                  className="rounded-2xl"
+                >
                   <div className="rounded-2xl overflow-hidden shadow-2xl">
-                    <img src={ASSETS.portraitAristocrat1} alt="Cat portrait Aristocrat style" className="w-full h-auto" />
+                    <img
+                      src={ASSETS.portraitAristocrat1}
+                      alt="Cat portrait Aristocrat style"
+                      className="w-full h-auto"
+                    />
                   </div>
                 </ShineBorder>
               </div>
@@ -569,7 +616,10 @@ export default function HomePage() {
               className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
             >
               <motion.a
-                whileHover={{ scale: 1.07, boxShadow: "0 0 50px hsl(28 92% 53% / 0.3)" }}
+                whileHover={{
+                  scale: 1.07,
+                  boxShadow: "0 0 50px hsl(28 92% 53% / 0.3)",
+                }}
                 whileTap={{ scale: 0.95 }}
                 href="/portrait"
                 className="portrait-btn-primary group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold"
@@ -622,7 +672,9 @@ export default function HomePage() {
               className="flex items-center justify-center gap-2 mb-8"
             >
               <Trophy className="w-5 h-5 text-primary" />
-              <span className="text-sm font-display font-bold text-primary uppercase tracking-widest">Community Achievements</span>
+              <span className="text-sm font-display font-bold text-primary uppercase tracking-widest">
+                Community Achievements
+              </span>
               <Trophy className="w-5 h-5 text-primary" />
             </motion.div>
 
@@ -632,26 +684,39 @@ export default function HomePage() {
                   key={stat.label}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  whileHover={{ scale: 1.05, transition: { type: "spring", stiffness: 300 } }}
+                  whileHover={{
+                    scale: 1.05,
+                    transition: { type: "spring", stiffness: 300 },
+                  }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1 }}
                   className="relative bg-primary-foreground/[0.05] border border-primary-foreground/10 rounded-xl p-5 text-center cursor-default group hover:border-primary/40 transition-all duration-300"
                 >
                   <stat.icon className="w-5 h-5 text-primary mx-auto mb-2" />
-                  <div className="font-display font-bold text-2xl md:text-3xl text-primary-foreground">{stat.value}</div>
-                  <div className="text-xs text-primary-foreground/60 mt-1 mb-3">{stat.label}</div>
+                  <div className="font-display font-bold text-2xl md:text-3xl text-primary-foreground">
+                    {stat.value}
+                  </div>
+                  <div className="text-xs text-primary-foreground/60 mt-1 mb-3">
+                    {stat.label}
+                  </div>
                   <div className="w-full bg-primary-foreground/10 rounded-full h-1.5 overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
                       whileInView={{ width: `${stat.progress}%` }}
                       viewport={{ once: true }}
-                      transition={{ delay: i * 0.1 + 0.3, duration: 1, ease: "easeOut" }}
+                      transition={{
+                        delay: i * 0.1 + 0.3,
+                        duration: 1,
+                        ease: "easeOut",
+                      }}
                       className="h-full bg-gradient-to-r from-primary to-warm-dark rounded-full"
                     />
                   </div>
                   <div className="flex items-center justify-center gap-1 mt-2">
                     <Zap className="w-3 h-3 text-primary" />
-                    <span className="text-[10px] font-display font-semibold text-primary">{stat.incentive}</span>
+                    <span className="text-[10px] font-display font-semibold text-primary">
+                      {stat.incentive}
+                    </span>
                   </div>
                 </motion.div>
               ))}
@@ -686,15 +751,20 @@ export default function HomePage() {
                 <span className="text-gradient">around cats.</span>
               </h2>
               <p className="text-muted-foreground mt-6 text-lg md:text-xl leading-relaxed max-w-2xl mx-auto">
-                Token Tails is where cat lovers collect, play, and make a real difference. Turn your cat into royalty
-                with AI portraits, explore adventure worlds with your cat as the hero, collect cards of real shelter cats,
-                and fund their rescue with every action you take.
+                Token Tails is where cat lovers collect, play, and make a real
+                difference. Turn your cat into royalty with AI portraits,
+                explore adventure worlds with your cat as the hero, collect
+                cards of real shelter cats, and fund their rescue with every
+                action you take.
               </p>
             </motion.div>
           </div>
         </section>
 
-        <section id="features" className="py-24 bg-background relative overflow-hidden">
+        <section
+          id="features"
+          className="py-24 bg-background relative overflow-hidden"
+        >
           <CatSilhouette className="absolute -bottom-4 -left-6 w-32 h-32 text-primary/[0.03]" />
           <CatSilhouette className="absolute top-12 right-[2%] w-20 h-16 text-primary/[0.03] -scale-x-100" />
           <PawPrint className="absolute top-20 right-[6%] w-9 h-9 text-primary/[0.05] rotate-[15deg]" />
@@ -732,7 +802,11 @@ export default function HomePage() {
                   className="group bg-card border border-border rounded-3xl overflow-hidden hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 block"
                 >
                   <div className="aspect-[4/3] overflow-hidden relative">
-                    <img src={product.image} alt={product.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" />
+                    <img
+                      src={product.image}
+                      alt={product.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent" />
                     <PawPrint className="absolute bottom-3 right-3 w-6 h-6 text-white/80 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300" />
                     <span
@@ -740,8 +814,8 @@ export default function HomePage() {
                         product.rarity === "Legendary"
                           ? "bg-primary/90 text-primary-foreground"
                           : product.rarity === "Epic"
-                            ? "bg-purple-600/90 text-white"
-                            : "bg-blue-500/90 text-white"
+                          ? "bg-purple-600/90 text-white"
+                          : "bg-blue-500/90 text-white"
                       }`}
                     >
                       {product.rarity}
@@ -752,7 +826,9 @@ export default function HomePage() {
                       <product.icon className="w-4 h-4 group-hover:rotate-12 transition-transform duration-300" />
                       {product.title}
                     </div>
-                    <p className="text-muted-foreground leading-relaxed mb-4">{product.description}</p>
+                    <p className="text-muted-foreground leading-relaxed mb-4">
+                      {product.description}
+                    </p>
                     <div className="flex items-center justify-between">
                       <span className="inline-flex items-center gap-1.5 text-primary font-display font-semibold text-sm group-hover:gap-3 transition-all duration-300">
                         {product.cta}
@@ -769,7 +845,10 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="py-24 bg-background relative overflow-hidden" id="impact">
+        <section
+          className="py-24 bg-background relative overflow-hidden"
+          id="impact"
+        >
           <PawPrint className="absolute top-20 right-[6%] w-10 h-10 text-primary/[0.05] rotate-[25deg]" />
           <PawPrint className="absolute bottom-24 left-[4%] w-8 h-8 text-primary/[0.04] rotate-[-20deg]" />
           <PawPrint className="absolute top-[50%] left-[3%] w-6 h-6 text-primary/[0.04] rotate-[40deg]" />
@@ -791,8 +870,9 @@ export default function HomePage() {
                 <span className="text-gradient">stray cats.</span>
               </h2>
               <p className="text-muted-foreground mt-5 text-lg leading-relaxed max-w-2xl mx-auto">
-                Token Tails is a charity-driven movement. Every portrait you create, every card you collect, and every game
-                you play helps fund shelters rescuing and rehoming stray cats worldwide.
+                Token Tails is a charity-driven movement. Every portrait you
+                create, every card you collect, and every game you play helps
+                fund shelters rescuing and rehoming stray cats worldwide.
               </p>
             </motion.div>
 
@@ -803,7 +883,11 @@ export default function HomePage() {
                 viewport={{ once: true }}
               >
                 <div className="rounded-3xl overflow-hidden shadow-2xl">
-                  <img src={ASSETS.shelterCat} alt="Rescued stray cat" className="w-full h-auto" />
+                  <img
+                    src={ASSETS.shelterCat}
+                    alt="Rescued stray cat"
+                    className="w-full h-auto"
+                  />
                 </div>
               </motion.div>
 
@@ -813,33 +897,72 @@ export default function HomePage() {
                 viewport={{ once: true }}
               >
                 <div className="space-y-6">
-                  <motion.div whileHover={{ x: 4 }} transition={{ duration: 0.2 }} className="flex items-start gap-4 cursor-default">
-                    <motion.div whileHover={{ scale: 1.1, rotate: -5 }} transition={{ type: "spring", stiffness: 400 }} className="w-12 h-12 rounded-xl bg-warm-light flex items-center justify-center shrink-0">
+                  <motion.div
+                    whileHover={{ x: 4 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex items-start gap-4 cursor-default"
+                  >
+                    <motion.div
+                      whileHover={{ scale: 1.1, rotate: -5 }}
+                      transition={{ type: "spring", stiffness: 400 }}
+                      className="w-12 h-12 rounded-xl bg-warm-light flex items-center justify-center shrink-0"
+                    >
                       <HandHeart className="w-6 h-6 text-primary" />
                     </motion.div>
                     <div>
-                      <h3 className="font-display font-bold text-lg text-foreground">Direct shelter funding</h3>
-                      <p className="text-muted-foreground mt-1">A portion of every purchase goes directly to partner shelters for food, treatment, and care.</p>
+                      <h3 className="font-display font-bold text-lg text-foreground">
+                        Direct shelter funding
+                      </h3>
+                      <p className="text-muted-foreground mt-1">
+                        A portion of every purchase goes directly to partner
+                        shelters for food, treatment, and care.
+                      </p>
                     </div>
                   </motion.div>
 
-                  <motion.div whileHover={{ x: 4 }} transition={{ duration: 0.2 }} className="flex items-start gap-4 cursor-default">
-                    <motion.div whileHover={{ scale: 1.1, rotate: -5 }} transition={{ type: "spring", stiffness: 400 }} className="w-12 h-12 rounded-xl bg-warm-light flex items-center justify-center shrink-0">
+                  <motion.div
+                    whileHover={{ x: 4 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex items-start gap-4 cursor-default"
+                  >
+                    <motion.div
+                      whileHover={{ scale: 1.1, rotate: -5 }}
+                      transition={{ type: "spring", stiffness: 400 }}
+                      className="w-12 h-12 rounded-xl bg-warm-light flex items-center justify-center shrink-0"
+                    >
                       <Home className="w-6 h-6 text-primary" />
                     </motion.div>
                     <div>
-                      <h3 className="font-display font-bold text-lg text-foreground">800+ cats rehomed</h3>
-                      <p className="text-muted-foreground mt-1">Our community has already helped over 800 stray cats find loving forever homes.</p>
+                      <h3 className="font-display font-bold text-lg text-foreground">
+                        800+ cats rehomed
+                      </h3>
+                      <p className="text-muted-foreground mt-1">
+                        Our community has already helped over 800 stray cats
+                        find loving forever homes.
+                      </p>
                     </div>
                   </motion.div>
 
-                  <motion.div whileHover={{ x: 4 }} transition={{ duration: 0.2 }} className="flex items-start gap-4 cursor-default">
-                    <motion.div whileHover={{ scale: 1.1, rotate: -5 }} transition={{ type: "spring", stiffness: 400 }} className="w-12 h-12 rounded-xl bg-warm-light flex items-center justify-center shrink-0">
+                  <motion.div
+                    whileHover={{ x: 4 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex items-start gap-4 cursor-default"
+                  >
+                    <motion.div
+                      whileHover={{ scale: 1.1, rotate: -5 }}
+                      transition={{ type: "spring", stiffness: 400 }}
+                      className="w-12 h-12 rounded-xl bg-warm-light flex items-center justify-center shrink-0"
+                    >
                       <Globe className="w-6 h-6 text-primary" />
                     </motion.div>
                     <div>
-                      <h3 className="font-display font-bold text-lg text-foreground">9 countries, growing fast</h3>
-                      <p className="text-muted-foreground mt-1">We partner with shelters across 9 countries and keep expanding the rescue network.</p>
+                      <h3 className="font-display font-bold text-lg text-foreground">
+                        9 countries, growing fast
+                      </h3>
+                      <p className="text-muted-foreground mt-1">
+                        We partner with shelters across 9 countries and keep
+                        expanding the rescue network.
+                      </p>
                     </div>
                   </motion.div>
                 </div>
@@ -857,7 +980,10 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="py-24 bg-background relative overflow-hidden" id="reviews">
+        <section
+          className="py-24 bg-background relative overflow-hidden"
+          id="reviews"
+        >
           <PawPrint className="absolute top-12 left-[6%] w-8 h-8 text-primary/[0.05] rotate-[-20deg]" />
           <PawPrint className="absolute top-20 right-[8%] w-7 h-7 text-primary/[0.04] rotate-[20deg]" />
           <PawPrint className="absolute bottom-16 left-[10%] w-6 h-6 text-primary/[0.04] rotate-[30deg]" />
@@ -875,10 +1001,12 @@ export default function HomePage() {
                 Testimonials
               </span>
               <h2 className="font-display font-bold text-5xl md:text-6xl text-foreground mt-3">
-                Loved by <span className="text-gradient">10,000+</span> cat parents
+                Loved by <span className="text-gradient">10,000+</span> cat
+                parents
               </h2>
               <p className="text-muted-foreground mt-4 text-lg">
-                Join a global community of cat lovers who immortalize, care for, and play with their cats while saving strays.
+                Join a global community of cat lovers who immortalize, care for,
+                and play with their cats while saving strays.
               </p>
             </motion.div>
 
@@ -893,8 +1021,12 @@ export default function HomePage() {
                   <Star key={i} className="w-5 h-5 text-primary fill-primary" />
                 ))}
               </div>
-              <span className="font-display font-bold text-foreground">4.9/5</span>
-              <span className="text-muted-foreground text-sm">from 2,400+ reviews</span>
+              <span className="font-display font-bold text-foreground">
+                4.9/5
+              </span>
+              <span className="text-muted-foreground text-sm">
+                from 2,400+ reviews
+              </span>
             </motion.div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
@@ -910,16 +1042,25 @@ export default function HomePage() {
                 >
                   <div className="flex items-center gap-1 mb-3">
                     {[...Array(testimonial.rating)].map((_, j) => (
-                      <Star key={j} className="w-4 h-4 text-primary fill-primary" />
+                      <Star
+                        key={j}
+                        className="w-4 h-4 text-primary fill-primary"
+                      />
                     ))}
                   </div>
-                  <p className="text-foreground leading-relaxed mb-4">&quot;{testimonial.text}&quot;</p>
+                  <p className="text-foreground leading-relaxed mb-4">
+                    &quot;{testimonial.text}&quot;
+                  </p>
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">{testimonial.avatar}</span>
                       <div>
-                        <p className="font-display font-semibold text-sm text-foreground">{testimonial.name}</p>
-                        <p className="text-xs text-muted-foreground">{testimonial.location}</p>
+                        <p className="font-display font-semibold text-sm text-foreground">
+                          {testimonial.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {testimonial.location}
+                        </p>
                       </div>
                     </div>
                     <span className="text-xs bg-warm-light text-primary px-2 py-1 rounded-full font-medium whitespace-nowrap">
@@ -945,10 +1086,12 @@ export default function HomePage() {
               className="text-center max-w-2xl mx-auto mb-16"
             >
               <span className="inline-flex items-center gap-1.5 text-sm font-medium text-primary uppercase tracking-wider">
-                <Star className="w-4 h-4" /> Quest Log <Star className="w-4 h-4" />
+                <Star className="w-4 h-4" /> Quest Log{" "}
+                <Star className="w-4 h-4" />
               </span>
               <h2 className="font-display font-bold text-5xl md:text-6xl text-foreground mt-3">
-                Your adventure <span className="text-gradient">begins here.</span>
+                Your adventure{" "}
+                <span className="text-gradient">begins here.</span>
               </h2>
             </motion.div>
 
@@ -987,8 +1130,12 @@ export default function HomePage() {
                   <p className="text-xs font-display font-semibold text-muted-foreground uppercase tracking-wider mb-1">
                     Quest {quest.step} · {quest.subtitle}
                   </p>
-                  <h3 className="font-display font-bold text-xl text-foreground mb-2">{quest.title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed mb-4">{quest.description}</p>
+                  <h3 className="font-display font-bold text-xl text-foreground mb-2">
+                    {quest.title}
+                  </h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed mb-4">
+                    {quest.description}
+                  </p>
 
                   <div className="flex items-center justify-between">
                     <span className="inline-flex items-center gap-1 bg-warm-light text-primary px-3 py-1 rounded-full text-xs font-display font-bold">
@@ -1003,7 +1150,10 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="py-24 bg-background relative overflow-hidden" id="faq">
+        <section
+          className="py-24 bg-background relative overflow-hidden"
+          id="faq"
+        >
           <PawPrint className="absolute top-10 left-[8%] w-7 h-7 text-primary/[0.05] rotate-[-15deg]" />
           <PawPrint className="absolute bottom-14 right-[7%] w-8 h-8 text-primary/[0.04] rotate-[18deg]" />
           <Whiskers className="absolute top-[35%] right-[3%] w-16 h-6 text-primary/[0.06]" />
@@ -1019,8 +1169,12 @@ export default function HomePage() {
                 <PawPrint className="w-4 h-4 text-primary/70" />
                 FAQ
               </span>
-              <h2 className="font-display font-bold text-5xl md:text-6xl text-foreground mt-3">Got questions?</h2>
-              <p className="text-muted-foreground mt-4 text-lg">Everything you need to know about Token Tails.</p>
+              <h2 className="font-display font-bold text-5xl md:text-6xl text-foreground mt-3">
+                Got questions?
+              </h2>
+              <p className="text-muted-foreground mt-4 text-lg">
+                Everything you need to know about Token Tails.
+              </p>
             </motion.div>
 
             <motion.div
@@ -1048,10 +1202,17 @@ export default function HomePage() {
                       aria-controls={`faq-${index}`}
                     >
                       <span>{faq.question}</span>
-                      <ChevronRight className={`w-4 h-4 shrink-0 transition-transform ${isOpen ? "rotate-90" : ""}`} />
+                      <ChevronRight
+                        className={`w-4 h-4 shrink-0 transition-transform ${
+                          isOpen ? "rotate-90" : ""
+                        }`}
+                      />
                     </button>
                     {isOpen && (
-                      <p id={`faq-${index}`} className="text-muted-foreground leading-relaxed pb-5">
+                      <p
+                        id={`faq-${index}`}
+                        className="text-muted-foreground leading-relaxed pb-5"
+                      >
                         {faq.answer}
                       </p>
                     )}
@@ -1096,11 +1257,15 @@ export default function HomePage() {
                 your adventure?
               </h2>
               <p className="text-primary-foreground/60 mt-5 text-lg max-w-xl mx-auto">
-                Join 10K+ cat heroes creating portraits, conquering quests, and saving real shelter cats worldwide.
+                Join 10K+ cat heroes creating portraits, conquering quests, and
+                saving real shelter cats worldwide.
               </p>
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <motion.a
-                  whileHover={{ scale: 1.07, boxShadow: "0 0 50px hsl(28 92% 53% / 0.3)" }}
+                  whileHover={{
+                    scale: 1.07,
+                    boxShadow: "0 0 50px hsl(28 92% 53% / 0.3)",
+                  }}
                   whileTap={{ scale: 0.96 }}
                   href="/portrait"
                   className="portrait-btn-primary inline-flex items-center justify-center px-10 py-4 text-lg font-bold"
@@ -1108,7 +1273,10 @@ export default function HomePage() {
                   Create Portrait Now
                 </motion.a>
                 <motion.a
-                  whileHover={{ scale: 1.05, borderColor: "rgba(255,255,255,0.4)" }}
+                  whileHover={{
+                    scale: 1.05,
+                    borderColor: "rgba(255,255,255,0.4)",
+                  }}
                   whileTap={{ scale: 0.96 }}
                   href="https://apps.apple.com/app/id6745582489"
                   className="portrait-btn-dark inline-flex items-center justify-center px-8 py-4 text-lg font-bold"
@@ -1124,18 +1292,49 @@ export default function HomePage() {
           <div className="container mx-auto px-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="flex items-center gap-2">
-                <img src={ASSETS.logo} alt="Token Tails" className="h-6 w-auto" />
+                <img
+                  src={ASSETS.logo}
+                  alt="Token Tails"
+                  className="h-6 w-auto"
+                />
               </div>
 
               <div className="flex items-center gap-6 flex-wrap justify-center">
-                <a href="https://x.com/tokentails" className="text-primary-foreground/50 hover:text-primary-foreground text-sm transition-colors">Twitter</a>
-                <a href="https://instagram.com/tokentails" className="text-primary-foreground/50 hover:text-primary-foreground text-sm transition-colors">Instagram</a>
-                <a href="https://tiktok.com/@tokentails" className="text-primary-foreground/50 hover:text-primary-foreground text-sm transition-colors">TikTok</a>
-                <a href="https://discord.gg/4FVYmnd7Hg" className="text-primary-foreground/50 hover:text-primary-foreground text-sm transition-colors">Discord</a>
-                <a href="https://t.me/+ofyPNIfNX5w4ZjM8" className="text-primary-foreground/50 hover:text-primary-foreground text-sm transition-colors">Telegram</a>
+                <a
+                  href="https://x.com/tokentails"
+                  className="text-primary-foreground/50 hover:text-primary-foreground text-sm transition-colors"
+                >
+                  Twitter
+                </a>
+                <a
+                  href="https://instagram.com/tokentails"
+                  className="text-primary-foreground/50 hover:text-primary-foreground text-sm transition-colors"
+                >
+                  Instagram
+                </a>
+                <a
+                  href="https://tiktok.com/@tokentails"
+                  className="text-primary-foreground/50 hover:text-primary-foreground text-sm transition-colors"
+                >
+                  TikTok
+                </a>
+                <a
+                  href="https://discord.gg/4FVYmnd7Hg"
+                  className="text-primary-foreground/50 hover:text-primary-foreground text-sm transition-colors"
+                >
+                  Discord
+                </a>
+                <a
+                  href="https://t.me/+ofyPNIfNX5w4ZjM8"
+                  className="text-primary-foreground/50 hover:text-primary-foreground text-sm transition-colors"
+                >
+                  Telegram
+                </a>
               </div>
 
-              <p className="text-primary-foreground/30 text-sm">© {currentYear} Token Tails. All rights reserved.</p>
+              <p className="text-primary-foreground/30 text-sm">
+                © {currentYear} Token Tails. All rights reserved.
+              </p>
             </div>
           </div>
         </footer>

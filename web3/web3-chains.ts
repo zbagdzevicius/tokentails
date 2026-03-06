@@ -32,7 +32,6 @@ export const chainTypeId: Record<ChainType, number> = {
   [ChainType.MANTLE]: mantle.id,
   [ChainType.SEI]: sei.id,
   [ChainType.STELLAR]: 0,
-  [ChainType.SOLANA]: 0,
   [ChainType.TORUS]: torus.id,
   [ChainType.ETH]: mainnet.id,
   [ChainType.BASE]: base.id,
