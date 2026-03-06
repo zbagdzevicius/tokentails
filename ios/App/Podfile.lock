@@ -5,24 +5,24 @@ PODS:
   - AppAuth/Core (1.7.6)
   - AppAuth/ExternalUserAgent (1.7.6):
     - AppAuth/Core
-  - Capacitor (7.2.0):
+  - Capacitor (7.5.0):
     - CapacitorCordova
-  - CapacitorApp (7.0.1):
+  - CapacitorApp (7.1.2):
     - Capacitor
-  - CapacitorBrowser (7.0.2):
+  - CapacitorBrowser (7.0.4):
     - Capacitor
-  - CapacitorClipboard (7.0.1):
+  - CapacitorClipboard (7.0.4):
     - Capacitor
-  - CapacitorCordova (7.2.0)
-  - CapacitorFirebaseAuthentication (7.2.0):
+  - CapacitorCordova (7.5.0)
+  - CapacitorFirebaseAuthentication (7.5.0):
     - Capacitor
-    - CapacitorFirebaseAuthentication/Lite (= 7.2.0)
+    - CapacitorFirebaseAuthentication/Lite (= 7.5.0)
     - FirebaseAuth (~> 11.7.0)
-  - CapacitorFirebaseAuthentication/Google (7.2.0):
+  - CapacitorFirebaseAuthentication/Google (7.5.0):
     - Capacitor
     - FirebaseAuth (~> 11.7.0)
     - GoogleSignIn (= 7.1.0)
-  - CapacitorFirebaseAuthentication/Lite (7.2.0):
+  - CapacitorFirebaseAuthentication/Lite (7.5.0):
     - Capacitor
     - FirebaseAuth (~> 11.7.0)
   - FirebaseAppCheckInterop (11.13.0)
@@ -115,12 +115,12 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   AppAuth: d4f13a8fe0baf391b2108511793e4b479691fb73
-  Capacitor: 106e7a4205f4618d582b886a975657c61179138d
-  CapacitorApp: d63334c052278caf5d81585d80b21905c6f93f39
-  CapacitorBrowser: 45c681e7abc3b4384e54eb52bafeef1347d98fa8
-  CapacitorClipboard: b98aead5dc7ec595547fc2c5d75bacd2ae3338bc
-  CapacitorCordova: 5967b9ba03915ef1d585469d6e31f31dc49be96f
-  CapacitorFirebaseAuthentication: 7043f8e03813762af1b037da82c67963fa5768e0
+  Capacitor: 5f723a6113395cfef3bbabf0d2b8e9ca1201c681
+  CapacitorApp: 6b89831465d6bc99bc89779b1b7f5327e33011ce
+  CapacitorBrowser: d0a1ab6a22835100eb6a203a54571d11f82bf7a7
+  CapacitorClipboard: 9779d5e2f766d501d8c90e0f0f689abd293efc2f
+  CapacitorCordova: ae35646a9b46cfd00d637f195509c86594026aad
+  CapacitorFirebaseAuthentication: 154e5012e6975650def41c7ae2be2a3cb79fdc23
   FirebaseAppCheckInterop: 72066489c209823649a997132bcd9269bc33a4bb
   FirebaseAuth: 77e25aa24f3e1c626c5babd3338551fc1669ee0e
   FirebaseAuthInterop: 4fa327ec3c551a80a6929561f83af80b1dd44937
