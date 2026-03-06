@@ -55,7 +55,7 @@ export const SpeechBubble = () => {
             isCatFed ? "p-px" : "p-3"
           } lg:w-64 w-40 shadow-[0_-4px_#fff,0_-8px_#000,4px_0_#fff,4px_-4px_#000,8px_0_#000,0_4px_#fff,0_8px_#000,-4px_0_#fff,-4px_4px_#000,-8px_0_#000,-4px_-4px_#000,4px_4px_#000]`}
         >
-          <p className="font-pixel lg:text-p5 text-p7 font-semibold">
+          <p className="font-secondary lg:text-p5 text-p7 font-semibold">
             {displayText}
           </p>
           <div className="absolute bottom-[-6px] left-[32px] lg:h-1 lg:w-1 h-1.5 w-1.5 bg-white shadow-custom"></div>

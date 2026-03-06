@@ -133,9 +133,6 @@
 @import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Passion+One:wght@400;700;900&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Pixelify+Sans:wght@400..700&display=swap");
-// ROYAL FELINE PORTRAITS STYLES
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Cinzel:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap");
 @include meta.load-css("../styles/snow.scss");
 @include meta.load-css("../styles/chamomile.scss");
 @include meta.load-css("../styles/fireflies.scss");
@@ -970,20 +967,17 @@ html[data-portrait-page="true"] {
   h4,
   h5,
   h6 {
-    font-family: "Cinzel", "Cormorant Garamond", serif;
     font-weight: 400;
     letter-spacing: 0.05em;
   }
 
   .text-display {
-    font-family: "Cinzel", serif;
     font-weight: 400;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
 
   .text-display-italic {
-    font-family: "Cormorant Garamond", serif;
     font-style: italic;
     font-weight: 500;
     letter-spacing: 0.02em;
@@ -1203,14 +1197,14 @@ html[data-portrait-page="true"][data-portrait-variant="playful"] {
   h4,
   h5,
   h6 {
-    font-family: "Space Grotesk", "Bebas Neue", "Inter", sans-serif;
+    font-family: "Bebas Neue", "Inter", sans-serif;
     font-weight: 700;
     letter-spacing: -0.01em;
     text-transform: none;
   }
 
   .text-display {
-    font-family: "Space Grotesk", "Bebas Neue", "Inter", sans-serif;
+    font-family: "Bebas Neue", "Inter", sans-serif;
     font-weight: 700;
     letter-spacing: -0.01em;
     text-transform: none;
@@ -1347,7 +1341,11 @@ html[data-portrait-page="true"][data-portrait-variant="playful"] {
 }
 
 [data-forever-feline-page="true"] .text-gradient {
-  background: linear-gradient(to right, hsl(var(--primary)), hsl(var(--warm-dark)));
+  background: linear-gradient(
+    to right,
+    hsl(var(--primary)),
+    hsl(var(--warm-dark))
+  );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

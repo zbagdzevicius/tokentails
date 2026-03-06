@@ -386,12 +386,9 @@ const config: Config = {
       },
     },
     fontFamily: {
-      display: ["Plus Jakarta Sans", "Nunito", "sans-serif"],
-      body: ["Plus Jakarta Sans", "Nunito", "sans-serif"],
+      display: ["Bebas Neue", "sans-serif"],
       primary: ["Passion One", "sans-serif"],
       secondary: ["Bebas Neue", "sans-serif"],
-      tertiary: ["Nunito", "sans-serif"],
-      pixel: ["Pixelify Sans", "sans-serif"],
       paws: ["paws", "sans-serif"],
     },
   },

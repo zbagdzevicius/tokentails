@@ -16,19 +16,19 @@ export const CardFront: React.FC<CardFrontProps> = React.memo(
     const borderColor = useMemo(() => cardsBorderColor[cat.type], [cat.type]);
     const imageUrl = useMemo(
       () => blessing?.image?.url || cat.catImg,
-      [blessing?.image?.url, cat.catImg]
+      [blessing?.image?.url, cat.catImg],
     );
     const imageAlt = useMemo(
       () => blessing?.name || cat.name,
-      [blessing?.name, cat.name]
+      [blessing?.name, cat.name],
     );
     const displayName = useMemo(
       () => blessing?.name || cat.name,
-      [blessing?.name, cat.name]
+      [blessing?.name, cat.name],
     );
     const description = useMemo(
       () => blessing?.description || cat.resqueStory.replace(/<[^>]*>/g, ""),
-      [blessing?.description, cat.resqueStory]
+      [blessing?.description, cat.resqueStory],
     );
 
     const shelterName = cat.shelter?.name || "";
@@ -89,7 +89,7 @@ export const CardFront: React.FC<CardFrontProps> = React.memo(
               <h3 className="text-black mb-0.5 leading-tight font-primary rem:text-[22px]">
                 Shelter
               </h3>
-              <p className="text-black leading-tight font-tertiary font-bold rem:text-[12px]">
+              <p className="text-black leading-tight font-bold rem:text-[12px]">
                 {shelterName || "Unknown"}
               </p>
             </div>
@@ -97,7 +97,7 @@ export const CardFront: React.FC<CardFrontProps> = React.memo(
               <h3 className="text-black mb-0.5 leading-tight font-primary rem:text-[22px]">
                 Status
               </h3>
-              <p className="text-black leading-tight font-tertiary font-bold rem:text-[12px]">
+              <p className="text-black leading-tight font-bold rem:text-[12px]">
                 {blessing?.status
                   ? BlessingStatusTexts[blessing?.status]
                   : "Adopted"}
@@ -114,7 +114,7 @@ export const CardFront: React.FC<CardFrontProps> = React.memo(
             <h3 className="text-black mb-0.5 leading-tight font-primary rem:text-[22px]">
               Pet Story
             </h3>
-            <div className="text-black leading-snug overflow-hidden font-tertiary font-bold rem:text-[12px]">
+            <div className="text-black leading-snug overflow-hidden font-bold rem:text-[12px]">
               <p
                 className="line-clamp-5 sm:line-clamp-4 md:line-clamp-6"
                 dangerouslySetInnerHTML={{ __html: description }}
@@ -124,5 +124,5 @@ export const CardFront: React.FC<CardFrontProps> = React.memo(
         </div>
       </div>
     );
-  }
+  },
 );

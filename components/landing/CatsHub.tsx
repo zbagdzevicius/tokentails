@@ -82,7 +82,7 @@ const CatsSection = ({
         </a>
       </div>
       <div
-        className={`flex items-center text-p4 bg-yellow-300 max-lg:text-p5 font-tertiary transition relative z-0 py-4 px-2 gap-2 border-b ${
+        className={`flex items-center text-p4 bg-yellow-300 max-lg:text-p5 transition relative z-0 py-4 px-2 gap-2 border-b ${
           isActive ? "" : "hidden"
         }`}
       >
@@ -106,7 +106,7 @@ export const CatsHub = () => {
     (section: IProps) => {
       setActive((active) => (active === section ? {} : section));
     },
-    [setActive]
+    [setActive],
   );
   return (
     <div className="my-20 flex items-center justify-center flex-col container">

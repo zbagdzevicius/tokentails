@@ -121,8 +121,9 @@ export default function newPage() {
                       Rescue Mission Hub
                     </div>
                     <div className="mt-2">
-                      <span className="text-p2 md:text-h5 xl:text-h2 2xl:text-[120px] font-bold uppercase drop-shadow-lg font-primary text-white leading-none">
-                        LEGENDS <span className="glow text-yellow-300">NEED</span>{" "}
+                      <span className="text-p2 md:text-h5 lg:text-h3 xl:text-h2 2xl:text-h1 font-bold uppercase drop-shadow-lg font-primary text-white leading-none xl:whitespace-nowrap">
+                        LEGENDS{" "}
+                        <span className="glow text-yellow-300">NEED</span>{" "}
                         <span className="text-yellow-300">HEROES</span>
                       </span>
                     </div>
@@ -147,14 +148,6 @@ export default function newPage() {
                       Every pack expands your collection and strengthens
                       progression rewards tied to rescue outcomes.
                     </p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2 font-primary text-p5 text-yellow-900">
-                      <span className="rounded-lg border-2 border-yellow-900 bg-yellow-100 px-2 py-1">
-                        + More collectibles
-                      </span>
-                      <span className="rounded-lg border-2 border-yellow-900 bg-yellow-100 px-2 py-1">
-                        + Better unlock paths
-                      </span>
-                    </div>
                     <div className="mt-4">
                       <PixelButton
                         text="BUY PACKS"
@@ -163,7 +156,7 @@ export default function newPage() {
                         }}
                       />
                     </div>
-                    <div className="mt-1 flex-1 flex items-end justify-center lg:justify-start min-h-[210px] md:min-h-[240px]">
+                    <div className="flex-1 flex m-auto md:mb-8 mt-2 items-end justify-center lg:justify-start min-h-[210px] md:min-h-[240px]">
                       <TailsCard
                         cardStyle={{
                           width: "clamp(260px, 31vw, 390px)",
