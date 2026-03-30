@@ -38,3 +38,4 @@ robots.txt
 sitemap*.xml
 certificates
 .env.development
+tokentails-keystore
