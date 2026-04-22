@@ -1,0 +1,8 @@
+export const REWARDS = {
+    INVITE_FRIEND: 100,
+    DAILY_REWARD: 10,
+    WEEKLY_CRAFT: 5,
+    FEED: 1,
+    MYSTERY_BOX: 100,
+    WEEKLY_TOP: 200,
+};

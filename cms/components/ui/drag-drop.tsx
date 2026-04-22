@@ -1,0 +1,90 @@
+import { IMAGE_API } from '@/api/image-api';
+import { IImage } from '@/models/image';
+import { useEffect } from 'react';
+import { useDropzone } from 'react-dropzone';
+
+interface IProps {
+  maxFiles?: number;
+  value: IImage[];
+  onChange: (value: IImage[]) => void;
+}
+
+export function Previews({ maxFiles, value, onChange }: IProps) {
+  maxFiles = maxFiles || 5;
+  const { getRootProps, getInputProps } = useDropzone({
+    accept: {
+      'image/*': []
+    },
+    onDrop: async (acceptedFiles: File[]) => {
+      const slicedFiles = acceptedFiles.slice(0, maxFiles - value.length);
+      const uploadedImages = await Promise.all(
+        slicedFiles.map((slicedFile) =>
+          IMAGE_API.uploadImage(slicedFile, { name: slicedFile.name })
+        )
+      );
+      const uniqueFiles = [...value, ...uploadedImages]
+        .filter(
+          (obj1, i, arr) =>
+            arr.findIndex((obj2) => obj2.name === obj1.name) === i
+        )
+        .slice(0, maxFiles);
+
+      onChange(uniqueFiles);
+    }
+  });
+
+  const removeFile = (file: IImage) => {
+    const newFiles = [...value];
+    newFiles.splice(newFiles.indexOf(file), 1);
+    onChange(newFiles);
+  };
+
+  const thumbs = value.map((file: IImage, index) => (
+    <div className="w-auto box-border mb-4 inline-flex" key={index}>
+      <div className="min-w-0 overflow-hidden flex relative">
+        <img
+          src={file.url}
+          className="h-48 rounded-lg w-auto mr-4"
+          // Revoke data uri after image is loaded
+          onLoad={() => {
+            URL.revokeObjectURL(file.url);
+          }}
+        />
+        <button
+          onClick={() => removeFile(file)}
+          className="w-6 rounded-xl h-6 absolute top-0 right-4 bg-red-500 text-white"
+        >
+          X
+        </button>
+      </div>
+    </div>
+  ));
+
+  useEffect(() => {
+    // Make sure to revoke the data uris to avoid memory leaks, will run on unmount
+    return () => value.forEach((file: IImage) => URL.revokeObjectURL(file.url));
+  }, [value]);
+
+  return (
+    <section className="">
+      <div
+        {...getRootProps({
+          className: 'dropzone py-4 bg-gray-200 px-4 rounded-lg'
+        })}
+      >
+        <input {...getInputProps()} />
+        <p>Drag 'n' drop some files here, or click to select files</p>
+      </div>
+      <aside
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          marginTop: 16
+        }}
+      >
+        {thumbs}
+      </aside>
+    </section>
+  );
+}
