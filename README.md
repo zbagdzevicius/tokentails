@@ -1,4 +1,6 @@
-![Token Tails](./client/public/logo/logo-text.webp)
+<p align="center">
+  <img src="./client/public/logo/logo-text.webp" alt="Token Tails" width="460" />
+</p>
 
 <h1 align="center">Token Tails</h1>
 
