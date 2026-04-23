@@ -8,6 +8,98 @@ The rail handles three core responsibilities: converting App Store purchases int
 
 Client apps ship as Capacitor-wrapped React builds for iOS plus standalone companion websites. Both share the same backend contract.
 
+## Stellar Integration Plan
+
+TTSR is an **Integration Track** project. Every settlement and disbursement handled by the rail is executed on Stellar; no off-Stellar settlement paths exist for this scope. This section is the consolidated view of how TTSR integrates with the Stellar network and its ecosystem building blocks.
+
+### Stellar Building Blocks in Use
+
+| Building Block | Role | Integration Point |
+|---|---|---|
+| Stellar Wallets Kit | Client-side wallet authorization and transaction signing | React client (iOS via Capacitor + companion web) through `@creit.tech/stellar-wallets-kit` |
+| Stellar Disbursement Platform (SDP) | Server-side orchestration of recipient-side disbursements (batched, managed, anchored) | `sdp-adapter` module on backend; HTTP API + webhook callbacks |
+| Bridge | Regulated fiat-on/off-ramp corridor activation for partner recipients | `bridge-adapter` module on backend; API access, KYB already cleared |
+| Horizon API | Canonical source for transaction status and account state | Read-through adapter called by `ledger-reconciliation` and `sdp-adapter` for status confirmation |
+| Existing Stellar mainnet account | Historical on-chain footprint: contract `CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF` with `1,216,594` cumulative tx | Read-only reference for prior traction; new settlement flows do not modify this contract |
+| stellarchain.io / stellar.expert | Reviewer-facing transaction verification | Referenced in evidence bundles; every tx hash links to the explorer |
+
+### Network Selection
+
+- **Testnet phase** (development, T1 deliverables, T2 rehearsal): Horizon URL `https://horizon-testnet.stellar.org`, passphrase `Test SDF Network ; September 2015`. Test accounts funded via Friendbot.
+- **Mainnet phase** (T2 dual-mode rehearsal with small-value ≤ `$1` settlements, T3 production launch): Horizon URL `https://horizon.stellar.org`, passphrase `Public Global Stellar Network ; September 2015`.
+- Network selection is driven by the `STELLAR_NETWORK` environment variable (`testnet` | `mainnet`). Passphrase, Horizon URL, and SDP tenant URL are all derived from this single switch. No `if (testnet) { ... }` branches exist in business logic.
+
+### Settlement Asset Strategy
+
+- **Primary settlement asset**: USDC issued on Stellar by Circle (issuer `GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN`).
+- **Fee and reserve asset**: XLM (native) — required for Stellar operation fees and base account reserves.
+- **Trustline handling**: recipient Stellar accounts must hold a USDC trustline before first disbursement. Partner-activation flow prompts trustline creation via Wallets Kit before the partner's first payout; missing-trustline detection blocks disbursement and surfaces a specific error to the partner admin.
+- **No custom-issued Token Tails asset** is introduced. Settlement uses direct Stellar payment operations over USDC; this keeps the rail compatible with existing anchor and off-ramp infrastructure.
+
+### Stellar Wallets Kit Integration
+
+- SDK: `@creit.tech/stellar-wallets-kit`, client-side only, integrated into both the Capacitor-wrapped iOS client and the companion web client.
+- Supported wallets at launch: Freighter, Albedo, xBull, Lobstr, Rabet. Hana Wallet (Passkey-based) added for iOS where native extension wallets are unavailable.
+- Client signing flow:
+  1. User initiates a support action; client calls `POST /v1/transfers` with `idempotency_key` + product context.
+  2. Backend builds the transaction XDR (see Transaction Construction below) and returns it to the client as part of the transfer intent response.
+  3. `wallet-adapter` on the client initializes Wallets Kit using the active `STELLAR_NETWORK`.
+  4. Wallet selection UI renders; selection is remembered per device in local storage.
+  5. User approves in the selected wallet; Wallets Kit returns the signed XDR.
+  6. Client posts signed XDR back to the backend; `sdp-adapter` submits to Horizon / SDP.
+- **Non-custodial guarantee**: seed material and signing keys never leave the user's device. Backend has no access to user keypairs at any point.
+
+### Stellar Disbursement Platform (SDP) Integration
+
+- Token Tails operates the **Anchor/Tenant side** of the SDP deployment; SDP hosts the disbursement orchestration for recipient flows.
+- Asset configured in SDP: USDC on Stellar (issuer `GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN`).
+- Recipient registration: shelters and partners are registered as SDP recipients via the admin API during the `compliance_review` → `approved` stage transition (see Partner Lifecycle). Recipient verification uses email + wallet-address confirmation.
+- Disbursement creation flow:
+  1. Backend posts `POST /disbursements` to SDP with recipient list, asset, and amount.
+  2. SDP returns a `disbursement_id`; backend binds this to the originating `transfer_intent` row.
+  3. Batching: multiple recipient disbursements can be grouped under a single SDP disbursement for fee efficiency.
+  4. SDP webhook callbacks drive status transitions: `pending_signature` → `signed` → `pending_anchor` → `paid` → `complete`.
+- **Independent Horizon cross-check**: `ledger-reconciliation` queries Horizon directly for final tx confirmation on each SDP disbursement. This detects webhook loss or delayed delivery, and it binds every settled disbursement to a canonical `tx_hash` on chain regardless of SDP delivery semantics.
+
+### Bridge Integration
+
+- Purpose: regulated fiat on/off-ramp corridor for partner recipients who require payout in local fiat rather than on-chain USDC.
+- **KYB status: already cleared** as of submission date. Corridor activation is a scheduled implementation task (`T3-D2`), not a compliance or onboarding dependency.
+- Integration path: Bridge provides an API for creating fiat payout requests tied to Stellar USDC inflows. `bridge-adapter` submits USDC payments via SDP to a Bridge-owned Stellar address; Bridge executes the fiat leg and confirms delivery.
+- **Routing decision**: each bundle's `payoutProfile` in `IAP_BUNDLE_CONFIG` determines whether a partner's transfer routes through Bridge (fiat off-ramp) or stays on the SDP-direct USDC path. Both paths emit an identical evidence schema, so downstream consumers of reconciliation exports do not branch on corridor vs direct.
+- Settlement semantics: from the rail's perspective, a Bridge-routed transfer is a standard SDP USDC disbursement — the corridor logic is entirely within Bridge's hosted stack.
+- Reconciliation: Bridge webhooks confirm the fiat leg; `ledger-reconciliation` binds this confirmation to the originating `transfer_intent` ID and the Stellar `tx_hash` of the USDC inflow.
+- Failure handling: if Bridge rejects a corridor payment (compliance hold, recipient data mismatch), `bridge-adapter` reverses the upstream USDC disbursement via SDP, the intent state machine transitions to `rejected_corridor`, and a specific error is surfaced to the partner admin surface.
+
+### Transaction Construction and Submission
+
+- Transactions are built server-side using `@stellar/stellar-sdk`:
+  1. Fetch recipient account via Horizon `GET /accounts/{id}`; detect missing trustline, inactive account, and insufficient reserve.
+  2. Build `TransactionBuilder` with the correct network passphrase and an **adaptive base fee** sourced from Horizon `GET /fee_stats` (uses 90th-percentile fee with a configurable minimum floor).
+  3. Add `Payment` or `PathPaymentStrictReceive` operation(s) depending on asset match; disbursement batches pack up to `100` operations per transaction (Stellar protocol limit).
+  4. Set `timeBounds` to `[now, now + 300s]` to prevent replay if submission is delayed.
+  5. Serialize to XDR and sign via Wallets Kit (user-signed operations) or the Anchor keypair (server-signed operations for the SDP tenant side).
+- Submission: signed XDR is submitted via SDP, which forwards to Horizon. Parallel Horizon read-through verification reduces reliance on webhook delivery semantics.
+
+### Stellar-Specific Failure Modes and Handling
+
+| Failure | Detection | Handling |
+|---|---|---|
+| Recipient missing USDC trustline | Horizon `GET /accounts/{id}` before tx build | Pause disbursement, surface trustline-required error to partner admin, prompt trustline creation via Wallets Kit on next partner session. |
+| Insufficient source balance for operation + base reserve | Horizon account balance check | Alert ops; intent parks in `authorization_obtained` state until fund-up; no silent failure. |
+| Sequence number collision (`tx_bad_seq`) | Horizon submission error code | Refresh sequence number, rebuild transaction, retry once; second collision triggers reconciliation review. |
+| Horizon rate limiting (HTTP `429`) | Response status | Exponential backoff with jitter; fallback to a secondary Horizon endpoint when configured (`HORIZON_URL_FALLBACK`). |
+| Transaction `timeBounds` expired (`tx_too_late`) | Horizon submission error code | Mark intent failed, return specific error to client for explicit user retry with fresh XDR. |
+| Operation limit exceeded | Pre-submission validation (max `100` ops/tx) | Split disbursement across multiple transactions while preserving a single SDP `disbursement_id` for reconciliation. |
+| Asset path unavailable for path payment (`op_too_few_offers`) | Horizon submission error code | Fall back to direct `Payment` operation with USDC; surface conversion error to admin if alternate path also fails. |
+| Network passphrase mismatch | Pre-submission XDR inspection | Reject immediately; log as a deployment configuration error (should never occur in correctly deployed envs). |
+
+### On-chain Observability (Reviewer-Accessible)
+
+- Every settled settlement/disbursement writes its `tx_hash` and `network` to the `settlements` / `disbursements` collections.
+- Evidence bundles include a `tx-hashes.csv` file where each row is a direct explorer link (`https://stellarchain.io/transactions/{tx_hash}` or `https://stellar.expert/explorer/public/tx/{tx_hash}`) for reviewer one-click verification.
+- The existing Token Tails mainnet contract (`CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF`) and public on-chain dashboard (`https://dune.com/token_tails/token-tails`) serve as historical reference; TTSR does not modify or redeploy this contract.
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -117,16 +209,17 @@ Unknown bundle IDs are rejected at the gateway. This eliminates per-app code bra
 
 Indexes: compound on `(user_id, app_id)` for entitlements, on `idempotency_key` for transfer intents, on `(network, tx_hash)` for settlements/disbursements, on `(run_id, status)` for reconciliation issues.
 
-## External Integrations
+## External Integrations (non-Stellar)
+
+Stellar-side integrations are fully detailed in the **Stellar Integration Plan** above. This table covers the non-Stellar external systems the rail depends on.
 
 | Integration | Use |
 |---|---|
 | Firebase Auth | User identity; ID tokens verified via `accesstoken` header. |
 | Apple App Store Server API | Subscription receipt verification + server-to-server notifications. |
+| Apple App Store Server Notifications | Webhook delivery for subscription lifecycle events. |
 | RevenueCat | Client-side subscription management + server webhooks for entitlement updates. |
-| Stellar Wallets Kit | User wallet authorization + signature capture on the client. |
-| Stellar Disbursement Platform (SDP) | Primary settlement + disbursement orchestration; batched recipient delivery. |
-| Stellar Bridge | Corridor execution for fiat-to-Stellar settlement paths. |
+| DigitalOcean Spaces | S3-compatible object storage for evidence bundles, logs, and artifacts. |
 | Dune Analytics | Public on-chain metrics dashboard (read-only reviewer reference). |
 
 ## Request and Event Flows
@@ -296,13 +389,6 @@ Partners (shelters and recipients) are tracked through a fixed 5-stage vocabular
 5. `active_disbursement`
 
 Transitions are append-only; every row carries `stage_updated_at_utc`, `owner`, and `evidence_ref`. Reaching `approved` requires compliance review closure. This vocabulary is mirrored in every exported `partners/pipeline.csv`.
-
-## Bridge Integration
-
-- KYB for Bridge corridor access is cleared.
-- `bridge-adapter` handles corridor-routed settlement paths; same idempotency and reconciliation guarantees apply.
-- Payout profile on the bundle config determines whether a transfer routes through Bridge or stays on the SDP path.
-- Both paths emit identical evidence schema; consumers of reconciliation exports don't need to branch on corridor vs direct.
 
 ## Repository Layout (top-level)
 
