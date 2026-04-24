@@ -377,23 +377,6 @@ export const TelegramProfileContent = () => {
             </div>
           )}
 
-          {profile?.wallets?.evm && isWalletsRevealed && (
-            <li
-              onClick={() => copy(profile?.wallets.evm.walletAddress)}
-              className="flex flex-col gap-1 mt-3"
-            >
-              <div className="text-p5 font-secondary">
-                Your EVM wallet address
-                <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg ml-2">
-                  COPY
-                </span>
-              </div>
-              <p className="text-p6 font-bold font-secondary">
-                {profile?.wallets.evm.walletAddress}
-              </p>
-            </li>
-          )}
-
           {profile?.wallets?.stellar && isWalletsRevealed && (
             <li
               onClick={() => copy(profile?.wallets.stellar.walletAddress)}

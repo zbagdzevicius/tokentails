@@ -8,8 +8,6 @@ import { UserRepository } from './user.repository';
 import { User } from './user.schema';
 
 import * as StellarSdk from '@stellar/stellar-sdk';
-import * as crypto from 'crypto';
-import { Wallet } from 'ethers';
 import { EncryptionService } from 'src/shared/encryption.service';
 
 export function generateRandomNumber() {
@@ -35,7 +33,6 @@ export class UserService {
         if (!name) {
             name = user.email?.split('@')?.[0] || 'anonyamous';
         }
-        const evm = this.generateWallet();
         const stellar = this.generateStellarWallet();
 
         const userId = new Types.ObjectId();
@@ -48,7 +45,6 @@ export class UserService {
             email: user.email,
             canRedeemLives: true,
             wallets: {
-                evm,
                 stellar,
             },
             cat: catId,
@@ -85,24 +81,9 @@ export class UserService {
     }
 
     generateWallets() {
-        const evm = this.generateWallet();
         const stellar = this.generateStellarWallet();
         return {
-            evm,
             stellar,
-        };
-    }
-
-    private generateWallet() {
-        const id = crypto.randomBytes(32).toString('hex');
-        const privateKey = '0x' + id;
-        const wallet = new Wallet(privateKey);
-        const walletAddress = wallet.address;
-        const walletPrivateKey = this.encryptionService.encrypt(privateKey);
-
-        return {
-            walletAddress,
-            walletPrivateKey,
         };
     }
 

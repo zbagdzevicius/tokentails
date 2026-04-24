@@ -3,19 +3,15 @@ import { useRates } from "@/components/web3/useRates";
 import { ChainCurrencies, ChainType, CurrencyType } from "@/web3/contracts";
 import { useRouter } from "next/router";
 import * as React from "react";
-import { useAccount } from "wagmi";
 
 type ContextState = {
-  evmConnected: boolean;
   stellarConnected: boolean;
-  evmAddress?: `0x${string}`;
   rates?: Record<CurrencyType, number>;
   stellarAddress?: string;
   chainType: ChainType;
   setChainType: (chainType: ChainType) => void;
   setStellarConnected: (stellarConnected: boolean) => void;
   setStellarAddress: (stellarAddress: string) => void;
-  chainId?: number;
   query: any;
   currencyType: CurrencyType;
   chainStatusDetail: {
@@ -32,51 +28,23 @@ type ContextState = {
 const Web3Context = React.createContext<ContextState | undefined>(undefined);
 
 export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
-  const { isConnected, address, chainId } = useAccount();
-
   const [stellarConnected, setStellarConnected] = React.useState(false);
   const [stellarAddress, setStellarAddress] = React.useState<string>();
-  const [chainType, setChainType] = React.useState<ChainType>(ChainType.SEI);
+  const [chainType, setChainType] = React.useState<ChainType>(ChainType.STELLAR);
 
-  const [currencyType, setCurrencyType] = React.useState(CurrencyType.USDT);
+  const [currencyType, setCurrencyType] = React.useState(CurrencyType.XLM);
   const [price, setPrice] = React.useState();
   const rates = useRates();
   const [transactionStatus, setTransactionStatus] =
     React.useState<ITransactionStatus | null>(null);
 
-  const chainStatus = React.useMemo(() => {
-    return {
-      [ChainType.BNB]: {
-        connected: isConnected,
-        address: address,
-      },
-      [ChainType.SEI]: {
-        connected: isConnected,
-        address: address,
-      },
-      [ChainType.STELLAR]: {
-        connected: stellarConnected,
-        address: stellarAddress,
-      },
-      [ChainType.TORUS]: {
-        connected: isConnected,
-        address: address,
-      },
-      [ChainType.ETH]: {
-        connected: isConnected,
-        address: address,
-      },
-      [ChainType.BASE]: {
-        connected: isConnected,
-        address: address,
-      },
-      [ChainType.MANTLE]: {
-        connected: isConnected,
-        address: address,
-      },
-    };
-  }, [chainType, isConnected, address, stellarAddress, stellarAddress]);
-  const chainStatusDetail = chainStatus[chainType as keyof typeof chainStatus];
+  const chainStatusDetail = React.useMemo(
+    () => ({
+      connected: stellarConnected,
+      address: stellarAddress,
+    }),
+    [stellarConnected, stellarAddress],
+  );
 
   const router = useRouter();
   const { query } = router;
@@ -88,12 +56,9 @@ export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
   return (
     <Web3Context.Provider
       value={{
-        evmConnected: isConnected,
         rates,
         stellarConnected,
-        evmAddress: address,
         stellarAddress,
-        chainId,
         currencyType,
         price,
         query,

@@ -120,7 +120,6 @@ export interface IWallet {
 
 export interface IUserWallets {
     stellar: IWallet;
-    evm: IWallet;
 }
 
 @Schema({ timestamps: true })

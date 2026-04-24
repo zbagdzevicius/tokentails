@@ -7,7 +7,6 @@ export interface IWallet {
 
 export interface IUserWallets {
   stellar: IWallet;
-  evm: IWallet;
 }
 
 export interface IProfile {

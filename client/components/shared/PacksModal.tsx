@@ -1,5 +1,4 @@
 import { CloseButton } from "@/components/shared/CloseButton";
-import { Countdown } from "@/components/shared/Countdown";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { Tag } from "@/components/shared/Tag";
 import { TailsCardPack } from "@/components/tailsCard/TailsCardPack";
@@ -16,8 +15,6 @@ const Payment = dynamic(
   () => import("@/components/web3/Payment").then((module) => module.Payment),
   { ssr: false }
 );
-
-const endDate = new Date("2026-02-15");
 
 const packPrices = {
   [PackType.STARTER]: 5,
@@ -198,9 +195,6 @@ const PacksSelect = ({
           src={cdnFile("tail/mascot-card.webp")}
           className="w-40 mt-48 z-[10] absolute top-0 ml-8 lg:group-hover:-mt-44 transition-all duration-500 hidden lg:block"
         />
-        <div className="-mt-8 lg:group-hover:opacity-0 transition-all duration-500 relative z-20">
-          <Countdown isDaysDisplayed targetDate={endDate} />
-        </div>
         <div className="font-primary text-h5 glow mb-2 text-yellow-200">
           LEGENDARY
         </div>

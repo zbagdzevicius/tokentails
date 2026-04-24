@@ -2,21 +2,30 @@ import Head from "next/head";
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
+  Activity,
   ArrowRight,
   ChevronRight,
+  Coins,
   Crown,
   Gamepad2,
+  Gauge,
   Globe,
   HandHeart,
   Heart,
+  HeartPulse,
   Home,
+  MapPin,
   PawPrint as PawPrintIcon,
+  Pill,
+  Rocket,
   Scroll,
   Shield,
+  Sparkles,
   Star,
   Swords,
   Trophy,
   Users,
+  Utensils,
   Zap,
   type LucideIcon,
 } from "lucide-react";
@@ -36,8 +45,9 @@ const BODY_FONT = "'Nunito', 'Inter', sans-serif";
 
 const navLinks = [
   { label: "Explore", href: "#features" },
+  { label: "App Family", href: "#family" },
+  { label: "Stellar", href: "#stellar" },
   { label: "Shelter Impact", href: "#impact" },
-  { label: "Reviews", href: "#reviews" },
   { label: "FAQ", href: "#faq" },
 ];
 
@@ -196,6 +206,116 @@ const products: Array<{
   },
 ];
 
+const upcomingApps: Array<{
+  icon: LucideIcon;
+  mascot: string;
+  name: string;
+  tagline: string;
+  description: string;
+  status: "In Development" | "Coming Soon" | "Planned";
+  accent: string;
+  href: string;
+}> = [
+  {
+    icon: Activity,
+    mascot: "/mascots/actions/watching_tv.webp",
+    name: "CatWatch",
+    tagline: "Behavioral insights, on-chain.",
+    description:
+      "Passive monitoring of your cat's activity, sleep, and routines. Anomalies surface early, milestones are minted on Stellar.",
+    status: "In Development",
+    accent: "from-orange-500/30 to-amber-500/10",
+    href: "https://catwatch.tokentails.com",
+  },
+  {
+    icon: HeartPulse,
+    mascot: "/mascots/actions/doing_yoga.webp",
+    name: "CatHealth",
+    tagline: "A full medical record that travels with your cat.",
+    description:
+      "Vet visits, vaccinations, weight, vitals, and symptoms - tokenized as a portable health passport on Stellar.",
+    status: "In Development",
+    accent: "from-rose-500/30 to-red-500/10",
+    href: "https://cathealth.tokentails.com",
+  },
+  {
+    icon: Utensils,
+    mascot: "/mascots/tasks/cat_eating_dry_food.webp",
+    name: "CatFood",
+    tagline: "Smarter feeding, fairer supply.",
+    description:
+      "Scan nutrition, track meals, and reorder food with sub-cent Stellar payments. Shelter partners get transparent donations at checkout.",
+    status: "Coming Soon",
+    accent: "from-emerald-500/30 to-teal-500/10",
+    href: "https://catfood.tokentails.com",
+  },
+  {
+    icon: Pill,
+    mascot: "/mascots/tasks/setting_reminders.webp",
+    name: "CatMeds",
+    tagline: "Never miss a dose again.",
+    description:
+      "Prescription reminders, vet-verified refills, and compliance tracking. Meds payable in XLM or USDC with instant settlement.",
+    status: "Coming Soon",
+    accent: "from-indigo-500/30 to-blue-500/10",
+    href: "https://catmeds.tokentails.com",
+  },
+  {
+    icon: MapPin,
+    mascot: "/mascots/actions/hiking_on_a_trail.webp",
+    name: "CatFind",
+    tagline: "A rescue network worth its weight in trust.",
+    description:
+      "Lost-cat recovery and shelter adoption discovery powered by a Stellar-backed microchip registry and $TAILS bounties.",
+    status: "Planned",
+    accent: "from-fuchsia-500/30 to-purple-500/10",
+    href: "https://catfind.tokentails.com",
+  },
+];
+
+const stellarBenefits: Array<{
+  icon: LucideIcon;
+  title: string;
+  description: string;
+}> = [
+  {
+    icon: Coins,
+    title: "Sub-cent micropayments",
+    description:
+      "Shelter donations, in-app purchases, and $TAILS rewards flow without middlemen eating the margin.",
+  },
+  {
+    icon: Gauge,
+    title: "3-5 second finality",
+    description:
+      "Every mint, reward, and checkout settles in seconds - not minutes - on the Stellar network.",
+  },
+  {
+    icon: Globe,
+    title: "Global rails for real impact",
+    description:
+      "Anchors, on-ramps, and native USDC mean shelters in 9+ countries receive funds without banking friction.",
+  },
+  {
+    icon: Shield,
+    title: "Non-profit aligned",
+    description:
+      "Stellar Development Foundation's mission to expand financial access mirrors our mission to protect cats.",
+  },
+  {
+    icon: Sparkles,
+    title: "Soroban-ready",
+    description:
+      "Cat profiles, health records, and $TAILS rewards are being built as Soroban smart contracts - transparent and auditable.",
+  },
+  {
+    icon: Rocket,
+    title: "SCF-backed vision",
+    description:
+      "We're applying to the Stellar Community Fund to scale the Token Tails family of apps into the world's leading feline care ecosystem.",
+  },
+];
+
 const testimonials = [
   {
     name: "Sarah M.",
@@ -290,9 +410,19 @@ const quests: Array<{
 
 const faqs = [
   {
+    question: "Why is Token Tails Stellar-exclusive?",
+    answer:
+      "Stellar's sub-cent fees, 3-5 second finality, and non-profit foundation align perfectly with our mission. We run all payments, $TAILS rewards, cat profiles, and shelter donations on Stellar - no other chains, no bridges. Our SCF submission outlines how we're scaling the full five-app family on Stellar.",
+  },
+  {
+    question: "What are the 5 upcoming apps in the Token Tails family?",
+    answer:
+      "CatWatch (behavioral monitoring), CatHealth (medical passport), CatFood (nutrition and feeding), CatMeds (prescription tracking), and CatFind (lost-cat recovery and adoption). Each is built natively on Stellar and shares a single cat identity, $TAILS economy, and shelter-donation flow.",
+  },
+  {
     question: "How does Token Tails help shelter cats?",
     answer:
-      "A portion of every purchase goes directly to partner shelters across 9 countries. These funds cover food, medical treatment, spaying/neutering, and rehoming operations.",
+      "A portion of every purchase flows directly to partner shelters across 9 countries via Stellar anchors - transparently, with near-zero fees. Funds cover food, medical treatment, spaying/neutering, and rehoming operations.",
   },
   {
     question: "What kind of portraits can I create?",
@@ -302,17 +432,12 @@ const faqs = [
   {
     question: "Is Token Tails just a game?",
     answer:
-      "No. Token Tails combines portraits, health tracking, interactive mini-games, and adventure worlds while supporting real shelter cats.",
-  },
-  {
-    question: "How does health tracking work?",
-    answer:
-      "The dashboard helps log feeding, activity, mood, weight, and vet visits. It also provides reminders and practical insights to support your cat's routine care.",
+      "No. Token Tails is a family of feline care apps that happens to include playful elements. The live product covers portraits, adventure, and shelter packs; the five upcoming apps cover health, nutrition, meds, and rescue.",
   },
   {
     question: "Can I try Token Tails for free?",
     answer:
-      "Yes. You can explore the app and portrait styles for free. Paid portraits and packs fund shelter partnerships.",
+      "Yes. You can explore the app and portrait styles for free. Paid portraits, packs, and future app features fund shelter partnerships.",
   },
 ];
 
@@ -419,10 +544,20 @@ export default function HomePage() {
   return (
     <>
       <Head>
-        <title>Token Tails | Forever Feline</title>
+        <title>
+          Token Tails | A family of feline care apps, built on Stellar
+        </title>
         <meta
           name="description"
-          content="Take care of your cat, create royal portraits, and help save real shelter cats with every action."
+          content="Token Tails is a Stellar-exclusive family of cat-care apps - CatWatch, CatHealth, CatFood, CatMeds, and CatFind - immortalizing cats as art while funding real shelter rescue worldwide."
+        />
+        <meta
+          property="og:title"
+          content="Token Tails | Stellar-exclusive family of feline care apps"
+        />
+        <meta
+          property="og:description"
+          content="Five upcoming apps - CatWatch, CatHealth, CatFood, CatMeds, CatFind - powered by Stellar, funding shelter cats across 9 countries."
         />
       </Head>
 
@@ -480,6 +615,23 @@ export default function HomePage() {
           <CatSilhouette className="absolute top-24 right-[5%] w-24 h-20 text-primary/[0.05] rotate-[10deg]" />
           <CatSilhouette className="absolute bottom-10 left-[6%] w-20 h-16 text-primary/[0.04] -scale-x-100 rotate-[-8deg]" />
 
+          <motion.img
+            src="/mascots/tasks/paint_a_picture.webp"
+            alt="Token Tails mascot painting a portrait"
+            initial={{ opacity: 0, y: 20, rotate: -8 }}
+            animate={{ opacity: 1, y: 0, rotate: -8 }}
+            transition={{ duration: 0.7, delay: 0.35, ease: "easeOut" }}
+            className="hidden lg:block absolute bottom-0 left-[4%] xl:left-[7%] w-32 xl:w-40 drop-shadow-xl pointer-events-none select-none"
+          />
+          <motion.img
+            src="/mascots/tasks/taking_a_selfie.webp"
+            alt="Token Tails mascot taking a selfie"
+            initial={{ opacity: 0, y: 20, rotate: 8 }}
+            animate={{ opacity: 1, y: 0, rotate: 8 }}
+            transition={{ duration: 0.7, delay: 0.45, ease: "easeOut" }}
+            className="hidden lg:block absolute bottom-0 right-[4%] xl:right-[7%] w-32 xl:w-40 drop-shadow-xl pointer-events-none select-none"
+          />
+
           <div className="container mx-auto px-6 relative z-10">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -492,6 +644,17 @@ export default function HomePage() {
                 Charity-driven · Every action helps shelter cats
                 <PawPrint className="w-3.5 h-3.5 text-primary/70" />
               </span>
+              <a
+                href="#stellar"
+                className="group inline-flex items-center gap-2 bg-gradient-to-r from-[#0b0b0b] to-[#1f1f1f] text-white px-3.5 py-1.5 rounded-full text-sm font-semibold border border-white/10 hover:border-primary/50 transition-colors"
+              >
+                <img
+                  src="/logo/stellar-logo-white.webp"
+                  alt="Stellar"
+                  className="h-3.5 w-auto"
+                />
+                ecosystem exclusive
+              </a>
               <span className="inline-flex items-center gap-1.5 bg-card border border-border px-3 py-1.5 rounded-full text-sm text-muted-foreground">
                 <span className="flex">
                   {[...Array(5)].map((_, i) => (
@@ -541,10 +704,12 @@ export default function HomePage() {
               transition={{ duration: 0.6, delay: 0.4 }}
               className="mt-5 text-center text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed"
             >
-              Immortalize your cat as art. Track their health. Play together.
+              A family of five feline care apps - CatWatch, CatHealth, CatFood,
+              CatMeds, and CatFind - built exclusively on{" "}
+              <strong className="text-foreground">Stellar</strong>.
               <br className="hidden md:block" />
               <strong className="text-foreground">
-                And help save stray cats with every step.
+                Care for your cat. Save strays worldwide.
               </strong>
             </motion.p>
 
@@ -664,6 +829,19 @@ export default function HomePage() {
           <CatSilhouette className="absolute top-1/2 right-[3%] w-24 h-20 text-primary-foreground/[0.03] -translate-y-1/2" />
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-40" />
 
+          <img
+            src="/mascots/actions/strong_biceps.webp"
+            alt=""
+            aria-hidden="true"
+            className="hidden md:block absolute -bottom-4 left-[3%] w-28 opacity-80 pointer-events-none select-none -rotate-6"
+          />
+          <img
+            src="/mascots/tasks/celebrating_finishing_work.webp"
+            alt=""
+            aria-hidden="true"
+            className="hidden md:block absolute -top-2 right-[4%] w-24 opacity-90 pointer-events-none select-none rotate-6"
+          />
+
           <div className="container mx-auto px-6 relative z-10">
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -733,6 +911,25 @@ export default function HomePage() {
           <PawPrint className="absolute bottom-20 right-[7%] w-8 h-8 text-primary/[0.04] rotate-[25deg]" />
           <Whiskers className="absolute top-[28%] right-[8%] w-20 h-7 text-primary/[0.08]" />
 
+          <motion.img
+            src="/mascots/emotions/lovelable.webp"
+            alt="Token Tails mascot"
+            initial={{ opacity: 0, scale: 0.8, rotate: -8 }}
+            whileInView={{ opacity: 1, scale: 1, rotate: -8 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
+            className="hidden lg:block absolute left-[6%] top-1/2 -translate-y-1/2 w-40 xl:w-52 drop-shadow-xl pointer-events-none select-none"
+          />
+          <motion.img
+            src="/mascots/actions/chilling.webp"
+            alt="Token Tails mascot"
+            initial={{ opacity: 0, scale: 0.8, rotate: 8 }}
+            whileInView={{ opacity: 1, scale: 1, rotate: 8 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7, delay: 0.1, ease: "easeOut" }}
+            className="hidden lg:block absolute right-[6%] top-1/2 -translate-y-1/2 w-36 xl:w-48 drop-shadow-xl pointer-events-none select-none"
+          />
+
           <div className="container mx-auto px-6 relative z-10">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -742,20 +939,20 @@ export default function HomePage() {
             >
               <span className="inline-flex items-center gap-1.5 text-sm font-medium text-primary uppercase tracking-wider">
                 <PawPrint className="w-4 h-4 text-primary/70" />
-                More than an app
+                A family of feline apps on Stellar
                 <PawPrint className="w-4 h-4 text-primary/70" />
               </span>
               <h2 className="font-display font-bold text-5xl md:text-6xl text-foreground mt-3 leading-tight">
-                A world built
+                An ecosystem built
                 <br />
                 <span className="text-gradient">around cats.</span>
               </h2>
               <p className="text-muted-foreground mt-6 text-lg md:text-xl leading-relaxed max-w-2xl mx-auto">
-                Token Tails is where cat lovers collect, play, and make a real
-                difference. Turn your cat into royalty with AI portraits,
-                explore adventure worlds with your cat as the hero, collect
-                cards of real shelter cats, and fund their rescue with every
-                action you take.
+                Token Tails starts with art and adventure, but it doesn't stop
+                there. Five upcoming apps - CatWatch, CatHealth, CatFood,
+                CatMeds, and CatFind - will cover every part of a cat's life,
+                all powered by Stellar's low-fee, fast-finality rails, and all
+                funding real shelter rescue at the source.
               </p>
             </motion.div>
           </div>
@@ -779,13 +976,17 @@ export default function HomePage() {
             >
               <span className="inline-flex items-center gap-1.5 text-sm font-medium text-primary uppercase tracking-wider">
                 <PawPrint className="w-4 h-4 text-primary/70" />
-                Explore Token Tails
+                Live today
               </span>
               <h2 className="font-display font-bold text-5xl md:text-6xl text-foreground mt-3">
                 Three worlds.
                 <br />
                 <span className="text-gradient">One platform.</span>
               </h2>
+              <p className="text-muted-foreground mt-4 text-base md:text-lg max-w-2xl mx-auto">
+                The foundation is shipped. 50K+ portraits minted, 800+ cats
+                rehomed, payments settling on Stellar.
+              </p>
             </motion.div>
 
             <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
@@ -846,12 +1047,209 @@ export default function HomePage() {
         </section>
 
         <section
+          id="family"
+          className="py-24 bg-cream relative overflow-hidden"
+        >
+          <PawPrint className="absolute top-16 left-[5%] w-10 h-10 text-primary/[0.05] rotate-[-20deg]" />
+          <PawPrint className="absolute bottom-16 right-[7%] w-8 h-8 text-primary/[0.04] rotate-[25deg]" />
+          <CatSilhouette className="absolute top-8 right-[4%] w-24 h-20 text-primary/[0.04]" />
+
+          <div className="container mx-auto px-6 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center max-w-3xl mx-auto mb-16"
+            >
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-primary uppercase tracking-wider">
+                <Sparkles className="w-4 h-4 text-primary/70" />
+                The Token Tails family
+              </span>
+              <h2 className="font-display font-bold text-5xl md:text-6xl text-foreground mt-3 leading-tight">
+                Five apps.{" "}
+                <span className="text-gradient">One cat's lifetime.</span>
+              </h2>
+              <p className="text-muted-foreground mt-6 text-lg leading-relaxed">
+                We're expanding Token Tails into a complete feline care suite -
+                each app designed to tackle a real, painful problem for cat
+                parents, and each built natively on{" "}
+                <strong className="text-foreground">Stellar</strong> so value,
+                records, and donations move as freely as the love we have for
+                our cats.
+              </p>
+            </motion.div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {upcomingApps.map((app, i) => (
+                <motion.a
+                  key={app.name}
+                  href={app.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  whileHover={{ y: -6, transition: { duration: 0.25 } }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.08 }}
+                  className="group relative bg-card border border-border rounded-3xl overflow-hidden hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 block"
+                >
+                  <span
+                    className={`absolute top-4 right-4 z-20 text-[10px] font-display font-bold uppercase tracking-wider px-3 py-1 rounded-full ${
+                      app.status === "In Development"
+                        ? "bg-primary text-primary-foreground"
+                        : app.status === "Coming Soon"
+                        ? "bg-secondary text-primary border border-primary/20"
+                        : "bg-background text-muted-foreground border border-border"
+                    }`}
+                  >
+                    {app.status}
+                  </span>
+
+                  <div
+                    className={`relative h-44 bg-gradient-to-br ${app.accent} flex items-center justify-center overflow-hidden`}
+                  >
+                    <img
+                      src={app.mascot}
+                      alt={`${app.name} mascot`}
+                      className="h-full w-auto object-contain drop-shadow-xl group-hover:scale-110 transition-transform duration-500 ease-out"
+                    />
+                  </div>
+
+                  <div className="p-6">
+                    <h3 className="font-display font-bold text-2xl text-foreground">
+                      {app.name}
+                    </h3>
+                    <p className="text-primary font-semibold text-sm mt-1 mb-3">
+                      {app.tagline}
+                    </p>
+                    <p className="text-muted-foreground leading-relaxed text-sm mb-4">
+                      {app.description}
+                    </p>
+                    <span className="inline-flex items-center gap-1.5 text-primary font-display font-semibold text-sm group-hover:gap-3 transition-all duration-300">
+                      Visit {app.name.toLowerCase()}.tokentails.com
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                    </span>
+                  </div>
+                </motion.a>
+              ))}
+
+              <motion.a
+                href="#stellar"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                whileHover={{ y: -6, transition: { duration: 0.25 } }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.4 }}
+                className="relative bg-charcoal text-primary-foreground border border-primary/20 rounded-3xl p-6 flex flex-col justify-between overflow-hidden group"
+              >
+                <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-primary/20 blur-3xl group-hover:bg-primary/30 transition-colors" />
+                <div className="relative z-10">
+                  <div className="w-14 h-14 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center mb-4">
+                    <img
+                      src="/logo/stellar-logo-white.webp"
+                      alt="Stellar"
+                      className="w-8 h-8 object-contain"
+                    />
+                  </div>
+                  <h3 className="font-display font-bold text-2xl">
+                    All on Stellar.
+                  </h3>
+                  <p className="text-primary-foreground/70 mt-3 leading-relaxed text-sm">
+                    One shared $TAILS economy. One Soroban-native identity per
+                    cat. One transparent donation trail.
+                  </p>
+                </div>
+                <span className="relative z-10 inline-flex items-center gap-1.5 text-primary font-display font-semibold text-sm mt-4 group-hover:gap-3 transition-all duration-300">
+                  Why Stellar
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                </span>
+              </motion.a>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="stellar"
+          className="py-24 bg-charcoal relative overflow-hidden"
+        >
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-40" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full bg-primary/10 blur-[140px] pointer-events-none" />
+          <PawPrint className="absolute top-14 left-[7%] w-8 h-8 text-primary-foreground/[0.04] rotate-[-15deg]" />
+          <PawPrint className="absolute bottom-20 right-[9%] w-9 h-9 text-primary-foreground/[0.04] rotate-[20deg]" />
+
+          <div className="container mx-auto px-6 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center max-w-3xl mx-auto mb-16"
+            >
+              <span className="inline-flex items-center gap-2 bg-primary/15 border border-primary/30 text-primary px-4 py-1.5 rounded-full text-sm font-display font-bold uppercase tracking-wider">
+                <img
+                  src="/logo/stellar-logo-white.webp"
+                  alt="Stellar"
+                  className="h-4 w-auto"
+                />
+                Built exclusively on Stellar
+              </span>
+              <h2 className="font-display font-bold text-5xl md:text-6xl text-primary-foreground mt-5 leading-tight">
+                Not multi-chain.
+                <br />
+                <span className="text-primary">Stellar-native.</span>
+              </h2>
+              <p className="text-primary-foreground/70 mt-6 text-lg leading-relaxed">
+                We picked one chain and built for it deeply. Stellar's speed,
+                cost profile, and non-profit mission match ours one-for-one -
+                which is why every Token Tails app, from portraits to CatFind,
+                runs on it and only it.
+              </p>
+            </motion.div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {stellarBenefits.map((benefit, i) => (
+                <motion.div
+                  key={benefit.title}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  whileHover={{ y: -4, transition: { duration: 0.25 } }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.08 }}
+                  className="bg-primary-foreground/[0.04] border border-primary-foreground/10 rounded-2xl p-6 hover:border-primary/40 transition-colors"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center mb-4">
+                    <benefit.icon className="w-6 h-6 text-primary" />
+                  </div>
+                  <h3 className="font-display font-bold text-lg text-primary-foreground">
+                    {benefit.title}
+                  </h3>
+                  <p className="text-primary-foreground/70 mt-2 leading-relaxed text-sm">
+                    {benefit.description}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+
+          </div>
+        </section>
+
+        <section
           className="py-24 bg-background relative overflow-hidden"
           id="impact"
         >
           <PawPrint className="absolute top-20 right-[6%] w-10 h-10 text-primary/[0.05] rotate-[25deg]" />
           <PawPrint className="absolute bottom-24 left-[4%] w-8 h-8 text-primary/[0.04] rotate-[-20deg]" />
           <PawPrint className="absolute top-[50%] left-[3%] w-6 h-6 text-primary/[0.04] rotate-[40deg]" />
+
+          <motion.img
+            src="/mascots/emotions/crying.webp"
+            alt=""
+            aria-hidden="true"
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 0.9, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7 }}
+            className="hidden xl:block absolute top-28 left-[2%] w-28 -rotate-6 drop-shadow-lg pointer-events-none select-none"
+          />
 
           <div className="container mx-auto px-6 relative z-10">
             <motion.div
@@ -1235,6 +1633,27 @@ export default function HomePage() {
           <Whiskers className="absolute top-[40%] left-[3%] w-24 h-10 text-primary-foreground/[0.04] rotate-[-5deg]" />
           <Whiskers className="absolute bottom-[35%] right-[3%] w-20 h-8 text-primary-foreground/[0.03] rotate-[5deg]" />
 
+          <motion.img
+            src="/mascots/actions/gaming_with_a_controller.webp"
+            alt=""
+            aria-hidden="true"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="hidden md:block absolute bottom-0 left-[6%] w-48 xl:w-64 drop-shadow-2xl pointer-events-none select-none"
+          />
+          <motion.img
+            src="/mascots/emotions/lovelable.webp"
+            alt=""
+            aria-hidden="true"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="hidden md:block absolute bottom-0 right-[6%] w-48 xl:w-64 drop-shadow-2xl pointer-events-none select-none"
+          />
+
           <div className="container mx-auto px-6 relative z-10">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -1249,16 +1668,22 @@ export default function HomePage() {
                 transition={{ type: "spring", stiffness: 200 }}
                 className="inline-flex items-center gap-2 bg-primary/20 border border-primary/30 text-primary px-4 py-2 rounded-full text-sm font-display font-bold mb-6"
               >
-                Level Up Your Cat
+                <img
+                  src="/logo/stellar-logo-white.webp"
+                  alt="Stellar"
+                  className="h-4 w-auto"
+                />
+                Powered by Stellar
               </motion.div>
               <h2 className="font-display font-bold text-5xl md:text-6xl text-primary-foreground leading-tight">
-                Ready to start
+                Help us build the
                 <br />
-                your adventure?
+                future of feline care.
               </h2>
               <p className="text-primary-foreground/60 mt-5 text-lg max-w-xl mx-auto">
-                Join 10K+ cat heroes creating portraits, conquering quests, and
-                saving real shelter cats worldwide.
+                10K+ cat parents are already with us. Five apps are on the way.
+                All on Stellar. All funding shelters. Start with a portrait
+                or explore the full family.
               </p>
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <motion.a
@@ -1278,10 +1703,10 @@ export default function HomePage() {
                     borderColor: "rgba(255,255,255,0.4)",
                   }}
                   whileTap={{ scale: 0.96 }}
-                  href="https://apps.apple.com/app/id6745582489"
+                  href="#family"
                   className="portrait-btn-dark inline-flex items-center justify-center px-8 py-4 text-lg font-bold"
                 >
-                  Download App
+                  Explore the app family
                 </motion.a>
               </div>
             </motion.div>

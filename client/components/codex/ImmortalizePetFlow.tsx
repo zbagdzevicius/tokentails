@@ -1,6 +1,5 @@
 import { IMAGE_API } from "@/api/image-api";
 import { trackEvent } from "@/components/GoogleTagManager";
-import { ChainSelect } from "@/components/shared/ChainSelect";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { ProgressStylePickerModal } from "@/components/codex/ProgressStylePickerModal";
 import { Tag } from "@/components/shared/Tag";
@@ -28,21 +27,24 @@ const STYLE_LABELS: Record<PortraitStyle, string> = {
 const PET_ART_FLOW_STEPS = [
   {
     title: "Upload Pet Photo",
-    detail: "Use one clear, well-lit photo so traits can be detected precisely.",
+    detail:
+      "Use one clear, well-lit photo so traits can be detected precisely.",
     icon: "icons/check.webp",
     eta: "10s",
     reward: "Profile-ready trait match",
   },
   {
     title: "Generate Variants",
-    detail: "Create and refine styles until the portrait matches your pet perfectly.",
+    detail:
+      "Create and refine styles until the portrait matches your pet perfectly.",
     icon: "icons/rocket.png",
     eta: "45s",
     reward: "Premium collectible preview",
   },
   {
     title: "Complete Purchase",
-    detail: "Pay with card or web3 to mint the portrait and unlock in-game perks.",
+    detail:
+      "Pay with card or web3 to mint the portrait and unlock in-game perks.",
     icon: "icons/gift.png",
     eta: "5s",
     reward: "Permanent in-game unlock",
@@ -454,7 +456,6 @@ export const ImmortalizePetFlow = ({
                   <div className="mt-2">
                     <Web3Providers>
                       <div className="flex flex-col items-center gap-2">
-                        <ChainSelect />
                         <Web3Transfer
                           price={DIGITAL_PORTRAIT_PRICE}
                           entityType={EntityType.IMAGE}
@@ -510,7 +511,8 @@ export const ImmortalizePetFlow = ({
 
                   <div className="grid gap-2">
                     {PET_ART_FLOW_STEPS.map((step, index) => {
-                      const isLastStep = index === PET_ART_FLOW_STEPS.length - 1;
+                      const isLastStep =
+                        index === PET_ART_FLOW_STEPS.length - 1;
                       return (
                         <div
                           key={step.title}
@@ -564,8 +566,8 @@ export const ImmortalizePetFlow = ({
                           REWARD PATH
                         </div>
                         <div className="font-primary text-p6 md:text-p5 text-yellow-900 leading-tight">
-                          Each immortalized portrait strengthens your progression
-                          position before airdrop claims.
+                          Each immortalized portrait strengthens your
+                          progression position before airdrop claims.
                         </div>
                       </div>
                     </div>

@@ -77,15 +77,13 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   };
 
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center z-[9999]"
-    >
+    <div className="fixed inset-0 flex items-center justify-center z-[9999]">
       <div
         onClick={onClose}
         className="z-40 h-full w-full absolute inset-0 bg-yellow-300/50 md:backdrop-blur-md animate-in fade-in duration-300"
       ></div>
       <div
-        className="relative z-50 flex h-[37rem] w-[23rem] max-w-[94vw] scale-90 items-center justify-center overflow-y-auto md:h-[35.25rem] md:w-[46rem] md:max-w-[95vw] md:scale-100"
+        className="relative z-50 flex h-[37rem] w-[23rem] max-w-[94vw] scale-90 items-center justify-center md:h-[35.25rem] md:w-[46rem] md:max-w-[95vw] md:scale-100"
         onClick={(e) => e.stopPropagation()}
         style={{
           backgroundImage: `url(${cdnFile("catnip-chaos/modal.webp")})`,
@@ -99,6 +97,20 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
           alt="Modal"
           draggable={false}
           className="absolute top-5 md:-top-5 left-0 w-full h-28 md:h-32  object-contain"
+        />
+        <img
+          src="/mascots/actions/play_games.webp"
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="hidden md:block absolute -left-12 top-1/2 w-24 -rotate-12 pointer-events-none select-none drop-shadow-xl"
+        />
+        <img
+          src="/mascots/emotions/playful_meow.webp"
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="hidden md:block absolute -right-12 top-1/2 w-24 rotate-12 pointer-events-none select-none drop-shadow-xl"
         />
         <div className="relative z-10 mt-12 grid w-full grid-cols-2 justify-items-center gap-3 px-6 pb-8 md:mt-9 md:grid-cols-3 md:gap-4 md:px-5 md:pb-1">
           {gameCards.map((card, index) => (

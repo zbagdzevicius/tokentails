@@ -61,7 +61,7 @@ export class CatController {
     @Get('rates')
     async getRates(): Promise<Record<CurrencyType, number>> {
         const rates = await fetch(
-            `https://api.binance.com/api/v3/ticker/price?symbols=["BNBUSDC","SOLUSDC","XLMUSDC","SEIUSDC","ETHUSDC"]`
+            `https://api.binance.com/api/v3/ticker/price?symbols=["XLMUSDC"]`
         ).then(res => res.json());
 
         const ratesObject = rates.reduce(
@@ -277,8 +277,6 @@ export class CatController {
         };
     }
 
-    // MULTIPLE e.g.
-    // https://api.binance.com/api/v3/ticker/price?symbols=["BNBUSDT","ETHUSDT","XLMUSDT"]
     @Get('rate/:CurrencyType')
     async getCurrency(@Param('CurrencyType') currencyType: CurrencyType): Promise<{ symbol: string; price: string }> {
         return (await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${currencyType}USDT`)).json();

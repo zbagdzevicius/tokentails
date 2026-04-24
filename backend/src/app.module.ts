@@ -56,12 +56,11 @@ const JwtModules = [
         session: true,
     }),
 ];
-
 const config = {
     type: 'service_account',
     project_id: 'news-ccd33',
     private_key_id: 'e11a95ac3ae99911a3939f56758c44c335067d68',
-    private_key: process.env.FB_PRIVATE_KEY,
+    private_key: (process.env.FB_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
     client_email: 'firebase-adminsdk-yyfh7@news-ccd33.iam.gserviceaccount.com',
     client_id: '105843627783724843135',
     auth_uri: 'https://accounts.google.com/o/oauth2/auth',

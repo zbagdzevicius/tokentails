@@ -98,6 +98,20 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
         )}
         {!gameType && (
           <>
+            <img
+              src="/mascots/actions/play_games.webp"
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className="hidden md:block fixed bottom-4 left-4 w-24 lg:w-36 -rotate-6 pointer-events-none select-none z-[20] drop-shadow-xl"
+            />
+            <img
+              src="/mascots/tasks/celebrating_finishing_work.webp"
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className="hidden md:block fixed bottom-4 right-4 w-24 lg:w-36 rotate-6 pointer-events-none select-none z-[20] drop-shadow-xl"
+            />
             <div className="flex flex-col max-w-max md:gap-4 lg:gap-8 min-w-0 items-center lg:-mt-8 relative">
               {profile?.cat && (
                 <div className="flex gap-36 mt-48 md:mt-20 lg:mt-40 items-end absolute">

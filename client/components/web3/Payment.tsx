@@ -3,7 +3,6 @@ import { useToast } from "@/context/ToastContext";
 import { PackType } from "@/models/order";
 import { EntityType } from "@/models/save";
 import { useMemo, useState } from "react";
-import { ChainSelect } from "../shared/ChainSelect";
 import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
 import { StripePayment } from "./StripePayment";
@@ -70,7 +69,7 @@ export const Payment = ({
   const [isDiscountValid, setIsDiscountValid] = useState<boolean | null>(null);
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
   const [discountPercentage, setDiscountPercentage] = useState<number | null>(
-    null
+    null,
   );
   const [showOverview, setShowOverview] = useState(false);
   const toast = useToast();
@@ -327,7 +326,7 @@ export const Payment = ({
         </div>
         <div>
           <PixelButton
-            text="Pay with Crypto"
+            text="Pay on Stellar"
             onClick={() => setPaymentMethod("crypto")}
             active={paymentMethod === "crypto"}
           />
@@ -338,7 +337,6 @@ export const Payment = ({
       {paymentMethod === "crypto" ? (
         <Web3Providers>
           <div className="flex flex-col items-center">
-            <ChainSelect />
             <Web3Transfer
               price={discountedPrice}
               entityType={entityType}

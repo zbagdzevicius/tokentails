@@ -6,9 +6,8 @@ import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
 import { ICat, Prices } from "@/models/cats";
 import { EntityType } from "@/models/save";
-import { ChainType, CurrencyType } from "@/web3/contracts";
+import { CurrencyType } from "@/web3/contracts";
 import { useEffect, useMemo, useState } from "react";
-import { ChainSelect } from "../shared/ChainSelect";
 import { PixelButton } from "../shared/PixelButton";
 import { Web3Transfer } from "../web3/transfer/Web3Transfer";
 
@@ -58,36 +57,11 @@ export const MysteryBoxCat = () => {
   };
 
   const currencyPrice = useMemo(() => {
-    if (
-      [
-        CurrencyType.XLM,
-        CurrencyType.BNB,
-        CurrencyType.SOL,
-        CurrencyType.SEI,
-        CurrencyType.ETH,
-        CurrencyType.MNT,
-        CurrencyType.ODP,
-      ].includes(currencyType) &&
-      rates
-    ) {
-      if (currencyType === CurrencyType.BNB) {
-        return parseFloat((price / rates[CurrencyType.BNB]).toFixed(3));
-      }
-      if (currencyType === CurrencyType.SEI) {
-        return Math.ceil(price / rates[CurrencyType.SEI]);
-      }
-      if (currencyType === CurrencyType.ODP) {
-        return parseFloat((price / rates[CurrencyType.ODP]).toFixed(3));
-      }
-      if (currencyType === CurrencyType.XLM) {
-        return Math.ceil(price / rates[CurrencyType.XLM]);
-      }
-      if (currencyType === CurrencyType.SOL) {
-        return parseFloat((price / rates[CurrencyType.SOL]).toFixed(3));
-      }
+    if (currencyType === CurrencyType.XLM && rates) {
+      return Math.ceil(price / rates[CurrencyType.XLM]);
     }
     return price;
-  }, [currencyType, rates, price]);
+  }, [currencyType, rates]);
 
   useEffect(() => {
     if (transactionStatus?.success) {
@@ -113,7 +87,6 @@ export const MysteryBoxCat = () => {
           />
         </div>
       )}
-      <ChainSelect chains={[ChainType.SEI]} />
       <div className="m-auto animate-appear">
         <div className="flex flex-col items-start w-fit m-auto">
           {!profile?.boxes && (

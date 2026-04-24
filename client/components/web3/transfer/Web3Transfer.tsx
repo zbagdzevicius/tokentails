@@ -38,39 +38,8 @@ export const Web3Transfer = ({
     useWeb3();
 
   const currencyPrice = useMemo(() => {
-    if (
-      [
-        CurrencyType.XLM,
-        CurrencyType.BNB,
-        CurrencyType.SOL,
-        CurrencyType.SEI,
-        CurrencyType.ETH,
-        CurrencyType.MNT,
-        CurrencyType.ODP,
-      ].includes(currencyType) &&
-      rates
-    ) {
-      if (currencyType === CurrencyType.BNB) {
-        return parseFloat((price / rates[CurrencyType.BNB]).toFixed(3));
-      }
-      if (currencyType === CurrencyType.SEI) {
-        return Math.ceil(price / rates[CurrencyType.SEI]);
-      }
-      if (currencyType === CurrencyType.ODP) {
-        return parseFloat((price / rates[CurrencyType.ODP]).toFixed(3));
-      }
-      if (currencyType === CurrencyType.XLM) {
-        return Math.ceil(price / rates[CurrencyType.XLM]);
-      }
-      if (currencyType === CurrencyType.ETH) {
-        return parseFloat((price / rates[CurrencyType.ETH]).toFixed(3));
-      }
-      if (currencyType === CurrencyType.MNT) {
-        return parseFloat((price / rates[CurrencyType.MNT]).toFixed(3));
-      }
-      if (currencyType === CurrencyType.SOL) {
-        return parseFloat((price / rates[CurrencyType.SOL]).toFixed(3));
-      }
+    if (currencyType === CurrencyType.XLM && rates) {
+      return Math.ceil(price / rates[CurrencyType.XLM]);
     }
     return price;
   }, [currencyType, rates, price]);

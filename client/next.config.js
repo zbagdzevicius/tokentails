@@ -5,6 +5,7 @@ const nextConfig = {
   },
   output: undefined,
   // output: "export",
+  transpilePackages: ["@creit.tech/stellar-wallets-kit"],
   images: {
     remotePatterns: [
       {

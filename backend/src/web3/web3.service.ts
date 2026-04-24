@@ -1,8 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import * as StellarSdk from '@stellar/stellar-sdk';
-import { formatUnits, toBigInt } from 'ethers';
 import { currencyRate, CurrencyType } from 'src/shared/interfaces/currency.interface';
-import { ChainType, chainTypeProvider } from './web3.model';
+import { ChainType } from './web3.model';
 
 const horizonServer = new StellarSdk.Horizon.Server(
     process.env.IS_PROD ? 'https://horizon.stellar.org' : 'https://horizon-testnet.stellar.org'
@@ -13,15 +12,12 @@ type CurrencyRate = Record<CurrencyType, number>;
 @Injectable()
 export class Web3Service {
     async validatePrice(currencyType: CurrencyType, price: number, chainType: ChainType, hash: string) {
-        let hashUsdValue: number;
-        if (currencyType === CurrencyType.ODP) {
-            return { success: true };
+        if (chainType !== ChainType.STELLAR) {
+            throw new BadRequestException('Unsupported chain');
         }
+
         const rates = await this.getCurrencyRates();
-        if ([ChainType.BNB, ChainType.SEI, ChainType.TORUS].includes(chainType)) {
-            hashUsdValue = await this.getEVMHashUsdValue(hash, chainType, currencyType, rates);
-        }
-        hashUsdValue = await this.getStellarHashUsdValue(hash, currencyType, rates);
+        const hashUsdValue = await this.getStellarHashUsdValue(hash, currencyType, rates);
         if (!hashUsdValue) {
             throw new BadRequestException("Price can't be verified");
         }
@@ -30,9 +26,7 @@ export class Web3Service {
     }
 
     async getCurrencyRates(): Promise<CurrencyRate> {
-        const rates = await fetch(
-            `https://api.binance.com/api/v3/ticker/price?symbols=["BNBUSDC","SOLUSDC","XLMUSDC","SEIUSDC","ETHUSDC"]`
-        )
+        const rates = await fetch(`https://api.binance.com/api/v3/ticker/price?symbols=["XLMUSDC"]`)
             .then(res => res.json())
             .catch(e => console.error(e));
 
@@ -46,24 +40,6 @@ export class Web3Service {
         );
 
         return ratesObject;
-    }
-
-    private async getEVMHashUsdValue(
-        hash: string,
-        chainType: ChainType,
-        currencyType: CurrencyType,
-        rates: CurrencyRate
-    ): Promise<number> {
-        const tx = await chainTypeProvider[chainType]?.getTransaction(hash);
-        const isStableCoin = [CurrencyType.USDC, CurrencyType.USDT].includes(currencyType);
-
-        if (!isStableCoin) {
-            const valueInNonStableCoins = parseFloat(formatUnits(tx!.value, 18));
-
-            return valueInNonStableCoins * rates[currencyType];
-        }
-
-        return parseFloat(formatUnits(toBigInt(`0x${tx?.data.slice(-64)}`), 18));
     }
 
     private async getStellarHashUsdValue(

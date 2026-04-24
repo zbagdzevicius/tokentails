@@ -102,6 +102,13 @@ export const EndGameModal: React.FC<EndGameProps> = ({
         style={bgStyle("4")}
       >
         <CloseButton onClick={onClose} absolute />
+        <img
+          src="/mascots/tasks/celebrating_finishing_work.webp"
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="pointer-events-none select-none absolute -top-8 -left-6 w-20 md:w-24 -rotate-12 drop-shadow-xl z-[60]"
+        />
         <div className="p-6 md:py-4 md:pr-2 flex items-center justify-center flex-col gap-1 md:w-[calc(100%-220px)] md:min-w-0">
           <div className="flex">
             <img

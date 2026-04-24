@@ -312,7 +312,7 @@ export class UserController {
         const user = await this.repository.findOne({
             searchObject: { _id: userId },
             projection:
-                'name codex boxes discord affiliated tails discount spent monthSpent email permission seasonEvent seasonEventCount match3 match3Count match3Score match3ScoreCount catnipChaos catnipChaosCount catnipCount twitter shelter cat canRedeemLives quests referralsCount wallets.evm.walletAddress wallets.stellar.walletAddress streak monthPacks monthStreak monthFeeded monthCatsAdopted monthBoxes monthTails monthReferrals monthTailsCrafted portraitPurchases monthPortraitPurchases airdropRewardsClaimed airdropChallengesClaimed airdropMilestonesClaimed',
+                'name codex boxes discord affiliated tails discount spent monthSpent email permission seasonEvent seasonEventCount match3 match3Count match3Score match3ScoreCount catnipChaos catnipChaosCount catnipCount twitter shelter cat canRedeemLives quests referralsCount wallets.stellar.walletAddress streak monthPacks monthStreak monthFeeded monthCatsAdopted monthBoxes monthTails monthReferrals monthTailsCrafted portraitPurchases monthPortraitPurchases airdropRewardsClaimed airdropChallengesClaimed airdropMilestonesClaimed',
             populate: [
                 {
                     path: 'cat',
@@ -541,7 +541,7 @@ export class UserController {
         const user = await this.repository.findOne({
             searchObject: { _id: userId },
             projection:
-                'name email discord discount catnipChaos catnipChaosCount catnipCount match3 match3Count match3Score match3ScoreCount boxes permission twitter shelter cat canRedeemLives quests referrals wallets.evm.walletAddress wallets.stellar.walletAddress streak',
+                'name email discord discount catnipChaos catnipChaosCount catnipCount match3 match3Count match3Score match3ScoreCount boxes permission twitter shelter cat canRedeemLives quests referrals wallets.stellar.walletAddress streak',
             populate: [
                 {
                     path: 'cat',

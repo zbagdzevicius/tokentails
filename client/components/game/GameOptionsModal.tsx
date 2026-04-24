@@ -25,6 +25,13 @@ export const GameOptionsModal = ({
       {!gameType && (
         <div className="fixed z-10 bottom-8 md:bottom-4 lg:bottom-8 xl:bottom-12 left-4 right-4 pb-safe flex justify-between md:justify-center md:gap-8 items-end">
           <div className="relative">
+            <img
+              src="/mascots/tasks/checking_a_checklist.webp"
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className="hidden md:block absolute -top-20 -left-6 w-20 -rotate-6 pointer-events-none select-none drop-shadow-xl"
+            />
             <span className="z-10 relative">
               <PixelButton
                 onClick={() => {
@@ -46,9 +53,7 @@ export const GameOptionsModal = ({
                     className="w-6 z-10"
                     src={cdnFile("logo/logo.webp")}
                   />
-                  <div className="text-p5">
-                    WIN $TAILS
-                  </div>
+                  <div className="text-p5">WIN $TAILS</div>
                 </div>
               </div>
             )}
@@ -65,6 +70,13 @@ export const GameOptionsModal = ({
             </span>
           </div>
           <span className="relative">
+            <img
+              src="/mascots/emotions/surprised.webp"
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className="hidden md:block absolute -top-20 mt-2 -right-2 w-20 pointer-events-none select-none drop-shadow-xl"
+            />
             <PixelButton
               onClick={() => {
                 setOpenedModal(GameModal.QUESTS);

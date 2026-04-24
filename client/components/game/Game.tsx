@@ -40,6 +40,12 @@ export const Game = () => {
               className="intro-coin"
             />
           </div>
+          <img
+            src="/mascots/actions/gaming_with_a_controller.webp"
+            alt=""
+            aria-hidden="true"
+            className="intro-mascot"
+          />
         </div>
       )}
       {!isStarted && <Snowfall />}
@@ -106,6 +112,43 @@ export const Game = () => {
           height: 120px;
           min-width: 120px;
           object-fit: contain;
+        }
+
+        .intro-mascot {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 140px;
+          height: auto;
+          transform: translate(-50%, -50%);
+          z-index: 11;
+          pointer-events: none;
+          user-select: none;
+          filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.25));
+          animation: introMascotBounce 2s ease-in-out forwards;
+        }
+
+        @keyframes introMascotBounce {
+          0% {
+            transform: translate(-50%, -10%) scale(0.4);
+            opacity: 0;
+          }
+          25% {
+            transform: translate(-50%, -60%) scale(1.05);
+            opacity: 1;
+          }
+          55% {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+          }
+          85% {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+          }
+          100% {
+            transform: translate(-50%, -60%) scale(0.3);
+            opacity: 0;
+          }
         }
 
         @keyframes introFade {
