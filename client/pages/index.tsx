@@ -43,10 +43,15 @@ const ASSETS = {
 const DISPLAY_FONT = "'Bebas Neue', 'Inter', sans-serif";
 const BODY_FONT = "'Nunito', 'Inter', sans-serif";
 
+// Feature flag: toggle to `true` to restore all Stellar-related badges,
+// sections, nav links, and copy on the landing page. Kept as a single
+// switch so the content can be rolled back without code changes.
+const SHOW_STELLAR = false;
+
 const navLinks = [
   { label: "Explore", href: "#features" },
   { label: "App Family", href: "#family" },
-  { label: "Stellar", href: "#stellar" },
+  ...(SHOW_STELLAR ? [{ label: "Stellar", href: "#stellar" }] : []),
   { label: "Shelter Impact", href: "#impact" },
   { label: "FAQ", href: "#faq" },
 ];
@@ -221,8 +226,9 @@ const upcomingApps: Array<{
     mascot: "/mascots/actions/watching_tv.webp",
     name: "CatWatch",
     tagline: "Behavioral insights, on-chain.",
-    description:
-      "Passive monitoring of your cat's activity, sleep, and routines. Anomalies surface early, milestones are minted on Stellar.",
+    description: SHOW_STELLAR
+      ? "Passive monitoring of your cat's activity, sleep, and routines. Anomalies surface early, milestones are minted on Stellar."
+      : "Passive monitoring of your cat's activity, sleep, and routines. Anomalies surface early, milestones get recorded.",
     status: "In Development",
     accent: "from-orange-500/30 to-amber-500/10",
     href: "https://catwatch.tokentails.com",
@@ -232,8 +238,9 @@ const upcomingApps: Array<{
     mascot: "/mascots/actions/doing_yoga.webp",
     name: "CatHealth",
     tagline: "A full medical record that travels with your cat.",
-    description:
-      "Vet visits, vaccinations, weight, vitals, and symptoms - tokenized as a portable health passport on Stellar.",
+    description: SHOW_STELLAR
+      ? "Vet visits, vaccinations, weight, vitals, and symptoms - tokenized as a portable health passport on Stellar."
+      : "Vet visits, vaccinations, weight, vitals, and symptoms - a portable health passport that travels with your cat.",
     status: "In Development",
     accent: "from-rose-500/30 to-red-500/10",
     href: "https://cathealth.tokentails.com",
@@ -243,8 +250,9 @@ const upcomingApps: Array<{
     mascot: "/mascots/tasks/cat_eating_dry_food.webp",
     name: "CatFood",
     tagline: "Smarter feeding, fairer supply.",
-    description:
-      "Scan nutrition, track meals, and reorder food with sub-cent Stellar payments. Shelter partners get transparent donations at checkout.",
+    description: SHOW_STELLAR
+      ? "Scan nutrition, track meals, and reorder food with sub-cent Stellar payments. Shelter partners get transparent donations at checkout."
+      : "Scan nutrition, track meals, and reorder food in a tap. Shelter partners get transparent donations at checkout.",
     status: "Coming Soon",
     accent: "from-emerald-500/30 to-teal-500/10",
     href: "https://catfood.tokentails.com",
@@ -254,8 +262,9 @@ const upcomingApps: Array<{
     mascot: "/mascots/tasks/setting_reminders.webp",
     name: "CatMeds",
     tagline: "Never miss a dose again.",
-    description:
-      "Prescription reminders, vet-verified refills, and compliance tracking. Meds payable in XLM or USDC with instant settlement.",
+    description: SHOW_STELLAR
+      ? "Prescription reminders, vet-verified refills, and compliance tracking. Meds payable in XLM or USDC with instant settlement."
+      : "Prescription reminders, vet-verified refills, and compliance tracking - so doses never slip and refills never run out.",
     status: "Coming Soon",
     accent: "from-indigo-500/30 to-blue-500/10",
     href: "https://catmeds.tokentails.com",
@@ -265,8 +274,9 @@ const upcomingApps: Array<{
     mascot: "/mascots/actions/hiking_on_a_trail.webp",
     name: "CatFind",
     tagline: "A rescue network worth its weight in trust.",
-    description:
-      "Lost-cat recovery and shelter adoption discovery powered by a Stellar-backed microchip registry and $TAILS bounties.",
+    description: SHOW_STELLAR
+      ? "Lost-cat recovery and shelter adoption discovery powered by a Stellar-backed microchip registry and $TAILS bounties."
+      : "Lost-cat recovery and shelter adoption discovery powered by a verified microchip registry and $TAILS bounties.",
     status: "Planned",
     accent: "from-fuchsia-500/30 to-purple-500/10",
     href: "https://catfind.tokentails.com",
@@ -409,20 +419,26 @@ const quests: Array<{
 ];
 
 const faqs = [
-  {
-    question: "Why is Token Tails Stellar-exclusive?",
-    answer:
-      "Stellar's sub-cent fees, 3-5 second finality, and non-profit foundation align perfectly with our mission. We run all payments, $TAILS rewards, cat profiles, and shelter donations on Stellar - no other chains, no bridges. Our SCF submission outlines how we're scaling the full five-app family on Stellar.",
-  },
+  ...(SHOW_STELLAR
+    ? [
+        {
+          question: "Why is Token Tails Stellar-exclusive?",
+          answer:
+            "Stellar's sub-cent fees, 3-5 second finality, and non-profit foundation align perfectly with our mission. We run all payments, $TAILS rewards, cat profiles, and shelter donations on Stellar - no other chains, no bridges. Our SCF submission outlines how we're scaling the full five-app family on Stellar.",
+        },
+      ]
+    : []),
   {
     question: "What are the 5 upcoming apps in the Token Tails family?",
-    answer:
-      "CatWatch (behavioral monitoring), CatHealth (medical passport), CatFood (nutrition and feeding), CatMeds (prescription tracking), and CatFind (lost-cat recovery and adoption). Each is built natively on Stellar and shares a single cat identity, $TAILS economy, and shelter-donation flow.",
+    answer: SHOW_STELLAR
+      ? "CatWatch (behavioral monitoring), CatHealth (medical passport), CatFood (nutrition and feeding), CatMeds (prescription tracking), and CatFind (lost-cat recovery and adoption). Each is built natively on Stellar and shares a single cat identity, $TAILS economy, and shelter-donation flow."
+      : "CatWatch (behavioral monitoring), CatHealth (medical passport), CatFood (nutrition and feeding), CatMeds (prescription tracking), and CatFind (lost-cat recovery and adoption). Each shares a single cat identity, $TAILS economy, and shelter-donation flow.",
   },
   {
     question: "How does Token Tails help shelter cats?",
-    answer:
-      "A portion of every purchase flows directly to partner shelters across 9 countries via Stellar anchors - transparently, with near-zero fees. Funds cover food, medical treatment, spaying/neutering, and rehoming operations.",
+    answer: SHOW_STELLAR
+      ? "A portion of every purchase flows directly to partner shelters across 9 countries via Stellar anchors - transparently, with near-zero fees. Funds cover food, medical treatment, spaying/neutering, and rehoming operations."
+      : "A portion of every purchase flows directly to partner shelters across 9 countries - transparently, with near-zero fees. Funds cover food, medical treatment, spaying/neutering, and rehoming operations.",
   },
   {
     question: "What kind of portraits can I create?",
@@ -545,19 +561,33 @@ export default function HomePage() {
     <>
       <Head>
         <title>
-          Token Tails | A family of feline care apps, built on Stellar
+          {SHOW_STELLAR
+            ? "Token Tails | A family of feline care apps, built on Stellar"
+            : "Token Tails | A family of feline care apps"}
         </title>
         <meta
           name="description"
-          content="Token Tails is a Stellar-exclusive family of cat-care apps - CatWatch, CatHealth, CatFood, CatMeds, and CatFind - immortalizing cats as art while funding real shelter rescue worldwide."
+          content={
+            SHOW_STELLAR
+              ? "Token Tails is a Stellar-exclusive family of cat-care apps - CatWatch, CatHealth, CatFood, CatMeds, and CatFind - immortalizing cats as art while funding real shelter rescue worldwide."
+              : "Token Tails is a family of cat-care apps - CatWatch, CatHealth, CatFood, CatMeds, and CatFind - immortalizing cats as art while funding real shelter rescue worldwide."
+          }
         />
         <meta
           property="og:title"
-          content="Token Tails | Stellar-exclusive family of feline care apps"
+          content={
+            SHOW_STELLAR
+              ? "Token Tails | Stellar-exclusive family of feline care apps"
+              : "Token Tails | A family of feline care apps"
+          }
         />
         <meta
           property="og:description"
-          content="Five upcoming apps - CatWatch, CatHealth, CatFood, CatMeds, CatFind - powered by Stellar, funding shelter cats across 9 countries."
+          content={
+            SHOW_STELLAR
+              ? "Five upcoming apps - CatWatch, CatHealth, CatFood, CatMeds, CatFind - powered by Stellar, funding shelter cats across 9 countries."
+              : "Five upcoming apps - CatWatch, CatHealth, CatFood, CatMeds, CatFind - funding shelter cats across 9 countries."
+          }
         />
       </Head>
 
@@ -644,17 +674,19 @@ export default function HomePage() {
                 Charity-driven · Every action helps shelter cats
                 <PawPrint className="w-3.5 h-3.5 text-primary/70" />
               </span>
-              <a
-                href="#stellar"
-                className="group inline-flex items-center gap-2 bg-gradient-to-r from-[#0b0b0b] to-[#1f1f1f] text-white px-3.5 py-1.5 rounded-full text-sm font-semibold border border-white/10 hover:border-primary/50 transition-colors"
-              >
-                <img
-                  src="/logo/stellar-logo-white.webp"
-                  alt="Stellar"
-                  className="h-3.5 w-auto"
-                />
-                ecosystem exclusive
-              </a>
+              {SHOW_STELLAR && (
+                <a
+                  href="#stellar"
+                  className="group inline-flex items-center gap-2 bg-gradient-to-r from-[#0b0b0b] to-[#1f1f1f] text-white px-3.5 py-1.5 rounded-full text-sm font-semibold border border-white/10 hover:border-primary/50 transition-colors"
+                >
+                  <img
+                    src="/logo/stellar-logo-white.webp"
+                    alt="Stellar"
+                    className="h-3.5 w-auto"
+                  />
+                  ecosystem exclusive
+                </a>
+              )}
               <span className="inline-flex items-center gap-1.5 bg-card border border-border px-3 py-1.5 rounded-full text-sm text-muted-foreground">
                 <span className="flex">
                   {[...Array(5)].map((_, i) => (
@@ -705,8 +737,13 @@ export default function HomePage() {
               className="mt-5 text-center text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed"
             >
               A family of five feline care apps - CatWatch, CatHealth, CatFood,
-              CatMeds, and CatFind - built exclusively on{" "}
-              <strong className="text-foreground">Stellar</strong>.
+              CatMeds, and CatFind.
+              {SHOW_STELLAR && (
+                <>
+                  {" "}Built exclusively on{" "}
+                  <strong className="text-foreground">Stellar</strong>.
+                </>
+              )}
               <br className="hidden md:block" />
               <strong className="text-foreground">
                 Care for your cat. Save strays worldwide.
@@ -939,7 +976,9 @@ export default function HomePage() {
             >
               <span className="inline-flex items-center gap-1.5 text-sm font-medium text-primary uppercase tracking-wider">
                 <PawPrint className="w-4 h-4 text-primary/70" />
-                A family of feline apps on Stellar
+                {SHOW_STELLAR
+                  ? "A family of feline apps on Stellar"
+                  : "A family of feline apps"}
                 <PawPrint className="w-4 h-4 text-primary/70" />
               </span>
               <h2 className="font-display font-bold text-5xl md:text-6xl text-foreground mt-3 leading-tight">
@@ -950,9 +989,10 @@ export default function HomePage() {
               <p className="text-muted-foreground mt-6 text-lg md:text-xl leading-relaxed max-w-2xl mx-auto">
                 Token Tails starts with art and adventure, but it doesn't stop
                 there. Five upcoming apps - CatWatch, CatHealth, CatFood,
-                CatMeds, and CatFind - will cover every part of a cat's life,
-                all powered by Stellar's low-fee, fast-finality rails, and all
-                funding real shelter rescue at the source.
+                CatMeds, and CatFind - will cover every part of a cat's life
+                {SHOW_STELLAR
+                  ? ", all powered by Stellar's low-fee, fast-finality rails, and all funding real shelter rescue at the source."
+                  : ", all funding real shelter rescue at the source."}
               </p>
             </motion.div>
           </div>
@@ -985,7 +1025,7 @@ export default function HomePage() {
               </h2>
               <p className="text-muted-foreground mt-4 text-base md:text-lg max-w-2xl mx-auto">
                 The foundation is shipped. 50K+ portraits minted, 800+ cats
-                rehomed, payments settling on Stellar.
+                rehomed{SHOW_STELLAR ? ", payments settling on Stellar" : ""}.
               </p>
             </motion.div>
 
@@ -1072,10 +1112,20 @@ export default function HomePage() {
               <p className="text-muted-foreground mt-6 text-lg leading-relaxed">
                 We're expanding Token Tails into a complete feline care suite -
                 each app designed to tackle a real, painful problem for cat
-                parents, and each built natively on{" "}
-                <strong className="text-foreground">Stellar</strong> so value,
-                records, and donations move as freely as the love we have for
-                our cats.
+                parents
+                {SHOW_STELLAR ? (
+                  <>
+                    , and each built natively on{" "}
+                    <strong className="text-foreground">Stellar</strong> so
+                    value, records, and donations move as freely as the love we
+                    have for our cats.
+                  </>
+                ) : (
+                  <>
+                    {" "}so value, records, and donations move as freely as the
+                    love we have for our cats.
+                  </>
+                )}
               </p>
             </motion.div>
 
@@ -1133,41 +1183,44 @@ export default function HomePage() {
                 </motion.a>
               ))}
 
-              <motion.a
-                href="#stellar"
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                whileHover={{ y: -6, transition: { duration: 0.25 } }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.4 }}
-                className="relative bg-charcoal text-primary-foreground border border-primary/20 rounded-3xl p-6 flex flex-col justify-between overflow-hidden group"
-              >
-                <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-primary/20 blur-3xl group-hover:bg-primary/30 transition-colors" />
-                <div className="relative z-10">
-                  <div className="w-14 h-14 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center mb-4">
-                    <img
-                      src="/logo/stellar-logo-white.webp"
-                      alt="Stellar"
-                      className="w-8 h-8 object-contain"
-                    />
+              {SHOW_STELLAR && (
+                <motion.a
+                  href="#stellar"
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  whileHover={{ y: -6, transition: { duration: 0.25 } }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.4 }}
+                  className="relative bg-charcoal text-primary-foreground border border-primary/20 rounded-3xl p-6 flex flex-col justify-between overflow-hidden group"
+                >
+                  <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-primary/20 blur-3xl group-hover:bg-primary/30 transition-colors" />
+                  <div className="relative z-10">
+                    <div className="w-14 h-14 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center mb-4">
+                      <img
+                        src="/logo/stellar-logo-white.webp"
+                        alt="Stellar"
+                        className="w-8 h-8 object-contain"
+                      />
+                    </div>
+                    <h3 className="font-display font-bold text-2xl">
+                      All on Stellar.
+                    </h3>
+                    <p className="text-primary-foreground/70 mt-3 leading-relaxed text-sm">
+                      One shared $TAILS economy. One Soroban-native identity per
+                      cat. One transparent donation trail.
+                    </p>
                   </div>
-                  <h3 className="font-display font-bold text-2xl">
-                    All on Stellar.
-                  </h3>
-                  <p className="text-primary-foreground/70 mt-3 leading-relaxed text-sm">
-                    One shared $TAILS economy. One Soroban-native identity per
-                    cat. One transparent donation trail.
-                  </p>
-                </div>
-                <span className="relative z-10 inline-flex items-center gap-1.5 text-primary font-display font-semibold text-sm mt-4 group-hover:gap-3 transition-all duration-300">
-                  Why Stellar
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
-                </span>
-              </motion.a>
+                  <span className="relative z-10 inline-flex items-center gap-1.5 text-primary font-display font-semibold text-sm mt-4 group-hover:gap-3 transition-all duration-300">
+                    Why Stellar
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                  </span>
+                </motion.a>
+              )}
             </div>
           </div>
         </section>
 
+        {SHOW_STELLAR && (
         <section
           id="stellar"
           className="py-24 bg-charcoal relative overflow-hidden"
@@ -1231,6 +1284,7 @@ export default function HomePage() {
 
           </div>
         </section>
+        )}
 
         <section
           className="py-24 bg-background relative overflow-hidden"
@@ -1661,20 +1715,22 @@ export default function HomePage() {
               viewport={{ once: true }}
               className="text-center max-w-3xl mx-auto"
             >
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                whileInView={{ scale: 1, opacity: 1 }}
-                viewport={{ once: true }}
-                transition={{ type: "spring", stiffness: 200 }}
-                className="inline-flex items-center gap-2 bg-primary/20 border border-primary/30 text-primary px-4 py-2 rounded-full text-sm font-display font-bold mb-6"
-              >
-                <img
-                  src="/logo/stellar-logo-white.webp"
-                  alt="Stellar"
-                  className="h-4 w-auto"
-                />
-                Powered by Stellar
-              </motion.div>
+              {SHOW_STELLAR && (
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  whileInView={{ scale: 1, opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ type: "spring", stiffness: 200 }}
+                  className="inline-flex items-center gap-2 bg-primary/20 border border-primary/30 text-primary px-4 py-2 rounded-full text-sm font-display font-bold mb-6"
+                >
+                  <img
+                    src="/logo/stellar-logo-white.webp"
+                    alt="Stellar"
+                    className="h-4 w-auto"
+                  />
+                  Powered by Stellar
+                </motion.div>
+              )}
               <h2 className="font-display font-bold text-5xl md:text-6xl text-primary-foreground leading-tight">
                 Help us build the
                 <br />
@@ -1682,8 +1738,8 @@ export default function HomePage() {
               </h2>
               <p className="text-primary-foreground/60 mt-5 text-lg max-w-xl mx-auto">
                 10K+ cat parents are already with us. Five apps are on the way.
-                All on Stellar. All funding shelters. Start with a portrait
-                or explore the full family.
+                {SHOW_STELLAR ? " All on Stellar." : ""} All funding shelters.
+                Start with a portrait or explore the full family.
               </p>
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <motion.a
