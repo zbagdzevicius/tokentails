@@ -13,7 +13,7 @@
 ## On-Chain Traction
 
 ### Overview
-- Peaked at 324k MAU and 659k transactions ( APP + Web + TG game combined )
+- Peaked at 324k MAU and 659k weekly transactions ( APP + Web + TG game combined )
 
 https://dune.com/token_tails/sei
 
