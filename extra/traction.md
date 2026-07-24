@@ -2,7 +2,7 @@
 
 ## Web Traction
 
-- Peak MAU (GA4 visitors): 307.6k (246.9k new users during a 1-month period)
+- Peak MAU (GA4 visitors) on web: 307.6k (246.9k new users during a 1-month period)
 
 ![Peak MAU GA4 visitors and new users](traction-assets/asset-01.png)
 
@@ -13,19 +13,15 @@
 ## On-Chain Traction
 
 ### Overview
+- Peaked at 324k MAU and 659k transactions ( APP + Web + TG game combined )
 
-- Main smart contract: `CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF`
-- 1.2m transactions
-- 20.7k wallets created upon first donation / ownership of NFT cat
-- Peaked at 7.4k on-chain DAU
-
-https://stellarchain.io/contracts/CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF
+https://dune.com/token_tails/sei
 
 ## Social Media Traction
 
-- 200k followers on X https://x.com/tokentails
+- 186k followers on X https://x.com/tokentails
 
-- 4.8k followers on IG https://instagram.com/tokentails
+- 4.7k followers on IG https://instagram.com/tokentails
 - Onboarded 40 influencer cats over IG and TikTok (23 individual profiles) into Token Tails to create posts together like this:
 https://www.instagram.com/tokentails
 https://www.instagram.com/p/DUlqgzIgOC_/
