@@ -6,6 +6,10 @@ const nextConfig = {
   output: undefined,
   // output: "export",
   transpilePackages: ["@creit.tech/stellar-wallets-kit"],
+  // Ignored under output: "export"; pages/gaming.tsx covers that case client-side.
+  async redirects() {
+    return [{ source: "/gaming", destination: "/", permanent: true }];
+  },
   images: {
     remotePatterns: [
       {

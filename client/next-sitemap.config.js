@@ -15,6 +15,8 @@ module.exports = {
     generateRobotsTxt: !process.env.NEXT_PUBLIC_IS_APP,
     robotsTxtOptions: {},
     sitemapSize: 1000,
+    // /gaming is a noindex redirect stub for legacy links.
+    exclude: ['/gaming'],
     additionalPaths: async () => {
         if (process.env.NEXT_PUBLIC_IS_APP) {
             return [];
@@ -31,7 +33,7 @@ module.exports = {
                 return [];
             }
             slugs = await response.json();
-        } catch (error) {
+        } catch {
             // Keep build resilient when API is unavailable during CI/local builds.
             return [];
         }
