@@ -1,34 +1,25 @@
-## Installation
+# Token Tails Backend
+
+NestJS 9 API over MongoDB. Full documentation: [docs/BACKEND.md](../docs/BACKEND.md),
+[docs/API.md](../docs/API.md), [docs/DATA_MODEL.md](../docs/DATA_MODEL.md).
 
 ```bash
-$ npm install
+cp .env.example .env     # variable list in docs/BACKEND.md
+npm install
+npm run dev              # http://localhost:3005
+npm run build && npm run start
+npm run lint
+npm run migration:up
 ```
 
-## Running the app
+## Database backups
 
 ```bash
-# development
-$ npm run start
+# local
+mongodump --out ./backup --db=tokentails --gzip
+mongorestore --db=tokentails ./backup --gzip
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+# remote
+mongodump --gzip --out=./backup/tokentails-YYYY-MM-DD --db=tokentails --uri=<connection string>
+mongorestore --gzip --db=tokentails ./backup/tokentails-YYYY-MM-DD --uri=<connection string>
 ```
-
-## Restore backup locally
-
-`mongorestore --db=tokentails ./backup --gzip`
-
-## Save backup locally
-
-`mongodump --out ./backup --db=tokentails --gzip`
-
-## Restore backup remotelly
-
-`mongorestore --gzip --db=tokentails ./backup/tokentails-2023-08-12 --uri=url`
-
-## Save backup remotelly
-
-`mongodump --gzip --out=./backup/tokentails-2023-08-12 --db=tokentails --uri=url`

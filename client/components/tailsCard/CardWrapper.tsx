@@ -219,18 +219,19 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
             </div>
           </div>
 
-          <div
-            className="absolute left-[10%] bottom-[1.25%] font-primary font-bold text-[clamp(12px,2.5vw,12px)]"
-            style={{ color: borderColor }}
-          >
-            {tier}: {cardNumber} / {totalCards}
-          </div>
-
-          <div
-            className="absolute left-1/2 -translate-x-1/2 bottom-[0.5%] font-primary font-bold text-[clamp(14px,3vw,18px)] whitespace-nowrap [text-shadow:0_2px_4px_rgba(0,0,0,0.3)]"
-            style={{ color: borderColor }}
-          >
-            TOKEN TAILS
+          <div className="absolute inset-x-[8%] bottom-[0.9%] flex items-baseline justify-between gap-2 font-primary font-bold leading-none pointer-events-none">
+            <span
+              className="text-[clamp(8px,1.1vw,12px)] whitespace-nowrap"
+              style={{ color: borderColor }}
+            >
+              {tier}: {cardNumber} / {totalCards}
+            </span>
+            <span
+              className="text-[clamp(11px,1.5vw,18px)] whitespace-nowrap [text-shadow:0_2px_4px_rgba(0,0,0,0.3)]"
+              style={{ color: borderColor }}
+            >
+              TOKEN TAILS
+            </span>
           </div>
         </div>
       </div>

@@ -1277,113 +1277,94 @@ html[data-portrait-page="true"][data-portrait-variant="playful"] {
   }
 }
 
-// Forever feline landing page theme scope
-[data-forever-feline-page="true"] {
-  --background: 34 50% 97%;
-  --foreground: 24 15% 12%;
+// LANDING PROOF SECTION: creator reel marquee
+// Two identical .reel-group copies sit in one .reel-track; translateX(-50%)
+// plus a trailing padding equal to the gap makes the loop land exactly on the
+// start of the second copy.
 
-  --card: 36 50% 99%;
-  --card-foreground: 24 15% 12%;
-
-  --popover: 0 0% 100%;
-  --popover-foreground: 20 20% 10%;
-
-  --primary: 28 92% 53%;
-  --primary-foreground: 0 0% 100%;
-
-  --secondary: 30 55% 95%;
-  --secondary-foreground: 20 20% 10%;
-
-  --muted: 35 25% 94%;
-  --muted-foreground: 20 10% 40%;
-
-  --accent: 28 92% 53%;
-  --accent-foreground: 0 0% 100%;
-
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-
-  --border: 30 22% 90%;
-  --input: 30 22% 90%;
-  --ring: 28 92% 53%;
-
-  --radius: 1rem;
-
-  --warm: 28 92% 53%;
-  --warm-light: 33 100% 96%;
-  --warm-dark: 22 80% 42%;
-  --cream: 34 45% 96%;
-  --charcoal: 24 18% 11%;
-  --success: 152 60% 45%;
-  --success-foreground: 0 0% 100%;
-
-  font-family: "Nunito", "Inter", sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-[data-forever-feline-page="true"] h1,
-[data-forever-feline-page="true"] h2,
-[data-forever-feline-page="true"] h3,
-[data-forever-feline-page="true"] h4,
-[data-forever-feline-page="true"] h5,
-[data-forever-feline-page="true"] h6 {
-  font-family: "Bebas Neue", "Inter", sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-[data-forever-feline-page="true"] .font-display {
-  font-family: "Bebas Neue", "Inter", sans-serif;
-  letter-spacing: -0.01em;
-}
-
-[data-forever-feline-page="true"] .text-gradient {
-  background: linear-gradient(
-    to right,
-    hsl(var(--primary)),
-    hsl(var(--warm-dark))
+.reel-marquee {
+  position: relative;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 6%,
+    #000 94%,
+    transparent 100%
   );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 6%,
+    #000 94%,
+    transparent 100%
+  );
 }
-
-[data-forever-feline-page="true"] .glow-warm {
-  box-shadow: 0 0 40px hsl(28 92% 53% / 0.15), 0 0 80px hsl(28 92% 53% / 0.05);
+.reel-track {
+  display: flex;
+  gap: 0.6em;
+  padding-right: 0.6em;
+  width: max-content;
+  animation: reel-scroll 70s linear infinite;
+  will-change: transform;
 }
-
-[data-forever-feline-page="true"] .portrait-btn-primary {
-  border-radius: 9999px;
-  background: linear-gradient(135deg, #ff7b5a, #ffa947);
-  color: #ffffff;
-  box-shadow: 0 20px 50px -30px rgba(0, 0, 0, 0.5);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+// Hover pause only on devices that can hover; a tap on touch must not stick.
+@media (hover: hover) {
+  .reel-marquee:hover .reel-track {
+    animation-play-state: paused;
+  }
 }
-
-[data-forever-feline-page="true"] .portrait-btn-primary:hover {
-  filter: brightness(1.03);
-  box-shadow: 0 22px 54px -30px rgba(0, 0, 0, 0.55);
+// Set by the section's pause toggle and while the section is off screen.
+.reel-track.is-paused {
+  animation-play-state: paused;
 }
-
-[data-forever-feline-page="true"] .portrait-btn-secondary {
-  border-radius: 9999px;
-  background: #f3f4f6;
-  color: rgba(0, 0, 0, 0.8);
-  transition: transform 0.2s ease, background-color 0.2s ease;
+.reel-group {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.6em;
 }
-
-[data-forever-feline-page="true"] .portrait-btn-secondary:hover {
-  background: #eaecf0;
+.reel-item {
+  flex: 0 0 auto;
+  width: clamp(150px, 16vw, 210px);
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0a0a0a;
+  border: 3px solid #fcecbb;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
-
-[data-forever-feline-page="true"] .portrait-btn-dark {
-  border-radius: 9999px;
-  background: #000000;
-  color: #ffffff;
-  transition: transform 0.2s ease, background-color 0.2s ease;
+.reel-item video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
-
-[data-forever-feline-page="true"] .portrait-btn-dark:hover {
-  background: #171717;
+@keyframes reel-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reel-marquee {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .reel-track {
+    animation: none;
+    transform: none;
+    width: auto;
+    padding-right: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .reel-group {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .reel-group[aria-hidden="true"] {
+    display: none;
+  }
 }
