@@ -30,6 +30,7 @@ Dates are commit or migration dates.
 | 2026-05-17 | A/B test. |
 | 2026-07-24 | Traction and weekly transaction figures updated. |
 | 2026-09-16 | Gaming landing becomes the homepage at `/`; the "Forever Feline" app-family landing is removed and `/gaming` redirects to `/`. |
+| 2026-09-17 | Rescue Mission Hub reduced to the sample card and portrait video; proof-section media switched to the deck originals hosted on the pitch site. |
 | 2026-09-16 | Homepage proof section added between the Rescue Mission Hub and the globe: Paris cat café event video (Bybit, ChainforGood) and a marquee of 15 creator reels, served from `public/landing/proof/`; videos load and play only while on screen and never under reduced motion. |
 
 ## Lineage

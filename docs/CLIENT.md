@@ -91,7 +91,6 @@ re-enable it before building a mobile bundle.
 | `layouts/` | Main, blog, and airdrop layouts, header, footer, sidebar. |
 | `styles/` | Global SCSS including the portrait-page theme and ambient effects. |
 | `public/` | Around 1300 assets: Tiled level JSON for both platformers, tilesets, cards, cats, mascots, portrait samples, audio. |
-| `public/landing/proof/` | Homepage proof media: `paris-event.mp4` (720p H.264, muted) with its JPG poster, 15 creator reels as H.264 MP4 with JPG posters. Under 12 MB total; sources are not in the repo. New files here must be uploaded to the Space by hand (see DEPLOYMENT.md, "Client assets to CDN"). |
 | `scripts/` | Android release wrapper and two ad-hoc Tiled map editing tools with hardcoded Windows paths. |
 | `docs/` | Android Play automation notes and the Paw Match execution plan. |
 | `android/`, `ios/` | Capacitor native projects. See MOBILE.md. |
@@ -101,7 +100,7 @@ re-enable it before building a mobile bundle.
 
 | Route | File | Purpose |
 |---|---|---|
-| `/` | `pages/index.tsx` | Gaming landing: hero with store buttons and PLAY, Rescue Mission Hub (packs, portraits), proof section (Paris cat café event video with Bybit and ChainforGood, marquee of creator reels; videos load and play only while on screen and never under reduced motion), pixel globe. Canonical is `NEXT_PUBLIC_DOMAIN/`. |
+| `/` | `pages/index.tsx` | Gaming landing: hero with store buttons and PLAY, Rescue Mission Hub (sample card linking to packs, portrait video linking to the portrait funnel), proof section (Paris cat café event video with Bybit and ChainforGood, marquee of creator reels; videos load and play only while on screen and never under reduced motion), pixel globe. Canonical is `NEXT_PUBLIC_DOMAIN/`. |
 | `/old-landing` | `pages/old-landing.tsx` | Previous pixel-art landing. |
 | `/gaming` | `pages/gaming.tsx` | Legacy URL. Permanent (308) redirect to `/` via `next.config.js`; the page itself is a `noindex` stub that does `router.replace("/")` for static exports, and is excluded from the sitemap. |
 | `/game` | `pages/game.tsx` | Main web game shell: Firebase auth, game provider, game selector. |
@@ -260,7 +259,7 @@ sums, and the total cap. `__test__/landing-routing.test.tsx` covers the root lan
 jsdom with a docblock and mocks the page's heavy components. `__test__/proof-section.test.tsx` covers the
 homepage proof section: copy guard, video attributes, marquee duplication, the lazy motion-aware
 playback controller (stubbed `IntersectionObserver`, `matchMedia`, and `HTMLMediaElement`
-`play`/`pause`), and that every `landing/proof/*` reference resolves to a file under `public/`. `__test__/test.ts` is a placeholder
+`play`/`pause`), and that every video and poster points at the deck originals on the pitch site. `__test__/test.ts` is a placeholder
 so coverage runs. Jest defaults to the `node` environment, so component tests need the
 `@jest-environment jsdom` docblock. React 19 hoists `<title>`, `<meta>`, and `<link>` into
 `document.head`, so head assertions query the document. `jest-util` 30 is pinned as a

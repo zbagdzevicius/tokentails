@@ -67,25 +67,23 @@ function expectGamingLanding(container: HTMLElement) {
   expect(
     document.querySelector('meta[property="og:url"]')?.getAttribute("content"),
   ).toBe("https://tokentails.com/");
-  expect(container.textContent).toContain("Rescue Mission Hub");
+  expect(container.querySelector('[data-testid="rescue-hub"]')).not.toBeNull();
   expect(container.querySelector('a[href="/game"]')).not.toBeNull();
   expect(container.querySelector('a[href*="apps.apple.com"]')).not.toBeNull();
   expect(container.querySelector('a[href*="play.google.com"]')).not.toBeNull();
   expect(container.querySelector('[data-testid="globe"]')).not.toBeNull();
-  // Proof section is mounted and sits before the globe in document order.
+  // Order: hero, proof section, globe, sample card + video.
   const proof = container.querySelector('[data-testid="proof-section"]');
   const globe = container.querySelector('[data-testid="globe"]');
   expect(proof).not.toBeNull();
-  expect(container.textContent).toContain("Rescue Mission Hub");
   expect(
     proof!.compareDocumentPosition(globe!) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
-  const hub = Array.from(container.querySelectorAll("section")).find((s) =>
-    s.textContent?.includes("Rescue Mission Hub"),
-  );
-  expect(hub).toBeDefined();
+  // The sample card + portrait video section closes the page, after the globe.
+  const hub = container.querySelector('[data-testid="rescue-hub"]');
+  expect(hub).not.toBeNull();
   expect(
-    hub!.compareDocumentPosition(proof!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    globe!.compareDocumentPosition(hub!) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
 }
 
