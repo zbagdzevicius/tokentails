@@ -33,6 +33,9 @@ jest.mock("@/components/globe/Globe", () => ({
   PixelGlobe: () => <div data-testid="globe" />,
 }));
 jest.mock("@/components/shared/Fireflies", () => ({ Fireflies: () => null }));
+jest.mock("@/components/landing/ProofSection", () => ({
+  ProofSection: () => <section data-testid="proof-section" />,
+}));
 jest.mock("@/components/shared/PixelButton", () => ({
   PixelButton: ({ text }: { text: string }) => <button>{text}</button>,
 }));
@@ -69,6 +72,21 @@ function expectGamingLanding(container: HTMLElement) {
   expect(container.querySelector('a[href*="apps.apple.com"]')).not.toBeNull();
   expect(container.querySelector('a[href*="play.google.com"]')).not.toBeNull();
   expect(container.querySelector('[data-testid="globe"]')).not.toBeNull();
+  // Proof section is mounted and sits before the globe in document order.
+  const proof = container.querySelector('[data-testid="proof-section"]');
+  const globe = container.querySelector('[data-testid="globe"]');
+  expect(proof).not.toBeNull();
+  expect(container.textContent).toContain("Rescue Mission Hub");
+  expect(
+    proof!.compareDocumentPosition(globe!) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  const hub = Array.from(container.querySelectorAll("section")).find((s) =>
+    s.textContent?.includes("Rescue Mission Hub"),
+  );
+  expect(hub).toBeDefined();
+  expect(
+    hub!.compareDocumentPosition(proof!) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
 }
 
 describe("root visit", () => {

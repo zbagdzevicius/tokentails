@@ -1,6 +1,7 @@
 "use client";
 
 import { INITIAL_PARTNERSHIPS, PixelGlobe } from "@/components/globe/Globe";
+import { ProofSection } from "@/components/landing/ProofSection";
 import { Fireflies } from "@/components/shared/Fireflies";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { TailsCard } from "@/components/tailsCard/TailsCard";
@@ -122,7 +123,7 @@ export default function HomePage() {
 
           <div className="relative z-30 px-4 md:px-8 lg:px-16 py-10 md:py-16 lg:py-20">
             <div className="max-w-[1400px] mx-auto">
-              <div className="rounded-2xl border-4 border-yellow-300/70 bg-black/35 backdrop-blur-[2px] p-4 md:p-6 lg:p-8">
+              <div className="rounded-2xl border-4 border-yellow-300/70 bg-black/35 p-4 md:p-6 lg:p-8">
                 <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_auto] items-center gap-4 md:gap-6">
                   <div>
                     <div className="inline-flex items-center gap-2 rounded-xl border-2 border-yellow-300 bg-yellow-300/20 px-3 py-1 font-primary text-p6 md:text-p5 text-yellow-100 uppercase tracking-wide">
@@ -154,7 +155,7 @@ export default function HomePage() {
 
                 <div className="mt-5 md:mt-7 grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-stretch">
                   <div className="rounded-2xl border-4 border-yellow-300 bg-gradient-to-b from-yellow-200/95 to-orange-200/95 p-4 md:p-5 h-full flex flex-col">
-                    <h2 className="text-p2 md:text-h5 font-primary text-yellow-900 uppercase leading-none">
+                    <h2 className="text-p2 md:text-h5 font-primary text-yellow-900 uppercase leading-none [text-wrap:balance]">
                       COLLECT REAL IMPACT
                     </h2>
                     <p className="mt-2 text-p5 md:text-p4 text-yellow-900/90 max-w-lg">
@@ -169,17 +170,17 @@ export default function HomePage() {
                         }}
                       />
                     </div>
-                    <div className="flex-1 flex m-auto md:mb-8 mt-2 items-end justify-center lg:justify-start min-h-[210px] md:min-h-[240px]">
+                    <div className="mt-4 flex-1 flex items-center justify-center min-h-[210px] md:min-h-[240px]">
                       <TailsCard
                         cardStyle={{
-                          width: "clamp(260px, 31vw, 390px)",
+                          width: "clamp(240px, 28vw, 360px)",
                         }}
                       />
                     </div>
                   </div>
 
                   <div className="rounded-2xl border-4 border-yellow-300 bg-gradient-to-b from-pink-200/95 to-yellow-200/95 p-4 md:p-5 h-full flex flex-col">
-                    <h2 className="text-p2 md:text-h5 font-primary text-yellow-900 uppercase leading-none">
+                    <h2 className="text-p2 md:text-h5 font-primary text-yellow-900 uppercase leading-none [text-wrap:balance]">
                       IMMORTALIZE YOUR PET
                     </h2>
                     <p className="mt-2 text-p5 md:text-p4 text-yellow-900/90 max-w-lg">
@@ -194,8 +195,8 @@ export default function HomePage() {
                         }}
                       />
                     </div>
-                    <div className="mt-3 flex-1 flex items-end min-h-[210px] md:min-h-[240px]">
-                      <div className="grid grid-cols-[1.15fr_1fr] gap-2.5 md:gap-3 w-full max-w-[520px] mx-auto lg:mx-0">
+                    <div className="mt-4 flex-1 flex items-end justify-center min-h-[210px] md:min-h-[240px]">
+                      <div className="grid grid-cols-[1.15fr_1fr] gap-2.5 md:gap-3 w-full max-w-[520px] mx-auto">
                         <div className="rounded-md overflow-hidden border-2 border-yellow-900 shadow-[0_6px_0_rgba(120,53,15,0.25)] bg-black">
                           <video
                             src={CANVAS_VIDEO_URL}
@@ -229,15 +230,26 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <div className="mt-4 md:mt-6 rounded-2xl border-4 border-yellow-300 bg-gradient-to-r from-yellow-300/95 via-orange-300/95 to-pink-300/95 px-4 py-3 text-center">
-                  <span className="text-p2 md:text-h5 xl:text-h3 font-bold uppercase font-primary text-yellow-900 leading-none">
-                    CATS <span className="glow text-white">NEED</span> YOU
+                <div className="mt-4 md:mt-6 rounded-2xl border-4 border-yellow-300 bg-gradient-to-r from-yellow-300/95 via-orange-300/95 to-pink-300/95 px-4 py-3 md:px-6 md:py-4 flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-3">
+                  <span className="text-p2 md:text-h5 xl:text-h3 font-bold uppercase font-primary text-yellow-900 leading-none text-center sm:text-left">
+                    CATS{" "}
+                    <span className="text-white [text-shadow:0_2px_0_rgba(120,53,15,0.55),0_0_14px_rgba(255,255,255,0.6)]">
+                      NEED
+                    </span>{" "}
+                    YOU
                   </span>
+                  {/* Plain anchor on purpose: the game shell needs a full page load. */}
+                  {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+                  <a href="/game" className="shrink-0" aria-label="Play the Token Tails game">
+                    <PixelButton text="PLAY NOW" />
+                  </a>
                 </div>
               </div>
             </div>
           </div>
         </section>
+
+        <ProofSection />
 
         <section className="relative min-h-screen w-full glow-box">
           <img

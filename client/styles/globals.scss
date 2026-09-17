@@ -1276,3 +1276,95 @@ html[data-portrait-page="true"][data-portrait-variant="playful"] {
     );
   }
 }
+
+// LANDING PROOF SECTION: creator reel marquee
+// Two identical .reel-group copies sit in one .reel-track; translateX(-50%)
+// plus a trailing padding equal to the gap makes the loop land exactly on the
+// start of the second copy.
+
+.reel-marquee {
+  position: relative;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 6%,
+    #000 94%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 6%,
+    #000 94%,
+    transparent 100%
+  );
+}
+.reel-track {
+  display: flex;
+  gap: 0.6em;
+  padding-right: 0.6em;
+  width: max-content;
+  animation: reel-scroll 70s linear infinite;
+  will-change: transform;
+}
+// Hover pause only on devices that can hover; a tap on touch must not stick.
+@media (hover: hover) {
+  .reel-marquee:hover .reel-track {
+    animation-play-state: paused;
+  }
+}
+// Set by the section's pause toggle and while the section is off screen.
+.reel-track.is-paused {
+  animation-play-state: paused;
+}
+.reel-group {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.6em;
+}
+.reel-item {
+  flex: 0 0 auto;
+  width: clamp(150px, 16vw, 210px);
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0a0a0a;
+  border: 3px solid #fcecbb;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.reel-item video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+@keyframes reel-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reel-marquee {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .reel-track {
+    animation: none;
+    transform: none;
+    width: auto;
+    padding-right: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .reel-group {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .reel-group[aria-hidden="true"] {
+    display: none;
+  }
+}
