@@ -59,13 +59,10 @@ The repository's only remote is GitHub (`git remote -v`), so that GitLab job doe
 today. New files under `client/public/` therefore reach the CDN only by a manual sync from a machine
 with the Space credentials:
 
-```bash
-cd client && s3cmd sync --acl-public ./public/landing/proof/ s3://tokentails-nfts/w/landing/proof/
-```
-
-Until that runs, a production build (`cdnFile()` -> CDN prefix) requests `w/landing/proof/*` and
-the Space returns 403; the homepage proof section then shows black video tiles. Check with
-`curl -I https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/w/landing/proof/paris-event.mp4`.
+Homepage proof media (Paris event clip, creator reels) are the original deck files served from
+the pitch site on Vercel (`https://token-tails-pitch.vercel.app/deck-assets/videos/`), so no
+upload to the Space is needed for them. The GitLab CDN sync still does not run from the GitHub
+remote; any other new `public/` asset must be uploaded by hand.
 
 ## CMS
 

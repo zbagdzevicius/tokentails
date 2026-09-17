@@ -14,10 +14,14 @@ jest.mock("@/constants/utils", () => ({
   cdnFile: (p: string) => `/${p}`,
 }));
 
-import { ProofSection, REELS } from "@/components/landing/ProofSection";
+import {
+  DECK_MEDIA_BASE,
+  PARIS_VIDEO,
+  ProofSection,
+  REELS,
+} from "@/components/landing/ProofSection";
 
 const PUBLIC_DIR = path.resolve(__dirname, "..", "public");
-const PROOF_DIR = path.join(PUBLIC_DIR, "landing", "proof");
 
 const HEADLINE_1 =
   "We've already turned attention into on-chain action — with Bybit.";
@@ -100,18 +104,6 @@ function allVideos(container: HTMLElement) {
   return Array.from(container.querySelectorAll<HTMLVideoElement>("video"));
 }
 
-function proofPaths(container: HTMLElement): string[] {
-  const values = new Set<string>();
-  container.querySelectorAll("[src], [poster]").forEach((el) => {
-    for (const attr of ["src", "poster"]) {
-      const value = el.getAttribute(attr);
-      if (value && value.includes("landing/proof/")) {
-        values.add(value.replace(/^\//, ""));
-      }
-    }
-  });
-  return Array.from(values);
-}
 
 describe("content", () => {
   it("renders both headlines and the stat labels", () => {
@@ -164,19 +156,21 @@ describe("content", () => {
 });
 
 describe("Paris event video", () => {
-  it("is muted, loops, plays inline, defers loading, and has a poster", () => {
+  it("is muted, loops, plays inline, defers loading, and points at the deck original", () => {
     const { container } = render(<ProofSection />);
     const video = container.querySelector<HTMLVideoElement>(
       '[data-testid="paris-video"]',
     );
     expect(video).not.toBeNull();
-    expect(video!.getAttribute("src")).toBe("/landing/proof/paris-event.mp4");
+    expect(video!.getAttribute("src")).toBe(PARIS_VIDEO);
+    expect(PARIS_VIDEO).toBe(`${DECK_MEDIA_BASE}/paris-event.mp4`);
     expect(video!.hasAttribute("autoplay")).toBe(false);
     expect(video!.muted).toBe(true);
     expect(video!.hasAttribute("loop")).toBe(true);
     expect(video!.hasAttribute("playsinline")).toBe(true);
     expect(video!.getAttribute("preload")).toBe("none");
-    expect(video!.getAttribute("poster")).toBe("/landing/proof/paris-event.jpg");
+    // The deck's event clip has no poster; the bordered frame stands in.
+    expect(video!.hasAttribute("poster")).toBe(false);
     expect(video!.getAttribute("aria-label")).toBeTruthy();
   });
 });
@@ -203,7 +197,7 @@ describe("reel marquee", () => {
     expect(groups[1].getAttribute("aria-hidden")).toBe("true");
   });
 
-  it("gives every reel video the playback attributes, a poster, and a name", () => {
+  it("gives every reel video the playback attributes and a name", () => {
     const { container } = render(<ProofSection />);
     const videos = container.querySelectorAll<HTMLVideoElement>(
       ".reel-item video",
@@ -215,7 +209,8 @@ describe("reel marquee", () => {
       expect(video.hasAttribute("loop")).toBe(true);
       expect(video.hasAttribute("playsinline")).toBe(true);
       expect(video.getAttribute("preload")).toBe("none");
-      expect(video.getAttribute("poster")).toMatch(/^\/landing\/proof\/.+\.jpg$/);
+      const poster = video.getAttribute("poster");
+      if (poster) expect(poster).toMatch(/\.jpg$/);
       expect(video.getAttribute("aria-label")).toMatch(/^Creator reel \d+ of 15$/);
       expect(video.hasAttribute("tabindex")).toBe(false);
     });
@@ -283,7 +278,8 @@ describe("playback controller", () => {
     ).toBe(true);
     allVideos(container).forEach((video) => {
       expect(video.paused).toBe(true);
-      expect(video.getAttribute("poster")).toMatch(/^\/landing\/proof\/.+\.jpg$/);
+      const poster = video.getAttribute("poster");
+      if (poster) expect(poster).toMatch(/\.jpg$/);
     });
   });
 
@@ -295,30 +291,23 @@ describe("playback controller", () => {
   });
 });
 
-describe("asset integrity", () => {
-  it("references only files that exist under client/public", () => {
+describe("deck media", () => {
+  it("loads every video and poster from the pitch site originals", () => {
     const { container } = render(<ProofSection />);
-    const referenced = proofPaths(container);
-    expect(referenced.length).toBeGreaterThanOrEqual(32);
-
-    const missing = referenced.filter(
-      (p) => !fs.existsSync(path.join(PUBLIC_DIR, p)),
-    );
-    expect(missing).toEqual([]);
-  });
-
-  it("ships only compressed MP4 and JPG files under the size budget", () => {
-    const files = fs
-      .readdirSync(PROOF_DIR)
-      .filter((f) => !f.startsWith("."));
-    expect(files.length).toBe(32);
-    const offenders = files.filter((f) => !/\.(mp4|jpg)$/.test(f));
-    expect(offenders).toEqual([]);
-    expect(files.some((f) => BANNED_PARTNER.test(f))).toBe(false);
-    const total = files.reduce(
-      (sum, f) => sum + fs.statSync(path.join(PROOF_DIR, f)).size,
-      0,
-    );
-    expect(total).toBeLessThan(12 * 1024 * 1024);
+    const urls = new Set<string>();
+    container.querySelectorAll("video").forEach((v) => {
+      urls.add(v.getAttribute("src") ?? "");
+      const poster = v.getAttribute("poster");
+      if (poster) urls.add(poster);
+    });
+    expect(urls.size).toBe(1 + 15 + 12); // event clip, 15 reels, 12 posters
+    urls.forEach((u) => {
+      expect(u.startsWith(`${DECK_MEDIA_BASE}/`)).toBe(true);
+      expect(u).toMatch(/\.(mp4|webm|jpg)$/);
+      expect(BANNED_PARTNER.test(u)).toBe(false);
+    });
+    expect(REELS.filter((r) => r.src.endsWith(".webm"))).toHaveLength(3);
+    expect(REELS.filter((r) => r.poster)).toHaveLength(12);
   });
 });
+

@@ -10,9 +10,6 @@ import { Socials } from "@/layouts/Socials";
 import Head from "next/head";
 import { useEffect, useState } from "react";
 
-const CANVAS_VIDEO_URL =
-  "https://tokentails.fra1.cdn.digitaloceanspaces.com/pet.mp4";
-
 export default function HomePage() {
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
@@ -113,141 +110,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* CTA SECTION */}
-        <section className="relative min-h-screen w-full overflow-hidden">
-          <img
-            src={cdnFile("landing/card-bg.webp")}
-            className="w-full h-full object-cover pixelated inset-0 absolute"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/55" />
-
-          <div className="relative z-30 px-4 md:px-8 lg:px-16 py-10 md:py-16 lg:py-20">
-            <div className="max-w-[1400px] mx-auto">
-              <div className="rounded-2xl border-4 border-yellow-300/70 bg-black/35 p-4 md:p-6 lg:p-8">
-                <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_auto] items-center gap-4 md:gap-6">
-                  <div>
-                    <div className="inline-flex items-center gap-2 rounded-xl border-2 border-yellow-300 bg-yellow-300/20 px-3 py-1 font-primary text-p6 md:text-p5 text-yellow-100 uppercase tracking-wide">
-                      <img
-                        src={cdnFile("icons/check.webp")}
-                        alt="mission icon"
-                        className="h-4 w-4 object-contain"
-                      />
-                      Rescue Mission Hub
-                    </div>
-                    <div className="mt-2">
-                      <span className="text-p2 md:text-h5 lg:text-h3 xl:text-h2 2xl:text-h1 font-bold uppercase drop-shadow-lg font-primary text-white leading-none xl:whitespace-nowrap">
-                        LEGENDS{" "}
-                        <span className="glow text-yellow-300">NEED</span>{" "}
-                        <span className="text-yellow-300">HEROES</span>
-                      </span>
-                    </div>
-                    <p className="mt-2 md:mt-3 text-p5 md:text-p4 text-yellow-50/90 max-w-2xl">
-                      Collect cards, immortalize real pets, and convert play
-                      into real-world shelter impact.
-                    </p>
-                  </div>
-                  <img
-                    src={cdnFile("tail/cat-promo.webp")}
-                    className="w-28 md:w-36 lg:w-48 justify-self-center lg:justify-self-end drop-shadow-[0_8px_0_rgba(0,0,0,0.25)]"
-                    alt="Token Tails mascot"
-                  />
-                </div>
-
-                <div className="mt-5 md:mt-7 grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-stretch">
-                  <div className="rounded-2xl border-4 border-yellow-300 bg-gradient-to-b from-yellow-200/95 to-orange-200/95 p-4 md:p-5 h-full flex flex-col">
-                    <h2 className="text-p2 md:text-h5 font-primary text-yellow-900 uppercase leading-none [text-wrap:balance]">
-                      COLLECT REAL IMPACT
-                    </h2>
-                    <p className="mt-2 text-p5 md:text-p4 text-yellow-900/90 max-w-lg">
-                      Every pack expands your collection and strengthens
-                      progression rewards tied to rescue outcomes.
-                    </p>
-                    <div className="mt-4">
-                      <PixelButton
-                        text="BUY PACKS"
-                        onClick={() => {
-                          window.location.assign("/packs");
-                        }}
-                      />
-                    </div>
-                    <div className="mt-4 flex-1 flex items-center justify-center min-h-[210px] md:min-h-[240px]">
-                      <TailsCard
-                        cardStyle={{
-                          width: "clamp(240px, 28vw, 360px)",
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border-4 border-yellow-300 bg-gradient-to-b from-pink-200/95 to-yellow-200/95 p-4 md:p-5 h-full flex flex-col">
-                    <h2 className="text-p2 md:text-h5 font-primary text-yellow-900 uppercase leading-none [text-wrap:balance]">
-                      IMMORTALIZE YOUR PET
-                    </h2>
-                    <p className="mt-2 text-p5 md:text-p4 text-yellow-900/90 max-w-lg">
-                      Turn your real pet into premium portrait art and bring it
-                      into the Token Tails universe.
-                    </p>
-                    <div className="mt-4">
-                      <PixelButton
-                        text="ORDER PET PORTRAIT"
-                        onClick={() => {
-                          window.location.assign("/portrait");
-                        }}
-                      />
-                    </div>
-                    <div className="mt-4 flex-1 flex items-end justify-center min-h-[210px] md:min-h-[240px]">
-                      <div className="grid grid-cols-[1.15fr_1fr] gap-2.5 md:gap-3 w-full max-w-[520px] mx-auto">
-                        <div className="rounded-md overflow-hidden border-2 border-yellow-900 shadow-[0_6px_0_rgba(120,53,15,0.25)] bg-black">
-                          <video
-                            src={CANVAS_VIDEO_URL}
-                            autoPlay
-                            muted
-                            loop
-                            playsInline
-                            preload="metadata"
-                            poster={cdnFile("portrait/commander-2.webp")}
-                            className="w-full h-full object-cover aspect-[4/5]"
-                          />
-                        </div>
-                        <div className="grid grid-rows-2 gap-2.5 md:gap-3">
-                          <div className="rounded-md overflow-hidden border-2 border-yellow-900 shadow-[0_6px_0_rgba(120,53,15,0.2)]">
-                            <img
-                              src={cdnFile("portrait/monarch.webp")}
-                              alt="Royal pet portrait"
-                              className="w-full h-full object-cover aspect-[4/5]"
-                            />
-                          </div>
-                          <div className="rounded-md overflow-hidden border-2 border-yellow-900 shadow-[0_6px_0_rgba(120,53,15,0.2)]">
-                            <img
-                              src={cdnFile("portrait/highness.webp")}
-                              alt="Royal cat portrait"
-                              className="w-full h-full object-cover aspect-[4/5]"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 md:mt-6 rounded-2xl border-4 border-yellow-300 bg-gradient-to-r from-yellow-300/95 via-orange-300/95 to-pink-300/95 px-4 py-3 md:px-6 md:py-4 flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-3">
-                  <span className="text-p2 md:text-h5 xl:text-h3 font-bold uppercase font-primary text-yellow-900 leading-none text-center sm:text-left">
-                    CATS{" "}
-                    <span className="text-white [text-shadow:0_2px_0_rgba(120,53,15,0.55),0_0_14px_rgba(255,255,255,0.6)]">
-                      NEED
-                    </span>{" "}
-                    YOU
-                  </span>
-                  {/* Plain anchor on purpose: the game shell needs a full page load. */}
-                  {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-                  <a href="/game" className="shrink-0" aria-label="Play the Token Tails game">
-                    <PixelButton text="PLAY NOW" />
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
 
         <ProofSection />
 
@@ -285,6 +147,35 @@ export default function HomePage() {
             </span>
           </div>
           <Fireflies />
+        </section>
+
+        {/* SAMPLE CARD: closing CTA into the game */}
+        <section
+          className="relative w-full overflow-hidden"
+          data-testid="rescue-hub"
+        >
+          <img
+            src={cdnFile("landing/card-bg.webp")}
+            className="w-full h-full object-cover pixelated inset-0 absolute"
+            alt=""
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/55" />
+
+          <div className="relative z-30 px-4 md:px-8 lg:px-16 py-12 md:py-16 lg:py-24 flex justify-center">
+            {/* Plain anchor on purpose: the game shell needs a full page load. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a
+              href="/game"
+              aria-label="Play the Token Tails game"
+              className="flex justify-center transition-transform duration-300 hover:scale-[1.03]"
+            >
+              <TailsCard
+                cardStyle={{
+                  width: "clamp(260px, 30vw, 400px)",
+                }}
+              />
+            </a>
+          </div>
         </section>
       </div>
     </>

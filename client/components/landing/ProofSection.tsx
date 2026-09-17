@@ -3,8 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * Homepage proof section: the Paris cat café event with Bybit and the
- * creator-reel marquee. Every media path lives under `landing/proof/` and is
- * served through `cdnFile`, so the same component works locally and on the CDN.
+ * creator-reel marquee. Media are the original deck files served by the pitch
+ * site; only the background image goes through `cdnFile`.
  *
  * Playback policy (lazy, motion-aware): videos carry `preload="none"` and no
  * `autoplay`. An IntersectionObserver on the section flips `inView`; videos
@@ -12,14 +12,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * under `prefers-reduced-motion: reduce`, where the posters stand in.
  */
 
-type Reel = { src: string; poster: string };
+type Reel = { src: string; poster?: string };
 
 type Stat = { value: string; label: string };
 
-const PROOF_DIR = "landing/proof";
+/** Original deck media, served by the pitch site (immutable cache, CORS *). */
+export const DECK_MEDIA_BASE =
+  "https://token-tails-pitch.vercel.app/deck-assets/videos";
 
-export const PARIS_VIDEO = `${PROOF_DIR}/paris-event.mp4`;
-export const PARIS_POSTER = `${PROOF_DIR}/paris-event.jpg`;
+export const PARIS_VIDEO = `${DECK_MEDIA_BASE}/paris-event.mp4`;
 export const SECTION_BACKGROUND = "landing/card-bg.webp";
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
@@ -42,10 +43,14 @@ const CREATOR_REELS = [
   "reel-DJsMa1Lhukz",
 ];
 
-export const REELS: Reel[] = [...UGC_REELS, ...CREATOR_REELS].map((name) => ({
-  src: `${PROOF_DIR}/${name}.mp4`,
-  poster: `${PROOF_DIR}/${name}.jpg`,
-}));
+export const REELS: Reel[] = [
+  // The three UGC clips are WebM originals without posters, as in the deck.
+  ...UGC_REELS.map((name) => ({ src: `${DECK_MEDIA_BASE}/${name}.webm` })),
+  ...CREATOR_REELS.map((name) => ({
+    src: `${DECK_MEDIA_BASE}/${name}.mp4`,
+    poster: `${DECK_MEDIA_BASE}/${name}.jpg`,
+  })),
+];
 
 const EVENT_STATS: Stat[] = [
   { value: "Bybit", label: "Web3 partner" },
@@ -119,8 +124,8 @@ const ReelGroup = ({
       <div key={reel.src} className="reel-item">
         <video
           ref={registerVideo}
-          src={cdnFile(reel.src)}
-          poster={cdnFile(reel.poster)}
+          src={reel.src}
+          poster={reel.poster}
           aria-label={`Creator reel ${index + 1} of ${REELS.length}`}
           {...VIDEO_PROPS}
         />
@@ -229,8 +234,7 @@ export const ProofSection = () => {
               <div className="rounded-2xl border-4 border-yellow-300 bg-black overflow-hidden aspect-video">
                 <video
                   ref={registerVideo}
-                  src={cdnFile(PARIS_VIDEO)}
-                  poster={cdnFile(PARIS_POSTER)}
+                  src={PARIS_VIDEO}
                   aria-label="Paris cat café event with Bybit and ChainforGood"
                   className="w-full h-full object-cover"
                   data-testid="paris-video"
