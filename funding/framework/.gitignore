@@ -1,0 +1,5 @@
+# Engine state (fund run/loop: state.json, loop.json) and loop backups are per-machine.
+# PLAN.md is not listed: on case-insensitive disks the pattern would also hide Track C plan.md.
+applications/*/.fund/
+applications/*/draft.v*.md
+.orc/

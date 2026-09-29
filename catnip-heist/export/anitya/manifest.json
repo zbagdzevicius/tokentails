@@ -1,0 +1,1836 @@
+{
+  "generator": "tools/export-glb.mjs",
+  "units": "metres, y up, +z front; every file centred on x/z with y = 0 on the floor",
+  "metresPerTile": 3,
+  "limits": {
+    "storageBytes": 262144000,
+    "worldBytes": 20971520,
+    "worldTriangles": 500000,
+    "worldLights": 20,
+    "assetBytes": 5242880,
+    "assetTriangles": 100000
+  },
+  "totalBytes": 67469980,
+  "files": [
+    {
+      "file": "worlds/heist-01-kibble-corp-warehouse.glb",
+      "kind": "world",
+      "id": "heist-01",
+      "bytes": 3378148,
+      "meshes": 30,
+      "materials": 30,
+      "triangles": 41212,
+      "vertices": 82198,
+      "dropped": 15,
+      "lights": 16,
+      "animations": 0,
+      "size": [
+        114.6,
+        12.65,
+        63.6
+      ],
+      "level": {
+        "id": "heist-01",
+        "name": "Kibble Corp Warehouse",
+        "title": "Heist 01: Kibble Corp Warehouse",
+        "intro": "Learn the ropes: sneak past the guard dogs, hold a plate for your partner and free Mochi.",
+        "idea": "Tutorial: move, sneak, swap cats, plate doors",
+        "size": [
+          38,
+          21
+        ],
+        "guards": 4,
+        "coins": 20,
+        "crateCat": "siamese"
+      },
+      "preview": "previews/heist-01-kibble-corp-warehouse.png",
+      "previewCentrepiece": "previews/heist-01-kibble-corp-warehouse-crate.png"
+    },
+    {
+      "file": "worlds/heist-02-kennel-row.glb",
+      "kind": "world",
+      "id": "heist-02",
+      "bytes": 2553880,
+      "meshes": 16,
+      "materials": 16,
+      "triangles": 31466,
+      "vertices": 62828,
+      "dropped": 8,
+      "lights": 16,
+      "animations": 0,
+      "size": [
+        72.6,
+        12.65,
+        63.6
+      ],
+      "level": {
+        "id": "heist-02",
+        "name": "Kennel Row",
+        "title": "Heist 02: Kennel Row",
+        "intro": "The doorman dog will not budge. Give it something to sniff: a meow lures it away.",
+        "idea": "Meow to lure a guard off its post",
+        "size": [
+          24,
+          21
+        ],
+        "guards": 2,
+        "coins": 19,
+        "crateCat": "cheesy"
+      },
+      "preview": "previews/heist-02-kennel-row.png",
+      "previewCentrepiece": "previews/heist-02-kennel-row-crate.png"
+    },
+    {
+      "file": "worlds/heist-03-twin-locks.glb",
+      "kind": "world",
+      "id": "heist-03",
+      "bytes": 2482332,
+      "meshes": 32,
+      "materials": 32,
+      "triangles": 30428,
+      "vertices": 60716,
+      "dropped": 14,
+      "lights": 16,
+      "animations": 0,
+      "size": [
+        90.6,
+        12.65,
+        45.6
+      ],
+      "level": {
+        "id": "heist-03",
+        "name": "Twin Locks",
+        "title": "Heist 03: Twin Locks",
+        "intro": "Three plate doors in a row. Leapfrog: one cat holds, the other runs, then swap.",
+        "idea": "Chained plate doors and swap timing",
+        "size": [
+          30,
+          15
+        ],
+        "guards": 2,
+        "coins": 17,
+        "crateCat": "mist"
+      },
+      "preview": "previews/heist-03-twin-locks.png",
+      "previewCentrepiece": "previews/heist-03-twin-locks-crate.png"
+    },
+    {
+      "file": "worlds/heist-04-counting-house.glb",
+      "kind": "world",
+      "id": "heist-04",
+      "bytes": 3020932,
+      "meshes": 24,
+      "materials": 24,
+      "triangles": 37142,
+      "vertices": 74168,
+      "dropped": 12,
+      "lights": 16,
+      "animations": 0,
+      "size": [
+        108.6,
+        12.65,
+        60.6
+      ],
+      "level": {
+        "id": "heist-04",
+        "name": "Counting House",
+        "title": "Heist 04: Counting House",
+        "intro": "A fast dog laps the vault. Grab the key from the office and crack the vault between laps.",
+        "idea": "Key and vault with a patrol loop",
+        "size": [
+          36,
+          20
+        ],
+        "guards": 2,
+        "coins": 22,
+        "crateCat": "peachies"
+      },
+      "preview": "previews/heist-04-counting-house.png",
+      "previewCentrepiece": "previews/heist-04-counting-house-crate.png"
+    },
+    {
+      "file": "worlds/heist-05-watchtower-yard.glb",
+      "kind": "world",
+      "id": "heist-05",
+      "bytes": 2837752,
+      "meshes": 22,
+      "materials": 22,
+      "triangles": 35106,
+      "vertices": 70076,
+      "dropped": 12,
+      "lights": 13,
+      "animations": 0,
+      "size": [
+        84.6,
+        12.65,
+        54.6
+      ],
+      "level": {
+        "id": "heist-05",
+        "name": "Watchtower Yard",
+        "title": "Heist 05: Watchtower Yard",
+        "intro": "Sentry dogs never walk, but they turn like clockwork. Learn the rhythm and cross the yard.",
+        "idea": "Sentry dogs that turn on a schedule",
+        "size": [
+          28,
+          18
+        ],
+        "guards": 4,
+        "coins": 19,
+        "crateCat": "olive"
+      },
+      "preview": "previews/heist-05-watchtower-yard.png",
+      "previewCentrepiece": "previews/heist-05-watchtower-yard-crate.png"
+    },
+    {
+      "file": "worlds/heist-06-conveyor-halls.glb",
+      "kind": "world",
+      "id": "heist-06",
+      "bytes": 3401068,
+      "meshes": 22,
+      "materials": 22,
+      "triangles": 40886,
+      "vertices": 81646,
+      "dropped": 11,
+      "lights": 6,
+      "animations": 0,
+      "size": [
+        90.6,
+        12.65,
+        48.6
+      ],
+      "level": {
+        "id": "heist-06",
+        "name": "Conveyor Halls",
+        "title": "Heist 06: Conveyor Halls",
+        "intro": "Narrow halls, fast dogs. Duck into the wall niches and run in their wake.",
+        "idea": "Tight patrol timing in corridors",
+        "size": [
+          30,
+          16
+        ],
+        "guards": 3,
+        "coins": 19,
+        "crateCat": "maine"
+      },
+      "preview": "previews/heist-06-conveyor-halls.png",
+      "previewCentrepiece": "previews/heist-06-conveyor-halls-crate.png"
+    },
+    {
+      "file": "worlds/heist-07-split-shift.glb",
+      "kind": "world",
+      "id": "heist-07",
+      "bytes": 3429196,
+      "meshes": 35,
+      "materials": 35,
+      "triangles": 41936,
+      "vertices": 83702,
+      "dropped": 18,
+      "lights": 14,
+      "animations": 0,
+      "size": [
+        114.6,
+        12.65,
+        45.6
+      ],
+      "level": {
+        "id": "heist-07",
+        "name": "Split Shift",
+        "title": "Heist 07: Split Shift",
+        "intro": "Two wings, two cats, no way across. Every plate opens a door on the other side.",
+        "idea": "Split up: the cats work far apart",
+        "size": [
+          38,
+          15
+        ],
+        "guards": 5,
+        "coins": 19,
+        "crateCat": "grey"
+      },
+      "preview": "previews/heist-07-split-shift.png",
+      "previewCentrepiece": "previews/heist-07-split-shift-crate.png"
+    },
+    {
+      "file": "worlds/heist-08-kibble-corp-hq.glb",
+      "kind": "world",
+      "id": "heist-08",
+      "bytes": 4021892,
+      "meshes": 27,
+      "materials": 27,
+      "triangles": 49340,
+      "vertices": 98528,
+      "dropped": 17,
+      "lights": 16,
+      "animations": 0,
+      "size": [
+        120.6,
+        12.65,
+        81.6
+      ],
+      "level": {
+        "id": "heist-08",
+        "name": "Kibble Corp HQ",
+        "title": "Heist 08: Kibble Corp HQ",
+        "intro": "The big one. Every trick you know, one building. Bring Clover home.",
+        "idea": "Finale: plates, sentries, split-up, corridor timing, key and vault, meow lure",
+        "size": [
+          40,
+          27
+        ],
+        "guards": 5,
+        "coins": 26,
+        "crateCat": "white"
+      },
+      "preview": "previews/heist-08-kibble-corp-hq.png",
+      "previewCentrepiece": "previews/heist-08-kibble-corp-hq-crate.png"
+    },
+    {
+      "file": "characters/cat-albertino.glb",
+      "kind": "cat",
+      "id": "albertino",
+      "bytes": 122532,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1552,
+      "vertices": 3104,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.38,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-amberclaw.glb",
+      "kind": "cat",
+      "id": "amberclaw",
+      "bytes": 168928,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 2148,
+      "vertices": 4296,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        5.13,
+        4.88,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-balinese.glb",
+      "kind": "cat",
+      "id": "balinese",
+      "bytes": 108508,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1372,
+      "vertices": 2744,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-beaver.glb",
+      "kind": "cat",
+      "id": "beaver",
+      "bytes": 70952,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 892,
+      "vertices": 1784,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        2.63,
+        2.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-black.glb",
+      "kind": "cat",
+      "id": "black",
+      "bytes": 112812,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1428,
+      "vertices": 2856,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-bob.glb",
+      "kind": "cat",
+      "id": "bob",
+      "bytes": 119328,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1512,
+      "vertices": 3024,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-bunny.glb",
+      "kind": "cat",
+      "id": "bunny",
+      "bytes": 112780,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1428,
+      "vertices": 2856,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.25,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-castiel.glb",
+      "kind": "cat",
+      "id": "castiel",
+      "bytes": 133412,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1692,
+      "vertices": 3384,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.38,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-charles.glb",
+      "kind": "cat",
+      "id": "charles",
+      "bytes": 112524,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1424,
+      "vertices": 2848,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-charmie.glb",
+      "kind": "cat",
+      "id": "charmie",
+      "bytes": 137828,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1748,
+      "vertices": 3496,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.5,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-cheesy.glb",
+      "kind": "cat",
+      "id": "cheesy",
+      "bytes": 131220,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1664,
+      "vertices": 3328,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-chester.glb",
+      "kind": "cat",
+      "id": "chester",
+      "bytes": 136568,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1732,
+      "vertices": 3464,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-coco.glb",
+      "kind": "cat",
+      "id": "coco",
+      "bytes": 118152,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1496,
+      "vertices": 2992,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-crowley.glb",
+      "kind": "cat",
+      "id": "crowley",
+      "bytes": 140220,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1780,
+      "vertices": 3560,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.38,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-dean.glb",
+      "kind": "cat",
+      "id": "dean",
+      "bytes": 116296,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1472,
+      "vertices": 2944,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-eldrem.glb",
+      "kind": "cat",
+      "id": "eldrem",
+      "bytes": 265876,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 3390,
+      "vertices": 6780,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        5.38,
+        4.63,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-ficus.glb",
+      "kind": "cat",
+      "id": "ficus",
+      "bytes": 118704,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1504,
+      "vertices": 3008,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-figaro.glb",
+      "kind": "cat",
+      "id": "figaro",
+      "bytes": 130560,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1656,
+      "vertices": 3312,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-fold.glb",
+      "kind": "cat",
+      "id": "fold",
+      "bytes": 109008,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1380,
+      "vertices": 2760,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-fox.glb",
+      "kind": "cat",
+      "id": "fox",
+      "bytes": 76204,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 958,
+      "vertices": 1916,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        2.13,
+        2.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-goat.glb",
+      "kind": "cat",
+      "id": "goat",
+      "bytes": 60112,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 752,
+      "vertices": 1504,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        1.75,
+        2.25,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-grey.glb",
+      "kind": "cat",
+      "id": "grey",
+      "bytes": 117436,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1488,
+      "vertices": 2976,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-hana.glb",
+      "kind": "cat",
+      "id": "hana",
+      "bytes": 83536,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1052,
+      "vertices": 2104,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        2.88,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-lady.glb",
+      "kind": "cat",
+      "id": "lady",
+      "bytes": 117840,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1492,
+      "vertices": 2984,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-legend.glb",
+      "kind": "cat",
+      "id": "legend",
+      "bytes": 106540,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1348,
+      "vertices": 2696,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-lorenzo.glb",
+      "kind": "cat",
+      "id": "lorenzo",
+      "bytes": 115004,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1456,
+      "vertices": 2912,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-maine.glb",
+      "kind": "cat",
+      "id": "maine",
+      "bytes": 126848,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1608,
+      "vertices": 3216,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-merlot.glb",
+      "kind": "cat",
+      "id": "merlot",
+      "bytes": 136892,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1736,
+      "vertices": 3472,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.38,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-milton.glb",
+      "kind": "cat",
+      "id": "milton",
+      "bytes": 119956,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1520,
+      "vertices": 3040,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-minnie.glb",
+      "kind": "cat",
+      "id": "minnie",
+      "bytes": 118704,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1504,
+      "vertices": 3008,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-mist.glb",
+      "kind": "cat",
+      "id": "mist",
+      "bytes": 112844,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1428,
+      "vertices": 2856,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-moose.glb",
+      "kind": "cat",
+      "id": "moose",
+      "bytes": 54016,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 674,
+      "vertices": 1348,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        2.25,
+        2.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-obi.glb",
+      "kind": "cat",
+      "id": "obi",
+      "bytes": 117544,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1488,
+      "vertices": 2976,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-obsidian.glb",
+      "kind": "cat",
+      "id": "obsidian",
+      "bytes": 112780,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1428,
+      "vertices": 2856,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-olive.glb",
+      "kind": "cat",
+      "id": "olive",
+      "bytes": 126888,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1608,
+      "vertices": 3216,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-oreo.glb",
+      "kind": "cat",
+      "id": "oreo",
+      "bytes": 113692,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1440,
+      "vertices": 2880,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-owl.glb",
+      "kind": "cat",
+      "id": "owl",
+      "bytes": 95704,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1208,
+      "vertices": 2416,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        2.25,
+        2.5,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-peachies.glb",
+      "kind": "cat",
+      "id": "peachies",
+      "bytes": 115572,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1464,
+      "vertices": 2928,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-pickles.glb",
+      "kind": "cat",
+      "id": "pickles",
+      "bytes": 129992,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1648,
+      "vertices": 3296,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-pinkie.glb",
+      "kind": "cat",
+      "id": "pinkie",
+      "bytes": 113712,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1440,
+      "vertices": 2880,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-pork.glb",
+      "kind": "cat",
+      "id": "pork",
+      "bytes": 126904,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1608,
+      "vertices": 3216,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-raccon.glb",
+      "kind": "cat",
+      "id": "raccon",
+      "bytes": 77288,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 972,
+      "vertices": 1944,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        1.88,
+        2.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-rascal.glb",
+      "kind": "cat",
+      "id": "rascal",
+      "bytes": 135848,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1724,
+      "vertices": 3448,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-roy.glb",
+      "kind": "cat",
+      "id": "roy",
+      "bytes": 130928,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1660,
+      "vertices": 3320,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-sable.glb",
+      "kind": "cat",
+      "id": "sable",
+      "bytes": 119640,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1516,
+      "vertices": 3032,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-sammy.glb",
+      "kind": "cat",
+      "id": "sammy",
+      "bytes": 118136,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1496,
+      "vertices": 2992,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-savanhan.glb",
+      "kind": "cat",
+      "id": "savanhan",
+      "bytes": 126876,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1608,
+      "vertices": 3216,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-sei.glb",
+      "kind": "cat",
+      "id": "sei",
+      "bytes": 102824,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1300,
+      "vertices": 2600,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-siamese.glb",
+      "kind": "cat",
+      "id": "siamese",
+      "bytes": 112192,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1420,
+      "vertices": 2840,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-solo-survivor.glb",
+      "kind": "cat",
+      "id": "solo-survivor",
+      "bytes": 160544,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 2040,
+      "vertices": 4080,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        2.63,
+        4.25,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-sticky.glb",
+      "kind": "cat",
+      "id": "sticky",
+      "bytes": 57024,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 712,
+      "vertices": 1424,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        1.5,
+        2.25,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-teddy.glb",
+      "kind": "cat",
+      "id": "teddy",
+      "bytes": 108500,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1372,
+      "vertices": 2744,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-tom.glb",
+      "kind": "cat",
+      "id": "tom",
+      "bytes": 113764,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1440,
+      "vertices": 2880,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-troufas.glb",
+      "kind": "cat",
+      "id": "troufas",
+      "bytes": 113716,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1440,
+      "vertices": 2880,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-wallace.glb",
+      "kind": "cat",
+      "id": "wallace",
+      "bytes": 133132,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1688,
+      "vertices": 3376,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-white.glb",
+      "kind": "cat",
+      "id": "white",
+      "bytes": 112448,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1424,
+      "vertices": 2848,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-yak.glb",
+      "kind": "cat",
+      "id": "yak",
+      "bytes": 103192,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1304,
+      "vertices": 2608,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        2.5,
+        3,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-yellow.glb",
+      "kind": "cat",
+      "id": "yellow",
+      "bytes": 135276,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1716,
+      "vertices": 3432,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/dog-base.glb",
+      "kind": "dog",
+      "id": "base",
+      "bytes": 125524,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1590,
+      "vertices": 3180,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        2.88,
+        2.53,
+        0.57
+      ]
+    },
+    {
+      "file": "characters/dog-black-white.glb",
+      "kind": "dog",
+      "id": "black-white",
+      "bytes": 176552,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 2244,
+      "vertices": 4488,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        2.88,
+        2.53,
+        0.57
+      ]
+    },
+    {
+      "file": "characters/dog-black.glb",
+      "kind": "dog",
+      "id": "black",
+      "bytes": 126776,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1606,
+      "vertices": 3212,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        2.88,
+        2.53,
+        0.57
+      ]
+    },
+    {
+      "file": "characters/dog-brown.glb",
+      "kind": "dog",
+      "id": "brown",
+      "bytes": 121316,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 1536,
+      "vertices": 3072,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        2.76,
+        2.53,
+        0.57
+      ]
+    },
+    {
+      "file": "characters/dog-exotic.glb",
+      "kind": "dog",
+      "id": "exotic",
+      "bytes": 161984,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 2058,
+      "vertices": 4116,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        2.88,
+        2.53,
+        0.57
+      ]
+    },
+    {
+      "file": "characters/cat-bob-animated.glb",
+      "kind": "cat-animated",
+      "id": "bob",
+      "bytes": 2460708,
+      "meshes": 20,
+      "materials": 1,
+      "triangles": 31040,
+      "vertices": 62080,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 2,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-oreo-animated.glb",
+      "kind": "cat-animated",
+      "id": "oreo",
+      "bytes": 2380488,
+      "meshes": 20,
+      "materials": 1,
+      "triangles": 30020,
+      "vertices": 60040,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 2,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-siamese-animated.glb",
+      "kind": "cat-animated",
+      "id": "siamese",
+      "bytes": 2345968,
+      "meshes": 20,
+      "materials": 1,
+      "triangles": 29564,
+      "vertices": 59128,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 2,
+      "size": [
+        3.13,
+        3.38,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-cheesy-animated.glb",
+      "kind": "cat-animated",
+      "id": "cheesy",
+      "bytes": 2623320,
+      "meshes": 20,
+      "materials": 1,
+      "triangles": 33120,
+      "vertices": 66240,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 2,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-mist-animated.glb",
+      "kind": "cat-animated",
+      "id": "mist",
+      "bytes": 2347792,
+      "meshes": 20,
+      "materials": 1,
+      "triangles": 29580,
+      "vertices": 59160,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 2,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-peachies-animated.glb",
+      "kind": "cat-animated",
+      "id": "peachies",
+      "bytes": 2426616,
+      "meshes": 20,
+      "materials": 1,
+      "triangles": 30612,
+      "vertices": 61224,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 2,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-olive-animated.glb",
+      "kind": "cat-animated",
+      "id": "olive",
+      "bytes": 2648944,
+      "meshes": 20,
+      "materials": 1,
+      "triangles": 33440,
+      "vertices": 66880,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 2,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-maine-animated.glb",
+      "kind": "cat-animated",
+      "id": "maine",
+      "bytes": 2648272,
+      "meshes": 20,
+      "materials": 1,
+      "triangles": 33440,
+      "vertices": 66880,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 2,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-grey-animated.glb",
+      "kind": "cat-animated",
+      "id": "grey",
+      "bytes": 2458480,
+      "meshes": 20,
+      "materials": 1,
+      "triangles": 31020,
+      "vertices": 62040,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 2,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/cat-white-animated.glb",
+      "kind": "cat-animated",
+      "id": "white",
+      "bytes": 2344188,
+      "meshes": 20,
+      "materials": 1,
+      "triangles": 29556,
+      "vertices": 59112,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 2,
+      "size": [
+        3.13,
+        3.13,
+        0.63
+      ]
+    },
+    {
+      "file": "characters/dog-base-animated.glb",
+      "kind": "dog-animated",
+      "id": "base",
+      "bytes": 1774576,
+      "meshes": 15,
+      "materials": 1,
+      "triangles": 22364,
+      "vertices": 44728,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 2,
+      "size": [
+        2.88,
+        2.53,
+        0.57
+      ]
+    },
+    {
+      "file": "characters/dog-black-white-animated.glb",
+      "kind": "dog-animated",
+      "id": "black-white",
+      "bytes": 2303284,
+      "meshes": 15,
+      "materials": 1,
+      "triangles": 29142,
+      "vertices": 58284,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 2,
+      "size": [
+        2.88,
+        2.53,
+        0.57
+      ]
+    },
+    {
+      "file": "characters/dog-black-animated.glb",
+      "kind": "dog-animated",
+      "id": "black",
+      "bytes": 1819828,
+      "meshes": 15,
+      "materials": 1,
+      "triangles": 22942,
+      "vertices": 45884,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 2,
+      "size": [
+        2.88,
+        2.53,
+        0.57
+      ]
+    },
+    {
+      "file": "characters/dog-brown-animated.glb",
+      "kind": "dog-animated",
+      "id": "brown",
+      "bytes": 1723736,
+      "meshes": 15,
+      "materials": 1,
+      "triangles": 21710,
+      "vertices": 43420,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 2,
+      "size": [
+        2.76,
+        2.53,
+        0.57
+      ]
+    },
+    {
+      "file": "characters/dog-exotic-animated.glb",
+      "kind": "dog-animated",
+      "id": "exotic",
+      "bytes": 2074772,
+      "meshes": 15,
+      "materials": 1,
+      "triangles": 26222,
+      "vertices": 52444,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 2,
+      "size": [
+        2.88,
+        2.53,
+        0.57
+      ]
+    },
+    {
+      "file": "props/prop-shelter-crate.glb",
+      "kind": "prop",
+      "id": "shelter-crate",
+      "bytes": 126016,
+      "meshes": 3,
+      "materials": 3,
+      "triangles": 1658,
+      "vertices": 3316,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        2.94,
+        4.9,
+        2.94
+      ]
+    },
+    {
+      "file": "props/prop-key.glb",
+      "kind": "prop",
+      "id": "key",
+      "bytes": 11792,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 132,
+      "vertices": 264,
+      "dropped": 1,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.5,
+        1.5,
+        0.5
+      ]
+    },
+    {
+      "file": "props/prop-vault-door.glb",
+      "kind": "prop",
+      "id": "vault-door",
+      "bytes": 49524,
+      "meshes": 3,
+      "materials": 3,
+      "triangles": 354,
+      "vertices": 708,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        3.54,
+        2.7,
+        1.47
+      ]
+    },
+    {
+      "file": "props/prop-plate-door.glb",
+      "kind": "prop",
+      "id": "plate-door",
+      "bytes": 28824,
+      "meshes": 2,
+      "materials": 2,
+      "triangles": 110,
+      "vertices": 220,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        1.29,
+        2.7,
+        3.54
+      ]
+    },
+    {
+      "file": "props/prop-pressure-plate.glb",
+      "kind": "prop",
+      "id": "pressure-plate",
+      "bytes": 29256,
+      "meshes": 3,
+      "materials": 3,
+      "triangles": 124,
+      "vertices": 242,
+      "dropped": 1,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        2.64,
+        0.47,
+        2.64
+      ]
+    },
+    {
+      "file": "props/prop-exit-portal.glb",
+      "kind": "prop",
+      "id": "exit-portal",
+      "bytes": 65852,
+      "meshes": 7,
+      "materials": 7,
+      "triangles": 576,
+      "vertices": 1068,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        5.88,
+        6.05,
+        4.81
+      ]
+    },
+    {
+      "file": "props/prop-catnip-coin.glb",
+      "kind": "prop",
+      "id": "catnip-coin",
+      "bytes": 72568,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 908,
+      "vertices": 1816,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        1.61,
+        1.61,
+        0.32
+      ]
+    },
+    {
+      "file": "props/prop-checkpoint-paw.glb",
+      "kind": "prop",
+      "id": "checkpoint-paw",
+      "bytes": 41568,
+      "meshes": 1,
+      "materials": 1,
+      "triangles": 512,
+      "vertices": 1024,
+      "dropped": 0,
+      "lights": 0,
+      "animations": 0,
+      "size": [
+        1.8,
+        0.15,
+        1.91
+      ]
+    }
+  ]
+}

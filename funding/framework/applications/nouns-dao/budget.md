@@ -1,0 +1,11 @@
+# Budget — Nouns DAO proposal
+
+One row per line item. Currency is ETH or USD (USDC counts as USD). `d:export` converts with
+`eth_usd` from call.md and prints both totals; `fund check` fails if the total leaves
+`min_budget`..`max_budget`. Do not add a Total row — it is computed.
+
+| Item | Amount | Currency |
+|---|---|---|
+| CC0 art: ten nounish rescue-cat characters as SVG and PNG source files, with a process note | 6000 | USD |
+| In-game integration on web, iOS and Android, with a Nouns credit on each card | 4000 | USD |
+| 0xSplits shelter split setup, shelter wallet onboarding and six monthly public payout reports | 3000 | USD |

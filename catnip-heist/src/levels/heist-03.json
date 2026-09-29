@@ -1,0 +1,350 @@
+{
+  "id": "heist-03",
+  "tiles": [
+    "##############################",
+    "#......#............#........#",
+    "#......#............#........#",
+    "#...................#........#",
+    "#......#....bbbb....#........#",
+    "#......#....bbbb.............#",
+    "#......#....bbbb....#........#",
+    "#......#............#........#",
+    "#......#............#........#",
+    "#......#............#........#",
+    "#########################.####",
+    "                    #........#",
+    "                    #........#",
+    "                    #........#",
+    "                    ##########"
+  ],
+  "catSpawns": [
+    {
+      "x": 2,
+      "y": 2
+    },
+    {
+      "x": 3,
+      "y": 2
+    }
+  ],
+  "guards": [
+    {
+      "id": "g-loop",
+      "sprite": "black",
+      "waypoints": [
+        {
+          "x": 10,
+          "y": 8
+        },
+        {
+          "x": 17,
+          "y": 8
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 30,
+      "visionTiles": 4
+    },
+    {
+      "id": "g-store",
+      "sprite": "base",
+      "waypoints": [
+        {
+          "x": 24,
+          "y": 6
+        },
+        {
+          "x": 27,
+          "y": 6
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 40,
+      "visionTiles": 3
+    }
+  ],
+  "coins": [
+    {
+      "id": "coin-01",
+      "tile": {
+        "x": 11,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-02",
+      "tile": {
+        "x": 16,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-03",
+      "tile": {
+        "x": 26,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-04",
+      "tile": {
+        "x": 3,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-05",
+      "tile": {
+        "x": 23,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-06",
+      "tile": {
+        "x": 9,
+        "y": 5
+      }
+    },
+    {
+      "id": "coin-07",
+      "tile": {
+        "x": 18,
+        "y": 5
+      }
+    },
+    {
+      "id": "coin-08",
+      "tile": {
+        "x": 27,
+        "y": 5
+      }
+    },
+    {
+      "id": "coin-09",
+      "tile": {
+        "x": 5,
+        "y": 6
+      }
+    },
+    {
+      "id": "coin-10",
+      "tile": {
+        "x": 25,
+        "y": 6
+      }
+    },
+    {
+      "id": "coin-11",
+      "tile": {
+        "x": 13,
+        "y": 7
+      }
+    },
+    {
+      "id": "coin-12",
+      "tile": {
+        "x": 23,
+        "y": 7
+      }
+    },
+    {
+      "id": "coin-13",
+      "tile": {
+        "x": 4,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-14",
+      "tile": {
+        "x": 10,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-15",
+      "tile": {
+        "x": 16,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-16",
+      "tile": {
+        "x": 24,
+        "y": 11
+      }
+    },
+    {
+      "id": "coin-17",
+      "tile": {
+        "x": 26,
+        "y": 13
+      }
+    }
+  ],
+  "key": null,
+  "doors": [
+    {
+      "id": "door-lab",
+      "tile": {
+        "x": 7,
+        "y": 3
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    },
+    {
+      "id": "door-store",
+      "tile": {
+        "x": 20,
+        "y": 5
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    },
+    {
+      "id": "door-alcove",
+      "tile": {
+        "x": 25,
+        "y": 10
+      },
+      "kind": "PLATE",
+      "axis": "h"
+    }
+  ],
+  "plates": [
+    {
+      "id": "plate-a1",
+      "tile": {
+        "x": 9,
+        "y": 3
+      },
+      "doors": [
+        "door-lab"
+      ]
+    },
+    {
+      "id": "plate-a2",
+      "tile": {
+        "x": 1,
+        "y": 6
+      },
+      "doors": [
+        "door-lab"
+      ]
+    },
+    {
+      "id": "plate-d1",
+      "tile": {
+        "x": 22,
+        "y": 2
+      },
+      "doors": [
+        "door-store"
+      ]
+    },
+    {
+      "id": "plate-d2",
+      "tile": {
+        "x": 18,
+        "y": 8
+      },
+      "doors": [
+        "door-store"
+      ]
+    },
+    {
+      "id": "plate-f1",
+      "tile": {
+        "x": 21,
+        "y": 9
+      },
+      "doors": [
+        "door-alcove"
+      ]
+    },
+    {
+      "id": "plate-f2",
+      "tile": {
+        "x": 22,
+        "y": 12
+      },
+      "doors": [
+        "door-alcove"
+      ]
+    }
+  ],
+  "crate": {
+    "id": "crate",
+    "tile": {
+      "x": 28,
+      "y": 12
+    },
+    "catId": "mist",
+    "catName": "Luna"
+  },
+  "exit": {
+    "id": "exit",
+    "tiles": [
+      {
+        "x": 22,
+        "y": 13
+      },
+      {
+        "x": 23,
+        "y": 13
+      }
+    ]
+  },
+  "checkpoints": [
+    {
+      "id": "cp-1",
+      "tile": {
+        "x": 8,
+        "y": 1
+      }
+    },
+    {
+      "id": "cp-2",
+      "tile": {
+        "x": 23,
+        "y": 9
+      }
+    }
+  ],
+  "meta": {
+    "title": "Heist 03: Twin Locks",
+    "parTicks": 2700,
+    "meowRadiusTiles": 6,
+    "investigateTicks": 120,
+    "maxCoins": 18,
+    "twoCatRequired": true,
+    "objectives": [
+      "Leapfrog the plate doors and free {cat}",
+      "Both cats to the exit"
+    ],
+    "hints": [
+      {
+        "x0": 1,
+        "y0": 1,
+        "x1": 6,
+        "y1": 9,
+        "untilObjective": 0,
+        "text": "Hold the plate, press {swap}, and send your partner through."
+      },
+      {
+        "x0": 8,
+        "y0": 1,
+        "x1": 19,
+        "y1": 9,
+        "untilObjective": 0,
+        "text": "Watch the patrol: swap off a plate before the dog comes round."
+      }
+    ],
+    "name": "Twin Locks",
+    "intro": "Three plate doors in a row. Leapfrog: one cat holds, the other runs, then swap.",
+    "idea": "Chained plate doors and swap timing"
+  }
+}

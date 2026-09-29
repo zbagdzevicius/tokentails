@@ -1,0 +1,11 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+.e2e-dist/
+# Generated and reproducible: e2e screenshots (npm run e2e), promo frame captures (promo/tools/capture.mjs),
+# the capture log and a local test-reporter cache. promo/assets/clips/ alone is ~520 MB of JPG frames.
+e2e/screens/
+promo/assets/clips/
+promo/tools/capture-log.json
+.vitest/

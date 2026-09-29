@@ -1,0 +1,34 @@
+{
+  "name": "youcam-vto-hackathon",
+  "defaults": { "model": "sonnet", "budget": 4, "timeout": 900, "cwd": "../work/youcam-vto" },
+  "steps": [
+    { "id": "setup", "cmd": "mkdir -p ../work/youcam-vto && echo ok", "cwd": "." },
+    {
+      "id": "research",
+      "prompt": "Target: the YouCam API Skin AI & eCommerce VTO Hackathon (https://youcam-api-skin-ai-ecommerce.devpost.com/, deadline \"November 2, 2026 (11:45 AM ET)\"). Using WebFetch only, read the overview, rules and judging criteria pages and the YouCam API docs for virtual try-on. Write research.md: required deliverables (video length, repo, description), judging criteria, eligibility for an organisation entering via a Representative, API endpoints for accessory try-on, the 1,000 free unit limit, and anything that rules out reuse of existing code. Reply with a 5-line summary.",
+      "verify": "test -s research.md && grep -qi 'judging' research.md",
+      "retries": 1,
+      "needs": ["setup"]
+    },
+    {
+      "id": "build",
+      "prompt": "Build a Next.js + TypeScript prototype in this directory: a pet-and-owner accessory try-on shop (collars, bandanas, owner accessories) that calls the YouCam VTO API through a server route (API key from process.env.YOUCAM_API_KEY, never committed; a mock mode when it is unset) and whose checkout splits proceeds to a cat shelter (mock split, labelled as such). Include unit tests (npm test), ESLint, and one Playwright e2e test of the try-on flow in mock mode. Keep API usage under 50 units. Reply with what was built.\n\nResearch:\n{{steps.research.result}}",
+      "verify": "test -f package.json && npm install --no-audit --no-fund >/dev/null 2>&1; npx tsc --noEmit",
+      "retries": 2,
+      "timeout": 2400,
+      "needs": ["research"]
+    },
+    {
+      "id": "verify",
+      "cmd": "npx tsc --noEmit && npx eslint . && npm test && npx playwright test",
+      "timeout": 900,
+      "needs": ["build"]
+    },
+    {
+      "id": "package",
+      "prompt": "Write SUBMISSION.md for Devpost: project name, tagline, the 'Inspiration / What it does / How we built it / Challenges / What's next' sections, built-with tags, and how it shows 'real impact beyond a simple API call'. Add a 'Video script' section with a 2-3 minute shot list the human records, and a 'Human checklist' (register and get API units, record the video, deploy URL, submit on Devpost as the MB's Representative, affidavit if winning). Do not submit anything.",
+      "verify": "test -s SUBMISSION.md && grep -q 'Video script' SUBMISSION.md && grep -q 'Human checklist' SUBMISSION.md",
+      "needs": ["verify"]
+    }
+  ]
+}

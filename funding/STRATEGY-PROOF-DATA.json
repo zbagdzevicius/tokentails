@@ -1,0 +1,860 @@
+{
+ "assets": {
+  "assets": [
+   {
+    "name": "Catnip Heist (catnip-heist/, standalone Three.js voxel stealth game)",
+    "state": "PLAYABLE LOCALLY ONLY, not deployed, not committed. What I ran and saw: `npm test` (vitest) passed 120/120 tests in 10 files. `npm run build` (tsc + vite 8.3.1) succeeded: dist/build/index-CZUgRU0C.js is 838.30 kB (233.09 kB gzip), dist/ is 2.7 MB and public/assets is 1.8 MB. The build warns that assets/fonts/catpaw.woff2 did not resolve at build time. Playwright e2e has 12 tests in e2e/heist.spec.ts. Run 1 failed 9 of them with ERR_CONNECTION_REFUSED because the local preview server dropped, so that was the environment. Run 2 passed 11 of 12. The one real failure is 'retrying a run does not leak scene objects or draw calls' (spec line 348, expect(...).toBe mismatch). Content: 8 levels, heist-01 to heist-08, each with a solver-proven solution file. 7 of the 8 need both cats. 58 cat breed sheets and 5 guard dog sheets. It also has a Cat Yard hub, stars and unlocks, deterministic replays with hashes, touch, gamepad and keyboard controls, and procedural audio plus a chiptune loop. Deployment: no vercel.json, netlify.toml or .vercel. `git status` shows `?? catnip-heist/`, so the folder is untracked and has never been committed. A grep for 'heist' across client/ finds nothing, so the client does not link to it. docs/plans/catnip-heist-3d.md (v2) says to embed it in the client with backend replay-verified saves through POST /user/catbassadors/live. None of that is built. The package is fully standalone, and its README says it imports nothing from client/backend/cms.",
+    "strengths": "This is the most polished and most testable new build in the repo, and its engineering is easy to show: 120 unit tests, e2e tests, a deterministic sim, solver-proven levels and replay hashes. It is a static site with no backend, so it can go to a public URL within hours. It is new work, which fits hackathon rules that require building during the event window. It reuses the real Token Tails cat art, so the story is a game about rescuing shelter cats. It runs on web and on phone touch screens.",
+    "gaps": "1. No public URL. 2. Not in git, so there is no repo or commit to point to. It must be committed and pushed first, and since it sits in the tokentails-app repo that repo would have to be public or the game split into its own repo. 3. One e2e test fails: 'retry leaks scene objects/draw calls'. 4. No gameplay video. 5. No connection to Token Tails accounts, the backend, NFTs, payments or shelters: no score save, no wallet, nothing on-chain. The only shelter link is the story. That makes it weak for web3, payments or impact tracks unless something is wired in. 6. The JS is one 838 kB chunk and there is a font warning. 7. No players or usage data, because it has never been released.",
+    "hoursToSubmissionReady": 10,
+    "evidence": "catnip-heist/package.json (three ^0.183.2, vite ^8.3.1, vitest ^5.0.2); `npm test` gave Test Files 10 passed, Tests 120 passed; `npm run build` gave dist/build/index-CZUgRU0C.js 838.30 kB / gzip 233.09 kB; `playwright test` run 2 gave 11 passed, 1 failed (e2e/heist.spec.ts:348); src/levels/heist-01..08.json plus *.solution.json; catnip-heist/README.md campaign table; docs/plans/catnip-heist-3d.md sections 1-3 (integration planned, not done); git status `?? catnip-heist/`; grep of client/ for 'heist' finds nothing. Hours breakdown (judgment): commit/push or split repo 0.5-1h, static deploy of dist 1-2h, fix the retry-leak e2e 2-4h, 2-3 min gameplay video 2-3h, submission copy 1-2h. That is about 8-12h, so I used 10. Wiring score saves into the backend per the plan would add about 16-30h."
+   },
+   {
+    "name": "ShelterSplit (funding/framework/tracks/a-build/shelter-split, Solidity USDC payout splitter)",
+    "state": "TESTED CONTRACT ONLY, not deployed, not integrated. I ran `forge test` and got 41 passed, 0 failed, in 3 suites: ShelterSplit.t.sol 32, Tip20Compat.t.sol 8, DeployShelterSplit.t.sol 1. deployments.json contains exactly `[]`, so nothing is deployed on any chain. Grepping client/ and backend/ for sheltersplit or shelter-split finds nothing, so the app does not use it. It has deploy scripts (script/DeployShelterSplit.s.sol, ProofDisburse.s.sol) and a chains.json target list. The track README says a human must broadcast each deploy.",
+    "strengths": "It is small and clean: basis-point shelter registry, disburse() pays every active shelter in one transaction, reentrancy guard, pause, two-step ownership, safe transfers for USDT-style tokens, fee-on-transfer safe, no dependencies. It can be deployed to many EVM chains with one script, and one tested contract can feed several EVM or stablecoin programs (Arc, Circle, Base, Arbitrum, Avalanche are named in the track README). It fits payments and impact tracks well.",
+    "gaps": "1. No deployment anywhere. Mainnet-gated programs such as Arc Microgrants also need real gas and USDC. 2. No frontend or demo page. 3. No link to the real app: the backend's payments go through Stripe and Stellar, not this contract. 4. No shelter wallets are onboarded, so real disbursements can't be shown. 5. No usage, which makes it a 'hackathon prototype' submission with nothing live on-chain. 6. The source may not be committed: git status shows funding/ untracked, and the track README warns that evidence built from uncommitted source fails the check.",
+    "hoursToSubmissionReady": 14,
+    "evidence": "`forge test` gave 'Ran 3 test suites ... 41 tests passed, 0 failed, 0 skipped (41 total tests)'; funding/framework/tracks/a-build/deployments.json = []; funding/framework/tracks/a-build/README.md (a human broadcasts, mainnet gate for Arc); grep of client/ and backend/ finds nothing; git status `?? funding/`. Hours breakdown (judgment): commit and testnet deploy with verification on 1-2 chains 2-4h, a minimal disburse demo page 6-10h, video 2h, draft 2h. That is about 12-18h. Real app wiring (backend calls disburse on purchase) would add about 16-24h."
+   },
+   {
+    "name": "Existing client Phaser games (Purrsuit/Catnip Chaos, Cupid Cat/Pixel Rescue, Paw Match/Match 3, Base, Shelter)",
+    "state": "DEPLOYED AND LIVE, according to the repo docs. docs/DEPLOYMENT.md lists https://tokentails.com, and README.md links Web, Android and iOS. docs/GAMES.md lists 5 game modes on Phaser 4. client/public/catnip-chaos/levels has 80 level files, and the README says match-3 has 30 levels with per-level leaderboards. Scores save through POST /user/catbassadors/live. I ran client `npm test`: 4 suites and 23 tests passed. docs/ARCHITECTURE.md says there are no backend tests.",
+    "strengths": "It is live in production with real historical users (see traction). It covers several genres, uses real shelter cats and is tied into currency, leaderboards and NFTs. A public URL already exists.",
+    "gaps": "It is not new work, so most hackathons that require building in-window won't accept it as the build. Test coverage is thin: 23 client tests, 0 backend. Known bugs are listed at the end of docs/GAMES.md and docs/CLIENT.md, and I did not fix any of them. Three game folders are empty placeholders: Purragotchi, RoguePaws, HyperTails.",
+    "hoursToSubmissionReady": 5,
+    "evidence": "docs/GAMES.md overview table and save flow; ls client/public/catnip-chaos/levels shows 80 files; client `npm test` gave Tests 23 passed; docs/DEPLOYMENT.md hostnames. Hours breakdown (judgment): gameplay video 2-3h, submission copy 2h."
+   },
+   {
+    "name": "Mobile apps (Capacitor iOS/Android)",
+    "state": "PUBLISHED, according to the repo docs. docs/MOBILE.md: app id com.tokentails.app, version 23.0 (build 23), on Google Play and the App Store (id 6745582489). I did not run a build. The static export has to be re-enabled by hand (commented out in next.config.js) before any Capacitor build.",
+    "strengths": "Store listings already exist, and one codebase covers web, iOS and Android. That helps as distribution proof.",
+    "gaps": "The build is fragile. `output: \"export\"` is commented out, so mobile builds are currently switched off. The heist plan also says 'Capacitor builds, until static export is re-enabled' is out of scope. A release .aab is committed to git, google-services.json is tracked, and android cleartext is allowed (docs/MOBILE.md). None of the new work (Catnip Heist, ShelterSplit) has reached mobile.",
+    "hoursToSubmissionReady": 3,
+    "evidence": "docs/MOBILE.md table and Android section; docs/DEPLOYMENT.md; README.md links. Hours are judgment: screenshots and store links only. Shipping the heist inside the mobile app would take far longer (plan estimate 4-6 weeks of agent work, docs/plans/catnip-heist-3d.md)."
+   },
+   {
+    "name": "Stellar Soroban NFTs (contracts/stellar/soroban-nft) plus legacy SKALE ERC-721s",
+    "state": "DEPLOYED ON MAINNET, according to docs/CONTRACTS.md. Stellar mainnet has TokenTailsCat, TokenTailsBlessing and TokenTailsPass, and Cat is also on testnet. SKALE Nebula has Cat and Blessing on mainnet and testnet. The docs say there are 34 Rust tests (16 + 13 + 5). I could not run them here: there is no target/ directory, and an offline cargo test produced no result. SKALE evm/ has no build tooling and two of its files don't compile.",
+    "strengths": "The contracts are really deployed on mainnet, have a public Dune dashboard, and the backend verifies XLM and USDC payments through Horizon.",
+    "gaps": "Security issues listed in docs/CONTRACTS.md 'Known issues': NFTContract.mint has no authorization and overwrites, and it may be live on the Pass contract. The contracts emit no events and don't extend TTL. They use a custom NFT interface instead of a standard one. The README's mainnet snippet uses --network testnet. The Stellar-specific funders are on the excluded list (SCF, SDF Marketing), so this asset only helps as supporting evidence. The latest traction edit also removed the Stellar on-chain figures (see traction).",
+    "hoursToSubmissionReady": 4,
+    "evidence": "docs/CONTRACTS.md, lines 26-72 (IDs, tests) and 161-171 (known issues). Hours breakdown (judgment): explorer links and screenshots 1-2h, write-up 2h. Fixing the open mint would add 4-8h plus a redeploy."
+   }
+  ],
+  "traction": "Every traction number in the repo comes from two files: extra/traction.md and the client homepage proof section, client/components/landing/ProofSection.tsx. Nothing in docs/*.md mentions users, transactions, shelters or revenue. README.md only points to extra/traction.md.\n\nClaims in extra/traction.md at HEAD (last edited 2026-07-24):\n- Peak web MAU (GA4) 307.6k, with 246.9k new users in one month (screenshot extra/traction-assets/asset-01.png).\n- 542k total registered users (screenshot asset-02.png).\n- Peak of 324k MAU and 659k weekly transactions across APP + Web + TG combined. The source cited for this is https://dune.com/token_tails/sei, which is a SEI-chain dashboard, not a Stellar one.\n- 186k followers on X, 4.7k on Instagram, 40 influencer cats onboarded (23 profiles).\n- First place and incubation with the Blockchain for Good Alliance (Bybit), with an investing.com link.\n- An IRL shelter event (an X link).\n\nProofSection.tsx shows '540K+ Registered players', '186K Followers on X', '40 Influencer cats onboarded', plus the qualitative labels 'Bybit', 'Real Shelter outcomes' and 'On-chain Track record'.\n\nWhat the git history shows:\n- Commit 81b31abb ('traction update') removed the Stellar on-chain claims: main contract CBHOJ..., 1.2m transactions, 20.7k wallets, 7.4k on-chain DAU, and the stellarchain.io link. It replaced them with the SEI Dune link and cut X followers from 200k to 186k and Instagram from 4.8k to 4.7k.\n- Commit 5c7f4785 ('weekly transactions update') changed '659k transactions' to '659k weekly transactions'.\n\nNot found anywhere in the repo: a count of shelters funded, revenue, donation amounts, or portrait sales. There are also no current or recent figures; all of them are peaks. Catnip Heist and ShelterSplit have zero users or on-chain activity: the heist was never released, and ShelterSplit's deployments.json is [].\n\nSo the only verifiable traction is the Token Tails legacy app. None of it counts toward the new Catnip Heist or ShelterSplit builds, and the on-chain numbers are for SEI, not Stellar. Shelter impact and revenue are UNKNOWN."
+ },
+ "critCrypto": {
+  "programs": [
+   {
+    "program": "Colosseum Crypto World's Fair (online hackathon, submissions due 2026-10-12)",
+    "url": "https://colosseum.com/worldsfair",
+    "open": "Live now, Sep 14 to Oct 12, 2026. Page shows 7,140 builders in the arena.",
+    "criteria": "Criteria from colosseum.com/hackathon (listed without weights): 'Founder-market fit and motivation; Unique insights and opportunity recognition; Product quality and execution speed; Total addressable market potential; Founder communication effectiveness; Business viability and sustainability; User traction and revenue evidence.' Eligibility: 'new startups that haven't raised significant outside capital'. Pre-existing code is allowed if you disclose it. Solo entries allowed. You submit a GitHub repo, a 2-3 min pitch video, a 3-min demo video and a GTM/demand validation. Prizes (worldsfair page): $840k total in prizes plus $2.5M seed. Grand Prize $30k. $15k each to the 'next 20 best projects' ($300k). Public Good $5k and University $5k. The Solana track has 10 prizes of $10k, but Solana is excluded for this team. Other ecosystem tracks (Ethereum, Hyperliquid, Base, Tempo, Arbitrum, Zcash, Robinhood Chain) have no published amounts or counts. The judging rubric page is not published: colosseum.com/legal returned 404.",
+    "entrantsVsWinners": "World's Fair: 7,140 registered builders, submission count not yet published. The general pool outside the Solana track has 23 paid slots (1+20+2), plus unpublished ecosystem-track slots. History: Cypherpunk had 9,000+ participants and 1,576 submissions, with about 33 paid (1 grand, 6 tracks x 5, 2 special), about 2.1%. Frontier had 2,857 submissions and 28 paid (1+25+2), about 1.0%, plus 16 unpaid honorable mentions. Breakout had 1,412 submissions across 7 tracks x 5 plus grand and specials, about 39 paid, about 2.8%. If World's Fair keeps the Cypherpunk ratio of about 5.7 builders per submission, it will have about 1,250 or more submissions. 23 general slots against that is about 1.8%. The ecosystem tracks raise this somewhat, but their size is unknown.",
+    "pastWinners": "Cypherpunk (https://blog.colosseum.com/announcing-the-winners-of-the-solana-cypherpunk-hackathon/): Grand Champion was Unruggable, a hardware wallet. Track 1sts were Capitola (prediction-market aggregator, Consumer), Yumi Finance (BNPL), Seer (tx debugger, infra), Autonom (oracle), MCPay (payments infra) and attn.markets (revenue tokenization). The Consumer top 5 had no game: Capitola, Superfan, Fora, Toaster.trade, Nomu. Cypherpunk had no Gaming track. Breakout (https://blog.colosseum.com/announcing-the-winners-of-the-solana-breakout-hackathon/) did have a Gaming track: Crypto Fantasy League 1st ($25k), Chosendotfun, Scrim, Block Stranding, Lana Roads. Its grand champion was TapeDrive (storage infra). Frontier (https://blog.colosseum.com/announcing-the-winners-of-the-solana-frontier-hackathon/): grand champion plus 25 top winners. The game-like winners were speculative or competitive: WeLikeSports (fantasy), One Arena (TCG battles), The Syndicate (mafia card game), Traded.gg (TCG aggregation). Pattern: most winners are infra, DeFi, payments or prediction markets. The few games that win are wager or fantasy formats, not narrative or casual games.",
+    "favors": "Consumer traction and venture-scale startups: TAM, revenue, founder-market fit. The rubric does not reward a playable game as such, and it counts traction and revenue. The Catnip Heist 3D voxel stealth game gains nothing on these criteria unless it ships with crypto-native mechanics and real users. The shelter-cat consumer app with real paying users and shelter payouts fits better than ShelterSplit infra or the game. Estimated P(any paid prize) is about 2-4%, below the 10% bar.",
+    "baseRate": 0.02
+   },
+   {
+    "program": "Arc Microgrants (Circle / Arc, deadline 2026-10-14 23:59 ET)",
+    "url": "https://community.arc.io/public/events/arc-microgrants-f8tijfjhyq",
+    "open": "Open until 2026-10-14. Arc mainnet is live (arc.io: 'Arc is live').",
+    "criteria": "Verbatim, unweighted: 'Relevance to Arc, technical credibility, the quality of what you built, and whether the project is worth taking further. Promise counts for more than traction here.' Pays twenty microgrants of $500 USDC each ($10,000 pool). The project must be 'deployed and working on Arc mainnet' when submitted. Testnet-only builds are ineligible, and so are projects already funded by other Arc/Circle programs. Open worldwide subject to sanctions screening, and pseudonymous entries are allowed. One submission per project. It funds 'tiny apps, proofs of concept, prototypes, demos, hackathon continuations, experimental infrastructure, and early technical experiments'. You need a live deployment link, a public repo, a description and a public builder profile.",
+    "entrantsVsWinners": "20 winners. The number of applicants is not published and no recipients list was found. If there are about 100-200 mainnet-deployed entrants, the base rate is 10-20%. That range is an assumption, not a published figure. The mainnet-deploy gate shrinks the field considerably compared with open hackathons.",
+    "pastWinners": "This is the first round, and no recipient list is published. The closest Circle comparison is the USDC OpenClaw hackathon (https://www.circle.com/blog/meet-the-winners-of-our-first-usdc-openclaw-hackathon----and-what-we-learned). It had 200+ submissions and 3 winners (1.5%). All three were agent infrastructure: ClawRouter (agent USDC payments for inference), ClawShield (security), MoltDAO (agent governance). None was a game or consumer app. Circle's blog noted that verifiable, deployable code and strict formatting mattered more than community engagement.",
+    "favors": "A small contract or infra deployment that uses USDC on Arc: a payments primitive or proof of concept. 'Promise counts for more than traction.' ShelterSplit, a USDC payout splitter with 41 tests, deployed to Arc mainnet, is the best-fit asset. The 3D game does not fit unless it runs USDC on Arc. This is the only program here likely to clear P>10%. The payout is only $500.",
+    "baseRate": 0.12
+   },
+   {
+    "program": "Mezo Buildathon on AKINDO ('Build with MUSD and MEZO: Bitcoin's Economic Layer')",
+    "url": "https://app.akindo.io/wave-hacks/OVOO0gdrVU8379D10",
+    "open": "Pre-registration Sep 22 to Oct 15, 2026. Wave 1 build Oct 16-26 and judging Oct 27-Nov 1. Wave 2 build Nov 2-15 and judging Nov 16-22. Winners announced Nov 23.",
+    "criteria": "Verbatim with weights: 'Mezo Integration' 30%: 'Effective and meaningful use of MUSD or MEZO. Depth of integration matters more than surface-level usage'. 'Product & Business Viability' 30%: how the project extends MUSD/MEZO utility within the track requirements. 'Technical Implementation' 20%: code quality, architecture, security, deployability. 'User Experience' 10%: design, usability, accessibility. 'Submission Materials Quality' 10%: demo clarity and pitch. Tracks: 1) DeFi (borrowing, lending, looping, yield); 2) Access and Distribution for MUSD/MEZO. Prize: $7,000 paid in MEZO tokens ($2k Wave 1, $5k Wave 2). The payout is in tokens, not USDC or fiat.",
+    "entrantsVsWinners": "The API reports no submissions or participants yet because the program has not opened. The winner count per wave is not published. A base rate cannot be computed from the source, so the value below is an assumption based on small wave-hack pools, not a published figure.",
+    "pastWinners": "No prior Mezo wave results were found in the fetched source. None have been published for this program yet.",
+    "favors": "Deep DeFi or stablecoin integration: 60% of the score is integration depth plus product viability tied to MUSD utility. A game fits only the 'Access and Distribution' track, and 'surface-level usage' is explicitly penalised. An MUSD-denominated shelter payout (ShelterSplit adapted) or an MUSD purchase flow in the consumer app fits better than the 3D game. The pool is small ($7k in tokens), and it is uncertain whether the token payout meets the cash rule.",
+    "baseRate": 0.1
+   },
+   {
+    "program": "Arbitrum Open House Dubai: Online Buildathon (HackQuest)",
+    "url": "https://www.hackquest.io/hackathons/Arbitrum-Open-House-Dubai-Online-Buildathon",
+    "open": "Registration Oct 31 to Dec 5, 2026. Submissions Nov 16 to Dec 6, 2026. Rewards announced Dec 13, 2026.",
+    "criteria": "Dubai: $30,000 total. Tracks and judging criteria are 'Coming soon', and the page says the 'prize may be subject to change' if quality is low. You build with Stylus or Solidity and deploy on Arbitrum One or your own Orbit chain. The page lists 'DeFi. Gaming. Social. Tools. Or something entirely new'. Prior rubric (London and Singapore, verbatim fragments): 'Code following best practices, structured logically and efficiently, with minimal security vulnerabilities', 'Potential to attract and retain users', 'Original approaches that push boundaries', addressing genuine market needs, and product-market fit. Deployment on an Arbitrum chain is required, and Sepolia testnet was accepted. At least one prize each was reserved for Robinhood Chain and Arbitrum. Singapore gave bonus consideration for Paxos USDG. No weights were published.",
+    "entrantsVsWinners": "Dubai: 83+ registered so far, prize slot count TBD, $30k pool. London ($115k): 782+ builders. It paid 3 Overall places ($40k/$20k/$10k) and 3 Agentic places ($7k/$5k/$3k), plus up to $30k in discretionary grants. That is 6 fixed prizes. No submission count or winners list was published: the hackquest page shows 'Ended' with no results. Singapore ($115k): 1,013+ registrants and the same 6 fixed prizes. Dubai has about a quarter of the pool, so it likely has fewer slots. That slot count is an inference, since Dubai's tracks are unpublished.",
+    "pastWinners": "No published winner list was retrievable. The London and Singapore hackquest pages show no results, the projects gallery did not render, and blog.arbitrum.io has no Open House winners posts. openhouse.arbitrum.io returned 429 and arbitrum.io/open-house returned 403. Project types of past winners are therefore unverified.",
+    "favors": "Smart-contract quality plus user potential, with contract/infra and DeFi weighted by the code-quality criterion. Gaming is listed as an allowed category only. A tested Solidity contract (ShelterSplit, 41 tests) meets the code-quality criterion directly. The 3D game would need on-chain Arbitrum logic to be judged at all. P is estimated at about 5-10% given an unknown slot count and a small pool. This is an inference, since no winner data is published.",
+    "baseRate": 0.05
+   },
+   {
+    "program": "Arbitrum DDA Gaming grants (Questbook Domain Allocator)",
+    "url": "https://arbitrum.foundation/grants",
+    "open": "CLOSED. arbitrum.foundation/grants lists the Questbook program as 'Inactive' / 'Program complete'. It had accepted 'domain specific projects on top of Arbitrum, ranging from education, gaming, dev tooling to innovative ideas'. arbitrum.questbook.app lists DDA 1.0/2.0/3.0 with 0 proposals shown. The only current gaming route is Arbitrum Gaming Ventures (arbitrumgamingventures.com, formerly thegamingcatalyst.com), which presents an 11-company 'portfolio'. That looks like a venture investment arm, which the team excludes. Its funding type is not stated.",
+    "criteria": "No active call, so there are no current criteria. AGV says it seeks teams 'creating exceptional experiences at the intersection of blockchain gaming, entertainment, and culture' with 'breakout potential, retentive user experiences, and novel distribution strategies.'",
+    "entrantsVsWinners": "Not applicable: the program is complete. AGV lists 11 portfolio companies and publishes no applicant count.",
+    "pastWinners": "AGV portfolio: an Adventure MOBA, card games, roguelite action RPGs, a children's media platform, streaming, personal finance, infra. These are studio-scale games, not indie browser games.",
+    "favors": "This would have been the best fit for a playable game such as Catnip Heist, but the grant program is closed. The remaining route (AGV) is investment, which the MB cannot take. P = 0 for a grant.",
+    "baseRate": 0
+   },
+   {
+    "program": "Team1 Avalanche Mini Grants",
+    "url": "https://team1.network/grants",
+    "open": "Rolling ('Open application'). Apply at build.avax.network/grants/team1-mini-grants. Accelerator Grants (up to $30k) have 'No open applications' and are committee-proposed.",
+    "criteria": "Verbatim: 'Up to $10,000 in funding'; 'The entry point for early-stage builders and community initiatives'; target applicants 'New & Established Projects, Community Builders, Developers, Unique Ideas'; 'Fast, focused funding for builders creating innovative solutions on Avalanche. Whether you're developing smart contracts, building applications, or contributing to the ecosystem'. Warning: 'High volume of applications and participation does not guarantee funding.' No scoring criteria, weights, regional eligibility or mainnet requirement are published.",
+    "entrantsVsWinners": "Not published: there are no counts of applicants or grantees on team1.network or build.avax.network. The page explicitly warns of high application volume. The baseRate value below is an assumption, not a published figure.",
+    "pastWinners": "No recipient list is published on the fetched pages.",
+    "favors": "Unclear. The page mentions smart contracts, applications and community initiatives. An Avalanche C-Chain deployment of ShelterSplit is the minimum credible evidence, and the game would need an Avalanche on-chain component. With no criteria or base-rate data, a P>10% claim cannot be proven.",
+    "baseRate": 0.05
+   },
+   {
+    "program": "Circle Developer Grants",
+    "url": "https://www.circle.com/grant",
+    "open": "Rolling. Apply at circle.questbook.app, which did not render stats. Milestone-based disbursement.",
+    "criteria": "Verbatim, unweighted: 1) 'Platform alignment': Circle products (USDC, Wallets, CCTP, Nanopayments, Gateway) are 'meaningful building blocks in your architecture'. 2) 'Exceptional teams': founders with 'proven shipping ability, clear technical ownership'. 3) 'Traction': evidence of usage, pilots, partnerships or revenue potential. 4) 'Ecosystem impact': projects that 'expand USDC utility and make the Arc ecosystem stronger'. Focus areas: agentic economic activity, stablecoin FX, peer-to-peer payments, treasury management, prediction markets, lending and borrowing. Amount: $5,000 to $100,000 in USDC.",
+    "entrantsVsWinners": "Not published: the questbook page loaded with no stats. The only Circle base-rate evidence is the OpenClaw hackathon: 200+ submissions and 3 winners, about 1.5%. The baseRate value below is an assumption, not a published figure.",
+    "pastWinners": "Featured grantees are Hurupay and Blockradar, both payments or stablecoin infrastructure companies. OpenClaw winners were all agent-payments, security or governance infra. No game or consumer entertainment app appears.",
+    "favors": "Payments infrastructure with traction. Games are not a focus area. The ShelterSplit USDC payout rail plus real shelter purchase volume from the consumer app is the only credible angle. It would compete against funded payments startups on 'traction' and 'exceptional teams'. P is estimated below 10%.",
+    "baseRate": 0.03
+   }
+  ]
+ },
+ "critGames": {
+  "programs": [
+   {
+    "program": "Anitya World Jam ($2,700 in prizes)",
+    "url": "https://itch.io/jam/anitya-world-jam-2700-in-prizes",
+    "open": "Open. Submissions 2026-09-09 11:00 to 2026-10-21 22:59:59. Online, links submitted through Discord. Free, 16+ to receive a prize. The page states no country limits and no payout method.",
+    "criteria": "Verbatim, fetched 2026-09-28: \"Immersive (60%): How interesting is your world? Would I genuinely want to play again?\" / \"Creative (20%): Are you creatively using Anitya's features?\" / \"Inviting (20%): How likely are people to get curious about the world?\" Rules: \"Worlds published before 9 September are not eligible\". The world must be built on the Anitya platform and \"published to the public feed, not kept private\". \"Imported assets are welcome. GLB files import directly\". Prizes: 1st $1000, 2nd $700, 3rd $400, plus $600 for weekly and surprise challenges.",
+    "pastWinners": "Past Anitya jams (https://itch.io/jams/hosted-by-anitya): Level-Up Jam: Dream Edition, Dec 2024, $600, 14 entries with 12 ranked. The winners were Dreams after Dreams, Meadow Moon and THE NIGHTMARE WORLD, all dream-themed 3D worlds with top scores of 3.60/3.56/2.80 (https://itch.io/jam/level-up-jam-dream-edition-/results). The results page gives no genre or polish detail. Anitya World-Building Jam, Sep 2024: 4 entries, 0 ratings, \"No rankings available\" (https://itch.io/jam/anitya-world-building-jam/results). 3D Classroom jam, Oct 2024: 4 entries. Creators Hackathon #1, Dec 2025, 1.5k USDC: 1 entry and no winners posted (https://itch.io/jam/anitya-creators-hackathon-1). All past winners were immersive 3D worlds built inside Anitya. None was an external game.",
+    "entrantsVsWinners": "Current jam: 58 joined, 0 itch entries (the real entries go through Discord). Past Anitya jams had 14, 4, 4 and 1 entries. Base rate = 3 placed prizes / 14 entries (the best comparable edition) = 0.21. If this edition doubles to about 20 entries, it is 3/20 = 0.15. I used 0.15. Two of the four past jams produced no published ranking, so there is a real risk that no one is judged or paid.",
+    "baseRate": 0.15,
+    "favors": "An immersive 3D world built in the Anitya editor (60% of the score is immersion and replay). This is the only program found where a 3D asset helps directly. Catnip Heist cannot be submitted as a game, but its voxel models can be exported as GLB and imported to build a cat-shelter heist world. It does not favour contracts, payments or consumer traction."
+   },
+   {
+    "program": "Micro Jam 066: Toxic (Micro Jam series, itch.io, every two weeks)",
+    "url": "https://itch.io/jam/micro-jam-066",
+    "open": "Submissions 2026-10-03 01:00 to 2026-10-05 01:00, plus a 6-hour late window. The series runs every two weeks.",
+    "criteria": "Rated on \"Art\", \"Audio\", \"Polish\", \"Fun\", \"Theme\" and \"Prerequisite\". Pre-existing work: \"No, you can only submit games made in the given timeframe.\" No engine limit, and AI use is permitted. Cash prizes: Best Games Made With Ziva 1st $30, 2nd $25, 3rd $20, 4th $15, 5th $10 \"via PayPal\". Best Game Made With Easel 1st $30. Judge's Choice (Top 10 Web Games) pays no cash, only certificates and CraftPix memberships. The overall pool is about $150.",
+    "pastWinners": "Micro Jam 065: Fishing had 54 entries. Winners: Off the HUD (3.944), Fish On Fish Fishing (3.567), Goldfish (3.466) (https://itch.io/jam/micro-jam-065/results). The page doesn't say whether they were 2D or 3D. These are 48-hour games.",
+    "entrantsVsWinners": "065 had 54 entries in total. 066 has 70 joined. The Ziva category pays 5 cash slots against at most 25 possible Ziva entrants: itch.io's all-time tag count, per the earlier sweep (https://itch.io/games/tag-ziva). That gives 5/25 = 0.20. The overall ranking pays no cash.",
+    "baseRate": 0.2,
+    "favors": "A new 48-hour game made with the sponsor tool (Ziva, a Godot plugin, or Easel). Catnip Heist is ineligible because it is pre-existing. The mean cash prize is about $20, so EV is only a few dollars."
+   },
+   {
+    "program": "Farcaster Developer Rewards (weekly USDC to the top 100 mini apps)",
+    "url": "https://api.farcaster.xyz/v1/developer-rewards-winner-history",
+    "open": "Active. The latest period runs from timestamp 1790175600000 (2026-09-23) for one week. The rules page farcaster.xyz/~/developers/rewards renders only \"Farcaster\" through WebFetch, and the docs URLs returned 404. Eligibility, KYC and country rules are unverified.",
+    "criteria": "The public rules text could not be read. The API only exposes a score per app. The earlier pass found the formula described as \"recent user engagement\", but I could not re-verify that quote on this pass.",
+    "pastWinners": "Current week (API, limit=100): rank 1 BETRMINT, score 1507, $201.20. Rank 25 Rips, 913, $121.90. Rank 50 MiniWord, 733, $97.86. Rank 75 Warplet Blind Box, 556, $74.23. Rank 100 $EGGS, 412, $55.55. That totals about $10,989 a week. About 45-50 of the 100 look like games, mostly slots, fishing, farming and pet games: casual 2D, social or crypto-native, not polished 3D.",
+    "entrantsVsWinners": "100 winners a week. The total number of competing mini apps is not published, so the base rate cannot be computed. 0 is a placeholder, not a measurement. The earlier sweep's estimate of about 0.10 relied on an invented placing factor.",
+    "baseRate": 0,
+    "favors": "Consumer traction inside Farcaster: daily engaged users of a mini app. Most winners are casual 2D games and slots. A 3D voxel game would get no credit for polish, only for engagement. Token Tails has no Farcaster audience."
+   },
+   {
+    "program": "Reddit Developer Funds (Devvit games)",
+    "url": "https://support.reddithelp.com/hc/en-us/articles/50860336905108-Reddit-Developer-Funds-H2-2026-Terms",
+    "open": "H2 2026 terms exist: devvit-docs commit \"update dev funds terms to current (#212)\" on Sep 24, 2026 changed the redirect to this article. The terms page returns HTTP 403 and developers.reddit.com cannot be fetched, so the H2 2026 amounts, end date and country eligibility (including Lithuania) are UNVERIFIED.",
+    "criteria": "Previous period (devvit-docs commit 5fb3530, \"April 1, 2025 - June 30, 2026\"). A qualified engager is \"A unique user that clicks and takes an action in your App for a specific day\": logged in, in a subreddit of at least 200 members, SFW. Tiers: 500 daily qualified engagers = $500, 1,000 = $1,000, 10,000 = $5,000, 25,000 = $10,500, 50K/100K/250K = $25,000 each, 1M = $75,000. Installs: 50 = $500, 250 = $1,000, 1,000 = $2,000. \"Up to three apps per developer can qualify\".",
+    "pastWinners": "Reddit publishes no list of paid apps or payout counts on any page I could reach. Unknown.",
+    "entrantsVsWinners": "Every app that crosses a tier is paid, so this is a threshold, not a competition. No data on how many apps cross 500 daily engagers or 50 installs, so the base rate cannot be computed (0 is a placeholder). The earlier sweep's estimate was 0.6 x 0.15 = 0.09, and its 0.15 factor was a guess.",
+    "baseRate": 0,
+    "favors": "Consumer traction on Reddit: daily logged-in engagers or subreddit installs. It rewards a finished playable web game. The 50-install tier ($500) is the lowest bar found for a finished game. Whether a Three.js game runs under Devvit Web was not verified on this pass. It does not favour contracts or 3D polish in itself."
+   },
+   {
+    "program": "Creative Europe MEDIA Video Games and Immersive Content Development 2027",
+    "url": "https://ec.europa.eu/info/funding-tenders/opportunities/data/topicDetails/crea-media-2026-devvgim.json",
+    "open": "The 2027 topic JSON (crea-media-2027-devvgim) returns 404: the call is not yet published. A deadline of 2027-02-10 is EXPECTED from the 2026 pattern, not confirmed.",
+    "criteria": "2026 call fiche, verbatim weights (from funding/framework/applications/creative-europe-2027/call.md, read from the official PDF): Originality 10, Innovation 15, Sustainability 5, Gender/inclusion 5, Quality of content 25, Development strategy 10, Financing strategy 10, Distribution 10, Marketing 10. \"Overall threshold: 70 points.\" Gates: the applicant must have a game \"commercially distributed in the period between 01/01/2023 and the deadline\" with a sales report showing revenue. \"The production phase is ineligible. Production is understood as the phase starting from the testing and debugging of the first prototype\". The following are excluded: \"puzzle games ... mind games\". Lump sum \"EUR 200 000 per project\" at 60%.",
+    "pastWinners": "Typical winners are established studios with shipped PC or console titles, for example CD Projekt RED, 11 bit studios and Bloober Team (https://kreatywna-europa.eu/program-kreatywna-europa-od-lat-wspiera-europejskie-gry-wideo/). The projects are narrative, pre-prototype, and backed by a full creative dossier.",
+    "entrantsVsWinners": "2026, verified on the JSON: 336 submitted, 15 inadmissible, 40 ineligible, 143 above threshold, EUR 25,673,065.18 requested against EUR 10,000,000. So about 50 grants at EUR 200k: 50/336 = 0.149. The earlier internal blind review scored the Token Tails draft at about 39-40/100 against the 70 threshold.",
+    "baseRate": 0.15,
+    "favors": "A NEW narrative game concept, before its prototype, from a studio with a commercially released game. A finished playable game such as Catnip Heist is the wrong asset: finished work counts as production, which is ineligible. A stealth-puzzle loop also risks the puzzle exclusion. The 15% base rate belongs to established studios; this team's P is far lower."
+   },
+   {
+    "program": "Cursor Vibe Jam (web games, Three.js recommended) [extra candidate]",
+    "url": "https://vibejam.com",
+    "open": "CLOSED for 2026: the deadline was May 1, 2026 @ 13:37 UTC. No 2027 edition is posted, and on the 2025 and 2026 pattern it would fall after 2027-03-31.",
+    "criteria": "Web-based, no login, free to play. \"At least 90% of the code has to be written by AI\". Brand new games only, created after April 1, 2026. Three.js recommended. Must load almost instantly. Prizes: Gold $25,000, Silver $10,000, Bronze $5,000, 12 special prizes of $1,000.",
+    "pastWinners": "2025 (https://vibejam.com/2025/): Gold $10,000 The Great Taxi Assignment, Silver $5,000 Vibeware, Bronze $2,500 Vector Tango. \"Over 1,000 games\". The page does not say whether they were 3D.",
+    "entrantsVsWinners": "2025: 3 main prizes over more than 1,000 entries = 0.003. The 2026 entry count is not shown. Even assuming 1,000 entries, 15 prizes gives 0.015.",
+    "baseRate": 0.003,
+    "favors": "A new, instantly loading, AI-coded 3D web game: exactly the Catnip Heist stack. But it is closed, it only takes new games, and the base rate is far below 10%."
+   },
+   {
+    "program": "Terror Jam 2026 [extra candidate]",
+    "url": "https://itch.io/jam/terror-jam-2026-a-halloween-game-jam",
+    "open": "Submissions 2026-10-10 23:00 to 2026-10-24 03:59:59. 18+. Payout method not stated.",
+    "criteria": "\"Quality, creativity, relation to the theme and use of challenge(s)\". \"All games submitted to the jam are required to be made within the time frame of the jam. We will not accept games made prior.\" Must run on Windows or in a browser. Prizes: Best Overall $500, Best Core Gameplay $200, Scariest $200, People's Choice $100, Best Design Trial $100.",
+    "pastWinners": "The 2025 results URL returned 404. Past winners were not verified.",
+    "entrantsVsWinners": "80 joined, entries not yet known. 5 cash prizes / 80 joined = 0.0625. This is a floor, because not everyone who joins submits. The real submit rate is unknown.",
+    "baseRate": 0.0625,
+    "favors": "A new horror or stealth game made in two weeks. Catnip Heist's stealth mechanics and engine could be reused as boilerplate for a new Halloween level, but the finished game is not eligible."
+   },
+   {
+    "program": "Eclipse Publishing $500 Game Jam [extra candidate]",
+    "url": "https://itch.io/jam/eclipse-publishingjam",
+    "open": "2026-10-01 13:00 ET to 2026-10-05 13:00 ET. Winners 2026-10-10.",
+    "criteria": "Equally weighted: \"use of the theme, how good it feels to actually play, originality of the core idea, and how much you accomplished in 96 hours.\" Pre-existing projects disallowed, but \"engine boilerplate\" and personal libraries are allowed. \"Browser builds get played faster.\" \"You keep 100% ownership\"; \"no publishing rights, no right of first refusal, and no equity.\" Prizes: 1st $300, 2nd $50 + software, 3rd $50, Best ThinkTea usage $100.",
+    "pastWinners": "No past results were found on the page.",
+    "entrantsVsWinners": "344 joined. 4 cash prizes / 344 joined = 0.012, a floor.",
+    "baseRate": 0.012,
+    "favors": "A new 96-hour game. Browser builds are favoured, so the Catnip Heist Three.js engine can be reused as boilerplate. The finished game is not eligible."
+   },
+   {
+    "program": "IGF 2027 (Independent Games Festival) [extra candidate]",
+    "url": "https://igf.com/",
+    "open": "CLOSED: \"2027 Independent Games Festival (IGF) Awards Submissions are now closed\". Ceremony March 3, 2027 at GDC.",
+    "criteria": "Not shown on the landing page.",
+    "pastWinners": "Not checked, since the program is closed.",
+    "entrantsVsWinners": "Not available.",
+    "baseRate": 0,
+    "favors": "Finished, polished indie games. It would suit Catnip Heist, but submissions are closed."
+   },
+   {
+    "program": "Remix (formerly Farcade) creator rewards [extra candidate]",
+    "url": "https://remix.gg/",
+    "open": "Ongoing. farcade.ai returns a 308 redirect to remix.gg.",
+    "criteria": "No criteria are published on the page. It states \"$124,224\" distributed to creators and \"140K+\" games created. The top creators earned $10,038, $8,024 and $6,962. Paid plans cost $15 and $100 a month. The page doesn't say whether rewards need games built with its AI tool.",
+    "pastWinners": "Only the top creator handles are shown. The kinds of games are not shown.",
+    "entrantsVsWinners": "$124,224 over more than 140K games is about $0.89 per game on average. The number of creators paid is not published, so no base rate.",
+    "baseRate": 0,
+    "favors": "Engagement on the platform's own AI-made game feed. It favours neither 3D polish nor contracts. Also checked: Poki and CrazyGames developer portals (revenue share only, no contests or cash prizes found). Epic MegaGrants (HTTP 403, unverified). itch.io upcoming jams filtered for 3D (none 3D, web or Three.js specific)."
+   }
+  ]
+ },
+ "scored": [
+  {
+   "rows": [
+    {
+     "program": "Colosseum Crypto World's Fair (due 2026-10-12)",
+     "eligible": true,
+     "p": 0.02,
+     "pArithmetic": "base 0.02 x fit 1.0 = 0.02. Eligible only in a non-Solana ecosystem track (Base, Arbitrum, Ethereum or Tempo); the Solana track is excluded. The rubric has 7 criteria. ShelterSplit covers 'product quality and execution speed' (41 tests) and in part 'founder-market fit' (shelter-cat app). It is weak on 'user traction and revenue' (0 on-chain use, one payout), 'TAM' and 'business viability'. Payments infra has won before (MCPay won a Cypherpunk track), so the fit is 1.0, not lower. There is no evidence to justify going above 1.",
+     "moneyUsdMid": 15000,
+     "humanHours": 24,
+     "aiHours": 10,
+     "why": "The pool pays about 1.8% of entries, and the rubric rewards traction and revenue. S1 has no users on-chain. The legacy app's traction (peak 540K registered, SEI Dune) is only context, and its on-chain figures are SEI, not the chain submitted. Hours: ShelterSplit 14h + real shelter payout about 4h + 2 videos and GTM about 6h. Well below the 10% bar."
+    },
+    {
+     "program": "Arc Microgrants (Circle/Arc, due 2026-10-14)",
+     "eligible": true,
+     "p": 0.18,
+     "pArithmetic": "base 0.12 (assumed from about 100-200 mainnet entrants for 20 slots; not published) x fit 1.5 = 0.18. It meets all 4 unweighted criteria: relevance to Arc (USDC payout rail), technical credibility (41 tests, reentrancy/pause/2-step ownership), quality of what you built (contract + demo page + one real payout), and worth taking further (it plugs into a live consumer app). 'Promise counts for more than traction' removes S1's biggest weakness. The multiplier stays below 2 because no past recipients are published and Circle's OpenClaw winners were agent infra, not payout splitters.",
+     "moneyUsdMid": 500,
+     "humanHours": 18,
+     "aiHours": 8,
+     "why": "This is the only program in S1 that clears the 10% bar, but it pays only $500. Hard gates: it must be 'deployed and working on Arc mainnet' (a human broadcasts it, and it needs real gas/USDC), it needs a public repo (funding/ is untracked and must be committed first), a live link and a builder profile. Hours: commit + mainnet deploy/verify 3h, disburse demo page 8h, one real shelter payout 3h (a shelter wallet must be onboarded; the audit found none), draft/video 4h. P falls to 0 if the mainnet deploy slips past Oct 14."
+    },
+    {
+     "program": "Mezo Buildathon on AKINDO (MUSD/MEZO)",
+     "eligible": true,
+     "p": 0.05,
+     "pArithmetic": "base 0.10 (assumed; winner count not published) x fit 0.5 = 0.05. 30% 'Mezo Integration' says 'depth ... matters more than surface-level usage'. A splitter that only moves MUSD is shallow, so it scores low. 30% 'Product & Business Viability' (extend MUSD utility) is partial via the Access & Distribution track. 20% technical is strong. 10% UX is weak (only a demo page). 10% materials is moderate. That is about 1 of the 3 heavy criteria met.",
+     "moneyUsdMid": 1000,
+     "humanHours": 26,
+     "aiHours": 12,
+     "why": "The prize is paid in MEZO tokens ($7k over 2 waves). Whether that meets the cash rule is uncertain, and the evidence gives no per-winner figure. $1,000 is my own placeholder (about $7k spread over an unknown number of winners), not a published number, so treat that EV figure as soft. It needs a Mezo deploy plus an MUSD adaptation on top of the 14h ShelterSplit base, and wave-based iteration."
+    },
+    {
+     "program": "Arbitrum Open House Dubai Online Buildathon (HackQuest)",
+     "eligible": true,
+     "p": 0.065,
+     "pArithmetic": "base 0.05 x fit 1.3 = 0.065. Past rubric (no weights): code quality with few vulnerabilities is met directly (41 Foundry tests, safe transfers, reentrancy guard). 'Attract and retain users' is weak (0 users). 'Original approaches' is moderate (shelter split). 'Genuine market need' is moderate. About 1.5 of 4 criteria are met, and Sepolia deploys were accepted before. Past winner types are unverified, so the multiplier stays modest.",
+     "moneyUsdMid": 5000,
+     "humanHours": 20,
+     "aiHours": 8,
+     "why": "The $30k pool and slot count are TBD, and the prize 'may be subject to change'. $5,000 is my own inference (about $30k / 6 slots, using London's slot structure), not a published figure. Submissions open Nov 16, so this fits after Arc. Hours: 14h base + Arbitrum deploy + video/draft."
+    },
+    {
+     "program": "Arbitrum DDA Gaming grants (Questbook)",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Program closed ('Program complete') = 0. The remaining route, AGV, is investment, which the MB cannot take and the team excludes.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "Closed. It was also a gaming program, which S1 is not."
+    },
+    {
+     "program": "Team1 Avalanche Mini Grants",
+     "eligible": true,
+     "p": 0.05,
+     "pArithmetic": "base 0.05 (assumed; no applicant or grantee counts published) x fit 1.0 = 0.05. No scoring criteria are published, so no criteria can be matched and the fit stays at 1.0. An Avalanche C-Chain deploy of ShelterSplit is the minimum credible evidence. The page warns of high application volume.",
+     "moneyUsdMid": 5000,
+     "humanHours": 16,
+     "aiHours": 6,
+     "why": "Rolling, up to $10k. $5,000 is my own assumed midpoint of the $0-10k range, since no typical award is published. The missing criteria and base-rate data mean a P>10% claim cannot be proven."
+    },
+    {
+     "program": "Circle Developer Grants",
+     "eligible": true,
+     "p": 0.03,
+     "pArithmetic": "base 0.03 (assumed; OpenClaw was about 1.5%, and Questbook stats did not render) x fit 1.0 = 0.03. Platform alignment is met (USDC is the core). 'Exceptional teams / proven shipping' is partial (the legacy app shipped). 'Traction' is not met for the rail (one payout). 'Ecosystem impact' (USDC utility on Arc) is partial. That is about 1.5-2 of 4, and it competes with funded payments startups (Hurupay, Blockradar), so no uplift.",
+     "moneyUsdMid": 10000,
+     "humanHours": 22,
+     "aiHours": 8,
+     "why": "The published range is $5k-$100k, paid by milestone. $10,000 is my own assumption for a small first grant, not the arithmetic midpoint of $52.5k, to avoid inflating EV. Games are not a focus area, and the S1 rail has no traction. Hours: Arc build reused + milestone plan and application."
+    },
+    {
+     "program": "Anitya World Jam",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Not eligible = 0. It requires an immersive world built and published on Anitya, and S1 ships a Solidity contract.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "S1 has no 3D world. Only a Catnip Heist GLB-export strategy could enter."
+    },
+    {
+     "program": "Micro Jam 066: Toxic",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Not eligible = 0. It requires a new 48h game, and S1 has none.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "This is a game jam and S1 is a payments contract."
+    },
+    {
+     "program": "Farcaster Developer Rewards",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Not eligible = 0. S1 ships no Farcaster mini app, and the base rate is unknown anyway.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "Rewards go to mini-app engagement, and S1 has no mini app or Farcaster audience."
+    },
+    {
+     "program": "Reddit Developer Funds (Devvit)",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Not eligible = 0. S1 has no Devvit app, and the H2 2026 terms and Lithuania eligibility are unverified.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "The tiers need a Devvit app with engagement or installs, which S1 does not produce."
+    },
+    {
+     "program": "Creative Europe MEDIA Video Games 2027",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Not eligible = 0. It funds pre-production of a new narrative game, and a payout contract is out of scope. The call is not published yet.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "Wrong asset type. The earlier blind review scored 39-40 against the 70 threshold even for a game draft."
+    },
+    {
+     "program": "Cursor Vibe Jam",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Closed (May 1, 2026) = 0.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "Closed, and it only takes new web games."
+    },
+    {
+     "program": "Terror Jam 2026",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Not eligible = 0. It requires a new horror game.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "Game jam. S1 has no game build."
+    },
+    {
+     "program": "Eclipse Publishing $500 Game Jam",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Not eligible = 0. It requires a new 96h game.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "Game jam. S1 has no game build."
+    },
+    {
+     "program": "IGF 2027",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Closed = 0.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "Submissions are closed, and it is a games award anyway."
+    },
+    {
+     "program": "Remix (Farcade) creator rewards",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Not eligible = 0. It pays for engagement on the platform's own game feed.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "S1 has no game on Remix."
+    }
+   ],
+   "totalEV": 1325,
+   "pAtLeastOneWin": 0.349,
+   "summary": "S1 (a ShelterSplit USDC payout rail with one real shelter payout) can enter 6 of the 17 programs. It clears the P>10% bar in exactly one of them: Arc Microgrants, where P = 0.12 x 1.5 = 0.18 but the payout is only $500. Arc fits because its criteria (relevance to Arc, technical credibility, build quality, promise) match a tested USDC contract, and 'promise counts for more than traction' removes S1's main weakness. The 0.12 base rate is an assumption, since Arc publishes no applicant count.\n\nThe other five eligible programs all fall below 10%:\n- Colosseum: 0.02 (rubric rewards traction and revenue).\n- Arbitrum Dubai: 0.065.\n- Team1 Avalanche: 0.05.\n- Mezo: 0.05 (shallow MUSD use is penalised, and the prize is paid in tokens).\n- Circle Developer Grants: 0.03.\n\nThe remaining 11 programs are closed, or are game jams or 3D-world contests where a payout contract can't compete, so P = 0 for S1.\n\nEV = 300 + 90 + 50 + 325 + 250 + 300 = $1,325. Some of the prize figures behind this are my own assumptions, not published numbers: Arbitrum $5k, Avalanche $5k, Circle $10k and the Mezo $1k placeholder. Arbitrum, Circle and Colosseum make up most of the EV even though each is well under 10%.\n\nP(at least one win) = 1 - (0.98 x 0.82 x 0.95 x 0.935 x 0.95 x 0.97) = 0.349. This assumes the programs are independent, which is optimistic: every entry reuses the same contract and the same lack of traction, so their outcomes move together.\n\nPreconditions not yet met:\n- funding/ is untracked, so it must be committed to a public repo.\n- deployments.json is [], so a human must broadcast an Arc mainnet deploy with real gas and USDC before Oct 14.\n- No shelter wallet is onboarded, so the 'one real payout' is not yet possible. I added about 3h for it as a judgment, and the true time is unknown.\n\nAnswer to the user: S1 is not a 'perfect' scenario. Its only >10% program pays $500.\n\nCatnip Heist gives S1 no uplift. None of the chain programs rewards a game without on-chain use, and the one strong fit for a 3D game (the Arbitrum DDA gaming grants) is closed. The heist's only real paths lie outside S1: the Anitya World Jam (base 0.15, and only by rebuilding it as an Anitya world from GLB exports) and Reddit Devvit or other engagement-threshold programs. Those should be scored as a separate strategy, not added to this one."
+  },
+  {
+   "rows": [
+    {
+     "program": "Arc Microgrants (Circle / Arc, deadline 2026-10-14)",
+     "eligible": true,
+     "p": 0.144,
+     "pArithmetic": "base 0.12 (assumed from 100-200 mainnet entrants; not published) x fit 1.2 = 0.144. Criteria are unweighted: Arc relevance (met, USDC ShelterSplit on Arc mainnet), technical credibility (met, 41 forge tests plus 120 heist tests), quality of what was built (the game makes the demo stronger), worth taking further (met). Fit is capped at 1.2 because past Circle winners (OpenClaw) were all agent or payments infra and never games, so the game wrapper has not been shown to add credit.",
+     "moneyUsdMid": 500,
+     "humanHours": 37,
+     "aiHours": 20,
+     "why": "This is the only program that clears the 10% bar, and it clears it because of ShelterSplit, not the game. ShelterSplit deployed alone on Arc mainnet (about 14h) gets roughly base 0.12 x fit 1.0-1.1, so P is about 0.12-0.13. The heist plus wiring adds about 22h to raise P by about 0.015-0.025, worth about $10 of EV on a $500 prize. It also needs real gas and USDC on mainnet, and a human has to broadcast the deploy. Hours: shared core of 36 (heist 10 + ShelterSplit 14 + wiring the heist win screen to a wallet disburse call, about 12, my judgment) plus 1h for the builder profile and form."
+    },
+    {
+     "program": "Arbitrum Open House Dubai Online Buildathon (HackQuest, submissions Nov 16 - Dec 6)",
+     "eligible": true,
+     "p": 0.06,
+     "pArithmetic": "base 0.05 (inferred: $30k pool, slot count unpublished) x fit 1.2 = 0.06. Prior rubric: code quality (met by ShelterSplit), user potential (partly met: the game is appealing but has 0 users), originality (partly met: rescue game triggers a payout), market need (partly met). Gaming is an allowed category. No past winners could be verified, so fit stays at or below 1.2.",
+     "moneyUsdMid": 5000,
+     "humanHours": 42,
+     "aiHours": 22,
+     "why": "S2 fits this better than most programs: it rewards a tested Solidity contract on Arbitrum plus a consumer front end. But the tracks, criteria and slot count are 'coming soon', and the page says the prize may change if quality is low. The $5,000 mid assumes about 6 slots, taken from the London/Singapore structure scaled to the $30k pool; that is an inference. Hours: core 36 plus 6 for the Arbitrum deploy, verification, submission and video tweaks."
+    },
+    {
+     "program": "Team1 Avalanche Mini Grants (rolling)",
+     "eligible": true,
+     "p": 0.05,
+     "pArithmetic": "base 0.05 (assumed; no applicant or grantee counts published) x fit 1.0 = 0.05. With no scoring criteria published, fit cannot be argued above 1.0.",
+     "moneyUsdMid": 5000,
+     "humanHours": 39,
+     "aiHours": 20,
+     "why": "It needs a ShelterSplit deploy on Avalanche C-Chain. The page warns of high application volume, and no recipient list exists to compare against. The $5,000 mid is simply the midpoint of 'up to $10,000', an assumption. Below the 10% bar. Hours: core 36 plus 3 for the deploy and application."
+    },
+    {
+     "program": "Mezo Buildathon (AKINDO, Wave 1 Oct 16-26, Wave 2 Nov 2-15)",
+     "eligible": true,
+     "p": 0.06,
+     "pArithmetic": "base 0.10 (assumed; no winner counts published) x fit 0.6 = 0.06. Weighted score estimate for S2: Mezo integration 30% x 0.3 (a payout splitter in MUSD is the 'surface-level usage' the rules penalise) + product viability 30% x 0.4 + technical 20% x 0.8 + UX 10% x 0.8 + materials 10% x 0.7 = 0.52, which rounds to fit about 0.6.",
+     "moneyUsdMid": 1000,
+     "humanHours": 42,
+     "aiHours": 22,
+     "why": "The prize is paid in MEZO tokens. Whether that meets the team's cash-only rule is uncertain, so eligibility is conditional. The $1,000 mid assumes about 7 winners across a $7k pool; the winner count is not published. 60% of the score rewards DeFi depth, which a game plus splitter lacks. Hours: core 36 plus 6 to adapt to MUSD on Mezo and submit."
+    },
+    {
+     "program": "Circle Developer Grants (rolling, $5k-$100k USDC)",
+     "eligible": true,
+     "p": 0.024,
+     "pArithmetic": "base 0.03 (assumed; only comparable is OpenClaw at 1.5%) x fit 0.8 = 0.024. Platform alignment is met (USDC is core to the rail). Exceptional teams is partly met (shipped legacy app). Traction is not met for the new build (0 users, 0 USDC volume). Ecosystem impact is modest. Games are not a focus area, and featured grantees are payments infra companies (Hurupay, Blockradar).",
+     "moneyUsdMid": 5000,
+     "humanHours": 42,
+     "aiHours": 20,
+     "why": "The 'traction' criterion hurts: S2 has no live USDC volume and no users. I used the $5,000 floor of the range rather than a midpoint, because a prototype with no traction is unlikely to get a large milestone grant. Below the bar. Hours: core 36 plus 6 for the milestone proposal."
+    },
+    {
+     "program": "Colosseum Crypto World's Fair (due 2026-10-12)",
+     "eligible": true,
+     "p": 0.015,
+     "pArithmetic": "base 0.02 (about 23 general slots over about 1,250 projected submissions, historical 1.0-2.8%) x fit 0.75 = 0.015. Unweighted criteria reward TAM, business viability, and traction/revenue. S2 has 0 users on the new builds, and shelter revenue and impact are UNKNOWN. Past winners are infra, DeFi or payments; the few game winners were wager or fantasy formats, never narrative or casual games.",
+     "moneyUsdMid": 15000,
+     "humanHours": 44,
+     "aiHours": 22,
+     "why": "Eligible through a non-Solana ecosystem track (Base, Arbitrum or Ethereum) with pre-existing code disclosed. A polished 3D game is not a judged criterion, and the rail has no volume. The $15,000 mid is the typical general-pool slot. Hours: core 36 plus about 8 for the pitch video, demo video and GTM write-up."
+    },
+    {
+     "program": "Arbitrum DDA Gaming grants (Questbook)",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Program complete or inactive, so P = 0. The remaining route (Arbitrum Gaming Ventures) is investment, which the MB cannot take.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "This would have been the natural home for a playable game, but it is closed."
+    },
+    {
+     "program": "Anitya World Jam ($2,700)",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "S2's demo (a Three.js game plus an EVM rail) cannot be submitted. Entries must be worlds built and published on Anitya after Sep 9, so P = 0 for this strategy.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "This is the only program where 3D assets help (base 0.15), but only through a different strategy: export the heist voxel models as GLB and build a new world in Anitya. ShelterSplit has no role there. It deserves its own evaluation, not S2."
+    },
+    {
+     "program": "Micro Jam 066: Toxic",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "The rules say games must be made within the jam timeframe, and cash goes only to Ziva/Easel entries. S2 is pre-existing, so P = 0.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "Pre-existing work is banned. The mean prize is about $20 in any case."
+    },
+    {
+     "program": "Farcaster Developer Rewards",
+     "eligible": true,
+     "p": 0,
+     "pArithmetic": "The base rate cannot be computed (total competing mini apps unknown; 0 is a placeholder), so P is treated as 0 instead of guessed.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "Rules, KYC and country eligibility are unverified (the rules page did not render). Rewards go to engagement, and Token Tails has no Farcaster audience. The winners are casual 2D and slot games, so 3D polish gets no credit."
+    },
+    {
+     "program": "Reddit Developer Funds (H2 2026)",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "H2 2026 terms returned 403. Lithuania eligibility, and whether Three.js or crypto payouts are allowed under Devvit, are unverified, so P is treated as 0.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "This is a threshold payout (50 installs = $500), so a heist-only Devvit port could be evaluated separately. The on-chain rail at the centre of S2 almost certainly adds nothing here, and it is unverified whether Devvit even allows it."
+    },
+    {
+     "program": "Creative Europe MEDIA Video Games Development 2027",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "The 2027 call is not published (404). A finished playable game counts as production, which is ineligible, and the stealth-puzzle loop risks the puzzle exclusion. So P is about 0.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "The call wants a pre-prototype narrative concept from a studio with a commercially distributed game and a sales report. The earlier internal review scored the Token Tails draft at about 39-40 against the 70 threshold."
+    },
+    {
+     "program": "Cursor Vibe Jam",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Closed on 2026-05-01, so P = 0.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "This matches the heist stack exactly, but it is closed and only accepts new games (base 0.003-0.015 in any case)."
+    },
+    {
+     "program": "Terror Jam 2026",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Games must be made within the jam window, so the pre-existing S2 demo is ineligible and P = 0.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "Only a new Halloween game reusing the heist engine as boilerplate could enter (floor base 0.0625). That is a different strategy, and it is still below the bar."
+    },
+    {
+     "program": "Eclipse Publishing $500 Game Jam",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Pre-existing projects are disallowed, so P = 0 (floor base for new entries is 0.012).",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "Only engine boilerplate may be reused, so the heist does not qualify."
+    },
+    {
+     "program": "IGF 2027",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Submissions closed, so P = 0.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "It would suit a polished indie game, but it is closed."
+    },
+    {
+     "program": "Remix (formerly Farcade) creator rewards",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "No criteria or number of paid creators published, and it likely requires games made with the platform's own tool, so P is treated as 0.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "why": "About $0.89 per game on average, and S2's on-chain rail is irrelevant there."
+    }
+   ],
+   "totalEV": 1027,
+   "pAtLeastOneWin": 0.309,
+   "summary": "S2 does not give the best chance of winning. Only one program clears the P>10% bar: Arc Microgrants at P about 0.144 (0.12 x 1.2), worth $500. Even there the win comes from ShelterSplit on Arc mainnet, not the game. ShelterSplit alone takes about 14h and already reaches P about 0.12-0.13. Adding Catnip Heist and the wiring costs about 22 more hours and raises P by about 0.02, which is roughly $10 of expected value.\n\nEV by program: Arbitrum Dubai 0.06 x $5k = $300; Avalanche Team1 0.05 x $5k = $250; Colosseum 0.015 x $15k = $225; Circle 0.024 x $5k = $120; Arc 0.144 x $500 = $72; Mezo 0.06 x $1k = $60 (paid in tokens, cash status uncertain). Total EV is about $1,027.\n\nP(at least one win) = 1 - (0.856 x 0.94 x 0.95 x 0.94 x 0.976 x 0.985) = about 0.31. That treats the programs as independent, which is optimistic because they are all judged on the same build. It also assumes one shared core build of about 36 human hours (heist 10 + ShelterSplit 14 + about 12 to wire the heist win screen to a wallet disburse call, my judgment), plus 1-8h per program.\n\nWhy the new 3D game does not help: no cash program found weights 3D polish or playability.\n- The crypto programs score contract quality, integration depth, traction and TAM. Their past winners are infra, DeFi and payments, plus a few wager or fantasy games.\n- The game jams ban pre-existing games (Micro, Terror, Eclipse).\n- The programs that would suit a polished game are closed (Vibe Jam, IGF, Arbitrum DDA) or need pre-prototype concepts (Creative Europe).\n- Anitya World Jam (base 0.15) is the only 3D-favouring option. It requires a new world built inside Anitya, which S2 cannot submit.\n\nBetter options than S2:\n(a) ShelterSplit alone on Arc mainnet: about 14h, P about 0.12-0.13, the best return per hour.\n(b) Anitya as a separate strategy: export the heist voxel GLBs into a new Anitya world. It has a real but unproven P near 0.15, but two of four past Anitya jams published no ranking, so there is a risk no prize is paid.\n\nBlockers before any heist submission:\n- catnip-heist/ is untracked, so there is nothing in git to point to.\n- One e2e test fails: the retry scene-object leak test.\n- There is no public URL.\n- New-build traction is zero, and shelter impact and revenue are unknown."
+  },
+  {
+   "rows": [
+    {
+     "program": "Colosseum Crypto World's Fair",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Skipped under S3 because it is a crypto program. If it were entered anyway: base 0.02 x fit 0.5 (past game winners were wager or fantasy formats, and no Gaming track is published) = 0.01, which is still below the 10% bar.",
+     "moneyUsdMid": 15000,
+     "humanHours": 0,
+     "aiHours": 0,
+     "why": "S3 leaves out crypto programs. The rubric rewards TAM, traction and revenue, and a never-released game with no crypto has none of these. Past winners were mostly infra, DeFi and payments."
+    },
+    {
+     "program": "Arc Microgrants (Circle / Arc)",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "A working deployment on Arc mainnet is a hard gate. S3 has no chain component, so the program is ineligible and P = 0.",
+     "moneyUsdMid": 500,
+     "humanHours": 0,
+     "aiHours": 0,
+     "why": "S3 skips it. This is the one program with a base rate above 10% (0.12), but it only suits ShelterSplit deployed with USDC on Arc, not the game."
+    },
+    {
+     "program": "Mezo Buildathon (AKINDO)",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "60% of the score is MUSD/MEZO integration depth plus viability. With no crypto, S3 is ineligible and P = 0.",
+     "moneyUsdMid": 2000,
+     "humanHours": 0,
+     "aiHours": 0,
+     "why": "S3 skips crypto. The rubric explicitly penalises surface-level usage, and it pays in tokens, not cash."
+    },
+    {
+     "program": "Arbitrum Open House Dubai Online Buildathon",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "It requires a deployment on an Arbitrum chain. S3 has no on-chain component, so P = 0.",
+     "moneyUsdMid": 5000,
+     "humanHours": 0,
+     "aiHours": 0,
+     "why": "S3 skips it. Gaming is only an allowed category, judging looks at contract quality, and there is no published winner data."
+    },
+    {
+     "program": "Arbitrum DDA Gaming grants (Questbook)",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "The program is complete (inactive), so base 0 and P = 0. The only other route, AGV, is venture investment, which the MB cannot take.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "aiHours": 0,
+     "why": "This would have been the best fit for a playable game, but it is closed, and it was crypto-gated anyway."
+    },
+    {
+     "program": "Team1 Avalanche Mini Grants",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "It is Avalanche-ecosystem only, so S3 (no crypto) is ineligible. Even if entered: base 0.05 (assumed) x fit below 1 = below 0.05.",
+     "moneyUsdMid": 5000,
+     "humanHours": 0,
+     "aiHours": 0,
+     "why": "S3 skips it. It publishes no criteria and no base rate."
+    },
+    {
+     "program": "Circle Developer Grants",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "It requires USDC or Circle products as building blocks, and games are not a focus area. S3 is ineligible, so P = 0.",
+     "moneyUsdMid": 10000,
+     "humanHours": 0,
+     "aiHours": 0,
+     "why": "S3 skips it. Past grantees were payments infra."
+    },
+    {
+     "program": "Anitya World Jam ($2,700)",
+     "eligible": true,
+     "p": 0.101,
+     "pArithmetic": "base 0.15 (3 placed / about 20 expected entries) x fit 0.9 x judging/payout risk 0.75 = 0.101. Fit 0.9: Immersive (60%) is partly met, since the cat-rescue heist theme and art give a strong world concept, but the heist game logic does not port into the Anitya editor. Creative (20%) is not met, because the team has no Anitya experience. Inviting (20%) is partly met by the shelter-cat theme. The edge is the voxel art, but exporting it to GLB is unbuilt and unverified. That gives about 0.9 and no evidence for going above 1. Risk 0.75: 2 of the 4 past Anitya jams published no ranking.",
+     "moneyUsdMid": 700,
+     "humanHours": 25,
+     "aiHours": 10,
+     "why": "This is the only open program where the 3D work helps. What gets submitted is a NEW world built in Anitya (published after Sep 9) using the heist voxel assets, not Catnip Heist itself. Past winners were dream-themed worlds that scored about 3.6/5 in a 14-entry field, so the competition is thin. It sits right at the 10% bar, and even a win pays under $1k."
+    },
+    {
+     "program": "Micro Jam 066: Toxic",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "'Only games made in the given timeframe', so the finished heist is ineligible and P = 0. Variant, a new 48h Godot/Ziva game: base 0.20 x fit 0.5 (the heist Three.js engine is unusable in Godot and the team has no Ziva experience) = 0.10, for about $20, so EV is about $2.",
+     "moneyUsdMid": 20,
+     "humanHours": 0,
+     "aiHours": 0,
+     "why": "Cash goes only to the Ziva (Godot) or Easel categories, and the heist code does not transfer to either. It is not worth doing even as a variant."
+    },
+    {
+     "program": "Farcaster Developer Rewards",
+     "eligible": true,
+     "p": 0.02,
+     "pArithmetic": "The base rate is unknown (the number of competing apps is unpublished), so a judgment floor of 0.02 is used instead of the earlier invented 0.10. Reasons it stays low: to rank in the top 100 you need a score of 412 or more, which means sustained engagement. Token Tails has no Farcaster audience, the heist has never been released, and winners are casual 2D games or slots, where 3D polish earns no credit. The rules, KYC and country terms could not be read.",
+     "moneyUsdMid": 75,
+     "humanHours": 20,
+     "aiHours": 8,
+     "why": "The heist would have to be deployed (about 10h) and wrapped as a mini app (about 6h), plus about 4h of distribution. Payouts are USDC to a wallet, which is at odds with S3's no-crypto framing. The rules are unverified."
+    },
+    {
+     "program": "Reddit Developer Funds (Devvit)",
+     "eligible": true,
+     "p": 0.04,
+     "pArithmetic": "This is a threshold, not a contest. P = P(the H2 2026 terms still pay the 50-install tier AND Lithuania is eligible AND a Three.js game runs under Devvit Web) of about 0.4 (judgment: all three are unverified) x P(50 subreddit installs) of about 0.1 (judgment: there is no Reddit community presence, and every install needs a subreddit mod to add the app) = 0.04.",
+     "moneyUsdMid": 500,
+     "humanHours": 30,
+     "aiHours": 15,
+     "why": "It is the lowest bar found for a finished game, and it rewards a playable web game. Every key fact is unverified (the terms page returns 403), so P is kept low. The work is about 10h of heist readiness plus about 20h to port and publish on Devvit."
+    },
+    {
+     "program": "Creative Europe MEDIA Video Games Development 2027",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Finished or prototyped work counts as 'production', which is ineligible. The stealth-puzzle loop also risks the 'puzzle games' exclusion. Submitting the heist is therefore ineligible and P = 0. The 0.15 base rate belongs to established studios, and the team's earlier draft scored about 39-40 against a 70-point threshold.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "aiHours": 0,
+     "why": "Catnip Heist is exactly the wrong asset for this call. The 2027 call is also not yet published."
+    },
+    {
+     "program": "Cursor Vibe Jam",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "It closed on 2026-05-01, it takes only games created after 2026-04-01, and no 2027 edition is posted, so P = 0. Even if open: base 0.003 to 0.015.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "aiHours": 0,
+     "why": "It was the best stack fit (an AI-coded Three.js web game), but it is closed and very low-odds."
+    },
+    {
+     "program": "Terror Jam 2026",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "'We will not accept games made prior', so the heist is ineligible and P = 0. Variant, a new Halloween stealth game in 2 weeks reusing the engine: base floor 0.0625 x fit 1.0 (no explicit rule allows engine reuse, so there is disqualification risk) = about 0.06, below the bar.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "aiHours": 0,
+     "why": "The finished game is ineligible, and reusing the engine is ambiguous under the rules."
+    },
+    {
+     "program": "Eclipse Publishing $500 Game Jam",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Pre-existing projects are disallowed, so the heist is ineligible and P = 0. Variant, a new 96h browser game on the heist engine (boilerplate is explicitly allowed): base 0.012 x fit 2 (browser builds favoured, a mature engine lets the team 'accomplish more in 96h') = 0.024, below the bar.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "aiHours": 0,
+     "why": "Only a new game qualifies. Even with the engine advantage it is far below 10%."
+    },
+    {
+     "program": "IGF 2027",
+     "eligible": false,
+     "p": 0,
+     "pArithmetic": "Submissions are closed, so P = 0.",
+     "moneyUsdMid": 0,
+     "humanHours": 0,
+     "aiHours": 0,
+     "why": "It would have suited a polished indie game, but it is closed."
+    },
+    {
+     "program": "Remix (formerly Farcade) creator rewards",
+     "eligible": false,
+     "p": 0.01,
+     "pArithmetic": "There is no base rate and the criteria are unpublished. It is unverified whether games built outside Remix's own AI tool are accepted, so eligible is marked false (unverified) and a floor of 0.01 is used. The mean payout is about $0.89 per game.",
+     "moneyUsdMid": 1,
+     "humanHours": 12,
+     "aiHours": 5,
+     "why": "This is engagement on the platform's own feed, and the expected value is negligible. Poki and CrazyGames were also checked: they offer revenue share only, with no cash contests."
+    }
+   ],
+   "totalEV": 92.4,
+   "pAtLeastOneWin": 0.163,
+   "summary": "Strategy S3 (put Catnip Heist into game-first programs, no crypto) is not the best option, and the numbers show why. The finished heist game has no open cash-prize contest it can enter:\n- The contests that would suit it are closed: Vibe Jam, IGF and the Arbitrum DDA gaming grants.\n- Every open jam requires new work made during the event: Micro Jam, Terror Jam and Eclipse.\n- Creative Europe rules out finished (production-phase) games and puzzle games.\n\nOnly three kinds of program accept it:\n- **Anitya World Jam.** It does not take the game itself, only a new Anitya world built from the heist's voxel assets. P = 0.15 x 0.9 x 0.75 = 0.101, for a mid prize of about $700 and about 25 human hours.\n- **Reddit Developer Funds.** A payout threshold, not a contest. P = 0.4 x 0.1 = 0.04 for $500. All key facts, including whether Lithuania is eligible, are unverified.\n- **Farcaster Developer Rewards.** P is about 0.02 for about $75. It has no base rate, no audience for Token Tails, and pays in USDC.\n\nTotals:\n- totalEV is about $92 (Anitya $70.9, Reddit $20, Farcaster $1.5, Remix about $0).\n- pAtLeastOneWin = 1 - (0.899 x 0.98 x 0.96 x 0.99) = 0.163, assuming the programs are independent.\n\nOnly Anitya comes near the P>10% bar, at 10.1%, and it has a 25% risk that no one is judged or paid. Variants that build a new game on the heist engine all fall below the bar: Eclipse 0.024, Terror Jam about 0.06, and Micro Jam/Ziva about 0.10 but worth only about $20.\n\nCompared with the crypto options that S3 skips, the heist is the more polished build but the worse funding asset. Arc Microgrants, with ShelterSplit deployed to Arc mainnet, starts from a higher base rate (0.12), and its judges say promise counts for more than traction. No fit multiplier above 1 was used anywhere without explicit evidence, except Eclipse (x2), where the rules explicitly allow engine boilerplate.\n\nRecommendation: use the heist assets for the Anitya jam (deadline 2026-10-21) as a low-cost side bet, not as the main funding plan."
+  }
+ ],
+ "verdict": {
+  "corrected": [
+   {
+    "strategy": "S1-shelters-rail (as scored, all 6 crypto programs)",
+    "pAtLeastOneWin": 0.304,
+    "totalEV": 1050,
+    "evPerHumanHour": 20.6,
+    "note": "Corrections: Arc 0.18 -> 0.15. A fit of 1.5 is not supported: no shelter wallet is onboarded, so the 'one real payout' cannot be claimed yet, and the only Circle precedent (OpenClaw) rewarded agent infra. That leaves 0.12 x 1.25. Arbitrum Dubai 0.065 -> 0.05: fit 1.3 was based on code quality alone, and 'attract and retain users' gets 0 users, so fit is 1.0. Circle is set to 0.025 x $5k floor, to match S2's more honest money assumption. Colosseum 0.02, Avalanche 0.05 and Mezo 0.05 are unchanged. EV = 300+75+50+250+250+125 = $1,050. Hours are counted once for the shared contract: core 14h plus marginal Arc 4, Colosseum 8, Mezo 12, Arbitrum 4, Avalanche 3, Circle 6 = 51h. The original 126h counted the 14h core six times. P(>=1) = 1-(0.98*0.85*0.95*0.95*0.95*0.975) = 0.304 assuming independence. All six entries reuse one contract with zero on-chain use, so their outcomes are correlated, and a realistic figure is about 0.20-0.25. Only Arc clears the team's P>10% bar."
+   },
+   {
+    "strategy": "S1-lean (S1 minus Mezo)",
+    "pAtLeastOneWin": 0.267,
+    "totalEV": 1000,
+    "evPerHumanHour": 25.6,
+    "note": "Mezo is dropped because it pays in MEZO tokens (the team's rule is cash) and its marginal return is the worst in S1: $50 EV for 12h, about $4/h. EV = $1,000 over 39h. P(>=1) = 1-0.73299 = 0.267 if independent, about 0.20 if correlated. This is the best of all options on EV per human hour."
+   },
+   {
+    "strategy": "S2-heist-plus-rail",
+    "pAtLeastOneWin": 0.317,
+    "totalEV": 1098,
+    "evPerHumanHour": 16.6,
+    "note": "Corrections: S2 contains S1's whole contract, so its Arc P cannot be below S1's. The two scorers used inconsistent fits (1.5 and 1.2) for the same contract. I reconciled them: S1 0.15, S2 0.155, with the game adding about +0.005 on 'quality of what you built'. Arbitrum goes up to 0.065 because a consumer front end does help 'attract users' and gaming is an allowed category. Colosseum 0.015 -> 0.018. Mezo 0.05 and Circle 0.025 are unchanged. EV = 77.5+325+250+50+125+270 = $1,098. Hours = 36 core (heist 10 + ShelterSplit 14 + wiring 12) + 30 marginal = 66h. Compared with S1, S2 spends +15h for +$48 EV (about $3/h marginal) and +0.013 P(>=1), which is within estimation noise. S1 dominates it."
+   },
+   {
+    "strategy": "S3-heist-game-first",
+    "pAtLeastOneWin": 0.153,
+    "totalEV": 92,
+    "evPerHumanHour": 1.4,
+    "note": "Anitya 0.10 is kept. Base 0.15 (3 placed of about 20 expected entries; the last jam had 14 entries, which would give 0.21) x fit 0.9 x payout risk 0.75 (2 of 4 past jams published no ranking). The range is 0.06-0.15, so it sits right on the bar, not above it. Farcaster 0.02 and Reddit 0.04 are kept (every key term is unverified). All other programs are 0: closed, or they ban pre-existing games. EV = 70+1.5+20 = $92 over about 65h. Its one real value is that Anitya is judged on a different asset by different judges, so it is the only bet that is not correlated with the crypto entries."
+   },
+   {
+    "strategy": "HYBRID H-lean: S1-lean crypto rail + Anitya World Jam (RECOMMENDED)",
+    "pAtLeastOneWin": 0.34,
+    "totalEV": 1070,
+    "evPerHumanHour": 16.7,
+    "note": "P(>=1) = 1-(0.73299*0.90) = 0.340 if independent, about 0.28 correlation-adjusted (0.20 correlated crypto block plus an independent 0.10 Anitya), compared with S1-lean at 0.267 / about 0.20. EV = $1,070 over 64h. Adding Mezo (H-full) gives P 0.373, EV $1,120 and $14.7/h, but only if MEZO tokens count as cash. S2+Anitya gives P 0.386 but needs 91h at $12.8/h, and its extra +0.013 is within noise, so it is not strictly better. Under the team's strict P>10% bar, only Arc (0.15) and Anitya (0.10, borderline) qualify. The bar-compliant plan is Arc + Anitya: P = 1-(0.85*0.90) = 0.235, EV $145, 43h, $3.4/h. Arc alone gives P 0.15, EV $75, 18h."
+   }
+  ],
+  "recommended": "Use a hybrid. Do not use S1 alone and do not lead with the game.\n\n1. Build ShelterSplit once. Commit funding/ to a public repo, deploy and verify it on Arc mainnet before 2026-10-14, and add a minimal disburse page. Submit to Arc Microgrants, the only crypto program above the bar at P about 0.15.\n2. Reuse the same contract with 3-8h of marginal work each for Colosseum (Oct 12), Arbitrum Dubai (Nov 16 to Dec 6), Team1 Avalanche and Circle. All four are below the 10% bar, so enter them only if the team accepts sub-bar entries. They are cheap and carry most of the EV (about $925 of $1,070).\n3. Separately, export the Catnip Heist voxel art to GLB and build a new Anitya world for the World Jam (P about 0.10, borderline). It is the only entry that is not correlated with the crypto entries, and it lifts P(at least one win) from about 0.27 to about 0.34 (independent), or about 0.20 to 0.28 (correlated).\n4. Skip wiring the heist to the contract (S2's +22h, about $3/h marginal), Mezo (paid in tokens, $4/h), Reddit Devvit ($1/h) and Farcaster.\n\nThe 3D game is not a better entry for any open cash program. It has no on-chain use, the crypto rubrics do not weight playability, and the jams that would suit it either ban pre-existing games or are closed.\n\nResult: P(at least one win) is about 0.28-0.34, total EV about $1,070, and the only prize above 10% pays $500. No option found reaches the 'best perfect scenario' the user asked about.",
+  "isS1Best": false,
+  "proof": "1) The claim that S1 is a 'perfect' plan fails on its own numbers. S1 has exactly one program above the 10% bar: Arc, corrected from 0.18 to 0.15, paying $500 (EV $75). S1's P(at least one win) is 0.30 if the programs are independent. Since all six entries reuse one contract with zero usage, the realistic figure is about 0.20-0.25. About 88% of S1's $1,050 EV comes from programs below 10% (Colosseum, Arbitrum, Avalanche, Circle).\n\n2) The inflation checks. S1's Arc fit of 1.5 relied on 'one real shelter payout', but no shelter wallet exists. S2's scorer rated the same contract alone at a fit of about 1.0-1.1, so I used 1.25 and P 0.15. S1's Arbitrum fit of 1.3 rested on code quality while scoring 0 on users, so I cut it to 1.0 and P 0.05. S2 contains S1's contract, so S2 cannot score lower on the same criteria. I set Arc to 0.155 and Arbitrum to 0.065 there. Colosseum at 1.0-2.8% historical paid rates (about 23 general slots against about 1,250 projected submissions) keeps 0.02; past game winners were wager or fantasy formats. The Mezo 0.10 base is unpublished and its tokens fail the cash rule. Anitya at 0.10 = 0.15 x 0.9 x 0.75 is borderline, not above the bar.\n\n3) Maximising P(at least one win). Crypto programs judge the same asset, so adding more of them gives diminishing, correlated gains. Anitya is judged on a different asset by different judges, so it adds almost its full 0.10 to the combined probability. S1-lean + Anitya reaches 0.340, against 0.267 for S1-lean and 0.317 for S2. S2 + Anitya reaches 0.386, but that +0.046 over H-lean costs 27 more hours, and the S2-over-S1 deltas (+0.005 Arc, +0.015 Arbitrum) are smaller than the estimation error, so it is not strictly better.\n\n4) Maximising EV per human hour. S1-lean gives $1,000 / 39h = $25.6/h, S1 $20.6/h, H-lean $16.7/h, S2 $16.6/h and S3 $1.4/h. The heist-to-contract wiring earns about $3/h marginal, and Mezo about $4/h.\n\n5) How far S1 is from best. S1-lean is the best on EV per hour, by +$8.9/h over the hybrid. On probability of winning, S1 is NOT the best: it trails the hybrid by 0.073 absolute (0.267 vs 0.340 independent, or about 0.20 vs 0.28 correlated), about 27% fewer relative chances. Under the strict P>10% bar, S1 is Arc only (P 0.15), while the hybrid is Arc + Anitya (P 0.235), a gain of +0.085.\n\n6) Catnip Heist on its own (S3) reaches only 0.153 and EV $92. It is the most polished build in the repo, but no open cash program scores that polish. Its value is as the source of Anitya assets and as a diversifier.\n\nAll base rates marked 'assumed' (Arc 0.12, Avalanche 0.05, Arbitrum 0.05, Mezo 0.10) are unpublished, so every P here has a range of roughly x0.5 to x1.7. The ranking (hybrid for P, S1-lean for EV per hour, S2 dominated, S3 weakest) holds across that range, because the differences come from the structure of the plans (shared assets and hours) rather than from the point estimates.",
+  "table": [
+   {
+    "program": "Arc Microgrants (Circle/Arc)",
+    "deadline": "2026-10-14 23:59 ET",
+    "submit": "ShelterSplit deployed and verified on Arc mainnet (a human broadcasts it with real gas/USDC), public repo, minimal disburse page, description, builder profile",
+    "p": 0.15,
+    "pArithmetic": "base 0.12 (assumed, 20 slots / about 100-200 mainnet entrants) x fit 1.25 (meets relevance, credibility and promise; no real payout yet; Circle precedent was infra) = 0.15. Range 0.08-0.25. Only entry that clears the bar.",
+    "moneyUsdMid": 500,
+    "humanHours": 18
+   },
+   {
+    "program": "Anitya World Jam",
+    "deadline": "not in the supplied evidence (world must be published after Sep 9)",
+    "submit": "New Anitya world built from GLB-exported Catnip Heist voxel cats, guards and props, themed as a shelter-cat rescue",
+    "p": 0.1,
+    "pArithmetic": "base 0.15 (3 placed / about 20 entries) x fit 0.9 (Immersive partly met; no Anitya experience) x payout risk 0.75 (2 of 4 jams published no ranking) = 0.10. Borderline against the 10% bar; range 0.06-0.15.",
+    "moneyUsdMid": 700,
+    "humanHours": 25
+   },
+   {
+    "program": "Colosseum Crypto World's Fair (non-Solana ecosystem track or Public Good)",
+    "deadline": "2026-10-12",
+    "submit": "Same repo, pitch video 2-3 min, demo 3 min, GTM write-up; pre-existing code disclosed",
+    "p": 0.02,
+    "pArithmetic": "base 0.02 (about 23 general slots / about 1,250 projected submissions; history 1.0-2.8%) x fit 1.0 = 0.02. Below the bar; optional.",
+    "moneyUsdMid": 15000,
+    "humanHours": 8
+   },
+   {
+    "program": "Arbitrum Open House Dubai Online Buildathon (HackQuest)",
+    "deadline": "submissions 2026-11-16 to 2026-12-06",
+    "submit": "ShelterSplit deployed on Arbitrum, video, submission",
+    "p": 0.05,
+    "pArithmetic": "base 0.05 (inferred, $30k pool, slot count unpublished) x fit 1.0 (code quality met, users 0) = 0.05. Below the bar; optional.",
+    "moneyUsdMid": 5000,
+    "humanHours": 4
+   },
+   {
+    "program": "Team1 Avalanche Mini Grants",
+    "deadline": "rolling",
+    "submit": "ShelterSplit deployed on Avalanche C-Chain plus application",
+    "p": 0.05,
+    "pArithmetic": "base 0.05 (assumed; no criteria or counts published) x fit 1.0 = 0.05. Below the bar; optional.",
+    "moneyUsdMid": 5000,
+    "humanHours": 3
+   },
+   {
+    "program": "Circle Developer Grants",
+    "deadline": "rolling",
+    "submit": "Milestone proposal reusing the Arc deployment",
+    "p": 0.025,
+    "pArithmetic": "base 0.03 (assumed; OpenClaw 1.5%) x fit 0.83 (no USDC volume; games not a focus) = 0.025. Money set to the $5k floor. Below the bar; optional.",
+    "moneyUsdMid": 5000,
+    "humanHours": 6
+   },
+   {
+    "program": "Mezo Buildathon (AKINDO) - EXCLUDED unless MEZO tokens count as cash",
+    "deadline": "Wave 1 build Oct 16-26; Wave 2 build Nov 2-15",
+    "submit": "(not recommended) MUSD adaptation of ShelterSplit on Mezo",
+    "p": 0.05,
+    "pArithmetic": "base 0.10 (assumed) x fit 0.5 (the rules penalise surface-level MUSD use) = 0.05. Pays tokens; $1k is a placeholder.",
+    "moneyUsdMid": 1000,
+    "humanHours": 12
+   }
+  ],
+  "levers": [
+   {
+    "lever": "Name a shelter partner with an onboarded wallet and make one real on-chain USDC disbursement through ShelterSplit on Arc mainnet, with a public tx hash on the demo page. This turns 'promise' into proof on Arc's 'worth taking further' and 'quality of what you built' criteria, and gives Colosseum's Public Good and Circle's ecosystem-impact criteria something real.",
+    "pLift": "Arc +0.03 to +0.05 (0.15 -> about 0.19); Circle +0.01; Colosseum +0.005. P(at least one win) +about 0.04",
+    "hours": 6
+   },
+   {
+    "lever": "Replace the peak-only, mismatched traction with current, verifiable figures pulled from real sources: last-30-day GA4 MAU, revenue, portrait sales, USD sent to shelters, number of shelters. Also fix the SEI Dune link that is cited as Stellar evidence. Do not invent any value; if a figure is unknown, say so. Colosseum and Circle score traction and revenue directly, and a mismatched source is a credibility risk with any judge.",
+    "pLift": "Colosseum 0.02 -> about 0.035; Circle 0.025 -> about 0.035; Arbitrum +0.01. P(at least one win) +about 0.03",
+    "hours": 4
+   },
+   {
+    "lever": "Make the build public and show it clearly: commit and push funding/ and catnip-heist/ (fix the retry-leak e2e first), deploy the heist dist to a static URL, and record one 2-minute video covering the shelter story, the disburse transaction on Arc and a heist clip. A public repo and live link are hard gates for Arc and Colosseum, and a good demo feeds every 'quality' or 'materials' criterion. The same footage and voxel assets also serve the Anitya entry.",
+    "pLift": "Arc +0.01 to +0.02; Anitya +0.01 to +0.02; Colosseum and Arbitrum +0.005 each. It also prevents P falling to 0 on Arc if the repo or live-link gate is missed. P(at least one win) +about 0.03",
+    "hours": 8
+   }
+  ]
+ }
+}

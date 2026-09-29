@@ -1,0 +1,22 @@
+{
+  "program": "Arc Microgrants",
+  "url": "https://community.arc.io/public/events/arc-microgrants-f8tijfjhyq",
+  "deadline": "2026-10-14",
+  "frame": "payout-rail",
+  "chain": "arc",
+  "mainnet_required": true,
+  "next": "Deploy ShelterSplit to Arc MAINNET (testnet-only builds are excluded), then fund a:record arc mainnet <address>",
+  "submission": {
+    "fields": { "Submitted via": "DoraHacks entry" },
+    "sections": [
+      { "title": "Summary", "from": "Summary", "limit": 280 },
+      { "title": "What we built on Arc", "from": "How it works" },
+      { "title": "Arc mainnet deployment", "from": "On-chain proof", "auto": "deployments" },
+      { "title": "Build evidence", "auto": "build" },
+      { "title": "Why it matters", "from": "Problem" },
+      { "title": "Team", "from": "Team" }
+    ],
+    "checklist": ["Arc MAINNET address recorded and verified with fund a:verify arc mainnet", "Repo public"]
+  },
+  "verify": ["deadline time and timezone", "form fields and limits"]
+}

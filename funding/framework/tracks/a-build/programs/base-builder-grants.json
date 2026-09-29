@@ -1,0 +1,18 @@
+{
+  "program": "Base Builder Grants",
+  "url": "https://docs.base.org/get-started/get-funded",
+  "deadline": "rolling",
+  "frame": "payout-rail",
+  "chain": "base",
+  "mainnet_required": true,
+  "next": "Deploy on Base mainnet, then post the build on Base and Farcaster channels (no application form: visibility is the play)",
+  "submission": {
+    "fields": { "Format": "Public post / thread, not a form" },
+    "sections": [
+      { "title": "Post", "from": "Summary", "limit": 280 },
+      { "title": "What shipped on Base", "from": "How it works" },
+      { "title": "Contract", "auto": "deployments" }
+    ]
+  },
+  "verify": ["nomination process"]
+}

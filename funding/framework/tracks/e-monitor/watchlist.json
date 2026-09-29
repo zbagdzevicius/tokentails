@@ -1,0 +1,363 @@
+[
+  {
+    "id": "gametech-wp",
+    "url": "https://gametech.gamebcn.co/wp-json/wp/v2/pages?per_page=50",
+    "kind": "wp-modified",
+    "extract": "839",
+    "feeds_track": "C",
+    "note": "GameTech Vilnius home page; frozen since 2025-09-25 — a change means a 4th edition may be funded",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "esinvesticijos-calls",
+    "url": "https://www.esinvesticijos.lt/kvietimai",
+    "kind": "html",
+    "extract": "kvietimai/([a-z0-9-]{20,})",
+    "keywords": [
+      "startuol",
+      "inovacij",
+      "zaidim",
+      "kurybin",
+      "skaitmen",
+      "eksport",
+      "prototip"
+    ],
+    "feeds_track": "C",
+    "note": "Lithuanian EU-funds calls; filters for startup, innovation, games, creative, digital",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "startup-lithuania-open-calls",
+    "url": "https://www.startuplithuania.com/open-calls/",
+    "kind": "html",
+    "feeds_track": "new",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "colosseum-hackathon",
+    "url": "https://colosseum.com/hackathon",
+    "kind": "html",
+    "feeds_track": "A",
+    "note": "Two hackathons a year (Apr–May, Sep–Oct)",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "hackquest-hackathons",
+    "url": "https://www.hackquest.io/hackathons",
+    "kind": "html",
+    "extract": "/hackathons/([A-Za-z0-9-]{6,})",
+    "feeds_track": "A",
+    "note": "Online buildathons, incl. Arbitrum Open House",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "arbitrum-forum",
+    "url": "https://forum.arbitrum.foundation/latest.rss",
+    "kind": "rss",
+    "keywords": [
+      "grant",
+      "program",
+      "gaming",
+      "domain",
+      "dda",
+      "buildathon",
+      "open house",
+      "allocat"
+    ],
+    "feeds_track": "A",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "optimism-forum",
+    "url": "https://gov.optimism.io/latest.rss",
+    "kind": "rss",
+    "keywords": [
+      "grant",
+      "mission",
+      "retro",
+      "builder",
+      "season"
+    ],
+    "feeds_track": "new",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "skale-forum",
+    "url": "https://forum.skale.network/latest.rss",
+    "kind": "rss",
+    "keywords": [
+      "sip-6",
+      "grant",
+      "growth",
+      "ecosystem",
+      "allocation"
+    ],
+    "feeds_track": "B",
+    "note": "SIP-6 Growth Allocation debate (topic 848)",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "ronin-pod-docs",
+    "url": "https://docs.roninchain.com/proof-of-distribution",
+    "kind": "html",
+    "feeds_track": "E",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "evm-chain-registry",
+    "url": "https://github.com/ethereum-lists/chains/commits/master.atom",
+    "kind": "rss",
+    "feeds_track": "new",
+    "note": "New EVM chains appear here before their launch marketing",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "awesome-web3-grants",
+    "url": "https://github.com/zkprimecapital/awesome-web3-grants/commits/main.atom",
+    "kind": "rss",
+    "feeds_track": "new",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "creative-europe-2027-topic",
+    "url": "https://ec.europa.eu/info/funding-tenders/opportunities/data/topicDetails/crea-media-2027-devvgim.json",
+    "kind": "status",
+    "feeds_track": "C",
+    "note": "Returns 404 until the 2027 video-games call is published; flips to 200 on publication",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "eacea-creative-europe",
+    "url": "https://www.eacea.ec.europa.eu/grants/2021-2027/creative-europe_en",
+    "kind": "html",
+    "feeds_track": "C",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "women-techeu-calls",
+    "url": "https://womentecheurope.eu/active-calls/",
+    "kind": "html",
+    "feeds_track": "C",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "eurostars",
+    "url": "https://www.eurekanetwork.org/programmes-and-calls/eurostars/",
+    "kind": "html",
+    "feeds_track": "C",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "circle-grants",
+    "url": "https://www.circle.com/grant",
+    "kind": "html",
+    "feeds_track": "A",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "arc-microgrants",
+    "url": "https://community.arc.io/public/events/arc-microgrants-f8tijfjhyq",
+    "kind": "html",
+    "feeds_track": "A",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "game3-grants",
+    "url": "https://game3.foundation/grants",
+    "kind": "html",
+    "feeds_track": "B",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "nouns-proposals",
+    "url": "https://nouns.center/funding/proposals",
+    "kind": "html",
+    "feeds_track": "D",
+    "verified": "2026-09-25"
+  },
+  {
+    "id": "devpost-online-new",
+    "url": "https://devpost.com/api/hackathons?status[]=upcoming&status[]=open&challenge_type[]=online&order_by=recently-added",
+    "kind": "json",
+    "extract": "hackathons",
+    "item": "{title} — {submission_period_dates} — {url}",
+    "feeds_track": "orc",
+    "note": "Every new online Devpost hackathon (cash prizes, MB can enter via a representative). A new title = a new competition to triage for an orc flow.",
+    "verified": "2026-09-28"
+  },
+  {
+    "id": "huntr-challenges",
+    "url": "https://huntr.com/challenges",
+    "kind": "html",
+    "extract": "/challenges/([A-Za-z0-9]{16,})/v1/",
+    "feeds_track": "orc",
+    "note": "huntr AI-security challenges ($15,000 pots, roughly monthly). A new id = a new challenge; read its rules on automation before running examples/huntr-challenge-flow.json.",
+    "verified": "2026-09-28"
+  },
+  {
+    "id": "algora-bounties",
+    "url": "https://api.github.com/search/issues?q=label:%22%F0%9F%92%8E+Bounty%22+state:open+is:issue+no:assignee&sort=created&order=desc&per_page=30",
+    "kind": "json",
+    "extract": "items",
+    "item": "{title} — {html_url}",
+    "feeds_track": "orc",
+    "note": "Newest unassigned Algora-style GitHub bounties across all repos. Noisy: triage per repo AI policy before any claim; unauthenticated GitHub API allows 10 searches/min.",
+    "verified": "2026-09-28"
+  },
+  {
+    "id": "tenstorrent-bounties",
+    "url": "https://api.github.com/search/issues?q=repo:tenstorrent/tt-metal+label:bounty+state:open+no:assignee",
+    "kind": "json",
+    "extract": "items",
+    "item": "{title} — {html_url}",
+    "feeds_track": "E",
+    "note": "0 unassigned on 2026-09-28. The repo bans AI-generated claim posts: a human writes the claim comment.",
+    "verified": "2026-09-28"
+  },
+  {
+    "id": "expensify-help-wanted",
+    "url": "https://api.github.com/search/issues?q=repo:Expensify/App+label:%22Help+Wanted%22+state:open+is:issue&sort=created&order=desc",
+    "kind": "json",
+    "extract": "items",
+    "item": "{title} — {html_url}",
+    "feeds_track": "orc",
+    "note": "Paid issues, price in the title ([$250]). 28 open on 2026-09-28. Paid to an individual via Upwork.",
+    "verified": "2026-09-28"
+  },
+  {
+    "id": "filecoin-devgrants-repo",
+    "url": "https://github.com/filecoin-project/devgrants/commits/master.atom",
+    "kind": "rss",
+    "feeds_track": "A",
+    "note": "Template/RFP changes to Filecoin Open Grants (last commit 2026-01-06); a change can mean new RFPs or new rules.",
+    "verified": "2026-09-28"
+  },
+  {
+    "id": "algorand-forum",
+    "url": "https://forum.algorand.co/latest.rss",
+    "kind": "rss",
+    "keywords": [
+      "xgov",
+      "grant",
+      "retro",
+      "rfp",
+      "bounty"
+    ],
+    "feeds_track": "D",
+    "note": "xGov council meetings and proposal rule changes (continuous proposal streams).",
+    "verified": "2026-09-28"
+  },
+  {
+    "id": "drips-stellar-wave",
+    "url": "https://www.drips.network/wave/stellar",
+    "kind": "html",
+    "feeds_track": "orc",
+    "note": "Monthly one-week waves, $75,000 pool. CONSTRAINT FLAG: Stellar-ecosystem money (not the SCF) - confirm the SCF exclusion does not cover it before acting.",
+    "verified": "2026-09-28"
+  },
+  {
+    "id": "micro-jam-itch",
+    "url": "https://itch.io/jams/upcoming?q=micro+jam",
+    "kind": "html",
+    "feeds_track": "orc",
+    "note": "Micro Jam runs every two weeks; the Ziva sponsor category ($30/$25/$20/$15/$10 via PayPal) is the only >10% item (HIGH-PROBABILITY-OPPORTUNITIES.md). Re-add each edition as a new portfolio row.",
+    "verified": "2026-09-28"
+  },
+  {
+    "id": "celo-forum",
+    "url": "https://forum.celo.org/latest.rss",
+    "kind": "rss",
+    "keywords": [
+      "grant",
+      "funding",
+      "minipay",
+      "builders",
+      "game",
+      "public goods"
+    ],
+    "feeds_track": "E",
+    "note": "Celo forum latest; staff reply to MiniPay launches (warm-intro surface)"
+  },
+  {
+    "id": "arbitrum-grants-ecosystem",
+    "url": "https://forum.arbitrum.foundation/tag/grants-ecosystem.rss",
+    "kind": "rss",
+    "feeds_track": "E",
+    "note": "Arbitrum forum grants-ecosystem tag (the 'grant' tag 404s)"
+  },
+  {
+    "id": "optimism-grants",
+    "url": "https://gov.optimism.io/c/grants/87.rss",
+    "kind": "rss",
+    "feeds_track": "E",
+    "note": "Optimism gov Grants category; Missions are archived"
+  },
+  {
+    "id": "ea-forum-new",
+    "url": "https://forum.effectivealtruism.org/feed.xml?view=community-rss&karmaThreshold=2",
+    "kind": "rss",
+    "keywords": [
+      "animal welfare",
+      "shelter",
+      "companion",
+      "call for",
+      "grant",
+      "funding"
+    ],
+    "feeds_track": "E",
+    "note": "EA Forum new posts filtered to animal-welfare funding calls"
+  },
+  {
+    "id": "lightbear-jams",
+    "url": "https://itch.io/jams/hosted-by-lightbearsoftware",
+    "kind": "html",
+    "extract": "jam/(uplifting-game-jam[a-z0-9-]*)",
+    "feeds_track": "orc",
+    "note": "Uplifting Game Jam host page; enter only if about 50 or fewer entries (the Sep 2026 edition had 73, so P was about 7%)"
+  },
+  {
+    "id": "karma-funding-map",
+    "url": "https://karmahq.org/funding-map",
+    "kind": "html",
+    "feeds_track": "E",
+    "note": "Karma funding map; a change can mean a new gaming or impact round"
+  },
+  {
+    "id": "gitcoin-campaigns",
+    "url": "https://gitcoin.co/campaigns",
+    "kind": "html",
+    "extract": "(GG ?2[5-9][^<\"]{0,40})",
+    "feeds_track": "E",
+    "note": "Watch for a GG25 announcement; GG24 was the last round"
+  },
+  {
+    "id": "farcaster-dev-rewards",
+    "url": "https://api.farcaster.xyz/v1/developer-rewards-winner-history",
+    "kind": "json",
+    "extract": "result.history",
+    "feeds_track": "E",
+    "note": "Weekly USDC to the top 100 mini apps; WATCH (P ~10%). Check the rank-100 score before porting a game."
+  },
+  {
+    "id": "xrpl-grants",
+    "url": "https://xrplgrants.org/",
+    "kind": "html",
+    "feeds_track": "E",
+    "note": "New RippleX programming 'to be announced' in Oct 2026; consider only a remote, non-dilutive grant with a payments track"
+  },
+  {
+    "id": "catalyst-funds",
+    "url": "https://projectcatalyst.io/funds",
+    "kind": "html",
+    "extract": "(Fund ?1[6-9][^<\"]{0,40})",
+    "feeds_track": "C",
+    "note": "Cardano Catalyst base rate ~10% (131/1,280 in F14); watch for Fund 16 or a Pilot with a payments theme"
+  },
+  {
+    "id": "eit-cc-calls",
+    "url": "https://eit-culture-creativity.eu/your-opportunities/calls-funding",
+    "kind": "html",
+    "feeds_track": "C",
+    "note": "Gaming is excluded in 2026 and 'planned for expanded call coverage from 2027'; watch for the 2027 gaming calls (Stage 2 has a revenue-sharing agreement, so check the terms)"
+  }
+]

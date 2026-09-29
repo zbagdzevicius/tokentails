@@ -1,0 +1,461 @@
+{
+  "id": "heist-07",
+  "tiles": [
+    "######################################",
+    "#.........#.........#.........#......#",
+    "#.........#...................#......#",
+    "#...................#.........#......#",
+    "#.........#.........#................#",
+    "#.........#.........#.........#......#",
+    "###############################......#",
+    "###############################......#",
+    "###############################......#",
+    "#.........#.........#.........#......#",
+    "#.........#.........#................#",
+    "#...................#.........#......#",
+    "#.........#...................#......#",
+    "#.........#.........#.........#......#",
+    "######################################"
+  ],
+  "catSpawns": [
+    {
+      "x": 2,
+      "y": 2
+    },
+    {
+      "x": 2,
+      "y": 11
+    }
+  ],
+  "guards": [
+    {
+      "id": "g-north-2",
+      "sprite": "brown",
+      "waypoints": [
+        {
+          "x": 12,
+          "y": 1
+        },
+        {
+          "x": 17,
+          "y": 1
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 30,
+      "visionTiles": 3
+    },
+    {
+      "id": "g-north-3",
+      "sprite": "base",
+      "waypoints": [
+        {
+          "x": 22,
+          "y": 5
+        },
+        {
+          "x": 28,
+          "y": 5
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 30,
+      "visionTiles": 3
+    },
+    {
+      "id": "g-south-2",
+      "sprite": "black",
+      "waypoints": [
+        {
+          "x": 12,
+          "y": 13
+        },
+        {
+          "x": 18,
+          "y": 13
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 30,
+      "visionTiles": 3
+    },
+    {
+      "id": "g-south-3",
+      "sprite": "exotic",
+      "waypoints": [
+        {
+          "x": 22,
+          "y": 9
+        },
+        {
+          "x": 28,
+          "y": 9
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 30,
+      "visionTiles": 3
+    },
+    {
+      "id": "s-east",
+      "sprite": "black-white",
+      "waypoints": [
+        {
+          "x": 33,
+          "y": 11
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 4,
+      "turns": [
+        {
+          "facing": {
+            "x": 0,
+            "y": -1
+          },
+          "ticks": 90
+        },
+        {
+          "facing": {
+            "x": -1,
+            "y": 0
+          },
+          "ticks": 90
+        }
+      ]
+    }
+  ],
+  "coins": [
+    {
+      "id": "coin-01",
+      "tile": {
+        "x": 6,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-02",
+      "tile": {
+        "x": 24,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-03",
+      "tile": {
+        "x": 4,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-04",
+      "tile": {
+        "x": 15,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-05",
+      "tile": {
+        "x": 27,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-06",
+      "tile": {
+        "x": 32,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-07",
+      "tile": {
+        "x": 7,
+        "y": 5
+      }
+    },
+    {
+      "id": "coin-08",
+      "tile": {
+        "x": 12,
+        "y": 5
+      }
+    },
+    {
+      "id": "coin-09",
+      "tile": {
+        "x": 32,
+        "y": 8
+      }
+    },
+    {
+      "id": "coin-10",
+      "tile": {
+        "x": 4,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-11",
+      "tile": {
+        "x": 17,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-12",
+      "tile": {
+        "x": 23,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-13",
+      "tile": {
+        "x": 36,
+        "y": 10
+      }
+    },
+    {
+      "id": "coin-14",
+      "tile": {
+        "x": 25,
+        "y": 11
+      }
+    },
+    {
+      "id": "coin-15",
+      "tile": {
+        "x": 7,
+        "y": 12
+      }
+    },
+    {
+      "id": "coin-16",
+      "tile": {
+        "x": 3,
+        "y": 13
+      }
+    },
+    {
+      "id": "coin-17",
+      "tile": {
+        "x": 14,
+        "y": 13
+      }
+    },
+    {
+      "id": "coin-18",
+      "tile": {
+        "x": 28,
+        "y": 13
+      }
+    },
+    {
+      "id": "coin-19",
+      "tile": {
+        "x": 34,
+        "y": 13
+      }
+    }
+  ],
+  "key": null,
+  "doors": [
+    {
+      "id": "door-n1",
+      "tile": {
+        "x": 10,
+        "y": 3
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    },
+    {
+      "id": "door-n2",
+      "tile": {
+        "x": 20,
+        "y": 2
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    },
+    {
+      "id": "door-n3",
+      "tile": {
+        "x": 30,
+        "y": 4
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    },
+    {
+      "id": "door-s1",
+      "tile": {
+        "x": 10,
+        "y": 11
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    },
+    {
+      "id": "door-s2",
+      "tile": {
+        "x": 20,
+        "y": 12
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    },
+    {
+      "id": "door-s3",
+      "tile": {
+        "x": 30,
+        "y": 10
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    }
+  ],
+  "plates": [
+    {
+      "id": "plate-p1",
+      "tile": {
+        "x": 5,
+        "y": 11
+      },
+      "doors": [
+        "door-n1"
+      ]
+    },
+    {
+      "id": "plate-q1",
+      "tile": {
+        "x": 16,
+        "y": 10
+      },
+      "doors": [
+        "door-n2"
+      ]
+    },
+    {
+      "id": "plate-s1",
+      "tile": {
+        "x": 26,
+        "y": 12
+      },
+      "doors": [
+        "door-n3"
+      ]
+    },
+    {
+      "id": "plate-t1",
+      "tile": {
+        "x": 14,
+        "y": 4
+      },
+      "doors": [
+        "door-s1"
+      ]
+    },
+    {
+      "id": "plate-u1",
+      "tile": {
+        "x": 24,
+        "y": 2
+      },
+      "doors": [
+        "door-s2"
+      ]
+    },
+    {
+      "id": "plate-w1",
+      "tile": {
+        "x": 35,
+        "y": 2
+      },
+      "doors": [
+        "door-s3"
+      ]
+    }
+  ],
+  "crate": {
+    "id": "crate",
+    "tile": {
+      "x": 34,
+      "y": 7
+    },
+    "catId": "grey",
+    "catName": "Nimbus"
+  },
+  "exit": {
+    "id": "exit",
+    "tiles": [
+      {
+        "x": 32,
+        "y": 5
+      },
+      {
+        "x": 33,
+        "y": 5
+      }
+    ]
+  },
+  "checkpoints": [
+    {
+      "id": "cp-1",
+      "tile": {
+        "x": 31,
+        "y": 1
+      }
+    },
+    {
+      "id": "cp-2",
+      "tile": {
+        "x": 11,
+        "y": 5
+      }
+    },
+    {
+      "id": "cp-3",
+      "tile": {
+        "x": 21,
+        "y": 13
+      }
+    }
+  ],
+  "meta": {
+    "title": "Heist 07: Split Shift",
+    "parTicks": 3600,
+    "meowRadiusTiles": 6,
+    "investigateTicks": 120,
+    "maxCoins": 22,
+    "twoCatRequired": true,
+    "objectives": [
+      "Take turns: each cat opens the other’s doors. Free {cat}",
+      "Both cats to the exit"
+    ],
+    "hints": [
+      {
+        "x0": 1,
+        "y0": 1,
+        "x1": 9,
+        "y1": 5,
+        "untilObjective": 0,
+        "text": "Your partner is in the south wing. Press {swap} and have it stand on the plate."
+      },
+      {
+        "x0": 1,
+        "y0": 9,
+        "x1": 9,
+        "y1": 13,
+        "untilObjective": 0,
+        "text": "This plate opens a door in the north wing. Hold it, then {swap}."
+      }
+    ],
+    "name": "Split Shift",
+    "intro": "Two wings, two cats, no way across. Every plate opens a door on the other side.",
+    "idea": "Split up: the cats work far apart"
+  }
+}

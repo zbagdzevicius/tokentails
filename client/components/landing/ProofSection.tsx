@@ -55,12 +55,15 @@ export const REELS: Reel[] = [
 const EVENT_STATS: Stat[] = [
   { value: "Bybit", label: "Web3 partner" },
   { value: "Real", label: "Shelter outcomes" },
-  { value: "On-chain", label: "Track record" },
+  // Historical: the on-chain track record is SEI activity, which ended in
+  // March 2026. It is not Stellar data.
+  { value: "On-chain", label: "Track record on SEI, to Mar 2026" },
 ];
 
+/** Historical figures as of April 2026 (extra/traction.md); not live counts. */
 const REACH_STATS: Stat[] = [
-  { value: "540K+", label: "Registered players" },
-  { value: "186K", label: "Followers on X" },
+  { value: "540K+", label: "Registered players, all time (Apr 2026)" },
+  { value: "186K", label: "Followers on X (Apr 2026)" },
   { value: "40", label: "Influencer cats onboarded" },
   { value: "3 taps", label: "From reel to on-chain" },
 ];

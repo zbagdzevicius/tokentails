@@ -1,0 +1,660 @@
+[
+ {
+  "t": 0,
+  "type": "impact",
+  "strength": 0.2,
+  "label": "boot-sting"
+ },
+ {
+  "t": 0.28,
+  "type": "fx",
+  "label": "rec-beep"
+ },
+ {
+  "t": 0.4,
+  "type": "fx",
+  "label": "rec-beep"
+ },
+ {
+  "t": 0.46875,
+  "type": "fx",
+  "label": "glitch",
+  "dur": 0.09
+ },
+ {
+  "t": 0.46875,
+  "type": "fx",
+  "label": "title: KIBBLE CORP // RESTRICTED"
+ },
+ {
+  "t": 0.585938,
+  "type": "fx",
+  "label": "glitch",
+  "dur": 0.05
+ },
+ {
+  "t": 0.703125,
+  "type": "fx",
+  "label": "scan-sweep",
+  "dur": 0.9375
+ },
+ {
+  "t": 0.820313,
+  "type": "fx",
+  "label": "glitch",
+  "dur": 0.07
+ },
+ {
+  "t": 0.9375,
+  "type": "riser_start",
+  "label": "into-crew"
+ },
+ {
+  "t": 1.40625,
+  "type": "fx",
+  "label": "glitch",
+  "dur": 0.05
+ },
+ {
+  "t": 1.875,
+  "type": "impact",
+  "strength": 0.8,
+  "label": "drop-kick / cat 1 slam"
+ },
+ {
+  "t": 1.875,
+  "type": "kick"
+ },
+ {
+  "t": 1.875,
+  "type": "riser_end",
+  "label": "into-crew"
+ },
+ {
+  "t": 1.875,
+  "type": "whoosh",
+  "start": 1.575,
+  "label": "into-crew"
+ },
+ {
+  "t": 2.34375,
+  "type": "impact",
+  "strength": 0.48,
+  "label": "cat 2 slam"
+ },
+ {
+  "t": 2.34375,
+  "type": "kick"
+ },
+ {
+  "t": 2.34375,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 2.8125,
+  "type": "impact",
+  "strength": 0.48,
+  "label": "TWO CATS."
+ },
+ {
+  "t": 2.8125,
+  "type": "kick"
+ },
+ {
+  "t": 3.28125,
+  "type": "impact",
+  "strength": 0.54,
+  "label": "ONE HEIST."
+ },
+ {
+  "t": 3.28125,
+  "type": "kick"
+ },
+ {
+  "t": 3.28125,
+  "type": "riser_start",
+  "label": "swap-whip"
+ },
+ {
+  "t": 3.28125,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 3.515625,
+  "type": "snare",
+  "label": "fill"
+ },
+ {
+  "t": 3.574219,
+  "type": "snare",
+  "label": "fill"
+ },
+ {
+  "t": 3.632813,
+  "type": "snare",
+  "label": "fill"
+ },
+ {
+  "t": 3.662109,
+  "type": "snare",
+  "label": "fill"
+ },
+ {
+  "t": 3.691406,
+  "type": "snare",
+  "label": "fill"
+ },
+ {
+  "t": 3.720703,
+  "type": "snare",
+  "label": "fill"
+ },
+ {
+  "t": 3.75,
+  "type": "callout",
+  "label": "SNEAK"
+ },
+ {
+  "t": 3.75,
+  "type": "impact",
+  "strength": 1.4,
+  "label": "MONTAGE DROP"
+ },
+ {
+  "t": 3.75,
+  "type": "kick"
+ },
+ {
+  "t": 3.75,
+  "type": "riser_end",
+  "label": "swap-whip"
+ },
+ {
+  "t": 3.75,
+  "type": "whoosh",
+  "start": 3.45,
+  "label": "SWAP whip"
+ },
+ {
+  "t": 4.21875,
+  "type": "kick"
+ },
+ {
+  "t": 4.21875,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 4.6875,
+  "type": "callout",
+  "label": "SWAP"
+ },
+ {
+  "t": 4.6875,
+  "type": "fx",
+  "label": "swap-blip"
+ },
+ {
+  "t": 4.6875,
+  "type": "kick"
+ },
+ {
+  "t": 4.6875,
+  "type": "whoosh",
+  "start": 4.4875,
+  "label": "panel cut"
+ },
+ {
+  "t": 5.15625,
+  "type": "kick"
+ },
+ {
+  "t": 5.15625,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 5.625,
+  "type": "callout",
+  "label": "MEOW"
+ },
+ {
+  "t": 5.625,
+  "type": "fx",
+  "label": "meow",
+  "dur": 0.55
+ },
+ {
+  "t": 5.625,
+  "type": "impact",
+  "strength": 0.15,
+  "label": "meow shockwave"
+ },
+ {
+  "t": 5.625,
+  "type": "kick"
+ },
+ {
+  "t": 6.09375,
+  "type": "kick"
+ },
+ {
+  "t": 6.09375,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 6.5625,
+  "type": "callout",
+  "label": "HOLD THE DOOR"
+ },
+ {
+  "t": 6.5625,
+  "type": "fx",
+  "label": "door-clunk"
+ },
+ {
+  "t": 6.5625,
+  "type": "kick"
+ },
+ {
+  "t": 6.5625,
+  "type": "whoosh",
+  "start": 6.3625,
+  "label": "panel cut"
+ },
+ {
+  "t": 7.03125,
+  "type": "kick"
+ },
+ {
+  "t": 7.03125,
+  "type": "riser_start",
+  "label": "into-stakes"
+ },
+ {
+  "t": 7.03125,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 7.382813,
+  "type": "kick",
+  "label": "pickup"
+ },
+ {
+  "t": 7.5,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 7.5,
+  "type": "fx",
+  "label": "coin-burst -> counter",
+  "dur": 0.9375
+ },
+ {
+  "t": 7.5,
+  "type": "impact",
+  "strength": 1.5,
+  "label": "STAKES HIT"
+ },
+ {
+  "t": 7.5,
+  "type": "kick"
+ },
+ {
+  "t": 7.5,
+  "type": "riser_end",
+  "label": "into-stakes"
+ },
+ {
+  "t": 7.5,
+  "type": "whoosh",
+  "start": 7.22,
+  "label": "into-stakes"
+ },
+ {
+  "t": 7.617188,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 7.734375,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 7.851563,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 7.96875,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 7.96875,
+  "type": "kick"
+ },
+ {
+  "t": 7.96875,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 8.085938,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 8.203125,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 8.320313,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 8.4375,
+  "type": "impact",
+  "strength": 0.51,
+  "label": "8 HEISTS"
+ },
+ {
+  "t": 8.4375,
+  "type": "kick"
+ },
+ {
+  "t": 8.671875,
+  "type": "fx",
+  "label": "star-pop"
+ },
+ {
+  "t": 8.789063,
+  "type": "fx",
+  "label": "star-pop"
+ },
+ {
+  "t": 8.90625,
+  "type": "fx",
+  "label": "star-pop"
+ },
+ {
+  "t": 8.90625,
+  "type": "kick"
+ },
+ {
+  "t": 8.90625,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 9.140625,
+  "type": "fx",
+  "label": "alert"
+ },
+ {
+  "t": 9.375,
+  "type": "impact",
+  "strength": 0.75,
+  "label": "BREEDS"
+ },
+ {
+  "t": 9.375,
+  "type": "kick"
+ },
+ {
+  "t": 9.375,
+  "type": "whoosh",
+  "start": 9.125,
+  "label": "into-breeds"
+ },
+ {
+  "t": 9.84375,
+  "type": "kick"
+ },
+ {
+  "t": 9.84375,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 10.3125,
+  "type": "impact",
+  "strength": 0.54,
+  "label": "58 CATS reveal"
+ },
+ {
+  "t": 10.3125,
+  "type": "kick"
+ },
+ {
+  "t": 10.3125,
+  "type": "whoosh",
+  "label": "into 58 CATS reveal",
+  "start": 9.8625
+ },
+ {
+  "t": 10.78125,
+  "type": "kick"
+ },
+ {
+  "t": 10.78125,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 11.25,
+  "type": "impact",
+  "strength": 0.45,
+  "label": "breakdown"
+ },
+ {
+  "t": 11.25,
+  "type": "riser_start",
+  "label": "rescue build"
+ },
+ {
+  "t": 11.25,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 11.25,
+  "type": "whoosh",
+  "start": 10.95,
+  "label": "into-rescue"
+ },
+ {
+  "t": 11.484375,
+  "type": "fx",
+  "label": "crate-rattle"
+ },
+ {
+  "t": 11.71875,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 11.835938,
+  "type": "fx",
+  "label": "crate-rattle"
+ },
+ {
+  "t": 12.070313,
+  "type": "fx",
+  "label": "crate-rattle"
+ },
+ {
+  "t": 12.1875,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 12.304688,
+  "type": "fx",
+  "label": "crate-rattle"
+ },
+ {
+  "t": 12.304688,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 12.421875,
+  "type": "fx",
+  "label": "crate-rattle"
+ },
+ {
+  "t": 12.421875,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 12.539063,
+  "type": "fx",
+  "label": "crate-rattle"
+ },
+ {
+  "t": 12.539063,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 12.65625,
+  "type": "fx",
+  "label": "crate-burst"
+ },
+ {
+  "t": 12.65625,
+  "type": "fx",
+  "label": "portal-swirl",
+  "dur": 0.44875
+ },
+ {
+  "t": 12.65625,
+  "type": "impact",
+  "strength": 0.83,
+  "label": "crate-burst"
+ },
+ {
+  "t": 12.65625,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 12.714844,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 12.773438,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 12.832031,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 12.890625,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 12.949219,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 13.007813,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 13.125,
+  "type": "callout",
+  "label": "CATNIP HEIST"
+ },
+ {
+  "t": 13.125,
+  "type": "impact",
+  "strength": 2.64,
+  "label": "LOGO SLAM (massive)"
+ },
+ {
+  "t": 13.125,
+  "type": "kick"
+ },
+ {
+  "t": 13.125,
+  "type": "riser_end",
+  "label": "rescue build"
+ },
+ {
+  "t": 13.125,
+  "type": "whoosh",
+  "label": "into LOGO SLAM",
+  "start": 12.625
+ },
+ {
+  "t": 13.59375,
+  "type": "callout",
+  "label": "Sneak. Swap. Rescue."
+ },
+ {
+  "t": 13.59375,
+  "type": "kick"
+ },
+ {
+  "t": 13.59375,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 14.0625,
+  "type": "callout",
+  "label": "PLAY NOW"
+ },
+ {
+  "t": 14.0625,
+  "type": "kick"
+ },
+ {
+  "t": 14.414063,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 14.472656,
+  "type": "snare",
+  "label": "pickup"
+ },
+ {
+  "t": 14.53125,
+  "type": "impact",
+  "strength": 1.76,
+  "label": "FINAL HIT"
+ },
+ {
+  "t": 14.53125,
+  "type": "kick"
+ },
+ {
+  "t": 14.53125,
+  "type": "whoosh",
+  "label": "into FINAL",
+  "start": 14.18125
+ },
+ {
+  "t": 15,
+  "type": "end"
+ }
+]

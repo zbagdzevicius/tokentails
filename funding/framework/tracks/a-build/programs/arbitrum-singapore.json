@@ -1,0 +1,21 @@
+{
+  "program": "Arbitrum Open House Singapore online buildathon",
+  "url": "https://www.hackquest.io/hackathons/Arbitrum-Open-House-Singapore-Online-Buildathon",
+  "deadline": "2026-10-04",
+  "frame": "payout-rail",
+  "chain": ["arbitrum", "robinhood"],
+  "mainnet_required": false,
+  "next": "Only if an Arbitrum or Robinhood deployment exists by Oct 3; reuse the Colosseum write-up",
+  "submission": {
+    "sections": [
+      { "title": "Summary", "from": "Summary", "limit": 280 },
+      { "title": "Problem", "from": "Problem" },
+      { "title": "Solution", "from": "Solution" },
+      { "title": "How it works", "from": "How it works" },
+      { "title": "Deployment", "from": "On-chain proof", "auto": "deployments" },
+      { "title": "Build evidence", "auto": "build" },
+      { "title": "Team", "from": "Team" }
+    ]
+  },
+  "verify": ["deadline time and timezone", "whether testnet is accepted"]
+}

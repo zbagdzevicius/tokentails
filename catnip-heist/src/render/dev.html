@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <title>Catnip Heist render harness</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0d0616; color: #fcecbb; overflow: hidden; font: 12px ui-monospace, monospace; }
+      #app { position: fixed; inset: 0; }
+      #hud { position: fixed; left: 8px; top: 8px; background: rgba(13, 6, 22, 0.7); padding: 6px 8px; border-radius: 6px; pointer-events: none; white-space: pre; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="hud"></div>
+    <script type="module" src="/src/render/dev.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "program": "Team1 Avalanche mini grants",
+  "url": "https://team1.network/grants",
+  "deadline": "rolling",
+  "frame": "payout-rail",
+  "chain": "avalanche",
+  "mainnet_required": true,
+  "next": "Deploy ShelterSplit on Avalanche C-Chain, then fill the mini-grant form from submission.md",
+  "submission": {
+    "sections": [
+      { "title": "Summary", "from": "Summary", "limit": 280 },
+      { "title": "What we built", "from": "How it works" },
+      { "title": "Avalanche deployment", "from": "On-chain proof", "auto": "deployments" },
+      { "title": "Build evidence", "auto": "build" },
+      { "title": "Traction", "from": "Traction" },
+      { "title": "Team", "from": "Team" }
+    ]
+  },
+  "verify": ["form fields and limits"]
+}

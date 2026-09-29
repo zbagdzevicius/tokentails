@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0d0616" />
+    <title>Catnip Heist</title>
+    <link rel="icon" href="/assets/images/paw.png" />
+    <style>
+      @font-face {
+        font-family: 'Cat Paw';
+        src: url('/assets/fonts/catpaw.woff2') format('woff2');
+        font-display: swap;
+      }
+      :root {
+        --night: #0d0616; --plum: #301934; --violet: #4b0082; --grape: #6f2da8; --lavender: #9966cc;
+        --coin: #ffc93c; --cream: #fcecbb; --ember: #c1260f; --rust: #ee642a; --pink: #ff7aa2;
+        --mint: #d5f4e5; --sky: #c4e2fc; --lilac: #f0c5fd; --outline: #2a0f1f;
+      }
+      html, body { margin: 0; height: 100%; background: var(--night); color: var(--cream); overflow: hidden;
+        font-family: 'Cat Paw', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; touch-action: none; }
+      #app { position: fixed; inset: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

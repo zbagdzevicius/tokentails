@@ -1,0 +1,15 @@
+category,item,cost_eur,eligible
+Staff,Game director and producer (part-time over the project),54000,yes
+Staff,Lead programmer,64800,yes
+Staff,Gameplay programmer,38400,yes
+Staff,Game designer,36000,yes
+Subcontracting,Contracted narrative lead and script,32000,yes
+Subcontracting,Hand-made key art and concept art,28000,yes
+Subcontracting,Contracted composer and sound designer (original score and sound design),18000,yes
+Subcontracting,Localisation of pitch package store page and teaser into five EU languages (FR DE ES IT PL),12000,yes
+Subcontracting,External accessibility and UX review of design and pre-prototype builds,9000,yes
+Travel,Industry events and publisher meetings in Europe,8500,yes
+Equipment,Development hardware (depreciation share),6000,yes
+Other,IP and legal (trademark and contracts),4800,yes
+Indirect,Flat-rate indirect costs (7% of direct eligible costs),21805,yes
+Other,Launch marketing campaign after the development phase,15000,no

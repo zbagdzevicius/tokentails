@@ -1,0 +1,60 @@
+# Builds catnip-heist/ and deploys it to GitHub Pages at /<repo>/heist/ (e.g. /tokentails/heist/).
+# Manual only: run it from the Actions tab. It never runs on push.
+# One-time setup by a maintainer: Settings > Pages > Source: "GitHub Actions".
+name: Catnip Heist to GitHub Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      payouts_url:
+        description: Shelter payouts page linked from the win screen
+        required: false
+        default: https://tokentails.com/shelter-payouts
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: catnip-heist-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: catnip-heist
+    env:
+      HEIST_BASE: /${{ github.event.repository.name }}/heist/
+      HEIST_PAYOUTS_URL: ${{ inputs.payouts_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: catnip-heist/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Stage the site under /heist/
+        run: |
+          mkdir -p ../_site/heist
+          cp -R dist/. ../_site/heist/
+          touch ../_site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}heist/
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

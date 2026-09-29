@@ -1,0 +1,467 @@
+{
+  "id": "heist-01",
+  "tiles": [
+    "######################################",
+    "#.........#............#.............#",
+    "#.........#............#.............#",
+    "#.........#.....bbb....#.............#",
+    "#...bb....#.....bbb....###.###########",
+    "#...bb....#.............r............#",
+    "#.........#..b.........r.............#",
+    "#.........#..b..bbbbb..r.............#",
+    "#.........#..b.........r.............#",
+    "#...bb....#..........................#",
+    "#...bb....#..bb.........bb...........#",
+    "#.......................bb...........#",
+    "#.........#..........................#",
+    "###########..####...####...###########",
+    "          #................#.........#",
+    "          #................#.........#",
+    "          #..........................#",
+    "          #....bbb.........#.........#",
+    "          #...........bbb..#.........#",
+    "          #................#.........#",
+    "          ############################"
+  ],
+  "catSpawns": [
+    {
+      "x": 2,
+      "y": 2
+    },
+    {
+      "x": 3,
+      "y": 2
+    }
+  ],
+  "guards": [
+    {
+      "id": "g-tutor",
+      "sprite": "base",
+      "waypoints": [
+        {
+          "x": 1,
+          "y": 7
+        },
+        {
+          "x": 9,
+          "y": 7
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 45,
+      "visionTiles": 4
+    },
+    {
+      "id": "g-hall",
+      "sprite": "brown",
+      "waypoints": [
+        {
+          "x": 15,
+          "y": 5
+        },
+        {
+          "x": 22,
+          "y": 5
+        },
+        {
+          "x": 22,
+          "y": 9
+        },
+        {
+          "x": 15,
+          "y": 9
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 30,
+      "visionTiles": 4
+    },
+    {
+      "id": "g-keys",
+      "sprite": "black-white",
+      "waypoints": [
+        {
+          "x": 28,
+          "y": 5
+        },
+        {
+          "x": 28,
+          "y": 12
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 30,
+      "visionTiles": 4
+    },
+    {
+      "id": "g-vault",
+      "sprite": "exotic",
+      "waypoints": [
+        {
+          "x": 12,
+          "y": 16
+        },
+        {
+          "x": 25,
+          "y": 16
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 60,
+      "visionTiles": 5
+    }
+  ],
+  "coins": [
+    {
+      "id": "coin-01",
+      "tile": {
+        "x": 17,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-02",
+      "tile": {
+        "x": 24,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-03",
+      "tile": {
+        "x": 30,
+        "y": 2
+      }
+    },
+    {
+      "id": "coin-04",
+      "tile": {
+        "x": 29,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-05",
+      "tile": {
+        "x": 13,
+        "y": 4
+      }
+    },
+    {
+      "id": "coin-06",
+      "tile": {
+        "x": 21,
+        "y": 5
+      }
+    },
+    {
+      "id": "coin-07",
+      "tile": {
+        "x": 28,
+        "y": 6
+      }
+    },
+    {
+      "id": "coin-08",
+      "tile": {
+        "x": 7,
+        "y": 7
+      }
+    },
+    {
+      "id": "coin-09",
+      "tile": {
+        "x": 15,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-10",
+      "tile": {
+        "x": 31,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-11",
+      "tile": {
+        "x": 33,
+        "y": 10
+      }
+    },
+    {
+      "id": "coin-12",
+      "tile": {
+        "x": 21,
+        "y": 12
+      }
+    },
+    {
+      "id": "coin-13",
+      "tile": {
+        "x": 14,
+        "y": 15
+      }
+    },
+    {
+      "id": "coin-14",
+      "tile": {
+        "x": 21,
+        "y": 15
+      }
+    },
+    {
+      "id": "coin-15",
+      "tile": {
+        "x": 31,
+        "y": 15
+      }
+    },
+    {
+      "id": "coin-16",
+      "tile": {
+        "x": 25,
+        "y": 16
+      }
+    },
+    {
+      "id": "coin-17",
+      "tile": {
+        "x": 34,
+        "y": 16
+      }
+    },
+    {
+      "id": "coin-18",
+      "tile": {
+        "x": 14,
+        "y": 18
+      }
+    },
+    {
+      "id": "coin-19",
+      "tile": {
+        "x": 32,
+        "y": 18
+      }
+    },
+    {
+      "id": "coin-20",
+      "tile": {
+        "x": 20,
+        "y": 19
+      }
+    }
+  ],
+  "key": {
+    "id": "key-vault",
+    "tile": {
+      "x": 36,
+      "y": 1
+    }
+  },
+  "doors": [
+    {
+      "id": "door-tutorial",
+      "tile": {
+        "x": 10,
+        "y": 11
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    },
+    {
+      "id": "door-keyroom",
+      "tile": {
+        "x": 26,
+        "y": 4
+      },
+      "kind": "PLATE",
+      "axis": "h"
+    },
+    {
+      "id": "door-vault",
+      "tile": {
+        "x": 27,
+        "y": 16
+      },
+      "kind": "VAULT",
+      "axis": "v"
+    }
+  ],
+  "plates": [
+    {
+      "id": "plate-a1",
+      "tile": {
+        "x": 1,
+        "y": 11
+      },
+      "doors": [
+        "door-tutorial"
+      ]
+    },
+    {
+      "id": "plate-a2",
+      "tile": {
+        "x": 13,
+        "y": 11
+      },
+      "doors": [
+        "door-tutorial"
+      ]
+    },
+    {
+      "id": "plate-d1",
+      "tile": {
+        "x": 31,
+        "y": 8
+      },
+      "doors": [
+        "door-keyroom"
+      ]
+    }
+  ],
+  "crate": {
+    "id": "crate",
+    "tile": {
+      "x": 36,
+      "y": 17
+    },
+    "catId": "siamese",
+    "catName": "Mochi"
+  },
+  "exit": {
+    "id": "exit",
+    "tiles": [
+      {
+        "x": 11,
+        "y": 1
+      },
+      {
+        "x": 12,
+        "y": 1
+      },
+      {
+        "x": 11,
+        "y": 2
+      },
+      {
+        "x": 12,
+        "y": 2
+      }
+    ]
+  },
+  "checkpoints": [
+    {
+      "id": "cp-1",
+      "tile": {
+        "x": 14,
+        "y": 11
+      }
+    },
+    {
+      "id": "cp-2",
+      "tile": {
+        "x": 32,
+        "y": 11
+      }
+    }
+  ],
+  "meta": {
+    "title": "Heist 01: Kibble Corp Warehouse",
+    "maxCoins": 20,
+    "twoCatRequired": true,
+    "parTicks": 5400,
+    "meowRadiusTiles": 6,
+    "investigateTicks": 120,
+    "objectives": [
+      "Hold the plate and swap to open the door",
+      "Get both cats into the warehouse",
+      "One cat holds the key-room plate, the other grabs the key",
+      "Open the vault and free the shelter cat",
+      "Both cats to the exit portal"
+    ],
+    "hints": [
+      {
+        "x0": 1,
+        "y0": 1,
+        "x1": 9,
+        "y1": 12,
+        "whileOtherHolds": "plate-a2",
+        "text": "Door’s open! Bring this cat through to the warehouse."
+      },
+      {
+        "x0": 1,
+        "y0": 1,
+        "x1": 9,
+        "y1": 12,
+        "whileOtherHolds": "plate-a1",
+        "text": "Door’s open! Walk this cat through, then hold the next plate."
+      },
+      {
+        "x0": 11,
+        "y0": 9,
+        "x1": 16,
+        "y1": 12,
+        "whileOtherHolds": "plate-a1",
+        "untilObjective": 1,
+        "text": "Stand on this plate, then press {swap} to bring your other cat."
+      },
+      {
+        "x0": 1,
+        "y0": 1,
+        "x1": 9,
+        "y1": 3,
+        "text": "Move with {move}. Stay out of the guard dog’s vision cone."
+      },
+      {
+        "x0": 1,
+        "y0": 8,
+        "x1": 9,
+        "y1": 12,
+        "text": "Stand on the plate to open the door, then press {swap} to swap cats."
+      },
+      {
+        "x0": 11,
+        "y0": 9,
+        "x1": 16,
+        "y1": 12,
+        "untilObjective": 1,
+        "text": "Hold this plate so your other cat can come through too."
+      },
+      {
+        "x0": 27,
+        "y0": 7,
+        "x1": 34,
+        "y1": 10,
+        "untilObjective": 2,
+        "text": "One cat holds the plate, the other sneaks into the key room."
+      },
+      {
+        "x0": 20,
+        "y0": 14,
+        "x1": 26,
+        "y1": 19,
+        "untilObjective": 3,
+        "text": "Press {meow} to meow and lure a guard away."
+      },
+      {
+        "x0": 28,
+        "y0": 14,
+        "x1": 36,
+        "y1": 19,
+        "untilObjective": 3,
+        "text": "Press {act} next to the crate to free the shelter cat."
+      }
+    ],
+    "tutorial": {
+      "x0": 0,
+      "y0": 0,
+      "x1": 10,
+      "y1": 13
+    },
+    "name": "Kibble Corp Warehouse",
+    "intro": "Learn the ropes: sneak past the guard dogs, hold a plate for your partner and free Mochi.",
+    "idea": "Tutorial: move, sneak, swap cats, plate doors"
+  }
+}

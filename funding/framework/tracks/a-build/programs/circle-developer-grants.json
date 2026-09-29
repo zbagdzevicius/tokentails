@@ -1,0 +1,23 @@
+{
+  "program": "Circle Developer Grants",
+  "url": "https://www.circle.com/grant",
+  "deadline": "rolling",
+  "frame": "payout-rail",
+  "chain": "arc",
+  "mainnet_required": false,
+  "next": "Draft the 4-milestone plan, one on-chain metric per milestone",
+  "submission": {
+    "sections": [
+      { "title": "Summary", "from": "Summary", "limit": 280 },
+      { "title": "Problem", "from": "Problem" },
+      { "title": "Solution and Circle stack", "from": "Solution" },
+      { "title": "Architecture", "from": "How it works" },
+      { "title": "Existing deployments", "from": "On-chain proof", "auto": "deployments" },
+      { "title": "Milestones", "from": "Roadmap and business plan" },
+      { "title": "Traction", "from": "Traction" },
+      { "title": "Team", "from": "Team" }
+    ],
+    "checklist": ["Each milestone has one on-chain metric that anyone can check in the explorer"]
+  },
+  "verify": ["current application form and limits"]
+}

@@ -1,0 +1,50 @@
+{
+  "program": "Colosseum Crypto World's Fair",
+  "url": "https://colosseum.com/worldsfair",
+  "rules": "https://colosseum.com/legal/Crypto%20World's%20Fair%20Hackathon%20Rules.pdf",
+  "deadline": "2026-10-12T23:59:00-07:00",
+  "frame": "payout-rail",
+  "chain": ["tempo", "arbitrum"],
+  "mainnet_required": true,
+  "build_window_start": "2026-09-14",
+  "build_window_end": "2026-10-12",
+  "next": "Deploy ShelterSplit to Tempo testnet, then Tempo mainnet (Arbitrum One second), record it, then fund a:submission colosseum-worlds-fair",
+  "criteria": [
+    ["C1", "Functionality and code quality", "not stated", "Functionality: How well does this Project Submission work? What is the quality of the code?"],
+    ["C2", "Potential impact", "not stated", "Potential Impact: How big is the total addressable market for this Project Submission? What will be the impact of this Project Submission on the broader crypto ecosystem?"],
+    ["C3", "Novelty", "not stated", "Novelty: How unique is this Project Submission's concept?"],
+    ["C4", "UX via blockchain", "not stated", "UX: How well does this Project Submission utilize blockchain to create great UX for downstream users?"],
+    ["C5", "Open-source and composability", "not stated", "Open-source: Is this Project Submission open-source? How well does the Project Submission compose with other primitives in the crypto ecosystem?"],
+    ["C6", "Business plan and team execution", "not stated", "Business Plan: Is there a viable business that can be built in the future around this Submission? How adept is the team building the product to execute on the vision?"]
+  ],
+  "submission": {
+    "fields": {
+      "Tracks entered": "Tempo track (Arbitrum track as well if the form allows more than one), plus the Public Goods Award",
+      "Category": "Payments / public goods"
+    },
+    "sections": [
+      { "title": "One-line pitch", "from": "Summary", "limit": 280 },
+      { "title": "Problem", "from": "Problem" },
+      { "title": "Solution", "from": "Solution" },
+      { "title": "Why Tempo", "from": "Why Tempo" },
+      { "title": "How it works", "from": "How it works" },
+      { "title": "On-chain proof", "from": "On-chain proof", "auto": "deployments" },
+      { "title": "Build evidence", "auto": "build" },
+      { "title": "Traction", "from": "Traction" },
+      { "title": "Team", "from": "Team" },
+      { "title": "Roadmap and business plan", "from": "Roadmap and business plan" }
+    ],
+    "checklist": [
+      "Public GitHub repo; disclose pre-hackathon work (products are judged only on work done Sep 14 - Oct 12)",
+      "Product demo video recorded by a human, no more than 3 minutes (colosseum.com/hackathon FAQ)",
+      "Pitch/presentation video recorded by a human, 2 to 3 minutes (colosseum.com/hackathon FAQ)",
+      "Deployment address and explorer link on Tempo mainnet (explore.tempo.xyz), plus Arbitrum One if entered",
+      "Every team member registered on colosseum.com before 2026-10-12 23:59 PT (rules section 6)"
+    ]
+  },
+  "verify": [
+    "form field character limits",
+    "whether one project may enter more than one ecosystem track (rules section 7 allows one Project Submission per team; the tracks question is not answered in the rules or FAQ, ask in the Colosseum Discord)",
+    "whether the Tempo track requires mainnet or accepts testnet (rules section 14(f) says only 'integrate with the Tempo blockchain')"
+  ]
+}

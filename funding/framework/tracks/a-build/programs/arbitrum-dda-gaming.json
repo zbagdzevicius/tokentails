@@ -1,0 +1,21 @@
+{
+  "program": "Arbitrum DDA gaming grant",
+  "url": "https://arbitrum.questbook.app/",
+  "deadline": "rolling",
+  "frame": "payout-rail",
+  "chain": "arbitrum",
+  "mainnet_required": true,
+  "next": "Only once the Arbitrum mainnet deploy exists; check allocator fit, then draft a milestone proposal",
+  "submission": {
+    "sections": [
+      { "title": "Summary", "from": "Summary", "limit": 280 },
+      { "title": "Problem", "from": "Problem" },
+      { "title": "Solution", "from": "Solution" },
+      { "title": "Arbitrum deployment", "from": "On-chain proof", "auto": "deployments" },
+      { "title": "Milestones", "from": "Roadmap and business plan" },
+      { "title": "Traction", "from": "Traction" },
+      { "title": "Team", "from": "Team" }
+    ]
+  },
+  "verify": ["current allocator and whether the program is still funded", "budget cap"]
+}

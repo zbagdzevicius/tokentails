@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <title>UI Dev Bench</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0d0616; color: #fcecbb; overflow: hidden; touch-action: none; }
+      #app { position: fixed; inset: 0; }
+      #fake { position: absolute; inset: 0; background:
+        repeating-linear-gradient(45deg, rgba(255,255,255,.03) 0 24px, transparent 24px 48px),
+        radial-gradient(ellipse at 50% 60%, #4b2a55, #1a0c22 70%); }
+    </style>
+  </head>
+  <body>
+    <div id="app"><div id="fake"></div></div>
+    <script type="module" src="./dev.ts"></script>
+  </body>
+</html>

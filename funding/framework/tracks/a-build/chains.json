@@ -1,0 +1,289 @@
+{
+  "_readme": "Target chains for ShelterSplit. Chain IDs and USDC addresses were checked on 2026-09-25 against the linked official docs. RPC URLs are never stored here: each network names the env var that holds its RPC URL. verify: true means the value still needs a human check before mainnet. splitTokens lists optional second payout tokens per network (EURC, checked 2026-09-29): `fund a:wave --token EURC` deploys a separate ShelterSplit instance for it.",
+  "arc": {
+    "name": "Arc",
+    "docs": "https://docs.arc.io/arc/references/connect-to-arc",
+    "networks": {
+      "mainnet": {
+        "chainId": 5042,
+        "explorer": "https://explorer.arc.io",
+        "address": "{explorer}/address/{address}",
+        "tx": "{explorer}/tx/{tx}",
+        "usdc": "0x3600000000000000000000000000000000000000",
+        "usdcDecimals": 6,
+        "rpcEnv": "RPC_ARC_MAINNET",
+        "verify": false,
+        "notes": "USDC is also the native gas token (18 decimals natively; the ERC-20 interface at 0x3600... uses 6). Explorer path pattern assumed Blockscout-style.",
+        "splitTokens": {
+          "EURC": {
+            "address": "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1",
+            "decimals": 6,
+            "verify": false,
+            "source": "https://docs.arc.io/arc/references/contract-addresses",
+            "notes": "Same address on the Arc contract-addresses page and the Circle EURC page. 6 decimals."
+          }
+        }
+      },
+      "testnet": {
+        "chainId": 5042002,
+        "explorer": "https://explorer.testnet.arc.io",
+        "address": "{explorer}/address/{address}",
+        "tx": "{explorer}/tx/{tx}",
+        "usdc": "0x3600000000000000000000000000000000000000",
+        "usdcDecimals": 6,
+        "rpcEnv": "RPC_ARC_TESTNET",
+        "verify": false,
+        "notes": "Faucet: https://faucet.circle.com",
+        "splitTokens": {
+          "EURC": {
+            "address": "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a",
+            "decimals": 6,
+            "verify": false,
+            "source": "https://docs.arc.io/arc/references/contract-addresses",
+            "notes": "Same address on the Arc contract-addresses page and the Circle EURC page. 6 decimals. Faucet: https://faucet.circle.com"
+          }
+        }
+      }
+    }
+  },
+  "base": {
+    "name": "Base",
+    "docs": "https://docs.base.org/base-chain/quickstart/connecting-to-base",
+    "networks": {
+      "mainnet": {
+        "chainId": 8453,
+        "explorer": "https://basescan.org",
+        "address": "{explorer}/address/{address}",
+        "tx": "{explorer}/tx/{tx}",
+        "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "usdcDecimals": 6,
+        "rpcEnv": "RPC_BASE_MAINNET",
+        "verify": false,
+        "splitTokens": {
+          "EURC": {
+            "address": "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42",
+            "decimals": 6,
+            "verify": false,
+            "source": "https://developers.circle.com/stablecoins/eurc-contract-addresses"
+          }
+        }
+      },
+      "testnet": {
+        "chainId": 84532,
+        "explorer": "https://sepolia.basescan.org",
+        "address": "{explorer}/address/{address}",
+        "tx": "{explorer}/tx/{tx}",
+        "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+        "usdcDecimals": 6,
+        "rpcEnv": "RPC_BASE_SEPOLIA",
+        "verify": false,
+        "notes": "Base Sepolia",
+        "splitTokens": {
+          "EURC": {
+            "address": "0x808456652fdb597867f38412077A9182bf77359F",
+            "decimals": 6,
+            "verify": false,
+            "source": "https://developers.circle.com/stablecoins/eurc-contract-addresses"
+          }
+        }
+      }
+    }
+  },
+  "arbitrum": {
+    "name": "Arbitrum One",
+    "docs": "https://docs.arbitrum.io/for-devs/dev-tools-and-resources/chain-info",
+    "networks": {
+      "mainnet": {
+        "chainId": 42161,
+        "explorer": "https://arbiscan.io",
+        "address": "{explorer}/address/{address}",
+        "tx": "{explorer}/tx/{tx}",
+        "usdc": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "usdcDecimals": 6,
+        "rpcEnv": "RPC_ARBITRUM_MAINNET",
+        "verify": false,
+        "splitTokens": {
+          "EURC": {
+            "address": null,
+            "decimals": 6,
+            "verify": true,
+            "source": "https://developers.circle.com/stablecoins/eurc-contract-addresses",
+            "notes": "No native EURC listed by Circle for this chain on 2026-09-29; do not use a bridged EURC without a human check."
+          }
+        }
+      },
+      "testnet": {
+        "chainId": 421614,
+        "explorer": "https://sepolia.arbiscan.io",
+        "address": "{explorer}/address/{address}",
+        "tx": "{explorer}/tx/{tx}",
+        "usdc": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+        "usdcDecimals": 6,
+        "rpcEnv": "RPC_ARBITRUM_SEPOLIA",
+        "verify": false,
+        "notes": "Arbitrum Sepolia",
+        "splitTokens": {
+          "EURC": {
+            "address": null,
+            "decimals": 6,
+            "verify": true,
+            "source": "https://developers.circle.com/stablecoins/eurc-contract-addresses",
+            "notes": "No native EURC listed by Circle for this chain on 2026-09-29; do not use a bridged EURC without a human check."
+          }
+        }
+      }
+    }
+  },
+  "robinhood": {
+    "name": "Robinhood Chain",
+    "docs": "https://docs.robinhood.com/chain/connecting",
+    "networks": {
+      "mainnet": {
+        "chainId": 4663,
+        "explorer": "https://robinhoodchain.blockscout.com",
+        "address": "{explorer}/address/{address}",
+        "tx": "{explorer}/tx/{tx}",
+        "usdc": null,
+        "rpcEnv": "RPC_ROBINHOOD_MAINNET",
+        "verify": true,
+        "notes": "USDC address not listed in the Robinhood or Circle docs on 2026-09-25: set SHELTERSPLIT_TOKEN by hand after checking."
+      },
+      "testnet": {
+        "chainId": 46630,
+        "explorer": "https://explorer.testnet.chain.robinhood.com",
+        "address": "{explorer}/address/{address}",
+        "tx": "{explorer}/tx/{tx}",
+        "usdc": null,
+        "rpcEnv": "RPC_ROBINHOOD_TESTNET",
+        "verify": true,
+        "notes": "No official test USDC found; deploy a mock token for demos."
+      }
+    }
+  },
+  "avalanche": {
+    "name": "Avalanche C-Chain",
+    "docs": "https://build.avax.network/docs/primary-network",
+    "networks": {
+      "mainnet": {
+        "chainId": 43114,
+        "explorer": "https://subnets.avax.network/c-chain",
+        "address": "{explorer}/address/{address}",
+        "tx": "{explorer}/tx/{tx}",
+        "usdc": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+        "usdcDecimals": 6,
+        "rpcEnv": "RPC_AVALANCHE_MAINNET",
+        "verify": true,
+        "notes": "Chain ID verified; docs list explorer.avax.network/c-chain, path pattern not verified.",
+        "splitTokens": {
+          "EURC": {
+            "address": "0xC891EB4cbdEFf6e073e859e987815Ed1505c2ACD",
+            "decimals": 6,
+            "verify": false,
+            "source": "https://developers.circle.com/stablecoins/eurc-contract-addresses"
+          }
+        }
+      },
+      "testnet": {
+        "chainId": 43113,
+        "explorer": "https://subnets-test.avax.network/c-chain",
+        "address": "{explorer}/address/{address}",
+        "tx": "{explorer}/tx/{tx}",
+        "usdc": "0x5425890298aed601595a70AB815c96711a31Bc65",
+        "usdcDecimals": 6,
+        "rpcEnv": "RPC_AVALANCHE_FUJI",
+        "verify": true,
+        "notes": "Fuji. Explorer path pattern not verified.",
+        "splitTokens": {
+          "EURC": {
+            "address": "0x5E44db7996c682E92a960b65AC713a54AD815c6B",
+            "decimals": 6,
+            "verify": false,
+            "source": "https://developers.circle.com/stablecoins/eurc-contract-addresses"
+          }
+        }
+      }
+    }
+  },
+  "tempo": {
+    "name": "Tempo",
+    "docs": "https://tempo.xyz/developers/docs/quickstart/connection-details",
+    "networks": {
+      "mainnet": {
+        "chainId": 4217,
+        "explorer": "https://explore.tempo.xyz",
+        "address": "{explorer}/address/{address}",
+        "tx": "{explorer}/tx/{tx}",
+        "usdc": "0x20C000000000000000000000b9537d11c60E8b50",
+        "usdcDecimals": 6,
+        "rpcEnv": "RPC_TEMPO_MAINNET",
+        "verify": true,
+        "notes": "Checked 2026-09-27. Chain ID, explorer and public keyless RPC (https://rpc.tempo.xyz) from the connection-details page. usdc is USDC.e (Bridged USDC, Stargate; no native Circle USDC on Tempo) from https://tempo.xyz/developers/docs/guide/bridge-layerzero; TIP-20 decimals are always 6 (TIP-20 spec). No native gas token: fees are paid in a TIP-20 stablecoin (pathUSD 0x20c0000000000000000000000000000000000000 is the fallback fee token), so the deployer needs pathUSD or USDC.e, and forge needs a Tempo-aware Foundry (foundryup; --tempo.fee-token). verify: the /tx/ explorer path is assumed (only /address/ was seen), and T6 receive policies can silently redirect a shelter's share to ReceivePolicyGuard (see applications/colosseum-worlds-fair/notes/chain-decision.md).",
+        "splitTokens": {
+          "EURC": {
+            "address": null,
+            "decimals": 6,
+            "verify": true,
+            "source": "https://developers.circle.com/stablecoins/eurc-contract-addresses",
+            "notes": "No native EURC listed by Circle for this chain on 2026-09-29; do not use a bridged EURC without a human check."
+          }
+        }
+      },
+      "testnet": {
+        "chainId": 42431,
+        "explorer": "https://explore.testnet.tempo.xyz",
+        "address": "{explorer}/address/{address}",
+        "tx": "{explorer}/tx/{tx}",
+        "usdc": "0x20c0000000000000000000000000000000000000",
+        "usdcDecimals": 6,
+        "rpcEnv": "RPC_TEMPO_TESTNET",
+        "verify": true,
+        "notes": "Moderato. Public keyless RPC https://rpc.moderato.tempo.xyz. No test USDC found: usdc here is testnet pathUSD (faucet also gives AlphaUSD ...0001, BetaUSD ...0002, ThetaUSD ...0003). Faucet: https://tempo.xyz/developers/docs/quickstart/faucet. verify: explorer path patterns assumed.",
+        "splitTokens": {
+          "EURC": {
+            "address": null,
+            "decimals": 6,
+            "verify": true,
+            "source": "https://developers.circle.com/stablecoins/eurc-contract-addresses",
+            "notes": "No native EURC listed by Circle for this chain on 2026-09-29; do not use a bridged EURC without a human check."
+          }
+        }
+      }
+    }
+  },
+  "mezo": {
+    "name": "Mezo",
+    "docs": "https://mezo.org/docs/developers/getting-started/configure-environment",
+    "networks": {
+      "mainnet": {
+        "chainId": 31612,
+        "explorer": "https://explorer.mezo.org",
+        "address": "{explorer}/address/{address}",
+        "tx": "{explorer}/tx/{tx}",
+        "usdc": null,
+        "splitToken": {
+          "symbol": "MUSD",
+          "address": null,
+          "decimals": 18
+        },
+        "rpcEnv": "RPC_MEZO_MAINNET",
+        "verify": true,
+        "notes": "Checked 2026-09-28: chain ID 31612, explorer and public RPCs (https://mezo.drpc.org, https://mezo-mainnet.boar.network) from the configure-environment page; docs recommend evmVersion london (paris output is compatible). MUSD address NOT found in the docs or the mezo-org/musd README: copy it from explorer.mezo.org (token search: MUSD) into splitToken.address before the wave. Gas is paid in BTC on Mezo. Mezo Buildathon requires MUSD/MEZO integration."
+      },
+      "testnet": {
+        "chainId": 31611,
+        "explorer": "https://explorer.test.mezo.org",
+        "address": "{explorer}/address/{address}",
+        "tx": "{explorer}/tx/{tx}",
+        "usdc": null,
+        "splitToken": {
+          "symbol": "MUSD",
+          "address": null,
+          "decimals": 18
+        },
+        "rpcEnv": "RPC_MEZO_TESTNET",
+        "verify": true,
+        "notes": "Public RPC https://rpc.test.mezo.org. MUSD testnet address not published in the docs; copy it from explorer.test.mezo.org."
+      }
+    }
+  }
+}

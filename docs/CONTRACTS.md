@@ -163,7 +163,7 @@ for the Rocklabs, Aptos, and SKALE code.
 Stellar:
 
 - `stellar-fuel/src/distribute-batch.js` passes `{ address }` but `Distribute` destructures `{ walletAddress }`, so batch claims fund `undefined`. Single claims work.
-- The soroban-nft README embeds third-party RPC URLs that include an API key in the path. Rotate the key and redact the README before publishing.
+- Resolved: the soroban-nft README now uses public RPC URLs only, and the old third-party key is invalid (confirmed 2026-09-29).
 - `NFTContract.mint` is an open, overwriting mint. If the deployed Pass contract is this code, that entrypoint is live.
 - Persistent storage is never TTL-extended, so ownership entries can be archived.
 - No events, no upgrade entrypoint. Fixes require redeploy and state migration.

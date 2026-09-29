@@ -1,0 +1,324 @@
+{
+  "id": "heist-06",
+  "tiles": [
+    "##############################",
+    "#....####.#####.#####.########",
+    "#....####.#####.#####.########",
+    "#............................#",
+    "#....#######################.#",
+    "############################.#",
+    "############################.#",
+    "##...........................#",
+    "##.####.#####.#####.##########",
+    "##.####.#####.#####.##########",
+    "##.###########################",
+    "##...........................#",
+    "#########.#####.#########....#",
+    "#########.#####.#########....#",
+    "#########################....#",
+    "##############################"
+  ],
+  "catSpawns": [
+    {
+      "x": 2,
+      "y": 2
+    },
+    {
+      "x": 3,
+      "y": 2
+    }
+  ],
+  "guards": [
+    {
+      "id": "g-hall-1",
+      "sprite": "brown",
+      "waypoints": [
+        {
+          "x": 8,
+          "y": 3
+        },
+        {
+          "x": 26,
+          "y": 3
+        }
+      ],
+      "speed": 2,
+      "sniffTicks": 20,
+      "visionTiles": 4
+    },
+    {
+      "id": "g-hall-2",
+      "sprite": "black",
+      "waypoints": [
+        {
+          "x": 4,
+          "y": 7
+        },
+        {
+          "x": 25,
+          "y": 7
+        }
+      ],
+      "speed": 2,
+      "sniffTicks": 20,
+      "visionTiles": 4
+    },
+    {
+      "id": "g-hall-3",
+      "sprite": "black-white",
+      "waypoints": [
+        {
+          "x": 4,
+          "y": 11
+        },
+        {
+          "x": 20,
+          "y": 11
+        }
+      ],
+      "speed": 2,
+      "sniffTicks": 20,
+      "visionTiles": 4
+    }
+  ],
+  "coins": [
+    {
+      "id": "coin-01",
+      "tile": {
+        "x": 9,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-02",
+      "tile": {
+        "x": 21,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-03",
+      "tile": {
+        "x": 12,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-04",
+      "tile": {
+        "x": 18,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-05",
+      "tile": {
+        "x": 24,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-06",
+      "tile": {
+        "x": 1,
+        "y": 4
+      }
+    },
+    {
+      "id": "coin-07",
+      "tile": {
+        "x": 28,
+        "y": 5
+      }
+    },
+    {
+      "id": "coin-08",
+      "tile": {
+        "x": 10,
+        "y": 7
+      }
+    },
+    {
+      "id": "coin-09",
+      "tile": {
+        "x": 16,
+        "y": 7
+      }
+    },
+    {
+      "id": "coin-10",
+      "tile": {
+        "x": 22,
+        "y": 7
+      }
+    },
+    {
+      "id": "coin-11",
+      "tile": {
+        "x": 2,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-12",
+      "tile": {
+        "x": 7,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-13",
+      "tile": {
+        "x": 19,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-14",
+      "tile": {
+        "x": 7,
+        "y": 11
+      }
+    },
+    {
+      "id": "coin-15",
+      "tile": {
+        "x": 12,
+        "y": 11
+      }
+    },
+    {
+      "id": "coin-16",
+      "tile": {
+        "x": 18,
+        "y": 11
+      }
+    },
+    {
+      "id": "coin-17",
+      "tile": {
+        "x": 25,
+        "y": 11
+      }
+    },
+    {
+      "id": "coin-18",
+      "tile": {
+        "x": 9,
+        "y": 13
+      }
+    },
+    {
+      "id": "coin-19",
+      "tile": {
+        "x": 28,
+        "y": 13
+      }
+    }
+  ],
+  "key": null,
+  "doors": [
+    {
+      "id": "door-dispatch",
+      "tile": {
+        "x": 24,
+        "y": 11
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    }
+  ],
+  "plates": [
+    {
+      "id": "plate-l1",
+      "tile": {
+        "x": 28,
+        "y": 11
+      },
+      "doors": [
+        "door-dispatch"
+      ]
+    },
+    {
+      "id": "plate-l2",
+      "tile": {
+        "x": 15,
+        "y": 13
+      },
+      "doors": [
+        "door-dispatch"
+      ]
+    }
+  ],
+  "crate": {
+    "id": "crate",
+    "tile": {
+      "x": 27,
+      "y": 13
+    },
+    "catId": "maine",
+    "catName": "Waffles"
+  },
+  "exit": {
+    "id": "exit",
+    "tiles": [
+      {
+        "x": 25,
+        "y": 14
+      },
+      {
+        "x": 26,
+        "y": 14
+      }
+    ]
+  },
+  "checkpoints": [
+    {
+      "id": "cp-1",
+      "tile": {
+        "x": 28,
+        "y": 4
+      }
+    },
+    {
+      "id": "cp-2",
+      "tile": {
+        "x": 13,
+        "y": 9
+      }
+    }
+  ],
+  "meta": {
+    "title": "Heist 06: Conveyor Halls",
+    "parTicks": 3600,
+    "meowRadiusTiles": 6,
+    "investigateTicks": 90,
+    "maxCoins": 20,
+    "twoCatRequired": true,
+    "objectives": [
+      "Slip through the halls and free {cat}",
+      "Both cats to the exit"
+    ],
+    "hints": [
+      {
+        "x0": 5,
+        "y0": 1,
+        "x1": 27,
+        "y1": 3,
+        "untilObjective": 0,
+        "text": "Follow the dog and hide in a niche when it turns back."
+      },
+      {
+        "x0": 2,
+        "y0": 11,
+        "x1": 23,
+        "y1": 13,
+        "untilObjective": 0,
+        "text": "One cat sits on the plate in the niche while the other takes door L."
+      }
+    ],
+    "name": "Conveyor Halls",
+    "intro": "Narrow halls, fast dogs. Duck into the wall niches and run in their wake.",
+    "idea": "Tight patrol timing in corridors"
+  }
+}

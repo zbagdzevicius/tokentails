@@ -1,0 +1,356 @@
+{
+  "id": "heist-04",
+  "tiles": [
+    "      ##############################",
+    "      #......................#.....#",
+    "      #.......bb.............#.....#",
+    "      #......................#.....#",
+    "      #............bb........#.....#",
+    "      #............................#",
+    "      #.....###########......#.....#",
+    "      #.....#.........#......#.....#",
+    "      #.....#.........#......#######",
+    "      #.....#.........#......#      ",
+    "      #.....#.........#......#      ",
+    "#######.....#.........#......#      ",
+    "#.....#.....#####.#####......#      ",
+    "#.....#......................#      ",
+    "#.....r......................#      ",
+    "#.....#......................#      ",
+    "#.....#.......bb....bb.......#      ",
+    "#.....#......................#      ",
+    "#######......................#      ",
+    "      ########################      "
+  ],
+  "catSpawns": [
+    {
+      "x": 3,
+      "y": 14
+    },
+    {
+      "x": 4,
+      "y": 14
+    }
+  ],
+  "guards": [
+    {
+      "id": "g-lap",
+      "sprite": "black-white",
+      "waypoints": [
+        {
+          "x": 9,
+          "y": 3
+        },
+        {
+          "x": 25,
+          "y": 3
+        },
+        {
+          "x": 25,
+          "y": 15
+        },
+        {
+          "x": 9,
+          "y": 15
+        }
+      ],
+      "speed": 2,
+      "sniffTicks": 24,
+      "visionTiles": 4
+    },
+    {
+      "id": "g-vault",
+      "sprite": "exotic",
+      "waypoints": [
+        {
+          "x": 14,
+          "y": 9
+        },
+        {
+          "x": 20,
+          "y": 9
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 30,
+      "visionTiles": 3
+    }
+  ],
+  "coins": [
+    {
+      "id": "coin-01",
+      "tile": {
+        "x": 9,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-02",
+      "tile": {
+        "x": 18,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-03",
+      "tile": {
+        "x": 31,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-04",
+      "tile": {
+        "x": 33,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-05",
+      "tile": {
+        "x": 8,
+        "y": 4
+      }
+    },
+    {
+      "id": "coin-06",
+      "tile": {
+        "x": 11,
+        "y": 5
+      }
+    },
+    {
+      "id": "coin-07",
+      "tile": {
+        "x": 25,
+        "y": 5
+      }
+    },
+    {
+      "id": "coin-08",
+      "tile": {
+        "x": 31,
+        "y": 6
+      }
+    },
+    {
+      "id": "coin-09",
+      "tile": {
+        "x": 15,
+        "y": 7
+      }
+    },
+    {
+      "id": "coin-10",
+      "tile": {
+        "x": 19,
+        "y": 7
+      }
+    },
+    {
+      "id": "coin-11",
+      "tile": {
+        "x": 9,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-12",
+      "tile": {
+        "x": 13,
+        "y": 10
+      }
+    },
+    {
+      "id": "coin-13",
+      "tile": {
+        "x": 21,
+        "y": 10
+      }
+    },
+    {
+      "id": "coin-14",
+      "tile": {
+        "x": 26,
+        "y": 10
+      }
+    },
+    {
+      "id": "coin-15",
+      "tile": {
+        "x": 14,
+        "y": 11
+      }
+    },
+    {
+      "id": "coin-16",
+      "tile": {
+        "x": 9,
+        "y": 13
+      }
+    },
+    {
+      "id": "coin-17",
+      "tile": {
+        "x": 19,
+        "y": 13
+      }
+    },
+    {
+      "id": "coin-18",
+      "tile": {
+        "x": 27,
+        "y": 13
+      }
+    },
+    {
+      "id": "coin-19",
+      "tile": {
+        "x": 3,
+        "y": 16
+      }
+    },
+    {
+      "id": "coin-20",
+      "tile": {
+        "x": 11,
+        "y": 17
+      }
+    },
+    {
+      "id": "coin-21",
+      "tile": {
+        "x": 21,
+        "y": 17
+      }
+    },
+    {
+      "id": "coin-22",
+      "tile": {
+        "x": 16,
+        "y": 18
+      }
+    }
+  ],
+  "key": {
+    "id": "key-vault",
+    "tile": {
+      "x": 33,
+      "y": 2
+    }
+  },
+  "doors": [
+    {
+      "id": "door-office",
+      "tile": {
+        "x": 29,
+        "y": 5
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    },
+    {
+      "id": "door-vault",
+      "tile": {
+        "x": 17,
+        "y": 12
+      },
+      "kind": "VAULT",
+      "axis": "h"
+    }
+  ],
+  "plates": [
+    {
+      "id": "plate-g1",
+      "tile": {
+        "x": 33,
+        "y": 7
+      },
+      "doors": [
+        "door-office"
+      ]
+    },
+    {
+      "id": "plate-g2",
+      "tile": {
+        "x": 27,
+        "y": 8
+      },
+      "doors": [
+        "door-office"
+      ]
+    }
+  ],
+  "crate": {
+    "id": "crate",
+    "tile": {
+      "x": 21,
+      "y": 11
+    },
+    "catId": "peachies",
+    "catName": "Pumpkin"
+  },
+  "exit": {
+    "id": "exit",
+    "tiles": [
+      {
+        "x": 1,
+        "y": 13
+      },
+      {
+        "x": 1,
+        "y": 14
+      }
+    ]
+  },
+  "checkpoints": [
+    {
+      "id": "cp-1",
+      "tile": {
+        "x": 28,
+        "y": 1
+      }
+    },
+    {
+      "id": "cp-2",
+      "tile": {
+        "x": 7,
+        "y": 17
+      }
+    }
+  ],
+  "meta": {
+    "title": "Heist 04: Counting House",
+    "parTicks": 3600,
+    "meowRadiusTiles": 6,
+    "investigateTicks": 120,
+    "maxCoins": 24,
+    "twoCatRequired": true,
+    "objectives": [
+      "One cat holds the office plate, the other grabs the key",
+      "Open the vault and free {cat}",
+      "Both cats to the exit"
+    ],
+    "hints": [
+      {
+        "x0": 23,
+        "y0": 1,
+        "x1": 28,
+        "y1": 9,
+        "untilObjective": 0,
+        "text": "Hold the plate by the office door, then {swap}. Mind the dog’s lap."
+      },
+      {
+        "x0": 7,
+        "y0": 13,
+        "x1": 28,
+        "y1": 18,
+        "untilObjective": 1,
+        "text": "Walk into the vault door with the key to open it."
+      }
+    ],
+    "name": "Counting House",
+    "intro": "A fast dog laps the vault. Grab the key from the office and crack the vault between laps.",
+    "idea": "Key and vault with a patrol loop"
+  }
+}

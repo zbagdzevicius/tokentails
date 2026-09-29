@@ -1,0 +1,6 @@
+# Generated files are large and reproducible: run `npm run export-glb`. Keep manifest.json, SUBMISSION.md and the scripts.
+*.glb
+previews/
+.pw-profile/
+.staging-*/
+.export-running

@@ -1,23 +1,29 @@
 # Token Tails Traction
 
-## Web Traction
+All figures below are historical. Peaks are labelled with their period and are not current
+activity. Counts dated April 2026 are the last snapshot taken.
 
-- Peak MAU (GA4 visitors) on web: 307.6k (246.9k new users during a 1-month period)
+## Web Traction (historical)
+
+- Historical peak MAU (GA4 visitors) on web, 2025: 307.6k (246.9k new users during a 1-month period)
 
 ![Peak MAU GA4 visitors and new users](traction-assets/asset-01.png)
 
-- Total registered users: 542k
+- Total registered users, all time, as of April 2026 (self-reported; includes legacy accounts): 542k
 
 ![Total registered users count](traction-assets/asset-02.png)
 
-## On-Chain Traction
+## On-Chain Traction (historical, SEI)
 
 ### Overview
-- Peaked at 324k MAU and 659k weekly transactions ( APP + Web + TG game combined )
+- Historical peak, 2025-26, on the SEI chain: 324k MAU and 659k weekly transactions (APP + Web + TG game combined)
+- This on-chain activity ran on SEI and ended in March 2026. It is not current activity.
 
-https://dune.com/token_tails/sei
+SEI data only (not Stellar): https://dune.com/token_tails/sei
 
-## Social Media Traction
+The current production chain is Stellar. The Dune dashboard above does not include any Stellar data.
+
+## Social Media Traction (as of April 2026)
 
 - 186k followers on X https://x.com/tokentails
 

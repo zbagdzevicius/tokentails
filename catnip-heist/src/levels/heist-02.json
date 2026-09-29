@@ -1,0 +1,281 @@
+{
+  "id": "heist-02",
+  "tiles": [
+    "########################",
+    "#......#...............#",
+    "#......r...........b...#",
+    "#......#......b........#",
+    "#......#.###########.###",
+    "########...............#",
+    "       #..bb.......bb..#",
+    "       #...............#",
+    "       #...............#",
+    "       #...............#",
+    "       #...............#",
+    "       #..b.........b..#",
+    "       #...............#",
+    "       #...............#",
+    "       ########.########",
+    "       #...............#",
+    "       #...............#",
+    "       #..b.........b..#",
+    "       #...............#",
+    "       #...............#",
+    "       #################"
+  ],
+  "catSpawns": [
+    {
+      "x": 2,
+      "y": 2
+    },
+    {
+      "x": 3,
+      "y": 2
+    }
+  ],
+  "guards": [
+    {
+      "id": "g-doorman",
+      "sprite": "brown",
+      "waypoints": [
+        {
+          "x": 15,
+          "y": 9
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 5,
+      "facing": {
+        "x": 0,
+        "y": 1
+      }
+    },
+    {
+      "id": "g-crates",
+      "sprite": "base",
+      "waypoints": [
+        {
+          "x": 8,
+          "y": 18
+        },
+        {
+          "x": 20,
+          "y": 18
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 30,
+      "visionTiles": 3
+    }
+  ],
+  "coins": [
+    {
+      "id": "coin-01",
+      "tile": {
+        "x": 13,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-02",
+      "tile": {
+        "x": 18,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-03",
+      "tile": {
+        "x": 10,
+        "y": 2
+      }
+    },
+    {
+      "id": "coin-04",
+      "tile": {
+        "x": 9,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-05",
+      "tile": {
+        "x": 20,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-06",
+      "tile": {
+        "x": 3,
+        "y": 4
+      }
+    },
+    {
+      "id": "coin-07",
+      "tile": {
+        "x": 13,
+        "y": 5
+      }
+    },
+    {
+      "id": "coin-08",
+      "tile": {
+        "x": 13,
+        "y": 7
+      }
+    },
+    {
+      "id": "coin-09",
+      "tile": {
+        "x": 21,
+        "y": 7
+      }
+    },
+    {
+      "id": "coin-10",
+      "tile": {
+        "x": 9,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-11",
+      "tile": {
+        "x": 14,
+        "y": 11
+      }
+    },
+    {
+      "id": "coin-12",
+      "tile": {
+        "x": 18,
+        "y": 11
+      }
+    },
+    {
+      "id": "coin-13",
+      "tile": {
+        "x": 15,
+        "y": 12
+      }
+    },
+    {
+      "id": "coin-14",
+      "tile": {
+        "x": 12,
+        "y": 16
+      }
+    },
+    {
+      "id": "coin-15",
+      "tile": {
+        "x": 18,
+        "y": 16
+      }
+    },
+    {
+      "id": "coin-16",
+      "tile": {
+        "x": 9,
+        "y": 18
+      }
+    },
+    {
+      "id": "coin-17",
+      "tile": {
+        "x": 15,
+        "y": 18
+      }
+    },
+    {
+      "id": "coin-18",
+      "tile": {
+        "x": 11,
+        "y": 19
+      }
+    },
+    {
+      "id": "coin-19",
+      "tile": {
+        "x": 19,
+        "y": 19
+      }
+    }
+  ],
+  "key": null,
+  "doors": [],
+  "plates": [],
+  "crate": {
+    "id": "crate",
+    "tile": {
+      "x": 21,
+      "y": 19
+    },
+    "catId": "cheesy",
+    "catName": "Biscuit"
+  },
+  "exit": {
+    "id": "exit",
+    "tiles": [
+      {
+        "x": 8,
+        "y": 15
+      },
+      {
+        "x": 9,
+        "y": 15
+      }
+    ]
+  },
+  "checkpoints": [
+    {
+      "id": "cp-1",
+      "tile": {
+        "x": 21,
+        "y": 2
+      }
+    },
+    {
+      "id": "cp-2",
+      "tile": {
+        "x": 9,
+        "y": 16
+      }
+    }
+  ],
+  "meta": {
+    "title": "Heist 02: Kennel Row",
+    "parTicks": 2250,
+    "meowRadiusTiles": 6,
+    "investigateTicks": 180,
+    "maxCoins": 20,
+    "twoCatRequired": false,
+    "objectives": [
+      "Lure the doorman with a meow, then free {cat}",
+      "Both cats to the exit"
+    ],
+    "hints": [
+      {
+        "x0": 8,
+        "y0": 5,
+        "x1": 22,
+        "y1": 8,
+        "untilObjective": 0,
+        "text": "The doorman won’t budge. Press {meow} where it can hear you, then sneak past while it sniffs."
+      },
+      {
+        "x0": 8,
+        "y0": 15,
+        "x1": 22,
+        "y1": 19,
+        "untilObjective": 0,
+        "text": "Press {act} next to the crate to free the shelter cat."
+      }
+    ],
+    "name": "Kennel Row",
+    "intro": "The doorman dog will not budge. Give it something to sniff: a meow lures it away.",
+    "idea": "Meow to lure a guard off its post"
+  }
+}

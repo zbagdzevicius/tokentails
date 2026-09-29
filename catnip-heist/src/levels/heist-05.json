@@ -1,0 +1,432 @@
+{
+  "id": "heist-05",
+  "tiles": [
+    "############################",
+    "#.................#........#",
+    "#.......bb........#........#",
+    "#.................#........#",
+    "#.................#........#",
+    "#....bb...........#........#",
+    "#.................####.#####",
+    "#...........b..............#",
+    "#...............bb.........#",
+    "#..........................#",
+    "#....bb....................#",
+    "#.............b.b..........#",
+    "#..........................#",
+    "#######.bb.................#",
+    "#.....#....................#",
+    "#.....#.............bb.....#",
+    "#.....r....................#",
+    "############################"
+  ],
+  "catSpawns": [
+    {
+      "x": 2,
+      "y": 14
+    },
+    {
+      "x": 3,
+      "y": 14
+    }
+  ],
+  "guards": [
+    {
+      "id": "s-north",
+      "sprite": "brown",
+      "waypoints": [
+        {
+          "x": 14,
+          "y": 4
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 5,
+      "turns": [
+        {
+          "facing": {
+            "x": -1,
+            "y": 0
+          },
+          "ticks": 60
+        },
+        {
+          "facing": {
+            "x": 0,
+            "y": 1
+          },
+          "ticks": 60
+        },
+        {
+          "facing": {
+            "x": 1,
+            "y": 0
+          },
+          "ticks": 60
+        },
+        {
+          "facing": {
+            "x": 0,
+            "y": 1
+          },
+          "ticks": 60
+        }
+      ]
+    },
+    {
+      "id": "s-west",
+      "sprite": "base",
+      "waypoints": [
+        {
+          "x": 8,
+          "y": 8
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 5,
+      "turns": [
+        {
+          "facing": {
+            "x": 0,
+            "y": -1
+          },
+          "ticks": 60
+        },
+        {
+          "facing": {
+            "x": 1,
+            "y": 0
+          },
+          "ticks": 60
+        },
+        {
+          "facing": {
+            "x": 0,
+            "y": 1
+          },
+          "ticks": 60
+        },
+        {
+          "facing": {
+            "x": 1,
+            "y": 0
+          },
+          "ticks": 60
+        }
+      ]
+    },
+    {
+      "id": "s-centre",
+      "sprite": "black",
+      "waypoints": [
+        {
+          "x": 13,
+          "y": 10
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 5,
+      "turns": [
+        {
+          "facing": {
+            "x": 1,
+            "y": 0
+          },
+          "ticks": 60
+        },
+        {
+          "facing": {
+            "x": 0,
+            "y": -1
+          },
+          "ticks": 60
+        },
+        {
+          "facing": {
+            "x": -1,
+            "y": 0
+          },
+          "ticks": 60
+        },
+        {
+          "facing": {
+            "x": 0,
+            "y": 1
+          },
+          "ticks": 60
+        }
+      ]
+    },
+    {
+      "id": "s-east",
+      "sprite": "exotic",
+      "waypoints": [
+        {
+          "x": 20,
+          "y": 12
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 5,
+      "turns": [
+        {
+          "facing": {
+            "x": 0,
+            "y": -1
+          },
+          "ticks": 80
+        },
+        {
+          "facing": {
+            "x": -1,
+            "y": 0
+          },
+          "ticks": 80
+        },
+        {
+          "facing": {
+            "x": 1,
+            "y": 0
+          },
+          "ticks": 80
+        }
+      ]
+    }
+  ],
+  "coins": [
+    {
+      "id": "coin-01",
+      "tile": {
+        "x": 3,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-02",
+      "tile": {
+        "x": 11,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-03",
+      "tile": {
+        "x": 22,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-04",
+      "tile": {
+        "x": 25,
+        "y": 2
+      }
+    },
+    {
+      "id": "coin-05",
+      "tile": {
+        "x": 4,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-06",
+      "tile": {
+        "x": 24,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-07",
+      "tile": {
+        "x": 12,
+        "y": 5
+      }
+    },
+    {
+      "id": "coin-08",
+      "tile": {
+        "x": 4,
+        "y": 7
+      }
+    },
+    {
+      "id": "coin-09",
+      "tile": {
+        "x": 22,
+        "y": 7
+      }
+    },
+    {
+      "id": "coin-10",
+      "tile": {
+        "x": 3,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-11",
+      "tile": {
+        "x": 15,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-12",
+      "tile": {
+        "x": 23,
+        "y": 10
+      }
+    },
+    {
+      "id": "coin-13",
+      "tile": {
+        "x": 22,
+        "y": 11
+      }
+    },
+    {
+      "id": "coin-14",
+      "tile": {
+        "x": 3,
+        "y": 12
+      }
+    },
+    {
+      "id": "coin-15",
+      "tile": {
+        "x": 10,
+        "y": 12
+      }
+    },
+    {
+      "id": "coin-16",
+      "tile": {
+        "x": 17,
+        "y": 13
+      }
+    },
+    {
+      "id": "coin-17",
+      "tile": {
+        "x": 19,
+        "y": 14
+      }
+    },
+    {
+      "id": "coin-18",
+      "tile": {
+        "x": 10,
+        "y": 15
+      }
+    },
+    {
+      "id": "coin-19",
+      "tile": {
+        "x": 3,
+        "y": 16
+      }
+    }
+  ],
+  "key": null,
+  "doors": [
+    {
+      "id": "door-compound",
+      "tile": {
+        "x": 22,
+        "y": 6
+      },
+      "kind": "PLATE",
+      "axis": "h"
+    }
+  ],
+  "plates": [
+    {
+      "id": "plate-h1",
+      "tile": {
+        "x": 21,
+        "y": 3
+      },
+      "doors": [
+        "door-compound"
+      ]
+    },
+    {
+      "id": "plate-h2",
+      "tile": {
+        "x": 25,
+        "y": 8
+      },
+      "doors": [
+        "door-compound"
+      ]
+    }
+  ],
+  "crate": {
+    "id": "crate",
+    "tile": {
+      "x": 25,
+      "y": 1
+    },
+    "catId": "olive",
+    "catName": "Juniper"
+  },
+  "exit": {
+    "id": "exit",
+    "tiles": [
+      {
+        "x": 21,
+        "y": 4
+      },
+      {
+        "x": 22,
+        "y": 4
+      }
+    ]
+  },
+  "checkpoints": [
+    {
+      "id": "cp-1",
+      "tile": {
+        "x": 24,
+        "y": 8
+      }
+    },
+    {
+      "id": "cp-2",
+      "tile": {
+        "x": 12,
+        "y": 14
+      }
+    }
+  ],
+  "meta": {
+    "title": "Heist 05: Watchtower Yard",
+    "parTicks": 2700,
+    "meowRadiusTiles": 6,
+    "investigateTicks": 120,
+    "maxCoins": 20,
+    "twoCatRequired": true,
+    "objectives": [
+      "Cross the yard and leapfrog into the compound to free {cat}",
+      "Both cats to the exit"
+    ],
+    "hints": [
+      {
+        "x0": 1,
+        "y0": 14,
+        "x1": 12,
+        "y1": 16,
+        "untilObjective": 0,
+        "text": "Sentries don’t walk, they turn. Wait for a cone to swing away, then go."
+      }
+    ],
+    "name": "Watchtower Yard",
+    "intro": "Sentry dogs never walk, but they turn like clockwork. Learn the rhythm and cross the yard.",
+    "idea": "Sentry dogs that turn on a schedule"
+  }
+}
