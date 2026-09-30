@@ -1370,7 +1370,7 @@ html[data-portrait-page="true"][data-portrait-variant="playful"] {
 }
 
 /* ---------- Homepage team section (components/landing/TeamSection.tsx) ---------- */
-.pixel-frame {
+.team-pixel-frame {
   --pf: #e2c05a66;
   box-shadow:
     0 -4px 0 0 var(--pf),
@@ -1392,7 +1392,8 @@ html[data-portrait-page="true"][data-portrait-variant="playful"] {
 
 @media (prefers-reduced-motion: no-preference) {
   .team-blink {
-    animation: team-blink 1s steps(2, jump-none) infinite;
+    /* Finite (WCAG 2.2.2): stops within 5s. */
+    animation: team-blink 1s steps(2, jump-none) 5;
   }
   /* Member switch: ring flashes and pops, the photo wipes up inside the circle. */
   .team-token {
@@ -1404,7 +1405,8 @@ html[data-portrait-page="true"][data-portrait-variant="playful"] {
     animation: team-wipe 320ms steps(8) backwards;
   }
   .team-panel-body {
-    animation: team-slide 180ms steps(3) both;
+    /* Photo lands first, then the panel follows. */
+    animation: team-slide 180ms 60ms steps(3) both;
   }
   .team-glint {
     background: linear-gradient(
@@ -1415,7 +1417,8 @@ html[data-portrait-page="true"][data-portrait-variant="playful"] {
     );
     animation: team-glint 520ms steps(6) both;
   }
-  .team[data-phase="pre"] :is(.team-title, .team-stage, .team-slot) {
+  .team[data-phase="pre"]
+    :is(.team-title, .team-stage, .team-slot, .team-roster, .team-panel-wrap) {
     opacity: 0;
   }
   .team[data-phase="in"] .team-title {
@@ -1423,6 +1426,13 @@ html[data-portrait-page="true"][data-portrait-variant="playful"] {
   }
   .team[data-phase="in"] .team-stage {
     animation: team-rise 700ms 150ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .team[data-phase="in"] .team-roster {
+    animation: team-fade 300ms 300ms steps(3) both;
+  }
+  /* The panel arrives after the portrait lands, so the connector never points at empty sky. */
+  .team[data-phase="in"] .team-panel-wrap {
+    animation: team-slide 240ms 500ms steps(3) both;
   }
   .team[data-phase="in"] .team-slot {
     animation: team-deal 240ms steps(4) backwards;
@@ -1491,6 +1501,14 @@ html[data-portrait-page="true"][data-portrait-variant="playful"] {
   to {
     opacity: 1;
     transform: none;
+  }
+}
+@keyframes team-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 @keyframes team-deal {

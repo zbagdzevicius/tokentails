@@ -46,7 +46,7 @@ export function resolveChain(d: ShelterDeployment): ChainInfo | null {
 
 let rpcId = 0;
 
-async function rpcCall<T>(url: string, method: string, params: unknown[]): Promise<T> {
+export async function rpcCall<T>(url: string, method: string, params: unknown[]): Promise<T> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -114,4 +114,11 @@ export async function fetchDeployments(): Promise<ShelterDeployment[]> {
     (d): d is ShelterDeployment =>
       d && typeof d.chainId === "number" && /^0x[0-9a-fA-F]{40}$/.test(d.address || "")
   );
+}
+
+// The contract forwards every donation in the same call, so its native balance should stay 0.
+export async function fetchNativeBalance(d: ShelterDeployment): Promise<bigint> {
+  const chain = resolveChain(d);
+  if (!chain) throw new Error(`no public RPC known for chain ${d.chainId}`);
+  return BigInt(await rpcCall<string>(chain.rpc, "eth_getBalance", [d.address, "latest"]));
 }

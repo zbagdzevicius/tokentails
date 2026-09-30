@@ -22,6 +22,7 @@ Build-time env vars:
 |---|---|
 | `HEIST_BASE` | Deploy path (Vite `base`). Default `./` (relative, works from any directory URL that ends in `/`). Set an absolute sub-path to host elsewhere, e.g. `HEIST_BASE=/tokentails/heist/ npm run build` for GitHub Pages or `HEIST_BASE=/heist/` for tokentails.com/heist/. |
 | `HEIST_PAYOUTS_URL` | Shelter payouts page linked from the win screen ("Every heist funds a real shelter: see payouts"). Default `https://tokentails.com/shelter-payouts`; an empty value hides the link. |
+| `HEIST_GIVE_URL` | Give page behind the win screen's "Send Pink Paw a rescue treat 🐾" button, opened as `?from=heist&cat=<rescued cat>`. Default `/shelter-payouts/give` (same-origin relative, so it works under tokentails.com/heist; on another host such as GitHub Pages set a full URL or an empty value). An empty value hides the button. |
 
 GitHub Pages: `.github/workflows/catnip-heist-pages.yml` (repo root) builds with
 `HEIST_BASE=/<repo>/heist/` and deploys `dist/` to `/<repo>/heist/`. It runs only from the Actions
@@ -369,6 +370,12 @@ The rescue screen shows a read-only on-chain total ("X USDC sent to real shelter
 `src/ui/payouts.ts` reads ShelterSplit's `Disbursed` and `NativeDisbursed` events from public RPCs;
 no wallet is involved. The deployment list is `public/payouts/deployments.json`, written by
 `fund a:ingest` after a deploy. `HEIST_DEPLOYMENTS_URL` overrides it, and an empty value hides the line.
+
+The rescue screen also has one prominent button, "Send Pink Paw a rescue treat 🐾". It only opens
+the client's give page (`/shelter-payouts/give?from=heist&cat=<rescued cat>`), which does the
+one-tap donation through the backend; the game never signs, pays or holds keys. Pink Paw
+(Rožinė pėdutė) is the showcase shelter. Its wallet is created and held by Token Tails on its
+behalf until handover; the give page and payouts page disclose this.
 
 `npm run build:client` builds a copy into `../client/public/heist/` (base `/heist/`) that reads the
 client's `/shelter-payouts/deployments.json` and links to `/shelter-payouts`. The client links to it

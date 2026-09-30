@@ -9,6 +9,7 @@ not at the root. Documentation lives in `docs/`; start with `docs/ARCHITECTURE.m
 | `client/` Next.js 16 + Phaser 4 + Capacitor 7 | `npm run dev` (port 3000) | `npx tsc --noEmit`, `npx eslint .`, `npm test` |
 | `cms/` Next.js 16 | `npm run dev` | `npm test`, `npx eslint .` |
 | `contracts/stellar/soroban-nft/` Rust | `cargo test` | `stellar contract build` |
+| `shelter-rail/` MIT JS SDK + donate widget, no deps (copy `src/widget.js` to `client/public/rail/`) | – | `npm test` |
 
 ## Rules that matter here
 
@@ -38,20 +39,24 @@ How to maintain it:
 | Date | Action | Owner | Status |
 |---|---|---|---|
 | Sep 30 | Anitya Weekly Challenge 2 (heist-01 world) | You | ✅ |
-| Sep 30 | Commit only our paths, push, open the PR; every member registers on colosseum.com; name the Team Leader | You | ⏳ |
-| Oct 1 | Merge the PR; DNS CNAME `catnip` → `zbagdzevicius.github.io`; Pages source "GitHub Actions" + custom domain `catnip.tokentails.com` + Enforce HTTPS; run `catnip-heist-pages`; run `foundryup`; set up the keystore and env; fund the wallets; test the Arc testnet `donate()` | You | ⏳ |
+| Sep 30 | Commit and push everything, fast-forward `main` (69b0a2a8); Vercel deployed tokentails.com with `/shelter-payouts` and `/heist/index.html` live | Both | ✅ |
+| Sep 30 | Every member registers on colosseum.com; name the Team Leader | You | ⏳ |
+| Oct 1 | `catnip.tokentails.com`: dropped; use tokentails.com/heist. Run `foundryup`; set up the keystore and env; fund the wallets; test the Arc testnet `donate()` | You | ⏳ |
 | Oct 1 | Ask Colosseum (Discord or hello@colosseum.com): can one entry win a track and a general prize? Any video narration rules? | You | ⏳ |
 | Oct 2 | Mainnet wave (Arc, Tempo, Arbitrum, Avalanche, plus EURC), Tempo campaign-memo payout, `fund a:ingest` | You | ⏳ |
-| Oct 2 (after the wave) | Commit `catnip-heist/public/payouts/deployments.json` and re-run `catnip-heist-pages`, so catnip.tokentails.com shows the real payout total | You | ⏳ |
-| Oct 3–5 | Payouts page and `/heist/` live; AI fills the drafts and renders the demos; you record the Colosseum pitch | Both | ⏳ |
+| Oct 2 (after the wave) | Commit and push the deployment lists written by `a:ingest` (client and catnip-heist); Vercel redeploys both, so the pages show the real payouts | You | ⏳ |
+| Oct 2–4 | Turn on sponsored donations (`SHELTER_DONATE_*` env on the backend, fund the hot wallet with a small USDC float) | You | ⏳ |
+| Oct 3–5 | AI fills the drafts and renders the demos; you record the Colosseum pitch | Both | ⏳ |
 | **Oct 7** | **Submit Arc Microgrants** (closes Oct 14 23:59 ET = Oct 15 06:59 Vilnius) | You | ⏳ |
 | ~Oct 7, 14, 21 | Anitya weeklies (dates unconfirmed; watch Discord `#jam-submission`) | You | ⏳ |
 | **Oct 11** | **Submit Colosseum** (closes Oct 12 23:59 PT = Oct 13 09:59 Vilnius) | Team Leader | ⏳ |
 | **Oct 20** | **Submit the Anitya main jam**, heist-08 world (closes Oct 21 22:59, zone not shown) | You | ⏳ |
 | by Oct 21 | Arc decisions | – | ⏳ |
 | Oct 22+ | Team1 Avalanche; Circle Grants only after Arc decides (Arc excludes work already funded by Circle) | Both | ⏳ |
+| Oct 22+ | Late Oct: Circle grant application (agentic payments) | You | ⏳ |
 | Oct 31 | Register for Arbitrum Dubai (Oct 31 – Dec 5) and re-score it on the published criteria | You | ⏳ |
 | Nov 16 – Dec 4 | Build and submit Arbitrum Dubai (submissions close Dec 6 16:01, zone not shown) | Both | ⏳ |
+| at handover (before Dec 5) | Pink Paw wallet handover → enable wallet donate (`NEXT_PUBLIC_WALLET_DONATE`) and x402 (`SHELTER_X402_ENABLED`) | You | ⏳ |
 | by Dec 5 | Colosseum winners; hand the shelter wallet over to the shelter | You | ⏳ |
 | ~Dec 13 | Arbitrum Dubai results | – | ⏳ |
 

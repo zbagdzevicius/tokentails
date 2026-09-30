@@ -19,6 +19,9 @@ const nextConfig = {
             { source: "/gaming", destination: "/", permanent: true },
             // Legacy /catbassadors game shell; the same game runs at /game.
             { source: "/catbassadors", destination: "/game", permanent: true },
+            // Catnip Heist is a static build in public/heist; Next.js does not
+            // serve a directory's index.html on its own.
+            { source: "/heist", destination: "/heist/index.html", permanent: false },
           ];
         },
       }),

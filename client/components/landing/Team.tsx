@@ -115,7 +115,7 @@ export const teamMembers: ITeamMember[] = [
     socials: [
       {
         img: SocialImages.LINKEDIN,
-        link: "https://www.linkedin.com/in/igor-plusa/",
+        link: "https://www.linkedin.com/in/domas-gra%C5%A1ys-14736a231/",
       },
     ],
   },

@@ -124,6 +124,66 @@ totals, and returns the fresh snapshot.
 | GET | `/shelter/:id` | Single shelter | Auth |
 | POST | `/shelter` | Create; slugifies name and generates a Stellar wallet | Perm(4) |
 | PUT | `/shelter/:id` | Update | Perm(4) |
+| POST | `/shelter/donate` | Server-paid gift to the shelters through ShelterSplit on Arc. Body `{ source: 'heist' \| 'page' }`, no other keys. One per user per UTC day | Auth, Throttle(10) |
+| GET | `/shelter/donate/status` | `{ enabled, chainId, amountWei, remainingTodayWei, splitAddress }` | Public, Throttle(60) |
+| GET | `/shelter/agent/cat-card` | x402-style paid card for AI agents (see below) | Public, Throttle(30) |
+
+### Shelter gifts on Arc
+
+`POST /shelter/donate` has the Token Tails hot wallet call `ShelterSplit.donate(memo)` with
+`SHELTER_DONATE_AMOUNT_WEI` of native USDC (18 decimals on Arc; gas is also paid in USDC). The player
+pays nothing and signs nothing. The memo is `tt:<source>:<8 random hex>` and carries no personal data.
+
+| Status | Body | When |
+|---|---|---|
+| 200 | `{ txHash, chainId, amountWei, explorerUrl }` | Broadcast; `explorerUrl` is `https://explorer.arc.io/tx/<hash>`. The call returns once broadcast, not once mined |
+| 400 | Validation error | `source` is not `heist` or `page`, or the body has other keys |
+| 429 | `You already sent today's gift. Come back tomorrow!` | This user already has a gift for the current UTC day |
+| 503 | A short message | `SHELTER_DONATE_ENABLED` is off, the split address or hot wallet key is missing, the daily budget is spent, or the broadcast failed (the user may retry) |
+
+The showcase recipient is Pink Paw (Rožinė pėdutė). Its wallet is created and held by Token Tails on
+the shelter's behalf until handover; the split's recipients are set in the contract, not by this API.
+
+### Agent cat card (x402-compatible, `onchain-receipt` scheme)
+
+This is an x402-compatible flow with a custom `onchain-receipt` scheme and no facilitator: standard
+x402 facilitators may not support Arc, so the server verifies the payment itself over RPC. It is off
+(503) unless `SHELTER_X402_ENABLED` is `true`.
+
+1. `GET /shelter/agent/cat-card` without `X-PAYMENT` returns 402:
+
+   ```json
+   {
+     "x402Version": 1,
+     "error": "payment required",
+     "accepts": [{
+       "scheme": "onchain-receipt",
+       "network": "eip155:5042",
+       "maxAmountRequired": "<SHELTER_X402_PRICE_WEI>",
+       "asset": "native",
+       "payTo": "<ShelterSplit address>",
+       "resource": "https://<host>/shelter/agent/cat-card",
+       "description": "One adoptable-cat card; payment goes to shelters via ShelterSplit",
+       "mimeType": "application/json",
+       "maxTimeoutSeconds": 600,
+       "extra": { "memo": "x402:<nonce>", "nonce": "<nonce>" }
+     }]
+   }
+   ```
+
+2. The agent calls `ShelterSplit.donate("x402:<nonce>")` with at least `maxAmountRequired` wei.
+3. The agent retries with `X-PAYMENT: base64(JSON {x402Version: 1, scheme: "onchain-receipt",
+   network: "eip155:<chainId>", payload: {txHash: "0x..", nonce: "<nonce>"}})`.
+4. The server reads the receipt and requires status 1 and `NativeDisbursed` logs from the split
+   address whose memo is `x402:<nonce>`, summing to at least the price. The nonce must be one the
+   server issued, unused and less than 600 seconds old. A tx hash pays for one card only.
+5. 200 returns `{ name, imageUrl, shelterName }` for a random blessing with status `WAITING` (any
+   blessing if none waits), plus header `X-PAYMENT-RESPONSE: base64(JSON {success: true, txHash})`.
+
+Any rejected payment (bad header, unknown or expired nonce, receipt missing, reverted or short, tx
+already used) is a 402 whose `error` says why and whose `accepts` carries a fresh nonce. A receipt
+that is not mined yet does not use up the nonce, so the agent can retry with the same header. 503
+means the feature is off or there is no card to sell.
 
 ## Images, portraits, checkout
 

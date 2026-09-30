@@ -1,5 +1,7 @@
 # Builds catnip-heist/ and deploys it to GitHub Pages.
-# - With `domain` set (e.g. catnip.tokentails.com) the game is served at the domain root and a CNAME
+# - The main home is tokentails.com/heist (served by the client app). The catnip.tokentails.com
+#   subdomain is deprecated, so `domain` defaults to empty.
+# - With `domain` set the game is served at the domain root and a CNAME
 #   file is published. DNS: a CNAME record `catnip` -> `<owner>.github.io`; then set the same custom
 #   domain under Settings > Pages and tick "Enforce HTTPS".
 # - With `domain` empty it is served at /<repo>/heist/ (e.g. /tokentails/heist/).
@@ -11,13 +13,17 @@ on:
   workflow_dispatch:
     inputs:
       domain:
-        description: Custom domain served at its root (empty = /<repo>/heist/)
+        description: Custom domain served at its root (empty = /<repo>/heist/; catnip.tokentails.com is deprecated)
         required: false
-        default: catnip.tokentails.com
+        default: ''
       payouts_url:
         description: Shelter payouts page linked from the win screen
         required: false
         default: https://tokentails.com/shelter-payouts
+      give_url:
+        description: Give page behind the win screen's rescue-treat button (empty hides the button)
+        required: false
+        default: https://tokentails.com/shelter-payouts/give
 
 permissions:
   contents: read
@@ -38,6 +44,8 @@ jobs:
       HEIST_DOMAIN: ${{ inputs.domain }}
       HEIST_BASE: ${{ inputs.domain != '' && '/' || format('/{0}/heist/', github.event.repository.name) }}
       HEIST_PAYOUTS_URL: ${{ inputs.payouts_url }}
+      # Absolute on Pages: the default same-origin path would point at the github.io root.
+      HEIST_GIVE_URL: ${{ inputs.give_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -298,6 +298,11 @@ const CSS = /* css */ `
 .ch-rescue p { margin: 0; font-size: clamp(17px, 1.5vw + 10px, 24px); color: var(--ch-mint); text-align: left; }
 .ch-rescue p small { display: block; font-size: .62em; color: var(--ch-lilac); font-family: system-ui, sans-serif; margin-top: 3px; }
 .ch-rescue .ch-payouts { display: block; margin-top: 4px; font-size: .6em; font-family: system-ui, sans-serif; color: var(--ch-coin); text-decoration: underline; text-underline-offset: 2px; pointer-events: auto; }
+.ch-rescue .ch-give { display: inline-block; margin-top: 8px; padding: 9px 16px; border: 3px solid var(--ch-ol); border-radius: 14px; background: var(--ch-pink); color: var(--ch-ol); font-size: .62em; font-weight: 800; font-family: system-ui, sans-serif; text-decoration: none; box-shadow: 0 4px 0 var(--ch-ol); pointer-events: auto; animation: ch-give-wiggle 2.4s ease-in-out 1.2s infinite; }
+.ch-rescue .ch-give:hover, .ch-rescue .ch-give:focus-visible { background: #ffb3cf; transform: translateY(-2px) rotate(-1deg); animation-play-state: paused; }
+.ch-rescue .ch-give:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--ch-ol); }
+@keyframes ch-give-wiggle { 0%, 88%, 100% { transform: rotate(0); } 91% { transform: rotate(-3deg) scale(1.04); } 94% { transform: rotate(3deg) scale(1.04); } 97% { transform: rotate(-1deg); } }
+.ch-reduced .ch-rescue .ch-give { animation: none; }
 .ch-rescue .ch-payouts-total { display: block; margin-top: 2px; font-size: .55em; font-family: system-ui, sans-serif; color: var(--ch-cream); opacity: .85; }
 .ch-rescue .ch-payouts-total:empty { display: none; }
 .ch-rescue .ch-payouts:hover, .ch-rescue .ch-payouts:focus-visible { color: var(--ch-cream); }

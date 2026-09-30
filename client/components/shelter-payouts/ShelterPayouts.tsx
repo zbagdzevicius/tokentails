@@ -1,12 +1,20 @@
+import NextLink from "next/link";
 import { useEffect, useState } from "react";
+import { CampaignMeter } from "./CampaignMeter";
+import { Campaign, campaignProgress, fetchCampaign } from "./campaign";
 import { explorerAddress, explorerTx } from "./chains";
 import { Disbursement, formatUnits, payoutUnit, to18 } from "./logs";
 import {
   ShelterDeployment,
   fetchDeployments,
   fetchDisbursements,
+  fetchNativeBalance,
   resolveChain,
 } from "./rpc";
+import { ShelterProfile } from "./ShelterProfile";
+import { WalletDonate } from "./WalletDonate";
+
+export const GIVE_URL = "/shelter-payouts/give";
 
 // Static Catnip Heist build in public/heist (catnip-heist: npm run build:client). Next.js does
 // not serve index.html for a directory, so the link names the file.
@@ -55,12 +63,39 @@ const Link = ({ href, text }: { href: string; text: string }) => (
   </a>
 );
 
+type Balance = { status: "loading" } | { status: "error" } | { status: "done"; wei: bigint };
+
+// ShelterSplit forwards every donation in the same transaction, so this should read 0.
+const BalanceLine = ({
+  balance,
+  symbol,
+  decimals,
+}: {
+  balance: Balance;
+  symbol: string;
+  decimals: number;
+}) => (
+  <p className="mt-1 opacity-90" data-testid="contract-balance">
+    Contract balance:{" "}
+    {balance.status === "loading" && <span className="animate-pulse">…</span>}
+    {balance.status === "error" && <span>unavailable</span>}
+    {balance.status === "done" && (
+      <strong>
+        {formatUnits(balance.wei, decimals)} {symbol}
+      </strong>
+    )}{" "}
+    (pass-through: donations are split out in the same transaction)
+  </p>
+);
+
 const DeploymentCard = ({
   deployment,
   result,
+  balance,
 }: {
   deployment: ShelterDeployment;
   result: Result;
+  balance: Balance;
 }) => {
   const chain = resolveChain(deployment);
   const explorer = chain?.explorer;
@@ -87,6 +122,11 @@ const DeploymentCard = ({
           )}
         </div>
       </div>
+      <BalanceLine
+        balance={balance}
+        symbol={chain?.nativeSymbol || ""}
+        decimals={chain?.nativeDecimals ?? 18}
+      />
 
       {result.status === "loading" && (
         <p className="mt-3 animate-pulse">Reading payouts from the chain…</p>
@@ -154,15 +194,23 @@ const DeploymentCard = ({
 export const ShelterPayouts = () => {
   const [page, setPage] = useState<Page>({ status: "loading" });
   const [results, setResults] = useState<Record<number, Result>>({});
+  const [balances, setBalances] = useState<Record<number, Balance>>({});
+  const [campaign, setCampaign] = useState<Campaign | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    fetchCampaign()
+      .then((c) => !cancelled && setCampaign(c))
+      .catch(() => undefined); // the campaign block is optional; the payouts still render
     fetchDeployments()
       .then((deployments) => {
         if (cancelled) return;
         setPage({ status: "done", deployments });
         deployments.forEach((d, i) => {
           setResults((r) => ({ ...r, [i]: { status: "loading" } }));
+          fetchNativeBalance(d)
+            .then((wei) => !cancelled && setBalances((b) => ({ ...b, [i]: { status: "done", wei } })))
+            .catch(() => !cancelled && setBalances((b) => ({ ...b, [i]: { status: "error" } })));
           fetchDisbursements(d)
             .then((items) => {
               if (!cancelled) setResults((r) => ({ ...r, [i]: { status: "done", items } }));
@@ -198,6 +246,21 @@ export const ShelterPayouts = () => {
     page.status === "done" &&
     page.deployments.some((_, i) => results[i]?.status !== "done" && results[i]?.status !== "error");
 
+  const deployments = page.status === "done" ? page.deployments : [];
+  const progress = campaign
+    ? campaignProgress(
+        campaign,
+        deployments.flatMap((d, i) => {
+          const r = results[i];
+          return r?.status === "done" ? [{ chainId: d.chainId, items: r.items }] : [];
+        })
+      )
+    : null;
+  const campaignDeployment = campaign
+    ? deployments.find((d) => d.chainId === campaign.chainId)
+    : undefined;
+  const campaignChain = campaignDeployment ? resolveChain(campaignDeployment) : null;
+
   return (
     <div className="flex w-full max-w-4xl flex-col items-center gap-4 px-4 pb-16">
       <h2 className="text-center font-primary uppercase tracking-tight text-h6 md:text-h2 text-balance">
@@ -210,6 +273,13 @@ export const ShelterPayouts = () => {
         Every payout from the ShelterSplit contract is read live from the chain.
         Nothing on this page comes from our servers.
       </p>
+      <NextLink
+        href={GIVE_URL}
+        className="rounded-xl border-2 border-yellow-900 bg-pink-400 px-4 py-2 font-primary uppercase text-p4 text-black hover:brightness-105"
+        data-testid="give-treat"
+      >
+        Send Pink Paw a rescue treat 🐾
+      </NextLink>
       <a
         href={HEIST_URL}
         className="rounded-xl border-2 border-yellow-900 bg-black/60 px-4 py-2 font-primary uppercase text-p4 hover:text-yellow-300"
@@ -223,6 +293,21 @@ export const ShelterPayouts = () => {
       >
         {DISCLOSURE}
       </p>
+
+      {campaign && (
+        <ShelterProfile campaign={campaign} explorer={campaignChain?.explorer} />
+      )}
+      {campaign && progress && (
+        <CampaignMeter campaign={campaign} progress={progress} loading={pending} />
+      )}
+      {campaign && campaignDeployment && campaignChain && (
+        <WalletDonate
+          chainId={campaignDeployment.chainId}
+          chain={campaignChain}
+          splitAddress={campaignDeployment.address}
+          shelterName={campaign.shelter.name}
+        />
+      )}
 
       {page.status === "loading" && (
         <p className="font-secondary text-p5 animate-pulse">Loading deployments…</p>
@@ -259,6 +344,7 @@ export const ShelterPayouts = () => {
               key={`${d.chainId}-${d.address}`}
               deployment={d}
               result={results[i] || { status: "loading" }}
+              balance={balances[i] || { status: "loading" }}
             />
           ))}
         </>

@@ -58,18 +58,25 @@ export const TEAM_EXTRAS: Record<string, ITeamExtra> = {
     quest:
       "Party leader. Leads product and engineering across web, iOS and Android.",
     // The source photo has a neon ring baked in; zoom past it so it doesn't double our frame.
-    imgClass: "scale-[1.5] origin-[50%_45%]",
+    imgClass: "scale-[1.85] origin-[42%_40%]",
   },
-  Arturas: { guild: "BUILD", quest: "Builds the AI behind the cat avatars." },
+  Arturas: {
+    guild: "BUILD",
+    quest: "Builds the AI behind the cat avatars.",
+    imgClass: "scale-[1.2] origin-[50%_30%]",
+  },
   Ernest: {
     guild: "BUILD",
     quest: "Leads the game: the mini-games that turn play into rescues.",
+    // Source is a small figure in a wide landscape; crop to head and shoulders like the rest.
+    imgClass: "scale-[1.8] origin-[48%_42%]",
   },
   Lukas: { guild: "BUILD", quest: "Leads the web app you are on right now." },
   Domas: { guild: "BUILD", quest: "Draws the pixel worlds and their cats." },
   "Sky Wee": {
     guild: "GROWTH",
     quest: "Business development: partners, shelters and investors.",
+    imgClass: "scale-[1.3] origin-[50%_35%]",
   },
   Igor: { guild: "GROWTH", quest: "Marketing: grows the cat-lover community." },
   Marcin: { guild: "LEGAL", quest: "Keeps every rescue and payout by the book." },
@@ -127,7 +134,7 @@ const socialLabel = (img: string) => SOCIAL_LABELS[img] ?? "Link";
 
 // Copied from ProofSection on purpose: ProofSection is mocked in page tests.
 const CHIP =
-  "inline-flex items-center gap-1.5 rounded-full border border-yellow-300/40 bg-black/45 backdrop-blur-sm px-3 py-1 3xl:px-5 3xl:py-2 3xl:gap-2.5 font-primary uppercase tracking-widest text-p6 3xl:text-p4 text-yellow-50";
+  "inline-flex items-center gap-1.5 rounded-full border border-yellow-300/40 bg-black/45 backdrop-blur-sm px-3 py-1 3xl:px-5 3xl:py-2 3xl:gap-2.5 font-primary uppercase tracking-[0.12em] md:tracking-widest text-[12px] md:text-p6 3xl:text-p4 text-yellow-50";
 
 const guildOf = (m: ITeamMember) => TEAM_EXTRAS[m.name]?.guild ?? "BUILD";
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -147,7 +154,7 @@ const StatBar = ({ label, value }: IStatBar) => {
   const filled = value === "∞" ? 10 : Math.max(0, Math.min(10, value));
   return (
     <div>
-      <div className="flex justify-between font-primary text-p6 3xl:text-p4 uppercase leading-none mb-1">
+      <div className="flex justify-between font-primary text-[12px] md:text-p6 3xl:text-p4 uppercase leading-none mb-1">
         <span>{label}</span>
         <span aria-hidden>{value === "∞" ? "∞" : `${value}/10`}</span>
       </div>
@@ -168,6 +175,14 @@ const StatBar = ({ label, value }: IStatBar) => {
   );
 };
 
+/** Social row columns at lg+, so every button in a row is the same width (4 links → 2×2). */
+const SOCIAL_COLS: Record<number, string> = {
+  1: "lg:grid-cols-1",
+  2: "lg:grid-cols-2",
+  3: "lg:grid-cols-3",
+  4: "lg:grid-cols-2",
+};
+
 const CrewPanel = ({ member, index }: { member: ITeamMember; index: number }) => {
   const extra = TEAM_EXTRAS[member.name];
   const guild = GUILD_META[guildOf(member)];
@@ -177,13 +192,14 @@ const CrewPanel = ({ member, index }: { member: ITeamMember; index: number }) =>
       role="tabpanel"
       id="team-panel"
       aria-labelledby={`team-tab-${index}`}
-      className="pixel-frame [--pf:#713f12] relative bg-yellow-300 text-yellow-900 overflow-hidden"
+      tabIndex={0}
+      className="team-pixel-frame [--pf:#713f12] relative bg-yellow-300 text-yellow-900 overflow-hidden focus-visible:outline-dashed focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-[8px]"
     >
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none bg-[repeating-linear-gradient(0deg,rgba(0,0,0,.05)_0_1px,transparent_1px_3px)]"
       />
-      <div className="relative bg-[#e2c05a] px-4 py-2 3xl:px-6 3xl:py-3 font-primary uppercase text-p6 3xl:text-p4 tracking-widest flex justify-between items-center">
+      <div className="relative bg-[#e2c05a] px-4 py-2 3xl:px-6 3xl:py-3 font-primary uppercase text-[12px] md:text-p6 3xl:text-p4 tracking-[0.12em] md:tracking-widest flex justify-between items-center">
         <span>
           Player {pad2(index + 1)} / {pad2(members.length)}
         </span>
@@ -200,11 +216,8 @@ const CrewPanel = ({ member, index }: { member: ITeamMember; index: number }) =>
           {member.name}
         </h3>
         <div className="flex flex-wrap gap-2">
-          <span className="border-2 border-yellow-900 rounded-md px-2 3xl:px-3 3xl:py-0.5 font-primary text-p6 3xl:text-p4 uppercase">
+          <span className="border-2 border-yellow-900 rounded-md px-2 3xl:px-3 3xl:py-0.5 font-primary text-[12px] md:text-p6 3xl:text-p4 uppercase">
             {member.role}
-          </span>
-          <span className="border-2 border-yellow-900 rounded-md px-2 3xl:px-3 3xl:py-0.5 font-primary text-p6 3xl:text-p4 uppercase">
-            {guild.label} guild
           </span>
         </div>
         {extra?.quest && (
@@ -218,26 +231,30 @@ const CrewPanel = ({ member, index }: { member: ITeamMember; index: number }) =>
           </div>
         )}
         {!isCat && member.socials.length > 0 && (
-          <ul className="flex flex-wrap gap-3 pt-1">
+          <ul
+            className={`flex flex-wrap gap-3 pt-1 lg:grid ${
+              SOCIAL_COLS[member.socials.length] ?? "lg:grid-cols-3"
+            }`}
+          >
             {member.socials.map((s) => {
               const label = socialLabel(s.img);
               return (
-                <li key={s.link}>
+                <li key={s.link} className="min-w-0">
                   <a
                     href={s.link}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`${member.name} on ${label} (opens in new tab)`}
-                    className="pixel-frame [--pf:#713f12] inline-flex items-center justify-center gap-2 min-h-[48px] min-w-[48px] lg:px-3 3xl:min-h-[64px] 3xl:px-4 bg-yellow-200 hover:brightness-110 hover:-translate-y-0.5 transition-transform [transition-timing-function:steps(2)] duration-100 motion-reduce:transform-none focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-yellow-900"
+                    className="team-pixel-frame [--pf:#713f12] inline-flex items-center justify-center gap-2 min-h-[48px] min-w-[48px] lg:w-full lg:px-2 3xl:min-h-[64px] 3xl:px-4 bg-yellow-200 hover:brightness-110 hover:-translate-y-0.5 transition-transform [transition-timing-function:steps(2)] duration-100 motion-reduce:transform-none focus-visible:outline-dashed focus-visible:outline-2 focus-visible:outline-offset-[6px] focus-visible:outline-yellow-900"
                   >
                     <img
                       src={s.img}
                       alt=""
-                      className="w-[26px] h-[26px] 3xl:w-9 3xl:h-9 object-contain"
+                      className="shrink-0 w-[26px] h-[26px] 3xl:w-9 3xl:h-9 object-contain"
                     />
                     <span
                       aria-hidden
-                      className="hidden lg:inline font-primary uppercase text-p6 3xl:text-p4 tracking-wider"
+                      className="hidden lg:inline font-primary uppercase text-p6 3xl:text-p4 tracking-normal truncate"
                     >
                       {label}
                     </span>
@@ -252,12 +269,23 @@ const CrewPanel = ({ member, index }: { member: ITeamMember; index: number }) =>
   );
 };
 
+/** Members split by guild, keeping each member's global tab index. TEAM_ORDER is guild-contiguous. */
+const GROUPS = GUILD_ORDER.map((guild) => ({
+  guild,
+  items: members
+    .map((m, i) => ({ m, i }))
+    .filter(({ m }) => guildOf(m) === guild),
+})).filter((g) => g.items.length > 0);
+
 export const TeamSection = () => {
   const [selected, setSelected] = useState(0);
+  const [prevIdx, setPrevIdx] = useState<number | null>(null);
   const [phase, setPhase] = useState<Phase>("static");
   const sectionRef = useRef<HTMLElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const ctaRef = useRef<HTMLAnchorElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const selectedRef = useRef(0);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPointer = useRef<string>("");
 
@@ -267,6 +295,12 @@ export const TeamSection = () => {
   };
 
   useEffect(() => clearHover, []);
+
+  // The CTA wraps the shared PixelButton in a link. Take the inner button out of the tab order
+  // so the link is one stop; `inert` would also kill the button's hover effect.
+  useEffect(() => {
+    ctaRef.current?.querySelector("button")?.setAttribute("tabindex", "-1");
+  }, []);
 
   useEffect(() => {
     const el = sectionRef.current;
@@ -310,7 +344,14 @@ export const TeamSection = () => {
     };
   }, []);
 
-  const select = (i: number) => setSelected(i);
+  const select = (i: number) => {
+    const cur = selectedRef.current;
+    if (cur === i) return;
+    selectedRef.current = i;
+    // The previous photo stays under the new one, so the wipe never shows an empty disc.
+    setPrevIdx(cur);
+    setSelected(i);
+  };
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const last = members.length - 1;
@@ -347,8 +388,107 @@ export const TeamSection = () => {
 
   const member = members[selected] ?? members[0];
   if (!member) return null;
+  const prevMember = prevIdx === null ? null : members[prevIdx];
   const guildColor = GUILD_META[guildOf(member)].color;
   const memberImgClass = TEAM_EXTRAS[member.name]?.imgClass ?? "";
+
+  const renderTile = (m: ITeamMember, i: number, firstOfGuild: boolean) => {
+    const sel = i === selected;
+    const g = guildOf(m);
+    const color = GUILD_META[g].color;
+    const imgClass = TEAM_EXTRAS[m.name]?.imgClass ?? "";
+    return (
+      <button
+        key={m.name}
+        ref={(el) => {
+          tabRefs.current[i] = el;
+        }}
+        type="button"
+        role="tab"
+        id={`team-tab-${i}`}
+        aria-selected={sel}
+        aria-controls="team-panel"
+        tabIndex={sel ? 0 : -1}
+        data-selected={sel}
+        onPointerDown={(e) => {
+          lastPointer.current = e.pointerType;
+        }}
+        onClick={() => onClick(i)}
+        onFocus={() => select(i)}
+        onPointerEnter={onPointerEnter(i)}
+        onPointerLeave={clearHover}
+        style={
+          {
+            "--pf": sel ? "#ffcc55" : "#3a2d5c",
+            "--i": i,
+          } as CSSProperties
+        }
+        className="team-slot team-pixel-frame group relative flex flex-col items-center gap-1 md:gap-1.5 min-w-0 min-h-[60px] bg-[#1e1633]/85 px-1 pt-1.5 pb-1 md:p-2 md:pt-3 text-center transition-transform [transition-timing-function:steps(3)] duration-150 hover:-translate-y-1 data-[selected=true]:-translate-y-1 data-[selected=true]:bg-[#2a1f45] motion-reduce:transform-none focus-visible:outline-dashed focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-4 md:focus-visible:outline-offset-[8px]"
+      >
+        {firstOfGuild && (
+          <span
+            aria-hidden
+            className="2xl:hidden absolute inset-x-0 -top-1 h-1 pointer-events-none"
+            style={{ backgroundColor: color }}
+          />
+        )}
+        <span
+          aria-hidden
+          className="relative shrink-0 block w-full max-w-[52px] aspect-square md:max-w-none md:w-20 md:h-20 lg:w-24 lg:h-24 3xl:w-32 3xl:h-32 rounded-full p-[3px]"
+          style={{
+            background: `radial-gradient(circle at 50% 30%, ${color}, ${color}55 70%)`,
+          }}
+        >
+          <span className="block w-full h-full rounded-full overflow-hidden bg-[#1e1633]">
+            <img
+              src={m.img}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className={`w-full h-full object-cover saturate-[.85] brightness-95 transition-[filter] duration-150 group-hover:saturate-100 group-hover:brightness-110 group-data-[selected=true]:saturate-100 group-data-[selected=true]:brightness-110 ${imgClass}`}
+            />
+          </span>
+          {g === "MORALE" && (
+            <span
+              className="absolute -bottom-1 -right-1 grid place-items-center w-5 h-5 md:w-6 md:h-6 3xl:w-8 3xl:h-8 rounded-full border-2 border-[#120d1f]"
+              style={{ backgroundColor: color }}
+            >
+              <img
+                src={GUILD_META.MORALE.icon}
+                alt=""
+                className="w-3 h-3 md:w-3.5 md:h-3.5 3xl:w-5 3xl:h-5 object-contain"
+              />
+            </span>
+          )}
+        </span>
+        <span className="min-w-0 w-full">
+          <span className="block font-primary font-bold text-[11px] tracking-tight md:tracking-normal md:text-p5 lg:text-p4 3xl:text-p2 text-yellow-50 truncate leading-tight">
+            {m.name}
+          </span>{" "}
+          {/* Phones show photo + name only; the role is in the panel above. */}
+          <span className="sr-only md:not-sr-only md:block font-primary uppercase md:text-[12px] lg:text-p6 3xl:text-p4 tracking-wide leading-tight text-yellow-100/85 md:line-clamp-2">
+            {m.role}
+          </span>
+        </span>
+        {sel && (
+          <>
+            <span
+              aria-hidden
+              className="absolute -top-5 3xl:-top-7 left-1/2 -translate-x-1/2 text-[#ffcc55] text-p6 3xl:text-p4 team-blink hidden md:block"
+            >
+              ▼
+            </span>
+            <span
+              aria-hidden
+              className="absolute inset-0 overflow-hidden pointer-events-none"
+            >
+              <span className="team-glint absolute inset-y-0 -left-1/2 w-1/2" />
+            </span>
+          </>
+        )}
+      </button>
+    );
+  };
 
   return (
     <section
@@ -380,15 +520,15 @@ export const TeamSection = () => {
       <div className="relative z-10 px-4 md:px-8 pt-12 md:pt-16 lg:pt-20 3xl:pt-28 pb-24 3xl:pb-40">
         {/* HEADER */}
         <header className="relative z-20 max-w-[900px] 3xl:max-w-[1300px] mx-auto text-center">
-          <p className="font-primary uppercase tracking-[0.2em] text-p6 md:text-p5 3xl:text-p3 text-yellow-100/90 max-w-[62ch] text-balance mx-auto drop-shadow-lg">
+          <p className="font-primary uppercase tracking-[0.12em] text-p5 md:text-p4 3xl:text-p2 text-yellow-100/90 max-w-[62ch] text-balance mx-auto drop-shadow-lg">
             <span aria-hidden className="text-[#ffcc55] team-blink inline-block mr-2">
               ▼
             </span>
-            Every card above is a real cat. Press start to meet the crew
+            Meet the party behind every rescue
           </p>
           <h2
             id="team-title"
-            className="mt-4 font-paws uppercase text-yellow-300 glow text-balance leading-[0.95] text-h5 md:text-h3 lg:text-h2 3xl:text-h1 team-title"
+            className="mt-4 font-paws uppercase text-yellow-300 glow text-balance leading-[0.95] [word-spacing:0.3em] text-h5 md:text-h3 lg:text-h2 3xl:text-h1 team-title"
           >
             United To Save Cats
           </h2>
@@ -427,13 +567,17 @@ export const TeamSection = () => {
           </ul>
         </header>
 
-        {/* STAGE + PANEL. The box is the stage's width, so the xl overlay tracks the stage at any size. */}
-        <div className="-mx-4 md:-mx-8 mt-6 md:mt-8 lg:-mt-[min(7%,150px)]">
-          <div className="relative mx-auto w-full max-w-[1920px]">
-            <div className="relative w-full aspect-[16/11] md:aspect-[16/9] lg:aspect-[2752/1536] pointer-events-none team-stage lg:[mask-image:linear-gradient(90deg,transparent,#000_6%,#000_94%,transparent)]">
+        {/*
+          STAGE, ROSTER, PANEL. DOM order is roster before panel so Tab goes tab -> panel -> links -> CTA;
+          flex `order` puts the panel between stage and roster below xl. From xl the panel box is the
+          stage's size and position, so the overlay tracks the stage at any width.
+        */}
+        <div className="relative flex flex-col -mx-4 md:-mx-8 mt-6 md:mt-8 lg:-mt-[min(16%,300px)]">
+          <div className="order-1 relative mx-auto w-full max-w-[1920px]">
+            <div className="relative w-full aspect-[16/11] md:aspect-[16/9] lg:aspect-[2752/1320] pointer-events-none team-stage [mask-image:linear-gradient(180deg,#000_84%,transparent)] lg:[mask-image:linear-gradient(90deg,transparent,#000_6%,#000_94%,transparent),linear-gradient(180deg,transparent,#000_12%,#000_78%,transparent)] lg:[mask-composite:intersect] lg:[-webkit-mask-composite:source-in]">
               <div
                 aria-hidden
-                className="absolute inset-0 bg-[radial-gradient(ellipse_45%_35%_at_50%_72%,rgba(255,204,85,.35),transparent_70%)] xl:bg-[radial-gradient(ellipse_32%_38%_at_38%_70%,rgba(255,204,85,.38),transparent_70%)] motion-safe:animate-pulseWeak"
+                className="absolute inset-0 bg-[radial-gradient(ellipse_45%_35%_at_50%_72%,rgba(255,204,85,.35),transparent_70%)] lg:bg-[radial-gradient(ellipse_45%_40%_at_50%_67%,rgba(255,204,85,.35),transparent_70%)] xl:bg-[radial-gradient(ellipse_32%_44%_at_38%_65%,rgba(255,204,85,.38),transparent_70%)] motion-safe:animate-pulseWeak"
               />
               <img
                 src={cdnFile("landing/hero-ground.webp")}
@@ -445,10 +589,11 @@ export const TeamSection = () => {
               />
               <div
                 aria-hidden
-                className="absolute bottom-[33%] md:bottom-[27%] lg:bottom-[24%] left-1/2 xl:left-[38%] -translate-x-1/2 w-[18%] xl:w-[14%] max-w-[220px] h-[3%] rounded-[50%] bg-black/45 blur-sm"
+                className="absolute bottom-[33%] md:bottom-[27%] lg:bottom-[28%] left-1/2 xl:left-[38%] -translate-x-1/2 w-[18%] xl:w-[14%] max-w-[220px] h-[3%] rounded-[50%] bg-black/45 blur-sm"
               />
               {/* Outer div centres; inner div floats. Keeping them apart stops the float keyframes overriding the centring transform. */}
-              <div className="absolute left-1/2 xl:left-[38%] -translate-x-1/2 bottom-[33%] md:bottom-[29%] lg:bottom-[26%] h-[50%] md:h-[38%] lg:h-[39%] max-h-[220px] lg:max-h-[260px] 3xl:max-h-[320px] aspect-square">
+              {/* Capped near the source photos' resolution so they aren't blown up. */}
+              <div className="absolute left-1/2 xl:left-[38%] -translate-x-1/2 bottom-[33%] md:bottom-[29%] lg:bottom-[30%] h-[50%] md:h-[38%] lg:h-[45%] max-h-[220px] 3xl:max-h-[260px] aspect-square">
                 <div className="w-full h-full motion-safe:animate-hover">
                   <div
                     key={member.name}
@@ -457,26 +602,94 @@ export const TeamSection = () => {
                       boxShadow: `0 0 0 4px ${guildColor}, 0 0 0 8px #120d1f, 0 0 0 10px ${guildColor}88, 0 0 24px 10px ${guildColor}66, 0 0 60px 20px rgba(255,204,85,.25)`,
                     }}
                   >
-                    <div className="w-full h-full rounded-full overflow-hidden bg-[#1e1633]">
+                    <div className="relative w-full h-full rounded-full overflow-hidden bg-[#1e1633]">
+                      {prevMember && prevMember !== member && (
+                        <img
+                          src={prevMember.img}
+                          alt=""
+                          aria-hidden
+                          decoding="async"
+                          className={`absolute inset-0 w-full h-full object-cover ${
+                            TEAM_EXTRAS[prevMember.name]?.imgClass ?? ""
+                          }`}
+                        />
+                      )}
                       <img
                         src={member.img}
                         alt={`${member.name}, ${member.role}`}
-                        loading="lazy"
                         decoding="async"
-                        className={`team-token-img w-full h-full object-cover ${memberImgClass}`}
+                        className={`team-token-img relative w-full h-full object-cover ${memberImgClass}`}
+                      />
+                      {/* Pixel grid ties the photo into the pixel art and hides low source resolution. */}
+                      <span
+                        aria-hidden
+                        className="absolute inset-0 rounded-full pointer-events-none mix-blend-multiply opacity-40 bg-[repeating-linear-gradient(0deg,#0003_0_2px,transparent_2px_4px),repeating-linear-gradient(90deg,#0002_0_2px,transparent_2px_4px)]"
+                      />
+                      <span
+                        aria-hidden
+                        className="absolute inset-0 rounded-full pointer-events-none shadow-[inset_0_0_24px_8px_rgba(18,13,31,.7)]"
                       />
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* PANEL: in flow under the stage below xl; beside the portrait, joined by a connector, from xl. */}
-            <div className="relative z-30 px-4 md:px-8 -mt-8 md:-mt-14 lg:-mt-[12%] xl:mt-0 xl:px-0 xl:absolute xl:inset-x-0 xl:top-0 xl:aspect-[2752/1536] xl:pointer-events-none">
-              <div
-                ref={panelRef}
-                className="relative mx-auto max-w-md md:max-w-lg scroll-mt-4 xl:mx-0 xl:max-w-none xl:absolute xl:pointer-events-auto xl:w-[clamp(340px,28%,440px)] xl:left-[calc(38%+min(10.9%,130px)+48px)] xl:top-[calc(74%-min(19.5%,130px))] xl:-translate-y-1/2 3xl:w-[560px] 3xl:left-[calc(38%+160px+64px)] 3xl:top-[calc(74%-160px)]"
-              >
+          {/* ROSTER */}
+          <div className="order-3 relative z-20 px-4 md:px-8 mt-6 xl:-mt-[3%]">
+            <div
+              role="tablist"
+              aria-label="Team members"
+              onKeyDown={onKeyDown}
+              className="team-roster mx-auto bg-[#120d1f]/70 backdrop-blur-[2px] p-2 md:p-4 3xl:p-6 max-w-[560px] md:max-w-[880px] lg:max-w-[1000px] 2xl:max-w-[1480px] 3xl:max-w-[1900px] [--tg:16px] 3xl:[--tg:20px]"
+            >
+              <div className="grid grid-cols-5 gap-x-1.5 gap-y-3 md:gap-4 2xl:flex 2xl:gap-[calc(var(--tg)*2.5)] 2xl:pt-1">
+                {GROUPS.map(({ guild, items }) => (
+                  <div
+                    key={guild}
+                    role="none"
+                    className="contents 2xl:flex 2xl:flex-col 2xl:gap-6 3xl:gap-8 2xl:min-w-0"
+                    // Grow by member count from a basis of the inner gaps, so every tile ends up the same width.
+                    style={{
+                      flex: `${items.length} 1 calc(${items.length - 1} * var(--tg))`,
+                    }}
+                  >
+                    <span
+                      aria-hidden
+                      className="hidden 2xl:flex items-center gap-2 font-primary font-bold uppercase text-p5 3xl:text-p3 tracking-widest"
+                      style={{ color: GUILD_META[guild].color }}
+                    >
+                      <img
+                        src={GUILD_META[guild].icon}
+                        alt=""
+                        className="w-4 h-4 3xl:w-6 3xl:h-6 object-contain"
+                      />
+                      {GUILD_META[guild].label}
+                    </span>
+                    <div
+                      role="none"
+                      className="contents 2xl:grid 2xl:flex-1 2xl:gap-[var(--tg)]"
+                      style={{
+                        gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`,
+                      }}
+                    >
+                      {items.map(({ m, i }, k) => renderTile(m, i, k === 0))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* PANEL: in flow under the stage below xl; beside the portrait, joined by a connector, from xl. */}
+          <div className="order-2 relative z-30 px-4 md:px-8 mt-0 md:-mt-14 lg:-mt-[12%] xl:mt-0 xl:px-0 xl:absolute xl:inset-x-0 xl:top-0 xl:mx-auto xl:w-full xl:max-w-[1920px] xl:aspect-[2752/1320] xl:pointer-events-none">
+            <div
+              ref={panelRef}
+              className="relative mx-auto max-w-md md:max-w-lg scroll-mt-4 xl:mx-0 xl:max-w-none xl:absolute xl:pointer-events-auto xl:w-[clamp(340px,28%,440px)] xl:left-[calc(38%+min(10.8%,110px)+48px)] xl:top-[calc(70%-min(22.5%,110px))] xl:-translate-y-1/2 3xl:w-[560px] 3xl:left-[calc(38%+130px+64px)] 3xl:top-[calc(70%-130px)]"
+            >
+              {/* Separate from panelRef: its reveal animation must not override the xl centring transform. */}
+              <div className="team-panel-wrap relative">
                 <span
                   aria-hidden
                   className="hidden xl:block absolute right-full top-1/2 -translate-y-1/2 w-[44px] 3xl:w-[60px] h-1 mr-1 bg-[repeating-linear-gradient(90deg,#ffcc55_0_8px,transparent_8px_12px)] drop-shadow-[0_0_6px_rgba(255,204,85,.8)]"
@@ -491,118 +704,24 @@ export const TeamSection = () => {
           </div>
         </div>
 
-        {/* ROSTER */}
-        <div
-          role="tablist"
-          aria-label="Team members"
-          onKeyDown={onKeyDown}
-          className="pixel-frame [--pf:#e2c05a] relative z-20 mx-auto mt-8 xl:-mt-[3%] bg-[#120d1f]/85 backdrop-blur-[2px] p-3 md:p-4 3xl:p-6 max-w-[560px] md:max-w-[880px] lg:max-w-[1000px] 2xl:max-w-[1480px] 3xl:max-w-[1900px]"
-        >
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4 2xl:grid-cols-10 3xl:gap-5">
-            {members.map((m, i) => {
-              const sel = i === selected;
-              const g = guildOf(m);
-              const color = GUILD_META[g].color;
-              const imgClass = TEAM_EXTRAS[m.name]?.imgClass ?? "";
-              return (
-                <button
-                  key={m.name}
-                  ref={(el) => {
-                    tabRefs.current[i] = el;
-                  }}
-                  type="button"
-                  role="tab"
-                  id={`team-tab-${i}`}
-                  aria-selected={sel}
-                  aria-controls="team-panel"
-                  tabIndex={sel ? 0 : -1}
-                  data-selected={sel}
-                  onPointerDown={(e) => {
-                    lastPointer.current = e.pointerType;
-                  }}
-                  onClick={() => onClick(i)}
-                  onFocus={() => select(i)}
-                  onPointerEnter={onPointerEnter(i)}
-                  onPointerLeave={clearHover}
-                  style={
-                    {
-                      "--pf": sel ? "#ffcc55" : color + "66",
-                      "--i": i,
-                    } as CSSProperties
-                  }
-                  className="team-slot pixel-frame group relative flex items-center gap-2.5 md:flex-col md:gap-1.5 min-h-[60px] bg-[#1e1633]/85 p-2 md:pt-3 text-left md:text-center transition-transform [transition-timing-function:steps(3)] duration-150 hover:-translate-y-1 data-[selected=true]:-translate-y-1 data-[selected=true]:bg-[#2a1f45] motion-reduce:transform-none focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#ffcc55]"
-                >
-                  <span
-                    aria-hidden
-                    className="relative shrink-0 block w-[44px] h-[44px] md:w-20 md:h-20 lg:w-24 lg:h-24 3xl:w-32 3xl:h-32 rounded-full p-[3px]"
-                    style={{
-                      background: `radial-gradient(circle at 50% 30%, ${color}, ${color}55 70%)`,
-                    }}
-                  >
-                    <span className="block w-full h-full rounded-full overflow-hidden bg-[#1e1633]">
-                      <img
-                        src={m.img}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        className={`w-full h-full object-cover saturate-[.85] brightness-95 transition-[filter] duration-150 group-hover:saturate-100 group-hover:brightness-110 group-data-[selected=true]:saturate-100 group-data-[selected=true]:brightness-110 ${imgClass}`}
-                      />
-                    </span>
-                    {g === "MORALE" && (
-                      <span
-                        className="absolute -bottom-1 -right-1 grid place-items-center w-5 h-5 md:w-6 md:h-6 3xl:w-8 3xl:h-8 rounded-full border-2 border-[#120d1f]"
-                        style={{ backgroundColor: color }}
-                      >
-                        <img
-                          src={GUILD_META.MORALE.icon}
-                          alt=""
-                          className="w-3 h-3 md:w-3.5 md:h-3.5 3xl:w-5 3xl:h-5 object-contain"
-                        />
-                      </span>
-                    )}
-                  </span>
-                  <span className="min-w-0 md:w-full">
-                    <span className="block font-primary font-bold text-p5 md:text-p5 lg:text-p4 3xl:text-p2 text-yellow-50 truncate leading-tight">
-                      {m.name}
-                    </span>{" "}
-                    <span className="block font-primary uppercase text-[12px] lg:text-p6 3xl:text-p4 tracking-wide leading-tight text-yellow-100/85 md:line-clamp-2">
-                      {m.role}
-                    </span>
-                  </span>
-                  {sel && (
-                    <>
-                      <span
-                        aria-hidden
-                        className="absolute -top-5 3xl:-top-7 left-1/2 -translate-x-1/2 text-[#ffcc55] text-p6 3xl:text-p4 team-blink hidden md:block"
-                      >
-                        ▼
-                      </span>
-                      <span
-                        aria-hidden
-                        className="absolute inset-0 overflow-hidden pointer-events-none"
-                      >
-                        <span className="team-glint absolute inset-y-0 -left-1/2 w-1/2" />
-                      </span>
-                    </>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         {/* CTA */}
         <div className="relative mt-16 md:mt-20 3xl:mt-28 flex flex-col items-center gap-8 md:gap-12 3xl:gap-20 text-center">
           <div
             aria-hidden
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(90vw,720px)] 3xl:w-[1100px] aspect-[2/1] bg-[radial-gradient(ellipse_at_center,rgba(255,204,85,.22),transparent_65%)] pointer-events-none"
           />
-          <p className="relative font-paws uppercase text-yellow-300 glow text-balance leading-none text-p3 md:text-h6 3xl:text-h4">
-            …and 800+ cats who got a home
+          <p className="relative font-paws uppercase text-yellow-300 glow text-balance leading-[1.15] [word-spacing:0.3em] text-p3 md:text-h6 3xl:text-h4">
+            <span className="font-primary">…</span>and{" "}
+            <span className="text-h5 md:text-h3 3xl:text-h2">800+</span> cats who
+            found a home
           </p>
           {/* Plain anchor on purpose: the game shell needs a full page load. */}
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <a href="/game" className="relative block py-2 md:py-6 3xl:py-10">
+          <a
+            ref={ctaRef}
+            href="/game"
+            className="relative block py-2 md:py-6 3xl:py-10 rounded-xl focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-8 focus-visible:outline-[#ffcc55]"
+          >
             <span className="block scale-110 3xl:scale-150 origin-center">
               <PixelButton text="JOIN THE CREW" isBig />
             </span>

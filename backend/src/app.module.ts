@@ -31,6 +31,20 @@ import { EncryptionService } from './shared/encryption.service';
 import { ShelterController } from './shelter/shelter.controller';
 import { ShelterRepository } from './shelter/shelter.repository';
 import { Shelter, ShelterSchema } from './shelter/shelter.schema';
+import { ShelterChain } from './shelter/onchain/shelter-chain';
+import { ShelterDonateService } from './shelter/onchain/shelter-donate.service';
+import { ShelterOnchainController } from './shelter/onchain/shelter-onchain.controller';
+import {
+    ShelterDonateDay,
+    ShelterDonateDaySchema,
+    ShelterDonation,
+    ShelterDonationSchema,
+    X402Nonce,
+    X402NonceSchema,
+    X402UsedTx,
+    X402UsedTxSchema,
+} from './shelter/onchain/shelter-onchain.schema';
+import { ShelterX402Service } from './shelter/onchain/shelter-x402.service';
 import { FirebaseAdminModule } from './user/firebase-admin.module';
 import { AuthStrategy } from './user/strategies/auth-app.strategy';
 import { UserController } from './user/user.controller';
@@ -95,6 +109,10 @@ const config = {
             { name: Game.name, schema: GameSchema },
             { name: Quest.name, schema: QuestSchema },
             { name: Ticket.name, schema: TicketSchema },
+            { name: ShelterDonation.name, schema: ShelterDonationSchema },
+            { name: ShelterDonateDay.name, schema: ShelterDonateDaySchema },
+            { name: X402Nonce.name, schema: X402NonceSchema },
+            { name: X402UsedTx.name, schema: X402UsedTxSchema },
         ]),
         FirebaseAdminModule.forRoot(config as any),
         ...JwtModules,
@@ -111,6 +129,7 @@ const config = {
         Web3Controller,
         BlessingController,
         ShelterController,
+        ShelterOnchainController,
         QuestController,
         TicketController,
     ],
@@ -134,6 +153,9 @@ const config = {
         TicketRepository,
         PrintifyService,
         StripePaymentService,
+        ShelterChain,
+        ShelterDonateService,
+        ShelterX402Service,
         { provide: APP_GUARD, useClass: AppThrottlerGuard },
     ],
 })

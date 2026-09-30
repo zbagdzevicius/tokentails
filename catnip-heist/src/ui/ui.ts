@@ -15,8 +15,8 @@
  * The UI owns no game state. Navigation between Title and Cat pick is internal; everything that
  * affects the game goes out through `handlers`.
  */
-import { shelterTotalLine } from './payouts';
-import { ASSET_BASE, DEPLOYMENTS_URL, PAYOUTS_URL, TICK_HZ, type AssetManifest, type LevelDef, type RunResult, type SheetEntry, type SimEvent, type SimState } from '../types';
+import { giveHref, shelterTotalLine } from './payouts';
+import { ASSET_BASE, DEPLOYMENTS_URL, GIVE_URL, PAYOUTS_URL, TICK_HZ, type AssetManifest, type LevelDef, type RunResult, type SheetEntry, type SimEvent, type SimState } from '../types';
 import { formatTime, h, hashHex, isCoarsePointer, prefersReducedMotion, safeStorageGet, safeStorageSet, setText } from './dom';
 import type { InputController } from './input';
 import { activeHint, objectiveText, pawRating, scoreBreakdown } from './logic';
@@ -64,6 +64,8 @@ export interface UIOptions {
   payoutsUrl?: string;
   /** Deployment list for the win screen's on-chain "sent to shelters" total. Default DEPLOYMENTS_URL; '' hides it. */
   deploymentsUrl?: string;
+  /** Give page behind the win screen's "rescue treat" button. Default GIVE_URL; '' hides the button. */
+  giveUrl?: string;
 }
 
 export interface UI {
@@ -131,6 +133,15 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
   const base = opts.base ?? ASSET_BASE;
   const payoutsUrl = opts.payoutsUrl ?? PAYOUTS_URL;
   const deploymentsUrl = opts.deploymentsUrl ?? DEPLOYMENTS_URL;
+  const giveUrl = opts.giveUrl ?? GIVE_URL;
+  // The one-tap "rescue treat" for the showcase shelter (the give page does the rest).
+  const giveButton = (catName: string) => {
+    const href = giveHref(giveUrl, catName);
+    if (!href) return null;
+    const a = h('a.ch-give', { href, target: '_blank', rel: 'noopener', 'data-testid': 'give-treat' }, 'Send Pink Paw a rescue treat 🐾');
+    a.addEventListener('click', () => handlers.onClick?.());
+    return a;
+  };
   // Read-only on-chain total under the rescue line; stays empty (hidden) until it resolves.
   const shelterTotal = () => {
     const el = h('span.ch-payouts-total', { 'data-testid': 'shelter-total' });
@@ -718,7 +729,7 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     const table = h('table.ch-score', null, h('tbody', null, ...rows));
     rows[2].lastElementChild?.classList.add('ch-neg');
     const rescue = r.rescued
-      ? h('div.ch-rescue', null, crateEntry ? createPortrait(crateEntry, { size: 72, base }) : null, h('p', null, `You rescued ${name}!`, h('small', null, 'Play to save: heists help fund real shelter rescues.'), payoutsUrl ? h('a.ch-payouts', { href: payoutsUrl, target: '_blank', rel: 'noopener' }, 'Every heist funds a real shelter: see payouts') : null, shelterTotal()))
+      ? h('div.ch-rescue', null, crateEntry ? createPortrait(crateEntry, { size: 72, base }) : null, h('p', null, `You rescued ${name}!`, h('small', null, 'Play to save: heists help fund real shelter rescues.'), giveButton(r.rescuedName || lv?.crate.catName || ''), payoutsUrl ? h('a.ch-payouts', { href: payoutsUrl, target: '_blank', rel: 'noopener' }, 'Every heist funds a real shelter: see payouts') : null, shelterTotal()))
       : h('div.ch-rescue.ch-miss', null, h('p', null, `${name} is still in the crate`, h('small', null, 'Free the shelter cat for +50.')));
     const retry = button('.ch-primary.ch-big', h('span', null, 'Retry'), () => handlers.onRetry?.());
     retry.prepend(icon('retry'));

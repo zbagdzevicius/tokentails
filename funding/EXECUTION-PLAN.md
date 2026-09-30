@@ -1,5 +1,17 @@
 # Token Tails funding push: execution plan, 2026-09-30 to 2026-12-13
 
+## Update 2026-09-30
+
+Built today, all off or empty until the Oct 2 deploy. Nothing below is live yet.
+- **Showcase shelter:** Pink Paw (Rožinė pėdutė). Token Tails holds its wallet until handover, and every page, README and draft says so. The wallet address is `null` in config until the deploy.
+- **Sponsored one-tap gift:** `POST /shelter/donate` (once per player per UTC day, capped daily budget) behind `SHELTER_DONATE_ENABLED`. It is reached from the Catnip Heist win screen and `/shelter-payouts/give`. To turn it on (Oct 2–4): set the `SHELTER_*` names from `docs/BACKEND.md` and fund the hot wallet with a small USDC float.
+- **Receipts and share cards:** `/shelter-payouts/receipt?chain=<id>&tx=<hash>`. The payouts page also has the Pink Paw profile, a campaign meter (`client/public/shelter-payouts/campaign.json`) and a balance line.
+- **Off until the Pink Paw handover:** wallet donate (`NEXT_PUBLIC_WALLET_DONATE`) and the x402-compatible agent endpoint (`SHELTER_X402_ENABLED`, our own `onchain-receipt` scheme, no facilitator). The reason is the MiCA custody caution: public payments wait until the shelter holds its own keys.
+- **ShelterSplit Rail:** `shelter-rail/`, an MIT SDK and a one-tag widget (`client/public/rail/widget.js`).
+- **Heist domain:** `catnip.tokentails.com` is dropped. Use tokentails.com/heist; the Pages workflow's `domain` now defaults to empty.
+- **Drafts:** the Arc and Colosseum drafts describe these pieces; the address and tx placeholders stay. Before submitting, run `fund a:submission <slug>` and confirm Pink Paw's consent to be named.
+- **New rows in the `CLAUDE.md` tracker:** Oct 2–4 turn on sponsored donations; Pink Paw wallet handover → enable wallet donate and x402; Late Oct Circle grant application (agentic payments).
+
 **Read this first.** No plan can guarantee a win, and this one does not claim to. The repo's own estimate (`funding/WINNING-STRATEGY.md`) puts the chance of at least one cash win at about **45% (range 30–55%)**, and a single win of $500 or more at about **28%**. What this plan does guarantee is **100% completion**:
 
 - Every entry that passes its gate is submitted on time, complete and with no placeholders left.

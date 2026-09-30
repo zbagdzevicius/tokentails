@@ -1,0 +1,17 @@
+{
+  "name": "shelter-rail",
+  "version": "0.1.0",
+  "description": "ShelterSplit Rail: a non-custodial pass-through payout rail for animal shelters. Drop-in donate widget, tiny SDK and an x402-style agent client.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/sdk.mjs",
+    "./widget.js": "./src/widget.js"
+  },
+  "files": ["src", "examples", "README.md", "LICENSE"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "keywords": ["shelter", "donation", "arc", "usdc", "x402", "payouts"]
+}

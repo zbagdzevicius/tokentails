@@ -487,7 +487,7 @@ export interface AssetManifest {
 }
 
 /** Build-time env (Vite's import.meta.env); empty outside Vite (tools, node). */
-type BuildEnv = { BASE_URL?: string; HEIST_PAYOUTS_URL?: string; HEIST_DEPLOYMENTS_URL?: string };
+type BuildEnv = { BASE_URL?: string; HEIST_PAYOUTS_URL?: string; HEIST_DEPLOYMENTS_URL?: string; HEIST_GIVE_URL?: string };
 const BUILD_ENV: BuildEnv = (import.meta as { env?: BuildEnv }).env ?? {};
 
 /** Vite's deploy base ('./' by default, or HEIST_BASE at build time). */
@@ -504,6 +504,13 @@ export const ASSET_BASE = DEPLOY_BASE === './' || DEPLOY_BASE === '/' ? 'assets/
  * HEIST_PAYOUTS_URL=<url>; set it to an empty string to hide the link.
  */
 export const PAYOUTS_URL: string = BUILD_ENV.HEIST_PAYOUTS_URL ?? 'https://tokentails.com/shelter-payouts';
+
+/**
+ * Give page behind the win screen's "Send Pink Paw a rescue treat" button (opened with
+ * ?from=heist&cat=<rescued cat>). Same-origin relative by default, so it works under
+ * tokentails.com/heist. Override with HEIST_GIVE_URL=<url>; an empty string hides the button.
+ */
+export const GIVE_URL: string = BUILD_ENV.HEIST_GIVE_URL ?? '/shelter-payouts/give';
 
 /**
  * ShelterSplit deployment list the win screen reads for its "sent to shelters" total. Bundled at

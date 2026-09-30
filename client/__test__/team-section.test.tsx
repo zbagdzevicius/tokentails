@@ -126,4 +126,25 @@ describe("TeamSection", () => {
       Object.assign(window, { IntersectionObserver: original });
     }
   });
+  it("puts the roster before the panel in the DOM so Tab goes tab -> panel", () => {
+    render(<TeamSection />);
+    const tablist = screen.getByRole("tablist");
+    const panel = screen.getByRole("tabpanel");
+    expect(
+      tablist.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(panel.getAttribute("tabindex")).toBe("0");
+  });
+
+  it("keeps the previous photo under the new one while switching", () => {
+    const { container } = render(<TeamSection />);
+    fireEvent.click(screen.getAllByRole("tab")[3]);
+    const token = container.querySelector(".team-token");
+    const imgs = token?.querySelectorAll("img") ?? [];
+    expect(imgs).toHaveLength(2);
+    expect(imgs[0].getAttribute("src")).toBe(
+      teamMembers.find((m) => m.name === TEAM_ORDER[0])?.img,
+    );
+    expect(imgs[1].getAttribute("alt")).toContain("Lukas");
+  });
 });

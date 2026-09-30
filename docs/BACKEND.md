@@ -70,7 +70,7 @@ but no module file.
 | `src/user/` | Users, profiles, leaderboards, daily check-in, referrals, codex, airdrop progression, game score submission, auth strategies. |
 | `src/cat/` | Cat catalog, adoption, staking, feeding, NFT metadata, exchange-rate proxy. |
 | `src/blessing/` | Shelter "blessing" records (a real rescued animal) and the AI cat generated from each. |
-| `src/shelter/` | Partner shelters and their generated Stellar wallets. |
+| `src/shelter/` | Partner shelters and their generated Stellar wallets. `src/shelter/onchain/` holds the Arc gifts (`POST /shelter/donate`) and the x402 agent cat card, through ShelterSplit and ethers v6. |
 | `src/image/` | Image uploads, AI portrait generation, Stripe Checkout, Stripe webhook, order status. |
 | `src/web3/` | Orders, Stellar payment verification, Stripe PaymentIntents, pack grants, discount codes. |
 | `src/article/`, `src/category/`, `src/feed/` | Editorial content and the public feed. |
@@ -194,6 +194,25 @@ Pack rarity odds are in `src/shared/utils/content.utils.ts`. Discount codes map 
 
 There is no Apple or Google in-app purchase receipt verification.
 
+### Shelter gifts on Arc
+
+`src/shelter/onchain/` (endpoints in `docs/API.md`). Both features are off by default.
+
+- `ShelterChain` wraps ethers v6: a `JsonRpcProvider` with a static network, a `Wallet` from
+  `SHELTER_DONATE_PRIVATE_KEY`, and the ShelterSplit `Interface` (`donate(string)`, `disburse(uint256,string)`,
+  events `NativeDisbursed` topic `0xc859ef09...aeef` and `Disbursed` topic `0x53e1c69d...495a`). Sends are
+  queued in-process so concurrent gifts do not collide on the wallet nonce.
+- `ShelterDonateService`: inserts a `shelterdonations` row (unique `user` + UTC `day`, so a second gift is
+  429), claims a slot in `shelterdonatedays` with a conditional `$inc` against
+  `floor(SHELTER_DONATE_DAILY_BUDGET_WEI / SHELTER_DONATE_AMOUNT_WEI)` (a full day is 503), then broadcasts
+  `donate('tt:<source>:<8 hex>')`. A failed broadcast gives back the slot and deletes the row.
+- `ShelterX402Service`: issues nonces into `x402nonces` (TTL index on `expiresAt`, 600 seconds), verifies
+  receipts over RPC, records each paying tx in `x402usedtxs` (unique `txHash`), and returns a card built
+  from a whitelist projection of a blessing (`name`, image `url`, shelter `name`). It never reads users,
+  owners or wallets, and needs no server key.
+- Showcase shelter: Pink Paw (Rožinė pėdutė). Its wallet is created and held by Token Tails on its behalf
+  until handover. The contract addresses come from env and are empty until the deploy.
+
 ### Order audit
 
 `backend/scripts/audit-orders.js` (platform fix 0) is read-only: it only runs `find()` on the
@@ -263,6 +282,7 @@ Names only. Copy `backend/.env.example` to `backend/.env` and fill in values.
 | AI | `OPENAI_API_KEY`, `GOOGLE_AI_API_KEY` |
 | Storage | `DO_SPACES_ENDPOINT`, `DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_NAME`, `DO_SPACES_CDN` |
 | Payments | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY` (in the example file, unused in code), optional `STELLAR_TREASURY_ADDRESS` and `STELLAR_USDC_ISSUER` (default to the public values in `src/web3/stellar-payment.ts`) |
+| Shelter gifts (Arc) | `SHELTER_DONATE_ENABLED` (default off), `SHELTER_CHAIN_ID` (default `5042` mainnet; `5042002` testnet), `SHELTER_ARC_RPC_URL` (defaults to `https://rpc.mainnet.arc.io` or `https://rpc.testnet.arc.io` by chain), `SHELTER_SPLIT_ADDRESS` (ShelterSplit, empty until the deploy), `SHELTER_DONATE_PRIVATE_KEY` (server hot wallet; keep only a small float of USDC on it), `SHELTER_DONATE_AMOUNT_WEI` (default 0.01 USDC), `SHELTER_DONATE_DAILY_BUDGET_WEI` (default 1 USDC), `SHELTER_X402_ENABLED` (default off: public payments need the shelter's own keys first, a MiCA custody caution), `SHELTER_X402_PRICE_WEI` (default 0.01 USDC) |
 | Email | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` (missing from the example file) |
 | Print | `PRINTIFY_API_KEY` |
 | Unused | `GTM_ID` |
@@ -330,6 +350,23 @@ Security:
 - Custodial Stellar secrets are encrypted with AES-128-CTR using a static salt. The decrypt path is never called.
 - Rate limiting is global and tracks `req.ip`. Behind a load balancer, set `TRUST_PROXY` to the hop count, or all clients share one bucket of 300 requests per minute (a site-wide outage) and the per-IP route limits (120, 5 and 3 per minute) apply to everyone together. The hosting topology is not documented, so this must be confirmed before deploy. The NFT metadata routes (`GET /cat/nft/metadata`, `GET /cat/nft/:tokenId`) skip the throttler for marketplace crawlers. Not yet handled: the ISR pages `/cats/[cat]` and `/feed/[category]/[article]` fetch from the Next server's single IP on every uncached render, and carrier-NAT or office IPs share a bucket; consider allowlisting the Next server or raising the limit on those public GET routes.
 - Fixed (2026-09): `GET /image/order/status` is public and returned the whole order (user id, wallet, payment hash, discount). It now returns `_id status entityType id image price` only. `confirm-payment` and portrait generation no longer echo Stripe, database or AI provider error text.
+
+Shelter gifts and x402 (2026-09, new):
+
+- The x402 route uses a custom `onchain-receipt` scheme without a facilitator, so generic x402 clients that
+  expect the `exact` scheme will not pay it without a small adapter. Standard facilitators may not support Arc.
+- `POST /shelter/donate` returns once the transaction is broadcast. If it later reverts or is dropped, the
+  user's gift for the day and the budget slot stay used; the row keeps the hash for a reconciliation job
+  (not written yet).
+- The send queue is per process. With more than one replica, concurrent gifts can collide on the hot wallet
+  nonce and one of them fails with 503 (the user may retry).
+- Budget slots are whole gifts; changing `SHELTER_DONATE_AMOUNT_WEI` mid-day changes the slot count for the
+  rest of that day.
+- `resource` in the 402 body is built from the request `Host` header and is informational only.
+- `X-PAYMENT-RESPONSE` is listed in the CORS exposed headers (`src/main.ts`), so browser clients and
+  server-side agents can both read it.
+- Keep `SHELTER_X402_ENABLED` off until the shelter holds its own keys: while Token Tails holds Pink Paw's
+  wallet, public payments to it are custodial (MiCA caution).
 
 Operational:
 

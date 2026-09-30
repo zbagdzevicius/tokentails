@@ -30,6 +30,8 @@ function initializeCors(app: INestApplication): void {
             'content-disposition',
             // Read by the client to retry a throttled POST /user/catbassadors/live.
             'Retry-After',
+            // x402 receipt on GET /shelter/agent/cat-card, read by shelter-rail's payAndFetch.
+            'X-PAYMENT-RESPONSE',
         ],
     };
 

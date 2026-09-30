@@ -5,9 +5,9 @@ import { defineConfig } from 'vite';
 const base = process.env.HEIST_BASE?.trim() || './';
 
 export default defineConfig({
-  // Only HEIST_PAYOUTS_URL (the win-screen payouts link) and HEIST_DEPLOYMENTS_URL (its on-chain
-  // total) are exposed to the page, as import.meta.env.
-  envPrefix: ['VITE_', 'HEIST_PAYOUTS_URL', 'HEIST_DEPLOYMENTS_URL'],
+  // Only HEIST_PAYOUTS_URL (the win-screen payouts link), HEIST_DEPLOYMENTS_URL (its on-chain
+  // total) and HEIST_GIVE_URL (the "rescue treat" button) are exposed to the page, as import.meta.env.
+  envPrefix: ['VITE_', 'HEIST_PAYOUTS_URL', 'HEIST_DEPLOYMENTS_URL', 'HEIST_GIVE_URL'],
   base: base === './' || base.endsWith('/') ? base : `${base}/`,
   server: { port: 5173, host: '127.0.0.1' },
   preview: { port: 4173, host: '127.0.0.1' },

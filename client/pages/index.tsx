@@ -74,6 +74,8 @@ export default function HomePage() {
             src={cdnFile("landing/hero-cat-with-ground.webp")}
             className="w-full h-full pixelated object-cover absolute inset-0 animate-opacity"
           />
+          {/* Fades into the proof section's matching top fade, so the two backgrounds meet cleanly. */}
+          <div className="absolute inset-x-0 bottom-0 z-[45] h-32 md:h-48 bg-gradient-to-b from-transparent to-[#0b0820] pointer-events-none" />
           <span className="absolute max-sm:top-32 sm:top-2 z-40 max-sm:left-1/2 max-sm:-translate-x-1/2 sm:right-2">
             <Socials />
           </span>
@@ -114,11 +116,12 @@ export default function HomePage() {
 
         <ProofSection />
 
-        <section className="relative min-h-screen w-full glow-box">
+        <section className="relative min-h-screen w-full">
           <img
             src={cdnFile("landing/globe.webp")}
             className="w-full h-full object-cover   inset-0 absolute"
           />
+          <div className="absolute inset-x-0 top-0 z-[35] h-32 md:h-48 bg-gradient-to-b from-[#0b0820] to-transparent pointer-events-none" />
           <div className="absolute top-0 left-0 w-full h-full flex justify-center items-center z-30 overflow-hidden">
             <PixelGlobe />
           </div>
@@ -147,6 +150,8 @@ export default function HomePage() {
               <span className="text-yellow-300">IMPACT</span>
             </span>
           </div>
+          {/* Fades into the card section's matching top fade, so the two backgrounds meet cleanly. */}
+          <div className="absolute inset-x-0 bottom-0 z-[35] h-40 md:h-64 bg-gradient-to-b from-transparent via-[#0b0820]/60 to-[#0b0820] pointer-events-none" />
           <Fireflies />
         </section>
 
@@ -161,6 +166,7 @@ export default function HomePage() {
             alt=""
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/55" />
+          <div className="absolute inset-x-0 top-0 h-32 md:h-48 bg-gradient-to-b from-[#0b0820] to-transparent pointer-events-none" />
           {/* Fades into the team section's matching top fade, so the two backgrounds meet cleanly. */}
           <div className="absolute inset-x-0 bottom-0 h-32 md:h-48 bg-gradient-to-b from-transparent to-[#0b0820] pointer-events-none" />
 

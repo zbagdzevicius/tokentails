@@ -222,6 +222,9 @@ export const ProofSection = () => {
         data-testid="proof-background"
       />
       <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/55" />
+      {/* Matching fades at both ends, so the hero and globe sections blend into this one. */}
+      <div className="absolute inset-x-0 top-0 h-32 md:h-48 bg-gradient-to-b from-[#0b0820] to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 h-32 md:h-48 bg-gradient-to-b from-transparent to-[#0b0820] pointer-events-none" />
 
       <div className="relative z-30 px-4 md:px-8 lg:px-16 py-10 md:py-16 lg:py-20">
         <div className="max-w-[1400px] mx-auto flex flex-col gap-6 md:gap-8">

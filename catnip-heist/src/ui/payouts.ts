@@ -126,3 +126,20 @@ export function shelterTotalLine(deploymentsUrl: string): Promise<string> {
   cached ??= fetchShelterTotals(deploymentsUrl).then(totalText).catch(() => '');
   return cached;
 }
+
+/**
+ * "Send Pink Paw a rescue treat" link: the give page plus ?from=heist&cat=<rescued cat>. Keeps a
+ * relative or same-origin path as is (so it works under tokentails.com/heist) and keeps any query
+ * the base already has. '' (the build env set to empty) means hide the button.
+ */
+export function giveHref(baseUrl: string, catName: string): string {
+  const url = baseUrl.trim();
+  if (!url) return '';
+  const hashAt = url.indexOf('#');
+  const path = hashAt >= 0 ? url.slice(0, hashAt) : url;
+  const hash = hashAt >= 0 ? url.slice(hashAt) : '';
+  const q = new URLSearchParams({ from: 'heist' });
+  const cat = catName.trim().slice(0, 64);
+  if (cat) q.set('cat', cat);
+  return `${path}${path.includes('?') ? '&' : '?'}${q.toString()}${hash}`;
+}
