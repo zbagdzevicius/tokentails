@@ -362,8 +362,19 @@ test('touch layout on a phone in portrait', async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 360, height: 740 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
   const page = await ctx.newPage();
   await open(page);
+  // The portrait hint expires after 7 s of wall time, so record that it was shown instead of racing it.
+  await page.evaluate(() => {
+    const w = window as unknown as { __hintSeen: boolean };
+    w.__hintSeen = false;
+    const hint = document.querySelector('.ch-hint')!;
+    const check = () => {
+      if (hint.classList.contains('ch-on') && getComputedStyle(hint).display !== 'none') w.__hintSeen = true;
+    };
+    new MutationObserver(check).observe(hint, { attributes: true, attributeFilter: ['class'] });
+  });
   await page.evaluate(() => (window.__heist as unknown as { start(): Promise<unknown> }).start());
   await expect.poll(() => screenOf(page), { timeout: 45_000 }).toBe('heist');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __hintSeen: boolean }).__hintSeen)).toBe(true);
   await nextFrames(page);
   await shot(page, '09-phone-portrait');
   await touchChecks(page);

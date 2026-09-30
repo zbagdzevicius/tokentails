@@ -1,5 +1,8 @@
 import {
   DISBURSED_TOPIC,
+  NATIVE_DISBURSED_TOPIC,
+  payoutUnit,
+  to18,
   RpcLog,
   decodeDisbursedLog,
   formatUnits,
@@ -42,6 +45,7 @@ describe("decodeDisbursedLog", () => {
   it("decodes shelter, amount, memo and position", () => {
     const d = decodeDisbursedLog(log(BigInt(1500000), "October payout"));
     expect(d).toEqual({
+      kind: "token",
       contract: CONTRACT.toLowerCase(),
       shelter: SHELTER,
       amount: BigInt(1500000),
@@ -74,7 +78,7 @@ describe("decodeDisbursedLog", () => {
   it("rejects other events and malformed data", () => {
     expect(() =>
       decodeDisbursedLog(log(BigInt(1), "x", { topics: ["0x" + "00".repeat(32)] }))
-    ).toThrow("not a Disbursed log");
+    ).toThrow("not a Disbursed or NativeDisbursed log");
     expect(() =>
       decodeDisbursedLog(log(BigInt(1), "x", { topics: [DISBURSED_TOPIC] }))
     ).toThrow("missing the shelter topic");
@@ -100,5 +104,31 @@ describe("formatUnits and sumAmounts", () => {
   it("sums payouts", () => {
     expect(sumAmounts([])).toBe(BigInt(0));
     expect(sumAmounts([{ amount: BigInt(1) }, { amount: BigInt(2) }])).toBe(BigInt(3));
+  });
+});
+
+describe("native payouts (donate / receive)", () => {
+  it("decodes NativeDisbursed as a native payout", () => {
+    const d = decodeDisbursedLog(
+      log(BigInt("1000000000000000000"), "heist rescue", {
+        topics: [NATIVE_DISBURSED_TOPIC, "0x" + pad(SHELTER.slice(2))],
+      })
+    );
+    expect(d.kind).toBe("native");
+    expect(d.amount).toBe(BigInt("1000000000000000000"));
+    expect(d.memo).toBe("heist rescue");
+  });
+
+  it("picks the unit by payout kind: Arc native USDC has 18 decimals, its ERC-20 view 6", () => {
+    const arc = { decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "USDC" };
+    expect(payoutUnit("token", arc)).toEqual({ decimals: 6, symbol: "USDC" });
+    expect(payoutUnit("native", arc)).toEqual({ decimals: 18, symbol: "USDC" });
+    expect(payoutUnit("native", { decimals: 6, symbol: "USDC" })).toEqual({ decimals: 18, symbol: "native" });
+  });
+
+  it("rescales to 18 decimals so 1 USDC native + 1 USDC ERC-20 = 2 USDC", () => {
+    const total = to18(BigInt("1000000000000000000"), 18) + to18(BigInt(1000000), 6);
+    expect(formatUnits(total, 18)).toBe("2");
+    expect(() => to18(BigInt(1), 19)).toThrow();
   });
 });

@@ -9,14 +9,14 @@ import {
   useState,
 } from "react";
 import { Clipboard } from "@capacitor/clipboard";
-import { urlPrefix } from "@/api/routing";
+import { webPath } from "@/api/routing";
 
 interface IProps {
   url: string;
   close: () => void;
 }
 
-const SharedButtonWrapper = ({ children }: PropsWithChildren<{}>) => {
+const SharedButtonWrapper = ({ children }: PropsWithChildren) => {
   return (
     <span className="flex px-6 py-2 hover:bg-gray-100 gap-4 items-center text-p3">
       {children}
@@ -28,7 +28,7 @@ export const ShareModal = ({ url, close }: IProps) => {
   const toast = useToast();
   const [isClipboardAllowed, setIsClipboardAllowed] = useState(false);
   const absoluteUrl = useMemo(
-    () => process.env.NEXT_PUBLIC_DOMAIN + url.replace(urlPrefix, ""),
+    () => process.env.NEXT_PUBLIC_DOMAIN + webPath(url),
     [url]
   );
 
@@ -61,6 +61,8 @@ export const ShareModal = ({ url, close }: IProps) => {
 
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
+      // Platform must be read after mount to keep SSR output hydration-safe.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsClipboardAllowed(true);
     } else {
       navigator.permissions

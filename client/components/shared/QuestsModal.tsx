@@ -52,6 +52,10 @@ export const QuestsModalContent = () => {
     queryKey: ["quests"],
     queryFn: () => QUEST_API.find(),
   });
+  // Snapshot on purpose: a quest completed while the modal is open stays in
+  // the list with a check mark instead of disappearing, so profile.quests is
+  // deliberately left out of the dependencies.
+  /* eslint-disable react-hooks/preserve-manual-memoization, react-hooks/exhaustive-deps */
   const quests = useMemo(
     () =>
       [...(partnerQuests || []), ...allQuests].filter(
@@ -59,6 +63,7 @@ export const QuestsModalContent = () => {
       ),
     [partnerQuests]
   );
+  /* eslint-enable react-hooks/preserve-manual-memoization, react-hooks/exhaustive-deps */
   const toast = useToast();
 
   const { shareUrl } = useProfile();
@@ -69,11 +74,7 @@ export const QuestsModalContent = () => {
 
   const redeem = useDebouncedCallback(async (quest: ILocalQuest) => {
     if (quest.link) {
-      if (quest.link?.startsWith("https://t.me")) {
-        utils?.openTelegramLink(quest.link!);
-      } else {
-        utils?.openLink(quest.link!);
-      }
+      utils?.openLink(quest.link);
     }
     const result = await QUEST_API.complete(quest.key);
     toast({ message: result.message });
@@ -150,7 +151,7 @@ export const QuestsModalContent = () => {
                 className="flex flex-col mb-4 font-primary uppercase px-2 relative rounded-lg py-2 text-yellow-900 mt-8"
                 style={bgStyle("6")}
               >
-                <Tag isSmall>WHAT I'LL GET FOR INVITING A FRIEND?</Tag>
+                <Tag isSmall>WHAT I&apos;LL GET FOR INVITING A FRIEND?</Tag>
 
                 <div className="flex flex-row items-center mb-1">
                   <img

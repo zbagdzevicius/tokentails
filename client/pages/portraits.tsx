@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/router";
+import Link from "next/link";
 import Head from "next/head";
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
@@ -18,7 +19,7 @@ import { Button } from "@/features/portrait/ui/button";
 import { useToast } from "@/features/portrait/hooks/use-toast";
 import { Toaster } from "@/features/portrait/ui/toaster";
 import { trackEvent } from "@/components/GoogleTagManager";
-import { IMAGE_API } from "@/api/image-api";
+import { IMAGE_API, SignInRequiredError } from "@/api/image-api";
 import { IImage } from "@/models/image";
 import { IOrder, OrderStatus } from "@/models/order";
 import {
@@ -125,10 +126,7 @@ const PortraitPage = () => {
   // Poll order status
   const pollOrderStatus = useCallback(
     (orderId: string, imageId: string) => {
-      let pollInterval: NodeJS.Timeout;
-      let timeoutId: NodeJS.Timeout;
-
-      pollInterval = setInterval(async () => {
+      const pollInterval = setInterval(async () => {
         try {
           const order: IOrder | null = await IMAGE_API.getOrderById(orderId);
 
@@ -169,7 +167,7 @@ const PortraitPage = () => {
       }, 2000); // Poll every 2 seconds
 
       // Cleanup interval after 5 minutes (max polling time)
-      timeoutId = setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         clearInterval(pollInterval);
         setIsPollingOrder((prev) => {
           if (prev) {
@@ -219,7 +217,7 @@ const PortraitPage = () => {
               setIsGenerating(false);
               // Set current image style (default to HIGHNESS if not available)
               setCurrentImageStyle(
-                ((image as any).style as PortraitStyle) ||
+                (image.style as PortraitStyle) ||
                   PortraitStyle.HIGHNESS,
               );
 
@@ -269,7 +267,7 @@ const PortraitPage = () => {
               setIsGenerating(false);
               // Set current image style (default to HIGHNESS if not available)
               setCurrentImageStyle(
-                ((image as any).style as PortraitStyle) ||
+                (image.style as PortraitStyle) ||
                   PortraitStyle.HIGHNESS,
               );
             } else {
@@ -511,7 +509,10 @@ const PortraitPage = () => {
       console.error("Error regenerating portrait:", error);
       toast({
         title: "Regeneration failed",
-        description: "Please try again.",
+        description:
+          error instanceof SignInRequiredError
+            ? error.message
+            : "Please try again.",
         variant: "destructive",
       });
       setIsGenerating(false);
@@ -623,12 +624,8 @@ const PortraitPage = () => {
 
             {/* Logo */}
             <LuxuryReveal delay={0.05} className="mb-8">
-              <a
+              <Link
                 href="/"
-                onClick={(e) => {
-                  e.preventDefault();
-                  router.push("/");
-                }}
                 className="cursor-pointer hover:opacity-80 transition-opacity"
               >
                 <img
@@ -636,7 +633,7 @@ const PortraitPage = () => {
                   alt="Logo"
                   className="h-8 md:h-10 w-auto"
                 />
-              </a>
+              </Link>
             </LuxuryReveal>
 
             {/* Progress Steps */}

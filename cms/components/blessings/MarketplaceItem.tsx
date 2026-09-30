@@ -26,15 +26,15 @@ export const MarketplaceItem = ({
   const item = blessing?.cat;
   const status = blessing?.status || 'UNKNOWN';
   const [isModalOpen, setIsModalOpen] = useState(false);
-  if (!item) return null;
+  if (!blessing || !item) return null;
 
   return (
     <div className="relative group flex flex-col">
       <Link
         href={
           custom
-            ? `/individual/${blessing!._id}`
-            : `/blessings/${blessing!._id}`
+            ? `/individual/${blessing._id}`
+            : `/blessings/${blessing._id}`
         }
         className="relative overflow-hidden w-48 rounded-2xl rem:border-[7px] min-w-[12rem] block"
         style={{ borderColor: cardsColor[item.type] }}
@@ -86,7 +86,7 @@ export const MarketplaceItem = ({
             <DropdownMenuItem
               className={`${status === (blessing?.status as unknown) ? 'bg-primary text-primary-foreground' : ''}`}
               key={status}
-              onClick={() => onUpdateStatus?.(blessing?._id!, status)}
+              onClick={() => onUpdateStatus?.(blessing._id!, status)}
             >
               <button type="submit">{status}</button>
             </DropdownMenuItem>

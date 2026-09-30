@@ -1,6 +1,6 @@
+import { ReactNode } from "react";
 
-
-const categoryCtaComponentMap: any = {
+const categoryCtaComponentMap: Record<string, ReactNode> = {
     default: <></>,
 };
 

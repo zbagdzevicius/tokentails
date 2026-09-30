@@ -1,12 +1,19 @@
 import { StartGame } from "@/components/base/config";
-import { CatAbilityType } from "@/models/cats";
+import { CatAbilityType, ICat } from "@/models/cats";
 import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
-import { GameEvents, IPhaserGame, NPC_TYPE } from "../Phaser/events";
+import {
+  GameEvents,
+  IPhaserGame,
+  NPC_TYPE,
+  useGameLoaded,
+} from "../Phaser/events";
 
 interface IProps {
   currentActiveScene?: (scene_instance: Phaser.Scene) => void;
 }
 
+// Preview fixtures only carry the fields the base scene renders, so they are
+// cast to ICat where they are pushed into game events.
 const cats = [
   {
     _id: "68218d85b701ef26a1f74748",
@@ -113,7 +120,7 @@ const PreviewGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
     };
   }, [ref]);
 
-  GameEvents.GAME_LOADED.use((event) => {
+  useGameLoaded((event) => {
     if (!event) {
       return;
     }
@@ -180,10 +187,10 @@ function Preview() {
   const isGameLoaded = GameEvents.GAME_LOADED.use();
   useEffect(() => {
     if (cat && isGameLoaded?.scene) {
-      GameEvents.CAT_SPAWN.push({ cat: cat as any });
+      GameEvents.CAT_SPAWN.push({ cat: cat as unknown as ICat });
 
       if ((cat.status.EAT || 0) < 4) {
-        GameEvents.CAT_MEOW.push({ cat });
+        GameEvents.CAT_MEOW.push({ cat: cat as unknown as ICat });
       }
     }
   }, [cat, isGameLoaded]);
@@ -196,7 +203,7 @@ function Preview() {
       // Then spawn all cats that aren't the current player cat
       cats.forEach((singleCat) => {
         GameEvents.PLAYER_CATS.push({
-          npc: singleCat as any,
+          npc: singleCat as unknown as ICat,
           type: NPC_TYPE.PLAYER_CATS,
         });
       });

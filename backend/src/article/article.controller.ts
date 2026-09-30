@@ -16,7 +16,7 @@ import { Types } from 'mongoose';
 import { CategoryRepository } from 'src/category/category.repository';
 import { Category } from 'src/category/category.schema';
 import { DefaultPerPage } from 'src/common/constants';
-import { SearchModel } from 'src/common/validators';
+import { pickSearchParams, SearchModel } from 'src/common/validators';
 import { commentsPopulate } from 'src/feed/feed.controller';
 import { RESPONSES } from 'src/shared/constants/common';
 import { PermissionGuard } from 'src/shared/guards/permission.guard';
@@ -92,7 +92,7 @@ export class ArticleController implements IController<Article> {
         return this.repository.find({
             searchObject,
             secondarySearchObject,
-            ...params,
+            ...pickSearchParams(params),
             populate: [{ path: 'category', select: '-_id name slug' }, { path: 'featuredImage' }],
             projection: 'title excerpt createdAt featuredImage category slug isDisabled',
         });

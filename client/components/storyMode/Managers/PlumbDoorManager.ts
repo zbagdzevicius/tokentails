@@ -48,7 +48,9 @@ export class PlumbDoorManager {
   private tryOpenDoor() {
     if (this.isOpening) return;
 
-    const keys = (this.scene as any).getKeys();
+    const keys = (
+      this.scene as Phaser.Scene & { getKeys: () => unknown[] }
+    ).getKeys();
     if (keys.length > 0) {
       keys.pop();
       this.openDoor();

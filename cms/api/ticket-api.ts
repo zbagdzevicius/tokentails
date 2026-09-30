@@ -13,7 +13,7 @@ const ticketsFetch = async ({ page }: { page: number }): Promise<ITicket[]> => {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       ...getAuthHeaders()
-    } as any
+    }
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -35,7 +35,7 @@ const ticketEdit = async (ticket: Partial<ITicket>): Promise<ITicket> => {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       ...getAuthHeaders()
-    } as any
+    }
   }).then((response) => {
     if (response.ok) {
       return response.json();

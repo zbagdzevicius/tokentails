@@ -4,6 +4,7 @@ import {
   IAirdropProgression,
   IAirdropTierClaimResponse,
 } from "@/models/airdrop";
+import { getPlatform } from "@/analytics/platform";
 import { apiUrl, waitForLocalStorageKey } from "./api";
 
 const baseHeaders: HeadersInit = {
@@ -166,20 +167,52 @@ const saveProfileTwitter = (profile: Partial<IProfile>) => {
   });
 };
 
-const saveMatch = async (match: IMatch): Promise<Partial<IProfile>> => {
-  await waitForLocalStorageKey();
-  return fetch(`${apiUrl}/user/catbassadors/live`, {
-    method: "POST",
-    body: JSON.stringify(match),
-    headers: authHeaders(),
-  }).then((response) => {
-    if (response.ok) {
-      return response.json();
-    }
+/** Longest wait, in seconds, before retrying a throttled save once. */
+const MAX_SAVE_RETRY_WAIT = 60;
 
-    console.warn(JSON.stringify(response));
-    return null;
+/** Thrown by saveMatch when the save was rate limited even after one retry. */
+export class MatchSaveThrottledError extends Error {
+  constructor() {
+    super("Match save was rate limited");
+    this.name = "MatchSaveThrottledError";
+    // Keeps `instanceof` working when TypeScript compiles classes to ES5.
+    Object.setPrototypeOf(this, MatchSaveThrottledError.prototype);
+  }
+}
+
+const saveMatch = async (
+  match: IMatch
+): Promise<Partial<IProfile> | null> => {
+  await waitForLocalStorageKey();
+  const body = JSON.stringify({
+    ...match,
+    platform: match.platform ?? getPlatform(),
   });
+  const post = () =>
+    fetch(`${apiUrl}/user/catbassadors/live`, {
+      method: "POST",
+      body,
+      headers: authHeaders(),
+    });
+
+  let response = await post();
+  // 429: players sharing an address, or fast retries. Wait out the window once
+  // rather than drop the run.
+  if (response.status === 429) {
+    const wait = Number(response.headers.get("Retry-After"));
+    if (!(wait > 0 && wait <= MAX_SAVE_RETRY_WAIT)) {
+      throw new MatchSaveThrottledError();
+    }
+    await new Promise((resolve) => setTimeout(resolve, wait * 1000));
+    response = await post();
+    if (response.status === 429) throw new MatchSaveThrottledError();
+  }
+  if (response.ok) {
+    return response.json();
+  }
+
+  console.warn(JSON.stringify(response));
+  return null;
 };
 
 const redeem = async (): Promise<{ tails: number }> => {

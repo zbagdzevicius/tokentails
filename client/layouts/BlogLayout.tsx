@@ -4,7 +4,7 @@ import { GameSidebar } from "./GameSidebar";
 import { EntityMetadataProvider } from "@/context/EntityMetadataContext";
 import { Header } from "./Header";
 
-const BlogLayout = ({ children }: PropsWithChildren<{}>) => {
+const BlogLayout = ({ children }: PropsWithChildren) => {
   return (
     <EntityMetadataProvider>
       <div className="bg-gradient-to-b from-yellow-300 via-blue-300">

@@ -11,7 +11,6 @@ flowchart LR
     subgraph Clients
         Web[Website<br/>Next.js]
         App[iOS / Android<br/>Capacitor]
-        TG[Telegram Mini App]
         CMS[Admin CMS<br/>Next.js]
     end
 
@@ -20,7 +19,6 @@ flowchart LR
 
     subgraph External
         FB[Firebase Auth]
-        TGAPI[Telegram Bot API]
         OAI[OpenAI]
         GEM[Google Gemini]
         STR[Stripe]
@@ -36,14 +34,14 @@ flowchart LR
         FUEL[Faucet services<br/>stellar-fuel, sfuel]
     end
 
-    Web & App & TG & CMS -->|accesstoken header| API
+    Web & App & CMS -->|accesstoken header| API
     API --> DB
-    API --> FB & TGAPI & OAI & GEM & STR & HOR & SP & SG & BIN
+    API --> FB & OAI & GEM & STR & HOR & SP & SG & BIN
     STR -->|webhook| API
     Web -->|sign and submit| HOR
     SOR -.->|tokenURI| API
     SK -.->|tokenURI| API
-    Web & App & TG -->|assets| SP
+    Web & App -->|assets| SP
 ```
 
 ## Components
@@ -51,7 +49,7 @@ flowchart LR
 | Component | Path | Runtime | Role |
 |---|---|---|---|
 | Backend API | `backend/` | NestJS 9, MongoDB | Single service for auth, cats, blessings, shelters, content, games, payments, AI generation, cron jobs |
-| Client | `client/` | Next.js 16 | Public website, game shell, portrait funnel, feed, marketplace; also the web bundle for the mobile apps and the Telegram Mini App |
+| Client | `client/` | Next.js 16 | Public website, game shell, portrait funnel, feed, marketplace; also the web bundle for the mobile apps |
 | Mobile shells | `client/android/`, `client/ios/` | Capacitor 7 | Native wrappers around the static export |
 | Admin CMS | `cms/` | Next.js 16 | Shelter and staff operations console |
 | Soroban contracts | `contracts/stellar/soroban-nft/` | Rust | Cat, Blessing, and Pass NFTs on Stellar mainnet |
@@ -61,7 +59,7 @@ flowchart LR
 
 ## Core domain
 
-- **User**: identity from Firebase (email) or Telegram (id). Holds $TAILS, catnip, streak, boxes, monthly counters, airdrop claims, per-level game arrays, a custodial Stellar wallet, and a permission level from 1 (user) to 5 (admin).
+- **User**: identity from Firebase (email). Holds $TAILS, catnip, streak, boxes, monthly counters, airdrop claims, per-level game arrays, a custodial Stellar wallet, and a permission level from 1 (user) to 5 (admin).
 - **Cat**: the collectible. Elemental type, tier, art URLs, owner, optional link to a blessing. Blueprint cats are templates; adopting clones one to the user.
 - **Blessing**: a real rescued animal registered by a shelter. Creating one triggers OpenAI classification and story writing plus Gemini avatar generation, producing the linked cat.
 - **Shelter**: partner organisation. Staff users are scoped to their shelter.
@@ -73,9 +71,9 @@ The full schema is in [DATA_MODEL.md](DATA_MODEL.md).
 ## Authentication
 
 All clients send one lowercase header, `accesstoken`. A Firebase ID token is prefixed with `fb`;
-anything else is treated as Telegram Mini App init data. The backend verifies with Firebase Admin
-or the Telegram bot token, looks the user up, and creates them on first sight with a generated
-Stellar keypair and a starter cat. Roles are enforced per endpoint with a numeric permission
+any other token is rejected with 401. The backend verifies the token with Firebase Admin, looks
+the user up by email, and creates them on first sight with a generated Stellar keypair and a
+starter cat. Roles are enforced per endpoint with a numeric permission
 guard. Clients only hide UI; the server is the authority.
 
 ## Request flows
@@ -92,14 +90,14 @@ guard. Clients only hide UI; the server is the authority.
 
 1. Client creates a PaymentIntent through `POST /web3/create-payment` (or a Checkout Session for portraits through `POST /image/create-checkout-session`).
 2. Stripe.js confirms the payment in the browser.
-3. Client calls `POST /web3/confirm-payment`; the backend checks the intent succeeded and belongs to the caller. For Checkout, the Stripe webhook at `POST /image/webhook` completes the order instead.
+3. Client calls `POST /web3/confirm-payment`; the backend checks the intent belongs to the caller, succeeded, and covers the server price, and claims the intent id once so a replay grants nothing. For Checkout, the Stripe webhook at `POST /image/webhook` completes the order instead.
 4. The backend creates a complete `Order`, increments spend counters, and grants a cat (pack roll or portrait-derived).
 
 ### Buying with Stellar
 
 1. Client connects a wallet with the Stellar Wallets Kit, builds a payment to the Token Tails recipient account in XLM or USDC, signs in the wallet, and submits to Horizon.
 2. Client sends only the transaction hash and order details to `POST /web3/confirm`.
-3. The backend loads the transaction from Horizon, confirms a payment operation exists, and grants the item.
+3. The backend loads the transaction from Horizon, checks it paid the treasury at least the server price in the order's asset under its canonical (outer) hash, and grants the item.
 
 ### Registering a rescued cat
 
@@ -133,7 +131,7 @@ local files otherwise. Cat sprites and card art live under an `assets/` prefix o
 
 | Concern | Switch |
 |---|---|
-| Backend Stellar network and Telegram bot | `IS_PROD` |
+| Backend Stellar network | `IS_PROD` |
 | Client Stellar network and CDN | `NEXT_PUBLIC_IS_PROD` |
 | Client app build | `NEXT_PUBLIC_IS_APP` |
 | Backend CORS origins | `FRONT_END_URLS` plus hardcoded localhost, Capacitor, and production domains |
@@ -145,9 +143,9 @@ Known origins: `tokentails.com`, `cats.tokentails.com`, `test.tokentails.com`, a
 
 - **In-process state**: traction counters and the Paw Match leaderboard cache live in memory on the API and diverge across replicas.
 - **Synchronous AI**: portrait and blessing generation run inside the request. There is no job queue.
-- **Client-supplied prices**: all payment flows take the amount from the client; see the backend known issues.
+- **Client-supplied prices**: fixed. Stripe Checkout, Stripe PaymentIntents and Stellar all verify against the server price table, and spend and affiliate counters use the verified amount; see the backend known issues.
 - **Duplicated domain code**: caps and reward constants are mirrored between backend and client, and models are duplicated inside the CMS.
-- **Testing**: no backend tests, two real client suites, eight CMS suites, 34 Rust tests for Soroban.
+- **Testing**: backend jest specs (`npm test`, mocked Mongoose), client and CMS jest suites, 34 Rust tests for Soroban.
 
 ## About the settlement rail note
 

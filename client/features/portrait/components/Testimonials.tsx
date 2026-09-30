@@ -88,7 +88,7 @@ export const Testimonials = () => {
             </div>
 
             <p className="mt-4 text-sm text-foreground/90 leading-relaxed">
-              "{testimonial.text}"
+              &quot;{testimonial.text}&quot;
             </p>
 
             <div className="mt-4 pt-4 border-t border-border">

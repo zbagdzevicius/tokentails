@@ -7,7 +7,7 @@ import { apiUrl } from "./api";
 interface ISearchProps {
   query?: string;
   category?: string;
-  initialRecords?: any[];
+  initialRecords?: IArticleExcerpt[];
 }
 
 interface ISearchFetchProps extends ISearchProps {
@@ -76,7 +76,7 @@ const like = (props: ISave): Promise<void> =>
       Accept: "application/json",
       "Content-Type": "application/json",
       accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    } as HeadersInit,
     body: JSON.stringify(props),
   }).then((response) => {
     if (response.ok) {
@@ -96,7 +96,7 @@ const getMetadata = async (props: ISave[]): Promise<ISaved[]> => {
       Accept: "application/json",
       "Content-Type": "application/json",
       accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    } as HeadersInit,
     body: JSON.stringify(props),
   }).then((response) => {
     if (response.ok) {
@@ -114,7 +114,7 @@ const comment = (comment: Pick<IComment, "text" | "type" | "entity">) => {
       Accept: "application/json",
       "Content-Type": "application/json",
       accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    } as HeadersInit,
     body: JSON.stringify(comment),
   }).then((response) => {
     if (response.ok) {
@@ -135,7 +135,7 @@ const getComments = (
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-    } as any,
+    } as HeadersInit,
     body: JSON.stringify(props),
   }).then((response) => {
     if (response.ok) {

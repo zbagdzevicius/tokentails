@@ -28,7 +28,7 @@ const adopt = async (_id: string): Promise<ITransactionStatus> => {
       Accept: "application/json",
       "Content-Type": "application/json",
       accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -46,7 +46,7 @@ const confirm = async (order: IOrder): Promise<ITransactionStatus> => {
       Accept: "application/json",
       "Content-Type": "application/json",
       accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    } as HeadersInit,
     body: JSON.stringify(order),
   }).then((response) => {
     if (response.ok) {
@@ -64,7 +64,7 @@ const currencyRates = async (): Promise<Record<CurrencyType, number>> => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     return response.json();
   });
@@ -76,7 +76,7 @@ const currencyRate = async (currencyType: CurrencyType): Promise<string> => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-    } as any,
+    } as HeadersInit,
   })
     .then((response) => {
       if (response.ok) {
@@ -95,7 +95,7 @@ const raised = async (): Promise<number> => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-    } as any,
+    } as HeadersInit,
   })
     .then((response) => {
       if (response.ok) {
@@ -117,7 +117,7 @@ const validateDiscount = async (
       Accept: "application/json",
       "Content-Type": "application/json",
       accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    } as HeadersInit,
     body: JSON.stringify({ discount }),
   }).then((response) => {
     if (response.ok) {

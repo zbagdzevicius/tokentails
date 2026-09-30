@@ -8,9 +8,10 @@ import { Labeled } from '@/components/ui/labeled';
 import { TextArea } from '@/components/ui/textarea';
 import { useToast } from '@/context/ToastContext';
 import { IImage } from '@/models/image';
+import { IShelterInput } from '@/models/shelter';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import DateTimePicker from 'react-datetime-picker';
 import { Value } from 'react-datetime-picker/dist/cjs/shared/types';
@@ -35,7 +36,11 @@ export default function Shelter() {
   const [tiktok, setTiktok] = useState('');
   const [foundedAt, setFoundedAt] = useState<Value>(new Date());
 
-  useEffect(() => {
+  // Reset the form whenever the loaded shelter changes. This adjusts state
+  // during render instead of in an effect, so the form never paints stale.
+  const [syncedFor, setSyncedFor] = useState<{ shelter: typeof shelter }>();
+  if (!syncedFor || syncedFor.shelter !== shelter) {
+    setSyncedFor({ shelter });
     setName(shelter?.name || '');
     setDescription(shelter?.description || '');
     setImage(shelter?.image ? [shelter.image] : []);
@@ -45,10 +50,10 @@ export default function Shelter() {
     setTwitter(shelter?.twitter || '');
     setTiktok(shelter?.tiktok || '');
     setFoundedAt(shelter?.foundedAt || null);
-  }, [shelter]);
+  }
 
   const newShelter = useMemo(
-    () => ({
+    (): IShelterInput => ({
       _id: shelter?._id,
       name,
       description,
@@ -61,6 +66,7 @@ export default function Shelter() {
       foundedAt
     }),
     [
+      shelter?._id,
       name,
       description,
       image,
@@ -75,9 +81,9 @@ export default function Shelter() {
 
   async function saveShelter() {
     if (shelter?._id) {
-      await SHELTER_API.shelterEdit(newShelter as any);
+      await SHELTER_API.shelterEdit(newShelter);
     } else {
-      const shelter = await SHELTER_API.shelterCreate(newShelter as any);
+      const shelter = await SHELTER_API.shelterCreate(newShelter);
       setId(shelter._id!);
     }
     toast({ message: `Shelter ${name} saved` });

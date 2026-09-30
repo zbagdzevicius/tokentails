@@ -111,11 +111,12 @@ export function setMobileControls(
   };
 
   const addMovementListener = () => {
-    const handler = (e: any) => {
-      if (e.detail.direction === "LEFT") {
+    const handler = (e: Event) => {
+      const { detail } = e as CustomEvent<{ direction?: string }>;
+      if (detail.direction === "LEFT") {
         controlledObject.isMobileLeft = true;
         controlledObject.isMobileRight = false;
-      } else if (e.detail.direction === "RIGHT") {
+      } else if (detail.direction === "RIGHT") {
         controlledObject.isMobileLeft = false;
         controlledObject.isMobileRight = true;
       } else {

@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import convertPxToRem from "tailwindcss-convert-px-to-rem";
 
 const config: Config = {
   content: [
@@ -392,6 +393,6 @@ const config: Config = {
       paws: ["paws", "sans-serif"],
     },
   },
-  plugins: [require("tailwindcss-convert-px-to-rem")],
+  plugins: [convertPxToRem],
 };
 export default config;

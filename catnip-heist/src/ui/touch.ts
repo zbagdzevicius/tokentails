@@ -42,6 +42,8 @@ export function createTouchControls(parent: HTMLElement, input: InputController,
   // ---- joystick ----
   let stickId: number | null = null;
   let ox = 0, oy = 0;
+  // Zone origin in client pixels, read once per drag (pointermove must not force a layout).
+  let zl = 0, zt = 0;
   // Idle position comes from CSS (bottom-left of the zone, safe-area aware), so it is right even
   // while the HUD is hidden (zero-size zone) and after any resize/orientation change.
   const rest = () => {
@@ -61,8 +63,10 @@ export function createTouchControls(parent: HTMLElement, input: InputController,
       /* synthetic or already-released pointer */
     }
     const r = zone.getBoundingClientRect();
-    ox = e.clientX - r.left;
-    oy = e.clientY - r.top;
+    zl = r.left;
+    zt = r.top;
+    ox = e.clientX - zl;
+    oy = e.clientY - zt;
     stick.style.left = `${ox}px`;
     stick.style.top = `${oy}px`;
     stick.classList.remove('ch-idle');
@@ -71,9 +75,8 @@ export function createTouchControls(parent: HTMLElement, input: InputController,
   });
   zone.addEventListener('pointermove', (e) => {
     if (e.pointerId !== stickId) return;
-    const r = zone.getBoundingClientRect();
-    let dx = e.clientX - r.left - ox, dy = e.clientY - r.top - oy;
-    const len = Math.hypot(dx, dy);
+    let dx = e.clientX - zl - ox, dy = e.clientY - zt - oy;
+    const len = Math.sqrt(dx * dx + dy * dy);
     if (len > RADIUS) {
       dx = (dx / len) * RADIUS;
       dy = (dy / len) * RADIUS;

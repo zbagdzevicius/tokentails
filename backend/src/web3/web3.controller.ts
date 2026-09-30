@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpException, Param, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Types } from 'mongoose';
 import { BlessingRepository } from 'src/blessing/blessing.repository';
@@ -8,20 +8,19 @@ import { ImageRepository } from 'src/image/image.repository';
 import { USER_ID } from 'src/shared/decorators/user.decorator';
 import { PermissionGuard } from 'src/shared/guards/permission.guard';
 import { EntityType, IMessage } from 'src/shared/interfaces/common.interface';
-import { currencyRate, CurrencyType } from 'src/shared/interfaces/currency.interface';
+import { CurrencyType } from 'src/shared/interfaces/currency.interface';
 import { getPackCardTier } from 'src/shared/utils/content.utils';
+import { isPackType } from 'src/payments/price-table';
+import { StripePaymentService } from 'src/payments/stripe-payment.service';
 import { PERMISSION_LEVEL } from 'src/user/models/user.model';
 import { UserRepository } from 'src/user/user.repository';
 import { IUser, User } from 'src/user/user.schema';
-import Stripe from 'stripe';
+import { LOOT_BOX_ENTITY } from './order-catalogue';
 import { OrderRepository } from './order.repository';
 import { IOrder, OrderStatus, PackType, ProductType } from './order.schema';
+import { isStellarTxHash } from './stellar-payment';
 import { ChainType } from './web3.model';
 import { Web3Service } from './web3.service';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-12-15.clover',
-});
 
 const shelters: Record<string, Types.ObjectId> = {
     catfluencers: new Types.ObjectId('675f4533cdb28696a94806fc'),
@@ -36,9 +35,12 @@ export class Web3Controller {
         private userRepository: UserRepository,
         private blessingRepository: BlessingRepository,
         private imageRepository: ImageRepository,
-        private web3Service: Web3Service
+        private web3Service: Web3Service,
+        private stripePayments: StripePaymentService
     ) {}
 
+    // Returns buyer emails and wallet addresses for the loot-drop export, so admins only.
+    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.ADMIN))
     @Get('loot/buyers')
     async lootBuyers() {
         const orders = await this.orderRepository.find({
@@ -112,6 +114,22 @@ export class Web3Controller {
         if (!currencyType || !entityType || !chainType) {
             throw new BadRequestException('Bad Request');
         }
+        // Only these items are sold through this route. Anything else is refused before an order
+        // exists, so no order can hold a payment under an entityType the grant below does not know.
+        if (![EntityType.IMAGE, EntityType.PACK, LOOT_BOX_ENTITY].includes(entityType as string)) {
+            throw new BadRequestException('Unknown item');
+        }
+        if (entityType === EntityType.PACK && !isPackType(id)) {
+            throw new BadRequestException('Unknown pack type');
+        }
+        if ((entityType as string) === LOOT_BOX_ENTITY && id) {
+            throw new BadRequestException('A loot box has no item id');
+        }
+        if (chainType !== ChainType.STELLAR || !isStellarTxHash(hash)) {
+            throw new BadRequestException('Invalid transaction hash');
+        }
+        // Horizon hashes are lowercase hex; one payment must map to one order key.
+        hash = hash.toLowerCase();
 
         let imageObjectId: Types.ObjectId | undefined = undefined;
         let portraitImageAiUrl: string | undefined = undefined;
@@ -145,8 +163,9 @@ export class Web3Controller {
             user: new Types.ObjectId(user),
         });
 
-        await this.web3Service.validatePrice(currencyType, price, chainType, hash);
-        const priceUsd = price * currencyRate[currencyType];
+        // Spent and the affiliate share use the amount verified on Stellar, never the client `price`.
+        const verified = await this.web3Service.validatePrice(currencyType, price, chainType, hash, order._id);
+        const priceUsd = verified.priceUsd;
         await this.userRepository.update(user!, { $inc: { spent: priceUsd, monthSpent: priceUsd } });
 
         if (entityType === EntityType.IMAGE) {
@@ -172,9 +191,10 @@ export class Web3Controller {
             };
         }
 
-        // OTHERWISE IT'S A PACK
-        const packType = id as PackType;
-        const tier = getPackCardTier(packType);
+        // OTHERWISE IT'S A PACK OR A LOOT BOX. The pack type comes from the verified entityType:
+        // a loot box never carries one, so it cannot be granted with a pack's odds.
+        const packType = entityType === EntityType.PACK ? (id as PackType) : undefined;
+        const tier = packType ? getPackCardTier(packType) : Tier.COMMON;
         const blessing = await this.blessingRepository.find({
             searchObject: {
                 shelter:
@@ -211,41 +231,18 @@ export class Web3Controller {
     }
 
     @UseGuards(AuthGuard('appauth'))
-    @Post('create')
-    async create(
-        @Body()
-        { chainType, hash, currencyType, price, ref, entityType, id, user }: IOrder
-    ): Promise<IOrder> {
-        if (!currencyType || !entityType || !chainType) {
-            throw new BadRequestException('Bad Request');
-        }
-        const order = await this.orderRepository.create({
-            chainType,
-            hash,
-            currencyType,
-            price: price,
-            entityType,
-            ref,
-            status: OrderStatus.PENDING,
-            id: new Types.ObjectId(id),
-            user,
-        });
-
-        return order;
-    }
-
-    @UseGuards(AuthGuard('appauth'))
     @Post('create-payment')
     async createPayment(
         @Body()
         {
-            amount,
             id,
             entityType,
             productType,
             imageId,
+            discount,
         }: {
-            amount: number;
+            amount?: number; // ignored: the price comes from the server price table
+            discount?: string;
             id: string;
             entityType?: EntityType;
             productType?: ProductType;
@@ -272,24 +269,20 @@ export class Web3Controller {
                 }
             }
 
-            const paymentIntent = await stripe.paymentIntents.create({
-                amount: amount * 100,
-                currency: 'usd',
-                metadata: {
-                    id: targetEntityType === EntityType.IMAGE ? targetImageId : id,
-                    imageId: targetEntityType === EntityType.IMAGE ? targetImageId : '',
-                    entityType: targetEntityType,
-                    productType: targetProductType,
-                    packType: targetEntityType === EntityType.PACK ? id : '',
-                    userId: userId.toString(),
-                },
+            // Amount comes from the server price table (plus a verified discount code); `amount` is ignored.
+            return await this.stripePayments.createPaymentIntent({
+                entityType: targetEntityType,
+                productType: targetProductType,
+                packType: targetEntityType === EntityType.PACK ? id : undefined,
+                imageId: targetEntityType === EntityType.IMAGE ? targetImageId : undefined,
+                userId: userId.toString(),
+                discount,
             });
-
-            return {
-                clientSecret: paymentIntent.client_secret,
-            };
         } catch (error) {
             console.error('Error creating payment intent:', error);
+            if (error instanceof HttpException) {
+                throw error;
+            }
             throw new BadRequestException('Error creating payment intent');
         }
     }
@@ -330,12 +323,10 @@ export class Web3Controller {
         @Body()
         {
             paymentIntent,
-            clientSecret,
-            discount,
         }: {
             paymentIntent: string;
             clientSecret: string;
-            discount?: string;
+            discount?: string; // ignored: the discount is read from the intent metadata
         },
         @USER_ID() userId: string
     ): Promise<
@@ -344,52 +335,33 @@ export class Web3Controller {
         }
     > {
         try {
-            const intent = await stripe.paymentIntents.retrieve(paymentIntent);
+            // Owner, status, currency and amount >= server price, checked against Stripe
+            const verified = await this.stripePayments.retrieveVerifiedPaymentIntent(paymentIntent, userId);
 
-            if (intent.metadata.userId !== userId?.toString()) {
-                throw new BadRequestException('Unauthorized payment confirmation');
-            }
-
-            if (intent.status !== 'succeeded') {
-                throw new BadRequestException('Payment not successful');
-            }
-
-            const intentEntityType =
-                intent.metadata.entityType === EntityType.IMAGE ? EntityType.IMAGE : EntityType.PACK;
-
-            if (intentEntityType === EntityType.IMAGE) {
-                const imageId = intent.metadata.imageId || intent.metadata.id;
-                if (!imageId || !Types.ObjectId.isValid(imageId)) {
-                    throw new BadRequestException('Generated image id is missing for portrait checkout');
-                }
-
+            if (verified.entityType === EntityType.IMAGE) {
                 const image = await this.imageRepository.findOne({
-                    searchObject: { _id: new Types.ObjectId(imageId) },
+                    searchObject: { _id: new Types.ObjectId(verified.imageId) },
                     projection: 'aiUrl',
                 });
                 if (!image?.aiUrl) {
                     throw new BadRequestException('Generated portrait not found');
                 }
 
-                const amountUsd = intent.amount / 100;
-                await this.orderRepository.create({
-                    status: OrderStatus.COMPLETE,
+                // Idempotent on the intent id: a replayed confirm grants nothing
+                const claim = await this.stripePayments.claimPaymentIntent(verified, {
                     entityType: EntityType.IMAGE,
                     id: ProductType.DIGITAL,
                     user: new Types.ObjectId(userId),
-                    price: amountUsd,
-                    priceUsd: amountUsd,
-                    currencyType: CurrencyType.USD,
-                    chainType: ChainType.FIAT,
-                    hash: intent.id,
-                    walletAddress: ChainType.FIAT,
-                    image: new Types.ObjectId(imageId),
+                    image: new Types.ObjectId(verified.imageId),
                 });
+                if (!claim.claimed) {
+                    return { success: false, message: 'This payment was already processed.' };
+                }
 
                 await this.userRepository.update(userId, {
                     $inc: {
-                        spent: amountUsd,
-                        monthSpent: amountUsd,
+                        spent: verified.amountUsd,
+                        monthSpent: verified.amountUsd,
                         portraitPurchases: 1,
                         monthPortraitPurchases: 1,
                     },
@@ -400,24 +372,24 @@ export class Web3Controller {
                 } catch (catError) {
                     console.error('Failed to create portrait blessing cat after stripe payment:', catError);
                 }
+                await this.orderRepository.update(claim.order._id!, { status: OrderStatus.COMPLETE });
 
                 return { success: true, message: 'Pet immortalized successfully.' };
             }
 
-            // If payment successful, create cat adoption order
-            const order = await this.orderRepository.create({
-                status: OrderStatus.COMPLETE,
+            // Idempotent on the intent id: a replayed confirm grants nothing
+            const claim = await this.stripePayments.claimPaymentIntent(verified, {
                 entityType: EntityType.PACK,
-                id: intent.metadata.id,
-                discount,
+                id: verified.packType,
+                discount: verified.discount,
                 user: new Types.ObjectId(userId),
-                price: intent.amount / 100, // Convert from cents to dollars
                 currencyType: CurrencyType.USDT,
-                chainType: ChainType.FIAT,
-                hash: intent.id,
-                walletAddress: ChainType.FIAT,
             });
-            const packType = (intent.metadata.packType || intent.metadata.id) as PackType;
+            if (!claim.claimed) {
+                return { success: false, message: 'This payment was already processed.' };
+            }
+            const order = claim.order;
+            const packType = verified.packType!;
             const tier = getPackCardTier(packType);
 
             const blessing = await this.blessingRepository.find({
@@ -430,27 +402,26 @@ export class Web3Controller {
                 pipelineStages: [{ $sample: { size: 1 } }],
                 projection: 'cat',
             });
-            const user = new Types.ObjectId(intent.metadata.userId);
             const response = await this.grantBoughtCat({
                 cat: blessing[0].cat,
-                user,
+                user: new Types.ObjectId(userId),
                 orderId: order._id,
                 tier,
                 packType,
             });
 
             if (response?.cat) {
-                await this.orderRepository.update(order._id, { $set: { cat: response?.cat?._id } });
+                await this.orderRepository.update(order._id!, { $set: { cat: response?.cat?._id } });
             }
 
-            if (discount) {
+            if (verified.discount) {
                 const discountOwner = await this.userRepository.findOne({
-                    searchObject: { discount: discount.toLowerCase() },
+                    searchObject: { discount: verified.discount },
                     projection: '_id',
                 });
                 if (discountOwner) {
                     await this.userRepository.update(discountOwner._id!, {
-                        $inc: { affiliated: parseFloat(((intent.amount / 100) * 0.2).toFixed(1)) },
+                        $inc: { affiliated: parseFloat((verified.amountUsd * 0.2).toFixed(1)) },
                     });
                 }
             }
@@ -458,7 +429,11 @@ export class Web3Controller {
             return response;
         } catch (error) {
             console.error('Payment confirmation error:', error);
-            throw new BadRequestException(error.message || 'Error confirming payment');
+            // Our own 4xx messages are safe to show. Stripe SDK and database errors are logged only.
+            if (error instanceof HttpException) {
+                throw error;
+            }
+            throw new BadRequestException('Error confirming payment');
         }
     }
 

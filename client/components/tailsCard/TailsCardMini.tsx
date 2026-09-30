@@ -18,6 +18,11 @@ export const TailsCardMini: React.FC<Props> = ({ cat, onClick }) => {
   if (!cat) return null;
 
   if (!CatAbilityTypes.includes(cat.type)) {
+    // Known issue: this normalises the shared cat object in place, and game
+    // scenes later read cat.type from the same object, so it is kept as is
+    // rather than silently changing what they see. TailsCard normalises
+    // without mutating.
+    // eslint-disable-next-line react-hooks/immutability
     cat.type = CatAbilityType.FAIRY;
   }
   const borderColor = useMemo(() => cardsBorderColor[cat.type], [cat.type]);

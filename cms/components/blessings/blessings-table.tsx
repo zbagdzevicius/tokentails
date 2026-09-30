@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/card';
 import { MarketplaceItem } from './MarketplaceItem';
 import { BlessingStatus } from '@/models/cats';
+import { IBlessing } from '@/models/blessing';
 
 export function BlessingsTable({
   cats,
@@ -16,7 +17,7 @@ export function BlessingsTable({
   custom,
   onUpdateStatus
 }: {
-  cats: any[];
+  cats: IBlessing[];
   totalBlessings: number;
   custom?: boolean;
   onUpdateStatus: (id: string, status: BlessingStatus) => void;

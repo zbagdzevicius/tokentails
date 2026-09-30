@@ -11,7 +11,12 @@ import {
   useState,
 } from "react";
 import { TailsCardModal } from "../tailsCard/TailsCardModal";
-import { GameEvents, IPhaserGame, NPC_TYPE } from "../Phaser/events";
+import {
+  GameEvents,
+  IPhaserGame,
+  NPC_TYPE,
+  useGameLoaded,
+} from "../Phaser/events";
 import { StartGame } from "./config";
 import { getRandomObjectsFromArray } from "@/constants/utils";
 import { useGame } from "@/context/GameContext";
@@ -47,7 +52,7 @@ const ShelterGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
     };
   }, [ref]);
 
-  GameEvents.GAME_LOADED.use((event) => {
+  useGameLoaded((event) => {
     if (!event) {
       return;
     }
@@ -83,7 +88,8 @@ function Shelter() {
 
   const phaserRef = useRef<IPhaserGame | null>(null);
   const isGameLoaded = GameEvents.GAME_LOADED.use();
-  const [hasSpawnedNpc, setHasSpawnedNpc] = useState(false);
+  // Run-once guard for the NPC spawn below; never rendered.
+  const hasSpawnedNpcRef = useRef(false);
   const { setOpenedModal } = useGame();
 
   useEffect(() => {
@@ -93,7 +99,7 @@ function Shelter() {
   }, [cat, isGameLoaded]);
 
   useEffect(() => {
-    if (!hasSpawnedNpc && isGameLoaded?.scene && catsForSale) {
+    if (!hasSpawnedNpcRef.current && isGameLoaded?.scene && catsForSale) {
       const tokentailsNpcs = catsForSale["token-tails"];
       const tokentailsCharsNpcs = catsForSale["token-tails-2"];
       const rozinePeduteNpcs = getRandomObjectsFromArray(
@@ -119,9 +125,9 @@ function Shelter() {
           type: NPC_TYPE.TOKENTAILS_2,
         });
       });
-      setHasSpawnedNpc(true);
+      hasSpawnedNpcRef.current = true;
     }
-  }, [catsForSale, isGameLoaded, hasSpawnedNpc]);
+  }, [catsForSale, isGameLoaded]);
 
   GameEvents.CAT_CARD_DISPLAY.use((event) => {
     if (event) {

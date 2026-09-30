@@ -51,6 +51,13 @@ export interface AppStats {
 const LAST_REPLAY_KEY = 'catnip-heist.lastReplay';
 /** Seconds between the WIN tick and the Results screen (lets the win animation play). */
 const RESULTS_DELAY = 1.6;
+/**
+ * Behind the pause modal the frozen scene only shows idle animation under a blurred panel: redraw
+ * it at about 10 fps instead of every display frame, once the start probe is done. Those redraws
+ * are passed to the renderer as throttled, so the quality governor (which keeps watching after the
+ * probe) does not read them as a slow GPU and drop the tier.
+ */
+const PAUSED_FRAME_MS = 100;
 
 export class App {
   readonly ui: UI;
@@ -69,6 +76,7 @@ export class App {
   private fps = 0;
   private winTimer = -1;
   private raf = 0;
+  private lastPausedDraw = 0;
   /** QA: held input that replaces live input while set. */
   private qaInput: Input | null = null;
   private qaEdgesPending = false;
@@ -339,8 +347,13 @@ export class App {
       this.ui.updateHUD(s.cur);
       if (s.done) this.scheduleResults();
     }
+    const throttled = this.screenName === 'pause' && r.qualitySettled;
+    if (throttled) {
+      if (now - this.lastPausedDraw < PAUSED_FRAME_MS) return;
+      this.lastPausedDraw = now;
+    }
     if (this.screenName === 'heist' || this.screenName === 'pause' || this.screenName === 'results') {
-      r.update(s.prev, s.cur, this.screenName === 'heist' ? s.alpha : 1);
+      r.update(s.prev, s.cur, this.screenName === 'heist' ? s.alpha : 1, throttled);
     }
   };
 

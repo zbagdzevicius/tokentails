@@ -1,9 +1,10 @@
 import { ARTICLE_API } from "@/api/article-api";
 import { getNextPageFn } from "@/api/routing";
-import { Feed } from "@/components/blog/Feed";
+import { Feed, IFeedItem } from "@/components/blog/Feed";
 import { Loader } from "@/components/shared/Loader";
 import { NoMore } from "@/components/shared/NoMore";
 import { insertObjectEveryN } from "@/constants/utils";
+import { IArticleExcerpt } from "@/models/article";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo } from "react";
 import { useInView } from "react-intersection-observer";
@@ -11,7 +12,7 @@ import { useInView } from "react-intersection-observer";
 export interface LandingPageProps {
   category?: string;
   hasCategory?: boolean;
-  entryRecords?: any[];
+  entryRecords?: IArticleExcerpt[];
 }
 
 export const FeedLanding = ({
@@ -21,7 +22,7 @@ export const FeedLanding = ({
 }: LandingPageProps) => {
   const queryFunction = useCallback(
     async ({ pageParam = 0 }) => {
-      let articles = [];
+      const articles = [];
       if (hasCategory && !category) {
         return [];
       }
@@ -49,7 +50,10 @@ export const FeedLanding = ({
   }, [inView, fetchNextPage]);
 
   const articles = useMemo(() => {
-    let items = [...(entryRecords || []), ...(data?.pages?.flat(1) || [])];
+    let items: IFeedItem[] = [
+      ...(entryRecords || []),
+      ...(data?.pages?.flat(1) || []),
+    ];
     if (!process.env.NEXT_PUBLIC_IS_APP) {
       items = insertObjectEveryN(items, 10, { isAd: true });
     }

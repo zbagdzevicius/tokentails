@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import { explorerAddress, explorerTx } from "./chains";
-import { Disbursement, formatUnits, sumAmounts } from "./logs";
+import { Disbursement, formatUnits, payoutUnit, to18 } from "./logs";
 import {
   ShelterDeployment,
   fetchDeployments,
   fetchDisbursements,
   resolveChain,
 } from "./rpc";
+
+// Static Catnip Heist build in public/heist (catnip-heist: npm run build:client). Next.js does
+// not serve index.html for a directory, so the link names the file.
+export const HEIST_URL = "/heist/index.html";
 
 export const DISCLOSURE =
   "Shelter wallet held by Token Tails on behalf of the shelter until handover";
@@ -20,6 +24,23 @@ type Page =
   | { status: "loading" }
   | { status: "error"; error: string }
   | { status: "done"; deployments: ShelterDeployment[] };
+
+// Sum per symbol, in 18-decimal units, so Arc's native USDC (18 decimals) and ERC-20 USDC (6)
+// add up while different coins never mix.
+function totalsBySymbol(
+  items: Disbursement[],
+  chain: ReturnType<typeof resolveChain>
+): { symbol: string; amount: bigint; count: number }[] {
+  const out: Record<string, { symbol: string; amount: bigint; count: number }> = {};
+  for (const d of items) {
+    const u = chain ? payoutUnit(d.kind, chain) : { decimals: 6, symbol: "?" };
+    const t = out[u.symbol] || { symbol: u.symbol, amount: BigInt(0), count: 0 };
+    t.amount += to18(d.amount, u.decimals);
+    t.count += 1;
+    out[u.symbol] = t;
+  }
+  return Object.values(out);
+}
 
 const short = (v: string) => `${v.slice(0, 6)}…${v.slice(-4)}`;
 
@@ -43,8 +64,9 @@ const DeploymentCard = ({
 }) => {
   const chain = resolveChain(deployment);
   const explorer = chain?.explorer;
-  const decimals = chain?.decimals ?? 6;
-  const symbol = chain?.symbol ?? "";
+  const unit = (d: Disbursement) =>
+    chain ? payoutUnit(d.kind, chain) : { decimals: 6, symbol: "" };
+  const cardTotals = result.status === "done" ? totalsBySymbol(result.items, chain) : [];
 
   return (
     <section className="w-full rounded-xl border-2 border-yellow-900 bg-black/60 p-4 text-p5 font-secondary">
@@ -82,7 +104,7 @@ const DeploymentCard = ({
           <p className="mt-2">
             Total paid:{" "}
             <strong>
-              {formatUnits(sumAmounts(result.items), decimals)} {symbol}
+              {cardTotals.map((t) => `${formatUnits(t.amount, 18)} ${t.symbol}`).join(" + ")}
             </strong>{" "}
             in {result.items.length} payout
             {result.items.length === 1 ? "" : "s"}
@@ -108,7 +130,7 @@ const DeploymentCard = ({
                       )}
                     </td>
                     <td className="pr-4 py-1 whitespace-nowrap">
-                      {formatUnits(d.amount, decimals)} {symbol}
+                      {formatUnits(d.amount, unit(d).decimals)} {unit(d).symbol}
                     </td>
                     <td className="pr-4 py-1 break-words">{d.memo || "—"}</td>
                     <td className="py-1">
@@ -158,19 +180,18 @@ export const ShelterPayouts = () => {
     };
   }, []);
 
-  // Totals per token: amounts on different tokens or decimals are never added together.
-  const totals: Record<string, { amount: bigint; decimals: number; count: number }> = {};
+  // Totals per symbol: amounts of different coins are never added together.
+  const totals: Record<string, { amount: bigint; count: number }> = {};
   if (page.status === "done") {
     page.deployments.forEach((d, i) => {
       const r = results[i];
       if (r?.status !== "done") return;
-      const chain = resolveChain(d);
-      const decimals = chain?.decimals ?? 6;
-      const key = `${chain?.symbol ?? "?"}|${decimals}`;
-      const t = totals[key] || { amount: BigInt(0), decimals, count: 0 };
-      t.amount += sumAmounts(r.items);
-      t.count += r.items.length;
-      totals[key] = t;
+      for (const t of totalsBySymbol(r.items, resolveChain(d))) {
+        const acc = totals[t.symbol] || { amount: BigInt(0), count: 0 };
+        acc.amount += t.amount;
+        acc.count += t.count;
+        totals[t.symbol] = acc;
+      }
     });
   }
   const pending =
@@ -189,6 +210,13 @@ export const ShelterPayouts = () => {
         Every payout from the ShelterSplit contract is read live from the chain.
         Nothing on this page comes from our servers.
       </p>
+      <a
+        href={HEIST_URL}
+        className="rounded-xl border-2 border-yellow-900 bg-black/60 px-4 py-2 font-primary uppercase text-p4 hover:text-yellow-300"
+        data-testid="play-heist"
+      >
+        Play Catnip Heist: rescue a shelter cat
+      </a>
       <p
         className="w-full rounded-xl border-2 border-yellow-900 bg-yellow-300 px-4 py-2 text-center font-secondary text-p5 text-black"
         data-testid="shelter-disclosure"
@@ -216,9 +244,9 @@ export const ShelterPayouts = () => {
           <div className="w-full rounded-xl border-2 border-yellow-900 bg-black/60 p-4 font-secondary text-p5">
             <h3 className="font-primary uppercase text-p3">Totals</h3>
             {Object.keys(totals).length === 0 && pending && <p className="animate-pulse">Counting…</p>}
-            {Object.entries(totals).map(([key, t]) => (
-              <p key={key}>
-                {formatUnits(t.amount, t.decimals)} {key.split("|")[0]} across {t.count} payout
+            {Object.entries(totals).map(([symbol, t]) => (
+              <p key={symbol}>
+                {formatUnits(t.amount, 18)} {symbol} across {t.count} payout
                 {t.count === 1 ? "" : "s"}
               </p>
             ))}

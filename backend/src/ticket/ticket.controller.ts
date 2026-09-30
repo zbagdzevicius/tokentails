@@ -1,7 +1,7 @@
 import { BadRequestException, Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Types } from 'mongoose';
-import { SearchModel } from 'src/common/validators';
+import { pickSearchParams, SearchModel } from 'src/common/validators';
 import { USER_ID } from 'src/shared/decorators/user.decorator';
 import { PermissionGuard } from 'src/shared/guards/permission.guard';
 import { Ticket } from 'src/ticket/ticket.schema';
@@ -24,7 +24,7 @@ export class TicketController implements IController<Ticket> {
     @Post('search')
     async search(@Body() params: SearchModel): Promise<Ticket[]> {
         return this.repository.find({
-            ...params,
+            ...pickSearchParams(params),
             perPage: params.perPage || 100,
         });
     }
@@ -34,7 +34,7 @@ export class TicketController implements IController<Ticket> {
     async searchUnanswered(@Body() params: SearchModel): Promise<Ticket[]> {
         return this.repository.find({
             searchObject: { answer: '' },
-            ...params,
+            ...pickSearchParams(params),
             perPage: params.perPage || 100,
             populate: [{ path: 'user', select: 'twitter email spent' }],
         });
@@ -69,7 +69,7 @@ export class TicketController implements IController<Ticket> {
         return this.repository.update(id, { answer: object.answer });
     }
 
-    async delete(@Param('id') id: string): Promise<any> {
+    async delete(): Promise<any> {
         throw Error('not implemented');
     }
 }

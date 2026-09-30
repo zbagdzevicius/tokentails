@@ -31,7 +31,7 @@ export class SawHalf {
   }
 
   enableCollision() {
-    this.scene.physics.add.collider(this.sprite as any, this.groundLayer);
+    this.scene.physics.add.collider(this.sprite as Phaser.Types.Physics.Arcade.GameObjectWithBody, this.groundLayer);
   }
 
   update(delta: number) {

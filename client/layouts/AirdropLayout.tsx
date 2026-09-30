@@ -2,7 +2,7 @@ import { EntityMetadataProvider } from "@/context/EntityMetadataContext";
 import { PropsWithChildren } from "react";
 import { Header } from "./Header";
 
-const AirdropLayout = ({ children }: PropsWithChildren<{}>) => {
+const AirdropLayout = ({ children }: PropsWithChildren) => {
   return (
     <EntityMetadataProvider>
       <div className="min-h-screen flex flex-col bg-gradient-to-b from-yellow-300 via-blue-300">

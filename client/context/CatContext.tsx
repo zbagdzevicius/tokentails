@@ -31,9 +31,9 @@ function isMaxReached(status: IStatus, cat: ICat): boolean {
   return newStatuses[StatusType.EAT] >= MAX_CAT_STATUS;
 }
 
-const CatProvider = ({ children }: React.PropsWithChildren<{}>) => {
+const CatProvider = ({ children }: React.PropsWithChildren) => {
   const { setProfileUpdate, profile } = useProfile();
-  const cat = React.useMemo(() => profile?.cat, [profile?.cat!]);
+  const cat = React.useMemo(() => profile?.cat, [profile?.cat]);
   const toast = useToast();
 
   const saveStatusCall = useCallback(
@@ -77,7 +77,7 @@ const CatProvider = ({ children }: React.PropsWithChildren<{}>) => {
       });
       await saveStatus.mutate(newStatus.status);
     },
-    [saveStatus]
+    [cat, profile?.tails, saveStatus, setProfileUpdate, toast]
   );
   const value = { cat, setCatStatus };
 
@@ -89,7 +89,8 @@ function useCat() {
 
   return {
     cat: context?.cat,
-    setCatStatus: context?.setCatStatus!,
+    // Undefined outside CatProvider, as before; callers rely on the provider.
+    setCatStatus: context?.setCatStatus as ContextState["setCatStatus"],
   };
 }
 

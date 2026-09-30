@@ -8,6 +8,7 @@ import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
+import { optimizeAssets } from './optimize-assets.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
@@ -158,6 +159,8 @@ async function main() {
 
   const manifest = { version: 1, frame: FRAME, cats, dogs, images, icons, font };
   await writeFile(join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 1));
+  // Lossless size pass: palette PNG sheets, WebP brand images, compact manifest.
+  await optimizeAssets(OUT);
 
   const short = (e) => e.rows.map((r) => `${r.name[0]}${r.frames}`).join(' ');
   console.log(`cats: ${cats.length}, dogs: ${dogs.length}, icons: ${Object.keys(icons).length}`);

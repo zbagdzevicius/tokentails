@@ -10,6 +10,8 @@ import { Web3Transfer } from "./transfer/Web3Transfer";
 import { cdnFile } from "@/constants/utils";
 import { IMessage } from "@/models/cats";
 import { Web3Providers } from "./Web3Providers";
+import { isApp } from "@/models/app";
+import { AppCheckoutNotice } from "./AppCheckoutNotice";
 
 type PaymentMethod = "crypto" | "stripe";
 
@@ -52,7 +54,15 @@ const productNameOverviewMap = {
   },
 };
 
-export const Payment = ({
+// App builds show a notice instead: digital goods must use store IAP there.
+export const Payment = (props: PaymentProps) =>
+  isApp ? (
+    <AppCheckoutNotice onBack={props.onRemove} />
+  ) : (
+    <WebPayment {...props} />
+  );
+
+const WebPayment = ({
   price,
   entityType,
   id,

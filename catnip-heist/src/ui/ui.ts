@@ -15,7 +15,8 @@
  * The UI owns no game state. Navigation between Title and Cat pick is internal; everything that
  * affects the game goes out through `handlers`.
  */
-import { ASSET_BASE, PAYOUTS_URL, TICK_HZ, type AssetManifest, type LevelDef, type RunResult, type SheetEntry, type SimEvent, type SimState } from '../types';
+import { shelterTotalLine } from './payouts';
+import { ASSET_BASE, DEPLOYMENTS_URL, PAYOUTS_URL, TICK_HZ, type AssetManifest, type LevelDef, type RunResult, type SheetEntry, type SimEvent, type SimState } from '../types';
 import { formatTime, h, hashHex, isCoarsePointer, prefersReducedMotion, safeStorageGet, safeStorageSet, setText } from './dom';
 import type { InputController } from './input';
 import { activeHint, objectiveText, pawRating, scoreBreakdown } from './logic';
@@ -61,6 +62,8 @@ export interface UIOptions {
   touch?: boolean;
   /** Shelter payouts page linked from the win screen. Default PAYOUTS_URL; '' hides the link. */
   payoutsUrl?: string;
+  /** Deployment list for the win screen's on-chain "sent to shelters" total. Default DEPLOYMENTS_URL; '' hides it. */
+  deploymentsUrl?: string;
 }
 
 export interface UI {
@@ -127,6 +130,13 @@ function tweenCount(el: Element, from: number, to: number, fmt: (v: number) => s
 export function createUI(parent: HTMLElement, opts: UIOptions): UI {
   const base = opts.base ?? ASSET_BASE;
   const payoutsUrl = opts.payoutsUrl ?? PAYOUTS_URL;
+  const deploymentsUrl = opts.deploymentsUrl ?? DEPLOYMENTS_URL;
+  // Read-only on-chain total under the rescue line; stays empty (hidden) until it resolves.
+  const shelterTotal = () => {
+    const el = h('span.ch-payouts-total', { 'data-testid': 'shelter-total' });
+    void shelterTotalLine(deploymentsUrl).then((text) => { el.textContent = text; });
+    return el;
+  };
   ensureStyles(base);
   const { manifest, handlers, input } = opts;
   const cats = manifest.cats;
@@ -246,7 +256,7 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
       'div.ch-menu',
       null,
       h('p.ch-ribbon', null, h('img', { src: img('catnip'), alt: '' }), h('span.ch-tag', null, 'Sneak past Kibble Corp. Loot the catnip. Free a shelter cat.')),
-      playBtn,
+      h('div.ch-play-wrap', null, h('span.ch-play-glow', { 'aria-hidden': 'true' }), playBtn),
       yardBtn,
     ),
     h('div.ch-corner', null, muteButton()),
@@ -388,13 +398,20 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
   root.appendChild(hud);
 
   let touch: TouchControls | null = null;
+  /** Mirrors the root's .ch-touching class (read every HUD update without touching the DOM). */
+  let touching = false;
+  const setTouching = (on: boolean) => {
+    if (on === touching) return;
+    touching = on;
+    root.classList.toggle('ch-touching', on);
+  };
   if (input) {
     touch = createTouchControls(hud, input, { onPress: gesture });
     const autoTouch = () => opts.touch ?? (isCoarsePointer() || input.lastDevice === 'touch');
     const applyTouch = () => {
       const on = autoTouch();
       touch?.setVisible(on);
-      root.classList.toggle('ch-touching', on);
+      setTouching(on);
     };
     applyTouch();
     const prev = input.onDeviceChange;
@@ -403,7 +420,7 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
       if (opts.touch === undefined) {
         const on = d === 'touch' || (d !== 'keyboard' && d !== 'gamepad' && isCoarsePointer());
         touch?.setVisible(on);
-        root.classList.toggle('ch-touching', on);
+        setTouching(on);
       }
     };
   }
@@ -418,6 +435,18 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
   let hintShownAt = 0;
   const HINT_NARROW_MS = 7000;
   const narrowMq = typeof window.matchMedia === 'function' ? window.matchMedia('(max-width: 520px) and (orientation: portrait)') : null;
+  // Cached: reading .matches every frame re-evaluates the query.
+  let narrow = narrowMq?.matches === true;
+  const onNarrowChange = (e: MediaQueryListEvent) => {
+    narrow = e.matches;
+  };
+  narrowMq?.addEventListener?.('change', onNarrowChange);
+  /** State the HUD last reflected (sim states are immutable: same object, nothing to redo). */
+  let hudState: SimState | null = null;
+  let hudTouching = false;
+  /** The current state has a hint, and whether .ch-on is set on it. */
+  let hintWanted = false;
+  let hintOn = false;
 
   function showHUD(lv: LevelDef, catIds: [string, string]) {
     level = lv;
@@ -426,6 +455,8 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     lastActive = -1;
     lastCoins = lastSpots = -1;
     lastEventTick = -1;
+    hudState = null;
+    hintWanted = hintOn = false;
     crewBtns.forEach((b, i) => {
       b.querySelector('canvas')?.remove();
       const e = byId.get(catIds[i]);
@@ -444,43 +475,51 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     show('hud');
   }
 
+  // Called every animation frame, but the sim only ticks at 30 Hz: all DOM work happens when the
+  // state object changes, and only for values that changed (no reads that force a layout).
   function updateHUD(s: SimState) {
     lastState = s;
     if (!level) return;
-    if (s.coinsCollected !== lastCoins) {
-      const from = lastCoins < 0 ? s.coinsCollected : lastCoins;
-      lastCoins = s.coinsCollected;
-      tweenCount(coinsText, from, s.coinsCollected, (v) => `${v}/${totalCoins}`, 260);
-    }
-    setText(timeText, formatTime(s.tick, TICK_HZ));
-    if (s.spottedCount !== lastSpots) {
-      setText(spotText, String(s.spottedCount));
-      lastSpots = s.spottedCount;
-    }
-    const keyShown = s.hasKey ? '' : 'none';
-    if (keyChip.style.display !== keyShown) keyChip.style.display = keyShown;
-    const ot = objectiveText(s, level);
-    if (objText.textContent !== ot) {
-      objText.textContent = ot;
-      restartAnim(objInner, 'ch-new');
-    }
-    if (s.activeIndex !== lastActive) {
-      lastActive = s.activeIndex;
-      crewBtns.forEach((b, i) => b.setAttribute('aria-current', String(i === s.activeIndex)));
-    }
-    const ht = activeHint(s, level, root.classList.contains('ch-touching'));
-    if (ht) {
-      const now = performance.now();
-      if (hint.textContent !== ht) {
+    if (s !== hudState || touching !== hudTouching) {
+      hudState = s;
+      hudTouching = touching;
+      if (s.coinsCollected !== lastCoins) {
+        const from = lastCoins < 0 ? s.coinsCollected : lastCoins;
+        lastCoins = s.coinsCollected;
+        tweenCount(coinsText, from, s.coinsCollected, (v) => `${v}/${totalCoins}`, 260);
+      }
+      setText(timeText, formatTime(s.tick, TICK_HZ));
+      if (s.spottedCount !== lastSpots) {
+        setText(spotText, String(s.spottedCount));
+        lastSpots = s.spottedCount;
+      }
+      const keyShown = s.hasKey ? '' : 'none';
+      if (keyChip.style.display !== keyShown) keyChip.style.display = keyShown;
+      const ot = objectiveText(s, level);
+      if (objText.textContent !== ot) {
+        objText.textContent = ot;
+        restartAnim(objInner, 'ch-new');
+      }
+      if (s.activeIndex !== lastActive) {
+        lastActive = s.activeIndex;
+        crewBtns.forEach((b, i) => b.setAttribute('aria-current', String(i === s.activeIndex)));
+      }
+      const ht = activeHint(s, level, touching);
+      hintWanted = !!ht;
+      if (ht && hint.textContent !== ht) {
         hint.textContent = ht;
         hint.classList.remove('ch-on');
+        hintOn = false;
         void hint.offsetWidth;
-        hintShownAt = now;
+        hintShownAt = performance.now();
       }
-      // On narrow portrait screens the hint sits over the play area: let it go after a while.
-      const expired = narrowMq?.matches === true && now - hintShownAt > HINT_NARROW_MS;
-      hint.classList.toggle('ch-on', !expired);
-    } else hint.classList.remove('ch-on');
+    }
+    // On narrow portrait screens the hint sits over the play area: let it go after a while.
+    const on = hintWanted && !(narrow && performance.now() - hintShownAt > HINT_NARROW_MS);
+    if (on !== hintOn) {
+      hintOn = on;
+      hint.classList.toggle('ch-on', on);
+    }
     // If the app only calls updateHUD, still surface this tick's events once.
     if (s.tick !== lastEventTick && s.events.length) handleEvents(s.events, s);
   }
@@ -679,7 +718,7 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     const table = h('table.ch-score', null, h('tbody', null, ...rows));
     rows[2].lastElementChild?.classList.add('ch-neg');
     const rescue = r.rescued
-      ? h('div.ch-rescue', null, crateEntry ? createPortrait(crateEntry, { size: 72, base }) : null, h('p', null, `You rescued ${name}!`, h('small', null, 'Play to save: heists help fund real shelter rescues.'), payoutsUrl ? h('a.ch-payouts', { href: payoutsUrl, target: '_blank', rel: 'noopener' }, 'Every heist funds a real shelter: see payouts') : null))
+      ? h('div.ch-rescue', null, crateEntry ? createPortrait(crateEntry, { size: 72, base }) : null, h('p', null, `You rescued ${name}!`, h('small', null, 'Play to save: heists help fund real shelter rescues.'), payoutsUrl ? h('a.ch-payouts', { href: payoutsUrl, target: '_blank', rel: 'noopener' }, 'Every heist funds a real shelter: see payouts') : null, shelterTotal()))
       : h('div.ch-rescue.ch-miss', null, h('p', null, `${name} is still in the crate`, h('small', null, 'Free the shelter cat for +50.')));
     const retry = button('.ch-primary.ch-big', h('span', null, 'Retry'), () => handlers.onRetry?.());
     retry.prepend(icon('retry'));
@@ -836,6 +875,7 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     dispose() {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('keydown', onKeyGesture);
+      narrowMq?.removeEventListener?.('change', onNarrowChange);
       touch?.dispose();
       diorama?.dispose();
       root.remove();

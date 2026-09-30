@@ -10,7 +10,7 @@ async function createTicket(ticket: ITicket): Promise<ITicket> {
       Accept: "application/json",
       "Content-Type": "application/json",
       ...getAuthHeaders(),
-    } as any,
+    } as HeadersInit,
     body: JSON.stringify(ticket),
   }).then((response) => {
     if (response.ok) {
@@ -31,7 +31,7 @@ async function getTickets(): Promise<ITicket[]> {
       Accept: "application/json",
       "Content-Type": "application/json",
       accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();

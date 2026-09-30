@@ -17,8 +17,6 @@ export interface ISaved {
 }
 
 export enum QUEST {
-    FOLLOW_TG_CHANNEL = 'FOLLOW_TG_CHANNEL',
-    FOLLOW_TG_GROUP = 'FOLLOW_TG_GROUP',
     FOLLOW_X = 'FOLLOW_X',
     FOLLOW_X_FOUNDER = 'FOLLOW_X_FOUNDER',
     FOLLOW_DISCORD = 'FOLLOW_DISCORD',
@@ -64,8 +62,6 @@ export const QuestTypeReward: Record<
         cats?: string[];
     }
 > = {
-    [QUEST.FOLLOW_TG_CHANNEL]: { tails: 10 },
-    [QUEST.FOLLOW_TG_GROUP]: { tails: 10 },
     [QUEST.FOLLOW_X]: { tails: 10 },
     [QUEST.FOLLOW_X_FOUNDER]: { tails: 50 },
     [QUEST.FOLLOW_DISCORD]: { tails: 10 },
@@ -131,9 +127,6 @@ export class User extends CommonSchema {
     email: string;
 
     @Prop({ required: false })
-    telegramId: string;
-
-    @Prop({ required: false })
     twitter: string;
 
     @Prop({ required: false })
@@ -145,9 +138,6 @@ export class User extends CommonSchema {
 
     @Prop({ required: false })
     discord: string;
-
-    @Prop({ required: false })
-    telegramUsername: string;
 
     @Prop({
         required: false,
@@ -286,7 +276,6 @@ UserSchema.index({ cat: 1 });
 UserSchema.index({ twitter: 1 });
 UserSchema.index({ spent: 1 });
 UserSchema.index({ discount: 1 });
-UserSchema.index({ telegramId: 1 });
 UserSchema.index({ createdAt: -1 });
 UserSchema.index({ tails: 1 });
 UserSchema.index({ catnipCount: 1 });

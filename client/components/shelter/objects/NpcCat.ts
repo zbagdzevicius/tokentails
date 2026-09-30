@@ -50,7 +50,7 @@ export class NpcCat {
   direction: number;
   speed: number = 45;
   isLoafing: boolean = false;
-  originalData: ICat = {} as ICat;
+  originalData: ICat & { isPlayerCat?: boolean } = {} as ICat;
   randomActionTimer!: Phaser.Time.TimerEvent;
 
   constructor(scene: Scene, x: number, y: number, catName: string) {

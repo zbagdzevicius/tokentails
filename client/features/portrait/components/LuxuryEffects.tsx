@@ -1,15 +1,19 @@
 import { motion } from "framer-motion";
+import { useState } from "react";
 
 // Floating gold particles that drift upward
 export const FloatingParticles = () => {
-  const particles = Array.from({ length: 20 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    delay: Math.random() * 5,
-    duration: 8 + Math.random() * 6,
-    size: 2 + Math.random() * 4,
-    opacity: 0.1 + Math.random() * 0.3,
-  }));
+  // Random layout generated once per mount.
+  const [particles] = useState(() =>
+    Array.from({ length: 20 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      delay: Math.random() * 5,
+      duration: 8 + Math.random() * 6,
+      size: 2 + Math.random() * 4,
+      opacity: 0.1 + Math.random() * 0.3,
+    }))
+  );
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -150,13 +154,17 @@ export const LuxuryReveal = ({
 
 // Sparkle effect that appears randomly
 export const SparkleEffect = () => {
-  const sparkles = Array.from({ length: 8 }, (_, i) => ({
-    id: i,
-    x: 10 + Math.random() * 80,
-    y: 10 + Math.random() * 80,
-    delay: Math.random() * 4,
-    duration: 1 + Math.random() * 1.5,
-  }));
+  // Random layout generated once per mount.
+  const [sparkles] = useState(() =>
+    Array.from({ length: 8 }, (_, i) => ({
+      id: i,
+      x: 10 + Math.random() * 80,
+      y: 10 + Math.random() * 80,
+      delay: Math.random() * 4,
+      duration: 1 + Math.random() * 1.5,
+      repeatDelay: 3 + Math.random() * 2,
+    }))
+  );
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -177,7 +185,7 @@ export const SparkleEffect = () => {
             duration: sparkle.duration,
             delay: sparkle.delay,
             repeat: Infinity,
-            repeatDelay: 3 + Math.random() * 2,
+            repeatDelay: sparkle.repeatDelay,
           }}
         >
           <svg

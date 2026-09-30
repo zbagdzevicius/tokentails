@@ -44,6 +44,7 @@ export function Previews({ maxFiles, value, onChange }: IProps) {
       <div className="min-w-0 overflow-hidden flex relative">
         <img
           src={file.url}
+          alt={file.name}
           className="h-48 rounded-lg w-auto mr-4"
           // Revoke data uri after image is loaded
           onLoad={() => {
@@ -73,7 +74,7 @@ export function Previews({ maxFiles, value, onChange }: IProps) {
         })}
       >
         <input {...getInputProps()} />
-        <p>Drag 'n' drop some files here, or click to select files</p>
+        <p>Drag &apos;n&apos; drop some files here, or click to select files</p>
       </div>
       <aside
         style={{

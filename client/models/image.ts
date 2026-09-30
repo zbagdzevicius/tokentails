@@ -5,4 +5,5 @@ export interface IImage {
   name?: string;
   url: string;
   aiUrl?: string;
+  style?: string;
 }

@@ -2,8 +2,10 @@ import { CloseButton } from "@/components/shared/CloseButton";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { Tag } from "@/components/shared/Tag";
 import { TailsCardPack } from "@/components/tailsCard/TailsCardPack";
+import { AppCheckoutNotice } from "@/components/web3/AppCheckoutNotice";
 import { cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
+import { isApp } from "@/models/app";
 import { useToast } from "@/context/ToastContext";
 import { ICat, IMessage } from "@/models/cats";
 import { PackType } from "@/models/order";
@@ -158,7 +160,7 @@ const PacksSelect = ({
           <Tag>BEST FOR NEWCOMERS</Tag>
         </div>
         <div className="mt-2 lg:mt-4 lg:group-hover:opacity-0 transition-all duration-500">
-          <PixelButton text="$5" />
+          {!isApp && <PixelButton text="$5" />}
         </div>
       </div>
       <div
@@ -184,7 +186,7 @@ const PacksSelect = ({
           <Tag isSmall>MOST POPULAR</Tag>
         </div>
         <div className="mt-6 lg:mt-5 lg:group-hover:opacity-0 transition-all duration-500 glow-box">
-          <PixelButton text="$25" />
+          {!isApp && <PixelButton text="$25" />}
         </div>
       </div>
       <div
@@ -206,7 +208,7 @@ const PacksSelect = ({
           <Tag>LAST CHANCE TO GET</Tag>
         </div>
         <div className="mt-2 lg:mt-4 lg:group-hover:opacity-0 transition-all duration-500">
-          <PixelButton text="$400" />
+          {!isApp && <PixelButton text="$400" />}
         </div>
       </div>
     </div>
@@ -254,13 +256,23 @@ bg-clip-text text-transparent -mt-4 relative z-30"
             PACKS
           </div>
         </div>
-        <div className="z-10 absolute -bottom-3">
-          <Tag isSmall>PURCHASE A PACK TO SAVE A CAT</Tag>
-        </div>
+        {!isApp && (
+          <div className="z-10 absolute -bottom-3">
+            <Tag isSmall>PURCHASE A PACK TO SAVE A CAT</Tag>
+          </div>
+        )}
       </div>
       {!packType && !cat && (
         <>
-          <PacksSelect onSelect={(packType) => setPackType(packType)} />
+          {/* App builds show the packs without prices; IAP is not built yet. */}
+          <PacksSelect
+            onSelect={(packType) => !isApp && setPackType(packType)}
+          />
+          {isApp && (
+            <div className="mt-8">
+              <AppCheckoutNotice />
+            </div>
+          )}
           {!showRaritySummary ? (
             <div className="flex justify-center mt-8 md:mt-0 lg:mt-8">
               <PixelButton

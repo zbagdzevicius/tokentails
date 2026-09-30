@@ -1,4 +1,5 @@
 import { CatAbilityType, CatAbilityTypes, ICat } from "@/models/cats";
+import Link from "next/link";
 import { useMemo } from "react";
 import { PixelButton } from "../shared/PixelButton";
 import { ShelterBenefits } from "../shared/ShelterBenefits";
@@ -25,9 +26,10 @@ export const MarketplaceItemDetails = ({ cat }: { cat: ICat }) => {
         </div>
       </div>
       {!isFamous && (
-        <a href="/cats">
+        // Client-side navigation so it also works in the static app export.
+        <Link href="/cats">
           <PixelButton isBig text="SEE ALL SHELTER CATS" />
-        </a>
+        </Link>
       )}
     </div>
   );

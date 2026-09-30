@@ -1,15 +1,15 @@
 import { GameEvent } from "@/components/Phaser/events";
-import { ICat } from "@/models/cats";
+import type { NpcCat } from "./NpcCat";
 
 export class SpeechBubble extends Phaser.GameObjects.Container {
-  private npcCat: any;
+  private npcCat: NpcCat;
 
   constructor(
     scene: Phaser.Scene,
     x: number,
     y: number,
     text: string,
-    npcCat: ICat,
+    npcCat: NpcCat,
     buttonText: string,
     isSelected: boolean // New parameter to check selection status
   ) {

@@ -54,7 +54,7 @@ export class Blocker extends BasePixelEnemy {
   private readonly lostSightDuration = 2000;
   private lostSightTimer: number = 0;
   private readonly attackCooldown = 700;
-  private readonly attackRange = 62;
+  protected readonly attackRange = 62;
   private useAttack1: boolean = false;
   private currentAttackAnim: PixelEnemyAnimation | null = null;
   private preAttackIdleShown: boolean = false;
@@ -82,7 +82,7 @@ export class Blocker extends BasePixelEnemy {
   update(time: number, delta: number) {
     if (this.isDead || this.isTakingDamage) return;
 
-    if ((this as any).isStunned) return;
+    if (this.isStunned) return;
 
     if (this.attackCooldownTimer > 0) {
       this.attackCooldownTimer -= delta;

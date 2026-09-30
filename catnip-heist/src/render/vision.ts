@@ -10,8 +10,9 @@
  * The cone uses the sim position and the sim facing of the current tick (no smoothing), so the
  * picture never disagrees with the rules.
  *
- * All cones live in ONE dynamic mesh (one draw call) with RGBA vertex colours: a faint centre
- * fading to a brighter outer rim.
+ * All cones live in ONE dynamic mesh (one draw call): a faint centre fading to a brighter outer
+ * rim. A cone is re-clipped only when its sim inputs (position, facing, radius, doors) change, and
+ * only the used part of the vertex buffer is uploaded.
  */
 import * as THREE from 'three';
 
@@ -167,18 +168,26 @@ function polyArea(p: Poly): number {
   return Math.abs(s) / 2;
 }
 
+/**
+ * Per-guard constants (origin + facing, radius + sweep phase, colour + alpha) are uniform arrays
+ * indexed by a per-vertex guard id, so the vertex buffer holds only positions and ids and changes
+ * only when a cone's shape changes (a sim tick moved or turned a guard, or a door changed), not
+ * every animation frame (the ALERT pulse, the colour of the mode).
+ */
 const CONE_VERT = /* glsl */ `
-  attribute vec4 color;
-  attribute vec4 aO;
-  attribute vec2 aR;
+  attribute float aG;
+  uniform vec4 uCol[CONE_N];
+  uniform vec4 uO[CONE_N];
+  uniform vec2 uR[CONE_N];
   varying vec4 vColor;
   varying vec4 vO;
   varying vec2 vR;
   varying vec2 vW;
   void main() {
-    vColor = color;
-    vO = aO;
-    vR = aR;
+    int i = int(aG + 0.5);
+    vColor = uCol[i];
+    vO = uO[i];
+    vR = uR[i];
     vec4 w = modelMatrix * vec4(position, 1.0);
     vW = w.xz;
     gl_Position = projectionMatrix * viewMatrix * w;
@@ -219,38 +228,59 @@ const CONE_FRAG = /* glsl */ `
     #include <colorspace_fragment>
   }`;
 
+/** Cone shape inputs cached per guard: x, z, fx, fz, radius, visible. */
+const KEY_LEN = 6;
+
 export class VisionCones {
   readonly mesh: THREE.Mesh;
   private readonly pos: Float32Array;
-  private readonly col: Float32Array;
-  private readonly org: Float32Array;
-  private readonly rad: Float32Array;
+  private readonly gid: Float32Array;
   private readonly geo: THREE.BufferGeometry;
   private readonly mat: THREE.ShaderMaterial;
   private readonly maxVerts: number;
+  private readonly guards: number;
+  /** Vertex capacity of one guard's cone. */
+  private readonly perGuard: number;
   private readonly polyA = makePoly();
   private readonly polyB = makePoly();
+  /** Per-guard clipped triangles (x, z pairs in world units) and their vertex counts. */
+  private readonly tris: Float32Array[] = [];
+  private readonly counts: Int32Array;
+  private readonly keys: Float64Array;
+  private blockKey: unknown = undefined;
+  private readonly uCol: THREE.Vector4[] = [];
+  private readonly uO: THREE.Vector4[] = [];
+  private readonly uR: THREE.Vector2[] = [];
+  /** Cone rebuilds so far (a guard's shape changed); tests and perf probes read it. */
+  rebuilds = 0;
 
   /** `maxRadius`: the largest guard vision radius in tiles (sizes the vertex buffer). */
   constructor(maxGuards: number, maxRadius = 8) {
     const guards = Math.max(1, maxGuards);
+    this.guards = guards;
     const span = 2 * Math.ceil(Math.max(1, maxRadius)) + 2;
     // A quarter disc of tiles (~span^2 / 3 with margin), each up to MAX_POLY - 2 triangles.
-    this.maxVerts = guards * Math.ceil((span * span) / 2) * 3 * 10;
+    this.perGuard = Math.ceil((span * span) / 2) * 3 * 10;
+    this.maxVerts = guards * this.perGuard;
     this.pos = new Float32Array(this.maxVerts * 3);
-    this.col = new Float32Array(this.maxVerts * 4);
-    this.org = new Float32Array(this.maxVerts * 4);
-    this.rad = new Float32Array(this.maxVerts * 2);
+    this.gid = new Float32Array(this.maxVerts);
+    for (let g = 0; g < guards; g++) {
+      this.tris.push(new Float32Array(this.perGuard * 2));
+      this.uCol.push(new THREE.Vector4());
+      this.uO.push(new THREE.Vector4(0, 0, 1, 0));
+      this.uR.push(new THREE.Vector2(1, g * 2.1));
+    }
+    this.counts = new Int32Array(guards);
+    this.keys = new Float64Array(guards * KEY_LEN).fill(NaN);
     this.geo = new THREE.BufferGeometry();
     this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
-    this.geo.setAttribute('color', new THREE.BufferAttribute(this.col, 4).setUsage(THREE.DynamicDrawUsage));
-    this.geo.setAttribute('aO', new THREE.BufferAttribute(this.org, 4).setUsage(THREE.DynamicDrawUsage));
-    this.geo.setAttribute('aR', new THREE.BufferAttribute(this.rad, 2).setUsage(THREE.DynamicDrawUsage));
+    this.geo.setAttribute('aG', new THREE.BufferAttribute(this.gid, 1).setUsage(THREE.DynamicDrawUsage));
     this.geo.setDrawRange(0, 0);
     this.mat = new THREE.ShaderMaterial({
+      defines: { CONE_N: guards },
       vertexShader: CONE_VERT,
       fragmentShader: CONE_FRAG,
-      uniforms: { uTime: { value: 0 }, uHdr: { value: 1 } },
+      uniforms: { uTime: { value: 0 }, uHdr: { value: 1 }, uCol: { value: this.uCol }, uO: { value: this.uO }, uR: { value: this.uR } },
       transparent: true,
       depthWrite: false,
       polygonOffset: true,
@@ -270,53 +300,104 @@ export class VisionCones {
     this.mat.uniforms.uHdr.value = hdr;
   }
 
-  update(cones: ConeInput[], sees: SeesTileFn): void {
-    let v = 0;
+  /** Vertices drawn (3 per triangle). */
+  get vertexCount(): number {
+    return this.geo.drawRange.count;
+  }
+
+  /**
+   * Rebuild the cones whose shape inputs changed. `blockKey` identifies what `sees` depends on
+   * besides the level (e.g. which doors are open): when it changes every cone is rebuilt. Omit it
+   * to rebuild every cone on every call.
+   */
+  update(cones: ConeInput[], sees: SeesTileFn, blockKey?: unknown): void {
+    const all = blockKey === undefined || blockKey !== this.blockKey;
+    this.blockKey = blockKey;
+    const K = this.keys;
+    let dirty = false;
+    const n = Math.min(cones.length, this.guards);
+    for (let g = 0; g < this.guards; g++) {
+      const k = g < n ? cones[g] : null;
+      const on = !!k && k.visible && k.radius > 0 && (k.fx !== 0 || k.fz !== 0);
+      if (k) {
+        // Per-frame look: colour, alpha (the ALERT pulse), origin and radius for the shader.
+        this.uCol[g].set(k.color.r, k.color.g, k.color.b, k.alpha);
+        this.uO[g].set(k.x, k.z, k.fx, k.fz);
+        this.uR[g].x = k.radius;
+      }
+      const o = g * KEY_LEN;
+      const vis = on ? 1 : 0;
+      if (!all && K[o + 5] === vis && (!on || (K[o] === k!.x && K[o + 1] === k!.z && K[o + 2] === k!.fx && K[o + 3] === k!.fz && K[o + 4] === k!.radius))) continue;
+      K[o + 5] = vis;
+      if (on) {
+        K[o] = k!.x;
+        K[o + 1] = k!.z;
+        K[o + 2] = k!.fx;
+        K[o + 3] = k!.fz;
+        K[o + 4] = k!.radius;
+        this.counts[g] = this.build(k!, sees, this.tris[g]);
+      } else this.counts[g] = 0;
+      dirty = true;
+    }
+    if (!dirty) return;
+    this.rebuilds++;
+    // Pack the cached cones back to back (one draw call) and upload only the used range.
     const P = this.pos;
-    const C = this.col;
-    const O = this.org;
-    const R = this.rad;
-    const cap = this.maxVerts;
-    const A = this.polyA;
-    const B = this.polyB;
-    for (let g = 0; g < cones.length; g++) {
-      const k = cones[g];
-      if (!k.visible || k.radius <= 0 || (k.fx === 0 && k.fz === 0)) continue;
-      const r = k.radius;
-      const gx = Math.floor(k.x), gz = Math.floor(k.z);
-      const ri = Math.ceil(r) + 1;
-      const cr = k.color.r, cg = k.color.g, cb = k.color.b;
-      for (let tz = gz - ri; tz <= gz + ri; tz++) {
-        for (let tx = gx - ri; tx <= gx + ri; tx++) {
-          const n = clipTileToCone(k.x, k.z, k.fx, k.fz, r, tx, tz, A, B);
-          if (n < 3) continue;
-          if (!sees(gx, gz, tx, tz)) continue;
-          if (v + (n - 2) * 3 > cap) break;
-          for (let i = 1; i < n - 1; i++) {
-            // Tiles are wound clockwise seen from above; emit counter-clockwise (front faces up).
-            for (let q = 0; q < 3; q++) {
-              const j = q === 0 ? 0 : q === 1 ? i + 1 : i;
-              P[v * 3] = k.x + A.x[j];
-              P[v * 3 + 1] = 0;
-              P[v * 3 + 2] = k.z + A.z[j];
-              C[v * 4] = cr;
-              C[v * 4 + 1] = cg;
-              C[v * 4 + 2] = cb;
-              C[v * 4 + 3] = k.alpha;
-              O[v * 4] = k.x;
-              O[v * 4 + 1] = k.z;
-              O[v * 4 + 2] = k.fx;
-              O[v * 4 + 3] = k.fz;
-              R[v * 2] = r;
-              R[v * 2 + 1] = g * 2.1;
-              v++;
-            }
-          }
-        }
+    const G = this.gid;
+    let v = 0;
+    for (let g = 0; g < this.guards; g++) {
+      const c = this.counts[g];
+      const T = this.tris[g];
+      for (let i = 0; i < c; i++, v++) {
+        P[v * 3] = T[i * 2];
+        P[v * 3 + 1] = 0;
+        P[v * 3 + 2] = T[i * 2 + 1];
+        G[v] = g;
       }
     }
     this.geo.setDrawRange(0, v);
-    for (const name of ['position', 'color', 'aO', 'aR']) (this.geo.attributes[name] as THREE.BufferAttribute).needsUpdate = true;
+    if (v > 0) {
+      const pa = this.geo.attributes.position as THREE.BufferAttribute;
+      const ga = this.geo.attributes.aG as THREE.BufferAttribute;
+      pa.clearUpdateRanges();
+      pa.addUpdateRange(0, v * 3);
+      pa.needsUpdate = true;
+      ga.clearUpdateRanges();
+      ga.addUpdateRange(0, v);
+      ga.needsUpdate = true;
+    }
+  }
+
+  /** Clip every candidate tile around one guard into `out` (x, z pairs); returns the vertex count. */
+  private build(k: ConeInput, sees: SeesTileFn, out: Float32Array): number {
+    const A = this.polyA;
+    const B = this.polyB;
+    const cap = this.perGuard;
+    const r = k.radius;
+    const gx = Math.floor(k.x), gz = Math.floor(k.z);
+    const ri = Math.ceil(r) + 1;
+    let v = 0;
+    for (let tz = gz - ri; tz <= gz + ri; tz++) {
+      for (let tx = gx - ri; tx <= gx + ri; tx++) {
+        const n = clipTileToCone(k.x, k.z, k.fx, k.fz, r, tx, tz, A, B);
+        if (n < 3) continue;
+        if (!sees(gx, gz, tx, tz)) continue;
+        if (v + (n - 2) * 3 > cap) break;
+        for (let i = 1; i < n - 1; i++) {
+          // Tiles are wound clockwise seen from above; emit counter-clockwise (front faces up).
+          out[v * 2] = k.x + A.x[0];
+          out[v * 2 + 1] = k.z + A.z[0];
+          v++;
+          out[v * 2] = k.x + A.x[i + 1];
+          out[v * 2 + 1] = k.z + A.z[i + 1];
+          v++;
+          out[v * 2] = k.x + A.x[i];
+          out[v * 2 + 1] = k.z + A.z[i];
+          v++;
+        }
+      }
+    }
+    return v;
   }
 
   dispose(): void {

@@ -17,7 +17,7 @@ export default function Shelter({ shelter }: { shelter: IShelter }) {
     <TableRow>
       <TableCell className="font-medium">{shelter.name}</TableCell>
       <TableCell className="font-medium">
-        <img src={shelter.image.url} className="w-12 h-12" />
+        <img src={shelter.image.url} alt={shelter.name} className="w-12 h-12" />
       </TableCell>
       <TableCell>
         <DropdownMenu>

@@ -2,9 +2,10 @@ import {
   GameEvent,
   GameEvents,
   ICatEvent,
+  ICatEventsDetails,
   IPhaserGameSceneProps,
 } from "@/components/Phaser/events";
-import { SpikeManager } from "@/components/purrquest/managers/SpikeManager";
+import { SpikeManager } from "@/components/Phaser/hazards/SpikeManager";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
 import { cdnFile, ZOOM_PIXEL } from "@/constants/utils";
@@ -18,8 +19,8 @@ import { Blocker } from "../objects/Blocker";
 import { BLOCKER_TEXTURE_KEY, RUNNER_TEXTURE_KEY } from "../config/EnemyConfig";
 import { CatCrate } from "../objects/CatCrate";
 import { RescuedCat } from "../objects/RescuedCat";
-import { Saw } from "@/components/storyMode/Managers/SawManager";
-import { RotatingMorgensternTrapManager } from "@/components/storyMode/Managers/RotatingMorgensternManager";
+import { Saw } from "@/components/Phaser/hazards/SawManager";
+import { RotatingMorgensternTrapManager } from "@/components/Phaser/hazards/RotatingMorgensternManager";
 import { ForestAtmosphere } from "../effects/ForestAtmosphere";
 import { TutorialManager } from "../managers/TutorialManager";
 import { PixelRescueLevelMap } from "../../Phaser/map";
@@ -269,9 +270,12 @@ export class PixelRescueScene extends Scene {
     this.jumperLayer = this.tilemap.createLayer("jumper", [
       sugarTileset,
     ]) as Phaser.Tilemaps.TilemapLayer;
-    this.events.on(GameEvent.CAT_CARD_DISPLAY, (data: any) => {
-      GameEvents.CAT_CARD_DISPLAY.push(data);
-    });
+    this.events.on(
+      GameEvent.CAT_CARD_DISPLAY,
+      (data: ICatEventsDetails[GameEvent.CAT_CARD_DISPLAY]) => {
+        GameEvents.CAT_CARD_DISPLAY.push(data);
+      }
+    );
 
     this.groundLayer.setCollisionByExclusion([-1, ...SPIKE_TILES]);
 
@@ -286,7 +290,7 @@ export class PixelRescueScene extends Scene {
     this.platformsLayer.setCollision(JUMP_LAYER_TILES);
     this.platformsLayer.setTileIndexCallback(
       JUMP_LAYER_TILES,
-      (player: any) => {
+      (player: Phaser.Types.Physics.Arcade.GameObjectWithBody) => {
         if (player.body.velocity.y <= 0) {
           return true;
         }
@@ -559,7 +563,7 @@ export class PixelRescueScene extends Scene {
     if (!this.tutorialManager?.active) {
       this.time.delayedCall(1000, () => {
         this.tutorialManager?.start(
-          this.cat,
+          this.cat!,
           this.catCrate!,
           this.heartCoins,
           this.exitPortalSprite!,
@@ -574,7 +578,7 @@ export class PixelRescueScene extends Scene {
     }
   }
 
-  private handleCrateCollision(catSprite: any, crateObject: any) {
+  private handleCrateCollision(catSprite: unknown, crateObject: unknown) {
     const crate = crateObject as CatCrate;
 
     if (!crate.hasCat || !crate.hasCat()) {
@@ -1457,7 +1461,7 @@ export class PixelRescueScene extends Scene {
     enemy.setVelocityX(directionX * 200);
     enemy.setVelocityY(-150);
 
-    (enemy as any).isStunned = true;
+    enemy.isStunned = true;
     enemy.setTint(0x8888ff);
 
     const stunText = this.add.text(enemy.x, enemy.y - 50, "STUNNED!", {
@@ -1482,7 +1486,7 @@ export class PixelRescueScene extends Scene {
     });
 
     this.time.delayedCall(1000, () => {
-      (enemy as any).isStunned = false;
+      enemy.isStunned = false;
       enemy.clearTint();
     });
   }

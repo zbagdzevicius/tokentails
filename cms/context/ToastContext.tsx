@@ -15,7 +15,7 @@ export interface IToast {
 
 const ToastContext = React.createContext<ContextState | undefined>(undefined);
 
-const ToastProvider = ({ children }: React.PropsWithChildren<{}>) => {
+const ToastProvider = ({ children }: React.PropsWithChildren) => {
   const [toast, setToast] = React.useState<IToast | null>(null);
 
   GameEvents.ERROR.addEventListener((error) => {

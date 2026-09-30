@@ -15,7 +15,7 @@ async function uploadImage(
     headers: {
       Accept: 'application/json',
       ...getAuthHeaders()
-    } as any,
+    },
     body: formData
   }).then((response) => {
     if (response.ok) {

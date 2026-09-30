@@ -22,6 +22,16 @@ export enum GameType {
   MATCH_3 = "MATCH_3",
 }
 
+/** Where a game was played. Mirrors `GamePlatform` in backend/src/game/game.schema.ts. */
+export enum GamePlatform {
+  WEB = "web",
+  IOS = "ios",
+  ANDROID = "android",
+}
+
+/** String value of a `GamePlatform`, as sent in API bodies and analytics events. */
+export type GamePlatformValue = `${GamePlatform}`;
+
 export const endScenePeriod = 500;
 export const bossHitRewardsDebounceTime = 500;
 export const catWalkSpeed = 420;

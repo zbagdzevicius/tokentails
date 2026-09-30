@@ -13,10 +13,26 @@ export enum GameType {
     MATCH_3 = 'MATCH_3',
 }
 
+/**
+ * The only types `POST /user/catbassadors/live` accepts: the modes that save a score. SHELTER and
+ * HOME never save one; PURRQUEST and CATBASSADORS stay in the enum for old `Game` rows only.
+ */
+export const scoredGameTypes = [GameType.CATNIP_CHAOS, GameType.PIXEL_RESCUE, GameType.MATCH_3] as const;
+export type ScoredGameType = typeof scoredGameTypes[number];
+
+/** Where a game was played. Rows saved before this field existed have no value. */
+export enum GamePlatform {
+    WEB = 'web',
+    IOS = 'ios',
+    ANDROID = 'android',
+}
+
 export const seasonEventLevels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14'];
+export const seasonEventLevelPointCaps = seasonEventLevels.map(() => 420);
+export const MAX_MATCH3_SCORE_PER_LEVEL = 1000000;
 const MATCH3_LEVEL_COUNT = 30;
 export const match3Levels = Array.from({ length: MATCH3_LEVEL_COUNT }, (_, index) => String(index + 1));
-export const match3LevelCatnipCaps = match3Levels.map((level) => {
+export const match3LevelCatnipCaps = match3Levels.map(level => {
     const levelNumber = Number(level);
     const difficulty = levelNumber - 1;
     return Math.max(0, Math.min(85, Math.round(9 + levelNumber * 2 + Math.floor(difficulty / 4))));
@@ -141,6 +157,9 @@ export class Game extends CommonSchema {
 
     @Prop()
     level?: string;
+
+    @Prop({ type: String, enum: Object.values(GamePlatform) })
+    platform?: GamePlatform;
 
     @Prop({ type: Types.ObjectId, ref: 'User' })
     user?: Types.ObjectId;

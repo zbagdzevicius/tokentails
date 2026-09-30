@@ -12,11 +12,11 @@ type ContextState = {
   add: (entityMetadataStack: ISave) => void;
 };
 
-const useStackState = (initialArray: any[]) => {
+const useStackState = <T,>(initialArray: T[]) => {
   const [state, setState] = useState(initialArray);
 
   const add = useCallback(
-    (value: any) => {
+    (value: T) => {
       setState((currentValue) => currentValue.concat(value));
     },
     [setState]
@@ -32,12 +32,12 @@ const EntityMetadataContext = React.createContext<ContextState | undefined>(
   undefined
 );
 
-const EntityMetadataProvider = ({ children }: React.PropsWithChildren<{}>) => {
+const EntityMetadataProvider = ({ children }: React.PropsWithChildren) => {
   const [entityMetadata, setEntityMetadata] = React.useState<
     Record<string, ISaved>
   >({});
 
-  const { state, add, reset } = useStackState([]);
+  const { state, add, reset } = useStackState<ISave>([]);
   const { profile } = useProfile();
   const fetchMetadata = () => ARTICLE_API.getMetadata(profile ? state : []);
   const { data } = useQuery({

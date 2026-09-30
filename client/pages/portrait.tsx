@@ -26,7 +26,7 @@ import {
 import { useToast } from "@/features/portrait/hooks/use-toast";
 import { Toaster } from "@/features/portrait/ui/toaster";
 import { trackEvent } from "@/components/GoogleTagManager";
-import { IMAGE_API } from "@/api/image-api";
+import { IMAGE_API, SignInRequiredError } from "@/api/image-api";
 import { IImage } from "@/models/image";
 import { IOrder, OrderStatus } from "@/models/order";
 
@@ -711,7 +711,10 @@ const PortraitsPage = () => {
       console.error("Error regenerating portrait:", error);
       toast({
         title: "Regeneration failed",
-        description: "Please try again.",
+        description:
+          error instanceof SignInRequiredError
+            ? error.message
+            : "Please try again.",
         variant: "destructive",
       });
       setIsGenerating(false);

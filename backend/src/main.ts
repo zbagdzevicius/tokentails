@@ -4,6 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import * as dotenv from 'dotenv';
 import { json, raw } from 'express';
 import { AppModule } from './app.module';
+import { applyTrustProxy } from './shared/trust-proxy';
 dotenv.config();
 
 function initializeCors(app: INestApplication): void {
@@ -27,6 +28,8 @@ function initializeCors(app: INestApplication): void {
             'If-None-Match',
             'SourceType',
             'content-disposition',
+            // Read by the client to retry a throttled POST /user/catbassadors/live.
+            'Retry-After',
         ],
     };
 
@@ -36,6 +39,7 @@ function initializeCors(app: INestApplication): void {
 async function bootstrap() {
     const app = await NestFactory.create(AppModule, { rawBody: true });
     initializeCors(app);
+    applyTrustProxy(app);
 
     // Apply raw body middleware for webhook route BEFORE JSON middleware
     // This ensures the raw body is preserved for Stripe signature verification
@@ -56,6 +60,10 @@ async function bootstrap() {
     // Apply JSON parser for all other routes
     app.use(json({ limit: '50mb' }));
 
+    // No global `whitelist`: most @Body() types are undecorated Mongoose schema classes (User, Blessing,
+    // Article, Category, Quest, Shelter, Ticket), which `whitelist` would strip to `{}`, and interface or
+    // inline types are not validated at all. Routes with a decorated DTO add a strict pipe of their own,
+    // for example `profileWritePipe` in src/user/dto/profile-write.dto.ts.
     app.useGlobalPipes(new ValidationPipe({ transform: true }));
     await app.listen(process.env.PORT || 3005);
     // await app.listen(process.env.PORT || 3005, '0.0.0.0');

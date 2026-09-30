@@ -19,7 +19,7 @@ export interface IArticle extends IArticleExcerpt {
     content: string;
     images: IImage[];
     keyword?: { name: string };
-    user: any;
+    user: unknown;
     createdAt: string;
     updatedAt: string;
     relatedArticles: IArticle[];

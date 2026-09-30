@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { UserService } from '../user.service';
 import { AppAuthStrategy } from './auth.strategy';
@@ -12,10 +12,10 @@ export class AuthStrategy extends PassportStrategy(AppAuthStrategy, 'appauth') {
     }
 
     async validate(payload: any): Promise<any> {
-        if (payload.firebase) {
-            return this.userService.getFirebaseUser(payload);
-        } else {
-            return this.userService.getTelegramUser(payload);
+        if (!payload?.firebase || typeof payload.email !== 'string' || !payload.email.trim()) {
+            throw new UnauthorizedException();
         }
+
+        return this.userService.getFirebaseUser(payload);
     }
 }

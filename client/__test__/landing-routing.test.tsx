@@ -85,6 +85,12 @@ function expectGamingLanding(container: HTMLElement) {
   expect(
     globe!.compareDocumentPosition(hub!) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
+  // The team section closes the page, below the sample card.
+  const team = container.querySelector('[data-testid="team-section"]');
+  expect(team).not.toBeNull();
+  expect(
+    hub!.compareDocumentPosition(team!) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
 }
 
 describe("root visit", () => {

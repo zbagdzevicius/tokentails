@@ -72,7 +72,12 @@ export function loadImage(url: string): Promise<HTMLImageElement> {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.decoding = 'async';
-      img.onload = () => resolve(img);
+      // decode() finishes the PNG decode off the main thread; without it the first drawImage in
+      // imageToPixels decodes synchronously. Resolve anyway if decode() is missing or refuses.
+      img.onload = () => {
+        if (typeof img.decode === 'function') img.decode().then(() => resolve(img), () => resolve(img));
+        else resolve(img);
+      };
       img.onerror = () => reject(new Error(`Failed to load image ${url}`));
       img.src = url;
     });
@@ -83,14 +88,20 @@ export function loadImage(url: string): Promise<HTMLImageElement> {
 }
 
 /** Draw an image to a canvas and read RGBA pixels. Optional target size (downsampling). */
+let readCtx: CanvasRenderingContext2D | null = null;
+
 export function imageToPixels(img: CanvasImageSource & { width: number; height: number }, width?: number, height?: number, smooth = false): PixelSource {
   const w = width ?? img.width;
   const h = height ?? img.height;
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  // One scratch canvas for every read-back (getImageData copies the pixels out).
+  if (!readCtx) readCtx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+  const ctx = readCtx;
   if (!ctx) throw new Error('2D canvas unavailable');
+  const canvas = ctx.canvas;
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
   ctx.imageSmoothingEnabled = smooth;
   if (smooth) ctx.imageSmoothingQuality = 'high';
   ctx.clearRect(0, 0, w, h);

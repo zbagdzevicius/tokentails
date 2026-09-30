@@ -1,5 +1,5 @@
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, SyntheticEvent, useState } from "react";
 import { PixelButton } from "./PixelButton";
 import { useToast } from "@/context/ToastContext";
 import { cdnFile } from "@/constants/utils";
@@ -22,7 +22,7 @@ const SignInForm = ({
   const toast = useToast();
   const [isPasswordResetSent, setIsPasswordResetSent] = useState(false);
 
-  const onSubmit = (e: any) => {
+  const onSubmit = (e?: SyntheticEvent) => {
     e?.preventDefault?.();
     if (username?.length && password?.length > 5) signIn(username, password);
   };

@@ -18,3 +18,12 @@ export interface IShelter {
     blessings: IBlessing[];
     users: IProfile[];
 }
+
+/** Write payload for POST/PUT /shelter: the logo is sent as its image id. */
+export type IShelterInput = Partial<
+    Omit<IShelter, 'image' | 'foundedAt' | 'blessings' | 'users'>
+> & {
+    image?: string;
+    // Shape of the react-datetime-picker value.
+    foundedAt?: Date | null | [Date | null, Date | null];
+};

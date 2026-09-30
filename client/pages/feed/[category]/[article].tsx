@@ -1,10 +1,10 @@
 import { ARTICLE_API } from "@/api/article-api";
-import { ArticleContainer } from "@/components/blog/feed/ArticleContainer";
-import { ArticleMicrodata } from "@/components/seo/ArticleMicrodata";
-import { SeoHead } from "@/components/seo/SeoHead";
-import { getAppStaticProps } from "@/constants/props-functions";
-import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
-import BlogLayout from "@/layouts/BlogLayout";
+import { GetStaticPropsContext } from "next";
+import { ArticlePageLayout } from "@/components/blog/feed/ArticlePageLayout";
+import {
+  getAppStaticPaths,
+  getAppStaticProps,
+} from "@/constants/props-functions";
 import { IArticle, IArticleExcerpt } from "@/models/article";
 import Custom404 from "@/pages/404";
 
@@ -17,19 +17,7 @@ export default function ArticlePage({ article, randomArticles }: Props) {
   return (
     <>
       {article && (
-        <>
-          <SeoHead article={article} />
-          <ArticleMicrodata {...article!} />
-
-          <FirebaseAuthProvider>
-            <BlogLayout>
-              <ArticleContainer
-                article={article}
-                randomArticles={randomArticles}
-              />
-            </BlogLayout>
-          </FirebaseAuthProvider>
-        </>
+        <ArticlePageLayout article={article} randomArticles={randomArticles} />
       )}
 
       {!article && <Custom404 />}
@@ -43,12 +31,9 @@ async function fetchProps(slug: string): Promise<Props> {
   return singleArticle;
 }
 
-export const getStaticProps = async (params: any) =>
-  getAppStaticProps<Promise<Props>>(() => fetchProps(params.params.article));
+export const getStaticProps = async (
+  params: GetStaticPropsContext<{ article: string }>
+) =>
+  getAppStaticProps<Promise<Props>>(() => fetchProps(params.params!.article));
 
-export async function getStaticPaths() {
-  return {
-    paths: [],
-    fallback: "blocking",
-  };
-}
+export const getStaticPaths = getAppStaticPaths;

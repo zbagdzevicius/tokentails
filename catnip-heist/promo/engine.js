@@ -740,7 +740,7 @@ function drawText(c, str, x, y, o = {}) {
   c.restore();
   return { width: L.width, height: o.size || 64, left };
 }
-const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%&@!?/<>*+=';
+const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; // letters and digits only: symbols read as corrupted text
 // scramble(str, p, seed) -> decoding text: chars resolve left->right as p goes 0..1, rest random.
 function scramble(str, p, seed = 0, charset = GLYPHS) {
   const n = str.length; let out = '';
@@ -751,6 +751,20 @@ function scramble(str, p, seed = 0, charset = GLYPHS) {
     out += ch === ' ' || p >= 1 || th < p ? ch : charset[Math.floor(rand(seed, i, fr) * charset.length)];
   }
   return out;
+}
+// wipeText(ctx, str, x, y, opts, p): clean text revealed by a hard mask edge (never scrambled glyphs).
+// p 0..1 sweeps along the reading direction; a thin cursor bar rides the edge while it moves.
+function wipeText(c, str, x, y, o = {}, p = 1, { cursor = true, cursorColor } = {}) {
+  p = clamp01(p);
+  if (p <= 0) return;
+  if (p >= 1) { drawText(c, str, x, y, o); return; }
+  const w = measureText(c, str, o), size = o.size || 64;
+  const align = o.align || 'center';
+  const left = align === 'left' ? x : align === 'right' ? x - w : x - w / 2;
+  const edge = left + w * p;
+  c.save(); c.beginPath(); c.rect(left - size, y - size * 1.5, edge - left + size, size * 3); c.clip();
+  drawText(c, str, x, y, o); c.restore();
+  if (cursor) { c.save(); c.fillStyle = col(cursorColor || o.color || '#ffffff'); c.globalAlpha *= o.alpha ?? 1; c.fillRect(edge, y - size * 0.55, Math.max(3, size * 0.14), size * 1.1); c.restore(); }
 }
 const typewriter = (str, p) => str.slice(0, Math.floor(clamp01(p) * str.length + EPS));
 
@@ -1356,7 +1370,7 @@ const E = {
   dog: (id) => assets.dogs.find((c) => c.id === id) || null,
   get cats() { return assets.cats; }, get dogs() { return assets.dogs; },
   // text
-  drawText, measureText, fontStr, scramble, typewriter, GLYPHS,
+  drawText, measureText, fontStr, scramble, typewriter, wipeText, GLYPHS,
   // masks
   path, mask, wipe, iris, diamondReveal, slices, pixelDissolve, fadeMask,
   // camera / motion

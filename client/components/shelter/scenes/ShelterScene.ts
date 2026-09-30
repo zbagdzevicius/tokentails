@@ -2,6 +2,7 @@ import {
   GameEvent,
   GameEvents,
   ICatEvent,
+  ICatEventsDetails,
   IPhaserGameSceneProps,
   NPC_TYPE,
 } from "@/components/Phaser/events";
@@ -59,7 +60,7 @@ export class ShelterScene extends Scene {
   npcCats: NpcCat[] = [];
   blessing!: Phaser.GameObjects.Sprite;
   currentlyCollidingNpc: NpcCat | null = null;
-  speechBubble: any;
+  speechBubble?: SpeechBubble;
   speechBubblePool: SpeechBubble[] = [];
   private elevator!: Elevator;
   private elevatorTimer: number = 0;
@@ -140,15 +141,18 @@ export class ShelterScene extends Scene {
     this.decorationLayer.setDepth(10);
 
     this.jumperLayer = this.tilemap.createLayer("jumper", [sugarTileset])!;
-    this.events.on(GameEvent.CAT_CARD_DISPLAY, (data: any) => {
-      GameEvents.CAT_CARD_DISPLAY.push(data);
-    });
+    this.events.on(
+      GameEvent.CAT_CARD_DISPLAY,
+      (data: ICatEventsDetails[GameEvent.CAT_CARD_DISPLAY]) => {
+        GameEvents.CAT_CARD_DISPLAY.push(data);
+      }
+    );
 
     this.groundLayer.setCollisionByExclusion([-1]);
     this.platformsLayer.setCollision(JUMP_LAYER_TILES);
     this.platformsLayer.setTileIndexCallback(
       JUMP_LAYER_TILES,
-      (player: any) => {
+      (player: Phaser.Types.Physics.Arcade.GameObjectWithBody) => {
         if (player.body.velocity.y <= 0) {
           return true;
         }
@@ -156,8 +160,8 @@ export class ShelterScene extends Scene {
       },
       this
     );
-    (this.groundLayer as any).skipCull = false;
-    (this.platformsLayer as any).skipCull = false;
+    (this.groundLayer as Phaser.Tilemaps.TilemapLayer).skipCull = false;
+    (this.platformsLayer as Phaser.Tilemaps.TilemapLayer).skipCull = false;
 
     this.jumperLayer.setCollision(TRAMPOLINE_TILES);
     this.trampoline = new Trampoline(
@@ -350,13 +354,13 @@ export class ShelterScene extends Scene {
       const spawnY = spawnPosition!.y;
 
       const npcCat = new NpcCat(this, spawnX, spawnY, npcData.name);
-      (npcCat as any).originalData = {
+      npcCat.originalData = {
         ...npcData,
       };
 
-      this.physics.add.collider(npcCat.sprite, this.groundLayer as any);
-      this.physics.add.collider(npcCat.sprite, this.platformsLayer as any);
-      this.physics.add.collider(npcCat.sprite, this.jumperLayer as any);
+      this.physics.add.collider(npcCat.sprite, this.groundLayer as Phaser.Tilemaps.TilemapLayer);
+      this.physics.add.collider(npcCat.sprite, this.platformsLayer as Phaser.Tilemaps.TilemapLayer);
+      this.physics.add.collider(npcCat.sprite, this.jumperLayer as Phaser.Tilemaps.TilemapLayer);
 
       if (npcData.blessing) {
         const blessingAbility = npcData.type;
@@ -428,7 +432,7 @@ export class ShelterScene extends Scene {
       bubbleX,
       bubbleY,
       message,
-      npcCat as any,
+      npcCat,
       "ADOPT",
       false
     );
@@ -436,7 +440,7 @@ export class ShelterScene extends Scene {
   }
 
   private destroySpeechBubble() {
-    this.speechBubble.destroy();
+    this.speechBubble!.destroy();
   }
 
   private handleNpcCollision(npc: ICat) {
@@ -447,7 +451,7 @@ export class ShelterScene extends Scene {
     if (!this.cat) return;
 
     const isOverlapping = this.physics.overlap(this.cat.sprite, npc.sprite);
-    const isPlayerCat = (npc as any).originalData?.isPlayerCat;
+    const isPlayerCat = npc.originalData?.isPlayerCat;
     if (isOverlapping && !isPlayerCat) {
       if (this.currentlyCollidingNpc === null) {
         this.currentlyCollidingNpc = npc;
@@ -472,12 +476,12 @@ export class ShelterScene extends Scene {
     type: CatAbilityType
   ) {
     this.cat = new Cat(this, 350, -100, catName, blessing!, type, true);
-    this.physics.add.collider(this.cat.sprite, this.groundLayer as any);
+    this.physics.add.collider(this.cat.sprite, this.groundLayer as Phaser.Tilemaps.TilemapLayer);
     this.physics.add.collider(
       this.cat.sprite as Phaser.Physics.Arcade.Sprite,
-      this.platformsLayer as any
+      this.platformsLayer as Phaser.Tilemaps.TilemapLayer
     );
-    this.physics.add.collider(this.cat.sprite, this.jumperLayer as any);
+    this.physics.add.collider(this.cat.sprite, this.jumperLayer as Phaser.Tilemaps.TilemapLayer);
     this.cameras.main.startFollow(this.cat.sprite);
 
     setMobileControls(this.cat);
@@ -488,7 +492,8 @@ export class ShelterScene extends Scene {
       (_player, npcSprite) => {
         const npcName = (npcSprite as Phaser.Physics.Arcade.Sprite).texture.key;
         const npcData = { name: npcName, spriteImg: "" };
-        this.handleNpcCollision(npcData as any);
+        // Only the texture key is known here; the rest of the cat is absent.
+        this.handleNpcCollision(npcData as unknown as ICat);
       }
     );
   }
@@ -500,10 +505,16 @@ export class ShelterScene extends Scene {
     }
   }
 
-  private handleElevatorCollision(playerSprite: any, elevatorSprite: any) {
+  private handleElevatorCollision(
+    playerObject: Parameters<Phaser.Types.Physics.Arcade.ArcadePhysicsCallback>[0],
+    elevatorObject: Parameters<Phaser.Types.Physics.Arcade.ArcadePhysicsCallback>[1]
+  ) {
+    // Both colliders are arcade sprites (the cat and the elevator platform).
+    const playerSprite = playerObject as Phaser.Physics.Arcade.Sprite;
+    const elevatorSprite = elevatorObject as Phaser.Physics.Arcade.Sprite;
     if (
-      playerSprite.body.touching.down &&
-      elevatorSprite.body.touching.up &&
+      playerSprite.body!.touching.down &&
+      elevatorSprite.body!.touching.up &&
       playerSprite.y < elevatorSprite.y
     ) {
       this.elevator.setPlayerOn(true);

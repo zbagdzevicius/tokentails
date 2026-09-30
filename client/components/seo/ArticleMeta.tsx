@@ -1,7 +1,7 @@
 import { IArticle } from '@/models/article';
 import Script from 'next/script';
 
-interface IProps extends IArticle {}
+type IProps = IArticle;
 
 export const ArticleMeta = ({
     title,

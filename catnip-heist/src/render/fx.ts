@@ -43,6 +43,8 @@ export class Particles {
   private readonly p = new THREE.Vector3();
   private readonly colorCache = new Map<string, THREE.Color>();
   private readonly tmpC = new THREE.Color();
+  /** Live instances uploaded last frame (0 twice in a row = nothing to send). */
+  private uploaded = 0;
 
   constructor() {
     // Unlit so per-instance colours can exceed 1 (HDR) and bloom.
@@ -167,8 +169,12 @@ export class Particles {
       this.mesh.setColorAt(i, p.glow === 1 ? p.color : this.tmpC.copy(p.color).multiplyScalar(p.glow));
     }
     this.mesh.count = w;
-    this.mesh.instanceMatrix.needsUpdate = true;
-    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+    // Upload only the live instances, and nothing at all while there are none.
+    if (w > 0 || this.uploaded > 0) {
+      markRange(this.mesh.instanceMatrix, w * 16);
+      if (this.mesh.instanceColor) markRange(this.mesh.instanceColor, w * 3);
+    }
+    this.uploaded = w;
   }
 
   clear(): void {
@@ -181,6 +187,14 @@ export class Particles {
     (this.mesh.material as THREE.Material).dispose();
     this.mesh.dispose();
   }
+}
+
+/** Flag an attribute for upload of its first `count` components only (skipped when 0). */
+export function markRange(a: THREE.BufferAttribute, count: number): void {
+  if (count <= 0) return;
+  a.clearUpdateRanges();
+  a.addUpdateRange(0, count);
+  a.needsUpdate = true;
 }
 
 interface Ring {

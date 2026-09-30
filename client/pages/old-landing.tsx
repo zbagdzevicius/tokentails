@@ -102,6 +102,8 @@ export default function Index() {
           </div>
 
           <div className="absolute z-30 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pt-48 flex flex-col justify-center items-center">
+            {/* Plain anchor on purpose: the game shell needs a full page load. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a className="relative" href="/game">
               <PixelButton text="PLAY" isBig subtext="GAME" />
             </a>

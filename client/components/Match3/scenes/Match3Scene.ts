@@ -7,6 +7,7 @@ import {
   MATCH3_TILE_ASSETS,
   Match3LevelId,
   Match3TileType,
+  getMatch3RunTime,
 } from "../match3.config";
 
 export interface IMatch3Props {
@@ -252,6 +253,8 @@ export class Match3Scene extends Scene {
   private score = 0;
   private moves = 0;
   private timeLeft = 0;
+  /** Seconds actually played this run. Bonus seconds never change it. */
+  private elapsedSeconds = 0;
   private reshuffleFallbacks = MAX_RESHUFFLES_FALLBACK;
 
   private busy = false;
@@ -334,6 +337,7 @@ export class Match3Scene extends Scene {
     this.score = 0;
     this.moves = 0;
     this.timeLeft = this.level.timeLimit;
+    this.elapsedSeconds = 0;
     this.busy = false;
     this.ended = false;
     this.swapQueue = [];
@@ -2115,6 +2119,7 @@ export class Match3Scene extends Scene {
         }
 
         this.timeLeft = Math.max(0, this.timeLeft - 1);
+        this.elapsedSeconds += 1;
         this.updateHud();
 
         if (this.timeLeft <= 5 && this.timeLeft > 0 && this.timeLeft !== this.lastCountdownSecond) {
@@ -2184,7 +2189,9 @@ export class Match3Scene extends Scene {
 
     GameEvents.GAME_STOP.push({
       score: catnipEarned,
-      time: this.level.timeLimit - this.timeLeft,
+      // Streak, star and last-chance bonuses push timeLeft past the limit, so
+      // the limit minus timeLeft can go negative. Save the seconds played.
+      time: getMatch3RunTime(this.elapsedSeconds),
       completedLevel: isTargetReached ? this.level.id : null,
       rawScore: Math.max(0, Math.floor(this.score)),
       catnipEarned,
@@ -4508,6 +4515,7 @@ export class Match3Scene extends Scene {
       }
 
       this.timeLeft = Math.max(0, this.timeLeft - 1);
+      this.elapsedSeconds += 1;
       if (this.timeLeft <= 0) {
         this.handleTimeExpired();
         if (this.ended || this.timeLeft > 0) {

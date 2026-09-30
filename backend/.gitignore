@@ -39,3 +39,6 @@ lerna-debug.log*
 local.env
 .env
 /migrations
+
+# TypeScript incremental build info
+*.tsbuildinfo

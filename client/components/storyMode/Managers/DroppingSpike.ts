@@ -63,8 +63,11 @@ export class DroppingSpike {
     this.isDropping = false;
     this.initializeSpike();
 
-    if ((this.scene as any).onSpikeRespawn) {
-      (this.scene as any).onSpikeRespawn(this);
+    const scene = this.scene as Phaser.Scene & {
+      onSpikeRespawn?: (spike: DroppingSpike) => void;
+    };
+    if (scene.onSpikeRespawn) {
+      scene.onSpikeRespawn(this);
     }
   }
 

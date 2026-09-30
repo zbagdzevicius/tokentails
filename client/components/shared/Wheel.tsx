@@ -95,11 +95,6 @@ const WheelComponent = forwardRef<WheelRef, WheelComponentProps>(
       return () => window.removeEventListener("resize", updateScale);
     }, []);
 
-    useEffect(() => {
-      initCanvas();
-      wheelDraw();
-    }, []);
-
     const initCanvas = () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -107,28 +102,6 @@ const WheelComponent = forwardRef<WheelRef, WheelComponentProps>(
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
     };
-
-    const spin = () => {
-      if (wheelState.current.timerHandle !== 0) return;
-      if (isFinished && isOnlyOnce) return;
-
-      setFinished(false);
-      setIsStarted(true);
-      const now = new Date().getTime();
-      wheelState.current.spinStart = now;
-      wheelState.current.lastTickTime = now;
-      wheelState.current.frames = 0;
-      wheelState.current.decStart = 0;
-      wheelState.current.startDecAngle = 0;
-      wheelState.current.timerHandle = window.setInterval(
-        onTimerTick,
-        timerDelay,
-      );
-    };
-
-    useImperativeHandle(ref, () => ({
-      spin,
-    }));
 
     const onTimerTick = () => {
       const now = new Date().getTime();
@@ -386,6 +359,33 @@ const WheelComponent = forwardRef<WheelRef, WheelComponentProps>(
       if (!ctx) return;
       ctx.clearRect(0, 0, 62.5 * 16, 50 * 16);
     };
+
+    useEffect(() => {
+      initCanvas();
+      wheelDraw();
+    }, []);
+
+    const spin = () => {
+      if (wheelState.current.timerHandle !== 0) return;
+      if (isFinished && isOnlyOnce) return;
+
+      setFinished(false);
+      setIsStarted(true);
+      const now = new Date().getTime();
+      wheelState.current.spinStart = now;
+      wheelState.current.lastTickTime = now;
+      wheelState.current.frames = 0;
+      wheelState.current.decStart = 0;
+      wheelState.current.startDecAngle = 0;
+      wheelState.current.timerHandle = window.setInterval(
+        onTimerTick,
+        timerDelay,
+      );
+    };
+
+    useImperativeHandle(ref, () => ({
+      spin,
+    }));
 
     return (
       <div className="flex items-center justify-center w-full">

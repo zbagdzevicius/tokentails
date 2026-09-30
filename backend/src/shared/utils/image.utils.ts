@@ -1,5 +1,5 @@
-const sharp = require('sharp');
-const convert = require('heic-convert');
+import sharp = require('sharp');
+import convert = require('heic-convert');
 // this will grant 755 permission to webp executables
 import { JSDOM } from 'jsdom';
 import fetch from 'node-fetch';
@@ -86,8 +86,7 @@ export async function uploadFileImage(buffer: Buffer, filename: string, resize =
     }
 
     const image = await sharp(processedBuffer);
-    let fileBuffer = image.webp({ quality: 80 });
-    fileBuffer = await fileBuffer.toBuffer();
+    const fileBuffer = await image.webp({ quality: 80 }).toBuffer();
     const resizedBuffer = resize ? await getResizedImageBuffer(fileBuffer, size) : fileBuffer;
     const resizerFilename = `${imageName}.${extension}`;
     await uploadFile(resizerFilename, resizedBuffer, extension);

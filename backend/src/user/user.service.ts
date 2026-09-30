@@ -1,5 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InitDataParsed } from '@telegram-apps/init-data-node';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { CatRepository } from 'src/cat/cat.repository';
 import { CatAbilityType, ICat, Tier } from 'src/cat/cat.schema';
@@ -25,6 +24,11 @@ export class UserService {
     ) {}
 
     async getFirebaseUser(user: FirebaseUser): Promise<User> {
+        // Never look up by a missing email: { email: undefined } is sent to Mongo as
+        // { email: null } and would match any stored user without an email.
+        if (typeof user?.email !== 'string' || !user.email.trim()) {
+            throw new UnauthorizedException();
+        }
         const existingUser = await this.repository.findOne({ searchObject: { email: user.email } });
         if (!!existingUser) {
             return existingUser;
@@ -50,34 +54,6 @@ export class UserService {
             cat: catId,
             cats: [catId],
         });
-    }
-
-    async getTelegramUser(initData: InitDataParsed): Promise<User> {
-        const { user } = initData;
-        if (!user) {
-            throw new NotFoundException('No getTelegramUser');
-        }
-        const existingUser = await this.repository.findOne({ searchObject: { telegramId: user?.id.toString() } });
-        if (!!existingUser) {
-            return existingUser;
-        }
-        const wallets = this.generateWallets();
-        const name = user?.firstName ? `${user?.firstName} ${user?.lastName}` : user?.username;
-
-        const catId = new Types.ObjectId();
-        const userId = new Types.ObjectId();
-        const createdUser = await this.repository.create({
-            _id: userId,
-            name,
-            telegramUsername: user?.username?.toString() as string,
-            telegramId: user.id.toString(),
-            canRedeemLives: true,
-            cat: catId,
-            cats: [catId],
-            wallets,
-        });
-        await this.generateACat(catId, userId);
-        return createdUser;
     }
 
     generateWallets() {

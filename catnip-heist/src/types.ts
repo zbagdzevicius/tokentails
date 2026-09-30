@@ -426,9 +426,11 @@ export interface RendererAPI {
   setLevel(level: LevelDef): void;
   /**
    * Draw one frame. `prev` and `cur` are consecutive sim states; `alpha` in [0,1] is how far the
-   * render time is between them (for interpolation). Both states are read-only.
+   * render time is between them (for interpolation). Both states are read-only. `throttled` marks a
+   * deliberately slowed redraw (the paused scene at ~10 fps): it is drawn but not timed, so it never
+   * reads as a slow GPU to the automatic quality tier.
    */
-  update(prev: SimState, cur: SimState, alpha: number): void;
+  update(prev: SimState, cur: SimState, alpha: number, throttled?: boolean): void;
   /** Breed ids of the two playable cats (loads/voxelizes their sheets). */
   setCats(ids: string[]): void;
   dispose(): void;
@@ -485,7 +487,8 @@ export interface AssetManifest {
 }
 
 /** Build-time env (Vite's import.meta.env); empty outside Vite (tools, node). */
-const BUILD_ENV: { BASE_URL?: string; HEIST_PAYOUTS_URL?: string } = (import.meta as { env?: { BASE_URL?: string; HEIST_PAYOUTS_URL?: string } }).env ?? {};
+type BuildEnv = { BASE_URL?: string; HEIST_PAYOUTS_URL?: string; HEIST_DEPLOYMENTS_URL?: string };
+const BUILD_ENV: BuildEnv = (import.meta as { env?: BuildEnv }).env ?? {};
 
 /** Vite's deploy base ('./' by default, or HEIST_BASE at build time). */
 const DEPLOY_BASE: string = BUILD_ENV.BASE_URL ?? './';
@@ -501,6 +504,13 @@ export const ASSET_BASE = DEPLOY_BASE === './' || DEPLOY_BASE === '/' ? 'assets/
  * HEIST_PAYOUTS_URL=<url>; set it to an empty string to hide the link.
  */
 export const PAYOUTS_URL: string = BUILD_ENV.HEIST_PAYOUTS_URL ?? 'https://tokentails.com/shelter-payouts';
+
+/**
+ * ShelterSplit deployment list the win screen reads for its "sent to shelters" total. Bundled at
+ * public/payouts/deployments.json (written by `fund a:ingest`), so it works on any host without
+ * CORS. Override with HEIST_DEPLOYMENTS_URL=<url>; an empty string turns the total off.
+ */
+export const DEPLOYMENTS_URL: string = BUILD_ENV.HEIST_DEPLOYMENTS_URL ?? `${DEPLOY_BASE}payouts/deployments.json`;
 
 // ---------------------------------------------------------------------------------------------
 // Audio (implemented in src/audio)

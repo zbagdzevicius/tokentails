@@ -18,7 +18,7 @@ async function uploadImage(
     method: "POST",
     headers: {
       Accept: "application/json",
-    } as any,
+    } as HeadersInit,
     body: formData,
   }).then((response) => {
     if (response.ok) {
@@ -43,7 +43,7 @@ async function get(imageId: string): Promise<IImage> {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -59,7 +59,7 @@ async function getOrderById(_id: string): Promise<IOrder> {
     method: "GET",
     headers: {
       Accept: "application/json",
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -70,20 +70,35 @@ async function getOrderById(_id: string): Promise<IOrder> {
   });
 }
 
+/** Thrown when the backend answers 401: regeneration needs a signed-in user. */
+export class SignInRequiredError extends Error {
+  constructor() {
+    super("Sign in to generate another version of your portrait.");
+    this.name = "SignInRequiredError";
+    // Keeps `instanceof` working when TypeScript compiles classes to ES5.
+    Object.setPrototypeOf(this, SignInRequiredError.prototype);
+  }
+}
+
 async function regeneratePortrait(
   imageId: string,
   style?: string
 ): Promise<IImage> {
+  // Regeneration is a paid generation, so the backend requires a signed-in user.
   return fetch(`${apiUrl}/image/portrait/${imageId}/regenerate`, {
     method: "PUT",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-    } as any,
-    body: style ? JSON.stringify({ style }) : (null as any),
+      accesstoken: sessionStorage.getItem("accesstoken") || "",
+    } as HeadersInit,
+    body: style ? JSON.stringify({ style }) : null,
   }).then((response) => {
     if (response.ok) {
       return response.json();
+    }
+    if (response.status === 401) {
+      throw new SignInRequiredError();
     }
 
     console.warn(JSON.stringify(response));

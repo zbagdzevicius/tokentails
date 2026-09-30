@@ -18,7 +18,6 @@ interface IProps {
 }
 
 const gameTypeImages: Partial<Record<GameType, string>> = {
-  [GameType.SHELTER]: cdnFile("game/select/shelter.webp"),
   [GameType.HOME]: cdnFile("game/select/home.webp"),
 };
 
@@ -34,8 +33,7 @@ const GameSelectItem = ({
       className={classNames(
         "flex flex-col gap-1 transition relative glow-box opacity-50 brightness-125 hover:opacity-100 hover:brightness-100",
         {
-          "rotate-6 hover:rotate-0": [GameType.SHELTER].includes(gameType),
-          "-rotate-6 hover:rotate-0": [GameType.HOME].includes(gameType),
+          "-rotate-6 hover:rotate-0": gameType === GameType.HOME,
         },
       )}
       onClick={() => setGameType(gameType)}
@@ -79,7 +77,24 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
                 gameType === GameType.HOME && (cat?.status.EAT || 0) < 4,
             })}
           >
-            <PixelButton text="← GO BACK" onClick={() => setGameType(null)} />
+            <span className="flex gap-2">
+              <PixelButton
+                text="← GO BACK"
+                onClick={() => setGameType(null)}
+              />
+              {gameType === GameType.HOME && (
+                <PixelButton
+                  text="SHELTER"
+                  onClick={() => setGameType(GameType.SHELTER)}
+                />
+              )}
+              {gameType === GameType.SHELTER && (
+                <PixelButton
+                  text="HOME"
+                  onClick={() => setGameType(GameType.HOME)}
+                />
+              )}
+            </span>
           </span>
         )}
         {gameType === GameType.HOME && cat && (cat.status.EAT || 0) < 4 && (
@@ -115,10 +130,9 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
             <div className="flex flex-col max-w-max md:gap-4 lg:gap-8 min-w-0 items-center lg:-mt-8 relative">
               {profile?.cat && (
                 <div className="flex gap-36 mt-48 md:mt-20 lg:mt-40 items-end absolute">
-                  <GameSelectItem
-                    setGameType={setGameType}
-                    gameType={GameType.SHELTER}
-                  />
+                  {/* Home is the single entry; Shelter opens from inside it. The
+                      spacer keeps the tile beside the cat, not over it. */}
+                  <div aria-hidden="true" className="rem:w-[80px]" />
 
                   <GameSelectItem
                     setGameType={setGameType}

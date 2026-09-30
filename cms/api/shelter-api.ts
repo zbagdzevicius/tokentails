@@ -1,5 +1,5 @@
 import { IBlessing } from '@/models/blessing';
-import { IShelter } from '@/models/shelter';
+import { IShelter, IShelterInput } from '@/models/shelter';
 import { waitForLocalStorageKey, apiUrl, getAuthHeaders } from './api';
 
 const sheltersFetch = async (): Promise<IShelter[]> => {
@@ -10,7 +10,7 @@ const sheltersFetch = async (): Promise<IShelter[]> => {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       ...getAuthHeaders()
-    } as any
+    }
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -29,7 +29,7 @@ const shelterFetch = async (shelterId: string): Promise<IShelter> => {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       ...getAuthHeaders()
-    } as any
+    }
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -40,7 +40,7 @@ const shelterFetch = async (shelterId: string): Promise<IShelter> => {
   });
 };
 
-const shelterEdit = async (shelter: IShelter): Promise<IBlessing> => {
+const shelterEdit = async (shelter: IShelterInput): Promise<IBlessing> => {
   const id = shelter._id;
   delete shelter._id;
   await waitForLocalStorageKey();
@@ -51,7 +51,7 @@ const shelterEdit = async (shelter: IShelter): Promise<IBlessing> => {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       ...getAuthHeaders()
-    } as any
+    }
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -62,7 +62,7 @@ const shelterEdit = async (shelter: IShelter): Promise<IBlessing> => {
   });
 };
 
-const shelterCreate = async (shelter: IShelter): Promise<IShelter> => {
+const shelterCreate = async (shelter: IShelterInput): Promise<IShelter> => {
   await waitForLocalStorageKey();
   return fetch(`${apiUrl}/shelter`, {
     method: 'POST',
@@ -71,7 +71,7 @@ const shelterCreate = async (shelter: IShelter): Promise<IShelter> => {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       ...getAuthHeaders()
-    } as any
+    }
   }).then((response) => {
     if (response.ok) {
       return response.json();

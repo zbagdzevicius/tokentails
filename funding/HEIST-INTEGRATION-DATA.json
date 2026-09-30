@@ -1,0 +1,528 @@
+{
+ "research": [
+  {
+   "summary": "It's real: at Colosseum World's Fair, a standalone off-chain game would score badly. Four sources point the same way.\n\n(1) The official rules (PDF, text extracted locally) give six criteria. One is \"UX: How well does this Project Submission utilize blockchain to create great UX for downstream users?\" Every sponsor track is worded as \"the best products that integrate with the X blockchain\".\n\n(2) colosseum.com/hackathon says work is \"judged only on the work completed between the competition's start and end dates\". That window is Sep 14 to Oct 12, 2026, and past development must be disclosed.\n\n(3) Colosseum's own advice says to \"enable new markets that couldn't exist without crypto\". It lists \"Failing to explain Solana integration clearly\" as a common pitfall, and says judges examine \"on-chain logic\".\n\n(4) I checked all 26 gaming and consumer winners from Breakout, Radar and Renaissance, plus the Cypherpunk consumer winners. None was a pure off-chain game. The top games are on-chain in play itself: Supersize \"fully on-chain\", Lana Roads \"every hop is a transaction\", Block Stranding \"all game actions are recorded in real time\". Others put token wagers or rewards around the game (Scrim, Barnfight, Legends of the Sun). Cypherpunk (2025) had no gaming winners; its consumer winners were prediction and trading products.\n\nTwo corrections to the brief. The Arbitrum track is $25,000 across 5 ($5k each), which matches 5x$5k. The Base track is also 5 x $5k. Tempo is $100,000 across 10.\n\nThe track texts don't ask for anything specific. Tempo's resource groups are payments, stablecoins, \"data and machine payments\", and company formation and banking. So a stablecoin payout that the game itself triggers fits Tempo better than a game with a link to a separate page.\n\nI found no organiser commentary using the words \"thin blockchain use\", \"why crypto\" or wallet friction as a judging penalty. The nearest are the \"couldn't exist without crypto\" line and Codex notes that wallets need to be simpler and embedded wallets cut friction.\n\nOverall this favours building a real on-chain action into the heist during the window, with invisible or embedded wallets, over keeping it standalone.",
+   "findings": [
+    {
+     "claim": "Official judging criteria include a UX criterion that is explicitly about using blockchain, plus Functionality, Impact, Novelty, Open-source/composability and Business Plan. An off-chain game gets little on the UX and composability criteria.",
+     "evidence": "Rules s.8: \"(d) UX: How well does this Project Submission utilize blockchain to create great UX for downstream users? (e) Open-source: Is this Project Submission open-source? How well does the Project Submission compose with other primitives in the crypto ecosystem?\" Source: https://colosseum.com/legal/Crypto%20World's%20Fair%20Hackathon%20Rules.pdf (text extracted locally with pdftotext)",
+     "supports": "integrate",
+     "strength": "strong"
+    },
+    {
+     "claim": "The contest's stated purpose is building with public blockchains.",
+     "evidence": "Rules s.1: \"The objective of the Contest is to leverage public blockchains to build solutions and experiment with blockchain technology.\" (same PDF)",
+     "supports": "integrate",
+     "strength": "strong"
+    },
+    {
+     "claim": "Sponsor tracks are defined only as products that integrate with the chain. Tempo is 10 prizes from $100k. Arbitrum, Base and Robinhood Chain are each 5 prizes from $25k ($5k each).",
+     "evidence": "Rules s.14: \"(f) Tempo track: $100,000 will be awarded across 10 of the best products that integrate with the Tempo blockchain\"; \"(j) Base track: $25,000 will be awarded across 5 of the best products that integrate with the Base blockchain\"; \"(k) Arbitrum track: $25,000 will be awarded across 5 of the best products that integrate with the Arbitrum blockchain\". Arbitrum Foundation: \"$25,000 across the top 5 startups integrating the Arbitrum blockchain\" https://blog.arbitrum.foundation/builders-block-026-300k-awaits-at-founder-house-singapore-what-great-startups-have-in-common/",
+     "supports": "integrate",
+     "strength": "strong"
+    },
+    {
+     "claim": "In-window rule: only work done Sep 14 to Oct 12, 2026 is judged, and past work must be disclosed. The 8 existing heist levels and 73 existing ShelterSplit tests earn little credit by themselves. New integration work inside the window is what gets judged.",
+     "evidence": "colosseum.com/hackathon: \"Teams may begin development before the hackathon, but products are judged only on the work completed between the competition's start and end dates.\" Builders must \"disclose all relevant past development work in the submission form.\" Rules s.5: \"The Contest Period starts at 6:00am PT on September 14, 2026 and ends at 11:59pm PT on October 12, 2026.\" https://colosseum.com/hackathon",
+     "supports": "integrate",
+     "strength": "strong"
+    },
+    {
+     "claim": "The official track guidance for Tempo only lists resource themes: payments, stablecoins, machine payments, company formation. There is no gaming guidance. A stablecoin payment triggered from inside the game matches these themes.",
+     "evidence": "ColosseumOrg/hackathon-resources manifest.json, Tempo resource groups: \"Foundations\", \"Payment applications\", \"Stablecoins and exchange\", \"Data and machine payments\", \"Company formation and banking\"; Base: \"Application stack\", \"Payments\", \"Optional distribution\"; Arbitrum: \"Build contracts\", \"Bridge and message\", \"Test and ship\". Sponsor .md descriptions are empty. https://raw.githubusercontent.com/ColosseumOrg/hackathon-resources/main/manifest.json",
+     "supports": "integrate",
+     "strength": "medium"
+    },
+    {
+     "claim": "Organiser guidance says products should need crypto.",
+     "evidence": "\"Build products that enable new markets that couldn't exist without crypto or improve existing markets by bringing them onchain\" and \"Crypto at its core unlocks new markets fueled by digitally-native assets.\" https://blog.colosseum.com/how-to-win-a-colosseum-hackathon/",
+     "supports": "integrate",
+     "strength": "strong"
+    },
+    {
+     "claim": "Colosseum workshop names weak chain integration as a common pitfall, and judges inspect on-chain logic.",
+     "evidence": "A common pitfall: \"Failing to explain Solana integration clearly.\" Judges want to understand \"how it leverages Solana\" and examine \"on-chain logic, and overall architecture.\" Tech demo should be \"technical, direct, and specific to implementation\". https://blog.colosseum.com/perfecting-your-hackathon-submission/",
+     "supports": "integrate",
+     "strength": "strong"
+    },
+    {
+     "claim": "Judges also weigh a startup's business case and traction: full-time founders, a real problem, traction. Game quality alone doesn't win.",
+     "evidence": "\"there will always be an award for the best public good\"; \"judges look for evidence that a team is solving a real problem for real users\"; pitch video \"usually the first item judges review and can determine whether a project is shortlisted\"; \"presentations are required to be under 3 minutes\". https://blog.colosseum.com/how-to-win-a-colosseum-hackathon/ and https://blog.colosseum.com/perfecting-your-hackathon-submission/",
+     "supports": "neutral",
+     "strength": "medium"
+    },
+    {
+     "claim": "Radar (2024) gaming winners were all on-chain or token-based. First place Supersize is fully on-chain, with token entry and payout.",
+     "evidence": "Winners post: Supersize \"a fully on-chain high stakes multiplayer game\"; The Arena \"a PvP social trading game\"; Windfall \"a game based on leveraging LSTs\"; Barnfight \"allowing communities to play token-incentivized games together\"; Quantro \"a PvP ETF trading game\". https://blog.colosseum.com/announcing-the-winners-of-the-solana-radar-hackathon/ . Project page: \"Supersize is a real-time, fully on-chain, high stakes multiplayer game powered by Magicblock.\" https://colosseum.com/arena/projects/explore/supersize",
+     "supports": "integrate",
+     "strength": "strong"
+    },
+    {
+     "claim": "Breakout (2025) gaming winners had real on-chain actions in gameplay or wagering. None was a standalone off-chain game.",
+     "evidence": "Winners post: CFL \"a fantasy sports app for crypto tokens\"; Scrim \"a skill-based wagering platform for competitive gamers\"; Block Stranding \"the world's first survival OMRPG on Solana\"; Lana Roads \"an onchain game built using an Ephemeral Rollup\"; Huch \"lets players to use gaming assets as collateral for crypto loans\". https://blog.colosseum.com/announcing-the-winners-of-the-solana-breakout-hackathon/ . Project pages: Lana Roads \"where every hop is a transaction\" (https://colosseum.com/arena/projects/explore/lana-roads-1); Block Stranding \"all game actions are recorded in real time as fast, zero-fee transactions\" (https://colosseum.com/arena/projects/explore/block-stranding).",
+     "supports": "integrate",
+     "strength": "strong"
+    },
+    {
+     "claim": "Renaissance (2024) gaming winners were mostly on-chain or reward-bearing. Maneko Pet (Tamagotchi-style) is the closest to a casual game, and the winners post doesn't mention on-chain mechanics for it. I didn't fetch its project page, so this is unverified.",
+     "evidence": "Meshmap+City Champ \"generates 3D scans incentivized by token rewards\"; Legends of the Sun \"up to 5 friends or foes for rewards\"; Mining Badger \"an onchain crafting game using Honeycomb Protocol\"; Moon Boi Universe \"a web3 cyber-fantasy, open-world RPG optimized for mobile\"; Maneko Pet \"a simple and fun Tamagotchi-style mobile game, complete with a built-in game launcher\". https://blog.colosseum.com/announcing-the-winners-of-the-solana-renaissance-hackathon/",
+     "supports": "integrate",
+     "strength": "medium"
+    },
+    {
+     "claim": "Cypherpunk (2025) had no gaming winners. Its consumer winners were financial or tokenised products: prediction markets, a trading chat, socialfi.",
+     "evidence": "Consumer: Capitola \"a prediction markets meta-aggregator\"; Superfan \"a new a meta-record label for artists and their fans\"; Fora \"a group chat based trading platform and prediction market protocol\"; Toaster.trade \"a TikTok-style socialfi platform powered by Hyperliquid and Solana\"; Nomu \"a marketplace where you can buy products and get rewarded for being early\". https://blog.colosseum.com/announcing-the-winners-of-the-solana-cypherpunk-hackathon/",
+     "supports": "integrate",
+     "strength": "medium"
+    },
+    {
+     "claim": "Colosseum's investment theme for games is about deep token/social integration, not off-chain games.",
+     "evidence": "\"After a 2024 boom in memecoins, founders are now exploring deeper integrations of social media, token issuance, and gaming.\" Supersize: \"A Mini-clip style gaming platform building an onchain PVP game where token communities wager and compete\". https://blog.colosseum.com/colosseums-2024-investments-and-themes-for-2025/",
+     "supports": "integrate",
+     "strength": "medium"
+    },
+    {
+     "claim": "On wallet friction, Colosseum Codex promotes embedded or seedless wallets rather than dropping on-chain use. So integrate, but hide the wallet.",
+     "evidence": "Search-result summaries of Codex posts (not verified on the pages): wallet complexity \"can be intimidating\"; Phantom embedded wallets let users sign in \"using just an email, Google, or Apple account\"; seedless sign-in \"with just an email and a four-digit PIN\". https://blog.colosseum.com/breakpoint-metaplex-aura-phantom-embedded-wallets-bullet-l2/ , https://blog.colosseum.com/heaven-solanawave-swig-wallet/",
+     "supports": "integrate",
+     "strength": "weak"
+    },
+    {
+     "claim": "No official source I could fetch uses the phrases 'thin blockchain use' or 'why crypto', and none describes a penalty for wallet UX friction.",
+     "evidence": "Searched blog.colosseum.com and colosseum.com; winner posts for Breakout, Radar, Renaissance and Cypherpunk contain no judge commentary on crypto necessity or wallets (WebFetch of each URL above).",
+     "supports": "neutral",
+     "strength": "medium"
+    },
+    {
+     "claim": "All submissions also compete in the general pool whatever chain they use, so one Tempo- or Arbitrum-integrated entry can win a track prize and a general prize ($30k grand, 20 x $15k, $5k public goods). The Public Goods Award suits a shelter-payout angle.",
+     "evidence": "cryptobriefing: \"All submissions compete within a general pool regardless of which blockchain they're built on.\" Rules s.14: \"(b) Public Goods Award: $5,000 CASH\"; \"(d) An additional $15,000 CASH will be awarded to each of the next 20 standout teams\". https://cryptobriefing.com/colosseum-crypto-worlds-fair-hackathon/",
+     "supports": "neutral",
+     "strength": "medium"
+    },
+    {
+     "claim": "Entrants are individuals, not companies. The listed exclusions don't cover Lithuania, and there is no in-person requirement. The only relevant condition is that winning depends on sponsor due diligence.",
+     "evidence": "Rules s.2: \"'Entrant' means an Individual\"; s.13: \"Winning is contingent upon the execution of Prize Acceptance Documents ... and passing of the due diligence requirements of the Administrator and/or the Contest Sponsors.\" s.15(b): \"Each winning team may be required to set up a wallet address\".",
+     "supports": "neutral",
+     "strength": "medium"
+    },
+    {
+     "claim": "Scrim (Breakout 3rd, gaming) shows that on-chain money wrapped around a skill game counts. The gameplay doesn't have to run on-chain if the value flow does.",
+     "evidence": "\"A seamless, skill-based wagering platform for competitive gamers. Built on Solana, our platform enables players to challenge\" (truncated as quoted). https://colosseum.com/arena/projects/explore/scrim",
+     "supports": "integrate",
+     "strength": "medium"
+    }
+   ],
+   "unknowns": "I couldn't find any track-specific requirements or judging text for Tempo, Arbitrum or Base. The sponsor .md files in ColosseumOrg/hackathon-resources are empty, colosseum.com/worldsfair/tempo returns 404, and arena/resources needs a login. I couldn't read the Tempo workshop content (Sayeed Mehrjerdian) or the Arbitrum/Robinhood workshop. No Tempo or Arbitrum judges are named; Base has David Tso. It's unclear whether Tempo track judges want mainnet or accept testnet. The worldsfair page shows no FAQ, so whether one entry can be tagged to several tracks at once is unconfirmed. The rules list separate Base and Robinhood Chain tracks, which the brief doesn't mention. I didn't check project pages for Maneko Pet, Moon Boi or Legends of the Sun, so how much of those games was on-chain is unverified. The wallet-friction quotes come from search summaries, not fetched pages. No past Colosseum hackathon had a Tempo or Arbitrum track, so there are no winners to compare against for those chains. The pre-window disclosure rule means the existing heist and ShelterSplit work has to be declared. How judges will weigh it against new in-window work is not stated."
+  },
+  {
+   "summary": "I could not confirm that a gaming entry has ever placed at an Arbitrum Open House event. I checked the winner lists for NYC Buildathon, NYC Founder House, India Buildathon, Bengaluru Hacker House and London Founder House. Every named winner is DeFi, RWA, payments, prediction-market, privacy, insurance or AI-agent infrastructure. None is a game. The only gaming prize I found is a $1,500 \"Gaming breakthrough\" honorable mention at the 2025 India buildathon, and I could not identify who won it. The London online buildathon (278 submissions, $85K) listed its winners only in an X thread I could not open (HTTP 402).\n\nThe judging criteria are the same for every city: smart contract quality; product-market fit, defined as \"clear potential to attract and retain users\"; innovation; and real problem solving. Every page invites you to \"Bring an existing project\" (Dubai says \"existing product\"). A judge's guide (Ben Greenberg, dev.to) says traction is the tiebreaker. It counts \"pilot users\", \"demonstrated adoption\", and \"evidence the project will continue to exist after the event\". So yes, the criteria favour a submission tied to a product that already has users (the Token Tails web, iOS and Android app) over a brand-new standalone game. But the same sources warn against putting things on-chain for no reason (\"Does it need to be onchain?\") and against \"'blockchain for X' pitches without clear user value\". They also list payments and stablecoins, consumer products and Stylus tooling as priority sectors. Together this points to leading with the ShelterSplit USDC payout rail, deployed on Arbitrum and wired into the existing app, with Catnip Heist as the way users get in. Making the heist's gameplay itself an on-chain Arbitrum game fits the evidence less well.\n\nDubai is confirmed on HackQuest: online, $30K (breakdown TBD), registration Oct 31–Dec 5, submission Nov 16–Dec 6, results Dec 13, judging TBD. That is roughly a quarter of Singapore's $115K pool.\n\nNew, time-critical: the Singapore online buildathon is live now and fully online. Registration closes Oct 2, submission Oct 4, and results come Oct 12. The pool is $115K ($70K Overall, $15K Promising Products, up to $30K grants). At least one top-3 spot per track is reserved for Robinhood Chain, and there is \"Extra consideration\" for Paxos USDG. It is not in the planned list.\n\nStylus docs call it a fit for \"onchain games\" because memory is cheap. The $215M Gaming Catalyst Program has been rebranded to Arbitrum Gaming Ventures, which \"invests\" in teams. That looks like investment, which your funding rules exclude. The Stylus Sprint grants are marked complete.",
+   "findings": [
+    {
+     "claim": "Every Open House online buildathon uses the same four judging criteria. Product-market fit is explicitly about attracting and retaining users.",
+     "evidence": "\"Smart contract quality — code following best practices, structured logically and efficiently, with minimal security vulnerabilities\"; \"Product-Market Fit — projects with clear potential to attract and retain users\"; \"Innovation and Creativity — original approaches that push boundaries\"; \"Real Problem Solving — applications that address genuine market needs\" — https://www.hackquest.io/hackathons/Arbitrum-Open-House-Singapore-Online-Buildathon (identical on https://www.hackquest.io/hackathons/Arbitrum-Open-House-NYC-Online-Buildathon)",
+     "supports": "integrate",
+     "strength": "strong"
+    },
+    {
+     "claim": "Existing projects are explicitly allowed. The Dubai page says 'existing product'.",
+     "evidence": "NYC and Singapore: \"Bring an existing project or start from scratch.\" Dubai: \"Bring an existing product or start from scratch.\" — https://www.hackquest.io/hackathons/Arbitrum-Open-House-Dubai-Online-Buildathon ; Singapore coverage: teams \"build out an existing project or codebase while receiving feedback sessions\" — https://egamers.io/singapore-is-next-for-arbitrums-open-house-115k-buildathon-kicks-off-sept-14/",
+     "supports": "integrate",
+     "strength": "strong"
+    },
+    {
+     "claim": "A judge's guide says traction separates otherwise-equal teams, and counts pilot users and adoption. This favours tying the entry to the live Token Tails app, which already has users.",
+     "evidence": "\"Two teams with similar execution and problem-solution scores get separated here.\" Traction = \"evidence the project will continue to exist after the event\"; judges assess \"GitHub activity beyond the hackathon commits, social presence, community engagement, and whether there's a defined path forward\"; \"pilot users\" and \"demonstrated adoption or strong momentum with an engaged community\" — Ben Greenberg for Arbitrum, Feb 17, https://dev.to/arbitrum/what-winning-arbitrum-open-house-teams-do-differently-18f8",
+     "supports": "integrate",
+     "strength": "strong"
+    },
+    {
+     "claim": "The same guide values a working, tested MVP over a polished pitch, and rewards being clear on why the project needs Arbitrum specifically. It penalises generic 'blockchain for X' pitches, which argues against gratuitous on-chain gameplay.",
+     "evidence": "\"functional MVP with decent code structure, some docs and tests, and a demo that actually works\"; \"Fewer still can articulate why it needs to exist on Arbitrum specifically.\"; \"Generic DeFi dashboards and 'blockchain for X' pitches without clear user value sit near the bottom.\"; \"a rough pitch deck with a working MVP\" beats \"a polished pitch deck with a broken demo\" — https://dev.to/arbitrum/what-winning-arbitrum-open-house-teams-do-differently-18f8",
+     "supports": "neutral",
+     "strength": "strong"
+    },
+    {
+     "claim": "Arbitrum's stated priority sectors are payments and stablecoins, DeFi, RWAs, privacy, consumer products and Stylus/Timeboost tooling. Gaming is not named. This suits ShelterSplit's USDC payouts plus the consumer app better than a standalone game.",
+     "evidence": "Priority sectors: \"payments and stablecoins, DeFi, RWAs, privacy, consumer products, and Arbitrum-native tooling around Stylus and Timeboost\" — https://dev.to/arbitrum/what-winning-arbitrum-open-house-teams-do-differently-18f8",
+     "supports": "integrate",
+     "strength": "medium"
+    },
+    {
+     "claim": "Mentor advice for the Singapore buildathon asks whether the project needs to be on-chain at all.",
+     "evidence": "\"Does it need to be onchain? If so, what unique problem does it solve?\" (zkLumi/Offchain); \"Double down on the foundation before adding more features\" (OpenZeppelin) — https://blog.arbitrum.foundation/builders-block-025-arbitrums-buildathon-starts-next-week-heres-how-to-stand-out-in-open-house/",
+     "supports": "neutral",
+     "strength": "medium"
+    },
+    {
+     "claim": "NYC Buildathon winners were Tilt Protocol, Fangorn and EqualFi. None is a game. Criteria: technical execution, product clarity, ecosystem alignment, long-term potential.",
+     "evidence": "Tilt Protocol $15,000, Fangorn $10,000, EqualFi $5,000; \"rigorous evaluation that was based on technical execution, product clarity, ecosystem alignment, and the long-term potential of the project\"; winners showed \"clear user focus, promising architecture, and a clear and concise roadmap that extends beyond our Buildathon\" — https://blog.arbitrum.foundation/open-house-nyc-buildathon-concludes-meet-the-winning-teams/",
+     "supports": "neutral",
+     "strength": "strong"
+    },
+    {
+     "claim": "NYC Founder House awards went to Kustodia (escrow payments), Laytus (prediction markets), EqualFi (index tokens), Bond.Credit (AI underwriting) and Tilt Protocol (AI for RWAs). None is a game. Some traction evidence was cited, such as EqualFi's deployed index tokens.",
+     "evidence": "Kustodia 1st ($60K) \"enables users to create programmable payment agreements for high-value marketplace transactions\"; EqualFi: \"nine index tokens have been deployed - three crypto baskets and six stock-based indices\"; \"473 applications; 88 teams were selected\" and \"55 projects submitted builds\" — https://blog.arbitrum.foundation/nyc-founder-house-concludes-with-340k-in-awards-to-winning-teams/",
+     "supports": "neutral",
+     "strength": "strong"
+    },
+    {
+     "claim": "London Founder House winners were all finance or AI-agent infrastructure. Live deployments (Saffron, Agama) were noted. No games.",
+     "evidence": "Liquida ($60K) \"Regulated collateral rail for the UK's £2.7 trillion government bond market\"; EdenFi ($20K) \"Global money app for Africa and the diaspora\"; Saffron ($60K, Robinhood Chain track), Agama Finance ($30K, \"live on Robinhood Chain\"); 64 projects submitted — https://blog.arbitrum.foundation/top-founders-take-home-300k-at-london-founder-house/",
+     "supports": "neutral",
+     "strength": "strong"
+    },
+    {
+     "claim": "India 2025 buildathon: the podium was all DeFi or automation (Plexi, Orbital, TriggerX). There was a separate $1,500 'Gaming breakthrough' honorable mention, whose winner I could not identify.",
+     "evidence": "Honorable mentions \"$1,500 each\" including \"Gaming breakthrough\", \"Stablecoin innovation\", \"Mobile solution\" — https://www.hackquest.io/hackathons/Arbitrum-Open-House-India-Online-Buildathon ; winners Plexi ($15,000), Orbital ($5,000), TriggerX ($2,500); Hacker House judged on \"team quality, alignment with Arbitrum, technical execution, product-market fit, and innovation\" — https://blog.arbitrum.foundation/arbitrum-open-house-india-concludes-with-bengaluru-hacker-house-full-recap/",
+     "supports": "neutral",
+     "strength": "medium"
+    },
+    {
+     "claim": "An India entry that shipped with real users is on the HackQuest gallery (Aristhrottle, 200+ users, live on Arbitrum One), but I found no prize for it. This shows teams do present user traction; it does not show that traction wins.",
+     "evidence": "\"onboarded more than 200 users and have partnered with more than 10 content creators\"; the page shows no prize label — https://www.hackquest.io/projects/Arbitrum-Open-House-India-Online-Buildathon-Aristhrottle",
+     "supports": "neutral",
+     "strength": "weak"
+    },
+    {
+     "claim": "The only game I saw in the London HackQuest project gallery is Gauntlet, a PvP trading arena on Robinhood Chain. It is a finance-flavoured game, and I saw no winner label for it.",
+     "evidence": "\"Gauntlet - A PvP trading arena in the browser, on Robinhood Chain. Your leveraged position is a cell in a pit\" — https://arbitrum-london.hackquest.io/projects",
+     "supports": "neutral",
+     "strength": "weak"
+    },
+    {
+     "claim": "Dubai buildathon is confirmed: online, $30K (breakdown TBD), submission Nov 16–Dec 6, 2026, results Dec 13. Gaming is listed as a welcome area, and Stylus or Solidity are both allowed.",
+     "evidence": "Registration \"Oct 31, 2026 – Dec 5, 2026\"; Submission \"Nov 16, 2026 – Dec 6, 2026\"; Reward Announcement \"Dec 13, 2026\"; \"30,000 USD Available in Prizes\"; \"DeFi. Gaming. Social. Tools. Or something entirely new.\"; \"Build with Stylus or Solidity\"; \"Deploy on Arbitrum One or your own Orbit chain\" — https://www.hackquest.io/hackathons/Arbitrum-Open-House-Dubai-Online-Buildathon",
+     "supports": "neutral",
+     "strength": "strong"
+    },
+    {
+     "claim": "Deployment on an Arbitrum chain is mandatory. This rules out a heist with no on-chain component: at least one Arbitrum contract, such as the ShelterSplit Arbitrum instance, must be part of the entry.",
+     "evidence": "\"Your project must be deployed on an Arbitrum chain to qualify. For example: Arbitrum Sepolia, Arbitrum One, Orbit chains.\" — https://www.hackquest.io/hackathons/Arbitrum-Open-House-NYC-Online-Buildathon ; guide: deployed, \"not planned\" — https://dev.to/arbitrum/what-winning-arbitrum-open-house-teams-do-differently-18f8",
+     "supports": "integrate",
+     "strength": "strong"
+    },
+    {
+     "claim": "Time-critical and not in the plan: the Singapore online buildathon is open now and fully online. Registration closes Oct 2 and submission Oct 4, 2026. Pool is $115K, with a Robinhood Chain reservation and extra weight for USDG.",
+     "evidence": "Registration \"July 29, 2026 – October 2, 2026\"; Submission \"September 13, 2026 – October 4, 2026\"; Reward \"October 12, 2026\"; Overall $70,000 (40/20/10K), Promising Products $15,000, grants up to $30,000; \"Extra consideration is given to projects integrating Paxos' USDG stablecoin.\"; deploy on \"Arbitrum Sepolia, Arbitrum One, or Robinhood Chain\"; categories \"DeFi, gaming, social applications, DePIN\" — https://www.hackquest.io/hackathons/Arbitrum-Open-House-Singapore-Online-Buildathon ; Promising Products targets \"teams exploring frontier territory such as AI agents and new financial primitives\" — https://egamers.io/singapore-is-next-for-arbitrums-open-house-115k-buildathon-kicks-off-sept-14/",
+     "supports": "neutral",
+     "strength": "strong"
+    },
+    {
+     "claim": "A later newsletter says AI has increased buildathon competition and that using AI need not be hidden, but the full judge article was not retrievable.",
+     "evidence": "\"With AI making building easier, the amount of competition in buildathons has grown.\"; \"You're using AI. No need to hide it.\" — https://blog.arbitrum.foundation/builders-block-026-300k-awaits-at-founder-house-singapore-what-great-startups-have-in-common/",
+     "supports": "neutral",
+     "strength": "weak"
+    },
+    {
+     "claim": "The Stylus docs position Stylus as a fit for on-chain games because memory is cheap. This is the only official argument for moving heist logic on-chain, and none of the winners I found were Stylus games.",
+     "evidence": "\"Build onchain games, generative art, or other applications that benefit from reduced memory costs — Stylus programs can use up to 8 MB of memory, and costs grow near-linearly with the size of the workload.\" — https://docs.arbitrum.io/stylus/gentle-introduction",
+     "supports": "integrate",
+     "strength": "weak"
+    },
+    {
+     "claim": "Arbitrum's gaming money now runs through Arbitrum Gaming Ventures, which describes itself as investing. That likely falls under your 'no investment' rule. Stylus Sprint grants are marked complete. The general Foundation grant program and ArbiFuel gas sponsorship are open.",
+     "evidence": "\"AGV invests in teams creating exceptional experiences at the intersection of blockchain gaming, entertainment, and culture.\"; \"Apply to become a part of the AGV portfolio\" — https://arbitrumgamingventures.com/ ; Stylus Sprint \"Inactive\"/complete; Foundation Grant Program accepting \"Decentralized Applications (\"dApps\")\" with \"milestone-based funding for growth\"; ArbiFuel \"Gas Fee Sponsorship Program\" — https://arbitrum.foundation/grants",
+     "supports": "neutral",
+     "strength": "medium"
+    }
+   ],
+   "unknowns": "I could not see the London online buildathon winner names. The thread is at https://x.com/arbitrum/status/2069113415348744568 and returned HTTP 402. I also could not identify the India \"Gaming breakthrough\" honorable-mention winner, and the HackQuest project-list page returned no content. openhouse.arbitrum.io returned 429 and arbitrum.io/solutions/gaming returned 403. Dubai's judging criteria and prize breakdown are marked TBD; I assume they will match the other cities' four criteria, but that is unconfirmed. I found no written Promising Products definition on HackQuest itself; the only one came from secondary press (egamers.io). I could not tell whether Arbitrum Gaming Ventures takes equity, tokens or both. I could not confirm whether the Gaming Catalyst wind-down vote passed. Judge weighting between the four criteria is not published. I have no evidence of how judges treat traction from an app's existing Web2 or mobile users versus on-chain users. Whether the team could realistically meet the Singapore deadline (register by Oct 2, deploy and submit by Oct 4) is outside what I could check."
+  },
+  {
+   "findings": [
+    {
+     "claim": "Arc mainnet is live (chain 5042), and a plain injected wallet such as MetaMask can sign and send on it even without custom gas-token support. The catch is display: the gas balance may show as 'ETH'. So option (1), a donate button that calls ShelterSplit.donate(memo) with msg.value, is technically workable on Arc in a single transaction with no approve step.",
+     "evidence": "docs.arc.io/arc/references/connect-to-arc: \"Wallets that don't support custom gas tokens still work for signing and sending transactions; balances may display as 'ETH' but the underlying token is USDC.\" Also \"Chain ID: 5042 ... Status: Production\" and \"USDC as the native gas token (18 decimals).\" Repo: funding/framework/tracks/a-build/shelter-split/src/ShelterSplit.sol:266 `function donate(string calldata memo) external payable nonReentrant whenNotPaused`",
+     "supports": "integrate",
+     "strength": "strong"
+    },
+    {
+     "claim": "UX friction for a judge using option (1) on Arc is high even though the tech works. The judge must add a custom network by hand (Settings, Networks, Add manually), hold real USDC on Arc mainnet, and may see a confusing 'ETH' balance. Most judges will not have Arc USDC funded, so in practice they would watch a video rather than click. Estimate (J): about 4-6 AI hours for a wallet_addEthereumChain + eth_sendTransaction button with no new dependency, 1-2 human hours for funding and testing a real wallet, and medium risk (network add, decimals, the 20 gwei fee floor).",
+     "evidence": "docs.arc.io connect-to-arc: \"Settings → Networks → Add network → Add a network manually. Enter the network name, RPC URL, chain ID (5042 or 5042002), currency symbol (USDC)...\". docs.arc.io/arc/references/gas-and-fees.md: \"set `maxFeePerGas` to at least 20 Gwei—transactions below this threshold may remain pending indefinitely.\"",
+     "supports": "standalone",
+     "strength": "medium"
+    },
+    {
+     "claim": "Repo gap (a known-bug candidate to mention, not fix silently): the /shelter-payouts page decodes only the ERC-20 `Disbursed` event. Arc donate() and receive() emit `NativeDisbursed` in 18-decimal native units, while chains.ts sets Arc decimals to 6. So any donation made through the Arc donate button would NOT appear on the payouts page the heist links to. Option (1) on Arc also needs roughly 2-3 AI hours of page work: a second topic plus per-event decimals.",
+     "evidence": "client/components/shelter-payouts/logs.ts:4 `// keccak256(\"Disbursed(address,uint256,string)\")` and :56 rejects other topics. ShelterSplit.sol:264 \"Splits msg.value (the native coin; USDC with 18 decimals on Arc) ... Emits NativeDisbursed events.\" client/components/shelter-payouts/chains.ts: `5042: { name: \"Arc\", ... decimals: 6, symbol: \"USDC\" }`",
+     "supports": "neutral",
+     "strength": "strong"
+    },
+    {
+     "claim": "Tempo is hostile to a naive injected-wallet donate button. For a legacy or EIP-1559 transaction that calls ShelterSplit (not a TIP-20 contract), the fee token falls back to pathUSD unless the account has set a preference. A MetaMask user holding only USDC.e would likely be unable to pay fees. disburseWithMemo is also an ERC-20 pull, so it needs an approve first (2 transactions). Fee sponsorship exists, but it needs a fee-payer service or a Tempo API key and Viem relay wiring. Risk: high.",
+     "evidence": "tempo.xyz/developers/docs/protocol/fees/spec-fee: \"If no fee preference is set at the transaction, account, or contract level, the protocol falls back to pathUSD as the user's fee token preference.\" tempo.xyz wallet-developers: \"Standard EVM wallets can perform basic transactions ... However ... wallets should integrate Tempo Transactions, which requires switching to the type-`0x76` envelope.\" fee-payer: \"Authenticate with a Tempo API key, then use the Fee Payer API as your sponsorship RPC URL.\" Repo: ShelterSplit.sol:255 `function disburseWithMemo(uint256 amount, bytes32 memo)` routes through _disburse, which reads token.balanceOf (the pull pattern).",
+     "supports": "standalone",
+     "strength": "medium"
+    },
+    {
+     "claim": "Option (2), an embedded or passkey wallet with sponsored gas, is available on Arc through Circle. The supported-blockchains table lists Modular (MSCA) wallets for Arc and Avalanche, and Gas Station marks Arc Mainnet as supported. However, mainnet Gas Station is billed to the developer's credit card and works only with ERC-4337 smart accounts. Setup needs a human to create a Circle Console account and billing (the team must do this, not the AI), plus a passkey domain setup. Estimate (J): 12-20 AI hours (new SDK dependency, passkey register and login, a UserOp to donate()), 3-5 human hours (console, billing, domain, real-device passkey tests on iOS and Android WebView), and medium-high risk. Passkeys inside Capacitor WebViews are an unverified extra risk. Judge UX would be the best of all options: a Face ID prompt and no funds needed, but only if sponsorship also covers the donated value. The donation itself still needs USDC, so a 'sponsored' demo can only sponsor gas, not the gift.",
+     "evidence": "developers.circle.com/wallets/supported-blockchains.md header: \"Blockchain (mainnet / testnet chain code) | Developer-controlled | User-controlled | Modular\"; row \"Arc (`ARC` / `ARC-TESTNET`) | EOA, SCA | EOA, SCA | MSCA\". developers.circle.com/wallets/gas-station.md: \"Arc Mainnet | ✅ | ✅ |\", \"The sponsored gas fees are charged to the developer's credit card\", \"5% of the gas fee\", \"the Programmable Wallet must be an ERC-4337-compliant smart contract account\". developers.circle.com/wallets/modular: \"Users sign with passkeys\" and \"Use Gas Station to sponsor network fees so users don't need native tokens.\"",
+     "supports": "neutral",
+     "strength": "medium"
+    },
+    {
+     "claim": "Circle Paymaster (pay gas in USDC, permissionless) covers Arbitrum and Avalanche but not Arc. On Arc it is unnecessary anyway, because gas already is USDC. It adds nothing for the Arc entry; it only helps a smart-account donate flow on Arbitrum or Avalanche.",
+     "evidence": "developers.circle.com/paymaster.md: \"A permissionless smart contract that allows users to pay gas fees in USDC instead of native tokens.\" Supported: \"ERC-4337 v0.8: Arbitrum, Avalanche, Base, Ethereum, Optimism, Polygon, and Unichain\" (Arc not listed); \"There is a 10% surcharge on gas fees ... only applies to Arbitrum and Base\".",
+     "supports": "neutral",
+     "strength": "medium"
+    },
+    {
+     "claim": "Arc lists many AA and embedded-wallet providers (Alchemy with gas sponsorship, Dynamic with passkey wallets, Privy, Pimlico, ZeroDev, MetaMask Embedded Wallets, and others). So option (2) is not locked to Circle. The docs do not say which of them support mainnet.",
+     "evidence": "docs.arc.io/arc/tools/account-abstraction.md: Alchemy - \"Wallet APIs, a production bundler, and gas sponsorship\"; Dynamic - \"Identity and wallet orchestration platform with native ERC-4337 support\"; Pimlico - \"Bundler and paymaster infrastructure for ERC-4337 smart accounts\"",
+     "supports": "neutral",
+     "strength": "weak"
+    },
+    {
+     "claim": "Option (3), a read-only 'sent to shelters' counter, is the cheapest and lowest-risk option, because the machinery already exists. ShelterPayouts reads Disbursed logs over public RPCs with fetch, with no wallet and no new dependency. A counter on the heist win screen could reuse the same eth_getLogs approach, or simply keep linking out. Estimate (J): 3-5 AI hours for a small fetch in the heist (it currently has no chain code) plus about 2 hours to add NativeDisbursed support; about 0.5 human hours; judge friction near zero. Main risks: public RPC range limits and an empty deployments.json showing '$0' until the real 1 USDC payout lands.",
+     "evidence": "client/components/shelter-payouts/README.md: \"read in the browser with plain `eth_getLogs` calls to the chain's public RPC. No backend, no wallet, no new dependency.\" and \"`client/public/shelter-payouts/deployments.json` ... ships as `[]`, and the page shows an empty state\"; `fromBlock` \"Set it by hand if the RPC rejects the range.\" Heist win screen: catnip-heist/src/ui/ui.ts:682 renders `h('a.ch-payouts', { href: payoutsUrl, ...` and :62 \"'' hides the link\". grep for wallet/ethereum in catnip-heist/src returned no files.",
+     "supports": "integrate",
+     "strength": "strong"
+    },
+    {
+     "claim": "Option (4), embedding the heist in the Next.js client, is feasible but not free. The client already uses the same three version (^0.183.2), and the heist is mountable, with App(opts) taking a root element and a dispose() that cleans up the renderer, UI, input and audio. The plan doc prescribes dynamic(..., { ssr:false }) and single-WebGL-context rules. Blockers: the heist source reads import.meta.env.DEV unguarded (App.ts:189, main.ts:38), which will throw under the Next webpack build unless shimmed. It uses TypeScript ^7 against the client's ^5. Its assets are resolved relative to a Vite base. Lowest-risk route (J): build the Vite dist into client/public/heist/ and link to it or iframe it (2-4 AI hours, about 1 human hour, low risk). A source-level embed would take 8-14 AI hours (shims, the ASSET_BASE path, CSS scoping for styles.ts, Phaser teardown, and Capacitor static-export checks) and 2-3 human hours for device QA; risk is medium.",
+     "evidence": "client/package.json:88 `\"three\": \"^0.183.2\"` and catnip-heist/package.json `\"three\": \"^0.183.2\"`, `\"typescript\": \"^7.0.2\"` against client `\"typescript\": \"^5\"`. catnip-heist/src/app/App.ts:189 `logStats: import.meta.env.DEV`; :476 `dispose(): void {`. catnip-heist/vite.config.ts: \"set HEIST_BASE to an absolute sub-path for hosting\". docs/plans/catnip-heist-3d.md:135 \"Both scenes load through `dynamic(..., { ssr: false })`.\" and :136 \"Any Phaser instance is destroyed first, so only one WebGL context is live.\" Existing pattern: client/pages/shelter-payouts.tsx uses `dynamic(() => import(\"@/components/shelter-payouts/ShelterPayouts\"), { ssr: false })`. client/next.config.js:10 `output: isApp ? \"export\" : undefined`.",
+     "supports": "integrate",
+     "strength": "strong"
+    },
+    {
+     "claim": "Tempo fee sponsorship is available on testnet with no auth, which would allow a gasless Tempo demo. Production sponsorship needs a Tempo API key, and the fee-payer page does not document how to get production approval or what it costs.",
+     "evidence": "tempo.xyz/developers/docs/guide/payments/sponsor-user-fees: \"For testing on Tempo testnet, use the public fee payer endpoint at `https://sponsor.moderato.tempo.xyz`\"; \"Applications must configure their client with the fee payer service endpoint and set `feePayer: true`\". The fee-payer API page gives no pricing or approval details.",
+     "supports": "neutral",
+     "strength": "medium"
+    },
+    {
+     "claim": "Arc transactions are cheap (a target of about $0.001 per transfer), so gas cost is not a reason to avoid an on-chain button. A judge's real barrier is holding Arc USDC at all, not the fee.",
+     "evidence": "docs.arc.io/arc/references/gas-and-fees.md: design target \"$0.001 per ERC-20 transfer\"; fee model \"EIP-1559 + EWMA smoothing\"",
+     "supports": "neutral",
+     "strength": "medium"
+    }
+   ],
+   "summary": "Yes, it is really a case, but only in part. Putting the heist on-chain is technically possible, but the cheapest version that is safe for judges is read-only.\n\nThe four options:\n\n- **(1) Injected-wallet donate button.** It works on Arc: MetaMask can sign even without custom gas-token support, and donate() is a single payable call. The tradeoff is friction: the judge must add the network by hand and hold Arc USDC. On Tempo it is poor: a standard transaction to ShelterSplit falls back to pathUSD for fees, and disburseWithMemo needs an approve first.\n- **(2) Passkey wallet with sponsored gas.** It exists on Arc: Circle Modular (MSCA) wallets are listed for Arc, Gas Station marks Arc Mainnet as supported, and Alchemy, Dynamic, Pimlico and others are listed as AA providers. But mainnet sponsorship is charged to a developer credit card, requires ERC-4337 smart accounts, and needs a human to set up the console. Sponsorship covers gas only, not the donation itself. Estimate (J): about 12-20 AI hours, 3-5 human hours, medium-high risk.\n- **(3) Read-only counter.** Lowest risk and nearly free, because the eth_getLogs machinery already exists. Estimate (J): about 3-7 AI hours, 0.5 human hours, near-zero judge friction.\n- **(4) Embedding in the client.** Feasible: same three version, and App has a root element plus dispose(). But the heist uses import.meta.env.DEV unguarded, which breaks under Next unless shimmed. Estimate (J): 2-4 AI hours as a static build under client/public/heist, or 8-14 AI hours as a source embed with dynamic/ssr:false.\n\nOne concrete repo gap to mention, not fix silently: the payouts page decodes only Disbursed, not NativeDisbursed, and it uses Arc decimals of 6 while native amounts are 18. So an Arc donate() would not appear on the page that the heist win screen links to.\n\nRecommended path (J): keep the heist standalone or served as static files, and add a read-only 'sent to shelters' counter. Keep any donate button as an optional Arc-only extra, and fix NativeDisbursed support first.",
+   "unknowns": "- **Circle Modular wallets:** whether Arc mainnet access needs any approval or a paid plan, and whether passkeys work inside the Capacitor iOS and Android WebViews. Neither was verified.\n- **Tempo:** production Fee Payer pricing and approval were not documented. It is also unclear whether USDC.e qualifies as a fee token, and exactly what MetaMask shows on Tempo.\n- **Arc wallet providers:** which of the listed AA providers support Arc mainnet was not stated.\n- **Scope of checks:** hour estimates are judgment (J), not measured. The heist win-screen link is target=_blank; I did not check the full link attributes. I did not run the heist build under Next to confirm the import.meta failure; that conclusion comes from reading the code. WebFetch summaries paraphrase some pages, so the verbatim quotes are only as exact as the fetch model returned them."
+  },
+  {
+   "summary": "I found no precedent where a game won a hackathon or grant because it made on-chain charity donations inside the game. The closest winners are narrow. SpaceTombo, a \"gamified lucky draw game... to fund charitable organizations\", won Chainlink's $15k NFT prize in 2021. Onda, which sends automatic $0.01 USDC micropayments to artists, won an Arc track at ETHGlobal Cannes 2026. Charity Connect won in Base Onchain Summer's \"Unplugged\" track. PetsFundMe, a pet-donation project, collected only ETHOnline 2022 sponsor pool prizes, and Charity Casino shows no prize. Recent winners at Arc, Circle and Colosseum are mostly infrastructure (FX DEX, treasury, x402 or MCP payment rails, agent payments) plus \"real problems\" apps. Judges rewarded two kinds of things: stablecoin payments where the chain is hidden from the user, and verifiable proof (deployed contracts, public repos, traction). Charity and games are not a stated priority at Circle or Tempo. Circle's 2026 grant categories are agentic activity, stablecoin FX, peer-to-peer payments, treasury, prediction markets and lending. Its first 2026 grant cohort is all \"production-grade systems\". Tempo's stated use cases include \"Global payouts\", \"Microtransactions\" and memos \"for payment reconciliation\". So judges would score a real payout that is verifiable on-chain and uses memos; the game itself scores little. The best-supported position is a middle one: the heist should trigger or link to a real ShelterSplit payment (this is what Onda did and won), without on-chain game logic or token mechanics. On eligibility, secondary sources say Arc Microgrants requires a live Arc mainnet deployment (mainnet went live 2026-09-16) and a public repo, and that testnet-only builds are ineligible. So ShelterSplit must be on Arc mainnet, not testnet, by the Oct 7 submission (the program closes Oct 14).",
+   "findings": [
+    {
+     "claim": "An in-product automatic stablecoin payment to a real-world beneficiary won an Arc track: Onda sends micropayments to artists as users listen. This is the closest analog to 'finish the heist, and a real payout reaches a shelter'.",
+     "evidence": "\"Onda: A Chrome extension that detects what music you're listening to, looks up the artist, and automatically sends them $0.01 USDC micropayments on Arc.\" and judges rewarded \"real problems: emergency finance (ETHastic), privacy infrastructure (VEIL VPN), artist compensation (Onda), and sustainable web monetization (NanoCrawl).\" (April 27, 2026) https://www.arc.io/blog/meet-the-arc-track-winners-from-ethglobal-cannes-hackathon-and-what-we-learned",
+     "supports": "integrate",
+     "strength": "medium"
+    },
+    {
+     "claim": "Arc's own write-up of HackMoney 2026 says judges rewarded invisible-chain consumer UX, traditional-finance workflows (payouts, contractor payments), crosschain infrastructure and AI agents. The winners were infra or finance (FX DEX, SMS wallet, treasury, agent creator tokens). No game or charity project won.",
+     "evidence": "\"No Native Tokens as Default User Experience\"; \"blockchain transactions happen invisibly\"; \"mainstream business problems: paying employees on time, managing contractor payments across countries, settling invoices instantly\"; \"Ninety-seven percent of submissions incorporated experimental AI agents\"; winners: arctan(x) \"institutional-grade FX DEX\", Text-to-Chain, ArcFlow \"self-paying corporate treasury\", Versus. (April 2, 2026) https://www.arc.io/blog/meet-the-arc-track-winners-from-the-hackmoney-2026-hackathon-and-what-we-learned",
+     "supports": "neutral",
+     "strength": "strong"
+    },
+    {
+     "claim": "A game with a charity-funding mechanic won a sponsor prize, but that was 2021 and in an NFT category, not a payments or charity category.",
+     "evidence": "SpaceTombo (NFT Prize - $15,000): \"a gamified lucky draw game in which tickets are exchanged for dynamic NFTs to fund charitable organizations\"; Soleil (Social Impact Prize - $15,000) \"incentivizes the expansion of solar power generators by adding additional income through stablecoins\" https://chain.link/blog/chainlink-fall-2021-hackathon-winners",
+     "supports": "integrate",
+     "strength": "weak"
+    },
+    {
+     "claim": "A pet-donation project (PetsFundMe) won only sponsor pool prizes at ETHOnline 2022. A game-plus-charity project (Charity Casino, Road to Web3) shows no prize. The pet and charity theme alone has not produced top placements.",
+     "evidence": "PetsFundMe prizes: \"SKALE Network — Pool Prize\", \"Superfluid — Pool Prize\" etc. https://ethglobal.com/showcase/petsfundme-qy4jd ; Charity Casino page lists no awards https://ethglobal.com/showcase/charity-casino-0xkip",
+     "supports": "neutral",
+     "strength": "medium"
+    },
+    {
+     "claim": "A donation-transparency app won in Base Onchain Summer's real-world-impact track. In the same event, games won separately as games, not as donation vehicles.",
+     "evidence": "Charity Connect: \"Used to create a more interactive and transparent donation experience.\" (Unplugged track); game winners listed separately (BrainWorms, Pixotchi, Tank Defender...) https://www.bitget.com/news/detail/12560604136564",
+     "supports": "neutral",
+     "strength": "weak"
+    },
+    {
+     "claim": "Circle's relaunched 2026 grants list six priority categories, and none is games, charity or consumer entertainment. It asks for shipping history and traction.",
+     "evidence": "Categories: \"Agentic economic activity\", \"Stablecoin FX\", \"Peer-to-peer payments\", \"Treasury management\", \"Prediction markets\", \"Lending and borrowing\"; applicants show \"proven shipping ability, clear technical ownership, traction or a credible path to traction\" (May 14, 2026) https://community.arc.io/public/blogs/circle-developer-grants-program-relaunches-2026-05-14",
+     "supports": "standalone",
+     "strength": "strong"
+    },
+    {
+     "claim": "The first 2026 Circle grant cohort is described entirely as production financial infrastructure. None of the recipients is identified as a game or charity.",
+     "evidence": "\"builders turning stablecoins and programmable money into production-grade systems\" (March 18, 2026) https://www.circle.com/blog/announcing-the-first-circle-grant-recipients-in-2026",
+     "supports": "standalone",
+     "strength": "medium"
+    },
+    {
+     "claim": "Circle's Arc mainnet launch release frames Arc as infrastructure for markets, payments and agents, with no mention of gaming.",
+     "evidence": "\"financial markets, real-time money movement, and agentic economic activity\"; \"payments, FX, trading, lending, markets, and asset issuance\" (September 16, 2026) https://www.circle.com/pressroom/circle-launches-arc-mainnet-an-economic-operating-system-for-the-internet",
+     "supports": "standalone",
+     "strength": "medium"
+    },
+    {
+     "claim": "Circle's OpenClaw hackathon judges rewarded verifiable proof (deployed contracts, public repos) and following the submission format more than narrative. This favors a live, verifiable ShelterSplit payout over a story-driven game pitch.",
+     "evidence": "\"projects that followed the required format, included verifiable proof of work, and aligned with submission rules were the ones that could be evaluated.\" (February 11, 2026) https://www.circle.com/blog/meet-the-winners-of-our-first-usdc-openclaw-hackathon----and-what-we-learned",
+     "supports": "neutral",
+     "strength": "medium"
+    },
+    {
+     "claim": "Arc Microgrants reportedly requires a live Arc mainnet deployment and a public repo. Per search-result summaries (the DoraHacks page returned HTTP 405 and was not fetched), testnet-only builds are not eligible. The heist does not need to be on-chain, but the ShelterSplit deployment must be on Arc mainnet.",
+     "evidence": "PANews: projects must be \"mini-apps, prototypes, proofs of concept, or other early-stage technical experiments running on the Arc mainnet\"; deadline October 14, results by October 21 https://panews.io/articles/01a0affb-c2f8-719d-9661-cef1573d6abb ; DoraHacks search snippet (not fetched, HTTP 405): \"Not eligible: design mockups, slide decks, testnet-only builds, projects with no Arc component\" https://dorahacks.io/hackathon/arc-microgrants ; Arc mainnet live Sept 16, 2026 https://www.arc.io/blog/arc-mainnet-goes-live-on-september-16-2026",
+     "supports": "neutral",
+     "strength": "medium"
+    },
+    {
+     "claim": "Tempo's stated target use cases include payouts and microtransactions, which fits ShelterSplit disbursements more than any game mechanic.",
+     "evidence": "\"Global payouts, payins, and payroll\", \"Embedded financial accounts\", \"Fast and cheap remittances\", \"Microtransactions\", \"Agentic payments\"; features like \"memos\" (September 4, 2025) https://tempo.xyz/blog/introducing-tempo/",
+     "supports": "neutral",
+     "strength": "strong"
+    },
+    {
+     "claim": "Tempo presents memos, fee sponsorship and batching as its key primitives for 'seamless user experiences' in payouts. A gasless, memo-tagged shelter payout triggered from the product would use exactly these.",
+     "evidence": "\"primitives for at-scale payments such as batching, scheduling, and complex payment workflows\"; \"payroll, payouts, and subscriptions while allowing applications to offer seamless user experiences\"; Privy CEO: \"Integrated fee sponsorship, batching, and transaction memos stand to transform the developer experience\" (December 17, 2025) https://tempo.xyz/blog/tempo-transactions/",
+     "supports": "integrate",
+     "strength": "medium"
+    },
+    {
+     "claim": "Tempo's docs describe memos as 32-byte reconciliation references and fee sponsorship as a way to make transactions gasless for users. That matches disburseWithMemo and a sponsored donate flow.",
+     "evidence": "\"Attach 32-byte reference memos to TIP-20 transfers for payment reconciliation, invoice matching, and exchange deposit tracking\"; \"Enable gasless transactions by sponsoring fees for your users. Set up a fee payer service\" https://tempo.xyz/developers",
+     "supports": "integrate",
+     "strength": "medium"
+    },
+    {
+     "claim": "Colosseum judges startups on traction, viability and market size, not novelty alone. A game used only as a donation funnel would be scored as a business: who pays, and how often.",
+     "evidence": "\"Traction: Does the product already have demand or revenue?\"; \"Viability: Can this project become a scalable, sustainable business?\"; \"Colosseum hackathons are startup competitions\" https://colosseum.com/hackathon",
+     "supports": "neutral",
+     "strength": "strong"
+    },
+    {
+     "claim": "Public Tempo-track repos for World's Fair are merchant or payments infrastructure. The competing field looks infra-heavy, so a consumer donation flow would be differentiated but off-pattern.",
+     "evidence": "Float: \"same-day revenue-based cash advances for stablecoin merchants... (Colosseum Crypto World's Fair, Tempo track)\" https://github.com/stphnyao/float ; Held: \"buyer protection for stablecoin payments on Tempo\" https://github.com/emilbob/held ; Corridor: \"Stablecoin settlement and treasury rails for payment companies\" https://github.com/Udoka-AM/corridor",
+     "supports": "neutral",
+     "strength": "weak"
+    },
+    {
+     "claim": "At Solana Cypherpunk (Colosseum, Dec 2025), the stablecoin track went to payment rails and remittance. Consumer winners were social or fan apps. No charity or impact game placed.",
+     "evidence": "MCPay (Stablecoin Track, 1st, $25,000) \"open payment infrastructure connecting MCP and x402\"; Credible \"stablecoin rails for remittance to India\"; summary: no charity/impact-focused winners https://blog.colosseum.com/announcing-the-winners-of-the-solana-cypherpunk-hackathon/",
+     "supports": "standalone",
+     "strength": "medium"
+    },
+    {
+     "claim": "In Hedera's 2026 Apex hackathon, impact prizes went to verifiable real-world asset and impact infrastructure. The one gamified winner gamified DeFi actions, not donations.",
+     "evidence": "Medq (Legacy Builders 1st, $18,500): gamification platform \"turning swaps, stakes, and lends into verifiable quests\"; Sustainability 1st: Hedera Green Bonds (May 12, 2026) https://hedera.com/blog/these-are-the-winners-of-the-hello-future-apex-hackathon/",
+     "supports": "neutral",
+     "strength": "weak"
+    }
+   ],
+   "unknowns": "Colosseum World's Fair track-specific criteria for Tempo and Arbitrum were not on the fetched pages. Only the $100k Tempo pool is confirmed in secondary sources, and the 10x$10k split was not verified. The DoraHacks Arc Microgrants page (HTTP 405) and the Algorand A-Game winners page (HTTP 403) could not be fetched, so the 'testnet-only builds' exclusion is from a search snippet only. I found no winner write-up that says an in-product donation specifically helped or hurt judging. The Onda inference is an analogy, not a judge statement. There was no Arbitrum-specific or Avalanche Team1 evidence on what they want. I did not verify ETHGlobal showcase finalist status beyond the prize badges on the two pages fetched. The Anitya jam was not researched."
+  }
+ ],
+ "verdict": {
+  "claimHolds": "Partly. The direction is right, but the Colosseum figure is too high for anything you can safely ship by Oct 11, and \"Arc unchanged\" is slightly wrong.\n\n- **Colosseum:** +1 for Tempo and about +0.5 for Arbitrum/general is defensible. +2 is not, unless the heist shows or triggers a real Tempo memo payout during the window, and the Tempo wallet path is the riskiest build on the list. Most of the Colosseum gain comes from ShelterSplit being deployed on Tempo and Arbitrum. The heist mostly adds the story and a way in for users.\n- **Dubai:** +1 to +1.5 holds. The gain comes from linking the heist to the live app that already has users (option 4), plus the required Arbitrum deploy. Putting the gameplay on-chain adds nothing here.\n- **Arc:** not unchanged. It is +0.5 with the counter, and up to +1 if an Arc-only donate button works on mainnet. A broken demo is about -2.\n- **Team1 and Circle:** unchanged, which matches your claim. No evidence covers Team1, and Circle's grant categories leave out games and charity.\n- **Anitya:** unchanged at best. Wiring the game on-chain only adds risk for a game jam.",
+  "recommendation": "Don't put gameplay on-chain, and don't make judges use a wallet. Ship three things:\n\n1. **A read-only \"sent to shelters\" counter on the win screen (option 3).** Before it, fix the payouts decoder so it reads NativeDisbursed events and uses the right decimals per event.\n2. **A public static deploy of the heist, then a copy under client/public/heist linked from the Token Tails app (option 4a).**\n3. **A real payout on Tempo using disburseWithMemo, with a memo that names the heist campaign.** The counter shows it, which gives Colosseum Tempo judges an on-chain action they can inspect without holding a wallet.\n\nAn injected-wallet donate button on Arc (option 1) is a stretch goal only. It needs the decoder fix to have landed first and needs to be working by Oct 4.\n\nSkip these before Oct 12, and revisit the passkey wallet for Dubai in November:\n- option 1 on Tempo;\n- option 2 (passkey wallet with sponsored gas);\n- option 4b (embedding the heist source in the client).\n\nTwo extra points:\n- Don't add a per-win write path to back payouts with win counts. CLAUDE.md allows game scores to be written only through POST /user/catbassadors/live. Keep the memo payout a campaign payout that the team funds.\n- The decoder gap is a known bug. Mention it and fix it as its own deliberate change, not as a side effect of other work.",
+  "table": [
+   {
+    "program": "Colosseum Tempo track",
+    "bestOption": "3 + real Tempo disburseWithMemo payout shown by the counter + 4a",
+    "pNow": 7.5,
+    "pWith": 8.5,
+    "why": "The rules score how well the entry uses blockchain for UX, and every track is worded as 'integrate with X'. Tempo's resource groups are payments, memos and payouts. The injected-wallet path on Tempo is hostile: fees fall back to pathUSD and the pull needs an approve first. So the realistic gain comes from a memo payout judges can verify, not from a wallet in the game. The 7.5 is the one estimate you gave for the whole entry, and the deltas are my judgment. It is unknown whether the Tempo track wants mainnet."
+   },
+   {
+    "program": "Colosseum Arbitrum + general pool",
+    "bestOption": "3 + 4a (Arbitrum ShelterSplit deploy is the real integration)",
+    "pNow": 7.5,
+    "pWith": 8,
+    "why": "There are only 5 Arbitrum prizes, and I found no track criteria. The $5k Public Goods Award and the traction and business criteria reward linking the heist to the live app, not on-chain gameplay. This is the same single entry as the Tempo row, so don't add the two rows together."
+   },
+   {
+    "program": "Arc Microgrants (Oct 7)",
+    "bestOption": "3; add option 1 on Arc only if it is working by Oct 4",
+    "pNow": 19,
+    "pWith": 19.5,
+    "why": "Eligibility turns on ShelterSplit being on Arc mainnet, and the heist is optional. The counter makes the heist a small mini-app that reads Arc. A working Arc donate button could add about +0.5 more, since donate() is one payable transaction. A judge has to add the network and hold Arc USDC, though. Today an Arc donation would not show on the payouts page (it decodes only Disbursed and assumes 6 decimals), so a half-built button costs points. The 'no testnet-only builds' rule comes from a search snippet only."
+   },
+   {
+    "program": "Arbitrum Open House Dubai",
+    "bestOption": "4a (later possibly 4b) + 3; option 2 via Circle Paymaster could be a November add",
+    "pNow": 4.7,
+    "pWith": 6,
+    "why": "The criteria ask for product-market fit (attracting and retaining users), a working MVP and a clear reason to be on Arbitrum. The judge guide uses traction as the tiebreaker and warns against 'blockchain for X' pitches. Linking the heist to the app that already has users is the lever, together with the required Arbitrum deploy. No past winner was a game. Dubai's criteria and prize split are still TBD."
+   },
+   {
+    "program": "Team1 Avalanche",
+    "bestOption": "0 (no heist wiring)",
+    "pNow": 3.8,
+    "pWith": 3.8,
+    "why": "There is no evidence at all on what Team1 wants. The Avalanche ShelterSplit deploy is what counts. Any heist delta would be invented."
+   },
+   {
+    "program": "Circle Grants",
+    "bestOption": "0",
+    "pNow": 0,
+    "pWith": 0,
+    "why": "You gave no baseline, so the 0 means not estimated, not a 0% chance. The 2026 categories are agentic payments, FX, P2P, treasury, prediction markets and lending. The first cohort was all 'production-grade systems'. Games and charity don't fit, so heist wiring changes nothing, and passkey wallets won't make it fit."
+   },
+   {
+    "program": "Anitya jam (main)",
+    "bestOption": "0 (submit standalone, keep the win-screen link)",
+    "pNow": 8,
+    "pWith": 8,
+    "why": "Game jams are judged on the game. None of the research covered Anitya's rules, so there is no evidence that wallets help. Wallet friction during a jam playtest is only downside."
+   }
+  ],
+  "options": [
+   {
+    "option": "0 Standalone, win-screen link only",
+    "aiHours": 0,
+    "humanHours": 0,
+    "risk": "Low. If deployments.json is still [] at judging time, the link lands on a page with nothing in it.",
+    "verdict": "DO"
+   },
+   {
+    "option": "3 Read-only counter on the win screen, plus NativeDisbursed and per-event decimals in the payouts decoder",
+    "aiHours": 6,
+    "humanHours": 0.5,
+    "risk": "Low. Public RPCs may reject large log ranges (fromBlock is set by hand). It shows $0 until the real payout lands.",
+    "verdict": "DO"
+   },
+   {
+    "option": "4a Static Vite build under client/public/heist, linked from the app",
+    "aiHours": 3,
+    "humanHours": 1,
+    "risk": "Low. Needs the base path set via HEIST_BASE. Check that it works in the Capacitor static export.",
+    "verdict": "DO"
+   },
+   {
+    "option": "Team-funded Tempo disburseWithMemo payout tagged with the heist campaign, shown by the counter",
+    "aiHours": 1,
+    "humanHours": 1,
+    "risk": "Low to medium. It must be real, go to the consenting shelter and be labelled truthfully. Don't tie amounts to win counts, which would need a second write path.",
+    "verdict": "DO"
+   },
+   {
+    "option": "1 Injected-wallet donate on Arc only (donate(memo) payable)",
+    "aiHours": 5,
+    "humanHours": 1.5,
+    "risk": "Medium. Judges must add the network by hand, fees need a 20 gwei floor, and wallets may show the balance as 'ETH'. It depends on the decoder fix, and judges will mostly watch the video.",
+    "verdict": "MAYBE"
+   },
+   {
+    "option": "1 Injected-wallet donate on Tempo",
+    "aiHours": 8,
+    "humanHours": 2,
+    "risk": "High. Fees fall back to pathUSD, the pull needs an approve first (two transactions), and standard wallets lack the 0x76 envelope. The hours are my judgment; no source estimated them.",
+    "verdict": "SKIP"
+   },
+   {
+    "option": "2 Passkey or embedded wallet with sponsored gas (Circle modular smart accounts on Arc, or the Tempo testnet fee payer)",
+    "aiHours": 16,
+    "humanHours": 4,
+    "risk": "Medium-high. Needs a Circle Console account with card billing, and passkeys in the Capacitor WebViews are unverified. Sponsorship covers gas only, not the donation. Too much scope before Oct 7 and Oct 11. Revisit for Dubai.",
+    "verdict": "SKIP"
+   },
+   {
+    "option": "4b Source-level embed via next/dynamic with ssr:false",
+    "aiHours": 11,
+    "humanHours": 2.5,
+    "risk": "Medium. The unguarded import.meta.env.DEV (App.ts:189, main.ts:38) needs a shim. There are TypeScript 7 vs 5 and CSS scoping issues, and only one WebGL context can be live at a time with Phaser. Post-Oct 12 at most.",
+    "verdict": "SKIP"
+   }
+  ],
+  "buildOrder": "1. Deploy ShelterSplit on Arc mainnet and make the real 1 USDC payout to the consenting shelter. Fill client/public/shelter-payouts/deployments.json. Everything else depends on this; without it the heist link shows $0.\n2. Payouts decoder: add NativeDisbursed and per-event decimals (the Arc native amounts use 18). Call it out as a known-bug fix.\n3. Add the win-screen counter to the heist.\n4. Deploy the heist publicly as a static build.\n5. Oct 4, go/no-go on the Arc donate button (option 1). Build it only if steps 1-4 are done.\n6. Submit Arc Microgrants on Oct 7.\n7. Deploy on Tempo and make the real disburseWithMemo payout with a campaign memo. Point the counter at Tempo too.\n8. Ship the static heist under client/public/heist and link it from the app.\n9. Deploy on Arbitrum.\n10. Record the Colosseum video and write the disclosure of prior work by Oct 11. Submit Oct 12.\n\nCUT LINE: stop after step 10 for everything due by Oct 12. After that, for Dubai (Nov 16 to Dec 6), consider option 2 on Arbitrum (Circle Paymaster or Alchemy) and option 4b. Never wire the heist for Anitya.",
+  "keyEvidence": "Colosseum:\n- Rules s.8(d) score how well the entry uses blockchain for UX.\n- s.14 defines each track as integrating with that chain.\n- None of the 26 gaming and consumer winners checked was a purely off-chain game. Scrim shows that on-chain money around an off-chain skill game can count.\n\nArbitrum:\n- The criteria ask for product-market fit, meaning attracting and retaining users.\n- The judge guide uses traction as the tiebreaker and warns against 'blockchain for X' pitches.\n- None of the named winners was a game.\n\nArc:\n- Mainnet is live, and injected wallets can sign.\n- Microgrants reportedly requires an Arc mainnet component (search snippet only).\n\nTempo:\n- Fees fall back to pathUSD, so a standard donate transaction fails for a wallet holding only USDC.e.\n- The stated use cases are payouts and memos.\n\nCircle:\n- The 2026 grant categories leave out games and charity.\n\nRepo facts I checked:\n- client/components/shelter-payouts/logs.ts:56 rejects any log that isn't Disbursed.\n- chains.ts:15 sets Arc to 6 decimals.\n- catnip-heist/src/ui/ui.ts:129 and :682 hold the payoutsUrl link.\n- catnip-heist/src/app/App.ts:189 and src/main.ts:38 read import.meta.env.DEV unguarded.\n- git shows catnip-heist and shelter-split first committed on 2026-09-29, inside the Colosseum window.",
+  "weakSpots": "- **P deltas are my judgment.** No source puts a number on the effect of heist wiring.\n- **Colosseum baseline.** The 7.5% covers one entry, not each track separately.\n- **Colosseum track rules.** There are no Tempo or Arbitrum track criteria, no named judges, and no mainnet rule, and there are no past Tempo winners to compare against.\n- **In-window credit.** The git dates suggest the heist is in-window work, which cuts against the research's claim that the 8 levels earn little credit. But a first commit date is not proof of when development started, and any earlier work must be disclosed.\n- **Arc and Circle wallets.** The Arc testnet exclusion comes from a search snippet only. Circle mainnet access and whether passkeys work in the Capacitor WebViews are unverified.\n- **Untested build.** The claim that import.meta breaks under Next comes from reading the code, not from running a build.\n- **Dubai.** The criteria and prize split are TBD.\n- **Coverage gaps.** There is no evidence at all for Team1 or Anitya.\n- **Hours.** All estimates are judgment.\n- **Missing from the plan.** The Arbitrum Singapore online buildathon ($115K) closes registration Oct 2 and submission Oct 4. It is not in the plan and would clash with the Arc work."
+ }
+}

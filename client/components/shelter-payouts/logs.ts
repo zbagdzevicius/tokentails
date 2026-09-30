@@ -1,10 +1,20 @@
-// Pure helpers for ShelterSplit's Disbursed(address indexed shelter, uint256 amount, string memo)
-// event. No web3 dependency: logs come from plain eth_getLogs JSON-RPC calls.
+// Pure helpers for ShelterSplit's payout events. Disbursed(address indexed shelter, uint256 amount,
+// string memo) reports ERC-20 payouts (disburse, disburseWithMemo); NativeDisbursed has the same
+// shape and reports native-coin payouts (donate, receive). No web3 dependency: logs come from plain
+// eth_getLogs JSON-RPC calls.
 
 // keccak256("Disbursed(address,uint256,string)"), checked against the compiled
 // ShelterSplit bytecode in funding/framework/tracks/a-build/shelter-split/out.
 export const DISBURSED_TOPIC =
   "0x53e1c69daf8c00e0990d33cc076fc3c88a0c480beb39da2bcffa01252f63495a";
+
+// keccak256("NativeDisbursed(address,uint256,string)").
+export const NATIVE_DISBURSED_TOPIC =
+  "0xc859ef09d317f79211253b04e5d51bff252d80816db65d1aaa75cfdd3a22aeef";
+
+export const PAYOUT_TOPICS = [DISBURSED_TOPIC, NATIVE_DISBURSED_TOPIC];
+
+export type PayoutKind = "token" | "native";
 
 export interface RpcLog {
   address: string;
@@ -16,6 +26,7 @@ export interface RpcLog {
 }
 
 export interface Disbursement {
+  kind: PayoutKind;
   contract: string;
   shelter: string;
   amount: bigint;
@@ -53,8 +64,9 @@ function utf8(bytesHex: string): string {
 }
 
 export function decodeDisbursedLog(log: RpcLog): Disbursement {
-  if (!log.topics?.length || log.topics[0].toLowerCase() !== DISBURSED_TOPIC) {
-    throw new Error("not a Disbursed log");
+  const topic = log.topics?.[0]?.toLowerCase();
+  if (topic !== DISBURSED_TOPIC && topic !== NATIVE_DISBURSED_TOPIC) {
+    throw new Error("not a Disbursed or NativeDisbursed log");
   }
   if (log.topics.length < 2) throw new Error("Disbursed log is missing the shelter topic");
   const shelterWord = strip0x(log.topics[1]);
@@ -71,6 +83,7 @@ export function decodeDisbursedLog(log: RpcLog): Disbursement {
   if (memoHex.length !== len * 2) throw new Error("memo is truncated");
 
   return {
+    kind: topic === NATIVE_DISBURSED_TOPIC ? "native" : "token",
     contract: log.address.toLowerCase(),
     shelter: "0x" + shelterWord.slice(24).toLowerCase(),
     amount,
@@ -92,6 +105,24 @@ export function formatUnits(value: bigint, decimals: number): string {
     ? (abs % base).toString().padStart(decimals, "0").replace(/0+$/, "")
     : "";
   return `${negative ? "-" : ""}${whole}${frac ? "." + frac : ""}`;
+}
+
+// Decimals and symbol a payout is denominated in: native payouts use the chain's native coin,
+// token payouts the deployment's token.
+export function payoutUnit(
+  kind: PayoutKind,
+  chain: { decimals: number; symbol: string; nativeDecimals?: number; nativeSymbol?: string }
+): { decimals: number; symbol: string } {
+  return kind === "native"
+    ? { decimals: chain.nativeDecimals ?? 18, symbol: chain.nativeSymbol ?? "native" }
+    : { decimals: chain.decimals, symbol: chain.symbol };
+}
+
+// Rescales raw units to 18 decimals so amounts of the same symbol with different decimals (Arc's
+// native USDC has 18, its ERC-20 view 6) can be added together.
+export function to18(amount: bigint, decimals: number): bigint {
+  if (decimals > 18) throw new Error("more than 18 decimals is not supported");
+  return amount * BigInt("1" + "0".repeat(18 - decimals));
 }
 
 export function sumAmounts(items: { amount: bigint }[]): bigint {

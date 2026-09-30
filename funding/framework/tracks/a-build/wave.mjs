@@ -25,6 +25,13 @@ const ADDR = /^0x[0-9a-fA-F]{40}$/;
 
 export const wavePaths = {
   dir: () => process.env.FUND_A_WAVE_DIR || join(HERE, 'wave'),
+  // Public copies of the mainnet deployment list: the client's /shelter-payouts page and the
+  // Catnip Heist win-screen total read these. FUND_A_PUBLISH overrides them with a comma-separated
+  // list of files, or turns the copies off with 0.
+  publish: () => process.env.FUND_A_PUBLISH === '0' ? [] : process.env.FUND_A_PUBLISH ? process.env.FUND_A_PUBLISH.split(',') : [
+    join(HERE, '..', '..', '..', '..', 'client', 'public', 'shelter-payouts', 'deployments.json'),
+    join(HERE, '..', '..', '..', '..', 'catnip-heist', 'public', 'payouts', 'deployments.json'),
+  ],
   portfolio: () => process.env.FUND_PORTFOLIO || join(HERE, '..', '..', 'portfolio', 'opportunities.json'),
 };
 
@@ -267,6 +274,17 @@ async function cmdIngest({ flags }) {
       say(`${r.ok ? '✓' : '✗'} ${d.chain} ${d.address}${r.ok ? '' : `: ${r.problems.join('; ')}`}`);
       if (!r.ok) bad++;
     } catch (e) { bad++; say(`✗ ${d.chain}: RPC failed (${e.message})`); }
+  }
+
+  // Publish the mainnet list to the read-only pages (only public fields; nothing secret is in it).
+  if (network === 'mainnet') {
+    const pub = loadDeployments().filter((d) => d.network === 'mainnet')
+      .map(({ contract, chain, network: n, chainId, address, tx, token, proofTxs }) => ({ contract, chain, network: n, chainId, address, ...(tx ? { tx } : {}), ...(token ? { token } : {}), ...(proofTxs ? { proofTxs } : {}) }));
+    for (const f of wavePaths.publish()) {
+      if (!existsSync(dirname(f))) continue;
+      writeFileSync(f, JSON.stringify(pub, null, 2) + '\n');
+      say(`published ${pub.length} deployment(s) to ${f.replace(join(HERE, '..', '..', '..', '..') + '/', '')}`);
+    }
   }
 
   // Re-render the submission of every Track A application a mainnet deploy now unblocks.

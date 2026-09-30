@@ -5,8 +5,7 @@ import * as React from "react";
 import { useCallback } from "react";
 
 export interface IUtils {
-  openLink: (url: string, options?: any) => void;
-  openTelegramLink: (url: string) => void;
+  openLink: (url: string) => void;
   shareURL: (url: string, text?: string) => void;
 }
 
@@ -30,7 +29,7 @@ type ContextState = {
 
 const ProfileContext = React.createContext<ContextState | undefined>(undefined);
 
-const ProfileProvider = ({ children }: React.PropsWithChildren<{}>) => {
+const ProfileProvider = ({ children }: React.PropsWithChildren) => {
   const [profile, setProfile] = React.useState<IProfile | null | undefined>(
     null
   );

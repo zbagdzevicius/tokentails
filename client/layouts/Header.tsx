@@ -51,6 +51,8 @@ export const Header = () => {
           isTop ? "py-6" : "py-2"
         } px-24 max-lg:px-4 relative`}
       >
+        {/* Plain anchor on purpose: a full page load tears down Phaser on the pages that render Header. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a
           href="/"
           className="flex items-center transition gap-2 lg:-ml-24 xl:ml-0"

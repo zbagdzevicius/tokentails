@@ -12,11 +12,13 @@ import { Tag } from "@/components/shared/Tag";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { IMessage } from "@/models/cats";
 import { EntityType } from "@/models/save";
+import { isApp } from "@/models/app";
+import { AppCheckoutNotice } from "./AppCheckoutNotice";
 
-// Make sure to replace with your publishable key
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
-);
+// App builds never load Stripe.js: web checkout is hidden there (IAP only).
+const stripePromise = isApp
+  ? null
+  : loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 interface StripeCheckoutFormProps {
   onSuccess: (response: IMessage) => void;
@@ -112,7 +114,11 @@ interface StripePaymentProps {
   imageId?: string;
 }
 
-export const StripePayment = ({
+// App builds show a notice instead: digital goods must use store IAP there.
+export const StripePayment = (props: StripePaymentProps) =>
+  isApp ? <AppCheckoutNotice /> : <WebStripePayment {...props} />;
+
+const WebStripePayment = ({
   price,
   id,
   onSuccess,

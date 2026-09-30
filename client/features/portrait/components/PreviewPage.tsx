@@ -9,6 +9,7 @@ import { PortraitFooter } from "@/features/portrait/components/PortraitFooter";
 import { useToast } from "@/features/portrait/hooks/use-toast";
 import { useCountdown } from "@/features/portrait/hooks/useCountdown";
 import { Button } from "@/features/portrait/ui/button";
+import { isApp } from "@/models/app";
 import { OrderStatus } from "@/models/order";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -273,6 +274,7 @@ export const PreviewPage = ({
   };
 
   const handlePurchaseClick = (optionId: string, price: number) => {
+    if (isApp) return;
     setPendingPurchase({ optionId, price });
     if (profile?._id) {
       void startCheckout({ optionId, price });
@@ -550,8 +552,15 @@ export const PreviewPage = ({
           </motion.div>
         )}
 
+        {/* App builds sell nothing until store IAP exists; web checkout is hidden. */}
+        {orderStatus !== OrderStatus.COMPLETE && isApp && (
+          <p className="text-center text-muted-foreground max-w-md mx-auto">
+            Purchases are not available in the app yet.
+          </p>
+        )}
+
         {/* Purchase Options - hide if order is complete */}
-        {orderStatus !== OrderStatus.COMPLETE && (
+        {orderStatus !== OrderStatus.COMPLETE && !isApp && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

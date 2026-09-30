@@ -1,6 +1,5 @@
 import { isNil, omitBy } from 'lodash';
 import { Types } from 'mongoose';
-import { ICat } from 'src/cat/cat.schema';
 
 export function getCleanObject<T>(object: T): T {
     return omitBy(object as object, isNil) as T;

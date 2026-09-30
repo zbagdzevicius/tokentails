@@ -1,7 +1,7 @@
 import { ITransactionStatus } from "@/api/order-api";
 import { useRates } from "@/components/web3/useRates";
 import { ChainCurrencies, ChainType, CurrencyType } from "@/web3/contracts";
-import { useRouter } from "next/router";
+import { NextRouter, useRouter } from "next/router";
 import * as React from "react";
 
 type ContextState = {
@@ -12,7 +12,7 @@ type ContextState = {
   setChainType: (chainType: ChainType) => void;
   setStellarConnected: (stellarConnected: boolean) => void;
   setStellarAddress: (stellarAddress: string) => void;
-  query: any;
+  query: NextRouter["query"];
   currencyType: CurrencyType;
   chainStatusDetail: {
     connected: boolean;
@@ -20,20 +20,20 @@ type ContextState = {
   };
   price?: number;
   setCurrencyType: (currencyType: CurrencyType) => void;
-  setPrice: (price: any) => void;
+  setPrice: (price: number | undefined) => void;
   transactionStatus: ITransactionStatus | null;
   setTransactionStatus: (transactionStatus: ITransactionStatus | null) => void;
 };
 
 const Web3Context = React.createContext<ContextState | undefined>(undefined);
 
-export const Web3Provider = ({ children }: React.PropsWithChildren<{}>) => {
+export const Web3Provider = ({ children }: React.PropsWithChildren) => {
   const [stellarConnected, setStellarConnected] = React.useState(false);
   const [stellarAddress, setStellarAddress] = React.useState<string>();
   const [chainType, setChainType] = React.useState<ChainType>(ChainType.STELLAR);
 
   const [currencyType, setCurrencyType] = React.useState(CurrencyType.XLM);
-  const [price, setPrice] = React.useState();
+  const [price, setPrice] = React.useState<number>();
   const rates = useRates();
   const [transactionStatus, setTransactionStatus] =
     React.useState<ITransactionStatus | null>(null);

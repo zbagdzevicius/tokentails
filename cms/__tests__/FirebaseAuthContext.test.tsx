@@ -41,7 +41,7 @@ import '@testing-library/jest-dom';
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-let mockAuth: { currentUser: unknown } = { currentUser: null };
+const mockAuth: { currentUser: unknown } = { currentUser: null };
 let setIntervalSpy: jest.SpyInstance;
 let clearIntervalSpy: jest.SpyInstance;
 
@@ -90,6 +90,10 @@ jest.mock('../components/SignIn', () => {
 
 const getContextModule = () =>
   require('../context/FirebaseAuthContext') as typeof import('../context/FirebaseAuthContext');
+
+type AuthApi = ReturnType<
+  (typeof import('../context/FirebaseAuthContext'))['useFirebaseAuth']
+>;
 
 const getMockFirebaseAuth = () =>
   require('firebase/auth') as typeof import('firebase/auth');
@@ -330,8 +334,8 @@ describe('context/FirebaseAuthContext FirebaseAuthProvider', () => {
     const { USER_API } = getMockUserApi();
     let capturedQueryFn: (() => unknown) | undefined;
     arrangeUseQuery({
-      capture: (options: any) => {
-        capturedQueryFn = options.queryFn;
+      capture: (options) => {
+        capturedQueryFn = (options as { queryFn: () => unknown }).queryFn;
       }
     });
 
@@ -425,7 +429,7 @@ describe('context/FirebaseAuthContext FirebaseAuthProvider', () => {
  * useFirebaseAuth: consumer hook actions (sign-in routing, logout, modal prompting).
  */
 describe('context/FirebaseAuthContext useFirebaseAuth', () => {
-  const Harness = ({ onReady }: { onReady: (api: any) => void }) => {
+  const Harness = ({ onReady }: { onReady: (api: AuthApi) => void }) => {
     const { useFirebaseAuth } = getContextModule();
     const api = useFirebaseAuth();
 
@@ -449,7 +453,7 @@ describe('context/FirebaseAuthContext useFirebaseAuth', () => {
     // Arrange
     arrangeUseQuery({ data: { name: 'Test User' } });
     const onReady = jest.fn();
-    const { signInWithPopup, GoogleAuthProvider } = getMockFirebaseAuth();
+    const { signInWithPopup } = getMockFirebaseAuth();
 
     // Act
     renderWithProvider(<Harness onReady={onReady} />);
@@ -476,7 +480,7 @@ describe('context/FirebaseAuthContext useFirebaseAuth', () => {
     // Arrange
     arrangeUseQuery({ data: { name: 'Test User' } });
     const onReady = jest.fn();
-    const { signInWithPopup, OAuthProvider } = getMockFirebaseAuth();
+    const { signInWithPopup } = getMockFirebaseAuth();
 
     // Act
     renderWithProvider(<Harness onReady={onReady} />);

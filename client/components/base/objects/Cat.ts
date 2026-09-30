@@ -66,7 +66,7 @@ export class CatNpc {
   private lastTouchedWall: "left" | "right" = "left";
   private animation: PlayerAnimation = animationConfigurations[0].key;
   job: null | NPCJob = null;
-  private timeoutFunction: any;
+  private timeoutFunction: ReturnType<typeof setTimeout> | null = null;
   private catName: string;
   blessing?: Phaser.GameObjects.Sprite;
 
@@ -249,6 +249,6 @@ export class CatNpc {
   }
 
   addCollider(collider: ColliderType) {
-    this.scene.physics.add.collider(this.sprite, collider as any);
+    this.scene.physics.add.collider(this.sprite, collider as Phaser.Types.Physics.Arcade.ArcadeColliderType);
   }
 }

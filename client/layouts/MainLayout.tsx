@@ -4,9 +4,15 @@ import { ProfileProvider } from "@/context/ProfileContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { queryClient } from "@/context/query";
 import { QueryClientProvider } from "@tanstack/react-query";
+import dynamic from "next/dynamic";
 import { PropsWithChildren, useEffect } from "react";
 
-export const MainLayout = ({ children }: PropsWithChildren<any>) => {
+const AnalyticsConsentBanner = dynamic(
+  () => import("@/components/shared/AnalyticsConsentBanner"),
+  { ssr: false },
+);
+
+export const MainLayout = ({ children }: PropsWithChildren) => {
   // DISABLE iOS Pinch to zoom and magnifier
   useEffect(() => {
     function createDoubleTapPreventer() {
@@ -20,9 +26,9 @@ export const MainLayout = ({ children }: PropsWithChildren<any>) => {
           dblTapPressed = false;
         } else {
           dblTapPressed = true;
-          dblTapTimer = setTimeout(() => {
+          dblTapTimer = window.setTimeout(() => {
             dblTapPressed = false;
-          }, 500) as any;
+          }, 500);
         }
       };
     }
@@ -43,6 +49,7 @@ export const MainLayout = ({ children }: PropsWithChildren<any>) => {
         <ProfileProvider>
           <CatProvider>
             <main className="text-yellow-900">{children}</main>
+            <AnalyticsConsentBanner />
           </CatProvider>
         </ProfileProvider>
       </ToastProvider>

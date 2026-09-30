@@ -1,5 +1,5 @@
 import { CatAbilityType, CatAbilityTypes, ICat } from '@/models/cats';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { CardBack } from './CardBack';
 import { CardFront } from './CardFront';
 import { CardWrapper } from './CardWrapper';
@@ -11,17 +11,22 @@ type Props = {
 export const TailsCard: React.FC<Props> = ({ cat }) => {
   const [flipped, setFlipped] = useState(true);
 
-  if (!cat) return null;
-
-  const blessing = cat.blessing;
-
-  if (!CatAbilityTypes.includes(cat.type)) {
-    cat.type = CatAbilityType.FAIRY;
-  }
-
   const handleFlip = useCallback(() => {
     setFlipped((prev) => !prev);
   }, []);
+
+  // Unknown ability types render as FAIRY. Normalise a copy instead of
+  // mutating the prop so the caller's object is left untouched.
+  const displayCat = useMemo(() => {
+    if (!cat || CatAbilityTypes.includes(cat.type)) {
+      return cat;
+    }
+    return { ...cat, type: CatAbilityType.FAIRY };
+  }, [cat]);
+
+  if (!displayCat) return null;
+
+  const blessing = displayCat.blessing;
 
   return (
     <>
@@ -44,8 +49,8 @@ export const TailsCard: React.FC<Props> = ({ cat }) => {
               WebkitTransform: 'translateZ(0)'
             }}
           >
-            <CardWrapper catType={cat.type}>
-              <CardFront cat={cat} blessing={blessing} />
+            <CardWrapper catType={displayCat.type}>
+              <CardFront cat={displayCat} blessing={blessing} />
             </CardWrapper>
           </div>
 
@@ -56,8 +61,8 @@ export const TailsCard: React.FC<Props> = ({ cat }) => {
               WebkitTransform: 'rotateY(180deg) translateZ(0)'
             }}
           >
-            <CardWrapper catType={cat.type} isBackSide={true}>
-              <CardBack cat={cat} blessing={blessing} />
+            <CardWrapper catType={displayCat.type} isBackSide={true}>
+              <CardBack cat={displayCat} blessing={blessing} />
             </CardWrapper>
           </div>
         </div>

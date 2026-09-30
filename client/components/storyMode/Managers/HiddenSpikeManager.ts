@@ -105,7 +105,8 @@ export class HiddenSpikeManager {
         frameIndex === 8 ||
         (frameIndex >= 9 && frameIndex <= 11)
       ) {
-        (this.scene as any).endGame && (this.scene as any).endGame();
+        const scene = this.scene as Phaser.Scene & { endGame?: () => void };
+        if (scene.endGame) scene.endGame();
       }
     }
   }

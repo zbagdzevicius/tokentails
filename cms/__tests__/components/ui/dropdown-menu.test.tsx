@@ -35,7 +35,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
-  DropdownMenuGroup,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,

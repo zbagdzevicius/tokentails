@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 export default function QuestsPage() {
-  const [page, setPage] = useState(0);
+  const [page] = useState(0);
   const [query, setQuery] = useState('');
   const debouncedSearchParams = useDebounce([page, query], 250);
 
@@ -52,7 +52,7 @@ export default function QuestsPage() {
       <TabsContent value="all">
         <QuestsTable
           quests={quests || []}
-          totalQuests={quests?.length!}
+          totalQuests={quests?.length ?? 0}
           onDelete={onDelete}
         />
       </TabsContent>

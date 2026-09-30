@@ -14,6 +14,26 @@ const T_ONE = 3.28125;      // ONE HEIST.
 const T_WHIP = 3.60;        // whip-pan starts
 const T_END = 3.75;         // handoff to s2
 const FILLS = [3.515625, 3.574219, 3.632813, 3.662109, 3.691406, 3.720703];
+const OFFS = [2.109375, 2.578125, 3.046875];   // offbeat 8ths in bar 2: squash & stretch + ring pulses
+// eighth-note squash: stretch 1.06 into the offbeat, slam to 0.92 on it, backOut back to 1
+function squashY(E, t) {
+  let sy = 1;
+  for (const h of OFFS) {
+    const a = t - h;
+    if (a >= -0.06 && a < 0) sy *= E.lerp(1, 1.06, E.seg(a, -0.06, 0, 'quadIn'));
+    else if (a >= 0 && a < 0.22) sy *= a < 0.035 ? E.lerp(1.06, 0.92, a / 0.035) : E.lerp(0.92, 1, E.backOut(E.seg(a, 0.035, 0.22), 2.2));
+  }
+  return sy;
+}
+// stepped whip: the SWAP whip jumps on each fill snare instead of one smooth ramp
+function whipAt(E, t) {
+  const K = [[3.632813, 0.05], [3.662109, 0.14], [3.691406, 0.3], [3.720703, 0.55]];
+  let w = 0;
+  for (const [h, v] of K) if (t >= h) w = v;
+  if (t >= 3.720703) w = E.lerp(0.55, 1, E.seg(t, 3.720703, T_END, 'expoIn'));
+  return w;
+}
+const fillIndex = (t) => FILLS.reduce((n, f) => n + (t >= f ? 1 : 0), 0);
 const GLITCHES = [[0.46875, 0.09], [0.585938, 0.05], [0.820313, 0.07], [1.40625, 0.05]];
 const CAT_A = 'bob', CAT_B = 'oreo', GUARD = 'brown'; // the two cats actually playing in every captured clip
 const TICKS = [0.28, 0.40, 0.46875, 0.585938, 0.703125, 0.820313, 0.9375]; // fx ticks in cues.json
@@ -68,7 +88,7 @@ function camFeed(c, t, E) {
   c.fillStyle = E.col('night'); c.fillRect(0, 0, W, H);
   if (t < T_GRID) {
     // CAM 01 wide establishing, slow push
-    const z = 1.02 + 0.07 * E.seg(t, 0, T_GRID, 'sineInOut');
+    const z = 1.0 + 0.12 * E.seg(t, 0, T_GRID, 'sineOut');
     E.drawClip(c, 'h08-establish', 0.6 + t, 0, 0, W, H, { zoom: z, fx: 0.42, fy: 0.5 });
   } else if (t < T_LOCK) {
     // 4-cam monitor wall
@@ -340,6 +360,17 @@ function camHud(c, t, E, crt) {
       mono(c, E, E.typewriter(lines[i], p) + (p < 1 ? '▌' : ''), W / 2 - 190, H / 2 - 50 + i * 40, { size: 26, color: i === 2 ? 'catnip' : 'cream' });
     }
   }
+  // boot: CRT roll bars sweep down fast until the title lands (no still frames in the first half-second)
+  if (t > 0.08 && t < T_TITLE) {
+    c.save(); c.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 2; k++) {
+      const y = E.mod(t * 2600 + k * 640, H + 300) - 150;
+      const g = c.createLinearGradient(0, y - 120, 0, y + 30);
+      g.addColorStop(0, 'rgba(240,197,253,0)'); g.addColorStop(0.8, 'rgba(240,197,253,0.16)'); g.addColorStop(1, 'rgba(255,255,255,0.35)');
+      c.fillStyle = g; c.fillRect(0, y - 120, W, 150);
+    }
+    c.restore();
+  }
   // centre crosshair (hidden during lock)
   if (t < T_LOCK && inP > 0) {
     c.save(); c.strokeStyle = E.rgba('cream', 0.5 * inP); c.lineWidth = 2; c.beginPath();
@@ -399,7 +430,8 @@ function coldOpen(ctx, t, E) {
 function slamCat(c, t, E, id, hit, x, feetY, scale, flip) {
   const lt = t - hit;
   const rec = E.seg(lt, 0, 0.34, 'elasticOut');
-  const sx = E.lerp(1.45, 1, rec), sy = E.lerp(0.6, 1, rec);
+  const sq = squashY(E, t);
+  const sx = E.lerp(1.45, 1, rec) * (2 - sq), sy = E.lerp(0.6, 1, rec) * sq;
   // fall smear trail above the cat (first frames)
   const trail = 1 - E.seg(lt, 0, 0.12, 'expoOut');
   if (trail > 0.02) {
@@ -410,7 +442,10 @@ function slamCat(c, t, E, id, hit, x, feetY, scale, flip) {
     for (let k = -3; k <= 3; k++) c.fillRect(x + k * 34 - 6, feetY - 1100, 12 - Math.abs(k) * 1.4, 980);
     c.restore();
   }
-  const row = lt < 0.5 ? 'IDLE' : 'IDLE';
+  // offbeat ring pulses (behind the cat)
+  for (const h of OFFS) if (t >= h && t - h < 0.4 && h > hit) E.shockwave(c, x, feetY - 150, E.seg(t, h, h + 0.4, 'expoOut'), { radius: 620, width: 22, color: 'coin', rings: 2, gap: 0.18, alpha: 0.9 });
+  // strut in place at 12 fps once landed (the IDLE row barely moves at this size)
+  const row = lt < 0.1 ? 'IDLE' : 'WALKING';
   E.drawSprite(c, id, row, E.spriteFrame(Math.max(0, lt), 12), x, feetY, scale, {
     anchor: 'feet', flip, sx, sy, tint: { color: '#fff', amount: E.env(lt, 0, 0.05) }, outline: { color: '#fcecbb', px: 1 },
   });
@@ -426,10 +461,10 @@ function slamCat(c, t, E, id, hit, x, feetY, scale, flip) {
 }
 
 function namePlate(c, t, E, hit, x, y, name, tag, color, alpha = 1) {
-  const lt = t - hit - 0.05;
+  const lt = t - hit;
   if (lt < 0 || alpha <= 0) return;
   c.save(); c.globalAlpha *= alpha;
-  const pb = E.seg(lt, 0, 0.22, 'expoOut');
+  const pb = E.seg(lt, 0, 0.1, 'expoOut');
   const nw = E.measureText(c, name, { size: 96, tracking: 0.06 }) + 70;
   c.fillStyle = E.col('night');
   para(c, x - nw / 2 * pb, x + nw / 2 * pb, y - 58, y + 58, 16);
@@ -437,10 +472,10 @@ function namePlate(c, t, E, hit, x, y, name, tag, color, alpha = 1) {
   c.fillStyle = E.col(color); c.fillRect(x - nw / 2 * pb - 10, y + 52, nw * pb, 10);
   E.drawText(c, name, x, y + 4, {
     size: 96, tracking: 0.06, color: 'cream',
-    perChar: ({ i, n }) => { const q = E.stagger(lt, i, n, { spread: 0.1, dur: 0.18, e: 'backOut' }); return { y: (1 - q) * 60, alpha: E.clamp01(q * 2), scale: E.lerp(0.4, 1, q) }; },
+    // the whole name lands on its beat: one slam 1.5 -> 1 (backOut), letters only tilt
+    perChar: ({ i }) => { const q = E.seg(lt, 0, 0.12, 'backOut'); return { scale: E.lerp(1.5, 1, q), rot: (1 - q) * (i % 2 ? 0.12 : -0.12) }; },
   });
-  const tq = E.seg(lt, 0.08, 0.3);
-  E.drawText(c, E.scramble(tag, tq, name.length), x, y - 92, { font: 'mono', size: 24, weight: '700', tracking: 0.34, color, alpha: E.clamp01(tq * 3) });
+  E.wipeText(c, tag, x, y - 92, { font: 'mono', size: 24, weight: '700', tracking: 0.34, color }, E.seg(lt, 0.04, 0.16, 'expoOut'));
   c.restore();
 }
 
@@ -452,7 +487,7 @@ function crewSplit(ctx, t, E) {
   // bg
   ctx.fillStyle = E.col('night'); ctx.fillRect(-100, -100, W + 200, H + 200);
   // continuous push + drift so the held split never freezes (3% over the shot, per-beat nudge)
-  const drift = 1 + 0.035 * E.seg(lt, 0, 2 * B, 'sineOut') + 0.02 * E.env(t, T_CAT2, 0.12);
+  const drift = 1 + 0.05 * E.seg(lt, 0, 2 * B) + 0.02 * E.env(t, T_CAT2, 0.12) + 0.012 * E.envs(t, OFFS, 0.08);
   ctx.translate(W / 2, H / 2); ctx.scale(drift, drift); ctx.rotate(0.012 * Math.sin(lt * 3.1)); ctx.translate(-W / 2, -H / 2);
   // iso floor grid drifting (bg parallax)
   E.isoGrid(ctx, { cx: W / 2 + lt * 60, cy: H * 0.78, tile: 160, cols: 14, rows: 14, color: 'grape', alpha: 0.35, lineWidth: 2 });
@@ -466,7 +501,7 @@ function crewSplit(ctx, t, E) {
   ga.addColorStop(0, E.col('rust')); ga.addColorStop(1, E.col('ember'));
   ctx.fillStyle = ga; ctx.fill();
   ctx.clip();
-  if (halftone) { ctx.fillStyle = ctx.createPattern(halftone, 'repeat'); ctx.translate(E.mod(lt * 160, 22), E.mod(lt * 60, 22)); ctx.fillRect(-100, -40, W + 200, H + 80); }
+  if (halftone) { ctx.fillStyle = ctx.createPattern(halftone, 'repeat'); ctx.translate(E.mod(lt * 480, 22), E.mod(lt * 180, 22)); ctx.fillRect(-100, -40, W + 200, H + 80); }
   ctx.restore();
   // panel B (lavender/pink) from the right
   if (two) {
@@ -477,7 +512,7 @@ function crewSplit(ctx, t, E) {
     const gb = ctx.createLinearGradient(0, 0, 0, H);
     gb.addColorStop(0, E.col('grape')); gb.addColorStop(1, E.col('violet'));
     ctx.fillStyle = gb; ctx.fill(); ctx.clip();
-    if (halftone) { ctx.fillStyle = ctx.createPattern(halftone, 'repeat'); ctx.translate(-E.mod(l2 * 160, 22), E.mod(l2 * 60, 22)); ctx.fillRect(-100, -40, W + 200, H + 80); }
+    if (halftone) { ctx.fillStyle = ctx.createPattern(halftone, 'repeat'); ctx.translate(-E.mod(l2 * 480, 22), E.mod(l2 * 180, 22)); ctx.fillRect(-100, -40, W + 200, H + 80); }
     ctx.restore();
     // glowing divider
     ctx.save(); ctx.strokeStyle = E.col('cream'); ctx.lineWidth = 8; ctx.shadowColor = E.col('coin'); ctx.shadowBlur = 30;
@@ -497,10 +532,13 @@ function crewSplit(ctx, t, E) {
     namePlate(ctx, t, E, T_CAT2, W * 0.73, 900, 'OREO', 'AGENT 02 · TUXEDO', 'pink');
   }
   // fg: catnip sparkles drifting (fast parallax)
-  E.particles(9, 22, t, (p) => {
-    const x = E.mod(p.r(1) * W * 1.4 - t * (300 + p.r(2) * 500), W + 200) - 100;
+  // diagonal light sweep across both panels every beat
+  { const ph = E.fract(lt / B); const lx = E.lerp(-400, W + 400, E.expoInOut(ph));
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(255,236,187,0.10)'; para(ctx, lx - 90, lx + 90, 0, H, 260); ctx.fill(); ctx.restore(); }
+  E.particles(9, 40, t, (p) => {
+    const x = E.mod(p.r(1) * W * 1.4 - t * (700 + p.r(2) * 900), W + 200) - 100;
     const y = p.r(3) * H;
-    const s = 6 + p.r(4) * 12;
+    const s = 8 + p.r(4) * 18;
     ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 12 + p.i);
     ctx.fillStyle = E.col(p.r(5) < 0.5 ? 'catnipGlow' : 'coin');
     ctx.fillRect(Math.round(x), Math.round(y), s, s / 3); ctx.fillRect(Math.round(x + s / 3), Math.round(y - s / 3), s / 3, s);
@@ -516,34 +554,42 @@ function twoCats(ctx, t, E) {
   const lt = t - T_TWO;
   ctx.fillStyle = E.col('coin'); ctx.fillRect(-100, -100, W + 200, H + 200);
   // rotating sunburst + drifting halftone so the card never holds still
-  ctx.save(); ctx.translate(W / 2, H * 0.45); ctx.rotate(lt * 0.9);
+  ctx.save(); ctx.translate(W / 2, H * 0.45); ctx.rotate(lt * 2.2);
   ctx.fillStyle = E.rgba('ember', 0.16);
   for (let i = 0; i < 16; i++) { ctx.rotate(E.TAU / 16); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(1500, -150); ctx.lineTo(1500, 150); ctx.fill(); }
   ctx.restore();
-  if (halftone) { ctx.save(); ctx.globalAlpha = 0.6; ctx.fillStyle = ctx.createPattern(halftone, 'repeat'); ctx.translate(E.mod(-lt * 140, 22), E.mod(lt * 90, 22)); ctx.fillRect(-60, -60, W + 120, H + 120); ctx.restore(); }
+  if (halftone) { ctx.save(); ctx.globalAlpha = 0.6; ctx.fillStyle = ctx.createPattern(halftone, 'repeat'); ctx.translate(E.mod(-lt * 420, 22), E.mod(lt * 270, 22)); ctx.fillRect(-60, -60, W + 120, H + 120); ctx.restore(); }
   E.speedLines(ctx, t, { cx: W / 2, cy: H * 0.45, count: 70, inner: 380, outer: 1500, width: [3, 16], color: '#fff3d0', alpha: 0.7, seed: 11, fps: 24 });
   // stripes band
   ctx.save(); ctx.globalAlpha = 0.12; ctx.fillStyle = E.col('rust');
   for (let i = -4; i < 30; i++) { const x = i * 90 + E.mod(lt * 300, 90); para(ctx, x, x + 40, H * 0.72, H, 60); ctx.fill(); }
   ctx.restore();
-  const push = 1 + 0.07 * E.seg(lt, 0, B, 'sineOut');
+  const push = 1 + 0.07 * E.seg(lt, 0, B, 'sineOut') + 0.015 * E.env(t, OFFS[2], 0.08);
   ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(push, push); ctx.rotate(-0.015 + 0.03 * E.seg(lt, 0, B)); ctx.translate(-W / 2, -H / 2);
-  // whole word is fully readable ON the beat frame: slam 1.4 -> 1 (backOut, 0.1s), letters only jitter
+  // the word sits BETWEEN the two hero cats: they are huge, cropped by the frame, and in front of it
+  const TY = H * 0.53;
   const slam = E.seg(lt, 0, 0.1, 'backOut');
   const sm = 1 - E.seg(lt, 0, 0.05);
-  if (sm > 0) E.drawText(ctx, 'TWO  CATS.', W / 2, H * 0.42 - 40, { size: 250 * E.lerp(1.4, 1, slam), tracking: 0.04, color: 'ember', alpha: 0.35 * sm, perChar: () => ({ sy: 1.35 }) });
-  E.drawText(ctx, 'TWO  CATS.', W / 2, H * 0.42, {
-    size: 250, tracking: 0.04, color: 'night', extrude: { depth: 16, dx: 0.6, dy: 1, color: 'ember', dark: 0.45 },
-    perChar: ({ i }) => ({ scale: E.lerp(1.4, 1, slam) * (1 + 0.04 * Math.sin(t * 17 + i)), y: (1 - slam) * (i % 2 ? -30 : 30), rot: (1 - slam) * (i % 2 ? 0.12 : -0.12) }),
+  // knock: each cat's hop on the offbeat bumps the nearest word
+  const knock = E.env(t, OFFS[2], 0.09);
+  if (sm > 0) E.drawText(ctx, 'TWO  CATS.', W / 2, TY - 40, { size: 230 * E.lerp(1.4, 1, slam), tracking: 0.04, color: 'ember', alpha: 0.35 * sm, perChar: () => ({ sy: 1.35 }) });
+  E.drawText(ctx, 'TWO  CATS.', W / 2, TY, {
+    size: 230, tracking: 0.04, color: 'night', extrude: { depth: 16, dx: 0.6, dy: 1, color: 'ember', dark: 0.45 },
+    perChar: ({ i, n }) => {
+      const edge = i < 3 ? 1 : i > n - 5 ? -1 : 0; // T W O / C A T S . get knocked by the cats
+      return { scale: E.lerp(1.4, 1, slam) * (1 + 0.04 * Math.sin(t * 17 + i)), y: (1 - slam) * (i % 2 ? -30 : 30) - 40 * knock * Math.abs(edge), rot: (1 - slam) * (i % 2 ? 0.12 : -0.12) + 0.2 * knock * edge };
+    },
   });
-  // cats face each other, bouncing on the 8ths
-  const bob = (k) => -Math.abs(Math.sin((t - T_TWO) * Math.PI / (B / 2) + k)) * 22;
-  const ci = E.seg(lt, 0.06, 0.22, 'backOut');
-  E.drawSprite(ctx, CAT_A, 'IDLE', E.spriteFrame(t, 12), W / 2 - 250, 880 + bob(0) + (1 - ci) * 400, 8, { anchor: 'feet', outline: { color: '#0d0616', px: 1 } });
-  E.drawSprite(ctx, CAT_B, 'IDLE', E.spriteFrame(t, 12), W / 2 + 250, 880 + bob(1.5) + (1 - ci) * 400, 8, { anchor: 'feet', flip: true, outline: { color: '#0d0616', px: 1 } });
+  // cats: ~420 px tall, feet below the frame edge, eighth-note hops with squash & stretch
+  const sq = squashY(E, t);
+  const ci = E.seg(lt, 0, 0.14, 'backOut');
+  const hop = (k) => -Math.abs(Math.sin((t - T_TWO) * Math.PI / (B / 2) + k)) * 60;
+  const fr = E.spriteFrame(t, 12);
+  E.drawSprite(ctx, CAT_A, 'WALKING', fr, 360, H + 40 + hop(0) + (1 - ci) * 600, 18, { anchor: 'feet', sx: 2 - sq, sy: sq, outline: { color: '#0d0616', px: 1 } });
+  E.drawSprite(ctx, CAT_B, 'WALKING', fr + 3, W - 360, H + 40 + hop(1.5) + (1 - ci) * 600, 18, { anchor: 'feet', flip: true, sx: 2 - sq, sy: sq, outline: { color: '#0d0616', px: 1 } });
   // heart pop between them
-  const hp = E.seg(lt, 0.16, 0.36, 'elasticOut');
-  if (hp > 0) E.drawImg(ctx, 'heart', W / 2, 760 - hp * 30, { w: 70 * hp, h: 70 * hp, smooth: false });
+  const hp = E.seg(lt, 0.12, 0.32, 'elasticOut');
+  if (hp > 0) E.drawImg(ctx, 'heart', W / 2, 900 - hp * 30 + 10 * Math.sin(t * 14), { w: 130 * hp, h: 130 * hp, smooth: false });
   ctx.restore();
 }
 
@@ -559,63 +605,91 @@ function swapArrows(c, x, y, s, rot, color) {
 function oneHeist(ctx, t, E) {
   const { W, H } = E;
   const lt = t - T_ONE;
-  const whip = E.seg(t, T_WHIP, T_END, 'expoIn');
+  const whip = whipAt(E, t);
+  const nF = fillIndex(t);
+  const onFill = FILLS.some((f) => t >= f && t - f < 1 / 60);   // the one frame right after each fill cue
+  // brighter vault card: grape core instead of flat night
   ctx.fillStyle = E.col('night'); ctx.fillRect(0, 0, W, H);
+  const bg = ctx.createRadialGradient(W / 2, H * 0.44, 60, W / 2, H * 0.44, 1200);
+  bg.addColorStop(0, E.col('grape')); bg.addColorStop(0.55, E.col('violet')); bg.addColorStop(1, E.col('night'));
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  if (halftone) { ctx.save(); ctx.globalAlpha = 0.7; ctx.fillStyle = ctx.createPattern(halftone, 'repeat'); ctx.translate(E.mod(lt * 300, 22), 0); ctx.fillRect(-40, -40, W + 80, H + 80); ctx.restore(); }
   ctx.save();
   ctx.translate(-whip * W * 1.2, 0);
   // vault dial rings (bg)
   ctx.save(); ctx.translate(W / 2, H * 0.44);
   const rp = E.seg(lt, 0, 0.3, 'expoOut');
   for (let k = 0; k < 3; k++) {
-    ctx.save(); ctx.rotate((k % 2 ? -1 : 1) * (lt * (0.6 + k * 0.4) + (1 - rp) * 1.2));
-    ctx.strokeStyle = E.rgba(k === 1 ? 'catnip' : 'grape', 0.55); ctx.lineWidth = k === 1 ? 6 : 14;
+    ctx.save(); ctx.rotate((k % 2 ? -1 : 1) * (lt * (0.6 + k * 0.4) + (1 - rp) * 1.2 + nF * 0.3));
+    ctx.strokeStyle = E.rgba(k === 1 ? 'catnip' : 'lilac', 0.6); ctx.lineWidth = k === 1 ? 6 : 14;
     ctx.setLineDash(k === 1 ? [4, 22] : [60, 30]);
     ctx.beginPath(); ctx.arc(0, 0, (360 + k * 120) * E.lerp(0.5, 1, rp), 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
   }
   ctx.restore();
-  // fill-snare jolts
-  let jolt = 0; for (const f of FILLS) jolt += E.env(t, f, 0.03);
-  const jx = E.randSigned('j', Math.floor(t * 120)) * 10 * jolt;
-  // readable on the beat frame: whole-word slam 1.4 -> 1, letters settle from a small zig-zag
+  // per-fill colour flash (additive, one frame)
+  if (onFill) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = E.rgba(nF % 2 ? 'pink' : 'catnip', 0.28); ctx.fillRect(-W, 0, W * 4, H); ctx.restore(); }
+  // title: slams 1.4 -> 1, then stutters 1.00 / 1.04 on each fill snare (hard step, no ease)
   const sl = E.seg(lt, 0, 0.1, 'backOut');
   const drift = 1 + 0.04 * E.seg(lt, 0, 0.32, 'sineOut');
-  E.drawText(ctx, 'ONE HEIST.', W / 2 + jx, H * 0.42, {
-    size: 250, tracking: 0.04, color: 'catnip', extrude: { depth: 18, dx: 0.6, dy: 1, color: 'catnipEmissive', dark: 0.6 },
-    glow: { color: E.rgba('catnipGlow', 0.35), blur: 30 },
-    perChar: ({ i }) => ({ y: (1 - sl) * (i % 2 ? -40 : 40), scale: E.lerp(1.4, 1, sl) * drift }),
+  const stut = nF ? (nF % 2 ? 1.04 : 1.0) : 1;
+  const jx = onFill ? (nF % 2 ? 14 : -14) : 0;
+  const TS = { size: 250, tracking: 0.04 };
+  const TX = W / 2 + jx, TY = H * 0.42;
+  const perChar = ({ i }) => ({ y: (1 - sl) * (i % 2 ? -40 : 40), scale: E.lerp(1.4, 1, sl) * drift * stut });
+  E.drawText(ctx, 'ONE HEIST.', TX, TY, { ...TS, color: 'catnipEmissive', extrude: { depth: 18, dx: 0.6, dy: 1, color: 'catnipEmissive', dark: 0.6 }, stroke: 'outline', strokeWidth: 14, glow: { color: E.rgba('catnipGlow', 0.45), blur: 30 }, perChar });
+  // live heist footage inside the letters (text mask)
+  E.layer(ctx, (L) => {
+    const clip = nF >= 3 ? 'h07-split-shift' : 'h05-coin-run';
+    E.drawClip(L, clip, E.clipFrameTime(clip, nF >= 3 ? 20 : 58) + lt, 0, TY - 260, W, 520, { zoom: 1.15 + 0.1 * lt, fx: 0.5, fy: 0.45 });
+    L.globalCompositeOperation = 'lighter';
+    L.fillStyle = 'rgba(46,60,30,1)'; L.fillRect(0, 0, W, H);
+    // multi-glyph mask: render the word once into its own surface, then keep only its pixels
+    const M = E.surface('s1heistMask', W, H);
+    M.ctx.setTransform(1, 0, 0, 1, 0, 0); M.ctx.clearRect(0, 0, W, H);
+    M.ctx.setTransform(L.getTransform());
+    E.drawText(M.ctx, 'ONE HEIST.', TX, TY, { ...TS, color: '#fff', perChar });
+    L.save(); L.setTransform(1, 0, 0, 1, 0, 0); L.globalCompositeOperation = 'destination-in'; L.drawImage(M, 0, 0); L.restore();
   });
-  // cats swap places on each fill hit
-  const L = W / 2 - 330, R = W / 2 + 330, feet = 900;
-  let n = 0, prog = 1;
-  for (const f of FILLS) { if (t >= f) { n++; prog = E.seg(t, f, f + 0.045, 'cubicInOut'); } }
-  const swapped = n % 2 === 1;
-  const posA = (s) => (s ? R : L), posB = (s) => (s ? L : R);
-  const prevS = n > 0 ? (n - 1) % 2 === 1 : false;
-  const ax = E.lerp(posA(prevS), posA(swapped), n ? prog : 1);
-  const bx = E.lerp(posB(prevS), posB(swapped), n ? prog : 1);
-  const arc = n && prog < 1 ? Math.sin(prog * Math.PI) * 160 : 0;
+  E.drawText(ctx, 'ONE HEIST.', TX, TY, { ...TS, color: 'catnip', strokeOnly: true, stroke: 'catnip', strokeWidth: 7, perChar });
+  // cats trade sides on each fill hit: a hard flip, 1 smear frame, then they land (no smooth hop)
+  const L0 = W / 2 - 360, R0 = W / 2 + 360, feet = 1000;
+  const swapped = nF % 2 === 1;
+  const ax = swapped ? R0 : L0, bx = swapped ? L0 : R0;
+  const lastF = nF ? FILLS[nF - 1] : T_ONE;
+  const af = t - lastF;
   const ci = E.seg(lt, 0.04, 0.2, 'backOut');
-  const dy = (1 - ci) * 400;
-  E.drawSprite(ctx, CAT_A, n ? 'JUMPING' : 'IDLE', n ? 3 : E.spriteFrame(t, 12), ax, feet - arc + dy, 8, { anchor: 'feet', flip: ax > W / 2 });
-  E.drawSprite(ctx, CAT_B, n ? 'JUMPING' : 'IDLE', n ? 3 : E.spriteFrame(t, 12), bx, feet - arc * 0.6 + dy, 8, { anchor: 'feet', flip: bx > W / 2 });
+  const dy = (1 - ci) * 500;
+  const land = nF ? E.seg(af, 0, 0.05) : 1;
+  const hopY = nF ? -60 * (1 - land) : 0;
+  const sq = nF && af < 0.05 ? 1.12 - 0.2 * land : 1;
+  const catRow = nF && af < 0.03 ? 'JUMPING' : 'IDLE';
+  const catFr = nF && af < 0.03 ? 3 : E.spriteFrame(t, 12);
+  if (nF && af < 1 / 60) {
+    // smear from the old side: stretched ghosts on the frame of the flip
+    for (const [id, x0, x1] of [[CAT_A, swapped ? L0 : R0, ax], [CAT_B, swapped ? R0 : L0, bx]]) {
+      for (let g = 1; g <= 3; g++) E.drawSprite(ctx, id, 'JUMPING', 3, E.lerp(x1, x0, g / 4), feet - 80 + dy, 16, { anchor: 'feet', alpha: 0.22, sx: 1.6, flip: x1 > W / 2 });
+    }
+  }
+  E.drawSprite(ctx, CAT_A, catRow, catFr, ax, feet + hopY + dy, 16, { anchor: 'feet', flip: ax > W / 2, sx: 2 - sq, sy: sq, outline: { color: '#0d0616', px: 1 } });
+  E.drawSprite(ctx, CAT_B, catRow, catFr, bx, feet + hopY + dy, 16, { anchor: 'feet', flip: bx > W / 2, sx: 2 - sq, sy: sq, outline: { color: '#0d0616', px: 1 } });
   // SWAP chip
   if (t >= FILLS[0]) {
     const sp = E.seg(t, FILLS[0], FILLS[0] + 0.12, 'backOut');
-    const pulse = 1 + 0.18 * jolt;
-    ctx.save(); ctx.translate(W / 2, feet - 110); ctx.scale(sp * pulse, sp * pulse);
+    const pulse = onFill ? 1.18 : 1;
+    ctx.save(); ctx.translate(W / 2, feet - 170); ctx.scale(sp * pulse, sp * pulse); ctx.rotate(nF % 2 ? 0.06 : -0.06);
     ctx.fillStyle = E.col('pink'); para(ctx, -150, 150, -46, 46, 14); ctx.fill();
     E.drawText(ctx, 'SWAP', 0, 4, { font: 'heavy', size: 58, tracking: 0.14, color: 'night' });
     ctx.restore();
-    swapArrows(ctx, W / 2, feet + 20, 1.2 * sp, n * Math.PI, E.col('cream'));
+    swapArrows(ctx, W / 2, feet - 60, 1.2 * sp, nF * Math.PI, E.col('cream'));
   }
   ctx.restore();
-  // catnip-tinted impact flash (a white flash would grey out the night bg)
+  // catnip-tinted impact flash on the ONE HEIST downbeat
   const cf = E.env(lt, 0, 0.06);
   if (cf > 0.01) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = E.rgba('catnip', 0.22 * cf); ctx.fillRect(0, 0, W, H); ctx.restore(); }
-  // whip streaks
+  // whip streaks (appear with the stepped whip)
   if (whip > 0) {
-    E.speedLinesDir(ctx, t, { angle: Math.PI, count: 60, speed: 9000, length: [300, 1200], width: [2, 10], color: '#fff', alpha: 0.8 * whip, seed: 21 });
+    E.speedLinesDir(ctx, t, { angle: Math.PI, count: 60, speed: 9000, length: [300, 1200], width: [2, 10], color: '#fff', alpha: 0.8 * Math.min(1, whip * 1.6), seed: 21 });
   }
 }
 
@@ -651,12 +725,17 @@ export default {
     if (t < T_DROP + F) o.invert = 1;
     const hits = [[T_DROP, 36], [T_CAT2, 24], [T_TWO, 22], [T_ONE, 24]];
     for (const [h, s] of hits) { o.shake += s * E.env(t, h, 0.09); o.aberration += 10 * E.env(t, h, 0.06); }
-    for (const f of FILLS) { o.shake += 7 * E.env(t, f, 0.03); o.aberration += 4 * E.env(t, f, 0.03); }
+    // fill snares: each one is a 1-frame hit (zoom step + RGB split), so the stutter reads before the drop
+    const onFill = FILLS.some((f) => t >= f && t - f < F);
+    for (const f of FILLS) o.shake += 7 * E.env(t, f, 0.03);
+    if (onFill) o.aberration += 9;
+    for (const h of OFFS) o.shake += 6 * E.env(t, h, 0.06);
     o.zoom = 1 + 0.05 * E.env(t, T_DROP, 0.12) + 0.03 * E.env(t, T_CAT2, 0.1) + 0.05 * E.env(t, T_TWO, 0.1) + 0.05 * E.env(t, T_ONE, 0.1);
-    // SWAP whip: streaks + smear build over the frames BEFORE the 3.75 cut; the cut frame itself is sharp
-    const whip = E.seg(t, T_WHIP, T_END, 'expoIn');
+    o.zoom *= (1 + 0.015 * fillIndex(t) * (t < T_END ? 1 : 0)) * (onFill ? 1.02 : 1);
+    // SWAP whip: stepped on the fills; smear only on the last ramp; the 3.75 cut frame itself is sharp
+    const whip = whipAt(E, t);
     if (t < T_END) {
-      o.motionBlur = whip > 0.02 ? 6 : 0;
+      o.motionBlur = t >= 3.720703 + F ? 6 : 0;
       o.aberration += 18 * whip;
     } else {
       // 3.75 MONTAGE DROP: one of the three full-strength flashes, 0-frame attack, ~4 frame decay

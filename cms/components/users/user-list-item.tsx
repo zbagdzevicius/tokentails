@@ -16,7 +16,6 @@ export default function UserListItem({ user }: { user: IProfile }) {
   return (
     <TableRow>
       <TableCell className="font-medium">{user.name}</TableCell>
-      <TableCell className="font-medium">{user.telegramUsername}</TableCell>
       <TableCell className="font-medium">{user.email}</TableCell>
       <TableCell className="font-medium">{user.catpoints}</TableCell>
       <TableCell>

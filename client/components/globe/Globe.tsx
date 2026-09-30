@@ -2,6 +2,8 @@ import * as d3 from "d3";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cdnFile } from "../../constants/utils";
 import * as topojson from "topojson-client";
+import type { MultiPolygon, Polygon } from "geojson";
+import type { GeometryCollection, Topology } from "topojson-specification";
 
 export interface CountryData {
   id: string; // ISO numeric code or Name
@@ -16,17 +18,10 @@ export interface PartnershipData {
   generatedInsight?: string;
 }
 
-export interface GeoJsonFeature {
-  type: string;
-  id: string;
-  properties: {
-    name: string;
-  };
-  geometry: {
-    type: string;
-    coordinates: any[];
-  };
-}
+export type GeoJsonFeature = d3.ExtendedFeature<
+  Polygon | MultiPolygon,
+  { name: string }
+>;
 
 export enum ModalType {
   NONE,
@@ -58,14 +53,19 @@ export const PixelGlobe = () => {
     // Load World Topology
     fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json")
       .then((res) => res.json())
-      .then((worldData) => {
-        // @ts-ignore - topojson typings are tricky in single file
-        const featureCollection = topojson.feature(
-          worldData,
-          worldData.objects.countries
-        );
-        setCountries((featureCollection as any).features);
-      });
+      .then(
+        (
+          worldData: Topology<{
+            countries: GeometryCollection<GeoJsonFeature["properties"]>;
+          }>
+        ) => {
+          const featureCollection = topojson.feature(
+            worldData,
+            worldData.objects.countries
+          );
+          setCountries(featureCollection.features as GeoJsonFeature[]);
+        }
+      );
   }, []);
 
   // Intersection Observer to detect when component is in view
@@ -105,31 +105,33 @@ export const PixelGlobe = () => {
   // Pre-calculate centroids and area
   const countriesWithCentroids = useMemo(() => {
     return countries.map((feature) => {
-      let centroid = d3.geoCentroid(feature as any);
-      let area = d3.geoArea(feature as any);
+      let centroid = d3.geoCentroid(feature);
+      let area = d3.geoArea(feature);
 
       if (feature.geometry.type === "MultiPolygon") {
         const coordinates = feature.geometry.coordinates;
         let maxArea = 0;
         let largestPolyCoords = coordinates[0];
 
-        coordinates.forEach((polyCoords: any) => {
-          const tempFeature = {
+        coordinates.forEach((polyCoords) => {
+          const tempFeature: d3.ExtendedFeature<Polygon> = {
             type: "Feature",
+            properties: null,
             geometry: { type: "Polygon", coordinates: polyCoords },
           };
-          const polyArea = d3.geoArea(tempFeature as any);
+          const polyArea = d3.geoArea(tempFeature);
           if (polyArea > maxArea) {
             maxArea = polyArea;
             largestPolyCoords = polyCoords;
           }
         });
 
-        const largestPolyFeature = {
+        const largestPolyFeature: d3.ExtendedFeature<Polygon> = {
           type: "Feature",
+          properties: null,
           geometry: { type: "Polygon", coordinates: largestPolyCoords },
         };
-        centroid = d3.geoCentroid(largestPolyFeature as any);
+        centroid = d3.geoCentroid(largestPolyFeature);
         area = maxArea;
       }
 
@@ -261,7 +263,7 @@ export const PixelGlobe = () => {
       grd.addColorStop(1, "rgba(252, 236, 187, 0.05)");
       context.fillStyle = grd;
       context.beginPath();
-      path({ type: "Sphere" } as any);
+      path({ type: "Sphere" });
       context.fill();
 
       // 3. Countries - translucent blue-white continents
@@ -270,7 +272,7 @@ export const PixelGlobe = () => {
         const countryName = feature.properties.name;
 
         context.beginPath();
-        path(feature as any);
+        path(feature);
 
         // Default: translucent blue-white for continents
         if (partnerships.includes(countryName)) {
@@ -280,7 +282,7 @@ export const PixelGlobe = () => {
             : "rgba(252, 236, 187, 0.6)";
 
           // Stroke for partnered countries
-          drawNeonGlow(() => path(feature as any), "#FCECBB", 1);
+          drawNeonGlow(() => path(feature), "#FCECBB", 1);
         } else {
           // Other countries: translucent blue-white
           context.fillStyle = isHovered
@@ -298,7 +300,7 @@ export const PixelGlobe = () => {
 
       // 4. Globe outline with optimized neon glow
       drawNeonGlow(
-        () => path({ type: "Sphere" } as any),
+        () => path({ type: "Sphere" }),
         "#FCECBB", // Yellow neon
         6
       );
@@ -343,7 +345,7 @@ export const PixelGlobe = () => {
     const invert = projection.invert?.([x, y]);
     if (invert) {
       const found = countriesWithCentroids.find((country) =>
-        d3.geoContains(country as any, invert)
+        d3.geoContains(country, invert)
       );
       setHoveredCountry(found ? found.properties.name : null);
     } else {

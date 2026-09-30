@@ -1,9 +1,13 @@
 /**
  * Post-processing chain shared by the heist renderer, the title diorama and the Cat Yard.
  *
- *   RenderPass (HDR half-float target, MSAA)  ->  UnrealBloomPass (half res, threshold ~1)
- *   ->  FinalPass: exposure, split-tone colour grade, saturation/contrast, vignette, screen flash,
- *       linear -> sRGB.
+ *   RenderPass (HDR half-float target, MSAA)  ->  BloomPass (half res, threshold ~1)
+ *   ->  FinalPass: scene + bloom, exposure, split-tone colour grade, saturation/contrast, vignette,
+ *       screen flash, linear -> sRGB.
+ *
+ * The bloom is three's UnrealBloomPass minus its last step: instead of blending the bloom back over
+ * the full-resolution MSAA scene target (one more full-screen pass plus a second MSAA resolve per
+ * frame), the final pass samples the bloom texture and adds it, which gives the same image.
  *
  * Bloom is "selective" by threshold: lit diffuse surfaces stay under ~1.0 in linear HDR, while
  * emissive things (portal, coins, plates, cone rims, signs, lamps) use colours > 1 (see `hdr()`),
@@ -14,6 +18,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
 
 /** An emissive colour boosted above 1 so it passes the bloom threshold (HDR target only). */
 export function hdr(hex: THREE.ColorRepresentation, intensity = 2.5): THREE.Color {
@@ -46,6 +51,7 @@ const FinalShader = {
   name: 'CatnipFinal',
   uniforms: {
     tDiffuse: { value: null as THREE.Texture | null },
+    tBloom: { value: null as THREE.Texture | null },
     uExposure: { value: 1 },
     uShadowTint: { value: new THREE.Vector3(0.012, 0.0, 0.03) },
     uHighTint: { value: new THREE.Vector3(1.04, 1.0, 0.94) },
@@ -61,6 +67,7 @@ const FinalShader = {
     void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
+    uniform sampler2D tBloom;
     uniform float uExposure, uSat, uContrast, uVignette, uAspect;
     uniform vec3 uShadowTint, uHighTint, uVigColor;
     uniform vec4 uFlash;
@@ -70,7 +77,7 @@ const FinalShader = {
       return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c));
     }
     void main() {
-      vec3 c = texture2D(tDiffuse, vUv).rgb * uExposure;
+      vec3 c = (texture2D(tDiffuse, vUv).rgb + texture2D(tBloom, vUv).rgb) * uExposure;
       float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
       // Split tone: plum lift in the shadows, warm highlights.
       c += uShadowTint * (1.0 - smoothstep(0.0, 0.35, l));
@@ -92,6 +99,72 @@ const FinalShader = {
     }`,
 };
 
+const BLUR_X = new THREE.Vector2(1, 0);
+const BLUR_Y = new THREE.Vector2(0, 1);
+const tmpClear = new THREE.Color();
+
+/**
+ * UnrealBloomPass that stops after compositing its mips into `output` (half resolution); the final
+ * pass adds it to the scene. Same bright-pass, blur and composite as three's pass.
+ */
+class BloomPass extends UnrealBloomPass {
+  private readonly quad = new FullScreenQuad();
+
+  get output(): THREE.Texture {
+    return this.renderTargetsHorizontal[0].texture;
+  }
+
+  override render(renderer: THREE.WebGLRenderer, _writeBuffer: THREE.WebGLRenderTarget, readBuffer: THREE.WebGLRenderTarget): void {
+    renderer.getClearColor(tmpClear);
+    const oldAlpha = renderer.getClearAlpha();
+    const oldAuto = renderer.autoClear;
+    renderer.autoClear = false;
+    renderer.setClearColor(this.clearColor, 0);
+    const q = this.quad;
+    // 1. Bright areas.
+    const hp = this.highPassUniforms as Record<string, THREE.IUniform>;
+    hp.tDiffuse.value = readBuffer.texture;
+    hp.luminosityThreshold.value = this.threshold;
+    q.material = this.materialHighPassFilter;
+    renderer.setRenderTarget(this.renderTargetBright);
+    renderer.clear();
+    q.render(renderer);
+    // 2. Blur the mips progressively.
+    let input: THREE.WebGLRenderTarget = this.renderTargetBright;
+    for (let i = 0; i < this.nMips; i++) {
+      const m = this.separableBlurMaterials[i];
+      q.material = m;
+      m.uniforms.colorTexture.value = input.texture;
+      m.uniforms.direction.value = BLUR_X;
+      renderer.setRenderTarget(this.renderTargetsHorizontal[i]);
+      renderer.clear();
+      q.render(renderer);
+      m.uniforms.colorTexture.value = this.renderTargetsHorizontal[i].texture;
+      m.uniforms.direction.value = BLUR_Y;
+      renderer.setRenderTarget(this.renderTargetsVertical[i]);
+      renderer.clear();
+      q.render(renderer);
+      input = this.renderTargetsVertical[i];
+    }
+    // 3. Composite the mips into `output`.
+    const c = this.compositeMaterial;
+    q.material = c;
+    c.uniforms.bloomStrength.value = this.strength;
+    c.uniforms.bloomRadius.value = this.radius;
+    c.uniforms.bloomTintColors.value = this.bloomTintColors;
+    renderer.setRenderTarget(this.renderTargetsHorizontal[0]);
+    renderer.clear();
+    q.render(renderer);
+    renderer.setClearColor(tmpClear, oldAlpha);
+    renderer.autoClear = oldAuto;
+  }
+
+  override dispose(): void {
+    super.dispose();
+    this.quad.dispose();
+  }
+}
+
 export class PostFX {
   readonly composer: EffectComposer;
   readonly bloom: UnrealBloomPass;
@@ -109,8 +182,10 @@ export class PostFX {
     rt.texture.name = 'catnip.scene';
     this.composer = new EffectComposer(renderer, rt);
     this.renderPass = new RenderPass(scene, camera);
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), o.bloomStrength ?? 0.85, o.bloomRadius ?? 0.55, o.bloomThreshold ?? 1.0);
+    const bloom = new BloomPass(new THREE.Vector2(size.x, size.y), o.bloomStrength ?? 0.85, o.bloomRadius ?? 0.55, o.bloomThreshold ?? 1.0);
+    this.bloom = bloom;
     this.final = new ShaderPass(FinalShader);
+    this.final.uniforms.tBloom.value = bloom.output;
     this.composer.addPass(this.renderPass);
     this.composer.addPass(this.bloom);
     this.composer.addPass(this.final);
@@ -130,9 +205,16 @@ export class PostFX {
 
   /** Full-screen flash: colour (sRGB hex) and amount 0..1. */
   setFlash(color: THREE.ColorRepresentation, amount: number): void {
-    const c = new THREE.Color(color);
+    if (color !== this.flashKey) {
+      this.flashKey = color;
+      this.flashColor.set(color);
+    }
+    const c = this.flashColor;
     (this.final.uniforms.uFlash.value as THREE.Vector4).set(c.r, c.g, c.b, Math.max(0, Math.min(1, amount)));
   }
+
+  private flashKey: THREE.ColorRepresentation | null = null;
+  private readonly flashColor = new THREE.Color();
 
   setCamera(camera: THREE.Camera): void {
     this.renderPass.camera = camera;

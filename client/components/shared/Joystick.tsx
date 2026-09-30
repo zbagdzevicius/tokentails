@@ -113,8 +113,7 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
   componentDidMount() {
     this._mounted = true;
     if (this.props.followCursor) {
-      //@ts-ignore
-      this._parentRect = this._baseRef.current.getBoundingClientRect();
+      this._parentRect = this._baseRef.current!.getBoundingClientRect();
 
       this.setState({
         dragging: true,
@@ -146,9 +145,8 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
    * @param e PointerEvent
    * @private
    */
-  private _pointerDown(e: PointerEvent) {
-    //@ts-ignore
-    this._parentRect = this._baseRef.current.getBoundingClientRect();
+  private _pointerDown(e: Pick<PointerEvent, "pointerId" | "clientX">) {
+    this._parentRect = this._baseRef.current!.getBoundingClientRect();
 
     this.setState({
       dragging: true,
@@ -157,8 +155,7 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
     window.addEventListener(InteractionEvents.PointerUp, this._pointerUp);
     window.addEventListener(InteractionEvents.PointerMove, this._pointerMove);
     this._pointerId = e.pointerId;
-    //@ts-ignore
-    this._stickRef.current.setPointerCapture(e.pointerId);
+    this._stickRef.current!.setPointerCapture(e.pointerId);
 
     this.updatePosition(e);
   }
@@ -178,7 +175,7 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
     return "LEFT";
   }
 
-  private updatePosition(event: PointerEvent) {
+  private updatePosition(event: Pick<PointerEvent, "clientX">) {
     const absoluteX = event.clientX;
     let relativeX = absoluteX - this._parentRect.left - this._baseSize * 1.25;
     const direction = this._getDirection(relativeX);
@@ -221,9 +218,9 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
    */
   private _pointerUp = (event: PointerEvent) => {
     if (event.pointerId !== this._pointerId) return;
-    const stateUpdate = {
+    const stateUpdate: IJoystickState = {
       dragging: false,
-    } as any;
+    };
 
     const joystickUpdate = new CustomEvent("joystick-direction", {
       detail: { direction: InteractionEvents.PointerDown },
@@ -245,9 +242,7 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
     if (this.props.stop) {
       this.props.stop({
         type: "stop",
-        // @ts-ignore
         x: null,
-        // @ts-ignore
         direction: null,
       });
     }
@@ -256,8 +251,8 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
    * Calculate base styles for pad
    * @private
    */
-  private _getBaseStyle(): any {
-    const padStyle = {
+  private _getBaseStyle(): React.CSSProperties {
+    const padStyle: React.CSSProperties = {
       borderRadius: "16px",
       height: `${this._baseSize}px`,
       width: `${this._baseSize * 2.5}px`,
@@ -268,7 +263,7 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
       border: "4px solid gray",
       justifyContent: "center",
       alignItems: "center",
-    } as any;
+    };
     if (this.props.baseImage) {
       padStyle.background = `url(${this.props.baseImage})`;
       padStyle.backgroundSize = "100%";
@@ -280,15 +275,15 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
    * Calculate  base styles for joystick and translate
    * @private
    */
-  private _getStickStyle(): any {
-    let stickStyle = {
+  private _getStickStyle(): React.CSSProperties {
+    let stickStyle: React.CSSProperties = {
       cursor: "move",
       height: "100%",
       width: "100%",
       border: "none",
       flexShrink: 0,
       touchAction: "none",
-    } as any;
+    };
 
     if (this.state.coordinates !== undefined) {
       stickStyle = Object.assign({}, stickStyle, {
@@ -326,7 +321,7 @@ class Joystick extends React.Component<IJoystickProps, IJoystickState> {
         <button
           ref={this._stickRef}
           disabled={this.props.disabled}
-          onPointerDown={(event: any) => this._pointerDown(event)}
+          onPointerDown={(event) => this._pointerDown(event)}
           className="z-10 outline-none"
           style={stickStyle}
         >

@@ -156,7 +156,8 @@ export interface Diorama {
 
 export function createDiorama(el: HTMLElement, opts: { catIds?: [string, string]; base?: string } = {}): Diorama {
   const catIds = opts.catIds ?? ['bob', 'oreo'];
-  const r = new GameRenderer({ assetBase: opts.base, interactiveZoom: false, logStats: false, maxPixelRatio: 1.5 });
+  // The light title scene would always look like headroom: only the heist may step the tier up.
+  const r = new GameRenderer({ assetBase: opts.base, interactiveZoom: false, logStats: false, maxPixelRatio: 1.5, qualityStepUp: false });
   r.mount(el);
   r.setLevel(DIORAMA_LEVEL);
   r.setCats(catIds);

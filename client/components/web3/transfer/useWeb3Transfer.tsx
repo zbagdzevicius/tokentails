@@ -57,7 +57,7 @@ export const useWeb3Transfer = ({
       walletAddress: chainStatusDetail.address!,
       currencyType,
       price,
-      ref: query?.ref,
+      ref: query?.ref as string | undefined,
       entityType,
       id,
       user,

@@ -1,6 +1,4 @@
 import { IPlayer } from "@/components/Phaser/PlayerMovement/IPlayer";
-import { BossEnemy } from "@/components/purrquest/objects/Boss";
-import { Enemy } from "@/components/purrquest/objects/Enemy";
 import { CatAbilityType } from "@/models/cats";
 import { Scene } from "phaser";
 
@@ -98,7 +96,11 @@ export class Abilities {
 
     this.scene.physics.add.collider(
       knockbackSpell,
-      (this.scene as any).groundLayer!,
+      (
+        this.scene as Phaser.Scene & {
+          groundLayer?: Phaser.Tilemaps.TilemapLayer;
+        }
+      ).groundLayer!,
       () => {
         this.handleSpellAnimationAndDestroy(knockbackSpell);
       }
@@ -125,20 +127,5 @@ export class Abilities {
   ): void {
     const color = Phaser.Display.Color.HSVToRGB(hue / 360, 1, 1).color;
     sprite.setTint(color);
-  }
-
-  private handleSpellHit(
-    knockbackSpell: Phaser.Physics.Arcade.Sprite,
-    boss: BossEnemy
-  ): void {
-    if (!knockbackSpell.active) return;
-    knockbackSpell.active = false;
-
-    boss.takeDamage();
-    this.scene.time.delayedCall(50, () => {
-      if (knockbackSpell.active) {
-        knockbackSpell.destroy();
-      }
-    });
   }
 }

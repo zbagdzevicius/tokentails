@@ -11,15 +11,15 @@ import { Loader } from '@/components/ui/loader';
 import { TextArea } from '@/components/ui/textarea';
 import { useProfile } from '@/context/ProfileContext';
 import { useToast } from '@/context/ToastContext';
-import { Status } from '@/models/blessing';
+import { IBlessingInput, Status } from '@/models/blessing';
 import { catAbilityTypes } from '@/models/cat';
-import { CatAbilityType } from '@/models/cats';
+import { CatAbilityType, ICat } from '@/models/cats';
 import { IImage } from '@/models/image';
 import { PERMISSION_LEVEL } from '@/models/profile';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 export default function Blessing() {
   const params = useParams<{ id: string }>();
@@ -49,7 +49,13 @@ export default function Blessing() {
     queryFn: () => SHELTER_API.sheltersFetch()
   });
 
-  useEffect(() => {
+  // Reset the form whenever the loaded blessing changes. This adjusts state
+  // during render instead of in an effect, so the form never paints stale.
+  const [formSyncedFor, setFormSyncedFor] = useState<{
+    blessing: typeof blessing;
+  }>();
+  if (!formSyncedFor || formSyncedFor.blessing !== blessing) {
+    setFormSyncedFor({ blessing });
     setName(blessing?.name || '');
     setDescription(blessing?.description || '');
     setImage(blessing?.image ? [blessing.image] : []);
@@ -62,11 +68,24 @@ export default function Blessing() {
       setSpriteImg(blessing.cat?.spriteImg || '');
       setCatImg(blessing.cat?.catImg || '');
     }
-  }, [blessing]);
+  }
 
-  useEffect(() => {
+  // Re-pick the default shelter whenever the profile, shelter list or
+  // blessing changes, again during render rather than in an effect.
+  const [shelterSyncedFor, setShelterSyncedFor] = useState<{
+    profile: typeof profile;
+    shelters: typeof shelters;
+    blessing: typeof blessing;
+  }>();
+  if (
+    !shelterSyncedFor ||
+    shelterSyncedFor.profile !== profile ||
+    shelterSyncedFor.shelters !== shelters ||
+    shelterSyncedFor.blessing !== blessing
+  ) {
+    setShelterSyncedFor({ profile, shelters, blessing });
     if (profile?.shelter && !blessing?.shelter) {
-      setShelter(profile?.shelter!);
+      setShelter(profile.shelter);
     } else if (blessing?.shelter) {
       setShelter(blessing.shelter);
     } else if (shelters?.[0]) {
@@ -74,23 +93,25 @@ export default function Blessing() {
     } else {
       setShelter('');
     }
-  }, [profile, shelters, blessing]);
+  }
 
   const [giveawayUserId, setGiveawayUserId] = useState('');
 
   async function giveCatToUser() {
     try {
-      await BLESSING_API.giveCatToUser(blessing?.cat?._id!, giveawayUserId);
+      await BLESSING_API.giveCatToUser(blessing?.cat?._id as string, giveawayUserId);
       setGiveawayUserId('');
       toast({ message: 'Cat given to user' });
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
-      toast({ message: e?.message || 'Error giving cat to user' });
+      toast({
+        message: (e as Error | undefined)?.message || 'Error giving cat to user'
+      });
     }
   }
 
   const newCat = useMemo(
-    () => ({
+    (): IBlessingInput => ({
       _id: blessing?._id,
       name,
       description,
@@ -124,16 +145,18 @@ export default function Blessing() {
   async function saveCatFn() {
     try {
       if (blessing?._id) {
-        await BLESSING_API.blessingEdit(newCat as any, true);
+        await BLESSING_API.blessingEdit(newCat, true);
       } else {
-        const blessing = await BLESSING_API.blessingCreate(newCat as any, true);
-        setId(blessing?._id!);
+        const blessing = await BLESSING_API.blessingCreate(newCat, true);
+        setId(blessing?._id ?? null);
       }
       toast({ message: `Blessing ${name} saved` });
       router.push('/individual/');
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
-      toast({ message: e?.message || 'Error saving blessing' });
+      toast({
+        message: (e as Error | undefined)?.message || 'Error saving blessing'
+      });
     }
   }
   const { isPending, mutate: saveCat } = useMutation({
@@ -143,10 +166,12 @@ export default function Blessing() {
 
   async function updateAvatar() {
     try {
-      await BLESSING_API.blessingAvatarUpdate(blessing?._id!);
-    } catch (e: any) {
+      await BLESSING_API.blessingAvatarUpdate(blessing?._id as string);
+    } catch (e) {
       console.error(e);
-      toast({ message: e?.message || 'Error updating avatar' });
+      toast({
+        message: (e as Error | undefined)?.message || 'Error updating avatar'
+      });
     }
   }
 
@@ -168,7 +193,7 @@ export default function Blessing() {
       {id && blessing && (
         <div className="flex justify-center">
           <TailsCard
-            cat={{ ...blessing?.cat, blessing: blessing as any } as any}
+            cat={{ ...blessing.cat, blessing } as unknown as ICat}
           />
         </div>
       )}

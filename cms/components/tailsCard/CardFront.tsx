@@ -12,7 +12,7 @@ type CardFrontProps = {
 };
 
 export const CardFront: React.FC<CardFrontProps> = React.memo(
-  ({ cat, blessing }) => {
+  function CardFront({ cat, blessing }: CardFrontProps) {
     const borderColor = useMemo(() => cardsBorderColor[cat.type], [cat.type]);
     const imageUrl = useMemo(
       () => blessing?.image?.url || cat.catImg,
@@ -45,6 +45,7 @@ export const CardFront: React.FC<CardFrontProps> = React.memo(
                 <div className="absolute inset-0 opacity-50 flex items-center">
                   <img
                     src={cat.shelter?.image?.url}
+                    alt=""
                     draggable={false}
                     className="object-contain w-full h-3/4 m-auto"
                   />

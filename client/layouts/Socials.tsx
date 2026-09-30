@@ -32,13 +32,6 @@ export const Socials = ({ isVertical }: { isVertical?: boolean }) => {
           draggable="false"
         />
       </a>
-      <a target="_blank" href="https://t.me/+ofyPNIfNX5w4ZjM8">
-        <img
-          className="w-8 md:w-12 hover:scale-125 transition-all duration-300"
-          src={cdnFile("icons/social/telegram.webp")}
-          draggable="false"
-        />
-      </a>
       <a target="_blank" href="https://discord.gg/4FVYmnd7Hg">
         <img
           className="w-8 md:w-12 hover:scale-125 transition-all duration-300"

@@ -1,4 +1,4 @@
-import { urlPrefix } from "@/api/routing";
+import { webPath } from "@/api/routing";
 import { useToast } from "@/context/ToastContext";
 import { FacebookMessengerShareButton, FacebookShareButton } from "next-share";
 import { PropsWithChildren, useCallback, useMemo } from "react";
@@ -7,7 +7,7 @@ interface IProps {
   url: string;
 }
 
-const SharedButtonWrapper = ({ children }: PropsWithChildren<{}>) => {
+const SharedButtonWrapper = ({ children }: PropsWithChildren) => {
   return (
     <span className="flex px-4 py-2 hover:bg-gray-100 gap-2 items-center text-p3">
       {children}
@@ -18,7 +18,7 @@ const SharedButtonWrapper = ({ children }: PropsWithChildren<{}>) => {
 export const Share = ({ url }: IProps) => {
   const toast = useToast();
   const absoluteUrl = useMemo(
-    () => process.env.NEXT_PUBLIC_DOMAIN + url.replace(urlPrefix, ""),
+    () => process.env.NEXT_PUBLIC_DOMAIN + webPath(url),
     [url]
   );
 

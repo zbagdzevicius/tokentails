@@ -1,5 +1,5 @@
 import { CAT_API } from "@/api/cat-api";
-import { cdnFile } from "@/constants/utils";
+import { cdnFile, getRandomObjectsFromArray } from "@/constants/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { MarketplaceItem } from "../marketplace/MarketplaceItem";
@@ -11,10 +11,10 @@ export const FeedbackSlider = () => {
     queryKey: ["cats-for-sale"],
     queryFn: () => CAT_API.catsForSale(),
   });
+  // Re-picked whenever the cats list changes, like the shelter NPC spawn.
   const fiveRandomCatsForSale = useMemo(() => {
-    return catsForSale?.["rozine-pedute"]
-      ?.sort(() => Math.random() - 0.5)
-      .slice(0, 5);
+    const rozinePeduteCats = catsForSale?.["rozine-pedute"];
+    return rozinePeduteCats && getRandomObjectsFromArray(rozinePeduteCats, 5);
   }, [catsForSale]);
   return (
     <>
@@ -56,6 +56,8 @@ export const FeedbackSlider = () => {
           )}
         </div>
 
+        {/* Plain anchor on purpose: keeps the existing full page load. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a href="/cats" className="mt-8">
           <PixelButton text="SEE ALL SHELTER CATS" />
         </a>

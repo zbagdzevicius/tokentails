@@ -16,7 +16,7 @@ import { Blessing, BlessingStatus, IBlessing, ICustomBlessing } from 'src/blessi
 import { CatRepository } from 'src/cat/cat.repository';
 import { ICat, Tier } from 'src/cat/cat.schema';
 import { propsToIds } from 'src/common/utils';
-import { BlessingSearchModel } from 'src/common/validators';
+import { BlessingSearchModel, pickSearchParams } from 'src/common/validators';
 import { ImageRepository } from 'src/image/image.repository';
 import { IResponse, RESPONSES } from 'src/shared/constants/common';
 import { USER_ID } from 'src/shared/decorators/user.decorator';
@@ -67,7 +67,7 @@ export class BlessingController {
         return this.repository.find({
             searchObject,
             secondarySearchObject,
-            ...params,
+            ...pickSearchParams(params),
             populate: [
                 { path: 'image', select: 'url' },
                 { path: 'catAvatar', select: 'url' },
@@ -400,7 +400,4 @@ export class BlessingController {
 
         return RESPONSES.success;
     }
-}
-function generateCatAvatar(name: string, image: Types.ObjectId) {
-    throw new Error('Function not implemented.');
 }

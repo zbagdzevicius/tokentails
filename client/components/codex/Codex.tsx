@@ -9,6 +9,7 @@ import {
   IAirdropProgression,
   IAirdropTierProgress,
 } from "@/models/airdrop";
+import { isApp } from "@/models/app";
 import { IProfile } from "@/models/profile";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -57,13 +58,18 @@ type IProgressTab =
   | "BADGES"
   | "IMMORTALIZE";
 
-const progressTabs: Array<{ id: IProgressTab; label: string }> = [
+const allProgressTabs: Array<{ id: IProgressTab; label: string }> = [
   { id: "OVERVIEW", label: "INFO" },
   { id: "MISSIONS", label: "GOALS" },
   { id: "TIERS", label: "TIERS" },
   { id: "IMMORTALIZE", label: "PET ART" },
   { id: "BADGES", label: "BADGES" },
 ];
+
+// PET ART is a paid AI portrait. App builds cannot sell it until store IAP exists.
+const progressTabs = allProgressTabs.filter(
+  (tab) => !isApp || tab.id !== "IMMORTALIZE"
+);
 
 const codex: ICodex[] = [
   {

@@ -88,18 +88,6 @@ export const Airdrop = () => {
                   />
                   <PixelButton text="FOLLOWED ON X" />
                 </a>
-                <a
-                  href="https://t.me/+ofyPNIfNX5w4ZjM8"
-                  target="_blank"
-                  className="flex items-center gap-2 justify-center"
-                >
-                  <img
-                    draggable={false}
-                    className="w-8 lg:w-12"
-                    src={SocialImages.TELEGRAM}
-                  />
-                  <PixelButton text="JOINED TELEGRAM" />
-                </a>
                 <li className="flex items-center gap-2 justify-center">
                   <img
                     draggable={false}

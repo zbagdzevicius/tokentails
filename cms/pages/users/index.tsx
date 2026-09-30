@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { USER_API } from '@/api/user-api';
 
 export default function UsersPage() {
-  const [page, setPage] = useState(0);
+  const [page] = useState(0);
   const [query, setQuery] = useState('');
   const { data: users } = useQuery({
     queryKey: ['shelter', page, query],
@@ -41,7 +41,7 @@ export default function UsersPage() {
         </div>
       </div>
       <TabsContent value="all">
-        <UsersTable users={users || []} totalUsers={users?.length!} />
+        <UsersTable users={users || []} totalUsers={users?.length ?? 0} />
       </TabsContent>
     </Tabs>
   );

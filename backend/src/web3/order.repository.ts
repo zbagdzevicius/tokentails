@@ -1,8 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { BaseRepository } from 'src/common/base.repository';
-import { Order, OrderDocument } from './order.schema';
+import { IOrder, Order, OrderDocument, OrderStatus } from './order.schema';
+
+export const HASH_ALREADY_USED = 'This payment has already been used for an order';
+
+function isDuplicateHashError(error: any): boolean {
+    if (error?.code !== 11000) {
+        return false;
+    }
+    const keys = { ...(error.keyPattern || {}), ...(error.keyValue || {}) };
+    return 'hash' in keys || /hash/.test(String(error.message));
+}
 
 @Injectable()
 export class OrderRepository extends BaseRepository<OrderDocument> {
@@ -11,6 +21,34 @@ export class OrderRepository extends BaseRepository<OrderDocument> {
         protected collectionModel: Model<OrderDocument>
     ) {
         super(collectionModel);
+    }
+
+    /** Maps a duplicate `hash` (unique index `hash_unique`) to a 409 instead of a 500. */
+    async create(object: Partial<OrderDocument>): Promise<OrderDocument> {
+        try {
+            return await super.create(object);
+        } catch (error) {
+            if (isDuplicateHashError(error)) {
+                throw new ConflictException(HASH_ALREADY_USED);
+            }
+            throw error;
+        }
+    }
+
+    /** Every order holding `hash`, newest first. */
+    async findByHash(hash: string): Promise<IOrder[]> {
+        return this.collectionModel.find({ hash }).sort({ createdAt: -1 }).lean() as unknown as Promise<IOrder[]>;
+    }
+
+    /**
+     * Marks an order FAILED and moves its hash to `failedHash`, so the unique index no longer
+     * blocks a retry with the same transaction.
+     */
+    async releaseHash(id: Types.ObjectId | string, hash: string, reason: string): Promise<void> {
+        await this.collectionModel.updateOne(
+            { _id: id, hash },
+            { $set: { status: OrderStatus.FAILED, failedHash: hash, failureReason: reason }, $unset: { hash: 1 } }
+        );
     }
 
     async weeklyCount(): Promise<Array<{ [key: string]: number }>> {

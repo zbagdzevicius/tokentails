@@ -1,5 +1,5 @@
 import { ChainInfo, SHELTER_CHAINS } from "./chains";
-import { DISBURSED_TOPIC, Disbursement, RpcLog, decodeDisbursedLog } from "./logs";
+import { Disbursement, PAYOUT_TOPICS, RpcLog, decodeDisbursedLog } from "./logs";
 
 // One entry of public/shelter-payouts/deployments.json. The file is a copy of
 // funding/framework/tracks/a-build/deployments.json (written by `fund a:ingest`),
@@ -39,6 +39,8 @@ export function resolveChain(d: ShelterDeployment): ChainInfo | null {
     explorer: explorer.replace(/\/+$/, ""),
     decimals: d.decimals ?? known?.decimals ?? 6,
     symbol: d.symbol || known?.symbol || "USDC",
+    nativeDecimals: known?.nativeDecimals,
+    nativeSymbol: known?.nativeSymbol,
   };
 }
 
@@ -71,7 +73,7 @@ function getLogs(rpc: string, address: string, from: number, to: number | "lates
   return rpcCall<RpcLog[]>(rpc, "eth_getLogs", [
     {
       address,
-      topics: [DISBURSED_TOPIC],
+      topics: [PAYOUT_TOPICS], // either event
       fromBlock: hex(from),
       toBlock: to === "latest" ? "latest" : hex(to),
     },

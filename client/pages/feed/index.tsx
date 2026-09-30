@@ -8,6 +8,8 @@ import { useEffect, useState } from "react";
 function BlogLanding() {
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
+    // Client-only page: flip after mount to keep SSR output hydration-safe.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsClient(true);
   }, []);
 

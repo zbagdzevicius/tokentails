@@ -13,7 +13,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { CatRepository } from 'src/cat/cat.repository';
 import { CatService } from 'src/cat/cat.service';
-import { SearchModel } from 'src/common/validators';
+import { pickSearchParams, SearchModel } from 'src/common/validators';
 import { Quest } from 'src/quest/quest.schema';
 import { IResponse, RESPONSES } from 'src/shared/constants/common';
 import { USER_ID } from 'src/shared/decorators/user.decorator';
@@ -46,7 +46,7 @@ export class QuestController implements IController<Quest> {
     @Post('search')
     public async search(@Body() params: SearchModel): Promise<Quest[]> {
         return this.repository.find({
-            ...params,
+            ...pickSearchParams(params),
             projection: 'name link image tails',
             populate: [{ path: 'image', select: 'url' }],
             perPage: 100,

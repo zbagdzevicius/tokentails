@@ -18,12 +18,12 @@ import { CatView, GuardView, lerpPos, TELEPORT_SUB } from './actors';
 import { Backdrop } from './backdrop';
 import { CAMERA_YAW, IsoCamera } from './camera';
 import { PostFX } from './post';
-import { FpsProbe, qualityOverride, startTier, type QualityTier } from './quality';
-import { MeowWaves, Particles, Rings } from './fx';
+import { cappedPixelRatio, QualityGovernor, qualityOverride, startTier, type QualityTier } from './quality';
+import { markRange, MeowWaves, Particles, Rings } from './fx';
 import { LevelView, tileCenter } from './level';
 import { ALERT_ART, CHEVRON_ART, QUESTION_ART, voxelArt } from './pixelart';
 import { glowTexture } from './textures';
-import { compileLevel, inBounds, isOpaque, lineOfSight } from '../sim/grid';
+import { compileLevel, inBounds, isOpaque, lineOfSight, type CompiledLevel } from '../sim/grid';
 import { VisionCones, type ConeInput } from './vision';
 import { loadManifest, loadVoxelSheet, prewarmSheet, rowIndex, type VoxelSheet } from './voxel/sheets';
 
@@ -45,6 +45,8 @@ export interface GameRendererOptions {
   interactiveZoom?: boolean;
   /** 'auto' (default: measure ~2 s, drop to low if slow), or a forced tier. `?quality=` wins. */
   quality?: 'auto' | QualityTier;
+  /** Auto tier may step back up from low when there is headroom (default true; the title diorama opts out). */
+  qualityStepUp?: boolean;
 }
 
 const MODE_COLORS: Record<GuardMode, { color: THREE.Color; alpha: number }> = {
@@ -55,6 +57,12 @@ const MODE_COLORS: Record<GuardMode, { color: THREE.Color; alpha: number }> = {
 };
 
 const MAX_BLOBS = 16;
+/**
+ * Shortest interval between shadow map renders (s): every frame up to 60 Hz, every other frame on
+ * 120 Hz screens. Skipping a render keeps the previous map and its matrix together, so static
+ * shadows stay exact; only moving casters lag by at most one 60 Hz frame.
+ */
+const SHADOW_MIN_DT = 1 / 60 - 0.002;
 
 /** Ring marker shader: soft glow disc, crisp notched ring rotating, pulse. */
 function ringMaterial(color: string, intensity: number, glow: number): THREE.ShaderMaterial {
@@ -115,7 +123,7 @@ export class GameRenderer implements RendererAPI {
   private readonly backdrop = new Backdrop();
   private post: PostFX | null = null;
   private tier: QualityTier = 'high';
-  private probe: FpsProbe | null = null;
+  private probe: QualityGovernor | null = null;
   private vignetteEl: HTMLDivElement | null = null;
   private readonly blobs: THREE.InstancedMesh;
   private readonly blobTex = blobTexture();
@@ -151,7 +159,29 @@ export class GameRenderer implements RendererAPI {
   private time = 0;
   private statsNext = 0;
   private overBudgetWarned = false;
-  private lastStats = { calls: 0, triangles: 0 };
+  private readonly lastStats = { calls: 0, triangles: 0 };
+  /** Canvas size in CSS pixels, kept by resize() so the frame never reads layout. */
+  private viewW = 1;
+  private viewH = 1;
+  /** Sight test for the cones (built per level; reused objects, no per-tile allocation). */
+  private sightLevel: CompiledLevel | null = null;
+  private sightDoors: readonly boolean[] = [];
+  private readonly sightA = { x: 0, y: 0 };
+  private readonly sightB = { x: 0, y: 0 };
+  private readonly sees = (gx: number, gy: number, tx: number, ty: number): boolean => {
+    const cl = this.sightLevel!;
+    const doors = this.sightDoors;
+    if (!inBounds(cl, tx, ty) || isOpaque(cl, tx, ty, doors)) return false;
+    this.sightA.x = gx;
+    this.sightA.y = gy;
+    this.sightB.x = tx;
+    this.sightB.y = ty;
+    return lineOfSight(cl, this.sightA, this.sightB, doors);
+  };
+  private readonly depthMats = new Map<string, THREE.MeshDepthMaterial>();
+  private shadowAge = Infinity;
+  /** The last frame was a throttled redraw (see update): the quality tier is not sampling. */
+  private qualityHeld = false;
   /** Frames drawn so far (QA: lets tests wait for a fresh frame instead of sleeping). */
   private drawn = 0;
   private rescue: { mode: RescueMode; t: number; leader: number; trail: { x: number; z: number }[]; lastLeader: { x: number; z: number } } = {
@@ -206,9 +236,12 @@ export class GameRenderer implements RendererAPI {
       logStats: options.logStats ?? true,
       interactiveZoom: options.interactiveZoom ?? true,
       quality: forced ?? 'auto',
+      qualityStepUp: options.qualityStepUp ?? true,
     };
     this.tier = forced ?? start.tier;
-    this.probe = forced ? null : start.probe;
+    // Auto tier: the start probe, then a governor that can step down (sustained slow frames) or
+    // back up once (sustained headroom on low), with hysteresis. Forced tiers never change.
+    this.probe = forced ? null : new QualityGovernor(start.tier, start.probe, undefined, this.opts.qualityStepUp);
     this.reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (this.reduced) this.iso.shakeScale = 0;
     this.base = this.opts.assetBase;
@@ -216,6 +249,11 @@ export class GameRenderer implements RendererAPI {
     this.track(this.manifest);
 
     this.scene.background = new THREE.Color(PALETTE.night);
+    // The scene root and the identity containers never move: without this, the root's own
+    // matrix update would force every descendant (the whole static level) to recompute its world
+    // matrix every frame. Moving objects keep matrixAutoUpdate and update their own subtrees.
+    this.scene.matrixAutoUpdate = false;
+    this.actors.matrixAutoUpdate = false;
     // Lighting: warm key from the back-left (casts the shadows), cool lavender fill from the camera
     // side and a cool blue rim from behind so dark sprites keep an edge.
     this.hemi = new THREE.HemisphereLight('#c8b8ff', '#2a1640', 0.8);
@@ -240,7 +278,9 @@ export class GameRenderer implements RendererAPI {
     this.blobs.renderOrder = 1;
     this.blobs.name = 'blob-shadows';
     this.blobs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.blobs.matrixAutoUpdate = false;
     this.scene.add(this.blobs);
+    for (const o of [this.particles.mesh, this.rings.group, this.waves.group, this.backdrop.mesh]) o.matrixAutoUpdate = false;
 
     // Active-cat marker: a glowing notched gold ring; a faint lilac one under the parked cat.
     const ringGeo = new THREE.PlaneGeometry(1.5, 1.5);
@@ -292,8 +332,11 @@ export class GameRenderer implements RendererAPI {
     this.sun.castShadow = shadows;
     if (r) {
       r.shadowMap.enabled = shadows;
-      r.setPixelRatio(Math.min(t === 'high' ? this.opts.maxPixelRatio : 1.5, window.devicePixelRatio || 1));
-      if (t === 'high' && !this.post) this.post = new PostFX(r, this.scene, this.iso.camera, { samples: 4, bloomStrength: 0.9, bloomRadius: 0.6, bloomThreshold: 1.0, vignette: 0.55, saturation: 1.12, contrast: 1.08, exposure: 0.92 });
+      this.shadowAge = Infinity;
+      r.setPixelRatio(this.pixelRatio());
+      // Dense screens need less MSAA for the same edge quality.
+      const samples = r.getPixelRatio() >= 1.75 ? 2 : 4;
+      if (t === 'high' && !this.post) this.post = new PostFX(r, this.scene, this.iso.camera, { samples, bloomStrength: 0.9, bloomRadius: 0.6, bloomThreshold: 1.0, vignette: 0.55, saturation: 1.12, contrast: 1.08, exposure: 0.92 });
       if (t === 'low' && this.post) {
         this.post.dispose();
         this.post = null;
@@ -318,9 +361,12 @@ export class GameRenderer implements RendererAPI {
     if (this.renderer) return;
     this.el = el;
     const r = new THREE.WebGLRenderer({ antialias: this.opts.antialias, powerPreference: 'high-performance', preserveDrawingBuffer: false });
-    r.setPixelRatio(Math.min(this.tier === 'high' ? this.opts.maxPixelRatio : 1.5, window.devicePixelRatio || 1));
+    this.viewW = Math.max(1, el.clientWidth);
+    this.viewH = Math.max(1, el.clientHeight);
+    r.setPixelRatio(this.pixelRatio());
     r.shadowMap.enabled = this.opts.shadows && this.tier === 'high';
     r.shadowMap.type = THREE.PCFShadowMap;
+    r.shadowMap.autoUpdate = false;
     r.info.autoReset = false;
     r.domElement.style.display = 'block';
     r.domElement.style.width = '100%';
@@ -351,12 +397,14 @@ export class GameRenderer implements RendererAPI {
     // A (re)loaded run is not a frame: restart the frame clock, and let an undecided probe warm up
     // again so the rebuild hitch (uploads, shader compiles) is not measured as low fps.
     this.lastNow = 0;
-    if (this.probe && !this.probe.done) this.probe.reset();
+    this.shadowAge = Infinity;
+    this.probe?.reset();
     this.level?.dispose();
     this.cones?.dispose();
     for (const g of this.guards.values()) g.dispose();
     this.guards.clear();
     this.levelDef = level;
+    this.sightLevel = compileLevel(level);
     this.level = new LevelView(level, { manifest: this.manifest, base: this.base, shadows: this.opts.shadows });
     this.scene.add(this.level.group);
     this.track(this.level.ready);
@@ -421,9 +469,11 @@ export class GameRenderer implements RendererAPI {
             o.visible = true;
           }
         });
+        this.shareDepthMaterials();
         r.compile(this.scene, this.iso.camera);
         for (const o of hidden) o.visible = false;
         r.info.reset();
+        r.shadowMap.needsUpdate = true;
         if (this.post) this.post.render(0);
         else r.render(this.scene, this.iso.camera);
       } catch (e) {
@@ -454,15 +504,23 @@ export class GameRenderer implements RendererAPI {
     this.iso.setZoom(z);
   }
 
-  update(prev: SimState, cur: SimState, alpha: number): void {
+  update(prev: SimState, cur: SimState, alpha: number, throttled = false): void {
     const r = this.renderer;
     if (!r || !this.level) return;
     const now = performance.now() / 1000;
-    const dt = this.lastNow ? Math.min(0.1, Math.max(0, now - this.lastNow)) : 1 / 60;
+    // Animation steps are clamped; the quality tier sees the real frame time, so its hitch filter
+    // (frames over 1 s: tab switches, long compiles) can work.
+    const frameDt = this.lastNow ? Math.max(0, now - this.lastNow) : 1 / 60;
+    const dt = Math.min(0.1, frameDt);
     this.lastNow = now;
     this.time += dt;
     const a = Math.max(0, Math.min(1, alpha));
-    this.sampleQuality(dt);
+    if (throttled) this.qualityHeld = true;
+    else if (this.qualityHeld) {
+      // Back from throttled redraws (pause): start a fresh window instead of timing the gap.
+      this.qualityHeld = false;
+      this.probe?.reset();
+    } else this.sampleQuality(frameDt);
 
     // Restart / level change: reset render-only state.
     if (cur.levelId !== this.lastLevelId || cur.tick < this.lastTick) {
@@ -508,10 +566,10 @@ export class GameRenderer implements RendererAPI {
 
     // Guards + cones.
     // Cones are drawn from the sim's own sight rule (cone + tile line of sight) at the current tick.
-    const cl = compileLevel(this.levelDef!);
     const doors = cur.doorsOpen;
-    const sees = (gx: number, gy: number, tx: number, ty: number) =>
-      inBounds(cl, tx, ty) && !isOpaque(cl, tx, ty, doors) && lineOfSight(cl, { x: gx, y: gy }, { x: tx, y: ty }, doors);
+    this.sightDoors = doors;
+    let doorKey = 0;
+    for (let i = 0; i < doors.length; i++) if (doors[i]) doorKey += 2 ** i;
     for (let i = 0; i < cur.guards.length; i++) {
       const gs = cur.guards[i];
       const gp = prev.guards[i]?.id === gs.id ? prev.guards[i] : gs;
@@ -538,7 +596,7 @@ export class GameRenderer implements RendererAPI {
       ci.visible = !cur.won;
     }
     this.cones?.setTime(this.time, this.post ? 2.4 : 1);
-    this.cones?.update(this.coneInputs, sees);
+    this.cones?.update(this.coneInputs, this.sees, doorKey);
 
     if (newTick || this.observed.length) this.handleEvents(prev, cur);
     this.updateRescue(prev, cur, a, dt);
@@ -562,27 +620,39 @@ export class GameRenderer implements RendererAPI {
   /** Render the frame (post chain on the high tier) and record stats over all passes. */
   private draw(dt: number): void {
     const r = this.renderer!;
-    const el = this.el;
-    const aspect = el ? el.clientWidth / Math.max(1, el.clientHeight) : 16 / 9;
+    const aspect = this.viewW / this.viewH;
     this.backdrop.update(this.iso.target.x, this.iso.target.z, aspect, this.time, !!this.post);
     this.flashAmt = Math.max(0, this.flashAmt - dt * 2.2);
+    // Stats report full frames (with the shadow pass), the worst case the budget is about.
+    let full = true;
+    if (r.shadowMap.enabled) {
+      this.shadowAge += dt;
+      full = this.shadowAge >= SHADOW_MIN_DT;
+      if (full) {
+        r.shadowMap.needsUpdate = true;
+        this.shadowAge = 0;
+      }
+    }
     r.info.reset();
     if (this.post) {
       this.post.setFlash(this.flashColor, this.flashAmt * 0.55);
       this.post.render(dt);
     } else r.render(this.scene, this.iso.camera);
-    this.lastStats = { calls: r.info.render.calls, triangles: r.info.render.triangles };
+    if (full) {
+      this.lastStats.calls = r.info.render.calls;
+      this.lastStats.triangles = r.info.render.triangles;
+    }
     this.drawn++;
     this.logStats();
   }
 
   private sampleQuality(dt: number): void {
     const p = this.probe;
-    if (!p || p.done) return;
+    if (!p) return;
     const t = p.sample(dt);
-    if (!t) return;
-    console.info(`[quality] ${p.fps.toFixed(1)} fps over the probe -> ${t}`);
-    if (t !== this.tier) this.setQuality(t);
+    if (!t || t === this.tier) return;
+    console.info(`[quality] ${p.fps.toFixed(1)} fps -> ${t}`);
+    this.setQuality(t);
   }
 
   /** Blob contact shadows under cats, guards and the rescued cat. */
@@ -599,7 +669,7 @@ export class GameRenderer implements RendererAPI {
     const rc = this.level?.crateCat;
     if (rc && this.rescue.mode !== 'caged') put(rc.object3d.position.x, rc.object3d.position.z, 0.85, rc.object3d.position.y);
     this.blobs.count = n;
-    this.blobs.instanceMatrix.needsUpdate = true;
+    markRange(this.blobs.instanceMatrix, n * 16);
   }
 
   /** Footstep dust puffs from walking actors. */
@@ -624,6 +694,8 @@ export class GameRenderer implements RendererAPI {
     this.glowTex.dispose();
     this.blobTex.dispose();
     this.backdrop.dispose();
+    for (const m of this.depthMats.values()) m.dispose();
+    this.depthMats.clear();
     this.post?.dispose();
     this.post = null;
     this.vignetteEl?.remove();
@@ -674,6 +746,10 @@ export class GameRenderer implements RendererAPI {
     if (!el || !r) return;
     const w = Math.max(1, el.clientWidth);
     const h = Math.max(1, el.clientHeight);
+    this.viewW = w;
+    this.viewH = h;
+    const pr = this.pixelRatio();
+    if (pr !== r.getPixelRatio()) r.setPixelRatio(pr);
     r.setSize(w, h, false);
     this.post?.setSize(w, h);
     this.iso.setViewport(w, h);
@@ -945,10 +1021,40 @@ export class GameRenderer implements RendererAPI {
     this.flashAmt = Math.max(this.flashAmt, amount);
   }
 
+  /** Device pixel ratio for the tier, capped by a pixel budget (big hi-DPI screens). */
+  private pixelRatio(): number {
+    const high = this.tier === 'high';
+    return cappedPixelRatio(window.devicePixelRatio || 1, high ? this.opts.maxPixelRatio : 1.5, this.viewW, this.viewH, high ? 2.6e6 : 1.6e6);
+  }
+
+  /**
+   * One depth material per shadow-caster variant (instanced or not, textured or not, face side).
+   * three otherwise reuses a single depth material for every caster and rebuilds its program
+   * parameters each time consecutive casters differ, several times per shadow pass.
+   */
+  private shareDepthMaterials(): void {
+    if (!this.opts.shadows) return;
+    const flip: Record<number, THREE.Side> = { [THREE.FrontSide]: THREE.BackSide, [THREE.BackSide]: THREE.FrontSide, [THREE.DoubleSide]: THREE.DoubleSide };
+    this.scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || !m.castShadow || m.customDepthMaterial || Array.isArray(m.material)) return;
+      const mat = m.material as THREE.Material & { map?: THREE.Texture | null; displacementMap?: THREE.Texture | null };
+      if (mat.displacementMap || mat.alphaToCoverage || (mat.clippingPlanes && mat.clippingPlanes.length)) return;
+      const side = mat.shadowSide ?? flip[mat.side];
+      const key = `${(m as THREE.InstancedMesh).isInstancedMesh ? 1 : 0}|${mat.map ? 1 : 0}|${mat.alphaTest > 0 ? 1 : 0}|${side}`;
+      let d = this.depthMats.get(key);
+      if (!d) {
+        d = new THREE.MeshDepthMaterial();
+        this.depthMats.set(key, d);
+      }
+      m.customDepthMaterial = d;
+    });
+  }
+
   private placeLights(): void {
     const t = this.iso.target;
     const vh = this.iso.viewHeight();
-    const aspect = this.el ? Math.max(0.2, this.el.clientWidth / Math.max(1, this.el.clientHeight)) : 16 / 9;
+    const aspect = Math.max(0.2, this.viewW / this.viewH);
     const half = Math.max(vh * aspect, vh * 1.8) * 0.62;
     const cam = this.sun.shadow.camera;
     if (cam.right !== half) {

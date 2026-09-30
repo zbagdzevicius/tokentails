@@ -40,8 +40,7 @@ npm run dev                  # http://localhost:3005
 Health check: `GET /` returns `1`. The app connects to `MONGODB_URI` at boot and runs a full
 count sweep for traction stats in the controller constructor.
 
-Firebase login requires `FB_PRIVATE_KEY`. Telegram login uses bot tokens that are currently
-hardcoded in the auth strategy and selected by `IS_PROD`. AI features need `OPENAI_API_KEY` and
+Firebase login requires `FB_PRIVATE_KEY`; it is the only login path. AI features need `OPENAI_API_KEY` and
 `GOOGLE_AI_API_KEY`. Uploads need the five `DO_SPACES_*` variables. Stripe needs the secret and
 webhook secret; forward webhooks locally with the Stripe CLI to `POST /image/webhook`.
 
@@ -52,7 +51,7 @@ npm run lint
 npm run format
 ```
 
-There are no automated tests. Migrations live in a gitignored folder; see BACKEND.md.
+Tests: `npm test` runs jest over `src/**/*.spec.ts`: auth, payments (Stellar, Stripe, order schema and audit), search, throttling, codex reset, feeding and score submission (`/live`). Specs mock Mongoose and external SDKs and do not read a local env file, so they run on a clean checkout. Migrations live in a gitignored folder; see BACKEND.md.
 
 ## Client
 
@@ -123,20 +122,21 @@ CONTRACTS.md.
 
 ## Mobile
 
-See [MOBILE.md](MOBILE.md). Remember to re-enable `output: "export"` in `next.config.js` before
-`npm run build:app`.
+See [MOBILE.md](MOBILE.md). `npm run build:app` switches `next.config.js` to `output: "export"`
+because `.env.app` sets `NEXT_PUBLIC_IS_APP`; `npm run check:app-export` then verifies `out/`.
 
 ## Coding conventions
 
 - Backend: Prettier with 4-space indent, single quotes, 120 columns. Absolute imports from `src/`. Business logic currently lives in controllers; new work should prefer services.
 - Client and CMS: Prettier defaults with 2-space indent and single quotes in the CMS. Tailwind for styling. Path alias `@/`.
 - Shared enums (game types, ability types, tiers, statuses) are duplicated between backend and clients. Change them in every copy.
+- `GamePlatform` (`web`, `ios`, `android`) is defined in `backend/src/game/game.schema.ts` and `client/models/game.ts`. The client's `AnalyticsPlatform` (`client/analytics/events.ts`) and `IMatch.platform` (`client/models/match.ts`) are derived from it.
 - Reward constants and catnip caps are mirrored in `backend/src/shared/constants/rewards.ts`, `backend/src/game/game.schema.ts`, `client/constants/rewards.ts`, and `client/constants/catnip-accounting.ts`.
 
 ## Secrets and repository hygiene
 
 - Never commit `.env` files with secrets. `client/.env.app`, `client/.env.production`, `cms/.env.development`, and `cms/.env.production` are tracked today and must contain only public values.
-- Telegram bot tokens and Firebase service-account identifiers are hardcoded in backend source. The TinyMCE key and Firebase web config are hardcoded in CMS and client source. Moving them to environment variables is the first cleanup to do.
+- Firebase service-account identifiers are hardcoded in backend source. The retired Telegram bot tokens were removed from source but remain in git history; revoke both bots through BotFather. The TinyMCE key and Firebase web config are hardcoded in CMS and client source. Moving them to environment variables is the first cleanup to do.
 - The soroban-nft README contains RPC URLs with an embedded API key.
 - `client/tokentails-keystore` and `client/certificates/` are gitignored. Keep them that way.
 - Committed build artifacts to remove: `client/android/app/release/app-release.aab`, `cms/client/.next/trace`, the `.DS_Store` files.

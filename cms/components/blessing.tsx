@@ -27,17 +27,19 @@ export default function Blessing({
       <TableCell className="font-medium">
         <img
           src={blessing.image?.url}
+          alt={blessing.name}
           className="w-64 rounded-2xl object-contain"
         />
       </TableCell>
       <TableCell className="font-medium">
         <img
           src={blessing.cat?.cardImg}
+          alt={blessing.cat?.name ? `${blessing.cat.name} card` : ''}
           className="w-auto h-[500px] object-contain"
         />
       </TableCell>
       <TableCell className="font-medium">{blessing.creator?.name}</TableCell>
-      <TableCell>{new Date(blessing?.createdAt!).toDateString()}</TableCell>
+      <TableCell>{new Date(blessing.createdAt!).toDateString()}</TableCell>
       <TableCell>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

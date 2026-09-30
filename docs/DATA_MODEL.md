@@ -37,7 +37,6 @@ Identity and profile:
 |---|---|---|
 | `name` | string, required | |
 | `email` | string | Firebase users |
-| `telegramId`, `telegramUsername` | string | Telegram users |
 | `twitter`, `discord` | string | Set by the user for giveaways |
 | `discount` | string | Affiliate code owned by this user |
 | `permission` | number | 1 user, 2 moderator, 3 editor, 4 manager, 5 admin. Default 1 |
@@ -71,8 +70,14 @@ Economy and progression:
 | `airdropRewardsClaimed`, `airdropChallengesClaimed`, `airdropMilestonesClaimed` | string[] | Claim idempotency |
 | `monthTails`, `monthCatsAdopted`, `monthBoxes`, `monthSpent`, `monthFeeded`, `monthStreak`, `monthReferrals`, `monthTailsCrafted`, `monthPacks`, `monthPortraitPurchases` | number | Monthly counters reset by cron |
 
-Indexes: `email`, `likes`, `shelter`, `cat`, `twitter`, `spent`, `discount`, `telegramId`,
+Indexes: `email`, `likes`, `shelter`, `cat`, `twitter`, `spent`, `discount`,
 `createdAt` descending, `tails`, `catnipCount`, `canRedeemLives`.
+
+Legacy data: `telegramId` and `telegramUsername` were removed from the schema when Telegram
+support was dropped (2026-09). Existing documents still hold them, and the `telegramId_1` index is
+still on the collection; no migration removes either. Users who only ever signed in through
+Telegram have no email and can no longer log in: the auth strategy rejects Firebase tokens without
+an `email` claim, so no lookup ever runs with an empty email.
 
 ## cats
 
@@ -172,11 +177,12 @@ Immutable log of every submitted game result.
 
 | Field | Type | Notes |
 |---|---|---|
-| `type` | enum, required | `SHELTER`, `HOME`, `PURRQUEST`, `CATBASSADORS`, `CATNIP_CHAOS`, `PIXEL_RESCUE`, `MATCH_3` |
+| `type` | enum, required | `SHELTER`, `HOME`, `PURRQUEST`, `CATBASSADORS`, `CATNIP_CHAOS`, `PIXEL_RESCUE`, `MATCH_3`. New rows are only `CATNIP_CHAOS`, `PIXEL_RESCUE` or `MATCH_3` (`scoredGameTypes`); the rest exist on old rows |
 | `points` | number | Catnip earned |
 | `score` | number | Raw score (Paw Match) |
 | `time` | number | |
 | `level` | string | Level key |
+| `platform` | enum | `web`, `ios`, `android`. Set on every row saved since 2026-09; `web` when the client sends none. Older rows have no value |
 | `user`, `cat` | refs | |
 
 Indexes: `user`, `cat`, compound `{ type, score }`.

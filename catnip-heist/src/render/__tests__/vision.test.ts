@@ -4,7 +4,8 @@ import { compileLevel, inBounds, isOpaque, lineOfSight, tileOf } from '../../sim
 import { guardSeesPoint, initSim, stepSim } from '../../sim/sim';
 import { decodeInputs } from '../../sim/replay';
 import { HEIST_01_SOLUTION, getHeist01 } from '../../levels';
-import { clipTileToCone, makePoly, type Poly } from '../vision';
+import * as THREE from 'three';
+import { clipTileToCone, makePoly, VisionCones, type ConeInput, type Poly } from '../vision';
 
 /** Point (relative to the cone origin) inside a convex polygon, with tolerance eps (tiles). */
 function inside(p: Poly, x: number, z: number, eps: number): boolean {
@@ -59,5 +60,45 @@ describe('vision cones match the sim', () => {
     }
     expect(checked).toBeGreaterThan(10000);
     expect(bad).toBe(0);
+  });
+});
+
+describe('vision cone cache', () => {
+  it('rebuilds only when a cone changes and draws the same geometry as a full rebuild', () => {
+    const level = getHeist01();
+    const c = compileLevel(level);
+    const radius = Math.max(...level.guards.map((g) => g.visionTiles));
+    const cached = new VisionCones(level.guards.length, radius);
+    const fresh = new VisionCones(level.guards.length, radius);
+    const color = new THREE.Color(1, 0.8, 0.2);
+    let doors: readonly boolean[] = [];
+    const sees = (gx: number, gy: number, tx: number, ty: number) =>
+      inBounds(c, tx, ty) && !isOpaque(c, tx, ty, doors) && lineOfSight(c, { x: gx, y: gy }, { x: tx, y: ty }, doors);
+    const inputs: ConeInput[] = level.guards.map(() => ({ x: 0, z: 0, fx: 1, fz: 0, radius: 0, color, alpha: 0.3, visible: true }));
+    let s: SimState = initSim(level, HEIST_01_SOLUTION.seed, HEIST_01_SOLUTION.catIds);
+    const ticks = decodeInputs(HEIST_01_SOLUTION.runs);
+    const pos = (v: VisionCones) => {
+      const a = (v.mesh.geometry.attributes.position as THREE.BufferAttribute).array;
+      return Array.from(a.slice(0, v.vertexCount * 3));
+    };
+    let calls = 0;
+    for (let t = 0; t < ticks.length; t++) {
+      s = stepSim(level, s, ticks[t]);
+      doors = s.doorsOpen;
+      s.guards.forEach((g, i) => Object.assign(inputs[i], { x: g.pos.x / SUBTILE, z: g.pos.y / SUBTILE, fx: g.facing.x, fz: g.facing.y, radius: g.visionTiles }));
+      const key = doors.reduce((k, o, i) => k + (o ? 2 ** i : 0), 0);
+      // Two animation frames per tick: the second must not rebuild.
+      for (let f = 0; f < 2; f++) {
+        cached.update(inputs, sees, key);
+        calls++;
+      }
+      if (t % 5 === 0) {
+        fresh.update(inputs, sees);
+        expect(pos(cached)).toEqual(pos(fresh));
+      }
+    }
+    expect(cached.vertexCount).toBeGreaterThan(0);
+    expect(cached.rebuilds).toBeLessThanOrEqual(ticks.length);
+    expect(cached.rebuilds).toBeLessThan(calls / 2 + 1);
   });
 });

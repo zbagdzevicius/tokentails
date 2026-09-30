@@ -7,6 +7,8 @@ import { useWeb3Transfer } from "./useWeb3Transfer";
 import { IMessage } from "@/models/cats";
 import { useWeb3 } from "@/context/Web3Context";
 import { CurrencyType } from "@/web3/contracts";
+import { isApp } from "@/models/app";
+import { AppCheckoutNotice } from "../AppCheckoutNotice";
 
 export interface IGeneratedCat {
   name: string;
@@ -24,7 +26,11 @@ interface Web3TransferProps {
   onSuccess?: (response: IMessage) => void;
 }
 
-export const Web3Transfer = ({
+// App builds show a notice instead: digital goods must use store IAP there.
+export const Web3Transfer = (props: Web3TransferProps) =>
+  isApp ? <AppCheckoutNotice /> : <WebWeb3Transfer {...props} />;
+
+const WebWeb3Transfer = ({
   price,
   text,
   loadingText,

@@ -125,9 +125,10 @@ function callout(ctx, E, t, a, o) {
   ctx.fillRect(sx0 + 12 + (side > 0 ? 0 : subW * sp - 10), -26, 10, 52);
   ctx.restore();
   if (sp > 0.3) {
-    E.drawText(ctx, `${idx} // ${E.scramble(sub, E.seg(subT, 0.02, 0.12), 7 + idx.charCodeAt(1) + sub.length)}`, lx + side * 44, ly + 71, {
+    // clean mask wipe riding the slab (no scrambled glyphs on the hit frames)
+    E.wipeText(ctx, `${idx} // ${sub}`, lx + side * 44, ly + 71, {
       size: subSize, font: 'mono', weight: 700, color: 'night', align, tracking: 0.18,
-    });
+    }, E.seg(subT, 0, 0.1, 'expoOut'), { cursor: false });
   }
 
   // --- word: per-letter slam with overshoot, extruded
@@ -376,16 +377,17 @@ function chSwap(ctx, t, a, E) {
     size: 230, color: 'cream', tracking: 0.08,
     extrude: { depth: 14, dx: 0.5, dy: 1, color: wordCol, dark: 0.7 }, stroke: 'outline', strokeWidth: 12,
     perChar: ({ i, n }) => {
-      const q = E.seg(a, i * 0.01, i * 0.01 + 0.22);
+      // whole, un-offset glyphs from the cue frame on: the overshoot lives in scale only
+      const q = E.seg(a, 0, 0.22);
       const e = E.elasticOut(q, 1, 0.45);
       const dir = i % 2 ? 1 : -1;
-      return { x: (1 - e) * dir * 90, scale: E.lerp(1.5, 1, e), sy: Math.max(0.02, sy), rot: (1 - e) * dir * 0.15 };
+      return { y: (1 - e) * dir * 14, scale: E.lerp(1.5, 1, e), sy: Math.max(0.02, sy), rot: (1 - e) * dir * 0.05 };
     },
   });
   const subP = E.seg(a, 0.0, 0.14, 'expoOut');
-  E.drawText(ctx, E.scramble('02 // CONTROL BOTH CATS', E.seg(a, 0.02, 0.12), 21), W / 2, H * 0.3 + 150, {
-    size: 30, font: 'mono', weight: 700, color: 'cream', tracking: 0.3 * subP + 0.05, alpha: subP,
-  });
+  E.wipeText(ctx, '02 // CONTROL BOTH CATS', W / 2, H * 0.3 + 150, {
+    size: 30, font: 'mono', weight: 700, color: 'cream', tracking: 0.18,
+  }, E.seg(a, 0, 0.1, 'expoOut'), { cursorColor: 'coin' });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -449,9 +451,9 @@ function chMeow(ctx, t, a, E) {
       size: 150 * qp, color: 'coneInvestigate', extrude: { depth: 8, color: 'outline' }, stroke: 'outline', strokeWidth: 10,
       perChar: () => ({ rot: Math.sin(t * 12) * 0.12 }),
     });
-    E.drawText(ctx, E.scramble('GUARD LURED', E.seg(b, 0.02, 0.12), 31), ix, iy + s * 0.5 + 34, {
-      size: 26, font: 'mono', weight: 700, color: 'coneInvestigate', tracking: 0.35, alpha: E.seg(b, 0.08, 0.14),
-    });
+    E.wipeText(ctx, 'GUARD LURED', ix, iy + s * 0.5 + 34, {
+      size: 26, font: 'mono', weight: 700, color: 'coneInvestigate', tracking: 0.35,
+    }, E.seg(b, 0.02, 0.1, 'expoOut'));
   }
   // MEOW word: letters ride a sine "sound wave"
   E.drawText(ctx, 'MEOW', W * 0.27, H * 0.7, {
@@ -469,7 +471,7 @@ function chMeow(ctx, t, a, E) {
   ctx.translate(W * 0.27, H * 0.7 + 160); ctx.transform(1, 0, -0.25, 1, 0, 0);
   ctx.fillStyle = E.col('pink'); const sw = 520 * subP; ctx.fillRect(-sw / 2, -26, sw, 52);
   ctx.restore();
-  if (subP > 0.4) E.drawText(ctx, E.scramble('03 // DISTRACT THE GUARD', E.seg(a, 0.03, 0.13), 41), W * 0.27, H * 0.7 + 161, { size: 28, font: 'mono', weight: 700, color: 'night', tracking: 0.16 });
+  E.wipeText(ctx, '03 // DISTRACT THE GUARD', W * 0.27, H * 0.7 + 161, { size: 28, font: 'mono', weight: 700, color: 'night', tracking: 0.16 }, subP, { cursor: false });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -625,10 +627,11 @@ export default {
       aberration: 8 * hit + 5 * clap + 4 * E.env(ob, 0, 0.05),
       zoom: (1 + 0.05 * hit + 0.035 * clap) * (1 + (ci === 3 && b >= 0 ? 0.5 : 1) * 0.12 * punch),
       flash: 0,
-      // blur only AFTER the cut frame (+1), never on the hit itself
-      motionBlur: (lt >= 2 * F && lt < 0.14) ? 5 : 0,
+      // no sub-frame blur on the whip-in: it smeared the SNEAK callout into slices on f226-228
+      motionBlur: 0,
     };
-    if (ci === 0 && a < 0.12) fx.glitch = 0.5 * (1 - a / 0.12);
+    // glitch only on the way OUT of a chapter (last 5 frames before the next cut), never on a hit frame
+    if (a > CH - 5 * F && ci < 3) fx.glitch = 0.45 * E.seg(a, CH - 5 * F, CH - F);
     if (ci === 1 && b >= 2 * F && b < 0.22) { fx.motionBlur = 6; fx.aberration += 10 * Math.sin((b / 0.22) * Math.PI); }
     if (ci === 2) { fx.shake += 14 * E.env(a, 0, 0.3); fx.aberration += 3 * E.env(a, 0, 0.3); }
     if (ci === 3 && b >= 0) {

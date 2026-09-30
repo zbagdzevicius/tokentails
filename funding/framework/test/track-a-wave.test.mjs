@@ -35,6 +35,9 @@ writeFileSync(join(tmp, 'portfolio.json'), JSON.stringify({ opportunities: [
   { slug: 'mu', success: 0.4, capital_mid_usd: 200, verdict: 'COND' },
 ] }));
 writeFileSync(join(tmp, 'deployments.json'), '[]\n');
+const published = join(tmp, 'public-deployments.json');
+writeFileSync(published, '[]\n');
+process.env.FUND_A_PUBLISH = published;
 Object.assign(process.env, {
   FUND_A_CHAINS: join(tmp, 'chains.json'), FUND_A_DEPLOYMENTS: join(tmp, 'deployments.json'), FUND_A_PROJECT: project,
   FUND_A_PROGRAMS: programs, FUND_PORTFOLIO: join(tmp, 'portfolio.json'), FUND_A_WAVE_DIR: join(tmp, 'wave'),
@@ -96,6 +99,11 @@ test('ingest: records deploys and proof payouts from broadcasts, idempotent', as
   assert.equal(list[0].address, SPLIT);
   assert.equal(list[0].tx, TX);
   assert.deepEqual(list[0].proofTxs, [PAY]);
+  const pub = JSON.parse(readFileSync(published, 'utf8'));
+  assert.equal(pub.length, 1, 'mainnet list published for the payouts page and the heist');
+  assert.equal(pub[0].address, SPLIT);
+  assert.deepEqual(pub[0].proofTxs, [PAY]);
+  assert.equal(pub[0].verified, undefined, 'only public fields are published');
   await W.waveCommands['a:ingest'].run({ args: [], flags: {} });
   list = JSON.parse(readFileSync(join(tmp, 'deployments.json'), 'utf8'));
   assert.equal(list.length, 1);

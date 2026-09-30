@@ -24,7 +24,7 @@
  *   intended state transition via the internal `setIsProfileModalDisplayed` setter (auditability of gating).
  *
  * Test Data Strategy / Fixtures
- * - Uses minimal profile marker objects with clearly fake strings (no emails, no telegram IDs, no real PII).
+ * - Uses minimal profile marker objects with clearly fake strings (no emails, no platform IDs, no real PII).
  * - Uses a sensitive-looking clipboard payload (`invite://token-abc`) to validate non-leakage rules.
  *
  * Cross-References
@@ -39,6 +39,7 @@
 import '@testing-library/jest-dom';
 import React from 'react';
 import { act, render, waitFor } from '@testing-library/react';
+import type { IProfile } from '../models/profile';
 
 jest.mock('../context/ToastContext', () => ({
   useToast: jest.fn()
@@ -86,9 +87,11 @@ const createHarness = (onReady: (api: ProfileApi) => void) =>
     const { useProfile } = getContextModule();
     const api = useProfile();
 
+    // onReady is fixed per Harness (closed over by createHarness), so only
+    // the hook API is a reactive dependency.
     React.useEffect(() => {
       onReady(api);
-    }, [api, onReady]);
+    }, [api]);
 
     return null;
   };
@@ -198,7 +201,7 @@ describe('context/ProfileContext ProfileProvider', () => {
 
     // Act
     await act(async () => {
-      getLatestApi(onReady).setProfile(profile as any);
+      getLatestApi(onReady).setProfile(profile as unknown as IProfile);
     });
 
     // Assert
@@ -227,7 +230,7 @@ describe('context/ProfileContext ProfileProvider', () => {
     await waitFor(() => expect(onReady).toHaveBeenCalledTimes(1));
 
     await act(async () => {
-      getLatestApi(onReady).setProfile(initialProfile as any);
+      getLatestApi(onReady).setProfile(initialProfile as unknown as IProfile);
     });
     await waitFor(() =>
       expect(getLatestApi(onReady).profile).toEqual(initialProfile)
@@ -235,7 +238,7 @@ describe('context/ProfileContext ProfileProvider', () => {
 
     // Act
     await act(async () => {
-      getLatestApi(onReady).setProfileUpdate({ name: 'Updated' } as any);
+      getLatestApi(onReady).setProfileUpdate({ name: 'Updated' });
     });
     await waitFor(() =>
       expect(getLatestApi(onReady).profile).toEqual({
@@ -245,7 +248,7 @@ describe('context/ProfileContext ProfileProvider', () => {
     );
 
     await act(async () => {
-      getLatestApi(onReady).setProfileUpdate({ locale: 'lt' } as any);
+      getLatestApi(onReady).setProfileUpdate({ locale: 'lt' } as unknown as Partial<IProfile>);
     });
 
     // Assert
@@ -272,13 +275,12 @@ describe('context/ProfileContext ProfileProvider', () => {
     await waitFor(() => expect(onReady).toHaveBeenCalledTimes(1));
     const utils = {
       openLink: jest.fn(),
-      openTelegramLink: jest.fn(),
       shareURL: jest.fn()
     };
 
     // Act
     await act(async () => {
-      getLatestApi(onReady).setUtils(utils as any);
+      getLatestApi(onReady).setUtils(utils);
     });
 
     // Assert
@@ -335,7 +337,7 @@ describe('context/ProfileContext ProfileProvider', () => {
 
     // Act
     await act(async () => {
-      getLatestApi(onReady).setProfileUpdate({ name: 'Ignored' } as any);
+      getLatestApi(onReady).setProfileUpdate({ name: 'Ignored' });
     });
 
     // Assert
@@ -359,7 +361,7 @@ describe('context/ProfileContext ProfileProvider', () => {
     const profile = createProfileFixture({ name: 'To Clear' });
 
     await act(async () => {
-      getLatestApi(onReady).setProfile(profile as any);
+      getLatestApi(onReady).setProfile(profile as unknown as IProfile);
     });
     await waitFor(() =>
       expect(getLatestApi(onReady).profile).toEqual(profile)
@@ -423,7 +425,7 @@ describe('context/ProfileContext ProfileProvider', () => {
       await waitFor(() => expect(onReady).toHaveBeenCalledTimes(1));
 
       await act(async () => {
-        getLatestApi(onReady).setProfile(createProfileFixture() as any);
+        getLatestApi(onReady).setProfile(createProfileFixture() as unknown as IProfile);
       });
       await waitFor(() => expect(getLatestApi(onReady).profile).not.toBeNull());
 
@@ -487,7 +489,11 @@ describe('context/ProfileContext useProfile', () => {
     let capturedThrown: unknown = null;
 
     const rejectionObserved = new Promise<void>((resolve) => {
-      const thenable: any = {
+      type Thenable = {
+        then: () => Thenable;
+        catch: (onRejected: (err: unknown) => void) => Thenable;
+      };
+      const thenable: Thenable = {
         then: () => thenable,
         catch: (onRejected: (err: unknown) => void) => {
           queueMicrotask(() => {
@@ -517,7 +523,7 @@ describe('context/ProfileContext useProfile', () => {
     // Assert
     expect(toast).not.toHaveBeenCalled();
     expect(capturedThrown).toBe(injectedError);
-    expect(String((capturedThrown as any)?.message ?? capturedThrown)).not.toContain(
+    expect(String((capturedThrown as Error | null)?.message ?? capturedThrown)).not.toContain(
       SENSITIVE_TEXT
     );
   });

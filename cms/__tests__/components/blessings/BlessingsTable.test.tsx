@@ -29,6 +29,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 import { BlessingsTable } from '@/components/blessings/blessings-table';
 import { BlessingStatus } from '@/models/cats';
+import { IBlessing } from '@/models/blessing';
 
 jest.mock('@/components/blessings/MarketplaceItem', () => ({
   MarketplaceItem: ({
@@ -68,7 +69,7 @@ describe('components/blessings/BlessingsTable', () => {
     // Arrange / Act
     render(
       <BlessingsTable
-        cats={[{ _id: 'cat-1' }] as any[]}
+        cats={[{ _id: 'cat-1' }] as unknown as IBlessing[]}
         totalBlessings={1}
         onUpdateStatus={jest.fn()}
       />
@@ -94,7 +95,7 @@ describe('components/blessings/BlessingsTable', () => {
     // Arrange / Act
     render(
       <BlessingsTable
-        cats={[{ _id: 'cat-1' }, { _id: 'cat-2' }, { _id: 'cat-3' }] as any[]}
+        cats={[{ _id: 'cat-1' }, { _id: 'cat-2' }, { _id: 'cat-3' }] as unknown as IBlessing[]}
         totalBlessings={3}
         onUpdateStatus={jest.fn()}
       />
@@ -118,7 +119,7 @@ describe('components/blessings/BlessingsTable', () => {
     // Arrange / Act
     render(
       <BlessingsTable
-        cats={[{ _id: 'cat-1' }, { _id: 'cat-2' }] as any[]}
+        cats={[{ _id: 'cat-1' }, { _id: 'cat-2' }] as unknown as IBlessing[]}
         totalBlessings={10}
         onUpdateStatus={jest.fn()}
       />
@@ -165,7 +166,7 @@ describe('components/blessings/BlessingsTable', () => {
     // Arrange / Act
     render(
       <BlessingsTable
-        cats={[{ _id: 'cat-1' }] as any[]}
+        cats={[{ _id: 'cat-1' }] as unknown as IBlessing[]}
         totalBlessings={undefined as unknown as number}
         onUpdateStatus={jest.fn()}
       />
@@ -186,7 +187,7 @@ describe('components/blessings/BlessingsTable', () => {
     // Arrange / Act
     render(
       <BlessingsTable
-        cats={[{ _id: 'cat-1' }, { _id: 'cat-2' }] as any[]}
+        cats={[{ _id: 'cat-1' }, { _id: 'cat-2' }] as unknown as IBlessing[]}
         totalBlessings={2}
         custom={true}
         onUpdateStatus={jest.fn()}
@@ -211,7 +212,7 @@ describe('components/blessings/BlessingsTable', () => {
     // Act
     render(
       <BlessingsTable
-        cats={[{ _id: 'cat-1' }] as any[]}
+        cats={[{ _id: 'cat-1' }] as unknown as IBlessing[]}
         totalBlessings={1}
         onUpdateStatus={onUpdateStatus}
       />
@@ -240,7 +241,7 @@ describe('components/blessings/BlessingsTable', () => {
     // Act
     const { rerender } = render(
       <BlessingsTable
-        cats={[{ _id: 'cat-1' }] as any[]}
+        cats={[{ _id: 'cat-1' }] as unknown as IBlessing[]}
         totalBlessings={2}
         onUpdateStatus={onUpdateStatus}
       />
@@ -255,7 +256,7 @@ describe('components/blessings/BlessingsTable', () => {
     // Act (prop-driven refresh)
     rerender(
       <BlessingsTable
-        cats={[{ _id: 'cat-1' }, { _id: 'cat-2' }, { _id: 'cat-3' }] as any[]}
+        cats={[{ _id: 'cat-1' }, { _id: 'cat-2' }, { _id: 'cat-3' }] as unknown as IBlessing[]}
         totalBlessings={10}
         onUpdateStatus={onUpdateStatus}
       />

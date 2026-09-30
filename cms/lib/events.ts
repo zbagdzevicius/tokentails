@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 
-interface IError {
+export interface IError {
   message?: string;
   error?: string;
 }
@@ -27,7 +27,7 @@ const useEvent = <K extends GameEvent>(
 ) => {
   const [object, setObject] = useState<ICatEventsDetails[K] | null>(null);
   useEffect(() => {
-    const handleGameStart = (event: IEventDetail<any>) => {
+    const handleGameStart = (event: IEventDetail<ICatEventsDetails[K]>) => {
       setObject(event.detail);
       callback?.(event.detail);
     };
@@ -43,7 +43,7 @@ const useEvent = <K extends GameEvent>(
         handleGameStart as unknown as EventListener
       );
     };
-  }, [callback]);
+  }, [gameEvent, callback]);
 
   return object;
 };

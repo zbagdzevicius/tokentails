@@ -1,0 +1,79 @@
+{
+  "generation_hash": "b89bfcebd7286e1bc86b",
+  "inputs": {
+    "jinja2_version": "3.1.6",
+    "project_root": "/Users/zygimantasbagdzevicius/me/tokentails-app",
+    "renderer_sha256": "84e8a5c09205bd3a94a4934321b5cde6e93a8526f2a016c405825e952deb904e",
+    "resolved_values": {
+      "config.modules.bmm.implementation_artifacts": "/Users/zygimantasbagdzevicius/me/tokentails-app/_bmad-output/implementation-artifacts",
+      "config.modules.bmm.planning_artifacts": "/Users/zygimantasbagdzevicius/me/tokentails-app/_bmad-output/planning-artifacts",
+      "customization.workflow.activation_steps_append": [],
+      "customization.workflow.activation_steps_prepend": [],
+      "customization.workflow.implementation_handoff": "Launch a subagent with no prior conversation context, with this prompt:\n\n> Read {spec_file} fully and implement it — the spec is the sole source of truth. Load every file listed in its frontmatter `context:` before you start.\n>\n> When done, report what you changed, how you verified it, and anything left incomplete or risky.\n",
+      "customization.workflow.on_complete": "",
+      "customization.workflow.open_spec": "",
+      "customization.workflow.persistent_facts": [],
+      "customization.workflow.review": "auto",
+      "customization.workflow.route": "full",
+      "customization.workflow.thorough_lenses": [
+        {
+          "id": "blind-hunter",
+          "instruction": "Launch a context-free subagent with this prompt:\n\nConduct a review of CONTENT.\nLook for what's missing, not only what's wrong.\nCompute your finding floor N from the diff file's size: N = min(floor(sqrt(kB) + 1), 10), where kB is the file's size in kilobytes. State the arithmetic in one line, then find at least N issues to fix or improve.\nOutput a Markdown list of findings only — no severity, priority, or ranking.\nIf the content is empty, stop and say so.\nIf you have zero findings, re-check and keep thinking; do not stop with an empty list.\n\nCONTENT: the unified diff at `{diff_file}`. Read that file — it is the content under review.\n\nDo not invoke any skill, and do not spawn subagents of your own — you are the reviewer. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.\n\n",
+          "name": "Blind Hunter"
+        },
+        {
+          "id": "edge-case-hunter",
+          "instruction": "Launch a context-free subagent with this prompt:\n\nRead `{skill-root}/review-prompts/edge-case-hunter.md` completely and follow it as your review instructions.\n\nclaims_file (leave unread until your instructions call for it): {claims_file}\n\nReview content: the unified diff at `{diff_file}`. Read that file — it is the content under review.\n\nDo not invoke any skill, and do not spawn subagents of your own — you are the reviewer. If the instruction file is unreadable, report that exact failure and stop. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.\n\n",
+          "name": "Edge Case Hunter"
+        },
+        {
+          "id": "verification-gap",
+          "instruction": "Launch a context-free subagent with this prompt:\n\nRead `{skill-root}/review-prompts/verification-gap.md` completely and follow it as your review instructions.\n\nReview content: the unified diff at `{diff_file}`. Read that file — it is the content under review.\n\nDo not invoke any skill, and do not spawn subagents of your own — you are the reviewer. If the instruction file is unreadable, report that exact failure and stop. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.\n\n",
+          "name": "Verification Gap Reviewer"
+        },
+        {
+          "id": "intent-alignment",
+          "instruction": "Launch a subagent with this prompt:\n\nYou are an intent-alignment auditor. You have no other context about how this change was produced. Here is the verbatim intent this work started from:\n\n{verbatim_intent}\n\nThe diff is the unified diff at `{diff_file}`. Read that file — it is the change under review.\n\nYour task is strictly descriptive — do not prescribe additional work. Report: (1) the defensible readings of the intent, enumerated; (2) which reading this diff implements; (3) where the readings and the diff diverge — specifically, which surface the intent's expectations live at versus which surface the diff's changes and its tests exercise.\n\nDo not invoke any skill, and do not spawn subagents of your own — you are the reviewer. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.\n\n",
+          "name": "Intent Alignment Auditor"
+        }
+      ]
+    },
+    "skill_root": "/Users/zygimantasbagdzevicius/me/tokentails-app/.agents/skills/bmad-build",
+    "source_sha256": {
+      "compile-epic-context.md": "6793b15ae85766cee529e6b349e45f2c6ec9e3212019611c29e8c77b4dc4b924",
+      "references/claims-check.md": "50ea17cb89a78ef815286dde2dabfd09f1dc9841d07a10857f88b39ab7b9bd2a",
+      "references/deletion-check.md": "0f1f124e4e957147e89164a272b10bedc694ad0d9ad2618c8610ac74ee9cb0da",
+      "review-prompts/edge-case-hunter.md": "8fc046af1cbf4ecc928207cec75e29c3c260adb86cc7da77537ade3b3a3b9448",
+      "review-prompts/verification-gap.md": "45ab0b8c4c56c5c055c97a293a8591a67e256d0b1a2058ce1f093cd866be8d03",
+      "spec-template.md": "d12be5eb17015d84f8e66e553ee03831b82ee6ebb5134df89c4485116d31b0d2",
+      "step-01-clarify-and-route.md": "e0d0bd65e501ca33f6fa773b1c1d006292f4831d0eba2774bf94213b9aa46ffe",
+      "step-02-plan.md": "5bcc1bef8bdae24f6ff8c146fb692ec44ccee7de9fb045a6e3c5637a4a69dec1",
+      "step-03-implement.md": "35b8446b1aa89b32d3cb59a8230209f0d31bc46bb63f16cfcb965f3da9eb89d9",
+      "step-04-review.md": "3750409618258b77731a5715464f8bd289eb75963ad1aa70624422a6a498053b",
+      "step-05-present.md": "06b4aa471a97b4bc8822b43de52bf581ef8590993bac681d1e01f4e7c477458c",
+      "step-oneshot.md": "4e903840ec3933a1561fc90150b39c3faf6e885ae973140f22cabc7a40ac44e9",
+      "sync-sprint-status.md": "7590316aae7bc9d5a1aec1fb94e078c1081189949466f68c2448a184f1729cfa",
+      "workflow.md": "99158e897c060af751999591ca2a901a080d4fce1a02ca3292a32ffd14083c55"
+    }
+  },
+  "outputs": {
+    "compile-epic-context.md": "6793b15ae85766cee529e6b349e45f2c6ec9e3212019611c29e8c77b4dc4b924",
+    "references/claims-check.md": "50ea17cb89a78ef815286dde2dabfd09f1dc9841d07a10857f88b39ab7b9bd2a",
+    "references/deletion-check.md": "0f1f124e4e957147e89164a272b10bedc694ad0d9ad2618c8610ac74ee9cb0da",
+    "review-prompts/edge-case-hunter.md": "8fc046af1cbf4ecc928207cec75e29c3c260adb86cc7da77537ade3b3a3b9448",
+    "review-prompts/verification-gap.md": "45ab0b8c4c56c5c055c97a293a8591a67e256d0b1a2058ce1f093cd866be8d03",
+    "spec-template.md": "d12be5eb17015d84f8e66e553ee03831b82ee6ebb5134df89c4485116d31b0d2",
+    "step-01-clarify-and-route.md": "cca75b7d287eac80f4fdf7a7dbd956a593b04904579360b07c6522e766e119bc",
+    "step-02-plan.md": "9aee1db9388773924a519bc26ce029485ea5a2dd300d4d249110f3b3cb6c064d",
+    "step-03-implement.md": "3532a32325899e74f35a89ac38310fa2dcfc2a931b6eec9ae4b40ec43e8e984a",
+    "step-04-review.md": "a8d228e7f0e58dce5e76d2db470bfe7cd59018c372de973e00b52c030827446d",
+    "step-05-present.md": "697ed72bace09ce32645b5e7583f48e37a889c3d72738f48bccf2d22bcadcfe1",
+    "sync-sprint-status.md": "d1debe545e33a789ed91a94df8617fa9a0a6357219b02fcac00276408b437537",
+    "workflow.md": "317d2c358317c31f1b2a98c747022f6ab39502d7603f63307296efa7c74ec4bb"
+  },
+  "project_root": "/Users/zygimantasbagdzevicius/me/tokentails-app",
+  "project_slug": "tokentails-app",
+  "root_hash": "ffdba2dd2ae8",
+  "schema_version": 1,
+  "skill": "bmad-build"
+}

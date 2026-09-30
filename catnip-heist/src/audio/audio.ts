@@ -121,9 +121,35 @@ export function createAudio(opts: AudioOptions = {}): HeistAudio {
     const g = c.createGain();
     env(g, t, peak, attack, dur);
     o.connect(g).connect(dest);
+    o.onended = () => {
+      o.disconnect();
+      g.disconnect();
+    };
     o.start(t);
     o.stop(t + dur + 0.02);
     return o;
+  }
+
+  /**
+   * One persistent filter per (destination, type, frequency, Q) for bursts whose filter does not
+   * sweep: footsteps and the drum loop fire several times a second, and this saves a node each.
+   * Keyed per destination node, so a new AudioContext starts with an empty cache.
+   */
+  const staticFilters = new WeakMap<AudioNode, Map<string, BiquadFilterNode>>();
+  function staticFilter(dest: AudioNode, type: BiquadFilterType, freq: number, q: number): BiquadFilterNode {
+    let byKey = staticFilters.get(dest);
+    if (!byKey) staticFilters.set(dest, (byKey = new Map()));
+    const key = `${type}|${freq}|${q}`;
+    let f = byKey.get(key);
+    if (!f) {
+      f = ctx!.createBiquadFilter();
+      f.type = type;
+      f.frequency.value = freq;
+      f.Q.value = q;
+      f.connect(dest);
+      byKey.set(key, f);
+    }
+    return f;
   }
 
   function noiseBurst(t: number, dur: number, peak: number, filter: BiquadFilterType, freq: number, q: number, dest: AudioNode, freqEnd?: number) {
@@ -131,14 +157,27 @@ export function createAudio(opts: AudioOptions = {}): HeistAudio {
     const src = c.createBufferSource();
     src.buffer = noise;
     src.playbackRate.value = 0.8 + ((t * 997) % 1) * 0.4;
-    const f = c.createBiquadFilter();
-    f.type = filter;
-    f.frequency.setValueAtTime(freq, t);
-    if (freqEnd) f.frequency.exponentialRampToValueAtTime(freqEnd, t + dur);
-    f.Q.value = q;
     const g = c.createGain();
     env(g, t, peak, 0.002, dur);
-    src.connect(f).connect(g).connect(dest);
+    let f: BiquadFilterNode | null = null;
+    if (freqEnd) {
+      // Swept filter: its own node, before the envelope.
+      f = c.createBiquadFilter();
+      f.type = filter;
+      f.frequency.setValueAtTime(freq, t);
+      f.frequency.exponentialRampToValueAtTime(freqEnd, t + dur);
+      f.Q.value = q;
+      src.connect(f).connect(g).connect(dest);
+    } else {
+      // Fixed filter: shared, after the envelope (the envelope is slow next to the filter, so the
+      // order makes no audible difference).
+      src.connect(g).connect(staticFilter(dest, filter, freq, q));
+    }
+    src.onended = () => {
+      src.disconnect();
+      f?.disconnect();
+      g.disconnect();
+    };
     const off = ((t * 7919) % 0.8) || 0;
     src.start(t, off, dur + 0.05);
   }

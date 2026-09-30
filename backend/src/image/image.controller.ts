@@ -18,10 +18,10 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Types } from 'mongoose';
 import { generateRandomNumber } from 'src/common/utils';
-import { SearchModel } from 'src/common/validators';
+import { pickSearchParams, SearchModel } from 'src/common/validators';
 import { IResponse, RESPONSES } from 'src/shared/constants/common';
 import { USER_ID } from 'src/shared/decorators/user.decorator';
 import { PermissionGuard } from 'src/shared/guards/permission.guard';
@@ -38,32 +38,11 @@ import { IOrder, OrderStatus, ProductType } from 'src/web3/order.schema';
 import { ChainType } from 'src/web3/web3.model';
 import Stripe from 'stripe';
 import { CatService } from 'src/cat/cat.service';
+import { StripePaymentService } from 'src/payments/stripe-payment.service';
 import { IController } from '../shared/interfaces/controller.interface';
 import { ImageRepository } from './image.repository';
 import { IImage, Image, ImageStyle } from './image.schema';
 import { ImageModel } from './image.validator';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-12-15.clover',
-});
-
-// Google Tag Manager types
-type PurchaseParams = {
-    event_id?: string; // order.image
-    transaction_id?: string; // session.id
-    item_id?: string; // order.id
-    item_name?: string; // order.id
-    value?: number; // currencyType.priceUsd
-    currency?: string; // order.currencyType
-    coupon?: string;
-    payment_method?: string; // order.chainType
-    user_id?: string; // order.user
-};
-
-// Event type definitions with discriminated unions
-type TrackEventMap = {
-    purchase: PurchaseParams;
-};
 
 // Send SendGrid email for order confirmation
 async function sendOrderConfirmationEmail(email: string, aiUrl: string): Promise<void> {
@@ -133,6 +112,8 @@ async function sendOrderConfirmationEmail(email: string, aiUrl: string): Promise
     }
 }
 
+export const ORDER_STATUS_PROJECTION = '_id status entityType id image price';
+
 @Controller('image')
 export class ImageController implements IController<Image> {
     httpService: any;
@@ -141,14 +122,15 @@ export class ImageController implements IController<Image> {
         private orderRepository: OrderRepository,
         private userService: UserService,
         private userRepository: UserRepository,
-        private catService: CatService
+        private catService: CatService,
+        private stripePayments: StripePaymentService
     ) {}
     slugs: () => Promise<string[]>;
 
     @Post('/search')
     async search(@Body() params: SearchModel): Promise<Image[]> {
         return this.repository.find({
-            ...params,
+            ...pickSearchParams(params),
         });
     }
 
@@ -213,7 +195,6 @@ export class ImageController implements IController<Image> {
     }
 
     @Throttle({ default: { limit: 5, ttl: 60000 } })
-    @UseGuards(ThrottlerGuard)
     @Post('/portrait')
     @UseInterceptors(FileInterceptor('file'))
     async createPortrait(
@@ -251,11 +232,15 @@ export class ImageController implements IController<Image> {
 
             return updatedImage as IImage;
         } catch (e) {
+            // The AI provider's error text stays in the server log.
             console.error('Error creating portrait:', e);
-            throw new BadRequestException('Failed to create portrait: ' + (e instanceof Error ? e.message : String(e)));
+            throw new BadRequestException('Failed to create portrait, please try again');
         }
     }
 
+    // Each call is a paid 4K generation: signed-in users only, 3 per minute.
+    @Throttle({ default: { limit: 3, ttl: 60000 } })
+    @UseGuards(AuthGuard('appauth'))
     @Put('/portrait/:id/regenerate')
     async regeneratePortrait(@Param('id') id: string, @Body() body: { style?: ImageStyle }): Promise<IImage> {
         const existingImage = await this.repository.findOne({
@@ -285,27 +270,27 @@ export class ImageController implements IController<Image> {
 
             return updatedImage as IImage;
         } catch (e) {
+            // The AI provider's error text stays in the server log.
             console.error('Error regenerating portrait:', e);
-            throw new BadRequestException(
-                'Failed to regenerate portrait: ' + (e instanceof Error ? e.message : String(e))
-            );
+            throw new BadRequestException('Failed to regenerate portrait, please try again');
         }
     }
 
     @Throttle({ default: { limit: 5, ttl: 60000 } })
-    @UseGuards(ThrottlerGuard)
     @Post('/create-checkout-session')
     async createCheckoutSession(
         @Body()
         body: {
-            amount: number; // in cents
+            amount?: number; // ignored: the price comes from the server price table
             productType: ProductType;
             imageId?: string;
             userId?: string;
             email?: string;
         }
     ): Promise<{ url: string }> {
-        const { amount, productType, imageId, userId, email } = body;
+        const { productType, imageId, userId, email } = body;
+        // Validates productType before any user is looked up or created.
+        const amount = this.stripePayments.portraitCheckoutAmountCents(productType);
 
         let resolvedUserId: string | undefined = undefined;
 
@@ -337,16 +322,6 @@ export class ImageController implements IController<Image> {
             throw new BadRequestException('Signed userId or email is required');
         }
 
-        // Validate productType
-        if (![ProductType.DIGITAL, ProductType.PRINT, ProductType.CANVAS].includes(productType)) {
-            throw new BadRequestException('Invalid productType. Must be digital, print, or canvas');
-        }
-
-        // Validate amount
-        if (!amount || amount <= 0) {
-            throw new BadRequestException('Amount must be greater than 0');
-        }
-
         // If imageId is provided, verify it exists
         let imageObjectId: Types.ObjectId | undefined;
         if (imageId) {
@@ -374,7 +349,7 @@ export class ImageController implements IController<Image> {
                             name: `Portrait - ${productType.charAt(0).toUpperCase() + productType.slice(1)}`,
                             description: `Portrait ${productType === ProductType.DIGITAL ? 'download' : productType}`,
                         },
-                        unit_amount: amount, // amount is already in cents
+                        unit_amount: amount, // server price in cents
                     },
                     quantity: 1,
                 },
@@ -525,7 +500,7 @@ export class ImageController implements IController<Image> {
         // For digital products, Stripe automatically collects email (no shipping needed)
 
         try {
-            const session = await stripe.checkout.sessions.create(sessionParams);
+            const session = await this.stripePayments.stripe.checkout.sessions.create(sessionParams);
 
             // Create order record with PENDING status
             await this.orderRepository.create({
@@ -550,13 +525,13 @@ export class ImageController implements IController<Image> {
     }
 
     @Throttle({ default: { limit: 5, ttl: 60000 } })
-    @UseGuards(AuthGuard('appauth'), ThrottlerGuard)
+    @UseGuards(AuthGuard('appauth'))
     @Post('/create-checkout-session-signed')
     async createCheckoutSessionSigned(
         @USER_ID() signedUserId: string,
         @Body()
         body: {
-            amount: number; // in cents
+            amount?: number; // ignored: the price comes from the server price table
             productType: ProductType;
             imageId?: string;
         }
@@ -567,6 +542,8 @@ export class ImageController implements IController<Image> {
         });
     }
 
+    // Stripe retries deliveries from a small set of IPs; signature verification protects this route.
+    @SkipThrottle()
     @Post('/webhook')
     async handleStripeWebhook(
         @Req() req: RawBodyRequest<Request>,
@@ -604,7 +581,7 @@ export class ImageController implements IController<Image> {
 
         try {
             // Verify webhook signature
-            event = stripe.webhooks.constructEvent(rawBodyBuffer, signature, webhookSecret);
+            event = this.stripePayments.stripe.webhooks.constructEvent(rawBodyBuffer, signature, webhookSecret);
         } catch (err) {
             console.error('Webhook signature verification failed:', err);
             throw new BadRequestException('Invalid webhook signature');
@@ -634,10 +611,19 @@ export class ImageController implements IController<Image> {
                     return { received: true };
                 }
 
-                // Update order status to COMPLETE
-                await this.orderRepository.update(order._id.toString(), {
-                    status: OrderStatus.COMPLETE,
-                });
+                // Paid, in USD, and at least the server price for the ordered product
+                const rejection = this.stripePayments.checkPaidCheckoutSession(session, order);
+                if (rejection) {
+                    console.error(`Not granting order ${order._id}: ${rejection}`);
+                    return { received: true };
+                }
+
+                // Atomic PENDING -> COMPLETE: a redelivered or concurrent webhook grants nothing
+                const completed = await this.stripePayments.completePendingOrder(order._id);
+                if (!completed) {
+                    console.log(`Order ${order._id} already completed for session ${session.id}`);
+                    return { received: true };
+                }
 
                 console.log(`Order ${order._id} marked as COMPLETE for session ${session.id}`);
 
@@ -690,8 +676,14 @@ export class ImageController implements IController<Image> {
             throw new BadRequestException('_id parameter is required');
         }
 
+        if (!Types.ObjectId.isValid(_id)) {
+            throw new BadRequestException('Invalid _id');
+        }
+        // Public route polled by the portrait checkout page, which reads status, id and price only.
+        // No user, wallet, payment hash or discount code leaves the server.
         const order = await this.orderRepository.findOne({
-            searchObject: { _id },
+            searchObject: { _id: new Types.ObjectId(_id) },
+            projection: ORDER_STATUS_PROJECTION,
         });
 
         if (!order) {

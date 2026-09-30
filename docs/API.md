@@ -2,16 +2,17 @@
 
 Base URL is the backend origin (`NEXT_PUBLIC_BE_URL` in the clients). All endpoints return JSON.
 Paging endpoints accept `{ page, perPage, query, sort }` in the POST body; the default page size
-is 50.
+is 50. Search handlers read only those keys (plus `shelter` or `category` where listed); any other
+body key, such as `searchObject`, `projection` or `pipelineStages`, is ignored (2026-09 fix).
 
 Auth legend:
 
 | Tag | Meaning |
 |---|---|
 | Public | No guard |
-| Auth | `accesstoken` header holding a Firebase ID token prefixed with `fb`, or Telegram Mini App init data |
+| Auth | `accesstoken` header holding a Firebase ID token prefixed with `fb`; any other token, or a Firebase token without an `email` claim, gets 401 |
 | Perm(n) | Auth plus `User.permission >= n` where 1 user, 2 moderator, 3 editor, 4 manager, 5 admin |
-| Throttle | 5 requests per minute per client |
+| Throttle(n) | Every route is limited to 300 requests per minute per client IP; Throttle(n) marks a tighter limit of n per minute. `GET /` and the Stripe webhook are exempt |
 | Stripe | Stripe webhook signature |
 
 ## Health and stats
@@ -26,9 +27,9 @@ Auth legend:
 | Method | Path | Purpose | Auth |
 |---|---|---|---|
 | GET | `/user/profile` | Own profile with active cat, blessing, shelter | Auth |
-| GET | `/user/profile/:userId` | Another user's profile | Public (see note) |
+| GET | `/user/profile/:id` | A user's `name email discount permission shelter twitter discord` for the CMS user form | Perm(4) |
 | POST | `/user/profile` | Create a user with wallet and starter cat | Perm(4) |
-| PUT | `/user/profile/:id` | Update any user field | Perm(4) |
+| PUT | `/user/profile/:id` | Update `name`, `email`, `discount`, `shelter`, `permission` (any other field gets 400) | Perm(4) |
 | PUT | `/user/profile/:id/twitter` | Set own Twitter and Discord handles | Auth (self only) |
 | POST | `/user/search` | Autocomplete search on user names | Perm(4) |
 | GET | `/user/cats` | All owned cats with blessing, avatar, shelter | Auth |
@@ -38,8 +39,10 @@ Auth legend:
 | POST | `/user/loot/twitter` | Grant one loot box to each Twitter handle in the body | Perm(3) |
 | POST | `/user/loot/discord` | Grant one loot box to each Discord handle in the body | Perm(3) |
 
-Note: the manager-only variant of `GET /user/profile/:id` is declared after the public one and is
-never reached.
+Note: `POST` and `PUT /user/profile` validate the body against `ProfileWriteDto`
+(`src/user/dto/profile-write.dto.ts`) and reject unknown fields and Mongo operators. The public
+`GET /user/profile/:userId` was removed (2026-09): it returned emails and wallet addresses and
+shadowed the manager route. No client caller used it.
 
 ### Airdrop
 
@@ -67,12 +70,18 @@ never reached.
 | Method | Path | Purpose | Auth |
 |---|---|---|---|
 | GET | `/user/catbassadors/lives/redeem` | Daily check-in: random $TAILS roll, streak plus one | Auth |
-| GET | `/user/catbassadors/referral/:telegramId` | Register caller as referral of a Telegram user; both earn 100 $TAILS | Auth |
-| GET | `/user/catbassadors/referralw/:referralId` | Same by Mongo user id (web flow) | Auth |
-| POST | `/user/catbassadors/live` | Submit a game result: `{ type, points, score, time, level, cat }` | Auth |
+| GET | `/user/catbassadors/referralw/:referralId` | Register caller as referral of the user with this Mongo id (web `?ref=` flow); both earn 100 $TAILS | Auth |
+| POST | `/user/catbassadors/live` | Submit a game result: `{ type, points, score, time, level, cat, platform }` | Auth, 30 per minute per player, 120 per IP |
 
-The score endpoint writes a `Game` row, caps `points` per game type, applies `$max` to the
-per-level arrays, recomputes catnip totals, and returns the fresh snapshot.
+The score endpoint validates the body against `LiveGameDto` (`src/user/dto/live-game.dto.ts`) and
+rejects unknown fields with 400. `type` must be `CATNIP_CHAOS`, `PIXEL_RESCUE` or `MATCH_3`; any
+other value, including the legacy `PURRQUEST` and `CATBASSADORS`, is a 400. `level` must be a level
+of that type and `points` an integer from 0 to the level's cap. `score` (Paw Match raw score, 0 to
+1,000,000) is stored for `MATCH_3` only. `time` is a number up to 86,400, stored clamped to 0 or
+more. `cat` is accepted but ignored: the row gets the caller's current cat. `platform` is `web`,
+`ios` or `android`, and `web` when absent. Nothing is written when validation fails. It then writes
+a `Game` row with only these fields, applies `$max` to the per-level arrays, recomputes catnip
+totals, and returns the fresh snapshot.
 
 ## Cats
 
@@ -82,7 +91,7 @@ per-level arrays, recomputes catnip totals, and returns the fresh snapshot.
 | GET | `/cat/:id` | Single cat with blessing, avatar, shelter | Public |
 | GET | `/cat/adopt/:_id` | Adopt (clone) a cat to the caller | Auth |
 | GET | `/cat/:_id/activate` | Set the caller's active cat | Auth |
-| PUT | `/cat/:id` | Feed the cat: fills `EAT`, pays 1 $TAILS | Auth |
+| PUT | `/cat/:id` | Feed the caller's own cat: fills `EAT`, pays 1 $TAILS once per fill. Body is ignored. 400 bad id, 403 not the owner, 404 no such cat, 409 already full | Auth |
 | GET | `/cat/stake/:_id` | Stake a cat for one week | Auth |
 | GET | `/cat/stake-reward/:_id` | Claim staking reward by tier | Auth |
 | GET | `/cat/redeem/:catCode` | Redeem a promo code for a cat | Auth |
@@ -121,28 +130,31 @@ per-level arrays, recomputes catnip totals, and returns the fresh snapshot.
 | Method | Path | Purpose | Auth |
 |---|---|---|---|
 | POST | `/image` | Multipart upload field `file`; converts to WebP and stores on Spaces | Auth |
-| POST | `/image/search` | Paged image list | Public |
+| POST | `/image/search` | Paged image list; only paging and sort are read from the body | Public |
 | GET | `/image/:id` | Single image | Public |
 | PUT | `/image/:id` | Update title and caption | Perm(3) |
 | DELETE | `/image/:id` | Delete | Perm(3) |
-| POST | `/image/portrait` | Upload plus synchronous portrait generation; `style` selects the prompt | Public, Throttle |
-| PUT | `/image/portrait/:id/regenerate` | Regenerate a portrait | Public (see known issues) |
-| POST | `/image/create-checkout-session` | Stripe Checkout for `digital`, `print`, `canvas`; creates a pending order; may create a user from `email` | Public, Throttle |
-| POST | `/image/create-checkout-session-signed` | Same, user taken from the caller | Auth, Throttle |
-| POST | `/image/webhook` | Stripe webhook; on `checkout.session.completed` completes the order, emails the buyer, creates the blessing and cat | Stripe |
-| GET | `/image/order/status?_id=` | Poll an order's status | Public |
+| POST | `/image/portrait` | Upload plus synchronous portrait generation; `style` selects the prompt. Still public although each call is a paid generation (open product decision). Provider errors return a fixed message | Public, Throttle(5) |
+| PUT | `/image/portrait/:id/regenerate` | Regenerate a portrait (a paid generation). 401 when signed out; the client shows a sign-in message. Provider errors return a fixed message | Auth, Throttle(3) |
+| POST | `/image/create-checkout-session` | Stripe Checkout for `digital`, `print`, `canvas` at the server price ($6, $49, $69; a sent `amount` is ignored); creates a pending order; may create a user from `email` | Public, Throttle(5) |
+| POST | `/image/create-checkout-session-signed` | Same, user taken from the caller | Auth, Throttle(5) |
+| POST | `/image/webhook` | Stripe webhook; on `checkout.session.completed` checks the session is paid at the server price, completes the pending order once, emails the buyer, creates the blessing and cat | Stripe, not throttled |
+| GET | `/image/order/status?_id=` | Poll an order's status. Returns only `_id status entityType id image price`; 400 when `_id` is not an ObjectId | Public |
 
 ## Web3 and payments
 
 | Method | Path | Purpose | Auth |
 |---|---|---|---|
-| POST | `/web3/create` | Create a pending order | Auth |
-| POST | `/web3/confirm` | Verify a Stellar transaction hash via Horizon, complete the order, grant a cat, credit the affiliate | Auth |
-| POST | `/web3/create-payment` | Create a Stripe PaymentIntent, returns `clientSecret` | Auth |
-| POST | `/web3/confirm-payment` | Verify the PaymentIntent succeeded and belongs to the caller, then grant | Auth |
+| POST | `/web3/confirm` | Verify a Stellar transaction hash via Horizon (successful, pays the treasury, in the order's XLM or USDC, at least the server catalogue price less a verified discount; the body `price` is ignored), complete the order, grant a cat, credit the affiliate. `entityType` must be `IMAGE`, `PACK` (with a pack `id`) or `LOOT_BOX` (with no `id`), else 400 before any order exists. The hash is lowercased and must be the payment's outer hash (for a fee-bump, the fee-bump hash; the inner hash is refused). `spent`, `monthSpent` and the affiliate credit use the verified amount. 400 when verification fails (the hash is released for a retry), 409 when the hash, or another hash of the same payment, already backs an order, 503 when Horizon or the XLM rate is unavailable | Auth |
+| POST | `/web3/create-payment` | Create a Stripe PaymentIntent at the server price (table price less a verified `discount` code); a sent `amount` is ignored. Returns `clientSecret` | Auth |
+| POST | `/web3/confirm-payment` | Verify the PaymentIntent belongs to the caller, succeeded, is in USD and covers the server price, then grant once: a replayed confirm returns `{ success: false }` and grants nothing. The discount comes from the intent, not the body. Stripe and database errors return a fixed message | Auth |
 | POST | `/web3/validate-discount` | Validate a discount code; returns the percentage | Public |
 | GET | `/web3/pack/:packType/:id` | Grant a `STARTER`, `INFLUENCER`, or `LEGENDARY` pack cat without payment | Perm(5) |
-| GET | `/web3/loot/buyers` | Eligible loot-drop buyers since a fixed date | Public (see known issues) |
+| GET | `/web3/loot/buyers` | Eligible loot-drop buyers since a fixed date, with wallet and email | Perm(5) |
+
+`POST /web3/create` was removed (2026-09). It had no client or CMS caller, took `user` from the
+body, and let any signed-in caller park a pending order on someone else's transaction hash, which
+the unique `hash` index then turned into a permanent 409 for the real buyer.
 
 ## Content
 
@@ -195,6 +207,7 @@ per-level arrays, recomputes catnip totals, and returns the fresh snapshot.
 | Enum | Values |
 |---|---|
 | `GameType` | `SHELTER`, `HOME`, `PURRQUEST`, `CATBASSADORS`, `CATNIP_CHAOS`, `PIXEL_RESCUE`, `MATCH_3` |
+| `GamePlatform` | `web`, `ios`, `android` |
 | `CatAbilityType` | `ICE`, `ELECTRIC`, `FIRE`, `WIND`, `DARK`, `WATER`, `GRASS`, `SAND`, `FAIRY`, `STELLAR` |
 | `Tier` | `COMMON`, `RARE`, `EPIC`, `LEGENDARY` |
 | `PackType` | `STARTER`, `INFLUENCER`, `LEGENDARY` |

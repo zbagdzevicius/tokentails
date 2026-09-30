@@ -134,3 +134,7 @@ export const MATCH3_TILE_BY_TYPE: Record<Match3TileType, (typeof MATCH3_TILE_ASS
 export const isMatch3LevelId = (level: string): level is Match3LevelId => {
   return Object.prototype.hasOwnProperty.call(MATCH3_LEVEL_BY_ID, level);
 };
+
+/** Run time saved with a Paw Match run: whole seconds played, never negative. */
+export const getMatch3RunTime = (elapsedSeconds: number): number =>
+  Number.isFinite(elapsedSeconds) ? Math.max(0, Math.floor(elapsedSeconds)) : 0;

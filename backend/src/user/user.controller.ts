@@ -1,21 +1,20 @@
 import { BadRequestException, Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { Throttle } from '@nestjs/throttler';
 import { Types } from 'mongoose';
 import { CatRepository } from 'src/cat/cat.repository';
 import { Tier } from 'src/cat/cat.schema';
 import { CatService } from 'src/cat/cat.service';
 import { BaseRepository } from 'src/common/base.repository';
 import { getPhase, isLessThan2hoursLeft } from 'src/common/utils';
-import { SearchModel } from 'src/common/validators';
+import { pickSearchParams, SearchModel } from 'src/common/validators';
 import { GameRepository } from 'src/game/game.repository';
 import {
-    catnipChaosLevelCatnipCaps,
-    catnipChaosLevels,
     GameType,
-    IGame,
-    match3LevelCatnipCaps,
+    MAX_MATCH3_SCORE_PER_LEVEL,
     match3Levels,
+    seasonEventLevelPointCaps,
     seasonEventLevels,
     totalCatnipCap,
 } from 'src/game/game.schema';
@@ -29,20 +28,33 @@ import { OrderStatus } from 'src/web3/order.schema';
 import { ArticleRepository } from '../article/article.repository';
 import { CommentRepository } from '../comment/comment.repository';
 import { buildAirdropProgression, IAirdropProgressionResponse } from './airdrop-progression';
+import { LIVE_GAME_THROTTLE, LiveGameDto, liveGamePipe } from './dto/live-game.dto';
+import { LiveGameUserThrottleGuard } from './live-game-throttle.guard';
+import { ProfileWriteDto, profileWritePipe } from './dto/profile-write.dto';
+import {
+    CODEX_RESET_CRON,
+    CODEX_RESET_JOB_NAME,
+    CODEX_RESET_TIMEZONE,
+    JOB_RUNS_COLLECTION,
+    MONTHLY_COUNTER_RESET,
+    runCodexReset,
+} from './codex-reset';
 import { PERMISSION_LEVEL } from './models/user.model';
 import { buildCatnipAccountingSnapshot, buildCatnipSanitizationUpdate } from './utils/catnip-accounting';
+import { resolveLiveGame } from './utils/live-game';
 import { UserRepository } from './user.repository';
 import { ISave, ISaved, IUser, User } from './user.schema';
 import { UserService } from './user.service';
 import { users } from './users';
 
 const twitters: string[] = [];
-const MAX_SEASON_EVENT_POINTS_PER_LEVEL = 420;
 const MAX_LEGIT_CATNIP_SCORE = totalCatnipCap;
-const MAX_MATCH3_SCORE_PER_LEVEL = 1000000;
 const PAW_MATCH_LEADERBOARD_DEFAULT_TOP = 120;
 const PAW_MATCH_LEADERBOARD_MAX_TOP = 500;
 const PAW_MATCH_LEADERBOARD_CACHE_TTL_MS = 15000;
+// Fields the manager-only GET /user/profile/:id returns: exactly what the CMS user form reads,
+// plus the social handles. No wallets, secrets or balances.
+export const PROFILE_ADMIN_PROJECTION = 'name email discount permission shelter twitter discord';
 
 const toLevelValueArray = (values: unknown[] | Record<string, unknown> | undefined | null): unknown[] => {
     if (Array.isArray(values)) {
@@ -70,7 +82,7 @@ const normalizeSeasonEventScores = (values: unknown[] | undefined | null): numbe
         if (!Number.isFinite(numeric) || numeric <= 0) {
             return 0;
         }
-        return Math.min(MAX_SEASON_EVENT_POINTS_PER_LEVEL, Math.floor(numeric));
+        return Math.min(seasonEventLevelPointCaps[index], Math.floor(numeric));
     });
 };
 
@@ -289,20 +301,12 @@ export class UserController {
         await this.repository.model.updateMany({ _id: { $in: top.map(user => user._id) } }, { $inc: { tails: 200 } });
     }
 
-    @Cron('0 0 1 * * ')
+    @Cron(CODEX_RESET_CRON, { name: CODEX_RESET_JOB_NAME, timeZone: CODEX_RESET_TIMEZONE })
     async resetCodex() {
-        await this.giveLootBoxesToTailsGuards();
-        await this.repository.updateAll({
-            monthTails: 0,
-            monthBoxes: 0,
-            monthFeeded: 0,
-            monthStreak: 0,
-            monthPacks: 0,
-            monthReferrals: 0,
-            monthTailsCrafted: 0,
-            monthPortraitPurchases: 0,
-            airdropChallengesClaimed: [],
-            airdropMilestonesClaimed: [],
+        return runCodexReset({
+            jobRuns: this.repository.model.db.collection(JOB_RUNS_COLLECTION),
+            payGuards: () => this.giveLootBoxesToTailsGuards(),
+            resetCounters: () => this.repository.updateAll(MONTHLY_COUNTER_RESET),
         });
     }
 
@@ -536,27 +540,6 @@ export class UserController {
         return user;
     }
 
-    @Get('profile/:userId')
-    async specificProfile(@Param('userId') userId: string): Promise<User> {
-        const user = await this.repository.findOne({
-            searchObject: { _id: userId },
-            projection:
-                'name email discord discount catnipChaos catnipChaosCount catnipCount match3 match3Count match3Score match3ScoreCount boxes permission twitter shelter cat canRedeemLives quests referrals wallets.stellar.walletAddress streak',
-            populate: [
-                {
-                    path: 'cat',
-                    select: '-code',
-                    populate: [
-                        { path: 'blessing', populate: { path: 'image', select: 'url' } },
-                        { path: 'shelter', select: 'country name image', populate: [{ path: 'image', select: 'url' }] },
-                    ],
-                },
-            ],
-        });
-
-        return user;
-    }
-
     @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.MANAGER))
     @Post('search')
     public async search(@Body() params: SearchModel): Promise<IUser[]> {
@@ -575,8 +558,8 @@ export class UserController {
 
         return this.repository.find({
             searchObject,
-            ...params,
-            projection: 'name email telegramUsername streak permission',
+            ...pickSearchParams(params),
+            projection: 'name email streak permission',
         });
     }
 
@@ -698,7 +681,9 @@ export class UserController {
             .filter((row: any) => row.levelScore > 0)
             .sort(
                 (a: any, b: any) =>
-                    b.levelScore - a.levelScore || b.match3ScoreCount - a.match3ScoreCount || `${a.name || ''}`.localeCompare(`${b.name || ''}`)
+                    b.levelScore - a.levelScore ||
+                    b.match3ScoreCount - a.match3ScoreCount ||
+                    `${a.name || ''}`.localeCompare(`${b.name || ''}`)
             )
             .slice(0, topLimit);
 
@@ -794,7 +779,7 @@ export class UserController {
     async profileIndividual(@Param('id') id: string): Promise<User> {
         const user = await this.repository.findOne({
             searchObject: { _id: id },
-            projection: 'name email permission shelter twitter discord',
+            projection: PROFILE_ADMIN_PROJECTION,
         });
 
         return user;
@@ -832,7 +817,7 @@ export class UserController {
 
     @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.MANAGER))
     @Post('profile')
-    async createProfile(@Body() params: User): Promise<any> {
+    async createProfile(@Body(profileWritePipe) params: ProfileWriteDto): Promise<any> {
         const wallets = this.userService.generateWallets();
 
         const catId = new Types.ObjectId();
@@ -844,7 +829,8 @@ export class UserController {
             email: params.email,
             shelter: new Types.ObjectId(params.shelter),
             canRedeemLives: true,
-            permission: params.permission,
+            // '' is the CMS form's empty number field; leave it to the schema default.
+            permission: params.permission === '' ? undefined : params.permission,
             discount: params.discount,
             wallets,
             cat: catId,
@@ -870,7 +856,7 @@ export class UserController {
 
     @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.MANAGER))
     @Put('profile/:id')
-    async updateProfile(@Body() params: User, @Param('id') id: string): Promise<any> {
+    async updateProfile(@Body(profileWritePipe) params: ProfileWriteDto, @Param('id') id: string): Promise<any> {
         await this.repository.update(id, params);
 
         return {};
@@ -934,38 +920,6 @@ export class UserController {
     }
 
     @UseGuards(AuthGuard('appauth'))
-    @Get('catbassadors/referral/:telegramId')
-    async Treferral(@USER_ID() userId: string, @Param('telegramId') telegramId: string): Promise<object> {
-        const user = await this.repository.findOne({
-            searchObject: { telegramId },
-            projection: 'referrals',
-        });
-        if (!user) {
-            throw new BadRequestException('Such user does not exist');
-        }
-        if (userId?.toString() === user._id?.toString()) {
-            throw new BadRequestException('You can not add yourself as referral');
-        }
-        if (user.referrals?.find(ref => ref.toString() === userId?.toString())) {
-            throw new BadRequestException('You can not add same referral twice');
-        }
-        try {
-            await this.repository.update(user._id, {
-                $push: { referrals: { $each: [new Types.ObjectId(userId)], $position: 0 } },
-                $inc: { tails: REWARDS.INVITE_FRIEND, monthReferrals: 1, referralsCount: 1 },
-            });
-        } catch (e) {}
-        try {
-            await this.repository.update(userId, {
-                $set: { referredBy: user._id },
-                $inc: { tails: REWARDS.INVITE_FRIEND },
-            });
-        } catch (e) {}
-
-        return {};
-    }
-
-    @UseGuards(AuthGuard('appauth'))
     @Get('catbassadors/referralw/:referralId')
     async TreferralWeb(@USER_ID() userId: string, @Param('referralId') referralId: string): Promise<object> {
         const user = await this.repository.findOne({
@@ -997,13 +951,12 @@ export class UserController {
         return {};
     }
 
-    @UseGuards(AuthGuard('appauth'))
+    @UseGuards(AuthGuard('appauth'), LiveGameUserThrottleGuard)
+    @Throttle({ default: LIVE_GAME_THROTTLE })
     @Post('catbassadors/live')
-    async Tcatbassadors(@USER_ID() userId: string, @Body() game: IGame): Promise<any> {
-        const pointsNumber = Number(game.points);
-        const normalizedPoints = Math.floor(pointsNumber);
-        const scoreNumber = Number(game.score ?? game.points);
-        const normalizedScore = Math.floor(scoreNumber);
+    async Tcatbassadors(@USER_ID() userId: string, @Body(liveGamePipe) body: LiveGameDto): Promise<any> {
+        // Validates type, level and the per-level cap before anything is written.
+        const { row, best } = resolveLiveGame(body);
         const user = await this.repository.findOne({
             searchObject: { _id: userId },
             projection: 'cat',
@@ -1012,72 +965,9 @@ export class UserController {
             throw new BadRequestException('User not found');
         }
 
-        const gameMaxPoints: Record<GameType, number> = {
-            [GameType.SHELTER]: 420,
-            [GameType.HOME]: 420,
-            [GameType.PURRQUEST]: 420,
-            [GameType.CATBASSADORS]: 420,
-            [GameType.CATNIP_CHAOS]: 420,
-            [GameType.PIXEL_RESCUE]: 420,
-            [GameType.MATCH_3]: 2000,
-        };
-        const maxPoints = gameMaxPoints[game.type] ?? 420;
-
-        if (!Number.isFinite(pointsNumber) || !Number.isInteger(pointsNumber) || pointsNumber < 0 || pointsNumber > maxPoints) {
-            throw new BadRequestException('Artificial request is detected');
-        }
-        await this.gameRepository.create({
-            ...game,
-            cat: user.cat,
-            user: user._id,
-        });
-
-        let shouldInvalidatePawMatchLeaderboard = false;
-
-        if (game.type === GameType.CATNIP_CHAOS) {
-            const index = catnipChaosLevels.findIndex(level => level === game.level);
-            if (index < 0) {
-                throw new BadRequestException('Invalid level for CATNIP_CHAOS');
-            }
-            const levelCatnipCap = catnipChaosLevelCatnipCaps[index];
-            if (!Number.isFinite(levelCatnipCap) || normalizedPoints > levelCatnipCap) {
-                throw new BadRequestException('Artificial request is detected');
-            }
-            await this.repository.update(userId, {
-                $max: { [`catnipChaos.${index}`]: normalizedPoints },
-            });
-        }
-        if (game.type === GameType.PIXEL_RESCUE) {
-            const index = seasonEventLevels.findIndex(level => level === game.level);
-            if (index < 0) {
-                throw new BadRequestException('Invalid level for PIXEL_RESCUE');
-            }
-            await this.repository.update(userId, {
-                $max: { [`seasonEvent.${index}`]: normalizedPoints },
-            });
-        }
-        if (game.type === GameType.MATCH_3) {
-            const index = match3Levels.findIndex(level => level === game.level);
-            if (index < 0) {
-                throw new BadRequestException('Invalid level for MATCH_3');
-            }
-            const levelCatnipCap = match3LevelCatnipCaps[index];
-            if (!Number.isFinite(levelCatnipCap) || normalizedPoints > levelCatnipCap) {
-                throw new BadRequestException('Artificial request is detected');
-            }
-            if (
-                !Number.isFinite(scoreNumber) ||
-                !Number.isInteger(scoreNumber) ||
-                scoreNumber < 0 ||
-                scoreNumber > MAX_MATCH3_SCORE_PER_LEVEL
-            ) {
-                throw new BadRequestException('Artificial request is detected');
-            }
-            await this.repository.update(userId, {
-                $max: { [`match3.${index}`]: normalizedPoints, [`match3Score.${index}`]: normalizedScore },
-            });
-            shouldInvalidatePawMatchLeaderboard = true;
-        }
+        await this.gameRepository.create({ ...row, cat: user.cat, user: user._id });
+        await this.repository.update(userId, { $max: best });
+        const shouldInvalidatePawMatchLeaderboard = row.type === GameType.MATCH_3;
 
         const latest = await this.repository.findOne({
             searchObject: { _id: userId },

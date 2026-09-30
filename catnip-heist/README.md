@@ -163,6 +163,7 @@ src/
   yard/           Cat Yard: garden scene where every breed wanders
 tools/            level builder (build-levels.mjs + levels/*.mjs), solver + scripts, one-cat proof
 e2e/              Playwright specs; screenshots are written to e2e/screens/
+perf/             measure.mjs (performance harness), BASELINE.md, baseline JSON, ref/ screenshots
 ```
 
 Screens: Title → Cat pick → Level select → loading → Heist ⇄ Pause → Results → Next level, Retry,
@@ -177,12 +178,19 @@ Loop (`App.frame`, runs every animation frame):
    are used instead.
 2. After each tick, `renderer.observe(state)`, `ui.handleEvents(events)` and
    `audio.playEvents(events)` run, so a slow frame never drops events.
-3. `ui.updateHUD(cur)` runs, and `renderer.update(prev, cur, alpha)` draws with interpolation.
+3. `ui.updateHUD(cur)` runs, and `renderer.update(prev, cur, alpha)` draws with interpolation. The
+   HUD only touches the DOM when `cur` is a new state (30 Hz), and then only for values that changed.
+   Behind the pause modal the scene is redrawn at about 10 fps once the quality probe has settled.
+   Those redraws are passed as `throttled`: the quality governor does not time them, and it starts
+   a fresh window on resume, so a long pause never reads as a slow GPU.
 4. When the run is won (or a replay runs out of inputs), input is disabled, the run's input log is
    saved as `catnip-heist.lastReplay`, and Results appears 1.6 s later so the win effect can play.
 
 The game renderer is created once and reused across runs through `setLevel` / `setCats`. The Cat Yard
-has its own canvas and is disposed when you leave it. Both share the voxel geometry cache.
+has its own canvas and is disposed when you leave it. Both share the voxel geometry cache. The Yard's
+WebGL context is kept between visits (so shaders are not recompiled); its canvas is detached on exit,
+so nothing of the visit stays reachable. What stays in the heap after leaving (about 6.5 MB) is the
+shared sheet, pixel and geometry cache for the 58 breeds, which makes the next visit fast.
 
 ### QA hooks (`window.__heist`, dev or `?qa=1`)
 
@@ -233,6 +241,74 @@ The e2e suite (`e2e/heist.spec.ts`) checks:
 It saves a screenshot of every screen to `e2e/screens/`. Playwright uses the locally cached
 `chromium_headless_shell-1234`, falling back to `chromium-1234`, or whatever `PW_CHROMIUM` points to.
 
+### Performance
+
+`perf/BASELINE.md` has the measured baseline (load; runtime on every level, the title and the Cat
+Yard at desktop and phone sizes with 4x / 6x CPU throttling on both quality tiers; heap and GC) and
+the top 10 hotspots. `node perf/measure.mjs` re-runs it and prints the same metrics as JSON:
+`--quick` is a one-minute smoke run, `--gpu=metal` uses the host GPU instead of SwiftShader,
+`--profile` adds CPU and allocation profiles, `--md <file.json>` prints tables. `node
+perf/measure.mjs --compare-screens` diffs fresh captures against `perf/ref/`. It builds and serves
+its own copy on a free port and does not modify `src/`. Each load run starts from a tiny routed
+blank page on the same origin. Until 2026-09-30 it started from `/assets/manifest.json`, which
+Chromium lays out and (on SwiftShader, in software) rasters as text. Once the manifest was minified
+to a single 54 kB line, that work spilled about 70 ms (4x) into the measured navigation and read as a
+later DOMContentLoaded and title on SwiftShader. `perf/RESULTS.md` has the before/after with the
+fixed harness.
+
+CPU, DOM and memory changes after the baseline (A/B against the same tree, desktop 6x high on Metal,
+two interleaved runs each):
+
+- Yard wander AI (`src/yard/wander.ts`): no `Math.hypot` (it allocated per call), neighbour queries
+  sweep a per-array x-sorted order instead of scanning all 58 agents. Yard allocation 8.7 to 9.0 MB/s
+  down to 4.2 to 4.3 MB/s; `stepAgents` about 5x faster in isolation (26 to 5 µs per step) and
+  allocation-free. The Yard also skips its camera update and label style writes when nothing moved.
+- HUD: `ui.updateHUD` 0.11 to 0.14 ms per frame down to 0.03 to 0.04 ms (work only on a new sim
+  state; the narrow-screen media query and the touch flag are cached).
+- Title: the Play button's glow is an opacity-only layer instead of an animated `box-shadow`, which
+  restyled the title on every frame. Title JS per frame p50 5.0 ms down to 3.8 to 4.5 ms; the forced
+  style flush that the diorama pays in `placeLights()` drops from 13.8% to 12% of busy CPU (490 to
+  340 ms per 6 s).
+- Memory: after title, Yard and heist-01 round trips the heap settles at 14.6 to 15.5 MB instead of
+  19.9 to 20.8 MB (six cycles; no growth in DOM nodes or listeners).
+- Audio: finished voices disconnect themselves, and fixed-frequency noise filters (footsteps, drums)
+  are shared nodes instead of one per hit. Gamepad polling allocates nothing per frame and stops when
+  no pad is connected; the touch stick reads its zone's position once per drag.
+
+Load-side changes since the baseline (median of 2 Metal load runs each, same tree otherwise):
+the voxel mesher writes straight into reused typed arrays (byte-identical output, pinned by golden
+hashes in `extrude.test.ts`; all 58 breeds + 5 dogs, every frame, both presets: 1.57 s to 0.67 s
+in Node), sheet PNGs are decoded with `img.decode()` and read back through one scratch canvas,
+assets went through the lossless pass above, three.js is its own cached chunk, and `index.html`
+preloads the manifest and font. Desktop 4x high: title interactive 258 to 213 ms, first heist 361
+to 302 ms, Cat Yard ready 873 to 541 ms and all sheets 5.8 to 3.2 s; phone 6x high: title 435 to
+352 ms, first heist 566 to 442 ms, Yard all sheets 9.8 to 5.2 s. Whole session download 2.13 to
+1.18 MB. Voxel extrusion still runs on the main thread (time-sliced in the Yard, synchronous in
+`GameRenderer.setCats` / `guardSheet`); moving it to a worker needs an async prewarm at those call
+sites.
+
+Render loop (`src/render/`), what keeps a heist frame cheap:
+
+- Vision cones are clipped again only when a guard's sim position, facing or radius changes, or a
+  door opens or closes (at most once per 30 Hz tick, not every frame). Only the used part of the
+  vertex buffer is uploaded. Per-guard colour, alpha pulse and origin are shader uniforms.
+- The scene root and the static level (floor, walls, frames, pads, glows, instanced props) do not
+  recompute their matrices each frame. Only animated objects do.
+- The frame never reads layout: the canvas size comes from the `ResizeObserver`.
+- High tier: the bloom is added in the final grade pass. It is no longer blended back into the
+  full-resolution MSAA scene target, which saved a full-screen pass and a second MSAA resolve. The
+  shadow map is re-rendered at most 60 times a second (every other frame on 120 Hz screens).
+- Instanced props and shadow casters get their own materials, so three.js does not re-resolve
+  shader programs on every draw. Particle and blob-shadow uploads cover only the live instances.
+- The pixel ratio is capped by a pixel budget (2.6 MP on high, 1.6 MP on low, never below 1), and
+  MSAA drops to 2x at a pixel ratio of 1.75 or more.
+- Auto quality: a 2 s probe picks the tier. After that the heist renderer drops to low after two
+  2 s windows under 36 fps. It steps back up once per session after four windows at 57 fps or more
+  on low, and then re-probes; if high does not hold, it drops back to low for the rest of the
+  session. The title diorama never steps up. `?quality=` still forces a tier. Probe and governor
+  get the real frame time (animation steps are clamped to 0.1 s, they are not), so frames over 1 s
+  (tab switches, long compiles) are skipped, and throttled pause redraws are not sampled.
+
 ## Assets
 
 `npm run import-assets` copies source art from `../cat-assets` and `../client/public` into
@@ -242,10 +318,18 @@ It saves a screenshot of every screen to `e2e/screens/`. Playwright uses the loc
 - `cats/<id>.png`: 58 breed sheets (`test-char` is skipped), 48 px tiles, rows `CAT_ROWS`, facing
   right.
 - `dogs/<id>.png`: 5 guard sheets, rows `DOG_ROWS`, facing right.
-- `images/{coin,catnip,heart,paw,logo}.png`, `icons/*.png`, `fonts/catpaw.woff2` ("Cat Paw").
+- `images/{coin,catnip,heart,paw,logo}.webp` (plus `images/paw.png` for the favicon), `icons/*.png`,
+  `fonts/catpaw.woff2` ("Cat Paw").
 
 Frame counts are detected per row (the contiguous non-empty tiles from column 0) and stored with the
 union bounds of each row's opaque pixels.
+
+The import ends with `scripts/optimize-assets.mjs` (also `npm run optimize-assets`), a lossless size
+pass: sheets and icons become palette PNGs (pixel art has far fewer than 256 colours), the brand
+images become lossless WebP, and the manifest is written without indentation. Each file is
+replaced only when the new encoding is smaller and decodes to the same pixels (same alpha, same RGB
+wherever alpha > 0). That took `public/assets` from 1.87 MB to 1.04 MB (sheets and icons 968 kB to
+444 kB, brand images 653 kB to 334 kB, manifest 98 kB to 53 kB).
 
 ## Voxel core
 
@@ -278,3 +362,14 @@ cat.update(dt);                 // seconds
 | `src/render/` (the rest) | render |
 | `src/ui/`, `src/audio/`, `src/yard/` | ui |
 | `src/main.ts`, `src/app/`, `e2e/` | integrate |
+
+### Shelter payouts on the win screen
+
+The rescue screen shows a read-only on-chain total ("X USDC sent to real shelters so far, on-chain").
+`src/ui/payouts.ts` reads ShelterSplit's `Disbursed` and `NativeDisbursed` events from public RPCs;
+no wallet is involved. The deployment list is `public/payouts/deployments.json`, written by
+`fund a:ingest` after a deploy. `HEIST_DEPLOYMENTS_URL` overrides it, and an empty value hides the line.
+
+`npm run build:client` builds a copy into `../client/public/heist/` (base `/heist/`) that reads the
+client's `/shelter-payouts/deployments.json` and links to `/shelter-payouts`. The client links to it
+as `/heist/index.html`.

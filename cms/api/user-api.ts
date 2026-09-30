@@ -1,5 +1,5 @@
 import { IBlessing } from '@/models/blessing';
-import { IProfile, PackType } from '@/models/profile';
+import { IProfile, IProfileInput, PackType } from '@/models/profile';
 import { ISearch } from '@/models/search';
 import { request } from './api';
 
@@ -14,14 +14,14 @@ const grantPack = async (
   return request<IProfile>(`/web3/pack/${packType}/${id}`, 'GET');
 };
 
-const userEdit = async (profile: IProfile): Promise<IBlessing | null> => {
+const userEdit = async (profile: IProfileInput): Promise<IBlessing | null> => {
   const id = profile._id;
   const profileData = { ...profile };
   delete profileData._id;
   return request<IBlessing>(`/user/profile/${id}`, 'PUT', profileData);
 };
 
-const userCreate = async (profile: IProfile): Promise<IProfile | null> => {
+const userCreate = async (profile: IProfileInput): Promise<IProfile | null> => {
   return request<IProfile>('/user/profile', 'POST', profile);
 };
 

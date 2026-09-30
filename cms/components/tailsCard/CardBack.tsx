@@ -10,7 +10,7 @@ type CardBackProps = {
 const POWER = 1; // TODO: Replace with actual cat power value
 
 export const CardBack: React.FC<CardBackProps> = React.memo(
-  ({ cat, blessing }) => {
+  function CardBack({ cat, blessing }: CardBackProps) {
     // Memoize lookups
     const typeIcon = useMemo(() => cardsIcon[cat.type], [cat.type]);
     const borderColor = useMemo(() => cardsBorderColor[cat.type], [cat.type]);

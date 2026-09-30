@@ -29,8 +29,9 @@ const PAW_MATCH_LEADERBOARD_TOP = 120;
 
 export const Match3Levels = ({ setSelectedLevel }: IProps) => {
   const { profile } = useProfile();
+  const match3Score = profile?.match3Score;
   const normalizedBestMatch3Score = useMemo(() => {
-    const rawScores = Array.isArray(profile?.match3Score) ? profile.match3Score : [];
+    const rawScores = Array.isArray(match3Score) ? match3Score : [];
     return MATCH3_LEVELS.map((_level, index) => {
       const numeric = Number(rawScores[index] ?? 0);
       if (!Number.isFinite(numeric) || numeric <= 0) {
@@ -38,7 +39,7 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
       }
       return Math.floor(numeric);
     });
-  }, [profile?.match3Score]);
+  }, [match3Score]);
   const totalMatch3Score = useMemo(() => {
     const explicitTotal = Number(profile?.match3ScoreCount ?? 0);
     if (Number.isFinite(explicitTotal) && explicitTotal > 0) {
@@ -231,14 +232,15 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
   ]);
 
   const topLeaderboardRows = levelLeaderboardRows.slice(0, 8);
+  const myLeaderboardPosition = myLeaderboardPositionData?.position;
   const myLeaderboardRank = useMemo(() => {
-    if (typeof myLeaderboardPositionData?.position === "number") {
-      return myLeaderboardPositionData.position;
+    if (typeof myLeaderboardPosition === "number") {
+      return myLeaderboardPosition;
     }
     const fallbackId = profileId || "__me";
     const row = levelLeaderboardRows.find((entry) => entry.playerId === fallbackId);
     return row?.rank ?? null;
-  }, [myLeaderboardPositionData?.position, levelLeaderboardRows, profileId]);
+  }, [myLeaderboardPosition, levelLeaderboardRows, profileId]);
   const myLevelScoreForSelectedLevel = useMemo(() => {
     const explicit = Number(myLeaderboardPositionData?.levelScore ?? 0);
     if (Number.isFinite(explicit) && explicit > 0) {

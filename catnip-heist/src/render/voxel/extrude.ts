@@ -118,8 +118,9 @@ export function analyseRect(src: PixelSource, rect: Rect, opts: ExtrudeOptions =
     }
   }
   // 4-connected BFS distance to the nearest transparent pixel (out-of-rect counts as transparent).
-  const dist = new Uint8Array(w * h);
-  const queue = new Int32Array(w * h);
+  const n = w * h;
+  const dist = new Uint8Array(n);
+  const queue = new Int32Array(n);
   let qh = 0;
   let qt = 0;
   for (let y = 0; y < h; y++) {
@@ -134,17 +135,21 @@ export function analyseRect(src: PixelSource, rect: Rect, opts: ExtrudeOptions =
       }
     }
   }
+  // Neighbours in the order left, right, up, down (no per-pixel array).
   while (qh < qt) {
     const i = queue[qh++];
     const d = dist[i];
     if (d >= maxExtra) continue;
     const x = i % w;
-    const nb = [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i - w, i + w];
-    for (const n of nb) {
-      if (n < 0 || n >= w * h || !solid[n] || dist[n]) continue;
-      dist[n] = d + 1;
-      queue[qt++] = n;
-    }
+    const d1 = d + 1;
+    let j = i - 1;
+    if (x > 0 && solid[j] && !dist[j]) { dist[j] = d1; queue[qt++] = j; }
+    j = i + 1;
+    if (x < w - 1 && solid[j] && !dist[j]) { dist[j] = d1; queue[qt++] = j; }
+    j = i - w;
+    if (j >= 0 && solid[j] && !dist[j]) { dist[j] = d1; queue[qt++] = j; }
+    j = i + w;
+    if (j < n && solid[j] && !dist[j]) { dist[j] = d1; queue[qt++] = j; }
   }
   const depth = new Uint8Array(w * h);
   for (let i = 0; i < w * h; i++) {
@@ -165,12 +170,57 @@ export function analyseRect(src: PixelSource, rect: Rect, opts: ExtrudeOptions =
   return { w, h, depth, color, count };
 }
 
+/**
+ * Growable typed-array quad writer. Writing straight into typed arrays (instead of pushing into
+ * plain arrays and copying at the end) and keeping the current colour in fields (instead of a
+ * tuple per face) removes nearly all per-face allocation; the output is byte-identical.
+ */
 class MeshBuilder {
-  pos: number[] = [];
-  nrm: number[] = [];
-  col: number[] = [];
-  idx: number[] = [];
-  private v = 0;
+  pos = new Float32Array(12 * 256);
+  nrm = new Float32Array(12 * 256);
+  col = new Float32Array(12 * 256);
+  idx = new Uint32Array(6 * 256);
+  /** Quads written. */
+  q = 0;
+  r = 0;
+  g = 0;
+  b = 0;
+
+  reset(): this {
+    this.q = 0;
+    return this;
+  }
+
+  private grow(): void {
+    const n = this.pos.length * 2;
+    const f = (a: Float32Array) => {
+      const o = new Float32Array(n);
+      o.set(a);
+      return o;
+    };
+    this.pos = f(this.pos);
+    this.nrm = f(this.nrm);
+    this.col = f(this.col);
+    const idx = new Uint32Array(this.idx.length * 2);
+    idx.set(this.idx);
+    this.idx = idx;
+  }
+
+  /** Set the colour of the following quads (see the original `unpack`). */
+  color(c: number, mul: number, linear: boolean): void {
+    const r = (c >> 16) & 255;
+    const g = (c >> 8) & 255;
+    const b = c & 255;
+    if (linear) {
+      this.r = Math.min(1, SRGB_LUT[r] * mul);
+      this.g = Math.min(1, SRGB_LUT[g] * mul);
+      this.b = Math.min(1, SRGB_LUT[b] * mul);
+    } else {
+      this.r = Math.min(1, (r / 255) * mul);
+      this.g = Math.min(1, (g / 255) * mul);
+      this.b = Math.min(1, (b / 255) * mul);
+    }
+  }
 
   quad(
     ax: number, ay: number, az: number,
@@ -178,29 +228,60 @@ class MeshBuilder {
     cx: number, cy: number, cz: number,
     dx: number, dy: number, dz: number,
     nx: number, ny: number, nz: number,
-    r: number, g: number, b: number,
   ): void {
-    this.pos.push(ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz);
-    for (let k = 0; k < 4; k++) {
-      this.nrm.push(nx, ny, nz);
-      this.col.push(r, g, b);
+    if ((this.q + 1) * 12 > this.pos.length) this.grow();
+    const o = this.q * 12;
+    const p = this.pos;
+    p[o] = ax; p[o + 1] = ay; p[o + 2] = az;
+    p[o + 3] = bx; p[o + 4] = by; p[o + 5] = bz;
+    p[o + 6] = cx; p[o + 7] = cy; p[o + 8] = cz;
+    p[o + 9] = dx; p[o + 10] = dy; p[o + 11] = dz;
+    const nm = this.nrm;
+    const cl = this.col;
+    const { r, g, b } = this;
+    for (let k = o; k < o + 12; k += 3) {
+      nm[k] = nx; nm[k + 1] = ny; nm[k + 2] = nz;
+      cl[k] = r; cl[k + 1] = g; cl[k + 2] = b;
     }
-    const v = this.v;
+    const v = this.q * 4;
+    const io = this.q * 6;
+    const ix = this.idx;
     // a b c d are counter-clockwise when viewed from the normal side.
-    this.idx.push(v, v + 1, v + 2, v, v + 2, v + 3);
-    this.v += 4;
+    ix[io] = v; ix[io + 1] = v + 1; ix[io + 2] = v + 2;
+    ix[io + 3] = v; ix[io + 4] = v + 2; ix[io + 5] = v + 3;
+    this.q++;
+  }
+
+  /** Wall strips between depth dA and a shallower neighbour dB (0 = empty) on an x boundary. */
+  wallX(sx: number, xe: number, yBot: number, yTop: number, dA: number, dB: number): void {
+    if (dB === 0) this.stripX(sx, xe, yBot, yTop, -dA / 2, dA / 2);
+    else {
+      this.stripX(sx, xe, yBot, yTop, dB / 2, dA / 2);
+      this.stripX(sx, xe, yBot, yTop, -dA / 2, -dB / 2);
+    }
+  }
+
+  private stripX(sx: number, xe: number, yBot: number, yTop: number, z0: number, z1: number): void {
+    if (sx > 0) this.quad(xe, yBot, z1, xe, yBot, z0, xe, yTop, z0, xe, yTop, z1, 1, 0, 0);
+    else this.quad(xe, yBot, z0, xe, yBot, z1, xe, yTop, z1, xe, yTop, z0, -1, 0, 0);
+  }
+
+  /** Wall strips on a y boundary (up = +y normal). */
+  wallY(up: boolean, ye: number, x0: number, x1: number, dA: number, dB: number): void {
+    if (dB === 0) this.stripY(up, ye, x0, x1, -dA / 2, dA / 2);
+    else {
+      this.stripY(up, ye, x0, x1, dB / 2, dA / 2);
+      this.stripY(up, ye, x0, x1, -dA / 2, -dB / 2);
+    }
+  }
+
+  private stripY(up: boolean, ye: number, x0: number, x1: number, z0: number, z1: number): void {
+    if (up) this.quad(x0, ye, z1, x1, ye, z1, x1, ye, z0, x0, ye, z0, 0, 1, 0);
+    else this.quad(x0, ye, z0, x1, ye, z0, x1, ye, z1, x0, ye, z1, 0, -1, 0);
   }
 }
 
-function unpack(c: number, mul: number, linear: boolean): [number, number, number] {
-  const r = (c >> 16) & 255;
-  const g = (c >> 8) & 255;
-  const b = c & 255;
-  if (linear) {
-    return [Math.min(1, SRGB_LUT[r] * mul), Math.min(1, SRGB_LUT[g] * mul), Math.min(1, SRGB_LUT[b] * mul)];
-  }
-  return [Math.min(1, (r / 255) * mul), Math.min(1, (g / 255) * mul), Math.min(1, (b / 255) * mul)];
-}
+const BUILDER = new MeshBuilder();
 
 /**
  * Build voxel mesh data from a grid. Positions: pixel column x spans [x - ax, x + 1 - ax];
@@ -212,10 +293,9 @@ export function meshGrid(grid: PixelGrid, opts: ExtrudeOptions = {}): VoxelMeshD
   const ay = opts.anchorY ?? h;
   const shade: FaceShade = { ...DEFAULT_SHADE, ...opts.shade };
   const linear = opts.linear ?? true;
-  const mb = new MeshBuilder();
-  const X = (x: number) => x - ax;
-  const Y = (y: number) => ay - y; // image-space y edge -> output y
-  const at = (x: number, y: number) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : depth[y * w + x]);
+  // One builder is reused across calls (single-threaded; outputs are copied out with slice()).
+  const mb = BUILDER.reset();
+  // Output x of image column x is x - ax; output y of image row edge y is ay - y.
 
   // ---- front (+z) and back (-z) caps: greedy rectangles over (colour, depth) ----
   const used = new Uint8Array(w * h);
@@ -239,13 +319,13 @@ export function meshGrid(grid: PixelGrid, opts: ExtrudeOptions = {}): VoxelMeshD
         }
         rh++;
       }
-      for (let yy = 0; yy < rh; yy++) for (let xx = 0; xx < rw; xx++) used[(y + yy) * w + x + xx] = 1;
-      const x0 = X(x), x1 = X(x + rw), yTop = Y(y), yBot = Y(y + rh);
+      for (let yy = 0; yy < rh; yy++) for (let j = (y + yy) * w + x, e = j + rw; j < e; j++) used[j] = 1;
+      const x0 = x - ax, x1 = x + rw - ax, yTop = ay - y, yBot = ay - (y + rh);
       const z = d / 2;
-      const [fr, fg, fb] = unpack(c, shade.front, linear);
-      mb.quad(x0, yBot, z, x1, yBot, z, x1, yTop, z, x0, yTop, z, 0, 0, 1, fr, fg, fb);
-      const [br, bg, bb] = unpack(c, shade.back, linear);
-      mb.quad(x1, yBot, -z, x0, yBot, -z, x0, yTop, -z, x1, yTop, -z, 0, 0, -1, br, bg, bb);
+      mb.color(c, shade.front, linear);
+      mb.quad(x0, yBot, z, x1, yBot, z, x1, yTop, z, x0, yTop, z, 0, 0, 1);
+      mb.color(c, shade.back, linear);
+      mb.quad(x1, yBot, -z, x0, yBot, -z, x0, yTop, -z, x1, yTop, -z, 0, 0, -1);
     }
   }
 
@@ -255,27 +335,29 @@ export function meshGrid(grid: PixelGrid, opts: ExtrudeOptions = {}): VoxelMeshD
   // Walls along the same boundary line with identical (colour, dA, dB) are merged into runs.
 
   // Vertical boundaries (normals +x / -x), iterate columns, run along y.
-  for (const sx of [1, -1] as const) {
+  for (let pass = 0; pass < 2; pass++) {
+    const sx = pass === 0 ? 1 : -1;
     for (let x = 0; x < w; x++) {
+      const nx = x + sx;
+      const nIn = nx >= 0 && nx < w;
       let y = 0;
       while (y < h) {
-        const dA = at(x, y);
-        const dB = at(x + sx, y);
+        const i = y * w + x;
+        const dA = depth[i];
+        const dB = nIn ? depth[i + sx] : 0;
         if (!dA || dB >= dA) {
           y++;
           continue;
         }
-        const c = color[y * w + x];
+        const c = color[i];
         let run = 1;
-        while (y + run < h && at(x, y + run) === dA && at(x + sx, y + run) === dB && color[(y + run) * w + x] === c) run++;
-        const xe = sx > 0 ? X(x + 1) : X(x);
-        const yTop = Y(y), yBot = Y(y + run);
-        const [r, g, b] = unpack(c, shade.side, linear);
-        const strips: [number, number][] = dB === 0 ? [[-dA / 2, dA / 2]] : [[dB / 2, dA / 2], [-dA / 2, -dB / 2]];
-        for (const [z0, z1] of strips) {
-          if (sx > 0) mb.quad(xe, yBot, z1, xe, yBot, z0, xe, yTop, z0, xe, yTop, z1, 1, 0, 0, r, g, b);
-          else mb.quad(xe, yBot, z0, xe, yBot, z1, xe, yTop, z1, xe, yTop, z0, -1, 0, 0, r, g, b);
+        for (let j = i + w; y + run < h; j += w) {
+          if (depth[j] !== dA || (nIn ? depth[j + sx] : 0) !== dB || color[j] !== c) break;
+          run++;
         }
+        const xe = sx > 0 ? x + 1 - ax : x - ax;
+        mb.color(c, shade.side, linear);
+        mb.wallX(sx, xe, ay - (y + run), ay - y, dA, dB);
         y += run;
       }
     }
@@ -283,56 +365,62 @@ export function meshGrid(grid: PixelGrid, opts: ExtrudeOptions = {}): VoxelMeshD
 
   // Horizontal boundaries (normals +y up / -y down), iterate rows, run along x.
   // Up in output = previous image row (y - 1).
-  for (const up of [true, false]) {
+  for (let pass = 0; pass < 2; pass++) {
+    const up = pass === 0;
     const sy = up ? -1 : 1;
+    const mul = up ? shade.top : shade.bottom;
     for (let y = 0; y < h; y++) {
+      const ny = y + sy;
+      const nIn = ny >= 0 && ny < h;
+      const off = sy * w;
+      const row = y * w;
       let x = 0;
       while (x < w) {
-        const dA = at(x, y);
-        const dB = at(x, y + sy);
+        const i = row + x;
+        const dA = depth[i];
+        const dB = nIn ? depth[i + off] : 0;
         if (!dA || dB >= dA) {
           x++;
           continue;
         }
-        const c = color[y * w + x];
+        const c = color[i];
         let run = 1;
-        while (x + run < w && at(x + run, y) === dA && at(x + run, y + sy) === dB && color[y * w + x + run] === c) run++;
-        const ye = up ? Y(y) : Y(y + 1);
-        const x0 = X(x), x1 = X(x + run);
-        const [r, g, b] = unpack(c, up ? shade.top : shade.bottom, linear);
-        const strips: [number, number][] = dB === 0 ? [[-dA / 2, dA / 2]] : [[dB / 2, dA / 2], [-dA / 2, -dB / 2]];
-        for (const [z0, z1] of strips) {
-          if (up) mb.quad(x0, ye, z1, x1, ye, z1, x1, ye, z0, x0, ye, z0, 0, 1, 0, r, g, b);
-          else mb.quad(x0, ye, z0, x1, ye, z0, x1, ye, z1, x0, ye, z1, 0, -1, 0, r, g, b);
+        for (let j = i + 1; x + run < w; j++) {
+          if (depth[j] !== dA || (nIn ? depth[j + off] : 0) !== dB || color[j] !== c) break;
+          run++;
         }
+        const ye = up ? ay - y : ay - (y + 1);
+        mb.color(c, mul, linear);
+        mb.wallY(up, ye, x - ax, x + run - ax, dA, dB);
         x += run;
       }
     }
   }
 
-  const positions = new Float32Array(mb.pos);
-  const vcount = positions.length / 3;
-  const indices = vcount > 65535 ? new Uint32Array(mb.idx) : new Uint16Array(mb.idx);
-  const min: [number, number, number] = [Infinity, Infinity, Infinity];
-  const max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+  const quads = mb.q;
+  const positions = mb.pos.slice(0, quads * 12);
+  const vcount = quads * 4;
+  const idx = mb.idx.subarray(0, quads * 6);
+  const indices = vcount > 65535 ? idx.slice() : new Uint16Array(idx);
+  let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
   for (let i = 0; i < positions.length; i += 3) {
-    for (let k = 0; k < 3; k++) {
-      const v = positions[i + k];
-      if (v < min[k]) min[k] = v;
-      if (v > max[k]) max[k] = v;
-    }
+    const x = positions[i], y = positions[i + 1], z = positions[i + 2];
+    if (x < x0) x0 = x;
+    if (x > x1) x1 = x;
+    if (y < y0) y0 = y;
+    if (y > y1) y1 = y;
+    if (z < z0) z0 = z;
+    if (z > z1) z1 = z;
   }
-  if (vcount === 0) {
-    min.fill(0);
-    max.fill(0);
-  }
+  const min: [number, number, number] = vcount === 0 ? [0, 0, 0] : [x0, y0, z0];
+  const max: [number, number, number] = vcount === 0 ? [0, 0, 0] : [x1, y1, z1];
   return {
     positions,
-    normals: new Float32Array(mb.nrm),
-    colors: new Float32Array(mb.col),
+    normals: mb.nrm.slice(0, quads * 12),
+    colors: mb.col.slice(0, quads * 12),
     indices,
     voxels: grid.count,
-    triangles: mb.idx.length / 3,
+    triangles: quads * 2,
     min,
     max,
   };

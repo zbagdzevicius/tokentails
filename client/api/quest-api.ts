@@ -17,7 +17,7 @@ const friendInvited = async (): Promise<object> => {
       Accept: "application/json",
       "Content-Type": "application/json",
       ...getAuthHeaders(),
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -35,7 +35,7 @@ const statistics = async (): Promise<IQuestStatistics> => {
       Accept: "application/json",
       "Content-Type": "application/json",
       ...getAuthHeaders(),
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -53,7 +53,7 @@ const openLootBox = async (): Promise<ITransactionStatus> => {
       Accept: "application/json",
       "Content-Type": "application/json",
       ...getAuthHeaders(),
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -64,24 +64,6 @@ const openLootBox = async (): Promise<ITransactionStatus> => {
   });
 };
 
-const setReferralTelegram = async (telegramId: string): Promise<object> => {
-  await waitForLocalStorageKey();
-  return fetch(`${apiUrl}/user/catbassadors/referral/${telegramId}`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-    } as any,
-  }).then((response) => {
-    if (response.ok) {
-      return response.json();
-    }
-
-    console.warn(JSON.stringify(response));
-    return {};
-  });
-};
 const setReferralWeb = async (profileId: string): Promise<object> => {
   if (!profileId) return Promise.resolve({});
   await waitForLocalStorageKey();
@@ -91,7 +73,7 @@ const setReferralWeb = async (profileId: string): Promise<object> => {
       Accept: "application/json",
       "Content-Type": "application/json",
       ...getAuthHeaders(),
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -112,7 +94,7 @@ const complete = async (
       Accept: "application/json",
       "Content-Type": "application/json",
       ...getAuthHeaders(),
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -138,7 +120,7 @@ const redeemContest = async (
       Accept: "application/json",
       "Content-Type": "application/json",
       ...getAuthHeaders(),
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -158,7 +140,7 @@ const find = async (): Promise<ILocalQuest[]> => {
       Accept: "application/json",
       "Content-Type": "application/json",
       ...getAuthHeaders(),
-    } as any,
+    } as HeadersInit,
   })
     .then((response) => {
       if (response.ok) {
@@ -185,7 +167,6 @@ const find = async (): Promise<ILocalQuest[]> => {
 
 export const QUEST_API = {
   friendInvited,
-  setReferralTelegram,
   setReferralWeb,
   complete,
   redeemContest,

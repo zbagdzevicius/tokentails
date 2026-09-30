@@ -27,7 +27,7 @@ export const ArticleMicrodata = ({
             datePublished={createdAt}
             dateModified={updatedAt}
             section={category.name}
-            keywords={keyword?.name!}
+            keywords={keyword?.name}
             authorName={[
                 {
                     name: process.env.NEXT_PUBLIC_SITE_NAME,

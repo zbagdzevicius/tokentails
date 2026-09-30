@@ -54,7 +54,7 @@ export class Runner extends BasePixelEnemy {
   private readonly runSpeed = catWalkSpeed * 1.3;
   private readonly reactionDelay = 50;
   private readonly attackCooldown = 100;
-  private readonly attackRange = 52;
+  protected readonly attackRange = 52;
   private useAttack1: boolean = false;
   private currentAttackAnim: PixelEnemyAnimation | null = null;
   private preAttackIdleShown: boolean = false;
@@ -80,7 +80,7 @@ export class Runner extends BasePixelEnemy {
   update(time: number, delta: number) {
     if (this.isDead || this.isTakingDamage) return;
 
-    if ((this as any).isStunned) return;
+    if (this.isStunned) return;
 
     if (this.attackCooldownTimer > 0) {
       this.attackCooldownTimer -= delta;

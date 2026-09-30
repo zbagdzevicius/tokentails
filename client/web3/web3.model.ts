@@ -27,7 +27,7 @@ export interface IMysteryBox {
   image: string;
   requirements?: {
     type?: MysteryBoxRequirementType;
-    metadata?: any;
+    metadata?: unknown;
     text?: string;
   };
 }

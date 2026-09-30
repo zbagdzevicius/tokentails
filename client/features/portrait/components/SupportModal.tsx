@@ -34,7 +34,7 @@ export const SupportModal = ({ open, onOpenChange }: SupportModalProps) => {
             Support & Contact
           </DrawerTitle>
           <DrawerDescription className="text-sm text-muted-foreground mt-2">
-            We're here to help
+            We&apos;re here to help
           </DrawerDescription>
         </DrawerHeader>
         <div className="px-6 pb-8 space-y-6 overflow-y-auto flex-1 min-h-0">
@@ -137,7 +137,7 @@ export const SupportModal = ({ open, onOpenChange }: SupportModalProps) => {
                   How do I track my order?
                 </p>
                 <p className="text-muted-foreground">
-                  You'll receive a tracking number via email once your physical
+                  You&apos;ll receive a tracking number via email once your physical
                   product ships.
                 </p>
               </div>

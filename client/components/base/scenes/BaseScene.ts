@@ -1,5 +1,10 @@
 import { Cat } from "@/components/catbassadors/objects/Catbassador";
-import { GameEvent, GameEvents, ICatEvent } from "@/components/Phaser/events";
+import {
+  GameEvent,
+  GameEvents,
+  ICatEvent,
+  ICatEventsDetails,
+} from "@/components/Phaser/events";
 import { CoreMap } from "@/components/Phaser/map";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { NpcCat } from "@/components/shelter/objects/NpcCat";
@@ -94,9 +99,12 @@ export class BaseScene extends Scene {
 
     this.addSounds();
     this.npcGroup = this.physics.add.group();
-    this.events.on(GameEvent.CAT_CARD_DISPLAY, (data: any) => {
-      GameEvents.CAT_CARD_DISPLAY.push(data);
-    });
+    this.events.on(
+      GameEvent.CAT_CARD_DISPLAY,
+      (data: ICatEventsDetails[GameEvent.CAT_CARD_DISPLAY]) => {
+        GameEvents.CAT_CARD_DISPLAY.push(data);
+      }
+    );
     // Listen to relevant events
     const catMeowCallback = () => this.meow();
     GameEvents.CAT_MEOW.addEventListener(catMeowCallback);
@@ -150,7 +158,7 @@ export class BaseScene extends Scene {
     this.destroySpeechBubble();
 
     const existingNpcIndex = this.npcCats.findIndex(
-      (npc) => (npc as any).originalData?._id === cat._id
+      (npc) => npc.originalData?._id === cat._id
     );
     if (existingNpcIndex !== -1) {
       const existingNpc = this.npcCats[existingNpcIndex];
@@ -230,7 +238,7 @@ export class BaseScene extends Scene {
     );
 
     // Collide cat with ground
-    this.physics.add.collider(this.cat!.sprite, this.groundLayer as any);
+    this.physics.add.collider(this.cat!.sprite, this.groundLayer as Phaser.Tilemaps.TilemapLayer);
 
     // Camera follows cat
     this.cameras.main.startFollow(this.cat!.sprite);
@@ -268,7 +276,8 @@ export class BaseScene extends Scene {
           spriteImg: "",
           type: "",
         };
-        this.handleNpcCollision(npcData as any);
+        // Only the texture key is known here; the rest of the cat is absent.
+        this.handleNpcCollision(npcData as unknown as ICat);
       }
     );
   }
@@ -313,7 +322,7 @@ export class BaseScene extends Scene {
       callback: () => this.onFoodEat(),
     };
 
-    this.physics.add.collider(this.food.sprite, this.groundLayer as any);
+    this.physics.add.collider(this.food.sprite, this.groundLayer as Phaser.Tilemaps.TilemapLayer);
   }
 
   update() {
@@ -343,7 +352,7 @@ export class BaseScene extends Scene {
 
   private spawnNpc(npcData: ICat) {
     const existingNpcIndex = this.npcCats.findIndex(
-      (npc) => (npc as any).originalData?._id === npcData._id
+      (npc) => npc.originalData?._id === npcData._id
     );
     if (existingNpcIndex !== -1) {
       const existingNpc = this.npcCats[existingNpcIndex];
@@ -358,8 +367,8 @@ export class BaseScene extends Scene {
       const spawnY = -400;
 
       const npcCat = new NpcCat(this, spawnX, spawnY, npcData.name);
-      (npcCat as any).originalData = { ...npcData };
-      this.physics.add.collider(npcCat.sprite, this.groundLayer as any);
+      npcCat.originalData = { ...npcData };
+      this.physics.add.collider(npcCat.sprite, this.groundLayer as Phaser.Tilemaps.TilemapLayer);
 
       // Handle blessings
       if (npcData.blessing) {
@@ -421,8 +430,8 @@ export class BaseScene extends Scene {
     if (!this.cat) return;
 
     const isOverlapping = this.physics.overlap(this.cat.sprite, npc.sprite);
-    const isPlayerCat = (npc as any).originalData?.isPlayerCat;
-    const isSelected = this.catDto?._id === (npc as any).originalData?._id;
+    const isPlayerCat = npc.originalData?.isPlayerCat;
+    const isSelected = this.catDto?._id === npc.originalData?._id;
     this.isCatSelected = isSelected;
 
     if (isOverlapping && !isPlayerCat) {
@@ -464,7 +473,7 @@ export class BaseScene extends Scene {
       bubbleX,
       bubbleY,
       message,
-      npcCat as any,
+      npcCat,
       state,
       this.isCatSelected
     );

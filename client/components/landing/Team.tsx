@@ -1,12 +1,12 @@
 import { cdnFile } from "@/constants/utils";
 import { PixelButton } from "../shared/PixelButton";
 
-interface ISocial {
+export interface ISocial {
   img: string;
   link: string;
 }
 
-interface ITeamMember {
+export interface ITeamMember {
   img: string;
   name: string;
   role: string;
@@ -19,10 +19,9 @@ export const SocialImages = {
   X: cdnFile("icons/social/x.webp"),
   WARPCAST: cdnFile("icons/social/warpcast.png"),
   EMAIL: cdnFile("icons/social/email.png"),
-  TELEGRAM: cdnFile("icons/social/telegram.webp"),
 };
 
-const teamMembers: ITeamMember[] = [
+export const teamMembers: ITeamMember[] = [
   {
     img: cdnFile("team/zygimantas.webp"),
     name: "Žygimantas",
@@ -202,6 +201,8 @@ export const Team = () => {
           ))}
         </div>
       </div>
+      {/* Plain anchor on purpose: the game shell needs a full page load. */}
+      {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
       <a href="/game" className="flex justify-center mb-8 md:mb-4">
         <PixelButton text="PLAY NOW" />
       </a>

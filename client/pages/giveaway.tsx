@@ -28,6 +28,8 @@ export default function giveaway() {
         src="https://zealy.io/cw/tokentails"
       ></iframe>
       <div className="absolute bottom-0 right-0 flex justify-center">
+        {/* Plain anchor on purpose: keeps the existing full page load. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a href="/" className="p-3 md:p-8">
           <img
             draggable={false}

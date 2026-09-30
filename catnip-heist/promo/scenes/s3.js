@@ -38,12 +38,13 @@ const BLOCK = { x: 4 * CW, y: CH, w: 5 * CW, h: 4 * CH };
 let GRID = null; // built in init (static layout, not frame state)
 
 function buildGrid(E) {
-  const ids = E.cats.map((c) => c.id);
-  const lead = ['albertino', 'oreo', 'siamese', 'hana', 'fox', 'cheesy', 'sei', 'owl', 'bunny', 'coco', 'goat', 'mist', 'raccon', 'peachies', 'figaro'];
-  const rest = ids.filter((i) => !lead.includes(i) && i !== 'eldrem');
+  const allIds = E.cats.map((c) => c.id);
+  const specials = new Set(E.assets.sprites.specials || []);
+  const ids = allIds.filter((i) => !specials.has(i)); // cats only on the "CATS TO COLLECT" wall
+  const lead = ['bob', 'oreo', 'siamese', 'cheesy', 'sei', 'coco', 'mist', 'peachies', 'figaro', 'albertino', 'maine', 'grey'];
+  const rest = ids.filter((i) => !lead.includes(i));
   rest.sort((a, b) => E.rand('ord', a) - E.rand('ord', b));
   const order = [...lead.filter((i) => ids.includes(i)), ...rest];
-  if (ids.includes('eldrem')) order.push('eldrem');
   const cells = [];
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
     if (inBlock(c, r)) continue;
@@ -55,7 +56,7 @@ function buildGrid(E) {
   const big = new Set(['eldrem', 'amberclaw', 'solo-survivor']);
   cells.forEach((cell, k) => {
     cell.id = order[k % order.length];
-    cell.no = ids.indexOf(cell.id) + 1;
+    cell.no = allIds.indexOf(cell.id) + 1;
     cell.name = (E.cat(cell.id)?.name || cell.id).toUpperCase();
     cell.row = k === 0 ? 'WALKING' : k === 1 ? 'IDLE' : rows[Math.floor(E.rand('row', cell.id) * rows.length)];
     cell.phase = Math.floor(E.rand('ph', cell.id) * 20);
@@ -68,8 +69,9 @@ function buildGrid(E) {
     const d = Math.hypot(c - FOCUS.c, (r - FOCUS.r) * 1.15);
     const dc = Math.hypot(c - 6, (r - 2.5) * 1.2);
     cells.push({
-      c, r, d, x: (c + 0.5) * CW, y: (r + 0.5) * CH, locked: true,
-      id: order[Math.floor(E.rand('lk', c, r) * order.length)], row: 'SITTING', phase: 0, no: 0, name: '? ? ?',
+      c, r, d, x: (c + 0.5) * CW, y: (r + 0.5) * CH, block: true,
+      id: order[(12 + (r - 1) * 5 + (c - 4)) % order.length], row: rows[(c + r) % rows.length], phase: (c * 7 + r * 3) % 20,
+      no: 0, name: '',
       pop: T_BREED + 0.02 + Math.min(0.83, Math.pow(d, 0.92) * 0.085), scale: 3, hue: E.rand('hue', c, r),
       collapse: T_BREED + 0.8 + (2.2 - dc) * 0.02,
     });
@@ -83,8 +85,8 @@ const fitSize = (E, ctx, str, size, maxW, o = {}) => {
   return w > maxW ? (size * maxW) / w : size;
 };
 
-function coinFlip(E, ctx, x, y, size, spin, alpha = 1, rot = 0) {
-  const sx = Math.max(0.12, Math.abs(Math.cos(spin)));
+function coinFlip(E, ctx, x, y, size, spin, alpha = 1, rot = 0, minW = 0.12) {
+  const sx = Math.max(minW, Math.abs(Math.cos(spin)));
   E.drawImg(ctx, 'coin', x, y, { w: size * sx, h: size, alpha, smooth: false, rot });
 }
 
@@ -143,7 +145,7 @@ function heroCoinPos(E, k, lt) {
 
 function drawOdometer(E, ctx, lt, x, y, dh) {
   let k = 0; for (let i = 0; i < COIN_ARR.length; i++) if (lt + 1e-6 >= COIN_ARR[i]) k = i + 1;
-  const e = k ? E.backOut(E.seg(lt, COIN_ARR[k - 1], COIN_ARR[k - 1] + 0.1), 1.3) : 1;
+  const e = k ? E.backOut(E.seg(lt, COIN_ARR[k - 1], COIN_ARR[k - 1] + 4 / 60), 1.6) : 1; // snaps in 4 frames on each coin cue, then holds
   const prev = COUNTS[Math.max(0, k - 1)], cur = COUNTS[k];
   const dw = 150;
   for (let p = 2; p >= 0; p--) {
@@ -155,7 +157,8 @@ function drawOdometer(E, ctx, lt, x, y, dh) {
     const sp = dh * 1.3;
     const cx = x + (2 - p - 1) * dw;
     ctx.save();
-    ctx.beginPath(); ctx.rect(cx - dw / 2, y - dh * 0.62, dw, dh * 1.24); ctx.clip();
+    ctx.beginPath(); ctx.rect(cx - dw / 2 + 6, y - dh * 0.56, dw - 12, dh * 1.12); ctx.clip();
+    ctx.fillStyle = 'rgba(10,4,18,0.55)'; ctx.fillRect(cx - dw / 2, y - dh * 0.6, dw, dh * 1.2);
     const samples = speed > 0.6 ? 4 : 1;
     for (let s = samples - 1; s >= 0; s--) {
       const ps = pos - s * Math.min(0.35, speed * 0.05);
@@ -165,6 +168,10 @@ function drawOdometer(E, ctx, lt, x, y, dh) {
         E.drawText(ctx, String(d), cx, y + oy, { size: dh * 1.02, color: 'coin', alpha: al, extrude: s ? null : { depth: 10, dx: 0.4, dy: 1, color: '#7a3d00', dark: 0.5 } });
       }
     }
+    // reel curvature: dark falloff at top and bottom of the slot
+    const rg = ctx.createLinearGradient(0, y - dh * 0.56, 0, y + dh * 0.56);
+    rg.addColorStop(0, 'rgba(10,4,18,0.95)'); rg.addColorStop(0.2, 'rgba(10,4,18,0)'); rg.addColorStop(0.8, 'rgba(10,4,18,0)'); rg.addColorStop(1, 'rgba(10,4,18,0.95)');
+    ctx.fillStyle = rg; ctx.fillRect(cx - dw / 2, y - dh * 0.56, dw, dh * 1.12);
     ctx.restore();
   }
   return k;
@@ -181,8 +188,17 @@ function shotStakes(E, ctx, t, lt) {
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 
   // rays
-  const rin = E.expoOut(E.seg(lt, 0, 0.35));
-  rays(E, ctx, PLAQ.x, PLAQ.y, 20, lt * 0.6 + 0.2, 1500 * rin, 'coin', 0.035 + 0.05 * E.envs(lt, COIN_ARR, 0.08));
+  const CLAP = COIN_ARR[3]; // 7.969 clap (also the 4th coin)
+  rays(E, ctx, PLAQ.x, PLAQ.y, 20, lt * 0.6 + 0.2 + 0.25 * E.expoOut(E.seg(lt, 0, 0.3)), 1600, 'coin', 0.05 + 0.3 * E.env(lt, 0, 0.1) + 0.06 * E.envs(lt, COIN_ARR, 0.08) + 0.16 * E.env(lt, CLAP, 0.08));
+  // the STAKES hit: additive gold bloom over the purple rays (not a flat tint), plus ring burst from the plaque
+  const hitG = E.env(lt, 0, 0.07);
+  if (hitG > 0.01) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const hg = ctx.createRadialGradient(PLAQ.x, PLAQ.y, 40, PLAQ.x, PLAQ.y, 1100);
+    hg.addColorStop(0, `rgba(255,214,90,${0.95 * hitG})`); hg.addColorStop(0.35, `rgba(255,170,40,${0.45 * hitG})`); hg.addColorStop(1, 'rgba(255,150,30,0)');
+    ctx.fillStyle = hg; ctx.fillRect(0, 0, W, H); ctx.restore();
+  }
+  E.shockwave(ctx, PLAQ.x, PLAQ.y, E.seg(lt, 0, 0.45), { radius: 1250, width: 46, color: 'coin', rings: 3, gap: 0.1 });
 
   // far parallax: small catnip leaves drifting up
   E.particles('s3leaf', 14, lt, (p) => {
@@ -196,24 +212,28 @@ function shotStakes(E, ctx, t, lt) {
   for (const p of E.burst({ ...burstO, count: 46 })) coinFlip(E, ctx, p.x, p.y, p.size, p.rot * 2, Math.min(1, (1 - p.p) * 2));
 
   // overline
-  const ov = E.expoOut(E.seg(lt, 0.02, 0.3));
-  const ovy = 318;
+  const ov = E.expoOut(E.seg(lt, 0, 0.3));
+  const ovy = 318 - 20 * (1 - E.expoOut(E.seg(lt, 0, 10 / 60)));
+  const ovs = E.lerp(1.4, 1, E.backOut(E.seg(lt, 0, 8 / 60), 1.6));
   E.drawText(ctx, 'THE STAKES', 960, ovy, {
-    size: 46, font: 'heavy', color: 'cream', tracking: 0.55 - 0.2 * ov,
-    perChar: ({ i, n }) => { const q = E.stagger(lt, i, n, { start: 0.03, spread: 0.14, dur: 0.22, e: 'backOut' }); return { y: (1 - q) * 40, alpha: q }; },
+    size: 56, font: 'condensed', weight: '800', color: lt < 2 / 60 ? '#ffffff' : 'cream', tracking: 0.35,
+    perChar: () => ({ scale: ovs }),
   });
   ctx.fillStyle = E.col('coin');
   const lw = 280 * ov;
   ctx.fillRect(960 - 330 - lw, ovy - 3, lw, 6); ctx.fillRect(960 + 330, ovy - 3, lw, 6);
 
   // plaque slam
-  const pin = E.seg(lt, 0, 0.32);
-  const ps = E.lerp(0.35, 1, E.backOut(pin, 2.2)) * PSC;
-  const k0 = COIN_ARR.filter((a) => lt + 1e-6 >= a).length;
-  const punch = 0.05 * E.envs(lt, COIN_ARR, 0.07);
+  const pin = E.seg(lt, 0, 10 / 60);
+  const ps = E.lerp(1.4, 1, E.backOut(pin, 1.4)) * PSC * (1 + 0.06 * E.seg(lt, 0.2, T_HEIST, 'sineInOut'));
+  // every coin cue lands with a 3% bump (4-frame backOut), the 7.969 clap adds a 6 px shake
+  let punch = 0;
+  for (const a of COIN_ARR) { const d = lt - a; if (d >= 0 && d < 0.2) punch += 0.03 * (d < 1 / 60 ? 1 : 1 - E.backOut(E.seg(d, 1 / 60, 0.15), 2)); }
+  const cs = 6 * E.env(lt, CLAP, 0.1);
+  const csx = E.randSigned('cs', E.frame) * cs, csy = E.randSigned('cs2', E.frame) * cs;
   ctx.save();
-  ctx.translate(PLAQ.x, PLAQ.y + E.perlin1(lt * 2, 3) * 6);
-  ctx.rotate(E.lerp(E.deg(-9), 0, E.backOut(pin)) + E.perlin1(lt * 1.5, 9) * 0.008);
+  ctx.translate(PLAQ.x + csx + 18 * Math.sin(lt * 3.2), PLAQ.y + csy + E.perlin1(lt * 2, 3) * 10);
+  ctx.rotate(E.lerp(E.deg(-4), 0, E.expoOut(pin)) + E.deg(1.6) * Math.sin(lt * 4.1) + (lt < 1 / 60 ? 0 : 0));
   ctx.scale(ps * (1 + punch), ps * (1 + punch));
   ctx.translate(-PLAQ.x, -PLAQ.y);
   // body
@@ -241,13 +261,10 @@ function shotStakes(E, ctx, t, lt) {
   const spin = lt * 5 + E.envs(lt, COIN_ARR, 0.1) * 2.2;
   const ip = 1 + 0.25 * E.envs(lt, COIN_ARR, 0.06);
   ctx.save(); ctx.shadowColor = E.rgba('coin', 0.8); ctx.shadowBlur = 40;
-  coinFlip(E, ctx, ICON_L.x, ICON_L.y, 170 * ip, spin);
+  coinFlip(E, ctx, ICON_L.x, ICON_L.y, 170 * ip, spin, 1, 0, 0.4);
   ctx.restore();
   ctx.restore();
 
-  // label under plaque
-  const lb = E.expoOut(E.seg(lt, 0.12, 0.4));
-  E.drawText(ctx, 'CATNIP COINS', 960, 772 + (1 - lb) * 30, { size: 38, font: 'heavy', color: 'lilac', tracking: 0.42, alpha: lb });
 
   // hero coins with smear trails
   for (let k = 1; k <= 7; k++) {
@@ -264,6 +281,25 @@ function shotStakes(E, ctx, t, lt) {
       coinFlip(E, ctx, x, y, E.lerp(92, 60, u), tt * 14 + k, s ? 0.18 * (5 - s) / 5 : 1);
     }
   }
+
+  // radial coin burst out of the plaque, drawn OVER it (already travelling on f450, smear streaks)
+  {
+    const rb = { seed: 's3rad', count: 34, t0: -0.09, x: PLAQ.x, y: PLAQ.y, speed: [2200, 4200], angle: [0, E.TAU], gravity: 900, drag: 1.8, life: [0.5, 0.85], size: [40, 80], spin: 16 };
+    const now = E.burst({ ...rb, t: lt }), prev = E.burst({ ...rb, t: lt - 0.03 });
+    const pm = new Map(prev.map((q) => [q.i, q]));
+    ctx.save(); ctx.lineCap = 'round';
+    for (const p of now) {
+      const q = pm.get(p.i) || { x: PLAQ.x, y: PLAQ.y };
+      if (Math.abs(p.x - PLAQ.x) < 500 && Math.abs(p.y - PLAQ.y) < 170) continue; // emerge from the plaque's edges, never over the digits
+      ctx.strokeStyle = E.rgba('coin', 0.55 * (1 - p.p)); ctx.lineWidth = p.size * 0.5;
+      ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+      coinFlip(E, ctx, p.x, p.y, p.size, p.rot * 2, Math.min(1, (1 - p.p) * 2.5));
+    }
+    ctx.restore();
+  }
+  // label under plaque
+  const lb = E.expoOut(E.seg(lt, 0.0, 0.2));
+  E.drawText(ctx, 'CATNIP COINS', 960, 772 + (1 - lb) * 30, { size: 46, font: 'condensed', weight: '800', color: 'lilac', tracking: 0.42, alpha: lb });
 
   // near-camera foreground coins (fast parallax)
   for (const [sd, ang] of [['s3fgL', [-Math.PI * 0.99, -Math.PI * 0.8]], ['s3fgR', [-Math.PI * 0.2, -Math.PI * 0.01]]]) {
@@ -323,14 +359,16 @@ function shotHeists(E, ctx, t, lt) {
   const hs = fitSize(E, ctx, 'HEISTS', 250, 770, { tracking: 0.02 });
   E.drawText(ctx, 'HEISTS', hx, hy, {
     size: hs, align: 'left', color: 'cream', tracking: 0.02, extrude: { depth: 16, dx: 0.6, dy: 1, color: 'grape', dark: 0.6 },
-    perChar: ({ i, n }) => {
-      const q = E.stagger(u, i, n, { start: 0.03, spread: 0.12, dur: 0.24, e: 'expoOut' });
-      return { x: (1 - q) * 520, sx: 1 + (1 - q) * 1.4, alpha: q > 0 ? 1 : 0, color: q < 0.6 ? 'coin' : 'cream' };
+    perChar: ({ i }) => {
+      const d = u - i / 60;                       // 1-frame stagger
+      if (d < 0) return false;
+      const q = E.seg(d, 0, 7 / 60);
+      return { y: (1 - E.backOut(q, 1.8)) * -90, scale: E.lerp(1.35, 1, E.backOut(q, 1.8)), color: q < 0.5 ? 'coin' : 'cream' };
     },
   });
   // overline
   const ol = E.seg(u, 0.05, 0.35);
-  E.drawText(ctx, E.scramble('LEVELS 01 — 08', ol * 1.3, 38), hx + 6, 318, { size: 34, font: 'mono', weight: 'bold', align: 'left', color: 'catnip', tracking: 0.28, alpha: ol > 0 ? 1 : 0 });
+  E.wipeText(ctx, 'LEVELS 01 - 08', hx + 6, 318, { size: 34, font: 'mono', weight: 'bold', align: 'left', color: 'catnip', tracking: 0.28 }, E.expoOut(E.seg(u, 0.02, 0.14)));
   const bar = E.expoOut(E.seg(u, 0.08, 0.4));
   ctx.fillStyle = E.col('catnip'); ctx.fillRect(hx + 6, 350, 380 * bar, 5);
 
@@ -375,13 +413,26 @@ function shotAlert(E, ctx, t, lt) {
     ctx.fillStyle = E.col('outline'); ctx.fillRect(-1300, -48 * tin, 2600, 8 * tin); ctx.fillRect(-1300, 40 * tin, 2600, 8 * tin);
     ctx.beginPath(); ctx.rect(-1300, -44, 2600, 88); ctx.clip();
     const off = E.mod(u * 1600 * dir, 520);
-    for (let x = -1300 - 520; x < 1300; x += 520) E.drawText(ctx, 'SPOTTED  !', x + off, 3, { size: 58, font: 'heavy', align: 'left', color: 'cream', tracking: 0.12 });
+    for (let x = -1300 - 520; x < 1300; x += 520) E.drawText(ctx, 'SPOTTED  !', x + off, 3, { size: 68, font: 'condensed', weight: '800', align: 'left', color: 'cream', tracking: 0.12 });
     ctx.restore();
   }
-  // "!" bubble
-  const bi = E.seg(u, 0, 0.12);
-  const bs = E.backOut(bi, 3.2);
-  const bx = 960, by = 520 + (1 - E.expoOut(bi)) * 80;
+  // the villain: a big guard dog on the left, red vision cone locked on the cat, "!" over its head
+  const pin = E.expoOut(E.seg(u, 0, 0.08));
+  const dogX = 470, feetY = 860;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  E.cone(ctx, dogX + 170, feetY - 250, -0.08, E.deg(30) * pin, 1150, { color: 'coneAlert', alpha: 0.55, edge: 0.7 });
+  ctx.restore();
+  ctx.save(); ctx.strokeStyle = E.col('alertRed'); ctx.lineWidth = 6; ctx.globalAlpha = pin; ctx.beginPath();
+  for (const sgn of [-1, 1]) { const an = -0.08 + sgn * E.deg(15) * pin; ctx.moveTo(dogX + 170, feetY - 250); ctx.lineTo(dogX + 170 + Math.cos(an) * 1150, feetY - 250 + Math.sin(an) * 1150); }
+  ctx.stroke(); ctx.restore();
+  // the spotted cat, caught in the cone (recoils)
+  E.drawSprite(ctx, 'bob', 'HIT', Math.min(6, Math.floor(u / 0.04)), 1420 + 30 * E.expoOut(E.seg(u, 0, 0.1)), feetY, 8, { anchor: 'feet', flip: true, clamp: true, outline: { color: '#fcecbb', px: 1 } });
+  const dsc = 9.5 * E.lerp(1.12, 1, E.expoOut(E.seg(u, 0, 0.1)));
+  E.drawSprite(ctx, 'brown', 'CROUCHED', E.spriteFrame(u, 12), dogX, feetY, dsc, { anchor: 'feet', outline: { color: '#ff2a1a', px: 1 } });
+  // "!" bubble above the dog's head
+  const bi = E.seg(u, 0, 0.1);
+  const bs = E.backOut(bi, 3.2) * 0.72;
+  const bx = dogX + 60, by = 330 + (1 - E.expoOut(bi)) * 80;
   ctx.save(); ctx.translate(bx, by); ctx.rotate(E.lerp(0.35, -0.06, E.expoOut(bi)) + Math.sin(u * 60) * 0.03 * (1 - bi)); ctx.scale(bs, bs);
   E.shockwave(ctx, 0, 0, E.seg(u, 0.02, 0.26), { radius: 520, width: 26, color: 'cream', rings: 2 });
   ctx.fillStyle = E.col('outline'); ctx.beginPath(); ctx.roundRect(-150, -165, 300, 330, 70); ctx.fill();
@@ -406,9 +457,8 @@ function breedCam(E, u) {
   z *= 1 - 0.035 * E.fract(Math.min(u, 0.9375) / 0.234375);
   const rv = E.seg(u, 0.9375, 0.9375 + 0.42);
   if (rv > 0) z = E.lerp(z, 1, E.backOut(rv, 2.4));
-  const hold = E.sineInOut(E.seg(u, 1.1, 1.65));
-  z *= 1 + 0.03 * hold;
-  const out = E.expoIn(E.seg(u, 1.65, 1.875));
+  // push-through starts no earlier than 11.13: short, sharp ramp into the 3 dark frames
+  const out = E.expoIn(E.seg(u, 1.755, 1.875));
   z *= 1 + 2.2 * out;
   const rots = [0.07, -0.04, 0.025, -0.012];
   let rot = rots[0] * (1 - E.expoOut(E.seg(u, 0, 0.2))) + 0.03;
@@ -430,7 +480,7 @@ function drawCell(E, ctx, t, u, cell, wave) {
   const q = E.seg(u, pt, pt + 0.28);
   if (q <= 0) return false;
   let s = E.backOut(q, 2.6);
-  if (cell.locked) {
+  if (cell.block) {
     const k = E.seg(u, cell.collapse - T_BREED, cell.collapse - T_BREED + 0.1);
     if (k >= 1) return false;
     s *= 1 - E.expoIn(k);
@@ -455,18 +505,22 @@ function drawCell(E, ctx, t, u, cell, wave) {
   const row = wave.jump ? 'JUMPING' : cell.row;
   const fr = wave.jump ? wave.jf : E.spriteFrame(t, 11) + cell.phase;
   const drop = (1 - E.expoOut(E.seg(u, pt, pt + 0.22))) * -70;
-  if (cell.locked) {
+  if (cell.locked) { // (kept for reference; the wall no longer uses locked cards)
     E.drawSprite(ctx, cell.id, 'SITTING', 0, 0, 48 + drop, cell.scale, { anchor: 'feet', silhouette: '#1a0a2a' });
     E.drawText(ctx, '?', 0, -8 + Math.sin(u * 9 + cell.c) * 4, { size: 54, font: 'heavy', color: 'lavender', alpha: 0.9 });
     E.drawText(ctx, 'LOCKED', 0, h / 2 - 16, { size: 14, font: 'mono', weight: 'bold', color: 'lavender', tracking: 0.3, alpha: 0.7 });
     ctx.restore();
     return true;
   }
-  E.drawSprite(ctx, cell.id, row, fr, 0, 48 + drop - wave.hop, cell.scale, { anchor: 'feet', tint: flashC > 0.05 ? { color: '#fff', amount: flashC } : null, clamp: wave.jump });
-  // name tag
-  ctx.fillStyle = E.rgba('night', 0.55); ctx.fillRect(-w / 2 + 8, -h / 2 + 8, 56, 22);
-  E.drawText(ctx, String(cell.no).padStart(2, '0'), -w / 2 + 36, -h / 2 + 20, { size: 16, font: 'mono', weight: 'bold', color: 'coin' });
-  E.drawText(ctx, cell.name.length > 12 ? cell.name.slice(0, 12) : cell.name, 0, h / 2 - 16, { size: 14, font: 'mono', weight: 'bold', color: 'lilac', tracking: 0.12, alpha: 0.9 });
+  const idle = Math.abs(Math.sin(t * 7.2 + cell.phase)) * 5; // small living bob so the wall never goes flat
+  E.drawSprite(ctx, cell.id, row, fr, 0, 40 + drop - wave.hop - idle, cell.scale, { anchor: 'feet', tint: flashC > 0.05 ? { color: '#fff', amount: flashC } : null, clamp: wave.jump });
+  if (!cell.block) {
+    // name tag
+    ctx.fillStyle = E.rgba('night', 0.6); ctx.fillRect(-w / 2 + 8, -h / 2 + 8, 62, 28);
+    E.drawText(ctx, String(cell.no).padStart(2, '0'), -w / 2 + 39, -h / 2 + 23, { size: 22, font: 'mono', weight: 'bold', color: 'coin' });
+    ctx.fillStyle = E.rgba('night', 0.55); ctx.fillRect(-w / 2 + 6, h / 2 - 38, w - 12, 30);
+    E.drawText(ctx, cell.name, 0, h / 2 - 23, { size: fitSize(E, ctx, cell.name, 21, w - 20, { font: 'condensed', weight: '800', tracking: 0.06 }), font: 'condensed', weight: '800', color: 'cream', tracking: 0.06 });
+  }
   ctx.restore();
   return true;
 }
@@ -484,17 +538,36 @@ function shotBreeds(E, ctx, t, lt) {
   ctx.fillStyle = E.rgba('lavender', 0.12);
   for (let y = -240; y < H + 300; y += 60) for (let x = -360; x < W + 400; x += 60) ctx.fillRect(x + (y % 120 ? 30 : 0), y, 4, 4);
 
+  // drifting leaves live BEHIND the cards (never over faces or names)
+  E.particles('s3fgl', 7, u, (p) => {
+    const x = E.mod(p.r(1) * 2600 - u * (500 + p.r(2) * 400), 2600) - 340;
+    const y = p.r(3) * H;
+    E.drawImg(ctx, 'catnip', x, y, { w: 90 + p.r(4) * 70, rot: u * (p.r(5) - 0.5) * 4, alpha: 0.4, smooth: false });
+  });
   const rvT = T_REVEAL - T_BREED;
   let popped = 0;
-  for (const cell of GRID) {
+  // after the reveal the wall keeps moving to the cut: shrinks 1.0 -> 0.9 (expoOut, 10.31-11.18),
+  // alternate rows scroll in opposite directions (40 px/s), a few cards flip on every 16th
+  const wallZ = 1 - 0.1 * E.expoOut(E.seg(u, rvT, 1.805));
+  ctx.save(); ctx.translate(960, 540); ctx.scale(wallZ, wallZ); ctx.translate(-960, -540);
+  const scrollT = Math.max(0, u - rvT);
+  const k16 = Math.floor((u - rvT) / S16);
+  const f16 = u - rvT - k16 * S16;
+  for (const cell0 of GRID) {
+    const cell = cell0.block ? cell0 : { ...cell0, x: cell0.x + (cell0.r % 2 ? 40 : -40) * scrollT };
+    let flipK = 1;
+    if (u >= rvT && !cell.block && E.rand('flip', k16, cell.c, cell.r) < 0.09) flipK = Math.max(0.05, Math.abs(Math.cos(E.seg(f16, 0, 0.1, 'cubicInOut') * Math.PI)));
+    if (flipK < 1) { ctx.save(); ctx.translate(cell.x, 0); ctx.scale(flipK, 1); ctx.translate(-cell.x, 0); }
     // stadium wave from centre on the reveal, second softer wave on the clap
     const dC = Math.hypot(cell.x - 960, (cell.y - 540) * 1.4);
     const w1 = (u - rvT) * 2300 - dC, w2 = (u - (T_CLAP2 - T_BREED)) * 2600 - dC;
     const band = (w) => (w > 0 && w < 380 ? Math.sin((w / 380) * Math.PI) : 0);
     const b1 = band(w1), b2 = band(w2);
     const wave = { tile: Math.max(b1, b2 * 0.6), hop: b1 * 34 + b2 * 18, jump: b1 > 0.02, jf: Math.floor((w1 / 380) * 7) };
-    if (drawCell(E, ctx, t, u, cell, wave) && !cell.locked) popped++;
+    if (drawCell(E, ctx, t, u, cell, wave) && !cell.block) popped++;
+    if (flipK < 1) ctx.restore();
   }
+  ctx.restore();
 
   // reveal burst of catnip + coins (behind the panel, so it erupts from its edges)
   if (u >= rvT) {
@@ -507,7 +580,7 @@ function shotBreeds(E, ctx, t, lt) {
   const bx = BLOCK.x + 8, by = BLOCK.y + 8, bw = BLOCK.w - 16, bh = BLOCK.h - 16;
   const pq = E.seg(u, 0.84, 1.02);
   if (pq > 0) {
-    const ps = E.lerp(0.2, 1, E.backOut(pq, 1.8));
+    const ps = E.lerp(0.2, 1, E.backOut(pq, 1.8)) * (1 + 0.06 * E.env(u, T_CLAP2 - T_BREED, 0.1));
     ctx.save(); ctx.translate(960, 540); ctx.scale(ps, ps); ctx.translate(-960, -540);
     ctx.fillStyle = E.col('outline'); ctx.beginPath(); ctx.roundRect(bx - 6, by + 4, bw + 12, bh + 10, 30); ctx.fill();
     const rg = ctx.createRadialGradient(960, 520, 40, 960, 540, 520);
@@ -524,7 +597,8 @@ function shotBreeds(E, ctx, t, lt) {
 
     if (u < rvT) {
       // decoding digits just before the slam
-      E.drawText(ctx, E.scramble('58', 0, 5, '0123456789'), 960, 470, { size: 300, color: 'lavender', alpha: 0.7, extrude: { depth: 12, color: 'plum', dark: 0.4 } });
+      const n = Math.min(58, Math.round(E.lerp(40, 58, E.expoOut(E.seg(u, 0.84, rvT)))));
+      E.drawText(ctx, String(n), 960, 470, { size: 300, color: 'lavender', alpha: 0.75, extrude: { depth: 12, color: 'plum', dark: 0.4 } });
     } else {
       const v = u - rvT;
       const p2 = 0.08 * E.env(u, T_CLAP2 - T_BREED, 0.1);
@@ -532,13 +606,13 @@ function shotBreeds(E, ctx, t, lt) {
         size: 380, color: 'coin', tracking: 0.02, extrude: { depth: 24, dx: 0.6, dy: 1, color: '#7a3d00', dark: 0.55 }, stroke: 'outline', strokeWidth: 16,
         perChar: ({ i }) => { const q = E.seg(v, i * 0.05, i * 0.05 + 0.22); return { scale: E.lerp(3.2, 1, E.expoOut(q)) * (1 + p2), alpha: q > 0 ? 1 : 0, rot: (1 - E.expoOut(q)) * (i ? 0.4 : -0.4) }; },
       });
-      const cs = fitSize(E, ctx, 'CATS TO COLLECT', 68, bw - 90, { font: 'heavy', tracking: 0.08 });
+      const cs = fitSize(E, ctx, 'CATS TO COLLECT', 84, bw - 90, { font: 'condensed', weight: '800', tracking: 0.08 });
       // highlight bar on the clap
       const hb = E.expoOut(E.seg(u, T_CLAP2 - T_BREED, T_CLAP2 - T_BREED + 0.2));
       if (hb > 0) { ctx.fillStyle = E.col('catnip'); ctx.fillRect(960 - (bw - 70) / 2, 700 - 44, (bw - 70) * hb, 88); }
       const barL = 960 - (bw - 70) / 2, barR = barL + (bw - 70) * hb;
       E.drawText(ctx, 'CATS TO COLLECT', 960, 702, {
-        size: cs, font: 'heavy', tracking: 0.08, color: 'cream',
+        size: cs, font: 'condensed', weight: '800', tracking: 0.08, color: 'cream',
         perChar: ({ i, n, cx, width }) => {
           const q = E.stagger(v, i, n, { start: 0.1, spread: 0.18, dur: 0.2, e: 'backOut' });
           const under = hb > 0 && 960 - width / 2 + cx < barR;
@@ -552,7 +626,7 @@ function shotBreeds(E, ctx, t, lt) {
         ctx.save(); ctx.translate(960, 812); ctx.scale(s, s);
         ctx.fillStyle = E.col('outline'); ctx.beginPath(); ctx.roundRect(-230, -30, 460, 66, 33); ctx.fill();
         ctx.fillStyle = E.col('coin'); ctx.beginPath(); ctx.roundRect(-230, -34, 460, 64, 32); ctx.fill();
-        E.drawText(ctx, 'BUILD YOUR CAT YARD', 18, -1, { size: 28, font: 'heavy', color: 'outline', tracking: 0.08 });
+        E.drawText(ctx, 'BUILD YOUR CAT YARD', 18, -1, { size: 34, font: 'condensed', weight: '800', color: 'outline', tracking: 0.08 });
         E.drawImg(ctx, 'paw', -196, -2, { w: 40, smooth: false });
         ctx.restore();
       }
@@ -567,7 +641,8 @@ function shotBreeds(E, ctx, t, lt) {
   if (hudA > 0) {
     ctx.save(); ctx.globalAlpha = hudA;
     const hx = 70, hy = 70;
-    ctx.fillStyle = E.rgba('night', 0.78); ctx.beginPath(); ctx.roundRect(hx, hy, 430, 128, 14); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.roundRect(hx + 8, hy + 12, 430, 128, 14); ctx.fill();
+    ctx.fillStyle = E.col('night'); ctx.beginPath(); ctx.roundRect(hx, hy, 430, 128, 14); ctx.fill();
     ctx.strokeStyle = E.col('catnip'); ctx.lineWidth = 4;
     for (const [x, y, dx, dy] of [[hx, hy, 1, 1], [hx + 430, hy, -1, 1], [hx, hy + 128, 1, -1], [hx + 430, hy + 128, -1, -1]]) {
       ctx.beginPath(); ctx.moveTo(x + dx * 26, y); ctx.lineTo(x, y); ctx.lineTo(x, y + dy * 26); ctx.stroke();
@@ -586,12 +661,6 @@ function shotBreeds(E, ctx, t, lt) {
     E.zoomBlur(ctx, { cx: 960, cy: 500, strength: 0.25 * cam.out, samples: 7 });
     E.speedLines(ctx, t, { cx: 960, cy: 500, count: 80, inner: 520 - 300 * cam.out, color: '#ffffff', alpha: 0.5 * cam.out });
   }
-  // foreground parallax leaves
-  E.particles('s3fgl', 5, u, (p) => {
-    const x = E.mod(p.r(1) * 2400 - u * (900 + p.r(2) * 700), 2400) - 240;
-    const y = p.r(3) * H;
-    E.drawImg(ctx, 'catnip', x, y, { w: 110 + p.r(4) * 90, rot: u * (p.r(5) - 0.5) * 4, alpha: 0.55, smooth: false });
-  });
 }
 
 // ---------------------------------------------------------------- scene
@@ -613,35 +682,37 @@ export default {
     }
   },
   fx(t, lt, E) {
+    const F = 1 / 60;
     const hits = (list, d) => list.reduce((s, h) => s + E.env(lt, h, d), 0);
     let shake = 0, ab = 0, flash = 0, flashColor = '#ffffff', glitch = 0, zoom = 1, mb = 0;
-    // stakes
+    // stakes (7.5): RGB split + a 2-frame gold hit instead of white
     shake += 28 * E.env(lt, 0, 0.12) + 5 * hits(COIN_ARR, 0.05);
-    ab += 9 * E.env(lt, 0, 0.1) + 2 * hits(COIN_ARR, 0.04);
-    flash = Math.max(flash, 0.6 * E.env(lt, 0, 0.055));
-    zoom *= 1 + 0.012 * hits(COIN_ARR, 0.05);
-    // 8 heists
-    shake += 32 * E.env(lt, T_HEIST, 0.12); ab += 10 * E.env(lt, T_HEIST, 0.09);
-    flash = Math.max(flash, 0.55 * E.env(lt, T_HEIST, 0.06));
-    zoom *= 1 + 0.05 * E.env(lt, T_HEIST, 0.1);
+    ab += 20 * E.env(lt, 0, 0.05) + 2 * hits(COIN_ARR, 0.04);
+    shake += 8 * E.env(lt, COIN_ARR[3], 0.07);
+    zoom *= (1 + 0.04 * E.env(lt, 0, 0.1)) * (1 + 0.012 * hits(COIN_ARR, 0.05));
+    // 8 heists: shake + zoom punch, no flash
+    shake += 32 * E.env(lt, T_HEIST, 0.12); ab += 12 * E.env(lt, T_HEIST, 0.07);
+    zoom *= 1 + 0.06 * E.env(lt, T_HEIST, 0.1);
     shake += 9 * hits(T_STARS, 0.07); ab += 3 * hits(T_STARS, 0.05);
-    // alert
-    const al = E.env(lt, T_ALERT, 0.08);
-    if (al > flash) { flash = 0.85 * al; flashColor = '#ff2a1a'; }
-    shake += 24 * al; ab += 14 * al; glitch = Math.max(glitch, 0.55 * E.env(lt, T_ALERT, 0.06));
-    // whip between alert and breeds
-    if (lt > T_ALERT + 0.12 && lt < T_BREED + 0.12) mb = 6;
-    // breeds
-    const bf = E.env(lt, T_BREED, 0.05);
-    if (0.65 * bf > flash) { flash = 0.65 * bf; flashColor = '#ffffff'; }
+    // alert: red hit, capped, fast decay; 2-frame punch-in on the dog
+    const al = E.env(lt, T_ALERT, 0.05);
+    if (0.55 * al > flash) { flash = 0.55 * al; flashColor = '#ff2a1a'; }
+    if (lt >= T_ALERT && lt < T_ALERT + 2 * F) zoom *= 1.08;
+    shake += 24 * al; ab += 14 * al; glitch = Math.max(glitch, 0.55 * E.env(lt, T_ALERT, 0.05));
+    // whip between alert and breeds (sharp on the 9.375 frame itself)
+    if (lt > T_ALERT + 0.12 && lt < T_BREED + 0.12 && !(lt >= T_BREED && lt < T_BREED + 2 * F)) mb = 6;
+    // breeds: no flash, the whip-in carries it
+    const bf = E.env(lt, T_BREED, 0.06);
     shake += 18 * bf + 7 * hits([2.109375, 2.34375, 2.578125], 0.06);
-    ab += 6 * bf + 3 * hits([2.34375], 0.06);
+    ab += 8 * bf + 3 * hits([2.34375], 0.06);
+    // 58 reveal: ring burst + zoom punch, no white
     const rv = E.env(lt, T_REVEAL, 0.12);
-    shake += 30 * rv; ab += 10 * rv; if (0.55 * rv > flash) { flash = 0.55 * rv; flashColor = '#fff3d0'; }
-    shake += 12 * E.env(lt, T_CLAP2, 0.08); ab += 4 * E.env(lt, T_CLAP2, 0.06);
-    // push-through into s4
-    const out = E.seg(lt, T_END - 0.225, T_END, 'expoIn');
-    if (out > 0) { if (0.9 * out > flash) { flash = 0.9 * out; flashColor = '#ffffff'; } ab += 12 * out; shake += 10 * out; }
+    shake += 30 * rv; ab += 10 * rv; zoom *= 1 + 0.07 * E.env(lt, T_REVEAL, 0.09);
+    shake += 12 * E.env(lt, T_CLAP2, 0.08); ab += 4 * E.env(lt, T_CLAP2, 0.06); zoom *= 1 + 0.03 * E.env(lt, T_CLAP2, 0.08);
+    // push-through into s4: zoom/smear build, then 3 black frames before 11.25 (no fade-up)
+    const out = E.seg(lt, T_END - 0.12, T_END, 'expoIn');
+    if (out > 0) { ab += 12 * out; shake += 10 * out; }
+    if (lt >= T_END - 3 * F) { flash = 0.85; flashColor = '#07030c'; }
     return { shake, aberration: ab, flash, flashColor, glitch, zoom, motionBlur: mb };
   },
 };

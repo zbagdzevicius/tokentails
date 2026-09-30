@@ -77,10 +77,6 @@ const sponsorImages: { src: string; link: string }[] = [
     src: cdnFile("images/dapp/spintop.webp"),
     link: "https://spintop.network/gamepedia/games/token-tails",
   },
-  {
-    src: cdnFile("images/dapp/tonapp.webp"),
-    link: "https://ton.app/games/token-tails?id=3901",
-  },
 ];
 
 export const GameAggregators = () => {

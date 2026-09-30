@@ -13,7 +13,6 @@
   <a href="https://tokentails.com">Web</a> •
   <a href="https://play.google.com/store/apps/details?id=com.tokentails.app">Android</a> •
   <a href="https://apps.apple.com/lt/app/token-tails/id6745582489">iOS</a> •
-  <a href="https://t.me/CatbassadorsBot/app">Telegram</a> •
   <a href="./docs/README.md">Documentation</a>
 </p>
 
@@ -32,7 +31,7 @@ on Stellar.
 | Path | What | Stack |
 |---|---|---|
 | [`backend/`](backend/) | REST API: auth, cats, blessings, shelters, games, payments, AI generation, cron | NestJS 9, MongoDB, Stripe, Stellar SDK, OpenAI, Gemini |
-| [`client/`](client/) | Website, game shell, portrait funnel, feed, marketplace; also the mobile web bundle and Telegram Mini App | Next.js 16, React 19, Phaser 4, Capacitor 7, Stellar Wallets Kit |
+| [`client/`](client/) | Website, game shell, portrait funnel, feed, marketplace; also the mobile web bundle | Next.js 16, React 19, Phaser 4, Capacitor 7, Stellar Wallets Kit |
 | [`cms/`](cms/) | Admin console for shelters and staff | Next.js 16, Firebase Auth, TinyMCE |
 | [`contracts/`](contracts/) | Soroban NFT contracts (production), SKALE ERC-721s, faucets, archived prototypes | Rust, Solidity, Node |
 | [`docs/`](docs/) | Project documentation | Markdown |
@@ -72,7 +71,7 @@ Full setup, environment variables, and gotchas are in [docs/DEVELOPMENT.md](docs
 - Five game modes on Phaser 4, including an 80-level platformer and a 30-level match-3 with per-level leaderboards.
 - Dual currency: $TAILS as soft currency, catnip as capped competitive score, plus an airdrop progression system.
 - Payments through Stripe (Checkout and Payment Elements) and Stellar (XLM and USDC) with server-side verification.
-- One codebase for web, iOS, Android, and Telegram.
+- One codebase for web, iOS, and Android.
 
 ## Traction
 

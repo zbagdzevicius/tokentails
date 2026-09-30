@@ -55,6 +55,8 @@ export class Terrain {
   private readonly v = new THREE.Vector3();
   private readonly s = new THREE.Vector3(1, 1, 1);
   private readonly up = new THREE.Vector3(0, 1, 0);
+  private readonly tilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -0.35);
+  private readonly led = new THREE.Vector3();
 
   private readonly w: number;
   private readonly h: number;
@@ -101,8 +103,12 @@ export class Terrain {
     add(floor, floorMat, 'floor', false, true);
     add(solid, solidMat, 'walls', true, true);
     add(glow, glowMat, 'lamp-glass', false, false);
-    this.buildConveyorParts(solidMat, opts);
-    this.buildCameraHeads(solidMat);
+    // Instanced props get their own copy of the material: three keeps one program per material,
+    // and a material shared by plain and instanced meshes is re-resolved on every switch.
+    const instMat = solidMat.clone();
+    this.disposables.push(instMat);
+    this.buildConveyorParts(instMat, opts);
+    this.buildCameraHeads(instMat);
   }
 
   // -------------------------------------------------------------------------------------------
@@ -564,12 +570,11 @@ export class Terrain {
         const a = c.base + Math.sin(time * 0.5 + c.phase) * 0.7;
         this.q.setFromAxisAngle(this.up, -a);
         // Tilt down a little.
-        const tilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -0.35);
-        this.q.multiply(tilt);
+        this.q.multiply(this.tilt);
         this.m4.compose(this.v.set(c.x, c.y, c.z), this.q, this.s.set(1, 1, 1));
         this.camHeads!.setMatrixAt(i, this.m4);
         const on = Math.sin(time * 4 + c.phase * 3) > 0.2 ? 1 : 0.001;
-        const led = new THREE.Vector3(0.12, 0.1, 0).applyQuaternion(this.q);
+        const led = this.led.set(0.12, 0.1, 0).applyQuaternion(this.q);
         this.m4.compose(this.v.set(c.x + led.x, c.y + led.y, c.z + led.z), this.q, this.s.set(on, on, on));
         this.camLeds!.setMatrixAt(i, this.m4);
       });

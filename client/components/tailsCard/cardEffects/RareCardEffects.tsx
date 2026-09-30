@@ -320,6 +320,9 @@ export const RareCardEffects = () => {
       }),
       {} as Record<number, boolean>
     );
+    // Decorations mount hidden and are shown after mount so the opacity
+    // transition fades them in.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDecorationVisibility(initialVisibility);
 
     const timers: NodeJS.Timeout[] = [];

@@ -1,3 +1,4 @@
+import { gameRun } from "@/analytics";
 import { USER_API } from "@/api/user-api";
 import { GameOptionsModal } from "@/components/game/GameOptionsModal";
 import { GameSelect } from "@/components/game/GameSelect";
@@ -18,12 +19,13 @@ import { Notification } from "@/components/shared/Notification";
 import { PacksModal } from "@/components/shared/PacksModal";
 import { QuestsModal } from "@/components/shared/QuestsModal";
 import { SupportModal } from "@/components/shared/SupportModal";
-import { TelegramProfile } from "@/components/shared/TelegramProfile";
+import { ProfileModal } from "@/components/shared/ProfileModal";
 import { GameModal, GameType } from "@/models/game";
 import { buildCatnipProfilePatch } from "@/constants/catnip-accounting";
 import { useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 import { useEffect, useState } from "react";
+import { saveFailureMessage } from "./game-save-feedback";
 import { useProfile } from "./ProfileContext";
 import { IToast, useToast } from "./ToastContext";
 import { WheelModal } from "@/components/shared/WheelModal";
@@ -72,6 +74,10 @@ const GameProvider = ({ children }: React.PropsWithChildren<object>) => {
   }, [notifications]);
 
   const setGameType = (nextGameType: GameType | null) => {
+    if (nextGameType !== gameType) {
+      if (gameType) gameRun.leave({ mode: gameType, level });
+      if (nextGameType) gameRun.select();
+    }
     setCurrentGameType(nextGameType);
     if (nextGameType === null) {
       setLevel(null);
@@ -92,6 +98,8 @@ const GameProvider = ({ children }: React.PropsWithChildren<object>) => {
 
   const gameStopCallback = React.useCallback(
     async (event?: ICatEventsDetails[GameEvent.GAME_STOP]) => {
+      // Telemetry only; the score is saved through saveMatch below.
+      if (event && gameType) gameRun.stop({ mode: gameType, level }, event);
       if (!profile || !event || !gameType) return;
 
       const earnedCatnip = Number(event.catnipEarned ?? event.score ?? 0);
@@ -107,21 +115,22 @@ const GameProvider = ({ children }: React.PropsWithChildren<object>) => {
         catnipEarned: earnedCatnip,
       });
 
-      const result = await USER_API.saveMatch({
-        points: earnedCatnip,
-        score: gameType === GameType.MATCH_3 ? rawScore : undefined,
-        time: event.time ?? 0,
-        type: gameType,
-        level: level || undefined,
-      });
+      let result: Awaited<ReturnType<typeof USER_API.saveMatch>>;
+      try {
+        result = await USER_API.saveMatch({
+          points: earnedCatnip,
+          score: gameType === GameType.MATCH_3 ? rawScore : undefined,
+          time: event.time ?? 0,
+          type: gameType,
+          level: level || undefined,
+        });
+      } catch (error) {
+        showToast({ message: saveFailureMessage(error) });
+        return;
+      }
 
       if (result === null) {
-        if (gameType === GameType.CATNIP_CHAOS) {
-          showToast({ message: "You run out of lives ):" });
-        }
-        if (gameType === GameType.MATCH_3) {
-          showToast({ message: "Paw Match score was not saved. Please try again." });
-        }
+        showToast({ message: saveFailureMessage(null) });
         return;
       }
 
@@ -163,8 +172,15 @@ const GameProvider = ({ children }: React.PropsWithChildren<object>) => {
 
   GameEvents.GAME_STOP.use(gameStopCallback);
 
-  GameEvents.GAME_START.use(() => {
+  GameEvents.GAME_START.use((event) => {
     setIsStarted(true);
+    if (gameType) {
+      gameRun.start({ mode: gameType, level, isRestart: event?.isRestart });
+    }
+  });
+
+  GameEvents.GAME_LOADED.use(() => {
+    if (gameType) gameRun.loaded({ mode: gameType, level });
   });
 
   const playGame = React.useCallback(() => {
@@ -202,6 +218,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<object>) => {
     gameStop,
     level,
     setLevel: (level: string | null) => {
+      if (level) gameRun.select();
       setLevel(level);
       setIsStarted(!!level);
     },
@@ -276,7 +293,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<object>) => {
           />
 
           {openedModal === GameModal.PROFILE && (
-            <TelegramProfile close={() => setOpenedModal(null)} />
+            <ProfileModal close={() => setOpenedModal(null)} />
           )}
           {openedModal === GameModal.CODEX && (
             <CodexModal close={() => setOpenedModal(null)} />

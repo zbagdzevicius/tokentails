@@ -4,24 +4,24 @@ import { BlessingsTable } from '@/components/blessings/blessings-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Labeled } from '@/components/ui/labeled';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs } from '@/components/ui/tabs';
 import { useProfile } from '@/context/ProfileContext';
 import { PERMISSION_LEVEL } from '@/models/profile';
 import { useQuery } from '@tanstack/react-query';
 import { PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useDebounce } from '@uidotdev/usehooks';
 import { BLESSING_API } from '@/api/blessing-api';
 import { SHELTER_API } from '@/api/shelter-api';
 
 export default function BlessingsPage() {
-  const [page, setPage] = useState(0);
+  const [page] = useState(0);
   const [query, setQuery] = useState('');
   const { profile } = useProfile();
   const [shelter, setShelter] = useState<string>(profile?.shelter || '');
   const debouncedSearchParams = useDebounce([page, query, shelter], 250);
-  const { data: cats, refetch } = useQuery({
+  const { data: cats } = useQuery({
     queryKey: ['blessing', ...debouncedSearchParams],
     queryFn: () => BLESSING_API.blessingsFetch({ page, query, shelter })
   });
@@ -29,13 +29,19 @@ export default function BlessingsPage() {
     queryKey: ['shelter', profile?._id],
     queryFn: () => SHELTER_API.sheltersFetch()
   });
-  useEffect(() => {
-    setShelter(profile?.shelter!);
-  }, [profile, shelters]);
-
-  async function onDelete(_id: string) {
-    await BLESSING_API.blessingDelete(_id);
-    refetch();
+  // Reset the shelter filter to the profile's shelter whenever the profile or
+  // shelter list changes. Adjusted during render rather than in an effect.
+  const [shelterSyncedFor, setShelterSyncedFor] = useState<{
+    profile: typeof profile;
+    shelters: typeof shelters;
+  }>();
+  if (
+    !shelterSyncedFor ||
+    shelterSyncedFor.profile !== profile ||
+    shelterSyncedFor.shelters !== shelters
+  ) {
+    setShelterSyncedFor({ profile, shelters });
+    setShelter(profile?.shelter as string);
   }
 
   return (
@@ -92,7 +98,7 @@ export default function BlessingsPage() {
       <BlessingsTable
         custom={true}
         cats={cats || []}
-        totalBlessings={cats?.length!}
+        totalBlessings={cats?.length ?? 0}
         onUpdateStatus={() => {}}
       />
     </Tabs>

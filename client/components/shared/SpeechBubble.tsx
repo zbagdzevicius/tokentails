@@ -11,15 +11,23 @@ export const SpeechBubble = () => {
   const { cat } = useCat();
   const [displayText, setDisplayText] = useState("");
   const [typingIndex, setTypingIndex] = useState(0);
-  const [isVisible, setIsVisible] = useState(true);
+  // Starts hidden: the bubble appears after the delay below, on mount and
+  // whenever the fed state flips.
+  const [isVisible, setIsVisible] = useState(false);
   const isCatFed = cat?.status.EAT === 4;
   const currentMessageToDisplay = isCatFed ? afterFeedMessage : greetingMessage;
 
-  useEffect(() => {
+  // Restart the typing animation when the fed state changes (adjusting
+  // state during render instead of in an effect).
+  const [typedForCatFed, setTypedForCatFed] = useState(isCatFed);
+  if (typedForCatFed !== isCatFed) {
+    setTypedForCatFed(isCatFed);
     setIsVisible(false);
     setDisplayText("");
     setTypingIndex(0);
+  }
 
+  useEffect(() => {
     const timeout = setTimeout(() => {
       setIsVisible(true);
     }, 500); // Delay before message starts appearing

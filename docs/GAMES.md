@@ -9,17 +9,22 @@ the games.
 
 | Game type | In-game name | Folder | Saves score |
 |---|---|---|---|
-| `HOME` | Base | `client/components/base/` | No. Feeding the cat calls `PUT /cat/:id`. |
-| `SHELTER` | Shelter | `client/components/shelter/` | No. Opens cat cards for purchase. |
+| `HOME` | Home (Base) | `client/components/base/` | No. Feeding the cat calls `PUT /cat/:id`. |
+| `SHELTER` | Shelter, opened from Home | `client/components/shelter/` | No. Opens cat cards for purchase. |
 | `CATNIP_CHAOS` | Purrsuit | `client/components/CatnipChaos/` | Yes, catnip per level. |
 | `PIXEL_RESCUE` | Cupid Cat | `client/components/PixelRescue/` | Yes, hearts per level, date-gated levels. |
 | `MATCH_3` | Paw Match | `client/components/Match3/` | Yes, catnip and raw score per level. |
 
-`PURRQUEST` and `CATBASSADORS` exist in the backend enum from earlier iterations. The Telegram
-Mini App at `/catbassadors` is the same game shell with Telegram auth.
+`PURRQUEST` and `CATBASSADORS` exist in the backend enum from earlier iterations. Old `Game`
+rows use them and the score endpoint path is still `/user/catbassadors/live`, but the endpoint
+rejects them as a `type`, along with `HOME` and `SHELTER`.
 
-Empty placeholder folders for planned modes: `components/Purragotchi/`,
-`components/RoguePaws/scenes/`, `components/HyperTails/scenes/`.
+The lobby (`components/game/GameSelect.tsx`) shows one **Home** tile, which opens `HOME`. A
+`SHELTER` button inside Home switches to the Shelter scene and a `HOME` button switches back.
+This is a menu-level merge only: the two Phaser scenes, their `GameType` values and saves are
+unchanged. The **PLAY** button opens `components/shared/GameSelectModal.tsx` with Cupid Cat,
+Purrsuit and Paw Match. Purrsuit is frozen and its card says "No new levels for now, your
+progress is safe".
 
 ## Shared plumbing
 
@@ -27,16 +32,16 @@ Empty placeholder folders for planned modes: `components/Purragotchi/`,
 - **Tilesets**: `components/Phaser/map.ts` maps level ids to tileset PNGs under `public/base/` (spring, autumn, winter, candy, camp, summit, valentine, and so on).
 - **Controls**: `components/Phaser/MobileButtons/`, `components/shared/Joystick.tsx`, `components/Phaser/PlayerMovement/`.
 - **Player**: `components/catbassadors/objects/Catbassador.ts` is the player cat class with `Abilities.ts`.
-- **Hazards**: `components/storyMode/` holds 17 managers: saws, spikes, portals, levers and doors, floating and movable and destroyable blocks, rising water, fans, icy ground, morgenstern traps, falling columns, hidden traps, collectibles. `components/purrquest/` holds boss and enemy classes.
+- **Hazards**: `components/Phaser/hazards/` holds the managers the live modes use: `FloatingPlatformManager` and `PortalManager` (Purrsuit), `SawManager` and `RotatingMorgensternManager` (Cupid Cat), and `SpikeManager` with its `Spikes` sprite (both).
 - **Mounting**: every game component is loaded with `next/dynamic` and `ssr: false` into `<div id="game-container">` sized to the window.
 - **Music**: random tracks from the CDN `music/in-game/` folder.
 
 ## Save flow
 
-1. A scene pushes `GAME_STOP` with score, time, completed level, and for Paw Match `rawScore` and `catnipEarned`.
-2. `GameContext.gameStopCallback` builds `{ type, points, score, time, level }` and calls `USER_API.saveMatch`, which posts to `POST /user/catbassadors/live`.
-3. The backend writes a `Game` row, caps `points`, applies `$max` to the per-level arrays, recomputes catnip totals, and returns the snapshot.
-4. `GameContext` patches the profile and, for Paw Match, invalidates the per-level leaderboard queries. A `null` response means the player is out of lives.
+1. A scene pushes `GAME_STOP` with score, time, completed level, for Paw Match `rawScore` and `catnipEarned`, and for Purrsuit an `outcome` (`won` on the goal tile, `died` on a hit; `quit` is reserved, since leaving mid-run sends `game_quit` instead of a stop). Paw Match `time` is the seconds actually played, so streak, star and last-chance bonus seconds never make it negative.
+2. `GameContext.gameStopCallback` builds `{ type, points, score, time, level }` and calls `USER_API.saveMatch`, which adds `platform` (`web`, `ios` or `android` from `Capacitor.getPlatform()`) and posts to `POST /user/catbassadors/live`. Before saving it also sends the consent-gated `game_finish` or `game_fail` analytics event; telemetry never writes scores. `game_start`, `game_loaded` and `game_quit` come from the same context. See CLIENT.md, "Analytics".
+3. The backend rejects unknown fields, unknown types, unknown levels and `points` above the level cap with 400 before writing anything. It then writes a `Game` row with only the validated fields plus `platform` (`web` when the client sends none), applies `$max` to the per-level arrays, recomputes catnip totals, and returns the snapshot. Saves are limited to 30 per minute per player and 120 per minute per IP.
+4. `GameContext` patches the profile and, for Paw Match, invalidates the per-level leaderboard queries. The endpoint has no lives check. A 429 is retried once after `Retry-After`; if that is throttled too, `saveMatch` throws `MatchSaveThrottledError` and the player is told the run was not saved. Any other failure (a `null` response from a non-2xx status, or a network error) shows "Could not save your score, try again". The messages live in `context/game-save-feedback.ts`.
 
 Caps mirrored on the client in `constants/catnip-accounting.ts`:
 

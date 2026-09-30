@@ -208,6 +208,7 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
   skyMesh.frustumCulled = false;
   skyMesh.renderOrder = -100;
   skyMesh.name = 'sky';
+  skyMesh.matrixAutoUpdate = false;
   scene.add(skyMesh);
 
   // Soft radial texture for blob shadows and lamp light pools.
@@ -234,6 +235,7 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
   garden.lamps.forEach((l, i) => pools.setMatrixAt(i, new THREE.Matrix4().makeScale(3.6, 1, 3.6).setPosition(l.x, 0.07, l.z)));
   pools.name = 'light-pools';
   pools.renderOrder = 1;
+  pools.matrixAutoUpdate = false;
   scene.add(pools);
 
   // Butterflies: instanced voxel bodies whose wings flap in the vertex shader (one draw call).
@@ -295,6 +297,7 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
   bfCols.forEach((c, i) => butterflies.setColorAt(i, new THREE.Color(c)));
   butterflies.frustumCulled = false;
   butterflies.name = 'butterflies';
+  butterflies.matrixAutoUpdate = false;
   scene.add(butterflies);
 
   // Blob shadows (one instanced draw call).
@@ -305,6 +308,7 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
   const entries = allIds.map((id) => manifest.cats.find((c) => c.id === id)).filter((e): e is SheetEntry => !!e);
   const shadows = new THREE.InstancedMesh(shadowGeo, shadowMat, Math.max(1, entries.length));
   shadows.name = 'cat-shadows';
+  shadows.matrixAutoUpdate = false;
   shadows.renderOrder = 1;
   shadows.frustumCulled = false;
   scene.add(shadows);
@@ -315,6 +319,7 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
   const dropMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xe4f6ff).multiplyScalar(1.12) });
   const drops = new THREE.InstancedMesh(dropGeo, dropMat, DROPS);
   drops.name = 'drops';
+  drops.matrixAutoUpdate = false;
   drops.frustumCulled = false;
   scene.add(drops);
   const dropSeed = Array.from({ length: DROPS }, (_, i) => ({ a: (i / DROPS) * Math.PI * 2 + (i % 3) * 0.4, v: 1.0 + ((i * 7) % 5) * 0.12, t: (i * 0.137) % 1 }));
@@ -390,6 +395,11 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
     const aspect = viewW / Math.max(1, viewH);
     return Math.min(30, Math.max(17, 26 / Math.max(0.5, aspect)));
   }
+  /** Inputs of the last applyCamera(), so an idle camera costs nothing per frame. */
+  let camX = NaN, camZ = NaN, camZoom = NaN, camW = 0, camH = 0;
+  function cameraMoved(): boolean {
+    return target.x !== camX || target.z !== camZ || zoom !== camZoom || viewW !== camW || viewH !== camH;
+  }
   function applyCamera() {
     const halfH = baseHeight() / (2 * zoom);
     const halfW = halfH * (viewW / Math.max(1, viewH));
@@ -402,6 +412,11 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
     camera.position.copy(target).addScaledVector(camDir, CAM_DIST);
     camera.lookAt(target);
     camera.updateMatrixWorld();
+    camX = target.x;
+    camZ = target.z;
+    camZoom = zoom;
+    camW = viewW;
+    camH = viewH;
   }
   function clampTarget() {
     // In camera axes: the further out the zoom, the less you can pan, so the garden always fills
@@ -642,11 +657,22 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
   chooseBtn?.addEventListener('click', () => selected && opts.onChoose?.(selected));
 
   let selected: string | null = null;
+  /** Index of the selected slot (-1: none), so the loop does not search for it every frame. */
+  let selIdx = -1;
+  /** Last label placement written to the DOM (style writes only when it moves). */
+  let labelShown = false;
+  let labelX = NaN, labelY = NaN;
+  function showLabel(on: boolean) {
+    if (on === labelShown) return;
+    labelShown = on;
+    label.style.display = on ? 'block' : 'none';
+  }
   function select(id: string | null) {
-    const prev = slots.find((s) => s.entry.id === selected);
+    const prev = selIdx >= 0 ? slots[selIdx] : undefined;
     if (prev) release(prev.agent);
-    selected = id && slots.some((s) => s.entry.id === id) ? id : null;
-    const slot = slots.find((s) => s.entry.id === selected);
+    selIdx = id ? slots.findIndex((s) => s.entry.id === id) : -1;
+    selected = selIdx >= 0 ? id : null;
+    const slot = selIdx >= 0 ? slots[selIdx] : undefined;
     followIdx = -1;
     followBtn.textContent = 'Follow';
     if (slot) {
@@ -657,10 +683,10 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
       cardFact.textContent = `Loves ${FAVOURITES[Math.floor(seed) % FAVOURITES.length]} and ${QUIRKS[Math.floor(slot.agent.playful * 1000) % QUIRKS.length]}.`;
       card.classList.add('chy-on');
       label.textContent = slot.entry.name;
-      label.style.display = 'block';
+      showLabel(true);
     } else {
       card.classList.remove('chy-on');
-      label.style.display = 'none';
+      showLabel(false);
     }
     opts.onSelect?.(selected);
   }
@@ -732,12 +758,12 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
       target.x += (a.x - target.x) * k;
       target.z += (a.z - target.z) * k;
     }
-    applyCamera();
+    if (cameraMoved()) applyCamera();
 
     stepAgents(agents, world, dt);
 
     const wantHi = detail === 'high' || (detail === 'auto' && zoom >= HI_ZOOM);
-    if (wantHi || selected) {
+    if (wantHi || selIdx >= 0) {
       projScreen.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
       frustum.setFromProjectionMatrix(projScreen);
     }
@@ -753,7 +779,7 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
       // Level of detail.
       let hi = detail === 'high';
       if (detail === 'auto') {
-        const isSel = s.entry.id === selected;
+        const isSel = i === selIdx;
         if (isSel || (wantHi && hiCount < HI_CAP)) {
           sphere.center.set(a.x, 0.5, a.z);
           hi = frustum.intersectsSphere(sphere);
@@ -773,7 +799,7 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
       if (s.cur === s.hi) hiCount++;
       const sp = s.cur!;
       // Real shadows for the selected cat and a handful of full-detail ones (budget).
-      sp.mesh.castShadow = tier === 'high' && sp === s.hi && (s.entry.id === selected || hiShadows++ < 8);
+      sp.mesh.castShadow = tier === 'high' && sp === s.hi && (i === selIdx || hiShadows++ < 8);
       // Facing: project velocity on the camera's right vector.
       const vr = a.vx * right.x + a.vz * right.z;
       if (vr > 0.05) s.faceX = 1;
@@ -823,7 +849,7 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
     butterflies.instanceMatrix.needsUpdate = true;
 
     // Selection ring + floating label.
-    const sel = selected ? slots.find((s) => s.entry.id === selected) : undefined;
+    const sel = selIdx >= 0 ? slots[selIdx] : undefined;
     if (sel && sel.cur) {
       ring.visible = true;
       const pulse = reduced ? 1 : 1 + Math.sin(time * 5) * 0.06;
@@ -831,8 +857,14 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
       ring.scale.set(pulse, 1, pulse);
       tmpV.set(sel.agent.x, 1.35, sel.agent.z).project(camera);
       const vis = tmpV.x > -1.1 && tmpV.x < 1.1 && tmpV.y > -1.1 && tmpV.y < 1.1;
-      label.style.display = vis ? 'block' : 'none';
-      label.style.transform = `translate(${((tmpV.x + 1) / 2) * viewW}px, ${((1 - tmpV.y) / 2) * viewH}px) translate(-50%, -100%)`;
+      showLabel(vis);
+      // Whole CSS pixels (a transform only: no layout); skip the write while the cat stays put.
+      const lx = Math.round(((tmpV.x + 1) / 2) * viewW), ly = Math.round(((1 - tmpV.y) / 2) * viewH);
+      if (vis && (lx !== labelX || ly !== labelY)) {
+        labelX = lx;
+        labelY = ly;
+        label.style.transform = `translate(${lx}px, ${ly}px) translate(-50%, -100%)`;
+      }
       setTextIfChanged(cardAct, BEHAVIOUR_LABEL[sel.agent.behaviour]);
     } else ring.visible = false;
   }
@@ -926,6 +958,9 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
       listen.abort();
       renderer.renderLists.dispose();
       renderer.info.reset();
+      // The shared canvas outlives this visit: detach it, or it keeps the removed root (and through
+      // its listeners this whole visit: scene, cats, card) alive until the next visit.
+      renderer.domElement.remove();
       root.remove();
     },
   };

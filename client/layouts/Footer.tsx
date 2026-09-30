@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Socials } from "./Socials";
 import { cdnFile } from "@/constants/utils";
 import { PixelButton } from "@/components/shared/PixelButton";
+import { AnalyticsSettingsLink } from "@/components/shared/AnalyticsConsentBanner";
 
 interface FooterProps {
   title: string;
@@ -79,6 +80,7 @@ export const Footer: React.FC = () => {
             >
               Privacy Policy
             </a>
+            <AnalyticsSettingsLink />
           </div>
         </div>
       </footer>

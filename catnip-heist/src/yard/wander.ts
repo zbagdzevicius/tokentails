@@ -168,13 +168,16 @@ export function createAgent(id: string, world: YardWorld, others: readonly YardA
   return a;
 }
 
+/** Seconds [min, max] each resting behaviour lasts. */
+const REST_RANGE: Partial<Record<YardBehaviour, readonly [number, number]>> = {
+  IDLE: [1.5, 4], SIT: [4, 9], GROOM: [3.5, 7], LOAF: [5, 11], SLEEP: [9, 20], DIG: [1.5, 3], HOP: [0.8, 0.8], POSE: [999, 999],
+};
+const REST_DEFAULT: readonly [number, number] = [2, 4];
+
 function startRest(a: YardAgent, b: YardBehaviour) {
   a.behaviour = b;
   a.vx = a.vz = 0;
-  const base: Record<string, [number, number]> = {
-    IDLE: [1.5, 4], SIT: [4, 9], GROOM: [3.5, 7], LOAF: [5, 11], SLEEP: [9, 20], DIG: [1.5, 3], HOP: [0.8, 0.8], POSE: [999, 999],
-  };
-  const [lo, hi] = base[b] ?? [2, 4];
+  const [lo, hi] = REST_RANGE[b] ?? REST_DEFAULT;
   a.timer = lo + rand(a) * (hi - lo);
 }
 
@@ -242,10 +245,52 @@ export function release(a: YardAgent) {
   if (a.behaviour === 'POSE') a.timer = 0.5 + rand(a);
 }
 
+/** Walkers steer away from neighbours closer than this (world units; squared below). */
+const STEER_REACH2 = 0.5;
+const STEER_REACH = Math.sqrt(STEER_REACH2);
+
+/**
+ * Agents sorted by x, kept per agents array between steps. The order barely changes from one frame
+ * to the next, so an insertion sort is close to O(n), and neighbour queries become a short sweep
+ * along x instead of a scan over all n agents (no allocation per step).
+ */
+interface SweepOrder {
+  order: Int32Array;
+  rank: Int32Array;
+}
+const sweeps = new WeakMap<YardAgent[], SweepOrder>();
+
+function sortByX(agents: YardAgent[]): SweepOrder {
+  const n = agents.length;
+  let s = sweeps.get(agents);
+  if (!s || s.order.length !== n) {
+    s = { order: new Int32Array(n), rank: new Int32Array(n) };
+    for (let i = 0; i < n; i++) s.order[i] = i;
+    sweeps.set(agents, s);
+  }
+  const o = s.order;
+  for (let i = 1; i < n; i++) {
+    const v = o[i];
+    const x = agents[v].x;
+    let j = i - 1;
+    while (j >= 0 && agents[o[j]].x > x) {
+      o[j + 1] = o[j];
+      j--;
+    }
+    o[j + 1] = v;
+  }
+  for (let i = 0; i < n; i++) s.rank[o[i]] = i;
+  return s;
+}
+
 /** Advance all agents by dt seconds (dt is clamped to 0.1 to survive tab switches). */
 export function stepAgents(agents: YardAgent[], world: YardWorld, dtIn: number): void {
   const dt = Math.min(0.1, Math.max(0, dtIn));
-  for (const a of agents) {
+  const n = agents.length;
+  const { order, rank } = sortByX(agents);
+  const obstacles = world.obstacles;
+  for (let ai = 0; ai < n; ai++) {
+    const a = agents[ai];
     a.timer -= dt;
     if (a.behaviour === 'WALK' || a.behaviour === 'RUN') {
       if (a.held) {
@@ -255,31 +300,50 @@ export function stepAgents(agents: YardAgent[], world: YardWorld, dtIn: number):
         continue;
       }
       const dx = a.tx - a.x, dz = a.tz - a.z;
-      const d = Math.hypot(dx, dz);
+      const d = Math.sqrt(dx * dx + dz * dz);
       if (d < 0.08 || a.timer <= 0) {
         nextBehaviour(a, world);
         continue;
       }
       let vx = (dx / d) * a.speed, vz = (dz / d) * a.speed;
-      // Separation from close neighbours, steering sideways rather than stopping.
-      for (const o of agents) {
-        if (o === a) continue;
-        const ox = a.x - o.x, oz = a.z - o.z;
+      // Separation from close neighbours, steering sideways rather than stopping. Only agents
+      // within STEER_REACH along x can be that close: sweep outwards from this agent's rank.
+      const r = rank[ai];
+      for (let k = r - 1; k >= 0; k--) {
+        const o = agents[order[k]];
+        const ox = a.x - o.x;
+        if (ox >= STEER_REACH) break;
+        const oz = a.z - o.z;
         const od2 = ox * ox + oz * oz;
-        if (od2 < 0.5 && od2 > 1e-6) {
-          const k = (0.5 - od2) * 2.2;
-          vx += ox * k;
-          vz += oz * k;
+        if (od2 < STEER_REACH2 && od2 > 1e-6) {
+          const kk = (STEER_REACH2 - od2) * 2.2;
+          vx += ox * kk;
+          vz += oz * kk;
+        }
+      }
+      for (let k = r + 1; k < n; k++) {
+        const o = agents[order[k]];
+        const ox = a.x - o.x;
+        if (-ox >= STEER_REACH) break;
+        const oz = a.z - o.z;
+        const od2 = ox * ox + oz * oz;
+        if (od2 < STEER_REACH2 && od2 > 1e-6) {
+          const kk = (STEER_REACH2 - od2) * 2.2;
+          vx += ox * kk;
+          vz += oz * kk;
         }
       }
       // Obstacle avoidance along the path: near a prop and heading into it, trade the inward part
       // of the velocity for a slide along its rim (towards the side the target is on), so cats walk
       // around benches and trees instead of pressing into them and being pushed back.
-      for (const o of world.obstacles) {
+      for (let oi = 0; oi < obstacles.length; oi++) {
+        const o = obstacles[oi];
         const ox = a.x - o.x, oz = a.z - o.z;
-        const od = Math.hypot(ox, oz);
+        const reach = o.r + AGENT_RADIUS + AVOID_REACH;
+        const od2 = ox * ox + oz * oz;
+        if (od2 > reach * reach || od2 < 1e-12) continue;
+        const od = Math.sqrt(od2);
         const gap = od - o.r - AGENT_RADIUS;
-        if (gap > AVOID_REACH || od < 1e-6) continue;
         const nx = ox / od, nz = oz / od;
         const inward = -(vx * nx + vz * nz);
         if (inward <= 0) continue;
@@ -292,7 +356,7 @@ export function stepAgents(agents: YardAgent[], world: YardWorld, dtIn: number):
         vx += (nx + tx) * inward * k;
         vz += (nz + tz) * inward * k;
       }
-      const nv = Math.hypot(vx, vz) || 1;
+      const nv = Math.sqrt(vx * vx + vz * vz) || 1;
       const sp = Math.min(a.speed, nv);
       a.vx = (vx / nv) * sp;
       a.vz = (vz / nv) * sp;
@@ -309,13 +373,15 @@ export function stepAgents(agents: YardAgent[], world: YardWorld, dtIn: number):
     }
   }
   // Everyone (resting cats too) gently keeps apart so sprites do not stack.
-  separate(agents);
-  for (const a of agents) {
+  separate(agents, sortByX(agents).order);
+  const b = world.bounds;
+  for (let ai = 0; ai < n; ai++) {
+    const a = agents[ai];
     // Keep inside the plaza and out of props.
-    const b = world.bounds;
     a.x = Math.min(b.maxX, Math.max(b.minX, a.x));
     a.z = Math.min(b.maxZ, Math.max(b.minZ, a.z));
-    for (const o of world.obstacles) {
+    for (let oi = 0; oi < obstacles.length; oi++) {
+      const o = obstacles[oi];
       const ox = a.x - o.x, oz = a.z - o.z;
       const min = o.r + AGENT_RADIUS;
       const d2 = ox * ox + oz * oz;
@@ -331,13 +397,21 @@ export function stepAgents(agents: YardAgent[], world: YardWorld, dtIn: number):
 /** Minimum centre distance between two cats before they are pushed apart (world units). */
 export const SEPARATION = 0.6;
 
-/** Push overlapping agents apart (half each; a held cat does not move). O(n^2), n <= ~60. */
-function separate(agents: YardAgent[]): void {
+/**
+ * Push overlapping agents apart (half each; a held cat does not move). Sweep over the agents sorted
+ * by x: only pairs closer than SEPARATION along x are tested, each pair once (lower index first, so
+ * the per-pair math matches a plain i < j double loop).
+ */
+function separate(agents: YardAgent[], order: Int32Array): void {
   const min2 = SEPARATION * SEPARATION;
-  for (let i = 0; i < agents.length; i++) {
-    const a = agents[i];
-    for (let j = i + 1; j < agents.length; j++) {
-      const o = agents[j];
+  const n = agents.length;
+  for (let k = 0; k < n; k++) {
+    const p = order[k];
+    for (let m = k + 1; m < n; m++) {
+      const q = order[m];
+      if (agents[q].x - agents[p].x >= SEPARATION) break;
+      const i = p < q ? p : q, j = p < q ? q : p;
+      const a = agents[i], o = agents[j];
       let dx = a.x - o.x, dz = a.z - o.z;
       let d2 = dx * dx + dz * dz;
       if (d2 >= min2) continue;

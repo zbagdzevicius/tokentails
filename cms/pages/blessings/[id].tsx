@@ -11,13 +11,19 @@ import { Loader } from '@/components/ui/loader';
 import { TextArea } from '@/components/ui/textarea';
 import { useProfile } from '@/context/ProfileContext';
 import { useToast } from '@/context/ToastContext';
-import { BlessingType, Status, Statuses } from '@/models/blessing';
+import {
+  BlessingType,
+  IBlessingInput,
+  Status,
+  Statuses
+} from '@/models/blessing';
+import { ICat } from '@/models/cats';
 import { IImage } from '@/models/image';
 import { PERMISSION_LEVEL } from '@/models/profile';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 export default function Blessing() {
   const params = useParams<{ id: string }>();
@@ -41,22 +47,46 @@ export default function Blessing() {
     queryFn: () => SHELTER_API.sheltersFetch()
   });
 
-  useEffect(() => {
+  // Reset the form whenever the loaded blessing changes. This adjusts state
+  // during render instead of in an effect, so the form never paints stale.
+  const [formSyncedFor, setFormSyncedFor] = useState<{
+    blessing: typeof blessing;
+  }>();
+  if (!formSyncedFor || formSyncedFor.blessing !== blessing) {
+    setFormSyncedFor({ blessing });
     setName(blessing?.name || '');
     setDescription(blessing?.description || '');
     setStatus(blessing?.status || Status.WAITING);
     setImage(blessing?.image ? [blessing.image] : []);
     setSavior(blessing?.savior ? [blessing.savior] : []);
-  }, [blessing]);
+  }
 
-  useEffect(() => {
+  // Re-pick the default shelter whenever the profile, shelter list or
+  // blessing changes, again during render rather than in an effect.
+  const [shelterSyncedFor, setShelterSyncedFor] = useState<{
+    profile: typeof profile;
+    shelters: typeof shelters;
+    blessing: typeof blessing;
+  }>();
+  if (
+    !shelterSyncedFor ||
+    shelterSyncedFor.profile !== profile ||
+    shelterSyncedFor.shelters !== shelters ||
+    shelterSyncedFor.blessing !== blessing
+  ) {
+    setShelterSyncedFor({ profile, shelters, blessing });
     setShelter(
-      profile?.shelter! || (blessing as any)?.shelter || shelters?.[0] || ''
+      profile?.shelter ||
+        blessing?.shelter ||
+        // Pre-existing behaviour kept as-is: this falls back to the whole
+        // first shelter object rather than its _id.
+        (shelters?.[0] as unknown as string) ||
+        ''
     );
-  }, [profile, shelters, blessing]);
+  }
 
   const newCat = useMemo(
-    () => ({
+    (): IBlessingInput => ({
       _id: blessing?._id,
       name,
       description,
@@ -73,22 +103,24 @@ export default function Blessing() {
   async function saveCatFn() {
     try {
       if (blessing?._id) {
-        const update = await BLESSING_API.blessingEdit(newCat as any);
+        const update = await BLESSING_API.blessingEdit(newCat);
         if (!update) {
           return;
         }
       } else {
-        const blessing = await BLESSING_API.blessingCreate(newCat as any);
-        setId(blessing?._id!);
+        const blessing = await BLESSING_API.blessingCreate(newCat);
+        setId(blessing?._id ?? null);
         if (!blessing) {
           return;
         }
       }
       toast({ message: `Shelter Cat ${name} saved` });
       router.push('/blessings/');
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
-      toast({ message: e?.message || 'Error saving Shelter Cat' });
+      toast({
+        message: (e as Error | undefined)?.message || 'Error saving Shelter Cat'
+      });
     }
   }
   const { isPending, mutate: saveCat } = useMutation({
@@ -103,7 +135,7 @@ export default function Blessing() {
       {id && blessing && (
         <div className="flex justify-center">
           <TailsCard
-            cat={{ ...blessing?.cat, blessing: blessing as any } as any}
+            cat={{ ...blessing.cat, blessing } as unknown as ICat}
           />
         </div>
       )}

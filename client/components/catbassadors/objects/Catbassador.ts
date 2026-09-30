@@ -131,7 +131,7 @@ export class Cat implements IPlayer {
   // Add new properties for NPC behavior
   private lastTouchedWall: "left" | "right" = "left";
   job: null | NPCJob = null;
-  private timeoutFunction: any;
+  private timeoutFunction: ReturnType<typeof setTimeout> | null = null;
   enableControls: boolean;
 
   isAutoRunMode: boolean = false;
@@ -351,7 +351,7 @@ export class Cat implements IPlayer {
   }
 
   addCollider(collider: ColliderType) {
-    this.scene.physics.add.collider(this.sprite, collider as any);
+    this.scene.physics.add.collider(this.sprite, collider as Phaser.Types.Physics.Arcade.ArcadeColliderType);
   }
 
   // Add these helper methods

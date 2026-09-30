@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { MongooseModule } from '@nestjs/mongoose';
 import { PassportModule } from '@nestjs/passport';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -47,6 +48,8 @@ import { Ticket, TicketSchema } from './ticket/ticket.schema';
 import { TicketController } from './ticket/ticket.controller';
 import { TicketRepository } from './ticket/ticket.repository';
 import { PrintifyService } from './printify/printify.service';
+import { StripePaymentService } from './payments/stripe-payment.service';
+import { AppThrottlerGuard, DEFAULT_THROTTLE } from './shared/guards/app-throttler.guard';
 
 const JwtModules = [
     PassportModule,
@@ -73,12 +76,8 @@ const config = {
 @Module({
     imports: [
         ScheduleModule.forRoot(),
-        ThrottlerModule.forRoot([
-            {
-                ttl: 60000, // 1 minute in milliseconds
-                limit: 5, // 5 requests per minute
-            },
-        ]),
+        // Applied to every route by the APP_GUARD below; routes tighten it with @Throttle.
+        ThrottlerModule.forRoot([DEFAULT_THROTTLE]),
         MongooseModule.forRoot(process.env.MONGODB_URI!, {
             useNewUrlParser: true,
             useUnifiedTopology: true,
@@ -134,6 +133,8 @@ const config = {
         QuestRepository,
         TicketRepository,
         PrintifyService,
+        StripePaymentService,
+        { provide: APP_GUARD, useClass: AppThrottlerGuard },
     ],
 })
 export class AppModule {}

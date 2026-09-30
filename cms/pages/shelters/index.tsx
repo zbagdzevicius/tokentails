@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { SHELTER_API } from '@/api/shelter-api';
 
 export default function SheltersPage() {
-  const { data: shelters, refetch } = useQuery({
+  const { data: shelters } = useQuery({
     queryKey: ['shelter'],
     queryFn: () => SHELTER_API.sheltersFetch()
   });
@@ -29,7 +29,7 @@ export default function SheltersPage() {
         </div>
       </div>
       <TabsContent value="all">
-        <SheltersTable items={shelters || []} total={shelters?.length!} />
+        <SheltersTable items={shelters || []} total={shelters?.length ?? 0} />
       </TabsContent>
     </Tabs>
   );

@@ -1,7 +1,7 @@
 import { ICat } from "@/models/cats";
 import { useEffect, useState } from "react";
 
-export type IPhaserScene = Phaser.Scene & { cat?: any; catDto?: ICat };
+export type IPhaserScene = Phaser.Scene & { cat?: unknown; catDto?: ICat };
 export interface IPhaserGame {
   game: Phaser.Game | null;
   scene: IPhaserScene | null;
@@ -14,26 +14,33 @@ export interface IPhaserGameSceneProps {
 }
 
 // CAT EVENTS
-interface ICatMeowEvent {}
-interface ICatEatenEvent {}
+// Events that carry no payload.
+type IEmptyEvent = Record<string, never>;
+interface ICatMeowEvent {
+  cat?: ICat;
+}
+type ICatEatenEvent = IEmptyEvent;
 interface ICatSpawnEvent {
   cat: ICat;
   isRestart?: boolean;
 }
-interface ICatPlayEvent {}
-interface ICatEatEvent {}
-interface ICatEatEvent {}
+type ICatPlayEvent = IEmptyEvent;
+type ICatEatEvent = IEmptyEvent;
 // GAME EVENTS
 interface IGameStartEvent {
   cat?: ICat;
   isRestart?: boolean;
 }
+/** How a run ended. Sent by modes whose stop is not implied by `completedLevel`. */
+export type GameStopOutcome = "won" | "died" | "quit";
+
 export interface IGameStopEvent {
   score: number;
   time: number;
   completedLevel?: string | null;
   rawScore?: number;
   catnipEarned?: number;
+  outcome?: GameStopOutcome;
 }
 
 interface IGameUpdateEvent {
@@ -146,7 +153,7 @@ const useEvent = <K extends GameEvent>(
 ) => {
   const [object, setObject] = useState<ICatEventsDetails[K] | null>(null);
   useEffect(() => {
-    const handleGameStart = (event: IEventDetail<any>) => {
+    const handleGameStart = (event: IEventDetail<ICatEventsDetails[K]>) => {
       setObject(event.detail);
       callback?.(event.detail);
     };
@@ -234,3 +241,7 @@ export const GameEvents: GameEventsType = {
   ),
   [GameEvent.OBJECTIVE_UPDATE]: generateGameEvent(GameEvent.OBJECTIVE_UPDATE),
 };
+
+// Hook-named alias so React tooling treats the callback as effect-driven
+// (useEvent only calls it from a window event listener, never during render).
+export const useGameLoaded = GameEvents.GAME_LOADED.use;

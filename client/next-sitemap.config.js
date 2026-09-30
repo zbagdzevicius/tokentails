@@ -1,5 +1,9 @@
 const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
+// Articles are served by pages/feed/[category]/[article].tsx.
+const getArticlePath = (article) =>
+    `/feed/${encodeURIComponent(article.category)}/${encodeURIComponent(article.slug)}`;
+
 const getRecord = (url, date) => {
     return {
         loc: url,
@@ -15,8 +19,9 @@ module.exports = {
     generateRobotsTxt: !process.env.NEXT_PUBLIC_IS_APP,
     robotsTxtOptions: {},
     sitemapSize: 1000,
-    // /gaming is a noindex redirect stub for legacy links.
-    exclude: ['/gaming'],
+    // /gaming is a noindex redirect stub for legacy links; /cats/view and
+    // /feed/article are the app export's client routes (noindex).
+    exclude: ['/gaming', '/cats/view', '/feed/article'],
     additionalPaths: async () => {
         if (process.env.NEXT_PUBLIC_IS_APP) {
             return [];
@@ -38,10 +43,12 @@ module.exports = {
             return [];
         }
 
-        const articles = Array.isArray(slugs?.article) ? slugs.article : [];
+        const articles = (Array.isArray(slugs?.article) ? slugs.article : []).filter(
+            (article) => article?.category && article?.slug,
+        );
         return [
             ...articles.map((article) => ({
-                ...getRecord(`/${article.category}/${article.slug}`, article.updatedAt),
+                ...getRecord(getArticlePath(article), article.updatedAt),
                 images: [{ loc: article.featuredImage }],
                 news: {
                     title: article.title,

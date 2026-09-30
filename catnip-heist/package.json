@@ -6,6 +6,7 @@
   "description": "Catnip Heist v1: single-player voxel pixel-art stealth game for Token Tails",
   "scripts": {
     "import-assets": "node scripts/import-assets.mjs",
+    "optimize-assets": "node scripts/optimize-assets.mjs",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --port 4173",
@@ -14,7 +15,8 @@
     "e2e": "playwright test",
     "solve": "node tools/solve.mjs",
     "build-level": "node tools/build-levels.mjs",
-    "export-glb": "node tools/export-glb.mjs"
+    "export-glb": "node tools/export-glb.mjs",
+    "build:client": "tsc --noEmit && HEIST_BASE=/heist/ HEIST_PAYOUTS_URL=/shelter-payouts HEIST_DEPLOYMENTS_URL=/shelter-payouts/deployments.json vite build --outDir ../client/public/heist --emptyOutDir"
   },
   "dependencies": {
     "three": "^0.183.2"

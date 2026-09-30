@@ -17,7 +17,7 @@ import { SignIn } from '../components/SignIn';
 import { useProfile } from './ProfileContext';
 import { USER_API } from '@/api/user-api';
 
-let reauthInterval: any;
+let reauthInterval: ReturnType<typeof setInterval> | undefined;
 const firebaseConfig = {
   apiKey: 'AIzaSyCfitm6sU-lOunY3JpGdn8D4Ng7Dz5m3yk',
   authDomain: 'news-ccd33.firebaseapp.com',
@@ -54,13 +54,13 @@ const FirebaseAuthContext = React.createContext<ContextState | undefined>(
   undefined
 );
 
-const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
+const FirebaseAuthProvider = ({ children }: React.PropsWithChildren) => {
   const [user, setUser] = React.useState<User>(null);
   const [isLoginModalDisplayed, setIsLoginModalDisplayed] =
     React.useState(true);
   const [isVerifiedModalDisplayed, setIsVerifiedModalDisplayed] =
     React.useState(false);
-  const { setProfile, setUtils } = useProfile();
+  const { setProfile } = useProfile();
 
   const { data: profileResponse, refetch: refetchProfile } = useQuery({
     queryKey: ['profile-details', user],
@@ -77,7 +77,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     if (profileResponse) {
       setProfile(profileResponse);
     }
-  }, [profileResponse]);
+  }, [profileResponse, setProfile]);
   const onUserChange = useCallback(
     async (u: User) => {
       if (!u) {
@@ -109,7 +109,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
         );
       }
     },
-    [setIsLoginModalDisplayed, setIsVerifiedModalDisplayed]
+    [setProfile]
   );
   const value = {
     user,
@@ -120,9 +120,12 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     refetchProfile
   };
 
-  React.useEffect(() => {
-    onAuthStateChanged(auth, onUserChange);
-  }, []);
+  // onUserChange only depends on stable state setters, so this subscribes
+  // once; the returned unsubscribe detaches the listener on unmount.
+  React.useEffect(
+    () => onAuthStateChanged(auth, onUserChange),
+    [onUserChange]
+  );
 
   return (
     <FirebaseAuthContext.Provider value={value}>

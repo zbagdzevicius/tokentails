@@ -32,7 +32,7 @@ export const SafeInput = (
       throw Error("Message is empty");
     }
     return ARTICLE_API.comment({ ...props, text: message });
-  }, [profile, message]);
+  }, [profile, message, props]);
   const { mutate, isPending } = useMutation({
     mutationFn: commentCall,
     onSuccess: (data) => {

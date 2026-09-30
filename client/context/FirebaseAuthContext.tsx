@@ -26,7 +26,7 @@ import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
 import { USER_API } from "@/api/user-api";
 
-let reauthInterval: any;
+let reauthInterval: ReturnType<typeof setInterval> | null = null;
 
 const firebaseConfig = {
   apiKey: "AIzaSyCfitm6sU-lOunY3JpGdn8D4Ng7Dz5m3yk",
@@ -69,7 +69,7 @@ const FirebaseAuthContext = React.createContext<ContextState | undefined>(
   undefined
 );
 
-const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
+const FirebaseAuthProvider = ({ children }: React.PropsWithChildren) => {
   const [user, setUser] = React.useState<User>(null);
   const [userLoaded, setUserLoaded] = React.useState(false);
   const toast = useToast();
@@ -110,7 +110,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     (email: string) => {
       sendPasswordResetEmail(auth, email);
     },
-    [auth]
+    []
   );
 
   React.useEffect(() => {
@@ -133,9 +133,8 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   }, [profileResponse, query]);
   React.useEffect(() => {
     setUtils({
-      openLink: (url: string, options: any) =>
+      openLink: (url: string) =>
         window.open(url, "_blank")?.focus?.(),
-      openTelegramLink: (url: string) => window.open(url, "_blank")?.focus?.(),
       shareURL: (url: string, text?: string) => {
         copy(url);
         toast({
@@ -185,7 +184,7 @@ const FirebaseAuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       }
       setUserLoaded(true);
     },
-    [setIsLoginModalDisplayed]
+    [setIsLoginModalDisplayed, setProfile]
   );
   const value = {
     user,
@@ -272,7 +271,7 @@ function useFirebaseAuth() {
         nativeAppleSignIn();
       }
     },
-    []
+    [toast]
   );
   const showSignInPopup = useCallback(() => {
     if (!context?.user) {

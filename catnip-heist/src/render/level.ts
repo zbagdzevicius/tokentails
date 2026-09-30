@@ -42,6 +42,9 @@ export function _unusedHash2(x: number, y: number): number {
 
 interface DoorView {
   def: DoorDef;
+  /** Status light colours (linear, before the blink): shut, open. */
+  shutColor: THREE.Color;
+  openColor: THREE.Color;
   axis: 'h' | 'v';
   group: THREE.Group;
   panel: THREE.Object3D;
@@ -107,6 +110,8 @@ export class LevelView {
   private portalActive = 0;
   readonly exitCenter = new THREE.Vector3();
   private readonly disposables: { dispose(): void }[] = [];
+  /** Objects animated from update(); everything else in the level is frozen once built. */
+  private readonly live = new Set<THREE.Object3D>();
   terrain: Terrain | null = null;
   private readonly m4 = new THREE.Matrix4();
   private readonly q = new THREE.Quaternion();
@@ -139,9 +144,13 @@ export class LevelView {
     this.buildDoorsAndPlates();
     this.buildExit();
     this.group.add(this.crateGroup);
-    this.ready = this.buildAsync(ctx).catch((e) => {
-      console.warn('[render] level props failed to load', e);
-    });
+    this.ready = this.buildAsync(ctx)
+      .catch((e) => {
+        console.warn('[render] level props failed to load', e);
+      })
+      .then(() => {
+        if (!this.disposed) this.freezeStatic();
+      });
   }
 
   charAt(x: number, y: number): string {
@@ -239,6 +248,7 @@ export class LevelView {
       g.add(frame, pad, ring, glow);
       this.group.add(g);
       this.plates.push({ pad, glow, mat, ring: ringMat, color: new THREE.Color(color), down: 0 });
+      this.live.add(pad);
       this.disposables.push(mat, glowMat, ringMat);
     });
 
@@ -266,12 +276,9 @@ export class LevelView {
       this.disposables.push(frame.geometry);
       // Status lights on both faces of both posts.
       const lights = new THREE.MeshBasicMaterial({ color: hdr(PALETTE.ember, 3) });
-      const lb = new THREE.BoxGeometry(0.07, 0.07, 0.43);
-      for (const sx of [-1, 1]) {
-        const l = new THREE.Mesh(lb, lights);
-        l.position.set(sx * 0.5, H - 0.24, 0);
-        g.add(l);
-      }
+      // Both posts' lights in one mesh (one draw call per door).
+      const lb = mergeGeometries([-1, 1].map((sx) => new THREE.BoxGeometry(0.07, 0.07, 0.43).translate(sx * 0.5, H - 0.24, 0)))!;
+      g.add(new THREE.Mesh(lb, lights));
       this.disposables.push(lights, lb);
 
       const panel = new THREE.Group();
@@ -305,7 +312,8 @@ export class LevelView {
       }
       g.add(panel);
       this.group.add(g);
-      this.doors.push({ def: d, axis, group: g, panel, open: 0, color, lights, dial });
+      this.doors.push({ def: d, axis, group: g, panel, open: 0, color, lights, dial, shutColor: new THREE.Color(PALETTE.ember), openColor: new THREE.Color(vault ? '#7cff9a' : color) });
+      this.live.add(panel);
     }
   }
 
@@ -353,10 +361,21 @@ export class LevelView {
     beamGeo.translate(0, 0.8, 0);
     this.disposables.push(padGeo, padMat, swirlGeo, beamGeo);
 
-    for (const t of tiles) {
-      const c = tileCenter(t);
-      const pad = new THREE.Mesh(padGeo, padMat);
-      pad.position.set(c.x, 0, c.z);
+    // Every exit tile gets a pad, a swirl disc and a beam; the tiles' copies are merged so the
+    // whole portal is three draw calls however many tiles it has (each copy keeps its own UVs).
+    const at = (g: THREE.BufferGeometry, y: number) => tiles.map((t) => g.clone().translate(tileCenter(t).x, y, tileCenter(t).z));
+    const mergeAt = (g: THREE.BufferGeometry, y: number) => {
+      const parts = at(g, y);
+      const m = tiles.length === 1 ? parts[0] : mergeGeometries(parts)!;
+      if (tiles.length > 1) for (const p of parts) p.dispose();
+      return m;
+    };
+    const padsGeo = mergeAt(padGeo, 0);
+    const discsGeo = mergeAt(swirlGeo, 0.1);
+    const beamsGeo = mergeAt(beamGeo, 0.08);
+    this.disposables.push(padsGeo, discsGeo, beamsGeo);
+    {
+      const pad = new THREE.Mesh(padsGeo, padMat);
       pad.receiveShadow = true;
       const swirl = new THREE.ShaderMaterial({
         uniforms: {
@@ -386,8 +405,7 @@ export class LevelView {
         transparent: true,
         depthWrite: false,
       });
-      const disc = new THREE.Mesh(swirlGeo, swirl);
-      disc.position.set(c.x, 0.1, c.z);
+      const disc = new THREE.Mesh(discsGeo, swirl);
       disc.renderOrder = 1;
       const beamMat = new THREE.ShaderMaterial({
         uniforms: { uTime: { value: 0 }, uActive: { value: 0 }, uC: { value: new THREE.Color(PALETTE.mint).multiplyScalar(1.1) } },
@@ -406,8 +424,7 @@ export class LevelView {
         side: THREE.DoubleSide,
         blending: THREE.AdditiveBlending,
       });
-      const beam = new THREE.Mesh(beamGeo, beamMat);
-      beam.position.set(c.x, 0.08, c.z);
+      const beam = new THREE.Mesh(beamsGeo, beamMat);
       beam.renderOrder = 4;
       this.group.add(pad, disc, beam);
       this.portals.push({ swirl, beam, beamMat });
@@ -497,6 +514,7 @@ export class LevelView {
           this.group.add(this.keyBeam);
           this.disposables.push(beamGeo, beamMat);
           this.keyGroup = g;
+          this.live.add(g);
           this.group.add(g);
           this.disposables.push(geo, glowGeo, glowMat);
         }),
@@ -515,6 +533,7 @@ export class LevelView {
           m.position.set(this.exitCenter.x, 1.7, this.exitCenter.z);
           m.name = 'exit-sign';
           this.exitSign = m;
+          this.live.add(m);
           this.group.add(m);
           this.disposables.push(geo);
         }),
@@ -620,6 +639,7 @@ export class LevelView {
     woodMesh.receiveShadow = true;
     cage.add(woodMesh, barMesh);
     this.cage = cage;
+    this.live.add(cage);
     this.crateGroup.add(cage);
     this.disposables.push(woodMat, barMat, woodGeo, barGeo);
 
@@ -629,6 +649,7 @@ export class LevelView {
     this.heart.scale.setScalar(1 / 30);
     this.heart.rotation.y = CAMERA_YAW;
     this.heart.position.y = 1.45;
+    this.live.add(this.heart);
     this.crateGroup.add(this.heart);
 
     const entry = manifest.cats.find((k) => k.id === cd.catId) ?? manifest.cats[0];
@@ -639,6 +660,7 @@ export class LevelView {
     cat.object3d.rotation.y = CAMERA_YAW;
     cat.object3d.position.y = 0.1;
     this.crateCat = cat;
+    this.live.add(cat.object3d);
     this.crateGroup.add(cat.object3d);
   }
 
@@ -658,6 +680,21 @@ export class LevelView {
     this.beamTex = new THREE.CanvasTexture(c);
     this.disposables.push(this.beamTex);
     return this.beamTex;
+  }
+
+  /**
+   * Stop recomputing the matrices of everything that never moves (floor, walls, frames, pads,
+   * glows, instanced props: their instances carry their own matrices). Animated objects (door
+   * panels, plate pads, key, sign, cage, heart, crate cat) and their subtrees keep auto updates.
+   */
+  private freezeStatic(): void {
+    const visit = (o: THREE.Object3D) => {
+      if (this.live.has(o)) return;
+      o.matrixAutoUpdate = false;
+      o.updateMatrix();
+      for (const c of o.children) visit(c);
+    };
+    visit(this.group);
   }
 
   // -------------------------------------------------------------------------------------------
@@ -686,7 +723,7 @@ export class LevelView {
       }
       const open = s.doorsOpen[i];
       const blink = open ? 1 : 0.6 + 0.4 * Math.max(0, Math.sin(time * 5 + i));
-      d.lights.color.set(open ? (d.def.kind === 'VAULT' ? '#7cff9a' : d.color) : PALETTE.ember).multiplyScalar(3 * blink);
+      d.lights.color.copy(open ? d.openColor : d.shutColor).multiplyScalar(3 * blink);
     });
 
     // Plates.

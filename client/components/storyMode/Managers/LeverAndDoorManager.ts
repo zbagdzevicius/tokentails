@@ -40,11 +40,11 @@ export class LeverAndDoorManager {
     (this.door.body as Phaser.Physics.Arcade.Body).allowGravity = false;
     (this.door.body as Phaser.Physics.Arcade.Body).immovable = true;
 
-    this.scene.physics.add.collider(config.player, this.door as any);
+    this.scene.physics.add.collider(config.player, this.door as Phaser.Types.Physics.Arcade.GameObjectWithBody);
 
     this.scene.physics.add.overlap(
       config.player,
-      this.lever as any,
+      this.lever as Phaser.Types.Physics.Arcade.GameObjectWithBody,
       this.activateLever,
       undefined,
       this

@@ -25,15 +25,20 @@ sync. The server block sets `androidScheme: "http"` with cleartext allowed.
 | `@capacitor/browser` | External links |
 | `@capacitor/clipboard` | Share modal copy on native |
 
+`@capacitor/core`'s `Capacitor.getPlatform()` tags every score save (`platform` on the `/live`
+body and the `Game` row) and every analytics event as `ios`, `android` or `web`. Analytics is
+consent-gated and off unless `NEXT_PUBLIC_POSTHOG_KEY` is set for the build (see CLIENT.md,
+"Analytics").
+
 ## Build flow
 
 ```bash
 cd client
-# 1. Re-enable static export: uncomment `output: "export"` in next.config.js
-npm run build:app          # next build with .env.app
+npm run build:app          # next build with .env.app; static export to out/
+npm run check:app-export   # fail if out/index.html or a key route is missing
 npm run app:sync           # capacitor copy + sync into android/ and ios/
-npm run app:android        # build:app, sync, open Android Studio
-npm run app:ios            # build:app, sync, open Xcode
+npm run app:android        # build:app, check, sync, open Android Studio
+npm run app:ios            # build:app, check, sync, open Xcode
 npm run app:android:run    # run on device with live reload
 npm run app:ios:run
 npm run app:assets         # regenerate icons and splash from resources/logo.png
@@ -42,12 +47,43 @@ npm run app:assets         # regenerate icons and splash from resources/logo.png
 `app:assets` uses background colour `#fc8b6d` for icons and splash in both light and dark, and a
 0.4 logo scale. The only source image is `client/resources/logo.png`.
 
-`.env.app` must set `NEXT_PUBLIC_IS_APP` so the build skips robots and sitemap extras, hides ad
-slots, and enables app-only UI.
+`.env.app` must set `NEXT_PUBLIC_IS_APP`. The flag switches `next.config.js` to
+`output: "export"` (and drops its server redirects), turns off ISR and on-demand dynamic pages,
+skips robots and sitemap extras, hides ad slots, hides web checkout, and enables app-only UI.
+Web builds are unchanged.
+
+### Static export routes
+
+A static export has no server, so the web-only dynamic routes (`/cats/[cat]`,
+`/feed/[category]/[article]`) emit no pages in app builds. App links go to client routes that read
+the slug from the query string instead: `/cats/view?id=<id>` and
+`/feed/article?category=<slug>&slug=<slug>`. `catPath` and `articlePath` in `api/routing.ts` pick
+the right form, and `webPath` maps either form back to the canonical website URL for sharing.
+Capacitor serves `index.html` for any extensionless path, so a full page load (a plain `<a href>`,
+`window.location`) boots the homepage bundle whatever the URL says. `components/AppRouteRestore.tsx`,
+mounted in `pages/_app.tsx`, then routes client-side to the page the URL names; prefer `next/link`
+to avoid the extra load. It maps old-form `/cats/<id>` and `/feed/<category>/<slug>` paths to the
+query-param routes (`appPath` in `api/routing.ts`), and tries each path once per session, so a path
+the export cannot serve lands on the homepage instead of reloading forever.
+
+`npm run check:app-export` (`scripts/check-app-export.mjs`) fails unless `out/` contains
+`index.html` loading the Next bundle, `_next/static/`, and the key routes (`404`, `game`, `cats`,
+`cats/view`, `feed`, `feed/article`, `packs`, `box`). `app:ios:ci` and `app:android` run it
+before syncing.
+
+### Purchases
+
+Store rules require in-app purchase for digital goods, and IAP (RevenueCat) is deferred. App
+builds therefore hide every Stripe and Stellar checkout: `Payment`, `StripePayment`, and
+`Web3Transfer` render `AppCheckoutNotice` ("Purchases are not available in the app yet.") and
+Stripe.js is never loaded; the codex hides its PET ART tab (the paid portrait flow) and the flow
+hides its price, card and web3 toggle; the portrait preview page hides its purchase options; the
+mystery box hides its price; the packs screen shows the packs without prices or the purchase tag,
+and picking one does nothing. Free boxes still open.
 
 ## Android
 
-- `android/variables.gradle`: minimum SDK 23, compile and target SDK 35, version code 23, version name 23.0, Java 21.
+- `android/variables.gradle`: minimum SDK 23, compile and target SDK 36, version code 23, version name 23.0, Java 21. Building needs Android SDK Platform 36 installed. The Android Gradle Plugin is 8.7.2, which officially supports compile SDK up to 35 and warns on 36.
 - Manifest: single permission `INTERNET`. Main activity is `singleTask`, landscape, exported. No app links or custom scheme intent filters.
 - Release build type has minification disabled.
 - `google-services.json` is present at `android/app/` and applied conditionally by Gradle. It is tracked in git.
@@ -98,7 +134,9 @@ the hardcoded LAN address before use.
 
 ## Known issues
 
-- Static export is disabled in `next.config.js`. Mobile builds fail to produce `out/` until it is re-enabled.
+- Plain anchors (for example PLAY on the homepage) still cause a full reload in the app before `AppRouteRestore` routes to the page.
+- Portrait marketing pages still show prices in app builds, although checkout is hidden.
 - Firebase config files for both platforms and a release `.aab` are committed.
 - Duplicate orientation keys and a stray URL scheme key in `Info.plist`.
 - No universal links or Android app links, so shared URLs cannot open the app.
+- The App Store privacy details and the Play data safety form do not list PostHog analytics. Update them before shipping an app build with `NEXT_PUBLIC_POSTHOG_KEY` set.

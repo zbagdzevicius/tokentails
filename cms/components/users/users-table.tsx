@@ -16,12 +16,13 @@ import {
   TableRow
 } from '@/components/ui/table';
 import UserListItem from './user-list-item';
+import { IProfile } from '@/models/profile';
 
 export function UsersTable({
   users,
   totalUsers
 }: {
-  users: any[];
+  users: IProfile[];
   totalUsers: number;
 }) {
   return (
@@ -37,7 +38,6 @@ export function UsersTable({
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Telegram</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Points</TableHead>
               <TableHead>

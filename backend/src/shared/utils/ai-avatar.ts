@@ -5,7 +5,7 @@ import { v4 as generateFilename } from 'uuid';
 import { uploadFileImage } from './image.utils';
 import { randomObjectFromArray } from 'src/common/utils';
 import { CatAbilityType, CatAbilityTypes } from 'src/cat/cat.schema';
-const sharp = require('sharp');
+import sharp = require('sharp');
 dotenv.config();
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY! });

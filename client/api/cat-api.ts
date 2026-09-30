@@ -10,7 +10,7 @@ const stake = async (
       Accept: "application/json",
       "Content-Type": "application/json",
       accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     return response.json();
   });
@@ -28,7 +28,7 @@ const stakingRedeem = async (
       Accept: "application/json",
       "Content-Type": "application/json",
       accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -51,7 +51,7 @@ const setAsOpened = async (
       Accept: "application/json",
       "Content-Type": "application/json",
       accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -69,7 +69,7 @@ const cats = async (): Promise<ICat[]> => {
       Accept: "application/json",
       "Content-Type": "application/json",
       accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -86,7 +86,7 @@ const cat = async (id: string): Promise<ICat | null> => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -104,7 +104,7 @@ const catsForSale = async (): Promise<Record<string, ICat[]>> => {
       Accept: "application/json",
       "Content-Type": "application/json",
       accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -129,7 +129,7 @@ const update = async (
       Accept: "application/json",
       "Content-Type": "application/json",
       accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -147,7 +147,7 @@ const setActive = async (id: string): Promise<void> => {
       Accept: "application/json",
       "Content-Type": "application/json",
       accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -167,7 +167,7 @@ const redeem = async (
       Accept: "application/json",
       "Content-Type": "application/json",
       accesstoken: sessionStorage.getItem("accesstoken"),
-    } as any,
+    } as HeadersInit,
   }).then((response) => {
     if (response.ok) {
       return response.json();

@@ -1,9 +1,21 @@
-import { BadRequestException, Controller, Get, Param, Put, UnauthorizedException, UseGuards } from '@nestjs/common';
+import {
+    BadRequestException,
+    ConflictException,
+    Controller,
+    ForbiddenException,
+    Get,
+    NotFoundException,
+    Param,
+    Put,
+    UnauthorizedException,
+    UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Types } from 'mongoose';
 import fetch from 'node-fetch';
-import { Cat, CatStatus, ICat, MAX_CAT_STATUS, Tier } from 'src/cat/cat.schema';
+import { Cat, ICat, MAX_CAT_STATUS, Tier } from 'src/cat/cat.schema';
 import { IResponse, RESPONSES } from 'src/shared/constants/common';
 import { REWARDS } from 'src/shared/constants/rewards';
 import { USER_ID } from 'src/shared/decorators/user.decorator';
@@ -60,9 +72,9 @@ export class CatController {
 
     @Get('rates')
     async getRates(): Promise<Record<CurrencyType, number>> {
-        const rates = await fetch(
-            `https://api.binance.com/api/v3/ticker/price?symbols=["XLMUSDC"]`
-        ).then(res => res.json());
+        const rates = await fetch(`https://api.binance.com/api/v3/ticker/price?symbols=["XLMUSDC"]`).then(res =>
+            res.json()
+        );
 
         const ratesObject = rates.reduce(
             (acc: Record<CurrencyType, number>, rate: { price: string; symbol: string }) => {
@@ -238,6 +250,9 @@ export class CatController {
         });
     }
 
+    // NFT metadata is fetched by marketplace crawlers from a few shared IPs, so the per-IP global
+    // limit would cut them off. Both routes are public, read-only and return fixed fields.
+    @SkipThrottle()
     @Get('nft/metadata')
     async nftmetadata(): Promise<{ name: string; description: string; image: string; external_link: string }> {
         return {
@@ -264,6 +279,7 @@ export class CatController {
         return { success: true, message: 'Cat redeemed successfully', cat: adoption.cat! };
     }
 
+    @SkipThrottle()
     @Get('nft/:tokenId')
     async nftId(@Param('tokenId') tokenId: string): Promise<{ name: string; description: string; image: string }> {
         const cat = await this.repository.findOne({
@@ -285,26 +301,33 @@ export class CatController {
     @UseGuards(AuthGuard('appauth'))
     @Put(':id')
     async updateStatus(@USER_ID() userId: string, @Param('id') _id: string): Promise<IResponse> {
-        const [cat, user] = await Promise.all([
-            this.repository.findOne({
-                searchObject: { _id },
-                projection: 'status tokenId blessing',
-            }),
-            this.userRepository.findOne({
-                searchObject: { _id: new Types.ObjectId(userId) },
-                projection: 'wallets',
-            }),
-        ]);
-        if (!cat || !user) {
-            throw new BadRequestException('Cat does not exist');
+        if (!Types.ObjectId.isValid(_id)) {
+            throw new BadRequestException('Invalid cat id');
         }
-        if (cat.status.EAT >= MAX_CAT_STATUS) {
-            throw new BadRequestException('Cat is already full');
+        const catId = new Types.ObjectId(_id);
+        const ownerId = new Types.ObjectId(userId);
+
+        // One conditional write: only the owner can feed, and only while the cat is below the cap.
+        // Concurrent requests race on this filter, so at most one of them matches and pays.
+        const fedCat = await this.repository.model
+            .findOneAndUpdate(
+                { _id: catId, owner: ownerId, 'status.EAT': { $not: { $gte: MAX_CAT_STATUS } } },
+                { $set: { status: { EAT: MAX_CAT_STATUS } } },
+                { projection: { _id: 1 } }
+            )
+            .lean();
+
+        if (!fedCat) {
+            const cat = await this.repository.findOne({ searchObject: { _id: catId }, projection: 'owner' });
+            if (!cat) {
+                throw new NotFoundException('Cat does not exist');
+            }
+            if (cat.owner?.toString() !== ownerId.toString()) {
+                throw new ForbiddenException('You can only feed your own cat');
+            }
+            throw new ConflictException('Cat is already full');
         }
-        const newStatus: CatStatus = {
-            EAT: MAX_CAT_STATUS,
-        };
-        await this.repository.update(cat._id, { status: newStatus });
+
         const catMultiplier = 1;
         await this.userRepository.update(userId, {
             $inc: { tails: REWARDS.FEED * catMultiplier, monthFeeded: 1, monthTails: REWARDS.FEED * catMultiplier },

@@ -32,6 +32,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
     type: GameType;
     title: string;
     description: string;
+    notice?: string;
     image?: string;
     previewBg?: string;
     previewVariant?: "IMAGE" | "MATCH3";
@@ -47,6 +48,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
       type: GameType.CATNIP_CHAOS,
       title: "PURRSUIT",
       description: "Get through challenges with your cat",
+      notice: "No new levels for now, your progress is safe",
       image: cdnFile("utilities/game-modal/catnip-chaos.webp"),
       previewVariant: "IMAGE",
     },
@@ -186,6 +188,11 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
                 >
                   {card.description}
                 </p>
+                {card.notice && (
+                  <p className="pt-1 text-center font-secondary text-[8px] uppercase leading-tight text-yellow-50 text-balance drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] md:text-[10px]">
+                    {card.notice}
+                  </p>
+                )}
               </div>
             </div>
           ))}

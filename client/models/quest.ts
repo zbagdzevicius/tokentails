@@ -44,8 +44,6 @@ interface IQuestReward {
 }
 
 export enum QUEST {
-  FOLLOW_TG_CHANNEL = "FOLLOW_TG_CHANNEL",
-  FOLLOW_TG_GROUP = "FOLLOW_TG_GROUP",
   FOLLOW_X = "FOLLOW_X",
   FOLLOW_X_FOUNDER = "FOLLOW_X_FOUNDER",
   FOLLOW_DISCORD = "FOLLOW_DISCORD",
@@ -74,16 +72,6 @@ export interface ILocalQuest {
 export const allQuests: ILocalQuest[] = [
   {
     type: QuestType.SOCIAL,
-    key: QUEST.FOLLOW_TG_CHANNEL,
-    name: "Subscribe channel",
-    link: "https://t.me/tokentails",
-    icon: cdnFile("icons/social/telegram.webp"),
-    reward: {
-      tails: 10,
-    },
-  },
-  {
-    type: QuestType.SOCIAL,
     key: QUEST.FOLLOW_X,
     name: "Follow on X",
     link: "https://x.com/intent/follow?screen_name=tokentails&tw_p=followbutton",
@@ -100,16 +88,6 @@ export const allQuests: ILocalQuest[] = [
     icon: cdnFile("icons/social/x.webp"),
     reward: {
       tails: 50,
-    },
-  },
-  {
-    type: QuestType.SOCIAL,
-    key: QUEST.FOLLOW_TG_GROUP,
-    name: "Join group",
-    link: "https://t.me/tokentailsgroup",
-    icon: cdnFile("icons/social/telegram.webp"),
-    reward: {
-      tails: 10,
     },
   },
   {

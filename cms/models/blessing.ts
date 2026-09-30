@@ -1,4 +1,5 @@
 import { ICat } from './cat';
+import { CatAbilityType } from './cats';
 import { IImage } from './image';
 import { IMintedNFTs } from './nft';
 import { IProfile } from './profile';
@@ -41,6 +42,22 @@ export interface IBlessing {
   createdAt?: string;
   updatedAt?: string;
 }
+
+/**
+ * Write payload for POST/PUT /blessing (and the /custom variants): images and
+ * the creator are sent as ids, and custom blessings carry the cat props inline.
+ */
+export type IBlessingInput = Partial<
+  Omit<IBlessing, 'image' | 'savior' | 'creator' | 'cat' | 'owner' | 'token'>
+> & {
+  image?: string;
+  savior?: string;
+  creator?: string;
+  type?: BlessingType | CatAbilityType;
+  resqueStory?: string;
+  spriteImg?: string;
+  catImg?: string;
+};
 
 export type ICustomBlessing = Pick<
   IBlessing,

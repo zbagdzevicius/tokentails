@@ -4,16 +4,17 @@ import { Loader } from "@/components/shared/Loader";
 import { NoMore } from "@/components/shared/NoMore";
 import { insertObjectEveryN } from "@/constants/utils";
 import { isApp } from "@/models/app";
+import { IArticleExcerpt } from "@/models/article";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo } from "react";
 import { useInView } from "react-intersection-observer";
-import { Feed } from "./Feed";
+import { Feed, IFeedItem } from "./Feed";
 import { FeedCta } from "./feed/FeedCta";
 
 export interface LandingPageProps {
   category?: string;
   hasCategory?: boolean;
-  entryRecords?: any[];
+  entryRecords?: IArticleExcerpt[];
 }
 
 export const BlogFeed = ({
@@ -23,7 +24,7 @@ export const BlogFeed = ({
 }: LandingPageProps) => {
   const queryFunction = useCallback(
     async ({ pageParam = 0 }) => {
-      let articles = [];
+      const articles = [];
       if (hasCategory && !category) {
         return [];
       }
@@ -51,7 +52,10 @@ export const BlogFeed = ({
   }, [inView, fetchNextPage]);
 
   const articles = useMemo(() => {
-    let items = [...(entryRecords || []), ...(data?.pages?.flat(1) || [])];
+    let items: IFeedItem[] = [
+      ...(entryRecords || []),
+      ...(data?.pages?.flat(1) || []),
+    ];
     if (!isApp) {
       items = insertObjectEveryN(items, 10, { isAd: true });
     }

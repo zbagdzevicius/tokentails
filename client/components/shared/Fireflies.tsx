@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useState } from "react";
 
 interface Firefly {
   id: number;
@@ -16,7 +16,8 @@ interface Firefly {
 }
 
 export const Fireflies = () => {
-  const fireflies = useMemo(() => {
+  // Random layout generated once per mount.
+  const [fireflies] = useState(() => {
     const count = 60;
     return Array.from({ length: count }, (_, i) => ({
       id: i,
@@ -32,7 +33,7 @@ export const Fireflies = () => {
       moveX3: (Math.random() - 0.5) * 100,
       moveY3: (Math.random() - 0.5) * 100,
     }));
-  }, []);
+  });
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">

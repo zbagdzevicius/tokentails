@@ -1,6 +1,7 @@
 import React from 'react';
+import type { IToast } from './ToastContext';
 
-export const Toast = ({ message, icon, isError }: any) => {
+export const Toast = ({ message, isError }: IToast) => {
   return (
     <div className="fixed z-30 left-1/2 -translate-x-1/2 font-primary uppercase top-16 bg-grey-500">
       <div

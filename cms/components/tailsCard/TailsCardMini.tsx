@@ -15,13 +15,14 @@ type Props = {
 };
 
 export const TailsCardMini: React.FC<Props> = ({ cat, onClick }) => {
-  if (!cat) return null;
+  // Unknown ability types render as FAIRY; derive it rather than mutating
+  // the prop.
+  const catType =
+    cat && CatAbilityTypes.includes(cat.type) ? cat.type : CatAbilityType.FAIRY;
+  const borderColor = useMemo(() => cardsBorderColor[catType], [catType]);
+  const typeIcon = useMemo(() => cardsIcon[catType], [catType]);
 
-  if (!CatAbilityTypes.includes(cat.type)) {
-    cat.type = CatAbilityType.FAIRY;
-  }
-  const borderColor = useMemo(() => cardsBorderColor[cat.type], [cat.type]);
-  const typeIcon = useMemo(() => cardsIcon[cat.type], [cat.type]);
+  if (!cat) return null;
 
   return (
     <>
@@ -40,7 +41,7 @@ export const TailsCardMini: React.FC<Props> = ({ cat, onClick }) => {
           className="animate-opacity cursor-pointer inline-block"
         >
           <CardWrapper
-            catType={cat.type}
+            catType={catType}
             isBackSide={true}
             style={{
               width: "144px", // w-36 = 9rem = 144px
@@ -69,7 +70,7 @@ export const TailsCardMini: React.FC<Props> = ({ cat, onClick }) => {
                     <img
                       draggable={false}
                       src={typeIcon}
-                      alt={cat.type}
+                      alt={catType}
                       className="object-contain w-4 h-4"
                     />
                   </div>

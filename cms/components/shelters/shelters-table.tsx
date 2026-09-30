@@ -16,12 +16,13 @@ import {
   TableRow
 } from '@/components/ui/table';
 import Shelter from '../shelter';
+import { IShelter } from '@/models/shelter';
 
 export function SheltersTable({
   items,
   total
 }: {
-  items: any[];
+  items: IShelter[];
   total: number;
 }) {
   return (

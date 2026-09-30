@@ -25,7 +25,7 @@ export default function DashboardLayout({
           <User />
         </header>
         <Link href='/' className="flex items-center gap-4 justify-center items-center">
-          <img src="/logo.webp" className="w-12 md:w-20"/>
+          <img src="/logo.webp" alt="Token Tails" className="w-12 md:w-20"/>
           <div className="font-primary font-bold tracking-widest uppercase text-2xl md:text-4xl w-fit flex flex-col">
             <div>Token Tails</div>
             <div className='text-sm text-center'>FOR CATS SHELTERS</div>

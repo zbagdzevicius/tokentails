@@ -1,5 +1,7 @@
+import { catPath } from "@/api/routing";
 import { cdnFile } from "@/constants/utils";
 import { cardsColor, ICat } from "@/models/cats";
+import Link from "next/link";
 
 export const MarketplaceItem = ({
   cat,
@@ -9,9 +11,11 @@ export const MarketplaceItem = ({
   onClick?: () => void;
 }) => {
   return (
-    <a
+    // Client-side navigation: the static app export has no page to load
+    // for a full request to a cat route.
+    <Link
       onClick={onClick}
-      href={onClick ? "#" : `/cats/${cat._id}`}
+      href={onClick ? "#" : catPath(cat._id ?? "")}
       className="relative overflow-hidden w-48 rounded-2xl rem:border-[7px] min-w-[12rem] group"
       style={{ borderColor: cardsColor[cat.type] }}
     >
@@ -53,6 +57,6 @@ export const MarketplaceItem = ({
         src={cdnFile(`ability/${cat.type}_BG.webp`)}
         alt={`${cat.type} background`}
       />
-    </a>
+    </Link>
   );
 };

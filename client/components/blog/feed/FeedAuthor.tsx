@@ -25,9 +25,19 @@ export const engagingTexts = [
   "Meowgical",
 ];
 
+// Deterministic string hash, used to spread fallback subtitles across authors.
+const pickEngagingText = (key: string) => {
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash * 31 + key.charCodeAt(i)) | 0;
+  }
+  return engagingTexts[Math.abs(hash) % engagingTexts.length];
+};
+
 export const FeedAuthor = ({
   author,
   authorLink,
+  date,
   authorImage,
   authorSubtitle,
 }: IFeedAuthorProps) => {
@@ -35,13 +45,13 @@ export const FeedAuthor = ({
     () => feedOptions.find((option) => authorLink.includes(option.href)),
     [authorLink]
   );
-  const randomText = useMemo(
-    () =>
-      authorSubtitle
-        ? authorSubtitle
-        : engagingTexts[Math.floor(Math.random() * engagingTexts.length)],
-    [authorSubtitle]
+  // Fallback subtitle derived from stable props, so the server render and
+  // hydration pick the same text (Math.random() here caused a mismatch).
+  const fallbackText = useMemo(
+    () => pickEngagingText(`${authorLink}|${author}|${date}`),
+    [authorLink, author, date]
   );
+  const randomText = authorSubtitle ? authorSubtitle : fallbackText;
 
   return (
     <Link

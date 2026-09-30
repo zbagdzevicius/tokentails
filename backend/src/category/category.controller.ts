@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, NotFoundException, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Category } from 'src/category/category.schema';
-import { SearchModel } from 'src/common/validators';
+import { pickSearchParams, SearchModel } from 'src/common/validators';
 import { PermissionGuard } from 'src/shared/guards/permission.guard';
 import { PERMISSION_LEVEL } from 'src/user/models/user.model';
 import { IController } from '../shared/interfaces/controller.interface';
@@ -16,7 +16,7 @@ export class CategoryController implements IController<Category> {
     @Post('search')
     public async search(@Body() params: SearchModel): Promise<Category[]> {
         return this.repository.find({
-            ...params,
+            ...pickSearchParams(params),
             projection: '_id name createdAt articlesCount slug',
         });
     }

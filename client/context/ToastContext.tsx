@@ -18,7 +18,7 @@ export interface IToast {
 
 const ToastContext = React.createContext<ContextState | undefined>(undefined);
 
-const ToastProvider = ({ children }: React.PropsWithChildren<{}>) => {
+const ToastProvider = ({ children }: React.PropsWithChildren) => {
   const [currentToast, setCurrentToast] = React.useState<IToast | null>(null);
   const [toastQueue, setToastQueue] = React.useState<IToast[]>([]);
 

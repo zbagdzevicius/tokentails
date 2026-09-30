@@ -1,4 +1,4 @@
-import { IMAGE_API } from "@/api/image-api";
+import { IMAGE_API, SignInRequiredError } from "@/api/image-api";
 import { trackEvent } from "@/components/GoogleTagManager";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { ProgressStylePickerModal } from "@/components/codex/ProgressStylePickerModal";
@@ -11,6 +11,8 @@ import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { UploadZone } from "@/features/portrait/components/UploadZone";
 import { PortraitStyle } from "@/features/portrait/components/StylePickerDrawer";
+import { AppCheckoutNotice } from "@/components/web3/AppCheckoutNotice";
+import { isApp } from "@/models/app";
 import { IMessage } from "@/models/cats";
 import { EntityType } from "@/models/save";
 import { useEffect, useMemo, useState } from "react";
@@ -63,10 +65,10 @@ export const ImmortalizePetFlow = ({
   const [selectedStyle, setSelectedStyle] = useState(PortraitStyle.HIGHNESS);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadedPreviewUrl, setUploadedPreviewUrl] = useState<string | null>(
-    null,
+    null
   );
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(
-    null,
+    null
   );
   const [generatedImageId, setGeneratedImageId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -87,7 +89,7 @@ export const ImmortalizePetFlow = ({
 
   const canGenerate = useMemo(
     () => !!uploadedFile && !isGenerating && !isRegenerating,
-    [uploadedFile, isGenerating, isRegenerating],
+    [uploadedFile, isGenerating, isRegenerating]
   );
 
   const getProgressMessage = (percentage: number): string => {
@@ -229,7 +231,7 @@ export const ImmortalizePetFlow = ({
     try {
       const image = await IMAGE_API.regeneratePortrait(
         generatedImageId,
-        selectedStyle,
+        selectedStyle
       );
       const portraitUrl = image?.aiUrl || image?.url;
       if (!portraitUrl) {
@@ -243,7 +245,10 @@ export const ImmortalizePetFlow = ({
     } catch (error) {
       console.error("regenerate portrait error:", error);
       showToast({
-        message: "Could not regenerate portrait right now.",
+        message:
+          error instanceof SignInRequiredError
+            ? error.message
+            : "Could not regenerate portrait right now.",
         isError: true,
       });
     } finally {
@@ -304,7 +309,7 @@ export const ImmortalizePetFlow = ({
           <span className="rounded-lg border-2 border-yellow-900 bg-gradient-to-r from-yellow-300 to-yellow-100 px-2 py-0.5 font-primary text-p5 md:text-p4 font-bold text-yellow-900">
             IMMORTALIZE YOUR REAL PET
           </span>
-          <Tag isSmall>$6 DIGITAL</Tag>
+          {!isApp && <Tag isSmall>$6 DIGITAL</Tag>}
         </div>
         <div className="mt-2 rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-3 py-2 font-primary text-p6 md:text-p5 text-yellow-900">
           Upload a real pet photo, generate a stylized portrait and card of your
@@ -420,54 +425,62 @@ export const ImmortalizePetFlow = ({
                   unlock.
                 </div>
 
-                <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-                  <span className="-ml-2">
-                    <PixelButton
-                      isSmall
-                      className="!m-0"
-                      text="CARD"
-                      active={paymentMethod === "stripe"}
-                      onClick={() => setPaymentMethod("stripe")}
-                    />
-                  </span>
-                  <span className="-ml-2">
-                    <PixelButton
-                      isSmall
-                      className="!m-0"
-                      text="WEB3"
-                      active={paymentMethod === "crypto"}
-                      onClick={() => setPaymentMethod("crypto")}
-                    />
-                  </span>
-                </div>
-
-                {paymentMethod === "stripe" ? (
+                {isApp ? (
                   <div className="mt-2">
-                    <StripePayment
-                      price={DIGITAL_PORTRAIT_PRICE}
-                      id={generatedImageId || ""}
-                      imageId={generatedImageId || ""}
-                      entityType={EntityType.IMAGE}
-                      productType="digital"
-                      onSuccess={handleStripeSuccess}
-                    />
+                    <AppCheckoutNotice />
                   </div>
                 ) : (
-                  <div className="mt-2">
-                    <Web3Providers>
-                      <div className="flex flex-col items-center gap-2">
-                        <Web3Transfer
+                  <>
+                    <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                      <span className="-ml-2">
+                        <PixelButton
+                          isSmall
+                          className="!m-0"
+                          text="CARD"
+                          active={paymentMethod === "stripe"}
+                          onClick={() => setPaymentMethod("stripe")}
+                        />
+                      </span>
+                      <span className="-ml-2">
+                        <PixelButton
+                          isSmall
+                          className="!m-0"
+                          text="WEB3"
+                          active={paymentMethod === "crypto"}
+                          onClick={() => setPaymentMethod("crypto")}
+                        />
+                      </span>
+                    </div>
+
+                    {paymentMethod === "stripe" ? (
+                      <div className="mt-2">
+                        <StripePayment
                           price={DIGITAL_PORTRAIT_PRICE}
+                          id={generatedImageId || ""}
+                          imageId={generatedImageId || ""}
                           entityType={EntityType.IMAGE}
-                          id={generatedImageId || undefined}
-                          user={profile?._id}
-                          text="IMMORTALIZE WITH CRYPTO"
-                          loadingText="FINALIZING..."
-                          onSuccess={handleCryptoSuccess}
+                          productType="digital"
+                          onSuccess={handleStripeSuccess}
                         />
                       </div>
-                    </Web3Providers>
-                  </div>
+                    ) : (
+                      <div className="mt-2">
+                        <Web3Providers>
+                          <div className="flex flex-col items-center gap-2">
+                            <Web3Transfer
+                              price={DIGITAL_PORTRAIT_PRICE}
+                              entityType={EntityType.IMAGE}
+                              id={generatedImageId || undefined}
+                              user={profile?._id}
+                              text="IMMORTALIZE WITH CRYPTO"
+                              loadingText="FINALIZING..."
+                              onSuccess={handleCryptoSuccess}
+                            />
+                          </div>
+                        </Web3Providers>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {isPurchaseCompleted && (

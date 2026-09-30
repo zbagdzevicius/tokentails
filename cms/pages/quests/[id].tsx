@@ -8,10 +8,11 @@ import { Labeled } from '@/components/ui/labeled';
 import { Loader } from '@/components/ui/loader';
 import { useToast } from '@/context/ToastContext';
 import { IImage } from '@/models/image';
+import { IQuestInput } from '@/models/quest';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 export default function Quest() {
   const params = useParams<{ id: string }>();
@@ -25,25 +26,29 @@ export default function Quest() {
 
   const [name, setName] = useState('');
   const [link, setLink] = useState('');
-  const [catpoints, setCatpoints] = useState(0);
-  const [tails, setTails] = useState(0);
+  const [catpoints, setCatpoints] = useState<number | ''>(0);
+  const [tails, setTails] = useState<number | ''>(0);
   const [image, setImage] = useState<IImage[]>([]);
 
-  useEffect(() => {
+  // Reset the form whenever the loaded quest changes. This adjusts state
+  // during render instead of in an effect, so the form never paints stale.
+  const [syncedFor, setSyncedFor] = useState<{ quest: typeof quest }>();
+  if (!syncedFor || syncedFor.quest !== quest) {
+    setSyncedFor({ quest });
     setName(quest?.name || '');
     setLink(quest?.link || '');
     setCatpoints(quest?.catpoints || 0);
     setTails(quest?.tails || 0);
     setImage(quest?.image ? [quest.image] : []);
-  }, [quest]);
+  }
 
   const newQuest = useMemo(
-    () => ({
+    (): IQuestInput => ({
       _id: quest?._id,
       name,
       link,
-      catpoints: isNaN(catpoints) ? 0 : catpoints,
-      tails: isNaN(tails) ? 0 : tails,
+      catpoints: isNaN(Number(catpoints)) ? 0 : catpoints,
+      tails: isNaN(Number(tails)) ? 0 : tails,
       image: image[0]?._id
     }),
     [name, link, catpoints, image, quest, tails]
@@ -52,16 +57,16 @@ export default function Quest() {
   async function saveQuestFn() {
     try {
       if (quest?._id) {
-        await QUEST_API.questEdit(newQuest as any);
+        await QUEST_API.questEdit(newQuest);
       } else {
-        const quest = await QUEST_API.questCreate(newQuest as any);
-        setId(quest?._id!);
+        const quest = await QUEST_API.questCreate(newQuest);
+        setId(quest?._id ?? null);
       }
       toast({ message: `Quest ${name} saved` });
       router.push('/quests/');
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
-      toast({ message: e?.message || 'Error saving quest' });
+      toast({ message: (e as Error | undefined)?.message || 'Error saving quest' });
     }
   }
   const { isPending, mutate: saveQuest } = useMutation({
@@ -97,11 +102,7 @@ export default function Quest() {
           type="number"
           value={catpoints}
           onChange={(e) =>
-            setCatpoints(
-              e.target.value
-                ? parseInt(e.target.value)
-                : (e.target.value as any)
-            )
+            setCatpoints(e.target.value ? parseInt(e.target.value) : '')
           }
         />
       </Labeled>
@@ -112,11 +113,7 @@ export default function Quest() {
           type="number"
           value={tails}
           onChange={(e) =>
-            setTails(
-              e.target.value
-                ? parseInt(e.target.value)
-                : (e.target.value as any)
-            )
+            setTails(e.target.value ? parseInt(e.target.value) : '')
           }
         />
       </Labeled>

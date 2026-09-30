@@ -106,6 +106,8 @@ export const WheelModal: React.FC<WheelModalProps> = ({
     const testVideo = document.createElement("video");
     const webmSupport = testVideo.canPlayType('video/webm; codecs="vp9,opus"');
     // Mobile Safari does not support transparent WebM and shows black background.
+    // Codec support must be read after mount to keep SSR output hydration-safe.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setShowMascotVideo(Boolean(webmSupport));
   }, []);
 

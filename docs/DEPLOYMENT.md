@@ -15,7 +15,6 @@ rather than a specific provider.
 | Asset CDN | `https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com` |
 | Android | Google Play, `com.tokentails.app` |
 | iOS | App Store, id `6745582489` |
-| Telegram | `t.me/CatbassadorsBot/app` |
 
 ## Backend
 
@@ -33,12 +32,15 @@ Requirements:
 - MongoDB reachable at `MONGODB_URI`. Atlas is expected for the `$search` endpoints.
 - All variables in BACKEND.md set. `FRONT_END_URLS` must list every frontend origin, otherwise CORS falls back to `*`.
 - Stripe webhook endpoint registered as `https://<api>/image/webhook` for `checkout.session.completed`.
-- Outbound access to Firebase, Telegram, OpenAI, Google GenAI, Stripe, Stellar Horizon, DigitalOcean Spaces, SendGrid, and Binance.
+- Outbound access to Firebase, OpenAI, Google GenAI, Stripe, Stellar Horizon, DigitalOcean Spaces, SendGrid, and Binance.
 - A single instance, or accept that in-memory caches diverge across replicas.
+- `TRUST_PROXY` set to the proxy hop count when the API runs behind a load balancer or reverse proxy, otherwise every client shares one rate-limit bucket (see BACKEND.md known issues).
+- For the 2026-10 codex cycle: deploy before 2026-10-01 00:00 server time, or run `backend/scripts/skip-codex-cycle.js --period 2026-10 --apply` before 2026-10-08T23:00Z (BACKEND.md known issues).
 
 There is no Dockerfile, process manager config, or health probe beyond `GET /`.
 
-Cron jobs run inside the process. Two instances would run every job twice.
+Cron jobs run inside the process. Two instances would run every job twice, except the codex
+reset, which claims its period in the `jobruns` collection first.
 
 ## Client website
 
@@ -83,8 +85,9 @@ Play internal track via Fastlane. Promote to production in the Play Console.
 iOS: Xcode Cloud runs `ios/App/ci_scripts/ci_post_clone.sh` to build the web bundle and sync
 Capacitor, then archives and uploads to TestFlight. Promote in App Store Connect.
 
-Both require static export enabled in `next.config.js` and an `.env.app` with
-`NEXT_PUBLIC_IS_APP` set. Details in MOBILE.md.
+Both build the static export from `.env.app`, which must set `NEXT_PUBLIC_IS_APP`; that flag is
+what turns on `output: "export"` in `next.config.js`. `app:ios:ci` runs `check:app-export` before
+syncing, so Xcode Cloud stops if `out/` is incomplete. Details in MOBILE.md.
 
 ## Contracts
 

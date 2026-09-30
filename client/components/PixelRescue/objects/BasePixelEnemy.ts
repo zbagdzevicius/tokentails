@@ -29,8 +29,12 @@ export class BasePixelEnemy extends Phaser.Physics.Arcade.Sprite {
   protected hasDealtDamage: boolean = false;
 
   // Stun mechanic properties
+  // Subclasses may override the default melee range used below.
+  declare protected readonly attackRange?: number;
+
   protected hitCount: number = 0;
-  protected isStunned: boolean = false;
+  // Also set by PixelRescueScene when the player stuns an enemy.
+  public isStunned: boolean = false;
   protected stunTimer: number = 0;
   protected readonly HITS_TO_STUN: number = 10;
   protected readonly STUN_DURATION_MS: number = 3000;
@@ -233,7 +237,7 @@ export class BasePixelEnemy extends Phaser.Physics.Arcade.Sprite {
     );
 
     // Use attack range from subclass (default 60 if not set)
-    const attackRange = (this as any).attackRange || 60;
+    const attackRange = this.attackRange || 60;
 
     if (distance < attackRange) {
       this.hasDealtDamage = true;

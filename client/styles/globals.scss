@@ -1368,3 +1368,138 @@ html[data-portrait-page="true"][data-portrait-variant="playful"] {
     display: none;
   }
 }
+
+/* ---------- Homepage team section (components/landing/TeamSection.tsx) ---------- */
+.pixel-frame {
+  --pf: #e2c05a66;
+  box-shadow:
+    0 -4px 0 0 var(--pf),
+    0 4px 0 0 var(--pf),
+    -4px 0 0 0 var(--pf),
+    4px 0 0 0 var(--pf);
+}
+.team-slot[data-selected="true"] {
+  box-shadow:
+    0 -4px 0 0 var(--pf),
+    0 4px 0 0 var(--pf),
+    -4px 0 0 0 var(--pf),
+    4px 0 0 0 var(--pf),
+    0 0 18px 4px rgba(255, 204, 85, 0.55);
+}
+.team-slot:hover:not([data-selected="true"]) {
+  --pf: #fcecbb;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .team-blink {
+    animation: team-blink 1s steps(2, jump-none) infinite;
+  }
+  /* Member switch: ring flashes and pops, the photo wipes up inside the circle. */
+  .team-token {
+    animation:
+      team-pop 280ms steps(4) both,
+      team-flash 220ms ease-out both;
+  }
+  .team-token-img {
+    animation: team-wipe 320ms steps(8) backwards;
+  }
+  .team-panel-body {
+    animation: team-slide 180ms steps(3) both;
+  }
+  .team-glint {
+    background: linear-gradient(
+      100deg,
+      transparent 20%,
+      rgba(255, 244, 200, 0.55) 50%,
+      transparent 80%
+    );
+    animation: team-glint 520ms steps(6) both;
+  }
+  .team[data-phase="pre"] :is(.team-title, .team-stage, .team-slot) {
+    opacity: 0;
+  }
+  .team[data-phase="in"] .team-title {
+    animation: appear 0.6s linear both;
+  }
+  .team[data-phase="in"] .team-stage {
+    animation: team-rise 700ms 150ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .team[data-phase="in"] .team-slot {
+    animation: team-deal 240ms steps(4) backwards;
+    animation-delay: calc(400ms + var(--i) * 45ms);
+  }
+}
+@keyframes team-blink {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes team-wipe {
+  from {
+    clip-path: inset(100% 0 0 0 round 50%);
+  }
+  to {
+    clip-path: inset(0 round 50%);
+  }
+}
+@keyframes team-flash {
+  0% {
+    filter: brightness(2.4);
+  }
+  30% {
+    filter: brightness(1.5);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+@keyframes team-pop {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+@keyframes team-slide {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes team-glint {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(400%);
+  }
+}
+@keyframes team-rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes team-deal {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

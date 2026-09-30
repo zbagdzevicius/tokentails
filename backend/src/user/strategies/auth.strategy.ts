@@ -1,18 +1,12 @@
 import { Logger } from '@nestjs/common';
-import { parse, validate } from '@telegram-apps/init-data-node';
 import { Request } from 'express';
 import * as admin from 'firebase-admin';
 import { Strategy } from 'passport-strategy';
 import { FIREBASE_AUTH, UNAUTHORIZED } from './constants';
 import { AppAuthStrategyOptions } from './interface';
 
-const token = process.env.IS_PROD
-    ? '7272637596:AAFevpGvCz8FihNMVNHb9wKp7gWE2XNO1z8'
-    : '7301750942:AAFIp86b_a6AB-6xyPwqAfVSm52lXn1-mHs';
-
 export enum AuthStrategyType {
     fb = 'fb',
-    tg = 'tg',
 }
 
 export class AppAuthStrategy extends Strategy {
@@ -49,58 +43,59 @@ export class AppAuthStrategy extends Strategy {
         }
         const id = idToken.slice(0, 2);
         const token = idToken.slice(2);
-        if (id === AuthStrategyType.fb) {
-            this.authFB(req, token);
-        } else {
-            await this.authTG(req, idToken);
-        }
-    }
-
-    private async authTG(req: Request, idToken: string) {
-        if (!idToken) {
+        if (id !== AuthStrategyType.fb) {
             this.fail(UNAUTHORIZED, 401);
 
             return;
         }
-        const parsed = parse(idToken);
-
-        try {
-            validate(idToken, token);
-
-            await this.validateDecodedIdToken(parsed);
-        } catch (e) {
-            console.warn(e);
-            this.fail(UNAUTHORIZED, 400);
-        }
+        await this.authFB(token);
     }
 
-    private authFB(req: Request, idToken: string) {
+    // Every path below ends the request with exactly one of success() or fail().
+    private async authFB(idToken: string): Promise<void> {
         if (!idToken) {
             this.fail(UNAUTHORIZED, 401);
 
             return;
         }
 
+        let auth: admin.auth.Auth;
         try {
-            admin
-                .auth()
-                .verifyIdToken(idToken, this.checkRevoked)
-                .then(res => this.validateDecodedIdToken(res))
-                .catch(err => {
-                    this.fail({ err }, 401);
-                });
+            auth = admin.auth();
         } catch (e) {
+            // Firebase Admin is not initialised: a server problem, so log it.
             this.logger.error(e);
-
             this.fail(e, 401);
+
+            return;
         }
+
+        let decodedIdToken: admin.auth.DecodedIdToken;
+        try {
+            decodedIdToken = await auth.verifyIdToken(idToken, this.checkRevoked);
+        } catch (err) {
+            this.fail({ err }, 401);
+
+            return;
+        }
+
+        await this.validateDecodedIdToken(decodedIdToken);
     }
 
-    private async validateDecodedIdToken(decodedIdToken: any) {
-        const result = await this.validate(decodedIdToken);
+    private async validateDecodedIdToken(decodedIdToken: admin.auth.DecodedIdToken): Promise<void> {
+        let result: any;
+        try {
+            result = await this.validate(decodedIdToken);
+        } catch (err) {
+            this.fail({ err }, 401);
+
+            return;
+        }
 
         if (result) {
             this.success(result, result);
+
+            return;
         }
 
         this.fail(UNAUTHORIZED, 401);

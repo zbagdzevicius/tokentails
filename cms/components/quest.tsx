@@ -23,7 +23,10 @@ export default function Quest({
     <TableRow>
       <TableCell className="font-medium">{quest.name}</TableCell>
       <TableCell className="font-medium">
-        <img src={quest.image?.url} className="w-auto h-32 object-contain" />
+        <img
+          src={quest.image?.url}
+          alt={quest.name}
+          className="w-auto h-32 object-contain" />
       </TableCell>
       <TableCell className="font-medium">
         <a

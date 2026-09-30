@@ -1,4 +1,4 @@
 export interface IGenericSearchParams {
-    searchObject?: any;
+    searchObject?: Record<string, unknown>;
     page?: number;
 }

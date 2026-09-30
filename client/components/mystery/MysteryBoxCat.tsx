@@ -4,6 +4,7 @@ import { cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { useWeb3 } from "@/context/Web3Context";
+import { isApp } from "@/models/app";
 import { ICat, Prices } from "@/models/cats";
 import { EntityType } from "@/models/save";
 import { CurrencyType } from "@/web3/contracts";
@@ -65,6 +66,9 @@ export const MysteryBoxCat = () => {
 
   useEffect(() => {
     if (transactionStatus?.success) {
+      // The transfer flow publishes its result through Web3Context; this
+      // effect is where the box reacts to it.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       onSuccess(transactionStatus);
     }
   }, [transactionStatus]);
@@ -89,7 +93,8 @@ export const MysteryBoxCat = () => {
       )}
       <div className="m-auto animate-appear">
         <div className="flex flex-col items-start w-fit m-auto">
-          {!profile?.boxes && (
+          {/* No price in app builds: paid boxes are web-only (store IAP rules). */}
+          {!profile?.boxes && !isApp && (
             <div className="text-yellow-900 font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
               {currencyPrice} {currencyType}
             </div>

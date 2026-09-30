@@ -47,6 +47,11 @@ jest.mock('@/lib/events', () => ({
   }
 }));
 
+type FetchCall = [
+  string,
+  { method?: string; body?: string; headers: Record<string, string> }
+];
+
 type FetchResponseDouble = {
   ok: boolean;
   text: jest.Mock<Promise<string>, []>;
@@ -71,7 +76,7 @@ const getMockErrorPush = () => {
 
 const arrangeFetchResolve = (response: FetchResponseDouble) => {
   const fetchMock = jest.fn(async () => response);
-  (global as any).fetch = fetchMock;
+  global.fetch = fetchMock as unknown as typeof fetch;
   return fetchMock;
 };
 
@@ -258,7 +263,7 @@ describe('api/api request', () => {
     await request(DEFAULT_PATH, 'POST', body);
 
     // Assert
-    const [, options] = fetchMock.mock.calls[0] as any[];
+    const [, options] = fetchMock.mock.calls[0] as unknown as FetchCall;
     expect(options.body).toBe(JSON.stringify(body));
     expect(options.headers).toMatchObject({
       Accept: 'application/json',
@@ -420,9 +425,9 @@ describe('api/api request', () => {
     sessionStorage.setItem('accesstoken', SESSION_TOKEN);
     const { request } = getApiModule();
     const error = new Error('network down');
-    (global as any).fetch = jest.fn(async () => {
+    global.fetch = jest.fn(async () => {
       throw error;
-    });
+    }) as unknown as typeof fetch;
 
     // Act
     const result = await request(DEFAULT_PATH, 'GET');
@@ -456,7 +461,7 @@ describe('api/api request', () => {
     await request(DEFAULT_PATH, 'GET');
 
     // Assert
-    const [, options] = fetchMock.mock.calls[0] as any[];
+    const [, options] = fetchMock.mock.calls[0] as unknown as FetchCall;
     expect(options.headers.accesstoken).toBe(SESSION_TOKEN);
     expect(options.headers.accesstoken).not.toBe(localToken);
   });

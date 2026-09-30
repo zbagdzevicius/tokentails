@@ -1,6 +1,7 @@
 import {
   GameEvent,
   GameEvents,
+  GameStopOutcome,
   ICatEvent,
   IPhaserGameSceneProps,
 } from "@/components/Phaser/events";
@@ -14,11 +15,11 @@ import { Food } from "@/components/base/objects/Food";
 
 import { CatnipChaosLevelMap } from "@/components/Phaser/map";
 
-import { FloatingPlatformManager } from "@/components/storyMode/Managers/FloatingPlatformManager";
+import { FloatingPlatformManager } from "@/components/Phaser/hazards/FloatingPlatformManager";
 
-import { SpikeManager } from "@/components/purrquest/managers/SpikeManager";
+import { SpikeManager } from "@/components/Phaser/hazards/SpikeManager";
 
-import { PortalManager } from "@/components/storyMode/Managers/PortalManager";
+import { PortalManager } from "@/components/Phaser/hazards/PortalManager";
 
 const JUMP_LAYER_TILES = [169, 170, 139, 140, 200, 224, 225, 226, 227];
 const TRAMPOLINE_TILES = [158, 159, 160, 255, 256];
@@ -474,7 +475,7 @@ export class CatnipChaosScene extends Scene {
       }
     }
 
-    this.physics.add.collider(this.cat.sprite, this.jumperLayer as any);
+    this.physics.add.collider(this.cat.sprite, this.jumperLayer as Phaser.Tilemaps.TilemapLayer);
 
     this.createGameObjects();
 
@@ -484,15 +485,15 @@ export class CatnipChaosScene extends Scene {
   private setupCatCollisions() {
     if (!this.cat) return;
 
-    this.physics.add.collider(this.cat.sprite, this.groundLayer as any);
-    this.physics.add.collider(this.cat.sprite, this.platformsLayer as any);
-    this.physics.add.collider(this.cat.sprite, this.jumperLayer as any);
+    this.physics.add.collider(this.cat.sprite, this.groundLayer as Phaser.Tilemaps.TilemapLayer);
+    this.physics.add.collider(this.cat.sprite, this.platformsLayer as Phaser.Tilemaps.TilemapLayer);
+    this.physics.add.collider(this.cat.sprite, this.jumperLayer as Phaser.Tilemaps.TilemapLayer);
 
     this.floatingPlatformManagers.forEach((manager) => {
       manager.setupPlayerCollision(this.cat!.sprite);
     });
 
-    this.physics.add.overlap(this.cat.sprite, this.physicsLayer as any, () => {
+    this.physics.add.overlap(this.cat.sprite, this.physicsLayer as Phaser.Tilemaps.TilemapLayer, () => {
       if (this.gameEnded) return;
 
       const tile = this.physicsLayer.getTileAtWorldXY(
@@ -504,7 +505,7 @@ export class CatnipChaosScene extends Scene {
         // this.spawnFood();
 
         this.time.delayedCall(2000, () => {
-          this.endGame();
+          this.endGame("won");
         });
       }
       // Handle collision with tile 121
@@ -601,7 +602,7 @@ export class CatnipChaosScene extends Scene {
         groundLayer: this.groundLayer as Phaser.Tilemaps.TilemapLayer,
         spikeTiles: SPIKE_TILES,
         catSprite: this.cat.sprite!,
-        onPlayerHitSpike: () => this.endGame(),
+        onPlayerHitSpike: () => this.endGame("died"),
       });
     }
   }
@@ -644,13 +645,13 @@ export class CatnipChaosScene extends Scene {
       });
 
       const player = this.cat.sprite;
-      let onFlightOnBlock = this.flightOnBlocks.some((block) =>
+      const onFlightOnBlock = this.flightOnBlocks.some((block) =>
         Phaser.Geom.Intersects.RectangleToRectangle(
           player.getBounds(),
           block.getBounds(),
         ),
       );
-      let onFlightOffBlock = this.flightOffBlocks.some((block) =>
+      const onFlightOffBlock = this.flightOffBlocks.some((block) =>
         Phaser.Geom.Intersects.RectangleToRectangle(
           player.getBounds(),
           block.getBounds(),
@@ -809,7 +810,7 @@ export class CatnipChaosScene extends Scene {
     }
   }
 
-  endGame() {
+  endGame(outcome: GameStopOutcome) {
     if (this.gameEnded) return;
     this.gameEnded = true;
     this.backgroundSound?.stop();
@@ -840,6 +841,7 @@ export class CatnipChaosScene extends Scene {
       GameEvents.GAME_STOP.push({
         score: this.collectedCatnipCoins,
         time: 0,
+        outcome,
       });
       this.destroyGameObjects();
     });
@@ -1064,7 +1066,7 @@ export class CatnipChaosScene extends Scene {
     });
 
     this.food = new Food(this, foodX, foodY);
-    this.physics.add.collider(this.food.sprite, this.groundLayer as any);
+    this.physics.add.collider(this.food.sprite, this.groundLayer as Phaser.Tilemaps.TilemapLayer);
 
     // Play meow sound
     const meowSound = this.sound.add("meow", { volume: 0.5 });
@@ -1202,7 +1204,7 @@ export class CatnipChaosScene extends Scene {
 
     for (let i = 0; i < tiles.length; i++) {
       if (SPIKE_TILES.includes(tiles[i].index)) {
-        this.endGame();
+        this.endGame("died");
         return;
       }
     }

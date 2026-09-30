@@ -1,4 +1,8 @@
-# Builds catnip-heist/ and deploys it to GitHub Pages at /<repo>/heist/ (e.g. /tokentails/heist/).
+# Builds catnip-heist/ and deploys it to GitHub Pages.
+# - With `domain` set (e.g. catnip.tokentails.com) the game is served at the domain root and a CNAME
+#   file is published. DNS: a CNAME record `catnip` -> `<owner>.github.io`; then set the same custom
+#   domain under Settings > Pages and tick "Enforce HTTPS".
+# - With `domain` empty it is served at /<repo>/heist/ (e.g. /tokentails/heist/).
 # Manual only: run it from the Actions tab. It never runs on push.
 # One-time setup by a maintainer: Settings > Pages > Source: "GitHub Actions".
 name: Catnip Heist to GitHub Pages
@@ -6,6 +10,10 @@ name: Catnip Heist to GitHub Pages
 on:
   workflow_dispatch:
     inputs:
+      domain:
+        description: Custom domain served at its root (empty = /<repo>/heist/)
+        required: false
+        default: catnip.tokentails.com
       payouts_url:
         description: Shelter payouts page linked from the win screen
         required: false
@@ -27,7 +35,8 @@ jobs:
       run:
         working-directory: catnip-heist
     env:
-      HEIST_BASE: /${{ github.event.repository.name }}/heist/
+      HEIST_DOMAIN: ${{ inputs.domain }}
+      HEIST_BASE: ${{ inputs.domain != '' && '/' || format('/{0}/heist/', github.event.repository.name) }}
       HEIST_PAYOUTS_URL: ${{ inputs.payouts_url }}
     steps:
       - uses: actions/checkout@v4
@@ -39,10 +48,16 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - name: Stage the site under /heist/
+      - name: Stage the site
         run: |
-          mkdir -p ../_site/heist
-          cp -R dist/. ../_site/heist/
+          if [ -n "$HEIST_DOMAIN" ]; then
+            mkdir -p ../_site
+            cp -R dist/. ../_site/
+            printf '%s\n' "$HEIST_DOMAIN" > ../_site/CNAME
+          else
+            mkdir -p ../_site/heist
+            cp -R dist/. ../_site/heist/
+          fi
           touch ../_site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
@@ -54,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}heist/
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4

@@ -1,5 +1,6 @@
 import { Scene } from "phaser";
 import { ZOOM } from "@/constants/utils";
+import type { Cat } from "../../catbassadors/objects/Catbassador";
 import { CatCrate } from "../objects/CatCrate";
 
 export class TutorialManager {
@@ -61,7 +62,7 @@ export class TutorialManager {
   }
 
   public start(
-    cat: any,
+    cat: Cat,
     catCrate: CatCrate,
     heartCoins: Phaser.GameObjects.Sprite[],
     exitPortalSprite: Phaser.GameObjects.Sprite,
@@ -97,7 +98,7 @@ export class TutorialManager {
   }
 
   private step1_ShowCagedCat(
-    cat: any,
+    cat: Cat,
     catCrate: CatCrate,
     heartCoins: Phaser.GameObjects.Sprite[],
     exitPortalSprite: Phaser.GameObjects.Sprite,
@@ -150,7 +151,7 @@ export class TutorialManager {
   }
 
   private step2_ShowheartCoins(
-    cat: any,
+    cat: Cat,
     catCrate: CatCrate,
     heartCoins: Phaser.GameObjects.Sprite[],
     exitPortalSprite: Phaser.GameObjects.Sprite,
@@ -211,7 +212,7 @@ export class TutorialManager {
   }
 
   private step3_ShowExit(
-    cat: any,
+    cat: Cat,
     catCrate: CatCrate,
     heartCoins: Phaser.GameObjects.Sprite[],
     exitPortalSprite: Phaser.GameObjects.Sprite,
@@ -249,7 +250,7 @@ export class TutorialManager {
   }
 
   private step4_BackToCat(
-    cat: any,
+    cat: Cat,
     catCrate: CatCrate,
     heartCoins: Phaser.GameObjects.Sprite[],
     exitPortalSprite: Phaser.GameObjects.Sprite
@@ -274,7 +275,7 @@ export class TutorialManager {
   }
 
   public end(
-    cat: any,
+    cat: Cat,
     catCrate: CatCrate,
     heartCoins: Phaser.GameObjects.Sprite[],
     exitPortalSprite: Phaser.GameObjects.Sprite

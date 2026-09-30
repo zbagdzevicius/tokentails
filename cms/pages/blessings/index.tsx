@@ -18,7 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useDebounce } from '@uidotdev/usehooks';
 import { PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 export default function BlessingsPage() {
   const [page] = useState(0);
@@ -67,15 +67,16 @@ export default function BlessingsPage() {
   });
 
   // Track previous profile shelter to avoid unnecessary updates
-  const prevProfileShelter = useRef<string | undefined>(profile?.shelter);
+  const [prevProfileShelter, setPrevProfileShelter] = useState<
+    string | undefined
+  >(profile?.shelter);
 
-  // Update shelter when profile changes (only if different)
-  useEffect(() => {
-    if (profile?.shelter && profile.shelter !== prevProfileShelter.current) {
-      prevProfileShelter.current = profile.shelter;
-      setShelter(profile.shelter);
-    }
-  }, [profile]);
+  // Update shelter when the profile's shelter changes (only if different).
+  // Adjusted during render rather than in an effect.
+  if (profile?.shelter && profile.shelter !== prevProfileShelter) {
+    setPrevProfileShelter(profile.shelter);
+    setShelter(profile.shelter);
+  }
 
   async function updateStatus(id: string, newStatus: BlessingStatus) {
     // Optimistically update local state immediately

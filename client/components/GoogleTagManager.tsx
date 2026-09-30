@@ -1,11 +1,6 @@
+import { gtm } from "@/analytics/gtm";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
-
-declare global {
-  interface Window {
-    dataLayer: any[];
-  }
-}
 
 // Event parameter types
 type PageViewParams = {
@@ -72,61 +67,48 @@ type TrackEventMap = {
 
 type EventName = keyof TrackEventMap;
 
+/**
+ * Starts GTM once the player has opted in (see `analytics/gtm.ts`) and pushes
+ * `page_view` on route changes. Before consent it sends nothing. Renders
+ * nothing and only touches `window` in effects, so it is SSR safe.
+ */
 export const GoogleTagManager = () => {
   const router = useRouter();
 
   useEffect(() => {
-    // Ensure dataLayer is initialized (should already be done in _document.js, but ensure it exists)
-    if (typeof window !== "undefined") {
-      window.dataLayer = window.dataLayer || [];
-    }
-
-    // Track page views on route changes
-    const handleRouteChange = (url: string) => {
-      if (typeof window !== "undefined" && window.dataLayer) {
-        window.dataLayer.push({
-          event: "page_view",
-          page_path: url,
-        });
-      }
+    const pushPageView = (pagePath: string) => {
+      gtm.push({ event: "page_view", page_path: pagePath });
     };
 
-    // Track initial page load after a short delay to ensure GTM is loaded
-    const trackInitialPageView = () => {
-      if (typeof window !== "undefined" && window.dataLayer) {
-        window.dataLayer.push({
-          event: "page_view",
-          page_path: window.location.pathname,
-        });
-      }
-    };
+    // Loads GTM now if consent is stored; otherwise waits for "Accept" and
+    // records the page the player is on at that moment.
+    const stop = gtm.start(() => pushPageView(window.location.pathname));
 
-    // Small delay to ensure GTM is fully initialized
-    const timeoutId = setTimeout(trackInitialPageView, 100);
+    // Small delay so the container can initialise before the first event.
+    const timeoutId = setTimeout(
+      () => pushPageView(window.location.pathname),
+      100,
+    );
 
-    // Listen for route changes
-    router.events.on("routeChangeComplete", handleRouteChange);
+    router.events.on("routeChangeComplete", pushPageView);
 
     return () => {
       clearTimeout(timeoutId);
-      router.events.off("routeChangeComplete", handleRouteChange);
+      stop();
+      router.events.off("routeChangeComplete", pushPageView);
     };
   }, [router.events]);
 
   return null;
 };
 
-// Utility function to track events via Google Tag Manager dataLayer
+/**
+ * Pushes an event to the GTM dataLayer. Dropped, not queued, unless the
+ * player has granted analytics consent.
+ */
 export function trackEvent<T extends EventName>(
   eventName: T,
   params?: TrackEventMap[T]
 ): void {
-  if (typeof window !== "undefined") {
-    // Ensure dataLayer exists
-    window.dataLayer = window.dataLayer || [];
-    window.dataLayer.push({
-      event: eventName,
-      ...params,
-    });
-  }
+  gtm.push({ event: eventName, ...params });
 }

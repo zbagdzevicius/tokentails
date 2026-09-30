@@ -1,4 +1,4 @@
-import { IQuest } from '@/models/quest';
+import { IQuest, IQuestInput } from '@/models/quest';
 import { waitForLocalStorageKey, apiUrl, getAuthHeaders } from './api';
 
 const questsFetch = async (): Promise<IQuest[]> => {
@@ -10,7 +10,7 @@ const questsFetch = async (): Promise<IQuest[]> => {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       ...getAuthHeaders()
-    } as any
+    }
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -29,7 +29,7 @@ const questFetch = async (questId: string): Promise<IQuest> => {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       ...getAuthHeaders()
-    } as any
+    }
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -40,7 +40,7 @@ const questFetch = async (questId: string): Promise<IQuest> => {
   });
 };
 
-const questEdit = async (quest: IQuest): Promise<IQuest> => {
+const questEdit = async (quest: IQuestInput): Promise<IQuest> => {
   const id = quest._id;
   delete quest._id;
   await waitForLocalStorageKey();
@@ -51,7 +51,7 @@ const questEdit = async (quest: IQuest): Promise<IQuest> => {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       ...getAuthHeaders()
-    } as any
+    }
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -62,7 +62,7 @@ const questEdit = async (quest: IQuest): Promise<IQuest> => {
   });
 };
 
-const questCreate = async (quest: IQuest): Promise<IQuest> => {
+const questCreate = async (quest: IQuestInput): Promise<IQuest> => {
   await waitForLocalStorageKey();
   return fetch(`${apiUrl}/quest`, {
     method: 'POST',
@@ -71,7 +71,7 @@ const questCreate = async (quest: IQuest): Promise<IQuest> => {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       ...getAuthHeaders()
-    } as any
+    }
   }).then((response) => {
     if (response.ok) {
       return response.json();
@@ -82,7 +82,7 @@ const questCreate = async (quest: IQuest): Promise<IQuest> => {
   });
 };
 
-const questDelete = async (questId: string): Promise<any> => {
+const questDelete = async (questId: string): Promise<null> => {
   await waitForLocalStorageKey();
   return fetch(`${apiUrl}/quest/${questId}`, {
     method: 'DELETE',
@@ -90,7 +90,7 @@ const questDelete = async (questId: string): Promise<any> => {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       ...getAuthHeaders()
-    } as any
+    }
   }).then((response) => {
     if (response.ok) {
       return null;

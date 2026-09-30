@@ -2,6 +2,7 @@
 
 import { INITIAL_PARTNERSHIPS, PixelGlobe } from "@/components/globe/Globe";
 import { ProofSection } from "@/components/landing/ProofSection";
+import { TeamSection } from "@/components/landing/TeamSection";
 import { Fireflies } from "@/components/shared/Fireflies";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { TailsCard } from "@/components/tailsCard/TailsCard";
@@ -160,6 +161,8 @@ export default function HomePage() {
             alt=""
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/55" />
+          {/* Fades into the team section's matching top fade, so the two backgrounds meet cleanly. */}
+          <div className="absolute inset-x-0 bottom-0 h-32 md:h-48 bg-gradient-to-b from-transparent to-[#0b0820] pointer-events-none" />
 
           <div className="relative z-30 px-4 md:px-8 lg:px-16 py-12 md:py-16 lg:py-24 flex justify-center">
             {/* Plain anchor on purpose: the game shell needs a full page load. */}
@@ -177,6 +180,8 @@ export default function HomePage() {
             </a>
           </div>
         </section>
+
+        <TeamSection />
       </div>
     </>
   );

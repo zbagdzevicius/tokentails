@@ -7,7 +7,12 @@ import { GameType } from "@/models/game";
 import { StatusType } from "@/models/status";
 import { useQuery } from "@tanstack/react-query";
 import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
-import { GameEvents, IPhaserGame, NPC_TYPE } from "../Phaser/events";
+import {
+  GameEvents,
+  IPhaserGame,
+  NPC_TYPE,
+  useGameLoaded,
+} from "../Phaser/events";
 import { StartGame } from "./config";
 
 interface IProps {
@@ -38,7 +43,7 @@ const BaseGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
     };
   }, [ref]);
 
-  GameEvents.GAME_LOADED.use((event) => {
+  useGameLoaded((event) => {
     if (!event) {
       return;
     }
@@ -72,7 +77,7 @@ function Base() {
     queryFn: () => CAT_API.cats(),
   });
 
-  let catsWithoutPlayerCat = userCats?.filter((c) => c._id !== cat?._id); //delete current user cat
+  const catsWithoutPlayerCat = userCats?.filter((c) => c._id !== cat?._id); //delete current user cat
 
   const isGameLoaded = GameEvents.GAME_LOADED.use();
   useEffect(() => {

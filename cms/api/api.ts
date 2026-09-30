@@ -1,4 +1,4 @@
-import { GameEvents } from "@/lib/events";
+import { GameEvents, IError } from "@/lib/events";
 
 export const apiUrl = process.env.NEXT_PUBLIC_BE_URL;
 
@@ -15,14 +15,16 @@ export function waitForLocalStorageKey(key: string = 'accesstoken') {
   });
 }
 
-export const getAuthHeaders = () => ({
-  accesstoken: sessionStorage.getItem('accesstoken')
+// Callers await waitForLocalStorageKey() before building headers, so the
+// token is present by the time this runs.
+export const getAuthHeaders = (): Record<string, string> => ({
+  accesstoken: sessionStorage.getItem('accesstoken') as string
 });
 
 export const request = async <T>(
   url: string,
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
-  body?: any
+  body?: unknown
 ): Promise<T | null> => {
   await waitForLocalStorageKey();
   try {
@@ -33,7 +35,7 @@ export const request = async <T>(
         Accept: 'application/json',
         'Content-Type': 'application/json',
         ...getAuthHeaders()
-      } as any
+      }
     });
 
     if (response.ok) {
@@ -45,7 +47,7 @@ export const request = async <T>(
     GameEvents.ERROR.push(JSON.parse(await response.text()));
     return null;
   } catch (error) {
-    GameEvents.ERROR.push(error as any);
+    GameEvents.ERROR.push(error as IError);
     console.error('Network Error:', error);
     return null;
   }

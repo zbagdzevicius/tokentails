@@ -243,43 +243,59 @@ export function createInput(opts: InputOptions = {}): InputController {
   // ---- gamepad ---------------------------------------------------------------------------------
   const PAD_BUTTONS: Record<number, ButtonName> = { 0: 'interact', 1: 'meow', 2: 'meow', 3: 'swap', 4: 'swap', 5: 'swap' };
 
-  function pollPads() {
-    if (typeof navigator === 'undefined' || typeof navigator.getGamepads !== 'function') return;
-    let pads: (Gamepad | null)[];
+  /** Read the first connected pad. Returns false when there is none. */
+  function pollPads(): boolean {
+    if (typeof navigator === 'undefined' || typeof navigator.getGamepads !== 'function') return false;
+    let pads: ArrayLike<Gamepad | null>;
     try {
-      pads = Array.from(navigator.getGamepads());
+      pads = navigator.getGamepads();
     } catch {
-      return;
+      return false;
     }
-    const pad = pads.find((p): p is Gamepad => !!p && p.connected);
+    let pad: Gamepad | null = null;
+    for (let i = 0; i < pads.length; i++) {
+      const p = pads[i];
+      if (p && p.connected) {
+        pad = p;
+        break;
+      }
+    }
     if (!pad) {
       padDx = padDy = 0;
-      return;
+      return false;
     }
-    const pressed = pad.buttons.map((b) => b.pressed || b.value > 0.5);
+    // Edge detection against last poll's buttons, reusing one array (this runs every frame).
+    const buttons = pad.buttons;
+    if (prevPad.length !== buttons.length) prevPad = new Array<boolean>(buttons.length).fill(false);
     let active = false;
-    for (let i = 0; i < pressed.length; i++) {
-      if (pressed[i] && !prevPad[i]) {
+    for (let i = 0; i < buttons.length; i++) {
+      const pressed = buttons[i].pressed || buttons[i].value > 0.5;
+      if (pressed && !prevPad[i]) {
         active = true;
         if (i === 9 || i === 8) api.onPause?.();
         const b = PAD_BUTTONS[i];
         if (b && enabled) pending.add(b);
       }
+      prevPad[i] = pressed;
     }
-    prevPad = pressed;
     let [dx, dy] = stickToAxes(pad.axes[0] ?? 0, pad.axes[1] ?? 0, PAD_DEAD_ZONE);
-    if (pressed[12]) dy = -1;
-    if (pressed[13]) dy = 1;
-    if (pressed[14]) dx = -1;
-    if (pressed[15]) dx = 1;
+    if (prevPad[12]) dy = -1;
+    if (prevPad[13]) dy = 1;
+    if (prevPad[14]) dx = -1;
+    if (prevPad[15]) dx = 1;
     if (dx !== 0 || dy !== 0) active = true;
     padDx = dx;
     padDy = dy;
     if (active) setDevice('gamepad');
+    return true;
   }
 
   function padLoop() {
-    pollPads();
+    // Every pad unplugged: stop polling until the next gamepadconnected.
+    if (!pollPads()) {
+      raf = 0;
+      return;
+    }
     raf = requestAnimationFrame(padLoop);
   }
 

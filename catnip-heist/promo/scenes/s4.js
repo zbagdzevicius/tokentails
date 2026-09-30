@@ -18,6 +18,8 @@ const START = 11.25, END = 15.0;
 const T_BURST = 12.65625, T_SLAM = 13.125, T_GAP = 13.065, T_LOGO = 13.359375;
 const T_TAG = 13.59375, T_PLAY = 14.0625, T_FINAL = 14.53125;
 const RATTLES = [11.484375, 11.835938, 12.070313, 12.304688, 12.421875, 12.539063];
+const ACCENTS = [11.71875, 12.1875]; // snare-roll accents between rattles: crate strobe + headline word
+const SHELTER = 'siamese';            // reads clearly different from both heroes (bob / oreo)
 
 // crate grid: 1 art px = S screen px, same density as the sprites drawn beside it
 const S = 7, CX = 960, BY = 772;
@@ -40,24 +42,55 @@ function buildWord(E, str, size, stops, depthCol, depth, outline) {
   const lo = size / PXQ, pad = Math.ceil(lo * 0.25);
   const probe = new OffscreenCanvas(8, 8).getContext('2d');
   const font = `${lo}px ${E.FONTS.display}`;
-  probe.font = font;
-  const m = probe.measureText(str);
-  const w = Math.ceil(m.width + pad * 2), h = Math.ceil(lo * 1.35 + depth + pad);
+  probe.font = font; probe.textBaseline = 'middle';
+  // per-glyph layout: Cat Paw's "I" has a hook that reads as "l" next to N/P ("CATNLP"), so the I is
+  // drawn as a custom serif I with its own breathing room (+0.1em each side)
+  const capM = probe.measureText('N');
+  const capTop = -capM.actualBoundingBoxAscent, capBot = capM.actualBoundingBoxDescent;
+  const iW = lo * 0.24, iGap = lo * 0.1;
+  // the I gets extra room on its right: Cat Paw's P has a bottom-left swash that otherwise tucks under
+  // the I and turns it into an "L"
+  const iGapR = lo * 0.3;
+  const glyphs = [...str].map((ch, k, arr) => {
+    if (ch !== 'I') return { ch, w: probe.measureText(ch).width, off: 0.5 };
+    const gr = arr[k + 1] === 'P' ? iGapR : iGap, w = iW + iGap + gr;
+    return { ch, w, off: (iGap + iW / 2) / w };
+  });
+  const tw = glyphs.reduce((s2, g) => s2 + g.w, 0);
+  const w = Math.ceil(tw + pad * 2), h = Math.ceil(lo * 1.35 + depth + pad);
   const cv = new OffscreenCanvas(w, h), c = cv.getContext('2d');
   c.font = font; c.textAlign = 'center'; c.textBaseline = 'middle';
-  const x = w / 2, y = lo * 0.62 + pad * 0.5;
+  const x0 = w / 2 - tw / 2, y = lo * 0.62 + pad * 0.5;
+  const iPath = (cx, yy) => {
+    const top = yy + capTop, bot = yy + capBot, st = lo * 0.19, sh = lo * 0.14, r = lo * 0.06;
+    // plain vertical bar: no serifs, so it can never read as an L next to N / P
+    c.beginPath();
+    c.roundRect(cx - st / 2, top, st, bot - top, r);
+    void sh; void iW;
+  };
+  const run = (yy, mode) => {
+    let x = x0;
+    for (const g of glyphs) {
+      const cx = x + g.w * g.off;
+      if (g.ch === 'I') { iPath(cx, yy); if (mode === 'stroke') c.stroke(); else c.fill(); }
+      else if (mode === 'stroke') c.strokeText(g.ch, cx, yy); else c.fillText(g.ch, cx, yy);
+      x += g.w;
+    }
+  };
   // voxel extrude: stacked copies stepping down, darkening towards the back
   for (let k = depth; k >= 1; k--) {
     c.lineJoin = 'round'; c.lineWidth = Math.max(2, lo * 0.09); c.strokeStyle = outline;
-    c.strokeText(str, x, y + k);
+    run(y + k, 'stroke');
     c.fillStyle = E.shade(depthCol, -0.5 * (k / depth));
-    c.fillText(str, x, y + k);
+    run(y + k, 'fill');
   }
   c.lineJoin = 'round'; c.lineWidth = Math.max(2, lo * 0.09); c.strokeStyle = outline;
-  c.strokeText(str, x, y);
+  run(y, 'stroke');
   const g = c.createLinearGradient(0, y - lo * 0.45, 0, y + lo * 0.4);
   for (const [o, cc] of stops) g.addColorStop(o, cc);
-  c.fillStyle = g; c.fillText(str, x, y);
+  c.fillStyle = g; run(y, 'fill');
+  // paw dot on the custom I (matches the paw prints inside the other letters)
+  { let x = x0; for (const gl of glyphs) { if (gl.ch === 'I') { c.fillStyle = outline; c.beginPath(); c.arc(x + gl.w * gl.off, y + (capTop + capBot) / 2, lo * 0.045, 0, Math.PI * 2); c.fill(); } x += gl.w; } }
   // hard alpha (pixel crisp)
   const id = c.getImageData(0, 0, w, h), d = id.data;
   for (let i = 3; i < d.length; i += 4) d[i] = d[i] > 110 ? 255 : 0;
@@ -113,7 +146,7 @@ function heartSticker(c) {
     c.fillStyle = j === 0 || (j === 1 && i < 2) ? '#ffc1d4' : '#ff7aa2'; c.fillRect(-3 + i, -52 + j, 1, 1);
   }
 }
-const BARS_X = [-17, -7, 4, 14];
+const BARS_X = [-22, -14, -6, 18]; // gap over the caged cat's face
 // pieces for the explosion: centre + draw
 const PIECES = [
   { cx: -27.5, cy: -23, draw: (c) => plank(c, -30, -46, 5, 46, 1) },
@@ -130,7 +163,7 @@ function crateWhole(c, E, t, catRow, catFrame) {
   const g = c.createLinearGradient(0, -42, 0, -4);
   g.addColorStop(0, '#0b0512'); g.addColorStop(1, '#2a1238');
   c.fillStyle = g; c.fillRect(-26, -42, 52, 38);
-  E.drawSprite(c, 'white', catRow, catFrame, 0, -5, 1, { anchor: 'feet' });
+  E.drawSprite(c, SHELTER, catRow, catFrame, -2, -5, 1.3, { anchor: 'feet' });
   for (const x of BARS_X) barPiece(c, x);
   plank(c, -30, -46, 5, 46, 1); plank(c, 25, -46, 5, 46, 2);
   plank(c, -30, -46, 60, 5, 3); plank(c, -30, -5, 60, 5, 4);
@@ -145,15 +178,18 @@ function rattleState(E, t) {
   RATTLES.forEach((tc, i) => {
     const a = t - tc; if (a < 0) return;
     k = i;
-    const e = Math.exp(-a / 0.075), amp = 0.5 + i * 0.18;
+    const e = Math.exp(-a / 0.075), amp = 1.0 + i * 0.3;
     rot += 0.07 * amp * e * Math.sin(a * 70 + i);
     hop += 6 * amp * Math.max(0, Math.sin(Math.min(1, a / 0.11) * Math.PI)) * (a < 0.11 ? 1 : 0);
     sq += 0.12 * amp * Math.exp(-Math.max(0, a - 0.1) / 0.05) * (a > 0.1 ? 1 : 0);
   });
-  // continuous tremble grows with the riser
-  const build = E.seg(t, 11.9, T_BURST, 'expoIn');
-  rot += 0.02 * build * E.noise1(t * 60, 3);
-  return { rot, hop, sq, k };
+  // continuous tremble grows steadily with the riser: 2 -> 24 px (expoIn), plus a rotational shiver
+  const build = E.seg(t, 11.3, T_BURST, 'expoIn');
+  const amp = E.lerp(2, 24, build);
+  const fr = E.frame;
+  const tx = amp * E.randSigned('trx', fr), ty = amp * 0.6 * E.randSigned('try', fr);
+  rot += (0.004 + 0.07 * build) * E.randSigned('trr', fr);
+  return { rot, hop, sq, k, tx, ty, build };
 }
 function glowBlob(c, x, y, r, color, a) {
   if (a <= 0) return;
@@ -209,6 +245,28 @@ function drawPortal(c, E, t, R, alpha) {
 // ------------------------------------------------------------------------------------------
 // BAR 7: THE RESCUE
 // ------------------------------------------------------------------------------------------
+const ROLL = [12.304688, 12.421875, 12.539063];   // snare-roll hits: red strobe + alternating Dutch tilt
+const F1 = 1 / 60;
+// camera: steady push 1.0 -> 1.35 (quadIn) + a 4% punch per rattle that ADDS UP (each settles to +4%, never resets)
+function rescueZoom(E, t) {
+  const push = 1 + 0.35 * E.quadIn(E.seg(t, 11.3, T_BURST));
+  let steps = 0;
+  for (const tc of RATTLES) {
+    const a = t - tc; if (a < 0) continue;
+    steps += 0.04 * (a < 0.03 ? 1.6 * E.expoOut(a / 0.03) : 1 + 0.6 * Math.exp(-(a - 0.03) / 0.05));
+  }
+  return push + steps;
+}
+// hero reaction to the last rattle: crouch -> hop -> land, sprite frames + squash 0.9 / 1.08
+function heroHop(E, t, delay) {
+  let last = -1; for (const tc of RATTLES) if (t >= tc + delay) last = tc + delay;
+  const a = last < 0 ? 9 : t - last;
+  if (a < 0.035) return { row: 'JUMPING', f: 0, y: 0, sx: 1.08, sy: 0.9 };
+  if (a < 0.15) { const u = (a - 0.035) / 0.115; return { row: 'JUMPING', f: 1 + Math.floor(u * 4), y: -80 * Math.sin(u * Math.PI), sx: 0.94, sy: 1.08 }; }
+  if (a < 0.2) return { row: 'JUMPING', f: 6, y: 0, sx: 1.08, sy: 0.9 };
+  return null;
+}
+
 function drawRescue(ctx, t, E) {
   const { W, H } = E;
   const ab = t - T_BURST; // time after burst
@@ -216,29 +274,32 @@ function drawRescue(ctx, t, E) {
 
   // swirl camera (portal pulls everything in)
   const sw = E.seg(t, 12.78, T_GAP, 'expoIn');
-  const camZoomPush = (1 + 0.16 * E.seg(t, START, T_BURST, 'cubicIn')) * (1 + 0.14 * (1 - E.expoOut(E.seg(t, START, START + 0.45))));
+  const zPre = rescueZoom(E, Math.min(t, T_BURST - 1e-4));
+  const intro = 1 + 0.12 * (1 - E.expoOut(E.seg(t, START, START + 8 / 60)));   // match-cut settle out of the 58 card
+  const zBase = burst ? E.lerp(zPre, 1.12, E.expoOut(E.seg(ab, 0, 0.3))) : zPre * intro; // burst releases the push
   const burstPunch = burst ? 0.14 * Math.exp(-ab / 0.12) : 0;
-  const zoom = camZoomPush * (1 + burstPunch) * (1 + 3.2 * sw);
+  const zoom = zBase * (1 + burstPunch) * (1 + 3.2 * sw);
   const rot = 2.4 * sw + (burst ? 0.02 * E.env(t, T_BURST, 0.1) : 0);
+  const rs = rattleState(E, t);
 
   ctx.fillStyle = E.col('night'); ctx.fillRect(0, 0, W, H);
   E.camera(ctx, { zoom, rot, cx: PORTAL[0], cy: PORTAL[1] }, (c) => {
     // ---- BG: real game footage, dim security feed with slower parallax push ----
     const bgT = burst ? E.clipFrameTime('h08-vault-rescue', 113) + ab : E.clipFrameTime('h08-vault-rescue', 70) + (t - START);
-    E.camera(c, { zoom: 1.12 - 0.07 * (1 - E.seg(t, START, T_BURST)) + (burst ? 0.1 * E.expoOut(E.seg(ab, 0, 0.45)) : 0), cx: CX, cy: 540 }, (cc) => {
+    E.camera(c, { zoom: 1.12 - 0.07 * (1 - E.seg(t, START, T_BURST)) + (burst ? 0.1 * E.expoOut(E.seg(ab, 0, 0.45)) : 0), cx: CX, cy: 540, x: burst ? 0 : rs.tx * 0.3, y: burst ? 0 : rs.ty * 0.3 }, (cc) => {
       E.drawClip(cc, 'h08-vault-rescue', bgT, -200, -120, W + 400, H + 240, { fx: 0.62, fy: 0.42 });
     });
-    const dim = burst ? E.lerp(0.25, 0.6, E.seg(ab, 0, 0.35)) : 0.72 - 0.12 * E.seg(t, START, T_BURST, 'expoIn');
-    c.fillStyle = E.rgba('night', dim); c.fillRect(-200, -200, W + 400, H + 400);
-    c.save(); c.globalCompositeOperation = 'color'; c.fillStyle = E.rgba('violet', 0.35); c.fillRect(-200, -200, W + 400, H + 400); c.restore();
+    const dim = burst ? E.lerp(0.25, 0.6, E.seg(ab, 0, 0.35)) : 0.66 - 0.16 * E.seg(t, START, T_BURST, 'expoIn');
+    c.fillStyle = E.rgba('night', dim); c.fillRect(-400, -400, W + 800, H + 800);
+    c.save(); c.globalCompositeOperation = 'color'; c.fillStyle = E.rgba('violet', 0.35); c.fillRect(-400, -400, W + 800, H + 800); c.restore();
 
     // ---- god rays / backlight that swells with the riser ----
     const riser = E.seg(t, START, T_BURST, 'quadIn');
     c.save(); c.globalCompositeOperation = 'lighter';
     glowBlob(c, CX, 520, 520 + 260 * riser, rgbaStr(E, 'grape'), 0.35 + 0.4 * riser);
     glowBlob(c, CX, 540, 260 + 120 * riser, rgbaStr(E, 'catnipGlow'), 0.08 + 0.25 * riser * riser);
-    const rays = 14, ra = t * 0.35;
-    c.globalAlpha = 0.05 + 0.12 * riser;
+    const rays = 14, ra = t * (0.35 + 1.4 * riser);
+    c.globalAlpha = 0.06 + 0.16 * riser;
     c.fillStyle = E.col('lilac');
     for (let i = 0; i < rays; i++) {
       const a = ra + (i / rays) * E.TAU, wdt = 0.07;
@@ -248,13 +309,14 @@ function drawRescue(ctx, t, E) {
     }
     c.restore();
 
-    // ---- speed lines ramp into the burst ----
-    const sl = E.seg(t, 12.05, T_BURST, 'expoIn');
-    if (sl > 0 && !burst) E.speedLines(c, t, { cx: CX, cy: 560, count: 110, inner: 620 - 260 * sl, outer: 1500, width: [2, 10], color: 'lilac', alpha: 0.18 + 0.5 * sl, seed: 44, fps: 30 });
+    // ---- speed lines: twice as many, alpha 0.15 -> 0.8 through the build ----
+    const sl = E.seg(t, 11.3, T_BURST, 'quadIn');
+    if (!burst) E.speedLines(c, t, { cx: CX, cy: 560, count: 220, inner: 640 - 300 * sl, outer: 1600, width: [2, 10 + 6 * sl], color: 'lilac', alpha: 0.15 + 0.65 * sl, seed: 44, fps: 30 });
 
-    // ---- portal (after burst) ----
+    // ---- portal (after burst): only the swirl gets a time smear, never the sprites ----
     if (burst) {
       const R = 560 * E.backOut(E.seg(ab, 0.02, 0.32)) + 140 * sw;
+      if (sw > 0) { drawPortal(c, E, t - 0.024, R, 0.25); drawPortal(c, E, t - 0.012, R, 0.4); }
       drawPortal(c, E, t, R, 1);
     }
 
@@ -262,44 +324,67 @@ function drawRescue(ctx, t, E) {
     c.save(); c.fillStyle = 'rgba(0,0,0,0.45)';
     c.beginPath(); c.ellipse(CX + 20, BY + 6, 330, 34, 0, 0, E.TAU); c.fill(); c.restore();
 
-    // ---- heroes clawing at the crate / leaping away on the burst ----
+    // ---- gold match-cut: the 58 card's frame collapses onto the crate outline ----
+    const mc = E.seg(t, START, START + 8 / 60, 'expoOut');
+    const mcA = 1 - E.seg(t, START + 8 / 60, START + 16 / 60);
+    if (mcA > 0) {
+      const r0 = [-120, -140, W + 240, H + 280], r1 = [CX - 31 * S - 14, BY - 56 * S - 14, 71 * S + 28, 57 * S + 28];
+      const rr = r0.map((v, i) => E.lerp(v, r1[i], mc));
+      c.save(); c.globalAlpha = mcA; c.strokeStyle = E.col('coin'); c.lineWidth = E.lerp(34, 10, mc);
+      c.shadowColor = E.col('coin'); c.shadowBlur = 30;
+      c.beginPath(); c.roundRect(rr[0], rr[1], rr[2], rr[3], E.lerp(60, 18, mc)); c.stroke(); c.restore();
+    }
+
+    // ---- heroes: claw at the crate, hop on every rattle, leap away on the burst, then get sucked into the portal ----
     const heroFrame = E.spriteFrame(t, 14);
-    [['albertino', -1], ['oreo', 1]].forEach(([id, side], hi) => {
-      const baseX = CX + side * 372, enter = E.seg(t, START, START + 0.28, 'backOut');
-      let x = baseX + side * (1 - enter) * 700, y = BY + 2, row = 'DIGGING', f = heroFrame, sc = S;
-      let flip = side > 0;
+    const pullS = E.seg(t, 12.8, 12.95, 'expoIn');
+    [['bob', -1, 0], ['oreo', 1, 1 / 60]].forEach(([id, side, delay]) => {
+      const baseX = CX + side * 372, enter = E.seg(t, START, START + 0.16, 'backOut');
+      let x = baseX + side * (1 - enter) * 700, y = BY + 2, row = 'DIGGING', f = heroFrame, sc = S, sx = 1, sy = 1, clamp = false;
+      const flip = side > 0;
       if (burst) {
         const j = E.seg(ab, 0, 0.42);
-        row = 'JUMPING'; f = Math.min(6, Math.floor(j * 7));
+        row = 'JUMPING'; f = Math.min(6, Math.floor(j * 7)); clamp = true;
         x = baseX + side * 170 * E.expoOut(j);
         y = BY + 2 - 240 * Math.sin(Math.min(1, j) * Math.PI) * (1 - 0.3 * j);
         sc = S * (1 + 0.25 * E.expoOut(j));
+        if (pullS > 0) { x = E.lerp(x, PORTAL[0], pullS); y = E.lerp(y, PORTAL[1] + 60, pullS); sc *= 1 - pullS; }
+      } else {
+        const hh = heroHop(E, t, delay);
+        if (hh) { row = hh.row; f = hh.f; y += hh.y; sx = hh.sx; sy = hh.sy; clamp = true; }
       }
-      const hit = !burst && E.envs(t, RATTLES, 0.06);
-      E.drawSprite(c, id, row, f, x, y, sc, { anchor: 'feet', flip, clamp: burst, sy: burst ? 1 : 1 - 0.08 * hit, sx: burst ? 1 : 1 + 0.08 * hit });
+      if (sc > 0.2) E.drawSprite(c, id, row, f, x, y, sc, { anchor: 'feet', flip, clamp, sx, sy });
     });
 
     // ---- crate ----
-    const rs = rattleState(E, t);
     if (!burst) {
       c.save();
-      const drop = (1 - E.bounceOut(E.seg(t, START, START + 0.26))) * 720;
-      c.translate(CX, BY - rs.hop * S - drop);
+      const cs = E.lerp(1.12, 1, mc);
+      c.translate(CX + rs.tx, BY - rs.hop * S + rs.ty);
       c.rotate(rs.rot);
-      c.scale(S * (1 + rs.sq), S * (1 - rs.sq));
+      c.scale(S * cs * (1 + rs.sq), S * cs * (1 - rs.sq));
       const near = RATTLES.some((tc) => t >= tc && t - tc < 0.1);
       crateWhole(c, E, t, near ? 'HIT' : 'SITTING', near ? 2 : E.spriteFrame(t, 8));
       c.restore();
+      // accent strobe (11.719 / 12.188): red security light snaps across the crate
+      const st = E.envs(t, ACCENTS, 0.05);
+      if (st > 0.02) {
+        c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = st;
+        glowBlob(c, CX, BY - 230, 560, 'rgba(255,60,40,A)', 0.8);
+        c.fillStyle = E.rgba('alertRed', 0.5 * st);
+        for (const tc of ACCENTS) { const q = E.seg(t, tc, tc + 0.1); if (q > 0 && q < 1) { const x = E.lerp(CX - 700, CX + 700, q); c.fillRect(x - 60, -200, 120, 1480); } }
+        c.restore();
+      }
       // white tint pop on each rattle
       const flashA = E.envs(t, RATTLES, 0.035) * 0.55;
       if (flashA > 0.02) {
         c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = flashA;
         glowBlob(c, CX, BY - 200, 420, 'rgba(255,243,208,A)', 0.6); c.restore();
       }
-      // dust puffs on every landing (and the initial drop)
-      [START + 0.1, ...RATTLES].forEach((tc0, i0) => { const tc = i0 === 0 ? tc0 : tc0; const i = i0 + 10;
-        for (const p of E.burst({ seed: 700 + i, count: i === 10 ? 26 : 14, t, t0: i === 10 ? tc : tc + 0.1, x: CX + (E.rand(i, 'dx') - 0.5) * 300, y: BY, speed: [120, 420], angle: [-Math.PI, 0], gravity: -60, drag: 3, life: [0.3, 0.55], size: [8, 22] })) {
-          c.fillStyle = E.rgba('lilac', 0.45 * p.alpha); const s = p.size * (1 + p.p);
+      // dust puffs on every landing
+      RATTLES.forEach((tc, i0) => { const i = i0 + 11;
+        for (const p of E.burst({ seed: 700 + i, count: 14 + i0 * 3, t, t0: tc + 0.1, x: CX + (E.rand(i, 'dx') - 0.5) * 300, y: BY, speed: [160, 520], angle: [-Math.PI, 0], gravity: -60, drag: 3, life: [0.3, 0.55], size: [8, 22] })) {
+          c.fillStyle = E.rgba('lilac', 0.5 * p.alpha); const s = p.size * (1 + p.p);
           c.fillRect(Math.round(p.x - s / 2), Math.round(p.y - s / 2), s, s);
         }
       });
@@ -324,26 +409,19 @@ function drawRescue(ctx, t, E) {
       });
     }
 
-    // ---- freed shelter cat pops up and hovers in front of the portal ----
     if (burst) {
-      const j = E.seg(ab, 0, 0.3, 'backOut');
-      const pull = E.seg(t, 12.9, T_GAP, 'expoIn');
-      const cy = E.lerp(BY - 5 * S, PORTAL[1] + 120, j) + 10 * Math.sin(ab * 9);
-      const sc = S * (1 + 0.55 * j) * (1 - 0.9 * pull);
-      const row = ab < 0.35 ? 'JUMPING' : 'IDLE';
-      const fr = ab < 0.35 ? Math.min(6, Math.floor(ab / 0.05)) : E.spriteFrame(t, 12);
-      E.drawSprite(c, 'white', row, fr, CX, cy, sc, { anchor: 'feet', clamp: ab < 0.35, rot: pull * 3, outline: { color: '#fff3d0', px: 1 }, tint: { color: '#ffffff', amount: E.env(ab, 0, 0.09) } });
-      // hearts rise
-      for (const p of E.burst({ seed: 51, count: 12, t, t0: T_BURST + 0.05, x: CX, y: cy - 180, speed: [160, 420], angle: [-Math.PI * 0.85, -Math.PI * 0.15], gravity: -200, drag: 2, life: [0.5, 0.9], size: [34, 58], delay: 0.15 })) {
-        E.drawImg(c, 'heart', p.x, p.y, { w: p.size * (0.6 + 0.4 * E.backOut(Math.min(1, p.age / 0.12))), alpha: Math.min(1, p.alpha * 2), rot: Math.sin(p.age * 8 + p.i) * 0.2 });
+      // hearts rise from BESIDE the freed cat (never over its head), gone before the portal pull
+      const hA = 1 - E.seg(t, 12.84, 12.92);
+      for (const side of [-1, 1]) {
+        for (const p of E.burst({ seed: side > 0 ? 51 : 52, count: 6, t, t0: T_BURST + 0.05, x: CX + side * 250, y: PORTAL[1] + 20, speed: [200, 420], angle: side > 0 ? [-Math.PI * 0.45, -Math.PI * 0.1] : [-Math.PI * 0.9, -Math.PI * 0.55], gravity: -200, drag: 2, life: [0.5, 0.8], size: [34, 58], delay: 0.12 })) {
+          E.drawImg(c, 'heart', p.x, p.y, { w: p.size * (0.6 + 0.4 * E.backOut(Math.min(1, p.age / 0.12))), alpha: Math.min(1, p.alpha * 2) * hA, rot: Math.sin(p.age * 8 + p.i) * 0.2 });
+        }
       }
-    }
-
-    // ---- confetti ----
-    if (burst) {
+      // confetti (clears out before the portal pull so nothing lingers on the freed cat)
+      const cA = 1 - E.seg(t, 12.78, 12.88);
       const cols = ['#ff7aa2', '#ffc93c', '#9be15d', '#f0c5fd', '#c4e2fc', '#fcecbb'];
-      for (const p of E.burst({ seed: 90, count: 170, t, t0: T_BURST, x: CX, y: BY - 200, speed: [500, 1700], angle: [0, E.TAU], gravity: 1500, drag: 1.4, life: [0.6, 1.1], size: [10, 22], spin: 14 })) {
-        c.save(); c.translate(p.x, p.y); c.rotate(p.rot);
+      if (cA > 0) for (const p of E.burst({ seed: 90, count: 170, t, t0: T_BURST, x: CX, y: BY - 200, speed: [500, 1700], angle: [0, E.TAU], gravity: 1500, drag: 1.4, life: [0.6, 1.1], size: [10, 22], spin: 14 })) {
+        c.save(); c.translate(p.x, p.y); c.rotate(p.rot); c.globalAlpha = cA;
         c.fillStyle = cols[p.i % cols.length];
         const s = p.size;
         c.fillRect(-s / 2, (-s / 4) * Math.abs(Math.cos(p.age * 12 + p.i)), s, (s / 2) * Math.abs(Math.cos(p.age * 12 + p.i)) + 2);
@@ -351,14 +429,25 @@ function drawRescue(ctx, t, E) {
       }
       ring(E, c, CX, BY - 200, E.seg(ab, 0, 0.5), { radius: 900, width: 40, color: 'rescueFlash', rings: 2, gap: 0.14 });
     }
-
-    // ---- kinetic copy ----
-    drawRescueType(c, E, t);
   });
+
+  // ---- snare roll: red strobe on 12.305 / 12.422 / 12.539 (the tilt is in fx) ----
+  if (!burst) {
+    const rs2 = E.envs(t, ROLL, 0.03);
+    if (rs2 > 0.02) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = `rgba(255,40,30,${0.42 * rs2})`; ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
+  }
+
+  // ---- kinetic copy (screen space, so the push never crops it) ----
+  drawRescueType(ctx, E, t);
+  drawFreedCat(ctx, t, E);
 
   // ---- security-cam HUD (screen space, glitches out on the burst) ----
   if (t < T_BURST + 0.08) {
-    const hudA = E.seg(t, START, START + 0.08) * (burst ? 1 - E.seg(ab, 0, 0.08) : 1);
+    const hudA = burst ? 1 - E.seg(ab, 0, 0.08) : 1;
     ctx.save(); ctx.globalAlpha = hudA;
     const blink = E.beatPhase(t) < 0.5;
     ctx.fillStyle = E.col('alertRed');
@@ -367,9 +456,10 @@ function drawRescue(ctx, t, E) {
     E.drawText(ctx, 'CAM 08 // VAULT B', 190, 79, { size: 26, font: 'mono', align: 'left', color: 'cream', tracking: 0.2, alpha: 0.85 });
     E.drawText(ctx, E.timecode(t), W - 70, 79, { size: 26, font: 'mono', align: 'right', color: 'cream', tracking: 0.15, alpha: 0.85 });
     E.drawText(ctx, 'KIBBLE CORP SECURITY  //  MOTION DETECTED', 70, H - 64, { size: 22, font: 'mono', align: 'left', color: 'lavender', tracking: 0.25, alpha: 0.6 + 0.4 * E.envs(t, RATTLES, 0.1) });
-    // corner brackets
+    // corner brackets pinch in with the build
+    const bi = 46 + 30 * rs.build;
     ctx.strokeStyle = E.rgba('cream', 0.7); ctx.lineWidth = 4;
-    for (const [x, y, sx, sy] of [[46, 40, 1, 1], [W - 46, 40, -1, 1], [46, H - 40, 1, -1], [W - 46, H - 40, -1, -1]]) {
+    for (const [x, y, sx, sy] of [[bi, bi - 6, 1, 1], [W - bi, bi - 6, -1, 1], [bi, H - bi + 6, 1, -1], [W - bi, H - bi + 6, -1, -1]]) {
       ctx.beginPath(); ctx.moveTo(x, y + sy * 50); ctx.lineTo(x, y); ctx.lineTo(x + sx * 50, y); ctx.stroke();
     }
     ctx.restore();
@@ -389,71 +479,112 @@ function drawRescue(ctx, t, E) {
   }
 }
 
+// Freed cat: clean hero moment in screen space (no swirl rotation, no blur), jump 0.16s -> clean IDLE pose
+// with rim outline held until 12.93, then it shrinks into the portal core with the suck-out.
+function drawFreedCat(ctx, t, E) {
+  const ab = t - T_BURST;
+  if (ab < 0 || t >= T_GAP) return;
+  const j = E.seg(ab, 0, 0.16, 'backOut');
+  const pull = E.seg(t, 12.93, T_GAP, 'expoIn');
+  const y0 = E.lerp(BY - 5 * S, PORTAL[1] + 150, j) + 6 * Math.sin(ab * 9) * (1 - pull);
+  const y = E.lerp(y0, PORTAL[1] + 40, pull);
+  const sc = S * 1.3 * (1 + 0.35 * j) * (1 - 0.92 * pull);
+  const jumping = ab < 0.16;
+  const fr = jumping ? Math.min(6, Math.floor(ab / 0.025)) : E.spriteFrame(t, 12);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; glowBlob(ctx, CX, y - 110 * (1 - pull), 300 * (1 - pull), 'rgba(255,243,208,A)', 0.3 * (1 - pull)); ctx.restore();
+  E.drawSprite(ctx, SHELTER, jumping ? 'JUMPING' : 'IDLE', fr, CX, y, sc, { anchor: 'feet', clamp: jumping, rot: pull * 2.5, outline: { color: '#fff3d0', px: 1 }, tint: { color: '#ffffff', amount: E.env(ab, 0, 0.03) } });
+  if (!jumping && pull === 0) E.drawText(ctx, 'MOCHI', CX, y + 60, { size: 30, font: 'mono', weight: 'bold', color: 'cream', tracking: 0.35, alpha: E.seg(ab, 0.16, 0.22) });
+}
+
+// headline word: enters at 1.6x -> 1 (backOut, 8 frames) with a 3-frame smear, fully legible on its cue frame
+function slamWord(c, E, t, w, tw, x, y, o, extra = {}) {
+  const a = t - tw; if (a < 0) return;
+  const q = E.backOut(E.seg(a, 0, 8 / 60), 1.8);
+  const sc = E.lerp(1.6, 1, q) * (extra.scale ?? 1);
+  const sm = 1 - E.seg(a, 0, 3 / 60);
+  if (sm > 0) for (let g = 2; g >= 1; g--) E.drawText(c, w, x, y, { ...o, extrude: null, stroke: null, alpha: (o.alpha ?? 1) * 0.3 * sm / g, perChar: () => ({ scale: sc * (1 + 0.18 * g * sm), sy: 1 + 0.25 * sm }) });
+  E.drawText(c, w, x + (extra.x || 0), y + (extra.y || 0), {
+    ...o,
+    perChar: ({ i }) => ({ scale: sc, rot: (1 - q) * (i % 2 ? 0.08 : -0.08), y: E.randSigned('wj', w, i, E.frame >> 1) * 8 * (extra.jit || 0), color: a < 2 / 60 ? '#ffffff' : undefined }),
+  });
+}
+
 function drawRescueType(c, E, t) {
   const ab = t - T_BURST;
-  // Line 1: LOCKED UP.   (rattle 1 .. rattle 3)
-  if (t >= RATTLES[0] - 0.02 && t < RATTLES[2] + 0.01) {
-    const lt = t - RATTLES[0], out = E.seg(t, RATTLES[2] - 0.08, RATTLES[2] + 0.01, 'expoIn');
-    E.drawText(c, 'LOCKED UP.', 960, 272 - out * 60, {
-      size: 150, color: 'cream', tracking: 0.04, extrude: { depth: 12, color: 'grape', dark: 0.6 }, alpha: 1 - out,
-      perChar: ({ i, n }) => {
-        const q = E.stagger(lt, i, n, { spread: 0.1, dur: 0.22, e: 'backOut' });
-        const sh = E.envs(t, RATTLES, 0.05);
-        return { y: (1 - q) * -110 + E.randSigned('lk', i, E.frame >> 1) * 7 * sh, rot: (1 - q) * 0.4 * (i % 2 ? 1 : -1), alpha: Math.min(1, q * 3), sx: 1 + out * 0.6, sy: 1 - out * 0.5 };
-      },
+  const LY = 262;
+  const jit = E.envs(t, [...RATTLES, ...ACCENTS], 0.05);
+  // Line 1: LOCKED (11.25 downbeat, present from f675) UP. (rattle 1, 11.484)
+  if (t >= START && t < RATTLES[2]) {
+    const out = E.seg(t, RATTLES[2] - 3 / 60, RATTLES[2], 'expoIn');
+    const words = [['LOCKED', START, 'cream'], ['UP.', RATTLES[0], 'alertRed']];
+    const size = 160, gap = 46;
+    const ws = words.map(([w]) => E.measureText(c, w, { size, tracking: 0.04 }));
+    let x = 960 - (ws[0] + ws[1] + gap) / 2;
+    const acc = 0.05 * E.envs(t, [ACCENTS[0], RATTLES[1]], 0.07); // accent + rattle 2 bump the line
+    words.forEach(([w, tw, col], k) => {
+      slamWord(c, E, t, w, tw, x + ws[k] / 2, LY - out * 50, { size, color: col, tracking: 0.04, extrude: { depth: 12, color: 'grape', dark: 0.6 }, alpha: 1 - out }, { scale: (1 + acc) * (1 + 0.4 * out), jit });
+      x += ws[k] + gap;
     });
   }
-  // Line 2: BUST IT OPEN — word by word on rattles 3, 4, 5
+  // Line 2: BUST (12.070) IT (12.188 accent) OPEN (12.305), pumping on 12.422 / 12.539
   if (t >= RATTLES[2] && t < T_BURST + 0.14) {
-    const words = [['BUST', RATTLES[2]], ['IT', RATTLES[3]], ['OPEN', RATTLES[4]]];
+    const words = [['BUST', RATTLES[2]], ['IT', ACCENTS[1]], ['OPEN', RATTLES[3]]];
     const sizes = [150, 150, 200];
     const gap = 40;
     const ws = words.map(([w], k) => E.measureText(c, w, { size: sizes[k], tracking: 0.03 }));
     const total = ws.reduce((a, b) => a + b, 0) + gap * 2;
     let x = 960 - total / 2;
-    const exp = E.seg(ab, 0, 0.14, 'expoOut');
+    const exp = E.seg(t - T_BURST, 0, 0.14, 'expoOut');
+    const pump = 0.1 * E.envs(t, [RATTLES[4], RATTLES[5]], 0.06);
     words.forEach(([w, tw], k) => {
-      const q = E.seg(t, tw, tw + 0.1, 'backOut');
-      if (q > 0) {
-        const hit = E.env(t, tw, 0.06);
-        const cx = x + ws[k] / 2;
-        E.drawText(c, w, cx + (cx - 960) * exp * 1.2, 272 - exp * 80, {
-          size: sizes[k], color: k === 2 ? 'coin' : 'cream', tracking: 0.03, alpha: 1 - exp,
-          extrude: { depth: k === 2 ? 16 : 12, color: k === 2 ? 'rust' : 'grape', dark: 0.6 },
-          perChar: ({ i }) => ({ scale: (2.2 - 1.2 * q) * (1 + 0.3 * exp), alpha: Math.min(1, q * 2.5), y: E.randSigned('bo', k, i, E.frame >> 1) * 10 * hit + (1 - q) * 20, color: hit > 0.5 ? '#ffffff' : undefined }),
-        });
-      }
+      const cx = x + ws[k] / 2;
+      slamWord(c, E, t, w, tw, cx + (cx - 960) * exp * 1.2, LY - exp * 80, {
+        size: sizes[k], color: k === 2 ? 'coin' : 'cream', tracking: 0.03, alpha: 1 - exp,
+        extrude: { depth: k === 2 ? 16 : 12, color: k === 2 ? 'rust' : 'grape', dark: 0.6 },
+      }, { scale: 1 + 0.3 * exp + pump, jit });
       x += ws[k] + gap;
     });
   }
-  // case file label (scramble decode)
-  if (t < T_BURST + 0.05) {
-    const p = E.seg(t, START + 0.02, START + 0.4);
-    const a = 1 - E.seg(ab, 0, 0.05);
-    E.drawText(c, E.scramble('SHELTER CAT #08  //  "CLOVER"  //  STATUS: CAGED', p, 81), 960, 150, { size: 26, font: 'mono', weight: 'bold', color: 'catnip', tracking: 0.28, alpha: a * (t < START + 0.02 ? 0 : 1) });
-    const bw = E.measureText(c, 'SHELTER CAT #08  //  "CLOVER"  //  STATUS: CAGED', { size: 26, font: 'mono', weight: 'bold', tracking: 0.28 });
-    c.fillStyle = E.rgba('catnip', 0.8 * a); c.fillRect(960 - bw / 2 * E.expoOut(p), 172, bw * E.expoOut(p), 3);
+  // case file label: clean wipe-on (no scramble), done by f687
+  if (t < RATTLES[3]) {
+    const LBL = 'SHELTER CAT  //  "MOCHI"  //  STATUS: CAGED';
+    const p = E.seg(t, START, START + 0.2, 'expoOut');
+    const a = 1 - E.seg(t, RATTLES[3] - 3 / 60, RATTLES[3]); // clears before OPEN slams into its space
+    const o = { size: 26, font: 'mono', weight: 'bold', color: 'catnip', tracking: 0.28, alpha: a };
+    E.wipeText(c, LBL, 960, 122, o, p);
+    const bw = E.measureText(c, LBL, o);
+    c.fillStyle = E.rgba('catnip', 0.8 * a); c.fillRect(960 - bw / 2 * p, 144, bw * p, 3);
   }
-  // FREED! slam on the burst
+  // FREED! slam on the burst (screen space, top of the letters at y >= 60)
   if (ab >= 0 && t < T_GAP) {
-    const q = E.seg(ab, 0, 0.16, 'backOut');
     const pull = E.seg(t, 12.88, T_GAP, 'expoIn');
-    E.drawText(c, 'FREED!', 960, 250, {
-      size: 230, color: 'cream', tracking: 0.05, extrude: { depth: 18, color: 'pink', dark: 0.65 },
+    E.drawText(c, 'FREED!', 960, 215, {
+      size: 210, color: 'cream', tracking: 0.05, extrude: { depth: 18, color: 'pink', dark: 0.65 },
       glow: { color: 'pink', blur: 30 },
       perChar: ({ i, n }) => {
         const qi = E.stagger(ab, i, n, { spread: 0.06, dur: 0.16, e: 'backOut' });
         return { scale: (0.2 + 0.8 * qi) * (1 - 0.8 * pull), y: (1 - qi) * 80 + Math.sin(ab * 14 + i) * 6, rot: (1 - qi) * (i % 2 ? 0.5 : -0.5) + pull * 1.5, alpha: Math.min(1, qi * 2) * (1 - pull), color: ab < 0.05 ? '#ffffff' : undefined };
       },
     });
-    void q;
   }
 }
 
 // ------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
 // BAR 8: LOGO SLAM
 // ------------------------------------------------------------------------------------------
-const LAY = { logoY: 104, catnipY: 392, heistY: 590, tagY: 770, btnY: 892, footY: 1026 };
+const LAY = { logoY: 128, catnipY: 396, heistY: 652, tagY: 812, btnY: 924 };
+// end-card groove: 8th-note grid anchored on the slam; each pulse = 5% scale kick + alternating 1.5 deg tilt,
+// decaying with backOut over 0.1 s (so it undershoots a hair before settling)
+const E8 = 0.234375;
+function grooveAt(E, t) {
+  if (t < T_LOGO) return { s: 1, r: 0, e: 0 };
+  const k = Math.floor((t - T_SLAM) / E8 + 1e-6), a = t - (T_SLAM + k * E8);
+  const u = E.seg(a, 0, 0.2);
+  const e = Math.pow(1 - u, 1.6) * Math.cos(u * Math.PI * 0.6) - 0.12 * Math.sin(u * Math.PI) * u; // kick, slight undershoot, settle
+  return { s: 1 + 0.05 * e, r: E.deg(1.5) * e * (k % 2 ? 1 : -1), e };
+}
+const halfBob = (t) => 6 * Math.sin(((t - T_SLAM) / 0.9375) * Math.PI * 2);
 
 function drawWordImg(c, word, cx, cy, sc, o = {}) {
   const w = word.W * sc * (o.sx ?? 1), h = word.H * sc * (o.sy ?? 1);
@@ -479,6 +610,10 @@ function glintWord(E, c, word, cx, cy, p) {
   c.drawImage(L, cx - word.W / 2, cy - word.H / 2, word.W, word.H); c.restore();
 }
 
+// continuous camera push over the end card (1.00 -> 1.06, expoInOut 13.30-14.53, slow drift after),
+// applied per layer at different rates for parallax: rays 0.6, title 1.0, particles 1.4
+const pushAt = (E, t) => 0.12 * E.sineInOut(E.seg(t, 13.25, T_FINAL)) + 0.03 * E.seg(t, T_FINAL, END);
+function pushLayer(ctx, E, t, k, base = 1) { const z = base + k * pushAt(E, t); ctx.translate(960, 540); ctx.scale(z, z); ctx.translate(-960, -540); }
 function drawLogo(ctx, t, E) {
   const { W, H } = E;
   const ls = t - T_SLAM; // time since slam
@@ -489,7 +624,7 @@ function drawLogo(ctx, t, E) {
   ctx.fillStyle = E.col('night'); ctx.fillRect(0, 0, W, H);
   if (slammed) {
     const bz = 1.22 - 0.16 * E.expoOut(E.seg(ls, 0, 1.6)) + (fin >= 0 ? 0.03 * Math.exp(-fin / 0.2) : 0);
-    const drift = E.lerp(-20, 20, E.seg(t, T_SLAM, END, 'sineInOut'));
+    const drift = E.lerp(-70, 70, E.seg(t, T_SLAM, END, 'sineInOut'));
     E.camera(ctx, { zoom: bz, x: drift, cx: 960, cy: 520 }, (c) => {
       if (STILL) { c.imageSmoothingEnabled = true; c.drawImage(STILL, -40, -40, W + 80, H + 80); }
     });
@@ -499,9 +634,9 @@ function drawLogo(ctx, t, E) {
     ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
 
     // god rays
-    ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    const rays = 18, ra = t * 0.25 + 0.4 * E.expoOut(E.seg(ls, 0, 0.6));
-    ctx.globalAlpha = 0.07 + 0.06 * Math.exp(-ls / 0.3) + (fin >= 0 ? 0.1 * Math.exp(-fin / 0.25) : 0);
+    ctx.save(); pushLayer(ctx, E, t, 0.4); ctx.globalCompositeOperation = 'lighter';
+    const rays = 18, ra = t * E.deg(20) + 0.4 * E.expoOut(E.seg(ls, 0, 0.6)); // constant 20 deg/s spin
+    ctx.globalAlpha = 0.15 + 0.06 * Math.exp(-ls / 0.3) + (fin >= 0 ? 0.1 * Math.exp(-fin / 0.25) : 0) + 0.06 * grooveAt(E, t).e;
     ctx.fillStyle = E.col('coin');
     for (let i = 0; i < rays; i++) {
       const a = ra + (i / rays) * E.TAU, wdt = 0.05 + 0.03 * Math.sin(i * 2.3);
@@ -515,22 +650,24 @@ function drawLogo(ctx, t, E) {
     ctx.restore();
 
     // drifting catnip leaves & sparkles, 3 parallax depths
+    ctx.save(); pushLayer(ctx, E, t, 1.4);
     for (let d = 0; d < 3; d++) {
-      const n = [16, 10, 6][d], sz = [18, 30, 54][d], sp = [30, 60, 110][d], a = [0.35, 0.55, 0.8][d];
+      const n = [26, 16, 9][d], sz = [18, 30, 54][d], sp = [70, 110, 170][d], a = [0.35, 0.55, 0.8][d];
       for (let i = 0; i < n; i++) {
         const r = (k) => E.rand('leaf', d, i, k);
         const y = E.mod(r(1) * (H + 200) - (t - T_SLAM) * sp - 100, H + 200) - 100;
-        const x = r(2) * W + Math.sin(t * (0.8 + r(3)) + i) * 30;
+        const x = E.mod(r(2) * (W + 200) + (t - T_SLAM) * sp * 0.35 * (r(6) < 0.5 ? -1 : 1), W + 200) - 100 + Math.sin(t * (0.8 + r(3)) + i) * 30;
         E.drawImg(ctx, 'catnip', x, y, { w: sz, alpha: a * E.seg(ls, 0.05, 0.4), rot: Math.sin(t * 1.5 + i) * 0.5 });
       }
     }
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 80; i++) {
       const r = (k) => E.rand('spk', i, k);
       const tw = 0.5 + 0.5 * Math.sin(t * (3 + r(1) * 5) + r(2) * 9);
       ctx.fillStyle = E.rgba(i % 3 ? 'cream' : 'catnipGlow', 0.6 * tw * E.seg(ls, 0.1, 0.4));
       const s = 3 + Math.round(r(3) * 3);
-      ctx.fillRect(Math.round(r(4) * W), Math.round(r(5) * H), s, s);
+      ctx.fillRect(Math.round(E.mod(r(4) * W + (t - T_SLAM) * (60 + 60 * r(6)), W)), Math.round(E.mod(r(5) * H - (t - T_SLAM) * 70, H)), s, s);
     }
+    ctx.restore();
   } else {
     // suck-out gap: pinpoint + anamorphic flare stretching out before the slam
     const g = E.seg(t, T_GAP, T_SLAM, 'expoIn');
@@ -545,10 +682,23 @@ function drawLogo(ctx, t, E) {
   }
 
   if (!TITLE) return;
+  ctx.save(); pushLayer(ctx, E, t, 1, 0.94); // lockup pushes 0.94 -> 1.06 (a 12% push that stays title-safe)
+  drawTitleGroup(ctx, t, E, ls, slammed, fin);
+  ctx.restore();
+  // light leak + gentle vignette over the end card
+  if (slammed) E.lightLeak(ctx, t, { seed: 17, intensity: 0.1 + 0.12 * Math.exp(-ls / 0.3) + 0.15 * (fin >= 0 ? Math.exp(-fin / 0.07) : 0), colors: ['#ff7aa2', '#ffc93c', '#9966cc'], speed: 0.5 });
+}
+
+function drawTitleGroup(ctx, t, E, ls, slammed, fin) {
+  const { W, H } = E;
   const { catnip, heist } = TITLE;
   const finHit = fin >= 0 ? Math.exp(-fin / 0.07) : 0;
   const finPunch = fin >= 0 ? 0.06 * Math.exp(-fin / 0.14) * Math.cos(fin * 30) : 0;
-  const breathe = 1 + 0.008 * Math.sin((t - T_SLAM) * 4);
+  // end card grooves on the 8th-note grid so the lockup never sits still
+  const gv = grooveAt(E, t);
+  const breathe = (1 + 0.008 * Math.sin((t - T_SLAM) * 4)) * gv.s;
+  const bobY = t >= T_LOGO ? halfBob(t) * E.seg(t, T_LOGO, T_LOGO + 0.2) : 0;
+  ctx.save(); ctx.translate(960, 520 + bobY); ctx.rotate(gv.r); ctx.translate(-960, -520);
 
   // ---- CATNIP: rushes at the camera in the gap, slams, squash & spring ----
   {
@@ -573,11 +723,12 @@ function drawLogo(ctx, t, E) {
     if (wA > 0.01) drawWordImg(ctx, catnip, 960, LAY.catnipY, sc, { sx, sy, alpha: wA, white: true });
     if (slammed) {
       glintWord(E, ctx, catnip, 960, LAY.catnipY, E.seg(ls, 0.3, 0.75, 'cubicInOut'));
+      glintWord(E, ctx, catnip, 960, LAY.catnipY, E.seg(t, 13.85, 14.4, 'cubicInOut'));
       glintWord(E, ctx, catnip, 960, LAY.catnipY, E.seg(fin, 0.04, 0.4, 'cubicInOut'));
     }
   }
 
-  if (!slammed) return;
+  if (!slammed) { ctx.restore(); return; }
 
   // ---- shockwaves + catnip burst on the slam ----
   ring(E, ctx, 960, LAY.catnipY + 40, E.seg(ls, 0, 0.55), { radius: 1150, width: 44, color: 'cream', rings: 2, gap: 0.12 });
@@ -613,6 +764,7 @@ function drawLogo(ctx, t, E) {
       drawWordImg(ctx, heist, 960, LAY.heistY, hsc * pop);
       const wA = Math.max(Math.exp(-(ls - assembleEnd) / 0.05) * 0.9, finHit * 0.8);
       if (wA > 0.01) drawWordImg(ctx, heist, 960, LAY.heistY, hsc * pop, { alpha: wA, white: true });
+      glintWord(E, ctx, heist, 960, LAY.heistY, E.seg(t, 13.95, 14.45, 'cubicInOut'));
       glintWord(E, ctx, heist, 960, LAY.heistY, E.seg(fin, 0.1, 0.45, 'cubicInOut'));
       void lock;
     }
@@ -630,19 +782,26 @@ function drawLogo(ctx, t, E) {
 
   // ---- tagline: SNEAK. SWAP. RESCUE. ----
   {
-    const str = 'SNEAK.  SWAP.  RESCUE.';
+    const words = ['SNEAK.', 'SWAP.', 'RESCUE.'];
     const starts = [T_TAG, T_TAG + 0.1171875, T_TAG + 0.234375];
-    const wordOf = (i) => (i < 6 ? 0 : i < 13 ? 1 : 2);
-    E.drawText(ctx, str, 960, LAY.tagY, {
-      size: 58, font: 'heavy', color: 'cream', tracking: 0.12,
-      shadow: { color: '#12071f', blur: 0, x: 0, y: 6 },
-      perChar: ({ ch, i }) => {
-        const k = wordOf(i), ts = starts[k];
-        const q = E.seg(t, ts, ts + 0.16, 'backOut');
-        if (q <= 0) return false;
-        const h = E.env(t, ts, 0.05);
-        return { y: (1 - q) * 50 - (fin >= 0 ? 8 * finHit : 0), scale: 0.4 + 0.6 * q, alpha: Math.min(1, q * 2), color: ch === '.' ? 'catnip' : h > 0.4 ? '#ffffff' : k === 2 ? 'pink' : 'cream' };
-      },
+    const TS = { font: 'condensed', weight: '800', size: 74, tracking: 0.1 };
+    const gapW = 60;
+    const ws = words.map((w) => E.measureText(ctx, w, TS));
+    let x = 960 - (ws.reduce((a, b) => a + b, 0) + gapW * 2) / 2;
+    words.forEach((w, k) => {
+      const ts = starts[k], cx = x + ws[k] / 2; x += ws[k] + gapW;
+      if (t < ts) return;
+      const q = E.backOut(E.seg(t, ts, ts + 0.12), 2);
+      const sc = E.lerp(1.35, 1, q) * (1 + 0.05 * (fin >= 0 ? Math.exp(-fin / 0.07) : 0));
+      const col = k === 2 ? 'pink' : 'cream';
+      // 3-frame vertical smear
+      const sm = 1 - E.seg(t, ts, ts + 3 / 60);
+      for (let g = 2; g >= 1 && sm > 0; g--) E.drawText(ctx, w, cx, LAY.tagY - g * 26 * sm, { ...TS, size: TS.size * sc, color: col, alpha: 0.28 * sm / g, perChar: () => ({ sy: 1 + 0.4 * sm }) });
+      E.drawText(ctx, w, cx, LAY.tagY, {
+        ...TS, size: TS.size * sc, color: E.env(t, ts, 0.04) > 0.5 ? '#ffffff' : col,
+        shadow: { color: '#12071f', blur: 0, x: 0, y: 6 },
+        perChar: ({ ch }) => (ch === '.' ? { color: 'catnip' } : {}),
+      });
     });
     // underline sweep
     const u = E.seg(t, T_TAG + 0.23, T_TAG + 0.5, 'expoOut');
@@ -652,6 +811,7 @@ function drawLogo(ctx, t, E) {
   // ---- PLAY NOW button ----
   {
     const q = E.seg(t, T_PLAY, T_PLAY + 0.4, 'elasticOut');
+    if (t >= T_PLAY) ring(E, ctx, 960, LAY.btnY, E.seg(t, T_PLAY, T_PLAY + 0.45), { radius: 700, width: 30, color: 'coin', rings: 2, gap: 0.15 });
     if (q > 0) {
       const press = fin >= 0 ? Math.exp(-fin / 0.07) : 0;
       const anticip = E.seg(t, 14.414, T_FINAL, 'quadIn');
@@ -683,24 +843,29 @@ function drawLogo(ctx, t, E) {
     }
   }
 
-  // ---- paw cursor taps PLAY on the final hit ----
+  // ---- paw cursor: flies in, winds UP on 14.414 / 14.473 (big travel), slams the button's paw icon on 14.531 ----
   {
-    const inP = E.seg(t, 14.18, 14.414, 'expoOut');
+    const inP = E.seg(t, 14.16, 14.40, 'expoOut');
     if (inP > 0) {
-      const wind = E.seg(t, 14.414, 14.5, 'quadOut') - E.seg(t, 14.5, T_FINAL, 'expoIn');
+      const tx = 960 - 196, ty = LAY.btnY + 34;           // the paw icon on the button, left of the text
+      const w1 = E.seg(t, 14.414063, 14.414063 + 0.05, 'expoOut'), w2 = E.seg(t, 14.472656, 14.472656 + 0.05, 'expoOut');
+      const strike = E.seg(t, 14.50, T_FINAL, 'expoIn');
       const press = fin >= 0 ? Math.exp(-fin / 0.08) : 0;
-      const leave = E.seg(t, 14.66, 14.98, 'backIn');
-      const x = E.lerp(1560, 1222, inP) + 260 * leave;
-      const y = E.lerp(1180, LAY.btnY + 52, inP) - 40 * wind + 18 * press + 280 * leave;
-      const sc = 1 + 0.12 * wind - 0.12 * press;
-      E.drawImg(ctx, 'paw', x, y, { w: 96 * sc, rot: -0.55 + 0.1 * wind });
+      const leave = E.seg(t, 14.62, 14.82, 'expoOut');
+      let x = E.lerp(220, tx - 120, inP), y = E.lerp(1250, ty + 150, inP);
+      x -= 90 * w1 + 90 * w2; y += 80 * w1 + 90 * w2;       // wind-up: >= 170 px back and down-left
+      x = E.lerp(x, tx, strike); y = E.lerp(y, ty, strike);
+      if (fin >= 0) { x = tx; y = ty + 14 * press; }
+      x = E.lerp(x, 1330 + 8 * Math.sin(t * 5), leave); y = E.lerp(y, LAY.btnY + 30 + 6 * Math.sin(t * 7), leave);
+      const sc = (1 + 0.12 * (w1 + w2) * (1 - strike)) * (1 - 0.14 * press);
+      E.drawImg(ctx, 'paw', x, y, { w: 124 * sc, rot: 0.5 - 0.15 * (w1 + w2) + 0.3 * strike });
     }
   }
 
   // ---- footer ----
   {
     const q = E.seg(t, T_PLAY + 0.06, T_PLAY + 0.4, 'expoOut');
-    if (q > 0) E.drawText(ctx, '8 HEISTS   ·   58 CATS   ·   EVERY HEIST HELPS REAL SHELTER CATS', 960, LAY.footY + (1 - q) * 30, { size: 22, font: 'ui', weight: 'bold', color: 'lilac', tracking: 0.3 * q + 0.05, alpha: 0.85 * q });
+    void q; // footer dropped: it sat outside title-safe and was unreadable at 22 px
   }
 
   // ---- final hit: confetti cannons + rings ----
@@ -722,9 +887,7 @@ function drawLogo(ctx, t, E) {
       E.star(ctx, x, p.y, p.size * (1 - p.p), { points: 4, inner: 0.3, rot: p.rot, fill: p.i % 3 ? 'coin' : 'cream' });
     }
   }
-
-  // light leak + gentle vignette over the end card
-  E.lightLeak(ctx, t, { seed: 17, intensity: 0.1 + 0.12 * Math.exp(-ls / 0.3) + 0.15 * finHit, colors: ['#ff7aa2', '#ffc93c', '#9966cc'], speed: 0.5 });
+  ctx.restore();
 }
 
 // ------------------------------------------------------------------------------------------
@@ -747,38 +910,59 @@ export default {
     else drawLogo(ctx, t, E);
   },
   fx(t, lt, E) {
+    const F = 1 / 60;
     const f = { shake: 0, aberration: 0, flash: 0, glitch: 0, zoom: 1, motionBlur: 0 };
-    // handoff flash in
-    f.flash = Math.max(f.flash, 0.85 * E.env(t, START, 0.09));
-    f.shake += 10 * E.env(t, START, 0.12);
-    // rattles
+    // 11.25 handoff: cream hit capped at 0.45 + RGB split, ~3 frame decay
+    f.flash = lt < F ? 0.2 : lt < 2 * F ? 0.07 : 0; f.flashColor = '#fff3d0'; // capped at 2 frames
+    f.shake += 12 * E.env(t, START, 0.1); f.aberration += 10 * E.env(t, START, 0.04);
+    // rattles + accents
     const r = E.envs(t, RATTLES, 0.07);
-    f.shake += 9 * r * (1 + E.seg(t, START, T_BURST) * 1.5);
-    f.aberration += 3 * r + (t < T_BURST ? 7 * E.seg(t, 12.0, T_BURST, 'expoIn') : 0);
-    f.zoom *= 1 + 0.015 * r;
-    // burst
+    f.shake += 12 * r * (1 + E.seg(t, START, T_BURST) * 1.5) + 10 * E.envs(t, ACCENTS, 0.05);
+    f.aberration += 3 * r + 5 * E.envs(t, ACCENTS, 0.05) + (t < T_BURST ? 7 * E.seg(t, 12.0, T_BURST, 'expoIn') : 0);
+    // burst: capped flash, tau 0.05 (baseline within ~6 frames); no glitch on the freed cat
     const b = E.env(t, T_BURST, 0.14);
-    f.flash = Math.max(f.flash, 0.95 * E.env(t, T_BURST, 0.06));
-    f.flashColor = '#fff3d0';
-    f.shake += 34 * b; f.aberration += 14 * b; f.glitch = Math.max(f.glitch, 0.35 * E.env(t, T_BURST, 0.06));
-    // swirl: motion blur while the portal pulls
-    if (t > 12.8 && t < T_GAP) f.motionBlur = 5;
-    // slam
+    f.flash = Math.max(f.flash, 0.6 * E.env(t, T_BURST, 0.05));
+    f.shake += 34 * b; f.aberration += 12 * E.env(t, T_BURST, 0.04);
+    // (no global motion blur on the swirl: only the portal gets its own time smear, sprites stay crisp)
+    // snare roll 12.305 / 12.422 / 12.539: alternating +-3 deg Dutch tilt snapped on each hit (backOut, 3 frames)
+    if (t < T_BURST) {
+      let k = -1; for (let i = 0; i < ROLL.length; i++) if (t >= ROLL[i]) k = i;
+      if (k >= 0) {
+        const q = E.backOut(E.seg(t, ROLL[k], ROLL[k] + 3 * F), 2);
+        const prev = k === 0 ? 0 : (k - 1) % 2 ? -1 : 1, cur = k % 2 ? -1 : 1;
+        f.rot = E.deg(3) * E.lerp(prev, cur, q);
+      }
+      // build: shake + split rise steadily with the riser
+      const bld = E.seg(t, 11.3, T_BURST, 'expoIn');
+      f.shake += 10 * bld;
+    }
+    // slam (full white, the big one)
     const s = E.env(t, T_SLAM, 0.22);
     if (t >= T_SLAM) {
-      f.flash = Math.max(f.flash, E.env(t, T_SLAM, 0.035));
+      f.flash = Math.max(f.flash, E.env(t, T_SLAM, 0.035)); f.flashColor = '#ffffff';
       f.shake += 46 * s; f.aberration += 12 * E.env(t, T_SLAM, 0.1); f.zoom *= 1 + 0.07 * E.env(t, T_SLAM, 0.16);
       f.glitch = Math.max(f.glitch, 0.25 * E.env(t, T_SLAM, 0.05));
+      f.vignette = 0.45;
     }
     if (t >= T_GAP && t < T_SLAM) f.aberration += 10 * E.seg(t, T_GAP, T_SLAM);
-    // secondary hits
-    for (const h of [T_SLAM + 0.3516, T_LOGO, T_TAG, T_PLAY]) f.shake += 6 * E.env(t, h, 0.08);
-    f.aberration += 3 * E.envs(t, [T_TAG, T_TAG + 0.117, T_TAG + 0.234, T_PLAY], 0.06);
-    // final hit
+    // secondary hits: tagline ticks (shake 12 on the frame after each), PLAY NOW (18)
+    for (const h of [T_SLAM + 0.3516, T_LOGO]) f.shake += 6 * E.env(t, h, 0.08);
+    for (const h of [T_TAG, T_TAG + 0.1171875, T_TAG + 0.234375]) f.shake += 12 * E.env(t, h + F, 0.05);
+    f.shake += 18 * E.env(t, T_PLAY, 0.07);
+    f.aberration += 4 * E.envs(t, [T_TAG, T_TAG + 0.117, T_TAG + 0.234, T_PLAY], 0.05);
+    f.zoom *= 1 + 0.03 * E.env(t, T_PLAY, 0.08);
+    // anticipation "suck" on 14.414 / 14.473: the frame contracts in two steps (0.97, then 0.94), released on 14.531
+    if (t >= 14.414063 && t < T_FINAL) {
+      const k1 = E.expoOut(E.seg(t, 14.414063, 14.414063 + 4 * F)), k2 = E.expoOut(E.seg(t, 14.472656, 14.472656 + 4 * F));
+      f.zoom *= 1 - 0.03 * k1 - 0.03 * k2; f.flash = Math.max(f.flash, 0.1 + 0.08 * k2); f.flashColor = '#07030c';
+      f.shake += 6 * E.envs(t, [14.414063, 14.472656], 0.04);
+    }
+    // final hit on the last downbeat: cream, 0-frame attack, short
     const fh = E.env(t, T_FINAL, 0.18);
-    f.flash = Math.max(f.flash, 0.75 * E.env(t, T_FINAL, 0.045));
+    if (t >= T_FINAL) { f.flash = Math.max(f.flash, 0.6 * E.env(t, T_FINAL, 0.04)); f.flashColor = '#fff3d0'; }
     f.shake += 28 * fh; f.aberration += 10 * fh; f.zoom *= 1 + 0.045 * E.env(t, T_FINAL, 0.15);
-    if (t >= T_SLAM) { f.flashColor = t >= T_FINAL - 0.001 ? '#fff3d0' : '#ffffff'; f.vignette = 0.45; }
+    // living tail: a tiny breathing shake so the last 0.3s never freezes
+    if (t > 14.7) f.shake += 1.5;
     return f;
   },
 };

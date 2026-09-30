@@ -1,4 +1,4 @@
-import { IBlessing } from '@/models/blessing';
+import { IBlessing, IBlessingInput } from '@/models/blessing';
 import { IBlessingSearch } from '@/models/search';
 import { request } from './api';
 import { BlessingStatus } from '@/models/cats';
@@ -7,12 +7,12 @@ const blessingFetch = async (blessingId: string): Promise<IBlessing | null> => {
   return request<IBlessing>(`/blessing/${blessingId}`, 'GET');
 };
 
-const blessingDelete = async (blessingId: string): Promise<any> => {
-  return request<any>(`/blessing/${blessingId}`, 'DELETE');
+const blessingDelete = async (blessingId: string): Promise<unknown> => {
+  return request<unknown>(`/blessing/${blessingId}`, 'DELETE');
 };
 
 const blessingEdit = async (
-  blessing: IBlessing,
+  blessing: IBlessingInput,
   custom?: boolean
 ): Promise<IBlessing | null> => {
   const id = blessing._id;
@@ -26,7 +26,7 @@ const blessingEdit = async (
 };
 
 const blessingCreate = async (
-  blessing: IBlessing,
+  blessing: IBlessingInput,
   custom?: boolean
 ): Promise<IBlessing | null> => {
   return request<IBlessing>(

@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Labeled } from '@/components/ui/labeled';
 import { useToast } from '@/context/ToastContext';
-import { PackType } from '@/models/profile';
+import { IProfileInput, PackType } from '@/models/profile';
 import { IShelter } from '@/models/shelter';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 export default function User() {
   const params = useParams<{ id: string }>();
@@ -25,23 +25,27 @@ export default function User() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [discount, setDiscount] = useState('');
-  const [permission, setPermission] = useState(0);
+  const [permission, setPermission] = useState<number | ''>(0);
   const [shelter, setShelter] = useState<string | null>(null);
-  const { data: shelters, refetch } = useQuery({
+  const { data: shelters } = useQuery({
     queryKey: ['shelter'],
     queryFn: () => SHELTER_API.sheltersFetch()
   });
 
-  useEffect(() => {
+  // Reset the form whenever the loaded user changes. This adjusts state
+  // during render instead of in an effect, so the form never paints stale.
+  const [syncedFor, setSyncedFor] = useState<{ user: typeof user }>();
+  if (!syncedFor || syncedFor.user !== user) {
+    setSyncedFor({ user });
     setName(user?.name || '');
     setDiscount(user?.discount || '');
     setEmail(user?.email || '');
     setPermission(user?.permission || 0);
     setShelter(user?.shelter || '');
-  }, [user]);
+  }
 
   const newUser = useMemo(
-    () => ({
+    (): IProfileInput => ({
       _id: user?._id,
       name,
       discount,
@@ -54,9 +58,9 @@ export default function User() {
 
   async function saveUser() {
     if (user?._id) {
-      await USER_API.userEdit(newUser as any);
+      await USER_API.userEdit(newUser);
     } else {
-      const createdUser = await USER_API.userCreate(newUser as any);
+      const createdUser = await USER_API.userCreate(newUser);
       if (createdUser?._id) {
         setId(createdUser._id);
       }
@@ -136,11 +140,7 @@ export default function User() {
           value={permission}
           type="number"
           onChange={(e) =>
-            setPermission(
-              e.target.value
-                ? parseFloat(e.target.value)
-                : (e.target.value as any)
-            )
+            setPermission(e.target.value ? parseFloat(e.target.value) : '')
           }
         />
       </Labeled>

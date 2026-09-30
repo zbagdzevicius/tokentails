@@ -470,8 +470,8 @@ export class PlayerMovement {
       jumpSound.play();
 
       if (onGround && this.player.scene.anims.exists("splash-anim")) {
-        let offsetX = this.player.currentRotation ? -20 : 20;
-        let offsetY = -20;
+        const offsetX = this.player.currentRotation ? -20 : 20;
+        const offsetY = -20;
 
         const splash = this.player.scene.add.sprite(
           this.player.sprite.x + offsetX,

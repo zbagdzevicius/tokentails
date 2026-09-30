@@ -120,9 +120,12 @@ const CSS = /* css */ `
 .ch-ribbon img { width: 22px; height: 22px; object-fit: contain; flex: none; }
 .ch-menu { display: flex; flex-direction: column; gap: 14px; width: min(360px, 88vw); animation: ch-rise .5s .28s ease-out both; }
 .ch-menu .ch-btn { width: 100%; }
-.ch-menu .ch-primary.ch-big { animation: ch-breathe 2.6s 1s ease-in-out infinite; }
-@keyframes ch-breathe { 0%,100% { box-shadow: 0 5px 0 var(--ch-ol), 0 8px 16px rgba(0,0,0,.3), inset 0 3px 0 var(--hi), inset 0 -4px 0 rgba(0,0,0,.2); }
-  50% { box-shadow: 0 5px 0 var(--ch-ol), 0 0 26px 4px rgba(255,201,60,.45), inset 0 3px 0 var(--hi), inset 0 -4px 0 rgba(0,0,0,.2); } }
+/* Play button glow: a separate layer behind the button that only fades (opacity runs on the
+   compositor; an animated box-shadow would restyle and repaint the title on every frame). */
+.ch-play-wrap { position: relative; display: flex; width: 100%; isolation: isolate; }
+.ch-play-glow { position: absolute; inset: 0; z-index: -1; border-radius: 14px; pointer-events: none; opacity: 0;
+  box-shadow: 0 0 26px 4px rgba(255,201,60,.45); animation: ch-breathe 2.6s 1s ease-in-out infinite; will-change: opacity; }
+@keyframes ch-breathe { 0%,100% { opacity: 0; } 50% { opacity: 1; } }
 .ch-tag { color: var(--ch-mint); margin: 0; }
 .ch-foot { position: absolute; bottom: calc(var(--ch-sab) + 10px); left: 0; right: 0; font-size: 13px; color: var(--ch-lilac); font-family: system-ui, sans-serif; opacity: .85; text-shadow: 0 1px 2px #000; }
 .ch-foot img { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
@@ -295,6 +298,8 @@ const CSS = /* css */ `
 .ch-rescue p { margin: 0; font-size: clamp(17px, 1.5vw + 10px, 24px); color: var(--ch-mint); text-align: left; }
 .ch-rescue p small { display: block; font-size: .62em; color: var(--ch-lilac); font-family: system-ui, sans-serif; margin-top: 3px; }
 .ch-rescue .ch-payouts { display: block; margin-top: 4px; font-size: .6em; font-family: system-ui, sans-serif; color: var(--ch-coin); text-decoration: underline; text-underline-offset: 2px; pointer-events: auto; }
+.ch-rescue .ch-payouts-total { display: block; margin-top: 2px; font-size: .55em; font-family: system-ui, sans-serif; color: var(--ch-cream); opacity: .85; }
+.ch-rescue .ch-payouts-total:empty { display: none; }
 .ch-rescue .ch-payouts:hover, .ch-rescue .ch-payouts:focus-visible { color: var(--ch-cream); }
 .ch-rescue.ch-miss { background: rgba(193,38,15,.12); border-color: var(--ch-rust); }
 .ch-rescue.ch-miss p { color: var(--ch-rust); }
