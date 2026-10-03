@@ -179,10 +179,10 @@
         },
         "rpcEnv": "RPC_ROBINHOOD_MAINNET",
         "verify": false,
-        "notes": "Checked 2026-10-03: chain ID 4663, gas token ETH, public RPC and explorer from https://docs.robinhood.com/chain/connecting. No USDC on Robinhood Chain: the payout token is USDG (Paxos Global Dollar) at 0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168, 6 decimals, from https://docs.paxos.com/guides/stablecoin/usdg/mainnet; symbol() and decimals() were read on-chain with cast on 2026-10-03. Payouts are USDG, never summed with USDC.",
+        "notes": "Checked 2026-10-03: chain ID 4663, gas token ETH, public RPC and explorer from https://docs.robinhood.com/chain/connecting. No USDC on Robinhood Chain: the payout token is USDG (Paxos Global Dollar) at 0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168, 6 decimals, from https://docs.paxos.com/guides/stablecoin/usdg/mainnet; symbol() and decimals() were read on-chain with cast on 2026-10-03. Payouts are USDG, never summed with USDC. Source verification goes through Sourcify (lists chain 4663): robinhoodchain.blockscout.com/api returns a Cloudflare 403 to forge (checked 2026-10-03).",
         "verifier": {
-          "type": "blockscout",
-          "url": "https://robinhoodchain.blockscout.com/api/"
+          "type": "sourcify",
+          "url": "https://sourcify.dev/server"
         }
       },
       "testnet": {

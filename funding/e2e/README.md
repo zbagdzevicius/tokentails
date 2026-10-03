@@ -127,7 +127,7 @@ node funding/e2e/payouts-check.mjs       # --reuse-server if a dev server alread
 The script backs up `client/public/shelter-payouts/deployments.json` to
 `out/deployments.json.bak` and writes the testnet list. It then starts
 `npx next dev -p 3100` with `NEXT_PUBLIC_BE_URL=http://localhost:3105` and checks the payout rows.
-It confirms that the Arc testnet card lists the e2e gift, and that both e2e receipts show as
+It confirms that the payouts feed lists the e2e gift on Arc Testnet, and that both e2e receipts show as
 confirmed from a listed contract. Screenshots go to `out/payouts.png` and
 `out/receipt-{donate,x402}.png`. When it finishes, it restores the original file, including after
 Ctrl-C, SIGTERM and SIGHUP. Every write goes through a temp file and `rename`, and

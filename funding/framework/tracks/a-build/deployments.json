@@ -10,9 +10,9 @@
     "recorded": "2026-10-02T07:21:36.200Z",
     "verified": true,
     "note": "recorded by a:ingest from the Foundry broadcast",
-    "verifiedAt": "2026-10-02T07:21:36.956Z",
+    "verifiedAt": "2026-10-03T19:22:48.742Z",
     "codeBytes": 11199,
-    "codeSha256": "db8aed25797361aa6a6e593bfe159a81b64469407a01d31997337694db6af10f",
+    "codeSha256": "49ec3c78d8406dd59b910663d988ea7967065ae4a3d46b1c8ea260410c64cce6",
     "proofTxs": [
       "0x2a8d49065e0d9bbd8ba6f1563eebf5a34a60d9203f9fc07582d84ccb7791af2d"
     ],
@@ -20,7 +20,7 @@
       "0x7e9dc9e3d731e7ad579134927f0a1dd202975ee3bb6e9e55f4463621eea47fda"
     ],
     "sourceVerified": true,
-    "sourceVerifiedAt": "2026-10-02T08:10:40.238Z",
+    "sourceVerifiedAt": "2026-10-03T19:22:58.949Z",
     "sourceVerifier": "sourcify"
   },
   {
@@ -34,14 +34,14 @@
     "recorded": "2026-10-02T07:30:38.966Z",
     "verified": true,
     "note": "recorded by a:ingest from the Foundry broadcast",
-    "verifiedAt": "2026-10-02T07:30:39.276Z",
+    "verifiedAt": "2026-10-03T19:22:47.933Z",
     "codeBytes": 11199,
-    "codeSha256": "2bb13b1eb3e9a4c4554c55c8a5892646cbd5a90d3aefaf24d448afb443fc3259",
+    "codeSha256": "8d3b11ee945077afc0f5b2912ba8cef09723d6a5a8e290eab439d686cf854e9a",
     "proofTxs": [
       "0xa90f97134ab92efa5ade8c6f1c6eddcc9bded100a6c1bc2a5b1b91ba6da4360a"
     ],
     "sourceVerified": true,
-    "sourceVerifiedAt": "2026-10-02T08:10:28.070Z",
+    "sourceVerifiedAt": "2026-10-03T19:22:57.715Z",
     "sourceVerifier": "blockscout"
   }
 ]

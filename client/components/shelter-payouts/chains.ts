@@ -34,6 +34,8 @@ export const SHELTER_CHAINS: Record<number, ChainInfo> = {
   // Robinhood Chain pays out USDG (Paxos), not USDC: no USDC exists there. Totals group by symbol,
   // so USDG is always shown on its own and never added into a USDC sum.
   4663: { name: "Robinhood Chain", rpc: "https://rpc.mainnet.chain.robinhood.com", explorer: "https://robinhoodchain.blockscout.com", decimals: 6, symbol: "USDG", nativeDecimals: 18, nativeSymbol: "ETH" },
+  // Testnet has no stablecoin: the wave deploys a test MockUSDC (symbol mUSDC), so it never sums with USDC or USDG.
+  46630: { name: "Robinhood Chain Testnet", rpc: "https://rpc.testnet.chain.robinhood.com", explorer: "https://explorer.testnet.chain.robinhood.com", decimals: 6, symbol: "mUSDC", nativeDecimals: 18, nativeSymbol: "ETH" },
   // Monad (Metropolis entry): chainId and explorer from chains.json; recheck the RPC with the deploy.
   143: { name: "Monad", rpc: "https://rpc.monad.xyz", explorer: "https://monadvision.com", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "MON" },
   31612: { name: "Mezo", rpc: "https://mezo.drpc.org", explorer: "https://explorer.mezo.org", decimals: 18, symbol: "MUSD", nativeDecimals: 18, nativeSymbol: "BTC" },

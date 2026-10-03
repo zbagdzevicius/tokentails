@@ -28,7 +28,8 @@ export const DEPLOYMENTS_URL = "/shelter-payouts/deployments.json";
 
 // Public RPCs cap eth_getLogs ranges, so a failed full-range query falls back to
 // windows. The window starts at LOG_WINDOW blocks and halves on each rejected
-// request down to MIN_LOG_WINDOW; the scan stops after MAX_LOG_REQUESTS calls.
+// request down to MIN_LOG_WINDOW (rate-limit errors are retried in rpcCall, never
+// halved); the scan stops after MAX_LOG_REQUESTS calls.
 export const LOG_WINDOW = 10_000;
 export const MIN_LOG_WINDOW = 2_048;
 export const MAX_LOG_REQUESTS = 400;
@@ -58,16 +59,55 @@ export function resolveChain(d: ShelterDeployment): ChainInfo | null {
 
 let rpcId = 0;
 
-export async function rpcCall<T>(url: string, method: string, params: unknown[]): Promise<T> {
+// Public RPCs (Arc testnet especially) answer bursts with HTTP 429 or JSON-RPC -32005 for a few
+// seconds. A rate-limited call is retried with exponential backoff instead of failing the card.
+export const RATE_LIMIT_RETRIES = 5;
+export const RATE_LIMIT_BACKOFF_MS = 500;
+const RATE_LIMIT_MAX_BACKOFF_MS = 8_000;
+
+export class RpcRateLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RpcRateLimitError";
+    // Keeps instanceof working when TypeScript compiles classes to ES5 (as the Jest transform does).
+    Object.setPrototypeOf(this, RpcRateLimitError.prototype);
+  }
+}
+
+let sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+/** Test hook: replace the backoff timer. */
+export function setRpcSleep(fn: (ms: number) => Promise<void>) {
+  sleep = fn;
+}
+
+async function rpcOnce<T>(url: string, method: string, params: unknown[]): Promise<T> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method, params }),
   });
+  if (res.status === 429) throw new RpcRateLimitError(`${method}: HTTP 429`);
   if (!res.ok) throw new Error(`${method}: HTTP ${res.status}`);
   const body = await res.json();
-  if (body.error) throw new Error(`${method}: ${body.error.message || "RPC error"}`);
+  if (body.error) {
+    const msg = `${method}: ${body.error.message || "RPC error"}`;
+    if (body.error.code === -32005 || /rate limit/i.test(body.error.message || "")) throw new RpcRateLimitError(msg);
+    throw new Error(msg);
+  }
   return body.result as T;
+}
+
+export async function rpcCall<T>(url: string, method: string, params: unknown[]): Promise<T> {
+  let backoff = RATE_LIMIT_BACKOFF_MS;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await rpcOnce<T>(url, method, params);
+    } catch (err) {
+      if (!(err instanceof RpcRateLimitError) || attempt >= RATE_LIMIT_RETRIES) throw err;
+      await sleep(backoff);
+      backoff = Math.min(backoff * 2, RATE_LIMIT_MAX_BACKOFF_MS);
+    }
+  }
 }
 
 const hex = (n: number) => "0x" + n.toString(16);
@@ -119,7 +159,9 @@ export async function getLogsWindowed(
       logs.push(...(await get(rpc, address, start, end)));
       start = end + 1;
     } catch (err) {
-      if (window <= MIN_LOG_WINDOW) throw err;
+      // A smaller window does not help against a rate limit (rpcCall already backed off), it only
+      // burns requests, so rethrow it instead of halving.
+      if (err instanceof RpcRateLimitError || window <= MIN_LOG_WINDOW) throw err;
       window = Math.max(MIN_LOG_WINDOW, Math.floor(window / 2));
     }
   }

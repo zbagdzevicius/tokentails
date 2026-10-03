@@ -6,7 +6,7 @@
 //   2. starts `npx next dev -p 3100` in client/ with NEXT_PUBLIC_BE_URL=http://localhost:3105
 //      (refuses if port 3100 is busy, unless --reuse-server);
 //   3. loads /shelter-payouts with Playwright (from catnip-heist/node_modules), waits for payout rows,
-//      checks the Arc testnet card lists the e2e gift (out/e2e-result.json), and loads
+//      checks the payouts feed lists the e2e gift on Arc Testnet (out/e2e-result.json), and loads
 //      /shelter-payouts/receipt?chain=5042002&tx=<hash> for the e2e transactions;
 //   4. screenshots to out/, prints a PASS/FAIL table, stops the dev server and restores the file
 //      (also on Ctrl-C and on errors).
@@ -175,7 +175,8 @@ async function main() {
   try {
     await page.goto(`${ORIGIN}/shelter-payouts`, { waitUntil: 'domcontentloaded', timeout: 180_000 });
     await page.waitForSelector('[data-testid="payouts-totals"]', { timeout: 120_000 });
-    const rows = page.locator('#shelter-payouts table tbody tr');
+    // The page lists every payout as one <li> of the payouts feed (the per-chain table is gone).
+    const rows = page.locator('[data-testid="payouts-feed"] > li');
     await rows.first().waitFor({ timeout: ROW_TIMEOUT_MS });
     // Let slower chains finish.
     await page.waitForFunction(() => !document.body.innerText.includes('Reading payouts from the chain'), null, { timeout: ROW_TIMEOUT_MS }).catch(() => undefined);
@@ -185,10 +186,9 @@ async function main() {
     const errors = await page.locator('#shelter-payouts [role="alert"]').allInnerTexts();
     record('chain reads', errors.length === 0, errors.length ? errors.map((t) => t.slice(0, 120)).join(' | ') : 'every deployment card loaded');
 
-    const arcCard = page.locator('section', { has: page.locator('h3', { hasText: 'Arc Testnet' }) });
     if (e2e.donateTx) {
-      const hit = await arcCard.locator('tbody tr', { hasText: short(e2e.donateTx) }).count();
-      record('e2e gift row', hit > 0, hit ? `Arc testnet card lists ${short(e2e.donateTx)}` : `no row for ${short(e2e.donateTx)} on the Arc testnet card`);
+      const hit = await rows.filter({ hasText: 'Arc Testnet' }).filter({ hasText: short(e2e.donateTx) }).count();
+      record('e2e gift row', hit > 0, hit ? `payouts feed lists ${short(e2e.donateTx)} on Arc Testnet` : `no Arc Testnet feed row for ${short(e2e.donateTx)}`);
     } else {
       record('e2e gift row', null, 'no donateTx in out/e2e-result.json (run e2e.mjs first)');
     }
