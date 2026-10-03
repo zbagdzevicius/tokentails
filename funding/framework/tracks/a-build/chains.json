@@ -193,7 +193,18 @@
         "usdc": null,
         "rpcEnv": "RPC_ROBINHOOD_TESTNET",
         "verify": true,
-        "notes": "Checked 2026-10-03: testnet 46630 has no official stablecoin (docs.robinhood.com/chain/connecting); deploy a mock token for demos."
+        "notes": "Checked 2026-10-03: testnet 46630 has no official stablecoin (docs.robinhood.com/chain/connecting). Public RPC https://rpc.testnet.chain.robinhood.com (eth_chainId 46630 checked 2026-10-03). Gas token is testnet ETH. The explorer is Blockscout (its /api answered eth_block_number on 2026-10-03). Payout token is the mockToken below: TESTNET ONLY.",
+        "mockToken": {
+          "symbol": "mUSDC",
+          "decimals": 6,
+          "contract": "shelter-split/test/mocks/Tokens.sol:MockUSDC",
+          "testnetOnly": true,
+          "notes": "No stablecoin exists on Robinhood Chain testnet, so `fund a:wave --network testnet` deploys the test MockUSDC (name \"Mock USDC\", symbol mUSDC, 6 decimals, anyone can mint) in the same broadcast as ShelterSplit (DeployShelterSplit.s.sol SHELTERSPLIT_MOCK_TOKEN=1) and mints PROOF_AMOUNT to the deployer. fund a:ingest records that instance with mock: true and tokenAddress. Not a real dollar. A mockToken on any mainnet entry is refused by wave.mjs, and the Solidity script reverts MockTokenOnTestnetOnly outside the testnet chain-id list. Mainnet (4663) pays real USDG."
+        },
+        "verifier": {
+          "type": "blockscout",
+          "url": "https://explorer.testnet.chain.robinhood.com/api/"
+        }
       }
     }
   },

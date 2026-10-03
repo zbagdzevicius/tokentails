@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -25,6 +26,8 @@ writeFileSync(join(tmp, 'chains.json'), JSON.stringify({
   beta: { name: 'Beta', networks: { mainnet: net(222, 'RPC_BETA', { verify: true, notes: "it's odd", splitTokens: { EURC: { address: null, verify: true, notes: 'no EURC here' } } }) } },
   musd: { name: 'Mu', networks: { mainnet: net(333, 'RPC_MU', { usdc: null, splitToken: { symbol: 'MUSD', address: null, decimals: 18 } }) } },
   idle: { name: 'Idle', networks: { mainnet: net(444, 'RPC_IDLE') } },
+  // A testnet with no stablecoin (like Robinhood Chain testnet): only a testnet-only mockToken.
+  mockc: { name: 'MockC', networks: { testnet: net(46630, 'RPC_MOCKC', { usdc: null, mockToken: { symbol: 'mUSDC', decimals: 6, testnetOnly: true } }) } },
 }));
 writeFileSync(join(programs, 'big.json'), JSON.stringify({ program: 'Big', chain: 'beta', mainnet_required: true, deadline: 'rolling' }));
 writeFileSync(join(programs, 'small.json'), JSON.stringify({ program: 'Small', chain: ['alpha', 'beta'], mainnet_required: true, deadline: 'rolling' }));
@@ -43,7 +46,7 @@ Object.assign(process.env, {
   FUND_A_PROGRAMS: programs, FUND_PORTFOLIO: join(tmp, 'portfolio.json'), FUND_A_WAVE_DIR: join(tmp, 'wave'),
   FUND_APPS_DIR: join(tmp, 'applications'), FUND_TRACKER: join(tmp, 'TRACKER.md'),
 });
-for (const k of ['RPC_ALPHA', 'RPC_BETA', 'RPC_MU', 'RPC_IDLE']) delete process.env[k];
+for (const k of ['RPC_ALPHA', 'RPC_BETA', 'RPC_MU', 'RPC_IDLE', 'RPC_MOCKC']) delete process.env[k];
 
 await import('../tracks/a-build/track.mjs'); // registers the wave commands; must load before wave.mjs
 const W = await import('../tracks/a-build/wave.mjs');
@@ -222,4 +225,76 @@ test('script: a re-run retries a missing proof payout on an already-deployed cha
   assert.match(s, /proof_done\(\) \{/);
   assert.match(s, /maybe_proof\(\) \{[\s\S]*?tr A-F a-f[\s\S]*?proof needs the owner key/, 'owner check shared by both paths');
   assert.match(s, /\$\(\( \$\{#OK\[@\]\} \+ \$\{#PRIOR\[@\]\} \)\) -gt 0 \] && \(cd "\$FUND_ROOT" && node bin\/fund\.mjs a:ingest/);
+});
+
+test('testnet mock token: the wave deploys MockUSDC in the same run on a stablecoin-less testnet only', async () => {
+  const rows = await W.waveRanking({ network: 'testnet', only: ['mockc'], env: { RPC_MOCKC: 'http://m' } });
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].token.mock, true);
+  assert.equal(rows[0].token.symbol, 'mUSDC');
+  assert.deepEqual(rows[0].missing, [], 'a mock needs no token address');
+  const s = W.waveScript(rows, { network: 'testnet', project, root: tmp, date: '2026-10-03' });
+  assert.match(s, /deploy mockc 46630 RPC_MOCKC 'MOCK' {3}# pays mUSDC \(MOCK, testnet only\)/);
+  assert.match(s, /MOCK_OK_CHAINS='46630'/);
+  assert.match(s, /MOCK TOKEN \(testnet only\)/);
+  assert.match(s, /SHELTERSPLIT_MOCK_TOKEN=1 SHELTERSPLIT_MOCK_MINT="\$\{PROOF_AMOUNT:-1000000\}" SHELTERSPLIT_MOCK_MINT_TO="\$DEPLOYER"/);
+  assert.match(s, /case " \$MOCK_OK_CHAINS " in \*" \$id "\*\) ;; \*\) echo "skip: mock token refused/);
+  // never on mainnet: the script generator and the ranking both refuse
+  assert.throws(() => W.waveScript(rows, { network: 'mainnet', project, root: tmp }), /testnet-only/);
+  const bad = join(tmp, 'chains-badmock.json');
+  writeFileSync(bad, JSON.stringify({ evil: { name: 'Evil', networks: { mainnet: net(4663, 'RPC_EVIL', { usdc: null, mockToken: { symbol: 'mUSDC' } }) } } }));
+  const prev = process.env.FUND_A_CHAINS;
+  process.env.FUND_A_CHAINS = bad;
+  try { await assert.rejects(W.waveRanking({ network: 'mainnet', only: ['evil'] }), /mock payout tokens are testnet-only/); }
+  finally { process.env.FUND_A_CHAINS = prev; }
+  // a real token always wins over a mock, and --token EURC never resolves to the mock
+  assert.equal(W.splitToken({ usdc: USDC, mockToken: { symbol: 'mUSDC' } }).mock, undefined);
+  assert.equal(W.splitToken({ mockToken: { symbol: 'mUSDC' } }, 'EURC').mock, undefined);
+});
+
+test('testnet mock token: ingest records mock: true + tokenAddress; the re-run guard matches the mock instance', async () => {
+  const MOCK = '0x' + '6d'.repeat(20);
+  const SPLITM = '0x' + '7e'.repeat(20);
+  const H1 = '0x' + '0a'.repeat(32), H2 = '0x' + '0b'.repeat(32), H3 = '0x' + '0c'.repeat(32);
+  const dep = join(project, 'broadcast', 'DeployShelterSplit.s.sol', '46630');
+  mkdirSync(dep, { recursive: true });
+  const run = { transactions: [
+    { transactionType: 'CREATE', contractName: 'MockUSDC', contractAddress: MOCK, hash: H1 },
+    { transactionType: 'CALL', function: 'mint(address,uint256)', contractAddress: MOCK, hash: H2 },
+    { transactionType: 'CREATE', contractName: 'ShelterSplit', contractAddress: SPLITM, hash: H3, arguments: [MOCK, '0x' + '33'.repeat(20), '0x' + '44'.repeat(20)] },
+  ], receipts: [H1, H2, H3].map((h) => ({ transactionHash: h, status: '0x1' })) };
+  writeFileSync(join(dep, 'run-latest.json'), JSON.stringify(run));
+  const f = (await W.scanBroadcasts({ network: 'testnet' })).find((x) => x.chain === 'mockc' && x.kind === 'deploy');
+  assert.deepEqual([f.token, f.mock, f.tokenAddress], ['mUSDC', true, MOCK]);
+  const before = readFileSync(published, 'utf8');
+  await W.waveCommands['a:ingest'].run({ args: [], flags: { network: 'testnet' } });
+  const e = JSON.parse(readFileSync(join(tmp, 'deployments.json'), 'utf8')).find((d) => d.address === SPLITM);
+  assert.equal(e.network, 'testnet');
+  assert.equal(e.mock, true);
+  assert.equal(e.token, 'mUSDC');
+  assert.equal(e.tokenAddress, MOCK);
+  assert.match(e.note, /MOCK payout token/);
+  assert.equal(readFileSync(published, 'utf8'), before, 'a testnet ingest never publishes');
+  // the wave now treats mockc as deployed
+  assert.deepEqual((await W.waveRanking({ network: 'testnet', only: ['mockc'] }))[0].deployed, [SPLITM]);
+  // the bash re-run guard (node -e snippet) recognises the mined mock instance for token MOCK
+  const s = W.waveScript(await W.waveRanking({ network: 'testnet', only: ['mockc'] }), { network: 'testnet', project, root: tmp });
+  const js = s.match(/node -e '(const j=require[^']*)' "\$prev" "\$token"/)[1];
+  const r = (tok) => spawnSync(process.execPath, ['-e', js, join(dep, 'run-latest.json'), tok]).status;
+  assert.equal(r('MOCK'), 0);
+  assert.equal(r(USDC), 1);
+});
+
+test('real chains.json: Robinhood testnet uses the mock; no mainnet entry has a mockToken', () => {
+  const real = JSON.parse(readFileSync(new URL('../tracks/a-build/chains.json', import.meta.url), 'utf8'));
+  const t = W.splitToken(real.robinhood.networks.testnet);
+  assert.deepEqual([t.symbol, t.mock, t.decimals], ['mUSDC', true, 6]);
+  assert.equal(real.robinhood.networks.testnet.chainId, 46630);
+  assert.equal(real.robinhood.networks.testnet.verifier.type, 'blockscout');
+  for (const [k, c] of Object.entries(real)) if (k !== '_readme') assert.equal(c.networks?.mainnet?.mockToken, undefined, `${k} mainnet has a mockToken`);
+  for (const k of ['arbitrum', 'avalanche', 'base']) {
+    const n = real[k].networks.testnet;
+    assert.match(n.usdc, /^0x[0-9a-fA-F]{40}$/, `${k} testnet USDC`);
+    assert.ok(n.rpcEnv && n.verifier?.url, `${k} testnet rpcEnv + verifier`);
+  }
 });
