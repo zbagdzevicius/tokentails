@@ -94,11 +94,14 @@
     "tx": "0x362b82466a4ba86c267bc3f05aea2c4e688d31f53271293050eab1106d293fc6",
     "token": "USDC",
     "recorded": "2026-10-03T20:55:22.479Z",
-    "verified": false,
+    "verified": true,
     "note": "recorded by a:ingest from the Foundry broadcast",
     "sourceVerified": true,
     "sourceVerifiedAt": "2026-10-03T20:55:44.052Z",
-    "sourceVerifier": "blockscout"
+    "sourceVerifier": "blockscout",
+    "verifiedAt": "2026-10-03T20:57:52.298Z",
+    "codeBytes": 11199,
+    "codeSha256": "38b01cf14ad707b8b955f3ffcee9747676918e1f926e6becf3130318ae02c06a"
   },
   {
     "contract": "ShelterSplit",
