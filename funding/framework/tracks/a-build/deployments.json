@@ -1,88 +1,121 @@
 [
-    {
-        "contract": "ShelterSplit",
-        "chain": "tempo",
-        "network": "testnet",
-        "chainId": 42431,
-        "address": "0x9978e60da2352a8de02852788d34bd95849a598d",
-        "tx": "0x8169cd8ca20c3e9a793185c5ef686ed38a460a799abddd075adc74672a0e2575",
-        "token": "pathUSD",
-        "recorded": "2026-10-02T07:21:36.200Z",
-        "verified": true,
-        "note": "recorded by a:ingest from the Foundry broadcast; testnet split pays pathUSD 0x20c0…0000 (corrected 2026-10-03)",
-        "verifiedAt": "2026-10-03T19:22:48.742Z",
-        "codeBytes": 11199,
-        "codeSha256": "49ec3c78d8406dd59b910663d988ea7967065ae4a3d46b1c8ea260410c64cce6",
-        "proofTxs": [
-            "0x2a8d49065e0d9bbd8ba6f1563eebf5a34a60d9203f9fc07582d84ccb7791af2d"
-        ],
-        "memoTxs": [
-            "0x7e9dc9e3d731e7ad579134927f0a1dd202975ee3bb6e9e55f4463621eea47fda"
-        ],
-        "sourceVerified": true,
-        "sourceVerifiedAt": "2026-10-03T19:22:58.949Z",
-        "sourceVerifier": "sourcify"
-    },
-    {
-        "contract": "ShelterSplit",
-        "chain": "arc",
-        "network": "testnet",
-        "chainId": 5042002,
-        "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
-        "tx": "0x6af0fe0eae4abd65d8560cf4ed14ada55f2debd2e14e9306d45d81a271d0ede8",
-        "token": "USDC",
-        "recorded": "2026-10-02T07:30:38.966Z",
-        "verified": true,
-        "note": "recorded by a:ingest from the Foundry broadcast",
-        "verifiedAt": "2026-10-03T19:22:47.933Z",
-        "codeBytes": 11199,
-        "codeSha256": "8d3b11ee945077afc0f5b2912ba8cef09723d6a5a8e290eab439d686cf854e9a",
-        "proofTxs": [
-            "0xa90f97134ab92efa5ade8c6f1c6eddcc9bded100a6c1bc2a5b1b91ba6da4360a"
-        ],
-        "sourceVerified": true,
-        "sourceVerifiedAt": "2026-10-03T19:22:57.715Z",
-        "sourceVerifier": "blockscout"
-    },
-    {
-        "contract": "ShelterSplit",
-        "chain": "robinhood",
-        "network": "testnet",
-        "chainId": 46630,
-        "address": "0x2d42d01a00d75ade8c4f9503a7a6cee8a5f34777",
-        "tx": "0xf36898d4824c4906bdde2c36792a01c84c12725441cbeb50167cc009931d6881",
-        "token": "mUSDC",
-        "recorded": "2026-10-03T20:40:04.667Z",
-        "verified": true,
-        "note": "recorded by a:ingest from the Foundry broadcast; MOCK payout token: test MockUSDC (mUSDC) deployed by the wave, testnet only, not a real dollar",
-        "mock": true,
-        "tokenAddress": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
-        "proofTxs": [
-            "0xaeca9242545aaa31c89eeab0eff49949e4d9f79467b588c5d0e9b9734d143375"
-        ],
-        "verifiedAt": "2026-10-03T20:40:05.464Z",
-        "codeBytes": 11199,
-        "codeSha256": "b1a07c520af59761169d8c472aa21b57b58afe934d83897dabe22dee3c0c17d6",
-        "sourceVerified": true,
-        "sourceVerifiedAt": "2026-10-03T20:40:22.012Z",
-        "sourceVerifier": "blockscout"
-    },
-    {
-        "contract": "ShelterSplit",
-        "chain": "avalanche",
-        "network": "testnet",
-        "chainId": 43113,
-        "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
-        "tx": "0xec70639ad5a7065eefd03e8006b5f41f6f68c3dcb4cd15784e63c156db8db904",
-        "token": "USDC",
-        "recorded": "2026-10-03T20:40:37.626Z",
-        "verified": true,
-        "note": "recorded by a:ingest from the Foundry broadcast",
-        "verifiedAt": "2026-10-03T20:40:37.969Z",
-        "codeBytes": 11199,
-        "codeSha256": "fd269c876776bc731ae76bbb462dc471bc06100645f9bae83447752c1d201020",
-        "sourceVerified": true,
-        "sourceVerifiedAt": "2026-10-03T20:41:09.574Z",
-        "sourceVerifier": "etherscan"
-    }
+  {
+    "contract": "ShelterSplit",
+    "chain": "tempo",
+    "network": "testnet",
+    "chainId": 42431,
+    "address": "0x9978e60da2352a8de02852788d34bd95849a598d",
+    "tx": "0x8169cd8ca20c3e9a793185c5ef686ed38a460a799abddd075adc74672a0e2575",
+    "token": "pathUSD",
+    "recorded": "2026-10-02T07:21:36.200Z",
+    "verified": true,
+    "note": "recorded by a:ingest from the Foundry broadcast; testnet split pays pathUSD 0x20c0…0000 (corrected 2026-10-03)",
+    "verifiedAt": "2026-10-03T19:22:48.742Z",
+    "codeBytes": 11199,
+    "codeSha256": "49ec3c78d8406dd59b910663d988ea7967065ae4a3d46b1c8ea260410c64cce6",
+    "proofTxs": [
+      "0x2a8d49065e0d9bbd8ba6f1563eebf5a34a60d9203f9fc07582d84ccb7791af2d"
+    ],
+    "memoTxs": [
+      "0x7e9dc9e3d731e7ad579134927f0a1dd202975ee3bb6e9e55f4463621eea47fda"
+    ],
+    "sourceVerified": true,
+    "sourceVerifiedAt": "2026-10-03T19:22:58.949Z",
+    "sourceVerifier": "sourcify"
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "arc",
+    "network": "testnet",
+    "chainId": 5042002,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0x6af0fe0eae4abd65d8560cf4ed14ada55f2debd2e14e9306d45d81a271d0ede8",
+    "token": "USDC",
+    "recorded": "2026-10-02T07:30:38.966Z",
+    "verified": true,
+    "note": "recorded by a:ingest from the Foundry broadcast",
+    "verifiedAt": "2026-10-03T19:22:47.933Z",
+    "codeBytes": 11199,
+    "codeSha256": "8d3b11ee945077afc0f5b2912ba8cef09723d6a5a8e290eab439d686cf854e9a",
+    "proofTxs": [
+      "0xa90f97134ab92efa5ade8c6f1c6eddcc9bded100a6c1bc2a5b1b91ba6da4360a"
+    ],
+    "sourceVerified": true,
+    "sourceVerifiedAt": "2026-10-03T19:22:57.715Z",
+    "sourceVerifier": "blockscout"
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "robinhood",
+    "network": "testnet",
+    "chainId": 46630,
+    "address": "0x2d42d01a00d75ade8c4f9503a7a6cee8a5f34777",
+    "tx": "0xf36898d4824c4906bdde2c36792a01c84c12725441cbeb50167cc009931d6881",
+    "token": "mUSDC",
+    "recorded": "2026-10-03T20:40:04.667Z",
+    "verified": true,
+    "note": "recorded by a:ingest from the Foundry broadcast; MOCK payout token: test MockUSDC (mUSDC) deployed by the wave, testnet only, not a real dollar",
+    "mock": true,
+    "tokenAddress": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "proofTxs": [
+      "0xaeca9242545aaa31c89eeab0eff49949e4d9f79467b588c5d0e9b9734d143375"
+    ],
+    "verifiedAt": "2026-10-03T20:40:05.464Z",
+    "codeBytes": 11199,
+    "codeSha256": "b1a07c520af59761169d8c472aa21b57b58afe934d83897dabe22dee3c0c17d6",
+    "sourceVerified": true,
+    "sourceVerifiedAt": "2026-10-03T20:40:22.012Z",
+    "sourceVerifier": "blockscout"
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "avalanche",
+    "network": "testnet",
+    "chainId": 43113,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0xec70639ad5a7065eefd03e8006b5f41f6f68c3dcb4cd15784e63c156db8db904",
+    "token": "USDC",
+    "recorded": "2026-10-03T20:40:37.626Z",
+    "verified": true,
+    "note": "recorded by a:ingest from the Foundry broadcast",
+    "verifiedAt": "2026-10-03T20:40:37.969Z",
+    "codeBytes": 11199,
+    "codeSha256": "fd269c876776bc731ae76bbb462dc471bc06100645f9bae83447752c1d201020",
+    "sourceVerified": true,
+    "sourceVerifiedAt": "2026-10-03T20:41:09.574Z",
+    "sourceVerifier": "etherscan"
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "base",
+    "network": "testnet",
+    "chainId": 84532,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0x362b82466a4ba86c267bc3f05aea2c4e688d31f53271293050eab1106d293fc6",
+    "token": "USDC",
+    "recorded": "2026-10-03T20:55:22.479Z",
+    "verified": false,
+    "note": "recorded by a:ingest from the Foundry broadcast",
+    "sourceVerified": true,
+    "sourceVerifiedAt": "2026-10-03T20:55:44.052Z",
+    "sourceVerifier": "blockscout"
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "arbitrum",
+    "network": "testnet",
+    "chainId": 421614,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0x3f51b51be745eac9ff65434ca4fc8e1ef15dd815c8bdce89decd74439f8f8845",
+    "token": "USDC",
+    "recorded": "2026-10-03T20:56:50.421Z",
+    "verified": true,
+    "note": "recorded by a:ingest from the Foundry broadcast",
+    "verifiedAt": "2026-10-03T20:56:51.005Z",
+    "codeBytes": 11199,
+    "codeSha256": "8759baa3dd7291cabbef899a5ac02d083ca83f885c0a2cd8b16a8f21cd1ebec1",
+    "sourceVerified": true,
+    "sourceVerifiedAt": "2026-10-03T20:57:17.791Z",
+    "sourceVerifier": "blockscout"
+  }
 ]
