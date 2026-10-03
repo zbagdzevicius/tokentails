@@ -42,16 +42,17 @@ How to maintain it:
 | Sep 30 | Commit and push everything, fast-forward `main` (69b0a2a8); Vercel deployed tokentails.com with `/shelter-payouts` and `/heist/index.html` live | Both | ✅ |
 | Sep 30 | Every member registers on colosseum.com; name the Team Leader | You | ⏳ |
 | Oct 1 | `catnip.tokentails.com`: dropped; use tokentails.com/heist. Run `foundryup`; set up the keystore and env; fund the wallets; test the Arc testnet `donate()` | You | ⏳ |
-| Oct 1 | Ask Colosseum (Discord or hello@colosseum.com): can one entry win a track and a general prize? Any video narration rules? | You | ⏳ |
+| Oct 1 | Ask Colosseum (Discord or hello@colosseum.com): can one entry win a track and a general prize? Any video narration rules? Multi-track: confirmed allowed by the user on Oct 3 | You | 🟡 |
 | **Oct 2, by 12:00 Vilnius** | Register on HackQuest for Arbitrum Open House Singapore. The page shows "Oct 2 17:01" with no time zone (re-checked Oct 2): if it is Singapore time it closes at 12:01 Vilnius, if UTC at 20:01. Do it now | You | ⏳ |
 | Oct 1–3 | Log in at hackathon.monad.xyz: confirm the year, the deadline time zone and the rules (mainnet or testnet, countries, KYC) | You | ⏳ |
-| Oct 2 | Mainnet wave (Arc, Tempo, Arbitrum, Avalanche, plus EURC), Tempo campaign-memo payout, `fund a:ingest` | You | ⏳ |
+| Oct 2 | Mainnet wave (Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain (pays USDG), plus EURC), Tempo campaign-memo payout, `fund a:ingest` | You | ⏳ |
 | Oct 2 (after the wave) | Commit and push the deployment lists written by `a:ingest` (client and catnip-heist); Vercel redeploys both, so the pages show the real payouts | You | ⏳ |
 | Oct 2–4 | Turn on sponsored donations (`SHELTER_DONATE_*` env on the backend, fund the hot wallet with a small USDC float) | You | ⏳ |
 | Oct 3–5 | AI fills the drafts and renders the demos; you record the Colosseum pitch | Both | ⏳ |
 | Oct 1–6 | Ask Arc: is it a hard cap of 20 grants, or is every project above the bar funded? (15% vs ~50%) | You | ⏳ |
 | Every Anitya weekly close | Record the final entry count (decides whether weeklies are our best odds) | AI | ⏳ |
 | **Oct 4, by 10:00 Vilnius** | **Submit Arbitrum Singapore** (page shows "Oct 4 15:59" with no zone: 10:59 Vilnius if Singapore time, 18:59 if UTC; submit Oct 3 evening), reusing the Arbitrum deploy (Arbitrum Sepolia is the fallback) | You | ⏳ |
+| Oct 4–6 | Founder sends the direct-donation receipts → verify F-026 crypto for the Arc and Colosseum drafts (split F-026a crypto verified / F-026b goods company-reported; also the start year, recipients, and whether hello@ answers receipt requests) | You | ⏳ |
 | Oct 1 | Request a Tameion invite (tameion.thecanteenapp.com); ask Canteen whether a Tameion prize affects Arc Microgrants eligibility | You | ⏳ |
 | **Oct 7** | **Submit Arc Microgrants** (closes Oct 14 23:59 ET = Oct 15 06:59 Vilnius) | You | ⏳ |
 | ~Oct 7, 14, 21 | Anitya weeklies (dates unconfirmed; watch Discord `#jam-submission`) | You | ⏳ |
@@ -77,7 +78,7 @@ How to maintain it:
 | G2 Arc native path | Oct 3 | Testnet `donate()` emits `NativeDisbursed` | Keep the native-USDC story / pitch the ERC-20 path plus EURC |
 | G3 Arc donate button | Oct 4 | G2 passed, a real native payout shows on the live page, and the button works end to end | Ship the button / counter only |
 | G4 Deploy reality | Oct 5 | The Arc and Tempo splits and payouts are verified on-chain | Fill the drafts / fix, or drop that chain from the pitch |
-| G5 Colosseum tracks | Oct 8 | Colosseum answered the multi-track question | Pitch the tracks they allow / Tempo first |
+| G5 Colosseum tracks | Oct 3 ✅ | Multi-track is allowed (confirmed by the user on Oct 3) | Enter Tempo + Arbitrum + Base + Robinhood Chain tracks, plus Public Goods |
 | G6 Colosseum go | Oct 9 | Team Leader named, all members registered, pitch recorded, demo ≤ 3 min, pages live | Submit Oct 11 / cut scope and still submit |
 | G7 Arc last call | Oct 13 | Arc is submitted | – / submit before Oct 14 23:59 ET |
 | G8 Anitya main scope | Oct 18 | heist-08 is published and playable | Submit it / submit the best finished world |
@@ -91,7 +92,7 @@ How to maintain it:
 | Opportunity | Deadline | Chance | Prize | Status |
 |---|---|---|---|---|
 | Arc Microgrants | Oct 14 23:59 ET (target Oct 7) | 15% capped / ~50% if funded above a bar (q=0.7) | $500 | 🟡 draft ready |
-| Colosseum World's Fair (Tempo track; general pool ~1%) | Oct 12 23:59 PT | 2–5% (q=0.7), ~7% (q=0.8) | $10k–30k | 🟡 draft ready |
+| Colosseum World's Fair (Tempo, Arbitrum, Base, Robinhood tracks + Public Goods; general pool ~1%) | Oct 12 23:59 PT | ~10–16% any track (q=0.7, multi-track); Tempo alone 2–5% | $5k–30k | 🟡 draft ready |
 | Anitya Weekly Challenge 2 | Sep 30 23:59 UTC | 13% | $50 | ✅ submitted |
 | Anitya later weeklies | weekly, dates unconfirmed | ~38% per round if ~8 entries (unverified N) | ~$100 | ⏳ 7 worlds ready |
 | Anitya World Jam main | Oct 21 22:59 | ~14% after payout risk (q=0.7) | $400–1,000 | ⏳ world ready |
