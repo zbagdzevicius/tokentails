@@ -20,7 +20,7 @@ const ReceiptPage = () => (
     <div className="fade-in min-h-screen relative flex flex-col items-center" id="shelter-receipt">
       <ShelterReceipt />
     </div>
-    <Footer />
+    <Footer tone="night" />
   </div>
 );
 

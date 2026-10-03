@@ -32,6 +32,9 @@ import { RAIL_CHIP_COPY } from "@/components/claims/rail-copy";
 import { MONEY_TIERS, type MoneyTier } from "@/components/claims/tiers";
 import { useNow } from "@/components/claims/useNow";
 import { countryName } from "@/components/globe/iso";
+import { GivenDirectly } from "@/components/impact/GivenDirectly";
+import { Footer } from "@/layouts/Footer";
+import { Header as SiteHeader } from "@/layouts/Header";
 import { SeoHead } from "@/components/seo/SeoHead";
 import {
   explorerAddress,
@@ -43,7 +46,7 @@ import { cdnFile } from "@/constants/utils";
 import { useImpact } from "@/hooks/useImpact";
 import type { GetStaticProps } from "next";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 /*
  * The public proof page (plan F7.6, G11; 2.13 row 23: /proof redirects here). One page lists every
@@ -104,8 +107,18 @@ const MONEY_EMPTY_COPY: Record<RailCopyState, string> = {
     "No payout recorded yet. Today's treats are used up and the budget resets at 00:00 UTC; every payout will show here with its date and evidence tier.",
 };
 
+/** The short rail line under the /impact headline while no payout is indexed. */
+// claim: L-disbursed
+const RAIL_LINE_EMPTY: Record<RailCopyState, string> = {
+  soon: "No payouts yet. The rail opens soon.",
+  paused: "No payouts yet. The rail is paused.",
+  open: "No payout recorded yet. The rail is open.",
+  exhausted: "No payout recorded yet. Today's budget is used up.",
+};
+
+// Gold frame on every card, matching the "$40K+" headline card above them.
 const CARD =
-  "rounded-2xl border-4 border-tt-cream/60 bg-tt-night-900/80 p-4 md:p-6 lg:p-8";
+  "rounded-2xl border-4 border-tt-gold-400/60 bg-tt-night-900/80 p-4 md:p-6 lg:p-8";
 const H2 =
   "font-primary uppercase text-p2 md:text-h5 lg:text-h4 leading-none text-tt-cream glow";
 const LEAD = "mt-2 max-w-3xl font-sans text-p5 md:text-p4 text-tt-cream/85";
@@ -126,7 +139,7 @@ const Section = ({
 }) => (
   <section
     id={id}
-    className={`${CARD} scroll-mt-6`}
+    className={`${CARD} scroll-mt-28`}
     aria-labelledby={`${id}-title`}
   >
     <h2 id={`${id}-title`} className={H2}>
@@ -558,6 +571,352 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
     ? `its partner shelter ${custody.partnerName}`
     : "its partner shelters";
 
+  // A link to a folded section (#money, #rail, …) opens "Opening soon" first, then scrolls to it.
+  useEffect(() => {
+    const open = () => {
+      const id = decodeURIComponent(window.location.hash.slice(1));
+      const el = id ? document.getElementById(id) : null;
+      const fold = el?.closest("details");
+      if (el && fold && !fold.open) {
+        fold.open = true;
+        el.scrollIntoView();
+      }
+    };
+    open();
+    window.addEventListener("hashchange", open);
+    return () => window.removeEventListener("hashchange", open);
+  }, []);
+
+  // Nothing on the rail yet: no payout, no custody, no treat, outcome, pledge or settlement.
+  const railEmpty =
+    !!impact &&
+    symbols.length === 0 &&
+    !custody.hasMoney &&
+    impact.treats.confirmedCount === 0 &&
+    impact.treats.onTheirWayCount === 0 &&
+    impact.outcomes.published === 0 &&
+    impact.pledges.rows.length === 0 &&
+    impact.pawSettlements.count === 0;
+
+  const railSections = (
+    <>
+      {/* claim: L-disbursed */}
+      <Section
+        id="money"
+        title="Money sent to shelters"
+        lead="Totals from indexed payouts, one line per currency and evidence tier. Currencies are never added together."
+      >
+        {symbols.length > 0 ? (
+          <ul
+            className="mt-4 flex flex-col gap-2"
+            data-testid="money-headline"
+          >
+            {symbols.map(([symbol, wei]) => {
+              const amount = formatMoney(wei, symbol, {
+                isApp,
+                asOf: chainAsOf,
+              });
+              return amount ? (
+                <li
+                  key={symbol}
+                  className="font-primary uppercase text-p3 md:text-h6"
+                >
+                  <Claim
+                    id="L-disbursed"
+                    values={{ amount }}
+                    tier={tier}
+                    liveAsOf={chainAsOf}
+                    interactive={false}
+                  />
+                </li>
+              ) : null;
+            })}
+          </ul>
+        ) : (
+          // claim: L-disbursed
+          <p className={EMPTY} data-testid="money-empty">
+            {MONEY_EMPTY_COPY[railCopyState(impact?.rail.state)]}
+          </p>
+        )}
+        <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Stat label="Off-chain payouts">
+            Not tracked in this snapshot yet. Signed and confirmed shelter
+            payouts will be listed here once the snapshot carries them.
+          </Stat>
+          <Stat label="Last payout">
+            {impact?.money.lastTxHash ? (
+              isApp ? (
+                // The snapshot has no payout time, only when the chain was read (review 3f #4).
+                `Recorded${chainAsOf ? `, checked ${formatFactDate(chainAsOf)}` : ""}`
+              ) : chain ? (
+                <a
+                  href={explorerTx(chain.explorer, impact.money.lastTxHash)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={LINK}
+                >
+                  {impact.money.lastTxHash.slice(0, 10)}… on {chain.name}
+                </a>
+              ) : (
+                impact.money.lastTxHash
+              )
+            ) : (
+              "None yet"
+            )}
+          </Stat>
+        </dl>
+        {buckets.length > 0 && (
+          <table
+            className="mt-4 w-full text-left font-sans text-p5"
+            data-testid="money-buckets"
+          >
+            <caption className="sr-only">Payouts by source</caption>
+            <thead>
+              <tr className="font-primary uppercase text-p6 text-tt-muted">
+                <th scope="col" className="py-2">
+                  Source
+                </th>
+                <th scope="col" className="py-2">
+                  Amount
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {buckets.map(([bucket, amounts]) => (
+                <tr key={bucket} className="border-t border-tt-cream/15">
+                  <td className="py-2 pr-3">
+                    {BUCKET_LABEL[bucket] ?? bucket}
+                  </td>
+                  <td className="py-2">
+                    {Object.entries(amounts)
+                      .map(([symbol, wei]) =>
+                        formatMoney(wei, symbol, { isApp, asOf: chainAsOf })
+                      )
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <div className="mt-4">
+          <p className="font-primary uppercase text-p6 text-tt-muted">
+            Evidence tiers
+          </p>
+          <ul
+            className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2"
+            data-testid="tier-legend"
+          >
+            {MONEY_TIERS.map((t) => (
+              <li
+                key={t}
+                className="flex flex-col gap-1 rounded-xl border-2 border-tt-cream/20 p-3"
+              >
+                <EvidenceChip kind={t} isApp={isApp} className="w-fit" />
+                <span className="font-sans text-p6 md:text-p5 text-tt-cream/85">
+                  {labels.explain[t]}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </Section>
+
+      <Section id="custody" title="Who holds the money">
+        <div className="mt-4 flex flex-col gap-3">
+          {custody.hasMoney ? (
+            <>
+              <span>
+                <EvidenceChip kind={tier} isApp={isApp} />
+              </span>
+              <p className="font-sans text-p5 md:text-p4 text-tt-cream/90">
+                {impact?.money.custody === "handed-over"
+                  ? "Every partner shelter now holds its own money."
+                  : isApp
+                  ? `Token Tails holds the money for ${partnerPhrase} until the shelter takes it over.`
+                  : `Token Tails still holds the wallet key for ${partnerPhrase}. The shelter takes the key over at the handover, and the tier then changes.`}
+              </p>
+            </>
+          ) : (
+            <p className={EMPTY} data-testid="custody-empty">
+              No money held yet. The first payout sets the tier.
+            </p>
+          )}
+          {shelters.length > 0 && (
+            <ul className="flex flex-col gap-1 font-sans text-p5 text-tt-cream/85">
+              {shelters.map((s) => (
+                <li key={s.slug}>
+                  {s.name}
+                  {s.countryCode ? ` · ${countryName(s.countryCode)}` : ""}
+                  {s.handoverStatus === "handed-over"
+                    ? isApp
+                      ? " · held by the shelter"
+                      : " · holds its own key"
+                    : s.handoverStatus === "held-by-token-tails"
+                    ? isApp
+                      ? " · held by Token Tails"
+                      : " · key held by Token Tails"
+                    : ""}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </Section>
+
+      <Section id="rail" title="Treat rail">
+        <p className={LEAD} data-testid="rail-state">
+          {impact
+            ? RAIL_COPY[impact.rail.state]
+            : RAIL_COPY["not-deployed"]}
+        </p>
+        <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {treatSize && (
+            <Stat label="Treat size">{factText(treatSize, {}, isApp)}</Stat>
+          )}
+          {dailyBudget && (
+            <Stat label="Daily budget">
+              {factText(dailyBudget, {}, isApp)}
+            </Stat>
+          )}
+          <Stat label="Treats sent">
+            {impact && impact.treats.confirmedCount > 0 ? (
+              <Claim
+                id="L-treats"
+                values={{
+                  amount:
+                    formatMoney(impact.treats.totalConfirmedWei, "USDC", {
+                      isApp,
+                      asOf: mongoAsOf,
+                    }) ?? "",
+                }}
+                liveAsOf={mongoAsOf}
+                interactive={false}
+              />
+            ) : (
+              "None yet"
+            )}
+          </Stat>
+          <Stat label="On their way">
+            {impact
+              ? impact.treats.onTheirWayCount.toLocaleString("en-US")
+              : "—"}
+          </Stat>
+        </dl>
+        {goal && (!isApp || !goal.chain || goal.appDisplay) && (
+          <p
+            className="mt-4 font-sans text-p5 text-tt-cream/85"
+            data-claim-ref={goal.id}
+          >
+            {factText(goal, {}, isApp)}. The goal is checked against the
+            daily budget, so it can be reached.
+          </p>
+        )}
+      </Section>
+
+      <Section
+        id="outcomes"
+        title="Payouts and outcomes"
+        lead="What happened after money reached a shelter: treatments, adoptions and supplies, with the animal's name only."
+      >
+        {impact && impact.outcomes.published > 0 ? (
+          <>
+            <p
+              className="mt-4 font-primary uppercase text-p3"
+              data-testid="outcomes-count"
+            >
+              {impact.outcomes.published.toLocaleString("en-US")} published
+              outcomes
+            </p>
+            {impact.outcomes.items.length > 0 && (
+              <ol
+                className="mt-4 flex flex-col gap-3 border-l-2 border-tt-cream/25 pl-4"
+                data-testid="outcomes-timeline"
+              >
+                {impact.outcomes.items.map((o) => (
+                  <OutcomeItem
+                    key={o.id}
+                    outcome={o}
+                    isApp={isApp}
+                    explorer={chain?.explorer}
+                    chainName={chain?.name}
+                  />
+                ))}
+              </ol>
+            )}
+          </>
+        ) : (
+          <p className={EMPTY}>
+            No shelter outcomes published yet. They appear here once a
+            shelter has confirmed one and its photo has been redacted.
+          </p>
+        )}
+      </Section>
+
+      <Section id="pledges" title="Pledged and paid">
+        {impact && impact.pledges.rows.length > 0 ? (
+          <PledgeTable rows={impact.pledges.rows} isApp={isApp} />
+        ) : (
+          <p className={EMPTY}>
+            The purchase pledge has not started. When it does, each month
+            shows what Token Tails pledged and what it paid, with any
+            shortfall.
+          </p>
+        )}
+      </Section>
+
+      <Section
+        id="paws"
+        title="Paw settlements"
+        lead={
+          isApp
+            ? "Each night Token Tails will settle the day's paws in one payout, with a fingerprint of every paw in it. Your paw proof can be checked against it on tokentails.com."
+            : "Each night Token Tails will settle the day's paws in one payout whose memo carries a Merkle root. Your paw proof can be checked against it in your browser."
+        }
+      >
+        <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Stat label="Settlements">
+            {impact
+              ? impact.pawSettlements.count.toLocaleString("en-US")
+              : "—"}
+          </Stat>
+          <Stat label="Latest">
+            {impact?.pawSettlements.latest
+              ? "See the payout list"
+              : "None yet"}
+          </Stat>
+        </dl>
+        <form
+          className="mt-4 flex flex-col gap-2"
+          aria-describedby="paw-verifier-note"
+          onSubmit={(e) => e.preventDefault()}
+        >
+          <label
+            htmlFor="paw-proof"
+            className="font-primary uppercase text-p6 text-tt-muted"
+          >
+            Paw proof
+          </label>
+          <textarea
+            id="paw-proof"
+            disabled
+            rows={2}
+            placeholder="Proofs arrive with the first nightly settlement"
+            className="rounded-lg border-2 border-tt-cream/30 bg-black/40 p-2 text-p6 text-tt-cream disabled:opacity-60"
+          />
+          <p
+            id="paw-verifier-note"
+            className="font-sans text-p6 text-tt-cream/75"
+          >
+            The checker turns on when settlements start. It runs in your
+            browser and sends nothing.
+          </p>
+        </form>
+      </Section>
+    </>
+  );
+
   return (
     <>
       <SeoHead
@@ -580,14 +939,22 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
           className="pointer-events-none fixed inset-0 bg-gradient-to-b from-tt-night-900/70 via-tt-night-900/60 to-tt-night-900/90"
         />
 
-        <div className="relative z-10 mx-auto flex max-w-[1200px] flex-col gap-6 px-4 py-8 md:gap-8 md:px-8 md:py-12">
+        {/* Web: the same header and night footer as the landing and the payout pages. */}
+        {!isApp && <SiteHeader />}
+        <div
+          className={`relative z-10 mx-auto flex max-w-[1200px] flex-col gap-6 px-4 md:gap-8 md:px-8 ${
+            isApp ? "py-8 md:py-12" : "pb-12 pt-28 md:pb-16 md:pt-36"
+          }`}
+        >
           <header className="flex flex-col gap-3">
-            <Link
-              href="/"
-              className="inline-flex min-h-[44px] w-fit items-center gap-1 font-primary uppercase text-p5 text-tt-cream/80 hover:text-tt-cream"
-            >
-              <PixelIcon name="chevron-left" /> Token Tails
-            </Link>
+            {isApp && (
+              <Link
+                href="/"
+                className="inline-flex min-h-[44px] w-fit items-center gap-1 font-primary uppercase text-p5 text-tt-cream/80 hover:text-tt-cream"
+              >
+                <PixelIcon name="chevron-left" /> Token Tails
+              </Link>
+            )}
             <h1 className="font-paws uppercase leading-none text-h4 md:text-h2 text-tt-cream glow">
               Impact
             </h1>
@@ -618,21 +985,22 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
             </div>
             <nav aria-label="Sections" className="mt-1 flex flex-wrap gap-2">
               {[
+                ["given", "Given"],
+                ["rescue-cats", "Rescue cats"],
+                ["reach", "Reach"],
                 ["money", "Money"],
                 ["custody", "Custody"],
                 ["rail", "Treat rail"],
                 ["outcomes", "Outcomes"],
                 ["pledges", "Pledges"],
                 ["paws", "Paws"],
-                ["rescue-cats", "Rescue cats"],
-                ["reach", "Reach"],
                 ["methodology", "Method"],
                 ["claims", "Every claim"],
               ].map(([id, label]) => (
                 <a
                   key={id}
                   href={`#${id}`}
-                  className="inline-flex min-h-[36px] items-center rounded-full border-2 border-tt-cream/40 px-3 font-primary uppercase text-p6 text-tt-cream/90 hover:border-tt-cream"
+                  className="inline-flex min-h-[40px] items-center rounded-full border-2 border-tt-gold-400/50 px-3 font-primary uppercase text-p5 text-tt-cream/90 hover:border-tt-gold-400"
                 >
                   {label}
                 </a>
@@ -640,327 +1008,43 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
             </nav>
           </header>
 
-          {!impact && (
-            <p className={EMPTY} role="status">
-              The impact snapshot could not be loaded. The claim registry below
-              still lists every public number.
-            </p>
-          )}
-
-          {/* claim: L-disbursed */}
-          <Section
-            id="money"
-            title="Money sent to shelters"
-            lead="Totals from indexed payouts, one line per currency and evidence tier. Currencies are never added together."
-          >
-            {symbols.length > 0 ? (
-              <ul
-                className="mt-4 flex flex-col gap-2"
-                data-testid="money-headline"
-              >
-                {symbols.map(([symbol, wei]) => {
-                  const amount = formatMoney(wei, symbol, {
-                    isApp,
-                    asOf: chainAsOf,
-                  });
-                  return amount ? (
-                    <li
-                      key={symbol}
-                      className="font-primary uppercase text-p3 md:text-h6"
-                    >
+          <GivenDirectly
+            isApp={isApp}
+            railLine={
+              symbols.length > 0 ? (
+                <span className="flex flex-col gap-1">
+                  {symbols.map(([symbol, wei]) => {
+                    const amount = formatMoney(wei, symbol, {
+                      isApp,
+                      asOf: chainAsOf,
+                    });
+                    return amount ? (
                       <Claim
+                        key={symbol}
                         id="L-disbursed"
                         values={{ amount }}
                         tier={tier}
                         liveAsOf={chainAsOf}
                         interactive={false}
                       />
-                    </li>
-                  ) : null;
-                })}
-              </ul>
-            ) : (
-              // claim: L-disbursed
-              <p className={EMPTY} data-testid="money-empty">
-                {MONEY_EMPTY_COPY[railCopyState(impact?.rail.state)]}
-              </p>
-            )}
-            <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Stat label="Off-chain payouts">
-                Not tracked in this snapshot yet. Signed and confirmed shelter
-                payouts will be listed here once the snapshot carries them.
-              </Stat>
-              <Stat label="Last payout">
-                {impact?.money.lastTxHash ? (
-                  isApp ? (
-                    // The snapshot has no payout time, only when the chain was read (review 3f #4).
-                    `Recorded${chainAsOf ? `, checked ${formatFactDate(chainAsOf)}` : ""}`
-                  ) : chain ? (
-                    <a
-                      href={explorerTx(chain.explorer, impact.money.lastTxHash)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={LINK}
-                    >
-                      {impact.money.lastTxHash.slice(0, 10)}… on {chain.name}
-                    </a>
-                  ) : (
-                    impact.money.lastTxHash
-                  )
-                ) : (
-                  "None yet"
-                )}
-              </Stat>
-            </dl>
-            {buckets.length > 0 && (
-              <table
-                className="mt-4 w-full text-left font-sans text-p5"
-                data-testid="money-buckets"
-              >
-                <caption className="sr-only">Payouts by source</caption>
-                <thead>
-                  <tr className="font-primary uppercase text-p6 text-tt-muted">
-                    <th scope="col" className="py-2">
-                      Source
-                    </th>
-                    <th scope="col" className="py-2">
-                      Amount
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {buckets.map(([bucket, amounts]) => (
-                    <tr key={bucket} className="border-t border-tt-cream/15">
-                      <td className="py-2 pr-3">
-                        {BUCKET_LABEL[bucket] ?? bucket}
-                      </td>
-                      <td className="py-2">
-                        {Object.entries(amounts)
-                          .map(([symbol, wei]) =>
-                            formatMoney(wei, symbol, { isApp, asOf: chainAsOf })
-                          )
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            <div className="mt-4">
-              <p className="font-primary uppercase text-p6 text-tt-muted">
-                Evidence tiers
-              </p>
-              <ul
-                className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2"
-                data-testid="tier-legend"
-              >
-                {MONEY_TIERS.map((t) => (
-                  <li
-                    key={t}
-                    className="flex flex-col gap-1 rounded-xl border-2 border-tt-cream/20 p-3"
-                  >
-                    <EvidenceChip kind={t} isApp={isApp} className="w-fit" />
-                    <span className="font-sans text-p6 md:text-p5 text-tt-cream/85">
-                      {labels.explain[t]}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </Section>
-
-          <Section id="custody" title="Who holds the money">
-            <div className="mt-4 flex flex-col gap-3">
-              {custody.hasMoney ? (
-                <>
-                  <span>
-                    <EvidenceChip kind={tier} isApp={isApp} />
-                  </span>
-                  <p className="font-sans text-p5 md:text-p4 text-tt-cream/90">
-                    {impact?.money.custody === "handed-over"
-                      ? "Every partner shelter now holds its own money."
-                      : isApp
-                      ? `Token Tails holds the money for ${partnerPhrase} until the shelter takes it over.`
-                      : `Token Tails still holds the wallet key for ${partnerPhrase}. The shelter takes the key over at the handover, and the tier then changes.`}
-                  </p>
-                </>
+                    ) : null;
+                  })}
+                </span>
               ) : (
-                <p className={EMPTY} data-testid="custody-empty">
-                  No money held yet. The first payout sets the tier.
-                </p>
-              )}
-              {shelters.length > 0 && (
-                <ul className="flex flex-col gap-1 font-sans text-p5 text-tt-cream/85">
-                  {shelters.map((s) => (
-                    <li key={s.slug}>
-                      {s.name}
-                      {s.countryCode ? ` · ${countryName(s.countryCode)}` : ""}
-                      {s.handoverStatus === "handed-over"
-                        ? isApp
-                          ? " · held by the shelter"
-                          : " · holds its own key"
-                        : s.handoverStatus === "held-by-token-tails"
-                        ? isApp
-                          ? " · held by Token Tails"
-                          : " · key held by Token Tails"
-                        : ""}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </Section>
-
-          <Section id="rail" title="Treat rail">
-            <p className={LEAD} data-testid="rail-state">
-              {impact
-                ? RAIL_COPY[impact.rail.state]
-                : RAIL_COPY["not-deployed"]}
-            </p>
-            <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {treatSize && (
-                <Stat label="Treat size">{factText(treatSize, {}, isApp)}</Stat>
-              )}
-              {dailyBudget && (
-                <Stat label="Daily budget">
-                  {factText(dailyBudget, {}, isApp)}
-                </Stat>
-              )}
-              <Stat label="Treats sent">
-                {impact && impact.treats.confirmedCount > 0 ? (
-                  <Claim
-                    id="L-treats"
-                    values={{
-                      amount:
-                        formatMoney(impact.treats.totalConfirmedWei, "USDC", {
-                          isApp,
-                          asOf: mongoAsOf,
-                        }) ?? "",
-                    }}
-                    liveAsOf={mongoAsOf}
-                    interactive={false}
-                  />
-                ) : (
-                  "None yet"
-                )}
-              </Stat>
-              <Stat label="On their way">
-                {impact
-                  ? impact.treats.onTheirWayCount.toLocaleString("en-US")
-                  : "—"}
-              </Stat>
-            </dl>
-            {goal && (!isApp || !goal.chain || goal.appDisplay) && (
-              <p
-                className="mt-4 font-sans text-p5 text-tt-cream/85"
-                data-claim-ref={goal.id}
-              >
-                {factText(goal, {}, isApp)}. The goal is checked against the
-                daily budget, so it can be reached.
-              </p>
-            )}
-          </Section>
-
-          <Section
-            id="outcomes"
-            title="Payouts and outcomes"
-            lead="What happened after money reached a shelter: treatments, adoptions and supplies, with the animal's name only."
-          >
-            {impact && impact.outcomes.published > 0 ? (
-              <>
-                <p
-                  className="mt-4 font-primary uppercase text-p3"
-                  data-testid="outcomes-count"
-                >
-                  {impact.outcomes.published.toLocaleString("en-US")} published
-                  outcomes
-                </p>
-                {impact.outcomes.items.length > 0 && (
-                  <ol
-                    className="mt-4 flex flex-col gap-3 border-l-2 border-tt-cream/25 pl-4"
-                    data-testid="outcomes-timeline"
-                  >
-                    {impact.outcomes.items.map((o) => (
-                      <OutcomeItem
-                        key={o.id}
-                        outcome={o}
-                        isApp={isApp}
-                        explorer={chain?.explorer}
-                        chainName={chain?.name}
-                      />
-                    ))}
-                  </ol>
-                )}
-              </>
-            ) : (
-              <p className={EMPTY}>
-                No shelter outcomes published yet. They appear here once a
-                shelter has confirmed one and its photo has been redacted.
-              </p>
-            )}
-          </Section>
-
-          <Section id="pledges" title="Pledged and paid">
-            {impact && impact.pledges.rows.length > 0 ? (
-              <PledgeTable rows={impact.pledges.rows} isApp={isApp} />
-            ) : (
-              <p className={EMPTY}>
-                The purchase pledge has not started. When it does, each month
-                shows what Token Tails pledged and what it paid, with any
-                shortfall.
-              </p>
-            )}
-          </Section>
-
-          <Section
-            id="paws"
-            title="Paw settlements"
-            lead={
-              isApp
-                ? "Each night Token Tails will settle the day's paws in one payout, with a fingerprint of every paw in it. Your paw proof can be checked against it on tokentails.com."
-                : "Each night Token Tails will settle the day's paws in one payout whose memo carries a Merkle root. Your paw proof can be checked against it in your browser."
+                // claim: L-disbursed
+                <span data-testid="given-rail-empty">
+                  {RAIL_LINE_EMPTY[railCopyState(impact?.rail.state)]}
+                </span>
+              )
             }
-          >
-            <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Stat label="Settlements">
-                {impact
-                  ? impact.pawSettlements.count.toLocaleString("en-US")
-                  : "—"}
-              </Stat>
-              <Stat label="Latest">
-                {impact?.pawSettlements.latest
-                  ? "See the payout list"
-                  : "None yet"}
-              </Stat>
-            </dl>
-            <form
-              className="mt-4 flex flex-col gap-2"
-              aria-describedby="paw-verifier-note"
-              onSubmit={(e) => e.preventDefault()}
-            >
-              <label
-                htmlFor="paw-proof"
-                className="font-primary uppercase text-p6 text-tt-muted"
-              >
-                Paw proof
-              </label>
-              <textarea
-                id="paw-proof"
-                disabled
-                rows={2}
-                placeholder="Proofs arrive with the first nightly settlement"
-                className="rounded-lg border-2 border-tt-cream/30 bg-black/40 p-2 text-p6 text-tt-cream disabled:opacity-60"
-              />
-              <p
-                id="paw-verifier-note"
-                className="font-sans text-p6 text-tt-cream/75"
-              >
-                The checker turns on when settlements start. It runs in your
-                browser and sends nothing.
-              </p>
-            </form>
-          </Section>
+          />
+
+          {!impact && (
+            <p className={EMPTY} role="status">
+              The impact snapshot could not be loaded. The claim registry below
+              still lists every public number.
+            </p>
+          )}
 
           <Section
             id="rescue-cats"
@@ -986,53 +1070,11 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
             </p>
           </Section>
 
-          {nowFact && !isApp && (
-            <Section id="now" title="Where we run now">
-              <p className="mt-4 font-primary uppercase text-p4 md:text-p3">
-                {/* F-025 vouches for its own words only; the rail state is plain copy after its chips. */}
-                <Claim id={nowFact.id} interactive={false} />{" "}
-                <span className="text-tt-cream/85" data-testid="rail-note">
-                  · {RAIL_CHIP_COPY[railCopyState(impact?.rail.state)]}
-                </span>
-              </p>
-              {impact?.rail.splitAddress && chain && (
-                <a
-                  href={explorerAddress(
-                    chain.explorer,
-                    impact.rail.splitAddress
-                  )}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`${LINK} mt-2 inline-block font-sans text-p5`}
-                >
-                  ShelterSplit contract on {chain.name}
-                </a>
-              )}
-            </Section>
-          )}
-
-          {!isApp && (
-            <Section
-              id="history"
-              title="Track record (historical)"
-              lead="Activity from the earlier SEI deployment, which ended in March 2026. History, not today's numbers."
-            >
-              <ul className="mt-4 flex flex-col gap-2 font-sans text-p4">
-                {SEI_IDS.map((id) => {
-                  const fact = publicFact(id);
-                  return fact ? (
-                    <li key={id}>
-                      <Claim id={fact.id} interactive={false} />
-                    </li>
-                  ) : null;
-                })}
-              </ul>
-            </Section>
-          )}
-
           <Section id="reach" title="Reach">
             <ul className="mt-4 flex flex-col gap-2 font-sans text-p4">
               {REACH_IDS.map((id) => {
+                // The live player count replaces the April figure here; F-001 stays in "Every claim".
+                if (id === "F-001" && impact?.players.registeredAllTime != null) return null;
                 const fact = publicFact(id);
                 return fact ? (
                   <li key={id}>
@@ -1089,6 +1131,72 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
               )}
             </ul>
           </Section>
+
+          {/* Rail sections with nothing in them yet fold into one "Opening soon" card, so the page
+              does not open on six empty blocks. Anchors still work: a link into a section opens it. */}
+          {railEmpty ? (
+            <details id="opening-soon" className={`${CARD} group scroll-mt-28`} data-testid="opening-soon">
+              <summary className="flex cursor-pointer list-none flex-col gap-2 [&::-webkit-details-marker]:hidden">
+                <span className={H2}>Opening soon</span>
+                <span className={LEAD}>
+                  The treat rail is not paying out yet, so these have nothing to show:
+                  money sent, who holds it, the treat rail, outcomes, pledges and paw
+                  settlements. Each one fills in on its own as the rail opens.
+                </span>
+                <span className="mt-1 inline-flex w-fit items-center gap-1 font-primary uppercase text-p5 text-tt-gold-400">
+                  <span className="group-open:hidden">Show the details ›</span>
+                  <span className="hidden group-open:inline">Hide the details</span>
+                </span>
+              </summary>
+              <div className="mt-6 flex flex-col gap-6 md:gap-8">{railSections}</div>
+            </details>
+          ) : (
+            railSections
+          )}
+
+          {nowFact && !isApp && (
+            <Section id="now" title="Where we run now">
+              <p className="mt-4 font-primary uppercase text-p4 md:text-p3">
+                {/* F-025 vouches for its own words only; the rail state is plain copy after its chips. */}
+                <Claim id={nowFact.id} interactive={false} />{" "}
+                <span className="text-tt-cream/85" data-testid="rail-note">
+                  · {RAIL_CHIP_COPY[railCopyState(impact?.rail.state)]}
+                </span>
+              </p>
+              {impact?.rail.splitAddress && chain && (
+                <a
+                  href={explorerAddress(
+                    chain.explorer,
+                    impact.rail.splitAddress
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`${LINK} mt-2 inline-block font-sans text-p5`}
+                >
+                  ShelterSplit contract on {chain.name}
+                </a>
+              )}
+            </Section>
+          )}
+
+          {!isApp && (
+            <Section
+              id="history"
+              title="Track record (historical)"
+              lead="Activity from the earlier SEI deployment, which ended in March 2026. History, not today's numbers."
+            >
+              <ul className="mt-4 flex flex-col gap-2 font-sans text-p4">
+                {SEI_IDS.map((id) => {
+                  const fact = publicFact(id);
+                  return fact ? (
+                    <li key={id}>
+                      <Claim id={fact.id} interactive={false} />
+                    </li>
+                  ) : null;
+                })}
+              </ul>
+            </Section>
+          )}
 
           <Section id="methodology" title="How we count">
             <ul className="mt-4 flex list-disc flex-col gap-2 pl-5 font-sans text-p5 md:text-p4 text-tt-cream/90">
@@ -1161,6 +1269,7 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
             </div>
           </Section>
         </div>
+        {!isApp && <Footer tone="night" />}
       </div>
     </>
   );

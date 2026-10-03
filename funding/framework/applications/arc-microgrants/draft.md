@@ -25,7 +25,7 @@ Animal shelters run on small donations and have no cheap way to show where the m
 ## Solution <!-- criterion: C3, C4 | limit: 1200 -->
 ShelterSplit turns a payout promise into a public ledger entry on Arc. The registry lives in the contract: each shelter has a wallet, a name and a share in basis points. donate(memo), or a plain USDC send, splits the payment on arrival: every active shelter gets its share in the same transaction and the remainder goes to the treasury. A second instance does the same in EURC.
 Built around it, all in the public repo:
-- One-tap gift: a signed-in player taps "Send Pink Paw a rescue treat" after a Catnip Heist win or on the payouts page. Token Tails pays a small sponsored amount, once per player per day, from a capped daily budget. No wallet, no gas.
+- One-tap gift: a verified player (account older than a day) taps "Send Pink Paw a rescue treat" after a Catnip Heist win or on the payouts page. Token Tails pays a small sponsored amount, once a day, from a capped budget. No wallet, no gas.
 - Receipts: each payout has a receipt page decoded from Arc and a downloadable share card.
 - Pink Paw's profile with the custody disclosure, and a campaign meter summed from on-chain payouts.
 - ShelterSplit Rail: an MIT SDK and a one-tag donate widget any site can embed.
@@ -40,7 +40,7 @@ Live for this entry: both contracts on Arc mainnet, Pink Paw registered, one pro
 - Sponsored gifts: a verified player taps once a day; a backend wallet with a small float calls donate('tt:<source>:<random id>') within a capped daily budget. The memo holds no personal data.
 - Agent payments, off until handover: an x402-compatible endpoint answers 402 with a price. The agent calls donate('x402:<nonce>') and retries with the tx hash, checked over RPC and accepted once. Our own onchain-receipt scheme, no facilitator.
 - Trust model: the chain proves USDC reached the registered wallet, not who controls it. The first wallet is held by Token Tails on behalf of Pink Paw until handover.
-- Reentrancy guard, pause, two-step ownership, caps, a fuzzed Foundry suite. MIT, at github.com/zbagdzevicius/tokentails.
+- Reentrancy guard, pause, two-step ownership, caps, a fuzzed Foundry suite. ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/).
 
 ## On-chain proof <!-- criterion: C1, C2 | limit: 800 -->
 Arc mainnet: ShelterSplit (USDC) at {SPLIT_ADDRESS} and ShelterSplit (EURC) at {EURC_SPLIT_ADDRESS}. The first payout to Pink Paw is transaction {ARC_PROOF_TX}, a Disbursed event anyone can look up. Disclosure: the receiving wallet {SHELTER_WALLET} is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Every payout into it stays public, before and after the handover. The team has shipped production contracts before: three Soroban contracts on Stellar mainnet [F-009], and ERC-721 contracts on SKALE testnet and mainnet [F-010].

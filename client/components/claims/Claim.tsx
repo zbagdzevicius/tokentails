@@ -25,7 +25,10 @@ const ProofDrawer = dynamic(
   }
 );
 
-export type ClaimVariant = "inline" | "chip" | "stat";
+/** A trailing "(Oct 2026, company-reported)" on registry words. */
+const TRAILING_PAREN = /\s*\([^)]*\)\s*$/;
+
+export type ClaimVariant = "inline" | "chip" | "stat" | "hero";
 
 export interface ClaimProps {
   id: FactId;
@@ -99,7 +102,7 @@ export const Claim = ({
 
   const dateNode = date ? (
     <span className="claim-date whitespace-nowrap opacity-80">
-      {variant === "stat"
+      {variant === "stat" || variant === "hero"
         ? `As of ${date}`
         : variant === "chip"
         ? // In a chip "· as of" reads like a second item after "Now:" (review 3f #7).
@@ -126,6 +129,38 @@ export const Claim = ({
         {children}
       </>
     );
+  } else if (variant === "hero") {
+    // One headline number per page (/impact): the figure large, its words, then its date and chips.
+    // The "(Oct 2026, company-reported)" tail moves into the full date and the status chip, which
+    // say the same thing and stay next to the number (R12).
+    const { figure, rest } = splitFigure(text);
+    const words = rest.replace(TRAILING_PAREN, "");
+    const heroDate = formatFactDate(dateSource);
+    body = (
+      <>
+        {figure && (
+          <span className="claim-figure block font-paws text-[4rem] leading-[0.9] text-tt-gold-400 [text-shadow:0_4px_0_rgb(var(--tt-night-950)),0_0_22px_rgb(var(--tt-gold-400)/0.35)] md:text-[6.5rem]">
+            {figure}
+          </span>
+        )}
+        <span className="claim-text mt-2 block font-primary text-p4 uppercase leading-tight text-tt-cream md:text-p2">
+          {words}
+        </span>
+        <span className="mt-3 flex flex-wrap items-center gap-2 font-primary text-p6 uppercase tracking-wide text-tt-cream/80 md:text-p5">
+          <span className="inline-flex flex-wrap items-center gap-1">
+            {tier && <EvidenceChip kind={tier} isApp={isApp} />}
+            <EvidenceChip kind={fact.status} isApp={isApp} />
+            {stale && <EvidenceChip kind="stale" isApp={isApp} />}
+          </span>
+          {heroDate && (
+            <span className="claim-date whitespace-nowrap">
+              As of {heroDate}
+            </span>
+          )}
+        </span>
+        {children}
+      </>
+    );
   } else {
     body = (
       <>
@@ -141,6 +176,7 @@ export const Claim = ({
     variant === "chip" &&
       "inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border-2 border-tt-cream/70 bg-tt-night-900/60 px-3 py-1.5 text-left font-primary text-p6 uppercase tracking-wide text-tt-cream md:text-p5",
     variant === "stat" && "block w-full text-center",
+    variant === "hero" && "block w-full text-left",
     variant === "inline" && "inline",
     className
   );
@@ -158,7 +194,11 @@ export const Claim = ({
     [tier && labels[tier], labels[fact.status], stale && labels.stale]
       .filter(Boolean)
       .join(", "),
-    isApp ? "Opens the impact page" : "Show the source",
+    isApp
+      ? "Opens the impact page"
+      : fact.sourceUrl || fact.status !== "company-reported"
+      ? "Show the source"
+      : "Show how we know",
   ].join(". ");
 
   const onActivate = () => {

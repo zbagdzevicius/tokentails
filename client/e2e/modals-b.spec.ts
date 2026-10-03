@@ -25,9 +25,12 @@ import { expect, gotoAndSettle, openFirstLevel, test, type BackendMock } from ".
  */
 
 const CDN = "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets";
+// Evidence screenshots, never compared. Locally they go under test-results (git-ignored). CI
+// takes none unless E2E_SHOTS_DIR is set: a screenshot of a WebGL page under software rendering
+// (swiftshader) takes 20 to 30 s, enough to push a test past its timeout.
 const SHOTS =
   process.env.E2E_SHOTS_DIR ||
-  "/private/tmp/claude-501/-Users-zygimantasbagdzevicius-me-tokentails-app/5b2edd56-881c-4754-b42e-7d5561832e7b/scratchpad/build/4d";
+  (process.env.CI ? "" : join(__dirname, "..", "test-results", "shots", "4d"));
 
 const SAFE_AREA = { top: 47, bottom: 34, left: 0, right: 0 };
 
@@ -310,7 +313,7 @@ test.describe("modals B: end-of-run panels and the Paw Match X", () => {
       { timeout: 15_000 },
     );
     await page.waitForTimeout(1500);
-    await page.screenshot({ path: `${SHOTS}/match3-x-${info.project.name}.png` });
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/match3-x-${info.project.name}.png` });
     const hits = header.filter((r) => intersects(r, closeBox)).map((r) => r.name);
     // The DOM side (this task) is checked above. Keeping the header out of the reserve is the
     // scene's job (task 5c); until Match3Scene reads the reserve, a remaining overlap (the top
@@ -332,7 +335,7 @@ test.describe("modals B: end-of-run panels and the Paw Match X", () => {
     await expectPanelFits(page, safe);
     await expect(page.getByRole("dialog")).toContainText("collected 10 catnip");
     await expect(page.getByRole("dialog")).toContainText("Played for 37 seconds");
-    await page.screenshot({ path: `${SHOTS}/end-game-${info.project.name}.png` });
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/end-game-${info.project.name}.png` });
     await axeOnDialog(page);
 
     // The X closes it and the game behind resumes.
@@ -346,7 +349,7 @@ test.describe("modals B: end-of-run panels and the Paw Match X", () => {
     await endRun(page);
     await expectPanelFits(page, safe);
     await expect(page.getByRole("dialog")).toContainText("collected 10 hearts");
-    await page.screenshot({ path: `${SHOTS}/pixel-rescue-end-${info.project.name}.png` });
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/pixel-rescue-end-${info.project.name}.png` });
     await axeOnDialog(page);
 
     await page.keyboard.press("Escape");
@@ -363,7 +366,7 @@ test.describe("modals B: end-of-run panels and the Paw Match X", () => {
     const card = page.getByRole("dialog", { name: "Luna" });
     await expect(card).toBeVisible();
     await page.waitForTimeout(400);
-    await page.screenshot({ path: `${SHOTS}/tails-card-${info.project.name}.png` });
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/tails-card-${info.project.name}.png` });
     const viewport = page.viewportSize()!;
     const close = card.getByRole("button", { name: "Close" });
     const closeBox = await box(close);

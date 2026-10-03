@@ -36,7 +36,7 @@ const ShelterPayoutsPage = () => {
       <div className="fade-in min-h-screen relative flex flex-col items-center" id="shelter-payouts">
         <ShelterPayouts embed={embed} />
       </div>
-      {chrome && <Footer />}
+      {chrome && <Footer tone="night" />}
     </div>
   );
 };

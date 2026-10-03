@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "as_of": "2026-09-28",
+  "as_of": "2026-10-03",
   "source": "funding/ALL-OPPORTUNITIES.md table A (remote and live). capital_mid_usd = realistic midpoint to Token Tails; null = unpublished or unknown (ranks as EV 0 until estimated). framework_hours = hours with this framework, human-only work included.",
   "opportunities": [
     {
@@ -12,12 +12,12 @@
       "url": "https://colosseum.com/worldsfair",
       "deadline": "2026-10-12T23:59:00-07:00",
       "capital_mid_usd": 17500,
-      "success": 0.02,
+      "success": 0.05,
       "framework_hours": 7,
       "verdict": "SKIP",
       "condition": "",
       "frame": "payout-rail",
-      "notes": "$5-30k. Human: signed mainnet deploy on Base or Robinhood, demo video. | 2026-09-28 strategy proof (adversarial judge): P=0.02, about 23 paid general slots over about 1,250 submissions; history 1.0-2.8%. See STRATEGY-PROOF.md. below the 10% bar (2026-09-28 strategy proof)."
+      "notes": "$5-30k. Human: signed mainnet deploy on Base or Robinhood, demo video. | 2026-09-28 strategy proof (adversarial judge): P=0.02, about 23 paid general slots over about 1,250 submissions; history 1.0-2.8%. See STRATEGY-PROOF.md. below the 10% bar (2026-09-28 strategy proof). | 2026-10-03 aligned to the CLAUDE.md tracker: entered (team decision) on the Tempo, Arbitrum, Base and Robinhood tracks; multi-track entry confirmed by Colosseum; P 2-5% at q=0.7 (~7% at q=0.8), general pool ~1%. Entered by hand per the tracker, below the 10% bar: SKIP here only keeps autopilot (fund go) off it; the tracker row is the status."
     },
     {
       "id": 2,
@@ -93,12 +93,12 @@
       "url": "https://www.hackquest.io/hackathons/Arbitrum-Open-House-Singapore-Online-Buildathon",
       "deadline": "2026-10-04",
       "capital_mid_usd": 21500,
-      "success": 0.05,
-      "framework_hours": 2,
+      "success": 0.006,
+      "framework_hours": 1,
       "verdict": "SKIP",
       "condition": "",
       "frame": "payout-rail",
-      "notes": "$3-40k; too close to the Colosseum deadline. below the 10% bar (2026-09-28)."
+      "notes": "$3-40k; too close to the Colosseum deadline. below the 10% bar (2026-09-28). | 2026-10-03 aligned to the CLAUDE.md tracker: long shot kept (team decision): about 1 h, app scaffolded; deadline Oct 4 15:59 with no zone shown (10:59 Vilnius if Singapore time). Needs the HackQuest registration (due Oct 2) to have happened. Entered by hand per the tracker, below the 10% bar: SKIP here only keeps autopilot (fund go) off it; the tracker row is the status."
     },
     {
       "id": 7,
@@ -581,13 +581,62 @@
       "url": "https://itch.io/jam/anitya-world-jam-2700-in-prizes",
       "deadline": "2026-10-21T22:59:59Z",
       "capital_mid_usd": 700,
-      "success": 0.1,
+      "success": 0.14,
       "framework_hours": 20,
-      "verdict": "SKIP",
-      "condition": "Three checks first: Anitya accepts imported images, the host allows AI-generated assets (ask on Discord), and prizes can be paid to Lithuania. If all three pass, build a cat-shelter world in Anitya and submit the link on Discord before 2026-10-21.",
+      "verdict": "COND",
+      "condition": "Gate G8 (Oct 18): the heist-08 world is published and playable; then submit the main jam by Oct 20 (closes Oct 21 22:59, zone not shown). The earlier host checks passed when Weekly Challenge 2 was accepted on Sep 30.",
       "condition_met": false,
       "frame": "game-studio",
-      "notes": "Borderline. 3 paid places plus $600 in challenges over an assumed 20-40 entries (57 joined on 2026-09-28; the submit rate is assumed). No-code 3D tool, not Phaser. The payee is an individual aged 16+. | 2026-09-28 strategy proof (adversarial judge): P=0.1, base 0.15 (3 of ~20) x fit 0.9 x payout risk 0.75; build the world from Catnip Heist voxel assets. See STRATEGY-PROOF.md. below the 10% bar (2026-09-28 strategy proof)."
+      "notes": "Borderline. 3 paid places plus $600 in challenges over an assumed 20-40 entries (57 joined on 2026-09-28; the submit rate is assumed). No-code 3D tool, not Phaser. The payee is an individual aged 16+. | 2026-09-28 strategy proof (adversarial judge): P=0.1, base 0.15 (3 of ~20) x fit 0.9 x payout risk 0.75; build the world from Catnip Heist voxel assets. See STRATEGY-PROOF.md. below the 10% bar (2026-09-28 strategy proof). | 2026-10-03 aligned to the CLAUDE.md tracker: entered: Weekly Challenge 2 submitted Sep 30 with heist-01; main jam with heist-08 (closes Oct 21 22:59, zone not shown); ~14% after payout risk at q=0.7."
+    },
+    {
+      "id": 38,
+      "program": "Tameion Agents Hackathon (Canteen x Circle x Arc)",
+      "track": "A",
+      "slug": "tameion",
+      "a_program": "tameion",
+      "url": "https://tameion.thecanteenapp.com/",
+      "deadline": "2026-10-10T23:59:00-04:00",
+      "capital_mid_usd": 2350,
+      "success": 0.13,
+      "framework_hours": 3,
+      "verdict": "COND",
+      "condition": "A Tameion invite arrives (request it at tameion.thecanteenapp.com), and Canteen confirms a Tameion prize does not affect Arc Microgrants eligibility.",
+      "condition_met": false,
+      "frame": "payout-rail",
+      "notes": "Invite-only, online. $650-10k across 17 paid slots ($40k total). ~9-17% at q=0.7 if invites shrink the field to N 120-180; 5% at N=252. Needs a public repo, a demo video of 3 min or less and a live link; x402 agent plus Arc USDC. Added 2026-10-03 from the CLAUDE.md tracker."
+    },
+    {
+      "id": 39,
+      "program": "Monad Metropolis online hackathon (Consumer Products & Payments track)",
+      "track": "A",
+      "slug": "monad-metropolis",
+      "a_program": "monad-metropolis",
+      "url": "https://monad.xyz/developers/hackathons/metropolis",
+      "deadline": "2026-10-13",
+      "capital_mid_usd": 10000,
+      "success": 0.015,
+      "framework_hours": 2.5,
+      "verdict": "SKIP",
+      "condition": "",
+      "frame": "payout-rail",
+      "notes": "Long shot kept (team decision): 3 x $10k per track, N unknown. Rules, deadline zone, countries and KYC unverified (log in at hackathon.monad.xyz); Monad chain id, RPC and USDC address in chains.json are UNVERIFIED. Needs a Monad deploy. Added 2026-10-03 from the CLAUDE.md tracker. Entered by hand per the tracker, below the 10% bar: SKIP here only keeps autopilot (fund go) off it; the tracker row is the status."
+    },
+    {
+      "id": 40,
+      "program": "x402 Foundation impact micro-grant",
+      "track": "B",
+      "slug": "x402-microgrant",
+      "url": "https://github.com/x402-foundation/x402/blob/main/PROJECT-IDEAS.md",
+      "deadline": "rolling",
+      "capital_mid_usd": 1500,
+      "success": null,
+      "framework_hours": 6,
+      "verdict": "SKIP",
+      "condition": "After Colosseum (Oct 12-16): the standard x402 exact scheme runs through a facilitator on mainnet, and a video of 2 min or less exists; then post and tag @coinbaseDev.",
+      "condition_met": false,
+      "frame": "payout-rail",
+      "notes": "Up to $3k; success unknown (<10%). Only the custom onchain-receipt scheme exists today. Added 2026-10-03 from the CLAUDE.md tracker. Success unknown and likely below the 10% bar: SKIP keeps autopilot off; the tracker row (Oct 12-16) is the status."
     }
   ]
 }

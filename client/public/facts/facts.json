@@ -162,6 +162,26 @@
       "chain": "stellar"
     },
     {
+      "id": "F-026",
+      "display": "$40K+ donated directly in crypto and goods (Oct 2026, company-reported)",
+      "appDisplay": "$40K+ donated directly in money and goods (Oct 2026, company-reported)",
+      "value": 40000,
+      "unit": "USD",
+      "status": "company-reported",
+      "tense": "past",
+      "asOf": "2026-10-03",
+      "checkedAt": "2026-10-03",
+      "maxAgeDays": 365,
+      "surfaces": [
+        "landing",
+        "game",
+        "impact"
+      ],
+      "sourceUrl": null,
+      "key": "donated_direct_total",
+      "short": "$40K+ donated in crypto and goods"
+    },
+    {
       "id": "L-countries",
       "display": "{n} partner countries",
       "appDisplay": null,

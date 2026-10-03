@@ -29,7 +29,7 @@ const GivePage = () => (
         <GiveTreat />
       </FirebaseAuthProvider>
     </div>
-    <Footer />
+    <Footer tone="night" />
   </div>
 );
 

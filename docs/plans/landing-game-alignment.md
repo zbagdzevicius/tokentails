@@ -771,7 +771,7 @@ with the TypeScript AST (string literals, template spans, JSX text and text-bear
 | 31 | Lock pattern | G4 `jobs` collection, G5 `jobruns` | Generalised `jobruns` lease (F8). |
 | 32 | Two copy lints | G5, G11 | One tool with two rule sets (F11). |
 | 33 | GitLab vs GitHub CI | G8 retire, G11 add a stage | GitHub Actions only (F12), founder confirms (D). |
-| 34 | Landing crew CTA label | G14 "PLAY TO SAVE" | State-dependent: "MEET YOUR CAT" when signed out or `onboarding.state === 'pending'`; "{catName} IS WAITING" when done (the G3 hero tie-back). Never "PLAY TO SAVE", which is the Heist line the claims lint flags. |
+| 34 | Landing crew CTA label | G14 "PLAY TO SAVE" | State-dependent: "MEET YOUR CAT" when signed out or `onboarding.state === 'pending'`; "BACK TO YOUR CAT" when done (revised Oct 3, founder: "{catName} IS WAITING" was redundant; it must not repeat the hero's PLAY GAME either). Never "PLAY TO SAVE", which is the Heist line the claims lint flags. |
 | 35 | Intro frequency | G6 once per session, G14 readiness-driven | Readiness-driven (min 700 ms, max 2.5 s, tap to skip), so it covers real loading and needs no flag. |
 | 36 | Heist analytics | G10 `app/analytics.ts`, G13-H `analytics-core` | One `shared/analytics-core.ts` (F9). |
 | 37 | Identity Platform | G9 upgrade for blocking functions, G1 avoid (anonymous MAU) | Not upgraded by default; disposable-domain check runs in `resolveRegistered`; App Check is the main defence (D). |
@@ -792,7 +792,7 @@ row below wins, and a reviewer checks against this plan, not the per-gap file.
 | G14 | Fonts verified with `document.fonts.check('15px "Pixelify Sans"')` | `document.fonts.load` per face through `loadGameFonts` (F4); Playwright asserts the three brand faces loaded | 14 |
 | G14 | "KITTEN STARTER" and Paw Match labels in Pixelify Sans | `label` role (Bebas, min 12); Pixelify not added (decision #92) | 14 |
 | G14 | Toast at z 10100 | `z-toast` 500, above `z-intro` 300; queued into the AuthSheet alert region while it is open | 11, 40 |
-| G14 | Crew CTA "PLAY TO SAVE" | State-dependent "MEET YOUR CAT" or "{catName} IS WAITING" | 34 |
+| G14 | Crew CTA "PLAY TO SAVE" | State-dependent "MEET YOUR CAT" or "BACK TO YOUR CAT" (revised Oct 3) | 34 |
 | G14 | `useModal` hook | GameModal (F3.3) | 12 |
 | G14 | Rewrite `/heist` to the static build | G2 host page at `/heist`, static build at `/heist-game/` | 20 |
 | G14 | Monospace grep guard | ESLint rule (F4) | 17 |
@@ -1076,9 +1076,10 @@ planned Poki submission may conflict with a prominent tokentails.com entry **(D)
   bandana layer is commissioned **(D)**. If the frame layout does not match, Scout temporarily uses the
   yellow family's sheet.
 - **Mobile:** `@capacitor/keyboard` with `resize: 'body'`.
-- **Landing tie-back:** signed-in players who are done see "{catName} is waiting for you" in the hero
-  area. The crew CTA label follows state (2.13 #34): "MEET YOUR CAT" when signed out or pending,
-  "{catName} IS WAITING" when done, so the label always matches what `/game` shows.
+- ~~**Landing tie-back:** signed-in players who are done see "{catName} is waiting for you" in the hero
+  area.~~ Removed Oct 3 (founder: redundant with the hero art's "Your cat awaits"). No hero line; the
+  crew CTA label follows state (2.13 #34): "MEET YOUR CAT" when signed out or pending, "BACK TO YOUR
+  CAT" when done, so the label matches what `/game` shows and never repeats the hero's PLAY GAME.
 
 **Rejected.** A: copy only. B: client-only reveal with a generic rename endpoint. D: free real shelter
 cat as starter, which undermines packs and renames a real animal.
@@ -1898,7 +1899,7 @@ Old native builds keep old client code until a store release.
   motion fade, `role="status"`. It always runs, including for brand-new visitors: when it lifts and
   `onboarding.state === 'pending'`, it hands to G3's altar loading state instead of the lobby.
 - **Crew CTA:** state-dependent label (section 2.13 #34) **(D)**: "MEET YOUR CAT" when signed out or
-  pending, "{catName} IS WAITING" when done, read from the same profile the hero tie-back uses. It
+  pending, "BACK TO YOUR CAT" when done (revised Oct 3), read from the landing's optional profile read. It
   sits in the team section, so it links to `/game` and the label never promises a ceremony the
   player will not see. Rendered with `PixelButton as="span"` inside the link: one tab stop, valid
   HTML. Other links wrapping PixelButton converted the same way.
@@ -2172,7 +2173,7 @@ not executed. Decision F-1b-1 (pre-hotfix stakes) came up during the build and i
 | 88 | Shelter `role` field and backfill | Approve | G13 |  | Applied (2b): `role` field; `backfill-shelter-fields.js` dry run by default (run deferred) |
 | 89 | Player-facing fallback copy | Approve "Something went wrong. Your cats are safe." set | G13 |  | Applied (1e) |
 | 90 | Native release right after the client work | Yes, batched as the native train | F12 |  | Applied: changes batched; the train (MOBILE.md) is not run |
-| 91 | Crew CTA label | State-dependent: "MEET YOUR CAT" when signed out or pending, "{catName} IS WAITING" when done | G14 |  | Applied (3f, 6b) |
+| 91 | Crew CTA label | State-dependent: "MEET YOUR CAT" when signed out or pending, ~~"{catName} IS WAITING" when done~~ "BACK TO YOUR CAT" when done; no "waiting" copy besides the hero art | G14 |  | Applied (3f, 6b); Revised Oct 3 (founder: redundant) |
 | 92 | Pixelify Sans for Paw Match labels | Drop it; use the `label` role | G14, G12 |  | Applied (2d, 3e) |
 | 93 | Heist favicon | Shared Token Tails icon | G14 |  | Applied (6b) |
 | 94 | Purrsuit frozen or getting new levels | Confirm before promising "new ones on the way" | G14 |  | Applied (4b, 5a) |

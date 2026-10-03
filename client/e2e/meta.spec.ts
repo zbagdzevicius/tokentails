@@ -15,7 +15,7 @@ const SCRIPT = path.resolve(__dirname, "../scripts/check-meta.mjs");
 test.describe("meta and icons", () => {
   test.use({ allowUnmocked: true });
 
-  test("check-meta passes against the running server", async ({ baseURL }, info) => {
+  test("check-meta passes against the running server", { tag: "@ci-desktop" }, async ({ baseURL }, info) => {
     test.skip(info.project.name !== "desktop-1440", "server-side check, once per run");
     test.setTimeout(240_000);
     let stdout = "";

@@ -262,7 +262,9 @@ test.describe("/heist host (G2 layers 1 and 3)", () => {
   test("the server HTML embeds the build, and old URLs move", async ({ request, baseURL }) => {
     const html = await (await request.get(`${baseURL}/heist`)).text();
     expect(html).toMatch(/<iframe[^>]+src="\/heist-game\/index\.html\?embed=1"/);
-    expect(html).toContain('<link rel="canonical" href="https://tokentails.com/heist"');
+    // The origin is the build's NEXT_PUBLIC_DOMAIN (http://localhost:3001 in CI, tokentails.com in
+    // production), so only the shape and the path are fixed here.
+    expect(html).toMatch(/<link rel="canonical" href="https?:\/\/[^"/]+\/heist"/);
     const old = await request.get(`${baseURL}/heist/index.html`, { maxRedirects: 0 });
     expect(old.status()).toBe(308);
     expect(old.headers()["location"]).toMatch(/\/heist$/);

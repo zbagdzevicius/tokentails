@@ -286,24 +286,29 @@ export interface CrewCtaState {
   catName?: string | null;
 }
 
-/**
- * Longest cat name the crew CTA spells out. The pixel button never wraps (its frame is fixed
- * height), and names go up to 16 characters (backend `CAT_NAME_MAX_LENGTH`), so longer names fall
- * back to "YOUR CAT IS WAITING" to keep the button inside a 360px phone.
- */
-export const CREW_CTA_MAX_NAME = 10;
+/** The crew CTA button: `text` plus an optional `subtext`, laid out like the hero's PixelButton. */
+export interface CrewCta {
+  text: string;
+  subtext?: string;
+}
 
 /**
- * The crew CTA label (plan 2.13 row 34): "MEET YOUR CAT" when signed out or while Meet your cat is
- * pending; "{CAT} IS WAITING" once the player has named a cat ("YOUR CAT IS WAITING" when the name
- * is longer than `CREW_CTA_MAX_NAME`). Never "PLAY TO SAVE".
+ * The crew CTA (plan 2.13 row 34, revised in the Oct 3 polish pass): "MEET YOUR CAT" when signed
+ * out or while Meet your cat is pending; "BACK TO YOUR CAT" once the player is past it, so it never
+ * repeats the hero's PLAY GAME button. No "waiting" copy here: the hero art already says "Your cat
+ * awaits", and the line above the button reads "…and one more cat on the team". Never "PLAY TO
+ * SAVE" (the Heist line).
  */
-export function crewCtaLabel({ signedIn, onboardingState, catName }: CrewCtaState = {}): string {
-  const name = (catName || "").trim();
-  if (!signedIn || onboardingState === "pending" || !name) return "MEET YOUR CAT";
-  if (name.length > CREW_CTA_MAX_NAME) return "YOUR CAT IS WAITING";
-  return `${name.toUpperCase()} IS WAITING`;
+export function crewCta({ signedIn, onboardingState }: CrewCtaState = {}): CrewCta {
+  if (!signedIn || onboardingState === "pending") return { text: "MEET YOUR CAT" };
+  return { text: "BACK TO", subtext: "YOUR CAT" };
 }
+
+/** The crew CTA as one string ("MEET YOUR CAT" or "BACK TO YOUR CAT"): its accessible name. */
+export const crewCtaLabel = (state: CrewCtaState = {}): string => {
+  const { text, subtext } = crewCta(state);
+  return subtext ? `${text} ${subtext}` : text;
+};
 
 export interface TeamSectionProps {
   /**
@@ -314,7 +319,7 @@ export interface TeamSectionProps {
 }
 
 export const TeamSection = ({ cta }: TeamSectionProps = {}) => {
-  const ctaLabel = crewCtaLabel(cta);
+  const ctaButton = crewCta(cta);
   const [selected, setSelected] = useState(0);
   const [prevIdx, setPrevIdx] = useState<number | null>(null);
   const [phase, setPhase] = useState<Phase>("static");
@@ -554,7 +559,7 @@ export const TeamSection = ({ cta }: TeamSectionProps = {}) => {
             <span aria-hidden className="text-tt-gold-400 team-blink inline-block mr-2">
               ▼
             </span>
-            Meet the party behind every rescue
+            Pick a player to meet the crew
           </p>
           <h2
             id="team-title"
@@ -741,19 +746,25 @@ export const TeamSection = ({ cta }: TeamSectionProps = {}) => {
           />
           <p className="relative font-paws uppercase text-tt-cream glow text-balance leading-[1.15] [word-spacing:0.3em] text-p3 md:text-h6 3xl:text-h4">
             <span className="font-primary">…</span>and{" "}
-            <span className="text-h5 md:text-h3 3xl:text-h2">one</span> cat
-            waiting for you
+            <span className="text-h5 md:text-h3 3xl:text-h2">one</span> more
+            cat on the team
           </p>
           {/* One tab stop: the PixelButton renders as a span inside the link (valid HTML). */}
           {/* Plain anchor on purpose: the game shell needs a full page load. */}
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
             href={landingCtaHref("crew")}
+            aria-label={crewCtaLabel(cta)}
             data-testid="crew-cta"
             className="relative block py-2 md:py-6 3xl:py-10 rounded-xl focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-8 focus-visible:outline-tt-gold-400"
           >
             <span className="block max-w-[calc(100vw-2rem)] scale-100 sm:scale-110 3xl:scale-150 origin-center">
-              <PixelButton as="span" text={ctaLabel} size="lg" />
+              <PixelButton
+                as="span"
+                text={ctaButton.text}
+                subtext={ctaButton.subtext}
+                size="lg"
+              />
             </span>
           </a>
         </div>

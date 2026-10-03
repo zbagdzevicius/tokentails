@@ -81,6 +81,27 @@ The measured path, the `/game` lobby to a playable Heist level 1 in 3 taps (`hei
 is a G2 acceptance, not a public claim. If the landing Heist pill ships, a new claim needs a new id,
 a spec run with the pill on, and a landing surface shown only while the flag is on.
 
+F-026 (`donated_direct_total`, "$40K+ donated directly in crypto and goods") is the founders'
+statement of 2026-10-03, worded no wider than it was said: no recipients, no start date, no split.
+It is `company-reported`, never on-chain verified. It is shown as the /impact headline
+(`<Claim variant="hero">` in `components/impact/GivenDirectly.tsx`), as a stat in the landing globe
+section (web only) and in the lobby strip through its registry `short` wording ("$40K+ given
+directly"), followed there by an "On the treat rail:" label. It is never added to `L-disbursed` or
+`L-treats`. App builds use its `appDisplay` ("money and goods", no "crypto").
+
+Two optional registry fields came with it. `short` is a tighter wording for small spaces; the drawer
+still shows `display`. `recordsOnRequest: true` opts an entry into the ProofDrawer "How to check"
+row and the /impact "Ask for the receipts" button (`components/claims/records.ts`, the
+`SUPPORT_EMAIL` inbox in `lib/support.ts`). No entry sets it yet: it waits for the founders to
+confirm that inbox answers receipt requests.
+
+Funding drafts cannot cite F-026 as it stands: FACTS.md lists company-reported entries as
+`unverified`, and `fund check` fails those at review. The plan is to split it once the founders send
+the crypto transfers (date, amount, explorer link): F-026a (crypto) `verified` with its source a
+public receipts list, F-026b (goods) `company-reported`, and `$40K+` kept as the combined figure.
+Still open for the founders: the start year (then "since <year>"), the recipients (then "to
+shelters" may come back) and the goods valuation.
+
 ### Goals are claims
 
 A money goal is a `C-` entry with a `goal`. The build reads the daily cap from the named constant

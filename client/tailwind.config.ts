@@ -421,6 +421,10 @@ const config: Config = {
       },
     },
     fontFamily: {
+      // The body face (as on <body>, styles/globals.scss). `fontFamily` here replaces Tailwind's
+      // defaults, so without this key `font-sans` generated nothing and every `font-sans` inside a
+      // display-font parent silently stayed in the display face (QA, Oct 3).
+      sans: ["Nunito", "Nunito Fallback", "Nunito Fallback Android", "sans-serif"],
       display: ["Bebas Neue", "sans-serif"],
       primary: ["Passion One", "sans-serif"],
       secondary: ["Bebas Neue", "sans-serif"],

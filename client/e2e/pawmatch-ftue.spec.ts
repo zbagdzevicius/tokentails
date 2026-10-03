@@ -21,9 +21,12 @@ import { expect, gotoAndSettle, openFirstLevel, test, type BackendMock } from ".
  * uncleared and the server rule applies.
  */
 
+// Evidence screenshots, never compared. Locally they go under test-results (git-ignored). CI
+// takes none unless E2E_SHOTS_DIR is set: a screenshot of a WebGL page under software rendering
+// (swiftshader) takes 20 to 30 s, enough to push a test past its timeout.
 const SHOTS =
   process.env.E2E_SHOTS_DIR ||
-  "/private/tmp/claude-501/-Users-zygimantasbagdzevicius-me-tokentails-app/5b2edd56-881c-4754-b42e-7d5561832e7b/scratchpad/build/5c";
+  (process.env.CI ? "" : join(__dirname, "..", "test-results", "shots", "5c"));
 const CDN = "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets";
 const SAFE_AREA = { top: 47, bottom: 34, left: 0, right: 0 };
 
@@ -204,7 +207,7 @@ async function openLevelOne(page: Page, opts: { shot?: string } = {}) {
   if (await startHere.isVisible()) {
     // The level list's first-visit marker, shown when the tap beat the profile.
     await expect(page.getByText("Start here", { exact: true }).first()).toBeVisible();
-    if (opts.shot) await page.screenshot({ path: `${SHOTS}/${opts.shot}-levels.png` });
+    if (SHOTS && opts.shot) await page.screenshot({ path: `${SHOTS}/${opts.shot}-levels.png` });
   }
   await openFirstLevel(page, "pawmatch", 15_000);
   await page.waitForFunction(
@@ -323,7 +326,7 @@ test.describe("Paw Match first run", () => {
     // The screenshot, the idle wait and the wrong swap are the test's own detours, so they are left
     // out of the 10 s budget below.
     const detourFrom = Date.now();
-    await page.screenshot({ path: `${SHOTS}/ftue-${info.project.name}-tutorial.png` });
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/ftue-${info.project.name}-tutorial.png` });
 
     // Not running before the swap.
     await page.waitForTimeout(2500);
@@ -396,7 +399,7 @@ test.describe("Paw Match first run", () => {
         expect(overlaps(a, b), `${a.key} over ${b.key}: ${JSON.stringify(a)} ${JSON.stringify(b)}`).toBe(false);
       }
     }
-    await page.screenshot({ path: `${SHOTS}/ftue-${info.project.name}-running.png` });
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/ftue-${info.project.name}-running.png` });
   });
 
   test("an announcement region speaks the tutorial", async ({ page }) => {
@@ -469,7 +472,7 @@ test.describe("Paw Match first run: motion and pixel ratios", () => {
           await page.waitForTimeout(600);
           const moving = await sceneState(page);
           checkLayout(moving, { width: viewport.width, height: viewport.height });
-          await page.screenshot({ path: `${SHOTS}/ftue-${viewport.name}-dpr${dpr}.png` });
+          if (SHOTS) await page.screenshot({ path: `${SHOTS}/ftue-${viewport.name}-dpr${dpr}.png` });
         });
       });
     }

@@ -85,12 +85,75 @@ export function totalText(totals: Map<string, bigint>): string {
 
 type Fetch = typeof fetch;
 
-async function rpc<T>(f: Fetch, url: string, method: string, params: unknown[], signal: AbortSignal): Promise<T> {
+/** A rate-limited RPC answer (HTTP 429 or JSON-RPC -32005): retried with backoff, never treated as a range cap. */
+class RateLimited extends Error {}
+
+/** Rate-limit retries per call and the first backoff; doubles each time (0.4 s, 0.8 s, 1.6 s). */
+export const RATE_LIMIT_RETRIES = 3;
+export const RATE_LIMIT_BACKOFF_MS = 400;
+
+let sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+/** Test hook: replace the backoff timer. */
+export function setPayoutsSleep(fn: (ms: number) => Promise<void>): void {
+  sleep = fn;
+}
+
+async function rpcOnce<T>(f: Fetch, url: string, method: string, params: unknown[], signal: AbortSignal): Promise<T> {
   const res = await f(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal });
+  if (res.status === 429) throw new RateLimited(`${method}: HTTP 429`);
   if (!res.ok) throw new Error(`${method}: HTTP ${res.status}`);
-  const body = (await res.json()) as { result?: T; error?: { message?: string } };
-  if (body.error) throw new Error(`${method}: ${body.error.message ?? 'RPC error'}`);
+  const body = (await res.json()) as { result?: T; error?: { code?: number; message?: string } };
+  if (body.error) {
+    const msg = `${method}: ${body.error.message ?? 'RPC error'}`;
+    if (body.error.code === -32005 || /rate limit|too many requests/i.test(body.error.message ?? '')) throw new RateLimited(msg);
+    throw new Error(msg);
+  }
   return body.result as T;
+}
+
+async function rpc<T>(f: Fetch, url: string, method: string, params: unknown[], signal: AbortSignal): Promise<T> {
+  let backoff = RATE_LIMIT_BACKOFF_MS;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await rpcOnce<T>(f, url, method, params, signal);
+    } catch (err) {
+      if (!(err instanceof RateLimited) || attempt >= RATE_LIMIT_RETRIES || signal.aborted) throw err;
+      await sleep(backoff);
+      backoff *= 2;
+    }
+  }
+}
+
+/**
+ * Public RPCs cap eth_getLogs ranges (Tempo: 100,000 blocks; Arc: "requested range too large"
+ * well below that), so a full-range query that is refused is re-read in windows of this many
+ * blocks, one window at a time. Mirrors client/components/shelter-payouts/rpc.ts LOG_WINDOW.
+ */
+export const LOG_WINDOW = 10_000;
+/** Upper bound on window requests per deployment; past it the chain is marked unreadable. */
+export const MAX_LOG_REQUESTS = 200;
+
+type LogFilter = { address: string; topics: string[][] };
+
+/** eth_getLogs over [from, latest]: one call when the RPC allows it, else sequential LOG_WINDOW windows. */
+export async function getLogsRange<T>(f: Fetch, url: string, filter: LogFilter, from: number, signal: AbortSignal): Promise<T[]> {
+  const hex = (n: number) => '0x' + n.toString(16);
+  try {
+    return (await rpc<T[]>(f, url, 'eth_getLogs', [{ ...filter, fromBlock: hex(from), toBlock: 'latest' }], signal)) ?? [];
+  } catch (err) {
+    // A rate limit already used its retries; windows would only make it worse.
+    if (err instanceof RateLimited || signal.aborted) throw err;
+  }
+  const latest = parseInt(await rpc<string>(f, url, 'eth_blockNumber', [], signal), 16);
+  if (!Number.isFinite(latest)) throw new Error('eth_blockNumber: bad answer');
+  const out: T[] = [];
+  let requests = 0;
+  for (let start = from; start <= latest; start += LOG_WINDOW) {
+    if (++requests > MAX_LOG_REQUESTS) throw new Error(`eth_getLogs: more than ${MAX_LOG_REQUESTS} windows; pin "fromBlock"`);
+    const end = Math.min(start + LOG_WINDOW - 1, latest);
+    out.push(...((await rpc<T[]>(f, url, 'eth_getLogs', [{ ...filter, fromBlock: hex(start), toBlock: hex(end) }], signal)) ?? []));
+  }
+  return out;
 }
 
 /** One deployment as the payouts modal lists it. `ok` is false when its RPC could not be read. */
@@ -187,7 +250,7 @@ export async function fetchShelterPayouts(deploymentsUrl: string, f: Fetch = fet
           const rc = await rpc<{ blockNumber?: string } | null>(f, url, 'eth_getTransactionReceipt', [d.tx], ctl.signal);
           if (rc?.blockNumber) from = parseInt(rc.blockNumber, 16);
         }
-        const logs = await rpc<RpcLog[]>(f, url, 'eth_getLogs', [{ address: d.address, topics: [[DISBURSED_TOPIC, NATIVE_DISBURSED_TOPIC]], fromBlock: '0x' + from.toString(16), toBlock: 'latest' }], ctl.signal);
+        const logs = await getLogsRange<RpcLog>(f, url, { address: d.address, topics: [[DISBURSED_TOPIC, NATIVE_DISBURSED_TOPIC]] }, from, ctl.signal);
         const rows: PayoutRow[] = [];
         for (const log of logs ?? []) {
           const p = payoutOf(log, chain);
@@ -205,14 +268,15 @@ export async function fetchShelterPayouts(deploymentsUrl: string, f: Fetch = fet
         if (opts.times) {
           const blocks = [...new Set(rows.slice(0, TIMED_PER_CHAIN).map((r) => r.block).filter((b) => b > 0))];
           const times = new Map<number, number>();
-          await Promise.all(blocks.map(async (b) => {
+          // One at a time: a burst of block lookups is what trips public RPC rate limits.
+          for (const b of blocks) {
             try {
               const blk = await rpc<{ timestamp?: string } | null>(f, url, 'eth_getBlockByNumber', ['0x' + b.toString(16), false], ctl.signal);
               if (blk?.timestamp) times.set(b, parseInt(blk.timestamp, 16));
             } catch {
               /* no time for this one */
             }
-          }));
+          }
           for (const r of rows) if (times.has(r.block)) r.time = times.get(r.block);
         }
         out.payouts.push(...rows);

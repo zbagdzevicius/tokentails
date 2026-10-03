@@ -200,6 +200,8 @@ export function publicEntries(registry) {
         sourceUrl: publicSource(f.source),
       };
       if (f.key) out.key = f.key;
+      if (f.short) out.short = f.short;
+      if (f.recordsOnRequest) out.recordsOnRequest = true;
       if (f.chain) out.chain = f.chain;
       if (f.live) out.live = { endpoint: f.live.endpoint, path: f.live.path };
       if (f.goal) out.goal = { startDate: f.goal.startDate, endDate: f.goal.endDate };
@@ -253,6 +255,10 @@ ${pad}maxAgeDays: number | null;
 ${pad}surfaces: FactSurface[];
 ${pad}sourceUrl: string | null;
 ${pad}key?: string;
+${pad}/** A shorter wording for tight spaces (the lobby strip); the drawer still shows display. */
+${pad}short?: string;
+${pad}/** Token Tails holds records behind this entry and answers requests for them. */
+${pad}recordsOnRequest?: true;
 ${pad}chain?: 'sei' | 'stellar' | 'arc' | 'skale';
 ${pad}live?: { endpoint: string; path: string };
 ${pad}goal?: { startDate: string; endDate: string };

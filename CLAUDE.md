@@ -46,7 +46,7 @@ How to maintain it:
 | **Oct 2, by 12:00 Vilnius** | Register on HackQuest for Arbitrum Open House Singapore. The page shows "Oct 2 17:01" with no time zone (re-checked Oct 2): if it is Singapore time it closes at 12:01 Vilnius, if UTC at 20:01. Do it now | You | ⏳ |
 | Oct 1–3 | Log in at hackathon.monad.xyz: confirm the year, the deadline time zone and the rules (mainnet or testnet, countries, KYC) | You | ⏳ |
 | Oct 2 | Mainnet wave (Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain (pays USDG), plus EURC), Tempo campaign-memo payout, `fund a:ingest` | You | ⏳ |
-| Oct 2 (after the wave) | Commit and push the deployment lists written by `a:ingest` (client and catnip-heist); Vercel redeploys both, so the pages show the real payouts | You | ⏳ |
+| Oct 2 (after the wave) | Commit and push the three deployment lists written by `a:ingest` (`client/public/shelter-payouts/`, `client/public/heist-game/payouts/`, `catnip-heist/public/payouts/`); Vercel builds only the client, so `/shelter-payouts` and `/heist` show the real payouts after that push | You | ⏳ |
 | Oct 2–4 | Turn on sponsored donations (`SHELTER_DONATE_*` env on the backend, fund the hot wallet with a small USDC float) | You | ⏳ |
 | Oct 3–5 | AI fills the drafts and renders the demos; you record the Colosseum pitch | Both | ⏳ |
 | Oct 1–6 | Ask Arc: is it a hard cap of 20 grants, or is every project above the bar funded? (15% vs ~50%) | You | ⏳ |

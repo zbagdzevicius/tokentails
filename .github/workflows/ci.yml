@@ -111,8 +111,13 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Build for e2e
         run: npm run build
+      # heist-host.spec.ts builds a QA copy of the Heist (VITE_HEIST_QA=1) with catnip-heist's vite.
+      - name: Install Catnip Heist dependencies (QA build for the e2e)
+        run: npm ci --prefix ../catnip-heist
       - name: End-to-end tests
-        # CI=true makes playwright.config.ts serve the build with `next start` on :3001.
+        # CI=true makes playwright.config.ts serve the build with `next start` on :3001 and run the
+        # CI subset: all of mobile-390 plus the `@ci-desktop` tests on desktop-1440 (see the config).
+        timeout-minutes: 35
         run: npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()

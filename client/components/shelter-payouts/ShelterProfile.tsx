@@ -23,10 +23,13 @@ export const ShelterProfile = ({
   campaign,
   explorer,
   isApp = isAppBuild(),
+  heading,
 }: {
   campaign: Campaign;
   explorer?: string;
   isApp?: boolean;
+  /** The card's title; defaults to the shelter's name (set it when the name is already shown above). */
+  heading?: string;
 }) => {
   const { shelter } = campaign;
   return (
@@ -36,7 +39,7 @@ export const ShelterProfile = ({
     >
       <h3 className="font-primary uppercase text-p3 md:text-p2 leading-none text-tt-cream">
         <span aria-hidden="true">🐾 </span>
-        {shelter.name}
+        {heading ?? shelter.name}
       </h3>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2">
         {!isApp && (

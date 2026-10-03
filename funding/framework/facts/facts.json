@@ -384,6 +384,28 @@
       "note": "G11 landing rewrite 'Now: Stellar NFTs · Arc shelter rail': the Arc half is C-007 and stays off surfaces until the ShelterSplit deploy (decision #97)."
     },
     {
+      "id": "F-026",
+      "key": "donated_direct_total",
+      "claim": "Total Token Tails reports donating directly, in crypto and in goods, all time to 2026-10-03; not counted in L-disbursed or L-treats",
+      "value": 40000,
+      "unit": "USD",
+      "display": "$40K+ donated directly in crypto and goods (Oct 2026, company-reported)",
+      "appDisplay": "$40K+ donated directly in money and goods (Oct 2026, company-reported)",
+      "short": "$40K+ donated in crypto and goods",
+      "source": "founder statement 2026-10-03 (landing polish request); receipts and transfer records held by Token Tails",
+      "asOf": "2026-10-03",
+      "checkedAt": "2026-10-03",
+      "status": "company-reported",
+      "maxAgeDays": 365,
+      "surfaces": [
+        "landing",
+        "game",
+        "impact"
+      ],
+      "tense": "past",
+      "note": "Founder-attested (2026-10-03), verbatim: 'we have donated over $40K through direct crypto and goods'. Company-reported, never on-chain-verified. Kept separate from L-disbursed and never summed with it. Recipients, the start date, the crypto/goods split and the goods valuation are not stated, so no copy names them. Open for the founder: the start year (then add 'since <year>' to display/appDisplay), the recipients (then 'to shelters' may return), the crypto transfers (date, amount, explorer link) and whether hello@ answers receipt requests (then set recordsOnRequest). Funding drafts: FACTS.md lists company-reported as unverified, which fails fund check at review; to cite it in Arc/Colosseum/Team1, split into F-026a (crypto, verified, sourceUrl = a public receipts list) and F-026b (goods, company-reported), keeping $40K+ as the combined figure."
+    },
+    {
       "id": "P-001",
       "claim": "From reel to on-chain in 3 taps",
       "value": 3,

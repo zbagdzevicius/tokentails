@@ -624,6 +624,16 @@ test('schema: displays on app surfaces pass the app-build word list, or carry an
   assert.deepEqual(problemsOf(withFact({ appDisplay: 'Token Tails sends $1 of treats a day' }, 'C-005')), []);
 });
 
+test('schema: short and recordsOnRequest are optional, surfaced-only and checked (review 26 #4, #8)', () => {
+  assert.deepEqual(problemsOf(withFact({ short: '$1 a day' }, 'C-005')), []);
+  assert.deepEqual(problemsOf(withFact({ recordsOnRequest: true }, 'C-005')), []);
+  assert.match(problemsOf(withFact({ short: '' }, 'C-005')).join('\n'), /short must be a non-empty one-line string/);
+  assert.match(problemsOf(withFact({ short: 'x' }, 'F-002')).join('\n'), /short is only for surfaced entries/);
+  assert.match(problemsOf(withFact({ recordsOnRequest: false }, 'C-005')).join('\n'), /recordsOnRequest is opt-in/);
+  assert.match(problemsOf(withFact({ recordsOnRequest: true }, 'F-002')).join('\n'), /recordsOnRequest is only for surfaced entries/);
+  assert.match(problemsOf(withFact({ short: '1 USDC a day' }, 'C-005')).join('\n'), /short is shown on app surface\(s\) heist but uses USDC/);
+});
+
 test('real registry: C-004/C-005 are present-tense config amounts with app wording; L-rail carries rail state', () => {
   for (const id of ['C-004', 'C-005']) {
     const f = real(id);

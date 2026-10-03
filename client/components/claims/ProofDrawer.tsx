@@ -8,6 +8,7 @@ import { openWebImpact } from "./build";
 import { EvidenceChip } from "./EvidenceChip";
 import { formatFactDate, isStale, parseFactDate, publicSourceUrl } from "./facts";
 import { labelSet } from "./labels";
+import { RECORDS_EMAIL, offersRecords, recordsMailto } from "./records";
 import type { MoneyTier } from "./tiers";
 
 export interface ProofDrawerProps {
@@ -115,6 +116,24 @@ export const ProofDrawer = ({
         >
           {sourceLink.href}
         </a>
+      ),
+    });
+  }
+  if (offersRecords(fact)) {
+    // Opt-in per entry (registry `recordsOnRequest`): the reader can ask for the records behind it.
+    rows.push({
+      term: "How to check",
+      detail: (
+        <>
+          Ask Token Tails for the records behind it:{" "}
+          <a
+            href={recordsMailto(fact.id)}
+            className="break-all text-tt-gold-400 underline underline-offset-2"
+            data-testid="records-request"
+          >
+            {RECORDS_EMAIL}
+          </a>
+        </>
       ),
     });
   }

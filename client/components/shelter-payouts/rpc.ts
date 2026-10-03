@@ -97,7 +97,25 @@ async function rpcOnce<T>(url: string, method: string, params: unknown[]): Promi
   return body.result as T;
 }
 
-export async function rpcCall<T>(url: string, method: string, params: unknown[]): Promise<T> {
+// One request in flight per RPC URL: the page reads balances, receipts and log windows for every
+// deployment at once, and a burst is what earns the HTTP 429s. Calls to the same URL queue up.
+const queues = new Map<string, Promise<unknown>>();
+function serial<T>(url: string, run: () => Promise<T>): Promise<T> {
+  const prev = queues.get(url) || Promise.resolve();
+  const next = prev.then(run, run);
+  const tail = next.catch(() => undefined);
+  queues.set(url, tail);
+  void tail.then(() => {
+    if (queues.get(url) === tail) queues.delete(url);
+  });
+  return next;
+}
+
+export function rpcCall<T>(url: string, method: string, params: unknown[]): Promise<T> {
+  return serial(url, () => rpcRetrying<T>(url, method, params));
+}
+
+async function rpcRetrying<T>(url: string, method: string, params: unknown[]): Promise<T> {
   let backoff = RATE_LIMIT_BACKOFF_MS;
   for (let attempt = 0; ; attempt++) {
     try {
@@ -168,7 +186,48 @@ export async function getLogsWindowed(
   return logs;
 }
 
+/** Plain-language text for a failed chain read; the raw RPC message stays out of the page. */
+export function readErrorText(err: unknown): string {
+  return err instanceof RpcRateLimitError
+    ? "The chain's public RPC is busy right now. Reload in a minute."
+    : "Could not reach the chain right now. Reload in a minute.";
+}
+
+// Payouts read in the last few minutes come from sessionStorage, so a reload or a back-navigation
+// does not fire the whole scan at the public RPCs again. Best effort: storage may be unavailable.
+export const PAYOUTS_CACHE_MS = 5 * 60_000;
+const cacheKey = (d: ShelterDeployment) => `tt-payouts:${d.chainId}:${d.address.toLowerCase()}`;
+
+function readCache(d: ShelterDeployment, now: number): Disbursement[] | null {
+  try {
+    const raw = window.sessionStorage.getItem(cacheKey(d));
+    if (!raw) return null;
+    const v = JSON.parse(raw) as { at: number; items: (Omit<Disbursement, "amount"> & { amount: string })[] };
+    if (typeof v?.at !== "number" || now - v.at > PAYOUTS_CACHE_MS || !Array.isArray(v.items)) return null;
+    return v.items.map((i) => ({ ...i, amount: BigInt(i.amount) }));
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(d: ShelterDeployment, items: Disbursement[], now: number) {
+  try {
+    const plain = items.map((i) => ({ ...i, amount: i.amount.toString() }));
+    window.sessionStorage.setItem(cacheKey(d), JSON.stringify({ at: now, items: plain }));
+  } catch {
+    /* storage full or blocked: no cache */
+  }
+}
+
 export async function fetchDisbursements(d: ShelterDeployment): Promise<Disbursement[]> {
+  const cached = typeof window !== "undefined" ? readCache(d, Date.now()) : null;
+  if (cached) return cached;
+  const items = await scanDisbursements(d);
+  if (typeof window !== "undefined") writeCache(d, items, Date.now());
+  return items;
+}
+
+async function scanDisbursements(d: ShelterDeployment): Promise<Disbursement[]> {
   const chain = resolveChain(d);
   if (!chain) throw new Error(`no public RPC known for chain ${d.chainId}; add "rpc" and "explorer" to the entry`);
   const from = await startBlock(chain.rpc, d);

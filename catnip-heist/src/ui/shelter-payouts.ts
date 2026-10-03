@@ -18,6 +18,7 @@ import { h } from './dom';
 import { HEIST_BODY_FONT } from './fonts.generated';
 import { icon } from './icons';
 import { formatAmount, loadShelterPayouts, type ChainRow, type PayoutRow, type ShelterPayouts } from './payouts';
+import { PINK_PAW_CSS, PINK_PAW_LOGO_ALT, pinkPawCats, pinkPawLogoSrc } from './pink-paw';
 
 /** `?payouts` (any value but 0) or `#payouts` on the page URL opens the modal on load. */
 export function wantsPayoutsDeepLink(loc: { search?: string; hash?: string } | undefined): boolean {
@@ -52,6 +53,9 @@ export function timeAgo(unixSec: number, nowMs: number = Date.now()): string {
 
 /** The showcase shelter (client/public/shelter-payouts/campaign.json). */
 const SHELTER_NAME = 'Pink Paw (Rožinė pėdutė)';
+/** Display headings carry the English name only; the Lithuanian name sits under it in the body face. */
+const SHELTER_SHORT = 'Pink Paw';
+const SHELTER_LOCAL = 'Rožinė pėdutė';
 const LATEST = 8;
 
 export interface PayoutsModalOptions {
@@ -65,8 +69,10 @@ export interface PayoutsModalOptions {
   giveCta?: () => HTMLElement | null;
   /** The rail's small print under the shelter goal (railCopy().line), cited at the call site. */
   railLine?: () => string;
-  /** The heart image for the shelter card (the manifest's brand heart). */
+  /** The heart image for the shelter card (the manifest's brand heart). Unused since the card shows the shelter's own logo; kept for callers. */
   heartSrc?: string;
+  /** Show the shelter's real logo and cats on the shelter card. Default true. */
+  pinkPaw?: boolean;
   /** Data source. Default loadShelterPayouts (cached per page load). */
   load?: (deploymentsUrl: string) => Promise<ShelterPayouts>;
   onClick?(): void;
@@ -112,7 +118,8 @@ function css(base: string): string {
 .ch-pay-hero::before { content: ''; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(180deg, rgba(11,8,32,.35) 0%, rgba(11,8,32,.1) 40%, rgba(11,8,32,.55) 75%, var(--tt-night) 100%); }
 .ch-pay-hero > * { position: relative; }
-.ch-pay-close { position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; min-width: 44px; min-height: 44px; font-size: 18px; z-index: 2; }
+.ch-pay-close { position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; min-width: 44px; min-height: 44px; font-size: 18px; z-index: 2;
+  background: var(--tt-night); box-shadow: 0 0 0 2px var(--tt-night-950); }
 .ch-pay-title:focus { outline: none; }
 .ch-pay-pill, .ch-pay-open { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; border: 1px solid rgba(255,204,85,.55); background: rgba(11,8,32,.72);
   padding: 6px 14px; font-family: ${DISPLAY}; font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--tt-gold);
@@ -181,7 +188,8 @@ function css(base: string): string {
 @media (min-width: 720px) {
   .ch-pay-hero { padding: 22px 64px 26px; }
   .ch-pay-body { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); padding: 4px 22px 20px; align-items: start; gap: 16px; }
-  .ch-pay-side { order: 0; }
+  /* The shelter card stays in view while the payouts and cats scroll past it. */
+  .ch-pay-side { order: 0; position: sticky; top: 16px; }
   .ch-pay-foot { grid-column: 1 / -1; flex-direction: row-reverse; justify-content: space-between; }
   .ch-pay-foot .ch-btn { width: auto; min-width: 260px; }
 }
@@ -192,7 +200,7 @@ function css(base: string): string {
   .ch-pay-amount { font-size: 54px; }
 }
 @media (prefers-reduced-motion: reduce) { .ch-pay-skel { animation: none; } }
-`;
+${PINK_PAW_CSS}`;
 }
 
 function ensureStyles(base: string): void {
@@ -210,6 +218,7 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
   ensureStyles(opts.base);
   const load = opts.load ?? loadShelterPayouts;
   const now = opts.now ?? (() => Date.now());
+  const pinkPaw = opts.pinkPaw ?? true;
   let open = false;
   let opener: HTMLElement | null = null;
   let run = 0;
@@ -262,7 +271,14 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
       'section.ch-pay-box.ch-pay-shelter',
       { 'data-testid': 'payouts-shelter' },
       h('p.ch-pay-kicker', null, 'Showcase shelter'),
-      h('h3', null, h('img', { src: opts.heartSrc ?? `${opts.base}images/heart.webp`, alt: '' }), SHELTER_NAME),
+      pinkPaw
+        ? h(
+            'div.ch-pp-head',
+            null,
+            h('img.ch-pp-logo', { src: pinkPawLogoSrc(opts.base), alt: PINK_PAW_LOGO_ALT, 'data-testid': 'pink-paw-logo' }),
+            h('div', null, h('h3', null, SHELTER_SHORT), h('p.ch-pp-local', { lang: 'lt' }, SHELTER_LOCAL)),
+          )
+        : h('h3', null, h('img', { src: opts.heartSrc ?? `${opts.base}images/heart.webp`, alt: '' }), SHELTER_NAME),
       // claim: C-001 (the campaign goal, wording from the facts registry)
       h('p.ch-pay-goal', { 'data-claim': 'C-001' }, goal.display),
       // claim: C-004, L-rail (the rail line from railCopy)
@@ -272,10 +288,16 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
     );
   }
 
+  /** The shelter's real cats: card art with the shelter's photo of each cat. */
+  function catsBox(): HTMLElement {
+    return h('section.ch-pay-box', { 'data-testid': 'payouts-pink-paw' }, h('h3', null, "Pink Paw's cats"), pinkPawCats(opts.base, undefined, opts.payoutsUrl));
+  }
+
   function paintLoading() {
     total.setAttribute('aria-busy', 'true');
     total.replaceChildren(h('span.ch-pay-skel', { 'aria-hidden': 'true' }), h('p.ch-pay-note', null, 'Reading the chain…'));
-    lists.replaceChildren(h('section.ch-pay-box', null, h('h3', null, 'Latest payouts'), h('p.ch-pay-empty', null, 'Loading the latest payouts…')));
+    const loading = h('section.ch-pay-box', null, h('h3', null, 'Latest payouts'), h('p.ch-pay-empty', null, 'Loading the latest payouts…'));
+    lists.replaceChildren(...(pinkPaw ? [loading, catsBox()] : [loading]));
   }
 
   function payoutItem(p: PayoutRow): HTMLElement {
@@ -371,6 +393,7 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
     }
     if (!data.payouts.length && data.status !== 'error') sections.unshift(howItWorks());
     if (!sections.length) sections.push(howItWorks());
+    if (pinkPaw) sections.push(catsBox());
     lists.replaceChildren(...sections);
     el.dataset.state = data.status === 'ok' && !amount ? 'empty' : data.status;
   }

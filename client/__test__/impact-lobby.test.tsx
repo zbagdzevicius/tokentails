@@ -11,8 +11,8 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 
 jest.mock("@/constants/utils", () => ({ cdnFile: (p: string) => `/${p}`, bgStyle: () => ({}), isMobile: () => false }));
 jest.mock("@/components/claims/Claim", () => ({
-  Claim: ({ id, values }: { id: string; values: Record<string, unknown> }) => (
-    <span data-testid="claim" data-claim={id}>
+  Claim: ({ id, values, text }: { id: string; values: Record<string, unknown>; text?: string }) => (
+    <span data-testid="claim" data-claim={id} data-text={text}>
       {JSON.stringify(values)}
     </span>
   ),
@@ -337,7 +337,7 @@ describe("ImpactStrip", () => {
     render(<ImpactStrip impact={snapshot()} paw={paw} onOpenImpact={onOpen} isApp={false} />);
     const strip = screen.getByTestId("impact-strip");
     expect(strip.getAttribute("aria-live")).toBe("off");
-    expect(screen.getByTestId("impact-strip-empty").textContent).toMatch(/No treats sent yet\. Token Tails sends/);
+    expect(screen.getByTestId("impact-strip-empty").textContent).toMatch(/^No treat-rail payouts yet\. The first goes out when the rail opens\.$/);
     const pause = screen.getByTestId("impact-strip-pause");
     expect(pause.getAttribute("aria-pressed")).toBe("false");
     act(() => {
@@ -368,8 +368,17 @@ describe("ImpactStrip", () => {
       treats: { confirmedCount: 1, onTheirWayCount: 0, totalConfirmedWei: "10000000000000000" },
     });
     render(<ImpactStrip impact={paid} paw={paw} onOpenImpact={jest.fn()} isApp={false} />);
-    expect(screen.getAllByTestId("claim").map((c) => c.getAttribute("data-claim"))).toEqual(["L-treats"]);
+    expect(screen.getAllByTestId("claim").map((c) => c.getAttribute("data-claim"))).toEqual(["F-026", "L-treats"]);
     expect(screen.queryByTestId("impact-strip-empty")).toBeNull();
+  });
+
+  it("uses the registry's short words for F-026 and labels the rail group after it", () => {
+    render(<ImpactStrip impact={snapshot()} paw={paw} onOpenImpact={jest.fn()} isApp={false} />);
+    const given = screen.getAllByTestId("claim").find((c) => c.getAttribute("data-claim") === "F-026")!;
+    expect(given.getAttribute("data-text")).toBe("$40K+ donated in crypto and goods");
+    const label = screen.getByTestId("impact-strip-rail-label");
+    expect(label.textContent).toBe("On the treat rail:");
+    expect(given.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("opens web proof from an app build instead of a link", () => {

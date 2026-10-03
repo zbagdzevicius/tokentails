@@ -17,6 +17,10 @@ import { cdnFile } from "@/constants/utils";
 type CardWrapperProps = {
   children: React.ReactNode;
   style?: React.CSSProperties;
+  /**
+   * Mint number and edition size. Shown only when both are given and real: no caller has a
+   * true mint number today, so the footer shows the tier alone (no "1 / 200" placeholder).
+   */
   cardNumber?: number;
   totalCards?: number;
   catType: CatAbilityType;
@@ -25,7 +29,14 @@ type CardWrapperProps = {
 };
 
 const DROP_SHADOW_COLOR = "rgba(0, 0, 0, 0.3)";
-const RESET_DROP_SHADOW = "drop-shadow(0 15px 15px rgba(0, 0, 0, 0.3))";
+// 15 px on the 400 px card, in cqw so a small card gets a proportionally small shadow. The
+// shadow is applied on hover and kept after it (a filter at rest on every My Pets card costs
+// paint time on phones; the old `[drop-shadow:...]` class was not valid CSS and did nothing).
+const SHADOW_BLUR = "3.75cqw";
+const RESET_DROP_SHADOW = `drop-shadow(0 ${SHADOW_BLUR} ${SHADOW_BLUR} ${DROP_SHADOW_COLOR})`;
+// Footer text: white with a tight dark halo, readable on every card colour.
+const FOOTER_INK =
+  "text-white [text-shadow:0_0_0.6cqw_rgba(0,0,0,0.85),0_0.3cqw_0_rgba(0,0,0,0.6)]";
 const RESET_TRANSFORM = "rotateY(0deg) rotateX(0deg) scale(1)";
 const GLARE_HIDE_DELAY = 200;
 const SPARKLE_IMAGE = cdnFile("cards/backgrounds/sparkle.webp");
@@ -40,8 +51,8 @@ const patternImages: Record<Tier, string> = {
 export const CardWrapper: React.FC<CardWrapperProps> = ({
   children,
   style,
-  cardNumber = 1,
-  totalCards = 200,
+  cardNumber,
+  totalCards,
   catType,
   isBackSide = false,
   tier,
@@ -95,7 +106,7 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
       const calcShadowX = (mouseX - halfWidth) / 3;
       const calcShadowY = (mouseY - halfHeight) / 6;
 
-      item.style.filter = `drop-shadow(${-calcShadowX}px ${-calcShadowY}px 15px ${DROP_SHADOW_COLOR})`;
+      item.style.filter = `drop-shadow(${-calcShadowX}px ${-calcShadowY}px ${SHADOW_BLUR} ${DROP_SHADOW_COLOR})`;
     },
     []
   );
@@ -143,7 +154,11 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
       <LegendaryElectricBorderSVG />
       <div
         ref={cardRef}
-        className="relative w-[90vw] max-w-[400px] aspect-[17/23] [transform-style:preserve-3d] [backface-visibility:hidden]"
+        // A size container: everything inside is sized in `cqw` (1 cqw = 1% of the card's width),
+        // so a 144 px My Pets card is an exact scale model of the 400 px full card. Reference:
+        // 1 px on the 400 px card = 0.25cqw. See CARD_REFERENCE_WIDTH in cardScale.ts.
+        className="relative w-[90vw] max-w-[400px] aspect-[17/23] [container-type:inline-size] [transform-style:preserve-3d] [backface-visibility:hidden]"
+        data-tails-card=""
         style={{
           WebkitTransformStyle: "preserve-3d",
           WebkitBackfaceVisibility: "hidden",
@@ -155,7 +170,7 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
       >
         <div
           ref={innerCardRef}
-          className={`relative w-full h-full glow-box-${catType} bg-cover bg-center rounded-[20px] transition-[transform,filter] duration-150 ease-out [transform-style:preserve-3d] [will-change:transform,filter] [backface-visibility:hidden] [drop-shadow:0_15px_15px_rgba(0,0,0,0.3)]`}
+          className={`relative w-full h-full glow-box-${catType} bg-cover bg-center rounded-[5cqw] transition-[transform,filter] duration-150 ease-out [transform-style:preserve-3d] [will-change:transform,filter] [backface-visibility:hidden]`}
           style={{
             backgroundImage: `url(${backgroundImage})`,
             transform: "rotateX(0deg) rotateY(0deg) scale(1)",
@@ -169,7 +184,7 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
             <LegendaryElectricBorder borderColor={borderColor} />
           )}
           {!isBackSide && (
-            <div className="absolute inset-[6%] rounded-[20px] bg-[#0b0b2a]" />
+            <div className="absolute inset-[6%] rounded-[5cqw] bg-[#0b0b2a]" />
           )}
           <div className="absolute inset-[6%]">
             <img
@@ -198,7 +213,7 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
             />
             <CardEffects tier={tier} />
             <div
-              className="relative w-full h-full overflow-hidden cursor-pointer flex items-center justify-center rounded-xl border-[3px]"
+              className="relative w-full h-full overflow-hidden cursor-pointer flex items-center justify-center rounded-[3cqw] border-[max(1px,0.75cqw)]"
               style={{
                 background: isBackSide ? "transparent" : bodyGradient,
                 borderColor: borderColor,
@@ -219,16 +234,26 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
             </div>
           </div>
 
-          <div className="absolute inset-x-[8%] bottom-[0.9%] flex items-baseline justify-between gap-2 font-primary font-bold leading-none pointer-events-none">
+          {/* Footer: 12 px and 18 px on the 400 px card, scaled with the card (never the viewport).
+              Under 260 px wide (My Pets, the payout pages) the tier label would be under 8 px and
+              unreadable, so it is hidden and "TOKEN TAILS" is centred; the tier still shows in the
+              card's border. White ink with a dark halo: the tier colour on its own border had
+              almost no contrast on the light (ice, sky) cards. */}
+          <div
+            data-card-footer=""
+            className="absolute inset-x-[8%] bottom-[0.9%] flex items-baseline justify-between [@container(max-width:260px)]:justify-center gap-[2cqw] font-primary font-bold leading-none pointer-events-none"
+          >
             <span
-              className="text-[clamp(8px,1.1vw,12px)] whitespace-nowrap"
-              style={{ color: borderColor }}
+              data-card-tier=""
+              className={`text-[length:3cqw] whitespace-nowrap [@container(max-width:260px)]:hidden ${FOOTER_INK}`}
             >
-              {tier}: {cardNumber} / {totalCards}
+              {tier}
+              {cardNumber != null && totalCards != null
+                ? `: ${cardNumber} / ${totalCards}`
+                : null}
             </span>
             <span
-              className="text-[clamp(11px,1.5vw,18px)] whitespace-nowrap [text-shadow:0_2px_4px_rgba(0,0,0,0.3)]"
-              style={{ color: borderColor }}
+              className={`text-[length:4.5cqw] whitespace-nowrap ${FOOTER_INK}`}
             >
               TOKEN TAILS
             </span>

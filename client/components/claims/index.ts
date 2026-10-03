@@ -9,3 +9,4 @@ export { labelSet, APP_LABELS, WEB_LABELS } from "./labels";
 export { MONEY_TIERS, CHIP_STYLE, TONES } from "./tiers";
 export type { MoneyTier, ChipKind, LabelSet } from "./tiers";
 export { moneyTierFor } from "./evidence";
+export { RECORDS_EMAIL, offersRecords, recordsMailto } from "./records";

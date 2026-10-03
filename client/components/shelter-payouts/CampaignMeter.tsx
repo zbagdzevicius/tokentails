@@ -1,5 +1,5 @@
 // copy-lint: web-only rendered only by the web ShelterPayouts (app builds show AppProofNotice)
-import { Campaign, CampaignProgress } from "./campaign";
+import { Campaign, CampaignProgress, claimsDateLabel } from "./campaign";
 import { formatUnits } from "./logs";
 import { CARD, FIGURE } from "./ui";
 
@@ -22,10 +22,14 @@ export const CampaignMeter = ({
   <section className={`${CARD} flex flex-col gap-3 text-p5`} data-testid="campaign-meter">
     <div className="flex flex-wrap items-baseline justify-between gap-2">
       <h3 className="font-primary uppercase text-p3 md:text-p2 leading-none text-tt-cream">{campaign.name}</h3>
-      {campaign.startDate && <span className="text-p6 md:text-p5 text-tt-cream/75">since {campaign.startDate}</span>}
+      {claimsDateLabel(campaign.startDate) && (
+        <span className="text-p6 md:text-p5 text-tt-cream/75">since {claimsDateLabel(campaign.startDate)}</span>
+      )}
     </div>
+    {/* One value line and the bar; the count line below adds only what the bar cannot show. */}
     <p className={`${FIGURE} text-h5 md:text-h4`}>
-      {usdc(progress.raised)} <span className="text-p2 md:text-p1 text-tt-cream">/ {usdc(progress.goal)} USDC</span>
+      {usdc(progress.raised)}{" "}
+      <span className="text-p3 md:text-p2 text-tt-cream [text-shadow:none]">of {usdc(progress.goal)} USDC raised on-chain</span>
     </p>
     <div
       className="h-6 w-full overflow-hidden rounded-lg border-4 border-tt-cream bg-tt-night-950"
@@ -35,16 +39,18 @@ export const CampaignMeter = ({
       aria-valuenow={progress.percent}
       aria-label={`${campaign.name} progress`}
     >
+      {/* A small gold stub at 0% so the empty bar still reads as a meter, not an input field. */}
       <div
         className="h-full bg-gradient-to-r from-tt-pink to-tt-gold-400 shadow-[0_0_12px_rgb(var(--tt-gold-400)/.6)] motion-safe:transition-all motion-safe:duration-700"
-        style={{ width: `${progress.percent}%` }}
+        style={{ width: `${Math.max(3, progress.percent)}%` }}
       />
     </div>
-    <p className="text-tt-cream/90">
-      <strong className="text-tt-cream">{usdc(progress.raised)}</strong> of {usdc(progress.goal)} USDC raised on-chain
-      {progress.count > 0 ? ` from ${progress.count} payout${progress.count === 1 ? "" : "s"}` : ""}
-      {loading ? " (still counting…)" : ""}
-    </p>
+    {(progress.count > 0 || loading) && (
+      <p className="text-tt-cream/90">
+        {progress.count > 0 ? `From ${progress.count} payout${progress.count === 1 ? "" : "s"}` : ""}
+        {loading ? `${progress.count > 0 ? " " : ""}(still counting…)` : ""}
+      </p>
+    )}
     {!progress.counting && (
       <p className="text-tt-cream/75">The meter starts counting when the shelter wallet goes live.</p>
     )}

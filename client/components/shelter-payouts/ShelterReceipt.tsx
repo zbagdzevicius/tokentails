@@ -8,6 +8,8 @@ import { ChainInfo, explorerAddress, explorerTx } from "./chains";
 import { displayMemo, formatUnits, payoutUnit } from "./logs";
 import { DecodedReceipt, TX_HASH, fetchReceipt, receiptChain } from "./receipt";
 import { AppProofNotice } from "./AppProofNotice";
+import { isPinkPawWallet } from "./pinkPaw";
+import { PinkPawStrip } from "./PinkPawShowcase";
 import { ShelterDeployment, fetchDeployments } from "./rpc";
 import { downloadShareCard } from "./shareCard";
 import { CARD, CHIP, FIGURE, MEMO, GOLD_BUTTON, Kicker, NightStage, PANEL, PILL } from "./ui";
@@ -198,6 +200,13 @@ const WebShelterReceipt = () => {
         <NextLink href="/shelter-payouts" className={PILL}>
           See every payout ›
         </NextLink>
+
+        {/* Only when a payout in this receipt went to Pink Paw's own wallet: its logo and cats. */}
+        {done && campaign && done.receipt.payouts.some((p) => isPinkPawWallet(p.shelter)) && (
+          <div className="mt-6 w-full">
+            <PinkPawStrip name={campaign.shelter.name} title="The cats behind this receipt" />
+          </div>
+        )}
       </div>
     </NightStage>
   );

@@ -36,10 +36,10 @@ payAndFetch in the open SDK does all of this in one call: it refuses any price a
 
 ## How it works <!-- criterion: C1, C3 | limit: 1500 -->
 - ShelterSplit on Arc at {SPLIT_ADDRESS}: a registry of shelter wallets, names and shares in basis points. donate(memo) splits the USDC sent with the call across every active shelter in the same transaction and emits one public event per payout. The contract never holds funds between calls. An ERC-20 path, disburse(), does the same through the USDC token interface, with separate events so the two decimal scales never mix.
-- Sponsored treats, the human-facing twin: after a win in Catnip Heist (https://tokentails.com/heist) a signed-in player taps "Send Pink Paw a rescue treat", and a backend wallet with a small float pays a tiny gift, once a day per player, from a capped daily budget. Each payout gets a receipt page and a share card. First treat: {ARC_TX}.
+- Sponsored treats, the human-facing twin: after a win in Catnip Heist (https://tokentails.com/heist) a signed-in player (anti-abuse: verified email, account older than a day) taps "Send Pink Paw a rescue treat", and a backend wallet with a small float pays a tiny gift, once a day per player, from a capped daily budget. Each payout gets a receipt page and a share card. First treat: {ARC_TX}.
 - The payouts page at https://tokentails.com/shelter-payouts reads chain events, not our database.
 - Safety: reentrancy guard, pause, two-step ownership, caps, a Foundry suite with fuzzing, and backend tests for the receipt check and replay protection.
-- Trust model: the chain proves the funds reached the registered wallet, not who controls it. MIT, at github.com/zbagdzevicius/tokentails.
+- Trust model: the chain proves the funds reached the registered wallet, not who controls it. ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/ in github.com/zbagdzevicius/tokentails).
 
 ## Circle tools used <!-- criterion: C3 | limit: 900 -->
 - USDC on Arc as both the payment and the gas: the agent needs no second token, and neither does a shelter.

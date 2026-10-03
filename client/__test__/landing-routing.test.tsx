@@ -6,7 +6,7 @@
  * export, sitemap exclusion, and old landing anchors on the root page.
  */
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 process.env.NEXT_PUBLIC_DOMAIN = "https://tokentails.com";
 
@@ -381,7 +381,7 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
   });
 });
 
-describe("landing CTAs and tie-back (plan G14, G3, G2)", () => {
+describe("landing CTAs (plan G14, G3, G2)", () => {
   // The landing reads the player only in a browser that has had a session (Task 6b review #4).
   beforeEach(() => {
     window.localStorage.setItem(SESSION_HINT_KEY, "1");
@@ -400,7 +400,7 @@ describe("landing CTAs and tie-back (plan G14, G3, G2)", () => {
     render(<HomePage />);
     expect(await screen.findByRole("link", { name: "MEET YOUR CAT" })).toBeTruthy();
     expect(mockPlayerMounts).toBe(0);
-    expect(screen.queryByTestId("hero-tieback")).toBeNull();
+    expect(document.body.textContent ?? "").not.toMatch(/is waiting/i);
   });
 
   it("a failing player read keeps the landing and its signed-out labels (Task 6b review #2)", () => {
@@ -424,24 +424,32 @@ describe("landing CTAs and tie-back (plan G14, G3, G2)", () => {
   it("signed out: MEET YOUR CAT and no hero line", async () => {
     render(<HomePage />);
     expect(await screen.findByRole("link", { name: "MEET YOUR CAT" })).toBeTruthy();
-    expect(screen.queryByTestId("hero-tieback")).toBeNull();
+    expect(document.body.textContent ?? "").not.toMatch(/is waiting/i);
   });
 
   it("onboarding pending: still MEET YOUR CAT, no hero line", async () => {
     mockPlayer = { signedIn: true, onboardingState: "pending", catName: "Scout" };
     render(<HomePage />);
     expect(await screen.findByRole("link", { name: "MEET YOUR CAT" })).toBeTruthy();
-    expect(screen.queryByTestId("hero-tieback")).toBeNull();
+    expect(document.body.textContent ?? "").not.toMatch(/is waiting/i);
   });
 
-  it("done: '{catName} IS WAITING' on the crew CTA and the hero line", async () => {
+  it("done: the crew CTA reads BACK TO YOUR CAT, not a second PLAY GAME, and no 'waiting' echo", async () => {
     mockPlayer = { signedIn: true, onboardingState: "done", catName: "Miso" };
-    render(<HomePage />);
-    expect((await screen.findByTestId("hero-tieback")).textContent).toBe("Miso is waiting for you");
-    const crew = screen.getByRole("link", { name: "MISO IS WAITING" });
-    expect(crew.getAttribute("href")).toBe("/game?from=landing_crew");
+    const { container } = render(<HomePage />);
+    await waitFor(() => expect(screen.getByTestId("crew-cta").getAttribute("aria-label")).toBe("BACK TO YOUR CAT"));
+    // One PLAY GAME on the page (the hero); the crew CTA says something else (founder, Oct 3).
+    expect(screen.getAllByRole("link", { name: "PLAY GAME" }).map((a) => a.getAttribute("data-testid"))).toEqual([
+      "hero-cta",
+    ]);
+    expect(screen.getByTestId("crew-cta").getAttribute("href")).toBe("/game?from=landing_crew");
+    const text = container.textContent ?? "";
+    expect(text).not.toMatch(/is waiting/i);
+    expect(text).not.toMatch(/waiting for you/i);
+    expect(text).not.toMatch(/Miso/);
     expect(screen.queryByText(/PLAY TO SAVE/)).toBeNull();
   });
+
 
   it("carries where a CTA was tapped in its /game link and tracks nothing on the landing", () => {
     const { container } = render(<HomePage />);
@@ -511,7 +519,7 @@ describe("landing_cta from /game (Task 6b review #1)", () => {
 
 describe("playerStateFrom (the landing's optional, non-creating profile read)", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { playerStateFrom, isWaitingCat } = require("@/components/landing/landingCta");
+  const { playerStateFrom } = require("@/components/landing/landingCta");
   const cat = { name: "Miso" };
 
   it("is signed out without a session, while loading, and for a transient guest", () => {
@@ -529,7 +537,5 @@ describe("playerStateFrom (the landing's optional, non-creating profile read)", 
     });
     const legacy = playerStateFrom("ready", { cat });
     expect(legacy.onboardingState).toBe("done");
-    expect(isWaitingCat(legacy)).toBe(true);
-    expect(isWaitingCat(playerStateFrom("ready", { cat: { name: " " } }))).toBe(false);
   });
 });

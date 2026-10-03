@@ -8,6 +8,10 @@ import {
 import React, { useMemo } from "react";
 import { CardWrapper } from "./CardWrapper";
 import { cdnFile } from "@/constants/utils";
+import { catName } from "@/components/shelter-payouts/pinkPaw";
+import { nameFont } from "@/lib/glyphs";
+
+const MINI_CARD_STYLE: React.CSSProperties = { width: "100%", maxWidth: "none" };
 
 type Props = {
   cat?: ICat;
@@ -30,62 +34,68 @@ export const TailsCardMini: React.FC<Props> = ({ cat, onClick }) => {
 
   return (
     <>
-      <style jsx global>{`
-        .tails-card-mini-wrapper [class*="bottom-[1.25%]"],
-        .tails-card-mini-wrapper [class*="bottom-[0.5%]"] {
-          display: none !important;
-        }
-      `}</style>
-      <div className="flex flex-col items-center tails-card-mini-wrapper w-36 group">
+      {/* Fills its grid cell up to 180 px; the card inside scales in cqw, so any width works. */}
+      <div className="flex flex-col items-center tails-card-mini-wrapper mx-auto w-full max-w-[180px] group">
         <div
           onClick={(e) => {
             e.stopPropagation();
             onClick?.();
           }}
-          className="animate-opacity cursor-pointer inline-block"
+          className="animate-opacity cursor-pointer block w-full"
         >
           <CardWrapper
             tier={cat.tier}
             catType={cat.type}
             isBackSide={true}
-            style={{
-              width: "144px", // w-36 = 9rem = 144px
-              maxWidth: "144px",
-            }}
+            style={MINI_CARD_STYLE}
           >
             <div className="relative w-full h-full">
               {/* Custom mini card back without power section */}
               <div className="w-full h-full relative">
-                <img
-                  draggable={false}
-                  src={
-                    cat.blessing?.catAvatar?.url ||
-                    cdnFile("cards/backgrounds/card-placeholder.webp")
-                  }
-                  alt="Card Back"
-                  className="opacity-90 w-full h-full object-cover"
-                />
+                {cat.blessing?.catAvatar?.url || !cat.catImg ? (
+                  <img
+                    draggable={false}
+                    src={
+                      cat.blessing?.catAvatar?.url ||
+                      cdnFile("cards/backgrounds/card-placeholder.webp")
+                    }
+                    alt=""
+                    className="opacity-90 w-full h-full object-cover"
+                  />
+                ) : (
+                  // A starter cat has no card art: show its own pixel sprite, not the generic logo.
+                  <span className="flex h-full w-full items-end justify-center bg-gradient-to-b from-tt-dusk-top via-tt-dusk-mid to-tt-dusk-horizon pb-[12%]">
+                    <img
+                      draggable={false}
+                      src={cat.catImg}
+                      alt=""
+                      className="pixelated w-[70%] h-auto object-contain"
+                      data-testid="mini-card-sprite"
+                    />
+                  </span>
+                )}
 
-                {/* Cat name and type icon - reduced size */}
-                <div className="absolute top-[4%] left-[5%] flex items-center gap-1.5 z-10">
+                {/* Cat name and type icon, sized in cqw like the rest of the card (the
+                    values keep the look this mini card was drawn at, 144 px wide). */}
+                <div className="absolute top-[4%] left-[5%] flex items-center gap-[4.2cqw] z-10">
                   <div
-                    className="w-5 h-5 rounded-full flex items-center justify-center"
+                    className="w-[13.9cqw] h-[13.9cqw] rounded-full flex items-center justify-center"
                     style={{ backgroundColor: borderColor }}
                   >
                     <img
                       draggable={false}
                       src={typeIcon}
                       alt={cat.type}
-                      className="object-contain w-4 h-4"
+                      className="object-contain w-[11.1cqw] h-[11.1cqw]"
                     />
                   </div>
                   <span
-                    className="text-black font-bold font-primary text-xs [text-shadow:1px_1px_2px_rgba(0,0,0,0.3)]"
+                    className={`text-black font-bold ${nameFont(catName(cat))} text-[length:8.3cqw] leading-none [text-shadow:0.7cqw_0.7cqw_1.4cqw_rgba(0,0,0,0.3)]`}
                     style={{
-                      WebkitTextStroke: `0.5px ${borderColor}`,
+                      WebkitTextStroke: `0.35cqw ${borderColor}`,
                     }}
                   >
-                    {cat.name}
+                    {catName(cat)}
                   </span>
                 </div>
               </div>

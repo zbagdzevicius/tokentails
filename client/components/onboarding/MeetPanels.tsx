@@ -1,3 +1,5 @@
+import { PINK_PAW_LOCAL_NAME, PINK_PAW_SLUG } from "@/components/shelter-payouts/pinkPaw";
+import { nameFont } from "@/lib/glyphs";
 import type { IFeaturedCat } from "@/api/starter-api";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { PixelIcon } from "@/components/shared/PixelIcon";
@@ -382,7 +384,8 @@ export const FeaturedPanel = ({
         {cats.map((cat) => {
           const name = displayCatName(cat.name);
           const isFollowing = following.has(cat._id);
-          const photo = cat.catAvatar || cat.image;
+          // The shelter's real photo first; the card art only when there is no photo.
+          const photo = cat.image || cat.catAvatar;
           return (
             <li
               key={cat._id}
@@ -402,9 +405,11 @@ export const FeaturedPanel = ({
                 <span aria-hidden="true" className="h-14 w-14 shrink-0 border-2 border-tt-gold-500 bg-tt-night-600" />
               )}
               <div className="min-w-0 flex-1">
-                <p className="font-primary text-p4 uppercase leading-none text-tt-cream">{name}</p>
+                <p className={`${nameFont(name)} text-p4 uppercase leading-none text-tt-cream`}>{name}</p>
                 {cat.shelter?.name && (
-                  <p className="truncate font-sans text-p6 text-tt-muted">{cat.shelter.name}</p>
+                  <p className="truncate font-sans text-p6 text-tt-muted">
+                    {cat.shelter.slug === PINK_PAW_SLUG ? PINK_PAW_LOCAL_NAME : cat.shelter.name}
+                  </p>
                 )}
                 {cat.excerpt && (
                   <p className="line-clamp-2 font-sans text-p6 leading-snug text-tt-cream/85 max-md:hidden">

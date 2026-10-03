@@ -4,8 +4,8 @@ import type { CrewCtaState } from "./TeamSection";
 
 /**
  * The landing's view of the player (plan G3 "Landing tie-back", 2.13 row 34): signed in or not,
- * whether Meet your cat is still pending, and the cat's name. It drives the crew CTA label and the
- * hero line, so both always match what `/game` will show.
+ * whether Meet your cat is still pending, and the cat's name. It drives the crew CTA label, so the
+ * label always matches what `/game` will show.
  *
  * Read with an `optional` auth provider: an existing session (a guest's included) is reused and its
  * profile read with `GET /user/profile`, which never creates anything. A visitor without a session
@@ -23,10 +23,6 @@ export function playerStateFrom(
   const onboardingState = profile?.onboarding?.state ?? "done";
   return { signedIn: true, onboardingState, catName: profile?.cat?.name ?? null };
 }
-
-/** True when the hero should greet the player's cat by name. */
-export const isWaitingCat = (state: CrewCtaState | null | undefined): state is CrewCtaState & { catName: string } =>
-  !!state?.signedIn && state.onboardingState !== "pending" && !!state.catName?.trim();
 
 /** Where on the landing a CTA was tapped (`landing_cta {from}`). */
 export type LandingCtaFrom = "hero" | "hero_fallback" | "sample_card" | "crew";

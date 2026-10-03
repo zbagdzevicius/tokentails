@@ -1,6 +1,6 @@
 # Colosseum Crypto World's Fair — submission
 
-_Generated 2026-10-03T19:05:08.675Z by `fund a:submission colosseum-worlds-fair` from draft.md, the program profile,
+_Generated 2026-10-03T19:13:11.194Z by `fund a:submission colosseum-worlds-fair` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -28,8 +28,8 @@ Apps that say "part of your purchase helps shelters" give the buyer no way to ch
 Built between 2026-09-14 and 2026-10-12:
 - ShelterSplit, the rail. A registry in the contract (wallet, name, share in basis points). disburseWithMemo(amount, memo32) pulls USDC.e and pays every active shelter its share in one transaction, each with TIP-20 transferWithMemo carrying the purchase reference. The rest goes to the treasury.
 - The payouts page at https://tokentails.com/shelter-payouts: each shelter, what it received and an explorer link per payout, read from chain events. No backend is trusted for the numbers.
-- Catnip Heist at https://tokentails.com/heist, a deterministic voxel stealth game and the new front door for purchases that fund shelters.
-- The giving loop: after a Heist win a signed-in player taps "Send Pink Paw a rescue treat", and Token Tails pays a small sponsored gift, once a day, from a capped budget. Each payout gets a receipt page and a share card. Pink Paw's profile carries the custody disclosure, and a campaign meter sums the payouts. The gift runs on the Arc instance first.
+- Catnip Heist at https://tokentails.com/heist, a deterministic voxel stealth game, the planned front door for shelter-funding purchases (roadmap step 3).
+- The giving loop: after a Heist win a verified player (account a day old) taps "Send Pink Paw a rescue treat", and Token Tails pays a small sponsored gift, once a day, from a capped budget. Each payout gets a receipt page and a share card. Pink Paw's profile carries the custody disclosure, and a campaign meter sums the payouts. The gift runs on the Arc instance first.
 - ShelterSplit Rail: an MIT SDK and an embeddable donate widget.
 The buyer never touches a wallet: purchases stay card or in-app payments.
 
@@ -46,7 +46,7 @@ Tempo is a payments chain, and Token Tails already takes card payments through S
 - Sponsored gifts, on Arc: a backend wallet with a small float calls donate(), with a memo that holds no personal data.
 - Agent payments, off until handover: an x402-compatible endpoint. The agent pays donate('x402:<nonce>') on Arc and retries with the tx hash, checked over RPC and accepted once. Our own onchain-receipt scheme, no facilitator.
 - Trust model: the chain proves the funds reached the registered wallet, not who controls it. The first wallet is held by Token Tails on behalf of Pink Paw until handover.
-- MIT, at github.com/zbagdzevicius/tokentails.
+- ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/ in github.com/zbagdzevicius/tokentails).
 
 ## On-chain proof
 

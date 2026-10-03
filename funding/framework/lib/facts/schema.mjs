@@ -19,7 +19,7 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const WALLET = /^0x[0-9a-fA-F]{40}$/;
 
 const REQUIRED = ['id', 'claim', 'value', 'unit', 'display', 'source', 'asOf', 'checkedAt', 'status', 'maxAgeDays', 'surfaces', 'tense'];
-const OPTIONAL = ['chain', 'live', 'key', 'note', 'goal', 'campaign', 'config', 'evidence', 'effectiveAt', 'appDisplay'];
+const OPTIONAL = ['chain', 'live', 'key', 'note', 'goal', 'campaign', 'config', 'evidence', 'effectiveAt', 'appDisplay', 'short', 'recordsOnRequest'];
 
 /** Surfaces that ship in the Capacitor app build (the Heist included: it is in the app export). */
 export const APP_SURFACES = ['game', 'heist', 'store'];
@@ -163,6 +163,8 @@ export function validateRegistry(registry, { exists = () => true } = {}) {
     if (!(f.unit === null || typeof f.unit === 'string')) bad('unit must be a string or null');
     if (!(f.display === null || typeof f.display === 'string')) bad('display must be a string or null');
     if (f.appDisplay !== undefined && (typeof f.appDisplay !== 'string' || !f.appDisplay.trim() || /[|\n\r]/.test(f.appDisplay))) bad('appDisplay must be a non-empty one-line string');
+    if (f.short !== undefined && (typeof f.short !== 'string' || !f.short.trim() || /[|\n\r]/.test(f.short))) bad('short must be a non-empty one-line string');
+    if (f.recordsOnRequest !== undefined && f.recordsOnRequest !== true) bad('recordsOnRequest is opt-in: true or absent');
 
     if (!STATUSES.includes(f.status)) bad(`status must be one of ${STATUSES.join(', ')}`);
     if (!TENSES.includes(f.tense)) bad(`tense must be one of ${TENSES.join(', ')}`);
@@ -187,9 +189,13 @@ export function validateRegistry(registry, { exists = () => true } = {}) {
           const shown = typeof f.appDisplay === 'string' ? f.appDisplay : f.display;
           const hit = typeof shown === 'string' ? appWord(shown) : null;
           if (hit) bad(`${typeof f.appDisplay === 'string' ? 'appDisplay' : 'display'} is shown on app surface(s) ${onApp.join(', ')} but uses ${hit.what}: "${hit.word}"; add an appDisplay without it (claims rule R10)`);
+          const shortHit = typeof f.short === 'string' ? appWord(f.short) : null;
+          if (shortHit) bad(`short is shown on app surface(s) ${onApp.join(', ')} but uses ${shortHit.what}: "${shortHit.word}" (claims rule R10)`);
         }
-      } else if (f.appDisplay !== undefined) {
-        bad('appDisplay is only for surfaced entries');
+      } else {
+        if (f.appDisplay !== undefined) bad('appDisplay is only for surfaced entries');
+        if (f.short !== undefined) bad('short is only for surfaced entries');
+        if (f.recordsOnRequest !== undefined) bad('recordsOnRequest is only for surfaced entries');
       }
     }
 

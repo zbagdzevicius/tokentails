@@ -8,6 +8,8 @@ import { Campaign, fetchCampaign } from "./campaign";
 import { Celebration } from "./Celebration";
 import { SHELTER_CHAINS } from "./chains";
 import { formatUnits } from "./logs";
+import { headingName, isPinkPawWallet } from "./pinkPaw";
+import { PinkPawLogo, PinkPawStrip } from "./PinkPawShowcase";
 import { CUSTODY_DISCLOSURE } from "./ShelterProfile";
 import { FIGURE, GOLD_BUTTON, Kicker, NightStage, PANEL, PILL, PinkCat } from "./ui";
 
@@ -65,6 +67,9 @@ export const GiveTreat = () => {
   const source: DonateSource = first(router.query.from) === "heist" ? "heist" : "page";
   const cat = cleanCatName(first(router.query.cat));
   const shelterName = campaign?.shelter.name || SHOWCASE_NAME;
+  // Pink Paw's logo and cats only when the campaign is Pink Paw's (the default name is Pink Paw's
+  // until campaign.json loads). Under another shelter's name they would be an untrue claim.
+  const pinkPaw = campaign ? isPinkPawWallet(campaign.shelter.wallet) : true;
 
   const loadStatus = useCallback(() => {
     SHELTER_API.getDonateStatus().then(setStatus);
@@ -111,12 +116,24 @@ export const GiveTreat = () => {
     <NightStage className="min-h-screen">
       <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-5 px-4 pt-24 pb-16 text-center text-p5 md:pt-32 md:text-p4">
         <Kicker>{cat ? "Rescue complete" : "Rescue treat"}</Kicker>
-        <div className="flex h-36 w-36 items-end justify-center overflow-hidden rounded-2xl border-4 border-tt-cream bg-gradient-to-b from-tt-dusk-top via-tt-dusk-mid to-tt-dusk-horizon shadow-[0_0_30px_rgb(var(--tt-gold-400)/.35)] md:h-44 md:w-44">
-          <PinkCat lick={send.status === "sent"} className="-mb-8 h-52 w-52 max-w-none shrink-0 md:h-64 md:w-64 md:-mb-10" />
-        </div>
+        {pinkPaw ? (
+          // The shelter's real logo, with the landing's pixel cat sitting beside it.
+          <div className="relative">
+            <PinkPawLogo className="h-36 w-36 md:h-44 md:w-44" />
+            <PinkCat
+              lick={send.status === "sent"}
+              className="pointer-events-none absolute bottom-0 -right-6 h-24 w-24 max-w-none translate-x-1/2 md:h-28 md:w-28"
+            />
+          </div>
+        ) : (
+          <div className="flex h-36 w-36 items-end justify-center overflow-hidden rounded-2xl border-4 border-tt-cream bg-gradient-to-b from-tt-dusk-top via-tt-dusk-mid to-tt-dusk-horizon shadow-[0_0_30px_rgb(var(--tt-gold-400)/.35)] md:h-44 md:w-44">
+            <PinkCat lick={send.status === "sent"} className="-mb-8 h-52 w-52 max-w-none shrink-0 md:h-64 md:w-64 md:-mb-10" />
+          </div>
+        )}
         <h1 className="font-primary uppercase leading-none tracking-tight text-h5 md:text-h3 text-white drop-shadow-lg text-balance">
-          {cat ? `${cat} is safe!` : "Rescue"}
-          <span className="glow mt-2 block text-tt-cream">Send a treat to {shelterName}</span>
+          {/* The kicker already says "Rescue treat"; the bare "Rescue" line above this was a repeat. */}
+          {cat && <span className="block">{cat} is safe!</span>}
+          <span className={`glow block text-tt-cream ${cat ? "mt-2" : ""}`}>Send a treat to {headingName(shelterName)}</span>
         </h1>
 
         <p className="max-w-md text-tt-cream/90">
@@ -144,24 +161,30 @@ export const GiveTreat = () => {
           )}
 
           {send.status !== "sent" && (
+            // A closed jar shows a flat outline chip, not a dimmed gold button that still looks tappable.
             <button
               type="button"
               onClick={give}
               disabled={send.status === "sending" || closed}
-              className={`${GOLD_BUTTON} min-h-14 px-6 py-3 text-p3 md:text-p2`}
+              aria-disabled={closed || undefined}
+              className={
+                closed
+                  ? "inline-flex min-h-12 cursor-not-allowed items-center justify-center whitespace-nowrap rounded-full border-2 border-dashed border-tt-cream/50 px-5 py-2 font-primary text-p4 uppercase tracking-wide text-tt-cream/75 md:text-p3"
+                  : `${GOLD_BUTTON} min-h-14 whitespace-nowrap px-6 py-3 text-p3 md:text-p2`
+              }
               data-testid="send-treat"
             >
-              {send.status === "sending"
+              {closed
+                ? "Treat jar opens soon"
+                : send.status === "sending"
                 ? "Sending… 🐾"
-                : signedIn || closed
-                ? "Send Pink Paw a rescue treat 🐾"
+                : signedIn
+                ? "Send a treat 🐾"
                 : "Sign in to send a treat 🐾"}
             </button>
           )}
 
-          {status && !status.enabled && send.status === "idle" && (
-            <p className="text-tt-cream/85">The treat jar is closed for now. Check back soon.</p>
-          )}
+          {/* A paused rail says so in the chip above ("Treat jar opens soon"); no second line. */}
           {status?.enabled && treatsLeft === BigInt(0) && send.status === "idle" && (
             <p className="text-tt-cream/85">Today&apos;s treat jar is empty. It refills at midnight UTC.</p>
           )}
@@ -222,6 +245,12 @@ export const GiveTreat = () => {
         <Link href="/shelter-payouts" className={PILL}>
           {isApp ? "See every payout ›" : "See every payout on the chain ›"}
         </Link>
+
+        {pinkPaw && (
+          <div className="mt-6 w-full">
+            <PinkPawStrip name={shelterName} title="Who your treat helps" showLogo={false} />
+          </div>
+        )}
       </div>
     </NightStage>
   );

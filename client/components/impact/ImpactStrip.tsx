@@ -1,10 +1,12 @@
 import type { PublicImpact } from "@/api/impact-api";
 import { Claim } from "@/components/claims/Claim";
 import { isAppBuild, openWebImpact } from "@/components/claims/build";
+import { publicFact } from "@/components/claims/facts";
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import clsx from "clsx";
 import Link from "next/link";
 import { useState } from "react";
+import { GIVEN_DIRECTLY_ID } from "./GivenDirectly";
 import { stripFigures } from "./live";
 import { PawProgress } from "./PawProgress";
 import type { PawView } from "./pawView";
@@ -18,6 +20,14 @@ interface ImpactStripProps {
   paused?: boolean;
   onPausedChange?: (paused: boolean) => void;
   className?: string;
+}
+
+/**
+ * The registry's short wording of F-026 ("$40K+ donated in crypto and goods") for the strip, or null when the
+ * entry is not public or has no short wording. The drawer still shows the full words.
+ */
+export function givenDirectlyShort(): string | null {
+  return publicFact(GIVEN_DIRECTLY_ID)?.short ?? null;
 }
 
 /**
@@ -42,6 +52,7 @@ export const ImpactStrip = ({
     onPausedChange?.(next);
   };
   const figures = stripFigures(impact, isApp);
+  const given = givenDirectlyShort();
 
   return (
     <section
@@ -57,13 +68,42 @@ export const ImpactStrip = ({
         aria-hidden="true"
         data-testid="impact-strip-heart"
         data-paused={paused || undefined}
-        className={clsx("shrink-0 text-tt-pink", !paused && "motion-safe:animate-pulse")}
+        className={clsx(
+          "shrink-0 text-tt-pink",
+          !paused && "motion-safe:animate-pulse"
+        )}
       >
         <PixelIcon name="heart" size={22} />
       </span>
-      <PawProgress view={paw} variant="compact" className="w-[15rem] shrink-0" />
-      <span aria-hidden="true" className="h-8 w-px shrink-0 bg-tt-gold-500/40" />
+      <PawProgress
+        view={paw}
+        variant="compact"
+        className="w-[15rem] shrink-0"
+      />
+      <span
+        aria-hidden="true"
+        className="h-8 w-px shrink-0 bg-tt-gold-500/40"
+      />
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 font-secondary text-p5">
+        {given && (
+          // claim: F-026 (its registry `short` wording; the drawer shows the full words)
+          <Claim
+            id={GIVEN_DIRECTLY_ID}
+            text={given}
+            isApp={isApp}
+            variant="inline"
+            className="text-left"
+          />
+        )}
+        {given && (
+          // Separates the direct donations from the rail figures, as /impact does (review 26 #3).
+          <span
+            data-testid="impact-strip-rail-label"
+            className="font-primary text-p6 uppercase tracking-wide text-tt-muted"
+          >
+            On the treat rail:
+          </span>
+        )}
         {figures.length > 0 ? (
           figures.map((f) => (
             <Claim
@@ -80,7 +120,7 @@ export const ImpactStrip = ({
         ) : (
           // claim: L-treats (empty state: nothing is sent yet, so the line is future tense)
           <span data-testid="impact-strip-empty">
-            No treats sent yet. Token Tails sends the first one once the shelter rail opens.
+            No treat-rail payouts yet. The first goes out when the rail opens.
           </span>
         )}
       </div>
@@ -112,7 +152,9 @@ export const ImpactStrip = ({
           type="button"
           data-testid="impact-strip-pause"
           aria-pressed={paused}
-          aria-label={paused ? "Play the lobby animation" : "Pause the lobby animation"}
+          aria-label={
+            paused ? "Play the lobby animation" : "Pause the lobby animation"
+          }
           onClick={() => setPaused(!paused)}
           className="inline-flex h-11 w-11 items-center justify-center rounded-lg border-2 border-tt-night-500 font-primary text-p6 text-tt-cream hover:border-tt-gold-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400"
         >

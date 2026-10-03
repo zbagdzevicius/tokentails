@@ -27,7 +27,7 @@ visual: heist
 
 What you are watching is Catnip Heist, our voxel stealth game, playing its bundled solution replay at double speed.
 Two cats sneak past guard dogs, collect coins and free a caged friend.
-Games like this are where the purchases come from.
+Games like this are where the purchases will come from, once the purchase pledge starts.
 The part we built for Arc is what happens to the money next.
 
 ## Why Arc

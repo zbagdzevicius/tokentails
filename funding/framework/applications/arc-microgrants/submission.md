@@ -1,6 +1,6 @@
 # Arc Microgrants — submission
 
-_Generated 2026-10-02T08:28:46.283Z by `fund a:submission arc-microgrants` from draft.md, the program profile,
+_Generated 2026-10-03T19:13:11.004Z by `fund a:submission arc-microgrants` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -29,7 +29,7 @@ ShelterSplit splits native USDC on Arc as it arrives and pays each registered sh
 - Sponsored gifts: a verified player taps once a day; a backend wallet with a small float calls donate('tt:<source>:<random id>') within a capped daily budget. The memo holds no personal data.
 - Agent payments, off until handover: an x402-compatible endpoint answers 402 with a price. The agent calls donate('x402:<nonce>') and retries with the tx hash, checked over RPC and accepted once. Our own onchain-receipt scheme, no facilitator.
 - Trust model: the chain proves USDC reached the registered wallet, not who controls it. The first wallet is held by Token Tails on behalf of Pink Paw until handover.
-- Reentrancy guard, pause, two-step ownership, caps, a fuzzed Foundry suite. MIT, at github.com/zbagdzevicius/tokentails.
+- Reentrancy guard, pause, two-step ownership, caps, a fuzzed Foundry suite. ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/).
 
 ## Arc mainnet deployment
 

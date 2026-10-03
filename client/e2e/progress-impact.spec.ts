@@ -422,7 +422,7 @@ test.describe("PROGRESS opens on IMPACT (G5, task 6a)", () => {
     expect(await page.evaluate(() => window.localStorage.getItem("tt.tailsExplainer.v1"))).toBe("1");
   });
 
-  test("the Tails explainer never opens over a running scene", async ({ page, backend }, testInfo) => {
+  test("the Tails explainer never opens over a running scene", { tag: "@ci-desktop" }, async ({ page, backend }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop-1440", "One run is enough.");
     await openLobby(page, backend, { explainerSeen: false });
     await page.getByRole("button", { name: "PLAY", exact: true }).first().click();

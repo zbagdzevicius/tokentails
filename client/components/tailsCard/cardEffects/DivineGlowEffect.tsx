@@ -46,7 +46,7 @@ export const DivineGlowEffect: React.FC<DivineGlowEffectProps> = ({ tier }) => {
 
   return (
     <div
-      className={`absolute inset-0 rounded-[20px] ${getGlowClassName()} pointer-events-none`}
+      className={`absolute inset-0 rounded-[5cqw] ${getGlowClassName()} pointer-events-none`}
       style={{
         ...getGlowStyle(),
         zIndex: 200,

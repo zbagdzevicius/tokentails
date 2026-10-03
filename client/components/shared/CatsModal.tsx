@@ -307,10 +307,47 @@ const PackRow = ({
   );
 };
 
+const borderColors = {
+  [Tier.LEGENDARY]: "border-tt-gold-500",
+  [Tier.EPIC]: "border-tt-lilac",
+  [Tier.RARE]: "border-tt-sky",
+  [Tier.COMMON]: "border-tt-muted",
+};
+
+/** Text on the night card body, in the tier's accent. */
+const inkOnNight = {
+  [Tier.LEGENDARY]: "text-tt-gold-400",
+  [Tier.EPIC]: "text-tt-lilac",
+  [Tier.RARE]: "text-tt-sky",
+  [Tier.COMMON]: "text-tt-cream",
+};
+
+const TIER_RANK = [Tier.LEGENDARY, Tier.EPIC, Tier.RARE, Tier.COMMON];
+
+/** Tiers with cats first, then empty ones; rarest first within each group. */
+export function tierOrder(byTier: Record<Tier, readonly unknown[]>): Tier[] {
+  return [
+    ...TIER_RANK.filter((t) => byTier[t].length > 0),
+    ...TIER_RANK.filter((t) => byTier[t].length === 0),
+  ];
+}
+
+/** A tier you have no cats in: one slim line, not a full panel. */
+const EmptyTierRow = ({ tier }: { tier: Tier }) => (
+  <div
+    className={`mb-3 flex w-full items-center justify-between rounded-xl border-2 ${borderColors[tier]} bg-tt-night-900/60 px-4 py-2`}
+    data-testid="empty-tier-row"
+  >
+    <span className={`font-primary uppercase tracking-widest text-p4 ${inkOnNight[tier]}`}>{tier}</span>
+    <span className={`font-primary text-p5 ${inkOnNight[tier]} opacity-80`}>
+      No {tier.toLowerCase()} cats yet
+    </span>
+  </div>
+);
+
 interface TierRowProps {
   tier: Tier;
   cats: ICat[];
-  totalAvailable: number;
   setSelectedCat: (cat: ICat) => void;
   isMobileView: boolean;
 }
@@ -318,17 +355,15 @@ interface TierRowProps {
 const TierRow = ({
   tier,
   cats,
-  totalAvailable,
   setSelectedCat,
   isMobileView,
 }: TierRowProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const config = TierConfig[tier];
-  const progress = (cats.length / totalAvailable) * 100;
 
   const getCountFromWidth = () => {
     if (typeof window === "undefined") return 2;
-    if (window.innerWidth >= 1024) return 4;
+    // Three columns from tablet up: on desktop four columns left the cards at ~149 px.
     if (window.innerWidth >= 768) return 3;
     return 2;
   };
@@ -350,21 +385,6 @@ const TierRow = ({
     [Tier.EPIC]: "bg-tt-night-900/80",
     [Tier.RARE]: "bg-tt-night-900/80",
     [Tier.COMMON]: "bg-tt-night-900/80",
-  };
-
-  const borderColors = {
-    [Tier.LEGENDARY]: "border-tt-gold-500",
-    [Tier.EPIC]: "border-tt-lilac",
-    [Tier.RARE]: "border-tt-sky",
-    [Tier.COMMON]: "border-tt-muted",
-  };
-
-  /** Text on the night card body, in the tier's accent. */
-  const inkOnNight = {
-    [Tier.LEGENDARY]: "text-tt-gold-400",
-    [Tier.EPIC]: "text-tt-lilac",
-    [Tier.RARE]: "text-tt-sky",
-    [Tier.COMMON]: "text-tt-cream",
   };
 
   return (
@@ -441,39 +461,8 @@ const TierRow = ({
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div
-                className={`hidden md:block w-32 h-5 rounded-full overflow-hidden border-2 shadow-inner ${
-                  borderColors[tier]
-                } ${
-                  tier === Tier.LEGENDARY
-                    ? "bg-yellow-600/40"
-                    : tier === Tier.EPIC
-                    ? "bg-purple-500/40"
-                    : tier === Tier.RARE
-                    ? "bg-blue-500/40"
-                    : "bg-gray-700/40"
-                } backdrop-blur-sm relative`}
-              >
-                <div
-                  className={`h-full transition-all duration-700 ease-out relative overflow-hidden ${
-                    tier === Tier.LEGENDARY
-                      ? "bg-gradient-to-r from-yellow-400 via-tt-cream to-yellow-200"
-                      : tier === Tier.EPIC
-                      ? "bg-gradient-to-r from-purple-400 via-purple-300 to-purple-200"
-                      : tier === Tier.RARE
-                      ? "bg-gradient-to-r from-blue-400 via-blue-300 to-blue-200"
-                      : "bg-gradient-to-r from-gray-400 via-gray-300 to-gray-200"
-                  }`}
-                  style={{ width: `${progress}%` }}
-                >
-                  {/* Shimmer animation on progress bar */}
-                  <div
-                    className={`absolute inset-0 ${
-                      isMobileView ? "" : "animate-pulse"
-                    } bg-gradient-to-r from-transparent via-white/40 to-transparent`}
-                  />
-                </div>
-              </div>
+              {/* The count of cats you own in this tier. There is no real "out of N" total per
+                  tier, so no progress bar or "/350" (that number was a placeholder). */}
               <span
                 className={`text-base md:text-lg font-primary ${
                   config.textColor
@@ -487,7 +476,8 @@ const TierRow = ({
                     : "bg-gray-800/30"
                 } px-3 py-1 rounded-full backdrop-blur-sm`}
               >
-                {cats.length}/{totalAvailable}
+                {cats.length}
+                <span className="sr-only"> {tier.toLowerCase()} cats owned</span>
               </span>
             </div>
           </div>
@@ -499,7 +489,7 @@ const TierRow = ({
         >
           {isExpanded ? (
             <div
-              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 cursor-pointer"
+              className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 lg:gap-8 cursor-pointer"
               onClick={() => setIsExpanded(!isExpanded)}
             >
               {cats.length > 0 ? (
@@ -532,7 +522,7 @@ const TierRow = ({
               className="flex flex-col gap-3 cursor-pointer "
               onClick={() => setIsExpanded(!isExpanded)}
             >
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 relative">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 lg:gap-8 relative">
                 {cats.length > 0 ? (
                   <>
                     {cats.slice(0, count).map((cat, index) => (
@@ -648,34 +638,21 @@ export const CatsModalContent = ({
           isMobileView={isMobileView}
         />
 
-        <TierRow
-          tier={Tier.LEGENDARY}
-          cats={catsByTier[Tier.LEGENDARY]}
-          totalAvailable={350}
-          setSelectedCat={setSelectedCat}
-          isMobileView={isMobileView}
-        />
-        <TierRow
-          tier={Tier.EPIC}
-          cats={catsByTier[Tier.EPIC]}
-          totalAvailable={350}
-          setSelectedCat={setSelectedCat}
-          isMobileView={isMobileView}
-        />
-        <TierRow
-          tier={Tier.RARE}
-          cats={catsByTier[Tier.RARE]}
-          totalAvailable={350}
-          setSelectedCat={setSelectedCat}
-          isMobileView={isMobileView}
-        />
-        <TierRow
-          tier={Tier.COMMON}
-          cats={catsByTier[Tier.COMMON]}
-          totalAvailable={350}
-          setSelectedCat={setSelectedCat}
-          isMobileView={isMobileView}
-        />
+        {/* Tiers you own come first (rarest first); empty tiers follow as one-line rows, so your
+            own cats are on the first screen instead of three "No X cats yet" panels. */}
+        {tierOrder(catsByTier).map((tier) =>
+          catsByTier[tier].length > 0 ? (
+            <TierRow
+              key={tier}
+              tier={tier}
+              cats={catsByTier[tier]}
+              setSelectedCat={setSelectedCat}
+              isMobileView={isMobileView}
+            />
+          ) : (
+            <EmptyTierRow key={tier} tier={tier} />
+          )
+        )}
       </div>
     </div>
   );

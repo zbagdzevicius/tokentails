@@ -1,11 +1,14 @@
 // copy-lint: web-only app builds render AppProofNotice instead (the isAppBuild gate in ShelterPayouts)
+import { DonateStatus, SHELTER_API } from "@/api/shelter-api";
 import { isAppBuild } from "@/components/claims/build";
 import { PixelButton } from "@/components/shared/PixelButton";
 import NextLink from "next/link";
 import { useEffect, useState } from "react";
 import { AppProofNotice } from "./AppProofNotice";
 import { CampaignMeter } from "./CampaignMeter";
-import { Campaign, campaignProgress, fetchCampaign } from "./campaign";
+import { Campaign, campaignProgress, claimsDateLabel, fetchCampaign } from "./campaign";
+
+export { claimsDateLabel };
 import { ChainInfo, explorerAddress, explorerTx } from "./chains";
 import { Disbursement, displayMemo, formatUnits, payoutUnit, to18 } from "./logs";
 import {
@@ -13,8 +16,11 @@ import {
   fetchDeployments,
   fetchDisbursements,
   fetchNativeBalance,
+  readErrorText,
   resolveChain,
 } from "./rpc";
+import { isPinkPawWallet } from "./pinkPaw";
+import { PinkPawShowcase } from "./PinkPawShowcase";
 import { ShelterProfile } from "./ShelterProfile";
 import { CARD, CHIP, FIGURE, MEMO, HEADLINE, Kicker, NightStage, PANEL, PILL, PinkCat } from "./ui";
 import { WalletDonate } from "./WalletDonate";
@@ -56,14 +62,6 @@ function totalsBySymbol(
 }
 
 const short = (v: string) => `${v.slice(0, 6)}…${v.slice(-4)}`;
-
-/** "2 October 2026" for a `YYYY-MM-DD` date, or null when unset or not a date. */
-export function claimsDateLabel(date: string | null | undefined): string | null {
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
-  const t = Date.parse(`${date}T00:00:00Z`);
-  if (Number.isNaN(t)) return null;
-  return new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
-}
 
 /**
  * The empty state while no payout exists (plan G4 acceptance: future tense and the claims date, or
@@ -173,8 +171,8 @@ const ChainCard = ({
         <p className="motion-safe:animate-pulse">Reading payouts from the chain…</p>
       )}
       {result.status === "error" && (
-        <p className="text-tt-rust" role="alert">
-          Could not read payouts: {result.error}
+        <p className="text-tt-cream/85" role="status">
+          {result.error}
         </p>
       )}
       {result.status === "done" && result.items.length === 0 && (
@@ -254,9 +252,12 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
   const [results, setResults] = useState<Record<number, Result>>({});
   const [balances, setBalances] = useState<Record<number, Balance>>({});
   const [campaign, setCampaign] = useState<Campaign | null>(null);
+  // undefined while loading, null when the backend could not be reached.
+  const [jar, setJar] = useState<DonateStatus | null | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
+    SHELTER_API.getDonateStatus().then((st) => !cancelled && setJar(st));
     fetchCampaign()
       .then((c) => !cancelled && setCampaign(c))
       .catch(() => undefined); // the campaign block is optional; the payouts still render
@@ -273,8 +274,8 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
             .then((items) => {
               if (!cancelled) setResults((r) => ({ ...r, [i]: { status: "done", items } }));
             })
-            .catch((err: Error) => {
-              if (!cancelled) setResults((r) => ({ ...r, [i]: { status: "error", error: err.message } }));
+            .catch((err: unknown) => {
+              if (!cancelled) setResults((r) => ({ ...r, [i]: { status: "error", error: readErrorText(err) } }));
             });
         });
       })
@@ -306,6 +307,9 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
     page.status === "done" &&
     page.deployments.some((_, i) => results[i]?.status !== "done" && results[i]?.status !== "error");
 
+  const unread =
+    page.status === "done" && page.deployments.some((_, i) => results[i]?.status === "error");
+
   const deployments = page.status === "done" ? page.deployments : [];
   const progress = campaign
     ? campaignProgress(
@@ -334,6 +338,57 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
 
   // Inside the Heist modal (`?embed=1`) links leave the iframe, and the Heist link is dropped.
   const target = embed ? "_top" : undefined;
+  // While the treat jar is closed, "SEND A TREAT" would lead to a disabled button: point the CTA at
+  // the Heist instead (or, inside the Heist, show that the jar opens soon).
+  const jarOpen =
+    !!jar?.enabled && BigInt(jar.amountWei || "0") > BigInt(0) &&
+    BigInt(jar.remainingTodayWei || "0") >= BigInt(jar.amountWei || "0");
+  const jarClosed = jar !== undefined && !jarOpen;
+  const ctaButton = (size?: "md") =>
+    jarClosed ? (
+      embed ? (
+        <span className={`${PILL} cursor-default border-dashed`} data-testid="treat-jar-closed">
+          Treat jar opens soon
+        </span>
+      ) : (
+        <a href={HEIST_URL} data-testid="play-heist-cta">
+          <PixelButton
+            as="span"
+            text="PLAY CATNIP HEIST"
+            size={size}
+            className={size ? "md:scale-125 md:hover:scale-[1.35]" : undefined}
+          />
+        </a>
+      )
+    ) : (
+      <NextLink href={GIVE_URL} target={target} data-testid="give-treat">
+        <PixelButton
+          as="span"
+          text="SEND A TREAT"
+          subtext="🐾"
+          size={size}
+          className={size ? "md:scale-125 md:hover:scale-[1.35]" : undefined}
+        />
+      </NextLink>
+    );
+  // Pink Paw's logo and cats only when the campaign is Pink Paw's own wallet.
+  const showPinkPaw = !!campaign && isPinkPawWallet(campaign.shelter.wallet);
+  const campaignBody = campaign ? (
+    <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-2">
+      <ShelterProfile campaign={campaign} explorer={campaignChain?.explorer} heading={showPinkPaw ? "Their wallet" : undefined} />
+      <div className="flex flex-col gap-4">
+        {progress && <CampaignMeter campaign={campaign} progress={progress} loading={pending} />}
+        {campaignDeployment && campaignChain && (
+          <WalletDonate
+            chainId={campaignDeployment.chainId}
+            chain={campaignChain}
+            splitAddress={campaignDeployment.address}
+            shelterName={campaign.shelter.name}
+          />
+        )}
+      </div>
+    </div>
+  ) : null;
 
   return (
     <div className="flex w-full flex-col text-tt-cream">
@@ -354,7 +409,15 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
               {totalEntries.length === 0 && pending && (
                 <p className={`${FIGURE} text-h3 md:text-h1 motion-safe:animate-pulse`}>…</p>
               )}
-              {totalEntries.length === 0 && !pending && <p className={`${FIGURE} text-h3 md:text-h1`}>0 USDC</p>}
+              {/* Never "0 USDC": a chain that could not be read is not a chain with no payouts. */}
+              {totalEntries.length === 0 && !pending && unread && (
+                <p className="max-w-xl text-p4 md:text-p3 text-tt-cream/90" data-testid="payouts-unread">
+                  The chains are busy right now. Reload in a minute to see the live total.
+                </p>
+              )}
+              {totalEntries.length === 0 && !pending && !unread && (
+                <p className={`${FIGURE} text-h4 md:text-h2`}>First payouts land soon</p>
+              )}
               {totalEntries.map(([symbol, t]) => (
                 <p key={symbol} className={`${FIGURE} text-[64px] md:text-[120px] lg:text-[160px]`}>
                   {twoDp(t.amount)} <span className="text-h5 md:text-h3">{symbol}</span>
@@ -370,7 +433,7 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
             </div>
           )}
           {page.status === "done" && page.deployments.length === 0 && (
-            <p className={`${FIGURE} text-h4 md:text-h2`}>First payout soon</p>
+            <p className={`${FIGURE} text-h4 md:text-h2`}>First payouts land soon</p>
           )}
 
           <p className="max-w-2xl text-p5 md:text-p4 text-tt-cream/90">
@@ -379,12 +442,10 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
           </p>
 
           <div className="mt-2 flex flex-col items-center gap-6 md:mt-4">
-            <NextLink href={GIVE_URL} target={target} data-testid="give-treat">
-              <PixelButton as="span" text="SEND A TREAT" subtext="🐾" size="md" className="md:scale-125 md:hover:scale-[1.35]" />
-            </NextLink>
+            {ctaButton("md")}
             <div className="flex flex-wrap items-center justify-center gap-3">
               {/* claim: fiction in-game rescue, the Heist story */}
-              {!embed && (
+              {!embed && !jarClosed && (
                 <a href={HEIST_URL} className={PILL} data-testid="play-heist">
                   Play Catnip Heist: rescue a shelter cat
                 </a>
@@ -414,22 +475,14 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
               <h2 className={HEADLINE}>
                 Where your treats <span className="glow text-tt-cream">land first.</span>
               </h2>
-              <div className="mt-5 grid grid-cols-1 items-start gap-4 md:mt-7 md:gap-6 lg:grid-cols-[auto_1fr_1fr]">
-                <div className="mx-auto flex h-40 w-40 items-end justify-center overflow-hidden rounded-2xl border-4 border-tt-cream bg-gradient-to-b from-tt-dusk-top via-tt-dusk-mid to-tt-dusk-horizon md:h-48 md:w-48">
-                  <PinkCat className="-mb-8 h-56 w-56 max-w-none shrink-0 md:-mb-10 md:h-64 md:w-64" />
-                </div>
-                <ShelterProfile campaign={campaign} explorer={campaignChain?.explorer} />
-                <div className="flex flex-col gap-4">
-                  {progress && <CampaignMeter campaign={campaign} progress={progress} loading={pending} />}
-                  {campaignDeployment && campaignChain && (
-                    <WalletDonate
-                      chainId={campaignDeployment.chainId}
-                      chain={campaignChain}
-                      splitAddress={campaignDeployment.address}
-                      shelterName={campaign.shelter.name}
-                    />
-                  )}
-                </div>
+              <div className="mt-5 md:mt-7">
+                {showPinkPaw ? (
+                  <PinkPawShowcase name={campaign.shelter.name} target={target}>
+                    {campaignBody}
+                  </PinkPawShowcase>
+                ) : (
+                  campaignBody
+                )}
               </div>
             </section>
           )}
@@ -499,13 +552,13 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
                   One tap. <span className="glow text-tt-cream">One treat.</span>
                 </h2>
                 <p className="mt-2 max-w-xl text-p5 md:text-p4 text-tt-cream/90">
-                  Token Tails pays for it, and it shows up on this page.
+                  {jarClosed
+                    ? "The treat jar opens soon. Token Tails pays for every treat, and each one shows up on this page."
+                    : "Token Tails pays for it, and it shows up on this page."}
                 </p>
               </div>
             </div>
-            <NextLink href={GIVE_URL} target={target} className="md:mr-6">
-              <PixelButton as="span" text="SEND A TREAT" subtext="🐾" />
-            </NextLink>
+            <span className="md:mr-6">{ctaButton()}</span>
           </section>
         </div>
       </NightStage>

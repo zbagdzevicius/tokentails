@@ -20,7 +20,7 @@ jest.mock("@/constants/utils", () => ({
 
 import { teamMembers } from "@/components/landing/Team";
 import {
-  CREW_CTA_MAX_NAME,
+  crewCta,
   crewCtaLabel,
   TEAM_EXTRAS,
   TEAM_ORDER,
@@ -164,26 +164,38 @@ describe("TeamSection", () => {
     expect(text).not.toMatch(/strays|saved|found a home/i);
   });
 
-  it("labels the crew CTA by player state (2.13 row 34)", () => {
+  it("labels the crew CTA by player state (2.13 row 34, Oct 3 polish)", () => {
     render(<TeamSection />);
     expect(screen.getByText("MEET YOUR CAT")).toBeTruthy();
     expect(screen.queryByText(/JOIN THE CREW|PLAY TO SAVE/)).toBeNull();
     expect(crewCtaLabel()).toBe("MEET YOUR CAT");
     expect(crewCtaLabel({ signedIn: true, onboardingState: "pending", catName: "Scout" })).toBe("MEET YOUR CAT");
-    expect(crewCtaLabel({ signedIn: true, onboardingState: "done", catName: "Scout" })).toBe("SCOUT IS WAITING");
-    expect(crewCtaLabel({ signedIn: true, onboardingState: "done", catName: "  " })).toBe("MEET YOUR CAT");
+    expect(crewCtaLabel({ signedIn: true, onboardingState: "done", catName: "Scout" })).toBe("BACK TO YOUR CAT");
+    // A legacy account without a cat name is past onboarding too: it plays.
+    expect(crewCtaLabel({ signedIn: true, onboardingState: "done", catName: "  " })).toBe("BACK TO YOUR CAT");
   });
 
-  it("spells out names up to the cap and falls back for longer ones (the button never wraps)", () => {
-    expect(CREW_CTA_MAX_NAME).toBe(10);
-    expect(crewCtaLabel({ signedIn: true, onboardingState: "done", catName: "Wwwwwwwwww" })).toBe("WWWWWWWWWW IS WAITING");
-    expect(crewCtaLabel({ signedIn: true, onboardingState: "done", catName: "Captain Whiskers" })).toBe("YOUR CAT IS WAITING");
-    expect(crewCtaLabel({ signedIn: true, onboardingState: "done", catName: "Wwwwwwwwwwwwwwww" })).toBe("YOUR CAT IS WAITING");
+  it("never repeats the hero's PLAY GAME once the player is past Meet your cat (founder, Oct 3)", () => {
+    expect(crewCta({ signedIn: true, onboardingState: "done", catName: "Miso" })).toEqual({ text: "BACK TO", subtext: "YOUR CAT" });
+    expect(crewCtaLabel({ signedIn: true, onboardingState: "done" })).not.toBe("PLAY GAME");
+    expect(crewCta()).toEqual({ text: "MEET YOUR CAT" });
   });
 
-  it("passes a named cat to the CTA", () => {
-    render(<TeamSection cta={{ signedIn: true, onboardingState: "done", catName: "Miso" }} />);
-    expect(screen.getByText("MISO IS WAITING")).toBeTruthy();
+  it("has no 'waiting' copy: the hero art says 'Your cat awaits' (founder, Oct 3)", () => {
+    for (const cta of [undefined, { signedIn: true, onboardingState: "done", catName: "Neimas" }]) {
+      const { container, unmount } = render(<TeamSection cta={cta} />);
+      const text = container.textContent ?? "";
+      expect(text).not.toMatch(/waiting/i);
+      expect(text).toMatch(/one\s*more\s*cat on the team/i);
+      expect(text).not.toMatch(/Neimas/i);
+      unmount();
+    }
+  });
+
+  it("says 'party behind' once in the header (no eyebrow echo of the subtitle)", () => {
+    const { container } = render(<TeamSection />);
+    const header = container.querySelector("header")?.textContent ?? "";
+    expect(header.match(/party behind/gi) ?? []).toHaveLength(1);
   });
 
   it("is one link with the label as its accessible name and one tab stop (valid HTML)", () => {
@@ -197,13 +209,14 @@ describe("TeamSection", () => {
     expect(screen.queryByRole("button", { name: /MEET YOUR CAT/ })).toBeNull();
   });
 
-  it("follows the player: pending, signed out and a named cat", () => {
+  it("follows the player: pending, signed out and done", () => {
     const { rerender } = render(<TeamSection cta={{ signedIn: true, onboardingState: "pending", catName: "Scout" }} />);
     expect(screen.getByRole("link", { name: "MEET YOUR CAT" })).toBeTruthy();
     rerender(<TeamSection cta={{ signedIn: false }} />);
     expect(screen.getByRole("link", { name: "MEET YOUR CAT" })).toBeTruthy();
     rerender(<TeamSection cta={{ signedIn: true, onboardingState: "done", catName: "Miso" }} />);
-    expect(screen.getByRole("link", { name: "MISO IS WAITING" }).getAttribute("href")).toBe("/game?from=landing_crew");
+    expect(screen.getByRole("link", { name: "BACK TO YOUR CAT" })).toBe(screen.getByTestId("crew-cta"));
+    expect(screen.getByTestId("crew-cta").getAttribute("href")).toBe("/game?from=landing_crew");
   });
 
   it("carries {from: crew} to /game and tracks nothing on tap (Task 6b review #1)", () => {

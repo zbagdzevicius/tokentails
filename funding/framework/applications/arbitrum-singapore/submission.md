@@ -1,6 +1,6 @@
 # Arbitrum Open House Singapore online buildathon — submission
 
-_Generated 2026-10-02T19:40:03.133Z by `fund a:submission arbitrum-singapore` from draft.md, the program profile,
+_Generated 2026-10-03T19:13:10.903Z by `fund a:submission arbitrum-singapore` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -25,8 +25,8 @@ Apps that say "part of your purchase helps shelters" give the buyer no way to ch
 
 Built in the buildathon window, from 2026-09-25:
 - ShelterSplit on {ARB_NETWORK} at {ARB_SPLIT}. A registry in the contract holds each shelter's wallet, name and share in basis points. disburse(amount, memo) pulls Circle USDC and pays every active shelter its share in one transaction. The rest goes to a treasury. Low fees on Arbitrum make small, frequent payouts worth sending.
-- The payouts page at https://tokentails.com/shelter-payouts lists each shelter, what it received and an explorer link per payout, read from chain events. It reads Arbitrum and Arc. No backend is trusted for the numbers.
-- The one-tap sponsored treat: after a win in Catnip Heist (https://tokentails.com/heist), a signed-in player taps "Send Pink Paw a rescue treat". Token Tails pays a small gift from a capped daily budget, and the player gets a receipt page and a share card. It runs on the Arc instance of the same contract today.
+- The payouts page at https://tokentails.com/shelter-payouts lists each shelter, what it received and an explorer link per payout, read from chain events. It lists every mainnet instance, Arbitrum One and Arc included (a testnet fallback is linked by explorer only). No backend is trusted for the numbers.
+- The one-tap sponsored treat: after a win in Catnip Heist (https://tokentails.com/heist), a signed-in player (anti-abuse: verified email, account older than a day) taps "Send Pink Paw a rescue treat". Token Tails pays a small gift from a capped daily budget, and the player gets a receipt page and a share card. It runs on the Arc instance of the same contract today.
 - ShelterSplit Rail: an open MIT SDK and a one-tag donate widget, so any app or AI agent can pay the same shelters.
 The player never touches a wallet: purchases stay card or in-app payments.
 
@@ -38,7 +38,7 @@ The player never touches a wallet: purchases stay card or in-app payments.
 - Safety: reentrancy guard, pause, two-step ownership, safe transfers that handle tokens returning nothing, and caps on shelters and memo length. The Foundry suite covers splits, dust, access control, reentrancy through a malicious token, and fuzzed conservation of the amount.
 - Sponsored treats: a backend wallet with a small float pays, once a day per player, with a memo that holds no personal data.
 - Trust model: the chain proves the funds reached the registered wallet, not who controls it. The first wallet is held by Token Tails on behalf of Pink Paw until handover.
-- MIT, at github.com/zbagdzevicius/tokentails. Demo: {DEMO_URL}.
+- ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/ in github.com/zbagdzevicius/tokentails). Demo: {DEMO_URL}.
 
 ## Deployment
 

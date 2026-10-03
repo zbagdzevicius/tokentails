@@ -239,7 +239,7 @@ test.describe("lobby impact (G4, task 5e)", () => {
     expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
   });
 
-  test("no 404 from any in-app link in the lobby or the footer", async ({ page, backend, baseURL }, testInfo) => {
+  test("no 404 from any in-app link in the lobby or the footer", { tag: "@ci-desktop" }, async ({ page, backend, baseURL }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop-1440", "One crawl is enough.");
     await openLobby(page, backend);
     const lobbyLinks = await page.$$eval("a[href]", (as) => as.map((a) => (a as HTMLAnchorElement).getAttribute("href") || ""));

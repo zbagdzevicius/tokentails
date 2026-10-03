@@ -420,7 +420,7 @@ export const MeetYourCat = ({ open, uid, onCommitted, onDone }: MeetYourCatProps
                   <StepHeading ref={headingRef} id="meet-awaits-title">
                     Your cat awaits…
                   </StepHeading>
-                  <StepText>A little companion is waiting on the altar for you.</StepText>
+                  <StepText>Tap below to meet your first companion.</StepText>
                   <PixelButton
                     text="MEET YOUR CAT"
                     onClick={() => dispatch({ type: "CONTINUE" })}

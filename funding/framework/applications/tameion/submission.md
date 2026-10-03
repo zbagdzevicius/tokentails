@@ -1,6 +1,6 @@
 # Tameion Agents Hackathon (Canteen x Circle x Arc) — submission
 
-_Generated 2026-10-02T08:28:46.474Z by `fund a:submission tameion` from draft.md, the program profile,
+_Generated 2026-10-03T20:55:44.090Z by `fund a:submission tameion` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -31,10 +31,10 @@ payAndFetch in the open SDK does all of this in one call: it refuses any price a
 ## How it works
 
 - ShelterSplit on Arc at {SPLIT_ADDRESS}: a registry of shelter wallets, names and shares in basis points. donate(memo) splits the USDC sent with the call across every active shelter in the same transaction and emits one public event per payout. The contract never holds funds between calls. An ERC-20 path, disburse(), does the same through the USDC token interface, with separate events so the two decimal scales never mix.
-- Sponsored treats, the human-facing twin: after a win in Catnip Heist (https://tokentails.com/heist) a signed-in player taps "Send Pink Paw a rescue treat", and a backend wallet with a small float pays a tiny gift, once a day per player, from a capped daily budget. Each payout gets a receipt page and a share card. First treat: {ARC_TX}.
+- Sponsored treats, the human-facing twin: after a win in Catnip Heist (https://tokentails.com/heist) a signed-in player (anti-abuse: verified email, account older than a day) taps "Send Pink Paw a rescue treat", and a backend wallet with a small float pays a tiny gift, once a day per player, from a capped daily budget. Each payout gets a receipt page and a share card. First treat: {ARC_TX}.
 - The payouts page at https://tokentails.com/shelter-payouts reads chain events, not our database.
 - Safety: reentrancy guard, pause, two-step ownership, caps, a Foundry suite with fuzzing, and backend tests for the receipt check and replay protection.
-- Trust model: the chain proves the funds reached the registered wallet, not who controls it. MIT, at github.com/zbagdzevicius/tokentails.
+- Trust model: the chain proves the funds reached the registered wallet, not who controls it. ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/ in github.com/zbagdzevicius/tokentails).
 
 ## Circle tools used
 

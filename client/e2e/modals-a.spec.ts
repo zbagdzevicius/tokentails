@@ -131,29 +131,16 @@ const ARTICLE = {
 };
 
 /**
- * Opens a lobby modal no HUD control reaches (the SHOP) by calling GameProvider's own
- * `setOpenedModal` through React's dev fiber tree: `openedModal` is its third `useState`.
+ * Opens a lobby modal no HUD control reaches (the SHOP) through GameProvider's E2E hook
+ * (`window.__TT_E2E_GAME__`, set when `__TT_E2E__` is; dev and E2E builds only). The old fiber
+ * walk looked GameProvider up by its function name, which the production build minifies away.
  */
 async function forceOpenedModal(page: Page, modal: string) {
-  await page.evaluate((value) => {
-    type Hook = { queue?: { dispatch?: (next: unknown) => void } | null; next: Hook | null };
-    type Fiber = { type?: { name?: string } | string; memoizedState?: Hook; return: Fiber | null; child: Fiber | null; sibling: Fiber | null };
-    const root = document.getElementById("__next")!;
-    const key = Object.keys(root).find((name) => name.startsWith("__reactContainer$"))!;
-    const start = (root as unknown as Record<string, { stateNode?: { current?: Fiber } } & Fiber>)[key];
-    const stack: Fiber[] = [start.stateNode?.current ?? start];
-    while (stack.length) {
-      const fiber = stack.pop()!;
-      if (typeof fiber.type === "function" && (fiber.type as { name?: string }).name === "GameProvider") {
-        const hook = fiber.memoizedState?.next?.next;
-        hook?.queue?.dispatch?.(value);
-        return;
-      }
-      if (fiber.sibling) stack.push(fiber.sibling);
-      if (fiber.child) stack.push(fiber.child);
-    }
-    throw new Error("GameProvider not found");
-  }, modal);
+  await page.waitForFunction(() => !!(window as unknown as { __TT_E2E_GAME__?: unknown }).__TT_E2E_GAME__);
+  await page.evaluate(
+    (value) => (window as unknown as { __TT_E2E_GAME__: { openModal: (next: string) => void } }).__TT_E2E_GAME__.openModal(value),
+    modal,
+  );
 }
 
 function mockBackend(backend: BackendMock, options: { guest?: boolean; packedCat?: boolean } = {}) {
@@ -286,7 +273,7 @@ test.describe("night GameModal migration A (G6, F3.3)", () => {
     });
   }
 
-  test("the X and the scrim close a modal, and focus returns to the opener", async ({ page, backend }, testInfo) => {
+  test("the X and the scrim close a modal, and focus returns to the opener", { tag: "@ci-desktop" }, async ({ page, backend }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop-1440", "Once is enough.");
     await openGame(page, backend);
     const opener = page.getByRole("button", { name: "EVENTS" });
@@ -330,7 +317,7 @@ test.describe("night GameModal migration A (G6, F3.3)", () => {
     await expect(wheel).toHaveCount(0);
   });
 
-  test("a guest's Daily Spin opens the AuthSheet first, and the spin runs once after sign-in", async ({ page, backend }, testInfo) => {
+  test("a guest's Daily Spin opens the AuthSheet first, and the spin runs once after sign-in", { tag: "@ci-desktop" }, async ({ page, backend }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop-1440", "Once is enough.");
     const calls = await openGame(page, backend, { guest: true });
     await page.getByRole("button", { name: "DAILY SPIN" }).click();
@@ -378,7 +365,7 @@ test.describe("night GameModal migration A (G6, F3.3)", () => {
     await expect(packs).toHaveCount(0);
   });
 
-  test("a guest's profile offers Save progress and Erase guest progress", async ({ page, backend }, testInfo) => {
+  test("a guest's profile offers Save progress and Erase guest progress", { tag: "@ci-desktop" }, async ({ page, backend }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop-1440", "Once is enough.");
     await openGame(page, backend, { guest: true });
     await openProfile(page);
@@ -405,7 +392,7 @@ test.describe("night GameModal migration A (G6, F3.3)", () => {
     await expect(dialog(page, "ABOUT ME")).toBeVisible();
   });
 
-  test("an account deletes itself through DELETE /user/me after a confirm step", async ({ page, backend }, testInfo) => {
+  test("an account deletes itself through DELETE /user/me after a confirm step", { tag: "@ci-desktop" }, async ({ page, backend }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop-1440", "Once is enough.");
     backend.on("DELETE", "/user/me", { body: { success: true } });
     await openGame(page, backend);
@@ -478,7 +465,7 @@ test.describe("night GameModal migration A (G6, F3.3)", () => {
     await expect(share).toHaveCount(0);
   });
 
-  test("guest gates: Packs, Codex claim and Support send open the sheet; a dismissal sends nothing", async ({ page, backend }, testInfo) => {
+  test("guest gates: Packs, Codex claim and Support send open the sheet; a dismissal sends nothing", { tag: "@ci-desktop" }, async ({ page, backend }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop-1440", "Once is enough.");
     await openGame(page, backend, { guest: true });
     const sheet = page.getByRole("dialog", { name: /WELCOME TO TOKEN TAILS|CLAIM YOUR REWARDS/ });

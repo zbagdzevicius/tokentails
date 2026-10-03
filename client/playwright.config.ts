@@ -56,6 +56,19 @@ const projects: PlaywrightTestConfig["projects"] = [
   },
 ];
 
+/**
+ * CI runs a subset so the job fits in about 25 minutes on a 4-core runner with software WebGL:
+ * every test on mobile-390 (the primary target), plus, on desktop-1440, the few functional checks
+ * that run on no other project (tagged `@ci-desktop`: the server-side meta check, the link crawl,
+ * account and guest flows). Locally, and in CI with `E2E_ALL_PROJECTS=1`, all four projects run,
+ * including the desktop-only matrices (AuthSheet widths, Paw Match DPR, Purrsuit frame rates,
+ * world look) that are too slow for the CI budget.
+ */
+const ciSubset = isCI && process.env.E2E_ALL_PROJECTS !== "1";
+const ciProjects: PlaywrightTestConfig["projects"] = projects
+  .filter((project) => project.name === "mobile-390" || project.name === "desktop-1440")
+  .map((project) => (project.name === "desktop-1440" ? { ...project, grep: /@ci-desktop/ } : project));
+
 export default defineConfig({
   testDir: "e2e",
   testMatch: "**/*.spec.ts",
@@ -68,6 +81,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 1 : 0,
+  // CI: 2 workers on the 4-core runner. Each worker's Chromium renders WebGL on the CPU
+  // (swiftshader), and 4 workers starved the page enough to time tests out without finishing sooner.
   workers: isCI ? 2 : undefined,
   reporter: isCI ? [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]] : "list",
   use: {
@@ -84,7 +99,7 @@ export default defineConfig({
       args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
     },
   },
-  projects,
+  projects: ciSubset ? ciProjects : projects,
   webServer: isCI
     ? {
         command: `npx next start -p ${new URL(baseURL).port || "3001"}`,

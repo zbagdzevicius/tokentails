@@ -26,12 +26,15 @@ const ADDR = /^0x[0-9a-fA-F]{40}$/;
 
 export const wavePaths = {
   dir: () => process.env.FUND_A_WAVE_DIR || join(HERE, 'wave'),
-  // Public copies of the mainnet deployment list: the client's /shelter-payouts page and the
-  // Catnip Heist win-screen total read these. FUND_A_PUBLISH overrides them with a comma-separated
+  // Public copies of the mainnet deployment list: the client's /shelter-payouts page, the Catnip
+  // Heist source and the built Heist under the client read these. FUND_A_PUBLISH overrides them with a comma-separated
   // list of files, or turns the copies off with 0.
   publish: () => process.env.FUND_A_PUBLISH === '0' ? [] : process.env.FUND_A_PUBLISH ? process.env.FUND_A_PUBLISH.split(',') : [
     join(HERE, '..', '..', '..', '..', 'client', 'public', 'shelter-payouts', 'deployments.json'),
     join(HERE, '..', '..', '..', '..', 'catnip-heist', 'public', 'payouts', 'deployments.json'),
+    // The built Heist that tokentails.com/heist serves: Vercel builds only the client, so without this
+    // copy the live win screen keeps the old list until someone runs `npm run build:client` in catnip-heist.
+    join(HERE, '..', '..', '..', '..', 'client', 'public', 'heist-game', 'payouts', 'deployments.json'),
   ],
   portfolio: () => process.env.FUND_PORTFOLIO || join(HERE, '..', '..', 'portfolio', 'opportunities.json'),
 };

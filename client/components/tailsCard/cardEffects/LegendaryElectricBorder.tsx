@@ -1,4 +1,11 @@
 import React, { useEffect, useRef } from "react";
+import { cardPx } from "../cardScale";
+
+// Sizes below are px on the 400 px reference card, converted to cqw so the border and its glow
+// scale with the card (a 123 px My Pets card gets a third of the full card's glow, not all of it).
+// Lines stay at least 1 device px wide so they never vanish on small cards.
+const LINE = `max(1px, ${cardPx(2)})`;
+const blur = (px: number) => `blur(${cardPx(px)})`;
 
 type LegendaryElectricBorderProps = {
   borderColor: string;
@@ -163,20 +170,20 @@ export const LegendaryElectricBorder: React.FC<
     <>
       {/* Border container with outer border and offset effect */}
       <div
-        className="absolute inset-0 rounded-[20px] pointer-events-none"
+        className="absolute inset-0 rounded-[5cqw] pointer-events-none"
         style={{
-          border: `2px solid ${rgbaBase}, 0.5)`,
-          paddingRight: "4px",
-          paddingBottom: "4px",
+          border: `${LINE} solid ${rgbaBase}, 0.5)`,
+          paddingRight: cardPx(4),
+          paddingBottom: cardPx(4),
         }}
       >
         {/* Main animated border */}
         <div
-          className="w-full h-full rounded-[20px]"
+          className="w-full h-full rounded-[5cqw]"
           style={{
-            border: `2px solid ${borderColor}`,
-            marginTop: "-4px",
-            marginLeft: "-4px",
+            border: `${LINE} solid ${borderColor}`,
+            marginTop: cardPx(-4),
+            marginLeft: cardPx(-4),
             filter: "url(#legendary-turbulent-displace)",
           }}
         />
@@ -184,30 +191,30 @@ export const LegendaryElectricBorder: React.FC<
 
       {/* Glow Layer 1 - Subtle blur */}
       <div
-        className="absolute inset-0 rounded-[20px] pointer-events-none"
+        className="absolute inset-0 rounded-[5cqw] pointer-events-none"
         style={{
-          border: `2px solid ${rgbaBase}, 0.6)`,
-          filter: "blur(1px)",
+          border: `${LINE} solid ${rgbaBase}, 0.6)`,
+          filter: blur(1),
         }}
       />
 
       {/* Glow Layer 2 - Stronger blur */}
       <div
-        className="absolute inset-0 rounded-[20px] pointer-events-none"
+        className="absolute inset-0 rounded-[5cqw] pointer-events-none"
         style={{
-          border: `2px solid ${borderColor}`,
-          filter: "blur(4px)",
+          border: `${LINE} solid ${borderColor}`,
+          filter: blur(4),
         }}
       />
 
       {/* Overlay 1 - Strong overlay effect */}
       <div
-        className="absolute inset-0 rounded-[20px] pointer-events-none"
+        className="absolute inset-0 rounded-[5cqw] pointer-events-none"
         style={{
           opacity: 1,
           mixBlendMode: "overlay",
           transform: "scale(1.1)",
-          filter: "blur(16px)",
+          filter: blur(16),
           background:
             "linear-gradient(-30deg, white, transparent 30%, transparent 70%, white)",
         }}
@@ -215,12 +222,12 @@ export const LegendaryElectricBorder: React.FC<
 
       {/* Overlay 2 - Medium overlay effect */}
       <div
-        className="absolute inset-0 rounded-[20px] pointer-events-none"
+        className="absolute inset-0 rounded-[5cqw] pointer-events-none"
         style={{
           opacity: 0.5,
           mixBlendMode: "overlay",
           transform: "scale(1.1)",
-          filter: "blur(16px)",
+          filter: blur(16),
           background:
             "linear-gradient(-30deg, white, transparent 30%, transparent 70%, white)",
         }}
@@ -228,9 +235,9 @@ export const LegendaryElectricBorder: React.FC<
 
       {/* Background glow */}
       <div
-        className="absolute inset-0 rounded-[20px] pointer-events-none"
+        className="absolute inset-0 rounded-[5cqw] pointer-events-none"
         style={{
-          filter: "blur(32px)",
+          filter: blur(32),
           transform: "scale(1.1)",
           opacity: 0.3,
           zIndex: -1,

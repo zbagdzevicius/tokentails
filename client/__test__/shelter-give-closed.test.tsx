@@ -21,6 +21,8 @@ jest.mock("@/components/shelter-payouts/campaign", () => ({
   fetchCampaign: () => Promise.reject(new Error("offline")),
 }));
 jest.mock("@/components/shelter-payouts/Celebration", () => ({ Celebration: () => null }));
+// The Pink Paw logo and photos read the shared storefront query (a provider these tests do not mount).
+jest.mock("@/components/shelter-payouts/PinkPawShowcase", () => ({ PinkPawLogo: () => null, PinkPawStrip: () => null }));
 
 import { GiveTreat } from "@/components/shelter-payouts/GiveTreat";
 

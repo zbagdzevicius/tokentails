@@ -1,11 +1,12 @@
 "use client";
 
+import { Footer } from "@/layouts/Footer";
 import { ImpactResult, loadImpactForPage } from "@/api/impact-api";
 import { isAppBuild } from "@/components/claims/build";
 import { SectionBoundary } from "@/components/errors/SectionBoundary";
 import { HeistPill } from "@/components/landing/HeistPill";
 import { ImpactGlobeSection } from "@/components/landing/ImpactGlobeSection";
-import { isWaitingCat, landingCtaHref } from "@/components/landing/landingCta";
+import { landingCtaHref } from "@/components/landing/landingCta";
 import { ProofSection } from "@/components/landing/ProofSection";
 import {
   type CrewCtaState,
@@ -29,7 +30,7 @@ export interface HomePageProps {
 }
 
 /**
- * The player read for the CTA labels (plan G3 tie-back). Browser only: Firebase stays out of the
+ * The player read for the crew CTA label (plan G3 tie-back). Browser only: Firebase stays out of the
  * server HTML and the first load, which always render the signed-out labels.
  */
 const LandingPlayer = dynamic(
@@ -90,7 +91,7 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
   return (
     <>
       <SeoHead {...LANDING_SEO} />
-      {/* It only personalises two labels: if Firebase fails to load, the signed-out labels stay. */}
+      {/* It only picks the crew CTA label: if Firebase fails to load, the signed-out label stays. */}
       {readPlayer && (
         <SectionBoundary name="player">
           <LandingPlayer onChange={setPlayer} />
@@ -120,24 +121,14 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
               <Socials />
             </span>
 
-            <div className="absolute z-50 bottom-32 sm:bottom-12 lg:bottom-14 xl:bottom-16 2xl:bottom-20 3xl:bottom-32 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 md:gap-4 w-max max-w-[calc(100vw-2rem)]">
-              {isWaitingCat(player) && (
-                <p
-                  data-testid="hero-tieback"
-                  className="max-sm:order-last inline-flex items-center gap-2 rounded-full border border-tt-gold-400/60 bg-tt-night-900/80 px-4 py-1.5 md:px-5 md:py-2 font-primary text-p5 md:text-p3 tracking-wide text-tt-cream text-center shadow-[0_0_20px_rgb(var(--tt-gold-400)/.3)] backdrop-blur-sm motion-safe:animate-appear"
-                >
-                  <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-tt-gold-400 shadow-[0_0_8px_rgb(var(--tt-gold-400))]" />
-                  <span>
-                    <span className="text-tt-gold-400">{player.catName.trim()}</span> is waiting for you
-                  </span>
-                </p>
-              )}
+            {/* Phones: PLAY GAME first, the store badge under it, so neither sits on the hero cat. */}
+            <div className="absolute z-50 bottom-16 sm:bottom-12 lg:bottom-14 xl:bottom-16 2xl:bottom-20 3xl:bottom-32 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 md:gap-4 w-max max-w-[calc(100vw-2rem)]">
               <div className="flex flex-col sm:flex-row justify-center items-center">
                 {(isDesktop || isIOS) && (
                   <a
                     target="_blank"
                     href="https://apps.apple.com/app/id6745582489"
-                    className="mr-24 max-md:mr-8 max-sm:mr-0 max-sm:mb-2 max-sm:order-1"
+                    className="mr-24 max-md:mr-8 max-sm:mr-0 max-sm:mt-3 max-sm:order-3"
                   >
                     <img
                       src={cdnFile("icons/social/app-store.webp")}
@@ -149,6 +140,7 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
                 {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
                 <a
                   href={landingCtaHref("hero")}
+                  aria-label="PLAY GAME"
                   className="max-sm:order-2"
                   data-testid="hero-cta"
                 >
@@ -158,7 +150,7 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
                   <a
                     target="_blank"
                     href="https://play.google.com/store/apps/details?id=com.tokentails.app"
-                    className="ml-24 max-md:ml-8 max-sm:ml-0 max-sm:mb-2 max-sm:order-1"
+                    className="ml-24 max-md:ml-8 max-sm:ml-0 max-sm:mt-3 max-sm:order-3"
                   >
                     <img
                       src={cdnFile("icons/social/play-store.webp")}
@@ -224,6 +216,9 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
         <SectionBoundary name="team">
           <TeamSection cta={player} />
         </SectionBoundary>
+
+        {/* The same night footer as /impact and the payout pages. */}
+        <Footer tone="night" />
       </div>
     </>
   );

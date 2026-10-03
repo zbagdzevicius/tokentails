@@ -41,5 +41,6 @@ into facts.json.
 | F-023 | IRL cat-shelter event at Le Chat-Rivari Café, Paris (a shelter-cat adoption café), 2026-04-17, with ChainforGood and Bybit EU, during Paris Blockchain Week 2026 | Co-hosted with Bybit / ChainforGood | https://x.com/tokentails/status/2046611480263467341 (read through the api.fxtwitter.com mirror); PR Newswire release 2026-02-25 | 2026-09-27 | unverified |
 | F-024 | Cats helped (homepage claim): 800+ cats saved (company-reported; repeated in the Feb 2026 BGA press release) | 800+ strays saved | client homepage (hardcoded); PR Newswire release 2026-02-25 | 2026-09-27 | unverified |
 | F-025 | Production chain | Stellar (Soroban NFTs, custodial Stellar wallet per user) | docs/ARCHITECTURE.md | 2026-09 | verified |
+| F-026 | Total Token Tails reports donating directly, in crypto and in goods, all time to 2026-10-03; not counted in L-disbursed or L-treats | 40,000 | founder statement 2026-10-03 (landing polish request); receipts and transfer records held by Token Tails | 2026-10-03 | unverified |
 
-<!-- fund facts build: rows sha256:f1786ee1fa40ccb7 -->
+<!-- fund facts build: rows sha256:64eea4002cf1692c -->

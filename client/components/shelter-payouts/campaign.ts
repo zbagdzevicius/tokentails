@@ -109,3 +109,11 @@ export const handoverLabel = (s: HandoverStatus, isApp = false) =>
     : s === "handed-over"
     ? "Handed over: the shelter holds its own keys"
     : "Not handed over yet: Token Tails holds this wallet for the shelter";
+
+/** "2 October 2026" for a `YYYY-MM-DD` date, or null when unset or not a date. */
+export function claimsDateLabel(date: string | null | undefined): string | null {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const t = Date.parse(`${date}T00:00:00Z`);
+  if (Number.isNaN(t)) return null;
+  return new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+}

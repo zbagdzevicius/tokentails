@@ -24,9 +24,12 @@ import { expect, gotoAndSettle, openFirstLevel, test, type BackendMock } from ".
 
 const CDN = "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets";
 const MISSING_SPRITE = `${CDN}/E2E_MISSING_404/base.png`;
+// Evidence screenshots, never compared. Locally they go under test-results (git-ignored). CI
+// takes none unless E2E_SHOTS_DIR is set: a screenshot of a WebGL page under software rendering
+// (swiftshader) takes 20 to 30 s, enough to push a test past its timeout.
 const SHOTS =
   process.env.E2E_SHOTS_DIR ||
-  "/private/tmp/claude-501/-Users-zygimantasbagdzevicius-me-tokentails-app/5b2edd56-881c-4754-b42e-7d5561832e7b/scratchpad/build";
+  (process.env.CI ? "" : join(__dirname, "..", "test-results", "shots"));
 /** Served from EGGY's sheet after a delay (the Home double-send test). */
 const SLOW_SPRITE = `${CDN}/E2E_SLOW/base.png`;
 /** Same as the tier cap in components/Phaser/look/tier.ts with ALLOW_DPR_3 off. */
@@ -304,7 +307,7 @@ test.describe("F10 render foundation", () => {
       // Layout record for every mode at both projects (compare with the pre-F10 shots in the
       // 2e log: same world on screen, only sharper).
       const project = test.info().project.name;
-      await page.screenshot({ path: `${SHOTS}/${mode}-${project}-before.png` });
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/${mode}-${project}-before.png` });
       await page.waitForTimeout(1500);
       const later = await readState(page, scene);
       expect(later!.frame).toBeGreaterThan(first!.frame);
@@ -322,7 +325,7 @@ test.describe("F10 render foundation", () => {
         .toBe(next.width);
       const resized = await readState(page, scene);
       expectCrispBackingStore(resized);
-      await page.screenshot({ path: `${SHOTS}/${mode}-${project}-after.png` });
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/${mode}-${project}-after.png` });
       // G7 (task 6e): the world modes re-pick an integer zoom for the new size (pickZoom), so the
       // zoom may change with the size but is always whole backing pixels per art pixel. Paw Match
       // re-fits its board on purpose; Cupid's tour may be mid zoom tween.
@@ -551,7 +554,7 @@ test.describe("F10 render foundation", () => {
     expect(reskinned.count).toBe(1);
     expect(reskinned.textureExists).toBe(true);
     expect(reskinned.npcKeys).toEqual([reskinned.texture]);
-    await page.screenshot({ path: `${SHOTS}/home-npc-reskin-${test.info().project.name}.png` });
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/home-npc-reskin-${test.info().project.name}.png` });
   });
 
   for (const mode of ["purrsuit", "cupid"] as const) {
@@ -611,7 +614,7 @@ test.describe("F10 render foundation", () => {
     // Rebuilt, not letterboxed: the camera is back at 1 CSS unit per CSS pixel.
     expect(landscape.zoom).toBeCloseTo(landscape.ratio, 5);
     await page.waitForTimeout(800);
-    await page.screenshot({ path: `${SHOTS}/pawmatch-rotated-${test.info().project.name}.png` });
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/pawmatch-rotated-${test.info().project.name}.png` });
   });
 });
 

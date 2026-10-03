@@ -26,7 +26,7 @@ visual: heist
 Catnip Heist is a voxel stealth game, built during the hackathon.
 Here it plays its bundled solution replay at double speed.
 The game is deterministic: the same inputs always give the same run, so a replay is a proof of the result.
-It is the new front door for purchases that fund shelters.
+It is the planned front door for purchases that will fund shelters.
 
 ## Why Tempo
 visual: card

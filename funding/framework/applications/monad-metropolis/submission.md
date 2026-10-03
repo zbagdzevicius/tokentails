@@ -1,6 +1,6 @@
 # Monad Metropolis online hackathon (Consumer Products & Payments track) — submission
 
-_Generated 2026-10-02T08:28:46.636Z by `fund a:submission monad-metropolis` from draft.md, the program profile,
+_Generated 2026-10-03T19:13:11.295Z by `fund a:submission monad-metropolis` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -13,9 +13,9 @@ matching form field._
 | Repository | https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split |
 | Demo | _(not set — add `demo:` to call.md)_ |
 
-## Summary  <!-- 246/280 chars -->
+## Summary  <!-- 247/280 chars -->
 
-A player wins a round of Catnip Heist, taps "Send Pink Paw a rescue treat", and a real stablecoin payment reaches a cat shelter, with a public receipt. No wallet, no gas, no crypto words. ShelterSplit, the payout rail behind it, deploys on Monad.
+A player wins a round of Catnip Heist, taps "Send Pink Paw a rescue treat", and a real stablecoin payment reaches a cat shelter, with a public receipt. No wallet and no gas for the player. ShelterSplit, the payout rail behind it, deploys on Monad.
 
 ## Problem
 
@@ -25,7 +25,7 @@ Apps that say "part of your purchase helps shelters" give the buyer no way to ch
 
 Built in the window (all of it since 2026-09-25; the app around it existed before and is context):
 - ShelterSplit, the payout rail: a contract registry of shelter wallets and shares. One call splits a payment across every active shelter, with one public event per payout. Three paths: an ERC-20 path for USDC, a memo path for chains whose stablecoin carries a transfer memo, and a native-coin path for chains where the native coin is USDC.
-- The give flow: after a Catnip Heist win at https://tokentails.com/heist, a signed-in player taps once and Token Tails pays a small sponsored treat to Pink Paw, once a day, from a capped daily budget.
+- The give flow: after a Catnip Heist win at https://tokentails.com/heist, a signed-in player (anti-abuse: verified email, account older than a day) taps once and Token Tails pays a small sponsored treat to Pink Paw, once a day, from a capped daily budget.
 - Receipts: every treat gets a receipt page and a share card that link to the transaction, and Pink Paw's profile shows a campaign meter of what it received.
 - The payouts page at https://tokentails.com/shelter-payouts: each shelter and each payout, read from chain events, not from our database.
 - An x402-compatible agent endpoint, so a software agent can pay the same shelters and get an adoptable-cat card back. It is built and tested but stays off until Pink Paw holds its own keys.
@@ -39,7 +39,7 @@ The player never touches a wallet: purchases stay card or in-app payments.
 - The give flow runs on the Arc instance at {SPLIT_ADDRESS} today: a backend wallet with a small float pays, with a memo that holds no personal data. First treat: {ARC_TX}. It pays Arc's native USDC through donate(); on Monad the native coin is MON, so moving the treat to Monad needs the backend to use the USDC disburse path, which is not built yet.
 - Agent payments, off until handover and on Arc only: the agent pays donate('x402:<nonce>') and retries with the transaction hash, which the server checks over RPC and accepts once. It is our own onchain-receipt scheme, with no facilitator.
 - Trust model: the chain proves the funds reached the registered wallet, not who controls it.
-- MIT, at github.com/zbagdzevicius/tokentails. Demo: {DEMO_URL}.
+- ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/ in github.com/zbagdzevicius/tokentails). Demo: {DEMO_URL}.
 
 ## Deployment
 

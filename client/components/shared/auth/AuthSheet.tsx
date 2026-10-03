@@ -7,11 +7,12 @@ import { useProfile } from "@/context/ProfileContext";
 import { useToastHold } from "@/context/ToastContext";
 import clsx from "clsx";
 import { type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { SUPPORT_EMAIL } from "@/lib/support";
 import { BrandSignInButton, type BrandProvider } from "./BrandSignInButton";
 
 export const TERMS_URL = "https://docs.tokentails.com/community-and-social-impact/terms-and-conditions";
 export const PRIVACY_URL = "https://docs.tokentails.com/community-and-social-impact/privacy-policy";
-export const SUPPORT_URL = "mailto:hello@tokentails.com?subject=Token%20Tails%20account";
+export const SUPPORT_URL = `mailto:${SUPPORT_EMAIL}?subject=Token%20Tails%20account`;
 
 /**
  * The support link with a reference support can act on: the signed-in Firebase uid (the guest

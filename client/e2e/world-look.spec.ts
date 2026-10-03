@@ -23,9 +23,12 @@ import { expect, gotoAndSettle, openFirstLevel, test, type BackendMock } from ".
  */
 
 const CDN = "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets";
+// Evidence screenshots, never compared. Locally they go under test-results (git-ignored). CI
+// takes none unless E2E_SHOTS_DIR is set: a screenshot of a WebGL page under software rendering
+// (swiftshader) takes 20 to 30 s, enough to push a test past its timeout.
 const SHOTS =
   process.env.E2E_SHOTS_DIR ||
-  "/private/tmp/claude-501/-Users-zygimantasbagdzevicius-me-tokentails-app/5b2edd56-881c-4754-b42e-7d5561832e7b/scratchpad/build/6e";
+  (process.env.CI ? "" : join(__dirname, "..", "test-results", "shots", "6e"));
 /** The tier cap with ALLOW_DPR_3 off (components/Phaser/look/tier.ts). */
 const DPR_CAP = 2;
 const LOOK_KEY = "tt-look-version";
@@ -247,6 +250,7 @@ function expectNoVoid(state: WorldState | null) {
 }
 
 const shot = async (page: Page, name: string) => {
+  if (!SHOTS) return;
   mkdirSync(SHOTS, { recursive: true });
   await page.screenshot({ path: `${SHOTS}/${name}-${test.info().project.name}.png` });
 };

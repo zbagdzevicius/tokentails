@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { fetchShelterTotals, PAYOUT_CHAINS, payoutOf, type PayoutLog } from '../payouts';
+import { fetchShelterTotals, LOG_WINDOW, PAYOUT_CHAINS, payoutOf, setPayoutsSleep, type PayoutLog } from '../payouts';
 
 /*
  * Parity (plan F7.3): the win-screen total, the backend indexer (backend/src/impact/shelter-logs.ts)
@@ -73,5 +73,40 @@ describe('Heist payout totals match the backend and the client (shared fixture)'
     }) as unknown as typeof fetch;
     const totals = await fetchShelterTotals('/deployments.json', fakeFetch);
     expect(Object.fromEntries([...totals].map(([s, v]) => [s, v.toString()]))).toEqual(fixture.expected.total18BySymbol);
+  });
+});
+
+describe('range-capped and rate-limited RPCs (Tempo 100k cap, Arc "range too large", 429)', () => {
+  it('re-reads a refused full range in sequential windows and still sums the fixture', async () => {
+    setPayoutsSleep(async () => {});
+    const latest = 25_000;
+    const ranges: [number, number][] = [];
+    let inFlight = 0;
+    let maxInFlight = 0;
+    let limited = 0;
+    const fakeFetch = (async (url: string, init?: { body?: string }) => {
+      if (url === '/deployments.json') {
+        return new Response(JSON.stringify([{ chainId: fixture.chainId, address: fixture.contract, fromBlock: 1 }]));
+      }
+      const body = JSON.parse(String(init?.body));
+      if (body.method === 'eth_blockNumber') return new Response(JSON.stringify({ result: '0x' + latest.toString(16) }));
+      const { fromBlock, toBlock } = body.params[0];
+      if (toBlock === 'latest') return new Response(JSON.stringify({ error: { code: -32614, message: 'max block range 100000' } }));
+      // One 429 on the first window: retried with backoff, not dropped.
+      if (limited++ === 0) return new Response('slow down', { status: 429 });
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await Promise.resolve();
+      inFlight--;
+      const from = parseInt(fromBlock, 16);
+      const to = parseInt(toBlock, 16);
+      ranges.push([from, to]);
+      // Serve the whole fixture in the window that holds block 1.
+      return new Response(JSON.stringify({ result: from === 1 ? fixture.logs : [] }));
+    }) as unknown as typeof fetch;
+    const totals = await fetchShelterTotals('/deployments.json', fakeFetch);
+    expect(Object.fromEntries([...totals].map(([s, v]) => [s, v.toString()]))).toEqual(fixture.expected.total18BySymbol);
+    expect(ranges).toEqual([[1, LOG_WINDOW], [LOG_WINDOW + 1, 2 * LOG_WINDOW], [2 * LOG_WINDOW + 1, latest]]);
+    expect(maxInFlight).toBe(1);
   });
 });

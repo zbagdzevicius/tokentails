@@ -4,7 +4,7 @@
 
 /** Every fact id a Heist surface may cite (plan F7.1). */
 // prettier-ignore
-export type FactId = 'C-001' | 'C-004' | 'C-005' | 'F-001' | 'F-003' | 'F-004' | 'F-011' | 'F-013' | 'F-025' | 'L-countries' | 'L-disbursed' | 'L-heists' | 'L-players' | 'L-rail' | 'L-treats';
+export type FactId = 'C-001' | 'C-004' | 'C-005' | 'F-001' | 'F-003' | 'F-004' | 'F-011' | 'F-013' | 'F-025' | 'F-026' | 'L-countries' | 'L-disbursed' | 'L-heists' | 'L-players' | 'L-rail' | 'L-treats';
 
 // prettier-ignore
 export type FactStatus = 'verified' | 'company-reported' | 'sei-era' | 'live';
@@ -30,6 +30,10 @@ export interface PublicFact {
   surfaces: FactSurface[];
   sourceUrl: string | null;
   key?: string;
+  /** A shorter wording for tight spaces (the lobby strip); the drawer still shows display. */
+  short?: string;
+  /** Token Tails holds records behind this entry and answers requests for them. */
+  recordsOnRequest?: true;
   chain?: 'sei' | 'stellar' | 'arc' | 'skale';
   live?: { endpoint: string; path: string };
   goal?: { startDate: string; endDate: string };
@@ -40,7 +44,7 @@ export interface PublicFact {
 export const PUBLIC_FACTS_PATH = '/facts/facts.json';
 
 // prettier-ignore
-export const FACT_IDS: readonly FactId[] = ["C-001","C-004","C-005","F-001","F-003","F-004","F-011","F-013","F-025","L-countries","L-disbursed","L-heists","L-players","L-rail","L-treats"];
+export const FACT_IDS: readonly FactId[] = ["C-001","C-004","C-005","F-001","F-003","F-004","F-011","F-013","F-025","F-026","L-countries","L-disbursed","L-heists","L-players","L-rail","L-treats"];
 
 // prettier-ignore
 export const FACTS: Record<FactId, PublicFact> = {
@@ -202,6 +206,26 @@ export const FACTS: Record<FactId, PublicFact> = {
     ],
     "sourceUrl": null,
     "chain": "stellar"
+  },
+  "F-026": {
+    "id": "F-026",
+    "display": "$40K+ donated directly in crypto and goods (Oct 2026, company-reported)",
+    "appDisplay": "$40K+ donated directly in money and goods (Oct 2026, company-reported)",
+    "value": 40000,
+    "unit": "USD",
+    "status": "company-reported",
+    "tense": "past",
+    "asOf": "2026-10-03",
+    "checkedAt": "2026-10-03",
+    "maxAgeDays": 365,
+    "surfaces": [
+      "landing",
+      "game",
+      "impact"
+    ],
+    "sourceUrl": null,
+    "key": "donated_direct_total",
+    "short": "$40K+ donated in crypto and goods"
   },
   "L-countries": {
     "id": "L-countries",
