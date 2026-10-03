@@ -1,3 +1,4 @@
+import { PixelIcon } from "@/components/shared/PixelIcon";
 import classNames from "classnames";
 
 export const Avatar = ({
@@ -22,12 +23,14 @@ export const Avatar = ({
           src={avatarSrc}
         />
       ) : (
-        <div
-          className={classNames("bx bxs-user-circle text-primary", {
+        <PixelIcon
+          name="avatar-circle"
+          label="avatar"
+          className={classNames("text-primary", {
             "text-h5": ["small", "full"].includes(size),
             "text-h2": size === "big",
           })}
-        ></div>
+        />
       )}
     </>
   );

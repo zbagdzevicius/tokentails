@@ -10,7 +10,7 @@
     "assetBytes": 5242880,
     "assetTriangles": 100000
   },
-  "totalBytes": 67469980,
+  "totalBytes": 67264328,
   "files": [
     {
       "file": "worlds/heist-01-kibble-corp-warehouse.glb",
@@ -254,12 +254,12 @@
       "file": "worlds/heist-08-kibble-corp-hq.glb",
       "kind": "world",
       "id": "heist-08",
-      "bytes": 4021892,
+      "bytes": 3816240,
       "meshes": 27,
       "materials": 27,
-      "triangles": 49340,
-      "vertices": 98528,
-      "dropped": 17,
+      "triangles": 46698,
+      "vertices": 93244,
+      "dropped": 22,
       "lights": 16,
       "animations": 0,
       "size": [

@@ -1,4 +1,14 @@
+import clsx from "clsx";
+import { fetchTokenStatus, POINTS_STATUS, TOKEN_STATUS_QUERY_KEY, vaultVisible } from "@/api/token-status-api";
 import { USER_API } from "@/api/user-api";
+import {
+  clearProgressTab,
+  PROGRESS_TAB_EVENT,
+  takeProgressTab,
+  type ProgressTabDetail,
+} from "@/components/impact/progressTab";
+import { firstCodexEntry } from "@/context/auth/saveNudge";
+import { useAccountAction, useLatest } from "@/hooks/useAccountAction";
 import { cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
@@ -11,22 +21,24 @@ import {
 } from "@/models/airdrop";
 import { isApp } from "@/models/app";
 import { IProfile } from "@/models/profile";
+import { CAT_NAP_DAYS, CAT_NAP_MAX_CATS, CAT_NAP_TAILS, formatTails } from "@/shared-contracts/copy";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
-import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
+import { tailsExplainer, type SceneState } from "./explainer";
 import { ImmortalizePetFlow } from "./ImmortalizePetFlow";
-
-const TGE_TARGET_DATE = "2026-11-19T00:00:00Z";
-
-const getNextMonthStartUtc = (): Date => {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0),
-  );
-};
+import { ImpactTab } from "./impact/ImpactTab";
+import {
+  PROGRESS_TAB_LABELS,
+  resolveProgressTab,
+  visibleProgressTabs,
+  type ProgressTab,
+} from "./progressTabs";
+import { localSeasonTime, seasonFrozen, seasonOf } from "./season";
+import { TailsExplainer } from "./TailsExplainer";
+import { Vault } from "./Vault";
 
 export interface ICodex {
   title: string;
@@ -51,25 +63,8 @@ export enum CODEX_LIFE {
   NINE = "9",
 }
 
-type IProgressTab =
-  | "OVERVIEW"
-  | "MISSIONS"
-  | "TIERS"
-  | "BADGES"
-  | "IMMORTALIZE";
-
-const allProgressTabs: Array<{ id: IProgressTab; label: string }> = [
-  { id: "OVERVIEW", label: "INFO" },
-  { id: "MISSIONS", label: "GOALS" },
-  { id: "TIERS", label: "TIERS" },
-  { id: "IMMORTALIZE", label: "PET ART" },
-  { id: "BADGES", label: "BADGES" },
-];
-
-// PET ART is a paid AI portrait. App builds cannot sell it until store IAP exists.
-const progressTabs = allProgressTabs.filter(
-  (tab) => !isApp || tab.id !== "IMMORTALIZE"
-);
+/** Metrics the 4e backend added (rescue points ledger); older responses lack them. */
+type RescueMetrics = Partial<{ tailsEarned: number; tailsGiven: number; goalsHelped: number }>;
 
 const codex: ICodex[] = [
   {
@@ -85,17 +80,18 @@ const codex: ICodex[] = [
   {
     title: "#2 Play Is Prayer",
     description:
-      "When we quest, we serve. When we mint, we mend. Every action echoes in shelters, clinics, and cages.",
-    how: "Earn $TAILS through playing or participating in Airdrop event",
+      "When we quest, we serve. When we play, we mend. Every action echoes in shelters, clinics, and cages.",
+    how: "Earn Tails by playing games, missions and events.",
     image: cdnFile("codex/codex-2.webp"),
-    task: "COLLECT 100 $TAILS",
+    task: "COLLECT 100 TAILS",
     verification: (profile) => (profile?.monthTails || 0) >= 100,
     status: (profile) => `${profile?.monthTails || 0} / 100`,
   },
   {
     title: "#3 No Life is Left Behind",
     description:
-      "Not the last-born kitten in a shelter. Not the unloved token in the chain. We rescue what others abandon. That is our oath.",
+      // claim:fiction codex lore: an oath of the in-game order, it states no real rescue or payment
+      "Not the last-born kitten in the corner. Not the one everyone walked past. We look after what others abandon. That is our oath.",
     how: "Go to HOME and feed your cat by clicki 'FEED TO CONTROL' button.",
     image: cdnFile("codex/codex-5.webp"),
     task: "FEED YOUR CATS",
@@ -123,9 +119,9 @@ const codex: ICodex[] = [
     status: (profile) => `${profile?.monthReferrals || 0} / 1`,
   },
   {
-    title: "#6 From the Blockchain to the Beyond",
+    title: "#6 Beyond the Screen",
     description:
-      "These cats are more than metadata. They are stories. Beacons. Proof that Web3 can matter. And we, their guardians, become legends. Your feedback is CODEX fuel.",
+      "These cats are more than pixels. They are stories. Beacons. Proof that play can matter. And we, their guardians, become legends. Your feedback is CODEX fuel.",
     how: "Go to 'QUESTS' section and complete 10 quests",
     image: cdnFile("codex/codex-8.webp"),
     task: "COMPLETE 10 QUESTS",
@@ -135,8 +131,9 @@ const codex: ICodex[] = [
   {
     title: "#7 Destiny Is Shared",
     description:
-      "To save a cat is to unlock its ninth life. But in return, it unlocks yours. Every rescuer earns a fortune not just in token — but in legacy, in status, in soul.",
-    how: "Craft $TAILS by staking your cats. You can do it once every 7 days with each of your cat, head over to 'CATS' section, select a cat and click 'CRAFT $TAILS' button. The more cats you have, the more $TAILS you can craft.",
+      // claim:fiction codex lore: the in-game ninth life, no real rescue or money is meant here
+      "To save a cat is to unlock its ninth life. But in return, it unlocks yours. Every rescuer earns a fortune not in coins, but in legacy, in status, in soul.",
+    how: `Let your cats nap. Open 'MY PETS', pick a cat and send it to nap: after ${CAT_NAP_DAYS} days it brings ${formatTails(CAT_NAP_TAILS)}. Up to ${CAT_NAP_MAX_CATS} cats can nap at once.`,
     image: cdnFile("codex/codex-9.webp"),
     task: "CRAFT TAILS",
     verification: (profile) => (profile?.monthTailsCrafted || 0) >= 100,
@@ -164,22 +161,22 @@ export const CodexSection = ({
   );
   return (
     <div
-      className={`flex flex-col items-center relative font-primary pt-4 border-4 rounded-2xl bg-gradient-to-bl from-yellow-300 to-orange-300 ${
-        isCompleted ? "border-yellow-300" : "border-red-300"
+      className={`flex flex-col items-center relative font-primary pt-4 border-4 rounded-2xl bg-gradient-to-bl from-tt-night-700 to-tt-night-900 text-tt-cream ${
+        isCompleted ? "border-tt-gold-500" : "border-tt-rust/70"
       }`}
     >
       {!info && (
         <div className="flex items-center gap-1 absolute top-0 left-0">
-          <Tag isSmall>{title.slice(0, 2)}</Tag>
+          <Tag size="sm">{title.slice(0, 2)}</Tag>
         </div>
       )}
       <img src={image} alt="codex" className="h-16 -mb-2 -mt-12" />
-      {info && <Tag isSmall>{title}</Tag>}
+      {info && <Tag size="sm">{title}</Tag>}
       {info && (
         <div
           key={info?.type}
-          className={`flex flex-col w-64 animate-opacity font-primary text-balance text-center animate-opacit rounded-2xl border-4 border-yellow-300 px-0.5 py-1 ${
-            isCompleted ? "bg-yellow-300" : "bg-red-300"
+          className={`flex flex-col w-64 animate-opacity font-primary text-balance text-center animate-opacit rounded-2xl border-4 border-tt-gold-500 px-0.5 py-1 ${
+            isCompleted ? "bg-tt-night-800" : "bg-tt-ember/30"
           }`}
         >
           <div className="text-p5 font-bold">
@@ -189,8 +186,8 @@ export const CodexSection = ({
         </div>
       )}
       <span
-        className={`px-2 text-p6 rounded-b-xl border-x-4 border-yellow-300 ${
-          isCompleted ? "bg-yellow-300" : "bg-red-300"
+        className={`px-2 text-p6 rounded-b-xl border-x-4 border-tt-gold-500 ${
+          isCompleted ? "bg-tt-night-800" : "bg-tt-ember/30"
         }`}
       >
         MISSION
@@ -199,6 +196,8 @@ export const CodexSection = ({
         className={`font-primary text-center animate-opacity w-fit flex items-center gap-1`}
       >
         <img
+          alt=""
+          aria-hidden="true"
           src={
             isCompleted
               ? cdnFile("icons/check.webp")
@@ -210,7 +209,7 @@ export const CodexSection = ({
       </div>
       <div className="flex items-center -mt-2">
         <PixelButton
-          isSmall
+          size="sm"
           text="WHY?"
           active={info?.type === "lore"}
           onClick={() =>
@@ -222,14 +221,14 @@ export const CodexSection = ({
           }
         />
         <div
-          className={`font-primary text-center animate-opacity w-fit px-2 h-fit rounded-2xl border-yellow-300 border-2 ${
-            isCompleted ? "bg-yellow-300" : "bg-red-300"
+          className={`font-primary text-center animate-opacity w-fit px-2 h-fit rounded-2xl border-tt-gold-500 border-2 ${
+            isCompleted ? "bg-tt-night-800" : "bg-tt-ember/30"
           }`}
         >
           {status(profile)}
         </div>
         <PixelButton
-          isSmall
+          size="sm"
           text="HOW?"
           active={info?.type === "how"}
           onClick={() =>
@@ -274,8 +273,8 @@ const AirdropTierCard = ({
       pattern: "cards/backgrounds/pattern-COMMON.webp",
       sparkle: "cards/backgrounds/white-opening-sparkle.webp",
       mascot: "tail/mascot-point-right.webp",
-      headerBg: "bg-gradient-to-r from-gray-300 to-gray-100",
-      headerText: "text-gray-900",
+      headerBg: "bg-tt-night-950/70 border-tt-muted/70",
+      headerText: "text-tt-cream",
     },
     RESCUER: {
       badge: "icons/rocket.png",
@@ -283,8 +282,8 @@ const AirdropTierCard = ({
       pattern: "cards/backgrounds/pattern-RARE.webp",
       sparkle: "cards/backgrounds/blue-sparkle.webp",
       mascot: "tail/open-arms.webp",
-      headerBg: "bg-gradient-to-r from-blue-300 to-blue-100",
-      headerText: "text-blue-900",
+      headerBg: "bg-tt-night-950/70 border-tt-sky/70",
+      headerText: "text-tt-sky",
     },
     CURATOR: {
       badge: "cards/icons/power.webp",
@@ -292,8 +291,8 @@ const AirdropTierCard = ({
       pattern: "cards/backgrounds/pattern-EPIC.webp",
       sparkle: "cards/backgrounds/purple-sparkle.webp",
       mascot: "tail/mascot-matters.webp",
-      headerBg: "bg-gradient-to-r from-purple-300 to-purple-100",
-      headerText: "text-purple-900",
+      headerBg: "bg-tt-night-950/70 border-tt-lilac/70",
+      headerText: "text-tt-lilac",
     },
     LEGEND: {
       badge: "ability/TAILS.png",
@@ -301,61 +300,61 @@ const AirdropTierCard = ({
       pattern: "cards/backgrounds/pattern-LEGENDARY.webp",
       sparkle: "cards/backgrounds/legendary-sparkle.webp",
       mascot: "tail/cat-celebrate.webp",
-      headerBg: "bg-gradient-to-r from-yellow-300 to-yellow-100",
-      headerText: "text-yellow-900",
+      headerBg: "bg-tt-night-950/70 border-tt-gold-500",
+      headerText: "text-tt-gold-400",
     },
   };
 
   const visual = tierVisuals[tier.id] || tierVisuals.EXPLORER;
   const revealButtonLabel = tier.unlocked ? "REVEAL PRIZE" : "PREVIEW";
   const borderStyle = tier.claimed
-    ? "border-yellow-300"
+    ? "border-tt-gold-500"
     : tier.unlocked
-    ? "border-green-300"
-    : "border-red-300";
+    ? "border-tt-mint/80"
+    : "border-tt-rust/70";
   const desktopButtonScaleClass = "md:!scale-[0.92] md:hover:!scale-100";
 
   return (
     <div
-      className={`w-full rounded-2xl border-4 ${borderStyle} bg-gradient-to-b from-yellow-100/98 via-yellow-50/96 to-orange-100/95 px-3 py-3 md:px-4 md:py-3.5 relative overflow-hidden text-yellow-900 shadow-[0_8px_0_0_rgba(120,53,15,0.24)]`}
+      className={`w-full rounded-2xl border-4 ${borderStyle} bg-gradient-to-b from-tt-night-700 via-tt-night-800 to-tt-night-900 px-3 py-3 md:px-4 md:py-3.5 relative overflow-hidden text-tt-cream shadow-[0_8px_0_0_rgba(7,5,26,0.24)]`}
     >
       <img
         src={cdnFile(visual.pattern)}
-        className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-multiply z-0"
+        className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-screen z-0"
         alt={`${tier.name} pattern`}
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-transparent to-yellow-100/40 z-0" />
+      <div className="absolute inset-0 bg-gradient-to-b from-tt-lilac/5 via-transparent to-tt-night-950/40 z-0" />
       <img
         src={cdnFile(visual.mascot)}
         className="absolute -right-2 top-0 h-16 w-16 md:h-20 md:w-20 object-contain opacity-20 z-0"
         alt={`${tier.name} mascot`}
       />
       <div
-        className={`flex items-center justify-between gap-2 relative z-10 rounded-xl border-2 border-yellow-900 px-2 py-1.5 md:px-2.5 md:py-2 ${visual.headerBg}`}
+        className={`flex items-center justify-between gap-2 relative z-10 rounded-xl border-2 px-2 py-1.5 md:px-2.5 md:py-2 ${visual.headerBg}`}
       >
         <div
           className={`font-primary text-p5 md:text-p4 flex items-center gap-1.5 font-bold ${visual.headerText}`}
         >
           <img
             src={cdnFile(visual.badge)}
-            className="h-7 w-7 md:h-8 md:w-8 rounded-md border border-yellow-900"
+            className="h-7 w-7 md:h-8 md:w-8 rounded-md border border-tt-gold-500/50"
             alt={`${tier.name} badge`}
           />
           {tier.name}
         </div>
-        <div className="rounded-lg border-2 border-yellow-900 bg-yellow-50/95 text-yellow-900 px-2 py-0.5 font-primary text-p5 font-bold">
+        <div className="rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 text-tt-cream px-2 py-0.5 font-primary text-p5 font-bold">
           {tier.unlockProgress}%
         </div>
       </div>
-      <div className="mt-1 text-p5 font-primary leading-tight relative z-10 rounded-lg border-2 border-yellow-900 bg-yellow-50/97 text-yellow-900 px-2 py-1.5">
+      <div className="mt-1 text-p5 font-primary leading-tight relative z-10 rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 text-tt-cream px-2 py-1.5">
         {tier.description}
       </div>
       <div className="mt-2 grid grid-cols-1 gap-1 relative z-10">
         {tier.requirements.map((requirement) => (
           <div
             key={`${tier.id}-${requirement.id}`}
-            className={`flex items-center justify-between rounded-lg border-2 border-yellow-900 px-2 py-1 md:py-1.5 font-primary text-p5 text-yellow-900 ${
-              requirement.met ? "bg-green-200/95" : "bg-red-200/95"
+            className={`flex items-center justify-between rounded-lg border-2 border-tt-gold-500/50 px-2 py-1 md:py-1.5 font-primary text-p5 text-tt-cream ${
+              requirement.met ? "bg-tt-mint/15" : "bg-tt-ember/25"
             }`}
           >
             <span>{requirement.label}</span>
@@ -367,8 +366,8 @@ const AirdropTierCard = ({
       </div>
 
       {!revealed ? (
-        <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border-2 border-yellow-900 bg-yellow-50/96 p-1.5 md:p-2 relative z-10">
-          <div className="font-primary text-p5 flex items-center gap-1 text-yellow-900">
+        <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 p-1.5 md:p-2 relative z-10">
+          <div className="font-primary text-p5 flex items-center gap-1 text-tt-cream">
             <img
               src={cdnFile("purrquest/icons/chest.gif")}
               className="h-7 w-7 md:h-8 md:w-8"
@@ -377,14 +376,14 @@ const AirdropTierCard = ({
             {tier.reward.revealTitle}
           </div>
           <PixelButton
-            isSmall
+            size="sm"
             className={desktopButtonScaleClass}
             text={revealButtonLabel}
             onClick={onReveal}
           />
         </div>
       ) : (
-        <div className="mt-2 rounded-lg border-2 border-yellow-900 bg-gradient-to-r from-yellow-50/97 to-pink-100/93 p-2.5 md:p-3 animate-opacity relative overflow-hidden z-10">
+        <div className="mt-2 rounded-lg border-2 border-tt-gold-500/50 bg-gradient-to-r from-tt-night-700 to-tt-night-900 p-2.5 md:p-3 animate-opacity relative overflow-hidden z-10">
           <img
             src={cdnFile(visual.sparkle)}
             className="absolute right-0 top-0 h-20 w-20 opacity-70 z-0"
@@ -393,37 +392,37 @@ const AirdropTierCard = ({
           <div className="flex items-center gap-2 relative z-10">
             <img
               src={cdnFile(visual.chest)}
-              className="h-10 w-10 md:h-12 md:w-12 rounded-lg border-2 border-yellow-900"
+              className="h-10 w-10 md:h-12 md:w-12 rounded-lg border-2 border-tt-gold-500/50"
               alt={tier.reward.revealTitle}
             />
             <img
               src={cdnFile(tier.reward.image)}
-              className="h-10 w-10 md:h-12 md:w-12 rounded-lg border-2 border-yellow-900"
+              className="h-10 w-10 md:h-12 md:w-12 rounded-lg border-2 border-tt-gold-500/50"
               alt={tier.reward.unlockable}
             />
-            <div className="font-primary text-p5 leading-tight text-yellow-900">
+            <div className="font-primary text-p5 leading-tight text-tt-cream">
               <div>{tier.reward.revealTeaser}</div>
               <div className="font-bold">
-                +{tier.reward.tails} $TAILS • {tier.reward.unlockable}
+                +{formatTails(tier.reward.tails)} • {tier.reward.unlockable}
               </div>
             </div>
           </div>
           <div className="mt-2 flex items-center gap-2 relative z-10">
             {!tier.claimed && tier.claimable && (
               <PixelButton
-                isSmall
+                size="sm"
                 className={desktopButtonScaleClass}
                 text={isClaiming ? "CLAIMING..." : `CLAIM ${tier.reward.tails}`}
                 onClick={onClaim}
-                isDisabled={isClaiming}
+                disabled={isClaiming}
               />
             )}
             {!tier.claimed && tier.unlocked && !tier.claimable && (
-              <Tag isSmall>MEET ELIGIBILITY TO CLAIM</Tag>
+              <Tag size="sm">MEET ELIGIBILITY TO CLAIM</Tag>
             )}
-            {tier.claimed && <Tag isSmall>CLAIMED</Tag>}
-            {!tier.unlocked && <Tag isSmall>LOCKED</Tag>}
-            {!tier.unlocked && <Tag isSmall>UNLOCK REQUIREMENTS TO CLAIM</Tag>}
+            {tier.claimed && <Tag size="sm">CLAIMED</Tag>}
+            {!tier.unlocked && <Tag size="sm">LOCKED</Tag>}
+            {!tier.unlocked && <Tag size="sm">UNLOCK REQUIREMENTS TO CLAIM</Tag>}
           </div>
         </div>
       )}
@@ -458,15 +457,15 @@ const GamifiedChallengeCard = ({
 
   return (
     <div
-      className={`rounded-2xl border-4 border-yellow-900 px-2.5 py-2.5 md:px-3.5 md:py-3.5 relative overflow-hidden shadow-[0_8px_0_0_rgba(120,53,15,0.28)] ${
+      className={`rounded-2xl border-4 border-tt-gold-500/50 px-2.5 py-2.5 md:px-3.5 md:py-3.5 relative overflow-hidden shadow-[0_8px_0_0_rgba(7,5,26,0.28)] ${
         challenge.completed
-          ? "bg-gradient-to-br from-green-200 via-yellow-200 to-lime-200"
-          : "bg-gradient-to-br from-yellow-100 via-orange-100 to-pink-100"
+          ? "bg-gradient-to-br from-tt-night-700 via-tt-night-800 to-tt-night-900"
+          : "bg-gradient-to-br from-tt-night-700 via-tt-night-800 to-tt-night-900"
       }`}
     >
       <img
         src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
-        className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-multiply"
+        className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-screen"
         alt="challenge pattern"
       />
       <img
@@ -474,7 +473,7 @@ const GamifiedChallengeCard = ({
         className="absolute -right-1 -bottom-2 h-16 w-16 md:h-20 md:w-20 object-contain opacity-20"
         alt="challenge mascot"
       />
-      <div className="flex items-center justify-between gap-2 relative z-10 rounded-lg border-2 border-yellow-900 bg-yellow-50/92 px-2 py-1">
+      <div className="flex items-center justify-between gap-2 relative z-10 rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 px-2 py-1">
         <div className="flex items-center gap-1.5 font-primary text-p5">
           <img
             src={cdnFile(challenge.icon)}
@@ -487,10 +486,10 @@ const GamifiedChallengeCard = ({
           {challenge.current} / {challenge.target}
         </span>
       </div>
-      <div className="mt-1 text-p6 md:text-p5 leading-tight font-primary relative z-10 rounded-lg border border-yellow-900 bg-white/70 px-2 py-1">
+      <div className="mt-1 text-p6 md:text-p5 leading-tight font-primary relative z-10 rounded-lg border border-tt-gold-500/50 bg-tt-night-950/60 px-2 py-1">
         {challenge.description}
       </div>
-      <div className="mt-1.5 h-2.5 w-full rounded-full bg-yellow-300 border border-yellow-900 relative z-10">
+      <div className="mt-1.5 h-2.5 w-full rounded-full bg-tt-night-950 border border-tt-gold-500/50 relative z-10">
         <div
           className={`h-full rounded-full ${
             challenge.completed ? "bg-green-500" : "bg-yellow-600"
@@ -498,24 +497,24 @@ const GamifiedChallengeCard = ({
           style={{ width: `${progress}%` }}
         />
       </div>
-      <div className="mt-1.5 flex items-center justify-between font-primary text-p6 md:text-p5 relative z-10 rounded-lg border border-yellow-900 bg-yellow-50/90 px-2 py-1">
+      <div className="mt-1.5 flex items-center justify-between font-primary text-p6 md:text-p5 relative z-10 rounded-lg border border-tt-gold-500/50 bg-tt-night-900/80 px-2 py-1">
         <span>Reward</span>
-        <span className="font-bold rounded-md border border-yellow-900 bg-yellow-50/90 px-2 py-0.5">
-          +{challenge.rewardTails} $TAILS
+        <span className="font-bold rounded-md border border-tt-gold-500/50 bg-tt-night-900/80 px-2 py-0.5">
+          +{formatTails(challenge.rewardTails)}
         </span>
       </div>
       <div className="mt-1.5 flex items-center gap-1 relative z-10">
         {challenge.claimable && (
           <PixelButton
-            isSmall
+            size="sm"
             className={desktopButtonScaleClass}
             text={isClaiming ? "CLAIMING..." : `CLAIM ${challenge.rewardTails}`}
             onClick={onClaim}
-            isDisabled={isClaiming}
+            disabled={isClaiming}
           />
         )}
-        {challenge.claimed && <Tag isSmall>CLAIMED</Tag>}
-        {!challenge.completed && <Tag isSmall>COMPLETE TO CLAIM</Tag>}
+        {challenge.claimed && <Tag size="sm">CLAIMED</Tag>}
+        {!challenge.completed && <Tag size="sm">COMPLETE TO CLAIM</Tag>}
       </div>
     </div>
   );
@@ -537,15 +536,15 @@ const MilestoneTrack = ({
         {milestones.map((milestone) => (
           <div
             key={milestone.id}
-            className={`min-w-[172px] md:min-w-[210px] rounded-xl border-4 border-yellow-900 p-2 md:p-2.5 relative overflow-hidden shadow-[0_6px_0_0_rgba(120,53,15,0.25)] ${
+            className={`min-w-[172px] md:min-w-[210px] rounded-xl border-4 border-tt-gold-500/50 p-2 md:p-2.5 relative overflow-hidden shadow-[0_6px_0_0_rgba(7,5,26,0.25)] ${
               milestone.reached
-                ? "bg-gradient-to-b from-yellow-200 via-green-200 to-lime-200"
-                : "bg-gradient-to-b from-yellow-100 via-orange-100 to-pink-100"
+                ? "bg-gradient-to-b from-tt-night-700 via-tt-night-800 to-tt-night-900"
+                : "bg-gradient-to-b from-tt-night-700 via-tt-night-800 to-tt-night-900"
             }`}
           >
             <img
               src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
-              className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-multiply"
+              className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-screen"
               alt="milestone pattern"
             />
             <img
@@ -560,9 +559,9 @@ const MilestoneTrack = ({
             <img
               src={cdnFile(milestone.icon)}
               alt={milestone.label}
-              className="h-20 md:h-24 w-full rounded-lg object-cover border border-yellow-900 relative z-10"
+              className="h-20 md:h-24 w-full rounded-lg object-cover border border-tt-gold-500/50 relative z-10"
             />
-            <div className="mt-1.5 rounded-lg border border-yellow-900 bg-yellow-50/90 px-2 py-1 relative z-10">
+            <div className="mt-1.5 rounded-lg border border-tt-gold-500/50 bg-tt-night-900/80 px-2 py-1 relative z-10">
               <div className="font-primary text-p6 md:text-p5">
                 {milestone.label}
               </div>
@@ -570,16 +569,16 @@ const MilestoneTrack = ({
                 SCORE {milestone.current} / {milestone.target}
               </div>
               <div className="font-primary text-p6 md:text-p5 font-bold">
-                +{milestone.rewardTails} $TAILS
+                +{formatTails(milestone.rewardTails)}
               </div>
             </div>
             <div className="relative z-10">
-              <Tag isSmall>{milestone.reached ? "UNLOCKED" : "LOCKED"}</Tag>
+              <Tag size="sm">{milestone.reached ? "UNLOCKED" : "LOCKED"}</Tag>
             </div>
             <div className="mt-1.5 flex items-center gap-1 relative z-10">
               {milestone.claimable && (
                 <PixelButton
-                  isSmall
+                  size="sm"
                   className={desktopButtonScaleClass}
                   text={
                     claimingMilestoneId === milestone.id
@@ -587,10 +586,10 @@ const MilestoneTrack = ({
                       : `CLAIM ${milestone.rewardTails}`
                   }
                   onClick={() => onClaimMilestone(milestone.id)}
-                  isDisabled={claimingMilestoneId === milestone.id}
+                  disabled={claimingMilestoneId === milestone.id}
                 />
               )}
-              {milestone.claimed && <Tag isSmall>CLAIMED</Tag>}
+              {milestone.claimed && <Tag size="sm">CLAIMED</Tag>}
             </div>
           </div>
         ))}
@@ -599,7 +598,10 @@ const MilestoneTrack = ({
   );
 };
 
-const ProgressHudTile = ({
+/** G8 copy: the reward tile title doubles as the theme key below. */
+export const CLAIMABLE_TREASURE_TITLE = "CLAIMABLE TREASURE";
+
+export const ProgressHudTile = ({
   icon,
   mascot,
   title,
@@ -619,38 +621,38 @@ const ProgressHudTile = ({
     { header: string; valueGlow: string; bar: string }
   > = {
     "ELIGIBILITY SCORE": {
-      header: "bg-gradient-to-r from-green-300 to-yellow-200",
-      valueGlow: "text-green-800",
+      header: "bg-tt-night-950/70 text-tt-mint",
+      valueGlow: "text-tt-mint",
       bar: "from-green-500 to-yellow-500",
     },
     "TIER ASCENT": {
-      header: "bg-gradient-to-r from-blue-300 to-cyan-200",
-      valueGlow: "text-blue-800",
+      header: "bg-tt-night-950/70 text-tt-sky",
+      valueGlow: "text-tt-sky",
       bar: "from-blue-500 to-cyan-500",
     },
     "COMBO POWER": {
-      header: "bg-gradient-to-r from-orange-300 to-pink-200",
-      valueGlow: "text-orange-800",
+      header: "bg-tt-night-950/70 text-tt-rust",
+      valueGlow: "text-tt-rust",
       bar: "from-orange-500 to-pink-500",
     },
-    "CLAIMABLE STASH": {
-      header: "bg-gradient-to-r from-yellow-300 to-amber-200",
-      valueGlow: "text-yellow-800",
+    [CLAIMABLE_TREASURE_TITLE]: {
+      header: "bg-tt-night-950/70 text-tt-gold-400",
+      valueGlow: "text-tt-gold-400",
       bar: "from-yellow-500 to-amber-500",
     },
   };
   const theme = themeByTitle[title] || {
-    header: "bg-gradient-to-r from-yellow-300 to-yellow-100",
-    valueGlow: "text-yellow-900",
+    header: "bg-tt-night-950/70 text-tt-pink",
+    valueGlow: "text-tt-pink",
     bar: "from-pink-500 to-yellow-600",
   };
   const clampedProgress = Math.max(0, Math.min(100, progress));
 
   return (
-    <div className="rounded-xl border-2 border-yellow-900 bg-gradient-to-b from-yellow-100/95 via-yellow-50/95 to-orange-100/95 text-yellow-900 px-3 py-2.5 md:px-3.5 md:py-3 relative overflow-hidden shadow-[0_6px_0_0_rgba(120,53,15,0.16)]">
+    <div className="rounded-xl border-2 border-tt-gold-500/50 bg-gradient-to-b from-tt-night-700 via-tt-night-800 to-tt-night-900 text-tt-cream px-3 py-2.5 md:px-3.5 md:py-3 relative overflow-hidden shadow-[0_6px_0_0_rgba(7,5,26,0.16)]">
       <img
         src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
-        className="absolute inset-0 h-full w-full object-cover opacity-[0.06] mix-blend-multiply"
+        className="absolute inset-0 h-full w-full object-cover opacity-[0.06] mix-blend-screen"
         alt="tile pattern"
       />
       {!!mascot && (
@@ -662,11 +664,11 @@ const ProgressHudTile = ({
       )}
       <div className="flex items-center justify-between gap-1 relative z-10">
         <div
-          className={`font-primary text-p6 md:text-p5 rounded-lg border-2 border-yellow-900 px-2 py-0.5 font-bold ${theme.header}`}
+          className={`font-primary text-p6 md:text-p5 rounded-lg border-2 border-tt-gold-500/50 px-2 py-0.5 font-bold ${theme.header}`}
         >
           {title}
         </div>
-        <div className="rounded-lg border-2 border-yellow-900 bg-yellow-50/95 p-1">
+        <div className="rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 p-1">
           <img
             src={cdnFile(icon)}
             alt={title}
@@ -674,32 +676,30 @@ const ProgressHudTile = ({
           />
         </div>
       </div>
-      <div className="mt-1 rounded-lg border-2 border-yellow-900 bg-white/88 px-2.5 py-1.5 relative z-10">
+      <div className="mt-1 rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-950/60 px-2.5 py-1.5 relative z-10">
         <div
           className={`font-primary text-p3 md:text-p2 font-bold leading-none ${theme.valueGlow}`}
         >
           {value}
         </div>
       </div>
-      <div className="mt-1 rounded-lg border border-yellow-900 bg-yellow-50/95 px-2 py-1 font-primary text-p6 md:text-p5 leading-tight min-h-[34px] relative z-10">
+      <div className="mt-1 rounded-lg border border-tt-gold-500/50 bg-tt-night-900/80 px-2 py-1 font-primary text-p6 md:text-p5 leading-tight min-h-[34px] relative z-10">
         {detail}
       </div>
       <div className="mt-1.5 flex items-center gap-2 relative z-10">
-        <div className="h-2.5 flex-1 rounded-full border border-yellow-900 bg-yellow-50">
+        <div className="h-2.5 flex-1 rounded-full border border-tt-gold-500/50 bg-tt-night-950">
           <div
             className={`h-full rounded-full bg-gradient-to-r ${theme.bar}`}
             style={{ width: `${clampedProgress}%` }}
           />
         </div>
-        <span className="rounded-md border border-yellow-900 bg-yellow-50/95 px-1.5 py-0.5 font-primary text-p6 md:text-p5 font-bold text-yellow-900">
+        <span className="rounded-md border border-tt-gold-500/50 bg-tt-night-900/80 px-1.5 py-0.5 font-primary text-p6 md:text-p5 font-bold text-tt-cream">
           {clampedProgress}%
         </span>
       </div>
     </div>
   );
 };
-
-const date = 9;
 
 type INextAction = {
   label: string;
@@ -754,10 +754,21 @@ const getNextAction = (
   };
 };
 
-export const Codex = () => {
+export interface CodexProps {
+  /** The tab to open on (a deep link). Without it, a pending lobby request or IMPACT. */
+  tab?: ProgressTab;
+  /**
+   * The scene behind PROGRESS, so the Tails explainer opens only on a menu or game-over screen.
+   * Null (or absent) means no running scene, e.g. outside the game shell.
+   */
+  scene?: SceneState | null;
+}
+
+export const Codex = ({ tab, scene = null }: CodexProps = {}) => {
   const [isFAQOpen, setIsFAQOpen] = useState(false);
-  const [activeProgressTab, setActiveProgressTab] =
-    useState<IProgressTab>("OVERVIEW");
+  // The lobby's RESCUE tile and MY IMPACT ask for a tab beside the open (task 5e): read it once.
+  const [requestedTab] = useState<ProgressTab | null>(() => tab ?? takeProgressTab());
+  const [chosenTab, setChosenTab] = useState<ProgressTab | null>(null);
   const [revealedRewards, setRevealedRewards] = useState<
     Record<string, boolean>
   >({});
@@ -771,6 +782,11 @@ export const Codex = () => {
   const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
   const queryClient = useQueryClient();
+  // Airdrop tier, challenge and milestone claims are account actions (decision #9): a guest gets
+  // the AuthSheet ("CLAIM YOUR REWARDS") and the claim goes on once they signed in. The claim
+  // code reads the profile and its setter through `latest`, since it may run after the sheet replaced it.
+  const { runWithAccount } = useAccountAction();
+  const latest = useLatest({ profile, setProfileUpdate });
 
   const {
     data: airdropProgression,
@@ -816,32 +832,49 @@ export const Codex = () => {
       saveCodex();
     }
   }, [isCompleted, saveCodex]);
-  const dateUntilNearest9thDay = useMemo(() => {
-    const now = new Date();
-    const currentDayUTC = now.getUTCDate();
-    const currentMonthUTC = now.getUTCMonth();
-    const currentYearUTC = now.getUTCFullYear();
+  // The season comes from the backend (plan G5 P6); the client never computes its dates.
+  const season = useMemo(() => seasonOf(airdropProgression), [airdropProgression]);
+  const seasonIsFrozen = season ? seasonFrozen(season, new Date()) : false;
 
-    let nearest9thDay;
+  // VAULT (decision #39): web only, and only when the backend says TOKEN. App builds never ask.
+  const { data: tokenStatus, isPending: tokenStatusPending } = useQuery({
+    queryKey: [TOKEN_STATUS_QUERY_KEY],
+    queryFn: ({ signal }) => fetchTokenStatus({ isApp, signal }),
+    enabled: !isApp,
+    staleTime: 5 * 60_000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const showVault = vaultVisible(tokenStatus ?? POINTS_STATUS, isApp);
+  const progressTabs = useMemo(() => visibleProgressTabs({ isApp, vault: showVault }), [showVault]);
+  const wantedTab = chosenTab ?? requestedTab;
+  const activeProgressTab = resolveProgressTab(wantedTab, progressTabs);
+  // A link to VAULT waits for token-status instead of showing IMPACT and then jumping.
+  const waitingForVault = wantedTab === "vault" && !isApp && tokenStatusPending;
+  const setActiveProgressTab = setChosenTab;
+  const onImpactOrVault = activeProgressTab === "impact" || activeProgressTab === "vault";
 
-    if (currentDayUTC < 9) {
-      // 9th day of current month in UTC
-      nearest9thDay = new Date(Date.UTC(currentYearUTC, currentMonthUTC, date));
-    } else {
-      // 9th day of next month in UTC
-      nearest9thDay = new Date(
-        Date.UTC(currentYearUTC, currentMonthUTC + 1, date),
-      );
-    }
-
-    return nearest9thDay;
+  // A request for an already open PROGRESS (the event), and no stale request after it closes.
+  useEffect(() => {
+    const onTab = (event: Event) => {
+      const detail = (event as CustomEvent<ProgressTabDetail>).detail;
+      if (detail?.tab) {
+        takeProgressTab();
+        setChosenTab(detail.tab);
+      }
+    };
+    window.addEventListener(PROGRESS_TAB_EVENT, onTab);
+    return () => {
+      window.removeEventListener(PROGRESS_TAB_EVENT, onTab);
+      clearProgressTab();
+    };
   }, []);
-  const isLessThan8hoursLeft = useMemo(() => {
-    const now = new Date();
-    const timeDifference = dateUntilNearest9thDay.getTime() - now.getTime();
-    return timeDifference > 0 && timeDifference < 8 * 60 * 60 * 1000;
-  }, [dateUntilNearest9thDay]);
-  const nextMonthTargetDate = useMemo(() => getNextMonthStartUtc(), []);
+
+  // First codex entry: the guest save nudge (decision #10) and the Tails explainer, queued.
+  useEffect(() => {
+    firstCodexEntry();
+    tailsExplainer.request();
+  }, []);
   const nextAction = useMemo(
     () =>
       getNextAction(
@@ -858,6 +891,7 @@ export const Codex = () => {
       ) || null,
     [airdropProgression],
   );
+  const rescueMetrics: RescueMetrics = (airdropProgression?.metrics ?? {}) as RescueMetrics;
   const eligibilityStats = useMemo(() => {
     const total = airdropProgression?.eligibilityCriteria?.length || 0;
     const met =
@@ -928,6 +962,7 @@ export const Codex = () => {
   };
 
   const syncAirdropProgression = async (progression?: IAirdropProgression) => {
+    const { profile } = latest.current;
     if (!profile?._id) {
       return;
     }
@@ -943,7 +978,10 @@ export const Codex = () => {
     });
   };
 
-  const claimTierReward = async (tierId: string) => {
+  const claimTierReward = (tierId: string) =>
+    void runWithAccount("claim-rewards", () => runClaimTierReward(tierId));
+
+  const runClaimTierReward = async (tierId: string) => {
     if (claimingTierId) {
       return;
     }
@@ -960,16 +998,17 @@ export const Codex = () => {
       }
 
       revealTier(tierId);
+      const { profile } = latest.current;
       const alreadyClaimed = profile?.airdropRewardsClaimed || [];
       const claimedTierId = result.tierId || tierId;
-      setProfileUpdate({
+      latest.current.setProfileUpdate({
         tails: (profile?.tails || 0) + (result.tails || 0),
         airdropRewardsClaimed: Array.from(
           new Set([...alreadyClaimed, claimedTierId]),
         ),
       });
       showToast({
-        message: result.message || `Claimed ${result.tails || 0} $TAILS`,
+        message: result.message || `Claimed ${formatTails(result.tails || 0)}`,
         symbol: "tails",
       });
       await syncAirdropProgression(result.progression);
@@ -978,7 +1017,10 @@ export const Codex = () => {
     }
   };
 
-  const claimChallengeReward = async (challengeId: string) => {
+  const claimChallengeReward = (challengeId: string) =>
+    void runWithAccount("claim-rewards", () => runClaimChallengeReward(challengeId));
+
+  const runClaimChallengeReward = async (challengeId: string) => {
     if (claimingChallengeId) {
       return;
     }
@@ -995,11 +1037,11 @@ export const Codex = () => {
         });
         return;
       }
-      setProfileUpdate({
-        tails: (profile?.tails || 0) + (result.tails || 0),
+      latest.current.setProfileUpdate({
+        tails: (latest.current.profile?.tails || 0) + (result.tails || 0),
       });
       showToast({
-        message: result.message || `Claimed ${result.tails || 0} $TAILS`,
+        message: result.message || `Claimed ${formatTails(result.tails || 0)}`,
         symbol: "tails",
       });
       await syncAirdropProgression(result.progression);
@@ -1008,7 +1050,10 @@ export const Codex = () => {
     }
   };
 
-  const claimMilestoneReward = async (milestoneId: string) => {
+  const claimMilestoneReward = (milestoneId: string) =>
+    void runWithAccount("claim-rewards", () => runClaimMilestoneReward(milestoneId));
+
+  const runClaimMilestoneReward = async (milestoneId: string) => {
     if (claimingMilestoneId) {
       return;
     }
@@ -1025,11 +1070,11 @@ export const Codex = () => {
         });
         return;
       }
-      setProfileUpdate({
-        tails: (profile?.tails || 0) + (result.tails || 0),
+      latest.current.setProfileUpdate({
+        tails: (latest.current.profile?.tails || 0) + (result.tails || 0),
       });
       showToast({
-        message: result.message || `Claimed ${result.tails || 0} $TAILS`,
+        message: result.message || `Claimed ${formatTails(result.tails || 0)}`,
         symbol: "tails",
       });
       await syncAirdropProgression(result.progression);
@@ -1040,105 +1085,94 @@ export const Codex = () => {
 
   return (
     <div className="flex flex-col items-center relative pb-14">
-      <div className="w-full max-w-[1320px] mb-3 rounded-2xl border-4 border-red-300 bg-gradient-to-r from-red-950 via-orange-900 to-yellow-900 px-3 py-3 md:px-4 md:py-4 text-yellow-100 relative overflow-hidden shadow-[0_10px_0_0_rgba(127,29,29,0.35)]">
-        <div className="absolute inset-x-10 top-1/2 h-20 -translate-y-1/2 bg-red-500/25 blur-3xl animate-pulse" />
-        <img
-          src={cdnFile("cards/backgrounds/pattern-LEGENDARY.webp")}
-          className="absolute inset-0 h-full w-full object-cover opacity-[0.16] mix-blend-screen"
-          alt="countdown pattern"
-        />
-        <img
-          src={cdnFile("cards/backgrounds/legendary-sparkle.webp")}
-          className="absolute -right-4 -top-4 h-28 w-28 md:h-36 md:w-36 object-contain opacity-45"
-          alt="countdown sparkle"
-        />
-        <img
-          src={cdnFile("flare-effect/effects/coindrop.gif")}
-          className="absolute -left-4 bottom-0 h-20 w-20 md:h-24 md:w-24 object-contain opacity-40"
-          alt="coin flare"
-        />
-        <img
-          src={cdnFile("tail/cat-celebrate.webp")}
-          className="absolute right-1 top-1 h-16 w-16 md:h-20 md:w-20 object-contain opacity-35"
-          alt="countdown mascot"
-        />
-        <div className="relative z-10 rounded-xl border-2 border-yellow-300 bg-gradient-to-b from-red-900/60 to-yellow-900/40 px-3 py-3 md:px-4 md:py-4">
-          <div className="w-fit mx-auto rounded-lg border-2 border-yellow-300 bg-gradient-to-r from-yellow-300 to-orange-300 px-3 py-0.5 font-primary text-p5 md:text-p4 font-bold text-red-900 text-center">
-            TGE COUNTDOWN
-          </div>
-          <div className="mt-2 text-center font-primary text-p6 md:text-p5 text-yellow-100">
-            FINAL PHASE
-          </div>
-          <div className="mt-2 mx-auto w-full max-w-[900px] p-4 md:p-5">
-            <Countdown targetDate={TGE_TARGET_DATE} isDaysDisplayed isBig />
-          </div>
-        </div>
-      </div>
-      <div className="w-full max-w-[1320px] mb-3 rounded-2xl border-4 border-yellow-900 bg-gradient-to-b from-orange-100 to-yellow-100 px-3 py-3 md:px-4 md:py-4 text-yellow-900 relative overflow-hidden">
-        <img
-          src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
-          className="absolute inset-0 h-full w-full object-cover opacity-[0.06] mix-blend-multiply"
-          alt="monthly pattern"
-        />
-        <img
-          src={cdnFile("tail/cat-promo.webp")}
-          className="absolute right-1 bottom-0 h-14 w-14 md:h-16 md:w-16 object-contain opacity-20"
-          alt="monthly mascot"
-        />
-        <div className="relative z-10 rounded-xl border-2 border-yellow-900 bg-yellow-50/96 px-3 py-3 md:px-4 md:py-4">
-          <div className="w-fit mx-auto rounded-lg border-2 border-yellow-900 bg-gradient-to-r from-yellow-300 to-yellow-100 px-3 py-0.5 font-primary text-p5 md:text-p4 font-bold text-yellow-900 text-center">
-            NEXT MONTH COUNTDOWN
-          </div>
-          <div className="mt-2 mx-auto w-full max-w-[900px] p-4 md:p-5">
-            <Countdown targetDate={nextMonthTargetDate} isDaysDisplayed isBig />
-          </div>
-          <div className="mt-2 rounded-lg border-2 border-yellow-900 bg-orange-100 px-3 py-2 font-primary text-p6 md:text-p5 text-center">
-            Rewards are cycle-based and progression-gated. Collect and claim
-            before the monthly cutoff to maximize your allocation.
-          </div>
-        </div>
-      </div>
-      <div className="mb-4">
-        <div className="flex flex-wrap items-center justify-center gap-y-1 gap-x-2 -mr-2">
-          {progressTabs.map((tab) => {
-            const isActive = activeProgressTab === tab.id;
+      <div className="mb-4 w-full max-w-[1320px]">
+        <div
+          className="flex flex-wrap items-center justify-center gap-y-1 gap-x-2 -mr-2"
+          role="group"
+          aria-label="Progress sections"
+          data-testid="progress-tabs"
+        >
+          {progressTabs.map((id) => {
+            const isActive = !waitingForVault && activeProgressTab === id;
             return (
-              <PixelButton
-                key={tab.id}
-                active={isActive}
-                className="!m-0"
-                text={tab.label}
-                onClick={() => setActiveProgressTab(tab.id)}
-              />
+              <div
+                key={id}
+                className={clsx(
+                  "relative pb-2.5 rounded-xl",
+                  // The open tab carries a gold frame and glow; the others are dimmed, so the open
+                  // one reads at a glance at any width (hover only lifts them back to full strength).
+                  isActive && "ring-2 ring-tt-gold-400 bg-tt-gold-400/15 shadow-[0_0_12px_rgba(255,204,85,0.55)]"
+                )}
+                data-testid={`progress-tab-${id}`}
+                data-active={isActive || undefined}
+              >
+                <PixelButton
+                  active={isActive}
+                  pressed={isActive}
+                  // Touch screens keep :hover after a tap, so the tapped-away tab must not look chosen.
+                  className={clsx(
+                    "!m-0 [@media(hover:none)]:hover:!filter-none [@media(hover:none)]:hover:!pb-0 [@media(hover:none)]:hover:!transform-none",
+                    !isActive &&
+                      "opacity-70 saturate-50 hover:opacity-100 hover:saturate-100 focus-visible:opacity-100 focus-visible:saturate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-tt-cream [@media(hover:none)]:hover:!opacity-70 [@media(hover:none)]:hover:!saturate-50"
+                  )}
+                  text={PROGRESS_TAB_LABELS[id]}
+                  onClick={() => setActiveProgressTab(id)}
+                />
+                {isActive && (
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-2 bottom-0.5 h-1.5 rounded-full bg-tt-gold-400 shadow-[0_0_8px_rgba(255,204,85,0.9)]"
+                  />
+                )}
+              </div>
             );
           })}
         </div>
       </div>
 
+      <div className="w-full max-w-[1320px] mb-3 empty:hidden pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]">
+        <TailsExplainer scene={scene} />
+      </div>
+      {waitingForVault && (
+        <div className="w-full max-w-[1320px] mb-8 px-3 text-center font-primary text-p5 text-tt-muted" data-testid="vault-loading">
+          LOADING…
+        </div>
+      )}
+      {!waitingForVault && activeProgressTab === "impact" && (
+        <div className="w-full max-w-[1320px] mb-8 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <ImpactTab season={season} seasonLoading={isAirdropLoading} />
+        </div>
+      )}
+      {activeProgressTab === "vault" && showVault && tokenStatus && (
+        <div className="w-full max-w-[1320px] mb-8 px-3">
+          <Vault status={tokenStatus} />
+        </div>
+      )}
+      {!onImpactOrVault && !waitingForVault && (
       <div className="w-full max-w-[1320px] mb-8 flex flex-col items-center gap-3 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        {["OVERVIEW", "MISSIONS", "TIERS"].includes(activeProgressTab) &&
+        {["rewards", "missions", "tiers"].includes(activeProgressTab) &&
           isAirdropLoading && (
             <div className="font-primary text-p4">LOADING PROGRESSION...</div>
           )}
-        {["OVERVIEW", "MISSIONS", "TIERS"].includes(activeProgressTab) &&
+        {["rewards", "missions", "tiers"].includes(activeProgressTab) &&
           isAirdropError && (
-            <div className="w-full rounded-xl border-2 border-red-400 bg-red-100 p-3 flex flex-col items-center gap-1.5">
-              <div className="font-primary text-p5 text-red-700">
+            <div className="w-full rounded-xl border-2 border-tt-rust bg-tt-ember/20 p-3 flex flex-col items-center gap-1.5">
+              <div className="font-primary text-p5 text-tt-pink">
                 Could not load progression right now.
               </div>
               <PixelButton
-                isSmall
+                size="sm"
                 className="md:!scale-[0.92] md:hover:!scale-100"
                 text="RETRY"
                 onClick={() => refetchAirdropProgression()}
               />
             </div>
           )}
-        {activeProgressTab === "BADGES" && (
-          <div className="w-full max-w-[1320px] rounded-2xl border-4 border-yellow-300 bg-gradient-to-r from-yellow-100 via-orange-100 to-pink-100 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(120,53,15,0.2)]">
+        {activeProgressTab === "badges" && (
+          <div className="w-full max-w-[1320px] rounded-2xl border-4 border-tt-gold-500 bg-gradient-to-r from-tt-night-700 via-tt-night-800 to-tt-night-900 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(7,5,26,0.2)]">
             <img
               src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
-              className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-multiply"
+              className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-screen"
               alt="badge hub pattern"
             />
             <img
@@ -1151,22 +1185,22 @@ export const Codex = () => {
               className="absolute right-1 top-1 h-14 w-14 md:h-16 md:w-16 object-contain opacity-25"
             />
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-3">
-              <div className="rounded-xl border-2 border-yellow-900 bg-yellow-50/95 p-3">
+              <div className="rounded-xl border-2 border-tt-gold-500/50 bg-tt-night-900/80 p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="rounded-lg border-2 border-yellow-900 bg-gradient-to-r from-yellow-300 to-yellow-100 px-2 py-0.5 font-primary text-p5 md:text-p4 font-bold text-yellow-900">
+                  <span className="rounded-lg border-2 border-tt-gold-500 bg-tt-night-950/70 px-2 py-0.5 font-primary text-p5 md:text-p4 font-bold text-tt-gold-400">
                     MY BADGE VAULT
                   </span>
-                  <Tag isSmall>{isCompleted ? "MASTERED" : "IN PROGRESS"}</Tag>
+                  <Tag size="sm">{isCompleted ? "MASTERED" : "IN PROGRESS"}</Tag>
                 </div>
                 <div className="mt-2 flex items-end gap-2">
-                  <span className="font-paws text-h3 leading-none text-yellow-900 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0,0.25)]">
+                  <span className="font-paws text-h3 leading-none text-tt-cream drop-shadow-[0_1.4px_1.8px_rgba(0,0,0,0.25)]">
                     {completedMonths}
                   </span>
                   <span className="font-primary text-p5 md:text-p4 mb-1">
                     BADGES EARNED
                   </span>
                 </div>
-                <div className="mt-2 rounded-lg border-2 border-yellow-900 bg-yellow-100/95 px-2 py-2 min-h-[44px] flex items-center">
+                <div className="mt-2 rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-800/90 px-2 py-2 min-h-[44px] flex items-center">
                   {completedMonths > 0 ? (
                     <div className="flex flex-wrap items-center gap-1">
                       {Array.from({ length: completedMonths }).map(
@@ -1181,29 +1215,29 @@ export const Codex = () => {
                       )}
                     </div>
                   ) : (
-                    <span className="font-primary text-p6 md:text-p5 text-yellow-900">
-                      Start completing missions to mint your first badge.
+                    <span className="font-primary text-p6 md:text-p5 text-tt-cream">
+                      Start completing missions to earn your first badge.
                     </span>
                   )}
                 </div>
               </div>
 
-              <div className="rounded-xl border-2 border-yellow-900 bg-gradient-to-b from-yellow-200 to-orange-100 p-3">
-                <div className="rounded-lg border-2 border-yellow-900 bg-gradient-to-r from-pink-400 to-yellow-400 px-2 py-0.5 font-primary text-p5 md:text-p4 font-bold text-yellow-900 w-fit">
+              <div className="rounded-xl border-2 border-tt-gold-500/50 bg-gradient-to-b from-tt-night-700 to-tt-night-900 p-3">
+                <div className="rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-950/70 px-2 py-0.5 font-primary text-p5 md:text-p4 font-bold text-tt-pink w-fit">
                   BADGE YIELD
                 </div>
-                <div className="mt-2 rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-3 py-2 font-primary text-yellow-900">
+                <div className="mt-2 rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 px-3 py-2 font-primary text-tt-cream">
                   <div className="text-p6 md:text-p5">
                     Current Monthly Boost
                   </div>
                   <div className="text-p4 md:text-p3 font-bold leading-none">
-                    +{monthlyBadgeYield} $TAILS
+                    +{formatTails(monthlyBadgeYield)}
                   </div>
                 </div>
-                <div className="mt-2 rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-3 py-1.5 font-primary text-p6 md:text-p5 text-yellow-900">
-                  1 badge = 300 $TAILS per month
+                <div className="mt-2 rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 px-3 py-1.5 font-primary text-p6 md:text-p5 text-tt-cream">
+                  Each badge adds {formatTails(300)} at every season reset
                 </div>
-                <div className="mt-2 rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-3 py-1.5 font-primary text-p6 md:text-p5 text-yellow-900">
+                <div className="mt-2 rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 px-3 py-1.5 font-primary text-p6 md:text-p5 text-tt-cream">
                   {remainingBadgeMissions > 0
                     ? `Next badge in ${remainingBadgeMissions} mission${
                         remainingBadgeMissions === 1 ? "" : "s"
@@ -1216,13 +1250,13 @@ export const Codex = () => {
         )}
         {!!airdropProgression && (
           <>
-            {activeProgressTab === "OVERVIEW" && (
+            {activeProgressTab === "rewards" && (
               <>
-                <Tag>AIRDROP COMMAND CENTER</Tag>
-                <div className="w-full rounded-2xl border-4 border-yellow-300 bg-gradient-to-r from-yellow-100 to-pink-100 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(120,53,15,0.2)]">
+                <Tag>YOUR REWARDS</Tag>
+                <div className="w-full rounded-2xl border-4 border-tt-gold-500 bg-gradient-to-r from-tt-night-700 to-tt-night-900 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(7,5,26,0.2)]">
                   <img
                     src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
-                    className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-multiply"
+                    className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-screen"
                     alt="hud pattern"
                   />
                   <img
@@ -1232,21 +1266,21 @@ export const Codex = () => {
                   />
                   <div className="relative z-10">
                     <div className="flex items-center justify-between font-primary text-p4 gap-2">
-                      <span className="rounded-lg border-2 border-yellow-900 bg-gradient-to-br from-yellow-300 to-yellow-100 px-2.5 py-0.5 text-yellow-900 text-p5 md:text-p4 font-bold">
+                      <span className="rounded-lg border-2 border-tt-gold-500 bg-tt-night-950/70 px-2.5 py-0.5 text-tt-gold-400 text-p5 md:text-p4 font-bold">
                         PROGRESSION COMMAND CENTER
                       </span>
-                      <div className="rounded-lg border-2 border-yellow-900 bg-yellow-50/95 text-yellow-900 px-3 py-0.5 text-p6 font-bold">
+                      <div className="rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 text-tt-cream px-3 py-0.5 text-p6 font-bold">
                         LIVE
                       </div>
                     </div>
-                    <div className="mt-3 rounded-xl border-2 border-yellow-900 bg-yellow-50/92 p-2 md:p-3">
+                    <div className="mt-3 rounded-xl border-2 border-tt-gold-500/50 bg-tt-night-900/80 p-2 md:p-3">
                       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                         <ProgressHudTile
                           icon="icons/check.webp"
                           mascot="tail/mascot-card.webp"
                           title="ELIGIBILITY SCORE"
                           value={`${eligibilityStats.met}/${eligibilityStats.total}`}
-                          detail={`${eligibilityStats.progress}% READY FOR SNAPSHOT`}
+                          detail={`${eligibilityStats.progress}% OF CHECKS MET`}
                           progress={eligibilityStats.progress}
                         />
                         <ProgressHudTile
@@ -1264,14 +1298,14 @@ export const Codex = () => {
                           mascot="tail/cat-celebrate.webp"
                           title="COMBO POWER"
                           value={`x${airdropProgression.gamification.comboMultiplier}`}
-                          detail={`STREAK BONUS +${airdropProgression.gamification.streakBonusTails} $TAILS`}
+                          detail={`STREAK BONUS +${formatTails(airdropProgression.gamification.streakBonusTails)}`}
                           progress={comboPowerProgress}
                         />
                         <ProgressHudTile
                           icon="flare-effect/effects/coindrop.gif"
                           mascot="tail/open-arms.webp"
-                          title="CLAIMABLE STASH"
-                          value={`${rewardStats.claimableTails} $TAILS`}
+                          title={CLAIMABLE_TREASURE_TITLE}
+                          value={formatTails(rewardStats.claimableTails)}
                           detail={`${rewardStats.claimableCount} REWARDS READY${
                             rewardStats.stashBonusPercent > 0
                               ? ` • +${rewardStats.stashBonusPercent}% LEGENDARY BONUS`
@@ -1284,19 +1318,18 @@ export const Codex = () => {
                         />
                       </div>
                     </div>
-                    <div className="mt-3 rounded-lg border-2 border-yellow-900 bg-yellow-50/95 text-yellow-900 px-3 py-1.5 font-primary text-p6 md:text-p5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                    <div className="mt-3 rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 text-tt-cream px-3 py-1.5 font-primary text-p6 md:text-p5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
                       <span>
-                        Missions: +{rewardStats.claimableChallengeTails} $TAILS
+                        Missions: +{formatTails(rewardStats.claimableChallengeTails)}
                       </span>
                       <span>
-                        Milestones: +{rewardStats.claimableMilestoneTails}{" "}
-                        $TAILS
+                        Milestones: +{formatTails(rewardStats.claimableMilestoneTails)}
                       </span>
                       <span>
-                        Tiers: +{rewardStats.claimableTierTails} $TAILS
+                        Tiers: +{formatTails(rewardStats.claimableTierTails)}
                       </span>
                       <span>
-                        Legendary stash: x
+                        Legendary bonus: x
                         {rewardStats.stashBonusMultiplier.toFixed(2)}
                         {rewardStats.additionalLegendaryCards > 0
                           ? ` (${rewardStats.additionalLegendaryCards} extra legendary)`
@@ -1307,10 +1340,10 @@ export const Codex = () => {
                 </div>
 
                 <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  <div className="w-full rounded-2xl border-4 border-yellow-300 bg-gradient-to-r from-yellow-100 to-pink-100 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(120,53,15,0.2)]">
+                  <div className="w-full rounded-2xl border-4 border-tt-gold-500 bg-gradient-to-r from-tt-night-700 to-tt-night-900 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(7,5,26,0.2)]">
                     <img
                       src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
-                      className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-multiply"
+                      className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-screen"
                       alt="eligibility pattern"
                     />
                     <img
@@ -1319,14 +1352,14 @@ export const Codex = () => {
                       alt="eligibility mascot"
                     />
                     <div className="flex items-center justify-between font-primary text-p4 relative z-10">
-                      <span className="rounded-lg border-2 border-yellow-900 bg-gradient-to-r from-yellow-300 to-yellow-100 px-2 py-0.5 text-yellow-900 text-p5 md:text-p4 font-bold">
+                      <span className="rounded-lg border-2 border-tt-gold-500 bg-tt-night-950/70 px-2 py-0.5 text-tt-gold-400 text-p5 md:text-p4 font-bold">
                         ELIGIBILITY
                       </span>
                       <span
-                        className={`rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-2 py-0.5 ${
+                        className={`rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 px-2 py-0.5 ${
                           airdropProgression.eligible
-                            ? "text-green-700"
-                            : "text-red-700"
+                            ? "text-tt-mint"
+                            : "text-tt-pink"
                         }`}
                       >
                         {airdropProgression.eligible
@@ -1339,8 +1372,8 @@ export const Codex = () => {
                         (criterion) => (
                           <div
                             key={criterion.id}
-                            className={`rounded-lg border-2 border-yellow-900 px-3 py-2 font-primary text-p5 ${
-                              criterion.met ? "bg-green-200" : "bg-red-200"
+                            className={`rounded-lg border-2 border-tt-gold-500/50 px-3 py-2 font-primary text-p5 ${
+                              criterion.met ? "bg-tt-mint/15" : "bg-tt-ember/25"
                             }`}
                           >
                             <div className="flex items-center justify-between">
@@ -1358,10 +1391,10 @@ export const Codex = () => {
                     </div>
                   </div>
 
-                  <div className="w-full rounded-2xl border-4 border-yellow-300 bg-gradient-to-r from-yellow-200 to-orange-200 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(120,53,15,0.2)]">
+                  <div className="w-full rounded-2xl border-4 border-tt-gold-500 bg-gradient-to-r from-tt-night-700 to-tt-night-900 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(7,5,26,0.2)]">
                     <img
                       src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
-                      className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-multiply"
+                      className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-screen"
                       alt="collectible pattern"
                     />
                     <img
@@ -1370,34 +1403,34 @@ export const Codex = () => {
                       alt="collectible mascot"
                     />
                     <div className="flex items-center justify-between font-primary text-p4 relative z-10">
-                      <span className="rounded-lg border-2 border-yellow-900 bg-gradient-to-r from-yellow-300 to-yellow-100 px-2 py-0.5 text-yellow-900 text-p5 md:text-p4 font-bold">
+                      <span className="rounded-lg border-2 border-tt-gold-500 bg-tt-night-950/70 px-2 py-0.5 text-tt-gold-400 text-p5 md:text-p4 font-bold">
                         COLLECTIBLE LEVEL
                       </span>
-                      <span className="rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-2 py-0.5">
+                      <span className="rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 px-2 py-0.5">
                         {airdropProgression.metrics.collectibleLevel}
                       </span>
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-2 font-primary text-p5 relative z-10">
-                      <div className="rounded-lg border-2 border-yellow-900 bg-yellow-100 px-3 py-1">
+                      <div className="rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-800/90 px-3 py-1">
                         Cats: {airdropProgression.metrics.collectiblesOwned}
                       </div>
-                      <div className="rounded-lg border-2 border-yellow-900 bg-yellow-100 px-3 py-1">
+                      <div className="rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-800/90 px-3 py-1">
                         Quests: {airdropProgression.metrics.questsCompleted}
                       </div>
-                      <div className="rounded-lg border-2 border-yellow-900 bg-yellow-100 px-3 py-1">
-                        Packs: {airdropProgression.metrics.packPurchases}
+                      <div className="rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-800/90 px-3 py-1">
+                        Tails given:{" "}
+                        {formatTails(rescueMetrics.tailsGiven ?? 0, { word: false })}
                       </div>
-                      <div className="rounded-lg border-2 border-yellow-900 bg-yellow-100 px-3 py-1">
-                        Portraits:{" "}
-                        {airdropProgression.metrics.portraitPurchases}
+                      <div className="rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-800/90 px-3 py-1">
+                        Goals helped: {rescueMetrics.goalsHelped ?? 0}
                       </div>
                     </div>
                     <div className="mt-2 flex items-center gap-2 font-primary text-p5 relative z-10">
-                      <span className="rounded-lg border-2 border-yellow-900 bg-yellow-100 px-3 py-1">
+                      <span className="rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-800/90 px-3 py-1">
                         Current:{" "}
                         {airdropProgression.currentTierId || "UNRANKED"}
                       </span>
-                      <span className="rounded-lg border-2 border-yellow-900 bg-yellow-100 px-3 py-1">
+                      <span className="rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-800/90 px-3 py-1">
                         Next: {airdropProgression.nextTierId || "MAXED"}
                       </span>
                     </div>
@@ -1405,22 +1438,22 @@ export const Codex = () => {
                       {airdropProgression.unlockedUnlockables.length > 0 ? (
                         airdropProgression.unlockedUnlockables.map(
                           (unlockable) => (
-                            <Tag key={unlockable} isSmall>
+                            <Tag key={unlockable} size="sm">
                               {unlockable.toUpperCase()}
                             </Tag>
                           ),
                         )
                       ) : (
-                        <Tag isSmall>NO UNLOCKABLES UNLOCKED YET</Tag>
+                        <Tag size="sm">NO UNLOCKABLES UNLOCKED YET</Tag>
                       )}
                     </div>
                   </div>
 
                   {!!nextAction && (
-                    <div className="w-full rounded-2xl border-4 border-yellow-300 bg-gradient-to-r from-blue-100 to-yellow-100 p-3 md:p-4 lg:col-span-2 relative overflow-hidden shadow-[0_8px_0_0_rgba(120,53,15,0.2)]">
+                    <div className="w-full rounded-2xl border-4 border-tt-gold-500 bg-gradient-to-r from-tt-night-700 to-tt-night-900 p-3 md:p-4 lg:col-span-2 relative overflow-hidden shadow-[0_8px_0_0_rgba(7,5,26,0.2)]">
                       <img
                         src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
-                        className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-multiply"
+                        className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-screen"
                         alt="action pattern"
                       />
                       <img
@@ -1434,26 +1467,26 @@ export const Codex = () => {
                           className="h-6 w-6"
                           alt="next action"
                         />
-                        <span className="rounded-lg border-2 border-yellow-900 bg-gradient-to-r from-yellow-300 to-yellow-100 px-2 py-0.5 text-yellow-900 text-p5 md:text-p4 font-bold">
+                        <span className="rounded-lg border-2 border-tt-gold-500 bg-tt-night-950/70 px-2 py-0.5 text-tt-gold-400 text-p5 md:text-p4 font-bold">
                           NEXT BEST ACTION
                         </span>
                       </div>
-                      <div className="font-primary text-p5 relative z-10 rounded-lg border border-yellow-900 bg-white/72 px-2 py-1 mt-1">
+                      <div className="font-primary text-p5 relative z-10 rounded-lg border border-tt-gold-500/50 bg-tt-night-950/60 px-2 py-1 mt-1">
                         {nextAction.label}
                       </div>
-                      <div className="font-primary text-p6 md:text-p5 leading-tight relative z-10 rounded-lg border border-yellow-900 bg-yellow-50/92 px-2 py-1 mt-1">
+                      <div className="font-primary text-p6 md:text-p5 leading-tight relative z-10 rounded-lg border border-tt-gold-500/50 bg-tt-night-900/80 px-2 py-1 mt-1">
                         {nextAction.detail}
                       </div>
-                      <div className="font-primary text-p6 md:text-p5 mt-1.5 relative z-10 rounded-lg border border-yellow-900 bg-yellow-50/92 px-2 py-1">
+                      <div className="font-primary text-p6 md:text-p5 mt-1.5 relative z-10 rounded-lg border border-tt-gold-500/50 bg-tt-night-900/80 px-2 py-1">
                         Progress: {nextAction.progress}
                       </div>
                     </div>
                   )}
 
-                  <div className="w-full rounded-2xl border-4 border-yellow-300 bg-gradient-to-r from-yellow-100 to-purple-100 p-3 md:p-4 relative overflow-hidden lg:col-span-2 shadow-[0_8px_0_0_rgba(120,53,15,0.2)]">
+                  <div className="w-full rounded-2xl border-4 border-tt-gold-500 bg-gradient-to-r from-tt-night-700 to-tt-night-900 p-3 md:p-4 relative overflow-hidden lg:col-span-2 shadow-[0_8px_0_0_rgba(7,5,26,0.2)]">
                     <img
                       src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
-                      className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-multiply"
+                      className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-screen"
                       alt="xp pattern"
                     />
                     <img
@@ -1462,15 +1495,15 @@ export const Codex = () => {
                       alt="xp mascot"
                     />
                     <div className="flex items-center justify-between font-primary text-p4 relative z-10">
-                      <span className="rounded-lg border-2 border-yellow-900 bg-gradient-to-r from-yellow-300 to-yellow-100 px-2 py-0.5 text-yellow-900 text-p5 md:text-p4 font-bold">
+                      <span className="rounded-lg border-2 border-tt-gold-500 bg-tt-night-950/70 px-2 py-0.5 text-tt-gold-400 text-p5 md:text-p4 font-bold">
                         LVL {airdropProgression.gamification.level} •{" "}
                         {airdropProgression.gamification.title}
                       </span>
-                      <span className="rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-2 py-0.5">
+                      <span className="rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 px-2 py-0.5">
                         {airdropProgression.gamification.xp} XP
                       </span>
                     </div>
-                    <div className="mt-2 h-4 w-full rounded-full border border-yellow-900 bg-yellow-200 relative z-10">
+                    <div className="mt-2 h-4 w-full rounded-full border border-tt-gold-500/50 bg-tt-night-950 relative z-10">
                       <div
                         className="h-full rounded-full bg-gradient-to-r from-pink-500 to-yellow-600"
                         style={{
@@ -1490,13 +1523,11 @@ export const Codex = () => {
                     <div className="mt-1.5 flex items-center justify-between font-primary text-p6 md:text-p5 relative z-10">
                       <span>
                         STREAK BONUS: +
-                        {airdropProgression.gamification.streakBonusTails}{" "}
-                        $TAILS
+                        {formatTails(airdropProgression.gamification.streakBonusTails)}
                       </span>
                       <span>
                         POTENTIAL: +
-                        {airdropProgression.gamification.potentialBonusTails}{" "}
-                        $TAILS
+                        {formatTails(airdropProgression.gamification.potentialBonusTails)}
                       </span>
                     </div>
                     <div className="mt-1.5 flex items-center justify-between font-primary text-p6 md:text-p5 relative z-10">
@@ -1514,13 +1545,13 @@ export const Codex = () => {
               </>
             )}
 
-            {activeProgressTab === "MISSIONS" && (
+            {activeProgressTab === "missions" && (
               <>
                 <Tag>MISSION BOARD</Tag>
-                <div className="w-full rounded-2xl border-4 border-yellow-300 bg-gradient-to-br from-yellow-100 via-orange-100 to-pink-100 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(120,53,15,0.2)]">
+                <div className="w-full rounded-2xl border-4 border-tt-gold-500 bg-gradient-to-br from-tt-night-700 via-tt-night-800 to-tt-night-900 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(7,5,26,0.2)]">
                   <img
                     src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
-                    className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-multiply"
+                    className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-screen"
                     alt="mission board pattern"
                   />
                   <img
@@ -1543,10 +1574,10 @@ export const Codex = () => {
                 </div>
 
                 <Tag>MILESTONE TRACK</Tag>
-                <div className="w-full rounded-2xl border-4 border-yellow-300 bg-gradient-to-br from-yellow-100 via-yellow-200 to-orange-100 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(120,53,15,0.2)]">
+                <div className="w-full rounded-2xl border-4 border-tt-gold-500 bg-gradient-to-br from-tt-night-700 via-tt-night-800 to-tt-night-900 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(7,5,26,0.2)]">
                   <img
                     src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
-                    className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-multiply"
+                    className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-screen"
                     alt="milestone board pattern"
                   />
                   <MilestoneTrack
@@ -1554,7 +1585,7 @@ export const Codex = () => {
                     claimingMilestoneId={claimingMilestoneId}
                     onClaimMilestone={claimMilestoneReward}
                   />
-                  <div className="mt-2 w-full flex items-center justify-between rounded-xl border-2 border-yellow-900 bg-yellow-100/95 px-3 py-2 font-primary text-p6 md:text-p5 relative z-10">
+                  <div className="mt-2 w-full flex items-center justify-between rounded-xl border-2 border-tt-gold-500/50 bg-tt-night-800/90 px-3 py-2 font-primary text-p6 md:text-p5 relative z-10">
                     <span>
                       NEXT MILESTONE: {nextMilestone?.label || "MAXED"}
                       {nextMilestone &&
@@ -1567,27 +1598,28 @@ export const Codex = () => {
                     />
                   </div>
                 </div>
-                <div className="w-full rounded-xl border-2 border-yellow-900 bg-gradient-to-r from-yellow-100 to-pink-100 px-3 py-2 font-primary text-p6 md:text-p5 relative overflow-hidden">
+                <div className="w-full rounded-xl border-2 border-tt-gold-500/50 bg-gradient-to-r from-tt-night-700 to-tt-night-900 px-3 py-2 font-primary text-p6 md:text-p5 relative overflow-hidden">
                   <img
                     src={cdnFile("tail/open-arms.webp")}
                     className="absolute right-1 bottom-0 h-10 w-10 object-contain opacity-40"
                     alt="tip mascot"
                   />
                   <span className="relative z-10">
-                    Claim mission and milestone rewards to fund tier unlock
-                    progress. Tier rewards are the high-value airdrop payouts.
+                    Claim mission and milestone rewards to climb the tiers.
+                    Every Tail you earn counts toward your rank, even after you
+                    give it to a goal.
                   </span>
                 </div>
               </>
             )}
 
-            {activeProgressTab === "TIERS" && (
+            {activeProgressTab === "tiers" && (
               <>
-                <Tag>AIRDROP TIERS • REVEALS • $TAILS</Tag>
-                <div className="w-full rounded-2xl border-4 border-yellow-300 bg-gradient-to-br from-yellow-100 via-orange-100 to-pink-100 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(120,53,15,0.2)]">
+                <Tag>TIERS • REVEALS • REWARDS</Tag>
+                <div className="w-full rounded-2xl border-4 border-tt-gold-500 bg-gradient-to-br from-tt-night-700 via-tt-night-800 to-tt-night-900 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(7,5,26,0.2)]">
                   <img
                     src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
-                    className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-multiply"
+                    className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-screen"
                     alt="tiers board pattern"
                   />
                   <img
@@ -1612,7 +1644,7 @@ export const Codex = () => {
             )}
           </>
         )}
-        {activeProgressTab === "IMMORTALIZE" && (
+        {activeProgressTab === "pet-art" && (
           <>
             <Tag>IMMORTALIZE PET FLOW</Tag>
             <ImmortalizePetFlow
@@ -1623,13 +1655,14 @@ export const Codex = () => {
           </>
         )}
       </div>
+      )}
 
-      {activeProgressTab === "BADGES" && (
+      {activeProgressTab === "badges" && (
         <div className="w-full flex flex-col items-center pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <div className="w-full max-w-[1320px] rounded-2xl border-4 border-yellow-300 bg-gradient-to-r from-yellow-100 via-orange-100 to-pink-100 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(120,53,15,0.2)]">
+          <div className="w-full max-w-[1320px] rounded-2xl border-4 border-tt-gold-500 bg-gradient-to-r from-tt-night-700 via-tt-night-800 to-tt-night-900 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(7,5,26,0.2)]">
             <img
               src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
-              className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-multiply"
+              className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-screen"
               alt="missions pattern"
             />
             <img
@@ -1639,19 +1672,19 @@ export const Codex = () => {
             />
             <div className="relative z-10">
               <div className="flex items-center justify-between gap-2">
-                <span className="rounded-lg border-2 border-yellow-900 bg-gradient-to-r from-yellow-300 to-yellow-100 px-2 py-0.5 font-primary text-p5 md:text-p4 font-bold text-yellow-900">
+                <span className="rounded-lg border-2 border-tt-gold-500 bg-tt-night-950/70 px-2 py-0.5 font-primary text-p5 md:text-p4 font-bold text-tt-gold-400">
                   THIS MONTH MISSIONS
                 </span>
-                <span className="rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-2 py-0.5 font-primary text-p6 md:text-p5 text-yellow-900 font-bold">
+                <span className="rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 px-2 py-0.5 font-primary text-p6 md:text-p5 text-tt-cream font-bold">
                   {completedCount}/{codex.length}
                 </span>
               </div>
-              <div className="mt-2 w-full flex rounded-full overflow-hidden gap-1 border-2 border-yellow-900 bg-yellow-50 p-1">
+              <div className="mt-2 w-full flex rounded-full overflow-hidden gap-1 border-2 border-tt-gold-500/50 bg-tt-night-950 p-1">
                 {Array.from({ length: codex.length }).map((_, index) => (
                   <div
                     key={index}
                     className={`h-12 w-6 flex-1 relative rounded-sm ${
-                      index < completedCount ? "bg-yellow-300" : "bg-red-300"
+                      index < completedCount ? "bg-tt-gold-400" : "bg-tt-ember/30"
                     }`}
                   >
                     {index < completedCount && (
@@ -1664,7 +1697,7 @@ export const Codex = () => {
                   </div>
                 ))}
               </div>
-              <div className="mt-2 rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-3 py-1.5 font-primary text-p6 md:text-p5 text-center text-yellow-900">
+              <div className="mt-2 rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 px-3 py-1.5 font-primary text-p6 md:text-p5 text-center text-tt-cream">
                 {!isCompleted
                   ? `Complete ${remainingBadgeMissions} more mission${
                       remainingBadgeMissions === 1 ? "" : "s"
@@ -1674,49 +1707,51 @@ export const Codex = () => {
             </div>
           </div>
 
-          <div className="w-full max-w-[1320px] mt-2 rounded-xl border-2 border-yellow-900 bg-gradient-to-r from-yellow-100 to-orange-100 p-3 md:p-4 relative overflow-hidden">
+          <div className="w-full max-w-[1320px] mt-2 rounded-xl border-2 border-tt-gold-500/50 bg-gradient-to-r from-tt-night-700 to-tt-night-900 p-3 md:p-4 relative overflow-hidden">
             <img
               src={cdnFile("tail/open-arms.webp")}
               className="absolute right-1 top-1 h-10 w-10 md:h-12 md:w-12 object-contain opacity-20"
               alt="faq mascot"
             />
             <div className="relative z-10 flex items-center justify-between gap-2">
-              <span className="rounded-lg border-2 border-yellow-900 bg-gradient-to-r from-yellow-300 to-yellow-100 px-2 py-0.5 font-primary text-p5 md:text-p4 font-bold text-yellow-900">
+              <span className="rounded-lg border-2 border-tt-gold-500 bg-tt-night-950/70 px-2 py-0.5 font-primary text-p5 md:text-p4 font-bold text-tt-gold-400">
                 BADGE INTEL
               </span>
               <PixelButton
-                isSmall
+                size="sm"
                 text={isFAQOpen ? "CLOSE" : "FAQ"}
                 onClick={() => setIsFAQOpen((prev) => !prev)}
               />
             </div>
             {isFAQOpen && (
               <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
-                <div className="rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-3 py-2">
-                  <Tag isSmall>WHAT DO I NEED TO DO?</Tag>
+                <div className="rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 px-3 py-2">
+                  <Tag size="sm">WHAT DO I NEED TO DO?</Tag>
                   <div className="font-primary text-p6 md:text-p5">
                     COMPLETE ALL 9 MISSIONS
                   </div>
                 </div>
-                <div className="rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-3 py-2">
-                  <Tag isSmall>WHAT DO I NEED TO KNOW?</Tag>
+                <div className="rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 px-3 py-2">
+                  <Tag size="sm">WHAT DO I NEED TO KNOW?</Tag>
                   <div className="font-primary text-p6 md:text-p5">
-                    RESETS ON 9TH DAY OF EVERY MONTH
+                    {season
+                      ? `NEXT SEASON STARTS ${localSeasonTime(season.anchorAt).toUpperCase()}`
+                      : "A NEW SEASON STARTS EVERY MONTH"}
                   </div>
                 </div>
-                <div className="rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-3 py-2 md:col-span-2">
-                  <Tag isSmall>WHAT ARE THE BENEFITS?</Tag>
+                <div className="rounded-lg border-2 border-tt-gold-500/50 bg-tt-night-900/80 px-3 py-2 md:col-span-2">
+                  <Tag size="sm">WHAT ARE THE BENEFITS?</Tag>
                   <div className="font-primary text-p6 md:text-p5">
                     DISCOUNTED COLLECTIBLES • PRIORITY SUPPORT • EARLY ACCESS TO
-                    UPDATES • $TAILS DROPS • AIRDROP ELIGIBILITY CRITERIA
+                    UPDATES • BONUS TAILS • TIER PROGRESS
                   </div>
                 </div>
               </div>
             )}
           </div>
-          {isLessThan8hoursLeft ? (
+          {seasonIsFrozen ? (
             <div className="flex flex-col gap-4 mt-3">
-              <div className="font-primary text-p5">CALCULATING REWARDS...</div>
+              <div className="font-primary text-p5">COUNTING THIS SEASON&apos;S BADGES...</div>
             </div>
           ) : (
             <div className="w-full max-w-[1320px] mt-6 grid grid-cols-1 gap-12 md:grid-cols-2 xl:grid-cols-3 place-items-center">

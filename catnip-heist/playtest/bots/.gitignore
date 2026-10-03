@@ -1,0 +1,2 @@
+# Raw episode dumps from npm run playtest:bots -- --json (large, regenerate instead of committing)
+*.json

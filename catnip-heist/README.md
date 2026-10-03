@@ -21,7 +21,7 @@ Build-time env vars:
 | Var | Effect |
 |---|---|
 | `HEIST_BASE` | Deploy path (Vite `base`). Default `./` (relative, works from any directory URL that ends in `/`). Set an absolute sub-path to host elsewhere, e.g. `HEIST_BASE=/tokentails/heist/ npm run build` for GitHub Pages or `HEIST_BASE=/heist/` for tokentails.com/heist/. |
-| `HEIST_PAYOUTS_URL` | Shelter payouts page linked from the win screen ("Every heist funds a real shelter: see payouts"). Default `https://tokentails.com/shelter-payouts`; an empty value hides the link. |
+| `HEIST_PAYOUTS_URL` | Full shelter payouts page, linked small from the in-game "Sent to shelters" modal (and, in app builds, from the win screen). Default `https://tokentails.com/shelter-payouts`; an empty value hides the link. |
 | `HEIST_GIVE_URL` | Give page behind the win screen's "Send Pink Paw a rescue treat 🐾" button, opened as `?from=heist&cat=<rescued cat>`. Default `/shelter-payouts/give` (same-origin relative, so it works under tokentails.com/heist; on another host such as GitHub Pages set a full URL or an empty value). An empty value hides the button. |
 
 GitHub Pages: `.github/workflows/catnip-heist-pages.yml` (repo root) builds with
@@ -64,7 +64,11 @@ Movement is free and continuous (5 tiles/s, integer sub-tile units, see the top 
 the cat starts, stops and turns on the tick you press or release a key. Directions are relative to
 the screen: Up moves the cat up the screen, which is diagonal on the grid because of the 45° camera
 (diagonals are normalised, so they are not faster). Against a wall the blocked axis drops out and
-the cat slides along it; near a doorway it is nudged sideways into the opening. Interact works from
+the cat slides along it; a straight press up to 10 units (about 2/3 of a tile) off a doorway is
+nudged sideways into the opening, and a diagonal press whose one component points into a 1-tile gap
+ahead of the cat goes through the gap (the "doorway magnet", SIM_VERSION 4) instead of sliding past
+it. A cat let go within 6 units of a plate walks onto the plate's centre by itself (plate snap), and
+a cat counts as at the exit while its centre is within 6 units of an exit tile. Interact works from
 any tile next to (or diagonal to) the crate or vault door.
 The game pauses when the window loses focus.
 
@@ -75,19 +79,34 @@ Level select → Heist. Level N unlocks when level N-1 is won. Progress (best sc
 is saved in browser storage under `catnip-heist.progress.v1`; every access is wrapped in try/catch,
 and in private mode it lives in memory for the session. Watching a replay earns nothing.
 
-| # | Id | Name | Idea | Size | Coins (cap) | Guards | Par | Solution | Needs both cats |
-|---|---|---|---|---|---|---|---|---|---|
-| 1 | heist-01 | Kibble Corp Warehouse | Tutorial: move, sneak, swap, plate door | 38×21 | 20 (20) | 4 patrols | 3:00 | 2203 t (1:13) | yes |
-| 2 | heist-02 | Kennel Row | Meow to lure a doorman off its post | 24×21 | 19 (20) | 1 doorman, 1 patrol | 1:15 | 988 t (0:32) | no |
-| 3 | heist-03 | Twin Locks | Chained plate doors, swap timing | 30×15 | 17 (18) | 2 patrols | 1:30 | 1268 t (0:42) | yes |
-| 4 | heist-04 | Counting House | Key + vault with a fast patrol loop | 36×20 | 22 (24) | 2 patrols | 2:00 | 1648 t (0:54) | yes |
-| 5 | heist-05 | Watchtower Yard | Sentries that turn on a schedule | 28×18 | 19 (20) | 4 sentries | 1:30 | 973 t (0:32) | yes |
-| 6 | heist-06 | Conveyor Halls | Tight patrol timing in 1-tile corridors with niches | 30×16 | 19 (20) | 3 fast pacers | 2:00 | 1832 t (1:01) | yes |
-| 7 | heist-07 | Split Shift | Split up: each wing's doors are opened from the other wing | 38×15 | 19 (22) | 4 patrols, 1 sentry | 2:00 | 1218 t (0:40) | yes |
-| 8 | heist-08 | Kibble Corp HQ | Finale: all of the above | 40×27 | 26 (28) | loop, doorman, 2 sentries, pacer | 3:30 | 2727 t (1:30) | yes |
+| # | Id | Name | Idea | Size | Coins (cap) | Guards | Checkpoints | Par | Solution | Needs both cats | Bot novice / cautious win |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | heist-01 | Kibble Corp Warehouse | Tutorial: move, sneak, swap, plate door | 38×21 | 20 (20) | 4 patrols | 2 | 2:15 | 2216 t (1:14) | yes | 99% / 100% |
+| 2 | heist-02 | Kennel Row | Meow to lure a doorman off its post | 24×21 | 19 (20) | 1 doorman, 1 patrol | 2 | 1:00 | 998 t (0:33) | no | 100% / 100% |
+| 3 | heist-03 | Twin Locks | Chained plate doors, swap timing | 30×15 | 17 (18) | 2 patrols | 3 | 1:00 | 1143 t (0:38) | yes | 99% / 100% |
+| 4 | heist-04 | Counting House | Key + vault with a fast patrol loop | 36×20 | 22 (24) | 2 patrols | 2 | 1:30 | 1673 t (0:56) | yes | 99% / 100% |
+| 5 | heist-05 | Watchtower Yard | Sentries that turn on a schedule | 28×18 | 19 (20) | 4 sentries | 2 | 1:00 | 911 t (0:30) | yes | 100% / 100% |
+| 6 | heist-06 | Conveyor Halls | Tight patrol timing in 1-tile corridors with niches | 30×16 | 19 (20) | 3 fast pacers | 2 | 1:55 | 1625 t (0:54) | yes | 98% / 100% |
+| 7 | heist-07 | Split Shift | Split up: each wing's doors are opened from the other wing | 38×15 | 19 (22) | 4 patrols, 1 sentry | 5 | 1:35 | 1215 t (0:41) | yes | 100% / 100% |
+| 8 | heist-08 | Kibble Corp HQ | Finale: all of the above | 40×27 | 26 (28) | loop, turning doorman, 2 sentries, pacer | 3 | 2:50 | 2550 t (1:25) | yes | 52% / 81% |
 
 "Solution" is the solver's planned run (30 ticks per second): it collects every coin, is never
 spotted and finishes under par, so all three stars are reachable on every level.
+
+**Par** is set from play, not from the solver: the median win time of the cautious synthetic player
+(`npm run playtest:bots`, 200 seeds) times 1.2, rounded up to 5 s, and at least 60 s (the campaign
+test keeps par between 1 and 4 minutes). The source line in `tools/levels/<id>.mjs` records the
+median it came from. The last column is the bots' completion rate; `playtest/BOT-REPORT.md` has the
+full tables and the before/after of the 2026-10-01 tuning pass.
+
+**Checkpoints** are per cat: walking over a paw pad makes it that cat's respawn point. Two rules
+keep a catch from undoing the plate work (both checked in `src/sim/__tests__/telegraph.test.ts`):
+on the leapfrog levels (03, 07) the tile just past every plate door is a checkpoint, so a cat caught
+behind a door respawns on the side it reached; and no guard on its normal rounds ever sees a
+checkpoint's centre, so a respawned cat is not caught again where it stands. After a catch the cat
+is frozen for 40 ticks, then has up to 3 s of grace (`GRACE_TICKS`, SIM_VERSION 4) in which guards
+cannot see it while it stays within 1 tile of its checkpoint; it flickers meanwhile, and leaving that
+area ends the grace at once.
 
 Stars (each earned once, from any winning run, and kept):
 
@@ -102,9 +121,47 @@ level** / **Heists** buttons. (Its paw rating is the older, separate rule in `sr
 
 A guard with exactly one waypoint stands on its post. With `turns: [{ facing, ticks }, ...]` it turns
 through that schedule on the global tick clock (`sentryFacing(def, tick)` in `src/sim/sim.ts`): the
-facing is a pure function of `SimState.tick`, so there is no new state and heist-01's hashes did not
-change (`SIM_VERSION` stays 3). A sentry that hears a meow walks off to investigate like any guard,
-then walks back and rejoins its schedule. It is drawn by the normal guard renderer.
+facing is a pure function of `SimState.tick`, so there is no new state. A sentry that hears a meow
+walks off to investigate like any guard, then walks back and rejoins its schedule. It is drawn by
+the normal guard renderer. heist-08's doorman is a slow sentry (north 4 s, east 3 s, north 4 s,
+west 3 s): lure it, or slip in while it looks along the hall. The heist-08 yard sentries hold each
+facing 3 s.
+
+**Turn telegraph.** For the last 1.2 s (`TELEGRAPH_TICKS` = 36) before every scheduled turn, a pale
+ghost cone shows where the sentry will look next (it brightens and flickers as the turn nears), a
+ring pulses under the dog, and a soft two-note tick plays when the sentry is within 10 tiles of the
+active cat. A sentry walking back to its post after a lure gets the same warning before it snaps to
+its scheduled facing (`sentryReturnTurn`), and the tick is edge-triggered per warning, so it also
+plays for a warning that starts with less than the full lead. `src/sim/telegraph.ts` reads the turn
+off the schedule and the guard's walk back (`nextSentryTurn`, `sentryTurnAhead`, `sentryWarnings`);
+the sim does not import it, so sim behaviour, hashes and the vendored backend sim are unchanged by
+it. The playtest bots see the ghost cone too (with their reaction delay).
+
+### HUD and floor cues
+
+- Each cat's portrait shows **on plate** while that cat stands on a pressed plate (active or parked,
+  so the badge follows the cat after a swap). The parked cat's portrait pulses red with **!** while a
+  guard is about to see it: in a cone with a tile to spare, in a telegraphed sentry turn
+  (`partnerDanger` in `src/sim/telegraph.ts`), or when a patrol would walk into view within 2 s if
+  nobody moved (`partnerCatchAhead`, the sim run ahead with no input, 5 times a second). Screen
+  readers hear it too.
+- After the rescue a **1/2 at exit** chip counts the cats at the exit. The catnip chip shows a star
+  once every coin is in; the brief card lists the star rules, and the Results row says
+  "(all N = ★)" when catnip was missed.
+- The hint line puts situational prompts first: "Press E to free Mochi!" next to the crate, "Step
+  right next to the crate" two tiles off, and the swap prompt once a plate is really pressed
+  (`contextPrompt` / `hudHint` in `src/sim/hud.ts`).
+- The key, the crate, the exit and every plate pulse once the first time they come on screen;
+  pressing a plate pulses its linked door in the plate's colour; a plate next to a resting cat
+  pulses "step here"; a resting cat sees a lilac ear ring under each dog that would hear a meow.
+- Vision cones hidden behind tall walls are drawn again, a little fainter, on top (an inverted depth
+  test), so a dog behind a wall in heist-06 still shows its cone. Plates get a dithered x-ray ring
+  and plate doors an x-ray panel the same way, so a plate behind a wall or the exit portal, or a
+  door behind a wall, still shows where it is (the GLB export drops these depth-trick materials).
+- While the active cat pushes into a wall, the nearest 1-tile gap in it within 3 tiles pulses mint,
+  so a cat that only looks as if it stands in a doorway shows where the opening is.
+- The screen-reader announcement ("Spotted! Back to the checkpoint. ...") is cleared after 3 s
+  instead of staying in the page text.
 
 ### Authoring a level
 
@@ -132,6 +189,13 @@ then walks back and rejoins its schedule. It is drawn by the normal guard render
    `twoCatRequired` level can be finished by one cat. If it cannot find a route, change the level.
 5. `npx vitest run`: `src/levels/__tests__/campaign.test.ts` replays every solution (win, recorded
    hash, 0 spotted, under par) and checks the schema, the coin cap and the one-cat proof.
+
+### Synthetic playtest
+
+`npm run playtest:bots` plays every level with seeded synthetic players (novice, cautious, rusher,
+explorer, plus a diagnostic oracle) through the real sim and rewrites `playtest/BOT-REPORT.md`
+(see that file for the model and the flags). Re-run it after a level change; the hand-written
+Findings section of the report survives regeneration.
 
 ### Solver
 
@@ -230,13 +294,14 @@ The e2e suite (`e2e/heist.spec.ts`) checks:
 - A heist starts with the two cats picked on screen. It also checks keyboard movement, swapping,
   pausing from Esc and from window blur, and resuming.
 - The heist-01 solution, loaded through the QA hook, reaches Results with `won = true`. Its final
-  hash matches the `finalHash` that the vitest replay asserts (2794441920).
+  hash matches the `finalHash` that the vitest replay asserts (451370211 at SIM_VERSION 4).
 - The level select shows 8 cards with only heist-01 unlocked on a fresh profile.
 - Every level's solution replays to Results with `won = true` and its recorded hash (and earns no
   progress, since it is a replay).
 - Playing heist-01's inputs live wins it, awards 3 stars, offers Next level, unlocks heist-02, and
   the unlock survives a reload.
-- The win screen links to the shelter payouts page.
+- The win screen's "See shelter payouts" opens the in-game payouts modal; Escape closes it and
+  focus returns to the button.
 - A phone-landscape touch layout.
 
 It saves a screenshot of every screen to `e2e/screens/`. Playwright uses the locally cached
@@ -364,7 +429,7 @@ cat.update(dt);                 // seconds
 | `src/ui/`, `src/audio/`, `src/yard/` | ui |
 | `src/main.ts`, `src/app/`, `e2e/` | integrate |
 
-### Shelter payouts on the win screen
+### Shelter payouts on the win screen and the "Sent to shelters" modal
 
 The rescue screen shows a read-only on-chain total ("X USDC sent to real shelters so far, on-chain").
 `src/ui/payouts.ts` reads ShelterSplit's `Disbursed` and `NativeDisbursed` events from public RPCs;
@@ -377,6 +442,16 @@ one-tap donation through the backend; the game never signs, pays or holds keys. 
 (Rožinė pėdutė) is the showcase shelter. Its wallet is created and held by Token Tails on its
 behalf until handover; the give page and payouts page disclose this.
 
-`npm run build:client` builds a copy into `../client/public/heist/` (base `/heist/`) that reads the
-client's `/shelter-payouts/deployments.json` and links to `/shelter-payouts`. The client links to it
-as `/heist/index.html`.
+On web hosts the payouts live in the game: `src/ui/shelter-payouts.ts` is a DOM modal ("Sent to
+shelters") with the total, the latest payouts (memo, amount, time, explorer tx link), a row per
+deployment (contract and explorer link), the Pink Paw card with the give button, and friendly
+loading, empty ("First payouts land soon") and error (retry) states. It opens from the title (the
+gold pill), the pause menu and the win screen's "See shelter payouts", and on load with `?payouts`
+or `#payouts`. Escape closes it without resuming a paused run, Tab stays inside it and focus goes
+back to the opener. It is styled after the tokentails.com landing (the hero sky
+`assets/images/payouts-hero.webp` and Passion One 700 in `assets/fonts/`, both copied from
+`client/public` by `npm run import-assets`). App builds (Capacitor) never show it (claims rule
+R10); there the win screen keeps the external link.
+
+`npm run build:client` builds a copy into `../client/public/heist-game/` (base `/heist-game/`) that
+reads the client's `/shelter-payouts/deployments.json` and links to `/shelter-payouts`.

@@ -26,7 +26,9 @@ const map = [
   '##############################', // 15
 ];
 
-const pacer = (id, sprite, a, b) => ({ id, sprite, waypoints: [a, b], speed: 2, sniffTicks: 20, visionTiles: 4 });
+// Vision 3 (was 4): a dog turning at the end of a hall no longer reaches a cat ducking into the
+// nearest niche, so running in a dog's wake works for fast, impatient players too.
+const pacer = (id, sprite, a, b) => ({ id, sprite, waypoints: [a, b], speed: 2, sniffTicks: 20, visionTiles: 3 });
 
 export default {
   id: 'heist-06',
@@ -39,14 +41,14 @@ export default {
   guards: [pacer('g-hall-1', 'brown', '3', '4'), pacer('g-hall-2', 'black', '5', '6'), pacer('g-hall-3', 'black-white', '7', '8')],
   crate: { catId: 'maine', catName: 'Waffles' },
   meta: {
-    parTicks: 120 * 30,
+    parTicks: 115 * 30, // cautious-bot median 93 s x 1.2, rounded up to 5 s (min 60 s); see playtest/BOT-REPORT.md
     meowRadiusTiles: 6,
     investigateTicks: 90,
     maxCoins: 20,
     twoCatRequired: true,
     objectives: ['Slip through the halls and free {cat}', 'Both cats to the exit'],
     hints: [
-      { x0: 5, y0: 1, x1: 27, y1: 3, untilObjective: 0, text: 'Follow the dog and hide in a niche when it turns back.' },
+      { x0: 5, y0: 1, x1: 27, y1: 3, untilObjective: 0, text: 'Follow the dog and hide deep in a wall niche (the gaps in the wall) when it turns back.' },
       { x0: 2, y0: 11, x1: 23, y1: 13, untilObjective: 0, text: 'One cat sits on the plate in the niche while the other takes door L.' },
     ],
   },

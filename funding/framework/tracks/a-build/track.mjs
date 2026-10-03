@@ -173,7 +173,7 @@ function artifactInfo(project) {
   const creation = (j.bytecode?.object || '').replace(/^0x/, '');
   const runtime = (j.deployedBytecode?.object || '').replace(/^0x/, '');
   return {
-    bytecodeSha256: creation ? createHash('sha256').update(creation).digest('hex') : 'n/a',
+    bytecodeSha256: creation ? createHash('sha256').update(Buffer.from(creation, 'hex')).digest('hex') : 'n/a',
     runtimeBytes: runtime.length / 2,
     compiler: j.metadata?.compiler?.version || '',
   };
@@ -278,7 +278,7 @@ export async function verifyDeployment(entry, { rpcUrl, project = paths.project(
     else if (rc.contractAddress && rc.contractAddress.toLowerCase() !== entry.address.toLowerCase()) problems.push(`tx created ${rc.contractAddress}, not ${entry.address}`);
     else if (rc.status && rc.status !== '0x1') problems.push(`tx ${entry.tx} failed`);
   }
-  const codeHash = code && code !== '0x' ? createHash('sha256').update(code.replace(/^0x/, '')).digest('hex') : '';
+  const codeHash = code && code !== '0x' ? createHash('sha256').update(Buffer.from(code.replace(/^0x/, ''), 'hex')).digest('hex') : '';
   const codeBytes = code ? (code.length - 2) / 2 : 0;
   // Immutables are filled in place, so a deployment of this build has exactly the local runtime size.
   const notes = [];
@@ -368,7 +368,7 @@ function deploymentsBlock(app, deployments, chains) {
     const a = explorerLink(chains, d.chain, d.network, 'address', d.address);
     const t = d.tx ? explorerLink(chains, d.chain, d.network, 'tx', d.tx) : '';
     const proofs = (d.proofTxs || []).map((h, i) => `[payout ${i + 1}](${explorerLink(chains, d.chain, d.network, 'tx', h) || h})`).join(', ');
-    return `| ${name} ${d.network} (chain ${d.chainId}) | [\`${d.address}\`](${a}) | ${t ? `[deploy tx](${t})` : '-'} | ${proofs || '-'} | ${d.verified ? 'verified on-chain' : 'recorded'} |`;
+    return `| ${name} ${d.network} (chain ${d.chainId}) | [\`${d.address}\`](${a}) | ${t ? `[deploy tx](${t})` : '-'} | ${proofs || '-'} | ${d.verified ? 'verified on-chain' : 'recorded'}${d.sourceVerified ? ', source verified' : ''} |`;
   });
   return ['| Network | Contract | Transaction | Shelter payouts | Status |', '|---|---|---|---|---|', ...rows].join('\n');
 }
@@ -467,6 +467,15 @@ function checkApp({ app }) {
     }
   } else {
     out.push({ name: 'mainnet', level: 'ok', detail: main.length ? `${main.length} mainnet deployment(s)` : 'not required' });
+  }
+
+  // source code verified on the explorer (judges open the contract; unverified bytecode can disqualify)
+  const relevant = main.length ? main : deployments.filter((d) => d.network === 'testnet' && (want.length === 0 || want.includes(d.chain)));
+  if (relevant.length) {
+    const missing = relevant.filter((d) => !d.sourceVerified);
+    out.push(missing.length
+      ? { name: 'source-verified', level: ready ? 'error' : 'warn', detail: `source not verified on the explorer: ${missing.map((d) => `${d.chain} ${d.network}`).join(', ')} — run "fund a:verify-source"` }
+      : { name: 'source-verified', level: 'ok', detail: relevant.map((d) => `${d.chain} ${d.network}`).join(', ') });
   }
 
   // build evidence

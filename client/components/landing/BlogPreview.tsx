@@ -6,7 +6,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo } from "react";
 import { Slider } from "../shared/Slider";
-import { PixelButton } from "../shared/PixelButton";
 
 const BlogPreviewCard = ({ title, slug, featuredImage, category }: Props) => {
   const link = useMemo(

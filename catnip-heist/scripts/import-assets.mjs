@@ -3,12 +3,19 @@
 // and writes public/assets/manifest.json (see AssetManifest in src/types.ts).
 //
 // Source folders are read-only. Re-run with `npm run import-assets` whenever the art changes.
+//
+// Needs the client's packages too: the catnip sprig comes from client/scripts/art/catnip-export.mjs,
+// which loads `sharp` from client/node_modules. Run `npm install` in client/ first (or the import
+// fails with "Cannot find package 'sharp'").
 import { mkdir, readdir, copyFile, writeFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { optimizeAssets } from './optimize-assets.mjs';
+// The catnip sprig (plan G8): drawn by the client exporter from the hand-authored pixel masters, so
+// the Heist copies are byte-identical to the hash-pinned files (client/__test__/catnip-art.test.ts).
+import { OUTPUTS as CATNIP_OUTPUTS, encode as encodeCatnip, loadMasters as loadCatnipMasters, REPO as CATNIP_REPO } from '../../client/scripts/art/catnip-export.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
@@ -131,10 +138,19 @@ async function main() {
 
   // Brand images (webp -> png so they can be voxelized / used as textures everywhere)
   const images = {};
-  for (const key of ['coin', 'catnip', 'heart', 'paw']) {
+  for (const key of ['coin', 'heart', 'paw']) {
     await toPng(join(CLIENT_PUBLIC, 'logo', `${key}.webp`), join(OUT, 'images', `${key}.png`));
     images[key] = `images/${key}.png`;
   }
+  // Catnip: the 96 px sprig for the UI (images/catnip.webp, lossless) and the 16 px master as the
+  // voxel source (images/catnip-16.png, read by render/level.ts with smooth:false). Never the old
+  // 320 px leaf (client/public/logo/catnip.webp was cannabis-shaped before G8).
+  const { palette: catnipPalette, masters: catnipMasters } = loadCatnipMasters();
+  for (const output of CATNIP_OUTPUTS.filter((o) => o.path.startsWith('catnip-heist/'))) {
+    const dest = join(CATNIP_REPO, output.path);
+    await writeFile(dest, await encodeCatnip(output, catnipMasters, catnipPalette));
+  }
+  images.catnip = 'images/catnip.webp';
   await toPng(join(CLIENT_PUBLIC, 'logo', 'logo-text.webp'), join(OUT, 'images', 'logo.png'));
   images.logo = 'images/logo.png';
 
@@ -155,6 +171,13 @@ async function main() {
   if (existsSync(fontSrc)) {
     await copyFile(fontSrc, join(OUT, 'fonts', 'catpaw.woff2'));
     font = 'fonts/catpaw.woff2';
+  }
+
+  // Shelter payouts modal (src/ui/shelter-payouts.ts): the landing's hero sky and its display face
+  // (Passion One 700), at fixed paths, so the modal looks like the tokentails.com landing.
+  await sharp(join(CLIENT_PUBLIC, 'landing', 'hero-bg.webp')).resize(1100).webp({ quality: 70 }).toFile(join(OUT, 'images', 'payouts-hero.webp'));
+  for (const f of ['passion-one-latin-700-normal.woff2', 'passion-one-latin-ext-700-normal.woff2', 'LICENSE-passion-one.txt']) {
+    await copyFile(join(CLIENT_PUBLIC, 'fonts', f), join(OUT, 'fonts', f));
   }
 
   const manifest = { version: 1, frame: FRAME, cats, dogs, images, icons, font };

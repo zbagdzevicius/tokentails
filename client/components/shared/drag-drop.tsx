@@ -82,7 +82,7 @@ export function Previews({ maxFiles, value, onChange }: IProps) {
         <div
           {...getRootProps({
             className:
-              "dropzone py-4 bg-red-500 text-yellow-300 font-secondary text-p4 px-4 rounded-lg border-4 border-dashed border-yellow-900 relative",
+              "dropzone py-4 bg-red-500 text-tt-cream font-secondary text-p4 px-4 rounded-lg border-4 border-dashed border-yellow-900 relative",
           })}
         >
           <input {...getInputProps()} />

@@ -1,130 +1,38 @@
-import { QUEST_API } from "@/api/quest-api";
-import { useQuery } from "@tanstack/react-query";
-import { Countdown } from "../shared/Countdown";
-import { PixelButton } from "../shared/PixelButton";
+import { ImpactNumbers } from "@/components/impact/ImpactNumbers";
+import { useImpact } from "@/hooks/useImpact";
 import { cdnFile } from "@/constants/utils";
+import Link from "next/link";
+import { PixelButton } from "../shared/PixelButton";
 
+/**
+ * /stats (plan G11, task 5e): the same public impact snapshot as /impact and the landing, so the
+ * numbers agree everywhere. The old in-process counters (`GET /quest/statistics`) and the dead
+ * /airdrop link are gone.
+ */
 export const Stats = () => {
-  const { data } = useQuery({
-    queryKey: ["stats"],
-    queryFn: () => QUEST_API.statistics(),
-  });
+  const { impact, loading } = useImpact();
 
   return (
-    <div className="flex flex-col lg:flex-row items-center lg:items-start lg:mt-8 2xl:mt-16 gap-2 lg:gap-16">
-      <div className="flex flex-col items-center">
-        <img
-          className="w-32"
-          src={cdnFile("logo/logo.webp")}
-          alt="airdrop-logo"
-        />
-        <h2 className="text-center font-primary uppercase tracking-tight text-h6 md:text-h1 text-balance px-4">
-          <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] mr-4">
-            Token Tails
-          </span>
-          Stats
-        </h2>
-        <div className="flex items-center font-primary gap-2 text-p5 pb-4 text-center justify-center">
-          BE SURE TO JOIN OUR JOURNEY
-        </div>
-        <Countdown isDaysDisplayed isBig targetDate={new Date("2025-08-26")} />
-        <div className="flex items-center font-primary gap-2 text-p5 pt-4 text-center justify-center">
-          ENGAGE ON SOCIALS AND PLAY TO SAVE
-        </div>
-        <h2 className="font-primary uppercase lg:mt-3 tracking-tight text-h6 md:text-h3 text-balance px-4">
-          9 WAYS TO
-          <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] ml-2">
-            TRACK
-          </span>
-        </h2>
-        <div className="flex items-center font-primary gap-2 -mt-1 text-p5 text-center justify-center">
-          LIVE DATA OF TOKEN TAILS
-        </div>
-
-        <a href="/airdrop" className="mt-4">
-          <PixelButton text="AIRDROP STATS ->" />
-        </a>
-
-        {data && (
-          <div className="flex flex-wrap gap-8 justify-center items-center mt-8">
-            <div
-              style={{
-                backgroundImage: "url(/backgrounds/bg-5.webp)",
-                backgroundSize: "cover",
-                backgroundPosition: "top",
-              }}
-              className="text-p4 w-48 h-24 relative font-secondary flex flex-col items-center justify-center gap-1 border-2 rounded-xl border-yellow-900"
-            >
-              <div className="absolute top-0 bg-gradient-to-b w-fit px-4 from-purple-300 to-blue-300 rounded-xl whitespace-nowrap text-p5 -mt-3 border border-yellow-900">
-                USERS COUNT
-              </div>
-              <div className="text-h5 font-secondary text-yellow-900 mt-1 w-full flex items-center justify-center gap-1">
-                {data.users.count}
-              </div>
-            </div>
-            <div
-              style={{
-                backgroundImage: "url(/backgrounds/bg-5.webp)",
-                backgroundSize: "cover",
-                backgroundPosition: "top",
-              }}
-              className="text-p4 w-48 h-24 relative font-secondary flex flex-col items-center justify-center gap-1 border-2 rounded-xl border-yellow-900"
-            >
-              <div className="absolute top-0 bg-gradient-to-b w-fit px-4 from-purple-300 to-blue-300 rounded-xl whitespace-nowrap text-p5 -mt-3 border border-yellow-900">
-                DONATIONS COUNT
-              </div>
-              <div className="text-h5 font-secondary text-yellow-900 mt-1 w-full flex items-center justify-center gap-1">
-                {data.orders.count}
-              </div>
-            </div>
-            <div
-              style={{
-                backgroundImage: "url(/backgrounds/bg-5.webp)",
-                backgroundSize: "cover",
-                backgroundPosition: "top",
-              }}
-              className="text-p4 w-48 h-24 relative font-secondary flex flex-col items-center justify-center gap-1 border-2 rounded-xl border-yellow-900"
-            >
-              <div className="absolute top-0 bg-gradient-to-b w-fit px-4 from-purple-300 to-blue-300 rounded-xl whitespace-nowrap text-p5 -mt-3 border border-yellow-900">
-                STAKED CATS
-              </div>
-              <div className="text-h5 font-secondary text-yellow-900 mt-1 w-full flex items-center justify-center gap-1">
-                {data.cats.staked}
-              </div>
-            </div>
-            <div
-              style={{
-                backgroundImage: "url(/backgrounds/bg-5.webp)",
-                backgroundSize: "cover",
-                backgroundPosition: "top",
-              }}
-              className="text-p4 w-48 h-24 relative font-secondary flex flex-col items-center justify-center gap-1 border-2 rounded-xl border-yellow-900"
-            >
-              <div className="absolute top-0 bg-gradient-to-b w-fit px-4 from-purple-300 to-blue-300 rounded-xl whitespace-nowrap text-p5 -mt-3 border border-yellow-900">
-                USERS CATS
-              </div>
-              <div className="text-h5 font-secondary text-yellow-900 mt-1 w-full flex items-center justify-center gap-1">
-                {data.cats.count}
-              </div>
-            </div>
-            <div
-              style={{
-                backgroundImage: "url(/backgrounds/bg-5.webp)",
-                backgroundSize: "cover",
-                backgroundPosition: "top",
-              }}
-              className="text-p4 w-48 h-24 relative font-secondary flex flex-col items-center justify-center gap-1 border-2 rounded-xl border-yellow-900"
-            >
-              <div className="absolute top-0 bg-gradient-to-b w-fit px-4 from-purple-300 to-blue-300 rounded-xl whitespace-nowrap text-p5 -mt-3 border border-yellow-900">
-                TOKENIZED CATS
-              </div>
-              <div className="text-h5 font-secondary text-yellow-900 mt-1 w-full flex items-center justify-center gap-1">
-                {data.blessings.count}
-              </div>
-            </div>
-          </div>
-        )}
+    <div className="flex w-full flex-col items-center gap-4 pb-12 lg:mt-8">
+      <img className="w-24 md:w-32" src={cdnFile("logo/logo.webp")} alt="" aria-hidden="true" />
+      {/* The page art behind /stats is peach daylight (out of the night scope), so the cream and
+          gold ink sit on a night panel to keep WCAG contrast (task 3d review). */}
+      <div data-testid="stats-header" className="mx-4 flex max-w-xl flex-col items-center gap-2 rounded-xl bg-tt-night-950/70 px-4 py-2">
+        <h1 className="text-center font-primary text-h6 uppercase tracking-tight text-tt-cream text-balance md:text-h2">
+          Token Tails <span className="text-tt-gold-400">stats</span>
+        </h1>
+        <p className="text-center font-secondary text-p4 text-tt-cream">
+          Read from the hourly impact snapshot. Every number shows its date and how it was checked.
+        </p>
       </div>
+      {loading && !impact ? (
+        <p className="rounded-xl bg-tt-night-950/70 px-4 py-2 font-secondary text-p5 text-tt-cream motion-safe:animate-pulse">Loading the snapshot…</p>
+      ) : (
+        <ImpactNumbers impact={impact} />
+      )}
+      <Link href="/impact" className="mt-2">
+        <PixelButton as="span" text="SEE THE PROOF" />
+      </Link>
     </div>
   );
 };

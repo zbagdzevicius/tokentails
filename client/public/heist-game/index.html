@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0b0820" />
+    <title>Catnip Heist</title>
+    <meta name="description" content="Catnip Heist: sneak two cats past Kibble Corp's guard dogs, rescue the catnip crates and free a shelter cat. A free stealth game from Token Tails." />
+    <!--
+      Canonical (plan G14, F12): `/heist`, the host page that embeds this build (pages/heist.tsx,
+      task 4b) and answers 200. Direct loads of this file point search engines there.
+    -->
+    <link rel="canonical" href="https://tokentails.com/heist" />
+    <!--
+      Runtime config (plan G11): where the treat rail state and the public facts come from. Empty
+      means the defaults in src/ui/rail.ts: the API known for this host (DEFAULT_API_BY_HOST:
+      https://api.tokentails.com on tokentails.com, the local backend on the local client), else
+      none (pre-launch copy); facts from /facts/facts.json on this origin. A value here, or
+      window.__TT_HEIST_CONFIG__ from a host page, overrides the host default.
+    -->
+    <meta name="heist:api-url" content="" />
+    <meta name="heist:facts-url" content="" />
+    <!--
+      Icons (plan G14, decision #93): the shared Token Tails set from the client's public/ root
+      (client/scripts/build-icons.mjs). Absolute on purpose, outside the /heist-game/ base: on
+      tokentails.com and in the app these resolve to the same files every page links. Every other
+      build (standalone exports, Pages, dev) swaps these three links for the game's own paw icon
+      (`iconLinksFor` in vite.config.ts), since those hosts do not serve the shared icon files.
+    -->
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/icons/icon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" sizes="180x180" />
+    <!-- Boot needs the manifest before anything else; fetch it while the script downloads. -->
+    <link rel="preload" href="/heist-game/assets/manifest.json" as="fetch" crossorigin="anonymous" />
+    <link rel="preload" href="/heist-game/assets/fonts/catpaw.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    <style>@font-face{font-family:Cat Paw;src:url(/heist-game/assets/fonts/catpaw.woff2)format("woff2");font-display:swap}:root{--night:#0b0820;--plum:#301934;--violet:indigo;--grape:#6f2da8;--lavender:#96c;--coin:#fc5;--cream:#fcecbb;--ember:#c1260f;--rust:#ee642a;--pink:#ff7aa2;--mint:#d5f4e5;--sky:#c4e2fc;--lilac:#f0c5fd;--outline:#2a0f1f}html,body{background:var(--night);height:100%;color:var(--cream);-webkit-tap-highlight-color:transparent;touch-action:none;margin:0;font-family:Cat Paw,system-ui,sans-serif;overflow:hidden}#app{position:fixed;inset:0}</style>
+    <script type="module" crossorigin src="/heist-game/build/index-Dk3EFtoE.js"></script>
+    <link rel="modulepreload" crossorigin href="/heist-game/build/three-DrKrT-qK.js">
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>

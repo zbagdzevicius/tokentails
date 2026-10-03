@@ -1,4 +1,7 @@
 import { Logger } from '@nestjs/common';
+import { claimJobPeriod, IJobRunsCollection, JOB_RUNS_COLLECTION } from 'src/shared/jobs/lease';
+
+export { IJobRunsCollection, JOB_RUNS_COLLECTION };
 
 /*
  * Monthly codex reset.
@@ -20,8 +23,7 @@ export const CODEX_RESET_LEAD_MS = 60 * 60 * 1000;
 // cannot wipe the counters.
 export const CODEX_RESET_WINDOW_MS = 48 * 60 * 60 * 1000;
 
-// One document per job: { _id: job name, period, status, timestamps }.
-export const JOB_RUNS_COLLECTION = 'jobruns';
+// One document per job in JOB_RUNS_COLLECTION: { _id: job name, period, status, timestamps }.
 
 export const MONTHLY_COUNTER_RESET = {
     monthTails: 0,
@@ -32,6 +34,9 @@ export const MONTHLY_COUNTER_RESET = {
     monthReferrals: 0,
     monthTailsCrafted: 0,
     monthPortraitPurchases: 0,
+    // G5 season gives. A season-field change: never deploy it between the 1st and the 8th (plan F8).
+    monthTailsGiven: 0,
+    monthGoalsHelped: 0,
     airdropChallengesClaimed: [] as string[],
     airdropMilestonesClaimed: [] as string[],
 };
@@ -68,36 +73,12 @@ export function currentCodexPeriodStart(now: Date): Date {
     return start;
 }
 
-// The subset of a MongoDB collection this job needs.
-export interface IJobRunsCollection {
-    updateOne(
-        filter: Record<string, unknown>,
-        update: Record<string, unknown>,
-        options?: Record<string, unknown>
-    ): Promise<{ matchedCount?: number; modifiedCount?: number; upsertedCount?: number }>;
-}
-
-const DUPLICATE_KEY = 11000;
-
 /**
  * Atomically marks `period` as taken. Returns false when it was already taken, by an earlier run
- * or by another instance running at the same moment.
+ * or by another instance running at the same moment. The shared once-per-period claim (F8).
  */
 export async function claimCodexResetPeriod(jobRuns: IJobRunsCollection, period: string, now: Date) {
-    try {
-        const result = await jobRuns.updateOne(
-            { _id: CODEX_RESET_JOB_NAME, period: { $ne: period } },
-            { $set: { period, status: 'running', startedAt: now } },
-            { upsert: true }
-        );
-        return (result.modifiedCount || 0) + (result.upsertedCount || 0) > 0;
-    } catch (error) {
-        // The document exists with this period, so the filter missed and the upsert hit the _id.
-        if ((error as { code?: number })?.code === DUPLICATE_KEY) {
-            return false;
-        }
-        throw error;
-    }
+    return claimJobPeriod(jobRuns, CODEX_RESET_JOB_NAME, period, now);
 }
 
 export type CodexResetOutcome = 'done' | 'already-done' | 'outside-window';
@@ -152,4 +133,45 @@ export async function runCodexReset({
     );
     logger.log(`Codex reset for ${period} done`);
     return 'done';
+}
+
+/*
+ * The season (plan G5 P6). A season is one codex phase: it starts at an anchor (00:00 UTC on the
+ * 9th), its counters freeze two hours earlier, when `GET /user/codex` stops crediting
+ * (isLessThan2hoursLeft, 22:00 UTC on the 8th), and the reset runs at 23:00 UTC on the 8th
+ * (CODEX_RESET_CRON). The client shows these instants in local time; it never computes them.
+ */
+export const SEASON_FREEZE_LEAD_MS = 2 * 60 * 60 * 1000;
+
+export interface ISeasonTimes {
+    /** When this season's counters stop moving (22:00 UTC on the 8th). */
+    freezeAt: string;
+    /** When the reset pays guards and zeroes the month counters (23:00 UTC on the 8th). */
+    resetAt: string;
+    /** When the next season starts (00:00 UTC on the 9th). */
+    anchorAt: string;
+    /** When the current season started. */
+    startedAt: string;
+    /** True between freezeAt and anchorAt. */
+    frozen: boolean;
+}
+
+/** The season `now` falls in: the next anchor strictly after `now`, and the times that lead to it. */
+export function seasonTimes(now: Date = new Date()): ISeasonTimes {
+    const year = now.getUTCFullYear();
+    const month = now.getUTCMonth();
+    let anchor = anchorOf(year, month);
+    if (anchor.getTime() <= now.getTime()) {
+        anchor = anchorOf(year, month + 1);
+    }
+    const started = anchorOf(anchor.getUTCFullYear(), anchor.getUTCMonth() - 1);
+    const freezeAt = new Date(anchor.getTime() - SEASON_FREEZE_LEAD_MS);
+    const resetAt = new Date(anchor.getTime() - CODEX_RESET_LEAD_MS);
+    return {
+        freezeAt: freezeAt.toISOString(),
+        resetAt: resetAt.toISOString(),
+        anchorAt: anchor.toISOString(),
+        startedAt: started.toISOString(),
+        frozen: now.getTime() >= freezeAt.getTime(),
+    };
 }

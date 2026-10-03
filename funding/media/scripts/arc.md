@@ -44,7 +44,7 @@ A second instance does the same in EURC, for shelters that think in euros.
 visual: payouts
 title: First shelter: {SHELTER_NAME}\NWallet held by Token Tails until handover
 
-The first shelter on the registry is {SHELTER_NAME}, and they agreed in writing to be named.
+The first shelter on the registry is {SHELTER_NAME}.
 One thing we disclose plainly.
 The shelter's wallet is held by Token Tails on behalf of {SHELTER_NAME}, and it will be handed over to them.
 Until then, every payout into that wallet is public on the Arc explorer, so nothing can go missing quietly.

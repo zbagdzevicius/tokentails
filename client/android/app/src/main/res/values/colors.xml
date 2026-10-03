@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Night-900 (#0b0820), the landing and game page colour (plan G6, client/design/tokens.ts).
+         Splash, window and launcher backgrounds all use it so no frame flashes white or coral
+         between the system splash and the first web paint. -->
+    <color name="tt_night_900">#0B0820</color>
+</resources>

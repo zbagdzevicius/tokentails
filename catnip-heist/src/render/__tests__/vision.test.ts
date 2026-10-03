@@ -102,3 +102,19 @@ describe('vision cone cache', () => {
     expect(cached.rebuilds).toBeLessThan(calls / 2 + 1);
   });
 });
+
+describe('VisionCones x-ray', () => {
+  it('draws the same cone geometry a second time only where walls hide the floor', () => {
+    const cones = new VisionCones(2, 4);
+    const xray = cones.xray;
+    expect(xray.parent).toBe(cones.mesh);
+    expect(xray.geometry).toBe(cones.mesh.geometry);
+    const mat = xray.material as THREE.ShaderMaterial;
+    expect(mat.depthFunc).toBe(THREE.GreaterDepth);
+    expect(mat.depthWrite).toBe(false);
+    expect(mat.defines.XRAY).toBe(1);
+    // Shares the per-guard uniforms, so colour and pulse stay in step with the visible cone.
+    expect(mat.uniforms).toBe((cones.mesh.material as THREE.ShaderMaterial).uniforms);
+    cones.dispose();
+  });
+});

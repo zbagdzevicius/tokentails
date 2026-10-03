@@ -1,4 +1,5 @@
-import { DonateReceipt, DonateSource, DonateStatus, SHELTER_API } from "@/api/shelter-api";
+import { DonateIneligibleReason, DonateReceipt, DonateSource, DonateStatus, SHELTER_API } from "@/api/shelter-api";
+import { isAppBuild } from "@/components/claims/build";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -8,6 +9,7 @@ import { Celebration } from "./Celebration";
 import { SHELTER_CHAINS } from "./chains";
 import { formatUnits } from "./logs";
 import { CUSTODY_DISCLOSURE } from "./ShelterProfile";
+import { FIGURE, GOLD_BUTTON, Kicker, NightStage, PANEL, PILL, PinkCat } from "./ui";
 
 const SHOWCASE_NAME = "Pink Paw (Rožinė pėdutė)";
 
@@ -16,6 +18,7 @@ type Send =
   | { status: "sending" }
   | { status: "sent"; receipt: DonateReceipt }
   | { status: "already-sent" }
+  | { status: "not-eligible"; reason: DonateIneligibleReason; eligibleAt: string | null }
   | { status: "disabled"; message?: string }
   | { status: "error"; message: string };
 
@@ -30,13 +33,31 @@ const usdc = (wei: string | bigint, chainId: number) => {
   return formatUnits(typeof wei === "bigint" ? wei : BigInt(wei || "0"), decimals);
 };
 
+// What a signed-in account still needs before the backend's treat policy (F7.5) lets it send.
+export const notEligibleMessage = (reason: DonateIneligibleReason, eligibleAt: string | null) => {
+  if (reason === "email-unverified") return "Verify your email to send a treat. Check your inbox for the link.";
+  if (reason === "account-too-new") {
+    const at = eligibleAt ? new Date(eligibleAt) : null;
+    return at && !Number.isNaN(at.getTime())
+      ? `Treats open a day after you join. Yours opens ${at.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}.`
+      : "Treats open a day after you join. Come back tomorrow!";
+  }
+  return "Play a game with your cat first, then come back to send a treat.";
+};
+
 const safeHttps = (url: string) => (/^https:\/\//.test(url) ? url : null);
 
 // /shelter-payouts/give?from=heist&cat=<name>: one tap and Token Tails sends a small USDC treat
 // through ShelterSplit from its own wallet. No wallet, no gas, no crypto knowledge needed.
 export const GiveTreat = () => {
   const router = useRouter();
-  const { user, showSignInPopup } = useFirebaseAuth();
+  // App builds (store copy rule, F7.2): no token names, chain wording or explorer links; the
+  // receipt and payout pages show the web proof notice there.
+  const isApp = isAppBuild();
+  const { authStatus, requireAccount } = useFirebaseAuth();
+  // Treats are sent from an account (guests are refused by the backend), so a guest or a
+  // signed-out visitor gets the AuthSheet, never a wall (G1).
+  const signedIn = authStatus === "ready";
   const [status, setStatus] = useState<DonateStatus | null | undefined>(undefined);
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [send, setSend] = useState<Send>({ status: "idle" });
@@ -55,15 +76,22 @@ export const GiveTreat = () => {
   }, [loadStatus]);
 
   const give = async () => {
-    if (!user) {
-      showSignInPopup();
-      return;
-    }
+    if (!signedIn && (await requireAccount("give-treat")) !== "signed-in") return;
     setSend({ status: "sending" });
-    const result = await SHELTER_API.donate(source);
+    let result = await SHELTER_API.donate(source);
     if (result.status === "signed-out") {
+      // The session lapsed between the check and the send: ask once more, then retry once.
       setSend({ status: "idle" });
-      showSignInPopup();
+      if ((await requireAccount("give-treat")) !== "signed-in") return;
+      setSend({ status: "sending" });
+      result = await SHELTER_API.donate(source);
+      if (result.status === "signed-out") {
+        setSend({ status: "error", message: "Please sign in again to send the treat." });
+        return;
+      }
+    }
+    if (result.status === "not-eligible") {
+      setSend({ status: "not-eligible", reason: result.reason, eligibleAt: result.eligibleAt });
       return;
     }
     setSend(result.status === "sent" ? { status: "sent", receipt: result.receipt } : result);
@@ -75,99 +103,127 @@ export const GiveTreat = () => {
   const treatsLeft =
     status && amountWei > BigInt(0) ? BigInt(status.remainingTodayWei || "0") / amountWei : BigInt(0);
   const available = !!status?.enabled && treatsLeft > BigInt(0);
+  // Once the status is known and the jar is closed (backend unreachable, rail paused, or today's
+  // budget spent), nobody is asked to sign in for a treat that cannot be sent.
+  const closed = status !== undefined && !available;
 
   return (
-    <div className="flex w-full max-w-xl flex-col items-center gap-4 px-4 pb-16 text-center font-secondary text-p5">
-      <h2 className="font-primary uppercase tracking-tight text-h6 md:text-h3 text-balance">
-        {cat ? `${cat} is safe!` : "Rescue"}
-        <span className="block text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)]">
-          Send a treat to {shelterName}
-        </span>
-      </h2>
-
-      <p className="max-w-md">
-        One tap and Token Tails sends a small USDC treat to the shelter through the ShelterSplit
-        contract. It&apos;s on us, and it&apos;s public on the chain.
-      </p>
-
-      {status === undefined && <p className="animate-pulse">Checking today&apos;s treat jar…</p>}
-      {status === null && <p>Treats are resting right now. Come back a bit later.</p>}
-      {status && (
-        <p data-testid="treat-amount">
-          Each treat: <strong>{usdc(status.amountWei, chainId)} USDC</strong>
-          {status.enabled && ` · ${treatsLeft.toString()} left in today's jar`}
-        </p>
-      )}
-
-      {send.status !== "sent" && (
-        <button
-          type="button"
-          onClick={give}
-          disabled={send.status === "sending" || (!!user && !available)}
-          className="rounded-2xl border-4 border-yellow-900 bg-pink-400 px-6 py-4 font-primary uppercase text-p2 text-black shadow-lg transition hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
-          data-testid="send-treat"
-        >
-          {send.status === "sending"
-            ? "Sending… 🐾"
-            : user
-            ? "Send Pink Paw a rescue treat 🐾"
-            : "Sign in to send a treat 🐾"}
-        </button>
-      )}
-
-      {status && !status.enabled && send.status === "idle" && (
-        <p>The treat jar is closed for now. Check back soon.</p>
-      )}
-      {status?.enabled && treatsLeft === BigInt(0) && send.status === "idle" && (
-        <p>Today&apos;s treat jar is empty. It refills at midnight UTC.</p>
-      )}
-
-      {send.status === "sent" && (
-        <div className="w-full rounded-xl border-2 border-yellow-900 bg-black/60 p-4" role="status">
-          <Celebration />
-          <p className="font-primary uppercase text-p3">Treat sent! 🎉</p>
-          <p className="mt-1">
-            {usdc(send.receipt.amountWei, send.receipt.chainId)} USDC is on its way to {shelterName}.
-          </p>
-          <div className="mt-3 flex flex-wrap justify-center gap-3">
-            <Link
-              href={`/shelter-payouts/receipt?chain=${send.receipt.chainId}&tx=${send.receipt.txHash}`}
-              className="rounded-full border-2 border-yellow-900 bg-yellow-300 px-4 py-1 font-primary uppercase text-black"
-            >
-              See your receipt
-            </Link>
-            {safeHttps(send.receipt.explorerUrl) && (
-              <a
-                href={safeHttps(send.receipt.explorerUrl) as string}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-full border-2 border-yellow-900 px-4 py-1 font-primary uppercase"
-              >
-                View on explorer
-              </a>
-            )}
-          </div>
+    <NightStage className="min-h-screen">
+      <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-5 px-4 pt-24 pb-16 text-center text-p5 md:pt-32 md:text-p4">
+        <Kicker>{cat ? "Rescue complete" : "Rescue treat"}</Kicker>
+        <div className="flex h-36 w-36 items-end justify-center overflow-hidden rounded-2xl border-4 border-tt-cream bg-gradient-to-b from-tt-dusk-top via-tt-dusk-mid to-tt-dusk-horizon shadow-[0_0_30px_rgb(var(--tt-gold-400)/.35)] md:h-44 md:w-44">
+          <PinkCat lick={send.status === "sent"} className="-mb-8 h-52 w-52 max-w-none shrink-0 md:h-64 md:w-64 md:-mb-10" />
         </div>
-      )}
-      {send.status === "already-sent" && (
-        <p role="status">You already sent a treat today. Come back tomorrow for another one! 🐾</p>
-      )}
-      {send.status === "disabled" && (
-        <p role="status">The treat jar is closed right now{send.message ? `: ${send.message}` : "."}</p>
-      )}
-      {send.status === "error" && (
-        <p className="text-red-300" role="alert">
-          {send.message}
-        </p>
-      )}
+        <h1 className="font-primary uppercase leading-none tracking-tight text-h5 md:text-h3 text-white drop-shadow-lg text-balance">
+          {cat ? `${cat} is safe!` : "Rescue"}
+          <span className="glow mt-2 block text-tt-cream">Send a treat to {shelterName}</span>
+        </h1>
 
-      <p className="max-w-md rounded-xl bg-yellow-300 px-4 py-2 text-black" data-testid="custody-disclosure">
-        {CUSTODY_DISCLOSURE}
-      </p>
-      <Link href="/shelter-payouts" className="underline">
-        See every payout on the chain
-      </Link>
-    </div>
+        <p className="max-w-md text-tt-cream/90">
+          {isApp
+            ? // claim: C-004, L-rail (the treat size setting; the button is live only with the rail)
+              "One tap and Token Tails sends a small treat to the shelter. It's on us, and every payout is listed on our website."
+            : // claim: C-004, L-rail
+              "One tap and Token Tails sends a small USDC treat to the shelter through the ShelterSplit contract. It's on us, and it's public on the chain."}
+        </p>
+
+        <section className={`${PANEL} flex flex-col items-center gap-4`}>
+          {status === undefined && <p className="motion-safe:animate-pulse">Checking today&apos;s treat jar…</p>}
+          {status === null && <p>Treats are resting right now. Come back a bit later.</p>}
+          {status && (
+            <p data-testid="treat-amount" className="font-primary uppercase tracking-wide text-p4 md:text-p3">
+              {isApp ? (
+                "Token Tails pays for every treat"
+              ) : (
+                <>
+                  Each treat: <strong className="text-tt-gold-400">{usdc(status.amountWei, chainId)} USDC</strong>
+                </>
+              )}
+              {status.enabled && ` · ${treatsLeft.toString()} left in today's jar`}
+            </p>
+          )}
+
+          {send.status !== "sent" && (
+            <button
+              type="button"
+              onClick={give}
+              disabled={send.status === "sending" || closed}
+              className={`${GOLD_BUTTON} min-h-14 px-6 py-3 text-p3 md:text-p2`}
+              data-testid="send-treat"
+            >
+              {send.status === "sending"
+                ? "Sending… 🐾"
+                : signedIn || closed
+                ? "Send Pink Paw a rescue treat 🐾"
+                : "Sign in to send a treat 🐾"}
+            </button>
+          )}
+
+          {status && !status.enabled && send.status === "idle" && (
+            <p className="text-tt-cream/85">The treat jar is closed for now. Check back soon.</p>
+          )}
+          {status?.enabled && treatsLeft === BigInt(0) && send.status === "idle" && (
+            <p className="text-tt-cream/85">Today&apos;s treat jar is empty. It refills at midnight UTC.</p>
+          )}
+
+          {send.status === "sent" && (
+            <div className="flex w-full flex-col items-center gap-2" role="status">
+              <Celebration />
+              <p className={`${FIGURE} text-h5 md:text-h4 uppercase`}>Treat sent!</p>
+              <p>
+                {isApp
+                  ? `Token Tails is sending your treat to ${shelterName}.`
+                  : `${usdc(send.receipt.amountWei, send.receipt.chainId)} USDC is on its way to ${shelterName}.`}
+              </p>
+              <div className="mt-2 flex flex-wrap justify-center gap-3">
+                <Link
+                  href={`/shelter-payouts/receipt?chain=${send.receipt.chainId}&tx=${send.receipt.txHash}`}
+                  className={GOLD_BUTTON}
+                >
+                  See your receipt
+                </Link>
+                {!isApp && safeHttps(send.receipt.explorerUrl) && (
+                  <a
+                    href={safeHttps(send.receipt.explorerUrl) as string}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={PILL}
+                  >
+                    View on explorer
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+          {send.status === "already-sent" && (
+            <p role="status">Token Tails already sent your treat today. Come back tomorrow for another one! 🐾</p>
+          )}
+          {send.status === "not-eligible" && (
+            <p role="status" data-testid="treat-not-eligible">
+              {notEligibleMessage(send.reason, send.eligibleAt)}
+            </p>
+          )}
+          {send.status === "disabled" && (
+            <p role="status">The treat jar is closed right now{send.message ? `: ${send.message}` : "."}</p>
+          )}
+          {send.status === "error" && (
+            <p className="text-tt-rust" role="alert">
+              {send.message}
+            </p>
+          )}
+        </section>
+
+        <p
+          className="max-w-md rounded-xl border-2 border-tt-cream/70 bg-tt-night-900/80 px-4 py-2 text-p6 md:text-p5 text-tt-cream"
+          data-testid="custody-disclosure"
+        >
+          {CUSTODY_DISCLOSURE}
+        </p>
+        <Link href="/shelter-payouts" className={PILL}>
+          {isApp ? "See every payout ›" : "See every payout on the chain ›"}
+        </Link>
+      </div>
+    </NightStage>
   );
 };
 

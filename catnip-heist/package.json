@@ -14,9 +14,13 @@
     "test": "vitest run",
     "e2e": "playwright test",
     "solve": "node tools/solve.mjs",
+    "playtest:bots": "node tools/playtest/run.mjs",
     "build-level": "node tools/build-levels.mjs",
     "export-glb": "node tools/export-glb.mjs",
-    "build:client": "tsc --noEmit && HEIST_BASE=/heist/ HEIST_PAYOUTS_URL=/shelter-payouts HEIST_DEPLOYMENTS_URL=/shelter-payouts/deployments.json vite build --outDir ../client/public/heist --emptyOutDir"
+    "build:client": "tsc --noEmit && HEIST_BASE=/heist-game/ HEIST_PAYOUTS_URL=/shelter-payouts HEIST_DEPLOYMENTS_URL=/shelter-payouts/deployments.json vite build --outDir ../client/public/heist-game --emptyOutDir",
+    "vendor-sim": "node scripts/vendor-sim.mjs",
+    "vendor-sim:check": "node scripts/vendor-sim.mjs --check",
+    "vendor-sim:check-remote": "node scripts/vendor-sim.mjs --check-remote"
   },
   "dependencies": {
     "three": "^0.183.2"
@@ -25,6 +29,7 @@
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.3",
     "@types/three": "^0.183.1",
+    "happy-dom": "^20.14.5",
     "sharp": "^0.35.5",
     "typescript": "^7.0.2",
     "vite": "^8.3.1",

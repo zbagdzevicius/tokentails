@@ -17,9 +17,9 @@ export const LeaderboardContent = () => {
           <defs>
             <path id="curve" d="M0,100 Q200,10 400,100" />
           </defs>
-          <text className="fill-current text-yellow-300 drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] text-p2 font-primary relative z-0">
+          <text className="fill-current text-tt-cream drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] text-p2 font-primary relative z-0">
             <textPath href="#curve" startOffset="50%" text-anchor="middle">
-              TOP 200 GETS 200 $TAILS WEEKLY
+              TOP 200 GET 200 TAILS EACH WEEK
             </textPath>
           </text>
         </svg>
@@ -27,10 +27,10 @@ export const LeaderboardContent = () => {
       <div className="flex flex-col animate-appear items-center relative z-10">
         <img
           src={cdnFile("tail/cat-promo.webp")}
-          alt="champs"
+          alt=""
           className="w-48 -mb-1 -ml-6"
         />
-        <Tag>$TAILS CHAMPS</Tag>
+        <Tag>TAILS CHAMPS</Tag>
         {position && (
           <div className="font-secondary uppercase text-p1 bg-yellow-100 w-fit m-auto rounded-t-xl px-8">
             Your position {position}
@@ -42,7 +42,7 @@ export const LeaderboardContent = () => {
           <tr>
             <th className="py-2 px-1 text-center">PLACE</th>
             <th className="py-2 text-center">name</th>
-            <th className="p-2 md:p-4 text-center">$TAILS</th>
+            <th className="p-2 md:p-4 text-center">TAILS</th>
           </tr>
         </thead>
         <tbody>
@@ -50,7 +50,7 @@ export const LeaderboardContent = () => {
             <tr
               key={index}
               className={`border-b ${
-                index > 2 ? "border-purple-300" : "border-yellow-300"
+                index > 2 ? "border-purple-300" : "border-tt-cream"
               }`}
             >
               <th
@@ -58,7 +58,7 @@ export const LeaderboardContent = () => {
                 className={`text-p4 font-secondary text-center py-1 font-medium whitespace-nowrap border-b ${
                   index > 2
                     ? "bg-white border-purple-300"
-                    : "bg-yellow-300 border-white"
+                    : "bg-tt-cream border-white"
                 }`}
               >
                 {index + 1}
@@ -67,7 +67,7 @@ export const LeaderboardContent = () => {
                 className={`py-1 text-center bg-gray-700 text-p6 border-l font-bold ${
                   index > 2
                     ? "border-purple-300 text-purple-300"
-                    : "border-yellow-300 text-yellow-300"
+                    : "border-tt-cream text-tt-cream"
                 }`}
               >
                 {result.name}
@@ -76,7 +76,7 @@ export const LeaderboardContent = () => {
                 className={`p-4 text-center bg-gray-700 text-p6 md:text-p6 border-l font-secondary ${
                   index > 2
                     ? "border-purple-300 text-purple-300"
-                    : "border-yellow-300 text-yellow-300"
+                    : "border-tt-cream text-tt-cream"
                 }`}
               >
                 {result.tails}

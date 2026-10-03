@@ -200,17 +200,17 @@ test('regression: freshness is by content — a changed call.md ask is stale, a 
 
 test('regression: fact-sourced number fields pass the type check and unverified facts are gated', async () => {
   makeApp('factnum', {
-    form: '| users | Registered users | number | 12 | yes | fact:F-001 |\n| x | X followers | number | 12 | yes | fact:F-011 |\n',
+    form: '| users | Registered users | number | 12 | yes | fact:F-001 |\n| x | X followers | number | 12 | yes | fact:F-012 |\n',
   });
   let res = B.resolve('factnum');
   assert.ok(field(res, 'users').ok, JSON.stringify(field(res, 'users').problems));
   assert.equal(field(res, 'users').paste, '542,000');
   assert.ok(field(res, 'x').ok, 'unverified only warns while drafting');
-  assert.match(field(res, 'x').warnings.join(' '), /unverified fact F-011/);
+  assert.match(field(res, 'x').warnings.join(' '), /unverified fact F-012/);
   assert.equal(level(await checks('factnum'), 'B:content'), 'warn');
   makeApp('factnum-strict', {
     call: { status: 'in-review' },
-    form: '| x | X followers | number | 12 | yes | fact:F-011 |\n| y | Y | number | 12 | yes | answer |\n',
+    form: '| x | X followers | number | 12 | yes | fact:F-012 |\n| y | Y | number | 12 | yes | answer |\n',
     answers: '### y\n\n5 [F-999]\n',
   });
   res = B.resolve('factnum-strict');

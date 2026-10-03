@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DISBURSED_TOPIC, NATIVE_DISBURSED_TOPIC, PAYOUT_CHAINS, fetchShelterTotals, formatAmount, payoutOf, totalText } from '../payouts';
+import { DISBURSED_TOPIC, NATIVE_DISBURSED_TOPIC, PAYOUT_CHAINS, deploymentUnits, fetchShelterTotals, formatAmount, payoutOf, totalText } from '../payouts';
 
 const word = (n: bigint) => '0x' + n.toString(16).padStart(64, '0') + '0'.repeat(64);
 const SPLIT = '0x' + 'ab'.repeat(20);
@@ -27,7 +27,7 @@ describe('formatting', () => {
   it('joins symbols and hides an empty total', () => {
     expect(totalText(new Map())).toBe('');
     expect(totalText(new Map([['USDC', 0n]]))).toBe('');
-    expect(totalText(new Map([['USDC', 3n * 10n ** 18n], ['EURC', 10n ** 18n]]))).toBe('3 USDC + 1 EURC sent to real shelters so far, on-chain');
+    expect(totalText(new Map([['USDC', 3n * 10n ** 18n], ['EURC', 10n ** 18n]]))).toBe('Token Tails has sent 3 USDC + 1 EURC to shelters so far, on-chain');
   });
 });
 
@@ -55,11 +55,20 @@ describe('fetchShelterTotals', () => {
       return json({ result: [{ topics: [DISBURSED_TOPIC], data: word(500_000n) }] });
     }) as typeof fetch;
     const totals = await fetchShelterTotals('/d.json', f);
-    expect(totalText(totals)).toBe('2.5 USDC sent to real shelters so far, on-chain');
+    expect(totalText(totals)).toBe('Token Tails has sent 2.5 USDC to shelters so far, on-chain');
     expect(calls.some((c) => c.includes('avax'))).toBe(true);
   });
   it('returns nothing when the list is missing', async () => {
     const f = (async () => new Response('nope', { status: 404 })) as unknown as typeof fetch;
     expect((await fetchShelterTotals('/d.json', f)).size).toBe(0);
+  });
+});
+
+describe('deployment token', () => {
+  it('sums an EURC instance as EURC, never as USDC', () => {
+    const arc = PAYOUT_CHAINS[5042];
+    expect(payoutOf({ topics: [DISBURSED_TOPIC], data: word(1_000_000n) }, deploymentUnits({ token: 'EURC' }, arc))?.symbol).toBe('EURC');
+    expect(deploymentUnits({ token: 'USDC' }, arc)).toBe(arc);
+    expect(deploymentUnits({}, arc)).toBe(arc);
   });
 });

@@ -2,50 +2,39 @@ import * as d3 from "d3";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cdnFile } from "../../constants/utils";
 import * as topojson from "topojson-client";
+import { atlasIdsFor, countryName } from "./iso";
+import { useReducedMotion } from "./useReducedMotion";
 import type { MultiPolygon, Polygon } from "geojson";
 import type { GeometryCollection, Topology } from "topojson-specification";
-
-export interface CountryData {
-  id: string; // ISO numeric code or Name
-  name: string;
-}
-
-export interface PartnershipData {
-  countryName: string;
-  status: "active" | "pending";
-  description: string;
-  since?: string;
-  generatedInsight?: string;
-}
 
 export type GeoJsonFeature = d3.ExtendedFeature<
   Polygon | MultiPolygon,
   { name: string }
 >;
 
-export enum ModalType {
-  NONE,
-  COUNTRY_DETAIL,
-  ADD_PARTNERSHIP,
+export interface PixelGlobeProps {
+  /**
+   * ISO alpha-2 codes of the active partner shelters, from the impact snapshot
+   * (`shelters.countries`, plan F7.7). Exactly these are highlighted; nothing is hardcoded.
+   */
+  countries: readonly string[];
 }
 
-export const INITIAL_PARTNERSHIPS: string[] = [
-  "United States of America",
-  "United Kingdom",
-  "Lithuania",
-  "Colombia",
-  "Poland",
-  "Greece",
-  "Vietnam",
-  "Japan",
-  "France",
-];
+// Canvas size and globe radius for the pixel look.
+const RENDER_SIZE = 1024;
+const GLOBE_RADIUS = RENDER_SIZE * 0.42;
 
-export const PixelGlobe = () => {
+export const PixelGlobe = ({ countries: partnerCodes }: PixelGlobeProps) => {
   const [countries, setCountries] = useState<GeoJsonFeature[]>([]);
-  const [partnerships, setPartnerships] =
-    useState<string[]>(INITIAL_PARTNERSHIPS);
+  // world-atlas ids are ISO numeric codes; the snapshot speaks alpha-2.
+  const codesKey = partnerCodes.join(",");
+  const partnerIds = useMemo(
+    () => atlasIdsFor(codesKey ? codesKey.split(",") : []),
+    [codesKey]
+  );
   const [isInView, setIsInView] = useState(false);
+  // Reduced motion: no spin; the globe still turns when dragged (review 3f #5).
+  const reducedMotion = useReducedMotion();
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -65,7 +54,9 @@ export const PixelGlobe = () => {
           );
           setCountries(featureCollection.features as GeoJsonFeature[]);
         }
-      );
+      )
+      // The globe is decoration; the count and the list beside it carry the facts.
+      .catch(() => {});
   }, []);
 
   // Intersection Observer to detect when component is in view
@@ -98,9 +89,6 @@ export const PixelGlobe = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [time, setTime] = useState(0);
 
-  // Constants for the pixel look - reduced on mobile for performance
-  const RENDER_SIZE = 1024;
-  const GLOBE_RADIUS = RENDER_SIZE * 0.42;
 
   // Pre-calculate centroids and area
   const countriesWithCentroids = useMemo(() => {
@@ -149,7 +137,7 @@ export const PixelGlobe = () => {
   // Automatic Rotation and Animation Time - throttled for performance
   // Only animate when component is in view
   useEffect(() => {
-    if (!isInView) return;
+    if (!isInView || reducedMotion) return;
 
     let animationFrameId: number;
     let lastTime = 0;
@@ -166,7 +154,7 @@ export const PixelGlobe = () => {
     };
     animationFrameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isDragging, isInView]);
+  }, [isDragging, isInView, reducedMotion]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -269,13 +257,12 @@ export const PixelGlobe = () => {
       // 3. Countries - translucent blue-white continents
       countriesWithCentroids.forEach((feature) => {
         const isHovered = feature.properties.name === hoveredCountry;
-        const countryName = feature.properties.name;
 
         context.beginPath();
         path(feature);
 
         // Default: translucent blue-white for continents
-        if (partnerships.includes(countryName)) {
+        if (feature.id !== undefined && partnerIds.has(String(feature.id))) {
           // US: Yellow glow matching globe
           context.fillStyle = isHovered
             ? "rgba(252, 236, 187, 0.7)"
@@ -307,14 +294,23 @@ export const PixelGlobe = () => {
     };
 
     render();
-  }, [countriesWithCentroids, rotation, hoveredCountry, time, isInView]);
+  }, [
+    countriesWithCentroids,
+    rotation,
+    hoveredCountry,
+    time,
+    isInView,
+    partnerIds,
+  ]);
 
-  // Drag Handling
+  // Drag handling. d3-drag takes the mouse only: its touch listeners cancel touchmove, so a
+  // vertical swipe over a full-width phone globe would not scroll the page (review 3f #5).
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const drag = d3
       .drag<HTMLCanvasElement, unknown>()
+      .touchable(() => false)
       .on("start", () => setIsDragging(true))
       .on("drag", (event) => {
         const sensitivity = 0.25;
@@ -330,6 +326,26 @@ export const PixelGlobe = () => {
       .on("end", () => setIsDragging(false));
     d3.select(canvas).call(drag);
   }, []);
+
+  // Touch: `touch-action: pan-y` leaves vertical swipes to the browser (it sends pointercancel),
+  // and horizontal moves turn the globe.
+  const touchX = useRef<number | null>(null);
+  const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (e.pointerType !== "touch") return;
+    touchX.current = e.clientX;
+    setIsDragging(true);
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (e.pointerType !== "touch" || touchX.current === null) return;
+    const dx = e.clientX - touchX.current;
+    touchX.current = e.clientX;
+    setRotation((curr) => [curr[0] + dx * 0.25, curr[1]]);
+  };
+  const endTouch = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (e.pointerType !== "touch") return;
+    touchX.current = null;
+    setIsDragging(false);
+  };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -367,6 +383,14 @@ export const PixelGlobe = () => {
       </div>
       <canvas
         ref={canvasRef}
+        role="img"
+        aria-label={
+          partnerCodes.length
+            ? `Globe. Partner shelter countries: ${partnerCodes
+                .map(countryName)
+                .join(", ")}`
+            : "Globe"
+        }
         width={RENDER_SIZE}
         height={RENDER_SIZE}
         style={{
@@ -374,12 +398,15 @@ export const PixelGlobe = () => {
           cursor: hoveredCountry ? "pointer" : isDragging ? "grabbing" : "grab",
         }}
         onMouseMove={handleMouseMove}
-        onClick={() => hoveredCountry}
-        className="touch-none w-[400px] h-[400px] md:w-[600px] md:h-[600px]"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endTouch}
+        onPointerCancel={endTouch}
+        className="touch-pan-y w-[min(400px,100vw)] h-[min(400px,100vw)] md:w-[600px] md:h-[600px]"
       />
 
       {hoveredCountry && (
-        <div className="absolute top-0 font-primary glow text-p1 md:text-h5 text-yellow-300 bg-black/25 px-4 py-2 rounded-full">
+        <div className="absolute top-0 font-primary glow text-p1 md:text-h5 text-tt-cream bg-black/25 px-4 py-2 rounded-full">
           {hoveredCountry}
         </div>
       )}

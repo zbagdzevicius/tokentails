@@ -1,7 +1,8 @@
-import { MatchSaveThrottledError, USER_API } from "@/api/user-api";
+import { MatchSaveThrottledError, USER_API, type HeistMatch } from "@/api/user-api";
 import { GameType } from "@/models/game";
 
 jest.mock("@/api/api", () => ({
+  ...jest.requireActual("@/api/api"),
   apiUrl: "https://api.test",
   waitForLocalStorageKey: jest.fn(async () => undefined),
 }));
@@ -61,5 +62,69 @@ describe("USER_API.saveMatch", () => {
   it("still resolves null on other failures", async () => {
     globalThis.fetch = jest.fn().mockResolvedValue(response(500));
     await expect(USER_API.saveMatch(match)).resolves.toBeNull();
+  });
+});
+
+// The Heist host's save (plan G2 layer 3): every outcome comes back as { ok, status, code }, with no
+// waiting for a token and no retry of its own; saveMatch above is unchanged for current callers.
+describe("USER_API.saveMatchDetailed", () => {
+  const heist: HeistMatch = {
+    type: GameType.CATNIP_HEIST,
+    replay: { levelId: "heist-01", simVersion: 3, seed: 1, catIds: ["bob", "oreo"] as [string, string], ticks: 2, runs: [[0, 0, 0, 2]] as [number, number, number, number][] },
+  };
+  const reply = (status: number, body: unknown = {}, headers: Record<string, string> = {}) => ({
+    ok: status >= 200 && status < 300,
+    status,
+    headers: { get: (name: string) => headers[name] ?? null },
+    json: async () => body,
+    clone() {
+      return this;
+    },
+  });
+
+  beforeEach(() => {
+    Object.assign(globalThis, { sessionStorage: { getItem: jest.fn(() => "fbtoken") } });
+    jest.spyOn(console, "warn").mockImplementation(() => undefined);
+  });
+  afterEach(() => jest.restoreAllMocks());
+
+  it("posts type, replay and platform with the lowercase accesstoken, and returns the body", async () => {
+    const fetchMock = jest.fn().mockResolvedValue(reply(201, { heistScore: [180] }));
+    globalThis.fetch = fetchMock;
+    await expect(USER_API.saveMatchDetailed(heist)).resolves.toEqual({ ok: true, status: 201, code: null, body: { heistScore: [180] } });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.test/user/catbassadors/live");
+    expect(JSON.parse(init.body)).toEqual({ ...heist, platform: "web" });
+    expect(init.headers.accesstoken).toBe("fbtoken");
+    expect(Object.keys(init.headers)).not.toContain("Authorization");
+  });
+
+  it.each([
+    [409, { code: "HEIST_DUPLICATE" }, "HEIST_DUPLICATE"],
+    [400, { code: "HEIST_SIM_VERSION" }, "HEIST_SIM_VERSION"],
+    [400, { message: { code: "HEIST_REPLAY_INVALID" } }, "HEIST_REPLAY_INVALID"],
+    [401, { message: "Unauthorized" }, null],
+  ])("reports %i with its code", async (status, body, code) => {
+    globalThis.fetch = jest.fn().mockResolvedValue(reply(status, body));
+    await expect(USER_API.saveMatchDetailed(heist)).resolves.toEqual({ ok: false, status, code });
+  });
+
+  it.each([
+    [{ code: "HEIST_DUPLICATE", mine: true }, true],
+    [{ code: "HEIST_DUPLICATE", mine: false }, false],
+  ])("passes a 409 body's mine on (%o)", async (body, mine) => {
+    globalThis.fetch = jest.fn().mockResolvedValue(reply(409, body));
+    await expect(USER_API.saveMatchDetailed(heist)).resolves.toEqual({ ok: false, status: 409, code: "HEIST_DUPLICATE", mine });
+  });
+
+  it("does not retry a 429 itself and passes Retry-After on", async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue(reply(429, {}, { "Retry-After": "12" }));
+    await expect(USER_API.saveMatchDetailed(heist)).resolves.toEqual({ ok: false, status: 429, code: null, retryAfter: 12 });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("maps a network failure to status 0 instead of throwing", async () => {
+    globalThis.fetch = jest.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+    await expect(USER_API.saveMatchDetailed(heist)).resolves.toEqual({ ok: false, status: 0, code: null });
   });
 });

@@ -1,11 +1,16 @@
+// copy-lint: web-only app builds render AppProofNotice instead (the isAppBuild gate in ShelterReceipt)
+import { isAppBuild } from "@/components/claims/build";
+import NextLink from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { Campaign, fetchCampaign } from "./campaign";
 import { ChainInfo, explorerAddress, explorerTx } from "./chains";
-import { formatUnits, payoutUnit } from "./logs";
+import { displayMemo, formatUnits, payoutUnit } from "./logs";
 import { DecodedReceipt, TX_HASH, fetchReceipt, receiptChain } from "./receipt";
+import { AppProofNotice } from "./AppProofNotice";
 import { ShelterDeployment, fetchDeployments } from "./rpc";
 import { downloadShareCard } from "./shareCard";
+import { CARD, CHIP, FIGURE, MEMO, GOLD_BUTTON, Kicker, NightStage, PANEL, PILL } from "./ui";
 
 type State =
   | { status: "loading" }
@@ -19,7 +24,10 @@ const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v
 
 // /shelter-payouts/receipt?chain=<id>&tx=<hash>: reads the transaction straight from the chain's
 // public RPC. Nothing here comes from Token Tails' servers.
-export const ShelterReceipt = () => {
+export const ShelterReceipt = () =>
+  isAppBuild() ? <AppProofNotice title="Rescue receipt" /> : <WebShelterReceipt />;
+
+const WebShelterReceipt = () => {
   const router = useRouter();
   const [state, setState] = useState<State>({ status: "loading" });
   const [campaign, setCampaign] = useState<Campaign | null>(null);
@@ -62,104 +70,136 @@ export const ShelterReceipt = () => {
       ? campaign.shelter.name
       : null;
 
+  const done = state.status === "done" ? state : null;
+
   return (
-    <div className="flex w-full max-w-3xl flex-col items-center gap-4 px-4 pb-16 font-secondary text-p5">
-      <h2 className="text-center font-primary uppercase tracking-tight text-h6 md:text-h2">
-        Rescue
-        <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] ml-3">Receipt</span>
-      </h2>
+    <NightStage className="min-h-screen">
+      <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-5 px-4 pt-24 pb-16 text-p5 md:pt-32 md:text-p4">
+        <Kicker>Read from the chain</Kicker>
+        <h1 className="text-center font-primary uppercase leading-none tracking-tight text-h5 md:text-h2 text-white drop-shadow-lg">
+          Rescue <span className="glow text-tt-cream">Receipt</span>
+        </h1>
 
-      {badLink && <p role="alert">This receipt link is missing a chain or transaction hash.</p>}
-      {!badLink && state.status === "loading" && (
-        <p className="animate-pulse">Reading the receipt from the chain…</p>
-      )}
-      {state.status === "invalid" && <p role="alert">{state.message}</p>}
-      {state.status === "pending" && (
-        <p>The transaction is not on the chain yet. Give it a few seconds, then refresh.</p>
-      )}
-      {state.status === "error" && (
-        <p className="text-red-300" role="alert">
-          Could not read the receipt: {state.message}
-        </p>
-      )}
-
-      {state.status === "done" && (
-        <section className="w-full rounded-xl border-2 border-yellow-900 bg-black/60 p-4">
-          <p>
-            {state.receipt.success ? "✅ Confirmed" : "❌ Failed"} on {state.chain.name}, block{" "}
-            <strong>{state.receipt.blockNumber}</strong>
+        {badLink && (
+          <p className={`${PANEL} text-center`} role="alert">
+            This receipt link is missing a chain or transaction hash.
           </p>
-          {state.receipt.payouts.length === 0 && (
-            <p className="mt-2">This transaction has no shelter payouts.</p>
-          )}
-          <ul className="mt-3 flex flex-col gap-3">
-            {state.receipt.payouts.map((p) => {
-              const unit = payoutUnit(p.kind, state.chain);
-              const name = shelterName(p.shelter);
-              return (
-                <li key={p.logIndex} className="rounded-lg border border-white/20 p-3">
-                  <p className="font-primary uppercase text-p4">
-                    {formatUnits(p.amount, unit.decimals)} {unit.symbol} to {name || short(p.shelter)}
-                  </p>
-                  <p>
-                    Shelter wallet:{" "}
-                    <a
-                      href={explorerAddress(state.chain.explorer, p.shelter)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-mono underline decoration-dotted"
-                    >
-                      {short(p.shelter)}
-                    </a>
-                  </p>
-                  <p className="break-words">Memo: {p.memo || "—"}</p>
-                  {!p.listed && (
-                    <p className="text-red-300">
-                      Warning: this log did not come from a listed ShelterSplit contract.
+        )}
+        {!badLink && state.status === "loading" && (
+          <p className="motion-safe:animate-pulse">Reading the receipt from the chain…</p>
+        )}
+        {state.status === "invalid" && (
+          <p className={`${PANEL} text-center`} role="alert">
+            {state.message}
+          </p>
+        )}
+        {state.status === "pending" && (
+          <p className={`${PANEL} text-center`}>
+            The transaction is not on the chain yet. Give it a few seconds, then refresh.
+          </p>
+        )}
+        {state.status === "error" && (
+          <p className={`${PANEL} text-center text-tt-rust`} role="alert">
+            Could not read the receipt: {state.message}
+          </p>
+        )}
+
+        {done && (
+          <section className={`${PANEL} flex flex-col gap-4`} data-testid="receipt-card">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className={`${CHIP} ${done.receipt.success ? "!border-tt-mint !text-tt-mint" : "!border-tt-rust !text-tt-rust"}`}>
+                {done.receipt.success ? "✓ Confirmed" : "✕ Failed"}
+              </span>
+              <span className="text-p6 md:text-p5 text-tt-cream/80">
+                {done.chain.name} · block <strong className="text-tt-cream">{done.receipt.blockNumber}</strong>
+              </span>
+            </div>
+            {done.receipt.payouts.length === 0 && <p>This transaction has no shelter payouts.</p>}
+            <ul className="flex flex-col gap-3">
+              {done.receipt.payouts.map((p) => {
+                const unit = payoutUnit(p.kind, p.tokenSymbol ? { ...done.chain, symbol: p.tokenSymbol } : done.chain);
+                const name = shelterName(p.shelter);
+                return (
+                  <li key={p.logIndex} className={`${CARD} flex flex-col gap-2`}>
+                    <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span className={`${FIGURE} text-h5 md:text-h4`}>
+                        {formatUnits(p.amount, unit.decimals)} {unit.symbol}
+                      </span>
+                      <span className="font-primary uppercase text-p4 md:text-p3 text-tt-cream">
+                        to{" "}
+                        {name || (
+                          // The `code` role: a shelter address, kept lowercase (plan F4, G14).
+                          // eslint-disable-next-line tt/no-raw-font
+                          <span className="font-mono normal-case">{short(p.shelter)}</span>
+                        )}
+                      </span>
                     </p>
-                  )}
-                  {name && (
-                    <p className="opacity-80">
-                      Wallet held by Token Tails on the shelter&apos;s behalf until handover.
+                    <p className="text-tt-cream/85">
+                      Shelter wallet:{" "}
+                      <a
+                        href={explorerAddress(done.chain.explorer, p.shelter)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        // The `code` role: a shelter address (plan F4, G14).
+                        // eslint-disable-next-line tt/no-raw-font
+                        className="font-mono underline decoration-dotted underline-offset-2 hover:text-tt-gold-400"
+                      >
+                        {short(p.shelter)}
+                      </a>
                     </p>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <a
-              href={explorerTx(state.chain.explorer, state.receipt.txHash)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-full border-2 border-yellow-900 bg-yellow-300 px-4 py-1 font-primary uppercase text-black"
-            >
-              Verify on explorer
-            </a>
-            {state.receipt.success && state.receipt.payouts.some((p) => p.listed) && (
-              <button
-                type="button"
-                className="rounded-full border-2 border-yellow-900 bg-pink-400 px-4 py-1 font-primary uppercase text-black"
-                onClick={() => {
-                  const listed = state.receipt.payouts.filter((p) => p.listed);
-                  const p = listed.find((x) => shelterName(x.shelter)) || listed[0];
-                  const unit = payoutUnit(p.kind, state.chain);
-                  downloadShareCard({
-                    shelterName: shelterName(p.shelter) || "a cat shelter",
-                    amount: `${formatUnits(p.amount, unit.decimals)} ${unit.symbol}`,
-                    chainName: state.chain.name,
-                    blockNumber: state.receipt.blockNumber,
-                    txHash: state.receipt.txHash,
-                  });
-                }}
+                    <p className="flex flex-wrap items-center gap-2 break-words">
+                      Memo: <span className={MEMO}>{displayMemo(p.memo) || "—"}</span>
+                    </p>
+                    {!p.listed && (
+                      <p className="text-tt-rust">Warning: this log did not come from a listed ShelterSplit contract.</p>
+                    )}
+                    {name && (
+                      <p className="text-p6 md:text-p5 text-tt-cream/75">
+                        Wallet held by Token Tails on the shelter&apos;s behalf until handover.
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="flex flex-wrap items-center justify-center gap-3 md:justify-start">
+              {done.receipt.success && done.receipt.payouts.some((p) => p.listed) && (
+                <button
+                  type="button"
+                  className={GOLD_BUTTON}
+                  onClick={() => {
+                    const listed = done.receipt.payouts.filter((p) => p.listed);
+                    const p = listed.find((x) => shelterName(x.shelter)) || listed[0];
+                    const unit = payoutUnit(p.kind, p.tokenSymbol ? { ...done.chain, symbol: p.tokenSymbol } : done.chain);
+                    downloadShareCard({
+                      shelterName: shelterName(p.shelter) || "a cat shelter",
+                      amount: `${formatUnits(p.amount, unit.decimals)} ${unit.symbol}`,
+                      chainName: done.chain.name,
+                      blockNumber: done.receipt.blockNumber,
+                      txHash: done.receipt.txHash,
+                    });
+                  }}
+                >
+                  Download share card
+                </button>
+              )}
+              <a
+                href={explorerTx(done.chain.explorer, done.receipt.txHash)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={PILL}
               >
-                Download share card
-              </button>
-            )}
-          </div>
-        </section>
-      )}
-    </div>
+                Verify on explorer ›
+              </a>
+            </div>
+          </section>
+        )}
+
+        <NextLink href="/shelter-payouts" className={PILL}>
+          See every payout ›
+        </NextLink>
+      </div>
+    </NightStage>
   );
 };
 

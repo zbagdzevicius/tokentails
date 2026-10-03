@@ -1,6 +1,8 @@
 import { USER_API } from "@/api/user-api";
+import { capturePendingRef, refFromSearch } from "@/context/auth/pendingRef";
 import { IProfile } from "@/models/profile";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/router";
 import * as React from "react";
 import { useCallback } from "react";
 
@@ -42,14 +44,32 @@ const ProfileProvider = ({ children }: React.PropsWithChildren) => {
   const [isProfileModalDisplayed, setIsProfileModalDisplayed] =
     React.useState(false);
 
+  // Referral (plan F5.7): `?ref` "from any page". This provider wraps every page (MainLayout),
+  // including the landing page, which has no Firebase provider; its PLAY links go to a bare
+  // `/game`, so the referrer is stored here on the first page load. First referrer wins; it is
+  // sent only on promotion (FirebaseAuthContext).
+  React.useEffect(() => {
+    capturePendingRef(refFromSearch(window.location.search));
+  }, []);
+
+  // A transient guest (no guest document yet, plan F5.5) has no position to read, and asking
+  // would answer 428; the first write creates the document, then positions load.
+  // The landing reads the profile only for two CTA labels (plan G3 tie-back) and shows no
+  // positions, so it skips both reads (Task 6b review #4).
+  const router = useRouter();
+  const hasPosition =
+    !!profile && !(profile as { transient?: boolean }).transient && router?.pathname !== "/";
+
   const { data: position } = useQuery({
     queryKey: ["profile-position", profile],
-    queryFn: () => (profile ? USER_API.leaderboardPosition() : null),
+    queryFn: () => (hasPosition ? USER_API.leaderboardPosition() : null),
+    enabled: hasPosition,
   });
 
   const { data: catnipPosition } = useQuery({
     queryKey: ["profile-position-catnip", profile],
-    queryFn: () => (profile ? USER_API.leaderboardCatnipPosition() : null),
+    queryFn: () => (hasPosition ? USER_API.leaderboardCatnipPosition() : null),
+    enabled: hasPosition,
   });
 
   const setProfileUpdate = (update: Partial<IProfile>) => {

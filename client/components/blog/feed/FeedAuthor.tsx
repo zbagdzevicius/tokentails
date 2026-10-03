@@ -1,4 +1,4 @@
-import { feedOptions } from "@/api/routing";
+import { PixelIcon } from "@/components/shared/PixelIcon";
 import Image from "next/image";
 import Link from "next/link";
 import React, { useMemo } from "react";
@@ -41,10 +41,6 @@ export const FeedAuthor = ({
   authorImage,
   authorSubtitle,
 }: IFeedAuthorProps) => {
-  const option = useMemo(
-    () => feedOptions.find((option) => authorLink.includes(option.href)),
-    [authorLink]
-  );
   // Fallback subtitle derived from stable props, so the server render and
   // hydration pick the same text (Math.random() here caused a mismatch).
   const fallbackText = useMemo(
@@ -69,7 +65,7 @@ export const FeedAuthor = ({
           />
         ) : (
           <span className="w-10 h-10 text-h5 rounded-full grid place-items-center bg-gray-300">
-            <i className={`bx text-gray-500 ${option?.icon}`}></i>
+            <PixelIcon name="avatar-circle" className="text-gray-500" />
           </span>
         )}
         <div className="flex flex-col justify-center">

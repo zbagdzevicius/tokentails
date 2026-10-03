@@ -118,13 +118,13 @@ test('fact dates parse in every FACTS.md style and age out after 90 days', () =>
   assert.equal(V.parseFactDate('2025–26').toISOString().slice(0, 10), '2026-12-31');
   assert.equal(V.parseFactDate('2024').toISOString().slice(0, 10), '2024-12-31');
   assert.equal(V.parseFactDate('soon'), null);
-  makeApp('f-age', { call: { status: 'in-review' }, draft: '## A <!-- criterion: C1 -->\nWe have 542,000 users [F-001] and 1,218,693 invocations [F-007].\n', files: { 'fill.md': 'Followers: 186,000 [F-011].\n' } });
+  makeApp('f-age', { call: { status: 'in-review' }, draft: '## A <!-- criterion: C1 -->\nWe have 542,000 users [F-001] and 1,218,693 invocations [F-007].\n', files: { 'fill.md': 'Followers: 4,700 [F-012].\n' } });
   const { facts } = CORE.loadFacts(process.env.FUND_FACTS);
   const rs = V.factChecks(CORE.loadApp('f-age'), CORE, { facts, sources: { 'F-007': {} }, now: CORE.now() });
   assert.deepEqual(lv(rs, 'facts-age'), ['warn']);
   assert.match(rs.find((r) => r.name === 'facts-age').detail, /F-001 \(2026-04, 148d\)/);
   assert.deepEqual(lv(rs, 'facts-status'), ['error'], 'unverified fact outside draft.md errors in a strict status');
-  assert.match(rs.find((r) => r.name === 'facts-probe').detail, /F-001, F-011/);
+  assert.match(rs.find((r) => r.name === 'facts-probe').detail, /F-001, F-012/);
 });
 
 test('renders(): rounded and floored prose numbers match, different numbers do not', () => {

@@ -34,7 +34,7 @@ export interface IBaseRepository<T> {
     create(object: T): Promise<T>;
     count(object: Partial<T> & QueryHelper): Promise<number>;
     update(id: string | Types.ObjectId, object: Partial<T> & QueryHelper): Promise<T>;
-    updateAll(object: Partial<T> & QueryHelper): Promise<T>;
+    updateAll(object: Partial<T> & QueryHelper, filter?: Record<string, unknown>): Promise<T>;
     delete(id: string): Promise<T>;
     insertMany(objects: T[]): Promise<InsertManyResult<T>>;
 }
@@ -186,8 +186,15 @@ export class BaseRepository<T> implements IBaseRepository<T> {
         return this.model.findByIdAndUpdate(id, object).lean();
     }
 
-    async updateAll(object: QueryOptions<Partial<T> & QueryHelper & any>): Promise<T> {
-        return this.model.updateMany({}, { $set: object }, { multi: true }).lean();
+    /**
+     * `$set` on every document, or on those matching `filter` (F8: the daily resets touch
+     * `{isGuest: false}` users only). An empty or missing filter keeps the old behaviour.
+     */
+    async updateAll(
+        object: QueryOptions<Partial<T> & QueryHelper & any>,
+        filter: Record<string, unknown> = {}
+    ): Promise<T> {
+        return this.model.updateMany(filter || {}, { $set: object }, { multi: true }).lean();
     }
 
     async count(object: QueryOptions<Partial<T> & QueryHelper & any>): Promise<number> {

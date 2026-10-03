@@ -1,0 +1,1177 @@
+[
+ {
+  "t": 0,
+  "type": "fx",
+  "label": "clock-ticks",
+  "dur": 3.75
+ },
+ {
+  "t": 0,
+  "type": "impact",
+  "strength": 0.2,
+  "label": "boot-sting"
+ },
+ {
+  "t": 0,
+  "type": "section",
+  "label": "cold-open: security boot",
+  "bar": 1
+ },
+ {
+  "t": 0.28,
+  "type": "fx",
+  "label": "rec-beep"
+ },
+ {
+  "t": 0.4,
+  "type": "fx",
+  "label": "rec-beep"
+ },
+ {
+  "t": 0.46875,
+  "type": "fx",
+  "label": "glitch",
+  "dur": 0.09
+ },
+ {
+  "t": 0.46875,
+  "type": "fx",
+  "label": "title: KIBBLE CORP // RESTRICTED"
+ },
+ {
+  "t": 0.585938,
+  "type": "fx",
+  "label": "glitch",
+  "dur": 0.05
+ },
+ {
+  "t": 0.703125,
+  "type": "fx",
+  "label": "scan-sweep",
+  "dur": 0.9375
+ },
+ {
+  "t": 0.820313,
+  "type": "fx",
+  "label": "glitch",
+  "dur": 0.07
+ },
+ {
+  "t": 1.40625,
+  "type": "fx",
+  "label": "glitch",
+  "dur": 0.05
+ },
+ {
+  "t": 1.875,
+  "type": "fx",
+  "label": "system-online beeps",
+  "dur": 0.9375
+ },
+ {
+  "t": 1.875,
+  "type": "impact",
+  "strength": 0.4,
+  "label": "SECURITY ONLINE"
+ },
+ {
+  "t": 1.875,
+  "type": "riser_start",
+  "label": "into-drop"
+ },
+ {
+  "t": 2.34375,
+  "type": "fx",
+  "label": "scan-sweep",
+  "dur": 0.820313
+ },
+ {
+  "t": 2.578125,
+  "type": "fx",
+  "label": "glitch",
+  "dur": 0.06
+ },
+ {
+  "t": 2.8125,
+  "type": "fx",
+  "label": "alert"
+ },
+ {
+  "t": 2.929688,
+  "type": "fx",
+  "label": "glitch",
+  "dur": 0.08
+ },
+ {
+  "t": 3.046875,
+  "type": "fx",
+  "label": "alert"
+ },
+ {
+  "t": 3.28125,
+  "type": "snare",
+  "label": "fill"
+ },
+ {
+  "t": 3.398438,
+  "type": "snare",
+  "label": "fill"
+ },
+ {
+  "t": 3.515625,
+  "type": "snare",
+  "label": "fill"
+ },
+ {
+  "t": 3.574219,
+  "type": "snare",
+  "label": "fill"
+ },
+ {
+  "t": 3.632813,
+  "type": "snare",
+  "label": "fill"
+ },
+ {
+  "t": 3.691406,
+  "type": "snare",
+  "label": "fill"
+ },
+ {
+  "t": 3.75,
+  "type": "impact",
+  "strength": 1.4,
+  "label": "HEIST DROP"
+ },
+ {
+  "t": 3.75,
+  "type": "kick"
+ },
+ {
+  "t": 3.75,
+  "type": "riser_end",
+  "label": "into-drop"
+ },
+ {
+  "t": 3.75,
+  "type": "section",
+  "label": "heist groove drop",
+  "bar": 3
+ },
+ {
+  "t": 3.75,
+  "type": "whoosh",
+  "label": "into DROP",
+  "start": 3.3
+ },
+ {
+  "t": 3.75,
+  "type": "whoosh",
+  "start": 3.45,
+  "label": "into DROP"
+ },
+ {
+  "t": 4.21875,
+  "type": "kick"
+ },
+ {
+  "t": 4.21875,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 4.6875,
+  "type": "callout",
+  "label": "SWAP"
+ },
+ {
+  "t": 4.6875,
+  "type": "fx",
+  "label": "swap-blip"
+ },
+ {
+  "t": 4.6875,
+  "type": "kick"
+ },
+ {
+  "t": 4.6875,
+  "type": "whoosh",
+  "start": 4.4875,
+  "label": "panel cut"
+ },
+ {
+  "t": 5.15625,
+  "type": "kick"
+ },
+ {
+  "t": 5.15625,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 5.625,
+  "type": "callout",
+  "label": "MEOW"
+ },
+ {
+  "t": 5.625,
+  "type": "fx",
+  "label": "meow",
+  "dur": 0.55
+ },
+ {
+  "t": 5.625,
+  "type": "impact",
+  "strength": 0.15,
+  "label": "meow shockwave"
+ },
+ {
+  "t": 5.625,
+  "type": "kick"
+ },
+ {
+  "t": 6.09375,
+  "type": "fx",
+  "label": "door-clunk"
+ },
+ {
+  "t": 6.09375,
+  "type": "kick"
+ },
+ {
+  "t": 6.09375,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 6.5625,
+  "type": "kick"
+ },
+ {
+  "t": 6.5625,
+  "type": "riser_start",
+  "label": "into roll-call"
+ },
+ {
+  "t": 7.03125,
+  "type": "kick"
+ },
+ {
+  "t": 7.03125,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 7.265625,
+  "type": "snare",
+  "label": "fill"
+ },
+ {
+  "t": 7.324219,
+  "type": "snare",
+  "label": "fill"
+ },
+ {
+  "t": 7.382813,
+  "type": "kick",
+  "label": "pickup"
+ },
+ {
+  "t": 7.382813,
+  "type": "snare",
+  "label": "fill"
+ },
+ {
+  "t": 7.441406,
+  "type": "snare",
+  "label": "fill"
+ },
+ {
+  "t": 7.5,
+  "type": "impact",
+  "strength": 1.14,
+  "label": "LEVEL 1"
+ },
+ {
+  "t": 7.5,
+  "type": "kick"
+ },
+ {
+  "t": 7.5,
+  "type": "level-hit",
+  "label": "heist-01 Kibble Corp Warehouse",
+  "level": 1
+ },
+ {
+  "t": 7.5,
+  "type": "riser_end",
+  "label": "into roll-call"
+ },
+ {
+  "t": 7.5,
+  "type": "section",
+  "label": "level roll-call",
+  "bar": 5
+ },
+ {
+  "t": 7.5,
+  "type": "whoosh",
+  "start": 7.28,
+  "label": "into heist-01"
+ },
+ {
+  "t": 7.734375,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 7.96875,
+  "type": "kick"
+ },
+ {
+  "t": 7.96875,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 8.4375,
+  "type": "impact",
+  "strength": 0.54,
+  "label": "LEVEL 2"
+ },
+ {
+  "t": 8.4375,
+  "type": "kick"
+ },
+ {
+  "t": 8.4375,
+  "type": "level-hit",
+  "label": "heist-02 Kennel Row",
+  "level": 2
+ },
+ {
+  "t": 8.4375,
+  "type": "whoosh",
+  "start": 8.2175,
+  "label": "into heist-02"
+ },
+ {
+  "t": 8.90625,
+  "type": "kick"
+ },
+ {
+  "t": 8.90625,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 9.375,
+  "type": "impact",
+  "strength": 0.54,
+  "label": "LEVEL 3"
+ },
+ {
+  "t": 9.375,
+  "type": "kick"
+ },
+ {
+  "t": 9.375,
+  "type": "level-hit",
+  "label": "heist-03 Twin Locks",
+  "level": 3
+ },
+ {
+  "t": 9.375,
+  "type": "whoosh",
+  "start": 9.155,
+  "label": "into heist-03"
+ },
+ {
+  "t": 9.84375,
+  "type": "kick"
+ },
+ {
+  "t": 9.84375,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 10.3125,
+  "type": "impact",
+  "strength": 0.54,
+  "label": "LEVEL 4"
+ },
+ {
+  "t": 10.3125,
+  "type": "kick"
+ },
+ {
+  "t": 10.3125,
+  "type": "level-hit",
+  "label": "heist-04 Counting House",
+  "level": 4
+ },
+ {
+  "t": 10.3125,
+  "type": "whoosh",
+  "start": 10.0925,
+  "label": "into heist-04"
+ },
+ {
+  "t": 10.78125,
+  "type": "kick"
+ },
+ {
+  "t": 10.78125,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 11.25,
+  "type": "impact",
+  "strength": 0.54,
+  "label": "LEVEL 5"
+ },
+ {
+  "t": 11.25,
+  "type": "kick"
+ },
+ {
+  "t": 11.25,
+  "type": "level-hit",
+  "label": "heist-05 Watchtower Yard",
+  "level": 5
+ },
+ {
+  "t": 11.25,
+  "type": "whoosh",
+  "start": 11.03,
+  "label": "into heist-05"
+ },
+ {
+  "t": 11.484375,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 11.71875,
+  "type": "kick"
+ },
+ {
+  "t": 11.71875,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 12.1875,
+  "type": "impact",
+  "strength": 0.54,
+  "label": "LEVEL 6"
+ },
+ {
+  "t": 12.1875,
+  "type": "kick"
+ },
+ {
+  "t": 12.1875,
+  "type": "level-hit",
+  "label": "heist-06 Conveyor Halls",
+  "level": 6
+ },
+ {
+  "t": 12.1875,
+  "type": "whoosh",
+  "start": 11.9675,
+  "label": "into heist-06"
+ },
+ {
+  "t": 12.65625,
+  "type": "kick"
+ },
+ {
+  "t": 12.65625,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 13.125,
+  "type": "impact",
+  "strength": 0.54,
+  "label": "LEVEL 7"
+ },
+ {
+  "t": 13.125,
+  "type": "kick"
+ },
+ {
+  "t": 13.125,
+  "type": "level-hit",
+  "label": "heist-07 Split Shift",
+  "level": 7
+ },
+ {
+  "t": 13.125,
+  "type": "whoosh",
+  "start": 12.905,
+  "label": "into heist-07"
+ },
+ {
+  "t": 13.59375,
+  "type": "kick"
+ },
+ {
+  "t": 13.59375,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 13.945313,
+  "type": "kick",
+  "label": "pickup"
+ },
+ {
+  "t": 14.0625,
+  "type": "impact",
+  "strength": 1.42,
+  "label": "LEVEL 8"
+ },
+ {
+  "t": 14.0625,
+  "type": "kick"
+ },
+ {
+  "t": 14.0625,
+  "type": "level-hit",
+  "label": "heist-08 Kibble Corp HQ",
+  "level": 8
+ },
+ {
+  "t": 14.0625,
+  "type": "whoosh",
+  "start": 13.8425,
+  "label": "into heist-08"
+ },
+ {
+  "t": 14.98,
+  "type": "whoosh",
+  "label": "power-down",
+  "start": 14.53125
+ },
+ {
+  "t": 15,
+  "type": "callout",
+  "label": "REAL CATS. REAL SHELTER."
+ },
+ {
+  "t": 15,
+  "type": "fx",
+  "label": "heartbeat"
+ },
+ {
+  "t": 15,
+  "type": "impact",
+  "strength": 0.54,
+  "label": "THE REAL CATS"
+ },
+ {
+  "t": 15,
+  "type": "section",
+  "label": "heart: real shelter cats (breakdown)",
+  "bar": 9
+ },
+ {
+  "t": 15,
+  "type": "whoosh",
+  "label": "into HEART",
+  "start": 14.5
+ },
+ {
+  "t": 15.46875,
+  "type": "fx",
+  "label": "meow",
+  "dur": 0.55
+ },
+ {
+  "t": 15.9375,
+  "type": "fx",
+  "label": "heartbeat"
+ },
+ {
+  "t": 16.875,
+  "type": "callout",
+  "label": "every rescue counts"
+ },
+ {
+  "t": 16.875,
+  "type": "fx",
+  "label": "heartbeat"
+ },
+ {
+  "t": 17.8125,
+  "type": "fx",
+  "label": "heartbeat"
+ },
+ {
+  "t": 17.8125,
+  "type": "riser_start",
+  "label": "into COMMUNITY"
+ },
+ {
+  "t": 17.8125,
+  "type": "snare",
+  "label": "clap build"
+ },
+ {
+  "t": 18.046875,
+  "type": "snare",
+  "label": "clap build"
+ },
+ {
+  "t": 18.28125,
+  "type": "snare",
+  "label": "clap build"
+ },
+ {
+  "t": 18.398438,
+  "type": "snare",
+  "label": "clap build"
+ },
+ {
+  "t": 18.515625,
+  "type": "snare",
+  "label": "clap build"
+ },
+ {
+  "t": 18.632813,
+  "type": "snare",
+  "label": "clap build"
+ },
+ {
+  "t": 18.75,
+  "type": "callout",
+  "label": "OUR COMMUNITY"
+ },
+ {
+  "t": 18.75,
+  "type": "fx",
+  "label": "crowd-roar",
+  "dur": 3.75
+ },
+ {
+  "t": 18.75,
+  "type": "impact",
+  "strength": 1.4,
+  "label": "COMMUNITY LIFT"
+ },
+ {
+  "t": 18.75,
+  "type": "kick"
+ },
+ {
+  "t": 18.75,
+  "type": "riser_end",
+  "label": "into COMMUNITY"
+ },
+ {
+  "t": 18.75,
+  "type": "section",
+  "label": "community lift",
+  "bar": 11
+ },
+ {
+  "t": 18.75,
+  "type": "whoosh",
+  "label": "into COMMUNITY",
+  "start": 18.35
+ },
+ {
+  "t": 19.21875,
+  "type": "fx",
+  "label": "crowd-hey"
+ },
+ {
+  "t": 19.21875,
+  "type": "kick"
+ },
+ {
+  "t": 19.21875,
+  "type": "snare",
+  "label": "crowd-clap"
+ },
+ {
+  "t": 19.6875,
+  "type": "kick"
+ },
+ {
+  "t": 20.15625,
+  "type": "fx",
+  "label": "crowd-hey"
+ },
+ {
+  "t": 20.15625,
+  "type": "kick"
+ },
+ {
+  "t": 20.15625,
+  "type": "snare",
+  "label": "crowd-clap"
+ },
+ {
+  "t": 20.625,
+  "type": "kick"
+ },
+ {
+  "t": 21.09375,
+  "type": "fx",
+  "label": "crowd-hey"
+ },
+ {
+  "t": 21.09375,
+  "type": "kick"
+ },
+ {
+  "t": 21.09375,
+  "type": "snare",
+  "label": "crowd-clap"
+ },
+ {
+  "t": 21.5625,
+  "type": "kick"
+ },
+ {
+  "t": 21.5625,
+  "type": "riser_start",
+  "label": "into ON-CHAIN"
+ },
+ {
+  "t": 21.796875,
+  "type": "snare",
+  "label": "extra clap"
+ },
+ {
+  "t": 22.03125,
+  "type": "fx",
+  "label": "crowd-hey"
+ },
+ {
+  "t": 22.03125,
+  "type": "kick"
+ },
+ {
+  "t": 22.03125,
+  "type": "snare",
+  "label": "crowd-clap"
+ },
+ {
+  "t": 22.265625,
+  "type": "fx",
+  "label": "glitch",
+  "dur": 0.06
+ },
+ {
+  "t": 22.265625,
+  "type": "snare",
+  "label": "extra clap"
+ },
+ {
+  "t": 22.382813,
+  "type": "fx",
+  "label": "glitch",
+  "dur": 0.1
+ },
+ {
+  "t": 22.382813,
+  "type": "snare",
+  "label": "extra clap"
+ },
+ {
+  "t": 22.5,
+  "type": "block",
+  "label": "block #1"
+ },
+ {
+  "t": 22.5,
+  "type": "callout",
+  "label": "ON-CHAIN"
+ },
+ {
+  "t": 22.5,
+  "type": "fx",
+  "label": "glitch",
+  "dur": 0.12
+ },
+ {
+  "t": 22.5,
+  "type": "fx",
+  "label": "data-ticks",
+  "dur": 3.75
+ },
+ {
+  "t": 22.5,
+  "type": "impact",
+  "strength": 1.23,
+  "label": "ON-CHAIN"
+ },
+ {
+  "t": 22.5,
+  "type": "kick"
+ },
+ {
+  "t": 22.5,
+  "type": "riser_end",
+  "label": "into ON-CHAIN"
+ },
+ {
+  "t": 22.5,
+  "type": "section",
+  "label": "on-chain mission",
+  "bar": 13
+ },
+ {
+  "t": 22.5,
+  "type": "whoosh",
+  "start": 22.2,
+  "label": "into ON-CHAIN"
+ },
+ {
+  "t": 22.734375,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 22.96875,
+  "type": "block",
+  "label": "block #2"
+ },
+ {
+  "t": 22.96875,
+  "type": "kick"
+ },
+ {
+  "t": 22.96875,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 23.203125,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 23.4375,
+  "type": "block",
+  "label": "block #3"
+ },
+ {
+  "t": 23.4375,
+  "type": "kick"
+ },
+ {
+  "t": 23.671875,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 23.90625,
+  "type": "block",
+  "label": "block #4"
+ },
+ {
+  "t": 23.90625,
+  "type": "kick"
+ },
+ {
+  "t": 23.90625,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 24.140625,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 24.257813,
+  "type": "fx",
+  "label": "glitch",
+  "dur": 0.06
+ },
+ {
+  "t": 24.375,
+  "type": "block",
+  "label": "block #5"
+ },
+ {
+  "t": 24.375,
+  "type": "kick"
+ },
+ {
+  "t": 24.609375,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 24.84375,
+  "type": "block",
+  "label": "block #6"
+ },
+ {
+  "t": 24.84375,
+  "type": "kick"
+ },
+ {
+  "t": 24.84375,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 25.078125,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 25.195313,
+  "type": "fx",
+  "label": "glitch",
+  "dur": 0.06
+ },
+ {
+  "t": 25.3125,
+  "type": "block",
+  "label": "block #7"
+ },
+ {
+  "t": 25.3125,
+  "type": "kick"
+ },
+ {
+  "t": 25.3125,
+  "type": "riser_start",
+  "label": "into LOGO SLAM"
+ },
+ {
+  "t": 25.78125,
+  "type": "block",
+  "label": "block #8"
+ },
+ {
+  "t": 25.78125,
+  "type": "kick"
+ },
+ {
+  "t": 25.78125,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 25.78125,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 25.898438,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 26.015625,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 26.074219,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 26.132813,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 26.191406,
+  "type": "snare",
+  "label": "roll"
+ },
+ {
+  "t": 26.25,
+  "type": "callout",
+  "label": "CATNIP HEIST"
+ },
+ {
+  "t": 26.25,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 26.25,
+  "type": "impact",
+  "strength": 2.64,
+  "label": "LOGO SLAM (massive)"
+ },
+ {
+  "t": 26.25,
+  "type": "kick"
+ },
+ {
+  "t": 26.25,
+  "type": "riser_end",
+  "label": "into LOGO SLAM"
+ },
+ {
+  "t": 26.25,
+  "type": "section",
+  "label": "logo slam + call to action",
+  "bar": 15
+ },
+ {
+  "t": 26.25,
+  "type": "whoosh",
+  "label": "into LOGO SLAM",
+  "start": 25.8
+ },
+ {
+  "t": 26.367188,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 26.484375,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 26.601563,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 26.71875,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 26.71875,
+  "type": "kick"
+ },
+ {
+  "t": 26.71875,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 26.835938,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 26.953125,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 27.070313,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 27.1875,
+  "type": "callout",
+  "label": "PLAY NOW / call to action"
+ },
+ {
+  "t": 27.1875,
+  "type": "fx",
+  "label": "star-pop"
+ },
+ {
+  "t": 27.1875,
+  "type": "kick"
+ },
+ {
+  "t": 27.421875,
+  "type": "fx",
+  "label": "star-pop"
+ },
+ {
+  "t": 27.65625,
+  "type": "fx",
+  "label": "star-pop"
+ },
+ {
+  "t": 27.65625,
+  "type": "kick"
+ },
+ {
+  "t": 27.65625,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 27.773438,
+  "type": "fx",
+  "label": "meow",
+  "dur": 0.55
+ },
+ {
+  "t": 28.007813,
+  "type": "snare",
+  "label": "clap"
+ },
+ {
+  "t": 28.066406,
+  "type": "snare",
+  "label": "pickup"
+ },
+ {
+  "t": 28.125,
+  "type": "impact",
+  "strength": 1.98,
+  "label": "FINAL HIT"
+ },
+ {
+  "t": 28.125,
+  "type": "kick"
+ },
+ {
+  "t": 28.125,
+  "type": "whoosh",
+  "label": "into FINAL",
+  "start": 27.775
+ },
+ {
+  "t": 28.59375,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 28.59375,
+  "type": "hold",
+  "label": "catnip plink"
+ },
+ {
+  "t": 29.0625,
+  "type": "fx",
+  "label": "meow",
+  "dur": 0.55
+ },
+ {
+  "t": 29.0625,
+  "type": "hold",
+  "label": "small meow"
+ },
+ {
+  "t": 29.53125,
+  "type": "fx",
+  "label": "coin"
+ },
+ {
+  "t": 29.53125,
+  "type": "hold",
+  "label": "closing coin tick"
+ },
+ {
+  "t": 30,
+  "type": "end"
+ }
+]

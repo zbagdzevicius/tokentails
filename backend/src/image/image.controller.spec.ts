@@ -1,9 +1,9 @@
-import { AuthGuard } from '@nestjs/passport';
+import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { StripePaymentService } from 'src/payments/stripe-payment.service';
 import { OrderStatus, ProductType } from 'src/web3/order.schema';
-import { ImageController } from './image.controller';
+import { ImageController, paidUsd } from './image.controller';
 
 // One shared fake Stripe client, whichever module creates it (some create it at import time).
 jest.mock('stripe', () => {
@@ -135,6 +135,22 @@ describe('ImageController Stripe', () => {
             expect(catService.createBlessingWithCat).toHaveBeenCalledTimes(1);
         });
 
+        it('adds the verified USD price to spent and spentUsd, never a non-USD price (G4)', async () => {
+            const { controller, orderRepository, orderModel, userRepository } = setup();
+            stripeMock.webhooks.constructEvent.mockReturnValue(completedEvent());
+            // A legacy order without priceUsd whose `price` is in another unit: Stripe's USD total wins.
+            orderRepository.findOne.mockResolvedValue({ ...pendingOrder(), priceUsd: undefined, price: 6000 });
+            orderModel.findOneAndUpdate.mockReturnValueOnce({
+                lean: () => Promise.resolve({ _id: 'o1', status: OrderStatus.COMPLETE }),
+            });
+
+            await controller.handleStripeWebhook(webhookRequest(), 'sig');
+
+            expect(userRepository.update).toHaveBeenCalledWith(USER_ID, {
+                $inc: { spent: 6, monthSpent: 6, spentUsd: 6, portraitPurchases: 1, monthPortraitPurchases: 1 },
+            });
+        });
+
         it('does not grant an underpaid session', async () => {
             const { controller, orderRepository, orderModel, userRepository, catService } = setup();
             stripeMock.webhooks.constructEvent.mockReturnValue(completedEvent({ amount_total: 50 }));
@@ -166,7 +182,7 @@ describe('ImageController guards', () => {
     const guardsOf = (handler: string) => Reflect.getMetadata(GUARDS_METADATA, proto[handler]) || [];
 
     it('requires auth on the paid portrait regenerate endpoint', () => {
-        expect(guardsOf('regeneratePortrait')).toContain(AuthGuard('appauth'));
+        expect(guardsOf('regeneratePortrait')).toEqual([AppAuthGuard]);
     });
 
     it('rate-limits portrait regenerate to 3 per minute', () => {
@@ -184,5 +200,14 @@ describe('ImageController guards', () => {
 
     it('never throttles the Stripe webhook', () => {
         expect(Reflect.getMetadata('THROTTLER:SKIPdefault', proto.handleStripeWebhook)).toBe(true);
+    });
+});
+
+describe('paidUsd', () => {
+    it('uses priceUsd, then the USD session total, and never order.price', () => {
+        expect(paidUsd({ priceUsd: 25 }, { amount_total: 9999, currency: 'usd' })).toBe(25);
+        expect(paidUsd({}, { amount_total: 2500, currency: 'USD' })).toBe(25);
+        expect(paidUsd({ priceUsd: 0 }, { amount_total: 2500, currency: 'eur' })).toBe(0);
+        expect(paidUsd({ price: 2500 } as any, { amount_total: null, currency: 'usd' })).toBe(0);
     });
 });

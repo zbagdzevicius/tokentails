@@ -26,7 +26,7 @@ const map = [
   '       #EE.............#', // 15
   '       #.+..$.....$....#', // 16
   '       #..b.........b..#', // 17
-  '       #3$.....$....%..#', // 18  3 -> % crate-room patrol
+  '       #3$..%..$.......#', // 18  3 -> % crate-room patrol (west half: the doorway and the crate stay clear)
   '       #...$.......$.C.#', // 19
   '       #################', // 20
 ];
@@ -45,14 +45,15 @@ export default {
   ],
   crate: { catId: 'cheesy', catName: 'Biscuit' },
   meta: {
-    parTicks: 75 * 30,
-    meowRadiusTiles: 6,
+    parTicks: 60 * 30, // cautious-bot median 32 s x 1.2, rounded up to 5 s (min 60 s); see playtest/BOT-REPORT.md
+    // The lure lesson: a meow carries 7 tiles here and the doorman sniffs for 6 s.
+    meowRadiusTiles: 7,
     investigateTicks: 180,
     maxCoins: 20,
     twoCatRequired: false,
     objectives: ['Lure the doorman with a meow, then free {cat}', 'Both cats to the exit'],
     hints: [
-      { x0: 8, y0: 5, x1: 22, y1: 8, untilObjective: 0, text: 'The doorman won’t budge. Press {meow} where it can hear you, then sneak past while it sniffs.' },
+      { x0: 8, y0: 5, x1: 22, y1: 8, untilObjective: 0, text: 'The doorman won’t budge. Meow ({meow}) from across the hall: it walks over to sniff where you were, so move away, then slip past behind it.' },
       { x0: 8, y0: 15, x1: 22, y1: 19, untilObjective: 0, text: 'Press {act} next to the crate to free the shelter cat.' },
     ],
   },

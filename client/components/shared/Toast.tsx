@@ -1,17 +1,22 @@
 import { cdnFile } from "@/constants/utils";
-import { ICollectibleProperty, IToast } from "@/context/ToastContext";
-import React from "react";
+import { ICollectibleProperty, IToastMessage } from "@/context/ToastContext";
 
 const symbolImage: Record<ICollectibleProperty, string> = {
   tails: cdnFile("logo/logo.webp"),
 };
 
-export const Toast = ({ message, icon, isError, symbol, img }: IToast) => {
+export const Toast = ({ message, isError, symbol, img }: IToastMessage) => {
   const symbolImg = symbol ? symbolImage[symbol] : null;
   return (
+    // Toast layer (500, plan F3.2) sits above sign-in (200), the intro and
+    // reveals, so a toast fired from a modal is never hidden behind it.
+    // Screen readers get the text from ToastProvider's live region instead,
+    // which keeps working while a modal hides the rest of the page.
     <div
-      className="fixed z-[110] top-32 left-1/2"
+      className="fixed z-toast top-32 left-1/2 pointer-events-none"
       style={{ transform: "translateX(-50%)" }}
+      data-testid="toast"
+      aria-hidden="true"
     >
       <div
         key={message}
@@ -42,7 +47,7 @@ export const Toast = ({ message, icon, isError, symbol, img }: IToast) => {
             className={`absolute inset-0 rounded-xl ${
               isError
                 ? "bg-gradient-to-br from-red-200/40 to-red-300/40"
-                : "bg-gradient-to-br from-yellow-200/30 to-yellow-300/30"
+                : "bg-gradient-to-br from-yellow-200/30 to-tt-cream/30"
             }`}
           ></div>
 

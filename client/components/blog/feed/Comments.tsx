@@ -1,3 +1,4 @@
+import { PixelIcon } from "@/components/shared/PixelIcon";
 import { ARTICLE_API } from "@/api/article-api";
 import { getNextPageFn } from "@/api/routing";
 import { Avatar } from "@/components/blog/feed/Avatar";
@@ -70,12 +71,14 @@ export const SafeInput = (
         onChange={handleChange}
         value={message}
       />
-      <div
+      <button
+        type="button"
         onClick={() => onSubmit("Enter")}
-        className="bx bxs-send absolute right-0 pr-2 top-0 bottom-0 flex justify-center items-center cursor-pointer"
+        aria-label="Send"
+        className="absolute right-0 pr-2 top-0 bottom-0 flex justify-center items-center cursor-pointer"
       >
         <img draggable={false} className="w-6" src={cdnFile("logo/paw.webp")} />
-      </div>
+      </button>
     </div>
   );
 };
@@ -251,8 +254,13 @@ export const Comments = ({ close, entity, type }: IProps) => {
           placeholder="Write a meow"
         />
         <div className="pb-safe"></div>
-        <button onClick={close} className="absolute right-3 top-2 group">
-          <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>
+        <button
+          type="button"
+          onClick={close}
+          aria-label="Close"
+          className="absolute right-3 top-2 group"
+        >
+          <PixelIcon name="close" className="text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300" />
         </button>
       </div>
     </div>

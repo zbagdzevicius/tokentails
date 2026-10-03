@@ -7,10 +7,10 @@ import { PixelButton } from "@/components/shared/PixelButton";
 export const AppCheckoutNotice = ({ onBack }: { onBack?: () => void }) => {
   return (
     <div className="flex flex-col items-center gap-2 relative z-10">
-      <div className="mx-auto w-full max-w-[420px] rounded-lg border-2 border-yellow-900 bg-yellow-100/95 px-3 py-2 text-center font-primary text-p6 md:text-p5 text-yellow-900">
+      <div className="mx-auto w-full max-w-[420px] rounded-lg border-2 border-tt-gold-500 bg-tt-night-800/95 px-3 py-2 text-center font-primary text-p6 md:text-p5 text-tt-cream">
         Purchases are not available in the app yet.
       </div>
-      {onBack && <PixelButton isSmall text="BACK" onClick={onBack} />}
+      {onBack && <PixelButton size="sm" text="BACK" onClick={onBack} />}
     </div>
   );
 };

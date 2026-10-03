@@ -32,7 +32,7 @@ export const TogglePixelButton = ({
         }`}
       >
         <div
-          className={`text-yellow-900 mx-2 font-bold text-p4 ${
+          className={`text-tt-gold-ink mx-2 font-bold text-p4 ${
             !isActive ? "text-right pr-1" : "text-left pl-1"
           } w-full`}
         >
@@ -50,14 +50,14 @@ export const TogglePixelButton = ({
               isActive ? "bg-green-300" : "bg-red-300"
             }`}
           >
-            <div className="h-0.5 w-4 bg-yellow-300"></div>
+            <div className="h-0.5 w-4 bg-tt-cream"></div>
           </div>
           <div
             className={`h-5 w-1 flex flex-col ${
               isActive ? "bg-green-300" : "bg-red-300"
             } border-y-4 border-yellow-900`}
           >
-            <div className="h-0.5 w-1 bg-yellow-300"></div>
+            <div className="h-0.5 w-1 bg-tt-cream"></div>
           </div>
 
           <div className="h-4 w-1 bg-yellow-900"></div>

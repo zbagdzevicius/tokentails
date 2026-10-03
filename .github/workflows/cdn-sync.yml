@@ -1,0 +1,212 @@
+# Syncs client/public/ to the DigitalOcean Spaces CDN that `cdnFile()` reads in production
+# (https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/w/<path>). Plan F12; replaces
+# client/.gitlab-ci.yml (decision #59).
+#
+# - Runs on pushes to main that touch client/public/**, and by hand from the Actions tab.
+# - Two passes. Every file gets `Cache-Control: public, max-age=3600`; versioned files
+#   (`*-v2-*`, `*.v1.*`, any version number) and the hashed Heist bundle get
+#   `public, max-age=31536000, immutable`, because a new version always gets a new name.
+#   The versioned (immutable) pass runs first, so an entry file such as `heist-game/index.html`
+#   is never live on the CDN before the hashed bundles it loads.
+# - Asset rule: nothing is ever deleted on the CDN (no --delete-removed). Installed native builds
+#   keep loading old names, so old files stay; new art gets versioned names.
+# - Art sources (`*.aseprite`) and Finder files are not uploaded.
+# - The optional flush purges the CDN edge cache for `w/*` after the sync. It needs the
+#   DO_API_TOKEN and DO_CDN_ENDPOINT_ID secrets and is skipped without them.
+# - `s3cmd sync` skips files whose content is unchanged, so the headers above only reach new or
+#   changed files. Files the GitLab job uploaded earlier keep their old headers until the one-time
+#   `reheader` run (Actions > CDN sync > Run workflow > reheader). Run it with `dry_run` first: the
+#   dry run also prints the local files the VERSIONED pattern matches, to confirm s3cmd matches it
+#   against paths relative to ./public/ (the `heist-game/build/` part depends on that).
+# - Later: the claims release gate (G11) runs here before the upload.
+#
+# One-time setup by a maintainer (not done by this change): add the repository secrets
+# DO_SPACES_KEY and DO_SPACES_SECRET (the keys the GitLab job used), optionally DO_API_TOKEN and
+# DO_CDN_ENDPOINT_ID, then disable the GitLab pipeline. Until the secrets exist a push to main
+# logs a warning and skips the upload (the run stays green); a manual run fails with an error.
+name: CDN sync
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - client/public/**
+      - .github/workflows/cdn-sync.yml
+  workflow_dispatch:
+    inputs:
+      flush:
+        description: Purge the CDN cache for w/* after the sync
+        type: boolean
+        required: false
+        default: false
+      reheader:
+        description: One-time, re-apply Cache-Control to every file already on the CDN (s3cmd modify)
+        type: boolean
+        required: false
+        default: false
+      dry_run:
+        description: List what would change without uploading
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+# Never two uploads at once; a newer push waits for the running one instead of cancelling it
+# half-way through an upload.
+concurrency:
+  group: cdn-sync
+  cancel-in-progress: false
+
+env:
+  SPACE_NAME: tokentails-nfts
+  SPACE_ENDPOINT: fra1.digitaloceanspaces.com
+  SPACE_PREFIX: w/
+  SHORT_CACHE: "public, max-age=3600"
+  LONG_CACHE: "public, max-age=31536000, immutable"
+  # Versioned names (`bg-v2-night.webp`, `sprite.v1.png`) and the content-hashed Heist bundle.
+  VERSIONED: '(-v[0-9]+-|\.v[0-9]+\.|(^|/)heist-game/build/)'
+
+jobs:
+  sync:
+    name: sync client/public
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      # Every later step runs only when `ready` is true. On a push without the secrets (the state
+      # until a maintainer adds them) the job warns and stays green instead of failing every push.
+      - name: Require the Spaces secrets
+        id: secrets
+        env:
+          DO_SPACES_KEY: ${{ secrets.DO_SPACES_KEY }}
+          DO_SPACES_SECRET: ${{ secrets.DO_SPACES_SECRET }}
+          EVENT: ${{ github.event_name }}
+        working-directory: .
+        run: |
+          if [ -n "$DO_SPACES_KEY" ] && [ -n "$DO_SPACES_SECRET" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "ready=false" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "::error::DO_SPACES_KEY and DO_SPACES_SECRET are not set (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+          echo "::warning::DO_SPACES_KEY and DO_SPACES_SECRET are not set; skipping the CDN sync (nothing uploaded)."
+      - uses: actions/checkout@v4
+        if: ${{ steps.secrets.outputs.ready == 'true' }}
+      - name: Install s3cmd
+        if: ${{ steps.secrets.outputs.ready == 'true' }}
+        run: |
+          sudo apt-get update -qq
+          # python3-magic is s3cmd's content sniffer: types the extension table lacks (.glb, and
+          # .woff2 on some Pythons) are detected from the bytes instead of binary/octet-stream.
+          sudo apt-get install -y -qq s3cmd python3-magic
+      - name: Configure s3cmd
+        if: ${{ steps.secrets.outputs.ready == 'true' }}
+        env:
+          DO_SPACES_KEY: ${{ secrets.DO_SPACES_KEY }}
+          DO_SPACES_SECRET: ${{ secrets.DO_SPACES_SECRET }}
+        run: |
+          umask 077
+          cat > "$HOME/.s3cfg" <<EOF
+          [default]
+          access_key = $DO_SPACES_KEY
+          secret_key = $DO_SPACES_SECRET
+          host_base = $SPACE_ENDPOINT
+          host_bucket = %(bucket)s.$SPACE_ENDPOINT
+          signature_v2 = False
+          use_https = True
+          EOF
+      - name: Show which files count as versioned (dry run)
+        if: ${{ steps.secrets.outputs.ready == 'true' && inputs.dry_run }}
+        run: |
+          echo "Local files the VERSIONED pattern matches (pass 1, immutable):"
+          find public -type f | sed 's|^public/||' | grep -E "$VERSIONED" | sort || true
+      - name: Pass 1, versioned files first (immutable)
+        if: ${{ steps.secrets.outputs.ready == 'true' }}
+        env:
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          s3cmd sync $DRY_RUN --acl-public --no-preserve \
+            --guess-mime-type \
+            --rexclude '.*' --rinclude "$VERSIONED" \
+            --exclude '.DS_Store' --exclude '*.aseprite' \
+            --add-header="Cache-Control: $LONG_CACHE" \
+            ./public/ "s3://$SPACE_NAME/$SPACE_PREFIX"
+      - name: Pass 2, every other file (short cache)
+        if: ${{ steps.secrets.outputs.ready == 'true' }}
+        env:
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          s3cmd sync $DRY_RUN --acl-public --no-preserve \
+            --guess-mime-type \
+            --exclude '.DS_Store' --exclude '*.aseprite' \
+            --rexclude "$VERSIONED" \
+            --add-header="Cache-Control: $SHORT_CACHE" \
+            ./public/ "s3://$SPACE_NAME/$SPACE_PREFIX"
+      # `s3cmd modify` copies each object onto itself with the new header. `--acl-public` keeps it
+      # public (a copy is private by default); the same filters as the two sync passes decide which
+      # header each object gets. Nothing is deleted.
+      - name: Re-header existing files, short cache (one-time)
+        if: ${{ steps.secrets.outputs.ready == 'true' && inputs.reheader }}
+        env:
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          s3cmd modify $DRY_RUN --recursive --acl-public \
+            --exclude '.DS_Store' --exclude '*.aseprite' \
+            --rexclude "$VERSIONED" \
+            --add-header="Cache-Control: $SHORT_CACHE" \
+            "s3://$SPACE_NAME/$SPACE_PREFIX"
+      - name: Re-header existing files, versioned (one-time)
+        if: ${{ steps.secrets.outputs.ready == 'true' && inputs.reheader }}
+        env:
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          s3cmd modify $DRY_RUN --recursive --acl-public \
+            --rexclude '.*' --rinclude "$VERSIONED" \
+            --add-header="Cache-Control: $LONG_CACHE" \
+            "s3://$SPACE_NAME/$SPACE_PREFIX"
+      # One object per risky extension, read back from the CDN: a wrong Content-Type or a lost
+      # public ACL (after `reheader`, which copies each object onto itself) fails the run here
+      # instead of showing up as broken fonts or models in the app.
+      - name: Check content types and ACL on the CDN
+        if: ${{ steps.secrets.outputs.ready == 'true' && !inputs.dry_run }}
+        run: |
+          status=0
+          for ext in html js css json webp png jpg svg woff2 woff ttf glb mp3 ogg mp4; do
+            file=$(find public -type f -name "*.$ext" ! -name '.DS_Store' | sort | head -n 1)
+            [ -n "$file" ] || continue
+            key="${file#public/}"
+            info=$(s3cmd info "s3://$SPACE_NAME/$SPACE_PREFIX$key" 2>/dev/null) || {
+              echo "::warning::$key is not on the CDN yet"; continue; }
+            type=$(printf '%s\n' "$info" | awk -F': *' '/MIME type/ {print $2; exit}')
+            echo "$key -> ${type:-unknown}"
+            case "$type" in
+              ""|binary/octet-stream|application/octet-stream)
+                echo "::error::$key has Content-Type '${type:-none}'"; status=1 ;;
+            esac
+            if ! printf '%s\n' "$info" | grep -q 'ACL:.*\*anon\*: READ'; then
+              echo "::error::$key is not public (no anonymous READ in its ACL)"; status=1
+            fi
+          done
+          exit $status
+      - name: Flush the CDN cache (optional)
+        if: ${{ steps.secrets.outputs.ready == 'true' && inputs.flush && !inputs.dry_run }}
+        env:
+          DO_API_TOKEN: ${{ secrets.DO_API_TOKEN }}
+          DO_CDN_ENDPOINT_ID: ${{ secrets.DO_CDN_ENDPOINT_ID }}
+        run: |
+          if [ -z "$DO_API_TOKEN" ] || [ -z "$DO_CDN_ENDPOINT_ID" ]; then
+            echo "::warning::DO_API_TOKEN or DO_CDN_ENDPOINT_ID is not set; skipping the CDN flush."
+            exit 0
+          fi
+          curl --fail --silent --show-error -X DELETE \
+            -H "Authorization: Bearer $DO_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"files\": [\"${SPACE_PREFIX}*\"]}" \
+            "https://api.digitalocean.com/v2/cdn/endpoints/$DO_CDN_ENDPOINT_ID/cache"
+          echo "CDN cache purge requested for ${SPACE_PREFIX}*."

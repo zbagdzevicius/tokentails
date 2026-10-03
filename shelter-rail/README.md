@@ -122,7 +122,7 @@ console.log(await response.json(), paid?.txHash);
 ```
 
 `payAndFetch` refuses any price above `maxAmountWei`, pays at most once per call, and passes any
-non-402 response (for example `503` while the endpoint is switched off) straight through.
+non-402 response (for example `409` while the endpoint is switched off) straight through.
 
 See `examples/agent-pay.mjs` for a Node agent with `ethers`. It reads a **testnet** key from the
 `AGENT_PRIVATE_KEY` environment variable, never writes it anywhere, and without `--yes` only prints the

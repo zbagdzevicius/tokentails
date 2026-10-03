@@ -41,10 +41,10 @@ export const AnalyticsConsentBanner = () => {
       aria-label="Analytics consent"
       className="fixed inset-x-0 bottom-0 z-[200] flex justify-center p-3 pb-safe"
     >
-      <div className="max-w-xl w-full rounded-xl border-4 border-yellow-300 bg-yellow-50 shadow-lg p-4 font-secondary text-p5 text-yellow-900">
+      <div className="max-w-xl w-full rounded-xl border-4 border-tt-cream bg-yellow-50 shadow-lg p-4 font-secondary text-p5 text-tt-gold-ink">
         <p>
           Can we count game starts and finishes to make Token Tails better? It
-          is anonymous: no email, name or wallet, and it never touches your
+          is anonymous: no email or name, and it never touches your
           scores. You can change this any time in your profile.{" "}
           <a
             href={PRIVACY_POLICY_URL}
@@ -62,11 +62,11 @@ export const AnalyticsConsentBanner = () => {
         )}
         <div className="mt-3 flex flex-wrap gap-2 justify-end">
           <PixelButton
-            isSmall
+            size="sm"
             text="NO THANKS"
             onClick={() => choose("denied")}
           />
-          <PixelButton isSmall text="ACCEPT" onClick={() => choose("granted")} />
+          <PixelButton size="sm" text="ACCEPT" onClick={() => choose("granted")} />
         </div>
       </div>
     </div>
@@ -77,7 +77,7 @@ export const AnalyticsConsentBanner = () => {
 export const AnalyticsSettingsButton = () => {
   if (!analytics.enabled) return null;
   return (
-    <PixelButton isSmall text="ANALYTICS" onClick={openConsentSettings} />
+    <PixelButton size="sm" text="ANALYTICS" onClick={openConsentSettings} />
   );
 };
 

@@ -1,9 +1,16 @@
+import type { DonateSource } from "@/shared-contracts/enums";
+import { ErrorCode, errorCodeOf } from "@/shared-contracts/errors";
 import { apiUrl, getAuthHeaders } from "./api";
 
 // Client for the backend's shelter donation endpoints (backend/src/shelter). The server pays for the
 // treat from its own small hot wallet, so the player never needs a wallet or gas.
 
-export type DonateSource = "heist" | "page";
+// Shared with the backend through the generated copy of shared/enums.ts (plan F2). The donation status
+// is exported as a type only; CONFIRMED and FAILED are not written by the backend yet (plan F7.4).
+export type {
+  DonateSource,
+  ShelterDonationStatus,
+} from "@/shared-contracts/enums";
 
 export interface DonateStatus {
   enabled: boolean;
@@ -20,22 +27,35 @@ export interface DonateReceipt {
   explorerUrl: string;
 }
 
+/**
+ * Why a signed-in account cannot send a treat yet (backend F7.5 instant-treat policy). Mirrors the
+ * backend `EligibilityReason` values the donate route can refuse with.
+ */
+export type DonateIneligibleReason = "email-unverified" | "account-too-new" | "no-saved-game";
+
 export type DonateResult =
   | { status: "sent"; receipt: DonateReceipt }
   | { status: "signed-out" }
+  | { status: "not-eligible"; reason: DonateIneligibleReason; eligibleAt: string | null; message?: string }
   | { status: "already-sent" }
   | { status: "disabled"; message?: string }
   | { status: "error"; message: string };
 
-async function messageOf(response: Response): Promise<string | undefined> {
+async function bodyOf(response: Response): Promise<Record<string, unknown> | null> {
   try {
     const body = await response.json();
-    const m = body?.message;
-    return Array.isArray(m) ? m.join(", ") : typeof m === "string" ? m : undefined;
+    return body && typeof body === "object" ? body : null;
   } catch {
-    return undefined;
+    return null;
   }
 }
+
+function messageOf(body: Record<string, unknown> | null): string | undefined {
+  const m = body?.message;
+  return Array.isArray(m) ? m.join(", ") : typeof m === "string" ? m : undefined;
+}
+
+const INELIGIBLE_REASONS: DonateIneligibleReason[] = ["account-too-new", "no-saved-game"];
 
 async function getDonateStatus(): Promise<DonateStatus | null> {
   try {
@@ -68,18 +88,34 @@ async function donate(source: DonateSource): Promise<DonateResult> {
   }
 
   if (response.ok) return { status: "sent", receipt: await response.json() };
-  if (response.status === 401 || response.status === 403) return { status: "signed-out" };
+  const body = await bodyOf(response);
+  const code = errorCodeOf(body);
+  if (response.status === 401) return { status: "signed-out" };
+  if (response.status === 403) {
+    // Only a guest refusal (or a 403 with no code, from an older backend) means "sign in". A
+    // signed-in account refused by the treat policy is told why instead of being asked again.
+    if (code === ErrorCode.EMAIL_UNVERIFIED) {
+      return { status: "not-eligible", reason: "email-unverified", eligibleAt: null, message: messageOf(body) };
+    }
+    if (code === ErrorCode.DONATE_NOT_ELIGIBLE) {
+      const reason = INELIGIBLE_REASONS.find((r) => r === body?.reason) || "no-saved-game";
+      const eligibleAt = typeof body?.eligibleAt === "string" ? body.eligibleAt : null;
+      return { status: "not-eligible", reason, eligibleAt, message: messageOf(body) };
+    }
+    return { status: "signed-out" };
+  }
   if (response.status === 429) {
-    // The backend's once-a-day rule says "already"; the per-IP rate limiter is also a 429.
-    const message = await messageOf(response);
-    return /already/i.test(message || "")
+    // The once-a-day rule carries DONATE_ALREADY_TODAY; the per-IP rate limiter is a bare 429.
+    return code === ErrorCode.DONATE_ALREADY_TODAY
       ? { status: "already-sent" }
       : { status: "error", message: "Too many tries. Wait a minute and try again." };
   }
-  if (response.status === 503) return { status: "disabled", message: await messageOf(response) };
+  // 409: the treat rail is paused or today's budget is spent (older backends answered 503).
+  // 424: the transaction could not be sent; the message says to try again later.
+  if (response.status === 409 || response.status === 503) return { status: "disabled", message: messageOf(body) };
   return {
     status: "error",
-    message: (await messageOf(response)) || `Something went wrong (HTTP ${response.status}).`,
+    message: messageOf(body) || `Something went wrong (HTTP ${response.status}).`,
   };
 }
 

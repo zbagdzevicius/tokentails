@@ -3,19 +3,47 @@
   "url": "https://www.hackquest.io/hackathons/Arbitrum-Open-House-Singapore-Online-Buildathon",
   "deadline": "2026-10-04",
   "frame": "payout-rail",
-  "chain": ["arbitrum", "robinhood"],
+  "chain": [
+    "arbitrum"
+  ],
   "mainnet_required": false,
   "next": "Only if an Arbitrum or Robinhood deployment exists by Oct 3; reuse the Colosseum write-up",
   "submission": {
     "sections": [
-      { "title": "Summary", "from": "Summary", "limit": 280 },
-      { "title": "Problem", "from": "Problem" },
-      { "title": "Solution", "from": "Solution" },
-      { "title": "How it works", "from": "How it works" },
-      { "title": "Deployment", "from": "On-chain proof", "auto": "deployments" },
-      { "title": "Build evidence", "auto": "build" },
-      { "title": "Team", "from": "Team" }
+      {
+        "title": "Summary",
+        "from": "Summary",
+        "limit": 280
+      },
+      {
+        "title": "Problem",
+        "from": "Problem"
+      },
+      {
+        "title": "Solution",
+        "from": "Solution"
+      },
+      {
+        "title": "How it works",
+        "from": "How it works"
+      },
+      {
+        "title": "Deployment",
+        "from": "On-chain proof",
+        "auto": "deployments"
+      },
+      {
+        "title": "Build evidence",
+        "auto": "build"
+      },
+      {
+        "title": "Team",
+        "from": "Team"
+      }
     ]
   },
-  "verify": ["deadline time and timezone", "whether testnet is accepted"]
+  "verify": [
+    "deadline time zone: HackQuest shows 'Oct 4,2026 15:59' with no zone; if it is SGT the close is 07:59 UTC (10:59 Vilnius), so submit before then",
+    "form fields and limits"
+  ]
 }

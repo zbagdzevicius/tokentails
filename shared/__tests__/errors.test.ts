@@ -1,0 +1,45 @@
+import { ERROR_CODES, ErrorCode, errorCodeOf, isErrorCode } from '../errors';
+
+describe('shared error codes', () => {
+    it('is exactly the F5.6 vocabulary, uppercase, keys equal to values', () => {
+        expect(ERROR_CODES).toEqual([
+            'GUEST_FORBIDDEN',
+            'GUEST_SESSION_REQUIRED',
+            'ACCOUNT_CONFLICT',
+            'EMAIL_UNVERIFIED',
+            'STARTER_LOCKED',
+            'NAME_TOO_SHORT',
+            'NAME_TOO_LONG',
+            'NAME_CHARS',
+            'NAME_RESERVED',
+            'NAME_BLOCKED',
+            'HEIST_REPLAY_INVALID',
+            'HEIST_NOT_WON',
+            'HEIST_TRAILING_INPUT',
+            'HEIST_SIM_VERSION',
+            'HEIST_DUPLICATE',
+            'DONATE_PAUSED',
+            'DONATE_BUDGET_SPENT',
+            'DONATE_SEND_FAILED',
+            'DONATE_ALREADY_TODAY',
+            'DONATE_NOT_ELIGIBLE',
+        ]);
+        Object.entries(ErrorCode).forEach(([key, value]) => expect(key).toBe(value));
+    });
+
+    it('rejects the dropped lowercase G9 spellings', () => {
+        expect(isErrorCode('email-unverified')).toBe(false);
+        expect(isErrorCode('account-conflict')).toBe(false);
+        expect(isErrorCode('EMAIL_UNVERIFIED')).toBe(true);
+    });
+
+    it('reads a code from flat and nested Nest error bodies, and never throws', () => {
+        expect(errorCodeOf({ code: 'GUEST_FORBIDDEN' })).toBe('GUEST_FORBIDDEN');
+        expect(errorCodeOf({ statusCode: 403, message: { code: 'EMAIL_UNVERIFIED' } })).toBe('EMAIL_UNVERIFIED');
+        expect(errorCodeOf({ message: 'Forbidden' })).toBeNull();
+        expect(errorCodeOf({ code: 'NOPE' })).toBeNull();
+        [null, undefined, 1, 'x', [], [{ code: 'GUEST_FORBIDDEN' }]].forEach(body =>
+            expect(errorCodeOf(body)).toBeNull()
+        );
+    });
+});

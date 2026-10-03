@@ -1,4 +1,9 @@
 import { ICat, ICatStatus } from "@/models/cats";
+import {
+  ParsedStorefront,
+  parseStorefrontDetailed,
+  Storefront,
+} from "@/shared-contracts/storefront";
 import { apiUrl } from "./api";
 
 const stake = async (
@@ -62,22 +67,31 @@ const setAsOpened = async (
   });
 };
 
+/**
+ * The signed-in user's cats. Always an array: Base and the pet list call array methods on it, so
+ * an error, a non-JSON body or a non-array body (an old or failing backend) gives `[]`.
+ */
 const cats = async (): Promise<ICat[]> => {
-  return fetch(`${apiUrl}/user/cats`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      accesstoken: sessionStorage.getItem("accesstoken"),
-    } as HeadersInit,
-  }).then((response) => {
-    if (response.ok) {
-      return response.json();
+  try {
+    const response = await fetch(`${apiUrl}/user/cats`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        accesstoken: sessionStorage.getItem("accesstoken"),
+      } as HeadersInit,
+    });
+    if (!response.ok) {
+      console.warn(`GET /user/cats failed with ${response.status}`);
+      return [];
     }
-
-    console.warn(JSON.stringify(response));
+    const body: unknown = await response.json();
+    return Array.isArray(body)
+      ? (body.filter((cat) => !!cat && typeof cat === "object") as ICat[])
+      : [];
+  } catch {
     return [];
-  });
+  }
 };
 
 const cat = async (id: string): Promise<ICat | null> => {
@@ -97,23 +111,66 @@ const cat = async (id: string): Promise<ICat | null> => {
   });
 };
 
-const catsForSale = async (): Promise<Record<string, ICat[]>> => {
-  return fetch(`${apiUrl}/cat/sale`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      accesstoken: sessionStorage.getItem("accesstoken"),
-    } as HeadersInit,
-  }).then((response) => {
-    if (response.ok) {
-      return response.json();
-    }
+/** Why a storefront load could not use the response (`storefront_degraded.reason`). */
+export type StorefrontFailure = "network" | "http" | "malformed_json" | "shape";
 
-    console.warn(JSON.stringify(response));
-    return [];
-  });
+export interface StorefrontResult extends ParsedStorefront<ICat> {
+  /**
+   * Set when the request failed or the body was not a storefront object: the cats are then the
+   * empty storefront and the UI offers a retry. Missing or non-array keys in an otherwise valid
+   * object are only `degraded` (an old backend drops a shelter's key once its cats are adopted).
+   */
+  failure: StorefrontFailure | null;
+  /** HTTP status when the backend answered, for telemetry. */
+  status?: number;
+}
+
+const failedStorefront = (
+  failure: StorefrontFailure,
+  status?: number
+): StorefrontResult => ({
+  ...parseStorefrontDetailed<ICat>({}),
+  degraded: true,
+  failure,
+  status,
+});
+
+/**
+ * `GET /cat/sale` through the shared contract (plan G13). Never throws and never returns an array:
+ * every required shelter key is an array, whatever the backend sends. Public endpoint, so no
+ * `accesstoken` is sent.
+ */
+const storefront = async (): Promise<StorefrontResult> => {
+  let response: Response;
+  try {
+    response = await fetch(`${apiUrl}/cat/sale`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+  } catch {
+    return failedStorefront("network");
+  }
+  if (!response.ok) {
+    return failedStorefront("http", response.status);
+  }
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    return failedStorefront("malformed_json", response.status);
+  }
+  const parsed = parseStorefrontDetailed<ICat>(body);
+  const isObject = !!body && typeof body === "object" && !Array.isArray(body);
+  return {
+    ...parsed,
+    failure: isObject ? null : "shape",
+    status: response.status,
+  };
 };
+
+/** The storefront cats only, every required key an array. Prefer `useStorefront` in components. */
+const catsForSale = async (): Promise<Storefront<ICat>> =>
+  (await storefront()).cats;
 
 const update = async (
   id: string | number,
@@ -183,6 +240,7 @@ export const CAT_API = {
   stakingRedeem,
   cats,
   catsForSale,
+  storefront,
   update,
   cat,
   setActive,

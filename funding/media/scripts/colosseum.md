@@ -48,7 +48,7 @@ No backend has to be trusted for the numbers.
 visual: card
 title: First shelter: {SHELTER_NAME}\NWallet held by Token Tails until handover\NShelterSplit {SPLIT_ADDRESS}\NFirst payout {TEMPO_TX}
 
-The first shelter on the registry is {SHELTER_NAME}, and they agreed to be named.
+The first shelter on the registry is {SHELTER_NAME}.
 The shelter's wallet is held by Token Tails on behalf of {SHELTER_NAME}, and it will be handed over to them.
 Until then, every payout into it is public.
 The contract and the first payout are on screen now.

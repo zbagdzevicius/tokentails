@@ -13,20 +13,38 @@ import path from "path";
 jest.mock("@/constants/utils", () => ({
   cdnFile: (p: string) => `/${p}`,
 }));
+jest.mock("@capacitor/browser", () => ({ Browser: { open: jest.fn() } }));
+jest.mock("next/dynamic", () => () => () => null);
 
 import {
   DECK_MEDIA_BASE,
+  OUTCOMES_ID,
   PARIS_VIDEO,
   ProofSection,
+  railDeployed,
   REELS,
 } from "@/components/landing/ProofSection";
+import { FACTS } from "@/lib/facts.generated";
+import { RAIL_LINE_COPY } from "@/features/portrait/components/AboutUsModal";
+import { normalizeImpact } from "@/api/impact-api";
+import baseline from "@/public/impact/snapshot.json";
 
 const PUBLIC_DIR = path.resolve(__dirname, "..", "public");
 
-const HEADLINE_1 =
-  "We've already turned attention into on-chain action — with Bybit.";
+const HEADLINE_1 = "Cat lovers, meet real shelter cats.";
 const HEADLINE_2 =
-  "Cat influencers + creators. Then we bring the fun on-chain.";
+  "Cat influencers + creators. Then the fun moves into the game.";
+
+/** tools/copy-lint/fixtures/seed/ProofSection.after.tsx: the Paris line that must pass. */
+const PARIS_AFTER =
+  "We hosted a curated day at a Paris cat café: cozy atmosphere and real shelter cats.";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- test patches any snapshot field
+const snapshot = (patch: (s: Record<string, any>) => void = () => {}) => {
+  const raw = JSON.parse(JSON.stringify(baseline));
+  patch(raw);
+  return normalizeImpact(raw)!;
+};
 
 // The deck's chain partner must never appear on the site. The pattern is
 // spelled with a character class so a repo-wide grep for the banned word stays
@@ -106,33 +124,123 @@ function allVideos(container: HTMLElement) {
 
 
 describe("content", () => {
-  it("renders both headlines and the stat labels", () => {
+  it("renders both headlines and the cited reach claims", () => {
     const { container } = render(<ProofSection />);
     const headings = Array.from(container.querySelectorAll("h2")).map(
       (h) => h.textContent,
     );
     expect(headings).toEqual([HEADLINE_1, HEADLINE_2]);
 
-    const text = container.textContent ?? "";
-    expect(text).toContain("We've already done this · Paris 2026");
-    expect(text).toContain("The on-chain onramp");
-    for (const label of [
-      "Bybit",
-      "Web3 partner",
-      "Real",
-      "Shelter outcomes",
-      "On-chain",
-      "Track record",
-      "540K+",
-      "Registered players",
-      "186K",
-      "Followers on X",
-      "40",
-      "Influencer cats onboarded",
-      "3 taps",
-      "From reel to on-chain",
+    const text = (container.textContent ?? "").replace(/\s+/g, " ");
+    expect(text).toContain("Off-screen too · Paris");
+    expect(text).toContain("Our reach");
+    expect(text).toContain(PARIS_AFTER);
+    // Each figure comes from the registry with its id, date and label (G11, decision #73).
+    for (const [id, words] of [
+      ["F-001", "registered players, all time (Apr 2026, company-reported)"],
+      ["F-011", "on X (Sep 2026)"],
+      ["F-013", "influencer cats onboarded (Apr 2026, company-reported)"],
     ]) {
-      expect(text).toContain(label);
+      const el = container.querySelector(`[data-claim="${id}"]`);
+      expect(el?.textContent).toContain(words);
+    }
+    expect(container.querySelector('[data-claim="F-001"] .claim-figure')?.textContent).toBe("540K+");
+    expect(container.querySelector('[data-claim="F-011"] .claim-figure')?.textContent).toBe("180K+");
+  });
+
+  it("drops the unsourced event chip, the stale follower count and the uncited claims", () => {
+    const { container } = render(<ProofSection />);
+    const text = container.textContent ?? "";
+    // F-023 (Paris event partners) is unverified: decision #74.
+    expect(text).not.toMatch(/Bybit|ChainforGood|routed real support|Web3 partner/);
+    expect(text).not.toContain("We've already done this");
+    expect(text).not.toContain("186K");
+    expect(text).not.toContain("Shelter outcomes");
+    // "3 taps" (P-001) is retired (decision #75, task 7b): it never renders.
+    expect(text).not.toMatch(/3 taps|three taps/i);
+    expect(text).not.toMatch(/on-chain/i);
+  });
+
+  it("shows the SEI track record and the current rails on the web", () => {
+    const { container } = render(<ProofSection />);
+    expect(container.querySelector('[data-claim="F-003"]')?.textContent).toContain("on SEI (Nov 2025)");
+    expect(container.querySelector('[data-claim="F-004"]')?.textContent).toContain("on SEI (Nov 2025)");
+    expect(container.querySelector('[data-claim="F-003"] [data-chip="sei-era"]')).not.toBeNull();
+    // F-025 shows its registry words only; the rail state sits beside it, outside the claim.
+    const f025 = container.querySelector('[data-claim="F-025"] .claim-text');
+    expect(f025?.textContent).toBe("Now: Stellar NFTs");
+    expect(container.querySelector('[data-claim="F-025"]')?.textContent).not.toContain("Arc");
+    expect(container.querySelector('[data-testid="rail-chip"]')?.textContent).toBe(
+      "Arc shelter rail opens soon",
+    );
+  });
+
+  it("names the Arc rail without 'opens soon' once it is deployed", () => {
+    const impact = snapshot((s) => (s.rail.state = "live"));
+    const { container } = render(<ProofSection impact={impact} />);
+    expect(container.querySelector('[data-claim="F-025"] .claim-text')?.textContent).toBe(
+      "Now: Stellar NFTs",
+    );
+    expect(container.querySelector('[data-testid="rail-chip"]')?.textContent).toBe("Arc shelter rail");
+    expect(railDeployed("not-deployed")).toBe(false);
+    expect(railDeployed("paused")).toBe(true);
+  });
+
+  it("says 'treats paused' for a paused rail, never 'opens soon' or a plain deployed name", () => {
+    const { container } = render(<ProofSection impact={snapshot((s) => (s.rail.state = "paused"))} />);
+    expect(container.querySelector('[data-testid="rail-chip"]')?.textContent).toBe(
+      "Arc shelter rail · treats paused",
+    );
+  });
+
+  it("agrees with the About drawer on every rail state", () => {
+    expect(RAIL_LINE_COPY.paused).toMatch(/paused/);
+    expect(RAIL_LINE_COPY.paused).not.toMatch(/open soon/);
+    expect(RAIL_LINE_COPY.soon).toMatch(/open soon/);
+    expect(RAIL_LINE_COPY.open).toMatch(/open now/);
+  });
+
+  it("never shows the published-outcomes count without its public registry entry", () => {
+    // 2c has not added L-outcomes yet: the chip stays hidden even with outcomes in the snapshot.
+    expect(FACTS).not.toHaveProperty(OUTCOMES_ID);
+    const { container, rerender } = render(<ProofSection impact={snapshot()} />);
+    expect(container.querySelector('[data-testid="outcomes-chip"]')).toBeNull();
+    rerender(<ProofSection impact={snapshot((s) => (s.outcomes.published = 4))} />);
+    expect(container.querySelector('[data-testid="outcomes-chip"]')).toBeNull();
+  });
+
+  it("renders the outcomes count as a cited L-outcomes claim once the registry has it, hidden at zero", () => {
+    const registry = FACTS as unknown as Record<string, unknown>;
+    registry[OUTCOMES_ID] = {
+      ...FACTS["L-countries"],
+      id: OUTCOMES_ID,
+      display: "{n} published shelter outcomes",
+      key: "published_outcomes",
+      live: { endpoint: "/impact", path: "outcomes.published" },
+    };
+    try {
+      const { container, rerender } = render(<ProofSection impact={snapshot()} />);
+      expect(container.querySelector('[data-testid="outcomes-chip"]')).toBeNull();
+      rerender(<ProofSection impact={snapshot((s) => (s.outcomes.published = 4))} />);
+      const chip = container.querySelector(`[data-testid="outcomes-chip"] [data-claim="${OUTCOMES_ID}"]`);
+      expect(chip?.textContent).toContain("4 published shelter outcomes");
+      expect(chip?.querySelector('[data-chip="live"]')).not.toBeNull();
+    } finally {
+      delete registry[OUTCOMES_ID];
+    }
+  });
+
+  it("names no chain in app builds", () => {
+    const previous = process.env.NEXT_PUBLIC_IS_APP;
+    process.env.NEXT_PUBLIC_IS_APP = "true";
+    try {
+      const { container } = render(<ProofSection />);
+      expect(container.textContent).not.toMatch(/\b(SEI|Stellar|Arc)\b|on-chain/i);
+      expect(container.querySelector('[data-testid="track-record"]')).toBeNull();
+      expect(container.querySelector('[data-claim="F-001"]')).not.toBeNull();
+    } finally {
+      if (previous === undefined) delete process.env.NEXT_PUBLIC_IS_APP;
+      else process.env.NEXT_PUBLIC_IS_APP = previous;
     }
   });
 

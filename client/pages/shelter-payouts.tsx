@@ -1,8 +1,8 @@
-import { bgStyle, cdnFile } from "@/constants/utils";
+import { SeoHead } from "@/components/seo/SeoHead";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
 import dynamic from "next/dynamic";
-import Head from "next/head";
+import { useEffect, useState } from "react";
 
 // Reads public RPCs with fetch and BigInt; render it in the browser only.
 const ShelterPayouts = dynamic(
@@ -10,32 +10,33 @@ const ShelterPayouts = dynamic(
   { ssr: false }
 );
 
+/** `?embed=1`: the page sits in a modal iframe (e.g. inside Catnip Heist), without site chrome. */
+const isEmbedSearch = (search: string) => new URLSearchParams(search).get("embed") === "1";
+
+/**
+ * `?embed=1` drops the site header and footer so the page can sit in a modal iframe. The query is
+ * read after mount, so the server HTML and the first client render match.
+ */
 const ShelterPayoutsPage = () => {
+  const [embed, setEmbed] = useState(false);
+  useEffect(() => {
+    // Read the query after mount to keep SSR output hydration-safe.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setEmbed(isEmbedSearch(window.location.search));
+  }, []);
+  const chrome = !embed;
   return (
-    <div>
-      <Head>
-        <title>Token Tails - Shelter Payouts</title>
-        <meta property="og:image" content={cdnFile("logo/ogg.jpg")} />
-        <meta
-          property="og:title"
-          content="Token Tails - Shelter Payouts"
-          key="title"
-        />
-        <meta
-          name="description"
-          content="Every Token Tails payout to cat shelters, read live from the chain."
-        />
-        <link rel="shortcut icon" href={cdnFile("logo/logo.webp")} />
-      </Head>
-      <Header />
-      <div
-        className="pt-20 md:pt-24 fade-in min-h-screen relative flex flex-col items-center"
-        style={bgStyle("6")}
-        id="shelter-payouts"
-      >
-        <ShelterPayouts />
+    <div className="bg-tt-night-900">
+      <SeoHead
+        title="Token Tails - Shelter Payouts"
+        description="Every Token Tails payout to cat shelters, read live from the chain."
+        path="/shelter-payouts"
+      />
+      {chrome && <Header />}
+      <div className="fade-in min-h-screen relative flex flex-col items-center" id="shelter-payouts">
+        <ShelterPayouts embed={embed} />
       </div>
-      <Footer />
+      {chrome && <Footer />}
     </div>
   );
 };

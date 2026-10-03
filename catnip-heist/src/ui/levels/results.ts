@@ -5,7 +5,8 @@
  */
 import { h } from '../dom';
 import { icon } from '../icons';
-import { STAR_RULES, starCount } from './progress';
+// Star rules come from the sim (src/sim/score.ts), the copy the backend's replay verification uses.
+import { STAR_RULES, starCount } from '../../sim/score';
 import { ensureLevelStyles } from './styles';
 
 export interface ResultsExtras {

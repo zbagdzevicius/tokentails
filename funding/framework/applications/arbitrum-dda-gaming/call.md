@@ -10,7 +10,7 @@ created: 2026-09-28
 profile: arbitrum-dda-gaming
 chain: arbitrum
 mainnet_required: true
-repo: ""
+repo: "https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split"
 demo: ""
 build_window_start: ""
 build_window_end: ""

@@ -1,13 +1,13 @@
 ---
-generated: "2026-09-28T14:56:16.418Z"
+generated: "2026-10-01T08:54:36.423Z"
 passed: true
-tests_total: 41
-tests_passed: 41
+tests_total: 73
+tests_passed: 73
 tests_failed: 0
-bytecode_sha256: b7ac944667b02b444335550a0c78a3a3f684a23c52fe8cc228632e8119964ada
-runtime_bytes: 8768
-commit: 836cbad03f80
-tree: untracked, not committed yet
+bytecode_sha256: 6a1faf73bad02285dd3d1198bd8c31e25f6e2283258e024dfb7d68e4595bf72c
+runtime_bytes: 11199
+commit: 9734bed09985
+tree: clean
 forge: "forge 0.3.0 (5a8bd89 2024-12-20T08:45:53.204298000Z)"
 ---
 # Build evidence — ShelterSplit
@@ -17,12 +17,12 @@ evidence older than 7 days once the application is `ready`.
 
 | Item | Value |
 |---|---|
-| Result | PASS — 41/41 Foundry tests passing |
-| Creation bytecode sha256 | `b7ac944667b02b444335550a0c78a3a3f684a23c52fe8cc228632e8119964ada` |
-| Runtime size | 8768 bytes (EIP-170 limit 24576) |
-| Git commit | `836cbad03f80` (untracked, not committed yet) |
+| Result | PASS — 73/73 Foundry tests passing |
+| Creation bytecode sha256 | `6a1faf73bad02285dd3d1198bd8c31e25f6e2283258e024dfb7d68e4595bf72c` |
+| Runtime size | 11199 bytes (EIP-170 limit 24576) |
+| Git commit | `9734bed09985` (clean) |
 | Toolchain | forge 0.3.0 (5a8bd89 2024-12-20T08:45:53.204298000Z), solc 0.8.24+commit.e11b9ed9 |
-| Generated | 2026-09-28T14:56:16.418Z |
+| Generated | 2026-10-01T08:54:36.423Z |
 
 ## Tests
 
@@ -61,7 +61,39 @@ evidence older than 7 days once the application is `ready`.
 | ShelterSplitTest | `test_ZeroAmountReverts()` | Unit | pass |
 | ShelterSplitTest | `test_ZeroBpsAndZeroWalletRejected()` | Unit | pass |
 | ShelterSplitTest | `test_ZeroSheltersSendsAllToTreasury()` | Unit | pass |
+| ArcDualBalanceTest | `testFuzz_Arc_Erc20DeltaIgnoresNativeDust(uint256,uint256,uint256)` | Fuzz (512 runs) | pass |
+| ArcDualBalanceTest | `test_Arc_BothPathsMoveOneBalanceWithoutDoubleCounting()` | Unit | pass |
+| ArcDualBalanceTest | `test_Arc_SubMicroNativeShareInvisibleToErc20View()` | Unit | pass |
+| ShelterSplitNativeTest | `testFuzz_Native_ConservesValue(uint256,uint16,uint16,uint16)` | Fuzz (512 runs) | pass |
+| ShelterSplitNativeTest | `test_Native_BatchIdsShareOneCounterWithErc20()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_DonateSplitsExactly()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_EmitsBatchTotals()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_InactiveShelterShareGoesToTreasury()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_MemoTooLongReverts()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_NoSheltersSendsAllToTreasury()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_PauseBlocksDonateAndReceive()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_PlainSendSplitsViaReceive()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_PreviewMatchesDonate()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_ReentrancyIntoDisburseWithMemoIsBlocked()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_ReentrancyIntoErc20DisburseIsBlocked()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_ReentrancyIntoSweepNativeIsBlocked()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_ReentrancyViaDonateIsBlocked()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_ReentrancyViaPlainSendIsBlocked()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_ShelterRejectingValueRevertsWholeBatch()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_StrayBalanceIsNeverSplitAndCanBeSwept()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_TreasuryRejectingValueReverts()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_TwoThousandThreeHundredGasStipendBounces()` | Unit | pass |
+| ShelterSplitNativeTest | `test_Native_ZeroValueReverts()` | Unit | pass |
+| Tip20CompatTest | `testFuzz_Tip20Memo_ConservesAmount(uint256,bytes32)` | Fuzz (512 runs) | pass |
 | Tip20CompatTest | `testFuzz_Tip20_ConservesAmount(uint256)` | Fuzz (512 runs) | pass |
+| Tip20CompatTest | `test_Tip20Memo_EveryPayoutCarriesTheMemo()` | Unit | pass |
+| Tip20CompatTest | `test_Tip20Memo_PausedSplitReverts()` | Unit | pass |
+| Tip20CompatTest | `test_Tip20Memo_PlainErc20Reverts()` | Unit | pass |
+| Tip20CompatTest | `test_Tip20Memo_PolicyForbidsShelter_RevertsWholeBatch()` | Unit | pass |
+| Tip20CompatTest | `test_Tip20Memo_ReentrancyIntoDisburseIsBlocked()` | Unit | pass |
+| Tip20CompatTest | `test_Tip20Memo_ReentrancyIntoDisburseWithMemoIsBlocked()` | Unit | pass |
+| Tip20CompatTest | `test_Tip20Memo_SilentFallbackTokenReverts()` | Unit | pass |
+| Tip20CompatTest | `test_Tip20Memo_ZeroAmountReverts()` | Unit | pass |
 | Tip20CompatTest | `test_Tip20_NoMemoRequired()` | Unit | pass |
 | Tip20CompatTest | `test_Tip20_PausedToken_Reverts()` | Unit | pass |
 | Tip20CompatTest | `test_Tip20_ReceivePolicyBlock_IsSilent_KnownLimitation()` | Unit | pass |

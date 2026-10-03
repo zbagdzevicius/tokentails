@@ -1,4 +1,5 @@
-import { catnipChaosLevelCatnipCaps, match3LevelCatnipCaps } from 'src/game/game.schema';
+// Caps come from the generated copy of shared/caps.ts (plan F2), the same table the client uses.
+import { CATNIP_CHAOS_LEVEL_CAPS, MATCH3_LEVEL_CATNIP_CAPS } from 'src/shared-contracts/caps';
 
 type LevelScores = unknown[] | null | undefined;
 type LegacyLevelScores = unknown[] | Record<string, unknown> | null | undefined;
@@ -54,8 +55,8 @@ export const buildCatnipAccountingSnapshot = (
     rawCatnipChaos: LevelScores,
     rawMatch3: LevelScores
 ): ICatnipAccountingSnapshot => {
-    const catnipChaos = normalizeLevelScores(rawCatnipChaos, catnipChaosLevelCatnipCaps);
-    const match3 = normalizeLevelScores(rawMatch3, match3LevelCatnipCaps);
+    const catnipChaos = normalizeLevelScores(rawCatnipChaos, CATNIP_CHAOS_LEVEL_CAPS);
+    const match3 = normalizeLevelScores(rawMatch3, MATCH3_LEVEL_CATNIP_CAPS);
     const catnipChaosCount = sum(catnipChaos);
     const match3Count = sum(match3);
 

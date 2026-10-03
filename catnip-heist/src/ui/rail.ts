@@ -1,0 +1,242 @@
+/**
+ * Treat rail state for the Heist copy (plan G11 "Heist rail state", F7; fact ids C-004, L-rail).
+ *
+ * Three states drive every rail line the Heist shows:
+ *   - pre-launch: "Real shelter treats open soon", an "Opens soon" chip instead of the give link;
+ *   - live:       "Tap and Token Tails sends Pink Paw a {perGift} treat on Arc", with the link;
+ *   - exhausted:  "Today's treats are gone, back at 00:00 UTC", no link.
+ *
+ * Sources, best first, each optional and each failing quietly to the next:
+ *   1. GET {apiUrl}/shelter/donate/status (the backend's live `railState` and `amountWei`);
+ *   2. the public facts at {factsUrl} (C-004, the configured treat amount);
+ *   3. the facts baked into this build (src/facts.generated.ts), so the Heist never shows a live
+ *      claim it cannot back and still works offline.
+ * Without a live status the state is pre-launch: the copy only promises what is true.
+ *
+ * Runtime config, read once at boot (no rebuild needed): `window.__TT_HEIST_CONFIG__ = { apiUrl,
+ * factsUrl }` from a host page, else `<meta name="heist:api-url">` and `<meta
+ * name="heist:facts-url">` in index.html, else the API known for
+ * the page's host (DEFAULT_API_BY_HOST: production on tokentails.com, the local backend on the
+ * local client) and PUBLIC_FACTS_PATH. Any other host has no API and stays pre-launch.
+ */
+import { FACTS, PUBLIC_FACTS_PATH, type PublicFact } from '../facts.generated';
+
+export type RailState = 'pre-launch' | 'live' | 'exhausted';
+
+/** The backend's states (shelter-donate.service.ts RailState). */
+type BackendRailState = 'not-deployed' | 'paused' | 'live' | 'exhausted';
+
+export interface RailInfo {
+  state: RailState;
+  /** The treat amount as a number of USDC ("0.01"), from the live status or C-004. */
+  amountUsdc: string;
+  /** Where the state came from: the live status, or the facts (fetched or baked). */
+  source: 'status' | 'facts' | 'baked';
+}
+
+export interface RailCopy {
+  state: RailState;
+  /** The win-screen line under "You rescued {name}!". */
+  line: string;
+  /** Shown instead of the give link when there is none ("Opens soon"); null when live. */
+  chip: string | null;
+  /** Whether the give link may show. */
+  showGive: boolean;
+  /** The title screen's footer. */
+  foot: string;
+}
+
+export interface HeistRuntimeConfig {
+  apiUrl: string;
+  factsUrl: string;
+}
+
+/** The baked fallback: pre-launch, the C-004 amount from this build. */
+export const BAKED_RAIL: RailInfo = Object.freeze({ state: 'pre-launch', amountUsdc: String(FACTS['C-004'].value ?? '0.01'), source: 'baked' });
+
+/**
+ * A web page (not the Capacitor app): chain and money words ("on Arc", "USDC") are web-only
+ * (claims rule R10; the app uses the facts' `appDisplay`).
+ */
+export function isWebHost(win: { Capacitor?: { isNativePlatform?: () => boolean }; location?: { protocol?: string } } | undefined = globalThis as never): boolean {
+  try {
+    if (!win) return true;
+    if (win.Capacitor?.isNativePlatform?.()) return false;
+    const protocol = win.location?.protocol ?? '';
+    return protocol !== 'capacitor:' && protocol !== 'ionic:';
+  } catch {
+    return true;
+  }
+}
+
+/** A treat amount in USDC for the copy: "0.01 USDC" on the web, "$0.01" in the app. */
+export function formatTreat(amountUsdc: string, web: boolean): string {
+  const n = Number(amountUsdc);
+  const shown = Number.isFinite(n) && n > 0 ? String(Math.round(n * 100) / 100) : '0.01';
+  return web ? `${shown} USDC` : `$${shown}`;
+}
+
+/** 18-decimal native USDC (Arc) wei to a decimal string ("10000000000000000" -> "0.01"). */
+export function weiToUsdc(amountWei: string): string | null {
+  if (!/^\d{1,40}$/.test(amountWei)) return null;
+  const wei = BigInt(amountWei);
+  if (wei <= 0n) return null;
+  const cents = (wei + 5n * 10n ** 15n) / 10n ** 16n;
+  if (cents <= 0n) return null;
+  const whole = cents / 100n;
+  const frac = (cents % 100n).toString().padStart(2, '0').replace(/0+$/, '');
+  return `${whole}${frac ? '.' + frac : ''}`;
+}
+
+/** Maps the backend status body to the Heist's three states, or null when it is not a status. */
+export function railFromStatus(body: unknown, fallbackAmount: string): RailInfo | null {
+  if (!body || typeof body !== 'object') return null;
+  const b = body as { railState?: unknown; amountWei?: unknown; treatsLeftToday?: unknown };
+  const backend = b.railState as BackendRailState | undefined;
+  if (backend !== 'not-deployed' && backend !== 'paused' && backend !== 'live' && backend !== 'exhausted') return null;
+  const amount = (typeof b.amountWei === 'string' && weiToUsdc(b.amountWei)) || fallbackAmount;
+  // A paused rail is shown like pre-launch: nothing is sent, so nothing is promised.
+  let state: RailState = backend === 'live' ? 'live' : backend === 'exhausted' ? 'exhausted' : 'pre-launch';
+  if (state === 'live' && typeof b.treatsLeftToday === 'number' && b.treatsLeftToday <= 0) state = 'exhausted';
+  return { state, amountUsdc: amount, source: 'status' };
+}
+
+/** The C-004 amount from a public facts file (`{ facts: PublicFact[] }`), or null. */
+export function amountFromFacts(body: unknown): string | null {
+  const list = (body as { facts?: unknown } | null)?.facts;
+  if (!Array.isArray(list)) return null;
+  const entry = list.find((f): f is PublicFact => !!f && typeof f === 'object' && (f as PublicFact).id === 'C-004');
+  const value = entry?.value;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? String(value) : null;
+}
+
+/** The copy for a rail state. `name` is the rescued cat (in-game fiction). */
+export function railCopy(info: RailInfo, isWeb: boolean): RailCopy {
+  const treat = formatTreat(info.amountUsdc, isWeb);
+  if (info.state === 'live') {
+    return {
+      state: 'live',
+      // claim: C-004, L-rail (the treat amount and the live rail state)
+      line: isWeb ? `Tap and Token Tails sends Pink Paw a ${treat} treat on Arc.` : `Tap and Token Tails sends Pink Paw a ${treat} treat.`,
+      chip: null,
+      showGive: true,
+      // claim: C-004, L-rail
+      foot: 'Free the shelter cat, then tap to send Pink Paw a real treat.',
+    };
+  }
+  if (info.state === 'exhausted') {
+    return {
+      state: 'exhausted',
+      // claim: L-rail (today's budget is used; it resets at 00:00 UTC)
+      line: "Today's treats are gone, back at 00:00 UTC.",
+      chip: null, // the line already says when treats are back
+      showGive: false,
+      // claim: L-rail
+      foot: "Today's treats are gone, back at 00:00 UTC.",
+    };
+  }
+  return {
+    state: 'pre-launch',
+    // claim: C-004, L-rail (future tense: the rail is not live yet)
+    line: 'Real shelter treats open soon.',
+    chip: 'Opens soon',
+    showGive: false,
+    // claim: C-004, L-rail
+    foot: 'Play to save: real shelter treats open soon.',
+  };
+}
+
+type Fetch = (input: string, init?: { signal?: AbortSignal; cache?: 'no-store'; credentials?: 'omit' }) => Promise<{ ok: boolean; json(): Promise<unknown> }>;
+
+interface ConfigWindow {
+  __TT_HEIST_CONFIG__?: Partial<HeistRuntimeConfig>;
+  parent?: unknown;
+  location?: { host?: string };
+}
+
+/**
+ * The backend for each host that serves the Heist build (client/public/heist-game). Production is
+ * docs/DEPLOYMENT.md's API; the local pair matches the backend's CORS list (backend/src/main.ts).
+ * Without this, the static build (no host page sets a config) would never see a live rail.
+ *
+ * Only origins in the backend's CORS list belong here, or the status request is blocked and the
+ * footer silently stays pre-launch. `www.tokentails.com` is not in that list (nor in
+ * docs/DEPLOYMENT.md), so it is left out until the backend adds it. The staging hosts
+ * (`test.tokentails.com`, `cats.tokentails.com`) are in CORS but no staging API is documented;
+ * pointing them at production would let a test page show (and give on) the production rail, so
+ * staging sets `<meta name="heist:api-url">` or `window.__TT_HEIST_CONFIG__` instead.
+ */
+export const DEFAULT_API_BY_HOST: Readonly<Record<string, string>> = Object.freeze({
+  'tokentails.com': 'https://api.tokentails.com',
+  'localhost:3000': 'http://localhost:3005',
+  'localhost:3001': 'http://localhost:3005',
+});
+
+/** The runtime config (see the module comment). Never throws. */
+export function heistRuntimeConfig(win?: ConfigWindow, doc?: { querySelector(sel: string): { getAttribute(n: string): string | null } | null }): HeistRuntimeConfig {
+  const read = (source: unknown) => {
+    try {
+      return (source as ConfigWindow | undefined)?.__TT_HEIST_CONFIG__;
+    } catch {
+      return undefined; // a cross-origin parent
+    }
+  };
+  const own = read(win) ?? read(win?.parent);
+  const meta = (name: string) => {
+    try {
+      return doc?.querySelector(`meta[name="${name}"]`)?.getAttribute('content')?.trim() ?? '';
+    } catch {
+      return '';
+    }
+  };
+  // An unreplaced Vite placeholder ("%VITE_X%", the env var was unset) counts as no value.
+  const clean = (url: unknown) => (typeof url === 'string' && !/^%[A-Z0-9_]+%$/.test(url.trim()) ? url.trim() : '');
+  const hostApi = () => {
+    try {
+      return DEFAULT_API_BY_HOST[String(win?.location?.host ?? '').toLowerCase()] ?? '';
+    } catch {
+      return '';
+    }
+  };
+  return {
+    apiUrl: (clean(own?.apiUrl) || clean(meta('heist:api-url')) || hostApi()).replace(/\/+$/, ''),
+    factsUrl: clean(own?.factsUrl) || clean(meta('heist:facts-url')) || PUBLIC_FACTS_PATH,
+  };
+}
+
+async function getJson(f: Fetch, url: string, timeoutMs: number): Promise<unknown> {
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = setTimeout(() => ctl?.abort(), timeoutMs);
+  try {
+    const res = await f(url, { signal: ctl?.signal, cache: 'no-store', credentials: 'omit' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Resolves the rail state from the live status, then the facts, then the baked fallback. Never
+ * rejects; each request gives up after `timeoutMs` (3 s).
+ */
+export async function loadRail(config: HeistRuntimeConfig, f: Fetch | undefined = globalThis.fetch as unknown as Fetch, timeoutMs = 3000): Promise<RailInfo> {
+  if (!f) return BAKED_RAIL;
+  // Both requests run in parallel, so a slow facts file never holds back the live status
+  // (each still has its own timeout); the fallback order is unchanged.
+  const [facts, status] = await Promise.all([
+    config.factsUrl ? getJson(f, config.factsUrl, timeoutMs) : Promise.resolve(undefined),
+    config.apiUrl ? getJson(f, `${config.apiUrl}/shelter/donate/status`, timeoutMs) : Promise.resolve(undefined),
+  ]);
+  const fromFacts = config.factsUrl ? amountFromFacts(facts) : undefined;
+  const amount = fromFacts || BAKED_RAIL.amountUsdc;
+  const source: RailInfo['source'] = fromFacts ? 'facts' : 'baked';
+  if (config.apiUrl) {
+    const live = railFromStatus(status, amount);
+    if (live) return live;
+  }
+  return { state: 'pre-launch', amountUsdc: amount, source };
+}

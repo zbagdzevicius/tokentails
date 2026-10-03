@@ -237,6 +237,11 @@ export class Rings {
     r.alpha = alpha;
   }
 
+  /** Hide every ring (a restarted run starts with a clean floor). */
+  clear(): void {
+    for (const r of this.pool) r.mesh.visible = false;
+  }
+
   meow(x: number, z: number, radius: number): void {
     this.spawn(x, z, PALETTE.pink, 0.3, radius, 0.9, 0.85);
     this.spawn(x, z, PALETTE.lilac, 0.2, radius * 0.7, 0.75, 0.6);

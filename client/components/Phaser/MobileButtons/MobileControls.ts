@@ -1,3 +1,5 @@
+import { isGameSuspended } from "@/lib/game/gameRegistry";
+import { isRunSurfaceTap } from "../onboarding/run-gate";
 import { IPlayer } from "../PlayerMovement/IPlayer";
 
 interface ControlledObject {
@@ -31,19 +33,15 @@ export function setMobileControls(
     knockbackSpell: document.getElementById("knockback"),
   };
 
+  // G10 labelled fix (known bug, MobileControls.ts:44): this used to bail on `closest("div")`,
+  // which matches almost every element on the page, so a tap outside the canvas never jumped.
+  // It now jumps only for taps on the run's own surface (#game-container, `[data-run-surface]`)
+  // that are not controls and not the canvas itself, whose taps the scene's own pointer handlers
+  // already turn into a jump (handling them twice would cut a held flight short after 100 ms).
+  // While a modal suspends the game nothing jumps and nothing is `preventDefault`ed, so a tap on
+  // a backdrop or a toast closes or scrolls it as usual (5a review #5).
   const handleScreenTap = (e: Event) => {
-    const target = e.target as HTMLElement;
-    if (
-      target.tagName === "BUTTON" ||
-      target.tagName === "A" ||
-      target.tagName === "INPUT" ||
-      target.tagName === "SELECT" ||
-      target.closest("button") ||
-      target.closest("a") ||
-      target.closest("input") ||
-      target.closest("div") ||
-      target.closest("select")
-    ) {
+    if (isGameSuspended() || !isRunSurfaceTap(e.target)) {
       return;
     }
 

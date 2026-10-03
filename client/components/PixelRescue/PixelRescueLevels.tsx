@@ -3,11 +3,13 @@ import { cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { QUEST } from "@/models/quest";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 import { PixelRescueLevelMap, pixelRescueLevelsList } from "../Phaser/map";
 import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
+import { CUPID_GIFT_TAILS, cupidGiftRedeemable, cupidLevelStates, nextLabel } from "./ftue";
+import { cupidFtue } from "./ftueStorage";
 
 const NOW_DATE: Date | null = new Date();
 
@@ -58,33 +60,39 @@ export const PixelRescueLevels = ({
   const { profile, setProfileUpdate } = useProfile();
   const showToast = useToast();
 
-  const unlockedLevels = [...(profile?.seasonEvent || [])].filter(
-    (level) => level > 0,
-  ).length;
+  // G10 unlock rule over the server cleared array (grandfathered fallback, local clears on top).
+  const levels = useMemo(
+    () => cupidLevelStates(profile, cupidFtue.localClears(), isLevelUnlockedByDate),
+    [profile],
+  );
+  const clearedCount = levels.filter((state) => state.cleared).length;
+  const marker = nextLabel(levels.map((state) => state.cleared));
 
-  const remainingLevels =
-    Object.keys(PixelRescueLevelMap).length -
-    (profile?.seasonEvent?.length || 0);
+  const remainingLevels = Object.keys(PixelRescueLevelMap).length - clearedCount;
 
   const isRedeemed = useCallback(() => {
     return !!profile?.quests?.includes(QUEST.PIXEL_RESCUE_LEVEL);
   }, [profile?.quests]);
 
-  const isRedeemable = remainingLevels <= 0 && !isRedeemed();
+  // Server flags only: device-local clears never unlock the gift (they are per browser, not per
+  // account, and the gift pays real Tails).
+  const isRedeemable = cupidGiftRedeemable(profile, isRedeemed());
 
   const onRedeem = async () => {
     const result = await QUEST_API.complete(QUEST.PIXEL_RESCUE_LEVEL);
     if (result.success) {
+      // The backend pays QuestTypeReward[PIXEL_RESCUE_LEVEL] (10,000), not the +100 shown before.
       setProfileUpdate({
         quests: [...(profile?.quests || []), QUEST.PIXEL_RESCUE_LEVEL],
-        tails: (profile?.tails || 0) + 100,
+        tails: (profile?.tails || 0) + CUPID_GIFT_TAILS,
       });
       showToast({ message: result.message });
     }
   };
 
   const selectLevel = (level: string, index: number) => {
-    if (!isLevelUnlockedByDate(index)) {
+    const state = levels[index];
+    if (!state?.dateUnlocked) {
       showToast({
         message: `This level unlocks on February ${index + 1}`,
         img: cdnFile("purrquest/sprites/key.png"),
@@ -92,9 +100,9 @@ export const PixelRescueLevels = ({
       return;
     }
 
-    if (index > unlockedLevels) {
+    if (!state.unlocked) {
       showToast({
-        message: "💘 You need to complete previous levels to play this level",
+        message: `Clear day ${index} first to open this level`,
         img: cdnFile("purrquest/sprites/key.png"),
       });
       return;
@@ -105,7 +113,7 @@ export const PixelRescueLevels = ({
   return (
     <div className="flex h-screen flex-col items-center gap-4 mb-20 pt-24 lg:pt-32 pb-20 animate-opacity ">
       <div className="flex flex-row items-center gap-8 font-primary">
-        <div className="flex flex-col items-center gap-x-2 bg-yellow-300/50 rounded-lg px-2 pb-2 border-4 border-yellow-900">
+        <div className="flex flex-col items-center gap-x-2 bg-tt-cream/50 rounded-lg px-2 pb-2 border-4 border-tt-gold-shadow">
           <div className="text-p4 flex items-center gap-1">
             <img
               draggable={false}
@@ -114,12 +122,12 @@ export const PixelRescueLevels = ({
             />
             <div>HEARTS</div>
           </div>
-          <div className="flex items-center text-p5 bg-green-300/50 border border-yellow-900 rounded-lg w-full justify-center">
+          <div className="flex items-center text-p5 bg-green-300/50 border border-tt-gold-shadow rounded-lg w-full justify-center">
             {profile?.seasonEventCount || 0} / 47
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-x-2 bg-yellow-300/50 rounded-lg px-2 pb-2 border-4 border-yellow-900">
+        <div className="flex flex-col items-center gap-x-2 bg-tt-cream/50 rounded-lg px-2 pb-2 border-4 border-tt-gold-shadow">
           <div className="text-p4 flex items-center gap-1">
             <img
               draggable={false}
@@ -128,8 +136,8 @@ export const PixelRescueLevels = ({
             />
             <div>COMPLETED</div>
           </div>
-          <div className="flex items-center text-p5 bg-yellow-900/20 border border-yellow-900 rounded-lg w-full justify-center">
-            {profile?.seasonEventCount || 0}
+          <div className="flex items-center text-p5 bg-tt-gold-shadow/20 border border-tt-gold-shadow rounded-lg w-full justify-center">
+            {clearedCount}
             <span>/{Object.keys(PixelRescueLevelMap).length}</span>
           </div>
         </div>
@@ -154,11 +162,11 @@ export const PixelRescueLevels = ({
           draggable={false}
         />
         {pixelRescueLevelsList.map((level, i) => {
-          const isDateUnlocked = isLevelUnlockedByDate(i);
-          const isProgressionUnlocked = unlockedLevels >= i;
-          const isFullyUnlocked = isDateUnlocked && isProgressionUnlocked;
+          const state = levels[i];
+          const isFullyUnlocked = !!state && state.dateUnlocked && state.unlocked;
           const daysUntilUnlock = getDaysUntilUnlock(i);
-          const isCleared = (profile?.seasonEvent?.[i] || 0) > 0;
+          const isCleared = !!state?.cleared;
+          const isNext = !!state?.next;
 
           let imageSrc = `pixel-rescue/images/day-${i + 1}.webp`;
           if (isCleared) {
@@ -172,10 +180,26 @@ export const PixelRescueLevels = ({
               key={i}
               className="flex flex-col items-center justify-center flex-wrap animate-appear"
             >
-              <div
+              <button
+                type="button"
                 onClick={() => selectLevel(level, i)}
-                className="hover:brightness-110 clickable relative hover:scale-110 transition-all flex flex-col items-center justify-center w-24 md:w-32"
+                aria-label={`Day ${i + 1}${isCleared ? ", cleared" : isFullyUnlocked ? "" : ", locked"}${
+                  isNext ? `, ${marker.toLowerCase()}` : ""
+                }`}
+                data-testid={`cupid-level-${level}`}
+                data-state={isCleared ? "cleared" : isFullyUnlocked ? "open" : "locked"}
+                className={`hover:brightness-110 clickable relative hover:scale-110 transition-all flex flex-col items-center justify-center w-24 md:w-32 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400 ${
+                  isFullyUnlocked || isCleared ? "" : "opacity-80"
+                }`}
               >
+                {isNext && (
+                  <span
+                    data-testid="cupid-start-here"
+                    className="absolute -top-4 md:-top-5 left-1/2 -translate-x-1/2 z-30 whitespace-nowrap rounded-full border-2 border-tt-gold-500 bg-tt-night-900 px-2 py-0.5 font-primary text-p6 md:text-p5 text-tt-gold-400 shadow-[0_0_14px_rgba(251,204,147,0.55)] animate-pulse"
+                  >
+                    {marker}
+                  </span>
+                )}
                 <img
                   src={cdnFile(imageSrc)}
                   alt={`Day ${i + 1}`}
@@ -203,7 +227,7 @@ export const PixelRescueLevels = ({
                     />
                   </div>
                 )}
-              </div>
+              </button>
             </div>
           );
         })}
@@ -223,19 +247,19 @@ export const PixelRescueLevels = ({
               draggable={false}
             />
             {isRedeemable && (
-              <div className="absolute -top-2 -right-2 w-6 h-6 bg-yellow-300 rounded-full border-2 border-yellow-900 animate-ping"></div>
+              <div className="absolute -top-2 -right-2 w-6 h-6 bg-tt-cream rounded-full border-2 border-tt-gold-shadow animate-ping"></div>
             )}
           </div>
           {isRedeemed() ? (
             <div className="mt-2">
-              <PixelButton text="REDEEMED" isDisabled isSmall />
+              <PixelButton text="REDEEMED" disabled size="sm" />
             </div>
           ) : isRedeemable ? (
             <div className="mt-2">
-              <PixelButton text="REDEEM GIFT" isSmall onClick={onRedeem} />
+              <PixelButton text="REDEEM GIFT" size="sm" onClick={onRedeem} />
             </div>
           ) : (
-            <div className="text-p6 font-primary text-yellow-900 leading-0 text-balance text-center">
+            <div className="text-p6 font-primary text-tt-gold-ink leading-0 text-balance text-center">
               <p className="glow font-bold text-p4 -mb-2">
                 {remainingLevels} LEVELS
               </p>{" "}

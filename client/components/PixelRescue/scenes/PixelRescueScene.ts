@@ -8,11 +8,27 @@ import {
 import { SpikeManager } from "@/components/Phaser/hazards/SpikeManager";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
-import { cdnFile, ZOOM_PIXEL } from "@/constants/utils";
+import { cdnFile } from "@/constants/utils";
+import { setCssScroll } from "@/components/Phaser/look/camera";
+import { beginWorldLook, preloadWorldLook, type WorldLook } from "@/components/Phaser/look/worldLook";
+import { cssViewSize } from "@/components/Phaser/look/registry";
+import { LOOK_RESIZE } from "@/components/Phaser/look/makeGameConfig";
+import {
+  cameraCssZoom,
+  preloadTTFonts,
+  scaleTo,
+  ttWorldText,
+} from "@/components/Phaser/typography";
+import { reportAppError } from "@/analytics";
+import { NIGHT } from "@/design/tokens";
+import {
+  isSamePlayerCat,
+  loadPlayerCatTextures,
+} from "@/components/catbassadors/objects/playerCatTexture";
 import { CatAbilityType, ICat, Tier } from "@/models/cats";
 import { Scene } from "phaser";
 import { Cat } from "../../catbassadors/objects/Catbassador";
-import { catWalkSpeed } from "@/models/game";
+import { catWalkSpeed, GameType } from "@/models/game";
 import { BasePixelEnemy } from "../objects/BasePixelEnemy";
 import { Runner } from "../objects/Runner";
 import { Blocker } from "../objects/Blocker";
@@ -24,6 +40,26 @@ import { RotatingMorgensternTrapManager } from "@/components/Phaser/hazards/Rota
 import { ForestAtmosphere } from "../effects/ForestAtmosphere";
 import { TutorialManager } from "../managers/TutorialManager";
 import { PixelRescueLevelMap } from "../../Phaser/map";
+import {
+  CUPID_FTUE_EVENT,
+  CupidHintId,
+  CupidStopReason,
+  ICupidFtueSnapshot,
+  RunClock,
+  ShieldState,
+  outcomeFor,
+  prefersReducedMotion,
+  tutorialDecision,
+} from "../ftue";
+import { cupidFtue } from "../ftueStorage";
+import {
+  createRunGate,
+  isBeginKey,
+  isControlTarget,
+  isExitKey,
+  type RunGateMachine,
+} from "@/components/Phaser/onboarding/run-gate";
+import { cupidHintCopy } from "../hints";
 
 const JUMP_LAYER_TILES = [
   169, 170, 139, 140, 200, 224, 225, 226, 227, 51, 52, 82, 83, 84,
@@ -34,7 +70,40 @@ const SPIKE_TILES = [253, 254, 284, 283];
 
 export interface IPixelRescueProps {
   level: string;
+  /** Arm the starter shield at spawn (uncleared levels 1-2, plan G10). */
+  starterShield?: boolean;
+  /** Play the tutorial even though this player has seen it ("Replay tutorial"). */
+  replayTutorial?: boolean;
+  /**
+   * Keep a win as a device-local clear. Only when the save cannot reach the server (no profile, or
+   * a transient guest): a signed-in clear waits for the server's `seasonEventCleared`, so a failed
+   * save never unlocks the next day or drops the shield on this device.
+   */
+  recordLocalClears?: boolean;
 }
+
+/** What a scene restart (`GAME_START {isRestart}`) hands to `init` and `create`. */
+interface IRestartData {
+  detail?: IPhaserGameSceneProps;
+}
+
+
+
+
+/** World px between the cat's centre and the bottom of a hint plate that follows it. */
+const CAT_HINT_LIFT = 34;
+
+/** How long a first-seen hint plate stays up. */
+const HINT_VISIBLE_MS = 3200;
+
+/** Cupid is not an auto-runner: walking off also begins the run. */
+const CUPID_MOVE_KEYS: readonly string[] = ["ArrowLeft", "ArrowRight", "KeyA", "KeyD"];
+
+const isEditableTarget = (target: EventTarget | null): boolean => {
+  const element = target as HTMLElement | null;
+  if (!element || typeof element.closest !== "function") return false;
+  return !!element.closest("input, textarea, select, [contenteditable='true']");
+};
 
 export class PixelRescueScene extends Scene {
   public isPlayerCarryingCat: boolean = false;
@@ -52,14 +121,15 @@ export class PixelRescueScene extends Scene {
   trampoline?: Trampoline;
   blessing?: Phaser.GameObjects.Sprite;
   private decorationLayer!: Phaser.Tilemaps.TilemapLayer;
+  /** G7 look runtime (camera and the night look); never read by gameplay. */
+  look?: WorldLook;
   private heartLayer!: Phaser.Tilemaps.TilemapLayer;
   private heartCoins: Phaser.Physics.Arcade.Sprite[] = [];
   private totalheartCoins: number = 0;
   private collectedheartCoins: number = 0;
   private shields: Phaser.Physics.Arcade.Sprite[] = [];
-  private hasActiveShield: boolean = false;
+  private shield = new ShieldState();
   private shieldSprite?: Phaser.GameObjects.Sprite;
-  private useTileSpikeChecks: boolean = false;
 
   private listEnemies: BasePixelEnemy[] = [];
   private enemiesGroup!: Phaser.Physics.Arcade.Group;
@@ -95,8 +165,22 @@ export class PixelRescueScene extends Scene {
   private lastCrateNotificationTime: number = 0;
   private lastPortalNotificationTime: number = 0;
   private readonly NOTIFICATION_COOLDOWN = 2000;
-  private timer: number = 90;
+  /** One clock per run (made in `create`); it counts only after RUN_BEGIN. */
+  private clock = new RunClock();
   private timerEvent?: Phaser.Time.TimerEvent;
+  /** Levels whose tutorial played in this page session: a retry never replays it. */
+  private static tutorialPlayedThisSession = new Set<string>();
+  /** Levels won in this page session: PLAY AGAIN after a win runs without the starter shield. */
+  private static clearedThisSession = new Set<string>();
+  private hintsShown: CupidHintId[] = [];
+  private runReady = false;
+  private firstInputArmed = false;
+  private runGate: RunGateMachine = createRunGate();
+  private isRestartRun = false;
+  private restartPending = false;
+  /** The last player cat, kept across `resetGameObjects` so a restart can respawn it. */
+  private lastCat?: ICat;
+  private hintText?: Phaser.GameObjects.Text;
   private gameUpdateCallback?: (data: ICatEvent<GameEvent.GAME_UPDATE>) => void;
   private isNotificationPaused: boolean = false;
   constructor() {
@@ -104,6 +188,9 @@ export class PixelRescueScene extends Scene {
   }
 
   preload() {
+    // Plan F4: no scene text before the brand faces load. (The unlicensed CDN pixel face that
+    // used to load further down is gone: decision #80, the tutorial uses the `hint` role.)
+    preloadTTFonts(this);
     this.load.audio("purr", cdnFile("purrquest/sounds/purr.mp3"));
     this.load.tilemapTiledJSON(
       "tilemap",
@@ -113,6 +200,8 @@ export class PixelRescueScene extends Scene {
       "valentine",
       cdnFile(PixelRescueLevelMap[this.currentLevel])
     );
+    // G7: the look manifest and, in v1, the valentine night skin and plates (by name).
+    preloadWorldLook(this, { kind: "cupid", sheet: PixelRescueLevelMap[this.currentLevel] });
     this.load.audio("powerup", cdnFile("purrquest/sounds/powerup.mp3"));
     this.load.audio("jump-sound", cdnFile("audio/game/jump.mp3"));
     this.load.audio("catnip", cdnFile("catnip-chaos/sounds/catnip.mp3"));
@@ -125,8 +214,6 @@ export class PixelRescueScene extends Scene {
       "protection",
       cdnFile("pixel-rescue/sounds/protection.wav")
     );
-
-    this.load.font("pixel-font", cdnFile("pixel-rescue/fonts/pixel-text2.ttf"));
 
     this.load.audio("jump", cdnFile("catnip-chaos/sounds/jump.mp3"));
 
@@ -230,18 +317,43 @@ export class PixelRescueScene extends Scene {
     this.load.image("particle", cdnFile("pixel-rescue/items/particle2.webp"));
   }
 
-  init(props: IPixelRescueProps) {
-    this.props = props;
+  init(props: IPixelRescueProps & IRestartData) {
+    // A restart (`scene.restart({detail})`) passes only the GAME_START payload; the level and the
+    // first-session flags must survive it, or a retry would load "level-undefined".
+    const previous = this.props;
+    const level = props?.level ?? previous?.level ?? "1";
+    // PLAY AGAIN after a win: the level is cleared now, so no more starter shield.
+    const clearedHere =
+      PixelRescueScene.clearedThisSession.has(level) || cupidFtue.localClears().includes(level);
+    this.props = {
+      level,
+      starterShield: !clearedHere && (props?.starterShield ?? previous?.starterShield ?? false),
+      // An explicit replay is used once: a later retry does not replay again.
+      replayTutorial: props?.level !== undefined ? !!props.replayTutorial : false,
+      recordLocalClears: props?.recordLocalClears ?? previous?.recordLocalClears ?? false,
+    };
     this.currentLevel = this.props.level;
-
-    // TutorialManager.resetTutorial();
   }
 
   create(props: { detail?: IPhaserGameSceneProps }) {
+    // A new clock and shield per run, so a restart never runs a second countdown.
+    this.clock = new RunClock();
+    this.clock.pause("gate");
+    this.shield.reset();
+    this.hintsShown = [];
+    this.hintText = undefined;
+    this.gameEnded = false;
+    this.runReady = false;
+    this.isRestartRun = !!props.detail?.isRestart;
+    this.runGate = createRunGate({ isRestart: this.isRestartRun });
+    this.restartPending = false;
+
     this.tilemap = this.make.tilemap({ key: "tilemap" });
+    this.look = beginWorldLook(this, { kind: "cupid", sheet: PixelRescueLevelMap[this.currentLevel] });
+    // Same indices in v0 and v1: only the texture behind the tileset changes.
     const sugarTileset = this.tilemap.addTilesetImage(
       "valentine",
-      "valentine",
+      this.look.tilesetKey("valentine"),
       32,
       32,
       1,
@@ -306,14 +418,29 @@ export class PixelRescueScene extends Scene {
     this.jumperLayer.setCollision(TRAMPOLINE_TILES);
     this.trampoline = new Trampoline(this, this.jumperLayer, TRAMPOLINE_TILES);
 
-    this.cameras.main.setScroll(-650, -1000);
-    this.cameras.main.setZoom(ZOOM_PIXEL);
+    // Camera (G7): integer zoom (platformer 14 x 9 tiles), map bounds; the night look in v1.
+    this.look.dress({
+      layers: [
+        this.groundLayer,
+        this.platformsLayer,
+        this.decorationLayer,
+        this.physicsLayer,
+        this.heartLayer,
+        this.jumperLayer,
+      ],
+      tilemapKey: "tilemap",
+      groundLayers: ["blocks"],
+    });
+    setCssScroll(this.cameras.main, this, -650, -1000);
 
     this.backgroundSound = this.sound.add("purr", { loop: true });
     this.setDefaultSound();
 
     if (props.detail?.cat) {
-      this.spawnCat({ detail: { cat: props.detail.cat } });
+      // catDto survives a restart; pass isRestart so spawnCat does not bail out.
+      this.spawnCat({
+        detail: { cat: props.detail.cat, isRestart: !!props.detail.isRestart },
+      });
     }
 
     if (!props.detail?.isRestart) {
@@ -329,6 +456,7 @@ export class PixelRescueScene extends Scene {
 
     this.tutorialManager = new TutorialManager(this, this.currentLevel);
 
+    // The ticker runs from create, but the clock counts only after RUN_BEGIN (plan G10).
     this.startCountdown();
   }
 
@@ -340,10 +468,15 @@ export class PixelRescueScene extends Scene {
     const startGameCallback = (data: ICatEvent<GameEvent.GAME_START>) =>
       this.startGame(data!);
     GameEvents.GAME_START.addEventListener(startGameCallback);
+    // PLAY AGAIN (plan F6). GAME_START {isRestart} stays accepted for older callers.
+    const restartCallback = (data: ICatEvent<GameEvent.GAME_RESTART>) =>
+      this.restartRun(data?.detail?.cat);
+    GameEvents.GAME_RESTART.addEventListener(restartCallback);
 
     this.events.once("destroy", () => {
       GameEvents.CAT_SPAWN.removeEventListener(catSpawnCallback);
       GameEvents.GAME_START.removeEventListener(startGameCallback);
+      GameEvents.GAME_RESTART.removeEventListener(restartCallback);
     });
 
     GameEvents.GAME_LOADED.push({ scene: this });
@@ -446,63 +579,70 @@ export class PixelRescueScene extends Scene {
       this.blessing.setVisible(false);
     }
 
-    const isCatExist = !cat || cat?.name === this.catDto?.name;
+    // Compared by id key (F10), not name: two cats called the same are different cats.
+    if (!cat) return;
+    const isCatExist = isSamePlayerCat(cat, this.catDto);
     if (isCatExist && !isRestart) return;
 
-    const isCatChanged = this.catDto && this.catDto?.name !== cat?.name;
+    const isCatChanged = !!this.catDto && !isCatExist;
     if (isCatChanged) {
       this.cat = undefined;
       this.catDto = cat;
-      this.scene.restart({ cat, isRestart: true });
+      // create() reads props.detail, so the restart payload must carry that shape.
+      this.scene.restart({ detail: { cat, isRestart: true } });
       return;
     }
 
     this.catDto = cat;
+    this.lastCat = cat;
 
-    this.load.once(
-      "complete",
-      () => {
-        if (cat.blessing && cat.tier !== Tier.COMMON) {
-          this.blessing = this.add
-            .sprite(0, 0, `blessing-${cat.type}`)
-            .setVisible(true);
+    // spawnCat runs un-awaited from event listeners, so a throw here would skip the
+    // GameEvents crash guard as an unhandled rejection; report it instead.
+    try {
+      const wantsBlessing = !!cat.blessing && cat.tier !== Tier.COMMON;
+      const { key, loaded, blessingKey, retirePrevious } = await loadPlayerCatTextures(this, cat, {
+        blessing: wantsBlessing,
+        blessingUrl: cdnFile(`flare-effect/spritesheets/${cat.type}.png`),
+      });
+      if (this.catDto !== cat || !this.sys.isActive()) return;
+      if (!loaded) {
+        reportAppError("player_texture_missing", new Error("Player cat sheet failed"), {
+          source: "manual",
+          level: "scene",
+          scene: "PixelRescueScene",
+        });
+        return;
+      }
 
+      if (blessingKey) {
+        this.blessing = this.add.sprite(0, 0, blessingKey).setVisible(true);
+        const animKey = `blessing_animation_${cat.type}`;
+        if (!this.anims.exists(animKey)) {
           this.anims.create({
-            key: `blessing_animation_${cat.type}`,
-            frames: this.anims.generateFrameNumbers(`blessing-${cat.type}`, {
+            key: animKey,
+            frames: this.anims.generateFrameNumbers(blessingKey, {
               start: 0,
               end: 59,
             }),
             frameRate: 16,
             repeat: -1,
           });
-
-          this.blessing.play(`blessing_animation_${cat.type}`);
-        } else {
-          this.blessing = undefined;
         }
-        this.createCat(cat.name, this.blessing, cat.type, cat.tier);
-        this.createSpikes();
-      },
-      this
-    );
-    if (cat.blessing && cat.tier !== Tier.COMMON) {
-      this.load.spritesheet(
-        `blessing-${cat.type}`,
-        cdnFile(`flare-effect/spritesheets/${cat.type}.png`),
-        {
-          frameWidth: 64,
-          frameHeight: 64,
-        }
-      );
+        this.blessing.play(animKey);
+      } else {
+        this.blessing = undefined;
+      }
+      this.createCat(key, this.blessing, cat.type, cat.tier);
+      // The old skin's sprite went with the restart; its texture can go now.
+      retirePrevious();
+      this.createSpikes();
+    } catch (error) {
+      reportAppError("player_spawn_error", error, {
+        source: "manual",
+        level: "scene",
+        scene: "PixelRescueScene",
+      });
     }
-
-    this.load.spritesheet(cat.name, cat.spriteImg, {
-      frameWidth: 48,
-      frameHeight: 48,
-    });
-
-    this.load.start();
   }
 
   private getTierHealth(tier: Tier): number {
@@ -520,12 +660,12 @@ export class PixelRescueScene extends Scene {
     }
   }
   private createCat(
-    catName: string,
+    textureKey: string,
     blessing: Phaser.GameObjects.Sprite | null | undefined,
     type: CatAbilityType,
     tier: Tier
   ) {
-    this.cat = new Cat(this, -850, -100, catName, blessing!, type, true, tier);
+    this.cat = new Cat(this, -850, -100, textureKey, blessing!, type, true, tier);
 
     const health = this.getTierHealth(tier);
     this.cat.maxHealth = health;
@@ -560,22 +700,204 @@ export class PixelRescueScene extends Scene {
     this.initializeShields();
     this.spawnExitPortal();
 
-    if (!this.tutorialManager?.active) {
-      this.time.delayedCall(1000, () => {
-        this.tutorialManager?.start(
-          this.cat!,
-          this.catCrate!,
-          this.heartCoins,
-          this.exitPortalSprite!,
-          this.exitPortalX,
-          this.exitPortalY
-        );
-      });
+    // Starter shield (plan G10): uncleared levels 1-2 start with one, visible on the cat.
+    if (this.props.starterShield) {
+      this.activateShield("starter");
     }
 
-    if (this.tutorialManager?.active) {
-      this.cameras.main.startFollow(this.cat.sprite);
+    // The spawn is frozen until RUN_BEGIN (the first input): no teleport, no countdown yet. While
+    // the gate is open the cat sits in the upper part of the screen, so the gate card (bottom) and
+    // the mobile controls never cover it; RUN_BEGIN centres it again.
+    this.look?.follow(this.cat.sprite);
+    this.look?.attachCat(this.cat.sprite, { player: true });
+    this.setGateFollowOffset(true);
+    this.markRunReady();
+  }
+
+  private gateOffsetOpen = false;
+
+  /** LOOK_RESIZE while the gate is open; runs after the rig's own resize handler. */
+  private readonly onGateResize = () => {
+    this.time.delayedCall(0, () => {
+      if (this.gateOffsetOpen && this.sys.isActive() && this.cameras?.main) this.setGateFollowOffset(true);
+    });
+  };
+
+  /**
+   * Camera offset while the gate is open, so the gate card never covers the cat: the cat sits a
+   * quarter of the screen above the centre (card at the bottom), or below it on short landscape
+   * screens, where the card sits at the top (PixelRescue.tsx).
+   */
+  private setGateFollowOffset(open: boolean) {
+    const camera = this.cameras.main;
+    this.gateOffsetOpen = open;
+    if (!open) {
+      this.game.events.off(LOOK_RESIZE, this.onGateResize);
+      camera.setFollowOffset(0, 0);
+      return;
     }
+    // The shift is a share of the view in world units: recompute it after the rig re-picks the
+    // zoom on a resize (rotation, on-screen keyboard) while the gate is still open.
+    this.game.events.off(LOOK_RESIZE, this.onGateResize);
+    this.game.events.on(LOOK_RESIZE, this.onGateResize);
+    const worldHeight = camera.height / Math.max(0.0001, camera.zoom);
+    const shortScreen = typeof window !== "undefined" && window.innerHeight <= 500;
+    const shift = worldHeight * (shortScreen ? 0.22 : 0.25) * (shortScreen ? 1 : -1);
+    camera.setFollowOffset(0, shift);
+    // Jump there instead of gliding from the centre on the first frame.
+    if (this.cat) camera.centerOn(this.cat.sprite.x, this.cat.sprite.y - shift);
+  }
+
+  /** The cat is on the map and the level is built: the gate may take the first input. */
+  private markRunReady() {
+    this.runReady = true;
+    // While the gate is open, Space and the arrows must reach its Back button (plan G10).
+    this.input.keyboard?.disableGlobalCapture();
+    this.emitFtue();
+    GameEvents.RUN_READY.push({
+      isRestart: this.isRestartRun,
+      mode: GameType.PIXEL_RESCUE,
+      level: this.currentLevel,
+    });
+    this.armFirstInput();
+  }
+
+  /**
+   * The first key, tap or click begins the run (onboarding/run-gate). It is consumed: the cat
+   * reads controls only once that key or pointer is released, so the first tap is not a jump.
+   * Taps on controls (the close button, the gate's Back, a modal) never begin it; the mobile
+   * jump, dash and spell buttons do.
+   */
+  private armFirstInput() {
+    if (this.firstInputArmed) return;
+    this.firstInputArmed = true;
+    this.runGate.ready();
+    const begin = (kind: "pointer" | "key") => {
+      if (this.runGate.input(kind) === "begin") this.beginRun();
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (isEditableTarget(event.target)) return;
+      if (isExitKey(event)) return;
+      if (isBeginKey(event) || CUPID_MOVE_KEYS.includes(event.code)) begin("key");
+    };
+    const onPointer = (event: PointerEvent) => {
+      const target = event.target as Element | null;
+      const isMobileControl = !!target?.closest?.("#jump, #dash, #knockback");
+      if (!isMobileControl && isControlTarget(event.target)) return;
+      begin("pointer");
+    };
+    const release = () => {
+      this.runGate.release();
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onPointer);
+    window.addEventListener("keyup", release);
+    window.addEventListener("pointerup", release);
+    window.addEventListener("pointercancel", release);
+    // A key held while the window loses focus never sends keyup: release then, or the cat would
+    // ignore every control for the rest of the run.
+    window.addEventListener("blur", release);
+    const cleanup = () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onPointer);
+      window.removeEventListener("keyup", release);
+      window.removeEventListener("pointerup", release);
+      window.removeEventListener("pointercancel", release);
+      window.removeEventListener("blur", release);
+      this.firstInputArmed = false;
+      this.gateOffsetOpen = false;
+      this.game?.events.off(LOOK_RESIZE, this.onGateResize);
+    };
+    this.events.once("shutdown", cleanup);
+    this.events.once("destroy", cleanup);
+  }
+
+  /** RUN_BEGIN: the clock starts, then the tutorial plays if this player has not seen it. */
+  public beginRun() {
+    if (!this.runReady || this.gameEnded || this.clock.hasBegun) return;
+    // Called directly (tests, "Replay tutorial" before the first input): drive the gate too.
+    if (this.runGate.phase === "ready") this.runGate.input("key");
+    this.clock.resume("gate");
+    this.clock.begin();
+    this.setGateFollowOffset(false);
+    this.input.keyboard?.enableGlobalCapture();
+    GameEvents.RUN_BEGIN.push({
+      isRestart: this.isRestartRun,
+      mode: GameType.PIXEL_RESCUE,
+      level: this.currentLevel,
+    });
+
+    const decision = tutorialDecision({
+      seen: cupidFtue.tutorialSeen(this.currentLevel),
+      replayRequested: this.props.replayTutorial,
+      isRestart: this.isRestartRun,
+      playedThisSession: PixelRescueScene.tutorialPlayedThisSession.has(this.currentLevel),
+    });
+    this.props.replayTutorial = false;
+    // The starter-shield line shows once the player can act: after the tour, or now without one.
+    if (decision !== "play" || !this.startTutorial()) this.showStarterShieldHint();
+    this.emitFtue();
+  }
+
+  /** "Starter shield: it blocks the first hit." once per player, while the shield is still up. */
+  private showStarterShieldHint() {
+    if (this.shield.isActive && this.shield.source === "starter") this.showFirstSeenHint("shield");
+  }
+
+  /** Plays the camera tour of the level. The clock holds for every step. */
+  public startTutorial(): boolean {
+    if (!this.cat || !this.catCrate || !this.exitPortalSprite || this.gameEnded) return false;
+    if (this.tutorialManager?.active) return false;
+    if (!this.tutorialManager) this.tutorialManager = new TutorialManager(this, this.currentLevel);
+    this.clock.pause("tutorial");
+    PixelRescueScene.tutorialPlayedThisSession.add(this.currentLevel);
+    this.tutorialManager.start(
+      this.cat,
+      this.catCrate,
+      this.heartCoins,
+      this.exitPortalSprite,
+      this.exitPortalX,
+      this.exitPortalY,
+      () => {
+        cupidFtue.markTutorialSeen(this.currentLevel);
+        this.clock.resume("tutorial");
+        this.showStarterShieldHint();
+        this.emitFtue();
+      }
+    );
+    this.emitFtue();
+    return true;
+  }
+
+  /** "Replay tutorial" from the HUD, mid-run. */
+  public replayTutorial(): boolean {
+    if (!this.clock.hasBegun) {
+      this.props.replayTutorial = true;
+      return true;
+    }
+    return this.startTutorial();
+  }
+
+  /** Test and QA read-out (see ICupidFtueSnapshot). */
+  public ftueSnapshot(): ICupidFtueSnapshot {
+    return {
+      level: this.currentLevel,
+      time: this.clock.time,
+      clockBegun: this.clock.hasBegun,
+      clockRunning: this.clock.isRunning,
+      pauseReasons: this.clock.pauseReasons,
+      tutorialActive: !!this.tutorialManager?.active,
+      shieldActive: this.shield.isActive,
+      shieldSource: this.shield.source,
+      health: this.cat ? this.cat.currentHealth : null,
+      gameEnded: this.gameEnded,
+      hintsShown: [...this.hintsShown],
+    };
+  }
+
+  /** Tells the React HUD (shield chip, replay button) about the first-session state. */
+  private emitFtue() {
+    this.game?.events?.emit(CUPID_FTUE_EVENT, this.ftueSnapshot());
   }
 
   private handleCrateCollision(catSprite: unknown, crateObject: unknown) {
@@ -719,45 +1041,15 @@ export class PixelRescueScene extends Scene {
   private createSpikes() {
     if (!this.cat) return;
 
-    if (!this.useTileSpikeChecks) {
-      this.spikeManager = new SpikeManager({
-        scene: this,
-        groundLayer: this.groundLayer!,
-        spikeTiles: SPIKE_TILES,
-        catSprite: this.cat.sprite!,
-        onPlayerHitSpike: () => {
-          if (this.hasActiveShield) {
-            this.consumeShield();
-          } else {
-            this.handlePlayerHit();
-          }
-        },
-      });
-    }
-  }
-
-  private checkSpikeTilesOverlap() {
-    if (!this.cat || !this.groundLayer) return;
-
-    const body = this.cat.sprite.body as Phaser.Physics.Arcade.Body | undefined;
-    const bounds = body
-      ? new Phaser.Geom.Rectangle(body.x, body.y, body.width, body.height)
-      : this.cat.sprite.getBounds();
-
-    const tiles = this.groundLayer.getTilesWithinWorldXY(
-      bounds.x,
-      bounds.y,
-      bounds.width,
-      bounds.height,
-      { isNotEmpty: true }
-    );
-
-    for (let i = 0; i < tiles.length; i++) {
-      if (SPIKE_TILES.includes(tiles[i].index)) {
-        this.endGame();
-        return;
-      }
-    }
+    // Every spike goes through the shield (takeHazardHit). The old tile-overlap check, which
+    // ended the run outright and skipped the shield, was never enabled and is gone.
+    this.spikeManager = new SpikeManager({
+      scene: this,
+      groundLayer: this.groundLayer!,
+      spikeTiles: SPIKE_TILES,
+      catSprite: this.cat.sprite!,
+      onPlayerHitSpike: () => this.takeHazardHit({ bounce: true }),
+    });
   }
 
   private openExitPortal() {
@@ -767,25 +1059,36 @@ export class PixelRescueScene extends Scene {
     this.exitPortalSprite.clearTint();
   }
 
+  /**
+   * GAME_START. A restart (`tryAgain`) rebuilds the scene; the tutorial is NOT reset, so a retry
+   * never replays it. A plain GAME_START used to teleport the cat to (0, -400) and start a second
+   * countdown on top of the one from `create` (known bug, plan section 7): it is ignored now, since
+   * the run begins on the first input (RUN_BEGIN).
+   */
   private startGame(data: ICatEvent<GameEvent.GAME_START>) {
-    if (data.detail.isRestart) {
-      this.gameEnded = false;
-
-      if (this.timerEvent) {
-        this.timerEvent.destroy();
-        this.timerEvent = undefined;
-      }
-
-      TutorialManager.resetTutorial(this.currentLevel);
-      this.scene.restart(data);
-      return;
-    }
-    if (this.cat) {
-      this.cat.sprite.setPosition(0, -400);
-    }
-    this.startCountdown();
+    if (!data?.detail?.isRestart) return;
+    this.restartRun(data.detail.cat);
   }
 
+  /**
+   * Rebuilds the scene for another attempt on the same level. One restart per attempt: PLAY AGAIN
+   * sends GAME_RESTART (plan F6) and older callers GAME_START {isRestart}; if both arrive, the
+   * second is ignored, so there is one RUN_READY and one gate, never two.
+   */
+  private restartRun(cat?: ICat) {
+    if (this.restartPending) return;
+    this.restartPending = true;
+    this.gameEnded = false;
+    this.clock.end();
+    if (this.timerEvent) {
+      this.timerEvent.destroy();
+      this.timerEvent = undefined;
+    }
+    const nextCat = cat ?? this.catDto ?? this.lastCat;
+    this.scene.restart({ detail: { cat: nextCat, isRestart: true } });
+  }
+
+  /** The one-second ticker for this run's clock (counts only once the clock has begun). */
   private startCountdown() {
     if (this.timerEvent) {
       this.timerEvent.destroy();
@@ -794,72 +1097,63 @@ export class PixelRescueScene extends Scene {
       GameEvents.GAME_UPDATE.removeEventListener(this.gameUpdateCallback);
     }
 
-    this.timer = 90;
     this.timerEvent = this.time.addEvent({
       delay: 1000,
       callback: this.onTimerTick,
       callbackScope: this,
       loop: true,
     });
-    GameEvents.GAME_UPDATE.push({ time: this.timer });
+    GameEvents.GAME_UPDATE.push({ time: this.clock.time });
 
     this.gameUpdateCallback = (data: ICatEvent<GameEvent.GAME_UPDATE>) => {
       if (data.detail.additionalTime) {
-        this.timer += data.detail.additionalTime;
-        GameEvents.GAME_UPDATE.push({ time: this.timer });
+        GameEvents.GAME_UPDATE.push({ time: this.clock.addTime(data.detail.additionalTime) });
       }
     };
     GameEvents.GAME_UPDATE.addEventListener(this.gameUpdateCallback);
 
-    // Clean up on both shutdown and destroy events
-    this.events.once("shutdown", () => {
+    const cleanup = () => {
       if (this.gameUpdateCallback) {
         GameEvents.GAME_UPDATE.removeEventListener(this.gameUpdateCallback);
       }
       this.timerEvent?.destroy();
-    });
-
-    this.events.once("destroy", () => {
-      if (this.gameUpdateCallback) {
-        GameEvents.GAME_UPDATE.removeEventListener(this.gameUpdateCallback);
-      }
-      this.timerEvent?.destroy();
-    });
+    };
+    this.events.once("shutdown", cleanup);
+    this.events.once("destroy", cleanup);
   }
 
   private onTimerTick() {
-    if (this.gameEnded || (this.tutorialManager && this.tutorialManager.active))
-      return;
+    if (this.gameEnded) return;
+    // Belt and braces: the tutorial and a paused notice hold the clock even if a reason was missed.
+    if (this.tutorialManager?.active) this.clock.pause("tutorial");
+    const result = this.clock.tick();
+    if (result === "idle") return;
 
-    this.timer--;
-    if (this.timer < 0) this.timer = 0;
+    GameEvents.GAME_UPDATE.push({ time: this.clock.time });
 
-    GameEvents.GAME_UPDATE.push({ time: this.timer });
-
-    if (this.timer <= 0) {
-      this.timer = 0;
-      if (this.timerEvent) {
-        this.timerEvent.destroy();
-      }
-      this.endGame();
+    if (result === "expired") {
+      this.timerEvent?.destroy();
+      this.endGame("timer");
     }
   }
+
   update(time: number, delta: number) {
     if (this.gameEnded || this.cat?.isDeath) return;
+
+    // Frozen spawn until RUN_BEGIN: nothing moves and nothing can hurt the cat behind the gate.
+    if (!this.clock.hasBegun) return;
 
     if (this.tutorialManager?.active) return;
 
     if (this.isNotificationPaused) return;
 
-    if (this.cat?.sprite.active) {
+    // The input that began the run is not also a jump or a dash.
+    if (this.cat?.sprite.active && !this.runGate.awaitingRelease) {
       this.cat.update();
     }
 
-    if (this.useTileSpikeChecks && !this.gameEnded) {
-      this.checkSpikeTilesOverlap();
-    }
+    this.checkFirstSeenHints();
 
-    this.spawnCatnipCoins();
     this.listEnemies.forEach((enemy) => enemy.update(time, delta));
 
     if (
@@ -898,11 +1192,7 @@ export class PixelRescueScene extends Scene {
         );
 
         if (distance < 30) {
-          if (this.hasActiveShield) {
-            this.consumeShield();
-          } else {
-            this.handlePlayerHit();
-          }
+          this.takeHazardHit();
         }
       }
     });
@@ -918,17 +1208,15 @@ export class PixelRescueScene extends Scene {
         );
 
         if (distance < 30) {
-          if (this.hasActiveShield) {
-            this.consumeShield();
-          } else {
-            this.handlePlayerHit();
-          }
+          this.takeHazardHit();
         }
       }
     });
 
-    if (this.catCrate && this.catCrate.active) {
-      const isColliding = this.physics.overlap(this.cat!.sprite, this.catCrate);
+    // The cat is unset for a frame while a re-skin restarts the scene (and before the first
+    // spawn); the overlaps below need it (console TypeError found by the 2e render e2e).
+    if (this.cat && this.catCrate && this.catCrate.active) {
+      const isColliding = this.physics.overlap(this.cat.sprite, this.catCrate);
 
       if (
         isColliding &&
@@ -975,6 +1263,7 @@ export class PixelRescueScene extends Scene {
 
             this.time.delayedCall(1000, () => {
               this.isNotificationPaused = true;
+              this.clock.pause("notice");
               this.physics.pause();
 
               this.showNotification(
@@ -985,16 +1274,10 @@ export class PixelRescueScene extends Scene {
 
               this.time.delayedCall(2500, () => {
                 this.isNotificationPaused = false;
+                this.clock.resume("notice");
                 this.physics.resume();
 
-                if (this.cat) {
-                  this.cameras.main.startFollow(
-                    this.cat.sprite,
-                    true,
-                    0.1,
-                    0.1
-                  );
-                }
+                if (this.cat) this.look?.follow(this.cat.sprite);
               });
             });
           });
@@ -1023,12 +1306,14 @@ export class PixelRescueScene extends Scene {
       }
     }
 
-    for (let i = this.heartCoins.length - 1; i >= 0; i--) {
+    for (let i = this.cat ? this.heartCoins.length - 1 : -1; i >= 0; i--) {
       const coin = this.heartCoins[i];
       if (this.physics.overlap(this.cat!.sprite, coin)) {
         coin.destroy();
         this.heartCoins.splice(i, 1);
+        // Counted once per heart. The old per-frame proximity pass counted most hearts twice.
         this.collectedheartCoins++;
+        GameEvents.GAME_COIN_CAUGHT.push({ score: this.collectedheartCoins });
 
         const heartSound = this.sound.add("catnip", { volume: 0.5 });
         heartSound.play();
@@ -1068,17 +1353,17 @@ export class PixelRescueScene extends Scene {
       }
     }
 
-    for (let i = this.shields.length - 1; i >= 0; i--) {
+    for (let i = this.cat ? this.shields.length - 1 : -1; i >= 0; i--) {
       const shield = this.shields[i];
       if (this.physics.overlap(this.cat!.sprite, shield)) {
-        if (this.hasActiveShield) {
+        if (this.shield.isActive) {
           continue;
         }
 
         shield.destroy();
         this.shields.splice(i, 1);
 
-        this.activateShield();
+        this.activateShield("pickup");
 
         if (this.sound.get("protection")) {
           this.sound.play("protection", { volume: 0.5 });
@@ -1096,7 +1381,7 @@ export class PixelRescueScene extends Scene {
       }
     }
 
-    if (this.hasActiveShield && this.shieldSprite && this.cat) {
+    if (this.shield.isActive && this.shieldSprite && this.cat) {
       this.shieldSprite.setPosition(this.cat.sprite.x, this.cat.sprite.y);
     }
 
@@ -1255,14 +1540,13 @@ export class PixelRescueScene extends Scene {
   private winGame() {
     if (this.gameEnded) return;
     this.gameEnded = true;
+    this.clock.end();
     this.backgroundSound?.stop();
     this.timerEvent?.destroy();
+    PixelRescueScene.clearedThisSession.add(this.currentLevel);
+    if (this.props.recordLocalClears) cupidFtue.recordLocalClear(this.currentLevel);
 
-    GameEvents.GAME_STOP.push({
-      score: this.collectedheartCoins,
-      time: 0,
-      completedLevel: this.currentLevel,
-    });
+    this.pushStop("portal");
 
     this.time.delayedCall(500, () => {
       this.destroyGameObjects();
@@ -1376,10 +1660,8 @@ export class PixelRescueScene extends Scene {
     });
   }
 
-  private activateShield() {
-    if (this.hasActiveShield) return;
-
-    this.hasActiveShield = true;
+  private activateShield(source: "starter" | "pickup") {
+    if (!this.shield.arm(source)) return;
 
     if (this.cat) {
       this.shieldSprite = this.add.sprite(
@@ -1389,34 +1671,61 @@ export class PixelRescueScene extends Scene {
       );
       this.shieldSprite.setSize(32, 32);
       this.shieldSprite.setDepth(100);
-      this.shieldSprite.setAlpha(0.5);
+      // The starter shield reads clearly on a first run; a picked-up one keeps the old look.
+      this.shieldSprite.setAlpha(source === "starter" ? 0.8 : 0.5);
       this.shieldSprite.play("shield-active-anim");
 
-      this.tweens.add({
-        targets: this.shieldSprite,
-        scale: { from: 1, to: 1.1 },
-        duration: 500,
-        yoyo: true,
-        repeat: -1,
-        ease: "Sine.easeInOut",
-      });
+      // No endless pulse under reduced motion: the sprite and the HUD chip already show it.
+      if (!prefersReducedMotion()) {
+        this.tweens.add({
+          targets: this.shieldSprite,
+          scale: { from: 1, to: 1.1 },
+          duration: 500,
+          yoyo: true,
+          repeat: -1,
+          ease: "Sine.easeInOut",
+        });
+      }
     }
+    // The starter shield's hint waits for the run to begin (showStarterShieldHint), so it is not
+    // spent behind the gate.
+    this.emitFtue();
   }
 
-  public consumeShield(enemy?: BasePixelEnemy): boolean {
-    if (!this.hasActiveShield) return false;
+  /**
+   * A saw, a spiked ball or a spike touched the cat. The shield takes the first hit; for a while
+   * after it breaks nothing lands (the same hazard is usually still overlapping). `bounce` lifts
+   * the cat off a spike strip so the grace window is enough to get clear.
+   */
+  private takeHazardHit(options: { bounce?: boolean } = {}) {
+    if (this.consumeShield()) {
+      if (options.bounce && this.cat?.sprite.body) this.cat.sprite.setVelocityY(-380);
+      return;
+    }
+    this.handlePlayerHit();
+  }
 
-    this.hasActiveShield = false;
+  /**
+   * Called by enemies and hazards before a hit lands. Returns true when the hit is swallowed: the
+   * shield broke now, or it broke a moment ago (grace window).
+   */
+  public consumeShield(enemy?: BasePixelEnemy): boolean {
+    const result = this.shield.hit(this.time.now);
+    if (result === "hit") return false;
+    if (result === "ignored") return true;
+
     if (this.shieldSprite) {
+      const brokenShield = this.shieldSprite;
+      this.shieldSprite = undefined;
+      this.tweens.killTweensOf(brokenShield);
       this.tweens.add({
-        targets: this.shieldSprite,
+        targets: brokenShield,
         alpha: 0,
         scale: 1.5,
         duration: 300,
         ease: "Power2",
         onComplete: () => {
-          this.shieldSprite?.destroy();
-          this.shieldSprite = undefined;
+          brokenShield.destroy();
         },
       });
 
@@ -1425,31 +1734,51 @@ export class PixelRescueScene extends Scene {
         this.sound.play("jump", { volume: 0.4, rate: 0.5 });
       }
 
-      const puffSprite = this.add.sprite(
-        this.shieldSprite.x,
-        this.shieldSprite.y,
-        "puff"
-      );
+      const puffSprite = this.add.sprite(brokenShield.x, brokenShield.y, "puff");
       puffSprite.setScale(2);
       puffSprite.play("puff");
       puffSprite.on("animationcomplete", () => {
         puffSprite.destroy();
+      });
+
+      const saved = ttWorldText(this, brokenShield.x, brokenShield.y - 44, "SHIELD SAVED YOU!", "burst", 18, {
+        color: "#fbcc93",
+        stroke: NIGHT[900],
+        origin: 0.5,
+        depth: 120,
+      });
+      this.tweens.add({
+        targets: saved,
+        y: saved.y - 36,
+        alpha: 0,
+        duration: 1200,
+        ease: "Power2",
+        onComplete: () => saved.destroy(),
       });
     }
 
     if (enemy) {
       this.stunAndKnockbackEnemy(enemy);
     }
-    //cat invulnerable
+    // The grace window (SHIELD_BREAK_GRACE_MS) is in ShieldState; blink the cat while it lasts.
     if (this.cat) {
       this.cat.isInvulnerable = true;
-      this.time.delayedCall(100, () => {
-        if (this.cat) {
-          this.cat.isInvulnerable = false;
-        }
+      this.tweens.add({
+        targets: this.cat.sprite,
+        alpha: 0.4,
+        duration: 125,
+        yoyo: true,
+        repeat: 3,
+        onComplete: () => {
+          if (this.cat && !this.cat.isDeath) {
+            this.cat.sprite.setAlpha(1);
+            this.cat.isInvulnerable = false;
+          }
+        },
       });
     }
 
+    this.emitFtue();
     return true;
   }
 
@@ -1464,15 +1793,11 @@ export class PixelRescueScene extends Scene {
     enemy.isStunned = true;
     enemy.setTint(0x8888ff);
 
-    const stunText = this.add.text(enemy.x, enemy.y - 50, "STUNNED!", {
-      fontSize: "8px",
-      fontFamily: "Arial Black, sans-serif",
+    const stunText = ttWorldText(this, enemy.x, enemy.y - 50, "STUNNED!", "burst", 18, {
       color: "#ffff00",
       stroke: "#000000",
-      strokeThickness: 3,
-      fontStyle: "bold",
+      origin: 0.5,
     });
-    stunText.setOrigin(0.5, 0.5);
 
     this.tweens.add({
       targets: stunText,
@@ -1490,44 +1815,99 @@ export class PixelRescueScene extends Scene {
       enemy.clearTint();
     });
   }
-  private spawnCatnipCoins() {
-    if (!this.cat) return;
+  /**
+   * First-seen hints (plan G10): the first time an enemy, the crate or the portal comes near, a
+   * hint plate names it. Once per player (ftue-store), never during the tutorial tour, which
+   * already shows the crate and the portal.
+   */
+  private checkFirstSeenHints() {
+    if (!this.cat || this.hintText) return;
+    const { x, y } = this.cat.sprite;
+    const near = (tx: number, ty: number, radius: number) =>
+      Phaser.Math.Distance.Between(x, y, tx, ty) < radius;
 
-    const playerX = this.cat.sprite.x;
-    const playerY = this.cat.sprite.y;
-
-    this.heartCoins.forEach((coin) => {
-      if (!coin.visible) return;
-      const distance = Phaser.Math.Distance.Between(
-        playerX,
-        playerY,
-        coin.x,
-        coin.y
-      );
-      if (distance < 32) {
-        this.collectedheartCoins++;
-
-        GameEvents.GAME_COIN_CAUGHT.push({
-          score: this.collectedheartCoins,
-        });
+    if (!this.isHintDone("enemy")) {
+      const enemy = this.listEnemies.find((e) => e.active && near(e.x, e.y, 260));
+      if (enemy) {
+        this.showFirstSeenHint("enemy", enemy.x, enemy.y);
+        return;
       }
+    }
+    if (this.catCrate?.active && !this.isHintDone("crate") && near(this.catCrate.x, this.catCrate.y, 220)) {
+      this.showFirstSeenHint("crate", this.catCrate.x, this.catCrate.y);
+      return;
+    }
+    if (this.exitPortalSprite && !this.isHintDone("portal") && near(this.exitPortalX, this.exitPortalY, 240)) {
+      this.showFirstSeenHint("portal", this.exitPortalX, this.exitPortalY);
+    }
+  }
+
+  private isHintDone(id: CupidHintId): boolean {
+    return this.hintsShown.includes(id) || cupidFtue.hintSeen(id);
+  }
+
+  /** Shows one hint plate above a target (the cat by default) for a few seconds. */
+  private showFirstSeenHint(id: CupidHintId, targetX?: number, targetY?: number) {
+    if (this.isHintDone(id)) return;
+    this.hintsShown.push(id);
+    cupidFtue.markHintSeen(id);
+
+    const followCat = targetX === undefined || targetY === undefined;
+    const anchorX = followCat ? this.cat?.sprite.x ?? 0 : targetX!;
+    const anchorY = followCat ? this.cat?.sprite.y ?? 0 : targetY!;
+    const copy = cupidHintCopy(id);
+    // CSS width over CSS zoom, as before F10; `scale.width` is now backing-store pixels.
+    const isPhone = cssViewSize(this).width / Math.max(1, cameraCssZoom(this)) < 768;
+
+    this.hintText?.destroy();
+    // Just above the cat's head when it follows the cat (the old 76 world px floated a whole
+    // platform above it at phone zoom); above a target otherwise.
+    const lift = followCat ? CAT_HINT_LIFT : 70;
+    const text = ttWorldText(this, anchorX, anchorY - lift, copy, "hint", isPhone ? 15 : 18, {
+      color: "#fbcc93",
+      stroke: NIGHT[900],
+      strokeThickness: 5,
+      align: "center",
+      wordWrapWidth: (isPhone ? 170 : 260) * cameraCssZoom(this),
+      origin: [0.5, 1],
+      depth: 1000,
     });
+    this.hintText = text;
+    const reduced = prefersReducedMotion();
+    if (!reduced) {
+      text.setAlpha(0);
+      this.tweens.add({ targets: text, alpha: 1, y: text.y - 6, duration: 220, ease: "Power2" });
+    }
+
+    const follow = () => {
+      if (followCat && this.cat && text.active) text.setPosition(this.cat.sprite.x, this.cat.sprite.y - CAT_HINT_LIFT);
+    };
+    if (followCat) this.events.on("postupdate", follow);
+
+    const remove = () => {
+      this.events.off("postupdate", follow);
+      text.destroy();
+      if (this.hintText === text) this.hintText = undefined;
+    };
+    this.time.delayedCall(HINT_VISIBLE_MS, () => {
+      if (reduced) {
+        remove();
+        return;
+      }
+      this.tweens.add({ targets: text, alpha: 0, duration: 260, onComplete: remove });
+    });
+    this.emitFtue();
   }
 
   private showDamageText(x: number, y: number) {
     const hitMessages = ["HIT!", "OUCH!", "BITE!", "AGHW!", "POW!", "SMACK!"];
     const randomMessage = Phaser.Utils.Array.GetRandom(hitMessages);
 
-    const damageText = this.add.text(x, y - 40, randomMessage, {
-      fontSize: "7px",
-      fontFamily: "Arial Black, sans-serif",
-      color: "#ff0000",
+    const damageText = ttWorldText(this, x, y - 40, randomMessage, "burst", 18, {
+      color: "#ff3b3b",
       stroke: "#ffffff",
-      strokeThickness: 4,
-      fontStyle: "bold",
+      origin: 0.5,
     });
-
-    damageText.setOrigin(0.5, 0.5);
 
     const randomOffsetX = Phaser.Math.Between(-20, 20);
 
@@ -1536,7 +1916,7 @@ export class PixelRescueScene extends Scene {
       y: damageText.y - 80,
       x: damageText.x + randomOffsetX,
       alpha: 0,
-      scale: 1.5,
+      scale: scaleTo(damageText, 1.5),
       duration: 1000,
       ease: "Power2",
       onComplete: () => {
@@ -1585,13 +1965,30 @@ export class PixelRescueScene extends Scene {
     });
 
     if (shouldDie) {
-      this.endGame();
+      this.endGame("health");
     }
   }
 
-  private endGame() {
+  /**
+   * The one GAME_STOP of a run, with its outcome (plan F6): `won` through the portal, `died` from
+   * health or a spike, `timeout` when the clock ran out. GameContext saves it through `/live`.
+   */
+  private pushStop(reason: CupidStopReason) {
+    this.runGate.end();
+    const outcome = outcomeFor(reason);
+    GameEvents.GAME_STOP.push({
+      score: this.collectedheartCoins,
+      time: this.clock.elapsed,
+      completedLevel: outcome === "won" ? this.currentLevel : null,
+      outcome,
+    });
+    this.emitFtue();
+  }
+
+  private endGame(reason: Exclude<CupidStopReason, "portal"> = "health") {
     if (this.gameEnded) return;
     this.gameEnded = true;
+    this.clock.end();
     this.backgroundSound?.stop();
     this.timerEvent?.destroy();
 
@@ -1611,11 +2008,7 @@ export class PixelRescueScene extends Scene {
     }
 
     this.time.delayedCall(250, () => {
-      GameEvents.GAME_STOP.push({
-        score: this.collectedheartCoins,
-        time: 0,
-        completedLevel: null,
-      });
+      this.pushStop(reason);
       this.destroyGameObjects();
     });
   }
@@ -1643,7 +2036,9 @@ export class PixelRescueScene extends Scene {
       if (enemy && !enemy.scene) return;
       try {
         enemy.destroy();
-      } catch (e) {}
+      } catch {
+        // already destroyed with the scene
+      }
     });
     this.listEnemies = [];
 
@@ -1673,7 +2068,7 @@ export class PixelRescueScene extends Scene {
       this.shieldSprite.destroy();
       this.shieldSprite = undefined;
     }
-    this.hasActiveShield = false;
+    this.shield.reset();
 
     this.destroyForestAtmosphere();
 
@@ -1713,23 +2108,19 @@ export class PixelRescueScene extends Scene {
   }
 
   private showNotification(x: number, y: number, message: string) {
-    const notificationText = this.add.text(x, y, message, {
-      fontSize: "14px",
-      fontFamily: "Arial Black, sans-serif",
-      color: "#ff0000",
+    const notificationText = ttWorldText(this, x, y, message, "burst", 22, {
+      color: "#ff3b3b",
       stroke: "#ffffff",
-      strokeThickness: 4,
       align: "center",
-      fontStyle: "bold",
+      origin: 0.5,
+      depth: 20,
     });
-    notificationText.setOrigin(0.5);
-    notificationText.setDepth(20);
 
     this.tweens.add({
       targets: notificationText,
       y: notificationText.y - 40,
       alpha: 0,
-      scale: 1.3,
+      scale: scaleTo(notificationText, 1.3),
       duration: 2000,
       ease: "Power2",
       onComplete: () => {

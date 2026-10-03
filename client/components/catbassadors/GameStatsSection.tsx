@@ -1,8 +1,8 @@
 import { bgStyle, cdnFile } from "@/constants/utils";
+import { CatnipIcon } from "@/components/shared/CatnipIcon";
 import { useGame } from "@/context/GameContext";
 import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
-import { useState } from "react";
 import {
   getCatnipBreakdown,
   TOTAL_CATNIP_CAP,
@@ -44,7 +44,6 @@ export const GameStatsSection = ({
   profile: IProfile;
   setOpenedModal: (modal: GameModal) => void;
 }) => {
-  const [modal, setModal] = useState<null | string>(null);
   const { gameType } = useGame();
   const catnipBreakdown = getCatnipBreakdown({
     catnipChaos: profile?.catnipChaos,
@@ -57,24 +56,28 @@ export const GameStatsSection = ({
   return (
     <div>
       <div className="fixed flex-col pb-safe top-4 z-30 right-4 flex justify-between">
-        <div
+        {/* A real button (keyboard and screen readers). The picker's X no longer sits over it:
+            GameSelectModal puts its X on the frame's stone post (plan G14). */}
+        <button
+          type="button"
           onClick={() => setOpenedModal(GameModal.PROFILE)}
-          className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl pt-4 border-4 border-yellow-900"
+          className="flex hover:brightness-110 flex-col w-20 relative items-center font-secondary rounded-xl pt-4 border-4 border-yellow-900 text-inherit focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-tt-gold-400"
           style={bgStyle("min-4")}
         >
           {profile.cat && (
-            <div className="relative -mb-4">
+            <span className="relative -mb-4 block">
               <img
                 draggable={false}
+                alt=""
                 className="w-20 h-20 -mt-8 pixelated"
                 src={profile.cat?.catImg}
               />
-            </div>
+            </span>
           )}
-          <div className="text-p5 font-primary flex items-center gap-1">
-            <div>ABOUT ME</div>
-          </div>
-        </div>
+          <span className="text-p5 font-primary flex items-center gap-1">
+            <span>ABOUT ME</span>
+          </span>
+        </button>
       </div>
       <div className="fixed left-4 pb-safe top-4 z-20 flex flex-col justify-between">
         <div
@@ -88,17 +91,13 @@ export const GameStatsSection = ({
               className="h-4"
               src={cdnFile("logo/logo.webp")}
             />
-            <div>$TAILS</div>
+            <div>TAILS</div>
           </div>
-          <div className="flex items-center gap-2 bg-yellow-300/50 border border-yellow-900 rounded-lg w-full justify-center">
+          <div className="flex items-center gap-2 bg-tt-cream/50 border border-yellow-900 rounded-lg w-full justify-center">
             <div className="text-p6">{profile?.tails?.toFixed(0) || 0}</div>
           </div>
           <div className="text-p5 flex items-center gap-1">
-            <img
-              draggable={false}
-              className="w-4 h-4"
-              src={cdnFile("logo/catnip.webp")}
-            />
+            <CatnipIcon size={16} alt="" />
             <div>CATNIP</div>
           </div>
           <div className="flex items-center text-p6 bg-green-300/50 border border-yellow-900 rounded-lg w-full justify-center">
@@ -107,7 +106,8 @@ export const GameStatsSection = ({
         </div>
         <div className="flex flex-col items-center ">
           {![GameType.SHELTER, GameType.HOME].includes(gameType!) && (
-            <div
+            <button
+              type="button"
               onClick={() => setOpenedModal(GameModal.CODEX)}
               style={bgStyle("min-4")}
               className="group w-20 flex flex-col items-center font-primary text-p2 transition-all duration-300 hover:scale-110 px-1 py-0.5 rounded-xl relative border-4 border-yellow-900 overflow-hidden cursor-pointer shadow-[0_6px_0_0_rgba(120,53,15,0.25)]"
@@ -115,15 +115,15 @@ export const GameStatsSection = ({
               <img
                 src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
                 className="absolute inset-0 h-full w-full object-cover opacity-20 mix-blend-multiply pointer-events-none"
-                alt="progress pattern"
+                alt=""
               />
               <img
                 src={cdnFile("cards/backgrounds/legendary-sparkle.webp")}
                 className="absolute -top-3 left-1/2 -translate-x-1/2 h-8 w-8 object-contain opacity-60 animate-spin-slow pointer-events-none"
-                alt="progress sparkle"
+                alt=""
               />
-              <div className="absolute inset-x-0 bottom-0 h-3 bg-gradient-to-r from-yellow-300/0 via-yellow-300/70 to-yellow-300/0 animate-pulse pointer-events-none" />
-              <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-yellow-300 border border-yellow-900 animate-ping pointer-events-none" />
+              <div className="absolute inset-x-0 bottom-0 h-3 bg-gradient-to-r from-tt-cream/0 via-tt-cream/70 to-tt-cream/0 animate-pulse pointer-events-none" />
+              <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-tt-cream border border-yellow-900 animate-ping pointer-events-none" />
               <img
                 src={cdnFile("codex/codex-1.webp")}
                 className="h-9 -my-1 -mb-1 relative z-10 drop-shadow-[0_2px_3px_rgba(0,0,0,0.45)] transition-transform duration-300 group-hover:scale-110"
@@ -131,7 +131,7 @@ export const GameStatsSection = ({
               <div className="text-p6 pt-1 -mt-1 relative z-10 rounded-md border border-yellow-900 bg-yellow-50/90 px-1 font-bold tracking-wide">
                 PROGRESS
               </div>
-            </div>
+            </button>
           )}
         </div>
       </div>

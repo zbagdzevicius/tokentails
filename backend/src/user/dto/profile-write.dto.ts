@@ -5,9 +5,13 @@ import { PERMISSION_LEVEL } from '../models/user.model';
 /**
  * Body of the manager-only `POST /user/profile` and `PUT /user/profile/:id`.
  *
- * These are the only fields the CMS user form sends (cms/pages/users/[id].tsx). Anything else,
+ * These are the only fields the CMS user form may send (cms/pages/users/[id].tsx). Anything else,
  * such as `tails`, `wallets` or a Mongo operator like `$set`, is rejected by `profileWritePipe`
  * so the raw body can no longer mass-assign arbitrary user fields.
+ *
+ * `shelter` is not accepted (W1 security hotfix): a manager could attach any user, including
+ * themselves, to any shelter. A write that contains it is 400. Shelter membership is granted through
+ * the admin members route in G4; until then it is set in the database by an admin.
  */
 export class ProfileWriteDto {
     @IsOptional()
@@ -21,11 +25,6 @@ export class ProfileWriteDto {
     @IsOptional()
     @IsString()
     discount?: string;
-
-    // The CMS sends '' when no shelter is picked yet and the shelter id otherwise.
-    @IsOptional()
-    @IsString()
-    shelter?: string;
 
     // The CMS sends '' while the number field is empty.
     @IsOptional()

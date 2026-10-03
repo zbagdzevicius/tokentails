@@ -4,15 +4,16 @@ import {
     Controller,
     Delete,
     Get,
+    Header,
     NotFoundException,
     Param,
     Post,
     Put,
+    Query,
     UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { Types } from 'mongoose';
-import { Blessing, BlessingStatus, IBlessing, ICustomBlessing } from 'src/blessing/blessing.schema';
+import { Blessing, blessingKindFor, BlessingStatus, IBlessing, ICustomBlessing } from 'src/blessing/blessing.schema';
 import { CatRepository } from 'src/cat/cat.repository';
 import { ICat, Tier } from 'src/cat/cat.schema';
 import { propsToIds } from 'src/common/utils';
@@ -28,6 +29,24 @@ import { UserRepository } from 'src/user/user.repository';
 import { UserService } from 'src/user/user.service';
 import { BlessingRepository } from './blessing.repository';
 import { IImage } from 'src/image/image.schema';
+import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
+import { FEATURED_CACHE_TTL_MS, IFeaturedCat, parseFeaturedLimit } from './featured';
+import { FeaturedBlessingService } from './featured.service';
+
+/**
+ * `kind` is fixed at creation (F7.8). Moving a blessing into or out of the portrait shelter would
+ * change what it is and skew the rescued-cats count and featured cats, so both edit routes refuse it.
+ */
+export function assertKindUnchanged(existing: Pick<Blessing, 'kind' | 'shelter'>, nextShelter: unknown): void {
+    const currentKind = existing.kind || blessingKindFor(existing.shelter);
+    if (blessingKindFor(nextShelter) !== currentKind) {
+        throw new BadRequestException(
+            currentKind === 'portrait'
+                ? 'A pet portrait cannot be moved to a shelter'
+                : 'A shelter cat cannot be moved to the portrait shelter'
+        );
+    }
+}
 
 @Controller('blessing')
 export class BlessingController {
@@ -36,10 +55,11 @@ export class BlessingController {
         private userRepository: UserRepository,
         private imageRepository: ImageRepository,
         private userService: UserService,
-        private catRepository: CatRepository
+        private catRepository: CatRepository,
+        private featuredService: FeaturedBlessingService
     ) {}
 
-    @UseGuards(AuthGuard('appauth'))
+    @UseGuards(AppAuthGuard)
     @Post('search')
     public async search(@Body() params: BlessingSearchModel, @USER_ID() userId: string): Promise<IBlessing[]> {
         let searchObject: any = {};
@@ -76,7 +96,30 @@ export class BlessingController {
         });
     }
 
-    @UseGuards(AuthGuard('appauth'))
+    /**
+     * Public: real shelter cats for Meet your cat ("Real cats are waiting too", plan G3). Rescue
+     * blessings of Pink Paw and the catfluencers that are still WAITING or RECOVERING, never a
+     * portrait, with a plain-text 140-character excerpt. Cached 10 minutes in process and at the edge.
+     * Declared before `GET :id`, so `featured` is never read as an id.
+     */
+    @Get('featured')
+    @Header('Cache-Control', `public, max-age=${FEATURED_CACHE_TTL_MS / 1000}`)
+    async featured(@Query('limit') limit?: string): Promise<IFeaturedCat[]> {
+        return this.featuredService.featured(parseFeaturedLimit(limit));
+    }
+
+    /**
+     * GET /blessing/featured/names (public): the cat names reserved because those cats are featured
+     * right now. Meet your cat passes them to `normalizeCatName` as `reserved`, so its inline check
+     * agrees with POST /user/starter and PUT /cat/:id/name. Same 10-minute cache as `featured`.
+     */
+    @Get('featured/names')
+    @Header('Cache-Control', `public, max-age=${FEATURED_CACHE_TTL_MS / 1000}`)
+    async featuredNames(): Promise<{ names: string[] }> {
+        return { names: await this.featuredService.reservedNames() };
+    }
+
+    @UseGuards(AppAuthGuard)
     @Get(':id')
     async findOne(@Param('id') id: string): Promise<Blessing> {
         return this.repository.findOne({
@@ -93,7 +136,7 @@ export class BlessingController {
         });
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.MODERATOR))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.MODERATOR))
     @Post('')
     async create(@Body() object: Blessing, @USER_ID() creatorUserId: string): Promise<Blessing> {
         if (!object.shelter) {
@@ -148,6 +191,7 @@ export class BlessingController {
             createdAt: new Date(),
         });
 
+        const now = new Date();
         return this.repository.create({
             ...object,
             image: new Types.ObjectId(object.image),
@@ -156,11 +200,15 @@ export class BlessingController {
             cat: catId,
             creator: new Types.ObjectId(creatorUserId),
             _id: blessingId,
-            createdAt: new Date(),
+            createdAt: now,
+            // Set from the shelter (F7.8), never from the body: the portrait shelter makes a portrait.
+            kind: blessingKindFor(object.shelter),
+            statusUpdatedBy: new Types.ObjectId(creatorUserId),
+            statusUpdatedAt: now,
         });
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.MODERATOR))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.MODERATOR))
     @Post('custom')
     async createCustom(@Body() body: ICustomBlessing, @USER_ID() creatorUserId: string): Promise<Blessing> {
         if (!body.shelter) {
@@ -227,12 +275,15 @@ export class BlessingController {
             status: body.status,
             instagram: body.instagram,
             description: body.description,
+            kind: blessingKindFor(body.shelter),
+            statusUpdatedBy: new Types.ObjectId(creatorUserId),
+            statusUpdatedAt: new Date(),
         };
 
         return this.repository.create(blessing);
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.MODERATOR))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.MODERATOR))
     @Put(':id')
     async update(
         @Param('id') id: string,
@@ -258,6 +309,16 @@ export class BlessingController {
             throw new NotFoundException();
         }
         propsToIds(object, ['image', 'shelter', 'catAvatar', 'savior']);
+        // `kind` is fixed at creation and the status audit is server-written (F7.8). A move into or
+        // out of the portrait shelter would change what the blessing is, so it is refused.
+        delete (object as Partial<Blessing>).kind;
+        assertKindUnchanged(existingEntity, object.shelter);
+        delete (object as Partial<Blessing>).statusUpdatedBy;
+        delete (object as Partial<Blessing>).statusUpdatedAt;
+        if (object.status && object.status !== existingEntity.status) {
+            object.statusUpdatedBy = new Types.ObjectId(creatorUserId);
+            object.statusUpdatedAt = new Date();
+        }
         if (object.name !== existingEntity.name) {
             const image = await this.imageRepository.findOne({
                 searchObject: { _id: object.image },
@@ -276,7 +337,7 @@ export class BlessingController {
         return updatedEntity;
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.MODERATOR))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.MODERATOR))
     @Put(':id/status')
     async updateStatus(
         @Param('id') id: string,
@@ -291,17 +352,23 @@ export class BlessingController {
             searchObject: { _id: new Types.ObjectId(id) },
             projection: '_id status shelter',
         });
-        if (user.shelter !== blessing.shelter && user.permission < PERMISSION_LEVEL.MANAGER) {
-            throw new BadRequestException('User does not have permission to update this blessing');
-        }
+        // The 404 check runs first: it used to run after `blessing.shelter` was read, so a missing
+        // blessing answered 500 instead of 404.
         if (!blessing) {
             throw new NotFoundException();
         }
-        await this.repository.update(blessing._id, { status: object.status });
+        if (user.shelter !== blessing.shelter && user.permission < PERMISSION_LEVEL.MANAGER) {
+            throw new BadRequestException('User does not have permission to update this blessing');
+        }
+        await this.repository.update(blessing._id, {
+            status: object.status,
+            statusUpdatedBy: new Types.ObjectId(creatorUserId),
+            statusUpdatedAt: new Date(),
+        });
         return RESPONSES.success;
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.MODERATOR))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.MODERATOR))
     @Put(':id/avatar')
     async regenerateAvatar(@Param('id') id: string, @USER_ID() creatorUserId: string): Promise<IResponse> {
         const user = await this.userRepository.findOne({
@@ -335,7 +402,7 @@ export class BlessingController {
         return RESPONSES.success;
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.MODERATOR))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.MODERATOR))
     @Put(':id/custom')
     async updateCustom(
         @Param('id') id: string,
@@ -361,6 +428,8 @@ export class BlessingController {
             throw new NotFoundException();
         }
         propsToIds(body, ['image', 'shelter', 'catAvatar', 'savior']);
+        // Same F7.8 rule as PUT /blessing/:id: the custom editor cannot change what the blessing is.
+        assertKindUnchanged(existingEntity, body.shelter);
 
         await this.catRepository.update(existingEntity.cat!, {
             name: body.name,
@@ -381,7 +450,7 @@ export class BlessingController {
         return updatedEntity;
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.ADMIN))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.ADMIN))
     @Delete(':id')
     async delete(@Param('id') id: string) {
         const entity = await this.repository.findOne({

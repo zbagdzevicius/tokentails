@@ -60,7 +60,7 @@
           "y": 18
         },
         {
-          "x": 20,
+          "x": 12,
           "y": 18
         }
       ],
@@ -247,8 +247,8 @@
   ],
   "meta": {
     "title": "Heist 02: Kennel Row",
-    "parTicks": 2250,
-    "meowRadiusTiles": 6,
+    "parTicks": 1800,
+    "meowRadiusTiles": 7,
     "investigateTicks": 180,
     "maxCoins": 20,
     "twoCatRequired": false,
@@ -263,7 +263,7 @@
         "x1": 22,
         "y1": 8,
         "untilObjective": 0,
-        "text": "The doorman won’t budge. Press {meow} where it can hear you, then sneak past while it sniffs."
+        "text": "The doorman won’t budge. Meow ({meow}) from across the hall: it walks over to sniff where you were, so move away, then slip past behind it."
       },
       {
         "x0": 8,

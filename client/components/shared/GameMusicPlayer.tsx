@@ -1,89 +1,32 @@
-import { getRandomInt } from "@/constants/utils";
+import { acquireMusicEngine, releaseMusicEngine, type MusicEngine } from "@/components/audio/musicEngine";
+import { trackFor } from "@/components/audio/tracks";
 import { useGame } from "@/context/GameContext";
 import { GameType } from "@/models/game";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
-const gameMusicMap: Record<GameType, string> = {
-  [GameType.SHELTER]:
-    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3",
-  [GameType.CATNIP_CHAOS]:
-    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3",
-  [GameType.HOME]:
-    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3",
-  [GameType.PIXEL_RESCUE]:
-    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3",
-  [GameType.MATCH_3]:
-    "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/music.mp3",
-};
-
+/**
+ * The game shell's music (plan G14 "Audio"): the lobby loops its night theme, each mode its own
+ * track. Playback, the first-input unlock, volume, mute, suspension and visibility all live in the
+ * shared music engine (`components/audio/musicEngine`); this component only picks the track.
+ */
 export const GameMusicPlayer = () => {
   const { gameType, level } = useGame();
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [isAllowedToPlay, setIsAllowedToPlay] = useState(false);
+  const engineRef = useRef<MusicEngine | null>(null);
 
-  // Detect user interaction to allow audio playback
   useEffect(() => {
-    const handleUserInteraction = () => {
-      setIsAllowedToPlay(true);
-    };
-
-    window.addEventListener("click", handleUserInteraction);
-
+    engineRef.current = acquireMusicEngine();
     return () => {
-      window.removeEventListener("click", handleUserInteraction);
+      engineRef.current = null;
+      releaseMusicEngine();
     };
   }, []);
 
+  // Purrsuit picks a new song per level; every other mode keeps its track across levels.
+  const levelKey = gameType === GameType.CATNIP_CHAOS ? level : null;
   useEffect(() => {
-    const handleStorageChange = () => {
-      const savedMusicSetting = localStorage.getItem("gameMusic");
-      const isMusicOn =
-        savedMusicSetting === null ? true : JSON.parse(savedMusicSetting);
+    engineRef.current?.setTrack(trackFor(gameType));
+  }, [gameType, levelKey]);
 
-      const audioElement = audioRef.current;
-      if (!audioElement || !gameType) return;
-      audioElement.volume = 0.05;
-
-      if (isMusicOn && isAllowedToPlay) {
-        const musicUrl =
-          gameType === GameType.CATNIP_CHAOS
-            ? `https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/music/in-game/song${getRandomInt(45) + 1
-            }.mp3`
-            : gameMusicMap[gameType];
-        if (audioElement.src !== musicUrl) {
-          audioElement.src = musicUrl;
-          audioElement.currentTime = 0;
-        }
-        audioElement.play().catch((error) => {
-          console.error("Failed to play audio:", error);
-        });
-      } else {
-        audioElement.pause();
-        audioElement.currentTime = 0;
-      }
-    };
-
-    handleStorageChange();
-
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, [gameType, isAllowedToPlay, level]);
-
-  if (!gameType) return null;
-
-  return (
-    <>
-      {isAllowedToPlay && (
-        <audio ref={audioRef} style={{ display: "none" }} loop>
-          <source
-            src={gameType ? gameMusicMap[gameType] : ""}
-            type="audio/mpeg"
-          />
-        </audio>
-      )}
-    </>
-  );
+  return null;
 };
+

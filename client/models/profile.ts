@@ -34,6 +34,10 @@ export interface IProfile {
   match3Count: number;
   match3Score?: number[];
   match3ScoreCount?: number;
+  /** 0/1 per level, same order as `catnipChaos`, `seasonEvent` and `match3` (plan G10, #67). */
+  catnipChaosCleared?: number[];
+  seasonEventCleared?: number[];
+  match3Cleared?: number[];
   referralsCount: number;
   quests: (QUEST | string)[];
   monthTails: number;

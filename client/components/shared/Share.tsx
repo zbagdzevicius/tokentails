@@ -1,3 +1,4 @@
+import { PixelIcon } from "@/components/shared/PixelIcon";
 import { webPath } from "@/api/routing";
 import { useToast } from "@/context/ToastContext";
 import { FacebookMessengerShareButton, FacebookShareButton } from "next-share";
@@ -34,7 +35,7 @@ export const Share = ({ url }: IProps) => {
         hashtag={process.env.NEXT_PUBLIC_SITE_NAME}
       >
         <SharedButtonWrapper>
-          <i className="bx bxl-facebook-circle text-h6"></i>
+          <PixelIcon name="facebook" className="text-h6" />
           <div>Facebook</div>
         </SharedButtonWrapper>
       </FacebookShareButton>
@@ -44,13 +45,13 @@ export const Share = ({ url }: IProps) => {
         appId="722737458784658"
       >
         <SharedButtonWrapper>
-          <i className="bx bxl-messenger text-h6"></i>
+          <PixelIcon name="messenger" className="text-h6" />
           <div>Messenger</div>
         </SharedButtonWrapper>
       </FacebookMessengerShareButton>
       <div aria-label="copy link" className="cursor-pointer" onClick={copy}>
         <SharedButtonWrapper>
-          <i className="bx bxs-copy text-h6"></i>
+          <PixelIcon name="copy" className="text-h6" />
           <div>Copy a link</div>
         </SharedButtonWrapper>
       </div>

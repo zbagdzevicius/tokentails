@@ -7,7 +7,7 @@ import { Header } from "./Header";
 const BlogLayout = ({ children }: PropsWithChildren) => {
   return (
     <EntityMetadataProvider>
-      <div className="bg-gradient-to-b from-yellow-300 via-blue-300">
+      <div className="bg-gradient-to-b from-tt-cream via-blue-300">
         <Header />
 
         <div className="min-h-screen relative flex container pt-24 md:pt-36 mt-safe">

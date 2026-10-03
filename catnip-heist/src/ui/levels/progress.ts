@@ -58,6 +58,13 @@ export interface StorageLike {
   removeItem?(key: string): void;
 }
 
+/** One level of the account's server progress (`HeistLevelProgress` in shared-contracts/heist-bridge). */
+export interface ServerLevelProgress {
+  won: boolean;
+  bestScore: number;
+  stars: number;
+}
+
 export const EMPTY_RECORD: Readonly<LevelRecord> = Object.freeze({ won: false, bestScore: 0, bestTicks: 0, stars: 0, plays: 0 });
 
 /** Number of set bits in a star mask (0-3). */
@@ -150,6 +157,9 @@ export interface RecordOutcome {
   newBest: boolean;
 }
 
+/** Keys never taken from host progress (prototype pollution). */
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 export class ProgressStore {
   private data: ProgressData;
 
@@ -177,6 +187,14 @@ export class ProgressStore {
     return this.get(this.order[i - 1]).won;
   }
 
+  /** No level has been played or won yet (a first-time player). */
+  isFresh(): boolean {
+    return Object.keys(this.data.levels).every((id) => {
+      const r = this.data.levels[id];
+      return !r.won && r.plays === 0 && r.stars === 0;
+    });
+  }
+
   /** Total stars across the campaign. */
   totalStars(): number {
     let n = 0;
@@ -198,6 +216,42 @@ export class ProgressStore {
     this.data.levels[r.levelId] = rec;
     this.save();
     return { record: rec, newStars: earned & ~prev.stars, firstWin: won && !prev.won, newBest: won && r.score > prev.bestScore };
+  }
+
+  /**
+   * Merge the account's server-side best results (embed mode, plan G2 layer 1: the `/heist` host
+   * sends them in its `session` message). Never lowers anything: a level is won if either side won
+   * it, the best score is the higher one, and stars are OR-ed. Best time and play counts stay local
+   * (the server keeps neither). Unknown level ids and malformed entries are ignored. Persists and
+   * returns true only when something changed.
+   */
+  mergeServer(levels: Readonly<Record<string, ServerLevelProgress>> | null | undefined): boolean {
+    if (!levels || typeof levels !== 'object') return false;
+    let changed = false;
+    for (const id of Object.keys(levels)) {
+      // Host data: never a prototype key (a JSON `__proto__` is an own key), and only known levels.
+      if (UNSAFE_KEYS.has(id)) continue;
+      if (this.order.length && !this.order.includes(id)) continue;
+      const remote = levels[id];
+      if (!remote || typeof remote !== 'object') continue;
+      const won = remote.won === true;
+      const score = Number.isFinite(remote.bestScore) && remote.bestScore > 0 ? Math.floor(remote.bestScore) : 0;
+      const stars = Number.isInteger(remote.stars) ? remote.stars & 7 : 0;
+      const prev = this.get(id);
+      const next: LevelRecord = {
+        won: prev.won || won || (stars & STAR_WIN) !== 0,
+        bestScore: Math.max(prev.bestScore, score),
+        bestTicks: prev.bestTicks,
+        stars: prev.stars | stars | (won ? STAR_WIN : 0),
+        plays: prev.plays,
+      };
+      if (next.won !== prev.won || next.bestScore !== prev.bestScore || next.stars !== prev.stars) {
+        this.data.levels[id] = next;
+        changed = true;
+      }
+    }
+    if (changed) this.save();
+    return changed;
   }
 
   /** Forget everything (QA / settings). */

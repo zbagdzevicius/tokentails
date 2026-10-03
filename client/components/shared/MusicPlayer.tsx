@@ -1,50 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { acquireMusicEngine, releaseMusicEngine } from "@/components/audio/musicEngine";
+import { useEffect } from "react";
 
+/**
+ * Loops `src` through the shared music engine (plan G14 "Audio"), so it follows the same first
+ * input unlock, volume, mute, suspension and visibility rules as the game shell. Only one music
+ * track plays per page: the last `src` set wins.
+ */
 export const MusicPlayer = ({ src }: { src: string }) => {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [isAllowedToPlay, setIsAllowedToPlay] = useState(false);
-
-  // Detect user interaction to allow audio playback
   useEffect(() => {
-    const handleUserInteraction = () => {
-      setIsAllowedToPlay(true);
-    };
-
-    window.addEventListener("click", handleUserInteraction);
-
+    const engine = acquireMusicEngine();
+    engine?.setTrack(src);
     return () => {
-      window.removeEventListener("click", handleUserInteraction);
+      releaseMusicEngine();
     };
-  }, []);
-
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const audioElement = audioRef.current;
-
-      if (audioElement && isAllowedToPlay) {
-        audioElement.volume = 0.2;
-        audioElement?.play().catch((error) => {
-          console.error("Failed to play audio:", error);
-        });
-      }
-    };
-
-    handleStorageChange();
-
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, [isAllowedToPlay]);
-
-  return (
-    <>
-      {isAllowedToPlay && (
-        <audio ref={audioRef} className="hidden" loop>
-          <source src={src} type="audio/mpeg" />
-        </audio>
-      )}
-    </>
-  );
+  }, [src]);
+  return null;
 };

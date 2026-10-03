@@ -33,7 +33,8 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: `${vite} build --outDir ${OUT_DIR} --emptyOutDir && ${vite} preview --outDir ${OUT_DIR} --host 127.0.0.1 --port ${PORT} --strictPort`,
+    // VITE_HEIST_QA=1: the e2e build carries the ?qa=1 hooks (production builds never do).
+    command: `VITE_HEIST_QA=1 ${vite} build --outDir ${OUT_DIR} --emptyOutDir && ${vite} preview --outDir ${OUT_DIR} --host 127.0.0.1 --port ${PORT} --strictPort`,
     url: `http://127.0.0.1:${PORT}`,
     reuseExistingServer: false,
     timeout: 120_000,

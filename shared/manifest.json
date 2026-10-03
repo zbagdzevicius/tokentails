@@ -1,0 +1,75 @@
+{
+  "$comment": "Which shared/ file is copied into which package (plan F2). Run `node scripts/sync-contracts.mjs` after editing a shared file or this manifest; CI runs it with --check. A listed file that does not exist yet is skipped (reported as pending), so a task can reserve its entry before it lands. Tests under __tests__/ are copied into the client, whose Jest runs them.",
+  "targets": {
+    "backend": "backend/src/shared-contracts",
+    "client": "client/shared-contracts",
+    "cms": "cms/shared-contracts",
+    "heist": "catnip-heist/src/shared-contracts"
+  },
+  "files": {
+    "enums.ts": [
+      "backend",
+      "client",
+      "cms",
+      "heist"
+    ],
+    "errors.ts": [
+      "backend",
+      "client",
+      "cms",
+      "heist"
+    ],
+    "caps.ts": [
+      "backend",
+      "client",
+      "cms",
+      "heist"
+    ],
+    "storefront.ts": [
+      "backend",
+      "client",
+      "cms"
+    ],
+    "heist-bridge.ts": [
+      "backend",
+      "client",
+      "heist"
+    ],
+    "copy.ts": [
+      "backend",
+      "client",
+      "cms",
+      "heist"
+    ],
+    "name.ts": [
+      "backend",
+      "client",
+      "cms"
+    ],
+    "analytics-core.ts": [
+      "client",
+      "heist"
+    ],
+    "__tests__/enums.test.ts": [
+      "client"
+    ],
+    "__tests__/errors.test.ts": [
+      "client"
+    ],
+    "__tests__/caps.test.ts": [
+      "client"
+    ],
+    "__tests__/storefront.test.ts": [
+      "client"
+    ],
+    "__tests__/heist-bridge.test.ts": [
+      "client"
+    ],
+    "__tests__/copy.test.ts": [
+      "client"
+    ],
+    "__tests__/name.test.ts": [
+      "client"
+    ]
+  }
+}

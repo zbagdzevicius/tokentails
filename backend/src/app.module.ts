@@ -11,10 +11,15 @@ import { Article, ArticleSchema } from './article/article.schema';
 import { BlessingController } from './blessing/blessing.controller';
 import { BlessingRepository } from './blessing/blessing.repository';
 import { Blessing, BlessingSchema } from './blessing/blessing.schema';
+import { FeaturedBlessingService } from './blessing/featured.service';
 import { CatController } from './cat/cat.controller';
 import { CatRepository } from './cat/cat.repository';
 import { Cat, CatSchema } from './cat/cat.schema';
 import { CatService } from './cat/cat.service';
+import { CatStakingService } from './cat/cat-staking.service';
+import { CatNameService } from './cat/cat-name.service';
+import { NameReportRepository } from './cat/name-report.repository';
+import { NameReport, NameReportSchema } from './cat/name-report.schema';
 import { CategoryController } from './category/category.controller';
 import { CategoryRepository } from './category/category.repository';
 import { Category, CategorySchema } from './category/category.schema';
@@ -45,9 +50,54 @@ import {
     X402UsedTxSchema,
 } from './shelter/onchain/shelter-onchain.schema';
 import { ShelterX402Service } from './shelter/onchain/shelter-x402.service';
+import { ShelterDonateReconcileService } from './shelter/onchain/shelter-donate-reconcile.service';
+import { ImpactAdminController } from './impact/impact-admin.controller';
+import { ImpactController } from './impact/impact.controller';
+import { ImpactEligibilityService } from './impact/eligibility.service';
+import { ImpactIndexerService } from './impact/impact-indexer.service';
+import { ImpactService } from './impact/impact.service';
+import {
+    ImpactChainCursor,
+    ImpactChainCursorSchema,
+    ImpactSnapshot,
+    ImpactSnapshotSchema,
+    ShelterPayoutEvent,
+    ShelterPayoutEventSchema,
+} from './impact/impact.schema';
+import {
+    ShelterOutcome,
+    ShelterOutcomeImage,
+    ShelterOutcomeImageSchema,
+    ShelterOutcomeSchema,
+} from './impact/outcome.schema';
+import { ShelterOutcomeService } from './impact/outcomes.service';
+import { Paw, PawSchema, PawSettlement, PawSettlementSchema } from './impact/paws.schema';
+import { PawSettlementService } from './impact/paws.service';
+import { ImpactPayout, ImpactPayoutSchema } from './impact/payout.schema';
+import { ImpactPayoutService } from './impact/payouts.service';
+import { PledgeService } from './impact/pledge.service';
+import { RescueGoalController } from './rescue-goal/rescue-goal.controller';
+import { RescueGoalPledgeService } from './rescue-goal/rescue-goal-pledge.service';
+import {
+    RescueGoal,
+    RescueGoalHelper,
+    RescueGoalHelperSchema,
+    RescueGoalPledge,
+    RescueGoalPledgeDay,
+    RescueGoalPledgeDaySchema,
+    RescueGoalPledgeSchema,
+    RescueGoalReceipt,
+    RescueGoalReceiptSchema,
+    RescueGoalSchema,
+} from './rescue-goal/rescue-goal.schema';
+import { RescueGoalService } from './rescue-goal/rescue-goal.service';
+import { RescueGoalStore } from './rescue-goal/rescue-goal.store';
+import { ShelterMembersService } from './shelter/shelter-members.service';
+import { UserThrottlerGuard } from './shared/guards/user-throttler.guard';
 import { FirebaseAdminModule } from './user/firebase-admin.module';
 import { AuthStrategy } from './user/strategies/auth-app.strategy';
 import { UserController } from './user/user.controller';
+import { StarterController } from './user/starter.controller';
 import { UserRepository } from './user/user.repository';
 import { User, UserSchema } from './user/user.schema';
 import { UserService } from './user/user.service';
@@ -113,6 +163,20 @@ const config = {
             { name: ShelterDonateDay.name, schema: ShelterDonateDaySchema },
             { name: X402Nonce.name, schema: X402NonceSchema },
             { name: X402UsedTx.name, schema: X402UsedTxSchema },
+            { name: ShelterPayoutEvent.name, schema: ShelterPayoutEventSchema },
+            { name: ImpactChainCursor.name, schema: ImpactChainCursorSchema },
+            { name: ImpactSnapshot.name, schema: ImpactSnapshotSchema },
+            { name: Paw.name, schema: PawSchema },
+            { name: PawSettlement.name, schema: PawSettlementSchema },
+            { name: ImpactPayout.name, schema: ImpactPayoutSchema },
+            { name: ShelterOutcome.name, schema: ShelterOutcomeSchema },
+            { name: ShelterOutcomeImage.name, schema: ShelterOutcomeImageSchema },
+            { name: NameReport.name, schema: NameReportSchema },
+            { name: RescueGoal.name, schema: RescueGoalSchema },
+            { name: RescueGoalPledge.name, schema: RescueGoalPledgeSchema },
+            { name: RescueGoalPledgeDay.name, schema: RescueGoalPledgeDaySchema },
+            { name: RescueGoalHelper.name, schema: RescueGoalHelperSchema },
+            { name: RescueGoalReceipt.name, schema: RescueGoalReceiptSchema },
         ]),
         FirebaseAdminModule.forRoot(config as any),
         ...JwtModules,
@@ -120,6 +184,7 @@ const config = {
     controllers: [
         AppController,
         UserController,
+        StarterController,
         ArticleController,
         CategoryController,
         ImageController,
@@ -132,6 +197,9 @@ const config = {
         ShelterOnchainController,
         QuestController,
         TicketController,
+        ImpactController,
+        ImpactAdminController,
+        RescueGoalController,
     ],
     providers: [
         UserRepository,
@@ -148,6 +216,10 @@ const config = {
         ShelterRepository,
         EncryptionService,
         CatService,
+        CatStakingService,
+        CatNameService,
+        NameReportRepository,
+        FeaturedBlessingService,
         GameRepository,
         QuestRepository,
         TicketRepository,
@@ -156,6 +228,19 @@ const config = {
         ShelterChain,
         ShelterDonateService,
         ShelterX402Service,
+        ShelterDonateReconcileService,
+        ImpactEligibilityService,
+        ImpactIndexerService,
+        ImpactService,
+        PawSettlementService,
+        ImpactPayoutService,
+        ShelterOutcomeService,
+        PledgeService,
+        RescueGoalStore,
+        RescueGoalPledgeService,
+        RescueGoalService,
+        ShelterMembersService,
+        UserThrottlerGuard,
         { provide: APP_GUARD, useClass: AppThrottlerGuard },
     ],
 })

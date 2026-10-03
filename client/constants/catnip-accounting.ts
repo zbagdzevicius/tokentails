@@ -1,5 +1,9 @@
 import { MATCH3_LEVELS } from "@/components/Match3/match3.config";
 import { catnipChaosLevelsList } from "@/components/Phaser/map";
+import {
+  CATNIP_CHAOS_ENDLESS_CAP,
+  CATNIP_CHAOS_LEVEL_CAP,
+} from "@/shared-contracts/caps";
 
 type LevelScores = unknown[] | null | undefined;
 
@@ -16,8 +20,16 @@ export interface ICatnipStateLike {
   match3?: LevelScores;
 }
 
+// Caps per level follow the Phaser level list; the values come from the generated copy of
+// shared/caps.ts (plan F2), the same table the backend enforces. Endless is 500 (decision #57).
+// NOT the same table as `CATNIP_CHAOS_LEVEL_CAPS` in `@/shared-contracts/caps`, despite the name:
+// this one has one entry per playable Phaser level (79), the shared one one per backend level slot
+// (97). Each index agrees; only the length and the totals differ. Use this one for what a player can
+// earn in the client UI, the shared one for anything that must match backend validation. The 97 vs
+// 79 mismatch is bug #1 in docs/plans/alignment-log/1a.md.
 export const CATNIP_CHAOS_LEVEL_CAPS = catnipChaosLevelsList.map(
-  (_level, index) => (index === 0 ? 420 : 10),
+  (_level, index) =>
+    index === 0 ? CATNIP_CHAOS_ENDLESS_CAP : CATNIP_CHAOS_LEVEL_CAP,
 );
 export const MATCH3_LEVEL_CAPS = MATCH3_LEVELS.map((level) => level.catnipCap);
 export const CATNIP_CHAOS_TOTAL_CAP = CATNIP_CHAOS_LEVEL_CAPS.reduce(

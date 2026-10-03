@@ -50,10 +50,9 @@ export default function User() {
       name,
       discount,
       email,
-      permission,
-      shelter
+      permission
     }),
-    [name, email, permission, user, shelter, discount]
+    [name, email, permission, user, discount]
   );
 
   async function saveUser() {
@@ -122,12 +121,13 @@ export default function User() {
           onChange={(e) => setEmail(e.target.value)}
         />
       </Labeled>
-      <Labeled label="SHELTER">
+      {/* Read-only: the backend refuses `shelter` in user writes (W1 security hotfix). */}
+      <Labeled label="SHELTER (assigned by an admin)">
         {shelters?.map((shelterOption: IShelter) => (
           <Button
             variant={shelterOption._id === shelter ? 'default' : 'outline'}
             key={shelterOption._id}
-            onClick={() => setShelter(shelterOption._id!)}
+            disabled
           >
             {shelterOption.name}
           </Button>

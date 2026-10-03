@@ -9,3 +9,14 @@ e2e/screens/
 promo/assets/clips/
 promo/tools/capture-log.json
 .vitest/
+# reel30 (promo/reel30): the same rule as promo/ above. Frame captures, the community source videos
+# (third-party UGC, kept local) and their extracted frames, and the rendered audio are reproducible
+# or not ours to publish.
+promo/*/assets/clips/
+promo/*/tools/capture-log.json
+promo/*/assets/community/src/
+promo/*/assets/community/*/
+promo/*/assets/audio/*.wav
+# Playtest session captures (screenshots and videos, ~500 MB) and ad-hoc review screenshots stay local.
+playtest/sessions/
+review-*.png

@@ -1,10 +1,13 @@
-import { BadRequestException, ValidationPipe } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { GUARDS_METADATA, ROUTE_ARGS_METADATA } from '@nestjs/common/constants';
 import { ThrottlerException, ThrottlerStorageService } from '@nestjs/throttler';
 import { Types } from 'mongoose';
-import { LIVE_GAME_USER_THROTTLE } from './dto/live-game.dto';
+import { GameType, scoredGameTypes, seasonEventLevelPointCaps, totalCatnipCap } from 'src/game/game.schema';
+import { CATNIP_CHAOS_ENDLESS_CAP, MATCH3_TOTAL_CAP } from 'src/shared-contracts/caps';
+import { AppValidationPipe, LIVE_GAME_USER_THROTTLE } from './dto/live-game.dto';
 import { LiveGameUserThrottleGuard } from './live-game-throttle.guard';
 import { UserController } from './user.controller';
+import { FakeGames, FakeUsers } from './heist/fake-live-store.helper-spec';
 
 // The real services pull in Mongoose models, AI and wallet code; /live only uses the repositories.
 jest.mock('./user.service', () => ({ UserService: class {} }));
@@ -20,8 +23,21 @@ function createController() {
     const controller = Object.create(UserController.prototype);
     controller.pawMatchLeaderboardCache = new Map();
     controller.repository = {
+        // The /live read asks for `cat` plus the arrays it writes into; healthy arrays skip the guard.
         findOne: jest.fn(async ({ projection }) =>
-            projection === 'cat' ? { _id: new Types.ObjectId(USER_ID), cat: USER_CAT } : {}
+            String(projection).startsWith('cat')
+                ? {
+                      _id: new Types.ObjectId(USER_ID),
+                      cat: USER_CAT,
+                      catnipChaos: [],
+                      seasonEvent: [],
+                      match3: [],
+                      match3Score: [],
+                      catnipChaosCleared: [],
+                      seasonEventCleared: [],
+                      match3Cleared: [],
+                  }
+                : {}
         ),
         update: jest.fn().mockResolvedValue({}),
     };
@@ -36,7 +52,7 @@ async function post(controller: any, body: Record<string, unknown>) {
     const [, bodyArg] = Object.entries<any>(args).find(([key]) => key.startsWith('3:')) as [string, any];
     const metatype = Reflect.getMetadata('design:paramtypes', UserController.prototype, HANDLER)[bodyArg.index];
     let value: unknown = body;
-    for (const pipe of [new ValidationPipe({ transform: true }), ...(bodyArg.pipes || [])]) {
+    for (const pipe of [new AppValidationPipe({ transform: true }), ...(bodyArg.pipes || [])]) {
         value = await pipe.transform(value, { type: 'body', metatype, data: undefined });
     }
     return controller[HANDLER](USER_ID, value);
@@ -84,7 +100,7 @@ describe('POST /user/catbassadors/live', () => {
 
     it.each([
         ['MATCH_3', { level: '1', points: 11, score: 1234, time: 50 }],
-        ['CATNIP_CHAOS', { level: '01', points: 420, time: 0 }],
+        ['CATNIP_CHAOS', { level: '01', points: 500, time: 0 }],
         ['PIXEL_RESCUE', { level: '1', points: 42, time: 0 }],
     ])('accepts what the current client sends for %s', async (type, fields) => {
         const controller = createController();
@@ -92,7 +108,7 @@ describe('POST /user/catbassadors/live', () => {
         expect(controller.gameRepository.create).toHaveBeenCalledTimes(1);
     });
 
-    it.each(['FOO', 'catnip_chaos', '', 'SHELTER', 'HOME', 'PURRQUEST', 'CATBASSADORS'])(
+    it.each(['FOO', 'catnip_chaos', '', 'SHELTER', 'HOME', 'PURRQUEST', 'CATBASSADORS', 'CATNIP_HEIST'])(
         'rejects game type %j with 400 and writes nothing',
         async type => {
             const controller = createController();
@@ -103,6 +119,26 @@ describe('POST /user/catbassadors/live', () => {
             expect(controller.repository.update).not.toHaveBeenCalled();
         }
     );
+
+    describe('CATNIP_HEIST', () => {
+        it('is a GameType but never a plain scored type', () => {
+            expect(GameType.CATNIP_HEIST).toBe('CATNIP_HEIST');
+            expect(scoredGameTypes as readonly string[]).not.toContain(GameType.CATNIP_HEIST);
+        });
+
+        it.each([
+            { level: 'heist-01', points: 250, time: 30 },
+            { level: '1', points: 1, time: 0 },
+            { level: '01', points: 0 },
+        ])('rejects a plain Heist save %j with 400 and writes nothing', async fields => {
+            const controller = createController();
+            await expect(post(controller, { type: GameType.CATNIP_HEIST, ...fields })).rejects.toBeInstanceOf(
+                BadRequestException
+            );
+            expect(controller.gameRepository.create).not.toHaveBeenCalled();
+            expect(controller.repository.update).not.toHaveBeenCalled();
+        });
+    });
 
     it.each([
         [{ tails: 1000000 }],
@@ -157,13 +193,13 @@ describe('POST /user/catbassadors/live', () => {
 
     describe('per-type caps', () => {
         it.each([
-            ['CATNIP_CHAOS', '01', 420],
+            ['CATNIP_CHAOS', '01', 500],
             ['CATNIP_CHAOS', '11', 10],
             ['CATNIP_CHAOS', '166', 10],
             ['MATCH_3', '1', 11],
             ['MATCH_3', '30', 76],
-            ['PIXEL_RESCUE', '1', 420],
-            ['PIXEL_RESCUE', '14', 420],
+            ['PIXEL_RESCUE', '1', 500],
+            ['PIXEL_RESCUE', '14', 500],
         ])('%s level %s accepts %i points and rejects one more', async (type, level, cap) => {
             const ok = createController();
             await expect(post(ok, { type, level, points: cap, time: 1 })).resolves.toBeDefined();
@@ -174,6 +210,13 @@ describe('POST /user/catbassadors/live', () => {
             );
             expect(over.gameRepository.create).not.toHaveBeenCalled();
             expect(over.repository.update).not.toHaveBeenCalled();
+        });
+
+        it('uses the 500 endless and Cupid Cat caps of decision #57', () => {
+            expect(CATNIP_CHAOS_ENDLESS_CAP).toBe(500);
+            expect(seasonEventLevelPointCaps.every(cap => cap === 500)).toBe(true);
+            // MAX_LEGIT_CATNIP_SCORE (the leaderboard ceiling) is totalCatnipCap: 80 higher than with 420.
+            expect(totalCatnipCap).toBe(500 + 96 * 10 + MATCH3_TOTAL_CAP);
         });
 
         it.each([
@@ -211,10 +254,13 @@ describe('POST /user/catbassadors/live', () => {
             expect(over.gameRepository.create).not.toHaveBeenCalled();
         });
 
-        it('records PIXEL_RESCUE points on seasonEvent with $max', async () => {
+        it('records PIXEL_RESCUE points on seasonEvent with $max, and sets lastPlayedAt', async () => {
             const controller = createController();
             await post(controller, { type: 'PIXEL_RESCUE', level: '3', points: 7, time: 0 });
-            expect(controller.repository.update).toHaveBeenCalledWith(USER_ID, { $max: { 'seasonEvent.2': 7 } });
+            expect(controller.repository.update).toHaveBeenNthCalledWith(1, USER_ID, {
+                $max: { 'seasonEvent.2': 7 },
+                $set: { lastPlayedAt: expect.any(Date) },
+            });
         });
     });
 
@@ -237,6 +283,145 @@ describe('POST /user/catbassadors/live', () => {
                 post(controller, { type: 'MATCH_3', level: '1', points: 1, time: 1, platform })
             ).rejects.toBeInstanceOf(BadRequestException);
             expect(controller.gameRepository.create).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('outcome and cleared state (plan F6, G10)', () => {
+        function storeController(doc: Record<string, unknown> = {}) {
+            const users = new FakeUsers();
+            const games = new FakeGames();
+            const controller = Object.create(UserController.prototype);
+            controller.pawMatchLeaderboardCache = new Map();
+            controller.repository = users;
+            controller.gameRepository = games;
+            const userId = users.add(doc);
+            const send = (body: Record<string, unknown>) => postAs(controller, userId, body);
+            return { users, games, userId, send };
+        }
+
+        async function postAs(controller: any, userId: string, body: Record<string, unknown>) {
+            const args = Reflect.getMetadata(ROUTE_ARGS_METADATA, UserController, HANDLER) || {};
+            const [, bodyArg] = Object.entries<any>(args).find(([key]) => key.startsWith('3:')) as [string, any];
+            const metatype = Reflect.getMetadata('design:paramtypes', UserController.prototype, HANDLER)[bodyArg.index];
+            let value: unknown = body;
+            for (const pipe of [new AppValidationPipe({ transform: true }), ...(bodyArg.pipes || [])]) {
+                value = await pipe.transform(value, { type: 'body', metatype, data: undefined });
+            }
+            return controller[HANDLER](userId, value);
+        }
+
+        it.each([
+            ['CATNIP_CHAOS', '11', 1, 'catnipChaosCleared', 97],
+            ['CATNIP_CHAOS', '166', 96, 'catnipChaosCleared', 97],
+            ['PIXEL_RESCUE', '3', 2, 'seasonEventCleared', 14],
+            ['MATCH_3', '30', 29, 'match3Cleared', 30],
+        ])('%s level %s won sets %s[%i] in the same $max', async (type, level, index, field, length) => {
+            const { users, userId, send } = storeController();
+            const totals = await send({ type, level, points: 1, time: 1, outcome: 'won' });
+            const bestUpdate = users.updates.find(entry => !Array.isArray(entry.update) && entry.update.$max);
+            expect(bestUpdate!.update.$max[`${field}.${index}`]).toBe(1);
+            const stored = users.get(userId)[field];
+            expect(Array.isArray(stored)).toBe(true);
+            expect(stored).toHaveLength(length);
+            expect(stored[index]).toBe(1);
+            expect(stored.reduce((a: number, b: number) => a + b, 0)).toBe(1);
+            expect(totals[field]).toEqual(stored);
+        });
+
+        it('never clears INFINITE (Purrsuit 01), even when won', async () => {
+            const { users, userId, send } = storeController();
+            const totals = await send({ type: 'CATNIP_CHAOS', level: '01', points: 500, time: 0, outcome: 'won' });
+            const bestUpdate = users.updates.find(entry => !Array.isArray(entry.update) && entry.update.$max);
+            expect(Object.keys(bestUpdate!.update.$max)).toEqual(['catnipChaos.0']);
+            // Nothing was cleared, so no cleared array is created (review 3b finding 6); the response
+            // still carries the zeros.
+            expect(users.get(userId).catnipChaosCleared).toBeUndefined();
+            expect(totals.catnipChaosCleared).toEqual(Array(97).fill(0));
+        });
+
+        it.each(['died', 'timeout', 'quit', undefined])('outcome %j clears nothing', async outcome => {
+            const { users, userId, send } = storeController();
+            const totals = await send({
+                type: 'PIXEL_RESCUE',
+                level: '1',
+                points: 3,
+                time: 0,
+                ...(outcome ? { outcome } : {}),
+            });
+            expect(users.get(userId).seasonEventCleared).toBeUndefined();
+            expect(totals.seasonEventCleared).toEqual(Array(14).fill(0));
+        });
+
+        it('keeps an earlier clear when a later run on the level dies', async () => {
+            const { users, userId, send } = storeController();
+            await send({ type: 'MATCH_3', level: '2', points: 5, time: 10, outcome: 'won' });
+            await send({ type: 'MATCH_3', level: '2', points: 0, time: 10, outcome: 'died' });
+            expect(users.get(userId).match3Cleared[1]).toBe(1);
+        });
+
+        it('stores the outcome on the Game row when sent, and no outcome key for older clients', async () => {
+            const withOutcome = storeController();
+            await withOutcome.send({ type: 'MATCH_3', level: '1', points: 1, time: 1, outcome: 'timeout' });
+            expect(withOutcome.games.rows[0].outcome).toBe('timeout');
+
+            const legacy = storeController();
+            await legacy.send({ type: 'MATCH_3', level: '1', points: 1, time: 1 });
+            expect(legacy.games.rows[0]).not.toHaveProperty('outcome');
+        });
+
+        it.each(['WON', 'win', 1, ''])('rejects outcome %j with 400', async outcome => {
+            const { games, send } = storeController();
+            await expect(send({ type: 'MATCH_3', level: '1', points: 1, time: 1, outcome })).rejects.toBeInstanceOf(
+                BadRequestException
+            );
+            expect(games.create).not.toHaveBeenCalled();
+        });
+
+        it('turns missing best and cleared arrays into arrays before the dotted $max', async () => {
+            const { users, userId, send } = storeController({ catnipChaos: undefined, catnipChaosCleared: null });
+            delete users.get(userId).catnipChaos;
+            await send({ type: 'CATNIP_CHAOS', level: '12', points: 4, time: 0, outcome: 'won' });
+            const guard = users.updates.find(entry => Array.isArray(entry.update));
+            expect(Object.keys(guard!.update[0].$set).sort()).toEqual(['catnipChaos', 'catnipChaosCleared']);
+            const user = users.get(userId);
+            expect(Array.isArray(user.catnipChaos)).toBe(true);
+            expect(user.catnipChaos[2]).toBe(4);
+            expect(Array.isArray(user.catnipChaosCleared)).toBe(true);
+            expect(user.catnipChaosCleared[2]).toBe(1);
+        });
+
+        it('does not run the guard when every target array exists', async () => {
+            const { users, send } = storeController({ match3: [], match3Score: [], match3Cleared: [] });
+            await send({ type: 'MATCH_3', level: '1', points: 1, time: 1, outcome: 'won' });
+            expect(users.updates.some(entry => Array.isArray(entry.update))).toBe(false);
+        });
+
+        it('sets lastPlayedAt on every save, and only through /live', async () => {
+            const { users, userId, send } = storeController();
+            await send({ type: 'CATNIP_CHAOS', level: '11', points: 1, time: 0 });
+            expect(users.get(userId).lastPlayedAt).toBeInstanceOf(Date);
+        });
+
+        it('accepts an existing-mode save exactly as before: same row, same totals shape plus the new arrays', async () => {
+            const { games, send } = storeController();
+            const totals = await send({
+                type: 'MATCH_3',
+                level: '1',
+                points: 11,
+                score: 1234,
+                time: 50,
+                platform: 'web',
+            });
+            expect(Object.keys(games.rows[0]).sort()).toEqual(
+                ['_id', 'cat', 'level', 'platform', 'points', 'score', 'time', 'type', 'user'].sort()
+            );
+            expect(totals).toMatchObject({
+                match3: expect.any(Array),
+                match3Count: 11,
+                match3ScoreCount: 1234,
+                catnipCount: 11,
+            });
+            expect(totals.heistScore).toEqual(Array(8).fill(0));
         });
     });
 });

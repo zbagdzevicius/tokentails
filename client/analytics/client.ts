@@ -1,7 +1,8 @@
 import { readConsent, writeConsent, type ConsentState } from "./consent";
 import type { AnalyticsEvent, AnalyticsSuperProperties } from "./events";
+import { POSTHOG_EU_HOST } from "@/shared-contracts/analytics-core";
 
-export const POSTHOG_EU_HOST = "https://eu.i.posthog.com";
+export { POSTHOG_EU_HOST };
 
 /** The part of the PostHog client this module uses. */
 export interface AnalyticsClient {

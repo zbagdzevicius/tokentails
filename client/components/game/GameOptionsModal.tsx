@@ -1,6 +1,10 @@
 import { bgStyle, cdnFile, getNextDayMidnight } from "@/constants/utils";
 import { GameModal, GameType } from "@/models/game";
 import { IProfile } from "@/models/profile";
+import { HUD_AUDIO_COLUMN, HUD_AUDIO_RIGHT, HUD_SETTINGS_TOP } from "@/components/audio/hudPlacement";
+import { SettingsButton } from "@/components/audio/SettingsButton";
+import { SettingsModal } from "@/components/audio/SettingsModal";
+import { useState } from "react";
 import { GameStatsSection } from "../catbassadors/GameStatsSection";
 import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
@@ -18,10 +22,16 @@ export const GameOptionsModal = ({
   setOpenedModal,
 }: IProps) => {
   const nextDayTargetDate = getNextDayMidnight();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <>
       <GameStatsSection profile={profile} setOpenedModal={setOpenedModal} />
+      {/* Settings (plan G14 "Audio"): sound and the graphics tier. */}
+      <div className={HUD_AUDIO_COLUMN} style={{ top: HUD_SETTINGS_TOP, right: HUD_AUDIO_RIGHT }}>
+        <SettingsButton onClick={() => setSettingsOpen(true)} />
+      </div>
+      <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
       {!gameType && (
         <div className="fixed z-10 bottom-8 md:bottom-4 lg:bottom-8 xl:bottom-12 left-4 right-4 pb-safe flex justify-between md:justify-center md:gap-8 items-end">
           <div className="relative">
@@ -53,7 +63,7 @@ export const GameOptionsModal = ({
                     className="w-6 z-10"
                     src={cdnFile("logo/logo.webp")}
                   />
-                  <div className="text-p5">WIN $TAILS</div>
+                  <div className="text-p5">WIN TAILS</div>
                 </div>
               </div>
             )}
@@ -62,9 +72,9 @@ export const GameOptionsModal = ({
             )}
             <span className="-mt-4 -mb-2">
               <PixelButton
-                isDisabled={!profile.canRedeemLives}
+                disabled={!profile.canRedeemLives}
                 onClick={() => setOpenedModal(GameModal.SPIN_WHEEL)}
-                isSmall={!profile.canRedeemLives}
+                size={!profile.canRedeemLives ? "sm" : "md"}
                 text={profile.canRedeemLives ? "DAILY SPIN" : "SPINNED"}
               ></PixelButton>
             </span>

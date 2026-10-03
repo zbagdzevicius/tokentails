@@ -1,3 +1,4 @@
+import { NIGHT_WALLET_KIT_THEME } from "@/components/web3/nightTheme";
 import { isProd } from "@/models/app";
 
 import { StellarWalletsKit } from "@creit.tech/stellar-wallets-kit/sdk";
@@ -12,6 +13,8 @@ if (typeof window !== "undefined") {
     modules: defaultModules(),
     selectedWalletId: LOBSTR_ID,
     network: isProd ? WalletNetwork.PUBLIC : WalletNetwork.TESTNET,
+    // Night wallet picker over the night Packs page (plan G6).
+    theme: { ...NIGHT_WALLET_KIT_THEME },
   });
 }
 

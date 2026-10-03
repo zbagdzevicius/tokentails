@@ -1,9 +1,13 @@
+// copy-lint: web-only app builds render AppProofNotice instead (the isAppBuild gate in ShelterPayouts)
+import { isAppBuild } from "@/components/claims/build";
+import { PixelButton } from "@/components/shared/PixelButton";
 import NextLink from "next/link";
 import { useEffect, useState } from "react";
+import { AppProofNotice } from "./AppProofNotice";
 import { CampaignMeter } from "./CampaignMeter";
 import { Campaign, campaignProgress, fetchCampaign } from "./campaign";
-import { explorerAddress, explorerTx } from "./chains";
-import { Disbursement, formatUnits, payoutUnit, to18 } from "./logs";
+import { ChainInfo, explorerAddress, explorerTx } from "./chains";
+import { Disbursement, displayMemo, formatUnits, payoutUnit, to18 } from "./logs";
 import {
   ShelterDeployment,
   fetchDeployments,
@@ -12,13 +16,14 @@ import {
   resolveChain,
 } from "./rpc";
 import { ShelterProfile } from "./ShelterProfile";
+import { CARD, CHIP, FIGURE, MEMO, HEADLINE, Kicker, NightStage, PANEL, PILL, PinkCat } from "./ui";
 import { WalletDonate } from "./WalletDonate";
 
 export const GIVE_URL = "/shelter-payouts/give";
 
-// Static Catnip Heist build in public/heist (catnip-heist: npm run build:client). Next.js does
-// not serve index.html for a directory, so the link names the file.
-export const HEIST_URL = "/heist/index.html";
+// The Catnip Heist host page (task 4b); the old /heist/index.html redirects there.
+export const HEIST_URL = "/heist";
+export const IMPACT_URL = "/impact";
 
 export const DISCLOSURE =
   "Shelter wallet held by Token Tails on behalf of the shelter until handover";
@@ -52,16 +57,60 @@ function totalsBySymbol(
 
 const short = (v: string) => `${v.slice(0, 6)}…${v.slice(-4)}`;
 
-const Link = ({ href, text }: { href: string; text: string }) => (
+/** "2 October 2026" for a `YYYY-MM-DD` date, or null when unset or not a date. */
+export function claimsDateLabel(date: string | null | undefined): string | null {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const t = Date.parse(`${date}T00:00:00Z`);
+  if (Number.isNaN(t)) return null;
+  return new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+/**
+ * The empty state while no payout exists (plan G4 acceptance: future tense and the claims date, or
+ * no date if unset). The date is the campaign's start, the day payouts begin to count.
+ */
+export function payoutsEmptyCopy(startDate: string | null | undefined, now: Date = new Date()): string {
+  const lead = "No payouts yet. Token Tails will list each payout here as soon as the first contract goes live.";
+  const label = claimsDateLabel(startDate);
+  if (!label) return lead;
+  const started = Date.parse(`${startDate}T00:00:00Z`) <= now.getTime();
+  return started
+    ? `${lead} Every payout from ${label} on will count toward the campaign.`
+    : `${lead} Payouts will start counting on ${label}.`;
+}
+
+// Two decimals is plenty for a headline figure: 12.345678 -> 12.34.
+const twoDp = (v18: bigint) => {
+  const [w, f] = formatUnits(v18, 18).split(".");
+  return f ? `${w}.${f.slice(0, 2)}` : w;
+};
+
+const Link = ({ href, text, label }: { href: string; text: string; label?: string }) => (
   <a
     href={href}
     target="_blank"
     rel="noopener noreferrer"
-    className="underline decoration-dotted hover:text-yellow-300 font-mono"
+    aria-label={label}
+    // The `code` role: addresses and tx hashes only (plan F4, G14).
+    // eslint-disable-next-line tt/no-raw-font
+    className="font-mono normal-case underline decoration-dotted underline-offset-2 hover:text-tt-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-tt-gold-400"
   >
     {text}
   </a>
 );
+
+const Addr = ({ explorer, value, kind }: { explorer?: string; value: string; kind: "address" | "tx" }) =>
+  explorer ? (
+    <Link
+      href={kind === "tx" ? explorerTx(explorer, value) : explorerAddress(explorer, value)}
+      text={short(value)}
+      label={kind === "tx" ? `Transaction ${short(value)} on the explorer` : undefined}
+    />
+  ) : (
+    // The `code` role: an address or a tx hash (plan F4, G14).
+    // eslint-disable-next-line tt/no-raw-font
+    <span className="font-mono normal-case">{short(value)}</span>
+  );
 
 type Balance = { status: "loading" } | { status: "error" } | { status: "done"; wei: bigint };
 
@@ -75,12 +124,12 @@ const BalanceLine = ({
   symbol: string;
   decimals: number;
 }) => (
-  <p className="mt-1 opacity-90" data-testid="contract-balance">
+  <p className="text-p6 md:text-p5 text-tt-cream/75" data-testid="contract-balance">
     Contract balance:{" "}
-    {balance.status === "loading" && <span className="animate-pulse">…</span>}
+    {balance.status === "loading" && <span className="motion-safe:animate-pulse">…</span>}
     {balance.status === "error" && <span>unavailable</span>}
     {balance.status === "done" && (
-      <strong>
+      <strong className="text-tt-cream">
         {formatUnits(balance.wei, decimals)} {symbol}
       </strong>
     )}{" "}
@@ -88,7 +137,15 @@ const BalanceLine = ({
   </p>
 );
 
-const DeploymentCard = ({
+const chainLabel = (deployment: ShelterDeployment, chain: ChainInfo | null) =>
+  `${chain?.name || `Chain ${deployment.chainId}`}${
+    deployment.network && !(chain?.name || "").toLowerCase().includes(deployment.network.toLowerCase())
+      ? ` ${deployment.network}`
+      : ""
+  }`;
+
+/** One chain: its total, payout count, contract and balance. */
+const ChainCard = ({
   deployment,
   result,
   balance,
@@ -98,100 +155,101 @@ const DeploymentCard = ({
   balance: Balance;
 }) => {
   const chain = resolveChain(deployment);
-  const explorer = chain?.explorer;
-  const unit = (d: Disbursement) =>
-    chain ? payoutUnit(d.kind, chain) : { decimals: 6, symbol: "" };
   const cardTotals = result.status === "done" ? totalsBySymbol(result.items, chain) : [];
 
   return (
-    <section className="w-full rounded-xl border-2 border-yellow-900 bg-black/60 p-4 text-p5 font-secondary">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="font-primary uppercase text-p3">
-          {chain?.name || `Chain ${deployment.chainId}`}
-          {deployment.network ? ` ${deployment.network}` : ""}
+    <section className={`${CARD} flex flex-col gap-3`} data-testid="chain-card">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-primary text-p3 md:text-p2 uppercase leading-none text-tt-cream">
+          {chainLabel(deployment, chain)}
         </h3>
-        <div>
-          Contract{" "}
-          {explorer ? (
-            <Link
-              href={explorerAddress(explorer, deployment.address)}
-              text={short(deployment.address)}
-            />
-          ) : (
-            <span className="font-mono">{short(deployment.address)}</span>
-          )}
-        </div>
+        <span className={CHIP}>
+          <span className="sr-only">Contract </span>
+          <Addr explorer={chain?.explorer} value={deployment.address} kind="address" />
+        </span>
       </div>
-      <BalanceLine
-        balance={balance}
-        symbol={chain?.nativeSymbol || ""}
-        decimals={chain?.nativeDecimals ?? 18}
-      />
 
       {result.status === "loading" && (
-        <p className="mt-3 animate-pulse">Reading payouts from the chain…</p>
+        <p className="motion-safe:animate-pulse">Reading payouts from the chain…</p>
       )}
       {result.status === "error" && (
-        <p className="mt-3 text-red-300" role="alert">
+        <p className="text-tt-rust" role="alert">
           Could not read payouts: {result.error}
         </p>
       )}
       {result.status === "done" && result.items.length === 0 && (
-        <p className="mt-3">No payouts yet on this deployment.</p>
+        <p className="text-tt-cream/85" data-testid="deployment-empty">
+          No payouts on this contract yet. Token Tails will list each one here as it lands.
+        </p>
       )}
       {result.status === "done" && result.items.length > 0 && (
-        <>
-          <p className="mt-2">
-            Total paid:{" "}
-            <strong>
-              {cardTotals.map((t) => `${formatUnits(t.amount, 18)} ${t.symbol}`).join(" + ")}
-            </strong>{" "}
-            in {result.items.length} payout
-            {result.items.length === 1 ? "" : "s"}
+        <div>
+          <p className={`${FIGURE} text-h5 md:text-h4`}>
+            {cardTotals.map((t) => `${twoDp(t.amount)} ${t.symbol}`).join(" + ")}
           </p>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="uppercase">
-                  <th className="pr-4 py-1">Shelter</th>
-                  <th className="pr-4 py-1">Amount</th>
-                  <th className="pr-4 py-1">Memo</th>
-                  <th className="py-1">Tx</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.items.map((d) => (
-                  <tr key={`${d.txHash}-${d.logIndex}`} className="border-t border-white/20">
-                    <td className="pr-4 py-1">
-                      {explorer ? (
-                        <Link href={explorerAddress(explorer, d.shelter)} text={short(d.shelter)} />
-                      ) : (
-                        short(d.shelter)
-                      )}
-                    </td>
-                    <td className="pr-4 py-1 whitespace-nowrap">
-                      {formatUnits(d.amount, unit(d).decimals)} {unit(d).symbol}
-                    </td>
-                    <td className="pr-4 py-1 break-words">{d.memo || "—"}</td>
-                    <td className="py-1">
-                      {explorer ? (
-                        <Link href={explorerTx(explorer, d.txHash)} text={short(d.txHash)} />
-                      ) : (
-                        short(d.txHash)
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+          <p className="mt-1 font-primary text-p5 uppercase tracking-wide text-tt-cream/80">
+            Total paid in {result.items.length} payout{result.items.length === 1 ? "" : "s"}
+          </p>
+        </div>
       )}
+
+      <BalanceLine
+        balance={balance}
+        symbol={chain?.balanceToken ? chain.symbol : chain?.nativeSymbol || ""}
+        decimals={chain?.balanceToken ? chain.decimals : chain?.nativeDecimals ?? 18}
+      />
     </section>
   );
 };
 
-export const ShelterPayouts = () => {
+type FeedItem = { d: Disbursement; chain: ChainInfo | null; chainName: string };
+
+/** Every payout on every chain, newest block first within each chain. */
+const PayoutFeed = ({ items, shelterName }: { items: FeedItem[]; shelterName: (addr: string) => string | null }) => (
+  <ul className="flex flex-col gap-3" data-testid="payouts-feed">
+    {items.map(({ d, chain, chainName }) => {
+      const unit = chain ? payoutUnit(d.kind, chain) : { decimals: 6, symbol: "" };
+      const memo = displayMemo(d.memo);
+      const name = shelterName(d.shelter);
+      return (
+        <li
+          key={`${chainName}-${d.txHash}-${d.logIndex}`}
+          className="flex flex-col gap-2 rounded-2xl border-2 border-tt-cream/40 bg-tt-night-900/70 p-3 md:flex-row md:items-center md:gap-4 md:p-4"
+        >
+          <span className="flex items-center gap-3 md:w-56 md:shrink-0">
+            <span aria-hidden="true" className="text-h6">🐾</span>
+            <span className="font-primary text-p1 md:text-h6 leading-none whitespace-nowrap text-tt-gold-400 [text-shadow:0_0_8px_rgb(var(--tt-gold-400)/.45)]">
+              {formatUnits(d.amount, unit.decimals)} {unit.symbol}
+            </span>
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="text-p5 md:text-p4">
+              to{" "}
+              {name ? (
+                <strong className="text-tt-cream">{name}</strong>
+              ) : (
+                <Addr explorer={chain?.explorer} value={d.shelter} kind="address" />
+              )}
+            </span>
+            <span className="flex flex-wrap gap-2">
+              <span className={CHIP}>{chainName}</span>
+              {memo && <span className={MEMO}>{memo}</span>}
+            </span>
+          </span>
+          <span className="text-p6 md:text-p5 text-tt-cream/80">
+            <span className="mr-1">Tx</span>
+            <Addr explorer={chain?.explorer} value={d.txHash} kind="tx" />
+          </span>
+        </li>
+      );
+    })}
+  </ul>
+);
+
+export const ShelterPayouts = ({ embed = false }: { embed?: boolean }) =>
+  isAppBuild() ? <AppProofNotice /> : <WebShelterPayouts embed={embed} />;
+
+const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
   const [page, setPage] = useState<Page>({ status: "loading" });
   const [results, setResults] = useState<Record<number, Result>>({});
   const [balances, setBalances] = useState<Record<number, Balance>>({});
@@ -242,6 +300,8 @@ export const ShelterPayouts = () => {
       }
     });
   }
+  const totalEntries = Object.entries(totals);
+  const payoutCount = totalEntries.reduce((n, [, t]) => n + t.count, 0);
   const pending =
     page.status === "done" &&
     page.deployments.some((_, i) => results[i]?.status !== "done" && results[i]?.status !== "error");
@@ -252,7 +312,9 @@ export const ShelterPayouts = () => {
         campaign,
         deployments.flatMap((d, i) => {
           const r = results[i];
-          return r?.status === "done" ? [{ chainId: d.chainId, items: r.items }] : [];
+          return r?.status === "done"
+            ? [{ chainId: d.chainId, items: r.items, symbol: resolveChain(d)?.symbol }]
+            : [];
         })
       )
     : null;
@@ -261,94 +323,192 @@ export const ShelterPayouts = () => {
     : undefined;
   const campaignChain = campaignDeployment ? resolveChain(campaignDeployment) : null;
 
+  const feed: FeedItem[] = deployments.flatMap((d, i) => {
+    const r = results[i];
+    if (r?.status !== "done") return [];
+    const chain = resolveChain(d);
+    return r.items.map((item) => ({ d: item, chain, chainName: chainLabel(d, chain) }));
+  });
+  const shelterName = (addr: string) =>
+    campaign?.shelter.wallet && campaign.shelter.wallet === addr.toLowerCase() ? campaign.shelter.name : null;
+
+  // Inside the Heist modal (`?embed=1`) links leave the iframe, and the Heist link is dropped.
+  const target = embed ? "_top" : undefined;
+
   return (
-    <div className="flex w-full max-w-4xl flex-col items-center gap-4 px-4 pb-16">
-      <h2 className="text-center font-primary uppercase tracking-tight text-h6 md:text-h2 text-balance">
-        Shelter
-        <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)] ml-3">
-          Payouts
-        </span>
-      </h2>
-      <p className="text-center font-secondary text-p5 max-w-2xl">
-        Every payout from the ShelterSplit contract is read live from the chain.
-        Nothing on this page comes from our servers.
-      </p>
-      <NextLink
-        href={GIVE_URL}
-        className="rounded-xl border-2 border-yellow-900 bg-pink-400 px-4 py-2 font-primary uppercase text-p4 text-black hover:brightness-105"
-        data-testid="give-treat"
-      >
-        Send Pink Paw a rescue treat 🐾
-      </NextLink>
-      <a
-        href={HEIST_URL}
-        className="rounded-xl border-2 border-yellow-900 bg-black/60 px-4 py-2 font-primary uppercase text-p4 hover:text-yellow-300"
-        data-testid="play-heist"
-      >
-        Play Catnip Heist: rescue a shelter cat
-      </a>
-      <p
-        className="w-full rounded-xl border-2 border-yellow-900 bg-yellow-300 px-4 py-2 text-center font-secondary text-p5 text-black"
-        data-testid="shelter-disclosure"
-      >
-        {DISCLOSURE}
-      </p>
+    <div className="flex w-full flex-col text-tt-cream">
+      {/* HERO: the total sent to shelters, as big as the landing's figures. */}
+      <NightStage>
+        <section
+          className={`mx-auto flex max-w-[1400px] flex-col items-center gap-5 px-4 text-center md:gap-6 md:px-8 lg:px-16 ${
+            embed ? "pt-8 pb-12" : "pt-24 pb-16 md:pt-32 md:pb-24"
+          }`}
+        >
+          <Kicker>Live from the chain</Kicker>
+          <h1 className="font-primary text-h5 md:text-h2 xl:text-h1 font-bold uppercase leading-none text-white drop-shadow-lg text-balance">
+            Shelter <span className="glow text-tt-cream">payouts</span>
+          </h1>
 
-      {campaign && (
-        <ShelterProfile campaign={campaign} explorer={campaignChain?.explorer} />
-      )}
-      {campaign && progress && (
-        <CampaignMeter campaign={campaign} progress={progress} loading={pending} />
-      )}
-      {campaign && campaignDeployment && campaignChain && (
-        <WalletDonate
-          chainId={campaignDeployment.chainId}
-          chain={campaignChain}
-          splitAddress={campaignDeployment.address}
-          shelterName={campaign.shelter.name}
-        />
-      )}
+          {page.status === "done" && page.deployments.length > 0 && (
+            <div className="flex flex-col items-center gap-2" data-testid="payouts-totals" aria-live="polite">
+              {totalEntries.length === 0 && pending && (
+                <p className={`${FIGURE} text-h3 md:text-h1 motion-safe:animate-pulse`}>…</p>
+              )}
+              {totalEntries.length === 0 && !pending && <p className={`${FIGURE} text-h3 md:text-h1`}>0 USDC</p>}
+              {totalEntries.map(([symbol, t]) => (
+                <p key={symbol} className={`${FIGURE} text-[64px] md:text-[120px] lg:text-[160px]`}>
+                  {twoDp(t.amount)} <span className="text-h5 md:text-h3">{symbol}</span>
+                </p>
+              ))}
+              {totalEntries.length > 0 && (
+                <p className="font-primary text-p4 md:text-p2 uppercase tracking-wide text-tt-cream">
+                  across {payoutCount} payout{payoutCount === 1 ? "" : "s"} on {deployments.length} chain
+                  {deployments.length === 1 ? "" : "s"}
+                  {pending ? " · still counting…" : ""}
+                </p>
+              )}
+            </div>
+          )}
+          {page.status === "done" && page.deployments.length === 0 && (
+            <p className={`${FIGURE} text-h4 md:text-h2`}>First payout soon</p>
+          )}
 
-      {page.status === "loading" && (
-        <p className="font-secondary text-p5 animate-pulse">Loading deployments…</p>
-      )}
-      {page.status === "error" && (
-        <p className="font-secondary text-p5 text-red-300" role="alert">
-          Could not load the deployment list: {page.error}
-        </p>
-      )}
-      {page.status === "done" && page.deployments.length === 0 && (
-        <p className="font-secondary text-p5">
-          No ShelterSplit deployments are published yet. Payouts appear here as soon as the first
-          contract goes live.
-        </p>
-      )}
+          <p className="max-w-2xl text-p5 md:text-p4 text-tt-cream/90">
+            Every payout from the ShelterSplit contract is read live from the chain&apos;s public RPC, not
+            from our servers.
+          </p>
 
-      {page.status === "done" && page.deployments.length > 0 && (
-        <>
-          <div className="w-full rounded-xl border-2 border-yellow-900 bg-black/60 p-4 font-secondary text-p5">
-            <h3 className="font-primary uppercase text-p3">Totals</h3>
-            {Object.keys(totals).length === 0 && pending && <p className="animate-pulse">Counting…</p>}
-            {Object.entries(totals).map(([symbol, t]) => (
-              <p key={symbol}>
-                {formatUnits(t.amount, 18)} {symbol} across {t.count} payout
-                {t.count === 1 ? "" : "s"}
-              </p>
-            ))}
-            {pending && Object.keys(totals).length > 0 && (
-              <p className="opacity-70">Some chains are still loading.</p>
-            )}
+          <div className="mt-2 flex flex-col items-center gap-6 md:mt-4">
+            <NextLink href={GIVE_URL} target={target} data-testid="give-treat">
+              <PixelButton as="span" text="SEND A TREAT" subtext="🐾" size="md" className="md:scale-125 md:hover:scale-[1.35]" />
+            </NextLink>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              {/* claim: fiction in-game rescue, the Heist story */}
+              {!embed && (
+                <a href={HEIST_URL} className={PILL} data-testid="play-heist">
+                  Play Catnip Heist: rescue a shelter cat
+                </a>
+              )}
+              <NextLink href={IMPACT_URL} target={target} className={PILL} data-testid="see-impact">
+                See all impact ›
+              </NextLink>
+            </div>
           </div>
-          {page.deployments.map((d, i) => (
-            <DeploymentCard
-              key={`${d.chainId}-${d.address}`}
-              deployment={d}
-              result={results[i] || { status: "loading" }}
-              balance={balances[i] || { status: "loading" }}
-            />
-          ))}
-        </>
-      )}
+
+          <p
+            className="inline-flex items-center gap-2 rounded-xl border-2 border-tt-cream/70 bg-tt-night-900/80 px-4 py-2 text-p6 md:text-p5 text-tt-cream"
+            data-testid="shelter-disclosure"
+          >
+            <span aria-hidden="true">🔑</span>
+            {DISCLOSURE}
+          </p>
+        </section>
+      </NightStage>
+
+      <NightStage>
+        <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-4 pt-8 pb-16 md:gap-8 md:px-8 md:pt-12 lg:px-16">
+          {/* PINK PAW: the showcase shelter and its campaign. */}
+          {campaign && (
+            <section className={PANEL} data-testid="pink-paw-showcase">
+              <Kicker>Showcase shelter</Kicker>
+              <h2 className={HEADLINE}>
+                Where your treats <span className="glow text-tt-cream">land first.</span>
+              </h2>
+              <div className="mt-5 grid grid-cols-1 items-start gap-4 md:mt-7 md:gap-6 lg:grid-cols-[auto_1fr_1fr]">
+                <div className="mx-auto flex h-40 w-40 items-end justify-center overflow-hidden rounded-2xl border-4 border-tt-cream bg-gradient-to-b from-tt-dusk-top via-tt-dusk-mid to-tt-dusk-horizon md:h-48 md:w-48">
+                  <PinkCat className="-mb-8 h-56 w-56 max-w-none shrink-0 md:-mb-10 md:h-64 md:w-64" />
+                </div>
+                <ShelterProfile campaign={campaign} explorer={campaignChain?.explorer} />
+                <div className="flex flex-col gap-4">
+                  {progress && <CampaignMeter campaign={campaign} progress={progress} loading={pending} />}
+                  {campaignDeployment && campaignChain && (
+                    <WalletDonate
+                      chainId={campaignDeployment.chainId}
+                      chain={campaignChain}
+                      splitAddress={campaignDeployment.address}
+                      shelterName={campaign.shelter.name}
+                    />
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {page.status === "loading" && (
+            <p className="text-center motion-safe:animate-pulse">Loading deployments…</p>
+          )}
+          {page.status === "error" && (
+            <p className={`${PANEL} text-tt-rust`} role="alert">
+              Could not load the deployment list: {page.error}
+            </p>
+          )}
+          {page.status === "done" && page.deployments.length === 0 && (
+            <section className={`${PANEL} flex flex-col items-center gap-3 text-center`}>
+              <PinkCat lick className="h-40 w-40 -my-6" />
+              <p className="max-w-2xl text-p5 md:text-p4" data-testid="payouts-empty">
+                {payoutsEmptyCopy(campaign?.startDate)}
+              </p>
+            </section>
+          )}
+
+          {page.status === "done" && page.deployments.length > 0 && (
+            <>
+              {/* PER CHAIN */}
+              <section className={PANEL}>
+                <Kicker>Per chain</Kicker>
+                <h2 className={HEADLINE}>
+                  One contract, <span className="glow text-tt-cream">every chain.</span>
+                </h2>
+                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 md:mt-7 md:gap-4 xl:grid-cols-3">
+                  {page.deployments.map((d, i) => (
+                    <ChainCard
+                      key={`${d.chainId}-${d.address}`}
+                      deployment={d}
+                      result={results[i] || { status: "loading" }}
+                      balance={balances[i] || { status: "loading" }}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              {/* FEED */}
+              <section className={PANEL}>
+                <Kicker>Payouts feed</Kicker>
+                <h2 className={HEADLINE}>
+                  Every treat, <span className="glow text-tt-cream">on the record.</span>
+                </h2>
+                <div className="mt-5 md:mt-7">
+                  {feed.length > 0 ? (
+                    <PayoutFeed items={feed} shelterName={shelterName} />
+                  ) : (
+                    <p className={pending ? "motion-safe:animate-pulse" : ""}>
+                      {pending ? "Reading payouts from the chain…" : "No payouts yet. The first one shows up here."}
+                    </p>
+                  )}
+                </div>
+              </section>
+            </>
+          )}
+
+          {/* CLOSING CTA, like the landing's rescue hub. */}
+          <section className={`${PANEL} flex flex-col items-center gap-5 text-center md:flex-row md:justify-between md:text-left`}>
+            <div className="flex items-center gap-4">
+              <PinkCat lick className="hidden h-36 w-36 -my-6 shrink-0 sm:block" />
+              <div>
+                <h2 className="font-primary text-h6 md:text-h5 uppercase leading-none text-white">
+                  One tap. <span className="glow text-tt-cream">One treat.</span>
+                </h2>
+                <p className="mt-2 max-w-xl text-p5 md:text-p4 text-tt-cream/90">
+                  Token Tails pays for it, and it shows up on this page.
+                </p>
+              </div>
+            </div>
+            <NextLink href={GIVE_URL} target={target} className="md:mr-6">
+              <PixelButton as="span" text="SEND A TREAT" subtext="🐾" />
+            </NextLink>
+          </section>
+        </div>
+      </NightStage>
     </div>
   );
 };

@@ -10,7 +10,7 @@ created: 2026-09-25
 profile: colosseum-worlds-fair
 chain: [tempo, arbitrum]
 mainnet_required: true
-repo: ""
+repo: "https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split"
 demo: ""
 build_window_start: 2026-09-14
 build_window_end: 2026-10-12

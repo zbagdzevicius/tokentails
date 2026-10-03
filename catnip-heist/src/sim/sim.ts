@@ -2,7 +2,8 @@
  * Catnip Heist deterministic simulation (SimAPI). Pure TypeScript: no DOM, no three, integer maths
  * only, fixed TICK_HZ. `step` never mutates its input.
  *
- * Cat movement model (SIM_VERSION 3): free, continuous movement in integer sub-tile units.
+ * Cat movement model (SIM_VERSION 3, with the SIM_VERSION 4 assists below): free, continuous movement
+ * in integer sub-tile units.
  * - Speed is exactly CAT_SPEED_NUM / CAT_SPEED_DEN units per tick (8/3 = 80 units/s = 5 tiles/s),
  *   kept exact by an integer accumulator (`moveAcc`, Bresenham style). Every moving tick adds
  *   CAT_SPEED_NUM * 256 (cardinal) or CAT_SPEED_NUM * DIAG_NUM (diagonal, DIAG_NUM / 256 ~ 1/sqrt 2,
@@ -15,7 +16,9 @@
  *   cat cannot enter (walls, void, boxes, the crate, closed doors). Axes are resolved separately,
  *   so a blocked diagonal slides along the open axis at full cardinal speed. Corner assist: when a
  *   cardinal move is blocked but shifting sideways by at most CORNER_ASSIST units would clear it,
- *   the cat is nudged sideways towards the opening (doorways are easy to enter).
+ *   the cat is nudged sideways towards the opening (doorways are easy to enter). SIM_VERSION 4: a
+ *   diagonal press whose one component points into a 1-tile gap ahead of the cat's tile goes through
+ *   the gap (doorway magnet), and a cat with no input next to a plate walks onto it (plate snap).
  * - Tile logic (coins, key, plates, checkpoints, exit, hints, meow tile, guard line of sight) uses
  *   the tile under the cat's centre, tileOf(pos). Plates stay pressed while a cat's centre is on
  *   the plate tile. A PLATE door never closes while any cat's hitbox overlaps the door tile.
@@ -36,11 +39,12 @@
  * - Guards patrol waypoint loops (never pathing through PLATE doors), SNIFF at waypoints (first half facing the arrival direction,
  *   second half facing the next leg), INVESTIGATE a meow tile, and ALERT briefly after spotting.
  * - Spotted (in cone with line of sight, or touching a guard) => that cat goes back to its
- *   checkpoint, spottedCount++. Nobody dies.
+ *   checkpoint, spottedCount++. Nobody dies. After the stun it has a short grace by its checkpoint
+ *   (GRACE_TICKS, SIM_VERSION 4).
  * - Meow: guards within meta.meowRadiusTiles with line of sight to the meowing cat's tile go
  *   INVESTIGATE: they walk there (BFS), look around for meta.investigateTicks, then resume the
  *   patrol. A guard turns towards the sound, so meowing inside its vision radius gets you seen.
- * - Win: rescue done and both cats on exit tiles. After a win `step` returns the state unchanged.
+ * - Win: rescue done and both cats on (or within EXIT_SLOP of) exit tiles. After a win `step` returns the state unchanged.
  * - Tick order: swap, cat movement, pickups/checkpoints, interact, meow, guards, vision, plates and
  *   doors, win, score, hash.
  */
@@ -89,11 +93,37 @@ export const DIAG_SCALE = 256;
 export const CAT_TICKS_PER_TILE = (SUBTILE * CAT_SPEED_DEN) / CAT_SPEED_NUM;
 /** Cat hitbox half-size in sub-tile units: the box spans centre +- CAT_HALF (inclusive). */
 export const CAT_HALF = 5;
-/** Max sideways nudge (units) of the corner assist. */
-export const CORNER_ASSIST = 6;
+/**
+ * Max sideways nudge (units) of the corner assist. SIM_VERSION 4: 10 (was 6), so a straight press
+ * that is up to ~2/3 of a tile off a doorway still slides into it. Below 13, so it never fires for
+ * a move that starts on a tile centre (the solver's moves are unchanged by it).
+ */
+export const CORNER_ASSIST = 10;
 const ACC_UNIT = CAT_SPEED_DEN * DIAG_SCALE;
-/** Ticks a caught cat is frozen (and invisible to guards) after respawning. */
-export const STUN_TICKS = 45;
+/** Ticks a caught cat is frozen (and invisible to guards) after respawning (SIM_VERSION 4: 40, was 45). */
+export const STUN_TICKS = 40;
+/**
+ * Respawn grace (SIM_VERSION 4): after the stun, the cat stays invisible to guards for up to this many
+ * ticks while it is within 1 tile (Chebyshev) of its checkpoint, so it can get its bearings instead
+ * of being caught again where it stands. Leaving that area ends the grace at once, so it never buys a
+ * free crossing.
+ */
+export const GRACE_TICKS = 90;
+/**
+ * Plate snap (SIM_VERSION 4): a cat with no input whose centre is within PLATE_SNAP units of a
+ * plate tile (the tile grown by PLATE_SNAP on every side) walks onto the plate centre by itself,
+ * PLATE_SNAP_SPEED units per axis per tick. A cat let go half on a plate ends up on it (and, in a
+ * plate niche, deep in the niche), instead of standing just off it with the door shut. Plates are
+ * still pressed only by the tile under the cat's centre.
+ */
+export const PLATE_SNAP = 6;
+export const PLATE_SNAP_SPEED = 2;
+/**
+ * Exit slop (SIM_VERSION 4), in sub-tile units: a cat counts as at the exit while its centre is
+ * within an exit tile grown by EXIT_SLOP on every side, so a cat that looks as if it stands on the
+ * portal counts.
+ */
+export const EXIT_SLOP = 6;
 /** Ticks a guard stays ALERT after spotting a cat. */
 export const ALERT_TICKS = 45;
 /** Distance (sub-tile units) at which bumping into a guard spots the cat regardless of facing. */
@@ -118,6 +148,8 @@ export interface SimCat extends CatState {
   meowTicks: number;
   /** Movement accumulator (units of 1 / ACC_UNIT sub-tile units); 0 whenever the cat is still. */
   moveAcc: number;
+  /** Respawn grace ticks left (see GRACE_TICKS). */
+  graceTicks: number;
 }
 
 /** GuardState plus sim-internal counters. */
@@ -152,6 +184,7 @@ function cloneCat(c: SimCat): SimCat {
     idleTicks: c.idleTicks,
     meowTicks: c.meowTicks,
     moveAcc: c.moveAcc | 0,
+    graceTicks: c.graceTicks | 0,
   };
 }
 
@@ -284,6 +317,7 @@ function init(level: LevelDef, seed: number, catIds: [string, string]): SimState
       idleTicks: 0,
       meowTicks: 0,
       moveAcc: 0,
+      graceTicks: 0,
     }),
   ) as [SimCat, SimCat];
   const guards = level.guards.map((def, gi): SimGuard => {
@@ -357,6 +391,34 @@ function catBoxOverlaps(p: Vec2i, t: Vec2i): boolean {
   );
 }
 
+/** True when point `p` (sub-tile units) lies within tile `t` grown by `slop` units on every side. */
+export function nearTile(p: Vec2i, t: Vec2i, slop: number): boolean {
+  const x0 = t.x * SUBTILE - slop;
+  const y0 = t.y * SUBTILE - slop;
+  return p.x >= x0 && p.x < x0 + SUBTILE + 2 * slop && p.y >= y0 && p.y < y0 + SUBTILE + 2 * slop;
+}
+
+/** True when a cat centred at `p` presses the plate on tile `t` (its centre is on that tile). */
+export function catOnPlate(p: Vec2i, t: Vec2i): boolean {
+  return nearTile(p, t, 0);
+}
+
+/** Index of the plate a cat centred at `p` presses, or -1. */
+export function plateIndexAt(level: Pick<LevelDef, 'plates'>, p: Vec2i): number {
+  return level.plates.findIndex((pl) => catOnPlate(p, pl.tile));
+}
+
+/** True when a cat centred at `p` counts as at the exit (EXIT_SLOP). */
+export function catAtExit(level: Pick<LevelDef, 'exit'>, p: Vec2i): boolean {
+  for (const t of level.exit.tiles) if (nearTile(p, t, EXIT_SLOP)) return true;
+  return false;
+}
+
+/** True while a cat is invisible to guards: stunned (just caught) or in its respawn grace. */
+export function catHidden(cat: Pick<CatState, 'stunTicks' | 'graceTicks'>): boolean {
+  return cat.stunTicks > 0 || (cat.graceTicks ?? 0) > 0;
+}
+
 /** Move the point along one axis by up to n units, stopping before the first blocked unit. */
 function slideAxis(c: CompiledLevel, s: SimState, p: Vec2i, ax: number, ay: number, n: number): number {
   let m = 0;
@@ -391,6 +453,19 @@ function cornerAssist(c: CompiledLevel, s: SimState, p: Vec2i, ax: number, ay: n
   return 0;
 }
 
+/**
+ * True when the tile one step from `t` along (ax, ay) is a 1-tile gap: open (for the cat), with both
+ * tiles beside it (perpendicular to the step) blocked.
+ */
+function doorwayAhead(c: CompiledLevel, s: SimState, t: Vec2i, ax: number, ay: number): boolean {
+  const nx = t.x + ax;
+  const ny = t.y + ay;
+  if (!isOpenTile(c, nx, ny, s.doorsOpen)) return false;
+  const px = ay !== 0 ? 1 : 0;
+  const py = ax !== 0 ? 1 : 0;
+  return !isOpenTile(c, nx - px, ny - py, s.doorsOpen) && !isOpenTile(c, nx + px, ny + py, s.doorsOpen);
+}
+
 /** Try to open a closed VAULT door at tile (x,y) with the key. Returns true if it opened. */
 function tryOpenVault(c: CompiledLevel, s: SimState, x: number, y: number, events: SimEvent[]): boolean {
   if (!s.hasKey) return false;
@@ -418,6 +493,28 @@ function pushVault(c: CompiledLevel, s: SimState, p: Vec2i, dx: number, dy: numb
   }
 }
 
+/** Plate snap for a cat with no input (see PLATE_SNAP). Returns true when it moved. */
+function snapToPlate(c: CompiledLevel, s: SimState, cat: SimCat): boolean {
+  for (const pl of c.level.plates) {
+    if (!nearTile(cat.pos, pl.tile, PLATE_SNAP)) continue;
+    const ctr = centerOf(pl.tile);
+    const ox = ctr.x - cat.pos.x;
+    const oy = ctr.y - cat.pos.y;
+    if (ox === 0 && oy === 0) return false;
+    const p = { x: cat.pos.x, y: cat.pos.y };
+    slideAxis(c, s, p, sign(ox), 0, Math.min(PLATE_SNAP_SPEED, Math.abs(ox)));
+    slideAxis(c, s, p, 0, sign(oy), Math.min(PLATE_SNAP_SPEED, Math.abs(oy)));
+    if (p.x === cat.pos.x && p.y === cat.pos.y) return false;
+    cat.vel = { x: p.x - cat.pos.x, y: p.y - cat.pos.y };
+    cat.pos = p;
+    cat.moveAcc = 0;
+    cat.moving = true;
+    cat.idleTicks = 0;
+    return true;
+  }
+  return false;
+}
+
 function stopCat(cat: SimCat): void {
   cat.moving = false;
   cat.moveAcc = 0;
@@ -429,15 +526,18 @@ function stepCat(c: CompiledLevel, s: SimState, i: number, input: Input, events:
   if (cat.meowTicks > 0) cat.meowTicks--;
   if (cat.stunTicks > 0) {
     cat.stunTicks--;
+    if (cat.stunTicks === 0) cat.graceTicks = GRACE_TICKS;
     stopCat(cat);
     cat.idleTicks = 0;
     cat.pose = 'HIT';
     return;
   }
+  if (cat.graceTicks > 0) cat.graceTicks--;
   const inp = i === s.activeIndex ? input : NO_INPUT;
   const dx = inp.dx;
   const dy = inp.dy;
   if (dx === 0 && dy === 0) {
+    if (snapToPlate(c, s, cat)) return;
     stopCat(cat);
     cat.idleTicks++;
     return;
@@ -449,6 +549,32 @@ function stepCat(c: CompiledLevel, s: SimState, i: number, input: Input, events:
   // A diagonal with one axis blocked becomes a full-speed slide along the open axis.
   let ex: number = dx;
   let ey: number = dy;
+  // Doorway magnet (SIM_VERSION 4): a diagonal press whose one component points into a 1-tile gap
+  // straight ahead of the cat's tile (open tile, both side tiles blocked) goes through the gap: the
+  // cat first centres on the gap's axis (a nudge of under half a tile, like the corner assist), then
+  // walks straight in. Before this a diagonal press slid along the wall past the gap.
+  let nudge: Vec2i | null = null;
+  if (ex !== 0 && ey !== 0) {
+    let gy = doorwayAhead(c, s, t0, 0, ey);
+    let gx = doorwayAhead(c, s, t0, ex, 0);
+    if (gy && gx) {
+      // Both ways are 1 tile wide (a gap off a 1-tile corridor): take the one across the way the
+      // cat is already sliding; from rest or a free diagonal, neither (the old slide rule decides).
+      const vx = cat.vel ? cat.vel.x : 0;
+      const vy = cat.vel ? cat.vel.y : 0;
+      if (vx !== 0 && vy === 0) gx = false;
+      else if (vy !== 0 && vx === 0) gy = false;
+    }
+    if (gy !== gx) {
+      const g = gy ? { x: 0, y: ey } : { x: ex, y: 0 };
+      const ctr = centerOf(t0);
+      const off = g.y !== 0 ? p.x - ctr.x : p.y - ctr.y;
+      const lim = SUBTILE / 2 - CAT_HALF - 1;
+      if (off > lim || off < -lim) nudge = g.y !== 0 ? { x: off > 0 ? -1 : 1, y: 0 } : { x: 0, y: off > 0 ? -1 : 1 };
+      ex = g.x;
+      ey = g.y;
+    }
+  }
   if (ex !== 0 && ey !== 0) {
     const fx = catBoxFree(c, s.doorsOpen, p.x + ex, p.y);
     const fy = catBoxFree(c, s.doorsOpen, p.x, p.y + ey);
@@ -459,7 +585,14 @@ function stepCat(c: CompiledLevel, s: SimState, i: number, input: Input, events:
   let acc = cat.moveAcc + CAT_SPEED_NUM * (diag ? DIAG_NUM : DIAG_SCALE);
   const units = (acc / ACC_UNIT) | 0;
   acc -= units * ACC_UNIT;
-  if (diag) {
+  if (nudge) {
+    // Centre on the gap first (the gap axis stays the facing), then walk straight in.
+    const ctr = centerOf(t0);
+    const off = nudge.x !== 0 ? Math.abs(p.x - ctr.x) : Math.abs(p.y - ctr.y);
+    const lim = SUBTILE / 2 - CAT_HALF - 1;
+    const m = slideAxis(c, s, p, nudge.x, nudge.y, Math.min(units, off - lim));
+    if (m < units) slideAxis(c, s, p, ex, ey, units - m);
+  } else if (diag) {
     slideAxis(c, s, p, ex, 0, units);
     slideAxis(c, s, p, 0, ey, units);
   } else {
@@ -714,12 +847,18 @@ function checkVision(c: CompiledLevel, s: SimState, events: SimEvent[]): void {
   for (let ci = 0; ci < 2; ci++) {
     const cat = s.cats[ci] as SimCat;
     if (cat.stunTicks > 0) continue;
+    if (cat.graceTicks > 0) {
+      // The grace lasts only while the cat stays by its checkpoint.
+      const t = tileOf(cat.pos);
+      if (Math.abs(t.x - cat.checkpoint.x) > 1 || Math.abs(t.y - cat.checkpoint.y) > 1) cat.graceTicks = 0;
+    }
     for (let gi = 0; gi < s.guards.length; gi++) {
       const g = s.guards[gi] as SimGuard;
       const dx = cat.pos.x - g.pos.x;
       const dy = cat.pos.y - g.pos.y;
       const touch = dx * dx + dy * dy <= TOUCH_RADIUS * TOUCH_RADIUS;
       if (!touch && !guardSeesPoint(c, g, cat.pos, s.doorsOpen)) continue;
+      if (cat.graceTicks > 0) continue;
       const seenAt = tileOf(cat.pos);
       events.push({ type: 'SPOTTED', cat: ci, id: g.id, tile: seenAt });
       s.spottedCount++;
@@ -749,7 +888,7 @@ function updatePlatesAndDoors(c: CompiledLevel, s: SimState, events: SimEvent[])
   for (let pi = 0; pi < level.plates.length; pi++) {
     const pt = level.plates[pi].tile;
     let down = false;
-    for (const cat of s.cats) if (sameTile(tileOf(cat.pos), pt)) down = true;
+    for (const cat of s.cats) if (catOnPlate(cat.pos, pt)) down = true;
     if (down !== s.platesDown[pi]) {
       s.platesDown[pi] = down;
       events.push({ type: 'PLATE', id: level.plates[pi].id, tile: { x: pt.x, y: pt.y }, open: down });
@@ -823,9 +962,7 @@ function step(state: SimState, input: Input, level: LevelDef): SimState {
   updatePlatesAndDoors(c, s, events);
   // 8. Win.
   if (s.rescued) {
-    const a = tileOf(s.cats[0].pos);
-    const b = tileOf(s.cats[1].pos);
-    if (c.exitAt[a.y * c.w + a.x] && c.exitAt[b.y * c.w + b.x]) {
+    if (catAtExit(level, s.cats[0].pos) && catAtExit(level, s.cats[1].pos)) {
       s.won = true;
       events.push({ type: 'WIN' });
     }
@@ -863,6 +1000,7 @@ export function hashState(s: SimState): number {
     h = fnvInt(h, POSE_CODES[cat.pose]);
     h = fnvInt(h, cat.idleTicks | 0);
     h = fnvInt(h, cat.meowTicks | 0);
+    h = fnvInt(h, cat.graceTicks | 0);
   }
   for (const g of s.guards as SimGuard[]) {
     h = fnvInt(h, g.pos.x);

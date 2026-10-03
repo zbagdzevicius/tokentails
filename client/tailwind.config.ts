@@ -1,5 +1,20 @@
 import type { Config } from "tailwindcss";
 import convertPxToRem from "tailwindcss-convert-px-to-rem";
+import plugin from "tailwindcss/plugin";
+import { LAYERS, TT_COLORS } from "./design/tokens";
+
+/**
+ * `tt-*` colours from design/tokens.ts (plan F3.1). Each reads its RGB triplet from
+ * styles/tokens.css so opacity modifiers work: `bg-tt-night-950/70`.
+ */
+const ttColors = Object.fromEntries(
+  Object.keys(TT_COLORS).map((name) => [name, `rgb(var(--tt-${name}) / <alpha-value>)`])
+);
+
+/** The z scale (plan F3.2): `z-hud`, `z-modal`, `z-toast`, ... */
+const ttLayers = Object.fromEntries(
+  Object.entries(LAYERS).map(([name, z]) => [name, String(z)])
+);
 
 const config: Config = {
   content: [
@@ -10,7 +25,9 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      zIndex: ttLayers,
       colors: {
+        tt: ttColors,
         accent: {
           100: "#E6E6FA",
           200: "#C8A2C8",
@@ -24,9 +41,8 @@ const config: Config = {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },
-        yellow: {
-          300: "#FCECBB",
-        },
+        // The legacy `yellow-300` override (#FCECBB) is gone (task 7b, plan F3.1/G6): every use
+        // moved to `tt-cream`, so `yellow-300` is Tailwind's default again. Use tt-cream for cream.
         green: {
           300: "#D5F4E5",
         },
@@ -117,8 +133,26 @@ const config: Config = {
         "gradient-text": "gradient-text var(--speed, 8s) linear infinite",
         "shiny-text": "shiny-text 8s linear infinite",
         "shine-border": "shine-border var(--duration, 14s) linear infinite",
+        // GameModal (plan F3.3). Enter only: closing is instant, so focus returns at once.
+        // `backwards`, not `both`: a filled end keyframe interpolated to `transform: none` stays
+        // `translateY(0)`, which makes the panel the containing block of `position: fixed` children.
+        "tt-scrim-in": "tt-fade-in 160ms ease-out both",
+        "tt-modal-in": "tt-modal-in 180ms cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards",
+        "tt-sheet-in": "tt-sheet-in 220ms cubic-bezier(0.2, 0.9, 0.3, 1) backwards",
       },
       keyframes: {
+        "tt-fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "tt-modal-in": {
+          from: { opacity: "0", transform: "translateY(8px) scale(0.97)" },
+          to: { opacity: "1", transform: "none" },
+        },
+        "tt-sheet-in": {
+          from: { opacity: "0", transform: "translateY(24px)" },
+          to: { opacity: "1", transform: "none" },
+        },
         "loop-scroll": {
           from: { transform: "translateX(0)" },
           to: { transform: "translateX(-100%)" },
@@ -393,6 +427,14 @@ const config: Config = {
       paws: ["paws", "sans-serif"],
     },
   },
-  plugins: [convertPxToRem],
+  plugins: [
+    convertPxToRem,
+    plugin(({ addVariant }) => {
+      // `lowfx:` applies under <html class="lowfx">, set by components/ui/lowfx.ts on Android and on
+      // devices with 4 or fewer cores, to drop blur and other costly effects.
+      addVariant("lowfx", ":is(.lowfx &)");
+      addVariant("reduced-transparency", "@media (prefers-reduced-transparency: reduce)");
+    }),
+  ],
 };
 export default config;

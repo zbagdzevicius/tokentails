@@ -21,8 +21,8 @@ const navConsts: FooterProps[] = [
     link: "/cats",
   },
   {
-    title: "REWARDS",
-    link: "/airdrop",
+    title: "IMPACT",
+    link: "/impact",
   },
 ];
 
@@ -38,7 +38,7 @@ export const Footer: React.FC = () => {
       <div className="flex justify-center items-center">
         <hr className="h-px w-full bg-gray-200 border-0" />
       </div>
-      <footer className="text-center py-4 bg-yellow-300">
+      <footer className="text-center py-4 bg-tt-cream [[data-sky]_&]:text-tt-gold-ink">
         <div className="flex flex-wrap items-center container md:justify-around justify-between lg:px-24">
           <div className="flex items-center gap-4">
             <img
@@ -58,14 +58,14 @@ export const Footer: React.FC = () => {
                     href={navItem.link}
                     onClick={() => handleTitleClick(navItem.title)}
                   >
-                    <PixelButton text={navItem.title} isSmall />
+                    <PixelButton as="span" text={navItem.title} size="sm" />
                   </a>
                 </li>
               ))}
             </ul>
           </ul>
           <div className="flex-1 font-primary text-end whitespace-nowrap flex w-fit gap-2">
-            © 2025 All Rights Reserved by Token Tails
+            © 2026 All Rights Reserved by Token Tails
             <a
               href="https://docs.tokentails.com/community-and-social-impact/terms-and-conditions"
               target="_blank"

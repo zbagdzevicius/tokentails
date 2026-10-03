@@ -71,10 +71,11 @@ export interface CampaignProgress {
 }
 
 // Sums the on-chain USDC payouts to the campaign's shelter on the campaign's chain, from
-// fromBlock on. Native USDC (18 decimals on Arc) and ERC-20 USDC (6) both count.
+// fromBlock on. Native USDC (18 decimals on Arc) and ERC-20 USDC (6) both count. `symbol` is the
+// deployment's payout token (resolveChain): a second instance paying EURC is never counted as USDC.
 export function campaignProgress(
   campaign: Campaign,
-  perChain: { chainId: number; items: Disbursement[] }[]
+  perChain: { chainId: number; items: Disbursement[]; symbol?: string }[]
 ): CampaignProgress {
   const goal = usdcTo18(campaign.goalUsdc);
   const wallet = campaign.shelter.wallet;
@@ -87,7 +88,7 @@ export function campaignProgress(
       for (const d of entry.items) {
         if (d.shelter.toLowerCase() !== wallet) continue;
         if (campaign.fromBlock !== null && d.blockNumber < campaign.fromBlock) continue;
-        const unit = payoutUnit(d.kind, chain);
+        const unit = payoutUnit(d.kind, entry.symbol ? { ...chain, symbol: entry.symbol } : chain);
         if (unit.symbol !== "USDC") continue;
         raised += to18(d.amount, unit.decimals);
         count += 1;
@@ -99,7 +100,12 @@ export function campaignProgress(
   return { counting: !!wallet, raised, goal, percent, count };
 }
 
-export const handoverLabel = (s: HandoverStatus) =>
-  s === "handed-over"
+/** The handover line; app builds use the F7.2 holder labels (no wallet or key wording). */
+export const handoverLabel = (s: HandoverStatus, isApp = false) =>
+  isApp
+    ? s === "handed-over"
+      ? "Held by shelter"
+      : "Held by Token Tails for the shelter until handover"
+    : s === "handed-over"
     ? "Handed over: the shelter holds its own keys"
     : "Not handed over yet: Token Tails holds this wallet for the shelter";

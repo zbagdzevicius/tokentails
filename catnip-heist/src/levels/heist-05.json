@@ -42,7 +42,7 @@
       ],
       "speed": 1,
       "sniffTicks": 0,
-      "visionTiles": 5,
+      "visionTiles": 4,
       "turns": [
         {
           "facing": {
@@ -85,7 +85,7 @@
       ],
       "speed": 1,
       "sniffTicks": 0,
-      "visionTiles": 5,
+      "visionTiles": 4,
       "turns": [
         {
           "facing": {
@@ -128,7 +128,7 @@
       ],
       "speed": 1,
       "sniffTicks": 0,
-      "visionTiles": 5,
+      "visionTiles": 4,
       "turns": [
         {
           "facing": {
@@ -171,7 +171,7 @@
       ],
       "speed": 1,
       "sniffTicks": 0,
-      "visionTiles": 5,
+      "visionTiles": 4,
       "turns": [
         {
           "facing": {
@@ -399,14 +399,14 @@
     {
       "id": "cp-2",
       "tile": {
-        "x": 12,
+        "x": 8,
         "y": 14
       }
     }
   ],
   "meta": {
     "title": "Heist 05: Watchtower Yard",
-    "parTicks": 2700,
+    "parTicks": 1800,
     "meowRadiusTiles": 6,
     "investigateTicks": 120,
     "maxCoins": 20,
@@ -422,7 +422,7 @@
         "x1": 12,
         "y1": 16,
         "untilObjective": 0,
-        "text": "Sentries don’t walk, they turn. Wait for a cone to swing away, then go."
+        "text": "Sentries don’t walk, they turn like clockwork. A pale cone and a tick show where one looks next: go when it swings away."
       }
     ],
     "name": "Watchtower Yard",

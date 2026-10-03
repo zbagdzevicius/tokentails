@@ -16,7 +16,6 @@ import {
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Types } from 'mongoose';
@@ -35,6 +34,7 @@ import { UserRepository } from 'src/user/user.repository';
 import { UserService } from 'src/user/user.service';
 import { OrderRepository } from 'src/web3/order.repository';
 import { IOrder, OrderStatus, ProductType } from 'src/web3/order.schema';
+import { spendIncrement } from 'src/web3/spend';
 import { ChainType } from 'src/web3/web3.model';
 import Stripe from 'stripe';
 import { CatService } from 'src/cat/cat.service';
@@ -43,6 +43,7 @@ import { IController } from '../shared/interfaces/controller.interface';
 import { ImageRepository } from './image.repository';
 import { IImage, Image, ImageStyle } from './image.schema';
 import { ImageModel } from './image.validator';
+import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 
 // Send SendGrid email for order confirmation
 async function sendOrderConfirmationEmail(email: string, aiUrl: string): Promise<void> {
@@ -114,6 +115,20 @@ async function sendOrderConfirmationEmail(email: string, aiUrl: string): Promise
 
 export const ORDER_STATUS_PROJECTION = '_id status entityType id image price';
 
+/** USD paid for a verified portrait checkout: the stored `priceUsd`, else Stripe's USD total. */
+export function paidUsd(
+    order: { priceUsd?: number | null },
+    session: { amount_total?: number | null; currency?: string | null }
+): number {
+    if (typeof order.priceUsd === 'number' && Number.isFinite(order.priceUsd) && order.priceUsd > 0) {
+        return order.priceUsd;
+    }
+    if ((session.currency || '').toLowerCase() === 'usd' && typeof session.amount_total === 'number') {
+        return session.amount_total / 100;
+    }
+    return 0;
+}
+
 @Controller('image')
 export class ImageController implements IController<Image> {
     httpService: any;
@@ -145,7 +160,7 @@ export class ImageController implements IController<Image> {
         return image;
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.EDITOR))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.EDITOR))
     @Delete(':id')
     async delete(@Param('id') _id: string): Promise<IResponse> {
         const existingRecord: Image = await this.repository.findOne({
@@ -160,7 +175,7 @@ export class ImageController implements IController<Image> {
         return RESPONSES.success;
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.EDITOR))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.EDITOR))
     @Put(':id')
     async update(@Param('id') _id: string, @Body() body: ImageModel) {
         const existingArticle = await this.repository.findOne({
@@ -174,7 +189,7 @@ export class ImageController implements IController<Image> {
         return this.repository.update(existingArticle._id, { ...body });
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(0))
+    @UseGuards(AppAuthGuard, PermissionGuard(0))
     @Post('')
     @UseInterceptors(FileInterceptor('file'))
     async create(@Body() entity: IImage, @UploadedFile() file: any) {
@@ -240,7 +255,7 @@ export class ImageController implements IController<Image> {
 
     // Each call is a paid 4K generation: signed-in users only, 3 per minute.
     @Throttle({ default: { limit: 3, ttl: 60000 } })
-    @UseGuards(AuthGuard('appauth'))
+    @UseGuards(AppAuthGuard)
     @Put('/portrait/:id/regenerate')
     async regeneratePortrait(@Param('id') id: string, @Body() body: { style?: ImageStyle }): Promise<IImage> {
         const existingImage = await this.repository.findOne({
@@ -307,12 +322,14 @@ export class ImageController implements IController<Image> {
             }
             resolvedUserId = existingUser._id.toString();
         } else if (email?.trim()) {
+            // Lowercased on write (F5.1); the lookup also matches a legacy mixed-case email, so a
+            // buyer who signed in before is not given a second account (known bug, fixed in 2a).
             const emailLower = email.trim().toLowerCase();
-            const user = await this.userRepository.findOne({
-                searchObject: { email: emailLower },
-            });
+            const user = await this.userService.findByEmail(email);
             resolvedUserId = user?._id.toString();
             if (!user) {
+                // A locked starter and no onboarding (createUser). The buyer's later verified sign-in
+                // binds its Firebase uid to this account (F5.2 step 2).
                 const newUser = await this.userService.createUser({
                     email: emailLower,
                 });
@@ -525,7 +542,7 @@ export class ImageController implements IController<Image> {
     }
 
     @Throttle({ default: { limit: 5, ttl: 60000 } })
-    @UseGuards(AuthGuard('appauth'))
+    @UseGuards(AppAuthGuard)
     @Post('/create-checkout-session-signed')
     async createCheckoutSessionSigned(
         @USER_ID() signedUserId: string,
@@ -630,11 +647,13 @@ export class ImageController implements IController<Image> {
                 const populatedUser = order.user as { _id?: Types.ObjectId; email?: string } | undefined;
                 const userId = populatedUser?._id?.toString() ?? order.user?.toString();
                 if (userId) {
-                    const pricePaid = order.priceUsd || order.price || 0;
+                    // USD only (G4): the order's server price in USD, else the USD amount Stripe
+                    // charged (checkPaidCheckoutSession verified the currency). Never `order.price`,
+                    // which can be in another currency.
+                    const pricePaid = paidUsd(order, session);
                     await this.userRepository.update(userId, {
                         $inc: {
-                            spent: pricePaid,
-                            monthSpent: pricePaid,
+                            ...spendIncrement(pricePaid),
                             portraitPurchases: 1,
                             monthPortraitPurchases: 1,
                         },

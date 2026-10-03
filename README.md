@@ -34,6 +34,7 @@ on Stellar.
 | [`client/`](client/) | Website, game shell, portrait funnel, feed, marketplace; also the mobile web bundle | Next.js 16, React 19, Phaser 4, Capacitor 7, Stellar Wallets Kit |
 | [`cms/`](cms/) | Admin console for shelters and staff | Next.js 16, Firebase Auth, TinyMCE |
 | [`contracts/`](contracts/) | Soroban NFT contracts (production), SKALE ERC-721s, faucets, archived prototypes | Rust, Solidity, Node |
+| [`shelter-rail/`](shelter-rail/) and [`ShelterSplit`](funding/framework/tracks/a-build/shelter-split/) | Shelter payout contract (Arc, Tempo, Arbitrum), its Foundry tests, and the donate SDK and widget | Solidity 0.8.24, Foundry, plain JS |
 | [`docs/`](docs/) | Project documentation | Markdown |
 | [`extra/`](extra/) | Traction figures and the settlement rail proposal | Markdown |
 
@@ -82,3 +83,5 @@ Figures and sources are in [extra/traction.md](extra/traction.md).
 This repository is commercially licensed. See [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md).
 The `contracts/` folder carries additional license files; see
 [docs/CONTRACTS.md](docs/CONTRACTS.md#licensing).
+The ShelterSplit contract, its tests and scripts in `funding/framework/tracks/a-build/shelter-split/`
+and the `shelter-rail/` SDK are MIT licensed; see the `LICENSE` file in each folder.

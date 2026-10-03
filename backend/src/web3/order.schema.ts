@@ -3,13 +3,35 @@ import { Document, Types } from 'mongoose';
 import { CommonSchema } from 'src/common/common.schema';
 import { EntityType } from 'src/shared/interfaces/common.interface';
 import { CurrencyType } from 'src/shared/interfaces/currency.interface';
+import { OrderStatus } from 'src/shared-contracts/enums';
 import { ChainType } from './web3.model';
 
-export enum OrderStatus {
-    COMPLETE = 'COMPLETE',
-    PENDING = 'PENDING',
-    LOCKED = 'LOCKED',
-    FAILED = 'FAILED',
+// One OrderStatus for every package (shared/enums.ts). `FAILED_GRANT`: paid, but the item could not
+// be granted (plan G3); `refund` says what happens to the payment.
+export { OrderStatus };
+
+/** Why a paid order was not granted. */
+export const GRANT_FAILURE_REASONS = ['EMPTY_POOL', 'ADOPT_FAILED', 'NO_CAT'] as const;
+export type GrantFailureReason = typeof GRANT_FAILURE_REASONS[number];
+
+/**
+ * Refund of a paid order that could not be granted (decision #21). `refunded`: Stripe refunded it.
+ * `due`: a person has to send it back (Stellar payments, or a Stripe refund that failed); see
+ * docs/plans/alignment-log/3c.md "Manual steps" and scripts/audit-orders-grants.js.
+ */
+export const ORDER_REFUND_STATES = ['due', 'refunded'] as const;
+export type OrderRefundState = typeof ORDER_REFUND_STATES[number];
+
+export interface IOrderRefund {
+    state: OrderRefundState;
+    reason: GrantFailureReason;
+    amountUsd?: number;
+    requestedAt: Date;
+    refundedAt?: Date;
+    /** Stripe refund id. */
+    refundId?: string;
+    /** Why an automatic refund did not go through. */
+    error?: string;
 }
 
 export enum PackType {
@@ -75,6 +97,9 @@ export class Order extends CommonSchema {
 
     @Prop({ type: Types.ObjectId, ref: 'User' })
     user?: Types.ObjectId;
+
+    @Prop({ required: false, _id: false, type: Object })
+    refund?: IOrderRefund;
 }
 
 export type OrderDocument = Order & Document;
@@ -90,6 +115,7 @@ OrderSchema.index({ ref: 1 });
 OrderSchema.index({ id: 1 });
 OrderSchema.index({ image: 1 });
 OrderSchema.index({ user: 1, entityType: 1, status: 1 });
+OrderSchema.index({ 'refund.state': 1 }, { partialFilterExpression: { refund: { $exists: true } } });
 // One order per payment: a Stellar transaction hash, Stripe session id or PaymentIntent id.
 // Partial so orders without a hash (released after a failed verification) do not collide.
 // The build fails while duplicates exist: run scripts/audit-orders.js first (docs/BACKEND.md).

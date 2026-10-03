@@ -162,10 +162,46 @@ What this does and doesn't stop:
 - It is stronger than the other modes, which trust the client **(E)**.
 
 **Deploy order.** The backend branch ships first, with replay required. The heist entry in
-`GameSelectModal` stays behind a flag until then. Until that deploy, the backend would accept an
-unknown type with the 420 cap **(E)**. The Yard can ship before any of this.
+`GameSelectModal` stays behind a flag until then. The Yard can ship before any of this.
+
+**Correction (2026-10-01, task 3b).** An earlier version said that until that deploy the backend
+would accept an unknown game type at the 420 cap. That stopped being true when `/live` gained its
+strict DTO: `@IsIn(...)` plus `forbidNonWhitelisted` reject any type outside the list with 400, and
+the endless cap is now 500 (decision #57). A plain `CATNIP_HEIST` save without a replay is also 400.
+
+**As implemented (task 3b, plan G2 layer 2 and F6).** The body is
+`{ type: 'CATNIP_HEIST', replay: <InputLog>, platform?, outcome? }`; `points`, `level` and `time` from
+the client are ignored or must match. The DTO checks seed 1, the current `SIM_VERSION`, two different
+known cat ids, at most 18,000 ticks and run counts summing to `ticks`; `verifyRun` (the sim, vendored
+into `backend/src/vendor/heist-sim/` by `catnip-heist/scripts/vendor-sim.mjs`) enforces the per-level
+cap `min(4 x parTicks, 18000)`, a win, and no input after the winning tick. The row stores the server
+score and a `replayDigest` (sha256 of the canonical log, crew excluded) with a GLOBAL unique partial
+index, not `(user, replayHash)`: the same winning log saves once from any account (409
+`HEIST_DUPLICATE`). Replays run through a bounded queue (429 with Retry-After when full) behind a
+per-IP throttle, and `/live` has its own 64 KB body limit. Measured replay cost: p95 about 9 ms over
+the 8 golden solutions, so no worker threads. Heist progress lives in `heistScore` and `heistStars`
+on the user and never feeds catnip, caps, loot eligibility or lives (decisions #14, #17).
+
+**The digest is replay dedupe, not anti-cheat (task 3b review).** It stops the same canonical log
+saving twice, but a scripted run can add a few idle ticks and get a new digest that still wins. That
+is acceptable while nothing ranks or rewards `heistScore`. Before any Heist leaderboard, reward or
+share-card ranking reads it, gate it with `notGuestFilter()` (guests are free) and treat scores as
+self-reported-but-replayable. Logs that fail verification are cached by digest (about 10k for 10
+minutes, per process), so a losing log sent again costs no replay. A guest's `heistScore`,
+`heistStars` and cleared flags are carried into the account on sign-in (`recomputeAfterGuestMerge`),
+and a resent log whose row the caller already owns re-applies its score and stars before the 409.
 
 ### Repo integration checklist
+
+Status (2026-10-02, landing and game alignment build): items 1 to 3, 5 and 9 are done, and item 8
+for the docs (the root `CLAUDE.md` package table does not list `catnip-heist/` yet), in the
+form described under "As implemented" above (`replayDigest` with a global unique index instead of
+`(user, replayHash)`; caps in `shared/caps.ts`). Item 4 (the Yard) is not built. Items 6 and 7 are
+**superseded**: the Heist is not embedded in the `/game` Phaser shell (plan G2 option B was
+rejected). It runs on `/heist` as a static build inside an iframe with the `shared/heist-bridge.ts`
+bridge, and saves go through `POST /user/catbassadors/live` with the replay
+(`client/components/heist/`, `docs/GAMES.md`, alignment log 4b).
+
 1. **Enum.** Add `CATNIP_HEIST` to `backend/src/game/game.schema.ts`, `client/models/game.ts` and
    `docs/API.md`. Check the other copies listed in `docs/DEVELOPMENT.md`.
 2. **Backend `game.schema.ts`.** Add heist level keys, per-level caps, `replayHash` and the
@@ -175,9 +211,10 @@ unknown type with the 420 cap **(E)**. The Yard can ship before any of this.
    anything new in `AppModule`.
 5. **Catnip accounting.** Heist catnip stays out of `catnipCount` until the economy decision. Both
    `catnip-accounting.ts` copies stay unchanged.
-6. **Client events.** Widen `IGameLoadedEvent.scene` and extend `IGameStopEvent` in
+6. **(Superseded by the `/heist` host page.)** **Client events.** Widen `IGameLoadedEvent.scene` and extend `IGameStopEvent` in
    `client/components/Phaser/events.ts`.
-7. **Client wiring.** Update `Game.tsx`, `GameSelectModal.tsx` (flag), `EndGameModal.tsx`,
+7. **(Superseded by the `/heist` host page; saves use `saveMatchDetailed` in
+   `components/heist/heistSaves.ts`.)** **Client wiring.** Update `Game.tsx`, `GameSelectModal.tsx` (flag), `EndGameModal.tsx`,
    `GameContext.tsx` and `api/user-api.ts` `saveMatch` (send `inputs` and `simVersion`). Add a Yard
    route or entry point.
 8. **Docs.** Update `docs/GAMES.md`, `docs/API.md` (the `/cat/yard` endpoint and the `inputs` field),
@@ -195,6 +232,11 @@ unknown type with the 420 cap **(E)**. The Yard can ship before any of this.
     - in-process caches that diverge across replicas;
     - public `GET /cat/:id` returns `owner` and an unfiltered blessing. The new endpoint must not
       copy that.
+
+    Status (2026-10-02): unknown game types are rejected by the strict `/live` DTO, `/live` has
+    per-player and per-IP limits plus the replay bucket and queue, and the static export exists for
+    app builds. Client-trusted scores in the other modes, the CORS fallback, the diverging caches and
+    the public `GET /cat/:id` owner remain known issues (BACKEND.md).
 
 ## 7. Autonomous agent pipeline
 

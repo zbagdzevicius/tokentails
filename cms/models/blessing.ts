@@ -1,4 +1,5 @@
 import { ICat } from './cat';
+import { BLESSING_STATUSES, BlessingStatus } from '../shared-contracts/enums';
 import { CatAbilityType } from './cats';
 import { IImage } from './image';
 import { IMintedNFTs } from './nft';
@@ -11,24 +12,14 @@ export enum BlessingType {
   BILLS = 'BILLS'
 }
 
-export enum Status {
-    WAITING = 'WAITING',
-    RECOVERING = 'RECOVERING',
-    ADOPTED = 'ADOPTED',
-    HEAVEN = 'HEAVEN',
-}
-
-export const Statuses = [
-  Status.WAITING,
-  Status.RECOVERING,
-  Status.ADOPTED,
-  Status.HEAVEN,
-]
+// The blessing status is the shared BlessingStatus (plan F2); `Status` is kept for existing imports.
+export { BlessingStatus as Status };
+export const Statuses = BLESSING_STATUSES;
 
 export interface IBlessing {
   _id?: string;
   tokenId?: number;
-  status?: Status;
+  status?: BlessingStatus;
   cat?: ICat;
   name: string;
   description: string;

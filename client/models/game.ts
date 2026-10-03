@@ -1,3 +1,9 @@
+import type { GamePlatform } from "@/shared-contracts/enums";
+
+// GameType and GamePlatform come from the generated copy of shared/enums.ts (plan F2), the same
+// enums the backend uses. CATNIP_HEIST names the Heist; it is not one of the Phaser modes.
+export { GamePlatform, GameType } from "@/shared-contracts/enums";
+
 export enum GameModal {
   QUESTS = "QUESTS",
   PACKS = "PACKS",
@@ -12,21 +18,6 @@ export enum GameModal {
   CODEX = "CODEX",
   OFFER_WALL = "OFFER_WALL",
   SPIN_WHEEL = "SPIN_WHEEL",
-}
-
-export enum GameType {
-  SHELTER = "SHELTER",
-  HOME = "HOME",
-  CATNIP_CHAOS = "CATNIP_CHAOS",
-  PIXEL_RESCUE = "PIXEL_RESCUE",
-  MATCH_3 = "MATCH_3",
-}
-
-/** Where a game was played. Mirrors `GamePlatform` in backend/src/game/game.schema.ts. */
-export enum GamePlatform {
-  WEB = "web",
-  IOS = "ios",
-  ANDROID = "android",
 }
 
 /** String value of a `GamePlatform`, as sent in API bodies and analytics events. */

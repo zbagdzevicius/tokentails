@@ -21,7 +21,7 @@ const map = [
   '#.............b.b.....$....#', // 11
   '#..$......$.........*......#', // 12  * sentry (south-east)
   '#######.bb.......$.........#', // 13
-  '#.12..#.....+......$.......#', // 14
+  '#.12..#.+..........$.......#', // 14  + checkpoint out of every sentry's sweep
   '#.....#...$.........bb.....#', // 15
   '#..$..r....................#', // 16
   '############################', // 17
@@ -31,7 +31,8 @@ const N = { x: 0, y: -1 };
 const S = { x: 0, y: 1 };
 const E = { x: 1, y: 0 };
 const W = { x: -1, y: 0 };
-const sentry = (id, sprite, post, turns) => ({ id, sprite, waypoints: [post], speed: 1, sniffTicks: 0, visionTiles: 5, turns });
+// Vision 4 (was 5): the yard has lanes a careful or coin-hunting player can actually use.
+const sentry = (id, sprite, post, turns) => ({ id, sprite, waypoints: [post], speed: 1, sniffTicks: 0, visionTiles: 4, turns });
 
 export default {
   id: 'heist-05',
@@ -49,14 +50,14 @@ export default {
   ],
   crate: { catId: 'olive', catName: 'Juniper' },
   meta: {
-    parTicks: 90 * 30,
+    parTicks: 60 * 30, // cautious-bot median 28 s x 1.2, rounded up to 5 s (min 60 s); see playtest/BOT-REPORT.md
     meowRadiusTiles: 6,
     investigateTicks: 120,
     maxCoins: 20,
     twoCatRequired: true,
     objectives: ['Cross the yard and leapfrog into the compound to free {cat}', 'Both cats to the exit'],
     hints: [
-      { x0: 1, y0: 14, x1: 12, y1: 16, untilObjective: 0, text: 'Sentries don’t walk, they turn. Wait for a cone to swing away, then go.' },
+      { x0: 1, y0: 14, x1: 12, y1: 16, untilObjective: 0, text: 'Sentries don’t walk, they turn like clockwork. A pale cone and a tick show where one looks next: go when it swings away.' },
     ],
   },
 };

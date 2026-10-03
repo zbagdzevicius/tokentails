@@ -1,14 +1,36 @@
 // Test helpers for the shelter on-chain specs: in-memory stand-ins for the Mongo models.
 // The name ends in `-spec.ts`, so tsconfig.build.json leaves it out of dist, and jest does not run it.
 // Not imported by application code.
-import { Types } from 'mongoose';
+import { duplicateKey, memoryModel } from 'src/impact/memory-model.fakes-spec';
 
-export const duplicateKey = () => Object.assign(new Error('E11000 duplicate key error'), { code: 11000 });
+export { duplicateKey };
 
 export const SPLIT = '0x1111111111111111111111111111111111111111';
 export const SHELTER_WALLET = '0x2222222222222222222222222222222222222222';
 /** A throwaway value for the hot-wallet variable. `Wallet` is mocked, so it never signs anything. */
 export const FAKE_KEY = '0x' + 'ab'.repeat(32);
+
+/** The fake hot wallet's address. */
+export const HOT_WALLET = '0x3333333333333333333333333333333333333333';
+
+/**
+ * A stand-in for ethers' `Wallet` in the donate specs. `send(request)` plays the signer: it resolves
+ * with `{ hash }` (or rejects: nothing was signed). The "signed bytes" are that hash, and the specs mock
+ * `keccak256` to return a 32-byte hex unchanged, so the stored hash is the one the spec chose.
+ * Nonces count up from `nonce.next`.
+ */
+export function fakeWallet(send: jest.Mock, nonce: { next: number } = { next: 0 }) {
+    return {
+        address: HOT_WALLET,
+        populateTransaction: async (request: Record<string, unknown>) => ({ ...request, nonce: nonce.next++ }),
+        signTransaction: async (request: Record<string, unknown>) => (await send(request)).hash,
+    };
+}
+
+/** For the specs' `jest.mock('ethers')`: identity on a 32-byte hex (the fake signed bytes). */
+export function fakeKeccak(actual: (data: string) => string) {
+    return (data: string) => (/^0x[0-9a-f]{64}$/i.test(String(data)) ? data : actual(data));
+}
 
 export const SHELTER_ENV_KEYS = [
     'SHELTER_DONATE_ENABLED',
@@ -33,54 +55,19 @@ export function withShelterEnv(values: Record<string, string | undefined>) {
     }
 }
 
-export function fakeDonationModel() {
-    const rows: any[] = [];
-    return {
-        rows,
-        create: jest.fn(async (doc: any) => {
-            if (rows.some(r => String(r.user) === String(doc.user) && r.day === doc.day)) {
-                throw duplicateKey();
-            }
-            const row = { ...doc, _id: new Types.ObjectId() };
-            rows.push(row);
-            return row;
-        }),
-        deleteOne: jest.fn(async ({ _id }: any) => {
-            const index = rows.findIndex(r => r._id.equals(_id));
-            if (index >= 0) {
-                rows.splice(index, 1);
-            }
-        }),
-        updateOne: jest.fn(async ({ _id }: any, { $set }: any) => {
-            Object.assign(
-                rows.find(r => r._id.equals(_id)),
-                $set
-            );
-        }),
-    };
+/** `shelterdonations` with its unique (user, day) index. `now` drives the fake timestamps. */
+export function fakeDonationModel(now?: () => Date) {
+    return memoryModel({ unique: [['user', 'day']], now });
 }
 
-/** Mimics findOneAndUpdate({ day, count: { $lt } }, { $inc }, { upsert }) against a unique `day` index. */
+/** `shelterdonatedays`: findOneAndUpdate({ day, count: { $lt } }, { $inc }, { upsert }) against a unique `day`. */
 export function fakeDayModel() {
-    const counts = new Map<string, number>();
+    const model = memoryModel({ unique: [['day']] });
     return {
-        counts,
-        findOne: jest.fn(async ({ day }: any) => (counts.has(day) ? { day, count: counts.get(day) } : null)),
-        findOneAndUpdate: jest.fn(async ({ day, count }: any, { $inc }: any) => {
-            const current = counts.get(day);
-            if (current === undefined) {
-                counts.set(day, $inc.count);
-                return { day, count: $inc.count };
-            }
-            if (current < count.$lt) {
-                counts.set(day, current + $inc.count);
-                return { day, count: current + $inc.count };
-            }
-            throw duplicateKey();
-        }),
-        updateOne: jest.fn(async ({ day }: any, { $inc }: any) => {
-            counts.set(day, (counts.get(day) || 0) + $inc.count);
-        }),
+        ...model,
+        counts: {
+            get: (day: string): number | undefined => model.rows.find(r => r.day === day)?.count,
+        },
     };
 }
 

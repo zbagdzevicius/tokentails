@@ -5,7 +5,7 @@ import { Header } from "./Header";
 const AirdropLayout = ({ children }: PropsWithChildren) => {
   return (
     <EntityMetadataProvider>
-      <div className="min-h-screen flex flex-col bg-gradient-to-b from-yellow-300 via-blue-300">
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-tt-cream via-blue-300">
         <Header />
 
         <div className="flex flex-1 justify-center items-center px-4">

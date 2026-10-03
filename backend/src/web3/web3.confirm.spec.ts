@@ -21,7 +21,10 @@ function setup(verifiedPriceUsd = 1) {
     const orderRepository = { create: jest.fn().mockResolvedValue({ _id: 'order-1' }), update: jest.fn() };
     const userRepository = { findOne: jest.fn().mockResolvedValue({ _id: 'owner' }), update: jest.fn() };
     const blessingRepository = { find: jest.fn().mockResolvedValue([{ cat: 'c1' }]) };
-    const catService = { adopt: jest.fn().mockResolvedValue({ success: true, cat: { _id: 'c1' } }) };
+    const catService = {
+        adopt: jest.fn().mockResolvedValue({ success: true, cat: { _id: 'c1' } }),
+        pickPackCat: jest.fn().mockResolvedValue('c1'),
+    };
     const web3Service = {
         validatePrice: jest
             .fn()
@@ -75,7 +78,7 @@ describe('POST /web3/confirm', () => {
         const { ctrl, catService } = setup();
 
         await ctrl.checkTransaction(USER, body());
-        expect(catService.adopt).toHaveBeenCalledWith('c1', USER, Tier.COMMON, undefined);
+        expect(catService.adopt).toHaveBeenCalledWith('c1', USER, Tier.COMMON, undefined, 'pack');
     });
 
     it('credits spent and the affiliate share from the verified amount, not the client price', async () => {
@@ -93,7 +96,7 @@ describe('POST /web3/confirm', () => {
             HASH,
             'order-1'
         );
-        expect(userRepository.update).toHaveBeenCalledWith(USER, { $inc: { spent: 5, monthSpent: 5 } });
+        expect(userRepository.update).toHaveBeenCalledWith(USER, { $inc: { spent: 5, monthSpent: 5, spentUsd: 5 } });
         expect(userRepository.update).toHaveBeenCalledWith('owner', { $inc: { affiliated: 1 } });
     });
 

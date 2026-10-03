@@ -29,7 +29,7 @@ function BlogLanding() {
         id={process.env.NEXT_PUBLIC_DOMAIN!}
       />
 
-      <FirebaseAuthProvider>
+      <FirebaseAuthProvider authMode="optional">
         <BlogLayout>
           <FeedLanding />
         </BlogLayout>

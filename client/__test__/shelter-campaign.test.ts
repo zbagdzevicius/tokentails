@@ -20,16 +20,20 @@ function d(over: Partial<Disbursement>): Disbursement {
   };
 }
 
-const base = parseCampaign({ ...campaignJson, shelter: { ...campaignJson.shelter, wallet: PINK } });
+// fromBlock 0: the fixtures use small block numbers, so the shipped campaign
+// start block (see campaign.json) would filter every one of them out.
+const base = parseCampaign({ ...campaignJson, fromBlock: 0, shelter: { ...campaignJson.shelter, wallet: PINK } });
 
 describe("campaign.json", () => {
-  it("ships the Pink Paw campaign with no wallet until the deploy", () => {
+  it("ships the Pink Paw campaign with its held wallet", () => {
     const c = parseCampaign(campaignJson);
     expect(c.name).toBe("Pink Paw autumn rescue");
     expect(c.shelter.name).toBe("Pink Paw (Rožinė pėdutė)");
-    expect(c.shelter.wallet).toBeNull();
+    expect(c.shelter.wallet).toBe("0xe299299b846ba629f5a591dbf4f562bcc07a0f37");
     expect(c.shelter.handover).toBe("held-by-token-tails");
     expect(c.chainId).toBe(5042);
+    // First Arc block at or after the campaign startDate, so pre-campaign payouts never count.
+    expect(c.fromBlock).toBe(23790973);
   });
 
   it("rejects a bad goal", () => {
@@ -39,7 +43,7 @@ describe("campaign.json", () => {
 
 describe("campaignProgress", () => {
   it("counts nothing while the wallet is null", () => {
-    const p = campaignProgress(parseCampaign(campaignJson), [{ chainId: 5042, items: [d({})] }]);
+    const p = campaignProgress(parseCampaign({ ...campaignJson, shelter: { ...campaignJson.shelter, wallet: null } }), [{ chainId: 5042, items: [d({})] }]);
     expect(p).toMatchObject({ counting: false, raised: BigInt(0), percent: 0, count: 0 });
   });
 
@@ -73,5 +77,16 @@ describe("campaignProgress", () => {
   it("matches the wallet case-insensitively", () => {
     const p = campaignProgress(base, [{ chainId: 5042, items: [d({ shelter: PINK.toUpperCase().replace("0X", "0x") })] }]);
     expect(p.count).toBe(1);
+  });
+});
+
+describe("campaignProgress with a second payout token", () => {
+  it("never counts an EURC instance's token payouts as USDC", () => {
+    const token = d({ kind: "token", amount: BigInt(2_000_000) });
+    const usdcOnly = campaignProgress(base, [{ chainId: 5042, items: [token], symbol: "USDC" }]);
+    expect(usdcOnly.count).toBe(1);
+    const eurc = campaignProgress(base, [{ chainId: 5042, items: [token], symbol: "EURC" }]);
+    expect(eurc.count).toBe(0);
+    expect(eurc.raised).toBe(BigInt(0));
   });
 });

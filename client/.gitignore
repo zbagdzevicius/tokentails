@@ -7,9 +7,13 @@
 
 # testing
 /coverage
+/test-results
+/playwright-report
 
 # next.js
 /.next/
+# side builds (NEXT_DIST_DIR, e.g. the local bundle guards)
+/.next-*/
 /out/
 
 # production

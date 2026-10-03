@@ -10,7 +10,7 @@ const PAWS = Array.from({ length: 14 }, (_, i) => ({
 }));
 
 export const Celebration = () => (
-  <div className="pointer-events-none fixed inset-0 z-[9000] overflow-hidden" aria-hidden="true">
+  <div className="pointer-events-none fixed inset-0 z-celebration overflow-hidden" aria-hidden="true">
     <style>{`
       @keyframes tt-paw-fall {
         0% { transform: translateY(-10vh) rotate(0deg); opacity: 0; }

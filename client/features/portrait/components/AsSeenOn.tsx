@@ -28,7 +28,6 @@ export const AsSeenOn = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.0 }}
           className="text-sm md:text-base font-serif font-bold tracking-tight opacity-40 hover:opacity-60 transition-opacity"
-          style={{ fontFamily: "'Times New Roman', Times, serif" }}
         >
           The New York Times
         </motion.span>

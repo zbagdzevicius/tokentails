@@ -11,6 +11,7 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, chmodSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { CORE } from '../../lib/core.mjs';
 // track.mjs imports this file to register the commands, so its helpers are loaded lazily here
@@ -110,7 +111,7 @@ export async function waveRanking({ network = 'mainnet', only = null, env = proc
       chain, name: c.name, network, chainId: n.chainId, rpcEnv: n.rpcEnv, token, programs,
       ev: programs.reduce((s, p) => s + (p.ev || 0), 0), needsCheck: !!n.verify || token.verify,
       notes: [n.notes, token.alt ? n.splitTokens?.[token.symbol]?.notes : ''].filter(Boolean).join(' '),
-      forgeArgs: n.forgeArgs || [], missing, deployed: done.map((d) => d.address),
+      forgeArgs: n.forgeArgs || [], proofVia: n.proofVia || 'forge', missing, deployed: done.map((d) => d.address),
     });
   }
   return rows.filter((r) => r.programs.length || (only && only.includes(r.chain))).sort((a, b) => b.ev - a.ev || b.programs.length - a.programs.length);
@@ -145,8 +146,10 @@ export function waveScript(rows, { network = 'mainnet', date = new Date().toISOS
     `#   export PROOF_SHELTER=0x... PROOF_SHELTER_NAME="..." PROOF_AMOUNT=1000000   # 1 ${alt || 'USDC'} (6 decimals)`,
     `# Dry run first: DRY_RUN=1 ./${waveFile(network, token)}   (simulates, broadcasts nothing)`,
     'set -uo pipefail',
+    'export FOUNDRY_DISABLE_NIGHTLY_WARNING=1   # the Tempo-aware nightly prints a warning that would pollute captured output',
     `PROJECT=${q(project)}`,
     `FUND_ROOT=${q(root)}`,
+    'SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"',
     'cd "$PROJECT" || exit 1',
     ': "${FUND_KEYSTORE:?run: cast wallet import tokentails --interactive; export FUND_KEYSTORE=tokentails}"',
     ': "${SHELTERSPLIT_TREASURY:?export SHELTERSPLIT_TREASURY=<treasury address>}"',
@@ -157,7 +160,15 @@ export function waveScript(rows, { network = 'mainnet', date = new Date().toISOS
     'OWNER="${SHELTERSPLIT_OWNER:-$DEPLOYER}"',
     'BROADCAST="--broadcast"; [ "${DRY_RUN:-0}" = 1 ] && BROADCAST="" && echo "DRY RUN: simulating only"',
     'echo "deployer $DEPLOYER  owner $OWNER  treasury $SHELTERSPLIT_TREASURY"',
-    'OK=(); SKIP=()',
+    '[[ "$SHELTERSPLIT_TREASURY" =~ ^0x[0-9a-fA-F]{40}$ ]] || { echo "SHELTERSPLIT_TREASURY is not a 0x address"; exit 1; }',
+    '# Checked up front: with set -u an unset PROOF_AMOUNT would abort the script after the first deploy.',
+    'if [ -n "${PROOF_SHELTER:-}" ]; then',
+    '  [[ "$PROOF_SHELTER" =~ ^0x[0-9a-fA-F]{40}$ ]] || { echo "PROOF_SHELTER is not a 0x address"; exit 1; }',
+    '  [[ "${PROOF_AMOUNT:-}" =~ ^[1-9][0-9]*$ ]] || { echo "PROOF_SHELTER is set: export PROOF_AMOUNT in raw token units (1000000 = 1 token at 6 decimals)"; exit 1; }',
+    '  [[ "${PROOF_BPS:-10000}" =~ ^[1-9][0-9]*$ ]] && [ "${PROOF_BPS:-10000}" -le 10000 ] || { echo "PROOF_BPS must be 1..10000"; exit 1; }',
+    'fi',
+    'OK=(); SKIP=(); PRIOR=()   # PRIOR: chains an earlier run of this script already deployed',
+    `CAST_PROOF_CHAINS=${q(rows.filter((r) => r.proofVia === 'cast').map((r) => r.chainId).join(' '))}`,
     '',
     'deploy() { # chain chainId rpcEnv token [extra forge args...]',
     '  local chain="$1" id="$2" rpcEnv="$3" token="$4"; shift 4',
@@ -168,12 +179,34 @@ export function waveScript(rows, { network = 'mainnet', date = new Date().toISOS
     '  local got; got="$(cast chain-id --rpc-url "$url" 2>/dev/null)"',
     '  [ "$got" = "$id" ] || { echo "skip: RPC answered chain ${got:-nothing}, expected $id"; SKIP+=("$chain: wrong RPC"); return; }',
     '  echo "deployer balance: $(cast balance "$DEPLOYER" --rpc-url "$url" --ether 2>/dev/null || echo "?")"',
+    '  # Re-running this script after a partial failure must not deploy a second instance: skip a chain whose',
+    '  # broadcast, written after this script, already holds a mined ShelterSplit for this token.',
+    '  local prev="$PWD/broadcast/DeployShelterSplit.s.sol/$id/run-latest.json"',
+    '  if [ -n "$BROADCAST" ] && [ -z "${FORCE_REDEPLOY:-}" ] && [ "$prev" -nt "$SELF" ] && node -e \'const j=require(process.argv[1]),k=process.argv[2].toLowerCase();const t=(j.transactions||[]).find(x=>x.transactionType==="CREATE"&&x.contractName==="ShelterSplit"&&String((x.arguments||[])[0]||"").toLowerCase()===k);const r=t&&(j.receipts||[]).find(y=>y.transactionHash===t.hash);process.exit(r&&r.status==="0x1"?0:1)\' "$prev" "$token" 2>/dev/null; then',
+    '    echo "skip: already deployed by an earlier run of this script (see $prev); FORCE_REDEPLOY=1 deploys again"; PRIOR+=("$chain")',
+    '    # The earlier run may have deployed and then failed the proof payout: retry it unless it already went through.',
+    '    if [ -n "${PROOF_SHELTER:-}" ] && ! proof_done "$id"; then maybe_proof "$chain" "$id" "$url" "$@"; fi',
+    '    return',
+    '  fi',
     '  if SHELTERSPLIT_TOKEN="$token" SHELTERSPLIT_OWNER="$OWNER" EXPECTED_CHAIN_ID="$id" \\',
     '     forge script script/DeployShelterSplit.s.sol:DeployShelterSplit --rpc-url "$url" \\',
     '       "${SIGNER[@]}" --sender "$DEPLOYER" $BROADCAST "$@"; then',
     '    OK+=("$chain")',
-    '    if [ -n "${PROOF_SHELTER:-}" ] && [ -n "$BROADCAST" ]; then proof "$chain" "$id" "$url" "$@"; fi',
+    '    if [ -n "${PROOF_SHELTER:-}" ] && [ -n "$BROADCAST" ]; then maybe_proof "$chain" "$id" "$url" "$@"; fi',
     '  else SKIP+=("$chain: forge failed"); fi',
+    '}',
+    '',
+    'maybe_proof() { # chain chainId url [extra forge args...]',
+    '  # addShelter is onlyOwner: with SHELTERSPLIT_OWNER set to another address the deployer key cannot register the shelter.',
+    '  if [ "$(printf %s "$OWNER" | tr A-F a-f)" = "$(printf %s "$DEPLOYER" | tr A-F a-f)" ]; then proof "$@";',
+    '  else echo "proof skipped: owner $OWNER is not the deployer; register the shelter and disburse from the owner"; SKIP+=("$1: proof needs the owner key"); fi',
+    '}',
+    '',
+    '# A proof payout written after this script with a mined disburse (the cast-written file has no receipts:',
+    '# it is only written once the disburse receipt checked out).',
+    'proof_done() { # chainId',
+    '  local f="$PWD/broadcast/ProofDisburse.s.sol/$1/run-latest.json"',
+    '  [ "$f" -nt "$SELF" ] && node -e \'const j=require(process.argv[1]);const t=(j.transactions||[]).find(x=>String(x.function||"").startsWith("disburse("));if(!t)process.exit(1);if(!Array.isArray(j.receipts))process.exit(0);const r=j.receipts.find(y=>y.transactionHash===t.hash);process.exit(r&&r.status==="0x1"?0:1)\' "$f" 2>/dev/null',
     '}',
     '',
     'proof() { # chain chainId url [extra forge args...]',
@@ -181,8 +214,26 @@ export function waveScript(rows, { network = 'mainnet', date = new Date().toISOS
     '  local split; split="$(node -e \'const j=require(process.argv[1]);const t=j.transactions.find(x=>x.transactionType==="CREATE"&&x.contractName==="ShelterSplit");console.log(t?t.contractAddress:"")\' "$PWD/broadcast/DeployShelterSplit.s.sol/$id/run-latest.json" 2>/dev/null)"',
     '  [ -n "$split" ] || { echo "proof skipped: no ShelterSplit in the $chain broadcast"; return; }',
     '  echo "proof payout on $chain via $split"',
+    '  case " $CAST_PROOF_CHAINS " in *" $id "*) proof_cast "$chain" "$id" "$url" "$split" "$@"; return;; esac',
     '  PROOF_SPLIT="$split" EXPECTED_CHAIN_ID="$id" forge script script/ProofDisburse.s.sol:ProofDisburse --rpc-url "$url" \\',
     '    "${SIGNER[@]}" --sender "$DEPLOYER" --broadcast "$@" || SKIP+=("$chain: proof payout failed")',
+    '}',
+    '',
+    '# Tempo: Foundry\'s local TIP-20 emulation rejects transferFrom inside a script (PolicyForbids), while the',
+    '# real node accepts it, so the proof payout runs as three cast sends and records a broadcast-shaped file',
+    '# that fund a:ingest reads like a forge broadcast.',
+    'proof_cast() { # chain chainId url split [extra forge args...]',
+    '  local chain="$1" id="$2" url="$3" split="$4"; shift 4',
+    '  local fa=(); while [ $# -gt 0 ]; do case "$1" in --gas-estimate-multiplier) shift 2;; *) fa+=("$1"); shift;; esac; done',
+    '  local tok; tok="$(cast call "$split" "token()(address)" --rpc-url "$url")" || { SKIP+=("$chain: proof payout failed (token)"); return; }',
+    '  if ! cast call "$split" "getShelter(address)" "$PROOF_SHELTER" --rpc-url "$url" >/dev/null 2>&1; then',
+    '    cast send "$split" "addShelter(address,uint16,string)" "$PROOF_SHELTER" "${PROOF_BPS:-10000}" "${PROOF_SHELTER_NAME:-shelter}" --rpc-url "$url" "${SIGNER[@]}" ${fa[@]+"${fa[@]}"} >/dev/null || { SKIP+=("$chain: proof payout failed (addShelter)"); return; }',
+    '  fi',
+    '  cast send "$tok" "approve(address,uint256)" "$split" "$PROOF_AMOUNT" --rpc-url "$url" "${SIGNER[@]}" ${fa[@]+"${fa[@]}"} >/dev/null || { SKIP+=("$chain: proof payout failed (approve)"); return; }',
+    '  local h; h="$(cast send "$split" "disburse(uint256,string)" "$PROOF_AMOUNT" "${PROOF_MEMO:-Token Tails first payout}" --rpc-url "$url" "${SIGNER[@]}" ${fa[@]+"${fa[@]}"} --json | node -e \'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s);if(r.status!=="0x1"&&r.status!==1&&r.status!=="1")process.exit(1);console.log(r.transactionHash)})\')" || { SKIP+=("$chain: proof payout failed (disburse)"); return; }',
+    '  mkdir -p "$PWD/broadcast/ProofDisburse.s.sol/$id"',
+    '  printf \'{"transactions":[{"transactionType":"CALL","function":"disburse(uint256,string)","contractAddress":"%s","hash":"%s"}]}\\n\' "$split" "$h" > "$PWD/broadcast/ProofDisburse.s.sol/$id/run-latest.json"',
+    '  echo "proof payout tx $h"',
     '}',
     '',
   ];
@@ -192,9 +243,9 @@ export function waveScript(rows, { network = 'mainnet', date = new Date().toISOS
   }
   lines.push(
     '',
-    'echo; echo "deployed: ${OK[*]:-none}"',
+    'echo; echo "deployed: ${OK[*]:-none}"; [ ${#PRIOR[@]} -gt 0 ] && echo "deployed by an earlier run: ${PRIOR[*]}"',
     'for s in "${SKIP[@]:-}"; do [ -n "$s" ] && echo "skipped: $s"; done',
-    `[ -n "$BROADCAST" ] && [ \${#OK[@]} -gt 0 ] && (cd "$FUND_ROOT" && node bin/fund.mjs a:ingest --network ${network})`,
+    `[ -n "$BROADCAST" ] && [ $(( \${#OK[@]} + \${#PRIOR[@]} )) -gt 0 ] && (cd "$FUND_ROOT" && node bin/fund.mjs a:ingest --network ${network})`,
     '',
   );
   return lines.join('\n');
@@ -209,6 +260,18 @@ function readRun(project, script, chainId) {
 }
 
 const txHashOf = (t) => t.hash || t.transactionHash || '';
+
+// Whether a broadcast tx was mined successfully. Forge always writes a receipts array; a failed or
+// timed-out run leaves the CREATE in transactions with a status-0 receipt or none at all, and must
+// never be recorded as a live deployment. The cast-written proof file has no receipts key: the wave
+// script only writes it after checking the disburse receipt's status itself.
+function mined(run, t) {
+  if (!Array.isArray(run?.receipts)) return 'ok';
+  const h = txHashOf(t).toLowerCase();
+  const r = run.receipts.find((x) => String(x.transactionHash || '').toLowerCase() === h);
+  if (!r) return 'pending';
+  return r.status === '0x1' || r.status === 1 || r.status === '1' ? 'ok' : 'failed';
+}
 
 // Pure over the broadcast folder: what is new compared with deployments.json.
 export async function scanBroadcasts({ network = 'mainnet', project } = {}) {
@@ -225,7 +288,7 @@ export async function scanBroadcasts({ network = 'mainnet', project } = {}) {
       if (t.transactionType !== 'CREATE' || t.contractName !== 'ShelterSplit' || !ADDR.test(t.contractAddress || '')) continue;
       const known = list.find((d) => d.chain === chain && d.network === network && d.address.toLowerCase() === t.contractAddress.toLowerCase());
       const token = tokenSymbolOf(n, Array.isArray(t.arguments) ? t.arguments[0] : null);
-      found.push({ kind: 'deploy', chain, network, address: t.contractAddress, tx: txHashOf(t), known: !!known, ...(token ? { token } : {}) });
+      found.push({ kind: 'deploy', chain, network, address: t.contractAddress, tx: txHashOf(t), known: !!known, mined: mined(dep, t), ...(token ? { token } : {}) });
     }
     const pr = readRun(project, 'ProofDisburse.s.sol', n.chainId);
     for (const t of pr?.transactions || []) {
@@ -233,7 +296,7 @@ export async function scanBroadcasts({ network = 'mainnet', project } = {}) {
       if (!fn.startsWith('disburse(')) continue;
       const to = t.contractAddress || t.transaction?.to || '';
       const known = list.find((d) => d.chain === chain && d.network === network && d.address.toLowerCase() === String(to).toLowerCase());
-      found.push({ kind: 'proof', chain, network, address: to, tx: txHashOf(t), known: !!(known && (known.proofTxs || []).includes(txHashOf(t))) });
+      found.push({ kind: 'proof', chain, network, address: to, tx: txHashOf(t), known: !!(known && (known.proofTxs || []).includes(txHashOf(t))), mined: mined(pr, t) });
     }
   }
   return found;
@@ -244,8 +307,11 @@ async function cmdIngest({ flags }) {
   const network = typeof flags.network === 'string' ? flags.network : 'mainnet';
   const chains = loadChains();
   const found = await scanBroadcasts({ network });
-  const fresh = found.filter((f) => !f.known);
   if (!found.length) { say(`no ShelterSplit broadcasts for ${network} under ${join(paths.project(), 'broadcast')}`); next(`fund a:wave --network ${network}`); return 0; }
+  for (const f of found.filter((x) => !x.known && x.mined !== 'ok')) {
+    say(`! ${f.kind === 'deploy' ? 'deploy' : 'proof payout'} on ${f.chain} ${f.tx || f.address} ${f.mined === 'failed' ? 'failed on-chain' : 'has no receipt in the broadcast'}: not recorded${f.mined === 'pending' && f.kind === 'deploy' ? ` (if the explorer shows it succeeded: fund a:record ${f.chain} ${network} ${f.address}${f.tx ? ` --tx ${f.tx}` : ''})` : ''}`);
+  }
+  const fresh = found.filter((f) => !f.known && f.mined === 'ok');
   for (const f of fresh.filter((x) => x.kind === 'deploy')) {
     recordDeployment({ chain: f.chain, network, address: f.address, tx: f.tx || undefined, token: f.token, note: 'recorded by a:ingest from the Foundry broadcast' });
     say(`recorded ${f.chain} ${network}${f.token ? ` ${f.token}` : ''} ${f.address}\n  ${explorerLink(chains, f.chain, network, 'address', f.address)}`);
@@ -276,10 +342,22 @@ async function cmdIngest({ flags }) {
     } catch (e) { bad++; say(`✗ ${d.chain}: RPC failed (${e.message})`); }
   }
 
+  // Verify the contract source on the explorers: unverified source can disqualify an entry.
+  if (process.env.FUND_A_SKIP_SOURCE_VERIFY !== '1') {
+    const sv = await verifyAllSources({ network });
+    if (sv.bad) bad += sv.bad;
+  }
+
   // Publish the mainnet list to the read-only pages (only public fields; nothing secret is in it).
   if (network === 'mainnet') {
     const pub = loadDeployments().filter((d) => d.network === 'mainnet')
-      .map(({ contract, chain, network: n, chainId, address, tx, token, proofTxs }) => ({ contract, chain, network: n, chainId, address, ...(tx ? { tx } : {}), ...(token ? { token } : {}), ...(proofTxs ? { proofTxs } : {}) }));
+      .map(({ contract, chain, network: n, chainId, address, tx, token, proofTxs }) => {
+        // A second-token instance (EURC) states its symbol and decimals: the pages otherwise label every
+        // ERC-20 payout on a chain with that chain's default token (USDC).
+        let alt = null;
+        try { const ni = networkInfo(chains, chain, n); if (token && token !== splitToken(ni).symbol) alt = splitToken(ni, token); } catch { /* unknown chain */ }
+        return { contract, chain, network: n, chainId, address, ...(tx ? { tx } : {}), ...(token ? { token } : {}), ...(alt ? { symbol: alt.symbol, decimals: alt.decimals } : {}), ...(proofTxs ? { proofTxs } : {}) };
+      });
     for (const f of wavePaths.publish()) {
       if (!existsSync(dirname(f))) continue;
       writeFileSync(f, JSON.stringify(pub, null, 2) + '\n');
@@ -327,7 +405,88 @@ async function cmdWave({ flags }) {
   return 0;
 }
 
+// ---------------------------------------------------------------- source verification
+
+const ADDR_RE = /^0x[0-9a-fA-F]{40}$/;
+const bin = (name) => process.env[`FUND_${name.toUpperCase()}_BIN`] || name;
+// The Tempo-aware nightly Foundry prints a warning; keep it out of every captured cast/forge output.
+const QUIET_ENV = () => ({ ...process.env, FOUNDRY_DISABLE_NIGHTLY_WARNING: '1' });
+
+// Constructor arguments of a recorded deployment: from the deploy broadcast when it is still on disk,
+// otherwise read back from the contract (token(), treasury(), owner()). An owner moved to a Safe after
+// the deploy would no longer match the creation arguments, so the broadcast is always preferred.
+export function constructorArgs(entry, { project, rpcUrl, run = spawnSync } = {}) {
+  const f = join(project, 'broadcast', 'DeployShelterSplit.s.sol', String(entry.chainId), 'run-latest.json');
+  if (existsSync(f)) {
+    try {
+      const j = JSON.parse(readFileSync(f, 'utf8'));
+      const t = (j.transactions || []).find((x) => x.transactionType === 'CREATE' && String(x.contractAddress).toLowerCase() === entry.address.toLowerCase());
+      if (t && Array.isArray(t.arguments) && t.arguments.length === 3 && t.arguments.every((a) => ADDR_RE.test(a))) return { args: t.arguments, from: 'broadcast' };
+    } catch { /* fall through */ }
+  }
+  if (!rpcUrl) return null;
+  const read = (sig) => {
+    const r = run(bin('cast'), ['call', entry.address, sig, '--rpc-url', rpcUrl], { encoding: 'utf8', env: QUIET_ENV() });
+    const v = String(r.stdout || '').trim().split(/\s+/)[0];
+    return r.status === 0 && ADDR_RE.test(v) ? v : null;
+  };
+  const args = ['token()(address)', 'treasury()(address)', 'owner()(address)'].map(read);
+  return args.every(Boolean) ? { args, from: 'chain (owner may differ from the creation value)' } : null;
+}
+
+const VERIFIED_RE = /(successfully verified|Pass - Verified|exact_match|already (fully |partially )?verified)/i;
+
+// Submits ShelterSplit's source to the network's explorer verifier with forge verify-contract --watch.
+// Read-only towards the chain; it only uploads public source. Returns {ok, detail, skipped}.
+export function verifySource(entry, n, { project, rpcUrl, run = spawnSync } = {}) {
+  const v = n.verifier;
+  if (!v || !v.type || !v.url) return { ok: false, skipped: true, detail: `no verifier configured for ${entry.chain} ${entry.network} in chains.json` };
+  const ca = constructorArgs(entry, { project, rpcUrl, run });
+  if (!ca) return { ok: false, detail: 'constructor arguments unknown (no deploy broadcast and no RPC)' };
+  const enc = run(bin('cast'), ['abi-encode', 'constructor(address,address,address)', ...ca.args], { encoding: 'utf8', env: QUIET_ENV() });
+  const encoded = String(enc.stdout || '').trim();
+  if (enc.status !== 0 || !/^0x[0-9a-fA-F]*$/.test(encoded)) return { ok: false, detail: `cast abi-encode failed: ${String(enc.stderr || '').trim().slice(0, 200)}` };
+  const argv = ['verify-contract', entry.address, 'src/ShelterSplit.sol:ShelterSplit', '--chain-id', String(entry.chainId),
+    '--constructor-args', encoded, '--verifier', v.type, '--verifier-url', v.url, '--watch'];
+  if (v.apiKey) argv.push('--etherscan-api-key', v.apiKey);
+  const r = run(bin('forge'), argv, { cwd: project, encoding: 'utf8', env: { ...process.env, FOUNDRY_DISABLE_NIGHTLY_WARNING: '1' }, timeout: 300000 });
+  const out = `${r.stdout || ''}\n${r.stderr || ''}`;
+  if (VERIFIED_RE.test(out)) return { ok: true, detail: `${v.type} ${(out.match(VERIFIED_RE) || [''])[0]}`, argsFrom: ca.from };
+  return { ok: false, detail: out.trim().split('\n').slice(-3).join(' | ').slice(0, 300) };
+}
+
+// Verifies the source of every recorded deployment (optionally one chain/network) that is not yet marked.
+export async function verifyAllSources({ chain, network, force = false, log = say } = {}) {
+  const { paths, loadChains, loadDeployments, saveDeployments, networkInfo, explorerLink } = await A();
+  const chains = loadChains();
+  let bad = 0, done = 0, skipped = 0;
+  for (const d of loadDeployments()) {
+    if ((chain && d.chain !== chain) || (network && d.network !== network)) continue;
+    if (d.sourceVerified && !force) continue;
+    let n; try { n = networkInfo(chains, d.chain, d.network); } catch { continue; }
+    const r = verifySource(d, n, { project: paths.project(), rpcUrl: process.env[n.rpcEnv] });
+    if (r.skipped) { skipped++; log(`  source ${d.chain} ${d.network}: skipped (${r.detail})`); continue; }
+    const all = loadDeployments();
+    const e = all.find((x) => x.chain === d.chain && x.network === d.network && x.address === d.address);
+    if (r.ok) {
+      Object.assign(e, { sourceVerified: true, sourceVerifiedAt: new Date().toISOString(), sourceVerifier: n.verifier.type });
+      done++; log(`✓ source verified: ${d.chain} ${d.network} ${d.address} (${r.detail}) ${explorerLink(chains, d.chain, d.network, 'address', d.address)}`);
+    } else { bad++; log(`✗ source NOT verified: ${d.chain} ${d.network} ${d.address}: ${r.detail}`); }
+    saveDeployments(all);
+  }
+  return { bad, done, skipped };
+}
+
+async function cmdVerifySource({ args, flags }) {
+  const [chain, network] = args;
+  const r = await verifyAllSources({ chain, network: network || (typeof flags.network === 'string' ? flags.network : undefined), force: !!flags.force });
+  if (!r.done && !r.bad && !r.skipped) say('nothing to verify (every matching deployment is already source-verified; --force re-submits)');
+  next(r.bad ? 'fix the failure above and re-run fund a:verify-source' : 'fund a:matrix');
+  return r.bad ? 1 : 0;
+}
+
 export const waveCommands = {
   'a:wave': { help: '[--network mainnet|testnet] [--chains a,b] [--token EURC] [--redeploy] — rank chains by EV unlocked, write wave/deploy-<network>[-eurc].sh (a human runs it)', run: cmdWave },
+  'a:verify-source': { help: '[chain] [network] [--force] — verify ShelterSplit source code on each explorer (Blockscout, Sourcify, Routescan) for recorded deployments', run: cmdVerifySource },
   'a:ingest': { help: '[--network mainnet|testnet] — record + verify deployments and proof payouts from Foundry broadcasts, re-render unblocked submissions', run: cmdIngest },
 };

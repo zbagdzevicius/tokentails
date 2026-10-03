@@ -1,0 +1,153 @@
+/**
+ * The `GET /cat/sale` storefront contract (plan G13).
+ *
+ * The response is an object keyed by shelter slug (plus `tokentails` for blueprint cats), each value
+ * an array of cats. Shipped app builds index the required keys directly and crash when one is
+ * missing, so the backend always sends an array for each of them and `parseStorefront` guarantees
+ * the same on the client whatever arrives. `_meta` is additive: old clients ignore it.
+ *
+ * Framework-free and TypeScript 4.8 compatible. Edit here, then run `node scripts/sync-contracts.mjs`.
+ */
+import { SHELTER_ROLES, ShelterRole } from './enums';
+
+/** Keys every storefront response carries as an array, even when empty. */
+export const STOREFRONT_REQUIRED_KEYS = ['tokentails', 'token-tails', 'token-tails-2', 'rozine-pedute'] as const;
+export type StorefrontRequiredKey = typeof STOREFRONT_REQUIRED_KEYS[number];
+
+/** Current `_meta._v`. Bump when the shape of `_meta` changes. */
+export const STOREFRONT_META_VERSION = 1;
+
+export interface StorefrontShelterMeta {
+    slug: string;
+    name: string;
+    role: ShelterRole;
+}
+
+export interface StorefrontMeta {
+    _v: number;
+    /** ISO timestamp of when the backend built (or cached) the response. */
+    generatedAt: string;
+    /** One entry per shelter key in the response, so clients can use roles instead of magic slugs. */
+    shelters: StorefrontShelterMeta[];
+}
+
+/**
+ * Parsed storefront. `TCat` is the package's own cat type; the contract only promises that each
+ * entry is a non-null object.
+ */
+export type Storefront<TCat = Record<string, unknown>> = { [K in StorefrontRequiredKey]: TCat[] } & {
+    [shelterSlug: string]: TCat[];
+};
+
+/** Raw wire shape, as the backend sends it. */
+export type StorefrontResponse<TCat = Record<string, unknown>> = Storefront<TCat> & { _meta?: StorefrontMeta };
+
+export interface ParsedStorefront<TCat = Record<string, unknown>> {
+    cats: Storefront<TCat>;
+    meta: StorefrontMeta | null;
+    /** True when the input was not the expected shape and something was dropped or defaulted. */
+    degraded: boolean;
+}
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+    !!value && typeof value === 'object' && !Array.isArray(value);
+
+const RESERVED_KEYS = ['_meta', '__proto__', 'constructor', 'prototype'];
+
+function parseMeta(raw: unknown): StorefrontMeta | null {
+    if (!isPlainObject(raw)) {
+        return null;
+    }
+    const version = raw._v;
+    const generatedAt = raw.generatedAt;
+    if (typeof version !== 'number' || !Number.isFinite(version) || typeof generatedAt !== 'string') {
+        return null;
+    }
+    const shelters: StorefrontShelterMeta[] = [];
+    if (Array.isArray(raw.shelters)) {
+        raw.shelters.forEach(entry => {
+            if (!isPlainObject(entry)) {
+                return;
+            }
+            const { slug, name, role } = entry;
+            if (typeof slug !== 'string' || !slug || typeof name !== 'string') {
+                return;
+            }
+            if ((SHELTER_ROLES as readonly unknown[]).indexOf(role) === -1) {
+                return;
+            }
+            shelters.push({ slug, name, role: role as ShelterRole });
+        });
+    }
+    return { _v: version, generatedAt, shelters };
+}
+
+/**
+ * Normalises any `/cat/sale` payload. Never throws. Every required key is an array; every other key
+ * of the input is kept (non-array values become `[]`); entries that are not objects are dropped.
+ * A top-level array (the old client fallback) or any non-object input yields the empty storefront.
+ */
+export function parseStorefrontDetailed<TCat = Record<string, unknown>>(raw: unknown): ParsedStorefront<TCat> {
+    let degraded = false;
+    const cats = {} as Storefront<TCat>;
+    const input: Record<string, unknown> = isPlainObject(raw) ? raw : {};
+    if (!isPlainObject(raw)) {
+        degraded = true;
+    }
+
+    let keys: string[] = [];
+    try {
+        keys = Object.keys(input);
+    } catch {
+        degraded = true;
+    }
+
+    keys.forEach(key => {
+        if (RESERVED_KEYS.indexOf(key) !== -1) {
+            return;
+        }
+        let value: unknown;
+        try {
+            value = input[key];
+        } catch {
+            value = undefined;
+        }
+        if (!Array.isArray(value)) {
+            degraded = true;
+            cats[key] = [];
+            return;
+        }
+        const entries = value.filter(isPlainObject) as unknown as TCat[];
+        if (entries.length !== value.length) {
+            degraded = true;
+        }
+        cats[key] = entries;
+    });
+
+    STOREFRONT_REQUIRED_KEYS.forEach(key => {
+        if (!Object.prototype.hasOwnProperty.call(cats, key)) {
+            // A missing required key is the G13 crash case in shipped builds, so it counts as degraded.
+            degraded = true;
+            cats[key] = [];
+        }
+    });
+
+    let meta: StorefrontMeta | null = null;
+    try {
+        meta = parseMeta(input._meta);
+    } catch {
+        meta = null;
+    }
+
+    return { cats, meta, degraded };
+}
+
+/** `parseStorefrontDetailed(raw).cats`: the storefront with every required key an array. */
+export function parseStorefront<TCat = Record<string, unknown>>(raw: unknown): Storefront<TCat> {
+    return parseStorefrontDetailed<TCat>(raw).cats;
+}
+
+/** An empty storefront, for loading and error states. */
+export function emptyStorefront<TCat = Record<string, unknown>>(): Storefront<TCat> {
+    return parseStorefront<TCat>({});
+}

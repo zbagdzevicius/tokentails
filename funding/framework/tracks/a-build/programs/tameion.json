@@ -1,0 +1,46 @@
+{
+  "program": "Tameion Agents Hackathon (Canteen x Circle x Arc)",
+  "url": "https://tameion.thecanteenapp.com/",
+  "deadline": "2026-10-10T23:59:00-04:00",
+  "frame": "payout-rail",
+  "chain": "arc",
+  "mainnet_required": false,
+  "build_window_start": "2026-09-27",
+  "build_window_end": "2026-10-10",
+  "next": "After the Oct 2 Arc deploy: record it (fund a:record arc mainnet <address>), switch on the x402 endpoint, make one paid agent call, record a demo under 3 minutes, then fund a:submission tameion",
+  "criteria": [
+    ["C1", "Agentic sophistication", "30%", "Agentic Sophistication"],
+    ["C2", "Traction", "30%", "Traction (businesses onboarded, value moved, problems solved)"],
+    ["C3", "Circle tool usage", "20%", "Circle tool usage"],
+    ["C4", "Innovation", "20%", "Innovation"]
+  ],
+  "submission": {
+    "fields": {
+      "Chain": "Arc (mainnet USDC preferred and weighted more heavily; test USDC accepted)",
+      "Problem area": "Autonomous Operations (open RFB, not a mandatory track)"
+    },
+    "sections": [
+      { "title": "Summary", "from": "Summary", "limit": 280 },
+      { "title": "What the agent does", "from": "What the agent does" },
+      { "title": "How it works", "from": "How it works" },
+      { "title": "Circle tools used", "from": "Circle tools used" },
+      { "title": "Traction", "from": "Traction" },
+      { "title": "Innovation", "from": "Innovation" },
+      { "title": "Arc deployment", "from": "On-chain proof", "auto": "deployments" },
+      { "title": "Build evidence", "auto": "build" },
+      { "title": "Team", "from": "Team" }
+    ],
+    "checklist": [
+      "Public GitHub repo (required)",
+      "Demo video under 3 minutes (required)",
+      "Live deployed link (optional on the page, strongly encouraged)",
+      "Only in-window progress (2026-09-27 to 2026-10-10) counts: show the delta, disclose prior work",
+      "Arc mainnet address recorded with fund a:record arc mainnet, x402 endpoint switched on, one paid agent call on the explorer"
+    ]
+  },
+  "verify": [
+    "submission form fields and character limits (not shown on the public page)",
+    "whether an x402-compatible scheme without a facilitator counts as Circle tool usage, or whether Circle Wallets / Gateway must be used directly",
+    "the live-link requirement: the page says optional but strongly encouraged"
+  ]
+}

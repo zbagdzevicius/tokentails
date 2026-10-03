@@ -26,7 +26,7 @@ export default function Category(landingPageProps: LandingPageProps) {
         id={`${process.env.NEXT_PUBLIC_DOMAIN!}/${category}`}
       />
 
-      <FirebaseAuthProvider>
+      <FirebaseAuthProvider authMode="optional">
         <BlogLayout>
           <FeedLanding
             category={category}

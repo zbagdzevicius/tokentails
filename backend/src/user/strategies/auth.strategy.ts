@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { HttpException, Logger } from '@nestjs/common';
 import { Request } from 'express';
 import * as admin from 'firebase-admin';
 import { Strategy } from 'passport-strategy';
@@ -30,7 +30,9 @@ export class AppAuthStrategy extends Strategy {
         this.checkRevoked = !!options.checkRevoked;
     }
 
-    async validate(payload: any): Promise<any> {
+    // `req` is passed on so the app strategy can read the client IP (NewAccountThrottle, F5.2).
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async validate(payload: any, _req?: Request): Promise<any> {
         return payload;
     }
 
@@ -48,11 +50,11 @@ export class AppAuthStrategy extends Strategy {
 
             return;
         }
-        await this.authFB(token);
+        await this.authFB(token, req);
     }
 
-    // Every path below ends the request with exactly one of success() or fail().
-    private async authFB(idToken: string): Promise<void> {
+    // Every path below ends the request with exactly one of success(), fail() or error().
+    private async authFB(idToken: string, req?: Request): Promise<void> {
         if (!idToken) {
             this.fail(UNAUTHORIZED, 401);
 
@@ -79,14 +81,22 @@ export class AppAuthStrategy extends Strategy {
             return;
         }
 
-        await this.validateDecodedIdToken(decodedIdToken);
+        await this.validateDecodedIdToken(decodedIdToken, req);
     }
 
-    private async validateDecodedIdToken(decodedIdToken: admin.auth.DecodedIdToken): Promise<void> {
+    private async validateDecodedIdToken(decodedIdToken: admin.auth.DecodedIdToken, req?: Request): Promise<void> {
         let result: any;
         try {
-            result = await this.validate(decodedIdToken);
+            result = await this.validate(decodedIdToken, req);
         } catch (err) {
+            // A deliberate HTTP answer (403 EMAIL_UNVERIFIED, 409 ACCOUNT_CONFLICT, 429 NewAccountThrottle,
+            // a 401 for a token without an email)
+            // reaches AppAuthGuard.handleRequest unchanged. Anything else stays a plain 401.
+            if (err instanceof HttpException) {
+                this.error(err);
+
+                return;
+            }
             this.fail({ err }, 401);
 
             return;

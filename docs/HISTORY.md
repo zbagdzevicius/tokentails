@@ -31,6 +31,7 @@ Dates are commit or migration dates.
 | 2026-07-24 | Traction and weekly transaction figures updated. |
 | 2026-09-16 | Gaming landing becomes the homepage at `/`; the "Forever Feline" app-family landing is removed and `/gaming` redirects to `/`. |
 | 2026-09-29 | Telegram dropped: Mini App, Telegram init-data auth, Telegram referral route, Telegram quests and links removed. Firebase is the only login. |
+| 2026-09-30 to 2026-10-02 | Landing and game alignment build (`docs/plans/landing-game-alignment.md`, uncommitted): W1 security hotfix, shared contracts and CI, guest play and the night AuthSheet, uid-first identity, Meet your cat, Catnip Heist on `/heist` with replay-verified saves, Tails as rescue points with Rescue Goals, the impact snapshot and `/impact`, the night design and world look, the botanical catnip, first-run onboarding in every mode, error boundaries. |
 | 2026-09-17 | Rescue Mission Hub reduced to the sample card and portrait video; proof-section media switched to the deck originals hosted on the pitch site. |
 | 2026-09-16 | Homepage proof section added between the Rescue Mission Hub and the globe: Paris cat café event video (Bybit, ChainforGood) and a marquee of 15 creator reels, served from `public/landing/proof/`; videos load and play only while on screen and never under reduced motion. |
 

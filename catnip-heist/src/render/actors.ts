@@ -224,7 +224,13 @@ export class CatView extends ActorView {
     const sy = cur.pose === 'MEOW' ? 1.12 : 1;
     this.extraY += (sy - this.extraY) * Math.min(1, dt * 18);
     this.finish(dt, anim === 'WALKING', 0.42);
+    // Respawn grace (sim GRACE_TICKS): the cat flickers while guards cannot see it.
+    const grace = (cur.graceTicks ?? 0) > 0 && cur.stunTicks === 0;
+    this.graceT = grace ? this.graceT + dt : 0;
+    this.sprite.object3d.visible = !grace || Math.sin(this.graceT * 26) > -0.55;
   }
+
+  private graceT = 0;
 }
 
 export class GuardView extends ActorView {

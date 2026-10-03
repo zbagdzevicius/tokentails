@@ -13,7 +13,7 @@
         "usdcDecimals": 6,
         "rpcEnv": "RPC_ARC_MAINNET",
         "verify": false,
-        "notes": "USDC is also the native gas token (18 decimals natively; the ERC-20 interface at 0x3600... uses 6). Explorer path pattern assumed Blockscout-style.",
+        "notes": "USDC is also the native gas token (18 decimals natively; the ERC-20 interface at 0x3600... uses 6). Explorer path pattern assumed Blockscout-style. 2026-10-02 testnet run: Foundry's local EVM cannot emulate the USDC system contract at 0x3600... (StackUnderflow), so forge-script proof payouts fail in simulation; proofVia cast sends addShelter/approve/disburse to the real node instead.",
         "splitTokens": {
           "EURC": {
             "address": "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1",
@@ -22,6 +22,13 @@
             "source": "https://docs.arc.io/arc/references/contract-addresses",
             "notes": "Same address on the Arc contract-addresses page and the Circle EURC page. 6 decimals."
           }
+        },
+        "proofVia": "cast",
+        "verifier": {
+          "type": "blockscout",
+          "url": "https://explorer.arc.io/api/",
+          "verify": true,
+          "note": "Arc docs show blockscout for testnet; mainnet endpoint assumed by analogy"
         }
       },
       "testnet": {
@@ -33,7 +40,7 @@
         "usdcDecimals": 6,
         "rpcEnv": "RPC_ARC_TESTNET",
         "verify": false,
-        "notes": "Faucet: https://faucet.circle.com",
+        "notes": "Faucet: https://faucet.circle.com 2026-10-02 testnet run: Foundry's local EVM cannot emulate the USDC system contract at 0x3600... (StackUnderflow), so forge-script proof payouts fail in simulation; proofVia cast sends addShelter/approve/disburse to the real node instead.",
         "splitTokens": {
           "EURC": {
             "address": "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a",
@@ -42,6 +49,11 @@
             "source": "https://docs.arc.io/arc/references/contract-addresses",
             "notes": "Same address on the Arc contract-addresses page and the Circle EURC page. 6 decimals. Faucet: https://faucet.circle.com"
           }
+        },
+        "proofVia": "cast",
+        "verifier": {
+          "type": "blockscout",
+          "url": "https://explorer.testnet.arc.io/api/"
         }
       }
     }
@@ -66,6 +78,10 @@
             "verify": false,
             "source": "https://developers.circle.com/stablecoins/eurc-contract-addresses"
           }
+        },
+        "verifier": {
+          "type": "blockscout",
+          "url": "https://base.blockscout.com/api/"
         }
       },
       "testnet": {
@@ -85,6 +101,10 @@
             "verify": false,
             "source": "https://developers.circle.com/stablecoins/eurc-contract-addresses"
           }
+        },
+        "verifier": {
+          "type": "blockscout",
+          "url": "https://base-sepolia.blockscout.com/api/"
         }
       }
     }
@@ -110,6 +130,10 @@
             "source": "https://developers.circle.com/stablecoins/eurc-contract-addresses",
             "notes": "No native EURC listed by Circle for this chain on 2026-09-29; do not use a bridged EURC without a human check."
           }
+        },
+        "verifier": {
+          "type": "blockscout",
+          "url": "https://arbitrum.blockscout.com/api/"
         }
       },
       "testnet": {
@@ -130,6 +154,10 @@
             "source": "https://developers.circle.com/stablecoins/eurc-contract-addresses",
             "notes": "No native EURC listed by Circle for this chain on 2026-09-29; do not use a bridged EURC without a human check."
           }
+        },
+        "verifier": {
+          "type": "blockscout",
+          "url": "https://arbitrum-sepolia.blockscout.com/api/"
         }
       }
     }
@@ -181,6 +209,11 @@
             "verify": false,
             "source": "https://developers.circle.com/stablecoins/eurc-contract-addresses"
           }
+        },
+        "verifier": {
+          "type": "etherscan",
+          "url": "https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan",
+          "apiKey": "verifyContract"
         }
       },
       "testnet": {
@@ -200,6 +233,11 @@
             "verify": false,
             "source": "https://developers.circle.com/stablecoins/eurc-contract-addresses"
           }
+        },
+        "verifier": {
+          "type": "etherscan",
+          "url": "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan",
+          "apiKey": "verifyContract"
         }
       }
     }
@@ -217,7 +255,7 @@
         "usdcDecimals": 6,
         "rpcEnv": "RPC_TEMPO_MAINNET",
         "verify": true,
-        "notes": "Checked 2026-09-27. Chain ID, explorer and public keyless RPC (https://rpc.tempo.xyz) from the connection-details page. usdc is USDC.e (Bridged USDC, Stargate; no native Circle USDC on Tempo) from https://tempo.xyz/developers/docs/guide/bridge-layerzero; TIP-20 decimals are always 6 (TIP-20 spec). No native gas token: fees are paid in a TIP-20 stablecoin (pathUSD 0x20c0000000000000000000000000000000000000 is the fallback fee token), so the deployer needs pathUSD or USDC.e, and forge needs a Tempo-aware Foundry (foundryup; --tempo.fee-token). verify: the /tx/ explorer path is assumed (only /address/ was seen), and T6 receive policies can silently redirect a shelter's share to ReceivePolicyGuard (see applications/colosseum-worlds-fair/notes/chain-decision.md).",
+        "notes": "Checked 2026-09-27. Chain ID, explorer and public keyless RPC (https://rpc.tempo.xyz) from the connection-details page. usdc is USDC.e (Bridged USDC, Stargate; no native Circle USDC on Tempo) from https://tempo.xyz/developers/docs/guide/bridge-layerzero; TIP-20 decimals are always 6 (TIP-20 spec). No native gas token: fees are paid in a TIP-20 stablecoin (pathUSD 0x20c0000000000000000000000000000000000000 is the fallback fee token), so the deployer needs pathUSD or USDC.e, and forge needs a Tempo-aware Foundry (foundryup; --tempo.fee-token). verify: the /tx/ explorer path is assumed (only /address/ was seen), and T6 receive policies can silently redirect a shelter's share to ReceivePolicyGuard (see applications/colosseum-worlds-fair/notes/chain-decision.md). 2026-10-01: Tempo-aware Foundry is the nightly build (foundryup --install nightly, forge 1.6.0-nightly has --tempo.fee-token); forgeArgs pay fees in pathUSD (0x20c0...0000), so the deployer needs pathUSD. 2026-10-02 testnet run: Tempo state creation costs ~4x EVM gas (deploy needs ~12.8M vs forge local sim 3.3M), so forgeArgs add --gas-estimate-multiplier 500; without it the deploy runs out of gas.",
         "splitTokens": {
           "EURC": {
             "address": null,
@@ -226,6 +264,17 @@
             "source": "https://developers.circle.com/stablecoins/eurc-contract-addresses",
             "notes": "No native EURC listed by Circle for this chain on 2026-09-29; do not use a bridged EURC without a human check."
           }
+        },
+        "forgeArgs": [
+          "--tempo.fee-token",
+          "0x20c0000000000000000000000000000000000000",
+          "--gas-estimate-multiplier",
+          "500"
+        ],
+        "proofVia": "cast",
+        "verifier": {
+          "type": "sourcify",
+          "url": "https://contracts.tempo.xyz"
         }
       },
       "testnet": {
@@ -237,7 +286,7 @@
         "usdcDecimals": 6,
         "rpcEnv": "RPC_TEMPO_TESTNET",
         "verify": true,
-        "notes": "Moderato. Public keyless RPC https://rpc.moderato.tempo.xyz. No test USDC found: usdc here is testnet pathUSD (faucet also gives AlphaUSD ...0001, BetaUSD ...0002, ThetaUSD ...0003). Faucet: https://tempo.xyz/developers/docs/quickstart/faucet. verify: explorer path patterns assumed.",
+        "notes": "Moderato. Public keyless RPC https://rpc.moderato.tempo.xyz. No test USDC found: usdc here is testnet pathUSD (faucet also gives AlphaUSD ...0001, BetaUSD ...0002, ThetaUSD ...0003). Faucet: https://tempo.xyz/developers/docs/quickstart/faucet. verify: explorer path patterns assumed. 2026-10-01: Tempo-aware Foundry is the nightly build (foundryup --install nightly, forge 1.6.0-nightly has --tempo.fee-token); forgeArgs pay fees in pathUSD (0x20c0...0000), so the deployer needs pathUSD. 2026-10-02 testnet run: Tempo state creation costs ~4x EVM gas (deploy needs ~12.8M vs forge local sim 3.3M), so forgeArgs add --gas-estimate-multiplier 500; without it the deploy runs out of gas.",
         "splitTokens": {
           "EURC": {
             "address": null,
@@ -246,6 +295,17 @@
             "source": "https://developers.circle.com/stablecoins/eurc-contract-addresses",
             "notes": "No native EURC listed by Circle for this chain on 2026-09-29; do not use a bridged EURC without a human check."
           }
+        },
+        "forgeArgs": [
+          "--tempo.fee-token",
+          "0x20c0000000000000000000000000000000000000",
+          "--gas-estimate-multiplier",
+          "500"
+        ],
+        "proofVia": "cast",
+        "verifier": {
+          "type": "sourcify",
+          "url": "https://contracts.tempo.xyz"
         }
       }
     }
@@ -283,6 +343,34 @@
         "rpcEnv": "RPC_MEZO_TESTNET",
         "verify": true,
         "notes": "Public RPC https://rpc.test.mezo.org. MUSD testnet address not published in the docs; copy it from explorer.test.mezo.org."
+      }
+    }
+  },
+  "monad": {
+    "name": "Monad",
+    "docs": "https://docs.monad.xyz",
+    "networks": {
+      "mainnet": {
+        "chainId": 143,
+        "explorer": "https://monadvision.com",
+        "address": "{explorer}/address/{address}",
+        "tx": "{explorer}/tx/{tx}",
+        "usdc": null,
+        "usdcDecimals": 6,
+        "rpcEnv": "RPC_MONAD_MAINNET",
+        "verify": true,
+        "notes": "UNVERIFIED (2026-09-30): chain ID 143, explorer and the USDC address must be checked in docs.monad.xyz before the wave. Candidate from developers.circle.com/stablecoins/usdc-contract-addresses (read 2026-10-02 via a summarising fetch, so check the digits on the page): 0x754704Bc059F8C67012fEd69BC8A327a5aafb603. Set usdc only after that check. Metropolis rules (mainnet vs testnet) are behind the hackathon.monad.xyz login."
+      },
+      "testnet": {
+        "chainId": 10143,
+        "explorer": "https://testnet.monadexplorer.com",
+        "address": "{explorer}/address/{address}",
+        "tx": "{explorer}/tx/{tx}",
+        "usdc": null,
+        "usdcDecimals": 6,
+        "rpcEnv": "RPC_MONAD_TESTNET",
+        "verify": true,
+        "notes": "UNVERIFIED: testnet chain ID 10143 and explorer; check docs.monad.xyz. Candidate test USDC from developers.circle.com/stablecoins/usdc-contract-addresses (2026-10-02, check the digits on the page): 0x534b2f3A21130d7a60830c2Df862319e593943A3."
       }
     }
   }

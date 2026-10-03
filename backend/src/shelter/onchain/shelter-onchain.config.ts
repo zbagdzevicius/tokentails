@@ -80,6 +80,12 @@ export function x402Ready(config: ShelterOnchainConfig): boolean {
     return !!(config.x402Enabled && config.rpcUrl && config.splitAddress && config.x402PriceWei > ZERO);
 }
 
-export function explorerTxUrl(txHash: string): string {
-    return `https://explorer.arc.io/tx/${txHash}`;
+const EXPLORER: Record<number, string> = {
+    [ARC_MAINNET_CHAIN_ID]: 'https://explorer.arc.io',
+    [ARC_TESTNET_CHAIN_ID]: 'https://explorer.testnet.arc.io',
+};
+
+/** The Arc explorer link for `txHash` on `chainId` (docs.arc.io: testnet has its own explorer host). */
+export function explorerTxUrl(txHash: string, chainId: number = ARC_MAINNET_CHAIN_ID): string {
+    return `${EXPLORER[chainId] || EXPLORER[ARC_MAINNET_CHAIN_ID]}/tx/${txHash}`;
 }

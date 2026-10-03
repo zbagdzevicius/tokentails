@@ -9,6 +9,7 @@ import { runAI as sessionsRunAI } from '../lib/commands/sessions.mjs';
 import { readdirSync, existsSync } from 'node:fs';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
+import { FACTS_BOOLEAN_FLAGS, FACTS_HELP, runFacts } from '../lib/facts/cli.mjs';
 
 // Core command modules: lib/commands/<name>.mjs default-export { name, help, booleanFlags?, run }.
 // See lib/commands/README.md. Loaded once per process.
@@ -32,7 +33,7 @@ const {
 } = CORE;
 
 // Flags that never take a value, so "--sync my-app" keeps my-app as a positional.
-const BOOLEAN_FLAGS = new Set(['all', 'json', 'run', 'force', 'sync', 'print', 'simulate', 'keep-cites', 'cites', 'dry', 'quiet', 'help']);
+const BOOLEAN_FLAGS = new Set(['all', 'json', 'run', 'force', 'sync', 'print', 'simulate', 'keep-cites', 'cites', 'dry', 'quiet', 'help', ...FACTS_BOOLEAN_FLAGS]);
 
 export function parseArgs(argv, booleans = BOOLEAN_FLAGS) {
   const pos = [];
@@ -78,6 +79,7 @@ const HELP = `fund — funding application framework
   tracker                                regenerate TRACKER.md
   list                                   list applications
   facts                                  validate facts/FACTS.md
+${FACTS_HELP}
   tracks                                 list tracks and their commands
   <track-command> ...                    e.g. "a:build", see "fund tracks"
 `;
@@ -165,6 +167,7 @@ export async function main(argv = process.argv.slice(2)) {
       return 0;
 
     case 'facts': {
+      if (rest[0]) return runFacts(rest[0], { flags });
       const { facts, problems } = loadFacts();
       const by = {};
       for (const f of facts.values()) by[f.status] = (by[f.status] || 0) + 1;

@@ -67,54 +67,61 @@ export class CatNpc {
   private animation: PlayerAnimation = animationConfigurations[0].key;
   job: null | NPCJob = null;
   private timeoutFunction: ReturnType<typeof setTimeout> | null = null;
-  private catName: string;
+  /** Id-based texture key (F10); also the prefix of this cat's animation keys. */
+  private textureKey: string;
   blessing?: Phaser.GameObjects.Sprite;
 
-  constructor(scene: Scene, x: number, y: number, catName: string) {
+  constructor(scene: Scene, x: number, y: number, textureKey: string) {
     this.scene = scene;
-    this.catName = catName;
+    this.textureKey = textureKey;
     this.sprite = this.scene.physics.add
-      .sprite(x, y, catName)
+      .sprite(x, y, textureKey)
       .setSize(32, 32)
       .setOffset(8, 4);
 
     this.initAnimations();
   }
 
+  /** `${textureKey}_${animation}`: per cat, so one cat never re-points another's animations. */
+  private animKey(animation: PlayerAnimation): string {
+    return `${this.textureKey}_${animation}`;
+  }
+
+  /**
+   * Builds this cat's animations under its own keys. It used to destroy and recreate the global
+   * `PlayerAnimation.*` keys, which re-pointed every other cat using them (F10 known issue).
+   */
   initAnimations() {
-    for (const animationConfiguration of animationConfigurations) {
-      const index = animationConfigurations.indexOf(animationConfiguration);
-      this.scene.anims.get(animationConfiguration.key)?.destroy();
+    const create = (
+      animation: PlayerAnimation,
+      start: number,
+      end: number,
+      repeat: -1 | 0
+    ) => {
+      const key = this.animKey(animation);
+      if (this.scene.anims.exists(key)) return;
       this.scene.anims.create({
-        key: animationConfiguration.key,
-        frames: this.scene.anims.generateFrameNumbers(this.catName, {
-          start: index * maxAnimationFrames,
-          end: index * maxAnimationFrames + animationConfiguration.frames - 1,
-        }),
+        key,
+        frames: this.scene.anims.generateFrameNumbers(this.textureKey, { start, end }),
         frameRate: 8,
-        repeat: animationConfiguration.repeat,
+        repeat,
       });
-    }
-    this.scene.anims.get(PlayerAnimation.JUMPING_UP)?.destroy();
-    this.scene.anims.create({
-      key: PlayerAnimation.JUMPING_UP,
-      frames: this.scene.anims.generateFrameNumbers(this.catName, {
-        start: 5 * maxAnimationFrames,
-        end: 5 * maxAnimationFrames + 5,
-      }),
-      frameRate: 8,
-      repeat: 0,
+    };
+    animationConfigurations.forEach((animationConfiguration, index) => {
+      create(
+        animationConfiguration.key,
+        index * maxAnimationFrames,
+        index * maxAnimationFrames + animationConfiguration.frames - 1,
+        animationConfiguration.repeat
+      );
     });
-    this.scene.anims.get(PlayerAnimation.JUMPING_DOWN)?.destroy();
-    this.scene.anims.create({
-      key: PlayerAnimation.JUMPING_DOWN,
-      frames: this.scene.anims.generateFrameNumbers(this.catName, {
-        start: 5 * maxAnimationFrames + 5,
-        end: 5 * maxAnimationFrames + 7,
-      }),
-      frameRate: 8,
-      repeat: 0,
-    });
+    create(PlayerAnimation.JUMPING_UP, 5 * maxAnimationFrames, 5 * maxAnimationFrames + 5, 0);
+    create(
+      PlayerAnimation.JUMPING_DOWN,
+      5 * maxAnimationFrames + 5,
+      5 * maxAnimationFrames + 7,
+      0
+    );
 
     const interval = setInterval(() => {
       const animationIndex = animationConfigurations.findIndex(
@@ -151,7 +158,7 @@ export class CatNpc {
       return;
     }
     if (this.job?.type === NPCJobType.RUN) {
-      this.sprite.anims.play(PlayerAnimation.RUNNING, true);
+      this.sprite.anims.play(this.animKey(PlayerAnimation.RUNNING), true);
       const xPositionDifference = (this.sprite.body?.x || 0) - this.job!.x!;
       this.sprite.setVelocityX(-xPositionDifference);
       if (this.sprite.body?.blocked.right || this.sprite.body?.blocked.left) {
@@ -175,18 +182,18 @@ export class CatNpc {
           this.timeoutFunction = null;
         }, 0);
       }
-      this.sprite.anims.play(PlayerAnimation.GROOMING, true);
+      this.sprite.anims.play(this.animKey(PlayerAnimation.GROOMING), true);
     }
   }
   setSleep() {
     if (this.job?.type === NPCJobType.SLEEP) {
-      this.sprite.anims.play(PlayerAnimation.SLEEP, true);
+      this.sprite.anims.play(this.animKey(PlayerAnimation.SLEEP), true);
     }
   }
   setJump(isJumping: boolean) {
     this.isJumping = isJumping;
     if (isJumping) {
-      this.sprite.anims.play(PlayerAnimation.JUMPING_DOWN);
+      this.sprite.anims.play(this.animKey(PlayerAnimation.JUMPING_DOWN));
     }
   }
 
@@ -209,8 +216,8 @@ export class CatNpc {
         PlayerAnimation.HIT,
       ].includes(this.animation)
     ) {
-      if (this.animation !== this.sprite.anims.currentAnim?.key) {
-        this.sprite.anims.play(PlayerAnimation.RUNNING, true);
+      if (this.animKey(this.animation) !== this.sprite.anims.currentAnim?.key) {
+        this.sprite.anims.play(this.animKey(PlayerAnimation.RUNNING), true);
       }
       if (this.lastTouchedWall === "left") {
         this.sprite.setVelocityX(200);
@@ -229,8 +236,8 @@ export class CatNpc {
     }
     this.sprite.setVelocityX(0);
 
-    if (this.animation !== this.sprite.anims.currentAnim?.key) {
-      this.sprite.anims.play(this.animation, true);
+    if (this.animKey(this.animation) !== this.sprite.anims.currentAnim?.key) {
+      this.sprite.anims.play(this.animKey(this.animation), true);
     }
     if (this.animation === PlayerAnimation.DIGGING) {
     }

@@ -1,44 +1,20 @@
-import { cdnFile } from "@/constants/utils";
 import Head from "next/head";
-import React, { useEffect } from "react";
+import { useRouter } from "next/router";
+import { useEffect } from "react";
 
-export default function giveaway() {
+// Retired (plan decision #43, G5 P7): the giveaway page sent players to token-era rewards. On Node
+// hosting next.config.js redirects /giveaway to /game first; this page covers the static app export.
+export default function RetiredGiveawayRedirect() {
+  const router = useRouter();
+
   useEffect(() => {
-    window.location.href =
-      "https://x.com/tokentails/status/1806277853970825543";
-  }, []);
+    void router.replace("/game");
+  }, [router]);
+
   return (
-    <>
-      <Head>
-        <title>Token Tails - Play to Save</title>
-        <meta property="og:image" content={cdnFile("airdrop-3.jpg")} />
-        <meta
-          property="og:title"
-          content="Token Tails Meme contest"
-          key="title"
-        />
-        <meta
-          name="description"
-          content="Think you’ve got the best cat meme? 😸 Show us to win a piece from $1000 in $TAILS! 🎁"
-        />
-        <link rel="shortcut icon" href={cdnFile("logo/logo.webp")} />
-      </Head>
-      <iframe
-        className="w-screen h-screen"
-        src="https://zealy.io/cw/tokentails"
-      ></iframe>
-      <div className="absolute bottom-0 right-0 flex justify-center">
-        {/* Plain anchor on purpose: keeps the existing full page load. */}
-        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-        <a href="/" className="p-3 md:p-8">
-          <img
-            draggable={false}
-            className="h-12 md:h-24 flex-1 object-contain object-left"
-            src={cdnFile("logo/logo.webp")}
-            alt="logo"
-          />
-        </a>
-      </div>
-    </>
+    <Head>
+      <meta name="robots" content="noindex" />
+      <meta httpEquiv="refresh" content="0;url=/game" />
+    </Head>
   );
 }

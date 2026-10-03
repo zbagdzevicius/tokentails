@@ -1,43 +1,46 @@
-import { IArticle } from '@/models/article';
-import { ArticleJsonLd } from 'next-seo';
-import { useMemo } from 'react';
+import { IArticle } from "@/models/article";
+import { ArticleJsonLd } from "next-seo";
+import {
+  absoluteUrl,
+  articleSitePath,
+  siteName,
+  siteOrigin,
+  SITE_LOGO,
+} from "./site";
 
 export const ArticleMicrodata = ({
-    category,
-    title,
-    excerpt,
-    slug,
-    images,
-    featuredImage,
-    createdAt,
-    updatedAt,
-    keyword,
+  category,
+  title,
+  excerpt,
+  slug,
+  images,
+  featuredImage,
+  createdAt,
+  updatedAt,
+  keyword,
 }: IArticle) => {
-    const url = useMemo(() => {
-        const middleUrl = category?.slug;
-        const childUrl = slug || '';
-        return [process.env.NEXT_PUBLIC_DOMAIN, middleUrl, childUrl].filter((value) => !!value).join('/');
-    }, [category, slug]);
+  const origin = siteOrigin();
+  const name = siteName();
+  const url =
+    absoluteUrl(articleSitePath(category?.slug, slug), origin) ?? `${origin}/feed`;
+  const imageUrls = [featuredImage?.url, ...(images || []).map((image) => image?.url)]
+    .map((image) => absoluteUrl(image, origin))
+    .filter((image): image is string => !!image);
 
-    return (
-        <ArticleJsonLd
-            url={url}
-            title={title}
-            images={[featuredImage.url, ...images.map((image) => image.url)]}
-            datePublished={createdAt}
-            dateModified={updatedAt}
-            section={category.name}
-            keywords={keyword?.name}
-            authorName={[
-                {
-                    name: process.env.NEXT_PUBLIC_SITE_NAME,
-                    url: process.env.NEXT_PUBLIC_DOMAIN,
-                },
-            ]}
-            publisherName={process.env.NEXT_PUBLIC_SITE_NAME}
-            publisherLogo={`${process.env.NEXT_PUBLIC_DOMAIN}/logo.svg`}
-            description={excerpt}
-            isAccessibleForFree={true}
-        />
-    );
+  return (
+    <ArticleJsonLd
+      url={url}
+      title={title}
+      images={imageUrls}
+      datePublished={createdAt}
+      dateModified={updatedAt || createdAt}
+      section={category?.name}
+      keywords={keyword?.name}
+      authorName={[{ name, url: `${origin}/` }]}
+      publisherName={name}
+      publisherLogo={absoluteUrl(`/${SITE_LOGO.path}`, origin) ?? undefined}
+      description={excerpt}
+      isAccessibleForFree={true}
+    />
+  );
 };

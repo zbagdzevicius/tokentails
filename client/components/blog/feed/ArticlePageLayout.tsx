@@ -18,7 +18,7 @@ export const ArticlePageLayout = ({ article, randomArticles }: Props) => {
       <SeoHead article={article} />
       <ArticleMicrodata {...article} />
 
-      <FirebaseAuthProvider>
+      <FirebaseAuthProvider authMode="optional">
         <BlogLayout>
           <ArticleContainer article={article} randomArticles={randomArticles} />
         </BlogLayout>

@@ -5,6 +5,9 @@
  *
  * Cells are authored in near-final colours; vertex colours add per-tile variation and room tints
  * (floor cells are neutral so a room tint colours them).
+ *
+ * The warehouse hazard yellow (#ffc93c: stripes, posters, trims) is world art, kept on purpose: it
+ * is Kibble Corp's signage, not the UI coin colour (--coin is gold-400, plan G6 decision #48).
  */
 import * as THREE from 'three';
 

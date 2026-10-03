@@ -5,6 +5,8 @@ import {
   MATCH3_LEVEL_CAPS,
   TOTAL_CATNIP_CAP,
 } from "@/constants/catnip-accounting";
+import { catnipChaosLevelsList, totalCatnip } from "@/components/Phaser/map";
+import * as sharedCaps from "@/shared-contracts/caps";
 
 describe("catnip accounting", () => {
   it("normalizes both modes with per-level caps", () => {
@@ -30,7 +32,7 @@ describe("catnip accounting", () => {
 
   it("keeps separate mode totals and one combined total", () => {
     const patch = buildCatnipProfilePatch({
-      catnipChaos: [420, 10, 5, 999] as unknown[],
+      catnipChaos: [500, 10, 5, 999] as unknown[],
       match3: [12, 20, 7] as unknown[],
     });
 
@@ -50,5 +52,28 @@ describe("catnip accounting", () => {
       CATNIP_CHAOS_LEVEL_CAPS.reduce((acc, cap) => acc + cap, 0) +
       MATCH3_LEVEL_CAPS.reduce((acc, cap) => acc + cap, 0);
     expect(TOTAL_CATNIP_CAP).toBe(maxPossible);
+  });
+
+  it("caps endless at 500 (decision #57) and clamps 501 down", () => {
+    expect(CATNIP_CHAOS_LEVEL_CAPS[0]).toBe(500);
+    const patch = buildCatnipProfilePatch({ catnipChaos: [501] as unknown[] });
+    expect(patch.catnipChaos[0]).toBe(500);
+    expect(buildCatnipProfilePatch({ catnipChaos: [500] }).catnipChaos[0]).toBe(500);
+  });
+
+  it("matches the shared caps the backend enforces", () => {
+    // Known mismatch, logged in docs/plans/alignment-log/1a.md: the backend accepts worlds 14-16
+    // (levels 141-166) that the client has no maps for, so the client list is a strict prefix.
+    expect(sharedCaps.CATNIP_CHAOS_LEVELS.slice(0, catnipChaosLevelsList.length)).toEqual(
+      catnipChaosLevelsList,
+    );
+    expect(CATNIP_CHAOS_LEVEL_CAPS).toEqual(
+      sharedCaps.CATNIP_CHAOS_LEVEL_CAPS.slice(0, catnipChaosLevelsList.length),
+    );
+    expect(MATCH3_LEVEL_CAPS).toEqual(sharedCaps.MATCH3_LEVEL_CATNIP_CAPS);
+    expect(totalCatnip).toBe(
+      CATNIP_CHAOS_LEVEL_CAPS.reduce((acc, cap) => acc + cap, 0),
+    );
+    expect(totalCatnip).toBe(500 + (catnipChaosLevelsList.length - 1) * 10);
   });
 });

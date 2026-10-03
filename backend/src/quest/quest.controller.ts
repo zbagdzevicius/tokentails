@@ -10,7 +10,6 @@ import {
     Put,
     UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { CatRepository } from 'src/cat/cat.repository';
 import { CatService } from 'src/cat/cat.service';
 import { pickSearchParams, SearchModel } from 'src/common/validators';
@@ -25,6 +24,13 @@ import { QUEST, QuestTypeReward } from 'src/user/user.schema';
 import { IController } from '../shared/interfaces/controller.interface';
 import { QuestRepository } from './quest.repository';
 import { REWARDS } from 'src/shared/constants/rewards';
+import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
+import { UserThrottle, UserThrottlerGuard } from 'src/shared/guards/user-throttler.guard';
+import { tailsRewardMessage } from 'src/shared-contracts/copy';
+import { earnedTails, earnTailsInc } from 'src/user/tails-ledger';
+
+/** Per-user limit on the quest and contest reward routes (plan G5 P4). */
+export const QUEST_REWARD_USER_THROTTLE = { limit: 10, ttl: 60000 };
 
 enum MYSTERY_BOX_TYPE {
     CAMP_6 = 'CAMP_6',
@@ -33,6 +39,8 @@ enum MYSTERY_BOX_TYPE {
     CAMP_9 = 'CAMP_9',
     KEYBOARD_CAT = 'KEYBOARD_CAT',
 }
+
+const mysteryBoxMessage = () => tailsRewardMessage(REWARDS.MYSTERY_BOX, 'the mystery box');
 
 @Controller('quest')
 export class QuestController implements IController<Quest> {
@@ -62,13 +70,13 @@ export class QuestController implements IController<Quest> {
         });
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.EDITOR))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.EDITOR))
     @Post('')
     public async create(@Body() object: Quest): Promise<Quest> {
         return this.repository.create(object);
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.EDITOR))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.EDITOR))
     @Put(':_id')
     public async update(@Param('_id') _id: string, @Body() object: Quest): Promise<Quest> {
         const existingEntity = await this.repository.findOne({
@@ -81,7 +89,7 @@ export class QuestController implements IController<Quest> {
         return this.repository.update(existingEntity._id!, object);
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.MANAGER))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.MANAGER))
     @Delete(':slug')
     public async delete(@Param('slug') slug: string): Promise<IResponse> {
         const entity = await this.repository.findOne({ searchObject: { slug }, projection: '_id' });
@@ -93,13 +101,14 @@ export class QuestController implements IController<Quest> {
         return RESPONSES.success;
     }
 
-    @UseGuards(AuthGuard('appauth'))
+    @UseGuards(AppAuthGuard, UserThrottlerGuard)
+    @UserThrottle(QUEST_REWARD_USER_THROTTLE)
     @Get('complete/:quest')
     async Tquests(@USER_ID() userId: string, @Param('quest') quest: QUEST | string): Promise<IMessage> {
         const [user, quests] = await Promise.all([
             this.userRepository.findOne({
                 searchObject: { _id: userId },
-                projection: 'tails referrals quests',
+                projection: 'tails tailsEarned tailsGiven referrals quests',
             }),
             this.repository.find({ searchObject: {}, projection: '_id tails' }),
         ]);
@@ -110,8 +119,9 @@ export class QuestController implements IController<Quest> {
         if (!questReward) {
             return { message: `Such quest doesn't exist`, success: false };
         }
+        // REACH_TAILS quests read lifetime earned Tails, so giving to a goal never undoes them (G5).
         if (questReward.requirements?.tails) {
-            if (user.tails < questReward.requirements?.tails) {
+            if (earnedTails(user) < questReward.requirements?.tails) {
                 return { message: `Tails requirement is not met`, success: false };
             }
         }
@@ -121,50 +131,64 @@ export class QuestController implements IController<Quest> {
             }
         }
 
-        if (questReward.tails) {
-            await this.userRepository.update(user._id!, {
-                ...(!questReward.boxes ? { $push: { quests: { $each: [quest], $position: 0 } } } : {}),
-                $inc: { tails: questReward.tails, monthTails: questReward.tails },
-            });
+        const tails = questReward.tails || 0;
+        const boxes = questReward.boxes || 0;
+        if (!tails && !boxes && !questReward.cats?.length) {
+            throw new BadRequestException('Quest is missing rewards');
+        }
+
+        // One conditional write claims the quest and pays it (4e review fix #1). The read above is
+        // only for the requirement checks: parallel calls all pass it, and only the first one whose
+        // `quests: {$ne}` filter still matches is paid. Cats are adopted after the claim succeeds.
+        const claimed = await this.claimOnce(user._id!, quest, {
+            ...(tails ? { ...earnTailsInc(tails), monthTails: tails } : {}),
+            ...(boxes ? { boxes } : {}),
+        });
+        if (!claimed) {
+            return { message: 'Quest is claimed', success: false };
+        }
+
+        for (const cat of questReward.cats || []) {
+            await this.catService.adopt(cat, user._id!);
+        }
+
+        if (tails) {
             return {
-                message: `You just got ${questReward.tails} tails! Make sure that task is fully completed, each task is verified every 24 hours.`,
+                message: `${tailsRewardMessage(
+                    tails
+                )}! Make sure the task is fully done: each task is checked every 24 hours.`,
                 success: true,
             };
         }
-
-        if (questReward.cats?.length) {
-            for (const cat of questReward.cats) {
-                await this.catService.adopt(cat, user._id!);
-            }
-            if (!questReward.boxes) {
-                await this.userRepository.update(user._id!, {
-                    $inc: { tails: questReward.tails, monthTails: questReward.tails },
-                    $push: { quests: { $each: [quest], $position: 0 } },
-                });
-                return {
-                    message: `You just got new pets! Check them to see them.`,
-                    success: true,
-                };
-            }
-        }
-
-        if (questReward.boxes) {
-            await this.userRepository.update(user._id!, {
-                $inc: { boxes: questReward.boxes },
-                $push: { quests: { $each: [quest], $position: 0 } },
-            });
+        if (!boxes) {
             return {
-                message: `You just got ${questReward.boxes} Loot Boxes! ${
-                    questReward.cats?.length ? 'And some pets!' : ''
-                }`,
+                message: `You just got new pets! Check them to see them.`,
                 success: true,
             };
         }
-
-        throw new BadRequestException('Quest is missing rewards');
+        return {
+            message: `You just got ${boxes} Loot Boxes! ${questReward.cats?.length ? 'And some pets!' : ''}`,
+            success: true,
+        };
     }
 
-    @UseGuards(AuthGuard('appauth'))
+    /**
+     * Pushes `quest` to the user's claimed list and applies `inc` in one write, only if the quest is
+     * not already there. False when another request claimed it first.
+     */
+    private async claimOnce(userId: unknown, quest: string, inc: Record<string, number>): Promise<boolean> {
+        const result = await this.userRepository.model.updateOne(
+            { _id: userId, quests: { $ne: quest } },
+            {
+                $push: { quests: { $each: [quest], $position: 0 } },
+                ...(Object.keys(inc).length ? { $inc: inc } : {}),
+            }
+        );
+        return (result?.modifiedCount ?? 0) > 0;
+    }
+
+    @UseGuards(AppAuthGuard, UserThrottlerGuard)
+    @UserThrottle(QUEST_REWARD_USER_THROTTLE)
     @Get('contest/:contest')
     async contestRedeemal(
         @USER_ID() userId: string,
@@ -180,43 +204,39 @@ export class QuestController implements IController<Quest> {
         if (contest === MYSTERY_BOX_TYPE.CAMP_6) {
             const titles = user?.codex?.reduce((acc, item) => acc + item, 0) || 0;
             if (titles < 1) {
-                return { message: 'Become $TAILS guard', success: false };
+                return { message: 'Earn a Tails Guard title first', success: false };
             }
-            await this.userRepository.update(userId, {
-                $push: { quests: { $each: [contest], $position: 0 } },
-                $inc: { tails: REWARDS.MYSTERY_BOX, monthTails: REWARDS.MYSTERY_BOX },
-            });
-            return { message: `Claimed ${REWARDS.MYSTERY_BOX} $TAILS`, success: true, tails: REWARDS.MYSTERY_BOX };
+            return this.payContest(userId, contest);
         } else if (contest === MYSTERY_BOX_TYPE.CAMP_7) {
             if (user.catnipCount < 120) {
                 return { message: 'Collect 120 catnips', success: false };
             }
-            await this.userRepository.update(userId, {
-                $push: { quests: { $each: [contest], $position: 0 } },
-                $inc: { tails: REWARDS.MYSTERY_BOX, monthTails: REWARDS.MYSTERY_BOX },
-            });
-            return { message: `Claimed ${REWARDS.MYSTERY_BOX} $TAILS`, success: true, tails: REWARDS.MYSTERY_BOX };
+            return this.payContest(userId, contest);
         } else if (contest === MYSTERY_BOX_TYPE.CAMP_8) {
             if (user.streak < 20) {
                 return { message: 'Check-in 20 times', success: false };
             }
-            await this.userRepository.update(userId, {
-                $push: { quests: { $each: [contest], $position: 0 } },
-                $inc: { tails: REWARDS.MYSTERY_BOX, monthTails: REWARDS.MYSTERY_BOX },
-            });
-            return { message: `Claimed ${REWARDS.MYSTERY_BOX} $TAILS`, success: true, tails: REWARDS.MYSTERY_BOX };
+            return this.payContest(userId, contest);
         } else if (contest === MYSTERY_BOX_TYPE.CAMP_9) {
             const titles = user?.codex?.reduce((acc, item) => acc + item, 0) || 0;
             if (titles < 2) {
-                return { message: 'Earn 2 $TAILS guard titles', success: false };
+                return { message: 'Earn 2 Tails Guard titles first', success: false };
             }
-            await this.userRepository.update(userId, {
-                $push: { quests: { $each: [contest], $position: 0 } },
-                $inc: { tails: REWARDS.MYSTERY_BOX, monthTails: REWARDS.MYSTERY_BOX },
-            });
-            return { message: `Claimed ${REWARDS.MYSTERY_BOX} $TAILS`, success: true, tails: REWARDS.MYSTERY_BOX };
+            return this.payContest(userId, contest);
         } else {
             return { message: 'Contest not found', success: false };
         }
+    }
+
+    /** Pays a contest box once, in the same write that records it (4e review fix #1). */
+    private async payContest(userId: string, contest: string): Promise<IMessage & { tails?: number }> {
+        const claimed = await this.claimOnce(userId, contest, {
+            ...earnTailsInc(REWARDS.MYSTERY_BOX),
+            monthTails: REWARDS.MYSTERY_BOX,
+        });
+        if (!claimed) {
+            return { message: 'Contest is claimed', success: false };
+        }
+        return { message: mysteryBoxMessage(), success: true, tails: REWARDS.MYSTERY_BOX };
     }
 }

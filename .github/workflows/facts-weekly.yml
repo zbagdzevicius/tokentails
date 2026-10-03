@@ -1,0 +1,81 @@
+# Weekly facts check (plan F1, F7, G11; task 2c). The date-dependent checks that never run on pull
+# requests: stale facts, campaign goals that have ended, product claims whose spec now exists, the
+# chain and store probes in funding/framework/facts/sources.json, and the impact snapshot.
+#
+# - Runs every Monday at 06:00 UTC and by hand from the Actions tab. No pull_request trigger.
+# - Keeps exactly one open issue, labelled `facts-weekly`: it is opened (or its body replaced) when
+#   the report has problems, and closed with a comment when a later run is clean.
+# - Read-only on the code: it never edits facts.json or commits. A person fixes the registry and
+#   runs `node funding/framework/bin/fund.mjs facts build`.
+#
+# One-time setup by a maintainer (not done by this change):
+# - GitHub runs scheduled workflows only from the default branch, so this starts after the merge.
+# - Allow GitHub Actions to create issues (Settings > Actions > General > Workflow permissions).
+# - Optional repository variable FACTS_IMPACT_URL: the CDN impact snapshot (impact/impact.json),
+#   once the F7.3 snapshot job publishes it. Without it the snapshot check is skipped, not failed.
+name: Facts weekly
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: facts-weekly
+  cancel-in-progress: false
+
+jobs:
+  report:
+    name: facts report
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      FACTS_IMPACT_URL: ${{ vars.FACTS_IMPACT_URL }}
+      GH_TOKEN: ${{ github.token }}
+      LABEL: facts-weekly
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build check (schema, drift, goal reachability)
+        id: build
+        continue-on-error: true
+        run: node funding/framework/bin/fund.mjs facts build --check > build.txt 2>&1
+      - name: Date-dependent report (staleness, goals, probes, snapshot)
+        id: report
+        continue-on-error: true
+        run: node funding/framework/bin/fund.mjs facts report --out report.md
+      - name: Open, update or close the one facts issue
+        run: |
+          set -euo pipefail
+          problems=0
+          if [ "${{ steps.build.outcome }}" != "success" ] || [ "${{ steps.report.outcome }}" != "success" ]; then problems=1; fi
+          [ -f report.md ] || echo "# Facts weekly report" > report.md
+          {
+            cat report.md
+            if [ "${{ steps.build.outcome }}" != "success" ]; then
+              printf '\n## Build check\n\n```\n'; cat build.txt; printf '```\n'
+            fi
+            printf '\nRun: %s/%s/actions/runs/%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+          } > body.md
+          cat body.md >> "$GITHUB_STEP_SUMMARY"
+          gh label create "$LABEL" --color FBCA04 --description "Weekly facts registry check" --force >/dev/null
+          open=$(gh issue list --label "$LABEL" --state open --limit 1 --json number --jq '.[0].number // empty')
+          if [ "$problems" = 1 ]; then
+            if [ -n "$open" ]; then
+              gh issue edit "$open" --body-file body.md
+              echo "Updated issue #$open"
+            else
+              gh issue create --title "Facts need a person (weekly check)" --label "$LABEL" --body-file body.md
+            fi
+          elif [ -n "$open" ]; then
+            gh issue close "$open" --comment "The weekly facts check is clean again: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "Closed issue #$open"
+          else
+            echo "No problems; no open issue."
+          fi

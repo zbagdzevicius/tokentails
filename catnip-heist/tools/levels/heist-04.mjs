@@ -11,22 +11,22 @@ const map = [
   '      ##############################', // 0
   '      #..$........$.........+#.....#', // 1
   '      #.......bb.............#...k.#', // 2
-  '      #..@...............%...#.$.$.#', // 3   @ % = ~  patrol loop round the vault
+  '      #..@.............%.....#.$.$.#', // 3   @ % = ~  patrol loop round the vault (east leg 4 tiles from the office plate)
   '      #.$..........bb........#.....#', // 4
   '      #....$.............$...G.....#', // 5
   '      #.....###########......#.$...#', // 6
   '      #.....#..$...$..#......#...g.#', // 7
-  '      #.....#.........#....g.#######', // 8
-  '      #..$..#.3.....4.#......#      ', // 9   3 4  vault patrol
+  '      #.....#.3.....4.#....g.#######', // 8   3 4  vault patrol (back row, clear of the doorway)
+  '      #..$..#.........#......#      ', // 9
   '      #.....#$.......$#...$..#      ', // 10
   '#######.....#.$......C#......#      ', // 11
   '#.....#.....#####V#####......#      ', // 12
   '#E....#..$.........$.......$.#      ', // 13
   '#E.12.r......................#      ', // 14
-  '#.....#..=...............~...#      ', // 15
+  '#.....#..=.............~.....#      ', // 15
   '#..$..#.......bb....bb.......#      ', // 16
-  '#.....#+...$.........$.......#      ', // 17
-  '#######.........$............#      ', // 18
+  '#.....#....$.........$.......#      ', // 17
+  '#######.........$..+.........#      ', // 18  + checkpoint below the vault, out of the lap
   '      ########################      ', // 19
 ];
 
@@ -44,13 +44,14 @@ export default {
   ],
   crate: { catId: 'peachies', catName: 'Pumpkin' },
   meta: {
-    parTicks: 120 * 30,
+    parTicks: 90 * 30, // cautious-bot median 72 s x 1.2, rounded up to 5 s (min 60 s); see playtest/BOT-REPORT.md
     meowRadiusTiles: 6,
     investigateTicks: 120,
     maxCoins: 24,
     twoCatRequired: true,
-    objectives: ['One cat holds the office plate, the other grabs the key', 'Open the vault and free {cat}', 'Both cats to the exit'],
+    objectives: ['One cat holds the plate outside the office, the other grabs the key', 'Open the vault and free {cat}', 'Both cats to the exit'],
     hints: [
+      { x0: 30, y0: 1, x1: 34, y1: 7, untilObjective: 1, text: 'The plate in here only holds the door while you stand on it. To get out, have your partner hold the outside plate.' },
       { x0: 23, y0: 1, x1: 28, y1: 9, untilObjective: 0, text: 'Hold the plate by the office door, then {swap}. Mind the dog’s lap.' },
       { x0: 7, y0: 13, x1: 28, y1: 18, untilObjective: 1, text: 'Walk into the vault door with the key to open it.' },
     ],

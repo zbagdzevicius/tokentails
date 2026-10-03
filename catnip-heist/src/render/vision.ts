@@ -224,6 +224,11 @@ const CONE_FRAG = /* glsl */ `
     float glow = clamp(rim, 0.0, 1.0) * 0.7 + sweep * 0.55;
     vec3 col = vColor.rgb * (1.0 + glow * (uHdr - 1.0) * 0.55);
     float a = clamp(fill + glow * 0.4, 0.0, 0.9);
+    #ifdef XRAY
+    // Behind walls: a flatter copy so a cone hidden by tall walls still reads (playtest: from the
+    // heist-08 hall the yard sentry's cone behind the wall was too faint to time a crossing).
+    a = clamp(fill * 0.8 + rim * 0.6, 0.0, 0.65);
+    #endif
     gl_FragColor = vec4(col, a);
     #include <colorspace_fragment>
   }`;
@@ -233,6 +238,9 @@ const KEY_LEN = 6;
 
 export class VisionCones {
   readonly mesh: THREE.Mesh;
+  /** The same cones drawn only where walls hide the floor (depth test inverted), fainter. */
+  readonly xray: THREE.Mesh;
+  private readonly xrayMat: THREE.ShaderMaterial;
   private readonly pos: Float32Array;
   private readonly gid: Float32Array;
   private readonly geo: THREE.BufferGeometry;
@@ -292,6 +300,20 @@ export class VisionCones {
     this.mesh.renderOrder = 2;
     this.mesh.position.y = 0.025;
     this.mesh.name = 'vision-cones';
+    this.xrayMat = new THREE.ShaderMaterial({
+      defines: { CONE_N: guards, XRAY: 1 },
+      vertexShader: CONE_VERT,
+      fragmentShader: CONE_FRAG,
+      uniforms: this.mat.uniforms,
+      transparent: true,
+      depthWrite: false,
+      depthFunc: THREE.GreaterDepth,
+    });
+    this.xray = new THREE.Mesh(this.geo, this.xrayMat);
+    this.xray.frustumCulled = false;
+    this.xray.renderOrder = 3;
+    this.xray.name = 'vision-cones-xray';
+    this.mesh.add(this.xray);
   }
 
   /** Animation time and HDR boost for the rim / sweep glow (1 = no boost, e.g. low tier). */
@@ -404,5 +426,6 @@ export class VisionCones {
     this.mesh.removeFromParent();
     this.geo.dispose();
     this.mat.dispose();
+    this.xrayMat.dispose();
   }
 }

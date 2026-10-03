@@ -72,19 +72,19 @@ beforeEach(() => {
 afterAll(() => withShelterEnv({}));
 
 describe('GET /shelter/agent/cat-card (x402, onchain-receipt)', () => {
-    it('answers 503 with a clear message when SHELTER_X402_ENABLED is off (the default)', async () => {
+    it('answers 409 with a clear message when SHELTER_X402_ENABLED is off (the default)', async () => {
         withShelterEnv({ SHELTER_SPLIT_ADDRESS: SPLIT });
         const { service, nonces } = setup();
 
         const error = await httpError(service.catCard(undefined, RESOURCE, NOW));
-        expect(error.getStatus()).toBe(503);
+        expect(error.getStatus()).toBe(409);
         expect(error.message).toBe(X402_DISABLED);
         expect(nonces.create).not.toHaveBeenCalled();
     });
 
-    it('answers 503 when there is no card to sell, before asking for payment', async () => {
+    it('answers 409 when there is no card to sell, before asking for payment', async () => {
         const error = await httpError(setup(blessingModel([])).service.catCard(undefined, RESOURCE, NOW));
-        expect(error.getStatus()).toBe(503);
+        expect(error.getStatus()).toBe(409);
         expect(error.message).toBe(X402_NO_CARDS);
     });
 
@@ -108,7 +108,8 @@ describe('GET /shelter/agent/cat-card (x402, onchain-receipt)', () => {
                     asset: 'native',
                     payTo: SPLIT,
                     resource: RESOURCE,
-                    description: 'One adoptable-cat card; payment goes to shelters via ShelterSplit',
+                    description:
+                        'One adoptable-cat card. The ShelterSplit contract splits each payment among its shelter recipients',
                     mimeType: 'application/json',
                     maxTimeoutSeconds: 600,
                     extra: { memo: `x402:${nonce}`, nonce },
@@ -134,6 +135,65 @@ describe('GET /shelter/agent/cat-card (x402, onchain-receipt)', () => {
         expect(getTransactionReceipt).toHaveBeenCalledWith(TX);
         expect(usedTxs.rows).toEqual([{ txHash: TX, nonce, amountWei: PRICE }]);
         expect(nonces.rows.find(r => r.nonce === nonce)).toMatchObject({ usedAt: NOW, txHash: TX });
+    });
+
+    it('counts the whole payment from NativeDisbursementBatch when part of it goes to the treasury', async () => {
+        const { service, usedTxs } = setup();
+        const nonce = await challenge(service);
+        const memo = `x402:${nonce}`;
+        const batchEvent = shelterSplitInterface.getEvent('NativeDisbursementBatch')!;
+        const batch = shelterSplitInterface.encodeEventLog(batchEvent, [
+            1,
+            '0x4444444444444444444444444444444444444444',
+            getBigInt(PRICE),
+            getBigInt('8000000000000000'),
+            getBigInt('2000000000000000'),
+            1,
+            memo,
+        ]);
+        // Shelters hold 8000 bps: NativeDisbursed alone shows 0.008 USDC of the 0.01 USDC paid.
+        getTransactionReceipt.mockResolvedValue(
+            receipt([nativeLog(memo, '8000000000000000'), { address: SPLIT, topics: batch.topics, data: batch.data }])
+        );
+
+        const result = await service.catCard(header({ txHash: TX, nonce }), RESOURCE, NOW);
+
+        expect(result.txHash).toBe(TX);
+        expect(usedTxs.rows).toEqual([{ txHash: TX, nonce, amountWei: PRICE }]);
+    });
+
+    it.each([
+        ['carries another memo', (memo: string) => [`x402:${'0'.repeat(32)}`, SPLIT, memo]],
+        [
+            'is not from the split contract',
+            (memo: string) => [memo, '0x3333333333333333333333333333333333333333', memo],
+        ],
+    ])('ignores a NativeDisbursementBatch that %s', async (_label, pick) => {
+        const { service, usedTxs } = setup();
+        const nonce = await challenge(service);
+        const [batchMemo, batchAddress, shareMemo] = pick(`x402:${nonce}`);
+        const batchEvent = shelterSplitInterface.getEvent('NativeDisbursementBatch')!;
+        const batch = shelterSplitInterface.encodeEventLog(batchEvent, [
+            1,
+            '0x4444444444444444444444444444444444444444',
+            getBigInt(PRICE),
+            getBigInt('8000000000000000'),
+            getBigInt('2000000000000000'),
+            1,
+            batchMemo,
+        ]);
+        getTransactionReceipt.mockResolvedValue(
+            receipt([
+                nativeLog(shareMemo, '8000000000000000'),
+                { address: batchAddress, topics: batch.topics, data: batch.data },
+            ])
+        );
+
+        const error = await httpError(service.catCard(header({ txHash: TX, nonce }), RESOURCE, NOW));
+
+        expect(error.getStatus()).toBe(402);
+        expect((error.getResponse() as any).error).toMatch(/below/);
+        expect(usedTxs.rows).toHaveLength(0);
     });
 
     it.each([

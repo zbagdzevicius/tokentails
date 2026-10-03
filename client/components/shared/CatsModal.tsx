@@ -1,5 +1,7 @@
 import { CAT_API } from "@/api/cat-api";
-import { bgStyle, cdnFile } from "@/constants/utils";
+import { cdnFile } from "@/constants/utils";
+import { GameModal as GameDialog } from "@/components/ui/GameModal";
+import { useAccountAction, useLatest } from "@/hooks/useAccountAction";
 import { MAX_CAT_STATUS } from "@/context/CatContext";
 import { useGame } from "@/context/GameContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -13,7 +15,6 @@ import { GameEvents } from "../Phaser/events";
 import { TailsCardMini } from "../tailsCard/TailsCardMini";
 import { TailsCardModal } from "../tailsCard/TailsCardModal";
 import { ArrowIcon } from "./ArrowIcon";
-import { CloseButton } from "./CloseButton";
 import { PackModal } from "./PackModal";
 import { packImages } from "./PacksModal";
 import { Tag } from "./Tag";
@@ -297,7 +298,7 @@ const PackRow = ({
             <PixelButton
               onClick={() => setIsExpanded(true)}
               text="See all"
-              isSmall
+              size="sm"
             />
           </div>
         )}
@@ -343,18 +344,27 @@ const TierRow = ({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Night card bodies (plan G6): the tier shows in the border and the ink, not a pale fill.
   const contentBg = {
-    [Tier.LEGENDARY]: "bg-gradient-to-b from-yellow-100/80 to-yellow-50/80",
-    [Tier.EPIC]: "bg-gradient-to-b from-purple-100/80 to-purple-50/80",
-    [Tier.RARE]: "bg-gradient-to-b from-blue-100/80 to-blue-50/80",
-    [Tier.COMMON]: "bg-gradient-to-b from-gray-300/90 to-gray-50/90",
+    [Tier.LEGENDARY]: "bg-tt-night-900/80",
+    [Tier.EPIC]: "bg-tt-night-900/80",
+    [Tier.RARE]: "bg-tt-night-900/80",
+    [Tier.COMMON]: "bg-tt-night-900/80",
   };
 
   const borderColors = {
-    [Tier.LEGENDARY]: "border-yellow-900",
-    [Tier.EPIC]: "border-purple-900",
-    [Tier.RARE]: "border-blue-900",
-    [Tier.COMMON]: "border-gray-800",
+    [Tier.LEGENDARY]: "border-tt-gold-500",
+    [Tier.EPIC]: "border-tt-lilac",
+    [Tier.RARE]: "border-tt-sky",
+    [Tier.COMMON]: "border-tt-muted",
+  };
+
+  /** Text on the night card body, in the tier's accent. */
+  const inkOnNight = {
+    [Tier.LEGENDARY]: "text-tt-gold-400",
+    [Tier.EPIC]: "text-tt-lilac",
+    [Tier.RARE]: "text-tt-sky",
+    [Tier.COMMON]: "text-tt-cream",
   };
 
   return (
@@ -447,7 +457,7 @@ const TierRow = ({
                 <div
                   className={`h-full transition-all duration-700 ease-out relative overflow-hidden ${
                     tier === Tier.LEGENDARY
-                      ? "bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-200"
+                      ? "bg-gradient-to-r from-yellow-400 via-tt-cream to-yellow-200"
                       : tier === Tier.EPIC
                       ? "bg-gradient-to-r from-purple-400 via-purple-300 to-purple-200"
                       : tier === Tier.RARE
@@ -510,15 +520,7 @@ const TierRow = ({
               ) : (
                 <div className="col-span-full flex items-center justify-center py-8">
                   <p
-                    className={`text-base font-primary opacity-50 ${
-                      tier === Tier.LEGENDARY
-                        ? "text-yellow-900"
-                        : tier === Tier.EPIC
-                        ? "text-purple-900"
-                        : tier === Tier.RARE
-                        ? "text-blue-900"
-                        : "text-gray-800"
-                    }`}
+                    className={`w-full text-center text-base font-primary ${inkOnNight[tier]}`}
                   >
                     No {tier.toLowerCase()} cats yet
                   </p>
@@ -547,31 +549,15 @@ const TierRow = ({
                         onClick={() => setIsExpanded(true)}
                       >
                         <div
-                          className={`text-4xl font-bold ${
-                            tier === Tier.LEGENDARY
-                              ? "text-yellow-900"
-                              : tier === Tier.EPIC
-                              ? "text-purple-900"
-                              : tier === Tier.RARE
-                              ? "text-blue-900"
-                              : "text-gray-800"
-                          }`}
+                          className={`text-4xl font-bold ${inkOnNight[tier]}`}
                         ></div>
                       </div>
                     )}
                   </>
                 ) : (
-                  <div className="w-full text-center py-8">
+                  <div className="col-span-full w-full text-center py-8">
                     <p
-                      className={`text-base font-primary opacity-50 ${
-                        tier === Tier.LEGENDARY
-                          ? "text-yellow-900"
-                          : tier === Tier.EPIC
-                          ? "text-purple-900"
-                          : tier === Tier.RARE
-                          ? "text-blue-900"
-                          : "text-gray-800"
-                      }`}
+                      className={`w-full text-center text-base font-primary ${inkOnNight[tier]}`}
                     >
                       No {tier.toLowerCase()} cats yet
                     </p>
@@ -580,20 +566,12 @@ const TierRow = ({
               </div>
               {!isExpanded && cats.length > count && (
                 <p
-                  className={`font-primary text-center text-p5 font-bold ${
-                    tier === Tier.LEGENDARY
-                      ? "text-yellow-900"
-                      : tier === Tier.EPIC
-                      ? "text-purple-900"
-                      : tier === Tier.RARE
-                      ? "text-blue-900"
-                      : "text-gray-800"
-                  }`}
+                  className={`font-primary text-center text-p5 font-bold ${inkOnNight[tier]}`}
                 >
                   <PixelButton
                     onClick={() => setIsExpanded(true)}
                     text="See all"
-                    isSmall
+                    size="sm"
                   />
                 </p>
               )}
@@ -604,6 +582,21 @@ const TierRow = ({
     </div>
   );
 };
+
+
+/** The Tails a collected nap paid, from the response (`tails`); 0 when missing. */
+export function napTailsOf(result: unknown): number {
+  const tails = (result as { tails?: unknown } | null)?.tails;
+  return typeof tails === "number" && Number.isFinite(tails) && tails > 0 ? Math.floor(tails) : 0;
+}
+
+/** When the nap ends, from the response (`stakedUntil`), or null. */
+export function napUntilOf(result: unknown): Date | null {
+  const until = (result as { stakedUntil?: unknown } | null)?.stakedUntil;
+  if (typeof until !== "string" && !(until instanceof Date)) return null;
+  const date = new Date(until);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
 export const CatsModalContent = ({
   setSelectedCat,
@@ -636,17 +629,13 @@ export const CatsModalContent = ({
   }, [mutatedCats]);
 
   return (
-    <div className="px-0 pt-4 pb-8 md:px-16 flex flex-col justify-between items-center animate-appear">
-      <div className="font-paws text-h2 glow mb-2 animate-in fade-in zoom-in duration-500">
-        MY PETS
-      </div>
-      <div className="w-full max-w-md mb-4 px-4"></div>
-      {profile?.discount && (
+    <div className="px-0 pt-2 pb-4 md:px-10 flex flex-col justify-between items-center animate-appear">
+      {!!profile?.discount && (
         <span className="mb-4">
           <Tag>YOUR DISCOUNT CODE: {profile?.discount.toUpperCase()}</Tag>
         </span>
       )}
-      {profile?.affiliated && (
+      {!!profile?.affiliated && (
         <span className="mb-4 -mt-5">
           <Tag>YOUR REVENUE SHARE: ${Math.ceil(profile?.affiliated)}</Tag>
         </span>
@@ -714,8 +703,14 @@ export const CatsModal = ({ close }: { close: () => void }) => {
       }),
     [cats, catOverrides],
   );
+  // Adopt and stake are account actions (plan G1, decision #9): a guest gets the AuthSheet, and
+  // the action goes on once they signed in. Handlers read the profile through a ref because they
+  // may run after the sheet replaced the guest profile.
+  const { runWithAccount } = useAccountAction();
+  const latest = useLatest({ profile, setProfileUpdate });
+
   const onCatSelect = (cat: ICat) => {
-    const isSameCat = profile?.cat._id === cat._id;
+    const isSameCat = !!cat && profile?.cat?._id === cat._id;
     if (isSameCat || !cat) {
       toast({ message: "This cat is already selected" });
       return;
@@ -738,57 +733,64 @@ export const CatsModal = ({ close }: { close: () => void }) => {
       [cat._id!]: { ...(prev[cat._id!] || {}), ...update },
     }));
   };
-  const onStakeRewards = async (cat: ICat) => {
+  // Cat nap (plan G5 P1/P2): the backend answers with the Tails it actually paid, so the profile
+  // adds exactly that (a still-napping cat pays 0 and keeps napping).
+  const claimStakeRewards = async (cat: ICat) => {
     const result = await CAT_API.stakingRedeem(cat._id!);
+    if (!result) {
+      toast({ message: "We couldn't wake your cat just now. Try again." });
+      return;
+    }
+    const tails = napTailsOf(result);
     if (result.success) {
       setCatUpdate(cat, { staked: null });
-      if (selectedCat?._id === cat._id) {
-        setSelectedCat((prev) => (prev ? { ...prev, staked: null } : null));
+      setSelectedCat((prev) =>
+        prev && prev._id === cat._id ? { ...prev, staked: null } : prev,
+      );
+      if (tails > 0) {
+        const { profile: current, setProfileUpdate } = latest.current;
+        setProfileUpdate({
+          tails: (current?.tails || 0) + tails,
+          monthTailsCrafted: (current?.monthTailsCrafted || 0) + tails,
+          monthTails: (current?.monthTails || 0) + tails,
+        });
       }
-      const tails = 1;
-      setProfileUpdate({
-        tails: (profile?.tails || 0) + tails,
-        monthTailsCrafted: profile?.monthTailsCrafted || 0,
-        monthTails: (profile?.monthTails || 0) + tails,
-      });
     }
     toast({ message: result.message });
   };
-  const onStakeCat = async (cat: ICat) => {
+  const stakeCat = async (cat: ICat) => {
     const result = await CAT_API.stake(cat._id!);
     if (result.success) {
-      const stakedDate = new Date(new Date().getTime() + weekInMs);
+      const stakedDate = napUntilOf(result) ?? new Date(new Date().getTime() + weekInMs);
       setCatUpdate(cat, { staked: stakedDate });
-      if (selectedCat?._id === cat._id) {
-        setSelectedCat((prev) =>
-          prev ? { ...prev, staked: stakedDate } : null,
-        );
-      }
+      setSelectedCat((prev) =>
+        prev && prev._id === cat._id ? { ...prev, staked: stakedDate } : prev,
+      );
     }
     toast({ message: result.message });
   };
+  const onStakeRewards = (cat: ICat) =>
+    void runWithAccount("claim-rewards", () => claimStakeRewards(cat));
+  const onStakeCat = (cat: ICat) =>
+    void runWithAccount("adopt", () => stakeCat(cat));
 
   return (
     <>
-      <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center h-full">
-        <div
-          onClick={close}
-          className="z-40 h-full w-full absolute inset-0 bg-yellow-300/50 md:backdrop-blur-md animate-in fade-in duration-300"
-        ></div>
-        <div
-          className="m-auto z-50 w-full md:w-[700px] lg:w-[900px] max-w-full absolute inset-0 max-h-screen overflow-y-auto  shadow-2xl md:border-4 border-yellow-300 glow-box animate-in fade-in zoom-in-95 slide-in-from-bottom-8 duration-500"
-          style={{
-            ...bgStyle("4"),
-            overflowX: "hidden",
-          }}
-        >
-          <CloseButton onClick={close} />
-          <CatsModalContent
-            setSelectedCat={setSelectedCat}
-            mutatedCats={mutatedCats}
-          />
-        </div>
-      </div>
+      <GameDialog
+        open
+        onOpenChange={(open) => {
+          if (!open) close();
+        }}
+        title="MY PETS"
+        name="cats"
+        size="xl"
+        bodyClassName="overflow-x-hidden"
+      >
+        <CatsModalContent
+          setSelectedCat={setSelectedCat}
+          mutatedCats={mutatedCats}
+        />
+      </GameDialog>
       {selectedCat?.packed ? (
         <PackModal cat={selectedCat} close={() => setSelectedCat(null)} />
       ) : (
@@ -797,7 +799,7 @@ export const CatsModal = ({ close }: { close: () => void }) => {
             onClose={() => setSelectedCat(null)}
             showSelect={true}
             showStake={true}
-            profileCatId={profile?.cat._id}
+            profileCatId={profile?.cat?._id}
             onSelect={onCatSelect}
             onStake={onStakeCat}
             onStakeRewards={onStakeRewards}

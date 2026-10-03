@@ -33,7 +33,7 @@
       "sprite": "brown",
       "waypoints": [
         {
-          "x": 12,
+          "x": 14,
           "y": 1
         },
         {
@@ -50,7 +50,7 @@
       "sprite": "base",
       "waypoints": [
         {
-          "x": 22,
+          "x": 23,
           "y": 5
         },
         {
@@ -60,14 +60,14 @@
       ],
       "speed": 1,
       "sniffTicks": 30,
-      "visionTiles": 3
+      "visionTiles": 4
     },
     {
       "id": "g-south-2",
       "sprite": "black",
       "waypoints": [
         {
-          "x": 12,
+          "x": 14,
           "y": 13
         },
         {
@@ -84,7 +84,7 @@
       "sprite": "exotic",
       "waypoints": [
         {
-          "x": 22,
+          "x": 23,
           "y": 9
         },
         {
@@ -94,7 +94,7 @@
       ],
       "speed": 1,
       "sniffTicks": 30,
-      "visionTiles": 3
+      "visionTiles": 4
     },
     {
       "id": "s-east",
@@ -207,7 +207,7 @@
     {
       "id": "coin-12",
       "tile": {
-        "x": 23,
+        "x": 22,
         "y": 9
       }
     },
@@ -242,7 +242,7 @@
     {
       "id": "coin-17",
       "tile": {
-        "x": 14,
+        "x": 13,
         "y": 13
       }
     },
@@ -406,34 +406,48 @@
     {
       "id": "cp-1",
       "tile": {
-        "x": 31,
-        "y": 1
+        "x": 21,
+        "y": 2
       }
     },
     {
       "id": "cp-2",
       "tile": {
         "x": 11,
-        "y": 5
+        "y": 3
       }
     },
     {
       "id": "cp-3",
       "tile": {
+        "x": 31,
+        "y": 4
+      }
+    },
+    {
+      "id": "cp-4",
+      "tile": {
+        "x": 11,
+        "y": 11
+      }
+    },
+    {
+      "id": "cp-5",
+      "tile": {
         "x": 21,
-        "y": 13
+        "y": 12
       }
     }
   ],
   "meta": {
     "title": "Heist 07: Split Shift",
-    "parTicks": 3600,
+    "parTicks": 2850,
     "meowRadiusTiles": 6,
     "investigateTicks": 120,
     "maxCoins": 22,
     "twoCatRequired": true,
     "objectives": [
-      "Take turns: each cat opens the other’s doors. Free {cat}",
+      "Take turns: each cat holds a plate that opens a door in the other wing. Free {cat}",
       "Both cats to the exit"
     ],
     "hints": [
@@ -451,7 +465,7 @@
         "x1": 9,
         "y1": 13,
         "untilObjective": 0,
-        "text": "This plate opens a door in the north wing. Hold it, then {swap}."
+        "text": "This plate opens the north-wing door of the same colour. Hold it, then {swap}."
       }
     ],
     "name": "Split Shift",

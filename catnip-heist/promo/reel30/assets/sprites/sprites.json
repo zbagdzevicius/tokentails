@@ -1,0 +1,7616 @@
+{
+ "frame": 48,
+ "note": "Rows are in manifest order: row index = position in rows[] (verified visually + by alpha scan). Frames laid out left-to-right from col 0; sprites face RIGHT. eldrem is a dragon whose wings overflow its 48px cells (neighbouring rows bleed) - avoid close-ups of it. Use imageSmoothingEnabled=false.",
+ "heroes": [
+  "albertino",
+  "oreo"
+ ],
+ "specials": [
+  "amberclaw",
+  "beaver",
+  "eldrem",
+  "fox",
+  "goat",
+  "hana",
+  "moose",
+  "owl",
+  "raccon",
+  "solo-survivor",
+  "sticky",
+  "yak"
+ ],
+ "specialsNote": "non-cat or oversized sprites (dino, dragon, human, owl, ghost...) - fun for the mosaic, eldrem/amberclaw/solo-survivor fill the whole cell, beaver/sticky/moose are tiny",
+ "shelter": [
+  "siamese",
+  "cheesy",
+  "mist",
+  "peachies",
+  "olive",
+  "maine",
+  "grey",
+  "white"
+ ],
+ "shelterDetail": [
+  {
+   "level": "heist-01",
+   "id": "siamese",
+   "name": "Mochi"
+  },
+  {
+   "level": "heist-02",
+   "id": "cheesy",
+   "name": "Biscuit"
+  },
+  {
+   "level": "heist-03",
+   "id": "mist",
+   "name": "Luna"
+  },
+  {
+   "level": "heist-04",
+   "id": "peachies",
+   "name": "Pumpkin"
+  },
+  {
+   "level": "heist-05",
+   "id": "olive",
+   "name": "Juniper"
+  },
+  {
+   "level": "heist-06",
+   "id": "maine",
+   "name": "Waffles"
+  },
+  {
+   "level": "heist-07",
+   "id": "grey",
+   "name": "Nimbus"
+  },
+  {
+   "level": "heist-08",
+   "id": "white",
+   "name": "Clover"
+  }
+ ],
+ "cats": [
+  {
+   "id": "albertino",
+   "name": "Albertino",
+   "sheet": "assets/sprites/cats/albertino.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 5,
+      "minY": 12,
+      "maxX": 42,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 11,
+      "minY": 9,
+      "maxX": 37,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 9,
+      "minY": 10,
+      "maxX": 41,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 6,
+      "minY": 5,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 10,
+      "minY": 11,
+      "maxX": 39,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 6,
+      "minY": 2,
+      "maxX": 46,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 11,
+      "minY": 15,
+      "maxX": 37,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 5,
+      "minY": 10,
+      "maxX": 40,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 7,
+      "minY": 10,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 11,
+      "minY": 11,
+      "maxX": 39,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "amberclaw",
+   "name": "Amberclaw",
+   "sheet": "assets/sprites/cats/amberclaw.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 4,
+      "minY": 0,
+      "maxX": 40,
+      "maxY": 39
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 2,
+      "minY": 2,
+      "maxX": 38,
+      "maxY": 40
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 5,
+      "minY": 0,
+      "maxX": 41,
+      "maxY": 39
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 2,
+      "minY": 0,
+      "maxX": 41,
+      "maxY": 39
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 0,
+      "minY": 0,
+      "maxX": 47,
+      "maxY": 38
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 0,
+      "minY": 0,
+      "maxX": 47,
+      "maxY": 38
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 6,
+      "minY": 2,
+      "maxX": 42,
+      "maxY": 39
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 3,
+      "minY": 2,
+      "maxX": 40,
+      "maxY": 39
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 5,
+      "minY": 0,
+      "maxX": 41,
+      "maxY": 38
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 3,
+      "minY": 0,
+      "maxX": 41,
+      "maxY": 38
+     }
+    }
+   ]
+  },
+  {
+   "id": "balinese",
+   "name": "Balinese",
+   "sheet": "assets/sprites/cats/balinese.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 38
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "beaver",
+   "name": "Beaver",
+   "sheet": "assets/sprites/cats/beaver.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 13,
+      "minY": 15,
+      "maxX": 37,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 9,
+      "minY": 20,
+      "maxX": 32,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 13,
+      "minY": 17,
+      "maxX": 37,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 10,
+      "minY": 14,
+      "maxX": 38,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 11,
+      "minY": 19,
+      "maxX": 33,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 8,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 13,
+      "minY": 23,
+      "maxX": 33,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 11,
+      "minY": 19,
+      "maxX": 32,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 13,
+      "minY": 14,
+      "maxX": 38,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 11,
+      "minY": 17,
+      "maxX": 32,
+      "maxY": 36
+     }
+    }
+   ]
+  },
+  {
+   "id": "black",
+   "name": "Black",
+   "sheet": "assets/sprites/cats/black.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 44,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "bob",
+   "name": "Bob",
+   "sheet": "assets/sprites/cats/bob.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "bunny",
+   "name": "Bunny",
+   "sheet": "assets/sprites/cats/bunny.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 11,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 9,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 10,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 14,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 9,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 9,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 10,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "castiel",
+   "name": "Castiel",
+   "sheet": "assets/sprites/cats/castiel.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 8,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 13,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 8,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 8,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "charles",
+   "name": "Charles",
+   "sheet": "assets/sprites/cats/charles.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 10,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "charmie",
+   "name": "Charmie",
+   "sheet": "assets/sprites/cats/charmie.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 5,
+      "minY": 10,
+      "maxX": 40,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 11,
+      "minY": 6,
+      "maxX": 37,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 10,
+      "minY": 7,
+      "maxX": 40,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 37,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 10,
+      "minY": 8,
+      "maxX": 37,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 5,
+      "minY": 0,
+      "maxX": 44,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 7,
+      "minY": 14,
+      "maxX": 36,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 40,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 37,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 37,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "cheesy",
+   "name": "Cheesy",
+   "sheet": "assets/sprites/cats/cheesy.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 10,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "chester",
+   "name": "Chester",
+   "sheet": "assets/sprites/cats/chester.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "coco",
+   "name": "Coco",
+   "sheet": "assets/sprites/cats/coco.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "crowley",
+   "name": "Crowley",
+   "sheet": "assets/sprites/cats/crowley.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 8,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 13,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 8,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 8,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "dean",
+   "name": "Dean",
+   "sheet": "assets/sprites/cats/dean.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 5,
+      "minY": 12,
+      "maxX": 38,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 11,
+      "minY": 9,
+      "maxX": 35,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 10,
+      "minY": 10,
+      "maxX": 38,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 6,
+      "minY": 5,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 11,
+      "minY": 11,
+      "maxX": 35,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 6,
+      "minY": 2,
+      "maxX": 43,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 11,
+      "minY": 15,
+      "maxX": 34,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 5,
+      "minY": 10,
+      "maxX": 38,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 7,
+      "minY": 10,
+      "maxX": 34,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 11,
+      "minY": 11,
+      "maxX": 35,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "eldrem",
+   "name": "Eldrem",
+   "sheet": "assets/sprites/cats/eldrem.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 0,
+      "minY": 16,
+      "maxX": 47,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 0,
+      "minY": 0,
+      "maxX": 47,
+      "maxY": 46
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 0,
+      "minY": 0,
+      "maxX": 47,
+      "maxY": 41
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 0,
+      "minY": 1,
+      "maxX": 47,
+      "maxY": 41
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 0,
+      "minY": 1,
+      "maxX": 44,
+      "maxY": 47
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 0,
+      "minY": 0,
+      "maxX": 47,
+      "maxY": 38
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 0,
+      "minY": 13,
+      "maxX": 47,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 0,
+      "minY": 15,
+      "maxX": 47,
+      "maxY": 42
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 0,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 47
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 0,
+      "minY": 0,
+      "maxX": 47,
+      "maxY": 41
+     }
+    }
+   ]
+  },
+  {
+   "id": "ficus",
+   "name": "Ficus",
+   "sheet": "assets/sprites/cats/ficus.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "figaro",
+   "name": "Figaro",
+   "sheet": "assets/sprites/cats/figaro.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "fold",
+   "name": "Fold",
+   "sheet": "assets/sprites/cats/fold.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 1,
+      "minY": 13,
+      "maxX": 39,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 10,
+      "minY": 8,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 8,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 9,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 8,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 16,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 11,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 9,
+      "minY": 11,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 11,
+      "minY": 12,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "fox",
+   "name": "Fox",
+   "sheet": "assets/sprites/cats/fox.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 16,
+      "minY": 15,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 16,
+      "minY": 20,
+      "maxX": 32,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 16,
+      "minY": 16,
+      "maxX": 37,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 13,
+      "minY": 14,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 15,
+      "minY": 19,
+      "maxX": 33,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 10,
+      "minY": 11,
+      "maxX": 35,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 14,
+      "minY": 21,
+      "maxX": 33,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 14,
+      "minY": 18,
+      "maxX": 32,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 16,
+      "minY": 14,
+      "maxX": 37,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 11,
+      "minY": 17,
+      "maxX": 32,
+      "maxY": 36
+     }
+    }
+   ]
+  },
+  {
+   "id": "goat",
+   "name": "Goat",
+   "sheet": "assets/sprites/cats/goat.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 9,
+      "minY": 15,
+      "maxX": 37,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 16,
+      "minY": 17,
+      "maxX": 32,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 19,
+      "minY": 14,
+      "maxX": 37,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 17,
+      "minY": 14,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 19,
+      "minY": 18,
+      "maxX": 34,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 10,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 14,
+      "minY": 21,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 14,
+      "minY": 16,
+      "maxX": 35,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 18,
+      "minY": 14,
+      "maxX": 37,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 11,
+      "minY": 14,
+      "maxX": 35,
+      "maxY": 36
+     }
+    }
+   ]
+  },
+  {
+   "id": "grey",
+   "name": "Grey",
+   "sheet": "assets/sprites/cats/grey.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "hana",
+   "name": "Hana",
+   "sheet": "assets/sprites/cats/hana.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 14,
+      "minY": 14,
+      "maxX": 41,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 14,
+      "maxX": 41,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 16,
+      "minY": 13,
+      "maxX": 46,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 13,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 13,
+      "minY": 14,
+      "maxX": 38,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 9,
+      "minY": 7,
+      "maxX": 42,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 12,
+      "maxX": 37,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 38,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 13,
+      "minY": 13,
+      "maxX": 40,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 12,
+      "maxX": 38,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "lady",
+   "name": "Lady",
+   "sheet": "assets/sprites/cats/lady.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "legend",
+   "name": "Legend",
+   "sheet": "assets/sprites/cats/legend.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "lorenzo",
+   "name": "Lorenzo",
+   "sheet": "assets/sprites/cats/lorenzo.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 1,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 10,
+      "minY": 8,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 8,
+      "minY": 9,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 9,
+      "minY": 10,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 8,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 14,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 9,
+      "minY": 9,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "maine",
+   "name": "Maine",
+   "sheet": "assets/sprites/cats/maine.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "merlot",
+   "name": "Merlot",
+   "sheet": "assets/sprites/cats/merlot.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 8,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 13,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 8,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 8,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "milton",
+   "name": "Milton",
+   "sheet": "assets/sprites/cats/milton.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "minnie",
+   "name": "Minnie",
+   "sheet": "assets/sprites/cats/minnie.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "mist",
+   "name": "Mist",
+   "sheet": "assets/sprites/cats/mist.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 46,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "moose",
+   "name": "Moose",
+   "sheet": "assets/sprites/cats/moose.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 9,
+      "minY": 15,
+      "maxX": 40,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 15,
+      "minY": 18,
+      "maxX": 34,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 18,
+      "minY": 15,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 15,
+      "minY": 14,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 17,
+      "minY": 19,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 10,
+      "minY": 11,
+      "maxX": 37,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 14,
+      "minY": 22,
+      "maxX": 37,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 14,
+      "minY": 16,
+      "maxX": 35,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 16,
+      "minY": 14,
+      "maxX": 37,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 11,
+      "minY": 14,
+      "maxX": 35,
+      "maxY": 36
+     }
+    }
+   ]
+  },
+  {
+   "id": "obi",
+   "name": "Obi",
+   "sheet": "assets/sprites/cats/obi.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "obsidian",
+   "name": "Obsidian",
+   "sheet": "assets/sprites/cats/obsidian.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "olive",
+   "name": "Olive",
+   "sheet": "assets/sprites/cats/olive.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "oreo",
+   "name": "Oreo",
+   "sheet": "assets/sprites/cats/oreo.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 10,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "owl",
+   "name": "Owl",
+   "sheet": "assets/sprites/cats/owl.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 15,
+      "minY": 17,
+      "maxX": 35,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 14,
+      "minY": 16,
+      "maxX": 33,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 15,
+      "minY": 16,
+      "maxX": 38,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 16,
+      "minY": 16,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 14,
+      "minY": 13,
+      "maxX": 34,
+      "maxY": 38
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 4,
+      "minY": 11,
+      "maxX": 38,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 15,
+      "minY": 13,
+      "maxX": 33,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 2,
+      "minY": 12,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 17,
+      "minY": 15,
+      "maxX": 37,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 5,
+      "minY": 16,
+      "maxX": 37,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "peachies",
+   "name": "Peachies",
+   "sheet": "assets/sprites/cats/peachies.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 10,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "pickles",
+   "name": "Pickles",
+   "sheet": "assets/sprites/cats/pickles.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "pinkie",
+   "name": "Pinkie",
+   "sheet": "assets/sprites/cats/pinkie.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 10,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "pork",
+   "name": "Pork",
+   "sheet": "assets/sprites/cats/pork.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "raccon",
+   "name": "Raccoon",
+   "sheet": "assets/sprites/cats/raccon.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 17,
+      "minY": 15,
+      "maxX": 37,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 16,
+      "minY": 20,
+      "maxX": 33,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 19,
+      "minY": 17,
+      "maxX": 38,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 16,
+      "minY": 14,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 18,
+      "minY": 19,
+      "maxX": 34,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 10,
+      "minY": 11,
+      "maxX": 35,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 14,
+      "minY": 21,
+      "maxX": 34,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 14,
+      "minY": 19,
+      "maxX": 32,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 17,
+      "minY": 14,
+      "maxX": 37,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 11,
+      "minY": 16,
+      "maxX": 32,
+      "maxY": 36
+     }
+    }
+   ]
+  },
+  {
+   "id": "rascal",
+   "name": "Rascal",
+   "sheet": "assets/sprites/cats/rascal.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "roy",
+   "name": "Roy",
+   "sheet": "assets/sprites/cats/roy.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "sable",
+   "name": "Sable",
+   "sheet": "assets/sprites/cats/sable.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "sammy",
+   "name": "Sammy",
+   "sheet": "assets/sprites/cats/sammy.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 46,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "savanhan",
+   "name": "Savannah",
+   "sheet": "assets/sprites/cats/savanhan.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "sei",
+   "name": "Sei",
+   "sheet": "assets/sprites/cats/sei.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "siamese",
+   "name": "Siamese",
+   "sheet": "assets/sprites/cats/siamese.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 38
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "solo-survivor",
+   "name": "Solo Survivor",
+   "sheet": "assets/sprites/cats/solo-survivor.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 13,
+      "minY": 4,
+      "maxX": 36,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 2,
+      "maxX": 32,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 12,
+      "minY": 1,
+      "maxX": 32,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 11,
+      "minY": 1,
+      "maxX": 31,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 11,
+      "minY": 2,
+      "maxX": 31,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 13,
+      "minY": 0,
+      "maxX": 41,
+      "maxY": 47
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 10,
+      "minY": 0,
+      "maxX": 30,
+      "maxY": 33
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 13,
+      "minY": 3,
+      "maxX": 38,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 16,
+      "minY": 1,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 13,
+      "minY": 2,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "sticky",
+   "name": "Sticky",
+   "sheet": "assets/sprites/cats/sticky.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 17,
+      "minY": 15,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 16,
+      "minY": 19,
+      "maxX": 32,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 19,
+      "minY": 16,
+      "maxX": 37,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 17,
+      "minY": 14,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 19,
+      "minY": 18,
+      "maxX": 32,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 10,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 14,
+      "minY": 23,
+      "maxX": 33,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 14,
+      "minY": 18,
+      "maxX": 32,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 18,
+      "minY": 14,
+      "maxX": 37,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 11,
+      "minY": 16,
+      "maxX": 32,
+      "maxY": 36
+     }
+    }
+   ]
+  },
+  {
+   "id": "teddy",
+   "name": "Teddy",
+   "sheet": "assets/sprites/cats/teddy.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 38
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "tom",
+   "name": "Tom",
+   "sheet": "assets/sprites/cats/tom.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 10,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "troufas",
+   "name": "Troufas",
+   "sheet": "assets/sprites/cats/troufas.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "wallace",
+   "name": "Wallace",
+   "sheet": "assets/sprites/cats/wallace.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "white",
+   "name": "White",
+   "sheet": "assets/sprites/cats/white.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "yak",
+   "name": "Yak",
+   "sheet": "assets/sprites/cats/yak.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 17,
+      "minY": 13,
+      "maxX": 39,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 15,
+      "minY": 13,
+      "maxX": 35,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 16,
+      "minY": 11,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 15,
+      "minY": 12,
+      "maxX": 35,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 15,
+      "minY": 13,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 10,
+      "minY": 6,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 14,
+      "minY": 21,
+      "maxX": 36,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 14,
+      "minY": 15,
+      "maxX": 33,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 15,
+      "minY": 12,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 12,
+      "maxX": 33,
+      "maxY": 36
+     }
+    }
+   ]
+  },
+  {
+   "id": "yellow",
+   "name": "Yellow",
+   "sheet": "assets/sprites/cats/yellow.png",
+   "frame": 48,
+   "cols": 15,
+   "rows": [
+    {
+     "name": "SLEEP",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 12,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "DIGGING",
+     "frames": 4,
+     "row": 1,
+     "bounds": {
+      "minX": 12,
+      "minY": 9,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "GROOMING",
+     "frames": 15,
+     "row": 2,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "HIT",
+     "frames": 7,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 5,
+      "maxX": 36,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "IDLE",
+     "frames": 12,
+     "row": 4,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 7,
+     "row": 5,
+     "bounds": {
+      "minX": 7,
+      "minY": 2,
+      "maxX": 44,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "LOAF",
+     "frames": 9,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 15,
+      "maxX": 35,
+      "maxY": 32
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 4,
+     "row": 7,
+     "bounds": {
+      "minX": 6,
+      "minY": 10,
+      "maxX": 39,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 8,
+     "bounds": {
+      "minX": 8,
+      "minY": 10,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 8,
+     "row": 9,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 36,
+      "maxY": 35
+     }
+    }
+   ]
+  }
+ ],
+ "dogs": [
+  {
+   "id": "base",
+   "name": "Base",
+   "sheet": "assets/sprites/dogs/base.png",
+   "frame": 48,
+   "cols": 8,
+   "rows": [
+    {
+     "name": "CROUCHED",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 18,
+      "maxX": 34,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "DAMAGE",
+     "frames": 5,
+     "row": 1,
+     "bounds": {
+      "minX": 9,
+      "minY": 13,
+      "maxX": 40,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "DEAD",
+     "frames": 5,
+     "row": 2,
+     "bounds": {
+      "minX": 9,
+      "minY": 16,
+      "maxX": 39,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 6,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 9,
+      "maxX": 43,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "LYING",
+     "frames": 4,
+     "row": 4,
+     "bounds": {
+      "minX": 9,
+      "minY": 14,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 3,
+     "row": 5,
+     "bounds": {
+      "minX": 12,
+      "minY": 10,
+      "maxX": 41,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 6,
+     "bounds": {
+      "minX": 11,
+      "minY": 11,
+      "maxX": 32,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "SNIFFING",
+     "frames": 8,
+     "row": 7,
+     "bounds": {
+      "minX": 9,
+      "minY": 13,
+      "maxX": 37,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 7,
+     "row": 8,
+     "bounds": {
+      "minX": 9,
+      "minY": 13,
+      "maxX": 33,
+      "maxY": 34
+     }
+    }
+   ]
+  },
+  {
+   "id": "black-white",
+   "name": "Black White",
+   "sheet": "assets/sprites/dogs/black-white.png",
+   "frame": 48,
+   "cols": 8,
+   "rows": [
+    {
+     "name": "CROUCHED",
+     "frames": 6,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 18,
+      "maxX": 34,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "DAMAGE",
+     "frames": 5,
+     "row": 1,
+     "bounds": {
+      "minX": 9,
+      "minY": 13,
+      "maxX": 40,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "DEAD",
+     "frames": 5,
+     "row": 2,
+     "bounds": {
+      "minX": 8,
+      "minY": 16,
+      "maxX": 39,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 6,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 9,
+      "maxX": 43,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "LYING",
+     "frames": 4,
+     "row": 4,
+     "bounds": {
+      "minX": 9,
+      "minY": 14,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 3,
+     "row": 5,
+     "bounds": {
+      "minX": 12,
+      "minY": 10,
+      "maxX": 41,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 6,
+     "bounds": {
+      "minX": 11,
+      "minY": 11,
+      "maxX": 45,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "SNIFFING",
+     "frames": 8,
+     "row": 7,
+     "bounds": {
+      "minX": 9,
+      "minY": 13,
+      "maxX": 37,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 7,
+     "row": 8,
+     "bounds": {
+      "minX": 9,
+      "minY": 13,
+      "maxX": 33,
+      "maxY": 34
+     }
+    }
+   ]
+  },
+  {
+   "id": "black",
+   "name": "Black",
+   "sheet": "assets/sprites/dogs/black.png",
+   "frame": 48,
+   "cols": 8,
+   "rows": [
+    {
+     "name": "CROUCHED",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 19,
+      "maxX": 34,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "DAMAGE",
+     "frames": 5,
+     "row": 1,
+     "bounds": {
+      "minX": 9,
+      "minY": 13,
+      "maxX": 40,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "DEAD",
+     "frames": 5,
+     "row": 2,
+     "bounds": {
+      "minX": 8,
+      "minY": 16,
+      "maxX": 39,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 6,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 9,
+      "maxX": 43,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "LYING",
+     "frames": 4,
+     "row": 4,
+     "bounds": {
+      "minX": 9,
+      "minY": 14,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 3,
+     "row": 5,
+     "bounds": {
+      "minX": 12,
+      "minY": 10,
+      "maxX": 41,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 6,
+     "bounds": {
+      "minX": 11,
+      "minY": 10,
+      "maxX": 32,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "SNIFFING",
+     "frames": 8,
+     "row": 7,
+     "bounds": {
+      "minX": 9,
+      "minY": 13,
+      "maxX": 37,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 7,
+     "row": 8,
+     "bounds": {
+      "minX": 9,
+      "minY": 14,
+      "maxX": 33,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "brown",
+   "name": "Brown",
+   "sheet": "assets/sprites/dogs/brown.png",
+   "frame": 48,
+   "cols": 8,
+   "rows": [
+    {
+     "name": "CROUCHED",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 7,
+      "minY": 18,
+      "maxX": 33,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "DAMAGE",
+     "frames": 5,
+     "row": 1,
+     "bounds": {
+      "minX": 10,
+      "minY": 13,
+      "maxX": 40,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "DEAD",
+     "frames": 5,
+     "row": 2,
+     "bounds": {
+      "minX": 9,
+      "minY": 16,
+      "maxX": 39,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 5,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 9,
+      "maxX": 43,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "LYING",
+     "frames": 4,
+     "row": 4,
+     "bounds": {
+      "minX": 9,
+      "minY": 14,
+      "maxX": 34,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 3,
+     "row": 5,
+     "bounds": {
+      "minX": 12,
+      "minY": 10,
+      "maxX": 41,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 6,
+     "bounds": {
+      "minX": 12,
+      "minY": 11,
+      "maxX": 32,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "SNIFFING",
+     "frames": 8,
+     "row": 7,
+     "bounds": {
+      "minX": 9,
+      "minY": 13,
+      "maxX": 36,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 7,
+     "row": 8,
+     "bounds": {
+      "minX": 9,
+      "minY": 14,
+      "maxX": 32,
+      "maxY": 35
+     }
+    }
+   ]
+  },
+  {
+   "id": "exotic",
+   "name": "Exotic",
+   "sheet": "assets/sprites/dogs/exotic.png",
+   "frame": 48,
+   "cols": 8,
+   "rows": [
+    {
+     "name": "CROUCHED",
+     "frames": 7,
+     "row": 0,
+     "bounds": {
+      "minX": 6,
+      "minY": 18,
+      "maxX": 34,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "DAMAGE",
+     "frames": 5,
+     "row": 1,
+     "bounds": {
+      "minX": 9,
+      "minY": 13,
+      "maxX": 40,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "DEAD",
+     "frames": 5,
+     "row": 2,
+     "bounds": {
+      "minX": 8,
+      "minY": 16,
+      "maxX": 39,
+      "maxY": 37
+     }
+    },
+    {
+     "name": "JUMPING",
+     "frames": 6,
+     "row": 3,
+     "bounds": {
+      "minX": 7,
+      "minY": 9,
+      "maxX": 43,
+      "maxY": 36
+     }
+    },
+    {
+     "name": "LYING",
+     "frames": 4,
+     "row": 4,
+     "bounds": {
+      "minX": 9,
+      "minY": 14,
+      "maxX": 35,
+      "maxY": 35
+     }
+    },
+    {
+     "name": "RUNNING",
+     "frames": 3,
+     "row": 5,
+     "bounds": {
+      "minX": 12,
+      "minY": 10,
+      "maxX": 41,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "SITTING",
+     "frames": 5,
+     "row": 6,
+     "bounds": {
+      "minX": 11,
+      "minY": 11,
+      "maxX": 32,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "SNIFFING",
+     "frames": 8,
+     "row": 7,
+     "bounds": {
+      "minX": 9,
+      "minY": 13,
+      "maxX": 37,
+      "maxY": 34
+     }
+    },
+    {
+     "name": "WALKING",
+     "frames": 7,
+     "row": 8,
+     "bounds": {
+      "minX": 9,
+      "minY": 13,
+      "maxX": 33,
+      "maxY": 34
+     }
+    }
+   ]
+  }
+ ],
+ "images": {
+  "coin": "assets/sprites/images/coin.png",
+  "catnip": "assets/sprites/images/catnip.png",
+  "heart": "assets/sprites/images/heart.png",
+  "paw": "assets/sprites/images/paw.png",
+  "logo": "assets/sprites/images/logo.png",
+  "catnipBig": "assets/sprites/images/catnip@6x.png",
+  "catnip16": "assets/sprites/images/catnip-16.png",
+  "catnip16Big": "assets/sprites/images/catnip-16@32x.png",
+  "payoutsHero": "assets/sprites/images/payouts-hero.png"
+ },
+ "icons": {
+  "base": "assets/sprites/icons/base.png"
+ },
+ "font": "assets/sprites/catpaw.woff2",
+ "fontFamily": "Cat Paw",
+ "palette": {
+  "night": "#0d0616",
+  "plum": "#301934",
+  "violet": "#4b0082",
+  "grape": "#6f2da8",
+  "lavender": "#9966cc",
+  "coin": "#ffc93c",
+  "cream": "#fcecbb",
+  "ember": "#c1260f",
+  "rust": "#ee642a",
+  "pink": "#ff7aa2",
+  "mint": "#d5f4e5",
+  "sky": "#c4e2fc",
+  "lilac": "#f0c5fd",
+  "outline": "#2a0f1f",
+  "grape2": "#5a2190",
+  "skyTop": "#07030e",
+  "skyMid": "#1d0b33",
+  "skyLow": "#3a1648",
+  "cityDark": "#12071f",
+  "windowGlow": "#ffc93c",
+  "catnip": "#63b98d",
+  "catnipDeep": "#5fbf3a",
+  "catnipGlow": "#b6f36a",
+  "catnipPale": "#eaffc0",
+  "catnipEmissive": "#3a7a20",
+  "conePatrol": "#ffc62e",
+  "coneSniff": "#ffe08a",
+  "coneInvestigate": "#ff7a1a",
+  "coneAlert": "#ff2e22",
+  "alertFlash": "#ff2a1a",
+  "alertRed": "#ff3b2e",
+  "vaultOpen": "#7cff9a",
+  "rescueFlash": "#fff3d0",
+  "meowRing": "#b6f36a",
+  "floorA": "#7b5aa6",
+  "floorB": "#6c4c98",
+  "rug": "#b0406e",
+  "wall": "#4a2c6e",
+  "trim": "#d9b8f5",
+  "box": "#c98a4b",
+  "vault": "#51466e",
+  "crateWood": "#9b6235",
+  "crateBars": "#cfc3e6",
+  "platePad": "#5a8f80",
+  "bg": "#0d0616",
+  "bgAlt": "#301934",
+  "accent": "#9fdfba",
+  "gold": "#ffc93c",
+  "alert": "#ff2e22",
+  "text": "#fcecbb",
+  "textDim": "#9966cc",
+  "catnipLight": "#9fdfba",
+  "catnipSpike": "#b896ea",
+  "catnipOutline": "#1d3b34"
+ },
+ "fonts": {
+  "Cat Paw": {
+   "file": "assets/sprites/catpaw.woff2",
+   "use": "game display face (titles, buttons, HUD)"
+  },
+  "Passion One": {
+   "files": [
+    "assets/sprites/fonts/passion-one-latin-700-normal.woff2",
+    "assets/sprites/fonts/passion-one-latin-ext-700-normal.woff2"
+   ],
+   "weight": 700,
+   "use": "payouts modal / tokentails.com headlines"
+  },
+  "Nunito": {
+   "files": [
+    "assets/sprites/fonts/nunito-latin-wght-normal.woff2",
+    "assets/sprites/fonts/nunito-latin-ext-wght-normal.woff2"
+   ],
+   "weight": "200 1000",
+   "use": "body text"
+  }
+ },
+ "catnipNote": "Botanical catnip sprig (client/art/catnip palette: mint leaves #63b98d/#9fdfba, lavender flower spike #b896ea, outline #1d3b34). images.catnip is the game UI icon at 96 px; draw it with imageSmoothingEnabled=false."
+}

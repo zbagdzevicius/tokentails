@@ -27,6 +27,14 @@ erDiagram
     Category ||--o{ Article : contains
     Article }o--|| Image : "featured"
     Article ||--o{ Comment : has
+    User }o--o{ Blessing : follows
+    Shelter ||--o{ RescueGoal : "opens"
+    RescueGoal ||--o{ RescueGoalPledge : receives
+    User ||--o{ RescueGoalPledge : gives
+    User ||--o{ ShelterDonation : "sends a treat"
+    User ||--o{ Paw : earns
+    Shelter ||--o{ ImpactPayout : "is paid"
+    Shelter ||--o{ ShelterOutcome : reports
 ```
 
 ## users
@@ -36,7 +44,21 @@ Identity and profile:
 | Field | Type | Notes |
 |---|---|---|
 | `name` | string, required | |
-| `email` | string | Firebase users |
+| `email` | string | Firebase users. Lowercased and trimmed on every write since plan F5 |
+| `emailCanonical` | string | Gmail and googlemail dots and `+tag` removed, for abuse checks (aliases count as one inbox); unset on deletion |
+| `emailVerifiedAt` | Date | When a verified token was last seen |
+| `firebaseUids` | string[] | Firebase uids bound to this account (uid-first resolution). Absent on legacy documents until `backfill-firebase-uid.ts` |
+| `isGuest` | boolean | `false` written explicitly for registered users; `true` for an anonymous guest |
+| `pendingTails` | number | A guest's Tails, credited on promotion or merge, capped at 2,000 for life |
+| `guestMergedTails`, `lastGuestMergeAt`, `mergedGuestIds` | number, Date, ref User[] | Merge accounting (one merge per 30 days) |
+| `mergedInto`, `mergeState` | ref User, string | Set on a guest while it is merged into an account |
+| `promotedAt`, `promotionUnnotified` | Date, boolean | Guest promoted to an account; the one-shot `promotedNow` notice |
+| `lastSeenAt` | Date | Written at most daily; drives the 30-day guest cleanup |
+| `lastPlayedAt` | Date | Set by `/live` on every save; feeds `active30d` |
+| `onboarding` | `{ state: 'pending' \| 'done', starterChosenAt?, skipped?, version? }` | Meet your cat |
+| `following` | ref Blessing[] | Followed rescue cats, at most 50 |
+| `deletedAt` | Date | Anonymised by `DELETE /user/me` |
+| `boardExcludedAt`, `boardExcludedReason` | Date, `'staking-abuse'` | Off every board (decision #35) |
 | `twitter`, `discord` | string | Set by the user for giveaways |
 | `discount` | string | Affiliate code owned by this user |
 | `permission` | number | 1 user, 2 moderator, 3 editor, 4 manager, 5 admin. Default 1 |
@@ -52,9 +74,13 @@ Economy and progression:
 
 | Field | Type | Notes |
 |---|---|---|
-| `tails` | number | Soft currency |
+| `tails` | number | Spendable Tails (rescue points). Never decremented except by a give |
+| `tailsEarned` | number | Lifetime Tails earned, never decremented; ranks and tiers read it (`backfill-tails-earned.js` for legacy documents) |
+| `tailsGiven`, `goalsHelped` | number | Tails given to Rescue Goals; goals helped |
 | `affiliated` | number | Affiliate earnings in USD |
-| `spent` | number | Lifetime spend in USD |
+| `spent` | number | Lifetime spend in USD (legacy values are inflated, see BACKEND.md) |
+| `spentUsd` | number | Verified USD spend only, written at the payment sites |
+| `spentUsdLegacyAt` | Date | Guard for the legacy estimate written by `backfill-spent-usd.js` into `spentUsdLegacy` (not declared in the schema yet); `spentUsdSource` is declared but unused |
 | `boxes` | number | Loot boxes held |
 | `streak` | number | Daily check-in streak |
 | `canRedeemLives` | boolean | Reset to true nightly |
@@ -65,19 +91,29 @@ Economy and progression:
 | `seasonEvent`, `seasonEventCount` | number[], number | Per-level best for the 14-level Pixel Rescue event |
 | `match3`, `match3Count` | number[], number | Per-level catnip earned in Paw Match |
 | `match3Score`, `match3ScoreCount` | number[], number | Per-level raw Paw Match score |
+| `catnipChaosCleared`, `seasonEventCleared`, `match3Cleared` | number[] (0 or 1) | Server cleared state (decision #67), set by a `won` `/live` save; never for Purrsuit `01`. Missing reads as zeros; the grandfather migration fills them from best scores |
+| `heistScore` | number[8] | Best server-verified Catnip Heist score per level |
+| `heistStars` | number[8] | Star bit mask per Heist level (OR-ed) |
 | `referralsCount` | number | |
 | `portraitPurchases` | number | |
 | `airdropRewardsClaimed`, `airdropChallengesClaimed`, `airdropMilestonesClaimed` | string[] | Claim idempotency |
-| `monthTails`, `monthCatsAdopted`, `monthBoxes`, `monthSpent`, `monthFeeded`, `monthStreak`, `monthReferrals`, `monthTailsCrafted`, `monthPacks`, `monthPortraitPurchases` | number | Monthly counters reset by cron |
+| `monthTails`, `monthCatsAdopted`, `monthBoxes`, `monthSpent`, `monthFeeded`, `monthStreak`, `monthReferrals`, `monthTailsCrafted`, `monthPacks`, `monthPortraitPurchases`, `monthTailsGiven`, `monthGoalsHelped` | number | Monthly counters reset by the codex cron (`monthSpent` is not in the reset list: it is a lifetime figure today) |
 
-Indexes: `email`, `likes`, `shelter`, `cat`, `twitter`, `spent`, `discount`,
-`createdAt` descending, `tails`, `catnipCount`, `canRedeemLives`.
+Indexes: `email`, `firebaseUids` (non-unique multikey lookup), `likes`, `shelter`, `cat`, `twitter`,
+`spent`, `discount`, `createdAt` descending, `tails`, `catnipCount`, `canRedeemLives`; partial board
+indexes `board_tails`, `board_catnip`, `board_tails_earned`, `board_tails_given`,
+`board_month_tails_given` (all on `isGuest: false`) and guest indexes `guest_idle` (`lastSeenAt`) and
+`guest_merge` (`mergedInto`), both on `isGuest: true`. Built by the identity migration only:
+`firebaseUids_unique` (partial on `firebaseUids.0` existing), `email_unique` (partial on a string
+email) and `email_canonical`. Rescue Goal holds (`pledgeHolds`, `pledgeCancelRefunds`) are written
+through the native driver and not declared in the schema.
 
 Legacy data: `telegramId` and `telegramUsername` were removed from the schema when Telegram
 support was dropped (2026-09). Existing documents still hold them, and the `telegramId_1` index is
 still on the collection; no migration removes either. Users who only ever signed in through
-Telegram have no email and can no longer log in: the auth strategy rejects Firebase tokens without
-an `email` claim, so no lookup ever runs with an empty email.
+Telegram have no email and can no longer log in: the auth strategy rejects registered (non-anonymous)
+Firebase tokens without an `email` claim, so no lookup ever runs with an empty email. Anonymous
+guest tokens have no email and resolve by uid only.
 
 ## cats
 
@@ -98,9 +134,19 @@ an `email` claim, so no lookup ever runs with an empty email.
 | `owner` | ref User | |
 | `blessing` | ref Blessing | |
 | `shelter` | ref Shelter | |
+| `isStarter`, `isGuestStarter` | boolean | The account's starter; a guest's starter (dropped on merge, excluded from traction) |
+| `starterLockedAt`, `starterBreed` | Date, `StarterBreed` | Set once by `POST /user/starter` |
+| `origin` | `CatOrigin` | `starter`, `pack`, `redeem`, `adopt`, `portrait` |
+| `sourceCat` | ref Cat | The catalogue cat a copy was made from (ownership dedupe) |
+| `nameChangedAt`, `renameOffer` | Date, boolean | 30-day rename window; the one-time legacy rename offer |
+| `nameModeratedAt`, `nameModeratedBy` | Date, ref User | Last moderator action on the name |
+| `releasedAt`, `releasedSourceCat` | Date, ref Cat | Released to the shelter pool by an account deletion |
 
 Indexes: `tokenId`, `nftId` (stale, field removed), `name`, `packed`, `updatedAt` descending,
-`isBlueprint`, compound `{ blessing, owner }`.
+`isBlueprint`, compound `{ blessing, owner }`, unique partial `starter_per_owner` (one starter per
+owner), unique partial `copy_per_owner_source` (`{owner, sourceCat}`; it treats a missing and a null
+owner alike, which is why released copies move `sourceCat` to `releasedSourceCat`) and partial
+`cat_nap_owner` (`{owner, staked}`, for the three-cat nap cap).
 
 The schema file also defines `CatOriginType` (22 breed looks) and `EmoteType` (10 emotes) used to
 build CDN asset paths.
@@ -122,8 +168,10 @@ A rescued animal registered by a shelter.
 | `creator` | ref User | |
 | `cat` | ref Cat | The generated collectible |
 | `shelter` | ref Shelter | |
+| `kind` | `rescue` \| `portrait` | Set at creation from the shelter; legacy rows get it from `backfill-blessing-kind.js` (counted as the backfill would classify them until then) |
+| `statusUpdatedBy`, `statusUpdatedAt` | ref User, Date | Written on every status change |
 
-Indexes: `shelter`, `nftId` (stale).
+Indexes: `shelter`, `{ kind, status }`, `nftId` (stale).
 
 ## shelters
 
@@ -135,9 +183,14 @@ Indexes: `shelter`, `nftId` (stale).
 | `image` | ref Image, required | Logo |
 | `blessing` | ref Blessing[] | |
 | `users` | ref User[] | Staff accounts |
-| `wallets` | object | Generated Stellar wallet |
+| `wallets` | object | Generated Stellar wallet. Never in a response (whitelist projection) |
+| `countryCode` | string | ISO 3166 alpha-2 (validated in the schema and the DTO) |
+| `partnerStatus` | `active` \| `past` \| `prospect` | Only `active` counts as a partner and a partner country |
+| `role` | `partner` \| `house` | House zones (Token Tails' own) never count as partners or rescues |
+| `handoverStatus`, `handoverAt`, `handoverTx`, `publicWallet` | string, Date, string, string | Custody (ADMIN-only writes); money is `held-by-token-tails` until handover |
+| `members` | ref User[] | Shelter members who confirm payouts (ADMIN-granted); never in a public projection |
 
-Index: `name`.
+Indexes: `name`, `{ partnerStatus, countryCode }`, `members` (sparse).
 
 ## images
 
@@ -155,8 +208,10 @@ Index: `createdAt`.
 
 | Field | Type | Notes |
 |---|---|---|
-| `status` | enum, required | `COMPLETE`, `PENDING`, `LOCKED`, `FAILED` |
+| `status` | enum, required | `COMPLETE`, `PENDING`, `LOCKED`, `FAILED`, `FAILED_GRANT` (paid, but the cat could not be granted) |
 | `hash` | string, required | Stellar transaction hash, Stripe session id, or PaymentIntent id |
+| `failedHash`, `failureReason` | string | A released hash after a failed verification; the grant failure reason (`EMPTY_POOL`, `ADOPT_FAILED: …`, `NO_CAT`) |
+| `refund` | `{ state: 'due' \| 'refunded' \| …, reason, amountUsd?, requestedAt, refundedAt?, refundId?, error? }` | Set when a failed grant is refunded (Stripe automatically, Stellar by hand) |
 | `chainType` | enum | `STELLAR`, `FIAT` |
 | `currencyType` | enum | `USDT`, `USDC`, `XLM`, `USD` |
 | `price` | number, required | In `currencyType` units |
@@ -169,7 +224,7 @@ Index: `createdAt`.
 | `cat`, `image`, `user` | refs | |
 
 Indexes: `chainType`, `entityType`, `price`, `status`, `ref`, `id`, `image`, compound
-`{ user, entityType, status }`.
+`{ user, entityType, status }`, unique partial `hash_unique`, partial `refund.state`.
 
 ## games
 
@@ -177,18 +232,70 @@ Immutable log of every submitted game result.
 
 | Field | Type | Notes |
 |---|---|---|
-| `type` | enum, required | `SHELTER`, `HOME`, `PURRQUEST`, `CATBASSADORS`, `CATNIP_CHAOS`, `PIXEL_RESCUE`, `MATCH_3`. New rows are only `CATNIP_CHAOS`, `PIXEL_RESCUE` or `MATCH_3` (`scoredGameTypes`); the rest exist on old rows |
-| `points` | number | Catnip earned |
+| `type` | enum, required | `SHELTER`, `HOME`, `PURRQUEST`, `CATBASSADORS`, `CATNIP_CHAOS`, `PIXEL_RESCUE`, `MATCH_3`, `CATNIP_HEIST`. New rows are only `CATNIP_CHAOS`, `PIXEL_RESCUE`, `MATCH_3` (`scoredGameTypes`) or a replay-verified `CATNIP_HEIST`; the rest exist on old rows |
+| `points` | number | Catnip earned; for the Heist, the server score |
 | `score` | number | Raw score (Paw Match) |
-| `time` | number | |
+| `time` | number | Seconds; for the Heist `ticks / 30` |
 | `level` | string | Level key |
 | `platform` | enum | `web`, `ios`, `android`. Set on every row saved since 2026-09; `web` when the client sends none. Older rows have no value |
+| `outcome` | `won` \| `died` \| `timeout` \| `quit` | When the client sent one; Heist rows are always `won` |
+| `replayDigest` | string | Heist only: sha256 of the canonical input log (crew excluded) |
+| `stars` | number | Heist only: the star mask of the run |
 | `user`, `cat` | refs | |
 
-Indexes: `user`, `cat`, compound `{ type, score }`.
+Indexes: `user`, `cat`, compound `{ type, score }`, unique partial `replayDigest_unique` (global, on
+`replayDigest` of type string, declared after the unique-validator plugin).
 
-The same file holds the level tables and caps: 97 Catnip Chaos levels, 14 season event levels,
-30 Paw Match levels, per-level catnip caps, and the global caps used to filter leaderboards.
+The level tables and caps come from `shared/caps.ts`: 97 Catnip Chaos levels, 14 season event levels,
+30 Paw Match levels, 8 Heist levels, per-level caps, and the global caps used to filter leaderboards.
+Guest rows are re-parented to the account on a merge; idle-guest cleanup leaves their rows behind as
+play history.
+
+## Identity, guests and jobs
+
+**accountdeletions**: one audit row per `DELETE /user/me` with ids and counts only (cats released,
+cats to the shelter pool, Apple revoke result); no personal data.
+
+**jobruns**: one document per cron job, `{ _id: jobName, lockedUntil, lockedAt, lockedBy, status,
+finishedAt }` (the F8 lease), plus the codex reset's period claims.
+
+**name_reports**: player reports of cat names: `cat`, `catOwner`, `reporter`, `nameSnapshot`, `reason`
+(`offensive`, `impersonation`, `personal-info`, `other`), `note` (at most 200 characters), `status`
+(`open`, `actioned`, `dismissed`), `action`, `resolvedBy`, `resolvedAt`. Unique partial
+`open_report_per_reporter`, `{ status, createdAt }`. Responses never include reporters.
+
+## Treats and the Arc rail
+
+**shelterdonations**: one treat per user and UTC day (`user_day_unique`): `status` (`PENDING`, `SENT`,
+`CONFIRMED`, `FAILED`), `failedReason`, `source` (`heist`, `page`), `memo`, `txHash`, `txNonce`,
+`txFrom`, `signedAt`, `lastCheckedAt`, `attempts[]` (earlier failed attempts of the same day). Indexes
+`status_updated`, `status_checked`, `txhash`, `attempts_txhash` (sparse).
+
+**shelterdonatedays**: the per-day budget slots (`day_unique`). **x402nonces** (TTL on `expiresAt`,
+600 s) and **x402usedtxs** (unique `txHash`): the agent card.
+
+## Impact (plan F7, G4, G11)
+
+| Collection | Holds | Indexes |
+|---|---|---|
+| `shelterpayoutevents` | One ShelterSplit payout log: `chainId`, `contract`, `txHash`, `logIndex`, `blockNumber`, `blockHash`, `kind` (`Disbursed` or `NativeDisbursed`), shelter (recipient), `amount` (18-decimal wei string), `symbol`, `memo`, `bucket` (`heist`, `page`, `paws`, `x402`, `direct`), `txFrom` for paw memos | unique `chain_tx_log_unique`, `{ chainId, contract, blockNumber }` |
+| `impactchaincursors` | The indexer's cursor per chain and contract: `fromBlock`, `lastScannedBlock`, `totals` recomputed from the rows, `eventCount`, `lastTxHash`, last success and error | |
+| `impactsnapshots` | One public snapshot per hour bucket (`_id`), compacted to daily after 48 hours | |
+| `paws` | One paw per eligible player and UTC day: `pawId`, user, day, the leaf salt | unique `user_day_unique`, `{ day, pawId }` |
+| `pawsettlements` | One per day: paw count, Merkle root, memo, budget and amount, `suggestedBudgetWei`, send status and tx hash | `status` |
+| `impactpayouts` | Off-chain payouts: `publicId` (`p-…`), shelter, purpose, amount and currency, dated USD equivalent, receipt SHA-256 (the file is never stored), attestation hash, purpose (`outcome`, `purchase-pledge`, `general`), author, `editors`, confirmations, signature, status (`DRAFT`, `SHELTER_CONFIRMED`, `SHELTER_SIGNED`, `VOID`) | unique `public_id_unique`, `{ shelter, status, paidAt }`, `{ purpose, status, pledgeMonth }` |
+| `shelteroutcomes` | Published or draft outcomes: `publicId` (`o-…`), shelter, type, date, amount, animal name only, payout link, redaction marks, author, redactor, approver, `published`, `image.key`, `unpurgedImageKeys` | unique `public_id_unique`, `{ published, date }`, `{ shelter, date }` |
+| `shelteroutcomeimages` | The processed private image of an unpublished outcome | |
+
+## Rescue Goals (plan G5)
+
+| Collection | Holds | Indexes |
+|---|---|---|
+| `rescuegoals` | Shelter, wording, cover image, `targetTails`, `raisedTails`, `pledgeCount`, `status` (`OPEN`, `FILLED`, `DELIVERED`, `CANCELLED`), `endsAt`, `budgetMonth`, funding (`fundingSetAside`, line, amount, currency; CMS only), proof owner, delivery photo, receipt SHA-256, saga fences | `goal_status_created`, `goal_budget_month` |
+| `rescuegoalpledges` | One give: user, goal, amount, `clientId` (the client UUID), status (`PENDING`, `CONFIRMED`, `REJECTED`, `REFUNDED`), deadline, recheck time | unique `pledge_client_id` (`{ user, clientId }`), `pledge_sweep`, `pledge_goal_status`, `pledge_user_recent` |
+| `rescuegoalpledgedays` | A player's daily cap reservations | TTL `pledge_day_ttl` (8 days after the day) |
+| `rescuegoalhelpers` | First give per player and goal (`goalsHelped`) | `helper_goal` |
+| `rescuegoalreceipts` | The private delivery receipt (up to 10 MB) | |
 
 ## quests
 

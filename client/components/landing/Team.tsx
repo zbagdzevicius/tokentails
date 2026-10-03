@@ -191,7 +191,7 @@ const TeamMember = ({ img, name, role, socials }: ITeamMember) => {
 export const Team = () => {
   return (
     <div className="container h-full flex flex-col items-center justify-center">
-      <h2 className="font-paws uppercase tracking-tight text-h3 md:text-h2 text-yellow-900 lg:text-h1 text-balance text-center my-12 sm:my-12 glow">
+      <h2 className="font-paws uppercase tracking-tight text-h3 md:text-h2 text-tt-gold-shadow lg:text-h1 text-balance text-center my-12 sm:my-12 glow">
         United To Save Cats
       </h2>
       <div className="pb-8 px-4 mx-auto max-w-screen-xl text-center lg:px-6">
@@ -204,7 +204,7 @@ export const Team = () => {
       {/* Plain anchor on purpose: the game shell needs a full page load. */}
       {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
       <a href="/game" className="flex justify-center mb-8 md:mb-4">
-        <PixelButton text="PLAY NOW" />
+        <PixelButton as="span" text="PLAY NOW" />
       </a>
     </div>
   );

@@ -2,6 +2,7 @@ import { PlayerAnimation } from "@/components/catbassadors/objects/Catbassador";
 import Phaser from "phaser";
 import { IPlayer } from "./IPlayer";
 import { Tier } from "@/models/cats";
+import type { MovementSnapshot } from "../onboarding/checkpoint";
 
 const wallSlidingThresholdMs = 200;
 
@@ -606,6 +607,68 @@ export class PlayerMovement {
         // Normal gravity: go up
         this.player.sprite.setVelocityY(-250);
       }
+    }
+  }
+
+  /**
+   * The movement state a Paw Guard checkpoint keeps (plan G10): gravity direction and settings,
+   * geometry-dash, flight, the mid-air jump zone, the run and flight speeds and the velocity.
+   */
+  snapshot(): MovementSnapshot {
+    const body = this.player.sprite?.body as Phaser.Physics.Arcade.Body | null | undefined;
+    return {
+      gravityReversed: this.isGravityReversed,
+      geometryDash: this.isGeometryDashMode,
+      flight: this.isFlightMode,
+      midAirJump: this.canMidAirJump,
+      flightXSpeed: this.flightXSpeed,
+      autoRun: {
+        enabled: this.isAutoRunMode,
+        speed: this.autoRunSpeed,
+        jumpSpeed: this.autoJumpSpeed,
+      },
+      gravity: {
+        base: this.baseGravity,
+        falling: this.fallingGravity,
+        reversedBase: this.reversedBaseGravity,
+        reversedFalling: this.reversedFallingGravity,
+      },
+      velocity: { x: body?.velocity.x ?? 0, y: body?.velocity.y ?? 0 },
+    };
+  }
+
+  /**
+   * Puts the movement back as `snapshot()` saw it. Jump input is reset: a key still held from
+   * before the respawn does not fire a jump until it is released and pressed again.
+   */
+  restore(snapshot: MovementSnapshot) {
+    const sprite = this.player.sprite;
+    this.isGravityReversed = snapshot.gravityReversed;
+    sprite.setFlipY(snapshot.gravityReversed);
+    this.isGeometryDashMode = snapshot.geometryDash;
+    this.canMidAirJump = snapshot.midAirJump;
+    this.midAirJumpUsed = false;
+    this.flightXSpeed = snapshot.flightXSpeed;
+    this.isAutoRunMode = snapshot.autoRun.enabled;
+    this.autoRunSpeed = snapshot.autoRun.speed;
+    this.autoJumpSpeed = snapshot.autoRun.jumpSpeed;
+    this.baseGravity = snapshot.gravity.base;
+    this.fallingGravity = snapshot.gravity.falling;
+    this.reversedBaseGravity = snapshot.gravity.reversedBase;
+    this.reversedFallingGravity = snapshot.gravity.reversedFalling;
+    this.isFlightMode = snapshot.flight;
+    this.targetFlightVelocityY = 0;
+    this.isJumpHeld = false;
+    this.player.justJumped = true;
+    this.player.hasDoubleJumped = false;
+    this.player.isJumping = false;
+    this.player.isSliding = false;
+    const body = sprite.body as Phaser.Physics.Arcade.Body | null | undefined;
+    if (body) {
+      body.setAllowGravity(!snapshot.flight);
+      sprite.setVelocity(snapshot.velocity.x, snapshot.velocity.y);
+      sprite.setAcceleration(0, 0);
+      this.applyAdvancedGravity();
     }
   }
 

@@ -56,9 +56,11 @@ export function activeHintZone(level: HintLevel, s: HintState): HintZone | null 
   const t = tileOf(c.pos);
   for (const h of level.meta.hints ?? []) {
     if (t.x < h.x0 || t.x > h.x1 || t.y < h.y0 || t.y > h.y1) continue;
-    if (h.untilObjective !== undefined && (level.meta.objectives?.length ?? 0) > 0) {
+    if ((h.untilObjective !== undefined || h.fromObjective !== undefined) && (level.meta.objectives?.length ?? 0) > 0) {
       const st = { keyTaken: false, rescued: false, ...s } as SimState;
-      if (objectiveIndex({ key: null, ...level } as LevelDef, st) > h.untilObjective) continue;
+      const oi = objectiveIndex({ key: null, ...level } as LevelDef, st);
+      if (h.untilObjective !== undefined && oi > h.untilObjective) continue;
+      if (h.fromObjective !== undefined && oi < h.fromObjective) continue;
     }
     if (h.whileOtherHolds) {
       const pi = (level.plates ?? []).findIndex((p) => p.id === h.whileOtherHolds);
@@ -75,4 +77,49 @@ export function activeHintZone(level: HintLevel, s: HintState): HintZone | null 
 export function activeHint(level: HintLevel, s: HintState, touch = false): string | null {
   const z = activeHintZone(level, s);
   return z ? fillHint(z.text, touch) : null;
+}
+
+type PromptLevel = Pick<LevelDef, 'meta' | 'plates' | 'doors' | 'crate'> & Partial<Pick<LevelDef, 'key'>>;
+type PromptState = HintState & Partial<Pick<SimState, 'doorsOpen'>>;
+
+/** Chebyshev distance between two tiles. */
+function cheb(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+}
+
+/**
+ * Prompts the HUD shows from the situation rather than from authored hint zones:
+ * - next to the crate: "Press E to free Mochi"; two tiles off: "Step right next to the crate";
+ * - standing on a plate that holds a door open while the partner waits elsewhere: the swap prompt
+ *   (shown once the plate is really pressed, so it doubles as the "plate held" confirmation).
+ * Returns { text, kind } or null. Kind 'act' outranks authored hints, 'plate' only fills a gap.
+ */
+export function contextPrompt(level: PromptLevel, s: PromptState, touch = false): { text: string; kind: 'act' | 'plate' } | null {
+  const me = s.cats[s.activeIndex];
+  if (!me) return null;
+  const t = tileOf(me.pos);
+  if (!s.rescued && level.crate) {
+    const d = cheb(t, level.crate.tile);
+    const name = level.crate.catName || 'the shelter cat';
+    if (d <= 1) return { text: fillHint(`Press {act} to free ${name}!`, touch), kind: 'act' };
+    if (d === 2) return { text: `Step right next to the crate to free ${name}.`, kind: 'act' };
+  }
+  const plates = level.plates ?? [];
+  const pi = plates.findIndex((p) => p.tile.x === t.x && p.tile.y === t.y);
+  if (pi >= 0 && s.platesDown?.[pi]) {
+    const other = s.cats[s.activeIndex === 0 ? 1 : 0];
+    const ot = other ? tileOf(other.pos) : null;
+    const onPlate = ot ? plates.some((p) => p.tile.x === ot.x && p.tile.y === ot.y) : false;
+    if (!onPlate) return { text: fillHint('Plate held, door open. Press {swap} to move your other cat through.', touch), kind: 'plate' };
+  }
+  return null;
+}
+
+/** The HUD hint line: a crate prompt, else the authored hint zone, else a plate prompt. */
+export function hudHint(level: PromptLevel, s: PromptState, touch = false): string | null {
+  const p = contextPrompt(level, s, touch);
+  if (p && p.kind === 'act') return p.text;
+  const z = activeHint(level, s, touch);
+  if (z) return z;
+  return p ? p.text : null;
 }

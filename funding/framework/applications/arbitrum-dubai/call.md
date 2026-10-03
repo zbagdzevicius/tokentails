@@ -10,7 +10,7 @@ created: 2026-09-28
 profile: arbitrum-dubai
 chain: [arbitrum, robinhood]
 mainnet_required: false
-repo: ""
+repo: "https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split"
 demo: ""
 build_window_start: 2026-11-16
 build_window_end: 2026-12-06

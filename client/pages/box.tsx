@@ -1,42 +1,20 @@
-import { MysteryBoxCat } from "@/components/mystery/MysteryBoxCat";
-import { bgStyle, cdnFile } from "@/constants/utils";
-import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
-import { Footer } from "@/layouts/Footer";
-import { Header } from "@/layouts/Header";
-import dynamic from "next/dynamic";
 import Head from "next/head";
+import { useRouter } from "next/router";
+import { useEffect } from "react";
 
-const Web3Providers = dynamic(
-  () => import("@/components/web3/Web3Providers").then((mod) => mod.Web3Providers),
-  { ssr: false },
-);
+// Retired (plan decision #43, G5 P7): the box page sent players to token-era rewards. On Node
+// hosting next.config.js redirects /box to /game first; this page covers the static app export.
+export default function RetiredBoxRedirect() {
+  const router = useRouter();
 
-const Box = () => {
+  useEffect(() => {
+    void router.replace("/game");
+  }, [router]);
+
   return (
-    <div>
-      <Head>
-        <title>Token Tails - Mystery Boxes</title>
-        <meta property="og:image" content={cdnFile("logo/airdrop.jpg")} />
-        <meta property="og:title" content="Token Tails - REWARDS" key="title" />
-        <meta name="description" content="9 ways to earn $TAILS" />
-        <link rel="shortcut icon" href={cdnFile("logo/logo.webp")} />
-      </Head>
-      <Header />
-      <div
-        className="pt-20 md:pt-24 fade-in min-h-screen relative flex flex-col items-center justify-center"
-        style={bgStyle("6")}
-        id="social-farmin"
-      >
-        <FirebaseAuthProvider>
-          <Web3Providers>
-            <MysteryBoxCat />
-          </Web3Providers>
-        </FirebaseAuthProvider>
-      </div>
-
-      <Footer />
-    </div>
+    <Head>
+      <meta name="robots" content="noindex" />
+      <meta httpEquiv="refresh" content="0;url=/game" />
+    </Head>
   );
-};
-
-export default Box;
+}

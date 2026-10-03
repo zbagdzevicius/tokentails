@@ -1,10 +1,12 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 import { NestFactory } from '@nestjs/core';
 import * as dotenv from 'dotenv';
-import { json, raw } from 'express';
 import { AppModule } from './app.module';
 import { applyTrustProxy } from './shared/trust-proxy';
+import { AppValidationPipe } from './user/dto/live-game.dto';
+import { applyBodyParsers } from './user/heist/live-body-limit';
+import { warnIfProxyUntrusted } from './user/heist/proxy-warning';
 dotenv.config();
 
 function initializeCors(app: INestApplication): void {
@@ -42,31 +44,19 @@ async function bootstrap() {
     const app = await NestFactory.create(AppModule, { rawBody: true });
     initializeCors(app);
     applyTrustProxy(app);
+    warnIfProxyUntrusted();
 
-    // Apply raw body middleware for webhook route BEFORE JSON middleware
-    // This ensures the raw body is preserved for Stripe signature verification
-    app.use(
-        '/image/webhook',
-        raw({
-            type: 'application/json',
-            verify: (req: any, res, buf) => {
-                // Store raw body in request for Stripe webhook verification
-                if (Buffer.isBuffer(buf)) {
-                    req.rawBody = buf;
-                }
-                return true;
-            },
-        })
-    );
-
-    // Apply JSON parser for all other routes
-    app.use(json({ limit: '50mb' }));
+    // Raw body for the Stripe webhook, a 64 KB limit for POST /user/catbassadors/live (plan F6), then
+    // the global 50 MB JSON parser (a known issue, unchanged), in that order.
+    applyBodyParsers(app);
 
     // No global `whitelist`: most @Body() types are undecorated Mongoose schema classes (User, Blessing,
     // Article, Category, Quest, Shelter, Ticket), which `whitelist` would strip to `{}`, and interface or
     // inline types are not validated at all. Routes with a decorated DTO add a strict pipe of their own,
-    // for example `profileWritePipe` in src/user/dto/profile-write.dto.ts.
-    app.useGlobalPipes(new ValidationPipe({ transform: true }));
+    // for example `profileWritePipe` in src/user/dto/profile-write.dto.ts. `AppValidationPipe` is the
+    // plain ValidationPipe except that it leaves `LiveGameDto` to `liveGamePipe`, so a bad Heist log
+    // gets its F5.6 code (HEIST_SIM_VERSION, HEIST_REPLAY_INVALID) instead of a generic 400.
+    app.useGlobalPipes(new AppValidationPipe({ transform: true }));
     await app.listen(process.env.PORT || 3005);
     // await app.listen(process.env.PORT || 3005, '0.0.0.0');
 }

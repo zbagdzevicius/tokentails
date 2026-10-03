@@ -9,7 +9,7 @@ const Cats = () => {
   const [type, setType] = useState<"shelter" | "famous">("shelter");
 
   return (
-    <FirebaseAuthProvider>
+    <FirebaseAuthProvider authMode="optional">
       <div>
         <Header />
         <div
@@ -19,7 +19,7 @@ const Cats = () => {
         >
           <h2 className="text-center font-paws uppercase tracking-tight text-h6 md:text-h2 lg:text-h1 text-balance mt-3 px-4">
             CHOOSE YOUR{" "}
-            <span className="text-yellow-300 drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)]">
+            <span className="text-tt-cream drop-shadow-[0_2.4px_1.8px_rgba(0,0,0)]">
               CAT
             </span>
           </h2>

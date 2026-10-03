@@ -34,3 +34,24 @@ export async function uploadFile(filename: string, buffer: any, extension: 'webp
     const bucketParams = getBucketParams(filename, buffer, extension);
     await sendFile(bucketParams);
 }
+
+/**
+ * Uploads a public object with an explicit content type and cache policy (the impact snapshot mirror,
+ * plan F7.3). Same client, credentials and ACL as the image uploads; `bucket` defaults to DO_SPACES_NAME.
+ */
+export async function uploadPublicObject(params: {
+    key: string;
+    body: string | Buffer;
+    contentType: string;
+    cacheControl: string;
+    bucket?: string | null;
+}) {
+    await sendFile({
+        Bucket: params.bucket || process.env.DO_SPACES_NAME,
+        Key: params.key,
+        Body: params.body,
+        ACL: 'public-read',
+        ContentType: params.contentType,
+        CacheControl: params.cacheControl,
+    });
+}

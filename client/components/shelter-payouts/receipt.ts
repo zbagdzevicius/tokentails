@@ -1,6 +1,6 @@
 import { ChainInfo, SHELTER_CHAINS } from "./chains";
 import { Disbursement, PAYOUT_TOPICS, RpcLog, decodeDisbursedLog } from "./logs";
-import { ShelterDeployment, rpcCall } from "./rpc";
+import { ShelterDeployment, deploymentToken, rpcCall } from "./rpc";
 
 // Reads one transaction receipt from the chain's public RPC and pulls out ShelterSplit's
 // NativeDisbursed/Disbursed logs. Anyone can emit an event with the same shape, so each payout
@@ -19,6 +19,8 @@ export interface RpcReceipt {
 
 export interface ReceiptPayout extends Disbursement {
   listed: boolean;
+  /** The listed deployment's non-USDC payout token (e.g. "EURC"); unset for USDC instances. */
+  tokenSymbol?: string;
 }
 
 export interface DecodedReceipt {
@@ -82,6 +84,12 @@ export async function fetchReceipt(
   if (!TX_HASH.test(txHash)) throw new Error("that is not a transaction hash");
   const receipt = await rpcCall<RpcReceipt | null>(chain.rpc, "eth_getTransactionReceipt", [txHash]);
   if (!receipt) return null; // not mined yet, or not on this chain
-  const listed = deployments.filter((d) => d.chainId === chainId).map((d) => d.address);
-  return decodeReceipt(receipt, listed);
+  const onChain = deployments.filter((d) => d.chainId === chainId);
+  const decoded = decodeReceipt(receipt, onChain.map((d) => d.address));
+  for (const p of decoded.payouts) {
+    const d = onChain.find((x) => x.address.toLowerCase() === p.contract);
+    const token = d ? deploymentToken(d) : null;
+    if (token) p.tokenSymbol = token;
+  }
+  return decoded;
 }

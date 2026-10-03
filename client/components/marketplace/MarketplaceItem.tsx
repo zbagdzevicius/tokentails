@@ -45,7 +45,7 @@ export const MarketplaceItem = ({
         />
         <div
           onClick={onClick}
-          className="text-p4 font-secondary text-center border-yellow-300 absolute bottom-0 font-bold mb-2 w-[92%] rounded-full tracking-wider"
+          className="text-p4 font-secondary text-center border-tt-cream absolute bottom-0 font-bold mb-2 w-[92%] rounded-full tracking-wider"
           style={{ background: cardsColor[cat.type] }}
         >
           {cat.name}

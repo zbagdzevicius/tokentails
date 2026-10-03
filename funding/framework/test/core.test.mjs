@@ -164,3 +164,12 @@ test('an empty "frame:" (block-list start or empty string) means no frame, not a
   writeFileSync(join(dir, 'draft.md'), '## A\nhi\n');
   assert.equal(level(await check('emptyframe'), 'frame'), 'ok');
 });
+
+test('single-brace fill-after-deploy slots ({SPLIT_ADDRESS}, {ARC_TX}) are placeholders; JSON and lowercase braces are not', async () => {
+  const criteria = '| C1 | Impact | 100% | "impact" |\n';
+  makeApp('slots', { call: { status: 'ready' }, criteria, draft: '## Impact <!-- criterion: C1 -->\nContract {SPLIT_ADDRESS}, payout {ARC_TX}.\n' });
+  const rs = await check('slots');
+  assert.equal(level(rs, 'placeholders'), 'error');
+  makeApp('braces', { criteria, draft: '## Impact <!-- criterion: C1 -->\nThe payload is {"id": 1} and {shelter}.\n' });
+  assert.equal(level(await check('braces'), 'placeholders'), 'ok');
+});

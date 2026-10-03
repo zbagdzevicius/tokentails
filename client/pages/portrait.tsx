@@ -42,8 +42,9 @@ const FLOATING_EMOJIS = ["🐾", "✨", "👑", "🎨", "💖"];
 const CANVAS_VIDEO_URL =
   "https://tokentails.fra1.cdn.digitaloceanspaces.com/pet.mp4";
 
-const DISPLAY_FONT = "'Space Grotesk', 'Bebas Neue', sans-serif";
-const BODY_FONT = "'Plus Jakarta Sans', 'Nunito', sans-serif";
+// Plan G12, decision #82: the landing's type tokens. Headings use `font-primary` (Passion One,
+// the landing display face); body copy inherits the html Nunito stack. They replace two families
+// the page named but never loaded.
 
 const getStyleImages = (style: PortraitStyle): string[] => {
   return [
@@ -64,7 +65,9 @@ const STATS = [
   { emoji: "🖼️", value: "50K+", label: "Portraits generated", bg: "#fff0e3" },
   { emoji: "⭐", value: "4.9/5", label: "Happy cat parents", bg: "#e8f9f0" },
   { emoji: "⚡", value: "< 2 min", label: "Average generation", bg: "#f1ebff" },
-  { emoji: "🌍", value: "120+", label: "Countries served", bg: "#fff9db" },
+  // Was "120+ Countries served", which no fact entry backs (claims rule R1). The style count is the
+  // product's own number: one per PortraitStyle.
+  { emoji: "🎨", value: String(Object.keys(STYLE_LABELS).length), label: "Portrait styles", bg: "#fff9db" },
 ];
 
 const HOW_IT_WORKS = [
@@ -775,7 +778,6 @@ const PortraitsPage = () => {
             name="description"
             content="Create a stunning royal portrait of your beloved pet. Transform your pet into a timeless masterpiece with our AI-powered portrait service."
           />
-          <link rel="shortcut icon" href={cdnFile("logo/logo.webp")} />
         </Head>
         <div className="min-h-screen bg-background">
           <Toaster />
@@ -817,12 +819,10 @@ const PortraitsPage = () => {
           name="description"
           content="Create a stunning royal portrait of your beloved pet. Transform your pet into a timeless masterpiece with our AI-powered portrait service."
         />
-        <link rel="shortcut icon" href={cdnFile("logo/logo.webp")} />
       </Head>
 
       <div
         className="min-h-screen bg-[#fffef9] text-[#101014] overflow-x-hidden"
-        style={{ fontFamily: BODY_FONT }}
       >
         <Toaster />
 
@@ -997,8 +997,7 @@ const PortraitsPage = () => {
                   initial={{ opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
-                  className="mb-5 text-4xl font-bold leading-tight md:text-6xl lg:text-7xl"
-                  style={{ fontFamily: DISPLAY_FONT }}
+                  className="mb-5 text-4xl font-bold leading-tight md:text-6xl lg:text-7xl font-primary"
                 >
                   Your cat is literally{" "}
                   <span className="text-[#ff7b5a]">royalty</span> 👑
@@ -1211,8 +1210,7 @@ const PortraitsPage = () => {
                     {stat.emoji}
                   </motion.span>
                   <p
-                    className="mt-3 text-2xl font-bold md:text-4xl"
-                    style={{ fontFamily: DISPLAY_FONT }}
+                    className="mt-3 text-2xl font-bold md:text-4xl font-primary"
                   >
                     {stat.value}
                   </p>
@@ -1231,8 +1229,7 @@ const PortraitsPage = () => {
                   🎬 See it in action
                 </div>
                 <h2
-                  className="text-3xl font-bold md:text-5xl"
-                  style={{ fontFamily: DISPLAY_FONT }}
+                  className="text-3xl font-bold md:text-5xl font-primary"
                 >
                   From cat pic to masterpiece
                 </h2>
@@ -1377,8 +1374,7 @@ const PortraitsPage = () => {
                   ⚡ Stupid easy
                 </div>
                 <h2
-                  className="text-3xl font-bold md:text-5xl"
-                  style={{ fontFamily: DISPLAY_FONT }}
+                  className="text-3xl font-bold md:text-5xl font-primary"
                 >
                   Three steps. That&apos;s it.
                 </h2>
@@ -1403,8 +1399,7 @@ const PortraitsPage = () => {
                         Step {step.num}
                       </span>
                       <h3
-                        className="mt-4 text-2xl font-bold md:text-3xl"
-                        style={{ fontFamily: DISPLAY_FONT }}
+                        className="mt-4 text-2xl font-bold md:text-3xl font-primary"
                       >
                         {step.title}
                       </h3>
@@ -1434,8 +1429,7 @@ const PortraitsPage = () => {
                   🎭 20+ styles and counting
                 </div>
                 <h2
-                  className="text-3xl font-bold md:text-5xl"
-                  style={{ fontFamily: DISPLAY_FONT }}
+                  className="text-3xl font-bold md:text-5xl font-primary"
                 >
                   Pick a style. They all slay.
                 </h2>
@@ -1465,8 +1459,7 @@ const PortraitsPage = () => {
                     </div>
                     <div className="px-4 pb-4 pt-1">
                       <p
-                        className="text-base font-bold"
-                        style={{ fontFamily: DISPLAY_FONT }}
+                        className="text-base font-bold font-primary"
                       >
                         {item.title}
                       </p>
@@ -1485,8 +1478,7 @@ const PortraitsPage = () => {
                   💬 Real people, real cats
                 </div>
                 <h2
-                  className="text-3xl font-bold md:text-5xl"
-                  style={{ fontFamily: DISPLAY_FONT }}
+                  className="text-3xl font-bold md:text-5xl font-primary"
                 >
                   People are obsessed
                 </h2>
@@ -1533,8 +1525,7 @@ const PortraitsPage = () => {
                   💰 No subscriptions. No cap.
                 </div>
                 <h2
-                  className="mb-3 text-3xl font-bold md:text-5xl"
-                  style={{ fontFamily: DISPLAY_FONT }}
+                  className="mb-3 text-3xl font-bold md:text-5xl font-primary"
                 >
                   Pick your vibe
                 </h2>
@@ -1578,15 +1569,13 @@ const PortraitsPage = () => {
                       {idx === 0 ? "🖼️" : idx === 1 ? "🖨️" : "🎨"}
                     </span>
                     <h3
-                      className="mt-3 text-xl font-bold"
-                      style={{ fontFamily: DISPLAY_FONT }}
+                      className="mt-3 text-xl font-bold font-primary"
                     >
                       {plan.title}
                     </h3>
                     <div className="mb-3 mt-1">
                       <span
-                        className="text-4xl font-bold"
-                        style={{ fontFamily: DISPLAY_FONT }}
+                        className="text-4xl font-bold font-primary"
                       >
                         ${plan.price}
                       </span>
@@ -1691,8 +1680,7 @@ const PortraitsPage = () => {
                   ❓ FAQ
                 </div>
                 <h2
-                  className="text-3xl font-bold md:text-4xl"
-                  style={{ fontFamily: DISPLAY_FONT }}
+                  className="text-3xl font-bold md:text-4xl font-primary"
                 >
                   Got questions? We got answers.
                 </h2>
@@ -1770,8 +1758,7 @@ const PortraitsPage = () => {
                       🎨
                     </motion.p>
                     <h2
-                      className="mb-3 text-3xl font-bold text-white md:text-4xl"
-                      style={{ fontFamily: DISPLAY_FONT }}
+                      className="mb-3 text-3xl font-bold text-white md:text-4xl font-primary"
                     >
                       Your cat portrait is one click away
                     </h2>

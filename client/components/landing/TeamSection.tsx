@@ -1,5 +1,6 @@
 import { PixelButton } from "@/components/shared/PixelButton";
 import { cdnFile } from "@/constants/utils";
+import { GOLD, NIGHT, STATES } from "@/design/tokens";
 import {
   CSSProperties,
   KeyboardEvent,
@@ -8,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { landingCtaHref } from "./landingCta";
 import { ITeamMember, SocialImages, teamMembers } from "./Team";
 
 type Guild = "BUILD" | "GROWTH" | "LEGAL" | "MORALE";
@@ -16,22 +18,22 @@ const GUILD_META: Record<Guild, { label: string; color: string; icon: string }> 
   {
     BUILD: {
       label: "Build",
-      color: "#ffcc55",
+      color: GOLD[400],
       icon: cdnFile("cards/icons/electric.webp"),
     },
     GROWTH: {
       label: "Growth",
-      color: "#7fd66b",
+      color: STATES.mint,
       icon: cdnFile("cards/icons/grass.webp"),
     },
     LEGAL: {
       label: "Legal",
-      color: "#90c5e9",
+      color: STATES.sky,
       icon: cdnFile("cards/icons/ice.webp"),
     },
     MORALE: {
       label: "Morale",
-      color: "#f59bd0",
+      color: "#f59bd0", // guild pink, lighter than STATES.pink for the photo ring
       icon: cdnFile("cards/icons/fairy.webp"),
     },
   };
@@ -134,7 +136,7 @@ const socialLabel = (img: string) => SOCIAL_LABELS[img] ?? "Link";
 
 // Copied from ProofSection on purpose: ProofSection is mocked in page tests.
 const CHIP =
-  "inline-flex items-center gap-1.5 rounded-full border border-yellow-300/40 bg-black/45 backdrop-blur-sm px-3 py-1 3xl:px-5 3xl:py-2 3xl:gap-2.5 font-primary uppercase tracking-[0.12em] md:tracking-widest text-[12px] md:text-p6 3xl:text-p4 text-yellow-50";
+  "inline-flex items-center gap-1.5 rounded-full border border-tt-cream/40 bg-black/45 backdrop-blur-sm px-3 py-1 3xl:px-5 3xl:py-2 3xl:gap-2.5 font-primary uppercase tracking-[0.12em] md:tracking-widest text-[12px] md:text-p6 3xl:text-p4 text-tt-cream";
 
 const guildOf = (m: ITeamMember) => TEAM_EXTRAS[m.name]?.guild ?? "BUILD";
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -163,7 +165,7 @@ const StatBar = ({ label, value }: IStatBar) => {
           <span
             key={i}
             className={`h-2 3xl:h-3 flex-1 ${
-              i < filled ? "bg-yellow-900" : "bg-yellow-900/20"
+              i < filled ? "bg-tt-gold-ink" : "bg-tt-gold-ink/20"
             }`}
           />
         ))}
@@ -193,13 +195,13 @@ const CrewPanel = ({ member, index }: { member: ITeamMember; index: number }) =>
       id="team-panel"
       aria-labelledby={`team-tab-${index}`}
       tabIndex={0}
-      className="team-pixel-frame [--pf:#713f12] relative bg-yellow-300 text-yellow-900 overflow-hidden focus-visible:outline-dashed focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-[8px]"
+      className="team-pixel-frame [--pf:rgb(var(--tt-gold-shadow))] relative bg-tt-cream text-tt-gold-ink overflow-hidden focus-visible:outline-dashed focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-[8px]"
     >
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none bg-[repeating-linear-gradient(0deg,rgba(0,0,0,.05)_0_1px,transparent_1px_3px)]"
       />
-      <div className="relative bg-[#e2c05a] px-4 py-2 3xl:px-6 3xl:py-3 font-primary uppercase text-[12px] md:text-p6 3xl:text-p4 tracking-[0.12em] md:tracking-widest flex justify-between items-center">
+      <div className="relative bg-tt-gold-500 px-4 py-2 3xl:px-6 3xl:py-3 font-primary uppercase text-[12px] md:text-p6 3xl:text-p4 tracking-[0.12em] md:tracking-widest flex justify-between items-center">
         <span>
           Player {pad2(index + 1)} / {pad2(members.length)}
         </span>
@@ -216,7 +218,7 @@ const CrewPanel = ({ member, index }: { member: ITeamMember; index: number }) =>
           {member.name}
         </h3>
         <div className="flex flex-wrap gap-2">
-          <span className="border-2 border-yellow-900 rounded-md px-2 3xl:px-3 3xl:py-0.5 font-primary text-[12px] md:text-p6 3xl:text-p4 uppercase">
+          <span className="border-2 border-tt-gold-shadow rounded-md px-2 3xl:px-3 3xl:py-0.5 font-primary text-[12px] md:text-p6 3xl:text-p4 uppercase">
             {member.role}
           </span>
         </div>
@@ -245,7 +247,7 @@ const CrewPanel = ({ member, index }: { member: ITeamMember; index: number }) =>
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`${member.name} on ${label} (opens in new tab)`}
-                    className="team-pixel-frame [--pf:#713f12] inline-flex items-center justify-center gap-2 min-h-[48px] min-w-[48px] lg:w-full lg:px-2 3xl:min-h-[64px] 3xl:px-4 bg-yellow-200 hover:brightness-110 hover:-translate-y-0.5 transition-transform [transition-timing-function:steps(2)] duration-100 motion-reduce:transform-none focus-visible:outline-dashed focus-visible:outline-2 focus-visible:outline-offset-[6px] focus-visible:outline-yellow-900"
+                    className="team-pixel-frame [--pf:rgb(var(--tt-gold-shadow))] inline-flex items-center justify-center gap-2 min-h-[48px] min-w-[48px] lg:w-full lg:px-2 3xl:min-h-[64px] 3xl:px-4 bg-tt-cream hover:brightness-110 hover:-translate-y-0.5 transition-transform [transition-timing-function:steps(2)] duration-100 motion-reduce:transform-none focus-visible:outline-dashed focus-visible:outline-2 focus-visible:outline-offset-[6px] focus-visible:outline-tt-gold-shadow"
                   >
                     <img
                       src={s.img}
@@ -277,13 +279,47 @@ const GROUPS = GUILD_ORDER.map((guild) => ({
     .filter(({ m }) => guildOf(m) === guild),
 })).filter((g) => g.items.length > 0);
 
-export const TeamSection = () => {
+export interface CrewCtaState {
+  signedIn?: boolean;
+  /** `onboarding.state` from the profile (plan G3). */
+  onboardingState?: string | null;
+  catName?: string | null;
+}
+
+/**
+ * Longest cat name the crew CTA spells out. The pixel button never wraps (its frame is fixed
+ * height), and names go up to 16 characters (backend `CAT_NAME_MAX_LENGTH`), so longer names fall
+ * back to "YOUR CAT IS WAITING" to keep the button inside a 360px phone.
+ */
+export const CREW_CTA_MAX_NAME = 10;
+
+/**
+ * The crew CTA label (plan 2.13 row 34): "MEET YOUR CAT" when signed out or while Meet your cat is
+ * pending; "{CAT} IS WAITING" once the player has named a cat ("YOUR CAT IS WAITING" when the name
+ * is longer than `CREW_CTA_MAX_NAME`). Never "PLAY TO SAVE".
+ */
+export function crewCtaLabel({ signedIn, onboardingState, catName }: CrewCtaState = {}): string {
+  const name = (catName || "").trim();
+  if (!signedIn || onboardingState === "pending" || !name) return "MEET YOUR CAT";
+  if (name.length > CREW_CTA_MAX_NAME) return "YOUR CAT IS WAITING";
+  return `${name.toUpperCase()} IS WAITING`;
+}
+
+export interface TeamSectionProps {
+  /**
+   * Player state for the CTA label, from the landing's optional auth read (`LandingPlayer`).
+   * Missing (server HTML, no session) means signed out: "MEET YOUR CAT".
+   */
+  cta?: CrewCtaState;
+}
+
+export const TeamSection = ({ cta }: TeamSectionProps = {}) => {
+  const ctaLabel = crewCtaLabel(cta);
   const [selected, setSelected] = useState(0);
   const [prevIdx, setPrevIdx] = useState<number | null>(null);
   const [phase, setPhase] = useState<Phase>("static");
   const sectionRef = useRef<HTMLElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const ctaRef = useRef<HTMLAnchorElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const selectedRef = useRef(0);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -295,12 +331,6 @@ export const TeamSection = () => {
   };
 
   useEffect(() => clearHover, []);
-
-  // The CTA wraps the shared PixelButton in a link. Take the inner button out of the tab order
-  // so the link is one stop; `inert` would also kill the button's hover effect.
-  useEffect(() => {
-    ctaRef.current?.querySelector("button")?.setAttribute("tabindex", "-1");
-  }, []);
 
   useEffect(() => {
     const el = sectionRef.current;
@@ -419,11 +449,11 @@ export const TeamSection = () => {
         onPointerLeave={clearHover}
         style={
           {
-            "--pf": sel ? "#ffcc55" : "#3a2d5c",
+            "--pf": sel ? GOLD[400] : NIGHT[500],
             "--i": i,
           } as CSSProperties
         }
-        className="team-slot team-pixel-frame group relative flex flex-col items-center gap-1 md:gap-1.5 min-w-0 min-h-[60px] bg-[#1e1633]/85 px-1 pt-1.5 pb-1 md:p-2 md:pt-3 text-center transition-transform [transition-timing-function:steps(3)] duration-150 hover:-translate-y-1 data-[selected=true]:-translate-y-1 data-[selected=true]:bg-[#2a1f45] motion-reduce:transform-none focus-visible:outline-dashed focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-4 md:focus-visible:outline-offset-[8px]"
+        className="team-slot team-pixel-frame group relative flex flex-col items-center gap-1 md:gap-1.5 min-w-0 min-h-[60px] bg-tt-night-700/85 px-1 pt-1.5 pb-1 md:p-2 md:pt-3 text-center transition-transform [transition-timing-function:steps(3)] duration-150 hover:-translate-y-1 data-[selected=true]:-translate-y-1 data-[selected=true]:bg-tt-night-600 motion-reduce:transform-none focus-visible:outline-dashed focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-4 md:focus-visible:outline-offset-[8px]"
       >
         {firstOfGuild && (
           <span
@@ -439,7 +469,7 @@ export const TeamSection = () => {
             background: `radial-gradient(circle at 50% 30%, ${color}, ${color}55 70%)`,
           }}
         >
-          <span className="block w-full h-full rounded-full overflow-hidden bg-[#1e1633]">
+          <span className="block w-full h-full rounded-full overflow-hidden bg-tt-night-700">
             <img
               src={m.img}
               alt=""
@@ -450,7 +480,7 @@ export const TeamSection = () => {
           </span>
           {g === "MORALE" && (
             <span
-              className="absolute -bottom-1 -right-1 grid place-items-center w-5 h-5 md:w-6 md:h-6 3xl:w-8 3xl:h-8 rounded-full border-2 border-[#120d1f]"
+              className="absolute -bottom-1 -right-1 grid place-items-center w-5 h-5 md:w-6 md:h-6 3xl:w-8 3xl:h-8 rounded-full border-2 border-tt-night-800"
               style={{ backgroundColor: color }}
             >
               <img
@@ -462,11 +492,11 @@ export const TeamSection = () => {
           )}
         </span>
         <span className="min-w-0 w-full">
-          <span className="block font-primary font-bold text-[11px] tracking-tight md:tracking-normal md:text-p5 lg:text-p4 3xl:text-p2 text-yellow-50 truncate leading-tight">
+          <span className="block font-primary font-bold text-[11px] tracking-tight md:tracking-normal md:text-p5 lg:text-p4 3xl:text-p2 text-tt-cream truncate leading-tight">
             {m.name}
           </span>{" "}
           {/* Phones show photo + name only; the role is in the panel above. */}
-          <span className="sr-only md:not-sr-only md:block font-primary uppercase md:text-[12px] lg:text-p6 3xl:text-p4 tracking-wide leading-tight text-yellow-100/85 md:line-clamp-2">
+          <span className="sr-only md:not-sr-only md:block font-primary uppercase md:text-[12px] lg:text-p6 3xl:text-p4 tracking-wide leading-tight text-tt-cream/85 md:line-clamp-2">
             {m.role}
           </span>
         </span>
@@ -474,7 +504,7 @@ export const TeamSection = () => {
           <>
             <span
               aria-hidden
-              className="absolute -top-5 3xl:-top-7 left-1/2 -translate-x-1/2 text-[#ffcc55] text-p6 3xl:text-p4 team-blink hidden md:block"
+              className="absolute -top-5 3xl:-top-7 left-1/2 -translate-x-1/2 text-tt-gold-400 text-p6 3xl:text-p4 team-blink hidden md:block"
             >
               ▼
             </span>
@@ -497,7 +527,7 @@ export const TeamSection = () => {
       aria-labelledby="team-title"
       data-testid="team-section"
       data-phase={phase}
-      className="team relative w-full overflow-hidden isolate bg-[#0b0820]"
+      className="team relative w-full overflow-hidden isolate bg-tt-night-900"
     >
       <img
         src={cdnFile("landing/card-bg.webp")}
@@ -514,34 +544,33 @@ export const TeamSection = () => {
       {/* Blends with the matching fade at the bottom of rescue-hub. */}
       <div
         aria-hidden
-        className="absolute inset-x-0 top-0 h-32 md:h-48 bg-gradient-to-b from-[#0b0820] to-transparent"
+        className="absolute inset-x-0 top-0 h-32 md:h-48 bg-gradient-to-b from-tt-night-900 to-transparent"
       />
 
       <div className="relative z-10 px-4 md:px-8 pt-12 md:pt-16 lg:pt-20 3xl:pt-28 pb-24 3xl:pb-40">
         {/* HEADER */}
         <header className="relative z-20 max-w-[900px] 3xl:max-w-[1300px] mx-auto text-center">
-          <p className="font-primary uppercase tracking-[0.12em] text-p5 md:text-p4 3xl:text-p2 text-yellow-100/90 max-w-[62ch] text-balance mx-auto drop-shadow-lg">
-            <span aria-hidden className="text-[#ffcc55] team-blink inline-block mr-2">
+          <p className="font-primary uppercase tracking-[0.12em] text-p5 md:text-p4 3xl:text-p2 text-tt-cream/90 max-w-[62ch] text-balance mx-auto drop-shadow-lg">
+            <span aria-hidden className="text-tt-gold-400 team-blink inline-block mr-2">
               ▼
             </span>
             Meet the party behind every rescue
           </p>
           <h2
             id="team-title"
-            className="mt-4 font-paws uppercase text-yellow-300 glow text-balance leading-[0.95] [word-spacing:0.3em] text-h5 md:text-h3 lg:text-h2 3xl:text-h1 team-title"
+            className="mt-4 font-paws uppercase text-tt-cream glow text-balance leading-[0.95] [word-spacing:0.3em] text-h5 md:text-h3 lg:text-h2 3xl:text-h1 team-title"
           >
             United To Save Cats
           </h2>
-          <p className="mt-4 font-primary text-p5 md:text-p4 3xl:text-p2 text-yellow-50/90 drop-shadow-lg max-w-[34ch] md:max-w-[52ch] mx-auto">
-            The party behind a live game on web, iOS and Android that has saved{" "}
-            <span className="text-yellow-300">800+ strays</span>: engineering,
+          <p className="mt-4 font-primary text-p5 md:text-p4 3xl:text-p2 text-tt-cream/90 drop-shadow-lg max-w-[34ch] md:max-w-[52ch] mx-auto">
+            The party behind a live game on web, iOS and Android: engineering,
             game design, art, growth and legal. Two cats handle QA.
           </p>
           <ul
             className="mt-5 3xl:mt-8 flex flex-wrap justify-center gap-2 3xl:gap-3"
             aria-label="Team by guild"
           >
-            <li className={`${CHIP} border-yellow-300/70`}>
+            <li className={`${CHIP} border-tt-cream/70`}>
               {HUMANS.length} humans + {members.length - HUMANS.length} cats
             </li>
             {GUILD_COUNTS.map(({ guild, count }) => (
@@ -577,7 +606,7 @@ export const TeamSection = () => {
             <div className="relative w-full aspect-[16/11] md:aspect-[16/9] lg:aspect-[2752/1320] pointer-events-none team-stage [mask-image:linear-gradient(180deg,#000_84%,transparent)] lg:[mask-image:linear-gradient(90deg,transparent,#000_6%,#000_94%,transparent),linear-gradient(180deg,transparent,#000_12%,#000_78%,transparent)] lg:[mask-composite:intersect] lg:[-webkit-mask-composite:source-in]">
               <div
                 aria-hidden
-                className="absolute inset-0 bg-[radial-gradient(ellipse_45%_35%_at_50%_72%,rgba(255,204,85,.35),transparent_70%)] lg:bg-[radial-gradient(ellipse_45%_40%_at_50%_67%,rgba(255,204,85,.35),transparent_70%)] xl:bg-[radial-gradient(ellipse_32%_44%_at_38%_65%,rgba(255,204,85,.38),transparent_70%)] motion-safe:animate-pulseWeak"
+                className="absolute inset-0 bg-[radial-gradient(ellipse_45%_35%_at_50%_72%,rgb(var(--tt-gold-400)/.35),transparent_70%)] lg:bg-[radial-gradient(ellipse_45%_40%_at_50%_67%,rgb(var(--tt-gold-400)/.35),transparent_70%)] xl:bg-[radial-gradient(ellipse_32%_44%_at_38%_65%,rgb(var(--tt-gold-400)/.38),transparent_70%)] motion-safe:animate-pulseWeak"
               />
               <img
                 src={cdnFile("landing/hero-ground.webp")}
@@ -599,10 +628,10 @@ export const TeamSection = () => {
                     key={member.name}
                     className="team-token w-full h-full rounded-full"
                     style={{
-                      boxShadow: `0 0 0 4px ${guildColor}, 0 0 0 8px #120d1f, 0 0 0 10px ${guildColor}88, 0 0 24px 10px ${guildColor}66, 0 0 60px 20px rgba(255,204,85,.25)`,
+                      boxShadow: `0 0 0 4px ${guildColor}, 0 0 0 8px ${NIGHT[800]}, 0 0 0 10px ${guildColor}88, 0 0 24px 10px ${guildColor}66, 0 0 60px 20px rgb(var(--tt-gold-400)/.25)`,
                     }}
                   >
-                    <div className="relative w-full h-full rounded-full overflow-hidden bg-[#1e1633]">
+                    <div className="relative w-full h-full rounded-full overflow-hidden bg-tt-night-700">
                       {prevMember && prevMember !== member && (
                         <img
                           src={prevMember.img}
@@ -642,7 +671,7 @@ export const TeamSection = () => {
               role="tablist"
               aria-label="Team members"
               onKeyDown={onKeyDown}
-              className="team-roster mx-auto bg-[#120d1f]/70 backdrop-blur-[2px] p-2 md:p-4 3xl:p-6 max-w-[560px] md:max-w-[880px] lg:max-w-[1000px] 2xl:max-w-[1480px] 3xl:max-w-[1900px] [--tg:16px] 3xl:[--tg:20px]"
+              className="team-roster mx-auto bg-tt-night-800/70 backdrop-blur-[2px] p-2 md:p-4 3xl:p-6 max-w-[560px] md:max-w-[880px] lg:max-w-[1000px] 2xl:max-w-[1480px] 3xl:max-w-[1900px] [--tg:16px] 3xl:[--tg:20px]"
             >
               <div className="grid grid-cols-5 gap-x-1.5 gap-y-3 md:gap-4 2xl:flex 2xl:gap-[calc(var(--tg)*2.5)] 2xl:pt-1">
                 {GROUPS.map(({ guild, items }) => (
@@ -692,11 +721,11 @@ export const TeamSection = () => {
               <div className="team-panel-wrap relative">
                 <span
                   aria-hidden
-                  className="hidden xl:block absolute right-full top-1/2 -translate-y-1/2 w-[44px] 3xl:w-[60px] h-1 mr-1 bg-[repeating-linear-gradient(90deg,#ffcc55_0_8px,transparent_8px_12px)] drop-shadow-[0_0_6px_rgba(255,204,85,.8)]"
+                  className="hidden xl:block absolute right-full top-1/2 -translate-y-1/2 w-[44px] 3xl:w-[60px] h-1 mr-1 bg-[repeating-linear-gradient(90deg,rgb(var(--tt-gold-400))_0_8px,transparent_8px_12px)] drop-shadow-[0_0_6px_rgb(var(--tt-gold-400)/.8)]"
                 />
                 <span
                   aria-hidden
-                  className="hidden xl:block absolute right-full top-1/2 -translate-y-1/2 w-2 h-2 bg-[#ffcc55] mr-[48px] 3xl:mr-[64px]"
+                  className="hidden xl:block absolute right-full top-1/2 -translate-y-1/2 w-2 h-2 bg-tt-gold-400 mr-[48px] 3xl:mr-[64px]"
                 />
                 <CrewPanel member={member} index={selected} />
               </div>
@@ -708,22 +737,23 @@ export const TeamSection = () => {
         <div className="relative mt-16 md:mt-20 3xl:mt-28 flex flex-col items-center gap-8 md:gap-12 3xl:gap-20 text-center">
           <div
             aria-hidden
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(90vw,720px)] 3xl:w-[1100px] aspect-[2/1] bg-[radial-gradient(ellipse_at_center,rgba(255,204,85,.22),transparent_65%)] pointer-events-none"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(90vw,720px)] 3xl:w-[1100px] aspect-[2/1] bg-[radial-gradient(ellipse_at_center,rgb(var(--tt-gold-400)/.22),transparent_65%)] pointer-events-none"
           />
-          <p className="relative font-paws uppercase text-yellow-300 glow text-balance leading-[1.15] [word-spacing:0.3em] text-p3 md:text-h6 3xl:text-h4">
+          <p className="relative font-paws uppercase text-tt-cream glow text-balance leading-[1.15] [word-spacing:0.3em] text-p3 md:text-h6 3xl:text-h4">
             <span className="font-primary">…</span>and{" "}
-            <span className="text-h5 md:text-h3 3xl:text-h2">800+</span> cats who
-            found a home
+            <span className="text-h5 md:text-h3 3xl:text-h2">one</span> cat
+            waiting for you
           </p>
+          {/* One tab stop: the PixelButton renders as a span inside the link (valid HTML). */}
           {/* Plain anchor on purpose: the game shell needs a full page load. */}
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
-            ref={ctaRef}
-            href="/game"
-            className="relative block py-2 md:py-6 3xl:py-10 rounded-xl focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-8 focus-visible:outline-[#ffcc55]"
+            href={landingCtaHref("crew")}
+            data-testid="crew-cta"
+            className="relative block py-2 md:py-6 3xl:py-10 rounded-xl focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-8 focus-visible:outline-tt-gold-400"
           >
-            <span className="block scale-110 3xl:scale-150 origin-center">
-              <PixelButton text="JOIN THE CREW" isBig />
+            <span className="block max-w-[calc(100vw-2rem)] scale-100 sm:scale-110 3xl:scale-150 origin-center">
+              <PixelButton as="span" text={ctaLabel} size="lg" />
             </span>
           </a>
         </div>

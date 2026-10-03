@@ -1,5 +1,5 @@
 import { GUARDS_METADATA } from '@nestjs/common/constants';
-import { AuthGuard } from '@nestjs/passport';
+import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { PERMISSION_LEVEL } from 'src/user/models/user.model';
 import { Web3Controller } from './web3.controller';
 
@@ -15,14 +15,14 @@ jest.mock('stripe', () => {
 
 function allows(guards: any[], permission?: number) {
     const context = { switchToHttp: () => ({ getRequest: () => ({ user: { permission } }) }) } as any;
-    return guards.filter(guard => guard !== AuthGuard('appauth')).every(Guard => new Guard().canActivate(context));
+    return guards.filter(guard => guard !== AppAuthGuard).every(Guard => new Guard().canActivate(context));
 }
 
 describe('GET /web3/loot/buyers', () => {
     const guards = () => Reflect.getMetadata(GUARDS_METADATA, Web3Controller.prototype.lootBuyers) || [];
 
-    it('requires appauth', () => {
-        expect(guards()).toContain(AuthGuard('appauth'));
+    it('requires AppAuthGuard first', () => {
+        expect(guards()[0]).toBe(AppAuthGuard);
     });
 
     it('is ADMIN only, because it returns buyer emails and wallet addresses', () => {

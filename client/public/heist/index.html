@@ -1,19 +1,19 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-    <meta name="theme-color" content="#0d0616" />
+    <meta charset="utf-8" />
+    <!-- Catnip Heist lives at /heist, the host page that embeds the build in /heist-game/ (plan G2,
+         F12). On the web next.config.js redirects this URL permanently before it is served; app
+         builds have no server redirects, so this page forwards. -->
+    <meta name="robots" content="noindex" />
+    <meta http-equiv="refresh" content="0; url=/heist" />
+    <link rel="canonical" href="https://tokentails.com/heist" />
     <title>Catnip Heist</title>
-    <link rel="icon" href="/heist/assets/images/paw.png" />
-    <!-- Boot needs the manifest before anything else; fetch it while the script downloads. -->
-    <link rel="preload" href="/heist/assets/manifest.json" as="fetch" crossorigin="anonymous" />
-    <link rel="preload" href="/heist/assets/fonts/catpaw.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
-    <style>@font-face{font-family:Cat Paw;src:url(/heist/assets/fonts/catpaw.woff2)format("woff2");font-display:swap}:root{--night:#0d0616;--plum:#301934;--violet:indigo;--grape:#6f2da8;--lavender:#96c;--coin:#ffc93c;--cream:#fcecbb;--ember:#c1260f;--rust:#ee642a;--pink:#ff7aa2;--mint:#d5f4e5;--sky:#c4e2fc;--lilac:#f0c5fd;--outline:#2a0f1f}html,body{background:var(--night);height:100%;color:var(--cream);-webkit-tap-highlight-color:transparent;touch-action:none;margin:0;font-family:Cat Paw,system-ui,sans-serif;overflow:hidden}#app{position:fixed;inset:0}</style>
-    <script type="module" crossorigin src="/heist/build/index-D1X8bsZb.js"></script>
-    <link rel="modulepreload" crossorigin href="/heist/build/three-DrKrT-qK.js">
+    <script>
+      location.replace("/heist" + location.search + location.hash);
+    </script>
   </head>
-  <body>
-    <div id="app"></div>
+  <body style="background: #0b0820; color: #fcecbb; font-family: sans-serif">
+    <p><a href="/heist" style="color: #ffcc55">Open Catnip Heist</a></p>
   </body>
 </html>

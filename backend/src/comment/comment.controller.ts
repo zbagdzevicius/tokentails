@@ -1,5 +1,4 @@
 import { BadRequestException, Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { Types } from 'mongoose';
 import { ArticleRepository } from 'src/article/article.repository';
 import { CatRepository } from 'src/cat/cat.repository';
@@ -13,6 +12,7 @@ import { UserRepository } from 'src/user/user.repository';
 import { CommentRepository } from './comment.repository';
 import { IComment } from './comment.schema';
 import { ImageRepository } from 'src/image/image.repository';
+import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 
 @Controller('comment')
 export class CommentController {
@@ -33,7 +33,7 @@ export class CommentController {
         private imageRepository: ImageRepository
     ) {}
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.USER))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.USER))
     @Post()
     async create(
         @USER_ID() userId: string,

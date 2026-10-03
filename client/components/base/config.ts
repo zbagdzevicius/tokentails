@@ -1,4 +1,6 @@
 import { Game } from "phaser";
+import { makeGameConfig } from "@/components/Phaser/look/makeGameConfig";
+import { registerGame } from "@/lib/game/gameRegistry";
 import { BaseScene } from "./scenes/BaseScene";
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -21,10 +23,8 @@ const config: Phaser.Types.Core.GameConfig = {
 };
 
 export const StartGame = () => {
-  return new Game({
-    ...config,
-    parent: "game-container",
-    width: window.innerWidth,
-    height: window.innerHeight,
-  });
+  // F10: backing store at CSS size x capped dpr, zoom 1 / dpr, resize-aware.
+  const game = new Game(makeGameConfig({ ...config, parent: "game-container" }));
+  registerGame(game);
+  return game;
 };

@@ -125,6 +125,16 @@ export function to18(amount: bigint, decimals: number): bigint {
   return amount * BigInt("1" + "0".repeat(18 - decimals));
 }
 
+// disburseWithMemo puts a bytes32 memo into the event's string field as 0x-hex; show it as text
+// when it is printable UTF-8 padded with zero bytes, otherwise leave it as it is.
+export function displayMemo(memo: string): string {
+  if (!/^0x[0-9a-fA-F]{64}$/.test(memo)) return memo;
+  const hex = memo.slice(2).replace(/(00)+$/, "");
+  if (!hex.length || hex.length % 2) return memo;
+  const text = utf8(hex);
+  return /^[\x20-\x7E\u00A0-\uFFFF]+$/.test(text) && !text.includes("\uFFFD") ? text : memo;
+}
+
 export function sumAmounts(items: { amount: bigint }[]): bigint {
   return items.reduce((acc, d) => acc + d.amount, BigInt(0));
 }

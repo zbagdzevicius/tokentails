@@ -1,10 +1,12 @@
-import { ICat, Tier } from "@/models/cats";
-import React, { useMemo } from "react";
-import { CloseButton } from "../shared/CloseButton";
+import { GameModal } from "@/components/ui/GameModal";
+import { ICat } from "@/models/cats";
+import clsx from "clsx";
+import React, { useMemo, type CSSProperties } from "react";
 import { Countdown } from "../shared/Countdown";
 import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
 import { TailsCard } from "./TailsCard";
+import { CAT_NAP_TAILS, formatTails } from "@/shared-contracts/copy";
 
 interface IProps extends ICat {
   onClose?: () => void;
@@ -16,24 +18,8 @@ interface IProps extends ICat {
   onStakeRewards?: (cat: ICat) => void;
 }
 
-const getTailsCraft = (cat: ICat) => {
-  if (!cat.blessing) {
-    return 10;
-  }
-  if (cat.tier === Tier.COMMON) {
-    return 100;
-  }
-  if (cat.tier === Tier.RARE) {
-    return 500;
-  }
-  if (cat.tier === Tier.EPIC) {
-    return 2000;
-  }
-  if (cat.tier === Tier.LEGENDARY) {
-    return 10000;
-  }
-  return 10;
-};
+/** The card follows `--tt-card-w`, set on the modal's layout below; the 17:23 ratio stays. */
+const CARD_STYLE: CSSProperties = { width: "var(--tt-card-w)", maxWidth: "none" };
 
 export const TailsCardModal: React.FC<IProps> = ({
   onClose,
@@ -57,16 +43,39 @@ export const TailsCardModal: React.FC<IProps> = ({
     new Date(catData.staked).getTime() < new Date().getTime();
 
   return (
-    <div className="flex justify-center w-full h-full fixed top-0 left-0 z-[101]">
+    // The card is the art, so the `art` surface: no frame, the X hangs off the card area's corner.
+    // Nested layer: it opens from the Cats modal and from the Shelter scene's NPC tap.
+    <GameModal
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose?.();
+      }}
+      title={catData.name || "Cat card"}
+      name="tails-card"
+      surface="art"
+      size="lg"
+      layer="modal-nested"
+      // Shrink-wrap the card and its buttons, so the outside X hangs off the card area's corner.
+      className="!w-fit max-w-full"
+      // No overflow clip: the card tilts in 3D and glows past its box. It is sized to the
+      // viewport below, so nothing needs to scroll.
+    >
       <div
-        className="absolute inset-0 z-0 bg-yellow-300/50 md:backdrop-blur-md animate-in fade-in duration-300"
-        onClick={() => onClose?.()}
-      ></div>
-      <CloseButton absolute onClick={() => onClose?.()} />
-
-      <div className="relative z-10 flex flex-col md:flex-row items-center justify-center h-full lg:gap-8 p-4">
-        <div className="flex-shrink-0 md:scale-[0.65] lg:scale-100">
-          <TailsCard cat={catData} />
+        className={clsx(
+          // Phones: 24 px top and right padding so the outside X (only an 8 px overhang there)
+          // clears the card's top-right corner and its sparkle instead of covering them.
+          "flex flex-col items-center justify-center gap-4 p-2 pr-6 pt-6 md:flex-row md:gap-8 md:p-4",
+          // The card's own size is 90vw up to 400 px at 17:23, taller than a landscape phone or
+          // a short laptop. Cap it by the viewport height too (minus safe areas, the padding and,
+          // in the phone column, the buttons under it), so the whole card shows without scrolling.
+          showSelect || showStake
+            ? "[--tt-card-w:min(84vw,400px,calc((100dvh-276px-env(safe-area-inset-top)-env(safe-area-inset-bottom))*17/23))]"
+            : "[--tt-card-w:min(84vw,400px,calc((100dvh-96px-env(safe-area-inset-top)-env(safe-area-inset-bottom))*17/23))]",
+          "md:[--tt-card-w:min(400px,calc((100dvh-96px-env(safe-area-inset-top)-env(safe-area-inset-bottom))*17/23))]"
+        )}
+      >
+        <div className="flex-shrink-0">
+          <TailsCard cat={catData} cardStyle={CARD_STYLE} />
         </div>
 
         {/* Action buttons section */}
@@ -86,7 +95,7 @@ export const TailsCardModal: React.FC<IProps> = ({
               <>
                 {!isStaked && (
                   <PixelButton
-                    text={`CRAFT ${getTailsCraft(catData)} $TAILS`}
+                    text={`CAT NAP: +${formatTails(CAT_NAP_TAILS)}`}
                     onClick={() => onStake?.(catData)}
                   />
                 )}
@@ -94,12 +103,12 @@ export const TailsCardModal: React.FC<IProps> = ({
                   <>
                     {canClaimRewards ? (
                       <PixelButton
-                        text="CLAIM REWARDS"
+                        text="WAKE UP: COLLECT"
                         onClick={() => onStakeRewards?.(catData)}
                       />
                     ) : (
                       <div>
-                        <Tag>Crafting</Tag>
+                        <Tag>Napping</Tag>
                         {catData.staked && (
                           <Countdown
                             isDaysDisplayed
@@ -115,6 +124,6 @@ export const TailsCardModal: React.FC<IProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </GameModal>
   );
 };

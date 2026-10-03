@@ -1,11 +1,27 @@
 import { cdnFile } from "@/constants/utils";
+import { catnipIconSrc } from "@/components/shared/CatnipIcon";
 
 export const MATCH3_ARENA_BG = cdnFile("landing/game-bg-2.webp");
 
+/**
+ * Catnip art (plan G8): the tile comes from the 64 px sprig master (drawn LINEAR-filtered), the
+ * objective icon from the master that matches its CSS size (16, 24 or 32 px), so it is drawn 1:1
+ * per CSS pixel and an integer scale at any whole device pixel ratio. All versioned v2 names,
+ * served from the app's own origin (`client/public/catnip/`) so a deploy never depends on the
+ * CDN upload (the CDN copy is optional).
+ */
+export const MATCH3_CATNIP_ICON_SIZES = [16, 24, 32] as const;
+export type Match3CatnipIconSize = (typeof MATCH3_CATNIP_ICON_SIZES)[number];
+export const MATCH3_CATNIP_ICONS: Readonly<Record<Match3CatnipIconSize, string>> = {
+  16: catnipIconSrc(16),
+  24: catnipIconSrc(24),
+  32: catnipIconSrc(32),
+};
+
 export const MATCH3_TILE_ASSETS = [
-  { type: "CATNIP", src: cdnFile("logo/catnip.webp"), label: "Catnip" },
+  { type: "CATNIP", src: catnipIconSrc(64), label: "Catnip" },
   { type: "HEART", src: cdnFile("logo/heart.webp"), label: "Heart" },
-  { type: "TAILS", src: cdnFile("logo/logo.webp"), label: "$TAILS" },
+  { type: "TAILS", src: cdnFile("logo/logo.webp"), label: "Tails" },
   { type: "PAW", src: cdnFile("logo/paw.webp"), label: "Paw" },
   { type: "FIRE", src: cdnFile("ability/FIRE.png"), label: "Fire" },
   { type: "WATER", src: cdnFile("ability/WATER.png"), label: "Water" },

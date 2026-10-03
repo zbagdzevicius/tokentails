@@ -1,6 +1,6 @@
 'use client';
 
-import { Cat, PanelLeft, Users2, Home, Quote, Settings } from 'lucide-react';
+import { Cat, Flag, PanelLeft, Users2, Home, Quote, Settings, Receipt, HeartHandshake, Target } from 'lucide-react';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
@@ -63,6 +63,22 @@ function DesktopNav() {
         <NavItem href="/individual" label="Individual">
           <Settings className="h-5 w-5" />
         </NavItem>
+
+        <NavItem href="/name-reports" label="Name reports">
+          <Flag className="h-5 w-5" />
+        </NavItem>
+
+        <NavItem href="/payouts" label="Payouts">
+          <Receipt className="h-5 w-5" />
+        </NavItem>
+
+        <NavItem href="/outcomes" label="Outcomes">
+          <HeartHandshake className="h-5 w-5" />
+        </NavItem>
+
+        <NavItem href="/rescue-goals" label="Rescue Goals">
+          <Target className="h-5 w-5" />
+        </NavItem>
       </nav>
     </aside>
   );
@@ -99,6 +115,27 @@ function MobileNav() {
           >
             <Users2 className="h-5 w-5" />
             Shelters
+          </Link>
+          <Link
+            href="/payouts"
+            className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+          >
+            <Receipt className="h-5 w-5" />
+            Payouts
+          </Link>
+          <Link
+            href="/outcomes"
+            className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+          >
+            <HeartHandshake className="h-5 w-5" />
+            Outcomes
+          </Link>
+          <Link
+            href="/rescue-goals"
+            className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+          >
+            <Target className="h-5 w-5" />
+            Rescue Goals
           </Link>
         </nav>
       </SheetContent>

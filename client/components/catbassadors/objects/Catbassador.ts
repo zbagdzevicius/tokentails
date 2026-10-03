@@ -5,6 +5,7 @@ import { catWalkSpeed } from "@/models/game";
 import { Abilities } from "./Abilities";
 import { CatAbilityType, Tier } from "@/models/cats";
 import { NPCJob, NPCJobType } from "../../base/objects/Cat";
+import { PLAYER_ANIMATION_NAMES, PlayerAnimation } from "./playerAnimation";
 
 /**
  * Physics objects that could be colliders
@@ -25,19 +26,7 @@ type KeyMap = {
   knockback: Phaser.Input.Keyboard.Key;
 };
 
-export enum PlayerAnimation {
-  SLEEP = "SLEEP",
-  DIGGING = "DIGGING",
-  GROOMING = "GROOMING",
-  HIT = "HIT",
-  IDLE = "IDLE",
-  JUMPING = "JUMPING",
-  JUMPING_UP = "JUMPING_UP",
-  LOAF = "LOAF",
-  RUNNING = "RUNNING",
-  SITTING = "SITTING",
-  WALKING = "WALKING",
-}
+export { PLAYER_ANIMATION_NAMES, PlayerAnimation };
 
 const maxAnimationFrames = 15;
 const animationConfigurations: {
@@ -61,14 +50,15 @@ const animationConfigurations: {
 type ICatAnimationKey = `${string}_${PlayerAnimation}`;
 export type ICatAnimationKeysMap = Record<PlayerAnimation, ICatAnimationKey>;
 
+
+/** Animation keys for the player texture. Pass the id-based key (F10), never the cat name. */
 function generateCatAnimationConfiguration(
-  catName: string
+  textureKey: string
 ): ICatAnimationKeysMap {
   const map = {} as ICatAnimationKeysMap;
-  Object.keys(PlayerAnimation).map(
-    (key) =>
-      (map[key as PlayerAnimation] = `${catName}_${key as PlayerAnimation}`)
-  );
+  PLAYER_ANIMATION_NAMES.forEach((key) => {
+    map[key] = `${textureKey}_${key}`;
+  });
   return map;
 }
 
@@ -98,7 +88,8 @@ export class Cat implements IPlayer {
   isDeath!: boolean;
   hasKey: boolean = false;
   isInvulnerable: boolean;
-  private catName: string;
+  /** `player-cat-${_id}-${shortHash(spriteImg)}` (F10); also the animation key prefix. */
+  readonly textureKey: string;
   abilities: Abilities;
   type!: CatAbilityType;
   isOnSlidingTile: boolean = false;
@@ -147,7 +138,7 @@ export class Cat implements IPlayer {
     scene: Scene,
     x: number,
     y: number,
-    catName: string,
+    textureKey: string,
     blessing: Phaser.GameObjects.Sprite | null | undefined,
     type: CatAbilityType,
     enableControls: boolean = true,
@@ -155,24 +146,32 @@ export class Cat implements IPlayer {
   ) {
     this.scene = scene;
     this.type = type;
-    this.catName = catName;
+    this.textureKey = textureKey;
     this.blessing = blessing;
     this.tier = tier;
-    this.animationKeys = generateCatAnimationConfiguration(catName);
+    this.animationKeys = generateCatAnimationConfiguration(textureKey);
     this.sprite = this.scene.physics.add
-      .sprite(x, y, this.catName)
+      .sprite(x, y, this.textureKey)
       .setSize(28, 28)
       .setOffset(12, 8)
       .setDepth(4);
     this.cursors = this.scene.input.keyboard!.createCursorKeys();
-    this.keys = this.scene.input.keyboard!.addKeys({
-      up: "SPACE",
-      upW: "W",
-      left: "A",
-      right: "D",
-      dash: "Z",
-      knockback: "Q",
-    }) as KeyMap;
+    // No capture for the letter keys: capturing made Phaser preventDefault W, A, D, Z and Q on
+    // window, so they vanished from every input on the page (sign-in email, cat names). Letters
+    // have no browser default worth blocking. Space and the arrows stay captured through the
+    // cursor keys (no page scroll, no re-click of a focused button on jump); lib/game/gameRegistry
+    // releases them whenever the key event targets a form field or a GameModal is open.
+    this.keys = this.scene.input.keyboard!.addKeys(
+      {
+        up: "SPACE",
+        upW: "W",
+        left: "A",
+        right: "D",
+        dash: "Z",
+        knockback: "Q",
+      },
+      false
+    ) as KeyMap;
 
     // Disable controls if not enabled
     if (!enableControls) {
@@ -215,7 +214,7 @@ export class Cat implements IPlayer {
       const index = animationConfigurations.indexOf(animationConfiguration);
       this.scene.anims.create({
         key: animKey,
-        frames: this.scene.anims.generateFrameNumbers(this.catName, {
+        frames: this.scene.anims.generateFrameNumbers(this.textureKey, {
           start: index * maxAnimationFrames,
           end: index * maxAnimationFrames + animationConfiguration.frames - 1,
         }),
@@ -232,7 +231,7 @@ export class Cat implements IPlayer {
 
     this.scene.anims.create({
       key: jumpingUpKey,
-      frames: this.scene.anims.generateFrameNumbers(this.catName, {
+      frames: this.scene.anims.generateFrameNumbers(this.textureKey, {
         start: 5 * maxAnimationFrames,
         end: 5 * maxAnimationFrames + 5,
       }),

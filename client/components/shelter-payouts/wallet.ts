@@ -1,3 +1,4 @@
+// copy-lint: web-only used only by WalletDonate, which app builds never render
 import { ChainInfo } from "./chains";
 import { encodeDonateCalldata, parseUnits, toQuantity } from "./calldata";
 
@@ -74,5 +75,5 @@ export async function walletDonate(
 export function walletErrorMessage(err: unknown): string {
   if (code(err) === 4001) return "No worries, nothing was sent.";
   const m = (err as { message?: string })?.message;
-  return m ? `Wallet said: ${m}` : "The wallet could not send the donation.";
+  return m ? `Wallet said: ${m}` : "The wallet could not complete the transfer.";
 }

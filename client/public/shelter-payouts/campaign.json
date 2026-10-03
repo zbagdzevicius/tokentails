@@ -1,12 +1,12 @@
 {
   "name": "Pink Paw autumn rescue",
-  "goalUsdc": "500",
+  "goalUsdc": "90",
   "startDate": "2026-10-02",
   "chainId": 5042,
-  "fromBlock": null,
+  "fromBlock": 23790973,
   "shelter": {
     "name": "Pink Paw (Rožinė pėdutė)",
-    "wallet": null,
+    "wallet": "0xE299299b846Ba629f5A591dBF4F562bcC07A0f37",
     "handover": "held-by-token-tails"
   }
 }

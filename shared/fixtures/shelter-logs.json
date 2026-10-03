@@ -1,0 +1,174 @@
+{
+  "$comment": "Synthetic ShelterSplit payout logs in raw eth_getLogs JSON-RPC shape, ABI-encoded with ethers from the contract events (no deployment exists yet, so nothing is recorded from a live chain). Shared by the backend indexer spec, client/__test__/shelter-logs-parity.test.ts and catnip-heist/src/ui/__tests__/payouts-parity.test.ts (plan F7.3). The paw memo is the full tt:paws:<day>:<root> form (85 bytes); decoders must never truncate it (shelter-rail/src/widget.js:111 cuts memos to 64 characters for display only). The Transfer log is not a payout and must be skipped. Regenerate only together with every parity test.",
+  "chainId": 5042,
+  "contract": "0x5eed00000000000000000000000000000000a4c0",
+  "shelter": "0x2222222222222222222222222222222222222222",
+  "logs": [
+    {
+      "address": "0x5eed00000000000000000000000000000000a4c0",
+      "topics": [
+        "0xc859ef09d317f79211253b04e5d51bff252d80816db65d1aaa75cfdd3a22aeef",
+        "0x0000000000000000000000002222222222222222222222222222222222222222"
+      ],
+      "data": "0x000000000000000000000000000000000000000000000000002386f26fc100000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000001174743a68656973743a3161326233633464000000000000000000000000000000",
+      "blockNumber": "0xf42a4",
+      "transactionHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "transactionIndex": "0x0",
+      "blockHash": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      "logIndex": "0x0",
+      "removed": false
+    },
+    {
+      "address": "0x5eed00000000000000000000000000000000a4c0",
+      "topics": [
+        "0xc859ef09d317f79211253b04e5d51bff252d80816db65d1aaa75cfdd3a22aeef",
+        "0x0000000000000000000000002222222222222222222222222222222222222222"
+      ],
+      "data": "0x000000000000000000000000000000000000000000000000002386f26fc100000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000001074743a706167653a356536663761386200000000000000000000000000000000",
+      "blockNumber": "0xf42a9",
+      "transactionHash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "transactionIndex": "0x0",
+      "blockHash": "0x8888888888888888888888888888888888888888888888888888888888888888",
+      "logIndex": "0x0",
+      "removed": false
+    },
+    {
+      "address": "0x5eed00000000000000000000000000000000a4c0",
+      "topics": [
+        "0xc859ef09d317f79211253b04e5d51bff252d80816db65d1aaa75cfdd3a22aeef",
+        "0x0000000000000000000000002222222222222222222222222222222222222222"
+      ],
+      "data": "0x000000000000000000000000000000000000000000000000002386f26fc1000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000025783430323a3966386537643663356234613339323831373036663565346433633262316130000000000000000000000000000000000000000000000000000000",
+      "blockNumber": "0xf42f4",
+      "transactionHash": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "transactionIndex": "0x0",
+      "blockHash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      "logIndex": "0x2",
+      "removed": false
+    },
+    {
+      "address": "0x5eed00000000000000000000000000000000a4c0",
+      "topics": [
+        "0xc859ef09d317f79211253b04e5d51bff252d80816db65d1aaa75cfdd3a22aeef",
+        "0x0000000000000000000000002222222222222222222222222222222222222222"
+      ],
+      "data": "0x00000000000000000000000000000000000000000000000004db7325476300000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000005574743a706177733a323032362d31302d30313a3078363633383731613532396238613534396330633639663636653931396437373762393433623138383664336435633637616166303230353832623766633636360000000000000000000000",
+      "blockNumber": "0xf4330",
+      "transactionHash": "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "transactionIndex": "0x0",
+      "blockHash": "0x8888888888888888888888888888888888888888888888888888888888888888",
+      "logIndex": "0x0",
+      "removed": false
+    },
+    {
+      "address": "0x5eed00000000000000000000000000000000a4c0",
+      "topics": [
+        "0x53e1c69daf8c00e0990d33cc076fc3c88a0c480beb39da2bcffa01252f63495a",
+        "0x0000000000000000000000002222222222222222222222222222222222222222"
+      ],
+      "data": "0x000000000000000000000000000000000000000000000000000000000016e360000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000244f63746f626572207061796f757420e2809320526fc5be696ec4972070c497647574c49700000000000000000000000000000000000000000000000000000000",
+      "blockNumber": "0xf436c",
+      "transactionHash": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "transactionIndex": "0x0",
+      "blockHash": "0x5555555555555555555555555555555555555555555555555555555555555555",
+      "logIndex": "0x3",
+      "removed": false
+    },
+    {
+      "address": "0x5eed00000000000000000000000000000000a4c0",
+      "topics": [
+        "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+        "0x0000000000000000000000005eed00000000000000000000000000000000a4c0",
+        "0x0000000000000000000000002222222222222222222222222222222222222222"
+      ],
+      "data": "0x0000000000000000000000000000000000000000000000000000000000000001",
+      "blockNumber": "0xf43da",
+      "transactionHash": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "transactionIndex": "0x0",
+      "blockHash": "0x7777777777777777777777777777777777777777777777777777777777777777",
+      "logIndex": "0x1",
+      "removed": false
+    },
+    {
+      "address": "0x5eed00000000000000000000000000000000a4c0",
+      "topics": [
+        "0xc859ef09d317f79211253b04e5d51bff252d80816db65d1aaa75cfdd3a22aeef",
+        "0x0000000000000000000000002222222222222222222222222222222222222222"
+      ],
+      "data": "0x0000000000000000000000000000000000000000000000001bc16d674ec800000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000974743a77616c6c65740000000000000000000000000000000000000000000000",
+      "blockNumber": "0xf43da",
+      "transactionHash": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "transactionIndex": "0x0",
+      "blockHash": "0x7777777777777777777777777777777777777777777777777777777777777777",
+      "logIndex": "0x2",
+      "removed": false
+    }
+  ],
+  "attribution": {
+    "$comment": "Paw settlements count as paws only from a paw sender (the donate hot wallet or IMPACT_PAWS_SENDERS): donate(memo) is public, so the memo alone proves nothing. txFrom is the sender of each transaction whose memo starts with tt:paws:.",
+    "donations": [
+      {
+        "txHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "source": "heist"
+      },
+      {
+        "txHash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "source": "page"
+      }
+    ],
+    "x402UsedTxs": [
+      "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    ],
+    "pawSenders": [
+      "0x3333333333333333333333333333333333333333"
+    ],
+    "txFrom": {
+      "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd": "0x3333333333333333333333333333333333333333"
+    }
+  },
+  "expected": {
+    "payoutCount": 6,
+    "total18BySymbol": {
+      "USDC": "3880000000000000000"
+    },
+    "total18ByKind": {
+      "native": "2380000000000000000",
+      "token": "1500000000000000000"
+    },
+    "rawAmounts": [
+      "10000000000000000",
+      "10000000000000000",
+      "10000000000000000",
+      "350000000000000000",
+      "1500000",
+      "2000000000000000000"
+    ],
+    "memos": [
+      "tt:heist:1a2b3c4d",
+      "tt:page:5e6f7a8b",
+      "x402:9f8e7d6c5b4a39281706f5e4d3c2b1a0",
+      "tt:paws:2026-10-01:0x663871a529b8a549c0c69f66e919d777b943b1886d3d5c67aaf020582b7fc666",
+      "October payout – Rožinė pėdutė",
+      "tt:wallet"
+    ],
+    "pawMemo": "tt:paws:2026-10-01:0x663871a529b8a549c0c69f66e919d777b943b1886d3d5c67aaf020582b7fc666",
+    "pawMemoBytes": 85,
+    "buckets": {
+      "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "heist",
+      "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb": "page",
+      "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc": "x402",
+      "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd": "paws",
+      "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee": "direct",
+      "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff": "direct"
+    },
+    "total18ByBucket": {
+      "heist": "10000000000000000",
+      "page": "10000000000000000",
+      "x402": "10000000000000000",
+      "paws": "350000000000000000",
+      "direct": "3500000000000000000"
+    },
+    "fromBlock": 1000100,
+    "toBlock": 1000410
+  }
+}

@@ -1,0 +1,1175 @@
+{
+  "schemaVersion": 1,
+  "lookVersion": "v1",
+  "versions": [
+    "v0",
+    "v1"
+  ],
+  "assetVersion": "v1",
+  "generator": "client/scripts/art/build.mjs",
+  "paletteSha256": "7da7376460e855aa",
+  "rollback": "Set lookVersion to \"v0\" here (no rebuild: the runtime fetches this file), or use the per-device localStorage override the runtime reads (task 6e).",
+  "tilesets": {
+    "base/spring-night-v1.png": {
+      "source": "base/spring.png",
+      "profile": "standard-32",
+      "tileWidth": 32,
+      "tileHeight": 32,
+      "margin": 1,
+      "spacing": 2,
+      "columns": 30,
+      "rows": 16,
+      "tileCount": 480,
+      "width": 1020,
+      "height": 544,
+      "palette": "hub-night",
+      "sha256": "e515db5557483963295cf2210e6a368d3caf1587a04739ae9c5283dbe158f618"
+    },
+    "base/valentine-night-v1.png": {
+      "source": "base/valentine.png",
+      "profile": "standard-32",
+      "tileWidth": 32,
+      "tileHeight": 32,
+      "margin": 1,
+      "spacing": 2,
+      "columns": 30,
+      "rows": 16,
+      "tileCount": 480,
+      "width": 1020,
+      "height": 544,
+      "palette": "cupid-night",
+      "sha256": "a7ccb8e6cb8e6cc055e6a0be02b54fa30f4e8162a5086d5e8d397c3e990f313a"
+    },
+    "base/construct-night-v1.png": {
+      "source": "base/construct.png",
+      "profile": "standard-32",
+      "tileWidth": 32,
+      "tileHeight": 32,
+      "margin": 1,
+      "spacing": 2,
+      "columns": 30,
+      "rows": 16,
+      "tileCount": 480,
+      "width": 1020,
+      "height": 544,
+      "palette": "purrsuit-construct",
+      "sha256": "ab29398af0852e2ae3620843bdadb6d721065f2a39eef988e522e45e51d195a4"
+    },
+    "base/summer-night-v1.png": {
+      "source": "base/summer.png",
+      "profile": "standard-32",
+      "tileWidth": 32,
+      "tileHeight": 32,
+      "margin": 1,
+      "spacing": 2,
+      "columns": 30,
+      "rows": 16,
+      "tileCount": 480,
+      "width": 1020,
+      "height": 544,
+      "palette": "purrsuit-summer",
+      "sha256": "33216a013201891a9ea5f21e8d21f841b4cf2128deb4f1ad37f2812e76237470"
+    },
+    "base/candy-night-v1.png": {
+      "source": "base/candy.png",
+      "profile": "standard-32",
+      "tileWidth": 32,
+      "tileHeight": 32,
+      "margin": 1,
+      "spacing": 2,
+      "columns": 30,
+      "rows": 16,
+      "tileCount": 480,
+      "width": 1020,
+      "height": 544,
+      "palette": "purrsuit-candy",
+      "sha256": "aadf6d25ae3cdf5f94f776418614adbc02860fada0cc4a384f7aac51129f4e20"
+    },
+    "base/camp-night-v1.png": {
+      "source": "base/camp.png",
+      "profile": "standard-32",
+      "tileWidth": 32,
+      "tileHeight": 32,
+      "margin": 1,
+      "spacing": 2,
+      "columns": 30,
+      "rows": 16,
+      "tileCount": 480,
+      "width": 1020,
+      "height": 544,
+      "palette": "purrsuit-camp",
+      "sha256": "d720bb4cad1f996af981c193e7851201c6d26a8409f1d145e8ec1feec9b7144d"
+    },
+    "base/summit-night-v1.png": {
+      "source": "base/summit.png",
+      "profile": "standard-32",
+      "tileWidth": 32,
+      "tileHeight": 32,
+      "margin": 1,
+      "spacing": 2,
+      "columns": 30,
+      "rows": 16,
+      "tileCount": 480,
+      "width": 1020,
+      "height": 544,
+      "palette": "purrsuit-summit",
+      "sha256": "fa0d104b37a6c7c858cf6234918cf37fbb25d3bcb484e8b05725df843fcf16ae"
+    },
+    "base/stocks-night-v1.png": {
+      "source": "base/stocks.png",
+      "profile": "standard-32",
+      "tileWidth": 32,
+      "tileHeight": 32,
+      "margin": 1,
+      "spacing": 2,
+      "columns": 30,
+      "rows": 16,
+      "tileCount": 480,
+      "width": 1020,
+      "height": 544,
+      "palette": "purrsuit-stocks",
+      "sha256": "90c564c5a286e65462c2c6a0416ed2eb4470e0800faeb783f37522ac9dd739fa"
+    },
+    "base/sei-night-v1.png": {
+      "source": "base/sei.png",
+      "profile": "standard-32",
+      "tileWidth": 32,
+      "tileHeight": 32,
+      "margin": 1,
+      "spacing": 2,
+      "columns": 30,
+      "rows": 16,
+      "tileCount": 480,
+      "width": 1020,
+      "height": 544,
+      "palette": "purrsuit-sei",
+      "sha256": "49029741506ad0106d5c465843e6fb014e520cdc49cd5c5a70d5f0ef9466da27"
+    },
+    "base/daemons-night-v1.png": {
+      "source": "base/daemons.png",
+      "profile": "standard-32",
+      "tileWidth": 32,
+      "tileHeight": 32,
+      "margin": 1,
+      "spacing": 2,
+      "columns": 30,
+      "rows": 16,
+      "tileCount": 480,
+      "width": 1020,
+      "height": 544,
+      "palette": "purrsuit-daemons",
+      "sha256": "d560aa0120923fcac1844c2e2e51152c06d340b7e5b838d8daa4ff24010acc91"
+    },
+    "base/cat-winter-night-v1.png": {
+      "source": "base/cat-winter.png",
+      "profile": "standard-32",
+      "tileWidth": 32,
+      "tileHeight": 32,
+      "margin": 1,
+      "spacing": 2,
+      "columns": 30,
+      "rows": 16,
+      "tileCount": 480,
+      "width": 1020,
+      "height": 544,
+      "palette": "purrsuit-cat-winter",
+      "sha256": "f730a39a1abbe98824712d82e4cb984e4373a8d53c4b9374bf59b8b68c25b583"
+    },
+    "base/combined-night-v1.png": {
+      "source": "base/combined.png",
+      "profile": "combined-32",
+      "tileWidth": 32,
+      "tileHeight": 32,
+      "margin": 1,
+      "spacing": 2,
+      "columns": 210,
+      "rows": 11,
+      "tileCount": 2310,
+      "width": 7140,
+      "height": 374,
+      "palette": "purrsuit-combined",
+      "sha256": "4b40d969f54d1692b0cd610ee4b1e728d4776da1d5421901742fdcb8ad1456c5"
+    },
+    "shelter/signs-night-v1.png": {
+      "source": "shelter/signs.png",
+      "profile": "plain",
+      "tileWidth": 32,
+      "tileHeight": 32,
+      "margin": 0,
+      "spacing": 0,
+      "palette": "hub-dusk",
+      "sha256": "8906d905b9edd9a5e05b4b92592cf72f6b10572e274b7b0d3acc2772cb90ba2d"
+    }
+  },
+  "plates": {
+    "hub-night": {
+      "mood": "moonlit-night",
+      "nativeWidth": 688,
+      "nativeHeight": 384,
+      "layers": [
+        {
+          "name": "far",
+          "file": "landing/plates/hub-night-far-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.06,
+          "anchor": "top",
+          "tileX": true,
+          "order": 0,
+          "sha256": "7881c8ded2f7fa5838f73fad3a9fd0c53476c9e06d94f9594d340f44a1be2a04"
+        },
+        {
+          "name": "mid",
+          "file": "landing/plates/hub-night-mid-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.18,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 1,
+          "sha256": "d4616c3af4ead7e32b44e4c6bc6327da4584cbe82b427ed35052acf70490fe29"
+        },
+        {
+          "name": "near",
+          "file": "landing/plates/hub-night-near-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.38,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 2,
+          "sha256": "09afd3a7cd78f325f3858bdc17a3cf319b56f6804cfb241ac7a5119b4bfa022c"
+        },
+        {
+          "name": "fog",
+          "file": "landing/plates/hub-night-fog-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.55,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 3,
+          "sha256": "bfa2150a794f722feefef82646b640e31ef194f3c32588d3b356f36a2440bd4e"
+        }
+      ]
+    },
+    "hub-dusk": {
+      "mood": "dusk",
+      "nativeWidth": 688,
+      "nativeHeight": 384,
+      "layers": [
+        {
+          "name": "far",
+          "file": "landing/plates/hub-dusk-far-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.06,
+          "anchor": "top",
+          "tileX": true,
+          "order": 0,
+          "sha256": "d2ffa6f4314173e2669b1ae8fa8b8620cfa36a07aec619ba1a228bd99063ab99"
+        },
+        {
+          "name": "mid",
+          "file": "landing/plates/hub-dusk-mid-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.18,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 1,
+          "sha256": "a508b9e33740a61dc26d0c5a1e4795cb5053c3d2a79e45729686918eba5ad26c"
+        },
+        {
+          "name": "near",
+          "file": "landing/plates/hub-dusk-near-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.38,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 2,
+          "sha256": "24fcd6698253dac20875264b9c1809e996f93b64c992eb3ea7caa6cc87d9ed7a"
+        },
+        {
+          "name": "fog",
+          "file": "landing/plates/hub-dusk-fog-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.55,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 3,
+          "sha256": "ebf735fd9870cdcee93d672275e4d49f3b5e30abb33c3f9a22bb72cf0e3e2bd4"
+        }
+      ]
+    },
+    "cupid-night": {
+      "mood": "rose-night",
+      "nativeWidth": 688,
+      "nativeHeight": 384,
+      "layers": [
+        {
+          "name": "far",
+          "file": "landing/plates/cupid-night-far-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.06,
+          "anchor": "top",
+          "tileX": true,
+          "order": 0,
+          "sha256": "f940d5074cc815dfe6883e7679c2b161c1b6bdf76f6b0ba554d88f37a6114ef8"
+        },
+        {
+          "name": "mid",
+          "file": "landing/plates/cupid-night-mid-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.18,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 1,
+          "sha256": "4f7861b5cd17ef4d8fdd5b8b2f0676653c3289d2f42667c3347734eb11f606f1"
+        },
+        {
+          "name": "near",
+          "file": "landing/plates/cupid-night-near-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.38,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 2,
+          "sha256": "33b988afc1a113bf030b66b8d4bed996e1f19ca01f334f5a2b8d01fcfbf0b8ff"
+        },
+        {
+          "name": "fog",
+          "file": "landing/plates/cupid-night-fog-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.55,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 3,
+          "sha256": "dd1e3d081e1a888c90e45cb82a787a5291dd0654f1474c68bab345c8fa598100"
+        }
+      ]
+    },
+    "purrsuit-construct": {
+      "mood": "amber-night",
+      "nativeWidth": 688,
+      "nativeHeight": 384,
+      "layers": [
+        {
+          "name": "far",
+          "file": "landing/plates/purrsuit-construct-far-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.06,
+          "anchor": "top",
+          "tileX": true,
+          "order": 0,
+          "sha256": "d91b6cff2b9ffc8754372af0461a760c4d5b90159e6418c5756f99cada0fc5e9"
+        },
+        {
+          "name": "mid",
+          "file": "landing/plates/purrsuit-construct-mid-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.18,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 1,
+          "sha256": "1eac0ac5c9de47ec27a8110a56c84f95724f030d03dadbf0adee0c4d22a4df78"
+        },
+        {
+          "name": "near",
+          "file": "landing/plates/purrsuit-construct-near-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.38,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 2,
+          "sha256": "82eb107e0aa118811ec53739a9cf39b550608068150bac9e639c4ac33b611302"
+        },
+        {
+          "name": "fog",
+          "file": "landing/plates/purrsuit-construct-fog-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.55,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 3,
+          "sha256": "8bd5ba23f7cdc26b1b6453fbc40cc6d31dddb9206a512b4a4abf1ba8f849ff1d"
+        }
+      ]
+    },
+    "purrsuit-spring": {
+      "mood": "moonlit-meadow",
+      "nativeWidth": 688,
+      "nativeHeight": 384,
+      "layers": [
+        {
+          "name": "far",
+          "file": "landing/plates/purrsuit-spring-far-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.06,
+          "anchor": "top",
+          "tileX": true,
+          "order": 0,
+          "sha256": "806ea3f03804b9eee5bf692bc909e3597393f3eb1fff3722fc825f3d4581f94b"
+        },
+        {
+          "name": "mid",
+          "file": "landing/plates/purrsuit-spring-mid-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.18,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 1,
+          "sha256": "55fdc15da3c74ef479103aed650839d40a56e8abecb7b07588ff8bcfb415579d"
+        },
+        {
+          "name": "near",
+          "file": "landing/plates/purrsuit-spring-near-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.38,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 2,
+          "sha256": "19bf834282a8e8a598dc78997905ad00f4b2b897012e94c031170307584d36f2"
+        },
+        {
+          "name": "fog",
+          "file": "landing/plates/purrsuit-spring-fog-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.55,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 3,
+          "sha256": "0631300bd07ac0d7f8ad5718b6f22dcce8313f62da3cad501b3035aab4e79f54"
+        }
+      ]
+    },
+    "purrsuit-summer": {
+      "mood": "warm-teal-night",
+      "nativeWidth": 688,
+      "nativeHeight": 384,
+      "layers": [
+        {
+          "name": "far",
+          "file": "landing/plates/purrsuit-summer-far-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.06,
+          "anchor": "top",
+          "tileX": true,
+          "order": 0,
+          "sha256": "83e08ea5937b05fcc4b5346d6d8f56b14531e638817a66b63b733b434a733cf7"
+        },
+        {
+          "name": "mid",
+          "file": "landing/plates/purrsuit-summer-mid-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.18,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 1,
+          "sha256": "7ad9713bc18e790feb7a7235593eacf5edb1d517e3ca29c7642e2f455dcc9953"
+        },
+        {
+          "name": "near",
+          "file": "landing/plates/purrsuit-summer-near-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.38,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 2,
+          "sha256": "2fc2c9b493de64c266ceb0600c655b8434413b7cb441005668e1c487148eae89"
+        },
+        {
+          "name": "fog",
+          "file": "landing/plates/purrsuit-summer-fog-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.55,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 3,
+          "sha256": "1e1ea4002c4e9243477ea00601bc367f525b2548170c7aa96cf130b4f56d0ea7"
+        }
+      ]
+    },
+    "purrsuit-candy": {
+      "mood": "lilac-night",
+      "nativeWidth": 688,
+      "nativeHeight": 384,
+      "layers": [
+        {
+          "name": "far",
+          "file": "landing/plates/purrsuit-candy-far-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.06,
+          "anchor": "top",
+          "tileX": true,
+          "order": 0,
+          "sha256": "3a97ba4c34a91c921d8b6d7809ff28fbb35bb0ef9e4b9b31cc59e096d6ec9a21"
+        },
+        {
+          "name": "mid",
+          "file": "landing/plates/purrsuit-candy-mid-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.18,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 1,
+          "sha256": "dc1a83968431f31a90e508d92eaacb2d43e24138f4a2f1c860c92726d99a3aa7"
+        },
+        {
+          "name": "near",
+          "file": "landing/plates/purrsuit-candy-near-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.38,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 2,
+          "sha256": "7689991c58f97b4c533beef3a88005db547c96d1f5f022f018f2444673755b38"
+        },
+        {
+          "name": "fog",
+          "file": "landing/plates/purrsuit-candy-fog-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.55,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 3,
+          "sha256": "c10353dec8340c7101b8de1674327a02c3e0e0e6b812c51e532ff77ec5d3b68a"
+        }
+      ]
+    },
+    "purrsuit-camp": {
+      "mood": "forest-night",
+      "nativeWidth": 688,
+      "nativeHeight": 384,
+      "layers": [
+        {
+          "name": "far",
+          "file": "landing/plates/purrsuit-camp-far-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.06,
+          "anchor": "top",
+          "tileX": true,
+          "order": 0,
+          "sha256": "86e04da535ed4beb6ae6904aede8e4f438cbdc69cb30ba90d3e832d283353ce7"
+        },
+        {
+          "name": "mid",
+          "file": "landing/plates/purrsuit-camp-mid-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.18,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 1,
+          "sha256": "f22853556ba1bcd5aea37850dfed5f0106c770da04f5ba7d912998c3342ca324"
+        },
+        {
+          "name": "near",
+          "file": "landing/plates/purrsuit-camp-near-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.38,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 2,
+          "sha256": "a5cfec4ec00170e87c4d43bc6bd464388c47e25897a23d339d879aef65f6ac3c"
+        },
+        {
+          "name": "fog",
+          "file": "landing/plates/purrsuit-camp-fog-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.55,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 3,
+          "sha256": "2c2b193a8b7af009b2dbca820674c9719f3c217be97565819b12168d8233de0b"
+        }
+      ]
+    },
+    "purrsuit-summit": {
+      "mood": "icy-night",
+      "nativeWidth": 688,
+      "nativeHeight": 384,
+      "layers": [
+        {
+          "name": "far",
+          "file": "landing/plates/purrsuit-summit-far-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.06,
+          "anchor": "top",
+          "tileX": true,
+          "order": 0,
+          "sha256": "5136a0c3fbd7c1246dc405e7d361d6fe2d583aec81f9b06c3db64394086e33e2"
+        },
+        {
+          "name": "mid",
+          "file": "landing/plates/purrsuit-summit-mid-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.18,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 1,
+          "sha256": "292a08e73255411937d637e37560dbd4ebbe2ce0fb34eb7539eadcd809ed12c1"
+        },
+        {
+          "name": "near",
+          "file": "landing/plates/purrsuit-summit-near-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.38,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 2,
+          "sha256": "9140d11ac2bc9df242786e582d17c100fa29b13850b98b6e93be8d560b8f9bb5"
+        },
+        {
+          "name": "fog",
+          "file": "landing/plates/purrsuit-summit-fog-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.55,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 3,
+          "sha256": "c97ed404b7736d9a154f0edf3eb4d6982b4ff18fa985c85e7a822ced3a58874f"
+        }
+      ]
+    },
+    "purrsuit-stocks": {
+      "mood": "emerald-night",
+      "nativeWidth": 688,
+      "nativeHeight": 384,
+      "layers": [
+        {
+          "name": "far",
+          "file": "landing/plates/purrsuit-stocks-far-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.06,
+          "anchor": "top",
+          "tileX": true,
+          "order": 0,
+          "sha256": "668ac9e7a073bad4bbbf853cc68bedf6dee1a5a99ecf181d05c95f492de79c21"
+        },
+        {
+          "name": "mid",
+          "file": "landing/plates/purrsuit-stocks-mid-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.18,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 1,
+          "sha256": "e91ee3bbe9230a1c4686b077e5b486a78c869ed9acf8c29027b30c35ee7eee6d"
+        },
+        {
+          "name": "near",
+          "file": "landing/plates/purrsuit-stocks-near-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.38,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 2,
+          "sha256": "ff58da596cf742d8c5e238ffbfef4f036aaf1d4c83d8a4f367ef2f052d66387b"
+        },
+        {
+          "name": "fog",
+          "file": "landing/plates/purrsuit-stocks-fog-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.55,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 3,
+          "sha256": "baa21cfa3fa652d873a3716d92b8f94b994e44971511dc3b49e1d563079d166a"
+        }
+      ]
+    },
+    "purrsuit-sei": {
+      "mood": "ember-night",
+      "nativeWidth": 688,
+      "nativeHeight": 384,
+      "layers": [
+        {
+          "name": "far",
+          "file": "landing/plates/purrsuit-sei-far-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.06,
+          "anchor": "top",
+          "tileX": true,
+          "order": 0,
+          "sha256": "5d880a2f539570906011f9a5f2d8e47a1ceec0ba365f162eb377393a0eb76902"
+        },
+        {
+          "name": "mid",
+          "file": "landing/plates/purrsuit-sei-mid-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.18,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 1,
+          "sha256": "c56ad3d2a06d937b1ef548841fc0b7ffff66319e207cc535435f28c5d4c29921"
+        },
+        {
+          "name": "near",
+          "file": "landing/plates/purrsuit-sei-near-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.38,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 2,
+          "sha256": "4c6d1b31930be81adc646bccef591a87ba7ee2b489a83ee8237cb3ebf12eac7a"
+        },
+        {
+          "name": "fog",
+          "file": "landing/plates/purrsuit-sei-fog-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.55,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 3,
+          "sha256": "8d8432fce8318db600ae0e145c19f96d22e02bb1a3dab3b917f4f5ef901a3911"
+        }
+      ]
+    },
+    "purrsuit-daemons": {
+      "mood": "violet-night",
+      "nativeWidth": 688,
+      "nativeHeight": 384,
+      "layers": [
+        {
+          "name": "far",
+          "file": "landing/plates/purrsuit-daemons-far-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.06,
+          "anchor": "top",
+          "tileX": true,
+          "order": 0,
+          "sha256": "e1f7b719ad60d09a7c0f9052d1bcf309a2224bd32bc6594d53f85adcb22fe99b"
+        },
+        {
+          "name": "mid",
+          "file": "landing/plates/purrsuit-daemons-mid-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.18,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 1,
+          "sha256": "e61208a0367e10a531e8cae715f1a82f54e0c9b90e57886e2d3fbe8d287cc877"
+        },
+        {
+          "name": "near",
+          "file": "landing/plates/purrsuit-daemons-near-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.38,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 2,
+          "sha256": "dba53f60220f93afa5f67edce5eee38368139550fa064f1b3dafe9f45b165023"
+        },
+        {
+          "name": "fog",
+          "file": "landing/plates/purrsuit-daemons-fog-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.55,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 3,
+          "sha256": "8c604580aa51794cf097b12973654457be08cd027367b12c273c4f240e984cbe"
+        }
+      ]
+    },
+    "purrsuit-cat-winter": {
+      "mood": "snow-night",
+      "nativeWidth": 688,
+      "nativeHeight": 384,
+      "layers": [
+        {
+          "name": "far",
+          "file": "landing/plates/purrsuit-cat-winter-far-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.06,
+          "anchor": "top",
+          "tileX": true,
+          "order": 0,
+          "sha256": "8b9068a5ef2a708103f66c44ef9196c0be539f424a7010f483618370521e7f0f"
+        },
+        {
+          "name": "mid",
+          "file": "landing/plates/purrsuit-cat-winter-mid-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.18,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 1,
+          "sha256": "a645360f4a4133c62a388dd55da66236b61c54523335271c43b8b6982fade752"
+        },
+        {
+          "name": "near",
+          "file": "landing/plates/purrsuit-cat-winter-near-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.38,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 2,
+          "sha256": "739031d37937b8f042faade71823e336c8df5bd6d1ee0143e75aeae1cf7e33ab"
+        },
+        {
+          "name": "fog",
+          "file": "landing/plates/purrsuit-cat-winter-fog-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.55,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 3,
+          "sha256": "02a3a210d75a5a5c35b966ff373ccaa490383351d4c9e0fb2c4ca6195b2090ea"
+        }
+      ]
+    },
+    "purrsuit-combined": {
+      "mood": "endless-night",
+      "nativeWidth": 688,
+      "nativeHeight": 384,
+      "layers": [
+        {
+          "name": "far",
+          "file": "landing/plates/purrsuit-combined-far-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.06,
+          "anchor": "top",
+          "tileX": true,
+          "order": 0,
+          "sha256": "784ce46376b51c71b71ae08e19c1dfe8c56ff8fc07fd10bee972b27e7e0a37ad"
+        },
+        {
+          "name": "mid",
+          "file": "landing/plates/purrsuit-combined-mid-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.18,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 1,
+          "sha256": "ef9b593850fc59044be9b1ed2547f9853511e2dad374636b5b2e8d44970faed7"
+        },
+        {
+          "name": "near",
+          "file": "landing/plates/purrsuit-combined-near-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.38,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 2,
+          "sha256": "e88add36b9d8452411459ed6783ccc45db3d111d809f8f032e8ecc2d8633e719"
+        },
+        {
+          "name": "fog",
+          "file": "landing/plates/purrsuit-combined-fog-v1.png",
+          "width": 1376,
+          "height": 384,
+          "scrollFactor": 0.55,
+          "anchor": "bottom",
+          "tileX": true,
+          "order": 3,
+          "sha256": "64fd09db1e3bb17b1d39171be00fd0a5d4595b774daf1f03a09d2459fde6966a"
+        }
+      ]
+    }
+  },
+  "presets": {
+    "home": {
+      "scene": "BaseScene",
+      "v0": {
+        "tileset": "base/spring.png",
+        "background": null
+      },
+      "v1": {
+        "tileset": "base/spring-night-v1.png",
+        "plates": "hub-night",
+        "mood": "moonlit-night",
+        "background": "#0b0820",
+        "poster": "look/posters/home-v1.webp"
+      }
+    },
+    "shelter": {
+      "scene": "ShelterScene",
+      "v0": {
+        "tileset": "base/spring.png",
+        "background": null
+      },
+      "v1": {
+        "tileset": "base/spring-night-v1.png",
+        "plates": "hub-dusk",
+        "mood": "dusk",
+        "background": "#0b0820",
+        "poster": "look/posters/shelter-v1.webp",
+        "extraTilesets": {
+          "shelter-signs": "shelter/signs-night-v1.png"
+        }
+      }
+    },
+    "cupid": {
+      "scene": "PixelRescueScene",
+      "v0": {
+        "tileset": "base/valentine.png",
+        "background": null
+      },
+      "v1": {
+        "tileset": "base/valentine-night-v1.png",
+        "plates": "cupid-night",
+        "mood": "rose-night",
+        "background": "#0b0820",
+        "poster": "look/posters/cupid-v1.webp"
+      }
+    },
+    "purrsuit/construct": {
+      "scene": "CatnipChaos",
+      "v0": {
+        "tileset": "base/construct.png",
+        "background": null
+      },
+      "v1": {
+        "tileset": "base/construct-night-v1.png",
+        "plates": "purrsuit-construct",
+        "mood": "amber-night",
+        "background": "#0b0820",
+        "poster": "look/posters/purrsuit-construct-v1.webp"
+      }
+    },
+    "purrsuit/spring": {
+      "scene": "CatnipChaos",
+      "v0": {
+        "tileset": "base/spring.png",
+        "background": null
+      },
+      "v1": {
+        "tileset": "base/spring-night-v1.png",
+        "plates": "purrsuit-spring",
+        "mood": "moonlit-meadow",
+        "background": "#0b0820",
+        "poster": "look/posters/purrsuit-spring-v1.webp"
+      }
+    },
+    "purrsuit/summer": {
+      "scene": "CatnipChaos",
+      "v0": {
+        "tileset": "base/summer.png",
+        "background": null
+      },
+      "v1": {
+        "tileset": "base/summer-night-v1.png",
+        "plates": "purrsuit-summer",
+        "mood": "warm-teal-night",
+        "background": "#0b0820",
+        "poster": "look/posters/purrsuit-summer-v1.webp"
+      }
+    },
+    "purrsuit/candy": {
+      "scene": "CatnipChaos",
+      "v0": {
+        "tileset": "base/candy.png",
+        "background": null
+      },
+      "v1": {
+        "tileset": "base/candy-night-v1.png",
+        "plates": "purrsuit-candy",
+        "mood": "lilac-night",
+        "background": "#0b0820",
+        "poster": "look/posters/purrsuit-candy-v1.webp"
+      }
+    },
+    "purrsuit/camp": {
+      "scene": "CatnipChaos",
+      "v0": {
+        "tileset": "base/camp.png",
+        "background": null
+      },
+      "v1": {
+        "tileset": "base/camp-night-v1.png",
+        "plates": "purrsuit-camp",
+        "mood": "forest-night",
+        "background": "#0b0820",
+        "poster": "look/posters/purrsuit-camp-v1.webp"
+      }
+    },
+    "purrsuit/summit": {
+      "scene": "CatnipChaos",
+      "v0": {
+        "tileset": "base/summit.png",
+        "background": null
+      },
+      "v1": {
+        "tileset": "base/summit-night-v1.png",
+        "plates": "purrsuit-summit",
+        "mood": "icy-night",
+        "background": "#0b0820",
+        "poster": "look/posters/purrsuit-summit-v1.webp"
+      }
+    },
+    "purrsuit/stocks": {
+      "scene": "CatnipChaos",
+      "v0": {
+        "tileset": "base/stocks.png",
+        "background": null
+      },
+      "v1": {
+        "tileset": "base/stocks-night-v1.png",
+        "plates": "purrsuit-stocks",
+        "mood": "emerald-night",
+        "background": "#0b0820",
+        "poster": "look/posters/purrsuit-stocks-v1.webp"
+      }
+    },
+    "purrsuit/sei": {
+      "scene": "CatnipChaos",
+      "v0": {
+        "tileset": "base/sei.png",
+        "background": null
+      },
+      "v1": {
+        "tileset": "base/sei-night-v1.png",
+        "plates": "purrsuit-sei",
+        "mood": "ember-night",
+        "background": "#0b0820",
+        "poster": "look/posters/purrsuit-sei-v1.webp"
+      }
+    },
+    "purrsuit/daemons": {
+      "scene": "CatnipChaos",
+      "v0": {
+        "tileset": "base/daemons.png",
+        "background": null
+      },
+      "v1": {
+        "tileset": "base/daemons-night-v1.png",
+        "plates": "purrsuit-daemons",
+        "mood": "violet-night",
+        "background": "#0b0820",
+        "poster": "look/posters/purrsuit-daemons-v1.webp"
+      }
+    },
+    "purrsuit/cat-winter": {
+      "scene": "CatnipChaos",
+      "v0": {
+        "tileset": "base/cat-winter.png",
+        "background": null
+      },
+      "v1": {
+        "tileset": "base/cat-winter-night-v1.png",
+        "plates": "purrsuit-cat-winter",
+        "mood": "snow-night",
+        "background": "#0b0820",
+        "poster": "look/posters/purrsuit-cat-winter-v1.webp"
+      }
+    },
+    "purrsuit/combined": {
+      "scene": "CatnipChaos",
+      "v0": {
+        "tileset": "base/combined.png",
+        "background": null
+      },
+      "v1": {
+        "tileset": "base/combined-night-v1.png",
+        "plates": "purrsuit-combined",
+        "mood": "endless-night",
+        "background": "#0b0820",
+        "poster": "look/posters/purrsuit-combined-v1.webp"
+      }
+    }
+  },
+  "purrsuitFamilies": {
+    "base/construct.png": "purrsuit/construct",
+    "base/spring.png": "purrsuit/spring",
+    "base/summer.png": "purrsuit/summer",
+    "base/candy.png": "purrsuit/candy",
+    "base/camp.png": "purrsuit/camp",
+    "base/summit.png": "purrsuit/summit",
+    "base/stocks.png": "purrsuit/stocks",
+    "base/sei.png": "purrsuit/sei",
+    "base/daemons.png": "purrsuit/daemons",
+    "base/cat-winter.png": "purrsuit/cat-winter",
+    "base/combined.png": "purrsuit/combined"
+  },
+  "cupidLevels": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14"
+  ],
+  "backdrop": {
+    "layer": "decorations",
+    "gids": [
+      104
+    ],
+    "scenes": [
+      "home",
+      "shelter",
+      "cupid"
+    ]
+  },
+  "hazardGids": [
+    253,
+    254,
+    283,
+    284
+  ],
+  "hubMap": {
+    "id": "SPRING_NIGHT",
+    "tileset": "base/spring-night-v1.png",
+    "scenes": [
+      "home",
+      "shelter"
+    ]
+  }
+}

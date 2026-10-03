@@ -1,5 +1,5 @@
 /** Pure HUD / results helpers (no DOM), unit-tested. */
-import { activeHint as simActiveHint, objectiveIndex as simObjectiveIndex } from '../sim/hud';
+import { activeHint as simActiveHint, hudHint as simHudHint, objectiveIndex as simObjectiveIndex } from '../sim/hud';
 import { TICK_HZ, type LevelDef, type RunResult, type SimState } from '../types';
 
 export type ObjectiveStage = 'KEY' | 'RESCUE' | 'EXIT' | 'DONE';
@@ -46,6 +46,18 @@ export function activeHint(
   return simActiveHint({ meta: level.meta, plates: level.plates ?? [], key: level.key ?? null }, state, touch);
 }
 
+/**
+ * The HUD hint line: a crate prompt when the active cat is close to it, else the authored hint zone,
+ * else the swap prompt while the active cat holds a plate (see contextPrompt in sim/hud).
+ */
+export function hudHintText(
+  state: Pick<SimState, 'cats' | 'activeIndex'> & Partial<Pick<SimState, 'platesDown' | 'keyTaken' | 'rescued'>>,
+  level: Pick<LevelDef, 'meta'> & Partial<Pick<LevelDef, 'plates' | 'key' | 'doors' | 'crate'>>,
+  touch = false,
+): string | null {
+  return simHudHint({ meta: level.meta, plates: level.plates ?? [], doors: level.doors ?? [], crate: level.crate!, key: level.key ?? null }, state, touch);
+}
+
 export interface ScoreBreakdown {
   coins: number;
   coinPoints: number;
@@ -62,12 +74,5 @@ export function scoreBreakdown(r: Pick<RunResult, 'coins' | 'rescued' | 'ticks'>
   return { coins: r.coins, coinPoints, rescuePoints, timePenalty, total: Math.max(0, coinPoints + rescuePoints - timePenalty) };
 }
 
-/** 0-3 paw rating, same rules as the campaign stars (src/ui/levels/progress.ts runStars):
- *  win (rescue), every coin, never spotted and at or under par. */
-export function pawRating(r: Pick<RunResult, 'coins' | 'rescued' | 'ticks' | 'spottedCount'>, totalCoins: number, parTicks: number): number {
-  let n = 0;
-  if (r.rescued) n++;
-  if (totalCoins > 0 && r.coins >= totalCoins) n++;
-  if (parTicks > 0 && r.ticks <= parTicks && r.spottedCount === 0) n++;
-  return n;
-}
+/** 0-3 paw rating. The rule lives with the star rules in src/sim/score.ts (shared with the server). */
+export { pawRating } from '../sim/score';

@@ -1,11 +1,13 @@
+import { CONSENT_STORAGE_KEY } from "@/shared-contracts/analytics-core";
+
 /**
  * Analytics consent. Default is "unset", which behaves like "denied": nothing
  * is sent until the player accepts. The choice lives in this browser only.
  */
-
 export type ConsentState = "granted" | "denied" | "unset";
 
-export const CONSENT_STORAGE_KEY = "tt-analytics-consent";
+/** Same key in Catnip Heist (same origin), from `shared/analytics-core.ts`. */
+export { CONSENT_STORAGE_KEY };
 export const CONSENT_CHANGE_EVENT = "tt-analytics-consent-change";
 /** Dispatched to reopen the consent banner from a settings button or link. */
 export const CONSENT_OPEN_EVENT = "tt-analytics-consent-open";

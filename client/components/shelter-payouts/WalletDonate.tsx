@@ -1,7 +1,9 @@
+// copy-lint: web-only rendered only by the web ShelterPayouts (app builds show AppProofNotice)
 import Link from "next/link";
 import { useState } from "react";
 import { Celebration } from "./Celebration";
 import { ChainInfo, explorerTx } from "./chains";
+import { CARD, CHIP, GOLD_BUTTON } from "./ui";
 import { WALLET_DONATE_ENABLED, getInjectedProvider, walletDonate, walletErrorMessage } from "./wallet";
 
 const AMOUNTS = ["1", "5", "10"];
@@ -46,13 +48,14 @@ export const WalletDonate = ({
 
   return (
     <section
-      className="w-full rounded-xl border-2 border-yellow-900 bg-black/60 p-4 font-secondary text-p5"
+      className={`${CARD} flex flex-col gap-2 text-p5`}
       data-testid="wallet-donate"
     >
-      <h3 className="font-primary uppercase text-p3">Give from your wallet</h3>
-      <p className="opacity-80">
+      <h3 className="font-primary uppercase text-p3 md:text-p2 leading-none text-tt-cream">Give from your wallet</h3>
+      {/* claim: fiction how the contract works, not an impact figure */}
+      <p className="text-tt-cream/80">
         Goes straight to ShelterSplit on {chain.name}, which splits it to the shelters in the same
-        transaction. You pay a small gas fee in {symbol}.
+        transaction. A small gas fee in {symbol} applies.
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {AMOUNTS.map((a) => (
@@ -61,9 +64,7 @@ export const WalletDonate = ({
             type="button"
             onClick={() => setAmount(a)}
             aria-pressed={amount === a}
-            className={`rounded-full border-2 border-yellow-900 px-3 py-1 font-primary ${
-              amount === a ? "bg-yellow-300 text-black" : "bg-black/40"
-            }`}
+            className={`${CHIP} min-h-11 px-3 ${amount === a ? "!bg-tt-cream !text-tt-gold-ink" : ""}`}
           >
             {a} {symbol}
           </button>
@@ -72,7 +73,7 @@ export const WalletDonate = ({
           type="button"
           onClick={send}
           disabled={state.status === "sending"}
-          className="rounded-full border-2 border-yellow-900 bg-pink-400 px-4 py-1 font-primary uppercase text-black disabled:opacity-60"
+          className={GOLD_BUTTON}
         >
           {state.status === "sending" ? "Check your wallet…" : `Give ${amount} ${symbol}`}
         </button>
@@ -101,7 +102,7 @@ export const WalletDonate = ({
         </>
       )}
       {state.status === "error" && (
-        <p className="mt-3 text-red-300" role="alert">
+        <p className="mt-3 text-tt-rust" role="alert">
           {state.message}
         </p>
       )}

@@ -61,7 +61,7 @@ export const fakeCat: ICat = {
     slug: "cat-haven-rescue",
     country: "LT",
     description:
-      "A loving shelter dedicated to rescuing and rehoming cats in need.",
+      "A cat shelter in Lithuania that finds homes for its cats.",
     address: "123 Rescue Lane, Austin, TX",
     website: "https://cathaven.org",
     instagram: "https://www.instagram.com/cathaven",

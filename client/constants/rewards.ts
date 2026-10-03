@@ -1,10 +1,9 @@
+import { REWARDS as SHARED_REWARDS } from "@/shared-contracts/caps";
+
+// The fixed amounts come from the generated copy of shared/caps.ts (plan F2), shared with the backend.
+// The daily wheel bounds are display-only and exist on the client alone.
 export const REWARDS = {
-  INVITE_FRIEND: 100,
-  DAILY_REWARD: 10,
-  WEEKLY_CRAFT: 5,
-  FEED: 1,
-  MYSTERY_BOX: 100,
-  WEEKLY_TOP: 200,
+  ...SHARED_REWARDS,
   DAILY_REWARD_MIN: 1,
   DAILY_REWARD_MAX: 1000,
 };

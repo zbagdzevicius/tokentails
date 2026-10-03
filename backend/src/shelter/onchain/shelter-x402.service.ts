@@ -1,10 +1,10 @@
-import { HttpException, HttpStatus, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { randomBytes } from 'crypto';
 import { getBigInt } from 'ethers';
 import { Model } from 'mongoose';
 import { Blessing, BlessingDocument, BlessingStatus } from 'src/blessing/blessing.schema';
-import { NATIVE_DISBURSED_TOPIC, ShelterChain, shelterSplitInterface } from './shelter-chain';
+import { NATIVE_BATCH_TOPIC, NATIVE_DISBURSED_TOPIC, ShelterChain, shelterSplitInterface } from './shelter-chain';
 import { readShelterConfig, ShelterOnchainConfig, x402Ready } from './shelter-onchain.config';
 import { X402Nonce, X402NonceDocument, X402UsedTx, X402UsedTxDocument } from './shelter-onchain.schema';
 
@@ -87,11 +87,17 @@ export class ShelterX402Service {
     async catCard(paymentHeader: string | undefined, resource: string, now: Date = new Date()): Promise<X402PaidCard> {
         const config = readShelterConfig();
         if (!x402Ready(config)) {
-            throw new ServiceUnavailableException(X402_DISABLED);
+            throw new HttpException(
+                { statusCode: HttpStatus.CONFLICT, message: X402_DISABLED, error: 'Conflict' },
+                HttpStatus.CONFLICT
+            );
         }
         if (!paymentHeader) {
             if (!(await this.blessingModel.exists({ status: BlessingStatus.WAITING }))) {
-                throw new ServiceUnavailableException(X402_NO_CARDS);
+                throw new HttpException(
+                    { statusCode: HttpStatus.CONFLICT, message: X402_NO_CARDS, error: 'Conflict' },
+                    HttpStatus.CONFLICT
+                );
             }
             throw await this.paymentRequired(config, resource, 'payment required', now);
         }
@@ -155,7 +161,8 @@ export class ShelterX402Service {
                     asset: 'native',
                     payTo: config.splitAddress!,
                     resource,
-                    description: 'One adoptable-cat card; payment goes to shelters via ShelterSplit',
+                    description:
+                        'One adoptable-cat card. The ShelterSplit contract splits each payment among its shelter recipients',
                     mimeType: 'application/json',
                     maxTimeoutSeconds: X402_NONCE_TTL_SECONDS,
                     extra: { memo: x402Memo(nonce), nonce },
@@ -193,7 +200,12 @@ export class ShelterX402Service {
         return { txHash, nonce };
     }
 
-    /** Sums NativeDisbursed amounts from the split contract whose memo is `x402:<nonce>`. */
+    /**
+     * What the transaction paid ShelterSplit with memo `x402:<nonce>`. The NativeDisbursementBatch
+     * `amount` is the whole msg.value, so a split whose shelters hold less than 10000 bps (the treasury
+     * remainder emits no NativeDisbursed) still counts the full payment. Without a batch event, the
+     * NativeDisbursed shares are summed.
+     */
     private async verifyReceipt(config: ShelterOnchainConfig, payment: ParsedPayment): Promise<bigint | string> {
         let receipt;
         try {
@@ -210,12 +222,14 @@ export class ShelterX402Service {
         }
         const split = config.splitAddress!.toLowerCase();
         const memo = x402Memo(payment.nonce);
-        let paid = getBigInt(0);
+        let shares = getBigInt(0);
+        let batches = getBigInt(0);
         for (const log of receipt.logs || []) {
             if ((log.address || '').toLowerCase() !== split) {
                 continue;
             }
-            if ((log.topics?.[0] || '').toLowerCase() !== NATIVE_DISBURSED_TOPIC) {
+            const topic = (log.topics?.[0] || '').toLowerCase();
+            if (topic !== NATIVE_DISBURSED_TOPIC && topic !== NATIVE_BATCH_TOPIC) {
                 continue;
             }
             let parsed;
@@ -224,10 +238,16 @@ export class ShelterX402Service {
             } catch {
                 continue;
             }
-            if (parsed?.args.memo === memo) {
-                paid += getBigInt(parsed.args.amount);
+            if (parsed?.args.memo !== memo) {
+                continue;
+            }
+            if (topic === NATIVE_BATCH_TOPIC) {
+                batches += getBigInt(parsed.args.amount);
+            } else {
+                shares += getBigInt(parsed.args.amount);
             }
         }
+        const paid = batches > shares ? batches : shares;
         if (paid < config.x402PriceWei) {
             return `payment to ShelterSplit with memo ${memo} is below ${config.x402PriceWei.toString()} wei`;
         }

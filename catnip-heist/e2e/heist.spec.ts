@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { seedFtueSeen } from './ftue-seed';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SCREENS = join(here, 'screens');
@@ -33,6 +34,8 @@ const errors: string[] = [];
 async function open(page: Page, query = '') {
   errors.length = 0;
   page.on('pageerror', (e) => errors.push(String(e)));
+  // First-run briefs are covered by ftue.spec.ts; here every level starts playing at once.
+  await seedFtueSeen(page);
   await page.goto(`/?qa=1${query}`);
   await page.waitForFunction(() => !!window.__heist && document.getElementById('app')?.dataset.ready === '1', null, { timeout: 30_000 });
 }
@@ -181,10 +184,16 @@ test('the heist-01 solution replays to Results with the vitest final hash', asyn
   expect(end.score).toBe(SOLUTION.score);
   await expect.poll(() => screenOf(page), { timeout: 10_000 }).toBe('results');
   await expect(page.locator('.ch-results').getByText(/You rescued/)).toBeVisible();
-  const payouts = page.locator('.ch-results').getByRole('link', { name: 'Every heist funds a real shelter: see payouts' });
+  // The win screen opens the in-game "Sent to shelters" modal (no navigation away from the game).
+  const payouts = page.locator('.ch-results').getByRole('button', { name: 'See shelter payouts' });
   await expect(payouts).toBeVisible();
-  await expect(payouts).toHaveAttribute('href', 'https://tokentails.com/shelter-payouts');
-  await expect(payouts).toHaveAttribute('target', '_blank');
+  await payouts.click();
+  const modal = page.getByTestId('payouts-modal');
+  await expect(modal).toBeVisible();
+  await expect(modal.getByRole('heading', { name: 'Sent to shelters' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(modal).toBeHidden();
+  await expect(payouts).toBeFocused();
   const hex = (SOLUTION.finalHash >>> 0).toString(16);
   await expect(page.locator('.ch-results')).toContainText(new RegExp(hex, 'i'));
   await page.waitForTimeout(500);

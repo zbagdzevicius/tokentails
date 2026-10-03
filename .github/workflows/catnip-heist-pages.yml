@@ -1,10 +1,13 @@
 # Builds catnip-heist/ and deploys it to GitHub Pages.
-# - The main home is tokentails.com/heist (served by the client app). The catnip.tokentails.com
-#   subdomain is deprecated, so `domain` defaults to empty.
+# - The main home is tokentails.com/heist, served by the client app from its own copy of the build
+#   in client/public/heist-game (`npm run build:client`, plan F12; CI builds it in ci.yml's `heist`
+#   job, so this workflow does not). The catnip.tokentails.com subdomain is deprecated, so `domain`
+#   defaults to empty.
 # - With `domain` set the game is served at the domain root and a CNAME
 #   file is published. DNS: a CNAME record `catnip` -> `<owner>.github.io`; then set the same custom
 #   domain under Settings > Pages and tick "Enforce HTTPS".
-# - With `domain` empty it is served at /<repo>/heist/ (e.g. /tokentails/heist/).
+# - With `domain` empty it is served at /<repo>/heist-game/ (e.g. /tokentails/heist-game/), the
+#   same sub-path as on tokentails.com. /<repo>/heist/ forwards there for old links.
 # Manual only: run it from the Actions tab. It never runs on push.
 # One-time setup by a maintainer: Settings > Pages > Source: "GitHub Actions".
 name: Catnip Heist to GitHub Pages
@@ -13,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       domain:
-        description: Custom domain served at its root (empty = /<repo>/heist/; catnip.tokentails.com is deprecated)
+        description: Custom domain served at its root (empty = /<repo>/heist-game/; catnip.tokentails.com is deprecated)
         required: false
         default: ''
       payouts_url:
@@ -24,6 +27,10 @@ on:
         description: Give page behind the win screen's rescue-treat button (empty hides the button)
         required: false
         default: https://tokentails.com/shelter-payouts/give
+      backend_url:
+        description: Backend that verifies Heist saves; the deploy stops unless it serves this exact sim
+        required: false
+        default: https://api.tokentails.com
 
 permissions:
   contents: read
@@ -42,7 +49,7 @@ jobs:
         working-directory: catnip-heist
     env:
       HEIST_DOMAIN: ${{ inputs.domain }}
-      HEIST_BASE: ${{ inputs.domain != '' && '/' || format('/{0}/heist/', github.event.repository.name) }}
+      HEIST_BASE: ${{ inputs.domain != '' && '/' || format('/{0}/heist-game/', github.event.repository.name) }}
       HEIST_PAYOUTS_URL: ${{ inputs.payouts_url }}
       # Absolute on Pages: the default same-origin path would point at the github.io root.
       HEIST_GIVE_URL: ${{ inputs.give_url }}
@@ -55,6 +62,12 @@ jobs:
           cache-dependency-path: catnip-heist/package-lock.json
       - run: npm ci
       - run: npm test
+      # Deploy gate (alignment 3b #1): the backend must already run this exact sim, or every save from
+      # the new site is refused with HEIST_SIM_VERSION. Deploy the backend first when the sim changes.
+      - name: Backend serves the same sim
+        env:
+          HEIST_BACKEND_URL: ${{ inputs.backend_url }}
+        run: npm run vendor-sim:check-remote -- "$HEIST_BACKEND_URL"
       - run: npm run build
       - name: Stage the site
         run: |
@@ -63,9 +76,20 @@ jobs:
             cp -R dist/. ../_site/
             printf '%s\n' "$HEIST_DOMAIN" > ../_site/CNAME
           else
-            mkdir -p ../_site/heist
-            cp -R dist/. ../_site/heist/
+            mkdir -p ../_site/heist-game ../_site/heist
+            cp -R dist/. ../_site/heist-game/
+            # Old /<repo>/heist/ links (the previous Pages path) forward to the new one.
+            cat > ../_site/heist/index.html <<'EOF'
+          <!doctype html>
+          <meta charset="utf-8">
+          <meta name="robots" content="noindex">
+          <meta http-equiv="refresh" content="0; url=../heist-game/">
+          <title>Catnip Heist</title>
+          <script>location.replace("../heist-game/" + location.search + location.hash);</script>
+          <a href="../heist-game/">Open Catnip Heist</a>
+          EOF
           fi
+          test -f ../_site/index.html || test -f ../_site/heist-game/index.html
           touch ../_site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

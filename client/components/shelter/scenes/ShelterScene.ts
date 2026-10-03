@@ -1,20 +1,40 @@
+import { reportAppError } from "@/analytics";
+import { preloadTTFonts } from "@/components/Phaser/typography";
 import {
   GameEvent,
   GameEvents,
   ICatEvent,
   ICatEventsDetails,
+  INpcSpawnedEvent,
+  INpcSpawnEvent,
   IPhaserGameSceneProps,
   NPC_TYPE,
 } from "@/components/Phaser/events";
-import { CoreMap } from "@/components/Phaser/map";
+import { setCssScroll } from "@/components/Phaser/look/camera";
+import { beginWorldLook, preloadBaseSheet, preloadWorldLook, type WorldLook } from "@/components/Phaser/look/worldLook";
+import { loadSpritesheets } from "@/components/Phaser/look/loadTextures";
+import {
+  BLESSING_FRAME_SIZE,
+  blessingTextureKey,
+  CAT_FRAME_SIZE,
+  isSamePlayerCat,
+  loadPlayerCatTextures,
+} from "@/components/catbassadors/objects/playerCatTexture";
+import { HubMap } from "@/components/Phaser/map";
 import { setMobileControls } from "@/components/Phaser/MobileButtons/MobileControls";
 import { Trampoline } from "@/components/Phaser/Trampoline/Trampoline";
-import { cdnFile, ZOOM } from "@/constants/utils";
+import { cdnFile } from "@/constants/utils";
 import { CatAbilityType, ICat } from "@/models/cats";
 import { Scene } from "phaser";
 import { Cat } from "../../catbassadors/objects/Catbassador";
 import { Elevator } from "../objects/Elevator";
-import { NpcCat } from "../objects/NpcCat";
+import {
+  blessingTypes,
+  NpcSpawnCoalescer,
+  planNpcBatch,
+  type PlannedNpc,
+} from "../objects/npcBatch";
+import { NPC_ANIMATION_NAMES, NpcCat } from "../objects/NpcCat";
 import { SpeechBubble } from "../objects/SpeechBubble";
 
 const JUMP_LAYER_TILES = [
@@ -58,7 +78,9 @@ export class ShelterScene extends Scene {
   trampoline?: Trampoline;
   npcGroup!: Phaser.Physics.Arcade.Group;
   npcCats: NpcCat[] = [];
-  blessing!: Phaser.GameObjects.Sprite;
+  blessing?: Phaser.GameObjects.Sprite;
+  /** The cat whose sheet is loading; the on-screen cat stays `catDto` until the swap. */
+  private pendingCatDto?: ICat;
   currentlyCollidingNpc: NpcCat | null = null;
   speechBubble?: SpeechBubble;
   speechBubblePool: SpeechBubble[] = [];
@@ -70,18 +92,33 @@ export class ShelterScene extends Scene {
     | Phaser.Tilemaps.TilemapGPULayer;
   private waterTiles: number[] = [74, 44];
   private waterAnimationInterval: number = 350;
+  /** Bumped on every player spawn, so a slow load for an older pick is dropped. */
+  private playerSpawnToken = 0;
+  private elevatorCollider?: Phaser.Physics.Arcade.Collider;
+  /** NPC ids spawned or loading, so a repeated batch does not double them. */
+  private npcIds = new Set<string>();
+  private npcCoalescer?: NpcSpawnCoalescer<INpcSpawnEvent>;
+  /** Set on `destroy`; a late CAT_SPAWN (or an await resuming) must not touch a dead scene. */
+  private sceneDestroyed = false;
+  /** G7 look runtime: integer-zoom camera, and the dusk look in v1. */
+  look?: WorldLook;
 
   constructor() {
     super("ShelterScene");
   }
 
   preload() {
+    // Plan F4: the brand faces load before create(), so no Text is drawn with a fallback face.
+    preloadTTFonts(this);
     this.load.audio("purr", cdnFile("purrquest/sounds/purr.mp3"));
     this.load.tilemapTiledJSON(
       "tilemap",
       cdnFile("catbassadors/new-shelter.json")
     );
-    this.load.image("new-blocks-winter", cdnFile(CoreMap));
+    // v0 hub sheet; skipped in v1 when the night skin (HubMap.v1) is known (task 6e).
+    preloadBaseSheet(this, "new-blocks-winter", cdnFile(HubMap.v0), { kind: "shelter", sheet: HubMap.v0 });
+    // G7: the look manifest and, in v1, the hub night skin, night signs and the dusk plates.
+    preloadWorldLook(this, { kind: "shelter", sheet: HubMap.v0 });
     this.load.audio("powerup", cdnFile("purrquest/sounds/powerup.mp3"));
     this.load.audio("jump-sound", cdnFile("audio/game/jump.mp3"));
     this.load.audio("dash-sound", cdnFile("audio/game/dash.wav"));
@@ -112,10 +149,13 @@ export class ShelterScene extends Scene {
   }
 
   create(props: IPhaserGameSceneProps) {
+    this.sceneDestroyed = false;
     this.tilemap = this.make.tilemap({ key: "tilemap" });
+    this.look = beginWorldLook(this, { kind: "shelter", sheet: HubMap.v0 });
+    // Same indices in v0 and v1: only the textures behind the tilesets change.
     const sugarTileset = this.tilemap.addTilesetImage(
       "new-blocks-winter",
-      "new-blocks-winter",
+      this.look.tilesetKey("new-blocks-winter"),
       32,
       32,
       1,
@@ -124,7 +164,7 @@ export class ShelterScene extends Scene {
     const logoTileset = this.tilemap.addTilesetImage("logo", "shelter-logo")!;
     const signsTileset = this.tilemap.addTilesetImage(
       "signs",
-      "shelter-signs"
+      this.look.extraTilesetKey("shelter-signs", "shelter-signs")
     )!;
     this.groundLayer = this.tilemap.createLayer("blocks", [sugarTileset])!;
     this.platformsLayer = this.tilemap.createLayer("platforms", [
@@ -170,8 +210,13 @@ export class ShelterScene extends Scene {
       TRAMPOLINE_TILES
     );
 
-    this.cameras.main.setScroll(-650, -1000);
-    this.cameras.main.setZoom(ZOOM);
+    // Camera (G7): integer zoom and map bounds; the dusk look in v1.
+    this.look.dress({
+      layers: [this.groundLayer, this.platformsLayer, this.decorationLayer, this.jumperLayer],
+      tilemapKey: "tilemap",
+      groundLayers: ["blocks"],
+    });
+    setCssScroll(this.cameras.main, this, -650, -1000);
 
     this.backgroundSound = this.sound.add("purr", { loop: true });
     this.setDefaultSound();
@@ -197,18 +242,32 @@ export class ShelterScene extends Scene {
 
     this.scene.scene.events.once("destroy", () => {
       GameEvents.GAME_START.removeEventListener(startGameCallback);
+      // Leaked before 2e: a cat pick after leaving the Shelter ran spawnCat on the dead scene.
+      GameEvents.CAT_SPAWN.removeEventListener(catSpawnCallback);
+      this.sceneDestroyed = true;
     });
 
+    // G13 step 6: NPC_SPAWN_BATCH is one load pass. The legacy one-cat NPC_SPAWN events are
+    // coalesced into a batch for one release, so the old producer gets the same guarantees.
+    this.npcCoalescer = new NpcSpawnCoalescer<INpcSpawnEvent>((entries) =>
+      this.spawnNpcBatch(entries, "legacy")
+    );
     const npcSpawnRegularCallback = (data: ICatEvent<GameEvent.NPC_SPAWN>) => {
-      this.spawnNpc(data.detail.npc, data.detail.type);
+      if (data?.detail) this.npcCoalescer?.push(data.detail);
+    };
+    const npcSpawnBatchCallback = (data: ICatEvent<GameEvent.NPC_SPAWN_BATCH>) => {
+      this.spawnNpcBatch(data?.detail?.npcs ?? [], "batch");
     };
 
     GameEvents.NPC_SPAWN.addEventListener(npcSpawnRegularCallback);
+    GameEvents.NPC_SPAWN_BATCH.addEventListener(npcSpawnBatchCallback);
 
     GameEvents.GAME_LOADED.push({ scene: this });
 
     this.scene.scene.events.once("destroy", () => {
       GameEvents.NPC_SPAWN.removeEventListener(npcSpawnRegularCallback);
+      GameEvents.NPC_SPAWN_BATCH.removeEventListener(npcSpawnBatchCallback);
+      this.npcCoalescer?.dispose();
     });
 
     this.createAnimations();
@@ -232,7 +291,7 @@ export class ShelterScene extends Scene {
     );
 
     if (this.cat) {
-      this.physics.add.collider(
+      this.elevatorCollider = this.physics.add.collider(
         this.cat.sprite,
         this.elevator.sprite,
         this.handleElevatorCollision,
@@ -270,152 +329,223 @@ export class ShelterScene extends Scene {
     { detail: { cat } }: ICatEvent<GameEvent.CAT_SPAWN>,
     isRestart?: boolean
   ) {
-    if (this.blessing) {
-      this.blessing.setVisible(false);
-    }
-
-    const isCatExist = !cat || cat?.name === this.catDto?.name;
-    if (isCatExist && !isRestart) {
+    // Not `sys.isActive()`: it is false during create(), which spawns the first cat.
+    if (!cat || this.sceneDestroyed) return;
+    // Same cat, same skin (id key, not name: F10): nothing to do, whether it is on screen or
+    // still loading.
+    const current = this.pendingCatDto ?? this.catDto;
+    if (isSamePlayerCat(cat, current) && !isRestart) {
       return;
     }
 
-    const isCatChanged = this.catDto && this.catDto?.name !== cat?.name;
-    if (isCatChanged) {
-      this.cat = undefined;
+    this.pendingCatDto = cat;
+    const token = ++this.playerSpawnToken;
+    const report = (code: string, error: unknown) =>
+      reportAppError(code, error, { source: "manual", level: "scene", scene: "ShelterScene" });
+
+    try {
+      // The current cat stays on screen until the new sheet is in, so a failed load never
+      // leaves the shelter without a cat. Its texture goes after the swap (retirePrevious).
+      const { key, loaded, blessingKey, retirePrevious } = await loadPlayerCatTextures(this, cat, {
+        blessing: !!cat.blessing,
+        blessingUrl: cdnFile(`flare-effect/spritesheets/${cat.type}.png`),
+      });
+      if (token !== this.playerSpawnToken || !this.sys.isActive()) return;
+      this.pendingCatDto = undefined;
+      if (!loaded) {
+        report("player_texture_missing", new Error("Player cat sheet failed"));
+        return;
+      }
+
+      if (this.cat) {
+        this.elevatorCollider?.destroy();
+        this.elevatorCollider = undefined;
+        this.cat.sprite.destroy();
+        this.cat = undefined;
+      }
+      if (this.blessing) {
+        this.blessing.destroy();
+        this.blessing = undefined;
+      }
       this.catDto = cat;
-      // this.scene.restart({ cat, isRestart: true });
-      return;
-    }
 
-    this.catDto = cat;
-
-    this.load.once(
-      "complete",
-      () => {
-        if (cat.blessing) {
-          this.blessing = this.add
-            .sprite(0, 0, `blessing-${cat.type}`)
-            .setVisible(true);
-
+      let blessing: Phaser.GameObjects.Sprite | null = null;
+      if (blessingKey) {
+        blessing = this.add.sprite(0, 0, blessingKey).setVisible(true);
+        const animKey = `blessing_animation_${cat.type}`;
+        if (!this.anims.exists(animKey)) {
           this.anims.create({
-            key: `blessing_animation_${cat.type}`,
-            frames: this.anims.generateFrameNumbers(`blessing-${cat.type}`, {
+            key: animKey,
+            frames: this.anims.generateFrameNumbers(blessingKey, {
               start: 0,
               end: 59,
             }),
             frameRate: 16,
             repeat: -1,
           });
-
-          this.blessing.play(`blessing_animation_${cat.type}`);
         }
-
-        this.createCat(cat.name, this.blessing, cat.type);
-      },
-      this
-    );
-
-    if (cat.blessing) {
-      this.load.spritesheet(
-        `blessing-${cat.type}`,
-        cdnFile(`flare-effect/spritesheets/${cat.type}.png`),
-        {
-          frameWidth: 64,
-          frameHeight: 64,
-        }
-      );
-    }
-
-    this.load.spritesheet(cat.name, cat.spriteImg, {
-      frameWidth: 48,
-      frameHeight: 48,
-    });
-
-    this.load.start();
-  }
-
-  private spawnNpc(npcData: ICat, type: NPC_TYPE) {
-    this.load.once("complete", () => {
-      let spawnPosition;
-
-      if (type === NPC_TYPE.ROZINE_PEDUTE) {
-        spawnPosition = SPAWN_POSITIONS[NPC_TYPE.ROZINE_PEDUTE];
-      } else if (type === NPC_TYPE.TOKENTAILS) {
-        spawnPosition = SPAWN_POSITIONS[NPC_TYPE.TOKENTAILS];
-      } else {
-        spawnPosition = SPAWN_POSITIONS[NPC_TYPE.TOKENTAILS_2];
+        blessing.play(animKey);
+        this.blessing = blessing;
       }
 
-      // Randomized X position within the chosen range
-      const spawnX = Phaser.Math.Between(
-        spawnPosition!.x.min,
-        spawnPosition!.x.max
-      );
-      const spawnY = spawnPosition!.y;
+      this.createCat(key, blessing, cat.type);
+      retirePrevious();
+    } catch (error) {
+      if (token === this.playerSpawnToken) this.pendingCatDto = undefined;
+      report("player_spawn_error", error);
+    }
+  }
 
-      const npcCat = new NpcCat(this, spawnX, spawnY, npcData.name);
-      npcCat.originalData = {
-        ...npcData,
-      };
+  /**
+   * Storefront NPCs, one load pass per batch (G13 step 6): id keys (`npc-${_id}`), cats without
+   * a usable sheet or whose sheet fails are skipped and reported, never spawned on `__MISSING`,
+   * and a failing spawn cannot take the scene down. Answers with NPC_SPAWNED {count, skipped}.
+   */
+  private spawnNpcBatch(
+    entries: readonly INpcSpawnEvent[],
+    source: INpcSpawnedEvent["source"]
+  ) {
+    const plan = planNpcBatch<ICat, NPC_TYPE>(entries, this.npcIds);
+    plan.spawn.forEach(({ id }) => this.npcIds.add(id));
+    const blessings = blessingTypes(plan.spawn);
 
-      this.physics.add.collider(npcCat.sprite, this.groundLayer as Phaser.Tilemaps.TilemapLayer);
-      this.physics.add.collider(npcCat.sprite, this.platformsLayer as Phaser.Tilemaps.TilemapLayer);
-      this.physics.add.collider(npcCat.sprite, this.jumperLayer as Phaser.Tilemaps.TilemapLayer);
+    loadSpritesheets(
+      this,
+      [
+        ...plan.spawn.map(({ npc, textureKey }) => ({
+          key: textureKey,
+          url: npc.spriteImg,
+          frameWidth: CAT_FRAME_SIZE,
+          frameHeight: CAT_FRAME_SIZE,
+        })),
+        ...blessings.map((type) => ({
+          key: blessingTextureKey(type),
+          url: cdnFile(`flare-effect/spritesheets/${type}.png`),
+          frameWidth: BLESSING_FRAME_SIZE,
+          frameHeight: BLESSING_FRAME_SIZE,
+        })),
+      ],
+      {
+        animations: NPC_ANIMATION_NAMES,
+        // Never pull a texture out from under a live sprite (2e review).
+        isInUse: (key) => this.npcCats.some((npc) => npc.textureKey === key),
+      }
+    ).then(() => {
+      if (!this.sys.isActive()) return;
+      let count = 0;
+      let missing = 0;
+      const skippedIds = [...plan.skippedIds];
+      plan.spawn.forEach((item) => {
+        if (!this.textures.exists(item.textureKey)) {
+          missing += 1;
+          skippedIds.push(item.id);
+          this.npcIds.delete(item.id);
+          return;
+        }
+        try {
+          this.createNpc(item);
+          count += 1;
+        } catch (error) {
+          skippedIds.push(item.id);
+          this.npcIds.delete(item.id);
+          reportAppError("npc_spawn_error", error, {
+            source: "manual",
+            level: "scene",
+            scene: "ShelterScene",
+          });
+        }
+      });
+      if (missing > 0 || plan.skippedIds.length > 0) {
+        reportAppError(
+          "npc_texture_missing",
+          new Error(`${missing + plan.skippedIds.length} NPC sheets missing`),
+          {
+            source: "manual",
+            level: "scene",
+            scene: "ShelterScene",
+            skipped: missing + plan.skippedIds.length,
+          }
+        );
+      }
+      GameEvents.NPC_SPAWNED.push({
+        count,
+        skipped: skippedIds.length,
+        skippedIds,
+        source,
+        scene: "ShelterScene",
+      });
+    }).catch((error) => {
+      // Async throws skip the GameEvents crash guard; report them and free the ids for a retry.
+      plan.spawn.forEach(({ id }) => {
+        if (!this.npcCats.some((npc) => npc.originalData?._id === id)) this.npcIds.delete(id);
+      });
+      reportAppError("npc_spawn_error", error, {
+        source: "manual",
+        level: "scene",
+        scene: "ShelterScene",
+      });
+    });
+  }
 
-      if (npcData.blessing) {
-        const blessingAbility = npcData.type;
-        const blessing = this.add
-          .sprite(spawnX, spawnY, `blessing-${blessingAbility}`)
-          .setVisible(true);
+  private createNpc({ npc: npcData, type, textureKey }: PlannedNpc<ICat, NPC_TYPE>) {
+    let spawnPosition;
 
+    if (type === NPC_TYPE.ROZINE_PEDUTE) {
+      spawnPosition = SPAWN_POSITIONS[NPC_TYPE.ROZINE_PEDUTE];
+    } else if (type === NPC_TYPE.TOKENTAILS) {
+      spawnPosition = SPAWN_POSITIONS[NPC_TYPE.TOKENTAILS];
+    } else {
+      spawnPosition = SPAWN_POSITIONS[NPC_TYPE.TOKENTAILS_2];
+    }
+
+    // Randomized X position within the chosen range
+    const spawnX = Phaser.Math.Between(spawnPosition.x.min, spawnPosition.x.max);
+    const spawnY = spawnPosition.y;
+
+    const npcCat = new NpcCat(this, spawnX, spawnY, textureKey);
+    npcCat.originalData = {
+      ...npcData,
+    };
+
+    this.physics.add.collider(npcCat.sprite, this.groundLayer as Phaser.Tilemaps.TilemapLayer);
+    this.physics.add.collider(npcCat.sprite, this.platformsLayer as Phaser.Tilemaps.TilemapLayer);
+    this.physics.add.collider(npcCat.sprite, this.jumperLayer as Phaser.Tilemaps.TilemapLayer);
+
+    const blessingKey = blessingTextureKey(npcData.type);
+    if (npcData.blessing && this.textures.exists(blessingKey)) {
+      const animKey = `npc_blessing_animation_${npcData.type}`;
+      const blessing = this.add
+        .sprite(spawnX, spawnY, blessingKey)
+        .setVisible(true);
+
+      if (!this.anims.exists(animKey)) {
         this.anims.create({
-          key: `npc_blessing_animation_${blessingAbility}`,
-          frames: this.anims.generateFrameNumbers(
-            `blessing-${blessingAbility}`,
-            { start: 0, end: 59 }
-          ),
+          key: animKey,
+          frames: this.anims.generateFrameNumbers(blessingKey, { start: 0, end: 59 }),
           frameRate: 16,
           repeat: -1,
         });
-        blessing.play(`npc_blessing_animation_${blessingAbility}`);
-
-        this.time.addEvent({
-          delay: 16,
-          loop: true,
-          callback: () => {
-            if (npcCat.sprite.active) {
-              blessing.setPosition(npcCat.sprite.x, npcCat.sprite.y - 5);
-            } else {
-              blessing.destroy();
-            }
-          },
-        });
       }
+      blessing.play(animKey);
 
-      // Add this NPC cat to our local array and group
-      this.npcCats.push(npcCat);
-      this.npcGroup.add(npcCat.sprite);
-    });
-
-    // If the NPC has blessings, load the sprite for that effect
-    if (npcData.blessing) {
-      this.load.spritesheet(
-        `blessing-${npcData.type}`,
-        cdnFile(`flare-effect/spritesheets/${npcData.type}.png`),
-        {
-          frameWidth: 64,
-          frameHeight: 64,
-        }
-      );
+      const follow = this.time.addEvent({
+        delay: 16,
+        loop: true,
+        callback: () => {
+          if (npcCat.sprite.active) {
+            blessing.setPosition(npcCat.sprite.x, npcCat.sprite.y - 5);
+          } else {
+            blessing.destroy();
+            follow.remove(false);
+          }
+        },
+      });
     }
 
-    // Load the sprite sheet for the cat itself
-    this.load.spritesheet(npcData.name, npcData.spriteImg, {
-      frameWidth: 48,
-      frameHeight: 48,
-    });
-
-    this.load.start();
+    // Add this NPC cat to our local array and group
+    this.npcCats.push(npcCat);
+    this.npcGroup.add(npcCat.sprite);
+    this.look?.attachCat(npcCat.sprite);
   }
 
   private showNpcSpeechBubble(npcCat: NpcCat, message: string) {
@@ -458,7 +588,7 @@ export class ShelterScene extends Scene {
         npc.handleLoaf();
         this.showNpcSpeechBubble(
           npc,
-          `Hi, I am ${npc.sprite.texture.key}! Want to adopt me?`
+          `Hi, I am ${npc.displayName}! Want to adopt me?`
         );
       }
     } else if (!isOverlapping && this.currentlyCollidingNpc === npc) {
@@ -471,18 +601,19 @@ export class ShelterScene extends Scene {
   }
 
   private createCat(
-    catName: string,
+    textureKey: string,
     blessing: Phaser.GameObjects.Sprite | null,
     type: CatAbilityType
   ) {
-    this.cat = new Cat(this, 350, -100, catName, blessing!, type, true);
+    this.cat = new Cat(this, 350, -100, textureKey, blessing!, type, true);
     this.physics.add.collider(this.cat.sprite, this.groundLayer as Phaser.Tilemaps.TilemapLayer);
     this.physics.add.collider(
       this.cat.sprite as Phaser.Physics.Arcade.Sprite,
       this.platformsLayer as Phaser.Tilemaps.TilemapLayer
     );
     this.physics.add.collider(this.cat.sprite, this.jumperLayer as Phaser.Tilemaps.TilemapLayer);
-    this.cameras.main.startFollow(this.cat.sprite);
+    this.look?.follow(this.cat.sprite);
+    this.look?.attachCat(this.cat.sprite, { player: true });
 
     setMobileControls(this.cat);
 
@@ -490,10 +621,9 @@ export class ShelterScene extends Scene {
       this.cat.sprite,
       this.npcGroup,
       (_player, npcSprite) => {
-        const npcName = (npcSprite as Phaser.Physics.Arcade.Sprite).texture.key;
-        const npcData = { name: npcName, spriteImg: "" };
-        // Only the texture key is known here; the rest of the cat is absent.
-        this.handleNpcCollision(npcData as unknown as ICat);
+        // The texture key is an id now; the cat itself comes from the NPC list.
+        const npc = this.npcCats.find((entry) => entry.sprite === npcSprite);
+        if (npc) this.handleNpcCollision(npc.originalData);
       }
     );
   }
@@ -561,14 +691,19 @@ export class ShelterScene extends Scene {
       this.elevatorTimer = 0;
     }
 
+    const cat = this.cat;
     if (
-      this.cat &&
+      cat &&
       !this.physics.world.colliders
         .getActive()
-        .some((collider) => collider.object2 === this.elevator.sprite)
+        .some(
+          (collider) =>
+            collider.object1 === cat.sprite &&
+            collider.object2 === this.elevator.sprite
+        )
     ) {
-      this.physics.add.collider(
-        this.cat.sprite,
+      this.elevatorCollider = this.physics.add.collider(
+        cat.sprite,
         this.elevator.sprite,
         this.handleElevatorCollision,
         undefined,
@@ -614,6 +749,7 @@ export class ShelterScene extends Scene {
     if (index > -1) {
       npc.destroy();
       this.npcCats.splice(index, 1);
+      if (npc.originalData?._id) this.npcIds.delete(npc.originalData._id);
     }
   }
 }

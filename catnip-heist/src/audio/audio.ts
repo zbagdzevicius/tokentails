@@ -17,6 +17,8 @@ export interface HeistAudio extends AudioAPI {
   /** Map one tick's SimEvents to sound effects. */
   playEvents(events: readonly SimEvent[]): void;
   setVolume(sfx: number, music: number): void;
+  /** `persist: false` applies the mute for this page only (the embed host's setting). */
+  setMuted(muted: boolean, persist?: boolean): void;
   readonly unlocked: boolean;
   dispose(): void;
 }
@@ -29,6 +31,10 @@ export interface AudioOptions {
 }
 
 const MUTE_KEY = 'catnip-heist.muted';
+
+/** The authored mix: bus gains before any player or host setting. */
+export const HEIST_SFX_VOLUME = 0.9;
+export const HEIST_MUSIC_VOLUME = 0.45;
 
 type Ctx = AudioContext;
 
@@ -57,8 +63,8 @@ export function createAudio(opts: AudioOptions = {}): HeistAudio {
   let sfxBus: GainNode | null = null;
   let musicBus: GainNode | null = null;
   let noise: AudioBuffer | null = null;
-  let sfxVol = 0.9;
-  let musicVol = 0.45;
+  let sfxVol = HEIST_SFX_VOLUME;
+  let musicVol = HEIST_MUSIC_VOLUME;
   let wantMusic = false;
   let musicTimer: ReturnType<typeof setInterval> | null = null;
   let nextStepTime = 0;
@@ -276,6 +282,12 @@ export function createAudio(opts: AudioOptions = {}): HeistAudio {
     click(t, out) {
       tone('square', 1400, 1100, t, 0.025, 0.04, out, 0.001);
     },
+    // Sentry turn telegraph: a soft rising two-note "tick-tock" about 0.8 s before the turn.
+    sentry(t, out) {
+      tone('triangle', 660, 660, t, 0.07, 0.07, out, 0.003);
+      tone('triangle', 880, 900, t + 0.16, 0.09, 0.08, out, 0.003);
+      noiseBurst(t + 0.16, 0.03, 0.03, 'highpass', 3000, 0.8, out);
+    },
   };
 
   function play(name: SfxName) {
@@ -405,9 +417,9 @@ export function createAudio(opts: AudioOptions = {}): HeistAudio {
       wantMusic = false;
       stopLoop();
     },
-    setMuted(m) {
+    setMuted(m, persistThis = true) {
       muted = m;
-      if (persist) writeMuted(m);
+      if (persist && persistThis) writeMuted(m);
       if (ctx && master) {
         master.gain.cancelScheduledValues(ctx.currentTime);
         master.gain.setTargetAtTime(m ? 0 : 1, ctx.currentTime, 0.03);

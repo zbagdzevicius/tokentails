@@ -1,5 +1,4 @@
 import { Body, Controller, Delete, Get, NotFoundException, Param, Post, Put, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { Category } from 'src/category/category.schema';
 import { pickSearchParams, SearchModel } from 'src/common/validators';
 import { PermissionGuard } from 'src/shared/guards/permission.guard';
@@ -8,6 +7,7 @@ import { IController } from '../shared/interfaces/controller.interface';
 import { getSlug } from '../shared/utils/content.utils';
 import { CategoryRepository } from './category.repository';
 import { IResponse, RESPONSES } from 'src/shared/constants/common';
+import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 
 @Controller('category')
 export class CategoryController implements IController<Category> {
@@ -97,13 +97,13 @@ export class CategoryController implements IController<Category> {
         });
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.EDITOR))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.EDITOR))
     @Post('')
     public async create(@Body() object: Category): Promise<Category> {
         return this.repository.create({ ...object, slug: getSlug(object.name) });
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.EDITOR))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.EDITOR))
     @Put(':slug')
     public async update(@Param('slug') slug: string, @Body() object: Category): Promise<Category> {
         const existingEntity = await this.repository.findOne({
@@ -116,7 +116,7 @@ export class CategoryController implements IController<Category> {
         return this.repository.update(existingEntity?._id, object);
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.MANAGER))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.MANAGER))
     @Delete(':slug')
     public async delete(@Param('slug') slug: string): Promise<IResponse> {
         const entity = await this.repository.findOne({ searchObject: { slug }, projection: '_id' });

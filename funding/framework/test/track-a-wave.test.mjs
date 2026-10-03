@@ -162,3 +162,49 @@ test('ingest: records the payout token from the constructor argument; EURC wave 
   const usdcAlpha = (await W.waveRanking({})).find((r) => r.chain === 'alpha');
   assert.deepEqual(usdcAlpha.deployed, [SPLIT]);
 });
+
+test('ingest: a deploy whose forge receipt failed or is missing is never recorded or published', async () => {
+  const dep = join(project, 'broadcast', 'DeployShelterSplit.s.sol', '222');
+  mkdirSync(dep, { recursive: true });
+  const DEAD = '0x' + '5a'.repeat(20);
+  const H = '0x' + '06'.repeat(32);
+  const create = { transactionType: 'CREATE', contractName: 'ShelterSplit', contractAddress: DEAD, hash: H, arguments: [USDC, '0x' + '33'.repeat(20), '0x' + '44'.repeat(20)] };
+  for (const receipts of [[{ transactionHash: H, status: '0x0' }], []]) {
+    writeFileSync(join(dep, 'run-latest.json'), JSON.stringify({ transactions: [create], receipts }));
+    const f = (await W.scanBroadcasts({})).find((x) => x.chain === 'beta');
+    assert.equal(f.mined, receipts.length ? 'failed' : 'pending');
+    await W.waveCommands['a:ingest'].run({ args: [], flags: {} });
+    const list = JSON.parse(readFileSync(join(tmp, 'deployments.json'), 'utf8'));
+    assert.ok(!list.some((d) => d.address === DEAD), 'failed deploy not recorded');
+    assert.ok(!JSON.parse(readFileSync(published, 'utf8')).some((d) => d.address === DEAD), 'failed deploy not published');
+  }
+  writeFileSync(join(dep, 'run-latest.json'), JSON.stringify({ transactions: [create], receipts: [{ transactionHash: H, status: '0x1' }] }));
+  assert.equal((await W.scanBroadcasts({})).find((x) => x.chain === 'beta').mined, 'ok');
+});
+
+test('publish: a second-token instance carries its symbol and decimals', () => {
+  const pub = JSON.parse(readFileSync(published, 'utf8'));
+  const eurc = pub.find((d) => d.address === SPLIT2);
+  assert.equal(eurc.symbol, 'EURC');
+  assert.equal(eurc.decimals, 6);
+  assert.equal(pub.find((d) => d.address === SPLIT).symbol, undefined);
+});
+
+test('script: proof inputs checked up front, empty arrays safe under bash 3.2 set -u, re-run guard', async () => {
+  const s = W.waveScript(await W.waveRanking({}), { project, root: tmp, date: '2026-10-02' });
+  assert.match(s, /PROOF_SHELTER is set: export PROOF_AMOUNT/);
+  assert.doesNotMatch(s, /"\$\{fa\[@\]\}"(?!\})/, 'macOS bash 3.2 aborts on "${fa[@]}" when fa is empty');
+  assert.match(s, /\$\{fa\[@\]\+"\$\{fa\[@\]\}"\}/);
+  assert.match(s, /FORCE_REDEPLOY/);
+  assert.ok(s.indexOf('SELF=') < s.indexOf('cd "$PROJECT"'), 'SELF resolved before cd');
+});
+
+test('script: a re-run retries a missing proof payout on an already-deployed chain and still ingests', async () => {
+  const s = W.waveScript(await W.waveRanking({}), { project, root: tmp, date: '2026-10-02' });
+  const skip = s.slice(s.indexOf('skip: already deployed'), s.indexOf('if SHELTERSPLIT_TOKEN='));
+  assert.match(skip, /PRIOR\+=\("\$chain"\)/);
+  assert.match(skip, /! proof_done "\$id"; then maybe_proof/);
+  assert.match(s, /proof_done\(\) \{/);
+  assert.match(s, /maybe_proof\(\) \{[\s\S]*?tr A-F a-f[\s\S]*?proof needs the owner key/, 'owner check shared by both paths');
+  assert.match(s, /\$\(\( \$\{#OK\[@\]\} \+ \$\{#PRIOR\[@\]\} \)\) -gt 0 \] && \(cd "\$FUND_ROOT" && node bin\/fund\.mjs a:ingest/);
+});

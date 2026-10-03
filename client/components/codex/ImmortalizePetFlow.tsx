@@ -46,7 +46,7 @@ const PET_ART_FLOW_STEPS = [
   {
     title: "Complete Purchase",
     detail:
-      "Pay with card or web3 to mint the portrait and unlock in-game perks.",
+      "Pay by card or crypto to create the portrait and unlock in-game perks.",
     icon: "icons/gift.png",
     eta: "5s",
     reward: "Permanent in-game unlock",
@@ -293,7 +293,7 @@ export const ImmortalizePetFlow = ({
   };
 
   return (
-    <div className="w-full rounded-2xl border-4 border-yellow-300 bg-gradient-to-r from-yellow-100 to-pink-100 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(120,53,15,0.2)]">
+    <div className="w-full rounded-2xl border-4 border-tt-cream bg-gradient-to-r from-yellow-100 to-pink-100 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(120,53,15,0.2)]">
       <img
         src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
         className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-multiply"
@@ -306,14 +306,14 @@ export const ImmortalizePetFlow = ({
       />
       <div className="relative z-10">
         <div className="flex items-center justify-between gap-2">
-          <span className="rounded-lg border-2 border-yellow-900 bg-gradient-to-r from-yellow-300 to-yellow-100 px-2 py-0.5 font-primary text-p5 md:text-p4 font-bold text-yellow-900">
+          <span className="rounded-lg border-2 border-yellow-900 bg-gradient-to-r from-tt-cream to-yellow-100 px-2 py-0.5 font-primary text-p5 md:text-p4 font-bold text-tt-gold-ink">
             IMMORTALIZE YOUR REAL PET
           </span>
-          {!isApp && <Tag isSmall>$6 DIGITAL</Tag>}
+          {!isApp && <Tag size="sm">$6 DIGITAL</Tag>}
         </div>
-        <div className="mt-2 rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-3 py-2 font-primary text-p6 md:text-p5 text-yellow-900">
-          Upload a real pet photo, generate a stylized portrait and card of your
-          pet, then purchase with card or web3.
+        <div className="mt-2 rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-3 py-2 font-primary text-p6 md:text-p5 text-tt-gold-ink">
+          Upload a photo of your pet and we turn it into a stylized portrait
+          and a collectible card.
         </div>
 
         <div className="mt-3 grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-3">
@@ -332,7 +332,7 @@ export const ImmortalizePetFlow = ({
                 />
               }
             />
-            <div className="mt-2 rounded-lg border border-yellow-900 bg-yellow-100/95 px-2 py-1 font-primary text-p6 md:text-p5 text-yellow-900">
+            <div className="mt-2 rounded-lg border border-yellow-900 bg-yellow-100/95 px-2 py-1 font-primary text-p6 md:text-p5 text-tt-gold-ink">
               Active style: {STYLE_LABELS[selectedStyle]}
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -346,8 +346,8 @@ export const ImmortalizePetFlow = ({
                     ? "REGENERATE"
                     : "GENERATE PORTRAIT"
                 }
-                isSmall
-                isDisabled={!canGenerate}
+                size="sm"
+                disabled={!canGenerate}
                 onClick={
                   generatedImageId && generatedImageUrl
                     ? regeneratePortrait
@@ -357,7 +357,7 @@ export const ImmortalizePetFlow = ({
               {(generatedImageId ||
                 generatedImageUrl ||
                 uploadedPreviewUrl) && (
-                <PixelButton isSmall text="RESET" onClick={resetFlow} />
+                <PixelButton size="sm" text="RESET" onClick={resetFlow} />
               )}
             </div>
           </div>
@@ -367,10 +367,10 @@ export const ImmortalizePetFlow = ({
               <div className="flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-yellow-900 bg-yellow-100/90 p-5 min-h-[420px]">
                 <div className="h-10 w-10 rounded-full border-4 border-yellow-900/30 border-t-yellow-900 animate-spin" />
                 <div className="w-full text-center">
-                  <div className="font-primary text-p5 md:text-p4 font-bold text-yellow-900 uppercase tracking-wide">
+                  <div className="font-primary text-p5 md:text-p4 font-bold text-tt-gold-ink uppercase tracking-wide">
                     {isRegenerating ? "Refining Portrait" : "Creating Portrait"}
                   </div>
-                  <div className="mt-1 font-primary text-p6 md:text-p5 text-yellow-900">
+                  <div className="mt-1 font-primary text-p6 md:text-p5 text-tt-gold-ink">
                     {generationMessage || "Preparing canvas..."}
                   </div>
                 </div>
@@ -381,7 +381,7 @@ export const ImmortalizePetFlow = ({
                       style={{ width: `${generationProgress}%` }}
                     />
                   </div>
-                  <div className="mt-1 text-center font-primary text-p6 md:text-p5 text-yellow-900">
+                  <div className="mt-1 text-center font-primary text-p6 md:text-p5 text-tt-gold-ink">
                     {Math.round(generationProgress)}%
                   </div>
                 </div>
@@ -420,7 +420,7 @@ export const ImmortalizePetFlow = ({
                     </>
                   )}
                 </div>
-                <div className="mt-2 rounded-lg border border-yellow-900 bg-yellow-100/95 px-2 py-1 font-primary text-p6 md:text-p5 text-yellow-900">
+                <div className="mt-2 rounded-lg border border-yellow-900 bg-yellow-100/95 px-2 py-1 font-primary text-p6 md:text-p5 text-tt-gold-ink">
                   Includes high-resolution digital portrait and in-game pet
                   unlock.
                 </div>
@@ -434,7 +434,7 @@ export const ImmortalizePetFlow = ({
                     <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
                       <span className="-ml-2">
                         <PixelButton
-                          isSmall
+                          size="sm"
                           className="!m-0"
                           text="CARD"
                           active={paymentMethod === "stripe"}
@@ -443,7 +443,7 @@ export const ImmortalizePetFlow = ({
                       </span>
                       <span className="-ml-2">
                         <PixelButton
-                          isSmall
+                          size="sm"
                           className="!m-0"
                           text="WEB3"
                           active={paymentMethod === "crypto"}
@@ -507,14 +507,14 @@ export const ImmortalizePetFlow = ({
                       />
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="rounded-lg border-2 border-yellow-900 bg-gradient-to-r from-yellow-300 to-yellow-100 px-2 py-0.5 font-primary text-p5 md:text-p4 font-bold text-yellow-900">
+                          <span className="rounded-lg border-2 border-yellow-900 bg-gradient-to-r from-tt-cream to-yellow-100 px-2 py-0.5 font-primary text-p5 md:text-p4 font-bold text-tt-gold-ink">
                             DIGITAL PORTRAIT FLOW
                           </span>
-                          <span className="rounded-lg border-2 border-yellow-900 bg-yellow-100 px-2 py-0.5 font-primary text-p6 md:text-p5 text-yellow-900 font-bold">
+                          <span className="rounded-lg border-2 border-yellow-900 bg-yellow-100 px-2 py-0.5 font-primary text-p6 md:text-p5 text-tt-gold-ink font-bold">
                             READY IN ~60S
                           </span>
                         </div>
-                        <div className="mt-1 font-primary text-p6 md:text-p5 text-yellow-900 leading-tight">
+                        <div className="mt-1 font-primary text-p6 md:text-p5 text-tt-gold-ink leading-tight">
                           Turn your real pet into a premium in-game collectible
                           and unlock extra progression value.
                         </div>
@@ -535,7 +535,7 @@ export const ImmortalizePetFlow = ({
                             <div className="absolute left-[18px] top-9 h-[calc(100%-28px)] w-[2px] bg-yellow-900/20" />
                           )}
                           <div className="flex items-start gap-2">
-                            <div className="h-7 w-7 shrink-0 rounded-md border-2 border-yellow-900 bg-gradient-to-br from-yellow-300 to-orange-300 text-yellow-900 font-primary text-p6 md:text-p5 font-bold flex items-center justify-center">
+                            <div className="h-7 w-7 shrink-0 rounded-md border-2 border-yellow-900 bg-gradient-to-br from-tt-cream to-orange-300 text-tt-gold-ink font-primary text-p6 md:text-p5 font-bold flex items-center justify-center">
                               {index + 1}
                             </div>
                             <div className="h-7 w-7 shrink-0 rounded-md border border-yellow-900 bg-yellow-100 flex items-center justify-center">
@@ -547,17 +547,17 @@ export const ImmortalizePetFlow = ({
                             </div>
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-1.5">
-                                <div className="font-primary text-p6 md:text-p5 font-bold text-yellow-900">
+                                <div className="font-primary text-p6 md:text-p5 font-bold text-tt-gold-ink">
                                   {step.title}
                                 </div>
-                                <span className="rounded-md border border-yellow-900 bg-yellow-100 px-1.5 py-[1px] font-primary text-p6 md:text-p5 text-yellow-900">
+                                <span className="rounded-md border border-yellow-900 bg-yellow-100 px-1.5 py-[1px] font-primary text-p6 md:text-p5 text-tt-gold-ink">
                                   {step.eta}
                                 </span>
                               </div>
-                              <div className="font-primary text-p6 md:text-p5 text-yellow-900 leading-tight">
+                              <div className="font-primary text-p6 md:text-p5 text-tt-gold-ink leading-tight">
                                 {step.detail}
                               </div>
-                              <div className="mt-1 inline-flex rounded-md border border-yellow-900 bg-white/80 px-1.5 py-[1px] font-primary text-p6 md:text-p5 text-yellow-900">
+                              <div className="mt-1 inline-flex rounded-md border border-yellow-900 bg-white/80 px-1.5 py-[1px] font-primary text-p6 md:text-p5 text-tt-gold-ink">
                                 Reward: {step.reward}
                               </div>
                             </div>
@@ -575,23 +575,23 @@ export const ImmortalizePetFlow = ({
                         alt="reward mascot"
                       />
                       <div>
-                        <div className="font-primary text-p6 md:text-p5 font-bold text-yellow-900">
+                        <div className="font-primary text-p6 md:text-p5 font-bold text-tt-gold-ink">
                           REWARD PATH
                         </div>
-                        <div className="font-primary text-p6 md:text-p5 text-yellow-900 leading-tight">
-                          Each immortalized portrait strengthens your
-                          progression position before airdrop claims.
+                        <div className="font-primary text-p6 md:text-p5 text-tt-gold-ink leading-tight">
+                          Each immortalized portrait joins your collection
+                          and unlocks the pet in game.
                         </div>
                       </div>
                     </div>
                     <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-1.5">
-                      <div className="rounded-md border border-yellow-900 bg-yellow-50/95 px-2 py-1 font-primary text-p6 md:text-p5 text-yellow-900">
+                      <div className="rounded-md border border-yellow-900 bg-yellow-50/95 px-2 py-1 font-primary text-p6 md:text-p5 text-tt-gold-ink">
                         + Collectible depth
                       </div>
-                      <div className="rounded-md border border-yellow-900 bg-yellow-50/95 px-2 py-1 font-primary text-p6 md:text-p5 text-yellow-900">
-                        + Tier progression signal
+                      <div className="rounded-md border border-yellow-900 bg-yellow-50/95 px-2 py-1 font-primary text-p6 md:text-p5 text-tt-gold-ink">
+                        + Gallery spotlight
                       </div>
-                      <div className="rounded-md border border-yellow-900 bg-yellow-50/95 px-2 py-1 font-primary text-p6 md:text-p5 text-yellow-900">
+                      <div className="rounded-md border border-yellow-900 bg-yellow-50/95 px-2 py-1 font-primary text-p6 md:text-p5 text-tt-gold-ink">
                         + In-game pet unlock
                       </div>
                     </div>

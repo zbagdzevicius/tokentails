@@ -1,0 +1,227 @@
+# Build and test gate for every package (plan F1). Runs on pull requests and on pushes to main
+# (a push to a PR branch is covered by its pull_request run, so PRs are not built twice).
+# - Build and test only: nothing here deploys, uploads or publishes. The Heist Pages deploy stays in
+#   catnip-heist-pages.yml (manual), and this workflow does not duplicate it.
+# - Making these jobs required checks on `main` is a repository setting (Settings > Branches), done
+#   by a maintainer once the jobs are green. See docs/plans/alignment-log/1a.md.
+# - Jobs added by later tasks: `sync-fonts --check` in `contracts`, `check-palette.mjs` and
+#   `check-meta.mjs` in `bundle-guards`, the Heist vendored-sim sha check in `heist`.
+# - `contracts` runs `fund facts build --check` (task 2c, plan F7.1): the facts registry is valid,
+#   every generated copy matches it, and the campaign goal is reachable at the configured cap.
+#   Date-dependent fact checks (staleness, chain reconciliation) run weekly in facts-weekly.yml,
+#   never here.
+# - `copy-lint` (task 2c, plan F11) is a failing check since task 7b: any finding fails the job.
+#   Findings are also annotations and the job summary. GitHub shows only a capped number of
+#   annotations per step, so the job summary (and the uploaded report) is the full list.
+#   Rules: docs/CLAIMS.md.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Superseded PR runs are cancelled; runs on main always finish, so every main commit gets a result.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: 22
+  # Public values only. The e2e fixtures mock this origin, so no test reaches a real backend.
+  NEXT_PUBLIC_BE_URL: http://localhost:3005
+  NEXT_PUBLIC_DOMAIN: http://localhost:3001
+  NEXT_TELEMETRY_DISABLED: 1
+
+jobs:
+  contracts:
+    name: contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Generated shared contracts are in sync
+        run: node scripts/sync-contracts.mjs --check
+      - name: Sync script tests
+        run: node --test 'scripts/__tests__/*.test.mjs'
+      - name: Facts registry and generated copies are in sync, goals reachable
+        run: node funding/framework/bin/fund.mjs facts build --check
+      # All framework tests, not only facts.test.mjs: the generated FACTS.md feeds verify.mjs and the
+      # track tests (task 2c changed track-b.test.mjs and verify.test.mjs when F-011 was verified).
+      # One test file at a time: verify.test.mjs checks links against a local server with short
+      # timeouts, and parallel files on a loaded runner can miss them (a flaky failure, pass-5 review).
+      - name: Funding framework tests (facts generator, verify, tracks)
+        run: node --test --test-concurrency=1 'funding/framework/test/*.test.mjs'
+
+  backend:
+    name: backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test
+
+  client:
+    name: client
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    env:
+      # Test hooks (forced crashes, window.__TT_TEST__) exist only in this build. The
+      # bundle-guards job builds without it and fails if any hook marker ships.
+      NEXT_PUBLIC_E2E: 1
+      E2E_BASE_URL: http://localhost:3001
+      E2E_API_URL: http://localhost:3005
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      # The e2e harness has its own project (e2e/tsconfig.json) so the app build never depends on
+      # @playwright/test types. Needs `e2e` and `playwright.config.ts` in the root tsconfig exclude.
+      - name: Type-check the e2e harness
+        run: npx tsc -p e2e --noEmit
+      - run: npx eslint .
+      - run: npm test
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Build for e2e
+        run: npm run build
+      - name: End-to-end tests
+        # CI=true makes playwright.config.ts serve the build with `next start` on :3001.
+        run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: client-playwright-report
+          path: |
+            client/playwright-report
+            client/test-results
+          retention-days: 7
+
+  cms:
+    name: cms
+    runs-on: ubuntu-latest
+    # The CMS receives generated shared contracts too, so a shared change that breaks its types or
+    # tests must fail here.
+    defaults:
+      run:
+        working-directory: cms
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: cms/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm test
+
+  heist:
+    name: heist
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: catnip-heist
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: catnip-heist/package-lock.json
+      - run: npm ci
+      - run: npx vitest run
+      # Type-checks and builds into client/public/heist on the runner only; nothing is committed
+      # or deployed.
+      - run: npm run build:client
+
+  copy-lint:
+    name: copy-lint
+    runs-on: ubuntu-latest
+    # Failing check (task 7b): a tone, claim or app-build finding fails the job. Fix the copy, cite
+    # a claim id, or mark genuine fiction (`// claim:fiction <reason>`); see docs/CLAIMS.md.
+    defaults:
+      run:
+        working-directory: tools/copy-lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tools/copy-lint/package-lock.json
+      - run: npm ci
+      - name: Copy-lint tests (seed fixtures must fail, rewritten lines pass)
+        run: npm test
+      - name: Tone and claims lint
+        run: node bin/copy-lint.mjs --format github
+      - name: Report to the job summary
+        if: always()
+        run: |
+          node bin/copy-lint.mjs --warn --format markdown --out copy-lint-report.md > /dev/null
+          cat copy-lint-report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: copy-lint-report
+          path: tools/copy-lint/copy-lint-report.md
+          retention-days: 14
+
+  bundle-guards:
+    name: bundle-guards
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+      # Plan G6 guard (task 3d): night palette and overlay layers. Blocking since task 7b; the few
+      # genuine exceptions are in client/scripts/check-palette.allowlist.json, each with a reason.
+      - name: Palette guard
+        run: node scripts/check-palette.mjs
+      - name: Production web build (no test hooks)
+        env:
+          NEXT_PUBLIC_E2E: ''
+          NEXT_PUBLIC_CAPTURE: ''
+        run: npm run build
+      # scripts/check-bundle-hooks.mjs: __TT_TEST__ (plan F1 name), __TT_E2E* (the fake Firebase,
+      # the game and FTUE hooks), __TT_CAPTURE__ (capture mode) and the forced-crash messages. Each
+      # hook is behind an inlined NODE_ENV / NEXT_PUBLIC_E2E check, so a production build drops it.
+      - name: No test or capture hooks in the production bundle
+        run: node scripts/check-bundle-hooks.mjs .next/static
+      - name: App (Capacitor) export build
+        env:
+          NEXT_PUBLIC_E2E: ''
+          NEXT_PUBLIC_CAPTURE: ''
+        run: npm run build:app
+      - name: No test or capture hooks in the app export
+        run: node scripts/check-bundle-hooks.mjs out/_next/static
+      - run: node scripts/check-app-export.mjs

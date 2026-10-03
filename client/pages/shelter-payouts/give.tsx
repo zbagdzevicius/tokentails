@@ -1,34 +1,31 @@
-import { bgStyle, cdnFile } from "@/constants/utils";
+import { isAppBuild } from "@/components/claims/build";
+import { SeoHead } from "@/components/seo/SeoHead";
 import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
 import dynamic from "next/dynamic";
-import Head from "next/head";
 
 // Reads the session token and the router query; render it in the browser only.
 const GiveTreat = dynamic(() => import("@/components/shelter-payouts/GiveTreat"), {
   ssr: false,
 });
 
+const isApp = isAppBuild();
+// claim: C-004, L-rail (the treat size and the rail it travels on). App builds name no coin or chain.
+const DESCRIPTION = isApp
+  ? "Tap and Token Tails sends a cat shelter a small treat."
+  : "Tap and Token Tails sends a cat shelter a small USDC treat, split on-chain by ShelterSplit.";
+
 const GivePage = () => (
-  <div>
-    <Head>
-      <title>Token Tails - Send a rescue treat</title>
-      <meta property="og:image" content={cdnFile("logo/ogg.jpg")} />
-      <meta property="og:title" content="Token Tails - Send a rescue treat" key="title" />
-      <meta
-        name="description"
-        content="One tap sends a small USDC treat to a cat shelter, split on-chain by ShelterSplit."
-      />
-      <link rel="shortcut icon" href={cdnFile("logo/logo.webp")} />
-    </Head>
+  <div className="bg-tt-night-900">
+    <SeoHead
+      title="Token Tails - Send a rescue treat"
+      description={DESCRIPTION}
+      path="/shelter-payouts/give"
+    />
     <Header />
-    <div
-      className="pt-20 md:pt-24 fade-in min-h-screen relative flex flex-col items-center"
-      style={bgStyle("6")}
-      id="shelter-give"
-    >
-      <FirebaseAuthProvider>
+    <div className="fade-in min-h-screen relative flex flex-col items-center" id="shelter-give">
+      <FirebaseAuthProvider authMode="optional">
         <GiveTreat />
       </FirebaseAuthProvider>
     </div>

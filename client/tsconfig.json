@@ -36,7 +36,10 @@
   ],
   "exclude": [
     "node_modules",
+    ".next-*",
     "portrait-creator-studio",
-    "forever-feline"
+    "forever-feline",
+    "e2e",
+    "playwright.config.ts"
   ]
 }

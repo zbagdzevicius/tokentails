@@ -1,29 +1,20 @@
 import Stats from "@/components/stats/Stats";
-import { bgStyle, cdnFile } from "@/constants/utils";
+import { SeoHead } from "@/components/seo/SeoHead";
+import { bgStyle } from "@/constants/utils";
 import { Footer } from "@/layouts/Footer";
 import { Header } from "@/layouts/Header";
-import Head from "next/head";
 
-const Airdrop = () => {
+const StatsPage = () => {
   return (
     <div>
-      <Head>
-        <title>Token Tails - Stats</title>
-        <meta property="og:image" content={cdnFile("logo/ogg.jpg")} />
-        <meta
-          property="og:title"
-          content="Token Tails - Play to Save"
-          key="title"
-        />
-        <meta
-          name="description"
-          content="PLAY WITH YOUR VIRTUAL CAT TO SAVE A CAT IN A SHELTER"
-        />
-        <link rel="shortcut icon" href={cdnFile("logo/logo.webp")} />
-      </Head>
+      <SeoHead
+        title="Token Tails - Stats"
+        description="Token Tails numbers from the hourly impact snapshot, each with its date and source."
+        path="/stats"
+      />
       <Header />
       <div
-        className="pt-20 md:pt-24 fade-in min-h-screen relative flex flex-col items-center"
+        className="pt-20 md:pt-24 fade-in min-h-screen relative flex flex-col items-center bg-tt-night-900"
         style={bgStyle("6")}
         id="stats"
       >
@@ -35,4 +26,4 @@ const Airdrop = () => {
   );
 };
 
-export default Airdrop;
+export default StatsPage;

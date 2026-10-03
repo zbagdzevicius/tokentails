@@ -23,8 +23,9 @@ import { markRange, MeowWaves, Particles, Rings } from './fx';
 import { LevelView, tileCenter } from './level';
 import { ALERT_ART, CHEVRON_ART, QUESTION_ART, voxelArt } from './pixelart';
 import { glowTexture } from './textures';
-import { compileLevel, inBounds, isOpaque, lineOfSight, type CompiledLevel } from '../sim/grid';
+import { compileLevel, inBounds, isOpaque, isOpenTile, lineOfSight, type CompiledLevel } from '../sim/grid';
 import { VisionCones, type ConeInput } from './vision';
+import { TELEGRAPH_TICKS, sentryTurnAhead } from '../sim/telegraph';
 import { loadManifest, loadVoxelSheet, prewarmSheet, rowIndex, type VoxelSheet } from './voxel/sheets';
 
 export const BUDGET = { calls: 150, triangles: 150_000 };
@@ -55,6 +56,11 @@ const MODE_COLORS: Record<GuardMode, { color: THREE.Color; alpha: number }> = {
   INVESTIGATE: { color: new THREE.Color('#ff7a1a'), alpha: 0.4 },
   ALERT: { color: new THREE.Color('#ff2e22'), alpha: 0.46 },
 };
+
+/** Ghost cone of a sentry about to turn (telegraph): pale amber, fades in over the warning. */
+const GHOST_COLOR = new THREE.Color('#fff0a8');
+/** Tiles from the camera target within which a key, crate, exit or plate counts as "seen". */
+const SEEN_RADIUS = 7.5;
 
 const MAX_BLOBS = 16;
 /**
@@ -137,7 +143,20 @@ export class GameRenderer implements RendererAPI {
   private cones: VisionCones | null = null;
   private readonly coneInputs: ConeInput[] = [];
   private readonly particles = new Particles();
-  private readonly rings = new Rings(10);
+  private readonly rings = new Rings(16);
+  /** Cone slot of each guard's telegraph ghost cone (-1: not a turning sentry). */
+  private ghostOf: number[] = [];
+  /** Tick of the turn each sentry was last warned about (one ring pulse per warning). */
+  private warnedTurn: number[] = [];
+  /** Objectives already highlighted this run: [0] key, [1] crate, [2] exit, [3 + i] plate i. */
+  private seenThings = new Uint8Array(3);
+  /** Next time (render seconds) a repeating floor cue may pulse: plate i, then guard gi's ear ring. */
+  private cueAt = new Float64Array(0);
+  /** Next time the 'gap is over here' cue may pulse, and the sim tick it last looked at. */
+  private gapCueAt = 0;
+  private gapCueTick = -1;
+  /** Sim tick the floor cues were last evaluated for. */
+  private cueTick = -1;
   private readonly waves = new MeowWaves(4);
   private catIds: string[] = [];
   private cats: (CatView | null)[] = [null, null];
@@ -409,11 +428,20 @@ export class GameRenderer implements RendererAPI {
     this.scene.add(this.level.group);
     this.track(this.level.ready);
     this.waves.setSize(level.tiles[0]?.length ?? 1, level.tiles.length);
-    this.cones = new VisionCones(level.guards.length, Math.max(1, ...level.guards.map((g) => g.visionTiles)));
+    // One cone slot per guard, plus a ghost slot per turning sentry for the turn telegraph.
+    this.ghostOf = level.guards.map(() => -1);
+    let slots = level.guards.length;
+    level.guards.forEach((g, i) => {
+      if (g.waypoints.length === 1 && g.turns && g.turns.length > 1) this.ghostOf[i] = slots++;
+    });
+    this.warnedTurn = level.guards.map(() => -1);
+    this.seenThings = new Uint8Array(3 + level.plates.length);
+    this.cueAt = new Float64Array(level.plates.length + level.guards.length);
+    this.cones = new VisionCones(slots, Math.max(1, ...level.guards.map((g) => g.visionTiles)));
     this.scene.add(this.cones.mesh);
     this.coneInputs.length = 0;
-    for (let i = 0; i < level.guards.length; i++) {
-      this.coneInputs.push({ x: 0, z: 0, fx: 1, fz: 0, radius: 0, color: MODE_COLORS.PATROL.color, alpha: 0, visible: false });
+    for (let i = 0; i < slots; i++) {
+      this.coneInputs.push({ x: 0, z: 0, fx: 1, fz: 0, radius: 0, color: i < level.guards.length ? MODE_COLORS.PATROL.color : GHOST_COLOR, alpha: 0, visible: false });
     }
     this.resetRun();
     // Guards: one sheet per distinct dog sprite.
@@ -595,8 +623,11 @@ export class GameRenderer implements RendererAPI {
       ci.alpha = gs.mode === 'ALERT' ? mc.alpha * (0.8 + 0.2 * Math.sin(this.time * 14)) : mc.alpha;
       ci.visible = !cur.won;
     }
+    this.updateTelegraph(cur);
     this.cones?.setTime(this.time, this.post ? 2.4 : 1);
     this.cones?.update(this.coneInputs, this.sees, doorKey);
+    this.updateCues(cur);
+    this.updateGapCue(cur);
 
     if (newTick || this.observed.length) this.handleEvents(prev, cur);
     this.updateRescue(prev, cur, a, dt);
@@ -757,6 +788,11 @@ export class GameRenderer implements RendererAPI {
 
   private resetRun(): void {
     this.particles.clear();
+    this.rings.clear();
+    this.seenThings.fill(0);
+    this.cueAt.fill(0);
+    this.cueTick = -1;
+    this.warnedTurn.fill(-1);
     this.lastTick = -1;
     this.lastEventTick = -1;
     this.lastActive = -1;
@@ -870,7 +906,19 @@ export class GameRenderer implements RendererAPI {
         break;
       }
       case 'PLATE': {
-        if (tile && e.open !== false) this.rings.spawn(tile.x, tile.z, PALETTE.pink, 0.2, 0.9, 0.35, 0.7);
+        if (tile && e.open !== false && lvl) {
+          const pi = lvl.plates.findIndex((p) => p.id === e.id);
+          const color = pi >= 0 && this.level ? this.level.plateColor(pi) : PALETTE.pink;
+          this.rings.spawn(tile.x, tile.z, color, 0.2, 0.9, 0.35, 0.8);
+          // Show which door this plate holds: a pulse in the link colour on each linked door.
+          for (const did of pi >= 0 ? lvl.plates[pi].doors : []) {
+            const d = lvl.doors.find((x) => x.id === did);
+            if (!d) continue;
+            const dc = tileCenter(d.tile);
+            this.rings.spawn(dc.x, dc.z, color, 0.3, 1.5, 0.7, 0.9);
+            this.particles.sparkle(dc.x, dc.z, color);
+          }
+        }
         break;
       }
       case 'MEOW': {
@@ -920,6 +968,148 @@ export class GameRenderer implements RendererAPI {
       }
       default:
         break;
+    }
+  }
+
+  /**
+   * Sentry turn telegraph: for the last TELEGRAPH_TICKS before a scheduled turn, a pale ghost cone
+   * shows where the sentry will look next (it brightens and flickers as the turn nears), and a ring
+   * pulses under the dog when the warning starts. Read from the schedule; the sim is untouched.
+   */
+  private updateTelegraph(cur: SimState): void {
+    const lvl = this.levelDef;
+    if (!lvl) return;
+    for (let gi = 0; gi < cur.guards.length && gi < lvl.guards.length; gi++) {
+      const slot = this.ghostOf[gi];
+      if (slot === undefined || slot < 0) continue;
+      const ci = this.coneInputs[slot];
+      if (!ci) continue;
+      const gs = cur.guards[gi];
+      const def = lvl.guards[gi];
+      const turn = !cur.won && def ? sentryTurnAhead(lvl, cur, gi, gs) : null;
+      const on = !!turn && turn.ticksLeft <= TELEGRAPH_TICKS;
+      ci.visible = on;
+      if (!turn || !on) continue;
+      const p = 1 - (turn.ticksLeft - 1) / TELEGRAPH_TICKS;
+      ci.x = gs.pos.x / SUBTILE;
+      ci.z = gs.pos.y / SUBTILE;
+      ci.fx = turn.next.x;
+      ci.fz = turn.next.y;
+      ci.radius = gs.visionTiles;
+      ci.color = GHOST_COLOR;
+      ci.alpha = (0.1 + 0.2 * p) * (0.7 + 0.3 * Math.max(0, Math.sin(this.time * (10 + 14 * p))));
+      const turnAt = cur.tick + turn.ticksLeft;
+      if (this.warnedTurn[gi] !== turnAt && cur.tick > 0) {
+        this.warnedTurn[gi] = turnAt;
+        this.rings.spawn(ci.x, ci.z, '#ffd866', 0.25, 1.2, 0.5, 0.85);
+      }
+    }
+  }
+
+  /**
+   * Doorway cue: while the active cat pushes into a wall (its input has a component the wall
+   * blocks), the nearest 1-tile gap in that wall within 3 tiles pulses, so a cat that only looks as
+   * if it stands in a doorway (the tall walls hide the floor) shows where the opening really is.
+   */
+  private updateGapCue(cur: SimState): void {
+    const lvl = this.levelDef;
+    const cl = this.sightLevel;
+    if (!lvl || !cl || cur.won || cur.tick === this.gapCueTick || this.time < this.gapCueAt) return;
+    this.gapCueTick = cur.tick;
+    const me = cur.cats[cur.activeIndex];
+    if (!me || me.stunTicks > 0) return;
+    // Pushing into a wall and standing still look the same in the state: cue only while sliding, or
+    // for 1.5 s after the cat stopped against the wall.
+    if (!me.moving && ((me as { idleTicks?: number }).idleTicks ?? 0) > 45) return;
+    const v = me.vel ?? { x: 0, y: 0 };
+    const t = { x: me.pos.x >> 4, y: me.pos.y >> 4 };
+    // Blocked axes: the input pushes along it but the cat did not move along it this tick.
+    for (const ax of [0, 1] as const) {
+      const f = ax === 0 ? me.facing.x : me.facing.y;
+      if (f === 0 || (ax === 0 ? v.x : v.y) !== 0) continue;
+      if (me.facing.x !== 0 && me.facing.y !== 0 && !me.moving) continue;
+      const wx = ax === 0 ? t.x + f : t.x;
+      const wy = ax === 0 ? t.y : t.y + f;
+      if (isOpenTile(cl, wx, wy, cur.doorsOpen)) continue; // not against a wall
+      let best: { x: number; y: number } | null = null;
+      for (let d = 1; d <= 3 && !best; d++) {
+        for (const sgn of [-1, 1]) {
+          const gx = ax === 0 ? wx : wx + sgn * d;
+          const gy = ax === 0 ? wy + sgn * d : wy;
+          if (!isOpenTile(cl, gx, gy, cur.doorsOpen)) continue;
+          const s1 = ax === 0 ? isOpenTile(cl, gx, gy - 1, cur.doorsOpen) : isOpenTile(cl, gx - 1, gy, cur.doorsOpen);
+          const s2 = ax === 0 ? isOpenTile(cl, gx, gy + 1, cur.doorsOpen) : isOpenTile(cl, gx + 1, gy, cur.doorsOpen);
+          if (s1 || s2) continue;
+          best = { x: gx, y: gy };
+          break;
+        }
+      }
+      if (!best) continue;
+      this.gapCueAt = this.time + 0.9;
+      this.rings.spawn(best.x + 0.5, best.y + 0.5, PALETTE.mint, 0.15, 0.9, 0.6, 0.95);
+      return;
+    }
+  }
+
+  /**
+   * Floor cues read from the state (render only, once per sim tick, no per-frame allocation):
+   * - the key, the crate, the exit and every plate pulse once the first time they come into view;
+   * - a plate pulses "step here" while the active cat rests next to it but not on it;
+   * - while the active cat rests, every dog that would hear a meow from here gets a lilac ear ring,
+   *   so the earshot is visible before meowing.
+   */
+  private updateCues(cur: SimState): void {
+    const lvl = this.levelDef;
+    const lv = this.level;
+    // Nothing before the first tick: a frozen or loading run (tick 0) draws a clean floor.
+    if (!lvl || !lv || cur.won || cur.tick === 0 || cur.tick === this.cueTick) return;
+    this.cueTick = cur.tick;
+    const t = this.iso.target;
+    const R2 = SEEN_RADIUS * SEEN_RADIUS;
+    const seen = this.seenThings;
+    // seen[0] key, [1] crate, [2] exit, [3 + i] plate i.
+    const sight = (k: number, x: number, z: number, color: string) => {
+      if (seen[k] || (x - t.x) ** 2 + (z - t.z) ** 2 > R2) return;
+      seen[k] = 1;
+      this.rings.spawn(x, z, color, 0.2, 1.7, 0.9, 0.95);
+      this.rings.spawn(x, z, '#ffffff', 0.1, 1.1, 0.7, 0.6);
+      this.particles.sparkle(x, z, color);
+    };
+    if (lvl.key && !cur.keyTaken) sight(0, lvl.key.tile.x + 0.5, lvl.key.tile.y + 0.5, PALETTE.coin);
+    if (!cur.rescued) sight(1, lvl.crate.tile.x + 0.5, lvl.crate.tile.y + 0.5, PALETTE.pink);
+    sight(2, lv.exitCenter.x, lv.exitCenter.z, PALETTE.mint);
+    for (let i = 0; i < lvl.plates.length; i++) sight(3 + i, lvl.plates[i].tile.x + 0.5, lvl.plates[i].tile.y + 0.5, lv.plateColor(i));
+
+    const me = cur.cats[cur.activeIndex];
+    if (me.moving || me.stunTicks > 0) return;
+    const mx = me.pos.x >> 4;
+    const my = me.pos.y >> 4;
+    const now = this.time;
+    // cueAt[i] plate i "step here", cueAt[plates + gi] guard gi ear ring.
+    const at = this.cueAt;
+    for (let i = 0; i < lvl.plates.length; i++) {
+      const p = lvl.plates[i].tile;
+      if (cur.platesDown[i] || Math.max(Math.abs(p.x - mx), Math.abs(p.y - my)) !== 1 || now < at[i]) continue;
+      at[i] = now + 0.75;
+      this.rings.spawn(p.x + 0.5, p.y + 0.5, lv.plateColor(i), 0.5, 0.15, 0.6, 0.9);
+    }
+    const cl = this.sightLevel;
+    if (!cl) return;
+    const r = lvl.meta.meowRadiusTiles * SUBTILE;
+    this.sightB.x = mx;
+    this.sightB.y = my;
+    for (let gi = 0; gi < cur.guards.length; gi++) {
+      const g = cur.guards[gi];
+      const k = lvl.plates.length + gi;
+      if (g.mode === 'ALERT' || g.mode === 'INVESTIGATE' || now < at[k]) continue;
+      const dx = me.pos.x - g.pos.x;
+      const dy = me.pos.y - g.pos.y;
+      if (dx * dx + dy * dy > r * r) continue;
+      this.sightA.x = g.pos.x >> 4;
+      this.sightA.y = g.pos.y >> 4;
+      if (!lineOfSight(cl, this.sightA, this.sightB, cur.doorsOpen)) continue;
+      at[k] = now + 1.4;
+      this.rings.spawn(g.pos.x / SUBTILE, g.pos.y / SUBTILE, PALETTE.lilac, 0.3, 0.9, 0.7, 0.7);
     }
   }
 

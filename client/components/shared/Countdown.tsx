@@ -3,16 +3,18 @@ import { useState, useEffect } from "react";
 interface CountdownProps {
   targetDate: string | Date;
   isDaysDisplayed?: boolean;
-  isBig?: boolean;
+  /** "lg" is the full-width banner with unit names; "md" the compact D/H/M/S chip. */
+  size?: "md" | "lg";
   onEnd?: () => void;
 }
 
 export const Countdown = ({
   targetDate,
   isDaysDisplayed,
-  isBig,
+  size = "md",
   onEnd,
 }: CountdownProps) => {
+  const isLarge = size === "lg";
   const [timeValues, setTimeValues] = useState({
     days: "00",
     hours: "00",
@@ -84,111 +86,111 @@ export const Countdown = ({
 
   return (
     <div className="flex justify-center items-center h-9 w-full drop-shadow-[0_1.4px_1.2px_rgba(0,0,0,0.8)]">
-      <div className={`w-1 bg-yellow-900 ${isBig ? "h-12" : "h-5"}`}></div>
+      <div className={`w-1 bg-yellow-900 ${isLarge ? "h-12" : "h-5"}`}></div>
       <div
-        className={`w-1 flex flex-col bg-yellow-300 border-yellow-900 ${
-          isBig ? "h-12 md:h-14 border-y-4" : "h-7 rem:border-y-[3px]"
+        className={`w-1 flex flex-col bg-tt-cream border-yellow-900 ${
+          isLarge ? "h-12 md:h-14 border-y-4" : "h-7 rem:border-y-[3px]"
         }`}
       >
-        <div className={`bg-yellow-300 ${isBig ? "h-14" : "h-6"}`}></div>
+        <div className={`bg-tt-cream ${isLarge ? "h-14" : "h-6"}`}></div>
       </div>
       <div
-        className={`flex flex-row border-yellow-900 bg-yellow-300 ${
-          isBig ? "h-16 border-y-4" : "h-7 rem:border-y-[3px]"
+        className={`flex flex-row border-yellow-900 bg-tt-cream ${
+          isLarge ? "h-16 border-y-4" : "h-7 rem:border-y-[3px]"
         }`}
       >
         <div
-          className={`bg-yellow-300 font-secondary flex items-center ${
-            isBig ? "h-14 px-2" : "h-6 px-px"
+          className={`bg-tt-cream font-secondary flex items-center ${
+            isLarge ? "h-14 px-2" : "h-6 px-px"
           }`}
         >
-          <div className="flex flex-row items-center justify-around bg-yellow-300 text-yellow-900 w-full h-full">
+          <div className="flex flex-row items-center justify-around bg-tt-cream text-tt-gold-ink w-full h-full">
             {isDaysDisplayed && (
               <div
                 className={`${
-                  isBig
+                  isLarge
                     ? "flex-col flex items-center justify-center"
                     : "flex-row flex items-center justify-center"
                 }`}
               >
                 <p
-                  className={`${isBig ? "text-3xl -mb-2" : "text-sm pr-[2px]"}`}
+                  className={`${isLarge ? "text-3xl -mb-2" : "text-sm pr-[2px]"}`}
                 >
                   {timeValues.days}
                 </p>
-                <p className={`${isBig ? "text-lg" : "text-sm"}`}>
-                  {isBig ? "DAYS" : "D"}
+                <p className={`${isLarge ? "text-lg" : "text-sm"}`}>
+                  {isLarge ? "DAYS" : "D"}
                 </p>
               </div>
             )}
             {isDaysDisplayed && (
               <div
                 className={`w-[1px] bg-yellow-900 ${
-                  isBig ? "h-9 mx-1 md:mx-2" : "h-5 rem:mx-[2px]"
+                  isLarge ? "h-9 mx-1 md:mx-2" : "h-5 rem:mx-[2px]"
                 }`}
               ></div>
             )}
             <div
               className={`${
-                isBig
+                isLarge
                   ? "flex-col flex items-center justify-center"
                   : "flex-row flex items-center justify-center"
               }`}
             >
-              <p className={`${isBig ? "text-3xl -mb-2" : "text-sm pr-[2px]"}`}>
+              <p className={`${isLarge ? "text-3xl -mb-2" : "text-sm pr-[2px]"}`}>
                 {timeValues.hours}
               </p>
-              <p className={`${isBig ? "text-lg" : "text-sm"}`}>
-                {isBig ? "Hours" : "H"}
+              <p className={`${isLarge ? "text-lg" : "text-sm"}`}>
+                {isLarge ? "Hours" : "H"}
               </p>
             </div>
             <div
               className={`w-[1px] bg-yellow-900 ${
-                isBig ? "h-9 mx-1 md:mx-2" : "h-5 rem:mx-[2px]"
+                isLarge ? "h-9 mx-1 md:mx-2" : "h-5 rem:mx-[2px]"
               }`}
             ></div>
             <div
               className={`${
-                isBig
+                isLarge
                   ? "flex-col flex items-center justify-center"
                   : "flex-row flex items-center justify-center"
               }`}
             >
-              <p className={`${isBig ? "text-3xl -mb-2" : "text-sm pr-[2px]"}`}>
+              <p className={`${isLarge ? "text-3xl -mb-2" : "text-sm pr-[2px]"}`}>
                 {timeValues.minutes}
               </p>
-              <p className={`${isBig ? "text-lg" : "text-sm"}`}>
-                {isBig ? "Minutes" : "M"}
+              <p className={`${isLarge ? "text-lg" : "text-sm"}`}>
+                {isLarge ? "Minutes" : "M"}
               </p>
             </div>
             <div
               className={`w-[1px] bg-yellow-900 ${
-                isBig ? "h-9 mx-1 md:mx-2" : "h-5 rem:mx-[2px]"
+                isLarge ? "h-9 mx-1 md:mx-2" : "h-5 rem:mx-[2px]"
               }`}
             ></div>
             <div
               className={`${
-                isBig
+                isLarge
                   ? "flex-col flex items-center justify-center"
                   : "flex-row flex items-center justify-center"
               }`}
             >
-              <p className={`${isBig ? "text-3xl -mb-2" : "text-sm pr-[2px]"}`}>
+              <p className={`${isLarge ? "text-3xl -mb-2" : "text-sm pr-[2px]"}`}>
                 {timeValues.seconds}
               </p>
-              <p className={`${isBig ? "text-lg" : "text-sm"}`}>
-                {isBig ? "Seconds" : "S"}
+              <p className={`${isLarge ? "text-lg" : "text-sm"}`}>
+                {isLarge ? "Seconds" : "S"}
               </p>
             </div>
           </div>
         </div>
       </div>
       <div
-        className={`w-1 flex flex-col bg-yellow-300 border-yellow-900 ${
-          isBig ? "h-14 border-y-4" : "h-7 rem:border-y-[4px]"
+        className={`w-1 flex flex-col bg-tt-cream border-yellow-900 ${
+          isLarge ? "h-14 border-y-4" : "h-7 rem:border-y-[4px]"
         }`}
       ></div>
-      <div className={`w-1 bg-yellow-900 ${isBig ? "h-12" : "h-5"}`}></div>
+      <div className={`w-1 bg-yellow-900 ${isLarge ? "h-12" : "h-5"}`}></div>
     </div>
   );
 };

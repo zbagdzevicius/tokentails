@@ -1,4 +1,6 @@
 import { Game } from "phaser";
+import { makeGameConfig } from "@/components/Phaser/look/makeGameConfig";
+import { registerGame } from "@/lib/game/gameRegistry";
 import { PixelRescueScene } from "./scenes/PixelRescueScene";
 import { useLayoutEffect, useRef } from "react";
 import { IPixelRescueProps } from "./scenes/PixelRescueScene";
@@ -31,22 +33,31 @@ const config: Phaser.Types.Core.GameConfig = {
 };
 
 export const StartGame = (props: IPixelRescueProps) => {
-  const game = new Game({
-    ...config,
-    parent: "game-container",
-    width: window.innerWidth,
-    height: window.innerHeight,
-  });
+  // F10: backing store at CSS size x capped dpr, zoom 1 / dpr, resize-aware.
+  const game = new Game(makeGameConfig({ ...config, parent: "game-container" }));
+  registerGame(game);
   game.scene.start("PixelRescueScene", props);
   return game;
 };
 
-const PixelRescueGame = ({ level }: { level: string }) => {
+const PixelRescueGame = ({
+  level,
+  starterShield,
+  recordLocalClears,
+}: {
+  level: string;
+  starterShield?: boolean;
+  recordLocalClears?: boolean;
+}) => {
   const game = useRef<Phaser.Game | null>(null!);
 
   useLayoutEffect(() => {
     if (game.current === null) {
-      game.current = StartGame({ level });
+      game.current = StartGame({
+        level,
+        starterShield: !!starterShield,
+        recordLocalClears: !!recordLocalClears,
+      });
     }
 
     return () => {
@@ -57,6 +68,8 @@ const PixelRescueGame = ({ level }: { level: string }) => {
         }
       }
     };
+    // One game per mount: the container keys this component by level.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return <div id="game-container" className="animate-opacity"></div>;

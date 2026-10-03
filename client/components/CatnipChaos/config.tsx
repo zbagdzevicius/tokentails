@@ -1,6 +1,10 @@
 import { Game } from "phaser";
-import { CatnipChaosScene, ICatnipChaosProps } from "./scenes/CatnipChaos";
+import { makeGameConfig } from "@/components/Phaser/look/makeGameConfig";
+import { registerGame } from "@/lib/game/gameRegistry";
+import { CatnipChaosScene, ICatnipChaosProps, type PurrsuitRunOptions } from "./scenes/CatnipChaos";
 import { useLayoutEffect, useRef } from "react";
+import { cdnFile } from "@/constants/utils";
+import { catnipIconSrc } from "@/components/shared/CatnipIcon";
 
 const catImages: Record<number, string> = {
   101: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/EGGY/base.png",
@@ -59,20 +63,21 @@ const config: Phaser.Types.Core.GameConfig = {
 };
 
 export const StartGame = (props: ICatnipChaosProps) => {
-  const game = new Game({
-    ...config,
-    parent: "game-container",
-    width: window.innerWidth,
-    height: window.innerHeight,
-  });
+  // F10: backing store at CSS size x capped dpr, zoom 1 / dpr, resize-aware.
+  const game = new Game(makeGameConfig({ ...config, parent: "game-container" }));
+  registerGame(game);
   game.scene.start("CatnipChaosScene", props);
   return game;
 };
 
+/**
+ * Full URL of the pickup texture. The catnip sprig is served from the app's own origin
+ * (`client/public/catnip/`, same as CatnipIcon) so a deploy never depends on the CDN upload.
+ */
 const getImageForLevel = (level: number): string => {
   return level.toString().startsWith("8")
-    ? "currency/SEI.webp"
-    : "catnip-chaos/items/catnip-coin.png";
+    ? cdnFile("currency/SEI.webp")
+    : catnipIconSrc(32);
 };
 
 const getCatForLevel = (level: number): string | undefined => {
@@ -82,14 +87,21 @@ const getCatForLevel = (level: number): string | undefined => {
     : undefined;
 };
 
-const CatnipChaosGame = ({ level }: { level: string }) => {
+const CatnipChaosGame = ({
+  level,
+  getRunOptions,
+}: {
+  level: string;
+  /** Read by the scene at every (re)start: Paw Guards and assists for that attempt (plan G10). */
+  getRunOptions?: () => PurrsuitRunOptions;
+}) => {
   const game = useRef<Phaser.Game | null>(null!);
   const coinImage = getImageForLevel(parseInt(level, 10));
   const ghostImage = getCatForLevel(parseInt(level, 10)) ?? "";
 
   useLayoutEffect(() => {
     if (game.current === null) {
-      game.current = StartGame({ level, coinImage, ghostImage });
+      game.current = StartGame({ level, coinImage, ghostImage, getRunOptions });
     }
 
     return () => {

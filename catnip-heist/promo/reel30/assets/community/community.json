@@ -1,0 +1,424 @@
+{
+  "fps": 30,
+  "generated": "2026-10-02",
+  "sourceDir": "assets/community/src",
+  "avoid": [
+    "paris-event.mp4 21.3-25.0 s: poster/sign with exchange wordmark + chain logo + 'Blockchain for Good' badge (contact-sheet 22-24 s). Not extracted.",
+    "paris-event.mp4 33.0-34.5 s: sticker sheet with exchange wordmark. Not extracted.",
+    "paris-event.mp4 40.533 s to end: burned-in end card with exchange + 'Blockchain for Good Alliance' logos. paris-cat-lounge stops before it.",
+    "paris-event.mp4 any shot with the Chat-Rivari tee fully visible (0-1.8, 36-38 s): bottom badge row carries partner logos (exchange + chain). Mask the shirt bottoms.",
+    "reel-DSFva36DFtZ.mp4 (whole clip): stage with giant 'BLOCKCHAIN FOR GOOD ALLIANCE' letters + small exchange mark. Not extracted.",
+    "reel-DQgkWBRiLVl / reel-DSA6UUxjEfB screen slides: tiny partner logos on the projected slide; do not zoom into the screen."
+  ],
+  "clips": [
+    {
+      "name": "paris-crew",
+      "dir": "assets/community/paris-crew",
+      "kind": "paris",
+      "orientation": "landscape",
+      "frames": 54,
+      "fps": 30,
+      "width": 1280,
+      "height": 720,
+      "src": "paris-event.mp4",
+      "srcUrl": "https://token-tails-pitch.vercel.app/deck-assets/videos/paris-event.mp4",
+      "srcIn": 0.0,
+      "srcOut": 1.8,
+      "landingRef": "client/components/landing/ProofSection.tsx:39 (PARIS_VIDEO)",
+      "description": "Opening shot of the Paris cat-cafe day: six team members/guests in black event tees hold up the Chat-Rivari Cafe shirt to camera, smiling; f~25-40 the woman centre makes a heart with her hands and the camera pushes in; f45-53 motion blur as camera swings (good smear/whip exit).",
+      "keyFrames": {
+        "0": "wide group",
+        "28": "heart hands, push-in",
+        "45": "whip blur begins"
+      },
+      "notes": "LOGO RISK: the shirt print has a row of three round partner badges at its bottom edge (an exchange wordmark + a chain logo). Visible small on the left and centre shirts in f0-~30 (lower ~35% of frame, roughly y 430-560 of 720). Crop to the top ~60% (y<430) or blur/mask that band; f30+ the badges are mostly out of frame/blurred but still mask the bottom 25% to be safe."
+    },
+    {
+      "name": "paris-cat-leap",
+      "dir": "assets/community/paris-cat-leap",
+      "kind": "paris",
+      "orientation": "landscape",
+      "frames": 25,
+      "fps": 30,
+      "width": 1280,
+      "height": 720,
+      "src": "paris-event.mp4",
+      "srcUrl": "https://token-tails-pitch.vercel.app/deck-assets/videos/paris-event.mp4",
+      "srcIn": 1.86,
+      "srcOut": 2.693,
+      "landingRef": "client/components/landing/ProofSection.tsx:39 (PARIS_VIDEO)",
+      "description": "Real shelter tabby-and-white cat crouched on a wall shelf by the orange curtain, looks straight into camera then moves along the shelf (camera drifts right). Short 0.83 s natural shot - use as a hit/smash-cut or time-stretch.",
+      "keyFrames": {
+        "0": "eye contact",
+        "24": "cat moving"
+      },
+      "notes": "Clean, no logos."
+    },
+    {
+      "name": "paris-cafe-sign",
+      "dir": "assets/community/paris-cafe-sign",
+      "kind": "paris",
+      "orientation": "landscape",
+      "frames": 42,
+      "fps": 30,
+      "width": 1280,
+      "height": 720,
+      "src": "paris-event.mp4",
+      "srcUrl": "https://token-tails-pitch.vercel.app/deck-assets/videos/paris-event.mp4",
+      "srcIn": 6.05,
+      "srcOut": 7.45,
+      "landingRef": "client/components/landing/ProofSection.tsx:39 (PARIS_VIDEO)",
+      "description": "Establishing shot: the white 'CHAT-RIVARI CAFE' cat-head decal with paw prints on the cafe window, camera trucks left-to-right revealing the full sign; Paris street/trees through glass. Great for a location title card or mask-reveal.",
+      "keyFrames": {
+        "0": "sign half-frame, blurred",
+        "20": "sign centred",
+        "41": "full sign + paws"
+      },
+      "notes": "Clean. The cafe's own name only; no chain/exchange marks."
+    },
+    {
+      "name": "paris-phones-play",
+      "dir": "assets/community/paris-phones-play",
+      "kind": "paris",
+      "orientation": "landscape",
+      "frames": 78,
+      "fps": 30,
+      "width": 1280,
+      "height": 720,
+      "src": "paris-event.mp4",
+      "srcUrl": "https://token-tails-pitch.vercel.app/deck-assets/videos/paris-event.mp4",
+      "srcIn": 13.5,
+      "srcOut": 16.1,
+      "landingRef": "client/components/landing/ProofSection.tsx:39 (PARIS_VIDEO)",
+      "description": "Guests at a cafe table playing on their phones (woman in navy polo foreground right holds phone, woman in cream shirt behind on phone), 'SCAN TO GET A PORTRAIT' poster and cat shelf in background; slow push-in. Reads as 'community playing the game'.",
+      "keyFrames": {
+        "0": "wide table",
+        "40": "push-in on phones",
+        "77": "close on phones"
+      },
+      "notes": "Phone screens are not legible. Foreground left shows the back of a Chat-Rivari tee (cat art only, badge row not visible). Clean."
+    },
+    {
+      "name": "paris-chat",
+      "dir": "assets/community/paris-chat",
+      "kind": "paris",
+      "orientation": "landscape",
+      "frames": 54,
+      "fps": 30,
+      "width": 1280,
+      "height": 720,
+      "src": "paris-event.mp4",
+      "srcUrl": "https://token-tails-pitch.vercel.app/deck-assets/videos/paris-event.mp4",
+      "srcIn": 27.6,
+      "srcOut": 29.4,
+      "landingRef": "client/components/landing/ProofSection.tsx:39 (PARIS_VIDEO)",
+      "description": "Over-the-shoulder: young woman in black hoodie laughing and chatting with a guest, big wall clock and cat-themed decor behind. Warm, human beat.",
+      "keyFrames": {
+        "0": "talking",
+        "40": "big smile"
+      },
+      "notes": "Clean."
+    },
+    {
+      "name": "paris-cat-lounge",
+      "dir": "assets/community/paris-cat-lounge",
+      "kind": "paris",
+      "orientation": "landscape",
+      "frames": 33,
+      "fps": 30,
+      "width": 1280,
+      "height": 720,
+      "src": "paris-event.mp4",
+      "srcUrl": "https://token-tails-pitch.vercel.app/deck-assets/videos/paris-event.mp4",
+      "srcIn": 39.4,
+      "srcOut": 40.5,
+      "landingRef": "client/components/landing/ProofSection.tsx:39 (PARIS_VIDEO)",
+      "description": "Camera tilts up to a real shelter cat lounging on a padded shelf by the orange curtain; f20-32 the cat lifts its head and stares into the lens (ideal hero/end frame - hold or freeze f32).",
+      "keyFrames": {
+        "0": "shelf, cat small",
+        "20": "cat looks up",
+        "32": "stare into lens (last clean frame)"
+      },
+      "notes": "HARD STOP: the source video's end card (Token Tails + exchange wordmark + 'Blockchain for Good Alliance' logos) is burned in from src 40.533 s; the extract ends at 40.50 s, so all 33 frames are clean. Never extend this clip past f32."
+    },
+    {
+      "name": "ugc-king-portrait",
+      "dir": "assets/community/ugc-king-portrait",
+      "kind": "ugc",
+      "orientation": "portrait",
+      "frames": 90,
+      "fps": 30,
+      "width": 720,
+      "height": 1280,
+      "src": "ugc-2.webm",
+      "srcUrl": "https://token-tails-pitch.vercel.app/deck-assets/videos/ugc-2.webm",
+      "srcIn": 1.0,
+      "srcOut": 4.0,
+      "landingRef": "client/components/landing/ProofSection.tsx:45 (UGC_REELS)",
+      "description": "Creator UGC (9:16): woman in grey hoodie reveals a royal portrait of her tabby (crown, red-and-gold robe); f15-45 camera pushes into the painted cat's face; f60-89 she points at it, mock-shocked. Burned-in captions: 'I LOVE IT SO MUCH', 'OH MY GOD', 'SO JUDGMENTAL'.",
+      "keyFrames": {
+        "0": "reveal",
+        "30": "crowned cat face fills frame",
+        "75": "shocked point"
+      },
+      "notes": "Burned-in karaoke captions at lower third (y~1050-1110 of 1280). No chain/exchange marks. Source 24 fps resampled to 30 fps (frame duplication)."
+    },
+    {
+      "name": "ugc-kitten-recommend",
+      "dir": "assets/community/ugc-kitten-recommend",
+      "kind": "ugc",
+      "orientation": "portrait",
+      "frames": 75,
+      "fps": 30,
+      "width": 720,
+      "height": 1280,
+      "src": "ugc-7.webm",
+      "srcUrl": "https://token-tails-pitch.vercel.app/deck-assets/videos/ugc-7.webm",
+      "srcIn": 4.5,
+      "srcOut": 7.0,
+      "landingRef": "client/components/landing/ProofSection.tsx:45 (UGC_REELS)",
+      "description": "Creator UGC (9:16): tattooed bearded man in his car holding a grey kitten, lifts a printed portrait of his cats into frame. Captions: 'I RECOMMEND', 'TOKEN TAILS', 'REALISTIC PET PORTRAITS'.",
+      "keyFrames": {
+        "0": "portrait enters",
+        "30": "caption TOKEN TAILS",
+        "74": "points at kitten"
+      },
+      "notes": "Burned-in captions lower third. Clean. 24->30 fps."
+    },
+    {
+      "name": "ugc-ceo-legends",
+      "dir": "assets/community/ugc-ceo-legends",
+      "kind": "ugc",
+      "orientation": "portrait",
+      "frames": 75,
+      "fps": 30,
+      "width": 720,
+      "height": 1280,
+      "src": "ugc-1.webm",
+      "srcUrl": "https://token-tails-pitch.vercel.app/deck-assets/videos/ugc-1.webm",
+      "srcIn": 5.5,
+      "srcOut": 8.0,
+      "landingRef": "client/components/landing/ProofSection.tsx:45 (UGC_REELS)",
+      "description": "Creator UGC (9:16): man in grey blazer holding his grey British Shorthair in front of a regal two-cat portrait. Captions: 'THEM LOOK LIKE', 'THE LEGENDS THEY ARE', 'GET YOURS AT', 'TOKENTAILS.COM'.",
+      "keyFrames": {
+        "0": "portrait + man",
+        "30": "cat held up",
+        "60": "TOKENTAILS.COM caption"
+      },
+      "notes": "Burned-in captions lower third. Clean. 24->30 fps. Content is about pet portraits rather than the heist; use as a fast community-wall tile."
+    },
+    {
+      "name": "reel-game-night",
+      "dir": "assets/community/reel-game-night",
+      "kind": "ugc",
+      "orientation": "square",
+      "frames": 84,
+      "fps": 30,
+      "width": 720,
+      "height": 720,
+      "src": "reel-DSA6UUxjEfB.mp4",
+      "srcUrl": "https://token-tails-pitch.vercel.app/deck-assets/videos/reel-DSA6UUxjEfB.mp4",
+      "srcIn": 0.0,
+      "srcOut": 2.8,
+      "landingRef": "client/components/landing/ProofSection.tsx:47-60 (CREATOR_REELS)",
+      "description": "Packed room at a 'TOKEN TAILS GAME NIGHT': audience seated from behind (one backpack has a white cat face), presenter gesturing in front of a big projected slide with the Token Tails cat mascot. Handheld.",
+      "keyFrames": {
+        "0": "room wide",
+        "42": "presenter arms out",
+        "83": "end"
+      },
+      "notes": "Square 360x360 source upscaled to 720x720 (soft - use small/in a tile, add grain). Slide has a tiny green partner logo top-left and a round badge bottom-right of the screen, illegible at this resolution; do not zoom into the screen."
+    },
+    {
+      "name": "reel-tuxedo-characters",
+      "dir": "assets/community/reel-tuxedo-characters",
+      "kind": "ugc",
+      "orientation": "square",
+      "frames": 84,
+      "fps": 30,
+      "width": 720,
+      "height": 720,
+      "src": "reel-DUHDB6aDt89.mp4",
+      "srcUrl": "https://token-tails-pitch.vercel.app/deck-assets/videos/reel-DUHDB6aDt89.mp4",
+      "srcIn": 0.0,
+      "srcOut": 2.8,
+      "landingRef": "client/components/landing/ProofSection.tsx:47-60 (CREATOR_REELS)",
+      "description": "Creator reel: real black-and-white tuxedo cat looking straight into camera, mouth slightly open. Caption: 'We're characters in the game Token Tails!' Real cat -> in-game character beat.",
+      "keyFrames": {
+        "0": "stare",
+        "45": "caption on"
+      },
+      "notes": "360->720 upscale. Caption burned in lower area. Clean."
+    },
+    {
+      "name": "reel-cat-plays-tablet",
+      "dir": "assets/community/reel-cat-plays-tablet",
+      "kind": "ugc",
+      "orientation": "square",
+      "frames": 75,
+      "fps": 30,
+      "width": 720,
+      "height": 720,
+      "src": "reel-DUHDB6aDt89.mp4",
+      "srcUrl": "https://token-tails-pitch.vercel.app/deck-assets/videos/reel-DUHDB6aDt89.mp4",
+      "srcIn": 4.0,
+      "srcOut": 6.5,
+      "landingRef": "client/components/landing/ProofSection.tsx:47-60 (CREATOR_REELS)",
+      "description": "Same creator: a black cat's paw taps a tablet showing the Token Tails game (pink floating-island PLAY screen, then the 'MY PETS' card grid); f~40-60 the paw swipes across the screen. Literal 'cats playing the game'.",
+      "keyFrames": {
+        "0": "PLAY island",
+        "35": "MY PETS grid",
+        "50": "paw swipe"
+      },
+      "notes": "360->720 upscale. Tablet UI is the older Token Tails app, not Catnip Heist; no chain names visible."
+    }
+  ],
+  "facts": [
+    {
+      "id": "F-001",
+      "verbatim": "540K+ registered players, all time (Apr 2026, company-reported)",
+      "asOf": "2026-04",
+      "status": "company-reported",
+      "source": "client/public/facts/facts.json:66",
+      "shownAt": "client/components/landing/ProofSection.tsx:342 (Our reach stat card)",
+      "usable": true,
+      "reelCopy": "540K+ registered players"
+    },
+    {
+      "id": "F-011",
+      "verbatim": "180K+ on X (Sep 2026)",
+      "asOf": "2026-09-27",
+      "status": "verified",
+      "source": "client/public/facts/facts.json:116",
+      "shownAt": "client/components/landing/ProofSection.tsx:345",
+      "usable": true,
+      "reelCopy": "180K+ followers on X"
+    },
+    {
+      "id": "F-013",
+      "verbatim": "40 influencer cats onboarded (Apr 2026, company-reported)",
+      "asOf": "2026-04",
+      "status": "company-reported",
+      "source": "client/public/facts/facts.json:132",
+      "shownAt": "client/components/landing/ProofSection.tsx:348",
+      "usable": true,
+      "reelCopy": "40 influencer cats"
+    },
+    {
+      "id": "F-003",
+      "verbatim": "324K+ active wallets in the peak week on SEI (Nov 2025)",
+      "asOf": "2025-11-17",
+      "status": "sei-era",
+      "source": "client/public/facts/facts.json:82",
+      "shownAt": "client/components/landing/ProofSection.tsx:288 (web only, Track record chip)",
+      "usable": false,
+      "reelCopy": null,
+      "why": "Names a chain; tied to a past chain era. If used at all it must drop the chain name ('324K+ active wallets, peak week, Nov 2025') - recommend not using."
+    },
+    {
+      "id": "F-004",
+      "verbatim": "875K+ transactions in the peak week on SEI (Nov 2025)",
+      "asOf": "2025-11-17",
+      "status": "sei-era",
+      "source": "client/public/facts/facts.json:99",
+      "shownAt": "client/components/landing/ProofSection.tsx:289",
+      "usable": false,
+      "reelCopy": null,
+      "why": "Names a chain; same caveat as F-003."
+    },
+    {
+      "id": "F-025",
+      "verbatim": "Now: Stellar NFTs",
+      "asOf": "2026-09",
+      "status": "verified",
+      "source": "client/public/facts/facts.json:148",
+      "shownAt": "client/components/landing/ProofSection.tsx:293",
+      "usable": false,
+      "reelCopy": null,
+      "why": "Names a chain."
+    },
+    {
+      "id": "rail-chip",
+      "verbatim": "Arc shelter rail opens soon",
+      "asOf": "2026-10-01 (snapshot rail.state=not-deployed)",
+      "status": "live copy",
+      "source": "client/components/claims/rail-copy.ts:11; state from client/public/impact/snapshot.json",
+      "shownAt": "client/components/landing/ProofSection.tsx:297",
+      "usable": false,
+      "reelCopy": "shelter rail opens soon",
+      "why": "Names a chain; chain-free form only. Rail is NOT deployed yet, so any treat/payout line must be future tense."
+    },
+    {
+      "id": "L-countries",
+      "verbatim": "{n} partner countries",
+      "asOf": "2026-10-01",
+      "status": "live",
+      "source": "client/public/facts/facts.json:165; client/components/landing/ImpactGlobeSection.tsx:52-58",
+      "shownAt": "ImpactGlobeSection",
+      "usable": false,
+      "reelCopy": null,
+      "why": "Snapshot shelters.countries is [] so the landing does NOT show a country count. Do not state a number of countries."
+    },
+    {
+      "id": "partner-shelters",
+      "verbatim": "Cats in the game come from Mil Bigotes · Puppy Kitty NYC · Rožinė Pėdutė",
+      "asOf": "2026-10-01T05:42Z",
+      "status": "live (snapshot)",
+      "source": "client/components/landing/ImpactGlobeSection.tsx:66-75; names from client/public/impact/snapshot.json",
+      "shownAt": "ImpactGlobeSection fallback list (shown because no country codes)",
+      "usable": true,
+      "reelCopy": "Cats in the game come from real shelters"
+    },
+    {
+      "id": "paris-copy",
+      "verbatim": "Cat lovers, meet real shelter cats. / We hosted a curated day at a Paris cat café: cozy atmosphere and real shelter cats.",
+      "asOf": null,
+      "status": "landing copy",
+      "source": "client/components/landing/ProofSection.tsx:247-249, 266-267",
+      "shownAt": "Proof section block 1 (kicker 'Off-screen too · Paris')",
+      "usable": true,
+      "reelCopy": "A day at a Paris cat café with real shelter cats"
+    },
+    {
+      "id": "reach-copy",
+      "verbatim": "Cat influencers + creators. Then the fun moves into the game. / Cat content is our reach engine. A network of cat influencers and a creator community bring cat lovers from around the world into Token Tails.",
+      "asOf": null,
+      "status": "landing copy",
+      "source": "client/components/landing/ProofSection.tsx:314-322",
+      "shownAt": "Proof section block 2 (kicker 'Our reach')",
+      "usable": true,
+      "reelCopy": "Cat influencers + creators"
+    },
+    {
+      "id": "hero",
+      "verbatim": "YOUR CAT AWAITS / READY TO PLAY AND READY TO SAVE",
+      "asOf": null,
+      "status": "landing copy",
+      "source": "client/components/landing/HomePage.tsx:4-18",
+      "shownAt": "hero",
+      "usable": true,
+      "reelCopy": "Ready to play. Ready to save."
+    },
+    {
+      "id": "heist-pill",
+      "verbatim": "Or play Catnip Heist now, no sign-up",
+      "asOf": null,
+      "status": "landing copy",
+      "source": "client/components/landing/HeistPill.tsx:7",
+      "shownAt": "hero pill -> /heist?from=landing",
+      "usable": true,
+      "reelCopy": "Play Catnip Heist now - no sign-up"
+    },
+    {
+      "id": "snapshot-only",
+      "verbatim": "players.registeredAllTime 541953; rescueCats.total 525, adopted 413; treats.confirmedCount 0; outcomes.published 0",
+      "asOf": "2026-10-01T05:42:35Z",
+      "status": "impact snapshot, NOT rendered on the landing",
+      "source": "client/public/impact/snapshot.json",
+      "shownAt": "not on landing (impact page)",
+      "usable": false,
+      "reelCopy": null,
+      "why": "Not on the current landing; rescue counts are not displayed there. Brief says landing numbers only - do not use."
+    }
+  ]
+}

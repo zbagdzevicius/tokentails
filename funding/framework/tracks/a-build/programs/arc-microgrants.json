@@ -7,16 +7,49 @@
   "mainnet_required": true,
   "next": "Deploy ShelterSplit to Arc MAINNET (testnet-only builds are excluded), then fund a:record arc mainnet <address>",
   "submission": {
-    "fields": { "Submitted via": "DoraHacks entry" },
+    "fields": {
+      "Submitted via": "DoraBacks registration link on the Arc call page",
+      "Live deployment link": "https://tokentails.com/shelter-payouts (plus the Arc explorer link for {SPLIT_ADDRESS})",
+      "Builder profile": "{BUILDER_PROFILE_URL} (GitHub, X or Farcaster; required by the call)"
+    },
     "sections": [
-      { "title": "Summary", "from": "Summary", "limit": 280 },
-      { "title": "What we built on Arc", "from": "How it works" },
-      { "title": "Arc mainnet deployment", "from": "On-chain proof", "auto": "deployments" },
-      { "title": "Build evidence", "auto": "build" },
-      { "title": "Why it matters", "from": "Problem" },
-      { "title": "Team", "from": "Team" }
+      {
+        "title": "Summary",
+        "from": "Summary",
+        "limit": 280
+      },
+      {
+        "title": "What we built on Arc",
+        "from": "How it works"
+      },
+      {
+        "title": "Arc mainnet deployment",
+        "from": "On-chain proof",
+        "auto": "deployments"
+      },
+      {
+        "title": "Build evidence",
+        "auto": "build"
+      },
+      {
+        "title": "Why it matters",
+        "from": "Problem"
+      },
+      {
+        "title": "Team",
+        "from": "Team"
+      }
     ],
-    "checklist": ["Arc MAINNET address recorded and verified with fund a:verify arc mainnet", "Repo public"]
+    "checklist": [
+      "Arc MAINNET address recorded and verified with fund a:verify arc mainnet",
+      "Repo public",
+      "Public builder profile link filled in (GitHub, X or Farcaster)",
+      "https://api.tokentails.com/shelter/donate/status returns 200 (the Summary says players send sponsored gifts); otherwise reword the Summary to 'built, switching on'",
+      "Pink Paw consent letter or public post exists, or no consent is claimed",
+      "If a Tameion prize was awarded before Arc decides, disclose it (Arc excludes work already funded by a Circle or Arc program)"
+    ]
   },
-  "verify": ["deadline time and timezone", "form fields and limits"]
+  "verify": [
+    "form fields and limits on DoraBacks"
+  ]
 }

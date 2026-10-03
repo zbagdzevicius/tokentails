@@ -620,7 +620,7 @@ export const PreviewPage = ({
                         <div className="flex items-center justify-center gap-1.5 mt-2 text-sm text-primary">
                           <Timer className="w-4 h-4" />
                           <span>Expires in</span>
-                          <span className="font-mono font-semibold">
+                          <span className="font-semibold tabular-nums">
                             {formattedTime}
                           </span>
                         </div>

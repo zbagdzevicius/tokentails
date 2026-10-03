@@ -1,76 +1,68 @@
+import { ApiError } from "@/api/api";
 import { USER_API } from "@/api/user-api";
-import { bgStyle, cdnFile, commafy } from "@/constants/utils";
+import { CatnipIcon } from "@/components/shared/CatnipIcon";
+import { GameModal as GameDialog } from "@/components/ui/GameModal";
+import { cdnFile } from "@/constants/utils";
 import { useGame } from "@/context/GameContext";
+import { useOptionalFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
+import { useAccountAction } from "@/hooks/useAccountAction";
+import { ICat } from "@/models/cats";
 import { GameModal } from "@/models/game";
 import { IProfile } from "@/models/profile";
+import { Capacitor } from "@capacitor/core";
+import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { useMutation } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import clsx from "clsx";
+import dynamic from "next/dynamic";
+import { useId, useState, type ReactNode } from "react";
 import {
   getCatnipBreakdown,
   TOTAL_CATNIP_CAP,
 } from "@/constants/catnip-accounting";
-import { CloseButton } from "./CloseButton";
 import { GameMusicToggle } from "./GameMusicToggler";
 import { AnalyticsSettingsButton } from "./AnalyticsConsentBanner";
 import { PixelButton } from "./PixelButton";
 import { Tag } from "./Tag";
-import { isApp } from "@/models/app";
+import { MyImpactSummary } from "@/components/impact/MyImpactSummary";
+import { openProgress } from "@/components/impact/progressTab";
 
 const Cat = ({ profile }: { profile?: IProfile | null }) => {
   return (
     <div className="relative">
       <img
         draggable={false}
-        className="w-24 m-auto pixelated -mt-2 -mb-8 md:mb-0 md:-mt-8 relative z-10"
+        className="w-24 m-auto pixelated -mt-2 mb-1 relative z-10"
         src={profile?.cat?.catImg || "/logo/logo.webp"}
+        alt={profile?.cat?.name ? `${profile.cat.name}, your cat` : ""}
       />
     </div>
   );
 };
 
-interface DonationBreakdown {
-  extendedCare: number;
-  emergencyMedical: number;
-  spayNeuter: number;
-  checkupVaccines: number;
-  dailyCare: number;
-  remaining: number;
-}
+// RenameSheet belongs to the onboarding flow (task 4a, G3 "Names", decision #22). Loaded on
+// demand: the profile opens far more often than anyone renames a cat.
+const RenameSheet = dynamic(
+  () => import("@/components/onboarding/RenameSheet").then((module) => module.RenameSheet),
+  { ssr: false }
+);
 
-const calculateDonationBreakdown = (amount: number): DonationBreakdown => {
-  let remaining = amount;
-  const breakdown: DonationBreakdown = {
-    extendedCare: 0,
-    emergencyMedical: 0,
-    spayNeuter: 0,
-    checkupVaccines: 0,
-    dailyCare: 0,
-    remaining: 0,
-  };
+/** Night input used by the profile forms. */
+const INPUT_CLASSES =
+  "min-h-[44px] w-full rounded-[4px] border-2 border-tt-gold-500 bg-tt-night-900 px-3 py-2 font-secondary text-p5 text-tt-cream placeholder:text-tt-muted outline-none focus-visible:ring-4 focus-visible:ring-tt-gold-400";
 
-  // Extended care - $200
-  breakdown.extendedCare = Math.floor(remaining / 200);
-  remaining -= breakdown.extendedCare * 200;
-
-  // Emergency medical - $150
-  breakdown.emergencyMedical = Math.floor(remaining / 150);
-  remaining -= breakdown.emergencyMedical * 150;
-
-  // Checkup/vaccines - $40
-  breakdown.checkupVaccines = Math.floor(remaining / 40);
-  remaining -= breakdown.checkupVaccines * 40;
-
-  // Daily care - $5
-  breakdown.dailyCare = Math.floor(remaining / 5);
-  remaining -= breakdown.dailyCare * 5;
-
-  // Store any remaining amount
-  breakdown.remaining = remaining;
-
-  return breakdown;
-};
+const StatPlate = ({ label, icon, children }: { label: string; icon: ReactNode; children: ReactNode }) => (
+  <div className="flex flex-col items-center gap-1">
+    <div className="text-p5 flex items-center gap-1 text-tt-cream">
+      {icon}
+      <div>{label}</div>
+    </div>
+    <div className="flex min-w-[4.5rem] items-center justify-center rounded-[4px] border-2 border-tt-gold-500/70 bg-tt-night-900/80 px-2 text-p6 text-tt-cream">
+      {children}
+    </div>
+  </div>
+);
 
 const ProfileUpdate = () => {
   const { profile } = useProfile();
@@ -79,6 +71,10 @@ const ProfileUpdate = () => {
   const [twitterEditMode, setTwitterEditMode] = useState(false);
   const [discordEditMode, setDiscordEditMode] = useState(false);
   const toast = useToast();
+  // Linking X or Discord writes to the account (decision #9): a guest gets the AuthSheet first.
+  const { runWithAccount } = useAccountAction();
+  const twitterId = useId();
+  const discordId = useId();
   const { mutate, isPending } = useMutation({
     mutationFn: USER_API.saveProfileTwitter,
     onSuccess: () => {
@@ -96,7 +92,7 @@ const ProfileUpdate = () => {
     : "Connect";
   const onTwitterButtonClick = () => {
     if (!twitterEditMode) {
-      setTwitterEditMode(true);
+      void runWithAccount("sign-in", () => setTwitterEditMode(true));
     } else if (twitter?.length) {
       mutate({
         twitter: twitter.trim().replace("@", "").toLowerCase(),
@@ -113,7 +109,7 @@ const ProfileUpdate = () => {
     : "Connect";
   const onDiscordButtonClick = () => {
     if (!discordEditMode) {
-      setDiscordEditMode(true);
+      void runWithAccount("sign-in", () => setDiscordEditMode(true));
     } else if (discord?.length) {
       mutate({
         discord: discord.trim().replace("@", "").toLowerCase(),
@@ -123,28 +119,37 @@ const ProfileUpdate = () => {
   };
 
   return (
-    <div className="flex items-center flex-col justify-center mt-2 mb-2">
+    <div className="flex items-center flex-col justify-center mt-2 mb-2 gap-1">
       <img
         className="w-8 -mb-3"
         src={cdnFile("icons/social/x.webp")}
+        alt=""
+        aria-hidden="true"
         draggable="false"
       />
       {!twitterEditMode ? (
-        <Tag isSmall>{twitter ? `X: ${twitter}` : "X is not connected"}</Tag>
+        <Tag size="sm">{twitter ? `X: ${twitter}` : "X is not connected"}</Tag>
       ) : (
-        <input
-          type="text"
-          value={twitter}
-          onChange={(e) => setTwitter(e.target.value?.slice(0, 24))}
-          className="flex-grow px-2 py-1 outline-none text-p5 bg-white rounded-full border-1 border-yellow-900"
-          placeholder="Your X Handle"
-          autoFocus
-        />
+        <>
+          <label htmlFor={twitterId} className="sr-only">
+            Your X handle
+          </label>
+          <input
+            id={twitterId}
+            type="text"
+            autoComplete="off"
+            value={twitter}
+            onChange={(e) => setTwitter(e.target.value?.slice(0, 24))}
+            className={INPUT_CLASSES}
+            placeholder="Your X Handle"
+            autoFocus
+          />
+        </>
       )}
       <span className="-mt-2">
         <PixelButton
-          isDisabled={isPending}
-          isSmall
+          disabled={isPending}
+          size="sm"
           text={twitterButtonText}
           onClick={onTwitterButtonClick}
         />
@@ -152,26 +157,35 @@ const ProfileUpdate = () => {
       <img
         className="w-8 -mb-3"
         src={cdnFile("icons/social/discord.webp")}
+        alt=""
+        aria-hidden="true"
         draggable="false"
       />
       {!discordEditMode ? (
-        <Tag isSmall>
+        <Tag size="sm">
           {discord ? `Discord: ${discord}` : "Discord is not connected"}
         </Tag>
       ) : (
-        <input
-          type="text"
-          value={discord}
-          onChange={(e) => setDiscord(e.target.value?.slice(0, 24))}
-          className="flex-grow px-2 py-1 outline-none text-p5 bg-white rounded-full border-1 border-yellow-900"
-          placeholder="Your Discord Handle"
-          autoFocus
-        />
+        <>
+          <label htmlFor={discordId} className="sr-only">
+            Your Discord handle
+          </label>
+          <input
+            id={discordId}
+            type="text"
+            autoComplete="off"
+            value={discord}
+            onChange={(e) => setDiscord(e.target.value?.slice(0, 24))}
+            className={INPUT_CLASSES}
+            placeholder="Your Discord Handle"
+            autoFocus
+          />
+        </>
       )}
       <span className="-mt-2">
         <PixelButton
-          isDisabled={isPending}
-          isSmall
+          disabled={isPending}
+          size="sm"
           text={discordButtonText}
           onClick={onDiscordButtonClick}
         />
@@ -180,264 +194,314 @@ const ProfileUpdate = () => {
   );
 };
 
-export const ProfileModalContent = () => {
-  const { profile, logout, isFB } = useProfile();
+// ---- account deletion (G9, decision #4) ------------------------------------------------------
+
+export type AccountDeletionResult =
+  | { status: "deleted" }
+  | { status: "cancelled" }
+  | { status: "error"; message: string };
+
+export interface AccountDeletionDeps {
+  /** iOS native with a Sign in with Apple provider on the account. */
+  needsAppleCode: boolean;
+  /** A fresh Sign in with Apple authorization code (the backend revokes the Apple token with it). */
+  getAppleCode: () => Promise<string | undefined>;
+  deleteMe: (appleAuthorizationCode?: string) => Promise<unknown>;
+  signOut: () => Promise<void>;
+}
+
+export const DELETE_ACCOUNT_ERROR =
+  "We couldn't delete your account just now. Try again, or contact support.";
+
+/**
+ * `DELETE /user/me`, then sign out (on `/game` the provider starts a fresh guest). On iOS with
+ * Sign in with Apple a fresh authorization code is fetched first; cancelling that prompt cancels
+ * the deletion, so nothing irreversible happens without the player's last confirmation.
+ */
+export async function requestAccountDeletion(deps: AccountDeletionDeps): Promise<AccountDeletionResult> {
+  let appleCode: string | undefined;
+  if (deps.needsAppleCode) {
+    try {
+      appleCode = await deps.getAppleCode();
+    } catch {
+      return { status: "cancelled" };
+    }
+    if (!appleCode) return { status: "cancelled" };
+  }
+  try {
+    await deps.deleteMe(appleCode);
+  } catch (error) {
+    const message =
+      error instanceof ApiError && error.status === 429
+        ? "Too many tries. Wait a minute, then try again."
+        : DELETE_ACCOUNT_ERROR;
+    return { status: "error", message };
+  }
+  try {
+    await deps.signOut();
+  } catch {
+    // The account is gone either way; the next token refresh fails and signs out.
+  }
+  return { status: "deleted" };
+}
+
+const appleAuthorizationCode = async (): Promise<string | undefined> => {
+  const result = await FirebaseAuthentication.signInWithApple({ skipNativeAuth: true });
+  return result?.credential?.authorizationCode;
+};
+
+type AccountStep = "menu" | "confirm-erase" | "confirm-delete";
+
+/**
+ * The account block at the bottom of the profile.
+ * - Guest (G1): "Save progress" opens the AuthSheet; "Erase guest progress" (`DELETE /user/guest`,
+ *   with a confirm step) starts a fresh guest.
+ * - Account (G9): Logout, and "Delete account" (`DELETE /user/me`, with a confirm step) replacing
+ *   the old "email support" request.
+ */
+const AccountSection = ({ close }: { close?: () => void }) => {
+  const auth = useOptionalFirebaseAuth();
+  const { logout, isFB } = useProfile();
+  const toast = useToast();
+  const [step, setStep] = useState<AccountStep>("menu");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const errorId = useId();
+
+  if (!auth) {
+    // No auth runtime on this page: keep the old logout only.
+    return isFB ? (
+      <div className="mt-2 flex justify-center">
+        <PixelButton size="sm" text="Logout :(" onClick={logout} />
+      </div>
+    ) : null;
+  }
+
+  const isGuest = auth.authStatus === "guest";
+  const isRegistered = auth.authStatus === "ready";
+  // Any signed-in, non-anonymous user can log out, also while the profile loads, failed to load
+  // or waits on an email verification; deleting the account needs the loaded profile.
+  const canLogout = !isGuest && !!auth.user && !auth.user.isAnonymous;
+  if (!isGuest && !canLogout) return null;
+
+  const eraseGuest = async () => {
+    setBusy(true);
+    setError(null);
+    const ok = await auth.eraseGuest();
+    setBusy(false);
+    if (!ok) {
+      setError("We couldn't erase your guest progress just now. Try again.");
+      return;
+    }
+    toast({ message: "Guest progress erased. A fresh guest game starts now." });
+    close?.();
+  };
+
+  const deleteAccount = async () => {
+    setBusy(true);
+    setError(null);
+    const result = await requestAccountDeletion({
+      needsAppleCode:
+        Capacitor.getPlatform() === "ios" && !!auth.user?.providers.includes("apple.com"),
+      getAppleCode: appleAuthorizationCode,
+      deleteMe: USER_API.deleteMe,
+      signOut: auth.signOut,
+    });
+    setBusy(false);
+    if (result.status === "cancelled") {
+      setError("Apple sign-in was cancelled, so your account was not deleted.");
+      return;
+    }
+    if (result.status === "error") {
+      setError(result.message);
+      return;
+    }
+    toast({ message: "Your account was deleted." });
+    close?.();
+  };
+
+  const errorLine = error ? (
+    <p id={errorId} role="alert" className="rounded-[4px] border-2 border-tt-rust/70 bg-tt-night-900/80 px-3 py-2 text-center font-secondary text-p5 text-tt-cream">
+      {error}
+    </p>
+  ) : null;
+
+  if (step === "confirm-erase" || step === "confirm-delete") {
+    const erase = step === "confirm-erase";
+    return (
+      <section
+        aria-labelledby={`${errorId}-confirm`}
+        data-testid={erase ? "confirm-erase-guest" : "confirm-delete-account"}
+        className="mt-3 flex w-full max-w-sm flex-col items-center gap-2 rounded-[4px] border-2 border-tt-rust/70 bg-tt-night-900/80 p-3 text-center"
+      >
+        <h3 id={`${errorId}-confirm`} className="font-primary text-p4 uppercase text-tt-cream">
+          {erase ? "Erase guest progress?" : "Delete your account?"}
+        </h3>
+        <p className="font-secondary text-p5 text-tt-cream">
+          {erase
+            ? "Your guest cat, runs and pending Tails are removed from this device. This cannot be undone."
+            : "Your sign-in is deleted, your profile is anonymised and your cats go back to the shelter pool. This cannot be undone."}
+        </p>
+        {errorLine}
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <PixelButton
+            size="sm"
+            text={erase ? "ERASE" : "DELETE FOREVER"}
+            busy={busy}
+            onClick={erase ? eraseGuest : deleteAccount}
+          />
+          <PixelButton
+            size="sm"
+            text={erase ? "KEEP PLAYING" : "KEEP MY ACCOUNT"}
+            disabled={busy}
+            onClick={() => {
+              setError(null);
+              setStep("menu");
+            }}
+          />
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <div className="mt-2 flex flex-col items-center gap-1" data-testid={isGuest ? "guest-menu" : "account-menu"}>
+      {errorLine}
+      {isGuest ? (
+        <>
+          <PixelButton
+            size="sm"
+            text="SAVE PROGRESS"
+            onClick={() => void auth.requireAccount("save-progress")}
+          />
+          <PixelButton size="sm" text="ERASE GUEST PROGRESS" onClick={() => setStep("confirm-erase")} />
+        </>
+      ) : (
+        <>
+          <PixelButton size="sm" text="Logout :(" onClick={() => void auth.signOut()} />
+          {isRegistered && (
+            <PixelButton size="sm" text="DELETE ACCOUNT" onClick={() => setStep("confirm-delete")} />
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+const isStarterCat = (cat: ICat | null | undefined): boolean =>
+  !!(cat as (ICat & { isStarter?: boolean }) | null | undefined)?.isStarter;
+
+export const ProfileModalContent = ({ close }: { close?: () => void }) => {
+  const { profile, setProfileUpdate } = useProfile();
+  const auth = useOptionalFirebaseAuth();
   const catnipBreakdown = getCatnipBreakdown({
     catnipChaos: profile?.catnipChaos,
     match3: profile?.match3,
   });
-  const [isWalletsRevealed, setIsWalletsRevealed] = useState(false);
-  const [isDeleteRequestModalOpen, setIsDeleteRequestModalOpen] =
-    useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
   const { setOpenedModal } = useGame();
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState("stats");
-  const copy = useCallback(
-    (stringToCopy: string) => {
-      navigator.clipboard
-        .writeText(stringToCopy!)
-        .then(() => {
-          toast({ message: "Wallet address coppied to clipboard" });
-        })
-        .catch((err) => {
-          throw err;
-        });
-    },
-    [toast, close]
-  );
+  const cat = profile?.cat ?? null;
+  // The template starter ("guest-starter") has no document yet: nothing to rename until the
+  // guest session exists.
+  const canRename = !!cat && isStarterCat(cat) && !!cat._id && cat._id !== "guest-starter" && !!auth;
 
   return (
-    <div className="pt-4 pb-8 md:pb-4 px-4 md:pt-4 text-yellow-900 flex flex-col md:flex-row md:gap-4 justify-between items-center animate-appear">
-      {profile?.cat && (
+    <div className="pt-2 pb-4 px-1 md:px-2 text-tt-cream flex flex-col md:flex-row md:gap-6 justify-between items-center animate-appear">
+      {profile && (
         <div className="m-auto font-primary">
-          <span className="relative z-0">
-            <Cat profile={profile} />
-          </span>
-          <div className="relative z-10 md:-mt-6">
+          {cat && (
+            <span className="relative z-0">
+              <Cat profile={profile} />
+            </span>
+          )}
+          <div className="relative z-10">
             <div className="font-paws text-p3 text-center">
               Hello, {profile.name}
             </div>
+            {canRename && (
+              <div className="flex justify-center -mt-2">
+                <PixelButton size="sm" text={`RENAME ${cat?.name || "YOUR CAT"}`} onClick={() => setRenameOpen(true)} />
+              </div>
+            )}
           </div>
-          <div className="flex justify-center -mb-4">
+          <div className="flex justify-center -mb-4" role="group" aria-label="Profile sections">
             <PixelButton
-              isSmall
-              text="STATS"
-              active={activeTab === "stats"}
-              onClick={() => setActiveTab("stats")}
-            />
-            <PixelButton
-              isSmall
+              size="sm"
               text="MY IMPACT"
-              active={activeTab === "achievements"}
-              onClick={() => setActiveTab("achievements")}
+              onClick={() => openProgress(setOpenedModal, "impact")}
             />
             <PixelButton
-              isSmall
+              size="sm"
               text="SUPPORT"
               onClick={() => setOpenedModal(GameModal.SUPPORT)}
             />
           </div>
-          {activeTab === "stats" && (
-            <section className="flex justify-between mt-4">
-              <div className="flex flex-col items-center gap-x-2">
-                <div className="text-p5 flex items-center gap-1">
-                  <img
-                    draggable={false}
-                    className="w-4 h-4"
-                    src={cdnFile("logo/catnip.webp")}
-                  />
-                  <div>CATNIP</div>
-                </div>
-                <div className="flex items-center text-p6 bg-green-300/50 border border-yellow-900 rounded-lg w-full justify-center">
-                  {catnipBreakdown.totalCount} / {TOTAL_CATNIP_CAP}
-                </div>
-              </div>
-              <div className="flex flex-col items-center gap-x-2">
-                <div className="text-p5 flex items-center gap-1">
-                  <img
-                    draggable={false}
-                    className="h-4"
-                    src={cdnFile("logo/logo.webp")}
-                  />
-                  <div>$TAILS</div>
-                </div>
-                <div className="flex items-center gap-2 bg-yellow-300/50 border border-yellow-900 rounded-lg w-full justify-center">
-                  <div className="text-p6">
-                    {profile?.tails?.toFixed(0) || 0}
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col items-center gap-x-2">
-                <div className="text-p5 flex items-center gap-1">
-                  <img
-                    draggable={false}
-                    className="w-5"
-                    src={cdnFile("logo/rocket.png")}
-                  />
-                  <div>CHECKS</div>
-                </div>
-                <div className="flex items-center text-p6 bg-blue-300/50 border border-yellow-900 rounded-lg w-full justify-center">
-                  <div className="text-p6">{profile?.streak || 0}</div>
-                </div>
-              </div>
-              <div className="flex flex-col items-center gap-x-2">
-                <div className="text-p5 flex items-center gap-1">
-                  <img
-                    draggable={false}
-                    className="w-4 h-4"
-                    src={cdnFile("logo/friends.png")}
-                  />
-                  <div>INVITES</div>
-                </div>
-                <div className="flex items-center text-p6 bg-red-300/50 border border-yellow-900 rounded-lg w-full justify-center">
-                  <div className="text-p6">{profile?.referralsCount || 0}</div>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {activeTab === "achievements" && (
-            <ul>
-              {profile?.spent > 0 ? (
-                <li className="flex flex-col gap-x-2 mt-2">
-                  <div className="flex font-secondary text-p4 gap-2 text-center m-auto mt-2 -mb-1">
-                    <img
-                      draggable={false}
-                      className="w-5"
-                      src={cdnFile("logo/human.webp")}
-                    />
-                    YOUR DONATIONS FUNDED
-                  </div>
-                  {(() => {
-                    const breakdown = calculateDonationBreakdown(profile.spent);
-                    const items = [
-                      {
-                        value: breakdown.extendedCare,
-                        label: "extended care & recovery",
-                        pluralLabel: "extended care & recoveries",
-                      },
-                      {
-                        value: breakdown.emergencyMedical,
-                        label: "emergency medical treatment",
-                        pluralLabel: "emergency medical treatments",
-                      },
-                      {
-                        value: breakdown.spayNeuter,
-                        label: "spay/neuter surgery",
-                        pluralLabel: "spay/neuter surgeries",
-                      },
-                      {
-                        value: breakdown.checkupVaccines,
-                        label: "full checkup & vaccinations",
-                        pluralLabel: "full checkups & vaccinations",
-                      },
-                      {
-                        value: breakdown.dailyCare,
-                        label: "day of daily food & care",
-                        pluralLabel: "days of daily food & care",
-                      },
-                    ];
-
-                    return (
-                      <div className="m-auto">
-                        {items
-                          .filter((item) => item.value > 0)
-                          .map((item, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center gap-x-2 mt-1"
-                            >
-                              <img
-                                draggable={false}
-                                className="w-4"
-                                src={cdnFile("logo/heart.webp")}
-                              />
-                              <div className="font-secondary text-p5">
-                                {item.value}{" "}
-                                {item.value === 1
-                                  ? item.label
-                                  : item.pluralLabel}
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    );
-                  })()}
-                </li>
-              ) : (
-                <div className="text-p5 font-secondary text-center m-auto mt-4 -mb-1">
-                  FIRST ADOPT A CAT
-                </div>
-              )}
-            </ul>
-          )}
-
-          {isFB && (
-            <div className="mt-4">
-              <PixelButton isSmall text="Logout :(" onClick={logout} />
-            </div>
-          )}
-
-          {profile?.wallets?.stellar && isWalletsRevealed && (
-            <li
-              onClick={() => copy(profile?.wallets.stellar.walletAddress)}
-              className="flex flex-col gap-1 mt-3"
+          <section className="flex justify-between gap-2 mt-4" aria-label="Stats">
+            <StatPlate label="CATNIP" icon={<CatnipIcon size={16} alt="" />}>
+              {catnipBreakdown.totalCount} / {TOTAL_CATNIP_CAP}
+            </StatPlate>
+            <StatPlate
+              label="TAILS"
+              icon={<img draggable={false} className="h-4" alt="" aria-hidden="true" src={cdnFile("logo/logo.webp")} />}
             >
-              <div className="text-p5 font-secondary">
-                Your Stellar wallet address
-                <span className="font-bold px-4 py-0.5 bg-yellow-300 rounded-lg ml-2">
-                  COPY
-                </span>
-              </div>
-              <p className="text-p6 font-bold font-secondary">
-                {profile?.wallets.stellar.walletAddress}
-              </p>
-              <div className="font-primary text-center text-p6 mt-1">
-                GENERATED WALLETS FOR IN-GAME USAGE
-              </div>
-            </li>
-          )}
+              {profile?.tails?.toFixed(0) || 0}
+            </StatPlate>
+            <StatPlate
+              label="CHECKS"
+              icon={<img draggable={false} className="w-5" alt="" aria-hidden="true" src={cdnFile("logo/rocket.png")} />}
+            >
+              {profile?.streak || 0}
+            </StatPlate>
+            <StatPlate
+              label="INVITES"
+              icon={<img draggable={false} className="w-4 h-4" alt="" aria-hidden="true" src={cdnFile("logo/friends.png")} />}
+            >
+              {profile?.referralsCount || 0}
+            </StatPlate>
+          </section>
+
+          {/* MY IMPACT: the one-row summary, always under the stats (plan G4, 2.13 row 29). */}
+          <MyImpactSummary onOpenImpact={() => openProgress(setOpenedModal, "impact")} />
         </div>
       )}
-      <div className="flex flex-col justify-center">
+      <div className={clsx("flex flex-col items-center justify-center", "mt-4 md:mt-0")}>
         <ProfileUpdate />
         <GameMusicToggle />
         <AnalyticsSettingsButton />
-        {isApp && (
-          <PixelButton
-            isSmall
-            text="Delete Account"
-            onClick={() => {
-              setIsDeleteRequestModalOpen(true),
-                toast({
-                  message:
-                    "Delete request sent to support. It'll be handled within 24 hours",
-                });
-            }}
-          />
-        )}
+        <AccountSection close={close} />
       </div>
+      {canRename && renameOpen && cat?._id && (
+        <RenameSheet
+          open={renameOpen}
+          onOpenChange={setRenameOpen}
+          cat={{ _id: cat._id, name: cat.name }}
+          onRenamed={(renamed) => {
+            if (profile?.cat?._id === renamed._id) {
+              setProfileUpdate({ cat: { ...profile.cat, name: renamed.name } });
+            }
+            toast({ message: `Meet ${renamed.name}!` });
+          }}
+        />
+      )}
     </div>
   );
 };
 
 export const ProfileModal = ({ close }: { close: () => void }) => {
   return (
-    <div className="fixed inset-0 mt-safe w-full z-[100] flex justify-center h-full mb-2">
-      <div
-        onClick={close}
-        className="z-40 h-full w-full absolute inset-0 bg-yellow-300/50 md:backdrop-blur-md animate-in fade-in duration-300"
-      ></div>
-      <div
-        className="m-auto z-50 rem:w-[400px] md:w-[600px] max-w-full lg:top-1/2 lg:-translate-y-1/2 lg:h-fit lg:absolute overflow-y-auto max-h-screen rounded-xl shadow border-4 border-yellow-300 glow-box"
-        style={bgStyle("4")}
-      >
-        <CloseButton onClick={() => close()} />
-        <ProfileModalContent />
-        <button onClick={close} className="absolute right-[0] top-0 group">
-          <i className="bx bx-x-circle text-h5 text-gray-400 group-hover:text-gray-600 transition duration-300"></i>
-        </button>
-      </div>
-    </div>
+    <GameDialog
+      open
+      onOpenChange={(open) => {
+        if (!open) close();
+      }}
+      title="ABOUT ME"
+      name="profile"
+      size="lg"
+      // The sheet holds the sound controls (GameMusicToggle): keep the music audible while they move.
+      keepAudio
+    >
+      <ProfileModalContent close={close} />
+    </GameDialog>
   );
 };

@@ -36,7 +36,9 @@ describe('campaign', () => {
         expect(level.crate.catName).toBeTruthy();
         expect(typeof level.meta.twoCatRequired).toBe('boolean');
         expect(level.checkpoints.length).toBeGreaterThanOrEqual(1);
-        expect(level.checkpoints.length).toBeLessThanOrEqual(3);
+        // Up to 3, or one per plate door: a cat caught past a plate door must respawn on that side.
+        const plateDoors = level.doors.filter((d) => d.kind === 'PLATE').length;
+        expect(level.checkpoints.length).toBeLessThanOrEqual(Math.max(3, plateDoors));
       });
 
       it('has 15-30 coins, within its maxCoins cap', () => {

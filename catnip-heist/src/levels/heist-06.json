@@ -44,7 +44,7 @@
       ],
       "speed": 2,
       "sniffTicks": 20,
-      "visionTiles": 4
+      "visionTiles": 3
     },
     {
       "id": "g-hall-2",
@@ -61,7 +61,7 @@
       ],
       "speed": 2,
       "sniffTicks": 20,
-      "visionTiles": 4
+      "visionTiles": 3
     },
     {
       "id": "g-hall-3",
@@ -78,7 +78,7 @@
       ],
       "speed": 2,
       "sniffTicks": 20,
-      "visionTiles": 4
+      "visionTiles": 3
     }
   ],
   "coins": [
@@ -290,7 +290,7 @@
   ],
   "meta": {
     "title": "Heist 06: Conveyor Halls",
-    "parTicks": 3600,
+    "parTicks": 3450,
     "meowRadiusTiles": 6,
     "investigateTicks": 90,
     "maxCoins": 20,
@@ -306,7 +306,7 @@
         "x1": 27,
         "y1": 3,
         "untilObjective": 0,
-        "text": "Follow the dog and hide in a niche when it turns back."
+        "text": "Follow the dog and hide deep in a wall niche (the gaps in the wall) when it turns back."
       },
       {
         "x0": 2,

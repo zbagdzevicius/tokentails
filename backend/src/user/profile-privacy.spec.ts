@@ -1,6 +1,6 @@
 import { BadRequestException, RequestMethod } from '@nestjs/common';
 import { GUARDS_METADATA, METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
-import { AuthGuard } from '@nestjs/passport';
+import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { ProfileWriteDto, profileWritePipe } from './dto/profile-write.dto';
 import { PERMISSION_LEVEL } from './models/user.model';
 import { PROFILE_ADMIN_PROJECTION, UserController } from './user.controller';
@@ -23,7 +23,7 @@ function handlersFor(method: RequestMethod, path: string) {
 
 function allows(guards: any[], permission?: number) {
     const context = { switchToHttp: () => ({ getRequest: () => ({ user: { permission } }) }) } as any;
-    const permissionGuards = guards.filter(guard => guard !== AuthGuard('appauth'));
+    const permissionGuards = guards.filter(guard => guard !== AppAuthGuard);
     return permissionGuards.every(Guard => new Guard().canActivate(context));
 }
 
@@ -32,11 +32,11 @@ describe('GET /user/profile/:id', () => {
         expect(handlersFor(RequestMethod.GET, 'profile/:param')).toHaveLength(1);
     });
 
-    it('requires appauth and at least MANAGER', () => {
+    it('requires AppAuthGuard and at least MANAGER', () => {
         const [handler] = handlersFor(RequestMethod.GET, 'profile/:param');
         const guards = Reflect.getMetadata(GUARDS_METADATA, handler) || [];
 
-        expect(guards).toContain(AuthGuard('appauth'));
+        expect(guards[0]).toBe(AppAuthGuard);
         expect(allows(guards, PERMISSION_LEVEL.USER)).toBe(false);
         expect(allows(guards, PERMISSION_LEVEL.EDITOR)).toBe(false);
         expect(allows(guards, PERMISSION_LEVEL.MANAGER)).toBe(true);
@@ -66,11 +66,9 @@ describe('profile write body (POST /user/profile, PUT /user/profile/:id)', () =>
 
     it('accepts the payloads the CMS user form sends', async () => {
         await expect(
-            validate({ name: 'A', discount: '', email: 'a@example.com', permission: 4, shelter: '' })
+            validate({ name: 'A', discount: '', email: 'a@example.com', permission: 4 })
         ).resolves.toMatchObject({ name: 'A', permission: 4 });
-        await expect(
-            validate({ name: 'A', discount: '', email: '', permission: '', shelter: null })
-        ).resolves.toBeDefined();
+        await expect(validate({ name: 'A', discount: '', email: '', permission: '' })).resolves.toBeDefined();
         await expect(validate({ name: 'A', permission: 0 })).resolves.toBeDefined();
     });
 
@@ -80,6 +78,10 @@ describe('profile write body (POST /user/profile, PUT /user/profile/:id)', () =>
         [{ $set: { permission: PERMISSION_LEVEL.ADMIN } }],
         [{ permission: 99 }],
         [{ permission: '5' }],
+        // W1 security hotfix: a manager can no longer attach a user to any shelter.
+        [{ name: 'A', shelter: '507f1f77bcf86cd799439011' }],
+        [{ name: 'A', shelter: '' }],
+        [{ name: 'A', shelter: null }],
     ])('rejects %j', async body => {
         await expect(validate(body)).rejects.toBeInstanceOf(BadRequestException);
     });
@@ -97,27 +99,33 @@ describe('profile write body (POST /user/profile, PUT /user/profile/:id)', () =>
         controller.repository = { update };
         const body = await validate({ name: 'A', email: 'a@example.com' });
 
-        await controller.updateProfile(body, '507f1f77bcf86cd799439011');
+        // An admin caller: email and permission changes are ADMIN only (profile-write.hotfix.spec.ts).
+        await controller.updateProfile(body, '507f1f77bcf86cd799439011', { permission: 5 });
 
         expect(Object.keys(update.mock.calls[0][1]).sort()).toEqual(['email', 'name']);
+    });
+    it('updateProfile keeps emailCanonical in step with an email change (2a review finding #5)', async () => {
+        const update = jest.fn().mockResolvedValue({});
+        const controller = Object.create(UserController.prototype);
+        controller.repository = { update };
+        const body = await validate({ email: 'Pat.Smith+cms@gmail.com' });
+
+        await controller.updateProfile(body, '507f1f77bcf86cd799439011', { permission: 5 });
+
+        expect(update).toHaveBeenLastCalledWith('507f1f77bcf86cd799439011', { emailCanonical: 'patsmith@gmail.com' });
     });
     it('createProfile maps the empty permission field to the schema default', async () => {
         const create = jest.fn().mockResolvedValue({});
         const controller = Object.create(UserController.prototype);
         controller.repository = { create };
         controller.userService = { generateWallets: jest.fn(() => ({})), generateACat: jest.fn() };
-        const body = await validate({
-            name: 'A',
-            email: '',
-            discount: '',
-            permission: '',
-            shelter: '507f1f77bcf86cd799439011',
-        });
+        const body = await validate({ name: 'A', email: '', discount: '', permission: '' });
 
         await controller.createProfile(body);
 
         const created = create.mock.calls[0][0];
         expect(created.permission).toBeUndefined();
         expect(created).not.toHaveProperty('tails');
+        expect(created).not.toHaveProperty('shelter');
     });
 });

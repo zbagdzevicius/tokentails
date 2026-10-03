@@ -1,16 +1,29 @@
 /**
- * Shared product-analytics scheme (PostHog EU).
+ * Product-analytics event catalog (PostHog EU), F9.
  *
- * The core app and Catnip Heist send the same event names and property
- * shapes so funnels can be compared across both. Events carry no personal
- * data: no user id, email, name or wallet address. PostHog's own random
- * anonymous id is the only identifier.
+ * Every event the core app may send is declared here with its property
+ * shape, so features import a name instead of inventing one. Events carry no
+ * personal data: no user id, email, name, cat name or wallet address.
+ * PostHog's own random anonymous id is the only identifier.
+ *
+ * The names, areas, consent key, scrubber and session budget live in
+ * `shared/analytics-core.ts`, copied into the client and into Catnip Heist,
+ * so both apps send from one catalog (F9). This file adds the property
+ * shapes and builders. The Heist sends `heist_open` (standalone loads),
+ * `heist_run_complete` and `app_error` itself (`catnip-heist/src/analytics`);
+ * the `/heist` host page sends `heist_open`, `heist_save`,
+ * `heist_signin_prompt` and `heist_guest_claim`.
  *
  * Telemetry never writes scores. Scores are saved only through
  * `POST /user/catbassadors/live`.
  */
 
 import type { GamePlatformValue } from "@/models/game";
+import {
+  ANALYTICS_EVENTS,
+  type AnalyticsEventName,
+  type ScrubbedValue,
+} from "@/shared-contracts/analytics-core";
 
 export type AnalyticsPlatform = GamePlatformValue;
 export type DeviceTier = "low" | "high" | "unknown";
@@ -18,21 +31,17 @@ export type DeviceTier = "low" | "high" | "unknown";
 /** Which product sent the event. */
 export type AnalyticsApp = "core" | "heist";
 
-export const ANALYTICS_EVENTS = {
-  /** A run of a mode (or level) begins. */
-  GAME_START: "game_start",
-  /** The scene finished loading after the player picked a mode. */
-  GAME_LOADED: "game_loaded",
-  /** The run ended normally: level completed, or an endless run finished. */
-  GAME_FINISH: "game_finish",
-  /** The run ended without completing the level. */
-  GAME_FAIL: "game_fail",
-  /** The player left the mode while a run was in progress. */
-  GAME_QUIT: "game_quit",
-} as const;
-
-export type AnalyticsEventName =
-  (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];
+export {
+  ANALYTICS_EVENTS,
+  ANALYTICS_EVENT_AREAS,
+  HEIST_APP_EVENTS,
+  isAnalyticsEventName,
+} from "@/shared-contracts/analytics-core";
+export type {
+  AnalyticsArea,
+  AnalyticsEventKey,
+  AnalyticsEventName,
+} from "@/shared-contracts/analytics-core";
 
 export type GameOutcome = "win" | "run_end" | "fail";
 
@@ -42,6 +51,8 @@ export interface AnalyticsSuperProperties {
   platform: AnalyticsPlatform;
   device_tier: DeviceTier;
 }
+
+type NoProperties = Record<string, never>;
 
 interface BaseGameProperties {
   /** Game mode, e.g. the `GameType` value (`MATCH_3`) or `HEIST`. */
@@ -72,12 +83,105 @@ export interface GameQuitProperties extends BaseGameProperties {
   duration_s: number | null;
 }
 
+/** Where a CTA or entry point sat, e.g. `hero`, `team`, `picker`, `landing`. */
+export interface FromProperties {
+  from: string;
+}
+
+export type AuthProvider = "google" | "apple" | "email" | "password" | "link";
+/** Save and send results. `guest` means kept locally until the player links an account. */
+export type RequestStatus = "ok" | "error" | "rejected" | "guest" | "offline";
+
+export interface FtueModeProperties {
+  mode: string;
+  level?: string | null;
+}
+
+export interface FtueHintProperties extends FtueModeProperties {
+  hint: string;
+}
+
+/** Where an `app_error` came from. */
+export type AppErrorSource =
+  | "boundary"
+  | "listener"
+  | "window"
+  | "rejection"
+  | "watchdog"
+  | "manual";
+
+/** The boundary level, from the outermost in. */
+export type AppErrorLevel = "root" | "page" | "scene" | "modal" | "section" | "none";
+
+/**
+ * A scrubbed crash report (F9). Every string here has been through
+ * `analytics/scrub.ts`; build it with `reportAppError`, never by hand.
+ */
+export interface AppErrorProperties {
+  /** Stable machine code, e.g. `scene_crash`, `listener_error`. */
+  code: string;
+  source: AppErrorSource;
+  level: AppErrorLevel;
+  error_name: string;
+  message: string;
+  stack: string | null;
+  /** Route path without query or fragment. */
+  route: string;
+  /** 1-based count of reports this session, including this one. */
+  session_index: number;
+  context: Record<string, ScrubbedValue>;
+}
+
 export type AnalyticsEventProperties = {
-  game_start: GameStartProperties;
+  // Entry
+  landing_cta: FromProperties;
   game_loaded: GameLoadedProperties;
-  game_finish: GameEndProperties;
+  intro_lifted: { ms: number };
+  // Identity
+  guest_session_created: NoProperties;
+  auth_sheet_shown: { reason: string };
+  auth_linked: { provider: AuthProvider };
+  auth_merged: NoProperties;
+  auth_error: { code: string };
+  save_nudge_shown: { trigger?: string };
+  // Onboarding (never the chosen cat name)
+  onboarding_shown: NoProperties;
+  onboarding_step_viewed: { step: string };
+  starter_selected: { starter: string };
+  starter_named: { length: number };
+  starter_committed: { starter: string };
+  onboarding_skipped: { step?: string };
+  featured_cat_followed: NoProperties;
+  cat_name_rejected: { reason: string };
+  cat_name_reported: NoProperties;
+  // Runs
+  ftue_gate_shown: FtueModeProperties;
+  game_start: GameStartProperties;
+  ftue_hint_shown: FtueHintProperties;
+  ftue_hint_done: FtueHintProperties;
+  life_lost: FtueModeProperties & { lives_left?: number };
   game_fail: GameEndProperties;
+  game_finish: GameEndProperties;
   game_quit: GameQuitProperties;
+  ftue_first_clear: FtueModeProperties;
+  ftue_abandon: FtueModeProperties & { step?: string };
+  // Heist
+  heist_open: FromProperties;
+  heist_run_complete: { level: string; outcome: "win" | "fail"; stars?: number };
+  heist_save: { status: RequestStatus };
+  heist_signin_prompt: { from?: string };
+  heist_guest_claim: { status: RequestStatus };
+  // Impact
+  impact_tab_viewed: NoProperties;
+  paw_earned: { amount?: number };
+  treat_sent: { status: RequestStatus };
+  pledge_made: NoProperties;
+  claim_opened: { id: string };
+  impact_page_viewed: { from?: string };
+  // Health
+  app_error: AppErrorProperties;
+  game_font_fallback: { font: string; role?: string };
+  storefront_degraded: { reason: string };
 };
 
 export type AnalyticsEvent = {
@@ -89,15 +193,23 @@ export type AnalyticsEventOf<K extends AnalyticsEventName> = Extract<
   { name: K }
 >;
 
+/** Typed constructor so call sites never spell a name or shape by hand. */
+export function buildEvent<K extends AnalyticsEventName>(
+  name: K,
+  properties: AnalyticsEventProperties[K],
+): AnalyticsEventOf<K> {
+  return { name, properties } as AnalyticsEventOf<K>;
+}
+
 /**
  * Modes without `completedLevel`. Purrsuit (`CATNIP_CHAOS`) sends an explicit
- * `stopOutcome`: reaching the goal is a win, a hit or a quit is a fail. A stop
- * without one (older builds) still counts as a finished endless run.
+ * `stopOutcome`: reaching the goal is a win; a hit, a timeout or a quit is a
+ * fail. A stop without one (older builds) still counts as a finished endless run.
  */
 const ENDLESS_MODES = new Set<string>(["CATNIP_CHAOS"]);
 
-/** How a scene says its run ended, see `IGameStopEvent.outcome`. */
-export type GameStopOutcomeInput = "won" | "died" | "quit";
+/** How a scene says its run ended, see `IGameStopPayload.outcome` (plan F6). */
+export type GameStopOutcomeInput = "won" | "died" | "timeout" | "quit";
 
 export interface GameStopInput {
   mode: string;
@@ -121,10 +233,11 @@ export function gameOutcome(
   completedLevel?: string | null,
   stopOutcome?: GameStopOutcomeInput,
 ): GameOutcome {
+  // Level modes win exactly when they report `completedLevel`, which they set with `won`.
   if (completedLevel) return "win";
   if (!ENDLESS_MODES.has(mode)) return "fail";
   if (stopOutcome === "won") return "win";
-  if (stopOutcome === "died" || stopOutcome === "quit") return "fail";
+  if (stopOutcome) return "fail";
   return "run_end";
 }
 

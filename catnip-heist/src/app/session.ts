@@ -26,6 +26,13 @@ export interface SessionOptions {
 
 export type TickListener = (state: SimState, input: Input) => void;
 
+/**
+ * A rewind re-simulates the cut log from the latest saved state at or before the target. States
+ * are immutable and come from the same `stepSim` calls, so starting from a saved one gives the
+ * exact state a replay from tick 0 reaches. One is kept every this many ticks.
+ */
+export const KEYFRAME_TICKS = 150;
+
 export class HeistSession {
   readonly level: LevelDef;
   readonly seed: number;
@@ -37,6 +44,10 @@ export class HeistSession {
   readonly inputs: Input[] = [];
   private readonly replayInputs: Input[] | null;
   private acc = 0;
+  /** keyframes[k] is the state after k * KEYFRAME_TICKS ticks (keyframes[0] is the initial state). */
+  private readonly keyframes: SimState[];
+  /** Rewinds done in this run (play mode). */
+  rewinds = 0;
 
   constructor(opts: SessionOptions) {
     this.level = opts.level;
@@ -56,6 +67,7 @@ export class HeistSession {
     }
     this.cur = initSim(this.level, this.seed, this.catIds);
     this.prev = this.cur;
+    this.keyframes = [this.cur];
   }
 
   /** Won, or a replay that ran out of inputs. */
@@ -80,8 +92,32 @@ export class HeistSession {
     this.prev = this.cur;
     this.cur = stepSim(this.level, this.cur, inp);
     this.inputs.push(inp);
+    if (this.cur.tick % KEYFRAME_TICKS === 0) this.keyframes[this.cur.tick / KEYFRAME_TICKS] = this.cur;
     onTick?.(this.cur, inp);
     return true;
+  }
+
+  /**
+   * Rewind (plan G10, decision #72): cut the recorded inputs back to `tick` and re-simulate the cut
+   * log, so the run continues as if the cut ticks never happened. The sim is untouched, and the log
+   * this session saves afterwards is the cut log plus whatever is played next, which any replay
+   * (and the server's `verifyRun`) reproduces from tick 0. Play mode only; returns the tick reached.
+   */
+  rewindTo(tick: number): number {
+    if (this.mode !== 'play') throw new Error('rewind is for play-mode runs');
+    if (this.cur.won) return this.cur.tick;
+    const target = Math.max(0, Math.min(this.inputs.length, Math.floor(tick)));
+    if (target === this.inputs.length) return target;
+    this.inputs.length = target;
+    const k = Math.floor(target / KEYFRAME_TICKS);
+    this.keyframes.length = k + 1;
+    let s = this.keyframes[k];
+    for (let i = s.tick; i < target; i++) s = stepSim(this.level, s, this.inputs[i]);
+    this.prev = s;
+    this.cur = s;
+    this.acc = 0;
+    this.rewinds++;
+    return target;
   }
 
   /**

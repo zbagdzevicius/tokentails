@@ -1,10 +1,11 @@
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { AuthStrategy } from './auth-app.strategy';
 import { UNAUTHORIZED } from './constants';
 
 jest.mock('firebase-admin', () => ({ auth: jest.fn() }));
 // The real UserService pulls in Mongoose models; the strategy only needs getFirebaseUser.
-jest.mock('../user.service', () => ({ UserService: class {} }));
+jest.mock('../user.service', () => ({ UserService: class {}, ANONYMOUS_PROVIDER: 'anonymous' }));
 
 const verifyIdToken = jest.fn();
 const getFirebaseUser = jest.fn();
@@ -73,14 +74,63 @@ describe('AppAuthStrategy (appauth)', () => {
         expect(perRequest.fail.mock.calls[0][1]).toBe(401);
     });
 
-    it('fails once for a Firebase token without an email', async () => {
-        verifyIdToken.mockResolvedValue({ uid: 'u1', firebase: { sign_in_provider: 'anonymous' } });
+    it('answers 401 once for a non-anonymous Firebase token without an email', async () => {
+        verifyIdToken.mockResolvedValue({ uid: 'u1', firebase: { sign_in_provider: 'password' } });
+        const { perRequest, run } = createRequestStrategy('fbvalid');
+        await run();
+
+        // The UnauthorizedException is passed on unchanged, so the client still gets 401.
+        expect(outcomes(perRequest)).toEqual({ success: 0, fail: 0, error: 1 });
+        expect(perRequest.error.mock.calls[0][0]).toBeInstanceOf(UnauthorizedException);
+        expect(getFirebaseUser).not.toHaveBeenCalled();
+    });
+
+    it('resolves an anonymous token (no email) as a guest (F5.2 step 1)', async () => {
+        const decoded = { uid: 'anon-1', firebase: { sign_in_provider: 'anonymous' } };
+        const transient = { isGuest: true, transient: true, firebaseUid: 'anon-1' };
+        verifyIdToken.mockResolvedValue(decoded);
+        getFirebaseUser.mockResolvedValue(transient);
+        const { perRequest, run } = createRequestStrategy('fbanon');
+        await run();
+
+        expect(getFirebaseUser).toHaveBeenCalledWith(decoded, { ip: 'unknown' });
+        expect(outcomes(perRequest)).toEqual({ success: 1, fail: 0, error: 0 });
+        expect(perRequest.success).toHaveBeenCalledWith(transient, transient);
+    });
+
+    it('passes the client IP (req.ips first, as the throttler does) to user resolution', async () => {
+        const decoded = { uid: 'u1', email: 'player@example.com', firebase: { sign_in_provider: 'google.com' } };
+        verifyIdToken.mockResolvedValue(decoded);
+        getFirebaseUser.mockResolvedValue({ _id: 'user-1' });
+        const strategy = new AuthStrategy({ getFirebaseUser } as any);
+        const perRequest = Object.create(strategy);
+        perRequest.success = jest.fn();
+        perRequest.fail = jest.fn();
+        perRequest.error = jest.fn();
+        await perRequest.authenticate({ headers: { accesstoken: 'fbvalid' }, ips: ['203.0.113.7'], ip: '10.0.0.1' });
+
+        expect(getFirebaseUser).toHaveBeenCalledWith(decoded, { ip: '203.0.113.7' });
+    });
+
+    it('passes an HttpException from user resolution on unchanged (403 EMAIL_UNVERIFIED)', async () => {
+        verifyIdToken.mockResolvedValue({ uid: 'u1', email: 'player@example.com', firebase: {} });
+        const forbidden = new ForbiddenException({ statusCode: 403, code: 'EMAIL_UNVERIFIED' });
+        getFirebaseUser.mockRejectedValue(forbidden);
+        const { perRequest, run } = createRequestStrategy('fbvalid');
+        await run();
+
+        expect(outcomes(perRequest)).toEqual({ success: 0, fail: 0, error: 1 });
+        expect(perRequest.error).toHaveBeenCalledWith(forbidden);
+    });
+
+    it('keeps any other resolution error a plain 401', async () => {
+        verifyIdToken.mockResolvedValue({ uid: 'u1', email: 'player@example.com', firebase: {} });
+        getFirebaseUser.mockRejectedValue(new Error('Mongo is down'));
         const { perRequest, run } = createRequestStrategy('fbvalid');
         await run();
 
         expect(outcomes(perRequest)).toEqual({ success: 0, fail: 1, error: 0 });
         expect(perRequest.fail.mock.calls[0][1]).toBe(401);
-        expect(getFirebaseUser).not.toHaveBeenCalled();
     });
 
     it('succeeds once, and never also fails, for a valid token with an email', async () => {
@@ -91,7 +141,7 @@ describe('AppAuthStrategy (appauth)', () => {
         const { perRequest, run } = createRequestStrategy('fbvalid');
         await run();
 
-        expect(getFirebaseUser).toHaveBeenCalledWith(decoded);
+        expect(getFirebaseUser).toHaveBeenCalledWith(decoded, { ip: 'unknown' });
         expect(outcomes(perRequest)).toEqual({ success: 1, fail: 0, error: 0 });
         expect(perRequest.success).toHaveBeenCalledWith(user, user);
     });

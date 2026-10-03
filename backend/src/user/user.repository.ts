@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { BaseRepository } from 'src/common/base.repository';
+import { notGuestFilter } from 'src/common/decorators/auth-user.decorator';
 import { UserDocument, User } from './user.schema';
 
 @Injectable()
@@ -20,8 +21,10 @@ export class UserRepository extends BaseRepository<UserDocument> {
         // Use MongoDB aggregation to get weekly counts in a single query
         const results = await this.collectionModel.aggregate([
             {
+                // Guests are not users for traction (decision #13).
                 $match: {
                     createdAt: { $gte: startDate, $lte: currentDate },
+                    ...notGuestFilter(),
                 },
             },
             {

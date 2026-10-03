@@ -1,9 +1,46 @@
 import { GameEvents } from "@/components/Phaser/events";
+import { fitCssCamera } from "@/components/Phaser/look/camera";
+import {
+  LOOK_RESIZE,
+  type LookResizeEvent,
+} from "@/components/Phaser/look/makeGameConfig";
+import { getCanvasPixelRatio } from "@/components/Phaser/look/registry";
+import {
+  preloadTTFonts,
+  refreshTTResolution,
+  ttFit,
+  ttText,
+  TT_FONTS_HEALED,
+  type HealableText,
+  type TTFitSegment,
+  type TTFitTarget,
+} from "@/components/Phaser/typography";
+import { GOLD } from "@/design/tokens";
 import { Scene } from "phaser";
+import { GLOVE_TEXTURE_KEY, GLOVE_TEXTURE_URL } from "../glove";
+import { computeMatch3Layout, type HudKey, type Insets, type Match3Layout } from "../hudLayout";
+import { lastChanceGrant, shouldStartClock } from "../match3Rules";
+import { announce, MATCH3_GAME_ID, signalSceneReady } from "../sceneSignals";
+import {
+  GLOVE_DEPTH,
+  GLOVE_GHOSTS,
+  GLOVE_SIZE,
+  gloveTrack,
+  initialInputKind,
+  plateTextBox,
+  prefersReducedMotion,
+  tutorialMessage,
+  tutorialPlateRect,
+  WRONG_STROKE_MS,
+  type InputKind,
+} from "../tutorial";
 import {
   MATCH3_ARENA_BG,
   MATCH3_LEVEL_BY_ID,
   MATCH3_LEVELS,
+  MATCH3_CATNIP_ICONS,
+  MATCH3_CATNIP_ICON_SIZES,
+  type Match3CatnipIconSize,
   MATCH3_TILE_ASSETS,
   Match3LevelId,
   Match3TileType,
@@ -13,7 +50,28 @@ import {
 export interface IMatch3Props {
   level: Match3LevelId;
   bestScore?: number;
+  /** PLAY AGAIN on this level (from GameContext); sent with RUN_READY and RUN_BEGIN. */
+  isRestart?: boolean;
+  /** The player has cleared this level (server `match3Cleared`). Uncleared level 1 gets the grace. */
+  levelCleared?: boolean;
+  /**
+   * Safe-area insets in CSS px. The scene reads the live values from the canvas
+   * (`--tt-safe-*`, set by Match3.tsx) on every layout; these are the fallback, so the tutorial
+   * plate is clamped above the safe-area bottom even where the custom properties are missing.
+   */
+  safeArea?: Partial<Insets>;
+  /** CSS px the header keeps free on its right for the X. Read live from the canvas otherwise. */
+  headerReserveRight?: number;
 }
+
+/** Custom properties Match3.tsx sets on the play wrapper (registered `<length>`s, so they compute to px). */
+export const MATCH3_HEADER_RESERVE_PROPERTY = "--tt-header-reserve-right";
+export const MATCH3_SAFE_AREA_PROPERTIES = {
+  top: "--tt-safe-top",
+  right: "--tt-safe-right",
+  bottom: "--tt-safe-bottom",
+  left: "--tt-safe-left",
+} as const;
 
 type TilePower = "ROW" | "COL" | "BOMB" | "RAINBOW";
 
@@ -55,7 +113,11 @@ interface IMatch3Cell {
   baseScaleY: number;
   field?: Phaser.GameObjects.Rectangle;
   sprite: Phaser.GameObjects.Image;
-  marker?: Phaser.GameObjects.Text;
+  /**
+   * The special-tile badge: a texture arrow (plan G14) in a container, so tweens keep working in
+   * CSS-px scale 1 while the texture is drawn at the canvas pixel ratio. No font (plan G12).
+   */
+  marker?: Phaser.GameObjects.Container;
 }
 
 type Board = Array<Array<IMatch3Cell | null>>;
@@ -69,6 +131,9 @@ interface ISwapIntent {
 
 const BOARD_ROWS = 8;
 const BOARD_COLS = 8;
+/** The 16 px catnip master for the objective icon (plan G8: integer sizes only). */
+/** One texture per objective icon size (16, 24, 32 CSS px), each drawn 1:1 (plan G8). */
+const catnipIconKey = (size: Match3CatnipIconSize) => `match3-catnip-icon-${size}`;
 const BASE_MATCH_SCORE = 12;
 const COMBO_BONUS_STEP = 6;
 const SPECIAL_HIT_BONUS = 10;
@@ -82,12 +147,10 @@ const SWIPE_THRESHOLD = 16;
 const MAX_RESHUFFLES_FALLBACK = 2;
 const HINT_IDLE_MS = 3800;
 const HINT_REPEAT_MS = 5200;
-const LAST_CHANCE_SECONDS = 5;
 const FEVER_SECONDS_THRESHOLD = 15;
 const FEVER_MULTIPLIER = 2;
 const TUTORIAL_STORAGE_KEY = "tokentails-match3-ftue-v1";
 const STAR_PROGRESS_THRESHOLDS = [0.4, 0.75, 1];
-const COMBO_BURST_Y_OFFSET = -4;
 const AMBIENT_SPARK_DELAY_MS = 820;
 const SWAP_SQUISH_FACTOR = 1.14;
 const SWAP_SQUASH_FACTOR = 0.86;
@@ -246,7 +309,8 @@ export class Match3Scene extends Scene {
   private compactHud = false;
   private wideHud = false;
   private smallLandscapeHud = false;
-  private streakClampWidth = 0;
+  private layout!: Match3Layout;
+  private hudTexts = new Map<HudKey, Phaser.GameObjects.Text>();
   private boardWidth = 0;
   private boardHeight = 0;
 
@@ -288,7 +352,32 @@ export class Match3Scene extends Scene {
   private boardFlash?: Phaser.GameObjects.Rectangle;
   private progressBarFill?: Phaser.GameObjects.Rectangle;
   private progressBarGlow?: Phaser.GameObjects.Rectangle;
-  private tutorialContainer?: Phaser.GameObjects.Container;
+  /** The tutorial plate (G12/G14): background and text are separate, so a pulse never scales the text. */
+  private tutorialBg?: Phaser.GameObjects.Rectangle;
+  private tutorialText?: Phaser.GameObjects.Text;
+  private tutorialMessageState: "intro" | "wrong" = "intro";
+  /** HUD texts the plate covers on purpose (zero stat cards on short phones), hidden until it goes. */
+  private tutorialHiddenHud = new Set<HudKey>();
+  /** performance.now() when the tutorial and the glove started, for the e2e's 100 ms check. */
+  private tutorialStartedAt = 0;
+  private gloveShownAt = 0;
+  private tutorialStrokeTimer?: Phaser.Time.TimerEvent;
+  private tutorialRevertTimer?: Phaser.Time.TimerEvent;
+  /** The glove pointer and its trailing ghosts (G14). */
+  private glove?: Phaser.GameObjects.Image;
+  private gloveGhosts: Phaser.GameObjects.Image[] = [];
+  private gloveTween?: Phaser.Tweens.Tween;
+  private gloveTrail: Array<{ t: number; x: number; y: number }> = [];
+  /** The glow ring around the hinted pair (static under reduced motion). */
+  private hintGlow?: Phaser.GameObjects.Graphics;
+  /** The clock and RUN_BEGIN start on the first valid swap (G10). */
+  private clockStarted = false;
+  private inputKind: InputKind = "mouse";
+  private reducedMotion = false;
+  /** True while the opening drop is in flight: swaps and the tutorial wait for it. */
+  private introDropping = false;
+  /** Guards the drop's promise against a restart of this same scene instance. */
+  private introToken = 0;
   private sfxGainNode?: GainNode;
   private sfxNoiseBuffer?: AudioBuffer;
   private sfxUnlocked = false;
@@ -296,8 +385,52 @@ export class Match3Scene extends Scene {
   private lastDropSfxAt = 0;
   private lastThunderSfxAt = 0;
 
+  /**
+   * Layout size in CSS pixels, fixed when the board is built (F10). `this.scale` is the backing
+   * store (CSS x dpr) and must not be used for layout.
+   */
+  private viewWidth = 0;
+  private viewHeight = 0;
+
   constructor() {
     super("Match3Scene");
+  }
+
+  /**
+   * The canvas followed a resize (F10 LOOK_RESIZE): keep the board as built and fit it,
+   * centred, into the new size, so nothing is cut off. A full relayout is G12's `layoutHud()`.
+   *
+   * An orientation flip before the first move rebuilds the board for the new shape instead:
+   * letterboxing a portrait board into landscape shrinks it to about 46% (tiles under the 44 px
+   * touch minimum). Nothing is lost at that point (no move, no score), and no React code
+   * listens to GAME_START. Mid-run the fit stays, so a run in progress is never reset.
+   */
+  private onLookResize(event: LookResizeEvent) {
+    if (!this.viewWidth || !this.viewHeight) return;
+    const builtPortrait = this.viewHeight >= this.viewWidth;
+    const nowPortrait = event.height >= event.width;
+    if (builtPortrait !== nowPortrait && this.isPristineRun()) {
+      this.scene.restart(this.props);
+      return;
+    }
+    fitCssCamera(
+      this.cameras.main,
+      this,
+      { width: this.viewWidth, height: this.viewHeight },
+      { width: event.width, height: event.height },
+    );
+    // The camera zoom changed: texts pick up the new resolution and are fitted again.
+    this.layoutHud();
+  }
+
+  /** No move made and nothing scored yet: rebuilding the board costs the player nothing. */
+  private isPristineRun() {
+    return this.moves === 0 && this.score === 0 && !this.ended && !this.busy;
+  }
+
+  /** Pointer position in layout (CSS) pixels, through the fitted camera. */
+  private pointerToLayout(pointer: Phaser.Input.Pointer) {
+    return pointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
   }
 
   init(props: IMatch3Props) {
@@ -323,6 +456,11 @@ export class Match3Scene extends Scene {
     this.lastChanceUsed = false;
     this.tutorialActive = false;
     this.tutorialMove = null;
+    this.tutorialMessageState = "intro";
+    this.clockStarted = false;
+    this.gloveTrail = [];
+    this.inputKind = initialInputKind();
+    this.reducedMotion = prefersReducedMotion();
     this.lastPlayerActionAt = 0;
     this.nextHintAt = 0;
     this.lastAssistAt = 0;
@@ -352,14 +490,33 @@ export class Match3Scene extends Scene {
   }
 
   preload() {
+    // Plan F4: the brand faces load before create(), so no Text is rasterised with a fallback.
+    preloadTTFonts(this);
     this.load.image(BG_KEY, MATCH3_ARENA_BG);
+    MATCH3_CATNIP_ICON_SIZES.forEach((size) => this.load.image(catnipIconKey(size), MATCH3_CATNIP_ICONS[size]));
 
     MATCH3_TILE_ASSETS.forEach((tile) => {
       this.load.image(TILE_KEY_BY_TYPE[tile.type], tile.src);
     });
+    // The glove pointer (G14), a 32x32 pixel PNG from the app's own origin, drawn NEAREST.
+    this.load.image(GLOVE_TEXTURE_KEY, GLOVE_TEXTURE_URL);
   }
 
   create() {
+    // F10: the layout below is in CSS pixels; the camera maps it onto the dpr backing store.
+    const dpr = getCanvasPixelRatio(this);
+    this.viewWidth = this.scale.width / dpr;
+    this.viewHeight = this.scale.height / dpr;
+    fitCssCamera(this.cameras.main, this, { width: this.viewWidth, height: this.viewHeight });
+    this.game.events.on(LOOK_RESIZE, this.onLookResize, this);
+    this.cleanupFns.push(() => this.game.events.off(LOOK_RESIZE, this.onLookResize, this));
+    // A face that lands late (a timed-out gate, latin-ext) re-fits every HUD text in its slot.
+    this.game.events.on(TT_FONTS_HEALED, this.layoutHud, this);
+    this.cleanupFns.push(() => this.game.events.off(TT_FONTS_HEALED, this.layoutHud, this));
+    // The catnip tile comes from the 64 px master and is drawn at 30-66 px: LINEAR filtering keeps
+    // every leaf row (NEAREST shrinking dropped rows of the old 320 px leaf). Plan G8.
+    this.textures.get(TILE_KEY_BY_TYPE.CATNIP)?.setFilter(Phaser.Textures.FilterMode.LINEAR);
+
     this.createSparkTexture();
     this.computeBoardLayout();
     this.loadRetentionSessionState();
@@ -368,24 +525,74 @@ export class Match3Scene extends Scene {
     this.createBoardFrame();
 
     const initialTypeBoard = this.createInitialTypeBoard();
-    this.buildBoardFromTypes(initialTypeBoard, true);
+    // The intro drop: the tiles fall in from above, unless reduced motion asks for them in place.
+    // Input, the tutorial glow and the glove wait for the drop to land, so the ring is never drawn
+    // around cells that are still falling (5c review).
+    const introDrop = !this.reducedMotion;
+    this.introDropping = introDrop;
+    const introToken = ++this.introToken;
+    const boardLanded = this.buildBoardFromTypes(initialTypeBoard, introDrop);
 
     this.setupInput();
-    this.startTimer();
+    // The clock does not start here: it starts with RUN_BEGIN on the first valid swap (plan G10).
     this.startAmbientSparkles();
     this.setupDebugHooks();
+    this.updateHud();
+    this.registerActivity();
+    if (introDrop) {
+      void boardLanded.then(() => {
+        if (introToken !== this.introToken || this.ended || !this.sys?.isActive()) return;
+        this.finishIntro();
+      });
+    } else {
+      this.finishIntro();
+    }
+
+    // PLAY AGAIN on this level: the scene restarts itself (plan F6), as a restart.
+    const onRestart = () => {
+      if (this.sys?.isActive()) this.scene.restart({ ...this.props, isRestart: true });
+    };
+    GameEvents.GAME_RESTART.addEventListener(onRestart);
+    this.cleanupFns.push(() => GameEvents.GAME_RESTART.removeEventListener(onRestart));
+
+    GameEvents.RUN_READY.push({ isRestart: !!this.props.isRestart, level: this.level.id });
+    GameEvents.GAME_PROGRESS_UPDATE.push({ progress: 0 });
+
+    this.events.once("shutdown", this.cleanup, this);
+    this.events.once("destroy", this.cleanup, this);
+
+    // The container fades the canvas in once the first laid-out frame is drawn (plan G12). The
+    // drop itself is part of what fades in; the tutorial follows when it lands.
+    this.events.once("postupdate", () => signalSceneReady(MATCH3_GAME_ID));
+  }
+
+  /** After the intro drop (or at once under reduced motion): input, tutorial, glove, nudge. */
+  private finishIntro() {
+    this.introDropping = false;
     this.startTutorialIfNeeded();
     if (!this.tutorialActive) {
       this.showLevelObjectiveNudge();
     }
     this.updateHud();
     this.registerActivity();
+    announce(
+      MATCH3_GAME_ID,
+      this.tutorialActive
+        ? this.tutorialText?.text ?? ""
+        : `Paw Match level ${this.level.id}. Goal ${this.level.targetScore} points. The clock starts with your first match.`,
+    );
+  }
 
-    GameEvents.GAME_START.push();
-    GameEvents.GAME_PROGRESS_UPDATE.push({ progress: 0 });
-
-    this.events.once("shutdown", this.cleanup, this);
-    this.events.once("destroy", this.cleanup, this);
+  /**
+   * The first valid swap starts the run (plan G10, F6): the clock, then RUN_BEGIN, the only start
+   * signal GameContext turns into `game_start`.
+   */
+  private beginRunIfNeeded(valid: boolean) {
+    if (!shouldStartClock(this.clockStarted, { valid }) || this.ended) return;
+    this.clockStarted = true;
+    this.startTimer();
+    GameEvents.RUN_BEGIN.push({ isRestart: !!this.props.isRestart, level: this.level.id });
+    if (!this.tutorialActive) announce(MATCH3_GAME_ID, `Clock started: ${this.timeLeft} seconds.`);
   }
 
   private cleanup() {
@@ -396,8 +603,7 @@ export class Match3Scene extends Scene {
 
     this.clearHintPulse();
     this.teardownDebugHooks();
-    this.tutorialContainer?.destroy();
-    this.tutorialContainer = undefined;
+    this.destroyTutorialPlate();
 
     this.cleanupFns.forEach((cleanup) => cleanup());
     this.cleanupFns = [];
@@ -655,105 +861,92 @@ export class Match3Scene extends Scene {
     graphics.destroy();
   }
 
-  private getStreakHudLabel(dayStreak: number, winStreak: number) {
-    const streakBonusPart = this.streakBonusSeconds > 0 ? ` +${this.streakBonusSeconds}s` : "";
-    const winStreakPart = winStreak > 0 ? ` • W${winStreak}` : "";
-    const bestScorePart = this.levelBestScore > 0 ? ` • BEST ${this.levelBestScore}` : "";
-    if (this.smallLandscapeHud) {
-      return `LEVEL ${this.level.id} • D${dayStreak}${streakBonusPart}${winStreakPart}${bestScorePart}`;
-    }
-    return `${this.level.name.toUpperCase()} • D${dayStreak}${streakBonusPart}${winStreakPart}${bestScorePart}`;
+  /**
+   * The streak line as prioritised segments (plan G12): when the slot is too narrow, BEST goes
+   * first, then W{n}, then the bonus seconds, before anything shrinks.
+   */
+  private getStreakHudSegments(dayStreak: number, winStreak: number): TTFitSegment[] {
+    const name =
+      this.layout?.mode === "smallLandscape"
+        ? `LEVEL ${this.level.id}`
+        : this.level.name.toUpperCase();
+    const segments: TTFitSegment[] = [{ text: name }, { text: `D${dayStreak}`, priority: 4 }];
+    if (this.streakBonusSeconds > 0) segments.push({ text: `+${this.streakBonusSeconds}s`, priority: 3 });
+    if (winStreak > 0) segments.push({ text: `W${winStreak}`, priority: 2 });
+    if (this.levelBestScore > 0) segments.push({ text: `BEST ${this.levelBestScore}`, priority: 1 });
+    return segments;
   }
 
-  private clampTextToWidth(
-    textNode: Phaser.GameObjects.Text | undefined,
-    maxWidth: number,
-    minFontSize: number,
-  ) {
-    if (!textNode || textNode.width <= maxWidth) {
-      return;
+  /**
+   * The safe-area insets and the header reserve, in CSS px, from the custom properties Match3.tsx
+   * sets on the play wrapper (they inherit to the canvas). A property that is missing or not
+   * registered (raw `env()` tokens) falls back to the props, then to 0 / the default reserve.
+   */
+  private readViewportInsets(): { insets: Insets; headerReserveRight?: number } {
+    const fallback = this.props?.safeArea ?? {};
+    const insets: Insets = {
+      top: fallback.top ?? 0,
+      right: fallback.right ?? 0,
+      bottom: fallback.bottom ?? 0,
+      left: fallback.left ?? 0,
+    };
+    let headerReserveRight = this.props?.headerReserveRight;
+    const canvas = this.game?.canvas;
+    if (typeof window === "undefined" || !canvas?.isConnected) return { insets, headerReserveRight };
+    try {
+      const style = window.getComputedStyle(canvas);
+      const read = (name: string) => {
+        const value = parseFloat(style.getPropertyValue(name));
+        return Number.isFinite(value) && value >= 0 ? value : undefined;
+      };
+      (Object.keys(MATCH3_SAFE_AREA_PROPERTIES) as Array<keyof Insets>).forEach((side) => {
+        const value = read(MATCH3_SAFE_AREA_PROPERTIES[side]);
+        if (value !== undefined) insets[side] = value;
+      });
+      headerReserveRight = read(MATCH3_HEADER_RESERVE_PROPERTY) ?? headerReserveRight;
+    } catch {
+      // No computed style (detached canvas): keep the fallbacks.
     }
-
-    const currentSizeRaw = textNode.style.fontSize;
-    const currentSize =
-      typeof currentSizeRaw === "number"
-        ? currentSizeRaw
-        : Number.parseInt(String(currentSizeRaw || "0"), 10);
-
-    if (Number.isNaN(currentSize) || currentSize <= minFontSize) {
-      return;
-    }
-
-    for (let nextSize = currentSize - 1; nextSize >= minFontSize; nextSize -= 1) {
-      textNode.setFontSize(nextSize);
-      if (textNode.width <= maxWidth) {
-        return;
-      }
-    }
+    return { insets, headerReserveRight };
   }
 
   private computeBoardLayout() {
-    const width = this.scale.width;
-    const height = this.scale.height;
-    this.smallLandscapeHud = width > height && width <= 960 && height <= 450;
-    this.wideHud = !this.smallLandscapeHud && width >= 1220 && height >= 760;
-    this.compactHud = !this.wideHud && (width < 980 || height < 760);
-
-    const sideHudReserve = this.wideHud
-      ? Math.min(420, width * 0.34)
-      : this.smallLandscapeHud
-        ? Math.min(300, width * 0.44)
-        : 0;
-    const safeTop = this.smallLandscapeHud ? 28 : this.compactHud ? 166 : this.wideHud ? 132 : 146;
-    const safeBottom = this.smallLandscapeHud ? 20 : this.compactHud ? 146 : this.wideHud ? 122 : 112;
-    const maxBoardByWidth =
-      this.wideHud || this.smallLandscapeHud ? width - sideHudReserve : width * 0.92;
-    const maxTileByWidth = Math.floor(maxBoardByWidth / BOARD_COLS);
-    const maxTileByHeight = Math.floor((height - safeTop - safeBottom) / BOARD_ROWS);
-    const tileCap = this.smallLandscapeHud ? 52 : this.wideHud ? 82 : 92;
-    const tileFloor = this.smallLandscapeHud ? 30 : 44;
-    const candidateTile = Math.min(tileCap, maxTileByWidth, maxTileByHeight);
-
-    this.tileSize = this.smallLandscapeHud
-      ? Math.max(tileFloor, candidateTile)
-      : Math.max(44, candidateTile);
-
-    this.boardWidth = this.tileSize * BOARD_COLS;
-    this.boardHeight = this.tileSize * BOARD_ROWS;
-
-    this.boardStartX = Math.floor((width - this.boardWidth) / 2);
-    this.boardStartY = Math.max(
-      safeTop,
-      Math.floor((height - this.boardHeight - safeTop - safeBottom) / 2) + safeTop,
-    );
-
-    this.tileIconSize = Math.floor(this.tileSize * 0.72);
-    this.markerOffset = Math.floor(this.tileSize * 0.22);
-    this.streakClampWidth = Math.max(72, this.boardWidth - 16);
+    const layout = computeMatch3Layout(this.viewWidth, this.viewHeight, this.readViewportInsets());
+    this.layout = layout;
+    this.smallLandscapeHud = layout.mode === "smallLandscape";
+    this.wideHud = layout.mode === "wide";
+    this.compactHud = layout.compact;
+    this.tileSize = layout.tileSize;
+    this.boardWidth = layout.board.w;
+    this.boardHeight = layout.board.h;
+    this.boardStartX = layout.board.x;
+    this.boardStartY = layout.board.y;
+    this.tileIconSize = layout.tileIconSize;
+    this.markerOffset = layout.markerOffset;
   }
 
   private createBackdrop() {
-    const centerX = this.scale.width / 2;
-    const centerY = this.scale.height / 2;
+    const centerX = this.viewWidth / 2;
+    const centerY = this.viewHeight / 2;
     const boardCenterX = this.boardStartX + this.boardWidth / 2;
     const boardCenterY = this.boardStartY + this.boardHeight / 2;
 
     this.add
       .image(centerX, centerY, BG_KEY)
-      .setDisplaySize(this.scale.width, this.scale.height)
+      .setDisplaySize(this.viewWidth, this.viewHeight)
       .setAlpha(0.34)
       .setDepth(0);
 
     this.add
-      .rectangle(centerX, centerY, this.scale.width, this.scale.height, 0x050414, 0.56)
+      .rectangle(centerX, centerY, this.viewWidth, this.viewHeight, 0x050414, 0.56)
       .setDepth(1);
 
     this.add
       .ellipse(
         centerX - this.boardWidth * 0.42,
         centerY - this.boardHeight * 0.18,
-        this.scale.width * 0.62,
-        this.scale.height * 0.48,
+        this.viewWidth * 0.62,
+        this.viewHeight * 0.48,
         0x60a5fa,
         0.12,
       )
@@ -764,8 +957,8 @@ export class Match3Scene extends Scene {
       .ellipse(
         centerX + this.boardWidth * 0.42,
         centerY - this.boardHeight * 0.12,
-        this.scale.width * 0.64,
-        this.scale.height * 0.5,
+        this.viewWidth * 0.64,
+        this.viewHeight * 0.5,
         0xf472b6,
         0.1,
       )
@@ -773,15 +966,15 @@ export class Match3Scene extends Scene {
       .setBlendMode(Phaser.BlendModes.SCREEN);
 
     this.add
-      .rectangle(centerX, 0, this.scale.width, this.scale.height * 0.5, 0xa78bfa, 0.1)
+      .rectangle(centerX, 0, this.viewWidth, this.viewHeight * 0.5, 0xa78bfa, 0.1)
       .setOrigin(0.5, 0)
       .setDepth(1.3);
 
     for (let starIndex = 0; starIndex < BACKDROP_TWINKLE_STARS; starIndex += 1) {
       const star = this.add
         .circle(
-          Phaser.Math.Between(0, this.scale.width),
-          Phaser.Math.Between(0, this.scale.height),
+          Phaser.Math.Between(0, this.viewWidth),
+          Phaser.Math.Between(0, this.viewHeight),
           Phaser.Math.FloatBetween(0.8, 2.2),
           Phaser.Display.Color.GetColor(
             230 + Phaser.Math.Between(0, 25),
@@ -963,600 +1156,196 @@ export class Match3Scene extends Scene {
     });
   }
 
+  /** One HUD text in its layout slot (plan G12): a `ttText` role, fitted to the slot box. */
+  private addHudText(
+    key: HudKey,
+    value: string,
+    style: { color: string; stroke?: string; strokeThickness?: number; depth?: number },
+  ) {
+    const slot = this.layout.slots[key];
+    const text = ttText(this, slot.x, slot.y, value, slot.role, {
+      size: slot.size,
+      color: style.color,
+      stroke: style.stroke ?? false,
+      strokeThickness: style.strokeThickness,
+      align: slot.originX === 0 ? "left" : slot.originX === 1 ? "right" : "center",
+      wordWrapWidth: slot.wrap ? slot.box.w : undefined,
+      origin: [slot.originX, slot.originY],
+      depth: style.depth ?? 60,
+    });
+    this.hudTexts.set(key, text);
+    this.fitHud(key);
+    return text;
+  }
+
+  /** Fits a HUD text into its slot again (after `setText`, a late font or a resize). */
+  private fitHud(key: HudKey, segments?: TTFitSegment[]) {
+    const text = this.hudTexts.get(key);
+    const slot = this.layout?.slots[key];
+    if (!text || !slot || !text.scene) return;
+    text.setPosition(slot.x, slot.y);
+    ttFit(text as unknown as TTFitTarget, {
+      role: slot.role,
+      size: slot.size,
+      maxWidth: slot.box.w,
+      // Slot heights are glyph boxes (cap height plus a little); a Phaser Text's height is its
+      // whole line box plus the stroke, so only wrapped slots are held to a height.
+      maxHeight: slot.wrap ? slot.box.h + 10 : undefined,
+      segments,
+      separator: " • ",
+    });
+  }
+
+  private setHudText(key: HudKey, value: string) {
+    const text = this.hudTexts.get(key);
+    if (!text) return;
+    text.setText(value);
+    this.fitHud(key);
+  }
+
+  /**
+   * The one HUD layout pass (plan G12, F10): runs on create, after late fonts
+   * (`TT_FONTS_HEALED`) and after a resize. Every text goes back to its slot at the current text
+   * resolution and is fitted again, so a wider fallback face or a new size can never push one text
+   * into another.
+   */
+  private layoutHud() {
+    if (!this.layout) return;
+    this.hudTexts.forEach((text, key) => {
+      if (!text.scene) return;
+      refreshTTResolution(text as unknown as HealableText);
+      if (key === "streak") {
+        this.fitHud(key, this.getStreakHudSegments(this.retentionState?.dayStreak || 1, this.retentionState?.winStreak || 0));
+      } else {
+        this.fitHud(key);
+      }
+    });
+    // The tutorial plate follows the same passes (create, late fonts, resize): plan G14.
+    this.layoutTutorialPlate();
+  }
+
+  /** HUD text bounds in layout pixels, for the test hook (`render_game_to_text`). */
+  private hudBounds() {
+    return Array.from(this.hudTexts.entries())
+      .filter(([, text]) => text.scene && text.visible && text.text.length > 0)
+      .map(([key, text]) => {
+        const b = text.getBounds();
+        const slot = this.layout.slots[key];
+        return {
+          key,
+          text: text.text,
+          family: String(text.style.fontFamily),
+          size: text.style.fontSize,
+          x: Math.round(b.x * 10) / 10,
+          y: Math.round(b.y * 10) / 10,
+          w: Math.round(b.width * 10) / 10,
+          h: Math.round(b.height * 10) / 10,
+          slot: slot.box,
+        };
+      });
+  }
+
   private createHud() {
-    const centerX = this.scale.width / 2;
-    const boardWidth = this.boardWidth;
-    const boardHeight = this.boardHeight;
-    const boardTopY = this.boardStartY;
-    const boardBottomY = this.boardStartY + boardHeight;
-    const titleY = this.smallLandscapeHud ? 22 : this.compactHud ? 40 : 44;
-    const titleFontSize = this.compactHud ? "23px" : "31px";
-    const statFontSize = this.smallLandscapeHud ? "16px" : this.compactHud ? "18px" : "21px";
-    const progressY = boardTopY - (this.smallLandscapeHud ? 10 : this.compactHud ? 18 : 22);
-    const objectiveY = boardTopY - (this.smallLandscapeHud ? 19 : this.compactHud ? 44 : 48);
-    const comboY = boardBottomY + (this.smallLandscapeHud ? 12 : this.compactHud ? 22 : 24);
-    const missionY = comboY + (this.smallLandscapeHud ? 14 : this.compactHud ? 20 : 22);
-    const feverY = missionY + (this.smallLandscapeHud ? 12 : this.compactHud ? 18 : 20);
-    const rewardY = feverY + (this.smallLandscapeHud ? 12 : this.compactHud ? 16 : 18);
-    const titlePlateWidth = this.wideHud ? 470 : this.compactHud ? 350 : 410;
-    const titlePlateHeight = this.compactHud ? 48 : 52;
-    let smallLandscapeLeftPanelX: number | null = null;
-    let smallLandscapeRightPanelX: number | null = null;
-    let smallLandscapeRowWidth = 0;
-    let smallLandscapeFooterTopY = 0;
-    let smallLandscapeFooterBottomY = 0;
+    const layout = this.layout;
+    const centerX = this.viewWidth / 2;
+    const ink = "#111827";
+    this.hudTexts.clear();
 
-    if (!this.smallLandscapeHud) {
-      this.createUiCard(centerX, titleY, titlePlateWidth, titlePlateHeight, 56, UI_GOLD, UI_NAVY);
-
-      this.add
-        .image(centerX - titlePlateWidth / 2 + 26, titleY, TILE_KEY_BY_TYPE["PAW"])
-        .setDisplaySize(22, 22)
-        .setDepth(57)
-        .setAlpha(0.92);
-      this.add
-        .image(centerX + titlePlateWidth / 2 - 26, titleY, TILE_KEY_BY_TYPE["PAW"])
-        .setDisplaySize(22, 22)
-        .setDepth(57)
-        .setAlpha(0.92);
-
-      this.titleText = this.add
-        .text(centerX, titleY, "TOKEN TAILS  •  PAW MATCH", {
-          fontFamily: "Bebas Neue",
-          fontSize: titleFontSize,
-          color: "#fde68a",
-          stroke: "#2a1a44",
-          strokeThickness: 6,
-        })
-        .setOrigin(0.5)
-        .setDepth(58)
-        .setLetterSpacing(1.55);
+    if (layout.title) {
+      const plate = layout.title.plate;
+      this.createUiCard(plate.x, plate.y, plate.w, plate.h, 56, UI_GOLD, UI_NAVY);
+      [-1, 1].forEach((side) => {
+        this.add
+          .image(plate.x + side * layout.title!.pawOffset, plate.y, TILE_KEY_BY_TYPE["PAW"])
+          .setDisplaySize(22, 22)
+          .setDepth(57)
+          .setAlpha(0.92);
+      });
+      this.titleText = this.addHudText("title", "TOKEN TAILS  •  PAW MATCH", {
+        color: "#fde68a",
+        stroke: "#2a1a44",
+        strokeThickness: layout.compact ? 5 : 6,
+        depth: 58,
+      });
     } else {
       this.titleText = undefined;
     }
 
-    this.streakText = this.add
-      .text(
-        centerX,
-        this.smallLandscapeHud ? 16 : titleY + (this.compactHud ? 30 : 34),
-        this.getStreakHudLabel(this.retentionState?.dayStreak || 1, this.retentionState?.winStreak || 0),
-        {
-          fontFamily: "Pixelify Sans",
-          fontSize: this.smallLandscapeHud ? "9px" : this.compactHud ? "12px" : "13px",
-          color: "#fef3c7",
-          stroke: "#1b1230",
-          strokeThickness: this.smallLandscapeHud ? 3 : 4,
-        },
-      )
-      .setOrigin(0.5)
+    layout.cards.forEach((card) => this.createUiCard(card.x, card.y, card.w, card.h, 56, UI_GOLD, UI_NAVY));
+    layout.rows.forEach((row) => {
+      this.add
+        .rectangle(row.x, row.y, row.w, row.h, row.alt ? 0x1b153a : 0x24184d, 0.42)
+        .setStrokeStyle(1, UI_CREAM, 0.26)
+        .setDepth(58.2);
+    });
+
+    const thin = layout.mode === "smallLandscape" ? 3 : 4;
+    this.streakText = this.addHudText("streak", "", { color: "#fef3c7", stroke: "#1b1230", strokeThickness: thin });
+    this.timerText = this.addHudText("timer", "TIME 0", { color: "#fef3c7", stroke: "#0f172a", strokeThickness: thin + 1 });
+    this.scoreText = this.addHudText("score", "SCORE 0", {
+      color: layout.mode === "standard" ? "#fef3c7" : "#fde68a",
+      stroke: "#0f172a",
+      strokeThickness: thin + 1,
+    });
+    this.bestScoreText = this.addHudText("best", `BEST ${this.levelBestScore}`, {
+      color: layout.mode === "standard" ? "#fde68a" : "#fef3c7",
+      stroke: "#0f172a",
+      strokeThickness: thin,
+    });
+    this.targetText = this.addHudText("target", `GOAL ${this.level.targetScore}`, {
+      color: "#fef3c7",
+      stroke: "#0f172a",
+      strokeThickness: thin + 1,
+    });
+    this.movesText = this.addHudText("moves", "MOVES 0", { color: "#fef3c7", stroke: "#0f172a", strokeThickness: thin + 1 });
+
+    // Objective icon: the catnip objective uses the master of its own CSS size (16, 24 or 32 px),
+    // an integer scale at any whole pixel ratio (plan G8);
+    // other objective tiles keep their tile texture (logged follow-up: NEAREST-shrunk tiles).
+    const icon = layout.objectiveIcon;
+    this.objectiveIcon = this.add
+      .image(icon.x, icon.y, this.objectiveIconKey())
+      .setOrigin(icon.originX, 0.5)
+      .setDisplaySize(icon.size, icon.size)
       .setDepth(60);
-    if (this.smallLandscapeHud) {
-      this.clampTextToWidth(this.streakText, this.streakClampWidth, 7);
-    }
+    this.objectiveText = this.addHudText(
+      "objective",
+      `GOAL ${TILE_LABEL_BY_TYPE[this.objectiveType]} 0/${this.objectiveTarget}`,
+      { color: "#fef3c7", stroke: ink, strokeThickness: thin },
+    );
+    this.starsText = this.addHudText("stars", "STARS ☆☆☆", { color: "#fde68a", stroke: ink, strokeThickness: thin + 1 });
 
-    if (this.smallLandscapeHud) {
-      const sideSlotWidth = Math.max(120, Math.floor((this.scale.width - boardWidth) / 2));
-      const panelWidth = Math.min(220, Math.max(132, sideSlotWidth - 12));
-      const sideInset = Math.max(6, Math.floor((sideSlotWidth - panelWidth) / 2));
-      const panelHeight = Math.max(170, boardHeight - 20);
-      const leftPanelX = this.boardStartX - sideInset - panelWidth / 2;
-      const rightPanelX = this.boardStartX + boardWidth + sideInset + panelWidth / 2;
-      const panelCenterY = boardTopY + boardHeight / 2;
-      const panelTopY = panelCenterY - panelHeight / 2;
-      const rowWidth = panelWidth - 16;
-      const rowHeight = 34;
-      const statRowOneY = panelTopY + Math.max(44, Math.floor(panelHeight * 0.2));
-      const statRowTwoY = statRowOneY + Math.max(42, Math.floor(panelHeight * 0.14));
-      const statRowThreeY = statRowTwoY + Math.max(34, Math.floor(panelHeight * 0.12));
-      const statRowFourY = statRowThreeY + Math.max(28, Math.floor(panelHeight * 0.1));
-      const headerY = panelTopY + Math.max(14, Math.floor(panelHeight * 0.08));
-      const footerTopY = panelTopY + panelHeight - Math.max(46, Math.floor(panelHeight * 0.16));
-      const footerBottomY = panelTopY + panelHeight - Math.max(20, Math.floor(panelHeight * 0.07));
-
-      this.createUiCard(leftPanelX, panelCenterY, panelWidth, panelHeight, 56, UI_GOLD, UI_NAVY);
-      this.createUiCard(rightPanelX, panelCenterY, panelWidth, panelHeight, 56, UI_GOLD, UI_NAVY);
-
-      [statRowOneY, statRowTwoY, statRowThreeY].forEach((rowY, rowIndex) => {
-        this.add
-          .rectangle(
-            leftPanelX,
-            rowY,
-            rowWidth,
-            rowHeight,
-            rowIndex % 2 === 0 ? 0x24184d : 0x1b153a,
-            0.42,
-          )
-          .setStrokeStyle(1, UI_CREAM, 0.26)
-          .setDepth(58.2);
-      });
-
-      [statRowOneY, statRowTwoY, statRowThreeY, statRowFourY].forEach((rowY, rowIndex) => {
-        this.add
-          .rectangle(
-            rightPanelX,
-            rowY,
-            rowWidth,
-            rowHeight,
-            rowIndex % 2 === 0 ? 0x24184d : 0x1b153a,
-            0.42,
-          )
-          .setStrokeStyle(1, UI_CREAM, 0.26)
-          .setDepth(58.2);
-      });
-
-      smallLandscapeLeftPanelX = leftPanelX;
-      smallLandscapeRightPanelX = rightPanelX;
-      smallLandscapeRowWidth = rowWidth;
-      smallLandscapeFooterTopY = footerTopY;
-      smallLandscapeFooterBottomY = footerBottomY;
-      this.streakClampWidth = rowWidth - 8;
-      this.streakText
-        ?.setPosition(leftPanelX, headerY)
-        .setOrigin(0.5);
-      this.streakText?.setFontSize(8);
-      this.clampTextToWidth(this.streakText, this.streakClampWidth, 7);
-
-      this.timerText = this.add
-        .text(leftPanelX, statRowOneY, "TIME 0", {
-          fontFamily: "Bebas Neue",
-          fontSize: "20px",
-          color: "#fef3c7",
-          stroke: "#0f172a",
-          strokeThickness: 4,
-        })
-        .setOrigin(0.5)
-        .setDepth(60)
-        .setLetterSpacing(1.1);
-
-      this.scoreText = this.add
-        .text(leftPanelX, statRowTwoY, "SCORE 0", {
-          fontFamily: "Bebas Neue",
-          fontSize: "20px",
-          color: "#fde68a",
-          stroke: "#0f172a",
-          strokeThickness: 4,
-        })
-        .setOrigin(0.5)
-        .setDepth(60)
-        .setLetterSpacing(1.1);
-
-      this.bestScoreText = this.add
-        .text(leftPanelX, statRowThreeY, `BEST ${this.levelBestScore}`, {
-          fontFamily: "Bebas Neue",
-          fontSize: "14px",
-          color: "#fef3c7",
-          stroke: "#0f172a",
-          strokeThickness: 3,
-        })
-        .setOrigin(0.5)
-        .setDepth(60)
-        .setLetterSpacing(0.9);
-
-      this.targetText = this.add
-        .text(rightPanelX, statRowOneY, `GOAL ${this.level.targetScore}`, {
-          fontFamily: "Bebas Neue",
-          fontSize: "19px",
-          color: "#fef3c7",
-          stroke: "#0f172a",
-          strokeThickness: 4,
-        })
-        .setOrigin(0.5)
-        .setDepth(60)
-        .setLetterSpacing(1.1);
-
-      this.movesText = this.add
-        .text(rightPanelX, statRowTwoY, "MOVES 0", {
-          fontFamily: "Bebas Neue",
-          fontSize: "19px",
-          color: "#fef3c7",
-          stroke: "#0f172a",
-          strokeThickness: 4,
-        })
-        .setOrigin(0.5)
-        .setDepth(60)
-        .setLetterSpacing(1.1);
-
-      this.objectiveIcon = this.add
-        .image(rightPanelX - rowWidth / 2 + 10, statRowThreeY, TILE_KEY_BY_TYPE[this.objectiveType])
-        .setOrigin(0, 0.5)
-        .setDisplaySize(14, 14)
-        .setDepth(60);
-
-      this.objectiveText = this.add
-        .text(
-          rightPanelX - rowWidth / 2 + 26,
-          statRowThreeY,
-          `GOAL ${TILE_LABEL_BY_TYPE[this.objectiveType]} 0/${this.objectiveTarget}`,
-          {
-            fontFamily: "Pixelify Sans",
-            fontSize: "9px",
-            color: "#fef3c7",
-            stroke: "#111827",
-            strokeThickness: 3,
-          },
-        )
-        .setOrigin(0, 0.5)
-        .setDepth(60)
-        .setWordWrapWidth(rowWidth - 24, true);
-
-      this.starsText = this.add
-        .text(rightPanelX, statRowFourY, "STARS ☆☆☆", {
-          fontFamily: "Bebas Neue",
-          fontSize: "13px",
-          color: "#fde68a",
-          stroke: "#111827",
-          strokeThickness: 4,
-        })
-        .setOrigin(0.5)
-        .setDepth(60)
-        .setLetterSpacing(0.9);
-    } else if (this.wideHud) {
-      const panelWidth = Math.min(
-        236,
-        Math.max(182, Math.floor((this.scale.width - boardWidth) / 2) - 30),
-      );
-      const panelHeight = Math.max(210, boardHeight - 56);
-      const leftPanelX = this.boardStartX - panelWidth / 2 - 28;
-      const rightPanelX = this.boardStartX + boardWidth + panelWidth / 2 + 28;
-      const panelCenterY = boardTopY + boardHeight / 2;
-
-      this.createUiCard(leftPanelX, panelCenterY, panelWidth, panelHeight, 56, UI_GOLD, UI_NAVY);
-      this.createUiCard(rightPanelX, panelCenterY, panelWidth, panelHeight, 56, UI_GOLD, UI_NAVY);
-
-      const leftStatTop = panelCenterY - panelHeight / 2 + 52;
-      const rightStatTop = panelCenterY - panelHeight / 2 + 52;
-      const rowWidth = panelWidth - 26;
-      const rowHeight = 52;
-
-      [leftStatTop, leftStatTop + 74, leftStatTop + 148].forEach((rowY, rowIndex) => {
-        this.add
-          .rectangle(
-            leftPanelX,
-            rowY,
-            rowWidth,
-            rowHeight,
-            rowIndex % 2 === 0 ? 0x24184d : 0x1b153a,
-            0.42,
-          )
-          .setStrokeStyle(1, UI_CREAM, 0.26)
-          .setDepth(58.2);
-      });
-
-      [rightStatTop, rightStatTop + 78, rightStatTop + 148].forEach((rowY, rowIndex) => {
-        this.add
-          .rectangle(
-            rightPanelX,
-            rowY,
-            rowWidth,
-            rowHeight,
-            rowIndex % 2 === 0 ? 0x24184d : 0x1b153a,
-            0.42,
-          )
-          .setStrokeStyle(1, UI_CREAM, 0.26)
-          .setDepth(58.2);
-      });
-
-      this.timerText = this.add
-        .text(leftPanelX, leftStatTop, "TIME 0", {
-          fontFamily: "Bebas Neue",
-          fontSize: "32px",
-          color: "#fef3c7",
-          stroke: "#0f172a",
-          strokeThickness: 5,
-        })
-        .setOrigin(0.5)
-        .setDepth(60)
-        .setLetterSpacing(1.2);
-
-      this.scoreText = this.add
-        .text(leftPanelX, leftStatTop + 62, "SCORE 0", {
-          fontFamily: "Bebas Neue",
-          fontSize: "32px",
-          color: "#fde68a",
-          stroke: "#0f172a",
-          strokeThickness: 5,
-        })
-        .setOrigin(0.5)
-        .setDepth(60)
-        .setLetterSpacing(1.2);
-
-      this.bestScoreText = this.add
-        .text(leftPanelX, leftStatTop + 92, `BEST ${this.levelBestScore}`, {
-          fontFamily: "Bebas Neue",
-          fontSize: "21px",
-          color: "#fef3c7",
-          stroke: "#0f172a",
-          strokeThickness: 4,
-        })
-        .setOrigin(0.5)
-        .setDepth(60)
-        .setLetterSpacing(1.05);
-
-      this.movesText = this.add
-        .text(leftPanelX, leftStatTop + 148, "MOVES 0", {
-          fontFamily: "Bebas Neue",
-          fontSize: "30px",
-          color: "#fef3c7",
-          stroke: "#0f172a",
-          strokeThickness: 5,
-        })
-        .setOrigin(0.5)
-        .setDepth(60)
-        .setLetterSpacing(1.2);
-
-      this.targetText = this.add
-        .text(rightPanelX, rightStatTop, `GOAL ${this.level.targetScore}`, {
-          fontFamily: "Bebas Neue",
-          fontSize: "30px",
-          color: "#fef3c7",
-          stroke: "#0f172a",
-          strokeThickness: 5,
-        })
-        .setOrigin(0.5)
-        .setDepth(60)
-        .setLetterSpacing(1.2);
-
-      this.objectiveIcon = this.add
-        .image(rightPanelX - panelWidth * 0.3, rightStatTop + 78, TILE_KEY_BY_TYPE[this.objectiveType])
-        .setDisplaySize(24, 24)
-        .setDepth(60);
-
-      this.objectiveText = this.add
-        .text(rightPanelX - panelWidth * 0.3 + 20, rightStatTop + 78, "GOAL 0/0", {
-          fontFamily: "Pixelify Sans",
-          fontSize: "16px",
-          color: "#fef3c7",
-          stroke: "#0f172a",
-          strokeThickness: 4,
-        })
-        .setOrigin(0, 0.5)
-        .setDepth(60);
-
-      this.starsText = this.add
-        .text(rightPanelX, rightStatTop + 148, "STARS ☆☆☆", {
-          fontFamily: "Bebas Neue",
-          fontSize: "28px",
-          color: "#fde68a",
-          stroke: "#0f172a",
-          strokeThickness: 5,
-        })
-        .setOrigin(0.5)
-        .setDepth(60)
-        .setLetterSpacing(1.2);
-    } else {
-      const cardWidth = this.compactHud ? 148 : 168;
-      const cardHeight = this.compactHud ? 46 : 50;
-      const cardGap = this.compactHud ? 10 : 14;
-      const rowTopY = this.compactHud ? 94 : 92;
-      const rowBottomY = rowTopY + cardHeight + (this.compactHud ? 8 : 10);
-      const leftX = centerX - cardWidth / 2 - cardGap / 2;
-      const rightX = centerX + cardWidth / 2 + cardGap / 2;
-
-      this.createUiCard(leftX, rowTopY, cardWidth, cardHeight, 56, UI_GOLD, UI_NAVY);
-      this.createUiCard(rightX, rowTopY, cardWidth, cardHeight, 56, UI_GOLD, UI_NAVY);
-      this.createUiCard(leftX, rowBottomY, cardWidth, cardHeight, 56, UI_GOLD, UI_NAVY);
-      this.createUiCard(rightX, rowBottomY, cardWidth, cardHeight, 56, UI_GOLD, UI_NAVY);
-
-      this.timerText = this.add
-        .text(leftX, rowTopY, "TIME 0", {
-          fontFamily: "Bebas Neue",
-          fontSize: statFontSize,
-          color: "#fef3c7",
-          stroke: "#111827",
-          strokeThickness: 4,
-        })
-        .setOrigin(0.5)
-        .setDepth(60)
-        .setLetterSpacing(1.2);
-
-      this.scoreText = this.add
-        .text(rightX, rowTopY - (this.compactHud ? 6 : 7), "SCORE 0", {
-          fontFamily: "Bebas Neue",
-          fontSize: statFontSize,
-          color: "#fef3c7",
-          stroke: "#111827",
-          strokeThickness: 4,
-        })
-        .setOrigin(0.5)
-        .setDepth(60)
-        .setLetterSpacing(1.2);
-
-      this.bestScoreText = this.add
-        .text(rightX, rowTopY + (this.compactHud ? 11 : 12), `BEST ${this.levelBestScore}`, {
-          fontFamily: "Bebas Neue",
-          fontSize: this.compactHud ? "13px" : "14px",
-          color: "#fde68a",
-          stroke: "#111827",
-          strokeThickness: 3,
-        })
-        .setOrigin(0.5)
-        .setDepth(60)
-        .setLetterSpacing(0.9);
-
-      this.targetText = this.add
-        .text(leftX, rowBottomY, `GOAL ${this.level.targetScore}`, {
-          fontFamily: "Bebas Neue",
-          fontSize: statFontSize,
-          color: "#fef3c7",
-          stroke: "#111827",
-          strokeThickness: 4,
-        })
-        .setOrigin(0.5)
-        .setDepth(60)
-        .setLetterSpacing(1.2);
-
-      this.movesText = this.add
-        .text(rightX, rowBottomY, "MOVES 0", {
-          fontFamily: "Bebas Neue",
-          fontSize: statFontSize,
-          color: "#fef3c7",
-          stroke: "#111827",
-          strokeThickness: 4,
-        })
-        .setOrigin(0.5)
-        .setDepth(60)
-        .setLetterSpacing(1.2);
-
-      this.objectiveIcon = this.add
-        .image(this.boardStartX + 10, objectiveY, TILE_KEY_BY_TYPE[this.objectiveType])
-        .setOrigin(0, 0.5)
-        .setDisplaySize(18, 18)
-        .setDepth(60);
-
-      this.objectiveText = this.add
-        .text(
-          this.boardStartX + 30,
-          objectiveY,
-          `GOAL ${TILE_LABEL_BY_TYPE[this.objectiveType]} 0/${this.objectiveTarget}`,
-          {
-            fontFamily: "Pixelify Sans",
-            fontSize: this.compactHud ? "14px" : "15px",
-            color: "#fef3c7",
-            stroke: "#111827",
-            strokeThickness: 3,
-          },
-        )
-        .setOrigin(0, 0.5)
-        .setDepth(60);
-
-      this.starsText = this.add
-        .text(this.boardStartX + boardWidth, objectiveY, "STARS ☆☆☆", {
-          fontFamily: "Bebas Neue",
-          fontSize: this.compactHud ? "18px" : "20px",
-          color: "#fde68a",
-          stroke: "#111827",
-          strokeThickness: 4,
-        })
-        .setOrigin(1, 0.5)
-        .setDepth(60)
-        .setLetterSpacing(1.1);
-    }
-
-    const progressTrackWidth = boardWidth + (this.smallLandscapeHud ? 16 : 28);
-    const progressTrackHeight = this.smallLandscapeHud ? 12 : 16;
-    const progressGlowHeight = this.smallLandscapeHud ? 7 : 9;
+    const progress = layout.progress;
     this.add
-      .rectangle(centerX, progressY, progressTrackWidth, progressTrackHeight, 0x120b23, 0.92)
+      .rectangle(progress.x, progress.y, progress.w, progress.h, 0x120b23, 0.92)
       .setStrokeStyle(3, UI_GOLD, 0.8)
       .setDepth(58)
       .setBlendMode(Phaser.BlendModes.NORMAL);
-
     this.progressBarFill = this.add
-      .rectangle(
-        centerX - progressTrackWidth / 2,
-        progressY,
-        progressTrackWidth,
-        progressTrackHeight,
-        0x34d399,
-        0.94,
-      )
+      .rectangle(progress.x - progress.w / 2, progress.y, progress.w, progress.h, 0x34d399, 0.94)
       .setOrigin(0, 0.5)
       .setDepth(59);
-
     this.progressBarGlow = this.add
-      .rectangle(
-        centerX - progressTrackWidth / 2,
-        progressY - 1,
-        progressTrackWidth,
-        progressGlowHeight,
-        0xfef08a,
-        0.45,
-      )
+      .rectangle(progress.x - progress.w / 2, progress.y - 1, progress.w, progress.glowH, 0xfef08a, 0.45)
       .setOrigin(0, 0.5)
       .setDepth(59.2)
       .setBlendMode(Phaser.BlendModes.ADD);
 
-    this.comboText = this.add
-      .text(centerX, comboY, "SWIPE TO MATCH", {
-        fontFamily: "Bebas Neue",
-        fontSize: this.smallLandscapeHud ? "16px" : this.compactHud ? "20px" : "24px",
-        color: "#f8e18b",
-        stroke: "#221433",
-        strokeThickness: this.smallLandscapeHud ? 4 : 5,
-      })
-      .setOrigin(0.5)
-      .setDepth(60)
-      .setLetterSpacing(this.smallLandscapeHud ? 1.2 : 1.6);
-    if (this.smallLandscapeHud && smallLandscapeLeftPanelX !== null) {
-      this.comboText
-        .setPosition(smallLandscapeLeftPanelX, smallLandscapeFooterTopY)
-        .setFontSize(12)
-        .setLetterSpacing(0.9)
-        .setWordWrapWidth(Math.max(72, smallLandscapeRowWidth - 8), true)
-        .setAlign("center");
-    }
-
-    this.missionText = this.add
-      .text(centerX, missionY, "BONUS: START A CHAIN", {
-        fontFamily: "Pixelify Sans",
-        fontSize: this.smallLandscapeHud ? "10px" : this.compactHud ? "13px" : "14px",
-        color: "#fef3c7",
-        stroke: "#1b1331",
-        strokeThickness: this.smallLandscapeHud ? 3 : 4,
-      })
-      .setOrigin(0.5)
-      .setDepth(60);
-    if (this.smallLandscapeHud) {
-      this.missionText.setWordWrapWidth(Math.max(74, smallLandscapeRowWidth - 6), true);
-      this.missionText.setAlign("center");
-      if (smallLandscapeRightPanelX !== null) {
-        this.missionText
-          .setPosition(smallLandscapeRightPanelX, smallLandscapeFooterTopY)
-          .setFontSize(9);
-      }
-    }
-
-    this.comboBurstText = this.add
-      .text(centerX, this.boardStartY + boardHeight / 2 + COMBO_BURST_Y_OFFSET, "", {
-        fontFamily: "Bebas Neue",
-        fontSize: this.smallLandscapeHud ? "22px" : this.compactHud ? "28px" : "34px",
-        color: "#fef08a",
-        stroke: "#111827",
-        strokeThickness: this.smallLandscapeHud ? 5 : 7,
-      })
-      .setOrigin(0.5)
-      .setDepth(76)
-      .setAlpha(0)
-      .setVisible(false)
-      .setLetterSpacing(2.2)
-      .setShadow(0, 0, "#000000", 12, true, true);
-
-    this.feverText = this.add
-      .text(centerX, feverY, "FEVER x2", {
-        fontFamily: "Bebas Neue",
-        fontSize: this.smallLandscapeHud ? "17px" : this.compactHud ? "21px" : "24px",
-        color: "#fca5a5",
-        stroke: "#711428",
-        strokeThickness: this.smallLandscapeHud ? 4 : 5,
-      })
-      .setOrigin(0.5)
-      .setDepth(70)
-      .setLetterSpacing(1.4)
-      .setVisible(false);
-    if (this.smallLandscapeHud && smallLandscapeRightPanelX !== null) {
-      this.feverText
-        .setPosition(smallLandscapeRightPanelX, smallLandscapeFooterBottomY)
-        .setFontSize(12)
-        .setLetterSpacing(1.1);
-    }
-
-    this.rewardText = this.add
-      .text(centerX, rewardY, `CATNIP 0/${this.level.catnipCap}`, {
-        fontFamily: "Bebas Neue",
-        fontSize: this.smallLandscapeHud ? "16px" : this.compactHud ? "20px" : "22px",
-        color: "#fde68a",
-        stroke: "#1b1331",
-        strokeThickness: this.smallLandscapeHud ? 4 : 5,
-      })
-      .setOrigin(0.5)
-      .setDepth(60)
-      .setLetterSpacing(this.smallLandscapeHud ? 1.1 : 1.3);
-    if (this.smallLandscapeHud && smallLandscapeLeftPanelX !== null) {
-      this.rewardText
-        .setPosition(smallLandscapeLeftPanelX, smallLandscapeFooterBottomY)
-        .setFontSize(13)
-        .setLetterSpacing(0.85);
-    }
+    this.comboText = this.addHudText("combo", "SWIPE TO MATCH", { color: "#f8e18b", stroke: "#221433", strokeThickness: thin + 1 });
+    this.missionText = this.addHudText("mission", "BONUS: START A CHAIN", {
+      color: "#fef3c7",
+      stroke: "#1b1331",
+      strokeThickness: thin,
+    });
+    this.comboBurstText = this.addHudText("burst", "", { color: GOLD[400], depth: 76 });
+    this.comboBurstText.setAlpha(0).setVisible(false).setShadow(0, 0, "#000000", 12, true, true);
+    this.feverText = this.addHudText("fever", "FEVER x2", { color: "#fca5a5", stroke: "#711428", strokeThickness: thin + 1, depth: 70 });
+    this.feverText.setVisible(false);
+    this.rewardText = this.addHudText("reward", `CATNIP 0/${this.level.catnipCap}`, {
+      color: "#fde68a",
+      stroke: "#1b1331",
+      strokeThickness: thin + 1,
+    });
 
     this.selectionRect = this.add
       .rectangle(
@@ -1568,6 +1357,14 @@ export class Match3Scene extends Scene {
       .setStrokeStyle(3, 0xfef3c7, 1)
       .setDepth(55)
       .setVisible(false);
+
+    this.layoutHud();
+  }
+
+  /** The objective icon texture: the catnip master of the icon's size for catnip, else the tile. */
+  private objectiveIconKey() {
+    const key = catnipIconKey(this.layout.objectiveIcon.size);
+    return this.objectiveType === "CATNIP" && this.textures.exists(key) ? key : TILE_KEY_BY_TYPE[this.objectiveType];
   }
 
   private createBoardFrame() {
@@ -1709,7 +1506,9 @@ export class Match3Scene extends Scene {
       }
 
       this.unlockSfx();
-      const cell = this.worldToCell(pointer.x, pointer.y);
+      this.noteInputKind(pointer);
+      const point = this.pointerToLayout(pointer);
+      const cell = this.worldToCell(point.x, point.y);
       if (!cell) {
         return;
       }
@@ -1717,7 +1516,7 @@ export class Match3Scene extends Scene {
       this.registerActivity();
       this.playSfx("tap");
       this.dragStartCell = cell;
-      this.dragStartPoint = { x: pointer.x, y: pointer.y };
+      this.dragStartPoint = { x: point.x, y: point.y };
       if (!this.busy) {
         this.pulseCellPress(cell);
       }
@@ -1731,7 +1530,8 @@ export class Match3Scene extends Scene {
       }
 
       const startCell = this.dragStartCell;
-      const releaseCell = this.worldToCell(pointer.x, pointer.y);
+      const point = this.pointerToLayout(pointer);
+      const releaseCell = this.worldToCell(point.x, point.y);
       let targetCell: ICellPos | null = null;
 
       if (releaseCell && isAdjacent(startCell, releaseCell)) {
@@ -1739,8 +1539,8 @@ export class Match3Scene extends Scene {
       }
 
       if (!targetCell && this.dragStartPoint) {
-        const dx = pointer.x - this.dragStartPoint.x;
-        const dy = pointer.y - this.dragStartPoint.y;
+        const dx = point.x - this.dragStartPoint.x;
+        const dy = point.y - this.dragStartPoint.y;
 
         if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD) {
           if (Math.abs(dx) >= Math.abs(dy)) {
@@ -1775,6 +1575,17 @@ export class Match3Scene extends Scene {
       this.input.off("pointerdown", pointerDown);
       this.input.off("pointerup", pointerUp);
     });
+  }
+
+  /** Touch vs mouse copy (G14): the plate follows the device the player last used. */
+  private noteInputKind(pointer: Phaser.Input.Pointer) {
+    const type = (pointer.event as PointerEvent | undefined)?.pointerType;
+    const kind: InputKind = pointer.wasTouch || type === "touch" || type === "pen" ? "touch" : "mouse";
+    if (kind === this.inputKind) return;
+    this.inputKind = kind;
+    if (this.tutorialActive && this.tutorialMessageState === "intro") {
+      this.setTutorialMessage("intro");
+    }
   }
 
   private getSfxContext() {
@@ -2110,6 +1921,7 @@ export class Match3Scene extends Scene {
   }
 
   private startTimer() {
+    if (this.timerEvent) return;
     this.timerEvent = this.time.addEvent({
       delay: 1000,
       loop: true,
@@ -2176,16 +1988,24 @@ export class Match3Scene extends Scene {
     this.persistRunOutcome(isTargetReached);
     const progress = this.level.targetScore ? this.score / this.level.targetScore : 0;
     if (isTargetReached) {
-      this.comboText?.setText(`PURR-FECT +${catnipEarned} CATNIP`);
+      this.setHudText("combo", `PURR-FECT +${catnipEarned} CATNIP`);
       this.playSfx("win");
     } else if (progress >= 0.8) {
-      this.comboText?.setText("SO CLOSE • RUN IT BACK");
+      this.setHudText("combo", "SO CLOSE • RUN IT BACK");
       this.playSfx("lose");
     } else {
-      this.comboText?.setText(`RUN COMPLETE +${catnipEarned} CATNIP`);
+      this.setHudText("combo", `RUN COMPLETE +${catnipEarned} CATNIP`);
       this.playSfx("lose");
     }
     this.feverText?.setVisible(false);
+
+    announce(
+      MATCH3_GAME_ID,
+      isTargetReached
+        ? `Level cleared. ${Math.floor(this.score)} points, ${catnipEarned} catnip.`
+        : `Time is up. ${Math.floor(this.score)} of ${this.level.targetScore} points, ${catnipEarned} catnip.`,
+      "assertive",
+    );
 
     GameEvents.GAME_STOP.push({
       score: catnipEarned,
@@ -2195,33 +2015,34 @@ export class Match3Scene extends Scene {
       completedLevel: isTargetReached ? this.level.id : null,
       rawScore: Math.max(0, Math.floor(this.score)),
       catnipEarned,
+      // A Paw Match run only ends on the clock: the goal reached, or the time ran out (plan F6).
+      outcome: isTargetReached ? "won" : "timeout",
     });
   }
 
   private updateHud() {
     this.levelBestScore = Math.max(this.levelBestScore, Math.floor(this.score));
     this.updateStars();
-    this.timerText?.setText(`TIME ${this.timeLeft}`);
-    this.scoreText?.setText(`SCORE ${this.score}`);
-    this.bestScoreText?.setText(`BEST ${this.levelBestScore}`);
-    this.targetText?.setText(`GOAL ${this.level.targetScore}`);
-    this.movesText?.setText(`MOVES ${this.moves}`);
+    this.setHudText("timer", `TIME ${this.timeLeft}`);
+    this.setHudText("score", `SCORE ${this.score}`);
+    this.setHudText("best", `BEST ${this.levelBestScore}`);
+    this.setHudText("target", `GOAL ${this.level.targetScore}`);
+    this.setHudText("moves", `MOVES ${this.moves}`);
     const dayStreak = this.retentionState?.dayStreak || 1;
     const winStreak = this.retentionState?.winStreak || 0;
-    this.streakText?.setText(this.getStreakHudLabel(dayStreak, winStreak));
-    if (this.smallLandscapeHud) {
-      this.clampTextToWidth(this.streakText, this.streakClampWidth, 7);
-    }
+    this.fitHud("streak", this.getStreakHudSegments(dayStreak, winStreak));
 
     if (this.missionText) {
       if (this.bonusMission) {
         const missionIndex = Math.min(BONUS_MISSION_LIMIT, this.completedMissionIds.size + 1);
         const missionName = this.bonusMission.label.replace(/^BONUS:\s*/, "");
-        this.missionText.setText(
+        this.setHudText(
+          "mission",
           `BONUS ${missionIndex}/${BONUS_MISSION_LIMIT} • ${missionName} ${this.bonusMission.progress}/${this.bonusMission.target}`,
         );
       } else {
-        this.missionText.setText(
+        this.setHudText(
+          "mission",
           this.completedMissionIds.size >= BONUS_MISSION_LIMIT
             ? "BONUS MISSIONS CLEARED"
             : "BONUS: STAY SHARP",
@@ -2259,11 +2080,17 @@ export class Match3Scene extends Scene {
       this.feverActive ? 0xfda4af : overallProgress01 >= 1 ? 0x86efac : 0xfef08a,
       0.42,
     );
-    this.objectiveIcon?.setTexture(TILE_KEY_BY_TYPE[this.objectiveType]);
-    this.objectiveText?.setText(
+    if (this.objectiveIcon && this.objectiveIcon.texture.key !== this.objectiveIconKey()) {
+      this.objectiveIcon.setTexture(this.objectiveIconKey());
+      const size = this.layout.objectiveIcon.size;
+      this.objectiveIcon.setDisplaySize(size, size);
+    }
+    this.setHudText(
+      "objective",
       `GOAL ${TILE_LABEL_BY_TYPE[this.objectiveType]} ${this.objectiveCollected}/${this.objectiveTarget}`,
     );
-    this.starsText?.setText(
+    this.setHudText(
+      "stars",
       `STARS ${"★".repeat(this.starsEarned)}${"☆".repeat(Math.max(0, 3 - this.starsEarned))}`,
     );
     const catnipPreview = this.calculateCatnipEarned(this.score >= this.level.targetScore);
@@ -2273,7 +2100,7 @@ export class Match3Scene extends Scene {
         : catnipPreview >= Math.round(this.level.catnipCap * 0.7)
           ? "#fef08a"
           : "#fde68a";
-    this.rewardText?.setText(`CATNIP ${catnipPreview}/${this.level.catnipCap}`);
+    this.setHudText("reward", `CATNIP ${catnipPreview}/${this.level.catnipCap}`);
     this.rewardText?.setColor(rewardColor);
 
     if (!this.feverActive && !this.ended) {
@@ -2496,14 +2323,19 @@ export class Match3Scene extends Scene {
 
     this.spawnSparkStorm(2 + intensity, "electric", 1.22 + intensity * 0.08);
     this.triggerBoardFlash(color, Math.min(0.42, 0.18 + intensity * 0.08), 160 + intensity * 44);
-    this.cameras.main.shake(85 + intensity * 42, 0.0018 + intensity * 0.0008);
+    this.shakeCamera(85 + intensity * 42, 0.0018 + intensity * 0.0008);
   }
 
   private setComboMessage(message: string) {
+    // One message at a time (plan G14): while the tutorial plate shows, the combo line, its
+    // bursts and the mission line stay hidden; completion restores them.
+    if (this.tutorialActive) return;
     const style = this.resolveComboMessageStyle(message);
-    this.comboText?.setText(message);
+    this.setHudText("combo", message);
     this.comboText?.setColor(style.color);
-    this.comboText?.setStroke(style.stroke, 5);
+    // Outline scales with the slot size: a fixed 5 px stroke fills in 13 px Bebas counters.
+    const comboStroke = Math.max(2, Math.round((this.layout?.slots.combo.size ?? 24) * 0.2));
+    this.comboText?.setStroke(style.stroke, comboStroke);
     this.comboText?.setShadow(0, 2, style.shadow, 4, true, true);
 
     if (!this.comboText) {
@@ -2526,13 +2358,13 @@ export class Match3Scene extends Scene {
     if (shouldBurst && this.comboBurstText) {
       const burstLabel = this.getComboBurstLabel(message);
       this.tweens.killTweensOf(this.comboBurstText);
+      this.setHudText("burst", burstLabel);
       this.comboBurstText
-        .setText(burstLabel)
         .setVisible(true)
         .setAlpha(0)
         .setScale(0.74)
         .setColor(style.color)
-        .setStroke(style.stroke, 7)
+        .setStroke(style.stroke, Math.max(3, Math.round((this.layout?.slots.burst.size ?? 34) * 0.2)))
         .setShadow(0, 0, style.shadow, 14, true, true);
 
       this.spawnComboAura(
@@ -2716,7 +2548,9 @@ export class Match3Scene extends Scene {
     return false;
   }
 
-  private buildBoardFromTypes(typeBoard: Match3TileType[][], fromTop: boolean) {
+  /** Builds the board; resolves when the drop has landed (at once when `fromTop` is false). */
+  private buildBoardFromTypes(typeBoard: Match3TileType[][], fromTop: boolean): Promise<void> {
+    fromTop = fromTop && !this.reducedMotion;
     this.destroyBoard();
 
     this.board = Array.from({ length: BOARD_ROWS }, () =>
@@ -2741,8 +2575,9 @@ export class Match3Scene extends Scene {
         });
       });
 
-      void Promise.all(promises);
+      return Promise.all(promises).then(() => undefined);
     }
+    return Promise.resolve();
   }
 
   private destroyBoard() {
@@ -2792,7 +2627,7 @@ export class Match3Scene extends Scene {
       return {
         fill: 0x67e8f9,
         stroke: 0x38bdf8,
-        marker: "↔",
+        marker: "row" as const,
         tint: 0x7dd3fc,
         alpha: 0.22,
       };
@@ -2801,7 +2636,7 @@ export class Match3Scene extends Scene {
       return {
         fill: 0x93c5fd,
         stroke: 0x60a5fa,
-        marker: "↕",
+        marker: "col" as const,
         tint: 0x93c5fd,
         alpha: 0.22,
       };
@@ -2810,7 +2645,7 @@ export class Match3Scene extends Scene {
       return {
         fill: 0xfda4af,
         stroke: 0xfb7185,
-        marker: "✦",
+        marker: "burst" as const,
         tint: 0xfca5a5,
         alpha: 0.24,
       };
@@ -2819,7 +2654,7 @@ export class Match3Scene extends Scene {
     return {
       fill: 0xfef08a,
       stroke: 0xfacc15,
-      marker: "★",
+      marker: "star" as const,
       tint: 0xfef08a,
       alpha: 0.26,
     };
@@ -2863,21 +2698,9 @@ export class Match3Scene extends Scene {
 
     cell.sprite.setTint(fieldVisual.tint);
 
-    cell.marker = this.add
-      .text(
-        cell.sprite.x + this.markerOffset,
-        cell.sprite.y - this.markerOffset,
-        fieldVisual.marker,
-        {
-          fontFamily: "monospace",
-          fontSize: `${Math.floor(this.tileSize * 0.2)}px`,
-          color: "#111827",
-          stroke: "#fef3c7",
-          strokeThickness: 3,
-        },
-      )
-      .setDepth(24)
-      .setOrigin(0.5);
+    cell.marker = this.drawPowerMarker(fieldVisual.marker)
+      .setPosition(cell.sprite.x + this.markerOffset, cell.sprite.y - this.markerOffset)
+      .setDepth(24);
 
     this.tweens.add({
       targets: cell.field,
@@ -2895,6 +2718,65 @@ export class Match3Scene extends Scene {
       repeat: -1,
       ease: "Sine.InOut",
     });
+  }
+
+  /**
+   * A special-tile badge (plan G14 "texture arrows for special tiles"): a cream disc with a dark
+   * arrow pair, burst or star, rasterised once per kind and size into a texture at the canvas pixel
+   * ratio, then drawn 1:1. No font is involved (the old badge was a font glyph, plan G12).
+   * The image sits in a container at scale 1, so the existing tweens (scale, alpha, angle) keep
+   * their CSS-px meaning.
+   */
+  private drawPowerMarker(kind: "row" | "col" | "burst" | "star") {
+    const r = Math.max(5, Math.floor(this.tileSize * 0.15));
+    const dpr = getCanvasPixelRatio(this);
+    const key = `match3-marker-${kind}-${r}-${dpr}`;
+    if (!this.textures.exists(key)) {
+      const size = Math.ceil((2 * r + 2) * dpr);
+      const g = this.add.graphics().setVisible(false);
+      this.paintPowerMarker(g, kind, r * dpr, size / 2);
+      g.generateTexture(key, size, size);
+      g.destroy();
+      this.textures.get(key)?.setFilter(Phaser.Textures.FilterMode.LINEAR);
+    }
+    const image = this.add.image(0, 0, key).setScale(1 / dpr);
+    return this.add.container(0, 0, [image]);
+  }
+
+  /** Draws the badge centred on (c, c) with radius `r` (texture pixels). */
+  private paintPowerMarker(g: Phaser.GameObjects.Graphics, kind: "row" | "col" | "burst" | "star", r: number, c: number) {
+    g.fillStyle(0xfef3c7, 1).fillCircle(c, c, r);
+    g.lineStyle(Math.max(1, r * 0.18), 0x111827, 1).strokeCircle(c, c, r);
+    g.fillStyle(0x111827, 1);
+    const arm = r * 0.62;
+    const head = r * 0.32;
+    if (kind === "row" || kind === "col") {
+      const horizontal = kind === "row";
+      const p = (a: number, b: number) => (horizontal ? { x: c + a, y: c + b } : { x: c + b, y: c + a });
+      g.fillRect(
+        c + (horizontal ? -arm + head : -r * 0.09),
+        c + (horizontal ? -r * 0.09 : -arm + head),
+        horizontal ? 2 * (arm - head) : r * 0.18,
+        horizontal ? r * 0.18 : 2 * (arm - head),
+      );
+      [-1, 1].forEach((dir) => {
+        const tip = p(dir * arm, 0);
+        const back1 = p(dir * (arm - head), -head);
+        const back2 = p(dir * (arm - head), head);
+        g.fillTriangle(tip.x, tip.y, back1.x, back1.y, back2.x, back2.y);
+      });
+    } else {
+      const points = kind === "star" ? 5 : 4;
+      const outer = r * 0.72;
+      const inner = kind === "star" ? outer * 0.45 : outer * 0.32;
+      const vertices: Phaser.Math.Vector2[] = [];
+      for (let i = 0; i < points * 2; i += 1) {
+        const angle = -Math.PI / 2 + (i * Math.PI) / points;
+        const radius = i % 2 === 0 ? outer : inner;
+        vertices.push(new Phaser.Math.Vector2(c + Math.cos(angle) * radius, c + Math.sin(angle) * radius));
+      }
+      g.fillPoints(vertices, true);
+    }
   }
 
   private cellToWorld(row: number, col: number) {
@@ -2985,7 +2867,7 @@ export class Match3Scene extends Scene {
   }
 
   private async requestSwap(from: ICellPos, to: ICellPos) {
-    if (this.ended) {
+    if (this.ended || this.introDropping) {
       return;
     }
 
@@ -3004,7 +2886,7 @@ export class Match3Scene extends Scene {
     }
 
     if (this.tutorialActive && !this.isTutorialSwap(a, b)) {
-      this.setComboMessage("FOLLOW THE GLOW");
+      this.setTutorialMessage("wrong");
       this.pulseTutorialPrompt();
       return;
     }
@@ -3027,6 +2909,8 @@ export class Match3Scene extends Scene {
       this.animateCellTo(second, SWAP_MS, "swap"),
     ]);
 
+    const hasSpecial = Boolean(first.power || second.power);
+    if (hasSpecial) this.beginRunIfNeeded(true);
     const specialSwapResolved = await this.resolveSpecialSwap(first, second);
     if (specialSwapResolved) {
       this.moves += 1;
@@ -3034,6 +2918,8 @@ export class Match3Scene extends Scene {
       await this.resolveMatches();
       this.completeTutorialIfNeeded();
       this.busy = false;
+      // The idle-hint clock restarts when the cascade ends, not when the swap began.
+      this.registerActivity();
       if (!this.ended) {
         this.setComboMessage("MEGA CHAIN READY");
         this.playSfx("combo", 3);
@@ -3052,20 +2938,23 @@ export class Match3Scene extends Scene {
       await this.delay(INVALID_SWAP_PAUSE_MS);
       this.playImpactSquish(first);
       this.playImpactSquish(second);
-      this.cameras.main.shake(90, 0.0015);
+      this.shakeCamera(90, 0.0015);
       this.busy = false;
+      this.registerActivity();
       this.setComboMessage("NO MATCH");
       this.playSfx("invalid");
       return;
     }
 
     this.moves += 1;
+    this.beginRunIfNeeded(true);
     this.updateHud();
 
     await this.resolveMatches(b);
 
     this.completeTutorialIfNeeded();
     this.busy = false;
+    this.registerActivity();
     if (!this.ended) {
       this.setComboMessage("CHAIN READY");
       this.playSfx("combo", 2);
@@ -3463,7 +3352,7 @@ export class Match3Scene extends Scene {
       } else {
         this.reshuffleFallbacks = MAX_RESHUFFLES_FALLBACK;
         const fallbackBoard = this.createInitialTypeBoard();
-        this.buildBoardFromTypes(fallbackBoard, true);
+        void this.buildBoardFromTypes(fallbackBoard, true);
         this.setComboMessage("BOARD RESET");
         this.playSfx("reshuffle");
       }
@@ -3476,7 +3365,7 @@ export class Match3Scene extends Scene {
     sparkleCount: number = 7,
   ) {
     if (withShake) {
-      this.cameras.main.shake(140, 0.0034);
+      this.shakeCamera(140, 0.0034);
       this.triggerBoardFlash(this.feverActive ? 0xfca5a5 : 0xfef08a, 0.28, 180);
     }
 
@@ -3751,9 +3640,7 @@ export class Match3Scene extends Scene {
     this.destroyBoard();
 
     const freshBoard = this.createInitialTypeBoard();
-    this.buildBoardFromTypes(freshBoard, true);
-
-    await this.delay(DROP_MS + 30);
+    await this.buildBoardFromTypes(freshBoard, true);
   }
 
   private startAmbientSparkles() {
@@ -3835,7 +3722,7 @@ export class Match3Scene extends Scene {
   }
 
   update(time: number) {
-    if (this.ended || this.busy || this.tutorialActive) {
+    if (this.ended || this.busy || this.tutorialActive || this.introDropping) {
       return;
     }
 
@@ -3859,6 +3746,8 @@ export class Match3Scene extends Scene {
     this.hintTweens.forEach((tween) => tween.stop());
     this.hintTweens = [];
     this.hintMove = null;
+    this.hintGlow?.destroy();
+    this.hintGlow = undefined;
 
     this.board.forEach((row) => {
       row.forEach((cell) => {
@@ -3997,7 +3886,12 @@ export class Match3Scene extends Scene {
       .sort((a, b) => b.impact - a.impact)[0];
   }
 
-  private applyHintPulse(move: IPossibleMove, repeat: number, message: string) {
+  /**
+   * Highlights the swap `move`: the two tiles pulse and a glow ring frames the pair. `message`
+   * goes to the combo line; the tutorial passes null, since its plate carries the copy (plan G12:
+   * one message at a time). Under reduced motion nothing pulses; the ring stays, static.
+   */
+  private applyHintPulse(move: IPossibleMove, repeat: number, message: string | null) {
     const fromCell = this.board[move.from.row][move.from.col];
     const toCell = this.board[move.to.row][move.to.col];
     if (!fromCell || !toCell) {
@@ -4006,36 +3900,61 @@ export class Match3Scene extends Scene {
 
     this.clearHintPulse();
     this.hintMove = move;
+    this.drawHintGlow(move, repeat);
 
-    [fromCell, toCell].forEach((cell) => {
-      const spriteTween = this.tweens.add({
-        targets: cell.sprite,
-        scaleX: cell.baseScaleX * 1.16,
-        scaleY: cell.baseScaleY * 1.16,
-        duration: 300,
-        yoyo: true,
-        repeat,
-        ease: "Sine.InOut",
+    if (!this.reducedMotion) {
+      [fromCell, toCell].forEach((cell) => {
+        const spriteTween = this.tweens.add({
+          targets: cell.sprite,
+          scaleX: cell.baseScaleX * 1.16,
+          scaleY: cell.baseScaleY * 1.16,
+          duration: 300,
+          yoyo: true,
+          repeat,
+          ease: "Sine.InOut",
+        });
+        this.hintTweens.push(spriteTween);
       });
-      this.hintTweens.push(spriteTween);
-    });
 
-    const markers = [fromCell.marker, toCell.marker].filter(
-      (marker): marker is Phaser.GameObjects.Text => Boolean(marker),
-    );
-    if (markers.length) {
-      const markerTween = this.tweens.add({
-        targets: markers,
-        scale: 1.18,
-        duration: 300,
-        yoyo: true,
-        repeat,
-        ease: "Sine.InOut",
-      });
-      this.hintTweens.push(markerTween);
+      const markers = [fromCell.marker, toCell.marker].filter(
+        (marker): marker is Phaser.GameObjects.Container => Boolean(marker),
+      );
+      if (markers.length) {
+        const markerTween = this.tweens.add({
+          targets: markers,
+          scale: 1.18,
+          duration: 300,
+          yoyo: true,
+          repeat,
+          ease: "Sine.InOut",
+        });
+        this.hintTweens.push(markerTween);
+      }
     }
 
-    this.setComboMessage(message);
+    if (message !== null) this.setComboMessage(message);
+  }
+
+  /** A gold ring around the two hinted cells (the glow the tutorial copy refers to). */
+  private drawHintGlow(move: IPossibleMove, repeat: number) {
+    const top = Math.min(move.from.row, move.to.row);
+    const left = Math.min(move.from.col, move.to.col);
+    const rows = Math.abs(move.from.row - move.to.row) + 1;
+    const cols = Math.abs(move.from.col - move.to.col) + 1;
+    const inset = 2;
+    const x = this.boardStartX + left * this.tileSize + inset;
+    const y = this.boardStartY + top * this.tileSize + inset;
+    const w = cols * this.tileSize - 2 * inset;
+    const h = rows * this.tileSize - 2 * inset;
+    const glow = this.add.graphics().setDepth(26);
+    glow.lineStyle(6, UI_GOLD, 0.28).strokeRoundedRect(x - 3, y - 3, w + 6, h + 6, 10);
+    glow.lineStyle(3, UI_GOLD, 1).strokeRoundedRect(x, y, w, h, 8);
+    glow.lineStyle(1, UI_CREAM, 0.85).strokeRoundedRect(x + 3, y + 3, w - 6, h - 6, 6);
+    this.hintGlow = glow;
+    if (this.reducedMotion) return;
+    this.hintTweens.push(
+      this.tweens.add({ targets: glow, alpha: 0.45, duration: 300, yoyo: true, repeat, ease: "Sine.InOut" }),
+    );
   }
 
   private showIdleHint() {
@@ -4067,6 +3986,11 @@ export class Match3Scene extends Scene {
     }
   }
 
+  /**
+   * The first-move tutorial (plan G12 "Tutorial rewrite", G14 "Paw Match hint"): the best swap
+   * glows, a `hint` role plate says what to do, and the glove shows the gesture. The combo and
+   * mission lines are hidden until the tutorial swap lands.
+   */
   private startTutorialIfNeeded() {
     if (!this.shouldRunTutorial()) {
       return;
@@ -4079,43 +4003,229 @@ export class Match3Scene extends Scene {
 
     this.tutorialActive = true;
     this.tutorialMove = move;
-    this.applyHintPulse(move, -1, "SWIPE THE GLOWING TILES");
+    this.tutorialMessageState = "intro";
+    this.tutorialStartedAt = typeof performance !== "undefined" ? performance.now() : 0;
+    this.comboText?.setVisible(false);
+    this.missionText?.setVisible(false);
+    this.comboBurstText?.setVisible(false);
+    this.applyHintPulse(move, -1, null);
 
-    const centerX = this.scale.width / 2;
-    const panelY = Math.min(
-      this.scale.height - 30,
-      this.boardStartY + BOARD_ROWS * this.tileSize + 30,
-    );
-    const panelWidth = Math.min(this.scale.width * 0.92, 560);
-    const bg = this.add
-      .rectangle(0, 0, panelWidth, 48, 0x0f172a, 0.86)
-      .setStrokeStyle(2, 0xfacc15, 0.88);
-    const text = this.add
-      .text(0, 0, "FIRST MOVE: DRAG BETWEEN THE HIGHLIGHTED TOKENS", {
-        fontFamily: "monospace",
-        fontSize: "15px",
-        color: "#fef3c7",
-        stroke: "#111827",
-        strokeThickness: 3,
-      })
-      .setOrigin(0.5);
-    this.tutorialContainer = this.add.container(centerX, panelY, [bg, text]).setDepth(90);
+    this.tutorialBg = this.add
+      .rectangle(0, 0, 10, 10, 0x0f172a, 0.92)
+      .setOrigin(0, 0)
+      .setStrokeStyle(2, UI_GOLD, 0.95)
+      .setDepth(90);
+    // The `hint` role (Nunito 800, sentence case, decision #86), wrapped and fitted by
+    // layoutTutorialPlate().
+    this.tutorialText = ttText(this, 0, 0, tutorialMessage(this.inputKind, "intro"), "hint", {
+      size: this.compactHud ? 15 : 16,
+      color: "#fef3c7",
+      stroke: "#111827",
+      strokeThickness: 3,
+      align: "center",
+      wordWrapWidth: 200,
+      origin: 0.5,
+      keepCase: true,
+      depth: 91,
+    });
+    this.layoutTutorialPlate();
+    this.startGlove(move);
   }
 
+  /**
+   * Sizes and places the plate for its current text (plan G14 `layoutTutorialPlate()`): on every
+   * message change, resize and late font. The text is fitted (wrapping, then shrinking to the
+   * role minimum) into the layout's tutorial region, the background is sized to it, and both sit
+   * on whole device pixels, so nothing is clipped or ghosted.
+   */
+  private layoutTutorialPlate() {
+    const text = this.tutorialText;
+    const bg = this.tutorialBg;
+    if (!text?.scene || !bg?.scene || !this.layout) return;
+    const region = this.layout.tutorial;
+    const box = plateTextBox(region);
+    refreshTTResolution(text as unknown as HealableText);
+    text.setWordWrapWidth(box.maxWidth, true);
+    ttFit(text as unknown as TTFitTarget, {
+      role: "hint",
+      size: this.compactHud ? 15 : 16,
+      maxWidth: box.maxWidth,
+      maxHeight: box.maxHeight,
+      applyCase: false,
+    });
+    const rect = tutorialPlateRect(region, text.width, text.height, this.layout.safe);
+    const snap = (value: number) => {
+      const dpr = getCanvasPixelRatio(this);
+      return Math.round(value * dpr) / dpr;
+    };
+    bg.setPosition(rect.x, rect.y).setSize(rect.w, rect.h);
+    bg.setDisplaySize(rect.w, rect.h);
+    text.setPosition(snap(rect.x + rect.w / 2), snap(rect.y + rect.h / 2));
+
+    // Where the plate covers stat texts on purpose (short phones: the four zero cards), those
+    // texts are hidden rather than showing through, so no two visible HUD boxes overlap.
+    this.restoreTutorialHiddenHud();
+    this.hudTexts.forEach((hudText, key) => {
+      if (key === "combo" || key === "mission" || key === "burst" || key === "fever") return;
+      if (!hudText.scene || !hudText.visible) return;
+      const b = hudText.getBounds();
+      if (rect.x < b.x + b.width && b.x < rect.x + rect.w && rect.y < b.y + b.height && b.y < rect.y + rect.h) {
+        hudText.setVisible(false);
+        this.tutorialHiddenHud.add(key);
+      }
+    });
+  }
+
+  private restoreTutorialHiddenHud() {
+    this.tutorialHiddenHud.forEach((key) => this.hudTexts.get(key)?.setVisible(true));
+    this.tutorialHiddenHud.clear();
+  }
+
+  /** Writes a message into the plate. "Follow the glow" gets a red stroke for 300 ms (plan G14). */
+  private setTutorialMessage(state: "intro" | "wrong") {
+    const text = this.tutorialText;
+    if (!text?.scene) return;
+    this.tutorialMessageState = state;
+    this.tutorialStrokeTimer?.remove(false);
+    this.tutorialRevertTimer?.remove(false);
+    text.setText(tutorialMessage(this.inputKind, state));
+    this.layoutTutorialPlate();
+    if (state === "wrong") {
+      text.setStroke("#b91c1c", 4);
+      this.tutorialStrokeTimer = this.time.delayedCall(WRONG_STROKE_MS, () => {
+        if (text.scene) text.setStroke("#111827", 3);
+      });
+      // Back to the instruction once the player has read the correction.
+      this.tutorialRevertTimer = this.time.delayedCall(1800, () => {
+        if (this.tutorialActive) this.setTutorialMessage("intro");
+      });
+      announce(MATCH3_GAME_ID, text.text, "assertive");
+    } else {
+      text.setStroke("#111827", 3);
+    }
+  }
+
+  /** The plate's attention pulse: only the background moves, never the text (no ghosting). */
   private pulseTutorialPrompt() {
-    if (!this.tutorialContainer) {
+    const bg = this.tutorialBg;
+    if (!bg?.scene || this.reducedMotion) {
       return;
     }
 
-    this.tweens.killTweensOf(this.tutorialContainer);
-    this.tutorialContainer.setScale(1);
-    this.tweens.add({
-      targets: this.tutorialContainer,
-      scale: 1.04,
+    this.tweens.killTweensOf(bg);
+    bg.setFillStyle(0x0f172a, 0.92).setStrokeStyle(2, UI_GOLD, 0.95);
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
       duration: 160,
       yoyo: true,
       ease: "Sine.InOut",
+      onUpdate: (tween) => {
+        if (!bg.scene) return;
+        const t = tween.getValue() ?? 0;
+        bg.setStrokeStyle(2 + 2 * t, t > 0.5 ? 0xfca5a5 : UI_GOLD, 0.95);
+      },
+      onComplete: () => {
+        if (bg.scene) bg.setFillStyle(0x0f172a, 0.92).setStrokeStyle(2, UI_GOLD, 0.95);
+      },
     });
+  }
+
+  /**
+   * The glove (plan G14): a 32x32 pixel glove that points at the shared edge of the pair from
+   * outside both cells and drags from the first to the second, with two trailing ghosts, at depth
+   * 95. It is placed in the same frame the tutorial starts (visible within 100 ms). Under reduced
+   * motion it stands still, halfway along the edge, without ghosts.
+   */
+  private startGlove(move: IPossibleMove) {
+    this.stopGlove();
+    if (!this.textures.exists(GLOVE_TEXTURE_KEY)) return;
+    const track = gloveTrack(move.from, move.to, {
+      x: this.boardStartX,
+      y: this.boardStartY,
+      tileSize: this.tileSize,
+      rows: BOARD_ROWS,
+      cols: BOARD_COLS,
+    });
+    const make = (alpha: number, depth: number) =>
+      this.add
+        .image(track.start.x, track.start.y, GLOVE_TEXTURE_KEY)
+        .setDisplaySize(GLOVE_SIZE, GLOVE_SIZE)
+        .setAngle(track.angle)
+        .setAlpha(alpha)
+        .setDepth(depth);
+    this.glove = make(1, GLOVE_DEPTH);
+    this.gloveShownAt = typeof performance !== "undefined" ? performance.now() : 0;
+    if (this.reducedMotion) {
+      this.glove.setPosition(track.mid.x, track.mid.y);
+      return;
+    }
+    this.gloveGhosts = GLOVE_GHOSTS.map((ghost, i) => make(0, GLOVE_DEPTH - 0.2 * (i + 1)));
+    this.gloveTrail = [];
+    const glove = this.glove;
+    this.gloveTween = this.tweens.add({
+      targets: glove,
+      x: track.end.x,
+      y: track.end.y,
+      delay: 260,
+      duration: 620,
+      hold: 360,
+      repeatDelay: 220,
+      repeat: -1,
+      ease: "Sine.InOut",
+      onRepeat: () => {
+        glove.setPosition(track.start.x, track.start.y);
+        this.gloveTrail = [];
+      },
+    });
+    // The ghosts follow the scene clock, not the tween: Phaser does not call a tween's onUpdate
+    // during `hold` or `repeatDelay`, which froze the ghosts behind a still glove (5c review).
+    this.events.on("update", this.updateGloveGhosts, this);
+  }
+
+  /** Each ghost replays where the glove was `lagMs` ago; it shows only while the glove moves. */
+  private updateGloveGhosts() {
+    const glove = this.glove;
+    if (!glove?.scene) return;
+    const now = this.time.now;
+    this.gloveTrail.push({ t: now, x: glove.x, y: glove.y });
+    while (this.gloveTrail.length > 2 && now - this.gloveTrail[1].t > 400) this.gloveTrail.shift();
+    this.gloveGhosts.forEach((ghost, i) => {
+      const spec = GLOVE_GHOSTS[i];
+      const target = now - spec.lagMs;
+      let sample = this.gloveTrail[0];
+      for (const point of this.gloveTrail) {
+        if (point.t <= target) sample = point;
+      }
+      if (!sample) return;
+      const moving = Math.abs(sample.x - glove.x) + Math.abs(sample.y - glove.y) > 1;
+      ghost.setPosition(sample.x, sample.y).setAlpha(moving ? spec.alpha : 0);
+    });
+  }
+
+  private stopGlove() {
+    this.events?.off("update", this.updateGloveGhosts, this);
+    this.gloveTween?.stop();
+    this.gloveTween = undefined;
+    this.glove?.destroy();
+    this.glove = undefined;
+    this.gloveGhosts.forEach((ghost) => ghost.destroy());
+    this.gloveGhosts = [];
+    this.gloveTrail = [];
+  }
+
+  private destroyTutorialPlate() {
+    this.tutorialStrokeTimer?.remove(false);
+    this.tutorialRevertTimer?.remove(false);
+    this.tutorialStrokeTimer = undefined;
+    this.tutorialRevertTimer = undefined;
+    if (this.tutorialBg) this.tweens?.killTweensOf(this.tutorialBg);
+    this.tutorialBg?.destroy();
+    this.tutorialText?.destroy();
+    this.tutorialBg = undefined;
+    this.tutorialText = undefined;
+    this.restoreTutorialHiddenHud();
+    this.stopGlove();
   }
 
   private isTutorialSwap(a: ICellPos, b: ICellPos) {
@@ -4137,9 +4247,10 @@ export class Match3Scene extends Scene {
 
     this.tutorialActive = false;
     this.tutorialMove = null;
-    this.tutorialContainer?.destroy();
-    this.tutorialContainer = undefined;
+    this.destroyTutorialPlate();
     this.clearHintPulse();
+    // No "Try this swap" the moment the plate goes: the idle clock starts over here.
+    this.registerActivity();
 
     if (typeof window !== "undefined") {
       try {
@@ -4149,7 +4260,12 @@ export class Match3Scene extends Scene {
       }
     }
 
+    // One message at a time again: the combo and mission lines come back.
+    this.comboText?.setVisible(true);
+    this.missionText?.setVisible(true);
+    this.updateHud();
     this.setComboMessage("PURR-FECT START");
+    announce(MATCH3_GAME_ID, `Purr-fect start. The clock is running: ${this.timeLeft} seconds.`);
   }
 
   private collectObjectiveProgress(cells: ICellPos[]): number {
@@ -4217,7 +4333,7 @@ export class Match3Scene extends Scene {
 
     this.feverActive = true;
     this.feverText?.setVisible(true);
-    this.cameras.main.flash(240, 255, 200, 96, true);
+    if (!this.reducedMotion) this.cameras.main.flash(240, 255, 200, 96, true);
     this.triggerBoardFlash(0xfca5a5, 0.22, 240);
     this.setComboMessage("FEVER x2");
     this.playSfx("fever");
@@ -4230,24 +4346,32 @@ export class Match3Scene extends Scene {
     this.finishGame();
   }
 
+  /**
+   * The clock ran out: the last chance can save the run once (plan G10). On an uncleared level 1
+   * it fires automatically with the one-time +15 s grace; elsewhere it needs the run to be close.
+   */
   private tryTriggerLastChance() {
-    if (this.lastChanceUsed || this.ended) {
-      return false;
-    }
-
-    const scoreProgress = this.level.targetScore ? this.score / this.level.targetScore : 0;
-    const objectiveMissing = Math.max(0, this.objectiveTarget - this.objectiveCollected);
-    const shouldSaveRun =
-      scoreProgress >= this.level.lastChanceProgressGate || objectiveMissing <= 2;
-
-    if (!shouldSaveRun) {
+    const grant = lastChanceGrant({
+      levelId: this.level.id,
+      levelCleared: !!this.props?.levelCleared,
+      used: this.lastChanceUsed,
+      ended: this.ended,
+      score: this.score,
+      targetScore: this.level.targetScore,
+      objectiveTarget: this.objectiveTarget,
+      objectiveCollected: this.objectiveCollected,
+      gate: this.level.lastChanceProgressGate,
+    });
+    if (!grant) {
       return false;
     }
 
     this.lastChanceUsed = true;
-    this.timeLeft = LAST_CHANCE_SECONDS;
+    this.timeLeft = grant.seconds;
+    this.lastCountdownSecond = -1;
     this.triggerBoardFlash(0xfda4af, 0.28, 260);
-    this.setComboMessage(`LAST CHANCE +${LAST_CHANCE_SECONDS}s`);
+    this.setComboMessage(grant.kind === "grace" ? `EXTRA TIME +${grant.seconds}s` : `LAST CHANCE +${grant.seconds}s`);
+    announce(MATCH3_GAME_ID, `Extra time: ${grant.seconds} more seconds.`, "assertive");
     this.updateHud();
     this.playSfx("countdown");
     return true;
@@ -4379,8 +4503,15 @@ export class Match3Scene extends Scene {
       .then(() => true);
   }
 
+  /** Camera shake, skipped under reduced motion (5c review). */
+  private shakeCamera(duration: number, intensity: number) {
+    if (this.reducedMotion) return;
+    this.cameras.main.shake(duration, intensity);
+  }
+
+  /** The board's colour flash; under reduced motion nothing flashes (the HUD line carries it). */
   private triggerBoardFlash(color: number, alpha: number, duration: number) {
-    if (!this.boardFlash) {
+    if (!this.boardFlash || this.reducedMotion) {
       return;
     }
 
@@ -4451,8 +4582,13 @@ export class Match3Scene extends Scene {
       },
       feverActive: this.feverActive,
       tutorialActive: this.tutorialActive,
+      clockStarted: this.clockStarted,
+      lastChanceUsed: this.lastChanceUsed,
+      tutorial: this.tutorialSnapshot(),
       ended: this.ended,
       busy: this.busy,
+      introDropping: this.introDropping,
+      idle: { lastActionAt: this.lastPlayerActionAt, now: this.time.now, nextHintAt: this.nextHintAt },
       queuedSwaps: this.swapQueue.length,
       retention: {
         dayStreak: this.retentionState?.dayStreak || 1,
@@ -4490,7 +4626,52 @@ export class Match3Scene extends Scene {
       ),
     };
 
-    return JSON.stringify(payload);
+    return JSON.stringify({
+      ...payload,
+      hud: this.hudBounds(),
+      hudMode: this.layout?.mode,
+      safe: this.layout?.safe,
+      closeZone: this.layout?.closeZone,
+      boardRect: { x: this.boardStartX, y: this.boardStartY, tileSize: this.tileSize },
+    });
+  }
+
+  /** The tutorial's plate, text, glove and hinted cells in layout pixels, for the e2e. */
+  private tutorialSnapshot() {
+    if (!this.tutorialActive) return null;
+    const round = (r: { x: number; y: number; width: number; height: number }) => ({
+      x: Math.round(r.x * 10) / 10,
+      y: Math.round(r.y * 10) / 10,
+      w: Math.round(r.width * 10) / 10,
+      h: Math.round(r.height * 10) / 10,
+    });
+    return {
+      message: this.tutorialText?.text ?? null,
+      messageState: this.tutorialMessageState,
+      inputKind: this.inputKind,
+      reducedMotion: this.reducedMotion,
+      fontSize: this.tutorialText?.style.fontSize ?? null,
+      family: this.tutorialText ? String(this.tutorialText.style.fontFamily) : null,
+      stroke: this.tutorialText?.style.stroke ?? null,
+      plate: this.tutorialBg ? round(this.tutorialBg.getBounds()) : null,
+      text: this.tutorialText ? round(this.tutorialText.getBounds()) : null,
+      glove: this.glove ? { ...round(this.glove.getBounds()), angle: this.glove.angle, visible: this.glove.visible, alpha: this.glove.alpha } : null,
+      ghosts: this.gloveGhosts.length,
+      ghostAlphas: this.gloveGhosts.map((ghost) => Math.round(ghost.alpha * 100) / 100),
+      // Every tile sits on its cell (the intro drop has landed) while the glow and glove show.
+      cellsLanded: this.board.every((row) =>
+        row.every((cell) => {
+          if (!cell) return true;
+          const at = this.cellToWorld(cell.row, cell.col);
+          return Math.abs(cell.sprite.x - at.x) < 0.5 && Math.abs(cell.sprite.y - at.y) < 0.5;
+        }),
+      ),
+      gloveDelayMs: this.glove ? Math.round(this.gloveShownAt - this.tutorialStartedAt) : null,
+      hiddenHud: Array.from(this.tutorialHiddenHud),
+      move: this.tutorialMove && { from: this.tutorialMove.from, to: this.tutorialMove.to },
+      comboVisible: !!this.comboText?.visible,
+      missionVisible: !!this.missionText?.visible,
+    };
   }
 
   private advanceTimeForTests(ms: number) {
@@ -4510,7 +4691,8 @@ export class Match3Scene extends Scene {
       if (this.ended) {
         break;
       }
-      if (this.tutorialActive) {
+      // Same rule as the real clock: nothing ticks before the first valid swap.
+      if (this.tutorialActive || !this.clockStarted) {
         continue;
       }
 

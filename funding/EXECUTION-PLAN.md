@@ -211,6 +211,8 @@ All commands start from the repo root `/Users/zygimantasbagdzevicius/me/tokentai
 
 ## 5. Placeholder fill-map
 
+**Update 2026-10-02:** one command now does this whole table: `node bin/fund.mjs fill --ingest --write` (from `funding/framework`). Its rules are in `tracks/a-build/fill-map.json`, and the values only you have go in `fill-values.json`. Without `--write` it is a dry run. `--fallbacks` swaps sentences that depend on a missing treat tx or demo for wording that is true without them. The steps are in `funding/USER-TODAY.md`.
+
 | Placeholder | Source | Command |
 |---|---|---|
 | `repo:` and `{REPO_URL}` | The public repo URL after the Oct 1 merge | `gh repo view --json url -q .url`, then add `/tree/main/funding/framework/tracks/a-build/shelter-split` |

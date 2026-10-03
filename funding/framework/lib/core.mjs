@@ -186,7 +186,8 @@ export function stripNonProse(text) {
 
 const METRIC = /(?:[$€£]\s?\d[\d,.]*\s?(?:k|m|b|million|thousand)?\b|\b\d[\d,.]*\s?(?:%|k\b|m\b|million|thousand|users|players|visitors|transactions|txs|invocations|wallets|followers|downloads|shelters|cats|installs|mau|dau|wau)|\b\d{1,3}(?:,\d{3})+\b)/i;
 const CITE = /\[F-\d{3}\]/g;
-const PLACEHOLDER = /\b(TODO|TBD|XXX|FIXME|lorem ipsum)\b|\{\{[^}]+\}\}/;
+// {{VAR}} template slots and the {VAR} fill-after-deploy slots used in drafts ({SPLIT_ADDRESS}, {DEMO_URL}, ...)
+const PLACEHOLDER = /\b(TODO|TBD|XXX|FIXME|lorem ipsum)\b|\{\{[^}]+\}\}|\{[A-Z][A-Z0-9_]*\}/;
 
 export function sentences(text) {
   const units = [];

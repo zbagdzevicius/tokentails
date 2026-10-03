@@ -560,7 +560,6 @@ const PortraitPage = () => {
             name="description"
             content="Create a stunning royal portrait of your beloved pet. Transform your pet into a timeless masterpiece with our AI-powered portrait service."
           />
-          <link rel="shortcut icon" href={cdnFile("logo/logo.webp")} />
         </Head>
         <div className="min-h-screen bg-background" data-portrait-page="true">
           <Toaster />
@@ -600,7 +599,6 @@ const PortraitPage = () => {
           name="description"
           content="Create a stunning royal portrait of your beloved pet. Transform your pet into a timeless masterpiece with our AI-powered portrait service."
         />
-        <link rel="shortcut icon" href={cdnFile("logo/logo.webp")} />
       </Head>
       <div
         className="min-h-screen bg-background texture-overlay"

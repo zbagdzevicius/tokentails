@@ -25,6 +25,8 @@ fund done <slug> <step>        # 3. after you did it: marks it and continues wit
 fund run <slug>                # 4. after editing files by hand; fund loop <slug> = scored autofix ↔ review to
                                #    the target (Track C runs it itself; refused for Track B, E and ready apps)
 fund verify --all --offline    # 5. evidence behind every done step, facts, secrets/PII, policy, cross-app → VERIFY.md
+fund fill --ingest --write     # after a deploy wave: record deploys, write addresses/tx/URLs into every draft (fill-map.json, fill-values.json)
+                               #    Track B entries are filled in answers.md, then b:fill re-renders fill.md
 ```
 
 `fund plan <slug>` shows every step with the evidence behind it (and writes PLAN.md). Every command

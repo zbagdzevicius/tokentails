@@ -20,7 +20,7 @@ export const OpeningAnimation: React.FC<OpeningAnimationProps> = ({
     <>
       {/* Opening Background Overlay */}
       <div
-        className={`${fixedFullscreenClass} z-[100] bg-cover bg-center overflow-hidden transition-opacity duration-500 ${
+        className={`${fixedFullscreenClass} z-reveal bg-cover bg-center overflow-hidden transition-opacity duration-500 ${
           isOpening ? "opacity-100" : "opacity-0"
         }`}
         style={{ backgroundImage: `url(${OPENING_BACKGROUND})` }}
@@ -28,7 +28,7 @@ export const OpeningAnimation: React.FC<OpeningAnimationProps> = ({
 
       {/* Opening Sparkles Container */}
       <div
-        className={`${fixedFullscreenClass} z-[100] overflow-hidden flex items-center justify-center transition-opacity duration-500 ${
+        className={`${fixedFullscreenClass} z-reveal overflow-hidden flex items-center justify-center transition-opacity duration-500 ${
           isOpening ? "opacity-100" : "opacity-0"
         }`}
       >
@@ -48,7 +48,7 @@ export const OpeningAnimation: React.FC<OpeningAnimationProps> = ({
 
       {/* Center Paw */}
       {isOpening && (
-        <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-[102]">
+        <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-reveal">
           <div className="w-[90vw] max-w-[400px] aspect-[17/23]">
             <div
               className="w-full h-full bg-contain bg-center bg-no-repeat animate-paw-pulse"

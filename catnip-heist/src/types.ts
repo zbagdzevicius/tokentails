@@ -31,7 +31,7 @@ export const TICK_HZ = 30;
 /** Pixel size of one sprite frame (square) in every sheet. */
 export const FRAME_PX = 48;
 /** Bump when sim rules change in a way that changes hashes for the same inputs. */
-export const SIM_VERSION = 3;
+export const SIM_VERSION = 4;
 
 /** Row order of every cat spritesheet (cat-assets/cats/<breed>.png). Sprites face RIGHT. */
 export const CAT_ROWS = [
@@ -228,6 +228,8 @@ export interface HintZone {
   whileOtherHolds?: string;
   /** Optional condition: only show while the objective index (see sim/hud objectiveIndex) is <= this. */
   untilObjective?: number;
+  /** Optional condition: only show once the objective index is >= this. */
+  fromObjective?: number;
 }
 
 export interface LevelMeta {
@@ -300,6 +302,11 @@ export interface CatState {
   checkpoint: Vec2i;
   /** Ticks remaining of the "caught" flash / respawn lock (0 = free). Input is ignored while > 0. */
   stunTicks: number;
+  /**
+   * Respawn grace ticks left (SIM_VERSION 4): invisible to guards while > 0 and the cat stays within
+   * 1 tile of its checkpoint (see GRACE_TICKS in sim.ts). Always set by the sim.
+   */
+  graceTicks?: number;
   pose: CatPose;
 }
 
@@ -523,7 +530,7 @@ export const DEPLOYMENTS_URL: string = BUILD_ENV.HEIST_DEPLOYMENTS_URL ?? `${DEP
 // Audio (implemented in src/audio)
 // ---------------------------------------------------------------------------------------------
 
-export type SfxName = 'step' | 'coin' | 'meow' | 'alarm' | 'door' | 'win' | 'key' | 'swap' | 'rescue' | 'click';
+export type SfxName = 'step' | 'coin' | 'meow' | 'alarm' | 'door' | 'win' | 'key' | 'swap' | 'rescue' | 'click' | 'sentry';
 
 export interface AudioAPI {
   /** Must be called from a user gesture before sounds play (browser autoplay rules). */

@@ -1,4 +1,5 @@
 import { GameEvent } from "@/components/Phaser/events";
+import { escapeHtml } from "@/components/Phaser/look/textureKeys";
 import type { NpcCat } from "./NpcCat";
 
 export class SpeechBubble extends Phaser.GameObjects.Container {
@@ -16,9 +17,10 @@ export class SpeechBubble extends Phaser.GameObjects.Container {
     super(scene, x, y);
     this.npcCat = npcCat;
 
+    // The text carries the cat's user-chosen name and goes into innerHTML: escape it.
     const bubbleHtml = `
       <div class="bubble bottom" style="position: relative; left: 20px;">
-        ${text}
+        ${escapeHtml(text)}
         <button id="adopt-button" style="
           background-color: ${isSelected ? "#9ca3af" : "#ef4444"}; 
           color: #FCECBB;
@@ -29,7 +31,7 @@ export class SpeechBubble extends Phaser.GameObjects.Container {
           font-weight: bold;
           cursor: ${isSelected ? "not-allowed" : "pointer"};
         " ${isSelected ? "disabled" : ""}>
-          ${buttonText}
+          ${escapeHtml(buttonText)}
         </button>
       </div>
     `;

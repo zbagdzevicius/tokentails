@@ -1,1 +1,47 @@
-[]
+[
+  {
+    "contract": "ShelterSplit",
+    "chain": "tempo",
+    "network": "testnet",
+    "chainId": 42431,
+    "address": "0x9978e60da2352a8de02852788d34bd95849a598d",
+    "tx": "0x8169cd8ca20c3e9a793185c5ef686ed38a460a799abddd075adc74672a0e2575",
+    "token": "USDC",
+    "recorded": "2026-10-02T07:21:36.200Z",
+    "verified": true,
+    "note": "recorded by a:ingest from the Foundry broadcast",
+    "verifiedAt": "2026-10-02T07:21:36.956Z",
+    "codeBytes": 11199,
+    "codeSha256": "db8aed25797361aa6a6e593bfe159a81b64469407a01d31997337694db6af10f",
+    "proofTxs": [
+      "0x2a8d49065e0d9bbd8ba6f1563eebf5a34a60d9203f9fc07582d84ccb7791af2d"
+    ],
+    "memoTxs": [
+      "0x7e9dc9e3d731e7ad579134927f0a1dd202975ee3bb6e9e55f4463621eea47fda"
+    ],
+    "sourceVerified": true,
+    "sourceVerifiedAt": "2026-10-02T08:10:40.238Z",
+    "sourceVerifier": "sourcify"
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "arc",
+    "network": "testnet",
+    "chainId": 5042002,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0x6af0fe0eae4abd65d8560cf4ed14ada55f2debd2e14e9306d45d81a271d0ede8",
+    "token": "USDC",
+    "recorded": "2026-10-02T07:30:38.966Z",
+    "verified": true,
+    "note": "recorded by a:ingest from the Foundry broadcast",
+    "verifiedAt": "2026-10-02T07:30:39.276Z",
+    "codeBytes": 11199,
+    "codeSha256": "2bb13b1eb3e9a4c4554c55c8a5892646cbd5a90d3aefaf24d448afb443fc3259",
+    "proofTxs": [
+      "0xa90f97134ab92efa5ade8c6f1c6eddcc9bded100a6c1bc2a5b1b91ba6da4360a"
+    ],
+    "sourceVerified": true,
+    "sourceVerifiedAt": "2026-10-02T08:10:28.070Z",
+    "sourceVerifier": "blockscout"
+  }
+]

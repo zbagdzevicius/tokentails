@@ -714,6 +714,68 @@ describe('continuous cat movement', () => {
       expect(t.cats[0].pos.x).toBe(far);
       expect(tileOf(t.cats[0].pos).y).toBe(1);
     });
+
+    it('a diagonal press on the doorway column goes through it (doorway magnet, SIM_VERSION 4)', () => {
+      // Two-tile-deep room above a wall with a gap at (4,3).
+      const level = mkLevel(['#########', '#.......#', '#.......#', '####.####', '#.......#', '#########'], { catSpawns: [{ x: 3, y: 1 }, { x: 1, y: 4 }] });
+      // Every start on the doorway's column, either diagonal that leans into the wall: the cat used to
+      // slide along the wall past the gap from its centre.
+      for (const x of [65, 68, 72, 76, 79]) {
+        for (const dx of [-1, 1] as const) {
+          let s = placeCatAt(initSim(level, 1, ['bob', 'oreo']), 0, { x, y: 40 });
+          s = run(level, s, IN({ dx, dy: 1 }), 24);
+          expect(tileOf(s.cats[0].pos).y, `x ${x} dx ${dx}`).toBe(4);
+        }
+      }
+      // Off the doorway column the diagonal still slides along the wall (away from the gap here).
+      let s = placeCatAt(initSim(level, 1, ['bob', 'oreo']), 0, { x: 56, y: 40 });
+      s = run(level, s, IN({ dx: -1, dy: 1 }), 12);
+      expect(tileOf(s.cats[0].pos).y).toBe(2);
+    });
+
+    it('sliding along a 1-tile corridor, a diagonal takes the side gap it passes', () => {
+      const level = lv();
+      // Flush with the bottom wall of the corridor (row 1), east of the gap, pressing south-west.
+      let s = placeCatAt(initSim(level, 1, ['bob', 'oreo']), 0, { x: 110, y: 2 * SUBTILE - CAT_HALF - 1 });
+      s = run(level, s, IN({ dx: -1, dy: 1 }), 40);
+      expect(tileOf(s.cats[0].pos).y).toBe(3);
+    });
+  });
+
+  describe('respawn grace (SIM_VERSION 4)', () => {
+    // A sentry at (5,3) looking west along row 3; the checkpoint (2,3) is in its cone.
+    const tiles = ['#########', '#.......#', '#.......#', '#.......#', '#########'];
+    const level = mkLevel(tiles, {
+      catSpawns: [{ x: 2, y: 3 }, { x: 1, y: 1 }],
+      guards: [{ id: 'g', sprite: 'base', waypoints: [{ x: 5, y: 3 }], speed: 1, sniffTicks: 0, visionTiles: 4, facing: { x: -1, y: 0 } }],
+    });
+
+    it('a respawned cat is hidden while it stays by its checkpoint, and the grace ends when it leaves', async () => {
+      const { GRACE_TICKS, STUN_TICKS } = await import('../sim');
+      let s = initSim(level, 1, ['bob', 'oreo']);
+      s = stepSim(level, s, NO_INPUT);
+      expect(s.spottedCount).toBe(1);
+      s = run(level, s, NO_INPUT, STUN_TICKS);
+      expect(s.cats[0].stunTicks).toBe(0);
+      expect(s.cats[0].graceTicks).toBeGreaterThan(0);
+      s = run(level, s, NO_INPUT, GRACE_TICKS - 2);
+      expect(s.spottedCount).toBe(1);
+      // Grace over: seen again where it stands.
+      s = run(level, s, NO_INPUT, 3);
+      expect(s.spottedCount).toBe(2);
+      // Leaving the checkpoint area ends the grace at once.
+      s = run(level, s, NO_INPUT, STUN_TICKS);
+      s = run(level, s, IN({ dx: 1 }), T * 2);
+      expect(s.spottedCount).toBe(3);
+    });
+  });
+
+  it('a cat counts as at the exit within EXIT_SLOP of an exit tile', async () => {
+    const { catAtExit, EXIT_SLOP } = await import('../sim');
+    const level = mkLevel(['#####', '#...#', '#####'], { exit: { id: 'e', tiles: [{ x: 2, y: 1 }] } });
+    expect(catAtExit(level, { x: 2 * SUBTILE - EXIT_SLOP, y: 24 })).toBe(true);
+    expect(catAtExit(level, { x: 2 * SUBTILE - EXIT_SLOP - 1, y: 24 })).toBe(false);
+    expect(catAtExit(level, { x: 3 * SUBTILE + EXIT_SLOP - 1, y: 24 })).toBe(true);
   });
 
   it('vault opens when pushed into with the key', () => {
@@ -752,11 +814,31 @@ describe('continuous cat movement', () => {
     });
     let s = initSim(level, 1, ['bob', 'oreo']);
     s = placeCatAt(s, 0, { x: 2 * SUBTILE + 1, y: 2 * SUBTILE + 14 });
-    s = stepSim(level, s, NO_INPUT);
+    s = stepSim(level, s, IN({ dx: 1 }));
     expect(s.platesDown[0]).toBe(true);
     s = placeCatAt(s, 0, { x: 2 * SUBTILE - 1, y: 2 * SUBTILE + 14 });
-    s = stepSim(level, s, NO_INPUT);
+    s = stepSim(level, s, IN({ dy: -1 }));
     expect(s.platesDown[0]).toBe(false);
+  });
+
+  it('a cat let go just off a plate walks onto its centre (plate snap, SIM_VERSION 4)', async () => {
+    const { PLATE_SNAP } = await import('../sim');
+    const tiles = ['##########', '#....#...#', '#........#', '#....#...#', '##########'];
+    const level = mkLevel(tiles, {
+      catSpawns: [{ x: 1, y: 2 }, { x: 1, y: 1 }],
+      doors: [{ id: 'D', tile: { x: 5, y: 2 }, kind: 'PLATE', axis: 'v' }],
+      plates: [{ id: 'P', tile: { x: 2, y: 2 }, doors: ['D'] }],
+      crate: { id: 'crate', tile: { x: 8, y: 3 }, catId: 'bob', catName: 'Bob' },
+      exit: { id: 'exit', tiles: [{ x: 8, y: 1 }] },
+    });
+    let s = placeCatAt(initSim(level, 1, ['bob', 'oreo']), 0, { x: 2 * SUBTILE - PLATE_SNAP, y: 2 * SUBTILE + 3 });
+    s = run(level, s, NO_INPUT, 12);
+    expect(s.cats[0].pos).toEqual(centerOf({ x: 2, y: 2 }));
+    expect(s.platesDown[0]).toBe(true);
+    // Further off: it stays put.
+    let t = placeCatAt(initSim(level, 1, ['bob', 'oreo']), 0, { x: 2 * SUBTILE - PLATE_SNAP - 1, y: 40 });
+    t = run(level, t, NO_INPUT, 12);
+    expect(t.cats[0].pos).toEqual({ x: 2 * SUBTILE - PLATE_SNAP - 1, y: 40 });
   });
 });
 

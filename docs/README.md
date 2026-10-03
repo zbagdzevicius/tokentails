@@ -16,6 +16,8 @@ are working on.
 | [MOBILE.md](MOBILE.md) | Capacitor configuration, Android and iOS projects, store release automation |
 | [CMS.md](CMS.md) | Admin console: routes, features, auth, endpoints used, testing |
 | [CONTRACTS.md](CONTRACTS.md) | Soroban, SKALE, faucets, archived prototypes, deployed addresses, licensing |
+| [CLAIMS.md](CLAIMS.md) | Public claims: the facts registry, statuses, wording rules, the copy lint, the weekly checks |
+| [RESILIENCE.md](RESILIENCE.md) | Error boundaries, the Phaser crash guard, crash telemetry, the storefront contract, the resilience matrix and the crash-free metric |
 | [HISTORY.md](HISTORY.md) | Timeline, lineage, chain history, roadmap signals |
 
 Other material in the repo:
@@ -23,6 +25,7 @@ Other material in the repo:
 - `extra/traction.md` and `extra/traction-assets/`: audience and on-chain traction figures.
 - `extra/architecture.md`: the Stellar settlement rail proposal for the upcoming app family. A roadmap document, not the current system.
 - `client/docs/`: Android Play automation and the original Paw Match execution plan.
+- `docs/plans/`: plans. `landing-game-alignment.md` is the landing and game alignment plan; `docs/plans/alignment-log/` is its audit trail, one log per build task (what was built, decisions applied, manual steps).
 - `contracts/stellar/soroban-nft/README.md` and `contracts/evm/deployed-contracts.md`: chain-specific deploy notes.
 
 ## Conventions used in these docs

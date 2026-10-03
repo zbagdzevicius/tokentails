@@ -1,5 +1,6 @@
 import Phaser from "phaser";
-import { PixelRescueScene } from "../scenes/PixelRescueScene";
+import { scaleTo, ttWorldText } from "@/components/Phaser/typography";
+import type { PixelRescueScene } from "../scenes/PixelRescueScene";
 
 export enum PixelEnemyAnimation {
   IDLE = "IDLE",
@@ -100,34 +101,21 @@ export class BasePixelEnemy extends Phaser.Physics.Arcade.Sprite {
     this.setVelocity(0, 0);
     this.setTint(0x4444ff); // Blue tint for stunned state
 
-    const stunnedText = this.scene.add.text(
-      this.x,
-      this.y - 60,
-      "⚡ STUNNED! ⚡",
-      {
-        fontSize: "18px",
-        fontFamily: "Arial Black, sans-serif",
-        color: "#FFD700",
-        stroke: "#FF4500",
-        strokeThickness: 6,
-        fontStyle: "bold",
-        shadow: {
-          offsetX: 2,
-          offsetY: 2,
-          color: "#000000",
-          blur: 8,
-          fill: true,
-        },
-      },
-    );
-    stunnedText.setOrigin(0.5, 0.5);
-    stunnedText.setDepth(1000);
-    stunnedText.setScale(0.5);
+    // The burst role (plan G12). The ⚡ glyphs were dropped: no brand face has them, so they fell
+    // back to an emoji font. 27 CSS px is the old 18 world px at the platformer zoom.
+    const stunnedText = ttWorldText(this.scene, this.x, this.y - 60, "STUNNED!", "burst", 27, {
+      color: "#FFD700",
+      stroke: "#FF4500",
+      shadow: { offsetX: 2, offsetY: 2, color: "#000000", blur: 8, fill: true },
+      origin: 0.5,
+      depth: 1000,
+    });
+    stunnedText.setScale(scaleTo(stunnedText, 0.5));
 
     this.scene.tweens.add({
       targets: stunnedText,
       y: stunnedText.y - 50,
-      scale: 2,
+      scale: scaleTo(stunnedText, 2),
       duration: 300,
       ease: "Back.easeOut",
       yoyo: false,
@@ -144,8 +132,8 @@ export class BasePixelEnemy extends Phaser.Physics.Arcade.Sprite {
 
     this.scene.tweens.add({
       targets: stunnedText,
-      scaleX: { from: 2, to: 2.2 },
-      scaleY: { from: 2, to: 2.2 },
+      scaleX: { from: scaleTo(stunnedText, 2), to: scaleTo(stunnedText, 2.2) },
+      scaleY: { from: scaleTo(stunnedText, 2), to: scaleTo(stunnedText, 2.2) },
       duration: 400,
       yoyo: true,
       repeat: 3,
@@ -176,21 +164,11 @@ export class BasePixelEnemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   private showHitText() {
-    const hitText = this.scene.add.text(
-      this.x,
-      this.y - 40,
-      `${this.hitCount}/${this.HITS_TO_STUN}`,
-      {
-        fontSize: "10px",
-        fontFamily: "Arial Black, sans-serif",
-        color: "#ffffff",
-        stroke: "#ff0000",
-        strokeThickness: 3,
-        fontStyle: "bold",
-      },
-    );
-
-    hitText.setOrigin(0.5, 0.5);
+    const hitText = ttWorldText(this.scene, this.x, this.y - 40, `${this.hitCount}/${this.HITS_TO_STUN}`, "burst", 18, {
+      color: "#ffffff",
+      stroke: "#ff0000",
+      origin: 0.5,
+    });
 
     this.scene.tweens.add({
       targets: hitText,
@@ -259,21 +237,11 @@ export class BasePixelEnemy extends Phaser.Physics.Arcade.Sprite {
     const hitMessages = ["HIT!", "OUCH!", "BITE!", "AGHW!", "POW!", "SMACK!"];
     const randomMessage = Phaser.Utils.Array.GetRandom(hitMessages);
 
-    const damageText = this.scene.add.text(
-      target.x,
-      target.y - 40,
-      randomMessage,
-      {
-        fontSize: "7px",
-        fontFamily: "Arial Black, sans-serif",
-        color: "#ff0000",
-        stroke: "#ffffff",
-        strokeThickness: 4,
-        fontStyle: "bold",
-      },
-    );
-
-    damageText.setOrigin(0.5, 0.5);
+    const damageText = ttWorldText(this.scene, target.x, target.y - 40, randomMessage, "burst", 18, {
+      color: "#ff3b3b",
+      stroke: "#ffffff",
+      origin: 0.5,
+    });
 
     const randomOffsetX = Phaser.Math.Between(-20, 20);
 
@@ -282,7 +250,7 @@ export class BasePixelEnemy extends Phaser.Physics.Arcade.Sprite {
       y: damageText.y - 80,
       x: damageText.x + randomOffsetX,
       alpha: 0,
-      scale: 1.5,
+      scale: scaleTo(damageText, 1.5),
       duration: 1000,
       ease: "Power2",
       onComplete: () => {

@@ -5,7 +5,14 @@ import React from "react";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 
 jest.mock("@/components/shared/PixelButton", () => ({
-  PixelButton: ({ text }: { text: string }) => <span>{text}</span>,
+  // The real span variant renders spans only (log 1d); the mock keeps that shape.
+  PixelButton: ({ text, as }: { text: string; as?: string }) =>
+    as === "span" ? <span data-pixel-button="span">{text}</span> : <button>{text}</button>,
+}));
+const mockTrack = jest.fn();
+jest.mock("@/analytics", () => ({
+  analytics: { track: (event: unknown) => mockTrack(event) },
+  buildEvent: (name: string, properties: unknown) => ({ name, properties }),
 }));
 jest.mock("@/constants/utils", () => ({
   cdnFile: (p: string) => `/${p}`,
@@ -13,6 +20,8 @@ jest.mock("@/constants/utils", () => ({
 
 import { teamMembers } from "@/components/landing/Team";
 import {
+  CREW_CTA_MAX_NAME,
+  crewCtaLabel,
   TEAM_EXTRAS,
   TEAM_ORDER,
   TeamSection,
@@ -146,5 +155,63 @@ describe("TeamSection", () => {
       teamMembers.find((m) => m.name === TEAM_ORDER[0])?.img,
     );
     expect(imgs[1].getAttribute("alt")).toContain("Lukas");
+  });
+
+  it("makes no uncited rescue count (F-024 '800+' is off the landing, decision #29)", () => {
+    const { container } = render(<TeamSection />);
+    const text = container.textContent ?? "";
+    expect(text).not.toContain("800+");
+    expect(text).not.toMatch(/strays|saved|found a home/i);
+  });
+
+  it("labels the crew CTA by player state (2.13 row 34)", () => {
+    render(<TeamSection />);
+    expect(screen.getByText("MEET YOUR CAT")).toBeTruthy();
+    expect(screen.queryByText(/JOIN THE CREW|PLAY TO SAVE/)).toBeNull();
+    expect(crewCtaLabel()).toBe("MEET YOUR CAT");
+    expect(crewCtaLabel({ signedIn: true, onboardingState: "pending", catName: "Scout" })).toBe("MEET YOUR CAT");
+    expect(crewCtaLabel({ signedIn: true, onboardingState: "done", catName: "Scout" })).toBe("SCOUT IS WAITING");
+    expect(crewCtaLabel({ signedIn: true, onboardingState: "done", catName: "  " })).toBe("MEET YOUR CAT");
+  });
+
+  it("spells out names up to the cap and falls back for longer ones (the button never wraps)", () => {
+    expect(CREW_CTA_MAX_NAME).toBe(10);
+    expect(crewCtaLabel({ signedIn: true, onboardingState: "done", catName: "Wwwwwwwwww" })).toBe("WWWWWWWWWW IS WAITING");
+    expect(crewCtaLabel({ signedIn: true, onboardingState: "done", catName: "Captain Whiskers" })).toBe("YOUR CAT IS WAITING");
+    expect(crewCtaLabel({ signedIn: true, onboardingState: "done", catName: "Wwwwwwwwwwwwwwww" })).toBe("YOUR CAT IS WAITING");
+  });
+
+  it("passes a named cat to the CTA", () => {
+    render(<TeamSection cta={{ signedIn: true, onboardingState: "done", catName: "Miso" }} />);
+    expect(screen.getByText("MISO IS WAITING")).toBeTruthy();
+  });
+
+  it("is one link with the label as its accessible name and one tab stop (valid HTML)", () => {
+    const { container } = render(<TeamSection />);
+    const link = screen.getByRole("link", { name: "MEET YOUR CAT" });
+    expect(link.getAttribute("href")).toBe("/game?from=landing_crew");
+    // No interactive element nested in the link (axe nested-interactive), so Tab stops once.
+    expect(link.querySelector("button, a, input, select, textarea, [tabindex]")).toBeNull();
+    expect(link.querySelector('[data-pixel-button="span"]')).not.toBeNull();
+    expect(container.querySelectorAll("a button, button a, a a")).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: /MEET YOUR CAT/ })).toBeNull();
+  });
+
+  it("follows the player: pending, signed out and a named cat", () => {
+    const { rerender } = render(<TeamSection cta={{ signedIn: true, onboardingState: "pending", catName: "Scout" }} />);
+    expect(screen.getByRole("link", { name: "MEET YOUR CAT" })).toBeTruthy();
+    rerender(<TeamSection cta={{ signedIn: false }} />);
+    expect(screen.getByRole("link", { name: "MEET YOUR CAT" })).toBeTruthy();
+    rerender(<TeamSection cta={{ signedIn: true, onboardingState: "done", catName: "Miso" }} />);
+    expect(screen.getByRole("link", { name: "MISO IS WAITING" }).getAttribute("href")).toBe("/game?from=landing_crew");
+  });
+
+  it("carries {from: crew} to /game and tracks nothing on tap (Task 6b review #1)", () => {
+    render(<TeamSection />);
+    const link = screen.getByRole("link", { name: "MEET YOUR CAT" });
+    expect(link.getAttribute("href")).toBe("/game?from=landing_crew");
+    link.addEventListener("click", (event) => event.preventDefault());
+    fireEvent.click(link);
+    expect(mockTrack).not.toHaveBeenCalled();
   });
 });

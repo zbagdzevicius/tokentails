@@ -1,22 +1,15 @@
-import { cdnFile } from "@/constants/utils";
+import { SeoHead } from "@/components/seo/SeoHead";
 import { Header } from "@/layouts/Header";
-import Head from "next/head";
 import React from "react";
 
 export default function marketing() {
   return (
     <>
-      <Head>
-        <title>Token Tails - Partnerships</title>
-        <meta property="og:image" content={cdnFile("logo/ogg.jpg")} />
-        <meta
-          property="og:title"
-          content="Token Tails - Marketing proposal"
-          key="title"
-        />
-        <meta name="description" content="Do you want to work with us ?" />
-        <link rel="shortcut icon" href={cdnFile("logo/logo.webp")} />
-      </Head>
+      <SeoHead
+        title="Token Tails - Partnerships"
+        description="Do you want to work with us?"
+        path="/marketing"
+      />
 
       <Header />
       <div className="flex justify-center pt-36 pb-12">

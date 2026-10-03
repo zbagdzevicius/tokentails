@@ -58,7 +58,7 @@ describe('HUD logic', () => {
     const level = getHeist01();
     let s: SimState = initSim(level, HEIST_01_SOLUTION.seed, HEIST_01_SOLUTION.catIds);
     expect(activeHint(s, level)).toMatch(/WASD/);
-    expect(activeHint(s, level, true)).toBe('Move with the joystick. Stay out of the guard dog’s vision cone.');
+    expect(activeHint(s, level, true)).toBe('Move with the joystick. Stay out of the guard dog’s vision cone: wait for it to turn its back.');
     let afterSwap: string | null = null;
     const hints = new Set<string>();
     for (const input of decodeInputs(HEIST_01_SOLUTION.runs)) {

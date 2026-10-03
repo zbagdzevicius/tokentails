@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, NotFoundExc
 import { Types } from 'mongoose';
 import { MAX_CAT_STATUS } from 'src/cat/cat.schema';
 import { REWARDS } from 'src/shared/constants/rewards';
+import { GUEST_TAILS_LIFETIME_CAP } from 'src/shared-contracts/caps';
 import { CatController } from './cat.controller';
 
 // The real CatService pulls in AI and image utilities; feeding does not use it.
@@ -75,9 +76,10 @@ function createController(cats: StoredCat[]) {
     const store = createCatStore(cats);
     const userRepository = {
         update: jest.fn(async () => ({})),
+        model: { updateOne: jest.fn(async () => ({ modifiedCount: 1 })) },
         findOne: jest.fn(async ({ searchObject }: any) => ({ _id: searchObject._id, wallets: {} })),
     };
-    const controller = new CatController(store.repository as any, userRepository as any, {} as any);
+    const controller = new CatController(store.repository as any, userRepository as any, {} as any, {} as any);
 
     return { controller, userRepository, store };
 }
@@ -103,7 +105,8 @@ describe('CatController PUT /cat/:id (feeding)', () => {
         expect(store.cats[0].status).toEqual({ EAT: MAX_CAT_STATUS });
         expect(userRepository.update).toHaveBeenCalledTimes(1);
         expect(userRepository.update).toHaveBeenCalledWith(ownerId.toString(), {
-            $inc: { tails: REWARDS.FEED, monthFeeded: 1, monthTails: REWARDS.FEED },
+            // The ledger split (G5): the credit moves the balance and lifetime earned together.
+            $inc: { tails: REWARDS.FEED, tailsEarned: REWARDS.FEED, monthFeeded: 1, monthTails: REWARDS.FEED },
         });
     });
 
@@ -190,6 +193,44 @@ describe('CatController PUT /cat/:id (feeding)', () => {
         const rejected = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[];
         expect(rejected).toHaveLength(4);
         rejected.forEach(r => expect(r.reason).toBeInstanceOf(ConflictException));
+        expect(userRepository.update).toHaveBeenCalledTimes(1);
+    });
+
+    it("feeds a guest's own cat and banks the reward as pendingTails, never Tails (G1, decision #7)", async () => {
+        const { controller, userRepository, store } = createController([
+            { _id: catId, owner: ownerId, status: { EAT: 0 } },
+        ]);
+
+        await expect(
+            controller.updateStatus(ownerId.toString(), catId.toString(), { _id: ownerId, isGuest: true })
+        ).resolves.toEqual({ success: true });
+
+        expect(store.cats[0].status).toEqual({ EAT: MAX_CAT_STATUS });
+        expect(userRepository.update).not.toHaveBeenCalled();
+        expect(userRepository.model.updateOne).toHaveBeenCalledTimes(1);
+        const [filter, update] = userRepository.model.updateOne.mock.calls[0] as any[];
+        expect(filter).toEqual({
+            _id: ownerId,
+            isGuest: true,
+            pendingTails: { $not: { $gte: GUEST_TAILS_LIFETIME_CAP } },
+        });
+        // Clamped at the cap in one update pipeline (no CAP + FEED - 1 overshoot).
+        expect(update).toEqual([
+            {
+                $set: {
+                    pendingTails: {
+                        $min: [GUEST_TAILS_LIFETIME_CAP, { $add: [{ $ifNull: ['$pendingTails', 0] }, REWARDS.FEED] }],
+                    },
+                },
+            },
+        ]);
+        expect(JSON.stringify(update)).not.toContain('"tails"');
+    });
+
+    it('a registered feed never touches pendingTails', async () => {
+        const { controller, userRepository } = createController([{ _id: catId, owner: ownerId, status: { EAT: 0 } }]);
+        await controller.updateStatus(ownerId.toString(), catId.toString(), { _id: ownerId, isGuest: false });
+        expect(userRepository.model.updateOne).not.toHaveBeenCalled();
         expect(userRepository.update).toHaveBeenCalledTimes(1);
     });
 });

@@ -1,4 +1,8 @@
 import { cdnFile } from "@/constants/utils";
+import {
+  CATNIP_CHAOS_ENDLESS_CAP,
+  CATNIP_CHAOS_LEVEL_CAP,
+} from "@/shared-contracts/caps";
 
 export enum Map {
   AUTUMN = "base/autumn.png",
@@ -15,8 +19,22 @@ export enum Map {
   DAEMON = "base/daemons.png",
   CAT_WINTER = "base/cat-winter.png",
   VALENTINE = "base/valentine.png",
+  /**
+   * Night skin of SPRING at the same tile indices (plan G7, task 6d), for the Home and Shelter
+   * hub only; Purrsuit chapters 21-26 keep SPRING and get their own family skin. Served from
+   * `public/` (not the CDN) and resolved by name through the look manifest (`spring-night`);
+   * this is its expected published path.
+   */
+  SPRING_NIGHT = "base/spring-night-v1.png",
 }
 
+/**
+ * The hub sheet per look version (plan G7): Home and Shelter load `v0` as their tileset and the
+ * look runtime swaps in the night skin for v1 when the manifest lists it.
+ */
+export const HubMap = { v0: Map.SPRING, v1: Map.SPRING_NIGHT } as const;
+
+/** The v0 hub sheet (kept as `Map.SPRING`: scripts/art/looks.mjs parses this line). Scenes use `HubMap`. */
 export const CoreMap = Map.SPRING;
 
 export const CatnipChaosLevelMap: Record<string, Map> = {
@@ -118,8 +136,10 @@ export const PixelRescueLevelMap: Record<string, Map> = {
   "14": Map.VALENTINE,
 };
 
+// Endless (the first level) plus every other level, from the shared caps (plan F2, decision #57).
 export const totalCatnip =
-  (Object.keys(CatnipChaosLevelMap).length - 1) * 10 + 420;
+  (Object.keys(CatnipChaosLevelMap).length - 1) * CATNIP_CHAOS_LEVEL_CAP +
+  CATNIP_CHAOS_ENDLESS_CAP;
 
 export const catnipChaosLevelsList: (keyof typeof CatnipChaosLevelMap)[] =
   Object.keys(CatnipChaosLevelMap).sort(

@@ -1,4 +1,5 @@
 import { createAnalytics, type AnalyticsClient } from "./client";
+import { createErrorReporter, type AppErrorContext } from "./errors";
 import { createGameRunTracker } from "./game-run";
 import { getDeviceTier, getPlatform } from "./platform";
 
@@ -7,6 +8,14 @@ export * from "./consent";
 export { getPlatform, getDeviceTier } from "./platform";
 export { createAnalytics, POSTHOG_EU_HOST } from "./client";
 export { createGameRunTracker } from "./game-run";
+export {
+  createErrorReporter,
+  buildAppErrorProperties,
+  APP_ERROR_MAX_PER_SESSION,
+  setErrorRoute,
+} from "./errors";
+export type { AppErrorContext, ErrorReporter } from "./errors";
+export { scrubText, scrubStack, scrubContext, scrubRoute } from "./scrub";
 export type { GameRunTracker } from "./game-run";
 export type { Analytics, AnalyticsClient, AnalyticsOptions } from "./client";
 
@@ -57,3 +66,21 @@ export const analytics = createAnalytics({
 
 /** Per-mode start / loaded / finish / fail / quit events for GameContext. */
 export const gameRun = createGameRunTracker(analytics.track, getPlatform);
+
+const errorReporter = createErrorReporter({
+  track: analytics.track,
+  getConsent: analytics.getConsent,
+  isEnabled: () => analytics.enabled,
+});
+
+/**
+ * Reports a crash as a scrubbed `app_error` (F9): consent-gated, at most 5
+ * per session and one per code. Safe to call anywhere; it never throws.
+ */
+export function reportAppError(
+  code: string,
+  error: unknown,
+  context?: AppErrorContext,
+): boolean {
+  return errorReporter.report(code, error, context);
+}

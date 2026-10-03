@@ -19,12 +19,18 @@ import { giveHref, shelterTotalLine } from './payouts';
 import { ASSET_BASE, DEPLOYMENTS_URL, GIVE_URL, PAYOUTS_URL, TICK_HZ, type AssetManifest, type LevelDef, type RunResult, type SheetEntry, type SimEvent, type SimState } from '../types';
 import { formatTime, h, hashHex, isCoarsePointer, prefersReducedMotion, safeStorageGet, safeStorageSet, setText } from './dom';
 import type { InputController } from './input';
-import { activeHint, objectiveText, pawRating, scoreBreakdown } from './logic';
+import { hudHintText, objectiveText, pawRating, scoreBreakdown } from './logic';
+import { partnerCatchAhead, partnerDanger } from '../sim/telegraph';
+import { catAtExit, plateIndexAt } from '../sim/sim';
 import { createPortrait } from './portraits';
 import { icon } from './icons';
 import { ensureStyles } from './styles';
 import { createDiorama, type Diorama } from '../render/diorama';
 import { createTouchControls, type TouchControls } from './touch';
+import { BAKED_RAIL, heistRuntimeConfig, isWebHost, loadRail, railCopy, type RailInfo } from './rail';
+import { createFtueOverlay, type FtueOverlay } from './ftue';
+import { createPayoutsModal, type PayoutsModal } from './shelter-payouts';
+import type { ShelterPayouts } from './payouts';
 
 export type ScreenName = 'none' | 'title' | 'pick' | 'hud' | 'yard' | 'results';
 
@@ -46,7 +52,12 @@ export interface UIHandlers {
   onUserGesture?(): void;
   /** Any button click (for a UI click sound). */
   onClick?(): void;
+  /** The objective chip was tapped (or H pressed) during a heist: toggle the ghost-paw route. */
+  onObjectiveTap?(): void;
 }
+
+/** Route hint state shown on the objective chip: off, on, or on for the other cat (swap first). */
+export type RouteChipState = 'off' | 'on' | 'swap';
 
 export interface UIOptions {
   manifest: AssetManifest;
@@ -60,12 +71,25 @@ export interface UIOptions {
   muted?: boolean;
   /** Force touch controls on/off; default auto (coarse pointer or touch input). */
   touch?: boolean;
-  /** Shelter payouts page linked from the win screen. Default PAYOUTS_URL; '' hides the link. */
+  /** Full shelter payouts page, linked small from the payouts modal. Default PAYOUTS_URL; '' hides the link. */
   payoutsUrl?: string;
+  /** Payouts modal data source (tests, the UI bench). Default: read the chain (payouts.ts). */
+  loadPayouts?: (deploymentsUrl: string) => Promise<ShelterPayouts>;
   /** Deployment list for the win screen's on-chain "sent to shelters" total. Default DEPLOYMENTS_URL; '' hides it. */
   deploymentsUrl?: string;
   /** Give page behind the win screen's "rescue treat" button. Default GIVE_URL; '' hides the button. */
   giveUrl?: string;
+  /**
+   * Treat rail state (plan G11). Default: start from the baked facts (pre-launch) and load the live
+   * state at boot (src/ui/rail.ts). Pass a state to fix it (tests, the UI bench), or `false` to
+   * skip the network and keep the baked state.
+   */
+  rail?: RailInfo | false;
+  /**
+   * Embedded in the `/heist` host page (plan G2 layer 1). `onExit` adds a "Token Tails" back button
+   * to the title; `onSignIn` adds "Sign in to keep your stars" to the results while signed out.
+   */
+  embed?: { onExit?(): void; onSignIn?(): void };
 }
 
 export interface UI {
@@ -89,8 +113,21 @@ export interface UI {
   setLoading(text: string | null): void;
   toast(text: string, kind?: 'good' | 'bad' | 'info'): void;
   setMuted(muted: boolean): void;
+  /** Embed: whether the host has an account (or guest) session; hides the results sign-in button. */
+  setSignedIn(signedIn: boolean): void;
   /** Currently chosen pair on the cat pick screen. */
   getPickedCats(): [string, string];
+  /** First-run overlays: the level brief and the rewind offer (plan G10). */
+  readonly ftue: FtueOverlay;
+  /** Mark the objective chip while the ghost-paw route is on. */
+  setRoute(state: RouteChipState): void;
+  /**
+   * The "Sent to shelters" modal (web hosts with a deployment list only; a no-op elsewhere). It
+   * opens over the current screen; a running heist is paused first.
+   */
+  showPayouts(): void;
+  hidePayouts(): void;
+  readonly payoutsOpen: boolean;
   readonly touch: TouchControls | null;
   dispose(): void;
 }
@@ -134,6 +171,20 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
   const payoutsUrl = opts.payoutsUrl ?? PAYOUTS_URL;
   const deploymentsUrl = opts.deploymentsUrl ?? DEPLOYMENTS_URL;
   const giveUrl = opts.giveUrl ?? GIVE_URL;
+  // Treat rail state: the baked fallback first, then the live status when it arrives.
+  const web = isWebHost(typeof window === 'undefined' ? undefined : (window as never));
+  let rail: RailInfo = opts.rail || BAKED_RAIL;
+  const footText = h('span', null, railCopy(rail, web).foot);
+  const paintRail = () => {
+    setText(footText, railCopy(rail, web).foot);
+    payoutsModal?.refreshShelter();
+  };
+  if (opts.rail === undefined) {
+    void loadRail(heistRuntimeConfig(window as never, document)).then((info) => {
+      rail = info;
+      paintRail();
+    });
+  }
   // The one-tap "rescue treat" for the showcase shelter (the give page does the rest).
   const giveButton = (catName: string) => {
     const href = giveHref(giveUrl, catName);
@@ -142,8 +193,10 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     a.addEventListener('click', () => handlers.onClick?.());
     return a;
   };
-  // Read-only on-chain total under the rescue line; stays empty (hidden) until it resolves.
+  // Read-only on-chain total under the rescue line; stays empty (hidden) until it resolves. Web host
+  // only: the line names coins and the chain, which app builds never show (claims rule R10).
   const shelterTotal = () => {
+    if (!web) return null;
     const el = h('span.ch-payouts-total', { 'data-testid': 'shelter-total' });
     void shelterTotalLine(deploymentsUrl).then((text) => { el.textContent = text; });
     return el;
@@ -223,6 +276,25 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
   }
 
   // =========================================================================================
+  // Embed (the /heist host page)
+  // =========================================================================================
+  const embed = opts.embed;
+  let signedIn = false;
+  function exitButton(): HTMLElement | null {
+    if (!embed?.onExit) return null;
+    const b = button('.ch-ghost', h('span', null, 'Token Tails'), () => embed.onExit?.(), { 'data-testid': 'heist-exit', 'aria-label': 'Back to Token Tails' });
+    b.prepend(icon('back'));
+    return h('div.ch-back', null, b);
+  }
+  let signInBtn: HTMLButtonElement | null = null;
+  function resultsSignIn(): HTMLButtonElement | null {
+    if (!embed?.onSignIn) return null;
+    signInBtn = button('.ch-ghost', h('span', null, 'Sign in to keep your stars'), () => embed.onSignIn?.(), { 'data-testid': 'heist-signin' });
+    signInBtn.hidden = signedIn;
+    return signInBtn;
+  }
+
+  // =========================================================================================
   // Title
   // =========================================================================================
   const stars = h('div.ch-stars', { 'aria-hidden': 'true' });
@@ -249,6 +321,21 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     handlers.onYard?.();
   });
   yardBtn.prepend(icon('home'));
+  // The payouts modal is web-only (chain words, explorer links: claims rule R10) and needs a list.
+  const payoutsOn = web && !!deploymentsUrl;
+  let payoutsModal: PayoutsModal | null = null;
+  const openPayouts = () => payoutsModal?.show();
+  const payoutsPill = payoutsOn
+    ? (() => {
+        const b = h('button.ch-pay-open', { type: 'button', 'data-testid': 'open-payouts' }, h('i', { 'aria-hidden': 'true' }), h('span', null, 'Sent to shelters')); // claim: L-disbursed
+        b.addEventListener('click', () => {
+          gesture();
+          handlers.onClick?.();
+          void openPayouts();
+        });
+        return b;
+      })()
+    : null;
   const title = h(
     'section.ch-screen.ch-title.ch-backdrop',
     { 'aria-label': 'Title' },
@@ -266,12 +353,16 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     h(
       'div.ch-menu',
       null,
-      h('p.ch-ribbon', null, h('img', { src: img('catnip'), alt: '' }), h('span.ch-tag', null, 'Sneak past Kibble Corp. Loot the catnip. Free a shelter cat.')),
+      // claim:fiction in-game story (the crates, the guards and the shelter cat are the level)
+      h('p.ch-ribbon', null, h('img', { src: img('catnip'), alt: '' }), h('span.ch-tag', null, 'Sneak past Kibble Corp. Rescue the catnip crates. Free a shelter cat.')),
       h('div.ch-play-wrap', null, h('span.ch-play-glow', { 'aria-hidden': 'true' }), playBtn),
       yardBtn,
+      payoutsPill,
     ),
+    exitButton(),
     h('div.ch-corner', null, muteButton()),
-    h('div.ch-foot', null, h('img', { src: img('heart'), alt: '' }), 'Play to save: every heist helps real shelter cats.'),
+    // claim: C-004, L-rail (the footer follows the rail state, see rail.ts)
+    h('div.ch-foot', { 'data-claim': 'L-rail', 'data-testid': 'rail-foot' }, h('img', { src: img('heart'), alt: '' }), footText),
   );
   root.appendChild(title);
 
@@ -374,20 +465,54 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
   // HUD
   // =========================================================================================
   const coinsText = h('b', null, '0');
-  const coinsChip = h('div.ch-chip.ch-coins', { title: 'Catnip collected' }, h('img', { src: img('catnip'), alt: '' }), coinsText);
+  const coinsChip = h(
+    'div.ch-chip.ch-coins',
+    { title: 'Catnip collected. Win with all of it for a star.' },
+    h('img', { src: img('catnip'), alt: '' }),
+    coinsText,
+    h('span.ch-coins-star', { 'aria-hidden': 'true' }, '★'),
+  );
+  const exitText = h('span', null, '0/2 at exit');
+  const exitChip = h('div.ch-chip.ch-exit', { title: 'Cats at the exit', 'data-testid': 'heist-exit-count' }, exitText);
   const timeText = h('b', null, '0:00');
   const timeChip = h('div.ch-chip.ch-time', { title: 'Time' }, h('span.ch-ico', { 'aria-hidden': 'true' }, icon('clock')), timeText);
   const spotText = h('b', null, '0');
   const spotChip = h('div.ch-chip.ch-spot', { title: 'Times spotted' }, h('span.ch-ico', { 'aria-hidden': 'true' }, icon('eye')), spotText);
   const keyChip = h('div.ch-chip.ch-key', { title: 'Vault key' }, h('span.ch-ico', { 'aria-hidden': 'true' }, icon('key')), 'Key');
   keyChip.style.display = 'none';
-  const objText = h('span', null, '');
-  const objInner = h('div.ch-obj-inner', { 'aria-live': 'polite' }, h('small', null, 'Objective'), objText);
+  const objText = h('span', { 'aria-live': 'polite' }, '');
+  const objLabel = h('small', null, 'Objective');
+  const routePill = h('span.ch-obj-route', { 'aria-hidden': 'true' }, h('img', { src: img('paw'), alt: '' }), h('span', null, 'Route'));
+  // The chip is a button: tapping it (or H) shows the ghost-paw route for this objective (plan G10).
+  // No aria-label: the button's name is its content (the label and the current objective), so a
+  // focused chip reads the objective; the action is its description.
+  const objDesc = h('span#ch-obj-desc', { hidden: true }, 'Tap to show a route.');
+  const objInner = h('button.ch-obj-inner', { type: 'button', 'aria-pressed': 'false', 'aria-describedby': 'ch-obj-desc', 'data-testid': 'heist-objective' }, objLabel, objText, routePill, objDesc);
+  objInner.addEventListener('click', () => {
+    gesture();
+    handlers.onClick?.();
+    handlers.onObjectiveTap?.();
+  });
   const obj = h('div.ch-obj', null, objInner);
+  let routeState: RouteChipState = 'off';
+  function setRoute(st: RouteChipState) {
+    if (st === routeState) return;
+    routeState = st;
+    objInner.classList.toggle('ch-route-on', st !== 'off');
+    objInner.setAttribute('aria-pressed', String(st !== 'off'));
+    setText(objLabel, st === 'swap' ? 'Swap cats, then follow the paws' : st === 'on' ? 'Follow the paw prints' : 'Objective');
+    setText(objDesc, st === 'off' ? 'Tap to show a route.' : 'Route shown; tap to hide it.');
+  }
   const pauseBtn = button('.ch-icon.ch-ghost', icon('pause'), () => handlers.onPause?.(), { 'aria-label': 'Pause' });
   const hint = h('div.ch-hint', { role: 'status' });
   const crewBtns = [0, 1].map((i) => {
-    const b = h('button.ch-crew-btn', { type: 'button', 'aria-current': 'false' }, h('span.ch-crew-tag', null, 'you'));
+    const b = h(
+      'button.ch-crew-btn',
+      { type: 'button', 'aria-current': 'false' },
+      h('span.ch-crew-tag', null, 'you'),
+      // Parked-cat status: on a plate (holding a door), or about to be seen.
+      h('span.ch-crew-state', { 'aria-hidden': 'true' }),
+    );
     b.addEventListener('click', () => {
       gesture();
       if (lastState && lastState.activeIndex !== i) input?.press('swap');
@@ -401,12 +526,18 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     'section.ch-screen.ch-hud',
     { 'aria-label': 'Heist HUD' },
     flash,
-    h('div.ch-hud-top', null, h('div.ch-chips', null, coinsChip, timeChip, spotChip, keyChip), obj, h('div.ch-hud-right', null, muteButton(), pauseBtn)),
+    h('div.ch-hud-top', null, h('div.ch-chips', null, coinsChip, timeChip, spotChip, keyChip, exitChip), obj, h('div.ch-hud-right', null, muteButton(), pauseBtn)),
     h('div.ch-crew', null, crewBtns[0], crewBtns[1], crewKey),
     hint,
     toasts,
   );
   root.appendChild(hud);
+  const ftue = createFtueOverlay(root, { onClick: () => handlers.onClick?.() });
+  const onRouteKey = (e: KeyboardEvent) => {
+    if (screen !== 'hud' || paused || ftue.briefOpen || e.repeat || e.defaultPrevented) return;
+    if (e.code === 'KeyH' || e.key === 'h' || e.key === 'H') handlers.onObjectiveTap?.();
+  };
+  window.addEventListener('keydown', onRouteKey);
 
   let touch: TouchControls | null = null;
   /** Mirrors the root's .ch-touching class (read every HUD update without touching the DOM). */
@@ -458,6 +589,14 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
   /** The current state has a hint, and whether .ch-on is set on it. */
   let hintWanted = false;
   let hintOn = false;
+  /** Portrait badges last shown, `${cat0}|${cat1}` with '' | 'plate' | 'danger' each. */
+  let crewState = '';
+  /** Look-ahead parked-cat warning (partnerCatchAhead), refreshed every 6 ticks. */
+  let dangerAhead = false;
+  let dangerTick = -1e9;
+  /** Cats at the exit shown in the exit chip (-1 = hidden). */
+  let exitCount = -1;
+  let coinsAll = false;
 
   function showHUD(lv: LevelDef, catIds: [string, string]) {
     level = lv;
@@ -468,7 +607,17 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     lastEventTick = -1;
     hudState = null;
     hintWanted = hintOn = false;
+    crewState = '';
+    dangerAhead = false;
+    dangerTick = -1e9;
+    exitCount = -1;
+    coinsAll = false;
+    exitChip.classList.remove('ch-on');
+    coinsChip.classList.remove('ch-all');
     crewBtns.forEach((b, i) => {
+      b.classList.remove('ch-danger', 'ch-holding');
+      const tag = b.querySelector('.ch-crew-state');
+      if (tag) tag.textContent = '';
       b.querySelector('canvas')?.remove();
       const e = byId.get(catIds[i]);
       if (e) b.prepend(createPortrait(e, { size: 60, base }));
@@ -483,6 +632,8 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     keyChip.style.display = 'none';
     paused = false;
     pauseModal.classList.remove('ch-on');
+    setRoute('off');
+    ftue.hideAll();
     show('hud');
   }
 
@@ -515,7 +666,55 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
         lastActive = s.activeIndex;
         crewBtns.forEach((b, i) => b.setAttribute('aria-current', String(i === s.activeIndex)));
       }
-      const ht = activeHint(s, level, touching);
+      // Portrait badges, per cat: "on plate" on whichever cat is pressing a plate right now (active or
+      // parked, so it follows the cat after a swap), and "!" on the parked cat while a guard is about
+      // to see it: in a cone with a tile to spare, a telegraphed sentry turn, or (looked up 5 times a
+      // second) a patrol that would walk into view within 2 s if nobody moved.
+      const idle = s.activeIndex === 0 ? 1 : 0;
+      if (s.won) dangerAhead = false;
+      else if (s.tick - dangerTick >= 6 || s.tick < dangerTick) {
+        dangerTick = s.tick;
+        dangerAhead = partnerCatchAhead(level, s) !== null;
+      }
+      const danger = !s.won && (dangerAhead || partnerDanger(level, s) >= 0);
+      const lv = level;
+      const st = s.cats.map((c, i) => {
+        if (i === idle && danger) return 'danger';
+        const pi = c ? plateIndexAt(lv, c.pos) : -1;
+        return pi >= 0 && s.platesDown[pi] ? 'plate' : '';
+      });
+      const key = `${st[0]}|${st[1]}`;
+      if (key !== crewState) {
+        const wasDanger = crewState.includes('danger');
+        crewState = key;
+        crewBtns.forEach((b, i) => {
+          const tag = b.querySelector('.ch-crew-state') as HTMLElement | null;
+          const mine = st[i] ?? '';
+          b.classList.toggle('ch-danger', mine === 'danger');
+          b.classList.toggle('ch-holding', mine === 'plate');
+          if (tag) tag.textContent = mine === 'danger' ? '!' : mine === 'plate' ? 'on plate' : '';
+        });
+        if (!wasDanger && key.includes('danger')) announce('Your other cat is about to be seen.');
+      }
+      // After the rescue, the objective counts the cats already at the exit.
+      if (s.rescued && !s.won) {
+        const n = (catAtExit(lv, s.cats[0].pos) ? 1 : 0) + (catAtExit(lv, s.cats[1].pos) ? 1 : 0);
+        if (n !== exitCount) {
+          exitCount = n;
+          setText(exitText, `${n}/2 at exit`);
+          exitChip.classList.toggle('ch-on', true);
+        }
+      } else if (exitCount !== -1) {
+        exitCount = -1;
+        exitChip.classList.toggle('ch-on', false);
+      }
+      // Catnip chip: a star once every coin is in (the "All catnip" star needs a win with all of it).
+      const allIn = totalCoins > 0 && s.coinsCollected >= totalCoins;
+      if (allIn !== coinsAll) {
+        coinsAll = allIn;
+        coinsChip.classList.toggle('ch-all', allIn);
+      }
+      const ht = hudHintText(s, level, touching);
       hintWanted = !!ht;
       if (ht && hint.textContent !== ht) {
         hint.textContent = ht;
@@ -561,12 +760,12 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
           bump(keyChip);
           break;
         case 'SPOTTED':
-          toast('Spotted!', 'bad');
+          toast('Spotted! Hidden for a moment at the checkpoint.', 'bad');
           flash.classList.remove('ch-go');
           void flash.offsetWidth;
           flash.classList.add('ch-go');
           bump(spotChip);
-          announce('Spotted! Back to the checkpoint.');
+          announce('Spotted! Back to the checkpoint. Dogs cannot see you there for a moment.');
           break;
         case 'RESCUE':
           toast(`${level?.crate.catName ?? 'Cat'} is free!`, 'good');
@@ -604,9 +803,13 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     setTimeout(() => t.remove(), reduced ? 1400 : 1700);
   }
 
+  let announceClear: ReturnType<typeof setTimeout> | null = null;
   function announce(text: string) {
     live.textContent = '';
     setTimeout(() => (live.textContent = text), 30);
+    // Clear it again so an old message does not linger in the page text.
+    if (announceClear) clearTimeout(announceClear);
+    announceClear = setTimeout(() => (live.textContent = ''), 3000);
   }
 
   // =========================================================================================
@@ -625,6 +828,8 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     showTitle();
   });
   quitBtn.prepend(icon('home'));
+  const pausePayouts = payoutsOn ? button('.ch-ghost', h('span', null, 'Sent to shelters'), () => void openPayouts(), { 'data-testid': 'pause-payouts' }) : null; // claim: L-disbursed
+  pausePayouts?.prepend(h('img.ch-bimg', { src: img('heart'), alt: '', 'aria-hidden': 'true' }));
   const pauseSub = h('p.ch-sub', null, '');
   const keysHelp = h(
     'div.ch-keys',
@@ -649,6 +854,7 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
       h('div.ch-pause-head', null, h('h2.ch-h2', null, icon('pause'), 'Paused'), pauseSub),
       resumeBtn,
       h('div.ch-row', null, pauseRetry, pauseMute),
+      pausePayouts,
       quitBtn,
       keysHelp,
     ),
@@ -660,11 +866,14 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     paused = true;
     setText(pauseSub, level ? `${level.meta.title} · ${lastState ? formatTime(lastState.tick, TICK_HZ) : '0:00'}` : '');
     pauseModal.classList.add('ch-on');
+    root.classList.add('ch-paused-run');
     resumeBtn.focus({ preventScroll: true });
   }
   function hidePause() {
+    payoutsModal?.hide();
     paused = false;
     pauseModal.classList.remove('ch-on');
+    root.classList.remove('ch-paused-run');
   }
 
   // =========================================================================================
@@ -674,7 +883,7 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
   let resultsRun = 0;
   function confetti(): HTMLElement {
     const box = h('div.ch-confetti', { 'aria-hidden': 'true' });
-    const cols = ['#ffc93c', '#ff7aa2', '#d5f4e5', '#c4e2fc', '#f0c5fd', '#ee642a', '#fcecbb'];
+    const cols = ['#ffcc55', '#ff7aa2', '#d5f4e5', '#c4e2fc', '#f0c5fd', '#ee642a', '#fcecbb'];
     for (let i = 0; i < 42; i++) {
       const c = h('i');
       c.style.left = `${(i * 23.7) % 100}%`;
@@ -685,6 +894,19 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
       box.appendChild(c);
     }
     return box;
+  }
+  let lastRescued = '';
+  /** Win screen: opens the payouts modal on the web; elsewhere the old external link (unchanged). */
+  function resultsPayoutsLink(): HTMLElement | null {
+    if (payoutsOn) {
+      const b = h('button.ch-pay-open.ch-pay-open-sm', { type: 'button', 'data-testid': 'results-payouts' }, h('i', { 'aria-hidden': 'true' }), h('span', null, 'See shelter payouts'));
+      b.addEventListener('click', () => {
+        handlers.onClick?.();
+        void openPayouts();
+      });
+      return b;
+    }
+    return payoutsUrl ? h('a.ch-payouts', { href: payoutsUrl, target: '_blank', rel: 'noopener' }, 'See shelter payouts') : null;
   }
   const results = h('section.ch-screen.ch-modal.ch-results', { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Results' }, resultsBody);
   root.appendChild(results);
@@ -711,6 +933,7 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
       wrap.appendChild(p);
       pawRow.appendChild(wrap);
     }
+    lastRescued = r.rescued ? r.rescuedName || lv?.crate.catName || '' : lastRescued;
     const run = ++resultsRun;
     const tally: { el: HTMLElement; to: number; fmt: (v: number) => string }[] = [];
     const row = (label: string, to: number, fmt: (v: number) => string, cls = '') => {
@@ -719,7 +942,8 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
       return h('tr', cls ? { class: cls } : null, h('td', null, label), v);
     };
     const rows = [
-      row(`Catnip ${r.coins}/${total} × 10`, sb.coinPoints, (v) => `+${v}`),
+      row(`Catnip ${r.coins}/${total} × 10${total > 0 && r.coins < total ? ` (all ${total} = ★)` : ''}`, sb.coinPoints, (v) => `+${v}`),
+      // claim:fiction in-game rescue score row, no money moves
       row('Shelter cat rescued', r.rescued ? sb.rescuePoints : 0, (v) => `+${v}`),
       row(`Time ${formatTime(r.ticks)}${par ? ` (par ${formatTime(par)})` : ''}`, sb.timePenalty, (v) => `−${v}`),
       row('Spotted', r.spottedCount, (v) => `${v}×`),
@@ -728,8 +952,16 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     rows.forEach((tr, i) => (tr.style.animationDelay = `${0.35 + i * 0.12}s`));
     const table = h('table.ch-score', null, h('tbody', null, ...rows));
     rows[2].lastElementChild?.classList.add('ch-neg');
+    // The rail decides the small print and whether the give link shows (plan G11): live shows the
+    // link, pre-launch an "Opens soon" status badge, exhausted only the line (it names the reset).
+    const copy = railCopy(rail, web);
+    const giveEl = r.rescued && copy.showGive ? giveButton(r.rescuedName || lv?.crate.catName || '') : null;
+    const chipEl = r.rescued && !giveEl && copy.chip ? h('span.ch-rail-chip', { role: 'status', 'data-testid': 'rail-chip', 'data-claim': 'L-rail' }, copy.chip) : null;
+    // claim: C-004, L-rail
+    const rescueNote = h('small', { 'data-testid': 'rail-line', 'data-claim': 'L-rail', 'data-rail': copy.state }, copy.line);
     const rescue = r.rescued
-      ? h('div.ch-rescue', null, crateEntry ? createPortrait(crateEntry, { size: 72, base }) : null, h('p', null, `You rescued ${name}!`, h('small', null, 'Play to save: heists help fund real shelter rescues.'), giveButton(r.rescuedName || lv?.crate.catName || ''), payoutsUrl ? h('a.ch-payouts', { href: payoutsUrl, target: '_blank', rel: 'noopener' }, 'Every heist funds a real shelter: see payouts') : null, shelterTotal()))
+      // claim:fiction in-game rescue, no money moves
+      ? h('div.ch-rescue', null, crateEntry ? createPortrait(crateEntry, { size: 72, base }) : null, h('p', null, `You rescued ${name}!`, rescueNote, giveEl, chipEl, resultsPayoutsLink(), shelterTotal()))
       : h('div.ch-rescue.ch-miss', null, h('p', null, `${name} is still in the crate`, h('small', null, 'Free the shelter cat for +50.')));
     const retry = button('.ch-primary.ch-big', h('span', null, 'Retry'), () => handlers.onRetry?.());
     retry.prepend(icon('retry'));
@@ -748,6 +980,7 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
         table,
         h('div.ch-meta', null, h('span', null, 'replay ', h('code', null, hashHex(r.hash))), h('span', null, 'seed ', h('code', null, String(r.seed))), h('span', null, h('code', null, r.levelId))),
         h('div.ch-row', null, retry, menuBtn),
+        resultsSignIn(),
       ),
     );
     results.querySelector('.ch-confetti')?.remove();
@@ -802,6 +1035,24 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
   const screens: Record<Exclude<ScreenName, 'none'>, HTMLElement> = { title, pick, hud, yard, results };
   const iris = h('div.ch-iris', { 'aria-hidden': 'true' });
   root.appendChild(iris);
+  if (payoutsOn) {
+    payoutsModal = createPayoutsModal(root, {
+      deploymentsUrl,
+      base,
+      payoutsUrl,
+      heartSrc: img('heart'),
+      load: opts.loadPayouts,
+      onClick: () => handlers.onClick?.(),
+      // The rail decides the CTA, as on the win screen: the give link while live, else its badge.
+      giveCta: () => {
+        const copy = railCopy(rail, web);
+        if (copy.showGive) return giveButton(lastRescued);
+        return copy.chip ? h('span.ch-rail-chip', { role: 'status', 'data-claim': 'L-rail' }, copy.chip) : null;
+      },
+      // claim: C-004, L-rail
+      railLine: () => railCopy(rail, web).line,
+    });
+  }
   function show(name: ScreenName) {
     const from = screen;
     screen = name;
@@ -815,9 +1066,13 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     // Iris wipe when entering or leaving a run (never blocks input: pointer-events none).
     const runScreens: ScreenName[] = ['hud', 'results'];
     if (!reduced && from !== name && (runScreens.includes(name) || (name === 'title' && runScreens.includes(from)))) restartAnim(iris, 'ch-go');
+    if (from !== name) payoutsModal?.hide();
     if (name !== 'hud') {
       pauseModal.classList.remove('ch-on');
       paused = false;
+      ftue.hideAll();
+      setRoute('off');
+      root.classList.remove('ch-paused-run');
     }
   }
   function showTitle() {
@@ -879,13 +1134,34 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     },
     toast,
     setMuted,
+    setSignedIn(next) {
+      signedIn = next;
+      if (signInBtn) signInBtn.hidden = next;
+    },
     getPickedCats: () => [picked[0], picked[1]],
+    ftue,
+    setRoute,
+    showPayouts() {
+      if (!payoutsModal) return;
+      // Never over a running heist: pause it first (the app shows the pause menu underneath).
+      if (screen === 'hud' && !paused) handlers.onPause?.();
+      void payoutsModal.show();
+    },
+    hidePayouts() {
+      payoutsModal?.hide();
+    },
+    get payoutsOpen() {
+      return !!payoutsModal?.isOpen;
+    },
     get touch() {
       return touch;
     },
     dispose() {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('keydown', onKeyGesture);
+      window.removeEventListener('keydown', onRouteKey);
+      ftue.dispose();
+      payoutsModal?.dispose();
       narrowMq?.removeEventListener?.('change', onNarrowChange);
       touch?.dispose();
       diorama?.dispose();

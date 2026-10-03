@@ -48,15 +48,15 @@
         }
       ],
       "speed": 1,
-      "sniffTicks": 45,
-      "visionTiles": 4
+      "sniffTicks": 75,
+      "visionTiles": 3
     },
     {
       "id": "g-hall",
       "sprite": "brown",
       "waypoints": [
         {
-          "x": 15,
+          "x": 19,
           "y": 5
         },
         {
@@ -68,7 +68,7 @@
           "y": 9
         },
         {
-          "x": 15,
+          "x": 19,
           "y": 9
         }
       ],
@@ -81,17 +81,17 @@
       "sprite": "black-white",
       "waypoints": [
         {
-          "x": 28,
+          "x": 27,
           "y": 5
         },
         {
-          "x": 28,
+          "x": 27,
           "y": 12
         }
       ],
       "speed": 1,
       "sniffTicks": 30,
-      "visionTiles": 4
+      "visionTiles": 3
     },
     {
       "id": "g-vault",
@@ -108,7 +108,7 @@
       ],
       "speed": 1,
       "sniffTicks": 60,
-      "visionTiles": 5
+      "visionTiles": 4
     }
   ],
   "coins": [
@@ -355,7 +355,7 @@
     {
       "id": "cp-1",
       "tile": {
-        "x": 14,
+        "x": 11,
         "y": 11
       }
     },
@@ -371,7 +371,7 @@
     "title": "Heist 01: Kibble Corp Warehouse",
     "maxCoins": 20,
     "twoCatRequired": true,
-    "parTicks": 5400,
+    "parTicks": 4050,
     "meowRadiusTiles": 6,
     "investigateTicks": 120,
     "objectives": [
@@ -412,14 +412,14 @@
         "y0": 1,
         "x1": 9,
         "y1": 3,
-        "text": "Move with {move}. Stay out of the guard dog’s vision cone."
+        "text": "Move with {move}. Stay out of the guard dog’s vision cone: wait for it to turn its back."
       },
       {
         "x0": 1,
         "y0": 8,
         "x1": 9,
         "y1": 12,
-        "text": "Stand on the plate to open the door, then press {swap} to swap cats."
+        "text": "Stand right on the plate (it glows and the door opens), then press {swap} to swap cats."
       },
       {
         "x0": 11,
@@ -435,7 +435,7 @@
         "x1": 34,
         "y1": 10,
         "untilObjective": 2,
-        "text": "One cat holds the plate, the other sneaks into the key room."
+        "text": "One cat holds the plate, the other sneaks into the key room. A cat left on a plate can still be seen."
       },
       {
         "x0": 20,
@@ -443,7 +443,7 @@
         "x1": 26,
         "y1": 19,
         "untilObjective": 3,
-        "text": "Press {meow} to meow and lure a guard away."
+        "text": "Press {meow} to meow: a dog that hears it walks over to sniff, so lure it, then slip past."
       },
       {
         "x0": 28,

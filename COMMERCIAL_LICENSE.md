@@ -3,6 +3,11 @@
 Copyright (c) 2026 TokenTails.
 All rights reserved.
 
+## Excluded Folders
+
+This license does not cover `funding/framework/tracks/a-build/shelter-split/` or `shelter-rail/`.
+Both are MIT licensed; see the `LICENSE` file in each folder.
+
 ## Grant of License
 
 No license is granted to use, copy, modify, merge, publish, distribute, sublicense, or sell this software except under a separate, signed written agreement with TokenTails.

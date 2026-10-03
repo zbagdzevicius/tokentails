@@ -1,3 +1,10 @@
+# DEPRECATED (plan F12, decision #59): replaced by .github/workflows/cdn-sync.yml, which syncs the
+# same ./public/ to s3://tokentails-nfts/w/ with Cache-Control headers and never deletes files.
+# Do not add jobs here. Removing this file and disabling the GitLab pipeline is a settings change
+# done by a maintainer once the GitHub repository secrets DO_SPACES_KEY and DO_SPACES_SECRET exist.
+# GitLab does not run from the GitHub remote. If this job is ever re-enabled, run the cdn-sync
+# workflow with `reheader` afterwards: files it uploads get no Cache-Control, and the GitHub sync
+# skips them while their content is unchanged.
 stages:
   - upload
 

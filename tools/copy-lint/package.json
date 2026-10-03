@@ -1,0 +1,15 @@
+{
+  "name": "tokentails-copy-lint",
+  "private": true,
+  "type": "module",
+  "description": "Tone and claims lint for public copy (plan F11): TypeScript AST over string literals, template spans, JSX text and text attributes.",
+  "bin": { "copy-lint": "bin/copy-lint.mjs" },
+  "scripts": {
+    "lint": "node bin/copy-lint.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "typescript": "5.8.3"
+  },
+  "engines": { "node": ">=20" }
+}

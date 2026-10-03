@@ -1,11 +1,22 @@
 import { Tier } from 'src/cat/cat.schema';
+import { ISeasonTimes, seasonTimes } from './codex-reset';
+
+/*
+ * PROGRESS (plan G5 "Progression", decisions #34 and #36). Tails are rescue points: every threshold,
+ * tier and score reads lifetime EARNED Tails (`tailsEarned`), so giving to a shelter goal never
+ * costs progress. Purchases unlock nothing: the tier steps that needed a pack or portrait purchase
+ * now need Tails given and goals helped, and `monetizationScore` is gone (its slot in the collectible
+ * level is the giving-based `rescueScore`). The route keeps its old `/user/airdrop/...` paths for
+ * shipped clients; the copy never says airdrop, token or allocation (F11 backend rule set).
+ */
 
 export interface IAirdropScoreBreakdown {
     catScore: number;
     questScore: number;
     streakScore: number;
     tailsScore: number;
-    monetizationScore: number;
+    /** Giving to shelter goals: 6 per goal helped plus 2 per 1,000 Tails given, at most 60. */
+    rescueScore: number;
 }
 
 export interface IAirdropMetrics {
@@ -20,7 +31,14 @@ export interface IAirdropMetrics {
     epicOrAbove: number;
     questsCompleted: number;
     streak: number;
+    /** Lifetime earned Tails (same as `tailsEarned`; kept under this name for shipped clients). */
     tails: number;
+    tailsEarned: number;
+    tailsGiven: number;
+    goalsHelped: number;
+    monthTailsGiven: number;
+    monthGoalsHelped: number;
+    /** Informational only: purchases unlock nothing (decision #36). */
     packPurchases: number;
     portraitPurchases: number;
     totalPurchases: number;
@@ -121,6 +139,8 @@ export interface IAirdropProgressionResponse {
     totalClaimedTiers: number;
     totalClaimedChallenges: number;
     totalClaimedMilestones: number;
+    /** The current season (P6): freeze 22:00 UTC on the 8th, reset 23:00, next season at 00:00 on the 9th. */
+    season: ISeasonTimes;
 }
 
 interface IAirdropTierRequirementConfig {
@@ -171,12 +191,12 @@ const tierConfigs: IAirdropTierConfig[] = [
     {
         id: 'EXPLORER',
         name: 'Explorer Tier',
-        description: 'Build your first serious collectible base and stay active.',
+        description: 'Build your first collection and keep playing.',
         reward: {
             tails: 2500,
             unlockable: 'Explorer badge',
             revealTitle: 'Explorer Cache',
-            revealTeaser: 'Starter airdrop weight + profile badge unlocked.',
+            revealTeaser: 'An Explorer badge for your profile.',
             image: 'codex/codex-1.webp',
         },
         requirements: [
@@ -203,12 +223,13 @@ const tierConfigs: IAirdropTierConfig[] = [
     {
         id: 'RESCUER',
         name: 'Rescuer Tier',
-        description: 'Grow rarity and prove conversion by making your first purchases.',
+        // claim:fiction progress label: a give spends Tails (points), no money moves
+        description: 'Grow your collection and give your first Tails to a shelter goal.',
         reward: {
             tails: 7500,
             unlockable: 'Rescuer frame',
-            revealTitle: 'Rescuer Vault',
-            revealTeaser: 'Higher airdrop multiplier + premium profile frame.',
+            revealTitle: 'Rescuer Chest',
+            revealTeaser: 'A Rescuer frame for your profile.',
             image: 'codex/codex-2.webp',
         },
         requirements: [
@@ -231,22 +252,24 @@ const tierConfigs: IAirdropTierConfig[] = [
                 getCurrent: metrics => metrics.rareOrAbove,
             },
             {
-                id: 'TOTAL_PURCHASES',
-                label: 'Pack/portrait purchases',
-                target: 1,
-                getCurrent: metrics => metrics.totalPurchases,
+                id: 'TAILS_GIVEN',
+                // claim:fiction progress label: a give spends Tails (points), no money moves
+                label: 'Tails given to shelter goals',
+                target: 500,
+                getCurrent: metrics => metrics.tailsGiven,
             },
         ],
     },
     {
         id: 'CURATOR',
         name: 'Curator Tier',
-        description: 'Transition from collecting to curation with stronger rarity and spend depth.',
+        // claim:fiction progress label: a give spends Tails (points), no money moves
+        description: 'Collect rarer cats and help shelter goals fill up.',
         reward: {
             tails: 20000,
             unlockable: 'Curator aura',
             revealTitle: 'Curator Relic',
-            revealTeaser: 'Priority campaign access + animated aura.',
+            revealTeaser: 'An animated Curator aura.',
             image: 'codex/codex-7.webp',
         },
         requirements: [
@@ -269,22 +292,31 @@ const tierConfigs: IAirdropTierConfig[] = [
                 getCurrent: metrics => metrics.epicOrAbove,
             },
             {
-                id: 'TOTAL_PURCHASES',
-                label: 'Pack/portrait purchases',
+                id: 'TAILS_GIVEN',
+                // claim:fiction progress label: a give spends Tails (points), no money moves
+                label: 'Tails given to shelter goals',
+                target: 2500,
+                getCurrent: metrics => metrics.tailsGiven,
+            },
+            {
+                id: 'GOALS_HELPED',
+                // claim:fiction progress label: a give spends Tails (points), no money moves
+                label: 'Shelter goals helped',
                 target: 2,
-                getCurrent: metrics => metrics.totalPurchases,
+                getCurrent: metrics => metrics.goalsHelped,
             },
         ],
     },
     {
         id: 'LEGEND',
         name: 'Legend Tier',
-        description: 'Top collector state with premium collectible depth and portrait ownership.',
+        // claim:fiction progress label: a give spends Tails (points), no money moves
+        description: 'A legendary collection and a long record of shelter goals helped.',
         reward: {
             tails: 50000,
             unlockable: 'Nine-lives crown',
-            revealTitle: 'Legend Treasury',
-            revealTeaser: 'Max airdrop allocation bracket + elite crown.',
+            revealTitle: 'Legend Hoard',
+            revealTeaser: 'The Nine-lives crown for your profile.',
             image: 'codex/codex-9.webp',
         },
         requirements: [
@@ -307,16 +339,18 @@ const tierConfigs: IAirdropTierConfig[] = [
                 getCurrent: metrics => metrics.tierCounts.legendary,
             },
             {
-                id: 'PORTRAIT_PURCHASES',
-                label: 'Portrait purchases',
-                target: 1,
-                getCurrent: metrics => metrics.portraitPurchases,
+                id: 'TAILS_GIVEN',
+                // claim:fiction progress label: a give spends Tails (points), no money moves
+                label: 'Tails given to shelter goals',
+                target: 10000,
+                getCurrent: metrics => metrics.tailsGiven,
             },
             {
-                id: 'TOTAL_PURCHASES',
-                label: 'Pack/portrait purchases',
-                target: 4,
-                getCurrent: metrics => metrics.totalPurchases,
+                id: 'GOALS_HELPED',
+                // claim:fiction progress label: a give spends Tails (points), no money moves
+                label: 'Shelter goals helped',
+                target: 5,
+                getCurrent: metrics => metrics.goalsHelped,
             },
         ],
     },
@@ -350,23 +384,27 @@ const challengeConfigs: IAirdropChallengeConfig[] = [
         target: 3,
         getCurrent: metrics => metrics.rareOrAbove,
     },
+    // BIG_HEART and GOAL_GETTER replace the wallet-balance and purchase challenges (plan G5). They
+    // read this season's gives, which reset with the claims.
     {
-        id: 'TAILS_MOMENTUM',
-        label: '$TAILS Momentum',
-        description: 'Reach 2,500 $TAILS in your wallet.',
+        id: 'BIG_HEART',
+        label: 'Big Heart',
+        // claim:fiction progress label: a give spends Tails (points), no money moves
+        description: 'Give 1,000 Tails to shelter goals this season.',
         rewardTails: 100,
         icon: 'logo/coin.webp',
-        target: 2500,
-        getCurrent: metrics => metrics.tails,
+        target: 1000,
+        getCurrent: metrics => metrics.monthTailsGiven,
     },
     {
-        id: 'MONETIZE_LOOP',
-        label: 'Monetize Loop',
-        description: 'Complete 2 pack/portrait purchases.',
+        id: 'GOAL_GETTER',
+        label: 'Goal Getter',
+        // claim:fiction progress label: a give spends Tails (points), no money moves
+        description: 'Help 2 shelter goals this season.',
         rewardTails: 180,
         icon: 'icons/invites/gift-coin.png',
         target: 2,
-        getCurrent: metrics => metrics.totalPurchases,
+        getCurrent: metrics => metrics.monthGoalsHelped,
     },
 ];
 
@@ -570,27 +608,47 @@ const getAverageProgress = (requirements: IAirdropTierRequirementProgress[]): nu
     return Math.round((totalProgress / requirements.length) * 100);
 };
 
+const RESCUE_SCORE_PER_GOAL = 6;
+const RESCUE_SCORE_PER_1000_GIVEN = 2;
+const RESCUE_SCORE_MAX = 60;
+
+const count = (value: number | undefined) => (Number.isFinite(value) ? Math.max(0, Math.floor(value as number)) : 0);
+
 export function buildAirdropProgression({
     catTiers,
     questsCompleted,
     streak,
-    tails,
-    packPurchases,
-    portraitPurchases,
+    tailsEarned,
+    tailsGiven = 0,
+    goalsHelped = 0,
+    monthTailsGiven = 0,
+    monthGoalsHelped = 0,
+    packPurchases = 0,
+    portraitPurchases = 0,
     claimedRewards,
     claimedChallenges,
     claimedMilestones,
+    now = new Date(),
 }: {
     catTiers: Tier[];
     questsCompleted: number;
     streak: number;
-    tails: number;
-    packPurchases: number;
-    portraitPurchases: number;
+    /** Lifetime earned Tails (`earnedTails(user)`), never the spendable balance. */
+    tailsEarned: number;
+    tailsGiven?: number;
+    goalsHelped?: number;
+    monthTailsGiven?: number;
+    monthGoalsHelped?: number;
+    packPurchases?: number;
+    portraitPurchases?: number;
     claimedRewards: string[];
     claimedChallenges: string[];
     claimedMilestones: string[];
+    now?: Date;
 }): IAirdropProgressionResponse {
+    const tails = count(tailsEarned);
+    const given = count(tailsGiven);
+    const helped = count(goalsHelped);
     const tierCounts = getTierCounts(catTiers);
     const collectibleScore = catTiers.reduce((sum, tier) => sum + tierScoreWeight[tier], 0);
     const totalPurchases = packPurchases + portraitPurchases;
@@ -604,7 +662,10 @@ export function buildAirdropProgression({
         questScore: Math.min(questsCompleted * 2, 40),
         streakScore: Math.min(streak, 30),
         tailsScore: Math.min(Math.floor(tails / 1000), 25),
-        monetizationScore: packPurchases * 6 + portraitPurchases * 12,
+        rescueScore: Math.min(
+            helped * RESCUE_SCORE_PER_GOAL + Math.floor(given / 1000) * RESCUE_SCORE_PER_1000_GIVEN,
+            RESCUE_SCORE_MAX
+        ),
     };
 
     const metrics: IAirdropMetrics = {
@@ -615,6 +676,11 @@ export function buildAirdropProgression({
         questsCompleted,
         streak,
         tails,
+        tailsEarned: tails,
+        tailsGiven: given,
+        goalsHelped: helped,
+        monthTailsGiven: count(monthTailsGiven),
+        monthGoalsHelped: count(monthGoalsHelped),
         packPurchases,
         portraitPurchases,
         totalPurchases,
@@ -626,7 +692,7 @@ export function buildAirdropProgression({
             scoreBreakdown.questScore +
             scoreBreakdown.streakScore +
             scoreBreakdown.tailsScore +
-            scoreBreakdown.monetizationScore,
+            scoreBreakdown.rescueScore,
         scoreBreakdown,
     };
 
@@ -634,7 +700,7 @@ export function buildAirdropProgression({
         {
             id: 'COLLECTIBLES',
             label: 'Own collectibles',
-            description: 'Hold at least 5 collectibles to enter the snapshot pool.',
+            description: 'Hold at least 5 collectibles.',
             current: metrics.collectiblesOwned,
             target: 5,
             met: metrics.collectiblesOwned >= 5,
@@ -650,7 +716,7 @@ export function buildAirdropProgression({
         {
             id: 'QUESTS',
             label: 'Complete quests',
-            description: 'Complete at least 8 quests to prove sustained engagement.',
+            description: 'Complete at least 8 quests.',
             current: metrics.questsCompleted,
             target: 8,
             met: metrics.questsCompleted >= 8,
@@ -665,8 +731,8 @@ export function buildAirdropProgression({
         },
         {
             id: 'TAILS',
-            label: 'Earn $TAILS',
-            description: 'Accumulate at least 1,500 $TAILS from gameplay and ecosystem activity.',
+            label: 'Earn Tails',
+            description: 'Earn at least 1,500 Tails by playing. Giving them away never lowers this.',
             current: metrics.tails,
             target: 1500,
             met: metrics.tails >= 1500,
@@ -674,34 +740,10 @@ export function buildAirdropProgression({
         {
             id: 'COLLECTIBLE_LEVEL',
             label: 'Reach collectible level',
-            description: 'Reach collectible level 140 for stronger wallet quality.',
+            description: 'Reach collectible level 140.',
             current: metrics.collectibleLevel,
             target: 140,
             met: metrics.collectibleLevel >= 140,
-        },
-        {
-            id: 'TOTAL_PURCHASES',
-            label: 'Complete purchases',
-            description: 'Complete at least 3 purchases in total.',
-            current: metrics.totalPurchases,
-            target: 3,
-            met: metrics.totalPurchases >= 3,
-        },
-        {
-            id: 'PACK_PURCHASES',
-            label: 'Buy packs',
-            description: 'Complete at least 2 pack purchases.',
-            current: metrics.packPurchases,
-            target: 2,
-            met: metrics.packPurchases >= 2,
-        },
-        {
-            id: 'PORTRAIT_PURCHASES',
-            label: 'Buy portrait(s)',
-            description: 'Complete at least 1 portrait purchase.',
-            current: metrics.portraitPurchases,
-            target: 1,
-            met: metrics.portraitPurchases >= 1,
         },
     ];
 
@@ -754,7 +796,7 @@ export function buildAirdropProgression({
         (
             1 +
             Math.min(
-                metrics.totalPurchases * 0.08 + Math.floor(metrics.streak / 7) * 0.05 + metrics.epicOrAbove * 0.03,
+                metrics.goalsHelped * 0.08 + Math.floor(metrics.streak / 7) * 0.05 + metrics.epicOrAbove * 0.03,
                 0.75
             )
         ).toFixed(2)
@@ -842,5 +884,6 @@ export function buildAirdropProgression({
         totalClaimedTiers: tiers.filter(tier => tier.claimed).length,
         totalClaimedChallenges: dailyChallenges.filter(challenge => challenge.claimed).length,
         totalClaimedMilestones: milestones.filter(milestone => milestone.claimed).length,
+        season: seasonTimes(now),
     };
 }

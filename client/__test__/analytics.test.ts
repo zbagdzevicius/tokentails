@@ -5,7 +5,9 @@ import { createAnalytics, type AnalyticsClient } from "@/analytics/client";
 import { readConsent, type ConsentState } from "@/analytics/consent";
 import { createGameRunTracker } from "@/analytics/game-run";
 import {
+  ANALYTICS_EVENT_AREAS,
   ANALYTICS_EVENTS,
+  buildEvent,
   buildGameLoadedEvent,
   buildGameQuitEvent,
   buildGameStartEvent,
@@ -427,5 +429,85 @@ describe("getPlatform", () => {
       throw new Error("no bridge");
     });
     expect(getPlatform()).toBe("web");
+  });
+});
+
+describe("event catalog (F9)", () => {
+  // The F9 table, row by row. Adding an event means adding it here too.
+  const F9_TABLE: Record<string, string[]> = {
+    entry: ["landing_cta", "game_loaded", "intro_lifted"],
+    identity: [
+      "guest_session_created",
+      "auth_sheet_shown",
+      "auth_linked",
+      "auth_merged",
+      "auth_error",
+      "save_nudge_shown",
+    ],
+    onboarding: [
+      "onboarding_shown",
+      "onboarding_step_viewed",
+      "starter_selected",
+      "starter_named",
+      "starter_committed",
+      "onboarding_skipped",
+      "featured_cat_followed",
+      "cat_name_rejected",
+      "cat_name_reported",
+    ],
+    runs: [
+      "ftue_gate_shown",
+      "game_start",
+      "ftue_hint_shown",
+      "ftue_hint_done",
+      "life_lost",
+      "game_fail",
+      "game_finish",
+      "ftue_first_clear",
+      "ftue_abandon",
+    ],
+    heist: [
+      "heist_open",
+      "heist_run_complete",
+      "heist_save",
+      "heist_signin_prompt",
+      "heist_guest_claim",
+    ],
+    impact: [
+      "impact_tab_viewed",
+      "paw_earned",
+      "treat_sent",
+      "pledge_made",
+      "claim_opened",
+      "impact_page_viewed",
+    ],
+    health: ["app_error", "game_font_fallback", "storefront_degraded"],
+  };
+
+  const names = Object.values(ANALYTICS_EVENTS) as string[];
+
+  it.each(Object.entries(F9_TABLE))("has every %s event", (area, events) => {
+    for (const name of events) {
+      expect(names).toContain(name);
+      expect(ANALYTICS_EVENT_AREAS[name as keyof typeof ANALYTICS_EVENT_AREAS]).toBe(area);
+    }
+  });
+
+  it("has no names outside the table except game_quit, and no duplicates", () => {
+    const table = new Set(Object.values(F9_TABLE).flat());
+    expect(names.filter((n) => !table.has(n))).toEqual(["game_quit"]);
+    expect(new Set(names).size).toBe(names.length);
+    expect(Object.keys(ANALYTICS_EVENT_AREAS).sort()).toEqual([...names].sort());
+  });
+
+  it("names are snake_case", () => {
+    for (const name of names) expect(name).toMatch(/^[a-z]+(_[a-z0-9]+)*$/);
+  });
+
+  it("buildEvent keeps the typed shape", () => {
+    expect(buildEvent("heist_open", { from: "picker" })).toEqual({
+      name: "heist_open",
+      properties: { from: "picker" },
+    });
   });
 });

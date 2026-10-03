@@ -45,7 +45,7 @@ export const RedeemCard = ({ close }: { close: () => void }) => {
         </div>
       ) : (
         <PixelButton
-          isSmall
+          size="sm"
           onClick={() => setIsDisplayed(true)}
           text="REDEEM COUPON ⚝"
         />

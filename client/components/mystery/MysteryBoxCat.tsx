@@ -76,17 +76,24 @@ export const MysteryBoxCat = () => {
   return (
     <div className="flex flex-col items-center justify-center mb-4">
       <img
-        className={`w-48 md:w-32 lg:w-52 mb-4 ${
+        className={`w-48 md:w-32 lg:w-52 mb-4 drop-shadow-[0_6px_0_rgb(var(--tt-night-950)/0.6)] ${
           rolledCat?.catImg ? "pixelated" : ""
         }`}
         src={rolledCat?.catImg || cdnFile("elements/loot-box.webp")}
+        alt={rolledCat?.name ? `${rolledCat.name}, the cat from your box` : "Mystery box"}
+        draggable={false}
       />
       {lootBoxRewards && (
-        <div className="font-primary relative my-2 animate-opacity text-p4 text-center text-balance bg-gradient-to-b from-purple-300 to-blue-300 border-yellow-300 border-4 rounded-2xl px-2 mt-12 mb-8">
+        <div
+          role="status"
+          className="font-primary relative my-2 animate-opacity motion-reduce:animate-none text-p4 text-center text-balance text-tt-cream bg-gradient-to-b from-tt-night-600 to-tt-night-800 ring-2 ring-tt-gold-500 shadow-[0_4px_0_rgb(var(--tt-night-950))] rounded-md px-3 pt-4 pb-2 mt-12 mb-8"
+        >
           <span className="relative z-10">{lootBoxRewards.toUpperCase()}</span>
           <img
-            className="absolute -top-14 left-1/2 -translate-x-1/2 z-0 w-12"
+            className="absolute -top-10 left-1/2 -translate-x-1/2 z-0 w-12"
             draggable={false}
+            alt=""
+            aria-hidden="true"
             src={cdnFile("logo/logo.webp")}
           />
         </div>
@@ -95,7 +102,7 @@ export const MysteryBoxCat = () => {
         <div className="flex flex-col items-start w-fit m-auto">
           {/* No price in app builds: paid boxes are web-only (store IAP rules). */}
           {!profile?.boxes && !isApp && (
-            <div className="text-yellow-900 font-bold bg-yellow-300 rounded-t-xl w-24 text-center text-p6 ml-3">
+            <div className="text-tt-gold-ink font-bold bg-tt-gold-400 rounded-t-md w-24 text-center text-p6 ml-3">
               {currencyPrice} {currencyType}
             </div>
           )}
@@ -113,20 +120,22 @@ export const MysteryBoxCat = () => {
         </div>
       </div>
       <div className="flex flex-col items-center justify-center w-48">
-        <div className="text-p4 font-secondary text-center mt-2">
+        <div className="text-p4 font-secondary text-center mt-2 text-tt-cream [text-shadow:0_2px_0_rgb(var(--tt-night-950))]">
           WHAT CAN I WIN?
         </div>
-        <div className="text-p4 bg-gradient-to-r from-yellow-600 to-yellow-900 h-14 font-secondary text-white w-full flex items-center justify-center gap-1 hover:scale-110 transition-transform mb-2 border-4 rounded-lg border-yellow-900">
+        <div className="text-p4 bg-gradient-to-b from-tt-night-600 to-tt-night-800 h-14 font-secondary text-tt-cream w-full flex items-center justify-center gap-1 mb-2 ring-2 ring-tt-gold-500 shadow-[0_4px_0_rgb(var(--tt-night-950))] rounded-md">
           <img
             draggable={false}
             src={cdnFile("logo/logo.webp")}
+            alt=""
+            aria-hidden="true"
             className="w-8 mr-3"
           />
           <span className="flex flex-col">
-            <span className="text-p5 -mb-1 text-amber-900 font-primary glow">
-              WIN $TAILS
+            <span className="text-p5 -mb-1 text-tt-gold-400 font-primary">
+              TAILS, CATNIP
             </span>
-            <span className="text-yellow-50">UP TO 1000000</span>
+            <span className="text-tt-cream">OR A CAT</span>
           </span>
         </div>
       </div>

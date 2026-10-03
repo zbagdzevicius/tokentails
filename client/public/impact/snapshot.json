@@ -1,0 +1,106 @@
+{
+  "_v": 1,
+  "bucket": "2026-10-01T05:00Z",
+  "generatedAt": "2026-10-01T05:42:35.719Z",
+  "asOf": {
+    "chain": null,
+    "mongo": "2026-10-01T05:42:35.719Z"
+  },
+  "sources": {
+    "chain": "not-deployed",
+    "mongo": "ok"
+  },
+  "money": {
+    "custody": "held-by-token-tails",
+    "bySymbol": {},
+    "byBucket": {},
+    "eventCount": 0,
+    "lastTxHash": null
+  },
+  "chain": {
+    "chainId": 5042,
+    "contract": null,
+    "fromBlock": null,
+    "lastScannedBlock": null
+  },
+  "players": {
+    "registeredAllTime": 541953,
+    "active30d": null
+  },
+  "heists": {
+    "verified": null
+  },
+  "shelters": {
+    "total": 3,
+    "partners": 0,
+    "countries": [],
+    "items": [
+      {
+        "slug": "mil-bigotes",
+        "name": "Mil Bigotes",
+        "countryCode": null,
+        "partnerStatus": null,
+        "role": null,
+        "handoverStatus": null,
+        "publicWallet": null
+      },
+      {
+        "slug": "puppy-kitty-nyc",
+        "name": "Puppy Kitty NYC",
+        "countryCode": null,
+        "partnerStatus": null,
+        "role": null,
+        "handoverStatus": null,
+        "publicWallet": null
+      },
+      {
+        "slug": "rozine-pedute",
+        "name": "Rožinė Pėdutė",
+        "countryCode": null,
+        "partnerStatus": null,
+        "role": null,
+        "handoverStatus": null,
+        "publicWallet": null
+      }
+    ]
+  },
+  "rescueCats": {
+    "total": 525,
+    "adopted": 413
+  },
+  "outcomes": {
+    "published": 0,
+    "items": []
+  },
+  "rail": {
+    "state": "not-deployed",
+    "chainId": 5042,
+    "splitAddress": null,
+    "amountWei": "10000000000000000",
+    "dailyBudgetWei": "1000000000000000000",
+    "giftsPerDayCap": 100,
+    "treatsLeftToday": 0,
+    "resetsAt": "2026-10-02T00:00:00.000Z"
+  },
+  "treats": {
+    "confirmedCount": 0,
+    "onTheirWayCount": 0,
+    "totalConfirmedWei": "0"
+  },
+  "pledges": {
+    "status": "not-started",
+    "rows": []
+  },
+  "pawSettlements": {
+    "count": 0,
+    "latest": null
+  },
+  "rescueGoals": {
+    "open": 0,
+    "items": []
+  },
+  "_baseline": {
+    "stampedAt": "2026-10-01T05:42:37.275Z",
+    "from": "localhost:3005"
+  }
+}

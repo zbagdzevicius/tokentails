@@ -27,7 +27,10 @@ function setup() {
     };
     const userRepository = { findOne: jest.fn().mockResolvedValue(null), update: jest.fn() };
     const blessingRepository = { find: jest.fn().mockResolvedValue([{ cat: 'c1' }]) };
-    const catService = { adopt: jest.fn().mockResolvedValue({ success: true, cat: { _id: 'c1' } }) };
+    const catService = {
+        adopt: jest.fn().mockResolvedValue({ success: true, cat: { _id: 'c1' } }),
+        pickPackCat: jest.fn().mockResolvedValue('c1'),
+    };
     const svc = new StripePaymentService(orderRepository as any, userRepository as any);
     (svc as any).stripeClient = stripe;
     const ctrl = new (Web3Controller as any)(

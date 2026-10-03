@@ -1,4 +1,5 @@
 import { cdnFile } from "@/constants/utils";
+import { loadGameFonts, ttCanvasFont } from "@/components/typography";
 import React, {
   useEffect,
   useImperativeHandle,
@@ -247,7 +248,9 @@ const WheelComponent = forwardRef<WheelRef, WheelComponentProps>(
       ctx.save();
       ctx.translate(centerX * 16, centerY * 16);
       ctx.rotate((lastAngle + angle) / 2);
-      ctx.font = "bold 2em proxima-nova";
+      // Plan G12: the brand `title` face (Passion One 900), not an undeclared family.
+      // Canvas px: the wheel is drawn at 1000 px and shown at 0.36-0.5x, so 48 reads as 17-24 CSS px.
+      ctx.font = ttCanvasFont("title", 48);
 
       // Add glow effect
       ctx.shadowColor = "#ebc773";
@@ -257,7 +260,8 @@ const WheelComponent = forwardRef<WheelRef, WheelComponentProps>(
 
       // Draw text border/stroke
       ctx.strokeStyle = "#552000";
-      ctx.lineWidth = 6;
+      ctx.lineWidth = 10;
+      ctx.lineJoin = "round";
       ctx.strokeText(String(value).substring(0, 21), (size * 16) / 2 + 20, 0);
 
       // Draw text fill
@@ -283,7 +287,7 @@ const WheelComponent = forwardRef<WheelRef, WheelComponentProps>(
       ctx.strokeStyle = "#8e4a41";
       ctx.textBaseline = "middle";
       ctx.textAlign = "center";
-      ctx.font = "1em proxima-nova";
+      ctx.font = ttCanvasFont("title", 48);
 
       for (let i = 1; i <= len; i++) {
         const angle = PI2 * (i / len) + wheelState.current.angleCurrent;
@@ -299,7 +303,6 @@ const WheelComponent = forwardRef<WheelRef, WheelComponentProps>(
       // ctx.lineWidth = 10;
       // ctx.strokeStyle = contrastColor;
       // ctx.fill();
-      // ctx.font = "bold 1em proxima-nova";
       // ctx.fillStyle = contrastColor;
       // ctx.textAlign = "center";
       // ctx.fillText(buttonText, centerX * 16, centerY * 16 + 3);
@@ -340,7 +343,7 @@ const WheelComponent = forwardRef<WheelRef, WheelComponentProps>(
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillStyle = primaryColor;
-      ctx.font = "bold 1.5em proxima-nova";
+      ctx.font = ttCanvasFont("title", 40);
       wheelState.current.currentSegment = segments[i];
 
       if (isStarted) {
@@ -363,6 +366,14 @@ const WheelComponent = forwardRef<WheelRef, WheelComponentProps>(
     useEffect(() => {
       initCanvas();
       wheelDraw();
+      // Draw again once the brand face is in: a canvas keeps whatever face it drew with.
+      let alive = true;
+      void loadGameFonts().then(() => {
+        if (alive && wheelState.current.timerHandle === 0) wheelDraw();
+      });
+      return () => {
+        alive = false;
+      };
     }, []);
 
     const spin = () => {

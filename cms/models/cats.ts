@@ -1,24 +1,24 @@
 import { IImage } from './image';
+import {
+  BLESSING_STATUSES,
+  BlessingStatus,
+  CAT_ABILITY_TYPES,
+  CatAbilityType,
+  Tier
+} from '../shared-contracts/enums';
 import { IStatusValue, StatusType } from './status';
+
+// BlessingStatus, CatAbilityType and Tier come from the generated copy of shared/enums.ts (plan F2),
+// the same enums the backend stores. Edit shared/enums.ts and run `node scripts/sync-contracts.mjs`.
+export { BlessingStatus, CatAbilityType, Tier };
+export const BlessingStatuses = BLESSING_STATUSES;
+export const CatAbilityTypes = CAT_ABILITY_TYPES;
+
 
 export const Prices = {
   generatedCat: 5,
   lootBox: 3
 };
-
-export enum BlessingStatus {
-  WAITING = 'WAITING',
-  RECOVERING = 'RECOVERING',
-  ADOPTED = 'ADOPTED',
-  HEAVEN = 'HEAVEN'
-}
-
-export const BlessingStatuses = [
-  BlessingStatus.WAITING,
-  BlessingStatus.RECOVERING,
-  BlessingStatus.ADOPTED,
-  BlessingStatus.HEAVEN
-];
 
 export const BlessingStatusTexts: Record<BlessingStatus, string> = {
   [BlessingStatus.WAITING]: 'Waiting for home',
@@ -62,40 +62,7 @@ export type IShelter = {
   instagram?: string;
 };
 
-export enum CatAbilityType {
-  ICE = 'ICE',
-  ELECTRIC = 'ELECTRIC',
-  FIRE = 'FIRE',
-  WIND = 'WIND',
-  DARK = 'DARK',
-  WATER = 'WATER',
-  GRASS = 'GRASS',
-  SAND = 'SAND',
-  FAIRY = 'FAIRY',
-  STELLAR = 'STELLAR'
-}
-
-export const CatAbilityTypes = [
-  CatAbilityType.ICE,
-  CatAbilityType.ELECTRIC,
-  CatAbilityType.FIRE,
-  CatAbilityType.WIND,
-  CatAbilityType.DARK,
-  CatAbilityType.WATER,
-  CatAbilityType.GRASS,
-  CatAbilityType.SAND,
-  CatAbilityType.FAIRY,
-  CatAbilityType.STELLAR
-];
-
 export type ICatStatus = Partial<Record<StatusType, IStatusValue>>;
-
-export enum Tier {
-  COMMON = 'COMMON',
-  RARE = 'RARE',
-  EPIC = 'EPIC',
-  LEGENDARY = 'LEGENDARY'
-}
 
 export interface ICat {
   _id?: string;

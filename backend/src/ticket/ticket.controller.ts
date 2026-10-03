@@ -1,5 +1,4 @@
 import { BadRequestException, Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { Types } from 'mongoose';
 import { pickSearchParams, SearchModel } from 'src/common/validators';
 import { USER_ID } from 'src/shared/decorators/user.decorator';
@@ -9,6 +8,7 @@ import { PERMISSION_LEVEL } from 'src/user/models/user.model';
 import { IController } from '../shared/interfaces/controller.interface';
 import { TicketRepository } from './ticket.repository';
 import { UserRepository } from 'src/user/user.repository';
+import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 
 @Controller('ticket')
 export class TicketController implements IController<Ticket> {
@@ -20,7 +20,7 @@ export class TicketController implements IController<Ticket> {
         });
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.MANAGER))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.MANAGER))
     @Post('search')
     async search(@Body() params: SearchModel): Promise<Ticket[]> {
         return this.repository.find({
@@ -29,7 +29,7 @@ export class TicketController implements IController<Ticket> {
         });
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.MANAGER))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.MANAGER))
     @Post('search/unanswered')
     async searchUnanswered(@Body() params: SearchModel): Promise<Ticket[]> {
         return this.repository.find({
@@ -40,7 +40,7 @@ export class TicketController implements IController<Ticket> {
         });
     }
 
-    @UseGuards(AuthGuard('appauth'))
+    @UseGuards(AppAuthGuard)
     @Get()
     async getUserTickets(@USER_ID() userId: string): Promise<Ticket[]> {
         return this.repository.find({
@@ -48,7 +48,7 @@ export class TicketController implements IController<Ticket> {
         });
     }
 
-    @UseGuards(AuthGuard('appauth'))
+    @UseGuards(AppAuthGuard)
     @Post('')
     async create(@Body() object: Ticket, @USER_ID() userId: Types.ObjectId): Promise<Ticket> {
         const doesTodayTicketExist = await this.repository.findOne({
@@ -63,7 +63,7 @@ export class TicketController implements IController<Ticket> {
         return this.repository.create({ message: object.message, user: userId, answer: '' });
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.EDITOR))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.EDITOR))
     @Put(':id')
     async update(@Param('id') id: string, @Body() object: Ticket): Promise<Ticket> {
         return this.repository.update(id, { answer: object.answer });

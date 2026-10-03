@@ -1,0 +1,58 @@
+{
+  "$comment": "Written by catnip-heist/scripts/vendor-sim.mjs. backend/src/user/heist/heist-sim.spec.ts re-hashes the files.",
+  "simVersion": 4,
+  "levels": [
+    "heist-01",
+    "heist-02",
+    "heist-03",
+    "heist-04",
+    "heist-05",
+    "heist-06",
+    "heist-07",
+    "heist-08"
+  ],
+  "levelCaps": [
+    250,
+    240,
+    220,
+    270,
+    240,
+    240,
+    240,
+    310
+  ],
+  "files": {
+    "heist-sim.bundle.ts": "05f7b0b4643319afc27b1484d852136829eb39fb1945c9d2e6b1ca1cd6d844ef",
+    "index.ts": "fc48f4df527ff1843953cfefa3dd554b560fd3ff8795217d4a5461e25619428a"
+  },
+  "modules": [
+    "public/assets/manifest.json",
+    "src/levels/heist-01.json",
+    "src/levels/heist-01.solution.json",
+    "src/levels/heist-02.json",
+    "src/levels/heist-02.solution.json",
+    "src/levels/heist-03.json",
+    "src/levels/heist-03.solution.json",
+    "src/levels/heist-04.json",
+    "src/levels/heist-04.solution.json",
+    "src/levels/heist-05.json",
+    "src/levels/heist-05.solution.json",
+    "src/levels/heist-06.json",
+    "src/levels/heist-06.solution.json",
+    "src/levels/heist-07.json",
+    "src/levels/heist-07.solution.json",
+    "src/levels/heist-08.json",
+    "src/levels/heist-08.solution.json",
+    "src/levels/index.ts",
+    "src/sim/grid.ts",
+    "src/sim/hash.ts",
+    "src/sim/level.ts",
+    "src/sim/replay.ts",
+    "src/sim/rng.ts",
+    "src/sim/score.ts",
+    "src/sim/server.ts",
+    "src/sim/sim.ts",
+    "src/types.ts"
+  ],
+  "vite": "8.3.1"
+}

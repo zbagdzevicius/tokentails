@@ -42,11 +42,11 @@
           "y": 3
         },
         {
-          "x": 25,
+          "x": 23,
           "y": 3
         },
         {
-          "x": 25,
+          "x": 23,
           "y": 15
         },
         {
@@ -64,11 +64,11 @@
       "waypoints": [
         {
           "x": 14,
-          "y": 9
+          "y": 8
         },
         {
           "x": 20,
-          "y": 9
+          "y": 8
         }
       ],
       "speed": 1,
@@ -314,24 +314,32 @@
     {
       "id": "cp-2",
       "tile": {
-        "x": 7,
-        "y": 17
+        "x": 19,
+        "y": 18
       }
     }
   ],
   "meta": {
     "title": "Heist 04: Counting House",
-    "parTicks": 3600,
+    "parTicks": 2700,
     "meowRadiusTiles": 6,
     "investigateTicks": 120,
     "maxCoins": 24,
     "twoCatRequired": true,
     "objectives": [
-      "One cat holds the office plate, the other grabs the key",
+      "One cat holds the plate outside the office, the other grabs the key",
       "Open the vault and free {cat}",
       "Both cats to the exit"
     ],
     "hints": [
+      {
+        "x0": 30,
+        "y0": 1,
+        "x1": 34,
+        "y1": 7,
+        "untilObjective": 1,
+        "text": "The plate in here only holds the door while you stand on it. To get out, have your partner hold the outside plate."
+      },
       {
         "x0": 23,
         "y0": 1,

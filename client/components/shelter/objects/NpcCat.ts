@@ -32,12 +32,16 @@ export const animationConfigurations = [
 type ICatAnimationKey = `${string}_${PlayerAnimation}`;
 export type ICatAnimationKeysMap = Record<PlayerAnimation, ICatAnimationKey>;
 
+/** Every animation an NPC texture owns (`${textureKey}_${name}`), for removal on re-skin. */
+export const NPC_ANIMATION_NAMES: readonly PlayerAnimation[] = Object.values(PlayerAnimation);
+
+/** Animation keys for one cat texture. Pass the id-based texture key (F10), never the name. */
 export function generateCatAnimationConfiguration(
-  catName: string
+  textureKey: string
 ): ICatAnimationKeysMap {
   const map = {} as ICatAnimationKeysMap;
-  for (const key of Object.values(PlayerAnimation)) {
-    map[key] = `${catName}_${key}`;
+  for (const key of NPC_ANIMATION_NAMES) {
+    map[key] = `${textureKey}_${key}`;
   }
   return map;
 }
@@ -53,19 +57,23 @@ export class NpcCat {
   originalData: ICat & { isPlayerCat?: boolean } = {} as ICat;
   randomActionTimer!: Phaser.Time.TimerEvent;
 
-  constructor(scene: Scene, x: number, y: number, catName: string) {
+  /** `npc-${_id}` (F10). The display name is `originalData.name`. */
+  readonly textureKey: string;
+
+  constructor(scene: Scene, x: number, y: number, textureKey: string) {
     this.scene = scene;
-    this.animationKeys = generateCatAnimationConfiguration(catName);
+    this.textureKey = textureKey;
+    this.animationKeys = generateCatAnimationConfiguration(textureKey);
     this.direction = Phaser.Math.Between(0, 1) === 0 ? -1 : 1;
 
     this.sprite = this.scene.physics.add
-      .sprite(x, y, catName)
+      .sprite(x, y, textureKey)
       .setSize(28, 28)
       .setOffset(12, 8);
     this.sprite.body!.setSize(40, 50); // Set larger width and height for the hitbox
     this.sprite.body!.setOffset(0, -14);
     this.sprite.setCollideWorldBounds(true);
-    this.initAnimations(catName);
+    this.initAnimations(textureKey);
     this.sprite.anims.play(this.animationKeys[PlayerAnimation.RUNNING], true);
     this.sprite.setVelocityX(this.speed * this.direction);
     this.sprite?.setDepth(2);
@@ -74,7 +82,12 @@ export class NpcCat {
     this.sprite.setVelocityX(this.speed * this.direction);
   }
 
-  private initAnimations(catName: string) {
+  /** The cat's own name, for speech bubbles and events (the texture key is an id). */
+  get displayName(): string {
+    return this.originalData?.name || "a shelter cat";
+  }
+
+  private initAnimations(textureKey: string) {
     for (const animationConfiguration of animationConfigurations) {
       const animKey = this.animationKeys[animationConfiguration.key];
 
@@ -84,7 +97,7 @@ export class NpcCat {
       const index = animationConfigurations.indexOf(animationConfiguration);
       this.scene.anims.create({
         key: animKey,
-        frames: this.scene.anims.generateFrameNumbers(catName, {
+        frames: this.scene.anims.generateFrameNumbers(textureKey, {
           start: index * maxAnimationFrames,
           end: index * maxAnimationFrames + animationConfiguration.frames - 1,
         }),

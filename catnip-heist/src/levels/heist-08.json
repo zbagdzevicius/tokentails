@@ -45,7 +45,7 @@
       "sprite": "black-white",
       "waypoints": [
         {
-          "x": 14,
+          "x": 16,
           "y": 14
         },
         {
@@ -57,7 +57,7 @@
           "y": 23
         },
         {
-          "x": 14,
+          "x": 16,
           "y": 23
         }
       ],
@@ -80,7 +80,37 @@
       "facing": {
         "x": 0,
         "y": -1
-      }
+      },
+      "turns": [
+        {
+          "facing": {
+            "x": 0,
+            "y": -1
+          },
+          "ticks": 120
+        },
+        {
+          "facing": {
+            "x": 1,
+            "y": 0
+          },
+          "ticks": 90
+        },
+        {
+          "facing": {
+            "x": 0,
+            "y": -1
+          },
+          "ticks": 120
+        },
+        {
+          "facing": {
+            "x": -1,
+            "y": 0
+          },
+          "ticks": 90
+        }
+      ]
     },
     {
       "id": "s-yard-1",
@@ -100,28 +130,28 @@
             "x": 1,
             "y": 0
           },
-          "ticks": 60
+          "ticks": 90
         },
         {
           "facing": {
             "x": 0,
             "y": 1
           },
-          "ticks": 60
+          "ticks": 90
         },
         {
           "facing": {
             "x": -1,
             "y": 0
           },
-          "ticks": 60
+          "ticks": 90
         },
         {
           "facing": {
             "x": 0,
             "y": 1
           },
-          "ticks": 60
+          "ticks": 90
         }
       ]
     },
@@ -143,28 +173,28 @@
             "x": 0,
             "y": -1
           },
-          "ticks": 60
+          "ticks": 90
         },
         {
           "facing": {
             "x": -1,
             "y": 0
           },
-          "ticks": 60
+          "ticks": 90
         },
         {
           "facing": {
             "x": 0,
             "y": 1
           },
-          "ticks": 60
+          "ticks": 90
         },
         {
           "facing": {
             "x": 1,
             "y": 0
           },
-          "ticks": 60
+          "ticks": 90
         }
       ]
     },
@@ -182,7 +212,7 @@
         }
       ],
       "speed": 2,
-      "sniffTicks": 20,
+      "sniffTicks": 10,
       "visionTiles": 4
     }
   ],
@@ -479,20 +509,20 @@
       "id": "cp-3",
       "tile": {
         "x": 11,
-        "y": 25
+        "y": 22
       }
     }
   ],
   "meta": {
     "title": "Heist 08: Kibble Corp HQ",
-    "parTicks": 6300,
+    "parTicks": 5100,
     "meowRadiusTiles": 6,
     "investigateTicks": 180,
     "maxCoins": 28,
     "twoCatRequired": true,
     "objectives": [
-      "One cat holds the yard plate, the other fetches the key",
-      "Lure the doorman, open the vault and free {cat}",
+      "Take the gap north of the hall into the sentry yard and hold its far-corner plate, so your other cat can take the archive door to the key",
+      "Lure the doorman or wait for it to look away, open the vault and free {cat}",
       "Both cats back to the lobby exit"
     ],
     "hints": [
@@ -502,14 +532,31 @@
         "x1": 15,
         "y1": 10,
         "untilObjective": 0,
-        "text": "The plate in the far corner holds the archive door open. Mind the sentries."
+        "text": "Hold the plate in the far corner: it opens the archive door. Sentries turn on a clock: a pale cone shows where they look next."
       },
       {
         "x0": 11,
-        "y0": 21,
+        "y0": 12,
+        "x1": 30,
+        "y1": 14,
+        "untilObjective": 0,
+        "text": "The gap in the north wall leads to the sentry yard. Its far-corner plate opens the archive door (east) for your other cat."
+      },
+      {
+        "x0": 11,
+        "y0": 19,
         "x1": 30,
         "y1": 25,
-        "text": "The doorman watches the vault. Press {meow} out of its sight to lure it away."
+        "untilObjective": 0,
+        "text": "Head north through the hall to the gap in the wall: the sentry yard plate comes first."
+      },
+      {
+        "x0": 11,
+        "y0": 15,
+        "x1": 30,
+        "y1": 25,
+        "fromObjective": 1,
+        "text": "The doorman watches the vault but glances away now and then. Or meow ({meow}) out of its sight: it walks over to sniff, so hide."
       }
     ],
     "name": "Kibble Corp HQ",

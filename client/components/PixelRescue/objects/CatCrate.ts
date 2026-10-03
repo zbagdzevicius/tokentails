@@ -1,4 +1,5 @@
 import { Scene } from "phaser";
+import { ttWorldText } from "@/components/Phaser/typography";
 
 export class CatCrate extends Phaser.Physics.Arcade.Sprite {
   private containsCat = true;
@@ -51,16 +52,15 @@ export class CatCrate extends Phaser.Physics.Arcade.Sprite {
     this.progressBar = scene.add.graphics();
     this.progressBar.setDepth(10);
 
-    this.requirementText = scene.add.text(x, y - 50, "", {
-      fontSize: "10px",
-      fontFamily: "Arial",
+    // The `label` role (plan G12), not a system face; 15 CSS px on screen at the platformer zoom.
+    this.requirementText = ttWorldText(scene, x, y - 50, "", "label", 15, {
       color: "#ffff00",
       stroke: "#000000",
       strokeThickness: 3,
       align: "center",
+      origin: 0.5,
+      depth: 15,
     });
-    this.requirementText.setOrigin(0.5);
-    this.requirementText.setDepth(15);
   }
 
   startCollision(time: number) {

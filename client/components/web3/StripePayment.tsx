@@ -6,7 +6,7 @@ import {
   useElements,
   useStripe,
 } from "@stripe/react-stripe-js";
-import { loadStripe } from "@stripe/stripe-js";
+import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { useEffect, useState, useRef } from "react";
 import { Tag } from "@/components/shared/Tag";
 import { PixelButton } from "@/components/shared/PixelButton";
@@ -14,14 +14,34 @@ import { IMessage } from "@/models/cats";
 import { EntityType } from "@/models/save";
 import { isApp } from "@/models/app";
 import { AppCheckoutNotice } from "./AppCheckoutNotice";
+import { NIGHT_STRIPE_APPEARANCE } from "./nightTheme";
 
-// App builds never load Stripe.js: web checkout is hidden there (IAP only).
-const stripePromise = isApp
-  ? null
-  : loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+let stripePromise: Promise<Stripe | null> | null = null;
+
+/**
+ * Stripe.js, loaded on the first card payment (not at module load) and never rejecting: a blocked
+ * js.stripe.com (ad blocker, strict network) resolves to null and the form shows a notice instead
+ * of an unhandled rejection on /game. A failed load is retried on the next payment. App builds
+ * never load Stripe.js: web checkout is hidden there (IAP only).
+ */
+export function getStripe(): Promise<Stripe | null> | null {
+  if (isApp) return null;
+  if (!stripePromise) {
+    stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!).catch((error: unknown) => {
+      console.warn("Stripe.js failed to load", error);
+      stripePromise = null;
+      return null;
+    });
+  }
+  return stripePromise;
+}
+
+const STRIPE_UNAVAILABLE = "Card payments could not load. Check your connection or ad blocker, then try again.";
 
 interface StripeCheckoutFormProps {
   onSuccess: (response: IMessage) => void;
+  /** True from the BUY NOW tap until Stripe and the backend answered (the host locks its close). */
+  onProcessingChange?: (processing: boolean) => void;
   discount?: string;
   entityType?: EntityType;
   productType?: "digital" | "print" | "canvas";
@@ -30,6 +50,7 @@ interface StripeCheckoutFormProps {
 
 const StripeCheckoutForm = ({
   onSuccess,
+  onProcessingChange,
   discount,
   entityType,
   productType,
@@ -39,6 +60,15 @@ const StripeCheckoutForm = ({
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const toast = useToast();
+  const processingChange = useRef(onProcessingChange);
+  useEffect(() => {
+    processingChange.current = onProcessingChange;
+  });
+  useEffect(() => {
+    processingChange.current?.(isProcessing);
+  }, [isProcessing]);
+  // Unmounted mid-payment (the method switched): the host must not stay locked.
+  useEffect(() => () => processingChange.current?.(false), []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,8 +126,8 @@ const StripeCheckoutForm = ({
       <div className="mt-8 flex justify-center w-fit m-auto">
         <PixelButton
           text={isProcessing ? "Processing..." : `BUY NOW`}
-          isBig
-          isDisabled={isProcessing}
+          size="lg"
+          disabled={isProcessing}
         />
       </div>
     </form>
@@ -108,6 +138,7 @@ interface StripePaymentProps {
   price: number;
   id: string;
   onSuccess: (response: IMessage) => void;
+  onProcessingChange?: (processing: boolean) => void;
   discount?: string;
   entityType?: EntityType;
   productType?: "digital" | "print" | "canvas";
@@ -122,6 +153,7 @@ const WebStripePayment = ({
   price,
   id,
   onSuccess,
+  onProcessingChange,
   discount,
   entityType,
   productType,
@@ -132,6 +164,18 @@ const WebStripePayment = ({
     null,
   );
   const isInitializingRef = useRef(false);
+  // Stripe.js starts loading with the first card form, not at module load (see getStripe).
+  const [stripeLoad] = useState(getStripe);
+  const [stripeUnavailable, setStripeUnavailable] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void stripeLoad?.then((stripe) => {
+      if (live && !stripe) setStripeUnavailable(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, [stripeLoad]);
 
   useEffect(() => {
     // Only initialize payment when we have all required data
@@ -155,7 +199,9 @@ const WebStripePayment = ({
         );
         setClientSecret(clientSecret);
       } catch (error) {
-        console.error("Failed to initialize payment:", error);
+        // Handled: the card checkout shows its "unavailable" line. A warning, not an error, so the
+        // Next dev overlay does not cover the checkout.
+        console.warn("Failed to initialize payment:", error);
         setInitializationError("Card checkout is unavailable right now.");
       } finally {
         isInitializingRef.current = false;
@@ -173,10 +219,13 @@ const WebStripePayment = ({
     };
   }, [price, id, discount, entityType, productType, imageId]);
 
-  if (initializationError) {
+  if (initializationError || stripeUnavailable) {
     return (
-      <div className="mx-auto w-full max-w-[420px] rounded-lg border-2 border-red-700 bg-red-100 px-3 py-2 text-center font-primary text-p6 md:text-p5 text-red-900">
-        {initializationError}
+      <div
+        role="alert"
+        className="mx-auto w-full max-w-[420px] rounded-lg border-2 border-tt-rust bg-tt-night-800/90 px-3 py-2 text-center font-primary text-p6 md:text-p5 text-tt-cream"
+      >
+        {initializationError || STRIPE_UNAVAILABLE}
       </div>
     );
   }
@@ -191,19 +240,16 @@ const WebStripePayment = ({
 
   return (
     <Elements
-      stripe={stripePromise}
+      stripe={stripeLoad}
       options={{
         clientSecret,
-        appearance: {
-          theme: "stripe",
-          variables: {
-            colorPrimary: "black",
-          },
-        },
+        // Night theme with token variables (plan G6).
+        appearance: NIGHT_STRIPE_APPEARANCE,
       }}
     >
       <StripeCheckoutForm
         onSuccess={onSuccess}
+        onProcessingChange={onProcessingChange}
         discount={discount}
         entityType={entityType}
         productType={productType}

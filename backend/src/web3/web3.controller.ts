@@ -1,9 +1,8 @@
 import { BadRequestException, Body, Controller, Get, HttpException, Param, Post, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { Types } from 'mongoose';
 import { BlessingRepository } from 'src/blessing/blessing.repository';
 import { ICat, Tier } from 'src/cat/cat.schema';
-import { CatService } from 'src/cat/cat.service';
+import { CatService, PACK_POOL_EMPTY_MESSAGE } from 'src/cat/cat.service';
 import { ImageRepository } from 'src/image/image.repository';
 import { USER_ID } from 'src/shared/decorators/user.decorator';
 import { PermissionGuard } from 'src/shared/guards/permission.guard';
@@ -17,15 +16,18 @@ import { UserRepository } from 'src/user/user.repository';
 import { IUser, User } from 'src/user/user.schema';
 import { LOOT_BOX_ENTITY } from './order-catalogue';
 import { OrderRepository } from './order.repository';
-import { IOrder, OrderStatus, PackType, ProductType } from './order.schema';
+import { GrantFailureReason, IOrder, IOrderRefund, OrderStatus, PackType, ProductType } from './order.schema';
+import { spendIncrement, spendRefundPipeline } from './spend';
 import { isStellarTxHash } from './stellar-payment';
 import { ChainType } from './web3.model';
 import { Web3Service } from './web3.service';
+import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 
-const shelters: Record<string, Types.ObjectId> = {
-    catfluencers: new Types.ObjectId('675f4533cdb28696a94806fc'),
-    pinkPaw: new Types.ObjectId('67b48fafd6c26c6cd40bfec6'),
-};
+/** A paid pack or loot box result when nothing could be granted. */
+type GrantResult = IMessage & { cat?: ICat; refund?: IOrderRefund['state'] };
+
+/** Shown when a paid pack could not be granted even after one retry; the order is refunded. */
+export const PACK_GRANT_FAILED_MESSAGE = 'We could not bring your cat home this time. Your payment will be refunded.';
 
 @Controller('web3')
 export class Web3Controller {
@@ -40,7 +42,7 @@ export class Web3Controller {
     ) {}
 
     // Returns buyer emails and wallet addresses for the loot-drop export, so admins only.
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.ADMIN))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.ADMIN))
     @Get('loot/buyers')
     async lootBuyers() {
         const orders = await this.orderRepository.find({
@@ -68,37 +70,228 @@ export class Web3Controller {
         };
     }
 
+    /**
+     * Grants the pack cat of a paid order. The order is COMPLETE only when the adoption succeeded;
+     * otherwise it is FAILED_GRANT with the reason, so it shows in scripts/audit-orders-grants.js
+     * and can be retried or refunded (plan G3). Counters move only on success.
+     */
     async grantBoughtCat({
         cat,
         user,
         orderId,
         tier,
         packType,
+        markFailure = true,
     }: {
-        cat?: string | Types.ObjectId;
+        cat?: string | Types.ObjectId | null;
         user: string | Types.ObjectId;
         orderId?: Types.ObjectId;
         tier?: Tier;
         packType?: PackType;
+        /** False when the caller retries or refunds and records the failure itself (grantPack). */
+        markFailure?: boolean;
     }): Promise<
         IMessage & {
             cat?: ICat;
         }
     > {
-        if (cat) {
-            const result = await this.catService.adopt(cat.toString(), user.toString(), tier, packType);
-            await this.userRepository.update(user, {
-                $inc: { monthCatsAdopted: 1, monthSpent: 1, spent: 1, monthPacks: 1 },
-            });
-            if (orderId) {
-                await this.orderRepository.update(orderId, { status: OrderStatus.COMPLETE, cat });
+        if (!cat) {
+            if (orderId && markFailure) {
+                await this.markGrantFailed(orderId, 'NO_CAT', 'No cat to grant');
             }
-            return result;
+            return { success: false, message: 'No cat or generated cat' };
         }
-        return { success: false, message: 'No cat or generated cat' };
+        const result = await this.catService.adopt(cat.toString(), user.toString(), tier, packType, 'pack');
+        if (!result?.success || !result.cat) {
+            if (orderId && markFailure) {
+                await this.markGrantFailed(orderId, 'ADOPT_FAILED', result?.message || 'Adoption failed');
+            }
+            return { success: false, message: result?.message || 'Something went wrong, please try again later' };
+        }
+        await this.userRepository.update(user, {
+            $inc: { monthCatsAdopted: 1, monthPacks: 1 },
+        });
+        if (orderId) {
+            await this.orderRepository.update(orderId, {
+                $set: { status: OrderStatus.COMPLETE, cat: result.cat._id ?? cat },
+            });
+        }
+        return result;
     }
 
-    @UseGuards(AuthGuard('appauth'))
+    /**
+     * Picks the pack cat and grants it. An empty pool (the buyer owns every cat it could bring home)
+     * fails the grant and refunds the order (decision #21): Stripe orders automatically, Stellar
+     * orders are marked `refund.state: 'due'` for the treasury to send back by hand.
+     *
+     * A failed adoption (for example two packs bought at once picked the same cat, and the second
+     * copy lost the ownership check) is retried once with another cat, excluding the one that
+     * failed. When that fails too, the order is FAILED_GRANT and refunded the same way.
+     *
+     * An unexpected error (a database error in the pick or the adoption) is treated the same: the
+     * spend was already counted, so the order is FAILED_GRANT and refunded rather than left PENDING
+     * with the money taken (3c review). The refund is claimed once per order, so a retry is safe.
+     */
+    async grantPack(input: {
+        user: string | Types.ObjectId;
+        order: Pick<IOrder, '_id' | 'chainType' | 'hash'>;
+        packType?: PackType;
+        tier: Tier;
+        amountUsd: number;
+    }): Promise<GrantResult> {
+        try {
+            return await this.grantPackOnce(input);
+        } catch (error) {
+            const detail = String((error as Error)?.message || 'Unexpected error');
+            console.error(`Pack grant of order ${String(input.order._id)} failed:`, detail);
+            let refund: IOrderRefund['state'] | undefined;
+            try {
+                // The order may have been granted before the error (for example the stats update
+                // failed after COMPLETE): never fail or refund a completed order.
+                const current: any = await this.orderRepository.model
+                    .findOne({ _id: input.order._id }, { status: 1, refund: 1 })
+                    .lean();
+                if (current?.status === OrderStatus.COMPLETE) {
+                    return { success: true, message: 'Pack granted' };
+                }
+                await this.markGrantFailed(input.order._id!, 'ADOPT_FAILED', detail);
+                refund = await this.refundOrder(input.order, input.user, 'ADOPT_FAILED', input.amountUsd);
+            } catch (recordError) {
+                console.error(
+                    `Recording the failed grant of order ${String(input.order._id)} failed:`,
+                    (recordError as Error)?.message
+                );
+            }
+            return { success: false, message: PACK_GRANT_FAILED_MESSAGE, refund };
+        }
+    }
+
+    private async grantPackOnce({
+        user,
+        order,
+        packType,
+        tier,
+        amountUsd,
+    }: {
+        user: string | Types.ObjectId;
+        order: Pick<IOrder, '_id' | 'chainType' | 'hash'>;
+        packType?: PackType;
+        tier: Tier;
+        amountUsd: number;
+    }): Promise<GrantResult> {
+        const source = await this.catService.pickPackCat(user, packType);
+        if (!source) {
+            await this.markGrantFailed(order._id!, 'EMPTY_POOL', 'Pack pool empty for this buyer');
+            const refund = await this.refundOrder(order, user, 'EMPTY_POOL', amountUsd);
+            return { success: false, message: PACK_POOL_EMPTY_MESSAGE, refund };
+        }
+        const first = await this.grantBoughtCat({
+            cat: source,
+            user,
+            orderId: order._id,
+            tier,
+            packType,
+            markFailure: false,
+        });
+        if (first.success) {
+            return first;
+        }
+        const retrySource = await this.catService.pickPackCat(user, packType, [source]);
+        const retried = retrySource
+            ? await this.grantBoughtCat({
+                  cat: retrySource,
+                  user,
+                  orderId: order._id,
+                  tier,
+                  packType,
+                  markFailure: false,
+              })
+            : first;
+        if (retried.success) {
+            return retried;
+        }
+        await this.markGrantFailed(order._id!, 'ADOPT_FAILED', retried.message || 'Adoption failed');
+        const refund = await this.refundOrder(order, user, 'ADOPT_FAILED', amountUsd);
+        return { success: false, message: PACK_GRANT_FAILED_MESSAGE, refund };
+    }
+
+    private async markGrantFailed(orderId: Types.ObjectId, reason: GrantFailureReason, detail: string) {
+        await this.orderRepository.update(orderId, {
+            $set: { status: OrderStatus.FAILED_GRANT, failureReason: `${reason}: ${detail}`.slice(0, 200) },
+        });
+    }
+
+    /**
+     * Records and, where possible, performs the refund of a paid order that was not granted. Runs at
+     * most once per order (the `refund` field is the guard). The spend counted for the order is taken
+     * back, because the buyer is getting the money back.
+     */
+    async refundOrder(
+        order: Pick<IOrder, '_id' | 'chainType' | 'hash'>,
+        user: string | Types.ObjectId,
+        reason: GrantFailureReason,
+        amountUsd: number
+    ): Promise<IOrderRefund['state'] | undefined> {
+        const requested: IOrderRefund = {
+            state: 'due',
+            reason,
+            amountUsd: Number.isFinite(amountUsd) ? amountUsd : undefined,
+            requestedAt: new Date(),
+        };
+        const claimed = await this.orderRepository.model.findOneAndUpdate(
+            { _id: order._id, refund: { $exists: false } },
+            { $set: { refund: requested } },
+            { new: true }
+        );
+        if (!claimed) {
+            return undefined;
+        }
+        await this.userRepository.update(user, spendRefundPipeline(amountUsd) as any);
+
+        const paymentIntent = typeof order.hash === 'string' && order.hash.startsWith('pi_') ? order.hash : undefined;
+        if (order.chainType !== ChainType.FIAT || !paymentIntent) {
+            // Stellar: the treasury sends `price` in `currencyType` back to `walletAddress` (manual step).
+            return 'due';
+        }
+        try {
+            const refund = await this.stripePayments.stripe.refunds.create(
+                {
+                    payment_intent: paymentIntent,
+                    reason: 'requested_by_customer',
+                    metadata: { orderId: String(order._id), reason },
+                },
+                { idempotencyKey: `tt-refund-${String(order._id)}` }
+            );
+            await this.orderRepository.update(order._id!, {
+                $set: { 'refund.state': 'refunded', 'refund.refundedAt': new Date(), 'refund.refundId': refund.id },
+            });
+            return 'refunded';
+        } catch (error) {
+            console.error(`Refund of order ${String(order._id)} failed; left as due:`, (error as Error)?.message);
+            await this.orderRepository.update(order._id!, {
+                $set: { 'refund.error': String((error as Error)?.message || 'refund failed').slice(0, 200) },
+            });
+            return 'due';
+        }
+    }
+
+    /** Pays the affiliate share once a paid order was granted. Never on a failed or refunded grant. */
+    private async creditAffiliate(discount: string | undefined, amountUsd: number) {
+        if (!discount) {
+            return;
+        }
+        const discountOwner = await this.userRepository.findOne({
+            searchObject: { discount: discount.toLowerCase() },
+            projection: '_id',
+        });
+        if (discountOwner) {
+            await this.userRepository.update(discountOwner._id!, {
+                $inc: { affiliated: parseFloat((amountUsd * 0.2).toFixed(1)) },
+            });
+        }
+    }
+
+    @UseGuards(AppAuthGuard)
     @Post('confirm')
     async checkTransaction(
         @USER_ID() user: string,
@@ -166,7 +359,7 @@ export class Web3Controller {
         // Spent and the affiliate share use the amount verified on Stellar, never the client `price`.
         const verified = await this.web3Service.validatePrice(currencyType, price, chainType, hash, order._id);
         const priceUsd = verified.priceUsd;
-        await this.userRepository.update(user!, { $inc: { spent: priceUsd, monthSpent: priceUsd } });
+        await this.userRepository.update(user!, { $inc: spendIncrement(priceUsd) });
 
         if (entityType === EntityType.IMAGE) {
             await this.orderRepository.update(order._id.toString(), {
@@ -195,42 +388,20 @@ export class Web3Controller {
         // a loot box never carries one, so it cannot be granted with a pack's odds.
         const packType = entityType === EntityType.PACK ? (id as PackType) : undefined;
         const tier = packType ? getPackCardTier(packType) : Tier.COMMON;
-        const blessing = await this.blessingRepository.find({
-            searchObject: {
-                shelter:
-                    packType === PackType.INFLUENCER
-                        ? shelters.catfluencers
-                        : { $in: [shelters.catfluencers, shelters.pinkPaw] },
-            },
-            pipelineStages: [{ $sample: { size: 1 } }],
-            projection: 'cat',
-        });
-        const response = await this.grantBoughtCat({
-            cat: blessing[0].cat,
+        const response = await this.grantPack({
             user: user!,
-            orderId: order._id,
-            tier,
+            order: { _id: order._id, chainType, hash },
             packType,
+            tier,
+            amountUsd: priceUsd,
         });
-        if (discount) {
-            const discountOwner = await this.userRepository.findOne({
-                searchObject: { discount: discount.toLowerCase() },
-                projection: '_id',
-            });
-            if (discountOwner) {
-                await this.userRepository.update(discountOwner._id!, {
-                    $inc: { affiliated: parseFloat((priceUsd * 0.2).toFixed(1)) },
-                });
-            }
-        }
-
-        if (response?.cat) {
-            await this.orderRepository.update(order._id, { $set: { cat: response?.cat?._id } });
+        if (response.success) {
+            await this.creditAffiliate(discount, priceUsd);
         }
         return response;
     }
 
-    @UseGuards(AuthGuard('appauth'))
+    @UseGuards(AppAuthGuard)
     @Post('create-payment')
     async createPayment(
         @Body()
@@ -287,7 +458,7 @@ export class Web3Controller {
         }
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.ADMIN))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.ADMIN))
     @Get('pack/:packType/:id')
     async pack(@Param('packType') packType: PackType, @Param('id') id: string): Promise<User> {
         const user = await this.userRepository.findOne({
@@ -295,20 +466,16 @@ export class Web3Controller {
             projection: 'name email permission shelter twitter discord',
         });
 
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
         const tier = getPackCardTier(packType);
-
-        const blessing = await this.blessingRepository.find({
-            searchObject: {
-                shelter:
-                    packType === PackType.INFLUENCER
-                        ? shelters.catfluencers
-                        : { $in: [shelters.catfluencers, shelters.pinkPaw] },
-            },
-            pipelineStages: [{ $sample: { size: 1 } }],
-            projection: 'cat',
-        });
+        const source = await this.catService.pickPackCat(user._id!, packType);
+        if (!source) {
+            throw new BadRequestException(PACK_POOL_EMPTY_MESSAGE);
+        }
         await this.grantBoughtCat({
-            cat: blessing[0].cat,
+            cat: source,
             user: user._id!,
             tier,
             packType,
@@ -317,7 +484,7 @@ export class Web3Controller {
         return user;
     }
 
-    @UseGuards(AuthGuard('appauth'))
+    @UseGuards(AppAuthGuard)
     @Post('confirm-payment')
     async confirmPayment(
         @Body()
@@ -360,8 +527,7 @@ export class Web3Controller {
 
                 await this.userRepository.update(userId, {
                     $inc: {
-                        spent: verified.amountUsd,
-                        monthSpent: verified.amountUsd,
+                        ...spendIncrement(verified.amountUsd),
                         portraitPurchases: 1,
                         monthPortraitPurchases: 1,
                     },
@@ -392,38 +558,16 @@ export class Web3Controller {
             const packType = verified.packType!;
             const tier = getPackCardTier(packType);
 
-            const blessing = await this.blessingRepository.find({
-                searchObject: {
-                    shelter:
-                        packType === PackType.INFLUENCER
-                            ? shelters.catfluencers
-                            : { $in: [shelters.catfluencers, shelters.pinkPaw] },
-                },
-                pipelineStages: [{ $sample: { size: 1 } }],
-                projection: 'cat',
-            });
-            const response = await this.grantBoughtCat({
-                cat: blessing[0].cat,
+            await this.userRepository.update(userId, { $inc: spendIncrement(verified.amountUsd) });
+            const response = await this.grantPack({
                 user: new Types.ObjectId(userId),
-                orderId: order._id,
-                tier,
+                order: { _id: order._id, chainType: ChainType.FIAT, hash: verified.intentId },
                 packType,
+                tier,
+                amountUsd: verified.amountUsd,
             });
-
-            if (response?.cat) {
-                await this.orderRepository.update(order._id!, { $set: { cat: response?.cat?._id } });
-            }
-
-            if (verified.discount) {
-                const discountOwner = await this.userRepository.findOne({
-                    searchObject: { discount: verified.discount },
-                    projection: '_id',
-                });
-                if (discountOwner) {
-                    await this.userRepository.update(discountOwner._id!, {
-                        $inc: { affiliated: parseFloat((verified.amountUsd * 0.2).toFixed(1)) },
-                    });
-                }
+            if (response.success) {
+                await this.creditAffiliate(verified.discount, verified.amountUsd);
             }
 
             return response;

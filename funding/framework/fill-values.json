@@ -1,0 +1,7 @@
+{
+  "_readme": "Public values a person pastes after the deploy wave; `fund fill` writes them into every draft. Only public data: URLs, contract addresses, tx hashes. Never keys, seeds or emails. Empty string = not known yet. Put a key under an application slug to override it for that entry only, e.g. \"monad-metropolis\": { \"MONAD_SPLIT\": \"0x...\" }.",
+  "DEMO_URL": "",
+  "PITCH_VIDEO_URL": "",
+  "ARC_TX": "",
+  "TEMPO_TX": ""
+}

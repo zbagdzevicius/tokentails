@@ -84,7 +84,7 @@ export const TailsCardPack: React.FC<TailsCardPackProps> = ({
       )}
 
       {showCard && showGoToGame && (
-        <div className="relative z-[10000]">
+        <div className="relative z-reveal">
           <PixelButton text="GO TO GAME" onClick={handleGoToGame} />
         </div>
       )}

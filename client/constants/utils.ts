@@ -9,8 +9,49 @@ export function randomNumber(min: number = 10, max: number = 999) {
   return Math.ceil(Math.random() * (max - min) + min);
 }
 
-export function getRandomObjectsFromArray<T>(items: T[], count: number) {
-  return items.sort(() => Math.random() - 0.5).slice(0, count);
+/**
+ * Up to `count` distinct items picked at random, in random order. Never mutates `items` (the old
+ * in-place `sort` reshuffled React Query's cached arrays, plan G13) and accepts a missing list.
+ * Pass `random` (for example `seededRandom(seed)`) for a repeatable pick.
+ */
+export function sample<T>(
+  items: readonly T[] | null | undefined,
+  count: number,
+  random: () => number = Math.random,
+): T[] {
+  if (!Array.isArray(items) || !items.length || !(count > 0)) {
+    return [];
+  }
+  const pool = items.slice();
+  const take = Math.min(Math.floor(count), pool.length);
+  // Partial Fisher-Yates on the copy: the first `take` slots end up a uniform random pick.
+  for (let i = 0; i < take; i++) {
+    const j = i + Math.floor(random() * (pool.length - i));
+    const picked = pool[j];
+    pool[j] = pool[i];
+    pool[i] = picked;
+  }
+  return pool.slice(0, take);
+}
+
+/** A small deterministic generator (mulberry32) in [0, 1), for picks that must repeat per seed. */
+export function seededRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** @deprecated Use `sample`. Kept as a non-mutating alias for older call sites. */
+export function getRandomObjectsFromArray<T>(
+  items: readonly T[] | null | undefined,
+  count: number,
+): T[] {
+  return sample(items, count);
 }
 
 export function randomObjectFromArray<T>(items?: T[]): T | null {
@@ -84,8 +125,8 @@ export function isMobile() {
 
 export const IS_MOBILE = isMobile();
 
-export const ZOOM = IS_MOBILE ? 1.25 : 2;
-export const ZOOM_PIXEL = IS_MOBILE ? 1.45 : 1.6;
+// ZOOM (1.25 or 2) and ZOOM_PIXEL (1.45 or 1.6) are gone (plan G7, F10): fractional zoom
+// blurred the pixel art. Scenes pick an integer zoom with look/cameraRig.ts (pickZoom).
 type DateInput = Date | number | string;
 
 const SECOND = 1000;

@@ -15,11 +15,51 @@ import { glowTexture } from './textures';
 import { Terrain, WALL_H } from './terrain';
 import { ALL, ArtBuilder, CELLS, F, levelAtlas } from './art';
 import { hdr } from './post';
-import { assetUrl, getVoxelMaterial, loadVoxelSheet, voxelizeImage } from './voxel/sheets';
+import { assetUrl, getVoxelMaterial, loadPixels, loadVoxelSheet, voxelizeImage } from './voxel/sheets';
+import { nightLiftSprig } from './catnipNight';
 import { VoxelSprite } from './voxel/VoxelSprite';
+
+/** The 16 px catnip sprig master (written by client/scripts/art/catnip-export.mjs). */
+const CATNIP_VOXEL_SOURCE = 'images/catnip-16.png';
+/**
+ * World size of one catnip voxel: 16 voxels span two thirds of a tile. It was 1/30 (half a tile, as
+ * the old 15 at 1/28); review 3e #4 found the sprig too small to read, so it is 1.25x that.
+ */
+const CATNIP_VOXEL_SCALE = 1 / 24;
+/** The floor glow under a pickup: the spike's lavender (catnip-heist palette: --lilac family). */
+const CATNIP_GLOW = '#b896ea';
 
 export { WALL_H };
 const NO_BOTTOM_FACES = 63 & ~8;
+
+/** See-through marker material: dithered, link colour, drawn only where it is hidden (GreaterDepth). */
+function xrayMarkerMat(color: string): THREE.MeshBasicMaterial {
+  const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, depthWrite: false, depthFunc: THREE.GreaterDepth, side: THREE.DoubleSide });
+  m.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace(
+      '#include <dithering_fragment>',
+      '#include <dithering_fragment>\n  if (mod(floor(gl_FragCoord.x / 2.0) + floor(gl_FragCoord.y / 2.0), 2.0) < 1.0) discard;',
+    );
+  };
+  m.customProgramCacheKey = () => 'xray-marker-dither';
+  return m;
+}
+
+/**
+ * Adds `amount` of each voxel's vertex colour as emissive, so the sprig keeps its own hues (mint
+ * leaves, lavender spike) under coloured lights while the faces keep their Lambert shading.
+ */
+export const CATNIP_SELF_LIGHT = 1;
+function catnipSelfLight<M extends THREE.MeshLambertMaterial>(m: M, amount = CATNIP_SELF_LIGHT): M {
+  m.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace(
+      '#include <emissivemap_fragment>',
+      `#include <emissivemap_fragment>\n  #ifdef USE_COLOR\n  totalEmissiveRadiance += vColor.rgb * ${amount.toFixed(3)};\n  #endif`,
+    );
+  };
+  m.customProgramCacheKey = () => `catnip-self-light-${amount}`;
+  return m;
+}
 
 /** Colours of plate -> door links (one per plate, cycled). */
 const LINK_COLORS = [PALETTE.pink, PALETTE.mint, PALETTE.sky, PALETTE.lilac, PALETTE.rust];
@@ -224,7 +264,12 @@ export class LevelView {
     ringGeo.rotateX(-Math.PI / 2);
     const glowGeo = new THREE.PlaneGeometry(1.9, 1.9);
     glowGeo.rotateX(-Math.PI / 2);
-    this.disposables.push(frameGeo, padGeo, ringGeo, glowGeo);
+    // X-ray markers: drawn only where something nearer hides them (GreaterDepth), so a plate behind
+    // a tall wall or the exit portal, or a plate door behind a wall, still shows where it is.
+    const xrayPlateGeo = new THREE.RingGeometry(0.16, 0.46, 4, 1, Math.PI / 4);
+    xrayPlateGeo.rotateX(-Math.PI / 2);
+    const xrayDoorGeo = new THREE.PlaneGeometry(0.8, WALL_H - 0.16);
+    this.disposables.push(frameGeo, padGeo, ringGeo, glowGeo, xrayPlateGeo, xrayDoorGeo);
 
     this.level.plates.forEach((p, i) => {
       const color = plateColor(i);
@@ -245,7 +290,12 @@ export class LevelView {
       const glow = new THREE.Mesh(glowGeo, glowMat);
       glow.position.y = 0.02;
       glow.renderOrder = 1;
-      g.add(frame, pad, ring, glow);
+      const xrayMat = xrayMarkerMat(color);
+      const xray = new THREE.Mesh(xrayPlateGeo, xrayMat);
+      xray.position.y = 0.14;
+      xray.renderOrder = 10;
+      g.add(frame, pad, ring, glow, xray);
+      this.disposables.push(xrayMat);
       this.group.add(g);
       this.plates.push({ pad, glow, mat, ring: ringMat, color: new THREE.Color(color), down: 0 });
       this.live.add(pad);
@@ -311,6 +361,16 @@ export class LevelView {
         this.disposables.push(body.geometry);
       }
       g.add(panel);
+      // A plate door gets an x-ray panel just in front of its shutter (camera side): it is drawn
+      // only where something nearer hides it, so a door behind a tall wall still shows its colour.
+      if (!vault) {
+        const xm = xrayMarkerMat(color);
+        const xb = new THREE.Mesh(xrayDoorGeo, xm);
+        xb.position.set(0, (WALL_H - 0.16) / 2, 0.13);
+        xb.renderOrder = 10;
+        g.add(xb);
+        this.disposables.push(xm);
+      }
       this.group.add(g);
       this.doors.push({ def: d, axis, group: g, panel, open: 0, color, lights, dial, shutColor: new THREE.Color(PALETTE.ember), openColor: new THREE.Color(vault ? '#7cff9a' : color) });
       this.live.add(panel);
@@ -456,21 +516,33 @@ export class LevelView {
 
     const tasks: Promise<unknown>[] = [];
 
-    // Catnip coins (instanced) with a soft glow under each.
+    // Catnip pickups (instanced) with a soft lavender glow under each (plan G8). The voxel source
+    // is the 16 px sprig master itself, read without smoothing, so each master pixel is one voxel
+    // (the old source was the 320 px cannabis-shaped leaf, box-filtered down to 15).
     if (lvl.coins.length) {
       tasks.push(
-        voxelizeImage(url(manifest.images.catnip), { size: 15 }).then((geo) => {
-          if (this.disposed) return;
-          const coinMat = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: '#3a7a20', emissiveIntensity: 0.9 });
+        // The leaves are lifted toward mint first (catnipNight.ts), so they do not sink into the
+        // purple floor. The geometry is built from a recoloured copy, so it is this view's own.
+        loadPixels(url(CATNIP_VOXEL_SOURCE)).then((px) => voxelizeImage(nightLiftSprig(px), { size: 16 })).then((geo) => {
+          if (this.disposed) {
+            geo.dispose();
+            return;
+          }
+          this.disposables.push(geo);
+          // Vertex colours lifted 1.4x (as the key's 1.35x), plus a self-light in each voxel's own
+          // colour (catnipSelfLight): the purple night lights carry little green, so lit-only mint
+          // went grey-teal and the sprig read as an amethyst (review 3e #4). The old flat lavender
+          // emissive tinted the leaves too, so it is gone.
+          const coinMat = catnipSelfLight(new THREE.MeshLambertMaterial({ vertexColors: true, color: new THREE.Color(1.4, 1.4, 1.4) }));
           this.disposables.push(coinMat);
           this.coinMesh = new THREE.InstancedMesh(geo, coinMat, lvl.coins.length);
           this.coinMesh.castShadow = true;
           this.coinMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
           this.coinMesh.frustumCulled = false;
           this.coinMesh.name = 'coins';
-          const glowGeo = new THREE.PlaneGeometry(0.9, 0.9);
+          const glowGeo = new THREE.PlaneGeometry(1.15, 1.15);
           glowGeo.rotateX(-Math.PI / 2);
-          const glowMat = new THREE.MeshBasicMaterial({ color: '#b6f36a', map: this.glowTex, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false });
+          const glowMat = new THREE.MeshBasicMaterial({ color: CATNIP_GLOW, map: this.glowTex, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
           this.coinGlow = new THREE.InstancedMesh(glowGeo, glowMat, lvl.coins.length);
           this.coinGlow.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
           this.coinGlow.frustumCulled = false;
@@ -701,6 +773,12 @@ export class LevelView {
   // Per-frame
   // -------------------------------------------------------------------------------------------
 
+  /** Link colour of plate `i` (the colour its door's shutter and lights use), as a CSS hex string. */
+  plateColor(i: number): string {
+    const p = this.plates[i];
+    return p ? `#${p.color.getHexString()}` : PALETTE.pink;
+  }
+
   /** True once the rescue happened and the cage has finished its break-open animation. */
   get cageGone(): boolean {
     return this.cageOpen >= 1;
@@ -747,7 +825,7 @@ export class LevelView {
         if (!taken) this.coinPop[i] = undefined;
         const pt = taken ? (time - (this.coinPop[i] ?? time)) / 0.3 : -1;
         const popping = pt >= 0 && pt < 1;
-        const sc = taken ? (popping ? (1 / 28) * (1 + pt * 0.9) * (1 - pt * pt) : 0) : 1 / 28;
+        const sc = taken ? (popping ? CATNIP_VOXEL_SCALE * (1 + pt * 0.9) * (1 - pt * pt) : 0) : CATNIP_VOXEL_SCALE;
         const lift = popping ? pt * 0.7 : 0;
         // Wobble around facing the camera instead of a full spin, so the icon never goes edge-on.
         this.q.setFromAxisAngle(up.set(0, 1, 0), CAMERA_YAW + Math.sin(time * 2.2 + i * 0.9) * 0.75 + (popping ? pt * 9 : 0));

@@ -106,3 +106,52 @@ describe('level map layout', () => {
     expect(pathSlot(3, 2)).toEqual({ row: 2, col: 1 });
   });
 });
+
+describe('ProgressStore.mergeServer (embed, server progress)', () => {
+  it('never lowers local progress: won OR, best score max, stars OR; best time and plays stay local', () => {
+    const st = memStorage();
+    const p = new ProgressStore(st, ORDER);
+    p.record(run({ score: 150, ticks: 1800, coins: 9 }), true, LEVEL);
+    const before = p.get('l1');
+    expect(p.mergeServer({ l1: { won: true, bestScore: 120, stars: STAR_WIN | STAR_COINS }, l2: { won: true, bestScore: 90, stars: STAR_WIN } })).toBe(true);
+    expect(p.get('l1')).toEqual({ ...before, stars: before.stars | STAR_COINS });
+    expect(p.get('l2')).toMatchObject({ won: true, bestScore: 90, stars: STAR_WIN, plays: 0, bestTicks: 0 });
+    expect(p.isUnlocked('l3')).toBe(true);
+    expect(JSON.parse(st.map.get(PROGRESS_KEY)!).levels.l2.won).toBe(true);
+  });
+
+  it('ignores unknown levels and malformed entries, and reports no change when nothing is new', () => {
+    const p = new ProgressStore(memStorage(), ORDER);
+    expect(p.mergeServer(null)).toBe(false);
+    expect(p.mergeServer({ nope: { won: true, bestScore: 999, stars: 7 } })).toBe(false);
+    expect(p.mergeServer({ l1: { won: false, bestScore: Number.NaN, stars: 1.5 } as never })).toBe(false);
+    expect(p.mergeServer({ l1: { won: false, bestScore: 0, stars: STAR_CLEAN | 8 } })).toBe(true);
+    // Only the win star (or `won`) marks the level won.
+    expect(p.get('l1')).toMatchObject({ won: false, stars: STAR_CLEAN });
+    expect(p.mergeServer({ l1: { won: false, bestScore: 0, stars: STAR_CLEAN } })).toBe(false);
+  });
+});
+
+describe('ProgressStore.mergeServer prototype keys', () => {
+  it('skips __proto__, constructor and prototype even with no level order', () => {
+    const p = new ProgressStore(memStorage(), []);
+    const hostile = JSON.parse('{"__proto__":{"won":true,"bestScore":5,"stars":7},"constructor":{"won":true,"bestScore":5,"stars":7},"prototype":{"won":true,"bestScore":5,"stars":7}}');
+    expect(p.mergeServer(hostile)).toBe(false);
+    expect(({} as Record<string, unknown>).won).toBeUndefined();
+    expect(p.isFresh()).toBe(true);
+    // A real id still merges with no order.
+    expect(p.mergeServer({ l1: { won: true, bestScore: 5, stars: STAR_WIN } })).toBe(true);
+  });
+});
+
+describe('ProgressStore.isFresh', () => {
+  it('is true until a run is recorded or account progress is merged', () => {
+    const a = new ProgressStore(memStorage(), ORDER);
+    expect(a.isFresh()).toBe(true);
+    a.record(run({}), false, LEVEL);
+    expect(a.isFresh()).toBe(false);
+    const b = new ProgressStore(memStorage(), ORDER);
+    b.mergeServer({ l1: { won: true, bestScore: 10, stars: STAR_WIN } });
+    expect(b.isFresh()).toBe(false);
+  });
+});

@@ -137,6 +137,24 @@ node bin/fund.mjs a:ingest                     # (run by the script) record + ve
 Tested end to end on a local anvil chain: deploy, then a proof payout (the shelter received 1 USDC),
 then ingest and on-chain verification.
 
+### Source verification (automatic)
+
+Judges open the contract on the explorer, and unverified bytecode can disqualify an entry. After each
+deploy, `fund a:ingest` submits the ShelterSplit source with `forge verify-contract --watch` and marks
+`sourceVerified` in `deployments.json`. `fund check` warns while any deployment is unverified and
+fails at `ready`. To run it by hand: `fund a:verify-source [chain] [network] [--force]`.
+
+| Chain | Verifier (`verifier` in chains.json) |
+|---|---|
+| Arc | Blockscout `explorer.testnet.arc.io/api/`; mainnet `explorer.arc.io/api/` (assumed, check on the first mainnet run) |
+| Tempo | Sourcify-compatible `contracts.tempo.xyz` (mainnet and testnet) |
+| Arbitrum, Base | Blockscout (keyless) |
+| Avalanche | Routescan Etherscan-compatible API (keyless, `apiKey: verifyContract`) |
+
+Constructor arguments come from the deploy broadcast; without it they are read back from the
+contract (`token`, `treasury`, `owner`), which no longer matches once ownership moves to a Safe.
+Verified on 2026-10-02: Arc testnet (Blockscout `is_verified: true`) and Tempo testnet (Sourcify `exact_match`).
+
 ## Track A gates in `fund check`
 
 | Check | Drafting | in-review | ready |

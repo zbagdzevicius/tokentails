@@ -79,7 +79,7 @@ export const ShelterBenefits = () => {
           target="_blank"
           href="https://www.google.com/maps/place/V%C5%A0%C4%AE+Ro%C5%BEin%C4%97+p%C4%97dut%C4%97/@54.872343,23.9368954,17z/data=!3m1!4b1!4m6!3m5!1s0x8f6d11088502f165:0xea36bc9bf5e83fed!8m2!3d54.872343!4d23.9368954!16s%2Fg%2F11jzb_1hsj?entry=ttu&g_ep=EgoyMDI1MDMxOC4wIKXMDSoASAFQAw%3D%3D"
         >
-          <PixelButton isSmall text="view on map"></PixelButton>
+          <PixelButton as="span" size="sm" text="view on map"></PixelButton>
         </a>
       </div>
     </div>

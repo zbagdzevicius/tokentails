@@ -1,6 +1,7 @@
 import {
   DISBURSED_TOPIC,
   NATIVE_DISBURSED_TOPIC,
+  displayMemo,
   payoutUnit,
   to18,
   RpcLog,
@@ -130,5 +131,17 @@ describe("native payouts (donate / receive)", () => {
     const total = to18(BigInt("1000000000000000000"), 18) + to18(BigInt(1000000), 6);
     expect(formatUnits(total, 18)).toBe("2");
     expect(() => to18(BigInt(1), 19)).toThrow();
+  });
+});
+
+describe("displayMemo", () => {
+  it("decodes a zero-padded bytes32 memo from disburseWithMemo", () => {
+    const hex = "0x" + Buffer.from("tt:heist:campaign-test").toString("hex").padEnd(64, "0");
+    expect(displayMemo(hex)).toBe("tt:heist:campaign-test");
+  });
+  it("leaves ordinary memos and non-text hex alone", () => {
+    expect(displayMemo("Token Tails first payout")).toBe("Token Tails first payout");
+    const bin = "0x" + "ff".repeat(32);
+    expect(displayMemo(bin)).toBe(bin);
   });
 });

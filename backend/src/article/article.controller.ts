@@ -11,7 +11,6 @@ import {
     Query,
     UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { Types } from 'mongoose';
 import { CategoryRepository } from 'src/category/category.repository';
 import { Category } from 'src/category/category.schema';
@@ -25,6 +24,7 @@ import { PERMISSION_LEVEL } from 'src/user/models/user.model';
 import { IController } from '../shared/interfaces/controller.interface';
 import { ArticleRepository } from './article.repository';
 import { Article, ArticleSearchModel } from './article.schema';
+import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 
 @Controller('article')
 export class ArticleController implements IController<Article> {
@@ -98,7 +98,7 @@ export class ArticleController implements IController<Article> {
         });
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.EDITOR))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.EDITOR))
     @Delete(':slug')
     public async delete(@Param('slug') slug: string) {
         const existingArticle: Article = await this.repository.findOne({
@@ -163,7 +163,7 @@ export class ArticleController implements IController<Article> {
         return { article, randomArticles };
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.EDITOR))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.EDITOR))
     @Post('')
     public async create(@Body() object: any): Promise<Article> {
         if (!object.category) {
@@ -193,7 +193,7 @@ export class ArticleController implements IController<Article> {
         }
     }
 
-    @UseGuards(AuthGuard('appauth'), PermissionGuard(PERMISSION_LEVEL.EDITOR))
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.EDITOR))
     @Put(':slug')
     public async update(@Param('slug') slug: string, @Body() object: Article) {
         const existingArticle = await this.repository.findOne({

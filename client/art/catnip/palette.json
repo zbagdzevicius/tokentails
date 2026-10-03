@@ -1,0 +1,27 @@
+{
+  "comment": "Catnip sprig palette (plan G8). One character per pixel in the catnip-<size>.txt masters; '.' is transparent. Soft mint greens and lavender, no yellow, no saturated green.",
+  "colors": {
+    "o": "#1d3b34",
+    "d": "#3e8a68",
+    "v": "#3a7a5c",
+    "m": "#63b98d",
+    "l": "#9fdfba",
+    "S": "#4c8657",
+    "s": "#6aa86b",
+    "p": "#8a63c9",
+    "L": "#b896ea",
+    "w": "#efe2ff"
+  },
+  "names": {
+    "o": "outline (deep teal green)",
+    "d": "leaf shadow rim",
+    "v": "leaf midrib",
+    "m": "leaf mid (mint)",
+    "l": "leaf light (top face)",
+    "S": "stem shadow, petioles",
+    "s": "stem light",
+    "p": "flower spike shadow (calyx)",
+    "L": "flower spike lavender",
+    "w": "floret highlight"
+  }
+}

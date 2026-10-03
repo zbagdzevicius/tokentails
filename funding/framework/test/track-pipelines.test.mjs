@@ -494,7 +494,7 @@ test('the example apps in applications/ evaluate and dry-run without throwing (t
   const src = join(REAL_ROOT, 'applications');
   const examples = readdirSync(src).filter((d) => existsSync(join(src, d, 'call.md')));
   assert.ok(examples.length >= 5, `found ${examples.join(', ')}`);
-  const expectFirst = { A: /deploy|record|source|draft|build|check/, B: /form|answer|fill|check|human-read/, C: /./, D: /./, E: /watch-configured|wait|reopen|scan/ };
+  const expectFirst = { A: /deploy|record|source|draft|build|check|submission/, B: /form|answer|fill|check|human-read/, C: /./, D: /./, E: /watch-configured|wait|reopen|scan/ };
   for (const slug of examples) {
     rmSync(join(apps, slug), { recursive: true, force: true });
     cpSync(join(src, slug), join(apps, slug), { recursive: true });

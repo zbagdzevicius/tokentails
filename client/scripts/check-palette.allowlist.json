@@ -1,0 +1,19 @@
+{
+  "$comment": "check-palette.mjs allowlist (plan G6 Guard). One entry allows at most `max` findings of `rule` in `file` (default 1); one more fails. Task 4d tightened it to the genuinely allowed cases only: every modal overlay moved to GameModal, so the W4 migration entries are gone and any overlay still unmigrated shows up as a warning (docs/plans/alignment-log/4d.md lists them with owners). The plan's G7 exceptions (level-select cards, the lobby HomePage art layer) and EpicCardEffects' card-local z produce no finding today, so they need no entry; add one here, with the reason, only if they start to. Blocking since task 7b (CI runs it without --warn).",
+  "entries": [
+    {
+      "file": "components/tailsCard/RevealAnimation.tsx",
+      "rule": "overlay-z",
+      "max": 5,
+      "reason": "Local stacking only: z-[1]..z-[4] order the glow, sparkle, card and frame layers inside the reveal root, which itself sits on the z-reveal layer (same case as EpicCardEffects' card-local z). W3 integrator.",
+      "until": "permanent"
+    },
+    {
+      "file": "capacitor.config.ts",
+      "rule": "night-hex",
+      "max": 1,
+      "reason": "The Capacitor CLI loads this file on its own; __test__/palette-native-chrome.test.ts pins NATIVE_BACKGROUND to THEME_COLOR.",
+      "until": "permanent"
+    }
+  ]
+}

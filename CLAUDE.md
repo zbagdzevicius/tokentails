@@ -31,7 +31,7 @@ How to maintain it:
 - When a date, deadline, result, decision or status changes, edit these tables in the same turn.
 - Keep the format: dated rows, one line each. Status is ⏳ todo, 🟡 in progress, ✅ done, ❌ dropped or lost, ⏸ parked, 🏆 won.
 - Times: write the organiser's zone and Vilnius time. Vilnius is EEST (UTC+3) until Oct 25, then EET (UTC+2).
-- Rules: remote only; grants, prizes, bounties and equity-free accelerators only; a real chance above 10%
+- Rules: remote until winning (no in-person step before selection; winner-only travel such as bootcamps or ceremonies is OK); grants, prizes, bounties and equity-free accelerators only; a real chance above 10%
   (or under 1 human hour); no Telegram; excluded programs are in `funding/framework/portfolio/opportunities.json`.
 
 ### Critical path
@@ -43,13 +43,21 @@ How to maintain it:
 | Sep 30 | Every member registers on colosseum.com; name the Team Leader | You | ⏳ |
 | Oct 1 | `catnip.tokentails.com`: dropped; use tokentails.com/heist. Run `foundryup`; set up the keystore and env; fund the wallets; test the Arc testnet `donate()` | You | ⏳ |
 | Oct 1 | Ask Colosseum (Discord or hello@colosseum.com): can one entry win a track and a general prize? Any video narration rules? | You | ⏳ |
+| **Oct 2, by 12:00 Vilnius** | Register on HackQuest for Arbitrum Open House Singapore. The page shows "Oct 2 17:01" with no time zone (re-checked Oct 2): if it is Singapore time it closes at 12:01 Vilnius, if UTC at 20:01. Do it now | You | ⏳ |
+| Oct 1–3 | Log in at hackathon.monad.xyz: confirm the year, the deadline time zone and the rules (mainnet or testnet, countries, KYC) | You | ⏳ |
 | Oct 2 | Mainnet wave (Arc, Tempo, Arbitrum, Avalanche, plus EURC), Tempo campaign-memo payout, `fund a:ingest` | You | ⏳ |
 | Oct 2 (after the wave) | Commit and push the deployment lists written by `a:ingest` (client and catnip-heist); Vercel redeploys both, so the pages show the real payouts | You | ⏳ |
 | Oct 2–4 | Turn on sponsored donations (`SHELTER_DONATE_*` env on the backend, fund the hot wallet with a small USDC float) | You | ⏳ |
 | Oct 3–5 | AI fills the drafts and renders the demos; you record the Colosseum pitch | Both | ⏳ |
+| Oct 1–6 | Ask Arc: is it a hard cap of 20 grants, or is every project above the bar funded? (15% vs ~50%) | You | ⏳ |
+| Every Anitya weekly close | Record the final entry count (decides whether weeklies are our best odds) | AI | ⏳ |
+| **Oct 4, by 10:00 Vilnius** | **Submit Arbitrum Singapore** (page shows "Oct 4 15:59" with no zone: 10:59 Vilnius if Singapore time, 18:59 if UTC; submit Oct 3 evening), reusing the Arbitrum deploy (Arbitrum Sepolia is the fallback) | You | ⏳ |
+| Oct 1 | Request a Tameion invite (tameion.thecanteenapp.com); ask Canteen whether a Tameion prize affects Arc Microgrants eligibility | You | ⏳ |
 | **Oct 7** | **Submit Arc Microgrants** (closes Oct 14 23:59 ET = Oct 15 06:59 Vilnius) | You | ⏳ |
 | ~Oct 7, 14, 21 | Anitya weeklies (dates unconfirmed; watch Discord `#jam-submission`) | You | ⏳ |
+| **Oct 10, by 23:00 Vilnius** | **Submit Tameion** (public repo, demo video ≤3 min, live link) if invited | You | ⏳ |
 | **Oct 11** | **Submit Colosseum** (closes Oct 12 23:59 PT = Oct 13 09:59 Vilnius) | Team Leader | ⏳ |
+| **Oct 13** | **Submit Monad Metropolis**, Consumer Products & Payments track (after a Monad deploy) | You | ⏳ |
 | **Oct 20** | **Submit the Anitya main jam**, heist-08 world (closes Oct 21 22:59, zone not shown) | You | ⏳ |
 | by Oct 21 | Arc decisions | – | ⏳ |
 | Oct 22+ | Team1 Avalanche; Circle Grants only after Arc decides (Arc excludes work already funded by Circle) | Both | ⏳ |
@@ -82,12 +90,22 @@ How to maintain it:
 
 | Opportunity | Deadline | Chance | Prize | Status |
 |---|---|---|---|---|
-| Arc Microgrants | Oct 14 23:59 ET (target Oct 7) | 19% | $500 | 🟡 draft ready |
-| Colosseum World's Fair (Tempo track and general pool) | Oct 12 23:59 PT | ~8% | $10k–30k | 🟡 draft ready |
+| Arc Microgrants | Oct 14 23:59 ET (target Oct 7) | 15% capped / ~50% if funded above a bar (q=0.7) | $500 | 🟡 draft ready |
+| Colosseum World's Fair (Tempo track; general pool ~1%) | Oct 12 23:59 PT | 2–5% (q=0.7), ~7% (q=0.8) | $10k–30k | 🟡 draft ready |
 | Anitya Weekly Challenge 2 | Sep 30 23:59 UTC | 13% | $50 | ✅ submitted |
-| Anitya later weeklies | weekly, dates unconfirmed | 15% | ~$100 | ⏳ 7 worlds ready |
-| Anitya World Jam main | Oct 21 22:59 | 8% | $400–1,000 | ⏳ world ready |
+| Anitya later weeklies | weekly, dates unconfirmed | ~38% per round if ~8 entries (unverified N) | ~$100 | ⏳ 7 worlds ready |
+| Anitya World Jam main | Oct 21 22:59 | ~14% after payout risk (q=0.7) | $400–1,000 | ⏳ world ready |
 | Team1 Avalanche | rolling (after Oct 21) | 3.8% | ≤$10k | ⏳ |
-| Arbitrum Open House Dubai | Nov 16 – Dec 6 | ~6% | $30k pool | ⏳ |
+| Arbitrum Open House Dubai | Nov 16 – Dec 6 | 1–5% (q=0.7): downgraded, decide at G10 | $30k pool | ⏳ |
 | Circle Developer Grants | rolling (after the Arc decision) | ~2.5% | $5k–100k | ⏳ |
+| Indiepocalypse #83 anthology (itch.io) | Oct 1 16:00 (itch time) | ~13% | $20 + 5% sales | ❌ dropped: not worth the effort |
+| x402 Foundation impact micro-grant | rolling | unknown (<10%) | ≤ $3k | ⏳ Oct 12–16: standard x402 `exact` scheme on mainnet + ≤2 min video, tag @coinbaseDev |
+| The Pollination Project seed grant (for Pink Paw; money goes to the shelter) | Oct 31 for the October cycle | unknown | ≤ $500 | ❌ dropped (team decision 2026-09-30) |
+| Arbitrum Open House Singapore (online) | Oct 4 15:59, zone not shown (SGT worst case: 10:59 Vilnius) | 0.6% (q=0.7) | $15k mid ($115k pool) | ⏳ long shot, ~1 h, app scaffolded |
+| Monad Metropolis (Consumer & Payments) | Oct 13 (zone unverified) | ~1.5% (N unknown) | $10k (3 × $10k per track) | ⏳ long shot, ~2.5 h, app scaffolded, rules to verify |
+| Optional, higher cost: Hedera template bounty (Oct 4), Open Agent (Oct 20), Amazon dev (Oct 23), Bezi Jam 14 (Oct 26), YouCam (Nov 2), SIM Jam (Nov 4) | see `funding/PERCENTILE-REASSESSMENT.md` | 1–8% each | $150–5k | ⏸ consider only if time frees up after Oct 11 |
+| **Tameion Agents Hackathon** (Canteen × Circle × Arc), invite-only, online | Oct 10 23:59 ET (Oct 11 06:59 Vilnius) | ~9–17% (q=0.7, N 120–180 if invites shrink the field); 5% at N=252 | $650–10k (17 paid slots, $40k total) | ⏳ request an invite now; x402 agent + Arc USDC; check the Arc Microgrants "already funded by Circle/Arc" clash |
+| Zoud GameLab Financial Literacy Game Jam (itch.io) | Nov 15 23:59 AoE | ~4–10% (new jam; 161 joined) | up to $140k incl. development support | ⏸ below the bar; needs a new financial-literacy game |
+| 2027 European Prize for Women Innovators (EIC/EIT) | Dec 1 17:00 CET | ~4.5% (200+ applicants, 9 prizes) | €20k–100k | ⏸ only if a woman co-founder applies |
+| Purina Pet Care Innovation Prize 2027 (petcareinnovation.net/prize) | Oct 6 (zone not shown) | – | $25k × up to 5, +$25k grand | ❌ not eligible: FAQ requires ≥ $100k annual revenue from the product, an established US business entity, and in-person Boot Camp (St. Louis, Feb 2027) and Global Pet Expo (Orlando), travel covered |
 | Creative Europe MEDIA 2027 | Feb 10, 2027 | ~7.5% | ~€240k | ⏸ below the bar |

@@ -1,28 +1,30 @@
-import { createPortal } from "react-dom";
-import { CloseButton } from "./CloseButton";
+import { GameModal } from "@/components/ui/GameModal";
 import { cdnFile } from "@/constants/utils";
 
 interface ISuccesPaymentModal {
   close: () => void;
 }
 
-export const SuccesPaymentModal = ({ close }: ISuccesPaymentModal) => {
-  return createPortal(
-    <div className="fixed inset-0 z-[120] flex items-center justify-center overflow-hidden">
-      <div
-        onClick={close}
-        className="fixed inset-0 bg-black/50 md:backdrop-blur-md animate-in fade-in duration-300"
-      ></div>
-      <div className="relative w-full width: max-w-[85%] md:rem:max-w-[600px] bg-gradient-to-b from-purple-300 to-blue-300 rounded-lg shadow-lg overflow-hidden">
-        <CloseButton onClick={close} />
-        <img
-          draggable={false}
-          className="w-full h-auto object-contain"
-          src={cdnFile("background/succes-payment.jpg")}
-          alt="Success Payment"
-        />
-      </div>
-    </div>,
-    document.body
-  );
-};
+/**
+ * Payment confirmation art on the night panel (plan G6 "Overlay migration"). GameModal portals,
+ * traps focus, closes on Esc, scrim and X, and caps the panel to the viewport minus safe areas.
+ */
+export const SuccesPaymentModal = ({ close }: ISuccesPaymentModal) => (
+  <GameModal
+    open
+    onOpenChange={(next) => {
+      if (!next) close();
+    }}
+    title="Payment received"
+    name="payment-success"
+    size="lg"
+    layer="modal-nested"
+  >
+    <img
+      draggable={false}
+      className="block h-auto w-full rounded-md object-contain ring-1 ring-tt-gold-500/30"
+      src={cdnFile("background/succes-payment.jpg")}
+      alt="Your payment went through"
+    />
+  </GameModal>
+);

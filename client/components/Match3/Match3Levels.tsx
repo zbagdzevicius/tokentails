@@ -1,4 +1,5 @@
 import { USER_API } from "@/api/user-api";
+import { CatnipIcon } from "@/components/shared/CatnipIcon";
 import { cdnFile } from "@/constants/utils";
 import {
   CATNIP_CHAOS_TOTAL_CAP,
@@ -20,6 +21,7 @@ import {
   getMatch3LevelIndex,
   getMatch3WorldByLevelId,
 } from "./match3.config";
+import { legacyUnlockRequirement, match3LevelProgress } from "./match3Rules";
 
 interface IProps {
   setSelectedLevel: (level: string) => void;
@@ -61,14 +63,20 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
   const purrsuitCatnipEarned = catnipBreakdown.catnipChaosCount;
   const totalCatnipPool = catnipBreakdown.totalCount;
 
+  // Unlocks follow the server's cleared flags (plan G10, F6): a level opens once the one before it
+  // is cleared. Until the profile carries `match3Cleared`, the old catnip rule applies.
+  const progress = useMemo(
+    () => match3LevelProgress({ match3: profile?.match3, match3Cleared: (profile as { match3Cleared?: unknown } | null)?.match3Cleared }),
+    [profile],
+  );
+
   const levelMeta = useMemo(() => {
     return MATCH3_LEVELS.map((level, index) => {
       const best = normalizedBestCatnip[index] || 0;
       const bestScore = normalizedBestMatch3Score[index] || 0;
-      const unlockRequirement =
-        index > 0 ? Math.max(1, Math.round(MATCH3_LEVELS[index - 1].catnipCap * 0.2)) : 0;
-      const isUnlocked =
-        index === 0 || (normalizedBestCatnip[index - 1] || 0) >= unlockRequirement;
+      const unlockRequirement = legacyUnlockRequirement(index);
+      const isUnlocked = progress.unlocked[index];
+      const isCleared = progress.cleared[index];
       const stars =
         best >= level.catnipCap
           ? 3
@@ -85,14 +93,17 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
         bestScore,
         unlockRequirement,
         isUnlocked,
+        isCleared,
         stars,
       };
     });
-  }, [normalizedBestCatnip, normalizedBestMatch3Score]);
+  }, [normalizedBestCatnip, normalizedBestMatch3Score, progress]);
 
   const suggestedLevelIndex = useMemo(() => {
+    // First visit: level 1, marked START HERE (plan G10 first-time routing).
+    if (progress.firstVisit) return 0;
     const firstIncompleteUnlocked = levelMeta.find(
-      (meta) => meta.isUnlocked && meta.best < meta.level.catnipCap,
+      (meta) => meta.isUnlocked && (!meta.isCleared || meta.best < meta.level.catnipCap),
     );
 
     if (firstIncompleteUnlocked) {
@@ -106,7 +117,7 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
       }
     });
     return latestUnlocked;
-  }, [levelMeta]);
+  }, [levelMeta, progress.firstVisit]);
 
   const suggestedWorldIndex = getMatch3WorldByLevelId(
     MATCH3_LEVELS[suggestedLevelIndex]?.id || MATCH3_LEVELS[0].id,
@@ -273,60 +284,45 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
       <div className="mt-4 flex flex-wrap items-center justify-center gap-3 font-primary">
         <div className="flex min-w-[9.6rem] flex-col items-center gap-x-2 rounded-lg border-2 border-yellow-200/80 bg-[#2b1b59]/95 px-2 pb-2 pt-1 shadow-[0_6px_0_0_rgba(34,19,73,0.65)] backdrop-blur-[2px]">
           <div className="flex items-center gap-1 text-p4 text-yellow-100 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
-            <img
-              draggable={false}
-              className="h-4 w-4"
-              src={cdnFile("logo/catnip.webp")}
-              alt="catnip"
-            />
+            <CatnipIcon size={16} alt="Catnip" />
             <div>PAW MATCH</div>
           </div>
-          <div className="flex w-full items-center justify-center rounded-lg border-2 border-yellow-300/80 bg-[#f8e8b8] px-2 text-p5 text-yellow-900 shadow-[inset_0_-2px_0_rgba(122,59,21,0.35)]">
+          <div className="flex w-full items-center justify-center rounded-lg border-2 border-tt-cream/80 bg-[#f8e8b8] px-2 text-p5 text-tt-gold-ink shadow-[inset_0_-2px_0_rgba(122,59,21,0.35)]">
             {match3CatnipEarned}/{maxMatch3Catnip}
           </div>
         </div>
 
         <div className="flex min-w-[9.6rem] flex-col items-center gap-x-2 rounded-lg border-2 border-yellow-200/80 bg-[#2b1b59]/95 px-2 pb-2 pt-1 shadow-[0_6px_0_0_rgba(34,19,73,0.65)] backdrop-blur-[2px]">
           <div className="flex items-center gap-1 text-p4 text-yellow-100 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
-            <img
-              draggable={false}
-              className="h-4 w-4"
-              src={cdnFile("logo/catnip.webp")}
-              alt="catnip"
-            />
+            <CatnipIcon size={16} alt="Catnip" />
             <div>PURRSUIT</div>
           </div>
-          <div className="flex w-full items-center justify-center rounded-lg border-2 border-yellow-300/80 bg-[#f8e8b8] px-2 text-p5 text-yellow-900 shadow-[inset_0_-2px_0_rgba(122,59,21,0.35)]">
+          <div className="flex w-full items-center justify-center rounded-lg border-2 border-tt-cream/80 bg-[#f8e8b8] px-2 text-p5 text-tt-gold-ink shadow-[inset_0_-2px_0_rgba(122,59,21,0.35)]">
             {purrsuitCatnipEarned}/{CATNIP_CHAOS_TOTAL_CAP}
           </div>
         </div>
 
         <div className="flex min-w-[9.6rem] flex-col items-center gap-x-2 rounded-lg border-2 border-yellow-200/80 bg-[#2b1b59]/95 px-2 pb-2 pt-1 shadow-[0_6px_0_0_rgba(34,19,73,0.65)] backdrop-blur-[2px]">
           <div className="flex items-center gap-1 text-p4 text-yellow-100 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
-            <img
-              draggable={false}
-              className="h-4 w-4"
-              src={cdnFile("logo/catnip.webp")}
-              alt="catnip"
-            />
+            <CatnipIcon size={16} alt="Catnip" />
             <div>TOTAL POOL</div>
           </div>
-          <div className="flex w-full items-center justify-center rounded-lg border-2 border-yellow-300/80 bg-[#f8e8b8] px-2 text-p5 text-yellow-900 shadow-[inset_0_-2px_0_rgba(122,59,21,0.35)]">
+          <div className="flex w-full items-center justify-center rounded-lg border-2 border-tt-cream/80 bg-[#f8e8b8] px-2 text-p5 text-tt-gold-ink shadow-[inset_0_-2px_0_rgba(122,59,21,0.35)]">
             {totalCatnipPool}
           </div>
         </div>
       </div>
 
       {suggestedLevel && (
-        <div className="mt-4 w-full max-w-5xl rounded-2xl border-4 border-yellow-900 bg-gradient-to-br from-indigo-900/85 via-purple-900/80 to-pink-900/70 p-4 shadow-[0_10px_0_0_rgba(120,53,15,0.35)]">
+        <div className="mt-4 w-full max-w-5xl rounded-2xl border-4 border-tt-gold-shadow bg-gradient-to-br from-indigo-900/85 via-purple-900/80 to-pink-900/70 p-4 shadow-[0_10px_0_0_rgba(120,53,15,0.35)]">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="font-secondary text-p6 uppercase tracking-[0.16em] text-yellow-100/90">
-                Continue Your Journey
+                {progress.firstVisit ? "Start here" : "Continue Your Journey"}
               </div>
               <div className="mt-1 flex items-center gap-2 font-primary text-p3 text-yellow-100">
                 <span>Level {suggestedLevel.level.id}</span>
-                <span className="text-yellow-300">•</span>
+                <span className="text-tt-cream">•</span>
                 <span>{suggestedLevel.level.name}</span>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2 font-secondary text-p6 uppercase text-yellow-100/90">
@@ -361,9 +357,9 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
         </div>
       )}
 
-      <div className="relative mt-4 w-full max-w-5xl overflow-hidden rounded-xl border-2 border-yellow-300/80 bg-[#24154a]/90 px-[7px] py-2 shadow-[0_8px_0_0_rgba(36,21,74,0.55)] backdrop-blur-[2px]">
+      <div className="relative mt-4 w-full max-w-5xl overflow-hidden rounded-xl border-2 border-tt-cream/80 bg-[#24154a]/90 px-[7px] py-2 shadow-[0_8px_0_0_rgba(36,21,74,0.55)] backdrop-blur-[2px]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_20%,rgba(250,204,21,0.18)_0%,rgba(250,204,21,0)_42%),radial-gradient(circle_at_86%_22%,rgba(244,114,182,0.2)_0%,rgba(244,114,182,0)_45%),radial-gradient(circle_at_50%_110%,rgba(56,189,248,0.16)_0%,rgba(56,189,248,0)_50%),linear-gradient(160deg,rgba(18,9,43,0.88)_0%,rgba(44,18,90,0.72)_50%,rgba(76,23,85,0.72)_100%)]" />
-        <div className="pointer-events-none absolute -left-12 top-8 h-28 w-28 rounded-full bg-yellow-300/20 blur-2xl" />
+        <div className="pointer-events-none absolute -left-12 top-8 h-28 w-28 rounded-full bg-tt-cream/20 blur-2xl" />
         <div className="pointer-events-none absolute -right-10 bottom-6 h-24 w-24 rounded-full bg-pink-400/20 blur-2xl" />
         <div className="relative z-10 grid grid-cols-2 gap-[7px] sm:grid-cols-3 lg:grid-cols-6">
           {worldStats.map((world) => (
@@ -392,14 +388,14 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
               }}
               className={`w-full min-w-0 rounded-lg border px-[9px] py-[7px] text-left leading-[1.15] transition-all duration-200 ${
                 activeWorldIndex === world.worldIndex
-                  ? "border-yellow-300 bg-[#f8e8b8] text-yellow-900 shadow-[0_4px_0_0_rgba(122,59,21,0.35)]"
-                  : "border-yellow-300/85 bg-[#1f1543]/95 text-yellow-50 shadow-[0_4px_0_0_rgba(16,9,35,0.7)] hover:border-yellow-200 hover:bg-[#2b1d59]"
+                  ? "border-tt-cream bg-[#f8e8b8] text-tt-gold-ink shadow-[0_4px_0_0_rgba(122,59,21,0.35)]"
+                  : "border-tt-cream/85 bg-[#1f1543]/95 text-yellow-50 shadow-[0_4px_0_0_rgba(16,9,35,0.7)] hover:border-yellow-200 hover:bg-[#2b1d59]"
               }`}
             >
               <div
                 className={`font-secondary text-[13px] uppercase tracking-[0.03em] md:text-[14px] lg:text-[15px] ${
                   activeWorldIndex === world.worldIndex
-                    ? "text-yellow-900"
+                    ? "text-tt-gold-ink"
                     : "text-yellow-100 drop-shadow-[0_1px_1px_rgba(0,0,0,0.85)]"
                 }`}
               >
@@ -408,7 +404,7 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
               <div
                 className={`font-secondary text-[11px] uppercase md:text-[12px] lg:text-[13px] ${
                   activeWorldIndex === world.worldIndex
-                    ? "text-yellow-900/90"
+                    ? "text-tt-gold-ink/90"
                     : "text-yellow-100/95 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
                 }`}
               >
@@ -419,7 +415,7 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
         </div>
       </div>
 
-      <div className="mt-4 w-full max-w-5xl rounded-2xl border-4 border-yellow-900 bg-gradient-to-br from-indigo-950/85 via-purple-900/80 to-pink-900/70 p-4 shadow-[0_8px_0_0_rgba(120,53,15,0.35)]">
+      <div className="mt-4 w-full max-w-5xl rounded-2xl border-4 border-tt-gold-shadow bg-gradient-to-br from-indigo-950/85 via-purple-900/80 to-pink-900/70 p-4 shadow-[0_8px_0_0_rgba(120,53,15,0.35)]">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="font-secondary text-p6 uppercase tracking-[0.16em] text-yellow-100/90">
@@ -427,7 +423,7 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
             </div>
             <div className="mt-1 flex items-center gap-2 font-primary text-p4 text-yellow-100">
               <span>Level {selectedLeaderboardLevel.id}</span>
-              <span className="text-yellow-300">•</span>
+              <span className="text-tt-cream">•</span>
               <span>{selectedLeaderboardLevel.name}</span>
             </div>
             <div className="mt-1 font-secondary text-[11px] uppercase text-yellow-100/85">
@@ -445,8 +441,8 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
                   onClick={() => setLeaderboardLevelId(meta.level.id)}
                   className={`rounded-md border px-2 py-1 font-secondary text-[11px] uppercase transition-all duration-200 ${
                     isActive
-                      ? "border-yellow-200 bg-yellow-300/30 text-yellow-100"
-                      : "border-yellow-900/70 bg-black/25 text-yellow-100/85 hover:border-yellow-300/80"
+                      ? "border-yellow-200 bg-tt-cream/30 text-yellow-100"
+                      : "border-tt-gold-shadow/70 bg-black/25 text-yellow-100/85 hover:border-tt-cream/80"
                   }`}
                 >
                   L{meta.level.id}
@@ -457,7 +453,7 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
         </div>
 
         <div className="mt-3 overflow-hidden rounded-xl border-2 border-yellow-200/45 bg-black/35">
-          <div className="grid grid-cols-[3.2rem_minmax(0,1fr)_6rem] border-b border-yellow-200/35 bg-yellow-300/20 px-2 py-1 font-secondary text-[11px] uppercase tracking-[0.08em] text-yellow-100">
+          <div className="grid grid-cols-[3.2rem_minmax(0,1fr)_6rem] border-b border-yellow-200/35 bg-tt-cream/20 px-2 py-1 font-secondary text-[11px] uppercase tracking-[0.08em] text-yellow-100">
             <div className="text-center">Rank</div>
             <div>Player</div>
             <div className="text-right">Score</div>
@@ -502,9 +498,9 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
         )}
       </div>
 
-      <div className="relative mt-4 flex w-full max-w-5xl flex-wrap justify-center gap-4 bg-gradient-to-b from-yellow-900/20 to-yellow-900/70 px-4 pb-10 pt-6 md:rounded-lg md:border-2 md:border-yellow-300/40">
+      <div className="relative mt-4 flex w-full max-w-5xl flex-wrap justify-center gap-4 bg-gradient-to-b from-tt-gold-shadow/20 to-tt-gold-shadow/70 px-4 pb-10 pt-6 md:rounded-lg md:border-2 md:border-tt-cream/40">
         {worldLevels.map((meta) => {
-          const { level, best, bestScore, isUnlocked, stars, unlockRequirement, index } = meta;
+          const { level, best, bestScore, isUnlocked, isCleared, stars, unlockRequirement, index } = meta;
           const objective = MATCH3_TILE_BY_TYPE[level.objectiveType];
           const starText = `${"★".repeat(stars)}${"☆".repeat(3 - stars)}`;
           const isSuggested = index === suggestedLevelIndex;
@@ -523,9 +519,9 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                 }}
-                className={`clickable relative flex h-[6.65rem] w-[6.65rem] flex-col items-center justify-center border-4 border-yellow-900 transition-all ${
+                className={`clickable relative flex h-[6.65rem] w-[6.65rem] flex-col items-center justify-center border-4 border-tt-gold-shadow transition-all ${
                   isUnlocked
-                    ? "hover:scale-110 hover:border-yellow-300 hover:brightness-110"
+                    ? "hover:scale-110 hover:border-tt-cream hover:brightness-110"
                     : "opacity-80"
                 } ${isSuggested ? "ring-2 ring-yellow-200" : ""} glow-box`}
               >
@@ -537,8 +533,11 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
                 </div>
 
                 {isSuggested && isUnlocked && (
-                  <div className="absolute -top-2 rounded-md border border-yellow-200/80 bg-pink-600/90 px-2 py-0.5 font-secondary text-[12px] uppercase tracking-[0.08em] text-yellow-50">
-                    NEXT
+                  <div
+                    className="absolute -top-2 whitespace-nowrap rounded-md border border-yellow-200/80 bg-pink-600/90 px-2 py-0.5 font-secondary text-[12px] uppercase tracking-[0.08em] text-yellow-50"
+                    data-testid={progress.firstVisit ? "match3-start-here" : undefined}
+                  >
+                    {progress.firstVisit ? "START HERE" : "NEXT"}
                   </div>
                 )}
 
@@ -566,16 +565,11 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
                 )}
 
                 <div className="absolute -bottom-[1.55rem] z-30 flex flex-col items-center gap-[2px]">
-                  <span className="rounded-md border border-yellow-900 bg-yellow-200/85 px-1.5 font-secondary text-[14px] uppercase leading-none text-yellow-900">
+                  <span className="rounded-md border border-tt-gold-shadow bg-yellow-200/85 px-1.5 font-secondary text-[14px] uppercase leading-none text-tt-gold-ink">
                     Score {bestScore.toLocaleString()}
                   </span>
-                  <span className="flex items-center rounded-md border border-yellow-900 bg-yellow-300/70 px-1.5 font-primary text-[16px] leading-none text-yellow-900">
-                    <img
-                      src={cdnFile("logo/catnip.webp")}
-                      className="mr-1 h-4 w-4"
-                      draggable={false}
-                      alt="catnip"
-                    />
+                  <span className="flex items-center rounded-md border border-tt-gold-shadow bg-tt-cream/70 px-1.5 font-primary text-[16px] leading-none text-tt-gold-ink">
+                    <CatnipIcon size={16} className="mr-1" alt="Catnip" />
                     {best}/{level.catnipCap}
                   </span>
                 </div>
@@ -589,7 +583,14 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
               </div>
               {!isUnlocked && (
                 <div className="mt-1 text-center font-secondary text-[14px] uppercase leading-none text-yellow-100/85">
-                  Need {unlockRequirement}+ from prev level
+                  {progress.source === "server"
+                    ? `Clear level ${MATCH3_LEVELS[index - 1]?.id ?? ""} to unlock`
+                    : `Need ${unlockRequirement}+ from prev level`}
+                </div>
+              )}
+              {isUnlocked && isCleared && (
+                <div className="mt-1 text-center font-secondary text-[14px] uppercase leading-none text-tt-cream">
+                  Cleared
                 </div>
               )}
             </div>
@@ -597,11 +598,11 @@ export const Match3Levels = ({ setSelectedLevel }: IProps) => {
         })}
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-2 rounded-xl border-4 border-yellow-900 bg-black/35 px-4 py-2">
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-2 rounded-xl border-4 border-tt-gold-shadow bg-black/35 px-4 py-2">
         {MATCH3_TILE_ASSETS.map((tile) => (
           <div
             key={tile.type}
-            className="flex items-center gap-1 rounded-md bg-yellow-100/90 px-2 py-1 font-secondary text-p6 text-yellow-900"
+            className="flex items-center gap-1 rounded-md bg-yellow-100/90 px-2 py-1 font-secondary text-p6 text-tt-gold-ink"
           >
             <img
               src={tile.src}
