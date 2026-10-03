@@ -102,6 +102,10 @@ jobs:
       - name: Type-check the e2e harness
         run: npx tsc -p e2e --noEmit
       - run: npx eslint .
+      # tone-5e.test.ts runs tools/copy-lint as a CLI, which imports its own pinned `typescript`
+      # from tools/copy-lint/node_modules (it does not resolve the client's copy).
+      - name: Install copy-lint dependencies (used by client tests)
+        run: npm ci --prefix ../tools/copy-lint
       - run: npm test
       - name: Install Chromium for Playwright
         run: npx playwright install --with-deps chromium

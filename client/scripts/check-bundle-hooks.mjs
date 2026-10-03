@@ -83,7 +83,8 @@ function main(argv) {
   } else {
     console.log(`check-bundle-hooks: ${result.scanned} files in ${dirs.join(", ")}, no hook markers`);
   }
-  if (result.findings.length && process.env.GITHUB_ACTIONS) {
+  // Annotations go to stdout, so they are skipped with --json: stdout must stay one JSON document.
+  if (!json && result.findings.length && process.env.GITHUB_ACTIONS) {
     result.findings.forEach((f) => console.log(`::error file=${f.file}::hook markers in the bundle: ${f.markers.join(", ")}`));
   }
   return result.findings.length ? 1 : 0;

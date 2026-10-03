@@ -5,6 +5,14 @@ import { BlessingController } from './blessing.controller';
 import { blessingKindFor, PORTRAIT_SHELTER_ID, rescueBlessingFilter } from './blessing.schema';
 import { BlessingRepository } from './blessing.repository';
 
+// The controller's imports read secrets at import time: ai.utils builds an OpenAI client (throws
+// without OPENAI_API_KEY) and user.service pulls in EncryptionService (scrypt of
+// INVALIDATE_CACHE_SECRET). CI has neither, so stub them as featured.spec.ts does; these tests call
+// neither, and the controller gets an empty UserService below.
+jest.mock('src/shared/utils/ai.utils', () => ({ generateCat: jest.fn() }));
+jest.mock('src/shared/utils/ai-avatar', () => ({ generateAvatarFromImage: jest.fn() }));
+jest.mock('src/user/user.service', () => ({ UserService: class {} }));
+
 const PORTRAIT = new Types.ObjectId(PORTRAIT_SHELTER_ID);
 
 describe('Blessing kind (plan F7.8)', () => {

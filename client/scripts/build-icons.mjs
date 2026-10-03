@@ -6,6 +6,10 @@
  *                                         Capacitor inputs
  *   node scripts/build-icons.mjs --check  exit 1 if any committed output is missing or stale (CI)
  *
+ * `--check` compares decoded pixels, not bytes: libvips resamples and encodes slightly differently
+ * per platform (macOS arm64 vs the Linux CI runner), so byte equality only holds on the machine
+ * that wrote the files. See `sameImage` for what must match exactly and what is tolerated.
+ *
  * Source: `resources/source/logo.png`, the 1200x1300 RGBA pixel-art bust (not square, so every
  * output pads it onto a square first). Outputs:
  *
@@ -257,6 +261,68 @@ export function outputs() {
   return out;
 }
 
+/**
+ * Cross-platform noise allowed by `--check`, on alpha-premultiplied 0-255 samples (the colour of a
+ * fully transparent pixel is meaningless, so it is weighted out). Measured macOS arm64 vs Linux
+ * with sharp 0.32.6: PNG max 6 / mean 0.16, the mozjpeg OG card max 16 / mean 0.42. A real change
+ * (another source, scale, lift or background) moves the mean far past this bound.
+ */
+export const PIXEL_TOLERANCE = Object.freeze({ max: 32, mean: 1 });
+
+async function decode(buf) {
+  const meta = await sharp(buf).metadata();
+  const { data, info } = await sharp(buf).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  return { format: meta.format, channels: meta.channels, width: info.width, height: info.height, data };
+}
+
+/**
+ * True when two encoded images are the same picture: equal format, size and channel count (so an
+ * alpha channel cannot appear on the App Store icon), and premultiplied samples within `tolerance`.
+ */
+export async function samePicture(a, b, tolerance = PIXEL_TOLERANCE) {
+  if (a.equals(b)) return true;
+  const [x, y] = await Promise.all([decode(a), decode(b)]);
+  if (x.format !== y.format || x.channels !== y.channels || x.width !== y.width || x.height !== y.height) {
+    return false;
+  }
+  let max = 0;
+  let sum = 0;
+  for (let i = 0; i < x.data.length; i += 4) {
+    const ax = x.data[i + 3];
+    const ay = y.data[i + 3];
+    for (let c = 0; c < 4; c++) {
+      const d = c === 3 ? Math.abs(ax - ay) : Math.abs((x.data[i + c] * ax - y.data[i + c] * ay) / 255);
+      sum += d;
+      if (d > max) max = d;
+    }
+  }
+  return max <= tolerance.max && sum / x.data.length <= tolerance.mean;
+}
+
+/** The `[{ size, png }]` entries of an `.ico` written by `encodeIco`. */
+export function decodeIco(buf) {
+  const count = buf.readUInt16LE(4);
+  return Array.from({ length: count }, (_, i) => {
+    const entry = 6 + i * 16;
+    const size = buf.readUInt8(entry) || 256;
+    const offset = buf.readUInt32LE(entry + 12);
+    return { size, png: buf.subarray(offset, offset + buf.readUInt32LE(entry + 8)) };
+  });
+}
+
+/** `--check` comparison for one output; see `samePicture`. */
+export async function sameImage(path, committed, generated) {
+  if (committed.equals(generated)) return true;
+  if (!path.endsWith(".ico")) return samePicture(committed, generated);
+  const a = decodeIco(committed);
+  const b = decodeIco(generated);
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].size !== b[i].size || !(await samePicture(a[i].png, b[i].png))) return false;
+  }
+  return true;
+}
+
 async function main() {
   const check = process.argv.includes("--check");
   if (!existsSync(SOURCE)) {
@@ -270,7 +336,7 @@ async function main() {
     const file = join(root, path);
     const data = await build();
     if (check) {
-      if (!existsSync(file) || !readFileSync(file).equals(data)) stale.push(path);
+      if (!existsSync(file) || !(await sameImage(path, readFileSync(file), data))) stale.push(path);
       continue;
     }
     mkdirSync(dirname(file), { recursive: true });
