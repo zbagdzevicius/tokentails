@@ -22,6 +22,10 @@ describe('formatting', () => {
   it('rounds to cents and trims', () => {
     expect(formatAmount(2n * 10n ** 18n, 'USDC')).toBe('2 USDC');
     expect(formatAmount(1_505_000_000_000_000_000n, 'USDC')).toBe('1.51 USDC');
+    // A small native gift never reads as zero.
+    expect(formatAmount(2_100_000_000_000_000n, 'ETH')).toBe('0.0021 ETH');
+    expect(formatAmount(1_000_000_000_000_000n, 'ETH')).toBe('0.001 ETH');
+    expect(formatAmount(1n, 'ETH')).toBe('<0.000001 ETH');
     expect(formatAmount(1_500_000_000_000_000_000n, 'EURC')).toBe('1.5 EURC');
   });
   it('joins symbols and hides an empty total', () => {

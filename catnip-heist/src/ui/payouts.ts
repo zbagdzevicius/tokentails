@@ -37,8 +37,11 @@ export const PAYOUT_CHAINS: Record<number, ChainUnits> = {
   43114: { rpc: 'https://api.avax.network/ext/bc/C/rpc', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'AVAX' },
   43113: { rpc: 'https://api.avax-test.network/ext/bc/C/rpc', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'AVAX' },
   8453: { rpc: 'https://mainnet.base.org', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
+  84532: { rpc: 'https://sepolia.base.org', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
   // Robinhood Chain pays USDG (Paxos), never USDC: totals are kept per symbol, so it is never summed as USDC.
   4663: { rpc: 'https://rpc.mainnet.chain.robinhood.com', decimals: 6, symbol: 'USDG', nativeDecimals: 18, nativeSymbol: 'ETH' },
+  // Robinhood testnet has no stablecoin: the wave deploys a mock (mUSDC), never summed with real dollars.
+  46630: { rpc: 'https://rpc.testnet.chain.robinhood.com', decimals: 6, symbol: 'mUSDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
   143: { rpc: 'https://rpc.monad.xyz', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'MON' },
 };
 
@@ -68,8 +71,14 @@ export function payoutOf(log: PayoutLog, chain: ChainUnits): { symbol: string; a
   return { symbol, amount18: BigInt('0x' + word) * 10n ** BigInt(18 - decimals) };
 }
 
-/** "3.5 USDC" style, trimmed to at most 2 decimals. */
+/** "3.5 USDC" style, trimmed to at most 2 decimals; under 0.01, two significant digits ("0.0021 ETH"). */
 export function formatAmount(amount18: bigint, symbol: string): string {
+  if (amount18 > 0n && amount18 < 5n * 10n ** 15n) {
+    const f = amount18.toString().padStart(18, '0');
+    const lead = f.search(/[1-9]/);
+    if (lead >= 6) return `<0.000001 ${symbol}`;
+    return `0.${f.slice(0, lead + 2).replace(/0+$/, '')} ${symbol}`;
+  }
   const cents = (amount18 + 5n * 10n ** 15n) / 10n ** 16n; // round to 0.01
   const whole = cents / 100n;
   const frac = (cents % 100n).toString().padStart(2, '0').replace(/0+$/, '');

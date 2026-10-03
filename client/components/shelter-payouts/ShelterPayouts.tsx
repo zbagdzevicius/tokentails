@@ -77,10 +77,16 @@ export function payoutsEmptyCopy(startDate: string | null | undefined, now: Date
     : `${lead} Payouts will start counting on ${label}.`;
 }
 
-// Two decimals is plenty for a headline figure: 12.345678 -> 12.34.
-const twoDp = (v18: bigint) => {
+// Two decimals is plenty for a headline figure: 12.345678 -> 12.34. Below 1, keep two significant
+// digits so a small native gift never reads as zero: 0.0021 ETH -> 0.0021, not 0.00.
+export const twoDp = (v18: bigint) => {
   const [w, f] = formatUnits(v18, 18).split(".");
-  return f ? `${w}.${f.slice(0, 2)}` : w;
+  if (!f) return w;
+  if (w !== "0") return `${w}.${f.slice(0, 2)}`;
+  const lead = f.search(/[1-9]/);
+  if (lead < 0) return "0";
+  if (lead >= 6) return "<0.000001";
+  return `0.${f.slice(0, Math.max(2, lead + 2))}`;
 };
 
 const Link = ({ href, text, label }: { href: string; text: string; label?: string }) => (
