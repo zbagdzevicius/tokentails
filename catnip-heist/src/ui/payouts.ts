@@ -37,6 +37,8 @@ export const PAYOUT_CHAINS: Record<number, ChainUnits> = {
   43114: { rpc: 'https://api.avax.network/ext/bc/C/rpc', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'AVAX' },
   43113: { rpc: 'https://api.avax-test.network/ext/bc/C/rpc', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'AVAX' },
   8453: { rpc: 'https://mainnet.base.org', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
+  // Robinhood Chain pays USDG (Paxos), never USDC: totals are kept per symbol, so it is never summed as USDC.
+  4663: { rpc: 'https://rpc.mainnet.chain.robinhood.com', decimals: 6, symbol: 'USDG', nativeDecimals: 18, nativeSymbol: 'ETH' },
   143: { rpc: 'https://rpc.monad.xyz', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'MON' },
 };
 

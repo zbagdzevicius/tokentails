@@ -6,12 +6,14 @@
   "frame": "payout-rail",
   "chain": [
     "tempo",
-    "arbitrum"
+    "arbitrum",
+    "base",
+    "robinhood"
   ],
   "mainnet_required": true,
   "build_window_start": "2026-09-14",
   "build_window_end": "2026-10-12",
-  "next": "Deploy ShelterSplit to Tempo testnet, then Tempo mainnet (Arbitrum One second), record it, then fund a:submission colosseum-worlds-fair",
+  "next": "Run the mainnet wave (Tempo, Arbitrum One, Base, Robinhood Chain), fund a:ingest, then fund fill --ingest --write and fund a:submission colosseum-worlds-fair",
   "criteria": [
     [
       "C1",
@@ -52,7 +54,7 @@
   ],
   "submission": {
     "fields": {
-      "Tracks entered": "Tempo track",
+      "Tracks entered": "Tempo, Arbitrum, Base and Robinhood Chain",
       "Category": "Payments / public goods"
     },
     "sections": [
@@ -83,6 +85,10 @@
         "auto": "deployments"
       },
       {
+        "title": "Other chains",
+        "from": "Other chains"
+      },
+      {
         "title": "Build evidence",
         "auto": "build"
       },
@@ -103,14 +109,13 @@
       "Public GitHub repo; disclose pre-hackathon work (products are judged only on work done Sep 14 - Oct 12)",
       "Product demo video recorded by a human, no more than 3 minutes (colosseum.com/hackathon FAQ)",
       "Pitch/presentation video recorded by a human, 2 to 3 minutes (colosseum.com/hackathon FAQ)",
-      "Deployment address and explorer link on Tempo mainnet (explore.tempo.xyz), plus Arbitrum One if entered",
+      "Deployment address and explorer link per entered track: Tempo mainnet (explore.tempo.xyz), Arbitrum One, Base and Robinhood Chain (robinhoodchain.blockscout.com)",
       "Every team member registered on colosseum.com before 2026-10-12 23:59 PT (rules section 6)"
     ]
   },
   "verify": [
-    "G5: add the Arbitrum track or the Public Goods Award to 'Tracks entered' only after Colosseum confirms one Project Submission may compete for them (rules s.7 allow one submission per team)",
+    "G5: add the Public Goods Award to Tracks entered only if Colosseum says it is chosen in the form (entering several ecosystem tracks with one submission was confirmed by the user on 2026-10-03)",
     "form field character limits",
-    "whether one project may enter more than one ecosystem track (rules section 7 allows one Project Submission per team; the tracks question is not answered in the rules or FAQ, ask in the Colosseum Discord)",
     "whether the Tempo track requires mainnet or accepts testnet (rules section 14(f) says only 'integrate with the Tempo blockchain')"
   ]
 }

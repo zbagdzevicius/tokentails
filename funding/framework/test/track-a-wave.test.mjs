@@ -72,6 +72,21 @@ test('script: keystore signer, chain-id guard per chain, no private keys, dry ru
   assert.match(s, /# beta: chains.json marks this network verify: true/);
   assert.match(s, /a:ingest --network mainnet/);
   assert.ok(s.indexOf('deploy beta') < s.indexOf('deploy alpha'));
+  // Each deploy line names its payout token; a non-USDC chain warns that the proof payout is in that token.
+  assert.match(s, /deploy alpha 111 RPC_ALPHA '0x1{40}' {3}# pays USDC/);
+  assert.match(s, /deploy musd 333 RPC_MU '' {3}# pays MUSD/);
+  assert.match(s, /on musd the same PROOF_AMOUNT is paid in MUSD \(18 decimals\)/);
+  assert.match(s, /payout-token balance/);
+});
+
+test('real chains.json: Robinhood Chain mainnet pays USDG, Base pays USDC', async () => {
+  const real = JSON.parse(readFileSync(new URL('../tracks/a-build/chains.json', import.meta.url), 'utf8'));
+  const rh = W.splitToken(real.robinhood.networks.mainnet);
+  assert.deepEqual([rh.symbol, rh.address, rh.decimals], ['USDG', '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168', 6]);
+  assert.equal(real.robinhood.networks.mainnet.chainId, 4663);
+  assert.equal(real.robinhood.networks.mainnet.verifier.type, 'blockscout');
+  assert.equal(W.tokenSymbolOf(real.robinhood.networks.mainnet, '0x5FC5360D0400A0FD4F2AF552ADD042D716F1D168'.replace('0X', '0x')), 'USDG');
+  assert.equal(W.splitToken(real.base.networks.mainnet).symbol, 'USDC');
 });
 
 test('a:wave writes an executable script and skips chains already deployed', async () => {

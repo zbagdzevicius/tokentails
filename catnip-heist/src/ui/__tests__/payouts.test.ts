@@ -72,3 +72,24 @@ describe('deployment token', () => {
     expect(deploymentUnits({}, arc)).toBe(arc);
   });
 });
+
+describe('Robinhood Chain (USDG)', () => {
+  const json = (v: unknown) => new Response(JSON.stringify(v), { status: 200 });
+  it('reads Robinhood payouts as USDG and keeps them out of the USDC total', async () => {
+    const rh = PAYOUT_CHAINS[4663];
+    expect(rh).toMatchObject({ decimals: 6, symbol: 'USDG', nativeSymbol: 'ETH' });
+    expect(PAYOUT_CHAINS[8453]).toMatchObject({ decimals: 6, symbol: 'USDC' });
+    const deployments = [
+      { chainId: 8453, address: SPLIT, fromBlock: 1 },
+      { chainId: 4663, address: SPLIT, fromBlock: 1, token: 'USDG' },
+    ];
+    const f = (async (url: string) => {
+      if (url === '/d.json') return json(deployments);
+      return json({ result: [{ topics: [DISBURSED_TOPIC], data: word(url.includes('robinhood') ? 2_000_000n : 1_000_000n) }] });
+    }) as typeof fetch;
+    const totals = await fetchShelterTotals('/d.json', f);
+    expect(totals.get('USDC')).toBe(10n ** 18n);
+    expect(totals.get('USDG')).toBe(2n * 10n ** 18n);
+    expect(totalText(totals)).toBe('Token Tails has sent 1 USDC + 2 USDG to shelters so far, on-chain');
+  });
+});

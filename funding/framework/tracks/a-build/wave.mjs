@@ -144,6 +144,7 @@ export function waveScript(rows, { network = 'mainnet', date = new Date().toISOS
     ...[...new Set(rows.map((r) => r.rpcEnv))].map((e) => `#   export ${e}=https://...`),
     '# Optional proof payout (one real transfer to one real shelter, the strongest on-chain proof):',
     `#   export PROOF_SHELTER=0x... PROOF_SHELTER_NAME="..." PROOF_AMOUNT=1000000   # 1 ${alt || 'USDC'} (6 decimals)`,
+    ...rows.filter((r) => !alt && r.token.symbol !== 'USDC').map((r) => `#   on ${r.chain} the same PROOF_AMOUNT is paid in ${r.token.symbol} (${r.token.decimals} decimals): hold that token there, not USDC`),
     `# Dry run first: DRY_RUN=1 ./${waveFile(network, token)}   (simulates, broadcasts nothing)`,
     'set -uo pipefail',
     'export FOUNDRY_DISABLE_NIGHTLY_WARNING=1   # the Tempo-aware nightly prints a warning that would pollute captured output',
@@ -179,6 +180,8 @@ export function waveScript(rows, { network = 'mainnet', date = new Date().toISOS
     '  local got; got="$(cast chain-id --rpc-url "$url" 2>/dev/null)"',
     '  [ "$got" = "$id" ] || { echo "skip: RPC answered chain ${got:-nothing}, expected $id"; SKIP+=("$chain: wrong RPC"); return; }',
     '  echo "deployer balance: $(cast balance "$DEPLOYER" --rpc-url "$url" --ether 2>/dev/null || echo "?")"',
+    '  # The proof payout spends PROOF_AMOUNT of the payout token (USDC, or USDG on Robinhood): show it before deploying.',
+    '  echo "deployer payout-token balance (raw units): $(cast call "$token" "balanceOf(address)(uint256)" "$DEPLOYER" --rpc-url "$url" 2>/dev/null || echo "?")"',
     '  # Re-running this script after a partial failure must not deploy a second instance: skip a chain whose',
     '  # broadcast, written after this script, already holds a mined ShelterSplit for this token.',
     '  local prev="$PWD/broadcast/DeployShelterSplit.s.sol/$id/run-latest.json"',
@@ -239,7 +242,7 @@ export function waveScript(rows, { network = 'mainnet', date = new Date().toISOS
   ];
   for (const r of rows) {
     if (r.needsCheck) lines.push(`# ${r.chain}: chains.json marks this network verify: true. ${r.notes.slice(0, 240).replace(/\n/g, ' ')}`);
-    lines.push(`deploy ${r.chain} ${r.chainId} ${r.rpcEnv} ${q(r.token.address || '')}${r.forgeArgs.length ? ' ' + r.forgeArgs.map(q).join(' ') : ''}`);
+    lines.push(`deploy ${r.chain} ${r.chainId} ${r.rpcEnv} ${q(r.token.address || '')}${r.forgeArgs.length ? ' ' + r.forgeArgs.map(q).join(' ') : ''}   # pays ${r.token.symbol}`);
   }
   lines.push(
     '',
@@ -352,10 +355,11 @@ async function cmdIngest({ flags }) {
   if (network === 'mainnet') {
     const pub = loadDeployments().filter((d) => d.network === 'mainnet')
       .map(({ contract, chain, network: n, chainId, address, tx, token, proofTxs }) => {
-        // A second-token instance (EURC) states its symbol and decimals: the pages otherwise label every
-        // ERC-20 payout on a chain with that chain's default token (USDC).
+        // Any non-USDC instance states its symbol and decimals: a second-token instance (EURC) and a chain
+        // whose default payout token is not USDC (USDG on Robinhood, MUSD on Mezo). The pages otherwise
+        // label every ERC-20 payout on a chain with that chain's default token, and must never sum it as USDC.
         let alt = null;
-        try { const ni = networkInfo(chains, chain, n); if (token && token !== splitToken(ni).symbol) alt = splitToken(ni, token); } catch { /* unknown chain */ }
+        try { const ni = networkInfo(chains, chain, n); const t = splitToken(ni, token || null); if (t.symbol !== 'USDC') alt = t; } catch { /* unknown chain */ }
         return { contract, chain, network: n, chainId, address, ...(tx ? { tx } : {}), ...(token ? { token } : {}), ...(alt ? { symbol: alt.symbol, decimals: alt.decimals } : {}), ...(proofTxs ? { proofTxs } : {}) };
       });
     for (const f of wavePaths.publish()) {

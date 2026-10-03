@@ -5,10 +5,10 @@ status: drafting
 frame: payout-rail
 deadline: "2026-10-12T23:59:00-07:00"
 url: "https://colosseum.com/worldsfair"
-next: "Deploy ShelterSplit to Tempo testnet, then Tempo mainnet (Arbitrum One second), record it, then fund a:submission colosseum-worlds-fair"
+next: "Run the mainnet wave (Tempo, Arbitrum One, Base, Robinhood Chain), fund a:ingest, then fund fill --ingest --write and fund a:submission colosseum-worlds-fair"
 created: 2026-09-25
 profile: colosseum-worlds-fair
-chain: [tempo, arbitrum]
+chain: [tempo, arbitrum, base, robinhood]
 mainnet_required: true
 repo: "https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split"
 demo: ""
@@ -47,7 +47,7 @@ Track A fields: `chain` is a key in `tracks/a-build/chains.json` (or a list, any
 
 - Public code repository with commits inside the build window (2026-09-14 to 2026-10-12).
 - Demo video and pitch video (recorded by a human).
-- Deployment address on the chain of the track entered (Tempo mainnet first, Arbitrum One if that track is entered too; see notes/chain-decision.md).
+- Deployment address on the chain of each track entered: Tempo, Arbitrum One, Base and Robinhood Chain (one submission enters all four tracks, confirmed by the user on 2026-10-03; see notes/chain-decision.md).
 
 ## Exclusions
 

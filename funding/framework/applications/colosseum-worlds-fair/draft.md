@@ -6,6 +6,7 @@ version: 5
 
 <!-- Values in single braces are filled after the Oct 2 Tempo deploy: {SPLIT_ADDRESS},
 {TEMPO_TX} (first shelter payout, a manual disburseWithMemo call), {SHELTER_WALLET},
+{ARB_SPLIT}, {BASE_SPLIT}, {ROBINHOOD_SPLIT} (fund fill --ingest --write takes them from deployments.json),
 github.com/zbagdzevicius/tokentails, {DEMO_URL}, {PITCH_VIDEO_URL}. fund check does not flag single braces: search
 for "{" before submitting. The showcase shelter is Pink Paw (Rožinė pėdutė); state nothing about
 it beyond its name and the custody disclosure, and do not claim its consent until the signed letter or
@@ -44,6 +45,12 @@ Tempo is a payments chain, and Token Tails already takes card payments through S
 
 ## On-chain proof <!-- criterion: C1, C4 | limit: 800 -->
 Tempo mainnet: ShelterSplit at {SPLIT_ADDRESS}. The first payout to Pink Paw is transaction {TEMPO_TX}, with its memo, and it is listed on the payouts page. Disclosure: the receiving wallet {SHELTER_WALLET} is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Before the hackathon, and disclosed as prior work, the team shipped three Soroban contracts on Stellar mainnet [F-009] and ERC-721 contracts on SKALE testnet and mainnet [F-010].
+
+## Other chains <!-- criterion: C1, C5 | limit: 800 -->
+This one submission also enters the Arbitrum, Base and Robinhood Chain tracks. Each chain runs the same ShelterSplit contract, from the same source and test suite; only the payout token differs.
+- Arbitrum One: ShelterSplit at {ARB_SPLIT}, paying out USDC.
+- Base: ShelterSplit at {BASE_SPLIT}, paying out native USDC.
+- Robinhood Chain: ShelterSplit at {ROBINHOOD_SPLIT}. Robinhood Chain has no USDC, so this instance pays out USDG (Paxos), and its payouts are readable on robinhoodchain.blockscout.com. The payouts page shows USDG as its own total and never adds it to USDC.
 
 ## Traction <!-- criterion: C2, C6 | limit: 1000 -->
 Judge only the in-window work: the rail, the payouts page, Catnip Heist and the giving loop. Everything below existed before 2026-09-14 and is disclosed as prior work. Token Tails is live on web, iOS and Android [F-015] [F-016], with five game modes [F-018], and already takes Stripe, in-app purchases and USDC [F-020]. Historical peaks, not current activity: on the SEI chain, Token Tails peaked in the week of 2025-11-17 at 324,422 weekly unique active wallets [F-003] and 875,907 weekly transactions [F-004]; that SEI activity ended in March 2026 and none of it is Tempo data. Blockchain for Good Alliance named Token Tails a top 2025 incubation project [F-014].

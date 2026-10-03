@@ -1,10 +1,14 @@
 # Chain decision — Colosseum Crypto World's Fair
 
-_Written 2026-09-27. Sources are linked inline. Nothing here has been signed or broadcast._
+_Written 2026-09-27, updated 2026-10-03 (multi-track: Base and Robinhood Chain added). Sources are linked inline. Nothing here has been signed or broadcast._
 
 ## Decision
 
-`chain: [tempo, arbitrum]` in call.md and in `tracks/a-build/programs/colosseum-worlds-fair.json`.
+`chain: [tempo, arbitrum, base, robinhood]` in call.md and in `tracks/a-build/programs/colosseum-worlds-fair.json`.
+
+**2026-10-03: multi-track confirmed.** The user confirmed that one Project Submission may enter several
+ecosystem tracks. "Tracks entered" is now Tempo, Arbitrum, Base and Robinhood Chain. The same ShelterSplit
+contract is deployed to each chain by the Track A mainnet wave (`fund a:wave --network mainnet`).
 
 1. **Tempo mainnet first.** It has the larger track pool: "$100,000 will be awarded across 10 of the
    best products that integrate with the Tempo blockchain" (rules §14(f)). Colosseum's Tempo resources
@@ -14,8 +18,15 @@ _Written 2026-09-27. Sources are linked inline. Nothing here has been signed or 
 2. **Arbitrum One second.** "$25,000 … across 5 of the best products that integrate with the Arbitrum
    blockchain" (rules §14(k)). The same deployment also serves the Arbitrum Singapore and Dubai
    buildathons (only if they accept remote teams: the team is remote-only) and the Arbitrum DDA grant.
-3. **Base and Robinhood are dropped.** They pay $25k across 5 teams each (§14(j), §14(l)).
-   Robinhood Chain also has no official USDC address (see chains.json).
+3. **Base and Robinhood Chain are added (2026-10-03).** They pay $25k across 5 teams each (§14(j),
+   §14(l)). With multi-track confirmed, each costs one more deploy of the same contract and nothing else.
+   - Base mainnet (8453) pays out native USDC `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`.
+   - Robinhood Chain mainnet (4663, gas token ETH) has **no USDC**. ShelterSplit there pays out **USDG**
+     (Paxos Global Dollar) `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168`, 6 decimals; symbol and decimals
+     were read on-chain with cast on 2026-10-03. Sources: [Paxos USDG mainnet](https://docs.paxos.com/guides/stablecoin/usdg/mainnet),
+     [Robinhood Chain connecting](https://docs.robinhood.com/chain/connecting). Explorer:
+     https://robinhoodchain.blockscout.com. The testnet (46630) has no official stablecoin.
+   - The payouts pages show USDG as its own total; it is never added into a USDC sum.
 
 Either chain's mainnet deployment satisfies `mainnet_required` (the chain list is "any of").
 
@@ -28,10 +39,10 @@ the [event page](https://colosseum.com/worldsfair) and the [hackathon FAQ](https
   addition to the awards above." The rules list the main prizes (§14(a)–(d): Grand Champion $30k,
   Public Goods $5k, University $5k, 20 × $15k) and the track prizes (§14(e)–(l)) as separate lines.
   Nothing in the rules forbids winning both.
-- **More than one ecosystem track: not answered.** §7 says "A Team may only submit one (1) Project
-  Submission at a time." Neither the rules nor the FAQ say whether one submission can be tagged with
-  several tracks. **Ask in the Colosseum Discord** before you submit. If only one track is allowed,
-  enter Tempo.
+- **More than one ecosystem track: yes (confirmed by the user, 2026-10-03).** §7 says "A Team may only
+  submit one (1) Project Submission at a time." The rules and FAQ do not address track tagging; the user
+  confirmed that one submission may enter several tracks, so it enters Tempo, Arbitrum, Base and
+  Robinhood Chain.
 - **What the Tempo track requires:** only that the product "integrate[s] with the Tempo blockchain"
   (§14(f)). Nothing says whether mainnet is required, and no Tempo-specific judging criteria exist
   beyond the general ones in §8.
@@ -165,11 +176,10 @@ is under the 30M cap per transaction, but expect a larger fee than on an L2.
 
 ## Still open (for a person)
 
-- Ask in the Colosseum Discord whether one submission can enter both the Tempo and Arbitrum tracks.
 - Ask whether the Tempo track requires a mainnet deployment.
-- call.md `next:` and its "Mandatory annexes" line still mention Base or Robinhood Chain. This
-  assignment owned only the `chain` field there, so update that text by hand. The program profile's
-  `next` is already updated.
+- Robinhood Chain: the deployer needs ETH for gas and 1 USDG (not USDC) for the proof payout. The
+  Blockscout verifier URL `https://robinhoodchain.blockscout.com/api/` follows the Base/Arbitrum pattern;
+  if `fund a:verify-source` fails there, verify by hand on the explorer.
 - The draft's "Why Tempo" says a blocked shelter wallet stops the whole payout. That holds for TIP-403 transfer policies but not for T6 receive policies (silent redirect, see above). Either apply the contract fix or check every shelter wallet before registering it, before this claim goes to judges.
 - `build-evidence.md` still says 33/33. Re-run `fund a:build --slug colosseum-worlds-fair` so it picks
   up the 8 TIP-20 tests, after committing `shelter-split/`.

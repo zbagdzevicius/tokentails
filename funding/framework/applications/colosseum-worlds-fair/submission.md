@@ -1,6 +1,6 @@
 # Colosseum Crypto World's Fair — submission
 
-_Generated 2026-10-02T08:28:46.378Z by `fund a:submission colosseum-worlds-fair` from draft.md, the program profile,
+_Generated 2026-10-03T19:05:08.675Z by `fund a:submission colosseum-worlds-fair` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -12,7 +12,7 @@ matching form field._
 | Call | https://colosseum.com/worldsfair |
 | Repository | https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split |
 | Demo | _(not set — add `demo:` to call.md)_ |
-| Tracks entered | Tempo track |
+| Tracks entered | Tempo, Arbitrum, Base and Robinhood Chain |
 | Category | Payments / public goods |
 
 ## One-line pitch  <!-- 242/280 chars -->
@@ -56,6 +56,13 @@ Tempo mainnet: ShelterSplit at {SPLIT_ADDRESS}. The first payout to Pink Paw is 
 |---|---|---|---|---|
 | Tempo testnet (chain 42431) | [`0x9978e60da2352a8de02852788d34bd95849a598d`](https://explore.testnet.tempo.xyz/address/0x9978e60da2352a8de02852788d34bd95849a598d) | [deploy tx](https://explore.testnet.tempo.xyz/tx/0x8169cd8ca20c3e9a793185c5ef686ed38a460a799abddd075adc74672a0e2575) | [payout 1](https://explore.testnet.tempo.xyz/tx/0x2a8d49065e0d9bbd8ba6f1563eebf5a34a60d9203f9fc07582d84ccb7791af2d) | verified on-chain, source verified |
 
+## Other chains
+
+This one submission also enters the Arbitrum, Base and Robinhood Chain tracks. Each chain runs the same ShelterSplit contract, from the same source and test suite; only the payout token differs.
+- Arbitrum One: ShelterSplit at {ARB_SPLIT}, paying out USDC.
+- Base: ShelterSplit at {BASE_SPLIT}, paying out native USDC.
+- Robinhood Chain: ShelterSplit at {ROBINHOOD_SPLIT}. Robinhood Chain has no USDC, so this instance pays out USDG (Paxos), and its payouts are readable on robinhoodchain.blockscout.com. The payouts page shows USDG as its own total and never adds it to USDC.
+
 ## Build evidence
 
 All 73/73 Foundry tests pass (unit, fuzz, reentrancy with a malicious token, event emission). Creation bytecode sha256 `6a1faf73bad02285dd3d1198bd8c31e25f6e2283258e024dfb7d68e4595bf72c`, runtime 11199 bytes, commit `9734bed09985`, built 2026-10-01.
@@ -81,6 +88,6 @@ Token Tails earns from card payments and in-app purchases. The plan is to send a
 - [ ] Public GitHub repo; disclose pre-hackathon work (products are judged only on work done Sep 14 - Oct 12)
 - [ ] Product demo video recorded by a human, no more than 3 minutes (colosseum.com/hackathon FAQ)
 - [ ] Pitch/presentation video recorded by a human, 2 to 3 minutes (colosseum.com/hackathon FAQ)
-- [ ] Deployment address and explorer link on Tempo mainnet (explore.tempo.xyz), plus Arbitrum One if entered
+- [ ] Deployment address and explorer link per entered track: Tempo mainnet (explore.tempo.xyz), Arbitrum One, Base and Robinhood Chain (robinhoodchain.blockscout.com)
 - [ ] Every team member registered on colosseum.com before 2026-10-12 23:59 PT (rules section 6)
 

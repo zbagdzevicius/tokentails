@@ -31,6 +31,9 @@ export const SHELTER_CHAINS: Record<number, ChainInfo> = {
   43113: { name: "Avalanche Fuji", rpc: "https://api.avax-test.network/ext/bc/C/rpc", explorer: "https://subnets-test.avax.network/c-chain", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "AVAX" },
   4217: { name: "Tempo", rpc: "https://rpc.tempo.xyz", explorer: "https://explore.tempo.xyz", decimals: 6, symbol: "USDC.e", balanceToken: "0x20C000000000000000000000b9537d11c60E8b50" },
   42431: { name: "Tempo Testnet", rpc: "https://rpc.moderato.tempo.xyz", explorer: "https://explore.testnet.tempo.xyz", decimals: 6, symbol: "pathUSD", balanceToken: "0x20c0000000000000000000000000000000000000" },
+  // Robinhood Chain pays out USDG (Paxos), not USDC: no USDC exists there. Totals group by symbol,
+  // so USDG is always shown on its own and never added into a USDC sum.
+  4663: { name: "Robinhood Chain", rpc: "https://rpc.mainnet.chain.robinhood.com", explorer: "https://robinhoodchain.blockscout.com", decimals: 6, symbol: "USDG", nativeDecimals: 18, nativeSymbol: "ETH" },
   // Monad (Metropolis entry): chainId and explorer from chains.json; recheck the RPC with the deploy.
   143: { name: "Monad", rpc: "https://rpc.monad.xyz", explorer: "https://monadvision.com", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "MON" },
   31612: { name: "Mezo", rpc: "https://mezo.drpc.org", explorer: "https://explorer.mezo.org", decimals: 18, symbol: "MUSD", nativeDecimals: 18, nativeSymbol: "BTC" },

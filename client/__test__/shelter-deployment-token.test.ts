@@ -15,4 +15,11 @@ describe("deployment payout token", () => {
   it("knows Monad mainnet, so a Monad deploy does not render as an RPC error", () => {
     expect(resolveChain({ chainId: 143, address: ADDR })?.name).toBe("Monad");
   });
+
+  it("labels Robinhood Chain payouts USDG (never USDC) and knows Base", () => {
+    const rh = resolveChain({ chainId: 4663, address: ADDR });
+    expect(rh).toMatchObject({ name: "Robinhood Chain", decimals: 6, symbol: "USDG", nativeSymbol: "ETH", explorer: "https://robinhoodchain.blockscout.com" });
+    expect(resolveChain({ chainId: 4663, address: ADDR, token: "USDG" })?.symbol).toBe("USDG");
+    expect(resolveChain({ chainId: 8453, address: ADDR })).toMatchObject({ name: "Base", symbol: "USDC", decimals: 6 });
+  });
 });

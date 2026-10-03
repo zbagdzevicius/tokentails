@@ -172,9 +172,18 @@
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
         "usdc": null,
+        "splitToken": {
+          "symbol": "USDG",
+          "address": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "decimals": 6
+        },
         "rpcEnv": "RPC_ROBINHOOD_MAINNET",
-        "verify": true,
-        "notes": "USDC address not listed in the Robinhood or Circle docs on 2026-09-25: set SHELTERSPLIT_TOKEN by hand after checking."
+        "verify": false,
+        "notes": "Checked 2026-10-03: chain ID 4663, gas token ETH, public RPC and explorer from https://docs.robinhood.com/chain/connecting. No USDC on Robinhood Chain: the payout token is USDG (Paxos Global Dollar) at 0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168, 6 decimals, from https://docs.paxos.com/guides/stablecoin/usdg/mainnet; symbol() and decimals() were read on-chain with cast on 2026-10-03. Payouts are USDG, never summed with USDC.",
+        "verifier": {
+          "type": "blockscout",
+          "url": "https://robinhoodchain.blockscout.com/api/"
+        }
       },
       "testnet": {
         "chainId": 46630,
@@ -184,7 +193,7 @@
         "usdc": null,
         "rpcEnv": "RPC_ROBINHOOD_TESTNET",
         "verify": true,
-        "notes": "No official test USDC found; deploy a mock token for demos."
+        "notes": "Checked 2026-10-03: testnet 46630 has no official stablecoin (docs.robinhood.com/chain/connecting); deploy a mock token for demos."
       }
     }
   },

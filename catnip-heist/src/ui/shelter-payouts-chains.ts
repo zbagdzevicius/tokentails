@@ -13,5 +13,6 @@ export const PAYOUT_CHAIN_META: Record<number, { name: string; explorer: string 
   43114: { name: 'Avalanche C-Chain', explorer: 'https://subnets.avax.network/c-chain' },
   43113: { name: 'Avalanche Fuji', explorer: 'https://subnets-test.avax.network/c-chain' },
   8453: { name: 'Base', explorer: 'https://basescan.org' },
+  4663: { name: 'Robinhood Chain', explorer: 'https://robinhoodchain.blockscout.com' },
   143: { name: 'Monad', explorer: 'https://monadvision.com' },
 };

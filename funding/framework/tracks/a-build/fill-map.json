@@ -67,6 +67,33 @@
       "token": "USDC",
       "field": "memo",
       "how": "a:ingest does not record the manual disburseWithMemo call: paste its hash into fill-values.json as TEMPO_TX (check it with cast receipt <tx> --rpc-url $RPC_TEMPO_MAINNET)"
+    },
+    "ARB_SPLIT": {
+      "from": "deploy",
+      "chain": "arbitrum",
+      "networks": [
+        "mainnet"
+      ],
+      "token": "USDC",
+      "field": "address"
+    },
+    "BASE_SPLIT": {
+      "from": "deploy",
+      "chain": "base",
+      "networks": [
+        "mainnet"
+      ],
+      "token": "USDC",
+      "field": "address"
+    },
+    "ROBINHOOD_SPLIT": {
+      "from": "deploy",
+      "chain": "robinhood",
+      "networks": [
+        "mainnet"
+      ],
+      "field": "address",
+      "how": "the USDG instance from the mainnet wave; no token filter, so a manual fund a:record (which sets no token) also counts"
     }
   },
   "tameion": {
