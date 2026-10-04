@@ -1,21 +1,22 @@
 import { IMAGE_API, SignInRequiredError } from "@/api/image-api";
 import { trackEvent } from "@/components/GoogleTagManager";
-import { PixelButton } from "@/components/shared/PixelButton";
+import { PixelIcon } from "@/components/shared/PixelIcon";
+import { ActionRow, ModalButton, ModalSection, StatusPill } from "@/components/ui/modal";
+import { ProgressBar } from "./ProgressCards";
 import { ProgressStylePickerModal } from "@/components/codex/ProgressStylePickerModal";
-import { Tag } from "@/components/shared/Tag";
 import { StripePayment } from "@/components/web3/StripePayment";
 import { Web3Providers } from "@/components/web3/Web3Providers";
 import { Web3Transfer } from "@/components/web3/transfer/Web3Transfer";
 import { cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
-import { UploadZone } from "@/features/portrait/components/UploadZone";
 import { PortraitStyle } from "@/features/portrait/components/StylePickerDrawer";
 import { AppCheckoutNotice } from "@/components/web3/AppCheckoutNotice";
 import { isApp } from "@/models/app";
 import { IMessage } from "@/models/cats";
 import { EntityType } from "@/models/save";
-import { useEffect, useMemo, useState } from "react";
+import clsx from "clsx";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 
 const DIGITAL_PORTRAIT_PRICE = 6;
 
@@ -28,32 +29,118 @@ const STYLE_LABELS: Record<PortraitStyle, string> = {
 
 const PET_ART_FLOW_STEPS = [
   {
-    title: "Upload Pet Photo",
-    detail:
-      "Use one clear, well-lit photo so traits can be detected precisely.",
-    icon: "icons/check.webp",
-    eta: "10s",
-    reward: "Profile-ready trait match",
+    title: "Upload a photo",
+    detail: "One clear, well-lit photo of your pet works best.",
+    icon: "image",
+    eta: "10 s",
   },
   {
-    title: "Generate Variants",
-    detail:
-      "Create and refine styles until the portrait matches your pet perfectly.",
-    icon: "icons/rocket.png",
-    eta: "45s",
-    reward: "Premium collectible preview",
+    title: "Pick a style",
+    detail: "Generate the portrait and try again until it looks like your pet.",
+    icon: "sparkles",
+    eta: "about 45 s",
   },
   {
-    title: "Complete Purchase",
-    detail:
-      "Pay by card or crypto to create the portrait and unlock in-game perks.",
-    icon: "icons/gift.png",
-    eta: "5s",
-    reward: "Permanent in-game unlock",
+    title: "Keep it",
+    detail: "Pay by card or crypto to get the full portrait and play as your pet.",
+    icon: "gift",
+    eta: "5 s",
   },
-];
+] as const;
 
 type PaymentMethod = "stripe" | "crypto";
+
+/**
+ * The photo drop zone in the night style: a dashed gold pixel edge, Nunito copy and a secondary
+ * UPLOAD PHOTO button; the preview keeps a clear (X) button. Tap anywhere, pick a file or drop one.
+ */
+const PetPhotoZone = ({
+  onImageUpload,
+  uploadedImage,
+  onClear,
+}: {
+  onImageUpload: (file: File) => void;
+  uploadedImage: string | null;
+  onClear: () => void;
+}) => {
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const take = useCallback(
+    (file: File | undefined) => {
+      if (file && file.type.startsWith("image/")) onImageUpload(file);
+    },
+    [onImageUpload]
+  );
+
+  if (uploadedImage) {
+    return (
+      <div className="relative mx-auto w-full max-w-sm overflow-hidden [box-shadow:0_0_0_2px_rgb(var(--tt-gold-500)/0.6)]">
+        <img src={uploadedImage} alt="Your pet photo" className="aspect-[3/4] w-full object-cover" />
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label="Remove photo"
+          className="absolute right-2 top-2 flex h-[44px] w-[44px] items-center justify-center bg-tt-night-950/85 text-tt-cream [box-shadow:inset_0_0_0_2px_rgb(var(--tt-night-500))] hover:text-tt-gold-400 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-tt-gold-400"
+        >
+          <PixelIcon name="close" size={18} />
+        </button>
+        <p className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-gradient-to-t from-tt-night-950 to-transparent px-3 pb-2 pt-6 font-sans text-p6 font-bold uppercase tracking-wider text-tt-cream">
+          <PixelIcon name="sparkles" size={12} className="text-tt-gold-400" /> Photo ready
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onDragOver={(e: DragEvent) => {
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={(e: DragEvent) => {
+        e.preventDefault();
+        setDragging(false);
+      }}
+      onDrop={(e: DragEvent) => {
+        e.preventDefault();
+        setDragging(false);
+        take(e.dataTransfer.files[0]);
+      }}
+      data-testid="pet-photo-zone"
+      className={clsx(
+        "flex flex-col items-center gap-3 px-4 py-6 text-center transition-colors motion-reduce:transition-none",
+        "border-2 border-dashed",
+        dragging ? "border-tt-gold-400 bg-tt-gold-400/10" : "border-tt-gold-500/60 bg-tt-night-950/45"
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className="flex h-12 w-12 items-center justify-center bg-tt-night-950/70 text-tt-gold-400 [box-shadow:inset_0_0_0_2px_rgb(var(--tt-gold-500)/0.6)]"
+      >
+        <PixelIcon name={dragging ? "image" : "paw"} size={24} />
+      </span>
+      <div>
+        <p className="font-sans text-p5 font-extrabold text-tt-cream">Add a photo of your pet</p>
+        <p className="mt-0.5 font-sans text-p6 font-semibold text-tt-muted">Face to the camera, good light.</p>
+      </div>
+      <ModalButton variant="secondary" size="sm" icon="image" onClick={() => inputRef.current?.click()}>
+        Upload photo
+      </ModalButton>
+      <p className="font-sans text-p6 font-semibold text-tt-muted">or drag and drop it here</p>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        aria-label="Upload a photo of your pet"
+        onChange={(e: ChangeEvent<HTMLInputElement>) => {
+          take(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
+};
 
 export const ImmortalizePetFlow = ({
   onPurchaseComplete,
@@ -292,315 +379,215 @@ export const ImmortalizePetFlow = ({
     onPurchaseComplete?.();
   };
 
+  const busyLabel = isGenerating ? "GENERATING..." : isRegenerating ? "REGENERATING..." : null;
   return (
-    <div className="w-full rounded-2xl border-4 border-tt-cream bg-gradient-to-r from-yellow-100 to-pink-100 p-3 md:p-4 relative overflow-hidden shadow-[0_8px_0_0_rgba(120,53,15,0.2)]">
-      <img
-        src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
-        className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-multiply"
-        alt="immortalize pattern"
-      />
-      <img
-        src={cdnFile("tail/guard.webp")}
-        className="absolute right-1 top-1 h-12 w-12 md:h-14 md:w-14 object-contain opacity-25"
-        alt="immortalize mascot"
-      />
-      <div className="relative z-10">
-        <div className="flex items-center justify-between gap-2">
-          <span className="rounded-lg border-2 border-yellow-900 bg-gradient-to-r from-tt-cream to-yellow-100 px-2 py-0.5 font-primary text-p5 md:text-p4 font-bold text-tt-gold-ink">
-            IMMORTALIZE YOUR REAL PET
+    <div className="flex w-full flex-col gap-3" data-testid="pet-art-flow">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="min-w-0 flex-1 font-sans text-p6 font-semibold leading-snug text-tt-cream md:text-p5">
+          Upload a photo of your pet and we turn it into a pixel portrait and a collectible card.
+        </p>
+        {!isApp && (
+          // A plain fact, not a pill: it is not something to tap.
+          <span className="inline-flex shrink-0 items-center gap-1.5 font-sans text-p6 font-bold text-tt-gold-400 md:text-p5">
+            <PixelIcon name="shopping-bag" size={14} />
+            Full portrait: ${DIGITAL_PORTRAIT_PRICE}
           </span>
-          {!isApp && <Tag size="sm">$6 DIGITAL</Tag>}
-        </div>
-        <div className="mt-2 rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-3 py-2 font-primary text-p6 md:text-p5 text-tt-gold-ink">
-          Upload a photo of your pet and we turn it into a stylized portrait
-          and a collectible card.
-        </div>
+        )}
+      </div>
 
-        <div className="mt-3 grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-3">
-          <div className="rounded-xl border-2 border-yellow-900 bg-yellow-50/95 p-3">
-            <UploadZone
-              onImageUpload={handleImageUpload}
-              uploadedImage={uploadedPreviewUrl}
-              onClear={resetFlow}
-              selectedStyle={selectedStyle}
-              onStyleChange={setSelectedStyle}
-              uploadButtonLabel="Upload photo"
-              stylePickerControl={
-                <ProgressStylePickerModal
-                  selectedStyle={selectedStyle}
-                  onStyleChange={setSelectedStyle}
-                />
-              }
-            />
-            <div className="mt-2 rounded-lg border border-yellow-900 bg-yellow-100/95 px-2 py-1 font-primary text-p6 md:text-p5 text-tt-gold-ink">
-              Active style: {STYLE_LABELS[selectedStyle]}
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <PixelButton
-                text={
-                  isGenerating
-                    ? "GENERATING..."
-                    : isRegenerating
-                    ? "REGENERATING..."
-                    : generatedImageId
-                    ? "REGENERATE"
-                    : "GENERATE PORTRAIT"
-                }
-                size="sm"
-                disabled={!canGenerate}
-                onClick={
-                  generatedImageId && generatedImageUrl
-                    ? regeneratePortrait
-                    : generatePortrait
-                }
-              />
-              {(generatedImageId ||
-                generatedImageUrl ||
-                uploadedPreviewUrl) && (
-                <PixelButton size="sm" text="RESET" onClick={resetFlow} />
-              )}
-            </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.1fr] short:gap-3">
+        <ModalSection title="1. Your photo" icon="image" helper="One clear, well-lit photo works best.">
+          <div className="flex min-h-[44px] items-center justify-between gap-2 bg-tt-night-950/45 pl-3 [box-shadow:inset_0_0_0_2px_rgb(var(--tt-night-500)/0.6)]">
+            <span className="font-sans text-p5 font-bold text-tt-cream">
+              <span className="text-tt-muted">Style:</span> {STYLE_LABELS[selectedStyle]}
+            </span>
+            <ProgressStylePickerModal selectedStyle={selectedStyle} onStyleChange={setSelectedStyle} />
           </div>
+          <PetPhotoZone
+            onImageUpload={handleImageUpload}
+            uploadedImage={uploadedPreviewUrl}
+            onClear={resetFlow}
+          />
+          <ActionRow inline>
+            <ModalButton
+              variant="primary"
+              icon="sparkles"
+              busy={isMockGenerating}
+              disabled={!canGenerate}
+              onClick={generatedImageId && generatedImageUrl ? regeneratePortrait : generatePortrait}
+            >
+              {busyLabel ?? (generatedImageId ? "REGENERATE" : "GENERATE PORTRAIT")}
+            </ModalButton>
+            {!uploadedFile && !isMockGenerating && (
+              <p className="basis-full font-sans text-p6 font-semibold text-tt-muted md:text-p5" data-testid="generate-hint">
+                Upload a photo first.
+              </p>
+            )}
+            {(generatedImageId || generatedImageUrl || uploadedPreviewUrl) && (
+              <ModalButton variant="ghost" icon="reload" onClick={resetFlow}>
+                RESET
+              </ModalButton>
+            )}
+          </ActionRow>
+        </ModalSection>
 
-          <div className="rounded-xl border-2 border-yellow-900 bg-yellow-50/95 p-3 flex flex-col">
-            {isMockGenerating ? (
-              <div className="flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-yellow-900 bg-yellow-100/90 p-5 min-h-[420px]">
-                <div className="h-10 w-10 rounded-full border-4 border-yellow-900/30 border-t-yellow-900 animate-spin" />
-                <div className="w-full text-center">
-                  <div className="font-primary text-p5 md:text-p4 font-bold text-tt-gold-ink uppercase tracking-wide">
-                    {isRegenerating ? "Refining Portrait" : "Creating Portrait"}
-                  </div>
-                  <div className="mt-1 font-primary text-p6 md:text-p5 text-tt-gold-ink">
-                    {generationMessage || "Preparing canvas..."}
-                  </div>
-                </div>
-                <div className="w-full">
-                  <div className="h-2.5 w-full rounded-full border border-yellow-900 bg-yellow-50 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-orange-500 to-yellow-500 transition-all duration-300 ease-out"
-                      style={{ width: `${generationProgress}%` }}
-                    />
-                  </div>
-                  <div className="mt-1 text-center font-primary text-p6 md:text-p5 text-tt-gold-ink">
-                    {Math.round(generationProgress)}%
-                  </div>
-                </div>
+        <ModalSection
+          title={generatedImageUrl ? "2. Your portrait" : "How it works"}
+          icon={generatedImageUrl ? "star" : "info-box"}
+          tone={generatedImageUrl ? "highlight" : "default"}
+        >
+          {isMockGenerating ? (
+            <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 p-4 text-center" role="status">
+              <PixelIcon name="loader" size={32} className="text-tt-gold-400 motion-safe:animate-spin" />
+              <div>
+                <p className="font-primary text-p4 uppercase tracking-wide text-tt-cream">
+                  {isRegenerating ? "Refining your portrait" : "Creating your portrait"}
+                </p>
+                <p className="mt-1 font-sans text-p6 font-semibold text-tt-muted md:text-p5">
+                  {generationMessage || "Preparing the canvas..."}
+                </p>
               </div>
-            ) : generatedImageUrl ? (
-              <>
-                <div
-                  className="rounded-xl border-2 border-yellow-900 overflow-hidden bg-black/10 relative select-none"
-                  onContextMenu={(e) => e.preventDefault()}
-                  onDragStart={(e) => e.preventDefault()}
-                >
-                  <img
-                    src={generatedImageUrl}
-                    alt="Generated pet portrait"
-                    className="w-full aspect-[3/4] object-cover pointer-events-none"
-                    draggable={false}
-                  />
-                  {!isPurchaseCompleted && (
-                    <>
-                      <div
-                        className="absolute inset-[-50%] pointer-events-none select-none"
-                        style={{
-                          backgroundImage: "url(/portrait/watermark-logo.webp)",
-                          backgroundSize: "18%",
-                          backgroundRepeat: "space",
-                          backgroundPosition: "center",
-                          opacity: 0.1,
-                          transform: "rotate(-25deg)",
-                        }}
-                      />
-                      <div className="absolute top-3 left-3 flex items-center px-2.5 py-1 rounded-full bg-background/80 backdrop-blur-sm border border-border pointer-events-none z-20">
-                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">
-                          FREE PREVIEW
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </div>
-                <div className="mt-2 rounded-lg border border-yellow-900 bg-yellow-100/95 px-2 py-1 font-primary text-p6 md:text-p5 text-tt-gold-ink">
-                  Includes high-resolution digital portrait and in-game pet
-                  unlock.
-                </div>
-
-                {isApp ? (
-                  <div className="mt-2">
-                    <AppCheckoutNotice />
-                  </div>
-                ) : (
+              <div className="w-full max-w-sm">
+                <ProgressBar value={generationProgress} max={100} label="Portrait progress" />
+                <p className="mt-1 font-sans text-p6 font-bold text-tt-cream">{Math.round(generationProgress)}%</p>
+              </div>
+            </div>
+          ) : generatedImageUrl ? (
+            <>
+              <div
+                className="relative select-none overflow-hidden [box-shadow:0_0_0_2px_rgb(var(--tt-gold-500)/0.6)]"
+                onContextMenu={(e) => e.preventDefault()}
+                onDragStart={(e) => e.preventDefault()}
+              >
+                <img
+                  src={generatedImageUrl}
+                  alt="Generated pet portrait"
+                  className="pointer-events-none aspect-[3/4] w-full object-cover"
+                  draggable={false}
+                />
+                {!isPurchaseCompleted && (
                   <>
-                    <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-                      <span className="-ml-2">
-                        <PixelButton
-                          size="sm"
-                          className="!m-0"
-                          text="CARD"
-                          active={paymentMethod === "stripe"}
-                          onClick={() => setPaymentMethod("stripe")}
-                        />
-                      </span>
-                      <span className="-ml-2">
-                        <PixelButton
-                          size="sm"
-                          className="!m-0"
-                          text="WEB3"
-                          active={paymentMethod === "crypto"}
-                          onClick={() => setPaymentMethod("crypto")}
-                        />
-                      </span>
-                    </div>
-
-                    {paymentMethod === "stripe" ? (
-                      <div className="mt-2">
-                        <StripePayment
-                          price={DIGITAL_PORTRAIT_PRICE}
-                          id={generatedImageId || ""}
-                          imageId={generatedImageId || ""}
-                          entityType={EntityType.IMAGE}
-                          productType="digital"
-                          onSuccess={handleStripeSuccess}
-                        />
-                      </div>
-                    ) : (
-                      <div className="mt-2">
-                        <Web3Providers>
-                          <div className="flex flex-col items-center gap-2">
-                            <Web3Transfer
-                              price={DIGITAL_PORTRAIT_PRICE}
-                              entityType={EntityType.IMAGE}
-                              id={generatedImageId || undefined}
-                              user={profile?._id}
-                              text="IMMORTALIZE WITH CRYPTO"
-                              loadingText="FINALIZING..."
-                              onSuccess={handleCryptoSuccess}
-                            />
-                          </div>
-                        </Web3Providers>
-                      </div>
-                    )}
+                    <div
+                      className="pointer-events-none absolute inset-[-50%] select-none"
+                      style={{
+                        backgroundImage: "url(/portrait/watermark-logo.webp)",
+                        backgroundSize: "18%",
+                        backgroundRepeat: "space",
+                        backgroundPosition: "center",
+                        opacity: 0.1,
+                        transform: "rotate(-25deg)",
+                      }}
+                    />
+                    <StatusPill tone="neutral" className="pointer-events-none absolute left-3 top-3 z-20 bg-tt-night-950/80">
+                      Free preview
+                    </StatusPill>
                   </>
                 )}
-
-                {isPurchaseCompleted && (
-                  <div className="mt-2 rounded-lg border-2 border-green-700 bg-green-100 px-3 py-2 font-primary text-p6 md:text-p5 text-green-900">
-                    Purchase confirmed. Your immortalized pet has been added to
-                    your account progression.
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="h-full min-h-[320px] rounded-xl border-2 border-yellow-900 bg-gradient-to-br from-yellow-100/95 via-orange-100/90 to-yellow-200/90 p-3 relative overflow-hidden">
-                <img
-                  src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
-                  className="absolute inset-0 h-full w-full object-cover opacity-[0.08] mix-blend-multiply"
-                  alt="pet art flow pattern"
-                />
-                <div className="relative z-10 flex flex-col gap-2">
-                  <div className="rounded-xl border-2 border-yellow-900 bg-yellow-50/95 px-2.5 py-2.5">
-                    <div className="flex items-start gap-2">
-                      <img
-                        src={cdnFile("tail/mascot-point-right.webp")}
-                        className="h-10 w-10 md:h-12 md:w-12 shrink-0 object-contain"
-                        alt="pet art flow mascot"
-                      />
-                      <div className="flex-1">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="rounded-lg border-2 border-yellow-900 bg-gradient-to-r from-tt-cream to-yellow-100 px-2 py-0.5 font-primary text-p5 md:text-p4 font-bold text-tt-gold-ink">
-                            DIGITAL PORTRAIT FLOW
-                          </span>
-                          <span className="rounded-lg border-2 border-yellow-900 bg-yellow-100 px-2 py-0.5 font-primary text-p6 md:text-p5 text-tt-gold-ink font-bold">
-                            READY IN ~60S
-                          </span>
-                        </div>
-                        <div className="mt-1 font-primary text-p6 md:text-p5 text-tt-gold-ink leading-tight">
-                          Turn your real pet into a premium in-game collectible
-                          and unlock extra progression value.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-2">
-                    {PET_ART_FLOW_STEPS.map((step, index) => {
-                      const isLastStep =
-                        index === PET_ART_FLOW_STEPS.length - 1;
-                      return (
-                        <div
-                          key={step.title}
-                          className="relative rounded-lg border-2 border-yellow-900 bg-yellow-50/95 px-2 py-2"
-                        >
-                          {!isLastStep && (
-                            <div className="absolute left-[18px] top-9 h-[calc(100%-28px)] w-[2px] bg-yellow-900/20" />
-                          )}
-                          <div className="flex items-start gap-2">
-                            <div className="h-7 w-7 shrink-0 rounded-md border-2 border-yellow-900 bg-gradient-to-br from-tt-cream to-orange-300 text-tt-gold-ink font-primary text-p6 md:text-p5 font-bold flex items-center justify-center">
-                              {index + 1}
-                            </div>
-                            <div className="h-7 w-7 shrink-0 rounded-md border border-yellow-900 bg-yellow-100 flex items-center justify-center">
-                              <img
-                                src={cdnFile(step.icon)}
-                                className="h-4 w-4 object-contain"
-                                alt={`${step.title} icon`}
-                              />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <div className="font-primary text-p6 md:text-p5 font-bold text-tt-gold-ink">
-                                  {step.title}
-                                </div>
-                                <span className="rounded-md border border-yellow-900 bg-yellow-100 px-1.5 py-[1px] font-primary text-p6 md:text-p5 text-tt-gold-ink">
-                                  {step.eta}
-                                </span>
-                              </div>
-                              <div className="font-primary text-p6 md:text-p5 text-tt-gold-ink leading-tight">
-                                {step.detail}
-                              </div>
-                              <div className="mt-1 inline-flex rounded-md border border-yellow-900 bg-white/80 px-1.5 py-[1px] font-primary text-p6 md:text-p5 text-tt-gold-ink">
-                                Reward: {step.reward}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="rounded-xl border-2 border-yellow-900 bg-gradient-to-r from-yellow-200 to-pink-100 px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={cdnFile("tail/cat-celebrate.webp")}
-                        className="h-8 w-8 shrink-0 object-contain"
-                        alt="reward mascot"
-                      />
-                      <div>
-                        <div className="font-primary text-p6 md:text-p5 font-bold text-tt-gold-ink">
-                          REWARD PATH
-                        </div>
-                        <div className="font-primary text-p6 md:text-p5 text-tt-gold-ink leading-tight">
-                          Each immortalized portrait joins your collection
-                          and unlocks the pet in game.
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-1.5">
-                      <div className="rounded-md border border-yellow-900 bg-yellow-50/95 px-2 py-1 font-primary text-p6 md:text-p5 text-tt-gold-ink">
-                        + Collectible depth
-                      </div>
-                      <div className="rounded-md border border-yellow-900 bg-yellow-50/95 px-2 py-1 font-primary text-p6 md:text-p5 text-tt-gold-ink">
-                        + Gallery spotlight
-                      </div>
-                      <div className="rounded-md border border-yellow-900 bg-yellow-50/95 px-2 py-1 font-primary text-p6 md:text-p5 text-tt-gold-ink">
-                        + In-game pet unlock
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
-            )}
-          </div>
-        </div>
+              <p className="font-sans text-p6 font-semibold text-tt-muted md:text-p5">
+                Includes the full-size digital portrait and your pet as a cat you can play.
+              </p>
+
+              {isApp ? (
+                <AppCheckoutNotice />
+              ) : (
+                <>
+                  <div className="flex gap-2" role="group" aria-label="Payment method">
+                    <ModalButton
+                      size="sm"
+                      variant={paymentMethod === "stripe" ? "primary" : "secondary"}
+                      aria-pressed={paymentMethod === "stripe"}
+                      onClick={() => setPaymentMethod("stripe")}
+                    >
+                      CARD
+                    </ModalButton>
+                    <ModalButton
+                      size="sm"
+                      variant={paymentMethod === "crypto" ? "primary" : "secondary"}
+                      aria-pressed={paymentMethod === "crypto"}
+                      onClick={() => setPaymentMethod("crypto")}
+                    >
+                      WEB3
+                    </ModalButton>
+                  </div>
+
+                  {paymentMethod === "stripe" ? (
+                    <StripePayment
+                      price={DIGITAL_PORTRAIT_PRICE}
+                      id={generatedImageId || ""}
+                      imageId={generatedImageId || ""}
+                      entityType={EntityType.IMAGE}
+                      productType="digital"
+                      onSuccess={handleStripeSuccess}
+                    />
+                  ) : (
+                    <Web3Providers>
+                      <div className="flex flex-col items-center gap-2">
+                        <Web3Transfer
+                          price={DIGITAL_PORTRAIT_PRICE}
+                          entityType={EntityType.IMAGE}
+                          id={generatedImageId || undefined}
+                          user={profile?._id}
+                          text="IMMORTALIZE WITH CRYPTO"
+                          loadingText="FINALIZING..."
+                          onSuccess={handleCryptoSuccess}
+                        />
+                      </div>
+                    </Web3Providers>
+                  )}
+                </>
+              )}
+
+              {isPurchaseCompleted && (
+                <p
+                  role="status"
+                  className="flex items-center gap-2 bg-tt-mint/10 px-3 py-2 font-sans text-p5 font-bold text-tt-mint [box-shadow:inset_0_0_0_2px_rgb(var(--tt-mint)/0.45)]"
+                >
+                  <PixelIcon name="check" size={16} /> Purchase confirmed. Your pet is now in your collection.
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <ol className="flex flex-col gap-2">
+                {PET_ART_FLOW_STEPS.map((step, index) => (
+                  <li
+                    key={step.title}
+                    className="flex items-start gap-3 bg-tt-night-950/45 p-3 [box-shadow:inset_0_0_0_2px_rgb(var(--tt-night-500)/0.6)]"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center bg-tt-gold-400 font-primary text-p4 text-tt-gold-ink"
+                    >
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-center gap-2 font-primary text-p4 uppercase leading-none tracking-wide text-tt-cream">
+                        <PixelIcon name={step.icon} size={16} className="text-tt-gold-400" />
+                        {step.title}
+                        <span className="font-sans text-p6 font-bold normal-case tracking-normal text-tt-muted">{step.eta}</span>
+                      </p>
+                      <p className="mt-1 font-sans text-p6 font-semibold leading-snug text-tt-muted md:text-p5">
+                        {step.detail}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <div className="flex items-center gap-3">
+                <img
+                  src={cdnFile("tail/cat-celebrate.webp")}
+                  className="h-12 w-12 shrink-0 object-contain"
+                  alt=""
+                  aria-hidden="true"
+                />
+                <p className="font-sans text-p6 font-semibold leading-snug text-tt-cream md:text-p5">
+                  Every portrait joins your collection and your pet joins the game.
+                </p>
+              </div>
+            </>
+          )}
+        </ModalSection>
       </div>
     </div>
   );

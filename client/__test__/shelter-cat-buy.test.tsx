@@ -85,17 +85,17 @@ describe("which shelter cats are for sale", () => {
     expect(ownsCopy([{ _id: "x", blessing: { _id: "b2" } } as unknown as ICat], cat())).toBe(false);
   });
 
-  it("prices the basic tier at the server floor", () => {
+  it("prices the Common card at the server floor", () => {
     expect(Prices.shelterCat).toBe(5);
   });
 });
 
 describe("ShelterCatBuy", () => {
-  it("offers the basic tier at $5 and says where rarer tiers come from", () => {
+  it("offers a Common card at $5 and says where rarer tiers come from", () => {
     render(<ShelterCatBuy cat={cat()} />);
     const offer = screen.getByTestId("shelter-cat-offer");
-    expect(offer).toHaveTextContent("Basic tier · $5");
-    expect(offer).toHaveTextContent("Rare, Epic and Legendary cards come only from card packs.");
+    expect(offer).toHaveTextContent("Common · $5");
+    expect(offer).toHaveTextContent("Rare, Epic and Legendary cards come from packs.");
     expect(offer).toHaveTextContent(/by card or crypto/);
   });
 

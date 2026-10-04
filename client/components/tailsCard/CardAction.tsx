@@ -66,6 +66,7 @@ export const CardAction = ({
   children,
   size = "lg",
   ping = true,
+  badge = true,
   fill = false,
   className = "",
   ...target
@@ -76,6 +77,11 @@ export const CardAction = ({
   size?: CardActionSize;
   /** The slow ping on the badge (motion-safe only). In a grid, only the first card. */
   ping?: boolean;
+  /**
+   * The gold "open" badge. Default on; a dense grid where the whole card is plainly the button
+   * (My Pets) keeps it on the first card only, as the hint.
+   */
+  badge?: boolean;
   /** Block-level and full width (grid cells); otherwise inline-block around the card. */
   fill?: boolean;
   /** Extra classes on the outer link or button, e.g. a max width in a grid. */
@@ -91,29 +97,31 @@ export const CardAction = ({
       >
         <InsideCardActionContext.Provider value={true}>{children}</InsideCardActionContext.Provider>
       </span>
-      <span
-        aria-hidden="true"
-        data-card-action-badge={size}
-        className={`pointer-events-none absolute z-10 flex items-center justify-center transition-transform duration-300 ${s.badge} ${s.badgeLift} motion-safe:group-hover:scale-110`}
-      >
-        {ping && (
-          <span
-            data-card-action-ping=""
-            className="absolute inset-0 rounded-full bg-[#fde047]/60 motion-safe:animate-ping [animation-duration:2.4s]"
-          />
-        )}
+      {badge && (
         <span
-          className={`relative flex items-center justify-center rounded-full border-2 border-tt-gold-shadow/80 bg-gradient-to-b from-yellow-200 to-yellow-400 text-tt-gold-shadow ${s.dot}`}
+          aria-hidden="true"
+          data-card-action-badge={size}
+          className={`pointer-events-none absolute z-10 flex items-center justify-center transition-transform duration-300 ${s.badge} ${s.badgeLift} motion-safe:group-hover:scale-110`}
         >
-          {/* Expand / open icon */}
-          <svg viewBox="0 0 24 24" className={s.icon} fill="none" stroke="currentColor" strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 4h6v6" />
-            <path d="M20 4l-7 7" />
-            <path d="M10 20H4v-6" />
-            <path d="M4 20l7-7" />
-          </svg>
+          {ping && (
+            <span
+              data-card-action-ping=""
+              className="absolute inset-0 rounded-full bg-[#fde047]/60 motion-safe:animate-ping [animation-duration:2.4s]"
+            />
+          )}
+          <span
+            className={`relative flex items-center justify-center rounded-full border-2 border-tt-gold-shadow/80 bg-gradient-to-b from-yellow-200 to-yellow-400 text-tt-gold-shadow ${s.dot}`}
+          >
+            {/* Expand / open icon */}
+            <svg viewBox="0 0 24 24" className={s.icon} fill="none" stroke="currentColor" strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 4h6v6" />
+              <path d="M20 4l-7 7" />
+              <path d="M10 20H4v-6" />
+              <path d="M4 20l7-7" />
+            </svg>
+          </span>
         </span>
-      </span>
+      )}
     </>
   );
 

@@ -51,6 +51,12 @@ interface PixelFrameProps {
    * overlay or a viewport-placed CloseButton inside the frame would size to the panel.
    */
   shadowClassName?: string;
+  /**
+   * Night tone only: paints the "night sky" fill (lilac top light, dusk foot glow, pixel stars, an
+   * inner vignette; styles/globals.scss `.tt-panel-*`) instead of the flat gradient. GameModal's
+   * panel and sheet use it; small inline frames (DeathCard, RunGate) keep the flat fill.
+   */
+  ambient?: boolean;
   style?: CSSProperties;
 }
 
@@ -80,9 +86,11 @@ export const PixelFrame = ({
   className,
   contentClassName,
   shadowClassName,
+  ambient = false,
   style,
 }: PixelFrameProps) => {
   const colors = TONES[tone];
+  const sky = ambient && tone === "night";
   const layer = (inset: number, extra: string) => (
     <span
       aria-hidden="true"
@@ -92,7 +100,12 @@ export const PixelFrame = ({
   );
 
   return (
-    <div className={clsx("relative isolate", className)} style={style} data-pixel-frame={tone}>
+    <div
+      className={clsx("relative isolate", className)}
+      style={style}
+      data-pixel-frame={tone}
+      data-ambient={sky || undefined}
+    >
       <span
         aria-hidden="true"
         data-pixel-frame-layers=""
@@ -100,7 +113,9 @@ export const PixelFrame = ({
       >
         {layer(0, colors.outline)}
         {layer(unit, colors.rim)}
-        {layer(unit * 2, colors.fill)}
+        {layer(unit * 2, sky ? "tt-panel-sky" : colors.fill)}
+        {sky && layer(unit * 2, "tt-panel-stars")}
+        {sky && layer(unit * 2, "tt-panel-stars-twinkle")}
         {/* Top glint: one pixel row of light under the rim, the bevel the landing buttons use. */}
         <span
           className={clsx("pointer-events-none absolute h-[2px]", colors.glint)}

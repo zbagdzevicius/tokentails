@@ -149,7 +149,7 @@ afterEach(() => {
 });
 
 const wheelX = () =>
-  within(screen.getByRole("dialog", { name: "TAILS WHEEL" })).getByRole("button", { name: "Close" });
+  within(screen.getByRole("dialog", { name: "DAILY SPIN" })).getByRole("button", { name: "Close" });
 
 describe("WheelModal spin lock", () => {
   it("lifts the lock when the redeem request never answers", async () => {
@@ -206,7 +206,7 @@ describe("WheelModal spin lock", () => {
     });
     expect(mockWheelSpin).toHaveBeenCalledTimes(1);
     expect(wheelX().getAttribute("aria-disabled")).toBe("true");
-    fireEvent.keyDown(screen.getByRole("dialog", { name: "TAILS WHEEL" }), { key: "Escape" });
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "DAILY SPIN" }), { key: "Escape" });
     expect(close).not.toHaveBeenCalled();
 
     await act(async () => {
@@ -214,7 +214,7 @@ describe("WheelModal spin lock", () => {
     });
     expect(wheelX().getAttribute("aria-disabled")).toBeNull();
     expect(mockToast).toHaveBeenCalledWith({ message: expect.stringMatching(/got stuck/i) });
-    fireEvent.keyDown(screen.getByRole("dialog", { name: "TAILS WHEEL" }), { key: "Escape" });
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "DAILY SPIN" }), { key: "Escape" });
     expect(close).toHaveBeenCalledTimes(1);
   });
 
@@ -333,7 +333,7 @@ describe("popup actions run from the tap", () => {
   const openInvite = () => {
     const view = render(<QuestsModalContent />);
     rerenderQuests = () => view.rerender(<QuestsModalContent />);
-    fireEvent.click(screen.getByRole("button", { name: "QUESTS" }));
+    fireEvent.click(screen.getByRole("tab", { name: /QUESTS/ }));
     return screen.getByRole("button", { name: "GET INVITE LINK" });
   };
 
@@ -380,7 +380,7 @@ describe("popup actions run from the tap", () => {
   it("a partner quest link opens inside the tap, before the debounced claim", () => {
     jest.useFakeTimers();
     render(<QuestsModalContent />);
-    fireEvent.click(screen.getByRole("button", { name: "QUESTS" }));
+    fireEvent.click(screen.getByRole("tab", { name: /QUESTS/ }));
     fireEvent.click(screen.getByRole("button", { name: "Follow on X" }));
     // Opened synchronously, inside the tap; the claim itself waits for the debounce.
     expect(mockOpenLink).toHaveBeenCalledWith(expect.stringContaining("x.com"));
@@ -458,14 +458,14 @@ describe("ProfileModal Logout", () => {
     (status) => {
       mockAuth.authStatus = status;
       render(<ProfileModal close={jest.fn()} />);
-      expect(screen.getByRole("button", { name: "Logout :(" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "LOG OUT" })).toBeTruthy();
       expect(screen.queryByRole("button", { name: "DELETE ACCOUNT" })).toBeNull();
     }
   );
 
   it("offers Logout and Delete account to a ready account", () => {
     render(<ProfileModal close={jest.fn()} />);
-    expect(screen.getByRole("button", { name: "Logout :(" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "LOG OUT" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "DELETE ACCOUNT" })).toBeTruthy();
   });
 
@@ -473,6 +473,6 @@ describe("ProfileModal Logout", () => {
     mockAuth.authStatus = "signed-out";
     mockAuth.user = null;
     render(<ProfileModal close={jest.fn()} />);
-    expect(screen.queryByRole("button", { name: "Logout :(" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "LOG OUT" })).toBeNull();
   });
 });

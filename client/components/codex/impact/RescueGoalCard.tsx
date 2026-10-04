@@ -1,8 +1,9 @@
 import { maxGive, PLEDGE_CHIPS, PLEDGE_MAX, type MyGives, type RescueGoal } from "@/api/rescue-goals-api";
-import { EvidenceChip } from "@/components/claims/EvidenceChip";
 import { cdnFile } from "@/constants/utils";
 import type { ImpactViewer } from "@/components/impact/useImpactMe";
 import { formatTails } from "@/shared-contracts/copy";
+import { PixelIcon } from "@/components/shared/PixelIcon";
+import { EmptyState, LoadingState } from "@/components/ui/modal";
 import clsx from "clsx";
 import { ImpactButton, ImpactPanel } from "./Panel";
 
@@ -116,7 +117,7 @@ interface RescueGoalCardProps {
  * set the money aside for. Players give Tails to choose which goal is delivered first. Progress is
  * in Tails (IN-GAME); no money figure is shown or implied.
  */
-export const RescueGoalCard = ({ load, goal, viewer, gives, onPick, onRetry, isApp }: RescueGoalCardProps) => {
+export const RescueGoalCard = ({ load, goal, viewer, gives, onPick, onRetry }: RescueGoalCardProps) => {
   const options = goal ? giveOptions(goal, viewer, gives) : null;
   const pct = goal ? Math.round((goal.raisedTails / goal.targetTails) * 100) : 0;
   const art = goal?.image || goal?.shelter?.image || null;
@@ -126,27 +127,35 @@ export const RescueGoalCard = ({ load, goal, viewer, gives, onPick, onRetry, isA
       title="Rescue goal"
       labelledBy="impact-goal-title"
       testId="rescue-goal-card"
-      aside={<EvidenceChip kind="in-game" isApp={isApp} />}
+      icon="heart"
+      helper="Point your Tails at the goal you want delivered first."
       className="lg:row-span-2"
     >
       {load === "loading" && (
-        <div className="flex min-h-[10rem] items-center justify-center font-secondary text-p5 text-tt-muted" data-testid="goal-loading">
-          Looking for the open goal…
+        <div className="flex min-h-[10rem] flex-col justify-center" data-testid="goal-loading">
+          <LoadingState rows={4} label="Looking for the open goal…" />
         </div>
       )}
       {load === "error" && (
-        <div className="flex flex-col items-center gap-2 py-4 text-center" data-testid="goal-error">
-          <p className="font-secondary text-p5">Goals could not load right now. Your Tails are safe.</p>
-          <ImpactButton tone="ghost" onClick={onRetry}>
-            Try again
-          </ImpactButton>
-        </div>
+        <EmptyState
+          data-testid="goal-error"
+          tone="error"
+          compact
+          icon="warning-diamond"
+          title="Goals could not load"
+          body="Your Tails are safe. Try again in a moment."
+          action={
+            <ImpactButton tone="ghost" onClick={onRetry}>
+              Try again
+            </ImpactButton>
+          }
+        />
       )}
       {load === "ready" && !goal && (
         <div className="flex flex-col items-center gap-3 py-3 text-center" data-testid="goal-empty">
           <img src={cdnFile("logo/heart.webp")} alt="" aria-hidden="true" className="h-12 w-12 object-contain opacity-80 [image-rendering:pixelated]" />
           <p className="font-primary text-p4 uppercase text-tt-cream">No goal is open right now</p>
-          <p className="max-w-md font-secondary text-p5 leading-snug text-tt-cream/90">
+          <p className="max-w-md font-sans font-semibold text-p5 leading-snug text-tt-cream/90">
             A goal opens only once Token Tails has set its money aside. Keep playing: your Tails wait
             for the next one, and giving them never lowers your rank.
           </p>
@@ -160,7 +169,7 @@ export const RescueGoalCard = ({ load, goal, viewer, gives, onPick, onRetry, isA
                 src={art}
                 alt=""
                 aria-hidden="true"
-                className="h-20 w-20 shrink-0 rounded-xl border-2 border-tt-gold-500/50 object-cover md:h-24 md:w-24"
+                className="h-20 w-20 shrink-0 object-cover [box-shadow:0_0_0_2px_rgb(var(--tt-gold-500)/0.6)] md:h-24 md:w-24"
               />
             )}
             <div className="min-w-0">
@@ -170,7 +179,7 @@ export const RescueGoalCard = ({ load, goal, viewer, gives, onPick, onRetry, isA
               <p className="font-primary text-p3 uppercase leading-tight text-tt-cream md:text-p2" data-testid="goal-title">
                 {goal.title}
               </p>
-              <p className="mt-1 font-secondary text-p5 leading-snug text-tt-cream/90">
+              <p className="mt-1 font-sans font-semibold text-p5 leading-snug text-tt-cream/90">
                 {goal.description || goal.deliverable}
               </p>
             </div>
@@ -178,7 +187,7 @@ export const RescueGoalCard = ({ load, goal, viewer, gives, onPick, onRetry, isA
 
           <div>
             <div
-              className="h-4 w-full overflow-hidden rounded-full border-2 border-tt-gold-500/60 bg-tt-night-950"
+              className="h-[12px] w-full overflow-hidden bg-tt-night-950 [box-shadow:0_0_0_2px_rgb(var(--tt-night-500)/0.9)]"
               role="progressbar"
               aria-label="Tails given to this goal"
               aria-valuemin={0}
@@ -186,16 +195,18 @@ export const RescueGoalCard = ({ load, goal, viewer, gives, onPick, onRetry, isA
               aria-valuenow={goal.raisedTails}
             >
               <div
-                className="h-full rounded-full bg-gradient-to-r from-tt-pink to-tt-gold-400"
+                className="h-full bg-gradient-to-r from-tt-pink to-tt-gold-400"
                 style={{ width: `${Math.max(2, pct)}%` }}
               />
             </div>
-            <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 font-secondary text-p5">
+            <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 font-sans font-semibold text-p5">
               <span data-testid="goal-progress">
                 <strong className="font-bold text-tt-gold-400">{formatTails(goal.raisedTails, { word: false })}</strong> of{" "}
                 {formatTails(goal.targetTails)}
               </span>
-              <span className="text-tt-muted">{formatTails(goal.remainingTails)} to go</span>
+              <span className="inline-flex items-center gap-2 text-tt-muted">
+                {formatTails(goal.remainingTails)} to go
+              </span>
             </div>
           </div>
 
@@ -205,8 +216,11 @@ export const RescueGoalCard = ({ load, goal, viewer, gives, onPick, onRetry, isA
             </p>
             <div className="grid grid-cols-3 gap-2" role="group" aria-labelledby="impact-give-label">
               {options.chips.map((chip) => (
+                // Supporting choices (each opens a confirm sheet): night buttons, so the one gold
+                // action on the tab stays the treat.
                 <ImpactButton
                   key={chip.key}
+                  tone="ghost"
                   testId={`give-chip-${chip.key}`}
                   disabled={!chip.enabled}
                   onClick={() => onPick(chip)}
@@ -218,24 +232,24 @@ export const RescueGoalCard = ({ load, goal, viewer, gives, onPick, onRetry, isA
               ))}
             </div>
             {options.note && (
-              <p className="font-secondary text-p5 leading-snug text-tt-cream/90" data-testid="give-note">
+              <p className="font-sans font-semibold text-p5 leading-snug text-tt-cream/90" data-testid="give-note">
                 {options.note}
               </p>
             )}
-            <p className="flex items-center gap-1.5 font-secondary text-p5 font-bold text-tt-mint">
-              <span aria-hidden="true">✓</span> Giving never lowers your rank.
+            <p className="flex items-center gap-1.5 font-sans text-p5 font-bold text-tt-mint">
+              <PixelIcon name="check" size={14} /> Giving never lowers your rank.
             </p>
           </div>
           <ol
-            className="grid grid-cols-1 gap-2 border-t-2 border-tt-gold-500/20 pt-3 sm:grid-cols-3"
+            className="grid grid-cols-1 gap-2 border-t-2 border-tt-night-500/50 pt-3 sm:grid-cols-3"
             aria-label="How goals work"
             data-testid="goal-steps"
           >
             {GOAL_STEPS.map((step, i) => (
-              <li key={step} className="flex items-start gap-2 font-secondary text-p6 leading-snug text-tt-cream/85 md:text-p5">
+              <li key={step} className="flex items-start gap-2 font-sans font-semibold text-p6 leading-snug text-tt-cream/85 md:text-p5">
                 <span
                   aria-hidden="true"
-                  className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 border-tt-gold-500/60 font-primary text-p6 text-tt-gold-400"
+                  className="inline-flex h-6 w-6 shrink-0 items-center justify-center bg-tt-night-950/60 font-primary text-p6 text-tt-gold-400"
                 >
                   {i + 1}
                 </span>

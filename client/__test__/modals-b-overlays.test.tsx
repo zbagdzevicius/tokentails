@@ -71,10 +71,10 @@ describe("ProgressStylePickerModal", () => {
     const onStyleChange = jest.fn();
     render(<ProgressStylePickerModal selectedStyle={PortraitStyle.MONARCH} onStyleChange={onStyleChange} />);
     expect(screen.queryByRole("dialog")).toBeNull();
-    const trigger = screen.getByRole("button", { name: /Pick Style/ });
+    const trigger = screen.getByRole("button", { name: /Pick style/i });
     // The entry point is a 44 px target with readable text, not the old 9 px label.
     expect(trigger.className).toMatch(/min-h-\[44px\]/);
-    expect(trigger.className).toMatch(/\btext-p6\b/);
+    expect(trigger.className).toMatch(/\btext-p5\b/);
     expect(trigger.className).not.toMatch(/text-\[9px\]/);
     fireEvent.click(trigger);
     const dialog = screen.getByRole("dialog", { name: "Select style" });

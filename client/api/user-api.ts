@@ -196,7 +196,13 @@ const leaderboardPawMatchLevelPosition = async (
     .then();
 };
 
-const leaderboardPosition = async (): Promise<number> => {
+/** A real 1-based place, or null (an error, no place yet, or garbage). */
+const validPosition = (value: unknown): number | null => {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n : null;
+};
+
+const leaderboardPosition = async (): Promise<number | null> => {
   return fetch(`${apiUrl}/user/leaderboard/position`, {
     method: "GET",
     headers: authHeaders(),
@@ -207,12 +213,13 @@ const leaderboardPosition = async (): Promise<number> => {
       }
 
       console.warn(JSON.stringify(response));
-      return { position: "999" };
+      // No place rather than a made-up one (this used to answer "999", shown as a real rank).
+      return { position: null };
     })
-    .then((v) => v.position);
+    .then((v) => validPosition(v?.position));
 };
 
-const leaderboardCatnipPosition = async (): Promise<number> => {
+const leaderboardCatnipPosition = async (): Promise<number | null> => {
   return fetch(`${apiUrl}/user/leaderboard/catnip/position`, {
     method: "GET",
     headers: authHeaders(),
@@ -223,9 +230,10 @@ const leaderboardCatnipPosition = async (): Promise<number> => {
       }
 
       console.warn(JSON.stringify(response));
-      return { position: "999" };
+      // No place rather than a made-up one (this used to answer "999", shown as a real rank).
+      return { position: null };
     })
-    .then((v) => v.position);
+    .then((v) => validPosition(v?.position));
 };
 
 const saveCodex = async (): Promise<Partial<IProfile>> => {

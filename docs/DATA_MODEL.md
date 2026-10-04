@@ -82,7 +82,7 @@ Economy and progression:
 | `spentUsd` | number | Verified USD spend only, written at the payment sites |
 | `spentUsdLegacyAt` | Date | Guard for the legacy estimate written by `backfill-spent-usd.js` into `spentUsdLegacy` (not declared in the schema yet); `spentUsdSource` is declared but unused |
 | `boxes` | number | Loot boxes held |
-| `streak` | number | Daily check-in streak |
+| `streak` | number | Days spun: days the player spun the daily wheel (+1 per spin, never reset) |
 | `canRedeemLives` | boolean | Reset to true nightly |
 | `codex` | number[] | Monthly $TAILS guard phases earned |
 | `quests` | (string \| ref Quest)[] | Completed quest keys and ids |

@@ -56,7 +56,6 @@ export const ProgressStylePickerModal = ({
 
   const currentStyle = styles.find((style) => style.id === selectedStyle) || styles[0];
   const CurrentIcon = currentStyle.icon;
-  const displayName = isStylePickedOnce ? currentStyle.name : "Pick Style";
 
   const handleSelectStyle = (style: PortraitStyle) => {
     onStyleChange(style);
@@ -70,12 +69,14 @@ export const ProgressStylePickerModal = ({
         type="button"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
-        // A 44 px target (px, not rem: phones scale rem with the viewport) and readable text.
-        className="flex min-h-[44px] items-center gap-1.5 rounded-md px-2 text-p6 tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tt-gold-400"
+        // The visible words come first in the name (WCAG label in name), then the current style.
+        aria-label={`${isStylePickedOnce ? "Change style" : "Pick style"}, now ${currentStyle.name}`}
+        // A 44 px target (px, not rem: phones scale rem with the viewport), a ghost action.
+        className="flex min-h-[44px] items-center gap-1.5 px-3 font-primary text-p5 uppercase tracking-wide text-tt-gold-400 underline-offset-4 transition-colors hover:text-tt-cream hover:underline focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[-3px] focus-visible:outline-tt-gold-400 motion-reduce:transition-none"
       >
-        <CurrentIcon className="w-3.5 h-3.5" aria-hidden="true" />
-        <span>{displayName}</span>
-        <ChevronDown className="w-3 h-3" aria-hidden="true" />
+        <CurrentIcon className="h-3.5 w-3.5" aria-hidden="true" />
+        <span>{isStylePickedOnce ? "Change style" : "Pick style"}</span>
+        <ChevronDown className="h-3 w-3" aria-hidden="true" />
       </button>
 
       <GameModal
@@ -116,7 +117,7 @@ export const ProgressStylePickerModal = ({
                     />
                   </span>
                   <span className="flex w-full flex-col items-center text-center">
-                    <span className="flex items-center gap-1 font-secondary text-p4 uppercase tracking-wider text-tt-cream">
+                    <span className="flex items-center gap-1 font-sans font-semibold text-p4 uppercase tracking-wider text-tt-cream">
                       <Icon
                         aria-hidden="true"
                         className={clsx("h-3.5 w-3.5", isSelected ? "text-tt-gold-400" : "text-tt-muted")}

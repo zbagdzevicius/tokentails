@@ -1,6 +1,6 @@
 import { ORDER_API } from "@/api/order-api";
 import { useToast } from "@/context/ToastContext";
-import { PackType } from "@/models/order";
+import { PACK_ODDS, PackType } from "@/models/order";
 import { EntityType } from "@/models/save";
 import { useMemo, useState } from "react";
 import { PixelButton } from "../shared/PixelButton";
@@ -13,6 +13,7 @@ import { CryptoCheckout } from "./crypto/CryptoCheckout";
 import { skuFor } from "./crypto/checkout";
 import { cryptoPayOpen, serverPriceUsd, useCryptoPayConfig } from "./crypto/useCryptoPayConfig";
 import { AppCheckoutNotice } from "./AppCheckoutNotice";
+import { ModalButton } from "@/components/ui/modal";
 import { useAccountAction } from "@/hooks/useAccountAction";
 
 // "crypto" is the EVM checkout (USDC / EURC, docs/API.md "Crypto checkout"). It replaced the
@@ -35,6 +36,12 @@ interface PaymentProps {
   onRemove?: () => void;
   /** No pointing mascot above the summary (inside a modal with its own header). */
   hideMascot?: boolean;
+  /**
+   * Layout only, for a modal that already names the product and shows its odds: no summary
+   * ribbon, name, "?" or trash (the modal has its own Back), just the total, the discount code
+   * and the payment method in the modal's own buttons. Same flow, same payment calls.
+   */
+  compact?: boolean;
 }
 
 const productNameOverviewMap = {
@@ -42,7 +49,7 @@ const productNameOverviewMap = {
     description:
       "Perfect for newcomers.\nStart your collection journey with this starter pack.",
     subtitle: "DROP CHANCES",
-    text: "90% Common, 9% Rare, 1% Epic",
+    text: PACK_ODDS[PackType.STARTER],
     supply: 300,
     patternImg: cdnFile(`cards/backgrounds/pattern-COMMON.webp`),
   },
@@ -50,7 +57,7 @@ const productNameOverviewMap = {
     description:
       "For those who play smart.\nLimited to 50 influencer cats only.",
     subtitle: "DROP CHANCES",
-    text: "75% Common, 21% Rare, 3.5% Epic, 0.5% Legendary",
+    text: PACK_ODDS[PackType.INFLUENCER],
     supply: 50,
     patternImg: cdnFile(`cards/backgrounds/pattern-EPIC.webp`),
   },
@@ -58,7 +65,7 @@ const productNameOverviewMap = {
     description:
       "For ultimate impact. Exclusive cards await.\nLimited to 300 shelter cats only.",
     subtitle: "DROP CHANCES",
-    text: "20% rare, 50% epic, 30% legendary",
+    text: PACK_ODDS[PackType.LEGENDARY],
     supply: 300,
     patternImg: cdnFile(`cards/backgrounds/pattern-LEGENDARY.webp`),
   },
@@ -107,6 +114,7 @@ const WebPayment = ({
   productName,
   onRemove,
   hideMascot,
+  compact,
 }: PaymentProps) => {
   // Crypto is the default whenever the server offers it; the player's own pick wins. The config
   // loads after mount, so "no pick yet" follows it instead of locking in card first.
@@ -202,8 +210,139 @@ const WebPayment = ({
     );
   }
 
+  const discounted = discountPercentage !== null && discountPercentage > 0;
+  const checkoutBody =
+    paymentMethod === "crypto" && cryptoSku && cryptoOffered ? (
+      <CryptoCheckout
+        sku={cryptoSku}
+        priceUsd={discountedPrice}
+        discount={discountable && discountPercentage ? discountCode : undefined}
+        onSuccess={onSuccess}
+        onProcessingChange={onProcessingChange}
+      />
+    ) : (
+      <StripePayment
+        price={discountedPrice}
+        id={id || ""}
+        onSuccess={onSuccess || (() => {})}
+        onProcessingChange={onProcessingChange}
+        discount={discountCode}
+        entityType={entityType}
+      />
+    );
+
+  if (compact) {
+    return (
+      <div className="relative z-10 flex flex-col gap-3">
+        {/* The total, once, with the discount code under it (packs only). */}
+        <div className="tt-card flex flex-col gap-2 p-3" data-testid="payment-total">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <span className="font-sans text-p6 font-extrabold uppercase tracking-wider text-tt-muted">Total</span>
+            <span className="flex items-baseline gap-2">
+              {discounted && (
+                <s className="font-sans text-p5 font-bold text-tt-muted" aria-hidden="true">
+                  ${basePrice.toFixed(2)}
+                </s>
+              )}
+              <span className="font-primary text-h5 leading-none text-tt-gold-400 [text-shadow:0_3px_0_rgb(var(--tt-gold-shadow))] short:!text-h6">
+                {discounted && <span className="sr-only">{`was $${basePrice.toFixed(2)}, now `}</span>}
+                {`$${discountedPrice.toFixed(2)}`}
+              </span>
+            </span>
+          </div>
+          {discounted && (
+            <p role="status" className="font-sans text-p6 font-bold text-tt-mint">
+              {`Code ${discountCode.toUpperCase()}: ${discountPercentage}% off, you save $${savings.toFixed(2)}.`}
+            </p>
+          )}
+          {discountable &&
+            !discounted &&
+            (!showDiscountField ? (
+              <ModalButton
+                variant="ghost"
+                size="sm"
+                icon="key"
+                onClick={() => setShowDiscountField(true)}
+                className="self-start !px-0"
+              >
+                I have a discount code
+              </ModalButton>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-stretch gap-2">
+                  <input
+                    type="text"
+                    value={discountCode}
+                    onChange={(e) => {
+                      setDiscountCode(e.target.value?.slice(0, 24));
+                      setIsDiscountValid(null);
+                      setDiscountPercentage(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        validateDiscount();
+                      }
+                    }}
+                    aria-label="Discount code"
+                    aria-invalid={isDiscountValid === false ? true : undefined}
+                    className="min-h-[44px] min-w-0 flex-1 border-2 border-tt-gold-500 bg-tt-night-950/70 px-3 font-sans text-p5 font-bold uppercase text-tt-cream outline-none placeholder:normal-case placeholder:text-tt-muted focus:shadow-[0_0_0_3px_rgb(var(--tt-gold-400)/0.5)]"
+                    placeholder="Discount code"
+                  />
+                  <ModalButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={validateDiscount}
+                    disabled={!discountCode.trim()}
+                    busy={isValidatingDiscount}
+                  >
+                    Apply
+                  </ModalButton>
+                </div>
+                {isDiscountValid === false && (
+                  <p role="alert" className="font-sans text-p6 font-bold text-tt-rust">
+                    That code does not work. Check it and try again.
+                  </p>
+                )}
+              </div>
+            ))}
+        </div>
+
+        {/* How to pay: a switch (card only when crypto is not offered), then that method's form. */}
+        <div className={cryptoOffered ? "grid grid-cols-2 gap-2" : "flex"} role="group" aria-label="Payment method">
+          {(
+            [
+              // copy-lint-ignore R10 WebPayment renders only on web; app builds get AppCheckoutNotice above
+              ["crypto", "Pay with crypto (stablecoins)", "coins"],
+              ["stripe", "Pay with Card", "wallet"],
+            ] as const
+          )
+            .filter(([method]) => method === "stripe" || cryptoOffered)
+            .map(([method, label, icon]) => (
+              <ModalButton
+                key={method}
+                variant="secondary"
+                size="sm"
+                icon={icon}
+                aria-pressed={paymentMethod === method}
+                onClick={() => setPaymentMethod(method)}
+                className={
+                  paymentMethod === method
+                    ? "!bg-tt-night-500 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400))]"
+                    : "opacity-80 hover:opacity-100"
+                }
+              >
+                {label}
+              </ModalButton>
+            ))}
+        </div>
+        {checkoutBody}
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-4 relative z-10 animate-appear">
+    <div className="flex flex-col gap-4 relative z-10 motion-safe:animate-appear">
       {/* Checkout Summary */}
       <div className="bg-gradient-to-b from-tt-night-700/95 to-tt-night-800/95 border-4 border-tt-gold-500 shadow-[0_6px_0_rgb(var(--tt-night-950))] w-[95%] md:rem:w-[400px] max-w-none m-auto rounded-2xl p-4 relative z-10">
         {!hideMascot && (
@@ -435,24 +574,7 @@ const WebPayment = ({
       </div>
 
       {/* Payment Content */}
-      {paymentMethod === "crypto" && cryptoSku && cryptoOffered ? (
-        <CryptoCheckout
-          sku={cryptoSku}
-          priceUsd={discountedPrice}
-          discount={discountable && discountPercentage ? discountCode : undefined}
-          onSuccess={onSuccess}
-          onProcessingChange={onProcessingChange}
-        />
-      ) : (
-        <StripePayment
-          price={discountedPrice}
-          id={id || ""}
-          onSuccess={onSuccess || (() => {})}
-          onProcessingChange={onProcessingChange}
-          discount={discountCode}
-          entityType={entityType}
-        />
-      )}
+      {checkoutBody}
     </div>
   );
 };

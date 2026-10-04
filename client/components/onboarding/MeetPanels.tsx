@@ -29,6 +29,7 @@ export const MeetPanel = ({
   testId?: string;
 }) => (
   <PixelFrame
+    ambient
     className={clsx("mx-auto w-full max-w-[600px]", className)}
     shadowClassName="[filter:drop-shadow(0_6px_0_rgb(var(--tt-night-950)))_drop-shadow(0_0_28px_rgb(var(--tt-gold-400)/0.16))] lowfx:[filter:none]"
   >
@@ -74,7 +75,7 @@ export const TextButton = ({
     onClick={onClick}
     data-testid={testId}
     className={clsx(
-      "inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 px-3 font-secondary text-p4 uppercase tracking-wider text-tt-lilac",
+      "inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 px-3 font-sans text-p5 font-extrabold uppercase tracking-wider text-tt-lilac",
       "underline-offset-4 hover:text-tt-cream hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400",
       className,
     )}
@@ -212,7 +213,7 @@ export const ChoosePanel = ({
                 className={clsx(
                   "leading-tight",
                   look.badge
-                    ? "font-secondary text-p6 uppercase tracking-wide text-tt-gold-400"
+                    ? "font-sans text-p6 font-extrabold uppercase tracking-wide text-tt-gold-400"
                     : "font-sans text-p6 text-tt-muted",
                 )}
               >
@@ -286,7 +287,8 @@ export const NamePanel = ({
         <label htmlFor="meet-name-input" className="sr-only">
           Your cat&apos;s name
         </label>
-        {/* The nameplate: a gold plate with the name in Passion One. */}
+        {/* The nameplate: a night field with a gold edge, the name in Passion One (an input, not a
+            button, so it is not a gold block). */}
         <div className="relative">
           <input
             ref={inputRef}
@@ -305,10 +307,11 @@ export const NamePanel = ({
             aria-describedby={error ? "meet-name-error meet-name-hint" : "meet-name-hint"}
             onChange={(event) => onChange(event.target.value)}
             className={clsx(
-              "block h-14 w-full border-4 bg-tt-gold-400 px-4 text-center font-primary text-p2 uppercase leading-none text-tt-gold-ink",
-              "shadow-[inset_0_-4px_0_rgb(var(--tt-gold-500)),0_4px_0_rgb(var(--tt-gold-shadow))] placeholder:text-tt-gold-ink/50",
-              "focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-tt-cream",
-              error ? "border-tt-rust" : "border-tt-gold-shadow",
+              "block h-14 w-full border-4 bg-tt-night-950/70 px-4 text-center font-primary text-p2 uppercase leading-none text-tt-cream caret-tt-gold-400",
+              "shadow-[inset_0_4px_0_rgb(var(--tt-night-950)/0.6),0_0_18px_rgb(var(--tt-gold-400)/0.15)] placeholder:text-tt-muted",
+              // One soft gold ring on focus (not a gold border plus a cream outline, a double frame).
+              "focus:border-tt-gold-400 focus:outline-none focus:shadow-[inset_0_4px_0_rgb(var(--tt-night-950)/0.6),0_0_0_3px_rgb(var(--tt-gold-400)/0.5)]",
+              error ? "border-tt-rust" : "border-tt-gold-500",
             )}
           />
         </div>
@@ -320,7 +323,7 @@ export const NamePanel = ({
         >
           {error || ""}
         </p>
-        <p id="meet-name-hint" className="font-sans text-p6 text-tt-muted">
+        <p id="meet-name-hint" className="mt-2 font-sans text-p6 text-tt-muted">
           2 to {CAT_NAME_MAX_LENGTH} letters or numbers. Spaces, &apos; and - are fine.
         </p>
       </div>
@@ -424,7 +427,7 @@ export const FeaturedPanel = ({
                 data-testid={`follow-${cat._id}`}
                 onClick={() => onToggle(cat)}
                 className={clsx(
-                  "inline-flex min-h-[44px] shrink-0 items-center gap-1 border-[3px] px-3 font-secondary text-p5 uppercase tracking-wide",
+                  "inline-flex min-h-[44px] shrink-0 items-center gap-1 border-[3px] px-3 font-primary text-p5 uppercase tracking-wide",
                   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400",
                   isFollowing
                     ? "border-tt-gold-400 bg-tt-gold-400 text-tt-gold-ink"

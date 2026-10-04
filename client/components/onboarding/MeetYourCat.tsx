@@ -335,7 +335,7 @@ export const MeetYourCat = ({ open, uid, onCommitted, onDone }: MeetYourCatProps
                 className={clsx(
                   "disabled:cursor-wait disabled:opacity-60",
                   "pointer-events-auto inline-flex min-h-[44px] min-w-[44px] items-center justify-center border-2 border-tt-gold-500/70 bg-tt-night-800/80 px-4",
-                  "font-secondary text-p4 uppercase tracking-widest text-tt-cream hover:bg-tt-night-700",
+                  "font-primary text-p4 uppercase tracking-widest text-tt-cream hover:bg-tt-night-700",
                   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400",
                 )}
               >
@@ -548,7 +548,7 @@ const RevealCard = ({
         {/* Waits for the save's answer, so a name the server refuses comes back to the nameplate.
             Offline still counts as done (draft kept); the request gives up after 10 s. */}
         {failed && (
-          <p className="max-w-[18rem] font-secondary text-p5 text-tt-cream" data-testid="meet-save-failed">
+          <p className="max-w-[18rem] font-sans text-p5 font-semibold text-tt-cream" data-testid="meet-save-failed">
             We couldn&apos;t save {name}. Try again, or keep playing and choose again next time.
           </p>
         )}

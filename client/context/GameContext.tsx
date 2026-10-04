@@ -14,7 +14,7 @@ import {
 import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
 import { ftueStore } from "@/components/Phaser/onboarding/ftue-store";
 import { haptic } from "@/components/Phaser/onboarding/haptics";
-import { ASSIST_SUGGEST_AFTER, purrsuitLevelName } from "@/components/Phaser/onboarding/hints";
+import { ASSIST_SUGGEST_AFTER } from "@/components/Phaser/onboarding/hints";
 import {
   bestFor,
   clearedFlags,
@@ -28,6 +28,7 @@ import { decideSave, isHardDeath, resolveOutcome } from "@/components/Phaser/onb
 import { CatsModal } from "@/components/shared/CatsModal";
 import { CodexModal } from "@/components/shared/CodexModal";
 import { EndGameModal } from "@/components/shared/EndGameModal";
+import { GAME_MODE_NAMES, levelNameParts } from "@/components/game/levelNames";
 import { PixelRescueEndGameModal } from "@/components/shared/PixelRescueEndGameModal";
 import { GameMusicPlayer } from "@/components/shared/GameMusicPlayer";
 import { InviteModal } from "@/components/shared/InviteModal";
@@ -88,12 +89,6 @@ type ContextState = {
 
 const GameContext = React.createContext<ContextState | undefined>(undefined);
 
-const levelLabel = (mode: GameType, level: string | null): string => {
-  if (!level) return "";
-  if (mode === GameType.CATNIP_CHAOS) return `Level ${purrsuitLevelName(level)}`;
-  if (mode === GameType.PIXEL_RESCUE) return `Day ${level}`;
-  return `Level ${level}`;
-};
 
 const GameProvider = ({ children }: React.PropsWithChildren<object>) => {
   const [isStarted, setIsStarted] = useState<boolean>(false);
@@ -268,6 +263,8 @@ const GameProvider = ({ children }: React.PropsWithChildren<object>) => {
           cause: event.cause,
         });
       } else if (outcome !== "quit") {
+        // The panel says what happened to the points: saved, not better than the best, or no
+        // session to save to. "Saved" waits for `/live` (saveState), like the DeathCard.
         setGameStop({
           score: decision.points,
           time: event.time ?? 0,
@@ -275,6 +272,11 @@ const GameProvider = ({ children }: React.PropsWithChildren<object>) => {
           rawScore,
           catnipEarned: decision.points,
           outcome,
+          saved: decision.save && !!profile,
+          saveReason: decision.reason,
+          best,
+          saveState: decision.save && profile ? "saving" : undefined,
+          guest: authStatus === "guest" || !!(profile as { isGuest?: boolean } | null)?.isGuest,
         });
       }
 
@@ -287,6 +289,9 @@ const GameProvider = ({ children }: React.PropsWithChildren<object>) => {
           current && current.saveState === "saving" && current.mode === gameType && current.level === level
             ? { ...current, saveState: state }
             : current,
+        );
+        setGameStop((current) =>
+          current && current.saveState === "saving" ? { ...current, saveState: state } : current,
         );
       };
 
@@ -500,7 +505,11 @@ const GameProvider = ({ children }: React.PropsWithChildren<object>) => {
         <DeathCard
           mode={death.mode}
           level={death.level}
-          levelName={levelLabel(death.mode, death.level)}
+          // One name per level on both end-of-run screens (the RunGate's: "Level 1-2", "Day 3").
+          levelName={death.level ? levelNameParts(death.level, death.mode).title : ""}
+          levelDetail={death.level ? levelNameParts(death.level, death.mode).detail : undefined}
+          modeName={GAME_MODE_NAMES[death.mode]}
+          catImg={profile?.cat?.catImg}
           outcome={death.outcome}
           points={death.points}
           best={death.best}

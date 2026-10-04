@@ -5,10 +5,16 @@ import * as Dialog from "@radix-ui/react-dialog";
 import clsx from "clsx";
 import { exemptAudioFromSuspension } from "@/lib/game/gameRegistry";
 import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
+import { PixelIcon, type PixelIconName } from "@/components/shared/PixelIcon";
 import { applyLowFx } from "./lowfx";
 import { PixelFrame } from "./PixelFrame";
 
 /**
+ * Surfaces. `panel` and `sheet` paint the "night sky" (PixelFrame `ambient`: top light, dusk glow,
+ * pixel stars, inner vignette) and a header band with an optional icon tile and subtitle. Build
+ * the body from the primitives in `components/ui/modal` (ModalSection, StatTile, ActionRow,
+ * ModalButton, DangerZone, EmptyState, KeyValueRow, ModalTabs); docs/CLIENT.md "Modal system".
+ *
  * - `panel`: the night PixelFrame with a gold title bar. Most modals.
  * - `art`: no frame; the children bring their own art (Wheel, Packs). The title is still
  *   rendered for assistive technology (visually hidden unless `titleVisible`).
@@ -24,7 +30,12 @@ export interface GameModalProps {
   onOpenChange: (open: boolean) => void;
   /** Accessible name; `aria-labelledby` points at it. Shown in Passion One, gold-400. */
   title: ReactNode;
+  /** Shown under the title in the header band (Nunito, muted) and wired as aria-describedby. */
   description?: ReactNode;
+  /** Optional icon tile left of the title (panel and sheet): a PixelIcon name or a node (sprite). */
+  icon?: PixelIconName | ReactNode;
+  /** The night-sky fill on panel and sheet. Default true; false keeps the flat gradient. */
+  ambient?: boolean;
   surface?: GameModalSurface;
   size?: GameModalSize;
   /** `false`: no X, and Esc and scrim do nothing (a flow that must be finished). */
@@ -85,7 +96,7 @@ const SCRIM_CLASSES =
   "fixed inset-0 bg-tt-night-950/70 backdrop-blur-[4px] lowfx:backdrop-filter-none reduced-transparency:backdrop-filter-none reduced-transparency:bg-tt-night-950/90 animate-tt-scrim-in motion-reduce:animate-none";
 
 const TITLE_CLASSES =
-  "font-primary uppercase leading-none tracking-wide text-tt-gold-400 text-p3 md:text-p2 [text-shadow:0_3px_0_rgb(var(--tt-gold-shadow))]";
+  "font-primary uppercase leading-none tracking-wide text-tt-gold-400 text-p3 md:text-p2 short:!text-p3 [text-shadow:0_3px_0_rgb(var(--tt-gold-shadow))]";
 
 const SAFE_AREA_PADDING = {
   paddingTop: "max(0.75rem, env(safe-area-inset-top))",
@@ -108,6 +119,8 @@ export const GameModal = ({
   onOpenChange,
   title,
   description,
+  icon,
+  ambient = true,
   surface = "panel",
   size = "md",
   dismissible = true,
@@ -265,6 +278,7 @@ export const GameModal = ({
             ) : (
               <PixelFrame
                 className="flex max-h-full min-h-0 w-full flex-col"
+                ambient={ambient}
                 // A hard pixel drop and a faint gold glow that follow the stepped corners. On the
                 // decorative layers only, so `position: fixed` children still use the viewport.
                 shadowClassName={clsx(
@@ -279,23 +293,44 @@ export const GameModal = ({
                 {/* First in the tab order (it is absolutely placed at the top right anyway). */}
                 {closeButton}
                 <div
+                  data-testid="game-modal-header"
                   className={clsx(
-                    "flex shrink-0 flex-col gap-1 pl-4 pt-4 md:pl-6 md:pt-5",
+                    "tt-modal-header flex shrink-0 items-center gap-3 pb-3 pl-4 pt-4 md:pl-6 md:pt-5",
+                    "short:!gap-2 short:!pb-2 short:!pt-2",
                     // px, not rem (phones scale rem with the viewport), and no `md:px-6`, which
                     // used to override the X's room between md and lg.
                     dismissible ? "pr-[56px] lg:pr-[80px]" : "pr-4 md:pr-6"
                   )}
                 >
-                  <Dialog.Title className={TITLE_CLASSES}>{title}</Dialog.Title>
-                  {description && (
-                    <Dialog.Description className="font-sans text-p5 text-tt-muted">
-                      {description}
-                    </Dialog.Description>
+                  {icon != null && icon !== false && (
+                    <span
+                      aria-hidden="true"
+                      data-testid="game-modal-icon"
+                      className={clsx(
+                        "flex h-[40px] w-[40px] shrink-0 items-center justify-center text-tt-gold-400 md:h-[48px] md:w-[48px] short:!h-[32px] short:!w-[32px]",
+                        "bg-tt-night-950/60 [box-shadow:0_-2px_0_0_rgb(var(--tt-gold-500)/0.7),0_2px_0_0_rgb(var(--tt-gold-500)/0.7),-2px_0_0_0_rgb(var(--tt-gold-500)/0.7),2px_0_0_0_rgb(var(--tt-gold-500)/0.7),inset_0_0_12px_rgb(var(--tt-gold-400)/0.18)]"
+                      )}
+                    >
+                      {typeof icon === "string" ? (
+                        <PixelIcon name={icon as PixelIconName} size={24} />
+                      ) : (
+                        icon
+                      )}
+                    </span>
                   )}
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <Dialog.Title className={TITLE_CLASSES}>{title}</Dialog.Title>
+                    {description && (
+                      <Dialog.Description className="font-sans text-p6 font-semibold leading-snug text-tt-muted md:text-p5 short:sr-only">
+                        {description}
+                      </Dialog.Description>
+                    )}
+                  </div>
                 </div>
                 <div
                   className={clsx(
-                    "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 md:px-6 md:pb-6",
+                    "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-4 md:px-6 md:pb-6",
+                    "short:!px-4 short:!pb-3 short:!pt-3",
                     bodyClassName
                   )}
                 >

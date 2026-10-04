@@ -1,4 +1,4 @@
-import { PixelButton } from "@/components/shared/PixelButton";
+import { ModalButton } from "@/components/ui/modal";
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import { GameModal } from "@/components/ui/GameModal";
 import type { AuthSheetController, SheetView } from "@/context/FirebaseAuthContext";
@@ -9,6 +9,7 @@ import clsx from "clsx";
 import { type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { SUPPORT_EMAIL } from "@/lib/support";
 import { BrandSignInButton, type BrandProvider } from "./BrandSignInButton";
+import { SCROLL_FADE_CLASS, useScrollFade } from "@/components/ui/useScrollFade";
 
 export const TERMS_URL = "https://docs.tokentails.com/community-and-social-impact/terms-and-conditions";
 export const PRIVACY_URL = "https://docs.tokentails.com/community-and-social-impact/privacy-policy";
@@ -71,7 +72,7 @@ export const VERIFY_POLL_MS = 5000;
 const textButton =
   "inline-flex min-h-[44px] items-center justify-center px-3 font-sans text-p5 text-tt-lilac underline underline-offset-4 decoration-tt-lilac/50 hover:text-tt-cream hover:decoration-tt-cream rounded-[4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400 disabled:no-underline disabled:opacity-60";
 
-/** PixelButton is 3rem tall, under 44 px when the root font shrinks on small phones. */
+/** ModalButton keeps a 44 px minimum on its own; max-w-full keeps a long label inside the sheet. */
 const CTA_CLASS = "max-w-full min-h-[44px]";
 
 const bodyText = "font-sans text-p5 leading-snug text-tt-cream";
@@ -86,7 +87,7 @@ const inputClass = (invalid: boolean) =>
 const Divider = () => (
   <div className="flex items-center gap-3 py-1" aria-hidden="true">
     <span className="h-px flex-1 bg-tt-gold-500/40" />
-    <span className="font-secondary text-p5 uppercase tracking-widest text-tt-muted">or</span>
+    <span className="font-sans text-p6 font-extrabold uppercase tracking-widest text-tt-muted">or</span>
     <span className="h-px flex-1 bg-tt-gold-500/40" />
   </div>
 );
@@ -111,6 +112,7 @@ export const AuthSheet = ({ controller }: { controller: AuthSheetController }) =
   const { sheet, message, dismissible } = controller;
   const { profile } = useProfile();
   const { held, markShown } = useToastHold(sheet.open);
+  const [scrollRef, fade] = useScrollFade<HTMLDivElement>();
   // A form's own validation message. It belongs to the view and the controller message it was
   // raised under: a new view or a new controller message hides it without an effect.
   const [local, setLocal] = useState<{
@@ -172,13 +174,15 @@ export const AuthSheet = ({ controller }: { controller: AuthSheetController }) =
         if (!next) controller.close();
       }}
       title={SHEET_TITLES[sheet.reason]}
+      icon="user"
       description={description || undefined}
       surface="sheet"
       size="sm"
       layer="auth"
       name="auth-sheet"
       dismissible={dismissible}
-      bodyClassName="!p-0 md:!p-0"
+      // The sheet owns its scroller (below), so it can fade the bottom edge while more sits below.
+      bodyClassName="!p-0 md:!p-0 flex flex-col !overflow-hidden"
       className="md:max-w-[26rem]"
     >
       {/* One static hero cat (decision #65), perched on the top rim. Its containing block is the
@@ -193,7 +197,12 @@ export const AuthSheet = ({ controller }: { controller: AuthSheetController }) =
         className="pointer-events-none absolute -top-[66px] left-5 h-[72px] w-auto select-none md:-top-[70px] md:h-[76px] [@media(max-height:560px)]:hidden"
         data-testid="auth-hero-cat"
       />
-      <div className="relative px-4 pb-5 pt-3 md:px-6 md:pb-6" data-auth-view={sheet.view.name}>
+      <div
+        ref={scrollRef}
+        data-fade={fade || undefined}
+        className={clsx("min-h-0 flex-1 overflow-y-auto overscroll-contain", fade && SCROLL_FADE_CLASS)}
+      >
+      <div className="relative px-4 pb-5 pt-3 md:px-6 md:pb-6 short:!pb-4 short:!pt-2.5" data-auth-view={sheet.view.name}>
         {/* The landing sky, pre-dimmed (no live backdrop-filter): fades in under the title. */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
           <img
@@ -204,7 +213,7 @@ export const AuthSheet = ({ controller }: { controller: AuthSheetController }) =
           />
           <span className="absolute inset-0 bg-gradient-to-b from-tt-night-700 via-tt-night-700/10 to-tt-night-800/80" />
         </div>
-        <div className="relative flex flex-col gap-4">
+        <div className="relative flex flex-col gap-4 short:!gap-3">
           <div
             id={alertId}
             role="alert"
@@ -228,6 +237,7 @@ export const AuthSheet = ({ controller }: { controller: AuthSheetController }) =
             setLocalError={setLocalError}
           />
         </div>
+      </div>
       </div>
     </GameModal>
   );
@@ -271,13 +281,13 @@ const SheetBody = (props: BodyProps) => {
 };
 
 const LegalFooter = () => (
-  <p className="text-center font-sans text-p6 leading-relaxed text-tt-muted">
+  <p className="text-center font-sans text-[length:max(12px,0.75rem)] leading-relaxed text-tt-cream/80 md:text-[0.8125rem]">
     By continuing you accept the{" "}
-    <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="text-tt-lilac underline underline-offset-2">
+    <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="font-bold text-tt-cream underline underline-offset-2">
       Terms
     </a>{" "}
     and the{" "}
-    <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="text-tt-lilac underline underline-offset-2">
+    <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="font-bold text-tt-cream underline underline-offset-2">
       Privacy Policy
     </a>
     .
@@ -350,13 +360,16 @@ const ChooseView = ({ controller }: BodyProps) => {
     <>
       <ProviderButtons controller={controller} />
       {!controller.inAppBrowser && <Divider />}
-      <PixelButton
-        text="CONTINUE WITH EMAIL"
+      {/* Secondary: Google and Apple above are the quick path; email is the alternative. */}
+      <ModalButton
+        variant="secondary"
         icon="mail"
         fullWidth
         className={CTA_CLASS}
         onClick={() => controller.setView({ name: "email", tab: emailTab })}
-      />
+      >
+        CONTINUE WITH EMAIL
+      </ModalButton>
       <div className="flex flex-col items-center">
         <KeepPlaying controller={controller} />
       </div>
@@ -463,7 +476,7 @@ const EmailView = ({
       >
         {view.notice && <p className={clsx(bodyText, "text-tt-mint")}>{view.notice}</p>}
         <div className="flex flex-col gap-1">
-          <label htmlFor={ids.email} className="font-secondary text-p5 uppercase tracking-wider text-tt-lilac">
+          <label htmlFor={ids.email} className="font-sans text-p6 font-extrabold uppercase tracking-wider text-tt-lilac">
             Email
           </label>
           <input
@@ -483,7 +496,7 @@ const EmailView = ({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={ids.password} className="font-secondary text-p5 uppercase tracking-wider text-tt-lilac">
+          <label htmlFor={ids.password} className="font-sans text-p6 font-extrabold uppercase tracking-wider text-tt-lilac">
             Password
           </label>
           <div className="relative">
@@ -519,7 +532,9 @@ const EmailView = ({
             </p>
           )}
         </div>
-        <PixelButton type="submit" text={tab === "create" ? "CREATE ACCOUNT" : "SIGN IN"} fullWidth className={clsx(CTA_CLASS, "mt-1")} />
+        <ModalButton variant="primary" type="submit" fullWidth className={clsx(CTA_CLASS, "mt-1")}>
+          {tab === "create" ? "CREATE ACCOUNT" : "SIGN IN"}
+        </ModalButton>
       </form>
       <div className="flex flex-wrap items-center justify-center gap-x-2">
         {tab === "sign-in" && (
@@ -563,7 +578,7 @@ const ResetView = ({
       <Heading>Reset your password</Heading>
       <p className={bodyText}>Enter your email and we&apos;ll send you a link to choose a new password.</p>
       <div className="flex flex-col gap-1">
-        <label htmlFor={id} className="font-secondary text-p5 uppercase tracking-wider text-tt-lilac">
+        <label htmlFor={id} className="font-sans text-p6 font-extrabold uppercase tracking-wider text-tt-lilac">
           Email
         </label>
         <input
@@ -580,7 +595,9 @@ const ResetView = ({
           className={inputClass(errorField === "email")}
         />
       </div>
-      <PixelButton type="submit" text="SEND RESET LINK" busy={busy} fullWidth className={CTA_CLASS} />
+      <ModalButton variant="primary" type="submit" busy={busy} fullWidth className={CTA_CLASS}>
+        SEND RESET LINK
+      </ModalButton>
       <div className="flex justify-center">
         <button type="button" className={textButton} onClick={() => controller.setView({ name: "email", tab: "sign-in", email })}>
           Back to sign in
@@ -649,7 +666,9 @@ const VerifyView = ({ controller, view }: BodyProps & { view: Extract<SheetView,
       <p className="sr-only" role="status" aria-live="polite" data-testid="resend-ready">
         {cooldownEnded ? "You can resend the email now." : ""}
       </p>
-      <PixelButton text="I'VE VERIFIED, CONTINUE" busy={checking} fullWidth className={CTA_CLASS} onClick={check} />
+      <ModalButton variant="primary" busy={checking} fullWidth className={CTA_CLASS} onClick={check}>
+        {"I'VE VERIFIED, CONTINUE"}
+      </ModalButton>
       <div className="flex flex-wrap items-center justify-center gap-x-2">
         {/* No live region on the button: its label ticks every second. The one announcement
             comes when the cooldown ends. */}
@@ -684,12 +703,14 @@ const LinkAccountView = ({
       </p>
       <ProviderButtons controller={controller} exclude={view.provider} />
       <Divider />
-      <PixelButton
-        text="SIGN IN WITH EMAIL"
+      <ModalButton
+        variant="primary"
         fullWidth
         className={CTA_CLASS}
         onClick={() => controller.setView({ name: "email", tab: "sign-in", email: view.email ?? undefined })}
-      />
+      >
+        SIGN IN WITH EMAIL
+      </ModalButton>
       <div className="flex justify-center">
         <KeepPlaying controller={controller} />
       </div>
@@ -708,7 +729,9 @@ const ProfileErrorView = ({
         ? "Your account didn't load in time. Check your connection, then try again."
         : "Something went wrong on our side. Your cat and your progress are safe. Try again in a moment."}
     </p>
-    <PixelButton text="TRY AGAIN" fullWidth className={CTA_CLASS} onClick={controller.retryProfile} />
+    <ModalButton variant="primary" fullWidth className={CTA_CLASS} onClick={controller.retryProfile}>
+      TRY AGAIN
+    </ModalButton>
     <div className="flex flex-wrap items-center justify-center gap-x-2">
       <button type="button" className={textButton} onClick={() => void controller.signOut()}>
         Sign out
@@ -735,7 +758,9 @@ const ConflictView = ({ controller }: BodyProps) => {
           {reference}
         </p>
       )}
-      <PixelButton text="SIGN IN TO MY ACCOUNT" fullWidth className={CTA_CLASS} onClick={() => void controller.signOut()} />
+      <ModalButton variant="primary" fullWidth className={CTA_CLASS} onClick={() => void controller.signOut()}>
+        SIGN IN TO MY ACCOUNT
+      </ModalButton>
       <div className="flex flex-wrap items-center justify-center gap-x-2">
         <a className={textButton} href={supportUrl(reference)}>
           Contact support
@@ -760,18 +785,20 @@ const MergedView = ({ controller, view }: BodyProps & { view: Extract<SheetView,
     {!view.note && (view.gamesMoved > 0 || view.tailsCredited > 0) && (
       <ul className="flex flex-wrap gap-2" aria-label="What moved">
         {view.gamesMoved > 0 && (
-          <li className="rounded-[4px] border-2 border-tt-gold-500/60 bg-tt-night-900/70 px-3 py-1 font-secondary text-p4 uppercase tracking-wide text-tt-cream">
+          <li className="rounded-[4px] border-2 border-tt-gold-500/60 bg-tt-night-900/70 px-3 py-1 font-sans text-p5 font-extrabold text-tt-cream">
             {view.gamesMoved} {view.gamesMoved === 1 ? "run" : "runs"}
           </li>
         )}
         {view.tailsCredited > 0 && (
-          <li className="rounded-[4px] border-2 border-tt-gold-500/60 bg-tt-night-900/70 px-3 py-1 font-secondary text-p4 uppercase tracking-wide text-tt-gold-400">
+          <li className="rounded-[4px] border-2 border-tt-gold-500/60 bg-tt-night-900/70 px-3 py-1 font-sans text-p5 font-extrabold text-tt-gold-400">
             +{view.tailsCredited} Tails
           </li>
         )}
       </ul>
     )}
-    <PixelButton text="CONTINUE" fullWidth className={CTA_CLASS} onClick={controller.close} />
+    <ModalButton variant="primary" fullWidth className={CTA_CLASS} onClick={controller.close}>
+      CONTINUE
+    </ModalButton>
   </>
 );
 
@@ -782,7 +809,9 @@ const FallbackView = ({ controller }: BodyProps) => (
       Guest play isn&apos;t available right now. You can still look around, try again, sign in, or play Catnip Heist right
       now with no sign-up.
     </p>
-    <PixelButton text="TRY AGAIN" fullWidth className={CTA_CLASS} onClick={controller.retryGuest} />
+    <ModalButton variant="primary" fullWidth className={CTA_CLASS} onClick={controller.retryGuest}>
+      TRY AGAIN
+    </ModalButton>
     <div className="flex flex-col items-center">
       <button type="button" className={textButton} onClick={() => controller.setView({ name: "choose" })}>
         Sign in instead

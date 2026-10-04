@@ -372,7 +372,7 @@ test.describe("north-star first session (plan 1.3, task 7b)", () => {
       await page.waitForTimeout(1000);
       expect(api.lives()).toHaveLength(1);
       expect(api.lives()[0]).toMatchObject({ type: "PIXEL_RESCUE", level: "1", outcome: "won" });
-      const back = page.getByRole("button", { name: "MEOW BACK" });
+      const back = page.getByRole("button", { name: "LEVEL MAP" });
       await expect(back).toBeVisible({ timeout: 15_000 });
       await shot(page, "09-first-clear");
       await expectCleanCopy(page, "win card");
@@ -380,7 +380,7 @@ test.describe("north-star first session (plan 1.3, task 7b)", () => {
     });
 
     await test.step("6. back in the lobby: the soft Save your cat nudge", async () => {
-      // MEOW BACK lands on the Cupid level map; its GO BACK returns to the lobby.
+      // LEVEL MAP lands on the Cupid level map; its GO BACK returns to the lobby.
       const leave = page.getByRole("button", { name: /GO BACK|^Leave level$/ }).or(page.getByText("GO BACK", { exact: false })).first();
       for (let i = 0; i < 3 && !(await page.getByTestId("rescue-tile").isVisible()); i += 1) {
         if (await leave.isVisible()) await leave.click();

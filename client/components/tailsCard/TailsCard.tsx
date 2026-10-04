@@ -15,6 +15,11 @@ type Props = {
    * always off inside a CardAction (that card opens something and keeps its own "open" badge).
    */
   flipHint?: boolean;
+  /**
+   * Which side shows first: true (the default, the pack reveal's flip) opens on the logo side;
+   * false opens on the cat, for a detail view where the player came to see that cat.
+   */
+  initialFlipped?: boolean;
 };
 
 /**
@@ -72,8 +77,9 @@ export const TailsCard: React.FC<Props> = ({
   className,
   cardStyle,
   flipHint = true,
+  initialFlipped = true,
 }) => {
-  const [flipped, setFlipped] = useState(true);
+  const [flipped, setFlipped] = useState(initialFlipped);
   // Ping until the first flip; the badge itself stays so the player can flip back.
   const [hasFlipped, setHasFlipped] = useState(false);
   const insideCardAction = useContext(InsideCardActionContext);

@@ -63,6 +63,7 @@ export const GiveSheet = ({ open, goal, amount, busy, problem, canRetry, final =
       }}
       canClose={!busy}
       title="GIVE TAILS"
+      icon="heart"
       name="give-tails"
       size="sm"
       layer="modal-nested"
@@ -71,20 +72,20 @@ export const GiveSheet = ({ open, goal, amount, busy, problem, canRetry, final =
         <p className="font-primary text-p3 uppercase leading-tight text-tt-gold-400">
           {formatTails(amount)}
         </p>
-        <p className="font-secondary text-p4 leading-snug">
+        <p className="font-sans font-semibold text-p4 leading-snug">
           to <strong className="font-bold">{goal.title}</strong>
           {goal.shelter ? <> for {goal.shelter.name}</> : null}
         </p>
-        <ul className="flex flex-col gap-1.5 rounded-xl border-2 border-tt-mint/50 bg-tt-mint/10 px-3 py-2 text-left font-secondary text-p5 leading-snug">
+        <ul className="flex flex-col gap-1.5 bg-tt-mint/10 px-3 py-2 [box-shadow:inset_0_0_0_2px_rgb(var(--tt-mint)/0.45)] text-left font-sans font-semibold text-p5 leading-snug">
           <li className="font-bold text-tt-mint" data-testid="give-rank-line">
             Giving never lowers your rank.
           </li>
           <li>Your earned Tails, tier progress and board place stay the same.</li>
           <li>Your balance goes down by {formatTails(amount)}.</li>
         </ul>
-        <p className="font-secondary text-p6 text-tt-muted">{TAILS_NO_CASH_VALUE}</p>
+        <p className="font-sans font-semibold text-p6 text-tt-muted">{TAILS_NO_CASH_VALUE}</p>
         {problem && (
-          <p role="alert" data-testid="give-problem" className="rounded-lg border-2 border-tt-rust/70 bg-tt-ember/20 px-3 py-2 font-secondary text-p5">
+          <p role="alert" data-testid="give-problem" className="bg-tt-ember/20 px-3 py-2 [box-shadow:inset_0_0_0_2px_rgb(var(--tt-rust)/0.6)] font-sans font-semibold text-p5">
             {problem}
           </p>
         )}

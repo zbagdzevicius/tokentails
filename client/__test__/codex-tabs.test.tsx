@@ -37,11 +37,7 @@ const renderCodex = (props: React.ComponentProps<typeof Codex> = {}) => {
   );
 };
 
-const pressed = () =>
-  screen
-    .getAllByRole("button")
-    .filter((b) => b.closest("[aria-label='Progress sections']"))
-    .map((b) => b.textContent);
+const pressed = () => screen.getAllByRole("tab").map((b) => b.textContent);
 
 beforeEach(() => {
   takeProgressTab();
@@ -62,7 +58,7 @@ describe("Codex PROGRESS tabs", () => {
   it("honours the tab argument and a pending lobby request", () => {
     const { unmount } = renderCodex({ tab: "badges" });
     expect(screen.queryByTestId("impact-tab")).toBeNull();
-    expect(screen.getByText("MY BADGE VAULT")).toBeTruthy();
+    expect(screen.getByText("Season badge")).toBeTruthy();
     unmount();
     requestProgressTab("tiers");
     requestProgressTab("impact");
@@ -93,14 +89,14 @@ describe("Codex PROGRESS tabs", () => {
     expect(screen.getByTestId("vault-tab")).toBeTruthy();
   });
 
-  it("marks the open tab with aria-pressed", () => {
+  it("marks the open tab with aria-selected", () => {
     renderCodex({ tab: "badges" });
-    const tab = (label: string) => screen.getByRole("button", { name: label });
-    expect(tab("BADGES").getAttribute("aria-pressed")).toBe("true");
-    expect(tab("IMPACT").getAttribute("aria-pressed")).toBe("false");
+    const tab = (label: string) => screen.getByRole("tab", { name: label });
+    expect(tab("BADGES").getAttribute("aria-selected")).toBe("true");
+    expect(tab("IMPACT").getAttribute("aria-selected")).toBe("false");
     fireEvent.click(tab("MISSIONS"));
-    expect(tab("MISSIONS").getAttribute("aria-pressed")).toBe("true");
-    expect(tab("BADGES").getAttribute("aria-pressed")).toBe("false");
+    expect(tab("MISSIONS").getAttribute("aria-selected")).toBe("true");
+    expect(tab("BADGES").getAttribute("aria-selected")).toBe("false");
   });
 
   it("a link to VAULT waits for token-status instead of flashing IMPACT", async () => {

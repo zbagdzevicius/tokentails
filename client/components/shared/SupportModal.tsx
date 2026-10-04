@@ -145,6 +145,7 @@ export const SupportModal = ({ close }: { close: () => void }) => {
         if (!open) close();
       }}
       title="SUPPORT"
+      icon="message"
       name="support"
       size="md"
     >

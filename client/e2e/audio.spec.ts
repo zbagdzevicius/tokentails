@@ -281,8 +281,8 @@ test.describe("lobby audio (G14, task 6c)", () => {
     await expect(settings.getByRole("slider", { name: "Effects volume" })).toHaveValue("60");
     await expect(settings.getByRole("radiogroup", { name: "Graphics" })).toBeVisible();
     await expect(settings.getByRole("radiogroup", { name: "Reduce motion" })).toBeVisible();
-    for (const name of ["Auto", "High", "Low", "System", "Mute sound"]) {
-      const control = name === "Mute sound" ? settings.getByRole("button", { name }) : settings.getByRole("radio", { name });
+    for (const name of ["Auto", "High", "Low", "System", "Sound"]) {
+      const control = name === "Sound" ? settings.getByRole("switch", { name }) : settings.getByRole("radio", { name });
       const r = (await control.boundingBox())!;
       expect(r.height, `${name} height`).toBeGreaterThanOrEqual(44);
     }

@@ -70,8 +70,10 @@ const setAsOpened = async (
 /**
  * The signed-in user's cats. Always an array: Base and the pet list call array methods on it, so
  * an error, a non-JSON body or a non-array body (an old or failing backend) gives `[]`.
+ * With `strict` a failed request throws instead, so a screen can tell "no cats" from "did not
+ * load" (My Pets shows a retry, not "No cats yet").
  */
-const cats = async (): Promise<ICat[]> => {
+const cats = async ({ strict = false }: { strict?: boolean } = {}): Promise<ICat[]> => {
   try {
     const response = await fetch(`${apiUrl}/user/cats`, {
       method: "GET",
@@ -83,13 +85,15 @@ const cats = async (): Promise<ICat[]> => {
     });
     if (!response.ok) {
       console.warn(`GET /user/cats failed with ${response.status}`);
+      if (strict) throw new Error(`GET /user/cats failed with ${response.status}`);
       return [];
     }
     const body: unknown = await response.json();
     return Array.isArray(body)
       ? (body.filter((cat) => !!cat && typeof cat === "object") as ICat[])
       : [];
-  } catch {
+  } catch (error) {
+    if (strict) throw error;
     return [];
   }
 };

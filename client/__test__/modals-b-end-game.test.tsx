@@ -54,9 +54,12 @@ describe("EndGameModal (night GameModal)", () => {
     const { dialog } = renderEndGame();
     expect(dialog.getAttribute("aria-labelledby")).toBeTruthy();
     const title = document.getElementById(dialog.getAttribute("aria-labelledby")!);
-    expect(title?.textContent).toMatch(/^Level 1 • .+ Summary$/);
-    expect(dialog.textContent).toContain("collected 42 catnip");
-    expect(dialog.textContent).toContain("Played for 37 seconds");
+    // A short title (no two-line wrap on phones); the level's own name and the game under it.
+    expect(title?.textContent).toBe("Level 1");
+    expect(title?.textContent).not.toMatch(/Summary/);
+    expect(document.getElementById(dialog.getAttribute("aria-describedby")!)?.textContent).toMatch(/^.+ · Paw Match$/);
+    expect(screen.getByTestId("end-game-score").textContent).toMatch(/catnip\s*42/i);
+    expect(screen.getByTestId("end-game-time").textContent).toMatch(/Time\s*37\s*sec/);
   });
 
   it("renders on the night panel: PixelFrame, z-modal layer, no legacy overlay classes", () => {
@@ -75,25 +78,29 @@ describe("EndGameModal (night GameModal)", () => {
     expect(dialog.querySelector('[data-pixel-frame="night"]')!.contains(close)).toBe(true);
   });
 
-  it("X, Esc and MEOW BACK close it; PLAY AGAIN retries the same level", async () => {
+  it("X, Esc and LEVEL MAP close it; PLAY AGAIN (the primary) retries the same level", async () => {
     const { onClose, tryAgain, dialog } = renderEndGame();
-    fireEvent.click(within(dialog).getByRole("button", { name: "PLAY AGAIN" }));
+    const again = within(dialog).getByRole("button", { name: "PLAY AGAIN" });
+    expect(again.getAttribute("data-variant")).toBe("primary");
+    fireEvent.click(again);
     expect(tryAgain).toHaveBeenCalledWith();
-    fireEvent.click(within(dialog).getByRole("button", { name: "MEOW BACK" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "LEVEL MAP" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
     fireEvent.keyDown(dialog, { key: "Escape" });
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(3));
   });
 
-  it("offers NEXT LEVEL after a cleared Paw Match level", () => {
+  it("offers NEXT LEVEL as the one primary after a cleared Paw Match level", () => {
     const { tryAgain, dialog } = renderEndGame(GameType.MATCH_3, stop({ completedLevel: "1" }));
+    const primaries = dialog.querySelectorAll('button[data-variant="primary"]');
+    expect(Array.from(primaries).map((b) => b.textContent)).toEqual(["NEXT LEVEL"]);
     fireEvent.click(within(dialog).getByRole("button", { name: "NEXT LEVEL" }));
     expect(tryAgain).toHaveBeenCalledWith("2");
   });
 
-  it("hides the time row when no time was played", () => {
-    const { dialog } = renderEndGame(GameType.CATNIP_CHAOS, stop({ time: 0 }));
-    expect(dialog.textContent).not.toContain("Played for");
+  it("hides the time tile when no time was played", () => {
+    renderEndGame(GameType.CATNIP_CHAOS, stop({ time: 0 }));
+    expect(screen.queryByTestId("end-game-time")).toBeNull();
   });
 
   it("caps the cat hero image so a wide catImg cannot spill out of the hero row", () => {
@@ -122,8 +129,9 @@ describe("PixelRescueEndGameModal (shared night panel)", () => {
     );
     const dialog = screen.getByRole("dialog");
     const title = document.getElementById(dialog.getAttribute("aria-labelledby")!);
-    expect(title?.textContent).toBe("Level 1-1 Summary");
-    expect(dialog.textContent).toContain("collected 42 hearts");
+    // Cupid Cat's levels are days, named as on their RunGate.
+    expect(title?.textContent).toBe("Day 11");
+    expect(screen.getByTestId("end-game-score").textContent).toMatch(/hearts\s*42/i);
     expect(dialog.querySelector('[data-pixel-frame="night"]')).not.toBeNull();
     fireEvent.click(within(dialog).getByRole("button", { name: "PLAY AGAIN" }));
     expect(tryAgain).toHaveBeenCalledWith();

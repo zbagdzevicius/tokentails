@@ -49,10 +49,11 @@ jest.mock("@/context/GameContext", () => ({
   useGame: () => ({ setOpenedModal: mockSetOpenedModal, setGameType: jest.fn() }),
 }));
 jest.mock("@/context/ToastContext", () => ({ useToast: () => jest.fn() }));
+const mockRequireAccount = jest.fn(() => Promise.resolve({ ok: true }));
 jest.mock("@/context/FirebaseAuthContext", () => ({
   useOptionalFirebaseAuth: () => ({
     authStatus: "ready",
-    requireAccount: jest.fn(),
+    requireAccount: mockRequireAccount,
     signOut: jest.fn(),
     eraseGuest: jest.fn(),
     user: { providers: ["google.com"] },
@@ -77,7 +78,7 @@ import {
   PAW_RECHECK_MS,
   showTreatCta,
 } from "@/components/impact/EndGamePaw";
-import { pawView } from "@/components/impact/pawView";
+import { pawRuleText, pawView } from "@/components/impact/pawView";
 import { clearedThisRun, EndGamePanel } from "@/components/shared/EndGameModal";
 import { ProfileModalContent } from "@/components/shared/ProfileModal";
 import { GameModal } from "@/models/game";
@@ -253,6 +254,32 @@ describe("EndGamePaw", () => {
     }
   });
 
+  it("no paw data yet (unavailable): no card at all, not an empty one", () => {
+    mockImpactMe.me = { treats: me().treats, instantTreat: me().instantTreat };
+    const { container } = render(<EndGamePaw />);
+    expect(screen.queryByTestId("end-game-paw")).toBeNull();
+    expect(container.textContent).toBe("");
+  });
+
+  it("states the paw rule only while counting, from the server's runsNeeded", () => {
+    mockImpactMe.me = me({ remaining: 1 });
+    const { rerender } = render(<EndGamePaw />);
+    expect(screen.getByTestId("end-game-paw-rule").textContent).toBe(pawRuleText(2));
+    expect(pawRuleText(2)).toBe("Two scoring runs, 3 minutes apart, earn today's paw.");
+    expect(pawRuleText(3)).toMatch(/^Three scoring runs/);
+    mockImpactMe.me = me({ remaining: 0 });
+    rerender(<EndGamePaw />);
+    expect(screen.queryByTestId("end-game-paw-rule")).toBeNull();
+  });
+
+  it("a guest gets SAVE MY PROGRESS, which opens the AuthSheet", () => {
+    mockImpactMe.viewer = "guest";
+    render(<EndGamePaw />);
+    const button = screen.getByRole("button", { name: /SAVE MY PROGRESS/ });
+    fireEvent.click(button);
+    expect(mockRequireAccount).toHaveBeenCalledWith("save-progress");
+  });
+
   it("a guest gets the save line, with no CTA", () => {
     mockImpactMe.viewer = "guest";
     mockRail = LIVE_RAIL;
@@ -265,7 +292,7 @@ describe("EndGamePaw", () => {
 describe("EndGamePanel", () => {
   const panel = (cleared: boolean) => (
     <EndGamePanel
-      title="Level 1 Summary"
+      levelName="Level 1"
       name="end-game"
       onClose={jest.fn()}
       scoreIcon={null}
@@ -316,14 +343,11 @@ describe("ProfileModal MY IMPACT", () => {
     expect(summary.textContent).toMatch(/2 more runs for today's paw/);
     expect(screen.getByTestId("my-impact-paws").textContent).toBe("0 paws");
     expect(document.body.textContent).not.toMatch(/surger|meals|vaccin/i);
+    // One way in (the old MY IMPACT and OPEN IMPACT buttons went to the same place).
+    expect(screen.queryByRole("button", { name: "OPEN IMPACT" })).toBeNull();
     act(() => {
-      fireEvent.click(screen.getByRole("button", { name: "OPEN IMPACT" }));
+      fireEvent.click(screen.getByRole("button", { name: "SEE MY IMPACT" }));
     });
-    expect(mockSetOpenedModal).toHaveBeenCalledWith(GameModal.CODEX);
-    expect(takeProgressTab()).toBe("impact");
-    // The MY IMPACT button jumps straight to PROGRESS on IMPACT too.
-    mockSetOpenedModal.mockClear();
-    fireEvent.click(screen.getByRole("button", { name: "MY IMPACT" }));
     expect(mockSetOpenedModal).toHaveBeenCalledWith(GameModal.CODEX);
     expect(takeProgressTab()).toBe("impact");
   });

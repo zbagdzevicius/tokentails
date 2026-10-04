@@ -1,6 +1,6 @@
 import { QUEST_API } from "@/api/quest-api";
 import { REWARDS } from "@/constants/rewards";
-import { bgStyle, cdnFile } from "@/constants/utils";
+import { cdnFile } from "@/constants/utils";
 import { GameModal } from "@/components/ui/GameModal";
 import { useAccountAction, useLatest } from "@/hooks/useAccountAction";
 import { useProfile } from "@/context/ProfileContext";
@@ -11,8 +11,17 @@ import { useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { LeaderboardContent } from "../Leaderboard";
 import { LeaderboardCatnipContent } from "../LeaderboardCatnip";
-import { PixelButton } from "./PixelButton";
-import { Tag } from "./Tag";
+import { PixelIcon } from "./PixelIcon";
+import {
+  EmptyState,
+  ModalButton,
+  ModalSection,
+  ModalStack,
+  ModalTabPanel,
+  type ModalTab,
+} from "@/components/ui/modal";
+import { HintedTabs } from "@/components/ui/modal/HintedTabs";
+import clsx from "clsx";
 import { LeaderboardRescuerContent } from "../LeaderboardRescuer";
 import { formatTails } from "@/shared-contracts/copy";
 
@@ -49,7 +58,7 @@ export const TrailheadsTypes = TrailheadsData.map(
 
 export const QuestsModalContent = () => {
   const { profile, setProfileUpdate, utils } = useProfile();
-  const [questsType, setQuestsType] = useState(QuestType.WIN);
+  const [questsType, setQuestsType] = useState(QuestType.SOCIAL);
   const { data: partnerQuests } = useQuery({
     queryKey: ["quests"],
     queryFn: () => QUEST_API.find(),
@@ -108,141 +117,157 @@ export const QuestsModalContent = () => {
     claim(quest);
   };
 
+  // QUESTS first: it is the one tab you act on; the three boards follow.
+  const tabs: ModalTab<QuestType>[] = [
+    { id: QuestType.SOCIAL, label: "QUESTS", icon: "target", badge: quests.length || undefined },
+    { id: QuestType.WIN, label: "TAILS", icon: "coins" },
+    { id: QuestType.CATNIP, label: "CATNIP", icon: "zap" },
+    { id: QuestType.RESCUE, label: "RESCUERS", icon: "heart" },
+  ];
+
+  /** "1,000 / 10,000" for a count quest, from the profile number it tracks. */
+  const goalProgress = (quest: ILocalQuest) => {
+    if (!quest.goal) return null;
+    const have = quest.goal.metric === "tails" ? profile?.tails ?? 0 : profile?.referralsCount ?? 0;
+    return {
+      have: Math.min(have, quest.goal.target),
+      target: quest.goal.target,
+      reached: have >= quest.goal.target,
+      unit: quest.goal.metric,
+    };
+  };
+
   return (
-    <div className="px-0 md:px-2 pb-4 pt-1 flex flex-col justify-between items-center animate-appear text-tt-cream">
-      <div className="pb-2 flex items-center justify-between w-full" role="group" aria-label="Event lists">
-        <PixelButton
-          text="TAILS"
-          active={questsType === QuestType.WIN}
-          onClick={() => setQuestsType(QuestType.WIN)}
-        ></PixelButton>
-        <PixelButton
-          text="CATNIP"
-          active={questsType === QuestType.CATNIP}
-          onClick={() => setQuestsType(QuestType.CATNIP)}
-        ></PixelButton>
-        <PixelButton
-          text="RESCUERS"
-          active={questsType === QuestType.RESCUE}
-          onClick={() => setQuestsType(QuestType.RESCUE)}
-        ></PixelButton>
-        <PixelButton
-          text="QUESTS"
-          active={questsType === QuestType.SOCIAL}
-          onClick={() => setQuestsType(QuestType.SOCIAL)}
-        ></PixelButton>
-      </div>
-      <span className="lg:px-8 w-full">
+    <div className="flex flex-col gap-4 pb-2 text-tt-cream animate-appear motion-reduce:animate-none short:gap-3">
+      <HintedTabs
+        tabs={tabs}
+        value={questsType}
+        onChange={setQuestsType}
+        label="Event lists"
+        idBase="events"
+        fadeFrom="from-tt-night-800"
+        className="md:[&_[role=tab]]:text-p4"
+      />
+      <ModalTabPanel idBase="events" id={questsType} className="flex flex-col gap-4 short:gap-3">
         {questsType === QuestType.SOCIAL && (
-          <>
-            <div className="flex flex-col gap-2 w-full">
-              {quests.map((quest) => (
-                <div
-                  key={quest.name}
-                  className="flex justify-between items-center w-full"
-                >
-                  <div className="flex gap-2 items-center">
-                    {profile?.quests?.includes(quest.key) ? (
-                      <img
-                        draggable={false}
-                        className="w-10"
-                        alt="Done"
-                        src={cdnFile("icons/check.webp")}
-                      />
-                    ) : (
-                      <img
-                        draggable={false}
-                        className="w-10"
-                        alt=""
-                        aria-hidden="true"
-                        src={quest.icon}
-                      />
-                    )}
-                    <PixelButton
-                      text={quest.name}
-                      active={profile?.quests?.includes(quest.key)}
-                      onClick={() => redeem(quest)}
-                    ></PixelButton>
+          <ModalStack>
+            <ModalSection
+              tone="highlight"
+              title="Invite a friend"
+              icon="users"
+              helper="Share your link. When your friend joins, you both get Tails."
+            >
+              <div className="grid grid-cols-2 gap-3 short:gap-2">
+                <div className="flex items-center gap-2 bg-tt-night-950/45 p-3">
+                  <img alt="" aria-hidden="true" draggable={false} className="h-8 w-8 object-contain" src={cdnFile("logo/logo.webp")} />
+                  <div className="min-w-0">
+                    <p className="font-sans text-p6 font-extrabold uppercase tracking-wider text-tt-muted">For you</p>
+                    <p className="font-primary text-p4 leading-none text-tt-gold-400">{formatTails(REWARDS.INVITE_FRIEND)}</p>
                   </div>
-                  {!!quest.reward.tails && (
-                    <div className="text-p5 h-6 flex items-center gap-1 font-secondary bg-tt-night-900 border border-tt-gold-500/70 text-tt-cream rounded-full pr-2 pl-4 relative">
-                      <img
-                        alt=""
-                        aria-hidden="true"
-                        draggable={false}
-                        className="w-8 -left-5 -top-2 bottom-0 z-10 absolute"
-                        src={cdnFile("logo/logo.webp")}
-                      />
-                      {formatTails(quest.reward.tails)}
-                    </div>
-                  )}
                 </div>
-              ))}
-            </div>
-
-            <>
-              <div
-                className="flex flex-col mb-4 font-primary uppercase px-2 relative rounded-lg py-2 text-tt-gold-ink mt-8"
-                style={bgStyle("6")}
-              >
-                <Tag size="sm">WHAT I&apos;LL GET FOR INVITING A FRIEND?</Tag>
-
-                <div className="flex flex-row items-center mb-1">
+                <div className="flex items-center gap-2 bg-tt-night-950/45 p-3">
                   <img
                     alt=""
                     aria-hidden="true"
                     draggable={false}
-                    className="md:h-8 lg:h-10 h-7 mr-1"
-                    src={cdnFile("logo/logo.webp")}
-                  />
-                  <p className="text-p4">{formatTails(REWARDS.INVITE_FRIEND)}</p>
-                </div>
-                <div className="flex flex-row items-center">
-                  <img
-                    alt=""
-                    aria-hidden="true"
-                    draggable={false}
-                    className="w-7 h-6  md:w-8 md:h-7 lg:w-10 lg:h-9 mr-1"
+                    className="h-8 w-8 object-contain"
                     src={cdnFile("icons/invites/gift-coin.png")}
                   />
-                  <p className="text-p4">
-                    {formatTails(REWARDS.INVITE_FRIEND)} FOR YOUR FRIEND
-                  </p>
-                </div>
-                <div className="absolute -top-3 -left-3 z-0 -rotate-45">
-                  <img
-                    alt=""
-                    aria-hidden="true"
-                    draggable={false}
-                    className="h-6 w-6"
-                    src={cdnFile("logo/heart.webp")}
-                  />
-                </div>
-                <div className="absolute -top-3 -right-3 z-0 rotate-45">
-                  <img
-                    alt=""
-                    aria-hidden="true"
-                    draggable={false}
-                    className="h-6 w-6"
-                    src={cdnFile("logo/heart.webp")}
-                  />
-                </div>
-                <div className="flex flex-col gap-4 uppercase text-center">
-                  Play side by side and earn daily paws together
+                  <div className="min-w-0">
+                    <p className="font-sans text-p6 font-extrabold uppercase tracking-wider text-tt-muted">For your friend</p>
+                    <p className="font-primary text-p4 leading-none text-tt-gold-400">{formatTails(REWARDS.INVITE_FRIEND)}</p>
+                  </div>
                 </div>
               </div>
-              <PixelButton
-                text="GET INVITE LINK"
-                onClick={onInvite}
-                fullWidth
-              />
-            </>
-          </>
+              <p className="font-sans text-p6 font-semibold text-tt-cream md:text-p5">
+                Play side by side and earn daily paws together.
+              </p>
+              <ModalButton variant="primary" icon="share" fullWidth onClick={onInvite}>
+                GET INVITE LINK
+              </ModalButton>
+            </ModalSection>
+
+            <ModalSection
+              title="Quests"
+              icon="target"
+              helper="Quick one-time tasks. Tap one to do it; its Tails come once it is done."
+            >
+              {quests.length === 0 ? (
+                <EmptyState compact icon="check" title="All quests done" body="New quests show up here. Check back soon." />
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {quests.map((quest) => {
+                    const done = !!profile?.quests?.includes(quest.key);
+                    const progress = goalProgress(quest);
+                    const detailId = `quest-${quest.key ?? quest.name}`.replace(/[^a-zA-Z0-9_-]/g, "-");
+                    return (
+                      <li key={quest.name}>
+                        <button
+                          type="button"
+                          onClick={() => redeem(quest)}
+                          aria-label={quest.name}
+                          aria-describedby={detailId}
+                          className={clsx(
+                            "group flex min-h-[56px] w-full items-center gap-3 p-2 pr-2 text-left",
+                            "outline-none focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[2px] focus-visible:outline-tt-gold-400",
+                            "transition-colors duration-150 motion-reduce:transition-none",
+                            done
+                              ? "bg-tt-mint/[0.06] [box-shadow:inset_0_0_0_2px_rgb(var(--tt-mint)/0.35)]"
+                              : "bg-tt-night-950/45 [box-shadow:inset_0_0_0_2px_rgb(var(--tt-night-500)/0.6)] hover:bg-tt-night-600/60 hover:[box-shadow:inset_0_0_0_2px_rgb(var(--tt-gold-500)/0.55)]"
+                          )}
+                        >
+                          <img
+                            draggable={false}
+                            className="h-10 w-10 shrink-0 object-contain"
+                            alt=""
+                            aria-hidden="true"
+                            src={done ? cdnFile("icons/check.webp") : quest.icon}
+                          />
+                          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <span className="line-clamp-2 font-sans text-p5 font-extrabold leading-tight text-tt-cream md:text-p4">
+                              {quest.name}
+                            </span>
+                            <span id={detailId} className="font-sans text-p6 font-semibold leading-snug text-tt-muted">
+                              {done
+                                ? "Done"
+                                : progress
+                                ? progress.reached
+                                  ? "Reached: tap to claim"
+                                  : progress.unit === "tails"
+                                  ? `${formatTails(progress.have, { word: false })} / ${formatTails(progress.target)}`
+                                  : `${progress.have} / ${progress.target} friends joined`
+                                : quest.link
+                                ? "Opens in a new tab"
+                                : "Tap to claim"}
+                              {!!quest.reward.tails && <span className="sr-only">{`, pays ${formatTails(quest.reward.tails)}`}</span>}
+                            </span>
+                          </span>
+                          {!!quest.reward.tails && (
+                            <span
+                              aria-hidden="true"
+                              className="inline-flex w-[88px] shrink-0 items-center justify-end gap-1 font-primary text-p5 leading-none text-tt-gold-400"
+                            >
+                              <PixelIcon name="coins" size={14} />+{formatTails(quest.reward.tails, { word: false })}
+                            </span>
+                          )}
+                          <PixelIcon
+                            name="chevron-right"
+                            size={18}
+                            className="shrink-0 text-tt-muted group-hover:text-tt-gold-400"
+                          />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </ModalSection>
+          </ModalStack>
         )}
-      </span>
-      {questsType === QuestType.WIN && <LeaderboardContent />}
-      {questsType === QuestType.CATNIP && <LeaderboardCatnipContent />}
-      {questsType === QuestType.RESCUE && <LeaderboardRescuerContent />}
+        {questsType === QuestType.WIN && <LeaderboardContent />}
+        {questsType === QuestType.CATNIP && <LeaderboardCatnipContent />}
+        {questsType === QuestType.RESCUE && <LeaderboardRescuerContent />}
+      </ModalTabPanel>
     </div>
   );
 };
@@ -255,8 +280,12 @@ export const QuestsModal = ({ close }: { close: () => void }) => {
         if (!open) close();
       }}
       title="EVENTS"
+      icon="trophy"
+      description="Quests that pay Tails, and the leaderboards."
       name="events"
-      size="md"
+      size="lg"
+      // One height for every tab, so switching tabs never makes the panel jump.
+      className="h-[min(92dvh,860px)] [&>div]:flex-1"
     >
       <QuestsModalContent />
     </GameModal>

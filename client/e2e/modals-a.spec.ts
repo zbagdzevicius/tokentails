@@ -44,10 +44,12 @@ const GUEST = { ...PLAYER, _id: "64e2e0000000000000000g01", isGuest: true, name:
 const isUserToken = (token: string | undefined) => !!token && token.endsWith(".user");
 
 /** A populated Codex: claimable tier, challenge and milestone, so the night cards render with data. */
+// Every check met: the backend marks a tier claimable only for an eligible account, and the
+// TIERS card shows CLAIM only then.
 const PROGRESSION = {
-  eligible: false,
+  eligible: true,
   eligibilityCriteria: [
-    { id: "cats", label: "Own 3 cats", description: "Adopt or open packs", current: 1, target: 3, met: false },
+    { id: "cats", label: "Own 3 cats", description: "Adopt or open packs", current: 3, target: 3, met: true },
     { id: "streak", label: "3 day streak", description: "Spin daily", current: 3, target: 3, met: true },
   ],
   metrics: {
@@ -193,7 +195,7 @@ const MODALS: Array<{ id: string; title: string; open: (page: Page) => Promise<v
   { id: "codex", title: "PROGRESS", open: (page) => page.getByText("PROGRESS", { exact: true }).first().click() },
   { id: "cats", title: "MY PETS", open: (page) => page.getByRole("button", { name: "MY PETS" }).click() },
   { id: "packs", title: "PACKS", open: (page) => page.getByRole("button", { name: "PACKS" }).click() },
-  { id: "wheel", title: "TAILS WHEEL", open: (page) => page.getByRole("button", { name: "DAILY SPIN" }).click() },
+  { id: "wheel", title: "DAILY SPIN", open: (page) => page.getByRole("button", { name: "DAILY SPIN" }).click() },
   { id: "events", title: "EVENTS", open: (page) => page.getByRole("button", { name: "EVENTS" }).click() },
   {
     id: "support",
@@ -294,7 +296,7 @@ test.describe("night GameModal migration A (G6, F3.3)", () => {
     test.skip(!["mobile-390", "desktop-1440"].includes(testInfo.project.name), "Checked at 390 and 1440.");
     const calls = await openGame(page, backend);
     await page.getByRole("button", { name: "DAILY SPIN" }).click();
-    const wheel = dialog(page, "TAILS WHEEL");
+    const wheel = dialog(page, "DAILY SPIN");
     await expect(wheel).toBeVisible();
     // Within the safe area at any viewport.
     const panel = await page.getByTestId("wheel-panel").boundingBox();
@@ -321,7 +323,7 @@ test.describe("night GameModal migration A (G6, F3.3)", () => {
     test.skip(testInfo.project.name !== "desktop-1440", "Once is enough.");
     const calls = await openGame(page, backend, { guest: true });
     await page.getByRole("button", { name: "DAILY SPIN" }).click();
-    await dialog(page, "TAILS WHEEL").getByRole("button", { name: "SPIN!" }).click();
+    await dialog(page, "DAILY SPIN").getByRole("button", { name: "SPIN!" }).click();
     await expect(page.getByRole("heading", { name: "CLAIM YOUR REWARDS" })).toBeVisible();
     expect(calls.redeems()).toBe(0);
     await page.evaluate(() => (window as unknown as { __ttE2EAuth: { signIn: () => void } }).__ttE2EAuth.signIn());
@@ -415,7 +417,7 @@ test.describe("night GameModal migration A (G6, F3.3)", () => {
       return new Promise(() => undefined);
     });
     await page.getByRole("button", { name: "DAILY SPIN" }).click();
-    const wheel = dialog(page, "TAILS WHEEL");
+    const wheel = dialog(page, "DAILY SPIN");
     await wheel.getByRole("button", { name: "SPIN!" }).click();
     await expect.poll(() => hung).toBe(1);
     const close = wheel.getByRole("button", { name: "Close", exact: true });
@@ -433,7 +435,7 @@ test.describe("night GameModal migration A (G6, F3.3)", () => {
     const pets = dialog(page, "MY PETS");
     await expect(pets).toBeVisible();
     await expect(async () => {
-      await pets.getByAltText("STARTER").first().click({ force: true });
+      await pets.getByRole("button", { name: "Open Starter pack" }).first().click({ force: true });
       await expect(page.getByRole("dialog", { name: /pack$/i })).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 15_000 });
     const pack = page.getByRole("dialog", { name: /pack$/i });
@@ -489,9 +491,9 @@ test.describe("night GameModal migration A (G6, F3.3)", () => {
     await page.getByText("PROGRESS", { exact: true }).first().click();
     const codex = dialog(page, "PROGRESS");
     await expect(codex).toBeVisible();
-    await codex.getByRole("button", { name: "TIERS" }).click();
+    await codex.getByRole("tab", { name: /TIERS/ }).click();
     await codex.getByRole("button", { name: "REVEAL PRIZE" }).first().click();
-    await codex.getByRole("button", { name: /^CLAIM 50$/ }).first().click();
+    await codex.getByRole("button", { name: /^CLAIM 50 TAILS$/ }).first().click();
     await dismiss();
     await page.keyboard.press("Escape");
     await expect(codex).toHaveCount(0);
@@ -516,11 +518,11 @@ test.describe("night GameModal migration A (G6, F3.3)", () => {
     await page.getByText("PROGRESS", { exact: true }).first().click();
     const codex = dialog(page, "PROGRESS");
     // PROGRESS opens on IMPACT (task 6a); REWARDS is the old INFO tab, MISSIONS the old GOALS.
-    await codex.getByRole("button", { name: "REWARDS", exact: true }).click();
-    await expect(codex.getByText("PROGRESSION COMMAND CENTER").first()).toBeVisible({ timeout: 15_000 });
+    await codex.getByRole("tab", { name: "REWARDS", exact: true }).click();
+    await expect(codex.getByText("To claim", { exact: true }).first()).toBeVisible({ timeout: 15_000 });
     // Every tab with data: the night cards keep their contrast (no cream plates left).
     for (const tab of ["IMPACT", "REWARDS", "MISSIONS", "TIERS", "PET ART", "BADGES"]) {
-      await codex.getByRole("button", { name: tab, exact: true }).click();
+      await codex.getByRole("tab", { name: new RegExp(`^${tab}`) }).click();
       if (tab === "TIERS") await codex.getByRole("button", { name: "REVEAL PRIZE" }).first().click();
       await page.waitForTimeout(700);
       const axe = await new AxeBuilder({ page }).include('[role="dialog"]').withRules(AXE_RULES).analyze();

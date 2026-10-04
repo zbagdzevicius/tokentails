@@ -220,7 +220,7 @@ async function expectPanelFits(page: Page, safe: typeof SAFE_AREA | null) {
   expect(inside(closeBox, clip), `X ${JSON.stringify(closeBox)} inside the frame ${JSON.stringify(clip)}`).toBe(true);
 
   // Nothing is cut off: every button can be scrolled into view inside the dialog.
-  for (const name of ["PLAY AGAIN", "MEOW BACK"]) {
+  for (const name of ["PLAY AGAIN", "LEVEL MAP"]) {
     const button = dialog.getByRole("button", { name });
     await button.scrollIntoViewIfNeeded();
     const b = await box(button);
@@ -333,8 +333,8 @@ test.describe("modals B: end-of-run panels and the Paw Match X", () => {
     await enterMode(page, "pawmatch");
     await endRun(page);
     await expectPanelFits(page, safe);
-    await expect(page.getByRole("dialog")).toContainText("collected 10 catnip");
-    await expect(page.getByRole("dialog")).toContainText("Played for 37 seconds");
+    await expect(page.getByTestId("end-game-score")).toContainText("10");
+    await expect(page.getByTestId("end-game-time")).toContainText("37");
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/end-game-${info.project.name}.png` });
     await axeOnDialog(page);
 
@@ -348,7 +348,7 @@ test.describe("modals B: end-of-run panels and the Paw Match X", () => {
     await enterMode(page, "cupid");
     await endRun(page);
     await expectPanelFits(page, safe);
-    await expect(page.getByRole("dialog")).toContainText("collected 10 hearts");
+    await expect(page.getByTestId("end-game-score")).toContainText("10");
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/pixel-rescue-end-${info.project.name}.png` });
     await axeOnDialog(page);
 

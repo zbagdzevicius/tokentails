@@ -1,10 +1,15 @@
 import { cdnFile, isMobile } from "@/constants/utils";
+import { REWARDS } from "@/constants/rewards";
+import { timeLeft } from "@/components/impact/pawView";
+import { useClock } from "@/components/impact/useClock";
+import { PixelIcon } from "@/components/shared/PixelIcon";
 import React, { useRef, useState, useEffect } from "react";
 import WheelComponent, { WheelRef } from "./Wheel";
 import { useToast } from "@/context/ToastContext";
 import { useProfile } from "@/context/ProfileContext";
 import { USER_API } from "@/api/user-api";
 import { GameModal } from "@/components/ui/GameModal";
+import { ModalButton } from "@/components/ui/modal";
 import { useAccountAction, useLatest } from "@/hooks/useAccountAction";
 import { apiUrl } from "@/api/api";
 import { formatTails, TAILS_NO_CASH_VALUE } from "@/shared-contracts/copy";
@@ -97,16 +102,25 @@ export async function fetchWheelOdds(signal?: AbortSignal): Promise<WheelOddsRow
   }
 }
 
+/** The daily spin resets at 00:00 UTC (the lobby tile counts down to the same instant). */
+const nextUtcMidnight = (now: Date) =>
+  new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+
 /** "1%" or "24%"; at most two decimals, no trailing zeros. */
 export const oddsPercent = (value: number) => `${Number(value.toFixed(2))}%`;
 
 /** The published odds, folded under the wheel. */
 export const WheelOdds = ({ rows }: { rows: WheelOddsRow[] }) => (
-  <details data-testid="wheel-odds" className="mx-4 mb-4 rounded-md border-2 border-tt-gold-500/60 bg-tt-night-900/85 px-3 py-2 text-tt-cream md:mx-6">
-    <summary className="min-h-[44px] cursor-pointer py-2 font-primary text-p5 uppercase tracking-wide">
+  <details
+    data-testid="wheel-odds"
+    className="group w-full bg-tt-night-900/90 px-3 text-tt-cream [box-shadow:inset_0_0_0_2px_rgb(var(--tt-gold-500)/0.55)]"
+  >
+    <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-2 py-2 font-primary text-p5 uppercase tracking-wide">
+      <PixelIcon name="chart" size={16} className="text-tt-gold-400" />
       Odds of each prize
+      <PixelIcon name="chevron-right" size={16} className="ml-auto transition-transform group-open:rotate-90 motion-reduce:transition-none" />
     </summary>
-    <ul className="grid grid-cols-2 gap-x-6 gap-y-1 pb-2 font-secondary text-p5 sm:grid-cols-4">
+    <ul className="grid grid-cols-2 gap-x-6 gap-y-1 pb-2 font-sans text-p5 font-bold sm:grid-cols-4">
       {rows.map((row) => (
         <li key={row.tails} className="flex justify-between gap-2">
           <span>{formatTails(row.tails)}</span>
@@ -114,7 +128,7 @@ export const WheelOdds = ({ rows }: { rows: WheelOddsRow[] }) => (
         </li>
       ))}
     </ul>
-    <p className="pb-1 font-secondary text-p6 text-tt-muted">One spin a day. {TAILS_NO_CASH_VALUE}</p>
+    <p className="pb-3 font-sans text-p6 font-semibold text-tt-muted">One spin a day. {TAILS_NO_CASH_VALUE}</p>
   </details>
 );
 
@@ -182,6 +196,9 @@ export const WheelModal: React.FC<WheelModalProps> = ({
   const [isButtonHovering, setIsButtonHovering] = useState(false);
   const [showMascotVideo, setShowMascotVideo] = useState(true);
   const toast = useToast();
+  const clock = useClock(30_000);
+  const nextSpinIn = clock ? timeLeft(nextUtcMidnight(clock), clock) : null;
+  const spinUsed = claimSpent || hasSpin || profile?.canRedeemLives === false;
   const { data: odds } = useQuery({
     queryKey: ["wheel-odds"],
     queryFn: ({ signal }) => fetchWheelOdds(signal),
@@ -405,243 +422,272 @@ export const WheelModal: React.FC<WheelModalProps> = ({
     }
   };
 
+  // "12h" rather than "12h 0m".
+  const nextSpinLabel = nextSpinIn?.replace(/ 0m$/, "") ?? null;
+
   return (
     <GameModal
       open
       onOpenChange={(open) => {
         if (!open) handleClose();
       }}
-      title="TAILS WHEEL"
+      title="DAILY SPIN"
+      icon="gift"
+      description={`One free spin a day. Win up to ${formatTails(REWARDS.DAILY_REWARD_MAX)}, our rescue points.`}
       name="wheel"
-      surface="art"
       size="lg"
       canClose={canClose}
-      className="!w-fit !max-w-[95vw] md:!max-w-[90vw] lg:!max-w-[1100px]"
+      className="md:!max-w-[600px] short:!max-w-[760px]"
+      bodyClassName="!p-0 short:!p-0"
     >
+      {/* Phones and desktops: the wheel on its stage, then the result and the odds under it. Short
+          landscape (844x390): two columns, the wheel left and the result right, so the outcome is
+          on screen without scrolling. */}
       <div
         data-testid="wheel-panel"
         data-spinning={isSpinning || undefined}
-        className="isolate font-secondary flex flex-col overflow-y-auto overflow-x-hidden overscroll-contain rounded-lg border-4 border-tt-gold-500 bg-tt-night-800 shadow-[0_6px_0_rgb(var(--tt-night-950)),0_0_28px_rgb(var(--tt-gold-400)/0.14)]"
-        style={{
-          maxHeight: ART_PANEL_MAX_HEIGHT,
-          backgroundImage: `linear-gradient(rgb(var(--tt-night-900) / 0.55), rgb(var(--tt-night-900) / 0.35)), url(${cdnFile("roulette/roulette-bg.webp")})`,
-          backgroundRepeat: "no-repeat",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
+        className="isolate flex flex-col font-sans short:grid short:grid-cols-[auto_minmax(0,1fr)]"
       >
-        <div className="p-4 md:p-6 flex flex-col items-center justify-center gap-2">
-          <div className="flex items-center gap-2">
-            <div className="flex flex-col items-center justify-center gap-1">
-              <p
+        <div
+          className="relative flex items-center justify-center overflow-hidden px-2 pb-3 pt-7 md:pt-9 short:!px-3 short:!pb-2 short:!pt-5 [box-shadow:inset_0_-2px_0_rgb(var(--tt-gold-500)/0.35),inset_0_0_32px_rgb(var(--tt-night-950)/0.7)]"
+          style={{
+            backgroundImage: `linear-gradient(rgb(var(--tt-night-900) / 0.45), rgb(var(--tt-night-900) / 0.25)), url(${cdnFile("roulette/roulette-bg.webp")})`,
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          {/* Sized to the wheel, so the ears, SPIN! and the result scale with it at every size. */}
+          <div className="relative isolate">
+            <div className="pointer-events-none absolute left-1/2 top-[-6%] -z-10 w-[70%] -translate-x-1/2">
+              <img
+                className="w-full"
+                src={cdnFile("roulette/ears.webp")}
+                draggable="false"
+                alt=""
                 aria-hidden="true"
-                className="md:text-h3 text-h5 font-primary text-tt-gold-400 [text-shadow:0_3px_0_rgb(var(--tt-gold-shadow))]"
-              >
-                TAILS WHEEL
-              </p>
-              <p className="md:text-p4 text-p5 font-primary text-center text-tt-cream font-medium">
-                One free spin a day for rescue points
-              </p>
+              />
+              <img
+                className={`absolute left-0 top-0 w-full ${isSpinning ? "motion-safe:animate-blink" : ""}`}
+                src={cdnFile("roulette/paws.webp")}
+                draggable="false"
+                alt=""
+                aria-hidden="true"
+              />
             </div>
-          </div>
-        </div>
 
-        <div className="relative p-4 md:p-6 lg:p-8 flex items-center justify-center">
-          <WheelComponent
-            ref={wheelRef}
-            segments={SEGMENTS}
-            segColors={[
-              "#ef8d44",
-              "#f2e0b8",
-              "#f7d454",
-              "#e6adb4",
-              "#de711f",
-              "#efcd85",
-              "#e8b92b",
-              "#e97588",
-            ]}
-            winningSegment={targetSegment}
-            onFinished={handleFinished}
-            isOnlyOnce={true}
-          />
+            <WheelComponent
+              ref={wheelRef}
+              segments={SEGMENTS}
+              segColors={[
+                "#ef8d44",
+                "#f2e0b8",
+                "#f7d454",
+                "#e6adb4",
+                "#de711f",
+                "#efcd85",
+                "#e8b92b",
+                "#e97588",
+              ]}
+              winningSegment={targetSegment}
+              onFinished={handleFinished}
+              isOnlyOnce={true}
+            />
 
-          {showMascotVideo ? (
-            <video
-              ref={videoRef}
-              src={cdnFile("roulette/mascot.webm")}
-              className="absolute -right-1 bottom-0 md:w-52 md:h-52 w-28 h-28"
-              draggable="false"
-              muted
-              playsInline
-              preload="metadata"
-            />
-          ) : (
-            <img
-              src={cdnFile("roulette/mascot.webp")}
-              className="absolute -right-1 bottom-0 md:w-52 md:h-52 w-28 h-28 object-contain"
-              draggable="false"
-              alt=""
-              aria-hidden="true"
-            />
-          )}
-
-          <div className="absolute left-1/2 -translate-x-1/2 top-0 md:top-3 w-[65%] md:w-[60%] -z-50">
-            <img
-              className="top-10 w-full h-full"
-              src={cdnFile("roulette/ears.webp")}
-              draggable="false"
-              alt=""
-              aria-hidden="true"
-            />
-            <img
-              className={`absolute w-full -left-px md:top-1 md:right-px z-1 top-0 ${
-                isSpinning ? "animate-blink" : ""
-              }`}
-              src={cdnFile("roulette/paws.webp")}
-              draggable="false"
-              alt=""
-              aria-hidden="true"
-            />
-          </div>
-
-          {!isSpinning && !hasSpin && !claimSpent && (
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-40">
-              <button
-                type="button"
-                onClick={handleSpin}
-                onMouseEnter={() => setIsButtonHovering(true)}
-                onMouseLeave={() => setIsButtonHovering(false)}
-                className="relative flex items-center justify-center hover:scale-110 transition-all duration-200 hover:brightness-125 active:scale-95 cursor-pointer w-24 h-24 md:w-32 md:h-32"
-                style={{
-                  aspectRatio: "1 / 1",
-                  filter: "drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))",
-                }}
-              >
-                {/* Background image like PixelButton */}
-                <img
-                  src={cdnFile("landing/button-bg.webp")}
-                  alt=""
-                  aria-hidden="true"
-                  draggable={false}
-                  className="absolute inset-0 w-full h-full object-cover mix-blend-darken brightness-125"
+            {!isSpinning && !hasSpin && !claimSpent && (
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-40">
+                <button
+                  type="button"
+                  onClick={handleSpin}
+                  onMouseEnter={() => setIsButtonHovering(true)}
+                  onMouseLeave={() => setIsButtonHovering(false)}
+                  className="relative flex items-center justify-center hover:scale-110 transition-all duration-200 hover:brightness-125 active:scale-95 cursor-pointer w-24 h-24 md:w-32 md:h-32 short:!w-16 short:!h-16 motion-reduce:transition-none outline-none focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[4px] focus-visible:outline-tt-gold-400"
                   style={{
-                    borderRadius: "50%",
-                    clipPath: "circle(50%)",
+                    aspectRatio: "1 / 1",
+                    filter: "drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))",
                   }}
-                />
-                {/* Outer pixel art border */}
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    borderRadius: "50%",
-                    border: "4px solid #78350f",
-                    boxSizing: "border-box",
-                  }}
-                ></div>
-                {/* Main button background */}
-                <div
-                  className="absolute"
-                  style={{
-                    inset: "4px",
-                    borderRadius: "50%",
-                    backgroundColor: "#fde047",
-                    border: "2px solid #78350f",
-                  }}
-                ></div>
-                {/* Inner highlight border */}
-                <div
-                  className="absolute"
-                  style={{
-                    inset: "6px",
-                    borderRadius: "50%",
-                    border: "1px solid #854d0e",
-                  }}
-                ></div>
-                {/* Text container */}
-                <div className="relative z-10 flex flex-col items-center justify-center">
-                  <p className="text-tt-gold-ink font-primary font-normal uppercase text-p4 md:text-p3 whitespace-nowrap">
-                    SPIN!
-                  </p>
-                </div>
-                {/* Pixel art highlight/shadow effect */}
-                {!isButtonHovering && (
+                >
+                  {/* Background image like PixelButton */}
+                  <img
+                    src={cdnFile("landing/button-bg.webp")}
+                    alt=""
+                    aria-hidden="true"
+                    draggable={false}
+                    className="absolute inset-0 w-full h-full object-cover mix-blend-darken brightness-125"
+                    style={{
+                      borderRadius: "50%",
+                      clipPath: "circle(50%)",
+                    }}
+                  />
+                  {/* Outer pixel art border */}
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      borderRadius: "50%",
+                      border: "4px solid #78350f",
+                      boxSizing: "border-box",
+                    }}
+                  ></div>
+                  {/* Main button background */}
+                  <div
+                    className="absolute"
+                    style={{
+                      inset: "4px",
+                      borderRadius: "50%",
+                      backgroundColor: "#fde047",
+                      border: "2px solid #78350f",
+                    }}
+                  ></div>
+                  {/* Inner highlight border */}
                   <div
                     className="absolute"
                     style={{
                       inset: "6px",
                       borderRadius: "50%",
-                      borderTop: "2px solid #fef08a",
-                      borderLeft: "2px solid #fef08a",
-                      borderRight: "1px solid #a16207",
-                      borderBottom: "1px solid #a16207",
-                      opacity: 0.6,
+                      border: "1px solid #854d0e",
                     }}
                   ></div>
-                )}
-              </button>
-            </div>
-          )}
-
-          {showWinningNumber && wonSegment && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
-              <div className="absolute inset-0">
-                {[...Array(12)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="absolute left-1/2 top-1/2 w-3 h-3 rounded-full"
-                    style={{
-                      animation: `particle-${i} 1.5s ease-out forwards`,
-                      animationDelay: "0.2s",
-                      opacity: 0,
-                    }}
-                  />
-                ))}
-              </div>
-
-              <div className="absolute">
-                <div className="w-32 h-32 md:w-40 md:h-40"></div>
-              </div>
-
-              <div
-                className="relative animate-bounce"
-                style={{
-                  animation:
-                    "winningNumberAppear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
-                }}
-              >
-                <div className="relative w-24 h-24 md:w-32 md:h-32">
-                  <img
-                    src={cdnFile("roulette/roulette-center.webp")}
-                    alt=""
-              aria-hidden="true"
-                    className="absolute inset-0 -top-1 left-1 w-full h-full object-contain"
-                  />
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <div
-                      className="text-3xl md:text-4xl pl-1 !leading-none font-bold text-[#ebc773] font-primary"
-                      style={{
-                        WebkitTextStroke: "2px #552000",
-                      }}
-                    >
-                      {wonSegment}
-                    </div>
+                  {/* Text container */}
+                  <div className="relative z-10 flex flex-col items-center justify-center">
+                    <p className="text-tt-gold-ink font-primary font-normal uppercase text-p4 md:text-p3 short:!text-p5 whitespace-nowrap">
+                      SPIN!
+                    </p>
                   </div>
+                  {/* Pixel art highlight/shadow effect */}
+                  {!isButtonHovering && (
+                    <div
+                      className="absolute"
+                      style={{
+                        inset: "6px",
+                        borderRadius: "50%",
+                        borderTop: "2px solid #fef08a",
+                        borderLeft: "2px solid #fef08a",
+                        borderRight: "1px solid #a16207",
+                        borderBottom: "1px solid #a16207",
+                        opacity: 0.6,
+                      }}
+                    ></div>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {showWinningNumber && wonSegment && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+                <div className="absolute inset-0 motion-reduce:hidden">
+                  {[...Array(12)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="absolute left-1/2 top-1/2 w-3 h-3 rounded-full"
+                      style={{
+                        animation: `particle-${i} 1.5s ease-out forwards`,
+                        animationDelay: "0.2s",
+                        opacity: 0,
+                      }}
+                    />
+                  ))}
                 </div>
 
-                <div className="absolute -top-2 -right-2 w-4 h-4 bg-white rounded-full animate-ping"></div>
-                <div
-                  className="absolute -bottom-2 -left-2 w-3 h-3 bg-yellow-200 rounded-full animate-ping"
-                  style={{ animationDelay: "0.2s" }}
-                ></div>
-                <div
-                  className="absolute -top-2 -left-2 w-2 h-2 bg-white rounded-full animate-ping"
-                  style={{ animationDelay: "0.4s" }}
-                ></div>
+                <div className="relative wheel-win-pop">
+                  <div className="relative w-24 h-24 md:w-32 md:h-32 short:!w-16 short:!h-16">
+                    <img
+                      src={cdnFile("roulette/roulette-center.webp")}
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 -top-1 left-1 w-full h-full object-contain"
+                    />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <div
+                        className="text-3xl md:text-4xl short:!text-2xl pl-1 !leading-none font-bold text-[#ebc773] font-primary"
+                        style={{
+                          WebkitTextStroke: "2px #552000",
+                        }}
+                      >
+                        {wonSegment}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="absolute -top-2 -right-2 w-4 h-4 bg-white rounded-full motion-safe:animate-ping motion-reduce:hidden"></div>
+                  <div
+                    className="absolute -bottom-2 -left-2 w-3 h-3 bg-yellow-200 rounded-full motion-safe:animate-ping motion-reduce:hidden"
+                    style={{ animationDelay: "0.2s" }}
+                  ></div>
+                  <div
+                    className="absolute -top-2 -left-2 w-2 h-2 bg-white rounded-full motion-safe:animate-ping motion-reduce:hidden"
+                    style={{ animationDelay: "0.4s" }}
+                  ></div>
+                </div>
               </div>
-            </div>
+            )}
+          </div>
+
+          {/* The mascot cheers on phones and desktops; on a short landscape the result column
+              takes its place. */}
+          {showMascotVideo ? (
+            <video
+              ref={videoRef}
+              src={cdnFile("roulette/mascot.webm")}
+              className="pointer-events-none absolute -right-1 bottom-0 h-24 w-24 md:h-40 md:w-40 short:hidden"
+              draggable="false"
+              muted
+              playsInline
+              preload="metadata"
+              aria-hidden="true"
+            />
+          ) : (
+            <img
+              src={cdnFile("roulette/mascot.webp")}
+              className="pointer-events-none absolute -right-1 bottom-0 h-24 w-24 object-contain md:h-40 md:w-40 short:hidden"
+              draggable="false"
+              alt=""
+              aria-hidden="true"
+            />
           )}
         </div>
-        {odds && <WheelOdds rows={odds} />}
+
+        <div className="flex flex-col gap-3 p-4 md:p-5 short:!justify-center short:!gap-2 short:!p-3">
+          <div
+            key={showWinningNumber && wonSegment ? "won" : isSpinning ? "spinning" : spinUsed ? "used" : "ready"}
+            className={`flex min-h-[44px] items-center gap-2 bg-tt-night-950/70 px-3 py-2 font-sans text-p5 font-bold text-tt-cream ${
+              showWinningNumber && wonSegment
+                ? "[box-shadow:inset_0_0_0_2px_rgb(var(--tt-mint)/0.85)] wheel-win-flash"
+                : "[box-shadow:inset_0_0_0_2px_rgb(var(--tt-night-500)/0.8)]"
+            }`}
+            data-testid="wheel-status"
+          >
+            {showWinningNumber && wonSegment ? (
+              <>
+                <PixelIcon name="sparkles" size={20} className="text-tt-mint" />
+                <span>
+                  You won <strong className="text-tt-gold-400">+{formatTails(wonSegment)}</strong>.
+                  {nextSpinLabel ? ` Next free spin in ${nextSpinLabel}.` : " Come back tomorrow."}
+                </span>
+              </>
+            ) : isSpinning ? (
+              <>
+                <PixelIcon name="reload" size={20} className="text-tt-gold-400 motion-safe:animate-spin" />
+                <span>Spinning…</span>
+              </>
+            ) : spinUsed ? (
+              <>
+                <PixelIcon name="calendar" size={20} className="text-tt-gold-400" />
+                <span>{nextSpinLabel ? `Today's spin is used. Next free spin in ${nextSpinLabel}.` : "Today's spin is used. Your next free spin opens tomorrow."}</span>
+              </>
+            ) : (
+              <>
+                <PixelIcon name="star" size={20} className="text-tt-gold-400" />
+                <span>Tap SPIN! for today&apos;s free spin. Spin every day to grow your streak.</span>
+              </>
+            )}
+          </div>
+          {spinUsed && canClose && (
+            <ModalButton variant="secondary" fullWidth onClick={handleClose} data-testid="wheel-done">
+              Done
+            </ModalButton>
+          )}
+          {odds && <WheelOdds rows={odds} />}
+        </div>
         <p className="sr-only" aria-live="polite">
           {isSpinning ? "Spinning…" : showWinningNumber && wonSegment ? `You won ${formatTails(wonSegment)}` : ""}
         </p>
@@ -649,6 +695,26 @@ export const WheelModal: React.FC<WheelModalProps> = ({
 
       {/* Custom CSS for particle animations */}
       <style jsx>{`
+        .wheel-win-pop {
+          animation: winningNumberAppear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+        .wheel-win-flash {
+          animation: wheelWinFlash 1.2s ease-out 1;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .wheel-win-pop,
+          .wheel-win-flash {
+            animation: none;
+          }
+        }
+        @keyframes wheelWinFlash {
+          0% {
+            background-color: rgb(var(--tt-mint) / 0.35);
+          }
+          100% {
+            background-color: rgb(var(--tt-night-950) / 0.7);
+          }
+        }
         @keyframes winningNumberAppear {
           0% {
             transform: scale(0) rotate(-180deg);

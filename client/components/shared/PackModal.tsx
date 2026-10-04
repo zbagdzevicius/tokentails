@@ -16,6 +16,7 @@ export const PackModal = ({ close, cat }: { close: () => void; cat: ICat }) => {
         if (!open) close();
       }}
       title={`${cat.packType || "Card"} pack`}
+      description="One cat card is inside. Open the pack to meet it."
       name="pack"
       surface="art"
       size="full"
@@ -33,7 +34,7 @@ export const PackModal = ({ close, cat }: { close: () => void; cat: ICat }) => {
           backgroundRepeat: "no-repeat",
         }}
       >
-        <TailsCardPack cat={cat} packType={cat.packType} />
+        <TailsCardPack cat={cat} packType={cat.packType} showHint={false} />
       </div>
     </GameModal>
   );

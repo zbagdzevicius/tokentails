@@ -41,7 +41,7 @@ export function treatCopy(state: TreatState, partner: string): TreatCopy {
     case "loading":
       return { line: "Checking today's treat…", action: null };
     case "ready":
-      return { line: `One tap and Token Tails sends ${partner} a treat. It's on us, once a day.`, action: "send" };
+      return { line: `Token Tails sends ${partner} one treat for you.`, action: "send" };
     case "on-its-way":
       return { line: `Your treat for ${partner} is on its way. Token Tails is sending it now.`, action: null };
     case "sent-today": {
@@ -99,15 +99,21 @@ export const TreatCard = ({ state, partner, busy, onSend, onSave, impact, isApp 
   const copy = treatCopy(state, partner);
   const total = treatsFigure(impact, isApp);
   return (
-    <ImpactPanel title="Today's treat" labelledBy="impact-treat-title" testId="treat-card">
+    <ImpactPanel
+      title="Today's treat"
+      icon="gift"
+      helper="Once a day, free. It doesn't cost or earn Tails."
+      labelledBy="impact-treat-title"
+      testId="treat-card"
+    >
       <div className="flex items-start gap-3" data-treat-state={state.kind}>
         <span
           aria-hidden="true"
-          className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-tt-pink/60 bg-tt-pink/10 text-tt-pink"
+          className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center bg-tt-pink/10 text-tt-pink [box-shadow:inset_0_0_0_2px_rgb(var(--tt-pink)/0.5)]"
         >
           {ICON[state.kind]}
         </span>
-        <p className="min-w-0 font-secondary text-p5 leading-snug md:text-p4" data-testid="treat-line" role="status">
+        <p className="min-w-0 font-sans font-semibold text-p5 leading-snug md:text-p4" data-testid="treat-line" role="status">
           {copy.line}
         </p>
       </div>
@@ -126,11 +132,8 @@ export const TreatCard = ({ state, partner, busy, onSend, onSave, impact, isApp 
           Save your cat
         </ImpactButton>
       )}
-      <p className="font-secondary text-p6 leading-snug text-tt-muted">
-        Token Tails pays for every treat. It costs you nothing, and treats give no Tails.
-      </p>
       {total && (
-        <p className="font-secondary text-p6 leading-snug" data-testid="treat-total">
+        <p className="font-sans font-semibold text-p6 leading-snug" data-testid="treat-total">
           <Claim id={total.id} values={total.values} liveAsOf={total.asOf} tier={total.tier} isApp={isApp} variant="inline" />
         </p>
       )}

@@ -65,6 +65,17 @@ export interface IGameStopEvent {
   outcome?: GameStopOutcome;
   /** What ended a `died` run (`spike`, `enemy`, ...), for the DeathCard's tip. */
   cause?: string;
+  /**
+   * Set by GameContext for the end-of-run panel, never by a scene: whether the run is sent to
+   * `/live` (`decideSave().save`), why (`decideSave().reason`), the level's best before the run,
+   * and where the save is ("saved" only once `/live` answered).
+   */
+  saved?: boolean;
+  saveReason?: string;
+  best?: number;
+  saveState?: "saving" | "saved" | "failed";
+  /** Saved to a guest account (kept only once the player signs in). */
+  guest?: boolean;
 }
 
 /** What a scene pushes as GAME_STOP: `outcome` is required (plan F6). */

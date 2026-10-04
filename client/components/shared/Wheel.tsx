@@ -21,6 +21,15 @@ interface WheelComponentProps {
   isOnlyOnce?: boolean;
 }
 
+/** The wheel's display scale for a viewport (the canvas is drawn at 1000 x 800 px). */
+const wheelScale = (width: number, height: number): number => {
+  // Short landscape phones: the whole wheel fits beside the result without scrolling.
+  if (height < 500) return 0.3;
+  if (width < 640) return 0.36;
+  if (width < 1024) return 0.46;
+  return 0.5;
+};
+
 export interface WheelRef {
   spin: () => void;
 }
@@ -41,7 +50,11 @@ const WheelComponent = forwardRef<WheelRef, WheelComponentProps>(
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isFinished, setFinished] = useState(false);
     const [isStarted, setIsStarted] = useState(false);
-    const [scale, setScale] = useState(1);
+    // The right size from the first frame: starting at 1 drew a 1000 px wheel that shrank in
+    // over 0.3 s, so the modal opened oversized and jumped.
+    const [scale, setScale] = useState(() =>
+      typeof window === "undefined" ? 0.36 : wheelScale(window.innerWidth, window.innerHeight),
+    );
     const winningSegmentRef = useRef(winningSegment);
 
     useEffect(() => {
@@ -80,16 +93,7 @@ const WheelComponent = forwardRef<WheelRef, WheelComponentProps>(
 
     // Handle responsive scaling
     useEffect(() => {
-      const updateScale = () => {
-        const width = window.innerWidth;
-        if (width < 640) {
-          setScale(0.36);
-        } else if (width < 1024) {
-          setScale(0.46);
-        } else {
-          setScale(0.5);
-        }
-      };
+      const updateScale = () => setScale(wheelScale(window.innerWidth, window.innerHeight));
 
       updateScale();
       window.addEventListener("resize", updateScale);
@@ -247,29 +251,34 @@ const WheelComponent = forwardRef<WheelRef, WheelComponentProps>(
       ctx.stroke();
       ctx.save();
       ctx.translate(centerX * 16, centerY * 16);
-      ctx.rotate((lastAngle + angle) / 2);
+      const mid = (lastAngle + angle) / 2;
+      ctx.rotate(mid);
+      // Every number reads upright: on the left half of the wheel (mid-angle between 90 and 270
+      // degrees) the label turns half a turn, so "50" never reads as "05". Both halves sit against
+      // the rim, inside the frame art, and run toward the hub.
+      const turn = ((mid % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      const flipped = turn > Math.PI / 2 && turn < (3 * Math.PI) / 2;
+      const label = String(value);
+      // The frame art covers the outer ~40 px of the drawn disc: start just inside it.
+      const rimX = size * 16 - 46;
+      if (flipped) ctx.rotate(Math.PI);
+      ctx.textAlign = flipped ? "left" : "right";
+      const x = flipped ? -rimX : rimX;
       // Plan G12: the brand `title` face (Passion One 900), not an undeclared family.
-      // Canvas px: the wheel is drawn at 1000 px and shown at 0.36-0.5x, so 48 reads as 17-24 CSS px.
-      ctx.font = ttCanvasFont("title", 48);
-
-      // Add glow effect
-      ctx.shadowColor = "#ebc773";
-      ctx.shadowBlur = 10;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-
-      // Draw text border/stroke
-      ctx.strokeStyle = "#552000";
-      ctx.lineWidth = 10;
+      // Canvas px: the wheel is drawn at 1000 px and shown at 0.3-0.5x, so 54 reads as 16-27 CSS px.
+      // Dark ink on the light segments with a thin cream rim: readable at the 0.36x phone scale.
+      // A four-digit prize gets a smaller face so it stays inside its slice.
+      ctx.font = ttCanvasFont("title", label.length >= 4 ? 40 : 52);
+      ctx.strokeStyle = "#fff4dc";
+      ctx.lineWidth = 6;
       ctx.lineJoin = "round";
-      ctx.strokeText(String(value).substring(0, 21), (size * 16) / 2 + 20, 0);
+      ctx.strokeText(label, x, 0);
+      ctx.fillStyle = "#552000";
+      ctx.fillText(label, x, 0);
 
-      // Draw text fill
-      ctx.fillStyle = "#ebc773";
-      ctx.fillText(String(value).substring(0, 21), (size * 16) / 2 + 20, 0);
-
-      // Reset shadow
-      ctx.shadowBlur = 0;
+      // Two restores for the two saves above (the segment's and the label's), so the context
+      // stack does not grow by one per segment per frame.
+      ctx.restore();
       ctx.restore();
     };
 

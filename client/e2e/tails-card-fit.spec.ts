@@ -106,8 +106,11 @@ test.describe("Tails cards fit their size (My Pets)", () => {
     test.skip(!["mobile-390", "desktop-1440"].includes(testInfo.project.name), "Checked at 390 and 1440.");
     await openMyPets(page, backend);
 
-    // Expand one row so the "See all" grid is checked too.
-    await page.getByRole("heading", { name: "COMMON" }).first().click();
+    // Each tier shows two rows; expand any that has more ("Show all"), so every card is checked.
+    // Then park the mouse: a hovered card tilts in 3D and its box no longer holds its footer.
+    const more = page.getByRole("button", { name: /^Show all/ });
+    while ((await more.count()) > 0) await more.first().click();
+    await page.mouse.move(0, 0);
     await page.waitForTimeout(600);
 
     const cards = await measureCards(page);

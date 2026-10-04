@@ -1,90 +1,36 @@
 import { USER_API } from "@/api/user-api";
-import { cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
-import { useQuery } from "@tanstack/react-query";
-import { Tag } from "./shared/Tag";
+import { formatTails } from "@/shared-contracts/copy";
+import { useIsFetching, useQuery } from "@tanstack/react-query";
+import { LeaderboardBoard } from "./LeaderboardBoard";
 
+/** The weekly Tails board (EVENTS, first tab). */
 export const LeaderboardContent = () => {
-  const { data } = useQuery({
+  const { data, isPending } = useQuery({
     queryKey: ["leaderboard"],
     queryFn: () => USER_API.leaderboard(),
   });
-  const { position } = useProfile();
+  const { position, profile } = useProfile();
+  // ProfileContext reads the place; while that read runs the board shows a skeleton.
+  const positionLoading = useIsFetching({ queryKey: ["profile-position"] }) > 0;
   return (
-    <>
-      <span className="-mt-6 -mb-6 relative z-0">
-        <svg viewBox="0 0 400 100" className="w-full">
-          <defs>
-            <path id="curve" d="M0,100 Q200,10 400,100" />
-          </defs>
-          <text className="fill-current text-tt-cream drop-shadow-[0_1.4px_1.8px_rgba(0,0,0)] text-p2 font-primary relative z-0">
-            <textPath href="#curve" startOffset="50%" text-anchor="middle">
-              TOP 200 GET 200 TAILS EACH WEEK
-            </textPath>
-          </text>
-        </svg>
-      </span>
-      <div className="flex flex-col animate-appear items-center relative z-10">
-        <img
-          src={cdnFile("tail/cat-promo.webp")}
-          alt=""
-          className="w-48 -mb-1 -ml-6"
-        />
-        <Tag>TAILS CHAMPS</Tag>
-        {position && (
-          <div className="font-secondary uppercase text-p1 bg-yellow-100 w-fit m-auto rounded-t-xl px-8">
-            Your position {position}
-          </div>
-        )}
-      </div>
-      <table className="rounded-b-lg overflow-hidden rounded-2xl table-auto bg-blue-300 text-black-900 w-full text-sm text-left text-gray-500">
-        <thead className="text-p5 font-secondary md:text-p5 uppercase text-black-300 bg-gray-50 border-b border-purple-300">
-          <tr>
-            <th className="py-2 px-1 text-center">PLACE</th>
-            <th className="py-2 text-center">name</th>
-            <th className="p-2 md:p-4 text-center">TAILS</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data?.map((result, index) => (
-            <tr
-              key={index}
-              className={`border-b ${
-                index > 2 ? "border-purple-300" : "border-tt-cream"
-              }`}
-            >
-              <th
-                scope="row"
-                className={`text-p4 font-secondary text-center py-1 font-medium whitespace-nowrap border-b ${
-                  index > 2
-                    ? "bg-white border-purple-300"
-                    : "bg-tt-cream border-white"
-                }`}
-              >
-                {index + 1}
-              </th>
-              <td
-                className={`py-1 text-center bg-gray-700 text-p6 border-l font-bold ${
-                  index > 2
-                    ? "border-purple-300 text-purple-300"
-                    : "border-tt-cream text-tt-cream"
-                }`}
-              >
-                {result.name}
-              </td>
-              <td
-                className={`p-4 text-center bg-gray-700 text-p6 md:text-p6 border-l font-secondary ${
-                  index > 2
-                    ? "border-purple-300 text-purple-300"
-                    : "border-tt-cream text-tt-cream"
-                }`}
-              >
-                {result.tails}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
+    <LeaderboardBoard
+      title="Tails champs"
+      icon="coins"
+      helper="Players ranked by Tails. The top 200 get 200 Tails each week."
+      mascot="tail/cat-celebrate.webp"
+      valueLabel="Tails"
+      rows={data?.map((row, index) => ({
+        key: `${index}-${row.name}`,
+        name: row.name,
+        value: formatTails(Number(row.tails) || 0, { word: false }),
+      }))}
+      loading={isPending}
+      position={position}
+      positionLoading={positionLoading && position == null}
+      meName={profile?.name}
+      emptyTitle="No one ranked yet"
+      emptyBody="Play a run to earn Tails and get on the board."
+    />
   );
 };

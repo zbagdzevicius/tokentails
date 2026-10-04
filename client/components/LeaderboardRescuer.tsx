@@ -1,8 +1,8 @@
 import { apiUrl, currentAccessToken } from "@/api/api";
-import { cdnFile } from "@/constants/utils";
 import { formatTails } from "@/shared-contracts/copy";
 import { useQuery } from "@tanstack/react-query";
-import { Tag } from "./shared/Tag";
+import { useProfile } from "@/context/ProfileContext";
+import { LeaderboardBoard } from "./LeaderboardBoard";
 
 /*
  * The rescuers board (plan G5): players ranked by the Tails they gave to shelter goals this season
@@ -58,57 +58,35 @@ export async function fetchRescuerPosition(signal?: AbortSignal): Promise<number
 }
 
 export const LeaderboardRescuerContent = () => {
-  const { data } = useQuery({
+  const { profile } = useProfile();
+  const { data, isPending } = useQuery({
     queryKey: ["leaderboard-rescuers", "season"],
     queryFn: ({ signal }) => fetchRescuers(signal),
   });
-  const { data: position } = useQuery({
+  const { data: position, isPending: positionLoading } = useQuery({
     queryKey: ["leaderboard-rescuers-position", "season"],
     queryFn: ({ signal }) => fetchRescuerPosition(signal),
   });
   return (
-    <>
-      <div className="flex flex-col animate-appear items-center relative z-10 mt-2">
-        <img src={cdnFile("tail/guard.webp")} alt="" className="w-32 -mb-6" />
-        <Tag>TOP RESCUERS THIS SEASON</Tag>
-        {/* claim:fiction Tails are in-game points; giving them moves no money */}
-        <p className="mt-2 text-center font-secondary text-p5 text-tt-cream">
-          Ranked by Tails given to shelter goals. Giving never lowers your Tails rank.
-        </p>
-        {position && (
-          <div className="font-secondary uppercase text-p3 bg-tt-night-700 text-tt-cream ring-1 ring-tt-gold-500/60 w-fit m-auto rounded-t-xl px-8 mt-2">
-            Your position {position}
-          </div>
-        )}
-      </div>
-      {data && data.length === 0 ? (
-        <p data-testid="rescuers-empty" className="mt-3 rounded-lg bg-tt-night-900/80 px-4 py-3 text-center font-secondary text-p5 text-tt-cream">
-          No one has given Tails to a goal this season yet.
-        </p>
-      ) : (
-        <table className="mt-2 w-full table-auto overflow-hidden rounded-2xl bg-tt-night-800 text-left text-sm text-tt-cream">
-          <thead className="border-b border-tt-gold-500/50 font-secondary text-p5 uppercase">
-            <tr>
-              <th className="px-1 py-2 text-center">PLACE</th>
-              <th className="py-2 text-center">NAME</th>
-              <th className="p-2 text-center md:p-4">TAILS GIVEN</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data?.map((row, index) => (
-              <tr key={row._id || index} className="border-b border-tt-night-500">
-                <th scope="row" className="py-1 text-center font-secondary text-p4">
-                  {index + 1}
-                </th>
-                <td className="py-1 text-center text-p6 font-bold">{row.name}</td>
-                <td className="p-3 text-center font-secondary text-p6">
-                  {formatTails(row.tailsGiven, { word: false })}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </>
+    <LeaderboardBoard
+      title="Top rescuers this season"
+      icon="heart"
+      // claim:fiction Tails are in-game points; giving them moves no money
+      helper="Ranked by Tails given to shelter goals. Giving never lowers your Tails rank."
+      mascot="tail/open-arms.webp"
+      valueLabel="Tails given"
+      rows={data?.map((row, index) => ({
+        key: row._id || String(index),
+        name: row.name,
+        value: formatTails(row.tailsGiven, { word: false }),
+      }))}
+      loading={isPending}
+      position={position}
+      positionLoading={positionLoading}
+      meName={profile?.name}
+      emptyTitle="No gives yet"
+      emptyBody="No one has given Tails to a goal this season. Be the first from PROGRESS."
+      emptyTestId="rescuers-empty"
+    />
   );
 };

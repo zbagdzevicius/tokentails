@@ -98,6 +98,7 @@ export const ShareModal = ({ url, close }: IProps) => {
         if (!open) close();
       }}
       title="SHARE"
+      icon="share"
       name="share"
       surface="sheet"
       size="sm"

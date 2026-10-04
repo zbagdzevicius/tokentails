@@ -37,6 +37,21 @@ export function pawDayEnd(day: string): Date | null {
   return Number.isNaN(t) ? null : new Date(t + DAY_MS);
 }
 
+const SMALL_NUMBERS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+
+/**
+ * The paw rule in one sentence, from the server's `runsNeeded` (so the copy never disagrees with
+ * it): "Two scoring runs, 3 minutes apart, earn today's paw." The one wording for every surface
+ * (the end-of-run card, Impact's Today's paw, the ABOUT ME summary).
+ */
+export function pawRuleText(needed = 2): string {
+  const n = Math.max(1, Math.floor(needed));
+  const count = SMALL_NUMBERS[n] ?? String(n);
+  return n === 1
+    ? "One scoring run earns today's paw."
+    : `${count} scoring runs, 3 minutes apart, earn today's paw.`;
+}
+
 export function runsLeftText(remaining: number): string {
   return `${remaining} more run${remaining === 1 ? "" : "s"} for today's paw`;
 }

@@ -56,3 +56,13 @@ export const packPriceUsd = (packType: PackType, now: Date = new Date()): number
   packType === PackType.LEGENDARY && isLegendaryPromoActive(now)
     ? LEGENDARY_PROMO.priceUsd
     : packPrices[packType];
+
+/**
+ * Drop chances per pack, shown on the pack select and in the checkout's product info (one copy for
+ * both). Display only: the roll happens on the server.
+ */
+export const PACK_ODDS: Readonly<Record<PackType, string>> = {
+  [PackType.STARTER]: "90% Common, 9% Rare, 1% Epic",
+  [PackType.INFLUENCER]: "75% Common, 21% Rare, 3.5% Epic, 0.5% Legendary",
+  [PackType.LEGENDARY]: "20% Rare, 50% Epic, 30% Legendary",
+};

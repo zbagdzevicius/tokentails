@@ -16,6 +16,7 @@ export const SuccesPaymentModal = ({ close }: ISuccesPaymentModal) => (
       if (!next) close();
     }}
     title="Payment received"
+    icon="check"
     name="payment-success"
     size="lg"
     layer="modal-nested"

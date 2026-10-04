@@ -1,6 +1,7 @@
 import type { RescueGoal } from "@/api/rescue-goals-api";
 import { isAppBuild, openWebImpact } from "@/components/claims/build";
 import { PixelIcon } from "@/components/shared/PixelIcon";
+import { EmptyState } from "@/components/ui/modal";
 import { ImpactPanel } from "./Panel";
 
 const shortDate = (at: string) =>
@@ -16,12 +17,22 @@ export const shortHash = (hex: string) => `${hex.slice(0, 6)}…${hex.slice(-4)}
  * /impact instead.
  */
 export const DeliveredStrip = ({ goals, isApp = isAppBuild() }: { goals: RescueGoal[]; isApp?: boolean }) => (
-  <ImpactPanel title="Delivered" labelledBy="impact-delivered-title" testId="delivered-strip" className="lg:col-span-2">
+  <ImpactPanel
+    title="Delivered"
+    icon="check"
+    helper="Goals the shelter received, each with a photo and its receipt."
+    labelledBy="impact-delivered-title"
+    testId="delivered-strip"
+    className="lg:col-span-2"
+  >
     {goals.length === 0 ? (
-      <p className="font-secondary text-p5 leading-snug text-tt-cream/90" data-testid="delivered-empty">
-        Nothing delivered yet. Each goal shows up here once it reaches the shelter, with a photo and
-        its receipt.
-      </p>
+      <EmptyState
+        compact
+        icon="paw"
+        data-testid="delivered-empty"
+        title="Nothing delivered yet"
+        body="Each goal shows up here once it reaches the shelter."
+      />
     ) : (
       <ul className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2" aria-label="Delivered goals">
         {goals.map((goal) => {
@@ -30,7 +41,7 @@ export const DeliveredStrip = ({ goals, isApp = isAppBuild() }: { goals: RescueG
             <li
               key={goal.id}
               data-testid="delivered-item"
-              className="flex w-[15rem] shrink-0 snap-start flex-col overflow-hidden rounded-xl border-2 border-tt-mint/50 bg-tt-night-950/60 md:w-[17rem]"
+              className="flex w-[15rem] shrink-0 snap-start flex-col overflow-hidden bg-tt-night-950/60 [box-shadow:inset_0_0_0_2px_rgb(var(--tt-mint)/0.4)] md:w-[17rem]"
             >
               <img
                 src={d.photoUrl}
@@ -43,9 +54,9 @@ export const DeliveredStrip = ({ goals, isApp = isAppBuild() }: { goals: RescueG
                   <PixelIcon name="check" size={12} /> Delivered {shortDate(d.deliveredAt)}
                 </p>
                 <p className="font-primary text-p5 uppercase leading-tight text-tt-cream">{goal.title}</p>
-                {goal.shelter && <p className="font-secondary text-p6 text-tt-cream/80">{goal.shelter.name}</p>}
-                {d.note && <p className="font-secondary text-p6 leading-snug text-tt-cream/90">{d.note}</p>}
-                <div className="mt-auto pt-1 font-secondary text-p6 text-tt-muted" data-testid="delivered-receipt">
+                {goal.shelter && <p className="font-sans font-semibold text-p6 text-tt-cream/80">{goal.shelter.name}</p>}
+                {d.note && <p className="font-sans font-semibold text-p6 leading-snug text-tt-cream/90">{d.note}</p>}
+                <div className="mt-auto pt-1 font-sans font-semibold text-p6 text-tt-muted" data-testid="delivered-receipt">
                   {isApp ? (
                     <button
                       type="button"

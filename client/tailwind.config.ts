@@ -438,6 +438,9 @@ const config: Config = {
       // devices with 4 or fewer cores, to drop blur and other costly effects.
       addVariant("lowfx", ":is(.lowfx &)");
       addVariant("reduced-transparency", "@media (prefers-reduced-transparency: reduce)");
+      // `short:` for short landscape viewports (phones on their side, 844x390): modals compact
+      // their header and padding and drop two-column layouts (components/ui/modal).
+      addVariant("short", "@media (max-height: 500px)");
     }),
   ],
 };

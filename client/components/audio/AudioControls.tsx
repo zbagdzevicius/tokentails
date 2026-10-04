@@ -39,8 +39,9 @@ const PIXEL_RANGE = [
 ].join(" ");
 
 /**
- * Mute toggle. A toggle button with a stable name ("Mute sound") and `aria-pressed` for the state,
- * so assistive technology reads "Mute sound, pressed" when sound is off.
+ * Mute toggle. The HUD plate is a toggle button with a stable name ("Mute sound") and
+ * `aria-pressed`, so assistive technology reads "Mute sound, pressed" when sound is off. The
+ * Settings row is a "Sound" switch, checked while sound plays.
  */
 export const MuteToggle = ({
   variant = "hud",
@@ -72,43 +73,53 @@ export const MuteToggle = ({
       </button>
     );
   }
+  // Settings: a "Sound" switch that is on when sound plays (no "Mute sound: on" double negative).
+  // The state is in words beside it, so it never has to be read by colour or side alone.
   return (
     <button
       type="button"
-      aria-pressed={muted}
+      role="switch"
+      aria-checked={!muted}
       data-testid={testId}
       data-muted={muted}
       data-audio-control=""
       onClick={() => toggleMuted()}
       className={clsx(
-        "flex min-h-[44px] w-full items-center justify-between gap-3 border-2 px-3 py-2 font-secondary text-p5 uppercase tracking-wider transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400",
+        "flex min-h-[48px] w-full items-center justify-between gap-3 border-2 px-3 py-2 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400 motion-reduce:transition-none",
         muted
-          ? "border-tt-night-500 bg-tt-night-900 text-tt-muted"
-          : "border-tt-gold-500/60 bg-tt-night-800 text-tt-cream hover:brightness-125",
+          ? "border-tt-night-500 bg-tt-night-950/70 text-tt-cream hover:border-tt-gold-500/70"
+          : "border-tt-gold-500/60 bg-tt-night-900/70 text-tt-cream hover:border-tt-gold-500",
         className
       )}
     >
       <span className="flex items-center gap-2">
-        {icon}
-        <span>Mute sound</span>
+        <span className={muted ? "text-tt-muted" : "text-tt-gold-400"}>{icon}</span>
+        <span className="font-primary text-p5 uppercase leading-none tracking-wide">Sound</span>
       </span>
-      <span
-        aria-hidden="true"
-        className={clsx(
-          "relative h-6 w-11 shrink-0 border-2",
-          muted ? "border-tt-gold-500 bg-tt-gold-400" : "border-tt-night-500 bg-tt-night-950"
-        )}
-      >
+      <span className="flex items-center gap-2">
+        <span aria-hidden="true" className="w-7 text-right font-sans text-p6 font-extrabold uppercase tracking-wider text-tt-muted">
+          {muted ? "Off" : "On"}
+        </span>
         <span
+          aria-hidden="true"
           className={clsx(
-            "absolute top-0.5 h-4 w-4 transition-[left] motion-reduce:transition-none",
-            muted ? "left-[22px] bg-tt-gold-ink" : "left-0.5 bg-tt-muted"
+            "relative h-6 w-11 shrink-0 border-2",
+            muted ? "border-tt-night-500 bg-tt-night-950" : "border-tt-gold-500 bg-tt-gold-400"
           )}
-        />
+        >
+          <span
+            className={clsx(
+              "absolute top-0.5 h-4 w-4 transition-[left] motion-reduce:transition-none",
+              muted ? "left-0.5 bg-tt-muted" : "left-[22px] bg-tt-gold-ink"
+            )}
+          />
+        </span>
       </span>
     </button>
   );
 };
+
+export const MUTED_SLIDERS_NOTE = "Muted. Turn sound on to hear changes.";
 
 const SLIDER_KEYS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"]);
 
@@ -137,7 +148,7 @@ export const VolumeSlider = ({
   const percent = Math.round(value * 100);
   return (
     <div className={clsx("flex flex-col gap-1", disabled && "opacity-60")}>
-      <div className="flex items-baseline justify-between font-secondary text-p5 uppercase tracking-wider">
+      <div className="flex items-baseline justify-between font-sans text-p5 font-extrabold uppercase tracking-wider">
         <label htmlFor={id} className="text-tt-cream">
           {label}
         </label>
@@ -168,7 +179,7 @@ export const VolumeSlider = ({
         }}
       />
       {note && (
-        <p id={noteId} className="font-secondary text-p6 text-tt-muted" data-testid={testId ? `${testId}-note` : undefined}>
+        <p id={noteId} className="font-sans text-p6 font-semibold text-tt-muted" data-testid={testId ? `${testId}-note` : undefined}>
           {note}
         </p>
       )}
@@ -226,6 +237,11 @@ export const AudioSettingsPanel = ({ className }: { className?: string }) => {
         onCommit={previewEffects}
         onChange={(effectsVolume) => setAudioSettings({ effectsVolume })}
       />
+      {settings.muted && (
+        <p className="font-sans text-p6 font-semibold text-tt-muted" data-testid="audio-muted-note">
+          {MUTED_SLIDERS_NOTE}
+        </p>
+      )}
     </section>
   );
 };

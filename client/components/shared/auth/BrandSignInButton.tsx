@@ -58,7 +58,8 @@ const VARIANTS: Record<
   },
   // Apple HIG: a solid black button with the white logo and the system font.
   apple: {
-    button: "bg-black text-white border border-black hover:bg-[#111]",
+    // The same 1 px stroke as Google's dark button, so the pair reads as one set on the night sheet.
+    button: "bg-black text-white border border-[#8E918F] hover:bg-[#111]",
     label: "Continue with Apple",
     mark: AppleMark,
     // 15 px SF reads at the same optical size as Google's fixed 14 px Roboto, so the stacked
@@ -70,24 +71,21 @@ const VARIANTS: Record<
 };
 
 /**
- * A provider's own sign-in button (plan G9), unaltered, sitting on a gold offset plate so it reads
- * as part of the night UI. 4 px radius, 44 px tall, full width of the sheet column.
+ * A provider's own sign-in button (plan G9), unaltered: no game plate or offset shadow (the brand
+ * guidelines ask for the plain button, and a gold plate offset to one side read as misregistered
+ * against the panel). 4 px radius, 48 px tall like the sheet's other buttons, full column width.
  */
 export const BrandSignInButton = ({ provider, onClick, disabled, label, className }: IProps) => {
   const variant = VARIANTS[provider];
   const Mark = variant.mark;
   return (
     <span className={clsx("relative block w-full", className)} data-brand={provider}>
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 translate-x-[4px] translate-y-[4px] rounded-[4px] bg-tt-gold-400"
-      />
       <button
         type="button"
         onClick={onClick}
         disabled={disabled}
         className={clsx(
-          "relative flex h-[44px] min-h-[44px] w-full items-center justify-center gap-[10px] rounded-[4px] px-3",
+          "relative flex h-[48px] min-h-[44px] w-full items-center justify-center gap-[10px] rounded-[4px] px-3 shadow-[0_3px_0_rgb(var(--tt-night-950))] short:!h-[44px]",
           "transition-colors disabled:cursor-not-allowed disabled:opacity-60",
           "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-tt-gold-400",
           variant.button

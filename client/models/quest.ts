@@ -67,6 +67,8 @@ export interface ILocalQuest {
   link?: string;
   icon: string;
   reward: IQuestReward;
+  /** A count goal (GOAL quests): which profile number it tracks and the target, for its progress line. */
+  goal?: { metric: "tails" | "referrals"; target: number };
 }
 
 export const allQuests: ILocalQuest[] = [
@@ -123,7 +125,8 @@ export const allQuests: ILocalQuest[] = [
   {
     type: QuestType.GOAL,
     key: QUEST.REACH_TAILS_1k,
-    name: "Reach 1k $TAILS",
+    name: "Reach 1,000 Tails",
+    goal: { metric: "tails", target: 1000 },
     icon: cdnFile("logo/logo.webp"),
     reward: {
       tails: 100,
@@ -132,7 +135,8 @@ export const allQuests: ILocalQuest[] = [
   {
     type: QuestType.GOAL,
     key: QUEST.INVITE_FRIENDS_10,
-    name: "Invite 10 friens",
+    name: "Invite 10 friends",
+    goal: { metric: "referrals", target: 10 },
     icon: cdnFile("logo/friends.png"),
     reward: {
       tails: 100,
@@ -141,7 +145,8 @@ export const allQuests: ILocalQuest[] = [
   {
     type: QuestType.GOAL,
     key: QUEST.REACH_TAILS_10k,
-    name: "Reach 10k $TAILS",
+    name: "Reach 10,000 Tails",
+    goal: { metric: "tails", target: 10000 },
     icon: cdnFile("logo/logo.webp"),
     reward: {
       tails: 1000,
@@ -150,7 +155,8 @@ export const allQuests: ILocalQuest[] = [
   {
     type: QuestType.GOAL,
     key: QUEST.INVITE_FRIENDS_50,
-    name: "Invite 50 friens",
+    name: "Invite 50 friends",
+    goal: { metric: "referrals", target: 50 },
     icon: cdnFile("logo/friends.png"),
     reward: {
       tails: 500,
@@ -159,7 +165,8 @@ export const allQuests: ILocalQuest[] = [
   {
     type: QuestType.GOAL,
     key: QUEST.REACH_TAILS_50k,
-    name: "Reach 50k $TAILS",
+    name: "Reach 50,000 Tails",
+    goal: { metric: "tails", target: 50000 },
     icon: cdnFile("logo/logo.webp"),
     reward: {
       tails: 5000,
@@ -168,7 +175,8 @@ export const allQuests: ILocalQuest[] = [
   {
     type: QuestType.GOAL,
     key: QUEST.INVITE_FRIENDS_100,
-    name: "Invite 100 friens",
+    name: "Invite 100 friends",
+    goal: { metric: "referrals", target: 100 },
     icon: cdnFile("logo/friends.png"),
     reward: {
       tails: 1000,
@@ -177,7 +185,8 @@ export const allQuests: ILocalQuest[] = [
   {
     type: QuestType.GOAL,
     key: QUEST.REACH_TAILS_100k,
-    name: "Reach 100k $TAILS",
+    name: "Reach 100,000 Tails",
+    goal: { metric: "tails", target: 100000 },
     icon: cdnFile("logo/logo.webp"),
     reward: {
       tails: 10000,

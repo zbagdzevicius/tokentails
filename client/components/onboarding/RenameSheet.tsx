@@ -104,6 +104,7 @@ export const RenameSheet = ({ open, onOpenChange, cat, reserved = [], onRenamed 
       open={open}
       onOpenChange={onOpenChange}
       title="Rename your cat"
+      icon="pencil"
       description={`One free rename every ${CAT_RENAME_COOLDOWN_DAYS} days.`}
       surface="sheet"
       size="sm"

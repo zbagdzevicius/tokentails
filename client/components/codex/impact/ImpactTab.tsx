@@ -15,6 +15,7 @@ import {
 } from "@/api/rescue-goals-api";
 import { analytics, buildEvent } from "@/analytics";
 import { isAppBuild } from "@/components/claims/build";
+import { EvidenceChip } from "@/components/claims/EvidenceChip";
 import { partnerShelterName } from "@/components/impact/live";
 import { pawView } from "@/components/impact/pawView";
 import { DONATE_RAIL_QUERY_KEY, IMPACT_ME_QUERY_KEY, useImpactMe } from "@/components/impact/useImpactMe";
@@ -297,9 +298,9 @@ export const ImpactTab = ({ season, seasonLoading }: { season: SeasonTimes | nul
   const treatsConfirmed = donateMeQuery.data?.confirmedCount ?? impactMe?.treats.confirmedCount ?? 0;
 
   return (
-    <div className="flex w-full flex-col gap-3" data-testid="impact-tab">
+    <div className="flex w-full flex-col gap-4 short:gap-3" data-testid="impact-tab">
       <SeasonBand season={season} loading={seasonLoading} />
-      <div className="grid w-full grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+      <div className="grid w-full grid-cols-1 gap-4 short:gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         <RescueGoalCard
           load={goalsLoad}
           goal={goal}
@@ -318,17 +319,25 @@ export const ImpactTab = ({ season, seasonLoading }: { season: SeasonTimes | nul
           impact={impact}
           isApp={isApp}
         />
-        <TodaysPaw view={paw} partner={treatPartner} settlementSends={!!impact?.pawSettlements.sendEnabled} isApp={isApp} />
+        <TodaysPaw
+          view={paw}
+          partner={treatPartner}
+          settlementSends={!!impact?.pawSettlements.sendEnabled}
+          hasSettlement={!!impactMe?.paws?.latestSettlement}
+          isApp={isApp}
+        />
         <MyImpact
           viewer={viewer}
-          paws={paw.lifetime}
+          // An unknown count shows as "–", never as 0.
+          paws={paw.state === "unavailable" || paw.state === "loading" ? null : paw.lifetime}
           treatsConfirmed={treatsConfirmed}
           gives={gives}
           isApp={isApp}
         />
         <DeliveredStrip goals={delivered} isApp={isApp} />
       </div>
-      <p className="px-1 text-center font-secondary text-p6 leading-snug text-tt-muted" data-testid="tails-small-print">
+      <p className="px-1 text-center font-sans font-semibold text-p6 leading-snug text-tt-muted" data-testid="tails-small-print">
+        <EvidenceChip kind="in-game" isApp={isApp} className="mr-1" /> marks a number from the game, not real-world money.{" "}
         {TAILS_DEFINITION} {TAILS_NO_CASH_VALUE}
       </p>
       {draft && (

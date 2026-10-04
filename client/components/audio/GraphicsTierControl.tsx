@@ -7,6 +7,7 @@ import {
   type ReducedMotionOverride,
   type RenderSetting,
 } from "@/components/Phaser/look/settings";
+import { PixelIcon, type PixelIconName } from "@/components/shared/PixelIcon";
 import clsx from "clsx";
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 
@@ -45,8 +46,10 @@ function SegmentedRadio<T extends string>({
   onChange,
   testId,
   note,
+  icon,
 }: {
   label: string;
+  icon: PixelIconName;
   options: Array<Option<T>>;
   value: T;
   onChange: (value: T) => void;
@@ -75,8 +78,12 @@ function SegmentedRadio<T extends string>({
   };
 
   return (
-    <div className="flex flex-col gap-2" data-testid={testId}>
-      <h3 id={`${id}-label`} className="font-primary text-p4 uppercase tracking-wide text-tt-gold-400">
+    <section className="tt-card flex flex-col gap-3 p-3 md:p-4 short:gap-2 short:!p-2.5" data-testid={testId}>
+      <h3
+        id={`${id}-label`}
+        className="flex items-center gap-2 font-primary text-p4 uppercase leading-none tracking-wide text-tt-gold-400"
+      >
+        <PixelIcon name={icon} size={20} />
         {label}
       </h3>
       <div
@@ -101,7 +108,7 @@ function SegmentedRadio<T extends string>({
               data-testid={`${testId}-${option.value}`}
               onClick={() => select(i, false)}
               className={clsx(
-                "min-h-[44px] px-2 font-secondary text-p5 uppercase tracking-wider focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-tt-gold-400",
+                "min-h-[44px] px-2 font-primary text-p5 uppercase tracking-wide focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-tt-gold-400",
                 checked
                   ? "bg-tt-gold-400 text-tt-gold-ink shadow-[inset_0_-3px_0_rgb(var(--tt-gold-500))]"
                   : "text-tt-cream hover:bg-tt-night-700"
@@ -112,11 +119,11 @@ function SegmentedRadio<T extends string>({
           );
         })}
       </div>
-      <p id={`${id}-hint`} className="font-sans text-p6 text-tt-muted">
+      <p id={`${id}-hint`} className="font-sans text-p6 font-semibold leading-snug text-tt-muted md:text-p5">
         {options[index].hint}. Applies the next time a game opens.
         {note && ` ${note}`}
       </p>
-    </div>
+    </section>
   );
 }
 
@@ -140,9 +147,10 @@ export const GraphicsTierControl = () => {
   }, []);
 
   return (
-    <div className="flex flex-col gap-4" data-testid="graphics-settings">
+    <div className="flex flex-col gap-4 short:gap-3" data-testid="graphics-settings">
       <SegmentedRadio
         label="Graphics"
+        icon="sparkles"
         testId="graphics"
         options={TIER_OPTIONS}
         value={tier}
@@ -154,6 +162,7 @@ export const GraphicsTierControl = () => {
       />
       <SegmentedRadio
         label="Reduce motion"
+        icon="zap"
         testId="motion"
         options={MOTION_OPTIONS}
         value={motion}

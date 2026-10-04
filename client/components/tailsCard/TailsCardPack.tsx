@@ -6,7 +6,7 @@ import { RevealAnimation } from "./RevealAnimation";
 import { VideoPlayer } from "./VideoPlayer";
 import { PackType } from "@/models/order";
 import { CAT_API } from "@/api/cat-api";
-import { PixelButton } from "../shared/PixelButton";
+import { ModalButton } from "@/components/ui/modal";
 import { useRouter } from "next/router";
 
 // Animation timing constants (in milliseconds)
@@ -18,6 +18,8 @@ type TailsCardPackProps = {
   packType: PackType;
   cat?: ICat;
   showGoToGame?: boolean;
+  /** The "one cat card is inside" line under the button. Off where the modal already says it. */
+  showHint?: boolean;
 };
 
 const setAsOpened = async (cat: ICat) => {
@@ -30,6 +32,7 @@ export const TailsCardPack: React.FC<TailsCardPackProps> = ({
   packType,
   cat,
   showGoToGame = false,
+  showHint = true,
 }) => {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
@@ -75,17 +78,43 @@ export const TailsCardPack: React.FC<TailsCardPackProps> = ({
       {showCard ? (
         <RevealAnimation cat={cat} showRevealOverlay={showRevealOverlay} />
       ) : (
-        <CardPackImage
-          packType={packType}
-          isOpening={isOpening}
-          onClick={handleCardClick}
-          disabled={isInteractionDisabled}
-        />
+        // The button sits right under the pack (no gap pushing it to the bottom of the panel).
+        <div className="flex flex-col items-center justify-center gap-3 py-4">
+          <CardPackImage
+            packType={packType}
+            isOpening={isOpening}
+            onClick={handleCardClick}
+            disabled={isInteractionDisabled}
+          />
+          {/* The pack is tappable too; this is the clear, keyboard-reachable way to open it. */}
+          <div
+            className={`relative z-10 flex flex-col items-center gap-2 transition-opacity duration-300 motion-reduce:transition-none ${
+              isInteractionDisabled ? "pointer-events-none opacity-0" : "opacity-100"
+            }`}
+          >
+            <ModalButton
+              variant="primary"
+              icon="gift"
+              onClick={handleCardClick}
+              disabled={isInteractionDisabled}
+              data-testid="open-pack"
+            >
+              Open pack
+            </ModalButton>
+            {showHint && (
+              <p className="bg-tt-night-950/60 px-2 py-0.5 font-sans text-p6 font-bold text-tt-cream">
+                One cat card is inside.
+              </p>
+            )}
+          </div>
+        </div>
       )}
 
       {showCard && showGoToGame && (
-        <div className="relative z-reveal">
-          <PixelButton text="GO TO GAME" onClick={handleGoToGame} />
+        <div className="relative z-reveal flex justify-center">
+          <ModalButton variant="primary" icon="gamepad" onClick={handleGoToGame}>
+            Go to game
+          </ModalButton>
         </div>
       )}
 

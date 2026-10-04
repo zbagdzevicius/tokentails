@@ -51,9 +51,12 @@ let mockHasProvider = true;
 jest.mock("@/context/FirebaseAuthContext", () => ({
   useOptionalFirebaseAuth: () => (mockHasProvider ? { ...mockAuth } : undefined),
 }));
+type MockMutationOptions = { onSuccess?: (data: unknown, vars: unknown) => void; onError?: (error: unknown) => void };
+// A mutation does nothing by default; a test can settle it through the options it was given.
+let mockMutate: (vars: unknown, options: MockMutationOptions) => void = () => undefined;
 jest.mock("@tanstack/react-query", () => ({
   useQuery: jest.fn(() => ({ data: undefined })),
-  useMutation: () => ({ mutate: jest.fn(), isPending: false }),
+  useMutation: (options: MockMutationOptions) => ({ mutate: (vars: unknown) => mockMutate(vars, options), isPending: false }),
   useQueryClient: () => ({ setQueryData: jest.fn(), invalidateQueries: jest.fn() }),
 }));
 let mockPlatform = "web";
@@ -98,7 +101,9 @@ import { PacksModal, isPaymentLayer } from "@/components/shared/PacksModal";
 import { SupportModal } from "@/components/shared/SupportModal";
 import {
   DELETE_ACCOUNT_ERROR,
+  HANDLE_SAVE_ERROR,
   ProfileModal,
+  signedInWith,
   requestAccountDeletion,
 } from "@/components/shared/ProfileModal";
 import { ApiError } from "@/api/api";
@@ -115,6 +120,9 @@ beforeEach(() => {
   mockHasProvider = true;
   mockPlatform = "web";
   mockSpin = null;
+  mockMutate = () => undefined;
+  mockToast.mockClear();
+  mockSetProfileUpdate.mockClear();
 });
 
 describe("useAccountAction", () => {
@@ -179,7 +187,7 @@ describe("WheelModal", () => {
     mockRedeem.mockResolvedValue({ tails: 25 });
     const close = jest.fn();
     render(<WheelModal close={close} />);
-    const dialog = screen.getByRole("dialog", { name: "TAILS WHEEL" });
+    const dialog = screen.getByRole("dialog", { name: "DAILY SPIN" });
     const x = within(dialog).getByRole("button", { name: "Close" });
     expect(x.getAttribute("aria-disabled")).toBeNull();
 
@@ -329,6 +337,58 @@ describe("ProfileModal account menu", () => {
   it("shows the Rename action for the starter only once it has a document", () => {
     render(<ProfileModal close={jest.fn()} />);
     expect(screen.getByRole("button", { name: /RENAME Scout/i })).toBeTruthy();
+  });
+});
+
+describe("ProfileModal linked accounts", () => {
+  it("saving one handle updates only that one, and keeps the other row closed", () => {
+    const sent: unknown[] = [];
+    mockMutate = (vars, options) => {
+      sent.push(vars);
+      options.onSuccess?.({}, vars);
+    };
+    render(<ProfileModal close={jest.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Connect X" }));
+    // One form at a time: Discord's action waits.
+    expect((screen.getByRole("button", { name: "Connect Discord" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("Your X handle"), { target: { value: "@MeowMaster" } });
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    });
+    expect(sent).toEqual([{ twitter: "meowmaster", _id: "u1" }]);
+    expect(mockSetProfileUpdate).toHaveBeenCalledWith({ twitter: "meowmaster" });
+    expect(mockToast).toHaveBeenCalledWith({ message: "Saved" });
+    expect(screen.queryByLabelText("Your X handle")).toBeNull();
+    expect((screen.getByRole("button", { name: "Connect Discord" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("says so when a handle does not save, and keeps the form open", () => {
+    mockMutate = (_vars, options) => options.onError?.(new Error("500"));
+    render(<ProfileModal close={jest.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Connect Discord" }));
+    fireEvent.change(screen.getByLabelText("Your Discord handle"), { target: { value: "a".repeat(40) } });
+    // Discord allows 32 characters.
+    expect((screen.getByLabelText("Your Discord handle") as HTMLInputElement).value).toHaveLength(32);
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    });
+    expect(screen.getByRole("alert").textContent).toBe(HANDLE_SAVE_ERROR);
+    expect(screen.getByLabelText("Your Discord handle")).toBeTruthy();
+    expect(mockSetProfileUpdate).not.toHaveBeenCalled();
+  });
+
+  it("a guest sees why handles wait, without a second sign-up button", () => {
+    mockAuth.authStatus = "guest";
+    render(<ProfileModal close={jest.fn()} />);
+    expect(screen.getByTestId("profile-socials").textContent).toMatch(/Save your progress first/);
+    expect(screen.queryByRole("button", { name: /Connect/ })).toBeNull();
+  });
+
+  it("names the sign-in provider next to Log out", () => {
+    render(<ProfileModal close={jest.fn()} />);
+    expect(screen.getByTestId("profile-signed-in").textContent).toMatch(/With Google/);
+    expect(signedInWith(["apple.com", "password"])).toBe("With Apple and email");
+    expect(signedInWith([])).toBeNull();
   });
 });
 

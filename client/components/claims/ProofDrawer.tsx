@@ -147,6 +147,7 @@ export const ProofDrawer = ({
       open={open}
       onOpenChange={onOpenChange}
       title="About this number"
+      icon="info-box"
       surface="sheet"
       size="md"
       name="proof-drawer"

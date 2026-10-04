@@ -116,8 +116,9 @@ function expectGamingLanding(container: HTMLElement) {
   ).toBe("https://tokentails.com/");
   expect(container.querySelector('[data-testid="rescue-hub"]')).not.toBeNull();
   expect(container.querySelector('a[href^="/game"]')).not.toBeNull();
-  expect(container.querySelector('a[href*="apps.apple.com"]')).not.toBeNull();
-  expect(container.querySelector('a[href*="play.google.com"]')).not.toBeNull();
+  // Store badges are hidden while the store apps are deprecated (SHOW_STORE_BADGES).
+  expect(container.querySelector('a[href*="apps.apple.com"]')).toBeNull();
+  expect(container.querySelector('a[href*="play.google.com"]')).toBeNull();
   expect(container.querySelector('[data-testid="globe"]')).not.toBeNull();
   // Order: hero, proof section, globe, sample card + video.
   const proof = container.querySelector('[data-testid="proof-section"]');
@@ -199,24 +200,19 @@ describe("root visit on mobile", () => {
     setUserAgent(ORIGINAL_UA);
   });
 
-  it("shows only the App Store badge on iPhone", () => {
+  it("shows no store badge on iPhone or Android while the store apps are deprecated", () => {
     mockMobile = true;
-    setUserAgent(
+    for (const ua of [
       "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1",
-    );
-    const { container } = render(<HomePage />);
-    expect(container.querySelector('a[href*="apps.apple.com"]')).not.toBeNull();
-    expect(container.querySelector('a[href*="play.google.com"]')).toBeNull();
-  });
-
-  it("shows only the Play Store badge on Android", () => {
-    mockMobile = true;
-    setUserAgent(
       "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36",
-    );
-    const { container } = render(<HomePage />);
-    expect(container.querySelector('a[href*="play.google.com"]')).not.toBeNull();
-    expect(container.querySelector('a[href*="apps.apple.com"]')).toBeNull();
+    ]) {
+      setUserAgent(ua);
+      const { container, unmount } = render(<HomePage />);
+      expect(container.querySelector('a[href*="apps.apple.com"]')).toBeNull();
+      expect(container.querySelector('a[href*="play.google.com"]')).toBeNull();
+      expect(container.querySelector('[data-testid="hero-cta"]')).not.toBeNull();
+      unmount();
+    }
   });
 });
 

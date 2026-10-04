@@ -115,7 +115,7 @@ beforeAll(() => {
 type CloseProps = { close: () => void };
 const MODALS: Array<{ name: string; title: string; render: (props: CloseProps) => React.ReactElement }> = [
   { name: "CatsModal", title: "MY PETS", render: (p) => <CatsModal {...p} /> },
-  { name: "WheelModal", title: "TAILS WHEEL", render: (p) => <WheelModal {...p} /> },
+  { name: "WheelModal", title: "DAILY SPIN", render: (p) => <WheelModal {...p} /> },
   { name: "PacksModal", title: "PACKS", render: (p) => <PacksModal {...p} /> },
   { name: "PackModal", title: "STARTER pack", render: (p) => <PackModal cat={{ name: "Pack", packType: "STARTER" } as unknown as ICat} {...p} /> },
   { name: "ProfileModal", title: "ABOUT ME", render: (p) => <ProfileModal {...p} /> },

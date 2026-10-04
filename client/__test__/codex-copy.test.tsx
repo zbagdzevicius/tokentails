@@ -1,10 +1,8 @@
 /**
  * @jest-environment jsdom
  */
-import React from "react";
 import fs from "fs";
 import path from "path";
-import { render, screen } from "@testing-library/react";
 
 jest.mock("@/api/user-api", () => ({ USER_API: {} }));
 jest.mock("@/context/ProfileContext", () => ({ useProfile: () => ({}) }));
@@ -18,32 +16,18 @@ jest.mock("@/hooks/useAccountAction", () => ({
   useLatest: (v: unknown) => ({ current: v }),
 }));
 
-import {
-  CLAIMABLE_TREASURE_TITLE,
-  ProgressHudTile,
-} from "@/components/codex/Codex";
+const codexSource = () =>
+  fs.readFileSync(path.join(__dirname, "../components/codex/Codex.tsx"), "utf8");
 
 describe("Codex reward copy (plan G8)", () => {
-  it("renders the CLAIMABLE TREASURE tile with its gold theme, not the pink fallback", () => {
-    render(
-      <ProgressHudTile
-        icon="icons/check.webp"
-        title={CLAIMABLE_TREASURE_TITLE}
-        value="10 $TAILS"
-        detail="2 REWARDS READY"
-        progress={30}
-      />,
-    );
-    const title = screen.getByText("CLAIMABLE TREASURE");
-    expect(title.className).toContain("text-tt-gold-400");
-    expect(title.className).not.toContain("text-tt-pink");
+  it("says 'To claim' in plain words, not the old HUD jargon", () => {
+    const src = codexSource();
+    expect(src).toContain('label="To claim"');
+    expect(src).not.toMatch(/CLAIMABLE TREASURE|COMMAND CENTER|TIER ASCENT|COMBO POWER|BADGE YIELD/);
   });
 
   it("uses 'Legendary bonus' and no 'stash' wording in user-facing copy", () => {
-    const src = fs.readFileSync(
-      path.join(__dirname, "../components/codex/Codex.tsx"),
-      "utf8",
-    );
+    const src = codexSource();
     // Strip identifiers (backend/legacy field names stay) and keep string/JSX text.
     const copy = src.replace(/\bstash\w*|\w+Stash\w*/g, "");
     expect(copy).not.toMatch(/stash/i);

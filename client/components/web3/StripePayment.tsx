@@ -223,7 +223,7 @@ const WebStripePayment = ({
     return (
       <div
         role="alert"
-        className="mx-auto w-full max-w-[420px] rounded-lg border-2 border-tt-rust bg-tt-night-800/90 px-3 py-2 text-center font-primary text-p6 md:text-p5 text-tt-cream"
+        className="w-full border-2 border-tt-rust/70 bg-tt-night-950/60 px-3 py-2 font-sans text-p6 font-semibold text-tt-cream md:text-p5"
       >
         {initializationError || STRIPE_UNAVAILABLE}
       </div>

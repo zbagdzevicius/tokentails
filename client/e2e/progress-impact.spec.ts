@@ -314,7 +314,7 @@ test.describe("PROGRESS opens on IMPACT (G5, task 6a)", () => {
   test("PROGRESS opens on the IMPACT tab with every card", async ({ page, backend }, testInfo) => {
     await openLobby(page, backend);
     await openProgress(page);
-    await expect(codex(page).getByRole("button", { name: "IMPACT", exact: true })).toBeVisible();
+    await expect(codex(page).getByRole("tab", { name: "IMPACT", exact: true })).toBeVisible();
     for (const id of ["season-band", "rescue-goal-card", "treat-card", "todays-paw", "my-impact", "delivered-strip"]) {
       await expect(page.getByTestId(id)).toBeVisible();
     }
@@ -323,7 +323,7 @@ test.describe("PROGRESS opens on IMPACT (G5, task 6a)", () => {
     await expect(page.getByTestId("delivered-item")).toHaveCount(1);
     await expect(page.getByTestId("tails-small-print")).toContainText("Tails have no cash value");
     // POINTS mode: no VAULT tab.
-    await expect(codex(page).getByRole("button", { name: "VAULT", exact: true })).toHaveCount(0);
+    await expect(codex(page).getByRole("tab", { name: "VAULT", exact: true })).toHaveCount(0);
     // The old speculation copy is gone.
     await expect(codex(page)).not.toContainText(/TGE|AIRDROP COMMAND CENTER|allocation|\$TAILS/i);
     await page.waitForTimeout(1500);
@@ -338,14 +338,14 @@ test.describe("PROGRESS opens on IMPACT (G5, task 6a)", () => {
     await expect(codex(page)).toBeVisible();
     await expect(page.getByTestId("impact-tab")).toBeVisible({ timeout: 15_000 });
     // Switching away and reopening from PROGRESS starts on IMPACT again.
-    await codex(page).getByRole("button", { name: "REWARDS", exact: true }).click();
+    await codex(page).getByRole("tab", { name: "REWARDS", exact: true }).click();
     await expect(page.getByTestId("impact-tab")).toHaveCount(0);
     await page.keyboard.press("Escape");
     await expect(codex(page)).toHaveCount(0);
     await openProgress(page);
     await expect(page.getByTestId("impact-tab")).toBeVisible();
-    await expect(codex(page).getByRole("button", { name: "IMPACT", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await expect(codex(page).getByRole("button", { name: "REWARDS", exact: true })).toHaveAttribute("aria-pressed", "false");
+    await expect(codex(page).getByRole("tab", { name: "IMPACT", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(codex(page).getByRole("tab", { name: "REWARDS", exact: true })).toHaveAttribute("aria-selected", "false");
   });
 
   test("the season band shows 22:00 UTC on the 8th in local time", async ({ page, backend }) => {
@@ -465,6 +465,6 @@ test.describe("PROGRESS opens on IMPACT (G5, task 6a)", () => {
     const text = await page.getByTestId("impact-tab").innerText();
     expect(text).not.toMatch(/\bUSDC\b|explorer|\bhash\b|SHA-256|\bwallet\b|0x[0-9a-f]{6}|on-?chain/i);
     expect(backend.requests().filter((c) => c.path === "/user/token-status")).toEqual([]);
-    await expect(codex(page).getByRole("button", { name: "PET ART", exact: true })).toHaveCount(0);
+    await expect(codex(page).getByRole("tab", { name: "PET ART", exact: true })).toHaveCount(0);
   });
 });

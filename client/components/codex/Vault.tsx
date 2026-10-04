@@ -15,22 +15,23 @@ export const Vault = ({ status }: { status: TokenStatus }) => (
   <section
     data-testid="vault-tab"
     aria-labelledby="vault-title"
-    className="flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-tt-gold-500/60 bg-gradient-to-b from-tt-night-700 to-tt-night-900 p-4 text-center text-tt-cream"
+    data-tone="highlight"
+    className="tt-card flex w-full flex-col items-center gap-3 p-4 text-center text-tt-cream"
   >
     <h3 id="vault-title" className="font-primary text-p3 uppercase text-tt-gold-400">
       The Vault
     </h3>
     {status.tgeAt ? (
       <>
-        <p className="font-secondary text-p5">The Vault opens on the date below. The terms are published before then.</p>
+        <p className="font-sans text-p5 font-semibold">The Vault opens on the date below. The terms are published before then.</p>
         <div className="w-full max-w-[640px] p-3">
           <Countdown targetDate={status.tgeAt} isDaysDisplayed size="lg" />
         </div>
       </>
     ) : (
-      <p className="font-secondary text-p5">The Vault opening date is not set yet. The terms are published first.</p>
+      <p className="font-sans text-p5 font-semibold">The Vault opening date is not set yet. The terms are published first.</p>
     )}
-    <p className="font-secondary text-p6 text-tt-muted">Until then: {TAILS_NO_CASH_VALUE}</p>
+    <p className="font-sans text-p6 font-semibold text-tt-muted">Until then: {TAILS_NO_CASH_VALUE}</p>
   </section>
 );
 

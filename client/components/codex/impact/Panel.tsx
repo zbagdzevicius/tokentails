@@ -1,20 +1,28 @@
+import { IconSlot, type ModalIcon } from "@/components/ui/modal";
 import clsx from "clsx";
 import type { ReactNode } from "react";
 
 /**
- * One IMPACT tab card: the night panel of the landing (night-800 with a gold hairline and the
- * soft lift shadow), a Passion One eyebrow and an optional chip on the right.
+ * One IMPACT tab card: the modal system's section card (`tt-card`, one card level), an icon and a
+ * Passion One heading, an optional one-line helper and an optional chip on the right.
  */
 export const ImpactPanel = ({
   title,
+  icon,
+  helper,
   aside,
+  tone,
   children,
   className,
   testId,
   labelledBy,
 }: {
   title: ReactNode;
+  icon?: ModalIcon;
+  /** One plain line under the heading. */
+  helper?: ReactNode;
   aside?: ReactNode;
+  tone?: "highlight" | "success";
   children: ReactNode;
   className?: string;
   testId?: string;
@@ -24,19 +32,24 @@ export const ImpactPanel = ({
   <section
     data-testid={testId}
     aria-labelledby={labelledBy}
-    className={clsx(
-      "relative flex min-w-0 flex-col gap-3 rounded-2xl border-2 border-tt-gold-500/50 bg-gradient-to-b from-tt-night-700/95 to-tt-night-900/95 p-3 text-tt-cream shadow-[0_6px_0_rgb(var(--tt-night-950)/0.6)] md:p-4",
-      className
-    )}
+    data-tone={tone}
+    className={clsx("tt-card relative flex min-w-0 flex-col gap-3 p-3 text-tt-cream md:p-4 short:!p-2.5", className)}
   >
-    <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-      <h3
-        id={labelledBy}
-        className="font-primary text-p5 uppercase tracking-wide text-tt-gold-400 md:text-p4"
-      >
-        {title}
-      </h3>
-      {aside}
+    <div className="flex min-w-0 items-start gap-2">
+      {icon != null && (
+        <span className="mt-[2px] text-tt-gold-400" aria-hidden="true">
+          <IconSlot icon={icon} size={20} />
+        </span>
+      )}
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <h3 id={labelledBy} className="font-primary text-p4 uppercase leading-none tracking-wide text-tt-gold-400">
+          {title}
+        </h3>
+        {helper != null && (
+          <p className="font-sans text-p6 font-semibold leading-snug text-tt-muted md:text-p5">{helper}</p>
+        )}
+      </div>
+      {aside != null && <div className="ml-auto flex shrink-0 items-center gap-2">{aside}</div>}
     </div>
     {children}
   </section>
@@ -72,13 +85,14 @@ export const ImpactButton = ({
     aria-busy={busy || undefined}
     aria-label={ariaLabel}
     data-testid={testId}
+    data-variant={tone === "gold" ? "primary" : "secondary"}
     // In px, not rem: the root font size scales on some screens and a target must stay 44 px.
     style={{ minHeight: 44, minWidth: 44 }}
     className={clsx(
-      "inline-flex items-center justify-center gap-1.5 rounded-lg border-2 px-3 font-primary text-p6 uppercase tracking-wide transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-cream disabled:cursor-not-allowed disabled:opacity-50 md:text-p5",
+      "tt-btn inline-flex items-center justify-center gap-1.5 px-3 font-primary text-p5 uppercase leading-none tracking-wide transition-[filter,background-color,color] duration-150 enabled:active:translate-y-[2px] motion-reduce:transition-none focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[4px] focus-visible:outline-tt-gold-400 disabled:cursor-not-allowed disabled:opacity-50 disabled:saturate-50",
       tone === "gold"
-        ? "border-tt-gold-500 bg-tt-gold-400 text-tt-gold-ink shadow-[0_3px_0_rgb(var(--tt-gold-shadow))] enabled:hover:brightness-105 enabled:active:translate-y-px"
-        : "border-tt-cream/40 bg-tt-night-900/70 text-tt-cream enabled:hover:border-tt-gold-500 enabled:hover:text-tt-gold-400",
+        ? "bg-tt-gold-400 text-tt-gold-ink enabled:hover:brightness-110"
+        : "bg-tt-night-600 text-tt-cream enabled:hover:bg-tt-night-500",
       className
     )}
   >

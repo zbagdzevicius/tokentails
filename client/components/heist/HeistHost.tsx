@@ -1,7 +1,8 @@
 import { analytics, buildEvent } from "@/analytics";
 import { USER_API } from "@/api/user-api";
 import { getAudioSettings, subscribeAudioSettings, type AudioSettings } from "@/components/audio/settings";
-import { PixelButton } from "@/components/shared/PixelButton";
+import { PixelIcon } from "@/components/shared/PixelIcon";
+import { ActionRow, ModalButton } from "@/components/ui/modal";
 import { GameModal } from "@/components/ui/GameModal";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -313,19 +314,28 @@ export const HeistHost = () => {
           if (!open) setClaimDismissed(true);
         }}
         title="ADD YOUR HEISTS?"
+        icon="gamepad"
         description={claimQuestion(unclaimed, signedIn)}
         size="sm"
         name="heist-claim"
         canClose={!claiming}
       >
-        <div className="flex flex-col items-center gap-5 px-2 pb-2 pt-1 text-center" data-testid="heist-claim">
-          <p className="font-sans text-p6 leading-snug text-tt-cream/80">
+        <div className="flex flex-col gap-4" data-testid="heist-claim">
+          <p className="flex items-start gap-2 font-sans text-p5 font-semibold leading-snug text-tt-cream">
+            <span aria-hidden="true" className="mt-[2px] shrink-0 text-tt-sky">
+              <PixelIcon name="info-box" size={18} />
+            </span>
             Only add them if you played them. Someone else on this device? Tap Not mine and they are deleted.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <PixelButton text="ADD THEM" onClick={() => void claim()} busy={claiming} />
-            <PixelButton text="NOT MINE" onClick={decline} disabled={claiming} />
-          </div>
+          {/* Centred like every other modal's actions: the primary first, NOT MINE beside it. */}
+          <ActionRow align="center">
+            <ModalButton variant="primary" icon="check" onClick={() => void claim()} busy={claiming}>
+              ADD THEM
+            </ModalButton>
+            <ModalButton variant="secondary" icon="close" onClick={decline} disabled={claiming}>
+              NOT MINE
+            </ModalButton>
+          </ActionRow>
         </div>
       </GameModal>
     </div>

@@ -1,5 +1,6 @@
 import { PixelButton } from "./PixelButton";
 import { CatnipIcon } from "@/components/shared/CatnipIcon";
+import { PixelIcon } from "@/components/shared/PixelIcon";
 import { isCupidSeason } from "@/components/game/seasons";
 import { GameModal } from "@/components/ui/GameModal";
 import { GameType } from "@/models/game";
@@ -60,7 +61,7 @@ export function gameCards(includeHeist: boolean, now: Date = new Date()): GameCa
       key: GameType.PIXEL_RESCUE,
       type: GameType.PIXEL_RESCUE,
       title: "CUPID CAT",
-      description: "Save cat locked in a cage every day",
+      description: "Free a caged cat, one new cage a day",
       tag: "SEASONAL",
       image: cdnFile("utilities/game-modal/pixel-rescue.webp"),
       previewVariant: "IMAGE",
@@ -71,7 +72,7 @@ export function gameCards(includeHeist: boolean, now: Date = new Date()): GameCa
       key: GameType.CATNIP_CHAOS,
       type: GameType.CATNIP_CHAOS,
       title: "PURRSUIT",
-      description: "Get through challenges with your cat",
+      description: "Run, jump and dodge traps with your cat",
       // Frozen for now: no promise of new levels (decision #94, plan G14).
       tag: "CLASSIC",
       image: cdnFile("utilities/game-modal/catnip-chaos.webp"),
@@ -128,18 +129,37 @@ const FRAME_SLICE = 62;
  */
 const PIN_CLOSE_TO_POST = "[&>button[data-placement]]:!right-0 [&>button[data-placement]]:!top-0";
 
+/** The id of a card's one-line description (the card's aria-describedby). */
+const descriptionId = (card: GameCard) => `game-card-${card.key.toLowerCase()}-about`;
+
+/**
+ * The art's top-left post carries a stray "R" glyph. This tile repaints that corner with the
+ * bottom-left paw post from the same 9-slice art: at the frame's border width (44 px, 64 px from
+ * lg) one art slice maps to one border width, so the art is scaled by 44/62 (64/62) and pinned to
+ * its bottom-left corner. The clip drops what differs between the two slices: the side bar
+ * running up out of the bottom post (top 7 %) and the panel fill beside it (top-right notch).
+ */
+const PawPost = () => (
+  <span
+    aria-hidden="true"
+    data-testid="game-select-paw-post"
+    className="pointer-events-none absolute -left-[44px] -top-[44px] z-20 h-[44px] w-[44px] bg-no-repeat [background-position:0_100%] [background-size:515.9px_395.3px] [clip-path:polygon(0_7%,87%_7%,87%_19%,100%_19%,100%_100%,0_100%)] lg:-left-[64px] lg:-top-[64px] lg:h-[64px] lg:w-[64px] lg:[background-size:750.5px_575px]"
+    style={{ backgroundImage: `url(${FRAME_ART})` }}
+  />
+);
+
 const Preview = ({ card }: { card: GameCard }) => {
   if (card.previewVariant === "MATCH3") {
     return (
       <span
-        className="relative block aspect-square h-full overflow-hidden rounded-lg bg-[#1d1c3a]/80 p-[3px]"
+        className="relative block aspect-[4/3] h-full overflow-hidden rounded-lg bg-[#1d1c3a]/80 p-[3px]"
         style={
           card.previewBg
             ? { backgroundImage: `url(${card.previewBg})`, backgroundSize: "cover", backgroundPosition: "center" }
             : undefined
         }
       >
-        <span className="grid h-full w-full grid-cols-4 gap-[3px] rounded-[6px] bg-[#15132a]/80 p-[3px]">
+        <span className="grid h-full w-full grid-cols-4 grid-rows-3 gap-[3px] rounded-[6px] bg-[#15132a]/80 p-[3px]">
           {MATCH3_TILES.map((tileSrc, index) => (
             <span
               key={`${tileSrc}-${index}`}
@@ -201,7 +221,9 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   showHeist,
   navigate,
 }) => {
-  const cards = gameCards(showHeist ?? heistPickerEnabled());
+  const now = new Date();
+  const cards = gameCards(showHeist ?? heistPickerEnabled(), now);
+  const cupidOpen = isCupidSeason(now);
 
   const pick = (card: GameCard) => (event: MouseEvent<HTMLElement>) => {
     if (card.href) {
@@ -247,7 +269,12 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
         text={card.title}
         className="!hidden group-hover:brightness-125 [@media(min-width:768px)_and_(min-height:521px)]:mt-2 [@media(min-width:768px)_and_(min-height:521px)]:!flex lg:scale-110"
       />
-      <span className="hidden pt-2 text-center font-primary text-p5 uppercase leading-[1.05] text-yellow-100 text-balance drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] md:block md:min-h-[3.2rem] md:px-1 [@media(max-height:520px)]:!hidden">
+      {/* What the game is, on every phone too (it used to be desktop only): Nunito on a night
+          plate, so it reads over the pink clouds. Compact on short landscape screens. */}
+      <span
+        id={descriptionId(card)}
+        className="mt-2 flex min-h-[3.25rem] w-full flex-1 items-center justify-center bg-tt-night-900/85 px-2 py-1 text-center font-sans text-[length:max(12px,0.75rem)] font-bold leading-snug text-tt-cream text-balance [box-shadow:0_0_0_2px_rgb(var(--tt-night-950)/0.6)] md:min-h-[2.9rem] md:text-[0.8125rem] lg:text-p5 [@media(max-height:520px)]:!mt-1 [@media(max-height:520px)]:!min-h-0 [@media(max-height:520px)]:!py-0.5 [@media(max-height:520px)]:!text-[12px]"
+      >
         {card.description}
       </span>
     </>
@@ -258,7 +285,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
     cards.length > 3 ? "md:w-[calc(25%-0.75rem)]" : "md:w-[calc(33.333%-0.75rem)]"
   );
   const targetClass =
-    "group flex w-full flex-col items-center rounded-lg pb-1 outline-none transition-[filter] duration-200 hover:brightness-110 focus-visible:ring-4 focus-visible:ring-tt-gold-400 focus-visible:ring-offset-2 focus-visible:ring-offset-tt-night-900";
+    "group flex h-full w-full flex-col items-center rounded-lg pb-1 outline-none transition-[filter] duration-200 hover:brightness-110 focus-visible:ring-4 focus-visible:ring-tt-gold-400 focus-visible:ring-offset-2 focus-visible:ring-offset-tt-night-900";
 
   return (
     <GameModal
@@ -291,6 +318,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
           borderImageRepeat: "stretch",
         }}
       >
+        <PawPost />
         <img
           src="/mascots/actions/play_games.webp"
           alt=""
@@ -328,6 +356,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
                     href={heistHref(card.href)}
                     onClick={pick(card)}
                     aria-label={label}
+                    aria-describedby={descriptionId(card)}
                     data-testid="game-card-heist"
                     className={targetClass}
                   >
@@ -338,6 +367,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
                     type="button"
                     onClick={pick(card)}
                     aria-label={label}
+                    aria-describedby={descriptionId(card)}
                     className={targetClass}
                   >
                     {cardBody(card)}
@@ -347,6 +377,19 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
             );
           })}
         </ul>
+        {!cupidOpen && (
+          <p
+            data-testid="game-select-season-note"
+            // Short landscape screens keep it too (one compact line): without it Cupid Cat just
+            // vanishes from the picker with no reason given.
+            className="relative z-10 mx-auto mt-2 flex w-fit max-w-full items-center gap-1.5 bg-tt-night-900/85 px-2.5 py-1 text-center font-sans text-[length:max(12px,0.75rem)] font-bold leading-snug text-tt-cream [box-shadow:0_0_0_2px_rgb(var(--tt-night-950)/0.6)] md:text-[0.8125rem] lg:text-p5 [@media(max-height:520px)]:!mt-1 [@media(max-height:520px)]:!py-0.5 [@media(max-height:520px)]:!text-[12px]"
+          >
+            <span aria-hidden="true" className="text-tt-pink">
+              <PixelIcon name="heart" size={14} />
+            </span>
+            Cupid Cat is back every January to March.
+          </p>
+        )}
       </div>
     </GameModal>
   );
