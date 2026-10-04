@@ -80,8 +80,12 @@ beforeEach(() => {
 afterAll(() => withShelterEnv({}));
 
 describe('ShelterDonateService.donate', () => {
-    it('answers 409 and touches nothing when SHELTER_DONATE_ENABLED is off (the default)', async () => {
-        withShelterEnv({ SHELTER_SPLIT_ADDRESS: SPLIT, SHELTER_DONATE_PRIVATE_KEY: FAKE_KEY });
+    it('answers 409 and touches nothing when SHELTER_DONATE_ENABLED=false (the emergency off)', async () => {
+        withShelterEnv({
+            SHELTER_SPLIT_ADDRESS: SPLIT,
+            SHELTER_DONATE_PRIVATE_KEY: FAKE_KEY,
+            SHELTER_DONATE_ENABLED: 'false',
+        });
         const { service, donations } = setup();
 
         const error = await httpError(service.donate(user(), 'heist', NOW));

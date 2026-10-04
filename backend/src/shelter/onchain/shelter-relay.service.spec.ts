@@ -111,17 +111,18 @@ async function refusal(promise: Promise<unknown>): Promise<{ status: number; cod
 }
 
 describe('publicGivingAllowed (mainnet gate)', () => {
-    it('allows testnets whenever enabled and mainnets only after the handover', () => {
-        expect(publicGivingAllowed({ chainId: 5042002, handedOver: false })).toBe(true);
-        expect(publicGivingAllowed({ chainId: 84532, handedOver: false })).toBe(true);
-        expect(publicGivingAllowed({ chainId: 5042, handedOver: false })).toBe(false);
-        expect(publicGivingAllowed({ chainId: 8453, handedOver: false })).toBe(false);
-        expect(publicGivingAllowed({ chainId: 5042, handedOver: true })).toBe(true);
+    it('allows testnets always and mainnets unless SHELTER_HANDED_OVER=false (the on-chain claim check follows)', () => {
+        expect(publicGivingAllowed({ chainId: 5042002 })).toBe(true);
+        expect(publicGivingAllowed({ chainId: 84532, givingKilled: true })).toBe(true);
+        expect(publicGivingAllowed({ chainId: 5042 })).toBe(true);
+        expect(publicGivingAllowed({ chainId: 8453, givingKilled: true })).toBe(false);
+        expect(readShelterConfig({ SHELTER_HANDED_OVER: 'false' } as any).givingKilled).toBe(true);
+        expect(readShelterConfig({} as any).givingKilled).toBe(false);
     });
 
     it('treats an unknown chain id as a mainnet', () => {
         expect(isTestnetChain(999999)).toBe(false);
-        expect(publicGivingAllowed({ chainId: 999999, handedOver: false })).toBe(false);
+        expect(publicGivingAllowed({ chainId: 999999, givingKilled: true })).toBe(false);
     });
 
     it('reads SHELTER_HANDED_OVER as true only for the literal "true", and everything is off by default', () => {

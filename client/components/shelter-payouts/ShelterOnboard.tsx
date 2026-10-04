@@ -7,11 +7,11 @@ import NextLink from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AppProofNotice } from "./AppProofNotice";
 import { Campaign, fetchCampaign } from "./campaign";
-import { claimMessage, utf8ToHex } from "./claim";
-import { SHELTER_CHAINS } from "./chains";
+import { claimMessage, claimMessageV2, utf8ToHex } from "./claim";
+import { chainDisplayName, SHELTER_CHAINS } from "./chains";
 import { shortShelterName } from "./giveMode";
 import { toChecksumAddress } from "./keccak";
-import { ClaimView, getClaim, getMatchStatus, postClaim } from "./relayApi";
+import { ChainClaim, ClaimView, getClaim, getClaimChains, getMatchStatus, postClaim } from "./relayApi";
 import { CARD, CHIP, GOLD_BUTTON, Kicker, NightStage, PANEL, PILL, PinkCat } from "./ui";
 import { getInjectedProvider, walletErrorMessage } from "./wallet";
 
@@ -40,6 +40,25 @@ export function claimStatusCopy(claim: ClaimView | null | undefined, justSent = 
   if (claim.status === "rotated") return "Registered: payouts now go to this wallet.";
   if (claim.status === "rejected") return "Not accepted. Write to Token Tails and we will sort it out together.";
   return "Waiting for Token Tails to register this wallet on-chain.";
+}
+
+/** One line per chain: where the claim stands there. Pending claims are private, so they read as none. */
+export function chainClaimCopy(row: ChainClaim): string {
+  const name = SHELTER_CHAINS[row.chainId] ? chainDisplayName(SHELTER_CHAINS[row.chainId]) : `Chain ${row.chainId}`;
+  if (!row.claim) return `${name}: not registered yet`;
+  if (row.claim.status === "rotated") return `${name}: registered, payouts go to this wallet`;
+  if (row.claim.status === "rejected") return `${name}: not accepted`;
+  return `${name}: confirmed, waiting for the on-chain change`;
+}
+
+/**
+ * The message the shelter signs: one signature for every chain where it is listed (v2) when the
+ * backend serves more than one, else the one-chain message (v1, unchanged).
+ */
+export function onboardMessage(wallet: string, chainId: number, chains: ChainClaim[] | undefined, issued: Date): string {
+  return chains && chains.length > 1
+    ? claimMessageV2({ wallet, chains: "all", issued })
+    : claimMessage({ wallet, chainId, issued });
 }
 
 const short = (v: string) => `${v.slice(0, 6)}…${v.slice(-4)}`;
@@ -74,10 +93,13 @@ const WebShelterOnboard = () => {
   const [claimLoaded, setClaimLoaded] = useState(false);
   // The chain the backend takes claims for (its main chain). Null until read: then the campaign's.
   const [backendChainId, setBackendChainId] = useState<number | null>(null);
+  // Every chain a claim covers, with its public status. Undefined: an older backend (one chain).
+  const [chainClaims, setChainClaims] = useState<ChainClaim[] | undefined>(undefined);
 
   const refreshClaim = useCallback(async () => {
-    const c = await getClaim();
+    const [c, chains] = await Promise.all([getClaim(), getClaimChains()]);
     setClaim(c);
+    setChainClaims(chains);
     setClaimLoaded(true);
   }, []);
 
@@ -85,6 +107,7 @@ const WebShelterOnboard = () => {
     let cancelled = false;
     fetchCampaign().then((c) => !cancelled && setCampaign(c)).catch(() => undefined);
     getMatchStatus().then((m) => !cancelled && m?.chainId && setBackendChainId(m.chainId));
+    getClaimChains().then((c) => !cancelled && setChainClaims(c));
     getClaim().then((c) => {
       if (cancelled) return;
       setClaim(c);
@@ -123,10 +146,11 @@ const WebShelterOnboard = () => {
     if (!eth || !wallet) return;
     setStep({ status: "signing", wallet });
     try {
-      const message = claimMessage({ wallet, chainId, issued: new Date() });
+      const multi = !!chainClaims && chainClaims.length > 1;
+      const message = onboardMessage(wallet, chainId, chainClaims, new Date());
       const signature = await eth.request({ method: "personal_sign", params: [utf8ToHex(message), wallet] });
       if (typeof signature !== "string") throw new Error("The wallet did not return a signature.");
-      const res = await postClaim({ chainId, wallet, signature });
+      const res = await postClaim(multi ? { allChains: true, wallet, signature } : { chainId, wallet, signature });
       if (!res.ok) {
         setStep({ status: "error", message: res.message, wallet });
         return;
@@ -138,7 +162,8 @@ const WebShelterOnboard = () => {
     }
   };
 
-  const preview = wallet ? claimMessage({ wallet, chainId, issued: new Date() }) : null;
+  const preview = wallet ? onboardMessage(wallet, chainId, chainClaims, new Date()) : null;
+  const multiChain = !!chainClaims && chainClaims.length > 1;
 
   return (
     <NightStage className="min-h-screen">
@@ -238,11 +263,27 @@ const WebShelterOnboard = () => {
               points {shelter}&apos;s entry in the payout contract on {chainName} to this wallet. The change is a public
               event anyone can check.
             </p>
-            <p className="text-tt-cream/80" data-testid="onboard-other-chains">
-              {chainName} is where the campaign runs. Where {shelter} is also listed in the payout contract on another
-              chain ({OTHER_CHAINS.filter((c) => c !== chainName).join(", ")}), the same wallet is set there too, each
-              change its own public event.
-            </p>
+            {multiChain ? (
+              <>
+                <p className="text-tt-cream/80" data-testid="onboard-other-chains">
+                  One signature covers every chain where {shelter} is listed. Each chain is registered on its own,
+                  each change its own public event:
+                </p>
+                <ul className="flex flex-col gap-1" data-testid="onboard-chain-status">
+                  {chainClaims!.map((row) => (
+                    <li key={row.chainId} className={`${CHIP} self-start !normal-case`}>
+                      {chainClaimCopy(row)}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="text-tt-cream/80" data-testid="onboard-other-chains">
+                {chainName} is where the campaign runs. Where {shelter} is also listed in the payout contract on
+                another chain ({OTHER_CHAINS.filter((c) => c !== chainName).join(", ")}), the same wallet is set
+                there too, each change its own public event.
+              </p>
+            )}
             <p className="text-tt-cream" role="status" data-testid="onboard-status">
               {claimLoaded ? claimStatusCopy(claim, step.status === "sent") : "Reading the claim status…"}
               {claim && claim.wallet && (

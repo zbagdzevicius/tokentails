@@ -165,8 +165,14 @@ export interface ClaimView {
   status: ClaimStatus;
 }
 
+/** v1 names one chain (`chainId`); v2 names `chains` or `allChains: true` (claimMessageV2). */
+export type ClaimBody =
+  | { chainId: number; wallet: string; signature: string }
+  | { chains: number[]; wallet: string; signature: string }
+  | { allChains: true; wallet: string; signature: string };
+
 export async function postClaim(
-  body: { chainId: number; wallet: string; signature: string },
+  body: ClaimBody,
   fetchFn: typeof fetch = fetch
 ): Promise<{ ok: true; status: string } | { ok: false; message: string }> {
   try {
@@ -195,6 +201,37 @@ export async function getClaim(fetchFn: typeof fetch = fetch): Promise<ClaimView
     if (!b) return null;
     if (typeof b.wallet !== "string" || typeof b.status !== "string") return null;
     return { wallet: b.wallet, chainId: Number(b.chainId), status: b.status as ClaimStatus };
+  } catch {
+    return undefined;
+  }
+}
+
+/** One chain a claim can cover, with its latest public claim (approved or rotated) or null. */
+export interface ChainClaim {
+  chainId: number;
+  testnet: boolean;
+  main: boolean;
+  claim: ClaimView | null;
+}
+
+/** GET /shelter/claim/chains; undefined when unreachable or not served (an older backend). */
+export async function getClaimChains(fetchFn: typeof fetch = fetch): Promise<ChainClaim[] | undefined> {
+  try {
+    const res = await fetchFn(`${apiUrl}/shelter/claim/chains`, { headers: { Accept: "application/json" } });
+    if (!res.ok) return undefined;
+    const b = await json(res);
+    if (!Array.isArray(b)) return undefined;
+    return b
+      .filter((r) => r && Number.isSafeInteger(Number(r.chainId)))
+      .map((r) => ({
+        chainId: Number(r.chainId),
+        testnet: !!r.testnet,
+        main: !!r.main,
+        claim:
+          r.claim && typeof r.claim.wallet === "string" && typeof r.claim.status === "string"
+            ? { wallet: r.claim.wallet, chainId: Number(r.claim.chainId), status: r.claim.status as ClaimStatus }
+            : null,
+      }));
   } catch {
     return undefined;
   }

@@ -1,29 +1,100 @@
 import { getAddress, getBigInt, isAddress } from 'ethers';
+import { CHAINS, ChainWallets, SplitInstance, WALLETS } from './wallet.config';
 
 /** Arc mainnet and testnet. Native USDC has 18 decimals there and pays for gas. */
 export const ARC_MAINNET_CHAIN_ID = 5042;
 export const ARC_TESTNET_CHAIN_ID = 5042002;
 
-/** Keyless public RPCs (the client's chains.ts list): a chain's config may name its own instead. */
-const DEFAULT_RPC: Record<number, string> = {
-    [ARC_MAINNET_CHAIN_ID]: 'https://rpc.mainnet.arc.io',
-    [ARC_TESTNET_CHAIN_ID]: 'https://rpc.testnet.arc.io',
-    4217: 'https://rpc.tempo.xyz',
-    42431: 'https://rpc.moderato.tempo.xyz',
-    42161: 'https://arb1.arbitrum.io/rpc',
-    421614: 'https://sepolia-rollup.arbitrum.io/rpc',
-    43114: 'https://api.avax.network/ext/bc/C/rpc',
-    43113: 'https://api.avax-test.network/ext/bc/C/rpc',
-    8453: 'https://mainnet.base.org',
-    84532: 'https://sepolia.base.org',
-    4663: 'https://rpc.mainnet.chain.robinhood.com',
-    46630: 'https://rpc.testnet.chain.robinhood.com',
-    143: 'https://rpc.monad.xyz',
-    10143: 'https://testnet-rpc.monad.xyz',
-};
+/** Keyless public RPCs per chain, from wallet.config.ts: a chain's config may name its own instead. */
+const DEFAULT_RPC: Record<number, string> = Object.fromEntries(Object.values(CHAINS).map(c => [c.chainId, c.rpc]));
 
 /** The keyless public RPC for `chainId`, or null when none is known. */
 export const publicRpcUrl = (chainId: number): string | null => DEFAULT_RPC[chainId] || null;
+
+/**
+ * A separate keyless RPC for the impact indexer's eth_getLogs scan, used only while the chain reads its
+ * default public RPC (the client's chains.ts `logRpc`): Monad's public RPCs cap eth_getLogs at 100
+ * blocks, sepolia.base.org at 1,000, and Arc testnet's at ~10,000 with tight rate limits.
+ */
+const LOG_RPC: Record<number, string> = Object.fromEntries(
+    Object.values(CHAINS)
+        .filter(c => c.logRpc)
+        .map(c => [c.chainId, c.logRpc as string])
+);
+
+/** The widest eth_getLogs range (blocks) a chain's default public RPC or its LOG_RPC accepts, when small. */
+const LOG_RANGE: Record<string, number> = {
+    'https://mainnet.base.org': 2000,
+    'https://sepolia.base.org': 1000,
+    'https://rpc.monad.xyz': 100,
+    'https://testnet-rpc.monad.xyz': 100,
+    'https://rpc.testnet.arc.io': 10000,
+    'https://monad-testnet.api.onfinality.io/public': 10000,
+    // Avalanche's public C-Chain RPCs refuse eth_getLogs over 2,048 blocks.
+    'https://api.avax.network/ext/bc/C/rpc': 2048,
+    'https://api.avax-test.network/ext/bc/C/rpc': 2048,
+};
+
+/**
+ * Where the indexer reads logs for `config` and the widest window that URL takes: SHELTER_CHAIN_<id>_
+ * LOG_RPC_URL when set, the dedicated LOG_RPC while the chain uses its default public RPC, else the
+ * chain's own RPC. `maxRange` is null when no cap is known (SHELTER_LOG_CHUNK alone applies).
+ */
+export function logRpcFor(config: Pick<ShelterOnchainConfig, 'chainId' | 'rpcUrl' | 'logRpcUrl'>): {
+    url: string | null;
+    maxRange: number | null;
+} {
+    const url =
+        config.logRpcUrl ||
+        (config.rpcUrl && config.rpcUrl === DEFAULT_RPC[config.chainId] && LOG_RPC[config.chainId]) ||
+        config.rpcUrl ||
+        null;
+    return { url, maxRange: (url && LOG_RANGE[url]) || null };
+}
+
+/** A recorded ShelterSplit instance, flattened for the config readers. */
+export interface RecordedSplit {
+    chainId: number;
+    network: 'mainnet' | 'testnet';
+    address: string;
+    /** The payout token's symbol. */
+    token: string;
+    decimals: number;
+    tx?: string;
+    fromBlock?: number;
+    router?: string;
+    routerFromBlock?: number;
+}
+
+const flat = (c: ChainWallets, s: SplitInstance): RecordedSplit => ({
+    chainId: c.chainId,
+    network: c.network,
+    address: s.address,
+    token: s.token.symbol,
+    decimals: s.token.decimals,
+    ...(s.deployTx ? { tx: s.deployTx } : {}),
+    ...(s.fromBlock !== undefined ? { fromBlock: s.fromBlock } : {}),
+    ...(s.router ? { router: s.router } : {}),
+    ...(s.routerFromBlock !== undefined ? { routerFromBlock: s.routerFromBlock } : {}),
+});
+
+/** The wallet.config.ts section of `chainId`, or null for a chain it does not list. */
+export const chainWallets = (chainId: number): ChainWallets | null =>
+    Object.values(CHAINS).find(c => c.chainId === Number(chainId)) || null;
+
+/** The ShelterSplit a chain defaults to (wallet.config.ts `split`), or null. */
+export function recordedSplit(chainId: number): RecordedSplit | null {
+    const c = chainWallets(chainId);
+    return c?.split ? flat(c, c.split) : null;
+}
+
+/** Any recorded ShelterSplit at `address` on `chainId` (the default one or another, e.g. EURC), or null. */
+export function recordedSplitAt(chainId: number, address: string | null | undefined): RecordedSplit | null {
+    const c = chainWallets(chainId);
+    const a = String(address || '').toLowerCase();
+    const s = c && [...(c.split ? [c.split] : []), ...c.otherSplits].find(x => x.address === a);
+    return c && s ? flat(c, s) : null;
+}
 
 /** 0.01 USDC in wei (18 decimals). */
 const DEFAULT_AMOUNT_WEI = '10000000000000000';
@@ -99,6 +170,24 @@ export interface ShelterOnchainConfig {
      * USDC on Arc. Absent on the main chain, which keeps SHELTER_X402_PRICE_WEI.
      */
     x402Price?: string;
+    /**
+     * Why a wallet.config.ts chain cannot send treats although its flag is on
+     * (no recorded split, a key of the other network class). Shown by GET /shelter/donate/status.
+     */
+    disabledReason?: string;
+    /** First block the impact indexer reads on a relay chain (SHELTER_CHAIN_<id>_SPLIT_FROM_BLOCK or recorded). */
+    splitFromBlock?: number | null;
+    /** The split's deploy transaction (recorded): its receipt block is the indexer's start when no block is known. */
+    splitDeployTx?: string | null;
+    /** SHELTER_CHAIN_<id>_LOG_RPC_URL: the indexer's eth_getLogs RPC for that chain (see logRpcFor). */
+    logRpcUrl?: string | null;
+    /** Served from wallet.config.ts (zero config): its treats are health-checked before they are offered. */
+    autoChain?: boolean;
+    /**
+     * SHELTER_HANDED_OVER=false, an emergency off: mainnet relay, match and x402 stay closed whatever the
+     * on-chain claim check says. Unset, they open per chain once publicGivingVerified passes.
+     */
+    givingKilled?: boolean;
 }
 
 /** A treat paid in a token (approve + disburse, or disburseWithMemo on Tempo). */
@@ -126,6 +215,12 @@ const TREAT_COIN: Record<number, string> = {
     4663: 'USDG',
     46630: 'mUSDC',
 };
+
+/**
+ * Chains whose treat coin is not a US dollar: Robinhood Chain testnet pays the test MockUSDC (mUSDC).
+ * Their treats never add into the USD community totals (amountWei is summed as USDC there).
+ */
+export const NON_USD_TREAT_CHAIN_IDS: readonly number[] = [46630];
 
 /** The coin a treat on `chainId` is paid in: USDC unless the chain is known to pay another token. */
 export const treatCoin = (chainId: number): string => TREAT_COIN[chainId] || 'USDC';
@@ -164,18 +259,29 @@ export function readShelterConfig(env: NodeJS.ProcessEnv = process.env): Shelter
     const safeChainId = Number.isInteger(chainId) && chainId > 0 ? chainId : ARC_MAINNET_CHAIN_ID;
     const rpcUrl = (env.SHELTER_ARC_RPC_URL || '').trim() || DEFAULT_RPC[safeChainId] || null;
     const privateKey = (env.SHELTER_DONATE_PRIVATE_KEY || '').trim() || null;
+    // The main chain's split defaults to its wallet.config.ts section (a recorded deploy), like every
+    // other chain; SHELTER_SPLIT_ADDRESS still wins. Arc mainnet has no recorded split yet.
+    const envSplit = address(env.SHELTER_SPLIT_ADDRESS);
+    const recorded = envSplit ? null : recordedSplit(safeChainId);
+    const splitAddress = envSplit || (recorded ? getAddress(recorded.address) : null);
+    const fromRecorded = recordedSplitAt(safeChainId, splitAddress);
     return {
-        donateEnabled: flag(env.SHELTER_DONATE_ENABLED),
-        x402Enabled: flag(env.SHELTER_X402_ENABLED),
+        // On by default; 'false' is an emergency off (treats need a split, a key and a funded hot wallet).
+        donateEnabled: flagOr(env.SHELTER_DONATE_ENABLED, true),
+        x402Enabled: flagOr(env.SHELTER_X402_ENABLED, true),
         chainId: safeChainId,
         rpcUrl,
-        splitAddress: address(env.SHELTER_SPLIT_ADDRESS),
+        splitAddress,
+        splitDeployTx: fromRecorded?.tx || null,
+        splitFromBlock: fromRecorded?.fromBlock ?? null,
+        ...(recorded ? { autoChain: true } : {}),
+        givingKilled: (env.SHELTER_HANDED_OVER || '').trim().toLowerCase() === 'false',
         privateKey,
         amountWei: wei(env.SHELTER_DONATE_AMOUNT_WEI, DEFAULT_AMOUNT_WEI),
         dailyBudgetWei: wei(env.SHELTER_DONATE_DAILY_BUDGET_WEI, DEFAULT_DAILY_BUDGET_WEI),
         x402PriceWei: wei(env.SHELTER_X402_PRICE_WEI, DEFAULT_X402_PRICE_WEI),
-        routerAddress: address(env.SHELTER_ROUTER_ADDRESS),
-        routerFromBlock: blockNumber(env.SHELTER_ROUTER_FROM_BLOCK),
+        routerAddress: address(env.SHELTER_ROUTER_ADDRESS) || (recorded?.router ? getAddress(recorded.router) : null),
+        routerFromBlock: blockNumber(env.SHELTER_ROUTER_FROM_BLOCK) ?? recorded?.routerFromBlock ?? null,
         relayEnabled: flag(env.SHELTER_RELAY_ENABLED),
         relayDailyTx: positiveInt(env.SHELTER_RELAY_DAILY_TX, DEFAULT_RELAY_DAILY_TX),
         relayMinBase: usdcBase(env.SHELTER_RELAY_MIN_USDC, DEFAULT_RELAY_MIN),
@@ -186,7 +292,11 @@ export function readShelterConfig(env: NodeJS.ProcessEnv = process.env): Shelter
         matchMinGiftBase: usdcBase(env.SHELTER_MATCH_MIN_GIFT, DEFAULT_MATCH_MIN_GIFT),
         matchDailyBase: usdcBase(env.SHELTER_MATCH_DAILY, DEFAULT_MATCH_DAILY),
         matchPoolBase: usdcBase(env.SHELTER_MATCH_POOL, DEFAULT_MATCH_POOL),
-        treasuryAddress: address(env.SHELTER_TREASURY_ADDRESS),
+        treasuryAddress:
+            address(env.SHELTER_TREASURY_ADDRESS) ||
+            (recorded
+                ? address(WALLETS[isTestnetChain(safeChainId) ? 'testnet' : 'mainnet'].treasury || undefined)
+                : null),
         claimAllowedWallets: addressList(env.SHELTER_CLAIM_ALLOWED_WALLETS),
         notPublicWallets: addressList(env.SHELTER_MATCH_EXCLUDE),
         relayIpPepper: (env.SHELTER_RELAY_IP_PEPPER || '').trim() || null,
@@ -226,6 +336,9 @@ export function readTryShelterConfig(env: NodeJS.ProcessEnv = process.env): Shel
         x402Enabled: false,
         handedOver: false,
         claimAllowedWallets: [],
+        autoChain: false,
+        splitDeployTx: null,
+        splitFromBlock: null,
     };
 }
 
@@ -233,14 +346,17 @@ const ENV_NAME = /^[A-Z][A-Z0-9_]{0,63}$/;
 const PRIVATE_KEY = /^0x[0-9a-fA-F]{64}$/;
 
 /**
- * More chains for the gas relay (multi-chain wallet giving), one config each. Unset (the default),
- * nothing changes: the relay serves SHELTER_CHAIN_ID and the optional try-it testnet only.
+ * More chains, one config each: the wallet.config.ts chains of the main chain's class (automatic), plus
+ * SHELTER_RELAY_CHAINS entries (an advanced override, configured by their per-chain variables only).
  *
  *   SHELTER_RELAY_CHAINS=84532,421614          chain ids, comma-separated
  *   SHELTER_CHAIN_<id>_RPC_URL                 optional; defaults to the chain's public RPC
  *   SHELTER_CHAIN_<id>_SPLIT_ADDRESS           the chain's USDC ShelterSplit
  *   SHELTER_CHAIN_<id>_ROUTER_ADDRESS          its DonateRouter (the relay needs it)
  *   SHELTER_CHAIN_<id>_ROUTER_FROM_BLOCK       optional; where the RouterDonation scan starts
+ *   SHELTER_CHAIN_<id>_SPLIT_FROM_BLOCK        optional; where the impact indexer starts (default: the
+ *                                              recorded deploy block, read from the deploy tx receipt)
+ *   SHELTER_CHAIN_<id>_LOG_RPC_URL             optional; the indexer's eth_getLogs RPC (see logRpcFor)
  *   SHELTER_CHAIN_<id>_KEY_ENV                 the NAME of the env variable holding that chain's hot
  *                                              wallet key (gas only), e.g. SHELTER_DONATEHOT_KEY
  *   SHELTER_CHAIN_<id>_RELAY_ENABLED           'true' to relay there
@@ -260,6 +376,13 @@ const PRIVATE_KEY = /^0x[0-9a-fA-F]{64}$/;
  *                                              decimal ("0.01", the default): the split's token, scaled by
  *                                              its on-chain decimals, or native USDC on Arc
  *
+ * Zero config: every chain in wallet.config.ts with a ShelterSplit of the main chain's network class
+ * (autoChainIds) is served without any variable above. Its treats follow SHELTER_DONATE_ENABLED and its
+ * x402 card SHELTER_X402_ENABLED; split, router, router first block and treasury come from
+ * wallet.config.ts (generated by `fund a:ingest`) and the key is SHELTER_DONATE_PRIVATE_KEY. Every
+ * per-chain variable above still overrides a default (an advanced override), and _TREAT_ENABLED=false /
+ * _X402_ENABLED=false switch one chain off. Relay and match stay off unless their own flag is 'true'.
+ *
  * A chain already served (the main chain or the try-it testnet) is skipped. A testnet never signs with
  * the main hot wallet key while the main chain is a mainnet (test funds only). A mainnet entry still
  * waits for SHELTER_HANDED_OVER and the on-chain claim check for the relay and match, like the main
@@ -271,68 +394,136 @@ const PRIVATE_KEY = /^0x[0-9a-fA-F]{64}$/;
  * into a ShelterSplit (approve + disburse) is always sent and paid for by the donor's own wallet.
  */
 export function readRelayChainConfigs(env: NodeJS.ProcessEnv = process.env): ShelterOnchainConfig[] {
-    const raw = (env.SHELTER_RELAY_CHAINS || '').trim();
-    if (!raw) {
+    const base = readShelterConfig(env);
+    // Every chain in wallet.config.ts with a split of the main chain's network class serves treats
+    // and x402 whenever the main chain's own switch is on (zero config). Mainnet splits are not
+    // recorded yet, so a mainnet main chain (production) lists none of them.
+    // SHELTER_AUTO_CHAINS=off (an advanced kill switch) serves SHELTER_RELAY_CHAINS entries only.
+    const auto = (env.SHELTER_AUTO_CHAINS || '').trim().toLowerCase() === 'off' ? [] : autoChainIds(base.chainId);
+    const listed = [...chainList(env.SHELTER_RELAY_CHAINS), ...auto];
+    if (!listed.length) {
         return [];
     }
-    const base = readShelterConfig(env);
     const tryConfig = readTryShelterConfig(env);
     const seen = new Set<number>([base.chainId, ...(tryConfig ? [tryConfig.chainId] : [])]);
     const out: ShelterOnchainConfig[] = [];
-    for (const part of raw.split(',')) {
-        const chainId = Number(part.trim());
-        if (!Number.isSafeInteger(chainId) || chainId <= 0 || seen.has(chainId)) {
+    for (const chainId of listed) {
+        if (seen.has(chainId)) {
             continue;
         }
         seen.add(chainId);
         const p = `SHELTER_CHAIN_${chainId}_`;
-        const keyEnv = (env[`${p}KEY_ENV`] || '').trim();
-        const rawKey = ENV_NAME.test(keyEnv) ? (env[keyEnv] || '').trim() : '';
-        let privateKey = PRIVATE_KEY.test(rawKey) ? rawKey : null;
         const testnet = isTestnetChain(chainId);
-        // A main-chain key that holds real money never signs on a testnet. When the main chain is a
-        // testnet itself (the local e2e), its key holds test funds only and may serve the other testnets.
-        if (
-            privateKey &&
-            testnet &&
-            !isTestnetChain(base.chainId) &&
-            base.privateKey &&
-            privateKey.toLowerCase() === base.privateKey.toLowerCase()
-        ) {
-            privateKey = null;
+        // A wallet.config.ts chain: the split, router, treasury and key default (below). A chain named
+        // by SHELTER_RELAY_CHAINS alone reads its per-chain variables only, as before.
+        const shortcut = auto.includes(chainId);
+        const recorded = shortcut ? recordedSplit(chainId) : null;
+        const keyEnv = (env[`${p}KEY_ENV`] || '').trim();
+        let privateKey: string | null = null;
+        let disabledReason: string | undefined;
+        if (keyEnv) {
+            const rawKey = ENV_NAME.test(keyEnv) ? (env[keyEnv] || '').trim() : '';
+            privateKey = PRIVATE_KEY.test(rawKey) ? rawKey : null;
+            // A main-chain key that holds real money never signs on a testnet. When the main chain is a
+            // testnet itself (the local e2e), its key holds test funds only and may serve the other testnets.
+            if (
+                privateKey &&
+                testnet &&
+                !isTestnetChain(base.chainId) &&
+                base.privateKey &&
+                privateKey.toLowerCase() === base.privateKey.toLowerCase()
+            ) {
+                privateKey = null;
+            }
+        } else if (shortcut) {
+            // One key: SHELTER_DONATE_PRIVATE_KEY signs on every chain listed here (one EVM key works on
+            // every EVM chain), which are always of the main chain's network class.
+            privateKey = base.privateKey;
+            if (!privateKey) {
+                disabledReason = 'SHELTER_DONATE_PRIVATE_KEY is not set';
+            }
         }
+        const splitAddress = address(env[`${p}SPLIT_ADDRESS`]) || (recorded ? getAddress(recorded.address) : null);
+        if (shortcut && !splitAddress) {
+            disabledReason = `no ShelterSplit for chain ${chainId} in wallet.config.ts`;
+        }
+        const routerAddress =
+            address(env[`${p}ROUTER_ADDRESS`]) ||
+            (recorded?.router && splitAddress && recorded.address === splitAddress.toLowerCase()
+                ? getAddress(recorded.router)
+                : null);
+        const fromRecorded = recordedSplitAt(chainId, splitAddress);
         const treatAmountBase = usdcBase(env[`${p}TREAT_AMOUNT`], DEFAULT_TREAT_AMOUNT_BASE);
         const treatBudgetBase = usdcBase(env[`${p}TREAT_DAILY_BUDGET`], DEFAULT_TREAT_DAILY_BUDGET_BASE);
         const coin = (env[`${p}TREAT_COIN`] || '').trim();
+        let donateEnabled = flagOr(env[`${p}TREAT_ENABLED`], shortcut && base.donateEnabled);
+        if (donateEnabled && fromRecorded && fromRecorded.decimals !== TREAT_DECIMALS) {
+            // Treat amounts are 6-decimal token units; an 18-decimal payout token (MUSD) is not supported.
+            donateEnabled = false;
+            disabledReason = `the split's token has ${fromRecorded.decimals} decimals; treats pay 6-decimal tokens only`;
+        }
         out.push({
             ...base,
             chainId,
             rpcUrl: (env[`${p}RPC_URL`] || '').trim() || DEFAULT_RPC[chainId] || null,
-            splitAddress: address(env[`${p}SPLIT_ADDRESS`]),
+            logRpcUrl: (env[`${p}LOG_RPC_URL`] || '').trim() || null,
+            splitAddress,
             privateKey,
-            routerAddress: address(env[`${p}ROUTER_ADDRESS`]),
-            routerFromBlock: blockNumber(env[`${p}ROUTER_FROM_BLOCK`]),
+            routerAddress,
+            routerFromBlock:
+                blockNumber(env[`${p}ROUTER_FROM_BLOCK`]) ?? (routerAddress ? recorded?.routerFromBlock ?? null : null),
             relayEnabled: flag(env[`${p}RELAY_ENABLED`]),
             relayDailyTx: positiveInt(env[`${p}RELAY_DAILY_TX`], base.relayDailyTx),
             matchEnabled: flag(env[`${p}MATCH_ENABLED`]),
-            treasuryAddress: address(env[`${p}TREASURY_ADDRESS`]),
-            donateEnabled: flag(env[`${p}TREAT_ENABLED`]),
+            treasuryAddress:
+                address(env[`${p}TREASURY_ADDRESS`]) ||
+                (shortcut ? address(WALLETS[testnet ? 'testnet' : 'mainnet'].treasury || undefined) : null),
+            donateEnabled,
             amountWei: treatAmountBase * TO_18,
             dailyBudgetWei: treatBudgetBase * TO_18,
             treat: {
                 amountBase: treatAmountBase,
                 dailyBudgetBase: treatBudgetBase,
                 decimals: TREAT_DECIMALS,
-                coin: /^[A-Za-z0-9.]{1,12}$/.test(coin) ? coin : treatCoin(chainId),
+                coin: /^[A-Za-z0-9.]{1,12}$/.test(coin) ? coin : fromRecorded?.token || treatCoin(chainId),
                 memo32: TIP20_CHAIN_IDS.includes(chainId),
             },
-            x402Enabled: flag(env[`${p}X402_ENABLED`]),
+            x402Enabled: flagOr(env[`${p}X402_ENABLED`], shortcut && base.x402Enabled),
             x402Price: decimalAmount(env[`${p}X402_PRICE`], DEFAULT_X402_PRICE),
             handedOver: testnet ? false : base.handedOver,
             claimAllowedWallets: [],
+            splitFromBlock: blockNumber(env[`${p}SPLIT_FROM_BLOCK`]) ?? fromRecorded?.fromBlock ?? null,
+            splitDeployTx: fromRecorded?.tx || null,
+            ...(disabledReason ? { disabledReason } : {}),
+            ...(shortcut ? { autoChain: true } : {}),
         });
     }
     return out;
+}
+
+/** A comma-separated chain id list; malformed entries are dropped. */
+export function chainList(value: string | undefined): number[] {
+    return (value || '')
+        .split(',')
+        .map(part => Number(part.trim()))
+        .filter(id => Number.isSafeInteger(id) && id > 0);
+}
+
+/**
+ * The chains served without any per-chain variable: every chain in wallet.config.ts with a ShelterSplit
+ * of the main chain's network class (testnets when SHELTER_CHAIN_ID is a testnet, mainnets otherwise).
+ */
+export function autoChainIds(mainChainId: number): number[] {
+    const testnet = isTestnetChain(mainChainId);
+    return Object.values(CHAINS)
+        .filter(c => c.split && (c.network === 'testnet') === testnet && c.chainId !== mainChainId)
+        .map(c => c.chainId);
+}
+
+/** A per-chain flag that overrides a default: 'true' or 'false' wins, anything else is the default. */
+function flagOr(value: string | undefined, fallback: boolean): boolean {
+    const v = (value || '').trim().toLowerCase();
+    return v === 'true' ? true : v === 'false' ? false : fallback;
 }
 
 /**
@@ -424,16 +615,16 @@ function blockNumber(value: string | undefined): number | null {
 const ZERO = getBigInt(0);
 
 /**
- * The first, synchronous gate on public giving (relay, match, flush). A testnet is always allowed
- * (test USDC, no real money). A mainnet, or any chain id not known to be a testnet, is allowed only once
- * SHELTER_HANDED_OVER is 'true': until Pink Paw holds its own key, public money would land in a
- * wallet Token Tails controls. On a mainnet the services also require the on-chain check
- * `ShelterClaimService.publicGivingVerified` (every split recipient is a rotated, shelter-held claim).
- * Neither gate can stop a stranger calling a deployed router directly: no DonateRouter is deployed on a
- * mainnet before the handover (docs/BACKEND.md).
+ * The first, synchronous gate on public giving (relay, match, flush, x402). A testnet is always allowed
+ * (test USDC, no real money). A mainnet, or any chain id not known to be a testnet, passes this gate
+ * unless SHELTER_HANDED_OVER=false (an emergency off); the services then require the on-chain check
+ * `ShelterClaimService.publicGivingVerified` for that chain: every split recipient is a rotated,
+ * shelter-held claim, so public money never lands in a wallet Token Tails holds. Neither gate can stop a
+ * stranger calling a deployed router directly: no DonateRouter is deployed on a mainnet before the
+ * handover (docs/BACKEND.md).
  */
-export function publicGivingAllowed(config: Pick<ShelterOnchainConfig, 'chainId' | 'handedOver'>): boolean {
-    return isTestnetChain(config.chainId) || config.handedOver === true;
+export function publicGivingAllowed(config: Pick<ShelterOnchainConfig, 'chainId' | 'givingKilled'>): boolean {
+    return isTestnetChain(config.chainId) || config.givingKilled !== true;
 }
 
 /** The relay needs its flag, an RPC, the router, the hot wallet key (gas only) and the giving gate. */
@@ -513,23 +704,8 @@ export const DEFAULT_MATCH_CONFIRMATIONS = 12;
 export const matchConfirmations = (chainId: number): number =>
     MATCH_CONFIRMATIONS[chainId] ?? DEFAULT_MATCH_CONFIRMATIONS;
 
-/** Explorer hosts, the client's chains.ts list (a treat on any served chain links to its own explorer). */
-const EXPLORER: Record<number, string> = {
-    [ARC_MAINNET_CHAIN_ID]: 'https://explorer.arc.io',
-    [ARC_TESTNET_CHAIN_ID]: 'https://explorer.testnet.arc.io',
-    4217: 'https://explore.tempo.xyz',
-    42431: 'https://explore.testnet.tempo.xyz',
-    42161: 'https://arbiscan.io',
-    421614: 'https://sepolia.arbiscan.io',
-    43114: 'https://subnets.avax.network/c-chain',
-    43113: 'https://subnets-test.avax.network/c-chain',
-    8453: 'https://basescan.org',
-    84532: 'https://sepolia.basescan.org',
-    4663: 'https://robinhoodchain.blockscout.com',
-    46630: 'https://explorer.testnet.chain.robinhood.com',
-    143: 'https://monadvision.com',
-    10143: 'https://testnet.monadvision.com',
-};
+/** Explorer hosts per chain, from wallet.config.ts (a treat on any served chain links to its own explorer). */
+const EXPLORER: Record<number, string> = Object.fromEntries(Object.values(CHAINS).map(c => [c.chainId, c.explorer]));
 
 /** The explorer host for `chainId`, or null when none is known. */
 export const explorerBase = (chainId: number): string | null => EXPLORER[chainId] || null;

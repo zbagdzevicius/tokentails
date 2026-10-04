@@ -46,6 +46,11 @@ export interface PublicImpact {
         byBucket: Partial<Record<PayoutBucket, Record<string, string>>>;
         eventCount: number;
         lastTxHash: string | null;
+        /**
+         * Per chain id, per symbol: present only when more chains than the main one are indexed
+         * (the wallet.config.ts chains). `bySymbol` is already their sum.
+         */
+        byChain?: Record<string, Record<string, string>>;
     };
     chain: {
         chainId: number;

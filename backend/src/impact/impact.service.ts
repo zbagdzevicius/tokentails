@@ -21,7 +21,7 @@ import {
     readCdnConfig,
     readIndexerConfig,
 } from './impact.config';
-import { cursorIdFor, errorClass } from './impact-indexer.service';
+import { cursorIdFor, errorClass, impactChainConfigs } from './impact-indexer.service';
 import {
     ChainSource,
     custodyOf,
@@ -479,7 +479,11 @@ export class ImpactService implements OnApplicationBootstrap {
             .findOne({ _id: cursorIdFor(config.chainId, contract) })
             .lean()
             .catch(() => null);
-        if (!cursor || fromBlock === null) {
+        // A wallet.config.ts split has no SHELTER_SPLIT_FROM_BLOCK: its cursor holds the deploy block.
+        if (fromBlock === null && cursor && config.autoChain && typeof cursor.fromBlock === 'number') {
+            chain.fromBlock = cursor.fromBlock;
+        }
+        if (!cursor || chain.fromBlock === null) {
             return { money: empty, chain, chainSource: 'idle' as ChainSource, chainAsOf: null };
         }
         chain.lastScannedBlock = typeof cursor.lastScannedBlock === 'number' ? cursor.lastScannedBlock : null;
@@ -499,16 +503,39 @@ export class ImpactService implements OnApplicationBootstrap {
                 chainAsOf: previous.asOf?.chain || null,
             };
         }
-        const byBucket = (cursor.totals || {}) as Record<string, Record<string, string>>;
+        // Every other indexed chain (impactChainConfigs: same network class as the main chain) adds its
+        // cursor's totals, per bucket and symbol, so USDC adds to USDC and a test coin or a gas coin stays
+        // under its own symbol. Their health does not gate the figures: a lagging chain's totals are
+        // still exactly its indexed rows.
+        const others = impactChainConfigs().map(c => ({ chainId: c.chainId, contract: c.splitAddress!.toLowerCase() }));
+        const otherCursors: any[] = others.length
+            ? await this.cursorModel
+                  .find({ _id: { $in: others.map(o => cursorIdFor(o.chainId, o.contract)) } })
+                  .lean()
+                  .catch(() => [])
+            : [];
+        const byBucket = mergeBuckets([cursor.totals, ...otherCursors.map(c => c.totals)]);
         const recipients: string[] = await this.eventModel
-            .distinct('shelter', { chainId: config.chainId, contract })
+            .distinct(
+                'shelter',
+                others.length
+                    ? { $or: [{ chainId: config.chainId, contract }, ...others] }
+                    : { chainId: config.chainId, contract }
+            )
             .catch(() => []);
         const money: PublicImpact['money'] = {
             custody: custodyOf(recipients as string[], shelters),
             bySymbol: totalsBySymbol(byBucket),
             byBucket,
-            eventCount: cursor.eventCount || 0,
+            eventCount: [cursor, ...otherCursors].reduce((n, c) => n + (c?.eventCount || 0), 0),
             lastTxHash: cursor.lastTxHash || null,
+            ...(otherCursors.length
+                ? {
+                      byChain: Object.fromEntries(
+                          [cursor, ...otherCursors].map(c => [String(c.chainId), totalsBySymbol(c.totals || {})])
+                      ),
+                  }
+                : {}),
         };
         return {
             money,
@@ -591,4 +618,23 @@ export class ImpactService implements OnApplicationBootstrap {
             this.logger.error(`impact CDN mirror failed: ${errorClass(error)}`);
         }
     }
+}
+
+/** Adds per-bucket, per-symbol 18-decimal totals of several cursors. Malformed amounts are skipped. */
+export function mergeBuckets(
+    list: (Record<string, Record<string, string>> | undefined)[]
+): Record<string, Record<string, string>> {
+    const out: Record<string, Record<string, string>> = {};
+    for (const totals of list) {
+        for (const [bucket, symbols] of Object.entries(totals || {})) {
+            for (const [symbol, amount] of Object.entries(symbols || {})) {
+                if (!/^\d+$/.test(String(amount))) {
+                    continue;
+                }
+                out[bucket] = out[bucket] || {};
+                out[bucket][symbol] = (BigInt(out[bucket][symbol] || '0') + BigInt(amount)).toString();
+            }
+        }
+    }
+    return out;
 }

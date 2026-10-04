@@ -272,7 +272,7 @@ export const ImpactTab = ({ season, seasonLoading }: { season: SeasonTimes | nul
     setSending(true);
     let result: TreatSend;
     try {
-      result = await sendTreat();
+      result = await sendTreat({ chainId: railQuery.data?.chainId });
     } finally {
       setSending(false);
     }

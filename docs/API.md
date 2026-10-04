@@ -216,14 +216,15 @@ log needs seed 1, the current `SIM_VERSION`, two different known cat ids, at mos
 | GET | `/shelter/:id/members` | The shelter members who may confirm its payouts | Perm(5) |
 | PUT | `/shelter/:id/members` | Add members by user id or email, remove by id. Verified registered accounts only, never MANAGER or above | Perm(5) |
 | POST | `/shelter/donate` | Server-paid treat to the shelters through ShelterSplit. Body `{ source: 'heist' \| 'page', chainId? }`, no other keys. `chainId` (optional whole number) picks the network; omitted, the main chain (Arc). One per user per UTC day across all chains. Instant-treat policy first (verified, 24 h, 1 saved game) | Auth, Throttle(10), User(5) |
-| GET | `/shelter/donate/status` | `{ enabled, railState, chainId, amountWei, remainingTodayWei, dailyBudgetWei, giftsPerDayCap, treatsLeftToday, resetsAt, communityTotalConfirmedWei, splitAddress, chains }`. The top-level fields describe the main chain. `chains`: the main chain first, then every `SHELTER_RELAY_CHAINS` entry with its treat flag on, each `{ chainId, main, testnet, enabled, railState, coin, amountWei, remainingTodayWei, dailyBudgetWei, giftsPerDayCap, treatsLeftToday, splitAddress, explorer }` (budget per chain; `coin` is what the treat is paid in: USDC, USDC.e on Tempo, USDG on Robinhood). Without that config `chains` lists only the main chain. `railState` is `not-deployed`, `paused`, `live` or `exhausted`. Every `amountWei` is 18 decimals | Public, Throttle(60) |
+| GET | `/shelter/donate/status` | `{ enabled, railState, chainId, amountWei, remainingTodayWei, dailyBudgetWei, giftsPerDayCap, treatsLeftToday, resetsAt, communityTotalConfirmedWei, splitAddress, chains }`. The top-level fields describe the main chain. `chains`: the main chain first, then every `wallet.config.ts` chain of the main chain's network class (treats are on by default) and any `SHELTER_RELAY_CHAINS` entry with its treat flag on, each `{ chainId, main, testnet, enabled, railState, coin, amountWei, remainingTodayWei, dailyBudgetWei, giftsPerDayCap, treatsLeftToday, splitAddress, explorer, reason? }` (`reason` says why a listed chain is disabled: the hot wallet holds less than one treat or no gas, the split is paused or pays no shelter, the RPC is not answering, or no key; health is cached 60 s) (budget per chain; `coin` is what the treat is paid in: USDC, USDC.e on Tempo, USDG on Robinhood). Without that config `chains` lists only the main chain. `railState` is `not-deployed`, `paused`, `live` or `exhausted`. Every `amountWei` is 18 decimals | Public, Throttle(60) |
 | GET | `/shelter/donate/me` | The caller's treat today `{day, resetsAt, today: {status, source, txHash, explorerUrl, failedReason} \| null, confirmedCount, onTheirWayCount, totalConfirmedWei, eligibility}` | Auth, Throttle(60) |
 | GET | `/shelter/agent/cat-card` | x402-style paid card for AI agents (see below) | Public, Throttle(30) |
 | POST | `/shelter/relay` | Relay a donor's signed EIP-3009 authorization to the DonateRouter; the hot wallet pays gas only. Body `{chainId, from, value, validAfter, validBefore, salt, memo, recipients, signature}`, no other keys (see "Wallet gifts" below) | Public, Throttle(10) |
 | GET | `/shelter/relay/:txHash` | `{status: submitted\|confirmed\|failed, batchId?, match?: {txHash?, status}}`; 404 for a hash the relay did not send | Public, Throttle(60) |
 | GET | `/shelter/match/status` | `?chainId=` optional (default: the main chain). `{state: off\|live\|exhausted\|awaiting-handover, chainId, relay, perGift, dailyLeft, poolLeft}` (decimal USDC strings; `relay`: the gas relay takes gifts on `chainId`; a chain the backend does not serve reads `off`) | Public, Throttle(60) |
 | GET | `/shelter/match/by-donor/:txHash` | `{status, matchTxHash \| null}` for a router gift; `status` is `none` before the scan saw it | Public, Throttle(60) |
-| POST | `/shelter/claim` | The shelter names its own payout wallet: `{chainId, wallet, signature}` (personal_sign of the claim message). Only wallets on `SHELTER_CLAIM_ALLOWED_WALLETS` (403 `CLAIM_NOT_ALLOWED`). Answers `{status}` of the (one) row for that chain and wallet, `pending-rotation` when new | Public, Throttle(5) |
+| POST | `/shelter/claim` | The shelter names its own payout wallet: `{chainId, wallet, signature}` (personal_sign of the claim message). Only wallets on `SHELTER_CLAIM_ALLOWED_WALLETS` (403 `CLAIM_NOT_ALLOWED`). Answers `{status}` of the (one) row for that chain and wallet, `pending-rotation` when new. v2: `{wallet, signature, chains: [ids]}` or `{wallet, signature, allChains: true}` signs the multi-chain message once and answers `{status, chains: [{chainId, status}]}` (one row per chain) | Public, Throttle(5) |
+| GET | `/shelter/claim/chains` | Every chain a claim can cover (the main chain, then each configured chain of its network class with a split): `[{chainId, testnet, main, claim: {wallet, chainId, status} \| null}]`. Only `approved` or `rotated` claims show | Public, Throttle(60) |
 | GET | `/shelter/claim` | The newest `approved` or `rotated` claim on the configured chain `{wallet, chainId, status}`, or JSON `null`. A `pending-rotation` claim is never shown | Public, Throttle(60) |
 | GET | `/shelter/goal/:id` | A campaign goal's count (only `C-001` today; anything else 404): `{ id, chainId, goalUsdc, raised, scannedTo, head, upToDate, transfers, wallets: [{wallet, fromBlock, toBlock, holder}], liveSources, updatedAt, chains: [{chainId, symbols, raised, scannedTo, head, upToDate, transfers}] }` (`shared/shelter-goal.ts`). `raised` is the US dollar stablecoin that came in to the campaign wallets (decimal string, 6 decimals at most), summed from Transfer logs on the campaign chain (Arc) and on every other mainnet in `CRYPTO_PAY_CHAINS` (USDC, USDC.e on Tempo, USDG on Robinhood Chain; never EURC or test coins); `chains` is the per-chain breakdown, the campaign chain first, and `upToDate` is true only when every chain has reached its head. Transfers between campaign wallets are skipped, outflows are never read. `scannedTo` (the campaign chain's) `: null` means nothing is counted yet (claim nothing). `liveSources` lists only what can reach the open wallet today (`treats` while Token Tails holds it; `purchase-shares` only with a split route on the campaign chain) | Public, Throttle(60) |
 | GET | `/shelter/:slug/gallery` | Every showable cat of a showcase shelter (only `rozine-pedute`; others 404), uncapped (unlike `/cat/sale`, 200 per shelter): `{ slug, atShelter, adopted, truncated, generatedAt }`, each cat `{ id, name, status, art, photo }` (https only, HEAVEN dropped, `shared/pink-paw.ts`). Cached 45 s | Public, Throttle(60) |
@@ -247,7 +248,7 @@ budget is per chain.
 | 400 | Validation error | `source` is not `heist` or `page`, `chainId` is not a positive whole number, or the body has other keys |
 | 403 | `{code: GUEST_FORBIDDEN}`, `{code: EMAIL_UNVERIFIED}`, `{code: DONATE_NOT_ELIGIBLE, reason, eligibleAt}` | A guest, an unverified email, or the policy (`account-too-new`, `no-saved-game`) |
 | 429 | `{code: DONATE_ALREADY_TODAY}` | This user already has a treat for the current UTC day (or the per-user limit) |
-| 409 | `{statusCode, code, message}` (`DONATE_PAUSED`, `DONATE_BUDGET_SPENT`) | `SHELTER_DONATE_ENABLED` (or the picked chain's `SHELTER_CHAIN_<id>_TREAT_ENABLED`) is off, the split address or hot wallet key is missing, that chain's daily budget is spent, or `chainId` names a chain that sends no treats (`DONATE_PAUSED`, "Treats are not sent on that network right now") |
+| 409 | `{statusCode, code, message}` (`DONATE_PAUSED`, `DONATE_BUDGET_SPENT`) | Treats are switched off (emergency off), the split address or hot wallet key is missing, the picked chain fails its health check (no token or gas on the hot wallet, split paused, RPC down), that chain's daily budget is spent, or `chainId` names a chain that sends no treats (`DONATE_PAUSED`, "Treats are not sent on that network right now") |
 | 424 | `{statusCode, code: DONATE_SEND_FAILED, message}` | The broadcast failed; the user may retry later |
 
 The showcase recipient is Pink Paw (Rožinė pėdutė). Its wallet is created and held by Token Tails on
@@ -256,9 +257,10 @@ the shelter's behalf until handover; the split's recipients are set in the contr
 ### Agent cat card (x402-compatible, `onchain-receipt` scheme)
 
 This is an x402-compatible flow with a custom `onchain-receipt` scheme and no facilitator: standard
-x402 facilitators may not support Arc, so the server verifies the payment itself over RPC. It is off
-(409) unless `SHELTER_X402_ENABLED` is `true` (main chain) or a `SHELTER_RELAY_CHAINS` entry has
-`SHELTER_CHAIN_<id>_X402_ENABLED=true`. `accepts` holds one offer per enabled chain, the main chain
+x402 facilitators may not support Arc, so the server verifies the payment itself over RPC. It is on by
+default on the main chain and every `wallet.config.ts` chain of its class (and any `SHELTER_RELAY_CHAINS`
+entry with `SHELTER_CHAIN_<id>_X402_ENABLED=true`); a mainnet is offered only once
+`publicGivingVerified` passes for that chain (409 when no chain is offered). `accepts` holds one offer per enabled chain, the main chain
 first; all offers of one 402 share one nonce, and the first valid payment on any of them spends it. The shelter endpoints never answer 503: in production a 503 reaches clients as a bare gateway 504.
 
 1. `GET /shelter/agent/cat-card` without `X-PAYMENT` returns 402:
@@ -341,10 +343,10 @@ transfer to it waits for `flush`, which can only pay the shelters); the hot wall
 pays the relay gas and sends the match from Token Tails' own funds, and never receives donor money.
 
 **Mainnet gate.** On a mainnet (`5042` or any chain id not in the testnet list of
-`shelter-onchain.config.ts`), relay, match and flush answer `RELAY_AWAITING_HANDOVER` / state
-`awaiting-handover` until `SHELTER_HANDED_OVER=true`, which is set only after Pink Paw holds its own key
-and the split recipient is rotated. Testnet `5042002` works whenever enabled (test USDC, no real money).
-Two checks decide it: `publicGivingAllowed(config)` (the flag), then
+`shelter-onchain.config.ts`), relay, match, flush and the onchain-receipt x402 offer stay closed (`RELAY_AWAITING_HANDOVER` /
+state `awaiting-handover`) until the shelter's own wallet is claimed and rotated on that chain.
+Testnets work whenever enabled (test money). Two checks decide it: `publicGivingAllowed(config)` (only
+the emergency off `SHELTER_HANDED_OVER=false` closes it), then
 `ShelterClaimService.publicGivingVerified(config)`, read on chain: every wallet in
 `split.preview(1 USDC).wallets` must be a `rotated` claim on that chain and none may be the hot wallet,
 the treasury, the split, the router, an `IMPACT_PAWS_SENDERS` or a `SHELTER_MATCH_EXCLUDE` address (cached
@@ -406,6 +408,21 @@ Chain: <chainId>
 Issued: <UTC date YYYY-MM-DD>
 ```
 
+The v2 message (`shelterClaimMessageV2`, the client's `claimMessageV2`) covers several chains with one
+signature; the v1 text above keeps working for the main chain, byte for byte:
+
+```
+Token Tails shelter payout wallet (v2)
+Shelter: Pink Paw (Rozine pedute)
+Wallet: <checksummed address>
+Chains: <chain ids, ascending, ", "-separated> | all chains where Pink Paw is listed
+Issued: <UTC date YYYY-MM-DD>
+```
+
+With `allChains: true` it covers `GET /shelter/claim/chains` at that moment; a listed chain the
+backend does not serve is refused (400). Each chain gets its own row and status, and
+`publicGivingVerified` reads the rows of the chain it gates.
+
 Today's or yesterday's UTC date is accepted. `chainId` must be the configured chain (400
 `CLAIM_REFUSED`). A signature proves control of a wallet, not who holds it, so `wallet` must first be on
 `SHELTER_CLAIM_ALLOWED_WALLETS`, set after the shelter named the address to Token Tails through a
@@ -438,7 +455,7 @@ ObjectIds; public ids look like `p-…` and `o-…`.
 
 | Method | Path | Purpose | Auth |
 |---|---|---|---|
-| GET | `/impact` | The latest hourly snapshot (`PublicImpact`, `backend/src/impact/impact-public.ts`, `_v: 1`): `generatedAt`, `asOf`, `sources {chain, mongo}` (`ok`, `error`, `not-deployed`), `money` per currency and evidence tier, `custody`, `rail` (state, treat size, budget, `treatsLeftToday`, `resetsAt`; the live fields are overlaid from `/shelter/donate/status`, so up to 1 minute old here and up to an hour old in the CDN mirror), `shelters` (partners, active countries), `rescueCats` (rescue kind, house zones excluded), `players` (`registeredAllTime`, `active30d` or null), `outcomes`, `pledges`, `pawSettlements`, `attestations`, `rescueGoals`. A stored snapshot older than 2 hours is served with `sources.mongo: 'error'` | Public, Throttle(60) |
+| GET | `/impact` | The latest hourly snapshot (`PublicImpact`, `backend/src/impact/impact-public.ts`, `_v: 1`): `generatedAt`, `asOf`, `sources {chain, mongo}` (`ok`, `error`, `not-deployed`), `money` per currency and evidence tier (summed over every indexed chain of the main chain's class; `money.byChain` per chain id when more than one), `custody`, `rail` (state, treat size, budget, `treatsLeftToday`, `resetsAt`; the live fields are overlaid from `/shelter/donate/status`, so up to 1 minute old here and up to an hour old in the CDN mirror), `shelters` (partners, active countries), `rescueCats` (rescue kind, house zones excluded), `players` (`registeredAllTime`, `active30d` or null), `outcomes`, `pledges`, `pawSettlements`, `attestations`, `rescueGoals`. A stored snapshot older than 2 hours is served with `sources.mongo: 'error'` | Public, Throttle(60) |
 | GET | `/impact/history?days=1..90` | `{points}`: daily snapshot points | Public, Throttle(60) |
 | GET | `/impact/outcomes` | Published shelter outcomes (at most 100; cached 60 s) with the tier of a linked payout | Public, Throttle(60) |
 | GET | `/impact/me` | The caller's treats sponsored, paws (today's progress "N more runs", lifetime count, latest settlement, the caller's Merkle proof with its own salt) and pledges | Auth, Throttle(60) |

@@ -57,6 +57,8 @@ function chainsEnv(extra: Record<string, string> = {}) {
         SHELTER_SPLIT_ADDRESS: SPLIT,
         SHELTER_DONATE_PRIVATE_KEY: FAKE_KEY,
         SHELTER_DONATE_AMOUNT_WEI: ARC_AMOUNT,
+        // These specs pin the per-chain (advanced override) path: the automatic wallet.config.ts chains are off.
+        SHELTER_AUTO_CHAINS: 'off',
         SHELTER_RELAY_CHAINS: '84532,42431,421614',
         SHELTER_DONATEHOT_KEY: HOT_KEY_2,
         SHELTER_CHAIN_84532_SPLIT_ADDRESS: SPLIT,
@@ -77,7 +79,12 @@ function chainsEnv(extra: Record<string, string> = {}) {
         delete process.env[key];
     }
     for (const [key, value] of Object.entries(values)) {
-        if (key.startsWith('SHELTER_CHAIN_') || key === 'SHELTER_RELAY_CHAINS' || key === 'SHELTER_DONATEHOT_KEY') {
+        if (
+            key.startsWith('SHELTER_CHAIN_') ||
+            key === 'SHELTER_RELAY_CHAINS' ||
+            key === 'SHELTER_DONATEHOT_KEY' ||
+            key === 'SHELTER_AUTO_CHAINS'
+        ) {
             process.env[key] = value;
             CHAIN_KEYS.push(key);
         }

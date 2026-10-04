@@ -27,6 +27,7 @@ export const SHELTER_SPLIT_ABI = [
     'function token() view returns (address)',
     'function treasury() view returns (address)',
     'function preview(uint256 amount) view returns (address[] wallets, uint256[] amounts, uint256 toTreasury)',
+    'function paused() view returns (bool)',
 ];
 
 export const shelterSplitInterface = new Interface(SHELTER_SPLIT_ABI);
@@ -343,6 +344,11 @@ export class ShelterChain {
             false,
         ]);
         return typeof block?.hash === 'string' ? block.hash.toLowerCase() : null;
+    }
+
+    /** The native (gas) balance of `address` in wei. */
+    nativeBalance(config: ShelterOnchainConfig, address: string): Promise<bigint> {
+        return this.provider(config).getBalance(address);
     }
 
     blockNumber(config: ShelterOnchainConfig): Promise<number> {

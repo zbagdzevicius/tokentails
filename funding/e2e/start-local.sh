@@ -17,6 +17,13 @@
 # those testnets (SHELTER_CHAIN_<id>_X402_ENABLED; the agent pays the split's token there). A chain in both
 # lists must name the same split. No key is needed for x402.
 #
+# Zero config (default): with SHELTER_DONATE_ENABLED and SHELTER_X402_ENABLED on, the backend serves
+# every testnet in backend/src/shelter/onchain/wallet.config.ts with the donatehot key. Without
+# E2E_TREAT_CHAINS / E2E_X402_CHAINS every per-chain SHELTER_CHAIN_<id>_* variable of the testnets is
+# set empty, so nothing from backend/.env overrides wallet.config.ts. E2E_AUTO_CHAINS=off turns that
+# off (SHELTER_AUTO_CHAINS=off: main chain only). E2E_BE_PORT picks another backend port (default
+# 3105); E2E_LOG_CHUNK and E2E_MAX_CHUNKS set SHELTER_LOG_CHUNK and IMPACT_INDEXER_MAX_CHUNKS.
+#
 # Every variable below is set in the backend process, so it wins over backend/.env (dotenv loads
 # that file but never overrides a variable that is already set, even to an empty string).
 # The donate hot-wallet key is read with `cast wallet private-key` into a shell variable, handed to
@@ -31,12 +38,14 @@ STATE="$OUT/state.env"
 SECRETS="$REPO/funding/.secrets"
 MONGOD="${MONGOD:-/opt/homebrew/bin/mongod}"
 MONGO_PORT=27027
-BE_PORT=3105
+BE_PORT="${E2E_BE_PORT:-3105}"
 ARC_TESTNET=5042002
 ARC_RPC="${SHELTER_ARC_RPC_URL_E2E:-https://rpc.testnet.arc.io}"
 MONGODB_URI_E2E="mongodb://127.0.0.1:${MONGO_PORT}/tt-e2e"
 DONATEHOT_ADDR="0x8D03d8295892F7dE2B7cE57585Aa45Dd4B3C2ba0"
 TREAT_CHAINS="${E2E_TREAT_CHAINS:-}"
+AUTO_CHAINS="${E2E_AUTO_CHAINS:-}"
+[ -z "$AUTO_CHAINS" ] || [ "$AUTO_CHAINS" = off ] || { echo "start-local: E2E_AUTO_CHAINS must be empty or off" >&2; exit 1; }
 X402_CHAINS="${E2E_X402_CHAINS:-}"
 treat_rpc() { # chainId -> public RPC (the backend's DEFAULT_RPC); empty for anything else, mainnets included
   case "$1" in
@@ -188,6 +197,17 @@ for i in "${!TREAT_IDS[@]}"; do
   )
 done
 [ ${#TREAT_IDS[@]} -gt 0 ] && TREAT_ENV+=("SHELTER_DONATEHOT_KEY=$DONATE_KEY")
+# Always set (empty by default) so no value from backend/.env reaches the local backend. Without the
+# per-chain lists, every testnet's per-chain variables are blanked: the defaults come from wallet.config.ts.
+TREAT_ENV+=("SHELTER_AUTO_CHAINS=$AUTO_CHAINS")
+if [ ${#TREAT_IDS[@]} -eq 0 ]; then
+  for id in 421614 84532 43113 46630 42431 10143; do
+    for k in RPC_URL LOG_RPC_URL SPLIT_ADDRESS SPLIT_FROM_BLOCK ROUTER_ADDRESS ROUTER_FROM_BLOCK KEY_ENV TREASURY_ADDRESS \
+      TREAT_ENABLED TREAT_AMOUNT TREAT_DAILY_BUDGET TREAT_COIN X402_ENABLED X402_PRICE RELAY_ENABLED MATCH_ENABLED; do
+      TREAT_ENV+=("SHELTER_CHAIN_${id}_${k}=")
+    done
+  done
+fi
 # Set even when empty, so no X402_PRICE from backend/.env can reach the local backend (default 0.01).
 for id in "${TREAT_IDS[@]:-}"; do [ -n "$id" ] && TREAT_ENV+=("SHELTER_CHAIN_${id}_X402_PRICE="); done
 # Exported (never on a command line, where ps would show the key), and unset once the backend started.
@@ -208,6 +228,8 @@ RESCUE_GOAL_SWEEPER=off \
 IMPACT_JOBS_ENABLED="${E2E_IMPACT_JOBS:-true}" \
 IMPACT_CDN_ENABLED=false \
 IMPACT_PAWS_SENDERS= \
+SHELTER_LOG_CHUNK="${E2E_LOG_CHUNK:-}" \
+IMPACT_INDEXER_MAX_CHUNKS="${E2E_MAX_CHUNKS:-}" \
 PAWS_SETTLEMENT_ENABLED=false \
 SHELTER_SPLIT_FROM_BLOCK="${E2E_FROM_BLOCK:-}" \
 SHELTER_DONATE_ENABLED=true \

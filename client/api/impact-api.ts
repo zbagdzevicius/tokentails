@@ -740,6 +740,11 @@ export interface DonateRail {
   state: RailState;
   treatsLeftToday: number;
   resetsAt: string | null;
+  /**
+   * Set when the main chain cannot take a treat but another network in `chains` can: the treat is sent
+   * there (POST /shelter/donate {chainId}), so the copy never says treats are off while one is open.
+   */
+  chainId?: number;
 }
 
 export function normalizeDonateRail(raw: unknown): DonateRail | null {
@@ -749,12 +754,20 @@ export function normalizeDonateRail(raw: unknown): DonateRail | null {
     : raw.enabled === true
     ? "live"
     : "not-deployed";
-  return {
+  const main: DonateRail = {
     enabled: raw.enabled === true,
     state,
     treatsLeftToday: count(raw.treatsLeftToday),
     resetsAt: dated(raw.resetsAt),
   };
+  if (main.enabled && main.state === "live" && main.treatsLeftToday > 0) return main;
+  const chains: unknown[] = Array.isArray(raw.chains) ? raw.chains : [];
+  const open = chains.find(
+    (c): c is Record<string, unknown> =>
+      isObj(c) && c.main !== true && c.enabled === true && c.railState === "live" && count(c.treatsLeftToday) > 0
+  );
+  if (!open || !Number.isSafeInteger(Number(open.chainId))) return main;
+  return { enabled: true, state: "live", treatsLeftToday: count(open.treatsLeftToday), resetsAt: main.resetsAt, chainId: Number(open.chainId) };
 }
 
 /** Whether the instant treat CTA may show: the rail is live with treats left today (G4). */

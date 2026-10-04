@@ -22,6 +22,7 @@ import { DonationBroadcastError, hotWalletAddress, ShelterChain, SignedDonation 
 import { utcDay } from './shelter-donate.service';
 import { ShelterClaimService } from './shelter-claim.service';
 import {
+    isTestnetChain,
     publicGivingAllowed,
     readShelterConfig,
     relayReady,
@@ -182,7 +183,7 @@ export function mapRevert(error: any): HttpException {
 }
 
 const isCallException = (error: any) => error?.code === 'CALL_EXCEPTION';
-const isTestnet = (config: ShelterOnchainConfig) => publicGivingAllowed({ chainId: config.chainId, handedOver: false });
+const isTestnet = (config: ShelterOnchainConfig) => isTestnetChain(config.chainId);
 
 /**
  * Gasless wallet gifts (F2a). A donor signs an EIP-3009 `receiveWithAuthorization` with the router as

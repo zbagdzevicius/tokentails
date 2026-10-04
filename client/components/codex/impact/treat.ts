@@ -129,7 +129,12 @@ export type TreatSend =
  */
 export async function sendTreat({
   fetchImpl,
-}: { fetchImpl?: (input: string, init: RequestInit) => Promise<Response> } = {}): Promise<TreatSend> {
+  chainId,
+}: {
+  fetchImpl?: (input: string, init: RequestInit) => Promise<Response>;
+  /** Another network than the main chain (DonateRail.chainId), when only that one is open. */
+  chainId?: number;
+} = {}): Promise<TreatSend> {
   const base = root();
   const token = currentAccessToken();
   if (!token) return { kind: "signed-out" };
@@ -142,7 +147,7 @@ export async function sendTreat({
     res = await send(`${base}/shelter/donate`, {
       method: "POST",
       headers: { accept: "application/json", "content-type": "application/json", accesstoken: token },
-      body: JSON.stringify({ source: "page" }),
+      body: JSON.stringify(chainId ? { source: "page", chainId } : { source: "page" }),
     });
   } catch {
     return { kind: "retry" };

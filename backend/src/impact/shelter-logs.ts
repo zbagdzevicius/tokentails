@@ -51,9 +51,25 @@ export interface ChainUnits {
 export const IMPACT_CHAIN_UNITS: Record<number, ChainUnits> = {
     5042: { decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'USDC' },
     5042002: { decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'USDC' },
+    // The other ShelterSplit chains, as the client's chains.ts: the split's primary token, and the gas
+    // coin under its own symbol (ETH, AVAX, MON), so it never adds into a USDC total. Tempo has no gas
+    // coin (no NativeDisbursed can happen there).
+    8453: { decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
+    84532: { decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
+    42161: { decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
+    421614: { decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
+    43114: { decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'AVAX' },
+    43113: { decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'AVAX' },
+    4217: { decimals: 6, symbol: 'USDC.e', nativeDecimals: 18, nativeSymbol: 'TEMPO-NATIVE' },
+    42431: { decimals: 6, symbol: 'pathUSD', nativeDecimals: 18, nativeSymbol: 'TEMPO-NATIVE' },
+    4663: { decimals: 6, symbol: 'USDG', nativeDecimals: 18, nativeSymbol: 'ETH' },
+    // Robinhood Chain testnet has no stablecoin: the test MockUSDC, never summed with USDC.
+    46630: { decimals: 6, symbol: 'mUSDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
+    143: { decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'MON' },
+    10143: { decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'MON' },
 };
 
-/** Arc's units apply to any chain not listed (ShelterSplit is deployed on Arc only, decision #97). */
+/** Arc's units apply to any chain not listed (an unknown chain id is read like Arc). */
 export const unitsFor = (chainId: number): ChainUnits => IMPACT_CHAIN_UNITS[chainId] || IMPACT_CHAIN_UNITS[5042];
 
 const hexNumber = (value: string): number => {
@@ -78,7 +94,7 @@ export function isPayoutLog(log: Pick<RpcLog, 'topics'>): boolean {
 }
 
 /** Decodes one payout log. Throws on anything that is not a well-formed Disbursed/NativeDisbursed. */
-export function decodePayoutLog(log: RpcLog, chainId: number): DecodedPayout {
+export function decodePayoutLog(log: RpcLog, chainId: number, units: ChainUnits = unitsFor(chainId)): DecodedPayout {
     if (!isPayoutLog(log)) {
         throw new Error('not a Disbursed or NativeDisbursed log');
     }
@@ -87,7 +103,6 @@ export function decodePayoutLog(log: RpcLog, chainId: number): DecodedPayout {
         throw new Error('undecodable payout log');
     }
     const kind: PayoutKind = log.topics[0].toLowerCase() === NATIVE_DISBURSED_TOPIC ? 'native' : 'token';
-    const units = unitsFor(chainId);
     const decimals = kind === 'native' ? units.nativeDecimals : units.decimals;
     const amount = getBigInt(parsed.args.amount);
     return {

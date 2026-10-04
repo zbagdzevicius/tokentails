@@ -3,7 +3,12 @@ import { Wallet } from 'ethers';
 import { memoryModel } from 'src/impact/memory-model.fakes-spec';
 import { shelterSplitInterface } from './shelter-chain';
 import { readShelterConfig, ShelterOnchainConfig } from './shelter-onchain.config';
-import { shelterClaimMessage, ShelterClaimService } from './shelter-claim.service';
+import {
+    claimChainConfigs,
+    shelterClaimMessage,
+    shelterClaimMessageV2,
+    ShelterClaimService,
+} from './shelter-claim.service';
 
 const NOW = new Date('2026-10-04T10:00:00Z');
 const SPLIT = '0x1111111111111111111111111111111111111111';
@@ -173,11 +178,14 @@ describe('ShelterClaimService.publicGivingVerified', () => {
         );
     }
 
-    it('is always true on a testnet and false on a mainnet before SHELTER_HANDED_OVER', async () => {
+    it('is always true on a testnet; SHELTER_HANDED_OVER=false closes a mainnet without reading the chain', async () => {
         const ctx = setup();
         await expect(ctx.service.publicGivingVerified(config({ chainId: 5042002 }), NOW)).resolves.toBe(true);
-        await expect(ctx.service.publicGivingVerified(config({ handedOver: false }), NOW)).resolves.toBe(false);
+        await expect(ctx.service.publicGivingVerified(config({ givingKilled: true }), NOW)).resolves.toBe(false);
         expect(ctx.chain.ethCall).not.toHaveBeenCalled();
+        // Without the emergency off, a mainnet is decided on chain: no rotated claim, so still closed.
+        routed(ctx, [SHELTER.address]);
+        await expect(ctx.service.publicGivingVerified(config({ handedOver: false }), NOW)).resolves.toBe(false);
     });
 
     it('needs every split recipient to be a rotated claim that Token Tails does not hold', async () => {
@@ -221,5 +229,133 @@ describe('ShelterClaimService.publicGivingVerified', () => {
         await expect(ctx.service.publicGivingVerified(c, new Date(NOW.getTime() + 11 * 60 * 1000))).resolves.toBe(
             false
         );
+    });
+});
+
+describe('v2 claims: one signature, a row per chain', () => {
+    const BASE_SPLIT = '0x' + '22'.repeat(20);
+    const ARB_SPLIT = '0x' + '33'.repeat(20);
+    // Main chain Arc (mainnet) plus Base and Arbitrum mainnet; Base Sepolia is a testnet and never claimable here.
+    const env = {
+        SHELTER_CHAIN_ID: '5042',
+        SHELTER_SPLIT_ADDRESS: SPLIT,
+        SHELTER_RELAY_CHAINS: '8453,42161,84532',
+        SHELTER_CHAIN_8453_SPLIT_ADDRESS: BASE_SPLIT,
+        SHELTER_CHAIN_42161_SPLIT_ADDRESS: ARB_SPLIT,
+        SHELTER_CHAIN_84532_SPLIT_ADDRESS: BASE_SPLIT,
+    } as NodeJS.ProcessEnv;
+
+    it('pins the v2 text: sorted chain ids, or every chain where Pink Paw is listed', () => {
+        expect(shelterClaimMessageV2(SHELTER.address.toLowerCase(), [42161, 5042, 8453, 5042], NOW)).toBe(
+            [
+                'Token Tails shelter payout wallet (v2)',
+                'Shelter: Pink Paw (Rozine pedute)',
+                `Wallet: ${SHELTER.address}`,
+                'Chains: 5042, 8453, 42161',
+                'Issued: 2026-10-04',
+            ].join('\n')
+        );
+        expect(shelterClaimMessageV2(SHELTER.address, 'all', '2026-10-04T23:59:59Z')).toContain(
+            '\nChains: all chains where Pink Paw is listed\nIssued: 2026-10-04'
+        );
+        // Never the v1 bytes: a v1 signature cannot be replayed as a multi-chain claim, nor the reverse.
+        expect(shelterClaimMessageV2(SHELTER.address, [5042], NOW)).not.toBe(
+            shelterClaimMessage(SHELTER.address, 5042, NOW)
+        );
+    });
+
+    it('claimable chains: the main one and the configured chains of its network class', () => {
+        expect(claimChainConfigs(env).map(c => c.chainId)).toEqual([5042, 8453, 42161]);
+    });
+
+    it('records one pending row per named chain from one signature', async () => {
+        const ctx = setup();
+        const signature = await SHELTER.signMessage(shelterClaimMessageV2(SHELTER.address, [5042, 42161], NOW));
+        await expect(
+            ctx.service.claim({ wallet: SHELTER.address, chains: [42161, 5042], signature }, NOW, config(), env)
+        ).resolves.toEqual({
+            status: 'pending-rotation',
+            chains: [
+                { chainId: 5042, status: 'pending-rotation' },
+                { chainId: 42161, status: 'pending-rotation' },
+            ],
+        });
+        expect(ctx.claims.rows.map(r => [r.chainId, r.status])).toEqual([
+            [5042, 'pending-rotation'],
+            [42161, 'pending-rotation'],
+        ]);
+        // Pending rows stay private per chain.
+        const view = await ctx.service.chainsView(env);
+        expect(view.map(v => [v.chainId, v.main, v.claim])).toEqual([
+            [5042, true, null],
+            [8453, false, null],
+            [42161, false, null],
+        ]);
+        ctx.claims.rows[1].status = 'rotated';
+        expect((await ctx.service.chainsView(env))[2].claim).toEqual({
+            wallet: SHELTER.address,
+            chainId: 42161,
+            status: 'rotated',
+        });
+    });
+
+    it('"all chains" covers every claimable chain', async () => {
+        const ctx = setup();
+        const signature = await SHELTER.signMessage(shelterClaimMessageV2(SHELTER.address, 'all', NOW));
+        const res = await ctx.service.claim(
+            { wallet: SHELTER.address, allChains: true, signature },
+            NOW,
+            config(),
+            env
+        );
+        expect(res.chains!.map(c => c.chainId)).toEqual([5042, 8453, 42161]);
+        expect(ctx.claims.rows).toHaveLength(3);
+    });
+
+    it('refuses an unserved chain, a mismatched chain list, a v1 signature and an unconfirmed wallet', async () => {
+        const ctx = setup();
+        const sign = (chains: number[] | 'all') =>
+            SHELTER.signMessage(shelterClaimMessageV2(SHELTER.address, chains, NOW));
+        await expect(
+            ctx.service.claim(
+                { wallet: SHELTER.address, chains: [5042, 84532], signature: await sign([5042, 84532]) },
+                NOW,
+                config(),
+                env
+            )
+        ).rejects.toThrow(BadRequestException);
+        await expect(
+            ctx.service.claim(
+                { wallet: SHELTER.address, chains: [5042, 8453], signature: await sign([5042]) },
+                NOW,
+                config(),
+                env
+            )
+        ).rejects.toThrow(BadRequestException);
+        const v1 = await SHELTER.signMessage(shelterClaimMessage(SHELTER.address, 5042, NOW));
+        await expect(
+            ctx.service.claim({ wallet: SHELTER.address, chains: [5042], signature: v1 }, NOW, config(), env)
+        ).rejects.toThrow(BadRequestException);
+        const stranger = Wallet.createRandom();
+        const signed = await stranger.signMessage(shelterClaimMessageV2(stranger.address, [5042], NOW));
+        await expect(
+            ctx.service.claim({ wallet: stranger.address, chains: [5042], signature: signed }, NOW, config(), env)
+        ).rejects.toThrow(ForbiddenException);
+        expect(ctx.claims.rows).toHaveLength(0);
+    });
+
+    it('refuses the whole claim when the wallet is the rail on any named chain', async () => {
+        const ctx = setup();
+        const sneaky = { ...env, SHELTER_CHAIN_8453_TREASURY_ADDRESS: SHELTER.address };
+        const signature = await SHELTER.signMessage(shelterClaimMessageV2(SHELTER.address, [5042, 8453], NOW));
+        await expect(
+            ctx.service.claim({ wallet: SHELTER.address, chains: [5042, 8453], signature }, NOW, config(), sneaky)
+        ).rejects.toThrow(/chain 8453/);
+        expect(ctx.claims.rows).toHaveLength(0);
+    });
+
+    it('publicGivingVerified takes a chain id; an unserved chain is closed', async () => {
+        const ctx = setup();
+        await expect(ctx.service.publicGivingVerified(999999, NOW)).resolves.toBe(false);
     });
 });

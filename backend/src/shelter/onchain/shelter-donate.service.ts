@@ -4,15 +4,24 @@ import { randomBytes } from 'crypto';
 import { getBigInt } from 'ethers';
 import { Model, Types } from 'mongoose';
 import { ErrorCode } from 'src/shared-contracts/errors';
-import { DonationBroadcastError, ShelterChain, SignedDonation } from './shelter-chain';
+import {
+    DonationBroadcastError,
+    erc20Interface,
+    hotWalletAddress,
+    ShelterChain,
+    shelterSplitInterface,
+    SignedDonation,
+} from './shelter-chain';
 import {
     donateReady,
     explorerBase,
     explorerTxUrl,
     isTestnetChain,
+    NON_USD_TREAT_CHAIN_IDS,
     readRelayChainConfigs,
     readShelterConfig,
     ShelterOnchainConfig,
+    TIP20_CHAIN_IDS,
     treatCoin,
 } from './shelter-onchain.config';
 import {
@@ -67,6 +76,12 @@ export const donateSendFailed = () =>
 
 const DUPLICATE_KEY = 11000;
 const ZERO = getBigInt(0);
+
+/** Treat rows whose coin is a US dollar: USD totals never add a test coin (mUSDC) in. Rows without a chainId match. */
+const USD_TREATS = { chainId: { $nin: [...NON_USD_TREAT_CHAIN_IDS] } };
+
+/** How long a token chain's treat health (balances, split, RPC) is reused. */
+export const TREAT_HEALTH_TTL_MS = 60 * 1000;
 
 /** How long `communityTotalConfirmedWei` is cached per instance. */
 export const COMMUNITY_TOTAL_CACHE_MS = 5 * 60 * 1000;
@@ -129,6 +144,8 @@ export interface TreatChainStatus {
     splitAddress: string | null;
     /** The chain's block explorer host, or null when none is known. */
     explorer: string | null;
+    /** Why a listed chain is not enabled (no recorded split, a key of the other network class...). */
+    reason?: string;
 }
 
 export interface DonateMe {
@@ -177,8 +194,10 @@ export function dailySlots(config: ShelterOnchainConfig): number {
 }
 
 /**
- * The SHELTER_RELAY_CHAINS entries with their treat flag on (SHELTER_CHAIN_<id>_TREAT_ENABLED), in the
- * listed order. Without the flag a chain is not on the give page at all.
+ * The other chains with their treat flag on: every wallet.config.ts chain of the main chain's class
+ * while SHELTER_DONATE_ENABLED is on, and SHELTER_RELAY_CHAINS entries with SHELTER_CHAIN_<id>_TREAT_ENABLED.
+ * Without the flag a chain is not on the give page at all; with it but without a key or split, or
+ * failing its health check, it is listed as disabled with its `reason`.
  */
 export function treatChainConfigs(
     main: ShelterOnchainConfig = readShelterConfig(),
@@ -202,6 +221,7 @@ function decimalToWei(value: unknown): string {
 export class ShelterDonateService {
     private readonly logger = new Logger(ShelterDonateService.name);
     private communityTotal: { expiresAt: number; value: Promise<string> } | null = null;
+    private health = new Map<string, { at: number; reason: Promise<string | null> }>();
 
     constructor(
         @InjectModel(ShelterDonation.name) private donationModel: Model<ShelterDonationDocument>,
@@ -231,7 +251,9 @@ export class ShelterDonateService {
 
     /** Rail state and today's budget of one chain. */
     private async chainStatus(config: ShelterOnchainConfig, mainChainId: number, now: Date): Promise<TreatChainStatus> {
-        const enabled = donateReady(config);
+        // A wallet.config.ts chain is unavailable, with its reason, while the hot wallet cannot pay there.
+        const unhealthy = config.autoChain && donateReady(config) ? await this.treatHealth(config, now) : null;
+        const enabled = donateReady(config) && !unhealthy;
         const cap = dailySlots(config);
         let remaining = ZERO;
         let left = 0;
@@ -266,7 +288,66 @@ export class ShelterDonateService {
             treatsLeftToday: left,
             splitAddress: config.splitAddress,
             explorer: explorerBase(config.chainId),
+            ...(!enabled && (unhealthy || config.disabledReason)
+                ? { reason: (unhealthy || config.disabledReason) as string }
+                : {}),
         };
+    }
+
+    /**
+     * Why a token chain cannot take a treat right now, or null when it can: the split is paused or pays
+     * no shelter, the hot wallet holds less than one treat of the token or no gas (Tempo pays fees in a
+     * stablecoin, so only the token counts there), or the RPC does not answer. Reused for
+     * TREAT_HEALTH_TTL_MS per chain, failures included, so the status endpoint never hammers an RPC.
+     */
+    treatHealth(config: ShelterOnchainConfig, now: Date = new Date()): Promise<string | null> {
+        const key = `${config.chainId}|${config.splitAddress}`;
+        const cached = this.health.get(key);
+        if (cached && now.getTime() - cached.at < TREAT_HEALTH_TTL_MS) {
+            return cached.reason;
+        }
+        const reason = this.readTreatHealth(config).catch(error => {
+            this.logger.warn(`treat health on ${config.chainId}: ${error?.code || error?.name || 'unknown error'}`);
+            return 'the RPC is not answering';
+        });
+        this.health.set(key, { at: now.getTime(), reason });
+        return reason;
+    }
+
+    private async readTreatHealth(config: ShelterOnchainConfig): Promise<string | null> {
+        const hot = hotWalletAddress(config);
+        if (!hot || !config.splitAddress || !config.treat) {
+            return 'no hot wallet key or split';
+        }
+        const split = config.splitAddress;
+        const paused = await this.chain
+            .ethCall(config, split, shelterSplitInterface.encodeFunctionData('paused', []))
+            .then(raw => !!shelterSplitInterface.decodeFunctionResult('paused', raw)[0])
+            .catch(() => false); // an older split without paused(): the send itself would revert
+        if (paused) {
+            return 'the split is paused';
+        }
+        const preview = await this.chain.ethCall(
+            config,
+            split,
+            shelterSplitInterface.encodeFunctionData('preview', [config.treat.amountBase])
+        );
+        const wallets = shelterSplitInterface.decodeFunctionResult('preview', preview)[0] as string[];
+        if (!wallets.length) {
+            return 'the split pays no shelter';
+        }
+        const token = await this.chain.splitToken(config);
+        const [balance] = erc20Interface.decodeFunctionResult(
+            'balanceOf',
+            await this.chain.ethCall(config, token, erc20Interface.encodeFunctionData('balanceOf', [hot]))
+        );
+        if (getBigInt(balance) < config.treat.amountBase) {
+            return `the hot wallet holds less than one treat of ${config.treat.coin}`;
+        }
+        if (!TIP20_CHAIN_IDS.includes(config.chainId) && (await this.chain.nativeBalance(config, hot)) <= ZERO) {
+            return 'the hot wallet has no gas';
+        }
+        return null;
     }
 
     /** All-time CONFIRMED total, cached per instance. A failed read is not cached and reads as '0'. */
@@ -277,7 +358,7 @@ export class ShelterDonateService {
         }
         const value = this.donationModel
             .aggregate([
-                { $match: { status: ShelterDonationStatus.CONFIRMED } },
+                { $match: { status: ShelterDonationStatus.CONFIRMED, ...USD_TREATS } },
                 { $group: { _id: null, total: { $sum: { $toDecimal: '$amountWei' } } } },
             ])
             .exec()
@@ -300,7 +381,7 @@ export class ShelterDonateService {
             this.donationModel.countDocuments({ user, status: ShelterDonationStatus.SENT }),
             this.donationModel
                 .aggregate([
-                    { $match: { user, status: ShelterDonationStatus.CONFIRMED } },
+                    { $match: { user, status: ShelterDonationStatus.CONFIRMED, ...USD_TREATS } },
                     { $group: { _id: null, total: { $sum: { $toDecimal: '$amountWei' } } } },
                 ])
                 .exec(),
@@ -354,6 +435,10 @@ export class ShelterDonateService {
         }
         if (!donateReady(config)) {
             throw donatePaused();
+        }
+        if (config.autoChain && (await this.treatHealth(config, now))) {
+            // The hot wallet cannot pay there right now (no token, no gas, split paused, RPC down).
+            throw donateChainOff();
         }
         const day = utcDay(now);
         const memo = donationMemo(source);

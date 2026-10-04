@@ -7,6 +7,7 @@
       "mainnet": {
         "chainId": 5042,
         "explorer": "https://explorer.arc.io",
+        "publicRpc": "https://rpc.mainnet.arc.io",
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
         "usdc": "0x3600000000000000000000000000000000000000",
@@ -32,8 +33,11 @@
         }
       },
       "testnet": {
+        "name": "Arc Testnet",
         "chainId": 5042002,
         "explorer": "https://explorer.testnet.arc.io",
+        "publicRpc": "https://rpc.testnet.arc.io",
+        "logRpc": "https://rpc.blockdaemon.testnet.arc.network",
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
         "usdc": "0x3600000000000000000000000000000000000000",
@@ -65,6 +69,7 @@
       "mainnet": {
         "chainId": 8453,
         "explorer": "https://basescan.org",
+        "publicRpc": "https://mainnet.base.org",
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
         "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
@@ -85,8 +90,11 @@
         }
       },
       "testnet": {
+        "name": "Base Sepolia",
         "chainId": 84532,
         "explorer": "https://sepolia.basescan.org",
+        "publicRpc": "https://sepolia.base.org",
+        "logRpc": "https://base-sepolia-rpc.publicnode.com",
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
         "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
@@ -114,8 +122,10 @@
     "docs": "https://docs.arbitrum.io/for-devs/dev-tools-and-resources/chain-info",
     "networks": {
       "mainnet": {
+        "name": "Arbitrum One",
         "chainId": 42161,
         "explorer": "https://arbiscan.io",
+        "publicRpc": "https://arb1.arbitrum.io/rpc",
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
         "usdc": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
@@ -137,8 +147,10 @@
         }
       },
       "testnet": {
+        "name": "Arbitrum Sepolia",
         "chainId": 421614,
         "explorer": "https://sepolia.arbiscan.io",
+        "publicRpc": "https://sepolia-rollup.arbitrum.io/rpc",
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
         "usdc": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
@@ -169,6 +181,7 @@
       "mainnet": {
         "chainId": 4663,
         "explorer": "https://robinhoodchain.blockscout.com",
+        "publicRpc": "https://rpc.mainnet.chain.robinhood.com",
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
         "usdc": null,
@@ -186,8 +199,10 @@
         }
       },
       "testnet": {
+        "name": "Robinhood Chain Testnet",
         "chainId": 46630,
         "explorer": "https://explorer.testnet.chain.robinhood.com",
+        "publicRpc": "https://rpc.testnet.chain.robinhood.com",
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
         "usdc": null,
@@ -213,8 +228,10 @@
     "docs": "https://build.avax.network/docs/primary-network",
     "networks": {
       "mainnet": {
+        "name": "Avalanche C-Chain",
         "chainId": 43114,
         "explorer": "https://subnets.avax.network/c-chain",
+        "publicRpc": "https://api.avax.network/ext/bc/C/rpc",
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
         "usdc": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
@@ -237,8 +254,10 @@
         }
       },
       "testnet": {
+        "name": "Avalanche Fuji",
         "chainId": 43113,
         "explorer": "https://subnets-test.avax.network/c-chain",
+        "publicRpc": "https://api.avax-test.network/ext/bc/C/rpc",
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
         "usdc": "0x5425890298aed601595a70AB815c96711a31Bc65",
@@ -269,6 +288,7 @@
       "mainnet": {
         "chainId": 4217,
         "explorer": "https://explore.tempo.xyz",
+        "publicRpc": "https://rpc.tempo.xyz",
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
         "usdc": "0x20C000000000000000000000b9537d11c60E8b50",
@@ -298,8 +318,10 @@
         }
       },
       "testnet": {
+        "name": "Tempo Moderato",
         "chainId": 42431,
         "explorer": "https://explore.testnet.tempo.xyz",
+        "publicRpc": "https://rpc.moderato.tempo.xyz",
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
         "usdc": "0x20c0000000000000000000000000000000000000",
@@ -373,6 +395,8 @@
       "mainnet": {
         "chainId": 143,
         "explorer": "https://monadvision.com",
+        "publicRpc": "https://rpc.monad.xyz",
+        "logRpc": "https://rpc1.monad.xyz",
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
         "usdc": "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
@@ -386,8 +410,11 @@
         }
       },
       "testnet": {
+        "name": "Monad Testnet",
         "chainId": 10143,
         "explorer": "https://testnet.monadvision.com",
+        "publicRpc": "https://testnet-rpc.monad.xyz",
+        "logRpc": "https://monad-testnet.api.onfinality.io/public",
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
         "usdc": "0x534b2f3A21130d7a60830c2Df862319e593943A3",

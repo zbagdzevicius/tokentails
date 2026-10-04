@@ -7,6 +7,10 @@
     { "label": "donate-hot-wallet", "address": null, "chains": ["arc"], "role": "SHELTER_DONATE_PRIVATE_KEY on the backend: pays sponsored treats from a small USDC float", "custody": "token-tails" },
     { "label": "agent-wallet", "address": null, "chains": ["arc"], "role": "the Tameion / x402 demo agent", "custody": "token-tails" },
     { "label": "arc-grant-receiver", "address": "0xE299299b846Ba629f5A591dBF4F562bcC07A0f37", "chains": ["arc"], "role": "receives the Arc Microgrant (USDC on Arc)", "custody": "token-tails" },
-    { "label": "colosseum-team-leader", "address": "GsrHR2sWYFdqLEeCTdFq4Wek54eLutCXxGisPsSaZg1H", "chains": ["solana"], "role": "Colosseum prize payee, in the Team Leader's own name", "custody": "team-leader" }
+    { "label": "colosseum-team-leader", "address": "GsrHR2sWYFdqLEeCTdFq4Wek54eLutCXxGisPsSaZg1H", "chains": ["solana"], "role": "Colosseum prize payee, in the Team Leader's own name", "custody": "team-leader" },
+    {"label": "testnet-shelter-split-treasury", "network": "testnet", "address": "0x7b136b872bEad1dAE557d1286f125B7A8A197C9A", "chains": ["arc", "tempo", "arbitrum", "avalanche", "base", "robinhood", "monad"], "role": "treasury() of every testnet ShelterSplit (read on-chain 2026-10-04)", "custody": "token-tails"},
+    {"label": "testnet-donate-hot-wallet", "network": "testnet", "address": "0x8D03d8295892F7dE2B7cE57585Aa45Dd4B3C2ba0", "chains": ["arc", "tempo", "arbitrum", "avalanche", "base", "robinhood", "monad"], "role": "keystore donatehot: SHELTER_DONATE_PRIVATE_KEY of the local testnet backend (treats, relay gas)", "custody": "token-tails"},
+    {"label": "testnet-agent-wallet", "network": "testnet", "address": "0x3333c1661B93f56DeC472eF89ACa03F56E70F9B7", "chains": ["arc"], "role": "the testnet e2e x402 agent", "custody": "token-tails"},
+    {"label": "testnet-deployer", "network": "testnet", "address": "0xd6F37D1241dA20BbE40D1210940Bc43A1Ec56263", "chains": ["arc", "tempo", "arbitrum", "avalanche", "base", "robinhood", "monad"], "role": "keystore tokentails: deploys the testnet ShelterSplits and DonateRouters", "custody": "token-tails"}
   ]
 }

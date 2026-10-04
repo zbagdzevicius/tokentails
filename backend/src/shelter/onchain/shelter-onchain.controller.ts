@@ -13,7 +13,19 @@ import {
     ValidationPipe,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { IsIn, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
+import {
+    ArrayMaxSize,
+    IsArray,
+    IsBoolean,
+    IsIn,
+    IsInt,
+    IsOptional,
+    IsString,
+    Matches,
+    Max,
+    Min,
+    ValidateIf,
+} from 'class-validator';
 import { AUTH_USER, IAuthUser } from 'src/common/decorators/auth-user.decorator';
 import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { ImpactEligibilityService } from 'src/impact/eligibility.service';
@@ -22,7 +34,7 @@ import { UserThrottle, UserThrottlerGuard } from 'src/shared/guards/user-throttl
 import { DonateMe, DonateResult, DonateStatus, ShelterDonateService } from './shelter-donate.service';
 import { DONATION_SOURCES, DonationSource } from './shelter-onchain.schema';
 import { CatCard, encodePaymentResponse, ShelterX402Service } from './shelter-x402.service';
-import { ClaimView, ShelterClaimService } from './shelter-claim.service';
+import { ChainClaimStatus, ChainClaimView, ClaimView, ShelterClaimService } from './shelter-claim.service';
 import { MatchStatusView, ShelterMatchService } from './shelter-match.service';
 import { RelayResult, RelayStatusView, ShelterRelayService } from './shelter-relay.service';
 import { MatchStatus } from './shelter-onchain.schema';
@@ -66,12 +78,28 @@ export class ShelterRelayDto {
     signature: string;
 }
 
-/** A shelter naming its payout wallet with a personal_sign signature by that wallet. */
+/**
+ * A shelter naming its payout wallet with a personal_sign signature by that wallet. v1: `chainId` and the
+ * one-chain message. v2: `chains` (or `allChains: true`) and the multi-chain message; `chainId` optional.
+ */
 export class ShelterClaimDto {
+    @ValidateIf(o => o.chains === undefined && o.allChains === undefined)
     @IsInt()
     @Min(1)
     @Max(2 ** 40)
-    chainId: number;
+    chainId?: number;
+
+    @IsOptional()
+    @IsArray()
+    @ArrayMaxSize(32)
+    @IsInt({ each: true })
+    @Min(1, { each: true })
+    @Max(2 ** 40, { each: true })
+    chains?: number[];
+
+    @IsOptional()
+    @IsBoolean()
+    allChains?: boolean;
 
     @Matches(ADDRESS)
     wallet: string;
@@ -169,8 +197,15 @@ export class ShelterOnchainController {
     @Throttle({ default: SHELTER_CLAIM_THROTTLE })
     @HttpCode(200)
     @Post('claim')
-    async claim(@Body(donatePipe) body: ShelterClaimDto): Promise<{ status: string }> {
+    async claim(@Body(donatePipe) body: ShelterClaimDto): Promise<{ status: string; chains?: ChainClaimStatus[] }> {
         return this.claimService.claim(body);
+    }
+
+    /** Every chain a claim can cover, each with its latest public claim (approved or rotated) or null. */
+    @Throttle({ default: SHELTER_STATUS_THROTTLE })
+    @Get('claim/chains')
+    async claimChains(): Promise<ChainClaimView[]> {
+        return this.claimService.chainsView();
     }
 
     /** The latest claim, or a JSON `null` (an explicit body: Nest would send an empty one for null). */

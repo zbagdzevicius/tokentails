@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { randomBytes } from 'crypto';
 import { getAddress, getBigInt, keccak256, toUtf8Bytes } from 'ethers';
@@ -18,11 +18,13 @@ import {
     NATIVE_USDC_CHAIN_IDS,
     readShelterConfig,
     readShelterConfigs,
+    isTestnetChain,
     ShelterOnchainConfig,
     TIP20_CHAIN_IDS,
     treatCoin,
     x402Ready,
 } from './shelter-onchain.config';
+import { ShelterClaimService } from './shelter-claim.service';
 import { X402Nonce, X402NonceDocument, X402UsedTx, X402UsedTxDocument } from './shelter-onchain.schema';
 import {
     buildExactRequirement,
@@ -177,8 +179,8 @@ const EXACT_RECEIPT_DELAY_MS = 1500;
  *
  * - `onchain-receipt` (custom, no facilitator): the agent pays a ShelterSplit itself with memo
  *   'x402:<nonce>', and this service checks the receipt over RPC. One `accepts` entry per enabled chain:
- *   the main chain (SHELTER_X402_ENABLED) and each SHELTER_RELAY_CHAINS entry with
- *   SHELTER_CHAIN_<id>_X402_ENABLED. Arc pays native USDC with donate(memo); every other chain pays the
+ *   the main chain and every wallet.config.ts chain of its class (on by default), plus SHELTER_RELAY_CHAINS
+ *   entries with SHELTER_CHAIN_<id>_X402_ENABLED; a mainnet only once publicGivingVerified passes there. Arc pays native USDC with donate(memo); every other chain pays the
  *   split's token with approve + disburse(amount, memo), or disburseWithMemo(amount, memo32) on Tempo.
  * - `exact` (standard x402, EIP-3009): `payTo` is the shelter's own wallet. The agent signs a
  *   transferWithAuthorization to it, a facilitator verifies and settles it and pays the gas, and this
@@ -202,8 +204,25 @@ export class ShelterX402Service implements OnModuleInit {
         @InjectModel(X402Nonce.name) private nonceModel: Model<X402NonceDocument>,
         @InjectModel(X402UsedTx.name) private usedTxModel: Model<X402UsedTxDocument>,
         @InjectModel(Blessing.name) private blessingModel: Model<BlessingDocument>,
-        private chain: ShelterChain
+        private chain: ShelterChain,
+        @Optional() private claims?: ShelterClaimService
     ) {}
+
+    /**
+     * The chains the onchain-receipt card is offered on: every served chain with x402 on (x402Ready),
+     * where a mainnet also needs the on-chain claim check (publicGivingVerified: the split pays only
+     * rotated, shelter-held wallets), so an agent's money never lands in a wallet Token Tails holds.
+     * Testnets are always offered.
+     */
+    private async offeredConfigs(): Promise<ShelterOnchainConfig[]> {
+        const out: ShelterOnchainConfig[] = [];
+        for (const config of readShelterConfigs().filter(x402Ready)) {
+            if (isTestnetChain(config.chainId) || (this.claims && (await this.claims.publicGivingVerified(config)))) {
+                out.push(config);
+            }
+        }
+        return out;
+    }
 
     /** Reads the token domain at startup, so a misconfigured `exact` offer is never advertised. */
     async onModuleInit() {
@@ -223,7 +242,7 @@ export class ShelterX402Service implements OnModuleInit {
         const config = readShelterConfig();
         const exact = this.exactConfig(config);
         // The main chain first, then every SHELTER_RELAY_CHAINS entry with SHELTER_CHAIN_<id>_X402_ENABLED.
-        const onchainConfigs = readShelterConfigs().filter(x402Ready);
+        const onchainConfigs = await this.offeredConfigs();
         const onchainOn = onchainConfigs.length > 0;
         this.logBlockedOnce(exact);
         const exactOn = await this.exactOffered(exact);

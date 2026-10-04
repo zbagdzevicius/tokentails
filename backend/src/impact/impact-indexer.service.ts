@@ -5,7 +5,14 @@ import { Model } from 'mongoose';
 import { decodeRouterDonation } from 'src/shelter/onchain/donate-router';
 import { batchPayerOf, hotWalletAddress, ShelterChain } from 'src/shelter/onchain/shelter-chain';
 import { ownSenders } from 'src/shelter/onchain/shelter-match.service';
-import { readShelterConfig, ShelterOnchainConfig } from 'src/shelter/onchain/shelter-onchain.config';
+import {
+    isTestnetChain,
+    logRpcFor,
+    readShelterConfig,
+    readShelterConfigs,
+    recordedSplitAt,
+    ShelterOnchainConfig,
+} from 'src/shelter/onchain/shelter-onchain.config';
 import {
     ShelterDonation,
     ShelterDonationDocument,
@@ -25,6 +32,7 @@ import {
 import {
     AttributionLookups,
     attributePayout,
+    ChainUnits,
     decodePayoutLog,
     DecodedPayout,
     hasWalletMemo,
@@ -55,6 +63,27 @@ export interface IndexResult {
 }
 
 export const cursorIdFor = (chainId: number, contract: string) => `${chainId}:${contract.toLowerCase()}`;
+
+/**
+ * The chains indexed besides the main one: every configured chain (the wallet.config.ts chains, the
+ * try-it testnet, SHELTER_RELAY_CHAINS) with a split and an RPC, of the main chain's network class
+ * only, so test money never sums with real money. The readers (impact.service) sum the same list.
+ */
+export function impactChainConfigs(env: NodeJS.ProcessEnv = process.env): ShelterOnchainConfig[] {
+    const [main, ...rest] = readShelterConfigs(env);
+    const testnet = isTestnetChain(main.chainId);
+    return rest.filter(c => c.splitAddress && c.rpcUrl && isTestnetChain(c.chainId) === testnet);
+}
+
+/**
+ * The units of `config`'s split: the chain's table entry, with the token symbol and decimals of the
+ * recorded deployment at that address (an EURC split reads as EURC, never as the chain's USDC).
+ */
+export function unitsForConfig(config: Pick<ShelterOnchainConfig, 'chainId' | 'splitAddress'>): ChainUnits {
+    const units = unitsFor(config.chainId);
+    const recorded = recordedSplitAt(config.chainId, config.splitAddress);
+    return recorded ? { ...units, symbol: recorded.token, decimals: recorded.decimals } : units;
+}
 
 /** The error class only, never the message (it can carry the RPC URL). */
 export const errorClass = (error: unknown) =>
@@ -106,8 +135,59 @@ export class ImpactIndexerService {
             jobName: IMPACT_INDEXER_JOB,
             ttlMs: IMPACT_INDEXER_LEASE_MS,
             logger: this.logger,
-            run: () => this.indexOnce(),
+            run: () => this.indexAll(),
         });
+    }
+
+    /**
+     * The main chain (SHELTER_SPLIT_FROM_BLOCK, as before), then every impactChainConfigs chain, each
+     * with its own cursor. A chain's first block is its cursor's, else SHELTER_CHAIN_<id>_SPLIT_FROM_BLOCK
+     * or the recorded deploy block, else the block of the split's recorded deploy transaction. One
+     * chain's failure never stops the others.
+     */
+    async indexAll(now: Date = new Date(), env: NodeJS.ProcessEnv = process.env): Promise<IndexResult[]> {
+        const indexer = readIndexerConfig(env);
+        const main = readShelterConfig(env);
+        // A main split taken from wallet.config.ts starts at its recorded deploy block when
+        // SHELTER_SPLIT_FROM_BLOCK is unset; an env split without it stays idle, as before.
+        const mainFrom =
+            indexer.fromBlock === null && main.autoChain && main.splitAddress
+                ? await this.chainFromBlock(main).catch(() => null)
+                : indexer.fromBlock;
+        const results = [await this.indexOnce(now, main, { ...indexer, fromBlock: mainFrom })];
+        for (const config of impactChainConfigs(env)) {
+            try {
+                const fromBlock = await this.chainFromBlock(config);
+                results.push(
+                    fromBlock === null
+                        ? { state: 'no-from-block', cursorId: cursorIdFor(config.chainId, config.splitAddress!) }
+                        : await this.indexOnce(now, config, { ...indexer, fromBlock })
+                );
+            } catch (error) {
+                this.logger.error(`impact indexer chain ${config.chainId} failed: ${errorClass(error)}`);
+                results.push({ state: 'error', cursorId: cursorIdFor(config.chainId, config.splitAddress!) });
+            }
+        }
+        return results;
+    }
+
+    /** Where a non-main chain's scan starts (see indexAll); null when nothing tells. */
+    private async chainFromBlock(config: ShelterOnchainConfig): Promise<number | null> {
+        const cursor: any = await this.cursorModel
+            .findOne({ _id: cursorIdFor(config.chainId, config.splitAddress!) }, { fromBlock: 1 })
+            .lean();
+        if (typeof cursor?.fromBlock === 'number') {
+            return cursor.fromBlock;
+        }
+        if (typeof config.splitFromBlock === 'number') {
+            return config.splitFromBlock;
+        }
+        if (config.splitDeployTx) {
+            const receipt: any = await this.chain.getReceipt(config, config.splitDeployTx);
+            const block = Number(receipt?.blockNumber);
+            return Number.isSafeInteger(block) && block >= 0 ? block : null;
+        }
+        return null;
     }
 
     async indexOnce(
@@ -147,13 +227,18 @@ export class ImpactIndexerService {
         const pawSenders = new Set<string>(
             [...(indexer.pawSenders || []), hotWalletAddress(config)].filter((a): a is string => !!a)
         );
+        // The log scan may read a dedicated RPC (Monad's public one takes 100 blocks per call), in windows
+        // no wider than that RPC accepts. Receipts, senders and block hashes keep the chain's own RPC.
+        const logRpc = logRpcFor(config);
+        const logConfig = logRpc.url && logRpc.url !== config.rpcUrl ? { ...config, rpcUrl: logRpc.url } : config;
+        const window = logRpc.maxRange ? Math.min(indexer.chunk, logRpc.maxRange) : indexer.chunk;
         try {
-            const head = await this.chain.blockNumber(config);
+            const head = await this.chain.blockNumber(logConfig);
             result.head = head;
             let from = start;
             for (let chunk = 0; chunk < indexer.maxChunks && from <= head; chunk++) {
-                const to = Math.min(from + indexer.chunk - 1, head);
-                const logs = await this.chain.getPayoutLogs(config, from, to);
+                const to = Math.min(from + window - 1, head);
+                const logs = await this.chain.getPayoutLogs(logConfig, from, to);
                 const counts = await this.ingest(config, contract, from, to, logs || [], pawSenders);
                 result.inserted! += counts.inserted;
                 result.removed! += counts.removed;
@@ -169,7 +254,7 @@ export class ImpactIndexerService {
             await this.refreshTotals(cursorId, config.chainId, contract, { lastSuccessAt: now });
             return result;
         } catch (error) {
-            this.logger.error(`impact indexer failed: ${errorClass(error)}`);
+            this.logger.error(`impact indexer failed on chain ${config.chainId}: ${errorClass(error)}`);
             await this.cursorModel.updateOne(
                 { _id: cursorId },
                 { $set: { lastErrorAt: now, lastError: errorClass(error) } }
@@ -189,12 +274,13 @@ export class ImpactIndexerService {
     ) {
         const chainId = config.chainId;
         const payouts: DecodedPayout[] = [];
+        const units = unitsForConfig(config);
         for (const log of logs) {
             if (log?.removed || !isPayoutLog(log) || String(log.address).toLowerCase() !== contract) {
                 continue;
             }
             try {
-                payouts.push(decodePayoutLog(log, chainId));
+                payouts.push(decodePayoutLog(log, chainId, units));
             } catch (error) {
                 // Kept out of the totals but visible in the logs; a malformed log is never guessed at.
                 this.logger.error(`undecodable payout log in ${log.transactionHash}: ${errorClass(error)}`);

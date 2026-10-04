@@ -12,7 +12,13 @@ import {
     readShelterConfigs,
     readTryShelterConfig,
     shelterConfigFor,
+    autoChainIds,
+    chainList,
+    logRpcFor,
+    recordedSplit,
 } from './shelter-onchain.config';
+import { getAddress } from 'ethers';
+import { CHAINS, WALLETS } from './wallet.config';
 
 const KEY_MAIN = 'main-key';
 const KEY_TRY = 'try-key';
@@ -265,9 +271,10 @@ describe('SHELTER_CHAIN_<id>_TREAT_* (treats on a picked network)', () => {
 });
 
 describe('per-chain x402 and Monad defaults', () => {
-    it('reads SHELTER_CHAIN_<id>_X402_ENABLED (default off) and _X402_PRICE (default 0.01)', () => {
+    it('reads SHELTER_CHAIN_<id>_X402_ENABLED (default off on an override chain) and _X402_PRICE (default 0.01)', () => {
         const [on, off] = readRelayChainConfigs({
             SHELTER_CHAIN_ID: '5042002',
+            SHELTER_AUTO_CHAINS: 'off',
             SHELTER_RELAY_CHAINS: '10143,84532',
             SHELTER_CHAIN_10143_SPLIT_ADDRESS: '0x' + '4'.repeat(40),
             SHELTER_CHAIN_10143_X402_ENABLED: 'true',
@@ -302,5 +309,102 @@ describe('per-chain x402 and Monad defaults', () => {
         expect(decimalToBase('0.0000001', 6)).toBeNull();
         expect(decimalToBase('0.0100', 2)).toBe(BigInt(1));
         expect(decimalToBase('x', 6)).toBeNull();
+    });
+});
+
+describe('zero config: every wallet.config.ts chain of the main chain class', () => {
+    // A real-format key: the defaults hand it to the other chains of the main chain's class.
+    const HOT = '0x' + '5a'.repeat(32);
+    const testnetMain = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({
+        SHELTER_CHAIN_ID: '5042002',
+        SHELTER_DONATE_PRIVATE_KEY: HOT,
+        SHELTER_DONATE_ENABLED: 'true',
+        ...extra,
+    });
+    const ids = (e: NodeJS.ProcessEnv) =>
+        readRelayChainConfigs(e)
+            .map(c => c.chainId)
+            .sort((a, b) => a - b);
+
+    it('lists every other chain with a split of the main class, and nothing on a mainnet main chain today', () => {
+        expect(ids(testnetMain())).toEqual([10143, 42431, 43113, 46630, 84532, 421614]);
+        expect(autoChainIds(5042002).sort((a, b) => a - b)).toEqual([10143, 42431, 43113, 46630, 84532, 421614]);
+        // Production: mainnet main chain, no mainnet split recorded yet: nothing changes.
+        expect(readRelayChainConfigs(env())).toEqual([]);
+        expect(autoChainIds(5042)).toEqual([]);
+    });
+
+    it('defaults split, router, treasury and key from wallet.config.ts; on by default', () => {
+        const base = readRelayChainConfigs(testnetMain()).find(c => c.chainId === 84532)!;
+        const recorded = recordedSplit(84532)!;
+        expect(base).toMatchObject({
+            splitAddress: getAddress(recorded.address),
+            routerAddress: getAddress(recorded.router!),
+            routerFromBlock: recorded.routerFromBlock,
+            treasuryAddress: getAddress(WALLETS.testnet.treasury!),
+            privateKey: HOT,
+            donateEnabled: true,
+            relayEnabled: false,
+            matchEnabled: false,
+            splitDeployTx: recorded.tx,
+        });
+        expect(base.disabledReason).toBeUndefined();
+        expect(base.treat!.coin).toBe('USDC');
+        // Both are on by default; 'false' is the emergency off.
+        expect(base.x402Enabled).toBe(true);
+        const off = readRelayChainConfigs(testnetMain({ SHELTER_DONATE_ENABLED: 'false' }));
+        const robinhood = off.find(c => c.chainId === 46630)!;
+        expect(robinhood).toMatchObject({ x402Enabled: true, donateEnabled: false });
+        expect(readRelayChainConfigs(testnetMain({ SHELTER_X402_ENABLED: 'false' }))[0].x402Enabled).toBe(false);
+        expect(robinhood.treat!.coin).toBe('mUSDC');
+    });
+
+    it('per-chain variables still override; one chain can be switched off', () => {
+        const all = readRelayChainConfigs(
+            testnetMain({
+                SHELTER_CHAIN_84532_SPLIT_ADDRESS: SPLIT,
+                SHELTER_CHAIN_43113_TREAT_ENABLED: 'false',
+            })
+        );
+        expect(all.find(c => c.chainId === 84532)).toMatchObject({
+            splitAddress: getAddress(SPLIT),
+            routerAddress: null,
+        });
+        expect(all.find(c => c.chainId === 43113)!.donateEnabled).toBe(false);
+    });
+
+    it('without the key every chain is listed disabled with its reason', () => {
+        const all = readRelayChainConfigs(testnetMain({ SHELTER_DONATE_PRIVATE_KEY: '' }));
+        expect(all.every(c => c.privateKey === null && /SHELTER_DONATE_PRIVATE_KEY/.test(c.disabledReason || ''))).toBe(
+            true
+        );
+    });
+
+    it('SHELTER_RELAY_CHAINS-only entries keep their per-chain variables only (no defaults, never cross-class)', () => {
+        const [base] = readRelayChainConfigs({
+            ...env(),
+            SHELTER_DONATE_PRIVATE_KEY: HOT,
+            SHELTER_RELAY_CHAINS: '84532',
+        });
+        expect(base).toMatchObject({ splitAddress: null, routerAddress: null, privateKey: null, donateEnabled: false });
+    });
+
+    it('chainList parses lists', () => {
+        expect(chainList(' 1, 2,x,0 ')).toEqual([1, 2]);
+    });
+
+    it('the RPC, log RPC and explorer tables come from wallet.config.ts', () => {
+        for (const c of Object.values(CHAINS)) {
+            expect(publicRpcUrl(c.chainId)).toBe(c.rpc);
+            expect(explorerTxUrl('0xab', c.chainId)).toBe(`${c.explorer}/tx/0xab`);
+        }
+        expect(logRpcFor({ chainId: 10143, rpcUrl: 'https://testnet-rpc.monad.xyz' })).toEqual({
+            url: 'https://monad-testnet.api.onfinality.io/public',
+            maxRange: 10000,
+        });
+        expect(logRpcFor({ chainId: 10143, rpcUrl: 'https://paid.example/rpc' })).toEqual({
+            url: 'https://paid.example/rpc',
+            maxRange: null,
+        });
     });
 });

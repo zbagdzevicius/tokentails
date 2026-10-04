@@ -51,7 +51,13 @@ function blessingModel(
 function setup(blessings = blessingModel()) {
     const nonces = fakeNonceModel();
     const usedTxs = fakeUsedTxModel();
-    const service = new ShelterX402Service(nonces as any, usedTxs as any, blessings as any, new ShelterChain());
+    const service = new ShelterX402Service(
+        nonces as any,
+        usedTxs as any,
+        blessings as any,
+        new ShelterChain(),
+        verifiedClaims as any
+    );
     return { service, nonces, usedTxs, blessings };
 }
 
@@ -83,6 +89,12 @@ beforeEach(() => {
 });
 
 afterAll(() => withShelterEnv({}));
+
+/**
+ * The on-chain claim check (ShelterClaimService.publicGivingVerified) stands in as "the split pays only
+ * rotated, shelter-held wallets" whenever these specs set SHELTER_HANDED_OVER=true.
+ */
+const verifiedClaims = { publicGivingVerified: async () => process.env.SHELTER_HANDED_OVER === 'true' };
 
 describe('GET /shelter/agent/cat-card (x402, onchain-receipt)', () => {
     it('answers 409 on a mainnet before the shelter handover: the split still pays a wallet Token Tails holds', async () => {
@@ -504,7 +516,8 @@ describe('GET /shelter/agent/cat-card (x402, standard exact scheme paid to the s
             nonces as any,
             parts.usedTxs as any,
             blessingModel() as any,
-            new ShelterChain()
+            new ShelterChain(),
+            verifiedClaims as any
         );
         service.fetchFn = fetchFn as any;
         service.sleep = async () => undefined;
@@ -826,6 +839,7 @@ describe('GET /shelter/agent/cat-card (x402, onchain-receipt on several chains)'
     const BASE_USDC = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
     const PATH_USD = '0x20C0000000000000000000000000000000000000';
     const RELAY_KEYS = [
+        'SHELTER_AUTO_CHAINS',
         'SHELTER_RELAY_CHAINS',
         'SHELTER_CHAIN_84532_SPLIT_ADDRESS',
         'SHELTER_CHAIN_84532_X402_ENABLED',
@@ -860,6 +874,7 @@ describe('GET /shelter/agent/cat-card (x402, onchain-receipt on several chains)'
             SHELTER_CHAIN_ID: '5042002',
         });
         Object.assign(process.env, {
+            SHELTER_AUTO_CHAINS: 'off',
             SHELTER_RELAY_CHAINS: '84532,42431',
             SHELTER_CHAIN_84532_SPLIT_ADDRESS: BASE_SPLIT,
             SHELTER_CHAIN_84532_X402_ENABLED: 'true',
@@ -932,7 +947,8 @@ describe('GET /shelter/agent/cat-card (x402, onchain-receipt on several chains)'
     });
 
     it('answers 409 when no enabled chain can be priced (every token read failed)', async () => {
-        withShelterEnv({ SHELTER_CHAIN_ID: '5042002' });
+        // The main chain's card is switched off (x402 is on by default), so only the token chains remain.
+        withShelterEnv({ SHELTER_CHAIN_ID: '5042002', SHELTER_X402_ENABLED: 'false' });
         call.mockRejectedValue(Object.assign(new Error('down'), { code: 'NETWORK_ERROR' }));
         const error = await httpError(setup().service.catCard(undefined, RESOURCE, NOW));
         expect(error.getStatus()).toBe(409);

@@ -47,6 +47,14 @@ export const wavePaths = {
       join(HERE, '..', '..', '..', '..', 'client', 'public', 'shelter-payouts', 'testnet-deployments.json'),
       join(HERE, '..', '..', '..', '..', 'catnip-heist', 'public', 'payouts', 'testnet-deployments.json'),
     ],
+  // The backend's generated public wallet config (wallet.config.ts): the backend build on
+  // DigitalOcean cannot read the client folder. Off with the other copies under FUND_A_PUBLISH (tests)
+  // unless FUND_A_PUBLISH_BACKEND names a file.
+  backend: () => process.env.FUND_A_PUBLISH_BACKEND ? process.env.FUND_A_PUBLISH_BACKEND
+    : process.env.FUND_A_PUBLISH ? null
+    : join(HERE, '..', '..', '..', '..', 'backend', 'src', 'shelter', 'onchain', 'wallet.config.ts'),
+  routers: () => process.env.FUND_A_ROUTER_DEPLOYMENTS || join(HERE, 'router-deployments.json'),
+  wallets: () => process.env.FUND_A_WALLETS || join(HERE, 'wallets.public.json'),
   portfolio: () => process.env.FUND_PORTFOLIO || join(HERE, '..', '..', 'portfolio', 'opportunities.json'),
 };
 
@@ -349,6 +357,200 @@ export async function scanBroadcasts({ network = 'mainnet', project } = {}) {
   return found;
 }
 
+// The public fields of one network's deployments, exactly what the client pages and the Heist read.
+// Mainnet leaves out mock-token instances; the testnet list keeps them (it is test money).
+export function publicDeployments(list, chains, network) {
+  return list.filter((d) => d.network === network && (network === 'testnet' || !d.mock))
+    .map(({ contract, chain, network: n, chainId, address, tx, token, proofTxs }) => {
+      // Any non-USDC instance states its symbol and decimals: a second-token instance (EURC) and a chain
+      // whose default payout token is not USDC (USDG on Robinhood, MUSD on Mezo). The pages otherwise
+      // label every ERC-20 payout on a chain with that chain's default token, and must never sum it as USDC.
+      // The recorded spelling wins over splitToken's upper-cased one (pathUSD, mUSDC, not PATHUSD, MUSDC).
+      let alt = null;
+      try { const ni = netOf(chains, chain, n); const t = splitToken(ni, token || null); if (t.symbol !== 'USDC') alt = t; } catch { /* unknown chain */ }
+      return { contract, chain, network: n, chainId, address, ...(tx ? { tx } : {}), ...(token ? { token } : {}), ...(alt ? { symbol: token && token.toUpperCase() === alt.symbol.toUpperCase() ? token : alt.symbol, decimals: alt.decimals } : {}), ...(proofTxs ? { proofTxs } : {}) };
+    });
+}
+
+// The chains.json network entry, without the track.mjs import (the cycle noted at the top).
+function netOf(chains, chain, network) {
+  const n = chains?.[chain]?.networks?.[network];
+  if (!n) throw new Error(`unknown network ${chain} ${network}`);
+  return n;
+}
+
+function loadRouterDeployments() {
+  try { const r = JSON.parse(readFileSync(wavePaths.routers(), 'utf8')); return Array.isArray(r) ? r : []; } catch { return []; }
+}
+
+function loadPublicWallets() {
+  try { return JSON.parse(readFileSync(wavePaths.wallets(), 'utf8')).wallets || []; } catch { return []; }
+}
+
+const camel = (chain, network) => `${chain}${network[0].toUpperCase()}${network.slice(1)}`;
+
+// The backend's public wallet config (backend/src/shelter/onchain/wallet.config.ts): one readable
+// section per chain and network from chains.json, the recorded ShelterSplits (deployments.json, the
+// same public fields the client lists carry), the DonateRouters (router-deployments.json) and the
+// public wallets (wallets.public.json). Public data only: keys stay in env.
+//
+// `split` is the instance the backend defaults a chain to (SHELTER_TREAT_CHAINS / SHELTER_X402_CHAINS),
+// chosen deterministically, one per chain and network:
+//   1. only instances paying the chain's primary token (never a splitTokens second token such as EURC);
+//   2. among those, the one a recorded DonateRouter pays into, so treats, relayed gifts and the indexer
+//      all read one contract;
+//   3. otherwise the most recently recorded one (the last in the list).
+// Every other instance is listed in `otherSplits`. Every testnet instance pays Pink Paw 10000 bps
+// (PROOF_SHELTER in the wave; checked on-chain 2026-10-04).
+export function walletConfig({ list, chains, routers = [], wallets = [] }) {
+  const pick = (label, network) => {
+    const w = wallets.find((x) => x.label === `${network === 'testnet' ? 'testnet-' : ''}${label}`);
+    return w?.address || null;
+  };
+  const out = { wallets: {}, chains: {} };
+  for (const network of ['mainnet', 'testnet']) {
+    out.wallets[network] = {
+      pinkPaw: pick('pink-paw-receiving', 'mainnet'),
+      treasury: pick('shelter-split-treasury', network),
+      donateHot: pick('donate-hot-wallet', network),
+      agent: pick('agent-wallet', network),
+      deployer: pick('deployer', network),
+    };
+  }
+  const pub = { mainnet: publicDeployments(list, chains, 'mainnet'), testnet: publicDeployments(list, chains, 'testnet') };
+  for (const [chain, c] of Object.entries(chains)) {
+    for (const network of ['mainnet', 'testnet']) {
+      const n = c?.networks?.[network];
+      if (!n?.publicRpc) continue; // only chains the backend can reach without a key
+      const primary = splitToken(n);
+      const instances = pub[network].filter((d) => d.chainId === n.chainId).map((d) => {
+        const sym = String(d.token || '').toUpperCase();
+        const second = !!(sym && n.splitTokens?.[sym]);
+        const rec = list.find((x) => x.network === network && x.chainId === d.chainId && x.address.toLowerCase() === d.address.toLowerCase());
+        const r = routers.find((x) => x.network === network && Number(x.chainId) === Number(d.chainId) && String(x.split || '').toLowerCase() === d.address.toLowerCase());
+        const t = second ? splitToken(n, sym) : primary;
+        const fromBlock = Number.isSafeInteger(rec?.fromBlock) ? rec.fromBlock : null;
+        return {
+          second,
+          v: {
+            address: d.address.toLowerCase(),
+            token: { symbol: d.symbol || d.token || primary.symbol, decimals: d.decimals ?? t.decimals ?? 6, address: (rec?.tokenAddress || t.address || null)?.toLowerCase?.() ?? null },
+            ...(d.tx ? { deployTx: d.tx } : {}),
+            ...(fromBlock !== null ? { fromBlock } : {}),
+            ...(r ? { router: String(r.router).toLowerCase(), ...(Number.isSafeInteger(r.fromBlock) ? { routerFromBlock: r.fromBlock } : {}) } : {}),
+          },
+        };
+      });
+      const cands = instances.filter((x) => !x.second);
+      const chosen = cands.find((x) => x.v.router) || cands[cands.length - 1] || null;
+      out.chains[camel(chain, network)] = {
+        name: n.name || (network === 'testnet' ? `${c.name} testnet` : c.name),
+        chainId: n.chainId,
+        network,
+        rpc: n.publicRpc,
+        ...(n.logRpc ? { logRpc: n.logRpc } : {}),
+        explorer: n.explorer,
+        // What the chain's default split pays (pathUSD on Tempo testnet, mUSDC on Robinhood testnet).
+        token: chosen ? chosen.v.token : { symbol: primary.symbol, decimals: primary.decimals ?? 6, address: primary.address ? primary.address.toLowerCase() : null },
+        split: chosen ? chosen.v : null,
+        otherSplits: instances.filter((x) => x !== chosen).map((x) => x.v),
+      };
+    }
+  }
+  return out;
+}
+
+// Prettier-stable TypeScript for the backend (.prettierrc.json: 4 spaces, single quotes, 120 columns):
+// every object and array with content is written one entry per line, which prettier keeps.
+function tsLiteral(v, depth = 0) {
+  const pad = '    '.repeat(depth + 1);
+  const end = '    '.repeat(depth);
+  if (v === null) return 'null';
+  if (typeof v === 'string') return `'${v.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+  if (typeof v !== 'object') return String(v);
+  if (Array.isArray(v)) return v.length ? `[\n${v.map((x) => `${pad}${tsLiteral(x, depth + 1)},`).join('\n')}\n${end}]` : '[]';
+  const keys = Object.keys(v);
+  return keys.length ? `{\n${keys.map((k) => `${pad}${/^[A-Za-z_$][\w$]*$/.test(k) ? k : `'${k}'`}: ${tsLiteral(v[k], depth + 1)},`).join('\n')}\n${end}}` : '{}';
+}
+
+export function walletConfigSource(cfg) {
+  return `// GENERATED by \`fund a:ingest\` (funding/framework/tracks/a-build/wave.mjs, walletConfig) from
+// tracks/a-build/chains.json, deployments.json, router-deployments.json and wallets.public.json. Run
+// \`fund a:backend-deployments\` to regenerate; do not edit by hand. wallet.config.spec.ts checks it
+// against the client's public lists (client/public/shelter-payouts/deployments.json and
+// testnet-deployments.json). Public addresses only: the hot wallet key stays in SHELTER_DONATE_PRIVATE_KEY.
+
+export interface TokenInfo {
+    symbol: string;
+    decimals: number;
+    /** Lowercased; null when not recorded. */
+    address: string | null;
+}
+
+export interface SplitInstance {
+    /** Lowercased ShelterSplit address. */
+    address: string;
+    /** The token this instance pays out. */
+    token: TokenInfo;
+    /** The deploy transaction: its receipt's block is where the impact indexer starts. */
+    deployTx?: string;
+    /** The deploy block, when recorded. */
+    fromBlock?: number;
+    /** The DonateRouter that pays into this split, when one is recorded. */
+    router?: string;
+    routerFromBlock?: number;
+}
+
+export interface ChainWallets {
+    name: string;
+    chainId: number;
+    network: 'mainnet' | 'testnet';
+    /** Keyless public RPC (an env override can name a paid one). */
+    rpc: string;
+    /** A keyless RPC for wide eth_getLogs ranges, when the default one caps them. */
+    logRpc?: string;
+    explorer: string;
+    /** The chain's primary payout token. */
+    token: TokenInfo;
+    /** The split the backend defaults this chain to, or null before a deploy. */
+    split: SplitInstance | null;
+    /** Every other recorded instance (a second token such as EURC, an older deploy). */
+    otherSplits: SplitInstance[];
+}
+
+export interface NetworkWallets {
+    /** Pink Paw's payout wallet (held by Token Tails until the handover). */
+    pinkPaw: string | null;
+    /** The ShelterSplit treasury (remainder and rounding dust). */
+    treasury: string | null;
+    /** The address of SHELTER_DONATE_PRIVATE_KEY (treats, relay gas). */
+    donateHot: string | null;
+    /** The x402 demo agent. */
+    agent: string | null;
+    deployer: string | null;
+}
+
+export const WALLETS: Record<'mainnet' | 'testnet', NetworkWallets> = ${tsLiteral(cfg.wallets)};
+
+export const CHAINS: Record<string, ChainWallets> = ${tsLiteral(cfg.chains)};
+`;
+}
+
+// Writes the backend copy; returns the path written, or null when publishing is off (tests).
+export function writeBackendDeployments({ list, chains, routers = loadRouterDeployments(), wallets = loadPublicWallets() }) {
+  const f = wavePaths.backend();
+  if (!f || !existsSync(dirname(f))) return null;
+  writeFileSync(f, walletConfigSource(walletConfig({ list, chains, routers, wallets })));
+  return f;
+}
+
+async function cmdBackendDeployments() {
+  const { loadChains, loadDeployments } = await A();
+  const f = writeBackendDeployments({ list: loadDeployments(), chains: loadChains() });
+  say(f ? `wrote ${f.replace(join(HERE, '..', '..', '..', '..') + '/', '')}` : 'backend copy is off (FUND_A_PUBLISH set without FUND_A_PUBLISH_BACKEND)');
+  return 0;
+}
+
 async function cmdIngest({ flags }) {
   const { paths, loadChains, loadDeployments, saveDeployments, networkInfo, explorerLink, recordDeployment, trackAApps, matrixRows, verifyDeployment } = await A();
   const network = typeof flags.network === 'string' ? flags.network : 'mainnet';
@@ -404,21 +606,15 @@ async function cmdIngest({ flags }) {
   // Publish the mainnet list to the read-only pages (only public fields; nothing secret is in it).
   // A testnet ingest refreshes the separate testnet list instead (mock tokens included: it is test money).
   if (network === 'mainnet' || network === 'testnet') {
-    const pub = loadDeployments().filter((d) => d.network === network && (network === 'testnet' || !d.mock))
-      .map(({ contract, chain, network: n, chainId, address, tx, token, proofTxs }) => {
-        // Any non-USDC instance states its symbol and decimals: a second-token instance (EURC) and a chain
-        // whose default payout token is not USDC (USDG on Robinhood, MUSD on Mezo). The pages otherwise
-        // label every ERC-20 payout on a chain with that chain's default token, and must never sum it as USDC.
-        // The recorded spelling wins over splitToken's upper-cased one (pathUSD, mUSDC, not PATHUSD, MUSDC).
-        let alt = null;
-        try { const ni = networkInfo(chains, chain, n); const t = splitToken(ni, token || null); if (t.symbol !== 'USDC') alt = t; } catch { /* unknown chain */ }
-        return { contract, chain, network: n, chainId, address, ...(tx ? { tx } : {}), ...(token ? { token } : {}), ...(alt ? { symbol: token && token.toUpperCase() === alt.symbol.toUpperCase() ? token : alt.symbol, decimals: alt.decimals } : {}), ...(proofTxs ? { proofTxs } : {}) };
-      });
+    const pub = publicDeployments(loadDeployments(), chains, network);
     for (const f of network === 'mainnet' ? wavePaths.publish() : wavePaths.publishTestnet()) {
       if (!existsSync(dirname(f))) continue;
       writeFileSync(f, JSON.stringify(pub, null, 2) + '\n');
       say(`published ${pub.length} deployment(s) to ${f.replace(join(HERE, '..', '..', '..', '..') + '/', '')}`);
     }
+    // The backend's committed copy of both lists (its build cannot read the client folder at runtime).
+    const wrote = writeBackendDeployments({ list: loadDeployments(), chains });
+    if (wrote) say(`published the backend copy to ${wrote.replace(join(HERE, '..', '..', '..', '..') + '/', '')}`);
   }
 
   // Re-render the submission of every Track A application a mainnet deploy now unblocks.
@@ -544,5 +740,6 @@ async function cmdVerifySource({ args, flags }) {
 export const waveCommands = {
   'a:wave': { help: '[--network mainnet|testnet] [--chains a,b] [--token EURC] [--redeploy] — rank chains by EV unlocked, write wave/deploy-<network>[-eurc].sh (a human runs it)', run: cmdWave },
   'a:verify-source': { help: '[chain] [network] [--force] — verify ShelterSplit source code on each explorer (Blockscout, Sourcify, Routescan) for recorded deployments', run: cmdVerifySource },
+  'a:backend-deployments': { help: '— regenerate backend/src/shelter/onchain/wallet.config.ts from chains.json and the recorded deployments, routers and public wallets (a:ingest does this too)', run: cmdBackendDeployments },
   'a:ingest': { help: '[--network mainnet|testnet] — record + verify deployments and proof payouts from Foundry broadcasts, re-render unblocked submissions', run: cmdIngest },
 };
