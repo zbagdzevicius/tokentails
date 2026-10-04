@@ -23,6 +23,12 @@ const chaptersBackgroundImages = {
   "9": `url(${cdnFile("backgrounds/bg-6.webp")})`,
 };
 
+/**
+ * The lobby backdrop: the landing hero without its cat (the ruins and altar over the starry sky),
+ * so PLAY GAME lands in the same night scene the landing just showed.
+ */
+export const LOBBY_BACKGROUND = `url(${cdnFile("landing/hero-ground.webp")}), url(${cdnFile("landing/hero-bg.webp")})`;
+
 /** The lobby dusk grade, a custom property so the gradient lives in one place (globals.scss). */
 export const SKY_DUSK = "var(--tt-sky-dusk)";
 
@@ -137,7 +143,9 @@ export const useBackground = ({
         ? chaptersBackgroundImages[
             level[0] as keyof typeof chaptersBackgroundImages
           ]
-        : `url(${cdnFile("landing/game-bg-2.webp")})`,
+        : LOBBY_BACKGROUND,
+      // The landing hero layers are cover-fit from the centre, like the landing's <img>s.
+      ...(bgImage || level ? {} : { backgroundPosition: "center center" }),
     };
   }, [bgImage, level, lookBg]);
 
