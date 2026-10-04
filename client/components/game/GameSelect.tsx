@@ -65,6 +65,11 @@ const GameSelectItem = ({
 const NIGHT_PLATE =
   "bg-tt-night-800/85 border-2 border-tt-gold-500/60 shadow-[0_4px_0_rgb(var(--tt-night-950)),0_0_24px_rgb(var(--tt-gold-400)/0.12)] lowfx:shadow-[0_4px_0_rgb(var(--tt-night-950))]";
 
+/** The altar platform under the lobby cat: its width in cat frames, height/width, and where the feet land. */
+const PLATFORM_WIDTH_CATS = 2.6;
+const PLATFORM_ASPECT = 289 / 900;
+const PLATFORM_FEET_AT = 0.2;
+
 /**
  * The lobby hero slot (plan G3 step 7): the active cat, large, at an integer CSS scale of its
  * 48 px frame (never fractional, `image-rendering: pixelated`), on a gold nameplate. Right after
@@ -131,18 +136,7 @@ const LobbyHero = ({
         src={cdnFile("logo/logo-text.webp")}
         className="relative z-10 h-auto w-[min(56vw,16rem)] max-md:mt-24 md:w-56 lg:w-64"
       />
-      <div className="relative mt-2 flex flex-col items-center" data-testid="lobby-hero">
-        {/* Altar glow under the cat. */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{
-            width: 48 * scale * 1.8,
-            height: 48 * scale * 1.2,
-            background:
-              "radial-gradient(closest-side, rgb(var(--tt-gold-400) / 0.32), rgb(var(--tt-gold-400) / 0.1) 60%, transparent 75%)",
-          }}
-        />
+      <div className="relative mt-6 flex flex-col items-center" data-testid="lobby-hero">
         <PixelCat
           src={image}
           still={still}
@@ -150,12 +144,28 @@ const LobbyHero = ({
           scale={scale}
           alt={name ? `${name}, your cat` : "Your cat"}
           testId="lobby-hero-cat"
-          className="relative"
+          className="relative z-10"
           style={{ marginTop: -6 * scale, marginBottom: -10 * scale }}
+        />
+        {/* The cat stands on the landing's altar (cut from landing/hero-ground): its feet on the
+            glowing rune circle, which sits about 15% down the slab image. */}
+        <img
+          src="/lobby/altar-platform.webp"
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          data-testid="lobby-hero-platform"
+          className="pointer-events-none relative max-w-[92vw] select-none"
+          style={{
+            width: PLATFORM_WIDTH_CATS * 48 * scale,
+            marginTop: -PLATFORM_FEET_AT * PLATFORM_ASPECT * PLATFORM_WIDTH_CATS * 48 * scale,
+          }}
         />
         <span
           data-testid="lobby-hero-name"
-          className="relative mt-1 inline-block max-w-[80vw] truncate bg-tt-gold-400 px-4 py-0.5 font-primary text-p3 uppercase leading-tight text-tt-gold-ink shadow-[inset_0_-3px_0_rgb(var(--tt-gold-500)),0_3px_0_rgb(var(--tt-gold-shadow)),0_0_0_3px_rgb(var(--tt-gold-shadow))]"
+          // Over the steps' faded foot, so the plate reads as part of the altar.
+          style={{ marginTop: -0.42 * PLATFORM_ASPECT * PLATFORM_WIDTH_CATS * 48 * scale }}
+          className="relative z-10 inline-block max-w-[80vw] truncate bg-tt-gold-400 px-4 py-0.5 font-primary text-p3 uppercase leading-tight text-tt-gold-ink shadow-[inset_0_-3px_0_rgb(var(--tt-gold-500)),0_3px_0_rgb(var(--tt-gold-shadow)),0_0_0_3px_rgb(var(--tt-gold-shadow))]"
         >
           {name}
         </span>
