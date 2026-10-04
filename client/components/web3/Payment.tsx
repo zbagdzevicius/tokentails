@@ -113,8 +113,8 @@ const WebPayment = ({
   const discountable = entityType === EntityType.PACK;
   const cryptoSku = useMemo(() => skuFor(entityType, id), [entityType, id]);
   // The public config decides whether crypto is offered at all, and carries the price the server
-  // charges (both checkouts charge it). Where it differs from the caller's copy, the summary shows the
-  // charged price: the Legendary pack card says $400 while every checkout charges $350 (known issue).
+  // charges (both checkouts charge it, including the Legendary sale). Where it differs from the
+  // caller's copy, the summary shows the charged price.
   const cryptoConfig = useCryptoPayConfig(!cryptoSku);
   const charged = serverPriceUsd(cryptoSku, cryptoConfig);
   const basePrice = charged ?? price;

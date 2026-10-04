@@ -126,9 +126,10 @@ function expectGamingLanding(container: HTMLElement) {
   expect(
     proof!.compareDocumentPosition(globe!) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
-  // Catnip Heist sits between the proof section and the globe, only behind its flag (decision #15).
+  // Catnip Heist sits between the proof section and the globe; on by default (decision #15
+  // overridden by the founder, 2026-10-04), hidden with NEXT_PUBLIC_HEIST_LANDING_SECTION=0.
   const heist = container.querySelector('[data-testid="heist-section"]');
-  if (process.env.NEXT_PUBLIC_HEIST_LANDING_SECTION !== "1") {
+  if (/^(0|false|off)$/i.test(process.env.NEXT_PUBLIC_HEIST_LANDING_SECTION ?? "")) {
     expect(heist).toBeNull();
   } else {
     expect(heist).not.toBeNull();
@@ -162,21 +163,20 @@ describe("root visit", () => {
     expectGamingLanding(container);
   });
 
-  it("keeps the Catnip Heist section off by default and mounts it with the flag (decision #15)", () => {
+  it("shows the Catnip Heist section by default and hides it with the flag off (decision #15 overridden)", () => {
     const { container, unmount } = render(<HomePage />);
-    expect(container.querySelector('[data-testid="heist-section"]')).toBeNull();
+    expect(container.querySelector('[data-testid="heist-section"]')).not.toBeNull();
     unmount();
-    process.env.NEXT_PUBLIC_HEIST_LANDING_SECTION = "1";
+    process.env.NEXT_PUBLIC_HEIST_LANDING_SECTION = "0";
     try {
-      const flagged = render(<HomePage />);
-      expectGamingLanding(flagged.container);
-      // The v1 reel is not cleared and the rail is not live in the baseline: poster only.
-      expect(flagged.container.querySelector('[data-testid="heist-reel"]')).toBeNull();
-      expect(flagged.container.querySelector('[data-testid="heist-reel-poster"]')).not.toBeNull();
+      const off = render(<HomePage />);
+      expectGamingLanding(off.container);
+      expect(off.container.querySelector('[data-testid="heist-section"]')).toBeNull();
     } finally {
       delete process.env.NEXT_PUBLIC_HEIST_LANDING_SECTION;
     }
   });
+
 
   it("mounts the gameplay reel between the hero and the proof section when the manifest has clips", () => {
     const { container } = render(<HomePage />);

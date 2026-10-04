@@ -39,7 +39,8 @@ describe("registry helpers", () => {
   it("only public entries resolve", () => {
     expect(publicFact("F-011")?.id).toBe("F-011");
     expect(publicFact("F-024")).toBeNull(); // "800+", unverified (decision #29)
-    expect(publicFact("F-023")).toBeNull(); // the Paris event, unsourced (decision #74)
+    // The Paris event: company-reported, founder-confirmed 2026-10-04 (the reel footage only).
+    expect(publicFact("F-023")?.status).toBe("company-reported");
     expect(publicFact("P-001")).toBeNull(); // "3 taps", retired (decision #75, task 7b)
     expect(allPublicFacts().length).toBe(Object.keys(FACTS).length);
   });

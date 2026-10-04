@@ -109,6 +109,7 @@ calendar gate on top of the cleared rule).
 - HUD is a React overlay driven by objective, timer (90 seconds default), and health events.
 - Every stop pushes `won` (portal), `died` (health or spikes) or `timeout`; only a win carries the completed level. The 10,000-Tail gift button needs every `seasonEventCleared` day from the server.
 - Dedicated end screen: `components/shared/PixelRescueEndGameModal.tsx` (a night GameModal).
+- Season enforcement is client-only (founder, 2026-10-04: "whatever is easier"): `components/game/seasons.ts` hides the card and `setGameType` refuses off-season, but the backend still accepts `PIXEL_RESCUE` scores all year through `POST /user/catbassadors/live`. A server-side season check is not planned.
 - Levels: `public/pixel-rescue/levels/level-1..14.json`, tileset `public/base/valentine.png` (`valentine-night-v1.png` in the night look).
 - Judge path (section 6.1): `game_loaded` to the first clear of day 1 measured at a median of about 48 s by a scripted player that knows the route, against a 90 s target.
 

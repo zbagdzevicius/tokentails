@@ -102,7 +102,7 @@ export class StripePaymentService {
         return { code: normalized, percentage: discountPercentageForCode(normalized) };
     }
 
-    async quotePaymentIntent(input: PaymentIntentQuoteInput): Promise<PaymentIntentQuote> {
+    async quotePaymentIntent(input: PaymentIntentQuoteInput, now: Date = new Date()): Promise<PaymentIntentQuote> {
         let baseCents: number;
         let productType = ProductType.DIGITAL;
         let packType = '';
@@ -142,7 +142,7 @@ export class StripePaymentService {
                 throw new BadRequestException('Invalid pack type');
             }
             packType = input.packType;
-            baseCents = getPackPriceCents(input.packType);
+            baseCents = getPackPriceCents(input.packType, now);
         }
 
         const { code, percentage } = await this.resolveDiscount(input.discount);
@@ -166,8 +166,11 @@ export class StripePaymentService {
         };
     }
 
-    async createPaymentIntent(input: PaymentIntentQuoteInput): Promise<{ clientSecret: string | null }> {
-        const quote = await this.quotePaymentIntent(input);
+    async createPaymentIntent(
+        input: PaymentIntentQuoteInput,
+        now: Date = new Date()
+    ): Promise<{ clientSecret: string | null }> {
+        const quote = await this.quotePaymentIntent(input, now);
         const paymentIntent = await this.stripe.paymentIntents.create({
             amount: quote.amountCents,
             currency: 'usd',
@@ -240,7 +243,9 @@ export class StripePaymentService {
                 throw new BadRequestException('Unknown pack type');
             }
             packType = rawPack;
-            baseCents = getPackPriceCents(packType);
+            // Price at the intent's creation, so a sale intent paid just after the sale ends still verifies.
+            const createdAt = typeof intent.created === 'number' ? new Date(intent.created * 1000) : new Date();
+            baseCents = getPackPriceCents(packType, createdAt);
         }
 
         // Intents created by this service carry the server-computed amount. Older intents do not,

@@ -38,7 +38,7 @@ export interface CryptoPayConfig {
     /** False when a set rate is malformed, out of bounds, undated or older than EURC_FX_MAX_AGE_DAYS. */
     eurcEnabled: boolean;
     chains: ResolvedChain[];
-    /** Shelter share of a shelter cat on the treasury route, in bps; null while undecided (no share sent). */
+    /** Shelter share of a shelter cat on the treasury and card routes, in bps (default 5000); null only when the env value is malformed. */
     catShelterBps: number | null;
     /** Shelters whose share goes through ShelterSplit (default Pink Paw). Others get no on-chain share. */
     splitShelterIds: string[];
@@ -201,6 +201,16 @@ function splitRoutes(env: NodeJS.ProcessEnv): SplitRoute[] {
     return routes;
 }
 
+/**
+ * Pink Paw's share of each $5 shelter cat on the treasury and card routes: 50% (founder, 2026-10-04).
+ * CRYPTO_PAY_CAT_SHELTER_BPS still overrides it; a set but malformed value leaves the share undecided.
+ */
+export const DEFAULT_CAT_SHELTER_BPS = 5000;
+
+function catShelterBps(value: string | undefined): number | null {
+    return (value || '').trim() ? bps(value) : DEFAULT_CAT_SHELTER_BPS;
+}
+
 function bps(value: string | undefined): number | null {
     const n = Number((value || '').trim());
     return (value || '').trim() && Number.isInteger(n) && n > 0 && n <= 10000 ? n : null;
@@ -252,7 +262,7 @@ export function readCryptoPayConfig(env: NodeJS.ProcessEnv = process.env, now: D
         fxAsOf: eurc.asOf,
         eurcEnabled: eurc.enabled,
         chains,
-        catShelterBps: bps(env.CRYPTO_PAY_CAT_SHELTER_BPS),
+        catShelterBps: catShelterBps(env.CRYPTO_PAY_CAT_SHELTER_BPS),
         splitShelterIds: shelterIds.length ? shelterIds : [PACK_SHELTER_IDS.pinkPaw],
         shelterShareEnabled: flag(env.CRYPTO_PAY_SHELTER_SHARE_ENABLED),
         splits: splitRoutes(env),

@@ -337,17 +337,19 @@
     {
       "id": "F-023",
       "claim": "IRL cat-shelter event at Le Chat-Rivari Café, Paris (a shelter-cat adoption café), 2026-04-17, with ChainforGood and Bybit EU, during Paris Blockchain Week 2026",
-      "value": "Co-hosted with Bybit / ChainforGood",
+      "value": "Shelter-cat event at Le Chat-Rivari café, Paris, 2026-04-17",
       "unit": null,
-      "display": null,
-      "source": "https://x.com/tokentails/status/2046611480263467341 (read through the api.fxtwitter.com mirror); PR Newswire release 2026-02-25",
+      "display": "Shelter-cat event at Le Chat-Rivari café, Paris (Apr 2026, company-reported)",
+      "source": "founder statement 2026-10-04 ('I confirm'); https://x.com/tokentails/status/2046611480263467341 (read through the api.fxtwitter.com mirror); PR Newswire release 2026-02-25",
       "asOf": "2026-04-17",
-      "checkedAt": "2026-09-27",
-      "status": "unverified",
-      "maxAgeDays": null,
-      "surfaces": [],
+      "checkedAt": "2026-10-04",
+      "status": "company-reported",
+      "maxAgeDays": 365,
+      "surfaces": [
+        "landing"
+      ],
       "tense": "past",
-      "note": "G11 registry migration: reworded. Decision #74: the landing event chip is dropped until a person opens the post on x.com, confirms the quote and sets this entry verified."
+      "note": "Founder-attested 2026-10-04 ('I confirm'): the Paris event at Le Chat-Rivari on 2026-04-17 happened and its footage may run in the Catnip Heist reel on the landing (HEIST_REEL.cleared). Company-reported, not third-party verified: nobody outside the team has checked the post or the release. Surface is the reel footage only; the partner names (in the claim only, not the value) stay off every surface and the ProofSection event chip stays dropped (decision #74) until a person confirms the quote at the source and sets this entry verified."
     },
     {
       "id": "F-024",

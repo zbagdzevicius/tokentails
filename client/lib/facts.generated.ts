@@ -3,7 +3,7 @@
 
 /** Every fact id a client surface may cite (plan F7.1). */
 // prettier-ignore
-export type FactId = 'C-001' | 'C-004' | 'C-005' | 'F-001' | 'F-003' | 'F-004' | 'F-011' | 'F-013' | 'F-025' | 'F-026' | 'L-countries' | 'L-disbursed' | 'L-heists' | 'L-match' | 'L-players' | 'L-rail' | 'L-treats';
+export type FactId = 'C-001' | 'C-004' | 'C-005' | 'F-001' | 'F-003' | 'F-004' | 'F-011' | 'F-013' | 'F-023' | 'F-025' | 'F-026' | 'L-countries' | 'L-disbursed' | 'L-heists' | 'L-match' | 'L-players' | 'L-rail' | 'L-treats';
 
 // prettier-ignore
 export type FactStatus = 'verified' | 'company-reported' | 'sei-era' | 'live';
@@ -49,7 +49,7 @@ export interface PublicFact {
 export const PUBLIC_FACTS_PATH = '/facts/facts.json';
 
 // prettier-ignore
-export const FACT_IDS: readonly FactId[] = ["C-001","C-004","C-005","F-001","F-003","F-004","F-011","F-013","F-025","F-026","L-countries","L-disbursed","L-heists","L-match","L-players","L-rail","L-treats"];
+export const FACT_IDS: readonly FactId[] = ["C-001","C-004","C-005","F-001","F-003","F-004","F-011","F-013","F-023","F-025","F-026","L-countries","L-disbursed","L-heists","L-match","L-players","L-rail","L-treats"];
 
 // prettier-ignore
 export const FACTS: Record<FactId, PublicFact> = {
@@ -217,6 +217,22 @@ export const FACTS: Record<FactId, PublicFact> = {
       "landing"
     ],
     "sourceUrl": null
+  },
+  "F-023": {
+    "id": "F-023",
+    "display": "Shelter-cat event at Le Chat-Rivari café, Paris (Apr 2026, company-reported)",
+    "appDisplay": null,
+    "value": "Shelter-cat event at Le Chat-Rivari café, Paris, 2026-04-17",
+    "unit": null,
+    "status": "company-reported",
+    "tense": "past",
+    "asOf": "2026-04-17",
+    "checkedAt": "2026-10-04",
+    "maxAgeDays": 365,
+    "surfaces": [
+      "landing"
+    ],
+    "sourceUrl": "https://x.com/tokentails/status/2046611480263467341"
   },
   "F-025": {
     "id": "F-025",

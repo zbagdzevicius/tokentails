@@ -11,7 +11,7 @@ and `applications/arbitrum-dubai` untouched (another session). Custody rules: `d
 | 50,000 USDC goal (C-001) | `/shelter-payouts`, `/give`, `/impact` and the Heist modal show "N of the 50,000 USDC goal for Pink Paw", the share, and "Goal date: 30 Sep 2027". N is the USDC that came in to the campaign wallets (Arc's transfer log, sweeps between campaign wallets counted once), not the balance, so spending never lowers it. The copy names only what can reach the held wallet today: sponsored treats. "At least" while the scan is behind; "can't read" rather than 0. | `backend/src/shelter/goal/`, `shared/shelter-goal.ts` (+ client and Heist copies), `client/components/shelter-payouts/{goal.ts,CampaignMeter.tsx,campaign.ts}`, `catnip-heist/src/ui/shelter-payouts.ts`, fact C-001 |
 | Pink Paw gallery (payouts + `/impact` + Heist) | Tabs "At the shelter 104" and "Adopted 352" (local data), cards with the shelter's photo, "Meet <name>" links, 12 at a time. Read from the uncapped `GET /shelter/rozine-pedute/gallery`; the `/cat/sale` fallback hides totals and says "of the newest". | `backend/src/shelter/`, `shared/pink-paw.ts`, `client/components/shelter-payouts/PinkPawGallery.tsx`, `catnip-heist/src/ui/pink-paw.ts` |
 | Landing dedupe | Each of the three shelter names appears once on the landing; the globe list de-duplicates by slug, Pink Paw shows "Pink Paw" with "Rožinė pėdutė" under it. | `client/components/landing/shelterNames.ts`, `ImpactGlobeSection.tsx` |
-| Catnip Heist landing section | Off by default (`NEXT_PUBLIC_HEIST_LANDING_SECTION=1` to show, decision #15). When on, poster only: the v1 reel is not cleared (shows the Paris café, F-023 unverified). The third beat follows the rail state. App export drops the reel files. | `client/components/landing/HeistSection.tsx`, `client/scripts/prune-app-export.mjs` |
+| Catnip Heist landing section | On by default since 2026-10-04 (founder override of decision #15 for this section; `NEXT_PUBLIC_HEIST_LANDING_SECTION=0` hides it). The v1 reel is cleared (F-023 Paris café founder-confirmed, company-reported) and plays while the rail is live or exhausted; otherwise the poster. The third beat follows the rail state. App export drops the reel files. | `client/components/landing/HeistSection.tsx`, `client/scripts/prune-app-export.mjs` |
 | Crypto checkout (replaces Stellar packs) | "Pay with crypto (USDC / EURC)" next to the card, only when the server sells on at least one network. Pick network and coin, get an order with an exact amount and a countdown, pay with a browser wallet or by QR + pasted hash, then a receipt. Prices come from the server (`config.prices`). Stellar packs are gone; a late Stellar pack payment is recorded for a refund (410). Off today: no treasury address is set. | `backend/src/payments/crypto/`, `client/components/web3/crypto/`, `client/components/web3/Payment.tsx`, `client/models/crypto-pay.ts` |
 | $5 shelter cats | "Basic tier · $5" offer under a shelter cat's card (Shelter scene and `/cats/<id>`), "BUY FOR $5" opens a card or crypto checkout; a basic-tier copy is granted once. Rare and up come only from packs. Not in app builds. | `client/components/shelter/ShelterCatBuy.tsx`, `backend/src/shelter/shelter-cat-sale.service.ts`, `backend/src/web3/purchase-grant.service.ts`, `price-table.ts` `SHELTER_CAT_MIN_PRICE_CENTS` |
 
@@ -20,7 +20,7 @@ and `applications/arbitrum-dubai` untouched (another session). Custody rules: `d
 | QA item | Fix |
 |---|---|
 | 1 High: Buy dialog cut off at 390 px on `/cats/<id>` | `CatDetailsLayout` clips horizontal overflow; page is 390 wide, dialog on screen |
-| 2 High: Legendary shows $400, charged $350 | Checkout summary and crypto quote use the server price (`useCryptoPayConfig`, `serverPriceUsd`). The pack card still says $400: founder picks one price |
+| 2 High: Legendary shows $400, charged $350 | Fixed 2026-10-04: one regular price, $350 (`PACK_PRICES_CENTS`), and a $100 sale through 27 Nov 2026 23:59:59 UTC (`getPackPriceCents(pack, now)`, both checkouts). The card shows ~~$350~~ $100 "until 27 Nov" (`LegendaryPrice.tsx`) |
 | 3 Amount under COPY | Long amounts step down a size and wrap before the symbol |
 | 4 Crypto button while closed | Hidden unless the config lists a chain (and while loading or unreadable) |
 | 5 Copy vs custody/goal rules | Custody line, payouts empty state, `/impact` goal note, How it works step 2 (web and Heist) |
@@ -51,7 +51,6 @@ E2E runs (earlier today): `tracks/a-build/e2e-pay-goal/stack.sh all` 24/24 API +
 
 ## Open
 
-- Legendary pack price (card $400, charged $350).
 - F-023 Paris sentence on the landing; "Arc shelter rail opens soon" vs the F-025 note.
 - Wallet-browser links reopen the plain URL (buyer taps Buy again; the open order comes back).
 - A tx hash the chosen chain doesn't know waits 20 minutes before the page says so (BACKEND.md).
@@ -62,10 +61,10 @@ E2E runs (earlier today): `tracks/a-build/e2e-pay-goal/stack.sh all` 24/24 API +
 
 Also in the CLAUDE.md tracker.
 1. Treasury addresses per chain (`treasury.public.ts` or `CRYPTO_PAY_TREASURY[_<chainId>]`, plus `wallets.public.json` `shelter-split-treasury`), then `CRYPTO_PAY_ENABLED=true`, `CRYPTO_PAY_NETWORK=mainnet`.
-2. Pick the Legendary pack price.
-3. Shelter cats: decide `CRYPTO_PAY_CAT_SHELTER_BPS` and `CRYPTO_PAY_SHELTER_SHARE_ENABLED`; no Stripe Price object is needed (the server sets $5 per PaymentIntent); buy one by card on production.
+2. ~~Pick the Legendary pack price.~~ Done 2026-10-04: $350, on sale for $100 until 27 Nov.
+3. Shelter cats: `CRYPTO_PAY_CAT_SHELTER_BPS` decided 2026-10-04 (50%, now the default 5000); still decide `CRYPTO_PAY_SHELTER_SHARE_ENABLED`; no Stripe Price object is needed (the server sets $5 per PaymentIntent); buy one by card on production.
 4. Confirm `STELLAR_PACKS_SUNSET_AT` (default 2026-10-11 00:00 UTC); refund `STELLAR_DEPRECATED` orders.
 5. Backend deploy keeps `SHELTER_GOAL_SCAN` on (default) with an Arc mainnet RPC; the first scan takes a few minutes.
-6. Verify F-023 or drop the Paris sentence.
-7. Only after a written override (decision #15): `NEXT_PUBLIC_HEIST_LANDING_SECTION=1`.
+6. ~~Verify F-023 or drop the Paris sentence.~~ Founder confirmed the event 2026-10-04: F-023 is company-reported (landing surface, café footage only). Third-party verification (open the x.com post, confirm the partners) is still open before partner names may appear.
+7. ~~Only after a written override (decision #15): `NEXT_PUBLIC_HEIST_LANDING_SECTION=1`.~~ Done 2026-10-04: founder override recorded; the section is on by default.
 8. At handover: C-001 `campaign.rotation` (facts edit, `fund facts build`, deploy client and backend).

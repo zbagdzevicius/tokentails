@@ -5,6 +5,29 @@ import { PackType, ProductType } from './order.schema';
 import { DEFAULT_STELLAR_TREASURY, DEFAULT_STELLAR_USDC_ISSUER } from './stellar-payment';
 import { ChainType } from './web3.model';
 
+// These assertions use the regular Legendary price: pin the clock after the $100 promo
+// (LEGENDARY_PROMO_ENDS_AT, 28 Nov 2026 00:00 UTC). Only Date is faked.
+beforeAll(() => {
+    jest.useFakeTimers({
+        now: new Date('2026-12-01T00:00:00Z'),
+        doNotFake: [
+            'nextTick',
+            'setImmediate',
+            'clearImmediate',
+            'setTimeout',
+            'clearTimeout',
+            'setInterval',
+            'clearInterval',
+            'queueMicrotask',
+            'hrtime',
+            'performance',
+        ],
+    });
+});
+afterAll(() => {
+    jest.useRealTimers();
+});
+
 const HASH = 'cd'.repeat(32);
 const options = { treasury: DEFAULT_STELLAR_TREASURY, maxXlmUsd: 1 };
 

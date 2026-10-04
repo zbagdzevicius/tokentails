@@ -1,6 +1,6 @@
 # Arbitrum Open House Singapore online buildathon — submission
 
-_Generated 2026-10-03T21:06:52.255Z by `fund a:submission arbitrum-singapore` from draft.md, the program profile,
+_Generated 2026-10-04T13:10:38.640Z by `fund a:submission arbitrum-singapore` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -13,9 +13,9 @@ matching form field._
 | Repository | https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split |
 | Demo | _(not set — add `demo:` to call.md)_ |
 
-## Summary  <!-- 268/280 chars -->
+## Summary  <!-- 271/280 chars -->
 
-ShelterSplit: a USDC payout rail for animal shelters on {ARB_NETWORK}. One call splits a payment across registered shelters, with a public event per payout. A cat-rescue game feeds the same contract on Arc: a one-tap sponsored treat to Pink Paw, with a public receipt.
+ShelterSplit: a USDC payout rail for animal shelters on Arbitrum Sepolia. One call splits a payment across registered shelters, with a public event per payout. A cat-rescue game feeds the same contract on Arc: a one-tap sponsored treat to Pink Paw, with a public receipt.
 
 ## Problem
 
@@ -24,9 +24,9 @@ Apps that say "part of your purchase helps shelters" give the buyer no way to ch
 ## Solution
 
 Built in the buildathon window, from 2026-09-25:
-- ShelterSplit on {ARB_NETWORK} at {ARB_SPLIT}. A registry in the contract holds each shelter's wallet, name and share in basis points. disburse(amount, memo) pulls Circle USDC and pays every active shelter its share in one transaction. The rest goes to a treasury. Low fees on Arbitrum make small, frequent payouts worth sending.
-- The payouts page at https://tokentails.com/shelter-payouts lists each shelter, what it received and an explorer link per payout, read from chain events. It lists every mainnet instance, Arbitrum One and Arc included (a testnet fallback is linked by explorer only). No backend is trusted for the numbers.
-- The one-tap sponsored treat: after a win in Catnip Heist (https://tokentails.com/heist), a signed-in player (anti-abuse: verified email, account older than a day) taps "Send Pink Paw a rescue treat". Token Tails pays a small gift from a capped daily budget, and the player gets a receipt page and a share card. It runs on the Arc instance of the same contract today.
+- ShelterSplit on Arbitrum Sepolia at 0x457c89e10a6e66633eda5bf82fd086febb5db147. A registry in the contract holds each shelter's wallet, name and share in basis points. disburse(amount, memo) pulls Circle USDC and pays every active shelter its share in one transaction. The rest goes to a treasury. Low fees on Arbitrum make small, frequent payouts worth sending.
+- The payouts page at https://tokentails.com/shelter-payouts lists each shelter, what it received and an explorer link per payout, read from chain events. No backend is trusted for the numbers. Mainnet payouts are not live yet: the testnet contracts and payouts in this entry are linked by explorer, and mainnet instances join the same page when deployed.
+- The one-tap sponsored treat: after a win in Catnip Heist (https://tokentails.com/heist), a signed-in player (anti-abuse: verified email, account older than a day) taps "Send Pink Paw a rescue treat". Token Tails pays a small gift from a capped daily budget, and the player gets a receipt page and a share card. It runs end to end on the Arc testnet instance of the same contract (the treat transaction is linked below); the mainnet treat goes live with the mainnet deploy.
 - ShelterSplit Rail: an open MIT SDK and a one-tag donate widget, so any app or AI agent can pay the same shelters.
 The player never touches a wallet: purchases stay card or in-app payments.
 
@@ -42,11 +42,11 @@ The player never touches a wallet: purchases stay card or in-app payments.
 
 ## Deployment
 
-{ARB_NETWORK}: ShelterSplit at {ARB_SPLIT}, paying Circle USDC. {ARC_NETWORK}: the same contract at {SPLIT_ADDRESS}, where the first sponsored treat to Pink Paw is transaction {ARC_TX}, listed on the payouts page. Disclosure: Pink Paw (Rožinė pėdutė) is the first shelter, and its receiving wallet is held by Token Tails on behalf of the shelter until handover. Until then Token Tails controls the funds that reach that wallet. The contract itself holds nothing. Prior work, before the window: three Soroban contracts on Stellar mainnet and ERC-721 contracts on SKALE.
+Arbitrum Sepolia: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147, paying Circle USDC. Arc testnet: the same contract at 0x457c89e10a6e66633eda5bf82fd086febb5db147, where the first sponsored treat to Pink Paw is transaction 0xfd471deccfb14809bcef89cb8d520a3fcfccba26cf45612df86536f23434d350 (https://explorer.testnet.arc.io/tx/0xfd471deccfb14809bcef89cb8d520a3fcfccba26cf45612df86536f23434d350). Disclosure: Pink Paw (Rožinė pėdutė) is the first shelter, and its receiving wallet is held by Token Tails on behalf of the shelter until handover. Until then Token Tails controls the funds that reach that wallet. The contract itself holds nothing. Prior work, before the window: three Soroban contracts on Stellar mainnet and ERC-721 contracts on SKALE.
 
 | Network | Contract | Transaction | Shelter payouts | Status |
 |---|---|---|---|---|
-| Arbitrum One testnet (chain 421614) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://sepolia.arbiscan.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://sepolia.arbiscan.io/tx/0x3f51b51be745eac9ff65434ca4fc8e1ef15dd815c8bdce89decd74439f8f8845) | [payout 1](https://sepolia.arbiscan.io/tx/0x73cdfdb403067706ce0760fd38feed6e2a1e93bbc8d1f6cd1c9e75af7134184d) | verified on-chain, source verified |
+| Arbitrum Sepolia testnet (chain 421614) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://sepolia.arbiscan.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://sepolia.arbiscan.io/tx/0x3f51b51be745eac9ff65434ca4fc8e1ef15dd815c8bdce89decd74439f8f8845) | [payout 1](https://sepolia.arbiscan.io/tx/0x73cdfdb403067706ce0760fd38feed6e2a1e93bbc8d1f6cd1c9e75af7134184d) | verified on-chain, source verified |
 
 ## Build evidence
 

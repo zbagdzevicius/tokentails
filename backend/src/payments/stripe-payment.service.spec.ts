@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { EntityType } from 'src/shared/interfaces/common.interface';
 import { OrderStatus, PackType, ProductType } from 'src/web3/order.schema';
-import { PACK_PRICES_CENTS, PORTRAIT_PRICES_CENTS } from './price-table';
+import { getPackPriceCents, LEGENDARY_PROMO_ENDS_AT, PACK_PRICES_CENTS, PORTRAIT_PRICES_CENTS } from './price-table';
 import { StripePaymentService } from './stripe-payment.service';
 
 // The real repositories pull in Mongoose models; the service only needs the methods mocked below.
@@ -46,22 +46,54 @@ function intent(overrides: Record<string, any> = {}, metadata: Record<string, st
     };
 }
 
+const DURING_SALE = new Date('2026-10-04T12:00:00Z');
+const LAST_SALE_SECOND = new Date('2026-11-27T23:59:59Z');
+const AFTER_SALE = new Date('2026-11-28T00:00:00Z');
+
 describe('price table', () => {
-    it('matches the catalogue: portraits $6/$49/$69, packs $5/$25/$350 (backend Legendary price)', () => {
+    it('matches the catalogue: portraits $6/$49/$69, packs $5/$25/$350 regular', () => {
         expect(PORTRAIT_PRICES_CENTS).toEqual({ digital: 600, print: 4900, canvas: 6900 });
         expect(PACK_PRICES_CENTS).toEqual({ STARTER: 500, INFLUENCER: 2500, LEGENDARY: 35000 });
+    });
+
+    it('sells the Legendary pack for $100 through 27 Nov 2026 23:59:59 UTC, then $350', () => {
+        expect(LEGENDARY_PROMO_ENDS_AT.toISOString()).toBe('2026-11-28T00:00:00.000Z');
+        expect(getPackPriceCents(PackType.LEGENDARY, DURING_SALE)).toBe(10000);
+        expect(getPackPriceCents(PackType.LEGENDARY, LAST_SALE_SECOND)).toBe(10000);
+        expect(getPackPriceCents(PackType.LEGENDARY, AFTER_SALE)).toBe(35000);
+        // Other packs are never on sale.
+        expect(getPackPriceCents(PackType.STARTER, DURING_SALE)).toBe(500);
+        expect(getPackPriceCents(PackType.INFLUENCER, DURING_SALE)).toBe(2500);
     });
 });
 
 describe('StripePaymentService', () => {
     describe('createPaymentIntent', () => {
+        it('charges the Legendary sale price ($100) while the sale runs', async () => {
+            const { service, stripe } = createService();
+            await service.createPaymentIntent(
+                {
+                    entityType: EntityType.PACK,
+                    packType: PackType.LEGENDARY,
+                    userId: USER_ID,
+                },
+                DURING_SALE
+            );
+            const params = stripe.paymentIntents.create.mock.calls[0][0];
+            expect(params.amount).toBe(10000);
+            expect(params.metadata).toMatchObject({ expectedAmount: '10000' });
+        });
+
         it('charges the server price for a pack, not a client amount', async () => {
             const { service, stripe } = createService();
-            await service.createPaymentIntent({
-                entityType: EntityType.PACK,
-                packType: PackType.LEGENDARY,
-                userId: USER_ID,
-            });
+            await service.createPaymentIntent(
+                {
+                    entityType: EntityType.PACK,
+                    packType: PackType.LEGENDARY,
+                    userId: USER_ID,
+                },
+                AFTER_SALE
+            );
 
             const params = stripe.paymentIntents.create.mock.calls[0][0];
             expect(params.amount).toBe(35000);
@@ -130,6 +162,26 @@ describe('StripePaymentService', () => {
                 amountCents: 500,
                 amountUsd: 5,
             });
+        });
+
+        it('accepts a $100 Legendary intent created during the sale, even when verified after it ends', () => {
+            const { service } = createService();
+            const saleLegendary = intent(
+                { amount: 10000, amount_received: 10000, created: Math.floor(LAST_SALE_SECOND.getTime() / 1000) },
+                { packType: PackType.LEGENDARY, id: PackType.LEGENDARY, expectedAmount: '10000' }
+            );
+            expect(service.verifySucceededPaymentIntent(saleLegendary, USER_ID)).toMatchObject({ amountCents: 10000 });
+        });
+
+        it('rejects a $100 Legendary intent created after the sale ended', () => {
+            const { service } = createService();
+            const lateLegendary = intent(
+                { amount: 10000, amount_received: 10000, created: Math.floor(AFTER_SALE.getTime() / 1000) },
+                { packType: PackType.LEGENDARY, id: PackType.LEGENDARY, expectedAmount: '10000' }
+            );
+            expect(() => service.verifySucceededPaymentIntent(lateLegendary, USER_ID)).toThrow(
+                'Payment amount does not match the price'
+            );
         });
 
         it('rejects an intent that paid less than the server price', () => {

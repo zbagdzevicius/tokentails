@@ -3,6 +3,14 @@
 Plan: `docs/plans/landing-game-alignment.md`. Per-task logs: `docs/plans/alignment-log/`.
 Nothing in this file is committed or pushed; the founder commits by explicit path list.
 
+## 4 Oct 2026: founder decisions (Heist landing section, Paris event)
+
+| Decision | What changed | Key files |
+|---|---|---|
+| Decision #15 override (landing section only) | Founder, 2026-10-04: "I confirm". The Catnip Heist landing section is on by default; `NEXT_PUBLIC_HEIST_LANDING_SECTION=0`/`false`/`off` hides it. The hero pill and the picker card stay off under #15. | `client/components/landing/HeistSection.tsx`, `docs/CLIENT.md`, `docs/plans/payments-STATUS.md` |
+| F-023 Paris event | Founder-confirmed 2026-10-04 (Le Chat-Rivari, 2026-04-17). Registry: `company-reported`, `checkedAt` 2026-10-04, surface `landing`, `maxAgeDays` 365; not third-party verified. Public value and display name no partners; the ProofSection event chip stays dropped (#74). | `funding/framework/facts/facts.json` (+ generated copies) |
+| Heist reel | `HEIST_REEL.cleared = true`: the v1 reel (with the café shots) plays instead of the poster while the rail is live or exhausted; poster while it says "open soon" or "paused", and on app builds. | `client/components/landing/HeistSection.tsx` |
+
 ## 3 Oct 2026: founder polish pass and QA fixes
 
 Source: the founder's request (footer on `/shelter-payouts/give`, Pink Paw logo, cards and photos,

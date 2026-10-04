@@ -30,6 +30,8 @@ import {
     getShelterCatPriceCents,
     isPackType,
     PACK_PRICES_CENTS,
+    LEGENDARY_PROMO_ENDS_AT,
+    isLegendaryPromoActive,
 } from '../price-table';
 import { StripePaymentService } from '../stripe-payment.service';
 import { CryptoChainReader } from './crypto-chain-reader';
@@ -231,7 +233,7 @@ export class CryptoCheckoutService {
     ) {}
 
     /** GET /payments/crypto/config. */
-    publicConfig(cfg: CryptoPayConfig = readCryptoPayConfig()) {
+    publicConfig(cfg: CryptoPayConfig = readCryptoPayConfig(), now: Date = new Date()) {
         const chains = cfg.enabled ? this.payableChains(cfg) : [];
         return {
             enabled: cfg.enabled && chains.length > 0,
@@ -239,7 +241,12 @@ export class CryptoCheckoutService {
             orderTtlSeconds: Math.round(cfg.orderTtlMs / 1000),
             shelterHandedOver: cfg.handedOver,
             prices: {
-                packs: Object.fromEntries(Object.entries(PACK_PRICES_CENTS).map(([k, v]) => [k, v / 100])),
+                // The price charged now (the Legendary sale while it runs); `packsRegular` is the list price.
+                packs: Object.fromEntries(
+                    Object.keys(PACK_PRICES_CENTS).map(k => [k, getPackPriceCents(k as PackType, now) / 100])
+                ),
+                packsRegular: Object.fromEntries(Object.entries(PACK_PRICES_CENTS).map(([k, v]) => [k, v / 100])),
+                legendaryPromoEndsAt: isLegendaryPromoActive(now) ? LEGENDARY_PROMO_ENDS_AT.toISOString() : null,
                 shelterCat: getShelterCatPriceCents() / 100,
                 lootBox: LOOT_BOX_PRICE_CENTS / 100,
             },
@@ -278,7 +285,7 @@ export class CryptoCheckoutService {
             throw payError('DISABLED', HttpStatus.SERVICE_UNAVAILABLE);
         }
         await this.assertReservationIndex(now);
-        const { sku, priceUsdCents, discount, discountPercentage } = await this.priceSku(userId, body);
+        const { sku, priceUsdCents, discount, discountPercentage } = await this.priceSku(userId, body, now);
         const user = new Types.ObjectId(userId);
 
         // The same item again (a reload, a second tab, a double tap, START A NEW ORDER at 0:59): the open
@@ -398,7 +405,7 @@ export class CryptoCheckoutService {
         }
     }
 
-    private async priceSku(userId: string, body: CreateOrderBody) {
+    private async priceSku(userId: string, body: CreateOrderBody, now: Date = new Date()) {
         const kind = body?.sku?.kind as SkuKind;
         if (kind === 'PACK') {
             const packType = body.sku!.packType;
@@ -410,7 +417,7 @@ export class CryptoCheckoutService {
             );
             return {
                 sku: { kind, packType } as CheckoutSku,
-                priceUsdCents: applyDiscountCents(getPackPriceCents(packType), percentage),
+                priceUsdCents: applyDiscountCents(getPackPriceCents(packType, now), percentage),
                 discount: code,
                 discountPercentage: percentage,
             };

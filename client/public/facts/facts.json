@@ -168,6 +168,22 @@
       "sourceUrl": null
     },
     {
+      "id": "F-023",
+      "display": "Shelter-cat event at Le Chat-Rivari café, Paris (Apr 2026, company-reported)",
+      "appDisplay": null,
+      "value": "Shelter-cat event at Le Chat-Rivari café, Paris, 2026-04-17",
+      "unit": null,
+      "status": "company-reported",
+      "tense": "past",
+      "asOf": "2026-04-17",
+      "checkedAt": "2026-10-04",
+      "maxAgeDays": 365,
+      "surfaces": [
+        "landing"
+      ],
+      "sourceUrl": "https://x.com/tokentails/status/2046611480263467341"
+    },
+    {
       "id": "F-025",
       "display": "Now: Stellar NFTs",
       "appDisplay": null,

@@ -171,9 +171,10 @@ describe("Catnip Heist section", () => {
   });
 
   it("never attaches the reel while it would contradict the third beat or carry an uncleared claim", () => {
-    // v1 shows the Chat-Rivari café (F-023, unverified, no surfaces): not cleared.
-    expect(HEIST_REEL.cleared).toBe(false);
-    expect(heistReelAllowed("live")).toBe(false);
+    // v1 shows the Chat-Rivari café (F-023): cleared since the founder confirmed it (2026-10-04).
+    expect(HEIST_REEL.cleared).toBe(true);
+    expect(heistReelAllowed("live")).toBe(true);
+    expect(heistReelAllowed("live", false)).toBe(false);
     // A cleared cut plays only on a live rail (the reel says Token Tails sends a treat, now).
     expect(heistReelAllowed("live", true)).toBe(true);
     expect(heistReelAllowed("exhausted", true)).toBe(true);
@@ -188,8 +189,8 @@ describe("Catnip Heist section", () => {
     expect(queryByTestId("heist-reel")).toBeNull();
     expect(getByTestId("heist-reel-poster").getAttribute("src")).toBe(HEIST_REEL.poster);
     expect(getByTestId("heist-treat-beat").textContent).toMatch(/open soon/);
-    // Default (uncleared v1) on a live rail: still the poster.
-    rerender(<HeistSection enabled railState="live" />);
+    // An uncleared cut on a live rail: still the poster.
+    rerender(<HeistSection enabled reelCleared={false} railState="live" />);
     expect(queryByTestId("heist-reel")).toBeNull();
   });
 
@@ -264,11 +265,11 @@ describe("Catnip Heist section", () => {
     expect(getByTestId("heist-payouts-link").getAttribute("href")).toBe("/shelter-payouts");
   });
 
-  it("is off by default (decision #15) and shows only with NEXT_PUBLIC_HEIST_LANDING_SECTION=1/true/on", () => {
-    for (const off of [undefined, "", "0", "false", "OFF", " off ", "yes"]) {
+  it("is on by default (founder override of decision #15, 2026-10-04); NEXT_PUBLIC_HEIST_LANDING_SECTION=0/false/off hides it", () => {
+    for (const off of ["0", "false", "OFF", " off "]) {
       expect(heistSectionEnabled(off)).toBe(false);
     }
-    for (const on of ["1", "true", " ON "]) expect(heistSectionEnabled(on)).toBe(true);
+    for (const on of [undefined, "", "1", "true", " ON ", "yes"]) expect(heistSectionEnabled(on)).toBe(true);
     const { container } = render(<HeistSection enabled={false} />);
     expect(container.innerHTML).toBe("");
   });

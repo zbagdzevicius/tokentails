@@ -21,7 +21,8 @@ describe('readCryptoPayConfig', () => {
         // No treasury address is checked in yet.
         expect(cfg.chains.every(c => c.treasury === null)).toBe(true);
         expect(cfg.shelterShareEnabled).toBe(false);
-        expect(cfg.catShelterBps).toBeNull();
+        // Founder, 2026-10-04: Pink Paw gets 50% of each $5 shelter cat unless the env overrides it.
+        expect(cfg.catShelterBps).toBe(5000);
     });
 
     it('offers every mainnet with no RPC env at all (official RPCs are checked in)', () => {
@@ -123,11 +124,11 @@ describe('readCryptoPayConfig', () => {
 
     it('reads the shelter share bps, the handover flag and the order lifetime with safe bounds', () => {
         const cfg = readCryptoPayConfig({
-            CRYPTO_PAY_CAT_SHELTER_BPS: '5000',
+            CRYPTO_PAY_CAT_SHELTER_BPS: '3000',
             SHELTER_HANDED_OVER: 'true',
             CRYPTO_PAY_ORDER_TTL_MIN: '15',
         });
-        expect(cfg.catShelterBps).toBe(5000);
+        expect(cfg.catShelterBps).toBe(3000);
         expect(cfg.handedOver).toBe(true);
         expect(cfg.orderTtlMs).toBe(15 * 60000);
         expect(readCryptoPayConfig({ CRYPTO_PAY_CAT_SHELTER_BPS: '10001' }).catShelterBps).toBeNull();

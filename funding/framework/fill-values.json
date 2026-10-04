@@ -3,5 +3,8 @@
   "DEMO_URL": "",
   "PITCH_VIDEO_URL": "",
   "ARC_TX": "",
-  "TEMPO_TX": ""
+  "TEMPO_TX": "",
+  "arbitrum-singapore": {
+    "ARC_TX": "0xfd471deccfb14809bcef89cb8d520a3fcfccba26cf45612df86536f23434d350"
+  }
 }

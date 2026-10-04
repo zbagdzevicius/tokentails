@@ -41,6 +41,7 @@ How to maintain it:
 | Sep 30 | Anitya Weekly Challenge 2 (heist-01 world) | You | ✅ |
 | Sep 30 | Commit and push everything, fast-forward `main` (69b0a2a8); Vercel deployed tokentails.com with `/shelter-payouts` and `/heist/index.html` live | Both | ✅ |
 | Sep 30 | Every member registers on colosseum.com; name the Team Leader | You | ⏳ |
+| Oct 4 | Founder pricing decisions: Legendary pack $350 regular, on sale for $100 until Nov 27 23:59:59 UTC (Nov 28 01:59:59 Vilnius) in both checkouts; Pink Paw gets 50% of each $5 shelter cat (`CRYPTO_PAY_CAT_SHELTER_BPS` default 5000); Cupid Cat season stays client-only. Code done, deploy pending | Both | ✅ |
 | Oct 1 | `catnip.tokentails.com`: dropped; use tokentails.com/heist. Run `foundryup`; set up the keystore and env; fund the wallets; test the Arc testnet `donate()` | You | ⏳ |
 | Oct 1 | Ask Colosseum (Discord or hello@colosseum.com): can one entry win a track and a general prize? Any video narration rules? Multi-track: confirmed allowed by the user on Oct 3 | You | 🟡 |
 | **Oct 2, by 12:00 Vilnius** | Register on HackQuest for Arbitrum Open House Singapore. The page shows "Oct 2 17:01" with no time zone (re-checked Oct 2): if it is Singapore time it closes at 12:01 Vilnius, if UTC at 20:01. Do it now | You | ⏳ |

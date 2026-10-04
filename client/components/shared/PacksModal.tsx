@@ -2,6 +2,7 @@ import { CloseButton } from "@/components/shared/CloseButton";
 import { GameModal } from "@/components/ui/GameModal";
 import { ART_PANEL_FULL_WIDTH, ART_PANEL_MAX_HEIGHT } from "@/components/shared/WheelModal";
 import { useAccountAction } from "@/hooks/useAccountAction";
+import { LegendaryPrice } from "@/components/shared/LegendaryPrice";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { Tag } from "@/components/shared/Tag";
 import { TailsCardPack } from "@/components/tailsCard/TailsCardPack";
@@ -12,7 +13,7 @@ import { useProfile } from "@/context/ProfileContext";
 import { isApp } from "@/models/app";
 import { useToast } from "@/context/ToastContext";
 import { ICat, IMessage } from "@/models/cats";
-import { PackType } from "@/models/order";
+import { packPriceUsd, PackType } from "@/models/order";
 import { EntityType } from "@/models/save";
 import dynamic from "next/dynamic";
 import { useState } from "react";
@@ -21,12 +22,6 @@ const Payment = dynamic(
   () => import("@/components/web3/Payment").then((module) => module.Payment),
   { ssr: false }
 );
-
-const packPrices = {
-  [PackType.STARTER]: 5,
-  [PackType.INFLUENCER]: 25,
-  [PackType.LEGENDARY]: 400,
-};
 
 export const packImages = {
   [PackType.STARTER]: cdnFile(`cards/packs/${PackType.STARTER}.webp`),
@@ -230,7 +225,7 @@ const PacksSelect = ({
           <Tag>LAST CHANCE TO GET</Tag>
         </div>
         <div className="mt-2 lg:mt-4 lg:group-hover:opacity-0 transition-all duration-500">
-          {!isApp && <PixelButton text="$400" />}
+          {!isApp && <LegendaryPrice />}
         </div>
       </div>
     </div>
@@ -361,7 +356,7 @@ bg-clip-text text-transparent -mt-4 relative z-30"
           />
 
           <Payment
-            price={packPrices[packType]}
+            price={packPriceUsd(packType)}
             entityType={EntityType.PACK}
             id={packType}
             productName={`1 ${packType} Booster Pack`}

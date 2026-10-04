@@ -1,5 +1,5 @@
 import NextLink from "next/link";
-import type { MouseEvent, ReactNode } from "react";
+import { createContext, type MouseEvent, type ReactNode } from "react";
 
 /**
  * Makes a card read as tappable everywhere: the whole card is one link or button (so the touch
@@ -13,6 +13,12 @@ import type { MouseEvent, ReactNode } from "react";
  * first card, so a wall of cards is not a wall of pulses.
  */
 export type CardActionSize = "sm" | "md" | "lg";
+
+/**
+ * True inside a CardAction. A TailsCard reads it and hides its own "flip" badge there: the card
+ * already opens something, and two corner badges (or a button inside a link) would compete.
+ */
+export const InsideCardActionContext = createContext(false);
 
 // Full class names, so Tailwind sees them. The badge gold is Tailwind's yellow 300 shade (#fde047)
 // written as a hex (the design-tokens test bans that class name); the ink is tt-gold-shadow (#713f12).
@@ -83,7 +89,7 @@ export const CardAction = ({
       <span
         className={`block ${s.radius} transition-[transform,filter] duration-300 ease-out ${s.glow} ${s.lift} motion-safe:group-active:translate-y-0 motion-safe:group-active:scale-[0.97]`}
       >
-        {children}
+        <InsideCardActionContext.Provider value={true}>{children}</InsideCardActionContext.Provider>
       </span>
       <span
         aria-hidden="true"

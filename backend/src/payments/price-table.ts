@@ -6,9 +6,10 @@ import { PackType, ProductType } from 'src/web3/order.schema';
  *
  * Portraits match the client purchase options (client/features/portrait/components/PreviewPage.tsx).
  *
- * DISCREPANCY: the Legendary pack is $350 here, taken from the backend odds comment in
- * src/shared/utils/content.utils.ts. The client pack modal (client/components/shared/PacksModal.tsx)
- * displays $400. Until a human picks one price, buyers are shown $400 and charged $350.
+ * The Legendary pack's regular price is $350 (founder, 2026-10-04). Until LEGENDARY_PROMO_ENDS_AT it is
+ * on sale for $100; `getPackPriceCents` applies the sale, so Stripe and the crypto checkout charge the
+ * same amount. Client copies: `packPrices` and `LEGENDARY_PROMO` in client/models/order.ts
+ * (docs/DEVELOPMENT.md lists every copy).
  */
 export const PORTRAIT_PRICES_CENTS: Readonly<Record<ProductType, number>> = {
     [ProductType.DIGITAL]: 600,
@@ -21,6 +22,15 @@ export const PACK_PRICES_CENTS: Readonly<Record<PackType, number>> = {
     [PackType.INFLUENCER]: 2500,
     [PackType.LEGENDARY]: 35000,
 };
+
+/** Legendary pack sale: $100 through 27 Nov 2026 23:59:59 UTC, then back to the regular price. */
+export const LEGENDARY_PROMO_PRICE_CENTS = 10000;
+/** First instant the sale no longer applies (exclusive end). Client copy: client/models/order.ts. */
+export const LEGENDARY_PROMO_ENDS_AT = new Date('2026-11-28T00:00:00Z');
+
+export function isLegendaryPromoActive(now: Date = new Date()): boolean {
+    return now.getTime() < LEGENDARY_PROMO_ENDS_AT.getTime();
+}
 
 /**
  * A shelter cat bought on its own (Stripe or the crypto checkout): the basic tier only, $5 and never
@@ -53,12 +63,22 @@ export function getPortraitPriceCents(productType: ProductType): number {
     return price;
 }
 
-export function getPackPriceCents(packType: PackType): number {
+/** The regular (list) price, without the time-boxed sale. */
+export function getPackRegularPriceCents(packType: PackType): number {
     const price = PACK_PRICES_CENTS[packType];
     if (!price) {
         throw new Error(`No server price for pack "${packType}"`);
     }
     return price;
+}
+
+/** The price charged now: the regular price, or the Legendary sale price while it runs. */
+export function getPackPriceCents(packType: PackType, now: Date = new Date()): number {
+    const regular = getPackRegularPriceCents(packType);
+    if (packType === PackType.LEGENDARY && isLegendaryPromoActive(now)) {
+        return LEGENDARY_PROMO_PRICE_CENTS;
+    }
+    return regular;
 }
 
 /**

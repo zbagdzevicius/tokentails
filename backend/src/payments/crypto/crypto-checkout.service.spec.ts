@@ -722,9 +722,20 @@ describe('shelter cats', () => {
         expect(ctx.checkoutModel.rows[0].shelterShare.memo).toBe(`tt:cat:${order.orderId.slice(3)}`);
     });
 
-    it('without a decided share, records it as undecided and sends nothing', async () => {
+    it('with no env override, records the default 50% share as due', async () => {
         const ctx = setup();
         const cfg = config();
+        const order = await buyCat(ctx, cfg);
+        ctx.pay([transferLog(USDC, TREASURY, order.accepted[0].amount)]);
+        await ctx.service.confirm(USER, order.orderId, { chainId: 31337, txHash: TX(22) }, T0, cfg);
+        expect((await ctx.service.getOrder(USER, order.orderId, T0)).shelterShare).toEqual(
+            expect.objectContaining({ state: 'due', bps: 5000 })
+        );
+    });
+
+    it('with a malformed share env, records it as undecided and sends nothing', async () => {
+        const ctx = setup();
+        const cfg = config({ CRYPTO_PAY_CAT_SHELTER_BPS: 'half' });
         const order = await buyCat(ctx, cfg);
         ctx.pay([transferLog(USDC, TREASURY, order.accepted[0].amount)]);
         await ctx.service.confirm(USER, order.orderId, { chainId: 31337, txHash: TX(21) }, T0, cfg);
@@ -921,17 +932,47 @@ describe('stuck grants', () => {
     });
 });
 
+describe('Legendary pack sale', () => {
+    it('prices a Legendary order at $100 during the sale and $350 from 28 Nov 2026 00:00 UTC', async () => {
+        const { service } = setup();
+        const during = await service.createOrder(
+            USER,
+            { sku: { kind: 'PACK', packType: 'LEGENDARY' } },
+            new Date('2026-11-27T23:59:59Z'),
+            config()
+        );
+        expect(during.priceUsdCents).toBe(10000);
+        const after = await service.createOrder(
+            new Types.ObjectId().toString(),
+            { sku: { kind: 'PACK', packType: 'LEGENDARY' } },
+            new Date('2026-11-28T00:00:00Z'),
+            config()
+        );
+        expect(after.priceUsdCents).toBe(35000);
+    });
+
+    it('shows no sale in the public config once it has ended', () => {
+        const { service } = setup();
+        const prices = service.publicConfig(config(), new Date('2026-11-28T00:00:00Z')).prices;
+        expect(prices.packs.LEGENDARY).toBe(350);
+        expect(prices.legendaryPromoEndsAt).toBeNull();
+    });
+});
+
 describe('GET /payments/crypto/config', () => {
     it('lists only chains that can receive, with prices and how EURC is priced', () => {
         const { service } = setup();
         const body = service.publicConfig(
-            config({ CRYPTO_PAY_EURC_PER_USD: '0.92', CRYPTO_PAY_EURC_FX_DATE: '2026-10-01' })
+            config({ CRYPTO_PAY_EURC_PER_USD: '0.92', CRYPTO_PAY_EURC_FX_DATE: '2026-10-01' }),
+            T0
         );
         expect(body.enabled).toBe(true);
         expect(body.network).toBe('testnet');
         expect(body.chains.map(c => c.chainId)).toEqual([31337]);
         expect(body.prices).toEqual({
-            packs: { STARTER: 5, INFLUENCER: 25, LEGENDARY: 350 },
+            packs: { STARTER: 5, INFLUENCER: 25, LEGENDARY: 100 },
+            packsRegular: { STARTER: 5, INFLUENCER: 25, LEGENDARY: 350 },
+            legendaryPromoEndsAt: '2026-11-28T00:00:00.000Z',
             shelterCat: 5,
             lootBox: 1,
         });

@@ -22,8 +22,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
  *
  * claim: F-001 "540K+ registered players" (baked in; maxAgeDays 365, re-cut when stale)
  * claim: F-011 "180K on X" (baked in; maxAgeDays 90, re-cut when stale)
- * Not citable: the Paris cat café card (Chat-Rivari footage, registry fact F-023: unverified, no
- *   surfaces). It is why v1 is not cleared; a v2 cut leaves it out until the fact is verified.
+ * claim: F-023 the Paris cat café card (Chat-Rivari footage, 2026-04-17; company-reported,
+ *   founder-confirmed 2026-10-04). The footage only: the partner names stay off (decision #74).
  * claim: L-rail "Tap the rescue treat. Token Tails sends Pink Paw a small treat." (present tense)
  * claim: L-rail "Every payout public, on-chain" (end card)
  *
@@ -35,14 +35,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * Versioned file names: a new cut gets `-v2`, old files are never deleted (installed apps).
- * `cleared` is false while the cut shows a claim no landing surface may carry: v1 shows the
- * Chat-Rivari café (F-023, unverified, no surfaces). A `-v2` without the café sets it to true.
+ * `cleared` is false while the cut shows a claim no landing surface may carry. v1 shows the
+ * Chat-Rivari café (F-023): cleared since the founder confirmed the event on 2026-10-04 (F-023 is
+ * company-reported with the landing surface). If F-023 loses that surface, set this back to false.
  */
 export const HEIST_REEL = Object.freeze({
   webm: "/landing/heist-reel-v1.webm",
   mp4: "/landing/heist-reel-v1.mp4",
   poster: "/landing/heist-reel-poster-v1.jpg",
-  cleared: false,
+  cleared: true,
 });
 
 /**
@@ -78,15 +79,15 @@ export const HEIST_NO_SIGNUP_NOTE = "Free in your browser · no sign-up needed";
 export const HEIST_NO_SIGNUP_NOTE_APP = "Free to play · no sign-up needed";
 
 /**
- * Off by default, like the hero pill and the picker card: decision #15 (the Poki carve-out; the
- * build stays private until the carve-out is in writing). `NEXT_PUBLIC_HEIST_LANDING_SECTION=1`
- * (or `true`, `on`) shows it, after a recorded founder override.
+ * On by default: the founder overrode decision #15 (the Poki carve-out) for this landing section on
+ * 2026-10-04. The hero pill and the picker card stay off under #15. `NEXT_PUBLIC_HEIST_LANDING_SECTION`
+ * set to `0`, `false` or `off` hides it again (the kill switch); unset or anything else shows it.
  */
 export function heistSectionEnabled(
   raw: string | undefined = process.env.NEXT_PUBLIC_HEIST_LANDING_SECTION
 ): boolean {
   const value = (raw || "").trim().toLowerCase();
-  return value === "1" || value === "true" || value === "on";
+  return !(value === "0" || value === "false" || value === "off");
 }
 
 /** The third beat per rail state. `web` may say on-chain (app builds never do, R10). */

@@ -1,6 +1,6 @@
 # Arc Microgrants — submission
 
-_Generated 2026-10-04T07:57:56.184Z by `fund a:submission arc-microgrants` from draft.md, the program profile,
+_Generated 2026-10-04T13:10:38.523Z by `fund a:submission arc-microgrants` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -34,7 +34,7 @@ ShelterSplit splits native USDC on Arc as it arrives and pays each registered sh
 
 ## Arc mainnet deployment
 
-Arc mainnet: ShelterSplit (USDC) at {SPLIT_ADDRESS} and ShelterSplit (EURC) at {EURC_SPLIT_ADDRESS}. The first payout to Pink Paw is transaction {ARC_PROOF_TX}, a Disbursed event anyone can look up. Disclosure: the receiving wallet {SHELTER_WALLET} is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Every payout into it stays public, before and after the handover. The team has shipped production contracts before: three Soroban contracts on Stellar mainnet, and ERC-721 contracts on SKALE testnet and mainnet.
+Arc mainnet: ShelterSplit (USDC) at {SPLIT_ADDRESS} and ShelterSplit (EURC) at {EURC_SPLIT_ADDRESS}. The first payout to Pink Paw is transaction {ARC_PROOF_TX}, a Disbursed event anyone can look up. Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Every payout into it stays public, before and after the handover. The team has shipped production contracts before: three Soroban contracts on Stellar mainnet, and ERC-721 contracts on SKALE testnet and mainnet.
 
 | Network | Contract | Transaction | Shelter payouts | Status |
 |---|---|---|---|---|

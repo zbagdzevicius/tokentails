@@ -14,6 +14,29 @@ jest.mock('src/image/image.repository', () => ({ ImageRepository: class {} }));
 jest.mock('src/blessing/blessing.repository', () => ({ BlessingRepository: class {} }));
 jest.mock('src/web3/web3.service', () => ({ Web3Service: class {} }));
 
+// These assertions use the regular Legendary price: pin the clock after the $100 promo
+// (LEGENDARY_PROMO_ENDS_AT, 28 Nov 2026 00:00 UTC). Only Date is faked.
+beforeAll(() => {
+    jest.useFakeTimers({
+        now: new Date('2026-12-01T00:00:00Z'),
+        doNotFake: [
+            'nextTick',
+            'setImmediate',
+            'clearImmediate',
+            'setTimeout',
+            'clearTimeout',
+            'setInterval',
+            'clearInterval',
+            'queueMicrotask',
+            'hrtime',
+            'performance',
+        ],
+    });
+});
+afterAll(() => {
+    jest.useRealTimers();
+});
+
 const stripe = jest.requireMock('stripe').client;
 const USER = '64b7f0c2a1b2c3d4e5f60719';
 

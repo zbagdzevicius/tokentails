@@ -38,9 +38,9 @@ into facts.json.
 | F-020 | Payment rails | Stripe (Checkout, Payment Elements), iOS/Android IAP, XLM and USDC on Stellar | README.md, docs/BACKEND.md | 2026-09 | verified |
 | F-021 | Legal entity | MB (small partnership), Lithuania, registered 2024-10-14, NACE 58.21 | Registrų centras (via lursoft/rekvizitai) | 2026-09 | verified |
 | F-022 | Filed FY2025 sales revenue of the applicant entity | €105 | rekvizitai.vz.lt (mirror of Registrų centras) | 2026-09 | unverified |
-| F-023 | IRL cat-shelter event at Le Chat-Rivari Café, Paris (a shelter-cat adoption café), 2026-04-17, with ChainforGood and Bybit EU, during Paris Blockchain Week 2026 | Co-hosted with Bybit / ChainforGood | https://x.com/tokentails/status/2046611480263467341 (read through the api.fxtwitter.com mirror); PR Newswire release 2026-02-25 | 2026-09-27 | unverified |
+| F-023 | IRL cat-shelter event at Le Chat-Rivari Café, Paris (a shelter-cat adoption café), 2026-04-17, with ChainforGood and Bybit EU, during Paris Blockchain Week 2026 | Shelter-cat event at Le Chat-Rivari café, Paris, 2026-04-17 | founder statement 2026-10-04 ('I confirm'); https://x.com/tokentails/status/2046611480263467341 (read through the api.fxtwitter.com mirror); PR Newswire release 2026-02-25 | 2026-10-04 | unverified |
 | F-024 | Cats helped (homepage claim): 800+ cats saved (company-reported; repeated in the Feb 2026 BGA press release) | 800+ strays saved | client homepage (hardcoded); PR Newswire release 2026-02-25 | 2026-09-27 | unverified |
 | F-025 | Production chain | Stellar (Soroban NFTs, custodial Stellar wallet per user) | docs/ARCHITECTURE.md | 2026-09 | verified |
 | F-026 | Total Token Tails reports donating directly, in crypto and in goods, all time to 2026-10-03; not counted in L-disbursed or L-treats | 40,000 | founder statement 2026-10-03 (landing polish request); receipts and transfer records held by Token Tails | 2026-10-03 | unverified |
 
-<!-- fund facts build: rows sha256:64eea4002cf1692c -->
+<!-- fund facts build: rows sha256:57092d6427ca21fe -->
