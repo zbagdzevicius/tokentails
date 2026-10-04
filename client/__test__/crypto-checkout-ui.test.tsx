@@ -47,6 +47,21 @@ describe("CryptoCheckout", () => {
     expect(await screen.findByTestId("crypto-pay-closed")).toHaveTextContent(/not open yet/);
   });
 
+  it("shows a brand icon for every offered network and coin, decorative next to the visible name", async () => {
+    const cfg = config();
+    reply("GET /config", { status: 200, body: cfg });
+    render(<CryptoCheckout sku={PACK} priceUsd={5} provider={null} />);
+    await screen.findByTestId("crypto-pay-quote");
+    expect(cfg.chains.length).toBeGreaterThan(0);
+    for (const c of cfg.chains) {
+      const icon = screen.getByTestId(`crypto-pay-chain-icon-${c.chainId}`);
+      expect(icon).toHaveAttribute("alt", "");
+      expect(icon.getAttribute("src")).toMatch(/^\/crypto-icons\/[a-z]+\.svg$/);
+      expect(icon.getAttribute("src")).not.toBe("/crypto-icons/network.svg");
+    }
+    expect(screen.getByTestId("crypto-pay-token-icon-USDC")).toHaveAttribute("src", "/crypto-icons/usdc.svg");
+  });
+
   it("quotes per coin, then shows the exact amount, address and QR without a wallet", async () => {
     reply("GET /config", { status: 200, body: config() });
     reply("POST /orders", { status: 201, body: order() });

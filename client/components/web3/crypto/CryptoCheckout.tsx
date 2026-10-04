@@ -34,6 +34,7 @@ import {
   shortHex,
   skuKey,
 } from "./checkout";
+import { chainIcon, tokenIcon } from "./icons";
 import { PaymentQr } from "./PaymentQr";
 import { serverPriceUsd } from "./useCryptoPayConfig";
 
@@ -112,6 +113,33 @@ function Choices<T extends string | number>({
     </fieldset>
   );
 }
+
+/** Decorative brand mark; the visible name next to it is the label. */
+const Mark = ({ src, size = 22, testId }: { src: string; size?: number; testId?: string }) => (
+  <img src={src} alt="" aria-hidden="true" width={size} height={size} data-testid={testId} className="shrink-0 rounded-full" draggable={false} />
+);
+
+const NetworkLabel = ({ chainId, name, testnet }: { chainId: number; name: string; testnet?: boolean }) => (
+  <span className="inline-flex items-center gap-2">
+    <Mark src={chainIcon(chainId)} testId={`crypto-pay-chain-icon-${chainId}`} />
+    <span>{name}</span>
+    {/* CSS text, so the radio's name stays the network name ("Arc Testnet" already says it). */}
+    {testnet && (
+      <span
+        aria-hidden="true"
+        data-testid="crypto-pay-test-tag"
+        className="rounded border border-current px-1 text-[0.6rem] leading-tight opacity-80 after:content-['TEST']"
+      />
+    )}
+  </span>
+);
+
+const TokenLabel = ({ symbol }: { symbol: string }) => (
+  <span className="inline-flex items-center gap-2 normal-case">
+    <Mark src={tokenIcon(symbol)} size={20} testId={`crypto-pay-token-icon-${symbol}`} />
+    <span>{symbol}</span>
+  </span>
+);
 
 const CopyRow = ({ label, value, display, testId }: { label: string; value: string; display?: ReactNode; testId?: string }) => {
   const [copied, setCopied] = useState(false);
@@ -526,7 +554,7 @@ export const CryptoCheckout = ({ sku, priceUsd, discount, onSuccess, onProcessin
         name="crypto-pay-network"
         value={network?.chainId ?? null}
         disabled={busy}
-        items={networks.map((n) => ({ value: n.chainId, label: n.name }))}
+        items={networks.map((n) => ({ value: n.chainId, label: <NetworkLabel chainId={n.chainId} name={n.name} testnet={n.testnet} /> }))}
         onChange={selectNetwork}
       />
       <Choices
@@ -535,7 +563,7 @@ export const CryptoCheckout = ({ sku, priceUsd, discount, onSuccess, onProcessin
         value={token}
         disabled={busy}
         // Symbols keep their case ("USDC.e", "pathUSD"), unlike the uppercase network names.
-        items={tokensHere.map((t) => ({ value: t, label: <span className="normal-case">{symbolOf(t)}</span> }))}
+        items={tokensHere.map((t) => ({ value: t, label: <TokenLabel symbol={symbolOf(t)} /> }))}
         onChange={(t) => {
           setToken(t);
           setError(null);
@@ -568,6 +596,11 @@ export const CryptoCheckout = ({ sku, priceUsd, discount, onSuccess, onProcessin
         option && (
           <>
             <div className="flex flex-col gap-2">
+              <div data-testid="crypto-pay-summary" className="flex flex-wrap items-center gap-x-3 gap-y-1 font-primary text-p5 uppercase tracking-wide text-tt-cream">
+                <NetworkLabel chainId={option.chainId} name={option.chainName} testnet={network?.testnet} />
+                <span aria-hidden="true" className="text-tt-cream/50">·</span>
+                <TokenLabel symbol={option.symbol} />
+              </div>
               <div className="flex items-baseline justify-between gap-2">
                 <span className={LABEL}>Send exactly</span>
                 <span className="font-primary text-p6 uppercase text-tt-muted" aria-live="off">
