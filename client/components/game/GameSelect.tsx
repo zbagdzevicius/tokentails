@@ -47,7 +47,7 @@ const HomeTile = ({ setGameType }: { setGameType: (gameType: GameType | null) =>
   <button
     type="button"
     aria-label="Home"
-    className={classNames(LOBBY_TILE, LOBBY_TILE_SKY, "overflow-hidden")}
+    className={classNames(LOBBY_TILE, LOBBY_TILE_SKY, "!overflow-hidden")}
     onClick={() => setGameType(GameType.HOME)}
   >
     <img
@@ -524,26 +524,6 @@ const LobbyScene = ({
         {profile && sideButton("EVENTS", () => setOpenedModal(GameModal.QUESTS))}
       </div>
 
-      {layout.mascots.visible && (
-        <>
-          <img
-            src="/mascots/actions/play_games.webp"
-            alt=""
-            aria-hidden="true"
-            draggable={false}
-            className="absolute -rotate-3 select-none drop-shadow-xl"
-            style={{ left: "max(1rem, env(safe-area-inset-left))", bottom: layout.mascots.bottom, width: layout.mascots.width }}
-          />
-          <img
-            src="/mascots/tasks/celebrating_finishing_work.webp"
-            alt=""
-            aria-hidden="true"
-            draggable={false}
-            className="absolute rotate-3 select-none drop-shadow-xl"
-            style={{ right: "max(1rem, env(safe-area-inset-right))", bottom: layout.mascots.bottom, width: layout.mascots.width }}
-          />
-        </>
-      )}
     </div>
   );
 };

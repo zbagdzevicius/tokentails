@@ -80,7 +80,6 @@ export interface LobbyLayout {
   rightWing: LobbyWing;
   /** The PACKS / PLAY / EVENTS row, centred on the circle. */
   dock: { centerY: number; playScale: number; buttonScale: number; gap: number; height: number };
-  mascots: { visible: boolean; width: number; bottom: number };
   /** The one-line impact chip, where the strip is not shown: its box (left edge, top, size). */
   chip: { visible: boolean; left: number; top: number; width: number; height: number };
 }
@@ -229,16 +228,16 @@ export function lobbyLayout({
   const paintedHalf = (sprite.right - sprite.left) / 2;
   const paintedMid = (sprite.left + sprite.right) / 2;
   const catClear = phone ? 20 : 16;
-  // The painted cat stays within the circle (three quarters of it on wide screens).
-  const widthFactor = mode === "wide" ? 0.75 : 1.0;
+  // The painted cat stays within the circle (under two thirds of it on wide screens).
+  const widthFactor = mode === "wide" ? 0.6 : 1.0;
   const kMax = W >= 2200 ? 12 : 10;
   const portraitColLeft = (tile: number) => Math.max(hudLeft, cx - rx - 12 - tile);
   let scale = 2;
   let tile = Math.round(5 * r);
   for (let k = kMax; k >= 2; k--) {
     if (2 * paintedHalf * k > Math.min(widthFactor * 2 * rx, phone ? Infinity : 0.3 * W)) continue;
-    // On wide screens the cat stays at most a quarter of the screen tall: the hero, not a wall.
-    if (mode === "wide" && (sprite.feet - sprite.head) * k > 0.25 * H) continue;
+    // On wide screens the cat stays under a fifth of the screen tall: the hero, not a wall.
+    if (mode === "wide" && (sprite.feet - sprite.head) * k > 0.19 * H) continue;
     const plateTop = feetY - (sprite.feet - sprite.head) * k - plateGap(k, short) - plateH;
     if (plateTop - bandTop < (short ? 0 : minLogoH + 2 * minGap)) continue;
     if (mode === "portrait") {
@@ -372,12 +371,6 @@ export function lobbyLayout({
   const paintedW = (sprite.right - sprite.left) * scale;
   const shadowW = Math.round(0.7 * paintedW);
 
-  // Corner mascots: wide screens only, where they clear the dock and the wings.
-  const mascotW = (W >= 1024 ? 9 : 6) * r;
-  const dockHalf = 18 * r;
-  const mascots =
-    mode === "wide" && cx - dockHalf - 16 > hudLeft + mascotW && H - 2 * r - mascotW * 1.1 > standY + 8;
-
   return {
     mode,
     rem: r,
@@ -394,7 +387,6 @@ export function lobbyLayout({
     leftWing,
     rightWing,
     dock: { centerY: dockCenterY, playScale, buttonScale, gap: phone ? 12 : Math.round(1.25 * r), height: dockH },
-    mascots: { visible: mascots, width: mascotW, bottom: Math.max(2 * r, safeBottom + r) },
     chip,
   };
 }

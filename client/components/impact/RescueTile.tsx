@@ -141,7 +141,7 @@ export const ShelterTile = ({
     data-testid={testId}
     aria-label="Meet shelter cats"
     onClick={onOpen}
-    className={clsx(LOBBY_TILE, LOBBY_TILE_PINK, "overflow-hidden", className)}
+    className={clsx(LOBBY_TILE, LOBBY_TILE_PINK, "!overflow-hidden", className)}
   >
     {/* The art moves up a little so its heart clears the MEET CATS band. */}
     <img
