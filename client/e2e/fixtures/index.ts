@@ -132,4 +132,4 @@ export async function openFirstLevel(page: Page, mode: keyof typeof FIRST_LEVEL,
 export { BackendMock, API_ORIGIN, authHeaderViolations, type RecordedCall } from "./backend";
 export { NetworkGuard, hostMatches, DEFAULT_ALLOWED_HOSTS, FORBIDDEN_API_HOSTS } from "./network";
 export * from "./contracts";
-export { DEFAULT_RANDOM_SEED, FIXED_NOW, seedMathRandom } from "./determinism";
+export { CUPID_SEASON_NOW, DEFAULT_RANDOM_SEED, FIXED_NOW, seedMathRandom } from "./determinism";

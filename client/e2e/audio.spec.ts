@@ -216,7 +216,9 @@ test.describe("lobby audio (G14, task 6c)", () => {
     await expect.poll(async () => (await music(page)).paused, { timeout: 10_000 }).toBe(false);
   });
 
-  test("Settings and mute hang under ABOUT ME as one column", async ({ page, backend }) => {
+  // The lobby redesign (f9d2ce3c) puts them in one row under ABOUT ME, sound outermost and
+  // right-aligned with it (components/audio/hudPlacement.ts).
+  test("Settings and mute sit in one row under ABOUT ME", async ({ page, backend }) => {
     await prepare(page, backend);
     await openLobby(page);
     const about = (await page.getByRole("button", { name: /ABOUT ME/ }).boundingBox())!;
@@ -225,10 +227,11 @@ test.describe("lobby audio (G14, task 6c)", () => {
     const gap = settings.y - (about.y + about.height);
     expect(gap, "gap under ABOUT ME").toBeGreaterThanOrEqual(4);
     expect(gap, "gap under ABOUT ME").toBeLessThanOrEqual(24);
-    expect(mute.y - (settings.y + settings.height)).toBeCloseTo(8, 0);
-    const centre = about.x + about.width / 2;
-    expect(Math.abs(settings.x + settings.width / 2 - centre)).toBeLessThanOrEqual(2);
-    expect(Math.abs(mute.x + mute.width / 2 - centre)).toBeLessThanOrEqual(2);
+    expect(Math.abs(mute.y - settings.y), "one row").toBeLessThanOrEqual(1);
+    const between = mute.x - (settings.x + settings.width);
+    expect(between, "settings left of sound").toBeGreaterThanOrEqual(4);
+    expect(between, "settings left of sound").toBeLessThanOrEqual(16);
+    expect(Math.abs(mute.x + mute.width - (about.x + about.width)), "right edges").toBeLessThanOrEqual(2);
   });
 
   test("works with storage blocked: defaults, and mute holds for the page", async ({ page, backend }) => {
@@ -281,8 +284,8 @@ test.describe("lobby audio (G14, task 6c)", () => {
     await expect(settings.getByRole("slider", { name: "Effects volume" })).toHaveValue("60");
     await expect(settings.getByRole("radiogroup", { name: "Graphics" })).toBeVisible();
     await expect(settings.getByRole("radiogroup", { name: "Reduce motion" })).toBeVisible();
-    for (const name of ["Auto", "High", "Low", "System", "Sound"]) {
-      const control = name === "Sound" ? settings.getByRole("switch", { name }) : settings.getByRole("radio", { name });
+    for (const name of ["Auto", "High", "Low", "System", "Music and effects"]) {
+      const control = name === "Music and effects" ? settings.getByRole("switch", { name }) : settings.getByRole("radio", { name });
       const r = (await control.boundingBox())!;
       expect(r.height, `${name} height`).toBeGreaterThanOrEqual(44);
     }

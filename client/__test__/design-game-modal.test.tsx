@@ -4,7 +4,7 @@
 import React, { useRef, useState } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import axe from "axe-core";
-import { GameModal, type GameModalProps } from "@/components/ui/GameModal";
+import { GameModal, __resetGameModalEscapeForTests, type GameModalProps } from "@/components/ui/GameModal";
 import {
   __resetGameRegistryForTests,
   isGameSuspended,
@@ -102,6 +102,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   __resetGameRegistryForTests();
+  __resetGameModalEscapeForTests();
 });
 
 describe("GameModal", () => {
@@ -296,6 +297,123 @@ describe("GameModal", () => {
     }
     const save = screen.getByRole("button", { name: "Save" });
     expect(layers.contains(save)).toBe(false);
+  });
+
+  describe("nested modals (ABOUT ME > Settings)", () => {
+    function Nested({
+      outerChange,
+      innerChange,
+      innerInitiallyOpen = true,
+    }: {
+      outerChange: jest.Mock;
+      innerChange: jest.Mock;
+      innerInitiallyOpen?: boolean;
+    }) {
+      const [outerOpen, setOuterOpen] = useState(true);
+      const [innerOpen, setInnerOpen] = useState(innerInitiallyOpen);
+      return (
+        <GameModal
+          title="ABOUT ME"
+          open={outerOpen}
+          onOpenChange={(next) => {
+            outerChange(next);
+            setOuterOpen(next);
+          }}
+        >
+          <button type="button" onClick={() => setInnerOpen(true)}>
+            Settings
+          </button>
+          <GameModal
+            title="SETTINGS"
+            layer="modal-nested"
+            open={innerOpen}
+            onOpenChange={(next) => {
+              innerChange(next);
+              setInnerOpen(next);
+            }}
+          >
+            <p>Sound and graphics.</p>
+          </GameModal>
+        </GameModal>
+      );
+    }
+
+    it("Esc closes only the topmost modal", async () => {
+      const outerChange = jest.fn();
+      const innerChange = jest.fn();
+      render(<Nested outerChange={outerChange} innerChange={innerChange} innerInitiallyOpen={false} />);
+      await tick();
+      fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+      await tick();
+      expect(screen.getByRole("dialog", { name: "SETTINGS" })).toBeTruthy();
+
+      pressEscape();
+      await tick();
+      expect(innerChange).toHaveBeenLastCalledWith(false);
+      expect(outerChange).not.toHaveBeenCalled();
+      expect(screen.queryByRole("dialog", { name: "SETTINGS" })).toBeNull();
+      expect(screen.getByRole("dialog", { name: "ABOUT ME" })).toBeTruthy();
+
+      // A second press closes the one underneath (it ignores Escape only for a moment after
+      // Settings closed, see the next test).
+      const clock = jest.spyOn(performance, "now").mockImplementation(() => Date.now() + 10_000);
+      try {
+        pressEscape();
+        expect(outerChange).toHaveBeenLastCalledWith(false);
+      } finally {
+        clock.mockRestore();
+      }
+    });
+
+    it("a held or double-fired Esc closes Settings, not ABOUT ME as well", async () => {
+      // Phones (~1 in 5): Radix hands the key listener to the layer underneath a frame after the
+      // top one closes, so a second keydown right behind the first (a repeat, or a keyboard that
+      // fires Escape twice) used to close ABOUT ME too.
+      let now = 1_000;
+      const clock = jest.spyOn(performance, "now").mockImplementation(() => now);
+      try {
+        const outerChange = jest.fn();
+        const innerChange = jest.fn();
+        render(<Nested outerChange={outerChange} innerChange={innerChange} innerInitiallyOpen={false} />);
+        await tick();
+        fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+        await tick();
+
+        pressEscape();
+        await tick();
+        expect(innerChange).toHaveBeenLastCalledWith(false);
+        expect(screen.queryByRole("dialog", { name: "SETTINGS" })).toBeNull();
+
+        // The same press, a moment later: a repeat, then a second keydown 40 ms on.
+        fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape", code: "Escape", repeat: true });
+        now += 40;
+        pressEscape();
+        await tick();
+        expect(outerChange).not.toHaveBeenCalled();
+        expect(screen.getByRole("dialog", { name: "ABOUT ME" })).toBeTruthy();
+
+        // A real second press closes it.
+        now += 400;
+        pressEscape();
+        expect(outerChange).toHaveBeenLastCalledWith(false);
+      } finally {
+        clock.mockRestore();
+      }
+    });
+
+    it("Esc goes to the nested layer even before Radix has re-ranked its layers", async () => {
+      // Both open in one commit (a deep link into Settings): Radix may still treat ABOUT ME as the
+      // highest layer for a frame; the GameModal stack knows Settings is on top.
+      const outerChange = jest.fn();
+      const innerChange = jest.fn();
+      render(<Nested outerChange={outerChange} innerChange={innerChange} />);
+      await tick();
+      pressEscape();
+      await tick();
+      expect(outerChange).not.toHaveBeenCalled();
+      expect(innerChange).toHaveBeenLastCalledWith(false);
+      expect(screen.getByRole("dialog", { name: "ABOUT ME" })).toBeTruthy();
+    });
   });
 
   it("has no axe violations", async () => {

@@ -4,7 +4,16 @@ import { useSuspendGame } from "@/hooks/useSuspendGame";
 import * as Dialog from "@radix-ui/react-dialog";
 import clsx from "clsx";
 import { exemptAudioFromSuspension } from "@/lib/game/gameRegistry";
-import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { PixelIcon, type PixelIconName } from "@/components/shared/PixelIcon";
 import { applyLowFx } from "./lowfx";
 import { PixelFrame } from "./PixelFrame";
@@ -104,6 +113,72 @@ const SAFE_AREA_PADDING = {
   paddingLeft: "max(0.75rem, env(safe-area-inset-left))",
 };
 
+/**
+ * Escape closes only the topmost GameModal (ABOUT ME > Settings, Codex > AuthSheet).
+ *
+ * Radix gives the key listener to its highest layer only, and hands it to the layer underneath a
+ * render after the top one closes. A second Escape keydown right behind the first (a held key's
+ * repeat, or a phone keyboard that fires it twice) then closed the modal underneath as well, about
+ * one press in five on phones. So every open GameModal registers here, ranked by layer, nesting
+ * depth and open order, and an Escape is taken only by the topmost one, once, and not by a modal
+ * in the moment just after the one above it closed on Escape.
+ */
+const LAYER_RANK: Record<GameModalLayer, number> = { modal: 0, "modal-nested": 1, auth: 2 };
+/** An Escape this soon after one closed a modal belongs to that press (a repeat or a double fire). */
+export const ESCAPE_REPEAT_GUARD_MS = 250;
+
+interface OpenModalEntry {
+  id: number;
+  rank: number;
+  depth: number;
+  seq: number;
+}
+
+const openModals: OpenModalEntry[] = [];
+const handledEscapes = new WeakSet<Event>();
+let nextModalId = 0;
+let nextOpenSeq = 0;
+/** The last Escape close: when, and the modals that were open under the one it closed. */
+let lastEscapeClose: { at: number; uncovered: ReadonlySet<number> } | null = null;
+
+const isAbove = (a: OpenModalEntry, b: OpenModalEntry) =>
+  a.rank !== b.rank ? a.rank > b.rank : a.depth !== b.depth ? a.depth > b.depth : a.seq > b.seq;
+
+function topmostModal(): OpenModalEntry | undefined {
+  return openModals.reduce<OpenModalEntry | undefined>((top, entry) => (!top || isAbove(entry, top) ? entry : top), undefined);
+}
+
+function registerOpenModal(entry: OpenModalEntry): () => void {
+  openModals.push(entry);
+  return () => {
+    const at = openModals.indexOf(entry);
+    if (at >= 0) openModals.splice(at, 1);
+  };
+}
+
+/**
+ * Whether this modal may close on this Escape keydown. Marks the event so no other modal acts on
+ * it, and remembers a close so a keydown right behind it does not close the next modal down.
+ */
+function takeEscape(id: number, event: KeyboardEvent, closable: boolean): boolean {
+  if (event.repeat || handledEscapes.has(event)) return false;
+  if (topmostModal()?.id !== id) return false;
+  handledEscapes.add(event);
+  const now = performance.now();
+  if (!closable) return false;
+  if (lastEscapeClose?.uncovered.has(id) && now - lastEscapeClose.at < ESCAPE_REPEAT_GUARD_MS) return false;
+  lastEscapeClose = { at: now, uncovered: new Set(openModals.filter((m) => m.id !== id).map((m) => m.id)) };
+  return true;
+}
+
+/** Tests: forget the last Escape close (the open stack empties itself as modals unmount). */
+export function __resetGameModalEscapeForTests(): void {
+  lastEscapeClose = null;
+}
+
+/** How many GameModals this one is nested in (Settings inside ABOUT ME is 1). */
+const GameModalDepthContext = createContext(0);
+
 function slug(value: string): string {
   return (
     value
@@ -138,6 +213,8 @@ export const GameModal = ({
   children,
 }: GameModalProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
+  const [modalId] = useState(() => ++nextModalId);
+  const depth = useContext(GameModalDepthContext);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const closable = dismissible && canClose;
 
@@ -146,6 +223,16 @@ export const GameModal = ({
     return exemptAudioFromSuspension();
   }, [open, keepAudio]);
   useSuspendGame(open && suspendGame);
+  // A layout effect, so the stack knows a modal is on top before Radix ranks its layers.
+  useLayoutEffect(() => {
+    if (!open) return;
+    return registerOpenModal({
+      id: modalId,
+      rank: LAYER_RANK[layer],
+      depth,
+      seq: ++nextOpenSeq,
+    });
+  }, [open, modalId, layer, depth]);
   useEffect(() => {
     applyLowFx();
   }, []);
@@ -175,9 +262,11 @@ export const GameModal = ({
   ) : null;
 
   const body = (
-    <ModalBoundary name={boundaryName} onClose={closable ? close : undefined}>
-      {children}
-    </ModalBoundary>
+    <GameModalDepthContext.Provider value={depth + 1}>
+      <ModalBoundary name={boundaryName} onClose={closable ? close : undefined}>
+        {children}
+      </ModalBoundary>
+    </GameModalDepthContext.Provider>
   );
 
   return (
@@ -244,7 +333,7 @@ export const GameModal = ({
               if (opener?.isConnected) opener.focus({ preventScroll: true });
             }}
             onEscapeKeyDown={(event) => {
-              if (!closable) event.preventDefault();
+              if (!takeEscape(modalId, event, closable)) event.preventDefault();
             }}
             onPointerDownOutside={guardOutside}
             onFocusOutside={(event) => {

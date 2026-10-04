@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page, Request } from "@playwright/test";
 import { mkdirSync } from "fs";
-import { type BackendMock, expect, test } from "./fixtures";
+import { type BackendMock, CUPID_SEASON_NOW, expect, test } from "./fixtures";
 
 /**
  * Meet your cat (plan G3, founder item 3) end to end, with Firebase faked in the page
@@ -223,6 +223,9 @@ test.describe("Meet your cat (G3)", () => {
 
   test("golden path: curtain, altar, choose Misty, name Nimbus, reveal, follow, Nimbus in the lobby, Cupid Cat 1", async ({ page, backend }) => {
     test.setTimeout(120_000);
+    // The hand-off goes to Cupid Cat only in its season (January to March, components/game/
+    // seasons.ts); the fixture's FIXED_NOW (September) hands off to Purrsuit 1-1 instead.
+    await page.clock.setSystemTime(CUPID_SEASON_NOW);
     const meet = mockMeetBackend(backend);
     await recordLayers(page);
     // The auth report lands after 1.2 s, so the curtain must wait for it (authReady).

@@ -3,6 +3,9 @@ import type { Page } from "@playwright/test";
 /** The instant every test starts at (UTC). Date-dependent UI (seasons, countdowns) reads this. */
 export const FIXED_NOW = new Date("2026-09-30T12:00:00.000Z");
 
+/** An instant inside Cupid Cat's season (January to March, components/game/seasons.ts). */
+export const CUPID_SEASON_NOW = new Date("2027-02-14T12:00:00.000Z");
+
 /** Default `Math.random` seed. Override per test with `test.use({ randomSeed })`. */
 export const DEFAULT_RANDOM_SEED = 20260930;
 

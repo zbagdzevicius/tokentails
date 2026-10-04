@@ -111,19 +111,24 @@ export const CardFront: React.FC<CardFrontProps> = React.memo(
             </div>
           </div>
 
-          <div
-            className="mb-[4.5%] rounded-full border-b-[0.5cqw] border-[#00000060] h-[1.25cqw]"
-            style={{ backgroundColor: borderColor }}
-          ></div>
+          {/* No story (or only markup that strips to nothing): no empty "Pet Story" heading. */}
+          {description.trim().length > 0 && (
+            <>
+              <div
+                className="mb-[4.5%] rounded-full border-b-[0.5cqw] border-[#00000060] h-[1.25cqw]"
+                style={{ backgroundColor: borderColor }}
+              ></div>
 
-          <div className="flex-1 min-h-0">
-            <h3 className="text-black mb-[0.5cqw] leading-tight font-primary text-[length:5.5cqw]">
-              Pet Story
-            </h3>
-            <div className="text-black leading-snug overflow-hidden font-bold text-[length:3cqw]">
-              <p className="line-clamp-6">{description}</p>
-            </div>
-          </div>
+              <div className="flex-1 min-h-0">
+                <h3 className="text-black mb-[0.5cqw] leading-tight font-primary text-[length:5.5cqw]">
+                  Pet Story
+                </h3>
+                <div className="text-black leading-snug overflow-hidden font-bold text-[length:3cqw]">
+                  <p className="line-clamp-6">{description}</p>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     );

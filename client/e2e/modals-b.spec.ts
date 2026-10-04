@@ -4,7 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Locator, Page } from "@playwright/test";
 // Type-only: brings in the global `Phaser` namespace for the page.evaluate callbacks.
 import type {} from "phaser";
-import { expect, gotoAndSettle, openFirstLevel, test, type BackendMock } from "./fixtures";
+import { CUPID_SEASON_NOW, expect, gotoAndSettle, openFirstLevel, test, type BackendMock } from "./fixtures";
 
 /**
  * Overlay migration part B and the close buttons (plan G6 "Overlay migration", G14 "Close and
@@ -345,6 +345,8 @@ test.describe("modals B: end-of-run panels and the Paw Match X", () => {
 
   test("Cupid Cat end of run: night panel fits, X inside the clip rect, axe clean", async ({ page }, info) => {
     test.setTimeout(90_000);
+    // Cupid Cat is seasonal (January to March, components/game/seasons.ts); FIXED_NOW is September.
+    await page.clock.setSystemTime(CUPID_SEASON_NOW);
     await enterMode(page, "cupid");
     await endRun(page);
     await expectPanelFits(page, safe);

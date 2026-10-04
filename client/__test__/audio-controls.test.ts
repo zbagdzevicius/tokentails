@@ -53,8 +53,9 @@ describe("sound controls (plan G14 Audio)", () => {
   it("mute in the panel and in the HUD are the same setting", () => {
     render(createElement("div", null, createElement(MuteToggle), createElement(AudioSettingsPanel)));
     const hud = screen.getByRole("button", { name: "Mute sound" });
-    // Settings says it the positive way: a "Sound" switch, on while sound plays.
-    const panel = screen.getByRole("switch", { name: "Sound" });
+    // Settings says it the positive way: a "Music and effects" switch, on while sound plays. It
+    // sits under the "Sound" heading, so its label does not repeat the word.
+    const panel = screen.getByRole("switch", { name: "Music and effects" });
     expect(panel).toHaveAttribute("aria-checked", "true");
     fireEvent.click(panel);
     expect(hud).toHaveAttribute("aria-pressed", "true");

@@ -41,7 +41,7 @@ const PIXEL_RANGE = [
 /**
  * Mute toggle. The HUD plate is a toggle button with a stable name ("Mute sound") and
  * `aria-pressed`, so assistive technology reads "Mute sound, pressed" when sound is off. The
- * Settings row is a "Sound" switch, checked while sound plays.
+ * Settings row is a "Music and effects" switch, checked while sound plays.
  */
 export const MuteToggle = ({
   variant = "hud",
@@ -73,8 +73,9 @@ export const MuteToggle = ({
       </button>
     );
   }
-  // Settings: a "Sound" switch that is on when sound plays (no "Mute sound: on" double negative).
-  // The state is in words beside it, so it never has to be read by colour or side alone.
+  // Settings: a "Music and effects" switch that is on when sound plays (no "Mute sound: on" double
+  // negative). It sits under the "Sound" section heading, so it does not repeat the word. The state
+  // is in words beside it, so it never has to be read by colour or side alone.
   return (
     <button
       type="button"
@@ -94,7 +95,7 @@ export const MuteToggle = ({
     >
       <span className="flex items-center gap-2">
         <span className={muted ? "text-tt-muted" : "text-tt-gold-400"}>{icon}</span>
-        <span className="font-primary text-p5 uppercase leading-none tracking-wide">Sound</span>
+        <span className="font-primary text-p5 uppercase leading-none tracking-wide">Music and effects</span>
       </span>
       <span className="flex items-center gap-2">
         <span aria-hidden="true" className="w-7 text-right font-sans text-p6 font-extrabold uppercase tracking-wider text-tt-muted">

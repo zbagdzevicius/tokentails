@@ -120,4 +120,19 @@ describe("card scaling", () => {
       expect({ file, pxHits }).toEqual({ file, pxHits: [] });
     }
   });
+
+  it("shows Pet Story only when the cat has a story", () => {
+    const withStory = render(<TailsCard cat={fakeCat} />);
+    expect(withStory.getAllByText("Pet Story").length).toBeGreaterThan(0);
+    expect(withStory.container.textContent).toContain("Elenytė is a young Bengal mix");
+    withStory.unmount();
+
+    // No story, or markup that strips to nothing: no empty heading.
+    for (const story of ["", "<p> </p>"]) {
+      const cat = { ...fakeCat, resqueStory: story, blessing: { ...fakeCat.blessing, description: "" } };
+      const { queryByText, unmount } = render(<TailsCard cat={cat as typeof fakeCat} />);
+      expect(queryByText("Pet Story")).toBeNull();
+      unmount();
+    }
+  });
 });

@@ -327,7 +327,7 @@ export const TierCard = ({
           </ModalButton>
         </div>
       ) : (
-        <div className="flex flex-col gap-3 border-t-2 border-tt-night-500/50 pt-3 animate-opacity">
+        <div className="flex flex-col gap-3 border-t-2 border-tt-night-500/50 pt-3 animate-opacity motion-reduce:animate-none">
           <div className="flex items-center gap-2.5">
             <img
               src={cdnFile(art.chest)}

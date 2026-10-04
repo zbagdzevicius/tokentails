@@ -30,7 +30,7 @@ export const SettingsModal = ({
       keepAudio
     >
       <ModalStack>
-        <ModalSection title="Sound" icon="volume-2" helper="Turn all sound off, or set music and effects apart.">
+        <ModalSection title="Sound" icon="volume-2" helper="Switch it all off, or set each volume on its own.">
           <AudioSettingsPanel />
         </ModalSection>
         <GraphicsTierControl />
