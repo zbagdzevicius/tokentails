@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import { CORE } from '../../lib/core.mjs';
 import { waveCommands, splitToken } from './wave.mjs';
+import { distributeCommands } from './distribute.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TRACK_ID = 'A';
@@ -794,6 +795,7 @@ export default {
     'a:matrix': { help: '[--json] — which Track A applications are unblocked', run: cmdMatrix },
     'a:submission': { help: '<slug> [--keep-cites] — render submission.md', run: cmdSubmission },
     ...waveCommands,
+    ...distributeCommands,
   },
 };
 

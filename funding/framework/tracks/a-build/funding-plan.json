@@ -1,0 +1,115 @@
+{
+  "_readme": "One-wallet funding plan. The person sends everything to the deployer; `fund a:distribute --network <n>` writes wave/distribute-<n>.sh, which tops up donatehot (treat float + gas) and the x402 agent (demo amount + gas) from the deployer keystore, and `fund a:mainnet-plan --network <n>` writes the run-order wrapper. Amounts are decimal strings in whole units (native coin: 18 decimals; tokens: the token's own decimals). `deployer` is not a transfer: it is what the deployer keeps for its own deploys, proof payouts and the Tempo campaign memo, counted in the wrapper's first balance check. Recipients come only from wallets.public.json for the network. Top-up semantics: a recipient already at its target is skipped. Tempo has no gas coin (fees in a USD stablecoin): every amount there is a token. Arc's native coin is USDC (18 decimals, one balance with the 6-decimal ERC-20 interface), so Arc is funded natively only.",
+  "mainnet": {
+    "deploy": {
+      "chains": ["arc", "tempo", "arbitrum", "avalanche", "base", "robinhood", "monad"],
+      "eurcChains": ["arc", "avalanche"],
+      "routerChains": ["arc", "arbitrum", "avalanche", "base", "monad"],
+      "eurcRouterChains": ["arc", "avalanche"]
+    },
+    "chains": {
+      "arc": {
+        "nativeSymbol": "USDC",
+        "gasPerTransfer": "0.01",
+        "deployer": { "native": "5", "tokens": { "EURC": "1" }, "reason": "ShelterSplit USDC + EURC and two DonateRouter deploys (gas is USDC), the 1 USDC and 1 EURC proof payouts" },
+        "donatehot": { "native": "3", "reason": "treats: default daily budget 1 USDC (0.01 per treat) for about two days, plus gas; Arc gas is USDC, one balance" },
+        "agent": { "native": "1", "reason": "x402 demo: 0.01 USDC per paid call (DEFAULT_X402_PRICE), about 50 calls plus gas" }
+      },
+      "tempo": {
+        "nativeSymbol": null,
+        "tokens": { "pathUSD": { "address": "0x20c0000000000000000000000000000000000000", "decimals": 6 } },
+        "gasAsset": "pathUSD",
+        "gasPerTransfer": "0.01",
+        "deployer": { "tokens": { "pathUSD": "2", "USDC": "2" }, "reason": "deploy and cast fees in pathUSD (--tempo.fee-token), the 1 USDC.e proof payout and the 1 USDC.e campaign-memo payout" },
+        "donatehot": { "tokens": { "USDC": "2", "pathUSD": "1" }, "reason": "treats in USDC.e; pathUSD pays the hot wallet's fees (no FeeManager setUserToken is sent: with no fee token set Tempo falls back to pathUSD, docs/BACKEND.md)" }
+      },
+      "arbitrum": {
+        "nativeSymbol": "ETH",
+        "gasPerTransfer": "0.00005",
+        "deployer": { "native": "0.003", "tokens": { "USDC": "1" }, "reason": "ShelterSplit + DonateRouter deploys and the 1 USDC proof payout" },
+        "donatehot": { "native": "0.002", "tokens": { "USDC": "2" }, "reason": "treats: 1 USDC daily budget for about two days, plus approve/disburse gas" }
+      },
+      "avalanche": {
+        "nativeSymbol": "AVAX",
+        "gasPerTransfer": "0.002",
+        "deployer": { "native": "0.3", "tokens": { "USDC": "1", "EURC": "1" }, "reason": "ShelterSplit USDC + EURC and two DonateRouter deploys, the 1 USDC and 1 EURC proof payouts" },
+        "donatehot": { "native": "0.1", "tokens": { "USDC": "2" }, "reason": "treats: 1 USDC daily budget for about two days, plus gas" }
+      },
+      "base": {
+        "nativeSymbol": "ETH",
+        "gasPerTransfer": "0.00002",
+        "deployer": { "native": "0.002", "tokens": { "USDC": "1" }, "reason": "ShelterSplit + DonateRouter deploys and the 1 USDC proof payout" },
+        "donatehot": { "native": "0.002", "tokens": { "USDC": "2" }, "reason": "treats: 1 USDC daily budget for about two days, plus gas" },
+        "agent": { "native": "0.001", "tokens": { "USDC": "1" }, "reason": "x402 standard exact scheme on Base mainnet (the x402 micro-grant demo): 0.01 USDC per call, plus gas" }
+      },
+      "robinhood": {
+        "nativeSymbol": "ETH",
+        "gasPerTransfer": "0.00005",
+        "deployer": { "native": "0.002", "tokens": { "USDG": "1" }, "reason": "ShelterSplit deploy (no router: USDG has no EIP-3009) and the 1 USDG proof payout" },
+        "donatehot": { "native": "0.001", "tokens": { "USDG": "2" }, "reason": "treats in USDG: 1 USDG daily budget for about two days, plus gas" }
+      },
+      "monad": {
+        "nativeSymbol": "MON",
+        "gasPerTransfer": "0.01",
+        "deployer": { "native": "2", "tokens": { "USDC": "1" }, "reason": "ShelterSplit + DonateRouter deploys (gas in MON) and the 1 USDC proof payout" },
+        "donatehot": { "native": "1", "tokens": { "USDC": "2" }, "reason": "treats: 1 USDC daily budget for about two days, plus gas in MON" }
+      }
+    }
+  },
+  "testnet": {
+    "deploy": {
+      "chains": ["arc", "tempo", "arbitrum", "avalanche", "base", "robinhood", "monad"],
+      "eurcChains": ["arc", "avalanche"],
+      "routerChains": ["arc", "arbitrum", "avalanche", "base", "monad"],
+      "eurcRouterChains": ["arc", "avalanche"]
+    },
+    "chains": {
+      "arc": {
+        "nativeSymbol": "USDC",
+        "gasPerTransfer": "0.01",
+        "deployer": { "native": "1", "reason": "test deploys and proof payouts (faucet USDC)" },
+        "donatehot": { "native": "2", "reason": "test treats and relay gas" },
+        "agent": { "native": "1", "reason": "x402 e2e agent" }
+      },
+      "tempo": {
+        "nativeSymbol": null,
+        "gasAsset": "USDC",
+        "gasPerTransfer": "0.01",
+        "deployer": { "tokens": { "USDC": "1" }, "reason": "pathUSD (the testnet split token) for fees and the proof payout" },
+        "donatehot": { "tokens": { "USDC": "1" }, "reason": "test treats in pathUSD, which also pays the fees" }
+      },
+      "arbitrum": {
+        "nativeSymbol": "ETH",
+        "gasPerTransfer": "0.00001",
+        "deployer": { "native": "0.001", "reason": "test deploys" },
+        "donatehot": { "native": "0.002", "tokens": { "USDC": "2" }, "reason": "test treats and relay gas" }
+      },
+      "avalanche": {
+        "nativeSymbol": "AVAX",
+        "gasPerTransfer": "0.001",
+        "deployer": { "native": "0.05", "reason": "test deploys" },
+        "donatehot": { "native": "0.05", "tokens": { "USDC": "2" }, "reason": "test treats and relay gas" }
+      },
+      "base": {
+        "nativeSymbol": "ETH",
+        "gasPerTransfer": "0.00001",
+        "deployer": { "native": "0.001", "reason": "test deploys" },
+        "donatehot": { "native": "0.002", "tokens": { "USDC": "2" }, "reason": "test treats and relay gas" },
+        "agent": { "native": "0.003", "tokens": { "USDC": "0.5" }, "reason": "x402 e2e agent on Base Sepolia" }
+      },
+      "robinhood": {
+        "nativeSymbol": "ETH",
+        "gasPerTransfer": "0.00001",
+        "deployer": { "native": "0.0001", "reason": "test deploys (the payout token is a mintable mock, never transferred)" },
+        "donatehot": { "native": "0.0003", "reason": "relay gas; treats there use the mock mUSDC" }
+      },
+      "monad": {
+        "nativeSymbol": "MON",
+        "gasPerTransfer": "0.005",
+        "deployer": { "native": "0.5", "reason": "test deploys" },
+        "donatehot": { "native": "0.2", "tokens": { "USDC": "2" }, "reason": "test treats and relay gas in MON" },
+        "agent": { "native": "0.05", "tokens": { "USDC": "0.5" }, "reason": "x402 e2e agent on Monad testnet" }
+      }
+    }
+  }
+}

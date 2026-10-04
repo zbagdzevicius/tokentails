@@ -58,9 +58,9 @@ export const WALLETS: Record<'mainnet' | 'testnet', NetworkWallets> = {
     mainnet: {
         pinkPaw: '0xE299299b846Ba629f5A591dBF4F562bcC07A0f37',
         treasury: '0x29D7d5361052c0990879D7926a0c98A63F9860F8',
-        donateHot: null,
-        agent: null,
-        deployer: null,
+        donateHot: '0x8D03d8295892F7dE2B7cE57585Aa45Dd4B3C2ba0',
+        agent: '0x3333c1661B93f56DeC472eF89ACa03F56E70F9B7',
+        deployer: '0xd6F37D1241dA20BbE40D1210940Bc43A1Ec56263',
     },
     testnet: {
         pinkPaw: '0xE299299b846Ba629f5A591dBF4F562bcC07A0f37',

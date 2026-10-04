@@ -84,39 +84,51 @@ Tails until handover.
 If they create their own wallet before the wave, put that address in `PROOF_SHELTER` and in
 `client/public/shelter-payouts/campaign.json` `shelter.wallet`. `fund fill` reads it from there.
 
-## 4. Oct 3: the mainnet wave, then ONE command fills every draft (you about 1 h; AI 0 min)
+## 4. Mainnet: fund ONE wallet, run ONE command, commit (you about 30 min; AI 0 min)
 
-In your env shell (keystore, RPC URLs, treasury), from `funding/framework`:
+**a. Send everything to the deployer** `0xd6F37D1241dA20BbE40D1210940Bc43A1Ec56263` (keystore
+`tokentails`), on each chain, the total of `deployer + donatehot + agent` in
+`funding/framework/tracks/a-build/funding-plan.json` (each line has its reason). Roughly:
+Arc 9 USDC + 1 EURC (Arc gas is USDC), Tempo 4 USDC.e + 3 pathUSD, Arbitrum 0.005 ETH + 3 USDC,
+Avalanche 0.4 AVAX + 3 USDC + 1 EURC, Base 0.005 ETH + 4 USDC, Robinhood 0.003 ETH + 3 USDG,
+Monad 3 MON + 3 USDC. Do not fund donatehot or the agent yourself: the script does it.
+
+**b. Run one command** from `funding/framework`, in your own terminal (the scripts refuse to run
+inside an AI agent session and without `CONFIRM_MAINNET=yes`):
 
 ```bash
-node bin/fund.mjs a:wave --network mainnet   # regenerates wave/deploy-mainnet.sh with today's chains
-DRY_RUN=1 ./tracks/a-build/wave/deploy-mainnet.sh   # simulate first
-./tracks/a-build/wave/deploy-mainnet.sh             # sign + broadcast (you); runs a:ingest itself at the end
-DRY_RUN=1 ./tracks/a-build/wave/deploy-mainnet-eurc.sh   # only after the USDC run above has finished
-./tracks/a-build/wave/deploy-mainnet-eurc.sh             # EURC instances on Arc and Avalanche (needs a little EURC)
-node bin/fund.mjs fill --ingest --write             # a:ingest + source verify + fill every draft + re-render submissions
+node bin/fund.mjs a:mainnet-plan --network mainnet    # writes wave/mainnet-all.sh + wave/distribute-mainnet.sh
+CONFIRM_MAINNET=yes DRY_RUN=1 ./tracks/a-build/wave/mainnet-all.sh   # dry run: balance table, simulated deploys, printed transfers
+CONFIRM_MAINNET=yes ./tracks/a-build/wave/mainnet-all.sh             # for real (cast asks for the keystore password)
 ```
 
-The mainnet wave now has seven chains: Arc, Arbitrum, Robinhood, Base, Tempo, Avalanche and Monad
-(143, Circle USDC `0x754704Bc059F8C67012fEd69BC8A327a5aafb603`). For Monad, export
-`RPC_MONAD_MAINNET=https://rpc.monad.xyz` and hold a little MON for gas plus `PROOF_AMOUNT` USDC on Monad.
+In order, per chain: balance check (it prints a per-chain shortfall table: send what it says is
+SHORT and rerun) → ShelterSplit USDC (`deploy-mainnet.sh`) → ShelterSplit EURC on Arc and Avalanche
+(`deploy-mainnet-eurc.sh`) → DonateRouters (skipped until the handover; `MAINNET_ROUTERS=yes` turns
+them on, `tracks/a-build/README.md`) → `a:ingest` (writes `wallet.config.ts` and the client and
+Heist lists) → `a:verify` + `a:verify-source` → `distribute-mainnet.sh` (tops up donatehot's treat
+float and gas, and the agent's x402 amount, only up to the plan's targets) → `fund fill --ingest
+--write`. A chain that fails a step is left out of the later steps; the others go on. Rerunning
+the same command is safe: finished deploys are skipped and recipients already at target get nothing.
+Options: `CHAINS=arc,base` limits the run, `FUND_KEYSTORE_PASSWORD_FILE=<path>` skips the password
+prompt, `RPC_<CHAIN>_MAINNET` overrides the public RPCs, `PROOF_SHELTER=` turns the proof payout off.
 
-`fill --ingest --write` records and verifies the deployments, publishes the mainnet list to the
-payouts page and Heist, and writes `{SPLIT_ADDRESS}`, `{EURC_SPLIT_ADDRESS}`, `{ARC_PROOF_TX}`,
-`{ARB_SPLIT}`, `{ARB_NETWORK}`, `{ARC_NETWORK}` and `{SHELTER_WALLET}` into every draft. It skips
-text inside comments and any entry already marked submitted. Then it runs `a:submission` for each
-entry and prints what is still owed, plus the exact command to re-render both demo videos with the
-real addresses. Run `node bin/fund.mjs fill` without `--write` first if you want a preview.
+On Tempo the hot wallet pays its fees in pathUSD (the plan sends it 1 pathUSD), so no FeeManager
+`setUserToken` call is needed. Arc is funded natively (USDC is the gas coin, one balance).
 
-If Arbitrum One slips: run `node bin/fund.mjs a:wave --network testnet --chains arbitrum`, then
-`./tracks/a-build/wave/deploy-testnet.sh` (the Singapore rules accept Arbitrum Sepolia), then
-`node bin/fund.mjs fill --ingest --network testnet --write`. `{ARB_NETWORK}` becomes "Arbitrum
+**c. Commit the files it prints** at the end (deployments, router deployments, `wallet.config.ts`,
+the client and Heist lists, the filled drafts), push, and Vercel redeploys. Then run the two
+Tempo campaign-memo `cast send` commands it prints and paste the hash as `TEMPO_TX` below.
+
+If Arbitrum One slips: `node bin/fund.mjs a:mainnet-plan --network testnet`, then
+`CHAINS=arbitrum ./tracks/a-build/wave/testnet-all.sh` (the Singapore rules accept Arbitrum Sepolia),
+then `node bin/fund.mjs fill --ingest --network testnet --write`. `{ARB_NETWORK}` becomes "Arbitrum
 Sepolia" on its own.
 
-No EURC in the deployer: skip the two EURC lines and remove the EURC sentences from
-`applications/arc-microgrants/draft.md` (about −1 point), or `{EURC_SPLIT_ADDRESS}` stays open.
-
-Then commit and push the deployment lists so Vercel redeploys (the tracker's "after the wave" row).
+No EURC: the balance check marks Arc and Avalanche short (their reserve includes 1 EURC). Either
+send 1 EURC on each, or delete `arc`/`avalanche` from `eurcChains` and `eurcRouterChains` and the
+`EURC` reserve lines in `funding-plan.json` (mainnet), rerun `a:mainnet-plan`, and remove the EURC
+sentences from `applications/arc-microgrants/draft.md` (about −1 point), or `{EURC_SPLIT_ADDRESS}` stays open.
 
 **Values only you have.** Paste them into `funding/framework/fill-values.json`, then run
 `node bin/fund.mjs fill --write` again (2 min per value):

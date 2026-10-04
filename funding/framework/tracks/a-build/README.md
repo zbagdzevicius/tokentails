@@ -94,6 +94,28 @@ or donor → shelter wallet (x402 `exact`). Mainnet public paths stay off until 
 key (`campaign.shelter.handover` on the client, `SHELTER_HANDED_OVER` on the backend). Full status:
 `docs/plans/donations-STATUS.md`.
 
+### One-wallet mainnet funding (added 2026-10-04)
+
+The person funds only the deployer; generated scripts do the rest, exactly as on testnet.
+
+```bash
+node bin/fund.mjs a:mainnet-plan --network mainnet   # wave/mainnet-all.sh + wave/distribute-mainnet.sh
+CONFIRM_MAINNET=yes DRY_RUN=1 ./tracks/a-build/wave/mainnet-all.sh   # a person runs it, never an AI agent
+node bin/fund.mjs a:distribute --network testnet     # only the top-ups: wave/distribute-testnet.sh
+node bin/fund.mjs a:pending --network mainnet        # JSON: per chain, what is still to deploy or verify
+node bin/fund.mjs router plan --chain 43114 --token EURC [--json]   # router in front of the EURC split
+node bin/fund.mjs router record --chain 43114 --token EURC          # record it from the Foundry broadcast
+```
+
+`funding-plan.json` holds per-chain amounts (and a reason) for the deployer's own reserve, the hot
+wallet (`donatehot`: treat float + gas) and the x402 `agent`; recipients come only from
+`wallets.public.json`. `distribute-<network>.sh` checks the deployer first (per-chain shortfall
+table), tops each recipient up to its target (skip within 1%), and `DRY_RUN=1` prints every
+transfer. `<network>-all.sh` runs: balance check → ShelterSplit USDC → EURC → DonateRouters (mainnet
+only with `MAINNET_ROUTERS=yes`, see above) → `a:ingest` → `a:verify` + `a:verify-source` →
+distribute → `fund fill` → files to commit; a failing chain stops, the others go on; reruns skip
+what is recorded. Mainnet scripts exit unless `CONFIRM_MAINNET=yes` and no AI-agent env is set.
+
 ## The fast loop
 
 Run from `funding/framework`. Every command prints the next one.

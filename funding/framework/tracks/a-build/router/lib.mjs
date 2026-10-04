@@ -59,6 +59,66 @@ export function usdcSplits(chainId, deployments, usdc) {
     .sort((a, b) => String(a.recorded || '').localeCompare(String(b.recorded || '')));
 }
 
+/** The raw chains.json network entry for a chain id, or null. */
+export function networkEntry(chainId, chains) {
+  const net = findNetwork(chainId, chains);
+  return net ? chains[net.chain].networks[net.network] : null;
+}
+
+/**
+ * The token a router fronts: the chain's USDC by default, or a chains.json splitTokens entry
+ * (`--token EURC`). Returns { symbol, address } (address null when chains.json has none).
+ */
+export function routerToken(chainId, chains, token) {
+  const sym = token ? String(token).toUpperCase() : 'USDC';
+  const n = networkEntry(chainId, chains);
+  if (!n) return { symbol: sym, address: null };
+  if (sym === 'USDC') return { symbol: sym, address: n.usdc ?? null };
+  return { symbol: sym, address: n.splitTokens?.[sym]?.address ?? null };
+}
+
+/** The ShelterSplit candidates paying `symbol` on a chain id (USDC: also entries without a token field). Newest last. */
+export function tokenSplits(chainId, deployments, symbol = 'USDC') {
+  const sym = String(symbol || 'USDC').toUpperCase();
+  return (Array.isArray(deployments) ? deployments : [])
+    .filter((d) => d && d.contract === 'ShelterSplit' && Number(d.chainId) === Number(chainId) && ADDR.test(d.address || ''))
+    .filter((d) => (d.token ? String(d.token).toUpperCase() === sym : sym === 'USDC'))
+    .sort((a, b) => String(a.recorded || '').localeCompare(String(b.recorded || '')));
+}
+
+/** Recorded routers on a chain id in front of `tokenAddress` (any split). */
+export function routersFor(chainId, network, tokenAddress, routerDeployments) {
+  const t = String(tokenAddress || '').toLowerCase();
+  return (Array.isArray(routerDeployments) ? routerDeployments : [])
+    .filter((r) => Number(r.chainId) === Number(chainId) && (!network || r.network === network) && String(r.usdc || '').toLowerCase() === t);
+}
+
+/**
+ * The router-deployments.json entry for the DonateRouter in a Foundry broadcast
+ * (broadcast/DeployDonateRouter.s.sol/<chainId>/run-latest.json). Returns { entry } or { problem }.
+ * Only a CREATE of DonateRouter with a status-1 receipt counts; its constructor must name `split`
+ * and `token` (the same pair the deploy was asked for).
+ */
+export function routerEntryFromBroadcast(run, { chainId, network, chain, split, token, symbol, now = new Date() }) {
+  const t = (run?.transactions || []).find((x) => x.transactionType === 'CREATE' && x.contractName === 'DonateRouter' && ADDR.test(x.contractAddress || ''));
+  if (!t) return { problem: 'no DonateRouter CREATE in the broadcast' };
+  const args = (t.arguments || []).map((a) => String(a).toLowerCase());
+  if (args.length >= 2 && (args[0] !== String(split).toLowerCase() || args[1] !== String(token).toLowerCase())) {
+    return { problem: `the broadcast router fronts ${args[0]} / ${args[1]}, not ${split} / ${token}` };
+  }
+  const r = (run.receipts || []).find((x) => String(x.transactionHash || '').toLowerCase() === String(t.hash || '').toLowerCase());
+  if (!r || !(r.status === '0x1' || r.status === 1 || r.status === '1')) return { problem: `deploy tx ${t.hash} has no successful receipt in the broadcast` };
+  const block = r.blockNumber === undefined ? null : Number(BigInt(r.blockNumber));
+  return {
+    entry: {
+      chainId: Number(chainId), network, router: t.contractAddress.toLowerCase(), split: String(split).toLowerCase(), usdc: token,
+      deployTx: t.hash, deployedAt: now.toISOString().replace(/\.\d{3}Z$/, 'Z'), chain, symbol,
+      ...(Number.isSafeInteger(block) ? { fromBlock: block } : {}),
+      note: 'Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record',
+    },
+  };
+}
+
 /** Validates router-deployments.json entries; returns problems (strings). */
 export function validateRouterDeployments(list) {
   const problems = [];
@@ -79,7 +139,7 @@ export function validateRouterDeployments(list) {
  * The deploy plan for one chain. Prints the simulate and broadcast commands; the AI never broadcasts.
  * opts: { chainId, split?, chains?, deployments?, routerDeployments? } (the last three default to the files).
  */
-export function routerDryRun({ chainId, split, chains, deployments, routerDeployments } = {}) {
+export function routerDryRun({ chainId, split, token, chains, deployments, routerDeployments } = {}) {
   const problems = [];
   const lines = [];
   if (!Number.isInteger(Number(chainId)) || !chainId) return { ok: false, lines, problems: ['--chain <chain id> is required'] };
@@ -87,25 +147,30 @@ export function routerDryRun({ chainId, split, chains, deployments, routerDeploy
   deployments = deployments ?? readJson(join(TRACK_DIR, 'deployments.json'), []);
   routerDeployments = routerDeployments ?? readJson(ROUTER_DEPLOYMENTS, []);
 
-  const net = findNetwork(chainId, chains);
-  if (!net) return { ok: false, lines, problems: [`chain ${chainId} is not in chains.json`] };
-  if (!net.usdc) problems.push(`${net.chain} ${net.network} has no USDC in chains.json; the router needs a FiatToken with EIP-3009 (native gifts still work through donateNative on Arc)`);
+  const found = findNetwork(chainId, chains);
+  if (!found) return { ok: false, lines, problems: [`chain ${chainId} is not in chains.json`] };
+  // --token EURC fronts the chains.json splitTokens entry instead of USDC (the `usdc` field of the
+  // plan and the record keeps its name: it is the token the router takes).
+  const tok = routerToken(chainId, chains, token);
+  const net = { ...found, usdc: tok.address };
+  const sym = tok.symbol;
+  if (!net.usdc) problems.push(`${net.chain} ${net.network} has no ${sym} in chains.json; the router needs a FiatToken with EIP-3009 (native gifts still work through donateNative on Arc)`);
   else if (NO_EIP3009[net.chain]) problems.push(`${net.chain} ${net.network}: ${EIP3009_REFUSAL} (${NO_EIP3009[net.chain]})`);
 
-  const candidates = usdcSplits(chainId, deployments, net.usdc);
+  const candidates = sym === 'USDC' ? usdcSplits(chainId, deployments, net.usdc) : tokenSplits(chainId, deployments, sym);
   let target = split;
   if (target && !ADDR.test(target)) problems.push(`--split ${target} is not a 0x address`);
   if (!target) {
-    if (!candidates.length) problems.push(`no USDC ShelterSplit recorded for chain ${chainId} in deployments.json; deploy ShelterSplit first (fund a:wave) or pass --split`);
+    if (!candidates.length) problems.push(`no ${sym} ShelterSplit recorded for chain ${chainId} in deployments.json; deploy ShelterSplit first (fund a:wave${sym === 'USDC' ? '' : ` --token ${sym}`}) or pass --split`);
     else target = candidates[candidates.length - 1].address;
   }
   if (problems.length) return { ok: false, lines, problems };
 
-  const existing = (Array.isArray(routerDeployments) ? routerDeployments : []).filter((r) => Number(r.chainId) === Number(chainId));
+  const existing = (Array.isArray(routerDeployments) ? routerDeployments : []).filter((r) => Number(r.chainId) === Number(chainId) && (sym === 'USDC' || String(r.usdc || '').toLowerCase() === String(net.usdc).toLowerCase()));
   const rpc = net.rpcEnv ? `"$${net.rpcEnv}"` : '<rpc url>';
   lines.push(`DonateRouter on ${net.chain} ${net.network} (chain ${net.chainId})`);
   lines.push(`  split  ${target}${candidates.length > 1 && !split ? `  (newest of ${candidates.length} USDC splits recorded; pass --split to choose)` : ''}`);
-  lines.push(`  usdc   ${net.usdc}`);
+  lines.push(`  ${sym === 'USDC' ? 'usdc ' : sym.toLowerCase().padEnd(5)}  ${net.usdc}`);
   if (existing.length) lines.push(`  note   router-deployments.json already has ${existing.length} router(s) on this chain: ${existing.map((r) => r.router).join(', ')}`);
   if (net.network === 'mainnet') lines.push('  note   mainnet: real money. Public gifts stay off in the app until the shelter holds its own key (handover).');
   lines.push('');
@@ -129,7 +194,8 @@ export function routerDryRun({ chainId, split, chains, deployments, routerDeploy
   lines.push('4. Record it in funding/framework/tracks/a-build/router-deployments.json:');
   lines.push(`   { "chainId": ${net.chainId}, "network": "${net.network}", "router": "<router>", "split": "${target}", "usdc": "${net.usdc}", "deployTx": "<tx hash>", "deployedAt": "<ISO date>" }`);
   lines.push('   then set fact router_guard verified with that entry as its source (fund facts build).');
-  return { ok: true, lines, problems, plan: { ...net, split: target } };
+  const sameToken = routersFor(chainId, net.network, net.usdc, routerDeployments);
+  return { ok: true, lines, problems, plan: { ...net, symbol: sym, token: net.usdc, split: target, routers: sameToken.map((r) => ({ router: r.router, split: r.split })), routerForSplit: sameToken.find((r) => String(r.split).toLowerCase() === String(target).toLowerCase())?.router || null } };
 }
 
 /**

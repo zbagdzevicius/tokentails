@@ -84,7 +84,10 @@ ${FACTS_HELP}
   <track-command> ...                    e.g. "a:build", see "fund tracks"
 `;
 
-const ROUTER_HELP = `  router plan --chain <id> [--split 0x..]   print the DonateRouter deploy commands (a founder broadcasts)
+const ROUTER_HELP = `  router plan --chain <id> [--split 0x..] [--token EURC] [--json]
+                                         print the DonateRouter deploy commands (a founder broadcasts)
+  router record --chain <id> [--token EURC] [--split 0x..]
+                                         record the DonateRouter from the chain's Foundry broadcast in router-deployments.json
   shelter rotate --chain <id> --to <0x..> --name "..." --dry-run [--from 0x..] [--split 0x..]
                                          print the handover calls that re-point a shelter to its own wallet`;
 
@@ -97,8 +100,36 @@ async function runRouterCommand(cmd, rest, flags) {
     return r.ok ? 0 : 1;
   };
   const chainId = Number(flags.chain);
+  const token = typeof flags.token === 'string' ? flags.token : undefined;
   if (cmd === 'router' && rest[0] === 'plan') {
-    return print(lib.routerDryRun({ chainId, split: typeof flags.split === 'string' ? flags.split : undefined }));
+    const r = lib.routerDryRun({ chainId, split: typeof flags.split === 'string' ? flags.split : undefined, token });
+    if (flags.json === true) {
+      for (const p of r.problems) console.error(`✗ ${p}`);
+      if (r.ok) console.log(JSON.stringify(r.plan));
+      return r.ok ? 0 : 1;
+    }
+    return print(r);
+  }
+  if (cmd === 'router' && rest[0] === 'record') {
+    // Reads the local Foundry broadcast and appends one public entry; never sends, never reads a key.
+    const { readFileSync, writeFileSync, existsSync } = await import('node:fs');
+    const plan = lib.routerDryRun({ chainId, split: typeof flags.split === 'string' ? flags.split : undefined, token });
+    if (!plan.ok) { for (const p of plan.problems) console.error(`✗ ${p}`); return 1; }
+    const project = process.env.FUND_A_PROJECT || join(lib.TRACK_DIR, 'shelter-split');
+    const f = join(project, 'broadcast', 'DeployDonateRouter.s.sol', String(chainId), 'run-latest.json');
+    if (!existsSync(f)) { console.error(`✗ no broadcast at ${f}`); return 1; }
+    const p = plan.plan;
+    const r = lib.routerEntryFromBroadcast(JSON.parse(readFileSync(f, 'utf8')), { chainId, network: p.network, chain: p.chain, split: p.split, token: p.token, symbol: p.symbol });
+    if (r.problem) { console.error(`✗ ${r.problem}`); return 1; }
+    const file = process.env.FUND_A_ROUTER_DEPLOYMENTS || lib.ROUTER_DEPLOYMENTS;
+    const list = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : [];
+    if (list.some((x) => String(x.router).toLowerCase() === r.entry.router)) { console.log(`already recorded: ${r.entry.router}`); return 0; }
+    const problems = lib.validateRouterDeployments([...list, r.entry]);
+    if (problems.length) { for (const x of problems) console.error(`✗ ${x}`); return 1; }
+    list.push(r.entry);
+    writeFileSync(file, JSON.stringify(list, null, 2) + '\n');
+    console.log(`recorded DonateRouter ${r.entry.router} (${p.chain} ${p.network} ${p.symbol}) in front of ${p.split}`);
+    return 0;
   }
   if (cmd === 'shelter' && rest[0] === 'rotate') {
     if (flags['dry-run'] !== true) {
