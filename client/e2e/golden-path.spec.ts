@@ -269,6 +269,10 @@ async function heistFrame(page: Page): Promise<Frame> {
 }
 
 test.describe("north-star first session (plan 1.3, task 7b)", () => {
+  // Cupid Cat is seasonal (January to March, components/game/seasons.ts): run inside its season.
+  test.beforeEach(async ({ page }) => {
+    await page.clock.install({ time: new Date("2027-02-14T12:00:00") });
+  });
   test.use({ allowUnmocked: true });
 
   test("landing to Meet your cat, Cupid level 1, first clear, IMPACT, Heist and /impact", async ({ page, backend }) => {

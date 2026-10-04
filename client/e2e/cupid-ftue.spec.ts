@@ -172,6 +172,10 @@ async function waitForReady(page: Page) {
 }
 
 test.describe("Cupid Cat first run (G10)", () => {
+  // Cupid Cat is seasonal (January to March, components/game/seasons.ts): run inside its season.
+  test.beforeEach(async ({ page }) => {
+    await page.clock.install({ time: new Date("2027-02-14T12:00:00") });
+  });
   test.use({ allowUnmocked: true });
 
   test("hand-off to day 1: gate, held clock through the tutorial, starter shield, one won save, no tutorial on retry", async ({ page, backend }) => {
