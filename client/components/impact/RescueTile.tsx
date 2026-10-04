@@ -5,8 +5,7 @@ import { useEffect, useState } from "react";
 /*
  * The lobby RESCUE tile (plan G4 "Client", 2.13 row 29). Its badge shows the player's lifetime
  * paws, or NEW until the player has opened IMPACT once. The tile opens PROGRESS on the IMPACT tab;
- * its second action, MEET SHELTER CATS, opens the Shelter scene in one tap (a small button under
- * the tile on phones, its own tile from md up).
+ * its second action, MEET SHELTER CATS, opens the Shelter scene in one tap (its own tile).
  */
 
 export const RESCUE_SEEN_KEY = "tt.rescue.seen";
@@ -33,9 +32,32 @@ export function rescueBadge(lifetimePaws: number, seen: boolean): string | null 
   return seen ? null : "NEW";
 }
 
-/** Tile frame shared with the lobby HOME tile: 80 px square, rounded, 3 px border. */
+/**
+ * Tile frame shared by the lobby's four tiles (RESCUE, SHELTER, HOME, the daily spin): a square
+ * `--lobby-tile` wide (the lobby layout sets it; 5rem by default), rounded, with a 3 px gold border,
+ * the night drop shadow and a small lift on hover. No tilt: the tiles stand on the altar slab.
+ * Every tile is a pastel card with a dark label on top and its icon under it, like the SHELTER and
+ * MY HOME art: pink on the left (RESCUE, SHELTER), sky on the right (HOME, the daily spin).
+ */
+export const LOBBY_TILE_SIZE = "h-[var(--lobby-tile,5rem)] w-[var(--lobby-tile,5rem)] min-w-[var(--lobby-tile,5rem)]";
 export const LOBBY_TILE =
-  "relative flex h-20 w-20 min-w-20 shrink-0 flex-col items-center justify-center overflow-visible rounded-xl border-[3px] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400";
+  `relative flex ${LOBBY_TILE_SIZE} shrink-0 flex-col items-center overflow-visible rounded-xl border-[3px] border-tt-gold-500 shadow-[0_4px_0_rgb(var(--tt-night-950)),0_0_18px_rgb(var(--tt-gold-400)/0.18)] transition hover:-translate-y-0.5 hover:brightness-110 motion-reduce:hover:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400`;
+
+/** The pink card (the SHELTER art's sky): RESCUE. */
+export const LOBBY_TILE_PINK = "bg-[linear-gradient(to_bottom,#fb84c1,#ffb8da_65%,#ffccfb)]";
+/** The sky card (the MY HOME art's sky): the daily spin. */
+export const LOBBY_TILE_SKY = "bg-[linear-gradient(to_bottom,#37dcff,#a5ddff_60%,#ffdafd)]";
+/** Label, then icon, laid out like the art tiles. */
+export const LOBBY_TILE_STACK =
+  "justify-start gap-[calc(var(--lobby-tile,5rem)*0.07)] pt-[calc(var(--lobby-tile,5rem)*0.13)]";
+
+/** The label inside a tile, at the top, in the art's dark ink: at least 12 px. */
+export const LOBBY_TILE_LABEL =
+  "font-primary text-[length:max(13px,0.85rem)] uppercase leading-none tracking-wide text-tt-night-950";
+
+/** The small badge on a tile's corner (NEW, the paw count, READY). */
+export const LOBBY_TILE_BADGE =
+  "absolute -right-2.5 -top-3 min-w-[1.5rem] rounded-full border-2 border-tt-gold-shadow bg-tt-gold-400 px-1.5 py-0.5 font-primary text-[length:max(12px,0.75rem)] leading-none text-tt-gold-ink";
 
 interface RescueTileProps {
   lifetimePaws: number;
@@ -71,12 +93,10 @@ export const RescueTile = ({ lifetimePaws, onOpen, paused = false, className }: 
         setSeen(true);
         onOpen();
       }}
-      className={clsx(
-        LOBBY_TILE,
-        "rotate-6 border-tt-gold-500 bg-gradient-to-b from-tt-night-600 to-tt-night-900 shadow-[0_4px_0_rgb(var(--tt-night-950)),0_0_18px_rgb(var(--tt-gold-400)/0.18)] hover:rotate-0 hover:brightness-110",
-        className
-      )}
+      className={clsx(LOBBY_TILE, LOBBY_TILE_PINK, LOBBY_TILE_STACK, className)}
     >
+      <span className={LOBBY_TILE_LABEL}>RESCUE</span>
+      {/* The heart in full red, never the pale art pink: it is a live button, not a greyed one. */}
       <img
         src={cdnFile("logo/heart.webp")}
         alt=""
@@ -84,16 +104,16 @@ export const RescueTile = ({ lifetimePaws, onOpen, paused = false, className }: 
         draggable={false}
         data-testid="rescue-heart"
         data-paused={paused || undefined}
-        className={clsx("h-9 w-9 pixelated", !paused && "motion-safe:animate-pulse")}
+        className={clsx(
+          "h-[46%] w-[46%] pixelated brightness-[0.7] saturate-[8]",
+          !paused && "motion-safe:animate-pulse",
+        )}
       />
-      <span className="mt-0.5 font-primary text-p5 uppercase leading-none tracking-wide text-tt-cream">
-        RESCUE
-      </span>
       {badge && (
         <span
           data-testid="rescue-badge"
           aria-hidden="true"
-          className="absolute -right-2 -top-2 min-w-[1.5rem] rounded-full border-2 border-tt-gold-shadow bg-tt-gold-400 px-1.5 py-0.5 font-primary text-[11px] leading-none text-tt-gold-ink"
+          className={LOBBY_TILE_BADGE}
         >
           {badge}
         </span>
@@ -102,53 +122,47 @@ export const RescueTile = ({ lifetimePaws, onOpen, paused = false, className }: 
   );
 };
 
-/** MEET SHELTER CATS as the md+ lobby tile, next to HOME. */
-export const ShelterTile = ({ onOpen, className }: { onOpen: () => void; className?: string }) => (
+/**
+ * MEET SHELTER CATS: the Shelter's art (it reads SHELTER) with MEET CATS on a band inside the
+ * tile, so no tag hangs under it. The same tile on every screen; `testId` tells the phone and the
+ * md+ placements apart for the e2e suite.
+ */
+export const ShelterTile = ({
+  onOpen,
+  className,
+  testId = "shelter-tile",
+}: {
+  onOpen: () => void;
+  className?: string;
+  testId?: string;
+}) => (
   <button
     type="button"
-    data-testid="shelter-tile"
+    data-testid={testId}
     aria-label="Meet shelter cats"
     onClick={onOpen}
-    className={clsx(
-      "group relative flex flex-col items-center opacity-90 transition hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400",
-      "rotate-3 hover:rotate-0",
-      className
-    )}
+    className={clsx(LOBBY_TILE, LOBBY_TILE_PINK, "overflow-hidden", className)}
   >
+    {/* The art moves up a little so its heart clears the MEET CATS band. */}
     <img
       draggable={false}
       alt=""
-      className="h-20 w-20 min-w-20 rounded-xl border-[3px] border-tt-gold-500 hover:brightness-110"
+      className="absolute inset-0 h-full w-full -translate-y-[10%] object-cover"
       src={cdnFile("game/select/shelter.webp")}
     />
-    {/* The words the phone button carries, visible under the art (the art itself reads SHELTER). */}
     <span
-      data-testid="shelter-tile-caption"
+      data-testid={testId === "shelter-tile" ? "shelter-tile-caption" : undefined}
       aria-hidden="true"
-      className="mt-1.5 rounded-md bg-tt-night-800/90 px-1.5 py-0.5 text-center font-primary text-[11px] uppercase leading-tight tracking-wide text-tt-cream shadow-[0_2px_0_rgb(var(--tt-night-950))]"
+      className="absolute inset-x-0 bottom-0 bg-tt-night-800/90 py-0.5 text-center font-primary text-[length:max(12px,0.75rem)] uppercase leading-none tracking-wide text-tt-cream"
     >
-      Meet shelter
-      <br />
-      cats
+      Meet cats
     </span>
   </button>
 );
 
-/** MEET SHELTER CATS as the small second action under the RESCUE tile on phones. */
+/** MEET SHELTER CATS on phones: the same tile, under its own test id. */
 export const MeetShelterCatsButton = ({ onOpen, className }: { onOpen: () => void; className?: string }) => (
-  <button
-    type="button"
-    data-testid="meet-shelter-cats"
-    onClick={onOpen}
-    className={clsx(
-      "min-h-[44px] rounded-lg border-2 border-tt-gold-500/80 bg-tt-night-800/90 px-2 py-1 font-primary text-[11px] uppercase leading-tight tracking-wide text-tt-cream shadow-[0_3px_0_rgb(var(--tt-night-950))] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400",
-      className
-    )}
-  >
-    Meet shelter
-    <br />
-    cats
-  </button>
+  <ShelterTile onOpen={onOpen} className={className} testId="meet-shelter-cats" />
 );
 
 export default RescueTile;

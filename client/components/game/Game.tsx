@@ -290,10 +290,9 @@ export const Game = () => {
           nudge={guestLike ? nudge : null}
           onDismissNudge={() => setNudge(null)}
           className={
-            "fixed left-1/2 z-hud -translate-x-1/2 max-md:bottom-[calc(7rem+env(safe-area-inset-bottom))] max-md:flex-col-reverse md:top-[max(1rem,env(safe-area-inset-top))] " +
-            // Short landscape screens: the top centre holds the logo and the MY HOME card, so the
-            // pill moves to the bottom-left corner.
-            "[@media(max-height:500px)]:top-auto [@media(max-height:500px)]:bottom-[calc(0.75rem+env(safe-area-inset-bottom))] [@media(max-height:500px)]:left-[max(1rem,env(safe-area-inset-left))] [@media(max-height:500px)]:translate-x-0 [@media(max-height:500px)]:flex-col-reverse [@media(max-height:500px)]:items-start"
+            // Top centre, between the corner HUD columns, on every screen (the lobby layout leaves
+            // this slot free and measures the pill: components/game/lobbyLayout.ts).
+            "fixed left-1/2 z-hud -translate-x-1/2 top-[max(1rem,env(safe-area-inset-top))]"
           }
         />
       )}

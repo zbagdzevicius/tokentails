@@ -165,7 +165,11 @@ export const Claim = ({
     body = (
       <>
         <span className="claim-text">{text}</span>
-        {suffix ? <> {suffix}</> : null} {dateNode} {chips}
+        {suffix ? <> {suffix}</> : null}{" "}
+        {/* The date and the chips move to a new line together, never one without the other. */}
+        <span className="claim-tail whitespace-nowrap">
+          {dateNode} {chips}
+        </span>
         {children}
       </>
     );

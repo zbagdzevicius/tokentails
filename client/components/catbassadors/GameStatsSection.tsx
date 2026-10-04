@@ -1,4 +1,5 @@
 import { bgStyle, cdnFile } from "@/constants/utils";
+import { HUD_LEFT, HUD_RIGHT, HUD_TOP } from "@/components/audio/hudPlacement";
 import { CatnipIcon } from "@/components/shared/CatnipIcon";
 import { useGame } from "@/context/GameContext";
 import { GameModal, GameType } from "@/models/game";
@@ -55,7 +56,8 @@ export const GameStatsSection = ({
   }
   return (
     <div>
-      <div className="fixed flex-col pb-safe top-4 z-30 right-4 flex justify-between">
+      {/* Corner panels, inset past the notch and the landscape camera cutout (hudPlacement). */}
+      <div className="fixed flex-col pb-safe z-30 flex justify-between" style={{ top: HUD_TOP, right: HUD_RIGHT }}>
         {/* A real button (keyboard and screen readers). The picker's X no longer sits over it:
             GameSelectModal puts its X on the frame's stone post (plan G14). */}
         <button
@@ -79,7 +81,7 @@ export const GameStatsSection = ({
           </span>
         </button>
       </div>
-      <div className="fixed left-4 pb-safe top-4 z-20 flex flex-col justify-between">
+      <div data-testid="hud-stats" className="fixed pb-safe z-20 flex flex-col justify-between" style={{ top: HUD_TOP, left: HUD_LEFT }}>
         <div
           onClick={() => setOpenedModal(GameModal.PROFILE)}
           className="flex hover:brightness-110 flex-col w-20 relative items-center font-primary rounded-xl px-1 py-1 whitespace-pre-line border-4 border-yellow-900"
@@ -94,13 +96,13 @@ export const GameStatsSection = ({
             <div>TAILS</div>
           </div>
           <div className="flex items-center gap-2 bg-tt-cream/50 border border-yellow-900 rounded-lg w-full justify-center">
-            <div className="text-p6">{profile?.tails?.toFixed(0) || 0}</div>
+            <div className="text-[length:max(12px,0.75rem)] leading-snug">{profile?.tails?.toFixed(0) || 0}</div>
           </div>
           <div className="text-p5 flex items-center gap-1">
             <CatnipIcon size={16} alt="" />
             <div>CATNIP</div>
           </div>
-          <div className="flex items-center text-p6 bg-green-300/50 border border-yellow-900 rounded-lg w-full justify-center">
+          <div className="flex items-center text-[length:max(12px,0.75rem)] leading-snug bg-green-300/50 border border-yellow-900 rounded-lg w-full justify-center">
             {catnipBreakdown.totalCount} / {TOTAL_CATNIP_CAP}
           </div>
         </div>
@@ -110,7 +112,7 @@ export const GameStatsSection = ({
               type="button"
               onClick={() => setOpenedModal(GameModal.CODEX)}
               style={bgStyle("min-4")}
-              className="group w-20 flex flex-col items-center font-primary text-p2 transition-all duration-300 hover:scale-110 px-1 py-0.5 rounded-xl relative border-4 border-yellow-900 overflow-hidden cursor-pointer shadow-[0_6px_0_0_rgba(120,53,15,0.25)]"
+              className="group w-20 flex flex-col items-center font-primary text-p2 transition-all duration-300 hover:scale-110 px-0.5 py-0.5 rounded-xl relative border-4 border-yellow-900 overflow-hidden cursor-pointer shadow-[0_6px_0_0_rgba(120,53,15,0.25)]"
             >
               <img
                 src={cdnFile("cards/backgrounds/pattern-mini-2.webp")}
@@ -128,7 +130,7 @@ export const GameStatsSection = ({
                 src={cdnFile("codex/codex-1.webp")}
                 className="h-9 -my-1 -mb-1 relative z-10 drop-shadow-[0_2px_3px_rgba(0,0,0,0.45)] transition-transform duration-300 group-hover:scale-110"
               />
-              <div className="text-p6 pt-1 -mt-1 relative z-10 rounded-md border border-yellow-900 bg-yellow-50/90 px-1 font-bold tracking-wide">
+              <div className="text-[length:max(12px,0.75rem)] leading-snug tracking-[-0.04em] whitespace-nowrap pt-1 -mt-1 relative z-10 rounded-md border border-yellow-900 bg-yellow-50/90 px-px font-bold">
                 PROGRESS
               </div>
             </button>

@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { HUD_BUTTON_CLASSES } from "./AudioControls";
+import { HUD_BUTTON_CLASSES, hudButtonStyle } from "./AudioControls";
 import { AudioIcon } from "./icons";
 
 /** The lobby HUD's 44 px Settings button (gear). */
@@ -12,6 +12,7 @@ export const SettingsButton = ({ onClick, className }: { onClick: () => void; cl
     data-testid="settings-button"
     onClick={onClick}
     className={clsx(HUD_BUTTON_CLASSES, className)}
+    style={hudButtonStyle()}
   >
     <AudioIcon name="gear" />
   </button>

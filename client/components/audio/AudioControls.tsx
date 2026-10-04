@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { bgStyle } from "@/constants/utils";
 import { exemptAudioFromSuspension } from "@/lib/game/gameRegistry";
 import { useEffect, useId, useLayoutEffect, useRef, useSyncExternalStore, type ChangeEvent } from "react";
 import { AudioIcon } from "./icons";
@@ -11,9 +12,15 @@ import { useAudioSettings } from "./useAudioSettings";
  * settings store, on the night palette, with 44 px targets and accessible names.
  */
 
-/** Night HUD plate, the same recipe as the lobby's plates (GameSelect `NIGHT_PLATE`). */
+/**
+ * The lobby HUD's square buttons (settings, sound): the same framed card as ABOUT ME and the stats
+ * panel (GameStatsSection: the min-4 card background, a 4 px dark gold frame), at least 44 px.
+ */
 const HUD_BUTTON =
-  "flex h-[44px] w-[44px] items-center justify-center bg-tt-night-800/85 border-2 border-tt-gold-500/60 text-tt-gold-400 shadow-[0_4px_0_rgb(var(--tt-night-950)),0_0_24px_rgb(var(--tt-gold-400)/0.12)] lowfx:shadow-[0_4px_0_rgb(var(--tt-night-950))] transition hover:brightness-125 active:translate-y-[2px] active:shadow-[0_2px_0_rgb(var(--tt-night-950))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400";
+  "flex h-[max(44px,2.75rem)] w-[max(44px,2.75rem)] items-center justify-center rounded-xl border-4 border-yellow-900 bg-tt-cream text-tt-gold-ink shadow-[0_4px_0_rgba(120,53,15,0.25)] transition hover:brightness-110 active:translate-y-[2px] active:shadow-none focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-tt-gold-400";
+
+/** The card background behind HUD_BUTTON (inline style, like the corner panels). */
+export const hudButtonStyle = () => bgStyle("min-4");
 
 export const HUD_BUTTON_CLASSES = HUD_BUTTON;
 
@@ -58,7 +65,8 @@ export const MuteToggle = ({
         data-muted={muted}
         data-audio-control=""
         onClick={() => toggleMuted()}
-        className={clsx(HUD_BUTTON, muted && "text-tt-muted", className)}
+        className={clsx(HUD_BUTTON, muted && "text-tt-gold-ink/50", className)}
+        style={hudButtonStyle()}
       >
         {icon}
       </button>

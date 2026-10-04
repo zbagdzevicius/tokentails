@@ -41,7 +41,7 @@ export const GuestPill = ({ onSave, catName, catImg, signedOut, nudge, onDismiss
       >
         <span
           aria-hidden="true"
-          className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-tt-gold-400 bg-tt-night-600"
+          className="grid h-[max(2rem,32px)] w-[max(2rem,32px)] shrink-0 place-items-center overflow-hidden rounded-full border-2 border-tt-gold-400 bg-tt-night-600"
         >
           {catImg && !signedOut ? (
             <img src={catImg} alt="" draggable={false} className="h-full w-full scale-125 object-cover pixelated" />
@@ -49,7 +49,7 @@ export const GuestPill = ({ onSave, catName, catImg, signedOut, nudge, onDismiss
             <span className="font-primary text-[15px] leading-none text-tt-gold-400">?</span>
           )}
         </span>
-        <span className="whitespace-nowrap font-sans text-[14px] font-extrabold leading-none text-tt-cream">
+        <span className="whitespace-nowrap font-sans text-[length:max(14px,0.875rem)] font-extrabold leading-none text-tt-cream">
           {/* Phones show the action only; the badge says "guest" already. */}
           <span className="max-md:sr-only">{signedOut ? "Not signed in" : "Guest"}</span>
           <span aria-hidden="true" className="px-1.5 text-tt-muted max-md:hidden">

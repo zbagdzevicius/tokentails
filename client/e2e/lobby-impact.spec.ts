@@ -204,13 +204,16 @@ test.describe("lobby impact (G4, task 5e)", () => {
       await expect(page.getByTestId("paw-text").first()).toHaveText("1 more run for today's paw");
       // FIXED_NOW is 12:00 UTC, so today's runs count for about 12 more hours.
       await expect(page.getByTestId("paw-countdown").first()).toHaveText(/^1[12]h \d+m left today/);
-      await expect(page.getByTestId("shelter-tile-caption")).toHaveText(/Meet shelter\s*cats/i);
+      await expect(page.getByTestId("shelter-tile-caption")).toHaveText(/Meet cats/i);
       // One pause stops the lobby's motion: the strip heart and the RESCUE heart.
       await page.getByTestId("impact-strip-pause").click();
       await expect(page.getByTestId("impact-strip-heart")).toHaveAttribute("data-paused", "true");
       await expect(page.getByTestId("rescue-heart")).toHaveAttribute("data-paused", "true");
     } else {
+      // Phones: the strip's one-line chip under the circle, with today's paw; it opens IMPACT.
       await expect(page.getByTestId("impact-strip")).toBeHidden();
+      await expect(page.getByTestId("impact-chip")).toBeVisible();
+      await expect(page.getByTestId("impact-chip-paw")).toHaveText("1 more run for today's paw");
     }
   });
 
