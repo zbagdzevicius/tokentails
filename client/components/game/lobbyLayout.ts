@@ -228,16 +228,18 @@ export function lobbyLayout({
   const paintedHalf = (sprite.right - sprite.left) / 2;
   const paintedMid = (sprite.left + sprite.right) / 2;
   const catClear = phone ? 20 : 16;
-  // The painted cat stays within the circle (under two thirds of it on wide screens).
-  const widthFactor = mode === "wide" ? 0.6 : 1.0;
+  // The painted cat stays within the circle (under half of it on wide screens).
+  const widthFactor = mode === "wide" ? 0.45 : 1.0;
   const kMax = W >= 2200 ? 12 : 10;
   const portraitColLeft = (tile: number) => Math.max(hudLeft, cx - rx - 12 - tile);
   let scale = 2;
   let tile = Math.round(5 * r);
   for (let k = kMax; k >= 2; k--) {
-    if (2 * paintedHalf * k > Math.min(widthFactor * 2 * rx, phone ? Infinity : 0.3 * W)) continue;
-    // On wide screens the cat stays under a fifth of the screen tall: the hero, not a wall.
-    if (mode === "wide" && (sprite.feet - sprite.head) * k > 0.19 * H) continue;
+    // The wide-screen size caps never push the cat below 3x (readable pixel art).
+    const capped = mode !== "wide" || k > 3;
+    if (capped && 2 * paintedHalf * k > Math.min(widthFactor * 2 * rx, phone ? Infinity : 0.3 * W)) continue;
+    // On wide screens the cat stays under a seventh of the screen tall: the hero, not a wall.
+    if (mode === "wide" && k > 3 && (sprite.feet - sprite.head) * k > 0.14 * H) continue;
     const plateTop = feetY - (sprite.feet - sprite.head) * k - plateGap(k, short) - plateH;
     if (plateTop - bandTop < (short ? 0 : minLogoH + 2 * minGap)) continue;
     if (mode === "portrait") {
