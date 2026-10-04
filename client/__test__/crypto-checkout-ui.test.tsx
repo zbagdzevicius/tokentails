@@ -59,7 +59,7 @@ describe("CryptoCheckout", () => {
       expect(icon.getAttribute("src")).toMatch(/^\/crypto-icons\/[a-z]+\.svg$/);
       expect(icon.getAttribute("src")).not.toBe("/crypto-icons/network.svg");
     }
-    expect(screen.getByTestId("crypto-pay-token-icon-USDC")).toHaveAttribute("src", "/crypto-icons/usdc.svg");
+    expect(screen.getByTestId("crypto-pay-token-icon-USDC")).toHaveAttribute("src", "/crypto-icons/usdc.png");
   });
 
   it("quotes per coin, then shows the exact amount, address and QR without a wallet", async () => {

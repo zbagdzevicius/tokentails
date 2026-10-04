@@ -22,9 +22,9 @@ export const TESTNET_OF: Record<number, number> = {
 };
 
 const TOKEN_ICONS: Record<string, string> = {
-  USDC: `${BASE}/usdc.svg`,
-  "USDC.E": `${BASE}/usdc.svg`,
-  EURC: `${BASE}/eurc.svg`,
+  USDC: `${BASE}/usdc.png`,
+  "USDC.E": `${BASE}/usdc.png`,
+  EURC: `${BASE}/eurc.png`,
   PATHUSD: `${BASE}/pathusd.svg`,
 };
 
