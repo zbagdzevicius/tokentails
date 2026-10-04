@@ -24,22 +24,24 @@ Apps that say "part of your purchase helps shelters" give the buyer no way to ch
 ## Solution <!-- criterion: C3, C4 | limit: 1200 -->
 Built between 2026-09-14 and 2026-10-12:
 - ShelterSplit, the rail. A registry in the contract (wallet, name, share in basis points). disburseWithMemo(amount, memo32) pulls USDC.e and pays every active shelter its share in one transaction, each with TIP-20 transferWithMemo carrying the purchase reference. The rest goes to the treasury.
-- The payouts page at https://tokentails.com/shelter-payouts: each shelter, what it received and an explorer link per payout, read from chain events. No backend is trusted for the numbers.
+- The payouts page at https://tokentails.com/shelter-payouts: each shelter, what it received and an explorer link per payout, read from chain events, not a backend.
 - Catnip Heist at https://tokentails.com/heist, a deterministic voxel stealth game, the planned front door for shelter-funding purchases (roadmap step 3).
-- The giving loop: after a Heist win a verified player (account a day old) taps "Send Pink Paw a rescue treat", and Token Tails pays a small sponsored gift, once a day, from a capped budget. Each payout gets a receipt page and a share card. Pink Paw's profile carries the custody disclosure, and a campaign meter sums the payouts. The gift runs on the Arc instance first.
-- ShelterSplit Rail: an MIT SDK and an embeddable donate widget.
+- The giving loop: after a Heist win a verified player taps "Send Pink Paw a rescue treat"; Token Tails pays a small sponsored gift once a day from a capped budget, on Arc first. Each payout gets a receipt and share card; a meter sums them.
+- Rail: an MIT SDK and an embeddable donate widget.
+- Built, deploy pending: DonateRouter (no owner; a donor gives USDC with one signature, no gas token) and a treat agent whose spending caps a contract enforces.
 The buyer never touches a wallet: purchases stay card or in-app payments [F-020].
 
 ## Why Tempo <!-- criterion: C4, C5 | limit: 900 -->
 Tempo is a payments chain, and Token Tails already takes card payments through Stripe [F-020]. Fees are paid in stablecoins, so neither the app nor a shelter has to hold a volatile gas token. Finality is deterministic, so a receipt can link to a payout that has settled. disburseWithMemo pays each shelter with TIP-20 transferWithMemo, so the memo on the shelter's own transfer carries the purchase reference and the shelter can reconcile without us. Plain disburse() uses ordinary transfers, with the memo only in ShelterSplit's events. A Tempo test suite runs the contract against a mock TIP-20 at the real USDC.e address and covers transfer-policy reverts, token pause and receive-policy redirects. A transfer-policy block reverts the whole batch, so no shelter is paid short; a receive-policy redirect does not (see Known limit).
 
 ## How it works <!-- criterion: C1, C5 | limit: 1500 -->
-- Registry: the owner adds, updates, deactivates or removes shelters. Shares never add up to more than the payment.
+- Registry: the owner adds, updates, deactivates or removes shelters. Shares never exceed the payment.
 - disburseWithMemo(amount, memo32) pulls USDC.e, splits what arrived and pays each shelter with transferWithMemo; disburse(amount, memo) does the same with plain transfers. One Disbursed(shelter, amount, memo) per shelter and one DisbursementBatch per call. Dust goes to the treasury. preview(amount) shows the split first.
-- Safety: reentrancy guard, pause, two-step ownership, safe transfers, caps. A Foundry suite covers splits, dust, access control, reentrancy and fuzzing; a Tempo suite runs it against a mock TIP-20.
+- Safety: reentrancy guard, pause, two-step ownership, safe transfers, caps. Foundry unit, fuzz and invariant suites; a Tempo suite runs against a mock TIP-20.
 - Known limit: under a Tempo receive policy a shelter can get a Disbursed event without the funds. Wallets are checked before registration; a post-payment balance check is next.
 - Sponsored gifts, on Arc: a backend wallet with a small float calls donate(), with a memo that holds no personal data.
-- Agent payments, off until handover: an x402-compatible endpoint. The agent pays donate('x402:<nonce>') on Arc and retries with the tx hash, checked over RPC and accepted once. Our own onchain-receipt scheme, no facilitator.
+- Agent payments, off on mainnet until handover: standard x402 exact, paid straight to the shelter wallet, or our own scheme (donate('x402:<nonce>'), tx checked over RPC, accepted once).
+- DonateRouter: the donor's EIP-3009 signature binds the payout list; it reverts if the list changed or any share would reach the treasury.
 - Trust model: the chain proves the funds reached the registered wallet, not who controls it. The first wallet is held by Token Tails on behalf of Pink Paw until handover.
 - ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/ in github.com/zbagdzevicius/tokentails).
 
@@ -51,6 +53,7 @@ This one submission also enters the Arbitrum, Base and Robinhood Chain tracks. E
 - Arbitrum One: ShelterSplit at {ARB_SPLIT}, paying out USDC.
 - Base: ShelterSplit at {BASE_SPLIT}, paying out native USDC.
 - Robinhood Chain: ShelterSplit at {ROBINHOOD_SPLIT}. Robinhood Chain has no USDC, so this instance pays out USDG (Paxos), and its payouts are readable on robinhoodchain.blockscout.com. The payouts page shows USDG as its own total and never adds it to USDC.
+On Arbitrum and Base, whose USDC supports EIP-3009, the same DonateRouter lets a donor give with one signature; Tempo uses TIP-20 memos instead (built, deploy pending).
 
 ## Traction <!-- criterion: C2, C6 | limit: 1000 -->
 Judge only the in-window work: the rail, the payouts page, Catnip Heist and the giving loop. Everything below existed before 2026-09-14 and is disclosed as prior work. Token Tails is live on web, iOS and Android [F-015] [F-016], with five game modes [F-018], and already takes Stripe, in-app purchases and USDC [F-020]. Historical peaks, not current activity: on the SEI chain, Token Tails peaked in the week of 2025-11-17 at 324,422 weekly unique active wallets [F-003] and 875,907 weekly transactions [F-004]; that SEI activity ended in March 2026 and none of it is Tempo data. Blockchain for Good Alliance named Token Tails a top 2025 incubation project [F-014].

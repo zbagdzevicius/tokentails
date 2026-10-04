@@ -48,16 +48,28 @@ How to maintain it:
 | Oct 2 | Mainnet wave (Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain (pays USDG), plus EURC), Tempo campaign-memo payout, `fund a:ingest` | You | ⏳ |
 | Oct 2 (after the wave) | Commit and push the three deployment lists written by `a:ingest` (`client/public/shelter-payouts/`, `client/public/heist-game/payouts/`, `catnip-heist/public/payouts/`); Vercel builds only the client, so `/shelter-payouts` and `/heist` show the real payouts after that push | You | ⏳ |
 | Oct 2–4 | Turn on sponsored donations (`SHELTER_DONATE_*` env on the backend, fund the hot wallet with a small USDC float) | You | ⏳ |
+| Oct 4–6 (before recording demos) | Judge demo, gasless and matched on testnet: set `SHELTER_TRY_CHAIN_ID=5042002` plus `SHELTER_TRY_ROUTER_ADDRESS`, `SHELTER_TRY_SPLIT_ADDRESS`, `SHELTER_TRY_PRIVATE_KEY` (a new testnet-only wallet with faucet USDC), `SHELTER_TRY_RELAY_ENABLED=true`, `SHELTER_TRY_MATCH_ENABLED=true` on the backend; list the Arc testnet router in `client/public/shelter-payouts/routers.json`; set `NEXT_PUBLIC_WALLET_DONATE_CHAIN=5042002` on Vercel (docs/BACKEND.md) | You | ⏳ |
 | Oct 3–5 | AI fills the drafts and renders the demos; you record the Colosseum pitch | Both | ⏳ |
 | Oct 1–6 | Ask Arc: is it a hard cap of 20 grants, or is every project above the bar funded? (15% vs ~50%) | You | ⏳ |
 | Every Anitya weekly close | Record the final entry count (decides whether weeklies are our best odds) | AI | ⏳ |
 | **Oct 4, by 10:00 Vilnius** | **Submit Arbitrum Singapore** (page shows "Oct 4 15:59" with no zone: 10:59 Vilnius if Singapore time, 18:59 if UTC; submit Oct 3 evening), reusing the Arbitrum deploy (Arbitrum Sepolia is the fallback) | You | ⏳ |
 | Oct 4–6 | Founder sends the direct-donation receipts → verify F-026 crypto for the Arc and Colosseum drafts (split F-026a crypto verified / F-026b goods company-reported; also the start year, recipients, and whether hello@ answers receipt requests) | You | ⏳ |
 | Oct 1 | Request a Tameion invite (tameion.thecanteenapp.com); ask Canteen whether a Tameion prize affects Arc Microgrants eligibility | You | ⏳ |
+| Oct 5 | Pink Paw staff (~30 min) create Pink Paw's OWN wallet (passkey or smart wallet, Circle user-controlled wallet, or hardware/mobile wallet; Token Tails never sees the seed), write down a recovery method, open tokentails.com/shelter-payouts/onboard and sign the claim (`POST /shelter/claim`) | Pink Paw + You | ⏳ |
+| Oct 4–6, by Oct 6 23:59 Vilnius (16:59 ET) | Pink Paw signs the wallet claim and the ShelterSplit owner rotates the shelter entry to a wallet Pink Paw holds (gate G2b, before Arc) | You | ⏳ |
+| Oct 5 | Deploy DonateRouter on Arc testnet, Base Sepolia and Arbitrum Sepolia with `--account` (router README), then record each in `router-deployments.json` | You | ⏳ |
+| Oct 5 | Deploy CappedSpender on Arc testnet (`script/DeployCappedSpender.s.sol`, `CAPPED_*` env, `EXPECTED_CHAIN_ID=5042002` required), fund a small test float from the owner address only, dry-run `treat-agent/run.mjs` with `TREAT_AGENT_TT_SENDERS` = the backend treat/match wallets (router gifts stay with `SHELTER_MATCH_ENABLED`; never also set `TREAT_AGENT_MATCH_ROUTER=1`); run one `--once` with `ANTHROPIC_API_KEY` (exit 3 = API failed, retry with `TREAT_AGENT_NO_FALLBACK=1`), then record the agent clip with `treat-agent/fork-demo.sh` | You | ⏳ |
+| Oct 5–6 | Backend env, testnet first: `SHELTER_ROUTER_ADDRESS`, `SHELTER_RELAY_ENABLED`, `SHELTER_MATCH_ENABLED`; `SHELTER_HANDED_OVER=true` and `campaign.shelter.handover` only after G2b passes | You | ⏳ |
+| Oct 6 (after G2b) | Rotate on each chain that lists Pink Paw: `fund.mjs shelter rotate --chain <id> --to <PinkPawWallet> --name "Pink Paw" --dry-run`, run the printed `removeShelter`/`addShelter(new, 10000, name)` yourself with `--account`, check `preview(1000000)` shows `toTreasury == 0`; then set `campaign.json` `shelter.wallet` + `handover: "handed-over"`, update the handover fact, `fund facts build` | You | ⏳ |
+| Oct 6 (after G2b) | Vercel: `NEXT_PUBLIC_WALLET_DONATE=true` (redeploy, values are inlined at build); backend `SHELTER_HANDED_OVER=true` only after the rotation is confirmed on-chain | You | ⏳ |
+| Oct 6 (after G2b and the wave) | Deploy DonateRouter on Arc mainnet 5042 against the mainnet split (`fund router plan --chain 5042`), record it in `router-deployments.json` and `client/public/shelter-payouts/routers.json`, send one $0.01 gasless gift and one native gift, flip facts P-002 `router_guard` and P-003 `gasless_give` to verified with those tx hashes. Never before G2b | You | ⏳ |
+| Oct 6 | Record demos: Arc 10-second gasless gift + match (testnet try-it if G2b failed), Tameion agent with the on-chain over-cap refusal, Colosseum pitch | You | ⏳ |
 | **Oct 7** | **Submit Arc Microgrants** (closes Oct 14 23:59 ET = Oct 15 06:59 Vilnius) | You | ⏳ |
 | ~Oct 7, 14, 21 | Anitya weeklies (dates unconfirmed; watch Discord `#jam-submission`) | You | ⏳ |
 | **Oct 10, by 23:00 Vilnius** | **Submit Tameion** (public repo, demo video ≤3 min, live link) if invited | You | ⏳ |
 | **Oct 11** | **Submit Colosseum** (closes Oct 12 23:59 PT = Oct 13 09:59 Vilnius) | Team Leader | ⏳ |
+| Oct 11–12 | x402 `exact`: open a facilitator account (Circle x402 facilitator or CDP) for mainnet; set `SHELTER_X402_EXACT_*` with `PAYTO` = Pink Paw's own wallet, then `SHELTER_X402_ENABLED=true` (needs G2b; testnet can use x402.org on Base Sepolia). Post the x402 micro-grant Oct 12–16 with the first mainnet `exact` tx | You | ⏳ |
+| Oct 12 | Monad: check Monad USDC for EIP-3009 (`authorizationState`, EIP-712 name/version) before a router redeploy there; otherwise the donor beat uses approve + `disburse` | You | ⏳ |
 | **Oct 13** | **Submit Monad Metropolis**, Consumer Products & Payments track (after a Monad deploy) | You | ⏳ |
 | **Oct 20** | **Submit the Anitya main jam**, heist-08 world (closes Oct 21 22:59, zone not shown) | You | ⏳ |
 | by Oct 21 | Arc decisions | – | ⏳ |
@@ -76,6 +88,7 @@ How to maintain it:
 | G0 Clean commit | Sep 30 | The commit contains only our paths | Push / redo it with an explicit path list |
 | G1 Tempo toolchain | Oct 1–2 (hard stop Oct 5) | The Tempo deploy succeeds after `foundryup` | Keep the Tempo track / pitch Colosseum on Arbitrum only |
 | G2 Arc native path | Oct 3 | Testnet `donate()` emits `NativeDisbursed` | Keep the native-USDC story / pitch the ERC-20 path plus EURC |
+| G2b Handover | Oct 6 (23:59 Vilnius = 16:59 ET) | Pink Paw signs the claim and the owner rotates | Mainnet giving on / else Arc submits with the testnet try-it link and the disclosed gate |
 | G3 Arc donate button | Oct 4 | G2 passed, a real native payout shows on the live page, and the button works end to end | Ship the button / counter only |
 | G4 Deploy reality | Oct 5 | The Arc and Tempo splits and payouts are verified on-chain | Fill the drafts / fix, or drop that chain from the pitch |
 | G5 Colosseum tracks | Oct 3 ✅ | Multi-track is allowed (confirmed by the user on Oct 3) | Enter Tempo + Arbitrum + Base + Robinhood Chain tracks, plus Public Goods |
@@ -100,7 +113,7 @@ How to maintain it:
 | Arbitrum Open House Dubai | Nov 16 – Dec 6 | 1–5% (q=0.7): downgraded, decide at G10 | $30k pool | ⏳ |
 | Circle Developer Grants | rolling (after the Arc decision) | ~2.5% | $5k–100k | ⏳ |
 | Indiepocalypse #83 anthology (itch.io) | Oct 1 16:00 (itch time) | ~13% | $20 + 5% sales | ❌ dropped: not worth the effort |
-| x402 Foundation impact micro-grant | rolling | unknown (<10%) | ≤ $3k | ⏳ Oct 12–16: standard x402 `exact` scheme on mainnet + ≤2 min video, tag @coinbaseDev |
+| x402 Foundation impact micro-grant | rolling | unknown (<10%) | ≤ $3k | 🟡 `exact` scheme built (payTo = shelter wallet, testnet verified against x402.org `/verify`); mainnet needs G2b; Oct 12–16: first mainnet tx + ≤2 min video, tag @coinbaseDev |
 | The Pollination Project seed grant (for Pink Paw; money goes to the shelter) | Oct 31 for the October cycle | unknown | ≤ $500 | ❌ dropped (team decision 2026-09-30) |
 | Arbitrum Open House Singapore (online) | Oct 4 15:59, zone not shown (SGT worst case: 10:59 Vilnius) | 0.6% (q=0.7) | $15k mid ($115k pool) | ⏳ long shot, ~1 h, app scaffolded |
 | Monad Metropolis (Consumer & Payments) | Oct 13 (zone unverified) | ~1.5% (N unknown) | $10k (3 × $10k per track) | ⏳ long shot, ~2.5 h, app scaffolded, rules to verify |

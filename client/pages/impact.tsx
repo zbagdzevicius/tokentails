@@ -84,6 +84,8 @@ const BUCKET_LABEL: Record<PayoutBucket, string> = {
   paws: "Nightly paw settlements",
   x402: "Agent-paid cards",
   direct: "Other payouts",
+  wallet: "Public gifts",
+  match: "Token Tails match",
 };
 
 const RAIL_COPY: Record<RailState, string> = {

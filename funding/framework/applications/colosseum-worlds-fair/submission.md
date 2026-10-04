@@ -1,6 +1,6 @@
 # Colosseum Crypto World's Fair — submission
 
-_Generated 2026-10-03T19:13:11.194Z by `fund a:submission colosseum-worlds-fair` from draft.md, the program profile,
+_Generated 2026-10-04T07:58:25.674Z by `fund a:submission colosseum-worlds-fair` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -27,10 +27,11 @@ Apps that say "part of your purchase helps shelters" give the buyer no way to ch
 
 Built between 2026-09-14 and 2026-10-12:
 - ShelterSplit, the rail. A registry in the contract (wallet, name, share in basis points). disburseWithMemo(amount, memo32) pulls USDC.e and pays every active shelter its share in one transaction, each with TIP-20 transferWithMemo carrying the purchase reference. The rest goes to the treasury.
-- The payouts page at https://tokentails.com/shelter-payouts: each shelter, what it received and an explorer link per payout, read from chain events. No backend is trusted for the numbers.
+- The payouts page at https://tokentails.com/shelter-payouts: each shelter, what it received and an explorer link per payout, read from chain events, not a backend.
 - Catnip Heist at https://tokentails.com/heist, a deterministic voxel stealth game, the planned front door for shelter-funding purchases (roadmap step 3).
-- The giving loop: after a Heist win a verified player (account a day old) taps "Send Pink Paw a rescue treat", and Token Tails pays a small sponsored gift, once a day, from a capped budget. Each payout gets a receipt page and a share card. Pink Paw's profile carries the custody disclosure, and a campaign meter sums the payouts. The gift runs on the Arc instance first.
-- ShelterSplit Rail: an MIT SDK and an embeddable donate widget.
+- The giving loop: after a Heist win a verified player taps "Send Pink Paw a rescue treat"; Token Tails pays a small sponsored gift once a day from a capped budget, on Arc first. Each payout gets a receipt and share card; a meter sums them.
+- Rail: an MIT SDK and an embeddable donate widget.
+- Built, deploy pending: DonateRouter (no owner; a donor gives USDC with one signature, no gas token) and a treat agent whose spending caps a contract enforces.
 The buyer never touches a wallet: purchases stay card or in-app payments.
 
 ## Why Tempo
@@ -39,12 +40,13 @@ Tempo is a payments chain, and Token Tails already takes card payments through S
 
 ## How it works
 
-- Registry: the owner adds, updates, deactivates or removes shelters. Shares never add up to more than the payment.
+- Registry: the owner adds, updates, deactivates or removes shelters. Shares never exceed the payment.
 - disburseWithMemo(amount, memo32) pulls USDC.e, splits what arrived and pays each shelter with transferWithMemo; disburse(amount, memo) does the same with plain transfers. One Disbursed(shelter, amount, memo) per shelter and one DisbursementBatch per call. Dust goes to the treasury. preview(amount) shows the split first.
-- Safety: reentrancy guard, pause, two-step ownership, safe transfers, caps. A Foundry suite covers splits, dust, access control, reentrancy and fuzzing; a Tempo suite runs it against a mock TIP-20.
+- Safety: reentrancy guard, pause, two-step ownership, safe transfers, caps. Foundry unit, fuzz and invariant suites; a Tempo suite runs against a mock TIP-20.
 - Known limit: under a Tempo receive policy a shelter can get a Disbursed event without the funds. Wallets are checked before registration; a post-payment balance check is next.
 - Sponsored gifts, on Arc: a backend wallet with a small float calls donate(), with a memo that holds no personal data.
-- Agent payments, off until handover: an x402-compatible endpoint. The agent pays donate('x402:<nonce>') on Arc and retries with the tx hash, checked over RPC and accepted once. Our own onchain-receipt scheme, no facilitator.
+- Agent payments, off on mainnet until handover: standard x402 exact, paid straight to the shelter wallet, or our own scheme (donate('x402:<nonce>'), tx checked over RPC, accepted once).
+- DonateRouter: the donor's EIP-3009 signature binds the payout list; it reverts if the list changed or any share would reach the treasury.
 - Trust model: the chain proves the funds reached the registered wallet, not who controls it. The first wallet is held by Token Tails on behalf of Pink Paw until handover.
 - ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/ in github.com/zbagdzevicius/tokentails).
 
@@ -55,6 +57,10 @@ Tempo mainnet: ShelterSplit at {SPLIT_ADDRESS}. The first payout to Pink Paw is 
 | Network | Contract | Transaction | Shelter payouts | Status |
 |---|---|---|---|---|
 | Tempo testnet (chain 42431) | [`0x9978e60da2352a8de02852788d34bd95849a598d`](https://explore.testnet.tempo.xyz/address/0x9978e60da2352a8de02852788d34bd95849a598d) | [deploy tx](https://explore.testnet.tempo.xyz/tx/0x8169cd8ca20c3e9a793185c5ef686ed38a460a799abddd075adc74672a0e2575) | [payout 1](https://explore.testnet.tempo.xyz/tx/0x2a8d49065e0d9bbd8ba6f1563eebf5a34a60d9203f9fc07582d84ccb7791af2d) | verified on-chain, source verified |
+| Robinhood Chain testnet (chain 46630) | [`0x2d42d01a00d75ade8c4f9503a7a6cee8a5f34777`](https://explorer.testnet.chain.robinhood.com/address/0x2d42d01a00d75ade8c4f9503a7a6cee8a5f34777) | [deploy tx](https://explorer.testnet.chain.robinhood.com/tx/0xf36898d4824c4906bdde2c36792a01c84c12725441cbeb50167cc009931d6881) | [payout 1](https://explorer.testnet.chain.robinhood.com/tx/0x276c904ce4b5862e8cd72b3e561ea9ea2bfc26428844c5035817726c5a84aa23) | verified on-chain, source verified |
+| Base testnet (chain 84532) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://sepolia.basescan.org/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://sepolia.basescan.org/tx/0x362b82466a4ba86c267bc3f05aea2c4e688d31f53271293050eab1106d293fc6) | - | verified on-chain, source verified |
+| Arbitrum One testnet (chain 421614) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://sepolia.arbiscan.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://sepolia.arbiscan.io/tx/0x3f51b51be745eac9ff65434ca4fc8e1ef15dd815c8bdce89decd74439f8f8845) | [payout 1](https://sepolia.arbiscan.io/tx/0x73cdfdb403067706ce0760fd38feed6e2a1e93bbc8d1f6cd1c9e75af7134184d) | verified on-chain, source verified |
+| Base testnet (chain 84532) | [`0x8bf026d3816cb2344d14aa6301fccde3b289878c`](https://sepolia.basescan.org/address/0x8bf026d3816cb2344d14aa6301fccde3b289878c) | [deploy tx](https://sepolia.basescan.org/tx/0x11bb6a6c264480a7fba025b2b94c7d4b7693e377d5f3289ab8dbe79de0d0b790) | [payout 1](https://sepolia.basescan.org/tx/0x26a7b0135627bd743046a56fdd69a93b1a830472702f241d48bd7790efacc5fb) | verified on-chain, source verified |
 
 ## Other chains
 
@@ -62,6 +68,7 @@ This one submission also enters the Arbitrum, Base and Robinhood Chain tracks. E
 - Arbitrum One: ShelterSplit at {ARB_SPLIT}, paying out USDC.
 - Base: ShelterSplit at {BASE_SPLIT}, paying out native USDC.
 - Robinhood Chain: ShelterSplit at {ROBINHOOD_SPLIT}. Robinhood Chain has no USDC, so this instance pays out USDG (Paxos), and its payouts are readable on robinhoodchain.blockscout.com. The payouts page shows USDG as its own total and never adds it to USDC.
+On Arbitrum and Base, whose USDC supports EIP-3009, the same DonateRouter lets a donor give with one signature; Tempo uses TIP-20 memos instead (built, deploy pending).
 
 ## Build evidence
 

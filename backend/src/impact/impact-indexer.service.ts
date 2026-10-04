@@ -2,11 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Cron } from '@nestjs/schedule';
 import { Model } from 'mongoose';
-import { hotWalletAddress, ShelterChain } from 'src/shelter/onchain/shelter-chain';
+import { decodeRouterDonation } from 'src/shelter/onchain/donate-router';
+import { batchPayerOf, hotWalletAddress, ShelterChain } from 'src/shelter/onchain/shelter-chain';
+import { ownSenders } from 'src/shelter/onchain/shelter-match.service';
 import { readShelterConfig, ShelterOnchainConfig } from 'src/shelter/onchain/shelter-onchain.config';
 import {
     ShelterDonation,
     ShelterDonationDocument,
+    ShelterMatch,
+    ShelterMatchDocument,
     X402UsedTx,
     X402UsedTxDocument,
 } from 'src/shelter/onchain/shelter-onchain.schema';
@@ -23,9 +27,12 @@ import {
     attributePayout,
     decodePayoutLog,
     DecodedPayout,
-    hasPawMemo,
+    hasWalletMemo,
     isPayoutLog,
+    needsSender,
     RpcLog,
+    to18,
+    unitsFor,
 } from './shelter-logs';
 
 export const IMPACT_INDEXER_JOB = 'impact-indexer';
@@ -85,7 +92,8 @@ export class ImpactIndexerService {
         @InjectModel(ImpactChainCursor.name) private cursorModel: Model<ImpactChainCursorDocument>,
         @InjectModel(ShelterDonation.name) private donationModel: Model<ShelterDonationDocument>,
         @InjectModel(X402UsedTx.name) private usedTxModel: Model<X402UsedTxDocument>,
-        private chain: ShelterChain
+        private chain: ShelterChain,
+        @InjectModel(ShelterMatch.name) private matchModel?: Model<ShelterMatchDocument>
     ) {}
 
     @Cron(IMPACT_INDEXER_CRON, { name: IMPACT_INDEXER_JOB })
@@ -195,12 +203,26 @@ export class ImpactIndexerService {
 
         const lookups = await this.lookups(
             payouts.map(p => p.txHash),
-            pawSenders
+            pawSenders,
+            config.routerAddress,
+            config
         );
         const senders = await this.pawMemoSenders(config, payouts);
+        // A router gift can carry any memo: every payout no other source claims is checked once here.
+        const unclaimed = payouts.filter(
+            p =>
+                hasWalletMemo(p.memo) ||
+                (!needsSender(p.memo) &&
+                    !lookups.donationSourceByTx.has(p.txHash.toLowerCase()) &&
+                    !lookups.x402Txs.has(p.txHash.toLowerCase()))
+        );
+        const payers = await this.routerGifts(config, contract, unclaimed);
         let inserted = 0;
         for (const payout of payouts) {
             const txFrom = senders.get(payout.txHash) || null;
+            const gift = payers.get(payout.txHash.toLowerCase());
+            const payer = gift?.payer || null;
+            const donor = gift?.donor || null;
             const filter = { chainId, txHash: payout.txHash, logIndex: payout.logIndex };
             const update = {
                 $set: {
@@ -213,7 +235,7 @@ export class ImpactIndexerService {
                     amount18: payout.amount18.toString(),
                     symbol: payout.symbol,
                     memo: payout.memo,
-                    bucket: attributePayout({ ...payout, from: txFrom }, lookups),
+                    bucket: attributePayout({ ...payout, from: txFrom, payer, donor }, lookups),
                     ...(txFrom ? { txFrom } : {}),
                 },
             };
@@ -283,7 +305,8 @@ export class ImpactIndexerService {
      */
     private async pawMemoSenders(config: ShelterOnchainConfig, payouts: { txHash: string; memo: string }[]) {
         const senders = new Map<string, string>();
-        const txs = [...new Set(payouts.filter(p => hasPawMemo(p.memo)).map(p => p.txHash.toLowerCase()))];
+        // Paw settlements and Token Tails matches: both count only from a Token Tails sender.
+        const txs = [...new Set(payouts.filter(p => needsSender(p.memo)).map(p => p.txHash.toLowerCase()))];
         for (const tx of txs) {
             const from = await this.chain.transactionSender(config, tx);
             if (from) {
@@ -293,14 +316,58 @@ export class ImpactIndexerService {
         return senders;
     }
 
-    async lookups(txHashes: string[], pawSenders: Set<string> = new Set()): Promise<AttributionLookups> {
+    /**
+     * The split's batch payer and the router's RouterDonation donor of each given payout's transaction,
+     * from its receipt (one call per transaction). Only asked once a router is configured. Unknown
+     * receipt: absent, so the payout stays `direct` (wallet-memo rows are asked again later).
+     */
+    private async routerGifts(
+        config: ShelterOnchainConfig,
+        contract: string,
+        payouts: { txHash: string }[]
+    ): Promise<Map<string, { payer: string; donor: string | null }>> {
+        const gifts = new Map<string, { payer: string; donor: string | null }>();
+        if (!config.routerAddress) {
+            return gifts;
+        }
+        const router = config.routerAddress.toLowerCase();
+        const txs = [...new Set(payouts.map(p => p.txHash.toLowerCase()))];
+        for (const tx of txs) {
+            const receipt: any = await this.chain.getReceipt(config, tx);
+            const payer = receipt ? batchPayerOf(receipt.logs || [], contract) : null;
+            if (!payer) {
+                continue;
+            }
+            let donor: string | null = null;
+            for (const log of receipt.logs || []) {
+                const decoded = decodeRouterDonation(log);
+                if (decoded && decoded.router === router) {
+                    donor = decoded.donor;
+                    break;
+                }
+            }
+            gifts.set(tx, { payer, donor });
+        }
+        return gifts;
+    }
+
+    async lookups(
+        txHashes: string[],
+        pawSenders: Set<string> = new Set(),
+        router: string | null = null,
+        config: ShelterOnchainConfig = readShelterConfig()
+    ): Promise<AttributionLookups> {
         const txs = [...new Set(txHashes.map(tx => tx.toLowerCase()))];
         const donationSourceByTx = new Map<string, string>();
         const x402Txs = new Set<string>();
+        const matchTxs = new Set<string>();
+        const routerLc = router ? router.toLowerCase() : null;
+        const notPublic = ownSenders(config);
+        pawSenders.forEach(a => notPublic.add(a.toLowerCase()));
         if (!txs.length) {
-            return { donationSourceByTx, x402Txs, pawSenders };
+            return { donationSourceByTx, x402Txs, pawSenders, matchTxs, router: routerLc, notPublic };
         }
-        const [donations, used] = await Promise.all([
+        const [donations, used, matches] = await Promise.all([
             this.donationModel
                 .find(
                     { $or: [{ txHash: { $in: txs } }, { 'attempts.txHash': { $in: txs } }] },
@@ -312,7 +379,15 @@ export class ImpactIndexerService {
                 )
                 .lean(),
             this.usedTxModel.find({ txHash: { $in: txs } }, { txHash: 1 }).lean(),
+            this.matchModel
+                ? this.matchModel.find({ matchTxHash: { $in: txs } }, { matchTxHash: 1 }).lean()
+                : Promise.resolve([]),
         ]);
+        for (const row of (matches || []) as any[]) {
+            if (typeof row.matchTxHash === 'string') {
+                matchTxs.add(row.matchTxHash.toLowerCase());
+            }
+        }
         for (const row of (donations || []) as any[]) {
             for (const tx of [row.txHash, ...((row.attempts || []) as any[]).map(a => a?.txHash)]) {
                 if (typeof tx === 'string' && txs.includes(tx.toLowerCase())) {
@@ -325,7 +400,7 @@ export class ImpactIndexerService {
                 x402Txs.add(row.txHash.toLowerCase());
             }
         }
-        return { donationSourceByTx, x402Txs, pawSenders };
+        return { donationSourceByTx, x402Txs, pawSenders, matchTxs, router: routerLc, notPublic };
     }
 
     /**
@@ -346,7 +421,7 @@ export class ImpactIndexerService {
                     bucket: 'direct',
                     createdAt: { $gte: new Date(now.getTime() - REATTRIBUTE_WINDOW_MS) },
                 },
-                { _id: 1, txHash: 1, memo: 1, txFrom: 1 }
+                { _id: 1, txHash: 1, memo: 1, txFrom: 1, shelter: 1 }
             )
             .lean();
         if (!recent?.length) {
@@ -354,16 +429,69 @@ export class ImpactIndexerService {
         }
         const lookups = await this.lookups(
             recent.map((row: any) => row.txHash),
-            pawSenders
+            pawSenders,
+            config.routerAddress,
+            config
         );
         const unknown = (recent as any[]).filter(row => !row.txFrom);
         const senders = await this.pawMemoSenders(config, unknown);
+        // Only wallet-memo rows: a free-form memo's receipt was read once at ingest and does not change.
+        const payers = await this.routerGifts(
+            config,
+            contract,
+            (recent as any[]).filter(row => hasWalletMemo(row.memo))
+        );
         for (const row of recent as any[]) {
             const txFrom = row.txFrom || senders.get(String(row.txHash).toLowerCase()) || null;
-            const bucket = attributePayout({ ...row, from: txFrom }, lookups);
+            const gift = payers.get(String(row.txHash).toLowerCase());
+            const bucket = attributePayout(
+                { ...row, from: txFrom, payer: gift?.payer || null, donor: gift?.donor || null },
+                lookups
+            );
             if (bucket !== 'direct' || (txFrom && !row.txFrom)) {
                 await this.eventModel.updateOne({ _id: row._id }, { $set: { bucket, ...(txFrom ? { txFrom } : {}) } });
             }
+        }
+    }
+
+    /**
+     * Standard x402 `exact` payments go straight to the shelter wallet (`payTo`), so ShelterSplit emits
+     * nothing for them. They are added to the `x402` bucket from `X402UsedTx.amountBase` (USDC, 6
+     * decimals, rescaled to 18), once per tx hash, and never when the same hash already has a split
+     * event (de-duplicated against the indexed rows). Rows of this cursor's chain only; a row without
+     * `chainId` counts on the chain it was recorded under, which is unknown, so it is skipped. Only rows
+     * with `verifiedOnchain: true` count: the transfer was read back from the chain, not just reported
+     * by the facilitator. Only the configured split's cursor is published (impact.service), so these
+     * rows are counted once per chain.
+     */
+    private async addExactX402(totals: Record<string, Record<string, string>>, chainId: number, contract: string) {
+        const rows: any[] = await this.usedTxModel
+            .find({ scheme: 'exact', chainId, verifiedOnchain: true }, { txHash: 1, amountBase: 1 })
+            .lean();
+        if (!rows?.length) {
+            return;
+        }
+        const seen = new Set<string>();
+        const hashes = rows.map(row => String(row.txHash || '').toLowerCase()).filter(Boolean);
+        const indexed: any[] = await this.eventModel
+            .find({ chainId, contract, txHash: { $in: hashes } }, { txHash: 1 })
+            .lean();
+        for (const row of indexed || []) {
+            seen.add(String(row.txHash).toLowerCase());
+        }
+        const symbol = unitsFor(chainId).symbol;
+        let sum = BigInt(0);
+        for (const row of rows) {
+            const tx = String(row.txHash || '').toLowerCase();
+            if (!tx || seen.has(tx) || !/^\d+$/.test(String(row.amountBase || ''))) {
+                continue;
+            }
+            seen.add(tx);
+            sum += to18(BigInt(row.amountBase), unitsFor(chainId).decimals);
+        }
+        if (sum > BigInt(0)) {
+            totals.x402 = totals.x402 || {};
+            totals.x402[symbol] = (BigInt(totals.x402[symbol] || '0') + sum).toString();
         }
     }
 
@@ -389,6 +517,7 @@ export class ImpactIndexerService {
             totals[group._id.bucket][group._id.symbol] = decimalSumToString(group.total);
             eventCount += group.count;
         }
+        await this.addExactX402(totals, chainId, contract);
         const last: any = await this.eventModel
             .findOne({ chainId, contract }, { txHash: 1 })
             .sort({ blockNumber: -1, logIndex: -1 })

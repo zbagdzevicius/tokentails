@@ -353,7 +353,9 @@ describe("/shelter-payouts", () => {
     const after = payoutsEmptyCopy("2026-10-02", new Date("2026-10-05T00:00:00Z"));
     expect(after).toMatch(/from 2 October 2026 on will count/);
     const none = payoutsEmptyCopy("", new Date());
-    expect(none).toBe("No payouts yet. Token Tails will list each payout here as soon as the first contract goes live.");
+    expect(none).toBe(
+      "No mainnet payouts yet. Token Tails will list each payout here as soon as the first mainnet contract goes live."
+    );
     for (const text of [before, after, none]) expect(text).not.toMatch(/\b(paid|sent|raised)\b/);
   });
 

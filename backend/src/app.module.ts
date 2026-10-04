@@ -48,7 +48,20 @@ import {
     X402NonceSchema,
     X402UsedTx,
     X402UsedTxSchema,
+    ShelterRelayTx,
+    ShelterRelayTxSchema,
+    ShelterMatch,
+    ShelterMatchSchema,
+    ShelterClaim,
+    ShelterClaimSchema,
+    ShelterCounter,
+    ShelterCounterSchema,
+    ShelterRouterScan,
+    ShelterRouterScanSchema,
 } from './shelter/onchain/shelter-onchain.schema';
+import { ShelterRelayService } from './shelter/onchain/shelter-relay.service';
+import { ShelterMatchService } from './shelter/onchain/shelter-match.service';
+import { ShelterClaimService } from './shelter/onchain/shelter-claim.service';
 import { ShelterX402Service } from './shelter/onchain/shelter-x402.service';
 import { ShelterDonateReconcileService } from './shelter/onchain/shelter-donate-reconcile.service';
 import { ImpactAdminController } from './impact/impact-admin.controller';
@@ -163,6 +176,11 @@ const config = {
             { name: ShelterDonateDay.name, schema: ShelterDonateDaySchema },
             { name: X402Nonce.name, schema: X402NonceSchema },
             { name: X402UsedTx.name, schema: X402UsedTxSchema },
+            { name: ShelterRelayTx.name, schema: ShelterRelayTxSchema },
+            { name: ShelterMatch.name, schema: ShelterMatchSchema },
+            { name: ShelterClaim.name, schema: ShelterClaimSchema },
+            { name: ShelterCounter.name, schema: ShelterCounterSchema },
+            { name: ShelterRouterScan.name, schema: ShelterRouterScanSchema },
             { name: ShelterPayoutEvent.name, schema: ShelterPayoutEventSchema },
             { name: ImpactChainCursor.name, schema: ImpactChainCursorSchema },
             { name: ImpactSnapshot.name, schema: ImpactSnapshotSchema },
@@ -193,8 +211,9 @@ const config = {
         CatController,
         Web3Controller,
         BlessingController,
-        ShelterController,
+        // Before ShelterController: its GET /shelter/:id would otherwise answer GET /shelter/claim.
         ShelterOnchainController,
+        ShelterController,
         QuestController,
         TicketController,
         ImpactController,
@@ -228,6 +247,9 @@ const config = {
         ShelterChain,
         ShelterDonateService,
         ShelterX402Service,
+        ShelterRelayService,
+        ShelterMatchService,
+        ShelterClaimService,
         ShelterDonateReconcileService,
         ImpactEligibilityService,
         ImpactIndexerService,

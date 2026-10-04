@@ -3,7 +3,7 @@
 
 /** Every fact id a client surface may cite (plan F7.1). */
 // prettier-ignore
-export type FactId = 'C-001' | 'C-004' | 'C-005' | 'F-001' | 'F-003' | 'F-004' | 'F-011' | 'F-013' | 'F-025' | 'F-026' | 'L-countries' | 'L-disbursed' | 'L-heists' | 'L-players' | 'L-rail' | 'L-treats';
+export type FactId = 'C-001' | 'C-004' | 'C-005' | 'F-001' | 'F-003' | 'F-004' | 'F-011' | 'F-013' | 'F-025' | 'F-026' | 'L-countries' | 'L-disbursed' | 'L-heists' | 'L-match' | 'L-players' | 'L-rail' | 'L-treats';
 
 // prettier-ignore
 export type FactStatus = 'verified' | 'company-reported' | 'sei-era' | 'live';
@@ -43,7 +43,7 @@ export interface PublicFact {
 export const PUBLIC_FACTS_PATH = '/facts/facts.json';
 
 // prettier-ignore
-export const FACT_IDS: readonly FactId[] = ["C-001","C-004","C-005","F-001","F-003","F-004","F-011","F-013","F-025","F-026","L-countries","L-disbursed","L-heists","L-players","L-rail","L-treats"];
+export const FACT_IDS: readonly FactId[] = ["C-001","C-004","C-005","F-001","F-003","F-004","F-011","F-013","F-025","F-026","L-countries","L-disbursed","L-heists","L-match","L-players","L-rail","L-treats"];
 
 // prettier-ignore
 export const FACTS: Record<FactId, PublicFact> = {
@@ -289,6 +289,27 @@ export const FACTS: Record<FactId, PublicFact> = {
     "live": {
       "endpoint": "/impact",
       "path": "heists.verified"
+    }
+  },
+  "L-match": {
+    "id": "L-match",
+    "display": "Gift match: {state}",
+    "appDisplay": null,
+    "value": null,
+    "unit": null,
+    "status": "live",
+    "tense": "present",
+    "asOf": null,
+    "checkedAt": "2026-10-04",
+    "maxAgeDays": 2,
+    "surfaces": [
+      "shelter-payouts"
+    ],
+    "sourceUrl": null,
+    "key": "match_state",
+    "live": {
+      "endpoint": "/shelter/match/status",
+      "path": "state"
     }
   },
   "L-players": {

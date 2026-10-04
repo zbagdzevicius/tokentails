@@ -7,7 +7,11 @@ import {
     SHELTER_DONATE_THROTTLE,
     SHELTER_STATUS_THROTTLE,
     SHELTER_X402_THROTTLE,
+    SHELTER_RELAY_THROTTLE,
+    SHELTER_CLAIM_THROTTLE,
+    ShelterClaimDto,
     ShelterDonateDto,
+    ShelterRelayDto,
     ShelterOnchainController,
 } from './shelter-onchain.controller';
 import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
@@ -60,7 +64,14 @@ describe('ShelterOnchainController', () => {
     it('runs the instant-treat policy before the service', async () => {
         const donateService = { donate: jest.fn().mockResolvedValue({ txHash: '0x1' }) };
         const eligibility = { assertInstantTreat: jest.fn().mockResolvedValue({ eligible: true, reason: null }) };
-        const controller = new ShelterOnchainController(donateService as any, {} as any, eligibility as any);
+        const controller = new ShelterOnchainController(
+            donateService as any,
+            {} as any,
+            eligibility as any,
+            {} as any,
+            {} as any,
+            {} as any
+        );
         const user = { _id: 'user-1', isGuest: false };
         await controller.donate(user, { source: 'heist' });
         expect(eligibility.assertInstantTreat).toHaveBeenCalledWith(user);
@@ -70,7 +81,14 @@ describe('ShelterOnchainController', () => {
     it('never calls the service when the policy refuses', async () => {
         const donateService = { donate: jest.fn() };
         const eligibility = { assertInstantTreat: jest.fn().mockRejectedValue(new ForbiddenException()) };
-        const controller = new ShelterOnchainController(donateService as any, {} as any, eligibility as any);
+        const controller = new ShelterOnchainController(
+            donateService as any,
+            {} as any,
+            eligibility as any,
+            {} as any,
+            {} as any,
+            {} as any
+        );
         await expect(controller.donate({ _id: 'u' }, { source: 'page' })).rejects.toBeInstanceOf(ForbiddenException);
         expect(donateService.donate).not.toHaveBeenCalled();
     });
@@ -78,7 +96,14 @@ describe('ShelterOnchainController', () => {
     it('GET /shelter/donate/me returns the caller treats plus eligibility', async () => {
         const donateService = { me: jest.fn().mockResolvedValue({ day: '2026-10-02', confirmedCount: 2 }) };
         const eligibility = { instantTreat: jest.fn().mockResolvedValue({ eligible: false, reason: 'no-saved-game' }) };
-        const controller = new ShelterOnchainController(donateService as any, {} as any, eligibility as any);
+        const controller = new ShelterOnchainController(
+            donateService as any,
+            {} as any,
+            eligibility as any,
+            {} as any,
+            {} as any,
+            {} as any
+        );
         await expect(controller.donateMe({ _id: 'u9' })).resolves.toEqual({
             day: '2026-10-02',
             confirmedCount: 2,
@@ -90,7 +115,14 @@ describe('ShelterOnchainController', () => {
     it('returns the card and the base64 X-PAYMENT-RESPONSE header', async () => {
         const card = { name: 'Mochi', imageUrl: null, shelterName: 'Pink Paw (Rožinė pėdutė)' };
         const x402Service = { catCard: jest.fn().mockResolvedValue({ card, txHash: '0xabc' }) };
-        const controller = new ShelterOnchainController({} as any, x402Service as any, {} as ImpactEligibilityService);
+        const controller = new ShelterOnchainController(
+            {} as any,
+            x402Service as any,
+            {} as ImpactEligibilityService,
+            {} as any,
+            {} as any,
+            {} as any
+        );
         const res = { setHeader: jest.fn() };
         const req = { protocol: 'https', get: () => 'api.example.test', originalUrl: '/shelter/agent/cat-card?x=1' };
 
@@ -100,6 +132,134 @@ describe('ShelterOnchainController', () => {
         const [name, value] = res.setHeader.mock.calls[0];
         expect(name).toBe('X-PAYMENT-RESPONSE');
         expect(JSON.parse(Buffer.from(value, 'base64').toString())).toEqual({ success: true, txHash: '0xabc' });
+    });
+});
+
+async function validate(handler: string, metatype: any, body: unknown) {
+    const args = Reflect.getMetadata(ROUTE_ARGS_METADATA, ShelterOnchainController, handler) || {};
+    const [, bodyArg] = Object.entries<any>(args).find(([key]) => key.startsWith('3:')) as [string, any];
+    let value = body;
+    for (const pipe of [new ValidationPipe({ transform: true }), ...(bodyArg.pipes || [])]) {
+        value = await pipe.transform(value, { type: 'body', metatype, data: undefined });
+    }
+    return value;
+}
+
+const RELAY_BODY = {
+    chainId: 5042002,
+    from: '0x' + '12'.repeat(20),
+    value: '1000000',
+    validAfter: '0',
+    validBefore: '1790000000',
+    salt: '0x' + 'ab'.repeat(32),
+    memo: 'tt:wallet:0a1b2c3d',
+    recipients: '0x' + 'cd'.repeat(32),
+    signature: '0x' + '11'.repeat(65),
+};
+
+describe('ShelterOnchainController wallet gifts (F2)', () => {
+    it('keeps relay, match and claim routes public and throttled per IP', () => {
+        for (const handler of [proto.relay, proto.relayStatus, proto.matchStatus, proto.matchByDonor, proto.claim]) {
+            expect(Reflect.getMetadata(GUARDS_METADATA, handler)).toBeUndefined();
+        }
+        expect(Reflect.getMetadata('THROTTLER:LIMITdefault', proto.relay)).toBe(SHELTER_RELAY_THROTTLE.limit);
+        expect(SHELTER_RELAY_THROTTLE).toEqual({ limit: 10, ttl: 60000 });
+        expect(Reflect.getMetadata('THROTTLER:LIMITdefault', proto.claim)).toBe(SHELTER_CLAIM_THROTTLE.limit);
+        expect(Reflect.getMetadata('THROTTLER:LIMITdefault', proto.matchStatus)).toBe(SHELTER_STATUS_THROTTLE.limit);
+    });
+
+    it('accepts a well-formed relay body and refuses extra keys, bad memos and bad hex', async () => {
+        await expect(validate('relay', ShelterRelayDto, RELAY_BODY)).resolves.toMatchObject({ memo: RELAY_BODY.memo });
+        for (const bad of [
+            { ...RELAY_BODY, extra: 1 },
+            { ...RELAY_BODY, memo: 'tt:heist:0a1b2c3d' },
+            { ...RELAY_BODY, memo: 'tt:wallet:0A1B2C3D' },
+            { ...RELAY_BODY, from: '0x12' },
+            { ...RELAY_BODY, value: '-1' },
+            { ...RELAY_BODY, salt: '0x1234' },
+            { ...RELAY_BODY, recipients: '0x1234' },
+            { ...RELAY_BODY, recipients: undefined },
+            { ...RELAY_BODY, signature: '0x1234' },
+            { ...RELAY_BODY, chainId: '5042002x' },
+        ]) {
+            await expect(validate('relay', ShelterRelayDto, bad)).rejects.toBeInstanceOf(BadRequestException);
+        }
+    });
+
+    it('accepts a claim body with a 65-byte signature only', async () => {
+        const body = { chainId: 5042, wallet: '0x' + '12'.repeat(20), signature: '0x' + '11'.repeat(65) };
+        await expect(validate('claim', ShelterClaimDto, body)).resolves.toMatchObject({ chainId: 5042 });
+        await expect(validate('claim', ShelterClaimDto, { ...body, signature: '0x11' })).rejects.toBeInstanceOf(
+            BadRequestException
+        );
+        await expect(validate('claim', ShelterClaimDto, { ...body, message: 'x' })).rejects.toBeInstanceOf(
+            BadRequestException
+        );
+    });
+
+    it('passes the body and the caller IP to the relay service', async () => {
+        const relay = { relay: jest.fn().mockResolvedValue({ txHash: '0xab', status: 'submitted' }) };
+        const controller = new ShelterOnchainController(
+            {} as any,
+            {} as any,
+            {} as any,
+            relay as any,
+            {} as any,
+            {} as any
+        );
+        await expect(controller.relay(RELAY_BODY as any, { ip: '203.0.113.9' })).resolves.toEqual({
+            txHash: '0xab',
+            status: 'submitted',
+        });
+        expect(relay.relay).toHaveBeenCalledWith(RELAY_BODY, '203.0.113.9');
+    });
+
+    it('answers GET /shelter/match/status per chain: main by default, try-it on request, off elsewhere', async () => {
+        const saved = { ...process.env };
+        try {
+            process.env.SHELTER_CHAIN_ID = '5042';
+            process.env.SHELTER_TRY_CHAIN_ID = '5042002';
+            const match = {
+                status: jest
+                    .fn()
+                    .mockImplementation((_now: Date, c?: any) => ({ state: 'live', chainId: c?.chainId ?? 5042 })),
+            };
+            const controller = new ShelterOnchainController(
+                {} as any,
+                {} as any,
+                {} as any,
+                {} as any,
+                match as any,
+                {} as any
+            );
+            await expect(controller.matchStatus()).resolves.toMatchObject({ chainId: 5042 });
+            await expect(controller.matchStatus('5042002')).resolves.toMatchObject({ chainId: 5042002, state: 'live' });
+            await expect(controller.matchStatus('84532')).resolves.toEqual({
+                state: 'off',
+                chainId: 84532,
+                relay: false,
+                perGift: '0',
+                dailyLeft: '0',
+                poolLeft: '0',
+            });
+        } finally {
+            process.env = saved;
+        }
+    });
+
+    it('answers GET /shelter/claim with an explicit JSON null when there is no claim', async () => {
+        const claims = { latest: jest.fn().mockResolvedValue(null) };
+        const controller = new ShelterOnchainController(
+            {} as any,
+            {} as any,
+            {} as any,
+            {} as any,
+            {} as any,
+            claims as any
+        );
+        const res = { json: jest.fn() };
+        await controller.latestClaim(res);
+        expect(res.json).toHaveBeenCalledWith(null);
     });
 });
 

@@ -1,5 +1,9 @@
 // AI-agent example: buy one adoptable-cat card from the Token Tails API with an on-chain
-// payment that goes to shelters through ShelterSplit (x402-compatible, 'onchain-receipt' scheme).
+// payment that goes to shelters. Two x402 schemes:
+//   exact            (standard x402) one signed USDC transferWithAuthorization straight to the
+//                    shelter's own wallet; the server's facilitator settles it and pays the gas.
+//                    Used when the server offers it and EXACT_MAX_BASE is set.
+//   onchain-receipt  the agent pays ShelterSplit.donate('x402:<nonce>') on Arc itself.
 //
 // Arc testnet by default. The key comes from the environment and is never written anywhere.
 // Use a throwaway testnet key with a little test USDC; never commit it.
@@ -8,6 +12,7 @@
 //   export AGENT_PRIVATE_KEY=0x...        # testnet key, from your shell or a secret manager
 //   export CAT_CARD_URL=https://<api-host>/shelter/agent/cat-card
 //   export MAX_PRICE_WEI=10000000000000000   # optional cap, default 0.01 USDC
+//   export EXACT_MAX_BASE=10000              # optional: allow 'exact' up to 0.01 USDC (6 decimals)
 //   node examples/agent-pay.mjs --yes
 //
 // Without --yes the script prints the offer and exits without paying.
@@ -45,8 +50,17 @@ if (!key) {
 const { JsonRpcProvider, Wallet } = await import("ethers");
 const wallet = new Wallet(key, new JsonRpcProvider(rpcUrl));
 
-const { response, paid, receipt } = await payAndFetch(url, {
+const exactCap = process.env.EXACT_MAX_BASE ? BigInt(process.env.EXACT_MAX_BASE) : undefined;
+
+const { response, paid, receipt, error } = await payAndFetch(url, {
   maxAmountWei: cap,
+  // exact: sign the EIP-3009 typed data the SDK builds; no transaction, no gas.
+  maxAmountBase: exactCap,
+  account: wallet.address,
+  signTypedData: async ({ domain, types, message }) => {
+    const { EIP712Domain, ...rest } = types;
+    return wallet.signTypedData(domain, rest, message);
+  },
   // The signer callback: send the prepared donate() call and resolve once it is mined.
   pay: async ({ chainId, to, valueWei, data }) => {
     const net = await wallet.provider.getNetwork();
@@ -58,6 +72,12 @@ const { response, paid, receipt } = await payAndFetch(url, {
   },
 });
 
-if (paid) console.log(`Paid ${formatUnits(paid.amountWei, 18)} USDC to shelters: ${explorerTxUrl(paid.chainId, paid.txHash)}`);
+if (paid?.scheme === "exact") {
+  console.log(`Paid ${formatUnits(paid.amountBase, 6)} USDC to the shelter wallet ${paid.payTo} on chain ${paid.chainId}: ${paid.txHash}`);
+} else if (paid) {
+  console.log(`Paid ${formatUnits(paid.amountWei, 18)} USDC to shelters: ${explorerTxUrl(paid.chainId, paid.txHash)}`);
+} else if (error) {
+  console.log(`Not paid: ${error}`);
+}
 console.log(`HTTP ${response.status}`, receipt ? `(receipt: ${JSON.stringify(receipt)})` : "");
 console.log(await response.json());

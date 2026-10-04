@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
     computeAddress,
+    getBigInt,
     Interface,
     JsonRpcProvider,
     keccak256,
@@ -8,7 +9,10 @@ import {
     TransactionResponse,
     Wallet,
 } from 'ethers';
-import { ShelterOnchainConfig } from './shelter-onchain.config';
+import { donateRouterInterface, ROUTER_DONATION_TOPIC } from './donate-router';
+import { readShelterConfig, ShelterOnchainConfig } from './shelter-onchain.config';
+
+export { donateRouterInterface, ROUTER_DONATION_TOPIC };
 
 /** The slice of ShelterSplit this backend uses. */
 export const SHELTER_SPLIT_ABI = [
@@ -17,6 +21,10 @@ export const SHELTER_SPLIT_ABI = [
     'event NativeDisbursed(address indexed shelter, uint256 amount, string memo)',
     'event Disbursed(address indexed shelter, uint256 amount, string memo)',
     'event NativeDisbursementBatch(uint256 indexed batchId, address indexed payer, uint256 amount, uint256 toShelters, uint256 toTreasury, uint256 sheltersPaid, string memo)',
+    'event DisbursementBatch(uint256 indexed batchId, address indexed payer, uint256 amount, uint256 toShelters, uint256 toTreasury, uint256 sheltersPaid, string memo)',
+    'function token() view returns (address)',
+    'function treasury() view returns (address)',
+    'function preview(uint256 amount) view returns (address[] wallets, uint256[] amounts, uint256 toTreasury)',
 ];
 
 export const shelterSplitInterface = new Interface(SHELTER_SPLIT_ABI);
@@ -26,6 +34,28 @@ export const NATIVE_DISBURSED_TOPIC = '0xc859ef09d317f79211253b04e5d51bff252d808
 export const DISBURSED_TOPIC = '0x53e1c69daf8c00e0990d33cc076fc3c88a0c480beb39da2bcffa01252f63495a';
 /** One per donate(): `amount` is the whole msg.value, shelters' shares plus the treasury remainder. */
 export const NATIVE_BATCH_TOPIC = shelterSplitInterface.getEvent('NativeDisbursementBatch')!.topicHash.toLowerCase();
+/** One per disburse(): the token twin of NATIVE_BATCH_TOPIC. `payer` is msg.sender (the router for wallet gifts). */
+export const TOKEN_BATCH_TOPIC = shelterSplitInterface.getEvent('DisbursementBatch')!.topicHash.toLowerCase();
+
+/**
+ * The `payer` of the split's batch event in a receipt (lowercased), or null. Only logs emitted by
+ * `split` count, so another contract cannot fake a batch.
+ */
+export function batchPayerOf(
+    logs: readonly { address: string; topics: readonly string[] }[],
+    split: string
+): string | null {
+    for (const log of logs || []) {
+        const topic = String(log?.topics?.[0] || '').toLowerCase();
+        if (String(log?.address || '').toLowerCase() !== split.toLowerCase()) {
+            continue;
+        }
+        if ((topic === NATIVE_BATCH_TOPIC || topic === TOKEN_BATCH_TOPIC) && log.topics.length >= 3) {
+            return ('0x' + String(log.topics[2]).slice(-40)).toLowerCase();
+        }
+    }
+    return null;
+}
 
 /**
  * Thin ethers v6 wrapper, so the services stay testable with a mocked `ethers`.
@@ -40,7 +70,10 @@ export class ShelterChain {
         const key = `${config.chainId}|${config.rpcUrl}`;
         let provider = this.providers.get(key);
         if (!provider) {
-            provider = new JsonRpcProvider(config.rpcUrl!, config.chainId, { staticNetwork: true });
+            // cacheTimeout -1: ethers otherwise reuses an identical RPC answer for 250 ms, so two hot-wallet
+            // sends in quick succession (a treat, then a match) read the same pending nonce and the second
+            // one is refused (NONCE_EXPIRED). Found by the local donation E2E (e2e-donate/stack.sh).
+            provider = new JsonRpcProvider(config.rpcUrl!, config.chainId, { staticNetwork: true, cacheTimeout: -1 });
             this.providers.set(key, provider);
         }
         return provider;
@@ -66,11 +99,47 @@ export class ShelterChain {
         value: bigint,
         onSigned: (tx: SignedDonation) => Promise<void> = async () => undefined
     ): Promise<SignedDonation> {
+        return this.sendSigned(
+            config,
+            config.splitAddress!,
+            shelterSplitInterface.encodeFunctionData('donate', [memo]),
+            value,
+            onSigned
+        );
+    }
+
+    /**
+     * Any contract call from the hot wallet, with the same sign, store, broadcast steps and the same
+     * errors as sendDonation (a refused broadcast is a DonationBroadcastError whose `definite` follows
+     * DEFINITE_BROADCAST_REFUSALS). Used by the relay (router.donateWithAuthorization: the hot wallet
+     * pays gas only), the match and the flush keeper. Shares the in-process send queue, so it never
+     * races a treat for a nonce.
+     *
+     * `options.config` defaults to the current SHELTER_* environment, so a caller that only knows
+     * `(to, data, valueWei)` can duck-type it.
+     */
+    async sendContractCall(
+        to: string,
+        data: string,
+        valueWei: bigint = getBigInt(0),
+        options: { config?: ShelterOnchainConfig; onSigned?: (tx: SignedDonation) => Promise<void> } = {}
+    ): Promise<{ txHash: string; nonce: number; from: string }> {
+        const tx = await this.sendSigned(options.config || readShelterConfig(), to, data, valueWei, options.onSigned);
+        return { txHash: tx.hash, nonce: tx.nonce, from: tx.from };
+    }
+
+    private sendSigned(
+        config: ShelterOnchainConfig,
+        to: string,
+        data: string,
+        value: bigint,
+        onSigned: (tx: SignedDonation) => Promise<void> = async () => undefined
+    ): Promise<SignedDonation> {
         const run = async () => {
             const wallet = new Wallet(config.privateKey!, this.provider(config));
             const request = await wallet.populateTransaction({
-                to: config.splitAddress!,
-                data: shelterSplitInterface.encodeFunctionData('donate', [memo]),
+                to,
+                data,
                 value,
                 chainId: config.chainId,
             });
@@ -91,6 +160,52 @@ export class ShelterChain {
         const result = this.sendQueue.then(run, run);
         this.sendQueue = result.catch(() => undefined);
         return result;
+    }
+
+    /**
+     * `eth_call` as the hot wallet (or `from`), at `latest`. Resolves with the return data; a revert
+     * rejects with the ethers CALL_EXCEPTION, whose `data`/`reason` the relay maps to a 400.
+     */
+    ethCall(config: ShelterOnchainConfig, to: string, data: string, from?: string | null): Promise<string> {
+        return this.provider(config).call({ to, data, ...(from ? { from } : {}) });
+    }
+
+    /** Waits for one confirmation of `txHash`, at most `timeoutMs`. Null on timeout. */
+    waitForReceipt(
+        config: ShelterOnchainConfig,
+        txHash: string,
+        timeoutMs = 60000
+    ): Promise<TransactionReceipt | null> {
+        return this.provider(config).waitForTransaction(txHash, 1, timeoutMs);
+    }
+
+    /** Raw `eth_getLogs` for the router's RouterDonation events, in JSON-RPC shape. */
+    getRouterLogs(config: ShelterOnchainConfig, fromBlock: number, toBlock: number): Promise<RpcPayoutLog[]> {
+        return this.provider(config).send('eth_getLogs', [
+            {
+                address: config.routerAddress,
+                topics: [[ROUTER_DONATION_TOPIC]],
+                fromBlock: '0x' + fromBlock.toString(16),
+                toBlock: '0x' + toBlock.toString(16),
+            },
+        ]);
+    }
+
+    /** The router's RouterDonation logs whose indexed `nonce` (topic 3) is `nonce`, in JSON-RPC shape. */
+    getRouterLogsByNonce(
+        config: ShelterOnchainConfig,
+        nonce: string,
+        fromBlock: number,
+        toBlock: number
+    ): Promise<RpcPayoutLog[]> {
+        return this.provider(config).send('eth_getLogs', [
+            {
+                address: config.routerAddress,
+                topics: [ROUTER_DONATION_TOPIC, null, null, nonce],
+                fromBlock: '0x' + fromBlock.toString(16),
+                toBlock: '0x' + toBlock.toString(16),
+            },
+        ]);
     }
 
     /** Transactions `from` has had mined (`latest` nonce). A nonce below it is used for good. */
@@ -127,6 +242,16 @@ export class ShelterChain {
 
     blockNumber(config: ShelterOnchainConfig): Promise<number> {
         return this.provider(config).getBlockNumber();
+    }
+
+    /** The unix timestamp (seconds) of block `blockNumber`, or null when the node does not have it yet. */
+    async blockTimestamp(config: ShelterOnchainConfig, blockNumber: number): Promise<number | null> {
+        const block: { timestamp?: string } | null = await this.provider(config).send('eth_getBlockByNumber', [
+            '0x' + blockNumber.toString(16),
+            false,
+        ]);
+        const ts = typeof block?.timestamp === 'string' ? Number.parseInt(block.timestamp, 16) : NaN;
+        return Number.isSafeInteger(ts) ? ts : null;
     }
 
     /**

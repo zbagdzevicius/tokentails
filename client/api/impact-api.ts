@@ -11,7 +11,8 @@ import { apiUrl } from "./api";
 export type ChainSource = "ok" | "error" | "not-deployed" | "idle";
 export type RailState = "not-deployed" | "paused" | "live" | "exhausted";
 export type Custody = "held-by-token-tails" | "handed-over";
-export type PayoutBucket = "heist" | "page" | "paws" | "x402" | "direct";
+// "wallet": public gifts through the DonateRouter; "match": Token Tails' 1:1 match of them.
+export type PayoutBucket = "heist" | "page" | "paws" | "x402" | "direct" | "wallet" | "match";
 
 export interface PublicShelter {
   slug: string;

@@ -6,8 +6,10 @@ import { impactJobsEnabled } from 'src/impact/impact.config';
 import { ILeaseCollection, JOB_RUNS_COLLECTION, runLeased } from 'src/shared/jobs/lease';
 import { ShelterChain } from './shelter-chain';
 import { ShelterDonateService } from './shelter-donate.service';
-import { readShelterConfig, ShelterOnchainConfig } from './shelter-onchain.config';
+import { readShelterConfig, readTryShelterConfig, ShelterOnchainConfig } from './shelter-onchain.config';
 import { ShelterDonation, ShelterDonationDocument, ShelterDonationStatus } from './shelter-onchain.schema';
+import { MatchRunResult, ShelterMatchService } from './shelter-match.service';
+import { ShelterRelayService } from './shelter-relay.service';
 
 export const DONATE_RECONCILE_JOB = 'shelter-donate-reconcile';
 export const DONATE_RECONCILE_CRON = '*/2 * * * *';
@@ -25,6 +27,13 @@ export interface ReconcileResult {
     failed: number;
     released: number;
     skipped: number;
+    /** Present when the relay is wired in: relays settled this run. */
+    relay?: { confirmed: number; failed: number };
+    /** Present when the match is wired in: the router scan, matches and the flush keeper. */
+    match?: MatchRunResult;
+    /** The same two steps on the try-it testnet, when SHELTER_TRY_CHAIN_ID is set. */
+    tryRelay?: { confirmed: number; failed: number };
+    tryMatch?: MatchRunResult;
 }
 
 /**
@@ -57,7 +66,9 @@ export class ShelterDonateReconcileService {
     constructor(
         @InjectModel(ShelterDonation.name) private donationModel: Model<ShelterDonationDocument>,
         private donateService: ShelterDonateService,
-        private chain: ShelterChain
+        private chain: ShelterChain,
+        private relayService?: ShelterRelayService,
+        private matchService?: ShelterMatchService
     ) {}
 
     @Cron(DONATE_RECONCILE_CRON, { name: DONATE_RECONCILE_JOB })
@@ -76,7 +87,8 @@ export class ShelterDonateReconcileService {
 
     async reconcileOnce(
         now: Date = new Date(),
-        config: ShelterOnchainConfig = readShelterConfig()
+        config: ShelterOnchainConfig = readShelterConfig(),
+        tryConfig: ShelterOnchainConfig | null = readTryShelterConfig()
     ): Promise<ReconcileResult> {
         const result: ReconcileResult = { confirmed: 0, failed: 0, released: 0, skipped: 0 };
         const cutoff = new Date(now.getTime() - DONATE_RECONCILE_TIMEOUT_MS);
@@ -122,6 +134,40 @@ export class ShelterDonateReconcileService {
         for (const row of holding || []) {
             if (await this.donateService.releaseBudgetSlot(row._id, row.day, now)) {
                 result.released++;
+            }
+        }
+
+        // Wallet gifts (F2): settle relays, scan RouterDonation into matches, send them, flush the
+        // router. Each step is isolated: a failure there never undoes the treat work above.
+        if (this.relayService) {
+            try {
+                result.relay = await this.relayService.confirmPending(config, now);
+            } catch (error: any) {
+                this.logger.warn(`relay reconcile failed: ${error?.code || error?.name || 'unknown error'}`);
+            }
+        }
+        if (this.matchService) {
+            try {
+                result.match = await this.matchService.runOnce(now, config);
+            } catch (error: any) {
+                this.logger.warn(`match reconcile failed: ${error?.code || error?.name || 'unknown error'}`);
+            }
+        }
+        // The try-it testnet (SHELTER_TRY_*): its own relays and matches, same steps, own counters.
+        if (tryConfig) {
+            if (this.relayService) {
+                try {
+                    result.tryRelay = await this.relayService.confirmPending(tryConfig, now);
+                } catch (error: any) {
+                    this.logger.warn(`try relay reconcile failed: ${error?.code || error?.name || 'unknown error'}`);
+                }
+            }
+            if (this.matchService) {
+                try {
+                    result.tryMatch = await this.matchService.runOnce(now, tryConfig);
+                } catch (error: any) {
+                    this.logger.warn(`try match reconcile failed: ${error?.code || error?.name || 'unknown error'}`);
+                }
             }
         }
         return result;

@@ -36,6 +36,12 @@ export const wavePaths = {
     // copy the live win screen keeps the old list until someone runs `npm run build:client` in catnip-heist.
     join(HERE, '..', '..', '..', '..', 'client', 'public', 'heist-game', 'payouts', 'deployments.json'),
   ],
+  // The testnet list for the client's "Testnet proof" section (kept apart from the mainnet list so test
+  // money never sums with real payouts). Off whenever FUND_A_PUBLISH redirects or disables the mainnet
+  // copies (tests), unless FUND_A_PUBLISH_TESTNET names a file.
+  publishTestnet: () => process.env.FUND_A_PUBLISH_TESTNET ? [process.env.FUND_A_PUBLISH_TESTNET]
+    : process.env.FUND_A_PUBLISH ? []
+    : [join(HERE, '..', '..', '..', '..', 'client', 'public', 'shelter-payouts', 'testnet-deployments.json')],
   portfolio: () => process.env.FUND_PORTFOLIO || join(HERE, '..', '..', 'portfolio', 'opportunities.json'),
 };
 
@@ -391,17 +397,19 @@ async function cmdIngest({ flags }) {
   }
 
   // Publish the mainnet list to the read-only pages (only public fields; nothing secret is in it).
-  if (network === 'mainnet') {
-    const pub = loadDeployments().filter((d) => d.network === 'mainnet' && !d.mock)
+  // A testnet ingest refreshes the separate testnet list instead (mock tokens included: it is test money).
+  if (network === 'mainnet' || network === 'testnet') {
+    const pub = loadDeployments().filter((d) => d.network === network && (network === 'testnet' || !d.mock))
       .map(({ contract, chain, network: n, chainId, address, tx, token, proofTxs }) => {
         // Any non-USDC instance states its symbol and decimals: a second-token instance (EURC) and a chain
         // whose default payout token is not USDC (USDG on Robinhood, MUSD on Mezo). The pages otherwise
         // label every ERC-20 payout on a chain with that chain's default token, and must never sum it as USDC.
+        // The recorded spelling wins over splitToken's upper-cased one (pathUSD, mUSDC, not PATHUSD, MUSDC).
         let alt = null;
         try { const ni = networkInfo(chains, chain, n); const t = splitToken(ni, token || null); if (t.symbol !== 'USDC') alt = t; } catch { /* unknown chain */ }
-        return { contract, chain, network: n, chainId, address, ...(tx ? { tx } : {}), ...(token ? { token } : {}), ...(alt ? { symbol: alt.symbol, decimals: alt.decimals } : {}), ...(proofTxs ? { proofTxs } : {}) };
+        return { contract, chain, network: n, chainId, address, ...(tx ? { tx } : {}), ...(token ? { token } : {}), ...(alt ? { symbol: token && token.toUpperCase() === alt.symbol.toUpperCase() ? token : alt.symbol, decimals: alt.decimals } : {}), ...(proofTxs ? { proofTxs } : {}) };
       });
-    for (const f of wavePaths.publish()) {
+    for (const f of network === 'mainnet' ? wavePaths.publish() : wavePaths.publishTestnet()) {
       if (!existsSync(dirname(f))) continue;
       writeFileSync(f, JSON.stringify(pub, null, 2) + '\n');
       say(`published ${pub.length} deployment(s) to ${f.replace(join(HERE, '..', '..', '..', '..') + '/', '')}`);

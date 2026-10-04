@@ -113,7 +113,10 @@ describe('ShelterDonateService.donate', () => {
             amountWei: AMOUNT,
             explorerUrl: `https://explorer.arc.io/tx/${TX_HASH}`,
         });
-        expect(JsonRpcProvider).toHaveBeenCalledWith('https://rpc.mainnet.arc.io', 5042, { staticNetwork: true });
+        expect(JsonRpcProvider).toHaveBeenCalledWith('https://rpc.mainnet.arc.io', 5042, {
+            staticNetwork: true,
+            cacheTimeout: -1,
+        });
         const tx = sendTransaction.mock.calls[0][0];
         expect(tx.to).toBe(SPLIT);
         expect(tx.value.toString()).toBe(AMOUNT);
@@ -292,7 +295,10 @@ describe('ShelterDonateService.status', () => {
             treatsLeftToday: 2,
         });
         expect(status.remainingTodayWei).toBe('20000000000000000');
-        expect(JsonRpcProvider).toHaveBeenCalledWith('https://rpc.testnet.arc.io', 5042002, { staticNetwork: true });
+        expect(JsonRpcProvider).toHaveBeenCalledWith('https://rpc.testnet.arc.io', 5042002, {
+            staticNetwork: true,
+            cacheTimeout: -1,
+        });
     });
 
     it('sums CONFIRMED gifts only into the community total, and caches it', async () => {

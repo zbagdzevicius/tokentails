@@ -32,9 +32,24 @@ export function wantsPayoutsDeepLink(loc: { search?: string; hash?: string } | u
   return /^#payouts$/i.test(loc.hash ?? '');
 }
 
-/** "12.5 USDC + 1 EURC", or '' when nothing has been paid yet. */
+/** Stablecoins first, in this order; the RPCs answer in any order, so the line never reshuffles. */
+const TOKEN_ORDER = ['USDC', 'USDC.e', 'EURC', 'USDG', 'pathUSD', 'mUSDC'].map((t) => t.toUpperCase());
+/** Native gas coins (a native payout on a chain whose coin is not a stablecoin): never in the headline. */
+const GAS_COINS = new Set(['ETH', 'AVAX', 'MON']);
+const isGas = (symbol: string) => GAS_COINS.has(symbol.toUpperCase());
+
+/** Non-zero totals in a fixed order: stablecoins (TOKEN_ORDER), other tokens, then gas coins. */
+function orderedTotals(totals: Map<string, bigint>): [string, bigint][] {
+  const rank = (s: string) => {
+    const i = TOKEN_ORDER.indexOf(s.toUpperCase());
+    return i >= 0 ? i : isGas(s) ? 200 : 100;
+  };
+  return [...totals].filter(([, v]) => v > 0n).sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b));
+}
+
+/** "12.5 USDC + 1 EURC", or '' when nothing has been paid yet. Always in the same token order. */
 export function amountsText(totals: Map<string, bigint>): string {
-  return [...totals].filter(([, v]) => v > 0n).map(([s, v]) => formatAmount(v, s)).join(' + ');
+  return orderedTotals(totals).map(([s, v]) => formatAmount(v, s)).join(' + ');
 }
 
 export const shortAddress = (a: string): string => (a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a);
@@ -129,6 +144,8 @@ function css(base: string): string {
   font-size: clamp(30px, 5vw + 12px, 54px); line-height: .92; color: #fff; text-shadow: 0 3px 0 var(--tt-night-950), 0 8px 22px rgba(0,0,0,.65); }
 .ch-pay-total { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 8px; min-height: 96px; justify-content: center; }
 .ch-pay-amount { font-family: ${DISPLAY}; font-weight: 700; font-size: clamp(46px, 9vw + 18px, 104px); line-height: .9; color: var(--tt-cream); text-shadow: ${GLOW}; text-wrap: balance; }
+.ch-pay-amount.ch-pay-many { font-size: clamp(32px, 4vw + 18px, 60px); line-height: 1; }
+.ch-pay-amount > span { white-space: nowrap; }
 .ch-pay-amount.ch-soon { font-size: clamp(28px, 4vw + 14px, 46px); line-height: 1; }
 .ch-pay-amount.ch-pay-err { color: var(--tt-lilac); text-shadow: 0 3px 0 var(--tt-night-950), 0 6px 16px rgba(0,0,0,.6); }
 .ch-pay-caption { margin: 0; max-width: 34em; font-family: ${DISPLAY}; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; font-size: clamp(14px, 1vw + 11px, 19px); color: rgba(252,236,187,.92); text-shadow: 0 2px 6px rgba(0,0,0,.7); }
@@ -149,6 +166,9 @@ function css(base: string): string {
   font-family: ${HEIST_BODY_FONT}; font-weight: 800; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--tt-lilac); }
 .ch-pay-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .ch-pay-main b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; line-height: 1.25; font-family: ${HEIST_BODY_FONT}; font-weight: 700; font-size: 15px; color: var(--tt-cream); letter-spacing: 0; }
+.ch-pay-line { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 0; }
+.ch-pay-tok { text-transform: none; color: var(--tt-gold); }
+.ch-pay-when { white-space: nowrap; }
 .ch-pay-main small, .ch-pay-main a { font-family: ${HEIST_BODY_FONT}; font-weight: 600; font-size: 12px; color: var(--tt-muted); letter-spacing: 0; }
 .ch-pay-ui a { color: var(--tt-lilac); text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; pointer-events: auto; }
 .ch-pay-ui a:hover, .ch-pay-ui a:focus-visible { color: var(--tt-cream); }
@@ -189,7 +209,8 @@ function css(base: string): string {
   .ch-pay-hero { padding: 22px 64px 26px; }
   .ch-pay-body { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); padding: 4px 22px 20px; align-items: start; gap: 16px; }
   /* The shelter card stays in view while the payouts and cats scroll past it. */
-  .ch-pay-side { order: 0; position: sticky; top: 16px; }
+  /* Below the Close button, which sits over the card's top-right corner. */
+  .ch-pay-side { order: 0; position: sticky; top: 64px; }
   .ch-pay-foot { grid-column: 1 / -1; flex-direction: row-reverse; justify-content: space-between; }
   .ch-pay-foot .ch-btn { width: auto; min-width: 260px; }
 }
@@ -301,12 +322,14 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
   }
 
   function payoutItem(p: PayoutRow): HTMLElement {
-    const label = p.memo || (p.shelter ? `To ${shortAddress(p.shelter)}` : 'Payout');
+    // The deploy wave's proof payouts carry an internal memo ("verify arbitrum native"): name them plainly.
+    const memo = /^verify\s/i.test(p.memo) ? 'Network check payout' : p.memo;
+    const label = memo || (p.shelter ? `To ${shortAddress(p.shelter)}` : 'Payout');
     const when = p.time !== undefined ? timeAgo(p.time, now()) : p.block ? `block ${p.block.toLocaleString('en-US')}` : '';
     return h(
       'li',
       { 'data-testid': 'payout-row' },
-      h('span.ch-pay-main', null, h('b', { title: label }, label), h('small', null, h('span.ch-pay-badge', null, p.chainName), when)),
+      h('span.ch-pay-main', null, h('b', { title: label }, label), h('small', null, h('span.ch-pay-badge', null, p.chainName), when ? h('span.ch-pay-when', null, when) : null)),
       h(
         'span.ch-pay-amt',
         null,
@@ -325,7 +348,12 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
         'span.ch-pay-main',
         null,
         h('b', null, c.name),
-        c.explorer ? ext(`${c.explorer}/address/${c.address}`, shortAddress(c.address), { class: 'ch-pay-mono', 'aria-label': `Contract ${c.address} on ${c.name}` }) : h('small.ch-pay-mono', null, shortAddress(c.address)),
+        h(
+          'span.ch-pay-line',
+          null,
+          c.symbol ? h('span.ch-pay-badge.ch-pay-tok', { 'data-testid': 'chain-token', title: `Pays out in ${c.symbol}` }, c.symbol) : null,
+          c.explorer ? ext(`${c.explorer}/address/${c.address}`, shortAddress(c.address), { class: 'ch-pay-mono', 'aria-label': `Contract ${c.address} on ${c.name}` }) : h('small.ch-pay-mono', null, shortAddress(c.address)),
+        ),
       ),
       h(
         'span.ch-pay-amt',
@@ -354,33 +382,51 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
     );
   }
 
+  function retryButton(): HTMLElement {
+    const retry = h('button.ch-btn.ch-ghost.ch-pay-retry', { type: 'button', 'data-testid': 'payouts-retry' }, h('span', null, 'Try again'));
+    retry.addEventListener('click', () => {
+      opts.onClick?.();
+      // The button is about to be replaced: keep focus inside the dialog.
+      title.focus({ preventScroll: true });
+      void refresh();
+    });
+    return retry;
+  }
+
   function paint(data: ShelterPayouts) {
     total.removeAttribute('aria-busy');
     const amount = amountsText(data.totals);
+    // Networks whose RPC could not be read: their payouts are missing from the total, so say so.
+    const down = data.status === 'error' ? 0 : data.chains.filter((c) => !c.ok).length;
+    const downNote = down
+      ? [h('p.ch-pay-note', { 'data-testid': 'payouts-partial' }, `${down} payout contract${down === 1 ? '' : 's'} could not be read right now, so ${down === 1 ? 'its' : 'their'} payouts are not counted yet.`), retryButton()]
+      : [];
     if (data.status === 'error') {
-      const retry = h('button.ch-btn.ch-ghost.ch-pay-retry', { type: 'button', 'data-testid': 'payouts-retry' }, h('span', null, 'Try again'));
-      retry.addEventListener('click', () => {
-        opts.onClick?.();
-        // The button is about to be replaced: keep focus inside the dialog.
-        title.focus({ preventScroll: true });
-        void refresh();
-      });
       total.replaceChildren(
         h('b.ch-pay-amount.ch-soon.ch-pay-err', null, "Can't reach the chain"),
         h('p.ch-pay-note', null, "We couldn't read the payouts just now. Check your connection and try again."),
-        retry,
+        retryButton(),
       );
     } else if (amount) {
+      // Stablecoins make the headline; a native gas coin (ETH, AVAX) goes on a smaller line under it.
+      const sorted = orderedTotals(data.totals);
+      const stable = sorted.filter(([s]) => !isGas(s));
+      const head = stable.length ? stable : sorted;
+      const gas = stable.length ? sorted.filter(([s]) => isGas(s)) : [];
+      const parts = head.flatMap(([s, v], i) => [i ? ' + ' : null, h('span', null, formatAmount(v, s))]);
       total.replaceChildren(
-        h('b.ch-pay-amount', { 'data-testid': 'payouts-amount' }, amount),
+        h(head.length > 2 ? 'b.ch-pay-amount.ch-pay-many' : 'b.ch-pay-amount', { 'data-testid': 'payouts-amount' }, ...parts),
+        ...(gas.length ? [h('p.ch-pay-note', { 'data-testid': 'payouts-gas' }, `Plus ${gas.map(([s, v]) => formatAmount(v, s)).join(' and ')} in network coins`)] : []),
         // claim: L-disbursed (the live on-chain total; "Token Tails has sent {amount} to shelters")
-        h('p.ch-pay-caption', { 'data-claim': 'L-disbursed' }, 'Token Tails has sent this to shelters so far'),
+        h('p.ch-pay-caption', { 'data-claim': 'L-disbursed' }, down ? 'Token Tails has sent at least this to shelters so far' : 'Token Tails has sent this to shelters so far'),
+        ...downNote,
       );
     } else {
       total.replaceChildren(
         h('b.ch-pay-amount.ch-soon', { 'data-testid': 'payouts-soon' }, 'First payouts land soon'),
         // claim: L-disbursed (future tense: nothing has been paid out yet)
         h('p.ch-pay-note', null, 'Each one will show up here the moment it happens, with a link to check it on the chain.'),
+        ...downNote,
       );
     }
 
@@ -389,7 +435,13 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
       sections.push(h('section.ch-pay-box', { 'data-testid': 'payouts-latest' }, h('h3', null, 'Latest payouts'), h('ul.ch-pay-list', null, ...data.payouts.slice(0, LATEST).map(payoutItem))));
     }
     if (data.chains.length) {
-      sections.push(h('section.ch-pay-box', { 'data-testid': 'payouts-chains' }, h('h3', null, 'Where it goes'), h('ul.ch-pay-list', null, ...data.chains.map(chainItem))));
+      sections.push(h(
+          'section.ch-pay-box',
+          { 'data-testid': 'payouts-chains' },
+          h('h3', null, 'Payout contracts by network'),
+          h('p.ch-pay-empty', null, 'Each network runs its own open payout contract, labelled with the coin it pays in. Tap an address to check it on that network\'s explorer.'),
+          h('ul.ch-pay-list', null, ...data.chains.map(chainItem)),
+        ));
     }
     if (!data.payouts.length && data.status !== 'error') sections.unshift(howItWorks());
     if (!sections.length) sections.push(howItWorks());

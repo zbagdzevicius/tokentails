@@ -6,7 +6,7 @@ import { useRouter } from "next/router";
 import { useCallback, useEffect, useState } from "react";
 import { Campaign, fetchCampaign } from "./campaign";
 import { Celebration } from "./Celebration";
-import { SHELTER_CHAINS } from "./chains";
+import { SHELTER_CHAINS, chainDisplayName } from "./chains";
 import { formatUnits } from "./logs";
 import { headingName, isPinkPawWallet } from "./pinkPaw";
 import { PinkPawLogo, PinkPawStrip } from "./PinkPawShowcase";
@@ -31,7 +31,10 @@ export const cleanCatName = (v: string) =>
   v.replace(/[\u0000-\u001f<>{}[\]\\/"`]/g, "").trim().slice(0, 32);
 
 const usdc = (wei: string | bigint, chainId: number) => {
-  const decimals = SHELTER_CHAINS[chainId]?.nativeDecimals ?? 18;
+  // Native rails (Arc: USDC with 18 decimals) use the native decimals; a token rail with no native
+  // coin (Tempo) uses its token's decimals.
+  const chain = SHELTER_CHAINS[chainId];
+  const decimals = chain?.nativeDecimals ?? chain?.decimals ?? 18;
   return formatUnits(typeof wei === "bigint" ? wei : BigInt(wei || "0"), decimals);
 };
 
@@ -153,7 +156,8 @@ export const GiveTreat = () => {
                 "Token Tails pays for every treat"
               ) : (
                 <>
-                  Each treat: <strong className="text-tt-gold-400">{usdc(status.amountWei, chainId)} USDC</strong>
+                  Each treat: <strong className="text-tt-gold-400">{usdc(status.amountWei, chainId)} USDC</strong> on{" "}
+                  {SHELTER_CHAINS[chainId] ? chainDisplayName(SHELTER_CHAINS[chainId]) : `chain ${chainId}`}
                 </>
               )}
               {status.enabled && ` · ${treatsLeft.toString()} left in today's jar`}

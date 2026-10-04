@@ -1,6 +1,6 @@
 # Arc Microgrants — submission
 
-_Generated 2026-10-03T19:13:11.004Z by `fund a:submission arc-microgrants` from draft.md, the program profile,
+_Generated 2026-10-04T07:57:56.184Z by `fund a:submission arc-microgrants` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -23,13 +23,14 @@ ShelterSplit splits native USDC on Arc as it arrives and pays each registered sh
 ## What we built on Arc
 
 - Arc-native path: USDC is Arc's gas token, so the native and ERC-20 balances are one. donate(memo) and receive() split a USDC send with no approve step. disburse(amount, memo) serves ERC-20 payers such as the EURC instance.
-- Events: one NativeDisbursed or Disbursed(shelter, amount, memo) per shelter and one batch event per call. The payouts page, receipts and meter read only these.
-- Registry: the owner adds, updates, deactivates or removes shelters. Shares never exceed the payment; dust goes to the treasury, so the contract holds no balance.
-- Atomic batch: if one payout fails, for example a wallet that rejects the transfer, the whole batch reverts and nobody is paid short; the owner deactivates that shelter. A test covers this.
-- Sponsored gifts: a verified player taps once a day; a backend wallet with a small float calls donate('tt:<source>:<random id>') within a capped daily budget. The memo holds no personal data.
-- Agent payments, off until handover: an x402-compatible endpoint answers 402 with a price. The agent calls donate('x402:<nonce>') and retries with the tx hash, checked over RPC and accepted once. Our own onchain-receipt scheme, no facilitator.
-- Trust model: the chain proves USDC reached the registered wallet, not who controls it. The first wallet is held by Token Tails on behalf of Pink Paw until handover.
-- Reentrancy guard, pause, two-step ownership, caps, a fuzzed Foundry suite. ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/).
+- Events: NativeDisbursed or Disbursed(shelter, amount, memo) per shelter and one batch event per call. Payouts page, receipts and meter read only these.
+- Registry: the owner adds, updates, deactivates or removes shelters; dust goes to the treasury, so the split holds no balance.
+- Atomic batch: if one payout fails the whole batch reverts and nobody is paid short.
+- Sponsored gifts: a verified player taps once a day; a backend wallet with a small float calls donate('tt:<source>:<random id>') within a capped daily budget. No personal data in the memo.
+- One-signature gifts (built, not deployed): the donor signs an EIP-3009 receiveWithAuthorization that binds the router, memo and payout list. The router reverts if that list changed or any share would reach the treasury.
+- Agent payments, off on mainnet until handover: standard x402 exact paid straight to the shelter wallet, or our own scheme (donate('x402:<nonce>'), tx checked over RPC, accepted once).
+- Trust model: the chain proves USDC reached the registered wallet, not who controls it. Token Tails holds the first wallet for Pink Paw until handover.
+- Reentrancy guard, pause, two-step ownership; fuzz and invariant Foundry suites; MIT.
 
 ## Arc mainnet deployment
 
@@ -38,6 +39,7 @@ Arc mainnet: ShelterSplit (USDC) at {SPLIT_ADDRESS} and ShelterSplit (EURC) at {
 | Network | Contract | Transaction | Shelter payouts | Status |
 |---|---|---|---|---|
 | Arc testnet (chain 5042002) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://explorer.testnet.arc.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://explorer.testnet.arc.io/tx/0x6af0fe0eae4abd65d8560cf4ed14ada55f2debd2e14e9306d45d81a271d0ede8) | [payout 1](https://explorer.testnet.arc.io/tx/0xa90f97134ab92efa5ade8c6f1c6eddcc9bded100a6c1bc2a5b1b91ba6da4360a) | verified on-chain, source verified |
+| Arc testnet (chain 5042002) | [`0x937f13ce28294011567615330dbcb859a06a0bba`](https://explorer.testnet.arc.io/address/0x937f13ce28294011567615330dbcb859a06a0bba) | [deploy tx](https://explorer.testnet.arc.io/tx/0xc63d3c5786aaf15474c0d74c5c65f6e0dcd33d232bdbbee0141a83313a1e59a3) | [payout 1](https://explorer.testnet.arc.io/tx/0xc68ceb5a3633b78cd1681c81dde1ff310ca04f1f378003497acc906eb88f387b) | verified on-chain, source verified |
 
 ## Build evidence
 

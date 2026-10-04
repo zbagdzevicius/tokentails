@@ -1,0 +1,185 @@
+<!doctype html>
+<!-- copy-lint: web-only static demo of the MIT ShelterSplit Rail widget (testnet; names chains on purpose) -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shelter Button Demo</title>
+  <meta name="description" content="One script tag adds a gasless shelter button and a live on-chain meter to any game. Testnet demo with test USDC." />
+  <meta name="color-scheme" content="dark" />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/favicon.ico" />
+  <style>
+    :root {
+      --night-950: #07051a;
+      --night-900: #0b0820;
+      --night-800: #120d1f;
+      --night-700: #1e1633;
+      --night-600: #2a1f45;
+      --night-500: #3a2d5c;
+      --gold: #ffcc55;
+      --gold-ink: #4a1d08;
+      --cream: #fcecbb;
+      --lilac: #f0c5fd;
+      --muted: #b6a7dc;
+      --pink: #ff7aa2;
+      --mint: #7fd66b;
+      --line: rgba(240, 197, 253, 0.16);
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(120% 70% at 50% 0%, var(--night-600) 0%, var(--night-900) 55%, var(--night-950) 100%) fixed;
+      background-color: var(--night-950);
+      color: var(--cream);
+      font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    a { color: var(--lilac); text-underline-offset: 3px; }
+    a:focus-visible, button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; border-radius: 6px; }
+    .skip { position: absolute; left: -999px; top: 8px; background: var(--gold); color: var(--gold-ink); padding: 8px 12px; border-radius: 8px; font-weight: 700; z-index: 10; }
+    .skip:focus { left: 16px; }
+    .banner {
+      position: sticky; top: 0; z-index: 5;
+      display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;
+      padding: 10px 16px; text-align: center;
+      background: var(--gold); color: var(--gold-ink); font-weight: 800; font-size: 14px; letter-spacing: .02em;
+    }
+    .banner span { font-weight: 600; }
+    main { width: 100%; max-width: 960px; margin: 0 auto; padding: 28px 16px 64px; }
+    header.hero { display: grid; gap: 14px; justify-items: start; margin-bottom: 28px; }
+    .eyebrow { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--pink); margin: 0; }
+    h1 { font-size: clamp(30px, 7vw, 48px); line-height: 1.08; margin: 0; color: #fff; letter-spacing: -.01em; }
+    .lede { margin: 0; color: var(--muted); max-width: 60ch; font-size: 17px; }
+    .grid { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
+    .grid > *, .panel { min-width: 0; }
+    @media (min-width: 820px) { .grid { grid-template-columns: 360px minmax(0, 1fr); align-items: start; } }
+    .panel { background: rgba(30, 22, 51, .78); border: 1px solid var(--line); border-radius: 20px; padding: 18px; }
+    .shelter { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+    .shelter img { width: 52px; height: 52px; border-radius: 14px; background: #fff; object-fit: contain; flex: none; }
+    .shelter strong { display: block; color: #fff; font-size: 17px; }
+    .shelter small { color: var(--muted); font-size: 13px; }
+    #rail-gasless { min-height: 132px; }
+    .hint { font-size: 13px; color: var(--muted); margin: 12px 0 0; }
+    h2 { font-size: 20px; margin: 0 0 10px; color: #fff; }
+    ol.flow { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: step; }
+    ol.flow li { counter-increment: step; position: relative; padding: 10px 12px 10px 46px; border-radius: 14px; background: rgba(11, 8, 32, .6); border: 1px solid var(--line); }
+    ol.flow li::before { content: counter(step); position: absolute; left: 12px; top: 10px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--pink); color: var(--night-900); font-weight: 800; font-size: 13px; }
+    ol.flow b { color: #fff; }
+    .rules { display: grid; gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; }
+    .rules li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
+    .rules li::before { content: "✓"; color: var(--mint); font-weight: 800; flex: none; }
+    .code { position: relative; margin-top: 18px; }
+    pre { margin: 0; overflow-x: auto; padding: 14px; padding-right: 84px; border-radius: 14px; background: var(--night-950); border: 1px solid var(--line); color: var(--lilac); font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .copy { position: absolute; top: 8px; right: 8px; min-height: 36px; padding: 6px 12px; border: 0; border-radius: 999px; background: var(--gold); color: var(--gold-ink); font: 700 13px system-ui, sans-serif; cursor: pointer; }
+    section { margin-top: 18px; }
+    .agents p { margin: 0 0 8px; color: var(--muted); font-size: 15px; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; color: var(--lilac); }
+    .disclosure { margin-top: 24px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; }
+    footer { margin-top: 18px; font-size: 13px; color: var(--muted); }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to the demo</a>
+  <div class="banner" role="note" aria-label="Testnet demo">TESTNET <span>Test USDC, no real money. Arc testnet.</span></div>
+
+  <main id="main">
+    <header class="hero">
+      <p class="eyebrow">ShelterSplit Rail · MIT · no dependencies</p>
+      <h1>Any game can add a shelter button.</h1>
+      <p class="lede">One script tag gives players a gasless "Give to the shelter" button and a live meter read straight from the chain. The gift goes from the player's wallet to the shelter's wallet. No account and no gas: a relay pays the gas but never holds the gift, and the contracts pass it on in the same transaction. See the disclosure below about who holds Pink Paw's wallet today.</p>
+    </header>
+
+    <div class="grid">
+      <div class="panel" aria-labelledby="try-it">
+        <h2 id="try-it">Try it</h2>
+        <div class="shelter">
+          <img src="/logo/shelters/pink-paw.webp" alt="Pink Paw (Rožinė pėdutė) logo" width="52" height="52" />
+          <div><strong>Pink Paw (Rožinė pėdutė)</strong><small>Showcase shelter on the rail</small></div>
+        </div>
+        <div id="rail-gasless"></div>
+        <!--
+          DonateRouter (Arc testnet): set data-router once the testnet deploy is recorded in
+          funding/framework/tracks/a-build/deployments.json, and data-relay once the relay endpoint is live.
+          Until both are set the button reads "Gasless giving opens soon" and only the live total shows.
+          data-usdc is Arc testnet's native USDC ERC-20 interface (EIP-3009, name "USDC", version "2").
+        -->
+        <script src="widget.js"
+          data-mode="gasless"
+          data-chain="5042002"
+          data-split="0x457c89e10a6e66633eda5bf82fd086febb5db147"
+          data-from-block="65080649"
+          data-router=""
+          data-usdc="0x3600000000000000000000000000000000000000"
+          data-relay=""
+          data-amount="1000000"
+          data-shelter="Pink Paw"
+          data-testnet="true"
+          data-theme="dark"
+          data-disclosure="Pink Paw's wallet was created by Token Tails and is held by Token Tails on behalf of the shelter until handover."
+          data-target="#rail-gasless"></script>
+        <p class="hint">Needs a browser wallet on Arc testnet with test USDC from the Circle faucet. Signing costs no gas.</p>
+      </div>
+
+      <div class="panel" aria-labelledby="how">
+        <h2 id="how">How the money moves</h2>
+        <ol class="flow">
+          <li><b>The player signs once.</b> One USDC <code>ReceiveWithAuthorization</code> (EIP-3009). No gas, no approve, no transaction from their wallet.</li>
+          <li><b>A relay submits it.</b> It pays the gas but cannot change the amount, the memo or the payee: the nonce is bound to the router and the memo.</li>
+          <li><b>The DonateRouter pays the shelter.</b> It pulls the USDC and splits it through ShelterSplit to the shelter wallet in the same transaction.</li>
+        </ol>
+        <ul class="rules" aria-label="Rules the contracts enforce">
+          <li><span>The router has <b>no owner</b> and keeps <b>no balance</b>.</span></li>
+          <li><span>It <b>reverts</b> if any part of a gift would reach the split's treasury.</span></li>
+          <li><span>Every payout is a public event; the &ldquo;Shelters received&rdquo; total in the Try it panel reads them live.</span></li>
+        </ul>
+
+        <div class="code">
+          <pre id="snippet" aria-label="Embed snippet"><code>&lt;script src="https://tokentails.com/rail/widget.js"
+  data-mode="gasless"
+  data-chain="5042002"
+  data-split="0x457c89e10a6e66633eda5bf82fd086febb5db147"
+  data-router="0xDonateRouter"
+  data-usdc="0x3600000000000000000000000000000000000000"
+  data-relay="https://&lt;your relay&gt;/shelter/relay"
+  data-shelter="Pink Paw"
+  data-amount="1000000"&gt;&lt;/script&gt;</code></pre>
+          <button class="copy" type="button" data-copy="#snippet">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <section class="panel agents" aria-labelledby="agents">
+      <h2 id="agents">For AI agents: standard x402</h2>
+      <p>The Token Tails cat-card endpoint answers <code>402 Payment Required</code> with the standard x402 <code>exact</code> scheme. Its <code>payTo</code> is the shelter's own wallet: the agent signs one USDC <code>transferWithAuthorization</code>, a facilitator settles it and pays the gas, and the agent gets an adoptable-cat card back.</p>
+      <p>Works with the rail's SDK in one call: <code>payAndFetch(url, { maxAmountBase: 10000n, provider })</code>. Standard x402 clients: the off-the-shelf <code>x402-fetch</code> client reads the offer, signs it and passes the public facilitator's verify step on a testnet; a full settlement through that facilitator is still being tested. On mainnet the scheme opens once the shelter holds its own wallet key.</p>
+    </section>
+
+    <p class="disclosure"><b>Disclosure:</b> Pink Paw's wallet was created by Token Tails and is held by Token Tails on behalf of the shelter until handover. The contracts are non-custodial; that wallet is not yet. This page uses testnet tokens with no real value.</p>
+    <footer>MIT licensed · <a href="widget.js">widget.js</a> · <a href="/shelter-payouts">Shelter payouts</a></footer>
+  </main>
+
+  <script>
+    (function () {
+      var buttons = document.querySelectorAll("[data-copy]");
+      Array.prototype.forEach.call(buttons, function (btn) {
+        btn.addEventListener("click", function () {
+          var el = document.querySelector(btn.getAttribute("data-copy"));
+          var text = el ? el.textContent : "";
+          var done = function () {
+            btn.textContent = "Copied";
+            setTimeout(function () { btn.textContent = "Copy"; }, 1600);
+          };
+          try {
+            navigator.clipboard.writeText(text).then(done, function () { btn.textContent = "Select and copy"; });
+          } catch (e) {
+            btn.textContent = "Select and copy";
+          }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

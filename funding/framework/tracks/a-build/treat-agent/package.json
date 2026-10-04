@@ -1,0 +1,12 @@
+{
+  "name": "tokentails-treat-agent",
+  "private": true,
+  "type": "module",
+  "description": "An LLM decides small treat gifts from Token Tails' own float; CappedSpender enforces the caps on-chain.",
+  "bin": { "treat-agent": "run.mjs" },
+  "scripts": {
+    "test": "node --test",
+    "dry-run": "node run.mjs --once"
+  },
+  "engines": { "node": ">=18" }
+}

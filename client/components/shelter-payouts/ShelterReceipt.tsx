@@ -4,13 +4,16 @@ import NextLink from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { Campaign, fetchCampaign } from "./campaign";
-import { ChainInfo, explorerAddress, explorerTx } from "./chains";
+import { ChainInfo, chainDisplayName, explorerAddress, explorerTx } from "./chains";
 import { displayMemo, formatUnits, payoutUnit } from "./logs";
-import { DecodedReceipt, TX_HASH, fetchReceipt, receiptChain } from "./receipt";
+import { DecodedReceipt, ROUTER_PATH, RouterGift, TX_HASH, fetchReceipt, isVerifiedMatch, receiptChain } from "./receipt";
+import { giftSymbol } from "./giveMode";
+import { MATCH_FINAL, MatchPair, getMatchByDonor } from "./relayApi";
+import { RouterEntry, fetchRouters } from "./routers";
 import { AppProofNotice } from "./AppProofNotice";
 import { isPinkPawWallet } from "./pinkPaw";
 import { PinkPawStrip } from "./PinkPawShowcase";
-import { ShelterDeployment, fetchDeployments } from "./rpc";
+import { ShelterDeployment, fetchDeployments, fetchTestnetDeployments } from "./rpc";
 import { downloadShareCard } from "./shareCard";
 import { CARD, CHIP, FIGURE, MEMO, GOLD_BUTTON, Kicker, NightStage, PANEL, PILL } from "./ui";
 
@@ -22,6 +25,97 @@ type State =
   | { status: "done"; receipt: DecodedReceipt; chain: ChainInfo; chainId: number };
 
 const short = (v: string) => `${v.slice(0, 6)}…${v.slice(-4)}`;
+
+/**
+ * A router gift's amount: the router's token (its symbol, the chain's token decimals) on the signature
+ * and flush paths, the native coin on the native path.
+ */
+export function giftAmountLabel(
+  g: Pick<RouterGift, "amount" | "path">,
+  chain: ChainInfo,
+  router: Pick<RouterEntry, "symbol"> | null = null
+): string {
+  return g.path === ROUTER_PATH.NATIVE
+    ? `${formatUnits(g.amount, chain.nativeDecimals ?? 18)} ${chain.nativeSymbol || "native"}`
+    : `${formatUnits(g.amount, chain.decimals ?? 6)} ${giftSymbol(chain, router)}`;
+}
+
+/**
+ * The match transaction, read from the chain: true once it succeeded and paid a listed split with the
+ * memo naming this gift. Null while unread or unknown; the receipt says "matched" only on true.
+ */
+function useVerifiedMatch(
+  chain: ChainInfo | null,
+  chainId: number,
+  matchTx: string | null,
+  donorTx: string | null,
+  deployments: ShelterDeployment[]
+): boolean | null {
+  const [ok, setOk] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!chain || !matchTx || !donorTx) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let tries = 0;
+    const tick = async () => {
+      try {
+        const r = await fetchReceipt(chain, matchTx, deployments, chainId);
+        if (cancelled) return;
+        if (r) {
+          setOk(isVerifiedMatch(r, donorTx));
+          return;
+        }
+      } catch {
+        /* the chain could not be read: try again below */
+      }
+      tries += 1;
+      if (!cancelled && tries < 6) timer = setTimeout(tick, MATCH_POLL_MS);
+    };
+    void tick();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [chain, chainId, matchTx, donorTx, deployments]);
+  return ok;
+}
+
+/** How often, and for how long, the receipt asks whether Token Tails matched a gift. */
+export const MATCH_POLL_MS = 5_000;
+export const MATCH_POLL_TRIES = 36;
+
+/**
+ * Polls GET /shelter/match/by-donor/:tx until the match is final. Null until the backend answers
+ * (or when it cannot be reached): the receipt then shows nothing about a match.
+ */
+function useMatchPair(txHash: string | null): MatchPair | null {
+  const [pair, setPair] = useState<MatchPair | null>(null);
+  useEffect(() => {
+    if (!txHash) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let tries = 0;
+    const tick = async () => {
+      const p = await getMatchByDonor(txHash);
+      if (cancelled) return;
+      if (p) setPair(p);
+      tries += 1;
+      if (p && (MATCH_FINAL.has(p.status) || p.status === "none")) {
+        // "none" can mean the match has not been queued yet: ask a few more times, then stop.
+        if (p.status !== "none" || tries >= 4) return;
+      }
+      if (!p && tries >= 3) return;
+      if (tries < MATCH_POLL_TRIES) timer = setTimeout(tick, MATCH_POLL_MS);
+    };
+    void tick();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [txHash]);
+  return pair;
+}
+
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) || "";
 
 // /shelter-payouts/receipt?chain=<id>&tx=<hash>: reads the transaction straight from the chain's
@@ -33,6 +127,8 @@ const WebShelterReceipt = () => {
   const router = useRouter();
   const [state, setState] = useState<State>({ status: "loading" });
   const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [routers, setRouters] = useState<RouterEntry[]>([]);
+  const [listedSplits, setListedSplits] = useState<ShelterDeployment[]>([]);
 
   const chainId = Number(first(router.query.chain));
   const tx = first(router.query.tx);
@@ -49,13 +145,24 @@ const WebShelterReceipt = () => {
       } catch {
         // Unlisted is shown per payout below; the receipt itself still loads.
       }
+      try {
+        // The testnet contracts are listed too: a testnet payout is a listed payout, in test tokens.
+        deployments = [...deployments, ...(await fetchTestnetDeployments())];
+      } catch {
+        /* no testnet list */
+      }
+      const routerList = await fetchRouters();
+      if (!cancelled) {
+        setRouters(routerList);
+        setListedSplits(deployments);
+      }
       const chain = receiptChain(chainId, deployments);
       if (!chain) {
         if (!cancelled) setState({ status: "invalid", message: `Chain ${chainId} is not supported here.` });
         return;
       }
       try {
-        const receipt = await fetchReceipt(chain, tx, deployments, chainId);
+        const receipt = await fetchReceipt(chain, tx, deployments, chainId, routerList);
         if (cancelled) return;
         setState(receipt ? { status: "done", receipt, chain, chainId } : { status: "pending" });
       } catch (err) {
@@ -73,6 +180,19 @@ const WebShelterReceipt = () => {
       : null;
 
   const done = state.status === "done" ? state : null;
+  const gifts = done?.receipt.gifts || [];
+  // A flush memo is set by whoever calls flush first, so it is never shown, here or on its payouts.
+  const flushed = gifts.some((g) => g.path === ROUTER_PATH.FLUSH);
+  const listedGift = gifts.find((g) => g.listed) || null;
+  // Only a listed router's gift is matched; never ask about anything else.
+  const match = useMatchPair(done && done.receipt.success && listedGift ? done.receipt.txHash : null);
+  const claimedMatch = match?.status === "confirmed" && match.matchTxHash ? match.matchTxHash : null;
+  // The backend's word is not enough: the match transaction itself is read from the chain.
+  const matchOnChain = useVerifiedMatch(done?.chain || null, done?.chainId || 0, claimedMatch, done?.receipt.txHash || null, listedSplits);
+  const matched = !!claimedMatch && matchOnChain === true;
+  const giftRouter = listedGift ? routers.find((r) => r.router.toLowerCase() === listedGift.router) || null : null;
+  const testnetGift = !!giftRouter && giftRouter.network === "testnet";
+  const testnetCard = !!done?.chain.testnet || testnetGift;
 
   return (
     <NightStage className="min-h-screen">
@@ -113,19 +233,76 @@ const WebShelterReceipt = () => {
                 {done.receipt.success ? "✓ Confirmed" : "✕ Failed"}
               </span>
               <span className="text-p6 md:text-p5 text-tt-cream/80">
-                {done.chain.name} · block <strong className="text-tt-cream">{done.receipt.blockNumber}</strong>
+                {chainDisplayName(done.chain)} · block <strong className="text-tt-cream">{done.receipt.blockNumber}</strong>
               </span>
             </div>
+            {done.chain.testnet && !testnetGift && (
+              <p
+                className={`${CHIP} self-start !border-tt-mint !text-tt-mint`}
+                data-testid="receipt-testnet"
+              >
+                Testnet · test coins, no real money
+              </p>
+            )}
+            {gifts.map((g) => (
+              <div key={`gift-${g.logIndex}`} className={`${CARD} flex flex-col gap-2`} data-testid="receipt-gift">
+                <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <span className={`${FIGURE} text-h5 md:text-h4`}>
+                    {giftAmountLabel(g, done.chain, routers.find((r) => r.router.toLowerCase() === g.router) || null)}
+                  </span>
+                  <span className="font-primary uppercase text-p4 md:text-p3 text-tt-cream">
+                    {g.path === ROUTER_PATH.FLUSH ? "forwarded by the router" : "wallet gift through the router"}
+                  </span>
+                  {testnetGift && <span className={`${CHIP} !border-tt-mint !text-tt-mint`}>Testnet · no real money</span>}
+                </p>
+                <p className="flex flex-wrap items-center gap-2 break-words">
+                  Memo: <span className={MEMO}>{g.path === ROUTER_PATH.FLUSH ? "not shown (set by whoever forwarded it)" : g.memo || "—"}</span>
+                </p>
+                {!g.listed && (
+                  <p className="text-tt-rust">Warning: this gift did not come through a listed DonateRouter.</p>
+                )}
+              </div>
+            ))}
+            {listedGift && match && (match.status === "pending" || match.status === "sent" || (claimedMatch && matchOnChain === null)) && (
+              <p className="motion-safe:animate-pulse text-tt-cream/90" data-testid="receipt-match-pending">
+                Token Tails is matching this gift…
+              </p>
+            )}
+            {listedGift && matched && claimedMatch && (
+              <p
+                className="flex flex-wrap items-center gap-2 rounded-xl border-2 border-tt-mint/80 bg-tt-mint/10 px-3 py-2 text-tt-cream"
+                data-testid="receipt-match"
+              >
+                <span aria-hidden="true">🐾🐾</span>
+                <strong>Token Tails matched it.</strong>
+                <a
+                  href={explorerTx(done.chain.explorer, claimedMatch)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  // The `code` role: a tx hash (plan F4, G14).
+                  // eslint-disable-next-line tt/no-raw-font
+                  className="font-mono normal-case underline decoration-dotted underline-offset-2"
+                >
+                  Match {short(claimedMatch)}
+                </a>
+                <NextLink
+                  href={`/shelter-payouts/receipt?chain=${done.chainId}&tx=${claimedMatch}`}
+                  className="underline"
+                >
+                  Match receipt ›
+                </NextLink>
+              </p>
+            )}
             {done.receipt.payouts.length === 0 && <p>This transaction has no shelter payouts.</p>}
             <ul className="flex flex-col gap-3">
               {done.receipt.payouts.map((p) => {
-                const unit = payoutUnit(p.kind, p.tokenSymbol ? { ...done.chain, symbol: p.tokenSymbol } : done.chain);
+                const unit = payoutUnit(p.kind, p.tokenSymbol ? { ...done.chain, symbol: p.tokenSymbol, decimals: p.tokenDecimals ?? done.chain.decimals } : done.chain);
                 const name = shelterName(p.shelter);
                 return (
                   <li key={p.logIndex} className={`${CARD} flex flex-col gap-2`}>
                     <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                       <span className={`${FIGURE} text-h5 md:text-h4`}>
-                        {formatUnits(p.amount, unit.decimals)} {unit.symbol}
+                        {formatUnits(p.amount, unit.decimals)} <span className="normal-case">{unit.symbol}</span>
                       </span>
                       <span className="font-primary uppercase text-p4 md:text-p3 text-tt-cream">
                         to{" "}
@@ -150,7 +327,7 @@ const WebShelterReceipt = () => {
                       </a>
                     </p>
                     <p className="flex flex-wrap items-center gap-2 break-words">
-                      Memo: <span className={MEMO}>{displayMemo(p.memo) || "—"}</span>
+                      Memo: <span className={MEMO}>{flushed ? "not shown (forwarded by the router)" : displayMemo(p.memo) || "—"}</span>
                     </p>
                     {!p.listed && (
                       <p className="text-tt-rust">Warning: this log did not come from a listed ShelterSplit contract.</p>
@@ -172,17 +349,23 @@ const WebShelterReceipt = () => {
                   onClick={() => {
                     const listed = done.receipt.payouts.filter((p) => p.listed);
                     const p = listed.find((x) => shelterName(x.shelter)) || listed[0];
-                    const unit = payoutUnit(p.kind, p.tokenSymbol ? { ...done.chain, symbol: p.tokenSymbol } : done.chain);
+                    const unit = payoutUnit(p.kind, p.tokenSymbol ? { ...done.chain, symbol: p.tokenSymbol, decimals: p.tokenDecimals ?? done.chain.decimals } : done.chain);
+                    // One payout: the card shows the whole gift. Several shelters: only this shelter's share.
+                    const whole = listedGift && listed.length === 1;
                     downloadShareCard({
                       shelterName: shelterName(p.shelter) || "a cat shelter",
-                      amount: `${formatUnits(p.amount, unit.decimals)} ${unit.symbol}`,
-                      chainName: done.chain.name,
+                      amount: whole
+                        ? giftAmountLabel(listedGift, done.chain, giftRouter)
+                        : `${formatUnits(p.amount, unit.decimals)} ${unit.symbol}`,
+                      testnet: testnetCard,
+                      chainName: chainDisplayName(done.chain),
                       blockNumber: done.receipt.blockNumber,
                       txHash: done.receipt.txHash,
+                      variant: listedGift ? (matched ? "matched" : "gift") : "treat",
                     });
                   }}
                 >
-                  Download share card
+                  {matched ? "Share card: 1 became 2" : "Download share card"}
                 </button>
               )}
               <a
@@ -197,8 +380,8 @@ const WebShelterReceipt = () => {
           </section>
         )}
 
-        <NextLink href="/shelter-payouts" className={PILL}>
-          See every payout ›
+        <NextLink href={done?.chain.testnet ? "/shelter-payouts#testnet-proof" : "/shelter-payouts"} className={PILL}>
+          {done?.chain.testnet ? "See every testnet payout ›" : "See every payout ›"}
         </NextLink>
 
         {/* Only when a payout in this receipt went to Pink Paw's own wallet: its logo and cats. */}

@@ -1,6 +1,6 @@
 # Arbitrum Open House Singapore online buildathon — submission
 
-_Generated 2026-10-03T19:13:10.903Z by `fund a:submission arbitrum-singapore` from draft.md, the program profile,
+_Generated 2026-10-03T21:06:52.255Z by `fund a:submission arbitrum-singapore` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -44,7 +44,9 @@ The player never touches a wallet: purchases stay card or in-app payments.
 
 {ARB_NETWORK}: ShelterSplit at {ARB_SPLIT}, paying Circle USDC. {ARC_NETWORK}: the same contract at {SPLIT_ADDRESS}, where the first sponsored treat to Pink Paw is transaction {ARC_TX}, listed on the payouts page. Disclosure: Pink Paw (Rožinė pėdutė) is the first shelter, and its receiving wallet is held by Token Tails on behalf of the shelter until handover. Until then Token Tails controls the funds that reach that wallet. The contract itself holds nothing. Prior work, before the window: three Soroban contracts on Stellar mainnet and ERC-721 contracts on SKALE.
 
-_No ShelterSplit deployment recorded on arbitrum yet — run `fund a:deploy arbitrum mainnet`, then `fund a:record`._
+| Network | Contract | Transaction | Shelter payouts | Status |
+|---|---|---|---|---|
+| Arbitrum One testnet (chain 421614) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://sepolia.arbiscan.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://sepolia.arbiscan.io/tx/0x3f51b51be745eac9ff65434ca4fc8e1ef15dd815c8bdce89decd74439f8f8845) | [payout 1](https://sepolia.arbiscan.io/tx/0x73cdfdb403067706ce0760fd38feed6e2a1e93bbc8d1f6cd1c9e75af7134184d) | verified on-chain, source verified |
 
 ## Build evidence
 

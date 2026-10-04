@@ -1,6 +1,6 @@
 # Tameion Agents Hackathon (Canteen x Circle x Arc) — submission
 
-_Generated 2026-10-03T20:55:44.090Z by `fund a:submission tameion` from draft.md, the program profile,
+_Generated 2026-10-04T07:59:09.827Z by `fund a:submission tameion` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -26,7 +26,7 @@ The agent buys one adoptable-cat card from https://api.tokentails.com/shelter/ag
 2. The agent checks the price against its own spending cap and calls donate(memo) on the contract, paying native USDC.
 3. It retries with an X-PAYMENT header carrying the transaction hash and nonce.
 4. The server reads the receipt over RPC: status ok, payout events from that contract with that memo summing to the price, a nonce it issued and that has not expired, and a hash never used before. Then it answers 200 with the card and an X-PAYMENT-RESPONSE header.
-payAndFetch in the open SDK does all of this in one call: it refuses any price above the cap, pays at most once and passes any non-402 answer straight through. examples/agent-pay.mjs is a Node script that runs it; the spending decision is a fixed cap in code, not a model. Honest limit: this is our own scheme, x402-compatible in shape, without a facilitator, because standard facilitators may not support Arc. Demo: {DEMO_URL}.
+payAndFetch in the open SDK does this and refuses any price above its cap. A second agent decides gifts: Claude weighs the goal, fresh public gifts and the day's budget, then gives or holds, with a reason. A CappedSpender contract caps each gift and each UTC day on-chain and pays only the shelter wallets on the split (ours until handover), so an over-cap proposal reverts. Shown on a local Arc testnet fork; testnet deploy pending. It spends Token Tails' own float, not donor money. Limit: the cat-card scheme is our own; the standard exact scheme is facilitator-agnostic and off on mainnet until handover. Demo: {DEMO_URL}.
 
 ## How it works
 
@@ -41,7 +41,8 @@ payAndFetch in the open SDK does all of this in one call: it refuses any price a
 - USDC on Arc as both the payment and the gas: the agent needs no second token, and neither does a shelter.
 - Arc settlement: the server can accept the payment as soon as the receipt is final, so the agent gets its card in the same session.
 - EURC on Arc: the contract takes any token at deploy time, and a EURC instance is prepared for European shelters, not yet deployed.
-Honest gap: we do not yet use Circle Wallets, Paymaster, CCTP or Gateway. The next step is Circle Wallets for the shelter side, so a shelter can hold its own key without managing a seed phrase, which is also our path to handing over the first wallet.
+- x402 and EIP-3009: our standard exact scheme is facilitator-agnostic and pays the shelter's own wallet; next is pointing it at Circle's x402 facilitator (Arc, Base, Polygon PoS). A DonateRouter lets a donor give with one signature. Both stay off on mainnet until handover.
+Honest gap: no Circle Wallets, Paymaster, CCTP or Gateway yet. The next step is Circle Wallets for the shelter side, so a shelter can hold its own key without managing a seed phrase, which is also our path to handing over the first wallet.
 
 ## Traction
 
@@ -49,7 +50,7 @@ Traction is early, and we will not dress it up. Businesses onboarded: one shelte
 
 ## Innovation
 
-Most agent-payment demos pay a seller. Here the seller's revenue is the donation: the agent buys a piece of content and the full price lands in shelter wallets, split by a contract, with a public event per payout. The x402 check runs against the chain itself, so it needs no facilitator and works on a chain facilitators do not cover yet. The same contract serves a game player's one-tap gift and an agent's machine payment, and both show up on one public page.
+Most agent-payment demos pay a seller. Here the seller's revenue is the donation: the agent buys a piece of content and the full price lands in shelter wallets, split by a contract, with a public event per payout. The x402 check runs against the chain itself, so it needs no facilitator and works on any EVM chain, including ones no facilitator covers yet. The same contract serves a game player's one-tap gift and an agent's machine payment, and both show up on one public page.
 
 ## Arc deployment
 
@@ -58,6 +59,7 @@ Arc mainnet: ShelterSplit at {SPLIT_ADDRESS}. The first sponsored treat to Pink 
 | Network | Contract | Transaction | Shelter payouts | Status |
 |---|---|---|---|---|
 | Arc testnet (chain 5042002) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://explorer.testnet.arc.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://explorer.testnet.arc.io/tx/0x6af0fe0eae4abd65d8560cf4ed14ada55f2debd2e14e9306d45d81a271d0ede8) | [payout 1](https://explorer.testnet.arc.io/tx/0xa90f97134ab92efa5ade8c6f1c6eddcc9bded100a6c1bc2a5b1b91ba6da4360a) | verified on-chain, source verified |
+| Arc testnet (chain 5042002) | [`0x937f13ce28294011567615330dbcb859a06a0bba`](https://explorer.testnet.arc.io/address/0x937f13ce28294011567615330dbcb859a06a0bba) | [deploy tx](https://explorer.testnet.arc.io/tx/0xc63d3c5786aaf15474c0d74c5c65f6e0dcd33d232bdbbee0141a83313a1e59a3) | [payout 1](https://explorer.testnet.arc.io/tx/0xc68ceb5a3633b78cd1681c81dde1ff310ca04f1f378003497acc906eb88f387b) | verified on-chain, source verified |
 
 ## Build evidence
 

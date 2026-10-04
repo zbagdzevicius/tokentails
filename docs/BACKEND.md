@@ -323,6 +323,44 @@ There is no Apple or Google in-app purchase receipt verification.
   owners or wallets, and needs no server key.
 - Showcase shelter: Pink Paw (Rožinė pėdutė). Its wallet is created and held by Token Tails on its behalf
   until handover. The contract addresses come from env and are empty until the deploy.
+- Wallet gifts (F2, all off by default; endpoints in `docs/API.md` "Wallet gifts"):
+  `ShelterRelayService` submits a donor's signed EIP-3009 authorization to the ownerless DonateRouter
+  (`donate-router.ts` holds the ABI, the nonce rule and the typed data) through
+  `ShelterChain.sendContractCall`, which shares the treat send queue, nonce handling and
+  `DEFINITE_BROADCAST_REFUSALS`. `ShelterMatchService` matches router gifts 1:1 within
+  `SHELTER_MATCH_*` caps held in atomic `sheltercounters` (separate from the treat budget),
+  `ShelterClaimService` records a shelter's signed wallet claim. The reconcile job also settles
+  `shelterrelaytxs`, scans `RouterDonation` logs into `sheltermatches` (cursor in `shelterrouterscans`),
+  sends and settles matches, and flushes a stray router balance at most hourly. Each step is isolated
+  from the treat work.
+- Custody: donor money never touches the hot wallet. The relay transaction is
+  `router.donateWithAuthorization`, which pulls USDC from the donor and disburses it through
+  ShelterSplit in the same transaction; the hot wallet only pays the gas. The donor's signature also
+  covers the payout list (`recipients` = `router.recipientsHash(value)`), so a shelter re-pointed after
+  signing makes the gift revert (`RELAY_RECIPIENTS_CHANGED`). A relay that reverts or times out because
+  someone else submitted the same signature first is settled `confirmed` with `settledTxHash` (found by
+  the `RouterDonation` nonce topic), never `failed`. The match is Token Tails' own
+  money sent from the hot wallet. Mainnet gate: `publicGivingAllowed(config)` refuses relay, match and
+  flush on any non-testnet chain until `SHELTER_HANDED_OVER=true`, and
+  `ShelterClaimService.publicGivingVerified(config)` also requires, on chain, that every wallet in
+  `split.preview(1 USDC).wallets` is a `rotated` claim and none is a Token Tails wallet, so public money
+  cannot reach a wallet Token Tails still holds through these services. Keep the hot wallet float small:
+  it now pays relay gas and the match.
+- Rule: do not deploy a DonateRouter on any mainnet before the handover. The router is ownerless and
+  public, so once it exists anyone can call `donateNative` or submit a signature themselves, and no
+  backend gate can stop that money reaching the shelter wallet Token Tails still holds.
+- Claims: `POST /shelter/claim` only takes wallets on `SHELTER_CLAIM_ALLOWED_WALLETS` (named by the
+  shelter through a separate channel) and `GET /shelter/claim` shows only `approved` or `rotated` rows.
+  Status changes are manual database writes; the rotation uses the address confirmed with the shelter,
+  never one read from the endpoint.
+- Attribution: the impact indexer adds buckets `wallet` (any memo except `tt:flush` whose ShelterSplit
+  batch payer, read from the receipt, is the router, from a `RouterDonation` donor that is not a Token
+  Tails sender, a `SHELTER_MATCH_EXCLUDE` wallet, the treasury or the shelter paid; a flush of untraced
+  plain transfers stays `direct`) and `match` (a `tt:match:` memo from
+  the hot wallet or an `IMPACT_PAWS_SENDERS` address whose tx is a recorded `ShelterMatch.matchTxHash`).
+  `X402UsedTx` rows with `scheme: 'exact'` (paid straight to the shelter wallet, no split event) are
+  added to the `x402` totals from `amountBase`, once per tx hash and never twice for a hash that also
+  has a split event. Anything else stays `direct`.
 
 ### Impact and truth data (plan F7, G4, G11)
 
@@ -466,7 +504,7 @@ under `NODE_ENV=production`); the impact, treat and paw jobs need `IMPACT_JOBS_E
 | Weekly top rewards (`weekly-top-rewards`) | `src/user/user.controller.ts` | Weekly | Top 200 by earned Tails (guests, flagged and deleted accounts excluded) receive 200 each. |
 | Reset codex and monthly counters | `src/user/user.controller.ts`, logic in `src/user/codex-reset.ts` | Monthly, 23:00 UTC on the 8th (`0 0 23 8 * *`, `timeZone: 'UTC'`) | Pays codex guards, then zeroes the codex `month*` counters (now also `monthTailsGiven` and `monthGoalsHelped`) and clears claimed challenges and milestones. Runs one hour before the phase anchor, inside the two-hour codex freeze. Idempotent: the period (`YYYY-MM` of the phase that starts) is claimed atomically in the `jobruns` collection (`claimJobPeriod`), so a second run or a second instance skips; runs more than 48 hours from an anchor are refused. `scripts/repair-codex-counters.js` (dry run by default) recomputes the purchase counters from orders. |
 | Empty cat stomachs (`cat-status-reset`) | `src/cat/cat.controller.ts` | Daily 01:00 | Set `status.EAT = 0` on every cat (guest starters included, so guests can feed daily). |
-| Treat reconcile (`shelter-donate-reconcile`) | `src/shelter/onchain/shelter-donate-reconcile.service.ts` | Every 2 minutes | Settles SENT gifts by receipt (see "Shelter gifts on Arc"). |
+| Treat reconcile (`shelter-donate-reconcile`) | `src/shelter/onchain/shelter-donate-reconcile.service.ts` | Every 2 minutes | Settles SENT gifts by receipt (see "Shelter gifts on Arc"); then settles relayed wallet gifts, scans RouterDonation logs, sends and settles matches, and flushes the router (each step only when configured). |
 | Payout indexer (`impact-indexer`) | `src/impact/impact-indexer.service.ts` | Every 5 minutes | Indexes ShelterSplit payout logs. Idle until `SHELTER_SPLIT_FROM_BLOCK` is set. |
 | Impact snapshot (`impact-snapshot`) | `src/impact/impact.service.ts` | Hourly at :07 | Writes the hour's `impactsnapshots` row and the optional CDN mirror. |
 | Snapshot compaction (`impact-compact`) | `src/impact/impact.service.ts` | Daily 00:20 | Keeps one row per day for snapshots older than 48 hours. |
@@ -494,7 +532,9 @@ Names only. Copy `backend/.env.example` to `backend/.env` and fill in values.
 | AI | `OPENAI_API_KEY`, `GOOGLE_AI_API_KEY` |
 | Storage | `DO_SPACES_ENDPOINT`, `DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_NAME`, `DO_SPACES_CDN` |
 | Payments | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY` (in the example file, unused in code), optional `STELLAR_TREASURY_ADDRESS` and `STELLAR_USDC_ISSUER` (default to the public values in `src/web3/stellar-payment.ts`) |
-| Shelter gifts (Arc) | `SHELTER_DONATE_ENABLED` (default off), `SHELTER_CHAIN_ID` (default `5042` mainnet; `5042002` testnet), `SHELTER_ARC_RPC_URL` (defaults to `https://rpc.mainnet.arc.io` or `https://rpc.testnet.arc.io` by chain), `SHELTER_SPLIT_ADDRESS` (ShelterSplit, empty until the deploy), `SHELTER_DONATE_PRIVATE_KEY` (server hot wallet; keep only a small float of USDC on it), `SHELTER_DONATE_AMOUNT_WEI` (default 0.01 USDC), `SHELTER_DONATE_DAILY_BUDGET_WEI` (default 1 USDC), `SHELTER_X402_ENABLED` (default off: public payments need the shelter's own keys first, a MiCA custody caution), `SHELTER_X402_PRICE_WEI` (default 0.01 USDC) |
+| Shelter gifts (Arc) | `SHELTER_DONATE_ENABLED` (default off), `SHELTER_CHAIN_ID` (default `5042` mainnet; `5042002` testnet), `SHELTER_ARC_RPC_URL` (defaults to `https://rpc.mainnet.arc.io` or `https://rpc.testnet.arc.io` by chain), `SHELTER_SPLIT_ADDRESS` (ShelterSplit, empty until the deploy), `SHELTER_DONATE_PRIVATE_KEY` (server hot wallet; keep only a small float of USDC on it), `SHELTER_DONATE_AMOUNT_WEI` (default 0.01 USDC), `SHELTER_DONATE_DAILY_BUDGET_WEI` (default 1 USDC), `SHELTER_X402_ENABLED` (default off: public payments need the shelter's own keys first, a MiCA custody caution; on a mainnet the onchain-receipt scheme also stays off until `SHELTER_HANDED_OVER=true`, enforced in `x402Ready`), `SHELTER_X402_PRICE_WEI` (default 0.01 USDC) |
+| Wallet gifts (F2) | `SHELTER_ROUTER_ADDRESS` (DonateRouter, empty until deployed), `SHELTER_ROUTER_FROM_BLOCK` (first block of the RouterDonation scan; unset: 5000 blocks behind the head on the first run), `SHELTER_RELAY_ENABLED` (default off), `SHELTER_RELAY_DAILY_TX` (default 50), `SHELTER_RELAY_MIN_USDC` (default 0.01), `SHELTER_RELAY_MAX_USDC` (default 100), `SHELTER_HANDED_OVER` (`true` only after the Pink Paw key rotation; gates every public mainnet path), `SHELTER_MATCH_ENABLED` (default off), `SHELTER_MATCH_PER_GIFT` (default 1 USDC, `DEFAULT_MATCH_PER_GIFT`), `SHELTER_MATCH_MIN_GIFT` (default 0.10), `SHELTER_MATCH_DAILY` (default 2 USDC), `SHELTER_MATCH_POOL` (default 10 USDC in total), `SHELTER_TREASURY_ADDRESS` (optional; refused as a claimed shelter wallet, never matched), `SHELTER_CLAIM_ALLOWED_WALLETS` (comma-separated; the only wallets `POST /shelter/claim` accepts; empty refuses all), `SHELTER_MATCH_EXCLUDE` (comma-separated team wallets: never matched, never counted as public wallet gifts), `SHELTER_RELAY_IP_PEPPER` (secret HMAC key for the stored relay IP hash; unset stores none), `SHELTER_HELD_WALLETS` (comma-separated wallets Token Tails holds for a shelter, added to the built-in `TOKEN_TAILS_HELD_WALLETS` (Pink Paw's current wallet): never accepted as a shelter claim, a public-giving recipient or an x402 `payTo`). USDC amounts are decimal strings; a malformed value falls back to the default |
+| Try-it testnet (F3) | `SHELTER_TRY_CHAIN_ID` (a testnet id other than `SHELTER_CHAIN_ID`, e.g. `5042002`; unset: off), `SHELTER_TRY_RPC_URL`, `SHELTER_TRY_ROUTER_ADDRESS`, `SHELTER_TRY_ROUTER_FROM_BLOCK`, `SHELTER_TRY_SPLIT_ADDRESS`, `SHELTER_TRY_TREASURY_ADDRESS`, `SHELTER_TRY_PRIVATE_KEY` (a separate testnet-only hot wallet; never falls back to the main key), `SHELTER_TRY_RELAY_ENABLED`, `SHELTER_TRY_MATCH_ENABLED` (both default off). A second relay and match next to the main chain (`readTryShelterConfig`), so the payouts page's testnet block is gasless and matched while treats, claims and the campaign stay on `SHELTER_CHAIN_ID`. No treats, no x402, no claims there; caps and counters are per chain. |
 | Email | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` (missing from the example file) |
 | Print | `PRINTIFY_API_KEY` |
 | Rescue points (G5) | `TAILS_TOKEN_MODE` (`POINTS` default, or `TOKEN`; read by the public `GET /user/token-status`), `TAILS_TGE_AT` (ISO date, exposed only in `TOKEN` mode), `TAILS_EARNED_BACKFILL_DONE` (`true` once `scripts/backfill-tails-earned.js --apply` ran; the earned board then sorts on `tailsEarned`) |
@@ -602,6 +642,19 @@ mongorestore --gzip --db=tokentails ./backup/tokentails-YYYY-MM-DD --uri=<connec
 ## Known issues
 
 Route and logic bugs:
+
+- Open (F2 review, not fixed): `IMPACT_CHAIN_UNITS` in `src/impact/shelter-logs.ts` lists only the Arc
+  chains and every other chain falls back to Arc's units. ShelterSplit is now also on Base, Arbitrum,
+  Fuji and Robinhood, so if the indexer ever runs there, native ETH or AVAX payouts would be counted as
+  18-decimal USDC. Add per-chain units before pointing `SHELTER_CHAIN_ID` at a non-Arc chain.
+- Open (F2 review): the fork end-to-end run of a relayed gift used a USDC stand-in that credits the
+  receiver without debiting the donor, against a router deployed for that run. It proves the plumbing,
+  not the donor debit. Re-run it against the published F1 router with a real FiatToken and assert the
+  donor balance drops by exactly the gift, the router ends at 0 and the hot wallet pays only gas; until
+  then no submission claims "end to end on Arc".
+- Open (F2 review): `GET /shelter/claim` now shows only `approved` or `rotated` claims, so the web
+  onboarding page shows "No wallet has been claimed yet" right after a shelter files one; its own
+  "Claim sent" step covers that moment.
 
 - Fixed (platform fix 4): `PUT /image/portrait/:id/regenerate` now requires auth and is limited to 3 calls per minute. Images have no owner field, so any signed-in user can still regenerate any image id. The public `/portrait` and `/portraits` pages have no sign-in, so a signed-out visitor now gets a "sign in" message on retry. `POST /image/portrait` is also a paid generation and is still public (5 per minute per IP). Open product decision: require sign-in for both, or allow anonymous generation with a tight per-IP limit.
 - Fixed (2026-09): `Order` no longer uses `mongoose-unique-validator`. With the partial index `hash_unique` declared, the plugin merged the index's `partialFilterExpression` into its query, so every order create checked `{ hash: { $gt: '' } }` and failed with a ValidationError once any order had a hash. That broke `POST /web3/confirm`, both Checkout session creates and `confirm-payment`. Duplicates now surface as E11000, which `OrderRepository.create` maps to 409.
@@ -745,6 +798,17 @@ Shelter gifts and x402 (2026-09, new):
 
 - The x402 route uses a custom `onchain-receipt` scheme without a facilitator, so generic x402 clients that
   expect the `exact` scheme will not pay it without a small adapter. Standard facilitators may not support Arc.
+- Added (2026-10-04, F4): the route also offers the standard x402 `exact` scheme (v1, EIP-3009 USDC) when
+  `SHELTER_X402_EXACT_ENABLED=true`. `payTo` is the shelter's own wallet (`SHELTER_X402_EXACT_PAYTO`; the
+  ShelterSplit address is refused), a facilitator verifies, settles and pays the gas, and Token Tails never holds
+  the money. Variables: `SHELTER_X402_EXACT_NETWORK` (x402 name, e.g. `base-sepolia`), `_CHAIN_ID` (needed only
+  for unknown names), `_ASSET`, `_ASSET_NAME`/`_VERSION` (EIP-712 domain, default `USDC`/`2`), `_PRICE` (USDC,
+  default `0.01`), `_RPC` (optional: re-reads the settled Transfer and checks the token domain at first use),
+  `SHELTER_X402_FACILITATOR_URL` (default `https://x402.org/facilitator` on testnets; required on mainnet). An
+  unknown or mainnet network is offered only with `SHELTER_HANDED_OVER=true`. The authorization (signer + nonce)
+  is claimed in `x402nonces` as `exact:<chainId>:<from>:<nonce>` before the facilitator is called, so a replay is
+  refused; settled payments are written to `x402usedtxs` with `scheme: 'exact'`. Code: `src/shelter/onchain/x402-exact.ts`.
+  Limit: facilitators that need an API key (CDP mainnet) are not wired yet.
 - Fixed (plan F7.4, task 2b): `POST /shelter/donate` returns once the transaction is broadcast; it used to
   keep the user's gift for the day and the budget slot used when the transaction later reverted or was
   dropped. `ShelterDonateReconcileService` (leased, every 2 minutes, on instances with
@@ -765,7 +829,8 @@ Shelter gifts and x402 (2026-09, new):
 - `X-PAYMENT-RESPONSE` is listed in the CORS exposed headers (`src/main.ts`), so browser clients and
   server-side agents can both read it.
 - Keep `SHELTER_X402_ENABLED` off until the shelter holds its own keys: while Token Tails holds Pink Paw's
-  wallet, public payments to it are custodial (MiCA caution).
+  wallet, public payments to it are custodial (MiCA caution). Since 2026-10-04 the code enforces it on a
+  mainnet too: `x402Ready` requires `publicGivingAllowed` (a testnet, or `SHELTER_HANDED_OVER=true`).
 - `src/shelter/onchain/shelter-x402.service.ts` carries one open copy-lint R2 finding (an uncited impact
   claim in the card description), recorded in task 4e and still open.
 - Founder to confirm (task 2b): Token Tails' own house zones (`token-tails` catfluencers, `token-tails-2`

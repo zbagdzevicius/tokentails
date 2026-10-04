@@ -4,7 +4,9 @@ import { JOB_RUNS_COLLECTION } from 'src/shared/jobs/lease';
 import { ImpactIndexerConfig, REORG_DEPTH } from './impact.config';
 import { cursorIdFor, decimalSumToString, IMPACT_INDEXER_JOB, ImpactIndexerService } from './impact-indexer.service';
 import { memoryModel } from './memory-model.fakes-spec';
-import { RpcLog } from './shelter-logs';
+import { RpcLog, to18 } from './shelter-logs';
+import { shelterSplitInterface } from 'src/shelter/onchain/shelter-chain';
+import { donateRouterInterface } from 'src/shelter/onchain/donate-router';
 import { loadShelterLogsFixture } from './shelter-logs.fixture-spec';
 
 // The crons are opt-in per instance (IMPACT_JOBS_ENABLED); these specs exercise them switched on.
@@ -322,5 +324,149 @@ describe('ImpactIndexerService (fake RPC)', () => {
         expect(decimalSumToString('3880000000000000000')).toBe('3880000000000000000');
         expect(decimalSumToString('388E+16')).toBe('3880000000000000000');
         expect(() => decimalSumToString('1.5')).toThrow();
+    });
+
+    describe('wallet gifts, matches and x402 exact (F2)', () => {
+        const ROUTER = '0x4444444444444444444444444444444444444444';
+        const HOT = '0x3333333333333333333333333333333333333333';
+        const STRANGER = '0x9999999999999999999999999999999999999999';
+        const SHELTER = '0x2222222222222222222222222222222222222222';
+        const block = fixture.expected.toBlock + 1;
+        const tx = (c: string) => '0x' + c.repeat(64);
+        const payout = (txHash: string, amount: number, memo: string, logIndex = 0): RpcLog => {
+            const event = shelterSplitInterface.encodeEventLog('Disbursed', [SHELTER, amount, memo]);
+            return {
+                address: fixture.contract,
+                topics: event.topics,
+                data: event.data,
+                blockNumber: '0x' + block.toString(16),
+                blockHash: '0x' + block.toString(16).padStart(64, '0'),
+                transactionHash: txHash,
+                logIndex: '0x' + logIndex.toString(16),
+            };
+        };
+        const batch = (payer: string) => {
+            const event = shelterSplitInterface.encodeEventLog('DisbursementBatch', [1, payer, 1, 1, 0, 1, 'x']);
+            return { address: fixture.contract, topics: event.topics, data: event.data };
+        };
+        const DONOR = '0x1212121212121212121212121212121212121212';
+        const TEAM = '0x8888888888888888888888888888888888888888';
+        const routerGift = (donor: string, memo: string) => {
+            const event = donateRouterInterface.encodeEventLog('RouterDonation', [
+                donor,
+                1,
+                1,
+                0,
+                memo,
+                '0x' + '0'.repeat(64),
+            ]);
+            return { address: ROUTER, topics: event.topics, data: event.data, transactionHash: tx('0'), logIndex: 0 };
+        };
+
+        it('buckets router gifts as wallet, recorded matches as match, and adds x402 exact once', async () => {
+            const logs = [
+                payout(tx('1'), 500000, 'tt:wallet:0a1b2c3d'),
+                payout(tx('2'), 500000, 'tt:match:11111111'),
+                payout(tx('3'), 700000, 'tt:match:22222222'),
+                payout(tx('4'), 300000, 'tt:wallet:deadbeef'),
+                payout(tx('5'), 200000, 'for the cats'),
+                payout(tx('6'), 100000, 'tt:wallet:0a1b2c3e'),
+                payout(tx('7'), 100000, 'tt:flush'),
+            ];
+            const ctx = setup(logs, block + 5);
+            ctx.chain.senders[tx('2')] = HOT;
+            ctx.chain.senders[tx('3')] = STRANGER;
+            const receipts: Record<string, unknown> = {
+                [tx('1')]: { status: 1, logs: [routerGift(DONOR, 'tt:wallet:0a1b2c3d'), batch(ROUTER)] },
+                [tx('4')]: { status: 1, logs: [batch(STRANGER)] },
+                // donateNative with a memo the donor chose: still a router gift.
+                [tx('5')]: { status: 1, logs: [routerGift(DONOR, 'for the cats'), batch(ROUTER)] },
+                // A team wallet giving through the router is not a public gift.
+                [tx('6')]: { status: 1, logs: [routerGift(TEAM, 'tt:wallet:0a1b2c3e'), batch(ROUTER)] },
+                [tx('7')]: { status: 1, logs: [routerGift(ROUTER, 'tt:flush'), batch(ROUTER)] },
+            };
+            (ctx.chain as any).getReceipt = jest.fn(async (_c: unknown, hash: string) => receipts[hash] || null);
+            const matches = memoryModel();
+            matches.rows.push({ _id: new Types.ObjectId(), donorTxHash: tx('1'), matchTxHash: tx('2') });
+            matches.rows.push({ _id: new Types.ObjectId(), donorTxHash: tx('9'), matchTxHash: tx('3') });
+            // x402 exact: one new payment, one duplicate row hash, one already indexed as a split event, one other
+            // chain, and two rows not verified on-chain (false, and an older row without the field).
+            ctx.usedTxs.rows.push(
+                {
+                    _id: new Types.ObjectId(),
+                    txHash: tx('a'),
+                    scheme: 'exact',
+                    chainId: fixture.chainId,
+                    amountBase: '10000',
+                    verifiedOnchain: true,
+                },
+                {
+                    _id: new Types.ObjectId(),
+                    txHash: tx('a'),
+                    scheme: 'exact',
+                    chainId: fixture.chainId,
+                    amountBase: '10000',
+                    verifiedOnchain: true,
+                },
+                {
+                    _id: new Types.ObjectId(),
+                    txHash: tx('1'),
+                    scheme: 'exact',
+                    chainId: fixture.chainId,
+                    amountBase: '500000',
+                    verifiedOnchain: true,
+                },
+                {
+                    _id: new Types.ObjectId(),
+                    txHash: tx('b'),
+                    scheme: 'exact',
+                    chainId: 1,
+                    amountBase: '999',
+                    verifiedOnchain: true,
+                },
+                // Settled per the facilitator but never read back from the chain: not counted.
+                {
+                    _id: new Types.ObjectId(),
+                    txHash: tx('c'),
+                    scheme: 'exact',
+                    chainId: fixture.chainId,
+                    amountBase: '777777',
+                    verifiedOnchain: false,
+                },
+                {
+                    _id: new Types.ObjectId(),
+                    txHash: tx('d'),
+                    scheme: 'exact',
+                    chainId: fixture.chainId,
+                    amountBase: '5',
+                }
+            );
+            const service = new ImpactIndexerService(
+                ctx.events as any,
+                ctx.cursors as any,
+                ctx.donations as any,
+                ctx.usedTxs as any,
+                ctx.chain as any,
+                matches as any
+            );
+            const from = block - 1;
+            await service.indexOnce(
+                NOW,
+                { ...config(), routerAddress: ROUTER, notPublicWallets: [TEAM] },
+                indexer({ fromBlock: from, pawSenders: [HOT] })
+            );
+            const bucketOf = (hash: string) => ctx.events.rows.find(r => r.txHash === hash)!.bucket;
+            expect(bucketOf(tx('1'))).toBe('wallet');
+            expect(bucketOf(tx('2'))).toBe('match');
+            expect(bucketOf(tx('3'))).toBe('direct');
+            expect(bucketOf(tx('4'))).toBe('direct');
+            expect(bucketOf(tx('5'))).toBe('wallet');
+            expect(bucketOf(tx('6'))).toBe('direct');
+            expect(bucketOf(tx('7'))).toBe('direct');
+            const totals = ctx.cursor().totals;
+            expect(totals.wallet.USDC).toBe(to18(BigInt(700000), 6).toString());
+            expect(totals.match.USDC).toBe(to18(BigInt(500000), 6).toString());
+            expect(totals.x402.USDC).toBe(to18(BigInt(10000), 6).toString());
+        });
     });
 });

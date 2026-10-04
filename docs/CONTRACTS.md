@@ -146,6 +146,27 @@ canister was ever deployed and nothing in the app references ICP.
 verbatim with its 34 unit tests. There is no `Move.toml`, so it cannot build, and nothing in the
 app references Aptos.
 
+## Shelter payout contracts (outside `contracts/`)
+
+The EVM shelter contracts live in `funding/framework/tracks/a-build/shelter-split/` (Foundry, MIT),
+not in `contracts/`. Details, deploy commands and disclosures: that folder's `README.md`.
+
+| Contract | What it does | Owner |
+|---|---|---|
+| `ShelterSplit.sol` | Registry of shelter wallets and basis-point shares; `donate(memo)`, `receive()`, `disburse`, `disburseWithMemo` (Tempo TIP-20) split a payment in the same transaction. Deployed on testnets; mainnet addresses only in `tracks/a-build/deployments.json` | Two-step owner (Token Tails) |
+| `DonateRouter.sol` | Public giving: a donor signs one EIP-3009 `ReceiveWithAuthorization`; anyone submits; the router pays ShelterSplit in the same transaction. The signature binds router, memo, salt and the payout list (`recipientsHash`). Reverts `RecipientsChanged` if the list moved after signing and `TreasuryShare` if any wei would reach the treasury. Arc native path `donateNative(memo[, expectedRecipients])`; `flush` forwards stray transfers | None |
+| `CappedSpender.sol` | The treat agent's wallet: immutable per-gift and per-UTC-day caps, pays only ShelterSplit, refuses while any share would reach the treasury | Token Tails (funds only) |
+
+Tests: `forge test` runs 149 tests, including `DonateRouterInvariant.t.sol` (stateful fuzz: no
+treasury ever receives a donor's gift; the router holds only unflushed plain transfers).
+No DonateRouter or CappedSpender is deployed yet (`router-deployments.json` is `[]`). Do not deploy the
+router on a mainnet before the Pink Paw handover: it is public and ownerless, so gifts through it
+would reach the wallet Token Tails still holds.
+
+Known issue: `flush()` forwards the router's whole USDC balance; if that amount would leave rounding
+dust for the treasury (for example a three-way split) every flush reverts and the stray USDC stays in
+the router. A `flush(memo, amount)` variant before the first deploy fixes it.
+
 ## Licensing
 
 Three license regimes overlap:

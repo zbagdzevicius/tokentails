@@ -157,7 +157,234 @@ export class X402UsedTx extends CommonSchema {
 
     @Prop({ required: true })
     amountWei: string;
+
+    /**
+     * Optional, written by the x402 flows (F4): `onchain-receipt` is the custom flow paid into
+     * ShelterSplit; `exact` is standard x402 paid straight to the shelter wallet (`payTo`), with no
+     * split event, so the impact indexer counts it into the `x402` bucket from `amountBase`.
+     */
+    @Prop({ required: false, enum: ['onchain-receipt', 'exact'] })
+    scheme?: 'onchain-receipt' | 'exact';
+
+    @Prop({ required: false })
+    chainId?: number;
+
+    /** USDC base units (6 decimals). */
+    @Prop({ required: false })
+    amountBase?: string;
+
+    /** Lowercased recipient of an `exact` payment. */
+    @Prop({ required: false })
+    payTo?: string;
+
+    /**
+     * `exact` only: true when the settlement's Transfer to `payTo` was read back from the chain. Rows
+     * resting on the facilitator's word alone (RPC down, receipt still pending) are false and are not
+     * counted in the public totals.
+     */
+    @Prop({ required: false })
+    verifiedOnchain?: boolean;
 }
 export type X402UsedTxDocument = X402UsedTx & Document;
 export const X402UsedTxSchema = SchemaFactory.createForClass(X402UsedTx);
 X402UsedTxSchema.index({ txHash: 1 }, { unique: true, name: 'txhash_unique' });
+
+export const RELAY_STATUSES = ['submitted', 'confirmed', 'failed'] as const;
+export type RelayStatus = typeof RELAY_STATUSES[number];
+
+/**
+ * One relayed wallet gift: the donor signed an EIP-3009 authorization to the router, the hot wallet
+ * submitted it and paid the gas. The USDC moved donor -> router -> ShelterSplit -> shelters in that
+ * one transaction; no Token Tails wallet held it. `nonce` is the EIP-3009 nonce (unique: one relay
+ * per authorization).
+ */
+@Schema({ timestamps: true, collection: 'shelterrelaytxs' })
+export class ShelterRelayTx extends CommonSchema {
+    @Prop({ required: true })
+    nonce: string;
+
+    /** The donor (lowercased). */
+    @Prop({ required: true })
+    from: string;
+
+    /** USDC base units (6 decimals). */
+    @Prop({ required: true })
+    valueBase: string;
+
+    @Prop({ required: true })
+    memo: string;
+
+    @Prop({ required: true })
+    chainId: number;
+
+    /** UTC day of the relay, for the per-signer and daily caps. */
+    @Prop({ required: true })
+    day: string;
+
+    /** Written before the broadcast, like a treat. */
+    @Prop({ required: false })
+    txHash?: string;
+
+    @Prop({ required: false })
+    txNonce?: number;
+
+    @Prop({ required: false })
+    txFrom?: string;
+
+    @Prop({ required: true, enum: RELAY_STATUSES })
+    status: RelayStatus;
+
+    @Prop({ required: false })
+    batchId?: string;
+
+    @Prop({ required: false })
+    blockNumber?: number;
+
+    @Prop({ required: false })
+    failedReason?: string;
+
+    /**
+     * Set when our own transaction did not land but someone else submitted the donor's signature first:
+     * the transaction that actually paid (found by the RouterDonation nonce topic).
+     */
+    @Prop({ required: false })
+    settledTxHash?: string;
+
+    /** sha256 of the caller IP with a fixed prefix; never the IP itself. */
+    @Prop({ required: false })
+    ipHash?: string;
+}
+export type ShelterRelayTxDocument = ShelterRelayTx & Document;
+export const ShelterRelayTxSchema = SchemaFactory.createForClass(ShelterRelayTx);
+ShelterRelayTxSchema.index({ nonce: 1 }, { unique: true, name: 'nonce_unique' });
+ShelterRelayTxSchema.index({ txHash: 1 }, { name: 'txhash', sparse: true });
+ShelterRelayTxSchema.index({ status: 1, updatedAt: 1 }, { name: 'status_updated' });
+
+export const MATCH_STATUSES = ['pending', 'sent', 'confirmed', 'skipped-cap', 'skipped-small', 'failed'] as const;
+export type MatchStatus = typeof MATCH_STATUSES[number];
+
+/**
+ * Token Tails' 1:1 match of one router gift, paid from the hot wallet (Token Tails' own money) into
+ * ShelterSplit with memo `tt:match:<8 hex of the donor tx>`. Unique `donorTxHash`: a gift is matched
+ * at most once, whatever the scan replays.
+ */
+@Schema({ timestamps: true, collection: 'sheltermatches' })
+export class ShelterMatch extends CommonSchema {
+    @Prop({ required: true })
+    donorTxHash: string;
+
+    @Prop({ required: true })
+    donorFrom: string;
+
+    /** USDC base units (6 decimals). */
+    @Prop({ required: true })
+    giftBase: string;
+
+    @Prop({ required: true, default: '0' })
+    matchBase: string;
+
+    @Prop({ required: false })
+    matchTxHash?: string;
+
+    @Prop({ required: false })
+    matchTxNonce?: number;
+
+    @Prop({ required: true, enum: MATCH_STATUSES })
+    status: MatchStatus;
+
+    /** UTC day the match budget was charged to. */
+    @Prop({ required: true })
+    day: string;
+
+    @Prop({ required: true })
+    chainId: number;
+
+    @Prop({ required: false })
+    path?: number;
+
+    @Prop({ required: false })
+    failedReason?: string;
+
+    /** True while `matchBase` is charged to the day and pool counters. */
+    @Prop({ required: false, default: false })
+    budgetHeld?: boolean;
+}
+export type ShelterMatchDocument = ShelterMatch & Document;
+export const ShelterMatchSchema = SchemaFactory.createForClass(ShelterMatch);
+ShelterMatchSchema.index({ donorTxHash: 1 }, { unique: true, name: 'donor_tx_unique' });
+ShelterMatchSchema.index({ matchTxHash: 1 }, { name: 'match_txhash', sparse: true });
+ShelterMatchSchema.index({ status: 1, updatedAt: 1 }, { name: 'status_updated' });
+
+/**
+ * `pending-rotation`: filed and signature-checked, never shown publicly. `approved`: an admin confirmed
+ * the wallet with the shelter through a separate channel. `rotated`: the split pays it. `rejected`.
+ */
+export const CLAIM_STATUSES = ['pending-rotation', 'approved', 'rotated', 'rejected'] as const;
+/** The only statuses `GET /shelter/claim` shows. */
+export const PUBLIC_CLAIM_STATUSES: readonly ClaimStatus[] = ['approved', 'rotated'];
+export type ClaimStatus = typeof CLAIM_STATUSES[number];
+
+/**
+ * A shelter naming its own payout wallet with a personal_sign signature by that wallet. Moving the
+ * split's recipient is a manual owner step (`fund.mjs shelter rotate`), so a claim stays
+ * `pending-rotation` until then. Not payout evidence: see docs/API.md.
+ */
+@Schema({ timestamps: true, collection: 'shelterclaims' })
+export class ShelterClaim extends CommonSchema {
+    @Prop({ required: true })
+    chainId: number;
+
+    /** Checksummed. */
+    @Prop({ required: true })
+    wallet: string;
+
+    @Prop({ required: true })
+    message: string;
+
+    @Prop({ required: true })
+    signature: string;
+
+    @Prop({ required: true, enum: CLAIM_STATUSES })
+    status: ClaimStatus;
+}
+export type ShelterClaimDocument = ShelterClaim & Document;
+export const ShelterClaimSchema = SchemaFactory.createForClass(ShelterClaim);
+ShelterClaimSchema.index({ createdAt: -1 }, { name: 'created' });
+ShelterClaimSchema.index({ chainId: 1, wallet: 1 }, { unique: true, name: 'chain_wallet_unique' });
+
+/**
+ * Atomic counters for the relay and match caps: `relay:<day>`, `relay:<day>:<signer>`,
+ * `match:<day>`, `match:pool:<chainId>`. Claimed with a conditional `$inc`; the unique `key` turns a
+ * lost upsert race into a refusal. `expiresAt` lets Mongo drop day counters (TTL); the pool has none.
+ */
+@Schema({ timestamps: true, collection: 'sheltercounters' })
+export class ShelterCounter extends CommonSchema {
+    @Prop({ required: true })
+    key: string;
+
+    @Prop({ required: true, default: 0 })
+    used: number;
+
+    @Prop({ required: false, type: Date })
+    expiresAt?: Date;
+}
+export type ShelterCounterDocument = ShelterCounter & Document;
+export const ShelterCounterSchema = SchemaFactory.createForClass(ShelterCounter);
+ShelterCounterSchema.index({ key: 1 }, { unique: true, name: 'key_unique' });
+ShelterCounterSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'counter_ttl', sparse: true });
+
+/** How far the RouterDonation scan has read, and when the flush keeper last ran, per chain and router. */
+@Schema({ timestamps: true, collection: 'shelterrouterscans' })
+export class ShelterRouterScan extends CommonSchema {
+    @Prop({ required: true })
+    key: string;
+
+    @Prop({ required: false, type: Number, default: null })
+    lastBlock?: number | null;
+
+    @Prop({ required: false, type: Date })
+    lastFlushAt?: Date;
+}
+export type ShelterRouterScanDocument = ShelterRouterScan & Document;
+export const ShelterRouterScanSchema = SchemaFactory.createForClass(ShelterRouterScan);
+ShelterRouterScanSchema.index({ key: 1 }, { unique: true, name: 'key_unique' });

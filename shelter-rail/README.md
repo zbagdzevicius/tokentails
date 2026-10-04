@@ -1,5 +1,18 @@
 # ShelterSplit Rail
 
+**Any game can add a shelter button.** One script tag gives your players a "Give to <shelter>" button
+and a live, on-chain "shelters received" meter. No account, no gas for the giver, no SDK install. Gasless
+mode needs a relay, which pays the gas but never holds the gift; the contracts pass it on in the same
+transaction and keep none of it (the
+showcase shelter's wallet has its own disclosure below).
+
+```html
+<script src="https://tokentails.com/rail/widget.js"
+  data-mode="gasless" data-chain="5042" data-split="0xShelterSplit"
+  data-router="0xDonateRouter" data-usdc="0xUSDC" data-relay="https://<relay>/shelter/relay"
+  data-shelter="Pink Paw" data-amount="1000000"></script>
+```
+
 A non-custodial, pass-through payout rail for animal shelters. Any game, app or AI agent can add a
 donate button: the payment goes from the payer's wallet into the ShelterSplit contract, which splits
 it across the registered shelter wallets in the same transaction and emits one public event per payout.
@@ -11,9 +24,28 @@ What is in the box:
 
 | Part | File | Use it for |
 |---|---|---|
-| Widget | `src/widget.js` | One `<script>` tag: a donate button and a live "shelters received" total. No framework. |
-| SDK | `src/sdk.mjs` | `encodeDonate`, `readTotals`, `donateWithInjected`, and the x402 client `payAndFetch`. |
+| Widget | `src/widget.js` | One `<script>` tag: a donate button (native or gasless) and a live "shelters received" total. No framework. |
+| SDK | `src/sdk.mjs` | `encodeDonate`, `readTotals`, `donateWithInjected`, gasless `signAndRelay`, and the x402 client `payAndFetch` (`exact` and `onchain-receipt`). |
 | Agent example | `examples/agent-pay.mjs` | An AI agent paying for one adoptable-cat card; the money goes to shelters. |
+| Demo page | `client/public/rail/demo.html` | The widget against the Arc testnet split, served at `tokentails.com/rail/demo.html`. |
+
+## Custody statement
+
+Every path moves money donor → ShelterSplit → shelter wallet, or donor → shelter wallet. None of
+them passes through a wallet the integrator or Token Tails controls.
+
+- **ShelterSplit** splits each gift across the registered shelter wallets in the same transaction and
+  keeps no balance.
+- **DonateRouter** (gasless mode) has **no owner, no admin functions and no balance** between
+  transactions. It pulls the donor's signed USDC and pays it through ShelterSplit in one call, and it
+  **reverts if any wei would reach the split's treasury**. The relay that pays the gas only submits
+  the donor's signature; it never holds the gift, and it cannot change the amount, the memo or the
+  destination (the EIP-3009 nonce is `keccak256(abi.encode(router, keccak256(memo), salt, recipients))`,
+  where `recipients` is `router.recipientsHash(amount)`: if the shelter list changes after signing, the
+  gift reverts). USDC sent to the router by plain transfer waits there until anyone calls `flush`,
+  which can only pay it on to the shelters.
+- **x402 `exact`** pays the **shelter's own wallet** (`payTo`) directly with a USDC
+  `transferWithAuthorization`; the facilitator settles it and pays the gas.
 
 ## Showcase shelter and custody disclosure
 
@@ -75,6 +107,25 @@ Memos are public and permanent. Keep them short and never put personal data in t
 | `data-from-block` | `0` | Where the live-total log scan starts. |
 | `data-target` | after the script | CSS selector of the element to mount into. |
 
+Gasless mode adds:
+
+| Attribute | Default | Meaning |
+|---|---|---|
+| `data-mode` | `native` | `gasless`: the visitor signs one USDC authorization and pays no gas. |
+| `data-router` | none | DonateRouter address (ownerless; reverts on any treasury share). |
+| `data-usdc` | none | USDC address on that chain (its EIP-712 name and version are read on-chain). |
+| `data-relay` | none | Relay URL that submits the signature and pays the gas. |
+| `data-amount` | `1000000` | USDC base units, 6 decimals (1000000 = 1 USDC). |
+| `data-shelter` | "shelters" | Shelter name for the button: "Give 1 USDC to Pink Paw". |
+| `data-testnet` | `false` | `true` shows a "Test USDC, no real money" chip. |
+| `data-theme` | visitor's | `light` or `dark`. |
+| `data-rpc`, `data-explorer`, `data-chain-name` | Arc built in | For any other EVM chain. |
+
+Until all of `data-router`, `data-usdc` and `data-relay` are set, the gasless button reads "Gasless
+giving opens soon" and only the live total shows. Before the visitor signs, the widget asks the router
+`canDonate(amount)`: if the split is paused or part of the gift would not reach the shelters, nothing is
+signed.
+
 One tap opens the visitor's wallet (it adds Arc if needed), a small burst of hearts celebrates the
 gift, and the message links to the transaction on the explorer. Styles live in a shadow root, follow
 the visitor's light or dark mode, and respect reduced motion.
@@ -97,14 +148,79 @@ const { txHash, explorerUrl } = await donateWithInjected(window.ethereum, {
 
 `readTotals` keeps native (18-decimal) and token (6-decimal) totals apart so the scales never mix.
 
-### 3. AI agents: x402-compatible "onchain-receipt" flow
+Gasless gift through a DonateRouter (the donor needs no gas token and sends no transaction):
+
+```js
+import { signAndRelay } from "./src/sdk.mjs";
+
+const { txHash, memo } = await signAndRelay({
+  provider: window.ethereum,
+  chainId: 5042,
+  router: "0x...",              // DonateRouter
+  usdc: "0x...",                // USDC on that chain
+  amount: 1_000_000n,           // 1 USDC (6 decimals)
+  relayUrl: "https://<relay>/shelter/relay",
+});
+```
+
+Before anything is signed it checks the router: `router.split()` must be the split you pass as `split`
+(the widget uses the split it shows, and keeps the button off otherwise) and `router.usdc()` must be the
+USDC you pass, since the signature gives the router pull rights for the amount. It then picks a random
+32-byte salt and a `tt:wallet:<8 hex>` memo, reads `router.authNonce(salt, memo)` with
+`eth_call` (and checks it against its own computation), reads USDC `name()`/`version()` for the EIP-712
+domain, asks for one `eth_signTypedData_v4` of `ReceiveWithAuthorization` (payee: the router), and POSTs
+`{chainId, from, value, validAfter, validBefore, salt, memo, signature}` to the relay. `hashTypedData`
+and `keccak256` are exported too (no dependencies), so you can show or check the exact digest the
+wallet signs.
+
+### 3. AI agents: standard x402 `exact`, straight to the shelter wallet
+
+When the server offers it, the cat card also takes the **standard x402 `exact` scheme** (x402 v1,
+EIP-3009 USDC). Then `accepts` holds only the `exact` requirement, because standard clients
+(x402-fetch, x402-axios) schema-parse every entry and throw on a custom one; the `onchain-receipt` offer
+moves to a top-level `onchainReceipt` field, which `pickOffer` reads:
+
+```json
+{ "x402Version": 1, "error": "payment required",
+  "accepts": [{ "scheme": "exact", "network": "base-sepolia", "maxAmountRequired": "10000",
+    "payTo": "<the shelter's own wallet>", "asset": "<USDC>", "maxTimeoutSeconds": 120,
+    "extra": { "name": "USDC", "version": "2" }, "...": "resource, description, mimeType" }],
+  "onchainReceipt": { "scheme": "onchain-receipt", "...": "see section 4" } }
+```
+
+`network` is always an x402 v1 network name (the `x402` package's list: base, base-sepolia, avalanche,
+avalanche-fuji, polygon, polygon-amoy, sei, iotex and a few more). The public x402.org facilitator settles
+v1 `exact` on base-sepolia only; other networks need a facilitator that supports them. Names outside the
+v1 list need a custom facilitator, and off-the-shelf clients reject them; this SDK pays them with
+`chainIds: { "<name>": <chainId> }`.
+
+The agent signs one `TransferWithAuthorization` from its wallet to `payTo` and retries with
+`X-PAYMENT`. The server's facilitator verifies and settles it and pays the gas; the server re-reads the
+`Transfer` log (only payments read back from the chain count in the public totals) and answers `200`
+with the card and an `X-PAYMENT-RESPONSE` (`transaction`, `network`, `payer`).
+
+Interoperability, as tested: the off-the-shelf `x402-fetch` 1.2.0 client parses the `402`, signs, and
+its `X-PAYMENT` passes this server's checks and the public x402.org facilitator's `/verify` on
+base-sepolia. A full settlement through that facilitator has not been run yet. With this SDK:
+
+```js
+const { response, paid } = await payAndFetch(url, {
+  maxAmountBase: 10_000n,            // 0.01 USDC cap (6 decimals)
+  provider: window.ethereum,         // or signTypedData: async (typedData) => sig, account: "0x..."
+});
+```
+
+`paid` is `null` (and `error` holds the server's reason) when the server refuses the authorization.
+On mainnet the server offers `exact` only once the shelter holds its own wallet key.
+
+### 4. AI agents: x402-compatible "onchain-receipt" flow
 
 The Token Tails API sells one adoptable-cat card at `GET /shelter/agent/cat-card`, and the whole price
 goes to shelters. This is an **x402-compatible flow with its own `onchain-receipt` scheme and no
 facilitator**: standard x402 facilitators may not support Arc, so the server checks the transaction
 receipt on the chain itself.
 
-1. The agent calls the URL. The server answers `402` with `{x402Version: 1, accepts: [{scheme: "onchain-receipt", network: "eip155:<chainId>", maxAmountRequired, asset: "native", payTo: <ShelterSplit>, extra: {memo: "x402:<nonce>", nonce}}]}`.
+1. The agent calls the URL. The server answers `402` with `{x402Version: 1, accepts: [{scheme: "onchain-receipt", network: "eip155:<chainId>", maxAmountRequired, asset: "native", payTo: <ShelterSplit>, extra: {memo: "x402:<nonce>", nonce}}]}` (or, when `exact` is offered too, with that offer in the top-level `onchainReceipt` field).
 2. The agent calls `donate("x402:<nonce>")` on `payTo` with at least `maxAmountRequired` wei.
 3. The agent retries with `X-PAYMENT: base64(JSON {x402Version: 1, scheme: "onchain-receipt", network, payload: {txHash, nonce}})`.
 4. The server checks the receipt (status ok, `NativeDisbursed` logs from the split with that memo summing
@@ -121,7 +237,7 @@ const { response, paid } = await payAndFetch("https://<api-host>/shelter/agent/c
 console.log(await response.json(), paid?.txHash);
 ```
 
-`payAndFetch` refuses any price above `maxAmountWei`, pays at most once per call, and passes any
+`payAndFetch` refuses any price above `maxAmountWei` (or `maxAmountBase` for `exact`), pays at most once per call, and passes any
 non-402 response (for example `409` while the endpoint is switched off) straight through.
 
 See `examples/agent-pay.mjs` for a Node agent with `ethers`. It reads a **testnet** key from the

@@ -23,24 +23,24 @@ ShelterSplit splits native USDC on Arc as it arrives and pays each registered sh
 Animal shelters run on small donations and have no cheap way to show where the money went. A player who is told that part of a purchase helps shelters cannot check that it happened. Cross-border giving adds bank fees and delays, and most shelters are too small to integrate a payments provider. Token Tails has the demand side: a live consumer cat-rescue app on web, iOS and Android [F-015] [F-016]. What is missing is a neutral, public record of the part of that revenue that goes to the shelters caring for the cats. On Arc a shelter only needs an address that holds USDC. It receives the payout in the same asset it would pay gas in, so there is no second token to buy.
 
 ## Solution <!-- criterion: C3, C4 | limit: 1200 -->
-ShelterSplit turns a payout promise into a public ledger entry on Arc. The registry lives in the contract: each shelter has a wallet, a name and a share in basis points. donate(memo), or a plain USDC send, splits the payment on arrival: every active shelter gets its share in the same transaction and the remainder goes to the treasury. A second instance does the same in EURC.
+ShelterSplit turns a payout promise into a public ledger entry on Arc. The registry lives in the contract: each shelter has a wallet, a name and a share in basis points. donate(memo), or a plain USDC send, splits the payment on arrival: each active shelter gets its share in the same transaction, the rest goes to the treasury. A second instance does the same in EURC.
 Built around it, all in the public repo:
-- One-tap gift: a verified player (account older than a day) taps "Send Pink Paw a rescue treat" after a Catnip Heist win or on the payouts page. Token Tails pays a small sponsored amount, once a day, from a capped budget. No wallet, no gas.
-- Receipts: each payout has a receipt page decoded from Arc and a downloadable share card.
-- Pink Paw's profile with the custody disclosure, and a campaign meter summed from on-chain payouts.
-- ShelterSplit Rail: an MIT SDK and a one-tag donate widget any site can embed.
-Wallet donations and a paid agent endpoint are built but stay off until Pink Paw holds its own keys.
-Live for this entry: both contracts on Arc mainnet, Pink Paw registered, one proof payout, and the payouts page at https://tokentails.com/shelter-payouts.
+- One-tap gift: a verified player taps "Send Pink Paw a rescue treat" after a Catnip Heist win or on the payouts page. Token Tails pays a small sponsored amount, once a day, from a capped budget. No wallet, no gas.
+- Receipts and a share card for each payout, Pink Paw's profile with the custody disclosure, and a campaign meter summed from on-chain payouts.
+- Rail: an MIT SDK and a one-tag donate widget.
+- Built, deploy pending: DonateRouter, with no owner. A donor signs one message for Arc's USDC (USDC is both gas and gift), our relay submits it, and Token Tails can match it. Mainnet giving waits until Pink Paw holds its own key.
+Live: both contracts on Arc mainnet, Pink Paw registered, one proof payout, and https://tokentails.com/shelter-payouts.
 
 ## How it works <!-- criterion: C1, C2, C3 | limit: 1500 -->
 - Arc-native path: USDC is Arc's gas token, so the native and ERC-20 balances are one. donate(memo) and receive() split a USDC send with no approve step. disburse(amount, memo) serves ERC-20 payers such as the EURC instance.
-- Events: one NativeDisbursed or Disbursed(shelter, amount, memo) per shelter and one batch event per call. The payouts page, receipts and meter read only these.
-- Registry: the owner adds, updates, deactivates or removes shelters. Shares never exceed the payment; dust goes to the treasury, so the contract holds no balance.
-- Atomic batch: if one payout fails, for example a wallet that rejects the transfer, the whole batch reverts and nobody is paid short; the owner deactivates that shelter. A test covers this.
-- Sponsored gifts: a verified player taps once a day; a backend wallet with a small float calls donate('tt:<source>:<random id>') within a capped daily budget. The memo holds no personal data.
-- Agent payments, off until handover: an x402-compatible endpoint answers 402 with a price. The agent calls donate('x402:<nonce>') and retries with the tx hash, checked over RPC and accepted once. Our own onchain-receipt scheme, no facilitator.
-- Trust model: the chain proves USDC reached the registered wallet, not who controls it. The first wallet is held by Token Tails on behalf of Pink Paw until handover.
-- Reentrancy guard, pause, two-step ownership, caps, a fuzzed Foundry suite. ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/).
+- Events: NativeDisbursed or Disbursed(shelter, amount, memo) per shelter and one batch event per call. Payouts page, receipts and meter read only these.
+- Registry: the owner adds, updates, deactivates or removes shelters; dust goes to the treasury, so the split holds no balance.
+- Atomic batch: if one payout fails the whole batch reverts and nobody is paid short.
+- Sponsored gifts: a verified player taps once a day; a backend wallet with a small float calls donate('tt:<source>:<random id>') within a capped daily budget. No personal data in the memo.
+- One-signature gifts (built, not deployed): the donor signs an EIP-3009 receiveWithAuthorization that binds the router, memo and payout list. The router reverts if that list changed or any share would reach the treasury.
+- Agent payments, off on mainnet until handover: standard x402 exact paid straight to the shelter wallet, or our own scheme (donate('x402:<nonce>'), tx checked over RPC, accepted once).
+- Trust model: the chain proves USDC reached the registered wallet, not who controls it. Token Tails holds the first wallet for Pink Paw until handover.
+- Reentrancy guard, pause, two-step ownership; fuzz and invariant Foundry suites; MIT.
 
 ## On-chain proof <!-- criterion: C1, C2 | limit: 800 -->
 Arc mainnet: ShelterSplit (USDC) at {SPLIT_ADDRESS} and ShelterSplit (EURC) at {EURC_SPLIT_ADDRESS}. The first payout to Pink Paw is transaction {ARC_PROOF_TX}, a Disbursed event anyone can look up. Disclosure: the receiving wallet {SHELTER_WALLET} is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Every payout into it stays public, before and after the handover. The team has shipped production contracts before: three Soroban contracts on Stellar mainnet [F-009], and ERC-721 contracts on SKALE testnet and mainnet [F-010].

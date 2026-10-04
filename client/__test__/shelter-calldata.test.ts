@@ -8,9 +8,9 @@ import {
 import { SHELTER_CHAINS } from "@/components/shelter-payouts/chains";
 import {
   Eip1193,
+  WrongNetworkError,
   addChainParams,
-  donateTx,
-  walletDonate,
+  connectWallet,
   walletErrorMessage,
 } from "@/components/shelter-payouts/wallet";
 
@@ -65,14 +65,14 @@ describe("units", () => {
   });
 });
 
-describe("walletDonate (mocked EIP-1193, nothing is signed)", () => {
+describe("connectWallet (mocked EIP-1193, nothing is signed)", () => {
   const arc = SHELTER_CHAINS[5042];
-  const SPLIT = "0x" + "22".repeat(20);
   const FROM = "0x" + "33".repeat(20);
-  const HASH = "0x" + "ab".repeat(32);
 
-  function provider(chainId: string, opts: { unknownChain?: boolean } = {}) {
+  /** `chainIds` are the answers to successive eth_chainId calls (the last one repeats). */
+  function provider(chainIds: string[], opts: { unknownChain?: boolean } = {}) {
     const calls: { method: string; params?: unknown[] }[] = [];
+    let n = 0;
     const eth: Eip1193 = {
       request: jest.fn(async (args) => {
         calls.push(args);
@@ -80,14 +80,12 @@ describe("walletDonate (mocked EIP-1193, nothing is signed)", () => {
           case "eth_requestAccounts":
             return [FROM];
           case "eth_chainId":
-            return chainId;
+            return chainIds[Math.min(n++, chainIds.length - 1)];
           case "wallet_switchEthereumChain":
             if (opts.unknownChain) throw Object.assign(new Error("unknown"), { code: 4902 });
             return null;
           case "wallet_addEthereumChain":
             return null;
-          case "eth_sendTransaction":
-            return HASH;
         }
         throw new Error("unexpected " + args.method);
       }),
@@ -95,23 +93,15 @@ describe("walletDonate (mocked EIP-1193, nothing is signed)", () => {
     return { eth, calls };
   }
 
-  it("sends donate calldata with the amount as native value", async () => {
-    const { eth, calls } = provider("0x13b2");
-    const hash = await walletDonate(eth, { chainId: 5042, chain: arc, splitAddress: SPLIT, amount: "1" });
-    expect(hash).toBe(HASH);
-    expect(calls.map((c) => c.method)).toEqual(["eth_requestAccounts", "eth_chainId", "eth_sendTransaction"]);
-    expect(calls[2].params?.[0]).toEqual(donateTx(FROM, SPLIT, "1", arc));
-    expect(donateTx(FROM, SPLIT, "1", arc)).toEqual({
-      from: FROM,
-      to: SPLIT,
-      value: "0xde0b6b3a7640000",
-      data: encodeDonateCalldata("tt:wallet"),
-    });
+  it("asks nothing more when the wallet is already on the chain", async () => {
+    const { eth, calls } = provider(["0x13b2"]);
+    await expect(connectWallet(eth, 5042, arc)).resolves.toBe(FROM);
+    expect(calls.map((c) => c.method)).toEqual(["eth_requestAccounts", "eth_chainId"]);
   });
 
   it("adds Arc with USDC as an 18-decimal native coin when the wallet does not know it", async () => {
-    const { eth, calls } = provider("0x1", { unknownChain: true });
-    await walletDonate(eth, { chainId: 5042, chain: arc, splitAddress: SPLIT, amount: "5" });
+    const { eth, calls } = provider(["0x1", "0x13b2"], { unknownChain: true });
+    await connectWallet(eth, 5042, arc);
     const add = calls.find((c) => c.method === "wallet_addEthereumChain");
     expect(add?.params?.[0]).toEqual(addChainParams(5042, arc));
     expect(addChainParams(5042, arc)).toMatchObject({
@@ -120,6 +110,13 @@ describe("walletDonate (mocked EIP-1193, nothing is signed)", () => {
       rpcUrls: ["https://rpc.mainnet.arc.io"],
       blockExplorerUrls: ["https://explorer.arc.io"],
     });
+  });
+
+  it("refuses when the wallet says it switched but stays on another network", async () => {
+    const { eth } = provider(["0x1"]);
+    const err = await connectWallet(eth, 5042, arc).catch((e) => e);
+    expect(err).toBeInstanceOf(WrongNetworkError);
+    expect(walletErrorMessage(err)).toMatch(/still on another network.*Nothing was sent/);
   });
 
   it("explains a user rejection kindly", () => {

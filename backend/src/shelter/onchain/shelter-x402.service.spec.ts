@@ -2,7 +2,7 @@ import { HttpException } from '@nestjs/common';
 import { getBigInt, JsonRpcProvider } from 'ethers';
 import { NATIVE_DISBURSED_TOPIC, ShelterChain, shelterSplitInterface } from './shelter-chain';
 import { fakeNonceModel, fakeUsedTxModel, SHELTER_WALLET, SPLIT, withShelterEnv } from './shelter-onchain.fakes-spec';
-import { ShelterX402Service, X402_DISABLED, X402_NO_CARDS } from './shelter-x402.service';
+import { encodePaymentResponse, ShelterX402Service, X402_DISABLED, X402_NO_CARDS } from './shelter-x402.service';
 
 // Only receipts are read, from a mocked provider. Interface stays real to build genuine logs.
 jest.mock('ethers', () => {
@@ -66,12 +66,40 @@ async function challenge(service: ShelterX402Service, now = NOW): Promise<string
 beforeEach(() => {
     jest.clearAllMocks();
     (JsonRpcProvider as unknown as jest.Mock).mockImplementation(() => ({ getTransactionReceipt }));
-    withShelterEnv({ SHELTER_X402_ENABLED: 'true', SHELTER_SPLIT_ADDRESS: SPLIT, SHELTER_X402_PRICE_WEI: PRICE });
+    // The main chain is a mainnet (Arc): onchain-receipt waits for the handover like every public path.
+    withShelterEnv({
+        SHELTER_X402_ENABLED: 'true',
+        SHELTER_SPLIT_ADDRESS: SPLIT,
+        SHELTER_X402_PRICE_WEI: PRICE,
+        SHELTER_HANDED_OVER: 'true',
+    });
 });
 
 afterAll(() => withShelterEnv({}));
 
 describe('GET /shelter/agent/cat-card (x402, onchain-receipt)', () => {
+    it('answers 409 on a mainnet before the shelter handover: the split still pays a wallet Token Tails holds', async () => {
+        withShelterEnv({ SHELTER_X402_ENABLED: 'true', SHELTER_SPLIT_ADDRESS: SPLIT, SHELTER_X402_PRICE_WEI: PRICE });
+        const { service } = setup();
+
+        const error = await httpError(service.catCard(undefined, RESOURCE, NOW));
+        expect(error.getStatus()).toBe(409);
+    });
+
+    it('offers onchain-receipt on a testnet without the handover (test USDC)', async () => {
+        withShelterEnv({
+            SHELTER_X402_ENABLED: 'true',
+            SHELTER_SPLIT_ADDRESS: SPLIT,
+            SHELTER_X402_PRICE_WEI: PRICE,
+            SHELTER_CHAIN_ID: '5042002',
+        });
+        const { service } = setup();
+
+        const error = await httpError(service.catCard(undefined, RESOURCE, NOW));
+        expect(error.getStatus()).toBe(402);
+        expect((error.getResponse() as any).accepts[0].network).toBe('eip155:5042002');
+    });
+
     it('answers 409 with a clear message when SHELTER_X402_ENABLED is off (the default)', async () => {
         withShelterEnv({ SHELTER_SPLIT_ADDRESS: SPLIT });
         const { service, nonces } = setup();
@@ -340,5 +368,443 @@ describe('ShelterX402Service.pickCard (whitelist projection)', () => {
         const card = await setup(blessings as any).service.pickCard();
         expect(card).toEqual({ name: 'Pip', imageUrl: null, shelterName: null });
         expect(blessings.aggregate.mock.calls[1][0][0]).toEqual({ $match: {} });
+    });
+});
+
+describe('GET /shelter/agent/cat-card (x402, standard exact scheme paid to the shelter wallet)', () => {
+    // Anvil's well-known dev account #0: a public test vector, never a real key.
+    const DevWallet = jest.requireActual('ethers').Wallet;
+    const dev = new DevWallet('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80');
+    const USDC = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+    const SETTLE_TX = '0x' + 'e'.repeat(64);
+    const NOW_S = Math.floor(NOW.getTime() / 1000);
+    const EXACT_KEYS = [
+        'SHELTER_X402_EXACT_ENABLED',
+        'SHELTER_X402_EXACT_NETWORK',
+        'SHELTER_X402_EXACT_CHAIN_ID',
+        'SHELTER_X402_EXACT_ASSET',
+        'SHELTER_X402_EXACT_ASSET_NAME',
+        'SHELTER_X402_EXACT_ASSET_VERSION',
+        'SHELTER_X402_EXACT_PAYTO',
+        'SHELTER_X402_FACILITATOR_URL',
+        'SHELTER_X402_EXACT_PRICE',
+        'SHELTER_X402_EXACT_RPC',
+        'SHELTER_ROUTER_ADDRESS',
+        'SHELTER_TREASURY_ADDRESS',
+    ];
+
+    function withExactEnv(values: Record<string, string> = {}) {
+        for (const key of EXACT_KEYS) delete process.env[key];
+        Object.assign(process.env, {
+            SHELTER_X402_EXACT_ENABLED: 'true',
+            SHELTER_X402_EXACT_NETWORK: 'base-sepolia',
+            SHELTER_X402_EXACT_ASSET: USDC,
+            SHELTER_X402_EXACT_PAYTO: SHELTER_WALLET,
+            SHELTER_X402_FACILITATOR_URL: 'https://facilitator.test',
+            SHELTER_X402_EXACT_RPC: 'https://rpc.test',
+            ...values,
+        });
+    }
+
+    afterEach(() => {
+        for (const key of EXACT_KEYS) delete process.env[key];
+    });
+
+    const json = (body: unknown, status = 200) => ({ ok: status < 400, status, json: async () => body });
+
+    const abiString = (text: string) =>
+        '0x' +
+        (32).toString(16).padStart(64, '0') +
+        text.length.toString(16).padStart(64, '0') +
+        Buffer.from(text).toString('hex').padEnd(64, '0');
+    const pad = (a: string) => '0x' + a.slice(2).toLowerCase().padStart(64, '0');
+    /** The settlement receipt: a USDC Transfer(payer -> shelter wallet, 0.01). */
+    const GOOD_RECEIPT = {
+        status: '0x1',
+        logs: [
+            {
+                address: USDC,
+                topics: [
+                    '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                    pad(dev.address),
+                    pad(SHELTER_WALLET),
+                ],
+                data: '0x' + (10000).toString(16).padStart(64, '0'),
+            },
+        ],
+    };
+
+    /**
+     * A facilitator that accepts and settles, and an RPC answering the token domain (USDC / 2 / 6
+     * decimals unless overridden) and the settlement receipt.
+     */
+    function facilitator(
+        opts: {
+            verify?: unknown;
+            settle?: unknown;
+            receipt?: unknown;
+            verifyThrows?: boolean;
+            domain?: { name: string; version: string; decimals: number };
+            rpcDown?: boolean;
+        } = {}
+    ): jest.Mock {
+        return jest.fn(async (url: string, init: any) => {
+            if (url.endsWith('/verify')) {
+                if (opts.verifyThrows) throw new TypeError('fetch failed');
+                return json(opts.verify ?? { isValid: true, payer: dev.address });
+            }
+            if (url.endsWith('/settle')) {
+                return json(
+                    opts.settle ?? {
+                        success: true,
+                        transaction: SETTLE_TX,
+                        network: 'base-sepolia',
+                        payer: dev.address,
+                    }
+                );
+            }
+            if (opts.rpcDown) throw new TypeError('fetch failed');
+            const body = JSON.parse(init.body);
+            if (body.method === 'eth_call') {
+                const domain = opts.domain ?? { name: 'USDC', version: '2', decimals: 6 };
+                const data = body.params[0].data;
+                const result =
+                    data === '0x06fdde03'
+                        ? abiString(domain.name)
+                        : data === '0x54fd4d50'
+                        ? abiString(domain.version)
+                        : '0x' + domain.decimals.toString(16).padStart(64, '0');
+                return json({ jsonrpc: '2.0', id: body.id, result });
+            }
+            return json({ jsonrpc: '2.0', id: body.id, result: opts.receipt ?? null });
+        });
+    }
+
+    function exactSetup(fetchFn: jest.Mock) {
+        const parts = setup();
+        const nonces = {
+            ...parts.nonces,
+            deleteOne: jest.fn(async ({ nonce }: any) => {
+                const i = parts.nonces.rows.findIndex(r => r.nonce === nonce);
+                if (i >= 0) parts.nonces.rows.splice(i, 1);
+            }),
+        };
+        const service = new ShelterX402Service(
+            nonces as any,
+            parts.usedTxs as any,
+            blessingModel() as any,
+            new ShelterChain()
+        );
+        service.fetchFn = fetchFn as any;
+        service.sleep = async () => undefined;
+        return { ...parts, nonces, service };
+    }
+
+    async function exactHeader(overrides: Record<string, string> = {}) {
+        const authorization = {
+            from: dev.address,
+            to: SHELTER_WALLET,
+            value: '10000',
+            validAfter: '0',
+            validBefore: String(NOW_S + 120),
+            nonce: '0x' + '7c'.repeat(32),
+            ...overrides,
+        };
+        const signature = await dev.signTypedData(
+            { name: 'USDC', version: '2', chainId: 84532, verifyingContract: USDC },
+            {
+                TransferWithAuthorization: [
+                    { name: 'from', type: 'address' },
+                    { name: 'to', type: 'address' },
+                    { name: 'value', type: 'uint256' },
+                    { name: 'validAfter', type: 'uint256' },
+                    { name: 'validBefore', type: 'uint256' },
+                    { name: 'nonce', type: 'bytes32' },
+                ],
+            },
+            authorization
+        );
+        const body = {
+            x402Version: 1,
+            scheme: 'exact',
+            network: 'base-sepolia',
+            payload: { signature, authorization },
+        };
+        return Buffer.from(JSON.stringify(body)).toString('base64');
+    }
+
+    it('lists only the standard exact requirement in accepts, and moves onchain-receipt to a top-level field', async () => {
+        withExactEnv();
+        const { service } = exactSetup(facilitator());
+
+        const body = (await httpError(service.catCard(undefined, RESOURCE, NOW))).getResponse() as any;
+
+        // x402-fetch schema-parses every accepts entry; a custom scheme there makes it throw.
+        expect(body.accepts.map((a: any) => a.scheme)).toEqual(['exact']);
+        expect(body.onchainReceipt).toMatchObject({ scheme: 'onchain-receipt', payTo: SPLIT, asset: 'native' });
+        expect(body.onchainReceipt.extra.memo).toBe(`x402:${body.onchainReceipt.extra.nonce}`);
+        expect(body.accepts[0]).toEqual({
+            scheme: 'exact',
+            network: 'base-sepolia',
+            maxAmountRequired: '10000',
+            resource: RESOURCE,
+            description: 'A Token Tails cat card; the price goes to the shelter',
+            mimeType: 'application/json',
+            payTo: SHELTER_WALLET,
+            maxTimeoutSeconds: 120,
+            asset: USDC,
+            extra: { name: 'USDC', version: '2' },
+        });
+    });
+
+    it('offers exact alone when the onchain-receipt scheme is off, with no nonce issued', async () => {
+        withShelterEnv({});
+        withExactEnv();
+        const { service, nonces } = exactSetup(facilitator());
+
+        const body = (await httpError(service.catCard(undefined, RESOURCE, NOW))).getResponse() as any;
+
+        expect(body.accepts.map((a: any) => a.scheme)).toEqual(['exact']);
+        expect(body.onchainReceipt).toBeUndefined();
+        expect(nonces.rows).toHaveLength(0);
+    });
+
+    it('still pays an onchain-receipt header when exact is offered (the offer moved, the scheme did not)', async () => {
+        withExactEnv();
+        const { service } = exactSetup(facilitator());
+        const body = (await httpError(service.catCard(undefined, RESOURCE, NOW))).getResponse() as any;
+        const nonce = body.onchainReceipt.extra.nonce;
+        getTransactionReceipt.mockResolvedValue(receipt([nativeLog(`x402:${nonce}`, PRICE)]));
+
+        await expect(service.catCard(header({ txHash: TX, nonce }), RESOURCE, NOW)).resolves.toMatchObject({
+            txHash: TX,
+        });
+    });
+
+    it.each([
+        ['a token whose EIP-712 name differs', { domain: { name: 'USD Coin', version: '2', decimals: 6 } }],
+        ['an 18-decimal token', { domain: { name: 'USDC', version: '2', decimals: 18 } }],
+    ])('does not offer exact for %s', async (_label, opts) => {
+        withExactEnv();
+        const { service } = exactSetup(facilitator(opts));
+        const body = (await httpError(service.catCard(undefined, RESOURCE, NOW))).getResponse() as any;
+        expect(body.accepts.map((a: any) => a.scheme)).toEqual(['onchain-receipt']);
+        expect(body.onchainReceipt).toBeUndefined();
+    });
+
+    it('does not offer exact while the token domain cannot be read, and retries on the next request', async () => {
+        withExactEnv();
+        const down = facilitator({ rpcDown: true });
+        const { service } = exactSetup(down);
+        const before = (await httpError(service.catCard(undefined, RESOURCE, NOW))).getResponse() as any;
+        expect(before.accepts.map((a: any) => a.scheme)).toEqual(['onchain-receipt']);
+
+        service.fetchFn = facilitator() as any;
+        const after = (await httpError(service.catCard(undefined, RESOURCE, NOW))).getResponse() as any;
+        expect(after.accepts.map((a: any) => a.scheme)).toEqual(['exact']);
+    });
+
+    it('checks the token domain at startup (onModuleInit)', async () => {
+        withExactEnv();
+        const fetchFn = facilitator();
+        const { service } = exactSetup(fetchFn);
+        await service.onModuleInit();
+        expect(fetchFn.mock.calls.filter(c => JSON.parse(c[1].body).method === 'eth_call')).toHaveLength(3);
+        await httpError(service.catCard(undefined, RESOURCE, NOW));
+        expect(fetchFn.mock.calls.filter(c => JSON.parse(c[1].body).method === 'eth_call')).toHaveLength(3);
+    });
+
+    it.each([
+        ['SHELTER_ROUTER_ADDRESS', SHELTER_WALLET],
+        ['SHELTER_TREASURY_ADDRESS', SHELTER_WALLET],
+    ])('does not offer exact when payTo equals %s', async (key, value) => {
+        withExactEnv({ [key]: value });
+        const { service } = exactSetup(facilitator());
+        const body = (await httpError(service.catCard(undefined, RESOURCE, NOW))).getResponse() as any;
+        expect(body.accepts.map((a: any) => a.scheme)).toEqual(['onchain-receipt']);
+    });
+
+    it('answers 402, not 500, for an authorization valid far beyond maxTimeoutSeconds', async () => {
+        withExactEnv();
+        const fetchFn = facilitator();
+        const decoded = JSON.parse(Buffer.from(await exactHeader(), 'base64').toString());
+        decoded.payload.authorization.validBefore = '9'.repeat(78);
+        const error = await httpError(
+            exactSetup(fetchFn).service.catCard(Buffer.from(JSON.stringify(decoded)).toString('base64'), RESOURCE, NOW)
+        );
+        expect(error.getStatus()).toBe(402);
+        expect((error.getResponse() as any).error).toMatch(/too long/);
+        expect(fetchFn.mock.calls.filter(c => String(c[0]).startsWith('https://facilitator.test'))).toHaveLength(0);
+    });
+
+    it('does not advertise exact on mainnet before the shelter handover', async () => {
+        withExactEnv({ SHELTER_X402_EXACT_NETWORK: 'base' });
+        delete process.env.SHELTER_HANDED_OVER;
+        const { service } = exactSetup(facilitator());
+
+        // Before the handover neither scheme is offered on a mainnet: both would pay a Token-Tails-held wallet.
+        const before = await httpError(service.catCard(undefined, RESOURCE, NOW));
+        expect(before.getStatus()).toBe(409);
+
+        withExactEnv({ SHELTER_X402_EXACT_NETWORK: 'base', SHELTER_HANDED_OVER: 'true' });
+        const after = (await httpError(service.catCard(undefined, RESOURCE, NOW))).getResponse() as any;
+        expect(after.accepts.map((a: any) => a.scheme)).toEqual(['exact']);
+        expect(after.onchainReceipt.scheme).toBe('onchain-receipt');
+    });
+
+    it('verifies and settles through the facilitator, records the used tx and returns the card', async () => {
+        withExactEnv();
+        const fetchFn = facilitator({ receipt: GOOD_RECEIPT });
+        const { service, usedTxs } = exactSetup(fetchFn);
+
+        const result = await service.catCard(await exactHeader(), RESOURCE, NOW);
+
+        expect(result.txHash).toBe(SETTLE_TX);
+        expect(result.card.name).toBe('Mochi');
+        expect(fetchFn.mock.calls.map(c => c[0]).filter(url => url !== 'https://rpc.test')).toEqual([
+            'https://facilitator.test/verify',
+            'https://facilitator.test/settle',
+        ]);
+        const sent = JSON.parse(fetchFn.mock.calls.find(c => c[0] === 'https://facilitator.test/verify')![1].body);
+        expect(sent.paymentRequirements.payTo).toBe(SHELTER_WALLET);
+        expect(sent.paymentPayload.payload.authorization.to).toBe(SHELTER_WALLET);
+        expect(usedTxs.rows).toEqual([
+            {
+                txHash: SETTLE_TX,
+                nonce: '0x' + '7c'.repeat(32),
+                amountWei: '10000',
+                scheme: 'exact',
+                chainId: 84532,
+                amountBase: '10000',
+                payTo: SHELTER_WALLET,
+                verifiedOnchain: true,
+            },
+        ]);
+        const response = JSON.parse(Buffer.from(encodePaymentResponse(SETTLE_TX), 'base64').toString());
+        expect(response).toEqual({
+            success: true,
+            txHash: SETTLE_TX,
+            transaction: SETTLE_TX,
+            network: 'base-sepolia',
+            payer: dev.address,
+        });
+    });
+
+    it('refuses a replay of the same authorization without calling the facilitator again', async () => {
+        withExactEnv();
+        const fetchFn = facilitator();
+        const { service } = exactSetup(fetchFn);
+        const paid = await exactHeader();
+        await service.catCard(paid, RESOURCE, NOW);
+
+        const error = await httpError(service.catCard(paid, RESOURCE, NOW));
+
+        expect(error.getStatus()).toBe(402);
+        expect((error.getResponse() as any).error).toBe('authorization was already used');
+        expect(fetchFn.mock.calls.filter(c => String(c[0]).startsWith('https://facilitator.test'))).toHaveLength(2);
+    });
+
+    it.each([
+        ['a payee other than the shelter wallet', { to: SPLIT }, /shelter wallet/],
+        ['an underpayment', { value: '9999' }, /below/],
+    ])('refuses %s before the facilitator', async (_label, overrides, reason) => {
+        withExactEnv();
+        const fetchFn = facilitator();
+        const error = await httpError(exactSetup(fetchFn).service.catCard(await exactHeader(overrides), RESOURCE, NOW));
+        expect(error.getStatus()).toBe(402);
+        expect((error.getResponse() as any).error).toMatch(reason);
+        expect(fetchFn.mock.calls.filter(c => String(c[0]).startsWith('https://facilitator.test'))).toHaveLength(0);
+    });
+
+    it('refuses the wrong network', async () => {
+        withExactEnv();
+        const header = JSON.parse(Buffer.from(await exactHeader(), 'base64').toString());
+        header.network = 'base';
+        const error = await httpError(
+            exactSetup(facilitator()).service.catCard(
+                Buffer.from(JSON.stringify(header)).toString('base64'),
+                RESOURCE,
+                NOW
+            )
+        );
+        expect((error.getResponse() as any).error).toMatch(/wrong network/);
+    });
+
+    it('refuses a signature that does not recover to the payer', async () => {
+        withExactEnv();
+        const header = JSON.parse(Buffer.from(await exactHeader(), 'base64').toString());
+        header.payload.authorization.value = '20000';
+        const fetchFn = facilitator();
+        const error = await httpError(
+            exactSetup(fetchFn).service.catCard(Buffer.from(JSON.stringify(header)).toString('base64'), RESOURCE, NOW)
+        );
+        expect((error.getResponse() as any).error).toMatch(/signature/);
+        expect(fetchFn.mock.calls.filter(c => String(c[0]).startsWith('https://facilitator.test'))).toHaveLength(0);
+    });
+
+    it('answers 402 when the facilitator refuses, and releases the authorization for a retry', async () => {
+        withExactEnv();
+        const { service, usedTxs, nonces } = exactSetup(
+            facilitator({ verify: { isValid: false, invalidReason: 'insufficient_funds' } })
+        );
+
+        const error = await httpError(service.catCard(await exactHeader(), RESOURCE, NOW));
+
+        expect(error.getStatus()).toBe(402);
+        expect((error.getResponse() as any).error).toMatch(/insufficient_funds/);
+        expect(usedTxs.rows).toHaveLength(0);
+        expect(nonces.rows.filter(r => String(r.nonce).startsWith('exact:'))).toHaveLength(0);
+    });
+
+    it('answers 402 when the facilitator is unreachable', async () => {
+        withExactEnv();
+        const error = await httpError(
+            exactSetup(facilitator({ verifyThrows: true })).service.catCard(await exactHeader(), RESOURCE, NOW)
+        );
+        expect(error.getStatus()).toBe(402);
+        expect((error.getResponse() as any).error).toMatch(/facilitator is unavailable/);
+    });
+
+    it('answers 402 when settlement fails', async () => {
+        withExactEnv();
+        const { service, usedTxs } = exactSetup(
+            facilitator({ settle: { success: false, errorReason: 'invalid_transaction_state', transaction: '' } })
+        );
+        const error = await httpError(service.catCard(await exactHeader(), RESOURCE, NOW));
+        expect((error.getResponse() as any).error).toMatch(/did not settle/);
+        expect(usedTxs.rows).toHaveLength(0);
+    });
+
+    it('re-checks the settlement on-chain, and refuses one with no transfer to the shelter', async () => {
+        withExactEnv();
+        const ok = exactSetup(facilitator({ receipt: GOOD_RECEIPT }));
+        await expect(ok.service.catCard(await exactHeader(), RESOURCE, NOW)).resolves.toMatchObject({
+            txHash: SETTLE_TX,
+        });
+
+        const bad = exactSetup(facilitator({ receipt: { status: '0x1', logs: [] } }));
+        const error = await httpError(bad.service.catCard(await exactHeader(), RESOURCE, NOW));
+        expect((error.getResponse() as any).error).toMatch(/no matching transfer/);
+        expect(bad.usedTxs.rows).toHaveLength(0);
+    });
+
+    it('gives the card but stores the row as unverified when the receipt never shows up', async () => {
+        withExactEnv();
+        const { service, usedTxs } = exactSetup(facilitator({ receipt: null }));
+        await expect(service.catCard(await exactHeader(), RESOURCE, NOW)).resolves.toMatchObject({ txHash: SETTLE_TX });
+        expect(usedTxs.rows).toHaveLength(1);
+        expect(usedTxs.rows[0].verifiedOnchain).toBe(false);
+    });
+
+    it('does not offer exact without SHELTER_X402_EXACT_RPC', async () => {
+        withExactEnv({ SHELTER_X402_EXACT_RPC: '' });
+        const { service } = exactSetup(facilitator());
+        const body = (await httpError(service.catCard(undefined, RESOURCE, NOW))).getResponse() as any;
+        expect(body.accepts.map((a: any) => a.scheme)).toEqual(['onchain-receipt']);
+    });
+
+    it('keeps refusing an exact header when exact is off (onchain-receipt only)', async () => {
+        const error = await httpError(setup().service.catCard(await exactHeader(), RESOURCE, NOW));
+        expect((error.getResponse() as any).error).toMatch(/unsupported scheme/);
     });
 });

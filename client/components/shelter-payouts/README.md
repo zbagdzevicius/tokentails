@@ -50,12 +50,13 @@ Query params, not dynamic segments, because the app build is a static export.
 | `/shelter-payouts?embed=1` | Same page without the site header and footer, for a modal iframe (e.g. inside Catnip Heist). The Heist link is hidden and other links open with `target="_top"`. |
 | `/shelter-payouts/receipt?chain=<id>&tx=<hash>` | Reads the receipt over the public RPC, decodes NativeDisbursed/Disbursed, flags logs not from a listed contract, and draws a PNG share card in the browser. |
 
-## Wallet donate
+## Wallet giving
 
-`WalletDonate` is hidden unless `NEXT_PUBLIC_WALLET_DONATE === "true"`. It uses raw EIP-1193
-(`eth_requestAccounts`, `wallet_switchEthereumChain` or `wallet_addEthereumChain`, then
-`eth_sendTransaction`) with `donate("tt:wallet")` calldata encoded in `calldata.ts`. It needs a
-deployment on the campaign's chain in `deployments.json`.
+`WalletDonate` gives through a DonateRouter listed in `routers.json`, gated by `walletGiveMode`
+(`giveMode.ts`): real money only after the handover, a testnet "Try it live" block for
+`NEXT_PUBLIC_WALLET_DONATE_CHAIN`, and "Opens when Pink Paw holds its own key" otherwise. Full flow,
+env and fork E2E: `docs/CLIENT.md`, "Wallet giving". `/shelter-payouts/onboard` is the shelter's
+handover page (claim message in `claim.ts`).
 
 ## Disclosure
 

@@ -1,5 +1,13 @@
 import { getBigInt } from 'ethers';
-import { attributePayout, decodePayoutLog, isPayoutLog, PAW_MEMO_PREFIX, sumBy, to18 } from './shelter-logs';
+import {
+    attributePayout,
+    decodePayoutLog,
+    isPayoutLog,
+    PAW_MEMO_PREFIX,
+    PAYOUT_BUCKETS,
+    sumBy,
+    to18,
+} from './shelter-logs';
 import { loadShelterLogsFixture } from './shelter-logs.fixture-spec';
 
 /*
@@ -94,5 +102,73 @@ describe('ShelterSplit log decoder (shared fixture)', () => {
         const transfer = fixture.logs.find(log => !isPayoutLog(log))!;
         expect(() => decodePayoutLog(transfer, fixture.chainId)).toThrow('not a Disbursed');
         expect(() => to18(getBigInt(1), 19)).toThrow();
+    });
+});
+
+describe('wallet and match attribution (F2)', () => {
+    const ROUTER = '0x4444444444444444444444444444444444444444';
+    const HOT = '0x3333333333333333333333333333333333333333';
+    const STRANGER = '0x9999999999999999999999999999999999999999';
+    const MATCH_TX = '0x' + 'a1'.repeat(32);
+    const lookups = () => ({
+        donationSourceByTx: new Map<string, string>(),
+        x402Txs: new Set<string>(['0x' + 'b2'.repeat(32)]),
+        pawSenders: new Set<string>([HOT]),
+        matchTxs: new Set<string>([MATCH_TX]),
+        router: ROUTER,
+    });
+
+    it('keeps the bucket names fixed by the spec', () => {
+        expect(PAYOUT_BUCKETS).toEqual(['heist', 'page', 'paws', 'x402', 'wallet', 'match', 'direct']);
+    });
+
+    it('counts a match only from a Token Tails sender in a recorded match tx', () => {
+        const memo = 'tt:match:0a1b2c3d';
+        expect(attributePayout({ txHash: MATCH_TX, memo, from: HOT }, lookups())).toBe('match');
+        // A stranger can write the memo; it stays direct.
+        expect(attributePayout({ txHash: MATCH_TX, memo, from: STRANGER }, lookups())).toBe('direct');
+        // The hot wallet with the memo but no ShelterMatch row: direct.
+        expect(attributePayout({ txHash: '0x' + 'c3'.repeat(32), memo, from: HOT }, lookups())).toBe('direct');
+        // Unknown sender: direct (asked again later).
+        expect(attributePayout({ txHash: MATCH_TX, memo }, lookups())).toBe('direct');
+    });
+
+    it('counts a wallet gift only when the batch payer is the router and the donor is public', () => {
+        const tx = '0x' + 'd4'.repeat(32);
+        const DONOR = '0x1212121212121212121212121212121212121212';
+        const TEAM = '0x8888888888888888888888888888888888888888';
+        const SHELTER = '0x2222222222222222222222222222222222222222';
+        const gift = (memo: string, over: Record<string, unknown> = {}) =>
+            attributePayout(
+                { txHash: tx, memo, payer: ROUTER, donor: DONOR, shelter: SHELTER, ...over },
+                { ...lookups(), notPublic: new Set([HOT, TEAM]) }
+            );
+        expect(gift('tt:wallet:0a1b2c3d')).toBe('wallet');
+        // The router pays the split for any memo a donor chose (donateNative(memo)).
+        expect(gift('hello')).toBe('wallet');
+        expect(gift('tt:wallet:0a1b2c3d', { payer: ROUTER.toUpperCase().replace('0X', '0x') })).toBe('wallet');
+        // A flush pushes untraced plain transfers: never a public wallet gift.
+        expect(gift('tt:flush')).toBe('direct');
+        // Not public: Token Tails senders, team wallets, the shelter paying itself, an unknown donor.
+        expect(gift('tt:wallet:0a1b2c3d', { donor: TEAM })).toBe('direct');
+        expect(gift('tt:wallet:0a1b2c3d', { donor: HOT })).toBe('direct');
+        expect(gift('tt:wallet:0a1b2c3d', { donor: SHELTER })).toBe('direct');
+        expect(gift('tt:wallet:0a1b2c3d', { donor: null })).toBe('direct');
+        // Not paid by the router.
+        expect(gift('tt:wallet:0a1b2c3d', { payer: STRANGER })).toBe('direct');
+        expect(gift('tt:wallet:0a1b2c3d', { payer: null })).toBe('direct');
+        expect(
+            attributePayout(
+                { txHash: tx, memo: 'tt:wallet:0a1b2c3d', payer: ROUTER, donor: DONOR },
+                { ...lookups(), router: null }
+            )
+        ).toBe('direct');
+    });
+
+    it('still reads x402 by tx hash and direct otherwise', () => {
+        expect(attributePayout({ txHash: '0x' + 'b2'.repeat(32), memo: '' }, lookups())).toBe('x402');
+        expect(attributePayout({ txHash: '0x' + 'e5'.repeat(32), memo: 'tt:paws:x', from: STRANGER }, lookups())).toBe(
+            'direct'
+        );
     });
 });

@@ -1,0 +1,9 @@
+{
+  "demo": true,
+  "note": "DEMO needs list for the agent's prompt. It is NOT Pink Paw's real needs list and must never be presented as such. Replace this file (or point TREAT_AGENT_NEEDS at another file) only with a list the shelter has confirmed.",
+  "items": [
+    { "item": "Kitten wet food, one week", "usdc": 6 },
+    { "item": "Vaccination for one rescued cat", "usdc": 25 },
+    { "item": "Litter, one month", "usdc": 9 }
+  ]
+}

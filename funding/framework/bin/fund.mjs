@@ -33,7 +33,7 @@ const {
 } = CORE;
 
 // Flags that never take a value, so "--sync my-app" keeps my-app as a positional.
-const BOOLEAN_FLAGS = new Set(['all', 'json', 'run', 'force', 'sync', 'print', 'simulate', 'keep-cites', 'cites', 'dry', 'quiet', 'help', ...FACTS_BOOLEAN_FLAGS]);
+const BOOLEAN_FLAGS = new Set(['all', 'json', 'run', 'force', 'sync', 'print', 'simulate', 'keep-cites', 'cites', 'dry', 'dry-run', 'quiet', 'help', ...FACTS_BOOLEAN_FLAGS]);
 
 export function parseArgs(argv, booleans = BOOLEAN_FLAGS) {
   const pos = [];
@@ -84,6 +84,53 @@ ${FACTS_HELP}
   <track-command> ...                    e.g. "a:build", see "fund tracks"
 `;
 
+const ROUTER_HELP = `  router plan --chain <id> [--split 0x..]   print the DonateRouter deploy commands (a founder broadcasts)
+  shelter rotate --chain <id> --to <0x..> --name "..." --dry-run [--from 0x..] [--split 0x..]
+                                         print the handover calls that re-point a shelter to its own wallet`;
+
+/** `router plan` and `shelter rotate`: print-only plans from tracks/a-build/router/lib.mjs. */
+async function runRouterCommand(cmd, rest, flags) {
+  const lib = await import('../tracks/a-build/router/lib.mjs');
+  const print = (r) => {
+    for (const p of r.problems) console.error(`✗ ${p}`);
+    if (r.ok) console.log(r.lines.join('\n'));
+    return r.ok ? 0 : 1;
+  };
+  const chainId = Number(flags.chain);
+  if (cmd === 'router' && rest[0] === 'plan') {
+    return print(lib.routerDryRun({ chainId, split: typeof flags.split === 'string' ? flags.split : undefined }));
+  }
+  if (cmd === 'shelter' && rest[0] === 'rotate') {
+    if (flags['dry-run'] !== true) {
+      console.error('shelter rotate only prints a plan: pass --dry-run (nothing is ever sent from here)');
+      return 2;
+    }
+    const { readFileSync } = await import('node:fs');
+    const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+    let oldWallet = typeof flags.from === 'string' ? flags.from : undefined;
+    if (!oldWallet) {
+      try {
+        const reg = JSON.parse(readFileSync(join(root, 'facts', 'facts.json'), 'utf8'));
+        oldWallet = reg.facts.find((f) => f.campaign)?.campaign?.shelter?.wallet || undefined;
+      } catch { /* fall through to the validation message */ }
+    }
+    let split = typeof flags.split === 'string' ? flags.split : undefined;
+    if (!split) {
+      const deployments = JSON.parse(readFileSync(join(root, 'tracks', 'a-build', 'deployments.json'), 'utf8'));
+      const chains = JSON.parse(readFileSync(join(root, 'tracks', 'a-build', 'chains.json'), 'utf8'));
+      const c = lib.usdcSplits(chainId, deployments, lib.findNetwork(chainId, chains)?.usdc);
+      split = c.length ? c[c.length - 1].address : undefined;
+    }
+    return print(lib.rotateDryRun({
+      chainId, split, oldWallet, newWallet: typeof flags.to === 'string' ? flags.to : undefined,
+      // No default: the name must match the one registered on chain (the plan prints how to read it).
+      name: typeof flags.name === 'string' ? flags.name : undefined,
+    }));
+  }
+  console.error(`usage:\n${ROUTER_HELP}`);
+  return 2;
+}
+
 export async function main(argv = process.argv.slice(2)) {
   const tracks = await loadTracks();
   const commands = await loadCommands();
@@ -95,6 +142,7 @@ export async function main(argv = process.argv.slice(2)) {
     case undefined:
     case 'help':
       console.log(HELP);
+      console.log(ROUTER_HELP + '\n');
       if (Object.keys(commands).length) console.log('  ' + Object.values(commands).map((c) => `${c.name.padEnd(38)} ${c.help || ''}`).join('\n  ') + '\n');
       return 0;
 
@@ -175,6 +223,11 @@ export async function main(argv = process.argv.slice(2)) {
       for (const p of problems) console.log(`  ✗ ${p}`);
       return problems.length ? 1 : 0;
     }
+
+    // DonateRouter tooling (tracks/a-build/router/lib.mjs): prints commands, never sends or reads keys.
+    case 'router':
+    case 'shelter':
+      return runRouterCommand(cmd, rest, flags);
 
     case 'tracks':
       for (const t of Object.values(tracks)) {

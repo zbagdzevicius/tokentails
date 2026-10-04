@@ -87,8 +87,10 @@ describe('Robinhood Chain (USDG)', () => {
       { chainId: 8453, address: SPLIT, fromBlock: 1 },
       { chainId: 4663, address: SPLIT, fromBlock: 1, token: 'USDG' },
     ];
-    const f = (async (url: string) => {
+    const f = (async (url: string, init?: { body?: string }) => {
       if (url === '/d.json') return json(deployments);
+      // Base has a small eth_getLogs cap, so it is read in windows from fromBlock to the latest block.
+      if (JSON.parse(String(init?.body)).method === 'eth_blockNumber') return json({ result: '0x10' });
       return json({ result: [{ topics: [DISBURSED_TOPIC], data: word(url.includes('robinhood') ? 2_000_000n : 1_000_000n) }] });
     }) as typeof fetch;
     const totals = await fetchShelterTotals('/d.json', f);

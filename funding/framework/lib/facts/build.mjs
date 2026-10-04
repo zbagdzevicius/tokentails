@@ -44,14 +44,15 @@ export function loadRegistry(root = REPO_ROOT) {
 
 // ---------- config constants (read-only) ----------
 
-/** Reads `const NAME = '123'` (a wei string) from a TypeScript source; returns a BigInt. */
+/** Reads `const NAME = '123'` (a wei string) or `const NAME = 123` (an integer literal) from a
+ *  TypeScript source; returns a BigInt. */
 export function readWeiConst(root, file, name) {
   const path = join(root, file);
   if (!existsSync(path)) throw new Error(`${file} not found (needed for ${name})`);
   const text = readFileSync(path, 'utf8');
-  const m = new RegExp(`\\bconst\\s+${name}\\s*(?::[^=]+)?=\\s*['"\`](\\d+)['"\`]`).exec(text);
+  const m = new RegExp(`\\bconst\\s+${name}\\s*(?::[^=]+)?=\\s*(?:['"\`](\\d+)['"\`]|(\\d+)(?![\\d._a-zA-Z]))`).exec(text);
   if (!m) throw new Error(`${file}: no string constant ${name}`);
-  return BigInt(m[1]);
+  return BigInt(m[1] ?? m[2]);
 }
 
 /** 1000000000000000000n with 18 decimals -> "1"; 10000000000000000n -> "0.01". */

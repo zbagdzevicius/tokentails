@@ -109,10 +109,18 @@ export function decodePayoutLog(log: RpcLog, chainId: number): DecodedPayout {
  * Where a payout came from (plan F7.3, attribution by tx hash). Never drops a log: anything that
  * matches no known source is `direct`.
  */
-export const PAYOUT_BUCKETS = ['heist', 'page', 'paws', 'x402', 'direct'] as const;
+export const PAYOUT_BUCKETS = ['heist', 'page', 'paws', 'x402', 'wallet', 'match', 'direct'] as const;
 export type PayoutBucket = typeof PAYOUT_BUCKETS[number];
 
 export const PAW_MEMO_PREFIX = 'tt:paws:';
+/** Token Tails' 1:1 match of a wallet gift (ShelterMatch). */
+export const MATCH_MEMO_PREFIX = 'tt:match:';
+/**
+ * Memos the router writes: relayed wallet gifts (`tt:wallet:<hex>`) and flushes (`tt:flush`). A flush
+ * pushes untraced plain transfers to the router into the split: it is never a public wallet gift.
+ */
+export const WALLET_MEMO_PREFIXES = ['tt:wallet', 'tt:flush'];
+export const FLUSH_MEMO = 'tt:flush';
 
 export interface AttributionLookups {
     /** `ShelterDonation.txHash` (lowercased) to its `source`. */
@@ -124,18 +132,47 @@ export interface AttributionLookups {
      * absent: no payout is ever `paws`.
      */
     pawSenders?: Set<string>;
+    /** `ShelterMatch.matchTxHash` values (lowercased): matches Token Tails actually sent. */
+    matchTxs?: Set<string>;
+    /** The DonateRouter address (lowercased). Absent: no payout is ever `wallet`. */
+    router?: string | null;
+    /**
+     * Donors (lowercased) whose router gifts are not public: Token Tails senders, SHELTER_MATCH_EXCLUDE,
+     * the treasury. A router gift from one of them stays `direct`.
+     */
+    notPublic?: Set<string>;
 }
 
 /** True for a memo that claims to be a nightly paw settlement. Anyone can write it; see attributePayout. */
 export const hasPawMemo = (memo: string): boolean => String(memo || '').startsWith(PAW_MEMO_PREFIX);
+export const hasMatchMemo = (memo: string): boolean => String(memo || '').startsWith(MATCH_MEMO_PREFIX);
+export const hasWalletMemo = (memo: string): boolean =>
+    WALLET_MEMO_PREFIXES.some(prefix => String(memo || '').startsWith(prefix));
+/** Memos whose bucket depends on the transaction sender (a Token Tails sender). */
+export const needsSender = (memo: string): boolean => hasPawMemo(memo) || hasMatchMemo(memo);
 
 /**
  * `from` is the transaction sender (lowercased), when known. ShelterSplit.donate(memo) is public, so a
  * `tt:paws:` memo alone proves nothing: a payout is `paws` only when it also comes from a paw sender
  * (until task 4f matches settlement rows). Anything else with that memo is `direct` (or `x402`).
  */
+/**
+ * `payer` is the ShelterSplit batch event's payer in the same transaction (lowercased), when known;
+ * `donor` is the router's RouterDonation donor in that transaction.
+ *
+ * - `match`: a `tt:match:` memo, sent by a Token Tails sender, in a transaction ShelterMatch recorded.
+ * - `wallet`: any memo except `tt:flush` whose batch payer is the router (only the router can be the
+ *   payer of its own calls into the split, so a stranger cannot fake it), from a known donor that is
+ *   not in `notPublic` and is not the shelter paid (a round trip).
+ * Anyone can write either memo by hand; without the second proof it stays `direct`.
+ */
 export function attributePayout(
-    payout: Pick<DecodedPayout, 'txHash' | 'memo'> & { from?: string | null },
+    payout: Pick<DecodedPayout, 'txHash' | 'memo'> & {
+        from?: string | null;
+        payer?: string | null;
+        donor?: string | null;
+        shelter?: string | null;
+    },
     lookups: AttributionLookups
 ): PayoutBucket {
     const tx = payout.txHash.toLowerCase();
@@ -146,6 +183,23 @@ export function attributePayout(
     const from = typeof payout.from === 'string' ? payout.from.toLowerCase() : null;
     if (hasPawMemo(payout.memo) && from && lookups.pawSenders?.has(from)) {
         return 'paws';
+    }
+    if (hasMatchMemo(payout.memo) && from && lookups.pawSenders?.has(from) && lookups.matchTxs?.has(tx)) {
+        return 'match';
+    }
+    const payer = typeof payout.payer === 'string' ? payout.payer.toLowerCase() : null;
+    const router = lookups.router ? lookups.router.toLowerCase() : null;
+    const donor = typeof payout.donor === 'string' ? payout.donor.toLowerCase() : null;
+    const shelter = typeof payout.shelter === 'string' ? payout.shelter.toLowerCase() : null;
+    if (
+        router &&
+        payer === router &&
+        !String(payout.memo || '').startsWith(FLUSH_MEMO) &&
+        donor &&
+        donor !== shelter &&
+        !lookups.notPublic?.has(donor)
+    ) {
+        return 'wallet';
     }
     if (lookups.x402Txs.has(tx)) {
         return 'x402';

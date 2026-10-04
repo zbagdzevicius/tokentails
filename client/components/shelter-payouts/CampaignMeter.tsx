@@ -1,5 +1,6 @@
 // copy-lint: web-only rendered only by the web ShelterPayouts (app builds show AppProofNotice)
 import { Campaign, CampaignProgress, claimsDateLabel } from "./campaign";
+import { SHELTER_CHAINS, chainDisplayName } from "./chains";
 import { formatUnits } from "./logs";
 import { CARD, FIGURE } from "./ui";
 
@@ -8,6 +9,13 @@ const usdc = (v18: bigint) => {
   const s = formatUnits(v18, 18);
   const [w, f] = s.split(".");
   return f ? `${w}.${f.slice(0, 2)}` : w;
+};
+
+/** "Arc mainnet", "Arc Testnet": the meter counts one chain only, so it names it. */
+const meterChain = (chainId: number) => {
+  const c = SHELTER_CHAINS[chainId];
+  if (!c) return `chain ${chainId}`;
+  return c.testnet ? chainDisplayName(c) : `${c.name} mainnet`;
 };
 
 export const CampaignMeter = ({
@@ -29,7 +37,9 @@ export const CampaignMeter = ({
     {/* One value line and the bar; the count line below adds only what the bar cannot show. */}
     <p className={`${FIGURE} text-h5 md:text-h4`}>
       {usdc(progress.raised)}{" "}
-      <span className="text-p3 md:text-p2 text-tt-cream [text-shadow:none]">of {usdc(progress.goal)} USDC raised on-chain</span>
+      <span className="text-p3 md:text-p2 text-tt-cream [text-shadow:none]">
+        of {usdc(progress.goal)} USDC raised on {meterChain(campaign.chainId)}
+      </span>
     </p>
     <div
       className="h-6 w-full overflow-hidden rounded-lg border-4 border-tt-cream bg-tt-night-950"

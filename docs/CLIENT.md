@@ -74,7 +74,8 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `NEXT_PUBLIC_HEIST_LANDING_PILL` | `1`, `true` or `on` shows "Or play Catnip Heist now, no sign-up" under the landing hero. Default off (decision #15) |
 | `NEXT_PUBLIC_IMPACT_URL` | CDN URL of the impact snapshot mirror (default `impact/impact.json` on the asset CDN) |
 | `NEXT_PUBLIC_SNOWFALL` | `on` turns the seasonal Snowfall on (off by default, decision #47; month-day windows in `SNOWFALL_SEASONS`) |
-| `NEXT_PUBLIC_WALLET_DONATE` | `true` shows the optional donate-from-your-own-wallet button on the shelter payouts page (web only) |
+| `NEXT_PUBLIC_WALLET_DONATE` | `true` allows the real-money "Give from your wallet" block on `/shelter-payouts` (web only). It still shows only after the handover (`campaign.json` `shelter.handover` is `"handed-over"`) and when `public/shelter-payouts/routers.json` lists a `mainnet` DonateRouter for the campaign chain. Before the handover the page shows "Opens when Pink Paw holds its own key" and no button, whatever this flag says |
+| `NEXT_PUBLIC_WALLET_DONATE_CHAIN` | A testnet chain id (e.g. `5042002`, Arc testnet) for the separate "Try it live" block: test USDC, no real money, a TESTNET badge and a Circle faucet link. Shows only when `routers.json` lists a `testnet` router for that chain. Unset: no try-it block |
 | `NEXT_PUBLIC_E2E` | `1` compiles in the E2E-only hooks (fake Firebase adapter, crash probes, `window.__ttGames`, `window.__TT_E2E_GAME__`). CI's e2e build only; never deploy it |
 | `NEXT_PUBLIC_CAPTURE` | `1` compiles in the frame-stepping capture hooks (`window.__TT_CAPTURE__`) for the reel. Capture builds only |
 
@@ -155,6 +156,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `/heist` | `pages/heist.tsx` | Catnip Heist host: optional auth, SeoHead, the `/heist-game/index.html?embed=1` iframe in the server HTML, the bridge and the save chip. `?from=` feeds `heist_open` and is stripped. `/heist/index.html` redirects here; `/heist/:path+` redirects to `/heist-game/:path+` (old asset links) |
 | `/heist-game/` | `public/heist-game/` | The static Heist build (`npm run build:client` in `catnip-heist/`); `public/heist/index.html` forwards app builds to `/heist`. |
 | `/shelter-payouts`, `/shelter-payouts/give`, `/shelter-payouts/receipt` | `pages/shelter-payouts*` | Treats and payouts on Arc, the give page (`requireAccount('give-treat')`), one receipt per donation (`noindex`). App builds show a proof notice that opens web `/impact`. |
+| `/shelter-payouts/onboard` | `pages/shelter-payouts/onboard.tsx` | Shelter wallet handover (`noindex`, web only, wallet code loaded with `ssr: false`): why the shelter should hold its own key, connect a wallet, sign the claim message (`POST /shelter/claim`), then the status from `GET /shelter/claim`. Token Tails never sees the key. App builds show the proof notice. |
 | `/airdrop`, `/airdrop/*` | none | Redirect to `/shelter-payouts` (task 5e). |
 | `/catbassadors` | none | Legacy URL of the retired game shell. Permanent redirect to `/game` via `next.config.js`; redirects do not apply to the static export, so the Capacitor bundle has no page there. |
 | `/box` | `pages/box.tsx` | Retired (decision #43): redirects to `/game` (server redirect on the web, a client redirect in the static export). |
@@ -679,3 +681,75 @@ G7 art pipeline (fixed in task 6d, plan G7):
 - Fixed: art sources shipped publicly (`public/base/*.aseprite`, `base.tmx`, `base.tiled-session`). They moved to `client/art/src/`; nothing loaded them. Still public and owned elsewhere: `public/story/spiked-wall.aseprite`, `public/catbassadors/catbassadors.tmx` and the Tiled project/session files under `public/pixel-rescue/levels/` and `public/purrquest/levels/` (listed in `__test__/art-pipeline.test.ts`).
 - Known: four authored sheets (`public/base/{summer,camp,sei,cat-winter}-original.png`) are stale against the runtime sheets the game loads; the night skins are built from the runtime sheets for that reason.
 
+
+## Wallet giving (DonateRouter, feature F3)
+
+`components/shelter-payouts/` lets a person give to the campaign shelter from their own wallet,
+with no web3 dependency (raw EIP-1193, an inline keccak in `keccak.ts`).
+
+- **Gate** (`giveMode.ts`, `walletGiveMode`, unit-tested). Campaign slot: `mainnet` only with
+  `NEXT_PUBLIC_WALLET_DONATE=true`, `shelter.handover === "handed-over"` and a `mainnet` router for the
+  campaign chain; `awaiting-handover` (notice, no button, link to `/shelter-payouts/onboard`) while
+  Token Tails holds the wallet; otherwise hidden. Try-it slot: `testnet` when
+  `NEXT_PUBLIC_WALLET_DONATE_CHAIN` names a chain with a `testnet` router. Public money only ever moves
+  donor → router → ShelterSplit → shelter wallet.
+- **`public/shelter-payouts/routers.json`** ships as `[]`. The founder adds one entry per DonateRouter
+  deploy: `{ "chainId", "router", "usdc", "network": "testnet" | "mainnet", "label"?, "symbol"?, "eip3009"? }`
+  (`routers.ts` drops malformed entries). Off Arc (native USDC), an entry is kept only with
+  `"eip3009": true`, set after checking the token has `receiveWithAuthorization` (Tempo TIP-20 does not;
+  USDG is unverified). Do not hand-edit `deployments.json` or `campaign.json` for this.
+- **Relay and match per chain.** Each wallet block reads `GET /shelter/match/status?chainId=<its chain>`
+  (`{state, chainId, relay, …}`). The gasless path and the `gasless_give` line show only when
+  `chainId` matches and `relay` is true; the match meter shows only inside the block of the chain it
+  serves. Without the relay, Arc's block makes the one-transaction native gift the main button. The
+  backend serves the try-it testnet next to its main chain through `SHELTER_TRY_*` (docs/BACKEND.md).
+  The try-it block lists every testnet router with a wallet path in a network picker.
+- **Gasless gift** (`wallet.signAndGive`): connect and switch chain (then re-read `eth_chainId`: a
+  wallet that ignored the switch gets `WrongNetworkError`, nothing is signed), check the router has
+  code, refuse a donor account with code (smart account or EIP-7702 `0xef0100…`: `SmartAccountError`;
+  Arc offers the native path), probe EIP-3009, read `decimals()`, on a real-money chain run the custody
+  check below, check `router.canDonate(amount)`, read `router.recipientsHash(amount)` and the EIP-712
+  domain, sign one `ReceiveWithAuthorization` to the router (nonce = `authNonce(router, salt, memo,
+  recipients)`, memo `tt:wallet:<8 hex>`, valid 5 minutes), and `POST /shelter/relay`. If the relay is
+  off, on another chain or out of budget, the page offers to send the same signed gift from the donor's
+  wallet, until 15 s before the signature expires (then it asks for a fresh signature).
+- **Custody check on chain** (`wallet.assertShelterHeld`, every chain that is not a built-in testnet):
+  `router.split()` then `split.preview(amount)`; every paid wallet must be the rotated claim from
+  `GET /shelter/claim` on that chain, and none may be in `TOKEN_TAILS_HELD_WALLETS` (Pink Paw's held
+  wallet). A `handed-over` flag in `campaign.json` alone opens nothing.
+- **Front-run or lost answer.** When the relayed tx reverts, or the relay never answered, the page asks
+  `GET /shelter/relay/:tx` for `settledTxHash`, then scans the router's `RouterDonation` logs for the
+  signed nonce (`topics[3]`). If another tx paid the gift, the donor sees success and a receipt for that
+  tx; only otherwise "the amount stayed in your wallet".
+- **Native path** (`wallet.giveNative`): `router.donateNative(memo, recipients)`, only on chains whose
+  native coin is USDC (Arc), with `chainId` in the `eth_sendTransaction` params. Elsewhere the native
+  path is hidden and refused in code, so ETH, AVAX or MON is never sent as a gift. Nothing sends to
+  `ShelterSplit.donate` directly (the old `walletDonate` is gone): every public gift passes the router's
+  treasury guard.
+- **Labels.** The button reads `Give <amount> <token> to <shelter>` when the split pays one wallet,
+  `to N shelters` when it pays several, and names no receiver until the list is read. The token symbol
+  comes from the router entry or the chain (`USDG`, `EURC`), never a hardcoded USDC. After a gift the
+  button stays off until "Give again".
+- **Receipt** decodes `RouterDonation` next to the split payout, polls
+  `GET /shelter/match/by-donor/:tx`, then reads the match tx itself from the chain: it says "Token Tails
+  matched it" only when that tx succeeded and paid a listed ShelterSplit with memo
+  `tt:match:<donor tx hex 2..10>`. The share card then reads "1 became 2 for Pink Paw" (no donor
+  identity); with several payouts it shows each shelter's share, and a testnet card carries a
+  "TESTNET · NO REAL MONEY" band. Claims (`router_guard`, `gasless_give`, `match_cap`) render from the
+  facts registry by key and hide while unpublished; no wallet-giving claim is hardcoded.
+- **Onboarding** (`/shelter-payouts/onboard`) signs the claim for the backend's main chain (read from
+  `/shelter/match/status`), asks the shelter to tell Token Tails the address by another channel first
+  (the backend refuses unconfirmed wallets), and after sending says "Claim received…" while the public
+  status still hides the unconfirmed claim.
+- **Fork E2E**: `FORK_E2E=1 ./node_modules/.bin/playwright test e2e/wallet-donate.spec.ts`, against a dev
+  server started with `NEXT_PUBLIC_WALLET_DONATE_CHAIN=5042002` (`E2E_BASE_URL`, default :3001). The
+  fixture (`e2e/fixtures/wallet-fork.ts`) starts or reuses anvil forking Arc testnet on :8547, deploys a
+  router with `forge create --unlocked` (dev account #0; `FORK_ROUTER` reuses one), injects a
+  `window.ethereum` that forwards to the fork, and stands in for the relay with dev account #1. A fork
+  cannot run Arc's native-coin precompile (0x1800…), so the fixture installs a stub that credits the
+  receiver (the donor's balance is not debited on the fork). `FORK_SHOTS=<dir>` saves screenshots.
+
+Known limits: a wallet with EIP-7702 delegation code (several public dev accounts on Arc testnet, and
+upgraded "smart account" EOAs) is checked by FiatToken as an ERC-1271 contract, so the page does not
+offer it the gasless signature; the Arc native path still works for it. The
+claim step checks EIP-191 signatures only (no ERC-1271 smart wallets yet).

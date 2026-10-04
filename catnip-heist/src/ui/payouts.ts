@@ -25,19 +25,29 @@ interface ChainUnits {
   symbol: string;
   nativeDecimals?: number;
   nativeSymbol?: string;
+  /** The public RPC's eth_getLogs block-range cap, when it is small: the scan starts in windows of this size. */
+  maxLogRange?: number;
+  /**
+   * A keyless Blockscout-style explorer API (`?module=logs&action=getLogs`) that returns any block
+   * range in one request. Tried first; the RPC scan is the fallback. Arc testnet caps eth_getLogs
+   * under 10,000 blocks at ~0.5 s per block and rate-limits bursts, and Base caps it at 1,000 or
+   * 2,000, so a window scan from the deploy block outgrows the modal's time budget within days.
+   */
+  logsApi?: string;
 }
 
 export const PAYOUT_CHAINS: Record<number, ChainUnits> = {
   5042: { rpc: 'https://rpc.mainnet.arc.io', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'USDC' },
-  5042002: { rpc: 'https://rpc.testnet.arc.io', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'USDC' },
+  5042002: { rpc: 'https://rpc.testnet.arc.io', logsApi: 'https://explorer.testnet.arc.io/api', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'USDC' },
   4217: { rpc: 'https://rpc.tempo.xyz', decimals: 6, symbol: 'USDC' },
   42431: { rpc: 'https://rpc.moderato.tempo.xyz', decimals: 6, symbol: 'pathUSD' },
   42161: { rpc: 'https://arb1.arbitrum.io/rpc', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
   421614: { rpc: 'https://sepolia-rollup.arbitrum.io/rpc', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
   43114: { rpc: 'https://api.avax.network/ext/bc/C/rpc', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'AVAX' },
   43113: { rpc: 'https://api.avax-test.network/ext/bc/C/rpc', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'AVAX' },
-  8453: { rpc: 'https://mainnet.base.org', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
-  84532: { rpc: 'https://sepolia.base.org', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
+  // Base's public RPCs refuse eth_getLogs over more than 2,000 (mainnet) or 1,000 (Sepolia) blocks.
+  8453: { rpc: 'https://mainnet.base.org', maxLogRange: 2_000, logsApi: 'https://base.blockscout.com/api', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
+  84532: { rpc: 'https://sepolia.base.org', maxLogRange: 1_000, logsApi: 'https://base-sepolia.blockscout.com/api', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
   // Robinhood Chain pays USDG (Paxos), never USDC: totals are kept per symbol, so it is never summed as USDC.
   4663: { rpc: 'https://rpc.mainnet.chain.robinhood.com', decimals: 6, symbol: 'USDG', nativeDecimals: 18, nativeSymbol: 'ETH' },
   // Robinhood testnet has no stablecoin: the wave deploys a mock (mUSDC), never summed with real dollars.
@@ -47,8 +57,11 @@ export const PAYOUT_CHAINS: Record<number, ChainUnits> = {
 
 /** A deployment's chain units with its own payout token: an EURC instance is never summed as USDC. */
 export function deploymentUnits(d: Pick<PayoutDeployment, 'token'>, chain: ChainUnits): ChainUnits {
-  const t = typeof d.token === 'string' ? d.token.trim().toUpperCase() : '';
-  return t && t !== 'USDC' ? { ...chain, symbol: t } : chain;
+  // Keep a mixed-case spelling ("pathUSD", "mUSDC"); an all-lowercase one is upper-cased ("eurc").
+  // Mirrors client/components/shelter-payouts/rpc.ts deploymentToken.
+  const raw = typeof d.token === 'string' ? d.token.trim() : '';
+  const t = raw === raw.toLowerCase() ? raw.toUpperCase() : raw;
+  return t && t.toUpperCase() !== 'USDC' ? { ...chain, symbol: t } : chain;
 }
 
 /** keccak256("Disbursed(address,uint256,string)"): ERC-20 payouts (disburse, disburseWithMemo). */
@@ -97,9 +110,13 @@ type Fetch = typeof fetch;
 /** A rate-limited RPC answer (HTTP 429 or JSON-RPC -32005): retried with backoff, never treated as a range cap. */
 class RateLimited extends Error {}
 
-/** Rate-limit retries per call and the first backoff; doubles each time (0.4 s, 0.8 s, 1.6 s). */
-export const RATE_LIMIT_RETRIES = 3;
-export const RATE_LIMIT_BACKOFF_MS = 400;
+/**
+ * Rate-limit retries per call and the first backoff; doubles each time up to 8 s (0.5, 1, 2, 4, 8 s).
+ * Mirrors client/components/shelter-payouts/rpc.ts (Arc testnet answers bursts with 429 for seconds).
+ */
+export const RATE_LIMIT_RETRIES = 5;
+export const RATE_LIMIT_BACKOFF_MS = 500;
+const RATE_LIMIT_MAX_BACKOFF_MS = 8_000;
 
 let sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 /** Test hook: replace the backoff timer. */
@@ -110,7 +127,16 @@ export function setPayoutsSleep(fn: (ms: number) => Promise<void>): void {
 async function rpcOnce<T>(f: Fetch, url: string, method: string, params: unknown[], signal: AbortSignal): Promise<T> {
   const res = await f(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal });
   if (res.status === 429) throw new RateLimited(`${method}: HTTP 429`);
-  if (!res.ok) throw new Error(`${method}: HTTP ${res.status}`);
+  if (!res.ok) {
+    // Base answers an over-long eth_getLogs with HTTP 413 and the cap in the body: keep the message.
+    let detail = '';
+    try {
+      detail = (await res.text()).slice(0, 300);
+    } catch {
+      /* no body */
+    }
+    throw new Error(`${method}: HTTP ${res.status}${detail ? ` ${detail}` : ''}`);
+  }
   const body = (await res.json()) as { result?: T; error?: { code?: number; message?: string } };
   if (body.error) {
     const msg = `${method}: ${body.error.message ?? 'RPC error'}`;
@@ -120,49 +146,144 @@ async function rpcOnce<T>(f: Fetch, url: string, method: string, params: unknown
   return body.result as T;
 }
 
-async function rpc<T>(f: Fetch, url: string, method: string, params: unknown[], signal: AbortSignal): Promise<T> {
+async function retrying<T>(call: () => Promise<T>, signal: AbortSignal, retries = RATE_LIMIT_RETRIES): Promise<T> {
   let backoff = RATE_LIMIT_BACKOFF_MS;
   for (let attempt = 0; ; attempt++) {
     try {
-      return await rpcOnce<T>(f, url, method, params, signal);
+      return await call();
     } catch (err) {
-      if (!(err instanceof RateLimited) || attempt >= RATE_LIMIT_RETRIES || signal.aborted) throw err;
+      if (!(err instanceof RateLimited) || attempt >= retries || signal.aborted) throw err;
       await sleep(backoff);
-      backoff *= 2;
+      backoff = Math.min(backoff * 2, RATE_LIMIT_MAX_BACKOFF_MS);
     }
   }
 }
 
+// One request in flight per RPC URL: two deployments on one chain (Arc USDC and EURC) read their
+// receipts, log windows and block times at the same moment, and that burst is what earns the 429s.
+const queues = new Map<string, Promise<unknown>>();
+
+function serial<T>(url: string, run: () => Promise<T>): Promise<T> {
+  const prev = queues.get(url) ?? Promise.resolve();
+  const next = prev.then(run, run);
+  const tail = next.catch(() => undefined);
+  queues.set(url, tail);
+  void tail.then(() => {
+    if (queues.get(url) === tail) queues.delete(url);
+  });
+  return next;
+}
+
+function rpc<T>(f: Fetch, url: string, method: string, params: unknown[], signal: AbortSignal): Promise<T> {
+  return serial(url, () => retrying(() => rpcOnce<T>(f, url, method, params, signal), signal));
+}
+
 /**
  * Public RPCs cap eth_getLogs ranges (Tempo: 100,000 blocks; Arc: "requested range too large"
- * well below that), so a full-range query that is refused is re-read in windows of this many
- * blocks, one window at a time. Mirrors client/components/shelter-payouts/rpc.ts LOG_WINDOW.
+ * well below that; Base: 2,000, Base Sepolia: 1,000), so a full-range query that is refused is
+ * re-read in windows, one at a time. The window starts at LOG_WINDOW (or the chain's maxLogRange)
+ * and, on each refused window, drops to the cap the RPC names in its error ("limited to a 1,000
+ * range") or halves, down to MIN_LOG_WINDOW. Mirrors client/components/shelter-payouts/rpc.ts.
  */
 export const LOG_WINDOW = 10_000;
+export const MIN_LOG_WINDOW = 500;
 /** Upper bound on window requests per deployment; past it the chain is marked unreadable. */
-export const MAX_LOG_REQUESTS = 200;
+export const MAX_LOG_REQUESTS = 400;
+
+/** The block-range cap an RPC names in its refusal ("limited to a 1,000 range", "max block range 100000"), or null. */
+export function rangeLimitFrom(err: unknown): number | null {
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  const m = /(?:limited to a|block range(?: is)?(?: limited to)?:?|range(?: limit)?(?: of| is)?:?)\s*([\d,]+)/i.exec(msg);
+  const n = m ? Number(m[1].replace(/,/g, '')) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
 
 type LogFilter = { address: string; topics: string[][] };
 
-/** eth_getLogs over [from, latest]: one call when the RPC allows it, else sequential LOG_WINDOW windows. */
-export async function getLogsRange<T>(f: Fetch, url: string, filter: LogFilter, from: number, signal: AbortSignal): Promise<T[]> {
+/** eth_getLogs over [from, latest]: one call when the RPC allows it, else sequential windows. */
+export async function getLogsRange<T>(f: Fetch, url: string, filter: LogFilter, from: number, signal: AbortSignal, maxLogRange?: number): Promise<T[]> {
   const hex = (n: number) => '0x' + n.toString(16);
-  try {
-    return (await rpc<T[]>(f, url, 'eth_getLogs', [{ ...filter, fromBlock: hex(from), toBlock: 'latest' }], signal)) ?? [];
-  } catch (err) {
-    // A rate limit already used its retries; windows would only make it worse.
-    if (err instanceof RateLimited || signal.aborted) throw err;
+  let window = maxLogRange ?? LOG_WINDOW;
+  // A known small cap: a full-range call would only be refused.
+  if (!maxLogRange) {
+    try {
+      return (await rpc<T[]>(f, url, 'eth_getLogs', [{ ...filter, fromBlock: hex(from), toBlock: 'latest' }], signal)) ?? [];
+    } catch (err) {
+      // A rate limit already used its retries; windows would only make it worse.
+      if (err instanceof RateLimited || signal.aborted) throw err;
+      const cap = rangeLimitFrom(err);
+      if (cap !== null && cap < window) window = cap;
+    }
   }
+  window = Math.max(MIN_LOG_WINDOW, window);
   const latest = parseInt(await rpc<string>(f, url, 'eth_blockNumber', [], signal), 16);
   if (!Number.isFinite(latest)) throw new Error('eth_blockNumber: bad answer');
   const out: T[] = [];
   let requests = 0;
-  for (let start = from; start <= latest; start += LOG_WINDOW) {
+  let start = from;
+  while (start <= latest) {
     if (++requests > MAX_LOG_REQUESTS) throw new Error(`eth_getLogs: more than ${MAX_LOG_REQUESTS} windows; pin "fromBlock"`);
-    const end = Math.min(start + LOG_WINDOW - 1, latest);
-    out.push(...((await rpc<T[]>(f, url, 'eth_getLogs', [{ ...filter, fromBlock: hex(start), toBlock: hex(end) }], signal)) ?? []));
+    const end = Math.min(start + window - 1, latest);
+    try {
+      out.push(...((await rpc<T[]>(f, url, 'eth_getLogs', [{ ...filter, fromBlock: hex(start), toBlock: hex(end) }], signal)) ?? []));
+      start = end + 1;
+    } catch (err) {
+      if (err instanceof RateLimited || signal.aborted || window <= MIN_LOG_WINDOW) throw err;
+      const cap = rangeLimitFrom(err);
+      window = Math.max(MIN_LOG_WINDOW, cap !== null && cap < window ? cap : Math.floor(window / 2));
+    }
   }
   return out;
+}
+
+/** Most logs one explorer API answer carries; a full page may be cut short, so the RPC scan reads it instead. */
+const LOGS_API_PAGE = 1000;
+
+/**
+ * Explorer APIs that told us they are out of keyless requests (Blockscout: `x-ratelimit-remaining: 0`
+ * with a reset many minutes away), until when: skipped straight to the RPC scan until then.
+ */
+const apiBlockedUntil = new Map<string, number>();
+
+/** Every log of `address` from block `from` on, through a Blockscout-style explorer API (one request). */
+export async function getLogsFromApi(f: Fetch, api: string, address: string, from: number, signal: AbortSignal): Promise<RpcLog[]> {
+  const q = new URLSearchParams({ module: 'logs', action: 'getLogs', address, fromBlock: String(from), toBlock: 'latest' });
+  // Same queue and backoff as the RPCs: two contracts on one chain ask the explorer one at a time.
+  const body = await serial(api, () =>
+    retrying(async () => {
+      if ((apiBlockedUntil.get(api) ?? 0) > Date.now()) throw new Error('logs API: out of requests');
+      const res = await f(`${api}?${q.toString()}`, { signal });
+      if (res.status === 429) {
+        const resetMs = Number(res.headers.get('x-ratelimit-reset'));
+        if (res.headers.get('x-ratelimit-remaining') === '0' && resetMs > 10_000) {
+          // Waiting would not help: use the RPC now, and for the rest of the reset window.
+          apiBlockedUntil.set(api, Date.now() + Math.min(resetMs, 60 * 60_000));
+          throw new Error('logs API: out of requests');
+        }
+        throw new RateLimited('logs API: HTTP 429');
+      }
+      if (!res.ok) throw new Error(`logs API: HTTP ${res.status}`);
+      return (await res.json()) as { status?: string; message?: string; result?: unknown };
+      // Two quick retries (0.5 s, 1 s): past that the RPC scan is the better use of the time budget.
+    }, signal, 2),
+  );
+  if (!Array.isArray(body.result)) {
+    if (body.status === '0' && /no (logs|records)/i.test(body.message ?? '')) return [];
+    throw new Error(`logs API: ${body.message ?? 'bad answer'}`);
+  }
+  if (body.result.length >= LOGS_API_PAGE) throw new Error('logs API: page full');
+  // A third-party API is not the chain: keep only logs it says came from the contract asked about, so a
+  // misbehaving explorer cannot add another contract's events to the shelters' total.
+  const want = address.toLowerCase();
+  return (body.result as { address?: string; topics?: (string | null)[]; data?: string; blockNumber?: string; transactionHash?: string; timeStamp?: string }[])
+    .filter((l) => typeof l?.address === 'string' && l.address.toLowerCase() === want)
+    .map((l) => ({
+    topics: (l.topics ?? []).filter((t): t is string => typeof t === 'string'),
+    data: l.data ?? '0x',
+    blockNumber: l.blockNumber,
+    transactionHash: l.transactionHash,
+    timeStamp: l.timeStamp,
+  }));
 }
 
 /** One deployment as the payouts modal lists it. `ok` is false when its RPC could not be read. */
@@ -171,6 +292,8 @@ export interface ChainRow {
   name: string;
   explorer: string;
   address: string;
+  /** The deployment's payout token ("USDC", "EURC", "USDG"…): every row names it, paid or not. */
+  symbol?: string;
   totals: Map<string, bigint>;
   count: number;
   ok: boolean;
@@ -222,7 +345,7 @@ export function memoOf(data: string): string {
   }
 }
 
-interface RpcLog extends PayoutLog { blockNumber?: string; transactionHash?: string }
+interface RpcLog extends PayoutLog { blockNumber?: string; transactionHash?: string; /** Explorer API only: block time, hex seconds. */ timeStamp?: string }
 
 /** How many of each chain's newest payouts get a block time (one eth_getBlockByNumber each). */
 const TIMED_PER_CHAIN = 6;
@@ -251,7 +374,7 @@ export async function fetchShelterPayouts(deploymentsUrl: string, f: Fetch = fet
       const known = PAYOUT_CHAINS[d.chainId];
       const chain = deploymentUnits(d, known);
       const meta = PAYOUT_CHAIN_META[d.chainId];
-      const row: ChainRow = { chainId: d.chainId, name: meta?.name ?? `Chain ${d.chainId}`, explorer: meta?.explorer ?? '', address: d.address, totals: new Map(), count: 0, ok: true };
+      const row: ChainRow = { chainId: d.chainId, name: meta?.name ?? `Chain ${d.chainId}`, explorer: meta?.explorer ?? '', address: d.address, symbol: chain.symbol, totals: new Map(), count: 0, ok: true };
       const url = d.rpc || chain.rpc;
       try {
         let from = typeof d.fromBlock === 'number' ? d.fromBlock : 0;
@@ -259,7 +382,16 @@ export async function fetchShelterPayouts(deploymentsUrl: string, f: Fetch = fet
           const rc = await rpc<{ blockNumber?: string } | null>(f, url, 'eth_getTransactionReceipt', [d.tx], ctl.signal);
           if (rc?.blockNumber) from = parseInt(rc.blockNumber, 16);
         }
-        const logs = await getLogsRange<RpcLog>(f, url, { address: d.address, topics: [[DISBURSED_TOPIC, NATIVE_DISBURSED_TOPIC]] }, from, ctl.signal);
+        let logs: RpcLog[] | null = null;
+        if (chain.logsApi && !d.rpc) {
+          try {
+            logs = await getLogsFromApi(f, chain.logsApi, d.address, from, ctl.signal);
+          } catch {
+            if (ctl.signal.aborted) throw new Error('timed out');
+            /* the explorer API is down or the page is full: scan the RPC */
+          }
+        }
+        logs ??= await getLogsRange<RpcLog>(f, url, { address: d.address, topics: [[DISBURSED_TOPIC, NATIVE_DISBURSED_TOPIC]] }, from, ctl.signal, d.rpc ? undefined : chain.maxLogRange);
         const rows: PayoutRow[] = [];
         for (const log of logs ?? []) {
           const p = payoutOf(log, chain);
@@ -271,11 +403,12 @@ export async function fetchShelterPayouts(deploymentsUrl: string, f: Fetch = fet
             chainId: d.chainId, chainName: row.name, explorer: row.explorer, symbol: p.symbol, amount18: p.amount18,
             shelter: typeof topic === 'string' && topic.length === 66 ? '0x' + topic.slice(26).toLowerCase() : '',
             memo: memoOf(log.data ?? ''), tx: log.transactionHash ?? '', block: log.blockNumber ? parseInt(log.blockNumber, 16) || 0 : 0,
+            ...(log.timeStamp && parseInt(log.timeStamp, 16) > 0 ? { time: parseInt(log.timeStamp, 16) } : {}),
           });
         }
         rows.sort((a, b) => b.block - a.block);
         if (opts.times) {
-          const blocks = [...new Set(rows.slice(0, TIMED_PER_CHAIN).map((r) => r.block).filter((b) => b > 0))];
+          const blocks = [...new Set(rows.slice(0, TIMED_PER_CHAIN).filter((r) => r.time === undefined).map((r) => r.block).filter((b) => b > 0))];
           const times = new Map<number, number>();
           // One at a time: a burst of block lookups is what trips public RPC rate limits.
           for (const b of blocks) {
@@ -317,12 +450,12 @@ export async function fetchShelterTotals(deploymentsUrl: string, f: Fetch = fetc
 
 let cachedPayouts: Promise<ShelterPayouts> | null = null;
 
-/** The payouts modal's data, fetched once per page load; a failed read is retried on the next call. */
+/** The payouts modal's data, fetched once per page load; a read with any failed chain is retried on the next call. */
 export function loadShelterPayouts(deploymentsUrl: string, f: Fetch = fetch): Promise<ShelterPayouts> {
   if (!deploymentsUrl) return Promise.resolve({ status: 'empty', totals: new Map(), chains: [], payouts: [] });
   const p = (cachedPayouts ??= fetchShelterPayouts(deploymentsUrl, f, 15_000, { times: true }));
   void p.then((r) => {
-    if (r.status === 'error' && cachedPayouts === p) cachedPayouts = null;
+    if ((r.status === 'error' || r.chains.some((c) => !c.ok)) && cachedPayouts === p) cachedPayouts = null;
   });
   return p;
 }

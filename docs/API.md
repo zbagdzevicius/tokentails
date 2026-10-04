@@ -219,6 +219,12 @@ log needs seed 1, the current `SIM_VERSION`, two different known cat ids, at mos
 | GET | `/shelter/donate/status` | `{ enabled, railState, chainId, amountWei, remainingTodayWei, dailyBudgetWei, giftsPerDayCap, treatsLeftToday, resetsAt, communityTotalConfirmedWei, splitAddress }`. `railState` is `not-deployed`, `paused`, `live` or `exhausted` | Public, Throttle(60) |
 | GET | `/shelter/donate/me` | The caller's treat today `{day, resetsAt, today: {status, source, txHash, explorerUrl, failedReason} \| null, confirmedCount, onTheirWayCount, totalConfirmedWei, eligibility}` | Auth, Throttle(60) |
 | GET | `/shelter/agent/cat-card` | x402-style paid card for AI agents (see below) | Public, Throttle(30) |
+| POST | `/shelter/relay` | Relay a donor's signed EIP-3009 authorization to the DonateRouter; the hot wallet pays gas only. Body `{chainId, from, value, validAfter, validBefore, salt, memo, recipients, signature}`, no other keys (see "Wallet gifts" below) | Public, Throttle(10) |
+| GET | `/shelter/relay/:txHash` | `{status: submitted\|confirmed\|failed, batchId?, match?: {txHash?, status}}`; 404 for a hash the relay did not send | Public, Throttle(60) |
+| GET | `/shelter/match/status` | `?chainId=` optional (default: the main chain). `{state: off\|live\|exhausted\|awaiting-handover, chainId, relay, perGift, dailyLeft, poolLeft}` (decimal USDC strings; `relay`: the gas relay takes gifts on `chainId`; a chain the backend does not serve reads `off`) | Public, Throttle(60) |
+| GET | `/shelter/match/by-donor/:txHash` | `{status, matchTxHash \| null}` for a router gift; `status` is `none` before the scan saw it | Public, Throttle(60) |
+| POST | `/shelter/claim` | The shelter names its own payout wallet: `{chainId, wallet, signature}` (personal_sign of the claim message). Only wallets on `SHELTER_CLAIM_ALLOWED_WALLETS` (403 `CLAIM_NOT_ALLOWED`). Answers `{status}` of the (one) row for that chain and wallet, `pending-rotation` when new | Public, Throttle(5) |
+| GET | `/shelter/claim` | The newest `approved` or `rotated` claim on the configured chain `{wallet, chainId, status}`, or JSON `null`. A `pending-rotation` claim is never shown | Public, Throttle(60) |
 
 ### Shelter gifts on Arc
 
@@ -278,6 +284,117 @@ Any rejected payment (bad header, unknown or expired nonce, receipt missing, rev
 already used) is a 402 whose `error` says why and whose `accepts` carries a fresh nonce. A receipt
 that is not mined yet does not use up the nonce, so the agent can retry with the same header. 503
 means the feature is off or there is no card to sell.
+
+**Standard x402 `exact` on the same endpoint** (`x402-exact.ts`, off unless
+`SHELTER_X402_EXACT_ENABLED=true`). `payTo` is the shelter's own wallet; the agent signs an EIP-3009
+`TransferWithAuthorization`, the facilitator verifies and settles it, and the server re-reads the
+`Transfer` log over `SHELTER_X402_EXACT_RPC` (required). Rows not read back are stored with
+`verifiedOnchain: false` and left out of the public totals. When `exact` is offered, `accepts` holds
+only the `exact` requirement (no `outputSchema` key), because x402-fetch and x402-axios schema-parse
+every entry; the `onchain-receipt` offer then moves to a top-level `onchainReceipt` field. `network`
+must be an x402 v1 name (base-sepolia uses the public x402.org facilitator; any other network needs
+`SHELTER_X402_FACILITATOR_URL`). It is not offered when `payTo` is the split, the router, the treasury
+or the hot wallet, when the token's on-chain name, version or decimals (6) do not match, or on a mainnet
+before `SHELTER_HANDED_OVER=true`. An authorization valid longer than `maxTimeoutSeconds` + 60 s is a 402.
+
+### Wallet gifts (DonateRouter relay, Token Tails match, shelter claim)
+
+Everything here is off by default and has no game write: scores still go only through
+`POST /user/catbassadors/live`. Custody rule: public money moves donor -> DonateRouter -> ShelterSplit
+-> shelter wallet in one transaction. The router (F1) has no owner and keeps no gift past the transaction that brings it in (a plain
+transfer to it waits for `flush`, which can only pay the shelters); the hot wallet
+pays the relay gas and sends the match from Token Tails' own funds, and never receives donor money.
+
+**Mainnet gate.** On a mainnet (`5042` or any chain id not in the testnet list of
+`shelter-onchain.config.ts`), relay, match and flush answer `RELAY_AWAITING_HANDOVER` / state
+`awaiting-handover` until `SHELTER_HANDED_OVER=true`, which is set only after Pink Paw holds its own key
+and the split recipient is rotated. Testnet `5042002` works whenever enabled (test USDC, no real money).
+Two checks decide it: `publicGivingAllowed(config)` (the flag), then
+`ShelterClaimService.publicGivingVerified(config)`, read on chain: every wallet in
+`split.preview(1 USDC).wallets` must be a `rotated` claim on that chain and none may be the hot wallet,
+the treasury, the split, the router, an `IMPACT_PAWS_SENDERS` or a `SHELTER_MATCH_EXCLUDE` address (cached
+10 minutes; a failed read is closed). Neither check can stop a stranger calling a deployed router
+directly, so no DonateRouter is deployed on a mainnet before the handover.
+
+**`POST /shelter/relay`.** The donor signs USDC's `ReceiveWithAuthorization` (EIP-712 domain: the
+token's `name()` and `version()`, `chainId`, the USDC address) with `to` = the router and
+`nonce = keccak256(abi.encode(router, keccak256(bytes(memo)), salt, recipients))`, where `recipients`
+(also in the body, 0x + 64 hex) is `router.recipientsHash(value)` read when the donor signs: the payout
+list is part of the signature. `value` is in 6-decimal base units; `memo` is
+`tt:wallet:<8 lowercase hex>`. The server checks, in order: relay on, router and key
+set (409 `RELAY_OFF`); `chainId` is the configured chain (400 `RELAY_WRONG_CHAIN`); the mainnet flag
+(409 `RELAY_AWAITING_HANDOVER`); memo (400 `RELAY_BAD_MEMO`); `SHELTER_RELAY_MIN_USDC` <= value <=
+`SHELTER_RELAY_MAX_USDC` (400 `RELAY_AMOUNT`); `validAfter <= now + 5 s` (send `0`), `now + 30 s <
+validBefore <= now + 600 s` (400 `RELAY_WINDOW`); nonce not relayed before (409 `RELAY_REPLAY`); the
+on-chain half of the mainnet gate (409 `RELAY_AWAITING_HANDOVER`); `router.canDonate(value)` (409
+`RELAY_SPLIT_UNAVAILABLE` with `toTreasury` when the split is paused or part of the gift would reach the
+treasury). It then `eth_call`s `donateWithAuthorization` (bytes signature) as the hot wallet; on a
+revert it tries `donateWithAuthorizationVRS` with the 65-byte signature split into v, r, s. Only a gift
+that simulates cleanly takes a cap: `SHELTER_RELAY_DAILY_TX` relays a UTC day in total (429
+`RELAY_DAILY_CAP`) and 5 per signer (429 `RELAY_SIGNER_CAP`), so junk requests cannot hold a slot.
+A revert that both refuse is
+409 `RELAY_RECIPIENTS_CHANGED` (the shelter list changed after signing: sign again), 400
+`RELAY_BAD_SIGNATURE`, 409 `RELAY_REPLAY`, 400 `RELAY_WINDOW` or 400 `RELAY_REJECTED` with a short
+`reason`. When the relay's own transaction reverts or times out, the reconcile first asks USDC
+`authorizationState(from, nonce)`: if the nonce was used by a `RouterDonation` carrying it (someone
+else submitted the signature first), the row is `confirmed` with that transaction as `settledTxHash`
+(shown by `GET /shelter/relay/:txHash`) instead of `failed`, so the donor is never asked to give twice. A broadcast the node certainly refused is 424 `RELAY_SEND_FAILED` and frees the nonce and the
+caps (the same signature can be retried); an ambiguous one is returned as `submitted`. 200 is
+`{txHash, status: 'submitted'}`. Error bodies are `{statusCode, code, message}`; the `RELAY_*` codes are
+local to these routes (not in `shared/errors.ts`). The caller IP is stored only as a truncated
+HMAC-SHA-256 keyed with the secret `SHELTER_RELAY_IP_PEPPER`; without the pepper no IP hash is stored.
+`GET /shelter/relay/:txHash` looks the match up by the transaction that paid (`settledTxHash` when
+someone else submitted first).
+
+**Match.** Every `RouterDonation` from the configured router (signed path 0 or native path 1; a flush,
+path 2, is never matched), from a donor that is not public-excluded (the hot wallet,
+`IMPACT_PAWS_SENDERS`, `SHELTER_MATCH_EXCLUDE` team wallets, `SHELTER_TREASURY_ADDRESS`, and, read on
+chain, every wallet the split pays and its `treasury()`), made less than a day before the scan reads
+it, of at least `SHELTER_MATCH_MIN_GIFT`, gets `min(gift, SHELTER_MATCH_PER_GIFT, left today, left in
+SHELTER_MATCH_POOL)` from the hot wallet into ShelterSplit with memo `tt:match:<first 8 hex of the
+donor tx>`, once per donor transaction. Smaller gifts are `skipped-small`; an empty budget is
+`skipped-cap`; a match `split.preview` says would send any part to the treasury is `skipped-cap` with
+`failedReason: 'treasury-share'` (no budget taken). Statuses: `pending`, `sent`, `confirmed`,
+`skipped-cap`, `skipped-small`, `failed`. The scan stays `MATCH_CONFIRMATIONS` blocks behind the head
+(Arc 0, every other chain 12) and, outside Arc, a gift whose receipt is gone when the match is sent is
+`failed` (`donor-missing`). While the match is off or gated, the scan cursor still moves to the head,
+so turning it on never pays for gifts made while it was off. The hourly flush claims its hour with one
+conditional write, so two backend instances cannot both send it.
+
+**Shelter claim.** The message is exactly (`shelterClaimMessage` in `shelter-claim.service.ts`):
+
+```
+Token Tails shelter payout wallet
+Shelter: Pink Paw (Rozine pedute)
+Wallet: <checksummed address>
+Chain: <chainId>
+Issued: <UTC date YYYY-MM-DD>
+```
+
+Today's or yesterday's UTC date is accepted. `chainId` must be the configured chain (400
+`CLAIM_REFUSED`). A signature proves control of a wallet, not who holds it, so `wallet` must first be on
+`SHELTER_CLAIM_ALLOWED_WALLETS`, set after the shelter named the address to Token Tails through a
+separate channel (403 `CLAIM_NOT_ALLOWED`). The signature must recover `wallet` (EIP-191). The hot
+wallet, the treasury (`SHELTER_TREASURY_ADDRESS` and the split's `treasury()`), the split, the router
+and the zero address are refused (400 `CLAIM_REFUSED`). One row per chain and wallet (unique index);
+statuses `pending-rotation` -> `approved` (an admin confirmed it with the shelter) -> `rotated` (the
+split pays it), or `rejected`, set by hand in the database. A claim moves no money: the split owner
+rotates the recipient by hand (`fund.mjs shelter rotate --dry-run` first) to the address confirmed with
+the shelter, never one read from `GET /shelter/claim`, then marks the claim `rotated` and the handover. This is a
+different message from the payout-evidence signature of `POST /impact/payouts/:id/signature`, which
+stays refused with `PAYOUT_HANDOVER_PENDING` until the handover is recorded.
+
+Known limits:
+
+- A relayed gift counts toward the signer's cap even if it later reverts on-chain (the slot is given
+  back only for a refusal before broadcast).
+- The match is sent by the 2-minute reconcile job, so it lands a few minutes after the gift.
+- On chains whose native coin is not USDC the match is two transactions (approve, then disburse) and the
+  job waits up to 60 seconds for the approve.
+- The flush keeper (`router.flush('tt:flush')`, at most hourly, for at least 0.01 USDC) runs only while
+  the relay or the match is on.
+- Known inconsistency, not changed here: the x402 section above says the shelter endpoints never answer
+  503, and its last paragraph still says "503 means the feature is off".
 
 ## Impact
 

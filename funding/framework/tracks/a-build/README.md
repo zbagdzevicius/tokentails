@@ -54,6 +54,15 @@ Evidence, fetched 2026-09-29:
   `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` (both pages agree, 6 decimals). Circle also lists
   Avalanche and Base; it lists nothing for Arbitrum or Tempo, so those are `null` with `verify: true`.
 
+### DonateRouter: no mainnet deploy before the handover (added 2026-10-04, F2 review H2)
+
+The DonateRouter is ownerless and public. Once it exists on a mainnet, anyone can call
+`donateNative` or submit a signed gift themselves, and that money reaches the shelter wallet the split
+pays, which Token Tails still holds until Pink Paw's key rotation. The backend gates
+(`SHELTER_HANDED_OVER` plus the on-chain recipient check in `ShelterClaimService.publicGivingVerified`)
+only stop Token Tails' own relay, match and flush. So: deploy DonateRouter on testnets only until the
+split's recipient is rotated to a shelter-held wallet confirmed through a separate channel.
+
 ## What is here
 
 | Path | What |
@@ -64,6 +73,26 @@ Evidence, fetched 2026-09-29:
 | `programs/<key>.json` | One profile per program: chain, mainnet gate, build window, criteria, submission fields and limits |
 | `submission/master.md` | Master submission template every program renders through |
 | `templates/` | Track A `call.md` (extra fields) and hackathon `draft.md` skeleton, copied by `fund new` / `a:init` |
+| `shelter-split/src/DonateRouter.sol` | Ownerless router: one-signature EIP-3009 gifts (`donateWithAuthorization(Gift, memo, sig)`), native gifts on Arc (`donateNative`), `flush` for stray transfers; reverts `TreasuryShare` / `RecipientsChanged`. Deploy: `script/DeployDonateRouter.s.sol` (founder, `--account`) |
+| `shelter-split/src/CappedSpender.sol` | The treat agent's wallet: immutable per-gift and per-UTC-day caps, pays only ShelterSplit. Deploy: `script/DeployCappedSpender.s.sol` |
+| `router/` | Router helpers (`lib.mjs`: recipients hash, nonce, typed data) and `simulate-arc-testnet.sh` (read-only check against the live Arc testnet split) |
+| `router-deployments.json` | DonateRouter deployments, recorded by hand after a founder deploy (empty until then). Separate from `deployments.json` |
+| `treat-agent/` | Claude decides treats, CappedSpender limits them on-chain; `fork-demo.sh` records the demo on a local Arc testnet fork |
+| `e2e-donate/` | `stack.sh all`: the 13 donation flows end to end on a local fork with anvil dev keys only |
+
+### Donate rail commands (added 2026-10-04)
+
+```bash
+node bin/fund.mjs router plan --chain 5042002          # print the DonateRouter deploy commands; a founder broadcasts
+node bin/fund.mjs shelter rotate --chain 5042002 --to <PinkPawWallet> --name "Pink Paw" --dry-run
+                                                       # print removeShelter/addShelter for the handover
+cd tracks/a-build/e2e-donate && ./stack.sh all         # local fork E2E, 13 flows
+```
+
+Custody rule for every path: public money moves donor → DonateRouter → ShelterSplit → shelter wallet,
+or donor → shelter wallet (x402 `exact`). Mainnet public paths stay off until Pink Paw holds its own
+key (`campaign.shelter.handover` on the client, `SHELTER_HANDED_OVER` on the backend). Full status:
+`docs/plans/donations-STATUS.md`.
 
 ## The fast loop
 

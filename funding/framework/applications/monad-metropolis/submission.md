@@ -1,6 +1,6 @@
 # Monad Metropolis online hackathon (Consumer Products & Payments track) — submission
 
-_Generated 2026-10-03T19:13:11.295Z by `fund a:submission monad-metropolis` from draft.md, the program profile,
+_Generated 2026-10-04T07:59:06.037Z by `fund a:submission monad-metropolis` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -37,7 +37,8 @@ The player never touches a wallet: purchases stay card or in-app payments.
 - On Monad, ShelterSplit at {MONAD_SPLIT} pays USDC with disburse(amount, memo): it pulls the payment, splits what arrived by basis points, and sends rounding dust to a treasury. Fast blocks and low fees make a small gift settle before the player has left the screen.
 - Safety: reentrancy guard, pause, two-step ownership, safe transfers, caps on shelters and memo length. A Foundry suite covers splits, dust, access control, reentrancy and fuzzing.
 - The give flow runs on the Arc instance at {SPLIT_ADDRESS} today: a backend wallet with a small float pays, with a memo that holds no personal data. First treat: {ARC_TX}. It pays Arc's native USDC through donate(); on Monad the native coin is MON, so moving the treat to Monad needs the backend to use the USDC disburse path, which is not built yet.
-- Agent payments, off until handover and on Arc only: the agent pays donate('x402:<nonce>') and retries with the transaction hash, which the server checks over RPC and accepts once. It is our own onchain-receipt scheme, with no facilitator.
+- Agent payments, off until handover and on Arc only: our own onchain-receipt scheme (donate('x402:<nonce>'), tx checked over RPC, accepted once), plus standard x402 exact paid straight to the shelter wallet.
+- Donor gifts (built, not deployed; chain-agnostic): a DonateRouter with no owner takes a one-signature USDC gift where the chain's USDC supports EIP-3009 (to check on Monad), and reverts if any share would reach the treasury.
 - Trust model: the chain proves the funds reached the registered wallet, not who controls it.
 - ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/ in github.com/zbagdzevicius/tokentails). Demo: {DEMO_URL}.
 

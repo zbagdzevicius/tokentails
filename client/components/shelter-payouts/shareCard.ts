@@ -10,6 +10,23 @@ export interface ShareCardData {
   chainName: string;
   blockNumber: number;
   txHash: string;
+  /**
+   * "treat" (default): a treat Token Tails sent. "gift": a wallet gift through the router.
+   * "matched": a wallet gift Token Tails matched 1:1 ("1 became 2"). No donor identity on any card.
+   */
+  variant?: "treat" | "gift" | "matched";
+  /** A testnet transaction: the card carries a "TESTNET · no real money" band, so a shared image never passes for real money. */
+  testnet?: boolean;
+}
+
+/** The band drawn across a testnet card. */
+export const TESTNET_BAND = "TESTNET · NO REAL MONEY";
+
+/** The card's two headline lines for a variant. */
+export function shareCardHeadline(data: Pick<ShareCardData, "shelterName" | "variant">): [string, string] {
+  if (data.variant === "matched") return ["1 became 2 for", data.shelterName];
+  if (data.variant === "gift") return ["A wallet gift to", data.shelterName];
+  return ["I sent a rescue treat to", data.shelterName];
 }
 
 const W = 1200;
@@ -42,15 +59,21 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData) {
   ctx.font = ttCanvasFont("hud", 44);
   ctx.fillText("TOKEN TAILS · SHELTER RECEIPT", 72, 110);
 
+  const [lead, name] = shareCardHeadline(data);
   ctx.font = ttCanvasFont("title", 70);
   ctx.fillStyle = INK.cream;
-  ctx.fillText("I sent a rescue treat to", 72, 230);
+  ctx.fillText(lead, 72, 230);
   ctx.fillStyle = GOLD[400];
-  ctx.fillText(data.shelterName, 72, 315, W - 144);
+  ctx.fillText(name, 72, 315, W - 144);
 
   ctx.fillStyle = INK.cream;
   ctx.font = ttCanvasFont("caption", 44, { weight: 800 });
-  ctx.fillText(`${data.amount}, split on-chain`, 72, 400);
+  ctx.fillText(
+    data.variant === "matched" ? `${data.amount} given, Token Tails matched it on-chain` : `${data.amount}, split on-chain`,
+    72,
+    400,
+    W - 144
+  );
 
   // The tx hash is the one `code` (system mono) text.
   ctx.fillStyle = INK.muted;
@@ -60,6 +83,15 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData) {
   ctx.fillStyle = STATES.pink;
   ctx.font = ttCanvasFont("caption", 30, { weight: 800 });
   ctx.fillText("tokentails.com/shelter-payouts", 72, 560);
+
+  if (data.testnet) {
+    // A solid band in the bottom-right corner, clear of the URL and the tx line.
+    ctx.fillStyle = STATES.mint;
+    ctx.fillRect(W - 24 - 520, H - 24 - 64, 520, 64);
+    ctx.fillStyle = NIGHT[900];
+    ctx.font = ttCanvasFont("hud", 34);
+    ctx.fillText(TESTNET_BAND, W - 24 - 500, H - 24 - 20, 480);
+  }
 }
 
 /** A paw print: one pad and four toes, centred on (x, y), about 100 px across at scale 1. */

@@ -27,17 +27,20 @@ export interface ShelterDeployment {
 export const DEPLOYMENTS_URL = "/shelter-payouts/deployments.json";
 
 // Public RPCs cap eth_getLogs ranges, so a failed full-range query falls back to
-// windows. The window starts at LOG_WINDOW blocks and halves on each rejected
-// request down to MIN_LOG_WINDOW (rate-limit errors are retried in rpcCall, never
-// halved); the scan stops after MAX_LOG_REQUESTS calls.
+// windows. The window starts at LOG_WINDOW blocks (or the chain's maxLogRange) and, on each
+// rejected request, drops to the cap the RPC names in its error ("limited to a 1,000 range") or
+// halves, down to MIN_LOG_WINDOW (rate-limit errors are retried in rpcCall, never halved); the
+// scan stops after MAX_LOG_REQUESTS calls.
 export const LOG_WINDOW = 10_000;
-export const MIN_LOG_WINDOW = 2_048;
+export const MIN_LOG_WINDOW = 500;
 export const MAX_LOG_REQUESTS = 400;
 
 /** A deployment's non-USDC payout token symbol (e.g. "EURC"), or null for a USDC instance. */
 export function deploymentToken(d: Pick<ShelterDeployment, "token">): string | null {
-  const t = typeof d.token === "string" ? d.token.trim().toUpperCase() : "";
-  return t && t !== "USDC" ? t : null;
+  // Keep a mixed-case spelling ("pathUSD", "mUSDC"); an all-lowercase one is upper-cased ("eurc").
+  const raw = typeof d.token === "string" ? d.token.trim() : "";
+  const t = raw === raw.toLowerCase() ? raw.toUpperCase() : raw;
+  return t && t.toUpperCase() !== "USDC" ? t : null;
 }
 
 export function resolveChain(d: ShelterDeployment): ChainInfo | null {
@@ -54,7 +57,23 @@ export function resolveChain(d: ShelterDeployment): ChainInfo | null {
     nativeDecimals: known?.nativeDecimals,
     nativeSymbol: known?.nativeSymbol,
     balanceToken: known?.balanceToken,
+    testnet: d.network === "testnet" || !!known?.testnet,
+    maxLogRange: d.rpc ? undefined : known?.maxLogRange,
+    logRpc: d.rpc ? undefined : known?.logRpc,
   };
+}
+
+/** A testnet entry: by its recorded network, or by a chain id the built-in list marks as a testnet. */
+export const isTestnetDeployment = (d: Pick<ShelterDeployment, "network" | "chainId">): boolean =>
+  d.network === "testnet" || (d.network !== "mainnet" && !!SHELTER_CHAINS[d.chainId]?.testnet);
+
+/** The block cap an RPC names in a range error ("limited to a 1,000 range", "maximum 1000 blocks"). */
+export function rangeLimitFrom(err: unknown): number | null {
+  const m = /(?:limited to a|maximum(?: of)?|max(?:imum)?(?: block)? range(?: of)?|up to(?: a)?|ranges over)\s*([\d,]+)\s*(?:range|blocks?|$)/i.exec(
+    (err as Error)?.message || ""
+  );
+  const n = m ? Number(m[1].replace(/,/g, "")) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 let rpcId = 0;
@@ -87,7 +106,17 @@ async function rpcOnce<T>(url: string, method: string, params: unknown[]): Promi
     body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method, params }),
   });
   if (res.status === 429) throw new RpcRateLimitError(`${method}: HTTP 429`);
-  if (!res.ok) throw new Error(`${method}: HTTP ${res.status}`);
+  if (!res.ok) {
+    // Keep the RPC's own message (Base answers a too-wide eth_getLogs with HTTP 413 and
+    // "eth_getLogs is limited to a 1,000 range"): the log scan reads the cap from it.
+    let detail = "";
+    try {
+      detail = (await res.json())?.error?.message || "";
+    } catch {
+      /* no JSON body */
+    }
+    throw new Error(`${method}: HTTP ${res.status}${detail ? `: ${detail}` : ""}`);
+  }
   const body = await res.json();
   if (body.error) {
     const msg = `${method}: ${body.error.message || "RPC error"}`;
@@ -160,10 +189,11 @@ export async function getLogsWindowed(
   address: string,
   from: number,
   latest: number,
-  get: (rpc: string, address: string, from: number, to: number) => Promise<RpcLog[]> = getLogs
+  get: (rpc: string, address: string, from: number, to: number) => Promise<RpcLog[]> = getLogs,
+  firstWindow: number = LOG_WINDOW
 ): Promise<RpcLog[]> {
   const logs: RpcLog[] = [];
-  let window = LOG_WINDOW;
+  let window = Math.max(MIN_LOG_WINDOW, firstWindow);
   let requests = 0;
   let start = from;
   while (start <= latest) {
@@ -180,7 +210,8 @@ export async function getLogsWindowed(
       // A smaller window does not help against a rate limit (rpcCall already backed off), it only
       // burns requests, so rethrow it instead of halving.
       if (err instanceof RpcRateLimitError || window <= MIN_LOG_WINDOW) throw err;
-      window = Math.max(MIN_LOG_WINDOW, Math.floor(window / 2));
+      const cap = rangeLimitFrom(err);
+      window = Math.max(MIN_LOG_WINDOW, cap !== null && cap < window ? cap : Math.floor(window / 2));
     }
   }
   return logs;
@@ -233,11 +264,20 @@ async function scanDisbursements(d: ShelterDeployment): Promise<Disbursement[]> 
   const from = await startBlock(chain.rpc, d);
 
   let logs: RpcLog[];
-  try {
-    logs = await getLogs(chain.rpc, d.address, from, "latest");
-  } catch {
-    const latest = parseInt(await rpcCall<string>(chain.rpc, "eth_blockNumber", []), 16);
-    logs = await getLogsWindowed(chain.rpc, d.address, from, latest);
+  const logRpc = chain.logRpc || chain.rpc;
+  const windowed = async () => {
+    const latest = parseInt(await rpcCall<string>(logRpc, "eth_blockNumber", []), 16);
+    return getLogsWindowed(logRpc, d.address, from, latest, getLogs, chain.maxLogRange ?? LOG_WINDOW);
+  };
+  if (chain.maxLogRange) {
+    // A known cap: a full-range call would only be refused.
+    logs = await windowed();
+  } else {
+    try {
+      logs = await getLogs(logRpc, d.address, from, "latest");
+    } catch {
+      logs = await windowed();
+    }
   }
 
   return logs
@@ -245,11 +285,26 @@ async function scanDisbursements(d: ShelterDeployment): Promise<Disbursement[]> 
     .sort((a, b) => b.blockNumber - a.blockNumber || b.logIndex - a.logIndex);
 }
 
-export async function fetchDeployments(): Promise<ShelterDeployment[]> {
-  const res = await fetch(DEPLOYMENTS_URL, { cache: "no-store" });
-  if (!res.ok) throw new Error(`deployments.json: HTTP ${res.status}`);
+// The testnet contracts (network "testnet"): the proof that ShelterSplit runs on every target chain
+// before the mainnet wave. Kept in their own file and their own section of the page, so test money
+// never adds up with real payouts. A copy of the testnet entries of
+// funding/framework/tracks/a-build/deployments.json (public fields only).
+export const TESTNET_DEPLOYMENTS_URL = "/shelter-payouts/testnet-deployments.json";
+
+/** The testnet list, or [] when it is missing or broken: it is an extra, never a page error. */
+export async function fetchTestnetDeployments(): Promise<ShelterDeployment[]> {
+  try {
+    return (await fetchDeployments(TESTNET_DEPLOYMENTS_URL)).filter(isTestnetDeployment);
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchDeployments(url: string = DEPLOYMENTS_URL): Promise<ShelterDeployment[]> {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${url.split("/").pop()}: HTTP ${res.status}`);
   const list = await res.json();
-  if (!Array.isArray(list)) throw new Error("deployments.json must be a JSON array");
+  if (!Array.isArray(list)) throw new Error(`${url.split("/").pop()} must be a JSON array`);
   return list.filter(
     (d): d is ShelterDeployment =>
       d && typeof d.chainId === "number" && /^0x[0-9a-fA-F]{40}$/.test(d.address || "")

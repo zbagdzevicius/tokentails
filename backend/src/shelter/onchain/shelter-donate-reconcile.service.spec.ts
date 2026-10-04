@@ -340,3 +340,26 @@ describe('ShelterDonateReconcileService (plan F7.4)', () => {
         expect(getTransactionReceipt).not.toHaveBeenCalled();
     });
 });
+
+describe('ShelterDonateReconcileService wallet-gift steps (F2)', () => {
+    it('settles relays and runs the match pass in the same tick, and a failure there keeps the treat result', async () => {
+        enabledEnv();
+        const ctx = setup();
+        const relay = { confirmPending: jest.fn().mockResolvedValue({ confirmed: 2, failed: 0 }) };
+        const match = {
+            runOnce: jest.fn().mockRejectedValue(Object.assign(new Error('rpc'), { code: 'SERVER_ERROR' })),
+        };
+        const reconcile = new ShelterDonateReconcileService(
+            ctx.donations as any,
+            ctx.donate,
+            new ShelterChain(),
+            relay as any,
+            match as any
+        );
+        const result = await reconcile.reconcileOnce(SENT_AT, readShelterConfig());
+        expect(result).toMatchObject({ confirmed: 0, failed: 0, relay: { confirmed: 2, failed: 0 } });
+        expect(result.match).toBeUndefined();
+        expect(relay.confirmPending).toHaveBeenCalledTimes(1);
+        expect(match.runOnce).toHaveBeenCalledTimes(1);
+    });
+});

@@ -1,1 +1,0 @@
-import"./index-CaWMBJb6.js";function e(e){return null}export{e as installQA};
