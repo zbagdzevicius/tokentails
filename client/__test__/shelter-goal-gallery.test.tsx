@@ -61,6 +61,32 @@ describe("CampaignMeter", () => {
     );
   });
 
+  it("names every counted chain and coin, and breaks the figure down by chain", () => {
+    const chains = [
+      { chainId: 5042, raised: usdc("3"), symbols: ["USDC"], counted: true },
+      { chainId: 4217, raised: BigInt(0), symbols: ["USDC.e"], counted: true },
+      { chainId: 4663, raised: usdc("1.5"), symbols: ["USDG"], counted: true },
+      { chainId: 143, raised: BigInt(0), symbols: ["USDC"], counted: true },
+    ];
+    const progress = campaignProgress(campaign, { raised: usdc("4.5"), exact: true, chains });
+    render(<CampaignMeter campaign={campaign} progress={progress} state="ok" />);
+    const sources = screen.getByTestId("campaign-meter-sources").textContent!;
+    expect(sources).toMatch(
+      /Counts every US dollar stablecoin \(USDC, USDC\.e and USDG\) that comes in to the wallet Token Tails holds for Pink Paw on Arc, Tempo, Robinhood Chain and Monad: today, sponsored treats\./
+    );
+    expect(sources).toMatch(/Read from each chain\./);
+    const list = screen.getByTestId("campaign-meter-chains");
+    expect(Array.from(list.querySelectorAll("li")).map((li) => li.textContent)).toEqual(["Arc: 3 USDC", "Robinhood Chain: 1.5 USDG"]);
+  });
+
+  it('says "at least" for the balance fallback, which reads the campaign chain only', () => {
+    const progress = campaignProgress(campaign, { raised: usdc("2"), exact: false, partial: true });
+    render(<CampaignMeter campaign={campaign} progress={progress} state="ok" />);
+    expect(screen.getByTestId("campaign-meter-value").textContent).toMatch(/^at least 2of/);
+    expect(screen.getByTestId("campaign-meter-floor").textContent).toMatch(/Read from Arc mainnet only right now/);
+    expect(screen.queryByTestId("campaign-meter-chains")).toBeNull();
+  });
+
   it('says "at least" while the count is still catching up', () => {
     const progress = campaignProgress(campaign, { raised: usdc("10"), exact: false });
     render(<CampaignMeter campaign={campaign} progress={progress} state="ok" compact />);

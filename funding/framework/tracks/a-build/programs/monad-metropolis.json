@@ -5,7 +5,7 @@
   "frame": "payout-rail",
   "chain": "monad",
   "mainnet_required": false,
-  "next": "Log in at hackathon.monad.xyz to confirm the year, the deadline time zone, the rules (mainnet or testnet, excluded countries, KYC) and the prize currency; then deploy ShelterSplit on Monad and reuse the Colosseum write-up",
+  "next": "Log in at hackathon.monad.xyz to confirm the year, the deadline time zone, the rules (mainnet or testnet, excluded countries, KYC) and the prize currency. ShelterSplit and DonateRouter are live on Monad testnet (10143, 2026-10-04); Monad mainnet (143) is in the mainnet wave",
   "submission": {
     "sections": [
       {
@@ -44,6 +44,6 @@
     "year and deadline time zone (the page shows '1 Sep to 13 Oct' without a year)",
     "official rules behind the login",
     "whether work must be new (built Sep 1 - Oct 13)",
-    "Monad chain ID and USDC address"
+    "whether a Monad testnet deployment is enough (testnet 10143 is live; mainnet 143 is in the mainnet wave)"
   ]
 }

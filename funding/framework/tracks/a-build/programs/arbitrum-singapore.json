@@ -7,7 +7,7 @@
     "arbitrum"
   ],
   "mainnet_required": false,
-  "next": "Only if an Arbitrum or Robinhood deployment exists by Oct 3; reuse the Colosseum write-up",
+  "next": "Submit on HackQuest (deadline Oct 4 15:59, zone not shown); then Arbitrum One mainnet in the wave",
   "submission": {
     "sections": [
       {
@@ -35,6 +35,11 @@
       {
         "title": "Build evidence",
         "auto": "build"
+      },
+      {
+        "title": "Status",
+        "from": "Status",
+        "limit": 1200
       },
       {
         "title": "Team",

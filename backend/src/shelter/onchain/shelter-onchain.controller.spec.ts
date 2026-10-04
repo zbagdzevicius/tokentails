@@ -61,6 +61,30 @@ describe('ShelterOnchainController', () => {
         await expect(validateBody({ source: 'page', amountWei: '1' })).rejects.toBeInstanceOf(BadRequestException);
     });
 
+    it('takes an optional whole-number chainId (the picked network) and nothing malformed', async () => {
+        await expect(validateBody({ source: 'heist', chainId: 84532 })).resolves.toMatchObject({ chainId: 84532 });
+        for (const chainId of ['84532x', 1.5, 0, -1, 2 ** 41]) {
+            await expect(validateBody({ source: 'heist', chainId })).rejects.toBeInstanceOf(BadRequestException);
+        }
+    });
+
+    it('passes the picked chain to the service, and calls it as before without one', async () => {
+        const donateService = { donate: jest.fn().mockResolvedValue({ txHash: '0x1' }) };
+        const eligibility = { assertInstantTreat: jest.fn().mockResolvedValue({ eligible: true, reason: null }) };
+        const controller = new ShelterOnchainController(
+            donateService as any,
+            {} as any,
+            eligibility as any,
+            {} as any,
+            {} as any,
+            {} as any
+        );
+        await controller.donate({ _id: 'u1' }, { source: 'heist', chainId: 42431 });
+        expect(donateService.donate).toHaveBeenLastCalledWith('u1', 'heist', undefined, 42431);
+        await controller.donate({ _id: 'u1' }, { source: 'page' });
+        expect(donateService.donate).toHaveBeenLastCalledWith('u1', 'page');
+    });
+
     it('runs the instant-treat policy before the service', async () => {
         const donateService = { donate: jest.fn().mockResolvedValue({ txHash: '0x1' }) };
         const eligibility = { assertInstantTreat: jest.fn().mockResolvedValue({ eligible: true, reason: null }) };

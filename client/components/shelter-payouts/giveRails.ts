@@ -35,7 +35,7 @@ export interface GiveRail {
   native: boolean;
 }
 
-/** The six chains a giver can pick, in the order the picker shows them: the campaign chain (Arc) first. */
+/** The seven chains a giver can pick, in the order the picker shows them: the campaign chain (Arc) first. */
 export const WALLET_FAMILIES: readonly { key: string; mainnet: number; testnet: number }[] = [
   { key: "arc", mainnet: 5042, testnet: 5042002 },
   { key: "tempo", mainnet: 4217, testnet: 42431 },
@@ -43,6 +43,7 @@ export const WALLET_FAMILIES: readonly { key: string; mainnet: number; testnet: 
   { key: "avalanche", mainnet: 43114, testnet: 43113 },
   { key: "base", mainnet: 8453, testnet: 84532 },
   { key: "robinhood", mainnet: 4663, testnet: 46630 },
+  { key: "monad", mainnet: 143, testnet: 10143 },
 ];
 
 export const WALLET_CHAIN_IDS: Record<RailNetwork, number[]> = {

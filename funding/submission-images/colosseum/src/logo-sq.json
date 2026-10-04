@@ -1,0 +1,14 @@
+{
+ "w": 1024,
+ "h": 1024,
+ "layout": "center",
+ "bg": "temple",
+ "dim": 0.5,
+ "logo": "text",
+ "logoH": 30,
+ "title": "<em>ShelterSplit</em>",
+ "titleSize": 9,
+ "subtitle": "Shelter payouts you can check",
+ "subtitleSize": 3.8,
+ "css": "#subtitle{color:#fff;font-weight:800;text-shadow:0 2px 0 rgba(0,0,0,.6),0 0 14px rgba(0,0,0,.8)} #stage{justify-content:center;padding-bottom:22%}"
+}

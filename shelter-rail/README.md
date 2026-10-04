@@ -24,10 +24,10 @@ What is in the box:
 
 | Part | File | Use it for |
 |---|---|---|
-| Widget | `src/widget.js` | One `<script>` tag: a donate button (native or gasless) and a live "shelters received" total. No framework. |
-| SDK | `src/sdk.mjs` | `encodeDonate`, `readTotals`, `donateWithInjected`, gasless `signAndRelay`, and the x402 client `payAndFetch` (`exact` and `onchain-receipt`). |
-| Agent example | `examples/agent-pay.mjs` | An AI agent paying for one adoptable-cat card; the money goes to shelters. |
-| Demo page | `client/public/rail/demo.html` | The widget against the Arc testnet split, served at `tokentails.com/rail/demo.html`. |
+| Widget | `src/widget.js` | One `<script>` tag: a donate button (native, token or gasless) and a live "shelters received" total, on seven chains. No framework. |
+| SDK | `src/sdk.mjs` | `CHAINS`, `encodeDonate`, `readTotals`, `donateWithInjected`, `donateTokenWithInjected` (approve + disburse), gasless `signAndRelay`, and the x402 client `payAndFetch` (`exact` and multi-chain `onchain-receipt`). |
+| Agent example | `examples/agent-pay.mjs` | An AI agent paying for one adoptable-cat card on any offered testnet; the money goes to shelters. |
+| Demo page | `client/public/rail/demo.html` | The widget against the seven testnet splits (a chain picker), served at `tokentails.com/rail/demo.html`. |
 
 ## Custody statement
 
@@ -58,17 +58,31 @@ that shows this shelter must show this disclosure, and it will be updated when t
 
 ## Chains and addresses
 
-Arc is the first chain. Native USDC on Arc has **18 decimals**, and gas is paid in USDC.
+Seven chains, each with a mainnet and a testnet. `CHAINS` in `src/sdk.mjs` (and the same table in
+`src/widget.js`, pinned equal by a test) holds the public RPC, explorer, gas coin and payout coins.
+Arc is the only chain whose native coin is USDC (**18 decimals**, and gas is paid in USDC), so only Arc
+takes a native `donate()` gift; everywhere else a gift is the chain's USD coin (6 decimals).
 
-| Chain | Chain ID | RPC | Explorer |
-|---|---|---|---|
-| Arc | 5042 | `https://rpc.mainnet.arc.io` | `https://explorer.arc.io/tx/<hash>` |
-| Arc Testnet | 5042002 | `https://rpc.testnet.arc.io` | `https://explorer.arc.io/tx/<hash>` |
+| Chain | Mainnet / testnet ID | Payout coin (mainnet / testnet) | EIP-3009 | Gas |
+|---|---|---|---|---|
+| Arc | 5042 / 5042002 | USDC (native, 18 decimals; ERC-20 view 6) / same | yes | USDC |
+| Tempo | 4217 / 42431 | USDC.e / pathUSD (TIP-20) | no | none: fees in a USD stablecoin |
+| Arbitrum | 42161 / 421614 | USDC | yes | ETH |
+| Avalanche C-Chain | 43114 / 43113 | USDC (EURC too) | yes | AVAX |
+| Base | 8453 / 84532 | USDC (EURC too) | yes | ETH |
+| Robinhood Chain | 4663 / 46630 | USDG / mUSDC (a test MockUSDC) | no | ETH |
+| Monad | 143 / 10143 | USDC (Circle) | yes | MON |
+
+USDC, USDC.e, USDG, pathUSD, mUSDC and EURC are different coins: `readTotals` keeps them apart
+(`byCoin`). Monad's public RPC answers `eth_getLogs` over at most 100 blocks, so its scans use 100-block
+windows. Not in the table (no address recorded in this repo yet): EURC on Arbitrum, Tempo, Robinhood and
+Monad.
 
 Contract addresses are **not hard-coded**. They are published in
 [`client/public/shelter-payouts/deployments.json`](../client/public/shelter-payouts/deployments.json)
 and served at `https://tokentails.com/shelter-payouts/deployments.json`. Each entry has at least
-`chainId` and `address` (optional: `fromBlock`, `rpc`). The list is empty until the first deploy; the
+`chainId` and `address` (optional: `fromBlock`, `tx` (the deploy transaction; its block is the scan
+start when `fromBlock` is absent), `rpc`, `symbol`/`token`, `decimals`). The list is empty until the first deploy; the
 widget shows "Donations open soon" until then.
 
 Contract interface used here:
@@ -77,8 +91,11 @@ Contract interface used here:
   `NativeDisbursed(address indexed shelter, uint256 amount, string memo)`
   (topic `0xc859ef09d317f79211253b04e5d51bff252d80816db65d1aaa75cfdd3a22aeef`) per shelter, plus one
   `NativeDisbursementBatch`.
-- `disburse(uint256 amount, string memo)`: the ERC-20 path; emits `Disbursed`
-  (topic `0x53e1c69daf8c00e0990d33cc076fc3c88a0c480beb39da2bcffa01252f63495a`) in token units (6 decimals).
+- `disburse(uint256 amount, string memo)`: the ERC-20 path (the giver approves the split first); emits
+  `Disbursed` (topic `0x53e1c69daf8c00e0990d33cc076fc3c88a0c480beb39da2bcffa01252f63495a`) in token
+  units (6 decimals), plus one `DisbursementBatch`.
+- `disburseWithMemo(uint256 amount, bytes32 memo)`: Tempo's TIP-20 path; each payout carries the memo in
+  the token's `TransferWithMemo`, and the split's events carry it as a `0x`-prefixed hex string.
 
 Memos are public and permanent. Keep them short and never put personal data in them.
 
@@ -97,10 +114,12 @@ Memos are public and permanent. Keep them short and never put personal data in t
 
 | Attribute | Default | Meaning |
 |---|---|---|
-| `data-chain` | `5042` | Chain ID. |
+| `data-chain` | `5042` | Chain ID: any of the fourteen in the table above. |
+| `data-mode` | `auto` | `native` (Arc only), `token` (approve + disburse), `gasless` (below), or `auto`: gasless when router, USDC and relay are set, else native on Arc, else token. |
+| `data-coin` | the chain's coin | Coin symbol, when the split pays another coin (`EURC`). |
 | `data-split` | none | ShelterSplit address. Use this or `data-deployments`. |
 | `data-deployments` | none | URL of a deployments.json; the entry for `data-chain` is used. |
-| `data-amount` | `1000000000000000000` | Donation in wei (on Arc, 1e18 = 1 USDC). |
+| `data-amount` | `1000000000000000000` (native), `1000000` (token, gasless) | Native mode: wei (on Arc, 1e18 = 1 USDC). Token and gasless modes: base units, 6 decimals. |
 | `data-memo` | `widget` | Public memo, up to 64 characters. |
 | `data-label` | "Give 1 USDC to shelters" | Button text. |
 | `data-disclosure` | none | Small print under the button. Required when the shelter wallet is custodial. |
@@ -111,22 +130,26 @@ Gasless mode adds:
 
 | Attribute | Default | Meaning |
 |---|---|---|
-| `data-mode` | `native` | `gasless`: the visitor signs one USDC authorization and pays no gas. |
+| `data-mode` | `auto` | `gasless`: the visitor signs one USDC authorization and pays no gas. Not for coins without EIP-3009 (Tempo, USDG, mUSDC). |
 | `data-router` | none | DonateRouter address (ownerless; reverts on any treasury share). |
 | `data-usdc` | none | USDC address on that chain (its EIP-712 name and version are read on-chain). |
 | `data-relay` | none | Relay URL that submits the signature and pays the gas. |
 | `data-amount` | `1000000` | USDC base units, 6 decimals (1000000 = 1 USDC). |
 | `data-shelter` | "shelters" | Shelter name for the button: "Give 1 USDC to Pink Paw". |
-| `data-testnet` | `false` | `true` shows a "Test USDC, no real money" chip. |
+| `data-testnet` | known testnets: `true` | `true` shows a "Test USDC, no real money" chip ("Test coins" for other coins). |
 | `data-theme` | visitor's | `light` or `dark`. |
-| `data-rpc`, `data-explorer`, `data-chain-name` | Arc built in | For any other EVM chain. |
+| `data-rpc`, `data-explorer`, `data-chain-name` | the seven built in | For any other EVM chain. |
 
 Until all of `data-router`, `data-usdc` and `data-relay` are set, the gasless button reads "Gasless
 giving opens soon" and only the live total shows. Before the visitor signs, the widget asks the router
 `canDonate(amount)`: if the split is paused or part of the gift would not reach the shelters, nothing is
 signed.
 
-One tap opens the visitor's wallet (it adds Arc if needed), a small burst of hearts celebrates the
+Token mode asks the wallet twice: an approval for exactly the gift (skipped when the allowance already
+covers it), then `disburse` (`disburseWithMemo` on Tempo). Before that it reads `split.token()` and
+refuses a split that pays another coin than the one shown.
+
+One tap opens the visitor's wallet (it adds the chain if needed), a small burst of hearts celebrates the
 gift, and the message links to the transaction on the explorer. Styles live in a shadow root, follow
 the visitor's light or dark mode, and respect reduced motion.
 
@@ -213,36 +236,66 @@ const { response, paid } = await payAndFetch(url, {
 `paid` is `null` (and `error` holds the server's reason) when the server refuses the authorization.
 On mainnet the server offers `exact` only once the shelter holds its own wallet key.
 
-### 4. AI agents: x402-compatible "onchain-receipt" flow
+### 4. AI agents: x402-compatible "onchain-receipt" flow, on several chains
 
 The Token Tails API sells one adoptable-cat card at `GET /shelter/agent/cat-card`, and the whole price
 goes to shelters. This is an **x402-compatible flow with its own `onchain-receipt` scheme and no
-facilitator**: standard x402 facilitators may not support Arc, so the server checks the transaction
-receipt on the chain itself.
+facilitator**: standard x402 facilitators may not support these chains, so the server checks the
+transaction receipt on the chain itself.
 
-1. The agent calls the URL. The server answers `402` with `{x402Version: 1, accepts: [{scheme: "onchain-receipt", network: "eip155:<chainId>", maxAmountRequired, asset: "native", payTo: <ShelterSplit>, extra: {memo: "x402:<nonce>", nonce}}]}` (or, when `exact` is offered too, with that offer in the top-level `onchainReceipt` field).
-2. The agent calls `donate("x402:<nonce>")` on `payTo` with at least `maxAmountRequired` wei.
-3. The agent retries with `X-PAYMENT: base64(JSON {x402Version: 1, scheme: "onchain-receipt", network, payload: {txHash, nonce}})`.
-4. The server checks the receipt (status ok, `NativeDisbursed` logs from the split with that memo summing
-   to the price, tx hash used once, nonce issued by the server and not expired) and answers `200` with the
-   card and an `X-PAYMENT-RESPONSE` header.
+1. The agent calls the URL. The server answers `402` with one `onchain-receipt` offer per chain it takes
+   payment on, all with the same nonce:
+   `{scheme: "onchain-receipt", network: "eip155:<chainId>", maxAmountRequired, asset, payTo: <ShelterSplit>, extra: {memo: "x402:<nonce>", nonce, decimals, coin, method, memo32?}}`.
+   `asset` is `"native"` with `method: "donate"` where the native coin is the payment (Arc: USDC,
+   18 decimals), else the token address with `method: "disburse"`, or `"disburseWithMemo"` on Tempo with
+   `memo32 = keccak256("x402:<nonce>")` (the memo does not fit 32 bytes). `maxAmountRequired` is in the
+   asset's own units. The offers are in `accepts`, or, when the standard `exact` scheme is offered too, in
+   the top-level `onchainReceipts` (and `onchainReceipt`, the first one) so standard clients can parse
+   `accepts`.
+2. The agent pays on **one** chain: `donate("x402:<nonce>")` on `payTo` with the price as value, or
+   `approve(payTo, price)` on the token then `disburse(price, "x402:<nonce>")` (`disburseWithMemo(price, memo32)`).
+3. The agent retries with `X-PAYMENT: base64(JSON {x402Version: 1, scheme: "onchain-receipt", network, payload: {txHash, nonce}})`,
+   where `network` names the chain it paid on.
+4. The server checks the receipt on that chain (status ok, payout events from the split with that memo
+   summing to the price, tx hash used once, nonce issued by the server, not expired and used once) and
+   answers `200` with the card and an `X-PAYMENT-RESPONSE` header.
 
 ```js
 import { payAndFetch } from "./src/sdk.mjs";
 
 const { response, paid } = await payAndFetch("https://<api-host>/shelter/agent/cat-card", {
-  maxAmountWei: 10n ** 16n,          // required spending cap
-  provider: window.ethereum,         // or pay: async ({to, valueWei, data}) => minedTxHash
+  chainId: 84532,                    // optional: pay on this chain; default the first offer you capped
+  maxAmountWei: 10n ** 16n,          // cap for native offers (Arc, 18 decimals)
+  maxAmountBase: 10000n,             // cap for token offers and `exact` (6 decimals)
+  provider: window.ethereum,         // or pay: async ({chainId, calls, ...}) => minedTxHash
 });
 console.log(await response.json(), paid?.txHash);
 ```
 
-`payAndFetch` refuses any price above `maxAmountWei` (or `maxAmountBase` for `exact`), pays at most once per call, and passes any
-non-402 response (for example `409` while the endpoint is switched off) straight through.
+At least one cap is required, and an offer whose unit has no cap is never paid. `payAndFetch` refuses
+any price above its cap, pays at most once per call, and passes any non-402 response (for example `409`
+while the endpoint is switched off) straight through.
 
-See `examples/agent-pay.mjs` for a Node agent with `ethers`. It reads a **testnet** key from the
-`AGENT_PRIVATE_KEY` environment variable, never writes it anywhere, and without `--yes` only prints the
-offer. Never commit a key.
+With a `pay` callback, the SDK hands over `{chainId, to, valueWei, data, memo, asset, token, amount,
+decimals, coin, method, memo32, calls}`: `calls` is `encodeOfferCalls(offer)`, the transactions to send
+in order (`donate`, or `approve` then `disburse`), each `{step, to, data, value}`. Send them, waiting for
+each to be mined (the approve may be skipped when the allowance already covers `amount`), and return
+the last hash. `to`, `valueWei` and `data` describe that last call. Helpers: `findOnchainReceiptOffers`,
+`listOnchainReceiptOffers`, `parseOnchainReceiptOffer`, `pickOffer(body, {chainId})`.
+
+`examples/agent-pay.mjs` is a Node agent with `ethers` v6 (`npm i ethers@6` in your project; inside
+the Token Tails monorepo it falls back to `backend/node_modules/ethers`). It reads a **testnet** key from
+the `AGENT_PRIVATE_KEY` environment variable, never writes it anywhere, refuses any chain that is not a
+known testnet, and without `--yes` only prints the offers:
+
+```sh
+export CAT_CARD_URL=http://localhost:3105/shelter/agent/cat-card
+node shelter-rail/examples/agent-pay.mjs                          # list the offers, pay nothing
+AGENT_CHAIN_ID=84532 node shelter-rail/examples/agent-pay.mjs --yes  # pay on Base Sepolia
+```
+
+Optional: `AGENT_RPC_URL` (default: the chain's public RPC), `MAX_PRICE_WEI` (native cap, default
+0.01 USDC), `MAX_PRICE_BASE` (token cap, default 0.01), `EXACT_MAX_BASE` (allow `exact`). Never commit a key.
 
 ## Tests
 

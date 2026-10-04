@@ -351,7 +351,8 @@ describe('goal meter reading (fact C-001)', () => {
       const result = method === 'eth_getTransactionCount' ? '0x0' : params[1] === 'latest' ? '0x' + (2_000_000n).toString(16) : '0x0';
       return { ok: true, status: 200, json: async () => ({ result }) };
     };
-    expect(await readGoalCount({ apiUrl: 'http://api.test', factsUrl: '/facts.json', f })).toEqual({ raised: 2n * 10n ** 18n, exact: true, sources: ['treats'] });
+    // The balance reads the campaign chain only, while the goal counts every chain: "at least".
+    expect(await readGoalCount({ apiUrl: 'http://api.test', factsUrl: '/facts.json', f })).toEqual({ raised: 2n * 10n ** 18n, exact: false, sources: ['treats'], partial: true });
     expect(asked[0]).toBe('0x70a08231' + moved.slice(2).padStart(64, '0'));
   });
 
@@ -370,6 +371,27 @@ describe('goal meter reading (fact C-001)', () => {
     };
     expect(await readGoalCount({ apiUrl: '', factsUrl: '/facts.json', f })).toBeNull();
     expect(rpc).toBe(0);
+  });
+
+  it('reads the per-chain breakdown from the backend and lists the chains where money came in', async () => {
+    const { readGoalCount, goalChainsLine, goalSourcesLine } = await import('../shelter-payouts');
+    const chains = [
+      { chainId: 5042, symbols: ['USDC'], raised: '3', scannedTo: 9, head: 9, upToDate: true, transfers: 1 },
+      { chainId: 4663, symbols: ['USDG'], raised: '1.5', scannedTo: 9, head: 9, upToDate: true, transfers: 1 },
+      { chainId: 143, symbols: ['USDC'], raised: '0', scannedTo: 9, head: 9, upToDate: true, transfers: 0 },
+    ];
+    const f = async () => ({ ok: true, json: async () => ({ id: 'C-001', chainId: 5042, goalUsdc: '50000', raised: '4.5', scannedTo: 9, head: 9, upToDate: true, transfers: 2, wallets: [], liveSources: ['treats'], updatedAt: null, chains }) });
+    const count = (await readGoalCount({ apiUrl: 'http://api.test', factsUrl: '/facts.json', f }))!;
+    expect(count.raised).toBe(45n * 10n ** 17n);
+    expect(count.chains).toEqual([
+      { chainId: 5042, raised: 3n * 10n ** 18n, symbols: ['USDC'] },
+      { chainId: 4663, raised: 15n * 10n ** 17n, symbols: ['USDG'] },
+      { chainId: 143, raised: 0n, symbols: ['USDC'] },
+    ]);
+    expect(goalChainsLine(count.chains)).toBe('Arc: 3 USDC · Robinhood Chain: 1.5 USDG');
+    expect(goalChainsLine([{ chainId: 5042, raised: 1n, symbols: ['USDC'] }])).toBe('');
+    expect(goalSourcesLine(['treats'], 3)).toMatch(/^Counts what comes in to the wallet Token Tails holds for Pink Paw on 3 chains: today, sponsored treats\./);
+    expect(goalSourcesLine(['gifts', 'treats'], 7)).toBe("Counts the gifts and treats that come in to Pink Paw's wallets on 7 chains, read from the chains.");
   });
 
   it('names only the sources live today', async () => {

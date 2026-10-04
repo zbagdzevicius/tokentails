@@ -235,7 +235,7 @@ const WebShelterReceipt = () => {
               <span className={`${CHIP} ${done.receipt.success ? "!border-tt-mint !text-tt-mint" : "!border-tt-rust !text-tt-rust"}`}>
                 {done.receipt.success ? "✓ Confirmed" : "✕ Failed"}
               </span>
-              <span className="text-p6 md:text-p5 text-tt-cream/80">
+              <span className="text-p6 md:text-p5 text-tt-cream/80" data-testid="receipt-chain">
                 {chainDisplayName(done.chain)} · block <strong className="text-tt-cream">{done.receipt.blockNumber}</strong>
               </span>
             </div>

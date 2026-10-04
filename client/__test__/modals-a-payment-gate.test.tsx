@@ -108,10 +108,10 @@ describe("Payment methods", () => {
     expect(screen.queryByTestId("crypto-checkout")).toBeNull();
   });
 
-  it("offers card and crypto (USDC / EURC) for a pack; Stellar is gone", () => {
+  it("offers card and crypto (stablecoins) for a pack; Stellar is gone", () => {
     render(renderPayment());
     expect(screen.getByRole("button", { name: /pay with card/i })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /pay with crypto \(usdc \/ eurc\)/i }));
+    fireEvent.click(screen.getByRole("button", { name: /pay with crypto \(stablecoins\)/i }));
     expect(screen.getByTestId("crypto-checkout").getAttribute("data-sku")).toBe(JSON.stringify({ kind: "PACK", packType: "STARTER" }));
     expect(screen.queryByTestId("stripe-checkout")).toBeNull();
     expect(document.body.textContent).not.toMatch(/Stellar/);

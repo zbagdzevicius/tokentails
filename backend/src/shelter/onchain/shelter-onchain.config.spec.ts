@@ -2,6 +2,11 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
     TOKEN_TAILS_HELD_WALLETS,
+    decimalToBase,
+    explorerTxUrl,
+    isTestnetChain,
+    publicRpcUrl,
+    x402Ready,
     readShelterConfig,
     readRelayChainConfigs,
     readShelterConfigs,
@@ -190,5 +195,112 @@ describe('TOKEN_TAILS_HELD_WALLETS (wallets Token Tails holds for a shelter)', (
             env({ SHELTER_HELD_WALLETS: `${extra.toUpperCase().replace('0X', '0x')}, junk` })
         );
         expect(config.heldWallets).toEqual([...TOKEN_TAILS_HELD_WALLETS, extra]);
+    });
+});
+
+describe('SHELTER_CHAIN_<id>_TREAT_* (treats on a picked network)', () => {
+    const HEX_A = '0x' + 'ab'.repeat(32);
+    const HEX_B = '0x' + 'cd'.repeat(32);
+
+    it('is off by default: no treat flag, the main chain amount is not reused', () => {
+        const [c] = readRelayChainConfigs(env({ SHELTER_RELAY_CHAINS: '84532' }));
+        expect(c.donateEnabled).toBe(false);
+        expect(c.treat).toMatchObject({ amountBase: BigInt(10000), dailyBudgetBase: BigInt(1000000), coin: 'USDC' });
+        expect(c.amountWei).toBe(BigInt('10000000000000000'));
+        expect(readShelterConfig(env()).treat).toBeUndefined();
+    });
+
+    it('reads the flag, amount, budget and coin; scales amounts to 18 decimals; Tempo pays with a bytes32 memo', () => {
+        const list = readRelayChainConfigs(
+            env({
+                SHELTER_RELAY_CHAINS: '4217,4663,42161',
+                SHELTER_CHAIN_4217_TREAT_ENABLED: 'true',
+                SHELTER_CHAIN_4217_TREAT_AMOUNT: '0.05',
+                SHELTER_CHAIN_4217_TREAT_DAILY_BUDGET: '2.5',
+                SHELTER_CHAIN_4663_TREAT_ENABLED: 'TRUE',
+                SHELTER_CHAIN_42161_TREAT_ENABLED: 'yes',
+                SHELTER_CHAIN_42161_TREAT_AMOUNT: 'junk',
+                SHELTER_CHAIN_42161_TREAT_COIN: 'USD<script>',
+            })
+        );
+        expect(list[0]).toMatchObject({ chainId: 4217, donateEnabled: true });
+        expect(list[0].treat).toEqual({
+            amountBase: BigInt(50000),
+            dailyBudgetBase: BigInt(2500000),
+            decimals: 6,
+            coin: 'USDC.e',
+            memo32: true,
+        });
+        expect(list[0].amountWei).toBe(BigInt('50000000000000000'));
+        expect(list[0].dailyBudgetWei).toBe(BigInt('2500000000000000000'));
+        expect(list[1]).toMatchObject({ chainId: 4663, donateEnabled: true });
+        expect(list[1].treat).toMatchObject({ coin: 'USDG', memo32: false });
+        // Only 'true' turns it on; a malformed amount falls back; a bad coin label is not used.
+        expect(list[2]).toMatchObject({ chainId: 42161, donateEnabled: false });
+        expect(list[2].treat).toMatchObject({ amountBase: BigInt(10000), coin: 'USDC' });
+    });
+
+    it('lets a testnet entry share the main key only when the main chain is a testnet too', () => {
+        const common = {
+            SHELTER_DONATE_PRIVATE_KEY: HEX_A,
+            SHELTER_RELAY_CHAINS: '84532',
+            SHELTER_CHAIN_84532_KEY_ENV: 'SHELTER_DONATE_PRIVATE_KEY',
+        };
+        expect(readRelayChainConfigs(env(common))[0].privateKey).toBeNull();
+        expect(readRelayChainConfigs(env({ ...common, SHELTER_CHAIN_ID: '5042002' }))[0].privateKey).toBe(HEX_A);
+        expect(
+            readRelayChainConfigs(
+                env({ ...common, SHELTER_CHAIN_84532_KEY_ENV: 'SHELTER_DONATEHOT_KEY', SHELTER_DONATEHOT_KEY: HEX_B })
+            )[0].privateKey
+        ).toBe(HEX_B);
+    });
+
+    it('links each served chain to its own explorer', () => {
+        const h = '0x' + 'e'.repeat(64);
+        expect(explorerTxUrl(h, 84532)).toBe(`https://sepolia.basescan.org/tx/${h}`);
+        expect(explorerTxUrl(h, 42431)).toBe(`https://explore.testnet.tempo.xyz/tx/${h}`);
+        expect(explorerTxUrl(h, 4663)).toBe(`https://robinhoodchain.blockscout.com/tx/${h}`);
+        expect(explorerTxUrl(h, 5042)).toBe(`https://explorer.arc.io/tx/${h}`);
+    });
+});
+
+describe('per-chain x402 and Monad defaults', () => {
+    it('reads SHELTER_CHAIN_<id>_X402_ENABLED (default off) and _X402_PRICE (default 0.01)', () => {
+        const [on, off] = readRelayChainConfigs({
+            SHELTER_CHAIN_ID: '5042002',
+            SHELTER_RELAY_CHAINS: '10143,84532',
+            SHELTER_CHAIN_10143_SPLIT_ADDRESS: '0x' + '4'.repeat(40),
+            SHELTER_CHAIN_10143_X402_ENABLED: 'true',
+            SHELTER_CHAIN_10143_X402_PRICE: '0.05',
+            SHELTER_CHAIN_84532_SPLIT_ADDRESS: '0x' + '5'.repeat(40),
+            SHELTER_CHAIN_84532_X402_PRICE: 'abc',
+        } as any);
+        expect(on).toMatchObject({
+            chainId: 10143,
+            x402Enabled: true,
+            x402Price: '0.05',
+            rpcUrl: 'https://testnet-rpc.monad.xyz',
+        });
+        expect(x402Ready(on)).toBe(true);
+        expect(off).toMatchObject({ chainId: 84532, x402Enabled: false, x402Price: '0.01' });
+        expect(x402Ready(off)).toBe(false);
+    });
+
+    it('knows Monad mainnet and testnet RPCs and explorers', () => {
+        expect(publicRpcUrl(143)).toBe('https://rpc.monad.xyz');
+        expect(publicRpcUrl(10143)).toBe('https://testnet-rpc.monad.xyz');
+        expect(explorerTxUrl('0xabc', 143)).toBe('https://monadvision.com/tx/0xabc');
+        expect(explorerTxUrl('0xabc', 10143)).toBe('https://testnet.monadvision.com/tx/0xabc');
+        expect(isTestnetChain(10143)).toBe(true);
+        expect(isTestnetChain(143)).toBe(false);
+    });
+
+    it('decimalToBase scales by the coin decimals and refuses what cannot be paid exactly', () => {
+        expect(decimalToBase('0.01', 6)).toBe(BigInt(10000));
+        expect(decimalToBase('0.01', 18)).toBe(BigInt('10000000000000000'));
+        expect(decimalToBase('2', 6)).toBe(BigInt(2000000));
+        expect(decimalToBase('0.0000001', 6)).toBeNull();
+        expect(decimalToBase('0.0100', 2)).toBe(BigInt(1));
+        expect(decimalToBase('x', 6)).toBeNull();
     });
 });

@@ -1,0 +1,5 @@
+{"w":1920,"h":1080,"layout":"split","bg":"temple","dim":0.55,"logo":"text","kicker":"ShelterSplit · public goods payments",
+"title":"Shelter payouts<br><em>you can check.</em>",
+"subtitle":"A USDC payout rail for animal shelters. One contract on Tempo, Arbitrum, Base and Robinhood Chain. On Tempo, each payout carries its memo.",
+"chips":[{"text":"Live on 6 testnets · test coins","tone":"mint"},{"text":"Pink Paw · Rožinė pėdutė","tone":"pink"}],
+"art":"proof-tall.png","textWidth":0.42,"artFit":"cover","artPos":"top left","art2":"../screens/receipt-tempo-390.png","footer":"tokentails.com"}

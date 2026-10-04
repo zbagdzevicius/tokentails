@@ -1,0 +1,23 @@
+{
+ "w": 1920,
+ "h": 1080,
+ "layout": "split",
+ "bg": "space",
+ "dim": 0.35,
+ "logo": "text",
+ "logoH": 8,
+ "footer": "tokentails.com",
+ "textWidth": 0.44,
+ "kicker": "Arc testnet receipt",
+ "title": "Every payout gets<br><em>a public receipt</em>",
+ "subtitle": "1 test USDC to Pink Paw, read from the Arc chain, with the memo and a link to the Arc explorer.",
+ "chips": [
+  {
+   "text": "Testnet · test coins, no real money",
+   "tone": "mint"
+  }
+ ],
+ "art": "receipt-crop.png",
+ "artPos": "center",
+ "artAspect": "780/690"
+}

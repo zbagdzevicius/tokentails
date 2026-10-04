@@ -1,0 +1,41 @@
+/* Token Tails brand kit for rendered submission images. Values from client/design/tokens.ts. */
+@font-face { font-family: "Passion One"; font-weight: 400; src: url("fonts/passion-one-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Passion One"; font-weight: 700; src: url("fonts/passion-one-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Passion One"; font-weight: 900; src: url("fonts/passion-one-latin-900-normal.woff2") format("woff2"); }
+@font-face { font-family: "Passion One"; font-weight: 400; src: url("fonts/passion-one-latin-ext-400-normal.woff2") format("woff2"); unicode-range: U+0100-024F, U+1E00-1EFF; }
+@font-face { font-family: "Passion One"; font-weight: 700; src: url("fonts/passion-one-latin-ext-700-normal.woff2") format("woff2"); unicode-range: U+0100-024F, U+1E00-1EFF; }
+@font-face { font-family: "Passion One"; font-weight: 900; src: url("fonts/passion-one-latin-ext-900-normal.woff2") format("woff2"); unicode-range: U+0100-024F, U+1E00-1EFF; }
+@font-face { font-family: "Bebas Neue"; src: url("fonts/bebas-neue-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Bebas Neue"; src: url("fonts/bebas-neue-latin-ext-400-normal.woff2") format("woff2"); unicode-range: U+0100-024F, U+1E00-1EFF; }
+@font-face { font-family: "Nunito"; font-weight: 200 1000; src: url("fonts/nunito-latin-wght-normal.woff2") format("woff2"); }
+@font-face { font-family: "Nunito"; font-weight: 200 1000; src: url("fonts/nunito-latin-ext-wght-normal.woff2") format("woff2"); unicode-range: U+0100-024F, U+1E00-1EFF; }
+/* "Cat Paw" display face of Catnip Heist (client/public/font.woff2). Latin caps/lower only. */
+@font-face { font-family: "Cat Paw"; src: url("fonts/catpaw.woff2") format("woff2"); }
+
+:root {
+  --night-950: #07051a; --night-900: #0b0820; --night-800: #120d1f; --night-700: #1e1633;
+  --night-600: #2a1f45; --night-500: #3a2d5c;
+  --gold-400: #ffcc55; --gold-500: #e2c05a; --gold-ink: #4a1d08; --gold-shadow: #713f12;
+  --cream: #fcecbb; --lilac: #f0c5fd; --muted: #9a88c9;
+  --pink: #ff7aa2; --mint: #7fd66b; --sky: #90c5e9; --rust: #ee642a; --grape: #8726b7;
+  --dusk-top: #2a1f45; --dusk-mid: #7a3e6e; --dusk-horizon: #ee8a5c;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; }
+body { font-family: "Nunito", sans-serif; color: var(--cream); -webkit-font-smoothing: antialiased; }
+
+.tt-title { font-family: "Passion One", sans-serif; font-weight: 700; text-transform: uppercase;
+  line-height: .92; letter-spacing: .01em; color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.35); }
+.tt-glow { color: var(--cream); text-shadow: 0 0 18px rgba(255,204,85,.75), 0 0 42px rgba(255,204,85,.45), 0 3px 0 rgba(0,0,0,.3); }
+.tt-gold { color: var(--gold-400); }
+.tt-chip { display: inline-flex; align-items: center; gap: .4em; font-family: "Passion One", sans-serif;
+  font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--cream);
+  border: 3px solid var(--gold-500); border-radius: 999px; padding: .28em .9em; background: rgba(7,5,26,.72); }
+.tt-chip.mint { border-color: var(--mint); color: var(--mint); }
+.tt-chip.pink { border-color: var(--pink); color: var(--pink); }
+.tt-panel { border: 4px solid var(--gold-500); border-radius: 22px; background: rgba(7,5,26,.82);
+  box-shadow: 0 18px 50px rgba(0,0,0,.55), 0 0 0 2px rgba(0,0,0,.4) inset; overflow: hidden; }
+.tt-btn { display: inline-block; font-family: "Passion One", sans-serif; font-weight: 700; text-transform: uppercase;
+  color: var(--gold-ink); background: var(--gold-400); border-radius: 14px; padding: .35em 1.1em;
+  box-shadow: 0 5px 0 var(--gold-shadow), 0 10px 26px rgba(255,204,85,.35); }
+.tt-pixel { image-rendering: pixelated; }

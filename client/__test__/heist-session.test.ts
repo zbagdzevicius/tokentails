@@ -57,6 +57,16 @@ describe("heistFrameSrc payouts deep link", () => {
   });
 });
 
+describe("heistFrameSrc treat network", () => {
+  it("forwards ?chain=<id> so the win screen's treat link preselects that network", () => {
+    expect(heistFrameSrc("?chain=84532", false)).toBe(`${HEIST_FRAME_PATH}?embed=1&chain=84532`);
+    expect(heistFrameSrc("?payouts&chain=4217", false)).toBe(`${HEIST_FRAME_PATH}?embed=1&payouts=1&chain=4217`);
+    for (const bad of ["?chain=", "?chain=0", "?chain=abc", "?chain=0x14a34", "?chain=-1"]) {
+      expect(heistFrameSrc(bad, false)).toBe(`${HEIST_FRAME_PATH}?embed=1`);
+    }
+  });
+});
+
 describe("openedFrom", () => {
   it("reads ?from for heist_open, defaulting to direct", () => {
     expect(openedFrom("?from=picker")).toBe("picker");

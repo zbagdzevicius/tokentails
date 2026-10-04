@@ -122,7 +122,7 @@ describe("calldata for the split path", () => {
   });
 });
 
-describe("add-chain params for all six chains", () => {
+describe("add-chain params for all seven chains", () => {
   it.each([...WALLET_CHAIN_IDS.mainnet, ...WALLET_CHAIN_IDS.testnet])("chain %i", (id) => {
     const chain = SHELTER_CHAINS[id];
     const p = addChainParams(id, chain);
@@ -144,12 +144,12 @@ describe("add-chain params for all six chains", () => {
   });
 
   it("names the fee coin of each chain", () => {
-    expect(WALLET_CHAIN_IDS.testnet.map((id) => feeCoin(SHELTER_CHAINS[id]))).toEqual(["USDC", "USD", "ETH", "AVAX", "ETH", "ETH"]);
+    expect(WALLET_CHAIN_IDS.testnet.map((id) => feeCoin(SHELTER_CHAINS[id]))).toEqual(["USDC", "USD", "ETH", "AVAX", "ETH", "ETH", "MON"]);
   });
 });
 
 describe("the chain picker's rails", () => {
-  it("offers all six testnets from the public list: a router where listed, else the split", () => {
+  it("offers all seven testnets from the public list: a router where listed, else the split", () => {
     const routers = [R(5042002, "testnet"), R(84532, "testnet"), R(5042002, "testnet", { router: "0x" + "ee".repeat(20), symbol: "EURC" })];
     const rails = walletRails("testnet", routers, TESTNET_DEPLOYMENTS);
     expect(rails.map((r) => [r.chainId, r.path])).toEqual([
@@ -159,10 +159,11 @@ describe("the chain picker's rails", () => {
       [43113, "split"],
       [84532, "router"],
       [46630, "split"],
+      [10143, "split"],
     ]);
     // The EURC router is never the default for Arc.
     expect(rails[0].router?.router).toBe("0x" + "cc".repeat(20));
-    expect(rails.map((r) => r.symbol)).toEqual(["USDC", "pathUSD", "USDC", "USDC", "USDC", "mUSDC"]);
+    expect(rails.map((r) => r.symbol)).toEqual(["USDC", "pathUSD", "USDC", "USDC", "USDC", "mUSDC", "USDC"]);
     expect(rails.find((r) => r.chainId === 42431)).toMatchObject({ memo32: true, native: false, split: "0x9978e60da2352a8de02852788d34bd95849a598d" });
     expect(rails.find((r) => r.chainId === 46630)).toMatchObject({ memo32: false, native: false });
     expect(rails[0].native).toBe(true);
@@ -173,9 +174,9 @@ describe("the chain picker's rails", () => {
     const fujiEurc = R(43113, "testnet", { router: "0x" + "ef".repeat(20), symbol: "EURC" });
     const routers = [R(5042002, "testnet"), eurc, fujiEurc, R(84532, "testnet")];
     // Off by default: the plain list stays one option per chain.
-    expect(walletRails("testnet", routers, TESTNET_DEPLOYMENTS).map(railKey)).toEqual(["5042002", "42431", "421614", "43113", "84532", "46630"]);
+    expect(walletRails("testnet", routers, TESTNET_DEPLOYMENTS).map(railKey)).toEqual(["5042002", "42431", "421614", "43113", "84532", "46630", "10143"]);
     const rails = walletRails("testnet", routers, TESTNET_DEPLOYMENTS, true);
-    expect(rails.map(railKey)).toEqual(["5042002", "5042002-EURC", "42431", "421614", "43113", "43113-EURC", "84532", "46630"]);
+    expect(rails.map(railKey)).toEqual(["5042002", "5042002-EURC", "42431", "421614", "43113", "43113-EURC", "84532", "46630", "10143"]);
     const arcEurc = rails[1];
     expect(arcEurc).toMatchObject({ chainId: 5042002, path: "router", symbol: "EURC", native: false, memo32: false, split: null });
     expect(arcEurc.router?.router).toBe("0x" + "ee".repeat(20));
@@ -270,17 +271,40 @@ describe("the chain picker's rails", () => {
   });
 });
 
+describe("Monad testnet in try-it mode", () => {
+  const PUBLIC_ROUTERS: RouterEntry[] = JSON.parse(readFileSync(join(__dirname, "../public/shelter-payouts/routers.json"), "utf8"));
+
+  it("gives through the listed DonateRouter (one signature), never native MON", () => {
+    const rail = railFor(10143, PUBLIC_ROUTERS, TESTNET_DEPLOYMENTS);
+    expect(rail).toMatchObject({ chainId: 10143, network: "testnet", path: "router", symbol: "USDC", native: false, memo32: false });
+    expect(rail?.router?.usdc).toBe("0x534b2f3A21130d7a60830c2Df862319e593943A3");
+    expect(rail?.router?.eip3009).toBe(true);
+    expect(walletGiveMode(null, TESTNET_DEPLOYMENTS, PUBLIC_ROUTERS, { tryChain: "10143" }, "try-it")).toBe("testnet");
+  });
+
+  it("offers Monad mainnet only behind NEXT_PUBLIC_WALLET_DONATE_CHAINS", () => {
+    expect(WALLET_CHAIN_IDS.mainnet).toContain(143);
+    const rails = campaignRails(5042, [], MAINNET_SPLITS, "5042,143");
+    expect(rails.map((r) => r.chainId)).toEqual([5042, 143]);
+    expect(rails[1]).toMatchObject({ path: "split", symbol: "USDC", native: false, network: "mainnet" });
+    expect(campaignRails(5042, [], MAINNET_SPLITS, undefined).map((r) => r.chainId)).toEqual([]);
+    expect(addChainParams(143, SHELTER_CHAINS[143]).nativeCurrency).toEqual({ name: "MON", symbol: "MON", decimals: 18 });
+    expect(addChainParams(10143, SHELTER_CHAINS[10143]).nativeCurrency).toEqual({ name: "MON", symbol: "MON", decimals: 18 });
+  });
+});
+
 describe("the picker's copy", () => {
   const rails = walletRails("testnet", [R(84532, "testnet")], TESTNET_DEPLOYMENTS);
   const byId = (id: number) => rails.find((r) => r.chainId === id)!;
 
   it("names the coin and how the fee is covered on each chain", () => {
-    expect(rails.map((r) => railCoinLine(r))).toEqual(["Gives USDC", "Gives pathUSD", "Gives USDC", "Gives USDC", "Gives USDC", "Gives mUSDC"]);
+    expect(rails.map((r) => railCoinLine(r))).toEqual(["Gives USDC", "Gives pathUSD", "Gives USDC", "Gives USDC", "Gives USDC", "Gives mUSDC", "Gives USDC"]);
     expect(railFeeLine(byId(5042002))).toBe("Fee in USDC, the same coin");
     expect(railFeeLine(byId(42431))).toMatch(/No gas coin/);
     expect(railFeeLine(byId(421614))).toBe("Fee in ETH from your wallet");
     expect(railFeeLine(byId(43113))).toBe("Fee in AVAX from your wallet");
     expect(railFeeLine(byId(46630))).toBe("Fee in ETH from your wallet");
+    expect(railFeeLine(byId(10143))).toBe("Fee in MON from your wallet");
     // The relay covers the fee only on the router path.
     expect(railFeeLine(byId(84532), true)).toMatch(/Token Tails covers it/);
     expect(railFeeLine(byId(421614), true)).toBe("Fee in ETH from your wallet");

@@ -55,6 +55,14 @@ export class ShelterDonation extends CommonSchema {
     @Prop({ required: true })
     chainId: number;
 
+    /**
+     * A token treat (a SHELTER_RELAY_CHAINS chain): the amount in the token's base units (6 decimals).
+     * `amountWei` stays in 18 decimals on every chain, so totals add up in one unit. Absent on the main
+     * chain's native treat.
+     */
+    @Prop({ required: false })
+    tokenAmount?: string;
+
     /** Written before the broadcast (ShelterChain.sendDonation), together with the nonce and sender. */
     @Prop({ required: false })
     txHash?: string;

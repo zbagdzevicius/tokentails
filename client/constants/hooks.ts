@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { cdnFile } from "./utils";
+import { LOBBY_BG_POSITION, LOBBY_BG_SIZE } from "./lobbyScene";
 import { GameType } from "@/models/game";
 import { CatnipChaosLevelMap } from "@/components/Phaser/map";
 import {
@@ -144,8 +145,9 @@ export const useBackground = ({
             level[0] as keyof typeof chaptersBackgroundImages
           ]
         : LOBBY_BACKGROUND,
-      // The landing hero layers are cover-fit from the centre, like the landing's <img>s.
-      ...(bgImage || level ? {} : { backgroundPosition: "center center" }),
+      // The landing hero layers are cover-fit and centred on the altar's rune circle, where the
+      // lobby cat stands (constants/lobbyScene.ts).
+      ...(bgImage || level ? {} : { backgroundPosition: LOBBY_BG_POSITION, backgroundSize: LOBBY_BG_SIZE }),
     };
   }, [bgImage, level, lookBg]);
 

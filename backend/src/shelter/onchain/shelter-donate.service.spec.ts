@@ -272,6 +272,24 @@ describe('ShelterDonateService.status', () => {
             resetsAt: '2026-10-03T00:00:00.000Z',
             communityTotalConfirmedWei: '0',
             splitAddress: null,
+            // No SHELTER_RELAY_CHAINS treat config: only the main chain, with the same numbers.
+            chains: [
+                {
+                    chainId: 5042,
+                    main: true,
+                    testnet: false,
+                    enabled: false,
+                    railState: 'not-deployed',
+                    coin: 'USDC',
+                    amountWei: AMOUNT,
+                    remainingTodayWei: '0',
+                    dailyBudgetWei: '1000000000000000000',
+                    giftsPerDayCap: 100,
+                    treatsLeftToday: 0,
+                    splitAddress: null,
+                    explorer: 'https://explorer.arc.io',
+                },
+            ],
         });
     });
 

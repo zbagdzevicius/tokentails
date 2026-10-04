@@ -16,7 +16,7 @@ import { CARD, CHIP, GOLD_BUTTON, Kicker, NightStage, PANEL, PILL, PinkCat } fro
 import { getInjectedProvider, walletErrorMessage } from "./wallet";
 
 /** The ShelterSplit chains besides the campaign's: a handover re-points the entry on each one. */
-const OTHER_CHAINS = ["Arc", "Tempo", "Arbitrum One", "Avalanche C-Chain", "Base", "Robinhood Chain"];
+const OTHER_CHAINS = ["Arc", "Tempo", "Arbitrum One", "Avalanche C-Chain", "Base", "Robinhood Chain", "Monad"];
 
 type Step =
   | { status: "idle" }

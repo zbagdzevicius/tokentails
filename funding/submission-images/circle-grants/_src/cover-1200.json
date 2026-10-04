@@ -1,0 +1,28 @@
+{
+ "w": 1200,
+ "h": 630,
+ "layout": "split",
+ "bg": "temple",
+ "dim": 0.6,
+ "logo": "text",
+ "logoH": 10,
+ "kicker": "ShelterSplit on Arc",
+ "title": "A USDC payout rail<br><em>for animal shelters</em>",
+ "subtitle": "One contract call splits each USDC payment between the shelter and the treasury, in the same transaction, with a public event per payout. Built for app purchases and AI agents (x402).",
+ "chips": [
+  {
+   "text": "Arc testnet · 14 test payouts",
+   "tone": "mint"
+  },
+  {
+   "text": "Pink Paw · Rožinė pėdutė",
+   "tone": "pink"
+  }
+ ],
+ "art": "proof-crop.png",
+ "artPos": "left center",
+ "art2": "../../_shared/screens/dev-receipt-arc-testnet-390.png",
+ "footer": "tokentails.com",
+ "textWidth": 0.47,
+ "artAspect": "1240/810"
+}

@@ -1,9 +1,10 @@
 // public/shelter-payouts/campaign.json: the showcase shelter and its campaign goal, generated from
 // fact C-001 (funding/framework/facts/facts.json; edit that, never the JSON). The goal counts the
-// USDC that CAME IN to the campaign wallets (`wallets`, each inside its block range), as the backend
-// sums it from the chain's Transfer logs (GET /shelter/goal/C-001, shared/shelter-goal.ts): spending
-// never lowers it, and a handover to the shelter's own wallet keeps counting. While the wallet is
-// null the meter shows the goal but counts nothing.
+// US dollar stablecoins that CAME IN to the campaign wallets (`wallets`, each inside its block range
+// on the campaign chain; USDC, USDC.e and USDG on every other mainnet, never EURC or test coins), as
+// the backend sums them from the chains' Transfer logs (GET /shelter/goal/C-001, shared/shelter-goal.ts):
+// spending never lowers it, and a handover to the shelter's own wallet keeps counting. While the
+// wallet is null the meter shows the goal but counts nothing.
 import { GoalSource, GoalWallet, ShelterGoalView, sourcesFor } from "@/shared-contracts/shelter-goal";
 
 export type { GoalSource, GoalWallet };
@@ -123,12 +124,27 @@ export interface WalletReading {
   nonce: number;
 }
 
+/** One chain's share of the count (the backend's per-chain breakdown). */
+export interface GoalChainShare {
+  chainId: number;
+  /** 18-decimal USD that came in on this chain. */
+  raised: bigint;
+  /** The coins counted there: USDC, USDC.e (Tempo), USDG (Robinhood Chain). */
+  symbols: string[];
+  /** False until the backend has counted this chain's first window. */
+  counted: boolean;
+}
+
 /** What came in, as the meter shows it. */
 export interface GoalCount {
   /** 18-decimal USDC that came in since the start. */
   raised: bigint;
   /** False while the backend is still counting older blocks: the figure is then "at least". */
   exact: boolean;
+  /** Per-chain breakdown from the backend, the campaign chain first; absent for the balance fallback. */
+  chains?: GoalChainShare[];
+  /** True for the balance fallback: only the campaign chain was read, so the figure is "at least". */
+  partial?: boolean;
 }
 
 export interface CampaignProgress {
@@ -140,24 +156,35 @@ export interface CampaignProgress {
   exact: boolean;
   /** What can reach the open wallet today: the only sources the copy may name as counting. */
   sources: GoalSource[];
+  /** Per-chain breakdown ([] when only the campaign chain is known). */
+  chains: GoalChainShare[];
+  /** Only the campaign chain was read (the backend did not answer). */
+  partial: boolean;
 }
 
 /** The backend's count (GET /shelter/goal/C-001); null before its first window (nothing is claimed). */
 export function countFromView(view: ShelterGoalView | null): GoalCount | null {
   if (!view || view.scannedTo === null) return null;
-  return { raised: usdcTo18(view.raised), exact: view.upToDate };
+  const chains = (view.chains ?? []).map((c) => ({
+    chainId: c.chainId,
+    raised: usdcTo18(c.raised),
+    symbols: c.symbols,
+    counted: c.scannedTo !== null,
+  }));
+  return { raised: usdcTo18(view.raised), exact: view.upToDate, ...(chains.length ? { chains } : {}) };
 }
 
 /**
  * The balance fallback, used only while it is exact: one campaign wallet that has never sent a
- * transaction, so its growth since the start is exactly what came in. Anything else (a second
- * wallet after the handover, or a wallet that has spent) proves nothing: null, and the meter says
- * it cannot read the count rather than show a balance that can go down.
+ * transaction, so its growth since the start is exactly what came in on the campaign chain. Anything
+ * else (a second wallet after the handover, or a wallet that has spent) proves nothing: null, and the
+ * meter says it cannot read the count rather than show a balance that can go down. The goal counts
+ * the other chains too, which only the backend reads, so this figure is always "at least".
  */
 export function countFromReading(campaign: Campaign, reading: WalletReading | null): GoalCount | null {
   if (!reading || reading.nonce !== 0 || (campaign.wallets ?? []).length > 1) return null;
   const grown = reading.balance - reading.start;
-  return { raised: grown > BigInt(0) ? grown : BigInt(0), exact: true };
+  return { raised: grown > BigInt(0) ? grown : BigInt(0), exact: false, partial: true };
 }
 
 /** The holder of the wallet money reaches today. */
@@ -184,7 +211,16 @@ export function campaignProgress(
   const raised = counting && count && count.raised > zero ? count.raised : zero;
   const basisPoints = goal > zero ? (raised * BigInt(10000)) / goal : zero;
   const percent = Math.min(100, Number(basisPoints) / 100);
-  return { counting, raised, goal, percent, exact: !count || count.exact, sources };
+  return {
+    counting,
+    raised,
+    goal,
+    percent,
+    exact: !count || count.exact,
+    sources,
+    chains: count?.chains ?? [],
+    partial: !!count?.partial,
+  };
 }
 
 /** "0.02%", "<0.01%" for a sliver above zero, "0%" for nothing, "100%" at the goal. */

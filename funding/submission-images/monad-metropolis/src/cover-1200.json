@@ -1,0 +1,27 @@
+{
+ "w": 1200,
+ "h": 630,
+ "layout": "split",
+ "bg": "temple",
+ "dim": 0.55,
+ "logo": "text",
+ "textWidth": 0.46,
+ "kicker": "Consumer payments for shelters",
+ "title": "Win a heist.<br><em>Feed a shelter cat.</em>",
+ "subtitle": "One tap after a Catnip Heist win sends a small USDC treat to a real cat shelter. No wallet and no gas for the player. Running on testnet now, with every payout public on the chain.",
+ "chips": [
+  {
+   "text": "Testnet receipts · test coins",
+   "tone": "mint"
+  },
+  {
+   "text": "Pink Paw · Rožinė pėdutė",
+   "tone": "pink"
+  }
+ ],
+ "art": "give-crop.png",
+ "artPos": "center top",
+ "art2": "../../_shared/screens/dev-receipt-arc-testnet-390.png",
+ "footer": "tokentails.com/heist",
+ "titleSize": 4.9
+}

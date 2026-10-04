@@ -37,6 +37,24 @@ describe('the shelter goal contract', () => {
         expect(parseShelterGoalView(view({ upToDate: 'yes' }))!.upToDate).toBe(false);
     });
 
+    it('keeps a well-formed per-chain breakdown and drops malformed rows', () => {
+        const v = parseShelterGoalView(
+            view({
+                chains: [
+                    { chainId: 5042, symbols: ['USDC'], raised: '10', scannedTo: 100, head: 100, upToDate: true, transfers: 2 },
+                    { chainId: 4663, symbols: ['USDG', '<b>'], raised: '2.5', scannedTo: null, head: 7, upToDate: false, transfers: 1 },
+                    { chainId: 'x', raised: '1' },
+                    { chainId: 8453, raised: '-1' },
+                ],
+            })
+        )!;
+        expect(v.chains).toEqual([
+            { chainId: 5042, symbols: ['USDC'], raised: '10', scannedTo: 100, head: 100, upToDate: true, transfers: 2 },
+            { chainId: 4663, symbols: ['USDG'], raised: '2.5', scannedTo: null, head: 7, upToDate: false, transfers: 1 },
+        ]);
+        expect(parseShelterGoalView(view())!.chains).toEqual([]);
+    });
+
     it('knows what can reach a wallet without the backend: treats while Token Tails holds it', () => {
         expect(sourcesFor('token-tails')).toEqual(['treats']);
         expect(sourcesFor(undefined)).toEqual(['treats']);

@@ -10,7 +10,7 @@
 //   must never land in a wallet Token Tails controls. Links to the onboarding page instead.
 // - "testnet": the separate "try it live" block for NEXT_PUBLIC_WALLET_DONATE_CHAIN (test coins, no
 //   real money), when that testnet has a wallet path (a router, or a listed ShelterSplit). The giver
-//   can switch to any of the six testnets (giveRails.walletRails).
+//   can switch to any of the seven testnets (giveRails.walletRails).
 // - "hidden": nothing to show.
 import type { Campaign } from "./campaign";
 import { GiveRail, TEMPO_CHAIN_IDS, campaignRails, walletRails } from "./giveRails";
@@ -83,8 +83,8 @@ export const giveAmounts = (mode: GiveMode) => (mode === "testnet" ? ["0.1", "0.
 /** Circle's public faucet hands out test USDC on Arc and the other testnets. */
 export const FAUCET_URL = "https://faucet.circle.com";
 
-/** Testnets Circle's faucet serves (USDC and EURC): Arc, Base Sepolia, Arbitrum Sepolia, Avalanche Fuji. */
-export const CIRCLE_FAUCET_CHAINS = new Set([5042002, 84532, 421614, 43113]);
+/** Testnets Circle's faucet serves: Arc, Base Sepolia, Arbitrum Sepolia, Avalanche Fuji (USDC and EURC), Monad testnet (USDC). */
+export const CIRCLE_FAUCET_CHAINS = new Set([5042002, 84532, 421614, 43113, 10143]);
 export const faucetFor = (chainId: number) => (CIRCLE_FAUCET_CHAINS.has(chainId) ? FAUCET_URL : null);
 
 /**
@@ -101,7 +101,7 @@ export function tryItRouters(routers: RouterEntry[], env: GiveEnv): RouterEntry[
 }
 
 /**
- * The testnets the try-it block can switch between: every one of the six with a wallet path (a router,
+ * The testnets the try-it block can switch between: every one of the seven with a wallet path (a router,
  * or a listed ShelterSplit), in picker order. Empty while the block is hidden (no try chain set).
  */
 export function tryItRails(routers: RouterEntry[], deployments: ShelterDeployment[], env: GiveEnv): GiveRail[] {

@@ -6,10 +6,14 @@ import {
     TRANSFER_TOPIC,
     addressTopic,
     goalCampaign,
+    goalChainLegs,
     goalView,
     inflowFilter,
+    legCursorId,
+    legInflowFilter,
     liveSources,
     sumInflows,
+    sumLegInflows,
     usdcText,
 } from './shelter-goal';
 import { ShelterGoalController } from './shelter-goal.controller';
@@ -372,6 +376,222 @@ describe('ShelterGoalService scan', () => {
         expect(nudges).toBe(2);
         expect(goalScanEnabled({})).toBe(true);
         expect(goalScanEnabled({ SHELTER_GOAL_SCAN: 'OFF' } as never)).toBe(false);
+    });
+});
+
+// ---------- the other chains (USD stablecoins to the same wallets) ----------
+
+const USDG = '0x5fc5360d0400a0fd4f2af552add042d716f1d168';
+const BASE_USDC = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913';
+const BASE_EURC = '0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42';
+
+const tokenTransfer = (token: string, from: string, to: string, base: bigint, block: number) => ({
+    ...transfer(from, to, 0, block),
+    address: token,
+    data: '0x' + base.toString(16),
+});
+
+describe('goalChainLegs: every other mainnet, USD stablecoins only', () => {
+    it('counts C-001 on Tempo, Arbitrum, Avalanche, Base, Robinhood Chain and Monad, never EURC', () => {
+        const legs = goalChainLegs(goalCampaign('C-001')!);
+        expect(legs.map(l => l.chainId).sort((a, b) => a - b)).toEqual([143, 4217, 4663, 8453, 42161, 43114]);
+        const symbols = Object.fromEntries(legs.map(l => [l.chainId, l.tokens.map(t => t.symbol)]));
+        expect(symbols).toMatchObject({ 4217: ['USDC.e'], 4663: ['USDG'], 8453: ['USDC'], 143: ['USDC'] });
+        expect(legs.flatMap(l => l.tokens.map(t => t.address))).not.toContain(BASE_EURC);
+        const monad = legs.find(l => l.chainId === 143)!;
+        expect(monad.tokens[0].address).toBe('0x754704bc059f8c67012fed69bc8a327a5aafb603');
+        expect(monad.window).toBe(100);
+        expect(legs.find(l => l.chainId === 8453)!.window).toBe(2_000);
+        expect(legs[0].startTime).toBe(Date.parse(`${FACTS['C-001'].goal!.startDate}T00:00:00Z`) / 1000);
+    });
+
+    it('counts no other chain for a testnet campaign (no test coins in a real meter) or without a start date', () => {
+        expect(goalChainLegs(campaign({ chainId: 5042002, startDate: '2026-10-02' }))).toEqual([]);
+        expect(goalChainLegs(campaign())).toEqual([]);
+    });
+
+    it('sums what came in on a leg, scaled to 18 decimals, and skips sweeps, other coins and other wallets', () => {
+        const legs = goalChainLegs(rotated2());
+        const rh = legs.find(l => l.chainId === 4663)!;
+        const logs = [
+            tokenTransfer(USDG, DONOR, HELD, BigInt(1_500_000), 10),
+            tokenTransfer(USDG, DONOR, OWN, BigInt(500_000), 11),
+            tokenTransfer(USDG, HELD, OWN, BigInt(9_000_000), 12),
+            tokenTransfer(USDG, DONOR, FOOD, BigInt(9_000_000), 13),
+            tokenTransfer(BASE_EURC, DONOR, HELD, BigInt(9_000_000), 14),
+        ];
+        expect(sumLegInflows(rh, logs, 0, 100)).toEqual({ sum18: BigInt(2) * E18, count: 2 });
+        expect(legInflowFilter(rh, 0, 99)).toMatchObject({ address: [USDG], fromBlock: '0x0', toBlock: '0x63' });
+        expect(legInflowFilter(rh, 0, 99).topics[2]).toEqual([addressTopic(HELD), addressTopic(OWN)]);
+    });
+
+    it('adds every chain into the view, with a breakdown, and says "at least" until all are counted', () => {
+        const c = campaign({ startDate: '2026-10-02' });
+        const legs = goalChainLegs(c);
+        const base = legs.find(l => l.chainId === 8453)!;
+        const cursor = (configKey: string, usdc: number, last: number | null) => ({
+            configKey,
+            lastScannedBlock: last,
+            raised18: (BigInt(usdc) * E18).toString(),
+            transfers: 1,
+            head: 1000,
+            lastSuccessAt: new Date('2026-10-04T10:00:00Z'),
+        });
+        const v = goalView(c, cursor(c.configKey, 3, 1000), { splitOnChain: false }, [
+            { leg: base, cursor: cursor(base.configKey, 2, 1000) },
+            ...legs.filter(l => l !== base).map(leg => ({ leg, cursor: null })),
+        ]);
+        expect(v.raised).toBe('5');
+        expect(v.transfers).toBe(2);
+        expect(v.upToDate).toBe(false);
+        expect(v.chains[0]).toMatchObject({ chainId: 5042, symbols: ['USDC'], raised: '3', upToDate: true });
+        expect(v.chains.find(x => x.chainId === 8453)).toMatchObject({
+            raised: '2',
+            upToDate: true,
+            symbols: ['USDC'],
+        });
+        expect(v.chains.find(x => x.chainId === 4663)).toMatchObject({ raised: '0', scannedTo: null });
+        const all = goalView(c, cursor(c.configKey, 3, 1000), { splitOnChain: false }, [
+            ...legs.map(leg => ({ leg, cursor: cursor(leg.configKey, 1, 1000) })),
+        ]);
+        expect([all.raised, all.upToDate]).toEqual(['9', true]);
+        // A leg's cursor for another wallet set adds nothing.
+        expect(
+            goalView(c, cursor(c.configKey, 3, 1000), { splitOnChain: false }, [
+                { leg: base, cursor: cursor('old', 50, 1000) },
+            ]).raised
+        ).toBe('3');
+    });
+});
+
+function rotated2(): GoalCampaign {
+    return { ...rotated(), startDate: '2026-10-02' };
+}
+
+describe('ShelterGoalService: chain legs', () => {
+    /** Every leg's RPC answers from one fake: block n has timestamp n * 10; logs per chain id. */
+    function multiChain(logsByChain: Record<number, Doc[]>, head: number) {
+        const calls: { url: string; method: string; params: any[] }[] = [];
+        const rpc = async (url: string, method: string, params: any[]) => {
+            calls.push({ url, method, params });
+            const chainId = Number(url.split('/').pop());
+            if (method === 'eth_blockNumber') return '0x' + head.toString(16);
+            if (method === 'eth_getBlockByNumber')
+                return { timestamp: '0x' + (parseInt(params[0], 16) * 10).toString(16) };
+            if (method !== 'eth_getLogs') throw new Error('unexpected ' + method);
+            const f = params[0];
+            const from = parseInt(f.fromBlock, 16);
+            const to = parseInt(f.toBlock, 16);
+            const want = new Set(f.topics[2]);
+            const tokens = Array.isArray(f.address) ? f.address : [f.address];
+            return (logsByChain[chainId] || []).filter(l => {
+                const b = parseInt(l.blockNumber, 16);
+                return b >= from && b <= to && want.has(l.topics[2]) && tokens.includes(l.address);
+            });
+        };
+        return { rpc, calls };
+    }
+
+    it("finds each leg's first block from the start date, counts its stablecoins, and adds them to the view", async () => {
+        const c = { ...campaign(), startDate: '1970-01-01' };
+        const env: NodeJS.ProcessEnv = { SHELTER_GOAL_RPC_URL: 'http://rpc/5042' };
+        for (const l of goalChainLegs(c)) env[`SHELTER_GOAL_RPC_URL_${l.chainId}`] = `http://rpc/${l.chainId}`;
+        const chain = multiChain(
+            {
+                5042: [transfer(DONOR, HELD, 1, 150)],
+                4663: [
+                    tokenTransfer(USDG, DONOR, HELD, BigInt(2_000_000), 3),
+                    tokenTransfer(USDG, DONOR, HELD, BigInt(2_000_000), 250),
+                ],
+                8453: [
+                    tokenTransfer(BASE_USDC, DONOR, HELD, BigInt(500_000), 120),
+                    tokenTransfer(BASE_EURC, DONOR, HELD, BigInt(9_000_000), 120),
+                ],
+            },
+            300
+        );
+        const { s, model } = service();
+        s.rpc = chain.rpc;
+        const first = await s.firstBlockAtOrAfter('http://rpc/4663', 40);
+        expect(first).toBe(4);
+        expect(await s.firstBlockAtOrAfter('http://rpc/4663', 99_999)).toBe(301);
+
+        // The scan uses the campaign's own start date: 1970-01-01T00:00:00Z is block 0 here.
+        const res = await s.advance('C-001', { env, campaign: c });
+        expect(res.state).toBe('scanned');
+        expect(
+            Object.keys(res.legs || {})
+                .map(Number)
+                .sort((a, b) => a - b)
+        ).toEqual([143, 4217, 4663, 8453, 42161, 43114]);
+        expect(model.docs.get(legCursorId('C-001', 4663))).toMatchObject({ startBlock: 0, lastScannedBlock: 300 });
+        expect(model.docs.get(legCursorId('C-001', 4663))!.raised18).toBe((BigInt(4) * E18).toString());
+        expect(model.docs.get(legCursorId('C-001', 8453))!.raised18).toBe((E18 / BigInt(2)).toString());
+        // Monad's RPC takes 100-block windows: 0..300 is four of them.
+        const monadLogs = chain.calls.filter(x => x.url.endsWith('/143') && x.method === 'eth_getLogs');
+        expect(monadLogs.length).toBe(4);
+        expect(
+            monadLogs.every(x => parseInt(x.params[0].toBlock, 16) - parseInt(x.params[0].fromBlock, 16) < 100)
+        ).toBe(true);
+    });
+
+    it('a leg whose RPC fails never stops the campaign chain, and SHELTER_GOAL_CHAINS=off counts one chain', async () => {
+        const c = { ...campaign(), startDate: '1970-01-01' };
+        const env: NodeJS.ProcessEnv = { SHELTER_GOAL_RPC_URL: 'http://rpc/5042' };
+        for (const l of goalChainLegs(c)) env[`SHELTER_GOAL_RPC_URL_${l.chainId}`] = `http://rpc/${l.chainId}`;
+        const chain = multiChain({ 5042: [transfer(DONOR, HELD, 1, 150)] }, 300);
+        const { s, model } = service();
+        s.rpc = async (url, method, params) => {
+            if (url.endsWith('/4663')) throw Object.assign(new Error('down'), { code: 'HTTP_503' });
+            return chain.rpc(url, method, params);
+        };
+        const res = await s.advance('C-001', { env, campaign: c });
+        expect(res).toMatchObject({ state: 'scanned', scannedTo: 300 });
+        expect(res.legs![4663]).toMatchObject({ state: 'error' });
+        expect(model.docs.get(legCursorId('C-001', 4663))).toMatchObject({
+            lastError: 'HTTP_503',
+            lastScannedBlock: null,
+        });
+        expect(model.docs.get('C-001')!.raised18).toBe(E18.toString());
+
+        const one = service();
+        one.s.rpc = chain.rpc;
+        const off = await one.s.advance('C-001', { env: { ...env, SHELTER_GOAL_CHAINS: 'off' }, campaign: c });
+        expect(off.legs).toBeUndefined();
+        expect([...one.model.docs.keys()]).toEqual(['C-001']);
+    });
+
+    it('serves the per-chain breakdown for C-001 from the leg cursors', async () => {
+        const { s, model } = service();
+        s.advance = (async () => ({ state: 'scanned' })) as never;
+        const c = goalCampaign('C-001')!;
+        const rh = goalChainLegs(c).find(l => l.chainId === 4663)!;
+        model.docs.set('C-001', {
+            _id: 'C-001',
+            configKey: c.configKey,
+            lastScannedBlock: 10,
+            raised18: E18.toString(),
+            transfers: 1,
+            head: 10,
+            lastSuccessAt: new Date('2026-10-04T10:00:00Z'),
+        });
+        model.docs.set(legCursorId('C-001', 4663), {
+            _id: legCursorId('C-001', 4663),
+            configKey: rh.configKey,
+            lastScannedBlock: 10,
+            raised18: (BigInt(2) * E18).toString(),
+            transfers: 1,
+            head: 10,
+            startBlock: 1,
+            lastSuccessAt: new Date('2026-10-04T10:00:00Z'),
+        });
+        const v = await s.view('C-001', 1_000_000, ENV);
+        expect(v.raised).toBe('3');
+        expect(v.chains.map(x => x.chainId)[0]).toBe(5042);
+        expect(v.chains.find(x => x.chainId === 4663)).toMatchObject({ raised: '2', symbols: ['USDG'] });
+        expect(v.upToDate).toBe(false);
+        const single = await s.view('C-001', 9_000_000, { ...ENV, SHELTER_GOAL_CHAINS: 'off' } as never);
+        expect([single.raised, single.chains.length, single.upToDate]).toEqual(['1', 1, true]);
     });
 });
 

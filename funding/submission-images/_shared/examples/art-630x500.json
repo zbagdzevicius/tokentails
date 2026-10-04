@@ -1,0 +1,3 @@
+{ "w": 630, "h": 500, "layout": "art", "art": "../assets/heist-stills/title-clean.jpg", "artPos": "center",
+  "logo": "none", "kicker": "Token Tails", "title": "Catnip <em>Heist</em>",
+  "subtitle": "Sneak past the guard dogs. Free the shelter cat.", "css": "#title{font-family:'Cat Paw';text-transform:none}" }

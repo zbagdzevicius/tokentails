@@ -1,0 +1,29 @@
+{
+ "w": 1200,
+ "h": 630,
+ "layout": "split",
+ "bg": "temple",
+ "dim": 0.55,
+ "logo": "text",
+ "kicker": "ShelterSplit on Avalanche",
+ "title": "Cat rescue games.<br><em>Shelter payouts you can check.</em>",
+ "subtitle": "A USDC and EURC payout rail for animal shelters. Every payout is public on the chain.",
+ "chips": [
+  {
+   "text": "Live on Avalanche Fuji testnet",
+   "tone": "mint"
+  },
+  {
+   "text": "C-Chain mainnet next",
+   "tone": "gold"
+  },
+  {
+   "text": "Pink Paw · Rožinė pėdutė",
+   "tone": "pink"
+  }
+ ],
+ "art": "screens/receipt-fuji-usdc-crop.png",
+ "artPos": "center top",
+ "footer": "tokentails.com/shelter-payouts",
+ "artAspect": "1640/1425"
+}

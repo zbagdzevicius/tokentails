@@ -40,11 +40,13 @@ export const CHAIN_ROLES: Record<string, string> = {
   avalanche: "Avalanche C-Chain. Native AVAX gifts are split too.",
   base: "Coinbase's Ethereum rollup. Native ETH gifts are split too.",
   robinhood: "Pays USDG on mainnet. The testnet has no stablecoin, so it uses a test coin (mUSDC).",
+  monad: "A fast EVM chain with Circle's own USDC. Native MON gifts are split too.",
 };
 
 const ROLE_BY_CHAIN_ID: Record<number, string> = {
   5042: "arc", 5042002: "arc", 4217: "tempo", 42431: "tempo", 42161: "arbitrum", 421614: "arbitrum",
   43114: "avalanche", 43113: "avalanche", 8453: "base", 84532: "base", 4663: "robinhood", 46630: "robinhood",
+  143: "monad", 10143: "monad",
 };
 
 /** The role line for a chain id, or null for chains without one. */
@@ -75,8 +77,11 @@ export const SHELTER_CHAINS: Record<number, ChainInfo> = {
   4663: { name: "Robinhood Chain", rpc: "https://rpc.mainnet.chain.robinhood.com", explorer: "https://robinhoodchain.blockscout.com", decimals: 6, symbol: "USDG", nativeDecimals: 18, nativeSymbol: "ETH" },
   // Testnet has no stablecoin: the wave deploys a test MockUSDC (symbol mUSDC), so it never sums with USDC or USDG.
   46630: { name: "Robinhood Chain Testnet", testnet: true, rpc: "https://rpc.testnet.chain.robinhood.com", explorer: "https://explorer.testnet.chain.robinhood.com", decimals: 6, symbol: "mUSDC", nativeDecimals: 18, nativeSymbol: "ETH" },
-  // Monad (Metropolis entry): chainId and explorer from chains.json; recheck the RPC with the deploy.
-  143: { name: "Monad", rpc: "https://rpc.monad.xyz", explorer: "https://monadvision.com", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "MON" },
+  // Monad: rpc.monad.xyz and testnet-rpc.monad.xyz cap eth_getLogs at 100 blocks (below MIN_LOG_WINDOW),
+  // so the log scan reads a keyless endpoint that takes wide ranges: rpc1.monad.xyz on mainnet (1,000,000
+  // blocks in one call), OnFinality's public testnet endpoint (10,000-block windows). Checked 2026-10-04.
+  143: { name: "Monad", rpc: "https://rpc.monad.xyz", logRpc: "https://rpc1.monad.xyz", explorer: "https://monadvision.com", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "MON" },
+  10143: { name: "Monad Testnet", testnet: true, rpc: "https://testnet-rpc.monad.xyz", logRpc: "https://monad-testnet.api.onfinality.io/public", maxLogRange: 10_000, explorer: "https://testnet.monadvision.com", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "MON" },
   31612: { name: "Mezo", rpc: "https://mezo.drpc.org", explorer: "https://explorer.mezo.org", decimals: 18, symbol: "MUSD", nativeDecimals: 18, nativeSymbol: "BTC" },
   31611: { name: "Mezo Testnet", testnet: true, rpc: "https://rpc.test.mezo.org", explorer: "https://explorer.test.mezo.org", decimals: 18, symbol: "MUSD", nativeDecimals: 18, nativeSymbol: "BTC" },
 };

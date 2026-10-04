@@ -11,6 +11,8 @@ const MAINNET_RPCS = {
     CRYPTO_PAY_RPC_8453: 'http://base.example',
     CRYPTO_PAY_RPC_42161: 'http://arbitrum.example',
     CRYPTO_PAY_RPC_43114: 'http://avalanche.example',
+    CRYPTO_PAY_RPC_4663: 'http://robinhood.example',
+    CRYPTO_PAY_RPC_143: 'http://monad.example',
 };
 
 describe('readCryptoPayConfig', () => {
@@ -27,13 +29,17 @@ describe('readCryptoPayConfig', () => {
 
     it('offers every mainnet with no RPC env at all (official RPCs are checked in)', () => {
         const cfg = readCryptoPayConfig({ NODE_ENV: 'production', CRYPTO_PAY_TREASURY: TREASURY });
-        expect(cfg.chains.map(c => c.chain.chainId).sort((a, b) => a - b)).toEqual([4217, 5042, 8453, 42161, 43114]);
+        expect(cfg.chains.map(c => c.chain.chainId).sort((a, b) => a - b)).toEqual([
+            143, 4217, 4663, 5042, 8453, 42161, 43114,
+        ]);
         expect(cfg.chains.every(c => c.rpcUrl.startsWith('https://'))).toBe(true);
     });
 
     it('lists mainnets in production and testnets otherwise, never both', () => {
         const main = readCryptoPayConfig({ NODE_ENV: 'production', CRYPTO_PAY_TREASURY: TREASURY, ...MAINNET_RPCS });
-        expect(main.chains.map(c => c.chain.chainId).sort((a, b) => a - b)).toEqual([4217, 5042, 8453, 42161, 43114]);
+        expect(main.chains.map(c => c.chain.chainId).sort((a, b) => a - b)).toEqual([
+            143, 4217, 4663, 5042, 8453, 42161, 43114,
+        ]);
         const test = readCryptoPayConfig({ NODE_ENV: 'development', CRYPTO_PAY_TREASURY: TREASURY });
         expect(test.network).toBe('testnet');
         expect(test.chains.length).toBeGreaterThan(0);
@@ -98,6 +104,27 @@ describe('readCryptoPayConfig', () => {
             ...MAINNET_RPCS,
         });
         expect(extra.chains.every(c => c.treasury === null)).toBe(true);
+    });
+
+    it('offers the Robinhood testnet mock token (mUSDC) only on that testnet, and never in production', () => {
+        const test = readCryptoPayConfig({ NODE_ENV: 'development', CRYPTO_PAY_TREASURY: TREASURY });
+        const robinhood = test.chains.find(c => c.chain.chainId === 46630)!;
+        expect(robinhood.tokens.map(t => [t.symbol, t.testOnly])).toEqual([['mUSDC', true]]);
+        expect(test.chains.find(c => c.chain.chainId === 10143)!.tokens.map(t => t.symbol)).toEqual(['USDC']);
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const prodTestnet = readCryptoPayConfig({
+            NODE_ENV: 'production',
+            CRYPTO_PAY_NETWORK: 'testnet',
+            CRYPTO_PAY_ALLOW_TESTNET_IN_PROD: 'true',
+            CRYPTO_PAY_TREASURY: TREASURY,
+        });
+        jest.restoreAllMocks();
+        expect(prodTestnet.chains.some(c => c.chain.chainId === 46630)).toBe(false);
+        expect(prodTestnet.chains.some(c => c.chain.chainId === 10143)).toBe(true);
+        // Robinhood mainnet takes real USDG, priced as a US dollar.
+        const main = readCryptoPayConfig({ NODE_ENV: 'production', CRYPTO_PAY_TREASURY: TREASURY });
+        const usdg = main.chains.find(c => c.chain.chainId === 4663)!.tokens;
+        expect(usdg.map(t => [t.token, t.symbol, t.decimals, !!t.testOnly])).toEqual([['USDC', 'USDG', 6, false]]);
     });
 
     it('adds the local anvil chain only in testnet mode and only with its token addresses', () => {

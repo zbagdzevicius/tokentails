@@ -17,4 +17,6 @@ export const TREASURY_ADDRESSES: Readonly<Record<number, string | null>> = {
     42161: null,
     43114: null,
     4217: null,
+    4663: null,
+    143: null,
 };

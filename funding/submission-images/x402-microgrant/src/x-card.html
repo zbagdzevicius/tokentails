@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../_shared/brand.css">
+<!-- X post card. Designed at 1600x900; every size is in rem (1rem = width/160), so 1200x675 renders the same layout. -->
+<style>
+  html { font-size: calc(100vw / 160); }
+  body { background: var(--night-900); position: relative; }
+  #bg { position: absolute; inset: 0; background: url(../../_shared/assets/hero-grounds.webp) center 70%/cover, url(../../_shared/assets/hero-bg.webp) center/cover; }
+  #scrim { position: absolute; inset: 0; background:
+    linear-gradient(90deg, rgba(7,5,26,.93) 0%, rgba(7,5,26,.82) 46%, rgba(7,5,26,.45) 72%, rgba(7,5,26,.62) 100%); }
+  #stage { position: absolute; inset: 0; display: grid; grid-template-columns: 76rem 1fr; gap: 4rem; padding: 4.6rem 6rem 9rem; }
+  .left { display: flex; flex-direction: column; justify-content: center; gap: 2.6rem; }
+  .logo { height: 12rem; align-self: flex-start; margin-bottom: .4rem; }
+  .chips { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 1.9rem; }
+  h1 { font-size: 8.6rem; }
+  h1 em { font-style: normal; display: block; margin-top: .6rem; }
+  p.sub { font-size: 2.75rem; line-height: 1.36; font-weight: 600; max-width: 30em; text-shadow: 0 2px 6px rgba(0,0,0,.6); }
+  p.sub b { color: var(--gold-400); font-weight: 800; }
+  .right { position: relative; }
+  .term { position: absolute; left: 0; right: 0; top: 4rem; padding: 2.6rem 2.8rem 2.8rem; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 2.05rem; line-height: 1.5; color: var(--cream); }
+  .term .bar { display: flex; gap: .8rem; margin-bottom: 1.8rem; }
+  .term .bar i { width: 1.3rem; height: 1.3rem; border-radius: 50%; background: var(--night-500); display: block; }
+  .term .bar span { margin-left: auto; font-family: "Passion One"; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: 1.7rem; color: var(--muted); }
+  .term .row { white-space: nowrap; }
+  .term .gap { height: 1.3rem; }
+  .k { color: var(--muted); }
+  .get { color: var(--sky); font-weight: 700; }
+  .s402 { color: var(--pink); font-weight: 700; }
+  .s200 { color: var(--mint); font-weight: 700; }
+  .pay { color: var(--gold-400); font-weight: 700; }
+  .card { position: absolute; right: 0rem; bottom: -3.5rem; width: 25rem; transform: rotate(4deg); background: #fff8e4; border-radius: 1.8rem;
+    padding: 1.1rem 1.1rem 1.4rem; box-shadow: 0 2rem 5rem rgba(0,0,0,.6), 0 0 0 .5rem var(--gold-500); color: var(--gold-ink); text-align: center; }
+  .card img { width: 100%; aspect-ratio: 216/322; display: block; border-radius: 1.1rem; object-fit: cover; }
+  .card b { display: block; font-family: "Passion One"; font-weight: 700; font-size: 3.4rem; text-transform: uppercase; line-height: 1; margin-top: 1rem; }
+  .card small { display: block; font-weight: 800; font-size: 1.6rem; color: #b8456b; margin-top: .3rem; }
+  .tag { position: absolute; right: 20.5rem; bottom: 9rem; font-family: "Passion One"; font-weight: 700; text-transform: uppercase; font-size: 1.8rem; letter-spacing: .05em;
+    color: var(--gold-ink); background: var(--gold-400); border-radius: 1rem; padding: .4rem 1.2rem; box-shadow: 0 .4rem 0 var(--gold-shadow); transform: rotate(-3deg); }
+  .foot { position: absolute; left: 6rem; right: 6rem; bottom: 3.6rem; display: flex; justify-content: space-between; align-items: center;
+    font-family: "Passion One"; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 2.2rem; color: var(--gold-400); text-shadow: 0 2px 4px rgba(0,0,0,.6); }
+  .foot span:last-child { color: var(--cream); opacity: .85; }
+</style>
+</head>
+<body>
+<div id="bg"></div><div id="scrim"></div>
+<div id="stage">
+  <div class="left">
+    <img class="logo" src="../../_shared/assets/logo-text.webp" alt="">
+    <div class="chips"><span class="tt-chip">Standard x402 · exact scheme</span><span class="tt-chip pink">Pink Paw · Rožinė pėdutė</span></div>
+    <h1 class="tt-title">An AI agent buys<br>a shelter cat card.<em class="tt-glow">The USDC goes to the shelter.</em></h1>
+    <p class="sub">Ask, get a 402, retry with payment. The agent signs one USDC transfer to the <b>shelter's own wallet</b>; a facilitator settles it. Token Tails never holds the money.</p>
+  </div>
+  <div class="right">
+    <div class="term tt-panel">
+      <div class="bar"><i></i><i></i><i></i><span>agent</span></div>
+      <div class="row"><span class="get">GET</span> /shelter/agent/cat-card</div>
+      <div class="row"><span class="s402">402</span> Payment Required</div>
+      <div class="row k">&nbsp;&nbsp;scheme: exact · asset: USDC</div>
+      <div class="row k">&nbsp;&nbsp;payTo: the shelter's wallet</div>
+      <div class="gap"></div>
+      <div class="row"><span class="pay">X-PAYMENT</span> signed EIP-3009</div>
+      <div class="row k">&nbsp;&nbsp;facilitator settles, pays gas</div>
+      <div class="gap"></div>
+      <div class="row"><span class="s200">200</span> OK · cat card</div>
+    </div>
+    <div class="card"><img src="../../_shared/assets/pink-paw-cats/raudvis-card.webp" alt=""><b>Raudvis</b><small>Pink Paw</small></div>
+  </div>
+</div>
+<div class="foot"><span>tokentails.com · open source (MIT)</span></div>
+</body>
+</html>

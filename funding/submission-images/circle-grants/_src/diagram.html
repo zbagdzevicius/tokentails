@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../_shared/brand.css">
+<style>
+  body { width: 1920px; height: 1080px; background: var(--night-900) url("../../_shared/assets/card-bg.webp") center/cover; position: relative; }
+  body::before { content: ""; position: absolute; inset: 0; background: rgba(7,5,26,.62); }
+  .wrap { position: absolute; inset: 0; padding: 64px 80px 56px; display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 28px; }
+  header img { height: 96px; }
+  .kick { font-size: 26px; }
+  h1 { font-size: 78px; margin-top: 10px; }
+  .lede { font-size: 27px; font-weight: 600; margin-top: 12px; max-width: 1500px; line-height: 1.35; }
+
+  .actors { display: grid; grid-template-columns: repeat(4, 1fr); gap: 36px; margin-top: 44px; }
+  .actor { display: flex; align-items: center; gap: 14px; font-family: "Passion One"; font-weight: 700; text-transform: uppercase;
+    font-size: 28px; letter-spacing: .02em; color: var(--gold-400); white-space: nowrap; }
+  .actor .to { color: var(--cream); }
+  .actor .ic { width: 64px; height: 64px; border-radius: 50%; border: 3px solid var(--gold-500); background: rgba(7,5,26,.8);
+    display: grid; place-items: center; overflow: hidden; flex: none; font-size: 30px; color: var(--cream); }
+  .actor .ic img { width: 100%; height: 100%; object-fit: cover; }
+  .actor .ic.cat img { image-rendering: pixelated; object-position: center 70%; }
+
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 36px; margin-top: 18px; flex: 1; position: relative; }
+  .step { position: relative; border: 4px solid var(--gold-500); border-radius: 22px; background: rgba(7,5,26,.86);
+    padding: 30px 30px 28px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 18px 50px rgba(0,0,0,.5); }
+  .step.hl { border-color: var(--gold-400); box-shadow: 0 0 0 2px rgba(255,204,85,.35), 0 0 46px rgba(255,204,85,.28); }
+  .num { position: absolute; top: -26px; left: 26px; width: 52px; height: 52px; border-radius: 50%; background: var(--gold-400);
+    color: var(--gold-ink); font-family: "Passion One"; font-weight: 900; font-size: 34px; display: grid; place-items: center;
+    box-shadow: 0 4px 0 var(--gold-shadow); }
+  .step h2 { font-family: "Passion One"; font-weight: 700; text-transform: uppercase; font-size: 40px; line-height: .98; color: #fff; margin-top: 8px; }
+  .step p { font-size: 23px; line-height: 1.4; font-weight: 600; color: var(--cream); }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .88em; color: var(--gold-400);
+    background: rgba(255,204,85,.1); border: 1px solid rgba(226,192,90,.45); border-radius: 8px; padding: 1px 8px; white-space: nowrap; }
+  .arrow { position: absolute; top: 50%; right: -36px; width: 36px; height: 40px; transform: translateY(-50%); z-index: 2;
+    display: grid; place-items: center; }
+  .arrow svg { width: 40px; height: 40px; overflow: visible; }
+  .split { display: flex; flex-direction: column; gap: 10px; margin-top: auto; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-radius: 14px; padding: 10px 16px;
+    font-family: "Passion One"; font-weight: 700; text-transform: uppercase; font-size: 24px; letter-spacing: .02em; }
+  .row.sh { border: 3px solid var(--pink); color: var(--pink); background: rgba(255,122,162,.08); }
+  .row.tr { border: 3px solid var(--muted); color: var(--lilac); background: rgba(154,136,201,.08); }
+  .row img { width: 40px; height: 40px; border-radius: 50%; background: #fff; }
+  .alt { font-size: 20px !important; color: var(--muted) !important; font-weight: 600; }
+
+  footer { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 40px; font-size: 22px; }
+  footer .tt-chip { padding: .4em 1em; }
+  .tt-chip.gold { border-color: var(--gold-400); color: var(--gold-400); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="../../_shared/assets/logo-text.webp" alt="">
+    <div>
+      <span class="tt-chip kick">Agentic payments on Arc · x402</span>
+      <div class="tt-title" style="font-size:78px;margin-top:12px">An AI agent pays <span class="tt-glow">an animal shelter</span></div>
+    </div>
+  </header>
+  <div class="lede">Two HTTP requests, one payment, one public split. The agent needs no bank donation flow: it pays USDC on Arc, and ShelterSplit pays the shelter in the same transaction.</div>
+
+  <div class="actors">
+    <div class="actor"><div class="ic">AI</div>Agent <span class="to">→</span> Token Tails API</div>
+    <div class="actor"><div class="ic">AI</div>Agent <span class="to">→</span> Arc</div>
+    <div class="actor"><div class="ic" style="font-size:26px">$</div>ShelterSplit contract</div>
+    <div class="actor"><div class="ic cat"><img src="../../_shared/assets/cat-logo-1024.png" alt=""></div>API <span class="to">→</span> Agent</div>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="num">1</div>
+      <h2>Ask for a shelter cat card</h2>
+      <p><code>GET /shelter/agent/cat-card</code></p>
+      <p>The API answers <b>402 Payment Required</b>: a price in USDC, the ShelterSplit address to pay, and a one-time memo that expires in 10 minutes.</p>
+      <div class="arrow"><svg viewBox="0 0 40 40"><path d="M4 20h28M22 9l12 11-12 11" fill="none" stroke="#ffcc55" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="step">
+      <div class="num">2</div>
+      <h2>Pay in USDC on Arc</h2>
+      <p>The agent calls <code>donate(memo)</code> with USDC, Arc's native gas coin, so it needs no other token.</p>
+      <p class="alt">Standard x402 clients can pay with the <code>exact</code> scheme through a facilitator instead.</p>
+      <div class="arrow"><svg viewBox="0 0 40 40"><path d="M4 20h28M22 9l12 11-12 11" fill="none" stroke="#ffcc55" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="step hl">
+      <div class="num">3</div>
+      <h2>Split in the same transaction</h2>
+      <p>One public <code>NativeDisbursed</code> event per shelter, carrying the memo. The contract keeps no balance.</p>
+      <div class="split">
+        <div class="row sh"><span>Shelter share<br><small style="font-size:19px">Pink Paw · Rožinė pėdutė</small></span><img src="../../_shared/assets/pink-paw-logo.webp" alt="" style="width:56px;height:56px"></div>
+        <div class="row tr"><span>Rest</span><span>Treasury</span></div>
+      </div>
+      <div class="arrow"><svg viewBox="0 0 40 40"><path d="M4 20h28M22 9l12 11-12 11" fill="none" stroke="#ffcc55" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="step">
+      <div class="num">4</div>
+      <h2>Retry with the receipt</h2>
+      <p>The agent sends the transaction hash in <code>X-PAYMENT</code>. The API reads the receipt from Arc, checks the memo, and accepts each nonce and transaction once.</p>
+      <p>It returns the card: the cat's name, portrait and shelter.</p>
+    </div>
+  </div>
+
+  <footer>
+    <span class="tt-chip mint">ShelterSplit on Arc testnet · 14 test payouts</span>
+    <span class="tt-chip gold">Agent endpoint built and tested · not public yet</span>
+    <span class="tt-chip pink">Shelter wallet held by Token Tails until handover</span>
+  </footer>
+</div>
+</body>
+</html>

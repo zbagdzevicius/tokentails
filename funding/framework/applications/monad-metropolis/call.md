@@ -5,7 +5,7 @@ status: researching
 frame: payout-rail
 deadline: 2026-10-13
 url: "https://monad.xyz/developers/hackathons/metropolis"
-next: Log in at hackathon.monad.xyz to confirm the year, the deadline time zone, the rules (mainnet or testnet, excluded countries, KYC) and the prize currency; then deploy ShelterSplit on Monad and reuse the Colosseum write-up
+next: Log in at hackathon.monad.xyz to confirm the year, the deadline time zone, the rules (mainnet or testnet, excluded countries, KYC) and the prize currency. ShelterSplit and DonateRouter are live on Monad testnet (10143, Oct 4); if the rules need mainnet, deploy Monad 143 in the mainnet wave, then fund fill monad-metropolis --write
 created: 2026-09-30
 profile: monad-metropolis
 chain: monad
@@ -43,3 +43,9 @@ Not stated on the public page.
 - New work only: "what you show on 13 Oct should have been built during the six weeks" (build window 1 Sep to 13 Oct; year not shown on the page).
 - Required: working product with a public project profile, demo video, short written description, code link.
 - Country restrictions are in the official rules behind the login. UNVERIFIED: mainnet vs testnet, KYC, deadline time zone.
+
+## Chain facts (checked on-chain 2026-10-04, see tracks/a-build/chains.json)
+
+- Monad mainnet: chain 143, Circle USDC 0x754704Bc059F8C67012fEd69BC8A327a5aafb603 (6 decimals), gas MON, explorer https://monadvision.com. No deployment yet (mainnet wave).
+- Monad testnet: chain 10143, Circle USDC 0x534b2f3A21130d7a60830c2Df862319e593943A3 (6 decimals, EIP-712 version "2", EIP-3009), explorer https://testnet.monadvision.com.
+- Testnet proof: ShelterSplit 0x457c89e10a6e66633eda5bf82fd086febb5db147 (Sourcify verified) and DonateRouter 0xe271131be71e29f83084fd34aa6c70d50a2aea71 (Sourcify verified); 1 USDC proof payout, 0.01 MON native gift and a one-signature 0.1 USDC router gift, all paid to Pink Paw (tx hashes in deployments.json and router-deployments.json).

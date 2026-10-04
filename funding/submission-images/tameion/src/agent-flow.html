@@ -1,0 +1,115 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="common.css">
+<style>
+  .stage { gap: 26px; padding: 54px 64px 44px; }
+  .head { display: flex; align-items: flex-start; justify-content: space-between; }
+  .head h1 { font-size: 64px; }
+  .head .sub { font-size: 25px; margin-top: 14px; max-width: 1150px; }
+  .lockup { height: 110px; margin-top: -8px; }
+  .flow { display: grid; grid-template-columns: minmax(0,1fr) 64px minmax(0,1fr) 64px minmax(0,1fr) 64px minmax(0,1fr); align-items: stretch; flex: 1; min-height: 0; }
+  .box { border: 4px solid var(--gold-500); border-radius: 22px; background: rgba(7,5,26,.86); padding: 24px 24px 22px;
+    box-shadow: 0 18px 46px rgba(0,0,0,.55); display: flex; flex-direction: column; gap: 12px; position: relative; }
+  .box.chain { border-color: var(--mint); }
+  .num { display: flex; align-items: center; gap: 12px; }
+  .num i { font-style: normal; width: 46px; height: 46px; border-radius: 50%; background: var(--gold-400); color: var(--gold-ink);
+    font-family: "Passion One"; font-weight: 900; font-size: 30px; display: grid; place-items: center; box-shadow: 0 4px 0 var(--gold-shadow); flex: none; }
+  .num h2 { font-family: "Passion One"; font-weight: 700; text-transform: uppercase; font-size: 44px; color: #fff; letter-spacing: .02em; line-height: 1; }
+  .who { font-family: "Passion One"; font-weight: 700; text-transform: uppercase; font-size: 20px; letter-spacing: .06em; color: var(--muted); }
+  .box p, .box li { font-size: 24px; line-height: 1.38; font-weight: 600; color: var(--cream); }
+  .box ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .box li::before { content: "✓ "; color: var(--mint); font-weight: 900; }
+  .http { font-family: "SF Mono", Menlo, monospace; font-size: 18.5px; overflow: hidden; line-height: 1.5; background: rgba(0,0,0,.45); border: 2px solid rgba(226,192,90,.35);
+    border-radius: 12px; padding: 12px 14px; color: var(--cream); white-space: pre; }
+  .http .k { color: var(--gold-400); } .http .s { color: var(--pink); font-weight: 700; } .http .ok { color: var(--mint); font-weight: 700; } .http .c { color: var(--muted); }
+  .arrow { display: flex; align-items: center; justify-content: center; color: var(--gold-400); font-size: 54px; text-shadow: 0 0 18px rgba(255,204,85,.6); }
+  .card { display: flex; gap: 16px; align-items: center; margin-top: auto; }
+  .card img { width: 150px; border: 3px solid var(--gold-500); border-radius: 10px; }
+  .card .http { font-size: 18px; flex: 1; }
+  .split { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+  .row { display: flex; align-items: center; gap: 14px; font-size: 22px; line-height: 1.15; font-weight: 700; }
+  .row img { width: 56px; height: 56px; border-radius: 50%; background: #fff; }
+  .bar { height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--mint), #b8f0a8); flex: 1; }
+  .bottom { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+  .bottom .chips { font-size: 19px; flex-wrap: nowrap; }
+  .bottom .note { font-size: 19px; text-align: right; }
+</style></head>
+<body>
+<div class="bg space"></div><div class="shade"></div>
+<div class="stage">
+  <div class="head">
+    <div>
+      <h1 class="tt-title">An agent pays a shelter. <em class="tt-glow" style="font-style:normal">It gets a cat card back.</em></h1>
+      <p class="sub">x402-style flow on <b>/shelter/agent/cat-card</b>. No human in the loop, no facilitator: the server checks the payment against the chain itself.</p>
+    </div>
+    <img class="lockup" src="../../_shared/assets/logo-text.webp">
+  </div>
+
+  <div class="flow">
+    <div class="box">
+      <div class="num"><i>1</i><h2>Ask</h2></div>
+      <div class="who">Agent → Token Tails API</div>
+      <div class="http"><span class="k">GET</span> /shelter/agent/cat-card
+<span class="s">402</span> Payment Required
+<span class="c">scheme</span>  onchain-receipt
+<span class="c">network</span> eip155 · Arc
+<span class="c">payTo</span>   ShelterSplit
+<span class="c">memo</span>    x402:&lt;nonce&gt;</div>
+      <p>The offer names the price, the contract to pay and a one-time memo.</p>
+      <div class="split"><div class="who" style="color:var(--gold-400)">The agent's own budget</div>
+        <div class="http" style="font-size:16px"><span class="c">env, set by its owner</span>
+MAX_PRICE_WEI <span class="c">default</span> <span class="k">0.01 USDC</span></div>
+        <p style="font-size:19px;color:var(--muted)">From the open example, examples/agent-pay.mjs</p></div>
+    </div>
+    <div class="arrow">➜</div>
+    <div class="box chain">
+      <div class="num"><i>2</i><h2>Pay</h2></div>
+      <div class="who">Agent → ShelterSplit on Arc</div>
+      <p>It checks the price against its own cap (<b>payAndFetch</b> refuses anything above it), then calls <code>donate(memo)</code> with native USDC.</p>
+      <p>ShelterSplit splits it to every shelter wallet in the same transaction: one public event per payout. The contract keeps nothing.</p>
+      <div class="split"><div class="who" style="color:var(--mint)">First shelter on the split</div>
+        <div class="row"><img src="../../_shared/assets/pink-paw-logo.webp"> <span>Pink Paw<br><span style="font-weight:600;color:var(--lilac)">Rožinė pėdutė</span></span></div>
+      </div>
+    </div>
+    <div class="arrow">➜</div>
+    <div class="box">
+      <div class="num"><i>3</i><h2>Prove</h2></div>
+      <div class="who">Agent → Token Tails API</div>
+      <div class="http"><span class="k">GET</span> /shelter/agent/cat-card
+<span class="k">X-PAYMENT</span>: tx hash + nonce</div>
+      <p>The server reads the receipt over RPC:</p>
+      <ul>
+        <li>status ok</li>
+        <li>payouts from that contract with that memo sum to the price</li>
+        <li>nonce issued by us, not expired</li>
+        <li>tx hash never used before</li>
+      </ul>
+    </div>
+    <div class="arrow">➜</div>
+    <div class="box">
+      <div class="num"><i>4</i><h2>Get</h2></div>
+      <div class="who">Token Tails API → Agent</div>
+      <div class="http"><span class="ok">200</span> OK
+<span class="k">X-PAYMENT-RESPONSE</span>: tx</div>
+      <p>An adoptable-cat card: name, image, shelter. Never owner or wallet data.</p>
+      <div class="card">
+        <img src="../../_shared/assets/pink-paw-cats/judas-card.webp">
+        <div class="http"><span class="c">{</span>
+ name,
+ imageUrl,
+ shelterName
+<span class="c">}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="chips">
+      <span class="tt-chip">Built and tested</span>
+      <span class="tt-chip mint">ShelterSplit live on Arc testnet</span>
+      <span class="tt-chip pink">Mainnet endpoint off until handover</span>
+    </div>
+    <div class="note">Shelter wallet held by Token Tails until handover · MIT</div>
+  </div>
+</div>
+</body></html>

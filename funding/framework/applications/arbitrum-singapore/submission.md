@@ -1,6 +1,6 @@
 # Arbitrum Open House Singapore online buildathon — submission
 
-_Generated 2026-10-04T13:10:38.640Z by `fund a:submission arbitrum-singapore` from draft.md, the program profile,
+_Generated 2026-10-04T19:08:53.845Z by `fund a:submission arbitrum-singapore` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -11,11 +11,11 @@ matching form field._
 | Deadline | 2026-10-04T15:59:00+08:00 |
 | Call | https://www.hackquest.io/hackathons/Arbitrum-Open-House-Singapore-Online-Buildathon |
 | Repository | https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split |
-| Demo | _(not set — add `demo:` to call.md)_ |
+| Demo | https://tokentails.com/heist |
 
-## Summary  <!-- 271/280 chars -->
+## Summary  <!-- 268/280 chars -->
 
-ShelterSplit: a USDC payout rail for animal shelters on Arbitrum Sepolia. One call splits a payment across registered shelters, with a public event per payout. A cat-rescue game feeds the same contract on Arc: a one-tap sponsored treat to Pink Paw, with a public receipt.
+ShelterSplit: an open payout rail that sends stablecoins straight to animal shelters, with a public event per payout. On Arbitrum Sepolia it takes USDC payouts, one-signature gifts through a DonateRouter, and sponsored treats from our cat-rescue game, all to Pink Paw.
 
 ## Problem
 
@@ -24,25 +24,30 @@ Apps that say "part of your purchase helps shelters" give the buyer no way to ch
 ## Solution
 
 Built in the buildathon window, from 2026-09-25:
-- ShelterSplit on Arbitrum Sepolia at 0x457c89e10a6e66633eda5bf82fd086febb5db147. A registry in the contract holds each shelter's wallet, name and share in basis points. disburse(amount, memo) pulls Circle USDC and pays every active shelter its share in one transaction. The rest goes to a treasury. Low fees on Arbitrum make small, frequent payouts worth sending.
-- The payouts page at https://tokentails.com/shelter-payouts lists each shelter, what it received and an explorer link per payout, read from chain events. No backend is trusted for the numbers. Mainnet payouts are not live yet: the testnet contracts and payouts in this entry are linked by explorer, and mainnet instances join the same page when deployed.
-- The one-tap sponsored treat: after a win in Catnip Heist (https://tokentails.com/heist), a signed-in player (anti-abuse: verified email, account older than a day) taps "Send Pink Paw a rescue treat". Token Tails pays a small gift from a capped daily budget, and the player gets a receipt page and a share card. It runs end to end on the Arc testnet instance of the same contract (the treat transaction is linked below); the mainnet treat goes live with the mainnet deploy.
+- ShelterSplit on Arbitrum Sepolia. A registry in the contract holds each shelter's wallet, name and share in basis points. disburse(amount, memo) pulls Circle USDC and pays every active shelter its share in one transaction; donate(memo) does the same for ETH. Low fees on Arbitrum make small, frequent gifts worth sending.
+- DonateRouter on Arbitrum Sepolia: a giver signs one EIP-3009 USDC authorization and the router forwards it into ShelterSplit in the same transaction, after checking the split pays only registered shelters. No approval step, nothing parked in the router.
+- Catnip Heist (https://tokentails.com/heist): after a win the player taps "Send Pink Paw a rescue treat" and Token Tails pays a small treat from a capped daily budget (signed in, verified email, once a day). The player picks the network the treat lands on, Arbitrum included, and gets a receipt page and a share card.
+- The payouts page (https://tokentails.com/shelter-payouts) reads every payout from chain events, with explorer and receipt links. No backend is trusted for the numbers.
 - ShelterSplit Rail: an open MIT SDK and a one-tag donate widget, so any app or AI agent can pay the same shelters.
-The player never touches a wallet: purchases stay card or in-app payments.
+Players never need a wallet: purchases stay card or in-app. Givers who have one can give from it.
 
 ## How it works
 
 - Registry: the owner adds, updates, deactivates or removes shelters. Shares can never add up to more than the payment.
-- disburse(amount, memo) pulls the token and splits what actually arrived. One Disbursed(shelter, amount, memo) per shelter and one DisbursementBatch per call. Rounding dust goes to the treasury. preview(amount) shows the split first. The contract never holds funds between calls.
-- A second path, donate(memo), splits the native coin. On Arc the native coin is USDC, and it emits separate events so the two decimal scales never mix.
-- Safety: reentrancy guard, pause, two-step ownership, safe transfers that handle tokens returning nothing, and caps on shelters and memo length. The Foundry suite covers splits, dust, access control, reentrancy through a malicious token, and fuzzed conservation of the amount.
-- Sponsored treats: a backend wallet with a small float pays, once a day per player, with a memo that holds no personal data.
+- disburse(amount, memo) splits what actually arrived: one Disbursed(shelter, amount, memo) per shelter and one DisbursementBatch per call. Dust goes to the treasury. preview(amount) shows the split first. The contract never holds funds between calls.
+- DonateRouter: receiveWithAuthorization pulls exactly the signed amount, refuses if any share would reach the treasury or an unregistered wallet, then calls disburse. A gas relay can submit the signed gift, so the giver pays no fee.
+- Safety: reentrancy guard, pause, two-step ownership, safe transfers for tokens returning nothing, caps on shelters and memo length. 73 Foundry tests cover splits, dust, access control, reentrancy through a malicious token and fuzzed conservation.
+- Sponsored treats: a backend wallet with a small float pays once a day per player, on the network the player picked, with a memo that holds no personal data.
 - Trust model: the chain proves the funds reached the registered wallet, not who controls it. The first wallet is held by Token Tails on behalf of Pink Paw until handover.
-- ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/ in github.com/zbagdzevicius/tokentails). Demo: {DEMO_URL}.
+- MIT: shelter-split/ and shelter-rail/ in github.com/zbagdzevicius/tokentails. Demo: https://tokentails.com/heist.
 
 ## Deployment
 
-Arbitrum Sepolia: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147, paying Circle USDC. Arc testnet: the same contract at 0x457c89e10a6e66633eda5bf82fd086febb5db147, where the first sponsored treat to Pink Paw is transaction 0xfd471deccfb14809bcef89cb8d520a3fcfccba26cf45612df86536f23434d350 (https://explorer.testnet.arc.io/tx/0xfd471deccfb14809bcef89cb8d520a3fcfccba26cf45612df86536f23434d350). Disclosure: Pink Paw (Rožinė pėdutė) is the first shelter, and its receiving wallet is held by Token Tails on behalf of the shelter until handover. Until then Token Tails controls the funds that reach that wallet. The contract itself holds nothing. Prior work, before the window: three Soroban contracts on Stellar mainnet and ERC-721 contracts on SKALE.
+Arbitrum Sepolia, all to Pink Paw (0xE299299b846Ba629f5A591dBF4F562bcC07A0f37):
+- ShelterSplit 0x457c89e10a6e66633eda5bf82fd086febb5db147 (source verified); USDC payout 0x73cdfdb403067706ce0760fd38feed6e2a1e93bbc8d1f6cd1c9e75af7134184d
+- DonateRouter 0xe271131be71e29f83084fd34aa6c70d50a2aea71; one-signature gift 0xeb52018c3a267e2037becc504afcc0b223e01818829a94484641cedb7c469e6d
+- Sponsored treat from the game backend 0x2f40a4f7bb8a4cfb0f3065f00e238de4ec20703ec458f55ad11329b3c1b7b259
+Pink Paw's wallet is held by Token Tails until handover.
 
 | Network | Contract | Transaction | Shelter payouts | Status |
 |---|---|---|---|---|
@@ -52,7 +57,15 @@ Arbitrum Sepolia: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147, pa
 
 All 73/73 Foundry tests pass (unit, fuzz, reentrancy with a malicious token, event emission). Creation bytecode sha256 `6a1faf73bad02285dd3d1198bd8c31e25f6e2283258e024dfb7d68e4595bf72c`, runtime 11199 bytes, commit `9734bed09985`, built 2026-10-01.
 
+## Status  <!-- 868/1200 chars -->
+
+Live on tokentails.com today: Catnip Heist with an in-game "Sent to shelters" modal, the payouts page and receipts. No mainnet payout exists yet; the production treat is off until the mainnet deploy.
+Proven on testnets with real transactions, being shipped to tokentails.com now: the network picker for treats and wallet gifts, a gas relay per network, and the same contract with real payouts on six testnets (Arbitrum Sepolia, Arc, Tempo, Base Sepolia, Avalanche Fuji, Robinhood Chain testnet).
+Paxos USDG: Robinhood Chain pays USDG through the same contract (approve, then disburse), tested on a Robinhood mainnet fork; the mainnet deploy is next.
+In progress: Arbitrum One mainnet deploy, Monad, x402 agent payments on every network, a multi-chain goal meter.
+Prior work, before the window: three Soroban contracts on Stellar mainnet and ERC-721 contracts on SKALE.
+
 ## Team
 
-Token Tails is a Lithuanian small partnership (MB), registered in October 2024. The same team built and runs the whole product. It shipped the app to both app stores, built an AI pipeline that writes each cat's story and paints its portraits, and runs payments on three rails. In the window it wrote ShelterSplit and its tests, the payouts page, Catnip Heist, the sponsored-treat flow and the SDK. Historical, not current: on the SEI chain the app peaked at 324,422 weekly active wallets in November 2025; that activity ended in March 2026 and none of it is Arbitrum data.
+Token Tails is a Lithuanian small partnership (MB), registered in October 2024. The same team built and runs the whole product. It shipped the app to both app stores, built an AI pipeline that writes each cat's story and paints its portraits, and runs payments on three rails. In the window it wrote ShelterSplit, the DonateRouter and their tests, the payouts page, Catnip Heist, the sponsored-treat flow and the SDK. Historical, not current: on the SEI chain the app peaked at 324,422 weekly active wallets in November 2025; that activity ended in March 2026 and none of it is Arbitrum data.
 

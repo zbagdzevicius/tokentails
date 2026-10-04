@@ -125,6 +125,17 @@ scan has not reached the chain head. Without the backend it falls back to the wa
 growth only while that is exact (one wallet that has never sent a transaction); otherwise it says
 it cannot read the count. EURC or other tokens do not count.
 
+**Every mainnet counts (2026-10-04).** Besides the campaign chain, the backend counts the US dollar
+stablecoins that come in to the same campaign wallets on every other mainnet of the checkout's chain
+table (`CRYPTO_PAY_CHAINS`: Tempo USDC.e, Arbitrum, Avalanche, Base and Monad USDC, Robinhood Chain
+USDG; never EURC, never a test-only coin, and none at all for a testnet campaign). Each chain has its
+own cursor (`C-001@<chainId>`), starts at its first block of `goal.startDate` (found once by binary
+search, or `SHELTER_GOAL_FROM_BLOCK_<chainId>`), and reads in windows its public RPC accepts (2,000
+blocks on Base, 100 on Monad). The view's `raised` is the sum, `chains` the breakdown the meters
+show, and the figure stays "at least" until every chain is up to date. The balance fallback reads
+the campaign chain only, so it is always shown as "at least". `SHELTER_GOAL_CHAINS=off` counts the
+campaign chain alone; `SHELTER_GOAL_RPC_URL_<chainId>` overrides a chain's RPC.
+
 **Only today's sources are named.** While Token Tails holds the wallet (`handover:
 "held-by-token-tails"`), the custody rules keep public gifts, the match and x402 payments away from
 it, so only sponsored treats can arrive (plus the shop share, and only while the backend settles a

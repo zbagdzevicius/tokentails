@@ -1,0 +1,26 @@
+{
+ "w": 1920,
+ "h": 1080,
+ "layout": "split",
+ "bg": "space",
+ "dim": 0.35,
+ "logo": "text",
+ "logoH": 9,
+ "textWidth": 0.34,
+ "footer": "tokentails.com/shelter-payouts",
+ "kicker": "Rescue receipt",
+ "title": "1 test USDC<br>to <em>Pink Paw</em>",
+ "subtitle": "A ShelterSplit payout on Arbitrum Sepolia, read back from the chain on a public receipt page with an explorer link.",
+ "chips": [
+  {
+   "text": "Arbitrum Sepolia testnet",
+   "tone": "mint"
+  },
+  {
+   "text": "Test coins · no real money",
+   "tone": "mint"
+  }
+ ],
+ "art": "shots/receipt-crop.png",
+ "artPos": "center"
+}

@@ -1,0 +1,3 @@
+{ "w": 1920, "h": 1080, "layout": "center", "bg": "space", "dim": 0.2, "logo": "text", "logoH": 20,
+  "kicker": "Testnet proof", "title": "Live on 6 testnets.<br><em>Check every payout.</em>",
+  "chips": [{ "text": "Test coins · no real money", "tone": "mint" }], "footer": "tokentails.com/shelter-payouts" }

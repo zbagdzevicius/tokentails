@@ -42,5 +42,12 @@
     "network": "testnet",
     "symbol": "EURC",
     "eip3009": true
+  },
+  {
+    "chainId": 10143,
+    "router": "0xe271131be71e29f83084fd34aa6c70d50a2aea71",
+    "usdc": "0x534b2f3A21130d7a60830c2Df862319e593943A3",
+    "network": "testnet",
+    "eip3009": true
   }
 ]

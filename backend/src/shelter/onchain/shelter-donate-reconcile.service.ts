@@ -101,7 +101,17 @@ export class ShelterDonateReconcileService {
         const result: ReconcileResult = { confirmed: 0, failed: 0, released: 0, skipped: 0 };
         const cutoff = new Date(now.getTime() - DONATE_RECONCILE_TIMEOUT_MS);
 
-        if (config.rpcUrl) {
+        // Each treat is settled on its own chain: the main one, or the SHELTER_RELAY_CHAINS entry it was
+        // sent on (a picked network). A row whose chain is no longer configured is skipped, never failed.
+        const treatConfigFor = (row: any): ShelterOnchainConfig | null => {
+            const id = Number(row?.chainId);
+            if (!id || id === config.chainId) {
+                return config.rpcUrl ? config : null;
+            }
+            const other = chainConfigs.find(c => c.chainId === id);
+            return other?.rpcUrl ? other : null;
+        };
+        if (config.rpcUrl || chainConfigs.some(c => c.rpcUrl)) {
             const unsettled: any[] = await this.donationModel
                 .find({
                     $or: [
@@ -118,7 +128,12 @@ export class ShelterDonateReconcileService {
                     { $set: { lastCheckedAt: now } },
                     { timestamps: false }
                 );
-                await this.settle(row, config, now, cutoff, result);
+                const rowConfig = treatConfigFor(row);
+                if (!rowConfig) {
+                    result.skipped++;
+                    continue;
+                }
+                await this.settle(row, rowConfig, now, cutoff, result);
             }
         }
 

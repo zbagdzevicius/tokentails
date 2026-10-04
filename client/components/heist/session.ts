@@ -74,6 +74,9 @@ export function heistFrameSrc(hostSearch: string, allowQa: boolean, hostHash = "
   if ((payouts !== null && payouts !== "0" && payouts !== "false") || /^#payouts$/i.test(hostHash)) {
     params.set("payouts", "1");
   }
+  // `/heist?chain=<id>`: the win screen's treat link preselects that network on the give page.
+  const chain = new URLSearchParams(hostSearch).get("chain");
+  if (chain && /^[1-9]\d{0,14}$/.test(chain)) params.set("chain", chain);
   if (allowQa) {
     const host = new URLSearchParams(hostSearch);
     if (host.get("qa") === "1") {

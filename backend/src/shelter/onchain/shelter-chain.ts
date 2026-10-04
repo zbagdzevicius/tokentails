@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
     computeAddress,
+    encodeBytes32String,
     getBigInt,
     Interface,
     JsonRpcProvider,
@@ -18,6 +19,7 @@ export { donateRouterInterface, ROUTER_DONATION_TOPIC };
 export const SHELTER_SPLIT_ABI = [
     'function donate(string memo) payable',
     'function disburse(uint256 amount, string memo)',
+    'function disburseWithMemo(uint256 amount, bytes32 memo)',
     'event NativeDisbursed(address indexed shelter, uint256 amount, string memo)',
     'event Disbursed(address indexed shelter, uint256 amount, string memo)',
     'event NativeDisbursementBatch(uint256 indexed batchId, address indexed payer, uint256 amount, uint256 toShelters, uint256 toTreasury, uint256 sheltersPaid, string memo)',
@@ -28,6 +30,17 @@ export const SHELTER_SPLIT_ABI = [
 ];
 
 export const shelterSplitInterface = new Interface(SHELTER_SPLIT_ABI);
+
+/** The ERC-20 / TIP-20 slice a token treat needs. */
+export const erc20Interface = new Interface([
+    'function allowance(address owner, address spender) view returns (uint256)',
+    'function approve(address spender, uint256 amount) returns (bool)',
+    'function balanceOf(address owner) view returns (uint256)',
+    'function decimals() view returns (uint8)',
+]);
+
+/** How long a token treat waits for its approve to be mined before it gives up (nothing is lost). */
+export const TREAT_APPROVE_TIMEOUT_MS = 60000;
 
 // keccak256("NativeDisbursed(address,uint256,string)") and keccak256("Disbursed(address,uint256,string)").
 export const NATIVE_DISBURSED_TOPIC = '0xc859ef09d317f79211253b04e5d51bff252d80816db65d1aaa75cfdd3a22aeef';
@@ -106,6 +119,98 @@ export class ShelterChain {
             value,
             onSigned
         );
+    }
+
+    /**
+     * A treat paid in the split's token (a SHELTER_RELAY_CHAINS entry with `treat` set): the hot wallet
+     * pays `ShelterSplit.disburse(amount, memo)`, or `disburseWithMemo(amount, bytes32 memo)` on Tempo,
+     * whose TIP-20 payouts carry the memo. Same sign, store, broadcast steps and errors as sendDonation.
+     *
+     * The split pulls the token from the hot wallet, so the allowance is checked first. When it is short,
+     * the hot wallet approves the split for the chain's daily treat budget (at least one treat) and waits
+     * for that approve to be mined. A failure there rejects with a plain error: no treat was signed.
+     * On Tempo the network fee is paid in a USD stablecoin: the hot wallet's fee-token preference, else
+     * the protocol's pathUSD fallback (docs/BACKEND.md).
+     */
+    async sendTokenDonation(
+        config: ShelterOnchainConfig,
+        memo: string,
+        onSigned: (tx: SignedDonation) => Promise<void> = async () => undefined
+    ): Promise<SignedDonation> {
+        const treat = config.treat!;
+        const split = config.splitAddress!;
+        const owner = hotWalletAddress(config);
+        if (!owner) {
+            throw new Error('no hot wallet key');
+        }
+        const token = await this.splitToken(config);
+        const [allowance] = erc20Interface.decodeFunctionResult(
+            'allowance',
+            await this.ethCall(config, token, erc20Interface.encodeFunctionData('allowance', [owner, split]))
+        );
+        if (getBigInt(allowance) < treat.amountBase) {
+            const approveFor = treat.dailyBudgetBase > treat.amountBase ? treat.dailyBudgetBase : treat.amountBase;
+            let mined = false;
+            try {
+                const approve = await this.sendSigned(
+                    config,
+                    token,
+                    erc20Interface.encodeFunctionData('approve', [split, approveFor]),
+                    getBigInt(0)
+                );
+                const receipt = await this.waitForReceipt(config, approve.hash, TREAT_APPROVE_TIMEOUT_MS);
+                mined = !!receipt && receipt.status === 1;
+            } catch (error: any) {
+                // Never a DonationBroadcastError: that would make the caller keep the approve's hash
+                // as the treat's. The treat itself was not signed.
+                throw new Error(`treat approve failed: ${error?.code || error?.name || 'unknown error'}`);
+            }
+            if (!mined) {
+                throw new Error('treat approve not mined');
+            }
+        }
+        const data = treat.memo32
+            ? shelterSplitInterface.encodeFunctionData('disburseWithMemo', [
+                  treat.amountBase,
+                  encodeBytes32String(memo),
+              ])
+            : shelterSplitInterface.encodeFunctionData('disburse', [treat.amountBase, memo]);
+        return this.sendSigned(config, split, data, getBigInt(0), onSigned);
+    }
+
+    private tokens = new Map<string, string>();
+
+    /** ShelterSplit.token(), cached per chain and split (it is immutable). */
+    async splitToken(config: ShelterOnchainConfig): Promise<string> {
+        const key = `${config.chainId}|${String(config.splitAddress).toLowerCase()}`;
+        const known = this.tokens.get(key);
+        if (known) {
+            return known;
+        }
+        const [token] = shelterSplitInterface.decodeFunctionResult(
+            'token',
+            await this.ethCall(config, config.splitAddress!, shelterSplitInterface.encodeFunctionData('token', []))
+        );
+        this.tokens.set(key, String(token));
+        return String(token);
+    }
+
+    private decimals = new Map<string, number>();
+
+    /** decimals() of `token` on the config's chain, cached (it is immutable for USDC-style tokens). */
+    async tokenDecimals(config: ShelterOnchainConfig, token: string): Promise<number> {
+        const key = `${config.chainId}|${token.toLowerCase()}`;
+        const known = this.decimals.get(key);
+        if (known !== undefined) {
+            return known;
+        }
+        const [value] = erc20Interface.decodeFunctionResult(
+            'decimals',
+            await this.ethCall(config, token, erc20Interface.encodeFunctionData('decimals', []))
+        );
+        const n = Number(value);
+        this.decimals.set(key, n);
+        return n;
     }
 
     /**

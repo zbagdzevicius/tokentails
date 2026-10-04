@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 /**
- * The wallet block's network picker (multi-chain giving): six chains, each with its name, coin and fee
+ * The wallet block's network picker (multi-chain giving): seven chains, each with its name, coin and fee
  * line; the default is the campaign chain; picking another chain changes the plain-words summary and
  * the steps line. Nothing reads a chain: the RPC and the backend are mocked offline.
  */
@@ -44,11 +44,11 @@ const renderBlock = () => {
 };
 
 describe("WalletDonate chain picker", () => {
-  it("lists the six testnets with name, coin and fee, the campaign chain picked", () => {
+  it("lists the seven testnets with name, coin and fee, the campaign chain picked", () => {
     renderBlock();
     const picker = screen.getByTestId("wallet-network");
     const radios = within(picker).getAllByRole("radio");
-    expect(radios).toHaveLength(6);
+    expect(radios).toHaveLength(7);
     expect((radios[0] as HTMLInputElement).checked).toBe(true);
     const tempo = screen.getByTestId("wallet-network-42431");
     expect(tempo.textContent).toContain("Tempo Testnet");
@@ -56,6 +56,8 @@ describe("WalletDonate chain picker", () => {
     expect(tempo.textContent).toContain("No gas coin");
     expect(screen.getByTestId("wallet-network-46630").textContent).toContain("Gives mUSDC");
     expect(screen.getByTestId("wallet-network-43113").textContent).toContain("Fee in AVAX from your wallet");
+    expect(screen.getByTestId("wallet-network-10143").textContent).toContain("Monad Testnet");
+    expect(screen.getByTestId("wallet-network-10143").textContent).toContain("Fee in MON from your wallet");
     // Arc with a router and no relay: the one-transaction native gift is the main button.
     expect(screen.getByTestId("wallet-give-how").textContent).toBe("One transaction from your wallet.");
     expect(screen.getByTestId("wallet-chain-summary").textContent).toMatch(/Circle's chain/);
@@ -85,7 +87,7 @@ describe("WalletDonate chain picker", () => {
       <WalletDonate mode="testnet" chainId={5042002} chain={rails[0].chain} router={rails[0].router} shelterName="Pink Paw (Rožinė pėdutė)" choices={rails} />
     );
     const radios = within(screen.getByTestId("wallet-network")).getAllByRole("radio");
-    expect(radios).toHaveLength(7);
+    expect(radios).toHaveLength(8);
     // The chain's own coin stays the default.
     expect((within(screen.getByTestId("wallet-network-5042002")).getByRole("radio") as HTMLInputElement).checked).toBe(true);
     const eurc = screen.getByTestId("wallet-network-5042002-EURC");

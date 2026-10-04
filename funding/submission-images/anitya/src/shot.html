@@ -1,0 +1,28 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../_shared/brand.css">
+<!-- Screenshot with a caption strip. Query: art, cap (bold line), note (small line), tag (chip text), zoom, origin -->
+<style>
+  body { position: relative; background: #1b1030; }
+  #art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  #scrim { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(7,5,26,.9) 0%, rgba(7,5,26,.55) 16%, rgba(7,5,26,0) 30%); }
+  #cap { position: absolute; left: 56px; right: 56px; bottom: 44px; display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; }
+  #cap h2 { font-family: "Passion One"; font-weight: 700; font-size: 54px; line-height: 1; color: var(--cream); text-shadow: 0 3px 0 rgba(0,0,0,.5); }
+  #cap p { margin-top: 10px; font-size: 27px; font-weight: 700; color: var(--lilac); text-shadow: 0 2px 6px rgba(0,0,0,.8); }
+  #tag { font-size: 24px; white-space: nowrap; }
+  #mark { position: absolute; top: 34px; left: 44px; height: 92px; filter: drop-shadow(0 4px 10px rgba(0,0,0,.6)); }
+</style></head>
+<body>
+<img id="art"><div id="scrim"></div>
+<img id="mark" src="../../_shared/assets/logo-text.webp">
+<div id="cap"><div><h2 id="h"></h2><p id="n"></p></div><span id="tag" class="tt-chip"></span></div>
+<script>
+const q = new URLSearchParams(location.search);
+art.src = q.get("art");
+if (q.get("zoom")) { art.style.transform = `scale(${q.get("zoom")})`; art.style.transformOrigin = q.get("origin") || "center"; }
+h.textContent = q.get("cap") || ""; n.textContent = q.get("note") || "";
+if (q.get("tag")) tag.textContent = q.get("tag"); else tag.remove();
+if (q.get("mark") === "0") mark.remove();
+if (q.get("markpos") === "right") { mark.style.left = "auto"; mark.style.right = "44px"; }
+</script>
+</body></html>

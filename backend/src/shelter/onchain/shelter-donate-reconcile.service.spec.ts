@@ -399,3 +399,52 @@ describe('ShelterDonateReconcileService wallet-gift steps (F2)', () => {
         expect(result.chains?.[421614]?.match).toBeDefined();
     });
 });
+
+describe('ShelterDonateReconcileService: treats on a picked network', () => {
+    it('settles each treat on its own chain, releases that chain budget, and skips an unconfigured chain', async () => {
+        const ctx = setup();
+        const main = readShelterConfig();
+        const base = { ...main, chainId: 84532, rpcUrl: 'https://sepolia.base.org', splitAddress: SPLIT };
+        const providers: any[][] = [];
+        (JsonRpcProvider as unknown as jest.Mock).mockImplementation((...args: any[]) => {
+            providers.push(args);
+            return { getTransactionReceipt, getTransaction, getTransactionCount, broadcastTransaction };
+        });
+        ctx.days.rows.push({ day: `${DAY}@84532`, count: 1 });
+        const common = { day: DAY, source: 'heist', memo: 'tt:heist:0000000a', amountWei: AMOUNT, signedAt: SENT_AT };
+        await ctx.donations.create({
+            ...common,
+            user: new Types.ObjectId(),
+            chainId: 84532,
+            tokenAmount: '10000',
+            status: 'SENT',
+            txHash: tx('b'),
+            budgetSlot: true,
+        });
+        await ctx.donations.create({
+            ...common,
+            user: new Types.ObjectId(),
+            chainId: 999,
+            status: 'SENT',
+            txHash: tx('9'),
+            budgetSlot: true,
+        });
+        getTransactionReceipt.mockResolvedValue({ status: 0, blockNumber: 5 });
+
+        const result = await ctx.reconcile.reconcileOnce(minutes(1), main, null, [base]);
+
+        expect(result).toMatchObject({ failed: 1, released: 1, skipped: 1 });
+        expect(getTransactionReceipt).toHaveBeenCalledTimes(1);
+        expect(getTransactionReceipt).toHaveBeenCalledWith(tx('b'));
+        expect(providers.some(([url, id]) => url === 'https://sepolia.base.org' && id === 84532)).toBe(true);
+        expect(ctx.donations.rows.find(r => r.chainId === 84532)).toMatchObject({
+            status: 'FAILED',
+            failedReason: 'reverted',
+            budgetSlot: false,
+        });
+        expect(ctx.donations.rows.find(r => r.chainId === 999)).toMatchObject({ status: 'SENT', budgetSlot: true });
+        // The slot went back to Base Sepolia's budget, not the main chain's.
+        expect(ctx.days.counts.get(`${DAY}@84532`)).toBe(0);
+        expect(ctx.days.counts.get(DAY)).toBeUndefined();
+    });
+});

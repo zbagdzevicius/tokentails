@@ -5,7 +5,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Shelter Button Demo</title>
-  <meta name="description" content="One script tag adds a gasless shelter button and a live on-chain meter to any game. Testnet demo with test USDC." />
+  <meta name="description" content="One script tag adds a shelter button and a live on-chain meter to any game, on seven chains. Testnet demo with test coins." />
   <meta name="color-scheme" content="dark" />
   <meta name="robots" content="noindex" />
   <link rel="icon" href="/favicon.ico" />
@@ -78,18 +78,22 @@
     code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; color: var(--lilac); }
     .disclosure { margin-top: 24px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; }
     footer { margin-top: 18px; font-size: 13px; color: var(--muted); }
+    .picker { display: grid; gap: 6px; margin: 0 0 14px; }
+    .picker label { font-size: 13px; font-weight: 700; color: var(--muted); }
+    .picker select { width: 100%; min-height: 44px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--night-950); color: var(--cream); font: inherit; }
+    .picker select:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
   </style>
 </head>
 <body>
   <a class="skip" href="#main">Skip to the demo</a>
-  <div class="banner" role="note" aria-label="Testnet demo">TESTNET <span>Test USDC, no real money. Arc testnet.</span></div>
+  <div class="banner" role="note" aria-label="Testnet demo">TESTNET <span>Test coins, no real money. Seven testnets.</span></div>
 
   <main id="main">
     <header class="hero">
       <p class="eyebrow">ShelterSplit Rail · MIT · no dependencies</p>
       <h1>Any game can add a shelter button.</h1>
-      <p class="lede">One script tag gives players a gasless "Give to the shelter" button and a live meter read straight from the chain. The gift goes from the player's wallet to the shelter's wallet. No account and no gas: a relay pays the gas but never holds the gift, and the contracts pass it on in the same transaction. See the disclosure below about who holds Pink Paw's wallet today.</p>
+      <p class="lede">One script tag gives players a "Give to the shelter" button and a live meter read straight from the chain, on Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain and Monad. The gift goes from the player's wallet to the shelter's wallet, and the contracts pass it on in the same transaction. Where a gift router and a relay are set up, the player signs once and pays no gas; the relay never holds the gift. See the disclosure below about who holds Pink Paw's wallet today.</p>
     </header>
 
     <div class="grid">
@@ -99,32 +103,40 @@
           <img src="/logo/shelters/pink-paw.webp" alt="Pink Paw (Rožinė pėdutė) logo" width="52" height="52" />
           <div><strong>Pink Paw (Rožinė pėdutė)</strong><small>Showcase shelter on the rail</small></div>
         </div>
+        <div class="picker">
+          <label for="chain">Testnet</label>
+          <select id="chain">
+            <option value="5042002">Arc testnet (USDC is the gas coin)</option>
+            <option value="42431">Tempo testnet (pathUSD)</option>
+            <option value="421614">Arbitrum Sepolia (USDC)</option>
+            <option value="43113">Avalanche Fuji (USDC)</option>
+            <option value="84532">Base Sepolia (USDC)</option>
+            <option value="46630">Robinhood Chain testnet (test mUSDC)</option>
+            <option value="10143">Monad testnet (USDC)</option>
+          </select>
+        </div>
         <div id="rail-gasless"></div>
         <!--
-          DonateRouter (Arc testnet): set data-router once the testnet deploy is recorded in
-          funding/framework/tracks/a-build/deployments.json, and data-relay once the relay endpoint is live.
-          Until both are set the button reads "Gasless giving opens soon" and only the live total shows.
-          data-usdc is Arc testnet's native USDC ERC-20 interface (EIP-3009, name "USDC", version "2").
+          The widget mounts below for the picked testnet, in "auto" mode: the split comes from
+          /shelter-payouts/testnet-deployments.json (the newest split on that chain paying its own coin).
+          Arc: one native donate() in test USDC. Elsewhere: approve + disburse (disburseWithMemo on Tempo).
+          Gasless mode needs data-router, data-usdc and data-relay; this demo has no public relay, so it
+          never claims gasless giving.
         -->
         <script src="widget.js"
-          data-mode="gasless"
           data-chain="5042002"
-          data-split="0x457c89e10a6e66633eda5bf82fd086febb5db147"
-          data-from-block="65080649"
-          data-router=""
-          data-usdc="0x3600000000000000000000000000000000000000"
-          data-relay=""
-          data-amount="1000000"
+          data-deployments="/shelter-payouts/testnet-deployments.json"
+          data-amount="10000000000000000"
           data-shelter="Pink Paw"
           data-testnet="true"
           data-theme="dark"
           data-disclosure="Pink Paw's wallet was created by Token Tails and is held by Token Tails on behalf of the shelter until handover."
           data-target="#rail-gasless"></script>
-        <p class="hint">Needs a browser wallet on Arc testnet with test USDC from the Circle faucet. Signing costs no gas.</p>
+        <p class="hint" id="hint">Needs a browser wallet on Arc testnet with test USDC from the Circle faucet. One transaction; USDC also pays the network fee.</p>
       </div>
 
       <div class="panel" aria-labelledby="how">
-        <h2 id="how">How the money moves</h2>
+        <h2 id="how">How a gasless gift moves</h2>
         <ol class="flow">
           <li><b>The player signs once.</b> One USDC <code>ReceiveWithAuthorization</code> (EIP-3009). No gas, no approve, no transaction from their wallet.</li>
           <li><b>A relay submits it.</b> It pays the gas but cannot change the amount, the memo or the payee: the nonce is bound to the router and the memo.</li>
@@ -138,14 +150,12 @@
 
         <div class="code">
           <pre id="snippet" aria-label="Embed snippet"><code>&lt;script src="https://tokentails.com/rail/widget.js"
-  data-mode="gasless"
   data-chain="5042002"
   data-split="0x457c89e10a6e66633eda5bf82fd086febb5db147"
-  data-router="0xDonateRouter"
-  data-usdc="0x3600000000000000000000000000000000000000"
-  data-relay="https://&lt;your relay&gt;/shelter/relay"
   data-shelter="Pink Paw"
-  data-amount="1000000"&gt;&lt;/script&gt;</code></pre>
+  data-amount="10000000000000000"&gt;&lt;/script&gt;
+&lt;!-- gasless, where a DonateRouter and a relay exist:
+  data-mode="gasless" data-router="0x…" data-usdc="0x…" data-relay="https://&lt;your relay&gt;/shelter/relay" --&gt;</code></pre>
           <button class="copy" type="button" data-copy="#snippet">Copy</button>
         </div>
       </div>
@@ -163,6 +173,45 @@
 
   <script>
     (function () {
+      var rail = window.ShelterRail;
+      var select = document.getElementById("chain");
+      var hint = document.getElementById("hint");
+      var code = document.querySelector("#snippet code");
+      var DEPLOYMENTS = "/shelter-payouts/testnet-deployments.json";
+      var DISCLOSURE = "Pink Paw's wallet was created by Token Tails and is held by Token Tails on behalf of the shelter until handover.";
+      function hintFor(id, chain) {
+        if (chain.symbol === "USDC") return "Needs a browser wallet on " + chain.name + " with test USDC from the Circle faucet. One transaction; USDC also pays the network fee.";
+        var fee = chain.noNative ? "a little pathUSD for the network fee (Tempo has no gas coin)" : "a little test " + chain.symbol + " for gas";
+        return "Needs a browser wallet on " + chain.name + " with test " + chain.coin.symbol + " and " + fee + ". Two transactions: allow the exact amount, then give.";
+      }
+      function snippetFor(id, chain, split) {
+        var amount = chain.symbol === "USDC" ? "10000000000000000" : "10000";
+        return '\x3cscript src="https://tokentails.com/rail/widget.js"\n  data-chain="' + id + '"\n  data-split="' + (split || "0xYourShelterSplit") + '"\n  data-shelter="Pink Paw"\n  data-amount="' + amount + '"></' + 'script>' +
+          (chain.coin.eip3009 ? '\n\x3c!-- gasless, where a DonateRouter and a relay exist:\n  data-mode="gasless" data-router="0x…" data-usdc="' + chain.coin.address + '" data-relay="https://<your relay>/shelter/relay" -->' : "");
+      }
+      function show(id) {
+        var chain = rail && rail.CHAINS[id];
+        if (!chain) return;
+        var old = document.getElementById("rail-gasless");
+        var host = document.createElement("div");
+        host.id = "rail-gasless";
+        old.parentNode.replaceChild(host, old);
+        // 0.01 of the coin: native wei on Arc (18 decimals), base units (6 decimals) elsewhere.
+        rail.mount(host, rail.readOptions({ chain: String(id), deployments: DEPLOYMENTS, amount: chain.symbol === "USDC" ? "10000000000000000" : "10000", shelter: "Pink Paw", testnet: "true", theme: "dark", disclosure: DISCLOSURE }));
+        hint.textContent = hintFor(id, chain);
+        code.textContent = snippetFor(id, chain, null);
+        rail.resolveSplit({ deployments: DEPLOYMENTS, chainId: Number(id), coin: chain.coin.symbol, rpc: chain.rpc }).then(function (found) {
+          if (select.value === String(id)) code.textContent = snippetFor(id, chain, found && found.address);
+        });
+      }
+      if (rail && select) {
+        select.addEventListener("change", function () { show(select.value); });
+        if (select.value !== "5042002") show(select.value);
+        else rail.resolveSplit({ deployments: DEPLOYMENTS, chainId: 5042002, coin: "USDC", rpc: rail.CHAINS[5042002].rpc }).then(function (found) {
+          if (select.value === "5042002") code.textContent = snippetFor(5042002, rail.CHAINS[5042002], found && found.address);
+        });
+      }
+
       var buttons = document.querySelectorAll("[data-copy]");
       Array.prototype.forEach.call(buttons, function (btn) {
         btn.addEventListener("click", function () {

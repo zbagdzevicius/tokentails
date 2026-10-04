@@ -1,6 +1,6 @@
 # Circle Developer Grants — submission
 
-_Generated 2026-10-03T21:06:52.257Z by `fund a:submission circle-developer-grants` from draft.md, the program profile,
+_Generated 2026-10-04T14:14:44.850Z by `fund a:submission circle-developer-grants` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -43,7 +43,7 @@ ShelterSplit's Tempo mainnet address and explorer link appear below once the dep
 | Network | Contract | Transaction | Shelter payouts | Status |
 |---|---|---|---|---|
 | Arc testnet (chain 5042002) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://explorer.testnet.arc.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://explorer.testnet.arc.io/tx/0x6af0fe0eae4abd65d8560cf4ed14ada55f2debd2e14e9306d45d81a271d0ede8) | [payout 1](https://explorer.testnet.arc.io/tx/0xa90f97134ab92efa5ade8c6f1c6eddcc9bded100a6c1bc2a5b1b91ba6da4360a) | verified on-chain, source verified |
-| Arc testnet (chain 5042002) | [`0x937f13ce28294011567615330dbcb859a06a0bba`](https://explorer.testnet.arc.io/address/0x937f13ce28294011567615330dbcb859a06a0bba) | [deploy tx](https://explorer.testnet.arc.io/tx/0xc63d3c5786aaf15474c0d74c5c65f6e0dcd33d232bdbbee0141a83313a1e59a3) | [payout 1](https://explorer.testnet.arc.io/tx/0xc68ceb5a3633b78cd1681c81dde1ff310ca04f1f378003497acc906eb88f387b) | verified on-chain |
+| Arc testnet (chain 5042002) | [`0x937f13ce28294011567615330dbcb859a06a0bba`](https://explorer.testnet.arc.io/address/0x937f13ce28294011567615330dbcb859a06a0bba) | [deploy tx](https://explorer.testnet.arc.io/tx/0xc63d3c5786aaf15474c0d74c5c65f6e0dcd33d232bdbbee0141a83313a1e59a3) | [payout 1](https://explorer.testnet.arc.io/tx/0xc68ceb5a3633b78cd1681c81dde1ff310ca04f1f378003497acc906eb88f387b) | verified on-chain, source verified |
 
 ## Milestones
 

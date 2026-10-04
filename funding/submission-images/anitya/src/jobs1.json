@@ -1,0 +1,8 @@
+[
+ {"world":"heist-08-kibble-corp-hq","name":"h8-a","opts":{"width":1920,"height":1080}},
+ {"world":"heist-08-kibble-corp-hq","name":"h8-b","opts":{"width":1920,"height":1080,"yaw":-0.785,"pitch":0.75,"zoom":0.62}},
+ {"world":"heist-08-kibble-corp-hq","name":"h8-c","opts":{"width":1920,"height":1080,"yaw":2.356,"pitch":0.6,"zoom":0.55}},
+ {"world":"heist-08-kibble-corp-hq","name":"h8-crate","opts":{"width":1920,"height":1080,"focus":"centrepiece","pitch":0.6}},
+ {"world":"heist-08-kibble-corp-hq","name":"h8-crate2","opts":{"width":1920,"height":1080,"focus":"centrepiece","pitch":0.45,"yaw":0.3,"radius":14}},
+ {"world":"heist-08-kibble-corp-hq","name":"h8-low","opts":{"width":1920,"height":1080,"pitch":0.35,"zoom":0.45}}
+]

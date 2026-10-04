@@ -18,6 +18,8 @@ const DEFAULT_RPC: Record<number, string> = {
     84532: 'https://sepolia.base.org',
     4663: 'https://rpc.mainnet.chain.robinhood.com',
     46630: 'https://rpc.testnet.chain.robinhood.com',
+    143: 'https://rpc.monad.xyz',
+    10143: 'https://testnet-rpc.monad.xyz',
 };
 
 /** The keyless public RPC for `chainId`, or null when none is known. */
@@ -84,7 +86,55 @@ export interface ShelterOnchainConfig {
      * x402 `payTo`.
      */
     heldWallets: string[];
+    /**
+     * Server-paid treats paid in the split's ERC-20/TIP-20 token on a SHELTER_RELAY_CHAINS entry
+     * (SHELTER_CHAIN_<id>_TREAT_*). Absent on the main chain, whose treat is the native donate() path.
+     * On such an entry `donateEnabled` is the treat flag, and `amountWei`/`dailyBudgetWei` are the treat
+     * amount and budget scaled to 18 decimals, so stored treat rows and the community total keep one unit.
+     */
+    treat?: TreatTokenConfig;
+    /**
+     * A SHELTER_RELAY_CHAINS entry's x402 price (SHELTER_CHAIN_<id>_X402_PRICE), a decimal amount of
+     * that chain's payment coin ("0.01"): the split's token (scaled by its on-chain decimals), or native
+     * USDC on Arc. Absent on the main chain, which keeps SHELTER_X402_PRICE_WEI.
+     */
+    x402Price?: string;
 }
+
+/** A treat paid in a token (approve + disburse, or disburseWithMemo on Tempo). */
+export interface TreatTokenConfig {
+    /** Treat size in token base units (the six chains' tokens all have 6 decimals; TIP-20 always does). */
+    amountBase: bigint;
+    /** Daily treat budget on this chain, in token base units. */
+    dailyBudgetBase: bigint;
+    decimals: number;
+    /** What the treat is paid in, for the give page chip (USDC, USDC.e, USDG, pathUSD...). */
+    coin: string;
+    /** Tempo TIP-20: disburseWithMemo(amount, bytes32 memo) instead of disburse(amount, string memo). */
+    memo32: boolean;
+}
+
+/** Tempo mainnet and testnet: TIP-20 tokens, disburseWithMemo, fees paid in a USD stablecoin. */
+export const TIP20_CHAIN_IDS: readonly number[] = [4217, 42431];
+
+/** Default coin name per chain for a token treat (SHELTER_CHAIN_<id>_TREAT_COIN overrides it). */
+const TREAT_COIN: Record<number, string> = {
+    [ARC_MAINNET_CHAIN_ID]: 'USDC',
+    [ARC_TESTNET_CHAIN_ID]: 'USDC',
+    4217: 'USDC.e',
+    42431: 'pathUSD',
+    4663: 'USDG',
+    46630: 'mUSDC',
+};
+
+/** The coin a treat on `chainId` is paid in: USDC unless the chain is known to pay another token. */
+export const treatCoin = (chainId: number): string => TREAT_COIN[chainId] || 'USDC';
+
+/** 0.01 and 1 token (6 decimals): the token twins of the main chain's default treat and budget. */
+const DEFAULT_TREAT_AMOUNT_BASE = 10000;
+const DEFAULT_TREAT_DAILY_BUDGET_BASE = 1000000;
+const TREAT_DECIMALS = 6;
+const TO_18 = getBigInt(10) ** getBigInt(18 - TREAT_DECIMALS);
 
 /**
  * Wallets Token Tails holds for a shelter: Pink Paw's payout wallet, created and held by Token Tails
@@ -197,12 +247,28 @@ const PRIVATE_KEY = /^0x[0-9a-fA-F]{64}$/;
  *   SHELTER_CHAIN_<id>_RELAY_DAILY_TX          optional daily budget in relayed transactions
  *   SHELTER_CHAIN_<id>_MATCH_ENABLED           optional; the match stays off unless 'true'
  *   SHELTER_CHAIN_<id>_TREASURY_ADDRESS        optional; the split's treasury
+ *   SHELTER_CHAIN_<id>_TREAT_ENABLED           'true' to send server-paid treats there too (the give
+ *                                              page's network picker); needs SPLIT_ADDRESS and KEY_ENV
+ *   SHELTER_CHAIN_<id>_TREAT_AMOUNT            optional treat size in the split's token, decimal
+ *                                              ("0.01", the default); 6-decimal tokens only
+ *   SHELTER_CHAIN_<id>_TREAT_DAILY_BUDGET      optional daily treat budget on that chain ("1", the default)
+ *   SHELTER_CHAIN_<id>_TREAT_COIN              optional coin label (default per chain: USDC, USDC.e on
+ *                                              Tempo, USDG on Robinhood; pathUSD/mUSDC on their testnets)
+ *   SHELTER_CHAIN_<id>_X402_ENABLED            'true' to offer the x402 agent cat card on this chain too
+ *                                              (one `accepts` entry per chain; needs SPLIT_ADDRESS, no key)
+ *   SHELTER_CHAIN_<id>_X402_PRICE              optional price per card in the chain's payment coin,
+ *                                              decimal ("0.01", the default): the split's token, scaled by
+ *                                              its on-chain decimals, or native USDC on Arc
  *
  * A chain already served (the main chain or the try-it testnet) is skipped. A testnet never signs with
- * the main hot wallet key (test funds only). A mainnet entry still waits for SHELTER_HANDED_OVER and the
- * on-chain claim check, like the main chain. These chains send no treats, serve no x402 and take no
- * shelter claims. Only the router path can be relayed: a gift straight into a ShelterSplit (approve +
- * disburse) is always sent and paid for by the donor's own wallet.
+ * the main hot wallet key while the main chain is a mainnet (test funds only). A mainnet entry still
+ * waits for SHELTER_HANDED_OVER and the on-chain claim check for the relay and match, like the main
+ * chain. Treats there are Token Tails' own money (approve + disburse from the hot wallet, or
+ * disburseWithMemo on Tempo), so they need only their own flag, like the main chain's treat. x402 there
+ * is the agent's money paid into that chain's split (approve + disburse, disburseWithMemo on Tempo,
+ * donate on Arc); on a mainnet it waits for SHELTER_HANDED_OVER like the main chain. These chains take
+ * no shelter claims. Only the router path can be relayed: a gift straight
+ * into a ShelterSplit (approve + disburse) is always sent and paid for by the donor's own wallet.
  */
 export function readRelayChainConfigs(env: NodeJS.ProcessEnv = process.env): ShelterOnchainConfig[] {
     const raw = (env.SHELTER_RELAY_CHAINS || '').trim();
@@ -224,9 +290,20 @@ export function readRelayChainConfigs(env: NodeJS.ProcessEnv = process.env): She
         const rawKey = ENV_NAME.test(keyEnv) ? (env[keyEnv] || '').trim() : '';
         let privateKey = PRIVATE_KEY.test(rawKey) ? rawKey : null;
         const testnet = isTestnetChain(chainId);
-        if (privateKey && testnet && base.privateKey && privateKey.toLowerCase() === base.privateKey.toLowerCase()) {
+        // A main-chain key that holds real money never signs on a testnet. When the main chain is a
+        // testnet itself (the local e2e), its key holds test funds only and may serve the other testnets.
+        if (
+            privateKey &&
+            testnet &&
+            !isTestnetChain(base.chainId) &&
+            base.privateKey &&
+            privateKey.toLowerCase() === base.privateKey.toLowerCase()
+        ) {
             privateKey = null;
         }
+        const treatAmountBase = usdcBase(env[`${p}TREAT_AMOUNT`], DEFAULT_TREAT_AMOUNT_BASE);
+        const treatBudgetBase = usdcBase(env[`${p}TREAT_DAILY_BUDGET`], DEFAULT_TREAT_DAILY_BUDGET_BASE);
+        const coin = (env[`${p}TREAT_COIN`] || '').trim();
         out.push({
             ...base,
             chainId,
@@ -239,8 +316,18 @@ export function readRelayChainConfigs(env: NodeJS.ProcessEnv = process.env): She
             relayDailyTx: positiveInt(env[`${p}RELAY_DAILY_TX`], base.relayDailyTx),
             matchEnabled: flag(env[`${p}MATCH_ENABLED`]),
             treasuryAddress: address(env[`${p}TREASURY_ADDRESS`]),
-            donateEnabled: false,
-            x402Enabled: false,
+            donateEnabled: flag(env[`${p}TREAT_ENABLED`]),
+            amountWei: treatAmountBase * TO_18,
+            dailyBudgetWei: treatBudgetBase * TO_18,
+            treat: {
+                amountBase: treatAmountBase,
+                dailyBudgetBase: treatBudgetBase,
+                decimals: TREAT_DECIMALS,
+                coin: /^[A-Za-z0-9.]{1,12}$/.test(coin) ? coin : treatCoin(chainId),
+                memo32: TIP20_CHAIN_IDS.includes(chainId),
+            },
+            x402Enabled: flag(env[`${p}X402_ENABLED`]),
+            x402Price: decimalAmount(env[`${p}X402_PRICE`], DEFAULT_X402_PRICE),
             handedOver: testnet ? false : base.handedOver,
             claimAllowedWallets: [],
         });
@@ -384,13 +471,33 @@ export function donateReady(config: ShelterOnchainConfig): boolean {
  * scheme. Until the handover the split pays a wallet Token Tails holds for the shelter.
  */
 export function x402Ready(config: ShelterOnchainConfig): boolean {
-    return !!(
-        config.x402Enabled &&
-        config.rpcUrl &&
-        config.splitAddress &&
-        config.x402PriceWei > ZERO &&
-        publicGivingAllowed(config)
-    );
+    const priced = config.x402Price !== undefined ? /[1-9]/.test(config.x402Price) : config.x402PriceWei > ZERO;
+    return !!(config.x402Enabled && config.rpcUrl && config.splitAddress && priced && publicGivingAllowed(config));
+}
+
+/** The default x402 price on a SHELTER_RELAY_CHAINS entry, in that chain's payment coin. */
+const DEFAULT_X402_PRICE = '0.01';
+
+/** A positive decimal amount ("0.01", "2"), up to 18 fraction digits; anything else falls back. */
+function decimalAmount(value: string | undefined, fallback: string): string {
+    const trimmed = (value || '').trim();
+    return /^\d{1,12}(\.\d{1,18})?$/.test(trimmed) && /[1-9]/.test(trimmed) ? trimmed : fallback;
+}
+
+/**
+ * A decimal amount in base units of a coin with `decimals` places ("0.01", 6 -> 10000n). Null when the
+ * amount has more fraction digits than the coin (it cannot be paid exactly) or is malformed.
+ */
+export function decimalToBase(value: string, decimals: number): bigint | null {
+    const match = /^(\d{1,12})(?:\.(\d{1,18}))?$/.exec((value || '').trim());
+    if (!match || !Number.isInteger(decimals) || decimals < 0 || decimals > 36) {
+        return null;
+    }
+    const frac = (match[2] || '').replace(/0+$/, '');
+    if (frac.length > decimals) {
+        return null;
+    }
+    return getBigInt(match[1]) * getBigInt(10) ** getBigInt(decimals) + getBigInt(frac.padEnd(decimals, '0') || '0');
 }
 
 /**
@@ -406,12 +513,28 @@ export const DEFAULT_MATCH_CONFIRMATIONS = 12;
 export const matchConfirmations = (chainId: number): number =>
     MATCH_CONFIRMATIONS[chainId] ?? DEFAULT_MATCH_CONFIRMATIONS;
 
+/** Explorer hosts, the client's chains.ts list (a treat on any served chain links to its own explorer). */
 const EXPLORER: Record<number, string> = {
     [ARC_MAINNET_CHAIN_ID]: 'https://explorer.arc.io',
     [ARC_TESTNET_CHAIN_ID]: 'https://explorer.testnet.arc.io',
+    4217: 'https://explore.tempo.xyz',
+    42431: 'https://explore.testnet.tempo.xyz',
+    42161: 'https://arbiscan.io',
+    421614: 'https://sepolia.arbiscan.io',
+    43114: 'https://subnets.avax.network/c-chain',
+    43113: 'https://subnets-test.avax.network/c-chain',
+    8453: 'https://basescan.org',
+    84532: 'https://sepolia.basescan.org',
+    4663: 'https://robinhoodchain.blockscout.com',
+    46630: 'https://explorer.testnet.chain.robinhood.com',
+    143: 'https://monadvision.com',
+    10143: 'https://testnet.monadvision.com',
 };
 
-/** The Arc explorer link for `txHash` on `chainId` (docs.arc.io: testnet has its own explorer host). */
+/** The explorer host for `chainId`, or null when none is known. */
+export const explorerBase = (chainId: number): string | null => EXPLORER[chainId] || null;
+
+/** The explorer link for `txHash` on `chainId` (docs.arc.io: Arc testnet has its own explorer host). */
 export function explorerTxUrl(txHash: string, chainId: number = ARC_MAINNET_CHAIN_ID): string {
     return `${EXPLORER[chainId] || EXPLORER[ARC_MAINNET_CHAIN_ID]}/tx/${txHash}`;
 }

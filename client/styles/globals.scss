@@ -266,6 +266,21 @@ $custom-background: linear-gradient(90.26deg, #c1260f 0.34%, #ee642a 96.66%);
   }
 }
 
+// The lobby HUD grows with large screens (components/game/lobbyLayout.ts `lobbyRem` mirrors these
+// steps): GameSelect sets data-lobby-hud on <html> while the lobby is shown, so every rem-sized
+// control (corner panels, guest pill, impact strip, tiles, buttons) scales together.
+@media (min-width: 1600px) and (min-height: 1000px) {
+  html[data-lobby-hud] {
+    font-size: 20px;
+  }
+}
+
+@media (min-width: 2200px) and (min-height: 1300px) {
+  html[data-lobby-hud] {
+    font-size: 24px;
+  }
+}
+
 body,
 html {
   margin: 0;

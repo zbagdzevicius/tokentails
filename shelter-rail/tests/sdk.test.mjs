@@ -79,7 +79,8 @@ test("readTotals sums native payouts per deployment and skips invalid entries", 
   assert.equal(totals.nativeWei, 10n ** 18n);
   assert.equal(totals.payouts, 2);
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].url, "https://rpc.testnet.arc.io");
+  // Arc testnet scans read the wide-range log RPC (the default one refuses ranges over ~10,000 blocks).
+  assert.equal(calls[0].url, "https://rpc.blockdaemon.testnet.arc.network");
   assert.equal(calls[0].body.params[0].fromBlock, "0x20");
   assert.deepEqual(calls[0].body.params[0].topics, [[TOPICS.NativeDisbursed, TOPICS.Disbursed]]);
   assert.match(totals.byDeployment[1].error, /no RPC/);

@@ -3,8 +3,9 @@
 /**
  * A shelter campaign goal's live count (fact C-001), as `GET /shelter/goal/:id` serves it.
  *
- * The backend sums the USDC that CAME IN to the campaign wallets (each wallet inside its own block
- * range), from the chain's Transfer logs, skipping transfers from one campaign wallet to another.
+ * The backend sums the US dollar stablecoins that CAME IN to the campaign wallets (each wallet inside
+ * its own block range on the campaign chain), from the chains' Transfer logs, skipping transfers from
+ * one campaign wallet to another. Every mainnet Token Tails pays out on counts (`chains`).
  * So spending never lowers the bar, and a handover (a new wallet the shelter owns) keeps counting
  * without counting its sweep twice. The web meter and the Heist both read this; they fall back to
  * the wallet's balance only while there is one wallet and it has never sent a transaction.
@@ -25,6 +26,24 @@ export interface GoalWallet {
     fromBlock: number;
     toBlock: number | null;
     holder: GoalWalletHolder;
+}
+
+/**
+ * One chain's share of a goal's count. The campaign chain (Arc) counts its system Transfer log; every
+ * other mainnet counts the Transfer logs of its US dollar stablecoins (USDC, USDC.e on Tempo, USDG on
+ * Robinhood Chain) to the same campaign wallets. EURC and test coins are never counted.
+ */
+export interface GoalChainCount {
+    chainId: number;
+    /** The coins counted there ("USDC", "USDC.e", "USDG"). */
+    symbols: string[];
+    /** A decimal USD string with at most 6 decimals. */
+    raised: string;
+    /** Highest block counted on this chain; null until its first window (it then adds nothing). */
+    scannedTo: number | null;
+    head: number | null;
+    upToDate: boolean;
+    transfers: number;
 }
 
 export interface ShelterGoalView {
@@ -51,6 +70,11 @@ export interface ShelterGoalView {
     liveSources: GoalSource[];
     /** ISO time of the last successful scan, or null. */
     updatedAt: string | null;
+    /**
+     * Per-chain breakdown, the campaign chain first. `raised` is their sum, `transfers` too, and
+     * `upToDate` is true only when every chain is. Empty from an older backend (campaign chain only).
+     */
+    chains: GoalChainCount[];
 }
 
 /** The goal endpoint's path. */
@@ -86,6 +110,22 @@ export function parseShelterGoalView(raw: unknown): ShelterGoalView | null {
             holder: w.holder === 'shelter' ? 'shelter' : 'token-tails',
         });
     }
+    const chains: GoalChainCount[] = [];
+    for (const c of Array.isArray(raw.chains) ? raw.chains : []) {
+        if (!isObject(c) || typeof c.chainId !== 'number' || !Number.isInteger(c.chainId) || c.chainId <= 0) continue;
+        if (typeof c.raised !== 'string' || !AMOUNT.test(c.raised)) continue;
+        chains.push({
+            chainId: c.chainId,
+            symbols: Array.isArray(c.symbols)
+                ? c.symbols.filter((x): x is string => typeof x === 'string' && /^[A-Za-z0-9.]{1,12}$/.test(x))
+                : [],
+            raised: c.raised,
+            scannedTo: blockOrNull(c.scannedTo),
+            head: blockOrNull(c.head),
+            upToDate: c.upToDate === true,
+            transfers: typeof c.transfers === 'number' && c.transfers >= 0 ? Math.floor(c.transfers) : 0,
+        });
+    }
     const liveSources = GOAL_SOURCES.filter(s => Array.isArray(raw.liveSources) && raw.liveSources.includes(s));
     return {
         id: raw.id,
@@ -99,6 +139,7 @@ export function parseShelterGoalView(raw: unknown): ShelterGoalView | null {
         wallets,
         liveSources,
         updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : null,
+        chains,
     };
 }
 

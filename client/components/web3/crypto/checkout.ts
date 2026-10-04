@@ -303,9 +303,26 @@ export type WalletStage =
   | { kind: "signing"; step: number; of: number; label: string }
   | { kind: "waiting-step"; step: number; of: number; txHash: string };
 
+/**
+ * Checkout networks the donate rail's list does not have yet, so a wallet can still add them (public
+ * RPC, explorer, native gas coin). Monad testnet: chains.json and backend crypto-chains.ts.
+ */
+export const CHECKOUT_ONLY_CHAINS: Record<number, ChainInfo> = {
+  10143: {
+    name: "Monad Testnet",
+    testnet: true,
+    rpc: "https://testnet-rpc.monad.xyz",
+    explorer: "https://testnet.monadvision.com",
+    decimals: 6,
+    symbol: "USDC",
+    nativeDecimals: 18,
+    nativeSymbol: "MON",
+  },
+};
+
 /** ChainInfo for connectWallet: the donate rail's list where it knows the chain, else name and explorer only. */
 export function chainInfoFor(option: Pick<CryptoPayOption, "chainId" | "chainName" | "explorer" | "symbol" | "decimals" | "testnet">): ChainInfo {
-  const known = SHELTER_CHAINS[option.chainId];
+  const known = SHELTER_CHAINS[option.chainId] || CHECKOUT_ONLY_CHAINS[option.chainId];
   if (known) return known;
   return {
     name: option.chainName,

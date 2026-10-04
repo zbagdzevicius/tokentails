@@ -191,7 +191,8 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
   }
   // The one-tap "rescue treat" for the showcase shelter (the give page does the rest).
   const giveButton = (catName: string) => {
-    const href = giveHref(giveUrl, catName);
+    // `?chain=<id>` on the game's own URL (the /heist host forwards it) preselects the treat network.
+    const href = giveHref(giveUrl, catName, new URLSearchParams(window.location.search).get('chain'));
     if (!href) return null;
     const a = h('a.ch-give', { href, target: '_blank', rel: 'noopener', 'data-testid': 'give-treat' }, 'Send Pink Paw a rescue treat 🐾');
     a.addEventListener('click', () => handlers.onClick?.());
@@ -774,6 +775,8 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
         case 'RESCUE':
           toast(`${level?.crate.catName ?? 'Cat'} is free!`, 'good');
           announce(`${level?.crate.catName ?? 'The shelter cat'} is free. Now get both cats to the exit.`);
+          // The real cat's HUD chip (src/ui/levels/rescue-view.ts), when the campaign mounted one.
+          root.querySelector<HTMLElement>('.ch-lv-hudcat')?.setAttribute('data-freed', 'true');
           break;
         case 'CHECKPOINT':
           toast('Checkpoint', 'info');

@@ -358,17 +358,23 @@ export function stripCitations(text) {
   return text.replace(/\s*\[F-\d{3}\](?:\s*\[F-\d{3}\])*/g, '').replace(/ +([.,;:])/g, '$1');
 }
 
+const TESTNET_NAMES = {
+  5042002: 'Arc', 42431: 'Tempo Moderato', 421614: 'Arbitrum Sepolia', 84532: 'Base Sepolia',
+  43113: 'Avalanche Fuji', 46630: 'Robinhood Chain', 10143: 'Monad', 11155111: 'Ethereum Sepolia',
+};
+
 function deploymentsBlock(app, deployments, chains) {
   const want = appChains(app);
   const rel = deployments.filter((d) => !want.length || want.includes(d.chain));
   if (!rel.length) return `_No ShelterSplit deployment recorded on ${want.join(' / ') || 'any chain'} yet — run \`fund a:deploy ${want[0] || '<chain>'} mainnet\`, then \`fund a:record\`._`;
   const order = (d) => (d.network === 'mainnet' ? 0 : 1);
   const rows = [...rel].sort((a, b) => order(a) - order(b)).map((d) => {
-    const name = chains[d.chain]?.name || d.chain;
+    // Testnets go by their own names (Arbitrum Sepolia, not "Arbitrum One testnet").
+    const name = (d.network === 'testnet' && TESTNET_NAMES[d.chainId]) || chains[d.chain]?.name || d.chain;
     const a = explorerLink(chains, d.chain, d.network, 'address', d.address);
     const t = d.tx ? explorerLink(chains, d.chain, d.network, 'tx', d.tx) : '';
     const proofs = (d.proofTxs || []).map((h, i) => `[payout ${i + 1}](${explorerLink(chains, d.chain, d.network, 'tx', h) || h})`).join(', ');
-    return `| ${name} ${d.network} (chain ${d.chainId}) | [\`${d.address}\`](${a}) | ${t ? `[deploy tx](${t})` : '-'} | ${proofs || '-'} | ${d.verified ? 'verified on-chain' : 'recorded'}${d.sourceVerified ? ', source verified' : ''} |`;
+    return `| ${name}${d.network === 'testnet' && TESTNET_NAMES[d.chainId] ? ' testnet' : ' ' + d.network} (chain ${d.chainId}) | [\`${d.address}\`](${a}) | ${t ? `[deploy tx](${t})` : '-'} | ${proofs || '-'} | ${d.verified ? 'verified on-chain' : 'recorded'}${d.sourceVerified ? ', source verified' : ''} |`;
   });
   return ['| Network | Contract | Transaction | Shelter payouts | Status |', '|---|---|---|---|---|', ...rows].join('\n');
 }

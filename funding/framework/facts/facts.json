@@ -460,7 +460,7 @@
     {
       "id": "C-001",
       "key": "campaign",
-      "claim": "Pink Paw rescue fund: a 50,000 USDC target for the USDC that comes in to Pink Paw's campaign wallets on Arc, counted from the chain's transfer records; most of it has to come from donors",
+      "claim": "Pink Paw rescue fund: a 50,000 USDC target for the US dollar stablecoins (USDC, USDC.e on Tempo, USDG on Robinhood Chain; never EURC or test coins) that come in to Pink Paw's campaign wallets on Arc and on the other mainnets Token Tails pays out on (Tempo, Arbitrum, Avalanche, Base, Robinhood Chain, Monad), counted from each chain's transfer records; most of it has to come from donors",
       "value": "50000",
       "unit": "USDC",
       "display": "Goal: 50,000 USDC for Pink Paw by 30 Sep 2027",

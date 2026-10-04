@@ -368,29 +368,37 @@
   },
   "monad": {
     "name": "Monad",
-    "docs": "https://docs.monad.xyz",
+    "docs": "https://docs.monad.xyz/developer-essentials/network-information",
     "networks": {
       "mainnet": {
         "chainId": 143,
         "explorer": "https://monadvision.com",
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
-        "usdc": null,
+        "usdc": "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
         "usdcDecimals": 6,
         "rpcEnv": "RPC_MONAD_MAINNET",
-        "verify": true,
-        "notes": "UNVERIFIED (2026-09-30): chain ID 143, explorer and the USDC address must be checked in docs.monad.xyz before the wave. Candidate from developers.circle.com/stablecoins/usdc-contract-addresses (read 2026-10-02 via a summarising fetch, so check the digits on the page): 0x754704Bc059F8C67012fEd69BC8A327a5aafb603. Set usdc only after that check. Metropolis rules (mainnet vs testnet) are behind the hackathon.monad.xyz login."
+        "verify": false,
+        "notes": "Checked 2026-10-04: eth_chainId 143 from the public RPC https://rpc.monad.xyz; explorer MonadVision (also Monadscan, https://monadscan.com) from docs.monad.xyz/developer-essentials/network-information. Gas token MON (18 decimals). usdc is native Circle USDC from https://developers.circle.com/stablecoins/usdc-contract-addresses; symbol() USDC and decimals() 6 read on-chain with cast on 2026-10-04. Source verification goes through Sourcify (sourcify.dev/server/chains lists 143 as supported on 2026-10-04); MonadVision shows Sourcify-verified source.",
+        "verifier": {
+          "type": "sourcify",
+          "url": "https://sourcify.dev/server"
+        }
       },
       "testnet": {
         "chainId": 10143,
-        "explorer": "https://testnet.monadexplorer.com",
+        "explorer": "https://testnet.monadvision.com",
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
-        "usdc": null,
+        "usdc": "0x534b2f3A21130d7a60830c2Df862319e593943A3",
         "usdcDecimals": 6,
         "rpcEnv": "RPC_MONAD_TESTNET",
-        "verify": true,
-        "notes": "UNVERIFIED: testnet chain ID 10143 and explorer; check docs.monad.xyz. Candidate test USDC from developers.circle.com/stablecoins/usdc-contract-addresses (2026-10-02, check the digits on the page): 0x534b2f3A21130d7a60830c2Df862319e593943A3."
+        "verify": false,
+        "notes": "Checked 2026-10-04: eth_chainId 10143 from the public RPC https://testnet-rpc.monad.xyz; explorer MonadVision testnet (also https://testnet.monadscan.com) from docs.monad.xyz/developer-essentials/testnets (testnet was reset from genesis on 2025-12-16, so the older testnet.monadexplorer.com links are stale). Gas token testnet MON (18 decimals), faucet https://faucet.monad.xyz. usdc is Circle test USDC from https://developers.circle.com/stablecoins/usdc-contract-addresses; on-chain 2026-10-04: symbol() USDC, decimals() 6, version() \"2\" (EIP-712 domain version), authorizationState(address,bytes32) answers false (EIP-3009 FiatToken). Source verification goes through Sourcify (lists 10143 as supported on 2026-10-04).",
+        "verifier": {
+          "type": "sourcify",
+          "url": "https://sourcify.dev/server"
+        }
       }
     }
   }

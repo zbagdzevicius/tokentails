@@ -8,6 +8,9 @@ import { icon } from '../icons';
 // Star rules come from the sim (src/sim/score.ts), the copy the backend's replay verification uses.
 import { STAR_RULES, starCount } from '../../sim/score';
 import { ensureLevelStyles } from './styles';
+import { RESCUE_SHELTER_LINE, rescueStatusLabel, type RescueCat } from './rescue-cats';
+import { displayName, rescuePhoto } from './rescue-view';
+import { needsBodyFont } from '../pink-paw';
 
 export interface ResultsExtras {
   /** Stars held for the level after this run (bitmask). */
@@ -20,6 +23,10 @@ export interface ResultsExtras {
   unlockedNow: boolean;
   /** A watched replay: it earns nothing, so say so instead of "win to earn". */
   replay?: boolean;
+  /** The real shelter cat behind this heist's crate (its photo joins the rescue line). */
+  rescue?: RescueCat | null;
+  /** Asset base for the cat's local photo copy. */
+  base?: string;
   onNext?(): void;
   onLevels?(): void;
   onClick?(): void;
@@ -47,8 +54,29 @@ export function decorateResults(uiRoot: HTMLElement, x: ResultsExtras): HTMLElem
     h('small', null, got.length ? got.join(' · ') : x.replay ? 'Replays do not earn stars' : 'Win the heist to earn stars'),
     x.unlockedNow && x.nextName ? h('small', null, `Unlocked: ${x.nextName}`) : null,
   );
+  if (x.rescue) addRealCat(results, x.rescue, x.base);
   const row = results.querySelector<HTMLElement>('.ch-row');
-  if (row) row.parentElement!.insertBefore(strip, row);
+  // The actions stay in view: one footer pinned to the bottom of the scrolling panel holds this
+  // strip's buttons and the dialog's own Retry / Menu row (moved, listeners intact). Content
+  // scrolls under its fade, so a taller rescue box never pushes the next step below the fold.
+  const scroller = row?.closest<HTMLElement>('.ch-scroll') ?? null;
+  let foot = row?.closest<HTMLElement>('.ch-lv-resfoot') ?? null;
+  if (row && scroller && !foot) {
+    foot = h('div.ch-lv-resfoot', { 'data-testid': 'results-actions' });
+    scroller.classList.add('ch-lv-hasfoot');
+    row.parentElement!.insertBefore(foot, row);
+    foot.appendChild(row);
+    // Sign-in and anything else after the row stay in the scroll, above the footer.
+    let after = foot.nextElementSibling;
+    while (after) {
+      const n = after.nextElementSibling;
+      scroller.insertBefore(after, foot);
+      after = n;
+    }
+  }
+  foot?.querySelector('.ch-lv-resrow')?.remove();
+  const anchor = foot ?? row;
+  if (anchor) anchor.parentElement!.insertBefore(strip, anchor);
   else (results.querySelector('.ch-dialog') ?? results).appendChild(strip);
 
   // Own button row under the strip (the dialog's Retry / Menu row stays untouched).
@@ -73,8 +101,63 @@ export function decorateResults(uiRoot: HTMLElement, x: ResultsExtras): HTMLElem
   }
   for (const b of Array.from(buttons.children) as HTMLElement[]) b.style.cssText = 'flex:1 1 0;width:auto;min-width:0;';
   if (buttons.childElementCount) {
-    strip.appendChild(buttons);
+    if (foot) foot.prepend(buttons);
+    else strip.appendChild(buttons);
     (buttons.firstElementChild as HTMLElement).focus({ preventScroll: true });
   }
   return strip;
+}
+
+/**
+ * The real cat in the Results rescue box: the shelter's photo is the hero (the reward), with the
+ * pixel cat as a badge on its corner, and one line that keeps fiction and fact apart (the in-game
+ * rescue is a game; the cat and its status are real).
+ */
+function addRealCat(results: HTMLElement, cat: RescueCat, base?: string): void {
+  const box = results.querySelector<HTMLElement>('.ch-rescue');
+  if (!box) return;
+  const oldPics = box.querySelector<HTMLElement>('.ch-lv-res-pics');
+  if (oldPics) {
+    // A re-decorate: put the sprite back where ui.ts had it before rebuilding.
+    const c = oldPics.querySelector('canvas');
+    if (c) box.prepend(c);
+    oldPics.remove();
+  }
+  box.querySelector('.ch-lv-res-photo')?.remove();
+  box.querySelector('.ch-lv-res-real')?.remove();
+  box.classList.add('ch-lv-res-hero');
+  const photo = rescuePhoto(cat, { base, className: 'ch-lv-res-photo', eager: true });
+  photo.dataset.testid = 'rescue-photo';
+  const pics = h('span.ch-lv-res-pics', null, photo);
+  const sprite = box.querySelector('canvas');
+  if (sprite) {
+    sprite.classList.add('ch-lv-res-badge');
+    pics.appendChild(sprite);
+  }
+  box.prepend(pics);
+  setHeadlineName(box.querySelector('p'), cat.name);
+  // A local copy says "as of <date>": it cannot know about an adoption since.
+  const status = rescueStatusLabel(cat);
+  const line = h(
+    'small.ch-lv-res-real',
+    { 'data-testid': 'rescue-real' },
+    `${RESCUE_SHELTER_LINE}${status ? `, ${status}` : ''}. `,
+    cat.profileUrl ? h('a', { href: cat.profileUrl, target: '_blank', rel: 'noopener' }, `Meet ${cat.name} ›`) : null,
+  );
+  const p = box.querySelector('p');
+  if (!p) return;
+  // Right under the headline ("You rescued <name>!"), before the rail line and buttons.
+  const first = p.querySelector(':scope > small, :scope > a, :scope > button, :scope > span:not(.ch-lv-headline)');
+  if (first) p.insertBefore(line, first);
+  else p.appendChild(line);
+}
+
+/** "You rescued Gabė!": the name in the display face too (its text stays the same). */
+function setHeadlineName(p: HTMLElement | null, name: string): void {
+  const t = p?.firstChild;
+  if (!p || !t || t.nodeType !== 3 || !needsBodyFont(name)) return;
+  const text = t.textContent ?? '';
+  const at = text.indexOf(name);
+  if (at < 0) return;
+  p.replaceChild(h('span.ch-lv-headline', null, text.slice(0, at), displayName(name), text.slice(at + name.length)), t);
 }

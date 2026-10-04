@@ -241,7 +241,10 @@ export function readCryptoPayConfig(env: NodeJS.ProcessEnv = process.env, now: D
             console.error(`crypto checkout: treasury for chain ${chain.chainId} is a held shelter wallet; ignored`);
             treasury = null;
         }
-        const tokens = chain.tokens.filter(t => t.token !== 'EURC' || eurc.enabled);
+        // A mock token (open mint) never buys anything on a mainnet, nor in production even on a testnet.
+        const tokens = chain.tokens
+            .filter(t => t.token !== 'EURC' || eurc.enabled)
+            .filter(t => !t.testOnly || (chain.testnet && !isProduction(env)));
         if (tokens.length) {
             chains.push({ chain, rpcUrl, treasury, tokens });
         }

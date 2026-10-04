@@ -2,7 +2,14 @@ import { HttpException } from '@nestjs/common';
 import { getBigInt, JsonRpcProvider } from 'ethers';
 import { NATIVE_DISBURSED_TOPIC, ShelterChain, shelterSplitInterface } from './shelter-chain';
 import { fakeNonceModel, fakeUsedTxModel, SHELTER_WALLET, SPLIT, withShelterEnv } from './shelter-onchain.fakes-spec';
-import { encodePaymentResponse, ShelterX402Service, X402_DISABLED, X402_NO_CARDS } from './shelter-x402.service';
+import {
+    encodePaymentResponse,
+    ShelterX402Service,
+    X402_DISABLED,
+    x402Memo32,
+    X402_NO_CARDS,
+    X402_UNPRICED,
+} from './shelter-x402.service';
 
 // Only receipts are read, from a mocked provider. Interface stays real to build genuine logs.
 jest.mock('ethers', () => {
@@ -140,7 +147,7 @@ describe('GET /shelter/agent/cat-card (x402, onchain-receipt)', () => {
                         'One adoptable-cat card. The ShelterSplit contract splits each payment among its shelter recipients',
                     mimeType: 'application/json',
                     maxTimeoutSeconds: 600,
-                    extra: { memo: `x402:${nonce}`, nonce },
+                    extra: { memo: `x402:${nonce}`, nonce, decimals: 18, coin: 'USDC', method: 'donate' },
                 },
             ],
         });
@@ -161,7 +168,9 @@ describe('GET /shelter/agent/cat-card (x402, onchain-receipt)', () => {
             card: { name: 'Mochi', imageUrl: 'https://cdn.test/mochi.png', shelterName: 'Pink Paw (Rožinė pėdutė)' },
         });
         expect(getTransactionReceipt).toHaveBeenCalledWith(TX);
-        expect(usedTxs.rows).toEqual([{ txHash: TX, nonce, amountWei: PRICE }]);
+        expect(usedTxs.rows).toEqual([
+            { txHash: TX, nonce, amountWei: PRICE, scheme: 'onchain-receipt', chainId: 5042 },
+        ]);
         expect(nonces.rows.find(r => r.nonce === nonce)).toMatchObject({ usedAt: NOW, txHash: TX });
     });
 
@@ -187,7 +196,9 @@ describe('GET /shelter/agent/cat-card (x402, onchain-receipt)', () => {
         const result = await service.catCard(header({ txHash: TX, nonce }), RESOURCE, NOW);
 
         expect(result.txHash).toBe(TX);
-        expect(usedTxs.rows).toEqual([{ txHash: TX, nonce, amountWei: PRICE }]);
+        expect(usedTxs.rows).toEqual([
+            { txHash: TX, nonce, amountWei: PRICE, scheme: 'onchain-receipt', chainId: 5042 },
+        ]);
     });
 
     it.each([
@@ -806,5 +817,212 @@ describe('GET /shelter/agent/cat-card (x402, standard exact scheme paid to the s
     it('keeps refusing an exact header when exact is off (onchain-receipt only)', async () => {
         const error = await httpError(setup().service.catCard(await exactHeader(), RESOURCE, NOW));
         expect((error.getResponse() as any).error).toMatch(/unsupported scheme/);
+    });
+});
+
+describe('GET /shelter/agent/cat-card (x402, onchain-receipt on several chains)', () => {
+    const BASE_SPLIT = '0x4444444444444444444444444444444444444444';
+    const TEMPO_SPLIT = '0x5555555555555555555555555555555555555555';
+    const BASE_USDC = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+    const PATH_USD = '0x20C0000000000000000000000000000000000000';
+    const RELAY_KEYS = [
+        'SHELTER_RELAY_CHAINS',
+        'SHELTER_CHAIN_84532_SPLIT_ADDRESS',
+        'SHELTER_CHAIN_84532_X402_ENABLED',
+        'SHELTER_CHAIN_84532_X402_PRICE',
+        'SHELTER_CHAIN_42431_SPLIT_ADDRESS',
+        'SHELTER_CHAIN_42431_X402_ENABLED',
+        'SHELTER_CHAIN_5042_SPLIT_ADDRESS',
+    ];
+    const call = jest.fn();
+    const tokenOf: Record<string, string> = {
+        [BASE_SPLIT.toLowerCase()]: BASE_USDC,
+        [TEMPO_SPLIT.toLowerCase()]: PATH_USD,
+    };
+    const { erc20Interface } = jest.requireActual('./shelter-chain');
+
+    function tokenLog(event: 'Disbursed' | 'DisbursementBatch', memo: string, amount: string, address: string) {
+        const fragment = shelterSplitInterface.getEvent(event)!;
+        const args =
+            event === 'Disbursed'
+                ? [SHELTER_WALLET, getBigInt(amount), memo]
+                : [1, '0x' + '9'.repeat(40), getBigInt(amount), getBigInt(amount), 0, 1, memo];
+        const { topics, data } = shelterSplitInterface.encodeEventLog(fragment, args);
+        return { address, topics, data };
+    }
+
+    beforeEach(() => {
+        for (const key of RELAY_KEYS) delete process.env[key];
+        withShelterEnv({
+            SHELTER_X402_ENABLED: 'true',
+            SHELTER_SPLIT_ADDRESS: SPLIT,
+            SHELTER_X402_PRICE_WEI: PRICE,
+            SHELTER_CHAIN_ID: '5042002',
+        });
+        Object.assign(process.env, {
+            SHELTER_RELAY_CHAINS: '84532,42431',
+            SHELTER_CHAIN_84532_SPLIT_ADDRESS: BASE_SPLIT,
+            SHELTER_CHAIN_84532_X402_ENABLED: 'true',
+            SHELTER_CHAIN_84532_X402_PRICE: '0.02',
+            SHELTER_CHAIN_42431_SPLIT_ADDRESS: TEMPO_SPLIT,
+            SHELTER_CHAIN_42431_X402_ENABLED: 'true',
+        });
+        call.mockImplementation(async ({ to, data }: { to: string; data: string }) => {
+            if (data === shelterSplitInterface.encodeFunctionData('token', [])) {
+                return shelterSplitInterface.encodeFunctionResult('token', [tokenOf[to.toLowerCase()]]);
+            }
+            if (data === erc20Interface.encodeFunctionData('decimals', [])) {
+                return erc20Interface.encodeFunctionResult('decimals', [6]);
+            }
+            throw new Error('unexpected call');
+        });
+        (JsonRpcProvider as unknown as jest.Mock).mockImplementation(() => ({ getTransactionReceipt, call }));
+    });
+
+    afterAll(() => {
+        for (const key of RELAY_KEYS) delete process.env[key];
+    });
+
+    async function offers(service: ShelterX402Service) {
+        const error = await httpError(service.catCard(undefined, RESOURCE, NOW));
+        expect(error.getStatus()).toBe(402);
+        return (error.getResponse() as any).accepts as any[];
+    }
+
+    it('lists one offer per enabled chain, sharing one nonce, each priced in its own coin', async () => {
+        const { service, nonces } = setup();
+        const accepts = await offers(service);
+
+        expect(accepts.map(a => a.network)).toEqual(['eip155:5042002', 'eip155:84532', 'eip155:42431']);
+        const nonce = accepts[0].extra.nonce;
+        expect(new Set(accepts.map(a => a.extra.nonce))).toEqual(new Set([nonce]));
+        expect(nonces.rows).toHaveLength(1);
+        expect(accepts[0]).toMatchObject({ asset: 'native', maxAmountRequired: PRICE, payTo: SPLIT });
+        expect(accepts[0].extra).toMatchObject({ decimals: 18, method: 'donate' });
+        expect(accepts[1]).toMatchObject({ asset: BASE_USDC, maxAmountRequired: '20000', payTo: BASE_SPLIT });
+        expect(accepts[1].extra).toEqual({
+            memo: `x402:${nonce}`,
+            nonce,
+            decimals: 6,
+            coin: 'USDC',
+            method: 'disburse',
+        });
+        expect(accepts[2]).toMatchObject({ asset: PATH_USD, maxAmountRequired: '10000', payTo: TEMPO_SPLIT });
+        expect(accepts[2].extra).toMatchObject({ coin: 'pathUSD', method: 'disburseWithMemo' });
+        expect(accepts[2].extra.memo32).toBe(x402Memo32(nonce));
+    });
+
+    it('keeps the per-chain flag off by default: a relay chain without X402_ENABLED is not offered', async () => {
+        delete process.env.SHELTER_CHAIN_42431_X402_ENABLED;
+        const accepts = await offers(setup().service);
+        expect(accepts.map(a => a.network)).toEqual(['eip155:5042002', 'eip155:84532']);
+    });
+
+    it('waits for the handover on a mainnet relay chain', async () => {
+        process.env.SHELTER_RELAY_CHAINS = '8453';
+        process.env.SHELTER_CHAIN_8453_SPLIT_ADDRESS = BASE_SPLIT;
+        process.env.SHELTER_CHAIN_8453_X402_ENABLED = 'true';
+        try {
+            const accepts = await offers(setup().service);
+            expect(accepts.map(a => a.network)).toEqual(['eip155:5042002']);
+        } finally {
+            delete process.env.SHELTER_CHAIN_8453_SPLIT_ADDRESS;
+            delete process.env.SHELTER_CHAIN_8453_X402_ENABLED;
+        }
+    });
+
+    it('answers 409 when no enabled chain can be priced (every token read failed)', async () => {
+        withShelterEnv({ SHELTER_CHAIN_ID: '5042002' });
+        call.mockRejectedValue(Object.assign(new Error('down'), { code: 'NETWORK_ERROR' }));
+        const error = await httpError(setup().service.catCard(undefined, RESOURCE, NOW));
+        expect(error.getStatus()).toBe(409);
+        expect(error.message).toBe(X402_UNPRICED);
+    });
+
+    it('drops a chain whose token cannot be read, and still offers the others', async () => {
+        call.mockRejectedValue(Object.assign(new Error('down'), { code: 'NETWORK_ERROR' }));
+        const accepts = await offers(setup().service);
+        expect(accepts.map(a => a.network)).toEqual(['eip155:5042002']);
+    });
+
+    it('pays on Base Sepolia with disburse: Disbursed shares or the batch amount count, then the replay is refused', async () => {
+        const { service, usedTxs } = setup();
+        const nonce = (await offers(service))[0].extra.nonce;
+        getTransactionReceipt.mockResolvedValue(
+            receipt([
+                tokenLog('Disbursed', `x402:${nonce}`, '18000', BASE_SPLIT),
+                tokenLog('DisbursementBatch', `x402:${nonce}`, '20000', BASE_SPLIT),
+            ])
+        );
+        const paid = header({ txHash: TX, nonce }, { network: 'eip155:84532' });
+
+        const result = await service.catCard(paid, RESOURCE, NOW);
+
+        expect(result.txHash).toBe(TX);
+        expect(usedTxs.rows).toEqual([
+            {
+                txHash: TX,
+                nonce,
+                amountWei: '20000000000000000',
+                scheme: 'onchain-receipt',
+                chainId: 84532,
+                amountBase: '20000',
+            },
+        ]);
+        const replay = await httpError(service.catCard(paid, RESOURCE, NOW));
+        expect(replay.getStatus()).toBe(402);
+        expect((replay.getResponse() as any).error).toMatch(/already used/);
+    });
+
+    it('pays on Tempo with disburseWithMemo: the event memo is the 0x-hex of memo32', async () => {
+        const { service } = setup();
+        const nonce = (await offers(service))[0].extra.nonce;
+        getTransactionReceipt.mockResolvedValue(
+            receipt([tokenLog('DisbursementBatch', x402Memo32(nonce), '10000', TEMPO_SPLIT)])
+        );
+        const result = await service.catCard(header({ txHash: TX, nonce }, { network: 'eip155:42431' }), RESOURCE, NOW);
+        expect(result.txHash).toBe(TX);
+    });
+
+    it.each([
+        [
+            'below the chain price',
+            () => [tokenLog('DisbursementBatch', 'x402:NONCE', '19999', BASE_SPLIT)],
+            /below 20000 USDC/,
+        ],
+        ['from another contract', () => [tokenLog('DisbursementBatch', 'x402:NONCE', '20000', SPLIT)], /below/],
+        ['native events on a token chain', () => [nativeLog('x402:NONCE', '20000000000000000', BASE_SPLIT)], /below/],
+    ])('refuses a Base Sepolia payment %s', async (_label, logs, message) => {
+        const { service, usedTxs } = setup();
+        const nonce = (await offers(service))[0].extra.nonce;
+        const built = (logs as () => any[])().map(l => l);
+        // Re-encode with the issued nonce.
+        getTransactionReceipt.mockResolvedValue(
+            receipt(
+                built.map(l => {
+                    const parsed = shelterSplitInterface.parseLog(l)!;
+                    const args = [...parsed.args];
+                    args[args.length - 1] = `x402:${nonce}`;
+                    return { address: l.address, ...shelterSplitInterface.encodeEventLog(parsed.fragment, args) };
+                })
+            )
+        );
+        const error = await httpError(
+            service.catCard(header({ txHash: TX, nonce }, { network: 'eip155:84532' }), RESOURCE, NOW)
+        );
+        expect(error.getStatus()).toBe(402);
+        expect((error.getResponse() as any).error).toMatch(message);
+        expect(usedTxs.rows).toHaveLength(0);
+    });
+
+    it('refuses a network that is not offered', async () => {
+        const { service } = setup();
+        const nonce = (await offers(service))[0].extra.nonce;
+        const error = await httpError(
+            service.catCard(header({ txHash: TX, nonce }, { network: 'eip155:421614' }), RESOURCE, NOW)
+        );
+        expect((error.getResponse() as any).error).toBe(
+            'wrong network; use eip155:5042002 or eip155:84532 or eip155:42431'
+        );
     });
 });

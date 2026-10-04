@@ -2,7 +2,8 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
 /**
- * One row per campaign goal (`_id` = the fact id, "C-001"): how far the inflow scan has gone and
+ * One row per campaign goal and chain (`_id` = the fact id, "C-001", for the campaign chain, and
+ * "C-001@<chainId>" for every other chain it counts on): how far the inflow scan has gone and
  * what it has counted (plan: goal meter review fix). `configKey` is the counted wallet set; when the
  * facts change it (a handover adds a wallet), the scan starts again from the first block.
  *
@@ -34,6 +35,13 @@ export class ShelterGoalCursor {
 
     @Prop({ type: Date, default: null })
     lastSuccessAt: Date | null;
+
+    /**
+     * A chain leg's first block (`_id` `C-001@<chainId>`): the first block of the goal's start date on
+     * that chain, found once. Null on the campaign chain's row (its first block is in the facts).
+     */
+    @Prop({ type: Number, default: null })
+    startBlock?: number | null;
 
     @Prop({ type: Date, required: false })
     lastErrorAt?: Date;

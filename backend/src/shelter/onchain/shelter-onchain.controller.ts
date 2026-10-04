@@ -13,7 +13,7 @@ import {
     ValidationPipe,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { IsIn, IsInt, IsString, Matches, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 import { AUTH_USER, IAuthUser } from 'src/common/decorators/auth-user.decorator';
 import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { ImpactEligibilityService } from 'src/impact/eligibility.service';
@@ -83,6 +83,13 @@ export class ShelterClaimDto {
 export class ShelterDonateDto {
     @IsIn(DONATION_SOURCES as unknown as string[])
     source: DonationSource;
+
+    /** The network the treat is paid on (GET /shelter/donate/status `chains`). Omitted: the main chain. */
+    @IsOptional()
+    @IsInt()
+    @Min(1)
+    @Max(2 ** 40)
+    chainId?: number;
 }
 
 const donatePipe = new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true });
@@ -186,10 +193,16 @@ export class ShelterOnchainController {
     @Post('donate')
     async donate(@AUTH_USER() user: IAuthUser, @Body(donatePipe) body: ShelterDonateDto): Promise<DonateResult> {
         await this.eligibility.assertInstantTreat(user);
-        return this.donateService.donate(String(user._id), body.source);
+        // No chainId (or null): the main chain, the call exactly as before.
+        return body.chainId === undefined || body.chainId === null
+            ? this.donateService.donate(String(user._id), body.source)
+            : this.donateService.donate(String(user._id), body.source, undefined, body.chainId);
     }
 
-    /** Public and user-free: rail state, today's budget and the confirmed community total. */
+    /**
+     * Public and user-free: rail state, today's budget and the confirmed community total, plus `chains`:
+     * every network a treat can be sent on, each with its own state, coin and budget.
+     */
     @Throttle({ default: SHELTER_STATUS_THROTTLE })
     @Get('donate/status')
     async donateStatus(): Promise<DonateStatus> {

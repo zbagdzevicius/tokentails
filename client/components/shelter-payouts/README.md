@@ -62,7 +62,7 @@ Query params, not dynamic segments, because the app build is a static export.
 
 | Route | What it does |
 |---|---|
-| `/shelter-payouts/give?from=heist&cat=<name>` | Signed-in one-tap treat: `POST /shelter/donate` (backend pays from its hot wallet). Handles signed-out, 429 (once per UTC day), 503 (disabled or budget spent). |
+| `/shelter-payouts/give?from=heist&cat=<name>[&chain=<id>]` | Signed-in one-tap treat: `POST /shelter/donate` (backend pays from its hot wallet). Web builds show network chips (`treatChains.ts`: Arc, Arbitrum, Base, Avalanche, Robinhood, Tempo, each with its coin); only chains the backend's `GET /shelter/donate/status` `chains` lists as live can be picked, and `?chain=<id>` preselects one when it is open (else Arc, with a note). App builds always use the main chain. Handles signed-out, 429 (once per UTC day, across all chains), 409 (disabled or budget spent). |
 | `/shelter-payouts?embed=1` | Same page without the site header and footer, for a modal iframe (e.g. inside Catnip Heist). The Heist link is hidden and other links open with `target="_top"`. |
 | `/shelter-payouts/receipt?chain=<id>&tx=<hash>` | Reads the receipt over the public RPC, decodes NativeDisbursed/Disbursed, flags logs not from a listed contract, and draws a PNG share card in the browser. |
 

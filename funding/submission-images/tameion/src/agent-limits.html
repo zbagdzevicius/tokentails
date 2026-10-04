@@ -1,0 +1,114 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="common.css">
+<style>
+  .stage { gap: 30px; padding: 54px 64px 44px; }
+  .head { display: flex; align-items: flex-start; justify-content: space-between; }
+  .head h1 { font-size: 66px; }
+  .head .sub { font-size: 25px; margin-top: 14px; max-width: 1250px; }
+  .lockup { height: 110px; margin-top: -8px; }
+  .flow { display: grid; grid-template-columns: minmax(0,1fr) 64px minmax(0,1fr) 64px minmax(0,1.15fr) 64px minmax(0,.9fr); flex: 1; min-height: 0; }
+  .box { border: 4px solid var(--gold-500); border-radius: 22px; background: rgba(7,5,26,.86); padding: 26px 26px 24px;
+    box-shadow: 0 18px 46px rgba(0,0,0,.55); display: flex; flex-direction: column; gap: 14px; }
+  .box.lim { border-color: var(--mint); }
+  .box.dest { border-color: var(--pink); }
+  .num { display: flex; align-items: center; gap: 12px; }
+  .num i { font-style: normal; width: 46px; height: 46px; border-radius: 50%; background: var(--gold-400); color: var(--gold-ink);
+    font-family: "Passion One"; font-weight: 900; font-size: 30px; display: grid; place-items: center; box-shadow: 0 4px 0 var(--gold-shadow); flex: none; }
+  .lim .num i { background: var(--mint); box-shadow: 0 4px 0 #2f6b24; color: #0b2a08; }
+  .dest .num i { background: var(--pink); box-shadow: 0 4px 0 #7a2b45; color: #3a0718; }
+  .num h2 { font-family: "Passion One"; font-weight: 700; text-transform: uppercase; font-size: 44px; color: #fff; line-height: 1; }
+  .who { font-family: "Passion One"; font-weight: 700; text-transform: uppercase; font-size: 20px; letter-spacing: .06em; color: var(--muted); }
+  .box p, .box li { font-size: 25px; line-height: 1.38; font-weight: 600; color: var(--cream); }
+  .box ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .box li::before { content: "• "; color: var(--gold-400); font-weight: 900; }
+  .lim li::before { content: "✓ "; color: var(--mint); }
+  .http { font-family: "SF Mono", Menlo, monospace; font-size: 18.5px; line-height: 1.5; background: rgba(0,0,0,.45); border: 2px solid rgba(226,192,90,.35);
+    border-radius: 12px; padding: 12px 14px; color: var(--cream); white-space: pre; overflow: hidden; }
+  .http .k { color: var(--gold-400); } .http .s { color: var(--pink); font-weight: 700; } .http .ok { color: var(--mint); font-weight: 700; } .http .c { color: var(--muted); }
+  .arrow { display: flex; align-items: center; justify-content: center; color: var(--gold-400); font-size: 54px; text-shadow: 0 0 18px rgba(255,204,85,.6); }
+  .revert { margin-top: auto; border: 3px dashed var(--pink); border-radius: 14px; padding: 14px 16px; background: rgba(255,122,162,.08); display: flex; flex-direction: column; gap: 8px; }
+  .revert .who { color: var(--pink); }
+  .revert p { font-size: 20px; }
+  .shelter { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; margin-top: 6px; }
+  .shelter img { width: 150px; height: 150px; border-radius: 50%; background: #fff; border: 4px solid var(--pink); }
+  .shelter b { font-family: "Passion One"; font-weight: 700; font-size: 34px; text-transform: uppercase; color: #fff; line-height: 1; }
+  .shelter span { color: var(--lilac); font-size: 22px; font-weight: 700; }
+  .bottom { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+  .bottom .chips { font-size: 19px; flex-wrap: nowrap; }
+  .bottom .note { font-size: 19px; text-align: right; }
+</style></head>
+<body>
+<div class="bg space"></div><div class="shade"></div>
+<div class="stage">
+  <div class="head">
+    <div>
+      <h1 class="tt-title">Claude decides. <em class="tt-glow" style="font-style:normal">The contract limits.</em></h1>
+      <p class="sub">The treat agent: an LLM chooses whether to give, and a CappedSpender contract on Arc makes overspending impossible. The model can be wrong; the money cannot.</p>
+    </div>
+    <img class="lockup" src="../../_shared/assets/logo-text.webp">
+  </div>
+
+  <div class="flow">
+    <div class="box">
+      <div class="num"><i>1</i><h2>Observe</h2></div>
+      <div class="who">Read from the chain and the app</div>
+      <ul>
+        <li>ShelterSplit payouts in the last 24 h: public gifts vs our own</li>
+        <li>Its remaining daily budget and float</li>
+        <li>The campaign goal and a needs list</li>
+        <li>Gifts already matched, so none is matched twice</li>
+      </ul>
+      
+    </div>
+    <div class="arrow">➜</div>
+    <div class="box">
+      <div class="num"><i>2</i><h2>Decide</h2></div>
+      <div class="who">Claude, strict tools</div>
+      <div class="http"><span class="k">give_treat</span>(amount, reason)
+<span class="c">or</span>
+<span class="k">hold</span>(reason)</div>
+      <p>It weighs the goal, fresh public gifts and the day's budget, then gives or holds, and says why. The code validates every proposal.</p>
+      <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px"><div class="who" style="color:var(--gold-400)">Every round logged</div>
+      <div class="http"><span class="c">{</span> observation hash,
+  decision, reason,
+  tx hash <span class="c">or</span> revert <span class="c">}</span></div></div>
+    </div>
+    <div class="arrow">➜</div>
+    <div class="box lim">
+      <div class="num"><i>3</i><h2>Enforce</h2></div>
+      <div class="who" style="color:var(--mint)">CappedSpender contract on Arc</div>
+      <ul>
+        <li>Cap per gift and per UTC day, on-chain</li>
+        <li>Pays only the shelter wallets on ShelterSplit</li>
+        <li>Refuses while the split is paused</li>
+        <li>Spends Token Tails' own float, never donor money</li>
+      </ul>
+      <div class="revert">
+        <div class="who">Over-cap proposal (demo)</div>
+        <div class="http" style="border-color:rgba(255,122,162,.5)"><span class="s">revert</span> OverTxCap(0.1, 0.05)</div>
+        <p>Test USDC. The balance does not move; the log records the revert.</p>
+      </div>
+    </div>
+    <div class="arrow">➜</div>
+    <div class="box dest">
+      <div class="num"><i>4</i><h2>Give</h2></div>
+      <div class="who" style="color:var(--pink)">ShelterSplit → shelter wallet</div>
+      <div class="shelter">
+        <img src="../../_shared/assets/pink-paw-logo.webp">
+        <b>Pink Paw</b><span>Rožinė pėdutė</span>
+      </div>
+      <p style="margin-top:auto;font-size:20px">One public event per payout; matches tagged <code>tt:agent:match-&lt;tx&gt;</code></p>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="chips">
+      <span class="tt-chip">CappedSpender: 26/26 forge tests pass</span>
+      <span class="tt-chip mint">Shown on a local Arc testnet fork · test USDC</span>
+      <span class="tt-chip pink">Testnet deploy pending</span>
+    </div>
+    <div class="note">Caps shown are demo values · wallet held by Token Tails until handover</div>
+  </div>
+</div>
+</body></html>

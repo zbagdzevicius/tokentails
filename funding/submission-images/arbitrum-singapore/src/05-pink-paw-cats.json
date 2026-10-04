@@ -1,0 +1,22 @@
+{
+ "w": 1920,
+ "h": 1080,
+ "layout": "split",
+ "bg": "dusk",
+ "dim": 0.2,
+ "logo": "text",
+ "logoH": 9,
+ "textWidth": 0.34,
+ "footer": "tokentails.com/heist",
+ "kicker": "Showcase shelter",
+ "title": "Pink Paw's <em>real cats</em>",
+ "subtitle": "Rožinė pėdutė, Lithuania. Its wallet is held by Token Tails on the shelter's behalf until handover, and every payout is listed.",
+ "chips": [
+  {
+   "text": "Pink Paw · Rožinė pėdutė",
+   "tone": "pink"
+  }
+ ],
+ "art": "shots/live-heist-payouts-1440.png",
+ "artPos": "center"
+}

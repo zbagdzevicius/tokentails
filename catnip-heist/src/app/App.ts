@@ -17,7 +17,7 @@ import { createAudio, type HeistAudio } from '../audio';
 import { heistVolumesFor, type HostAudioSettings } from '../embed';
 import { createYard, type YardAPI } from '../yard';
 import { getLevel, getLevels, getSolution, nextLevelId } from '../levels';
-import { createLevelSelect, decorateResults, levelName, ProgressStore, type LevelSelect } from '../ui/levels';
+import { createLevelSelect, decorateResults, getRescueCatCached, levelName, loadRescueCats, ProgressStore, rescueHudChip, withRescueName, type LevelSelect, type RescueCat } from '../ui/levels';
 import { runStars } from '../ui/levels/progress';
 import type { InputLog } from '../sim';
 import { HeistSession } from './session';
@@ -110,6 +110,12 @@ export class App {
   /** Sentry warnings (guard * 100003 + turn tick) already announced by the telegraph tick sound. */
   private sentryWarned = new Set<number>();
   private level: LevelDef | null = null;
+  /**
+   * The run's real shelter cat (Pink Paw) and a UI-only copy of the level whose crate carries its
+   * name: for the HUD, toasts, brief and results. The sim, session, replay and progress keep `level`.
+   */
+  private rescueCat: RescueCat | null = null;
+  private uiLevel: LevelDef | null = null;
   private screenName: AppScreen = 'boot';
   private runToken = 0;
   private lastFrame = 0;
@@ -159,6 +165,8 @@ export class App {
   constructor(opts: AppOptions) {
     this.opts = opts;
     this.replaySpeed = opts.replaySpeed ?? 1;
+    // The real shelter cats behind the crates: one GET per page, local copies when offline.
+    void loadRescueCats({ base: opts.base });
     const levels = getLevels();
     this.progress = new ProgressStore(undefined, levels.map((l) => l.id));
     this.ftue = opts.ftue ?? new FtueStore();
@@ -295,6 +303,9 @@ export class App {
     const level = getLevel(replay?.levelId ?? levelId ?? this.levelId);
     this.level = level;
     this.levelId = level.id;
+    // Name taken once per run, so a late API answer cannot rename the cat mid-heist.
+    this.rescueCat = getRescueCatCached(level.id, { base: this.opts.base });
+    this.uiLevel = withRescueName(level, this.rescueCat.name);
     this.session = new HeistSession({ level, seed: this.opts.seed ?? 1, catIds, replay });
     const ids = this.session.catIds;
     this.gated = false;
@@ -303,7 +314,7 @@ export class App {
     this.input.reset();
     this.setScreen('loading');
     this.ui.hideAll();
-    this.ui.setLoading(level.meta.intro ?? `Casing ${levelName(level)}…`);
+    this.ui.setLoading(this.uiLevel.meta.intro ?? `Casing ${levelName(level)}…`);
     const r = this.ensureRenderer();
     r.setLevel(level);
     r.setCats(ids);
@@ -314,7 +325,8 @@ export class App {
     }
     if (token !== this.runToken) return;
     this.ui.setLoading(null);
-    this.ui.showHUD(level, ids);
+    this.ui.showHUD(this.uiLevel ?? level, ids);
+    this.mountRescueChip();
     this.setScreen('heist');
     this.session.resetClock();
     // Draw the first frame right away so the HUD never sits over an empty canvas.
@@ -324,6 +336,14 @@ export class App {
     if (this.session.mode === 'replay') this.ui.toast('Replay', 'info');
     this.audio.startMusic();
     this.beginRunFtue(level, !!opts.restart);
+  }
+
+  /** The real cat's photo chip beside the objective, for the whole run (display only). */
+  private mountRescueChip(): void {
+    const obj = this.ui.root.querySelector<HTMLElement>('.ch-obj');
+    obj?.querySelector('.ch-lv-hudcat')?.remove();
+    if (!obj || !this.rescueCat || this.rescueCat.levelId !== this.level?.id) return;
+    obj.prepend(rescueHudChip(this.rescueCat, { base: this.opts.base }));
   }
 
   private retry(): void {
@@ -357,7 +377,7 @@ export class App {
     }
     this.gated = true;
     this.input.setEnabled(false);
-    this.ui.ftue.showBrief(briefFor(level), {
+    this.ui.ftue.showBrief(briefFor(this.uiLevel?.id === level.id ? this.uiLevel : level), {
       touch: this.ui.root.classList.contains('ch-touching'),
       pawSrc: this.opts.base + this.opts.manifest.images.paw,
       onGo: () => this.openGate(),
@@ -742,7 +762,9 @@ export class App {
     this.setScreen('results');
     const result = s.result();
     this.hideRoute();
-    this.ui.showResults(result, this.level);
+    const uiLevel = this.uiLevel?.id === this.level.id ? this.uiLevel : this.level;
+    // Display copy only: the session's result (hash, score, rescuedName) is left as it is.
+    this.ui.showResults({ ...result, rescuedName: uiLevel.crate.catName || result.rescuedName }, uiLevel);
     this.audio.stopMusic();
     // Campaign: only real runs count (a watched replay earns nothing).
     const level = this.level;
@@ -780,6 +802,8 @@ export class App {
       nextName: next && nextOpen ? levelName(getLevel(next)) : null,
       unlockedNow: !!outcome?.firstWin && nextOpen,
       replay: s.mode === 'replay',
+      rescue: this.rescueCat?.levelId === level.id ? this.rescueCat : null,
+      base: this.opts.base,
       onNext: next && nextOpen ? () => void this.startRun(s.catIds, undefined, next) : undefined,
       onLevels: () => this.openLevels(s.catIds, level.id),
       onClick: () => this.audio.play('click'),

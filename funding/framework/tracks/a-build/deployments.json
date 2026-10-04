@@ -58,6 +58,7 @@
     "mock": true,
     "tokenAddress": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
     "proofTxs": [
+      "0x276c904ce4b5862e8cd72b3e561ea9ea2bfc26428844c5035817726c5a84aa23",
       "0xaeca9242545aaa31c89eeab0eff49949e4d9f79467b588c5d0e9b9734d143375"
     ],
     "verifiedAt": "2026-10-03T20:40:05.464Z",
@@ -142,6 +143,7 @@
     "sourceVerifiedAt": "2026-10-03T21:04:42.820Z",
     "sourceVerifier": "blockscout",
     "proofTxs": [
+      "0x26a7b0135627bd743046a56fdd69a93b1a830472702f241d48bd7790efacc5fb",
       "0xc8500f47d3a0ac47af26473cd92bb28c14d407df3b98a9affa4af37928a21467"
     ]
   },
@@ -199,6 +201,7 @@
     "verified": true,
     "note": "recorded by a:ingest from the Foundry broadcast",
     "proofTxs": [
+      "0xa0a985544ae6c97ec63c7581f404ff97962a3a14a1113e6de7459a80ea806efa",
       "0x1623dd09b2035620395887da9e6f71c872f2ad9406d8389de125c8fc962339fe"
     ],
     "verifiedAt": "2026-10-03T21:06:33.669Z",
@@ -207,5 +210,26 @@
     "sourceVerified": true,
     "sourceVerifiedAt": "2026-10-03T21:06:52.236Z",
     "sourceVerifier": "etherscan"
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "monad",
+    "network": "testnet",
+    "chainId": 10143,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0x91108a6f79c8da351b5caa39875b497808b4a423580891d480d25cf27b0c0489",
+    "token": "USDC",
+    "recorded": "2026-10-04T14:14:28.677Z",
+    "verified": true,
+    "note": "recorded by a:ingest from the Foundry broadcast",
+    "proofTxs": [
+      "0x6f360be3884051af5e2ae367bf7d66ae095808110756b3fa740a203ef474a556"
+    ],
+    "verifiedAt": "2026-10-04T14:15:48.082Z",
+    "codeBytes": 11199,
+    "codeSha256": "d53e5446e825cc493592f61029ae4df4408d8d15cbcdab633630d893d14e1feb",
+    "sourceVerified": true,
+    "sourceVerifiedAt": "2026-10-04T14:16:03.992Z",
+    "sourceVerifier": "sourcify"
   }
 ]

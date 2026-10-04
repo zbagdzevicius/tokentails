@@ -1,0 +1,92 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="common.css">
+<style>
+  .stage { flex-direction: row; gap: 56px; padding: 60px 64px 56px; align-items: center; }
+  .left { flex: 0 0 600px; display: flex; flex-direction: column; gap: 24px; }
+  .left .lockup { height: 120px; align-self: flex-start; margin-left: -12px; }
+  .left h1 { font-size: 62px; }
+  .frame.crop { width: auto; height: 86%; aspect-ratio: 820/900; }
+  .frame.crop img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; }
+  .left .sub { font-size: 26px; }
+  .left .chips { font-size: 19px; }
+  .left ul { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .left li { font-size: 23px; font-weight: 600; line-height: 1.35; }
+  .left li::before { content: "✓ "; color: var(--mint); font-weight: 900; }
+  .right { flex: 1; height: 100%; position: relative; display: flex; align-items: center; justify-content: center; }
+  .frame { width: 100%; max-height: 100%; }
+  .frame img { display: block; width: 100%; }
+  .phone { position: absolute; right: -14px; bottom: -10px; height: 74%; aspect-ratio: 390/844; border-radius: 34px; overflow: hidden; border: 4px solid var(--gold-500);
+    box-shadow: 0 18px 50px rgba(0,0,0,.7); background: #000; }
+  .phone img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+  .codebox { width: 100%; padding: 28px 32px; font-family: "SF Mono", Menlo, monospace; font-size: 21px; line-height: 1.55; white-space: pre; color: var(--cream); }
+  .codebox .c { color: var(--muted); } .codebox .k { color: var(--pink); } .codebox .f { color: var(--gold-400); } .codebox .s { color: var(--mint); } .codebox .n { color: var(--sky); }
+  .bar { display: flex; gap: 9px; padding: 14px 18px; border-bottom: 2px solid rgba(226,192,90,.3); align-items: center; }
+  .bar i { width: 14px; height: 14px; border-radius: 50%; background: var(--night-500); }
+  .bar span { margin-left: 12px; font-family: "SF Mono", Menlo, monospace; font-size: 17px; color: var(--muted); }
+  .foot { position: absolute; left: 64px; bottom: 28px; font-size: 19px; }
+</style></head>
+<body>
+<div class="bg space"></div><div class="shade"></div>
+<div class="stage"><div class="left" id="left"></div><div class="right" id="right"></div></div>
+<div class="foot" id="foot"></div>
+<script>
+const S = "../../_shared/screens/";
+const V = {
+  proof: {
+    kicker: 'ShelterSplit on Arc testnet',
+    title: 'Check <em class="tt-glow" style="font-style:normal">every payout.</em>',
+    sub: "The contract the agent pays is live on Arc testnet. Each payout is a public event, read back from the chain, with a receipt page.",
+    chips: [["Testnet · test coins, no real money", "mint"], ["Pink Paw · Rožinė pėdutė", "pink"]],
+    right: `<div class="tt-panel frame"><img src="${S}dev-testnet-proof-1440.png"></div><div class="phone"><img src="${S}dev-receipt-arc-testnet-390.png"></div>`,
+    foot: "Arc testnet · ShelterSplit 0x457c…b147 · explorer.testnet.arc.io"
+  },
+  code: {
+    title: 'One call. <em class="tt-glow" style="font-style:normal">A hard cap.</em>',
+    sub: "payAndFetch in the open Rail SDK runs the whole 402 loop and refuses any price above the agent's cap.",
+    list: ["MIT, no dependencies", "Agent signs with its own key; never written anywhere", "Arc testnet by default"],
+    chips: [["Built and tested", "gold"], ["Mainnet endpoint off until handover", "pink"]],
+    right: `<div class="tt-panel frame"><div class="bar"><i></i><i></i><i></i><span>shelter-rail/examples/agent-pay.mjs (excerpt, trimmed)</span></div><div class="codebox"><span class="k">import</span> { payAndFetch, formatUnits, explorerTxUrl } <span class="k">from</span> <span class="s">"../src/sdk.mjs"</span>;
+
+<span class="k">const</span> cap = <span class="f">BigInt</span>(process.env.MAX_PRICE_WEI || <span class="s">"10000000000000000"</span>);
+
+<span class="k">const</span> { response, paid, error } = <span class="k">await</span> <span class="f">payAndFetch</span>(url, {
+  maxAmountWei: cap,
+  <span class="c">// … options for the standard exact scheme trimmed …</span>
+  <span class="c">// The signer callback: send the prepared donate() call</span>
+  <span class="c">// and resolve once it is mined.</span>
+  pay: <span class="k">async</span> ({ chainId, to, valueWei, data }) => {
+    <span class="k">const</span> tx = <span class="k">await</span> wallet.<span class="f">sendTransaction</span>({ to, value: valueWei, data });
+    <span class="k">const</span> mined = <span class="k">await</span> tx.<span class="f">wait</span>();
+    <span class="k">if</span> (mined.status !== <span class="n">1</span>) <span class="k">throw new</span> Error(<span class="s">"payment reverted"</span>);
+    <span class="k">return</span> tx.hash;
+  },
+});
+
+<span class="k">if</span> (paid) console.<span class="f">log</span>(<span class="s">\`Paid \${formatUnits(paid.amountWei, 18)} USDC</span>
+<span class="s">  to shelters: \${explorerTxUrl(paid.chainId, paid.txHash)}\`</span>);
+<span class="k">else if</span> (error) console.<span class="f">log</span>(<span class="s">\`Not paid: \${error}\`</span>);
+console.<span class="f">log</span>(<span class="k">await</span> response.<span class="f">json</span>());  <span class="c">// the cat card</span></div></div>`,
+    foot: "github.com/zbagdzevicius/tokentails · shelter-rail"
+  },
+  twin: {
+    title: 'Same split, <em class="tt-glow" style="font-style:normal">for players too.</em>',
+    sub: "Agents pay through the cat-card endpoint; players give from Catnip Heist. Both land on the same public payouts page.",
+    list: ["Free a shelter cat in a heist", "Tap the rescue treat for Pink Paw", "Every payout listed with a link to the chain"],
+    chips: [["Live at tokentails.com/heist", "gold"], ["First payouts land soon", "pink"]],
+    right: `<div class="tt-panel frame crop"><img src="${S}live-heist-payouts-1440.png"></div>`,
+    foot: "tokentails.com/heist"
+  }
+};
+const v = V[new URLSearchParams(location.search).get("v") || "proof"];
+document.getElementById("left").innerHTML = `
+  <img class="lockup" src="../../_shared/assets/logo-text.webp">
+  ${v.kicker ? `<span class="tt-chip" style="align-self:flex-start;font-size:20px">${v.kicker}</span>` : ""}
+  <h1 class="tt-title">${v.title}</h1>
+  <p class="sub">${v.sub}</p>
+  ${v.list ? `<ul>${v.list.map((x) => `<li>${x}</li>`).join("")}</ul>` : ""}
+  <div class="chips">${v.chips.map(([t, c]) => `<span class="tt-chip ${c}">${t}</span>`).join("")}</div>`;
+document.getElementById("right").innerHTML = v.right;
+document.getElementById("foot").textContent = v.foot;
+</script>
+</body></html>

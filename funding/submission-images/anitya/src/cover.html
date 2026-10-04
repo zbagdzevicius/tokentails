@@ -1,0 +1,37 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../_shared/brand.css">
+<!-- Title card over a world render. Query: art, pos, shift (translateY %) (object-position), zoom, kicker, title, gold (second title line), sub, u (type unit px), align (left|center) -->
+<style>
+  body { position: relative; background: #1b1030; }
+  #art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  #scrim { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(7,5,26,.95) 0%, rgba(7,5,26,.72) 30%, rgba(7,5,26,0) 58%),
+    linear-gradient(180deg, rgba(7,5,26,.35) 0%, rgba(7,5,26,0) 22%); }
+  #txt { position: absolute; left: calc(var(--u) * 3.2); right: calc(var(--u) * 3.2); bottom: calc(var(--u) * 2.8); display: flex; flex-direction: column; gap: calc(var(--u) * .7); }
+  .center #txt { align-items: center; text-align: center; }
+  #kicker { align-self: flex-start; font-size: calc(var(--u) * 1.25); }
+  .center #kicker { align-self: center; }
+  h1 { font-family: "Cat Paw"; font-weight: 400; word-spacing: .14em; line-height: .95; font-size: calc(var(--u) * 5); color: var(--cream);
+    text-shadow: 0 0 calc(var(--u) * 1.2) rgba(255,204,85,.5), 0 calc(var(--u) * .25) 0 rgba(0,0,0,.5); }
+  h1 em { font-style: normal; color: var(--gold-400); display: block; }
+  #sub { font-size: calc(var(--u) * 1.7); font-weight: 700; color: var(--cream); text-shadow: 0 2px 6px rgba(0,0,0,.8); }
+  #brand { position: absolute; top: calc(var(--u) * 2.2); right: calc(var(--u) * 2.6); height: calc(var(--u) * 4.6); filter: drop-shadow(0 4px 10px rgba(0,0,0,.6)); }
+</style></head>
+<body>
+<img id="art"><div id="scrim"></div>
+<img id="brand" src="../../_shared/assets/logo-text.webp">
+<div id="txt"><span id="kicker" class="tt-chip"></span><h1 id="title"></h1><div id="sub"></div></div>
+<script>
+const q = new URLSearchParams(location.search);
+const W = innerWidth;
+document.documentElement.style.setProperty("--u", (Number(q.get("u")) || W / 60) + "px");
+const art = document.getElementById("art");
+art.src = q.get("art"); art.style.objectPosition = q.get("pos") || "center";
+if (q.get("zoom") || q.get("shift")) { art.style.transform = `translateY(${q.get("shift") || 0}%) scale(${q.get("zoom") || 1})`; art.style.transformOrigin = q.get("origin") || "center"; }
+document.body.className = q.get("align") || "left";
+const k = q.get("kicker"); if (k) kicker.textContent = k; else kicker.remove();
+title.innerHTML = (q.get("title") || "") + (q.get("gold") ? `<em>${q.get("gold")}</em>` : "");
+sub.textContent = q.get("sub") || "";
+if (q.get("brand") === "0") document.getElementById("brand").remove();
+</script>
+</body></html>

@@ -3,15 +3,14 @@ import { isAppBuild } from "@/components/claims/build";
 import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CampaignMeter } from "./CampaignMeter";
 import { Celebration } from "./Celebration";
-import { SHELTER_CHAINS, chainDisplayName } from "./chains";
 import { GOAL_REFRESH_EVENT, useCampaignGoal } from "./goal";
-import { formatUnits } from "./logs";
 import { headingName, isPinkPawWallet } from "./pinkPaw";
 import { PinkPawLogo, PinkPawStrip } from "./PinkPawShowcase";
 import { CUSTODY_DISCLOSURE } from "./ShelterProfile";
+import { TreatChip, initialTreatChain, parseChainParam, treatAmount, treatChips, treatsLeft as chainTreatsLeft } from "./treatChains";
 import { FIGURE, GOLD_BUTTON, Kicker, NightStage, PANEL, PILL, PinkCat } from "./ui";
 
 const SHOWCASE_NAME = "Pink Paw (Rožinė pėdutė)";
@@ -31,13 +30,63 @@ const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v
 export const cleanCatName = (v: string) =>
   v.replace(/[\u0000-\u001f<>{}[\]\\/"`]/g, "").trim().slice(0, 32);
 
-const usdc = (wei: string | bigint, chainId: number) => {
-  // Native rails (Arc: USDC with 18 decimals) use the native decimals; a token rail with no native
-  // coin (Tempo) uses its token's decimals.
-  const chain = SHELTER_CHAINS[chainId];
-  const decimals = chain?.nativeDecimals ?? chain?.decimals ?? 18;
-  return formatUnits(typeof wei === "bigint" ? wei : BigInt(wei || "0"), decimals);
-};
+/**
+ * The network chips (web builds only): one per chain, the coin it pays in, greyed out with a short
+ * reason when the backend does not serve treats there right now.
+ */
+export const TreatChainChips = ({
+  chips,
+  value,
+  onPick,
+  locked,
+}: {
+  chips: TreatChip[];
+  value: number;
+  onPick: (chainId: number) => void;
+  /** While a treat is on its way the network cannot change. */
+  locked: boolean;
+}) => (
+  <div className="flex w-full flex-col items-center gap-2">
+    <p id="treat-network-label" className="text-tt-cream/85">
+      Pick a network
+    </p>
+    <div
+      role="radiogroup"
+      aria-labelledby="treat-network-label"
+      className="flex flex-wrap justify-center gap-2"
+      data-testid="treat-networks"
+    >
+      {chips.map((c) => {
+        const checked = c.chainId === value;
+        return (
+          <button
+            key={c.chainId}
+            type="button"
+            role="radio"
+            aria-checked={checked}
+            disabled={!c.enabled || locked}
+            onClick={() => onPick(c.chainId)}
+            title={c.reason || undefined}
+            data-testid={`treat-chain-${c.chainId}`}
+            className={`flex min-h-11 flex-col items-center justify-center rounded-full border-2 px-4 py-1 leading-tight transition-colors ${
+              checked
+                ? "border-tt-gold-400 bg-tt-night-950 text-tt-cream"
+                : c.enabled
+                ? "border-tt-cream/50 text-tt-cream hover:border-tt-cream"
+                : "cursor-not-allowed border-dashed border-tt-cream/30 text-tt-cream/50"
+            }`}
+          >
+            <span className="font-primary uppercase">{c.name}</span>
+            <span className="text-p6 md:text-p5">
+              {c.coin}
+              {c.reason ? ` · ${c.reason}` : ""}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
 
 // What a signed-in account still needs before the backend's treat policy (F7.5) lets it send.
 export const notEligibleMessage = (reason: DonateIneligibleReason, eligibleAt: string | null) => {
@@ -53,8 +102,8 @@ export const notEligibleMessage = (reason: DonateIneligibleReason, eligibleAt: s
 
 const safeHttps = (url: string) => (/^https:\/\//.test(url) ? url : null);
 
-// /shelter-payouts/give?from=heist&cat=<name>: one tap and Token Tails sends a small USDC treat
-// through ShelterSplit from its own wallet. No wallet, no gas, no crypto knowledge needed.
+// /shelter-payouts/give?from=heist&cat=<name>: one tap and Token Tails sends a small stablecoin treat
+// (the picked network's coin) through ShelterSplit from its own wallet. No wallet, no gas, no crypto knowledge needed.
 export const GiveTreat = () => {
   const router = useRouter();
   // App builds (store copy rule, F7.2): no token names, chain wording or explorer links; the
@@ -69,6 +118,10 @@ export const GiveTreat = () => {
   const goal = useCampaignGoal();
   const campaign = goal.campaign;
   const [send, setSend] = useState<Send>({ status: "idle" });
+  // The picked network (web only; app builds always use the backend's main chain). Null until the
+  // status is known, then `?chain=<id>` when that chain is open, else the main chain (Arc).
+  const [picked, setPicked] = useState<number | null>(null);
+  const [wantedClosed, setWantedClosed] = useState(false);
 
   const source: DonateSource = first(router.query.from) === "heist" ? "heist" : "page";
   const cat = cleanCatName(first(router.query.cat));
@@ -85,16 +138,28 @@ export const GiveTreat = () => {
     loadStatus();
   }, [loadStatus]);
 
+  const chips = useMemo(() => treatChips(status), [status]);
+  const wantedChain = isApp ? null : parseChainParam(first(router.query.chain));
+  useEffect(() => {
+    if (status === undefined || picked !== null) return;
+    const mainId = status?.chainId || 5042;
+    const initial = isApp ? mainId : initialTreatChain(chips, wantedChain, mainId);
+    setPicked(initial);
+    setWantedClosed(wantedChain !== null && wantedChain !== initial);
+  }, [status, chips, picked, isApp, wantedChain]);
+
   const give = async () => {
     if (!signedIn && (await requireAccount("give-treat")) !== "signed-in") return;
     setSend({ status: "sending" });
-    let result = await SHELTER_API.donate(source);
+    // The main chain is sent exactly as before (no chainId); another network names its chain.
+    const pickedChain = mainChain ? undefined : chainId;
+    let result = await SHELTER_API.donate(source, pickedChain);
     if (result.status === "signed-out") {
       // The session lapsed between the check and the send: ask once more, then retry once.
       setSend({ status: "idle" });
       if ((await requireAccount("give-treat")) !== "signed-in") return;
       setSend({ status: "sending" });
-      result = await SHELTER_API.donate(source);
+      result = await SHELTER_API.donate(source, pickedChain);
       if (result.status === "signed-out") {
         setSend({ status: "error", message: "Please sign in again to send the treat." });
         return;
@@ -112,11 +177,13 @@ export const GiveTreat = () => {
     }
   };
 
-  const chainId = status?.chainId || 5042;
-  const amountWei = status ? BigInt(status.amountWei || "0") : BigInt(0);
-  const treatsLeft =
-    status && amountWei > BigInt(0) ? BigInt(status.remainingTodayWei || "0") / amountWei : BigInt(0);
-  const available = !!status?.enabled && treatsLeft > BigInt(0);
+  const mainChainId = status?.chainId || 5042;
+  const chainId = picked ?? mainChainId;
+  const mainChain = chainId === mainChainId;
+  const chip = chips.find((c) => c.chainId === chainId) || null;
+  const chainStatus = chip?.status || null;
+  const treatsLeft = chainStatus ? chainTreatsLeft(chainStatus) : BigInt(0);
+  const available = !!chip?.enabled && treatsLeft > BigInt(0);
   // Once the status is known and the jar is closed (backend unreachable, rail paused, or today's
   // budget spent), nobody is asked to sign in for a treat that cannot be sent.
   const closed = status !== undefined && !available;
@@ -149,24 +216,43 @@ export const GiveTreat = () => {
           {isApp
             ? // claim: C-004, L-rail (the treat size setting; the button is live only with the rail)
               "One tap and Token Tails sends a small treat to the shelter. It's on us, and every payout is listed on our website."
-            : // claim: C-004, L-rail
-              "One tap and Token Tails sends a small USDC treat to the shelter through the ShelterSplit contract. It's on us, and it's public on the chain."}
+            : // claim: C-004, L-rail (the coin follows the picked network: USDC, USDC.e on Tempo, USDG on Robinhood Chain)
+              `One tap and Token Tails sends a small ${chip?.coin || "stablecoin"} treat to the shelter through the ShelterSplit contract. It's on us, and it's public on the chain.`}
         </p>
 
         <section className={`${PANEL} flex flex-col items-center gap-4`}>
           {status === undefined && <p className="motion-safe:animate-pulse">Checking today&apos;s treat jar…</p>}
           {status === null && <p>Treats are resting right now. Come back a bit later.</p>}
-          {status && (
+          {!isApp && status !== undefined && (
+            <TreatChainChips
+              chips={chips}
+              value={chainId}
+              onPick={(id) => {
+                setPicked(id);
+                setWantedClosed(false);
+              }}
+              locked={send.status === "sending" || send.status === "sent"}
+            />
+          )}
+          {!isApp && wantedClosed && (
+            <p className="text-p6 md:text-p5 text-tt-cream/80" data-testid="treat-chain-fallback">
+              That network is not sending treats right now, so {chip?.name || "the main network"} is picked.
+            </p>
+          )}
+          {status && chip && (
             <p data-testid="treat-amount" className="font-primary uppercase tracking-wide text-p4 md:text-p3">
               {isApp ? (
                 "Token Tails pays for every treat"
               ) : (
                 <>
-                  Each treat: <strong className="text-tt-gold-400">{usdc(status.amountWei, chainId)} USDC</strong> on{" "}
-                  {SHELTER_CHAINS[chainId] ? chainDisplayName(SHELTER_CHAINS[chainId]) : `chain ${chainId}`}
+                  Each treat:{" "}
+                  <strong className="text-tt-gold-400">
+                    {treatAmount(chainStatus?.amountWei || status.amountWei)} {chip.coin}
+                  </strong>{" "}
+                  on {chip.name}
                 </>
               )}
-              {status.enabled && ` · ${treatsLeft.toString()} left in today's jar`}
+              {chainStatus?.enabled && ` · ${treatsLeft.toString()} left in today's jar`}
             </p>
           )}
 
@@ -195,7 +281,7 @@ export const GiveTreat = () => {
           )}
 
           {/* A paused rail says so in the chip above ("Treat jar opens soon"); no second line. */}
-          {status?.enabled && treatsLeft === BigInt(0) && send.status === "idle" && (
+          {chainStatus?.enabled && treatsLeft === BigInt(0) && send.status === "idle" && (
             <p className="text-tt-cream/85">Today&apos;s treat jar is empty. It refills at midnight UTC.</p>
           )}
 
@@ -203,10 +289,12 @@ export const GiveTreat = () => {
             <div className="flex w-full flex-col items-center gap-2" role="status">
               <Celebration />
               <p className={`${FIGURE} text-h5 md:text-h4 uppercase`}>Treat sent!</p>
-              <p>
+              <p data-testid="treat-sent-line">
                 {isApp
                   ? `Token Tails is sending your treat to ${shelterName}.`
-                  : `${usdc(send.receipt.amountWei, send.receipt.chainId)} USDC is on its way to ${shelterName}.`}
+                  : `${treatAmount(send.receipt.amountWei)} ${send.receipt.coin || chip?.coin || "USDC"} is on its way to ${shelterName} on ${
+                      chips.find((c) => c.chainId === send.receipt.chainId)?.name || chip?.name || `chain ${send.receipt.chainId}`
+                    }.`}
               </p>
               <div className="mt-2 flex flex-wrap justify-center gap-3">
                 <Link

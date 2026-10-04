@@ -12,19 +12,46 @@ export type {
   ShelterDonationStatus,
 } from "@/shared-contracts/enums";
 
+export type TreatRailState = "not-deployed" | "paused" | "live" | "exhausted";
+
+/** One network a treat can be sent on (GET /shelter/donate/status `chains`). Amounts are 18 decimals. */
+export interface TreatChainStatus {
+  chainId: number;
+  /** The backend's main chain: the default when no chain is named. */
+  main: boolean;
+  testnet?: boolean;
+  enabled: boolean;
+  railState: TreatRailState;
+  /** What the treat is paid in there (USDC, USDC.e, USDG; test coins on testnets). */
+  coin: string;
+  amountWei: string;
+  remainingTodayWei: string;
+  dailyBudgetWei?: string;
+  giftsPerDayCap?: number;
+  treatsLeftToday?: number;
+  splitAddress: string | null;
+  explorer: string | null;
+}
+
 export interface DonateStatus {
   enabled: boolean;
   chainId: number;
   amountWei: string;
   remainingTodayWei: string;
   splitAddress: string | null;
+  railState?: TreatRailState;
+  /** Every network a treat can be sent on, the main chain first. Older backends leave it out. */
+  chains?: TreatChainStatus[];
 }
 
 export interface DonateReceipt {
   txHash: string;
   chainId: number;
+  /** 18 decimals on every chain. */
   amountWei: string;
   explorerUrl: string;
+  /** The coin a token treat was paid in; absent on the main chain's native treat. */
+  coin?: string;
 }
 
 /**
@@ -68,7 +95,8 @@ async function getDonateStatus(): Promise<DonateStatus | null> {
   }
 }
 
-async function donate(source: DonateSource): Promise<DonateResult> {
+/** `chainId`: the picked network. Left out (or the main chain's id omitted by the caller): the main chain. */
+async function donate(source: DonateSource, chainId?: number): Promise<DonateResult> {
   const headers = getAuthHeaders();
   if (!headers.accesstoken) return { status: "signed-out" };
 
@@ -81,7 +109,7 @@ async function donate(source: DonateSource): Promise<DonateResult> {
         "Content-Type": "application/json",
         ...headers,
       } as HeadersInit,
-      body: JSON.stringify({ source }),
+      body: JSON.stringify(chainId === undefined ? { source } : { source, chainId }),
     });
   } catch {
     return { status: "error", message: "Could not reach Token Tails. Check your connection." };

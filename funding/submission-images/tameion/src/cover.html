@@ -1,0 +1,51 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="common.css">
+<style>
+  :root { --u: 1vw; }
+  .bg.sky { filter: saturate(1.05); }
+  .shade { background: linear-gradient(90deg, rgba(7,5,26,.86) 0%, rgba(7,5,26,.62) 48%, rgba(7,5,26,.2) 100%); }
+  .stage { flex-direction: row; align-items: center; gap: calc(var(--u) * 2); padding: calc(var(--u) * 3) calc(var(--u) * 3.6); }
+  .left { flex: 0 0 54%; display: flex; flex-direction: column; gap: calc(var(--u) * 1.25); }
+  h1.tt-title { font-size: calc(var(--u) * 4.5); }
+  .sub { font-size: calc(var(--u) * 1.5); max-width: 32em; }
+  .chips { font-size: calc(var(--u) * 1.05); }
+  .right { flex: 1; position: relative; height: 100%; }
+  .fan { position: absolute; left: 50%; top: 45%; width: 0; height: 0; }
+  .fan img { position: absolute; width: calc(var(--u) * 11.5); height: auto; left: calc(var(--u) * -5.75); top: calc(var(--u) * -8.6); transform-origin: 50% 120%; }
+  .flow { position: absolute; left: 0; right: 0; top: 76%; display: flex; justify-content: center; align-items: center; gap: calc(var(--u) * .5);
+    font-family: "Passion One"; font-weight: 700; text-transform: uppercase; font-size: calc(var(--u) * 1.2); letter-spacing: .03em; }
+  .step { border: 3px solid var(--gold-500); border-radius: 999px; padding: .2em .8em; background: rgba(7,5,26,.85); color: var(--cream); white-space: nowrap; }
+  .step b { color: var(--gold-400); font-weight: 700; }
+  .arr { color: var(--gold-400); font-size: 1.2em; }
+  .foot { position: absolute; left: calc(var(--u) * 3.6); bottom: calc(var(--u) * 1.8); font-size: calc(var(--u) * 1.05); }
+</style></head>
+<body>
+<div class="bg sky"></div><div class="bg grounds"></div><div class="shade"></div>
+<div class="stage">
+  <div class="left">
+    <img class="lockup" src="../../_shared/assets/logo-text.webp" style="height:calc(var(--u)*7.6);align-self:flex-start;margin-left:calc(var(--u)*-.8)">
+    <span class="tt-chip kick" style="align-self:flex-start">ShelterSplit · x402-style agent payments on Arc</span>
+    <h1 class="tt-title">An AI agent pays<br>a cat shelter <em class="tt-glow" style="font-style:normal">in USDC</em></h1>
+    <p class="sub">It asks for an adoptable-cat card, gets a 402 offer, pays ShelterSplit, and the whole price is split to shelter wallets. Every payout is public on the chain.</p>
+    <div class="chips">
+      <span class="tt-chip mint">ShelterSplit live on Arc testnet</span>
+      <span class="tt-chip pink">Pink Paw · Rožinė pėdutė</span>
+    </div>
+  </div>
+  <div class="right">
+    <div class="fan">
+      <img class="card-img" src="../../_shared/assets/pink-paw-cats/zare-card.webp" style="transform: rotate(-15deg) translateX(-105%) translateY(6%)">
+      <img class="card-img" src="../../_shared/assets/pink-paw-cats/raudvis-card.webp" style="transform: rotate(-5deg) translateX(-36%)">
+      <img class="card-img" src="../../_shared/assets/pink-paw-cats/simas-card.webp" style="transform: rotate(5deg) translateX(36%)">
+      <img class="card-img" src="../../_shared/assets/pink-paw-cats/judas-card.webp" style="transform: rotate(15deg) translateX(105%) translateY(6%)">
+    </div>
+    <div class="flow">
+      <span class="step"><b>402</b> offer</span><span class="arr">➜</span>
+      <span class="step"><b>pay</b> ShelterSplit</span><span class="arr">➜</span>
+      <span class="step"><b>200</b> cat card</span>
+    </div>
+  </div>
+</div>
+<div class="foot">tokentails.com/shelter-payouts</div>
+</body></html>

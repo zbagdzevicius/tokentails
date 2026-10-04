@@ -118,5 +118,25 @@
       "0x3e60679c6c4bae28e2dae5ec54c920b280385a3c61f2c2071a99bb7260062117"
     ],
     "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol; EIP-3009 probed read-only (authorizationState, DOMAIN_SEPARATOR); proof: one signed 0.1 EURC ReceiveWithAuthorization gift, Disbursed to Pink Paw"
+  },
+  {
+    "chainId": 10143,
+    "network": "testnet",
+    "router": "0xe271131be71e29f83084fd34aa6c70d50a2aea71",
+    "split": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "usdc": "0x534b2f3A21130d7a60830c2Df862319e593943A3",
+    "deployTx": "0xc84b3a9b6a00835b79bb05d8d1d6743515453e055e553988b91df360f9262111",
+    "deployedAt": "2026-10-04T14:16:26Z",
+    "chain": "monad",
+    "symbol": "USDC",
+    "eip3009": true,
+    "fromBlock": 68136782,
+    "codeBytes": 6310,
+    "sourceVerified": true,
+    "sourceVerifier": "sourcify",
+    "proofTxs": [
+      "0x5f5099e0cbbe7e7434fac2456d5b0a1ef4f2c787046e976ae617dc6a68f68f36"
+    ],
+    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol; EIP-3009 probed read-only (authorizationState, DOMAIN_SEPARATOR, EIP-712 name \"USDC\" version \"2\"); proof: one signed 0.1 USDC ReceiveWithAuthorization gift, Disbursed to Pink Paw"
   }
 ]

@@ -1,0 +1,15 @@
+# Raw inputs are reproducible (render.mjs / screens.mjs) or copies of repo assets: keep only the final
+# images, the render sources (html/json/css/scripts) and the READMEs in git.
+_shared/screens/
+_shared/assets/
+_shared/fonts/
+*/src/**/*.png
+*/src/**/*.jpg
+*/src/**/*.jpeg
+*/src/**/*.webp
+*/_src/**/*.png
+*/_src/**/*.jpg
+*/_src/**/*.jpeg
+*/_src/**/*.webp
+*/screens/
+_shared/examples/*.png

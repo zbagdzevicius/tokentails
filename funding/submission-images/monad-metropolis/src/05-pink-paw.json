@@ -1,0 +1,24 @@
+{
+ "w": 1920,
+ "h": 1080,
+ "layout": "split",
+ "bg": "space",
+ "dim": 0.35,
+ "logo": "text",
+ "logoH": 8,
+ "textWidth": 0.38,
+ "footer": "tokentails.com/heist",
+ "artPos": "center top",
+ "art": "pinkpaw-crop.png",
+ "kicker": "The first shelter",
+ "title": "Real cats.<br><em>A real shelter.</em>",
+ "subtitle": "Pink Paw (Rožinė pėdutė) is the first shelter. Its receiving wallet is held by Token Tails on the shelter's behalf until handover.",
+ "chips": [
+  {
+   "text": "Pink Paw · Rožinė pėdutė",
+   "tone": "pink"
+  }
+ ],
+ "titleSize": 4.6,
+ "subtitleSize": 1.9
+}

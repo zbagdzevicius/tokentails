@@ -32,8 +32,10 @@ const view = (over: Partial<ShelterGoalView> = {}): ShelterGoalView => ({
   wallets: [],
   liveSources: ["treats"],
   updatedAt: null,
+  chains: [],
   ...over,
 });
+const fallback = (raised: bigint): GoalCount => ({ raised, exact: false, partial: true });
 
 describe("campaign.json (generated from C-001)", () => {
   it("ships the Pink Paw goal: 50,000 USDC to the held wallet, counting everything that reaches it", () => {
@@ -89,6 +91,26 @@ describe("campaignProgress (what came in, never what is left)", () => {
     expect(campaignProgress(base, countFromView(view({ upToDate: false }))).exact).toBe(false);
   });
 
+  it("adds every chain the backend counts, with a per-chain breakdown (USDC, USDC.e, USDG)", () => {
+    const chains = [
+      { chainId: 5042, symbols: ["USDC"], raised: "3", scannedTo: 10, head: 10, upToDate: true, transfers: 1 },
+      { chainId: 4663, symbols: ["USDG"], raised: "1.5", scannedTo: 10, head: 10, upToDate: true, transfers: 1 },
+      { chainId: 143, symbols: ["USDC"], raised: "0", scannedTo: null, head: null, upToDate: false, transfers: 0 },
+    ];
+    const count = countFromView(view({ raised: "4.5", upToDate: false, chains }))!;
+    expect(count.raised).toBe(usdc("4.5"));
+    expect(count.exact).toBe(false);
+    expect(count.chains).toEqual([
+      { chainId: 5042, raised: usdc(3), symbols: ["USDC"], counted: true },
+      { chainId: 4663, raised: usdc("1.5"), symbols: ["USDG"], counted: true },
+      { chainId: 143, raised: BigInt(0), symbols: ["USDC"], counted: false },
+    ]);
+    expect(campaignProgress(base, count)).toMatchObject({ raised: usdc("4.5"), partial: false });
+    expect(campaignProgress(base, count).chains).toHaveLength(3);
+    // An older backend sends no breakdown: the meter keeps the single-chain wording.
+    expect(countFromView(view())).toEqual(counted(usdc("12.5")));
+  });
+
   it("claims nothing before the backend has counted its first window", () => {
     expect(countFromView(view({ scannedTo: null }))).toBeNull();
     expect(countFromView(null)).toBeNull();
@@ -98,9 +120,10 @@ describe("campaignProgress (what came in, never what is left)", () => {
     expect(campaignProgress(base, counted(usdc(60000))).percent).toBe(100);
   });
 
-  it("uses the balance only while it is exact: one wallet that never sent a transaction", () => {
-    expect(countFromReading(base, reading({ balance: usdc("12.5"), start: usdc(2) }))).toEqual(counted(usdc("10.5")));
-    expect(countFromReading(base, reading({ balance: usdc(1), start: usdc(3) }))).toEqual(counted(BigInt(0)));
+  it("uses the balance only while it is exact: one wallet that never sent a transaction (campaign chain only: at least)", () => {
+    expect(countFromReading(base, reading({ balance: usdc("12.5"), start: usdc(2) }))).toEqual(fallback(usdc("10.5")));
+    expect(countFromReading(base, reading({ balance: usdc(1), start: usdc(3) }))).toEqual(fallback(BigInt(0)));
+    expect(campaignProgress(base, fallback(usdc(1)))).toMatchObject({ exact: false, partial: true, chains: [] });
     // A wallet that has spent: its balance can go down, so it proves nothing.
     expect(countFromReading(base, reading({ balance: usdc(100), nonce: 2 }))).toBeNull();
     // After a handover, one wallet's balance is not the campaign's count.
@@ -137,7 +160,7 @@ describe("readGoalCount (the backend first, the balance only while exact)", () =
 
   it("falls back to an exact balance when the backend cannot answer", async () => {
     const r = await readGoalCount(base, { view: async () => null, wallet: async () => reading({ balance: usdc(2) }) });
-    expect(r).toEqual({ count: counted(usdc(2)), view: null });
+    expect(r).toEqual({ count: fallback(usdc(2)), view: null });
   });
 
   it("refuses a balance that cannot prove what came in", async () => {

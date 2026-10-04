@@ -33,9 +33,10 @@ describe("sound controls (plan G14 Audio)", () => {
     fireEvent.click(button);
     expect(button).toHaveAttribute("aria-pressed", "true");
     expect(JSON.parse(window.localStorage.getItem(STORAGE_KEY)!).muted).toBe(true);
-    // 44 px target, in px (phones scale rem with the viewport).
-    expect(button.className).toContain("h-[44px]");
-    expect(button.className).toContain("w-[44px]");
+    // At least a 44 px target, in px (phones scale rem with the viewport), growing with the lobby's
+    // larger root size on big screens.
+    expect(button.className).toContain("h-[max(44px,2.75rem)]");
+    expect(button.className).toContain("w-[max(44px,2.75rem)]");
   });
 
   it("the panel's sliders are labelled, show percent and write the store", () => {

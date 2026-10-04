@@ -56,7 +56,11 @@ export const PAYOUT_CHAINS: Record<number, ChainUnits> = {
   4663: { rpc: 'https://rpc.mainnet.chain.robinhood.com', decimals: 6, symbol: 'USDG', nativeDecimals: 18, nativeSymbol: 'ETH' },
   // Robinhood testnet has no stablecoin: the wave deploys a mock (mUSDC), never summed with real dollars.
   46630: { rpc: 'https://rpc.testnet.chain.robinhood.com', decimals: 6, symbol: 'mUSDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
-  143: { rpc: 'https://rpc.monad.xyz', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'MON' },
+  // Monad's main public RPCs (rpc.monad.xyz, testnet-rpc.monad.xyz) cap eth_getLogs at 100 blocks, under
+  // MIN_LOG_WINDOW, so the modal reads keyless endpoints that take wide ranges: rpc1.monad.xyz on mainnet,
+  // OnFinality's public testnet endpoint (10,000-block windows). Checked 2026-10-04.
+  143: { rpc: 'https://rpc1.monad.xyz', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'MON' },
+  10143: { rpc: 'https://monad-testnet.api.onfinality.io/public', maxLogRange: 10_000, decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'MON' },
 };
 
 /** A deployment's chain units with its own payout token: an EURC instance is never summed as USDC. */
@@ -536,9 +540,11 @@ export function shelterTotalLine(deploymentsUrl: string): Promise<string> {
 /**
  * "Send Pink Paw a rescue treat" link: the give page plus ?from=heist&cat=<rescued cat>. Keeps a
  * relative or same-origin path as is (so it works under tokentails.com/heist) and keeps any query
- * the base already has. '' (the build env set to empty) means hide the button.
+ * the base already has. '' (the build env set to empty) means hide the button. `chain` (optional,
+ * from the page's own `?chain=<id>`, which the /heist host forwards) preselects the give page's
+ * network; anything but a positive whole number is dropped.
  */
-export function giveHref(baseUrl: string, catName: string): string {
+export function giveHref(baseUrl: string, catName: string, chain: string | null = null): string {
   const url = baseUrl.trim();
   if (!url) return '';
   const hashAt = url.indexOf('#');
@@ -547,5 +553,6 @@ export function giveHref(baseUrl: string, catName: string): string {
   const q = new URLSearchParams({ from: 'heist' });
   const cat = catName.trim().slice(0, 64);
   if (cat) q.set('cat', cat);
+  if (chain && /^[1-9]\d{0,14}$/.test(chain) && !/[?&]chain=/.test(path)) q.set('chain', chain);
   return `${path}${path.includes('?') ? '&' : '?'}${q.toString()}${hash}`;
 }

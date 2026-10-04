@@ -215,8 +215,8 @@ log needs seed 1, the current `SIM_VERSION`, two different known cat ids, at mos
 | PUT | `/shelter/:id` | Update, same DTO rules | Perm(4) |
 | GET | `/shelter/:id/members` | The shelter members who may confirm its payouts | Perm(5) |
 | PUT | `/shelter/:id/members` | Add members by user id or email, remove by id. Verified registered accounts only, never MANAGER or above | Perm(5) |
-| POST | `/shelter/donate` | Server-paid treat to the shelters through ShelterSplit on Arc. Body `{ source: 'heist' \| 'page' }`, no other keys. One per user per UTC day. Instant-treat policy first (verified, 24 h, 1 saved game) | Auth, Throttle(10), User(5) |
-| GET | `/shelter/donate/status` | `{ enabled, railState, chainId, amountWei, remainingTodayWei, dailyBudgetWei, giftsPerDayCap, treatsLeftToday, resetsAt, communityTotalConfirmedWei, splitAddress }`. `railState` is `not-deployed`, `paused`, `live` or `exhausted` | Public, Throttle(60) |
+| POST | `/shelter/donate` | Server-paid treat to the shelters through ShelterSplit. Body `{ source: 'heist' \| 'page', chainId? }`, no other keys. `chainId` (optional whole number) picks the network; omitted, the main chain (Arc). One per user per UTC day across all chains. Instant-treat policy first (verified, 24 h, 1 saved game) | Auth, Throttle(10), User(5) |
+| GET | `/shelter/donate/status` | `{ enabled, railState, chainId, amountWei, remainingTodayWei, dailyBudgetWei, giftsPerDayCap, treatsLeftToday, resetsAt, communityTotalConfirmedWei, splitAddress, chains }`. The top-level fields describe the main chain. `chains`: the main chain first, then every `SHELTER_RELAY_CHAINS` entry with its treat flag on, each `{ chainId, main, testnet, enabled, railState, coin, amountWei, remainingTodayWei, dailyBudgetWei, giftsPerDayCap, treatsLeftToday, splitAddress, explorer }` (budget per chain; `coin` is what the treat is paid in: USDC, USDC.e on Tempo, USDG on Robinhood). Without that config `chains` lists only the main chain. `railState` is `not-deployed`, `paused`, `live` or `exhausted`. Every `amountWei` is 18 decimals | Public, Throttle(60) |
 | GET | `/shelter/donate/me` | The caller's treat today `{day, resetsAt, today: {status, source, txHash, explorerUrl, failedReason} \| null, confirmedCount, onTheirWayCount, totalConfirmedWei, eligibility}` | Auth, Throttle(60) |
 | GET | `/shelter/agent/cat-card` | x402-style paid card for AI agents (see below) | Public, Throttle(30) |
 | POST | `/shelter/relay` | Relay a donor's signed EIP-3009 authorization to the DonateRouter; the hot wallet pays gas only. Body `{chainId, from, value, validAfter, validBefore, salt, memo, recipients, signature}`, no other keys (see "Wallet gifts" below) | Public, Throttle(10) |
@@ -225,7 +225,7 @@ log needs seed 1, the current `SIM_VERSION`, two different known cat ids, at mos
 | GET | `/shelter/match/by-donor/:txHash` | `{status, matchTxHash \| null}` for a router gift; `status` is `none` before the scan saw it | Public, Throttle(60) |
 | POST | `/shelter/claim` | The shelter names its own payout wallet: `{chainId, wallet, signature}` (personal_sign of the claim message). Only wallets on `SHELTER_CLAIM_ALLOWED_WALLETS` (403 `CLAIM_NOT_ALLOWED`). Answers `{status}` of the (one) row for that chain and wallet, `pending-rotation` when new | Public, Throttle(5) |
 | GET | `/shelter/claim` | The newest `approved` or `rotated` claim on the configured chain `{wallet, chainId, status}`, or JSON `null`. A `pending-rotation` claim is never shown | Public, Throttle(60) |
-| GET | `/shelter/goal/:id` | A campaign goal's count (only `C-001` today; anything else 404): `{ id, chainId, goalUsdc, raised, scannedTo, head, upToDate, transfers, wallets: [{wallet, fromBlock, toBlock, holder}], liveSources, updatedAt }` (`shared/shelter-goal.ts`). `raised` is the USDC that came in to the campaign wallets (decimal string, 6 decimals at most), summed from the chain's Transfer logs; transfers between campaign wallets are skipped, outflows are never read. `scannedTo: null` means nothing is counted yet (claim nothing). `liveSources` lists only what can reach the open wallet today (`treats` while Token Tails holds it; `purchase-shares` only with a split route on the campaign chain) | Public, Throttle(60) |
+| GET | `/shelter/goal/:id` | A campaign goal's count (only `C-001` today; anything else 404): `{ id, chainId, goalUsdc, raised, scannedTo, head, upToDate, transfers, wallets: [{wallet, fromBlock, toBlock, holder}], liveSources, updatedAt, chains: [{chainId, symbols, raised, scannedTo, head, upToDate, transfers}] }` (`shared/shelter-goal.ts`). `raised` is the US dollar stablecoin that came in to the campaign wallets (decimal string, 6 decimals at most), summed from Transfer logs on the campaign chain (Arc) and on every other mainnet in `CRYPTO_PAY_CHAINS` (USDC, USDC.e on Tempo, USDG on Robinhood Chain; never EURC or test coins); `chains` is the per-chain breakdown, the campaign chain first, and `upToDate` is true only when every chain has reached its head. Transfers between campaign wallets are skipped, outflows are never read. `scannedTo` (the campaign chain's) `: null` means nothing is counted yet (claim nothing). `liveSources` lists only what can reach the open wallet today (`treats` while Token Tails holds it; `purchase-shares` only with a split route on the campaign chain) | Public, Throttle(60) |
 | GET | `/shelter/:slug/gallery` | Every showable cat of a showcase shelter (only `rozine-pedute`; others 404), uncapped (unlike `/cat/sale`, 200 per shelter): `{ slug, atShelter, adopted, truncated, generatedAt }`, each cat `{ id, name, status, art, photo }` (https only, HEAVEN dropped, `shared/pink-paw.ts`). Cached 45 s | Public, Throttle(60) |
 
 ### Shelter gifts on Arc
@@ -234,13 +234,20 @@ log needs seed 1, the current `SIM_VERSION`, two different known cat ids, at mos
 `SHELTER_DONATE_AMOUNT_WEI` of native USDC (18 decimals on Arc; gas is also paid in USDC). The player
 pays nothing and signs nothing. The memo is `tt:<source>:<8 random hex>` and carries no personal data.
 
+With `chainId` naming another network from `GET /shelter/donate/status` `chains` (the give page's
+network chips), the hot wallet pays that chain's ShelterSplit in its token instead: `approve` (once,
+for the chain's daily treat budget, when the allowance is short) then `disburse(amount, memo)`, or
+`disburseWithMemo(amount, bytes32 memo)` on Tempo (the same memo as a bytes32; the network fee is paid
+in a USD stablecoin, see docs/BACKEND.md). The once-a-day rule is per player across all chains; the
+budget is per chain.
+
 | Status | Body | When |
 |---|---|---|
-| 200 | `{ txHash, chainId, amountWei, explorerUrl }` | Broadcast; `explorerUrl` is `https://explorer.arc.io/tx/<hash>` (mainnet) or `https://explorer.testnet.arc.io/tx/<hash>` (testnet). The call returns once broadcast, not once mined; the reconcile job settles it to CONFIRMED or FAILED |
-| 400 | Validation error | `source` is not `heist` or `page`, or the body has other keys |
+| 200 | `{ txHash, chainId, amountWei, explorerUrl, coin? }` | Broadcast; `explorerUrl` is the chain's explorer (`https://explorer.arc.io/tx/<hash>` on Arc mainnet, `https://explorer.testnet.arc.io/tx/<hash>` on Arc testnet, basescan, arbiscan, the Avalanche, Tempo and Robinhood explorers). `amountWei` is 18 decimals on every chain; `coin` is set on a token treat. The call returns once broadcast, not once mined; the reconcile job settles it to CONFIRMED or FAILED on its own chain |
+| 400 | Validation error | `source` is not `heist` or `page`, `chainId` is not a positive whole number, or the body has other keys |
 | 403 | `{code: GUEST_FORBIDDEN}`, `{code: EMAIL_UNVERIFIED}`, `{code: DONATE_NOT_ELIGIBLE, reason, eligibleAt}` | A guest, an unverified email, or the policy (`account-too-new`, `no-saved-game`) |
 | 429 | `{code: DONATE_ALREADY_TODAY}` | This user already has a treat for the current UTC day (or the per-user limit) |
-| 409 | `{statusCode, code, message}` (`DONATE_PAUSED`, `DONATE_BUDGET_SPENT`) | `SHELTER_DONATE_ENABLED` is off, the split address or hot wallet key is missing, or the daily budget is spent |
+| 409 | `{statusCode, code, message}` (`DONATE_PAUSED`, `DONATE_BUDGET_SPENT`) | `SHELTER_DONATE_ENABLED` (or the picked chain's `SHELTER_CHAIN_<id>_TREAT_ENABLED`) is off, the split address or hot wallet key is missing, that chain's daily budget is spent, or `chainId` names a chain that sends no treats (`DONATE_PAUSED`, "Treats are not sent on that network right now") |
 | 424 | `{statusCode, code: DONATE_SEND_FAILED, message}` | The broadcast failed; the user may retry later |
 
 The showcase recipient is Pink Paw (Rožinė pėdutė). Its wallet is created and held by Token Tails on
@@ -250,7 +257,9 @@ the shelter's behalf until handover; the split's recipients are set in the contr
 
 This is an x402-compatible flow with a custom `onchain-receipt` scheme and no facilitator: standard
 x402 facilitators may not support Arc, so the server verifies the payment itself over RPC. It is off
-(409) unless `SHELTER_X402_ENABLED` is `true`. The shelter endpoints never answer 503: in production a 503 reaches clients as a bare gateway 504.
+(409) unless `SHELTER_X402_ENABLED` is `true` (main chain) or a `SHELTER_RELAY_CHAINS` entry has
+`SHELTER_CHAIN_<id>_X402_ENABLED=true`. `accepts` holds one offer per enabled chain, the main chain
+first; all offers of one 402 share one nonce, and the first valid payment on any of them spends it. The shelter endpoints never answer 503: in production a 503 reaches clients as a bare gateway 504.
 
 1. `GET /shelter/agent/cat-card` without `X-PAYMENT` returns 402:
 
@@ -268,16 +277,40 @@ x402 facilitators may not support Arc, so the server verifies the payment itself
        "description": "One adoptable-cat card. The ShelterSplit contract splits each payment among its shelter recipients",
        "mimeType": "application/json",
        "maxTimeoutSeconds": 600,
-       "extra": { "memo": "x402:<nonce>", "nonce": "<nonce>" }
+       "extra": { "memo": "x402:<nonce>", "nonce": "<nonce>", "decimals": 18, "coin": "USDC", "method": "donate" }
+     }, {
+       "scheme": "onchain-receipt",
+       "network": "eip155:8453",
+       "maxAmountRequired": "10000",
+       "asset": "<the split's token, e.g. Base USDC>",
+       "payTo": "<that chain's ShelterSplit>",
+       "extra": { "memo": "x402:<nonce>", "nonce": "<nonce>", "decimals": 6, "coin": "USDC", "method": "disburse" }
+     }, {
+       "scheme": "onchain-receipt",
+       "network": "eip155:4217",
+       "asset": "<USDC.e>",
+       "extra": { "...": "...", "coin": "USDC.e", "method": "disburseWithMemo", "memo32": "0x<keccak256(utf8 memo)>" }
      }]
    }
    ```
 
-2. The agent calls `ShelterSplit.donate("x402:<nonce>")` with at least `maxAmountRequired` wei.
+   `maxAmountRequired` is in base units of `asset`: wei of native USDC on Arc (`asset: "native"`), the
+   token's own decimals (`extra.decimals`, read on chain) elsewhere. Price per chain:
+   `SHELTER_X402_PRICE_WEI` on the main chain, `SHELTER_CHAIN_<id>_X402_PRICE` (decimal, default `0.01`)
+   on the others. When `exact` is also offered, `accepts` holds only `exact`, and the onchain-receipt
+   offers move to top-level `onchainReceipts` (and the first of them to `onchainReceipt`, for older
+   clients).
+
+2. The agent pays the offer's `payTo` with the memo. `method: "donate"` (Arc): `ShelterSplit.donate("x402:<nonce>")`
+   with at least `maxAmountRequired` wei. `method: "disburse"`: `approve(payTo, amount)` on `asset`, then
+   `disburse(amount, "x402:<nonce>")`. `method: "disburseWithMemo"` (Tempo TIP-20): approve, then
+   `disburseWithMemo(amount, extra.memo32)` (plain `disburse` with the string memo is accepted too).
 3. The agent retries with `X-PAYMENT: base64(JSON {x402Version: 1, scheme: "onchain-receipt",
    network: "eip155:<chainId>", payload: {txHash: "0x..", nonce: "<nonce>"}})`.
-4. The server reads the receipt and requires status 1 and `NativeDisbursed` logs from the split
-   address whose memo is `x402:<nonce>`, summing to at least the price. The nonce must be one the
+4. The server reads the receipt on the chain named by `network` (one of the offered ones) and requires
+   status 1 and payout logs from that chain's split whose memo is `x402:<nonce>` (or, on Tempo, the hex
+   of `memo32`): `NativeDisbursementBatch`/`NativeDisbursed` for donate, `DisbursementBatch`/`Disbursed`
+   for the token paths; the batch amount (or the sum of the shares) must reach the price. The nonce must be one the
    server issued, unused and less than 600 seconds old. A tx hash pays for one card only.
 5. 200 returns `{ name, imageUrl, shelterName }` for a random blessing with status `WAITING` (any
    blessing if none waits), plus header `X-PAYMENT-RESPONSE: base64(JSON {success: true, txHash})`.
@@ -540,9 +573,11 @@ Errors carry `{ statusCode, code, message }` with these payment-local codes (not
   `CRYPTO_PAY_NETWORK=testnet` is ignored (mainnet is used) unless `CRYPTO_PAY_ALLOW_TESTNET_IN_PROD=true`, and
   the local chain 31337 is never listed. Chains come from
   `src/payments/crypto/crypto-chains.ts`, a pinned copy of `funding/framework/tracks/a-build/chains.json`
-  (USDC and EURC entries only): Arc, Base, Arbitrum One, Avalanche C-Chain, Tempo, and their testnets, plus a
-  local anvil chain (31337) in testnet mode when its token addresses are set. Robinhood Chain (USDG), Mezo
-  (MUSD) and Monad (unverified USDC) are not offered.
+  (USDC and EURC entries, plus Robinhood's USDG): Arc, Base, Arbitrum One, Avalanche C-Chain, Tempo, Robinhood
+  Chain, Monad, and their testnets, plus a local anvil chain (31337) in testnet mode when its token addresses
+  are set. Robinhood Chain takes USDG (`token` `USDC`, `symbol` `USDG`: a US dollar stablecoin priced 1:1);
+  Robinhood testnet takes the wave's mock mUSDC, never under `NODE_ENV=production`. Mezo (MUSD) is not
+  offered. Native gas coins (ETH, AVAX, MON) are never accepted.
 - `symbol` is what the token calls itself (`USDC.e` on Tempo, `pathUSD` on Tempo testnet); `token` is the
   kind the price is computed in (`USDC` or `EURC`).
 - `fx.EURC`: how EURC is priced, never a live feed.

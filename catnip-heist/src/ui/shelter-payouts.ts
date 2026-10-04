@@ -214,6 +214,13 @@ export interface GoalCount {
   exact: boolean;
   /** What can reach the open wallet today: the only sources the line may name as counting. */
   sources: GoalSource[];
+  /**
+   * The backend's per-chain breakdown (18-decimal USD per chain, and the coins counted there: USDC,
+   * USDC.e, USDG). Absent for the balance fallback, which reads the campaign chain only.
+   */
+  chains?: { chainId: number; raised: bigint; symbols: string[] }[];
+  /** True for the balance fallback: only the campaign chain was read, so the figure is "at least". */
+  partial?: boolean;
 }
 
 /** The holder of the wallet money reaches today. */
@@ -228,7 +235,8 @@ const openHolder = (c: GoalCampaign | null | undefined) =>
 export function countFromReading(campaign: GoalCampaign | null | undefined, reading: GoalReading | null, sources: GoalSource[] = sourcesFor(openHolder(campaign))): GoalCount | null {
   if (!reading || reading.nonce !== 0 || ((campaign as { wallets?: unknown[] } | null | undefined)?.wallets ?? []).length > 1) return null;
   const grown = reading.balance - reading.start;
-  return { raised: grown > 0n ? grown : 0n, exact: true, sources };
+  // The goal counts every chain the backend reads; this reads the campaign chain only: "at least".
+  return { raised: grown > 0n ? grown : 0n, exact: false, sources, partial: true };
 }
 
 const isCampaign = (c: unknown): c is GoalCampaign =>
@@ -269,7 +277,10 @@ export async function loadGoalCampaign(factsUrl: string, f: JsonFetch | undefine
 export async function readGoalCount({ apiUrl = '', factsUrl = PUBLIC_FACTS_PATH, f = globalThis.fetch as unknown, timeoutMs = 6000 }: { apiUrl?: string; factsUrl?: string; f?: unknown; timeoutMs?: number } = {}): Promise<GoalCount | null> {
   const fetcher = f as JsonFetch | undefined;
   const view = apiUrl && fetcher ? parseShelterGoalView(await getJson(fetcher, `${apiUrl.replace(/\/+$/, '')}${shelterGoalPath('C-001')}`, timeoutMs)) : null;
-  if (view && view.scannedTo !== null) return { raised: usdc18(view.raised), exact: view.upToDate, sources: view.liveSources };
+  if (view && view.scannedTo !== null) {
+    const chains = (view.chains ?? []).map((c) => ({ chainId: c.chainId, raised: usdc18(c.raised), symbols: c.symbols }));
+    return { raised: usdc18(view.raised), exact: view.upToDate, sources: view.liveSources, ...(chains.length ? { chains } : {}) };
+  }
   const campaign = await loadGoalCampaign(factsUrl, fetcher);
   if (!campaign || ((campaign as { wallets?: unknown[] }).wallets ?? []).length > 1) return null;
   const reading = await readGoalWallet(f as GoalFetch | undefined, 8000, campaign);
@@ -285,6 +296,15 @@ export interface GoalView {
   percentText: string;
   /** False while the count does not reach the chain head yet: the figure is then "at least". */
   exact: boolean;
+}
+
+/** "Arc: 3 USDC · Robinhood Chain: 1.5 USDG": the chains where something came in, or '' with one chain. */
+export function goalChainsLine(chains: GoalCount['chains']): string {
+  if (!chains || chains.length < 2) return '';
+  return chains
+    .filter((c) => c.raised > 0n)
+    .map((c) => `${PAYOUT_CHAIN_META[c.chainId]?.name ?? `chain ${c.chainId}`}: ${goalFigure(c.raised)} ${c.symbols.join(', ') || 'USDC'}`)
+    .join(' · ');
 }
 
 /** Progress toward C-001 from a count of what came in. */
@@ -312,13 +332,14 @@ const listWords = (items: string[]) => (items.length <= 1 ? items.join('') : `${
  * wallet that is sponsored treats (custody rules), plus shop shares only while the backend reports
  * them settled through the split.
  */
-export function goalSourcesLine(sources: GoalSource[]): string {
-  // claim: C-001 (the goal counts the USDC that comes in to the campaign wallets), C-004 (treats)
+export function goalSourcesLine(sources: GoalSource[], chainCount = 1): string {
+  const where = chainCount > 1 ? ` on ${chainCount} chains` : '';
+  // claim: C-001 (the goal counts the USD stablecoins that come in to the campaign wallets), C-004 (treats)
   if (!sources.includes('gifts')) {
     const today = listWords(sources.map((x) => (x === 'treats' ? 'sponsored treats' : SOURCE_WORDS[x])));
-    return `Counts what comes in to the wallet Token Tails holds for Pink Paw: today, ${today || 'nothing yet'}. Gifts, the match and x402 payments count once Pink Paw holds its own wallet.`;
+    return `Counts what comes in to the wallet Token Tails holds for Pink Paw${where}: today, ${today || 'nothing yet'}. Gifts, the match and x402 payments count once Pink Paw holds its own wallet.`;
   }
-  return `Counts the ${listWords(sources.map((x) => SOURCE_WORDS[x]))} that come in to Pink Paw's wallets, read from the chain.`;
+  return `Counts the ${listWords(sources.map((x) => SOURCE_WORDS[x]))} that come in to Pink Paw's wallets${where}, read from the chain${chainCount > 1 ? 's' : ''}.`;
 }
 
 export interface PayoutsModalOptions {
@@ -603,7 +624,7 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
       : h('p.ch-goal-value', { 'data-testid': 'payouts-goal-value' }, h('b', null, goal.state === 'loading' ? '…' : '?'), ` of the ${target} USDC goal for Pink Paw`);
     // claim: C-001 (the goal counts the USDC that comes in to the campaign wallets; only today's sources are named)
     const line = view && goal.count
-      ? `${view.percentText} of the goal${view.exact ? '' : ' (still counting older blocks)'}. ${goalSourcesLine(goal.count.sources)}`
+      ? `${view.percentText} of the goal${view.exact ? '' : goal.count.partial ? ' (read from one chain only right now)' : ' (still counting older blocks)'}. ${goalSourcesLine(goal.count.sources, (goal.count.chains ?? []).length)}`
       : goal.state === 'loading'
         ? 'Counting what came in to Pink Paw…'
         : "Can't read the count right now. Try again in a minute.";
@@ -614,6 +635,7 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
       { 'data-testid': 'payouts-goal', 'data-claim': 'C-001', 'data-state': goal.state },
       value,
       bar,
+      goal.count && goalChainsLine(goal.count.chains) ? h('p.ch-pay-small', { 'data-testid': 'payouts-goal-chains' }, goalChainsLine(goal.count.chains)) : null,
       h('p.ch-pay-small', null, line),
       by ? h('p.ch-pay-small', { 'data-testid': 'payouts-goal-date' }, `Goal date: ${by}`) : null,
     );

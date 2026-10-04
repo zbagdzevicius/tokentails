@@ -1,5 +1,5 @@
 import { getAddress, getBigInt, isAddress, verifyTypedData } from 'ethers';
-import { TOKEN_TAILS_HELD_WALLETS } from './shelter-onchain.config';
+import { TESTNET_CHAIN_IDS as SHELTER_TESTNET_CHAIN_IDS, TOKEN_TAILS_HELD_WALLETS } from './shelter-onchain.config';
 
 /*
  * The standard x402 `exact` scheme (coinbase/x402, specs/schemes/exact/scheme_exact_evm.md, x402 v1
@@ -94,7 +94,21 @@ const TESTNET_NETWORKS = new Set([
     'skale-base-sepolia',
     'arc-testnet',
 ]);
-const TESTNET_CHAIN_IDS = new Set([84532, 43113, 421614, 80002, 11155420, 1328, 11124, 324705682, 5042002, 31337]);
+// The x402 testnets plus every testnet the shelter config knows (Tempo, Robinhood, Monad testnets...),
+// so a custom CAIP-2 network on one of those is never gated like a mainnet.
+const TESTNET_CHAIN_IDS = new Set([
+    84532,
+    43113,
+    421614,
+    80002,
+    11155420,
+    1328,
+    11124,
+    324705682,
+    5042002,
+    31337,
+    ...SHELTER_TESTNET_CHAIN_IDS,
+]);
 
 export interface ExactConfig {
     enabled: boolean;

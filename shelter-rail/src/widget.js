@@ -1,16 +1,31 @@
 /*! ShelterSplit Rail widget. MIT. No dependencies, no framework.
  *
- * Default mode: the visitor's wallet calls ShelterSplit.donate(memo) with the native coin.
+ * Seven chains, mainnet and testnet: Arc (5042 / 5042002), Tempo (4217 / 42431), Arbitrum (42161 /
+ * 421614), Avalanche (43114 / 43113), Base (8453 / 84532), Robinhood Chain (4663 / 46630) and Monad
+ * (143 / 10143). Three ways to give, picked by data-mode (default "auto"):
+ *
+ *   native   the visitor's wallet calls ShelterSplit.donate(memo) with the native coin. Only where that
+ *            coin is USDC (Arc); elsewhere it would send ETH, AVAX or MON, so it stays off.
+ *   token    approve + ShelterSplit.disburse(amount, memo) in the split's own coin (USDC, USDC.e,
+ *            pathUSD, USDG, mUSDC), or disburseWithMemo(amount, bytes32 memo) on Tempo. Two wallet
+ *            transactions; works for coins without EIP-3009 and on chains without a DonateRouter.
+ *   gasless  one EIP-3009 signature to a DonateRouter, submitted by a relay (below).
+ *   auto     gasless when data-router, data-usdc and data-relay are all set; else native on Arc; else token.
  *
  * <script src="widget.js"
  *   data-chain="5042"
- *   data-split="0xYourShelterSplit"          (or data-deployments="/shelter-payouts/deployments.json")
- *   data-amount="1000000000000000000"        (native wei; on Arc 1e18 = 1 USDC; default 1 USDC)
+ *   data-split="0xYourShelterSplit"          (or data-deployments="/shelter-payouts/deployments.json": the
+ *                                             newest entry on data-chain paying that chain's own coin)
+ *   data-amount="1000000000000000000"        (native mode: native wei, on Arc 1e18 = 1 USDC; token and
+ *                                             gasless modes: token base units, 6 decimals, 1000000 = 1)
  *   data-memo="mygame"                        (short, public, no personal data)
  *   data-shelter="Pink Paw"                   (optional: the button reads "Give 1 USDC to Pink Paw")
+ *   data-coin="USDC"                          (optional: the coin's symbol, when the chain's default is not it)
  *   data-disclosure="Who holds the shelter wallets"
- *   data-from-block="123456"                  (optional log scan start; deployments.json "fromBlock" also works)
- *   data-testnet="true"                       (optional: shows "Test USDC, no real money")
+ *   data-from-block="123456"                  (optional log scan start; deployments.json "fromBlock" works,
+ *                                             and so does its "tx": the deploy transaction's block)
+ *   data-testnet="true"                       (optional: shows "Test USDC, no real money"; known testnets
+ *                                             show it anyway)
  *   data-theme="dark"                         (optional: light | dark; default follows the visitor)
  *   data-target="#donate"></script>          (optional mount point; default: right after the script)
  *
@@ -18,17 +33,15 @@
  * and pays no gas. A relay submits it to the DonateRouter, which pulls the USDC from the visitor and
  * pays the shelters through ShelterSplit in the same transaction. The router has no owner, keeps no
  * gift past that transaction and reverts if any part would reach the split's treasury, so the relay
- * never holds the gift.
+ * never holds the gift. Tempo's TIP-20 coins, USDG and mUSDC have no EIP-3009: use token mode there.
  *
  *   data-mode="gasless" data-router="0xDonateRouter" data-usdc="0xUSDC" data-relay="https://api/…/relay"
- *   data-amount="1000000"                     (USDC base units, 6 decimals; default 1 USDC)
  *   data-rpc / data-explorer / data-chain-name  (optional, for chains the widget does not know)
  *   data-native-symbol="ETH"                  (optional: that chain's gas coin, for the wallet's add-chain prompt; default ETH)
- * Native mode is USDC-only: it sends the chain's native coin, so on a chain whose native coin is not
- * USDC (anything but Arc, unless data-native-symbol="USDC") it stays off instead of sending ETH or AVAX.
  * Before the button is enabled, the widget reads router.split() and router.usdc() and stays off unless
  * they match the split it shows and data-usdc; before the donor signs, it checks the router's authNonce
- * locally and refuses an unreadable USDC name or version.
+ * locally and refuses an unreadable USDC name or version. In token mode it reads split.token() and
+ * approves exactly the gift for that token.
  *
  * Renders one button and a live "shelters received" total, read from the chain's public RPC.
  */
@@ -47,12 +60,31 @@
   var DOMAIN_TYPEHASH = "8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f";
   var NATIVE_DISBURSED = "0xc859ef09d317f79211253b04e5d51bff252d80816db65d1aaa75cfdd3a22aeef";
   var DISBURSED = "0x53e1c69daf8c00e0990d33cc076fc3c88a0c480beb39da2bcffa01252f63495a";
+  var APPROVE = "095ea7b3"; // approve(address,uint256)
+  var ALLOWANCE = "dd62ed3e"; // allowance(address,address)
+  var DISBURSE = "c950e7d9"; // ShelterSplit.disburse(uint256,string)
+  var DISBURSE_WITH_MEMO = "970a3255"; // ShelterSplit.disburseWithMemo(uint256,bytes32), Tempo only
+  var SPLIT_TOKEN = "0xfc0c546a"; // ShelterSplit.token()
+  var NO_NATIVE_COIN = "No native coin (fees in USD stablecoins)";
+  // symbol/decimals: the native (gas) coin. coin: the chain's own payout token. Mirrors CHAINS in sdk.mjs.
   var CHAINS = {
-    5042: { name: "Arc", rpc: "https://rpc.mainnet.arc.io", explorer: "https://explorer.arc.io", symbol: "USDC", decimals: 18 },
-    5042002: { name: "Arc Testnet", rpc: "https://rpc.testnet.arc.io", explorer: "https://explorer.testnet.arc.io", symbol: "USDC", decimals: 18, testnet: true },
+    5042: { name: "Arc", rpc: "https://rpc.mainnet.arc.io", explorer: "https://explorer.arc.io", symbol: "USDC", decimals: 18, coin: { symbol: "USDC", address: "0x3600000000000000000000000000000000000000", eip3009: true } },
+    5042002: { name: "Arc Testnet", rpc: "https://rpc.testnet.arc.io", logRpc: "https://rpc.blockdaemon.testnet.arc.network", logRange: 100000, explorer: "https://explorer.testnet.arc.io", symbol: "USDC", decimals: 18, testnet: true, coin: { symbol: "USDC", address: "0x3600000000000000000000000000000000000000", eip3009: true } },
+    4217: { name: "Tempo", rpc: "https://rpc.tempo.xyz", explorer: "https://explore.tempo.xyz", symbol: "USD", decimals: 18, noNative: true, memo32: true, coin: { symbol: "USDC.e", address: "0x20C000000000000000000000b9537d11c60E8b50", eip3009: false } },
+    42431: { name: "Tempo Testnet", rpc: "https://rpc.moderato.tempo.xyz", explorer: "https://explore.testnet.tempo.xyz", symbol: "USD", decimals: 18, noNative: true, memo32: true, testnet: true, coin: { symbol: "pathUSD", address: "0x20c0000000000000000000000000000000000000", eip3009: false } },
+    42161: { name: "Arbitrum One", rpc: "https://arb1.arbitrum.io/rpc", explorer: "https://arbiscan.io", symbol: "ETH", decimals: 18, coin: { symbol: "USDC", address: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", eip3009: true } },
+    421614: { name: "Arbitrum Sepolia", rpc: "https://sepolia-rollup.arbitrum.io/rpc", explorer: "https://sepolia.arbiscan.io", symbol: "ETH", decimals: 18, testnet: true, coin: { symbol: "USDC", address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d", eip3009: true } },
+    43114: { name: "Avalanche C-Chain", rpc: "https://api.avax.network/ext/bc/C/rpc", explorer: "https://subnets.avax.network/c-chain", symbol: "AVAX", decimals: 18, coin: { symbol: "USDC", address: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E", eip3009: true } },
+    43113: { name: "Avalanche Fuji", rpc: "https://api.avax-test.network/ext/bc/C/rpc", explorer: "https://subnets-test.avax.network/c-chain", symbol: "AVAX", decimals: 18, testnet: true, coin: { symbol: "USDC", address: "0x5425890298aed601595a70AB815c96711a31Bc65", eip3009: true } },
+    8453: { name: "Base", rpc: "https://mainnet.base.org", logRange: 2000, explorer: "https://basescan.org", symbol: "ETH", decimals: 18, coin: { symbol: "USDC", address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", eip3009: true } },
+    84532: { name: "Base Sepolia", rpc: "https://sepolia.base.org", logRpc: "https://base-sepolia-rpc.publicnode.com", logRange: 10000, explorer: "https://sepolia.basescan.org", symbol: "ETH", decimals: 18, testnet: true, coin: { symbol: "USDC", address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", eip3009: true } },
+    4663: { name: "Robinhood Chain", rpc: "https://rpc.mainnet.chain.robinhood.com", explorer: "https://robinhoodchain.blockscout.com", symbol: "ETH", decimals: 18, coin: { symbol: "USDG", address: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", eip3009: false } },
+    46630: { name: "Robinhood Chain Testnet", rpc: "https://rpc.testnet.chain.robinhood.com", explorer: "https://explorer.testnet.chain.robinhood.com", symbol: "ETH", decimals: 18, testnet: true, coin: { symbol: "mUSDC", address: "0x457c89e10a6e66633eda5bf82fd086febb5db147", eip3009: false } },
+    143: { name: "Monad", rpc: "https://rpc.monad.xyz", logRange: 100, explorer: "https://monadvision.com", symbol: "MON", decimals: 18, coin: { symbol: "USDC", address: "0x754704Bc059F8C67012fEd69BC8A327a5aafb603", eip3009: true } },
+    10143: { name: "Monad Testnet", rpc: "https://testnet-rpc.monad.xyz", logRange: 100, explorer: "https://testnet.monadvision.com", symbol: "MON", decimals: 18, testnet: true, coin: { symbol: "USDC", address: "0x534b2f3A21130d7a60830c2Df862319e593943A3", eip3009: true } },
   };
   var ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
-  var LOG_WINDOW = 10000;
+  var LOG_WINDOW_DEFAULT = 10000;
   var MAX_LOG_REQUESTS = 80;
 
   function word(n) {
@@ -79,6 +111,40 @@
   /** Calldata for DonateRouter.authNonce(bytes32 salt, string memo, bytes32 recipients). */
   function encodeAuthNonce(salt, memo, recipients) {
     return "0x" + AUTH_NONCE + salt.slice(2).toLowerCase() + word(96) + recipients.slice(2, 66).toLowerCase() + encodeString(memo);
+  }
+
+  function addressWord(a) {
+    return String(a).slice(2).toLowerCase().padStart(64, "0");
+  }
+
+  /** approve(spender, amount). */
+  function encodeApprove(spender, amount) {
+    return "0x" + APPROVE + addressWord(spender) + word(amount);
+  }
+
+  /** allowance(owner, spender), for an eth_call. */
+  function encodeAllowance(owner, spender) {
+    return "0x" + ALLOWANCE + addressWord(owner) + addressWord(spender);
+  }
+
+  /** ShelterSplit.disburse(uint256 amount, string memo). */
+  function encodeDisburse(amount, memo) {
+    if (utf8Hex(memo).length > 256) throw new Error("memo too long");
+    return "0x" + DISBURSE + word(amount) + word(64) + encodeString(memo);
+  }
+
+  /** A short memo as bytes32: its UTF-8 bytes right-padded (at most 32), or a 0x 32-byte hex as it is. */
+  function memoToBytes32(memo) {
+    var s = String(memo == null ? "" : memo);
+    if (/^0x[0-9a-fA-F]{64}$/.test(s)) return s.toLowerCase();
+    var u = utf8Hex(s);
+    if (u.length > 32) throw new Error("memo too long for bytes32");
+    return "0x" + u.hex.padEnd(64, "0");
+  }
+
+  /** ShelterSplit.disburseWithMemo(uint256 amount, bytes32 memo): Tempo TIP-20. */
+  function encodeDisburseWithMemo(amount, memo) {
+    return "0x" + DISBURSE_WITH_MEMO + word(amount) + memoToBytes32(memo).slice(2);
   }
 
   // Keccak-256 (the Ethereum hash), the same algorithm as the SDK: lets the widget check the router's
@@ -230,23 +296,28 @@
     });
   }
 
-  // Public RPCs cap eth_getLogs ranges: try the whole range, then 10,000-block windows.
-  function getLogs(url, address, fromBlock) {
+  // Public RPCs cap eth_getLogs ranges: try the whole range, then `windowSize`-block windows (default 10,000).
+  function getLogs(url, address, fromBlock, windowSize) {
+    var LOG_WINDOW = windowSize || LOG_WINDOW_DEFAULT;
     var filter = function (from, to) {
       return [{ address: address, topics: [[NATIVE_DISBURSED, DISBURSED]], fromBlock: "0x" + from.toString(16), toBlock: to }];
     };
-    return rpc(url, "eth_getLogs", filter(fromBlock, "latest")).catch(function () {
+    // A chain known to take only small ranges (Monad: 100 blocks) goes straight to windows.
+    var whole = LOG_WINDOW < 1000 ? Promise.reject(new Error("small range")) : rpc(url, "eth_getLogs", filter(fromBlock, "latest"));
+    return whole.catch(function () {
       return rpc(url, "eth_blockNumber", []).then(function (hex) {
         var latest = parseInt(hex, 16);
         var starts = [];
         for (var s = fromBlock; s <= latest; s += LOG_WINDOW) starts.push(s);
-        if (starts.length > MAX_LOG_REQUESTS) throw new Error("set data-from-block");
+        // Small windows (Monad's RPC takes 100 blocks) get more requests, four at a time.
+        var small = LOG_WINDOW < 1000;
+        if (starts.length > (small ? MAX_LOG_REQUESTS * 5 : MAX_LOG_REQUESTS)) throw new Error("set data-from-block");
         var out = [];
         var i = 0;
         function next() {
           if (i >= starts.length) return out;
-          var batch = starts.slice(i, i + 1);
-          i += 1;
+          var batch = starts.slice(i, i + (small ? 4 : 1));
+          i += batch.length;
           return Promise.all(batch.map(function (s) {
             return rpc(url, "eth_getLogs", filter(s, "0x" + Math.min(s + LOG_WINDOW - 1, latest).toString(16)));
           })).then(function (parts) {
@@ -262,7 +333,7 @@
   /** Reads the script tag's data-* attributes into mount options. */
   function readOptions(d) {
     d = d || {};
-    var mode = d.mode === "gasless" ? "gasless" : "native";
+    var mode = d.mode === "gasless" || d.mode === "token" || d.mode === "native" ? d.mode : "auto";
     return {
       mode: mode,
       chain: d.chain,
@@ -283,6 +354,7 @@
       explorer: d.explorer || null,
       chainName: d.chainName || null,
       nativeSymbol: /^[A-Za-z0-9.]{1,12}$/.test(d.nativeSymbol || "") ? d.nativeSymbol : null,
+      coin: /^[A-Za-z0-9.]{1,12}$/.test(d.coin || "") ? d.coin : null,
     };
   }
 
@@ -324,10 +396,23 @@
     return fetch(opts.deployments, { cache: "no-store" })
       .then(function (r) { return r.ok ? r.json() : []; })
       .then(function (list) {
-        var hit = (Array.isArray(list) ? list : []).filter(function (d) {
-          return d && Number(d.chainId) === opts.chainId && ADDRESS_RE.test(d.address || "");
-        })[0];
-        return hit ? { address: hit.address, fromBlock: Number(opts.fromBlock || hit.fromBlock || 0) } : null;
+        // The newest split on this chain that pays the wanted coin (a second EURC split is never picked
+        // unless data-coin names it); entries without a coin field count as the chain's own coin.
+        var hits = (Array.isArray(list) ? list : []).filter(function (d) {
+          var sym = d && (d.symbol || d.token);
+          return d && Number(d.chainId) === opts.chainId && ADDRESS_RE.test(d.address || "") && (!opts.coin || !sym || String(sym).toLowerCase() === String(opts.coin).toLowerCase()) &&
+            (!d.contract || d.contract === "ShelterSplit");
+        });
+        var hit = hits[hits.length - 1];
+        if (!hit) return null;
+        var from = Number(opts.fromBlock || hit.fromBlock || 0);
+        // No fromBlock: the deploy transaction's block is where the payouts can start.
+        if (!from && /^0x[0-9a-fA-F]{64}$/.test(hit.tx || "") && opts.rpc) {
+          return rpc(opts.rpc, "eth_getTransactionReceipt", [hit.tx]).then(function (r) {
+            return { address: hit.address, fromBlock: r && r.blockNumber ? parseInt(r.blockNumber, 16) : 0 };
+          }, function () { return { address: hit.address, fromBlock: 0 }; });
+        }
+        return { address: hit.address, fromBlock: from };
       })
       .catch(function () { return null; });
   }
@@ -346,7 +431,7 @@
       if (!err || err.code !== 4902) throw err;
       return eth.request({
         method: "wallet_addEthereumChain",
-        params: [{ chainId: hexChain, chainName: chain.name, rpcUrls: [chain.rpc], blockExplorerUrls: [chain.explorer], nativeCurrency: { name: chain.symbol, symbol: chain.symbol, decimals: chain.decimals } }],
+        params: [{ chainId: hexChain, chainName: chain.name, rpcUrls: [chain.rpc], blockExplorerUrls: [chain.explorer], nativeCurrency: { name: chain.noNative ? NO_NATIVE_COIN : chain.symbol, symbol: chain.symbol, decimals: chain.decimals } }],
       });
     });
   }
@@ -458,31 +543,98 @@
       });
   }
 
+  /** Polls the wallet for a receipt; rejects when it reverted or is not mined in ~2 minutes. */
+  function waitMined(eth, hash, tries) {
+    tries = tries || 0;
+    return eth.request({ method: "eth_getTransactionReceipt", params: [hash] }).then(function (r) {
+      if (r) {
+        if (r.status !== "0x1") throw new Error("reverted");
+        return r;
+      }
+      if (tries > 80) throw new Error("not mined");
+      return sleep(1500).then(function () { return waitMined(eth, hash, tries + 1); });
+    });
+  }
+
+  /**
+   * Token gift straight into ShelterSplit (coins without EIP-3009, chains without a router): reads
+   * split.token() (refusing a split that pays another coin than the one shown), approves the split for
+   * exactly the gift when the allowance is short and waits for it, then calls disburse(amount, memo),
+   * or disburseWithMemo(amount, bytes32 memo) on Tempo. Resolves with the disburse hash.
+   */
+  function giveToken(eth, o, onStep) {
+    var from;
+    var token;
+    var call = function (to, data) { return eth.request({ method: "eth_call", params: [{ to: to, data: data }, "latest"] }); };
+    return eth.request({ method: "eth_requestAccounts" })
+      .then(function (accs) {
+        from = accs[0];
+        return switchChain(eth, o.chainId, o.chain);
+      })
+      .then(function () { return call(o.split, SPLIT_TOKEN); })
+      .then(function (ret) {
+        token = decodeAddress(ret);
+        if (!token || (o.coinAddress && token !== String(o.coinAddress).toLowerCase())) {
+          var e = new Error("coin");
+          e.mismatch = true;
+          throw e;
+        }
+        return call(token, encodeAllowance(from, o.split));
+      })
+      .then(function (ret) {
+        var allowance = /^0x[0-9a-fA-F]{64}/.test(String(ret)) ? BigInt(String(ret).slice(0, 66)) : BigInt(0);
+        if (allowance >= o.amount) return null;
+        if (onStep) onStep("approve");
+        return eth.request({ method: "eth_sendTransaction", params: [{ from: from, to: token, data: encodeApprove(o.split, o.amount) }] })
+          .then(function (hash) { return waitMined(eth, hash); });
+      })
+      .then(function () {
+        if (onStep) onStep("give");
+        var data = o.chain.memo32 ? encodeDisburseWithMemo(o.amount, o.memo) : encodeDisburse(o.amount, o.memo);
+        return eth.request({ method: "eth_sendTransaction", params: [{ from: from, to: o.split, data: data }] });
+      });
+  }
+
+  /** "gasless" | "native" | "token": what `auto` (or an explicit mode) means on this chain. */
+  function pickMode(opts, chain) {
+    if (opts.mode === "gasless" || opts.mode === "native" || opts.mode === "token") return opts.mode;
+    if (opts.router && opts.usdc && opts.relay) return "gasless";
+    return chain && chain.symbol === "USDC" ? "native" : "token";
+  }
+
   function mount(el, opts) {
     opts = opts || {};
-    var gasless = opts.mode === "gasless";
     var chainId = Number(opts.chain || 5042);
     var known = CHAINS[chainId];
     // An unknown chain's native coin is ETH unless data-native-symbol says otherwise (never assumed USDC).
     var chain = known || (opts.rpc ? { name: opts.chainName || "chain " + chainId, rpc: opts.rpc, explorer: opts.explorer || "", symbol: opts.nativeSymbol || "ETH", decimals: 18 } : null);
     if (chain && (opts.rpc || opts.explorer)) {
-      chain = { name: opts.chainName || chain.name, rpc: opts.rpc || chain.rpc, explorer: opts.explorer || chain.explorer, symbol: chain.symbol, decimals: chain.decimals, testnet: chain.testnet };
+      chain = { name: opts.chainName || chain.name, rpc: opts.rpc || chain.rpc, explorer: opts.explorer || chain.explorer, symbol: chain.symbol, decimals: chain.decimals, testnet: chain.testnet, noNative: chain.noNative, memo32: chain.memo32, coin: chain.coin, logRpc: opts.rpc ? null : chain.logRpc, logRange: chain.logRange };
     }
+    var mode = pickMode(opts, chain);
+    var gasless = mode === "gasless";
+    var token = mode === "token";
     // Native gifts send the native coin, so they are only offered where that coin is USDC (Arc).
     var usdcNative = !!chain && chain.symbol === "USDC";
-    // Native gifts use the chain's native decimals (18 on Arc); gasless gifts are USDC base units (6).
-    var unitDecimals = gasless ? 6 : chain ? chain.decimals : 18;
-    var amount = BigInt(opts.amount || (gasless ? "1000000" : "1000000000000000000"));
-    var memo = String(opts.memo || "widget").slice(0, 64);
-    var testnet = !!opts.testnet;
+    // The coin shown: data-coin, else the chain's own payout coin (USDC on Arc's native path too).
+    var ownCoin = chain && chain.coin;
+    var coinSymbol = opts.coin || (ownCoin ? ownCoin.symbol : usdcNative ? "USDC" : gasless ? "USDC" : "tokens");
+    var coinAddress = ownCoin && (!opts.coin || opts.coin.toLowerCase() === ownCoin.symbol.toLowerCase()) ? ownCoin.address : null;
+    // Native gifts use the chain's native decimals (18 on Arc); token and gasless gifts are base units (6).
+    var unitDecimals = gasless || token ? 6 : chain ? chain.decimals : 18;
+    var amount = BigInt(opts.amount || (gasless || token ? "1000000" : "1000000000000000000"));
+    // Tempo's bytes32 memo holds 32 bytes.
+    var memo = String(opts.memo || "widget").slice(0, chain && chain.memo32 ? 32 : 64);
+    var testnet = !!opts.testnet || !!(chain && chain.testnet);
     var shadow = el.attachShadow ? el.attachShadow({ mode: "open" }) : el;
     if (opts.theme && el.setAttribute) el.setAttribute("data-theme", opts.theme);
     shadow.innerHTML =
       "<style>" + CSS + "</style>" +
       '<div class="card" part="card">' +
-      (testnet ? '<span class="chip" part="testnet">Test USDC, no real money</span>' : "") +
+      (testnet ? '<span class="chip" part="testnet">Test ' + (coinSymbol === "USDC" ? "USDC" : "coins") + ", no real money</span>" : "") +
       '<button type="button" disabled>Loading…</button>' +
       (gasless ? '<div class="sub">No gas needed. You sign once in your wallet; the gift goes straight to the shelter.</div>' : "") +
+      (token ? '<div class="sub">Two steps in your wallet: allow this exact amount, then give. The gift goes straight to the shelter.</div>' : "") +
       '<div class="total" aria-live="polite"></div>' +
       '<div class="msg" role="status" aria-live="polite"></div>' +
       (opts.disclosure ? '<div class="note"></div>' : "") +
@@ -493,15 +645,20 @@
     var msg = shadow.querySelector(".msg");
     if (opts.disclosure) shadow.querySelector(".note").textContent = opts.disclosure;
     var who = opts.shelter ? String(opts.shelter).slice(0, 48) : "shelters";
-    var label = opts.label || "Give " + formatUnits(amount, unitDecimals) + " USDC to " + who;
+    var label = opts.label || "Give " + formatUnits(amount, unitDecimals) + " " + coinSymbol + " to " + who;
 
     if (!chain) {
       btn.textContent = "Unsupported chain";
       return;
     }
-    if (!gasless && !usdcNative) {
+    if (mode === "native" && !usdcNative) {
       btn.textContent = "Native giving is USDC-only";
-      msg.textContent = "On " + chain.name + " the native coin is " + chain.symbol + ", not USDC. Use the gasless (USDC) mode here.";
+      msg.textContent = "On " + chain.name + " the native coin is " + (chain.noNative ? "none" : chain.symbol) + ", not USDC. Use the token mode here.";
+      return;
+    }
+    if (gasless && ownCoin && ownCoin.eip3009 === false && (!opts.coin || opts.coin === ownCoin.symbol)) {
+      btn.textContent = "Gasless giving is not available";
+      msg.textContent = ownCoin.symbol + " on " + chain.name + " has no signed-transfer support. Use the token mode here.";
       return;
     }
     if (gasless && (!opts.router || !opts.usdc || !opts.relay)) {
@@ -510,7 +667,7 @@
       msg.textContent = "The DonateRouter for this shelter is not live yet.";
     }
 
-    resolveSplit({ split: opts.split, deployments: opts.deployments, chainId: chainId, fromBlock: opts.fromBlock }).then(function (found) {
+    resolveSplit({ split: opts.split, deployments: opts.deployments, chainId: chainId, fromBlock: opts.fromBlock, coin: opts.coin || (ownCoin && ownCoin.symbol), rpc: chain.rpc }).then(function (found) {
       if (!found) {
         btn.textContent = "Donations open soon";
         total.textContent = "The ShelterSplit contract is not deployed on " + chain.name + " yet.";
@@ -525,7 +682,7 @@
         total.innerHTML = "";
         total.appendChild(document.createTextNode("Shelters received "));
         var b = document.createElement("b");
-        b.textContent = formatUnits(value, 18) + " " + (testnet ? "test USDC" : "USDC");
+        b.textContent = formatUnits(value, 18) + " " + (testnet && coinSymbol === "USDC" ? "test USDC" : coinSymbol);
         total.appendChild(b);
         total.appendChild(document.createTextNode(" on " + chain.name));
         el.setAttribute && el.setAttribute("data-total-ready", "true");
@@ -539,7 +696,7 @@
         }
         // Public RPCs may rate-limit (HTTP 429) and the read retries with backoff: say it is coming.
         if (!total.textContent) total.textContent = "Reading the live total from " + chain.name + "…";
-        getLogs(chain.rpc, split, found.fromBlock)
+        getLogs(chain.logRpc || chain.rpc, split, found.fromBlock, chain.logRange)
           .then(function (logs) {
             var value = sumPayouts(logs, !usdcNative);
             show(value);
@@ -595,6 +752,10 @@
           ? giveGasless(eth, { chainId: chainId, chain: chain, router: opts.router, usdc: opts.usdc, relay: opts.relay, amount: amount, split: split }).then(function (body) {
               thanks(/^0x[0-9a-fA-F]{64}$/.test(body.txHash || "") ? body.txHash : null);
             })
+          : token
+          ? giveToken(eth, { chainId: chainId, chain: chain, split: split, amount: amount, memo: memo, coinAddress: coinAddress }, function (step) {
+              msg.textContent = step === "approve" ? "Step 1 of 2: allow " + formatUnits(amount, 6) + " " + coinSymbol + " in your wallet…" : "Step 2 of 2: confirm the gift in your wallet…";
+            }).then(thanks)
           : eth.request({ method: "eth_requestAccounts" })
               .then(function (accs) {
                 var from = accs[0];
@@ -632,8 +793,18 @@
     domainSeparator: domainSeparator,
     readVersion: readVersion,
     formatUnits: formatUnits,
+    encodeApprove: encodeApprove,
+    encodeAllowance: encodeAllowance,
+    encodeDisburse: encodeDisburse,
+    encodeDisburseWithMemo: encodeDisburseWithMemo,
+    memoToBytes32: memoToBytes32,
+    giveToken: giveToken,
+    pickMode: pickMode,
+    CHAINS: CHAINS,
     sumNative: sumNative,
     sumPayouts: sumPayouts,
+    getLogs: getLogs,
+    resolveSplit: resolveSplit,
     readOptions: readOptions,
     mount: mount,
   };

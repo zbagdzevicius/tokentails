@@ -1,0 +1,24 @@
+{
+ "w": 1920,
+ "h": 1080,
+ "layout": "split",
+ "bg": "space",
+ "dim": 0.35,
+ "logo": "text",
+ "logoH": 8,
+ "textWidth": 0.38,
+ "footer": "tokentails.com/shelter-payouts",
+ "artPos": "center top",
+ "art": "receipt-crop.png",
+ "kicker": "Step 3 · Check",
+ "title": "Every treat,<br><em>a public<br>receipt.</em>",
+ "subtitle": "Read from the chain, not from our database: amount, shelter wallet, memo, block and an explorer link.",
+ "chips": [
+  {
+   "text": "Testnet · test coins, no real money",
+   "tone": "mint"
+  }
+ ],
+ "titleSize": 4.6,
+ "subtitleSize": 1.9
+}

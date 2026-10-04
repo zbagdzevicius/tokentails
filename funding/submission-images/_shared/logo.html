@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="brand.css">
+<!--
+  Square logo / plain background renderer. Query params:
+    mark=cat|lockup|none   cat = pixel cat (assets/cat-logo-1024.png), lockup = cat + TOKEN TAILS wordmark (assets/logo-text.webp)
+    bg=none|night|temple|space|dusk
+    pad=0.12               padding as a share of the side
+  node render.mjs "logo.html?mark=cat&bg=night" out.png 1024 1024   (render.mjs passes the query through)
+-->
+<style>
+  body { display: flex; align-items: center; justify-content: center; background: transparent; position: relative; }
+  #bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+  .night { background: radial-gradient(70% 70% at 50% 42%, #2a1f45 0%, #120d1f 62%, #07051a 100%) !important; }
+  .dusk { background: linear-gradient(180deg, var(--dusk-top) 0%, var(--dusk-mid) 62%, var(--dusk-horizon) 100%) !important; }
+  .shade::after { content: ""; position: absolute; inset: 0; background: radial-gradient(60% 60% at 50% 45%, rgba(11,8,32,.25), rgba(11,8,32,.75)); }
+  #mark { position: relative; max-width: 100%; max-height: 100%; }
+  #mark.cat { image-rendering: pixelated; }
+  #ring { position: absolute; border-radius: 50%; border: 0; }
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<img id="mark" alt="">
+<script>
+  const q = new URLSearchParams(location.search);
+  const mark = q.get("mark") || "cat", bg = q.get("bg") || "none", pad = Number(q.get("pad") || 0.12);
+  const B = document.getElementById("bg");
+  if (bg === "night") B.className = "night";
+  else if (bg === "dusk") B.className = "dusk";
+  else if (bg === "temple") { B.style.backgroundImage = "url(assets/hero-grounds.webp), url(assets/hero-bg.webp)"; B.classList.add("shade"); }
+  else if (bg === "space") { B.style.backgroundImage = "url(assets/card-bg.webp)"; }
+  if (bg !== "none") document.body.style.background = "#0b0820";
+  const m = document.getElementById("mark");
+  const side = Math.min(innerWidth, innerHeight);
+  if (mark === "cat") { m.src = "assets/cat-logo-1024.png"; m.className = "cat"; m.style.width = m.style.height = side * (1 - 2 * pad) + "px";
+    // on a background the bust sits on the bottom edge, like an avatar, so its flat cut does not float
+    if (bg !== "none") { document.body.style.alignItems = "flex-end"; m.style.marginBottom = -side * 0.02 + "px"; } }
+  else if (mark === "lockup") { m.src = "assets/logo-text.webp"; m.style.width = Math.min(innerWidth * (1 - 2 * pad), 600 * (innerWidth > 700 ? 1.6 : 1)) + "px"; }
+  else m.remove();
+</script>
+</body>
+</html>

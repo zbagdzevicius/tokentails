@@ -11,7 +11,9 @@
  *   read-only on rpc.mainnet.arc.io, 2026-10-04 (see the C-001 note).
  */
 import { FACTS, PublicFact } from 'src/impact/facts.generated';
-import { GoalSource, GoalWallet, ShelterGoalView, sourcesFor } from 'src/shared-contracts/shelter-goal';
+import { CRYPTO_PAY_CHAINS, CryptoPayChain } from 'src/payments/crypto/crypto-chains';
+import { GoalChainCount, GoalSource, GoalWallet, ShelterGoalView, sourcesFor } from 'src/shared-contracts/shelter-goal';
+import { isTestnetChain } from '../onchain/shelter-onchain.config';
 
 export const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
@@ -31,6 +33,8 @@ export interface GoalCampaign {
     inflowLog: { address: string; decimals: number };
     /** Changes whenever the counted set changes (a wallet added or closed): the cursor restarts. */
     configKey: string;
+    /** The goal's start date (`YYYY-MM-DD`, 00:00 UTC): where the other chains start counting. */
+    startDate?: string | null;
 }
 
 /** The goal campaign of fact `id`, or null when that fact has no counting campaign. */
@@ -56,6 +60,10 @@ export function goalCampaign(id: string, facts: Record<string, PublicFact> = FAC
         wallets,
         inflowLog,
         configKey: JSON.stringify({ chainId: c.chainId, inflowLog, wallets }),
+        startDate:
+            typeof fact.goal?.startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fact.goal.startDate)
+                ? fact.goal.startDate
+                : null,
     };
 }
 
@@ -79,6 +87,113 @@ export function inflowFilter(c: GoalCampaign, from: number, to: number) {
         toBlock: '0x' + to.toString(16),
         topics: [TRANSFER_TOPIC, null, wallets.map(w => addressTopic(w.wallet))],
     };
+}
+
+/**
+ * eth_getLogs spans the chains' public RPCs accept (checked read-only 2026-10-04): mainnet.base.org
+ * stops at 2,000 blocks and rpc.monad.xyz at 100; Tempo, Arbitrum, Avalanche and Robinhood Chain
+ * took 100,000 for a wallet-filtered Transfer query, and 9,999 keeps a margin.
+ */
+export const GOAL_LOG_WINDOW: Record<number, number> = { 8453: 2_000, 143: 100, 10143: 100 };
+export const goalLogWindow = (chainId: number) => GOAL_LOG_WINDOW[chainId] ?? GOAL_WINDOW_BLOCKS;
+
+/** A coin a chain leg counts (address lowercased). */
+export interface GoalLegToken {
+    address: string;
+    decimals: number;
+    symbol: string;
+}
+
+/**
+ * Another mainnet the goal counts on: the Transfer logs of its US dollar stablecoins to the campaign
+ * wallets, from the first block of the goal's start date. Block ranges in `campaign.wallets` belong
+ * to the campaign chain, so here every campaign wallet counts from the start (they are all Pink Paw's:
+ * held for it, or its own), and a transfer between two campaign wallets is skipped, as on Arc.
+ */
+export interface GoalChainLeg {
+    chainId: number;
+    name: string;
+    tokens: GoalLegToken[];
+    /** The campaign wallets, lowercased, without duplicates. */
+    wallets: string[];
+    /** Unix seconds of the goal's start date, 00:00 UTC. */
+    startTime: number;
+    window: number;
+    configKey: string;
+    publicRpc: string | null;
+}
+
+/**
+ * The other chains a goal counts on: every mainnet of the checkout's chain table (the repo's list of
+ * chains and their stablecoin addresses) except the campaign chain, with its USD coins only (USDC,
+ * USDC.e, USDG; never EURC, never a test-only coin). None for a campaign on a testnet, so test coins
+ * never reach a real meter, and none without a start date.
+ */
+export function goalChainLegs(c: GoalCampaign, chains: readonly CryptoPayChain[] = CRYPTO_PAY_CHAINS): GoalChainLeg[] {
+    if (isTestnetChain(c.chainId) || !c.startDate) return [];
+    const startTime = Math.floor(Date.parse(`${c.startDate}T00:00:00Z`) / 1000);
+    if (!Number.isFinite(startTime)) return [];
+    const wallets = [...new Set(c.wallets.map(w => w.wallet.toLowerCase()))];
+    const out: GoalChainLeg[] = [];
+    for (const chain of chains) {
+        if (chain.testnet || isTestnetChain(chain.chainId) || chain.chainId === c.chainId) continue;
+        const tokens = chain.tokens
+            .filter(t => t.token === 'USDC' && !t.testOnly && /^0x[0-9a-fA-F]{40}$/.test(t.address))
+            .map(t => ({ address: t.address.toLowerCase(), decimals: t.decimals, symbol: t.symbol }));
+        if (!tokens.length) continue;
+        out.push({
+            chainId: chain.chainId,
+            name: chain.name,
+            tokens,
+            wallets,
+            startTime,
+            window: goalLogWindow(chain.chainId),
+            configKey: JSON.stringify({ chainId: chain.chainId, tokens, wallets, startTime }),
+            publicRpc: chain.publicRpc,
+        });
+    }
+    return out;
+}
+
+/** The eth_getLogs filter of a chain leg for [from, to]. */
+export function legInflowFilter(leg: GoalChainLeg, from: number, to: number) {
+    return {
+        address: leg.tokens.map(t => t.address),
+        fromBlock: '0x' + from.toString(16),
+        toBlock: '0x' + to.toString(16),
+        topics: [TRANSFER_TOPIC, null, leg.wallets.map(addressTopic)],
+    };
+}
+
+/**
+ * What came in to the campaign wallets on a chain leg in [from, to]: a counted coin's Transfer whose
+ * receiver is a campaign wallet and whose sender is not. A log listed twice counts once.
+ */
+export function sumLegInflows(leg: GoalChainLeg, logs: GoalRpcLog[], from: number, to: number): InflowSum {
+    const ours = new Set(leg.wallets);
+    const seen = new Set<string>();
+    let sum18 = BigInt(0);
+    let count = 0;
+    for (const log of Array.isArray(logs) ? logs : []) {
+        if (!log || log.removed) continue;
+        const token = leg.tokens.find(t => t.address === String(log.address || '').toLowerCase());
+        if (!token) continue;
+        const topics = log.topics || [];
+        if (String(topics[0] || '').toLowerCase() !== TRANSFER_TOPIC) continue;
+        const sender = topicAddress(topics[1]);
+        const receiver = topicAddress(topics[2]);
+        const block = typeof log.blockNumber === 'string' ? parseInt(log.blockNumber, 16) : NaN;
+        if (!sender || !receiver || !Number.isInteger(block) || block < from || block > to) continue;
+        if (ours.has(sender) || !ours.has(receiver)) continue;
+        const key = `${log.transactionHash}:${log.logIndex}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const value = amount18(log.data, token.decimals);
+        if (value === null) continue;
+        sum18 += value;
+        count++;
+    }
+    return { sum18, count };
 }
 
 /** One `eth_getLogs` entry, as JSON-RPC sends it. */
@@ -184,23 +299,66 @@ export interface GoalCursorState {
     lastSuccessAt: Date | null;
 }
 
-/** The public view of a goal from its cursor (a cursor for an older wallet set counts nothing). */
-export function goalView(c: GoalCampaign, cursor: GoalCursorState | null, routes: ShareRoutes): ShelterGoalView {
-    const current = cursor && cursor.configKey === c.configKey ? cursor : null;
+/** The cursor id of a chain leg: `C-001@8453`. The campaign chain keeps the bare fact id. */
+export const legCursorId = (id: string, chainId: number) => `${id}@${chainId}`;
+
+function chainCount(
+    chainId: number,
+    symbols: string[],
+    configKey: string,
+    cursor: GoalCursorState | null
+): { count: GoalChainCount; raised18: bigint; updatedAt: Date | null } {
+    const current = cursor && cursor.configKey === configKey ? cursor : null;
     const scannedTo = current?.lastScannedBlock ?? null;
     const head = current?.head ?? null;
-    const raised18 = current && /^\d+$/.test(current.raised18) ? BigInt(current.raised18) : BigInt(0);
+    const raised18 =
+        current && scannedTo !== null && /^\d+$/.test(current.raised18) ? BigInt(current.raised18) : BigInt(0);
+    return {
+        count: {
+            chainId,
+            symbols,
+            raised: usdcText(raised18),
+            scannedTo,
+            head,
+            upToDate: scannedTo !== null && head !== null && head - scannedTo <= GOAL_UP_TO_DATE_LAG,
+            transfers: current && scannedTo !== null ? current.transfers : 0,
+        },
+        raised18,
+        updatedAt: current?.lastSuccessAt ? new Date(current.lastSuccessAt) : null,
+    };
+}
+
+/**
+ * The public view of a goal from its cursors (a cursor for an older wallet set counts nothing): the
+ * campaign chain's count plus every chain leg's (`legs`, keyed by chain id). `raised` is the sum;
+ * `upToDate` only when every chain has reached its head; `scannedTo` stays the campaign chain's, so
+ * nothing is claimed before its first window.
+ */
+export function goalView(
+    c: GoalCampaign,
+    cursor: GoalCursorState | null,
+    routes: ShareRoutes,
+    legs: { leg: GoalChainLeg; cursor: GoalCursorState | null }[] = []
+): ShelterGoalView {
+    const main = chainCount(c.chainId, ['USDC'], c.configKey, cursor);
+    const others = legs.map(l =>
+        chainCount(l.leg.chainId, [...new Set(l.leg.tokens.map(t => t.symbol))], l.leg.configKey, l.cursor)
+    );
+    const all = [main, ...others];
+    const raised18 = all.reduce((sum, x) => sum + x.raised18, BigInt(0));
+    const updated = all.map(x => x.updatedAt?.getTime() ?? 0).reduce((a, b) => Math.max(a, b), 0);
     return {
         id: c.id,
         chainId: c.chainId,
         goalUsdc: c.goalUsdc,
         raised: usdcText(raised18),
-        scannedTo,
-        head,
-        upToDate: scannedTo !== null && head !== null && head - scannedTo <= GOAL_UP_TO_DATE_LAG,
-        transfers: current?.transfers ?? 0,
+        scannedTo: main.count.scannedTo,
+        head: main.count.head,
+        upToDate: all.every(x => x.count.upToDate),
+        transfers: all.reduce((n, x) => n + x.count.transfers, 0),
         wallets: c.wallets,
         liveSources: liveSources(c, routes),
-        updatedAt: current?.lastSuccessAt ? new Date(current.lastSuccessAt).toISOString() : null,
+        updatedAt: main.updatedAt ? new Date(updated).toISOString() : null,
+        chains: all.map(x => x.count),
     };
 }

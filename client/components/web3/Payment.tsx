@@ -417,7 +417,7 @@ const WebPayment = ({
           <div>
             <PixelButton
               // copy-lint-ignore R10 WebPayment renders only on web; app builds get AppCheckoutNotice above
-              text="Pay with crypto (USDC / EURC)"
+              text="Pay with crypto (stablecoins)"
               onClick={() => setPaymentMethod("crypto")}
               active={paymentMethod === "crypto"}
               pressed={paymentMethod === "crypto"}

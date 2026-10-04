@@ -13,25 +13,205 @@ export const TOPICS = Object.freeze({
   // Disbursed(address indexed shelter, uint256 amount, string memo). ERC-20 units (USDC: 6 decimals).
   Disbursed: "0x53e1c69daf8c00e0990d33cc076fc3c88a0c480beb39da2bcffa01252f63495a",
   NativeDisbursementBatch: "0x78a8efdcf36fe135a2e17504fdd3d62c603422ba58646612f6f08bcc67d459d9",
+  // DisbursementBatch(uint256 indexed batchId, address indexed payer, uint256 amount, uint256 toShelters,
+  // uint256 toTreasury, uint256 sheltersPaid, string memo): one per disburse()/disburseWithMemo().
+  DisbursementBatch: "0x485615214cb30802281e3bce3cf20125c9f665162a889b1a53eec118dd58f603",
 });
 
-// Arc: gas and the native coin are USDC with 18 decimals.
+/** The name a wallet shows for the native coin of a chain that has none (Tempo pays fees in USD stablecoins). */
+export const NO_NATIVE_COIN_NAME = "No native coin (fees in USD stablecoins)";
+
+const coin = (symbol, address, eip3009, decimals = 6) => Object.freeze({ symbol, address, decimals, eip3009 });
+
+/**
+ * The seven ShelterSplit chains, mainnet and testnet. RPCs are the keyless public ones the backend
+ * uses (backend/src/shelter/onchain/shelter-onchain.config.ts); chain ids, explorers and coin
+ * addresses mirror funding/framework/tracks/a-build/chains.json.
+ *
+ *   nativeSymbol / nativeDecimals  the gas coin. Arc's is USDC itself (18 decimals natively, 6 through
+ *                                  its ERC-20 interface), so only Arc takes a native donate() gift.
+ *   noNativeCoin                   Tempo: no gas coin; fees are paid in a TIP-20 USD stablecoin. Wallets
+ *                                  still need a nativeCurrency to add the chain, so it reads "USD".
+ *   memo32                         Tempo: TIP-20 tokens carry a bytes32 memo; ShelterSplit's
+ *                                  disburseWithMemo(amount, bytes32) passes it on.
+ *   coins                          payout tokens, the chain's own coin first. eip3009: the token has
+ *                                  receiveWithAuthorization / transferWithAuthorization, so a
+ *                                  DonateRouter (one signature) or x402 `exact` can use it. Without it,
+ *                                  the gift is approve + ShelterSplit.disburse from the giver's wallet.
+ *   logRpc / maxLogRange           a keyless RPC that serves wide eth_getLogs ranges, and the widest
+ *                                  range the default RPC takes, where known.
+ *
+ * Not listed (no address in the repo's tables yet): EURC on Arbitrum, Tempo, Robinhood and Monad.
+ * Robinhood Chain has no USDC: mainnet pays USDG (Paxos); its testnet uses a test MockUSDC (mUSDC).
+ */
 export const CHAINS = Object.freeze({
-  5042: {
+  5042: Object.freeze({
     name: "Arc",
     rpc: "https://rpc.mainnet.arc.io",
     explorer: "https://explorer.arc.io",
     nativeSymbol: "USDC",
     nativeDecimals: 18,
-  },
-  5042002: {
+    coins: [coin("USDC", "0x3600000000000000000000000000000000000000", true), coin("EURC", "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1", true)],
+  }),
+  5042002: Object.freeze({
     name: "Arc Testnet",
+    testnet: true,
     rpc: "https://rpc.testnet.arc.io",
+    logRpc: "https://rpc.blockdaemon.testnet.arc.network",
+    maxLogRange: 100000,
     explorer: "https://explorer.testnet.arc.io",
     nativeSymbol: "USDC",
     nativeDecimals: 18,
-  },
+    coins: [coin("USDC", "0x3600000000000000000000000000000000000000", true), coin("EURC", "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a", true)],
+  }),
+  4217: Object.freeze({
+    name: "Tempo",
+    rpc: "https://rpc.tempo.xyz",
+    explorer: "https://explore.tempo.xyz",
+    nativeSymbol: "USD",
+    nativeDecimals: 18,
+    noNativeCoin: true,
+    memo32: true,
+    coins: [coin("USDC.e", "0x20C000000000000000000000b9537d11c60E8b50", false)],
+  }),
+  42431: Object.freeze({
+    name: "Tempo Testnet",
+    testnet: true,
+    rpc: "https://rpc.moderato.tempo.xyz",
+    explorer: "https://explore.testnet.tempo.xyz",
+    nativeSymbol: "USD",
+    nativeDecimals: 18,
+    noNativeCoin: true,
+    memo32: true,
+    coins: [coin("pathUSD", "0x20c0000000000000000000000000000000000000", false)],
+  }),
+  42161: Object.freeze({
+    name: "Arbitrum One",
+    rpc: "https://arb1.arbitrum.io/rpc",
+    explorer: "https://arbiscan.io",
+    nativeSymbol: "ETH",
+    nativeDecimals: 18,
+    coins: [coin("USDC", "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", true)],
+  }),
+  421614: Object.freeze({
+    name: "Arbitrum Sepolia",
+    testnet: true,
+    rpc: "https://sepolia-rollup.arbitrum.io/rpc",
+    explorer: "https://sepolia.arbiscan.io",
+    nativeSymbol: "ETH",
+    nativeDecimals: 18,
+    coins: [coin("USDC", "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d", true)],
+  }),
+  43114: Object.freeze({
+    name: "Avalanche C-Chain",
+    rpc: "https://api.avax.network/ext/bc/C/rpc",
+    explorer: "https://subnets.avax.network/c-chain",
+    nativeSymbol: "AVAX",
+    nativeDecimals: 18,
+    coins: [coin("USDC", "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E", true), coin("EURC", "0xC891EB4cbdEFf6e073e859e987815Ed1505c2ACD", true)],
+  }),
+  43113: Object.freeze({
+    name: "Avalanche Fuji",
+    testnet: true,
+    rpc: "https://api.avax-test.network/ext/bc/C/rpc",
+    explorer: "https://subnets-test.avax.network/c-chain",
+    nativeSymbol: "AVAX",
+    nativeDecimals: 18,
+    coins: [coin("USDC", "0x5425890298aed601595a70AB815c96711a31Bc65", true), coin("EURC", "0x5E44db7996c682E92a960b65AC713a54AD815c6B", true)],
+  }),
+  8453: Object.freeze({
+    name: "Base",
+    rpc: "https://mainnet.base.org",
+    maxLogRange: 2000,
+    explorer: "https://basescan.org",
+    nativeSymbol: "ETH",
+    nativeDecimals: 18,
+    coins: [coin("USDC", "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", true), coin("EURC", "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42", true)],
+  }),
+  84532: Object.freeze({
+    name: "Base Sepolia",
+    testnet: true,
+    rpc: "https://sepolia.base.org",
+    logRpc: "https://base-sepolia-rpc.publicnode.com",
+    maxLogRange: 1000,
+    explorer: "https://sepolia.basescan.org",
+    nativeSymbol: "ETH",
+    nativeDecimals: 18,
+    coins: [coin("USDC", "0x036CbD53842c5426634e7929541eC2318f3dCF7e", true), coin("EURC", "0x808456652fdb597867f38412077A9182bf77359F", true)],
+  }),
+  4663: Object.freeze({
+    name: "Robinhood Chain",
+    rpc: "https://rpc.mainnet.chain.robinhood.com",
+    explorer: "https://robinhoodchain.blockscout.com",
+    nativeSymbol: "ETH",
+    nativeDecimals: 18,
+    coins: [coin("USDG", "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", false)],
+  }),
+  46630: Object.freeze({
+    name: "Robinhood Chain Testnet",
+    testnet: true,
+    rpc: "https://rpc.testnet.chain.robinhood.com",
+    explorer: "https://explorer.testnet.chain.robinhood.com",
+    nativeSymbol: "ETH",
+    nativeDecimals: 18,
+    // Test MockUSDC deployed by the testnet wave (deployments.json tokenAddress): not a real dollar.
+    coins: [coin("mUSDC", "0x457c89e10a6e66633eda5bf82fd086febb5db147", false)],
+  }),
+  143: Object.freeze({
+    name: "Monad",
+    rpc: "https://rpc.monad.xyz",
+    // The public RPC answers eth_getLogs over at most 100 blocks (HTTP 413 beyond; checked 2026-10-04).
+    maxLogRange: 100,
+    explorer: "https://monadvision.com",
+    nativeSymbol: "MON",
+    nativeDecimals: 18,
+    // Native Circle USDC (FiatToken, EIP-3009).
+    coins: [coin("USDC", "0x754704Bc059F8C67012fEd69BC8A327a5aafb603", true)],
+  }),
+  10143: Object.freeze({
+    name: "Monad Testnet",
+    testnet: true,
+    rpc: "https://testnet-rpc.monad.xyz",
+    maxLogRange: 100,
+    explorer: "https://testnet.monadvision.com",
+    nativeSymbol: "MON",
+    nativeDecimals: 18,
+    coins: [coin("USDC", "0x534b2f3A21130d7a60830c2Df862319e593943A3", true)],
+  }),
 });
+
+/** The chain's own payout coin (USDC, USDC.e, pathUSD, USDG, mUSDC), or the coin named `symbol`. Null when unknown. */
+export function coinFor(chainId, symbol) {
+  const coins = CHAINS[Number(chainId)]?.coins || [];
+  if (!symbol) return coins[0] || null;
+  return coins.find((c) => c.symbol.toLowerCase() === String(symbol).toLowerCase()) || null;
+}
+
+/** The coin of `chainId` at `address` (case-insensitive), or null. */
+export function coinByAddress(chainId, address) {
+  const a = String(address || "").toLowerCase();
+  return (CHAINS[Number(chainId)]?.coins || []).find((c) => c.address.toLowerCase() === a) || null;
+}
+
+/** True where the native coin is USDC (Arc), so ShelterSplit.donate() with value is a USDC gift. */
+export const isUsdcNative = (chainId) => CHAINS[Number(chainId)]?.nativeSymbol === "USDC";
+
+/** wallet_addEthereumChain params for a known chain, or null. */
+export function addChainParams(chainId) {
+  const chain = CHAINS[Number(chainId)];
+  if (!chain) return null;
+  return {
+    chainId: "0x" + Number(chainId).toString(16),
+    chainName: chain.name,
+    rpcUrls: [chain.rpc],
+    blockExplorerUrls: [chain.explorer],
+    nativeCurrency: {
+      name: chain.noNativeCoin ? NO_NATIVE_COIN_NAME : chain.nativeSymbol,
+      symbol: chain.nativeSymbol,
+      decimals: chain.nativeDecimals,
+    },
+  };
+}
 
 export const MAX_MEMO_BYTES = 256;
 
@@ -118,24 +298,74 @@ export function decodePayoutLog(log) {
 // ------------------------------------------------------------------ reads
 
 let rpcId = 0;
-export async function rpc(fetchFn, url, method, params = []) {
-  const res = await fetchFn(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method, params }),
-  });
-  if (!res.ok) throw new Error(`${method}: HTTP ${res.status}`);
-  const body = await res.json();
-  if (body.error) throw new Error(`${method}: ${body.error.message || "RPC error"}`);
-  return body.result;
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** One JSON-RPC call. Public RPCs rate-limit bursts: HTTP 429 is retried with backoff (`retries`, default 4). */
+export async function rpc(fetchFn, url, method, params = [], { retries = 4, retryDelayMs = 700 } = {}) {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetchFn(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method, params }),
+    });
+    if (res.status === 429 && attempt < retries) {
+      await pause(retryDelayMs * 2 ** attempt);
+      continue;
+    }
+    if (!res.ok) throw new Error(`${method}: HTTP ${res.status}`);
+    const body = await res.json();
+    if (body.error) throw new Error(`${method}: ${body.error.message || "RPC error"}`);
+    return body.result;
+  }
+}
+
+/** Default eth_getLogs window when the whole range is refused, and the most windows one scan may use. */
+export const LOG_WINDOW = 10000;
+export const MAX_LOG_REQUESTS = 400;
+
+/**
+ * eth_getLogs over [fromBlock, latest]: the whole range in one call, else (public RPCs cap the range)
+ * windows of `window` blocks, at most `maxRequests` of them.
+ */
+export async function getLogsWindowed(fetchFn, url, { address, topics, fromBlock = 0, window = LOG_WINDOW, maxRequests = MAX_LOG_REQUESTS, concurrency = 4 }) {
+  const filter = (from, to) => [{ address, topics, fromBlock: "0x" + Number(from).toString(16), toBlock: to }];
+  try {
+    // A chain known to take only small ranges (Monad: 100 blocks) goes straight to windows.
+    if (window < 1000) throw new Error("small range");
+    return (await rpc(fetchFn, url, "eth_getLogs", filter(fromBlock, "latest"))) || [];
+  } catch (err) {
+    const latest = parseInt(await rpc(fetchFn, url, "eth_blockNumber", []), 16);
+    const windows = Math.ceil((latest - fromBlock + 1) / window);
+    if (!(windows > 0)) throw err;
+    if (windows > maxRequests) throw new Error(`log range of ${latest - fromBlock + 1} blocks needs ${windows} requests; set fromBlock`);
+    const starts = [];
+    for (let s = Number(fromBlock); s <= latest; s += window) starts.push(s);
+    const parts = new Array(starts.length);
+    let next = 0;
+    const worker = async () => {
+      while (next < starts.length) {
+        const i = next++;
+        parts[i] = (await rpc(fetchFn, url, "eth_getLogs", filter(starts[i], "0x" + Math.min(starts[i] + window - 1, latest).toString(16)))) || [];
+      }
+    };
+    await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, starts.length)) }, worker));
+    return parts.flat();
+  }
 }
 
 /**
  * Sums every payout ShelterSplit emitted.
  *
  * `deployments` is the parsed deployments.json array (entries need `chainId` and `address`;
- * `rpc` and `fromBlock` are optional), or a URL string to fetch it from.
- * Native (18-decimal) and token (6-decimal) totals stay separate so the scales never mix.
+ * `rpc`, `fromBlock`, `tx` (the deploy transaction: its block is the scan start when `fromBlock` is
+ * absent), `symbol`/`token` and `decimals` are optional), or a URL string to fetch it from.
+ *
+ * Native (18-decimal) and token (6-decimal) totals stay separate so the scales never mix
+ * (`nativeWei`, `tokenUnits`; kept for older callers, but they add every chain's coins together).
+ * `byCoin` is the honest view: { [symbol]: amount scaled to 18 decimals }, where Arc's native USDC
+ * counts as USDC and every other native coin (ETH, AVAX, MON) under its own symbol. Each
+ * `byDeployment` row has its `symbol`, `nativeSymbol`, `decimals` and `testnet` flag. USDC, USDG,
+ * mUSDC, pathUSD and EURC are different coins and are never summed together.
  */
 export async function readTotals(deployments, fetchFn = globalThis.fetch) {
   if (typeof fetchFn !== "function") throw new Error("readTotals needs a fetch function");
@@ -147,26 +377,49 @@ export async function readTotals(deployments, fetchFn = globalThis.fetch) {
   }
   if (!Array.isArray(list)) throw new Error("deployments must be an array");
 
-  const totals = { nativeWei: 0n, tokenUnits: 0n, payouts: 0, byDeployment: [] };
+  const totals = { nativeWei: 0n, tokenUnits: 0n, payouts: 0, byCoin: {}, byDeployment: [] };
+  const addCoin = (symbol, wei18) => {
+    if (wei18 === 0n) return;
+    totals.byCoin[symbol] = (totals.byCoin[symbol] || 0n) + wei18;
+  };
   for (const d of list) {
     if (!d || !ADDRESS_RE.test(d.address || "")) continue;
     const chainId = Number(d.chainId);
-    const url = d.rpc || CHAINS[chainId]?.rpc;
-    const row = { chainId, address: d.address, nativeWei: 0n, tokenUnits: 0n, payouts: 0, error: null };
+    const chain = CHAINS[chainId];
+    const url = d.rpc || chain?.logRpc || chain?.rpc;
+    const own = coinFor(chainId);
+    const symbol = String(d.symbol || d.token || own?.symbol || "token");
+    const decimals = Number.isInteger(d.decimals) ? d.decimals : coinFor(chainId, symbol)?.decimals ?? 6;
+    const row = {
+      chainId,
+      address: d.address,
+      symbol,
+      decimals,
+      nativeSymbol: chain?.nativeSymbol || null,
+      testnet: d.network ? d.network === "testnet" : !!chain?.testnet,
+      nativeWei: 0n,
+      tokenUnits: 0n,
+      payouts: 0,
+      error: null,
+    };
     totals.byDeployment.push(row);
     if (!url) {
       row.error = `no RPC known for chain ${chainId}`;
       continue;
     }
     try {
-      const logs = await rpc(fetchFn, url, "eth_getLogs", [
-        {
-          address: d.address,
-          topics: [[TOPICS.NativeDisbursed, TOPICS.Disbursed]],
-          fromBlock: "0x" + Number(d.fromBlock || 0).toString(16),
-          toBlock: "latest",
-        },
-      ]);
+      let fromBlock = Number(d.fromBlock || 0);
+      if (!d.fromBlock && TX_RE.test(d.tx || "")) {
+        // The chain's default RPC: a wide-range log RPC may not keep old receipts (Arc testnet's does not).
+        const receipt = await rpc(fetchFn, d.rpc || chain?.rpc || url, "eth_getTransactionReceipt", [d.tx]).catch(() => null);
+        if (receipt?.blockNumber) fromBlock = parseInt(receipt.blockNumber, 16);
+      }
+      const logs = await getLogsWindowed(fetchFn, url, {
+        address: d.address,
+        topics: [[TOPICS.NativeDisbursed, TOPICS.Disbursed]],
+        fromBlock,
+        window: chain?.logRpc && !d.rpc ? Math.max(chain?.maxLogRange || 0, LOG_WINDOW) : chain?.maxLogRange || LOG_WINDOW,
+      });
       for (const log of logs || []) {
         const p = decodePayoutLog(log);
         if (!p) continue;
@@ -180,6 +433,8 @@ export async function readTotals(deployments, fetchFn = globalThis.fetch) {
     totals.nativeWei += row.nativeWei;
     totals.tokenUnits += row.tokenUnits;
     totals.payouts += row.payouts;
+    addCoin(row.nativeSymbol === "USDC" ? "USDC" : row.nativeSymbol || "native", row.nativeWei * 10n ** BigInt(18 - (chain?.nativeDecimals ?? 18)));
+    addCoin(symbol, row.tokenUnits * 10n ** BigInt(Math.max(0, 18 - decimals)));
   }
   return totals;
 }
@@ -194,20 +449,9 @@ async function ensureChain(provider, chainId) {
   try {
     await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: hexChain(chainId) }] });
   } catch (err) {
-    const chain = CHAINS[Number(chainId)];
-    if (err?.code !== 4902 || !chain) throw err;
-    await provider.request({
-      method: "wallet_addEthereumChain",
-      params: [
-        {
-          chainId: hexChain(chainId),
-          chainName: chain.name,
-          rpcUrls: [chain.rpc],
-          blockExplorerUrls: [chain.explorer],
-          nativeCurrency: { name: chain.nativeSymbol, symbol: chain.nativeSymbol, decimals: chain.nativeDecimals },
-        },
-      ],
-    });
+    const params = addChainParams(chainId);
+    if (err?.code !== 4902 || !params) throw err;
+    await provider.request({ method: "wallet_addEthereumChain", params: [params] });
   }
 }
 
@@ -248,6 +492,97 @@ export async function waitForReceipt(provider, txHash, { intervalMs = 1500, time
     if (Date.now() > deadline) throw new Error(`timed out waiting for ${txHash}`);
     await new Promise((r) => setTimeout(r, intervalMs));
   }
+}
+
+// ------------------------------------------------------------------ token gifts (approve + disburse)
+
+/** Selectors of the token path (keccak256 of the signatures; pinned by tests against `cast sig`). */
+export const TOKEN_SELECTORS = Object.freeze({
+  approve: "0x095ea7b3", // approve(address,uint256)
+  allowance: "0xdd62ed3e", // allowance(address,address)
+  disburse: "0xc950e7d9", // ShelterSplit.disburse(uint256,string)
+  disburseWithMemo: "0x970a3255", // ShelterSplit.disburseWithMemo(uint256,bytes32): Tempo TIP-20 only
+  token: "0xfc0c546a", // ShelterSplit.token()
+});
+
+/** ERC-20 approve(spender, amount) calldata. */
+export function encodeApprove(spender, amount) {
+  return TOKEN_SELECTORS.approve + addrWord(spender) + word(BigInt(amount));
+}
+
+/** ERC-20 allowance(owner, spender) calldata, for an eth_call. */
+export function encodeAllowanceCall(owner, spender) {
+  return TOKEN_SELECTORS.allowance + addrWord(owner) + addrWord(spender);
+}
+
+/** ShelterSplit.disburse(uint256 amount, string memo): pulls `amount` of the split's token from the caller. */
+export function encodeDisburse(amount, memo = "") {
+  const bytes = enc.encode(String(memo));
+  if (bytes.length > MAX_MEMO_BYTES) throw new Error(`memo is ${bytes.length} bytes; the contract allows ${MAX_MEMO_BYTES}`);
+  return TOKEN_SELECTORS.disburse + word(BigInt(amount)) + word(64) + encodeStringArg(memo);
+}
+
+/**
+ * A memo as bytes32: a 0x-prefixed 32-byte hex value as it is, else its UTF-8 bytes right-padded with
+ * zeros (at most 32 bytes; longer throws: hash it, as the x402 offers do with `memo32`).
+ */
+export function memoToBytes32(memo) {
+  const s = String(memo ?? "");
+  if (/^0x[0-9a-fA-F]{64}$/.test(s)) return s.toLowerCase();
+  const bytes = enc.encode(s);
+  if (bytes.length > 32) throw new Error(`memo is ${bytes.length} bytes; a bytes32 memo holds 32 (pass keccak256 of it)`);
+  return "0x" + toHex(bytes).padEnd(64, "0");
+}
+
+/**
+ * ShelterSplit.disburseWithMemo(uint256 amount, bytes32 memo) (Tempo TIP-20): every payout carries the
+ * memo in the token's TransferWithMemo; the split's events carry it as a 0x-prefixed hex string.
+ */
+export function encodeDisburseWithMemo(amount, memo32) {
+  return TOKEN_SELECTORS.disburseWithMemo + word(BigInt(amount)) + memoToBytes32(memo32).slice(2);
+}
+
+const readWord = (ret) => (/^0x[0-9a-fA-F]{64}/.test(String(ret)) ? BigInt(String(ret).slice(0, 66)) : null);
+
+/**
+ * Gives `amount` (token base units) straight into ShelterSplit from an injected wallet, for coins
+ * without EIP-3009 (Tempo's TIP-20 pathUSD / USDC.e, Robinhood's USDG and test mUSDC) or a chain with
+ * no DonateRouter. Switches (or adds) the chain, reads split.token() when `token` is omitted, approves
+ * the split for exactly `amount` when the allowance is short and waits for that approval, then calls
+ * disburse(amount, memo) — or disburseWithMemo(amount, memo32) on Tempo (`method` overrides the
+ * chain default; `memo32` defaults to memoToBytes32(memo)). The giver's wallet pays both fees.
+ * Resolves with { txHash, approveTxHash, chainId, from, token, explorerUrl } once the disburse is sent.
+ */
+export async function donateTokenWithInjected(provider, { chainId, split, token, amount, memo = "", method, memo32, receiptOptions } = {}) {
+  if (!provider?.request) throw new Error("no wallet provider found");
+  if (!ADDRESS_RE.test(split || "")) throw new Error("ShelterSplit address is not set yet");
+  if (token !== undefined && token !== null && !ADDRESS_RE.test(token)) throw new Error("token is not an address");
+  const value = BigInt(amount ?? 0);
+  if (value <= 0n) throw new Error("amount must be above zero");
+  const withMemo = method ? method === "disburseWithMemo" : !!CHAINS[Number(chainId)]?.memo32;
+  if (method && method !== "disburse" && method !== "disburseWithMemo") throw new Error(`unknown method ${method}`);
+  const data = withMemo ? encodeDisburseWithMemo(value, memo32 ?? memoToBytes32(memo)) : encodeDisburse(value, memo);
+  const [from] = await provider.request({ method: "eth_requestAccounts" });
+  if (!from) throw new Error("the wallet returned no account");
+  await ensureChain(provider, chainId);
+  const call = (to, d) => provider.request({ method: "eth_call", params: [{ to, data: d }, "latest"] });
+  let coinAddress = token;
+  if (!coinAddress) {
+    const ret = await call(split, TOKEN_SELECTORS.token);
+    coinAddress = /^0x[0-9a-fA-F]{64}/.test(String(ret)) ? "0x" + String(ret).slice(26, 66) : null;
+    if (!ADDRESS_RE.test(coinAddress || "")) throw new Error("could not read the split's token; nothing was sent");
+  }
+  const allowance = readWord(await call(coinAddress, encodeAllowanceCall(from, split))) ?? 0n;
+  let approveTxHash = null;
+  if (allowance < value) {
+    approveTxHash = await provider.request({
+      method: "eth_sendTransaction",
+      params: [{ from, to: coinAddress, data: encodeApprove(split, value) }],
+    });
+    await waitForReceipt(provider, approveTxHash, receiptOptions);
+  }
+  const txHash = await provider.request({ method: "eth_sendTransaction", params: [{ from, to: split, data }] });
+  return { txHash, approveTxHash, chainId: Number(chainId), from, token: coinAddress, explorerUrl: explorerTxUrl(chainId, txHash) };
 }
 
 // ------------------------------------------------------------------ keccak256 and EIP-712
@@ -592,28 +927,131 @@ export async function signAndRelay(opts = {}) {
 // ------------------------------------------------------------------ x402 (onchain-receipt scheme)
 
 /**
- * The 'onchain-receipt' offer of a 402 body: the top-level `onchainReceipt` field (where the server puts
- * it when it also offers the standard `exact` scheme, so standard clients can parse `accepts`), or the
- * first such entry in `accepts`. Null when there is none.
+ * Every 'onchain-receipt' offer of a 402 body, one per chain the server takes payment on, main chain
+ * first: the top-level `onchainReceipt` and `onchainReceipts` fields (where the server puts them when it
+ * also offers the standard `exact` scheme, so standard clients can parse `accepts`), then such entries in
+ * `accepts`. Duplicates (same network, payTo and asset) are dropped. All offers of one challenge share
+ * one nonce: pay on any one chain, once.
  */
-export function findOnchainReceiptOffer(body) {
-  if (body?.onchainReceipt?.scheme === "onchain-receipt") return body.onchainReceipt;
-  return (Array.isArray(body?.accepts) && body.accepts.find((a) => a && a.scheme === "onchain-receipt")) || null;
+export function findOnchainReceiptOffers(body) {
+  const out = [];
+  const seen = new Set();
+  const add = (o) => {
+    if (!o || typeof o !== "object" || o.scheme !== "onchain-receipt") return;
+    const key = `${o.network}|${String(o.payTo).toLowerCase()}|${String(o.asset).toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(o);
+  };
+  add(body?.onchainReceipt);
+  if (Array.isArray(body?.onchainReceipts)) body.onchainReceipts.forEach(add);
+  if (Array.isArray(body?.accepts)) body.accepts.forEach(add);
+  return out;
 }
 
-/** Picks the 'onchain-receipt' offer from a 402 body, or throws with a clear reason. */
-export function pickOffer(body) {
-  if (!body || body.x402Version !== 1 || !Array.isArray(body.accepts)) throw new Error("not an x402 v1 response");
-  const offer = findOnchainReceiptOffer(body);
-  if (!offer) throw new Error("the server offers no 'onchain-receipt' payment");
+/** The first 'onchain-receipt' offer of a 402 body (the main chain), or null. */
+export function findOnchainReceiptOffer(body) {
+  return findOnchainReceiptOffers(body)[0] || null;
+}
+
+/**
+ * Validates one 'onchain-receipt' offer and adds what paying it needs:
+ *   chainId, kind ('native' | 'token'), amount (bigint, in the asset's base units), decimals, coin,
+ *   method ('donate' | 'disburse' | 'disburseWithMemo'), token (address | null), memo, nonce,
+ *   memo32 (bytes32 hex, disburseWithMemo only), and amountWei (native) or amountBase (token).
+ * An offer from an older server (no extra.method / extra.decimals) with asset 'native' is a donate()
+ * in the chain's native units (18 decimals on Arc). A token offer defaults to disburse, or
+ * disburseWithMemo on Tempo with memo32 = keccak256(utf8(memo)) (a 37-byte memo does not fit bytes32).
+ */
+export function parseOnchainReceiptOffer(offer) {
+  if (!offer || offer.scheme !== "onchain-receipt") throw new Error("not an 'onchain-receipt' offer");
   const m = /^eip155:(\d+)$/.exec(offer.network || "");
   if (!m) throw new Error(`unsupported network ${offer.network}`);
-  if (offer.asset !== "native") throw new Error(`unsupported asset ${offer.asset}`);
+  const chainId = Number(m[1]);
+  const native = offer.asset === "native";
+  if (!native && !ADDRESS_RE.test(offer.asset || "")) throw new Error(`unsupported asset ${offer.asset}`);
   if (!ADDRESS_RE.test(offer.payTo || "")) throw new Error("offer has no valid payTo address");
-  const nonce = offer.extra?.nonce;
-  const memo = offer.extra?.memo;
+  const extra = offer.extra || {};
+  const nonce = extra.nonce;
+  const memo = extra.memo;
   if (!nonce || memo !== `x402:${nonce}`) throw new Error("offer memo must be 'x402:<nonce>'");
-  return { ...offer, chainId: Number(m[1]), amountWei: BigInt(offer.maxAmountRequired), nonce, memo };
+  if (!/^\d+$/.test(String(offer.maxAmountRequired ?? ""))) throw new Error("offer has no valid maxAmountRequired");
+  const amount = BigInt(offer.maxAmountRequired);
+  const chain = CHAINS[chainId];
+  const known = native ? null : coinByAddress(chainId, offer.asset);
+  const decimals = Number.isInteger(extra.decimals) ? extra.decimals : native ? chain?.nativeDecimals ?? 18 : known?.decimals ?? 6;
+  const method = extra.method || (native ? "donate" : chain?.memo32 ? "disburseWithMemo" : "disburse");
+  if (native ? method !== "donate" : method !== "disburse" && method !== "disburseWithMemo") {
+    throw new Error(`unsupported method ${method} for asset ${offer.asset}`);
+  }
+  let memo32 = null;
+  if (method === "disburseWithMemo") {
+    memo32 = extra.memo32 ?? utf8Hash(memo);
+    if (!/^0x[0-9a-fA-F]{64}$/.test(String(memo32))) throw new Error("offer memo32 is not bytes32");
+    memo32 = String(memo32).toLowerCase();
+  }
+  const coinName =
+    typeof extra.coin === "string" && /^[A-Za-z0-9.]{1,12}$/.test(extra.coin)
+      ? extra.coin
+      : native
+      ? chain?.nativeSymbol || "native"
+      : known?.symbol || "token";
+  return {
+    ...offer,
+    chainId,
+    kind: native ? "native" : "token",
+    amount,
+    decimals,
+    coin: coinName,
+    method,
+    token: native ? null : offer.asset,
+    memo,
+    nonce,
+    memo32,
+    ...(native ? { amountWei: amount } : { amountBase: amount }),
+  };
+}
+
+/** Every valid 'onchain-receipt' offer of a 402 body, parsed (see parseOnchainReceiptOffer); malformed ones are skipped. */
+export function listOnchainReceiptOffers(body) {
+  const out = [];
+  for (const o of findOnchainReceiptOffers(body)) {
+    try {
+      out.push(parseOnchainReceiptOffer(o));
+    } catch {
+      /* skip */
+    }
+  }
+  return out;
+}
+
+/**
+ * Picks one 'onchain-receipt' offer from a 402 body, or throws with a clear reason. `chainId` picks the
+ * offer on that chain; without it, the first offer (the server's main chain).
+ */
+export function pickOffer(body, { chainId } = {}) {
+  if (!body || body.x402Version !== 1 || !Array.isArray(body.accepts)) throw new Error("not an x402 v1 response");
+  const offers = findOnchainReceiptOffers(body);
+  if (!offers.length) throw new Error("the server offers no 'onchain-receipt' payment");
+  if (chainId === undefined || chainId === null) return parseOnchainReceiptOffer(offers[0]);
+  const hit = offers.find((o) => o.network === `eip155:${Number(chainId)}`);
+  if (!hit) throw new Error(`the server offers no 'onchain-receipt' payment on chain ${chainId} (offered: ${offers.map((o) => o.network).join(", ")})`);
+  return parseOnchainReceiptOffer(hit);
+}
+
+/**
+ * The transactions that pay a parsed offer, in order: [donate(memo) with value] for a native offer;
+ * [approve(split, amount) on the token, disburse(amount, memo) | disburseWithMemo(amount, memo32) on
+ * the split] for a token offer. The approve may be skipped when the payer's allowance already covers
+ * `amount`. Each call is { step: 'donate' | 'approve' | 'disburse', to, data, value }.
+ */
+export function encodeOfferCalls(offer) {
+  if (offer.kind === "native") return [{ step: "donate", to: offer.payTo, data: encodeDonate(offer.memo), value: offer.amount }];
+  const disburse = offer.method === "disburseWithMemo" ? encodeDisburseWithMemo(offer.amount, offer.memo32) : encodeDisburse(offer.amount, offer.memo);
+  return [
+    { step: "approve", to: offer.token, data: encodeApprove(offer.payTo, offer.amount), value: 0n },
+    { step: "disburse", to: offer.payTo, data: disburse, value: 0n },
+  ];
 }
 
 // ------------------------------------------------------------------ x402 (standard `exact` scheme)
@@ -715,21 +1153,33 @@ export function encodePaymentHeader({ chainId, txHash, nonce }) {
  *  - `exact` (standard x402): signs a USDC transferWithAuthorization straight to the offer's payTo;
  *    the server's facilitator settles it and pays the gas. Used when the server offers it, you set
  *    `maxAmountBase` (USDC base units, 6 decimals), and you pass `provider` or `signTypedData`+`account`.
- *  - `onchain-receipt`: pays donate('x402:<nonce>') to the offer's payTo (the ShelterSplit contract),
- *    waits for the receipt, and retries with the X-PAYMENT header. Needs `maxAmountWei`.
+ *  - `onchain-receipt` (one offer per chain the server takes; all share one nonce): pays the offer's
+ *    payTo (the ShelterSplit contract) with memo 'x402:<nonce>', waits for the receipt, and retries
+ *    with the X-PAYMENT header. A native offer (asset 'native', Arc: USDC is the gas coin) is one
+ *    donate(memo) with value. A token offer (asset = token address; Base, Arbitrum, Avalanche, Monad
+ *    USDC, Tempo pathUSD/USDC.e, Robinhood USDG/mUSDC) is approve(split, amount) on the token, then
+ *    disburse(amount, memo), or disburseWithMemo(amount, memo32) on Tempo.
  *
  * Options:
- *   maxAmountWei   spending cap for onchain-receipt (native units).
- *   maxAmountBase  spending cap for exact (token base units). At least one cap is required.
+ *   chainId        pay on this chain (its onchain-receipt offer; `exact` only when it is on this chain).
+ *                  Without it: the first offer whose unit you capped, main chain first.
+ *   maxAmountWei   spending cap for native onchain-receipt offers (native units, 18 decimals on Arc).
+ *   maxAmountBase  spending cap in token base units (6 decimals for every USD coin listed in CHAINS):
+ *                  `exact` and token onchain-receipt offers. At least one cap is required; an offer
+ *                  whose unit has no cap is never paid.
  *   provider       an EIP-1193 provider, or
- *   pay            async ({chainId, to, valueWei, data, memo}) => txHash (onchain-receipt), resolving after the tx is mined.
+ *   pay            async ({chainId, to, valueWei, data, memo, asset, token, amount, decimals, coin,
+ *                  method, memo32, calls}) => txHash (onchain-receipt), resolving after the PAYMENT tx
+ *                  is mined. `calls` is encodeOfferCalls(offer): run them in order, waiting for each
+ *                  (the approve may be skipped when the allowance covers `amount`), and return the hash
+ *                  of the last one. `to`/`valueWei`/`data` describe that last call (donate or disburse).
  *   signTypedData  async (typedData) => signature, with `account` (exact).
  *   prefer         "exact" (default) or "onchain-receipt" when both are possible.
  *   fetch, init, retries, retryDelayMs, receiptOptions, now: as before.
  *
- * Returns { response, paid: null | {scheme, txHash?, chainId, amountWei?|amountBase?}, receipt: decoded X-PAYMENT-RESPONSE | null,
- * error?: string }. For `exact`, `paid` is null unless the server answered 2xx (a refused authorization
- * moves no money), and `error` carries the 402's reason.
+ * Returns { response, paid: null | {scheme, txHash?, chainId, amountWei?|amountBase?, coin?}, receipt:
+ * decoded X-PAYMENT-RESPONSE | null, error?: string }. For `exact`, `paid` is null unless the server
+ * answered 2xx (a refused authorization moves no money), and `error` carries the 402's reason.
  */
 export async function payAndFetch(url, opts = {}) {
   const fetchFn = opts.fetch || globalThis.fetch;
@@ -740,15 +1190,27 @@ export async function payAndFetch(url, opts = {}) {
   const canSign = !!opts.provider || (typeof opts.signTypedData === "function" && !!opts.account);
   if (!canSign && typeof opts.pay !== "function") throw new Error("pass a provider or a pay callback");
   const init = opts.init || {};
+  const wantChain = opts.chainId === undefined || opts.chainId === null ? null : Number(opts.chainId);
 
   const first = await fetchFn(url, init);
   if (first.status !== 402) return { response: first, paid: null, receipt: null };
   const body = await first.json();
 
   const exactOffered = Array.isArray(body?.accepts) && body.accepts.some((a) => a?.scheme === "exact");
-  const receiptOffered = !!findOnchainReceiptOffer(body);
-  const exactPossible = exactOffered && opts.maxAmountBase !== undefined && canSign;
-  const useExact = exactPossible && (opts.prefer !== "onchain-receipt" || !receiptOffered || opts.maxAmountWei === undefined);
+  let exactOnChain = exactOffered;
+  if (exactOffered && wantChain !== null) {
+    try {
+      exactOnChain = pickExactOffer(body, opts.chainIds).chainId === wantChain;
+    } catch {
+      exactOnChain = false;
+    }
+  }
+  const receiptOffers = listOnchainReceiptOffers(body).filter((o) => wantChain === null || o.chainId === wantChain);
+  const receiptOffered = receiptOffers.length > 0;
+  const exactPossible = exactOnChain && opts.maxAmountBase !== undefined && canSign;
+  const capFor = (o) => (o.kind === "native" ? opts.maxAmountWei : opts.maxAmountBase);
+  const payableReceipt = receiptOffers.filter((o) => capFor(o) !== undefined);
+  const useExact = exactPossible && (opts.prefer !== "onchain-receipt" || payableReceipt.length === 0);
 
   if (useExact) {
     const offer = pickExactOffer(body, opts.chainIds);
@@ -774,24 +1236,63 @@ export async function payAndFetch(url, opts = {}) {
       receipt,
     };
   }
-  if (opts.maxAmountWei === undefined) {
+  if (!payableReceipt.length) {
+    if (receiptOffered) {
+      const units = [...new Set(receiptOffers.map((o) => (o.kind === "native" ? "maxAmountWei" : "maxAmountBase")))];
+      throw new Error(`set ${units.join(" or ")}: the most you allow one call to pay on ${receiptOffers.map((o) => `eip155:${o.chainId}`).join(", ")}`);
+    }
+    if (wantChain !== null && findOnchainReceiptOffers(body).length) pickOffer(body, { chainId: wantChain }); // throws "no offer on chain N"
+    if (!findOnchainReceiptOffers(body).length && !exactOffered) throw new Error("the server offers no 'onchain-receipt' payment");
+    if (findOnchainReceiptOffers(body).length) pickOffer(body); // throws the reason the offer is malformed
     throw new Error(exactOffered ? "the exact offer needs a provider or signTypedData; set maxAmountWei for onchain-receipt" : "set maxAmountWei: the most you allow one call to pay");
   }
-  const cap = BigInt(opts.maxAmountWei);
+  const offer = payableReceipt[0];
+  const cap = BigInt(capFor(offer));
+  if (offer.amount > cap) {
+    throw new Error(
+      offer.kind === "native"
+        ? `price ${offer.amount} wei is above your cap of ${cap} wei`
+        : `price ${offer.amount} ${offer.coin} base units is above your cap of ${cap}`
+    );
+  }
 
-  const offer = pickOffer(body);
-  if (offer.amountWei > cap) throw new Error(`price ${offer.amountWei} wei is above your cap of ${cap} wei`);
-
-  const data = encodeDonate(offer.memo);
+  const calls = encodeOfferCalls(offer);
+  const last = calls[calls.length - 1];
   let txHash;
   if (typeof opts.pay === "function") {
-    txHash = await opts.pay({ chainId: offer.chainId, to: offer.payTo, valueWei: offer.amountWei, data, memo: offer.memo });
-  } else {
+    txHash = await opts.pay({
+      chainId: offer.chainId,
+      to: last.to,
+      valueWei: last.value,
+      data: last.data,
+      memo: offer.memo,
+      asset: offer.asset,
+      token: offer.token,
+      amount: offer.amount,
+      decimals: offer.decimals,
+      coin: offer.coin,
+      method: offer.method,
+      memo32: offer.memo32,
+      calls,
+    });
+  } else if (offer.kind === "native") {
     ({ txHash } = await donateWithInjected(opts.provider, {
       chainId: offer.chainId,
       split: offer.payTo,
-      amountWei: offer.amountWei,
+      amountWei: offer.amount,
       memo: offer.memo,
+    }));
+    await waitForReceipt(opts.provider, txHash, opts.receiptOptions);
+  } else {
+    ({ txHash } = await donateTokenWithInjected(opts.provider, {
+      chainId: offer.chainId,
+      split: offer.payTo,
+      token: offer.token,
+      amount: offer.amount,
+      memo: offer.memo,
+      method: offer.method,
+      memo32: offer.memo32 || undefined,
+      receiptOptions: opts.receiptOptions,
     }));
     await waitForReceipt(opts.provider, txHash, opts.receiptOptions);
   }
@@ -807,7 +1308,12 @@ export async function payAndFetch(url, opts = {}) {
     await new Promise((r) => setTimeout(r, delay));
   }
 
-  return { response, paid: { scheme: "onchain-receipt", txHash, chainId: offer.chainId, amountWei: offer.amountWei }, receipt: readPaymentResponse(response) };
+  const amountField = offer.kind === "native" ? { amountWei: offer.amount } : { amountBase: offer.amount };
+  return {
+    response,
+    paid: { scheme: "onchain-receipt", txHash, chainId: offer.chainId, ...amountField, coin: offer.coin, asset: offer.asset },
+    receipt: readPaymentResponse(response),
+  };
 }
 
 function readPaymentResponse(response) {

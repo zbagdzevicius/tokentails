@@ -9,6 +9,14 @@
 #                                                        #   in tracks/a-build/deployments.json
 #   funding/e2e/start-local.sh stop                      # stop both, delete the temp data dir
 #
+# Optional: E2E_TREAT_CHAINS="421614:0x<split>,42431:0x<split>,..." also turns on token treats on those
+# testnets (the give page's network chips: SHELTER_RELAY_CHAINS + SHELTER_CHAIN_<id>_TREAT_ENABLED),
+# paid by the same donatehot wallet (it needs gas and ~2 of each split's token there). Testnet ids only:
+# 421614 84532 43113 46630 42431 10143. Each RPC must answer with its chain id and each split must have code.
+# Optional: E2E_X402_CHAINS="84532:0x<split>,42431:0x<split>,..." also offers the x402 agent cat card on
+# those testnets (SHELTER_CHAIN_<id>_X402_ENABLED; the agent pays the split's token there). A chain in both
+# lists must name the same split. No key is needed for x402.
+#
 # Every variable below is set in the backend process, so it wins over backend/.env (dotenv loads
 # that file but never overrides a variable that is already set, even to an empty string).
 # The donate hot-wallet key is read with `cast wallet private-key` into a shell variable, handed to
@@ -28,6 +36,19 @@ ARC_TESTNET=5042002
 ARC_RPC="${SHELTER_ARC_RPC_URL_E2E:-https://rpc.testnet.arc.io}"
 MONGODB_URI_E2E="mongodb://127.0.0.1:${MONGO_PORT}/tt-e2e"
 DONATEHOT_ADDR="0x8D03d8295892F7dE2B7cE57585Aa45Dd4B3C2ba0"
+TREAT_CHAINS="${E2E_TREAT_CHAINS:-}"
+X402_CHAINS="${E2E_X402_CHAINS:-}"
+treat_rpc() { # chainId -> public RPC (the backend's DEFAULT_RPC); empty for anything else, mainnets included
+  case "$1" in
+    421614) echo https://sepolia-rollup.arbitrum.io/rpc ;;
+    84532) echo https://sepolia.base.org ;;
+    43113) echo https://api.avax-test.network/ext/bc/C/rpc ;;
+    46630) echo https://rpc.testnet.chain.robinhood.com ;;
+    42431) echo https://rpc.moderato.tempo.xyz ;;
+    10143) echo https://testnet-rpc.monad.xyz ;;
+    *) echo "" ;;
+  esac
+}
 # Optional host:port of a local Firebase Auth emulator (see README). Empty: the real project verifies tokens.
 FB_EMULATOR="${E2E_FIREBASE_AUTH_EMULATOR:-}"
 mkdir -p "$OUT"
@@ -96,6 +117,40 @@ HOT_ADDR="$(cast wallet address --account donatehot --password-file "$PWFILE" 2>
   || die "keystore 'donatehot' is '${HOT_ADDR:-unreadable}', expected $DONATEHOT_ADDR"
 echo "donatehot balance on Arc testnet: $(cast balance "$DONATEHOT_ADDR" --rpc-url "$ARC_RPC" --ether 2>/dev/null || echo '?') USDC (native)"
 
+# Token treats and x402 on more testnets (optional). Mainnet ids have no entry in treat_rpc and are refused.
+TREAT_IDS=()
+TREAT_SPLITS=()
+TREAT_ON=()
+X402_ON=()
+add_chain() { # kind id split
+  local kind="$1" id="$2" split="$3" rpc got code i
+  rpc="$(treat_rpc "$id")"
+  [ -n "$rpc" ] || die "E2E_${kind}_CHAINS: '$id' is not an allowed testnet (421614 84532 43113 46630 42431 10143); refusing"
+  [[ "$split" =~ ^0x[0-9a-fA-F]{40}$ ]] || die "E2E_${kind}_CHAINS: '$split' is not an address"
+  for i in "${!TREAT_IDS[@]}"; do
+    if [ "${TREAT_IDS[$i]}" = "$id" ]; then
+      [ "$(echo "${TREAT_SPLITS[$i]}" | tr 'A-F' 'a-f')" = "$(echo "$split" | tr 'A-F' 'a-f')" ] \
+        || die "chain $id is listed with two different splits; refusing"
+      [ "$kind" = TREAT ] && TREAT_ON[$i]=true || X402_ON[$i]=true
+      echo "$(echo "$kind" | tr A-Z a-z) on $id via $split"
+      return 0
+    fi
+  done
+  got="$(cast chain-id --rpc-url "$rpc" 2>/dev/null || true)"
+  [ "$got" = "$id" ] || die "RPC $rpc answered chain '${got:-nothing}', expected $id; refusing"
+  code="$(cast code "$split" --rpc-url "$rpc" 2>/dev/null || true)"
+  [ -n "$code" ] && [ "$code" != "0x" ] || die "no contract code at $split on $id"
+  TREAT_IDS+=("$id"); TREAT_SPLITS+=("$split")
+  if [ "$kind" = TREAT ]; then TREAT_ON+=(true); X402_ON+=(""); else TREAT_ON+=(""); X402_ON+=(true); fi
+  echo "$(echo "$kind" | tr A-Z a-z) on $id via $split"
+}
+for spec in "TREAT:$TREAT_CHAINS" "X402:$X402_CHAINS"; do
+  kind="${spec%%:*}"; list="${spec#*:}"
+  [ -n "$list" ] || continue
+  IFS=',' read -r -a _pairs <<<"$list"
+  for pair in "${_pairs[@]}"; do add_chain "$kind" "${pair%%:*}" "${pair#*:}"; done
+done
+
 # ---------------------------------------------------------------- build if needed
 cd "$REPO/backend"
 if [ ! -f dist/main.js ] || [ -n "$(find src -name '*.ts' -newer dist/main.js -print -quit)" ]; then
@@ -117,6 +172,26 @@ echo "mongod pid $MONGOD_PID on 127.0.0.1:$MONGO_PORT, data $DBDIR"
 # ---------------------------------------------------------------- backend
 DONATE_KEY="$(cast wallet private-key --account donatehot --password-file "$PWFILE" 2>/dev/null)" \
   || { stop_stack; die "could not unlock keystore 'donatehot'"; }
+# SHELTER_RELAY_CHAINS and SHELTER_TRY_CHAIN_ID are always set here (empty unless E2E_TREAT_CHAINS),
+# so no chain list from backend/.env can reach the local backend.
+TREAT_ENV=("SHELTER_RELAY_CHAINS=$(IFS=,; echo "${TREAT_IDS[*]:-}")" "SHELTER_TRY_CHAIN_ID=")
+for i in "${!TREAT_IDS[@]}"; do
+  id="${TREAT_IDS[$i]}"
+  TREAT_ENV+=(
+    "SHELTER_CHAIN_${id}_RPC_URL=$(treat_rpc "$id")"
+    "SHELTER_CHAIN_${id}_SPLIT_ADDRESS=${TREAT_SPLITS[$i]}"
+    "SHELTER_CHAIN_${id}_KEY_ENV=SHELTER_DONATEHOT_KEY"
+    "SHELTER_CHAIN_${id}_TREAT_ENABLED=${TREAT_ON[$i]}"
+    "SHELTER_CHAIN_${id}_X402_ENABLED=${X402_ON[$i]}"
+    "SHELTER_CHAIN_${id}_RELAY_ENABLED="
+    "SHELTER_CHAIN_${id}_MATCH_ENABLED="
+  )
+done
+[ ${#TREAT_IDS[@]} -gt 0 ] && TREAT_ENV+=("SHELTER_DONATEHOT_KEY=$DONATE_KEY")
+# Set even when empty, so no X402_PRICE from backend/.env can reach the local backend (default 0.01).
+for id in "${TREAT_IDS[@]:-}"; do [ -n "$id" ] && TREAT_ENV+=("SHELTER_CHAIN_${id}_X402_PRICE="); done
+# Exported (never on a command line, where ps would show the key), and unset once the backend started.
+for kv in "${TREAT_ENV[@]}"; do export "${kv?}"; done
 
 : >"$OUT/backend.log"
 NODE_ENV=development \
@@ -146,7 +221,8 @@ SHELTER_X402_PRICE_WEI=10000000000000000 \
 SHELTER_DONATE_PRIVATE_KEY="$DONATE_KEY" \
   nohup node dist/main >>"$OUT/backend.log" 2>&1 &
 BACKEND_PID=$!
-unset DONATE_KEY
+for kv in "${TREAT_ENV[@]}"; do unset "${kv%%=*}"; done
+unset DONATE_KEY TREAT_ENV
 printf 'BACKEND_PID=%s\nSPLIT=%s\n' "$BACKEND_PID" "$SPLIT" >>"$STATE"
 
 for _ in $(seq 1 120); do

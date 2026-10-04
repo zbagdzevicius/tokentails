@@ -260,8 +260,11 @@ describe("RescueTile", () => {
     fireEvent.click(screen.getByTestId("meet-shelter-cats"));
     fireEvent.click(screen.getByTestId("shelter-tile"));
     expect(onOpen).toHaveBeenCalledTimes(2);
-    // The md+ tile carries the same words as the phone button, visibly, not only in aria-label.
-    expect(screen.getByTestId("shelter-tile-caption").textContent).toMatch(/Meet shelter\s*cats/i);
+    // The tile's art reads SHELTER; MEET CATS is visible on a band inside it, and the accessible
+    // name says the whole action.
+    expect(screen.getByTestId("shelter-tile-caption").textContent).toMatch(/^Meet cats$/i);
+    expect(screen.getByTestId("shelter-tile").getAttribute("aria-label")).toBe("Meet shelter cats");
+    expect(screen.getByTestId("meet-shelter-cats").getAttribute("aria-label")).toBe("Meet shelter cats");
   });
 
   it("the RESCUE heart follows the lobby pause", () => {

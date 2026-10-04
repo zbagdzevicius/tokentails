@@ -1,0 +1,27 @@
+{
+ "w": 1920,
+ "h": 1080,
+ "layout": "split",
+ "bg": "space",
+ "dim": 0.35,
+ "logo": "text",
+ "logoH": 8,
+ "footer": "tokentails.com",
+ "textWidth": 0.56,
+ "kicker": "Rescue treats",
+ "title": "The app pays.<br><em>The shelter gets it.</em>",
+ "subtitle": "One tap and Token Tails sends a 0.01 USDC treat to Pink Paw through ShelterSplit on Arc testnet. The player needs no wallet.",
+ "chips": [
+  {
+   "text": "Arc testnet",
+   "tone": "mint"
+  },
+  {
+   "text": "Pink Paw · Rožinė pėdutė",
+   "tone": "pink"
+  }
+ ],
+ "art": "give-crop.png",
+ "artPos": "center",
+ "artAspect": "680/782"
+}

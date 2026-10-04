@@ -62,6 +62,11 @@ Read the rules after you log in. Paste the deadline, the time zone and the mainn
 into `funding/framework/applications/monad-metropolis/call.md` (or into chat, and AI will write
 them in). Ask only if the rules don't say:
 
+Already done (Oct 4): ShelterSplit runs on Monad testnet (10143) at
+`0x457c89e10a6e66633eda5bf82fd086febb5db147` (source verified on Sourcify), with a 1 USDC proof payout,
+a 0.01 MON native gift and a one-signature 0.1 USDC DonateRouter gift, all paid to Pink Paw. If the
+rules accept testnet, the entry can go in as is; if they need mainnet, Monad is in the mainnet wave.
+
 > Hi Monad team, for Metropolis (Consumer Products & Payments): is a Monad testnet deployment enough, or does the entry have to be on mainnet? What time zone is the Oct 13 deadline in? Is work started before the hackathon allowed if we disclose it?
 
 ## 3. Tonight or Oct 3 morning: Pink Paw consent and custody (15 min to send, the shelter replies)
@@ -91,6 +96,10 @@ DRY_RUN=1 ./tracks/a-build/wave/deploy-mainnet-eurc.sh   # only after the USDC r
 ./tracks/a-build/wave/deploy-mainnet-eurc.sh             # EURC instances on Arc and Avalanche (needs a little EURC)
 node bin/fund.mjs fill --ingest --write             # a:ingest + source verify + fill every draft + re-render submissions
 ```
+
+The mainnet wave now has seven chains: Arc, Arbitrum, Robinhood, Base, Tempo, Avalanche and Monad
+(143, Circle USDC `0x754704Bc059F8C67012fEd69BC8A327a5aafb603`). For Monad, export
+`RPC_MONAD_MAINNET=https://rpc.monad.xyz` and hold a little MON for gas plus `PROOF_AMOUNT` USDC on Monad.
 
 `fill --ingest --write` records and verifies the deployments, publishes the mainnet list to the
 payouts page and Heist, and writes `{SPLIT_ADDRESS}`, `{EURC_SPLIT_ADDRESS}`, `{ARC_PROOF_TX}`,

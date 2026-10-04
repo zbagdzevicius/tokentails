@@ -1,17 +1,17 @@
 ---
 program: Arbitrum Open House Singapore online buildathon
 track: A
-status: researching
+status: ready
 frame: payout-rail
 deadline: "2026-10-04T15:59:00+08:00"
 url: "https://www.hackquest.io/hackathons/Arbitrum-Open-House-Singapore-Online-Buildathon"
-next: "After the deploy (Arbitrum One, or Arbitrum Sepolia by Oct 3 if the mainnet wave slips; both qualify): fund a:record arbitrum mainnet|testnet <address> --tx <hash>, fill {ARB_NETWORK} {ARB_SPLIT} {SPLIT_ADDRESS} {ARC_TX} {DEMO_URL} in draft.md, re-run fund a:submission arbitrum-singapore, submit on HackQuest by Oct 3 evening (close is 2026-10-04 15:59, zone not shown; Singapore time worst case is 07:59 UTC, 10:59 Vilnius)"
+next: "Upload the demo video and paste its link for {DEMO_URL}, then submit on HackQuest before 2026-10-04 15:59 (zone not shown: 18:59 Vilnius if UTC). Testnet entry: Arbitrum Sepolia."
 created: 2026-09-30
 profile: arbitrum-singapore
 chain: arbitrum
 mainnet_required: false
 repo: "https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split"
-demo: ""
+demo: "https://tokentails.com/heist"
 build_window_start: 2026-09-13
 build_window_end: 2026-10-04
 ---

@@ -1,0 +1,23 @@
+{
+ "w": 1920,
+ "h": 1080,
+ "layout": "split",
+ "bg": "space",
+ "dim": 0.35,
+ "logo": "text",
+ "logoH": 9,
+ "textWidth": 0.5,
+ "footer": "tokentails.com/shelter-payouts",
+ "kicker": "Testnet proof",
+ "title": "Live on 6 testnets. <em>Check every payout.</em>",
+ "subtitle": "The same contract on each chain. Arbitrum Sepolia: 0x457c…b147, 5 test payouts, contract balance 0 (it splits in the same transaction).",
+ "chips": [
+  {
+   "text": "Test coins · no real money",
+   "tone": "mint"
+  }
+ ],
+ "art": "shots/proof-pad.png",
+ "artPos": "center top",
+ "artAspect": null
+}

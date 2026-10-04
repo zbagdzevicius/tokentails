@@ -17,7 +17,7 @@ const chains = {
     testnet: { chainId: 5042002, usdc: USDC, rpcEnv: 'RPC_ARC_TESTNET' },
     mainnet: { chainId: 5042, usdc: USDC, rpcEnv: 'RPC_ARC_MAINNET' },
   } },
-  monad: { networks: { testnet: { chainId: 10143, usdc: null, rpcEnv: 'RPC_MONAD_TESTNET' } } },
+  mezo: { networks: { testnet: { chainId: 31611, usdc: null, rpcEnv: 'RPC_MEZO_TESTNET' } } },
 };
 const deployments = [
   { contract: 'ShelterSplit', chainId: 5042002, address: SPLIT_A, token: 'USDC', recorded: '2026-10-01T00:00:00Z' },
@@ -64,7 +64,7 @@ test('routerDryRun refuses chains whose USDC has no EIP-3009 (Tempo TIP-20)', ()
 test('routerDryRun honours --split and refuses unknown chains or chains without USDC', () => {
   assert.match(routerDryRun({ chainId: 5042002, split: SPLIT_A, chains, deployments, routerDeployments: [] }).lines.join('\n'), /SPLIT=0xaaaa/);
   assert.equal(routerDryRun({ chainId: 999, chains, deployments, routerDeployments: [] }).ok, false);
-  assert.equal(routerDryRun({ chainId: 10143, chains, deployments, routerDeployments: [] }).ok, false);
+  assert.equal(routerDryRun({ chainId: 31611, chains, deployments, routerDeployments: [] }).ok, false);
   assert.equal(routerDryRun({ chainId: 5042, chains, deployments: [], routerDeployments: [] }).ok, false);
   assert.equal(routerDryRun({ chainId: 5042002, split: '0x12', chains, deployments, routerDeployments: [] }).ok, false);
 });

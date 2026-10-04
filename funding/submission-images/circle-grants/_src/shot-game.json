@@ -1,0 +1,26 @@
+{
+ "w": 1920,
+ "h": 1080,
+ "layout": "split",
+ "bg": "space",
+ "dim": 0.35,
+ "logo": "text",
+ "logoH": 8,
+ "footer": "tokentails.com",
+ "textWidth": 0.5,
+ "kicker": "Catnip Heist · live",
+ "title": "Real shelter cats.<br><em>Public payouts.</em>",
+ "subtitle": "In Catnip Heist, players free a shelter cat, then tap a rescue treat for Pink Paw. Each payout will show up here with a link to the chain.",
+ "chips": [
+  {
+   "text": "Live · tokentails.com/heist"
+  },
+  {
+   "text": "Pink Paw · Rožinė pėdutė",
+   "tone": "pink"
+  }
+ ],
+ "art": "heist-payouts-crop.png",
+ "artPos": "center",
+ "artAspect": "808/888"
+}

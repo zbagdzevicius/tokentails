@@ -1,0 +1,56 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../_shared/brand.css">
+<style>
+  body { width: 1920px; height: 1080px; position: relative; background: #1b1030; }
+  #bg { position: absolute; inset: 0; background: url(renders/h8-a.png) center/cover; }
+  .head { position: absolute; left: 64px; top: 52px; }
+  .head h1 { font-family: "Cat Paw"; font-size: 76px; color: var(--cream); line-height: 1; font-weight: 400;
+    text-shadow: 0 0 22px rgba(255,204,85,.55), 0 4px 0 rgba(0,0,0,.45); }
+  .head h1 em { font-style: normal; color: var(--gold-400); }
+  .head p { margin-top: 14px; font-size: 30px; font-weight: 700; color: var(--lilac); text-shadow: 0 2px 6px rgba(0,0,0,.7); }
+  .pin { position: absolute; width: 0; height: 0; }
+  .pin .dot { position: absolute; left: -15px; top: -15px; width: 30px; height: 30px; border-radius: 50%;
+    border: 5px solid var(--gold-400); box-shadow: 0 0 0 3px rgba(7,5,26,.8), 0 0 18px rgba(255,204,85,.8); }
+  .pin .line { position: absolute; background: var(--gold-400); height: 4px; transform-origin: 0 50%; box-shadow: 0 0 0 2px rgba(7,5,26,.6); }
+  .tag { position: absolute; white-space: nowrap; font-family: "Passion One"; font-weight: 700; font-size: 34px; letter-spacing: .02em;
+    color: var(--gold-ink); background: var(--gold-400); border-radius: 12px; padding: 4px 16px 2px;
+    box-shadow: 0 4px 0 var(--gold-shadow), 0 8px 22px rgba(0,0,0,.55); }
+  .tag small { display: block; font-family: "Nunito"; font-weight: 800; font-size: 20px; margin-top: -2px; color: #6b3410; }
+  .n { display: inline-block; width: 40px; height: 40px; border-radius: 50%; background: var(--night-900); color: var(--gold-400);
+    text-align: center; line-height: 42px; margin-right: 10px; font-size: 28px; vertical-align: 2px; }
+  .foot { position: absolute; left: 64px; right: 64px; bottom: 40px; display: flex; justify-content: space-between; align-items: center; }
+  .foot span { font-size: 24px; font-weight: 700; color: var(--cream); background: rgba(7,5,26,.78); padding: 10px 20px; border-radius: 12px; }
+</style></head>
+<body>
+<div id="bg"></div>
+<div class="head">
+  <h1>Catnip Heist: <em>Shelter Break-in</em></h1>
+  <p>Kibble Corp HQ, the whole world from above</p>
+</div>
+<div id="pins"></div>
+<div class="foot">
+  <span>Five guard dogs. 26 catnip leaves. One shelter cat.</span>
+  <span>Voxel world exported from our game Catnip Heist</span>
+</div>
+<script>
+// [x, y] = the marked thing in the 1920x1080 render; [dx, dy] = where the label sits relative to it.
+const P = [
+  [258, 405, 30, 290, "1", "Start and exit", "Bob and Oreo begin here"],
+  [515, 560, -90, 300, "2", "Pressure plates", "from the game's door puzzles"],
+  [1662, 760, -40, 150, "3", "The key", "in the far wing"],
+  [860, 600, 200, 290, "4", "The vault", "Clover's cell at the heart of HQ"],
+  [974, 634, -150, -330, "5", "Clover's crate", "the shelter cat to free"],
+];
+const box = document.getElementById("pins");
+for (const [x, y, dx, dy, n, t, s] of P) {
+  const p = document.createElement("div"); p.className = "pin"; p.style.left = x + "px"; p.style.top = y + "px";
+  const len = Math.hypot(dx, dy), ang = Math.atan2(dy, dx) * 180 / Math.PI;
+  p.innerHTML = `<div class="line" style="width:${len}px;transform:rotate(${ang}deg)"></div><div class="dot"></div>`;
+  const tag = document.createElement("div"); tag.className = "tag";
+  tag.innerHTML = `<span class="n">${n}</span>${t}<small>${s}</small>`;
+  p.appendChild(tag); box.appendChild(p);
+  requestAnimationFrame(() => { tag.style.left = (dx - tag.offsetWidth / 2) + "px"; tag.style.top = (dy + (dy < 0 ? -tag.offsetHeight : 0)) + "px"; });
+}
+</script>
+</body></html>

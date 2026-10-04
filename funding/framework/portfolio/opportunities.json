@@ -620,7 +620,7 @@
       "verdict": "SKIP",
       "condition": "",
       "frame": "payout-rail",
-      "notes": "Long shot kept (team decision): 3 x $10k per track, N unknown. Rules, deadline zone, countries and KYC unverified (log in at hackathon.monad.xyz); Monad chain id, RPC and USDC address in chains.json are UNVERIFIED. Needs a Monad deploy. Added 2026-10-03 from the CLAUDE.md tracker. Entered by hand per the tracker, below the 10% bar: SKIP here only keeps autopilot (fund go) off it; the tracker row is the status."
+      "notes": "Long shot kept (team decision): 3 x $10k per track, N unknown. Rules, deadline zone, countries and KYC unverified (log in at hackathon.monad.xyz); Monad chain ids, RPCs and Circle USDC addresses verified on-chain 2026-10-04 (chains.json); ShelterSplit and DonateRouter are live and proven on Monad testnet 10143; Monad mainnet 143 is in the mainnet wave. Added 2026-10-03 from the CLAUDE.md tracker. Entered by hand per the tracker, below the 10% bar: SKIP here only keeps autopilot (fund go) off it; the tracker row is the status."
     },
     {
       "id": 40,

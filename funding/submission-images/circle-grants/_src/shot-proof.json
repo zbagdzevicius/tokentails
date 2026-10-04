@@ -1,0 +1,23 @@
+{
+ "w": 1920,
+ "h": 1080,
+ "layout": "split",
+ "bg": "space",
+ "dim": 0.35,
+ "logo": "text",
+ "logoH": 8,
+ "footer": "tokentails.com",
+ "textWidth": 0.38,
+ "kicker": "Testnet proof",
+ "title": "Live on 6 testnets.<br><em>Check every payout.</em>",
+ "subtitle": "On Arc testnet, ShelterSplit has paid 1.76 test USDC in 14 payouts. The contract keeps no balance: each payment is split out in the same transaction.",
+ "chips": [
+  {
+   "text": "Test coins · no real money",
+   "tone": "mint"
+  }
+ ],
+ "art": "proof-crop.png",
+ "artPos": "center",
+ "artAspect": "1240/810"
+}

@@ -1,0 +1,26 @@
+{
+ "w": 1920,
+ "h": 1080,
+ "layout": "split",
+ "bg": "temple",
+ "dim": 0.55,
+ "logo": "text",
+ "logoH": 11,
+ "textWidth": 0.42,
+ "footer": "tokentails.com/shelter-payouts",
+ "kicker": "ShelterSplit · Arbitrum Sepolia testnet",
+ "title": "Shelter payouts<br><em>you can check</em>",
+ "subtitle": "One call splits USDC across registered shelters, with a public event for every payout.",
+ "chips": [
+  {
+   "text": "Test coins · no real money",
+   "tone": "mint"
+  },
+  {
+   "text": "Pink Paw · Rožinė pėdutė",
+   "tone": "pink"
+  }
+ ],
+ "art": "shots/receipt-crop.png",
+ "artPos": "center"
+}

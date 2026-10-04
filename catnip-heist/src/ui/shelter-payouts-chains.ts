@@ -17,6 +17,7 @@ export const PAYOUT_CHAIN_META: Record<number, { name: string; explorer: string 
   4663: { name: 'Robinhood Chain', explorer: 'https://robinhoodchain.blockscout.com' },
   46630: { name: 'Robinhood Chain Testnet', explorer: 'https://explorer.testnet.chain.robinhood.com' },
   143: { name: 'Monad', explorer: 'https://monadvision.com' },
+  10143: { name: 'Monad Testnet', explorer: 'https://testnet.monadvision.com' },
 };
 
 /**
@@ -30,22 +31,24 @@ export const PAYOUT_CHAIN_ROLES: Record<string, string> = {
   avalanche: 'Avalanche C-Chain. Native AVAX gifts are split too.',
   base: "Coinbase's Ethereum rollup. Native ETH gifts are split too.",
   robinhood: 'Pays USDG on mainnet. The testnet has no stablecoin, so it uses a test coin (mUSDC).',
+  monad: "A fast EVM chain with Circle's own USDC. Native MON gifts are split too.",
 };
 
 /** Chain family per chain id, mainnet and testnet. */
 const FAMILY_BY_CHAIN_ID: Record<number, string> = {
   5042: 'arc', 5042002: 'arc', 4217: 'tempo', 42431: 'tempo', 42161: 'arbitrum', 421614: 'arbitrum',
   43114: 'avalanche', 43113: 'avalanche', 8453: 'base', 84532: 'base', 4663: 'robinhood', 46630: 'robinhood',
+  143: 'monad', 10143: 'monad',
 };
 
 /** The role line for a chain id, or '' for chains without one. */
 export const payoutChainRole = (chainId: number): string => PAYOUT_CHAIN_ROLES[FAMILY_BY_CHAIN_ID[chainId]] ?? '';
 
 /**
- * The testnets the testnet proof reads, in the order it shows them (the deploy wave's six chains).
+ * The testnets the testnet proof reads, in the order it shows them (the deploy wave's seven chains).
  * Anything else in the testnet list is ignored, so a mainnet entry can never land in the test section.
  */
-export const TESTNET_CHAIN_IDS: readonly number[] = [5042002, 42431, 421614, 43113, 84532, 46630];
+export const TESTNET_CHAIN_IDS: readonly number[] = [5042002, 42431, 421614, 43113, 84532, 46630, 10143];
 
 /**
  * The website receipt for one payout: `{payoutsUrl}/receipt?chain=<id>&tx=<hash>`. '' when the build

@@ -22,7 +22,7 @@ const pay = (chainId: number, symbol: string, amount18: bigint, n: number, time?
   chainId, chainName: `Chain ${chainId}`, explorer: `https://x${chainId}.test`, symbol, amount18, shelter: '', memo: '', tx: tx(n), block: n, ...(time ? { time } : {}),
 });
 
-/** All six testnets, out of order, with two contracts on Arc and Fuji and an unread Base contract. */
+/** All seven testnets, out of order, with two contracts on Arc and Fuji and an unread Base contract. */
 const testnetData = (): ShelterPayouts => ({
   status: 'ok',
   totals: new Map([['USDC', 99n * E18]]),
@@ -35,6 +35,7 @@ const testnetData = (): ShelterPayouts => ({
     row(43113, A, 'USDC', [['USDC', E18]]),
     row(43113, B, 'USDC', [['USDC', E18]]),
     row(84532, A, 'USDC', [], { ok: false, count: 0, proofTxs: [tx(7)] }),
+    row(10143, A, 'USDC', [['USDC', E18], ['MON', E18 / 100n]]),
     // A mainnet row in the testnet read never becomes a card.
     row(5042, A, 'USDC', [['USDC', 50n * E18]]),
   ],
@@ -57,7 +58,7 @@ describe('receiptHref', () => {
 describe('testnetCards', () => {
   it('groups contracts per chain in the wave order, with totals for that chain only', () => {
     const cards = testnetCards(testnetData());
-    expect(cards.map((c) => c.chainId)).toEqual([5042002, 42431, 421614, 43113, 84532, 46630]);
+    expect(cards.map((c) => c.chainId)).toEqual([5042002, 42431, 421614, 43113, 84532, 46630, 10143]);
     const arc = cards[0];
     expect(arc.name).toBe('Arc Testnet');
     expect(arc.symbols).toEqual(['USDC', 'EURC']);
@@ -143,7 +144,7 @@ describe('payouts modal: testnet proof', () => {
     expect(section.querySelector('h3')?.textContent).toBe('Testnet proof');
     expect(q('testnet-label')?.textContent).toMatch(/test coins.*no real money/i);
     // Base Sepolia could not be read: the count is a floor and the headline says how many contracts were read.
-    expect(q('testnet-status')?.textContent).toBe('Live on 6 testnets · at least 8 test payouts on 8 contracts · 7 of 8 contracts read');
+    expect(q('testnet-status')?.textContent).toBe('Live on 7 testnets · at least 10 test payouts on 9 contracts · 8 of 9 contracts read');
     const cards = [...section.querySelectorAll<HTMLElement>('[data-testid="testnet-card"]')];
     expect(cards.map((c) => c.dataset.chain)).toEqual(TESTNET_CHAIN_IDS.map(String));
     expect(cards[0].querySelector('h4')?.textContent).toBe('Arc Testnet');
@@ -180,7 +181,7 @@ describe('payouts modal: testnet proof', () => {
     const noSite = make(async () => testnetData(), { payoutsUrl: '' });
     await noSite.show();
     await tick();
-    expect(noSite.el.querySelectorAll('[data-testid="testnet-card"]')).toHaveLength(6);
+    expect(noSite.el.querySelectorAll('[data-testid="testnet-card"]')).toHaveLength(7);
     expect(noSite.el.querySelector('[data-testid="testnet-receipt"]')).toBeNull();
   });
 
@@ -206,7 +207,7 @@ describe('payouts modal: testnet proof', () => {
     retry!.click();
     await tick();
     await tick();
-    expect(m.el.querySelectorAll('[data-testid="testnet-card"]')).toHaveLength(6);
+    expect(m.el.querySelectorAll('[data-testid="testnet-card"]')).toHaveLength(7);
   });
 });
 

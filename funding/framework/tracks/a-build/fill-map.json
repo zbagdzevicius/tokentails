@@ -121,11 +121,24 @@
       "from": "deploy",
       "chain": "monad",
       "networks": [
-        "mainnet"
+        "mainnet",
+        "testnet"
       ],
       "token": "USDC",
-      "field": "address",
-      "how": "Monad is not in the wave yet (chains.json monad usdc is null): decide Monad, verify the USDC address, deploy, a:ingest. If the rules allow testnet, put the testnet address into fill-values.json under monad-metropolis"
+      "field": "address"
+    },
+    "MONAD_NETWORK": {
+      "from": "network-label",
+      "chain": "monad",
+      "networks": [
+        "mainnet",
+        "testnet"
+      ],
+      "token": "USDC",
+      "labels": {
+        "mainnet": "Monad",
+        "testnet": "Monad testnet"
+      }
     }
   },
   "arbitrum-singapore": {

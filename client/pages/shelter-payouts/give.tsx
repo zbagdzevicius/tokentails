@@ -14,7 +14,7 @@ const isApp = isAppBuild();
 // claim: C-004, L-rail (the treat size and the rail it travels on). App builds name no coin or chain.
 const DESCRIPTION = isApp
   ? "Tap and Token Tails sends a cat shelter a small treat."
-  : "Tap and Token Tails sends a cat shelter a small USDC treat, split on-chain by ShelterSplit.";
+  : "Tap and Token Tails sends a cat shelter a small stablecoin treat (USDC, USDC.e or USDG, by network), split on-chain by ShelterSplit.";
 
 const GivePage = () => (
   <div className="bg-tt-night-900">

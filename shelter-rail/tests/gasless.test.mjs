@@ -354,7 +354,8 @@ test("widget parses gasless attributes and ignores malformed addresses", () => {
   assert.equal(o.testnet, true);
   assert.equal(o.theme, "dark");
   const bad = rail.readOptions({ mode: "turbo", router: "0x123", usdc: "nope", theme: "neon" });
-  assert.equal(bad.mode, "native");
+  // An unknown mode is "auto": gasless with a router and relay, native on Arc, token elsewhere.
+  assert.equal(bad.mode, "auto");
   assert.equal(bad.router, null);
   assert.equal(bad.usdc, null);
   assert.equal(bad.theme, null);
