@@ -6,7 +6,8 @@ import { countryName } from "@/components/globe/iso";
 import { useReducedMotion } from "@/components/globe/useReducedMotion";
 import { cdnFile } from "@/constants/utils";
 import { nameFont } from "@/lib/glyphs";
-import { PINK_PAW_LOCAL_NAME, PINK_PAW_NAME, PINK_PAW_SLUG } from "@/components/shelter-payouts/pinkPaw";
+import { PINK_PAW_LOCAL_NAME, PINK_PAW_NAME } from "@/components/shelter-payouts/pinkPaw";
+import { landingShelterEntries } from "./shelterNames";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 
@@ -31,8 +32,11 @@ interface ImpactGlobeSectionProps {
 export const ImpactGlobeSection = ({ impact }: ImpactGlobeSectionProps) => {
   const countries = impact?.shelters.countries ?? [];
   // Prospects have no cats in the game yet (review 3f #9); past partners' cats still are.
-  const shelters = (impact?.shelters.items ?? []).filter(
-    (s) => s.role !== "house" && s.partnerStatus !== "prospect" && s.name
+  // Pink Paw is Rožinė pėdutė: one entry, whichever name or slug the snapshot rows use.
+  const shelters = landingShelterEntries(
+    (impact?.shelters.items ?? []).filter(
+      (s) => s.role !== "house" && s.partnerStatus !== "prospect" && s.name
+    )
   );
   const reducedMotion = useReducedMotion();
   const asOf = impact?.asOf.mongo ?? impact?.generatedAt ?? null;
@@ -77,16 +81,19 @@ export const ImpactGlobeSection = ({ impact }: ImpactGlobeSectionProps) => {
               <ul className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 md:flex-col md:justify-start">
                 {shelters.map((s) => (
                   <li
-                    key={s.slug}
-                    className={`${nameFont(s.slug === PINK_PAW_SLUG ? PINK_PAW_NAME : s.name)} uppercase leading-none text-p4 md:text-h5 lg:text-h4 text-tt-cream glow drop-shadow-lg`}
+                    key={s.key}
+                    data-testid="partner-shelter"
+                    className={`${nameFont(s.pinkPaw ? PINK_PAW_NAME : s.name)} uppercase leading-none text-p4 md:text-h5 lg:text-h4 text-tt-cream glow drop-shadow-lg`}
                   >
-                    {s.slug === PINK_PAW_SLUG ? (
-                      // English name in the display face; the shelter's own name under it in the
-                      // body face (the display face has no "ė").
+                    {s.pinkPaw ? (
+                      // One entry with the same face, size and glow as the others. The display face
+                      // has no "ė", so the shelter's own name in brackets is set in the body face,
+                      // extra-bold and a step smaller (Nunito runs wider), as it is spelled. It stays
+                      // on the same line where the column has room and wraps as one unit otherwise.
                       <>
-                        {PINK_PAW_NAME}
-                        <span lang="lt" className="mt-1 block font-sans text-p6 md:text-p5 font-bold normal-case tracking-normal [text-shadow:none]">
-                          {PINK_PAW_LOCAL_NAME}
+                        {PINK_PAW_NAME}{" "}
+                        <span lang="lt" className="font-sans font-extrabold normal-case whitespace-nowrap text-[0.6em]">
+                          ({PINK_PAW_LOCAL_NAME})
                         </span>
                       </>
                     ) : (

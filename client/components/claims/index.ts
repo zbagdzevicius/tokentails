@@ -10,3 +10,4 @@ export { MONEY_TIERS, CHIP_STYLE, TONES } from "./tiers";
 export type { MoneyTier, ChipKind, LabelSet } from "./tiers";
 export { moneyTierFor } from "./evidence";
 export { RECORDS_EMAIL, offersRecords, recordsMailto } from "./records";
+export { DonationPileUp, isComingOnline, PILE_TOTAL_ID, NEXT_PILE_ID, PILE_STEP_IDS } from "./DonationPileUp";

@@ -16,6 +16,8 @@ interface IProps extends ICat {
   onSelect?: (cat: ICat) => void;
   onStake?: (cat: ICat) => void;
   onStakeRewards?: (cat: ICat) => void;
+  /** Extra actions beside the card (the Shelter's shelter-cat offer). */
+  children?: React.ReactNode;
 }
 
 /** The card follows `--tt-card-w`, set on the modal's layout below; the 17:23 ratio stays. */
@@ -29,8 +31,10 @@ export const TailsCardModal: React.FC<IProps> = ({
   onSelect,
   onStake,
   onStakeRewards,
+  children,
   ...catData
 }) => {
+  const hasActions = showSelect || showStake || !!children;
   const isSelected = useMemo(
     () => profileCatId === catData._id,
     [profileCatId, catData._id]
@@ -68,7 +72,7 @@ export const TailsCardModal: React.FC<IProps> = ({
           // The card's own size is 90vw up to 400 px at 17:23, taller than a landscape phone or
           // a short laptop. Cap it by the viewport height too (minus safe areas, the padding and,
           // in the phone column, the buttons under it), so the whole card shows without scrolling.
-          showSelect || showStake
+          hasActions
             ? "[--tt-card-w:min(84vw,400px,calc((100dvh-276px-env(safe-area-inset-top)-env(safe-area-inset-bottom))*17/23))]"
             : "[--tt-card-w:min(84vw,400px,calc((100dvh-96px-env(safe-area-inset-top)-env(safe-area-inset-bottom))*17/23))]",
           "md:[--tt-card-w:min(400px,calc((100dvh-96px-env(safe-area-inset-top)-env(safe-area-inset-bottom))*17/23))]"
@@ -79,7 +83,7 @@ export const TailsCardModal: React.FC<IProps> = ({
         </div>
 
         {/* Action buttons section */}
-        {(showSelect || showStake) && (
+        {hasActions && (
           <div className="flex flex-col items-center gap-2 md:gap-4">
             {/* Select button */}
             {showSelect && (
@@ -121,6 +125,7 @@ export const TailsCardModal: React.FC<IProps> = ({
                 )}
               </>
             )}
+            {children}
           </div>
         )}
       </div>

@@ -55,7 +55,7 @@ patterns anywhere in the registry, because FACTS.md is pasted into AI prompts.
 | `chain` | `sei`, `stellar`, `arc` or `skale`, when the claim is about a chain |
 | `live` | `{ endpoint, path }` for `L-` entries: where the current value is read |
 | `key` | Optional stable name (the G4 keys: `strays_saved`, `partner_countries`, `purchase_share`, `paw`, `campaign`) |
-| `goal`, `campaign` | For goals: dates, the config constant that caps the daily amount, `shareBps` (the shelter's share of that amount), and the campaign.json fields |
+| `goal`, `campaign` | For goals: dates, `progress` (`shelter-wallet`), `sources` (every source that lands in the wallet), `tokenTails` (Token Tails' own capped streams: config constant, optional lifetime cap and `shareBps`), `donorDependent`, and the campaign.json fields (chain, `fromBlock`, `token`, `startBalance`, shelter) |
 | `config` | For `C-` entries that mirror a code constant. The build fails when they differ |
 | `evidence` | For `P-` entries: the spec that proves the claim. Today the build checks only that the spec file exists (see the note below the statuses) |
 
@@ -104,32 +104,75 @@ shelters" may come back) and the goods valuation.
 
 ### Goals are claims
 
-A money goal is a `C-` entry with a `goal`. The build reads the daily cap from the named constant
-(for C-001, `DEFAULT_DAILY_BUDGET_WEI` in `backend/src/shelter/onchain/shelter-onchain.config.ts`)
-and fails when the goal cannot be reached between `startDate` and `endDate` at that cap (decision
-#76). The weekly job (`fund facts report`) reports goals that have ended, goals that are running
-but not counting (the campaign has no shelter wallet or `fromBlock`), and goals that can no longer
-be met in the days left at the cap. Online, it also checks that `fromBlock` is the first block on
-or after `startDate` (00:00 UTC) on the campaign chain. Offline it cannot see the amount raised, so while a goal runs it
-prints the least the payouts page must already show.
+A money goal is a `C-` entry with a `goal`. Since 2026-10-04 (founder: "goal: 50000 USDC for Pink
+Paw") a goal's progress is **the USDC that comes in to the campaign wallets** (`goal.progress:
+"shelter-wallet"`). `goal.sources` lists the five ways money can reach a shelter wallet (public
+gifts through DonateRouter, Token Tails' match, sponsored treats, x402 `exact` payments and the
+shelter's share of its cats' purchases), but a page names a source as counting only when it can
+reach the open wallet today (below).
 
-ShelterSplit splits each donate across its recipients in one transaction, and the campaign meter
-counts only payouts to the shelter's own wallet. `goal.shareBps` (default 10000, meaning all of it)
-is the shelter's share of the daily budget, and the build checks `cap x shareBps / 10000 x days`.
-The split config is not in this repo, so `shareBps` is an assumption that must be kept in step with
-the deployed split. The build warns when a goal has no headroom (every day must reach the cap). C-001 is 90 USDC
-between 2026-10-02 and 2027-01-31 at 1 USDC a day, share 100%: 90 of 122 days, 32 spare, so the rail
-has to be counting by 2026-11-03.
+**Counted from transfers, not the balance (review fix, 2026-10-04).** The backend
+(`GET /shelter/goal/C-001`, `backend/src/shelter/goal/`) sums the Transfer logs to the wallets in
+`campaign.wallets`, each only inside its own `fromBlock`..`toBlock` range, and skips a transfer
+whose sender is another campaign wallet. So spending never lowers the bar, and a handover (a new
+wallet the shelter owns) keeps counting without counting its sweep twice. On Arc it reads the
+system Transfer log `campaign.inflowLog` (`0xff…fe`, 18 decimals), which Arc emits for every USDC
+move, native or through the ERC-20 view at `0x3600…` (checked read-only on rpc.mainnet.arc.io).
+The public RPC refuses `eth_getLogs` spans of 10,000 blocks or more, so the scan goes in 9,999-block
+windows with a cursor in `sheltergoalcursors`. The meter (`CampaignMeter` on /shelter-payouts,
+/give and /impact, and the Heist's payouts modal) reads that count; it says "at least" while the
+scan has not reached the chain head. Without the backend it falls back to the wallet's balance
+growth only while that is exact (one wallet that has never sent a transaction); otherwise it says
+it cannot read the count. EURC or other tokens do not count.
 
-**A wallet needs a `fromBlock`.** The payouts page counts payouts to the wallet from `fromBlock`
-on, not from `startDate`. A wallet with `fromBlock: null` would count every payout ever made to it,
-including ones from before the goal, so the build refuses it. The build also refuses a wallet that
-is not `0x` plus 40 hex digits, because the page would silently ignore it and count nothing. C-001
-counts to the held Pink Paw wallet from block 23790973, the first Arc block of 2026-10-02 UTC.
+**Only today's sources are named.** While Token Tails holds the wallet (`handover:
+"held-by-token-tails"`), the custody rules keep public gifts, the match and x402 payments away from
+it, so only sponsored treats can arrive (plus the shop share, and only while the backend settles a
+cat checkout through the split on the campaign chain: crypto pay on and a split route). The backend
+reports these as `liveSources`, and the copy lists only them: "today, sponsored treats. Gifts, the
+match and x402 payments count once Pink Paw holds its own wallet."
+
+**Rotation plan.** While Token Tails holds the wallet, the entry must carry `campaign.rotation`
+(the build refuses it otherwise): at handover, set the held wallet's `toBlock`, append the
+shelter's own wallet (`holder: "shelter"`), point `shelter.wallet` at it, set `handover:
+"handed-over"`, run `fund facts build` and deploy the client and the backend. The web meter reads
+`campaign.json` at run time and the Heist reads the runtime facts (`/facts/facts.json`), so neither
+needs a Heist rebuild for the change.
+
+Donor money cannot be promised by any config, so the build no longer proves reachability. It
+checks honesty instead (decision #76, redefined): `goal.tokenTails` lists Token Tails' own capped
+streams (for C-001 the treat budget `DEFAULT_DAILY_BUDGET_WEI` and the match budget
+`DEFAULT_MATCH_DAILY` capped by `DEFAULT_MATCH_POOL`); the build sums what they can add over the
+goal's days. When the goal is larger, the rest has to come from donors and the entry must say
+`goal.donorDependent: true`; the build then refuses "reachable", "guaranteed" and similar words in
+its display, appDisplay or claim. C-001 is 50,000 USDC from 2026-10-02 to 2027-09-30: Token Tails'
+own streams add at most 374 USDC at the **code defaults** (the build cannot read the production
+environment; a raised treat budget or match pool makes that figure wrong until the entry is
+updated), so about 136 USDC a day must come from donors. The end date is
+one year from launch because public giving stays off until Pink Paw holds its own key (handover
+planned before 5 Dec 2026).
+
+The weekly job (`fund facts report`) reports goals that have ended, goals that are running but not
+counting (no shelter wallet or `fromBlock`), and, while a goal runs, the pace it would need from
+zero. Online, it also checks that `fromBlock` is the first block on or after `startDate` (00:00
+UTC) on the campaign chain.
+
+**A wallet needs a `fromBlock`, `wallets` and an `inflowLog`.** The count starts at `fromBlock`,
+not at `startDate`. A wallet with `fromBlock: null` would count money that arrived before the goal,
+so the build refuses it. It also refuses a wallet without `campaign.wallets` (ordered, ranges that
+never overlap, only the last one open, the open one equal to `shelter.wallet`, `wallets[0].fromBlock`
+equal to `fromBlock`) or without `campaign.inflowLog`, a wallet that is not `0x` plus 40 hex digits,
+and a missing `campaign.token` (the balance fallback reads it). C-001 counts the held Pink Paw
+wallet from block 23790973, the first Arc block of 2026-10-02 UTC.
 
 `client/public/shelter-payouts/campaign.json` is generated from C-001: edit `facts.json`, never the
-JSON. Its shape is fixed by the page, so the end date reaches the page through
-`client/public/facts/facts.json` (`C-001.goal.endDate`).
+JSON. It carries `endDate`, `counts`, `sources`, `token`, `startBalance`, `wallets` and `inflowLog`.
+The public facts copy carries the meter inputs too (`C-001.campaign`: chain, `fromBlock`, wallet,
+handover, wallets, inflow log, token, start balance); the Heist reads them at run time from
+`/facts/facts.json` and keeps the baked copy only as a fallback.
+
+C-001 has `maxAgeDays: 125`, so it goes stale around 6 Feb 2027, long before the 30 Sep 2027 end.
+That is the review cadence (re-check wallets, caps and dates), not an error.
 
 ## Wording rules
 
@@ -166,7 +209,7 @@ not be `unverified` or `retired`, and must list the surface of the file that sho
 "300 players have donated").
 
 **R7. Goals cite their C- entry.** Any goal with a money amount cites the `C-` goal entry, whose
-reachability the build proves.
+honesty the build checks (donor-dependent goals are marked and never called reachable).
 
 **R8. No Tails-to-money rate.** `/Tails per/i` and any Tails-to-money rate ("100 Tails = $1",
 "1 USDC = 100 Tails") are banned everywhere, legacy files included, in strings of any length. Tails have no cash value. The internal budgeting ratio in decision #37

@@ -458,13 +458,13 @@
     {
       "id": "C-001",
       "key": "campaign",
-      "claim": "Pink Paw autumn rescue: a 90 USDC goal on the ShelterSplit instant-treat rail, reachable at the configured daily budget with 32 spare days",
-      "value": "90",
+      "claim": "Pink Paw rescue fund: a 50,000 USDC target for the USDC that comes in to Pink Paw's campaign wallets on Arc, counted from the chain's transfer records; most of it has to come from donors",
+      "value": "50000",
       "unit": "USDC",
-      "display": "Goal: 90 USDC for Pink Paw by 31 Jan 2027",
-      "source": "decision #76 (docs/plans/landing-game-alignment.md, section 5)",
-      "asOf": "2026-09-30",
-      "checkedAt": "2026-10-01",
+      "display": "Goal: 50,000 USDC for Pink Paw by 30 Sep 2027",
+      "source": "decision #76, redefined by the founder on 2026-10-04 (goal 50,000 USDC for Pink Paw)",
+      "asOf": "2026-10-04",
+      "checkedAt": "2026-10-04",
       "status": "verified",
       "maxAgeDays": 125,
       "surfaces": [
@@ -474,25 +474,69 @@
       "tense": "future",
       "goal": {
         "startDate": "2026-10-02",
-        "endDate": "2027-01-31",
-        "cap": {
-          "file": "backend/src/shelter/onchain/shelter-onchain.config.ts",
-          "const": "DEFAULT_DAILY_BUDGET_WEI",
-          "decimals": 18
-        },
-        "shareBps": 10000
+        "endDate": "2027-09-30",
+        "progress": "shelter-wallet",
+        "sources": [
+          "gifts",
+          "match",
+          "treats",
+          "x402",
+          "purchase-shares"
+        ],
+        "tokenTails": [
+          {
+            "source": "treats",
+            "cap": {
+              "file": "backend/src/shelter/onchain/shelter-onchain.config.ts",
+              "const": "DEFAULT_DAILY_BUDGET_WEI",
+              "decimals": 18
+            },
+            "shareBps": 10000
+          },
+          {
+            "source": "match",
+            "cap": {
+              "file": "backend/src/shelter/onchain/shelter-onchain.config.ts",
+              "const": "DEFAULT_MATCH_DAILY",
+              "decimals": 6
+            },
+            "total": {
+              "const": "DEFAULT_MATCH_POOL"
+            }
+          }
+        ],
+        "donorDependent": true
       },
       "campaign": {
-        "name": "Pink Paw autumn rescue",
+        "name": "Pink Paw rescue fund",
         "chainId": 5042,
         "fromBlock": 23790973,
+        "token": {
+          "address": "0x3600000000000000000000000000000000000000",
+          "decimals": 6,
+          "symbol": "USDC"
+        },
+        "inflowLog": {
+          "address": "0xfffffffffffffffffffffffffffffffffffffffe",
+          "decimals": 18
+        },
+        "startBalance": "0",
         "shelter": {
           "name": "Pink Paw (Rožinė pėdutė)",
           "wallet": "0xE299299b846Ba629f5A591dBF4F562bcC07A0f37",
           "handover": "held-by-token-tails"
-        }
+        },
+        "wallets": [
+          {
+            "wallet": "0xE299299b846Ba629f5A591dBF4F562bcC07A0f37",
+            "fromBlock": 23790973,
+            "toBlock": null,
+            "holder": "token-tails"
+          }
+        ],
+        "rotation": "At handover: set this wallet's toBlock to the last block before the switch, append Pink Paw's own wallet (holder \"shelter\", fromBlock = toBlock + 1), point shelter.wallet at it, set handover to \"handed-over\", run `fund facts build` and deploy the client and the backend. A sweep from the held wallet to the new one is not counted twice: transfers between campaign wallets are skipped."
       },
-      "note": "Decision #76: replaces the 500 USDC goal, which needed at least 500 days at the 1 USDC/day default. Recommended 90 USDC over 90 days had zero headroom while the ShelterSplit deploy was still pending, so endDate moved from 2026-12-30 to 2027-01-31: 122 days, 90 needed, 32 spare. campaign.shelter.wallet is the held Pink Paw wallet; fromBlock 23790973 is the first Arc (5042) block at or after 2026-10-02T00:00:00Z (block time 1790899200; block 23790972 is one second earlier), looked up read-only on rpc.mainnet.arc.io on 2026-10-02, so payouts from before startDate never count. The online fund facts report re-checks it. The ShelterSplit rail must actually pay this wallet by 2026-11-03 for the goal to stay reachable. Generated into client/public/shelter-payouts/campaign.json; publishing it (a client deploy) is a manual step. shareBps 10000 assumes the whole daily budget reaches Pink Paw (one ShelterSplit recipient); it must match the split config."
+      "note": "Founder, 2026-10-04: 'goal: 50000 USDC for Pink Paw' (was 90 USDC by 31 Jan 2027, reachable on the 1 USDC/day treat budget alone). Progress (review fix, 2026-10-04) is the USDC that CAME IN, not a balance: the backend (GET /shelter/goal/C-001) sums the Transfer logs to the campaign wallets (campaign.wallets, each counted only inside its fromBlock..toBlock range) and skips transfers whose sender is another campaign wallet, so a handover sweep counts once and spending never lowers the bar. It reads Arc's system Transfer log (inflowLog: 0xffff...fffe, 18 decimals), which Arc emits for every USDC move, native or through the ERC-20 view at 0x3600... (read-only check on rpc.mainnet.arc.io, 2026-10-04: a native send emits only that log; an ERC-20 transfer emits it and the 0x3600 log). The public RPC refuses eth_getLogs ranges of 10,000 blocks or more, so the backend scans 9,999-block windows and keeps a cursor in MongoDB. fromBlock 23790973 is the first block of 2026-10-02 UTC; the wallet's balance was 0 at block 23790972 and it had sent no transaction (nonce 0). The pages fall back to the balance (minus startBalance) only while there is one wallet and it has never sent a transaction, when the balance's growth is exactly what came in. What can arrive today: Token Tails holds 0xE299... for Pink Paw, and the custody rules keep public gifts, the match and x402 payments away from a Token-Tails-held wallet, so today only sponsored treats reach it (and the shelter's share of cat purchases, only while CRYPTO_PAY_SHELTER_SHARE_ENABLED is on and a checkout settles through the split). The pages list only the sources the backend reports live. Gifts, the match and x402 count once Pink Paw holds its own wallet (campaign.rotation). End date: 30 Sep 2027, one year from launch: public giving waits for the handover (planned before 5 Dec 2026). Caps: goal.tokenTails is computed from the CODE DEFAULTS (DEFAULT_DAILY_BUDGET_WEI, DEFAULT_MATCH_DAILY, DEFAULT_MATCH_POOL in shelter-onchain.config.ts), not the production environment, which this registry cannot read; if production raises the treat budget or the match pool, the 'Token Tails adds at most' figure is wrong until these entries are updated. goal.donorDependent is true and no copy may call the goal reachable. Staleness: maxAgeDays 125 makes this entry stale around 6 Feb 2027, long before the 30 Sep 2027 end; that is the review cadence (re-check the wallets, caps and dates), not an error. Generated into client/public/shelter-payouts/campaign.json (publishing it is a client deploy)."
     },
     {
       "id": "C-002",
@@ -741,6 +785,7 @@
       "maxAgeDays": 2,
       "surfaces": [
         "heist",
+        "landing",
         "shelter-payouts"
       ],
       "tense": "present",

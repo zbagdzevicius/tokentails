@@ -26,7 +26,7 @@ Built between 2026-09-14 and 2026-10-12:
 - ShelterSplit, the rail. A registry in the contract (wallet, name, share in basis points). disburseWithMemo(amount, memo32) pulls USDC.e and pays every active shelter its share in one transaction, each with TIP-20 transferWithMemo carrying the purchase reference. The rest goes to the treasury.
 - The payouts page at https://tokentails.com/shelter-payouts: each shelter, what it received and an explorer link per payout, read from chain events, not a backend.
 - Catnip Heist at https://tokentails.com/heist, a deterministic voxel stealth game, the planned front door for shelter-funding purchases (roadmap step 3).
-- The giving loop: after a Heist win a verified player taps "Send Pink Paw a rescue treat"; Token Tails pays a small sponsored gift once a day from a capped budget, on Arc first. Each payout gets a receipt and share card; a meter sums them.
+- The giving loop: after a Heist win a verified player taps "Send Pink Paw a rescue treat"; Token Tails pays a small sponsored gift once a day from a capped budget, on Arc first. Each payout gets a receipt and share card; a meter counts inflows.
 - Rail: an MIT SDK and an embeddable donate widget.
 - Built, deploy pending: DonateRouter (no owner; a donor gives USDC with one signature, no gas token) and a treat agent whose spending caps a contract enforces.
 The buyer never touches a wallet: purchases stay card or in-app payments [F-020].

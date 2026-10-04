@@ -14,8 +14,11 @@ const Web3Providers = dynamic(
 // Shared by the prerendered web route (/cats/[cat]) and the client route
 // the static app export uses (/cats/view?id=).
 export const CatDetailsLayout = ({ cat }: { cat: ICat | null }) => {
+  // `overflow-x-clip`: the card's decorative claws and whiskers (CommonCardEffects) reach past the
+  // card on purpose. Clipped here, they can no longer widen a 390 px page to ~612 px, which pushed the
+  // fixed header and the Buy dialog off-screen (QA 2026-10-04).
   return (
-    <div>
+    <div className="overflow-x-clip">
       <Header />
       <div
         className="pt-20 md:pt-24 fade-in min-h-screen relative flex flex-col items-center justify-center pb-16"

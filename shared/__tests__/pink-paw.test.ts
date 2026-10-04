@@ -1,0 +1,130 @@
+import {
+    PINK_PAW_NAME_MAX,
+    PINK_PAW_SLUG,
+    STOREFRONT_SHELTER_CAP,
+    parsePinkPawGalleryBody,
+    pinkPawCatName,
+    pinkPawGallery,
+    pinkPawGalleryPath,
+    storefrontGalleryResult,
+    toGalleryCat,
+} from '../pink-paw';
+
+const cat = (id: string, name: string, status: string | undefined, over: Record<string, unknown> = {}) => ({
+    _id: id,
+    name: `nft-${name}`,
+    blessing: {
+        name,
+        status,
+        image: { url: `https://cdn.example/${id}-photo.webp` },
+        catAvatar: { url: `https://cdn.example/${id}-art.webp` },
+    },
+    ...over,
+});
+const id = (n: number) => n.toString(16).padStart(24, '0');
+
+describe('pinkPawGallery (shared by the web gallery and the Heist modal)', () => {
+    it('splits cats at the shelter from adopted ones, each in name order, and drops HEAVEN', () => {
+        const sale = {
+            [PINK_PAW_SLUG]: [
+                cat(id(1), 'zare', 'WAITING'),
+                cat(id(2), 'Judas', 'ADOPTED'),
+                cat(id(3), 'RAUDVIS', 'RECOVERING'),
+                cat(id(4), 'angel', 'HEAVEN'),
+                cat(id(5), 'Bitė', undefined),
+                cat(id(6), 'Ąžuolas', 'ADOPTED'),
+            ],
+            tokentails: [cat(id(9), 'famous', 'WAITING')],
+        };
+        const g = pinkPawGallery(sale);
+        expect(g.atShelter.map((c) => c.name)).toEqual(['Bitė', 'Raudvis', 'Zare']);
+        expect(g.adopted.map((c) => c.name)).toEqual(['Ąžuolas', 'Judas']);
+        expect(g.atShelter[1]).toEqual({
+            id: id(3),
+            name: 'Raudvis',
+            status: 'RECOVERING',
+            art: `https://cdn.example/${id(3)}-art.webp`,
+            photo: `https://cdn.example/${id(3)}-photo.webp`,
+        });
+        // An unknown status still shows, at the shelter; other shelters' cats never do.
+        expect(g.atShelter[0].status).toBeNull();
+        expect([...g.atShelter, ...g.adopted].some((c) => c.id === id(9))).toBe(false);
+    });
+
+    it('takes the shelter array directly, and shows a cat listed twice once', () => {
+        const g = pinkPawGallery([cat(id(1), 'a', 'WAITING'), cat(id(1), 'a', 'WAITING')]);
+        expect(g.atShelter).toHaveLength(1);
+    });
+
+    it('never shows a cat without both images, a valid id, or with a non-https image', () => {
+        expect(toGalleryCat(cat(id(1), 'a', 'WAITING', { _id: 'nope' }))).toBeNull();
+        expect(toGalleryCat({ _id: id(1), blessing: { image: { url: 'https://x/p.webp' } } })).toBeNull();
+        expect(
+            toGalleryCat({ _id: id(1), blessing: { image: { url: 'javascript:alert(1)' }, catAvatar: { url: 'https://x/a.webp' } } })
+        ).toBeNull();
+        expect(
+            toGalleryCat({ _id: id(1), blessing: { image: { url: 'http://x/p.webp' }, catAvatar: { url: 'https://x/a.webp' } } })
+        ).toBeNull();
+    });
+
+    it('is empty for anything that is not a storefront', () => {
+        for (const bad of [null, undefined, 42, 'x', {}, { [PINK_PAW_SLUG]: 'x' }]) {
+            expect(pinkPawGallery(bad)).toEqual({ atShelter: [], adopted: [] });
+        }
+    });
+});
+
+describe('pinkPawCatName', () => {
+    it('capitalises like the payout pages and cuts very long names', () => {
+        expect(pinkPawCatName('judas')).toBe('Judas');
+        expect(pinkPawCatName('RAUDVIS')).toBe('Raudvis');
+        expect(pinkPawCatName('  mr   Whiskers ')).toBe('Mr Whiskers');
+        expect(pinkPawCatName('')).toBe('This cat');
+        expect(pinkPawCatName(7)).toBe('This cat');
+        const long = pinkPawCatName('a'.repeat(80));
+        expect(long.length).toBe(PINK_PAW_NAME_MAX);
+        expect(long.endsWith('…')).toBe(true);
+    });
+});
+
+describe('the uncapped gallery endpoint', () => {
+    const pub = (n: number, status: string | null) => ({
+        id: n.toString(16).padStart(24, '0'),
+        name: `Cat ${n}`,
+        status,
+        art: `https://cdn.example/${n}-art.webp`,
+        photo: `https://cdn.example/${n}-photo.webp`,
+    });
+
+    it('has one path per shelter', () => {
+        expect(pinkPawGalleryPath()).toBe(`/shelter/${PINK_PAW_SLUG}/gallery`);
+        expect(pinkPawGalleryPath('a b')).toBe('/shelter/a%20b/gallery');
+    });
+
+    it('checks every cat again and files it by its own status', () => {
+        const body = {
+            atShelter: [pub(2, 'WAITING'), pub(1, 'RECOVERING'), pub(3, 'ADOPTED'), { ...pub(4, 'WAITING'), art: 'http://x/a.webp' }],
+            adopted: [pub(5, 'ADOPTED'), pub(6, 'HEAVEN'), pub(2, 'WAITING')],
+        };
+        const g = parsePinkPawGalleryBody(body)!;
+        expect(g.atShelter.map(c => c.name)).toEqual(['Cat 1', 'Cat 2']);
+        expect(g.adopted.map(c => c.name)).toEqual(['Cat 3', 'Cat 5']);
+        expect(g.atShelter[0]).toEqual({ ...pub(1, 'RECOVERING') });
+    });
+
+    it('refuses a body of another shape', () => {
+        expect(parsePinkPawGalleryBody(null)).toBeNull();
+        expect(parsePinkPawGalleryBody([])).toBeNull();
+        expect(parsePinkPawGalleryBody({ atShelter: [] })).toBeNull();
+        expect(parsePinkPawGalleryBody({ atShelter: [], adopted: [] })).toEqual({ atShelter: [], adopted: [] });
+    });
+
+    it('marks the storefront fallback incomplete once the shelter list reaches the storefront cap', () => {
+        const rows = (n: number) => Array.from({ length: n }, (_, i) => cat(i.toString(16).padStart(24, '0'), `c${i}`, 'WAITING'));
+        expect(storefrontGalleryResult({ [PINK_PAW_SLUG]: rows(3) })).toMatchObject({ source: 'storefront', complete: true });
+        const full = storefrontGalleryResult({ [PINK_PAW_SLUG]: rows(STOREFRONT_SHELTER_CAP) });
+        expect(full.complete).toBe(false);
+        expect(full.atShelter).toHaveLength(STOREFRONT_SHELTER_CAP);
+        expect(storefrontGalleryResult(undefined)).toMatchObject({ atShelter: [], adopted: [], complete: true });
+    });
+});

@@ -37,6 +37,12 @@ export interface PublicFact {
     chain?: 'sei' | 'stellar' | 'arc' | 'skale';
     live?: { endpoint: string; path: string };
     goal?: { startDate: string; endDate: string };
+    /**
+     * A goal's meter: the USDC that came in to `wallets` (each inside its block range) on `chainId`,
+     * summed from `inflowLog` Transfer logs by the backend (GET /shelter/goal/:id). `wallet` is where
+     * money arrives today; `token` and `startBalance` serve the balance fallback (one wallet, nonce 0).
+     */
+    campaign?: { chainId: number; fromBlock: number | null; wallet: string | null; handover: 'held-by-token-tails' | 'handed-over'; wallets: { wallet: string; fromBlock: number; toBlock: number | null; holder: 'token-tails' | 'shelter' }[]; inflowLog: { address: string; decimals: number } | null; token: { address: string; decimals: number } | null; startBalance: string };
 }
 
 /** Where the web app and the Heist fetch the current public facts. */
@@ -50,14 +56,14 @@ export const FACT_IDS: readonly FactId[] = ["C-001","C-004","C-005","F-001","F-0
 export const FACTS: Record<FactId, PublicFact> = {
     "C-001": {
         "id": "C-001",
-        "display": "Goal: 90 USDC for Pink Paw by 31 Jan 2027",
+        "display": "Goal: 50,000 USDC for Pink Paw by 30 Sep 2027",
         "appDisplay": null,
-        "value": "90",
+        "value": "50000",
         "unit": "USDC",
         "status": "verified",
         "tense": "future",
-        "asOf": "2026-09-30",
-        "checkedAt": "2026-10-01",
+        "asOf": "2026-10-04",
+        "checkedAt": "2026-10-04",
         "maxAgeDays": 125,
         "surfaces": [
             "shelter-payouts"
@@ -67,7 +73,30 @@ export const FACTS: Record<FactId, PublicFact> = {
         "chain": "arc",
         "goal": {
             "startDate": "2026-10-02",
-            "endDate": "2027-01-31"
+            "endDate": "2027-09-30"
+        },
+        "campaign": {
+            "chainId": 5042,
+            "fromBlock": 23790973,
+            "wallet": "0xE299299b846Ba629f5A591dBF4F562bcC07A0f37",
+            "handover": "held-by-token-tails",
+            "wallets": [
+                {
+                    "wallet": "0xe299299b846ba629f5a591dbf4f562bcc07a0f37",
+                    "fromBlock": 23790973,
+                    "toBlock": null,
+                    "holder": "token-tails"
+                }
+            ],
+            "inflowLog": {
+                "address": "0xfffffffffffffffffffffffffffffffffffffffe",
+                "decimals": 18
+            },
+            "token": {
+                "address": "0x3600000000000000000000000000000000000000",
+                "decimals": 6
+            },
+            "startBalance": "0"
         }
     },
     "C-004": {
@@ -346,6 +375,7 @@ export const FACTS: Record<FactId, PublicFact> = {
         "maxAgeDays": 2,
         "surfaces": [
             "heist",
+            "landing",
             "shelter-payouts"
         ],
         "sourceUrl": null,

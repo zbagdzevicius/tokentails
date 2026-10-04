@@ -56,6 +56,25 @@ The run found one bug, now fixed: two hot-wallet sends close together reused a n
 
 Screenshots: `/private/tmp/claude-501/-Users-zygimantasbagdzevicius-me-tokentails-app/5b2edd56-881c-4754-b42e-7d5561832e7b/scratchpad/donate/e2e/`.
 
+## E2E: checkout on two chains and the goal meter (`tracks/a-build/e2e-pay-goal/stack.sh all`)
+
+Two local anvil chains (31337, and an empty chain started with the Arc testnet id 5042002), test tokens,
+throwaway Mongo; `E2E_UI=1` adds 7 client flows with screens at 1440x900 and 390x844. All 24 API flows
+and 7 UI flows pass (2026-10-04):
+- packs in USDC and EURC on both chains, each granted once (5 parallel replays, 4 parallel first
+  confirms, a hash claimed on the other chain);
+- a $5 shelter cat before the handover (treasury, keeper share 2.50 to the held wallet, custodial) and
+  after it (approve + disburse into the split, 5 to the shelter's own wallet, shelter-held);
+- the handover: split rotated, held wallet swept; the goal recounts both wallets and counts the sweep once;
+- goal after every move: shop shares and gifts count, packs and spending do not;
+- receipts, `orders` rows (one per tx) and `shelterpayoutevents` rows (one per share and gift).
+
+The run found one bug, now fixed: a share sent to the held wallet just before the handover and settled
+after it was labelled `onchain-shelter-held` (the keeper now reads the paid wallet from the receipt).
+Not reproducible on anvil: Arc's native USDC and its `0xff…fe` system log, so treats are not counted
+there (unit-tested in `shelter-goal.spec.ts`). Screens:
+`/private/tmp/claude-501/-Users-zygimantasbagdzevicius-me-tokentails-app/5b2edd56-881c-4754-b42e-7d5561832e7b/scratchpad/pay/e2e/`.
+
 ## Checks (2026-10-04, final run)
 
 | Check | Result |
@@ -74,7 +93,11 @@ Screenshots: `/private/tmp/claude-501/-Users-zygimantasbagdzevicius-me-tokentail
 
 1. `flush()` forwards the router's whole balance. A three-way split with rounding dust makes every
    flush revert. Add `flush(memo, amount)` before the first router deploy.
-2. The campaign meter does not refresh after a wallet gift until the page reloads.
+2. ~~The campaign meter does not refresh after a wallet gift until the page reloads.~~ Fixed 2026-10-04: the meter reads the count live, every minute and on `GOAL_REFRESH_EVENT` after a gift.
+7. ~~The goal meter read the held wallet's balance, so it would never count gifts after the handover (new wallet) and would fall when Pink Paw spends.~~ Fixed 2026-10-04 (review): `GET /shelter/goal/C-001` sums the USDC Transfer logs into `campaign.wallets` (each in its block range, wallet-to-wallet sweeps skipped), and the meter and the Heist read it. The copy names only `liveSources` (today: sponsored treats). The handover is a facts edit (`campaign.rotation`), no Heist rebuild. The cursor (`sheltergoalcursors`) rescans from the start when the wallet set changes: a few hundred RPC windows, paced, a few minutes.
+8. ~~The gallery counted the storefront's newest 200 Pink Paw cats as the shelter's totals (local data: 102 at the shelter, 95 adopted).~~ Fixed 2026-10-04: `GET /shelter/rozine-pedute/gallery` is uncapped (local data: 104 at the shelter, 352 adopted); the web gallery and the Heist read it, and the storefront fallback says "of the newest".
+9. The goal's "Token Tails adds at most 374 USDC" uses the code-default treat and match caps. If production raises `SHELTER_DONATE_DAILY_BUDGET_WEI` or the match pool, update C-001 (`goal.tokenTails`) and CLAIMS.md.
+10. Flagged, not changed (another session's edit): `WalletDonate.tsx`'s custody guard no longer checks `c.chainId === chainId`; it still re-reads the payout list on the chain in use. The owner should confirm this is intended.
 3. Treat-agent gifts count under "Other payouts" on the impact page.
 4. Only one gift per transaction is matched (errs low).
 5. The rail README says ShelterSplit "keeps no balance, nothing to withdraw", but the owner has

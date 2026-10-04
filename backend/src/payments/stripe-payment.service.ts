@@ -12,6 +12,8 @@ import {
     discountPercentageForCode,
     getPackPriceCents,
     getPortraitPriceCents,
+    getShelterCatPriceCents,
+    SHELTER_CAT_MIN_PRICE_CENTS,
     isPackType,
     isProductType,
     MAX_DISCOUNT_PERCENTAGE,
@@ -19,8 +21,13 @@ import {
 
 export const STRIPE_API_VERSION = '2025-12-15.clover';
 
+/** What a PaymentIntent can buy: a portrait, a pack, or one shelter cat (basic tier, $5 floor). */
+export type PaymentIntentEntity = EntityType.IMAGE | EntityType.PACK | EntityType.CAT;
+
 export interface PaymentIntentQuoteInput {
-    entityType: EntityType.IMAGE | EntityType.PACK;
+    entityType: PaymentIntentEntity;
+    /** The catalogue cat id, for `EntityType.CAT`. */
+    catId?: string;
     productType?: ProductType;
     packType?: string;
     imageId?: string;
@@ -37,7 +44,8 @@ export interface PaymentIntentQuote {
 
 export interface VerifiedPaymentIntent {
     intentId: string;
-    entityType: EntityType.IMAGE | EntityType.PACK;
+    entityType: PaymentIntentEntity;
+    catId?: string;
     productType: ProductType;
     packType?: PackType;
     imageId?: string;
@@ -99,6 +107,30 @@ export class StripePaymentService {
         let productType = ProductType.DIGITAL;
         let packType = '';
 
+        if (input.entityType === EntityType.CAT) {
+            if (!input.catId || !Types.ObjectId.isValid(input.catId)) {
+                throw new BadRequestException('Cat is not for sale');
+            }
+            const catId = String(input.catId);
+            // A shelter cat is never below its floor: no discount code applies.
+            const amountCents = getShelterCatPriceCents();
+            return {
+                amountCents,
+                discountPercentage: 0,
+                metadata: {
+                    id: catId,
+                    imageId: '',
+                    catId,
+                    entityType: EntityType.CAT,
+                    productType: '',
+                    packType: '',
+                    userId: input.userId.toString(),
+                    discount: '',
+                    discountPercentage: '0',
+                    expectedAmount: String(amountCents),
+                },
+            };
+        }
         if (input.entityType === EntityType.IMAGE) {
             productType = input.productType || ProductType.DIGITAL;
             if (!isProductType(productType)) {
@@ -163,6 +195,30 @@ export class StripePaymentService {
             throw new BadRequestException('Unexpected payment currency');
         }
 
+        if (metadata.entityType === EntityType.CAT) {
+            const catId = metadata.catId || metadata.id;
+            if (!catId || !Types.ObjectId.isValid(catId)) {
+                throw new BadRequestException('Cat id is missing for this payment');
+            }
+            // The price the intent was created at, and never below the $5 floor.
+            const expected = Number(metadata.expectedAmount);
+            const minimumCents = Math.max(
+                SHELTER_CAT_MIN_PRICE_CENTS,
+                Number.isFinite(expected) && expected > 0 ? expected : getShelterCatPriceCents()
+            );
+            const received = intent.amount_received ?? 0;
+            if (received < minimumCents || intent.amount < minimumCents) {
+                throw new BadRequestException('Payment amount does not match the price');
+            }
+            return {
+                intentId: intent.id,
+                entityType: EntityType.CAT,
+                productType: ProductType.DIGITAL,
+                catId,
+                amountCents: received,
+                amountUsd: received / 100,
+            };
+        }
         const entityType = metadata.entityType === EntityType.IMAGE ? EntityType.IMAGE : EntityType.PACK;
         const productType = (metadata.productType as ProductType) || ProductType.DIGITAL;
         let baseCents: number;

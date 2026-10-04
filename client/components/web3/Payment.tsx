@@ -6,20 +6,25 @@ import { useMemo, useState } from "react";
 import { PixelButton } from "../shared/PixelButton";
 import { Tag } from "../shared/Tag";
 import { StripePayment } from "./StripePayment";
-import { Web3Transfer } from "./transfer/Web3Transfer";
 import { cdnFile } from "@/constants/utils";
 import { IMessage } from "@/models/cats";
-import { Web3Providers } from "./Web3Providers";
 import { isApp } from "@/models/app";
+import { CryptoCheckout } from "./crypto/CryptoCheckout";
+import { skuFor } from "./crypto/checkout";
+import { cryptoPayOpen, serverPriceUsd, useCryptoPayConfig } from "./crypto/useCryptoPayConfig";
 import { AppCheckoutNotice } from "./AppCheckoutNotice";
 import { useAccountAction } from "@/hooks/useAccountAction";
 
+// "crypto" is the EVM checkout (USDC / EURC, docs/API.md "Crypto checkout"). It replaced the
+// Stellar pack purchase: no pack is offered on Stellar any more, and a Stellar pack payment that still
+// arrives after STELLAR_PACKS_SUNSET_AT is recorded for a refund and answered 410 STELLAR_PACKS_DEPRECATED.
 type PaymentMethod = "crypto" | "stripe";
 
 interface PaymentProps {
   price: number;
   entityType: EntityType;
   id?: string;
+  /** Unused since the Stellar checkout left (kept so callers still compile). */
   user?: string;
   text?: string;
   loadingText?: string;
@@ -28,6 +33,8 @@ interface PaymentProps {
   onProcessingChange?: (processing: boolean) => void;
   productName?: string;
   onRemove?: () => void;
+  /** No pointing mascot above the summary (inside a modal with its own header). */
+  hideMascot?: boolean;
 }
 
 const productNameOverviewMap = {
@@ -95,15 +102,23 @@ const WebPayment = ({
   price,
   entityType,
   id,
-  user,
-  text,
-  loadingText,
   onSuccess,
   onProcessingChange,
   productName,
   onRemove,
+  hideMascot,
 }: PaymentProps) => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("stripe");
+  // Shelter cats are never discounted (server rule); only packs take a code.
+  const discountable = entityType === EntityType.PACK;
+  const cryptoSku = useMemo(() => skuFor(entityType, id), [entityType, id]);
+  // The public config decides whether crypto is offered at all, and carries the price the server
+  // charges (both checkouts charge it). Where it differs from the caller's copy, the summary shows the
+  // charged price: the Legendary pack card says $400 while every checkout charges $350 (known issue).
+  const cryptoConfig = useCryptoPayConfig(!cryptoSku);
+  const charged = serverPriceUsd(cryptoSku, cryptoConfig);
+  const basePrice = charged ?? price;
+  const cryptoOffered = !!cryptoSku && cryptoPayOpen(cryptoConfig);
   const [showDiscountField, setShowDiscountField] = useState(false);
   const [discountCode, setDiscountCode] = useState("");
   const [isDiscountValid, setIsDiscountValid] = useState<boolean | null>(null);
@@ -122,14 +137,14 @@ const WebPayment = ({
   // Calculate discounted price and savings
   const { discountedPrice, savings } = useMemo(() => {
     if (discountPercentage && discountPercentage > 0) {
-      const discountAmount = (price * discountPercentage) / 100;
+      const discountAmount = (basePrice * discountPercentage) / 100;
       return {
-        discountedPrice: price - discountAmount,
+        discountedPrice: basePrice - discountAmount,
         savings: discountAmount,
       };
     }
-    return { discountedPrice: price, savings: 0 };
-  }, [price, discountPercentage]);
+    return { discountedPrice: basePrice, savings: 0 };
+  }, [basePrice, discountPercentage]);
 
   const validateDiscount = async () => {
     if (!discountCode.trim()) {
@@ -188,12 +203,14 @@ const WebPayment = ({
     <div className="flex flex-col gap-4 relative z-10 animate-appear">
       {/* Checkout Summary */}
       <div className="bg-gradient-to-b from-tt-night-700/95 to-tt-night-800/95 border-4 border-tt-gold-500 shadow-[0_6px_0_rgb(var(--tt-night-950))] w-[95%] md:rem:w-[400px] max-w-none m-auto rounded-2xl p-4 relative z-10">
-        <img
-          src={cdnFile(`tail/mascot-point-right.webp`)}
-          alt=""
-          aria-hidden="true"
-          className="absolute -top-[8.25rem] -left-2 w-36 z-0 -mb-2 animate-opacity"
-        />
+        {!hideMascot && (
+          <img
+            src={cdnFile(`tail/mascot-point-right.webp`)}
+            alt=""
+            aria-hidden="true"
+            className="absolute -top-[8.25rem] -left-2 w-36 z-0 -mb-2 animate-opacity"
+          />
+        )}
         <img
           src={productNameOverviewMap[id as PackType]?.patternImg}
           alt=""
@@ -303,13 +320,13 @@ const WebPayment = ({
               Original Price:
             </span>
             <span className="text-p5 text-tt-muted line-through font-secondary font-bold">
-              ${price.toFixed(2)}
+              ${basePrice.toFixed(2)}
             </span>
           </div>
         )}
 
         {/* Discount Code Input - Inside Checkout Summary - Hide when discount is applied */}
-        {!(discountPercentage !== null && discountPercentage > 0) && (
+        {discountable && !(discountPercentage !== null && discountPercentage > 0) && (
           <div className="mb-3 relative z-10">
             {!showDiscountField ? (
               <div className="flex justify-center -mt-2 -mb-5">
@@ -392,41 +409,37 @@ const WebPayment = ({
       </div>
 
       {/* Payment Method Selector */}
-      <div className="flex gap-4 justify-center">
+      <div className="flex flex-wrap gap-4 justify-center" role="group" aria-label="Payment method">
         <div>
           <PixelButton
             text="Pay with Card"
             onClick={() => setPaymentMethod("stripe")}
             active={paymentMethod === "stripe"}
+            pressed={paymentMethod === "stripe"}
           />
         </div>
-        <div>
-          <PixelButton
-            // copy-lint-ignore R10 WebPayment renders only on web; app builds get AppCheckoutNotice above
-            text="Pay on Stellar"
-            onClick={() => setPaymentMethod("crypto")}
-            active={paymentMethod === "crypto"}
-          />
-        </div>
+        {cryptoOffered && (
+          <div>
+            <PixelButton
+              // copy-lint-ignore R10 WebPayment renders only on web; app builds get AppCheckoutNotice above
+              text="Pay with crypto (USDC / EURC)"
+              onClick={() => setPaymentMethod("crypto")}
+              active={paymentMethod === "crypto"}
+              pressed={paymentMethod === "crypto"}
+            />
+          </div>
+        )}
       </div>
 
       {/* Payment Content */}
-      {paymentMethod === "crypto" ? (
-        <Web3Providers>
-          <div className="flex flex-col items-center">
-            <Web3Transfer
-              price={discountedPrice}
-              entityType={entityType}
-              id={id}
-              user={user}
-              text={text}
-              loadingText={loadingText}
-              discount={discountCode}
-              onSuccess={onSuccess}
-              onProcessingChange={onProcessingChange}
-            />
-          </div>
-        </Web3Providers>
+      {paymentMethod === "crypto" && cryptoSku && cryptoOffered ? (
+        <CryptoCheckout
+          sku={cryptoSku}
+          priceUsd={discountedPrice}
+          discount={discountable && discountPercentage ? discountCode : undefined}
+          onSuccess={onSuccess}
+          onProcessingChange={onProcessingChange}
+        />
       ) : (
         <StripePayment
           price={discountedPrice}
@@ -434,6 +447,7 @@ const WebPayment = ({
           onSuccess={onSuccess || (() => {})}
           onProcessingChange={onProcessingChange}
           discount={discountCode}
+          entityType={entityType}
         />
       )}
     </div>

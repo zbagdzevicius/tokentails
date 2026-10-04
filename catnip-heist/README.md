@@ -453,5 +453,15 @@ back to the opener. It is styled after the tokentails.com landing (the hero sky
 `client/public` by `npm run import-assets`). App builds (Capacitor) never show it (claims rule
 R10); there the win screen keeps the external link.
 
+Under the real payouts the modal has a "Testnet proof" section, labelled "Test coins · no real
+money", mirroring the client page's section. It reads its own list, `public/payouts/testnet-deployments.json`
+(a copy of `client/public/shelter-payouts/testnet-deployments.json`; `fund a:ingest --network testnet`
+writes both), and shows one card per testnet (Arc, Tempo, Arbitrum Sepolia, Avalanche Fuji, Base Sepolia,
+Robinhood) with its role line, token chips, that chain's own totals, contract explorer links and, per
+test payout, an explorer link and a website receipt link (`<payouts page>/receipt?chain=&tx=`). Its
+totals are never summed across chains or added to the real total. `HEIST_TESTNET_DEPLOYMENTS_URL`
+overrides the list, and an empty value hides the section.
+
 `npm run build:client` builds a copy into `../client/public/heist-game/` (base `/heist-game/`) that
-reads the client's `/shelter-payouts/deployments.json` and links to `/shelter-payouts`.
+reads the client's `/shelter-payouts/deployments.json` (and `/shelter-payouts/testnet-deployments.json`
+for the testnet proof) and links to `/shelter-payouts`.

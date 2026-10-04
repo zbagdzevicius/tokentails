@@ -207,6 +207,21 @@ describe("/impact", () => {
     );
   });
 
+  it("Paw settlements: future tense before the first one, no 'first settlement' wording after", () => {
+    const before = render(<ImpactPage impact={result()} />);
+    const paws = () => before.container.querySelector("#paws")!;
+    expect(paws().textContent).toContain("The checker turns on when settlements start.");
+    expect(paws().querySelector("textarea")?.getAttribute("placeholder")).toBe("Proofs arrive with the first nightly settlement");
+    before.unmount();
+    const after = render(
+      <ImpactPage impact={result((s) => (s.pawSettlements = { count: 1, latest: { tx: "0x1" } }))} />
+    );
+    const section = after.container.querySelector("#paws")!;
+    expect(section.textContent).not.toMatch(/when settlements start|first nightly settlement|will settle/);
+    expect(section.textContent).toContain("Settlements have started; the checker is not switched on yet.");
+    expect(section.querySelector("textarea")?.getAttribute("placeholder")).toBe("The paw proof checker opens soon");
+  });
+
   it("puts the L-players chip after its qualifier", () => {
     const { container } = render(<ImpactPage impact={result()} />);
     const players = container.querySelector('#reach [data-claim="L-players"]')!;

@@ -24,6 +24,17 @@ import {
   receiveWithAuthorizationTypedData,
   recipientsHashOf,
   toQuantity,
+  TOKEN_SELECTOR,
+  PAUSED_SELECTOR,
+  decodeBool,
+  decodeUint,
+  encodeAllowanceCall,
+  encodeApproveCalldata,
+  encodeBalanceOfCall,
+  encodeDisburseCalldata,
+  encodeDisburseWithMemoCalldata,
+  encodeDonateCalldata,
+  memoToBytes32,
 } from "./calldata";
 import { RelayBody, RelayResult, SELF_SUBMIT_CODES, postRelay } from "./relayApi";
 import { ROUTER_DONATION_TOPIC } from "./receipt";
@@ -33,8 +44,10 @@ import { ROUTER_DONATION_TOPIC } from "./receipt";
 //   the Token Tails relay submits and pays the gas for. The USDC goes donor -> router -> ShelterSplit
 //   -> shelter in that one transaction.
 // - giveNative: router.donateNative(memo), only where the native coin is USDC (Arc).
-// Nothing here sends to ShelterSplit.donate directly: every public gift goes through the router, whose
-// guard refuses any gift a part of which would reach the treasury.
+// - giveToSplit / giveNativeToSplit (multi-chain, decision "B"): chains with no router, or whose token
+//   has no EIP-3009, give straight into ShelterSplit (approve + disburse, disburseWithMemo on Tempo, or
+//   donate(memo) with Arc's native USDC). There is no router guard there, so assertSplitTakes does its
+//   job before the wallet opens: no part of a gift may reach the treasury.
 
 export interface Eip1193 {
   request(args: { method: string; params?: unknown[] }): Promise<unknown>;
@@ -46,15 +59,19 @@ export function getInjectedProvider(): Eip1193 | null {
   return eth && typeof eth.request === "function" ? eth : null;
 }
 
+/** The nativeCurrency name a wallet shows for Tempo, which has no native coin. */
+export const NO_NATIVE_COIN_NAME = "No native coin (fees in USD stablecoins)";
+
 export function addChainParams(chainId: number, chain: ChainInfo) {
   // A chain with no native coin (Tempo: fees are paid in a USD stablecoin) is added as "USD", the
   // symbol Tempo documents; wallets require 18 decimals here, and its eth_getBalance is a placeholder.
+  // The name says so, so the wallet's own screen does not suggest a coin to buy.
   const symbol = chain.nativeSymbol || (chain.balanceToken ? "USD" : "ETH");
   return {
     chainId: toQuantity(BigInt(chainId)),
     chainName: chain.name,
     nativeCurrency: {
-      name: symbol,
+      name: !chain.nativeSymbol && chain.balanceToken ? NO_NATIVE_COIN_NAME : symbol,
       symbol,
       decimals: chain.nativeDecimals ?? 18,
     },
@@ -556,3 +573,195 @@ export async function findSettledGift(rpc: RpcFn, signed: SignedGift): Promise<s
 export const SELF_SUBMIT_MARGIN_S = 15;
 export const signedGiftExpired = (signed: SignedGift, nowMs: number = Date.now()) =>
   Math.floor(nowMs / 1000) > Number(signed.auth.validBefore) - SELF_SUBMIT_MARGIN_S;
+
+// ---------------------------------------------------------------- direct ShelterSplit gifts
+// The split path (giveRails "split"): chains without a router, or whose token has no EIP-3009. The
+// split has no router guard, so the page does the guard's job before the wallet opens: the split is not
+// paused, it pays at least one wallet, and no part of the gift would reach the treasury
+// (preview(amount).toTreasury == 0); on a real-money chain every wallet it pays must be a wallet the
+// shelter claimed (CustodyGuard). The giver then approves the split for exactly this amount and calls
+// disburse(amount, memo), or disburseWithMemo(amount, bytes32 memo) on Tempo.
+
+/** The split's payout list for `amount`: wallets, amounts and what would reach the treasury. */
+export async function readSplitPreview(
+  eth: Eip1193,
+  split: string,
+  amount: bigint
+): Promise<{ wallets: string[]; amounts: bigint[]; toTreasury: bigint }> {
+  return decodePreview(await call(eth, split, encodePreviewCall(amount)));
+}
+
+/** The wallets a gift of `amount` straight into the split would pay now (amount > 0), lowercase. */
+export async function readSplitPayoutWallets(eth: Eip1193, split: string, amount: bigint): Promise<string[]> {
+  const { wallets, amounts } = await readSplitPreview(eth, split, amount);
+  return wallets.filter((_, i) => amounts[i] > BigInt(0)).map((w) => w.toLowerCase());
+}
+
+/**
+ * The router guard's checks, run by the page for a gift straight into the split. Refuses a paused
+ * split, a split that pays nobody, any part of the gift reaching the treasury, and (real money only)
+ * any wallet the shelter did not claim or Token Tails holds.
+ */
+export async function assertSplitTakes(
+  eth: Eip1193,
+  split: string,
+  amount: bigint,
+  chainId: number,
+  guard: CustodyGuard | null | undefined
+): Promise<string[]> {
+  let preview: { wallets: string[]; amounts: bigint[]; toTreasury: bigint };
+  let paused = false;
+  try {
+    preview = await readSplitPreview(eth, split, amount);
+    paused = decodeBool(await call(eth, split, PAUSED_SELECTOR));
+  } catch {
+    throw new GiftError("Could not read who this gift would pay. Nothing was sent; try again in a minute.");
+  }
+  if (paused) throw new GiftError("Gifts are paused on the contract right now. Nothing was sent.");
+  const wallets = preview.wallets.filter((_, i) => preview.amounts[i] > BigInt(0)).map((w) => w.toLowerCase());
+  if (preview.toTreasury > BigInt(0) || wallets.length === 0) {
+    // claim: fiction a refusal message about this gift, not an impact figure
+    throw new GiftError("The contract refused this gift: part of it would not reach the shelter right now. Nothing was sent.");
+  }
+  if (needsCustodyGuard(chainId)) {
+    if (!guard) throw new CustodyError();
+    const held = new Set(guard.heldWallets.map((w) => w.toLowerCase()));
+    const claimed = new Set(guard.shelterWallets.map((w) => w.toLowerCase()));
+    if (wallets.some((w) => held.has(w) || !claimed.has(w))) throw new CustodyError();
+  }
+  return wallets;
+}
+
+/** Sends one transaction from the giver's wallet, pinned to the chain id. Returns its hash. */
+async function sendTx(eth: Eip1193, chainId: number, tx: { from: string; to: string; data: string; value?: string }): Promise<string> {
+  const hash = await eth.request({ method: "eth_sendTransaction", params: [{ ...tx, chainId: toQuantity(BigInt(chainId)) }] });
+  if (typeof hash !== "string") throw new Error("The wallet did not return a transaction hash.");
+  return hash;
+}
+
+/** "1.5" from 1500000 with 6 decimals; for messages only. */
+function formatAmount(v: bigint, decimals: number): string {
+  const s = v.toString().padStart(decimals + 1, "0");
+  const whole = s.slice(0, s.length - decimals) || "0";
+  const frac = s.slice(s.length - decimals).replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : whole;
+}
+
+export type SplitStep = "check" | "approve" | "give";
+
+export interface SplitGiveOptions {
+  provider: Eip1193;
+  chainId: number;
+  chain: ChainInfo;
+  /** The ShelterSplit address. */
+  split: string;
+  /** Human amount, e.g. "0.5". */
+  amount: string;
+  /** The coin's symbol, for messages. */
+  symbol: string;
+  /** Tempo: disburseWithMemo with the memo as bytes32. */
+  memo32?: boolean;
+  custody?: CustodyGuard | null;
+  rand?: (n: number) => Uint8Array;
+  /** Called as the gift moves: reading the chain, waiting for the approval, sending the gift. */
+  onStep?: (step: SplitStep) => void;
+  /** How long to wait for the approval to be mined before giving up (ms). */
+  approveTimeoutMs?: number;
+  sleep?: (ms: number) => Promise<void>;
+}
+
+/** Reads after an approval until the allowance shows: load-balanced RPCs can lag a block behind. */
+export const ALLOWANCE_POLLS = 8;
+export const ALLOWANCE_POLL_MS = 1500;
+
+/**
+ * Approve + disburse: connect, check the split (guard above), check the balance, approve the split for
+ * exactly this amount when the allowance is short (and wait for it), then call disburse straight on
+ * ShelterSplit. The giver's wallet pays both network fees.
+ */
+export async function giveToSplit(opts: SplitGiveOptions): Promise<GiveResult> {
+  const { provider: eth, chainId, chain, split } = opts;
+  const step = opts.onStep || (() => undefined);
+  step("check");
+  const from = await connectWallet(eth, chainId, chain);
+  await assertContract(eth, split, chain.name);
+  let token: string;
+  let decimals: number;
+  try {
+    token = decodeAddress(await call(eth, split, TOKEN_SELECTOR));
+    decimals = await readDecimals(eth, token);
+  } catch {
+    throw new GiftError("Could not read which coin the contract takes. Nothing was sent; try again in a minute.");
+  }
+  const value = parseUnits(opts.amount, decimals);
+  if (value <= BigInt(0)) throw new GiftError("Pick an amount above zero.");
+  await assertSplitTakes(eth, split, value, chainId, opts.custody);
+
+  let balance: bigint | null = null;
+  let allowance = BigInt(0);
+  try {
+    balance = decodeUint(await call(eth, token, encodeBalanceOfCall(from)));
+    allowance = decodeUint(await call(eth, token, encodeAllowanceCall(from, split)));
+  } catch {
+    balance = null; // An RPC hiccup: the wallet and the preflight below still catch a short balance.
+  }
+  if (balance !== null && balance < value) {
+    throw new GiftError(
+      `Your wallet holds ${formatAmount(balance, decimals)} ${opts.symbol} on ${chain.name}, less than this gift. Nothing was sent.`
+    );
+  }
+
+  const memo = walletMemo((opts.rand || randomBytes)(4));
+  const data = opts.memo32 ? encodeDisburseWithMemoCalldata(value, memoToBytes32(memo)) : encodeDisburseCalldata(value, memo);
+  if (allowance < value) {
+    step("approve");
+    const approveHash = await sendTx(eth, chainId, { from, to: token, data: encodeApproveCalldata(split, value) });
+    const sleep = opts.sleep || ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+    try {
+      await waitForReceipt(eth, approveHash, { timeoutMs: opts.approveTimeoutMs ?? 120_000, sleep });
+    } catch (err) {
+      if (err instanceof RevertedError) {
+        throw new GiftError(`The network refused the ${opts.symbol} approval, so nothing was given.`);
+      }
+      throw err;
+    }
+    // The approval is mined, but the node answering the next call may not have that block yet: a
+    // check run there would revert for a short allowance (seen on Base Sepolia's public RPC).
+    for (let i = 0; i < ALLOWANCE_POLLS; i++) {
+      let seen = BigInt(0);
+      try {
+        seen = decodeUint(await call(eth, token, encodeAllowanceCall(from, split)));
+      } catch {
+        seen = BigInt(0);
+      }
+      if (seen >= value) break;
+      await sleep(ALLOWANCE_POLL_MS);
+    }
+  }
+  step("give");
+  const tx = { from, to: split, data };
+  await preflight(eth, tx);
+  const hash = await sendTx(eth, chainId, tx);
+  return { txHash: hash, from, memo, relayed: false };
+}
+
+/**
+ * ShelterSplit.donate(memo) with the amount as the native value, where the native coin is the gift
+ * coin (Arc: USDC, 18 decimals). One transaction; same split checks as giveToSplit.
+ */
+export async function giveNativeToSplit(
+  opts: Omit<SplitGiveOptions, "symbol" | "memo32" | "onStep" | "approveTimeoutMs">
+): Promise<GiveResult> {
+  const { provider: eth, chainId, chain, split } = opts;
+  if (!isUsdcNative(chain)) throw new GiftError(`Native gifts are USDC-only; ${chain.name} is not.`);
+  const from = await connectWallet(eth, chainId, chain);
+  await assertContract(eth, split, chain.name);
+  const value = parseUnits(opts.amount, chain.nativeDecimals ?? 18);
+  if (value <= BigInt(0)) throw new GiftError("Pick an amount above zero.");
+  await assertSplitTakes(eth, split, value, chainId, opts.custody);
+  const memo = walletMemo((opts.rand || randomBytes)(4));
+  const tx = { from, to: split, value: toQuantity(value), data: encodeDonateCalldata(memo) };
+  await preflight(eth, tx);
+  const hash = await sendTx(eth, chainId, tx);
+  return { txHash: hash, from, memo, relayed: false };
+}

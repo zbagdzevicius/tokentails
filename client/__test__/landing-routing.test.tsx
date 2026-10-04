@@ -90,6 +90,14 @@ import { normalizeImpact, resetImpactRateLimits } from "@/api/impact-api";
 import baseline from "@/public/impact/snapshot.json";
 import GamingRedirect from "@/pages/gaming";
 
+// jsdom has no media playback; the Heist section's reel calls these once in view.
+for (const method of ["play", "pause", "load"] as const) {
+  Object.defineProperty(HTMLMediaElement.prototype, method, {
+    configurable: true,
+    value: method === "play" ? () => Promise.resolve() : () => {},
+  });
+}
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const nextConfig = require("../next.config.js");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -118,6 +126,22 @@ function expectGamingLanding(container: HTMLElement) {
   expect(
     proof!.compareDocumentPosition(globe!) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
+  // Catnip Heist sits between the proof section and the globe, only behind its flag (decision #15).
+  const heist = container.querySelector('[data-testid="heist-section"]');
+  if (process.env.NEXT_PUBLIC_HEIST_LANDING_SECTION !== "1") {
+    expect(heist).toBeNull();
+  } else {
+    expect(heist).not.toBeNull();
+    expect(
+      proof!.compareDocumentPosition(heist!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      heist!.compareDocumentPosition(globe!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      container.querySelector('[data-testid="heist-section-cta"]')?.getAttribute("href"),
+    ).toBe("/heist?from=landing_heist");
+  }
   // The sample card + portrait video section closes the page, after the globe.
   const hub = container.querySelector('[data-testid="rescue-hub"]');
   expect(hub).not.toBeNull();
@@ -136,6 +160,22 @@ describe("root visit", () => {
   it("renders the gaming landing with root SEO tags", () => {
     const { container } = render(<HomePage />);
     expectGamingLanding(container);
+  });
+
+  it("keeps the Catnip Heist section off by default and mounts it with the flag (decision #15)", () => {
+    const { container, unmount } = render(<HomePage />);
+    expect(container.querySelector('[data-testid="heist-section"]')).toBeNull();
+    unmount();
+    process.env.NEXT_PUBLIC_HEIST_LANDING_SECTION = "1";
+    try {
+      const flagged = render(<HomePage />);
+      expectGamingLanding(flagged.container);
+      // The v1 reel is not cleared and the rail is not live in the baseline: poster only.
+      expect(flagged.container.querySelector('[data-testid="heist-reel"]')).toBeNull();
+      expect(flagged.container.querySelector('[data-testid="heist-reel-poster"]')).not.toBeNull();
+    } finally {
+      delete process.env.NEXT_PUBLIC_HEIST_LANDING_SECTION;
+    }
   });
 
   it("mounts the gameplay reel between the hero and the proof section when the manifest has clips", () => {
@@ -316,6 +356,27 @@ describe("globe and country count (decisions #29, #30)", () => {
     // Prospects have no cats in the game yet; past partners' cats still are (review 3f #9).
     expect(list?.textContent).not.toContain("Maybe Shelter");
     expect(list?.textContent).toContain("Old Friends");
+  });
+
+  it("names Pink Paw once, as 'Pink Paw (Rožinė pėdutė)', styled like the other shelters", () => {
+    const impact = withImpact((s) => {
+      s.shelters.countries = [];
+      s.shelters.items = [
+        { slug: "mil-bigotes", name: "Mil Bigotes", role: "partner" },
+        { slug: "rozine-pedute", name: "Rožinė Pėdutė", role: "partner" },
+        { slug: "pink-paw", name: "Pink Paw", role: "partner" },
+      ];
+    });
+    const { container } = render(<HomePage impact={impact} />);
+    const items = Array.from(container.querySelectorAll('[data-testid="partner-shelter"]'));
+    expect(items.map((li) => li.textContent)).toEqual(["Mil Bigotes", "Pink Paw (Rožinė pėdutė)"]);
+    const list = container.querySelector('[data-testid="partner-shelters"]')!;
+    expect(list.textContent!.match(/Pink Paw/g)).toHaveLength(1);
+    expect(list.textContent!.match(/pėdutė/gi)).toHaveLength(1);
+    // Same size and glow as its neighbours; no smaller second line under it.
+    const size = (li: Element) => li.className.split(" ").filter((c) => /text-(p4|h5|h4)|glow/.test(c)).join(" ");
+    expect(size(items[1])).toBe(size(items[0]));
+    expect(items[1].querySelector(".block")).toBeNull();
   });
 
   it("drops '800+ strays saved' and links the impact heading to /impact", () => {

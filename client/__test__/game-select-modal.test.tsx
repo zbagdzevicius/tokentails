@@ -21,6 +21,13 @@ import {
 } from "@/components/shared/GameSelectModal";
 import { GameType } from "@/models/game";
 
+// These tests cover the Cupid Cat flows, so they run inside its season (January to March).
+jest.mock("@/components/game/seasons", () => ({
+  ...jest.requireActual("@/components/game/seasons"),
+  isCupidSeason: () => true,
+}));
+
+
 function open(props: Partial<React.ComponentProps<typeof GameSelectModal>> = {}) {
   const onClose = jest.fn();
   const setGameType = jest.fn();

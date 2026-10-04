@@ -3,13 +3,17 @@
 // unit-tested (__test__/shelter-give-mode.test.ts).
 //
 // - "mainnet": real money. Only when NEXT_PUBLIC_WALLET_DONATE is "true", the campaign's shelter has
-//   handed over (it holds its own key), and a DonateRouter is listed for the campaign chain.
+//   handed over (it holds its own key), and at least one mainnet chain has a wallet path: by default a
+//   DonateRouter listed for the campaign chain; NEXT_PUBLIC_WALLET_DONATE_CHAINS names more chains
+//   (giveRails.campaignRails).
 // - "awaiting-handover": the campaign's wallet is still held by Token Tails. No button: a public gift
 //   must never land in a wallet Token Tails controls. Links to the onboarding page instead.
-// - "testnet": the separate "try it live" block for NEXT_PUBLIC_WALLET_DONATE_CHAIN (test USDC, no
-//   real money), when a testnet router is listed for that chain.
+// - "testnet": the separate "try it live" block for NEXT_PUBLIC_WALLET_DONATE_CHAIN (test coins, no
+//   real money), when that testnet has a wallet path (a router, or a listed ShelterSplit). The giver
+//   can switch to any of the six testnets (giveRails.walletRails).
 // - "hidden": nothing to show.
 import type { Campaign } from "./campaign";
+import { GiveRail, TEMPO_CHAIN_IDS, campaignRails, walletRails } from "./giveRails";
 import type { MatchStatus } from "./relayApi";
 import type { RouterEntry } from "./routers";
 import type { ShelterDeployment } from "./rpc";
@@ -22,11 +26,14 @@ export interface GiveEnv {
   walletDonate?: string;
   /** NEXT_PUBLIC_WALLET_DONATE_CHAIN */
   tryChain?: string;
+  /** NEXT_PUBLIC_WALLET_DONATE_CHAINS: the mainnet chain ids the campaign slot offers (unset: the campaign chain). */
+  chains?: string;
 }
 
 export const readGiveEnv = (): GiveEnv => ({
   walletDonate: process.env.NEXT_PUBLIC_WALLET_DONATE,
   tryChain: process.env.NEXT_PUBLIC_WALLET_DONATE_CHAIN,
+  chains: process.env.NEXT_PUBLIC_WALLET_DONATE_CHAINS,
 });
 
 /** The try-it chain id, or null when unset or not a positive integer. */
@@ -36,22 +43,22 @@ export function tryChainId(env: GiveEnv): number | null {
 }
 
 /**
- * The mode of one slot. The campaign slot is "mainnet", "awaiting-handover" or "hidden"; the try-it
- * slot is "testnet" or "hidden". `deployments` is accepted for the shared signature: a router is the
- * only contract the button needs (it knows its ShelterSplit).
+ * Chains where no wallet path works at all. Empty since the approve + ShelterSplit.disburse path
+ * (giveRails "split") covers the tokens without EIP-3009: Tempo's TIP-20 pathUSD and USDC.e (with
+ * disburseWithMemo) and Robinhood's USDG and test mUSDC. A router is still never used on Tempo
+ * (giveRails.railFor), and wallet.assertEip3009 still probes a router's token before anyone signs.
  */
-/**
- * Chains where no wallet path works yet, so no button is ever shown there even if a router is listed:
- * Tempo's TIP-20 tokens (pathUSD, USDC.e) have no EIP-3009 and Tempo has no native coin; Robinhood
- * testnet's mUSDC has no EIP-3009 and its native coin is ETH. (wallet.assertEip3009 also probes the
- * token before anyone signs.)
- */
-export const NO_WALLET_PATH = new Set([4217, 42431, 46630]);
+export const NO_WALLET_PATH = new Set<number>();
 export const hasWalletPath = (chainId: number) => !NO_WALLET_PATH.has(chainId);
 
+/**
+ * The mode of one slot. The campaign slot is "mainnet", "awaiting-handover" or "hidden"; the try-it
+ * slot is "testnet" or "hidden". `deployments` lists the ShelterSplits (mainnet and testnet entries):
+ * a chain without a router gives straight into its split.
+ */
 export function walletGiveMode(
   campaign: Campaign | null,
-  _deployments: ShelterDeployment[],
+  deployments: ShelterDeployment[],
   routers: RouterEntry[],
   env: GiveEnv,
   slot: GiveSlot = "campaign"
@@ -59,15 +66,15 @@ export function walletGiveMode(
   if (slot === "try-it") {
     const id = tryChainId(env);
     if (id === null) return "hidden";
-    const r = routers.find((x) => x.chainId === id);
-    // A mainnet router never powers the try-it block, even if the env names its chain by mistake.
-    return r && r.network === "testnet" && hasWalletPath(id) ? "testnet" : "hidden";
+    // Only a testnet rail powers the try-it block, even if the env names a mainnet chain by mistake.
+    return tryItRails(routers, deployments, env).some((r) => r.chainId === id) ? "testnet" : "hidden";
   }
   if (!campaign || !campaign.shelter.wallet) return "hidden";
   if (campaign.shelter.handover !== "handed-over") return "awaiting-handover";
-  const r = routers.find((x) => x.chainId === campaign.chainId);
-  if (env.walletDonate === "true" && r && r.network === "mainnet" && hasWalletPath(r.chainId)) return "mainnet";
-  return "hidden";
+  if (env.walletDonate !== "true") return "hidden";
+  return campaignRails(campaign.chainId, routers, deployments, env.chains).some((r) => hasWalletPath(r.chainId))
+    ? "mainnet"
+    : "hidden";
 }
 
 /** Preset amounts: whole USDC on mainnet, tenths on the testnet (faucet amounts are small). */
@@ -87,9 +94,26 @@ export const faucetFor = (chainId: number) => (CIRCLE_FAUCET_CHAINS.has(chainId)
 export function tryItRouters(routers: RouterEntry[], env: GiveEnv): RouterEntry[] {
   const first = tryChainId(env);
   if (first === null) return [];
-  const list = routers.filter((r) => r.network === "testnet" && hasWalletPath(r.chainId));
+  // Tempo's TIP-20 tokens have no EIP-3009, so a router there never carries a gift (giveRails.railFor).
+  const list = routers.filter((r) => r.network === "testnet" && hasWalletPath(r.chainId) && !TEMPO_CHAIN_IDS.has(r.chainId));
   if (!list.some((r) => r.chainId === first)) return [];
   return [...list.filter((r) => r.chainId === first), ...list.filter((r) => r.chainId !== first)];
+}
+
+/**
+ * The testnets the try-it block can switch between: every one of the six with a wallet path (a router,
+ * or a listed ShelterSplit), in picker order. Empty while the block is hidden (no try chain set).
+ */
+export function tryItRails(routers: RouterEntry[], deployments: ShelterDeployment[], env: GiveEnv): GiveRail[] {
+  if (tryChainId(env) === null) return [];
+  // With each chain's extra-coin routers (EURC on Arc and Fuji) as their own picker options.
+  return walletRails("testnet", routers, deployments, true).filter((r) => hasWalletPath(r.chainId));
+}
+
+/** The real-money chains of the campaign slot, once walletGiveMode says "mainnet". */
+export function mainnetRails(campaign: Campaign | null, routers: RouterEntry[], deployments: ShelterDeployment[], env: GiveEnv): GiveRail[] {
+  if (!campaign) return [];
+  return campaignRails(campaign.chainId, routers, deployments, env.chains).filter((r) => hasWalletPath(r.chainId));
 }
 
 export const ONBOARD_URL = "/shelter-payouts/onboard";

@@ -70,7 +70,7 @@ flowchart LR
 - **Cat**: the collectible. Elemental type, tier, art URLs, owner, optional link to a blessing. Blueprint cats are templates; adopting clones one to the user.
 - **Blessing**: a real rescued animal registered by a shelter. Creating one triggers OpenAI classification and story writing plus Gemini avatar generation, producing the linked cat.
 - **Shelter**: partner organisation. Staff users are scoped to their shelter.
-- **Order**: a purchase record whose `hash` is a Stellar transaction hash or a Stripe id.
+- **Order**: a purchase record whose `hash` is a Stellar transaction hash, a Stripe id, or `evm:<chainId>:<txHash>` for the crypto checkout.
 - **Game**: an immutable score submission (Heist rows carry a `replayDigest`).
 - **Impact**: payout events indexed from the Arc ShelterSplit contract, treats (`shelterdonations`), paws, attested off-chain payouts, shelter outcomes and an hourly public snapshot.
 - **Rescue Goal**: a funded shelter need that players give Tails to.
@@ -125,6 +125,16 @@ authority. Details: BACKEND.md, "Authentication".
 1. Client connects a wallet with the Stellar Wallets Kit, builds a payment to the Token Tails recipient account in XLM or USDC, signs in the wallet, and submits to Horizon.
 2. Client sends only the transaction hash and order details to `POST /web3/confirm`.
 3. The backend loads the transaction from Horizon, checks it paid the treasury at least the server price in the order's asset under its canonical (outer) hash, and grants the item.
+
+Packs are no longer sold on this path (since 2026-10-04): the client does not offer them, and a pack
+payment that still arrives is verified, granted if paid before `STELLAR_PACKS_SUNSET_AT`, else recorded
+for a refund (410 `STELLAR_PACKS_DEPRECATED`). Portraits and loot boxes are still sold here.
+
+### Buying with USDC or EURC (crypto checkout)
+
+1. Client creates an order through `POST /payments/crypto/orders` for a pack, a loot box or one shelter cat; the server prices it and lists every accepted chain and token with the exact amount, the recipient and ready-to-send transactions.
+2. The buyer pays from their own wallet: a token transfer to the Token Tails treasury (bound to the order by a unique amount, or a TIP-20 memo on Tempo), or, for a shelter cat after the shelter's key handover, straight into the shelter's ShelterSplit with the order memo.
+3. Client sends `{chainId, txHash}` to `POST /payments/crypto/orders/:orderId/confirm`; the backend reads the receipt over RPC, checks token contract, recipient, amount or memo, confirmations and expiry, creates the `Order` keyed on the transaction hash and grants once. Details: BACKEND.md "Payments".
 
 ### Registering a rescued cat
 

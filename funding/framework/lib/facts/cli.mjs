@@ -3,7 +3,7 @@
 //
 //   fund facts build [--check] [--quiet] [--discard-md]
 //                                          regenerate every copy from facts.json; --check writes nothing
-//                                          and exits 1 on schema problems, an unreachable goal or drift.
+//                                          and exits 1 on schema problems, an unmarked donor-dependent goal or drift.
 //                                          Refuses to overwrite FACTS.md rows edited since the last
 //                                          build (run `fund facts absorb` first, or pass --discard-md)
 //   fund facts absorb [--dry]              move `fund refresh --write` edits in FACTS.md into facts.json
@@ -58,7 +58,7 @@ function build(root, { check, quiet, discardMd = false, log = console.log, err =
     for (const p of problems) err(`  ✗ ${p}`);
     return 1;
   }
-  for (const g of goals) if (!quiet) log(`  ✓ ${g.id} goal ${g.goal} ${g.unit} reachable: ${g.capPerDay}/day x ${g.days} days = ${g.maxAtCap} (needs ${g.minDays} days, ${g.spareDays} spare)`);
+  for (const g of goals) if (!quiet) log(`  ✓ ${g.id} goal ${g.goal} ${g.unit} over ${g.days} days, counting ${g.sources.join(', ')}: Token Tails' own streams add at most ${g.tokenTailsMax} (code defaults, not the production env); ${g.donorDependent ? `donors ${g.fromDonors} (about ${g.donorPerDay}/day), marked donor-dependent` : 'no donor money needed'}`);
   const mdEdited = factsMdEdited(root, outputs);
   if (!check && mdEdited && !discardMd) {
     err(`✗ ${TARGETS.factsMd} has rows edited since the last build (by hand or by \`fund refresh --write\`); building now would overwrite them.`);

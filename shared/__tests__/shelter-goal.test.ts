@@ -1,0 +1,52 @@
+import { GOAL_SOURCES, parseShelterGoalView, shelterGoalPath, sourcesFor, usdcTo18Units } from '../shelter-goal';
+
+const view = (over: Record<string, unknown> = {}) => ({
+    id: 'C-001',
+    chainId: 5042,
+    goalUsdc: '50000',
+    raised: '12.5',
+    scannedTo: 100,
+    head: 100,
+    upToDate: true,
+    transfers: 3,
+    wallets: [{ wallet: '0x' + 'AB'.repeat(20), fromBlock: 10, toBlock: null, holder: 'token-tails' }],
+    liveSources: ['treats', 'nonsense'],
+    updatedAt: '2026-10-04T10:00:00.000Z',
+    ...over,
+});
+
+describe('the shelter goal contract', () => {
+    it('has one path per goal', () => {
+        expect(shelterGoalPath('C-001')).toBe('/shelter/goal/C-001');
+    });
+
+    it('keeps a well-formed body, lowercases wallets and drops unknown sources', () => {
+        const v = parseShelterGoalView(view())!;
+        expect(v.raised).toBe('12.5');
+        expect(v.wallets).toEqual([{ wallet: '0x' + 'ab'.repeat(20), fromBlock: 10, toBlock: null, holder: 'token-tails' }]);
+        expect(v.liveSources).toEqual(['treats']);
+        expect(v.upToDate).toBe(true);
+    });
+
+    it('refuses a body that is not a goal view, and never claims an unscanned count', () => {
+        expect(parseShelterGoalView(null)).toBeNull();
+        expect(parseShelterGoalView(view({ raised: '-1' }))).toBeNull();
+        expect(parseShelterGoalView(view({ raised: 12 }))).toBeNull();
+        expect(parseShelterGoalView(view({ goalUsdc: '' }))).toBeNull();
+        expect(parseShelterGoalView(view({ scannedTo: null }))!.scannedTo).toBeNull();
+        expect(parseShelterGoalView(view({ upToDate: 'yes' }))!.upToDate).toBe(false);
+    });
+
+    it('knows what can reach a wallet without the backend: treats while Token Tails holds it', () => {
+        expect(sourcesFor('token-tails')).toEqual(['treats']);
+        expect(sourcesFor(undefined)).toEqual(['treats']);
+        expect(sourcesFor('shelter')).toEqual(['gifts', 'match', 'treats', 'x402']);
+        expect(GOAL_SOURCES).toHaveLength(5);
+    });
+
+    it('converts decimal USDC to 18-decimal units without floats', () => {
+        expect(usdcTo18Units('12.5')).toBe(BigInt('12500000000000000000'));
+        expect(usdcTo18Units('0.000001')).toBe(BigInt('1000000000000'));
+        expect(usdcTo18Units('50000')).toBe(BigInt('50000000000000000000000'));
+    });
+});

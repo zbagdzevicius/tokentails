@@ -3,6 +3,7 @@ import { USER_API } from "@/api/user-api";
 import { DeathCard, type DeathSaveState } from "@/components/game/DeathCard";
 import { GameOptionsModal } from "@/components/game/GameOptionsModal";
 import { GameSelect } from "@/components/game/GameSelect";
+import { isCupidSeason } from "@/components/game/seasons";
 import {
   GameEvent,
   GameEvents,
@@ -159,6 +160,8 @@ const GameProvider = ({ children }: React.PropsWithChildren<object>) => {
   };
 
   const setGameType = (nextGameType: GameType | null, nextLevel?: string) => {
+    // Cupid Cat is seasonal (January to March): a stale link or restore cannot open it off-season.
+    if (nextGameType === GameType.PIXEL_RESCUE && nextGameType !== gameType && !isCupidSeason()) return;
     if (nextGameType !== gameType || nextLevel) {
       if (gameType && nextGameType !== gameType) gameRun.leave({ mode: gameType, level });
       if (nextGameType) gameRun.select();

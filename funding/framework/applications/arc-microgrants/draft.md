@@ -26,14 +26,14 @@ Animal shelters run on small donations and have no cheap way to show where the m
 ShelterSplit turns a payout promise into a public ledger entry on Arc. The registry lives in the contract: each shelter has a wallet, a name and a share in basis points. donate(memo), or a plain USDC send, splits the payment on arrival: each active shelter gets its share in the same transaction, the rest goes to the treasury. A second instance does the same in EURC.
 Built around it, all in the public repo:
 - One-tap gift: a verified player taps "Send Pink Paw a rescue treat" after a Catnip Heist win or on the payouts page. Token Tails pays a small sponsored amount, once a day, from a capped budget. No wallet, no gas.
-- Receipts and a share card for each payout, Pink Paw's profile with the custody disclosure, and a campaign meter summed from on-chain payouts.
+- Receipts and a share card for each payout, Pink Paw's profile with the custody disclosure, and a goal meter of the USDC that came in.
 - Rail: an MIT SDK and a one-tag donate widget.
 - Built, deploy pending: DonateRouter, with no owner. A donor signs one message for Arc's USDC (USDC is both gas and gift), our relay submits it, and Token Tails can match it. Mainnet giving waits until Pink Paw holds its own key.
 Live: both contracts on Arc mainnet, Pink Paw registered, one proof payout, and https://tokentails.com/shelter-payouts.
 
 ## How it works <!-- criterion: C1, C2, C3 | limit: 1500 -->
 - Arc-native path: USDC is Arc's gas token, so the native and ERC-20 balances are one. donate(memo) and receive() split a USDC send with no approve step. disburse(amount, memo) serves ERC-20 payers such as the EURC instance.
-- Events: NativeDisbursed or Disbursed(shelter, amount, memo) per shelter and one batch event per call. Payouts page, receipts and meter read only these.
+- Events: NativeDisbursed or Disbursed(shelter, amount, memo) per shelter and one batch event per call. Payouts page and receipts read only these; the goal meter counts USDC transfers into the campaign wallet.
 - Registry: the owner adds, updates, deactivates or removes shelters; dust goes to the treasury, so the split holds no balance.
 - Atomic batch: if one payout fails the whole batch reverts and nobody is paid short.
 - Sponsored gifts: a verified player taps once a day; a backend wallet with a small float calls donate('tt:<source>:<random id>') within a capped daily budget. No personal data in the memo.

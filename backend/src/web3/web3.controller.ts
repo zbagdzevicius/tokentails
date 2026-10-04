@@ -1,15 +1,28 @@
-import { BadRequestException, Body, Controller, Get, HttpException, Param, Post, UseGuards } from '@nestjs/common';
+import {
+    BadRequestException,
+    Body,
+    ConflictException,
+    Controller,
+    Get,
+    GoneException,
+    HttpException,
+    Optional,
+    Param,
+    Post,
+    UseGuards,
+} from '@nestjs/common';
 import { Types } from 'mongoose';
 import { BlessingRepository } from 'src/blessing/blessing.repository';
 import { ICat, Tier } from 'src/cat/cat.schema';
-import { CatService, PACK_POOL_EMPTY_MESSAGE } from 'src/cat/cat.service';
+import { ALREADY_OWNED_MESSAGE, CatService, PACK_POOL_EMPTY_MESSAGE } from 'src/cat/cat.service';
 import { ImageRepository } from 'src/image/image.repository';
 import { USER_ID } from 'src/shared/decorators/user.decorator';
 import { PermissionGuard } from 'src/shared/guards/permission.guard';
 import { EntityType, IMessage } from 'src/shared/interfaces/common.interface';
 import { CurrencyType } from 'src/shared/interfaces/currency.interface';
 import { getPackCardTier } from 'src/shared/utils/content.utils';
-import { isPackType } from 'src/payments/price-table';
+import { CryptoCheckoutService } from 'src/payments/crypto/crypto-checkout.service';
+import { getShelterCatPriceCents, isPackType } from 'src/payments/price-table';
 import { StripePaymentService } from 'src/payments/stripe-payment.service';
 import { PERMISSION_LEVEL } from 'src/user/models/user.model';
 import { UserRepository } from 'src/user/user.repository';
@@ -17,17 +30,37 @@ import { IUser, User } from 'src/user/user.schema';
 import { LOOT_BOX_ENTITY } from './order-catalogue';
 import { OrderRepository } from './order.repository';
 import { GrantFailureReason, IOrder, IOrderRefund, OrderStatus, PackType, ProductType } from './order.schema';
-import { spendIncrement, spendRefundPipeline } from './spend';
+import { spendIncrement } from './spend';
+import { GrantResult, PACK_GRANT_FAILED_MESSAGE, PurchaseGrantService } from './purchase-grant.service';
 import { isStellarTxHash } from './stellar-payment';
 import { ChainType } from './web3.model';
 import { Web3Service } from './web3.service';
 import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
+import { ShelterCatSaleService } from 'src/shelter/shelter-cat-sale.service';
 
-/** A paid pack or loot box result when nothing could be granted. */
-type GrantResult = IMessage & { cat?: ICat; refund?: IOrderRefund['state'] };
+export { PACK_GRANT_FAILED_MESSAGE };
 
-/** Shown when a paid pack could not be granted even after one retry; the order is refunded. */
-export const PACK_GRANT_FAILED_MESSAGE = 'We could not bring your cat home this time. Your payment will be refunded.';
+/**
+ * POST /web3/confirm no longer sells packs (founder, 2026-10-04): packs are bought through the crypto
+ * checkout (USDC or EURC on every integrated EVM chain, src/payments/crypto) or Stripe, and the client
+ * no longer offers Stellar for packs. A pack payment that still arrives (a cached old tab, a payment in
+ * flight at deploy) is verified and recorded first, because the client pays before it confirms: paid
+ * before `STELLAR_PACKS_SUNSET_AT` it is granted as before; paid later it is FAILED_GRANT with
+ * `refund: 'due'` (`STELLAR_DEPRECATED`) and answered 410. Reads, history, audits and refunds of
+ * existing Stellar orders are unchanged. `STELLAR_PACKS_ENABLED=true` is the rollback switch.
+ */
+export const STELLAR_PACKS_DEPRECATED = 'STELLAR_PACKS_DEPRECATED';
+export const STELLAR_PACKS_DEPRECATED_MESSAGE =
+    'Packs are no longer sold through Stellar. Your payment is recorded and will be refunded to the sending account. Pay with USDC or EURC in the crypto checkout, or by card.';
+export const stellarPacksEnabled = (env: NodeJS.ProcessEnv = process.env) =>
+    (env.STELLAR_PACKS_ENABLED || '').trim().toLowerCase() === 'true';
+/** Grace for Stellar pack payments already in flight: a week after the 2026-10-04 decision. */
+export const DEFAULT_STELLAR_PACKS_SUNSET_AT = '2026-10-11T00:00:00Z';
+/** `STELLAR_PACKS_SUNSET_AT` (ISO time, set it to deploy time plus about 7 days), else the default. */
+export function stellarPacksSunset(env: NodeJS.ProcessEnv = process.env): Date {
+    const set = new Date((env.STELLAR_PACKS_SUNSET_AT || '').trim());
+    return isNaN(set.getTime()) ? new Date(DEFAULT_STELLAR_PACKS_SUNSET_AT) : set;
+}
 
 @Controller('web3')
 export class Web3Controller {
@@ -38,8 +71,16 @@ export class Web3Controller {
         private blessingRepository: BlessingRepository,
         private imageRepository: ImageRepository,
         private web3Service: Web3Service,
-        private stripePayments: StripePaymentService
-    ) {}
+        private stripePayments: StripePaymentService,
+        @Optional() grants?: PurchaseGrantService,
+        @Optional() private catSale?: ShelterCatSaleService,
+        @Optional() private cryptoCheckout?: CryptoCheckoutService
+    ) {
+        // The specs build the controller by hand with seven arguments; the grant logic is the same.
+        this.grants = grants || new PurchaseGrantService(orderRepository, catService, userRepository, stripePayments);
+    }
+
+    private readonly grants: PurchaseGrantService;
 
     // Returns buyer emails and wallet addresses for the loot-drop export, so admins only.
     @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.ADMIN))
@@ -70,225 +111,28 @@ export class Web3Controller {
         };
     }
 
-    /**
-     * Grants the pack cat of a paid order. The order is COMPLETE only when the adoption succeeded;
-     * otherwise it is FAILED_GRANT with the reason, so it shows in scripts/audit-orders-grants.js
-     * and can be retried or refunded (plan G3). Counters move only on success.
-     */
-    async grantBoughtCat({
-        cat,
-        user,
-        orderId,
-        tier,
-        packType,
-        markFailure = true,
-    }: {
-        cat?: string | Types.ObjectId | null;
-        user: string | Types.ObjectId;
-        orderId?: Types.ObjectId;
-        tier?: Tier;
-        packType?: PackType;
-        /** False when the caller retries or refunds and records the failure itself (grantPack). */
-        markFailure?: boolean;
-    }): Promise<
-        IMessage & {
-            cat?: ICat;
-        }
-    > {
-        if (!cat) {
-            if (orderId && markFailure) {
-                await this.markGrantFailed(orderId, 'NO_CAT', 'No cat to grant');
-            }
-            return { success: false, message: 'No cat or generated cat' };
-        }
-        const result = await this.catService.adopt(cat.toString(), user.toString(), tier, packType, 'pack');
-        if (!result?.success || !result.cat) {
-            if (orderId && markFailure) {
-                await this.markGrantFailed(orderId, 'ADOPT_FAILED', result?.message || 'Adoption failed');
-            }
-            return { success: false, message: result?.message || 'Something went wrong, please try again later' };
-        }
-        await this.userRepository.update(user, {
-            $inc: { monthCatsAdopted: 1, monthPacks: 1 },
-        });
-        if (orderId) {
-            await this.orderRepository.update(orderId, {
-                $set: { status: OrderStatus.COMPLETE, cat: result.cat._id ?? cat },
-            });
-        }
-        return result;
+    /** Grants the pack cat of a paid order. See PurchaseGrantService.grantBoughtCat. */
+    grantBoughtCat(input: Parameters<PurchaseGrantService['grantBoughtCat']>[0]) {
+        return this.grants.grantBoughtCat(input);
     }
 
-    /**
-     * Picks the pack cat and grants it. An empty pool (the buyer owns every cat it could bring home)
-     * fails the grant and refunds the order (decision #21): Stripe orders automatically, Stellar
-     * orders are marked `refund.state: 'due'` for the treasury to send back by hand.
-     *
-     * A failed adoption (for example two packs bought at once picked the same cat, and the second
-     * copy lost the ownership check) is retried once with another cat, excluding the one that
-     * failed. When that fails too, the order is FAILED_GRANT and refunded the same way.
-     *
-     * An unexpected error (a database error in the pick or the adoption) is treated the same: the
-     * spend was already counted, so the order is FAILED_GRANT and refunded rather than left PENDING
-     * with the money taken (3c review). The refund is claimed once per order, so a retry is safe.
-     */
-    async grantPack(input: {
-        user: string | Types.ObjectId;
-        order: Pick<IOrder, '_id' | 'chainType' | 'hash'>;
-        packType?: PackType;
-        tier: Tier;
-        amountUsd: number;
-    }): Promise<GrantResult> {
-        try {
-            return await this.grantPackOnce(input);
-        } catch (error) {
-            const detail = String((error as Error)?.message || 'Unexpected error');
-            console.error(`Pack grant of order ${String(input.order._id)} failed:`, detail);
-            let refund: IOrderRefund['state'] | undefined;
-            try {
-                // The order may have been granted before the error (for example the stats update
-                // failed after COMPLETE): never fail or refund a completed order.
-                const current: any = await this.orderRepository.model
-                    .findOne({ _id: input.order._id }, { status: 1, refund: 1 })
-                    .lean();
-                if (current?.status === OrderStatus.COMPLETE) {
-                    return { success: true, message: 'Pack granted' };
-                }
-                await this.markGrantFailed(input.order._id!, 'ADOPT_FAILED', detail);
-                refund = await this.refundOrder(input.order, input.user, 'ADOPT_FAILED', input.amountUsd);
-            } catch (recordError) {
-                console.error(
-                    `Recording the failed grant of order ${String(input.order._id)} failed:`,
-                    (recordError as Error)?.message
-                );
-            }
-            return { success: false, message: PACK_GRANT_FAILED_MESSAGE, refund };
-        }
+    /** Picks the pack cat and grants it, refunding a failed grant. See PurchaseGrantService.grantPack. */
+    grantPack(input: Parameters<PurchaseGrantService['grantPack']>[0]): Promise<GrantResult> {
+        return this.grants.grantPack(input);
     }
 
-    private async grantPackOnce({
-        user,
-        order,
-        packType,
-        tier,
-        amountUsd,
-    }: {
-        user: string | Types.ObjectId;
-        order: Pick<IOrder, '_id' | 'chainType' | 'hash'>;
-        packType?: PackType;
-        tier: Tier;
-        amountUsd: number;
-    }): Promise<GrantResult> {
-        const source = await this.catService.pickPackCat(user, packType);
-        if (!source) {
-            await this.markGrantFailed(order._id!, 'EMPTY_POOL', 'Pack pool empty for this buyer');
-            const refund = await this.refundOrder(order, user, 'EMPTY_POOL', amountUsd);
-            return { success: false, message: PACK_POOL_EMPTY_MESSAGE, refund };
-        }
-        const first = await this.grantBoughtCat({
-            cat: source,
-            user,
-            orderId: order._id,
-            tier,
-            packType,
-            markFailure: false,
-        });
-        if (first.success) {
-            return first;
-        }
-        const retrySource = await this.catService.pickPackCat(user, packType, [source]);
-        const retried = retrySource
-            ? await this.grantBoughtCat({
-                  cat: retrySource,
-                  user,
-                  orderId: order._id,
-                  tier,
-                  packType,
-                  markFailure: false,
-              })
-            : first;
-        if (retried.success) {
-            return retried;
-        }
-        await this.markGrantFailed(order._id!, 'ADOPT_FAILED', retried.message || 'Adoption failed');
-        const refund = await this.refundOrder(order, user, 'ADOPT_FAILED', amountUsd);
-        return { success: false, message: PACK_GRANT_FAILED_MESSAGE, refund };
-    }
-
-    private async markGrantFailed(orderId: Types.ObjectId, reason: GrantFailureReason, detail: string) {
-        await this.orderRepository.update(orderId, {
-            $set: { status: OrderStatus.FAILED_GRANT, failureReason: `${reason}: ${detail}`.slice(0, 200) },
-        });
-    }
-
-    /**
-     * Records and, where possible, performs the refund of a paid order that was not granted. Runs at
-     * most once per order (the `refund` field is the guard). The spend counted for the order is taken
-     * back, because the buyer is getting the money back.
-     */
-    async refundOrder(
+    /** Records and, for Stripe, performs the refund of a paid order that was not granted. */
+    refundOrder(
         order: Pick<IOrder, '_id' | 'chainType' | 'hash'>,
         user: string | Types.ObjectId,
         reason: GrantFailureReason,
         amountUsd: number
     ): Promise<IOrderRefund['state'] | undefined> {
-        const requested: IOrderRefund = {
-            state: 'due',
-            reason,
-            amountUsd: Number.isFinite(amountUsd) ? amountUsd : undefined,
-            requestedAt: new Date(),
-        };
-        const claimed = await this.orderRepository.model.findOneAndUpdate(
-            { _id: order._id, refund: { $exists: false } },
-            { $set: { refund: requested } },
-            { new: true }
-        );
-        if (!claimed) {
-            return undefined;
-        }
-        await this.userRepository.update(user, spendRefundPipeline(amountUsd) as any);
-
-        const paymentIntent = typeof order.hash === 'string' && order.hash.startsWith('pi_') ? order.hash : undefined;
-        if (order.chainType !== ChainType.FIAT || !paymentIntent) {
-            // Stellar: the treasury sends `price` in `currencyType` back to `walletAddress` (manual step).
-            return 'due';
-        }
-        try {
-            const refund = await this.stripePayments.stripe.refunds.create(
-                {
-                    payment_intent: paymentIntent,
-                    reason: 'requested_by_customer',
-                    metadata: { orderId: String(order._id), reason },
-                },
-                { idempotencyKey: `tt-refund-${String(order._id)}` }
-            );
-            await this.orderRepository.update(order._id!, {
-                $set: { 'refund.state': 'refunded', 'refund.refundedAt': new Date(), 'refund.refundId': refund.id },
-            });
-            return 'refunded';
-        } catch (error) {
-            console.error(`Refund of order ${String(order._id)} failed; left as due:`, (error as Error)?.message);
-            await this.orderRepository.update(order._id!, {
-                $set: { 'refund.error': String((error as Error)?.message || 'refund failed').slice(0, 200) },
-            });
-            return 'due';
-        }
+        return this.grants.refundOrder(order, user, reason, amountUsd);
     }
 
-    /** Pays the affiliate share once a paid order was granted. Never on a failed or refunded grant. */
-    private async creditAffiliate(discount: string | undefined, amountUsd: number) {
-        if (!discount) {
-            return;
-        }
-        const discountOwner = await this.userRepository.findOne({
-            searchObject: { discount: discount.toLowerCase() },
-            projection: '_id',
-        });
-        if (discountOwner) {
-            await this.userRepository.update(discountOwner._id!, {
-                $inc: { affiliated: parseFloat((amountUsd * 0.2).toFixed(1)) },
-            });
-        }
+    private creditAffiliate(discount: string | undefined, amountUsd: number) {
+        return this.grants.creditAffiliate(discount, amountUsd);
     }
 
     @UseGuards(AppAuthGuard)
@@ -359,6 +203,24 @@ export class Web3Controller {
         // Spent and the affiliate share use the amount verified on Stellar, never the client `price`.
         const verified = await this.web3Service.validatePrice(currencyType, price, chainType, hash, order._id);
         const priceUsd = verified.priceUsd;
+
+        // Stellar packs are closed: a verified payment after the sunset is recorded for a refund, never lost.
+        if (entityType === EntityType.PACK && !stellarPacksEnabled()) {
+            const paidAt = verified.closedAt || new Date();
+            if (paidAt.getTime() >= stellarPacksSunset().getTime()) {
+                const orderRef = { _id: order._id, chainType, hash };
+                await this.grants.markGrantFailed(order._id, 'STELLAR_DEPRECATED', `paid ${paidAt.toISOString()}`);
+                const refund = await this.grants.refundOrder(orderRef, user, 'STELLAR_DEPRECATED', priceUsd, {
+                    takeBackSpend: false,
+                });
+                throw new GoneException({
+                    statusCode: 410,
+                    code: STELLAR_PACKS_DEPRECATED,
+                    message: STELLAR_PACKS_DEPRECATED_MESSAGE,
+                    refund: refund || 'due',
+                });
+            }
+        }
         await this.userRepository.update(user!, { $inc: spendIncrement(priceUsd) });
 
         if (entityType === EntityType.IMAGE) {
@@ -422,6 +284,21 @@ export class Web3Controller {
         @USER_ID() userId: string
     ) {
         try {
+            if (entityType === EntityType.CAT) {
+                // One shelter cat at the basic tier, $5 floor, no discount (founder, 2026-10-04).
+                const check = this.catSale ? await this.catSale.check(id, userId) : null;
+                if (!check?.ok) {
+                    if (check?.reason === 'ALREADY_OWNED') {
+                        throw new ConflictException(ALREADY_OWNED_MESSAGE);
+                    }
+                    throw new BadRequestException('Cat is not for sale');
+                }
+                return await this.stripePayments.createPaymentIntent({
+                    entityType: EntityType.CAT,
+                    catId: check.cat.catId,
+                    userId: userId.toString(),
+                });
+            }
             const targetEntityType = entityType === EntityType.IMAGE ? EntityType.IMAGE : EntityType.PACK;
             const targetProductType = productType || ProductType.DIGITAL;
             const targetImageId = imageId || id;
@@ -543,6 +420,30 @@ export class Web3Controller {
                 return { success: true, message: 'Pet immortalized successfully.' };
             }
 
+            if (verified.entityType === EntityType.CAT) {
+                // Idempotent on the intent id: a replayed confirm grants nothing
+                const catClaim = await this.stripePayments.claimPaymentIntent(verified, {
+                    entityType: EntityType.CAT,
+                    id: verified.catId,
+                    user: new Types.ObjectId(userId),
+                    currencyType: CurrencyType.USD,
+                });
+                if (!catClaim.claimed) {
+                    return { success: false, message: 'This payment was already processed.' };
+                }
+                await this.userRepository.update(userId, { $inc: spendIncrement(verified.amountUsd) });
+                const granted = await this.grants.grantShelterCat({
+                    user: new Types.ObjectId(userId),
+                    order: { _id: catClaim.order._id, chainType: ChainType.FIAT, hash: verified.intentId },
+                    catId: verified.catId!,
+                    amountUsd: verified.amountUsd,
+                });
+                if (granted.success) {
+                    await this.recordCardShelterShare(userId, verified.intentId, verified.catId!, granted);
+                }
+                return granted;
+            }
+
             // Idempotent on the intent id: a replayed confirm grants nothing
             const claim = await this.stripePayments.claimPaymentIntent(verified, {
                 entityType: EntityType.PACK,
@@ -578,6 +479,32 @@ export class Web3Controller {
                 throw error;
             }
             throw new BadRequestException('Error confirming payment');
+        }
+    }
+
+    /**
+     * A card-paid shelter cat owes its shelter the same share as a crypto one paid to the treasury
+     * (CryptoCheckoutService.recordCardShelterShare). Never fails the purchase: a missed record is logged
+     * for a person to add.
+     */
+    private async recordCardShelterShare(userId: string, intentId: string, catId: string, granted: GrantResult) {
+        if (!this.cryptoCheckout || !this.catSale) {
+            return;
+        }
+        try {
+            const sale = await this.catSale.check(catId);
+            const cat = sale.ok ? sale.cat : null;
+            await this.cryptoCheckout.recordCardShelterShare({
+                userId,
+                intentId,
+                catId,
+                grantedCatId: granted.cat?._id ? String(granted.cat._id) : undefined,
+                name: cat?.name,
+                shelter: cat?.shelter ? { _id: cat.shelter._id, name: cat.shelter.name, slug: cat.shelter.slug } : null,
+                priceUsdCents: getShelterCatPriceCents(),
+            });
+        } catch (error) {
+            console.error(`Shelter share of card payment ${intentId} not recorded:`, (error as Error)?.message);
         }
     }
 

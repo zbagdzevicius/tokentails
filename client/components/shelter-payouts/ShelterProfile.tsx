@@ -11,7 +11,7 @@ export function custodyDisclosure(isApp: boolean = isAppBuild()): string {
   return isApp
     ? "Token Tails holds the shelter's share on its behalf until handover. Every payout is listed on our website."
     : "Token Tails created this wallet and holds it on the shelter's behalf until handover. " +
-        "Donations are split to it on-chain, and every payout is public.";
+        "Sponsored treats are split to it on-chain today; gifts open after handover. Every payout is public.";
 }
 
 /** The line for the current build (read once: `NEXT_PUBLIC_IS_APP` is fixed at build time). */
@@ -34,7 +34,7 @@ export const ShelterProfile = ({
   const { shelter } = campaign;
   return (
     <section
-      className={`${CARD} flex h-full flex-col gap-3 text-p5`}
+      className={`${CARD} flex flex-col gap-3 self-start text-p5`}
       data-testid="shelter-profile"
     >
       <h3 className="font-primary uppercase text-p3 md:text-p2 leading-none text-tt-cream">

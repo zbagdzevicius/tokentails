@@ -3,6 +3,7 @@ import { join } from 'path';
 import {
     TOKEN_TAILS_HELD_WALLETS,
     readShelterConfig,
+    readRelayChainConfigs,
     readShelterConfigs,
     readTryShelterConfig,
     shelterConfigFor,
@@ -73,6 +74,104 @@ describe('readTryShelterConfig (the try-it testnet)', () => {
         expect(shelterConfigFor(5042002, e)?.chainId).toBe(5042002);
         expect(shelterConfigFor(84532, e)).toBeNull();
         expect(readShelterConfigs(env()).map(c => c.chainId)).toEqual([readShelterConfig(env()).chainId]);
+    });
+});
+
+describe('readRelayChainConfigs (multi-chain relay, SHELTER_RELAY_CHAINS)', () => {
+    const HEX_MAIN = '0x' + 'a1'.repeat(32);
+    const HEX_HOT = '0x' + 'b2'.repeat(32);
+    const ROUTER_B = '0x' + '55'.repeat(20);
+
+    it('adds nothing by default: production keeps the single Arc config', () => {
+        expect(readRelayChainConfigs(env())).toEqual([]);
+        expect(readShelterConfigs(env()).map(c => c.chainId)).toEqual([5042]);
+        expect(shelterConfigFor(84532, env())).toBeNull();
+    });
+
+    it('reads rpc, split, router, key env name and daily budget per chain, after the main and try-it chains', () => {
+        const e = env({
+            SHELTER_TRY_CHAIN_ID: '5042002',
+            SHELTER_RELAY_CHAINS: '84532, 421614, 5042, 5042002, 84532, junk, -1',
+            SHELTER_CHAIN_84532_SPLIT_ADDRESS: SPLIT,
+            SHELTER_CHAIN_84532_ROUTER_ADDRESS: ROUTER_B,
+            SHELTER_CHAIN_84532_ROUTER_FROM_BLOCK: '123',
+            SHELTER_CHAIN_84532_KEY_ENV: 'SHELTER_DONATEHOT_KEY',
+            SHELTER_DONATEHOT_KEY: HEX_HOT,
+            SHELTER_CHAIN_84532_RELAY_ENABLED: 'true',
+            SHELTER_CHAIN_84532_RELAY_DAILY_TX: '7',
+            SHELTER_CHAIN_421614_RPC_URL: 'https://arb.example/rpc',
+        });
+        const list = readRelayChainConfigs(e);
+        // The main chain and the try-it testnet are never repeated; duplicates and junk are dropped.
+        expect(list.map(c => c.chainId)).toEqual([84532, 421614]);
+        expect(readShelterConfigs(e).map(c => c.chainId)).toEqual([5042, 5042002, 84532, 421614]);
+        const base = list[0];
+        expect(base).toMatchObject({
+            chainId: 84532,
+            rpcUrl: 'https://sepolia.base.org',
+            privateKey: HEX_HOT,
+            relayEnabled: true,
+            relayDailyTx: 7,
+            routerFromBlock: 123,
+            matchEnabled: false,
+            donateEnabled: false,
+            x402Enabled: false,
+            handedOver: false,
+            claimAllowedWallets: [],
+        });
+        expect(base.routerAddress?.toLowerCase()).toBe(ROUTER_B);
+        expect(base.splitAddress?.toLowerCase()).toBe(SPLIT);
+        // Unconfigured: off, no key, the chain's own RPC when given.
+        expect(list[1]).toMatchObject({
+            chainId: 421614,
+            rpcUrl: 'https://arb.example/rpc',
+            privateKey: null,
+            relayEnabled: false,
+            routerAddress: null,
+            relayDailyTx: 50,
+        });
+        expect(shelterConfigFor(84532, e)?.privateKey).toBe(HEX_HOT);
+        expect(shelterConfigFor(421614, e)?.chainId).toBe(421614);
+    });
+
+    it('never lets a testnet sign with the main hot wallet key, and ignores malformed key env names and keys', () => {
+        const common = { SHELTER_DONATE_PRIVATE_KEY: HEX_MAIN, SHELTER_RELAY_CHAINS: '84532' };
+        expect(
+            readRelayChainConfigs(env({ ...common, SHELTER_CHAIN_84532_KEY_ENV: 'SHELTER_DONATE_PRIVATE_KEY' }))[0]
+                .privateKey
+        ).toBeNull();
+        expect(
+            readRelayChainConfigs(
+                env({ ...common, SHELTER_CHAIN_84532_KEY_ENV: 'lower-case', 'lower-case': HEX_HOT })
+            )[0].privateKey
+        ).toBeNull();
+        expect(
+            readRelayChainConfigs(env({ ...common, SHELTER_CHAIN_84532_KEY_ENV: 'HOT', HOT: 'not-a-key' }))[0]
+                .privateKey
+        ).toBeNull();
+        // A mainnet entry may share the main hot wallet (gas on several chains) and follows the handover flag.
+        const main = readRelayChainConfigs(
+            env({ ...common, SHELTER_RELAY_CHAINS: '8453', SHELTER_CHAIN_8453_KEY_ENV: 'SHELTER_DONATE_PRIVATE_KEY' })
+        )[0];
+        expect(main).toMatchObject({
+            chainId: 8453,
+            privateKey: HEX_MAIN,
+            handedOver: true,
+            rpcUrl: 'https://mainnet.base.org',
+        });
+        expect(
+            readRelayChainConfigs(env({ ...common, SHELTER_HANDED_OVER: 'false', SHELTER_RELAY_CHAINS: '8453' }))[0]
+                .handedOver
+        ).toBe(false);
+    });
+
+    it('knows a public RPC for all six chains, mainnet and testnet', () => {
+        const ids = [5042, 5042002, 4217, 42431, 42161, 421614, 43114, 43113, 8453, 84532, 4663, 46630];
+        const list = readRelayChainConfigs(env({ SHELTER_CHAIN_ID: '1', SHELTER_RELAY_CHAINS: ids.join(',') }));
+        expect(list.map(c => c.chainId)).toEqual(ids);
+        for (const c of list) {
+            expect(c.rpcUrl).toMatch(/^https:\/\//);
+        }
     });
 });
 

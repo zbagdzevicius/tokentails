@@ -15,7 +15,7 @@
  * The UI owns no game state. Navigation between Title and Cat pick is internal; everything that
  * affects the game goes out through `handlers`.
  */
-import { giveHref, shelterTotalLine } from './payouts';
+import { TESTNET_DEPLOYMENTS_URL, giveHref, shelterTotalLine } from './payouts';
 import { ASSET_BASE, DEPLOYMENTS_URL, GIVE_URL, PAYOUTS_URL, TICK_HZ, type AssetManifest, type LevelDef, type RunResult, type SheetEntry, type SimEvent, type SimState } from '../types';
 import { formatTime, h, hashHex, isCoarsePointer, prefersReducedMotion, safeStorageGet, safeStorageSet, setText } from './dom';
 import type { InputController } from './input';
@@ -77,6 +77,10 @@ export interface UIOptions {
   loadPayouts?: (deploymentsUrl: string) => Promise<ShelterPayouts>;
   /** Deployment list for the win screen's on-chain "sent to shelters" total. Default DEPLOYMENTS_URL; '' hides it. */
   deploymentsUrl?: string;
+  /** Testnet list for the payouts modal's "Testnet proof" section. Default TESTNET_DEPLOYMENTS_URL; '' hides it. */
+  testnetDeploymentsUrl?: string;
+  /** Testnet proof data source (tests, the UI bench). Default: read the testnets; none when `loadPayouts` is set. */
+  loadTestnetPayouts?: (testnetUrl: string) => Promise<ShelterPayouts>;
   /** Give page behind the win screen's "rescue treat" button. Default GIVE_URL; '' hides the button. */
   giveUrl?: string;
   /**
@@ -1038,10 +1042,12 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
   if (payoutsOn) {
     payoutsModal = createPayoutsModal(root, {
       deploymentsUrl,
+      testnetUrl: opts.testnetDeploymentsUrl ?? TESTNET_DEPLOYMENTS_URL,
       base,
       payoutsUrl,
       heartSrc: img('heart'),
       load: opts.loadPayouts,
+      loadTestnet: opts.loadTestnetPayouts,
       onClick: () => handlers.onClick?.(),
       // The rail decides the CTA, as on the win screen: the give link while live, else its badge.
       giveCta: () => {

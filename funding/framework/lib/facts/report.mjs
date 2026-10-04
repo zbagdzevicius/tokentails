@@ -36,17 +36,11 @@ export function staleness(registry, now) {
   return out;
 }
 
-/** "2026-12-30" minus n days, as a date string. */
-function minusDays(date, n) {
-  return new Date(Date.parse(`${date}T00:00:00Z`) - n * DAY).toISOString().slice(0, 10);
-}
-
 /**
- * Where each goal stands today. Offline the report cannot see the amount raised, so it checks what
- * it can prove: the campaign must be counting (shelter wallet and fromBlock set) once the goal has
- * started, and it must have started counting by the last day that still leaves `minDays` at the cap.
- * While it runs, the note gives the least the payouts page must already show for the goal to be
- * reachable in the days left.
+ * Where each goal stands today. The meter counts the USDC that comes in to the campaign wallets
+ * (the backend sums the transfer logs, GET /shelter/goal/:id); offline the report cannot see that amount, so it checks what it can prove: once the goal
+ * has started the campaign must be counting (shelter wallet and fromBlock set), and while it runs
+ * the note gives the pace the rest of the goal needs if nothing has arrived yet.
  */
 export function goalStatus(registry, now, root) {
   const out = [];
@@ -54,38 +48,33 @@ export function goalStatus(registry, now, root) {
   for (const f of registry.facts) {
     if (!f.goal) continue;
     const r = goalFeasibility(f, root);
-    const { decimals } = f.goal.cap;
-    const cap = parseUnits(r.capPerDay, decimals);
-    const target = parseUnits(f.value, decimals);
-    const lastStart = Number.isFinite(r.minDays) ? minusDays(f.goal.endDate, r.minDays - 1) : null;
+    const target = parseUnits(f.value, 18);
     const counting = !f.campaign || (f.campaign.shelter?.wallet && f.campaign.fromBlock != null);
     const missing = f.campaign ? [!f.campaign.shelter?.wallet && 'shelter.wallet', f.campaign.fromBlock == null && 'fromBlock'].filter(Boolean).join(' and ') : '';
-    // A wallet without fromBlock is not "nothing counts": campaignProgress then counts every payout
-    // ever made to the wallet, including ones before startDate. The schema refuses it too.
+    // A wallet without fromBlock would count money that reached the wallet before startDate.
     if (f.campaign?.shelter?.wallet && f.campaign.fromBlock == null) {
-      out.push({ id: f.id, problem: true, detail: `campaign.shelter.wallet is set but fromBlock is null, so /shelter-payouts is counting every payout to the wallet, including ones before startDate (${f.goal.startDate}). Set campaign.fromBlock to the first block on or after ${f.goal.startDate} in facts.json and rebuild.` });
+      out.push({ id: f.id, problem: true, detail: `campaign.shelter.wallet is set but fromBlock is null, so the meter would count money that reached the wallet before startDate (${f.goal.startDate}). Set campaign.fromBlock to the first block on or after ${f.goal.startDate} in facts.json and rebuild.` });
       continue;
     }
+    // What can reach the open wallet today: a Token-Tails-held wallet only gets treats (custody rules).
+    const handover = !f.campaign
+      ? ''
+      : f.campaign.shelter?.handover === 'handed-over'
+        ? ' The shelter holds its own wallet: gifts, the match and x402 payments count.'
+        : ' Token Tails still holds the wallet, so only sponsored treats can reach it today; at handover follow campaign.rotation.';
     if (today > f.goal.endDate) {
       out.push({ id: f.id, problem: true, detail: `goal ended on ${f.goal.endDate}: replace or retire it` });
     } else if (today >= f.goal.startDate) {
       const left = inclusiveDays(today, f.goal.endDate);
-      const reachable = cap * BigInt(left);
+      const pace = formatUnits((target + BigInt(left) - 1n) / BigInt(left), 18);
       if (!counting) {
-        const why = reachable < target
-          ? `cannot be met: ${left} days left at ${r.capPerDay} ${f.unit}/day is at most ${formatUnits(reachable, decimals)} ${f.unit}, and nothing is counted yet`
-          : `the campaign has no ${missing}, so no payout counts toward it; it must be counting by ${lastStart} to stay reachable`;
-        out.push({ id: f.id, problem: true, detail: `running since ${f.goal.startDate}, but ${why}. Set ${missing.split(' and ').map((m) => `campaign.${m}`).join(' and ')} in facts.json (or move the goal dates) and rebuild.` });
+        out.push({ id: f.id, problem: true, detail: `running since ${f.goal.startDate}, but the campaign has no ${missing}, so the meter counts nothing. Set ${missing.split(' and ').map((m) => `campaign.${m}`).join(' and ')} in facts.json (or move the goal dates) and rebuild.` });
       } else {
-        const need = target > reachable ? target - reachable : 0n;
-        const tail = need > 0n
-          ? ` It is reachable only if /shelter-payouts already shows at least ${formatUnits(need, decimals)} ${f.unit} raised; if not, lower the goal or extend endDate.`
-          : '';
-        out.push({ id: f.id, problem: false, detail: `running: ${left} of ${r.days} days left; at most ${r.capPerDay} ${f.unit}/day (${formatUnits(reachable, decimals)} ${f.unit} more). Goal ${f.value} ${f.unit}.${tail}` });
+        out.push({ id: f.id, problem: false, detail: `running: ${left} of ${r.days} days left. The meter counts the ${f.unit} that comes in to the campaign wallets (${r.sources.join(', ')}; the backend sums the transfer logs). From zero it would need about ${pace.replace(/(\.\d{2})\d+$/, '$1')} ${f.unit}/day; Token Tails' own streams add at most ${r.tokenTailsMax} ${f.unit} over the whole goal at the code defaults (the production env may differ).${handover}` });
       }
     } else {
-      const late = !counting ? ` Not counting yet (no ${missing}); it must be counting by ${lastStart}.` : '';
-      out.push({ id: f.id, problem: false, detail: `starts ${f.goal.startDate}; ${r.goal} ${f.unit} needs ${r.minDays} of ${r.days} days at the cap (${r.spareDays} spare).${late}` });
+      const late = !counting ? ` Not counting yet (no ${missing}).` : '';
+      out.push({ id: f.id, problem: false, detail: `starts ${f.goal.startDate}; ${r.goal} ${f.unit} over ${r.days} days, ${r.donorDependent ? `about ${r.donorPerDay} ${f.unit}/day from donors` : "within Token Tails' own streams"}.${late}${handover}` });
     }
   }
   return out;

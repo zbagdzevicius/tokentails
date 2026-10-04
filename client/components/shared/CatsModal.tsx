@@ -12,6 +12,8 @@ import { PackType } from "@/models/order";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, useMemo } from "react";
 import { GameEvents } from "../Phaser/events";
+import { catName } from "@/components/shelter-payouts/pinkPaw";
+import { CardAction } from "../tailsCard/CardAction";
 import { TailsCardMini } from "../tailsCard/TailsCardMini";
 import { TailsCardModal } from "../tailsCard/TailsCardModal";
 import { ArrowIcon } from "./ArrowIcon";
@@ -345,6 +347,35 @@ const EmptyTierRow = ({ tier }: { tier: Tier }) => (
   </div>
 );
 
+/**
+ * One My Pets card: the whole mini card is a button that opens the card detail (the same
+ * `setSelectedCat` the card's own click runs), with the small gold "open" badge.
+ */
+const PetCard = ({
+  cat,
+  ping,
+  onOpen,
+}: {
+  cat: ICat;
+  ping: boolean;
+  onOpen: (cat: ICat) => void;
+}) => (
+  <CardAction
+    size="sm"
+    ping={ping}
+    ariaLabel={`Open ${catName(cat)}`}
+    fill
+    className="mx-auto max-w-[180px]"
+    onClick={(e) => {
+      // The grid around it toggles the tier open; a card press only opens the card.
+      e.stopPropagation();
+      onOpen(cat);
+    }}
+  >
+    <TailsCardMini cat={cat} onClick={() => onOpen(cat)} />
+  </CardAction>
+);
+
 interface TierRowProps {
   tier: Tier;
   cats: ICat[];
@@ -501,10 +532,7 @@ const TierRow = ({
                       setSelectedCat(cat);
                     }}
                   >
-                    <TailsCardMini
-                      cat={cat}
-                      onClick={() => setSelectedCat(cat)}
-                    />
+                    <PetCard cat={cat} ping={index === 0} onOpen={setSelectedCat} />
                   </div>
                 ))
               ) : (
@@ -527,10 +555,7 @@ const TierRow = ({
                   <>
                     {cats.slice(0, count).map((cat, index) => (
                       <div key={cat._id! + index} className="flex-shrink-0">
-                        <TailsCardMini
-                          cat={cat}
-                          onClick={() => setSelectedCat(cat)}
-                        />
+                        <PetCard cat={cat} ping={index === 0} onOpen={setSelectedCat} />
                       </div>
                     ))}
                     {cats.length > count && (

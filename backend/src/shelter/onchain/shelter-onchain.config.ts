@@ -4,10 +4,24 @@ import { getAddress, getBigInt, isAddress } from 'ethers';
 export const ARC_MAINNET_CHAIN_ID = 5042;
 export const ARC_TESTNET_CHAIN_ID = 5042002;
 
+/** Keyless public RPCs (the client's chains.ts list): a chain's config may name its own instead. */
 const DEFAULT_RPC: Record<number, string> = {
     [ARC_MAINNET_CHAIN_ID]: 'https://rpc.mainnet.arc.io',
     [ARC_TESTNET_CHAIN_ID]: 'https://rpc.testnet.arc.io',
+    4217: 'https://rpc.tempo.xyz',
+    42431: 'https://rpc.moderato.tempo.xyz',
+    42161: 'https://arb1.arbitrum.io/rpc',
+    421614: 'https://sepolia-rollup.arbitrum.io/rpc',
+    43114: 'https://api.avax.network/ext/bc/C/rpc',
+    43113: 'https://api.avax-test.network/ext/bc/C/rpc',
+    8453: 'https://mainnet.base.org',
+    84532: 'https://sepolia.base.org',
+    4663: 'https://rpc.mainnet.chain.robinhood.com',
+    46630: 'https://rpc.testnet.chain.robinhood.com',
 };
+
+/** The keyless public RPC for `chainId`, or null when none is known. */
+export const publicRpcUrl = (chainId: number): string | null => DEFAULT_RPC[chainId] || null;
 
 /** 0.01 USDC in wei (18 decimals). */
 const DEFAULT_AMOUNT_WEI = '10000000000000000';
@@ -165,13 +179,85 @@ export function readTryShelterConfig(env: NodeJS.ProcessEnv = process.env): Shel
     };
 }
 
-/** Every chain the relay and match serve: the main one, then the try-it testnet when configured. */
-export function readShelterConfigs(env: NodeJS.ProcessEnv = process.env): ShelterOnchainConfig[] {
+const ENV_NAME = /^[A-Z][A-Z0-9_]{0,63}$/;
+const PRIVATE_KEY = /^0x[0-9a-fA-F]{64}$/;
+
+/**
+ * More chains for the gas relay (multi-chain wallet giving), one config each. Unset (the default),
+ * nothing changes: the relay serves SHELTER_CHAIN_ID and the optional try-it testnet only.
+ *
+ *   SHELTER_RELAY_CHAINS=84532,421614          chain ids, comma-separated
+ *   SHELTER_CHAIN_<id>_RPC_URL                 optional; defaults to the chain's public RPC
+ *   SHELTER_CHAIN_<id>_SPLIT_ADDRESS           the chain's USDC ShelterSplit
+ *   SHELTER_CHAIN_<id>_ROUTER_ADDRESS          its DonateRouter (the relay needs it)
+ *   SHELTER_CHAIN_<id>_ROUTER_FROM_BLOCK       optional; where the RouterDonation scan starts
+ *   SHELTER_CHAIN_<id>_KEY_ENV                 the NAME of the env variable holding that chain's hot
+ *                                              wallet key (gas only), e.g. SHELTER_DONATEHOT_KEY
+ *   SHELTER_CHAIN_<id>_RELAY_ENABLED           'true' to relay there
+ *   SHELTER_CHAIN_<id>_RELAY_DAILY_TX          optional daily budget in relayed transactions
+ *   SHELTER_CHAIN_<id>_MATCH_ENABLED           optional; the match stays off unless 'true'
+ *   SHELTER_CHAIN_<id>_TREASURY_ADDRESS        optional; the split's treasury
+ *
+ * A chain already served (the main chain or the try-it testnet) is skipped. A testnet never signs with
+ * the main hot wallet key (test funds only). A mainnet entry still waits for SHELTER_HANDED_OVER and the
+ * on-chain claim check, like the main chain. These chains send no treats, serve no x402 and take no
+ * shelter claims. Only the router path can be relayed: a gift straight into a ShelterSplit (approve +
+ * disburse) is always sent and paid for by the donor's own wallet.
+ */
+export function readRelayChainConfigs(env: NodeJS.ProcessEnv = process.env): ShelterOnchainConfig[] {
+    const raw = (env.SHELTER_RELAY_CHAINS || '').trim();
+    if (!raw) {
+        return [];
+    }
+    const base = readShelterConfig(env);
     const tryConfig = readTryShelterConfig(env);
-    return tryConfig ? [readShelterConfig(env), tryConfig] : [readShelterConfig(env)];
+    const seen = new Set<number>([base.chainId, ...(tryConfig ? [tryConfig.chainId] : [])]);
+    const out: ShelterOnchainConfig[] = [];
+    for (const part of raw.split(',')) {
+        const chainId = Number(part.trim());
+        if (!Number.isSafeInteger(chainId) || chainId <= 0 || seen.has(chainId)) {
+            continue;
+        }
+        seen.add(chainId);
+        const p = `SHELTER_CHAIN_${chainId}_`;
+        const keyEnv = (env[`${p}KEY_ENV`] || '').trim();
+        const rawKey = ENV_NAME.test(keyEnv) ? (env[keyEnv] || '').trim() : '';
+        let privateKey = PRIVATE_KEY.test(rawKey) ? rawKey : null;
+        const testnet = isTestnetChain(chainId);
+        if (privateKey && testnet && base.privateKey && privateKey.toLowerCase() === base.privateKey.toLowerCase()) {
+            privateKey = null;
+        }
+        out.push({
+            ...base,
+            chainId,
+            rpcUrl: (env[`${p}RPC_URL`] || '').trim() || DEFAULT_RPC[chainId] || null,
+            splitAddress: address(env[`${p}SPLIT_ADDRESS`]),
+            privateKey,
+            routerAddress: address(env[`${p}ROUTER_ADDRESS`]),
+            routerFromBlock: blockNumber(env[`${p}ROUTER_FROM_BLOCK`]),
+            relayEnabled: flag(env[`${p}RELAY_ENABLED`]),
+            relayDailyTx: positiveInt(env[`${p}RELAY_DAILY_TX`], base.relayDailyTx),
+            matchEnabled: flag(env[`${p}MATCH_ENABLED`]),
+            treasuryAddress: address(env[`${p}TREASURY_ADDRESS`]),
+            donateEnabled: false,
+            x402Enabled: false,
+            handedOver: testnet ? false : base.handedOver,
+            claimAllowedWallets: [],
+        });
+    }
+    return out;
 }
 
-/** The config serving `chainId` (main or try-it), or null when neither does. */
+/**
+ * Every chain the relay and match serve: the main one, the try-it testnet when configured, then the
+ * SHELTER_RELAY_CHAINS entries.
+ */
+export function readShelterConfigs(env: NodeJS.ProcessEnv = process.env): ShelterOnchainConfig[] {
+    const tryConfig = readTryShelterConfig(env);
+    return [readShelterConfig(env), ...(tryConfig ? [tryConfig] : []), ...readRelayChainConfigs(env)];
+}
+
+/** The config serving `chainId` (main, try-it or a SHELTER_RELAY_CHAINS entry), or null when none does. */
 export function shelterConfigFor(chainId: number, env: NodeJS.ProcessEnv = process.env): ShelterOnchainConfig | null {
     return readShelterConfigs(env).find(c => c.chainId === Number(chainId)) || null;
 }

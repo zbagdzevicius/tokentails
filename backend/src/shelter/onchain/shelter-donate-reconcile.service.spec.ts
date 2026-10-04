@@ -362,4 +362,40 @@ describe('ShelterDonateReconcileService wallet-gift steps (F2)', () => {
         expect(relay.confirmPending).toHaveBeenCalledTimes(1);
         expect(match.runOnce).toHaveBeenCalledTimes(1);
     });
+
+    it('runs the relay and match steps once per SHELTER_RELAY_CHAINS chain, isolated per chain', async () => {
+        enabledEnv();
+        const ctx = setup();
+        const relay = {
+            confirmPending: jest.fn(async (c: any) => {
+                if (c.chainId === 421614) throw Object.assign(new Error('rpc'), { code: 'SERVER_ERROR' });
+                return { confirmed: c.chainId === 84532 ? 1 : 0, failed: 0 };
+            }),
+        };
+        const match = {
+            runOnce: jest.fn(async () => ({ scanned: 0, queued: 0, sent: 0, skipped: 0, confirmed: 0, failed: 0 })),
+        };
+        const reconcile = new ShelterDonateReconcileService(
+            ctx.donations as any,
+            ctx.donate,
+            new ShelterChain(),
+            relay as any,
+            match as any
+        );
+        const main = readShelterConfig();
+        const result = await reconcile.reconcileOnce(SENT_AT, main, null, [
+            { ...main, chainId: 84532 },
+            { ...main, chainId: 421614 },
+        ]);
+        expect(relay.confirmPending.mock.calls.map((c: any[]) => c[0].chainId)).toEqual([main.chainId, 84532, 421614]);
+        expect(match.runOnce.mock.calls.map((c: any[]) => (c as any[])[1].chainId)).toEqual([
+            main.chainId,
+            84532,
+            421614,
+        ]);
+        expect(result.chains?.[84532]).toMatchObject({ relay: { confirmed: 1, failed: 0 }, match: { scanned: 0 } });
+        // A failing chain keeps its match step and never touches the others.
+        expect(result.chains?.[421614]?.relay).toBeUndefined();
+        expect(result.chains?.[421614]?.match).toBeDefined();
+    });
 });

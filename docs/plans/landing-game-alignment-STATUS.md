@@ -39,5 +39,6 @@ funding run) and two QA reports (journey QA and visual QA, both at 1440x900 and 
 - The CDN copy of `impact.json` answers 403.
 - `/impact` "Every claim" still lists live rows with no value ("Not measured yet"); a test pins that on purpose.
 - F-026 wording: "$40K+ donated in crypto and goods" everywhere (founder decision 2026-10-03). Pink Paw granted written permission to use its logo and cats (founder, 2026-10-03).
-- Heist modal and the web pages show different Pink Paw cats (the Heist ships four fixed cats).
+- ~~Heist modal and the web pages show different Pink Paw cats.~~ Fixed 2026-10-04: both run `GET /cat/sale` through `shared/pink-paw.ts` (the Heist keeps four local cats only as its offline fallback).
+- ~~The gallery's counts were the storefront's newest 200 cats, not the shelter's totals.~~ Fixed 2026-10-04 (review): both read `GET /shelter/rozine-pedute/gallery` (uncapped; `/cat/sale` is the fallback and then says "of the newest"), the Heist no longer downloads the storefront on every open, a bundled cats fallback is retried on the next open, the gallery opens on the first tab that has cats, and the Heist meter repaints only itself (the give button keeps focus).
 - Landing team section spacing (QA P2 #12) and the payouts hero font (P3) are unchanged.

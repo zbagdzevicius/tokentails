@@ -11,7 +11,22 @@ import { ChainType } from './web3.model';
 export { OrderStatus };
 
 /** Why a paid order was not granted. */
-export const GRANT_FAILURE_REASONS = ['EMPTY_POOL', 'ADOPT_FAILED', 'NO_CAT'] as const;
+/**
+ * `PAID_AFTER_EXPIRY`: a crypto checkout payment mined after the order expired (past its grace).
+ * `DUPLICATE_PAYMENT`: a second crypto payment for an order that was already paid. `NOT_FOR_SALE`: a
+ * shelter cat paid in the grace after expiry that is no longer for sale to this buyer.
+ * `STELLAR_DEPRECATED`: a Stellar pack payment after Stellar packs closed (STELLAR_PACKS_SUNSET_AT).
+ * All are refunded by hand (`refund: 'due'`).
+ */
+export const GRANT_FAILURE_REASONS = [
+    'EMPTY_POOL',
+    'ADOPT_FAILED',
+    'NO_CAT',
+    'PAID_AFTER_EXPIRY',
+    'DUPLICATE_PAYMENT',
+    'NOT_FOR_SALE',
+    'STELLAR_DEPRECATED',
+] as const;
 export type GrantFailureReason = typeof GRANT_FAILURE_REASONS[number];
 
 /**
@@ -100,6 +115,14 @@ export class Order extends CommonSchema {
 
     @Prop({ required: false, _id: false, type: Object })
     refund?: IOrderRefund;
+
+    /** EVM chain id of a crypto checkout payment (`chainType: EVM`). */
+    @Prop({ required: false })
+    chainId?: number;
+
+    /** The crypto checkout order (`CryptoCheckout.orderId`, `co_<16 hex>`) this payment settled. */
+    @Prop({ required: false })
+    checkoutId?: string;
 }
 
 export type OrderDocument = Order & Document;
@@ -116,7 +139,8 @@ OrderSchema.index({ id: 1 });
 OrderSchema.index({ image: 1 });
 OrderSchema.index({ user: 1, entityType: 1, status: 1 });
 OrderSchema.index({ 'refund.state': 1 }, { partialFilterExpression: { refund: { $exists: true } } });
-// One order per payment: a Stellar transaction hash, Stripe session id or PaymentIntent id.
+// One order per payment: a Stellar transaction hash, Stripe session id or PaymentIntent id, or
+// `evm:<chainId>:<txHash>` for the crypto checkout.
 // Partial so orders without a hash (released after a failed verification) do not collide.
 // The build fails while duplicates exist: run scripts/audit-orders.js first (docs/BACKEND.md).
 export const ORDER_HASH_INDEX = 'hash_unique';

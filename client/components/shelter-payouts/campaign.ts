@@ -1,10 +1,17 @@
-import { SHELTER_CHAINS } from "./chains";
-import { Disbursement, payoutUnit, to18 } from "./logs";
+// public/shelter-payouts/campaign.json: the showcase shelter and its campaign goal, generated from
+// fact C-001 (funding/framework/facts/facts.json; edit that, never the JSON). The goal counts the
+// USDC that CAME IN to the campaign wallets (`wallets`, each inside its block range), as the backend
+// sums it from the chain's Transfer logs (GET /shelter/goal/C-001, shared/shelter-goal.ts): spending
+// never lowers it, and a handover to the shelter's own wallet keeps counting. While the wallet is
+// null the meter shows the goal but counts nothing.
+import { GoalSource, GoalWallet, ShelterGoalView, sourcesFor } from "@/shared-contracts/shelter-goal";
 
-// public/shelter-payouts/campaign.json: the showcase shelter and its campaign goal. The goal,
-// start date and fromBlock are placeholders the team edits. The wallet stays null until the
-// ShelterSplit deploy; while it is null the meter shows the goal but counts nothing.
+export type { GoalSource, GoalWallet };
+
 export const CAMPAIGN_URL = "/shelter-payouts/campaign.json";
+
+/** The fact that generates campaign.json (only one entry may). */
+export const GOAL_FACT_ID = "C-001";
 
 export type HandoverStatus = "held-by-token-tails" | "handed-over";
 
@@ -18,36 +25,80 @@ export interface Campaign {
   name: string;
   goalUsdc: string;
   startDate: string;
+  /** The goal's target date, `YYYY-MM-DD`, or "" when the file has none. */
+  endDate: string;
   chainId: number;
   fromBlock: number | null;
+  sources: GoalSource[];
+  /** The USDC the meter reads the wallet's balance in (Arc: the ERC-20 view of native USDC). */
+  token: { address: string; decimals: number } | null;
+  /** The wallet's USDC balance just before `fromBlock`, a decimal string. */
+  startBalance: string;
+  /**
+   * Every wallet the goal counts, each inside its block range; the open one is shelter.wallet.
+   * parseCampaign always sets it ([] for an older campaign.json).
+   */
+  wallets?: GoalWallet[];
   shelter: ShowcaseShelter;
 }
 
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const AMOUNT = /^\d+(\.\d{1,6})?$/;
+const SOURCES: GoalSource[] = ["gifts", "match", "treats", "x402", "purchase-shares"];
 
 export function parseCampaign(raw: unknown): Campaign {
-  const c = raw as Partial<Campaign> | null;
+  const c = raw as (Partial<Omit<Campaign, "token">> & { token?: unknown }) | null;
   if (!c || typeof c !== "object") throw new Error("campaign.json must be an object");
   if (typeof c.name !== "string" || !c.name) throw new Error("campaign.json: name is required");
-  if (typeof c.goalUsdc !== "string" || !/^\d+(\.\d{1,6})?$/.test(c.goalUsdc)) {
+  if (typeof c.goalUsdc !== "string" || !AMOUNT.test(c.goalUsdc)) {
     throw new Error("campaign.json: goalUsdc must be a decimal string such as \"500\"");
   }
   if (typeof c.chainId !== "number") throw new Error("campaign.json: chainId is required");
   const s = c.shelter as Partial<ShowcaseShelter> | undefined;
   if (!s || typeof s.name !== "string") throw new Error("campaign.json: shelter.name is required");
   const wallet = typeof s.wallet === "string" && ADDRESS.test(s.wallet) ? s.wallet.toLowerCase() : null;
+  const t = c.token as { address?: unknown; decimals?: unknown } | null | undefined;
+  const token =
+    t && typeof t.address === "string" && ADDRESS.test(t.address) && Number.isInteger(t.decimals) &&
+    (t.decimals as number) >= 0 && (t.decimals as number) <= 18
+      ? { address: t.address.toLowerCase(), decimals: t.decimals as number }
+      : null;
   return {
     name: c.name,
     goalUsdc: c.goalUsdc,
     startDate: typeof c.startDate === "string" ? c.startDate : "",
+    endDate: typeof c.endDate === "string" && DAY.test(c.endDate) ? c.endDate : "",
     chainId: c.chainId,
     fromBlock: typeof c.fromBlock === "number" ? c.fromBlock : null,
+    sources: Array.isArray(c.sources) ? SOURCES.filter((x) => (c.sources as unknown[]).includes(x)) : [],
+    token,
+    startBalance: typeof c.startBalance === "string" && AMOUNT.test(c.startBalance) ? c.startBalance : "0",
+    wallets: parseWallets((c as { wallets?: unknown }).wallets),
     shelter: {
       name: s.name,
       wallet,
       handover: s.handover === "handed-over" ? "handed-over" : "held-by-token-tails",
     },
   };
+}
+
+const isBlock = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 0;
+
+/** campaign.json `wallets`: well-formed entries only, addresses lowercased. */
+function parseWallets(raw: unknown): GoalWallet[] {
+  if (!Array.isArray(raw)) return [];
+  const out: GoalWallet[] = [];
+  for (const w of raw as Record<string, unknown>[]) {
+    if (!w || typeof w.wallet !== "string" || !ADDRESS.test(w.wallet) || !isBlock(w.fromBlock)) continue;
+    out.push({
+      wallet: w.wallet.toLowerCase(),
+      fromBlock: w.fromBlock,
+      toBlock: isBlock(w.toBlock) ? w.toBlock : null,
+      holder: w.holder === "shelter" ? "shelter" : "token-tails",
+    });
+  }
+  return out;
 }
 
 export async function fetchCampaign(): Promise<Campaign> {
@@ -62,42 +113,89 @@ export function usdcTo18(amount: string): bigint {
   return BigInt(whole + frac.padEnd(18, "0").slice(0, 18));
 }
 
-export interface CampaignProgress {
-  counting: boolean; // false until the shelter wallet is configured
-  raised: bigint; // 18-decimal USDC
-  goal: bigint; // 18-decimal USDC
-  percent: number; // 0..100, two decimals
-  count: number;
+/**
+ * The shelter wallet as the balance fallback reads it, all in 18-decimal USDC: its balance now, its
+ * balance just before the campaign's first block, and how many transactions it has sent (its nonce).
+ */
+export interface WalletReading {
+  balance: bigint;
+  start: bigint;
+  nonce: number;
 }
 
-// Sums the on-chain USDC payouts to the campaign's shelter on the campaign's chain, from
-// fromBlock on. Native USDC (18 decimals on Arc) and ERC-20 USDC (6) both count. `symbol` is the
-// deployment's payout token (resolveChain): a second instance paying EURC is never counted as USDC.
+/** What came in, as the meter shows it. */
+export interface GoalCount {
+  /** 18-decimal USDC that came in since the start. */
+  raised: bigint;
+  /** False while the backend is still counting older blocks: the figure is then "at least". */
+  exact: boolean;
+}
+
+export interface CampaignProgress {
+  counting: boolean; // false until the shelter wallet is configured
+  raised: bigint; // 18-decimal USDC that came in since the start (at least, when !exact)
+  goal: bigint; // 18-decimal USDC
+  percent: number; // 0..100, two decimals
+  /** False while the count does not reach the chain head yet ("at least"). */
+  exact: boolean;
+  /** What can reach the open wallet today: the only sources the copy may name as counting. */
+  sources: GoalSource[];
+}
+
+/** The backend's count (GET /shelter/goal/C-001); null before its first window (nothing is claimed). */
+export function countFromView(view: ShelterGoalView | null): GoalCount | null {
+  if (!view || view.scannedTo === null) return null;
+  return { raised: usdcTo18(view.raised), exact: view.upToDate };
+}
+
+/**
+ * The balance fallback, used only while it is exact: one campaign wallet that has never sent a
+ * transaction, so its growth since the start is exactly what came in. Anything else (a second
+ * wallet after the handover, or a wallet that has spent) proves nothing: null, and the meter says
+ * it cannot read the count rather than show a balance that can go down.
+ */
+export function countFromReading(campaign: Campaign, reading: WalletReading | null): GoalCount | null {
+  if (!reading || reading.nonce !== 0 || (campaign.wallets ?? []).length > 1) return null;
+  const grown = reading.balance - reading.start;
+  return { raised: grown > BigInt(0) ? grown : BigInt(0), exact: true };
+}
+
+/** The holder of the wallet money reaches today. */
+export const openHolder = (campaign: Campaign) =>
+  (campaign.wallets ?? []).find((w) => w.toBlock === null)?.holder ??
+  (campaign.shelter.handover === "handed-over" ? "shelter" : "token-tails");
+
+/** Live sources: the backend's list, else what the open wallet's holder allows (no shop shares). */
+export function goalSources(campaign: Campaign, view: ShelterGoalView | null): GoalSource[] {
+  return view ? view.liveSources : sourcesFor(openHolder(campaign));
+}
+
+/**
+ * Goal progress from a count. Null count (not read yet, or unreadable): nothing is claimed.
+ */
 export function campaignProgress(
   campaign: Campaign,
-  perChain: { chainId: number; items: Disbursement[]; symbol?: string }[]
+  count: GoalCount | null,
+  sources: GoalSource[] = sourcesFor(openHolder(campaign))
 ): CampaignProgress {
   const goal = usdcTo18(campaign.goalUsdc);
-  const wallet = campaign.shelter.wallet;
-  const chain = SHELTER_CHAINS[campaign.chainId];
-  let raised = BigInt(0);
-  let count = 0;
-  if (wallet && chain) {
-    for (const entry of perChain) {
-      if (entry.chainId !== campaign.chainId) continue;
-      for (const d of entry.items) {
-        if (d.shelter.toLowerCase() !== wallet) continue;
-        if (campaign.fromBlock !== null && d.blockNumber < campaign.fromBlock) continue;
-        const unit = payoutUnit(d.kind, entry.symbol ? { ...chain, symbol: entry.symbol } : chain);
-        if (unit.symbol !== "USDC") continue;
-        raised += to18(d.amount, unit.decimals);
-        count += 1;
-      }
-    }
-  }
-  const basisPoints = goal > BigInt(0) ? (raised * BigInt(10000)) / goal : BigInt(0);
+  const counting = !!campaign.shelter.wallet && !!campaign.token;
+  const zero = BigInt(0);
+  const raised = counting && count && count.raised > zero ? count.raised : zero;
+  const basisPoints = goal > zero ? (raised * BigInt(10000)) / goal : zero;
   const percent = Math.min(100, Number(basisPoints) / 100);
-  return { counting: !!wallet, raised, goal, percent, count };
+  return { counting, raised, goal, percent, exact: !count || count.exact, sources };
+}
+
+/** "0.02%", "<0.01%" for a sliver above zero, "0%" for nothing, "100%" at the goal. */
+export function percentLabel(p: Pick<CampaignProgress, "raised" | "goal">): string {
+  const zero = BigInt(0);
+  if (p.raised <= zero || p.goal <= zero) return "0%";
+  const bp = (p.raised * BigInt(10000)) / p.goal;
+  if (bp >= BigInt(10000)) return "100%";
+  if (bp === zero) return "<0.01%";
+  const n = Number(bp) / 100;
+  return `${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}%`;
 }
 
 /** The handover line; app builds use the F7.2 holder labels (no wallet or key wording). */

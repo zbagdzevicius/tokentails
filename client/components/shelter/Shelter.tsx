@@ -21,6 +21,8 @@ import { sample, seededRandom } from "@/constants/utils";
 import { useGame } from "@/context/GameContext";
 import { GameModal } from "@/models/game";
 import { PixelButton } from "../shared/PixelButton";
+import { isApp } from "@/models/app";
+import { ShelterCatCheckoutModal, ShelterCatOffer, isCatForSale } from "./ShelterCatBuy";
 interface IProps {
   currentActiveScene?: (scene_instance: Phaser.Scene) => void;
 }
@@ -145,6 +147,8 @@ export function shelterZones(
 function Shelter() {
   const [selectedNpc, setSelectedNpc] = useState<ICat | null>(null);
   const [showModal, setShowModal] = useState(false);
+  // A shelter cat being bought from its card (basic tier, $5, card or crypto).
+  const [buyCat, setBuyCat] = useState<ICat | null>(null);
 
   const storefront = useStorefront();
   const { cats, partnerCats, meta, roles, isReady, failure, isRetrying, retry } =
@@ -356,8 +360,19 @@ function Shelter() {
         </div>
       )}
       {showModal && selectedNpc && (
-        <TailsCardModal {...selectedNpc} onClose={() => onCloseModal()} />
+        <TailsCardModal {...selectedNpc} onClose={() => onCloseModal()}>
+          {!isApp && isCatForSale(selectedNpc) ? (
+            <ShelterCatOffer
+              cat={selectedNpc}
+              onBuy={() => {
+                setShowModal(false);
+                setBuyCat(selectedNpc);
+              }}
+            />
+          ) : null}
+        </TailsCardModal>
       )}
+      {buyCat && <ShelterCatCheckoutModal cat={buyCat} close={() => setBuyCat(null)} />}
     </div>
   );
 }

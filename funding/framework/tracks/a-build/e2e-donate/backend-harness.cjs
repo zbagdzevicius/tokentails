@@ -5,10 +5,13 @@
 // 1. Firebase stub. Real Firebase cannot verify tokens without the service-account key, which this
 //    harness never reads. `firebase-admin` is replaced by a stand-in whose verifyIdToken accepts
 //    `e2e.<base64url JSON payload>` tokens (send `accesstoken: fbe2e.<...>`) and nothing else.
-// 2. Job triggers. The reconcile (relay, match, treats), payout indexer and impact snapshot jobs run on
-//    crons (2, 5, 60 minutes). The harness keeps the app instance and serves
-//    POST http://127.0.0.1:$E2E_JOBS_PORT/run/{reconcile,indexer,snapshot} so the test runs each job
-//    once, on demand, through the same service methods the crons call.
+// 2. Job triggers. The reconcile (relay, match, treats), payout indexer, impact snapshot and goal scan
+//    jobs run on crons (1 to 60 minutes). The harness keeps the app instance and serves
+//    POST http://127.0.0.1:$E2E_JOBS_PORT/run/{reconcile,indexer,snapshot,goal} so the test runs each
+//    job once, on demand, through the same service methods the crons call.
+// 3. Goal campaign. E2E_GOAL_CAMPAIGN (JSON: chainId, wallets, inflowLog, token, handover) replaces
+//    the `campaign` of fact C-001 in the scratch build's facts module, so the goal meter counts the
+//    local chain's test wallets instead of Arc mainnet. Only the in-memory copy of this process changes.
 //
 // Safety: refuses to start unless MONGODB_URI points at localhost and every RPC URL is local.
 'use strict';
@@ -24,7 +27,9 @@ const refuse = (msg) => {
 };
 if (process.env.NODE_ENV === 'production') refuse('NODE_ENV=production');
 if (!local(process.env.MONGODB_URI)) refuse('MONGODB_URI must be a localhost database');
-for (const k of ['SHELTER_ARC_RPC_URL', 'SHELTER_TRY_RPC_URL', 'SHELTER_X402_EXACT_RPC', 'SHELTER_X402_FACILITATOR_URL']) {
+const rpcKeys = ['SHELTER_ARC_RPC_URL', 'SHELTER_TRY_RPC_URL', 'SHELTER_X402_EXACT_RPC', 'SHELTER_X402_FACILITATOR_URL', 'SHELTER_GOAL_RPC_URL'];
+for (const k of Object.keys(process.env)) if (/^CRYPTO_PAY_RPC_\d+$/.test(k)) rpcKeys.push(k);
+for (const k of rpcKeys) {
     if (process.env[k] && !local(process.env[k])) refuse(`${k} must be a local RPC`);
 }
 if (!local(process.env.SHELTER_ARC_RPC_URL)) refuse('SHELTER_ARC_RPC_URL must be set to the local fork');
@@ -60,6 +65,27 @@ Module._load = function (request, parent, isMain) {
     return origLoad.call(this, request, parent, isMain);
 };
 
+// ---------------------------------------------------------------- 3. goal campaign override
+const dist = path.dirname(require.main ? require.main.filename : process.argv[1]);
+if (process.env.E2E_GOAL_CAMPAIGN) {
+    const c = JSON.parse(process.env.E2E_GOAL_CAMPAIGN);
+    if (!local(process.env.SHELTER_GOAL_RPC_URL)) refuse('E2E_GOAL_CAMPAIGN needs a local SHELTER_GOAL_RPC_URL');
+    if (!Array.isArray(c.wallets) || !c.wallets.length) refuse('E2E_GOAL_CAMPAIGN needs wallets');
+    const { FACTS } = require(path.join(dist, 'impact/facts.generated'));
+    const open = (c.wallets || []).find((w) => w.toBlock === null) || null;
+    FACTS['C-001'].campaign = {
+        ...FACTS['C-001'].campaign,
+        chainId: c.chainId,
+        fromBlock: Math.min(...c.wallets.map((w) => w.fromBlock)),
+        wallet: open ? open.wallet : null,
+        handover: c.handover || 'held-by-token-tails',
+        wallets: c.wallets,
+        inflowLog: c.inflowLog,
+        token: c.token,
+        startBalance: '0',
+    };
+}
+
 // ---------------------------------------------------------------- 2. app capture + job triggers
 const core = require('@nestjs/core');
 const origCreate = core.NestFactory.create.bind(core.NestFactory);
@@ -69,7 +95,6 @@ core.NestFactory.create = async (...args) => {
     return app;
 };
 
-const dist = path.dirname(require.main ? require.main.filename : process.argv[1]);
 const jobs = {
     reconcile: () => {
         const { ShelterDonateReconcileService } = require(path.join(dist, 'shelter/onchain/shelter-donate-reconcile.service'));
@@ -78,6 +103,10 @@ const jobs = {
     indexer: () => {
         const { ImpactIndexerService } = require(path.join(dist, 'impact/impact-indexer.service'));
         return app.get(ImpactIndexerService).indexOnce();
+    },
+    goal: () => {
+        const { ShelterGoalService } = require(path.join(dist, 'shelter/goal/shelter-goal.service'));
+        return app.get(ShelterGoalService).advance('C-001', { maxWindows: 1000 });
     },
     snapshot: async () => {
         const { ImpactService } = require(path.join(dist, 'impact/impact.service'));

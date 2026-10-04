@@ -28,6 +28,8 @@ jest.mock("@capacitor/core", () => ({
 jest.mock("@/analytics", () => ({ reportAppError: jest.fn(), analytics: { enabled: false } }));
 jest.mock("@/components/globe/Globe", () => ({ PixelGlobe: () => null }));
 jest.mock("@/components/shared/Fireflies", () => ({ Fireflies: () => null }));
+// The Pink Paw gallery reads the storefront query (QueryClientProvider lives in MainLayout, not here).
+jest.mock("@/components/shelter-payouts/PinkPawGallery", () => ({ PinkPawGallery: () => null }));
 
 import { Claim } from "@/components/claims/Claim";
 import { ProofDrawer } from "@/components/claims/ProofDrawer";

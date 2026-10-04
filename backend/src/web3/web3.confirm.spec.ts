@@ -1,10 +1,10 @@
-import { BadRequestException, HttpException } from '@nestjs/common';
+import { BadRequestException, GoneException, HttpException } from '@nestjs/common';
 import { Tier } from 'src/cat/cat.schema';
 import { EntityType } from 'src/shared/interfaces/common.interface';
 import { CurrencyType } from 'src/shared/interfaces/currency.interface';
 import { PackType } from './order.schema';
 import { ChainType } from './web3.model';
-import { Web3Controller } from './web3.controller';
+import { STELLAR_PACKS_DEPRECATED, stellarPacksSunset, Web3Controller } from './web3.controller';
 
 jest.mock('stripe', () => ({ __esModule: true, default: jest.fn(() => ({})) }));
 jest.mock('src/cat/cat.service', () => ({ CatService: class {} }));
@@ -18,7 +18,11 @@ const USER = '64b7f0c2a1b2c3d4e5f60719';
 const HASH = 'ab'.repeat(32);
 
 function setup(verifiedPriceUsd = 1) {
-    const orderRepository = { create: jest.fn().mockResolvedValue({ _id: 'order-1' }), update: jest.fn() };
+    const orderRepository = {
+        create: jest.fn().mockResolvedValue({ _id: 'order-1' }),
+        update: jest.fn(),
+        model: { findOneAndUpdate: jest.fn(async () => ({ _id: 'order-1' })) },
+    };
     const userRepository = { findOne: jest.fn().mockResolvedValue({ _id: 'owner' }), update: jest.fn() };
     const blessingRepository = { find: jest.fn().mockResolvedValue([{ cat: 'c1' }]) };
     const catService = {
@@ -81,13 +85,76 @@ describe('POST /web3/confirm', () => {
         expect(catService.adopt).toHaveBeenCalledWith('c1', USER, Tier.COMMON, undefined, 'pack');
     });
 
+    it('grants a Stellar pack paid before the sunset (a payment in flight at deploy)', async () => {
+        const { ctrl, catService, web3Service } = setup(5);
+        web3Service.validatePrice.mockResolvedValue({
+            success: true,
+            amount: 5,
+            priceUsd: 5,
+            closedAt: new Date(stellarPacksSunset().getTime() - 60000),
+        });
+        const res = await ctrl.checkTransaction(USER, body({ entityType: EntityType.PACK, id: PackType.STARTER }));
+        expect(res.success).toBe(true);
+        expect(catService.adopt).toHaveBeenCalled();
+    });
+
+    it('records a Stellar pack paid after the sunset for a refund and answers 410, never losing the payment', async () => {
+        const { ctrl, orderRepository, web3Service, userRepository, catService } = setup(5);
+        web3Service.validatePrice.mockResolvedValue({
+            success: true,
+            amount: 5,
+            priceUsd: 5,
+            closedAt: new Date(stellarPacksSunset().getTime() + 60000),
+        });
+        const error = await ctrl
+            .checkTransaction(USER, body({ entityType: EntityType.PACK, id: PackType.STARTER }))
+            .catch((e: HttpException) => e);
+        expect(error).toBeInstanceOf(GoneException);
+        expect((error as HttpException).getResponse()).toEqual(
+            expect.objectContaining({ code: STELLAR_PACKS_DEPRECATED, refund: 'due' })
+        );
+        // The order exists, is verified, and is marked for a refund; nothing is granted or counted.
+        expect(orderRepository.create).toHaveBeenCalled();
+        expect(web3Service.validatePrice).toHaveBeenCalled();
+        expect(orderRepository.update).toHaveBeenCalledWith('order-1', {
+            $set: expect.objectContaining({
+                status: 'FAILED_GRANT',
+                failureReason: expect.stringMatching(/^STELLAR_DEPRECATED/),
+            }),
+        });
+        expect(orderRepository.model.findOneAndUpdate).toHaveBeenCalledWith(
+            { _id: 'order-1', refund: { $exists: false } },
+            { $set: { refund: expect.objectContaining({ state: 'due', reason: 'STELLAR_DEPRECATED', amountUsd: 5 }) } },
+            { new: true }
+        );
+        expect(catService.adopt).not.toHaveBeenCalled();
+        expect(userRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('takes the sunset from STELLAR_PACKS_SUNSET_AT, else a week after the decision', () => {
+        expect(stellarPacksSunset({}).toISOString()).toBe('2026-10-11T00:00:00.000Z');
+        expect(stellarPacksSunset({ STELLAR_PACKS_SUNSET_AT: '2026-10-20T12:00:00Z' }).toISOString()).toBe(
+            '2026-10-20T12:00:00.000Z'
+        );
+        expect(stellarPacksSunset({ STELLAR_PACKS_SUNSET_AT: 'soon' }).toISOString()).toBe('2026-10-11T00:00:00.000Z');
+    });
+
+    it('keeps selling Stellar packs while the rollback switch STELLAR_PACKS_ENABLED is true', async () => {
+        process.env.STELLAR_PACKS_ENABLED = 'true';
+        try {
+            const { ctrl, orderRepository } = setup(5);
+            await ctrl.checkTransaction(USER, body({ entityType: EntityType.PACK, id: PackType.STARTER }));
+            expect(orderRepository.create).toHaveBeenCalled();
+        } finally {
+            delete process.env.STELLAR_PACKS_ENABLED;
+        }
+    });
+
     it('credits spent and the affiliate share from the verified amount, not the client price', async () => {
+        // A loot box: Stellar packs are deprecated, the spend and affiliate rule is the same.
         const { ctrl, userRepository, web3Service } = setup(5);
 
-        await ctrl.checkTransaction(
-            USER,
-            body({ entityType: EntityType.PACK, id: PackType.STARTER, price: 1e9, discount: 'Friend' })
-        );
+        await ctrl.checkTransaction(USER, body({ price: 1e9, discount: 'Friend' }));
 
         expect(web3Service.validatePrice).toHaveBeenCalledWith(
             CurrencyType.USDC,

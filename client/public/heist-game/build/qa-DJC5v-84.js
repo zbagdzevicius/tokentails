@@ -1,1 +1,0 @@
-import"./index-DkdCUAca.js";function e(e){return null}export{e as installQA};

@@ -2,8 +2,11 @@
 import Link from "next/link";
 import { useEffect, useId, useState } from "react";
 import { Celebration } from "./Celebration";
+import { ChainPicker } from "./ChainPicker";
 import { ChainInfo, explorerTx } from "./chains";
 import { FACT, factLine } from "./factLine";
+import { GOAL_REFRESH_EVENT } from "./goal";
+import { GiveRail, feeCoin, isExtraCoinRail, railKey, railStepsLine, railSummary } from "./giveRails";
 import {
   GiveMode,
   ONBOARD_URL,
@@ -28,11 +31,15 @@ import {
   RevertedError,
   SignedGift,
   SmartAccountError,
+  SplitStep,
   findSettledGift,
   getInjectedProvider,
   giveNative,
+  giveNativeToSplit,
+  giveToSplit,
   isUsdcNative,
   readPayoutWallets,
+  readSplitPayoutWallets,
   selfSubmitGift,
   signAndGive,
   signedGiftExpired,
@@ -84,12 +91,27 @@ async function settledBy(chain: ChainInfo, signed: SignedGift, relayTx: string |
   }
 }
 
-/** One network the try-it block can give on: a listed testnet router and its chain settings. */
-export interface WalletChoice {
-  chainId: number;
-  chain: ChainInfo;
-  router: RouterEntry;
-}
+/**
+ * One network the block can give on (giveRails.GiveRail): a listed router, or the chain's ShelterSplit
+ * when there is no router or its token has no EIP-3009.
+ */
+export type WalletChoice = GiveRail;
+
+/** The one-chain block of a caller that passes no choices: a router rail from its props. */
+const routerRail = (chainId: number, chain: ChainInfo | null, router: RouterEntry | null): GiveRail | null =>
+  chain && router
+    ? {
+        chainId,
+        chain,
+        network: router.network,
+        path: "router",
+        router,
+        split: null,
+        symbol: router.symbol || chain.symbol,
+        memo32: false,
+        native: isUsdcNative(chain),
+      }
+    : null;
 
 /**
  * The relay and match status for one chain (GET /shelter/match/status?chainId=). Null until read, or
@@ -122,15 +144,22 @@ export const WalletDonate = ({
   chain: ChainInfo | null;
   router: RouterEntry | null;
   shelterName: string;
-  /** Try-it only: every testnet the donor may pick, the default one first. */
+  /** Every network the donor may pick (the six chains that have a wallet path); `chainId` is the default. */
   choices?: WalletChoice[];
 }) => {
-  const [picked, setPicked] = useState<number | null>(null);
+  // railKey of the picked option: the chain id, or "<chainId>-EURC" for a second coin's router.
+  const [picked, setPicked] = useState<string | null>(null);
   const headingId = useId();
-  const pickerId = useId();
   const short = shortShelterName(shelterName);
-  const active = (picked !== null && choices.find((c) => c.chainId === picked)) || null;
+  // The picked chain, else the default (the campaign chain, or NEXT_PUBLIC_WALLET_DONATE_CHAIN).
+  const active =
+    (picked !== null && choices.find((c) => railKey(c) === picked)) ||
+    choices.find((c) => c.chainId === chainId && !isExtraCoinRail(c)) ||
+    choices.find((c) => c.chainId === chainId) ||
+    choices[0] ||
+    null;
   const activeId = active ? active.chainId : chainId;
+  const activeKey = active ? railKey(active) : String(chainId);
   const status = useChainStatus(activeId, mode === "mainnet" || mode === "testnet");
 
   if (mode === "hidden") return null;
@@ -156,11 +185,13 @@ export const WalletDonate = ({
     );
   }
 
-  const useChain = active ? active.chain : chain;
-  const useRouter = active ? active.router : router;
-  if (!useChain || !useRouter) return null;
+  const rail = active || routerRail(chainId, chain, router);
+  if (!rail) return null;
   const testnet = mode === "testnet";
   const meter = matchMeterCopy(status, factLine(FACT.matchCap));
+  const relayLiveFor = (id: number) => !!status && status.chainId === id && status.relay;
+  // The relay and the match serve the chain's own router only, never a second coin's (EURC) router.
+  const extraCoin = isExtraCoinRail(rail);
 
   return (
     <section
@@ -178,38 +209,25 @@ export const WalletDonate = ({
           </span>
         )}
       </div>
-      {testnet && choices.length > 1 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor={pickerId} className="text-tt-cream/85">
-            Network
-          </label>
-          <select
-            id={pickerId}
-            value={activeId}
-            onChange={(e) => setPicked(Number(e.target.value))}
-            className="min-h-11 rounded-lg border-2 border-tt-cream/60 bg-tt-night-950 px-2 text-tt-cream"
-            data-testid="wallet-network"
-          >
-            {choices.map((c) => (
-              <option key={c.chainId} value={c.chainId}>
-                {c.chain.name}
-              </option>
-            ))}
-          </select>
-        </div>
+      {choices.length > 1 && (
+        <ChainPicker rails={choices} value={activeKey} onChange={setPicked} relayLive={relayLiveFor} />
       )}
+      {/* What the picked chain is for and what the giver spends there, in plain words. */}
+      <p className="text-tt-cream/85" data-testid="wallet-chain-summary">
+        {railSummary(rail, relayLiveFor(activeId) && !extraCoin)}
+      </p>
       {/* The match meter only next to the chain the backend's match serves. */}
-      {meter && status?.chainId === activeId && (
+      {meter && status?.chainId === activeId && !extraCoin && (
         <p className={`${CHIP} self-start !normal-case`} data-testid="match-meter">
           <span aria-hidden="true">🐾🐾</span> {meter}
         </p>
       )}
       <GiveBlock
-        key={activeId}
+        key={activeKey}
         mode={mode}
         chainId={activeId}
-        chain={useChain}
-        router={useRouter}
+        chain={rail.chain}
+        rail={rail}
         shelterName={shelterName}
         relayStatus={status}
       />
@@ -222,37 +240,49 @@ const GiveBlock = ({
   mode,
   chainId,
   chain,
-  router,
+  rail,
   shelterName,
   relayStatus,
 }: {
   mode: GiveMode;
   chainId: number;
   chain: ChainInfo;
-  router: RouterEntry;
+  rail: GiveRail;
   shelterName: string;
   relayStatus: MatchStatus | null;
 }) => {
+  const router = rail.router;
   const amounts = giveAmounts(mode);
   const [amount, setAmount] = useState(amounts[1]);
   const [state, setState] = useState<State>({ status: "idle" });
+  // A gift lands in the shelter wallet: tell the page's goal meter to read the wallet again (open
+  // issue 2 in docs/plans/donations-STATUS.md), once now and once after the next blocks.
+  useEffect(() => {
+    if (state.status !== "sent") return;
+    const ping = () => window.dispatchEvent(new Event(GOAL_REFRESH_EVENT));
+    const timers = [window.setTimeout(ping, 1500), window.setTimeout(ping, 12000)];
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [state.status]);
   const [payees, setPayees] = useState<number | null>(null);
   const [custody, setCustody] = useState<CustodyGuard | null>(null);
   const short = shortShelterName(shelterName);
-  const routerAddress = router.router;
+  const routerAddress = router?.router || null;
+  const splitAddress = rail.split;
   const rpcUrl = chain.rpc;
 
   // Who the split pays right now, read from the chain: the button names one shelter or "N shelters".
   useEffect(() => {
-    if (!routerAddress || !rpcUrl || (mode !== "mainnet" && mode !== "testnet")) return;
+    if ((!routerAddress && !splitAddress) || !rpcUrl || (mode !== "mainnet" && mode !== "testnet")) return;
     let cancelled = false;
-    readPayoutWallets(readOnlyProvider({ rpc: rpcUrl } as ChainInfo), routerAddress, BigInt("1000000000000000000"))
+    const eth = readOnlyProvider({ rpc: rpcUrl } as ChainInfo);
+    const probe = BigInt("1000000000000000000");
+    (routerAddress ? readPayoutWallets(eth, routerAddress, probe) : readSplitPayoutWallets(eth, splitAddress as string, probe))
       .then((w) => !cancelled && setPayees(w.length))
       .catch(() => !cancelled && setPayees(null));
     return () => {
       cancelled = true;
     };
-  }, [routerAddress, rpcUrl, mode]);
+  }, [routerAddress, splitAddress, rpcUrl, mode]);
 
   // Real money: the wallets the shelter claimed and Token Tails registered on this chain.
   useEffect(() => {
@@ -260,10 +290,10 @@ const GiveBlock = ({
     let cancelled = false;
     getClaim().then((c) => {
       if (cancelled) return;
+      // The claim is a personal_sign by the shelter's own key (an EOA), which is the same wallet on
+      // every chain; the guard still reads this chain's payout list before anything is signed.
       setCustody(
-        c && c.status === "rotated" && c.chainId === chainId
-          ? { shelterWallets: [c.wallet], heldWallets: [...TOKEN_TAILS_HELD_WALLETS] }
-          : null
+        c && c.status === "rotated" ? { shelterWallets: [c.wallet], heldWallets: [...TOKEN_TAILS_HELD_WALLETS] } : null
       );
     });
     return () => {
@@ -272,15 +302,18 @@ const GiveBlock = ({
   }, [mode, chainId]);
 
   const testnet = mode === "testnet";
-  const native = isUsdcNative(chain);
-  const symbol = giftSymbol(chain, router);
+  // A second coin's router (EURC on Arc) is never a native gift: the native coin is USDC.
+  const native = isUsdcNative(chain) && rail.native;
+  const symbol = router ? giftSymbol(chain, router) : rail.symbol;
   const to = payeeLabel(payees, short);
   const busy = state.status === "busy";
   const sent = state.status === "sent";
   // The gas relay serves this chain only when the backend says so for this very chain id.
-  const relayLive = !!relayStatus && relayStatus.chainId === chainId && relayStatus.relay;
+  const relayLive = !!relayStatus && relayStatus.chainId === chainId && relayStatus.relay && !isExtraCoinRail(rail);
   // Without the relay, Arc's one-transaction native gift is the simpler path (one confirm, not two).
-  const primary: "sign" | "native" = relayLive || !native ? "sign" : "native";
+  // Without a router: Arc's native gift into the split, else approve + disburse.
+  const primary: "sign" | "native" | "split" =
+    rail.path === "split" ? (native ? "native" : "split") : relayLive || !native ? "sign" : "native";
 
   const finish = async (eth: Eip1193, result: GiveResult, amt: string, signed: SignedGift | null) => {
     setState({ status: "busy", step: "Waiting for the block…" });
@@ -304,7 +337,13 @@ const GiveBlock = ({
     setState({ status: "sent", result, amount: amt, blockNumber });
   };
 
-  const run = async (how: "sign" | "native" | "self") => {
+  const splitStep = (s: SplitStep) =>
+    setState({
+      status: "busy",
+      step: s === "check" ? "Checking the gift…" : s === "approve" ? `Allow ${symbol} in your wallet (1 of 2)…` : "Confirm the gift in your wallet…",
+    });
+
+  const run = async (how: "sign" | "native" | "split" | "self") => {
     const eth = getInjectedProvider();
     if (!eth) {
       setState({
@@ -323,6 +362,23 @@ const GiveBlock = ({
         signed = state.signed;
         setState({ status: "busy", step: "Confirm in your wallet…" });
         result = await selfSubmitGift(eth, chain, state.signed);
+      } else if (how === "native" && rail.path === "split" && splitAddress) {
+        setState({ status: "busy", step: "Confirm in your wallet…" });
+        result = await giveNativeToSplit({ provider: eth, chainId, chain, split: splitAddress, amount: amt, custody });
+      } else if (how === "split" && splitAddress) {
+        result = await giveToSplit({
+          provider: eth,
+          chainId,
+          chain,
+          split: splitAddress,
+          amount: amt,
+          symbol,
+          memo32: rail.memo32,
+          custody,
+          onStep: splitStep,
+        });
+      } else if (!router) {
+        throw new Error("No way to give on this network yet.");
       } else if (how === "native") {
         setState({ status: "busy", step: "Confirm in your wallet…" });
         result = await giveNative({ provider: eth, chainId, chain, router: router.router, amount: amt, custody });
@@ -375,7 +431,7 @@ const GiveBlock = ({
   const expired = state.status === "relay-refused" && signedGiftExpired(state.signed);
   // Circle's faucet serves only some testnets; the self-submit fee is paid in the chain's gas coin.
   const faucet = faucetFor(chainId);
-  const feeCoin = chain.nativeSymbol || (chain.balanceToken ? "USD" : "ETH");
+  const fee = feeCoin(chain);
 
   return (
     <>
@@ -396,7 +452,7 @@ const GiveBlock = ({
         </p>
       )}
       <p className="text-tt-cream/80" data-testid="wallet-give-how">
-        {primary === "sign" ? "Sign once in your wallet." : "One transaction from your wallet."}
+        {railStepsLine(rail, primary)}
       </p>
       {/* Wallet-giving claims come only from published facts, and the gasless one only where the relay serves. */}
       {gasless && relayLive && <p className="text-tt-cream/80" data-testid="fact-gasless">{gasless}</p>}
@@ -426,7 +482,7 @@ const GiveBlock = ({
         >
           {busy ? state.step : giveLabel(amount, to, symbol)}
         </button>
-        {native && primary === "sign" && !busy && !sent && (
+        {native && router && primary === "sign" && !busy && !sent && (
           <button
             type="button"
             onClick={() => run("native")}
@@ -455,10 +511,10 @@ const GiveBlock = ({
             <>
               <p className="text-tt-cream/85" data-testid="relay-refused-fee">
                 You can still send the same signed gift yourself. Your wallet then pays a small network fee in{" "}
-                {feeCoin} on {chain.name}, so it needs a little {feeCoin} first.
+                {fee} on {chain.name}, so it needs a little {fee} first.
               </p>
               <button type="button" onClick={() => run("self")} className={`${PILL} self-start`} data-testid="relay-self-submit">
-                Send it from my wallet (I pay the fee in {feeCoin})
+                Send it from my wallet (I pay the fee in {fee})
               </button>
             </>
           )}
@@ -520,7 +576,7 @@ const GiveBlock = ({
       {state.status === "error" && (
         <p className="mt-3 text-tt-rust" role="alert" data-testid="wallet-give-error">
           {state.message}
-          {state.smartAccount && native ? " Use “Or send it as one transaction” instead." : ""}
+          {state.smartAccount && native && router ? " Use “Or send it as one transaction” instead." : ""}
         </p>
       )}
     </>

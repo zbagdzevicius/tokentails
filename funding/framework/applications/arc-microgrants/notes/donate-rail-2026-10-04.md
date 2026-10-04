@@ -11,7 +11,7 @@ revising them. Target submit date Oct 7; closes Oct 14 23:59 ET (Oct 15 06:59 Vi
 | C2 Technical credibility | Two rules anyone can check on-chain: the router has no owner and pays every gift on in the transaction that brings it in, and it reverts if any wei would reach the treasury ([P-002], unverified until a router is deployed). The treat agent's spending limit is in a contract, not a prompt: CappedSpender reverts over its per-gift or per-day cap, to anything but ShelterSplit, or when the split's treasury share is not 0. | `src/CappedSpender.sol`, 26 forge tests; full shelter-split suite 144 tests green on 2026-10-04 (re-run `forge test` before citing) |
 | C3 Quality of work | Forge suites for router and spender (fuzzed daily cap, rounding-dust treasury guard), Node tests for the agent, a reproducible local demo (`treat-agent/fork-demo.sh`). | `shelter-split/test/`, `treat-agent/test/` |
 | C4 Worth taking further | One rail serves three givers: a player's sponsored treat ([C-004], [C-005]), a donor's one-signature gift ([P-003], unverified), an AI agent paying a shelter. Matching ([C-008], unverified) doubles a public gift with Token Tails' own money. | |
-| C5 Promise | The campaign is concrete: [C-001] Pink Paw autumn rescue, 90 USDC by 31 Jan 2027. | `client/public/shelter-payouts/campaign.json` |
+| C5 Promise | The campaign is concrete: [C-001] Pink Paw rescue fund, 50,000 USDC by 30 Sep 2027, counting the USDC that comes in to the campaign wallet (founder, 2026-10-04). | `client/public/shelter-payouts/campaign.json` |
 
 ## 3-beat demo (under 60 s)
 
@@ -41,7 +41,7 @@ and says so on every page."
 
 ## Numbers and their keys
 
-- 0.01 USDC treat [C-004]; 1 USDC a day of treats [C-005]; 90 USDC goal, 31 Jan 2027 [C-001].
+- 0.01 USDC treat [C-004]; 1 USDC a day of treats [C-005]; 50,000 USDC goal by 30 Sep 2027, counted from inflows [C-001].
 - Money sent to shelters: live only, from [L-disbursed]; treats from [L-treats]. Never type a total.
 - Match per gift [C-008] and the router guard [P-002] and one-signature giving [P-003] are
   unverified: say "built" or "in testing", never "live", until their facts are verified.

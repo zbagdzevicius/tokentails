@@ -6,7 +6,12 @@ import { impactJobsEnabled } from 'src/impact/impact.config';
 import { ILeaseCollection, JOB_RUNS_COLLECTION, runLeased } from 'src/shared/jobs/lease';
 import { ShelterChain } from './shelter-chain';
 import { ShelterDonateService } from './shelter-donate.service';
-import { readShelterConfig, readTryShelterConfig, ShelterOnchainConfig } from './shelter-onchain.config';
+import {
+    readRelayChainConfigs,
+    readShelterConfig,
+    readTryShelterConfig,
+    ShelterOnchainConfig,
+} from './shelter-onchain.config';
 import { ShelterDonation, ShelterDonationDocument, ShelterDonationStatus } from './shelter-onchain.schema';
 import { MatchRunResult, ShelterMatchService } from './shelter-match.service';
 import { ShelterRelayService } from './shelter-relay.service';
@@ -34,6 +39,8 @@ export interface ReconcileResult {
     /** The same two steps on the try-it testnet, when SHELTER_TRY_CHAIN_ID is set. */
     tryRelay?: { confirmed: number; failed: number };
     tryMatch?: MatchRunResult;
+    /** The same steps per SHELTER_RELAY_CHAINS chain, keyed by chain id. */
+    chains?: Record<number, { relay?: { confirmed: number; failed: number }; match?: MatchRunResult }>;
 }
 
 /**
@@ -88,7 +95,8 @@ export class ShelterDonateReconcileService {
     async reconcileOnce(
         now: Date = new Date(),
         config: ShelterOnchainConfig = readShelterConfig(),
-        tryConfig: ShelterOnchainConfig | null = readTryShelterConfig()
+        tryConfig: ShelterOnchainConfig | null = readTryShelterConfig(),
+        chainConfigs: ShelterOnchainConfig[] = readRelayChainConfigs()
     ): Promise<ReconcileResult> {
         const result: ReconcileResult = { confirmed: 0, failed: 0, released: 0, skipped: 0 };
         const cutoff = new Date(now.getTime() - DONATE_RECONCILE_TIMEOUT_MS);
@@ -169,6 +177,33 @@ export class ShelterDonateReconcileService {
                     this.logger.warn(`try match reconcile failed: ${error?.code || error?.name || 'unknown error'}`);
                 }
             }
+        }
+        // Multi-chain relay (SHELTER_RELAY_CHAINS): each chain's relays and matches, isolated per chain.
+        for (const chainConfig of chainConfigs) {
+            const out: { relay?: { confirmed: number; failed: number }; match?: MatchRunResult } = {};
+            if (this.relayService) {
+                try {
+                    out.relay = await this.relayService.confirmPending(chainConfig, now);
+                } catch (error: any) {
+                    this.logger.warn(
+                        `relay reconcile on ${chainConfig.chainId} failed: ${
+                            error?.code || error?.name || 'unknown error'
+                        }`
+                    );
+                }
+            }
+            if (this.matchService) {
+                try {
+                    out.match = await this.matchService.runOnce(now, chainConfig);
+                } catch (error: any) {
+                    this.logger.warn(
+                        `match reconcile on ${chainConfig.chainId} failed: ${
+                            error?.code || error?.name || 'unknown error'
+                        }`
+                    );
+                }
+            }
+            result.chains = { ...(result.chains || {}), [chainConfig.chainId]: out };
         }
         return result;
     }

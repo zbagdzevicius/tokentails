@@ -17,7 +17,7 @@
     "playtest:bots": "node tools/playtest/run.mjs",
     "build-level": "node tools/build-levels.mjs",
     "export-glb": "node tools/export-glb.mjs",
-    "build:client": "tsc --noEmit && HEIST_BASE=/heist-game/ HEIST_PAYOUTS_URL=/shelter-payouts HEIST_DEPLOYMENTS_URL=/shelter-payouts/deployments.json vite build --outDir ../client/public/heist-game --emptyOutDir",
+    "build:client": "tsc --noEmit && HEIST_BASE=/heist-game/ HEIST_PAYOUTS_URL=/shelter-payouts HEIST_DEPLOYMENTS_URL=/shelter-payouts/deployments.json HEIST_TESTNET_DEPLOYMENTS_URL=/shelter-payouts/testnet-deployments.json vite build --outDir ../client/public/heist-game --emptyOutDir",
     "vendor-sim": "node scripts/vendor-sim.mjs",
     "vendor-sim:check": "node scripts/vendor-sim.mjs --check",
     "vendor-sim:check-remote": "node scripts/vendor-sim.mjs --check-remote",

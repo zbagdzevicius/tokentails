@@ -225,6 +225,8 @@ log needs seed 1, the current `SIM_VERSION`, two different known cat ids, at mos
 | GET | `/shelter/match/by-donor/:txHash` | `{status, matchTxHash \| null}` for a router gift; `status` is `none` before the scan saw it | Public, Throttle(60) |
 | POST | `/shelter/claim` | The shelter names its own payout wallet: `{chainId, wallet, signature}` (personal_sign of the claim message). Only wallets on `SHELTER_CLAIM_ALLOWED_WALLETS` (403 `CLAIM_NOT_ALLOWED`). Answers `{status}` of the (one) row for that chain and wallet, `pending-rotation` when new | Public, Throttle(5) |
 | GET | `/shelter/claim` | The newest `approved` or `rotated` claim on the configured chain `{wallet, chainId, status}`, or JSON `null`. A `pending-rotation` claim is never shown | Public, Throttle(60) |
+| GET | `/shelter/goal/:id` | A campaign goal's count (only `C-001` today; anything else 404): `{ id, chainId, goalUsdc, raised, scannedTo, head, upToDate, transfers, wallets: [{wallet, fromBlock, toBlock, holder}], liveSources, updatedAt }` (`shared/shelter-goal.ts`). `raised` is the USDC that came in to the campaign wallets (decimal string, 6 decimals at most), summed from the chain's Transfer logs; transfers between campaign wallets are skipped, outflows are never read. `scannedTo: null` means nothing is counted yet (claim nothing). `liveSources` lists only what can reach the open wallet today (`treats` while Token Tails holds it; `purchase-shares` only with a split route on the campaign chain) | Public, Throttle(60) |
+| GET | `/shelter/:slug/gallery` | Every showable cat of a showcase shelter (only `rozine-pedute`; others 404), uncapped (unlike `/cat/sale`, 200 per shelter): `{ slug, atShelter, adopted, truncated, generatedAt }`, each cat `{ id, name, status, art, photo }` (https only, HEAVEN dropped, `shared/pink-paw.ts`). Cached 45 s | Public, Throttle(60) |
 
 ### Shelter gifts on Arc
 
@@ -457,9 +459,9 @@ ObjectIds; public ids look like `p-…` and `o-…`.
 
 | Method | Path | Purpose | Auth |
 |---|---|---|---|
-| POST | `/web3/confirm` | Verify a Stellar transaction hash via Horizon (successful, pays the treasury, in the order's XLM or USDC, at least the server catalogue price less a verified discount; the body `price` is ignored), complete the order, grant a cat, credit the affiliate. `entityType` must be `IMAGE`, `PACK` (with a pack `id`) or `LOOT_BOX` (with no `id`), else 400 before any order exists. The hash is lowercased and must be the payment's outer hash (for a fee-bump, the fee-bump hash; the inner hash is refused). `spent`, `monthSpent`, `spentUsd` and the affiliate credit use the verified amount. A pack whose grant fails (no cat left in the pool, an adoption error after one retry) is `FAILED_GRANT` and answers `{success: false, refund: 'due'}`: the treasury refunds Stellar orders by hand. 400 when verification fails (the hash is released for a retry), 409 when the hash, or another hash of the same payment, already backs an order, 503 when Horizon or the XLM rate is unavailable | Auth |
-| POST | `/web3/create-payment` | Create a Stripe PaymentIntent at the server price (table price less a verified `discount` code); a sent `amount` is ignored. Returns `clientSecret` | Auth |
-| POST | `/web3/confirm-payment` | Verify the PaymentIntent belongs to the caller, succeeded, is in USD and covers the server price, then grant once: a replayed confirm returns `{ success: false }` and grants nothing. The discount comes from the intent, not the body. A failed pack grant is refunded through Stripe (`{success: false, refund: 'refunded'}`). Stripe and database errors return a fixed message | Auth |
+| POST | `/web3/confirm` | Verify a Stellar transaction hash via Horizon (successful, pays the treasury, in the order's XLM or USDC, at least the server catalogue price less a verified discount; the body `price` is ignored), complete the order, grant a cat, credit the affiliate. `entityType` must be `IMAGE` or `LOOT_BOX` (with no `id`), else 400 before any order exists. **`PACK` is deprecated (2026-10-04): the client no longer offers it; packs are bought through the crypto checkout below or Stripe.** Because the client pays before it confirms, a pack payment that still arrives (a cached old tab, a payment in flight at deploy) is verified and recorded first: one whose Stellar ledger closed before `STELLAR_PACKS_SUNSET_AT` (ISO time; default `2026-10-11T00:00:00Z`, set it to deploy time plus about 7 days) is granted as before; a later one is `FAILED_GRANT` (`STELLAR_DEPRECATED`) with `refund: 'due'` and answers 410 `{code: 'STELLAR_PACKS_DEPRECATED', refund: 'due'}`, so no payment is lost. `STELLAR_PACKS_ENABLED=true` turns the old path back on (rollback switch only). Loot boxes are still sold on Stellar (`MysteryBoxCat` uses `Web3Transfer`); whether to move them to the crypto checkout is an open decision. Existing Stellar pack orders, their history, the audit scripts and `refund: 'due'` handling are unchanged. The hash is lowercased and must be the payment's outer hash (for a fee-bump, the fee-bump hash; the inner hash is refused). `spent`, `monthSpent`, `spentUsd` and the affiliate credit use the verified amount. A loot box whose grant fails is `FAILED_GRANT` and answers `{success: false, refund: 'due'}`: the treasury refunds Stellar orders by hand. 400 when verification fails (the hash is released for a retry), 409 when the hash, or another hash of the same payment, already backs an order, 503 when Horizon or the XLM rate is unavailable | Auth |
+| POST | `/web3/create-payment` | Create a Stripe PaymentIntent at the server price; a sent `amount` is ignored. Packs (`entityType: 'PACK'`, `id` = pack type) and portraits: table price less a verified `discount` code. **Shelter cats** (`entityType: 'CAT'`, `id` = the catalogue cat id from `GET /cat/sale`): a fixed $5 (no env override), never discounted; 400 `Cat is not for sale` for anything that is not an unowned shelter cat, 409 `User already owns this NFT cat` when the caller already has a copy. Returns `clientSecret` | Auth |
+| POST | `/web3/confirm-payment` | Verify the PaymentIntent belongs to the caller, succeeded, is in USD and covers the server price, then grant once: a replayed confirm returns `{ success: false }` and grants nothing. The discount comes from the intent, not the body. A pack rolls a tier; a shelter cat is granted at the basic tier (`COMMON`, origin `adopt`) through the same adoption path packs use, and its shelter share is recorded exactly like a crypto purchase paid to the treasury (a `card` row in `cryptocheckouts` for the keeper; see "Shelter cats" in BACKEND.md). A failed grant is refunded through Stripe (`{success: false, refund: 'refunded'}`). Stripe and database errors return a fixed message | Auth |
 | POST | `/web3/validate-discount` | Validate a discount code; returns the percentage | Public |
 | GET | `/web3/pack/:packType/:id` | Grant a `STARTER`, `INFLUENCER`, or `LEGENDARY` pack cat without payment | Perm(5) |
 | GET | `/web3/loot/buyers` | Eligible loot-drop buyers since a fixed date, with wallet and email | Perm(5) |
@@ -467,6 +469,245 @@ ObjectIds; public ids look like `p-…` and `o-…`.
 `POST /web3/create` was removed (2026-09). It had no client or CMS caller, took `user` from the
 body, and let any signed-in caller park a pending order on someone else's transaction hash, which
 the unique `hash` index then turned into a permanent 409 for the real buyer.
+
+### Crypto checkout (USDC and EURC on every integrated EVM chain)
+
+`src/payments/crypto/`. Replaces the Stellar pack purchase. The server prices an order, lists every
+chain and token it accepts, the buyer pays from their own wallet, and the server verifies the
+transaction on-chain before it grants anything, exactly once. Off unless `CRYPTO_PAY_ENABLED=true`.
+Environment variables are in BACKEND.md "Crypto checkout".
+Client: `client/components/web3/crypto/` (packs and shelter cats, web only; docs/CLIENT.md "Crypto
+checkout"). It checks every option's `steps` against its coin, recipient and exact amount before a
+wallet sees them, and polls `confirm` through 202.
+
+| Method | Path | Purpose | Auth |
+|---|---|---|---|
+| GET | `/payments/crypto/config` | What the checkout accepts right now: `enabled`, `network`, prices, the EURC table rate, and per chain the tokens with address and decimals. No order is created | Public, Throttle(60) |
+| POST | `/payments/crypto/orders` | Create an order for one SKU at the server price, with every accepted payment option | Auth, User(10) |
+| GET | `/payments/crypto/orders/:orderId` | The caller's own order (404 for anyone else's) | Auth |
+| POST | `/payments/crypto/orders/:orderId/confirm` | Verify `{chainId, txHash}` on-chain and grant once | Auth, User(20) |
+| POST | `/payments/crypto/recover-grants` | Finish paid orders whose grant never stored a result (also every 5 minutes; see "Stuck grants" below) | Perm(5) |
+| POST | `/payments/crypto/shelter-share/run` | Run the shelter-share keeper once (see "Shelter cats" below) | Perm(5) |
+
+Errors carry `{ statusCode, code, message }` with these payment-local codes (not in `shared/errors.ts`):
+
+| Code | Status | Meaning |
+|---|---|---|
+| `CRYPTO_PAY_DISABLED` | 503 | `CRYPTO_PAY_ENABLED` is not true, no chain has both an RPC and a receiving address, or the unique index `amount_reserved` is missing (checked before the first order, again every minute while missing) |
+| `CRYPTO_PAY_BAD_SKU` | 400 | Unknown `sku.kind`, pack type, or a malformed `catId` |
+| `CRYPTO_PAY_NOT_FOR_SALE` | 404 | The cat is not an unowned shelter cat on sale (`GET /cat/sale`) |
+| `CRYPTO_PAY_ALREADY_OWNED` | 409 | The caller already owns a copy of that cat, or a payment of theirs for it is being granted |
+| `CRYPTO_PAY_BUSY` | 503 | No unique amount could be reserved (thousands of open orders on one token); retry |
+| `CRYPTO_PAY_TOO_MANY_ORDERS` | 429 | The caller already has 3 open, unexpired orders (other items) |
+| `CRYPTO_PAY_NOT_FOUND` | 404 | No such order for the caller |
+| `CRYPTO_PAY_WRONG_CHAIN` | 400 | `chainId` is not one of the order's `accepted` options |
+| `CRYPTO_PAY_BAD_TX` | 400 | `txHash` is not a 0x-prefixed 32-byte hex string |
+| `CRYPTO_PAY_TX_FAILED` | 400 | The transaction reverted |
+| `CRYPTO_PAY_NO_MATCHING_TRANSFER` | 400 | The transaction moves no `token` to `recipient` with this order's exact `amount` (or memo) |
+| `CRYPTO_PAY_UNDERPAID` | 400 | A memo-bound payment for this order is below `amount`, or an amount-bound transfer to the recipient is up to 5% below the exact `amount` (an exchange withdrawal that took a fee). Never accepted; support can match it by hand |
+| `CRYPTO_PAY_TX_BEFORE_ORDER` | 400 | The transaction was mined before the order existed |
+| `CRYPTO_PAY_TX_USED` | 409 | The transaction already backs another order |
+| `CRYPTO_PAY_EXPIRED` | 410 | The payment was mined more than 2 hours after `expiresAt` (then the order is `LATE`, recorded with `refund: 'due'` to the paying wallet) |
+| `CRYPTO_PAY_RPC_UNAVAILABLE` | 503 | The chain could not be read; retry |
+
+#### `GET /payments/crypto/config`
+
+```json
+{
+  "enabled": true,
+  "network": "mainnet",
+  "orderTtlSeconds": 1800,
+  "shelterHandedOver": false,
+  "prices": { "packs": { "STARTER": 5, "INFLUENCER": 25, "LEGENDARY": 350 }, "shelterCat": 5, "lootBox": 1 },
+  "fx": { "EURC": { "perUsd": "1", "asOf": null, "source": "fixed" } },
+  "chains": [
+    {
+      "chainId": 8453, "name": "Base", "testnet": false, "explorer": "https://basescan.org", "confirmations": 12,
+      "tokens": [
+        { "token": "USDC", "symbol": "USDC", "address": "0x8335…2913", "decimals": 6 },
+        { "token": "EURC", "symbol": "EURC", "address": "0x60a3…db42", "decimals": 6 }
+      ]
+    }
+  ]
+}
+```
+
+- `network` is `mainnet` or `testnet` (`CRYPTO_PAY_NETWORK`; default `mainnet` when `NODE_ENV=production`,
+  else `testnet`). Mainnet and testnet options are never mixed in one response.
+- A chain is listed only when it has an RPC URL and a receiving address. A mainnet needs a configured RPC
+  (`CRYPTO_PAY_RPC_<chainId>` or the chain's funding variable): public RPCs are used on test networks only,
+  because the RPC's receipt decides whether an item is given. Under `NODE_ENV=production`
+  `CRYPTO_PAY_NETWORK=testnet` is ignored (mainnet is used) unless `CRYPTO_PAY_ALLOW_TESTNET_IN_PROD=true`, and
+  the local chain 31337 is never listed. Chains come from
+  `src/payments/crypto/crypto-chains.ts`, a pinned copy of `funding/framework/tracks/a-build/chains.json`
+  (USDC and EURC entries only): Arc, Base, Arbitrum One, Avalanche C-Chain, Tempo, and their testnets, plus a
+  local anvil chain (31337) in testnet mode when its token addresses are set. Robinhood Chain (USDG), Mezo
+  (MUSD) and Monad (unverified USDC) are not offered.
+- `symbol` is what the token calls itself (`USDC.e` on Tempo, `pathUSD` on Tempo testnet); `token` is the
+  kind the price is computed in (`USDC` or `EURC`).
+- `fx.EURC`: how EURC is priced, never a live feed.
+  - `source: 'fixed'` (no `CRYPTO_PAY_EURC_PER_USD`, or `1`): a fixed euro price, the same number of EURC as US
+    dollars (a $5 cat is 5 EURC), `asOf: null`. It is not a conversion; the client says so.
+  - `source: 'dated'`: `CRYPTO_PAY_EURC_PER_USD` (EURC per USD, 0.5 to 2) with `CRYPTO_PAY_EURC_FX_DATE`
+    (`YYYY-MM-DD`). EURC is left out of every chain while that rate is undated, out of bounds, or more than
+    30 days old, so a stale rate never prices an item. Amounts round up, so the buyer never pays below the
+    USD price at that rate.
+- Prices are USD. `prices.packs.LEGENDARY` is the server table ($350); the client pack card shows $400
+  (known discrepancy in `src/payments/price-table.ts`). The web checkout reads this endpoint before it
+  shows payment methods: it offers crypto only when `enabled` is true and `chains` is not empty, and
+  its summary and quote use `prices` (the amount both checkouts charge).
+
+#### `POST /payments/crypto/orders`
+
+Body: `{ "sku": <sku>, "discount"?: string }` where `<sku>` is one of
+
+- `{ "kind": "PACK", "packType": "STARTER" | "INFLUENCER" | "LEGENDARY" }`: table price less a verified
+  discount code (same rule as Stripe);
+- `{ "kind": "CAT", "catId": "<catalogue cat id from GET /cat/sale>" }`: a shelter cat at the basic tier,
+  a fixed $5, never discounted (`discount` is ignored). Starters are never for sale;
+- `{ "kind": "LOOT_BOX" }`: $1, common odds, no discount.
+
+One buyer, one open order per item: when the caller already has an open, unexpired order for the same
+SKU (and the same discount code), that order is returned instead of a new one, renewed (`expiresAt` = now
++ the order lifetime, same id, amounts and memo) when it has under 3 minutes left. At most 3 open orders
+per caller (429 `CRYPTO_PAY_TOO_MANY_ORDERS`). A cat with a paid order still being granted is refused
+(409 `CRYPTO_PAY_ALREADY_OWNED`).
+
+201 (or the existing order):
+
+```json
+{
+  "orderId": "co_9f2c4e1a7b3d5e60",
+  "status": "OPEN",
+  "sku": { "kind": "CAT", "catId": "67b4…", "tier": "COMMON", "name": "Mochi",
+           "shelter": { "_id": "67b48fafd6c26c6cd40bfec6", "name": "Rožinė pėdutė", "slug": "rozine-pedute" } },
+  "priceUsd": 5,
+  "priceUsdCents": 500,
+  "discount": null,
+  "createdAt": "2026-10-04T12:00:00.000Z",
+  "expiresAt": "2026-10-04T12:30:00.000Z",
+  "accepted": [
+    {
+      "chainId": 8453, "chainName": "Base", "testnet": false, "explorer": "https://basescan.org",
+      "token": "USDC", "symbol": "USDC", "tokenAddress": "0x8335…2913", "decimals": 6,
+      "amount": "5000137", "amountDisplay": "5.000137",
+      "recipient": "0x<treasury>", "route": "transfer", "binding": "amount", "memo": null,
+      "steps": [ { "kind": "transfer", "to": "0x8335…2913", "data": "0xa9059cbb…", "value": "0" } ]
+    },
+    {
+      "chainId": 4217, "chainName": "Tempo", "token": "USDC", "symbol": "USDC.e", "decimals": 6,
+      "amount": "5000000", "amountDisplay": "5",
+      "recipient": "0x<treasury>", "route": "transferWithMemo", "binding": "memo",
+      "memo": "0x74743a636f5f39663263…00",
+      "steps": [ { "kind": "transferWithMemo", "to": "0x20C0…8b50", "data": "0x…", "value": "0" } ]
+    },
+    {
+      "chainId": 5042, "chainName": "Arc", "token": "USDC", "symbol": "USDC", "decimals": 6,
+      "amount": "5000000", "amountDisplay": "5",
+      "recipient": "0x<ShelterSplit>", "route": "split", "binding": "memo", "memo": "tt:cat:9f2c4e1a7b3d5e60",
+      "steps": [
+        { "kind": "approve", "to": "0x3600…0000", "data": "0x095ea7b3…", "value": "0" },
+        { "kind": "disburse", "to": "0x<ShelterSplit>", "data": "0x…", "value": "0" }
+      ]
+    }
+  ],
+  "shelterShare": { "route": "treasury", "bps": 5000, "evidenceTier": "pledged" }
+}
+```
+
+- `amount` is in the token's base units (a decimal string; never a float). The wallet must send exactly
+  `amount`. `steps` are ready-to-send transactions (`to`, `data`, `value` in wei), in order; a client may
+  send them as they are or rebuild them from the other fields.
+- `binding` says how the payment is tied to this order:
+  - `amount`: the default. `amount` is the price plus a unique tag of 1 to 9,999 base units (under one
+    cent), reserved for this order on that chain and token (unique index `amount_reserved`) until 2 hours
+    after `expiresAt`, or 24 hours after it once someone has called `confirm` on the order. The server
+    matches a `Transfer(from, recipient, amount)` log of `tokenAddress` exactly. Buyers must send from
+    their own wallet: an exchange withdrawal that takes a fee does not match (the client says so).
+  - `memo`: Tempo (`route: 'transferWithMemo'`, TIP-20 `transferWithMemo(recipient, amount, memo)`; `memo` is
+    the 32-byte `tt:<orderId>`) and the shelter split (`route: 'split'`; `memo` is the string the split
+    emits). `amount` is the plain price, the same for every order of an item, so only the memo binds: a
+    `TransferWithMemo` (or split batch) with this order's memo and at least `amount` is accepted, and a
+    plain `Transfer` never is (TIP-20 also emits one for every memo transfer; matching it would let
+    another buyer claim this payment).
+- `route: 'split'` appears only for shelter cats, only once the shelter holds its own key
+  (`SHELTER_HANDED_OVER=true`, and on a mainnet the on-chain check that every split recipient is a rotated
+  shelter-held wallet), and only on chains where that shelter's ShelterSplit is configured. The buyer
+  pays the split directly: `approve(split, amount)`, then `disburse(amount, memo)`; the split pays the
+  shelter its on-chain share and the Token Tails treasury the rest in the same transaction.
+- `recipient` for `transfer` and `transferWithMemo` is the Token Tails treasury on that chain (public
+  addresses in `src/payments/crypto/treasury.public.ts`, overridable per chain by env). Purchases are
+  commerce: they go to the treasury, never to a wallet Token Tails holds for a shelter (refused at startup
+  of the config, `heldWallets`).
+- `shelterShare` (shelter cats only, else `null`):
+  - `route: 'split'`: the share is paid on-chain by the buyer's own split transaction;
+  - `route: 'treasury'`: the price goes to the treasury and the shelter share is sent later from the Token
+    Tails hot wallet through ShelterSplit (memo `tt:cat:<16 hex>`), see BACKEND.md;
+  - `bps`: the shelter share for the treasury route (`CRYPTO_PAY_CAT_SHELTER_BPS`), `null` while undecided
+    (then no share is sent; the split route uses the split's on-chain shares instead);
+  - `evidenceTier`: `pledged` until sent, then `onchain-custodial` before the handover or
+    `onchain-shelter-held` after it (the money tiers of `client/components/claims/tiers.ts`).
+  These are functional fields: no surface shows a share percentage unless the facts registry has it.
+- An order expires after `orderTtlSeconds` (`CRYPTO_PAY_ORDER_TTL_MIN`, default 30 minutes). A payment
+  mined up to 2 hours after `expiresAt` is still granted (a shelter cat is checked for sale again first;
+  if it is gone, `FAILED_GRANT` with `refund: 'due'`, reason `NOT_FOR_SALE`). The client refuses to start a
+  wallet payment with under 2 minutes left and offers a new order (which renews this one).
+
+#### `GET /payments/crypto/orders/:orderId`
+
+The same body as the create response, plus, once known:
+
+```json
+{
+  "status": "COMPLETE",
+  "payment": { "chainId": 8453, "txHash": "0x…", "from": "0x…", "token": "USDC", "amount": "5000137",
+               "blockNumber": 123, "route": "transfer" },
+  "grant": { "success": true, "message": "Congratz on your new cat!", "catId": "68…" },
+  "shelterShare": { "route": "treasury", "bps": 5000, "evidenceTier": "onchain-custodial",
+                    "state": "confirmed", "amountUsdCents": 250, "txHash": "0x…", "chainId": 5042 }
+}
+```
+
+`status`: `OPEN` (awaiting payment), `EXPIRED` (no payment before `expiresAt`), `PAID` (verified, grant
+in progress), `COMPLETE` (granted), `FAILED_GRANT` (paid but not granted; `grant.refund: 'due'`), `LATE`
+(paid more than 2 hours after `expiresAt`; `refund: 'due'`; a later payment mined in time still completes
+the order).
+
+#### `POST /payments/crypto/orders/:orderId/confirm`
+
+Body: `{ "chainId": 8453, "txHash": "0x…" }`.
+
+| Status | Body | When |
+|---|---|---|
+| 200 | `{ status: 'COMPLETE', success: true, message, cat }` | Verified and granted now |
+| 200 | `{ status: 'COMPLETE' \| 'FAILED_GRANT', success, message, replay: true, … }` | The same transaction was already confirmed for this order: nothing is granted again |
+| 200 | `{ status: 'FAILED_GRANT', success: false, message, refund: 'due' }` | Paid, but the grant failed (an empty pack pool, the cat already owned): the treasury refunds by hand |
+| 202 | `{ status: 'CONFIRMING', confirmations, required }` | The transaction is not mined yet (`confirmations: 0`) or has fewer than the chain's `confirmations`; call again |
+| 202 | `{ status: 'CONFIRMING', replay: true, message }` | The payment is verified and the item is still being granted (another confirm is granting, or a grant died and the sweep will finish it); call again. Never shown as a refund |
+| 4xx/5xx | `{ statusCode, code, message }` | See the codes above |
+
+Verification, in order: the chain is one of the order's options; the receipt exists and succeeded; it has
+at least the chain's confirmations; its block is not older than the order (2 minutes of clock skew);
+a log of the option's token contract pays the option's recipient (exact `amount` for `amount` binding,
+the memo and at least `amount` for `memo` binding; for `split`, also the split's `DisbursementBatch`
+with this memo); the block time is not more than 2 hours after `expiresAt`. The transaction hash is unique across all
+orders (`Order.hash = evm:<chainId>:<txHash>`, index `hash_unique`), so one payment never grants twice. A
+second, different payment for an order that is already paid is recorded with `refund: 'due'`.
+
+On success the server writes an `Order` (`chainType: 'EVM'`, `currencyType` `USDC` or `EURC`,
+`priceUsd` = the USD price, `walletAddress` = the paying wallet) and grants through the same path as
+Stripe: a pack rolls its tier; a shelter cat is a `COMMON` copy (origin `adopt`); a loot box is a common
+cat. `spent`, `monthSpent`, `spentUsd` and the affiliate credit use the USD price, counted once per order.
+
+#### Stuck grants
+
+The grant takes a lease (`grantStartedAt`) before it runs. If the process dies before the result is
+stored, the order stays `PAID` with no `grant`; confirm answers 202 for it. Every 5 minutes (and on
+`POST /payments/crypto/recover-grants`) orders `PAID` with no grant whose lease is over 5 minutes old are
+finished: when their `Order` is already `COMPLETE` or `FAILED_GRANT` that result (and its refund) is
+copied; a shelter cat the buyer already holds counts as delivered; otherwise the grant runs again under a
+new lease, with the spend counted once. Known gap: a pack whose adoption succeeded in the single write
+before the crash, without its `Order` being marked, is granted a second cat.
 
 ## Content
 
@@ -538,8 +779,8 @@ The enums marked "shared" live in `shared/enums.ts` and are generated into every
 | `HandoverStatus` (shared) | `held-by-token-tails`, `handed-over` |
 | `RescueGoalStatus` (shared) | `OPEN`, `FILLED`, `DELIVERED`, `CANCELLED` |
 | `TailsMode` | `POINTS`, `TOKEN` |
-| `ChainType` | `STELLAR`, `FIAT` |
-| `CurrencyType` | `USDT`, `USDC`, `XLM`, `USD` |
+| `ChainType` | `STELLAR`, `FIAT`, `EVM` (crypto checkout orders) |
+| `CurrencyType` | `USDT`, `USDC`, `XLM`, `USD`, `EURC` |
 | `ProductType` | `digital`, `print`, `canvas` |
 | `ImageStyle` | `highness`, `monarch`, `aristocrat`, `commander` |
 | `EntityType` | `ARTICLE`, `CAT`, `BLESSING`, `PACK`, `IMAGE`, `COMMENT` |

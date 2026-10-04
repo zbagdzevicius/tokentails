@@ -87,6 +87,8 @@ export function minimumStroops(asset: StellarAsset, priceUsdCents: number, xlmUs
 export interface HorizonTransaction {
     hash?: string;
     successful?: boolean;
+    /** ISO time the ledger holding the transaction closed. */
+    created_at?: string;
     memo?: string;
     memo_type?: string;
     /** Present on a fee-bump transaction: the outer (fee-bump) envelope. */

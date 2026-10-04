@@ -1,4 +1,11 @@
-import { getPackPriceCents, getPortraitPriceCents, isPackType, isProductType } from 'src/payments/price-table';
+import {
+    getPackPriceCents,
+    getPortraitPriceCents,
+    getShelterCatPriceCents,
+    isPackType,
+    isProductType,
+} from 'src/payments/price-table';
+import { Types } from 'mongoose';
 import { EntityType } from 'src/shared/interfaces/common.interface';
 import { ProductType } from './order.schema';
 
@@ -18,6 +25,7 @@ export const LOOT_BOX_PRICE_CENTS = 100;
  * Order fields as the confirm flows write them:
  * - IMAGE: `id` is the portrait ProductType (`digital` for POST /web3/confirm and PaymentIntents).
  * - PACK: `id` is the PackType.
+ * - CAT: `id` is the catalogue (shelter) cat id; a shelter cat costs `getShelterCatPriceCents()`.
  */
 export function getOrderCatalogueCents(order: { entityType?: string; id?: unknown }): number | null {
     const id = order.id === undefined || order.id === null ? undefined : String(order.id);
@@ -28,6 +36,9 @@ export function getOrderCatalogueCents(order: { entityType?: string; id?: unknow
     }
     if (order.entityType === EntityType.PACK) {
         return isPackType(id) ? getPackPriceCents(id) : null;
+    }
+    if (order.entityType === EntityType.CAT) {
+        return id && Types.ObjectId.isValid(id) ? getShelterCatPriceCents() : null;
     }
     if (order.entityType === LOOT_BOX_ENTITY) {
         return id ? null : LOOT_BOX_PRICE_CENTS;

@@ -26,14 +26,17 @@ nameplate, one **Home** tile (opens `HOME`; a `SHELTER` button inside Home switc
 scene and a `HOME` button back), a **RESCUE** tile (opens PROGRESS on IMPACT), MEET SHELTER CATS (one
 tap to the Shelter), the md+ impact strip, PROGRESS, ABOUT ME, Settings and a mute toggle. The
 **PLAY** button opens `components/shared/GameSelectModal.tsx`, a GameModal with four cards: Cupid
-Cat, Purrsuit (tagged CLASSIC; there is no promise of new levels, decision #94), Paw Match and Catnip
+Cat (seasonal, tagged SEASONAL: shown only from 1 January to 31 March in the player's local time, see
+`components/game/seasons.ts`; off-season the picker has three cards and `setGameType` refuses
+PIXEL_RESCUE, while saves of a run already started still go through), Purrsuit (tagged CLASSIC; there is no promise of new levels, decision #94), Paw Match and Catnip
 Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card shows only
 with `NEXT_PUBLIC_HEIST_PICKER=1` (on in development and E2E builds) until the Poki carve-out is in
 writing (decision #15). Cards are 2x2 on phones and one row from `md`.
 
 A new player is routed straight to their first level: after Meet your cat the hand-off shows the
 lobby with "Up next: Cupid Cat · Day 1" for 1.8 s, then opens Cupid Cat level 1 with the starter
-shield (decision #96). A player with no clears in a scored mode opens on its level 1 gate.
+shield (decision #96). Outside Cupid Cat's season the hand-off opens Purrsuit 1-1 instead
+(`firstModeFor` in `components/onboarding/handoff.ts`). A player with no clears in a scored mode opens on its level 1 gate.
 
 ## Shared plumbing
 

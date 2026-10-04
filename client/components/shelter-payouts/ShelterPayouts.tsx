@@ -1,39 +1,48 @@
 // copy-lint: web-only app builds render AppProofNotice instead (the isAppBuild gate in ShelterPayouts)
-import { DonateStatus, SHELTER_API } from "@/api/shelter-api";
 import { isAppBuild } from "@/components/claims/build";
-import { PixelButton } from "@/components/shared/PixelButton";
 import NextLink from "next/link";
-import { Dispatch, ReactNode, SetStateAction, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { AppProofNotice } from "./AppProofNotice";
 import { CampaignMeter } from "./CampaignMeter";
-import { Campaign, campaignProgress, claimsDateLabel, fetchCampaign } from "./campaign";
-
-export { claimsDateLabel };
-import { ChainInfo, SHELTER_CHAINS, chainRole, explorerAddress, explorerTx } from "./chains";
-import { readGiveEnv, tryChainId, tryItRouters, walletGiveMode } from "./giveMode";
-import { RouterEntry, fetchRouters, routerFor } from "./routers";
-import { Disbursement, displayMemo, formatUnits, payoutUnit, to18 } from "./logs";
+import { claimsDateLabel } from "./campaign";
+import { ChainInfo, SHELTER_CHAINS, chainRole } from "./chains";
+import { mainnetRails, readGiveEnv, tryChainId, tryItRails, walletGiveMode } from "./giveMode";
+import { useCampaignGoal } from "./goal";
+import { formatUnits } from "./logs";
 import {
-  ShelterDeployment,
-  fetchDeployments,
-  fetchDisbursements,
-  fetchNativeBalance,
-  fetchTestnetDeployments,
-  isTestnetDeployment,
-  readErrorText,
-  resolveChain,
-} from "./rpc";
+  Addr,
+  Balance,
+  FeedSection,
+  GiveCtaSection,
+  HEIST_URL,
+  HowItWorks,
+  IMPACT_URL,
+  PayoutFeed,
+  payoutsEmptyCopy,
+  Result,
+  Sym,
+  TreatCta,
+  chainCount,
+  chainLabel,
+  deployInstances,
+  feedItems,
+  stillReading,
+  totalsBySymbol,
+  twoDp,
+  usePayouts,
+  useTreatJar,
+} from "./payoutSections";
+import { RouterEntry, fetchRouters, routerFor } from "./routers";
+import { ShelterDeployment, resolveChain } from "./rpc";
 import { isPinkPawWallet } from "./pinkPaw";
 import { PinkPawShowcase } from "./PinkPawShowcase";
 import { ShelterProfile } from "./ShelterProfile";
-import { CARD, CHIP, FIGURE, MEMO, HEADLINE, Kicker, NightStage, PANEL, PILL, PinkCat } from "./ui";
+import { CARD, CHIP, FIGURE, HEADLINE, Kicker, NightStage, PANEL, PILL, PinkCat } from "./ui";
 import { WalletChoice, WalletDonate } from "./WalletDonate";
 
-export const GIVE_URL = "/shelter-payouts/give";
-
-// The Catnip Heist host page (task 4b); the old /heist/index.html redirects there.
-export const HEIST_URL = "/heist";
-export const IMPACT_URL = "/impact";
+export { claimsDateLabel };
+// Kept here for callers and tests that import them from the page component.
+export { GIVE_URL, HEIST_URL, IMPACT_URL, chainCount, payoutsEmptyCopy, receiptHref, twoDp } from "./payoutSections";
 
 /** Chain settings for a chain id: a deployments.json entry's overrides first, then the built-in list. */
 export function chainFor(chainId: number, deployments: ShelterDeployment[]): ChainInfo | null {
@@ -46,120 +55,6 @@ export { matchMeterCopy } from "./giveMode";
 
 export const DISCLOSURE =
   "Shelter wallet held by Token Tails on behalf of the shelter until handover";
-
-type Result =
-  | { status: "loading" }
-  | { status: "error"; error: string }
-  | { status: "done"; items: Disbursement[] };
-
-type Page =
-  | { status: "loading" }
-  | { status: "error"; error: string }
-  | { status: "done"; deployments: ShelterDeployment[] };
-
-// Sum per symbol, in 18-decimal units, so Arc's native USDC (18 decimals) and ERC-20 USDC (6)
-// add up while different coins never mix.
-function totalsBySymbol(
-  items: Disbursement[],
-  chain: ReturnType<typeof resolveChain>
-): { symbol: string; amount: bigint; count: number }[] {
-  const out: Record<string, { symbol: string; amount: bigint; count: number }> = {};
-  for (const d of items) {
-    const u = chain ? payoutUnit(d.kind, chain) : { decimals: 6, symbol: "?" };
-    const t = out[u.symbol] || { symbol: u.symbol, amount: BigInt(0), count: 0 };
-    t.amount += to18(d.amount, u.decimals);
-    t.count += 1;
-    out[u.symbol] = t;
-  }
-  return Object.values(out);
-}
-
-const short = (v: string) => `${v.slice(0, 6)}…${v.slice(-4)}`;
-
-/** Distinct chains in a deployment list: two contracts on one chain count once. */
-export const chainCount = (deployments: Pick<ShelterDeployment, "chainId">[]) =>
-  new Set(deployments.map((d) => d.chainId)).size;
-
-/** Token symbols keep their case (pathUSD, mUSDC) inside the upper-case figure and chip styles. */
-const Sym = ({ children }: { children: ReactNode }) => <span className="normal-case">{children}</span>;
-
-// Reads payouts and the contract balance of every deployment in a list, keyed by its index.
-function readDeployments(
-  deployments: ShelterDeployment[],
-  setResults: Dispatch<SetStateAction<Record<number, Result>>>,
-  setBalances: Dispatch<SetStateAction<Record<number, Balance>>>,
-  cancelled: () => boolean
-) {
-  deployments.forEach((d, i) => {
-    setResults((r) => ({ ...r, [i]: { status: "loading" } }));
-    fetchNativeBalance(d)
-      .then((wei) => !cancelled() && setBalances((b) => ({ ...b, [i]: { status: "done", wei } })))
-      .catch(() => !cancelled() && setBalances((b) => ({ ...b, [i]: { status: "error" } })));
-    fetchDisbursements(d)
-      .then((items) => {
-        if (!cancelled()) setResults((r) => ({ ...r, [i]: { status: "done", items } }));
-      })
-      .catch((err: unknown) => {
-        if (!cancelled()) setResults((r) => ({ ...r, [i]: { status: "error", error: readErrorText(err) } }));
-      });
-  });
-}
-
-/**
- * The empty state while no payout exists (plan G4 acceptance: future tense and the claims date, or
- * no date if unset). The date is the campaign's start, the day payouts begin to count.
- */
-export function payoutsEmptyCopy(startDate: string | null | undefined, now: Date = new Date()): string {
-  const lead =
-    "No mainnet payouts yet. Token Tails will list each payout here as soon as the first mainnet contract goes live.";
-  const label = claimsDateLabel(startDate);
-  if (!label) return lead;
-  const started = Date.parse(`${startDate}T00:00:00Z`) <= now.getTime();
-  return started
-    ? `${lead} Every payout from ${label} on will count toward the campaign.`
-    : `${lead} Payouts will start counting on ${label}.`;
-}
-
-// Two decimals is plenty for a headline figure: 12.345678 -> 12.34. Below 1, keep two significant
-// digits so a small native gift never reads as zero: 0.0021 ETH -> 0.0021, not 0.00.
-export const twoDp = (v18: bigint) => {
-  const [w, f] = formatUnits(v18, 18).split(".");
-  if (!f) return w;
-  if (w !== "0") return `${w}.${f.slice(0, 2)}`;
-  const lead = f.search(/[1-9]/);
-  if (lead < 0) return "0";
-  if (lead >= 6) return "<0.000001";
-  return `0.${f.slice(0, Math.max(2, lead + 2))}`;
-};
-
-const Link = ({ href, text, label }: { href: string; text: string; label?: string }) => (
-  <a
-    href={href}
-    target="_blank"
-    rel="noopener noreferrer"
-    aria-label={label}
-    // The `code` role: addresses and tx hashes only (plan F4, G14).
-    // eslint-disable-next-line tt/no-raw-font
-    className="font-mono normal-case underline decoration-dotted underline-offset-2 hover:text-tt-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-tt-gold-400"
-  >
-    {text}
-  </a>
-);
-
-const Addr = ({ explorer, value, kind }: { explorer?: string; value: string; kind: "address" | "tx" }) =>
-  explorer ? (
-    <Link
-      href={kind === "tx" ? explorerTx(explorer, value) : explorerAddress(explorer, value)}
-      text={short(value)}
-      label={kind === "tx" ? `Transaction ${short(value)} on the explorer` : undefined}
-    />
-  ) : (
-    // The `code` role: an address or a tx hash (plan F4, G14).
-    // eslint-disable-next-line tt/no-raw-font
-    <span className="font-mono normal-case">{short(value)}</span>
-  );
-
-type Balance = { status: "loading" } | { status: "error" } | { status: "done"; wei: bigint };
 
 // ShelterSplit forwards every donation in the same transaction, so this should read 0.
 const BalanceLine = ({
@@ -186,22 +81,18 @@ const BalanceLine = ({
   </p>
 );
 
-const chainLabel = (deployment: ShelterDeployment, chain: ChainInfo | null) =>
-  `${chain?.name || `Chain ${deployment.chainId}`}${
-    deployment.network && !(chain?.name || "").toLowerCase().includes(deployment.network.toLowerCase())
-      ? ` ${deployment.network}`
-      : ""
-  }`;
-
 /** One chain: its total, payout count, contract and balance. */
 const ChainCard = ({
   deployment,
   result,
   balance,
+  instance,
 }: {
   deployment: ShelterDeployment;
   result: Result;
   balance: Balance;
+  /** "Deploy 2 of 2" when another contract on this chain pays the same coin. */
+  instance?: string | null;
 }) => {
   const chain = resolveChain(deployment);
   const cardTotals = result.status === "done" ? totalsBySymbol(result.items, chain) : [];
@@ -231,6 +122,11 @@ const ChainCard = ({
             </>
           ) : null}
         </span>
+        {instance && (
+          <span className={CHIP} data-testid="chain-card-instance">
+            {instance}
+          </span>
+        )}
       </div>
       {role && (
         <p className="text-p6 md:text-p5 text-tt-cream/80" data-testid="chain-role">
@@ -277,117 +173,18 @@ const ChainCard = ({
   );
 };
 
-type FeedItem = { d: Disbursement; chain: ChainInfo | null; chainName: string; chainId: number };
-
-/** The site's own receipt page for one payout transaction. */
-export const receiptHref = (chainId: number, txHash: string) =>
-  `/shelter-payouts/receipt?chain=${chainId}&tx=${txHash}`;
-
-/** Every payout on every chain, newest block first within each chain. */
-const PayoutFeed = ({
-  items,
-  shelterName,
-  target,
-}: {
-  items: FeedItem[];
-  shelterName: (addr: string) => string | null;
-  target?: string;
-}) => (
-  <ul className="flex flex-col gap-3" data-testid="payouts-feed">
-    {items.map(({ d, chain, chainName, chainId }) => {
-      const unit = chain ? payoutUnit(d.kind, chain) : { decimals: 6, symbol: "" };
-      const memo = displayMemo(d.memo);
-      const name = shelterName(d.shelter);
-      return (
-        <li
-          key={`${chainName}-${d.txHash}-${d.logIndex}`}
-          className="flex flex-col gap-2 rounded-2xl border-2 border-tt-cream/40 bg-tt-night-900/70 p-3 md:flex-row md:items-center md:gap-4 md:p-4"
-        >
-          <span className="flex items-center gap-3 md:w-64 md:shrink-0">
-            <span aria-hidden="true" className="text-h6">🐾</span>
-            <span className="font-primary text-p1 md:text-h6 leading-none whitespace-nowrap text-tt-gold-400 [text-shadow:0_0_8px_rgb(var(--tt-gold-400)/.45)]">
-              {formatUnits(d.amount, unit.decimals)} <Sym>{unit.symbol}</Sym>
-            </span>
-          </span>
-          <span className="flex min-w-0 flex-1 flex-col gap-1">
-            <span className="text-p5 md:text-p4">
-              to{" "}
-              {name ? (
-                <strong className="text-tt-cream">{name}</strong>
-              ) : (
-                <Addr explorer={chain?.explorer} value={d.shelter} kind="address" />
-              )}
-            </span>
-            <span className="flex flex-wrap gap-2">
-              <span className={CHIP}>{chainName}</span>
-              {memo && <span className={MEMO}>{memo}</span>}
-            </span>
-          </span>
-          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-p6 md:text-p5 text-tt-cream/80">
-            <span>
-              <span className="mr-1">Tx</span>
-              <Addr explorer={chain?.explorer} value={d.txHash} kind="tx" />
-            </span>
-            <NextLink
-              href={receiptHref(chainId, d.txHash)}
-              target={target}
-              className="underline decoration-dotted underline-offset-2 hover:text-tt-gold-400"
-              data-testid="feed-receipt"
-            >
-              Receipt ›
-            </NextLink>
-          </span>
-        </li>
-      );
-    })}
-  </ul>
-);
-
 export const ShelterPayouts = ({ embed = false }: { embed?: boolean }) =>
   isAppBuild() ? <AppProofNotice /> : <WebShelterPayouts embed={embed} />;
 
 const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
-  const [page, setPage] = useState<Page>({ status: "loading" });
-  const [results, setResults] = useState<Record<number, Result>>({});
-  const [balances, setBalances] = useState<Record<number, Balance>>({});
-  // The testnet proof: its own list, reads and section, never added to the mainnet figures.
-  const [testnet, setTestnet] = useState<ShelterDeployment[]>([]);
-  const [tResults, setTResults] = useState<Record<number, Result>>({});
-  const [tBalances, setTBalances] = useState<Record<number, Balance>>({});
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
-  // undefined while loading, null when the backend could not be reached.
-  const [jar, setJar] = useState<DonateStatus | null | undefined>(undefined);
+  const { page, results, balances, testnet, tResults, tBalances } = usePayouts();
+  const { campaign, progress, state: goalState } = useCampaignGoal();
+  const { closed: jarClosed } = useTreatJar();
   const [routers, setRouters] = useState<RouterEntry[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     fetchRouters().then((r) => !cancelled && setRouters(r));
-    SHELTER_API.getDonateStatus().then((st) => !cancelled && setJar(st));
-    fetchCampaign()
-      .then((c) => !cancelled && setCampaign(c))
-      .catch(() => undefined); // the campaign block is optional; the payouts still render
-    const isCancelled = () => cancelled;
-    Promise.all([
-      fetchDeployments().then(
-        (list) => ({ ok: true as const, list }),
-        (err: Error) => ({ ok: false as const, error: err.message })
-      ),
-      fetchTestnetDeployments(),
-    ]).then(([main, testList]) => {
-      if (cancelled) return;
-      // A testnet entry in the public list (e.g. the whole funding file copied over) moves to the
-      // testnet section, so test money never shows up in the headline figures.
-      const mainnet = main.ok ? main.list.filter((d) => !isTestnetDeployment(d)) : [];
-      const seen = new Set(testList.map((d) => `${d.chainId}:${d.address.toLowerCase()}`));
-      const tests = [
-        ...testList,
-        ...(main.ok ? main.list.filter((d) => isTestnetDeployment(d) && !seen.has(`${d.chainId}:${d.address.toLowerCase()}`)) : []),
-      ];
-      setPage(main.ok ? { status: "done", deployments: mainnet } : { status: "error", error: main.error });
-      setTestnet(tests);
-      readDeployments(mainnet, setResults, setBalances, isCancelled);
-      readDeployments(tests, setTResults, setTBalances, isCancelled);
-    });
     return () => {
       cancelled = true;
     };
@@ -409,26 +206,13 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
   }
   const totalEntries = Object.entries(totals);
   const payoutCount = totalEntries.reduce((n, [, t]) => n + t.count, 0);
-  const pending =
-    page.status === "done" &&
-    page.deployments.some((_, i) => results[i]?.status !== "done" && results[i]?.status !== "error");
+  const pending = page.status === "done" && stillReading(page.deployments, results);
 
   const unread =
     page.status === "done" && page.deployments.some((_, i) => results[i]?.status === "error");
   const chainsTotal = page.status === "done" ? chainCount(page.deployments) : 0;
 
   const deployments = page.status === "done" ? page.deployments : [];
-  const progress = campaign
-    ? campaignProgress(
-        campaign,
-        deployments.flatMap((d, i) => {
-          const r = results[i];
-          return r?.status === "done"
-            ? [{ chainId: d.chainId, items: r.items, symbol: resolveChain(d)?.symbol }]
-            : [];
-        })
-      )
-    : null;
   const campaignDeployment = campaign
     ? deployments.find((d) => d.chainId === campaign.chainId)
     : undefined;
@@ -436,29 +220,21 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
 
   // Wallet giving: the campaign slot (real money, only after the handover) and, separately, the
   // testnet "try it live" slot. The rules live in giveMode.ts.
+  // Mainnet and testnet ShelterSplits: a chain without a router gives straight into its split.
+  const giveDeployments = [...deployments, ...testnet];
   const giveEnv = readGiveEnv();
-  const campaignMode = walletGiveMode(campaign, deployments, routers, giveEnv, "campaign");
-  const tryMode = walletGiveMode(campaign, deployments, routers, giveEnv, "try-it");
+  const campaignMode = walletGiveMode(campaign, giveDeployments, routers, giveEnv, "campaign");
+  const tryMode = walletGiveMode(campaign, giveDeployments, routers, giveEnv, "try-it");
   const tryId = tryChainId(giveEnv);
-  // Every listed testnet router with a wallet path: the try-it block lets the donor pick the network.
-  const tryChoices: WalletChoice[] = tryItRouters(routers, giveEnv).flatMap((r) => {
-    const chain = chainFor(r.chainId, deployments);
-    return chain ? [{ chainId: r.chainId, chain, router: r }] : [];
-  });
+  // Every chain of the six with a wallet path: each block lets the donor pick the network.
+  const tryChoices: WalletChoice[] = tryItRails(routers, giveDeployments, giveEnv);
+  const campaignChoices: WalletChoice[] =
+    campaignMode === "mainnet" ? mainnetRails(campaign, routers, giveDeployments, giveEnv) : [];
 
-  const feed: FeedItem[] = deployments.flatMap((d, i) => {
-    const r = results[i];
-    if (r?.status !== "done") return [];
-    const chain = resolveChain(d);
-    return r.items.map((item) => ({ d: item, chain, chainName: chainLabel(d, chain), chainId: d.chainId }));
-  });
-  const testFeed: FeedItem[] = testnet.flatMap((d, i) => {
-    const r = tResults[i];
-    if (r?.status !== "done") return [];
-    const chain = resolveChain(d);
-    return r.items.map((item) => ({ d: item, chain, chainName: chainLabel(d, chain), chainId: d.chainId }));
-  });
-  const testPending = testnet.some((_, i) => tResults[i]?.status !== "done" && tResults[i]?.status !== "error");
+  const feed = feedItems(deployments, results);
+  const testFeed = feedItems(testnet, tResults);
+  const testInstances = deployInstances(testnet);
+  const testPending = stillReading(testnet, tResults);
   const testUnread = testnet.filter((_, i) => tResults[i]?.status === "error").length;
   const testChainNames = Array.from(new Set(testnet.map((d) => chainLabel(d, resolveChain(d)))));
   const shelterName = (addr: string) =>
@@ -466,52 +242,21 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
 
   // Inside the Heist modal (`?embed=1`) links leave the iframe, and the Heist link is dropped.
   const target = embed ? "_top" : undefined;
-  // While the treat jar is closed, "SEND A TREAT" would lead to a disabled button: point the CTA at
-  // the Heist instead (or, inside the Heist, show that the jar opens soon).
-  const jarOpen =
-    !!jar?.enabled && BigInt(jar.amountWei || "0") > BigInt(0) &&
-    BigInt(jar.remainingTodayWei || "0") >= BigInt(jar.amountWei || "0");
-  const jarClosed = jar !== undefined && !jarOpen;
-  const ctaButton = (size?: "md") =>
-    jarClosed ? (
-      embed ? (
-        <span className={`${PILL} cursor-default border-dashed`} data-testid="treat-jar-closed">
-          Treat jar opens soon
-        </span>
-      ) : (
-        <a href={HEIST_URL} data-testid="play-heist-cta">
-          <PixelButton
-            as="span"
-            text="PLAY CATNIP HEIST"
-            size={size}
-            className={size ? "md:scale-125 md:hover:scale-[1.35]" : undefined}
-          />
-        </a>
-      )
-    ) : (
-      <NextLink href={GIVE_URL} target={target} data-testid="give-treat">
-        <PixelButton
-          as="span"
-          text="SEND A TREAT"
-          subtext="🐾"
-          size={size}
-          className={size ? "md:scale-125 md:hover:scale-[1.35]" : undefined}
-        />
-      </NextLink>
-    );
+  const ctaButton = (size?: "md") => <TreatCta jarClosed={jarClosed} embed={embed} target={target} size={size} />;
   // Pink Paw's logo and cats only when the campaign is Pink Paw's own wallet.
   const showPinkPaw = !!campaign && isPinkPawWallet(campaign.shelter.wallet);
   const campaignBody = campaign ? (
     <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-2">
       <ShelterProfile campaign={campaign} explorer={campaignChain?.explorer} heading={showPinkPaw ? "Their wallet" : undefined} />
       <div className="flex flex-col gap-4">
-        {progress && <CampaignMeter campaign={campaign} progress={progress} loading={pending} />}
+        {progress && <CampaignMeter campaign={campaign} progress={progress} state={goalState} />}
         <WalletDonate
           mode={campaignMode}
           chainId={campaign.chainId}
           chain={campaignChain || chainFor(campaign.chainId, deployments)}
           router={routerFor(routers, campaign.chainId)}
           shelterName={campaign.shelter.name}
+          choices={campaignChoices}
         />
         {tryId !== null && (
           <WalletDonate
@@ -674,21 +419,7 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
               </section>
 
               {/* FEED */}
-              <section className={PANEL}>
-                <Kicker>Payouts feed</Kicker>
-                <h2 className={HEADLINE}>
-                  Every treat, <span className="glow text-tt-cream">on the record.</span>
-                </h2>
-                <div className="mt-5 md:mt-7">
-                  {feed.length > 0 ? (
-                    <PayoutFeed items={feed} shelterName={shelterName} target={target} />
-                  ) : (
-                    <p className={pending ? "motion-safe:animate-pulse" : ""}>
-                      {pending ? "Reading payouts from the chain…" : "No payouts yet. The first one shows up here."}
-                    </p>
-                  )}
-                </div>
-              </section>
+              <FeedSection feed={feed} pending={pending} shelterName={shelterName} target={target} />
             </>
           )}
 
@@ -715,6 +446,8 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
                 ))}
               </ul>
               <p className="mt-4 font-primary text-p4 md:text-p3 uppercase tracking-wide text-tt-cream" aria-live="polite">
+                {/* A contract that could not be read hides its payouts: the count is then a floor. */}
+                {!testPending && testUnread > 0 ? "At least " : ""}
                 {testFeed.length} test payout{testFeed.length === 1 ? "" : "s"} on {testnet.length} contracts
                 {testPending ? " · still reading…" : ""}
               </p>
@@ -727,6 +460,7 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
                 {testnet.map((d, i) => (
                   <ChainCard
                     key={`${d.chainId}-${d.address}`}
+                    instance={testInstances[i]}
                     deployment={d}
                     result={tResults[i] || { status: "loading" }}
                     balance={tBalances[i] || { status: "loading" }}
@@ -746,23 +480,10 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
             </section>
           )}
 
+          <HowItWorks />
+
           {/* CLOSING CTA, like the landing's rescue hub. */}
-          <section className={`${PANEL} flex flex-col items-center gap-5 text-center md:flex-row md:justify-between md:text-left`}>
-            <div className="flex items-center gap-4">
-              <PinkCat lick className="hidden h-36 w-36 -my-6 shrink-0 sm:block" />
-              <div>
-                <h2 className="font-primary text-h6 md:text-h5 uppercase leading-none text-white">
-                  One tap. <span className="glow text-tt-cream">One treat.</span>
-                </h2>
-                <p className="mt-2 max-w-xl text-p5 md:text-p4 text-tt-cream/90">
-                  {jarClosed
-                    ? "The treat jar opens soon. Token Tails pays for every treat, and each one shows up on this page."
-                    : "Token Tails pays for it, and it shows up on this page."}
-                </p>
-              </div>
-            </div>
-            <span className="md:mr-6">{ctaButton()}</span>
-          </section>
+          <GiveCtaSection jarClosed={jarClosed} embed={embed} target={target} />
         </div>
       </NightStage>
     </div>

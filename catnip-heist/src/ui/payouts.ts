@@ -7,7 +7,7 @@
 // `fund a:ingest` writes to public/payouts/deployments.json. The chain table mirrors
 // client/components/shelter-payouts/chains.ts (this package imports nothing from client/).
 
-import { PAYOUT_CHAIN_META } from './shelter-payouts-chains';
+import { PAYOUT_CHAIN_META, TESTNET_CHAIN_IDS } from './shelter-payouts-chains';
 
 export interface PayoutDeployment {
   chainId: number;
@@ -17,6 +17,10 @@ export interface PayoutDeployment {
   rpc?: string;
   /** Payout token recorded by `fund a:ingest` ("USDC", or "EURC" for a second instance). */
   token?: string;
+  /** "mainnet" or "testnet", as `fund a:ingest` records it. */
+  network?: string;
+  /** The deploy wave's proof payouts: links that stay useful when the chain cannot be read. */
+  proofTxs?: string[];
 }
 
 interface ChainUnits {
@@ -178,6 +182,21 @@ function rpc<T>(f: Fetch, url: string, method: string, params: unknown[], signal
   return serial(url, () => retrying(() => rpcOnce<T>(f, url, method, params, signal), signal));
 }
 
+/** True for a rate-limited RPC answer: HTTP 429, JSON-RPC -32005 or a "rate limit" message. */
+export function isRateLimitAnswer(status: number | undefined, error?: { code?: number; message?: string } | null): boolean {
+  return status === 429 || error?.code === -32005 || /rate limit|too many requests/i.test(error?.message ?? '');
+}
+
+/**
+ * Runs `call`, retrying with the payout reads' backoff while it reports a rate limit (`rateLimited()`
+ * builds that error). For other readers of a payouts RPC (the Pink Paw goal meter): the modal reads
+ * the payouts and the goal on the same RPC at once, and one 429 must not blank the meter. Not queued
+ * behind the payout reads, which can take many log windows.
+ */
+export function retryRateLimited<T>(call: (rateLimited: (msg: string) => Error) => Promise<T>, signal: AbortSignal, retries = 3): Promise<T> {
+  return retrying(() => call((msg) => new RateLimited(msg)), signal, retries);
+}
+
 /**
  * Public RPCs cap eth_getLogs ranges (Tempo: 100,000 blocks; Arc: "requested range too large"
  * well below that; Base: 2,000, Base Sepolia: 1,000), so a full-range query that is refused is
@@ -297,6 +316,8 @@ export interface ChainRow {
   totals: Map<string, bigint>;
   count: number;
   ok: boolean;
+  /** The deployment's recorded proof payouts (tx hashes), when the list has any. */
+  proofTxs?: string[];
 }
 
 /** One payout event, newest first in `ShelterPayouts.payouts`. */
@@ -355,7 +376,12 @@ const TIMED_PER_CHAIN = 6;
  * events (newest first). Best effort: a chain whose RPC fails or times out is marked `ok: false`
  * and skipped. With `times`, the newest payouts per chain also get their block time.
  */
-export async function fetchShelterPayouts(deploymentsUrl: string, f: Fetch = fetch, timeoutMs = 8000, opts: { times?: boolean } = {}): Promise<ShelterPayouts> {
+export async function fetchShelterPayouts(
+  deploymentsUrl: string,
+  f: Fetch = fetch,
+  timeoutMs = 8000,
+  opts: { times?: boolean; only?: (d: PayoutDeployment) => boolean } = {},
+): Promise<ShelterPayouts> {
   const ctl = new AbortController();
   // Two budgets of `timeoutMs`: the list, then the chain reads. A busy main thread at boot (shader
   // compiles while the list loads) must not eat the RPCs' time.
@@ -368,13 +394,15 @@ export async function fetchShelterPayouts(deploymentsUrl: string, f: Fetch = fet
     if (!Array.isArray(list)) return { ...out, status: 'error' };
     clearTimeout(timer);
     timer = setTimeout(() => ctl.abort(), timeoutMs);
-    const usable = list.filter((d) => !!PAYOUT_CHAINS[d?.chainId] && /^0x[0-9a-fA-F]{40}$/.test(d.address ?? ''));
+    const usable = list.filter((d) => !!PAYOUT_CHAINS[d?.chainId] && /^0x[0-9a-fA-F]{40}$/.test(d.address ?? '') && (!opts.only || opts.only(d)));
     if (!usable.length) return { ...out, status: 'empty' };
     out.chains = await Promise.all(usable.map(async (d): Promise<ChainRow> => {
       const known = PAYOUT_CHAINS[d.chainId];
       const chain = deploymentUnits(d, known);
       const meta = PAYOUT_CHAIN_META[d.chainId];
       const row: ChainRow = { chainId: d.chainId, name: meta?.name ?? `Chain ${d.chainId}`, explorer: meta?.explorer ?? '', address: d.address, symbol: chain.symbol, totals: new Map(), count: 0, ok: true };
+      const proofs = Array.isArray(d.proofTxs) ? d.proofTxs.filter((t) => typeof t === 'string' && /^0x[0-9a-fA-F]{64}$/.test(t)) : [];
+      if (proofs.length) row.proofTxs = proofs;
       const url = d.rpc || chain.rpc;
       try {
         let from = typeof d.fromBlock === 'number' ? d.fromBlock : 0;
@@ -463,6 +491,37 @@ export function loadShelterPayouts(deploymentsUrl: string, f: Fetch = fetch): Pr
 /** Test hook: forget the cached payouts. */
 export function resetShelterPayoutsCache(): void {
   cachedPayouts = null;
+  cachedTestnet = null;
+}
+
+type TestnetEnv = { BASE_URL?: string; HEIST_TESTNET_DEPLOYMENTS_URL?: string };
+const TESTNET_ENV: TestnetEnv = (import.meta as { env?: TestnetEnv }).env ?? {};
+
+/**
+ * Testnet ShelterSplit list for the payouts modal's "Testnet proof" section, kept apart from the
+ * mainnet list (DEPLOYMENTS_URL) so test coins never sum with real payouts. Bundled at
+ * public/payouts/testnet-deployments.json (written by `fund a:ingest --network testnet`, like the
+ * client's copy). Override with HEIST_TESTNET_DEPLOYMENTS_URL=<url>; an empty string hides the section.
+ * Kept out of types.ts, which the backend vendors with the sim.
+ */
+export const TESTNET_DEPLOYMENTS_URL: string = TESTNET_ENV.HEIST_TESTNET_DEPLOYMENTS_URL ?? `${TESTNET_ENV.BASE_URL ?? './'}payouts/testnet-deployments.json`;
+
+/** Only the deploy wave's testnets, and never an entry the list marks as mainnet. */
+export const isTestnetDeployment = (d: PayoutDeployment): boolean => TESTNET_CHAIN_IDS.includes(d.chainId) && d.network !== 'mainnet';
+
+let cachedTestnet: Promise<ShelterPayouts> | null = null;
+
+/**
+ * The testnet proof's data (public/payouts/testnet-deployments.json): its own list, its own read and
+ * its own totals, never added to the mainnet figures. Cached like loadShelterPayouts.
+ */
+export function loadTestnetPayouts(testnetUrl: string, f: Fetch = fetch): Promise<ShelterPayouts> {
+  if (!testnetUrl) return Promise.resolve({ status: 'empty', totals: new Map(), chains: [], payouts: [] });
+  const p = (cachedTestnet ??= fetchShelterPayouts(testnetUrl, f, 15_000, { times: true, only: isTestnetDeployment }));
+  void p.then((r) => {
+    if ((r.status === 'error' || r.chains.some((c) => !c.ok)) && cachedTestnet === p) cachedTestnet = null;
+  });
+  return p;
 }
 
 let cached: Promise<string> | null = null;

@@ -351,7 +351,7 @@ describe("/shelter-payouts", () => {
     expect(before).toMatch(/Token Tails will list/);
     expect(before).toMatch(/will start counting on 1 December 2026\.$/);
     const after = payoutsEmptyCopy("2026-10-02", new Date("2026-10-05T00:00:00Z"));
-    expect(after).toMatch(/from 2 October 2026 on will count/);
+    expect(after).toMatch(/From 2 October 2026 on, the USDC that comes in to the campaign wallet counts toward the goal: today, sponsored treats\.$/);
     const none = payoutsEmptyCopy("", new Date());
     expect(none).toBe(
       "No mainnet payouts yet. Token Tails will list each payout here as soon as the first mainnet contract goes live."
@@ -380,8 +380,12 @@ describe("/shelter-payouts", () => {
       name: "Autumn",
       goalUsdc: "90",
       startDate: "2026-10-02",
+      endDate: "2027-09-30",
       chainId: 5042,
       fromBlock: null,
+      sources: [],
+      token: null,
+      startBalance: "0",
       shelter: { name: "Pink Paw", wallet: "0x" + "a".repeat(40), handover: "held-by-token-tails" as const },
     };
     const { rerender } = render(<ShelterProfile campaign={campaign} isApp />);

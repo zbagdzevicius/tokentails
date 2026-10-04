@@ -22,8 +22,12 @@ const campaign = (handover: Campaign["shelter"]["handover"], wallet: string | nu
   name: "Pink Paw autumn rescue",
   goalUsdc: "90",
   startDate: "2026-10-02",
+  endDate: "2027-09-30",
   chainId: 5042,
   fromBlock: null,
+  sources: ["gifts", "match", "treats", "x402", "purchase-shares"],
+  token: { address: "0x" + "36".repeat(20), decimals: 6 },
+  startBalance: "0",
   shelter: { name: "Pink Paw (Rožinė pėdutė)", wallet, handover },
 });
 
@@ -137,13 +141,17 @@ describe("chains without a wallet path", () => {
     network,
   });
 
-  it("never shows a button on Tempo or Robinhood testnet, even with a router listed", () => {
-    for (const id of [42431, 46630]) {
-      expect(NO_WALLET_PATH.has(id)).toBe(true);
-      expect(walletGiveMode(null, [], [r(id, "testnet")], { tryChain: String(id) }, "try-it")).toBe("hidden");
-    }
+  it("never gives through a router on Tempo (TIP-20 has no EIP-3009); its split carries the gift instead", () => {
+    // Multi-chain giving: the approve + ShelterSplit.disburse path covers Tempo and Robinhood, so no
+    // chain is blocked any more (shelter-give-rails.test.ts covers the split path).
+    expect(NO_WALLET_PATH.size).toBe(0);
+    // A Tempo router alone (no split listed) opens nothing: the router is never used there.
+    expect(walletGiveMode(null, [], [r(42431, "testnet")], { tryChain: "42431" }, "try-it")).toBe("hidden");
     const tempoCampaign = { ...campaign("handed-over"), chainId: 4217 };
     expect(walletGiveMode(tempoCampaign, [], [r(4217, "mainnet")], ON)).toBe("hidden");
+    // With its ShelterSplit listed, Tempo testnet gives through the split.
+    const tempoSplit = { chainId: 42431, network: "testnet", address: "0x" + "99".repeat(20), token: "pathUSD" };
+    expect(walletGiveMode(null, [tempoSplit], [r(42431, "testnet")], { tryChain: "42431" }, "try-it")).toBe("testnet");
   });
 
   it("lists every testnet router with a wallet path, the env chain first", () => {

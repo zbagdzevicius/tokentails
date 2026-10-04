@@ -88,6 +88,13 @@ import { GameProvider, useGame } from "@/context/GameContext";
 import { GameEvents } from "@/components/Phaser/events";
 import { ftueStore } from "@/components/Phaser/onboarding/ftue-store";
 
+// These tests cover the Cupid Cat flows, so they run inside its season (January to March).
+jest.mock("@/components/game/seasons", () => ({
+  ...jest.requireActual("@/components/game/seasons"),
+  isCupidSeason: () => true,
+}));
+
+
 type GameApi = ReturnType<typeof useGame>;
 const apiRef: { current: GameApi | null } = { current: null };
 const Probe = () => {

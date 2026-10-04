@@ -6,6 +6,7 @@ import { PixelButton } from "@/components/shared/PixelButton";
 import { Tag } from "@/components/shared/Tag";
 import { TailsCardPack } from "@/components/tailsCard/TailsCardPack";
 import { AppCheckoutNotice } from "@/components/web3/AppCheckoutNotice";
+import { isPaymentLayer } from "@/components/web3/paymentLayer";
 import { cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
 import { isApp } from "@/models/app";
@@ -236,19 +237,7 @@ const PacksSelect = ({
   );
 };
 
-/**
- * True for the elements of a third-party payment layer that lives outside the dialog: Stripe's
- * card and 3DS iframes, the 3DS challenge container Stripe appends to `<body>`, and the Stellar
- * Wallets Kit modal (a plain `<div>` appended to `<body>`, `z-[999]`). Everything the app renders
- * sits under `#__next` or in a Radix portal, so "outside both" is a third party.
- */
-export const isPaymentLayer = (target: Element): boolean => {
-  if (target.closest('iframe[name^="__privateStripeFrame"], iframe[src*="js.stripe.com"]')) return true;
-  if (target.closest("#__next, [role='dialog'], [data-testid='game-modal-scrim']")) {
-    return false;
-  }
-  return !!target.closest("body > *");
-};
+export { isPaymentLayer };
 
 /** During checkout neither a third-party layer nor a stray tap on the scrim closes the modal. */
 const allowDuringPayment = (target: Element): boolean =>
@@ -415,12 +404,12 @@ const PACKS_BG = {
  * (`/packs`) it is the page itself, so there is no dialog to dismiss.
  *
  * While the checkout is on screen the dialog goes non-modal (`modal={false}`) and lets Stripe's
- * iframes, its 3DS container and the Stellar Wallets Kit take pointer and focus (plan F3.3, G6
+ * iframes and its 3DS container take pointer and focus (plan F3.3, G6
  * "Third parties"); a stray tap on the scrim does not close a checkout in progress.
  */
 export const PacksModal = ({ close }: { close?: () => void }) => {
   const checkout = usePacksCheckoutState();
-  // The checkout is on screen (Stripe or Stellar) until the pack is rolled.
+  // The checkout is on screen (card or crypto) until the pack is rolled.
   const paymentStep = !!checkout.packType && !checkout.cat;
 
   if (!close) {

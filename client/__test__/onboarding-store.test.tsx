@@ -5,6 +5,13 @@ import { act, renderHook } from "@testing-library/react";
 import { FIRST_MODE, useOnboardingHandoff } from "@/components/onboarding/handoff";
 import { heroFor, onboardingStore, type HeroCat } from "@/components/onboarding/store";
 
+// These tests cover the Cupid Cat flows, so they run inside its season (January to March).
+jest.mock("@/components/game/seasons", () => ({
+  ...jest.requireActual("@/components/game/seasons"),
+  isCupidSeason: () => true,
+}));
+
+
 /** The lobby hero stand-in and the hand-off (review 4a #4, #5, #9). */
 
 const setGameType = jest.fn();

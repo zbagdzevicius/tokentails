@@ -209,22 +209,50 @@ Index: `createdAt`.
 | Field | Type | Notes |
 |---|---|---|
 | `status` | enum, required | `COMPLETE`, `PENDING`, `LOCKED`, `FAILED`, `FAILED_GRANT` (paid, but the cat could not be granted) |
-| `hash` | string, required | Stellar transaction hash, Stripe session id, or PaymentIntent id |
-| `failedHash`, `failureReason` | string | A released hash after a failed verification; the grant failure reason (`EMPTY_POOL`, `ADOPT_FAILED: …`, `NO_CAT`) |
-| `refund` | `{ state: 'due' \| 'refunded' \| …, reason, amountUsd?, requestedAt, refundedAt?, refundId?, error? }` | Set when a failed grant is refunded (Stripe automatically, Stellar by hand) |
-| `chainType` | enum | `STELLAR`, `FIAT` |
-| `currencyType` | enum | `USDT`, `USDC`, `XLM`, `USD` |
+| `hash` | string, required | Stellar transaction hash, Stripe session id, PaymentIntent id, or `evm:<chainId>:<txHash>` (crypto checkout) |
+| `failedHash`, `failureReason` | string | A released hash after a failed verification; the grant failure reason (`EMPTY_POOL`, `ADOPT_FAILED: …`, `NO_CAT`, `PAID_AFTER_EXPIRY`, `DUPLICATE_PAYMENT`, `NOT_FOR_SALE`, `STELLAR_DEPRECATED`) |
+| `refund` | `{ state: 'due' \| 'refunded' \| …, reason, amountUsd?, requestedAt, refundedAt?, refundId?, error? }` | Set when a failed grant is refunded (Stripe automatically, Stellar and crypto checkout by hand) |
+| `chainType` | enum | `STELLAR`, `FIAT`, `EVM` (crypto checkout) |
+| `chainId`, `checkoutId` | number, string | Crypto checkout only: the EVM chain and the `cryptocheckouts.orderId` |
+| `currencyType` | enum | `USDT`, `USDC`, `XLM`, `USD`, `EURC` |
 | `price` | number, required | In `currencyType` units |
 | `priceUsd` | number | |
 | `walletAddress` | string | |
 | `discount` | string | Code used |
-| `id` | ObjectId or string | Overloaded: holds a `PackType` or a `ProductType` |
+| `id` | ObjectId or string | Overloaded: holds a `PackType`, a `ProductType`, or the catalogue cat id of a shelter cat (`entityType: CAT`) |
 | `ref` | string | |
 | `entityType` | enum, required | `PACK`, `IMAGE`, and so on |
 | `cat`, `image`, `user` | refs | |
 
 Indexes: `chainType`, `entityType`, `price`, `status`, `ref`, `id`, `image`, compound
 `{ user, entityType, status }`, unique partial `hash_unique`, partial `refund.state`.
+
+## cryptocheckouts
+
+One crypto checkout order (`src/payments/crypto/crypto-checkout.schema.ts`, API in API.md). The paid
+item is an `orders` row created on verification. A `rail: 'card'` row is a card-paid shelter cat kept
+only for its shelter share (no options, no payment; never returned by the order API).
+
+| Field | Type | Notes |
+|---|---|---|
+| `orderId` | string, unique | `co_<16 hex>`, the public id |
+| `user` | ref | The buyer; never in a response |
+| `sku` | object | `{ kind: PACK \| CAT \| LOOT_BOX, packType?, catId?, tier?, name?, shelter? }` |
+| `priceUsdCents`, `discount`, `discountPercentage` | | Server price; cats are never discounted |
+| `network` | string | `mainnet` or `testnet`; `card` for a card row |
+| `rail`, `cardIntent` | string | `card` rows only: the rail and the Stripe PaymentIntent id (unique partial `card_intent_unique`) |
+| `accepted` | array | Every payment option (chain, token, exact `amount` in base units, recipient, route, binding, memo, steps) |
+| `amountKeys`, `reserved` | string[], bool | `chainId:token:amount` of the amount-bound options; unique while `reserved` (index `amount_reserved`), released 2 h after expiry, or 24 h with a confirm attempt |
+| `confirmAttemptAt` | date | First confirm call on the order |
+| `status` | enum | `OPEN`, `EXPIRED`, `PAID`, `COMPLETE`, `FAILED_GRANT`, `LATE` |
+| `expiresAt` | date | |
+| `payment` | object | `{ chainId, txHash, from, token, tokenAddress, amount, blockNumber, blockTime, route, verifiedAt, toShelters?, toTreasury? }` (the last two on the split route) |
+| `order`, `grantStartedAt`, `grant`, `spendCounted` | | The `orders` row, the grant lease (renewed by the recovery sweep), the grant result, spend counted once |
+| `shelterShare` | object | Shelter cats: `{ shelterId, route, bps, evidenceTier, state, amountUsdCents, amountBase, sentBase, decimals, chainId, memo, txHash, nonce, from, lockedAt, sentAt, confirmedAt, attempts, error }`. `amountBase` / `amountUsdCents` is what reached the shelter (the batch's `toShelters` once confirmed); `sentBase` what the keeper sent |
+
+Indexes: unique `orderId`, `{ user, createdAt }`, `{ user, status, expiresAt }`, unique partial
+`amount_reserved`, partial `{ reserved, expiresAt }`, partial `paid_grant_started` (`{ status, grantStartedAt }`
+on `PAID`), unique partial `card_intent_unique`, partial `shelterShare.state`.
 
 ## games
 
@@ -280,6 +308,7 @@ finishedAt }` (the F8 lease), plus the codex reset's period claims.
 |---|---|---|
 | `shelterpayoutevents` | One ShelterSplit payout log: `chainId`, `contract`, `txHash`, `logIndex`, `blockNumber`, `blockHash`, `kind` (`Disbursed` or `NativeDisbursed`), shelter (recipient), `amount` (18-decimal wei string), `symbol`, `memo`, `bucket` (`heist`, `page`, `paws`, `x402`, `direct`), `txFrom` for paw memos | unique `chain_tx_log_unique`, `{ chainId, contract, blockNumber }` |
 | `impactchaincursors` | The indexer's cursor per chain and contract: `fromBlock`, `lastScannedBlock`, `totals` recomputed from the rows, `eventCount`, `lastTxHash`, last success and error | |
+| `sheltergoalcursors` | One row per campaign goal (`_id` = fact id, `C-001`): `configKey` (the counted wallet set; a change restarts the scan), `lastScannedBlock`, `raised18` (18-decimal USDC that came in, integer string), `transfers`, `head`, `lastSuccessAt`, `lastError` (class only). Public chain data only; written by `ShelterGoalService` with a compare-and-set on `lastScannedBlock` | |
 | `impactsnapshots` | One public snapshot per hour bucket (`_id`), compacted to daily after 48 hours | |
 | `paws` | One paw per eligible player and UTC day: `pawId`, user, day, the leaf salt | unique `user_day_unique`, `{ day, pawId }` |
 | `pawsettlements` | One per day: paw count, Merkle root, memo, budget and amount, `suggestedBudgetWei`, send status and tx hash | `status` |

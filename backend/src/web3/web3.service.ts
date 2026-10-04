@@ -43,6 +43,8 @@ export interface VerifiedStellarPayment {
     amount: number;
     /** USD value of `amount` at the rate used for verification. */
     priceUsd: number;
+    /** When the payment's ledger closed (Horizon `created_at`); absent when Horizon did not say. */
+    closedAt?: Date;
 }
 
 @Injectable()
@@ -161,7 +163,13 @@ export class Web3Service {
         const priceUsd = asset.type === 'native' ? amount * xlmUsdRate! : amount;
         await this.orderRepository.update(order._id!, { $set: { price: amount, priceUsd } });
 
-        return { success: true, amount, priceUsd };
+        const closed = transaction.created_at ? new Date(transaction.created_at) : null;
+        return {
+            success: true,
+            amount,
+            priceUsd,
+            ...(closed && !isNaN(closed.getTime()) ? { closedAt: closed } : {}),
+        };
     }
 
     /** Loads a transaction and its operations from Horizon. Throws Horizon's error when missing. */

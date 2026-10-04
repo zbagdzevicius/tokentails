@@ -298,3 +298,22 @@ test('real chains.json: Robinhood testnet uses the mock; no mainnet entry has a 
     assert.ok(n.rpcEnv && n.verifier?.url, `${k} testnet rpcEnv + verifier`);
   }
 });
+
+test('publishTestnet: the client page and the Catnip Heist modal both get the testnet list', () => {
+  const saved = { p: process.env.FUND_A_PUBLISH, t: process.env.FUND_A_PUBLISH_TESTNET };
+  try {
+    delete process.env.FUND_A_PUBLISH;
+    delete process.env.FUND_A_PUBLISH_TESTNET;
+    const paths = W.wavePaths.publishTestnet().map((f) => f.replace(/\\/g, '/'));
+    assert.equal(paths.length, 2);
+    assert.match(paths[0], /client\/public\/shelter-payouts\/testnet-deployments\.json$/);
+    assert.match(paths[1], /catnip-heist\/public\/payouts\/testnet-deployments\.json$/);
+    process.env.FUND_A_PUBLISH = published;
+    assert.deepEqual(W.wavePaths.publishTestnet(), [], 'tests that redirect the mainnet copies write no testnet copy');
+    process.env.FUND_A_PUBLISH_TESTNET = 'a.json,b.json';
+    assert.deepEqual(W.wavePaths.publishTestnet(), ['a.json', 'b.json']);
+  } finally {
+    if (saved.p === undefined) delete process.env.FUND_A_PUBLISH; else process.env.FUND_A_PUBLISH = saved.p;
+    if (saved.t === undefined) delete process.env.FUND_A_PUBLISH_TESTNET; else process.env.FUND_A_PUBLISH_TESTNET = saved.t;
+  }
+});

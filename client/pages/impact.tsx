@@ -45,8 +45,25 @@ import { PixelIcon } from "@/components/shared/PixelIcon";
 import { cdnFile } from "@/constants/utils";
 import { useImpact } from "@/hooks/useImpact";
 import type { GetStaticProps } from "next";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, type ReactNode } from "react";
+
+// /shelter-payouts inside /impact (goal meter, Pink Paw gallery, payouts feed, how it works, give):
+// it reads public RPCs in the browser, so it renders on the client only.
+const ShelterPayoutsEmbed = dynamic(() => import("@/components/shelter-payouts/ShelterPayoutsEmbed"), {
+  ssr: false,
+  loading: () => (
+    <p className="font-sans text-p5 text-tt-cream/80 motion-safe:animate-pulse" data-testid="impact-payouts-loading">
+      Loading Pink Paw and the payouts…
+    </p>
+  ),
+});
+// App builds: the Pink Paw cats only (no chain words). Client-only too: it reads the storefront query.
+const PinkPawCatsSection = dynamic(
+  () => import("@/components/shelter-payouts/PinkPawShowcase").then((m) => m.PinkPawCatsSection),
+  { ssr: false }
+);
 
 /*
  * The public proof page (plan F7.6, G11; 2.13 row 23: /proof redirects here). One page lists every
@@ -589,6 +606,9 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
     return () => window.removeEventListener("hashchange", open);
   }, []);
 
+  // A settlement exists: the copy leaves the future tense ("will settle", "arrive with the first").
+  const settlementsStarted = (impact?.pawSettlements.count ?? 0) > 0;
+
   // Nothing on the rail yet: no payout, no custody, no treat, outcome, pledge or settlement.
   const railEmpty =
     !!impact &&
@@ -811,8 +831,9 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
             className="mt-4 font-sans text-p5 text-tt-cream/85"
             data-claim-ref={goal.id}
           >
-            {factText(goal, {}, isApp)}. The goal is checked against the
-            daily budget, so it can be reached.
+            {factText(goal, {}, isApp)}.
+            {!isApp &&
+              " It counts the USDC that comes in to Pink Paw's campaign wallet: today, sponsored treats. Gifts, the match and x402 payments count once Pink Paw holds its own wallet, and most of the goal has to come from people giving."}
           </p>
         )}
       </Section>
@@ -872,7 +893,11 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
         id="paws"
         title="Paw settlements"
         lead={
-          isApp
+          settlementsStarted
+            ? isApp
+              ? "Each night Token Tails settles the day's paws in one payout, with a fingerprint of every paw in it."
+              : "Each night Token Tails settles the day's paws in one payout whose memo carries a Merkle root."
+            : isApp
             ? "Each night Token Tails will settle the day's paws in one payout, with a fingerprint of every paw in it. Your paw proof can be checked against it on tokentails.com."
             : "Each night Token Tails will settle the day's paws in one payout whose memo carries a Merkle root. Your paw proof can be checked against it in your browser."
         }
@@ -904,15 +929,20 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
             id="paw-proof"
             disabled
             rows={2}
-            placeholder="Proofs arrive with the first nightly settlement"
+            placeholder={
+              settlementsStarted
+                ? "The paw proof checker opens soon"
+                : "Proofs arrive with the first nightly settlement"
+            }
             className="rounded-lg border-2 border-tt-cream/30 bg-black/40 p-2 text-p6 text-tt-cream disabled:opacity-60"
           />
           <p
             id="paw-verifier-note"
             className="font-sans text-p6 text-tt-cream/75"
           >
-            The checker turns on when settlements start. It runs in your
-            browser and sends nothing.
+            {settlementsStarted
+              ? "Settlements have started; the checker is not switched on yet. When it is, it runs in your browser and sends nothing."
+              : "The checker turns on when settlements start. It runs in your browser and sends nothing."}
           </p>
         </form>
       </Section>
@@ -988,6 +1018,7 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
             <nav aria-label="Sections" className="mt-1 flex flex-wrap gap-2">
               {[
                 ["given", "Given"],
+                ...(isApp ? [["pink-paw", "Pink Paw"]] : [["pink-paw", "Pink Paw"], ["payouts", "Payouts"]]),
                 ["rescue-cats", "Rescue cats"],
                 ["reach", "Reach"],
                 ["money", "Money"],
@@ -1040,6 +1071,17 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
               )
             }
           />
+
+          {/* Pink Paw and the payouts page's sections. App builds show the cats only (no chain words). */}
+          {isApp ? (
+            <Section id="pink-paw" title="Pink Paw's cats">
+              <div className="mt-4">
+                <PinkPawCatsSection title={false} />
+              </div>
+            </Section>
+          ) : (
+            <ShelterPayoutsEmbed />
+          )}
 
           {!impact && (
             <p className={EMPTY} role="status">

@@ -272,6 +272,9 @@ Hand-kept copies that remain (keep them equal by hand; most are pinned by a test
 | Fonts outside the generator: the Heist `HEIST_BODY_FONT` users, Stripe's and the Wallets Kit's system font stacks (`components/web3/nightTheme.ts`) | `TYPE_ROLES` | The iframe and the shadow DOM cannot load our fonts |
 | The facts and claims wording in copy | `facts.json` | Cited by id (`data-claim`, `<Claim>`), enforced by `tools/copy-lint` |
 | Heist HTML meta (`catnip-heist/index.html`: canonical, theme-color, icons) | the client meta (`pages/_document.js`, `components/seo/site.ts`) | `palette-parity.test.ts`, `check-meta.mjs` |
+| Shelter cat price: `Prices.shelterCat` in `client/models/cats.ts` and `cms/models/cats.ts` | `SHELTER_CAT_MIN_PRICE_CENTS` in `backend/src/payments/price-table.ts` | `client/__test__/crypto-pay-contract.test.ts` |
+| Pack prices: `packPrices` in `client/components/shared/PacksModal.tsx` (the cards; Legendary says $400, known discrepancy) | `PACK_PRICES_CENTS` in `backend/src/payments/price-table.ts` (Legendary $350, charged by both checkouts) | None yet. The checkout summary and the crypto quote read the server price from `GET /payments/crypto/config` `prices`, so only the pack card can differ (`modals-a-payment-gate.test.tsx`) |
+| Crypto checkout chains `backend/src/payments/crypto/crypto-chains.ts`; error codes and types `client/models/crypto-pay.ts` | `funding/framework/tracks/a-build/chains.json`; `CRYPTO_PAY_CODES` in `crypto-checkout.service.ts` | `crypto-chains.spec.ts`, `crypto-pay-contract.test.ts` |
 | Rail treat amounts C-004, C-005, C-006 in `facts.json` | `backend/src/shelter/onchain/shelter-onchain.config.ts` | `facts build --check` fails on a mismatch |
 
 ## Continuous integration

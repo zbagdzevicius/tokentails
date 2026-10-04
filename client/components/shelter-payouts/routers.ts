@@ -15,6 +15,10 @@ export interface RouterEntry {
   /** The USDC (EIP-3009) token the router pulls from. */
   usdc: string;
   network: RouterNetwork;
+  /**
+   * Not rendered anywhere. Leave it out of public/shelter-payouts/routers.json: that file ships in
+   * app builds, where copy-lint R10 refuses chain names. Pages name a chain from chains.ts.
+   */
   label?: string;
   /** The token's symbol when it is not the chain's default (e.g. "EURC" for a EURC split's router). */
   symbol?: string;

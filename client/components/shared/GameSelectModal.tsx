@@ -1,5 +1,6 @@
 import { PixelButton } from "./PixelButton";
 import { CatnipIcon } from "@/components/shared/CatnipIcon";
+import { isCupidSeason } from "@/components/game/seasons";
 import { GameModal } from "@/components/ui/GameModal";
 import { GameType } from "@/models/game";
 import { cdnFile } from "@/constants/utils";
@@ -48,17 +49,24 @@ export interface GameCard {
   previewVariant: "IMAGE" | "MATCH3" | "HEIST";
 }
 
-/** The picker's cards, in order. Four with the Heist (2x2 on phones, one row from `md`). */
-export function gameCards(includeHeist: boolean): GameCard[] {
-  const cards: GameCard[] = [
-    {
+/**
+ * The picker's cards, in order. Four with the Heist (2x2 on phones, one row from `md`). Cupid Cat
+ * is seasonal (January to March, `components/game/seasons`): outside the season it is left out.
+ */
+export function gameCards(includeHeist: boolean, now: Date = new Date()): GameCard[] {
+  const cards: GameCard[] = [];
+  if (isCupidSeason(now)) {
+    cards.push({
       key: GameType.PIXEL_RESCUE,
       type: GameType.PIXEL_RESCUE,
       title: "CUPID CAT",
       description: "Save cat locked in a cage every day",
+      tag: "SEASONAL",
       image: cdnFile("utilities/game-modal/pixel-rescue.webp"),
       previewVariant: "IMAGE",
-    },
+    });
+  }
+  cards.push(
     {
       key: GameType.CATNIP_CHAOS,
       type: GameType.CATNIP_CHAOS,
@@ -77,7 +85,7 @@ export function gameCards(includeHeist: boolean): GameCard[] {
       previewBg: cdnFile("landing/game-bg-2.webp"),
       previewVariant: "MATCH3",
     },
-  ];
+  );
   if (includeHeist) {
     cards.push({
       key: GameType.CATNIP_HEIST,

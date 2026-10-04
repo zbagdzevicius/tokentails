@@ -126,6 +126,17 @@ import { TicketController } from './ticket/ticket.controller';
 import { TicketRepository } from './ticket/ticket.repository';
 import { PrintifyService } from './printify/printify.service';
 import { StripePaymentService } from './payments/stripe-payment.service';
+import { CryptoChainReader } from './payments/crypto/crypto-chain-reader';
+import { CryptoCheckout, CryptoCheckoutSchema } from './payments/crypto/crypto-checkout.schema';
+import { CryptoCheckoutService } from './payments/crypto/crypto-checkout.service';
+import { CryptoPayController } from './payments/crypto/crypto-pay.controller';
+import { CryptoShelterShareService } from './payments/crypto/crypto-shelter-share.service';
+import { ShelterCatSaleService } from './shelter/shelter-cat-sale.service';
+import { ShelterGoalController } from './shelter/goal/shelter-goal.controller';
+import { ShelterGoalService } from './shelter/goal/shelter-goal.service';
+import { ShelterGalleryService } from './shelter/goal/shelter-gallery.service';
+import { ShelterGoalCursor, ShelterGoalCursorSchema } from './shelter/goal/shelter-goal.schema';
+import { PurchaseGrantService } from './web3/purchase-grant.service';
 import { AppThrottlerGuard, DEFAULT_THROTTLE } from './shared/guards/app-throttler.guard';
 
 const JwtModules = [
@@ -195,6 +206,8 @@ const config = {
             { name: RescueGoalPledgeDay.name, schema: RescueGoalPledgeDaySchema },
             { name: RescueGoalHelper.name, schema: RescueGoalHelperSchema },
             { name: RescueGoalReceipt.name, schema: RescueGoalReceiptSchema },
+            { name: CryptoCheckout.name, schema: CryptoCheckoutSchema },
+            { name: ShelterGoalCursor.name, schema: ShelterGoalCursorSchema },
         ]),
         FirebaseAdminModule.forRoot(config as any),
         ...JwtModules,
@@ -210,6 +223,8 @@ const config = {
         CommentController,
         CatController,
         Web3Controller,
+        CryptoPayController,
+        ShelterGoalController,
         BlessingController,
         // Before ShelterController: its GET /shelter/:id would otherwise answer GET /shelter/claim.
         ShelterOnchainController,
@@ -244,6 +259,13 @@ const config = {
         TicketRepository,
         PrintifyService,
         StripePaymentService,
+        PurchaseGrantService,
+        ShelterCatSaleService,
+        ShelterGoalService,
+        ShelterGalleryService,
+        CryptoChainReader,
+        CryptoCheckoutService,
+        CryptoShelterShareService,
         ShelterChain,
         ShelterDonateService,
         ShelterX402Service,

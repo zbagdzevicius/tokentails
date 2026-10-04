@@ -4,9 +4,10 @@ import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useState } from "react";
-import { Campaign, fetchCampaign } from "./campaign";
+import { CampaignMeter } from "./CampaignMeter";
 import { Celebration } from "./Celebration";
 import { SHELTER_CHAINS, chainDisplayName } from "./chains";
+import { GOAL_REFRESH_EVENT, useCampaignGoal } from "./goal";
 import { formatUnits } from "./logs";
 import { headingName, isPinkPawWallet } from "./pinkPaw";
 import { PinkPawLogo, PinkPawStrip } from "./PinkPawShowcase";
@@ -64,7 +65,9 @@ export const GiveTreat = () => {
   // signed-out visitor gets the AuthSheet, never a wall (G1).
   const signedIn = authStatus === "ready";
   const [status, setStatus] = useState<DonateStatus | null | undefined>(undefined);
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
+  // The campaign and its live goal meter (fact C-001), read from the shelter wallet.
+  const goal = useCampaignGoal();
+  const campaign = goal.campaign;
   const [send, setSend] = useState<Send>({ status: "idle" });
 
   const source: DonateSource = first(router.query.from) === "heist" ? "heist" : "page";
@@ -80,7 +83,6 @@ export const GiveTreat = () => {
 
   useEffect(() => {
     loadStatus();
-    fetchCampaign().then(setCampaign).catch(() => undefined);
   }, [loadStatus]);
 
   const give = async () => {
@@ -103,7 +105,11 @@ export const GiveTreat = () => {
       return;
     }
     setSend(result.status === "sent" ? { status: "sent", receipt: result.receipt } : result);
-    if (result.status === "sent") loadStatus();
+    if (result.status === "sent") {
+      loadStatus();
+      // The treat lands in the shelter wallet: read the goal meter again once the chain has it.
+      window.setTimeout(() => window.dispatchEvent(new Event(GOAL_REFRESH_EVENT)), 4000);
+    }
   };
 
   const chainId = status?.chainId || 5042;
@@ -246,6 +252,10 @@ export const GiveTreat = () => {
         >
           {CUSTODY_DISCLOSURE}
         </p>
+        {/* The goal meter: web only (USDC and chain words never reach app builds). */}
+        {!isApp && campaign && goal.progress && (
+          <CampaignMeter campaign={campaign} progress={goal.progress} state={goal.state} compact className="w-full text-left" />
+        )}
         <Link href="/shelter-payouts" className={PILL}>
           {isApp ? "See every payout ›" : "See every payout on the chain ›"}
         </Link>

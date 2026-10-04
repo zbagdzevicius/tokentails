@@ -36,12 +36,17 @@ export const wavePaths = {
     // copy the live win screen keeps the old list until someone runs `npm run build:client` in catnip-heist.
     join(HERE, '..', '..', '..', '..', 'client', 'public', 'heist-game', 'payouts', 'deployments.json'),
   ],
-  // The testnet list for the client's "Testnet proof" section (kept apart from the mainnet list so test
-  // money never sums with real payouts). Off whenever FUND_A_PUBLISH redirects or disables the mainnet
-  // copies (tests), unless FUND_A_PUBLISH_TESTNET names a file.
-  publishTestnet: () => process.env.FUND_A_PUBLISH_TESTNET ? [process.env.FUND_A_PUBLISH_TESTNET]
+  // The testnet list for the "Testnet proof" sections of the client page and the Catnip Heist modal (kept
+  // apart from the mainnet list so test money never sums with real payouts). The built Heist under the
+  // client reads the client's copy (build:client sets HEIST_TESTNET_DEPLOYMENTS_URL). Off whenever
+  // FUND_A_PUBLISH redirects or disables the mainnet copies (tests), unless FUND_A_PUBLISH_TESTNET names
+  // a file (or a comma-separated list).
+  publishTestnet: () => process.env.FUND_A_PUBLISH_TESTNET ? process.env.FUND_A_PUBLISH_TESTNET.split(',')
     : process.env.FUND_A_PUBLISH ? []
-    : [join(HERE, '..', '..', '..', '..', 'client', 'public', 'shelter-payouts', 'testnet-deployments.json')],
+    : [
+      join(HERE, '..', '..', '..', '..', 'client', 'public', 'shelter-payouts', 'testnet-deployments.json'),
+      join(HERE, '..', '..', '..', '..', 'catnip-heist', 'public', 'payouts', 'testnet-deployments.json'),
+    ],
   portfolio: () => process.env.FUND_PORTFOLIO || join(HERE, '..', '..', 'portfolio', 'opportunities.json'),
 };
 

@@ -371,3 +371,51 @@ export function recipientsHashOf(wallets: string[], amounts: bigint[]): string {
   const as = amounts.map((a) => uintWord(a)).join("");
   return keccak256("0x" + head + lenWord + ws + lenWord + as);
 }
+
+// ---------------------------------------------------------------- direct ShelterSplit gifts
+// Chains with no DonateRouter, or whose token has no EIP-3009 (Tempo's TIP-20 pathUSD and USDC.e,
+// Robinhood's USDG and test mUSDC): the donor approves the split for the exact amount, then calls
+// ShelterSplit.disburse (disburseWithMemo on Tempo). Selectors checked against `cast sig`.
+
+/** ERC-20 approve(address spender, uint256 amount). */
+export const APPROVE_SELECTOR = "0x095ea7b3";
+/** ERC-20 allowance(address owner, address spender) view. */
+export const ALLOWANCE_SELECTOR = "0xdd62ed3e";
+/** ShelterSplit.token() view: the payout token the split pulls. */
+export const TOKEN_SELECTOR = "0xfc0c546a";
+/** ShelterSplit.paused() view. */
+export const PAUSED_SELECTOR = "0x5c975abb";
+/** ShelterSplit.disburseWithMemo(uint256 amount, bytes32 memo): Tempo TIP-20 only. */
+export const DISBURSE_WITH_MEMO_SELECTOR = "0x970a3255";
+
+/** approve(spender, amount). */
+export function encodeApproveCalldata(spender: string, amount: bigint | string): string {
+  return APPROVE_SELECTOR + addressWord(spender) + uintWord(amount);
+}
+
+/** allowance(owner, spender). */
+export function encodeAllowanceCall(owner: string, spender: string): string {
+  return ALLOWANCE_SELECTOR + addressWord(owner) + addressWord(spender);
+}
+
+/** A short memo as bytes32: its UTF-8 bytes, right-padded with zeros. Longer than 32 bytes throws. */
+export function memoToBytes32(memo: string): string {
+  const bytes = utf8Hex(memo);
+  if (bytes.length / 2 > 32) throw new Error("memo is longer than 32 bytes");
+  return "0x" + bytes.padEnd(64, "0");
+}
+
+/** disburseWithMemo(amount, memo32): every payout carries the memo in TIP-20's TransferWithMemo. */
+export function encodeDisburseWithMemoCalldata(amount: bigint | string, memo32: string): string {
+  return DISBURSE_WITH_MEMO_SELECTOR + uintWord(amount) + bytes32Word(memo32);
+}
+
+/** Decodes a uint256 return value (allowance, balanceOf). */
+export function decodeUint(ret: string): bigint {
+  const data = ret.startsWith("0x") ? ret.slice(2) : ret;
+  if (!/^[0-9a-fA-F]{64}/.test(data)) throw new Error("expected a uint256 return value");
+  return BigInt("0x" + data.slice(0, 64));
+}
+
+/** Decodes a bool return value (paused). */
+export const decodeBool = (ret: string): boolean => decodeUint(ret) !== BigInt(0);

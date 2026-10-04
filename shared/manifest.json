@@ -50,6 +50,16 @@
       "client",
       "heist"
     ],
+    "pink-paw.ts": [
+      "backend",
+      "client",
+      "heist"
+    ],
+    "shelter-goal.ts": [
+      "backend",
+      "client",
+      "heist"
+    ],
     "__tests__/enums.test.ts": [
       "client"
     ],
@@ -69,6 +79,12 @@
       "client"
     ],
     "__tests__/name.test.ts": [
+      "client"
+    ],
+    "__tests__/pink-paw.test.ts": [
+      "client"
+    ],
+    "__tests__/shelter-goal.test.ts": [
       "client"
     ]
   }

@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { STATUSES, endOfDate, findPersonalData, inclusiveDays, validateRegistry } from '../lib/facts/schema.mjs';
+import { GOAL_SOURCES, STATUSES, campaignWalletProblems, endOfDate, findPersonalData, inclusiveDays, validateRegistry } from '../lib/facts/schema.mjs';
 import {
   REPO_ROOT, TARGETS, buildOutputs, factsMdState, formatUnits, goalFeasibility, mdStatus, parseUnits, publicEntries,
   renderCampaign, renderTs, writeOutputs,
@@ -24,6 +24,9 @@ import { CORE } from '../lib/core.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CONFIG = 'backend/src/shelter/onchain/shelter-onchain.config.ts';
 const ONE_USDC = '1000000000000000000';
+const USDC = '0x3600000000000000000000000000000000000000';
+/** Token Tails' match stream as C-001 lists it: 2 USDC a day, 10 USDC in total. */
+const MATCH = { source: 'match', cap: { file: CONFIG, const: 'DEFAULT_MATCH_DAILY', decimals: 6 }, total: { const: 'DEFAULT_MATCH_POOL' } };
 
 // ---------- fixtures ----------
 
@@ -41,9 +44,24 @@ function goalEntry(over = {}) {
     id: 'C-001', key: 'campaign', claim: 'A goal', value: '90', unit: 'USDC', display: 'Goal: 90 USDC by 30 Dec 2026',
     source: 'decision #76', asOf: '2026-09-30', checkedAt: '2026-09-30', status: 'verified', maxAgeDays: 120,
     surfaces: ['shelter-payouts'], chain: 'arc', tense: 'future',
-    goal: { startDate: '2026-10-02', endDate: '2026-12-30', cap: { file: CONFIG, const: 'DEFAULT_DAILY_BUDGET_WEI', decimals: 18 } },
-    campaign: { name: 'Pink Paw autumn rescue', chainId: 5042, fromBlock: null, shelter: { name: 'Pink Paw', wallet: null, handover: 'held-by-token-tails' } },
+    goal: {
+      startDate: '2026-10-02', endDate: '2026-12-30', progress: 'shelter-wallet', sources: [...GOAL_SOURCES],
+      tokenTails: [{ source: 'treats', cap: { file: CONFIG, const: 'DEFAULT_DAILY_BUDGET_WEI', decimals: 18 } }],
+    },
+    campaign: { name: 'Pink Paw autumn rescue', chainId: 5042, fromBlock: null, token: { address: USDC, decimals: 6, symbol: 'USDC' }, startBalance: '0', shelter: { name: 'Pink Paw', wallet: null, handover: 'held-by-token-tails' } },
     ...over,
+  };
+}
+
+/** A counting campaign: one open wallet from `fromBlock`, the inflow log, and (while held) a rotation plan. */
+function countingCampaign(wallet, fromBlock, holder = 'token-tails') {
+  return {
+    ...goalEntry().campaign,
+    fromBlock,
+    wallets: [{ wallet, fromBlock, toBlock: null, holder }],
+    inflowLog: { address: '0x' + 'ff'.repeat(19) + 'fe', decimals: 18 },
+    ...(holder === 'token-tails' ? { rotation: 'Close this wallet with toBlock at handover and append the shelter wallet.' } : {}),
+    shelter: { name: 'Pink Paw', wallet, handover: holder === 'shelter' ? 'handed-over' : 'held-by-token-tails' },
   };
 }
 
@@ -69,7 +87,7 @@ function scratch(registry = baseRegistry(), { budgetWei = ONE_USDC } = {}) {
   mkdirSync(join(root, 'funding/framework/facts'), { recursive: true });
   writeFileSync(join(root, 'funding/framework/facts/facts.json'), formatRegistry(registry));
   mkdirSync(join(root, dirname(CONFIG)), { recursive: true });
-  writeFileSync(join(root, CONFIG), `/** 1 USDC in wei. */\nconst DEFAULT_DAILY_BUDGET_WEI = '${budgetWei}';\nconst DEFAULT_AMOUNT_WEI = '10000000000000000';\n`);
+  writeFileSync(join(root, CONFIG), `/** 1 USDC in wei. */\nconst DEFAULT_DAILY_BUDGET_WEI = '${budgetWei}';\nconst DEFAULT_AMOUNT_WEI = '10000000000000000';\nexport const DEFAULT_MATCH_DAILY = 2000000;\nexport const DEFAULT_MATCH_POOL = 10000000;\n`);
   writeFileSync(join(root, 'funding/framework/facts/sources.json'), '{}\n');
   return root;
 }
@@ -144,7 +162,16 @@ test('schema: product claims backed by a spec stay unverified until it exists (d
 });
 
 test('schema: goal and campaign shape; only one campaign', () => {
-  assert.match(problemsOf(withFact({ goal: { startDate: '2026-10-02', endDate: '2026-10-01', cap: goalEntry().goal.cap } }, 'C-001')).join('\n'), /endDate is before startDate/);
+  assert.match(problemsOf(withFact({ goal: { ...goalEntry().goal, endDate: '2026-10-01' } }, 'C-001')).join('\n'), /endDate is before startDate/);
+  // Progress is everything that reaches the shelter wallet: every source, once, and nothing else.
+  assert.match(problemsOf(withFact({ goal: { ...goalEntry().goal, progress: 'treats' } }, 'C-001')).join('\n'), /goal.progress must be "shelter-wallet"/);
+  assert.match(problemsOf(withFact({ goal: { ...goalEntry().goal, sources: ['treats'] } }, 'C-001')).join('\n'), /missing: gifts, match, x402, purchase-shares/);
+  assert.match(problemsOf(withFact({ goal: { ...goalEntry().goal, sources: [...GOAL_SOURCES, 'airdrop'] } }, 'C-001')).join('\n'), /unknown: airdrop/);
+  assert.match(problemsOf(withFact({ goal: { ...goalEntry().goal, sources: [...GOAL_SOURCES, 'gifts'] } }, 'C-001')).join('\n'), /must list each of/);
+  assert.match(problemsOf(withFact({ goal: { ...goalEntry().goal, tokenTails: undefined } }, 'C-001')).join('\n'), /goal.tokenTails must list/);
+  assert.match(problemsOf(withFact({ goal: { ...goalEntry().goal, tokenTails: [{ source: 'treats' }] } }, 'C-001')).join('\n'), /tokenTails\[0\] needs cap/);
+  assert.match(problemsOf(withFact({ goal: { ...goalEntry().goal, tokenTails: [{ ...MATCH, total: {} }] } }, 'C-001')).join('\n'), /tokenTails\[0\]\.total needs/);
+  assert.match(problemsOf(withFact({ goal: { ...goalEntry().goal, donorDependent: 'yes' } }, 'C-001')).join('\n'), /donorDependent must be true or false/);
   assert.match(problemsOf(withFact({ value: 'ninety' }, 'C-001')).join('\n'), /decimal string/);
   assert.match(problemsOf(withFact({ goal: goalEntry().goal }, 'F-011')).join('\n'), /only C- entries have a goal/);
   const two = baseRegistry();
@@ -197,29 +224,49 @@ test('units: wei strings round-trip with 18 decimals', () => {
   assert.equal(parseUnits('12.5', 18), 125n * 10n ** 17n);
 });
 
-test('goal: 90 USDC over 90 days is reachable at 1 USDC/day; the old 500 USDC goal is not', () => {
+test('goal: Token Tails\' own capped streams are all it can add; the rest needs donors', () => {
   const root = scratch();
-  const ok = goalFeasibility(goalEntry(), root);
-  assert.deepEqual({ ok: ok.ok, days: ok.days, capPerDay: ok.capPerDay, maxAtCap: ok.maxAtCap, minDays: ok.minDays }, { ok: true, days: 90, capPerDay: '1', maxAtCap: '90', minDays: 90 });
-  const old = goalFeasibility(goalEntry({ value: '500' }), root);
-  assert.equal(old.ok, false);
-  assert.equal(old.minDays, 500);
+  const own = goalFeasibility(goalEntry(), root);
+  assert.deepEqual(
+    { ok: own.ok, days: own.days, tokenTailsMax: own.tokenTailsMax, fromDonors: own.fromDonors, donorDependent: own.donorDependent },
+    { ok: true, days: 90, tokenTailsMax: '90', fromDonors: '0', donorDependent: false },
+  );
+  // The match adds 2 USDC a day but never more than its 10 USDC pool.
+  const withMatch = goalFeasibility(goalEntry({ goal: { ...goalEntry().goal, tokenTails: [...goalEntry().goal.tokenTails, MATCH] } }), root);
+  assert.deepEqual(withMatch.streams.map((s) => [s.source, s.perDay, s.max]), [['treats', '1', '90'], ['match', '2', '10']]);
+  assert.equal(withMatch.tokenTailsMax, '100');
+  const big = goalFeasibility(goalEntry({ value: '50000' }), root);
+  assert.deepEqual({ ok: big.ok, fromDonors: big.fromDonors, donorPerDay: big.donorPerDay }, { ok: false, fromDonors: '49910', donorPerDay: '554.56' });
+  assert.equal(goalFeasibility(goalEntry({ value: '50000', goal: { ...goalEntry().goal, donorDependent: true } }), root).ok, true);
 });
 
-test('build: an unreachable goal fails with the numbers and writes nothing', async () => {
+test('build: a goal that needs donors and does not say so fails with the numbers and writes nothing', async () => {
   const root = scratch(withFact({ value: '500', display: 'Goal: 500 USDC by 30 Dec 2026' }, 'C-001'));
   const { outputs, problems } = buildOutputs({ root });
   assert.equal(outputs.length, 0);
-  assert.match(problems.join('\n'), /C-001: goal 500 USDC is unreachable at the cap: 1 USDC\/day for 90 days is at most 90 USDC \(needs 500 days\)/);
+  assert.match(problems.join('\n'), /C-001: goal 500 USDC needs 410 USDC from donors: Token Tails' own capped streams \(treats 1\/day\) add at most 90 USDC in 90 days at the code defaults\. Set goal.donorDependent: true/);
   const io = quiet();
   assert.equal(await build(root, ['--check'], io), 1);
   assert.ok(!existsSync(join(root, TARGETS.campaign)));
+  // Marked donor-dependent, it builds.
+  const marked = scratch(withFact({ value: '500', display: 'Goal: 500 USDC by 30 Dec 2026', goal: { ...goalEntry().goal, donorDependent: true } }, 'C-001'));
+  assert.deepEqual(buildOutputs({ root: marked }).problems, []);
 });
 
-test('build: a lower configured cap makes the same goal unreachable', () => {
+test('build: a donor-dependent goal is a target, never "reachable" or "guaranteed"', () => {
+  const goal = { ...goalEntry().goal, donorDependent: true };
+  for (const display of ['Goal: 500 USDC, reachable by 30 Dec 2026', 'A guaranteed 500 USDC for Pink Paw']) {
+    const { problems } = buildOutputs({ root: scratch(withFact({ value: '500', display, goal }, 'C-001')) });
+    assert.ok(problems.some((p) => /must not be called reachable or guaranteed/.test(p)), display);
+  }
+  const { warnings } = buildOutputs({ root: scratch(withFact({ goal }, 'C-001')) });
+  assert.ok(warnings.some((w) => /donorDependent is set, but Token Tails' own streams alone can add 90 USDC/.test(w)));
+});
+
+test('build: a lower configured cap moves more of the same goal onto donors', () => {
   const root = scratch(baseRegistry(), { budgetWei: '500000000000000000' });
   const { problems } = buildOutputs({ root });
-  assert.ok(problems.some((p) => /C-001: goal 90 USDC is unreachable/.test(p)));
+  assert.ok(problems.some((p) => /C-001: goal 90 USDC needs 45 USDC from donors/.test(p)), problems.join('; '));
   assert.ok(problems.some((p) => /C-005: value 1 USDC does not match .* \(0.5\)/.test(p)), 'config mirrors follow the code');
 });
 
@@ -305,7 +352,8 @@ test('public subset: only public statuses with a surface; no internal sources or
   assert.equal(byId['F-001'].note, undefined);
   assert.equal(byId['F-001'].claim, undefined);
   assert.deepEqual(byId['C-001'].goal, { startDate: '2026-10-02', endDate: '2026-12-30' });
-  assert.equal(byId['C-001'].campaign, undefined);
+  // The meter's public inputs only (the Heist reads them baked): no name, handover or internals.
+  assert.deepEqual(byId['C-001'].campaign, { chainId: 5042, fromBlock: null, wallet: null, handover: 'held-by-token-tails', wallets: [], inflowLog: null, token: { address: USDC, decimals: 6 }, startBalance: '0' });
   assert.deepEqual(byId['L-countries'].live, { endpoint: '/impact', path: 'shelters.countries' });
 });
 
@@ -331,8 +379,13 @@ test('TypeScript copies: typed id union, no imports, no `satisfies`; the backend
 
 test('campaign.json keeps its shape (client/__test__/shelter-campaign.test.ts)', () => {
   const c = JSON.parse(renderCampaign(goalEntry()));
-  assert.deepEqual(Object.keys(c), ['name', 'goalUsdc', 'startDate', 'chainId', 'fromBlock', 'shelter']);
-  assert.deepEqual(c, { name: 'Pink Paw autumn rescue', goalUsdc: '90', startDate: '2026-10-02', chainId: 5042, fromBlock: null, shelter: { name: 'Pink Paw', wallet: null, handover: 'held-by-token-tails' } });
+  assert.deepEqual(Object.keys(c), ['name', 'goalUsdc', 'startDate', 'endDate', 'chainId', 'fromBlock', 'counts', 'sources', 'token', 'startBalance', 'wallets', 'inflowLog', 'shelter']);
+  assert.deepEqual(c, {
+    name: 'Pink Paw autumn rescue', goalUsdc: '90', startDate: '2026-10-02', endDate: '2026-12-30', chainId: 5042, fromBlock: null,
+    counts: 'shelter-wallet', sources: GOAL_SOURCES, token: { address: USDC, decimals: 6, symbol: 'USDC' }, startBalance: '0',
+    wallets: [], inflowLog: null,
+    shelter: { name: 'Pink Paw', wallet: null, handover: 'held-by-token-tails' },
+  });
   assert.equal(JSON.parse(renderCampaign(goalEntry({ campaign: { ...goalEntry().campaign, shelter: { name: 'P', handover: 'handed-over' } } }))).shelter.handover, 'handed-over');
 });
 
@@ -397,27 +450,26 @@ test('goals: before, during and after the goal window', () => {
   const root = scratch();
   const before = goalStatus(baseRegistry(), NOW, root)[0];
   assert.equal(before.problem, false);
-  assert.match(before.detail, /starts 2026-10-02; 90 USDC needs 90 of 90 days at the cap \(0 spare\)\. Not counting yet \(no shelter\.wallet and fromBlock\); it must be counting by 2026-10-02/);
-  const counting = withFact({ campaign: { ...goalEntry().campaign, fromBlock: 100, shelter: { name: 'Pink Paw', wallet: '0x1111111111111111111111111111111111111111', handover: 'held-by-token-tails' } } }, 'C-001');
+  assert.match(before.detail, /starts 2026-10-02; 90 USDC over 90 days, within Token Tails' own streams\. Not counting yet \(no shelter\.wallet and fromBlock\)/);
+  const counting = withFact({ campaign: { ...countingCampaign('0x1111111111111111111111111111111111111111', 100) } }, 'C-001');
   const mid = goalStatus(counting, Date.parse('2026-11-01T00:00:00Z'), root)[0];
   assert.equal(mid.problem, false);
-  assert.match(mid.detail, /running: 60 of 90 days left/);
-  assert.match(mid.detail, /reachable only if \/shelter-payouts already shows at least 30 USDC raised/);
+  assert.match(mid.detail, /running: 60 of 90 days left\. The meter counts the USDC that comes in to the campaign wallets \(gifts, match, treats, x402, purchase-shares; the backend sums the transfer logs\)\. From zero it would need about 1\.5 USDC\/day/);
+  assert.match(mid.detail, /at the code defaults \(the production env may differ\)\. Token Tails still holds the wallet, so only sponsored treats can reach it today/);
+  const handedOver = withFact({ campaign: { ...countingCampaign('0x1111111111111111111111111111111111111111', 100, 'shelter') } }, 'C-001');
+  assert.match(goalStatus(handedOver, Date.parse('2026-11-01T00:00:00Z'), root)[0].detail, /The shelter holds its own wallet: gifts, the match and x402 payments count\./);
   const ended = goalStatus(baseRegistry(), Date.parse('2026-12-31T00:00:00Z'), root)[0];
   assert.equal(ended.problem, true);
   assert.match(ended.detail, /ended on 2026-12-30/);
 });
 
-test('goals: a running goal that is not counting is a problem, and says when it becomes unreachable', () => {
+test('goals: a running goal that is not counting is a problem', () => {
   const root = scratch();
-  // 122-day window, 90 needed: counting must start by 2026-11-03.
-  const roomy = withFact({ goal: { ...goalEntry().goal, endDate: '2027-01-31' } }, 'C-001');
-  const early = goalStatus(roomy, Date.parse('2026-10-05T00:00:00Z'), root)[0];
-  assert.equal(early.problem, true);
-  assert.match(early.detail, /has no shelter\.wallet and fromBlock, so no payout counts toward it; it must be counting by 2026-11-03/);
-  const late = goalStatus(roomy, Date.parse('2026-11-10T00:00:00Z'), root)[0];
-  assert.equal(late.problem, true);
-  assert.match(late.detail, /cannot be met: 83 days left at 1 USDC\/day is at most 83 USDC/);
+  const g = goalStatus(baseRegistry(), Date.parse('2026-10-05T00:00:00Z'), root)[0];
+  assert.equal(g.problem, true);
+  assert.match(g.detail, /running since 2026-10-02, but the campaign has no shelter\.wallet and fromBlock, so the meter counts nothing/);
+  const donors = withFact({ value: '500', goal: { ...goalEntry().goal, donorDependent: true } }, 'C-001');
+  assert.match(goalStatus(donors, NOW, root)[0].detail, /about 4\.56 USDC\/day from donors/);
 });
 
 test('renderTs: every declaration is prettier-ignore, so a formatter leaves the generated file alone', () => {
@@ -526,16 +578,29 @@ test('real registry: G4 keys fold in and "3 taps" is retired with no surfaces (d
   assert.deepEqual([taps.unit, taps.status, taps.surfaces], ['taps', 'retired', []]);
 });
 
-test('real registry: C-001 is reachable at the configured cap before 2026-10-02 and generates campaign.json (decision #76)', () => {
+test('real registry: C-001 counts everything that reaches Pink Paw, is marked donor-dependent and generates campaign.json (decision #76)', () => {
   const c = real('C-001');
   const r = goalFeasibility(c, REPO_ROOT);
   assert.ok(r.ok, JSON.stringify(r));
   assert.equal(c.goal.startDate, '2026-10-02');
+  assert.equal(c.goal.progress, 'shelter-wallet');
+  assert.deepEqual([...c.goal.sources].sort(), [...GOAL_SOURCES].sort());
+  assert.deepEqual(r.streams.map((s) => s.source), ['treats', 'match']);
+  // 50,000 USDC is far beyond Token Tails' own capped streams: it must say it needs donors.
+  assert.equal(c.value, '50000');
+  assert.equal(r.donorDependent, true);
+  assert.ok(Number(r.fromDonors) > 49000, r.fromDonors);
+  assert.doesNotMatch(`${c.display} ${c.claim}`, /reachable|guarantee/i);
   const campaign = JSON.parse(readFileSync(join(REPO_ROOT, TARGETS.campaign), 'utf8'));
   assert.equal(campaign.goalUsdc, c.value);
   assert.equal(campaign.startDate, c.goal.startDate);
-  // A wallet without fromBlock would count every payout ever made to it (pass-5 review, issue 1).
-  if (campaign.shelter.wallet !== null) assert.ok(Number.isInteger(campaign.fromBlock), 'campaign.json has a wallet, so it needs a fromBlock');
+  assert.equal(campaign.endDate, c.goal.endDate);
+  assert.equal(campaign.counts, 'shelter-wallet');
+  // A wallet without fromBlock would count money from before the goal (pass-5 review, issue 1).
+  if (campaign.shelter.wallet !== null) {
+    assert.ok(Number.isInteger(campaign.fromBlock), 'campaign.json has a wallet, so it needs a fromBlock');
+    assert.match(campaign.token.address, /^0x[0-9a-fA-F]{40}$/);
+  }
 });
 
 test('real registry: company-reported entries are labelled (decision #73)', () => {
@@ -594,21 +659,17 @@ test('FACTS.md row stamp: states current, behind and edited', () => {
   assert.equal(readFactRows(join(root, TARGETS.factsMd)).get('F-011').value, '181,010');
 });
 
-test('goal: shareBps scales the cap to the shelter\'s share of the split; zero headroom is a warning', () => {
+test('goal: shareBps scales a Token Tails stream to the shelter\'s share of the split', () => {
   const root = scratch();
-  const full = goalFeasibility(goalEntry(), root);
-  assert.equal(full.shareBps, 10000);
-  assert.equal(full.spareDays, 0);
-  const half = goalFeasibility(goalEntry({ goal: { ...goalEntry().goal, shareBps: 5000 } }), root);
-  assert.deepEqual({ ok: half.ok, capPerDay: half.capPerDay, maxAtCap: half.maxAtCap, minDays: half.minDays }, { ok: false, capPerDay: '0.5', maxAtCap: '45', minDays: 180 });
-  const { problems } = buildOutputs({ root: scratch(withFact({ goal: { ...goalEntry().goal, shareBps: 5000 } }, 'C-001')) });
-  assert.ok(problems.some((p) => /C-001: goal 90 USDC is unreachable at the cap: 0\.5 USDC\/day \(50% of the 1 USDC budget\)/.test(p)), problems.join('; '));
-  const { warnings } = buildOutputs({ root });
-  assert.ok(warnings.some((w) => /C-001: goal 90 USDC has no headroom/.test(w)));
-  const lower = buildOutputs({ root: scratch(withFact({ value: '80', display: 'Goal: 80 USDC by 30 Dec 2026' }, 'C-001')) });
-  assert.deepEqual(lower.warnings, []);
+  const half = { ...goalEntry().goal, tokenTails: [{ ...goalEntry().goal.tokenTails[0], shareBps: 5000 }] };
+  const r = goalFeasibility(goalEntry({ goal: half }), root);
+  assert.deepEqual({ ok: r.ok, perDay: r.streams[0].perDay, tokenTailsMax: r.tokenTailsMax, fromDonors: r.fromDonors }, { ok: false, perDay: '0.5', tokenTailsMax: '45', fromDonors: '45' });
+  const { problems } = buildOutputs({ root: scratch(withFact({ goal: half }, 'C-001')) });
+  assert.ok(problems.some((p) => /C-001: goal 90 USDC needs 45 USDC from donors: Token Tails' own capped streams \(treats 0\.5\/day \(50% share\)\)/.test(p)), problems.join('; '));
+  assert.deepEqual(buildOutputs({ root }).warnings, []);
   for (const bad of [0, 10001, 1.5, '5000']) {
-    assert.ok(problemsOf(withFact({ goal: { ...goalEntry().goal, shareBps: bad } }, 'C-001')).some((p) => /shareBps must be an integer/.test(p)), String(bad));
+    const g = { ...goalEntry().goal, tokenTails: [{ ...goalEntry().goal.tokenTails[0], shareBps: bad }] };
+    assert.ok(problemsOf(withFact({ goal: g }, 'C-001')).some((p) => /shareBps must be an integer/.test(p)), String(bad));
   }
 });
 
@@ -642,7 +703,7 @@ test('real registry: C-004/C-005 are present-tense config amounts with app wordi
   }
   const rail = real('L-rail');
   assert.deepEqual([rail.status, rail.live], ['live', { endpoint: '/shelter/donate/status', path: 'railState' }]);
-  assert.equal(real('C-001').goal.shareBps, 10000);
+  assert.equal(real('C-001').goal.tokenTails.find((s) => s.source === 'treats').shareBps, 10000);
 });
 
 // ---------- review fixes, pass 6 (task 2c) ----------
@@ -651,21 +712,26 @@ const PINK_WALLET = '0x' + '1a'.repeat(20);
 const withCampaign = (campaign) => withFact({ campaign: { ...goalEntry().campaign, ...campaign, shelter: { ...goalEntry().campaign.shelter, ...(campaign.shelter || {}) } } }, 'C-001');
 
 test('schema: a campaign wallet needs a fromBlock, and both must be well formed', () => {
-  assert.deepEqual(problemsOf(withCampaign({ fromBlock: 100, shelter: { wallet: PINK_WALLET } })), []);
+  assert.deepEqual(problemsOf(withCampaign(countingCampaign(PINK_WALLET, 100))), []);
   assert.deepEqual(problemsOf(withCampaign({})), [], 'no wallet and no fromBlock: nothing counts, which is honest');
   assert.match(problemsOf(withCampaign({ shelter: { wallet: PINK_WALLET } })).join('\n'), /C-001: campaign\.shelter\.wallet is set but fromBlock is null, so the payouts page would count every payout ever made to that wallet, including ones before startDate \(2026-10-02\)/);
   for (const bad of ['0x1234', `${PINK_WALLET}0`, PINK_WALLET.replace('0x', '0X'), 'pinkpaw', 42]) {
     assert.match(problemsOf(withCampaign({ fromBlock: 1, shelter: { wallet: bad } })).join('\n'), /wallet must be null or a 0x address with 40 hex digits/, String(bad));
   }
   for (const bad of [-1, 1.5, '100']) assert.match(problemsOf(withCampaign({ fromBlock: bad })).join('\n'), /fromBlock must be null or a block number/, String(bad));
+  // The meter reads the wallet's balance in this token, so a counting campaign needs it, and USDC.
+  for (const token of [undefined, { address: '0x12', decimals: 6, symbol: 'USDC' }, { address: USDC, decimals: 6, symbol: 'EURC' }]) {
+    assert.match(problemsOf(withCampaign({ fromBlock: 1, token, shelter: { wallet: PINK_WALLET } })).join('\n'), /campaign.token must be/, JSON.stringify(token));
+  }
+  for (const bad of [0, '1,000', '-1']) assert.match(problemsOf(withCampaign({ startBalance: bad })).join('\n'), /startBalance must be a decimal string/, String(bad));
 });
 
 test('goals: a wallet without fromBlock is reported as counting from too early, not as counting nothing', () => {
   const root = scratch();
   const g = goalStatus(withCampaign({ shelter: { wallet: PINK_WALLET } }), Date.parse('2026-10-05T00:00:00Z'), root)[0];
   assert.equal(g.problem, true);
-  assert.match(g.detail, /counting every payout to the wallet, including ones before startDate \(2026-10-02\)/);
-  assert.doesNotMatch(g.detail, /no payout counts/);
+  assert.match(g.detail, /would count money that reached the wallet before startDate \(2026-10-02\)/);
+  assert.doesNotMatch(g.detail, /counts nothing/);
 });
 
 test('reconciliation: fromBlock must be the first block of startDate (online only)', async () => {
@@ -687,4 +753,54 @@ test('reconciliation: fromBlock must be the first block of startDate (online onl
   // Offline reports never call the chain.
   const r = await buildReport({ root: scratch(withCampaign({ fromBlock: 100, shelter: { wallet: PINK_WALLET } })), now: NOW, offline: true, refresh: async () => ({ results: [] }), impactUrl: '', fetchImpl: async () => { throw new Error('network used offline'); } });
   assert.match(r.markdown, /campaign fromBlock: skipped \(offline\)/);
+});
+
+// ---------- review fixes: the goal counts what came in to every campaign wallet ----------
+
+test('schema: campaign.wallets lists every counted wallet in order, the open one is shelter.wallet', () => {
+  const ok = countingCampaign(PINK_WALLET, 100);
+  assert.deepEqual(campaignWalletProblems(ok), []);
+  const NEW = '0x' + '2b'.repeat(20);
+  const rotated = {
+    ...ok,
+    wallets: [{ ...ok.wallets[0], toBlock: 500 }, { wallet: NEW, fromBlock: 501, toBlock: null, holder: 'shelter' }],
+    shelter: { ...ok.shelter, wallet: NEW, handover: 'handed-over' },
+  };
+  assert.deepEqual(campaignWalletProblems(rotated), [], 'a handover closes the held wallet and appends the shelter one');
+  const msg = (c) => campaignWalletProblems(c).join('\n');
+  assert.match(msg({ ...ok, wallets: undefined }), /campaign\.wallets is required once shelter\.wallet is set/);
+  assert.match(msg({ ...ok, wallets: [] }), /non-empty list/);
+  assert.match(msg({ ...rotated, wallets: [{ ...rotated.wallets[0], toBlock: null }, rotated.wallets[1]] }), /is open \(toBlock null\) but is not the last wallet/);
+  assert.match(msg({ ...rotated, wallets: [rotated.wallets[0], { ...rotated.wallets[1], fromBlock: 500 }] }), /overlaps the previous wallet's range \(ends at 500\)/);
+  assert.match(msg({ ...rotated, wallets: [rotated.wallets[0], { ...rotated.wallets[1], wallet: PINK_WALLET }] }), /listed twice/);
+  assert.match(msg({ ...ok, wallets: [{ ...ok.wallets[0], fromBlock: 99 }] }), /must equal campaign\.fromBlock \(100\)/);
+  assert.match(msg({ ...ok, wallets: [{ ...ok.wallets[0], toBlock: 50 }] }), /toBlock must be null \(still counting\) or a block at or after fromBlock/);
+  assert.match(msg({ ...ok, shelter: { ...ok.shelter, wallet: NEW } }), /last campaign\.wallets entry must be open \(toBlock null\) and be shelter\.wallet/);
+  assert.match(msg({ ...ok, wallets: [{ ...ok.wallets[0], holder: 'nobody' }] }), /holder must be one of token-tails, shelter/);
+  assert.match(msg({ ...ok, inflowLog: undefined }), /campaign\.inflowLog must be \{ address, decimals \}/);
+});
+
+test('schema: while Token Tails holds the wallet, the campaign carries a rotation plan', () => {
+  const ok = countingCampaign(PINK_WALLET, 100);
+  const msg = (c) => campaignWalletProblems(c).join('\n');
+  assert.match(msg({ ...ok, rotation: undefined }), /campaign\.rotation is required while Token Tails holds the wallet/);
+  assert.match(msg({ ...ok, wallets: [{ ...ok.wallets[0], holder: 'shelter' }] }), /open wallet's holder must be "token-tails"/);
+  const handed = countingCampaign(PINK_WALLET, 100, 'shelter');
+  assert.deepEqual(campaignWalletProblems(handed), [], 'no rotation plan needed once the shelter holds it');
+  assert.match(msg({ ...handed, wallets: [{ ...handed.wallets[0], holder: 'token-tails' }] }), /open wallet's holder must be "shelter"/);
+  // Through the registry: the problem stops the build.
+  assert.match(problemsOf(withCampaign({ ...ok, rotation: undefined })).join('\n'), /C-001: campaign\.rotation is required/);
+});
+
+test('the real C-001 counts the held wallet from the campaign start on the Arc system Transfer log', () => {
+  const c = real('C-001').campaign;
+  assert.deepEqual(campaignWalletProblems(c), []);
+  assert.equal(c.wallets.length, 1);
+  assert.deepEqual([c.wallets[0].fromBlock, c.wallets[0].toBlock, c.wallets[0].holder], [c.fromBlock, null, 'token-tails']);
+  assert.equal(c.wallets[0].wallet.toLowerCase(), c.shelter.wallet.toLowerCase());
+  assert.deepEqual(c.inflowLog, { address: '0xfffffffffffffffffffffffffffffffffffffffe', decimals: 18 });
+  const pub = JSON.parse(readFileSync(join(REPO_ROOT, TARGETS.campaign), 'utf8'));
+  assert.deepEqual(pub.wallets, [{ wallet: c.shelter.wallet.toLowerCase(), fromBlock: c.fromBlock, toBlock: null, holder: 'token-tails' }]);
+  assert.match(real('C-001').note, /CODE DEFAULTS/);
+  assert.equal(goalFeasibility(real('C-001'), REPO_ROOT).capsFrom, 'code-defaults');
 });

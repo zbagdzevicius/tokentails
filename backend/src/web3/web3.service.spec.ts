@@ -102,6 +102,22 @@ describe('Web3Service.validatePrice (Stellar)', () => {
         await expect(verify(order)).resolves.toEqual({ success: true, amount: 6, priceUsd: 6 });
     });
 
+    it("returns when the payment's ledger closed, so a closed sale can tell an in-flight payment from a new one", async () => {
+        horizon([usdc('6.0000000')]);
+        mockTransactionCall.mockResolvedValue({ hash: HASH, successful: true, created_at: '2026-10-05T10:00:00Z' });
+        const order = pendingOrder({
+            currencyType: CurrencyType.USDC,
+            entityType: EntityType.IMAGE,
+            id: ProductType.DIGITAL,
+        });
+        await expect(verify(order)).resolves.toEqual({
+            success: true,
+            amount: 6,
+            priceUsd: 6,
+            closedAt: new Date('2026-10-05T10:00:00Z'),
+        });
+    });
+
     it('rejects a payment to another account and releases the hash', async () => {
         horizon([xlm('20.0000000', OTHER_ACCOUNT)]);
 

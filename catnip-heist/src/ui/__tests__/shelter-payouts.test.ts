@@ -296,3 +296,115 @@ describe('UI entry points', () => {
     }
   });
 });
+
+describe('goal meter reading (fact C-001)', () => {
+  it('formats the goal figures with separators and two decimals at most', async () => {
+    const { goalFigure } = await import('../shelter-payouts');
+    expect(goalFigure(50_000n * 10n ** 18n)).toBe('50,000');
+    expect(goalFigure(12_345_678n * 10n ** 16n)).toBe('123,456.78');
+    expect(goalFigure(10n ** 15n)).toBe('0');
+  });
+
+  it('reads the wallet balance now and before fromBlock, and its nonce, from the campaign chain', async () => {
+    const { readGoalWallet, goalView } = await import('../shelter-payouts');
+    const { FACTS } = await import('../../facts.generated');
+    const c = FACTS['C-001'].campaign!;
+    const bodies: { method: string; params: unknown[] }[] = [];
+    const f = async (_url: string, init: { body: string }) => {
+      const { method, params } = JSON.parse(init.body);
+      bodies.push({ method, params });
+      const result = method === 'eth_getTransactionCount' ? '0x0' : params[1] === 'latest' ? '0x' + (25_000_000n).toString(16) : '0x0';
+      return { ok: true, json: async () => ({ result }) };
+    };
+    const r = await readGoalWallet(f);
+    expect(r).toEqual({ balance: 25n * 10n ** 18n, start: 0n, nonce: 0 });
+    expect(bodies[0].params[0]).toEqual({ to: c.token!.address, data: '0x70a08231' + c.wallet!.slice(2).toLowerCase().padStart(64, '0') });
+    expect(bodies[1].params[1]).toBe('0x' + (c.fromBlock! - 1).toString(16));
+    expect(goalView({ raised: r!.balance - r!.start, exact: true })).toMatchObject({ percent: 0.05, percentText: '0.05%', exact: true });
+    expect(goalView({ raised: 1n, exact: true }).percentText).toBe('<0.01%');
+    expect(goalView({ raised: 0n, exact: false })).toMatchObject({ raised: 0n, percentText: '0%', exact: false });
+  });
+
+  it('counts from the backend first: what came in, with only the sources live today', async () => {
+    const { readGoalCount } = await import('../shelter-payouts');
+    const urls: string[] = [];
+    const f = async (url: string) => {
+      urls.push(url);
+      return { ok: true, json: async () => ({ id: 'C-001', chainId: 5042, goalUsdc: '50000', raised: '12.5', scannedTo: 9, head: 9, upToDate: true, transfers: 1, wallets: [], liveSources: ['treats'], updatedAt: null }) };
+    };
+    expect(await readGoalCount({ apiUrl: 'http://api.test/', factsUrl: '/facts.json', f })).toEqual({ raised: 125n * 10n ** 17n, exact: true, sources: ['treats'] });
+    expect(urls).toEqual(['http://api.test/shelter/goal/C-001']);
+  });
+
+  it('falls back to the runtime campaign (not the baked one) and its exact balance', async () => {
+    const { readGoalCount } = await import('../shelter-payouts');
+    const { FACTS } = await import('../../facts.generated');
+    const baked = FACTS['C-001'].campaign!;
+    const moved = '0x' + 'cd'.repeat(20);
+    const runtime = { ...baked, wallet: moved, wallets: [{ wallet: moved, fromBlock: baked.fromBlock, toBlock: null, holder: 'token-tails' }] };
+    const asked: string[] = [];
+    const f = async (url: string, init?: { body?: string }) => {
+      if (url.endsWith('/shelter/goal/C-001')) return { ok: false, status: 404, json: async () => ({}) };
+      if (url === '/facts.json') return { ok: true, json: async () => ({ facts: [{ id: 'C-001', campaign: runtime }] }) };
+      const { method, params } = JSON.parse(init!.body!);
+      if (method === 'eth_call') asked.push(params[0].data);
+      const result = method === 'eth_getTransactionCount' ? '0x0' : params[1] === 'latest' ? '0x' + (2_000_000n).toString(16) : '0x0';
+      return { ok: true, status: 200, json: async () => ({ result }) };
+    };
+    expect(await readGoalCount({ apiUrl: 'http://api.test', factsUrl: '/facts.json', f })).toEqual({ raised: 2n * 10n ** 18n, exact: true, sources: ['treats'] });
+    expect(asked[0]).toBe('0x70a08231' + moved.slice(2).padStart(64, '0'));
+  });
+
+  it('refuses a balance that cannot prove what came in: a spent wallet, or several wallets', async () => {
+    const { readGoalCount, countFromReading } = await import('../shelter-payouts');
+    const { FACTS } = await import('../../facts.generated');
+    const baked = FACTS['C-001'].campaign!;
+    expect(countFromReading(baked, { balance: 5n, start: 0n, nonce: 1 })).toBeNull();
+    const two = { ...baked, wallets: [...baked.wallets, { wallet: '0x' + 'cd'.repeat(20), fromBlock: 1, toBlock: null, holder: 'shelter' as const }] };
+    expect(countFromReading(two, { balance: 5n, start: 0n, nonce: 0 })).toBeNull();
+    let rpc = 0;
+    const f = async (url: string) => {
+      if (url === '/facts.json') return { ok: true, json: async () => ({ facts: [{ id: 'C-001', campaign: two }] }) };
+      rpc++;
+      return { ok: false, status: 500, json: async () => ({}) };
+    };
+    expect(await readGoalCount({ apiUrl: '', factsUrl: '/facts.json', f })).toBeNull();
+    expect(rpc).toBe(0);
+  });
+
+  it('names only the sources live today', async () => {
+    const { goalSourcesLine } = await import('../shelter-payouts');
+    expect(goalSourcesLine(['treats', 'purchase-shares'])).toBe('Counts what comes in to the wallet Token Tails holds for Pink Paw: today, sponsored treats and shop shares. Gifts, the match and x402 payments count once Pink Paw holds its own wallet.');
+    expect(goalSourcesLine(['gifts', 'match', 'treats', 'x402'])).toBe("Counts the gifts, Token Tails' match, treats and x402 payments that come in to Pink Paw's wallets, read from the chain.");
+  });
+
+  it('gives null when the chain cannot be read', async () => {
+    const { readGoalWallet } = await import('../shelter-payouts');
+    expect(await readGoalWallet(async () => ({ ok: false, json: async () => ({}) }))).toBeNull();
+    expect(await readGoalWallet(async () => ({ ok: true, json: async () => ({ error: { message: 'x' } }) }))).toBeNull();
+  });
+
+  it('retries a rate-limited read (HTTP 429, -32005) instead of showing "Can\'t read the wallet"', async () => {
+    const { readGoalWallet } = await import('../shelter-payouts');
+    const { setPayoutsSleep } = await import('../payouts');
+    const waits: number[] = [];
+    setPayoutsSleep(async (ms) => void waits.push(ms));
+    try {
+      let n = 0;
+      const f = async (_url: string, init: { body: string }) => {
+        n++;
+        if (n === 1) return { ok: false, status: 429, json: async () => ({}) };
+        if (n === 2) return { ok: true, status: 200, json: async () => ({ error: { code: -32005, message: 'limit exceeded' } }) };
+        const { method, params } = JSON.parse(init.body);
+        const result = method === 'eth_getTransactionCount' ? '0x0' : params[1] === 'latest' ? '0x' + (1_000_000n).toString(16) : '0x0';
+        return { ok: true, status: 200, json: async () => ({ result }) };
+      };
+      expect(await readGoalWallet(f)).toEqual({ balance: 10n ** 18n, start: 0n, nonce: 0 });
+      expect(waits).toEqual([500, 1000]);
+      // Past the retries it still gives up (null), it never hangs.
+      expect(await readGoalWallet(async () => ({ ok: false, status: 429, json: async () => ({}) }))).toBeNull();
+    } finally {
+      setPayoutsSleep((ms) => new Promise((r) => setTimeout(r, ms)));
+    }
+  });
+});

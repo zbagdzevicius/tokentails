@@ -277,6 +277,55 @@ describe('ShelterRelayService.relay', () => {
         }
     });
 
+    it('serves several chains from SHELTER_RELAY_CHAINS, each with its own key, router and daily budget', async () => {
+        const saved = { ...process.env };
+        const BASE_HOT = Wallet.createRandom();
+        const BASE_ROUTER = '0x5555555555555555555555555555555555555555';
+        try {
+            process.env.SHELTER_CHAIN_ID = '5042';
+            process.env.SHELTER_HANDED_OVER = 'false';
+            process.env.SHELTER_RELAY_ENABLED = 'false';
+            process.env.SHELTER_RELAY_CHAINS = '84532,421614';
+            process.env.SHELTER_CHAIN_84532_ROUTER_ADDRESS = BASE_ROUTER;
+            process.env.SHELTER_CHAIN_84532_SPLIT_ADDRESS = SPLIT;
+            process.env.SHELTER_CHAIN_84532_KEY_ENV = 'SPEC_BASE_HOT_KEY';
+            process.env.SPEC_BASE_HOT_KEY = BASE_HOT.privateKey;
+            process.env.SHELTER_CHAIN_84532_RELAY_ENABLED = 'true';
+            process.env.SHELTER_CHAIN_84532_RELAY_DAILY_TX = '1';
+            const ctx = setup();
+            await expect(ctx.service.relay(body({ chainId: 84532 }), undefined, NOW)).resolves.toMatchObject({
+                status: 'submitted',
+            });
+            const [to, , , opts] = ctx.chain.sendContractCall.mock.calls[0];
+            expect(to.toLowerCase()).toBe(BASE_ROUTER);
+            expect(opts.config).toMatchObject({ chainId: 84532, privateKey: BASE_HOT.privateKey });
+            expect(ctx.relays.rows[0]).toMatchObject({ chainId: 84532, status: 'submitted' });
+            // The simulation runs as that chain's own hot wallet.
+            expect(ctx.chain.ethCall).toHaveBeenCalledWith(
+                expect.objectContaining({ chainId: 84532 }),
+                expect.any(String),
+                expect.any(String),
+                BASE_HOT.address.toLowerCase()
+            );
+            // Its daily budget is its own (1 here).
+            await expect(refusal(ctx.service.relay(body({ chainId: 84532 }), undefined, NOW))).resolves.toEqual({
+                status: 429,
+                code: 'RELAY_DAILY_CAP',
+            });
+            expect(ctx.counters.rows.map((r: any) => r.key)).toContain('relay:84532:2026-10-04');
+            // Listed but not enabled, and not listed at all: the relay is off there (the donor self-submits).
+            for (const chainId of [421614, 43113, 5042]) {
+                await expect(refusal(ctx.service.relay(body({ chainId }), undefined, NOW))).resolves.toEqual({
+                    status: 409,
+                    code: 'RELAY_OFF',
+                });
+            }
+            expect(ctx.chain.sendContractCall).toHaveBeenCalledTimes(1);
+        } finally {
+            process.env = saved;
+        }
+    });
+
     it('accepts a validAfter up to 5 s ahead of the server clock', async () => {
         const ctx = setup();
         await expect(

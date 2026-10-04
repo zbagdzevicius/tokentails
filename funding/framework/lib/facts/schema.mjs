@@ -9,6 +9,12 @@ export const PUBLIC_STATUSES = ['verified', 'company-reported', 'sei-era', 'live
 export const SURFACES = ['landing', 'game', 'heist', 'impact', 'shelter-payouts', 'store'];
 export const TENSES = ['past', 'present', 'future'];
 export const CHAINS = ['sei', 'stellar', 'arc', 'skale'];
+/**
+ * Everything that reaches a shelter's wallet and counts toward a goal (goal.progress "shelter-wallet"):
+ * public gifts through DonateRouter, Token Tails' match, sponsored treats, x402 payments and the
+ * shelter's share of its cats' purchases.
+ */
+export const GOAL_SOURCES = ['gifts', 'match', 'treats', 'x402', 'purchase-shares'];
 export const FAMILIES = { F: 'fact', P: 'product claim', C: 'campaign or config', L: 'live metric' };
 
 const ID = /^(?:[FPC]-\d{3}|L-[a-z0-9]+(?:-[a-z0-9]+)*)$/;
@@ -20,6 +26,64 @@ const WALLET = /^0x[0-9a-fA-F]{40}$/;
 
 const REQUIRED = ['id', 'claim', 'value', 'unit', 'display', 'source', 'asOf', 'checkedAt', 'status', 'maxAgeDays', 'surfaces', 'tense'];
 const OPTIONAL = ['chain', 'live', 'key', 'note', 'goal', 'campaign', 'config', 'evidence', 'effectiveAt', 'appDisplay', 'short', 'recordsOnRequest'];
+
+/** Who holds a campaign wallet's key: Token Tails (before the handover) or the shelter. */
+export const WALLET_HOLDERS = ['token-tails', 'shelter'];
+
+/**
+ * campaign.wallets: every wallet the goal counts, each inside its own block range. The meter sums
+ * the USDC that came in to these wallets (Transfer logs, `inflowLog`), skipping transfers from one
+ * campaign wallet to another, so a handover (a new wallet the shelter owns, `fund shelter rotate`)
+ * keeps counting and its sweep is not counted twice.
+ *
+ * - Required once shelter.wallet is set, non-empty, ordered by fromBlock, ranges never overlap, and
+ *   only the last one may be open (toBlock null). The open one is shelter.wallet.
+ * - wallets[0].fromBlock is campaign.fromBlock (the campaign's first block).
+ * - While the handover is "held-by-token-tails", the open wallet's holder is "token-tails" and
+ *   campaign.rotation must say how the shelter's own wallet will be added (the rotation plan);
+ *   once "handed-over", the open wallet's holder is "shelter".
+ * - inflowLog { address, decimals } is the Transfer log the backend sums (on Arc the system log
+ *   0xff..fe, 18 decimals, which every USDC move emits).
+ */
+export function campaignWalletProblems(c) {
+  const out = [];
+  const wallet = c?.shelter?.wallet ?? null;
+  const list = c?.wallets;
+  if (list === undefined || list === null) {
+    if (wallet !== null) out.push('campaign.wallets is required once shelter.wallet is set: [{ wallet, fromBlock, toBlock, holder }] (the goal counts what comes in to these wallets)');
+    return out;
+  }
+  if (!Array.isArray(list) || !list.length) return ['campaign.wallets must be a non-empty list of { wallet, fromBlock, toBlock, holder }'];
+  const seen = new Set();
+  let prevEnd = -1;
+  for (const [i, w] of list.entries()) {
+    const at = `campaign.wallets[${i}]`;
+    if (!w || typeof w.wallet !== 'string' || !WALLET.test(w.wallet)) { out.push(`${at}.wallet must be a 0x address with 40 hex digits`); continue; }
+    const key = w.wallet.toLowerCase();
+    if (seen.has(key)) out.push(`${at}: ${w.wallet} is listed twice`);
+    seen.add(key);
+    if (!(Number.isInteger(w.fromBlock) && w.fromBlock >= 0)) out.push(`${at}.fromBlock must be a block number`);
+    const open = w.toBlock === null || w.toBlock === undefined;
+    if (!open && !(Number.isInteger(w.toBlock) && Number.isInteger(w.fromBlock) && w.toBlock >= w.fromBlock)) out.push(`${at}.toBlock must be null (still counting) or a block at or after fromBlock`);
+    if (open && i !== list.length - 1) out.push(`${at} is open (toBlock null) but is not the last wallet: close it (set toBlock) before adding the next one`);
+    if (Number.isInteger(w.fromBlock) && w.fromBlock <= prevEnd) out.push(`${at}.fromBlock ${w.fromBlock} overlaps the previous wallet's range (ends at ${prevEnd})`);
+    prevEnd = open ? Infinity : w.toBlock;
+    if (!WALLET_HOLDERS.includes(w.holder)) out.push(`${at}.holder must be one of ${WALLET_HOLDERS.join(', ')}`);
+  }
+  if (Number.isInteger(c.fromBlock) && list[0] && list[0].fromBlock !== c.fromBlock) out.push(`campaign.wallets[0].fromBlock (${list[0].fromBlock}) must equal campaign.fromBlock (${c.fromBlock}), the campaign's first block`);
+  const last = list[list.length - 1];
+  const lastOpen = last && (last.toBlock === null || last.toBlock === undefined);
+  if (wallet !== null && (!lastOpen || typeof last.wallet !== 'string' || last.wallet.toLowerCase() !== String(wallet).toLowerCase())) out.push('the last campaign.wallets entry must be open (toBlock null) and be shelter.wallet: that is where money arrives today');
+  const handover = c?.shelter?.handover;
+  if (lastOpen && handover === 'held-by-token-tails') {
+    if (last.holder !== 'token-tails') out.push('shelter.handover is "held-by-token-tails", so the open wallet\'s holder must be "token-tails"');
+    if (typeof c.rotation !== 'string' || c.rotation.trim().length < 20) out.push('campaign.rotation is required while Token Tails holds the wallet: say how the shelter\'s own wallet is added at handover (close this wallet with toBlock, append the new one)');
+  }
+  if (lastOpen && handover === 'handed-over' && last.holder !== 'shelter') out.push('shelter.handover is "handed-over", so the open wallet\'s holder must be "shelter"');
+  const log = c.inflowLog;
+  if (wallet !== null && !(log && typeof log.address === 'string' && WALLET.test(log.address) && Number.isInteger(log.decimals) && log.decimals >= 0 && log.decimals <= 18)) out.push('campaign.inflowLog must be { address, decimals }: the contract whose Transfer logs the goal sums (Arc: 0xff..fe, 18 decimals)');
+  return out;
+}
 
 /** Surfaces that ship in the Capacitor app build (the Heist included: it is in the app export). */
 export const APP_SURFACES = ['game', 'heist', 'store'];
@@ -227,14 +291,30 @@ export function validateRegistry(registry, { exists = () => true } = {}) {
       else if (!exists(f.evidence.spec) && f.status !== 'unverified') bad(`spec ${f.evidence.spec} does not exist yet: keep the entry unverified`);
     }
 
-    // Goals: checked for shape here, for reachability against the configured cap in build.mjs.
+    // Goals: checked for shape here, for what Token Tails can add by itself in build.mjs.
     if (f.goal !== undefined) {
       if (fam !== 'C') bad('only C- entries have a goal');
       const g = f.goal || {};
       if (!ISO_DAY.test(g.startDate || '') || !ISO_DAY.test(g.endDate || '')) bad('goal needs startDate and endDate (YYYY-MM-DD)');
       else if (inclusiveDays(g.startDate, g.endDate) < 1) bad('goal endDate is before startDate');
-      if (!g.cap || typeof g.cap.file !== 'string' || typeof g.cap.const !== 'string' || !Number.isInteger(g.cap.decimals)) bad('goal needs cap: { file, const, decimals }');
-      if (g.shareBps !== undefined && !(Number.isInteger(g.shareBps) && g.shareBps > 0 && g.shareBps <= 10000)) bad('goal shareBps must be an integer from 1 to 10000 (the share of the daily budget the shelter receives)');
+      if (g.progress !== 'shelter-wallet') bad(`goal.progress must be "shelter-wallet": the meter counts every USDC that reaches the shelter's wallet`);
+      const sources = Array.isArray(g.sources) ? g.sources : [];
+      const unknown = sources.filter((s) => !GOAL_SOURCES.includes(s));
+      const missing = GOAL_SOURCES.filter((s) => !sources.includes(s));
+      if (!Array.isArray(g.sources) || unknown.length || missing.length || new Set(sources).size !== sources.length) {
+        bad(`goal.sources must list each of ${GOAL_SOURCES.join(', ')} once: the meter counts all of them${unknown.length ? ` (unknown: ${unknown.join(', ')})` : ''}${missing.length ? ` (missing: ${missing.join(', ')})` : ''}`);
+      }
+      if (!Array.isArray(g.tokenTails)) bad('goal.tokenTails must list Token Tails\' own capped streams ([] when there are none)');
+      else {
+        for (const [i, s] of g.tokenTails.entries()) {
+          const where = `goal.tokenTails[${i}]`;
+          if (!s || !GOAL_SOURCES.includes(s.source)) { bad(`${where}.source must be one of ${GOAL_SOURCES.join(', ')}`); continue; }
+          if (!s.cap || typeof s.cap.file !== 'string' || typeof s.cap.const !== 'string' || !Number.isInteger(s.cap.decimals)) bad(`${where} needs cap: { file, const, decimals } (the daily cap)`);
+          if (s.shareBps !== undefined && !(Number.isInteger(s.shareBps) && s.shareBps > 0 && s.shareBps <= 10000)) bad(`${where}.shareBps must be an integer from 1 to 10000 (the share of the stream the shelter receives)`);
+          if (s.total !== undefined && !(s.total && typeof s.total.const === 'string')) bad(`${where}.total needs { const } (a lifetime cap in the same file and decimals as cap)`);
+        }
+      }
+      if (g.donorDependent !== undefined && typeof g.donorDependent !== 'boolean') bad('goal.donorDependent must be true or false');
       if (typeof f.value !== 'string' || !/^\d+(?:\.\d{1,6})?$/.test(f.value)) bad('a goal value is a decimal string such as "90"');
     }
     if (f.campaign !== undefined) {
@@ -251,6 +331,10 @@ export function validateRegistry(registry, { exists = () => true } = {}) {
         // campaignProgress counts from fromBlock, not startDate: a wallet without a fromBlock counts
         // every payout ever made to it, including ones before the goal started.
         if (wallet !== null && fromBlock === null) bad(`campaign.shelter.wallet is set but fromBlock is null, so the payouts page would count every payout ever made to that wallet, including ones before startDate${f.goal?.startDate ? ` (${f.goal.startDate})` : ''}. Set fromBlock to the first block on or after startDate, or set the wallet to null until it is known`);
+        const t = c.token;
+        if (wallet !== null && !(t && typeof t.address === 'string' && WALLET.test(t.address) && Number.isInteger(t.decimals) && t.decimals >= 0 && t.decimals <= 18 && t.symbol === 'USDC')) bad('campaign.token must be { address, decimals, symbol: "USDC" }: the USDC the meter reads the shelter wallet\'s balance in');
+        if (c.startBalance !== undefined && !(typeof c.startBalance === 'string' && /^\d+(?:\.\d{1,6})?$/.test(c.startBalance))) bad('campaign.startBalance must be a decimal string: the wallet\'s USDC balance just before fromBlock');
+        for (const p of campaignWalletProblems(c)) bad(p);
       }
     }
     if (f.config !== undefined) {

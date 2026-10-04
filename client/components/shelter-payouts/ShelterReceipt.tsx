@@ -190,7 +190,10 @@ const WebShelterReceipt = () => {
   // The backend's word is not enough: the match transaction itself is read from the chain.
   const matchOnChain = useVerifiedMatch(done?.chain || null, done?.chainId || 0, claimedMatch, done?.receipt.txHash || null, listedSplits);
   const matched = !!claimedMatch && matchOnChain === true;
-  const giftRouter = listedGift ? routers.find((r) => r.router.toLowerCase() === listedGift.router) || null : null;
+  // Keyed by chain too: the same deployer nonce gives the same router address on two chains.
+  const giftRouter = listedGift
+    ? routers.find((r) => r.chainId === done?.chainId && r.router.toLowerCase() === listedGift.router) || null
+    : null;
   const testnetGift = !!giftRouter && giftRouter.network === "testnet";
   const testnetCard = !!done?.chain.testnet || testnetGift;
 
@@ -248,7 +251,7 @@ const WebShelterReceipt = () => {
               <div key={`gift-${g.logIndex}`} className={`${CARD} flex flex-col gap-2`} data-testid="receipt-gift">
                 <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                   <span className={`${FIGURE} text-h5 md:text-h4`}>
-                    {giftAmountLabel(g, done.chain, routers.find((r) => r.router.toLowerCase() === g.router) || null)}
+                    {giftAmountLabel(g, done.chain, routers.find((r) => r.chainId === done.chainId && r.router.toLowerCase() === g.router) || null)}
                   </span>
                   <span className="font-primary uppercase text-p4 md:text-p3 text-tt-cream">
                     {g.path === ROUTER_PATH.FLUSH ? "forwarded by the router" : "wallet gift through the router"}

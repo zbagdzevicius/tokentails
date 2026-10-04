@@ -72,10 +72,12 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` | reCAPTCHA Enterprise site key; when set, the guest session request carries `x-firebase-appcheck`. Off by default |
 | `NEXT_PUBLIC_HEIST_PICKER` | `1` shows the Catnip Heist card in the PLAY picker in production (always on in development and E2E builds). Off until the Poki carve-out (decision #15) |
 | `NEXT_PUBLIC_HEIST_LANDING_PILL` | `1`, `true` or `on` shows "Or play Catnip Heist now, no sign-up" under the landing hero. Default off (decision #15) |
+| `NEXT_PUBLIC_HEIST_LANDING_SECTION` | `1`, `true` or `on` shows the landing's Catnip Heist section (showreel or poster, three beats, PLAY CATNIP HEIST) between the proof section and the globe. Default off, like the pill and the picker card (decision #15, Poki carve-out); turn it on only after a written founder override recorded in the decisions log |
 | `NEXT_PUBLIC_IMPACT_URL` | CDN URL of the impact snapshot mirror (default `impact/impact.json` on the asset CDN) |
 | `NEXT_PUBLIC_SNOWFALL` | `on` turns the seasonal Snowfall on (off by default, decision #47; month-day windows in `SNOWFALL_SEASONS`) |
-| `NEXT_PUBLIC_WALLET_DONATE` | `true` allows the real-money "Give from your wallet" block on `/shelter-payouts` (web only). It still shows only after the handover (`campaign.json` `shelter.handover` is `"handed-over"`) and when `public/shelter-payouts/routers.json` lists a `mainnet` DonateRouter for the campaign chain. Before the handover the page shows "Opens when Pink Paw holds its own key" and no button, whatever this flag says |
-| `NEXT_PUBLIC_WALLET_DONATE_CHAIN` | A testnet chain id (e.g. `5042002`, Arc testnet) for the separate "Try it live" block: test USDC, no real money, a TESTNET badge and a Circle faucet link. Shows only when `routers.json` lists a `testnet` router for that chain. Unset: no try-it block |
+| `NEXT_PUBLIC_WALLET_DONATE` | `true` allows the real-money "Give from your wallet" block on `/shelter-payouts` (web only). It still shows only after the handover (`campaign.json` `shelter.handover` is `"handed-over"`) and when `public/shelter-payouts/routers.json` lists a `mainnet` DonateRouter for the campaign chain (or, with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`, a router or a listed mainnet ShelterSplit for each chain named there). Before the handover the page shows "Opens when Pink Paw holds its own key" and no button, whatever this flag says |
+| `NEXT_PUBLIC_WALLET_DONATE_CHAIN` | A testnet chain id (e.g. `5042002`, Arc testnet) for the separate "Try it live" block: test USDC, no real money, a TESTNET badge and a Circle faucet link. Shows when that testnet has a wallet path: a `testnet` router in `routers.json`, or its ShelterSplit in `testnet-deployments.json`. The block has a network picker for all six testnets (Arc, Tempo, Arbitrum Sepolia, Avalanche Fuji, Base Sepolia, Robinhood): router chains give with one signature, the others approve the split and call `disburse` (`disburseWithMemo` on Tempo). Unset: no try-it block |
+| `NEXT_PUBLIC_WALLET_DONATE_CHAINS` | Comma-separated mainnet chain ids the real-money block offers in its network picker (e.g. `5042,8453,4217`), each with a router or a listed mainnet ShelterSplit (`giveRails.campaignRails`). Unset: only the campaign chain with a mainnet router, as before. Needs `NEXT_PUBLIC_WALLET_DONATE=true` and the handover |
 | `NEXT_PUBLIC_E2E` | `1` compiles in the E2E-only hooks (fake Firebase adapter, crash probes, `window.__ttGames`, `window.__TT_E2E_GAME__`). CI's e2e build only; never deploy it |
 | `NEXT_PUBLIC_CAPTURE` | `1` compiles in the frame-stepping capture hooks (`window.__TT_CAPTURE__`) for the reel. Capture builds only |
 
@@ -128,7 +130,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `art/` | Art sources and masters: the catnip matrices, the palette, `art/src/` (Aseprite and Tiled sources). |
 | `e2e/` | Playwright specs and fixtures, `e2e/capture/` for the reel. |
 | `components/seo/` | `SeoHead`, `site.ts` URL helpers, article JSON-LD. |
-| `components/landing/` | Homepage sections: `Sponsors.tsx` logo slider, `ProofSection.tsx` Paris event video and creator-reel marquee with an IntersectionObserver playback controller (styles in `styles/globals.scss` under `.reel-*`). |
+| `components/landing/` | Homepage sections: `Sponsors.tsx` logo slider, `ProofSection.tsx` Paris event video and creator-reel marquee with an IntersectionObserver playback controller (styles in `styles/globals.scss` under `.reel-*`), `HeistSection.tsx` the Catnip Heist section (flagged off), `shelterNames.ts` the globe's shelter list (Pink Paw once). |
 | `features/portrait/` | Self-contained slice for the AI pet portrait product. |
 | `analytics/` | Consent-gated PostHog EU events. `events.ts` is the typed F9 event catalog (names and areas come from `shared/analytics-core.ts`, which the Heist reads too), `consent.ts` the stored choice, `client.ts` the gate, `errors.ts` the scrubbed `app_error` reporter, `scrub.ts` the scrubber, `gtm.ts` the Google Tag Manager gate, `game-run.ts` the GameContext hook, `platform.ts` `web`/`ios`/`android`. |
 | `context/` | Providers: query client, toast, profile, cat, game, Firebase auth, web3, entity metadata. |
@@ -266,11 +268,59 @@ through the web3 module, paid or free.
 
 `components/web3/Payment.tsx` chooses between Stripe and crypto. Stripe uses Payment Elements
 with a debounced PaymentIntent, confirms without redirect where possible, and returns to
-`/payment-success`. Crypto uses the Stellar flow below. Hosted Checkout Session variants exist for
+`/payment-success`. Crypto is the EVM checkout below (packs, shelter cats, loot boxes); the Stellar
+flow below remains only for the mystery box and portraits. Hosted Checkout Session variants exist for
 the portrait pages. App builds hide all of it (store rules; IAP is deferred): `Payment`,
 `StripePayment`, and `Web3Transfer` render `components/web3/AppCheckoutNotice.tsx` instead, and
 Stripe.js is not loaded. Screens that show prices outside `Payment` (packs, mystery box, the codex
 PET ART tab) hide them too. Details in MOBILE.md.
+
+### Crypto checkout (USDC / EURC, EVM)
+
+`components/web3/crypto/` replaced "Pay on Stellar" in `Payment` (a Stellar pack payment that still
+arrives after `STELLAR_PACKS_SUNSET_AT` is recorded for a refund and answered 410 `STELLAR_PACKS_DEPRECATED`). API: docs/API.md "Crypto checkout". Web only: it renders inside
+`WebPayment`, which app builds replace with `AppCheckoutNotice`.
+
+- `api.ts`: `GET /payments/crypto/config`, `POST /payments/crypto/orders`, `GET .../orders/:id`,
+  `POST .../orders/:id/confirm`; failures carry the `CRYPTO_PAY_*` code.
+- `checkout.ts`: network and coin choices, the EIP-681 payment link, a check of the server's
+  ready-to-send `steps` against the option (coin contract, recipient, exact amount; for the shelter
+  split both the `approve` and the `disburse(amount, memo)` calldata) before a wallet sees them, the wallet flow (the donate rail's raw EIP-1193 code in `shelter-payouts/wallet.ts`:
+  connect, switch or add the network, balance check, send each step; the shelter split's `approve` is
+  mined before `disburse`), and the confirm loop (202, a `PAID` order still being granted, and
+  passing RPC trouble are retried, refusals are not). `quoteAmount` rounds up to the cent like the
+  server.
+- `CryptoCheckout.tsx`: pick a network and a coin (quoted at the USD price; EURC as "a fixed euro
+  price" or at the server's dated rate, `fx.EURC.source`) → CONTINUE creates the order (or gets the
+  buyer's open one back) → "Send exactly" with the order's unique amount, "Send from your own wallet.
+  Exchange withdrawals that take a fee will not match." and a countdown → PAY WITH WALLET (refused with
+  under 2 minutes left, `MIN_SECONDS_TO_PAY`: START A NEW ORDER instead, which renews the order), or without an injected wallet a QR (`PaymentQr.tsx`, `qrcode`), the
+  address, the coin contract, "Open in a wallet app" (EIP-681), "Open in MetaMask / Coinbase Wallet"
+  (opens this page in the wallet's browser) and a field for the transaction hash → confirming
+  (blocks n of m) → receipt (order, item, price, paid, network, explorer link). Tempo (memo transfer)
+  and the shelter split need a browser wallet; the panel says so instead of a QR.
+- A sent but unconfirmed payment is kept in `localStorage` (`tt-crypto-pay:pending`, per item, 26
+  hours) and offered as CHECK AGAIN on the next checkout of the same item. A replayed confirm grants
+  nothing and does not call `onSuccess`.
+
+Shelter cats one by one: `components/shelter/ShelterCatBuy.tsx` (basic tier, `Prices.shelterCat`,
+card or crypto through `Payment` with `entityType: CAT`, no discount code). It shows under the card
+the Shelter opens for an NPC (`TailsCardModal` children) and on the cat details page
+(`MarketplaceItemDetails`, any cat outside a house shelter). `isCatForSale` mirrors the server rule
+(unowned, rescue blessing not ADOPTED or HEAVEN, not a starter); `ownsCopy` hides the button for a cat the player
+already holds. App builds show nothing.
+
+Known limits (crypto checkout):
+- No automatic detection of a QR payment: the buyer pastes the transaction hash. A different amount
+  than the quoted one is not matched (server rule); refunds are manual.
+- The receipt is replaced by the pack reveal when the server returns the rolled cat (same as Stripe).
+- `web3/contracts.ts` `CurrencyType` and `ChainType` are still the Stellar subset; nothing on the
+  client reads EVM orders yet.
+- Dev only: `next dev` on `/packs` can reload in a loop after a Turbopack internal cache error
+  (Known issues, "Payments and shelter pages QA"); restart the dev server.
+- `Payment` offers crypto only when `GET /payments/crypto/config` lists a chain
+  (`crypto/useCryptoPayConfig.ts`), and shows the server's price from `config.prices` where a
+  client copy differs (the Legendary pack: card $400, charged $350).
 
 ### Web3 (Stellar only)
 
@@ -680,6 +730,34 @@ G7 art pipeline (fixed in task 6d, plan G7):
 - Fixed: `scripts/a.js` and `scripts/b.js` hard-coded a contributor's Windows paths. They are deleted; `node scripts/art/tile-legend.mjs legend|count|replace <map.json>` takes paths as arguments (`__test__/art-tile-legend.test.ts`).
 - Fixed: art sources shipped publicly (`public/base/*.aseprite`, `base.tmx`, `base.tiled-session`). They moved to `client/art/src/`; nothing loaded them. Still public and owned elsewhere: `public/story/spiked-wall.aseprite`, `public/catbassadors/catbassadors.tmx` and the Tiled project/session files under `public/pixel-rescue/levels/` and `public/purrquest/levels/` (listed in `__test__/art-pipeline.test.ts`).
 - Known: four authored sheets (`public/base/{summer,camp,sei,cat-winter}-original.png`) are stale against the runtime sheets the game loads; the night skins are built from the runtime sheets for that reason.
+
+Landing Catnip Heist section (`components/landing/HeistSection.tsx`, Oct 2026):
+
+- Off by default behind `NEXT_PUBLIC_HEIST_LANDING_SECTION=1` (decision #15). A public showreel with "Free in your browser" and an on-chain end card works against the Poki carve-out until it is in writing.
+- Known: the v1 reel (`public/landing/heist-reel-v1.*`) is not cleared (`HEIST_REEL.cleared = false`), so the section shows the poster on every build. The cut shows the Chat-Rivari "Paris cat café" (F-023: unverified, no surfaces, decision #74 dropped it from the landing) and says in the present tense "Token Tails sends Pink Paw a small treat" and "Every payout public, on-chain". A `-v2` cut needs: no café until F-023 is verified, and the treat card in the future tense or the rail live. Even a cleared cut plays only while the rail is live or exhausted (`heistReelAllowed`), never while the third beat says "open soon" or "paused".
+- Known: numbers baked into the reel ("540K+ registered players", F-001, `maxAgeDays` 365; "180K on X", F-011, `maxAgeDays` 90) escape `facts gate` and copy-lint. They are listed as `claim:` comments in `HeistSection.tsx`; re-cut the reel when either fact goes stale or changes.
+- The reel opens with about 1 s of security-cam glitch (static) before the first readable frame.
+- Fixed: the app export shipped about 6 MB of reel video it never plays. `npm run build:app` now runs `scripts/prune-app-export.mjs`, and `check-app-export.mjs` fails when the files are there. A new cut must add its files to `WEB_ONLY_FILES`.
+- Fixed: the live treat beat implied no account was needed and skipped custody; it now says "Signed-in players can tap" and "(wallet held by Token Tails until handover)". The "no sign-up needed" note is about the game itself (`/heist` is `authMode="optional"`); app builds say "Free to play" instead of "Free in your browser".
+- Fixed: the blurred backdrop and poster loaded with the page; both are `loading="lazy"`. Under reduced motion the reel never starts by itself, and a play button arms it on request.
+- Fixed: the globe's shelter list merged any two shelters whose names folded to the same text; non-Pink-Paw rows now de-duplicate by slug only (`components/landing/shelterNames.ts`).
+- Known (pre-existing, globe section): "PUPPY KITTY NYC" overflows its chip at 1024 px width.
+
+Payments and shelter pages QA (2026-10-04, 1440x900 and 390x844):
+
+- Fixed: on `/cats/<id>` at 390 px the card's decorative claws and whiskers (`CommonCardEffects.tsx`) widened the page to ~612 px, so the fixed header and the "Buy <cat>" dialog opened off-screen. `CatDetailsLayout` clips horizontal overflow (`overflow-x-clip`).
+- Known (needs a founder price decision): the Legendary pack card in `PacksModal.tsx` says $400 while the server price (`backend/src/payments/price-table.ts` `PACK_PRICES_CENTS`) is $350 and both checkouts charge $350. Since this pass the checkout summary and the crypto quote show the charged price ($350, from `config.prices`), so nobody is quoted one amount and charged another inside the checkout; the pack card still says $400 until one price is picked and every copy (DEVELOPMENT.md "Prices") is updated.
+- Fixed: "Pay with crypto (USDC / EURC)" showed while the server sold on no network (it then said "not open yet"). `Payment` reads `GET /payments/crypto/config` once per page (`useCryptoPayConfig`, 5 min cache) and offers crypto only when `enabled` and at least one chain is listed; while the config loads or fails, card only.
+- Fixed: a long amount ("350.004173 USDC") ran under the COPY button; it steps down a size and may wrap before the symbol. Coin chips keep the symbol's case ("USDC.e", not "USDC.E").
+- Fixed: copy that contradicted the custody and goal rules: the "Their wallet" custody line ("Sponsored treats are split to it on-chain today; gifts open after handover"), the payouts empty state and the `/impact` goal note (both name today's source only: sponsored treats), and How it works step 2 on the web and in the Heist ("while treats are open, Token Tails sends…", true in every rail state).
+- Fixed: the testnet proof headline on the web and in the Heist says "At least N" when a contract could not be read; the Heist adds "R of C contracts read". Testnet cards that share a chain and a coin carry "Deploy k of n" (`deployInstances`).
+- Fixed: `/impact` Paw settlements kept "arrive with the first nightly settlement" and "turns on when settlements start" after a settlement existed; the copy now follows `pawSettlements.count`.
+- Fixed (polish): Lithuanian cat names in the gallery (web and Heist) are set a size down in the body face so they match the display captions; the "Their wallet" card no longer stretches to the right column's height; the goal bar's 0% stub is a plain cream tick (the pink-gold fill means money came in); the Heist modal says the goal once (the meter) with "Goal date" under the bar.
+- Known, founder decision: the landing proof section still says "We hosted a curated day at a Paris cat café" (F-023 is unverified, no surfaces; decision #74 dropped only the event chip and kept this sentence as the copy-lint seed text) and shows "Arc shelter rail opens soon" beside F-025 (the F-025 note keeps the Arc half off surfaces until the ShelterSplit deploy, decision #97; the 3f pass chose future-tense "opens soon"). Verifying F-023 (open the post on x.com, confirm, set `verified`) clears the sentence and the reel's café; otherwise drop the sentence.
+- Known: the "Open in MetaMask / Coinbase Wallet" links reopen the plain page URL. On `/cats/<id>` the buyer taps Buy again; the server hands back the open order, so nothing is lost.
+- Known: the browser reads `rpc.moderato.tempo.xyz` and the Arc testnet RPC directly and sometimes gets 429; the pages say "Could not read" and retry, never 0.
+- Known (dev only): `/packs` reload-loops on `next dev` because Turbopack hits an internal cache error ("Failed to write page endpoint /packs … PagesStructure … no longer exists") and sends `reloadPage` on every HMR subscription. It is not the `PacksModal` code; restarting the dev server clears it. Production builds load once.
+- Known: the standalone Heist (`npm run dev` on :5173, no backend) shows its 4 bundled Pink Paw cats; inside `/heist` it reads the live gallery.
 
 
 ## Wallet giving (DonateRouter, feature F3)

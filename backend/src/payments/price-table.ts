@@ -22,6 +22,18 @@ export const PACK_PRICES_CENTS: Readonly<Record<PackType, number>> = {
     [PackType.LEGENDARY]: 35000,
 };
 
+/**
+ * A shelter cat bought on its own (Stripe or the crypto checkout): the basic tier only, $5 and never
+ * discounted (founder, 2026-10-04: "each cat costs $5 and not less"). Higher tiers come only from
+ * packs. One fixed price, with no env override, so the client copy (`Prices.shelterCat` in
+ * client/models/cats.ts, docs/DEVELOPMENT.md) can never show a different amount than is charged.
+ */
+export const SHELTER_CAT_MIN_PRICE_CENTS = 500;
+
+export function getShelterCatPriceCents(): number {
+    return SHELTER_CAT_MIN_PRICE_CENTS;
+}
+
 /** Largest discount a code can give; see `discountPercentageForCode`. */
 export const MAX_DISCOUNT_PERCENTAGE = 20;
 

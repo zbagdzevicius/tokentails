@@ -1,0 +1,163 @@
+/**
+ * The Pink Paw (Rožinė pėdutė) cat gallery: which of the shelter's real cats are shown, in what
+ * order, with which two images (its Token Tails card art and the shelter's own photo).
+ *
+ * One list for every surface: the web gallery on /shelter-payouts and /impact
+ * (client/components/shelter-payouts/PinkPawGallery.tsx) and the Heist's payouts modal
+ * (catnip-heist/src/ui/pink-paw.ts) both run the same `GET /cat/sale` response through
+ * `pinkPawGallery`, so they can never show different cats.
+ *
+ * Framework-free and TypeScript 4.8 compatible. Edit here, then run `node scripts/sync-contracts.mjs`.
+ */
+
+/** The storefront key of the shelter's cats (GET /cat/sale). */
+export const PINK_PAW_SLUG = 'rozine-pedute';
+
+/** A cat's status at the shelter, as the storefront sends it (`blessing.status`). */
+export type PinkPawCatStatus = 'WAITING' | 'RECOVERING' | 'ADOPTED';
+
+export interface PinkPawGalleryCat {
+    /** The cat's id in the Token Tails backend (its page is /cats/<id>). */
+    id: string;
+    /** The name as the shelter typed it, first letter capitalised ("RAUDVIS" -> "Raudvis"). */
+    name: string;
+    status: PinkPawCatStatus | null;
+    /** The cat's Token Tails card art (`blessing.catAvatar`). */
+    art: string;
+    /** The shelter's own photo of the cat (`blessing.image`). */
+    photo: string;
+}
+
+export interface PinkPawGallery {
+    /** Cats still at the shelter (waiting for a home, or recovering): the ones a gift helps today. */
+    atShelter: PinkPawGalleryCat[];
+    /** Cats the shelter has marked adopted. */
+    adopted: PinkPawGalleryCat[];
+}
+
+/** Longest name shown; longer ones are cut with an ellipsis. */
+export const PINK_PAW_NAME_MAX = 32;
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+    !!value && typeof value === 'object' && !Array.isArray(value);
+
+/** Only https image URLs are shown: anything else in the data is dropped, never rendered. */
+function httpsUrl(value: unknown): string | null {
+    if (typeof value !== 'string') return null;
+    const url = value.trim();
+    return /^https:\/\/[^\s"'<>]+$/i.test(url) ? url : null;
+}
+
+/** The cat's display name: the shelter's spelling, first letter capitalised, ALL CAPS lowered. */
+export function pinkPawCatName(raw: unknown): string {
+    const text = typeof raw === 'string' ? raw.replace(/\s+/g, ' ').trim() : '';
+    if (!text) return 'This cat';
+    const base = text === text.toUpperCase() ? text.toLowerCase() : text;
+    const name = base.charAt(0).toUpperCase() + base.slice(1);
+    return name.length > PINK_PAW_NAME_MAX ? `${name.slice(0, PINK_PAW_NAME_MAX - 1).trimEnd()}…` : name;
+}
+
+/** One storefront cat as a gallery cat, or null when it cannot be shown (no id, an image missing, or HEAVEN). */
+export function toGalleryCat(raw: unknown): PinkPawGalleryCat | null {
+    if (!isObject(raw)) return null;
+    const id = typeof raw._id === 'string' && /^[0-9a-f]{24}$/i.test(raw._id) ? raw._id : null;
+    const blessing = isObject(raw.blessing) ? raw.blessing : null;
+    if (!id || !blessing) return null;
+    const art = httpsUrl(isObject(blessing.catAvatar) ? blessing.catAvatar.url : null);
+    const photo = httpsUrl(isObject(blessing.image) ? blessing.image.url : null);
+    if (!art || !photo) return null;
+    const rawStatus = blessing.status;
+    // A cat that died (HEAVEN) is never shown in a "meet the cats" gallery; an unknown status is.
+    if (rawStatus === 'HEAVEN') return null;
+    const status: PinkPawCatStatus | null =
+        rawStatus === 'WAITING' || rawStatus === 'RECOVERING' || rawStatus === 'ADOPTED' ? rawStatus : null;
+    return { id, name: pinkPawCatName(blessing.name || raw.name), status, art, photo };
+}
+
+const byName = (a: PinkPawGalleryCat, b: PinkPawGalleryCat) =>
+    a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }) || a.id.localeCompare(b.id);
+
+/**
+ * Every showable Pink Paw cat, split into those still at the shelter and those adopted, each in
+ * name order (stable, so a cat is easy to find again). `source` is the whole `GET /cat/sale` body
+ * or the shelter's own array; anything else gives an empty gallery. A cat listed twice shows once.
+ */
+export function pinkPawGallery(source: unknown): PinkPawGallery {
+    const list = Array.isArray(source) ? source : isObject(source) ? source[PINK_PAW_SLUG] : null;
+    const out: PinkPawGallery = { atShelter: [], adopted: [] };
+    if (!Array.isArray(list)) return out;
+    const seen: Record<string, true> = {};
+    for (const raw of list) {
+        const cat = toGalleryCat(raw);
+        if (!cat || seen[cat.id]) continue;
+        seen[cat.id] = true;
+        (cat.status === 'ADOPTED' ? out.adopted : out.atShelter).push(cat);
+    }
+    out.atShelter.sort(byName);
+    out.adopted.sort(byName);
+    return out;
+}
+
+/**
+ * The public gallery endpoint (`GET /shelter/:slug/gallery`): every showable cat of the shelter,
+ * with no storefront cap, already run through `pinkPawGallery` by the backend. `GET /cat/sale`
+ * returns at most 200 cats per shelter (the newest unowned ones), so its counts are not the
+ * shelter's totals; this endpoint's are.
+ */
+export const pinkPawGalleryPath = (slug: string = PINK_PAW_SLUG) => `/shelter/${encodeURIComponent(slug)}/gallery`;
+
+/** The storefront's per-shelter cap (backend STOREFRONT_PER_SHELTER_LIMIT): a list this long may be cut. */
+export const STOREFRONT_SHELTER_CAP = 200;
+
+/** The gallery as the pages show it, with where it came from. */
+export interface PinkPawGalleryResult extends PinkPawGallery {
+    /** `gallery`: the uncapped endpoint (counts are the shelter's totals); `storefront`: GET /cat/sale. */
+    source: 'gallery' | 'storefront';
+    /** False when the list may be cut (the storefront fallback at its cap): never show its counts as totals. */
+    complete: boolean;
+}
+
+/** One gallery cat from the public endpoint, checked like a storefront cat (id, https images, status). */
+function fromPublicCat(raw: unknown): PinkPawGalleryCat | null {
+    if (!isObject(raw)) return null;
+    return toGalleryCat({
+        _id: raw.id,
+        name: raw.name,
+        blessing: {
+            name: raw.name,
+            status: raw.status === null ? undefined : raw.status,
+            image: { url: raw.photo },
+            catAvatar: { url: raw.art },
+        },
+    });
+}
+
+/**
+ * The body of `GET /shelter/:slug/gallery` (`{ atShelter: [...], adopted: [...] }`), every cat
+ * checked again on this side; null when the body is not that shape. A cat is filed by its own
+ * status, whatever list it came in.
+ */
+export function parsePinkPawGalleryBody(body: unknown): PinkPawGallery | null {
+    if (!isObject(body) || !Array.isArray(body.atShelter) || !Array.isArray(body.adopted)) return null;
+    const out: PinkPawGallery = { atShelter: [], adopted: [] };
+    const seen: Record<string, true> = {};
+    for (const raw of [...body.atShelter, ...body.adopted]) {
+        const cat = fromPublicCat(raw);
+        if (!cat || seen[cat.id]) continue;
+        seen[cat.id] = true;
+        (cat.status === 'ADOPTED' ? out.adopted : out.atShelter).push(cat);
+    }
+    out.atShelter.sort(byName);
+    out.adopted.sort(byName);
+    return out;
+}
+
+/**
+ * The storefront fallback as a result: `complete` is false when the shelter's list reached the
+ * storefront cap, so the newest 200 are not presented as every cat.
+ */
+export function storefrontGalleryResult(source: unknown): PinkPawGalleryResult {
+    const list = Array.isArray(source) ? source : isObject(source) ? source[PINK_PAW_SLUG] : null;
+    const rows = Array.isArray(list) ? list.length : 0;
+    return { ...pinkPawGallery(list), source: 'storefront', complete: rows < STOREFRONT_SHELTER_CAP };
+}

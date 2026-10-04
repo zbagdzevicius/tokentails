@@ -1,9 +1,36 @@
 {
-  "name": "Pink Paw autumn rescue",
-  "goalUsdc": "90",
+  "name": "Pink Paw rescue fund",
+  "goalUsdc": "50000",
   "startDate": "2026-10-02",
+  "endDate": "2027-09-30",
   "chainId": 5042,
   "fromBlock": 23790973,
+  "counts": "shelter-wallet",
+  "sources": [
+    "gifts",
+    "match",
+    "treats",
+    "x402",
+    "purchase-shares"
+  ],
+  "token": {
+    "address": "0x3600000000000000000000000000000000000000",
+    "decimals": 6,
+    "symbol": "USDC"
+  },
+  "startBalance": "0",
+  "wallets": [
+    {
+      "wallet": "0xe299299b846ba629f5a591dbf4f562bcc07a0f37",
+      "fromBlock": 23790973,
+      "toBlock": null,
+      "holder": "token-tails"
+    }
+  ],
+  "inflowLog": {
+    "address": "0xfffffffffffffffffffffffffffffffffffffffe",
+    "decimals": 18
+  },
   "shelter": {
     "name": "Pink Paw (Rožinė pėdutė)",
     "wallet": "0xE299299b846Ba629f5A591dBF4F562bcC07A0f37",

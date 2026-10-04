@@ -300,8 +300,12 @@ describe("token checks before the wallet opens", () => {
     expect(calls.map((c) => c.method)).not.toContain("eth_sendTransaction");
   });
 
-  it("adds Tempo with a USD fee coin, never a coin called 'native'", () => {
-    expect(addChainParams(4217, SHELTER_CHAINS[4217]).nativeCurrency).toEqual({ name: "USD", symbol: "USD", decimals: 18 });
+  it("adds Tempo with a USD fee coin, never a coin called 'native', and says it has no native coin", () => {
+    expect(addChainParams(4217, SHELTER_CHAINS[4217]).nativeCurrency).toEqual({
+      name: "No native coin (fees in USD stablecoins)",
+      symbol: "USD",
+      decimals: 18,
+    });
     expect(addChainParams(5042002, ARC_TEST).nativeCurrency).toEqual({ name: "USDC", symbol: "USDC", decimals: 18 });
   });
 });

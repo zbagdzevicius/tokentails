@@ -37,7 +37,7 @@ Apps that say "part of your purchase helps shelters" give the buyer no way to ch
 Built in the window (all of it since 2026-09-25; the app around it existed before and is context):
 - ShelterSplit, the payout rail: a contract registry of shelter wallets and shares. One call splits a payment across every active shelter, with one public event per payout. Three paths: an ERC-20 path for USDC, a memo path for chains whose stablecoin carries a transfer memo, and a native-coin path for chains where the native coin is USDC.
 - The give flow: after a Catnip Heist win at https://tokentails.com/heist, a signed-in player (anti-abuse: verified email, account older than a day) taps once and Token Tails pays a small sponsored treat to Pink Paw, once a day, from a capped daily budget.
-- Receipts: every treat gets a receipt page and a share card that link to the transaction, and Pink Paw's profile shows a campaign meter of what it received.
+- Receipts: every treat gets a receipt page and a share card that link to the transaction, and Pink Paw's profile shows a goal meter of the USDC that came in to its campaign wallet.
 - The payouts page at https://tokentails.com/shelter-payouts: each shelter and each payout, read from chain events, not from our database.
 - An x402-compatible agent endpoint, so a software agent can pay the same shelters and get an adoptable-cat card back. It is built and tested but stays off until Pink Paw holds its own keys.
 - ShelterSplit Rail: an MIT SDK and a one-tag donate widget for any other app.

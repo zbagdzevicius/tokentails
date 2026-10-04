@@ -47,8 +47,9 @@ const standaloneIcons = (deployBase: string): Plugin => ({
 
 export default defineConfig({
   // Only HEIST_PAYOUTS_URL (the win-screen payouts link), HEIST_DEPLOYMENTS_URL (its on-chain
-  // total) and HEIST_GIVE_URL (the "rescue treat" button) are exposed to the page, as import.meta.env.
-  envPrefix: ['VITE_', 'HEIST_PAYOUTS_URL', 'HEIST_DEPLOYMENTS_URL', 'HEIST_GIVE_URL'],
+  // total), HEIST_TESTNET_DEPLOYMENTS_URL (the payouts modal's testnet proof) and HEIST_GIVE_URL (the
+  // "rescue treat" button) are exposed to the page, as import.meta.env.
+  envPrefix: ['VITE_', 'HEIST_PAYOUTS_URL', 'HEIST_DEPLOYMENTS_URL', 'HEIST_TESTNET_DEPLOYMENTS_URL', 'HEIST_GIVE_URL'],
   base,
   plugins: [standaloneIcons(base)],
   server: { port: 5173, host: '127.0.0.1' },

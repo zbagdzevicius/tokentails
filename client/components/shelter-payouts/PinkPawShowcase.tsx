@@ -5,6 +5,7 @@ import { BlessingStatusTexts } from "@/models/cats";
 import { nameFont } from "@/lib/glyphs";
 import NextLink from "next/link";
 import { type ReactNode, useMemo } from "react";
+import { PinkPawGallery } from "./PinkPawGallery";
 import {
   PINK_PAW_LOGO,
   PINK_PAW_LOCAL_NAME,
@@ -172,6 +173,28 @@ export function usePinkPawCats(cards: number, photos: number) {
   }, [list, cards, photos, isLoading, failure]);
 }
 
+/** The cats block: heading, note and the full gallery (card art + photo pairs with Meet links). */
+export const PinkPawCatsSection = ({ target, title = true }: { target?: string; title?: boolean }) => (
+  <div className="flex flex-col gap-3 scroll-mt-28" id="pink-paw-cats" data-testid="pink-paw-cats-section">
+    {title && (
+      <h3 className="font-primary text-p3 md:text-p2 uppercase leading-none text-white">
+        Meet the cats <span className="glow text-tt-cream">your treats help</span>
+      </h3>
+    )}
+    <p className="text-p6 md:text-p5 text-tt-cream/75">
+      Real cats from the shelter: each one&apos;s Token Tails card, and the photo the shelter took.
+    </p>
+    <PinkPawGallery target={target} />
+    <NextLink
+      href="/cats"
+      target={target}
+      className="self-center font-primary text-p5 md:text-p4 uppercase tracking-wide text-tt-gold-400 underline decoration-dotted underline-offset-4 hover:text-tt-cream"
+    >
+      See every shelter cat ›
+    </NextLink>
+  </div>
+);
+
 /** The full showcase block for /shelter-payouts. */
 export const PinkPawShowcase = ({
   name,
@@ -182,44 +205,14 @@ export const PinkPawShowcase = ({
   target?: string;
   /** Shown between the shelter's identity and its cats (the payout page's wallet and goal). */
   children?: ReactNode;
-}) => {
-  // The photos are of the same cats as the cards (and the same daily pick as /give), so every
-  // card has its own photo on the page, as in the Heist modal.
-  const { cards, loading } = usePinkPawCats(5, 0);
-  const photos = cards.slice(0, 4);
-  return (
-    <div className="flex flex-col gap-6 md:gap-8" data-testid="pink-paw-cats">
-      <PinkPawIdentity name={name} target={target} />
-      {children}
-      {(loading || cards.length > 0) && (
-        <div className="flex flex-col gap-3">
-          <h3 className="font-primary text-p3 md:text-p2 uppercase leading-none text-white">
-            Meet the cats <span className="glow text-tt-cream">your treats help</span>
-          </h3>
-          <p className="text-p6 md:text-p5 text-tt-cream/75">
-            Real cats from the shelter, drawn as Token Tails cards.
-          </p>
-          <PinkPawCards cats={cards} loading={loading} target={target} />
-        </div>
-      )}
-      {photos.length > 0 && (
-        <div className="flex flex-col gap-3">
-          <h3 className="font-primary text-p3 md:text-p2 uppercase leading-none text-white">
-            Straight from <span className="glow text-tt-cream">the shelter</span>
-          </h3>
-          <PinkPawPhotos cats={photos} />
-        </div>
-      )}
-      <NextLink
-        href="/cats"
-        target={target}
-        className="self-center font-primary text-p5 md:text-p4 uppercase tracking-wide text-tt-gold-400 underline decoration-dotted underline-offset-4 hover:text-tt-cream"
-      >
-        See every shelter cat ›
-      </NextLink>
-    </div>
-  );
-};
+}) => (
+  // The gallery is the Heist modal's: card art and the shelter's photo of every real cat.
+  <div className="flex flex-col gap-6 md:gap-8" data-testid="pink-paw-cats">
+    <PinkPawIdentity name={name} target={target} />
+    {children}
+    <PinkPawCatsSection target={target} />
+  </div>
+);
 
 /** Compact block for the give and receipt pages: logo, name and three real photos. */
 export const PinkPawStrip = ({

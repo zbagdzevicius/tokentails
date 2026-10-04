@@ -23,7 +23,7 @@ ShelterSplit splits native USDC on Arc as it arrives and pays each registered sh
 ## What we built on Arc
 
 - Arc-native path: USDC is Arc's gas token, so the native and ERC-20 balances are one. donate(memo) and receive() split a USDC send with no approve step. disburse(amount, memo) serves ERC-20 payers such as the EURC instance.
-- Events: NativeDisbursed or Disbursed(shelter, amount, memo) per shelter and one batch event per call. Payouts page, receipts and meter read only these.
+- Events: NativeDisbursed or Disbursed(shelter, amount, memo) per shelter and one batch event per call. Payouts page and receipts read only these; the goal meter counts USDC transfers into the campaign wallet.
 - Registry: the owner adds, updates, deactivates or removes shelters; dust goes to the treasury, so the split holds no balance.
 - Atomic batch: if one payout fails the whole batch reverts and nobody is paid short.
 - Sponsored gifts: a verified player taps once a day; a backend wallet with a small float calls donate('tt:<source>:<random id>') within a capped daily budget. No personal data in the memo.

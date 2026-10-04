@@ -1,4 +1,5 @@
 import { useGame } from "@/context/GameContext";
+import { isCupidSeason } from "@/components/game/seasons";
 import { GameType } from "@/models/game";
 import { useCallback, useEffect, useRef } from "react";
 import { onboardingStore } from "./store";
@@ -31,13 +32,21 @@ export const FIRST_MODE: Readonly<FirstMode> = Object.freeze({
   starterShield: true,
 });
 
-/** The alternative default for after decision #94 (see above). Not used yet. */
+/**
+ * The alternative default for after decision #94 (see above), and the first mode outside Cupid
+ * Cat's season (January to March, `components/game/seasons`): Purrsuit 1-1 has G10's soft deaths.
+ */
 export const PURRSUIT_FIRST_MODE: Readonly<FirstMode> = Object.freeze({
   gameType: GameType.CATNIP_CHAOS,
   level: "11",
   label: "Purrsuit · 1-1",
   starterShield: false,
 });
+
+/** The first mode for a new player today: Cupid Cat in its season, Purrsuit 1-1 otherwise. */
+export function firstModeFor(now: Date = new Date()): Readonly<FirstMode> {
+  return isCupidSeason(now) ? FIRST_MODE : PURRSUIT_FIRST_MODE;
+}
 
 /**
  * How long the lobby shows the named starter in its hero slot before the first mode opens. Long
@@ -70,14 +79,15 @@ export function useOnboardingHandoff(): { start: (options?: HandoffOptions) => v
     (options: HandoffOptions = {}) => {
       cancel();
       const beat = Math.max(0, options.beatMs ?? LOBBY_BEAT_MS);
-      onboardingStore.set({ justFinished: true, firstRunLabel: FIRST_MODE.label });
+      const first = firstModeFor();
+      onboardingStore.set({ justFinished: true, firstRunLabel: first.label });
       latest.current.setGameType(null);
       const open = () => {
         timer.current = null;
         // The post-ceremony entrance is over: the lobby animates normally from now on.
         onboardingStore.set({ firstRunLabel: null, justFinished: false });
         // Mode and level in one call: one `select`, no first-time routing in between (review #10).
-        latest.current.setGameType(FIRST_MODE.gameType, FIRST_MODE.level);
+        latest.current.setGameType(first.gameType, first.level);
       };
       if (beat === 0) open();
       else timer.current = setTimeout(open, beat);

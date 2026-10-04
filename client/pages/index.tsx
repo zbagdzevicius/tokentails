@@ -5,6 +5,7 @@ import { ImpactResult, loadImpactForPage } from "@/api/impact-api";
 import { isAppBuild } from "@/components/claims/build";
 import { SectionBoundary } from "@/components/errors/SectionBoundary";
 import { HeistPill } from "@/components/landing/HeistPill";
+import { HeistSection } from "@/components/landing/HeistSection";
 import { ImpactGlobeSection } from "@/components/landing/ImpactGlobeSection";
 import { landingCtaHref } from "@/components/landing/landingCta";
 import { ProofSection } from "@/components/landing/ProofSection";
@@ -15,6 +16,7 @@ import {
 import { SeoHead } from "@/components/seo/SeoHead";
 import { GameplayReel, hasReelClips } from "@/components/reel/GameplayReel";
 import { PixelButton } from "@/components/shared/PixelButton";
+import { CardAction } from "@/components/tailsCard/CardAction";
 import { TailsCard } from "@/components/tailsCard/TailsCard";
 import { cdnFile, isMobile } from "@/constants/utils";
 import { hasSessionHint } from "@/context/auth/sessionHint";
@@ -175,6 +177,11 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
           <ProofSection impact={impact} />
         </SectionBoundary>
 
+        {/* Catnip Heist, the new game mode: showreel, three beats and PLAY CATNIP HEIST. */}
+        <SectionBoundary name="heist">
+          <HeistSection railState={impact?.rail.state ?? null} />
+        </SectionBoundary>
+
         <SectionBoundary name="globe">
           <ImpactGlobeSection impact={impact} />
         </SectionBoundary>
@@ -196,19 +203,16 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
             <div className="absolute inset-x-0 bottom-0 h-32 md:h-48 bg-gradient-to-b from-transparent to-tt-night-900 pointer-events-none" />
 
             <div className="relative z-30 px-4 md:px-8 lg:px-16 py-12 md:py-16 lg:py-24 flex justify-center">
-              {/* Plain anchor on purpose: the game shell needs a full page load. */}
-              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-              <a
+              <CardAction
                 href={landingCtaHref("sample_card")}
-                aria-label="Play the Token Tails game"
-                className="flex justify-center transition-transform duration-300 hover:scale-[1.03]"
+                ariaLabel="Play the Token Tails game"
               >
                 <TailsCard
                   cardStyle={{
                     width: "clamp(260px, 30vw, 400px)",
                   }}
                 />
-              </a>
+              </CardAction>
             </div>
           </section>
         </SectionBoundary>

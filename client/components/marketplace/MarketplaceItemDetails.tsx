@@ -7,6 +7,8 @@ import { CatAbilityType, CatAbilityTypes, ICat } from "@/models/cats";
 import Link from "next/link";
 import { PixelButton } from "../shared/PixelButton";
 import { ShelterBenefits } from "../shared/ShelterBenefits";
+import { ShelterCatBuy, isCatForSale } from "../shelter/ShelterCatBuy";
+import { isApp } from "@/models/app";
 import { TailsCard } from "../tailsCard/TailsCard";
 
 export const MarketplaceItemDetails = ({ cat }: { cat: ICat }) => {
@@ -32,6 +34,13 @@ export const MarketplaceItemDetails = ({ cat }: { cat: ICat }) => {
           {role === "partner" && <ShelterBenefits />}
         </div>
       </div>
+      {/* A shelter cat on sale (basic tier, $5); house cats are not sold one by one. The page's
+          cat may carry no shelter, so only a known house shelter hides the offer. */}
+      {role !== "house" && !isApp && isCatForSale(cat) && (
+        <div className="mb-8">
+          <ShelterCatBuy cat={cat} />
+        </div>
+      )}
       {!isFamous && (
         // Client-side navigation so it also works in the static app export.
         <Link href="/cats">

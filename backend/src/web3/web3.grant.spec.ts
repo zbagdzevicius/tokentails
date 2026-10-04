@@ -134,7 +134,15 @@ describe('spendIncrement', () => {
     });
 });
 
+// Stellar packs are deprecated (2026-10-04); these cover the grant path behind the rollback switch.
 describe('Stellar pack purchase (POST /web3/confirm)', () => {
+    beforeAll(() => {
+        process.env.STELLAR_PACKS_ENABLED = 'true';
+    });
+    afterAll(() => {
+        delete process.env.STELLAR_PACKS_ENABLED;
+    });
+
     it('increments spentUsd by priceUsd and spent by nothing extra', async () => {
         const { ctrl, userRepository } = setup({ priceUsd: 7.25 });
 

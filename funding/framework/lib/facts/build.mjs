@@ -69,41 +69,77 @@ export function parseUnits(amount, decimals) {
   return BigInt(whole + frac.padEnd(decimals, '0').slice(0, decimals));
 }
 
+/** 18-decimal units of `value` given in `decimals`. */
+const to18 = (value, decimals) => value * 10n ** BigInt(18 - decimals);
+
+/** 18-decimal units -> "12.34" (two decimals, rounded up so a pace never reads low). */
+function ceil2(v18) {
+  const cent = 10n ** 16n;
+  const cents = (v18 + cent - 1n) / cent;
+  const s = (cents / 100n).toString();
+  const f = (cents % 100n).toString().padStart(2, '0').replace(/0+$/, '');
+  return f ? `${s}.${f}` : s;
+}
+
 /**
- * Goal feasibility (decision #76): the goal must be reachable at the configured daily cap
- * between startDate and endDate, both inclusive. Date-independent, so it can run on every PR.
+ * Goal check (decision #76, redefined 2026-10-04). A goal's progress is every USDC that reaches the
+ * shelter's wallet (goal.progress "shelter-wallet", goal.sources: gifts, match, treats, x402,
+ * purchase shares), summed by the backend from the Transfer logs into the campaign wallets since
+ * fromBlock (GET /shelter/goal/:id). Most of that is donors'
+ * money, which no config can promise, so the check is about honesty, not a guarantee:
  *
- * `goal.shareBps` (default 10000) is the share of the daily budget that reaches the goal's shelter.
- * ShelterSplit splits each donate across its recipients in one transaction and the campaign page
- * counts only Disbursed events to the shelter's own wallet, so with more than one recipient the
- * reachable amount is cap x shareBps / 10000 per day. The split config is not in this repo: the
- * value is an assumption a person keeps in step with it.
+ * - `goal.tokenTails` lists Token Tails' own capped streams (the treat budget, the match budget)
+ *   with the constant that caps each per day, an optional lifetime cap (`total`) and the shelter's
+ *   share of the split (`shareBps`, default 10000). Their sum over the goal's days is the most
+ *   Token Tails can add by itself (`tokenTailsMax`).
+ * - The rest (`fromDonors`) has to come from donors. A goal with fromDonors > 0 must say so
+ *   (`goal.donorDependent: true`), and its wording must not call it reachable or guaranteed.
+ * - `donorPerDay` is the average pace donors would need from the first day.
+ * - The caps are the CODE DEFAULTS (`capsFrom: 'code-defaults'`): the production environment may
+ *   set other values (SHELTER_DAILY_BUDGET_WEI, the match settings), which this check cannot read.
+ *   Every message that prints `tokenTailsMax` says so.
+ *
+ * Date-independent, so it runs on every PR; `fund facts report` adds the days-left view.
  */
 export function goalFeasibility(entry, root) {
   const { goal } = entry;
-  const budget = readWeiConst(root, goal.cap.file, goal.cap.const);
-  const shareBps = goal.shareBps ?? 10000;
-  const cap = (budget * BigInt(shareBps)) / 10000n;
   const days = inclusiveDays(goal.startDate, goal.endDate);
-  const target = parseUnits(entry.value, goal.cap.decimals);
-  const reachable = cap * BigInt(days);
-  const minDays = cap > 0n ? Number((target + cap - 1n) / cap) : Infinity;
-  const ok = cap > 0n && reachable >= target;
+  const target = parseUnits(entry.value, 18);
+  const streams = (goal.tokenTails || []).map((s) => {
+    const shareBps = s.shareBps ?? 10000;
+    const daily = to18(readWeiConst(root, s.cap.file, s.cap.const), s.cap.decimals);
+    const perDay = (daily * BigInt(shareBps)) / 10000n;
+    let max = perDay * BigInt(days);
+    if (s.total) {
+      const total = (to18(readWeiConst(root, s.total.file || s.cap.file, s.total.const), s.total.decimals ?? s.cap.decimals) * BigInt(shareBps)) / 10000n;
+      if (total < max) max = total;
+    }
+    return { source: s.source, shareBps, perDay: formatUnits(perDay, 18), max: formatUnits(max, 18), max18: max };
+  });
+  const tt = streams.reduce((n, s) => n + s.max18, 0n);
+  const fromDonors = target > tt ? target - tt : 0n;
+  const donorDependent = goal.donorDependent === true;
   return {
     id: entry.id,
     goal: entry.value,
     unit: entry.unit,
     days,
-    shareBps,
-    budgetPerDay: formatUnits(budget, goal.cap.decimals),
-    capPerDay: formatUnits(cap, goal.cap.decimals),
-    maxAtCap: formatUnits(reachable, goal.cap.decimals),
-    minDays,
-    /** Days the goal can miss the cap and still be reached (0: every day must hit the cap). */
-    spareDays: ok ? days - minDays : 0,
-    ok,
+    progress: goal.progress,
+    sources: [...(goal.sources || [])],
+    streams: streams.map(({ max18, ...rest }) => rest),
+    tokenTailsMax: formatUnits(tt, 18),
+    /** Where the caps come from: the constants in code, never the production environment. */
+    capsFrom: 'code-defaults',
+    fromDonors: formatUnits(fromDonors, 18),
+    donorPerDay: ceil2(days > 0 ? (fromDonors + BigInt(days) - 1n) / BigInt(days) : fromDonors),
+    donorDependent,
+    /** False when donors must give and the entry does not say so. */
+    ok: fromDonors === 0n || donorDependent,
   };
 }
+
+/** Words a donor-dependent goal must never use: it is a target, not a promise. */
+export const PROMISE_WORDS = /\b(?:reachable|guarantee[ds]?|guaranteed|assured|will reach|certain to)\b/i;
 
 // ---------- rendering ----------
 
@@ -206,6 +242,8 @@ export function publicEntries(registry) {
       if (f.chain) out.chain = f.chain;
       if (f.live) out.live = { endpoint: f.live.endpoint, path: f.live.path };
       if (f.goal) out.goal = { startDate: f.goal.startDate, endDate: f.goal.endDate };
+      // Where the goal's meter reads from (all public on-chain data): the Heist modal reads it baked.
+      if (f.campaign) out.campaign = publicCampaign(f.campaign);
       return out;
     });
 }
@@ -263,6 +301,12 @@ ${pad}recordsOnRequest?: true;
 ${pad}chain?: 'sei' | 'stellar' | 'arc' | 'skale';
 ${pad}live?: { endpoint: string; path: string };
 ${pad}goal?: { startDate: string; endDate: string };
+${pad}/**
+${pad} * A goal's meter: the USDC that came in to \`wallets\` (each inside its block range) on \`chainId\`,
+${pad} * summed from \`inflowLog\` Transfer logs by the backend (GET /shelter/goal/:id). \`wallet\` is where
+${pad} * money arrives today; \`token\` and \`startBalance\` serve the balance fallback (one wallet, nonce 0).
+${pad} */
+${pad}campaign?: { chainId: number; fromBlock: number | null; wallet: string | null; handover: 'held-by-token-tails' | 'handed-over'; wallets: { wallet: string; fromBlock: number; toBlock: number | null; holder: 'token-tails' | 'shelter' }[]; inflowLog: { address: string; decimals: number } | null; token: { address: string; decimals: number } | null; startBalance: string };
 }
 
 /** Where the web app and the Heist fetch the current public facts. */
@@ -279,14 +323,47 @@ export function withPrettierIgnore(source) {
   return source.replace(/^export /gm, '// prettier-ignore\nexport ');
 }
 
+/** The public part of a campaign: where its meter reads (chain, wallets, the inflow log, token, start). */
+export function publicCampaign(c) {
+  return {
+    chainId: c.chainId,
+    fromBlock: c.fromBlock ?? null,
+    wallet: c.shelter?.wallet ?? null,
+    handover: c.shelter?.handover === 'handed-over' ? 'handed-over' : 'held-by-token-tails',
+    wallets: publicWallets(c),
+    inflowLog: c.inflowLog ? { address: c.inflowLog.address, decimals: c.inflowLog.decimals } : null,
+    token: c.token ? { address: c.token.address, decimals: c.token.decimals } : null,
+    startBalance: c.startBalance ?? '0',
+  };
+}
+
+/** campaign.wallets as the pages and the backend read them (addresses lowercased). */
+export function publicWallets(c) {
+  return (Array.isArray(c.wallets) ? c.wallets : []).map((w) => ({
+    wallet: String(w.wallet).toLowerCase(),
+    fromBlock: w.fromBlock,
+    toBlock: w.toBlock ?? null,
+    holder: w.holder === 'shelter' ? 'shelter' : 'token-tails',
+  }));
+}
+
 export function renderCampaign(entry) {
   const c = entry.campaign;
   const out = {
     name: c.name,
     goalUsdc: entry.value,
     startDate: entry.goal.startDate,
+    endDate: entry.goal.endDate,
     chainId: c.chainId,
     fromBlock: c.fromBlock ?? null,
+    // The meter counts every USDC that reaches the shelter wallet (goal.progress), from these sources.
+    counts: entry.goal.progress,
+    sources: [...entry.goal.sources],
+    token: c.token ? { address: c.token.address, decimals: c.token.decimals, symbol: c.token.symbol } : null,
+    startBalance: c.startBalance ?? '0',
+    // Every wallet the goal counts, each inside its block range (the backend sums what came in).
+    wallets: publicWallets(c),
+    inflowLog: c.inflowLog ? { address: c.inflowLog.address, decimals: c.inflowLog.decimals } : null,
     shelter: {
       name: c.shelter.name,
       wallet: c.shelter.wallet ?? null,
@@ -317,9 +394,10 @@ export function buildOutputs({ root = REPO_ROOT, registry } = {}) {
       try {
         const r = goalFeasibility(f, root);
         goals.push(r);
-        const share = r.shareBps === 10000 ? '' : ` (${r.shareBps / 100}% of the ${r.budgetPerDay} ${r.unit} budget)`;
-        if (!r.ok) problems.push(`${f.id}: goal ${r.goal} ${r.unit} is unreachable at the cap: ${r.capPerDay} ${r.unit}/day${share} for ${r.days} days is at most ${r.maxAtCap} ${r.unit} (needs ${r.minDays} days); lower the goal or extend endDate (decision #76)`);
-        else if (r.spareDays === 0) warnings.push(`${f.id}: goal ${r.goal} ${r.unit} has no headroom: every one of its ${r.days} days must reach the ${r.capPerDay} ${r.unit} cap`);
+        const own = r.streams.map((s) => `${s.source} ${s.perDay}/day${s.shareBps === 10000 ? '' : ` (${s.shareBps / 100}% share)`}`).join(', ') || 'none';
+        if (!r.ok) problems.push(`${f.id}: goal ${r.goal} ${r.unit} needs ${r.fromDonors} ${r.unit} from donors: Token Tails' own capped streams (${own}) add at most ${r.tokenTailsMax} ${r.unit} in ${r.days} days at the code defaults. Set goal.donorDependent: true and word the goal as a target, not a promise (decision #76)`);
+        if (r.donorDependent && (PROMISE_WORDS.test(f.display || '') || PROMISE_WORDS.test(f.claim || '') || PROMISE_WORDS.test(f.appDisplay || ''))) problems.push(`${f.id}: a donor-dependent goal must not be called reachable or guaranteed (display, appDisplay or claim)`);
+        if (r.donorDependent && r.fromDonors === '0') warnings.push(`${f.id}: goal.donorDependent is set, but Token Tails' own streams alone can add ${r.tokenTailsMax} ${r.unit} at the code defaults`);
       } catch (e) { problems.push(`${f.id}: ${e.message}`); }
     }
   }
