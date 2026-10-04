@@ -123,7 +123,14 @@ describe("PinkPawGallery: the storefront fallback (the gallery endpoint does not
     const first = screen.getAllByTestId("pink-paw-pair-link")[0];
     expect(first.getAttribute("href")).toBe(`/cats/${id(1)}`);
     expect(first.textContent).toContain("Meet Cat001 ›");
-    const imgs = first.querySelectorAll("img");
+    // The card art opens the same page and carries the "open" badge (md); only the first one pings.
+    const pair = screen.getAllByTestId("pink-paw-pair")[0];
+    const card = screen.getByRole("link", { name: "Meet Cat001" });
+    expect(card.getAttribute("href")).toBe(`/cats/${id(1)}`);
+    expect(card.querySelector('[data-card-action-badge="md"]')).not.toBeNull();
+    expect(pair.querySelectorAll("[data-card-action-ping]")).toHaveLength(1);
+    expect(screen.getAllByTestId("pink-paw-pair")[1].querySelector("[data-card-action-ping]")).toBeNull();
+    const imgs = pair.querySelectorAll("img");
     expect([imgs[0].getAttribute("src"), imgs[1].getAttribute("src")]).toEqual(["https://cdn/1-a.webp", "https://cdn/1-p.webp"]);
     expect(screen.getByText("Recovering")).toBeTruthy();
     act(() => {

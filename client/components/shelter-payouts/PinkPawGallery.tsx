@@ -1,5 +1,6 @@
 import { apiUrl } from "@/api/api";
 import { catPath } from "@/api/routing";
+import { CardAction } from "@/components/tailsCard/CardAction";
 import { useStorefront } from "@/hooks/useStorefront";
 import { nameFont, needsBodyFont } from "@/lib/glyphs";
 import {
@@ -83,59 +84,67 @@ const STATUS_CHIP: Partial<Record<NonNullable<PinkPawGalleryCat["status"]>, stri
 const IMG =
   "block aspect-[671/1000] w-full rounded-xl border-2 border-tt-cream object-cover shadow-[0_3px_0_rgb(var(--tt-night-950))] motion-safe:transition-transform motion-safe:duration-200";
 
-/** One cat: card art and photo side by side, then the Meet link. */
-export const PinkPawPair = ({ cat, target }: { cat: PinkPawGalleryCat; target?: string }) => {
+/**
+ * One cat: card art and photo side by side, then the Meet link. The card art carries the shared
+ * "open" badge (CardAction, md); the photo and the caption link to the same page. The badge sits on
+ * the card's top-right corner, so the column gap leaves room for it before the photo.
+ */
+export const PinkPawPair = ({ cat, target, ping = false }: { cat: PinkPawGalleryCat; target?: string; ping?: boolean }) => {
   const chip = cat.status ? STATUS_CHIP[cat.status] : undefined;
+  const href = catPath(cat.id);
   return (
-    <li data-testid="pink-paw-pair">
-      <NextLink
-        href={catPath(cat.id)}
-        target={target}
-        className="group block rounded-2xl p-1 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400"
-        data-testid="pink-paw-pair-link"
-      >
-        <figure className="m-0">
-          <div className="relative grid grid-cols-2 gap-1.5">
+    <li data-testid="pink-paw-pair" className="p-1">
+      <figure className="group/pair m-0">
+        <div className="relative grid grid-cols-2 gap-3">
+          <CardAction href={href} clientNav target={target} size="md" ping={ping} ariaLabel={`Meet ${cat.name}`} fill>
             <img
               src={cat.art}
               alt={`${cat.name}'s Token Tails card`}
               loading="lazy"
               decoding="async"
               draggable={false}
-              className={`${IMG} bg-tt-night-700 motion-safe:group-hover:-translate-y-0.5`}
+              className={`${IMG} bg-tt-night-700`}
             />
+          </CardAction>
+          {/* Same page as the card; one tab stop per cat (the card and the Meet link carry the name). */}
+          <NextLink href={href} target={target} tabIndex={-1} aria-hidden="true" className="block rounded-xl" data-testid="pink-paw-photo-link">
             <img
               src={cat.photo}
               alt={photoAlt(cat.name)}
               loading="lazy"
               decoding="async"
               draggable={false}
-              className={`${IMG} bg-tt-cream motion-safe:group-hover:-translate-y-0.5`}
+              className={`${IMG} bg-tt-cream motion-safe:group-hover/pair:-translate-y-0.5`}
             />
-            {chip && (
-              <span className="absolute right-1 top-1 rounded-md border-2 border-tt-cream bg-tt-night-900/90 px-1.5 py-0.5 font-primary text-[11px] uppercase leading-none tracking-wide text-tt-cream">
-                {chip}
-              </span>
-            )}
-          </div>
-          <figcaption
+          </NextLink>
+          {chip && (
+            <span className="pointer-events-none absolute right-1 top-1 rounded-md border-2 border-tt-cream bg-tt-night-900/90 px-1.5 py-0.5 font-primary text-[11px] uppercase leading-none tracking-wide text-tt-cream">
+              {chip}
+            </span>
+          )}
+        </div>
+        <figcaption className="mt-2 text-center">
+          <NextLink
+            href={href}
+            target={target}
+            data-testid="pink-paw-pair-link"
             // The body face (Lithuanian letters, lib/glyphs.ts) runs wider than Passion One: a size
             // down and tighter tracking keep "MEET ANKŠTĖ" level with the display captions beside it.
-            className={`mt-2 text-center ${nameFont(cat.name)} ${
+            className={`rounded ${nameFont(cat.name)} ${
               needsBodyFont(cat.name) ? "text-p6 md:text-p5 tracking-normal" : "text-p5 md:text-p4 tracking-wide"
-            } uppercase leading-none text-tt-gold-400 underline decoration-dotted underline-offset-4 group-hover:text-tt-cream`}
+            } uppercase leading-none text-tt-gold-400 underline decoration-dotted underline-offset-4 hover:text-tt-cream focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400`}
           >
             Meet {cat.name} ›
-          </figcaption>
-        </figure>
-      </NextLink>
+          </NextLink>
+        </figcaption>
+      </figure>
     </li>
   );
 };
 
 const PairSkeleton = () => (
   <li aria-hidden="true" className="p-1">
-    <div className="grid grid-cols-2 gap-1.5">
+    <div className="grid grid-cols-2 gap-3">
       <div className="aspect-[671/1000] rounded-xl border-2 border-tt-cream/20 bg-tt-cream/5 motion-safe:animate-pulse" />
       <div className="aspect-[671/1000] rounded-xl border-2 border-tt-cream/20 bg-tt-cream/5 motion-safe:animate-pulse" />
     </div>
@@ -215,8 +224,8 @@ export const PinkPawGallery = ({ target, initial = GALLERY_PAGE }: { target?: st
         )}
       </div>
       <ul className={GRID} aria-label={`${TAB_LABEL[tab]}: Pink Paw cats`} data-testid="pink-paw-pairs">
-        {items.slice(0, shown).map((cat) => (
-          <PinkPawPair key={cat.id} cat={cat} target={target} />
+        {items.slice(0, shown).map((cat, i) => (
+          <PinkPawPair key={cat.id} cat={cat} target={target} ping={i === 0} />
         ))}
       </ul>
       <div className="flex flex-wrap items-center justify-center gap-3">

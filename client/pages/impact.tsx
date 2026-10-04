@@ -14,6 +14,10 @@ import {
 } from "@/api/impact-api";
 import { isAppBuild, openWebImpact } from "@/components/claims/build";
 import { Claim } from "@/components/claims/Claim";
+import {
+  DonationPileUp,
+  isComingOnline,
+} from "@/components/claims/DonationPileUp";
 import { EvidenceChip } from "@/components/claims/EvidenceChip";
 import { moneyTierFor } from "@/components/claims/evidence";
 import {
@@ -323,6 +327,35 @@ export function liveValues(
   }
 }
 
+/** The text a registry row shows, or null when the row has no value yet. */
+export function registryRowText(
+  fact: PublicFact,
+  impact: PublicImpact | null,
+  isApp: boolean
+) {
+  const live = fact.status === "live" ? liveValues(fact, impact, isApp) : null;
+  return factText(fact, live?.values ?? {}, isApp);
+}
+
+const RegistryHead = () => (
+  <thead>
+    <tr className="font-primary uppercase text-p6 text-tt-muted">
+      <th scope="col" className="py-2 pr-3">
+        Id
+      </th>
+      <th scope="col" className="py-2 pr-3">
+        Claim
+      </th>
+      <th scope="col" className="hidden py-2 pr-3 sm:table-cell">
+        Date
+      </th>
+      <th scope="col" className="hidden py-2 sm:table-cell">
+        Source
+      </th>
+    </tr>
+  </thead>
+);
+
 const RegistryRow = ({
   fact,
   impact,
@@ -585,6 +618,11 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
   const goal = publicFact(GOAL_ID);
   const nowFact = publicFact(NOW_ID);
   const custody = custodyView(impact);
+  const registry = registryFacts(isApp);
+  const comingOnlineFacts = registry.filter((f) =>
+    isComingOnline(f, registryRowText(f, impact, isApp))
+  );
+  const valuedFacts = registry.filter((f) => !comingOnlineFacts.includes(f));
   const shelters = custody.shelters;
   const partnerPhrase = custody.partnerName
     ? `its partner shelter ${custody.partnerName}`
@@ -1279,27 +1317,43 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
             title="Every claim"
             lead="Each number shown anywhere on Token Tails, with its value, date, status and source."
           >
+            <DonationPileUp
+              className="mt-4"
+              isApp={isApp}
+              comingOnlineCount={comingOnlineFacts.length}
+              comingOnline={
+                comingOnlineFacts.length > 0 ? (
+                  <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+                    <table
+                      className="w-full text-left"
+                      data-testid="claim-registry-coming-online"
+                    >
+                      <caption className="sr-only">
+                        Live counters with nothing recorded yet
+                      </caption>
+                      <RegistryHead />
+                      <tbody>
+                        {comingOnlineFacts.map((fact) => (
+                          <RegistryRow
+                            key={fact.id}
+                            fact={fact}
+                            impact={impact}
+                            isApp={isApp}
+                            now={now}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : undefined
+              }
+            />
             <div className="mt-4 -mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
               <table className="w-full text-left" data-testid="claim-registry">
                 <caption className="sr-only">Public claims</caption>
-                <thead>
-                  <tr className="font-primary uppercase text-p6 text-tt-muted">
-                    <th scope="col" className="py-2 pr-3">
-                      Id
-                    </th>
-                    <th scope="col" className="py-2 pr-3">
-                      Claim
-                    </th>
-                    <th scope="col" className="hidden py-2 pr-3 sm:table-cell">
-                      Date
-                    </th>
-                    <th scope="col" className="hidden py-2 sm:table-cell">
-                      Source
-                    </th>
-                  </tr>
-                </thead>
+                <RegistryHead />
                 <tbody>
-                  {registryFacts(isApp).map((fact) => (
+                  {valuedFacts.map((fact) => (
                     <RegistryRow
                       key={fact.id}
                       fact={fact}

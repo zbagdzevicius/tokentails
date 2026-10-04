@@ -1,4 +1,5 @@
 import { catPath } from "@/api/routing";
+import { CardAction } from "@/components/tailsCard/CardAction";
 import { TailsCard } from "@/components/tailsCard/TailsCard";
 import { useStorefront } from "@/hooks/useStorefront";
 import { BlessingStatusTexts } from "@/models/cats";
@@ -104,11 +105,14 @@ export const PinkPawCards = ({ cats, loading, target }: { cats: ShowcaseCat[]; l
     >
       {loading && !cats.length
         ? Array.from({ length: 5 }, (_, i) => <CardSkeleton key={i} />)
-        : cats.map((cat) => (
+        : cats.map((cat, i) => (
             <li key={cat._id} className="flex shrink-0 snap-start flex-col items-center gap-2" data-testid="pink-paw-card">
-              <div className={CARD_FRAME} aria-hidden="true" data-testid="pink-paw-card-art">
-                <TailsCard cat={{ ...cat, name: catName(cat) }} cardStyle={CARD_STYLE} />
-              </div>
+              {/* The whole card opens the cat's page; the badge wraps outside the clipped frame. */}
+              <CardAction href={catPath(cat._id as string)} clientNav target={target} size="md" ping={i === 0} ariaLabel={`Meet ${catName(cat)}`}>
+                <span className={`${CARD_FRAME} block`} aria-hidden="true" data-testid="pink-paw-card-art">
+                  <TailsCard cat={{ ...cat, name: catName(cat) }} cardStyle={CARD_STYLE} />
+                </span>
+              </CardAction>
               <p className={`${nameFont(catName(cat))} text-p4 uppercase leading-none text-tt-cream`}>{catName(cat)}</p>
               {cat.blessing.status && (
                 <p className="text-p6 md:text-p5 text-tt-cream/75">{BlessingStatusTexts[cat.blessing.status]}</p>

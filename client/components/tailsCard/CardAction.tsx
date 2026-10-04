@@ -51,9 +51,9 @@ const SIZES: Record<
 
 type Target =
   /** A link. Plain anchor (full page load) unless `clientNav`, e.g. /game needs a full load. */
-  | { href: string; clientNav?: boolean; onClick?: never }
+  | { href: string; clientNav?: boolean; target?: string; onClick?: never }
   /** A button that runs the card's existing click, e.g. opening a detail modal. */
-  | { onClick: (e: MouseEvent<HTMLButtonElement>) => void; href?: never; clientNav?: never };
+  | { onClick: (e: MouseEvent<HTMLButtonElement>) => void; href?: never; clientNav?: never; target?: never };
 
 export const CardAction = ({
   ariaLabel,
@@ -114,14 +114,14 @@ export const CardAction = ({
   if (target.href !== undefined) {
     if (target.clientNav) {
       return (
-        <NextLink href={target.href} aria-label={ariaLabel} className={outer}>
+        <NextLink href={target.href} target={target.target} aria-label={ariaLabel} className={outer}>
           {inner}
         </NextLink>
       );
     }
     return (
       // Plain anchor: card targets such as /game need a full page load.
-      <a href={target.href} aria-label={ariaLabel} className={outer}>
+      <a href={target.href} target={target.target} aria-label={ariaLabel} className={outer}>
         {inner}
       </a>
     );
