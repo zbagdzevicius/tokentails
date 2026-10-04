@@ -108,7 +108,9 @@ const WebPayment = ({
   onRemove,
   hideMascot,
 }: PaymentProps) => {
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("stripe");
+  // Crypto is the default whenever the server offers it; the player's own pick wins. The config
+  // loads after mount, so "no pick yet" follows it instead of locking in card first.
+  const [pickedMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   // Shelter cats are never discounted (server rule); only packs take a code.
   const discountable = entityType === EntityType.PACK;
   const cryptoSku = useMemo(() => skuFor(entityType, id), [entityType, id]);
@@ -119,6 +121,7 @@ const WebPayment = ({
   const charged = serverPriceUsd(cryptoSku, cryptoConfig);
   const basePrice = charged ?? price;
   const cryptoOffered = !!cryptoSku && cryptoPayOpen(cryptoConfig);
+  const paymentMethod: PaymentMethod = pickedMethod ?? (cryptoOffered ? "crypto" : "stripe");
   const [showDiscountField, setShowDiscountField] = useState(false);
   const [discountCode, setDiscountCode] = useState("");
   const [isDiscountValid, setIsDiscountValid] = useState<boolean | null>(null);
@@ -410,14 +413,6 @@ const WebPayment = ({
 
       {/* Payment Method Selector */}
       <div className="flex flex-wrap gap-4 justify-center" role="group" aria-label="Payment method">
-        <div>
-          <PixelButton
-            text="Pay with Card"
-            onClick={() => setPaymentMethod("stripe")}
-            active={paymentMethod === "stripe"}
-            pressed={paymentMethod === "stripe"}
-          />
-        </div>
         {cryptoOffered && (
           <div>
             <PixelButton
@@ -429,6 +424,14 @@ const WebPayment = ({
             />
           </div>
         )}
+        <div>
+          <PixelButton
+            text="Pay with Card"
+            onClick={() => setPaymentMethod("stripe")}
+            active={paymentMethod === "stripe"}
+            pressed={paymentMethod === "stripe"}
+          />
+        </div>
       </div>
 
       {/* Payment Content */}

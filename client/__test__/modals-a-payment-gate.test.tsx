@@ -77,16 +77,16 @@ describe("Payment account gate", () => {
 
   it("shows the checkout to an account", () => {
     render(renderPayment());
-    expect(screen.getByTestId("stripe-checkout")).toBeTruthy();
+    expect(screen.getByTestId("crypto-checkout")).toBeTruthy();
     expect(screen.queryByTestId("purchase-account-gate")).toBeNull();
   });
 
   it("keeps the checkout mounted while an account's profile refreshes", () => {
     const { rerender } = render(renderPayment());
-    const checkout = screen.getByTestId("stripe-checkout");
+    const checkout = screen.getByTestId("crypto-checkout");
     mockAccount.authStatus = "loading-profile";
     rerender(renderPayment());
-    expect(screen.getByTestId("stripe-checkout")).toBe(checkout);
+    expect(screen.getByTestId("crypto-checkout")).toBe(checkout);
     expect(screen.queryByTestId("purchase-account-gate")).toBeNull();
     expect(screen.queryByTestId("purchase-account-pending")).toBeNull();
   });
@@ -95,11 +95,19 @@ describe("Payment account gate", () => {
     mockAccount.hasAuth = false;
     mockAccount.authStatus = "unknown";
     render(renderPayment());
-    expect(screen.getByTestId("stripe-checkout")).toBeTruthy();
+    expect(screen.getByTestId("crypto-checkout")).toBeTruthy();
   });
 });
 
 describe("Payment methods", () => {
+  it("opens on crypto by default when it is offered, and card is one tap away", () => {
+    render(renderPayment());
+    expect(screen.getByTestId("crypto-checkout")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /pay with card/i }));
+    expect(screen.getByTestId("stripe-checkout")).toBeTruthy();
+    expect(screen.queryByTestId("crypto-checkout")).toBeNull();
+  });
+
   it("offers card and crypto (USDC / EURC) for a pack; Stellar is gone", () => {
     render(renderPayment());
     expect(screen.getByRole("button", { name: /pay with card/i })).toBeTruthy();
