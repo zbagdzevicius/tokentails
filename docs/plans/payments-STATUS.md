@@ -61,7 +61,7 @@ E2E runs (earlier today): `tracks/a-build/e2e-pay-goal/stack.sh all` 24/24 API +
 ## Founder steps, in order
 
 Also in the CLAUDE.md tracker.
-1. Treasury addresses per chain (`treasury.public.ts` or `CRYPTO_PAY_TREASURY[_<chainId>]`, plus `wallets.public.json` `shelter-split-treasury`), mainnet RPCs `CRYPTO_PAY_RPC_<chainId>`, then `CRYPTO_PAY_ENABLED=true`, `CRYPTO_PAY_NETWORK=mainnet`.
+1. Treasury addresses per chain (`treasury.public.ts` or `CRYPTO_PAY_TREASURY[_<chainId>]`, plus `wallets.public.json` `shelter-split-treasury`), then `CRYPTO_PAY_ENABLED=true`, `CRYPTO_PAY_NETWORK=mainnet`.
 2. Pick the Legendary pack price.
 3. Shelter cats: decide `CRYPTO_PAY_CAT_SHELTER_BPS` and `CRYPTO_PAY_SHELTER_SHARE_ENABLED`; no Stripe Price object is needed (the server sets $5 per PaymentIntent); buy one by card on production.
 4. Confirm `STELLAR_PACKS_SUNSET_AT` (default 2026-10-11 00:00 UTC); refund `STELLAR_DEPRECATED` orders.

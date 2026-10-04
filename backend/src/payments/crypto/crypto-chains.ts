@@ -8,10 +8,11 @@
  * unpublished) and Monad (USDC address unverified in chains.json). Add them here once chains.json has
  * a checked USDC or EURC address.
  *
- * RPC URLs: `rpcEnv` names the same variable the funding tooling uses (RPC_ARC_MAINNET, ...);
- * `CRYPTO_PAY_RPC_<chainId>` wins over it, and `publicRpc` (a keyless public endpoint, the same ones as
- * client/components/shelter-payouts/chains.ts) is the fallback on test networks only: a mainnet is
- * offered only with a configured RPC (crypto-pay.config.ts `rpcFor`).
+ * RPC URLs: `publicRpc` is the default for every chain, so no env setup is needed. On a mainnet it
+ * MUST be the chain operator's own official endpoint (Circle for Arc, Coinbase for Base, Offchain Labs
+ * for Arbitrum, Ava Labs for Avalanche, Tempo for Tempo): it decides whether a payment is real. An env
+ * value overrides it (e.g. a keyed provider for higher rate limits): `CRYPTO_PAY_RPC_<chainId>`, then
+ * `rpcEnv`, the variable the funding tooling uses (RPC_ARC_MAINNET, ...). See crypto-pay.config.ts `rpcFor`.
  */
 
 export type CryptoPayTokenKind = 'USDC' | 'EURC';

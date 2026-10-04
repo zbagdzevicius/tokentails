@@ -376,25 +376,34 @@ describe('POST /payments/crypto/orders', () => {
     });
 
     it('on a mainnet, offers the split route only when the on-chain giving check passes', async () => {
-        const base = config({ CRYPTO_PAY_CAT_SPLITS: `31337:USDC:${SPLIT}`, SHELTER_HANDED_OVER: 'true' });
-        const local = base.chains.find(c => c.chain.chainId === 31337)!;
-        const mainnet: CryptoPayConfig = {
-            ...base,
-            network: 'mainnet',
-            chains: [{ ...local, chain: { ...local.chain, chainId: 5042, testnet: false } }],
-            splits: [{ chainId: 5042, token: 'USDC', address: SPLIT }],
-        };
-        const refused = setup({ givingVerified: false });
-        const a = await refused.service.createOrder(USER, { sku: { kind: 'CAT', catId: CAT_ID } }, T0, mainnet);
-        expect(refused.claims.publicGivingVerified).toHaveBeenCalled();
-        expect(a.accepted.some(o => o.route === 'split')).toBe(false);
-        const verified = await setup({ givingVerified: true }).service.createOrder(
-            USER,
-            { sku: { kind: 'CAT', catId: CAT_ID } },
-            T0,
-            mainnet
-        );
-        expect(verified.accepted.some(o => o.route === 'split')).toBe(true);
+        // The split's chain resolves through the SHELTER_* config, read from process.env. Some imports
+        // load the developer's .env (ai.utils dotenv), so pin the main shelter chain to Arc mainnet.
+        const savedChain = process.env.SHELTER_CHAIN_ID;
+        process.env.SHELTER_CHAIN_ID = '5042';
+        try {
+            const base = config({ CRYPTO_PAY_CAT_SPLITS: `31337:USDC:${SPLIT}`, SHELTER_HANDED_OVER: 'true' });
+            const local = base.chains.find(c => c.chain.chainId === 31337)!;
+            const mainnet: CryptoPayConfig = {
+                ...base,
+                network: 'mainnet',
+                chains: [{ ...local, chain: { ...local.chain, chainId: 5042, testnet: false } }],
+                splits: [{ chainId: 5042, token: 'USDC', address: SPLIT }],
+            };
+            const refused = setup({ givingVerified: false });
+            const a = await refused.service.createOrder(USER, { sku: { kind: 'CAT', catId: CAT_ID } }, T0, mainnet);
+            expect(refused.claims.publicGivingVerified).toHaveBeenCalled();
+            expect(a.accepted.some(o => o.route === 'split')).toBe(false);
+            const verified = await setup({ givingVerified: true }).service.createOrder(
+                USER,
+                { sku: { kind: 'CAT', catId: CAT_ID } },
+                T0,
+                mainnet
+            );
+            expect(verified.accepted.some(o => o.route === 'split')).toBe(true);
+        } finally {
+            if (savedChain === undefined) delete process.env.SHELTER_CHAIN_ID;
+            else process.env.SHELTER_CHAIN_ID = savedChain;
+        }
     });
 });
 

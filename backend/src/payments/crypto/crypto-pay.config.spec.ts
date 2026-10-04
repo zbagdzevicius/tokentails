@@ -24,6 +24,12 @@ describe('readCryptoPayConfig', () => {
         expect(cfg.catShelterBps).toBeNull();
     });
 
+    it('offers every mainnet with no RPC env at all (official RPCs are checked in)', () => {
+        const cfg = readCryptoPayConfig({ NODE_ENV: 'production', CRYPTO_PAY_TREASURY: TREASURY });
+        expect(cfg.chains.map(c => c.chain.chainId).sort((a, b) => a - b)).toEqual([4217, 5042, 8453, 42161, 43114]);
+        expect(cfg.chains.every(c => c.rpcUrl.startsWith('https://'))).toBe(true);
+    });
+
     it('lists mainnets in production and testnets otherwise, never both', () => {
         const main = readCryptoPayConfig({ NODE_ENV: 'production', CRYPTO_PAY_TREASURY: TREASURY, ...MAINNET_RPCS });
         expect(main.chains.map(c => c.chain.chainId).sort((a, b) => a - b)).toEqual([4217, 5042, 8453, 42161, 43114]);
@@ -57,7 +63,7 @@ describe('readCryptoPayConfig', () => {
         jest.restoreAllMocks();
     });
 
-    it('takes a per-chain treasury over the shared one, and RPC from CRYPTO_PAY_RPC_<id> then the funding var; a mainnet never uses a public RPC', () => {
+    it('takes a per-chain treasury over the shared one, and RPC from CRYPTO_PAY_RPC_<id>, then the funding var, then the checked-in official RPC', () => {
         const other = '0x14dC79964da2C08b23698B3D3cc7Ca32193d9955';
         const cfg = readCryptoPayConfig({
             NODE_ENV: 'production',
@@ -70,8 +76,8 @@ describe('readCryptoPayConfig', () => {
         expect(base.treasury).toBe(other);
         expect(base.rpcUrl).toBe('http://base.example');
         expect(cfg.chains.find(c => c.chain.chainId === 5042)!.rpcUrl).toBe('http://arc.example');
-        // Arbitrum has a public RPC but none configured: it is not offered at all.
-        expect(cfg.chains.find(c => c.chain.chainId === 42161)).toBeUndefined();
+        // Arbitrum has no env RPC: it uses the checked-in official endpoint.
+        expect(cfg.chains.find(c => c.chain.chainId === 42161)!.rpcUrl).toBe('https://arb1.arbitrum.io/rpc');
         // A test network may use its public RPC.
         const testnet = readCryptoPayConfig({ NODE_ENV: 'development', CRYPTO_PAY_TREASURY: TREASURY });
         expect(testnet.chains.find(c => c.chain.chainId === 421614)!.rpcUrl).toMatch(/^https:/);

@@ -165,16 +165,18 @@ function localChain(env: NodeJS.ProcessEnv): CryptoPayChain | null {
 }
 
 /**
- * The RPC that decides whether a payment is real. A mainnet needs a configured one
- * (CRYPTO_PAY_RPC_<chainId> or the chain's funding variable): an unvetted public node could answer
- * with a fake receipt and give items away. Test networks fall back to their public RPC.
+ * The RPC that decides whether a payment is real. By default each chain uses the `publicRpc` checked
+ * in for it in crypto-chains.ts; on a mainnet that is always the chain operator's own endpoint (never
+ * an unvetted third-party node, which could answer with a fake receipt and give items away). An env
+ * value overrides it, e.g. a keyed provider for higher rate limits: CRYPTO_PAY_RPC_<chainId>, then
+ * the chain's funding variable (RPC_ARC_MAINNET, ...).
  */
 function rpcFor(chain: CryptoPayChain, env: NodeJS.ProcessEnv): string | null {
     const own = (env[`CRYPTO_PAY_RPC_${chain.chainId}`] || '').trim();
     if (own) return own;
     const shared = chain.rpcEnv ? (env[chain.rpcEnv] || '').trim() : '';
     if (shared) return shared;
-    return chain.testnet ? chain.publicRpc : null;
+    return chain.publicRpc;
 }
 
 /**

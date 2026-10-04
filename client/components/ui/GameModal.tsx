@@ -234,6 +234,12 @@ export const GameModal = ({
               if (!closable) event.preventDefault();
             }}
             onPointerDownOutside={guardOutside}
+            onFocusOutside={(event) => {
+              // A non-modal dialog (a checkout with Stripe's 3DS layer) has no focus trap, so focus
+              // can leave it without the player asking to close: the modal it was opened from
+              // returning focus to the page, or the 3DS iframe taking it. Only a tap or Esc closes it.
+              if (!modal) event.preventDefault();
+            }}
             onInteractOutside={guardOutside}
             className={clsx(
               "pointer-events-auto relative flex max-h-full w-full flex-col text-tt-cream outline-none",
