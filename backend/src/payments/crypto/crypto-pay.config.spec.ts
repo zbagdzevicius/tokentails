@@ -208,3 +208,16 @@ describe('EURC pricing', () => {
         expect(formatMicro(BigInt(1000000))).toBe('1');
     });
 });
+
+describe('BE-4: the checkout treasury is the wallet.config.ts treasury', () => {
+    it('a checked-in checkout treasury is always WALLETS.mainnet.treasury (no drift between the two files)', () => {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { TREASURY_ADDRESSES } = require('./treasury.public');
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { WALLETS } = require('src/shelter/onchain/wallet.config');
+        for (const id of [5042, 8453, 42161, 43114, 4217, 4663, 143]) {
+            const v = TREASURY_ADDRESSES[id];
+            if (v !== null) expect(v.toLowerCase()).toBe(String(WALLETS.mainnet.treasury).toLowerCase());
+        }
+    });
+});

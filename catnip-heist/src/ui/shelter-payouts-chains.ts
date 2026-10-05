@@ -30,14 +30,15 @@ export const PAYOUT_CHAIN_ROLES: Record<string, string> = {
   arbitrum: 'Ethereum rollup with low fees. Native ETH gifts are split too.',
   avalanche: 'Avalanche C-Chain. Native AVAX gifts are split too.',
   base: "Coinbase's Ethereum rollup. Native ETH gifts are split too.",
-  robinhood: 'Pays USDG on mainnet. The testnet has no stablecoin, so it uses a test coin (mUSDC).',
+  robinhood: 'Pays USDG, a regulated dollar stablecoin: there is no USDC on this chain.',
+  robinhoodTestnet: 'The testnet has no stablecoin, so it uses a test coin (mUSDC).',
   monad: "A fast EVM chain with Circle's own USDC. Native MON gifts are split too.",
 };
 
 /** Chain family per chain id, mainnet and testnet. */
 const FAMILY_BY_CHAIN_ID: Record<number, string> = {
   5042: 'arc', 5042002: 'arc', 4217: 'tempo', 42431: 'tempo', 42161: 'arbitrum', 421614: 'arbitrum',
-  43114: 'avalanche', 43113: 'avalanche', 8453: 'base', 84532: 'base', 4663: 'robinhood', 46630: 'robinhood',
+  43114: 'avalanche', 43113: 'avalanche', 8453: 'base', 84532: 'base', 4663: 'robinhood', 46630: 'robinhoodTestnet',
   143: 'monad', 10143: 'monad',
 };
 

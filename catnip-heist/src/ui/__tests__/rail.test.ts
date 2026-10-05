@@ -205,3 +205,27 @@ describe('isWebHost', () => {
     expect(isWebHost({ Capacitor: { isNativePlatform: () => false }, location: { protocol: 'https:' } })).toBe(true);
   });
 });
+
+describe('ux-1: the best state across every network the backend serves', () => {
+  const chain = (chainId: number, railState: string, extra: Record<string, unknown> = {}) => ({
+    chainId, railState, enabled: railState === 'live' || railState === 'exhausted', amountWei: '10000000000000000', treatsLeftToday: 5, coin: 'USDC', ...extra,
+  });
+
+  it('a paused main chain does not hide a live one, and the live line names that chain and coin', async () => {
+    const { railFromStatus, railCopy } = await import('../rail');
+    const body = { railState: 'paused', enabled: false, amountWei: '10000000000000000', chains: [chain(5042, 'paused'), chain(4217, 'live', { coin: 'USDC.e' })] };
+    const info = railFromStatus(body, '0.01')!;
+    expect(info.state).toBe('live');
+    expect(info.chainId).toBe(4217);
+    expect(railCopy(info, true).line).toBe('Tap and Token Tails sends Pink Paw a 0.01 USDC.e treat on Tempo.');
+    // the app never names a chain or a coin
+    expect(railCopy(info, false).line).toBe('Tap and Token Tails sends Pink Paw a $0.01 treat.');
+  });
+
+  it('exhausted beats pre-launch; every chain paused stays pre-launch; no chains keeps the old top-level reading', async () => {
+    const { railFromStatus } = await import('../rail');
+    expect(railFromStatus({ railState: 'paused', chains: [chain(5042, 'paused'), chain(8453, 'exhausted', { treatsLeftToday: 0 })] }, '0.01')!.state).toBe('exhausted');
+    expect(railFromStatus({ railState: 'paused', chains: [chain(5042, 'paused'), chain(8453, 'not-deployed')] }, '0.01')!.state).toBe('pre-launch');
+    expect(railFromStatus({ railState: 'live', amountWei: '10000000000000000' }, '0.01')!.state).toBe('live');
+  });
+});

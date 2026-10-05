@@ -1,1 +1,0 @@
-import"./index-CrDf6ceE.js";function e(e){return null}export{e as installQA};

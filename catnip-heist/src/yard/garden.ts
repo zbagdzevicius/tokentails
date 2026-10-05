@@ -21,6 +21,10 @@ export interface Garden {
   water: THREE.Mesh;
   /** Lamp glass centres (for light pools). */
   lamps: THREE.Vector3[];
+  /** Food bowl centres (the bowl rims sit at y = 0.1). */
+  bowls: { x: number; z: number }[];
+  /** Where a cat stands to eat from the bowls (outside their obstacle). */
+  feedSpot: { x: number; z: number };
   /** Half extents of the plaza (for camera clamps). */
   halfX: number;
   halfZ: number;
@@ -439,9 +443,11 @@ export function buildGarden(seed = 7): Garden {
     b.block(x, 0, z, 0.22, 0.1, 0.22, col, ALL_BUT_BOTTOM, lighten(col, 1.15));
     b.block(x, 0.1, z, 0.15, 0.02, 0.15, food);
   };
-  bowl(-4.4, 6.6, 0xff7aa2, 0xa0633c);
-  bowl(-3.8, 6.9, 0xffc93c, 0xc4e2fc);
+  const bowls = [{ x: -4.4, z: 6.6 }, { x: -3.8, z: 6.9 }];
+  bowl(bowls[0].x, bowls[0].z, 0xff7aa2, 0xa0633c);
+  bowl(bowls[1].x, bowls[1].z, 0xffc93c, 0xc4e2fc);
   obstacles.push({ x: -4.1, z: 6.75, r: 0.45 });
+  const feedSpot = { x: -4.1, z: 5.9 };
   spots.push({ x: -4.1, z: 6.0 });
   const yarn = (x: number, z: number, col: number) => {
     b.block(x, 0, z, 0.14, 0.26, 0.14, col, ALL_BUT_BOTTOM, lighten(col, 1.2));
@@ -568,6 +574,8 @@ export function buildGarden(seed = 7): Garden {
     spout: new THREE.Vector3(0, 2.1, 0),
     water,
     lamps,
+    bowls,
+    feedSpot,
     halfX: HX,
     halfZ: HZ,
     triangles: b.triangles + sway.triangles + leaves.triangles + glow.triangles + far.triangles + 32,

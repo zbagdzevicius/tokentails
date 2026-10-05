@@ -8,8 +8,9 @@ import { CampaignMeter } from "./CampaignMeter";
 import { Celebration } from "./Celebration";
 import { GOAL_REFRESH_EVENT, useCampaignGoal } from "./goal";
 import { headingName, isPinkPawWallet } from "./pinkPaw";
+import { Sym } from "./payoutSections";
 import { PinkPawLogo, PinkPawStrip } from "./PinkPawShowcase";
-import { CUSTODY_DISCLOSURE } from "./ShelterProfile";
+import { custodyDisclosure } from "./ShelterProfile";
 import { TreatChip, initialTreatChain, parseChainParam, treatAmount, treatChips, treatsLeft as chainTreatsLeft } from "./treatChains";
 import { FIGURE, GOLD_BUTTON, Kicker, NightStage, PANEL, PILL, PinkCat } from "./ui";
 
@@ -66,7 +67,7 @@ export const TreatChainChips = ({
             aria-checked={checked}
             disabled={!c.enabled || locked}
             onClick={() => onPick(c.chainId)}
-            title={c.reason || undefined}
+            title={c.detail || c.reason || undefined}
             data-testid={`treat-chain-${c.chainId}`}
             className={`flex min-h-11 flex-col items-center justify-center rounded-full border-2 px-4 py-1 leading-tight transition-colors ${
               checked
@@ -247,7 +248,7 @@ export const GiveTreat = () => {
                 <>
                   Each treat:{" "}
                   <strong className="text-tt-gold-400">
-                    {treatAmount(chainStatus?.amountWei || status.amountWei)} {chip.coin}
+                    {treatAmount(chainStatus?.amountWei || status.amountWei)} <Sym>{chip.coin}</Sym>
                   </strong>{" "}
                   on {chip.name}
                 </>
@@ -338,7 +339,7 @@ export const GiveTreat = () => {
           className="max-w-md rounded-xl border-2 border-tt-cream/70 bg-tt-night-900/80 px-4 py-2 text-p6 md:text-p5 text-tt-cream"
           data-testid="custody-disclosure"
         >
-          {CUSTODY_DISCLOSURE}
+          {custodyDisclosure(isApp, campaign?.shelter.handover)}
         </p>
         {/* The goal meter: web only (USDC and chain words never reach app builds). */}
         {!isApp && campaign && goal.progress && (

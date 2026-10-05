@@ -26,8 +26,11 @@ import { useRouter } from "next/router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBackground } from "../../constants/hooks";
 import Snowfall from "../shared/Snowfall";
+import { useHomeYardMode } from "@/components/home/homeYardMode";
 import PixelRescue from "../PixelRescue/PixelRescue";
 const Base = dynamic(() => import("@/components/base/Base"), { ssr: false });
+/** MY HOME as the Cat Yard; the Phaser Base above is its fallback. */
+const HomeYard = dynamic(() => import("@/components/home/HomeYard"), { ssr: false });
 const Adopt = dynamic(() => import("@/components/shelter/Shelter"), {
   ssr: false,
 });
@@ -48,7 +51,8 @@ export const Game = () => {
   const anonFallback = authStatus === "profile-error" && !!user?.isAnonymous;
   const guestLike = isGuest || anonFallback;
   const [nudge, setNudge] = useState<SaveNudgeTrigger | null>(null);
-  const background = useBackground({ level, gameType });
+  const homeMode = useHomeYardMode();
+  const background = useBackground({ level, gameType, homeYard: homeMode === "yard" });
   useBodyOverflowHidden();
   const reducedMotion = useReducedMotion();
   const router = useRouter();
@@ -278,7 +282,8 @@ export const Game = () => {
           onDone={finishMeet}
         />
       )}
-      {!isStarted && <Snowfall />}
+      {/* No snow over the Cat Yard's golden-hour garden. */}
+      {!isStarted && !(gameType === GameType.HOME && homeMode === "yard") && <Snowfall />}
       {/* Guest HUD pill (G1): the lobby only, so it never covers a run's HUD. A pending nudge
           waits here until the player is back in the lobby. */}
       {(guestLike || signedOut) && !isStarted && !gameType && !meetOpen && (
@@ -301,7 +306,7 @@ export const Game = () => {
           template or the transient guest profile counts), as before. */}
       {gameType === GameType.HOME && profile && (
         <SceneBoundary name={GameType.HOME} onBackToMenu={backToMenu}>
-          <Base />
+          <HomeYard fallback={<Base />} />
         </SceneBoundary>
       )}
       {gameType === GameType.SHELTER && profile && (

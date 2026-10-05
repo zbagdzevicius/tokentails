@@ -33,6 +33,9 @@ export const LOBBY_BACKGROUND = `url(${cdnFile("landing/hero-ground.webp")}), ur
 /** The lobby dusk grade, a custom property so the gradient lives in one place (globals.scss). */
 export const SKY_DUSK = "var(--tt-sky-dusk)";
 
+/** Behind the Cat Yard HOME while it loads: its own golden-hour sky (globals.scss). */
+export const SKY_YARD_DUSK = "var(--tt-yard-dusk)";
+
 /** The night ramp the v1 world modes show until their canvas boots (no poster listed). */
 export const SKY_NIGHT =
   "linear-gradient(180deg, rgb(var(--tt-night-950)) 0%, rgb(var(--tt-night-900)) 55%, rgb(var(--tt-night-700)) 100%)";
@@ -84,9 +87,12 @@ export function useLookManifest() {
 export const useBackground = ({
   level,
   gameType,
+  homeYard = false,
 }: {
   level?: string | null;
   gameType?: GameType | null;
+  /** HOME is the Cat Yard (not the Phaser fallback): its sky, no look poster. */
+  homeYard?: boolean;
 }) => {
   const { manifest, version } = useLookManifest();
   /**
@@ -96,6 +102,7 @@ export const useBackground = ({
    */
   const lookBg = useMemo(() => {
     if (version !== "v1") return null;
+    if (homeYard && gameType === GameType.HOME) return null;
     const id = lookSceneId(gameType, level, manifest);
     if (!id) return null;
     const scene = manifest?.scenes[id];
@@ -104,10 +111,10 @@ export const useBackground = ({
       image: scene?.poster ? `url(${scene.poster}), ${fallback}` : fallback,
       color: scene?.background,
     };
-  }, [version, gameType, level, manifest]);
+  }, [version, gameType, level, manifest, homeYard]);
   const bgImage = useMemo(() => {
     if (gameType === GameType.HOME) {
-      return `url(${cdnFile("backgrounds/bg-2.webp")})`;
+      return homeYard ? SKY_YARD_DUSK : `url(${cdnFile("backgrounds/bg-2.webp")})`;
     }
     if (gameType === GameType.SHELTER) {
       // Lobby v0 (plan G6): the CSS dusk grade (--tt-sky-dusk in globals.scss: night-to-horizon
@@ -119,7 +126,7 @@ export const useBackground = ({
       return `url(${cdnFile("landing/game-bg-2.webp")})`;
     }
     return null;
-  }, [gameType]);
+  }, [gameType, homeYard]);
   const bgHour = useMemo(() => {
     const coreBg = {
       backgroundRepeat: "no-repeat",

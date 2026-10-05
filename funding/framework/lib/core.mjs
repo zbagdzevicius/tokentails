@@ -132,6 +132,18 @@ export function loadApp(slug) {
   return { slug, dir, call, draft, review: read('review.md'), sections: parseSections(draft.body), criteria: parseCriteria(call.body) };
 }
 
+/**
+ * The worst-case filled length of a single-brace placeholder ({ARB_SPLIT}, {TEMPO_TX}, {DEMO_URL}):
+ * a 0x address is 42 characters, a tx hash 66, a URL up to 60. Other placeholders count as written.
+ */
+export function placeholderWorstCase(name) {
+  if (/(_TX|HASH)$/.test(name) || name === 'TX') return 66;
+  if (/(ADDRESS|SPLIT|WALLET|ROUTER|CONTRACT)$/.test(name)) return 42;
+  if (/URL$/.test(name)) return 60;
+  return name.length + 2;
+}
+export const filledLength = (text) => text.replace(/\{([A-Z][A-Z0-9_]*)\}/g, (_m, n) => 'x'.repeat(placeholderWorstCase(n))).length;
+
 // Draft sections: "## Heading <!-- criterion: C1, C2 | limit: 1500 | words: 300 -->"
 export function parseSections(body) {
   const out = [];
@@ -158,6 +170,8 @@ export function parseSections(body) {
       words: meta.words ? Number(meta.words) : null,
       text,
       chars: text.length,
+      // The length once fund fill puts real addresses, hashes and URLs in (limits are checked on this).
+      filledChars: filledLength(text),
       wordCount: text ? text.split(/\s+/).length : 0,
     });
   }
@@ -279,9 +293,18 @@ export function coreChecks(app, { facts, frames }) {
   if (hits.length) add('banned-terms', 'error', `found: ${hits.join(', ')}`);
   else add('banned-terms', 'ok', `${banned.length} term(s) screened`);
 
+  // chain: the draft names every chain its call.md targets (a body copied from another program's
+  // draft keeps the old chain's text, e.g. "Why Tempo" in a Team1 Avalanche draft)
+  const targets = [].concat(app.call.fm.chain || []).map((c) => String(c).trim()).filter(Boolean);
+  const unnamed = targets.filter((c) => !new RegExp(`\\b${c.replace(/[^a-z0-9]/gi, '')}\\b`, 'i').test(allText));
+  // Advisory (a warning at every status): the AI revise loop cannot be relied on to fix chain facts.
+  if (unnamed.length) add('chain', 'warn', `the draft never names its call's chain(s): ${unnamed.join(', ')} — rewrite it for that chain before submitting`);
+  else if (targets.length) add('chain', 'ok', targets.join(', '));
+
   // limits
-  const over = app.sections.filter((s) => (s.limit && s.chars > s.limit) || (s.words && s.wordCount > s.words));
-  if (over.length) add('limits', 'error', over.map((s) => `${s.title}: ${s.limit ? `${s.chars}/${s.limit} chars` : ''}${s.words ? ` ${s.wordCount}/${s.words} words` : ''}`).join('; '));
+  const worst = (s) => Math.max(s.chars, s.filledChars ?? s.chars);
+  const over = app.sections.filter((s) => (s.limit && worst(s) > s.limit) || (s.words && s.wordCount > s.words));
+  if (over.length) add('limits', 'error', over.map((s) => `${s.title}: ${s.limit ? `${worst(s)}/${s.limit} chars${worst(s) > s.chars ? ' once placeholders are filled' : ''}` : ''}${s.words ? ` ${s.wordCount}/${s.words} words` : ''}`).join('; '));
   else add('limits', 'ok', `${app.sections.filter((s) => s.limit || s.words).length} limited section(s) within bounds`);
 
   // criteria coverage
@@ -459,6 +482,6 @@ export function buildTracker() {
 
 export const CORE = {
   ROOT, PATHS, STATUSES, STRICT, CLOSED, now, parseDeadline, unwrapFence, scaffoldHint, parseFrontmatter, stringifyFrontmatter, updateFrontmatter, loadFacts, loadFrames,
-  loadApp, listApps, appDir, parseSections, parseCriteria, stripNonProse, sentences, findBanned,
+  loadApp, listApps, appDir, parseSections, parseCriteria, stripNonProse, sentences, findBanned, placeholderWorstCase, filledLength,
   coreChecks, runChecks, loadTracks, scaffold, render, renderPrompt, listPrompts, buildTracker,
 };

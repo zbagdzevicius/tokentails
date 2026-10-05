@@ -5,7 +5,7 @@ version: 5
 # Colosseum Crypto World's Fair — submission draft
 
 <!-- Values in single braces are filled after the Oct 2 Tempo deploy: {SPLIT_ADDRESS},
-{TEMPO_TX} (first shelter payout, a manual disburseWithMemo call), {SHELTER_WALLET},
+{TEMPO_TX} (the first TIP-20 memo payout, a manual disburseWithMemo call; the wave's own proof payout before it is a plain disburse), {SHELTER_WALLET},
 {ARB_SPLIT}, {BASE_SPLIT}, {ROBINHOOD_SPLIT} (fund fill --ingest --write takes them from deployments.json),
 github.com/zbagdzevicius/tokentails, {DEMO_URL}, {PITCH_VIDEO_URL}. fund check does not flag single braces: search
 for "{" before submitting. The showcase shelter is Pink Paw (Rožinė pėdutė); state nothing about
@@ -28,7 +28,7 @@ Built between 2026-09-14 and 2026-10-12:
 - Catnip Heist at https://tokentails.com/heist, a deterministic voxel stealth game, the planned front door for shelter-funding purchases (roadmap step 3).
 - The giving loop: after a Heist win a verified player taps "Send Pink Paw a rescue treat"; Token Tails pays a small sponsored gift once a day from a capped budget, on Arc first. Each payout gets a receipt and share card; a meter counts inflows.
 - Rail: an MIT SDK and an embeddable donate widget.
-- Built, deploy pending: DonateRouter (no owner; a donor gives USDC with one signature, no gas token) and a treat agent whose spending caps a contract enforces.
+- DonateRouter (no owner; one-signature USDC gifts): deployed, public once Pink Paw holds its key. Built: a treat agent with contract-enforced caps.
 The buyer never touches a wallet: purchases stay card or in-app payments [F-020].
 
 ## Why Tempo <!-- criterion: C4, C5 | limit: 900 -->
@@ -46,14 +46,15 @@ Tempo is a payments chain, and Token Tails already takes card payments through S
 - ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/ in github.com/zbagdzevicius/tokentails).
 
 ## On-chain proof <!-- criterion: C1, C4 | limit: 800 -->
-Tempo mainnet: ShelterSplit at {SPLIT_ADDRESS}. The first payout to Pink Paw is transaction {TEMPO_TX}, with its memo, and it is listed on the payouts page. Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Before the hackathon, and disclosed as prior work, the team shipped three Soroban contracts on Stellar mainnet [F-009] and ERC-721 contracts on SKALE testnet and mainnet [F-010].
+Tempo mainnet: ShelterSplit at {SPLIT_ADDRESS}. The first TIP-20 memo payout to Pink Paw is transaction {TEMPO_TX}, and it is listed on the payouts page. Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Before the hackathon, and disclosed as prior work, the team shipped three Soroban contracts on Stellar mainnet [F-009] and ERC-721 contracts on SKALE testnet and mainnet [F-010].
 
 ## Other chains <!-- criterion: C1, C5 | limit: 800 -->
-This one submission also enters the Arbitrum, Base and Robinhood Chain tracks. Each chain runs the same ShelterSplit contract, from the same source and test suite; only the payout token differs.
-- Arbitrum One: ShelterSplit at {ARB_SPLIT}, paying out USDC.
-- Base: ShelterSplit at {BASE_SPLIT}, paying out native USDC.
-- Robinhood Chain: ShelterSplit at {ROBINHOOD_SPLIT}. Robinhood Chain has no USDC, so this instance pays out USDG (Paxos), and its payouts are readable on robinhoodchain.blockscout.com. The payouts page shows USDG as its own total and never adds it to USDC.
-On Arbitrum and Base, whose USDC supports EIP-3009, the same DonateRouter lets a donor give with one signature; Tempo uses TIP-20 memos instead (built, deploy pending).
+<!-- Before submitting: router-deployments.json must hold the mainnet DonateRouters on Arbitrum and Base. -->
+This one submission also enters the Arbitrum, Base and Robinhood Chain tracks. Every chain runs the same ShelterSplit, from the same source and tests; only the payout token differs.
+- Arbitrum One: ShelterSplit at {ARB_SPLIT}, paying USDC.
+- Base: ShelterSplit at {BASE_SPLIT}, paying native USDC.
+- Robinhood Chain: ShelterSplit at {ROBINHOOD_SPLIT}. It has no USDC, so it pays USDG (Paxos), readable on robinhoodchain.blockscout.com; the payouts page never adds USDG to USDC.
+On Arbitrum and Base a DonateRouter takes one-signature USDC gifts (EIP-3009); it opens to the public once Pink Paw holds its own key. Tempo uses TIP-20 memos instead.
 
 ## Traction <!-- criterion: C2, C6 | limit: 1000 -->
 Judge only the in-window work: the rail, the payouts page, Catnip Heist and the giving loop. Everything below existed before 2026-09-14 and is disclosed as prior work. Token Tails is live on web, iOS and Android [F-015] [F-016], with five game modes [F-018], and already takes Stripe, in-app purchases and USDC [F-020]. Historical peaks, not current activity: on the SEI chain, Token Tails peaked in the week of 2025-11-17 at 324,422 weekly unique active wallets [F-003] and 875,907 weekly transactions [F-004]; that SEI activity ended in March 2026 and none of it is Tempo data. Blockchain for Good Alliance named Token Tails a top 2025 incubation project [F-014].

@@ -46,7 +46,7 @@ How to maintain it:
 | Oct 1 | Ask Colosseum (Discord or hello@colosseum.com): can one entry win a track and a general prize? Any video narration rules? Multi-track: confirmed allowed by the user on Oct 3 | You | 🟡 |
 | **Oct 2, by 12:00 Vilnius** | Register on HackQuest for Arbitrum Open House Singapore. The page shows "Oct 2 17:01" with no time zone (re-checked Oct 2): if it is Singapore time it closes at 12:01 Vilnius, if UTC at 20:01. Do it now | You | ⏳ |
 | Oct 1–3 | Log in at hackathon.monad.xyz: confirm the year, the deadline time zone and the rules (mainnet or testnet, countries, KYC) | You | ⏳ |
-| Oct 2 | Mainnet wave (Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain (pays USDG), plus EURC), Tempo campaign-memo payout, `fund a:ingest` | You | ⏳ |
+| Oct 5–6 (was Oct 2) | Mainnet wave on 7 chains (Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain (pays USDG), Monad; EURC split + router on Arc only; DonateRouters on Arc, Arbitrum, Avalanche, Base, Monad): `fund a:mainnet-plan --network mainnet`, then `CONFIRM_MAINNET=yes wave/mainnet-all.sh`; Tempo campaign-memo payout | You | ⏳ |
 | Oct 2 (after the wave) | Commit and push the three deployment lists written by `a:ingest` (`client/public/shelter-payouts/`, `client/public/heist-game/payouts/`, `catnip-heist/public/payouts/`); Vercel builds only the client, so `/shelter-payouts` and `/heist` show the real payouts after that push | You | ⏳ |
 | Oct 2–4 | Turn on sponsored donations (`SHELTER_DONATE_*` env on the backend, fund the hot wallet with a small USDC float) | You | ⏳ |
 | Oct 4–6 (before recording demos) | Judge demo, gasless and matched on testnet: set `SHELTER_TRY_CHAIN_ID=5042002` plus `SHELTER_TRY_ROUTER_ADDRESS`, `SHELTER_TRY_SPLIT_ADDRESS`, `SHELTER_TRY_PRIVATE_KEY` (a new testnet-only wallet with faucet USDC), `SHELTER_TRY_RELAY_ENABLED=true`, `SHELTER_TRY_MATCH_ENABLED=true` on the backend; list the Arc testnet router in `client/public/shelter-payouts/routers.json`; set `NEXT_PUBLIC_WALLET_DONATE_CHAIN=5042002` on Vercel (docs/BACKEND.md) | You | ⏳ |
@@ -84,7 +84,7 @@ How to maintain it:
 | Oct 22+ | Late Oct: Circle grant application (agentic payments) | You | ⏳ |
 | Oct 31 | Register for Arbitrum Dubai (Oct 31 – Dec 5) and re-score it on the published criteria | You | ⏳ |
 | Nov 16 – Dec 4 | Build and submit Arbitrum Dubai (submissions close Dec 6 16:01, zone not shown) | Both | ⏳ |
-| at handover (before Dec 5) | Pink Paw wallet handover → enable wallet donate (`NEXT_PUBLIC_WALLET_DONATE`) and x402 (`SHELTER_X402_ENABLED`) | You | ⏳ |
+| at handover (before Dec 5) | Pink Paw signs the per-chain claim (rotation) → `NEXT_PUBLIC_WALLET_DONATE` on (x402 is on by default; mainnet x402, relay and match open per chain once its claim is rotated) | You | ⏳ |
 | by Dec 5 | Colosseum winners; hand the shelter wallet over to the shelter | You | ⏳ |
 | ~Dec 13 | Arbitrum Dubai results | – | ⏳ |
 
@@ -120,7 +120,7 @@ How to maintain it:
 | Arbitrum Open House Dubai | Nov 16 – Dec 6 | 1–5% (q=0.7): downgraded, decide at G10 | $30k pool | ⏳ |
 | Circle Developer Grants | rolling (after the Arc decision) | ~2.5% | $5k–100k | ⏳ |
 | Indiepocalypse #83 anthology (itch.io) | Oct 1 16:00 (itch time) | ~13% | $20 + 5% sales | ❌ dropped: not worth the effort |
-| x402 Foundation impact micro-grant | rolling | unknown (<10%) | ≤ $3k | 🟡 `exact` scheme built (payTo = shelter wallet, testnet verified against x402.org `/verify`); mainnet needs G2b; Oct 12–16: first mainnet tx + ≤2 min video, tag @coinbaseDev |
+| x402 Foundation impact micro-grant | rolling | unknown (<10%) | ≤ $3k | 🟡 `exact` scheme built (payTo = shelter wallet, testnet verified against x402.org `/verify`); mainnet `exact` is offered only after the handover (SHELTER_HANDED_OVER + the per-chain claim, G12), so the first mainnet tx waits for G12; then ≤2 min video, tag @coinbaseDev |
 | The Pollination Project seed grant (for Pink Paw; money goes to the shelter) | Oct 31 for the October cycle | unknown | ≤ $500 | ❌ dropped (team decision 2026-09-30) |
 | Arbitrum Open House Singapore (online) | Oct 4 15:59, zone not shown (SGT worst case: 10:59 Vilnius) | 0.6% (q=0.7) | $15k mid ($115k pool) | ⏳ long shot, ~1 h, app scaffolded |
 | Monad Metropolis (Consumer & Payments) | Oct 13 (zone unverified) | ~1.5% (N unknown) | $10k (3 × $10k per track) | ⏳ testnet ShelterSplit + DonateRouter live on Monad testnet (Oct 4), source verified; rules to verify; mainnet in the wave |

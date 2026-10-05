@@ -378,9 +378,13 @@ There is no Apple or Google in-app purchase receipt verification.
   one, never mixed); the main chain's split also defaults to its `wallet.config.ts` section. Each
   `wallet.config.ts` chain is health-checked on `GET /shelter/donate/status` and before a send (cached
   60 s): it is listed `enabled: false` with a `reason` while there is no key, the split is paused or
-  pays no shelter, the hot wallet holds less than one treat of the token or no gas (Tempo pays fees in
-  a stablecoin, so only the token counts there), or the RPC does not answer. Budgets are per chain
-  (default 0.01 per treat, 1 a day) and the once-a-day rule stays per player across all chains.
+  pays no shelter, the hot wallet holds less than one treat of the token or too little gas for two
+  sends at the node's gas price (Tempo pays fees in a stablecoin, so only the token counts there), or
+  the RPC does not answer within 10 s (each RPC request times out after 8 s and a 429 is not retried).
+  The main chain on its recorded split pays `donate()` in its native coin and is checked the same way
+  on its native balance. `treatsLeftToday` never exceeds what the hot wallet's float still pays for.
+  Budgets are per chain (default 0.01 per treat, 1 a day) and the once-a-day rule stays per player
+  across all chains. Once the main chain is a mainnet, USD treat totals leave testnet rows out.
 
   The x402 card is offered by default on the same chains. On testnets always; on a mainnet (and the
   relay and match there) only once `ShelterClaimService.publicGivingVerified` passes for that chain:
@@ -457,9 +461,13 @@ There is no Apple or Google in-app purchase receipt verification.
   `split.preview(1 USDC).wallets` is a `rotated` claim and none is a Token Tails wallet, so public money
   cannot reach a wallet Token Tails still holds through these services. Keep the hot wallet float small:
   it now pays relay gas and the match.
-- Rule: do not deploy a DonateRouter on any mainnet before the handover. The router is ownerless and
-  public, so once it exists anyone can call `donateNative` or submit a signature themselves, and no
-  backend gate can stop that money reaching the shelter wallet Token Tails still holds.
+- Decision 2026-10-05 (founder, funding/framework/tracks/a-build/README.md): the mainnet wave deploys
+  DonateRouters by default, before the handover. The router is ownerless and public, so once it exists
+  anyone can call `donateNative` or submit a signature themselves, and no backend gate can stop that
+  money reaching the shelter wallet Token Tails still holds (ShelterSplit's `donate`/`disburse` were
+  always public too). The app keeps every public route closed until the claim; a gift that arrives
+  through a router or the split before rotation is disclosed as held by Token Tails on the payouts page,
+  appears in the impact indexer's rows, and is forwarded to the shelter at handover (gate G12).
 - Claims: `POST /shelter/claim` only takes wallets on `SHELTER_CLAIM_ALLOWED_WALLETS` (named by the
   shelter through a separate channel) and `GET /shelter/claim` shows only `approved` or `rotated` rows.
   Claims are per chain: the v1 message names one chain (the main one); the v2 message

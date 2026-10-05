@@ -228,12 +228,42 @@ test('script: proof inputs checked up front, empty arrays safe under bash 3.2 se
 
 test('script: a re-run retries a missing proof payout on an already-deployed chain and still ingests', async () => {
   const s = W.waveScript(await W.waveRanking({}), { project, root: tmp, date: '2026-10-02' });
-  const skip = s.slice(s.indexOf('skip: already deployed'), s.indexOf('if SHELTERSPLIT_TOKEN='));
+  const skip = s.slice(s.indexOf('if [ "$st" = ok ]'), s.indexOf('if SHELTERSPLIT_TOKEN='));
+  assert.match(skip, /skip: already deployed/);
   assert.match(skip, /PRIOR\+=\("\$chain"\)/);
   assert.match(skip, /! proof_done "\$id"; then maybe_proof/);
   assert.match(s, /proof_done\(\) \{/);
   assert.match(s, /maybe_proof\(\) \{[\s\S]*?tr A-F a-f[\s\S]*?proof needs the owner key/, 'owner check shared by both paths');
-  assert.match(s, /\$\(\( \$\{#OK\[@\]\} \+ \$\{#PRIOR\[@\]\} \)\) -gt 0 \] && \(cd "\$FUND_ROOT" && node bin\/fund\.mjs a:ingest/);
+  assert.match(s, /\$\(\( \$\{#OK\[@\]\} \+ \$\{#PRIOR\[@\]\} \)\) -gt 0 \]; then \(cd "\$FUND_ROOT" && node bin\/fund\.mjs a:ingest/);
+});
+
+test('S6: the re-run guard has no mtime gate; a receipt-less earlier deploy is checked on-chain, never redeployed blind', async () => {
+  const s = W.waveScript(await W.waveRanking({}), { project, root: tmp, date: '2026-10-05' });
+  assert.doesNotMatch(s, /-nt "\$SELF" \] && node -e 'const j=require\(process.argv\[1\]\),T=/, 'the wrapper regenerates the script, so an mtime gate never fires');
+  assert.match(s, /cast receipt "\$h" --rpc-url "\$url" --json/);
+  assert.match(s, /has no receipt yet \(pending or dropped\)[^\n]*SKIP\+=/);
+  // --redeploy keeps its meaning
+  assert.doesNotMatch(s, /export FORCE_REDEPLOY=/);
+  assert.match(W.waveScript(await W.waveRanking({}), { project, root: tmp, redeploy: true }), /export FORCE_REDEPLOY="\$\{FORCE_REDEPLOY-1\}"/);
+});
+
+test('S8: the mainnet deploy script carries the MAINNET GUARD and the expected-deployer check; testnet has no guard', async () => {
+  const D = '0x' + 'd6'.repeat(20);
+  const m = W.waveScript(await W.waveRanking({}), { network: 'mainnet', project, root: tmp, expectedDeployer: D });
+  assert.match(m, /MAINNET GUARD/);
+  assert.match(m, /CONFIRM_MAINNET:-\}" != yes/);
+  assert.match(m, /CLAUDECODE/);
+  assert.ok(m.indexOf('MAINNET GUARD') < m.indexOf('cast wallet address'), 'guard before any signing');
+  assert.match(m, new RegExp(`EXPECTED_DEPLOYER='${D}'`));
+  assert.match(m, /refused: keystore \$FUND_KEYSTORE is \$DEPLOYER/);
+  const t = W.waveScript((await W.waveRanking({ network: 'testnet', only: ['mockc'] })), { network: 'testnet', project, root: tmp });
+  assert.doesNotMatch(t, /MAINNET GUARD/);
+});
+
+test('S12: a dry run says "simulated", and the script ends with an explicit exit code', async () => {
+  const s = W.waveScript(await W.waveRanking({}), { project, root: tmp });
+  assert.match(s, /simulated \(nothing broadcast\)/);
+  assert.match(s, /\[ \$\{#SKIP\[@\]\} -eq 0 \] \|\| exit 1\nexit 0\n$/);
 });
 
 test('testnet mock token: the wave deploys MockUSDC in the same run on a stablecoin-less testnet only', async () => {
@@ -289,9 +319,13 @@ test('testnet mock token: ingest records mock: true + tokenAddress; the re-run g
   // the bash re-run guard (node -e snippet) recognises the mined mock instance for token MOCK
   const s = W.waveScript(await W.waveRanking({ network: 'testnet', only: ['mockc'] }), { network: 'testnet', project, root: tmp });
   const js = s.match(/node -e '(const j=require[^']*)' "\$prev" "\$token"/)[1];
-  const r = (tok) => spawnSync(process.execPath, ['-e', js, join(dep, 'run-latest.json'), tok]).status;
-  assert.equal(r('MOCK'), 0);
-  assert.equal(r(USDC), 1);
+  const r = (tok) => spawnSync(process.execPath, ['-e', js, join(dep, 'run-latest.json'), tok], { encoding: 'utf8' }).stdout.trim();
+  assert.equal(r('MOCK'), 'ok');
+  assert.equal(r(USDC), 'none');
+  // S6: a CREATE with no receipt in the file is reported with its hash (the script then asks the chain).
+  const noRc = join(dep, 'run-norc.json');
+  writeFileSync(noRc, JSON.stringify({ ...run, receipts: [] }));
+  assert.equal(spawnSync(process.execPath, ['-e', js, noRc, 'MOCK'], { encoding: 'utf8' }).stdout.trim(), `nore ${H3}`);
 });
 
 test('real chains.json: Robinhood testnet uses the mock; no mainnet entry has a mockToken', () => {

@@ -321,12 +321,19 @@ export function readTryShelterConfig(env: NodeJS.ProcessEnv = process.env): Shel
     if (chainId === base.chainId) {
         return null;
     }
+    // The rule above, enforced: a main hot wallet key that holds real money (a mainnet main chain) never
+    // signs on the try-it testnet, even when it is pasted as SHELTER_TRY_PRIVATE_KEY (the one-wallet plan
+    // uses one address on both networks, so "the testnet hot key" can be the mainnet one).
+    let tryKey = (env.SHELTER_TRY_PRIVATE_KEY || '').trim() || null;
+    if (tryKey && !isTestnetChain(base.chainId) && base.privateKey && tryKey.toLowerCase() === base.privateKey.toLowerCase()) {
+        tryKey = null;
+    }
     return {
         ...base,
         chainId,
         rpcUrl: (env.SHELTER_TRY_RPC_URL || '').trim() || DEFAULT_RPC[chainId] || null,
         splitAddress: address(env.SHELTER_TRY_SPLIT_ADDRESS),
-        privateKey: (env.SHELTER_TRY_PRIVATE_KEY || '').trim() || null,
+        privateKey: tryKey,
         routerAddress: address(env.SHELTER_TRY_ROUTER_ADDRESS),
         routerFromBlock: blockNumber(env.SHELTER_TRY_ROUTER_FROM_BLOCK),
         relayEnabled: flag(env.SHELTER_TRY_RELAY_ENABLED),
@@ -620,8 +627,9 @@ const ZERO = getBigInt(0);
  * unless SHELTER_HANDED_OVER=false (an emergency off); the services then require the on-chain check
  * `ShelterClaimService.publicGivingVerified` for that chain: every split recipient is a rotated,
  * shelter-held claim, so public money never lands in a wallet Token Tails holds. Neither gate can stop a
- * stranger calling a deployed router directly: no DonateRouter is deployed on a mainnet before the
- * handover (docs/BACKEND.md).
+ * stranger calling a deployed router (or the split) directly. Since the 2026-10-05 decision the mainnet
+ * wave deploys DonateRouters before the handover; such gifts reach the wallet Token Tails holds, are
+ * disclosed as held, and are forwarded at handover (docs/BACKEND.md).
  */
 export function publicGivingAllowed(config: Pick<ShelterOnchainConfig, 'chainId' | 'givingKilled'>): boolean {
     return isTestnetChain(config.chainId) || config.givingKilled !== true;

@@ -3,7 +3,7 @@
  * opaque bounds and centred). Used by the cat pick grid, HUD crew buttons, results and yard cards.
  */
 import { ASSET_BASE, FRAME_PX, type SheetEntry } from '../types';
-import { loadImage } from '../render/voxel/sheets';
+import { assetUrl, loadImage } from '../render/voxel/sheets';
 
 export interface PortraitOptions {
   /** Canvas size in device pixels (square). Default 96. */
@@ -29,7 +29,7 @@ export function createPortrait(entry: SheetEntry, opts: PortraitOptions = {}): H
 
 export async function drawPortrait(canvas: HTMLCanvasElement, entry: SheetEntry, opts: PortraitOptions = {}): Promise<void> {
   const base = opts.base ?? ASSET_BASE;
-  const img = await loadImage(base + entry.sheet);
+  const img = await loadImage(assetUrl(entry.sheet, base));
   const rowName = (opts.row ?? 'IDLE').toUpperCase();
   let r = entry.rows.findIndex((x) => x.name === rowName);
   if (r < 0 || entry.rows[r].frames === 0) r = Math.max(0, entry.rows.findIndex((x) => x.frames > 0));

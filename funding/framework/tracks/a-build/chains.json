@@ -26,10 +26,9 @@
         },
         "proofVia": "cast",
         "verifier": {
-          "type": "blockscout",
-          "url": "https://explorer.arc.io/api/",
-          "verify": true,
-          "note": "Arc docs show blockscout for testnet; mainnet endpoint assumed by analogy"
+          "type": "sourcify",
+          "url": "https://sourcify.dev/server",
+          "note": "2026-10-05: explorer.arc.io/api answers 403 behind a Cloudflare challenge (GET and the verifysourcecode POST), so forge cannot verify there; sourcify.dev/server/chains lists 5042 Arc Mainnet as supported"
         }
       },
       "testnet": {
@@ -292,6 +291,7 @@
         "address": "{explorer}/address/{address}",
         "tx": "{explorer}/tx/{tx}",
         "usdc": "0x20C000000000000000000000b9537d11c60E8b50",
+        "usdcSymbol": "USDC.e",
         "usdcDecimals": 6,
         "rpcEnv": "RPC_TEMPO_MAINNET",
         "verify": true,

@@ -4,7 +4,7 @@ import NextLink from "next/link";
 import { useEffect, useState } from "react";
 import { AppProofNotice } from "./AppProofNotice";
 import { CampaignMeter } from "./CampaignMeter";
-import { claimsDateLabel } from "./campaign";
+import { HandoverStatus, claimsDateLabel } from "./campaign";
 import { ChainInfo, SHELTER_CHAINS, chainRole } from "./chains";
 import { mainnetRails, readGiveEnv, tryChainId, tryItRails, walletGiveMode } from "./giveMode";
 import { useCampaignGoal } from "./goal";
@@ -55,6 +55,10 @@ export { matchMeterCopy } from "./giveMode";
 
 export const DISCLOSURE =
   "Shelter wallet held by Token Tails on behalf of the shelter until handover";
+
+/** The page's custody line, following campaign.json `shelter.handover` (gate G12). */
+export const disclosureFor = (handover: HandoverStatus | undefined) =>
+  handover === "handed-over" ? "The shelter holds its own wallet keys" : DISCLOSURE;
 
 // ShelterSplit forwards every donation in the same transaction, so this should read 0.
 const BalanceLine = ({
@@ -355,7 +359,7 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
             data-testid="shelter-disclosure"
           >
             <span aria-hidden="true">🔑</span>
-            {DISCLOSURE}
+            {disclosureFor(campaign?.shelter.handover)}
           </p>
         </section>
       </NightStage>

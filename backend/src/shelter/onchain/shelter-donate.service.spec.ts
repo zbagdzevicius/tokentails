@@ -1,7 +1,7 @@
 import { HttpException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { JsonRpcProvider, Wallet } from 'ethers';
-import { ShelterChain, shelterSplitInterface } from './shelter-chain';
+import { RPC_TIMEOUT_MS, ShelterChain, shelterSplitInterface } from './shelter-chain';
 import { explorerTxUrl } from './shelter-onchain.config';
 import {
     DONATE_ALREADY_TODAY,
@@ -117,7 +117,7 @@ describe('ShelterDonateService.donate', () => {
             amountWei: AMOUNT,
             explorerUrl: `https://explorer.arc.io/tx/${TX_HASH}`,
         });
-        expect(JsonRpcProvider).toHaveBeenCalledWith('https://rpc.mainnet.arc.io', 5042, {
+        expect(JsonRpcProvider).toHaveBeenCalledWith(expect.objectContaining({ url: 'https://rpc.mainnet.arc.io', timeout: RPC_TIMEOUT_MS }), 5042, {
             staticNetwork: true,
             cacheTimeout: -1,
         });
@@ -317,7 +317,7 @@ describe('ShelterDonateService.status', () => {
             treatsLeftToday: 2,
         });
         expect(status.remainingTodayWei).toBe('20000000000000000');
-        expect(JsonRpcProvider).toHaveBeenCalledWith('https://rpc.testnet.arc.io', 5042002, {
+        expect(JsonRpcProvider).toHaveBeenCalledWith(expect.objectContaining({ url: 'https://rpc.testnet.arc.io', timeout: RPC_TIMEOUT_MS }), 5042002, {
             staticNetwork: true,
             cacheTimeout: -1,
         });

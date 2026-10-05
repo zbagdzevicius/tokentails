@@ -21,6 +21,7 @@ import {
     readRelayChainConfigs,
     readShelterConfig,
     ShelterOnchainConfig,
+    TESTNET_CHAIN_IDS,
     TIP20_CHAIN_IDS,
     treatCoin,
 } from './shelter-onchain.config';
@@ -77,11 +78,25 @@ export const donateSendFailed = () =>
 const DUPLICATE_KEY = 11000;
 const ZERO = getBigInt(0);
 
-/** Treat rows whose coin is a US dollar: USD totals never add a test coin (mUSDC) in. Rows without a chainId match. */
-const USD_TREATS = { chainId: { $nin: [...NON_USD_TREAT_CHAIN_IDS] } };
+/**
+ * Treat rows whose coin is a US dollar: USD totals never add a test coin (mUSDC) in. Once the main chain
+ * is a mainnet, testnet treats (from a testnet phase of the same database) never count as real money.
+ * Rows without a chainId match (legacy rows from before per-chain treats).
+ */
+export function usdTreats(mainChainId: number = readShelterConfig().chainId) {
+    return {
+        chainId: { $nin: [...NON_USD_TREAT_CHAIN_IDS, ...(isTestnetChain(mainChainId) ? [] : TESTNET_CHAIN_IDS)] },
+    };
+}
 
 /** How long a token chain's treat health (balances, split, RPC) is reused. */
 export const TREAT_HEALTH_TTL_MS = 60 * 1000;
+/** A chain whose health check has not answered by then reads as 'the RPC is not answering'. */
+export const TREAT_HEALTH_DEADLINE_MS = 10 * 1000;
+/** Gas units budgeted per hot-wallet send (a treat, or the approve before a token treat). */
+export const TREAT_GAS_UNITS = getBigInt(200000);
+/** The hot wallet must hold gas for this many sends, or the chain closes before sends start failing. */
+export const TREAT_GAS_SENDS = getBigInt(2);
 
 /** How long `communityTotalConfirmedWei` is cached per instance. */
 export const COMMUNITY_TOTAL_CACHE_MS = 5 * 60 * 1000;
@@ -222,6 +237,8 @@ export class ShelterDonateService {
     private readonly logger = new Logger(ShelterDonateService.name);
     private communityTotal: { expiresAt: number; value: Promise<string> } | null = null;
     private health = new Map<string, { at: number; reason: Promise<string | null> }>();
+    /** Treats the hot wallet's token (or native) balance still pays for, per chain, from the last health read. */
+    private affordable = new Map<string, number>();
 
     constructor(
         @InjectModel(ShelterDonation.name) private donationModel: Model<ShelterDonationDocument>,
@@ -254,7 +271,9 @@ export class ShelterDonateService {
         // A wallet.config.ts chain is unavailable, with its reason, while the hot wallet cannot pay there.
         const unhealthy = config.autoChain && donateReady(config) ? await this.treatHealth(config, now) : null;
         const enabled = donateReady(config) && !unhealthy;
-        const cap = dailySlots(config);
+        // Never promise more treats than the hot wallet can pay for (a minimal float pays about 10).
+        const afford = this.affordable.get(`${config.chainId}|${config.splitAddress}`);
+        const cap = afford === undefined || !config.autoChain ? dailySlots(config) : Math.min(dailySlots(config), afford);
         let remaining = ZERO;
         let left = 0;
         if (enabled) {
@@ -306,19 +325,31 @@ export class ShelterDonateService {
         if (cached && now.getTime() - cached.at < TREAT_HEALTH_TTL_MS) {
             return cached.reason;
         }
-        const reason = this.readTreatHealth(config).catch(error => {
+        let timer: NodeJS.Timeout | undefined;
+        const deadline = new Promise<string>(resolve => {
+            timer = setTimeout(() => resolve('the RPC is not answering'), TREAT_HEALTH_DEADLINE_MS);
+            timer.unref?.();
+        });
+        const read = this.readTreatHealth(config).catch(error => {
             this.logger.warn(`treat health on ${config.chainId}: ${error?.code || error?.name || 'unknown error'}`);
             return 'the RPC is not answering';
         });
+        // One slow chain never holds the status endpoint (it runs every chain at once) past the deadline.
+        const reason = Promise.race([read, deadline]).finally(() => clearTimeout(timer));
         this.health.set(key, { at: now.getTime(), reason });
         return reason;
     }
 
     private async readTreatHealth(config: ShelterOnchainConfig): Promise<string | null> {
         const hot = hotWalletAddress(config);
-        if (!hot || !config.splitAddress || !config.treat) {
+        if (!hot || !config.splitAddress) {
             return 'no hot wallet key or split';
         }
+        const key = `${config.chainId}|${config.splitAddress}`;
+        // A token chain pays disburse(amount) in the split's token; the main chain pays donate() in its
+        // native coin (Arc's native USDC), so it has no `treat` and is checked on its native balance.
+        const amount = config.treat ? config.treat.amountBase : config.amountWei;
+        const coin = config.treat?.coin || treatCoin(config.chainId);
         const split = config.splitAddress;
         const paused = await this.chain
             .ethCall(config, split, shelterSplitInterface.encodeFunctionData('paused', []))
@@ -330,23 +361,44 @@ export class ShelterDonateService {
         const preview = await this.chain.ethCall(
             config,
             split,
-            shelterSplitInterface.encodeFunctionData('preview', [config.treat.amountBase])
+            shelterSplitInterface.encodeFunctionData('preview', [amount])
         );
         const wallets = shelterSplitInterface.decodeFunctionResult('preview', preview)[0] as string[];
         if (!wallets.length) {
             return 'the split pays no shelter';
         }
-        const token = await this.chain.splitToken(config);
-        const [balance] = erc20Interface.decodeFunctionResult(
-            'balanceOf',
-            await this.chain.ethCall(config, token, erc20Interface.encodeFunctionData('balanceOf', [hot]))
-        );
-        if (getBigInt(balance) < config.treat.amountBase) {
-            return `the hot wallet holds less than one treat of ${config.treat.coin}`;
+        const tip20 = TIP20_CHAIN_IDS.includes(config.chainId);
+        const native = tip20 ? ZERO : await this.chain.nativeBalance(config, hot);
+        let tokenBalance: bigint;
+        if (config.treat) {
+            const token = await this.chain.splitToken(config);
+            const [balance] = erc20Interface.decodeFunctionResult(
+                'balanceOf',
+                await this.chain.ethCall(config, token, erc20Interface.encodeFunctionData('balanceOf', [hot]))
+            );
+            tokenBalance = getBigInt(balance);
+        } else {
+            tokenBalance = native;
         }
-        if (!TIP20_CHAIN_IDS.includes(config.chainId) && (await this.chain.nativeBalance(config, hot)) <= ZERO) {
-            return 'the hot wallet has no gas';
+        if (tokenBalance < amount) {
+            this.affordable.set(key, 0);
+            return `the hot wallet holds less than one treat of ${coin}`;
         }
+        if (!tip20) {
+            if (native <= ZERO) {
+                return 'the hot wallet has no gas';
+            }
+            // Gas for a couple of sends, priced at the node's current gas price; a node that gives no
+            // price keeps the plain "some gas" check above.
+            const price = await this.chain.gasPrice?.(config).catch(() => null);
+            const gasNeed = price ? TREAT_GAS_SENDS * TREAT_GAS_UNITS * getBigInt(price) : ZERO;
+            const spare = config.treat ? native : native - amount;
+            if (spare < gasNeed) {
+                return 'the hot wallet is low on gas';
+            }
+        }
+        const treats = tokenBalance / amount;
+        this.affordable.set(key, treats > getBigInt(1000000) ? 1000000 : Number(treats));
         return null;
     }
 
@@ -358,7 +410,7 @@ export class ShelterDonateService {
         }
         const value = this.donationModel
             .aggregate([
-                { $match: { status: ShelterDonationStatus.CONFIRMED, ...USD_TREATS } },
+                { $match: { status: ShelterDonationStatus.CONFIRMED, ...usdTreats() } },
                 { $group: { _id: null, total: { $sum: { $toDecimal: '$amountWei' } } } },
             ])
             .exec()
@@ -381,7 +433,7 @@ export class ShelterDonateService {
             this.donationModel.countDocuments({ user, status: ShelterDonationStatus.SENT }),
             this.donationModel
                 .aggregate([
-                    { $match: { user, status: ShelterDonationStatus.CONFIRMED, ...USD_TREATS } },
+                    { $match: { user, status: ShelterDonationStatus.CONFIRMED, ...usdTreats() } },
                     { $group: { _id: null, total: { $sum: { $toDecimal: '$amountWei' } } } },
                 ])
                 .exec(),

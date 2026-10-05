@@ -1,13 +1,21 @@
 import { isAppBuild } from "@/components/claims/build";
-import { Campaign, handoverLabel } from "./campaign";
+import { Campaign, HandoverStatus, handoverLabel } from "./campaign";
 import { explorerAddress } from "./chains";
 import { CARD } from "./ui";
 
 // The showcase shelter. Only its name and the wallet from campaign.json are shown; no other claims
 // about the shelter are made here.
 
-/** The custody line for this build (F7.2): app builds name the holder, never a wallet or a chain. */
-export function custodyDisclosure(isApp: boolean = isAppBuild()): string {
+/**
+ * The custody line for this build (F7.2): app builds name the holder, never a wallet or a chain. After
+ * the handover (campaign.json `shelter.handover`) it says the shelter holds its own wallet.
+ */
+export function custodyDisclosure(isApp: boolean = isAppBuild(), handover: HandoverStatus = "held-by-token-tails"): string {
+  if (handover === "handed-over") {
+    return isApp
+      ? "The shelter now holds its own share. Every payout is listed on our website."
+      : "The shelter now holds this wallet's keys. Every payout is public.";
+  }
   return isApp
     ? "Token Tails holds the shelter's share on its behalf until handover. Every payout is listed on our website."
     : "Token Tails created this wallet and holds it on the shelter's behalf until handover. " +

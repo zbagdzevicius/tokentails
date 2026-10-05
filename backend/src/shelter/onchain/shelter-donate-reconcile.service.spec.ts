@@ -436,7 +436,7 @@ describe('ShelterDonateReconcileService: treats on a picked network', () => {
         expect(result).toMatchObject({ failed: 1, released: 1, skipped: 1 });
         expect(getTransactionReceipt).toHaveBeenCalledTimes(1);
         expect(getTransactionReceipt).toHaveBeenCalledWith(tx('b'));
-        expect(providers.some(([url, id]) => url === 'https://sepolia.base.org' && id === 84532)).toBe(true);
+        expect(providers.some(([req, id]) => req?.url === 'https://sepolia.base.org' && id === 84532)).toBe(true);
         expect(ctx.donations.rows.find(r => r.chainId === 84532)).toMatchObject({
             status: 'FAILED',
             failedReason: 'reverted',

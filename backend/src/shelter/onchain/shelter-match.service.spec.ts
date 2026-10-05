@@ -1,6 +1,7 @@
 import { Wallet } from 'ethers';
 import { memoryModel } from 'src/impact/memory-model.fakes-spec';
 import { DecodedRouterDonation, donateRouterInterface, erc20Interface, matchMemo, ROUTER_PATH } from './donate-router';
+import { erc20Interface as chainErc20 } from './shelter-chain';
 import { DonationBroadcastError, shelterSplitInterface } from './shelter-chain';
 import { readShelterConfig, ShelterOnchainConfig } from './shelter-onchain.config';
 import { giftBaseOf, ShelterMatchService } from './shelter-match.service';
@@ -205,16 +206,21 @@ describe('ShelterMatchService.sendOne', () => {
         expect(pool?.used).toBe(500000);
     });
 
-    it('on other chains approves exactly the match, waits, then disburses with the memo', async () => {
+    it('on other chains approves the match on top of the treats\' allowance, waits, then disburses with the memo', async () => {
         const ctx = setup();
         const c = config({ chainId: 84532 });
-        ctx.chain.ethCall.mockResolvedValue(shelterSplitInterface.encodeFunctionResult('token', [TOKEN]));
+        // SEC-6: the treats left 50000 approved; the match adds to it instead of overwriting it.
+        ctx.chain.ethCall.mockImplementation(async (_c: any, _to: string, data: string) =>
+            data.startsWith(chainErc20.getFunction('allowance')!.selector)
+                ? chainErc20.encodeFunctionResult('allowance', [50000])
+                : shelterSplitInterface.encodeFunctionResult('token', [TOKEN])
+        );
         const { g, row } = await queued(ctx, 300000, c);
         ctx.chain.getReceipt.mockResolvedValueOnce({ status: 1 });
         await expect(ctx.service.sendOne(row, c, NOW)).resolves.toBe('sent');
         const [[approveTo, approveData], [disburseTo, disburseData]] = ctx.chain.sendContractCall.mock.calls;
         expect(approveTo).toBe(TOKEN);
-        expect(erc20Interface.decodeFunctionData('approve', approveData).map(String)).toEqual([SPLIT, '300000']);
+        expect(erc20Interface.decodeFunctionData('approve', approveData).map(String)).toEqual([SPLIT, '350000']);
         expect(disburseTo).toBe(SPLIT);
         expect(shelterSplitInterface.decodeFunctionData('disburse', disburseData).map(String)).toEqual([
             '300000',

@@ -21,7 +21,7 @@ import { ensureStyles } from '../ui/styles';
 import { createPortrait } from '../ui/portraits';
 import { h, prefersReducedMotion } from '../ui/dom';
 import { buildGarden, SKY_GLSL, type Garden } from './garden';
-import { BEHAVIOUR_LABEL, BEHAVIOUR_ROW, createAgent, poke, release, stepAgents, type YardAgent } from './wander';
+import { BEHAVIOUR_LABEL, BEHAVIOUR_ROW, createAgent, poke, release, sendTo, stepAgents, type YardAgent, type YardWorld } from './wander';
 
 export interface YardOptions {
   base?: string;
@@ -38,6 +38,37 @@ export interface YardOptions {
   autoStart?: boolean;
   /** Subset of cat ids to show (default: all cats in the manifest). */
   cats?: string[];
+  /** Cats to show instead of manifest lookups (a player's own cats); overrides `cats`. */
+  entries?: SheetEntry[];
+  /** The player's active cat: a steady ring and an always-on name tag. */
+  highlight?: string | null;
+  /** Text of that tag (default: the cat's name). */
+  highlightLabel?: string;
+  /** Name card content per cat: the fact line and the choose button's label / state. */
+  describe?(id: string): YardCardInfo | undefined;
+  /** Colour of a soft glow under a cat (blessed cats), or null for none. */
+  aura?(id: string): number | null | undefined;
+  /** Spawn every cat within `r` of this point (a small crew reads better close together). */
+  spawnNear?: { x: number; z: number; r: number };
+  /** Start centred on this cat (not selected), at `initialZoom` (default 1). */
+  initialFocus?: string | null;
+  initialZoom?: number;
+  /** Force a quality tier (no fps probe). */
+  tier?: QualityTier;
+  /** Lift the name card and zoom buttons this many CSS px above the bottom safe area. */
+  cardBottomPx?: number;
+  /** Reduced motion (default: the media query). */
+  reducedMotion?: boolean;
+  /** A cat's sheet failed to load (the cat is left out). */
+  onSheetError?(id: string, error: unknown): void;
+  /** A cat sent by feed() reached the bowls and started eating. */
+  onEat?(id: string): void;
+}
+
+export interface YardCardInfo {
+  fact?: string;
+  chooseLabel?: string;
+  chooseDisabled?: boolean;
 }
 
 export interface YardStats {
@@ -63,6 +94,14 @@ export interface YardAPI {
   /** Pan the camera to a cat (and select it). */
   focus(id: string): void;
   setZoom(z: number): void;
+  /** Centre the camera on a cat without selecting it (optionally at a zoom). */
+  lookAt(id: string, zoom?: number): void;
+  /** Move the steady ring and name tag to another cat (null: none). */
+  setHighlight(id: string | null, label?: string): void;
+  /** Re-read `describe` for the open name card. */
+  refreshCard(): void;
+  /** Feeding time: the cat runs to the bowls, eats, and hops; resolves when the meal is done. */
+  feed(id: string): Promise<void>;
   stats(): YardStats;
   /** Positions of every cat projected to CSS pixels (QA / tests). */
   screenPositions(): { id: string; x: number; y: number; visible: boolean }[];
@@ -100,7 +139,8 @@ const YARD_CSS = `
 .chy-root canvas { display: block; width: 100%; height: 100%; outline: none; }
 .chy-label { position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); padding: 3px 10px; border-radius: 10px;
   background: var(--ch-coin); color: var(--ch-ol); border: 3px solid var(--ch-ol); box-shadow: 0 3px 0 var(--ch-ol); font-size: 16px; white-space: nowrap; pointer-events: none; display: none; }
-.chy-card { position: absolute; left: 12px; right: 12px; margin: 0 auto; bottom: calc(var(--ch-sab) + 14px); max-width: 380px;
+.chy-label.chy-tag { background: var(--ch-mint); font-size: 14px; padding: 2px 8px; }
+.chy-card { position: absolute; left: 12px; right: 12px; margin: 0 auto; bottom: calc(var(--ch-sab) + var(--chy-card-bottom, 14px)); max-width: 380px;
   display: none; gap: 12px; align-items: center; padding: 12px 14px; pointer-events: auto; animation: ch-pop .25s ease-out both; }
 .chy-card.chy-on { display: flex; }
 .chy-card canvas { width: 80px; height: 80px; flex: 0 0 80px; image-rendering: pixelated; border-radius: 12px; background: radial-gradient(circle at 50% 70%, rgba(255,201,60,.35), rgba(0,0,0,0) 70%); }
@@ -110,9 +150,10 @@ const YARD_CSS = `
 .chy-info .chy-act { color: var(--ch-mint); font-family: 'Cat Paw', system-ui, sans-serif; font-size: 16px; }
 .chy-btns { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
 .chy-btns .ch-btn { min-height: 40px; padding: 6px 14px; font-size: 15px; border-radius: 12px; }
+.chy-btns .ch-btn:disabled { opacity: .6; cursor: default; }
 .chy-close { position: absolute; top: -14px; right: -14px; width: 40px !important; height: 40px !important; min-width: 40px; min-height: 40px !important; font-size: 18px !important; }
-.chy-zoom { position: absolute; right: calc(var(--ch-sar) + 12px); bottom: calc(var(--ch-sab) + 14px); display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
-.chy-card.chy-on ~ .chy-zoom { bottom: calc(var(--ch-sab) + 150px); }
+.chy-zoom { position: absolute; right: calc(var(--ch-sar) + 12px); bottom: calc(var(--ch-sab) + var(--chy-card-bottom, 14px)); display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
+.chy-card.chy-on ~ .chy-zoom { bottom: calc(var(--ch-sab) + var(--chy-card-bottom, 14px) + 136px); }
 @media (max-width: 520px) {
   .chy-zoom { display: none; }
   .ch-yard-title { top: calc(var(--ch-sat) + 70px) !important; }
@@ -124,7 +165,7 @@ let yardCssInjected = false;
 
 let sharedYardRenderer: THREE.WebGLRenderer | null = null;
 
-export function createYard(container: HTMLElement, manifest: AssetManifest, opts: YardOptions = {}): YardAPI {
+export function createYard(container: HTMLElement, manifest: AssetManifest | null, opts: YardOptions = {}): YardAPI {
   const base = opts.base ?? ASSET_BASE;
   ensureStyles(base);
   if (!yardCssInjected) {
@@ -134,13 +175,14 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
     st.textContent = YARD_CSS;
     document.head.appendChild(st);
   }
-  const reduced = prefersReducedMotion();
+  const reduced = opts.reducedMotion ?? prefersReducedMotion();
   const detail = opts.detail ?? 'auto';
 
   // ---- DOM ----------------------------------------------------------------------------------
   const root = h('div.chy-root', { 'data-yard': '' });
   container.appendChild(root);
-  const initialTier = startTier();
+  if (opts.cardBottomPx != null) root.style.setProperty('--chy-card-bottom', `${Math.max(0, Math.round(opts.cardBottomPx))}px`);
+  const initialTier = opts.tier ? { tier: opts.tier, probe: null } : startTier();
   let tier: QualityTier = initialTier.tier;
   const probe = initialTier.probe;
   // One WebGL context for every Yard visit: re-creating it each time would recompile every shader
@@ -163,7 +205,8 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
   const overlay = h('div.ch-ui');
   root.appendChild(overlay);
   const label = h('div.chy-label');
-  overlay.appendChild(label);
+  const tag = h('div.chy-label.chy-tag', { 'data-yard-tag': '' });
+  overlay.append(tag, label);
 
   // ---- scene --------------------------------------------------------------------------------
   const scene = new THREE.Scene();
@@ -304,8 +347,9 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
   const shadowGeo = new THREE.PlaneGeometry(0.95, 0.95);
   shadowGeo.rotateX(-Math.PI / 2);
   const shadowMat = new THREE.MeshBasicMaterial({ color: 0x3a1640, map: softTex, transparent: true, opacity: 0.5, depthWrite: false });
-  const allIds = opts.cats?.length ? opts.cats : manifest.cats.map((c) => c.id);
-  const entries = allIds.map((id) => manifest.cats.find((c) => c.id === id)).filter((e): e is SheetEntry => !!e);
+  const manifestCats = manifest?.cats ?? [];
+  const allIds = opts.cats?.length ? opts.cats : manifestCats.map((c) => c.id);
+  const entries = opts.entries ?? allIds.map((id) => manifestCats.find((c) => c.id === id)).filter((e): e is SheetEntry => !!e);
   const shadows = new THREE.InstancedMesh(shadowGeo, shadowMat, Math.max(1, entries.length));
   shadows.name = 'cat-shadows';
   shadows.matrixAutoUpdate = false;
@@ -324,6 +368,29 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
   scene.add(drops);
   const dropSeed = Array.from({ length: DROPS }, (_, i) => ({ a: (i / DROPS) * Math.PI * 2 + (i % 3) * 0.4, v: 1.0 + ((i * 7) % 5) * 0.12, t: (i * 0.137) % 1 }));
 
+  // Kibble heap on the bowl at feeding time (one instanced draw call, hidden otherwise).
+  const KIBBLE = 9;
+  const kibbleGeo = new THREE.BoxGeometry(0.06, 0.05, 0.06);
+  const kibble = new THREE.InstancedMesh(kibbleGeo, new THREE.MeshLambertMaterial({ color: 0xa0633c, emissive: 0x2a1408 }), KIBBLE);
+  kibble.name = 'kibble';
+  kibble.visible = false;
+  kibble.frustumCulled = false;
+  kibble.matrixAutoUpdate = false;
+  scene.add(kibble);
+  const kibbleAt = garden.bowls[0];
+  /** 0..1: how much of the heap is left. */
+  function setKibble(left: number) {
+    kibble.visible = left > 0;
+    for (let i = 0; i < KIBBLE; i++) {
+      const on = i < Math.ceil(left * KIBBLE);
+      const a = i * 2.4, r = (i % 3) * 0.035;
+      mtx.makeTranslation(kibbleAt.x + Math.cos(a) * r, 0.135 + Math.floor(i / 5) * 0.04, kibbleAt.z + Math.sin(a) * r);
+      kibble.setMatrixAt(i, on ? mtx : zeroM);
+    }
+    kibble.instanceMatrix.needsUpdate = true;
+  }
+  const zeroM = new THREE.Matrix4().makeScale(0, 0, 0);
+
   // Selection ring.
   const ringGeo = new THREE.RingGeometry(0.5, 0.7, 32);
   ringGeo.rotateX(-Math.PI / 2);
@@ -332,14 +399,47 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
   ring.renderOrder = 2;
   scene.add(ring);
 
+  // Steady ring under the player's active cat (mint, no pulse).
+  const homeRingGeo = new THREE.RingGeometry(0.56, 0.68, 32);
+  homeRingGeo.rotateX(-Math.PI / 2);
+  const homeRing = new THREE.Mesh(homeRingGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color(0xd5f4e5).multiplyScalar(1.3), transparent: true, opacity: 0.85, depthWrite: false }));
+  homeRing.visible = false;
+  homeRing.renderOrder = 2;
+  homeRing.name = 'home-ring';
+  scene.add(homeRing);
+
   // ---- cats ---------------------------------------------------------------------------------
   const world = garden.world;
+  // Spawn inside a smaller box when asked (the agents still roam the whole plaza afterwards).
+  const spawnWorld: YardWorld = opts.spawnNear
+    ? {
+        ...world,
+        bounds: {
+          minX: Math.max(world.bounds.minX, opts.spawnNear.x - opts.spawnNear.r),
+          maxX: Math.min(world.bounds.maxX, opts.spawnNear.x + opts.spawnNear.r),
+          minZ: Math.max(world.bounds.minZ, opts.spawnNear.z - opts.spawnNear.r),
+          maxZ: Math.min(world.bounds.maxZ, opts.spawnNear.z + opts.spawnNear.r),
+        },
+      }
+    : world;
   const agents: YardAgent[] = [];
   const slots: CatSlot[] = entries.map((entry) => {
-    const agent = createAgent(entry.id, world, agents);
+    const agent = createAgent(entry.id, spawnWorld, agents);
     agents.push(agent);
     return { entry, agent, sheet: null, lo: null, hi: null, cur: null, row: '', faceX: agent.rng & 1 ? 1 : -1 };
   });
+  // Soft glow under blessed cats (additive, one instanced draw call).
+  const auraSlots = slots.map((s, i) => ({ i, color: opts.aura?.(s.entry.id) })).filter((a): a is { i: number; color: number } => a.color != null);
+  const auraGeo = new THREE.PlaneGeometry(1.5, 1.5);
+  auraGeo.rotateX(-Math.PI / 2);
+  const auras = new THREE.InstancedMesh(auraGeo, new THREE.MeshBasicMaterial({ map: softTex, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }), Math.max(1, auraSlots.length));
+  auras.name = 'auras';
+  auras.visible = auraSlots.length > 0;
+  auras.renderOrder = 1;
+  auras.frustumCulled = false;
+  auras.matrixAutoUpdate = false;
+  auraSlots.forEach((a, k) => auras.setColorAt(k, new THREE.Color(a.color)));
+  scene.add(auras);
   const meshToSlot = new Map<THREE.Object3D, number>();
   const prewarm: (() => unknown)[] = [];
   let prewarmHead = 0;
@@ -375,7 +475,10 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
           loaded++;
           queuePrewarm(sheet, detail === 'high' ? SPRITE_EXTRUDE : SPRITE_EXTRUDE_LOD);
         })
-        .catch((err) => console.warn('[yard] sheet failed', slot.entry.id, err)),
+        .catch((err) => {
+          console.warn('[yard] sheet failed', slot.entry.id, err);
+          if (!disposed) opts.onSheetError?.(slot.entry.id, err);
+        }),
     ),
   ).then(() => undefined);
 
@@ -449,6 +552,16 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
     zoomGoal = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
     if (immediate || reduced) zoom = zoomGoal;
   }
+  function lookAt(id: string, z?: number) {
+    const s = slots.find((x) => x.entry.id === id);
+    if (!s) return;
+    followIdx = -1;
+    vel.set(0, 0);
+    if (z != null) setZoomGoal(z, true);
+    target.set(s.agent.x, 0, s.agent.z);
+  }
+  if (opts.initialFocus) lookAt(opts.initialFocus, opts.initialZoom ?? 1);
+  else if (opts.initialZoom) setZoomGoal(opts.initialZoom, true);
 
   const resize = () => {
     const r = root.getBoundingClientRect();
@@ -654,7 +767,9 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
     followBtn.textContent = followIdx >= 0 ? 'Following' : 'Follow';
     if (followIdx >= 0 && zoomGoal < 1.8) setZoomGoal(2);
   });
-  chooseBtn?.addEventListener('click', () => selected && opts.onChoose?.(selected));
+  chooseBtn?.addEventListener('click', () => {
+    if (selected && !(chooseBtn as HTMLButtonElement).disabled) opts.onChoose?.(selected);
+  });
 
   let selected: string | null = null;
   /** Index of the selected slot (-1: none), so the loop does not search for it every frame. */
@@ -667,6 +782,28 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
     labelShown = on;
     label.style.display = on ? 'block' : 'none';
   }
+  function fillCard(slot: CatSlot) {
+    const info = opts.describe?.(slot.entry.id);
+    const seed = slot.agent.sleepy * 1000;
+    cardFact.textContent = info?.fact ?? `Loves ${FAVOURITES[Math.floor(seed) % FAVOURITES.length]} and ${QUIRKS[Math.floor(slot.agent.playful * 1000) % QUIRKS.length]}.`;
+    if (chooseBtn) {
+      chooseBtn.textContent = info?.chooseLabel ?? opts.chooseLabel ?? 'Take on heist';
+      (chooseBtn as HTMLButtonElement).disabled = !!info?.chooseDisabled;
+    }
+  }
+  let highlightIdx = opts.highlight ? entries.findIndex((e) => e.id === opts.highlight) : -1;
+  let highlightText = opts.highlightLabel ?? (highlightIdx >= 0 ? entries[highlightIdx].name : '');
+  tag.textContent = highlightText;
+  let tagShown = false;
+  let tagX = NaN, tagY = NaN;
+  function showTag(on: boolean) {
+    if (on === tagShown) return;
+    tagShown = on;
+    tag.style.display = on ? 'block' : 'none';
+  }
+  /** Feeds in flight: resolve once the agent finished one more meal than when it was sent. */
+  const feeds: { idx: number; meals: number; eating: boolean; resolve: () => void }[] = [];
+  let kibbleLeft = 0;
   function select(id: string | null) {
     const prev = selIdx >= 0 ? slots[selIdx] : undefined;
     if (prev) release(prev.agent);
@@ -679,8 +816,7 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
       poke(slot.agent);
       cardPortrait.replaceChildren(createPortrait(slot.entry, { size: 80, base }));
       cardName.textContent = slot.entry.name;
-      const seed = slot.agent.sleepy * 1000;
-      cardFact.textContent = `Loves ${FAVOURITES[Math.floor(seed) % FAVOURITES.length]} and ${QUIRKS[Math.floor(slot.agent.playful * 1000) % QUIRKS.length]}.`;
+      fillCard(slot);
       card.classList.add('chy-on');
       label.textContent = slot.entry.name;
       showLabel(true);
@@ -848,6 +984,60 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
     }
     butterflies.instanceMatrix.needsUpdate = true;
 
+    // Auras under blessed cats.
+    if (auraSlots.length) {
+      const pulse = reduced ? 1 : 1 + Math.sin(time * 2.2) * 0.08;
+      auraSlots.forEach((au, k) => {
+        const s = slots[au.i];
+        if (!s.cur) auras.setMatrixAt(k, zero);
+        else auras.setMatrixAt(k, mtx.makeScale(pulse, 1, pulse).setPosition(s.agent.x, 0.02, s.agent.z));
+      });
+      auras.instanceMatrix.needsUpdate = true;
+    }
+
+    // Feeding: the heap shrinks while the cat eats; a finished meal resolves its feed().
+    if (feeds.length) {
+      let eating = false;
+      for (let k = feeds.length - 1; k >= 0; k--) {
+        const f = feeds[k];
+        const a = slots[f.idx].agent;
+        if (a.meals > f.meals) {
+          feeds.splice(k, 1);
+          // The camera followed the cat to the bowls; leave it there.
+          if (followIdx === f.idx && selIdx !== f.idx) followIdx = -1;
+          f.resolve();
+        } else if (a.behaviour === 'EAT') {
+          eating = true;
+          if (!f.eating) {
+            f.eating = true;
+            opts.onEat?.(slots[f.idx].entry.id);
+          }
+        }
+      }
+      if (eating) kibbleLeft = Math.max(0.12, kibbleLeft - dt * 0.4);
+      if (!feeds.length) kibbleLeft = 0;
+      setKibble(kibbleLeft);
+    }
+
+    // Steady ring + tag under the active cat (the selection ring and label take over when selected).
+    const hl = highlightIdx >= 0 ? slots[highlightIdx] : undefined;
+    if (hl && hl.cur && highlightIdx !== selIdx) {
+      homeRing.visible = true;
+      homeRing.position.set(hl.agent.x, 0.025, hl.agent.z);
+      tmpV.set(hl.agent.x, 1.35, hl.agent.z).project(camera);
+      const vis = !!highlightText && tmpV.x > -1.1 && tmpV.x < 1.1 && tmpV.y > -1.1 && tmpV.y < 1.1;
+      showTag(vis);
+      const lx = Math.round(((tmpV.x + 1) / 2) * viewW), ly = Math.round(((1 - tmpV.y) / 2) * viewH);
+      if (vis && (lx !== tagX || ly !== tagY)) {
+        tagX = lx;
+        tagY = ly;
+        tag.style.transform = `translate(${lx}px, ${ly}px) translate(-50%, -100%)`;
+      }
+    } else {
+      homeRing.visible = false;
+      showTag(false);
+    }
+
     // Selection ring + floating label.
     const sel = selIdx >= 0 ? slots[selIdx] : undefined;
     if (sel && sel.cur) {
@@ -906,6 +1096,32 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
       setZoomGoal(z, true);
       applyCamera();
     },
+    lookAt(id, z) {
+      lookAt(id, z);
+      applyCamera();
+    },
+    setHighlight(id, text) {
+      highlightIdx = id ? slots.findIndex((s) => s.entry.id === id) : -1;
+      highlightText = text ?? (highlightIdx >= 0 ? slots[highlightIdx].entry.name : '');
+      tag.textContent = highlightText;
+    },
+    refreshCard() {
+      if (selIdx >= 0) fillCard(slots[selIdx]);
+    },
+    feed(id) {
+      const idx = slots.findIndex((s) => s.entry.id === id);
+      if (idx < 0 || disposed) return Promise.resolve();
+      const a = slots[idx].agent;
+      return new Promise<void>((resolve) => {
+        feeds.push({ idx, meals: a.meals, eating: false, resolve });
+        // Follow it to the bowls so the meal is on screen (a drag takes the camera back).
+        followIdx = idx;
+        kibbleLeft = 1;
+        setKibble(1);
+        const spot = garden.feedSpot;
+        sendTo(a, world, spot.x, spot.z, 'EAT', 2.2);
+      });
+    },
     stats() {
       return {
         calls: renderer.info.render.calls,
@@ -934,6 +1150,8 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
       if (disposed) return;
       disposed = true;
       stop();
+      // A pending feed() must not hang a caller that awaits it.
+      for (const f of feeds.splice(0)) f.resolve();
       ro?.disconnect();
       window.removeEventListener('resize', resize);
       window.removeEventListener('keydown', onEscape, true);
@@ -953,6 +1171,11 @@ export function createYard(container: HTMLElement, manifest: AssetManifest, opts
       shadowGeo.dispose();
       dropGeo.dispose();
       ringGeo.dispose();
+      homeRingGeo.dispose();
+      kibbleGeo.dispose();
+      kibble.dispose();
+      auraGeo.dispose();
+      auras.dispose();
       shadows.dispose();
       drops.dispose();
       listen.abort();

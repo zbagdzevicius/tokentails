@@ -335,7 +335,7 @@ const WebShelterReceipt = () => {
                     {!p.listed && (
                       <p className="text-tt-rust">Warning: this log did not come from a listed ShelterSplit contract.</p>
                     )}
-                    {name && (
+                    {name && campaign?.shelter.handover !== "handed-over" && (
                       <p className="text-p6 md:text-p5 text-tt-cream/75">
                         Wallet held by Token Tails on the shelter&apos;s behalf until handover.
                       </p>

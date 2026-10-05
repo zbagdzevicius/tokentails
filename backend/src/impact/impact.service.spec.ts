@@ -373,3 +373,36 @@ describe('ImpactService snapshot ledger parts (task 4f)', () => {
         expect((await ctx.service.latest(NOW)).outcomes.items.map((i: any) => i.id)).toEqual(['o-bbbbbbbbbbbb']);
     });
 });
+
+describe('BE-3: other chains count while the main chain is not deployed or not indexed yet', () => {
+    const ARB = '0x' + '4a'.repeat(20);
+    afterEach(() => {
+        delete process.env.SHELTER_RELAY_CHAINS;
+        delete process.env.SHELTER_CHAIN_42161_SPLIT_ADDRESS;
+    });
+
+    it('serves an Arbitrum payout with no Arc mainnet split recorded', async () => {
+        withShelterEnv({});
+        process.env.SHELTER_RELAY_CHAINS = '42161';
+        process.env.SHELTER_CHAIN_42161_SPLIT_ADDRESS = ARB;
+        const { service, cursors } = impactFixture();
+        const at = new Date(NOW.getTime() - 60000);
+        cursors.rows.push({
+            _id: cursorIdFor(42161, ARB),
+            chainId: 42161,
+            contract: ARB,
+            fromBlock: 1,
+            lastScannedBlock: 50,
+            totals: { direct: { USDC: '100000' } },
+            eventCount: 1,
+            lastSuccessAt: at,
+        });
+        const data = await service.build(NOW);
+        expect(data.money.bySymbol).toEqual({ USDC: '100000' });
+        expect(data.money.eventCount).toBe(1);
+        expect(data.sources.chain).toBe('ok');
+        expect(data.asOf.chain).toBe(at.toISOString());
+        // the main chain itself is still reported as not deployed
+        expect(data.chain.contract).toBeNull();
+    });
+});

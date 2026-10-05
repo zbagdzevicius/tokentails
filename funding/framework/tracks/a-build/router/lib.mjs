@@ -14,6 +14,47 @@ import { fileURLToPath } from 'node:url';
 
 export const TRACK_DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const ROUTER_DEPLOYMENTS = join(TRACK_DIR, 'router-deployments.json');
+/** The public projection the client reads (give-from-wallet). Written by `fund router record`. */
+export const CLIENT_ROUTERS = join(TRACK_DIR, '..', '..', '..', '..', 'client', 'public', 'shelter-payouts', 'routers.json');
+
+/**
+ * The files the router tooling reads and writes, honouring the same FUND_A_* overrides as
+ * distribute.mjs and track.mjs, so a staging run never mixes in the real repo files.
+ */
+export const routerPaths = {
+  chains: () => process.env.FUND_A_CHAINS || join(TRACK_DIR, 'chains.json'),
+  deployments: () => process.env.FUND_A_DEPLOYMENTS || join(TRACK_DIR, 'deployments.json'),
+  routers: () => process.env.FUND_A_ROUTER_DEPLOYMENTS || ROUTER_DEPLOYMENTS,
+  // A staging run (FUND_A_ROUTER_DEPLOYMENTS set) never writes the real client file unless told where.
+  clientRouters: () => process.env.FUND_A_CLIENT_ROUTERS || (process.env.FUND_A_ROUTER_DEPLOYMENTS ? null : CLIENT_ROUTERS),
+};
+
+/**
+ * True when `entry` is already recorded: same chain, same network, same router address. One deployer
+ * with the same nonce sequence gets the same CREATE address on several chains, so the address alone
+ * is not a key.
+ */
+export function routerAlreadyRecorded(list, entry) {
+  const a = String(entry?.router || '').toLowerCase();
+  return (Array.isArray(list) ? list : []).some((x) =>
+    Number(x.chainId) === Number(entry.chainId) && x.network === entry.network && String(x.router).toLowerCase() === a);
+}
+
+/**
+ * client/public/shelter-payouts/routers.json from router-deployments.json: chainId, router, usdc,
+ * network, symbol only when it is not USDC, and eip3009. Leaves out label, split, deployTx and notes
+ * (that file ships in app builds, where copy-lint R10 refuses chain names).
+ */
+export function publicRouters(list) {
+  return (Array.isArray(list) ? list : []).map((r) => ({
+    chainId: Number(r.chainId),
+    router: r.router,
+    usdc: r.usdc,
+    network: r.network,
+    ...(r.symbol && r.symbol !== 'USDC' ? { symbol: r.symbol } : {}),
+    ...(r.eip3009 === true ? { eip3009: true } : {}),
+  }));
+}
 const ADDR = /^0x[0-9a-fA-F]{40}$/;
 const NETWORKS = ['testnet', 'mainnet'];
 
@@ -143,9 +184,9 @@ export function routerDryRun({ chainId, split, token, chains, deployments, route
   const problems = [];
   const lines = [];
   if (!Number.isInteger(Number(chainId)) || !chainId) return { ok: false, lines, problems: ['--chain <chain id> is required'] };
-  chains = chains ?? readJson(join(TRACK_DIR, 'chains.json'), {});
-  deployments = deployments ?? readJson(join(TRACK_DIR, 'deployments.json'), []);
-  routerDeployments = routerDeployments ?? readJson(ROUTER_DEPLOYMENTS, []);
+  chains = chains ?? readJson(routerPaths.chains(), {});
+  deployments = deployments ?? readJson(routerPaths.deployments(), []);
+  routerDeployments = routerDeployments ?? readJson(routerPaths.routers(), []);
 
   const found = findNetwork(chainId, chains);
   if (!found) return { ok: false, lines, problems: [`chain ${chainId} is not in chains.json`] };
@@ -222,7 +263,7 @@ export function rotateDryRun({ chainId, split, oldWallet, newWallet, name, bps =
   if (!(Number.isInteger(bps) && bps > 0 && bps <= 10000)) problems.push('bps must be 1..10000');
   if (problems.length) return { ok: false, lines, problems };
 
-  const net = findNetwork(chainId, chains ?? readJson(join(TRACK_DIR, 'chains.json'), {}));
+  const net = findNetwork(chainId, chains ?? readJson(routerPaths.chains(), {}));
   const rpc = net?.rpcEnv ? `"$${net.rpcEnv}"` : '<rpc url>';
   const as = '--account <split owner keystore>';
   lines.push(`Shelter handover on ${net ? `${net.chain} ${net.network}` : 'chain'} ${chainId} (DRY RUN: nothing is sent; the split owner runs these)`);

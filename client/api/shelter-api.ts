@@ -31,6 +31,8 @@ export interface TreatChainStatus {
   treatsLeftToday?: number;
   splitAddress: string | null;
   explorer: string | null;
+  /** Why the chain is not enabled (the backend's treat health or config), e.g. "the RPC is not answering". */
+  reason?: string;
 }
 
 export interface DonateStatus {

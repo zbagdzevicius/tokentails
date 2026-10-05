@@ -35,6 +35,8 @@ export interface TreatChip {
   main: boolean;
   /** The backend's entry for this chain, when it reported one. */
   status: TreatChainStatus | null;
+  /** The backend's full reason when the chip cannot be picked (for a tooltip), else null. */
+  detail: string | null;
 }
 
 /**
@@ -70,13 +72,35 @@ export function treatsLeft(c: Pick<TreatChainStatus, "amountWei" | "remainingTod
   return amount > BigInt(0) ? BigInt(c.remainingTodayWei || "0") / amount : BigInt(0);
 }
 
+/**
+ * A short chip label for the backend's reason: a chain that is not funded yet "Opens soon", an RPC that
+ * does not answer "Network busy", anything else (a paused split, an operator switch) "Paused".
+ */
+export function shortReason(reason: string | undefined | null): string {
+  const r = String(reason || "").toLowerCase();
+  if (/rpc|not answering|timeout|network/.test(r)) return "Network busy";
+  if (/hot wallet|no gas|low on gas|less than one treat|no key|key or split|not funded/.test(r)) return "Opens soon";
+  return "Paused";
+}
+
 const reasonFor = (c: TreatChainStatus | null): string | null => {
   if (!c) return "Not open yet";
   if (c.railState === "not-deployed") return "Not open yet";
-  if (!c.enabled || c.railState === "paused") return "Paused";
+  if (!c.enabled || c.railState === "paused") return shortReason(c.reason);
   if (c.railState === "exhausted" || treatsLeft(c) <= BigInt(0)) return "Jar empty today";
   return null;
 };
+
+/**
+ * Whether a treat can be sent right now on ANY network the backend serves: the payouts page hero, its
+ * closing button and the Heist follow this, so a paused main chain does not hide a live one (the give
+ * page then picks that chain, initialTreatChain).
+ */
+export function treatJarOpen(status: DonateStatus | null | undefined): boolean {
+  return backendTreatChains(status).some(
+    (c) => c.enabled && c.railState !== "paused" && c.railState !== "not-deployed" && treatsLeft(c) > BigInt(0)
+  );
+}
 
 const nameOf = (chainId: number): string =>
   SHELTER_CHAINS[chainId] ? chainDisplayName(SHELTER_CHAINS[chainId]) : `Chain ${chainId}`;
@@ -105,6 +129,7 @@ export function treatChips(status: DonateStatus | null | undefined): TreatChip[]
       reason,
       main: chainId === mainId,
       status: entry,
+      detail: reason !== null && entry?.reason ? entry.reason : null,
     };
   });
 }

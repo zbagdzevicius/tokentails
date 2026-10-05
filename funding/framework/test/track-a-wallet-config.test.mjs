@@ -41,3 +41,28 @@ test('default split: the router-backed primary-token instance, else the newest; 
   cfg = W.walletConfig({ list: [dep(e, 'EURC')], chains });
   assert.equal(cfg.chains.baseTestnet.split, null); // a second token is never the default
 });
+
+test('C4/BE-5: Tempo mainnet pays USDC.e: the generated config, the published symbol and the token lookups agree', () => {
+  const chains = read('chains.json');
+  const n = chains.tempo.networks.mainnet;
+  assert.equal(n.usdcSymbol, 'USDC.e');
+  assert.equal(W.splitToken(n).symbol, 'USDC.e');
+  assert.equal(W.splitToken(n, 'USDC').alt, false, 'asking for USDC on Tempo still means its bridged USDC');
+  assert.equal(W.tokenSymbolOf(n, n.usdc), 'USDC.e');
+  const SPLIT = '0x' + 'aa'.repeat(20);
+  const list = [{ contract: 'ShelterSplit', chain: 'tempo', network: 'mainnet', chainId: 4217, address: SPLIT, token: 'USDC.e' }];
+  delete chains._readme;
+  const cfg = W.walletConfig({ list, chains, routers: [], wallets: [] });
+  assert.equal(cfg.chains.tempoMainnet.token.symbol, 'USDC.e');
+  assert.equal(cfg.chains.tempoMainnet.split.token.symbol, 'USDC.e');
+  assert.equal(W.publicDeployments(list, chains, 'mainnet')[0].symbol, 'USDC.e');
+  // the backend's own label for 4217 (impact indexer units) says the same
+  const logs = readFileSync(join(HERE, '..', '..', '..', 'backend', 'src', 'impact', 'shelter-logs.ts'), 'utf8');
+  assert.match(logs, /4217[^\n]*USDC\.e/);
+});
+
+test('C5: Arc mainnet source verification goes to Sourcify (explorer.arc.io/api sits behind a Cloudflare challenge)', () => {
+  const v = read('chains.json').arc.networks.mainnet.verifier;
+  assert.equal(v.type, 'sourcify');
+  assert.equal(v.url, 'https://sourcify.dev/server');
+});

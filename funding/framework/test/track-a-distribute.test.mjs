@@ -409,7 +409,7 @@ test('the committed mainnet plan is the minimal profile: per-chain balance check
     arc: { USDC: '0.7', EURC: '0.1' },
     tempo: { pathUSD: '0.15', USDC: '0.3' },
     arbitrum: { ETH: '0.0004', USDC: '0.2' },
-    avalanche: { AVAX: '0.06', USDC: '0.2' },
+    avalanche: { AVAX: '0.075', USDC: '0.2' },
     base: { ETH: '0.0007', USDC: '0.2' },
     robinhood: { ETH: '0.0004', USDG: '0.2' },
     monad: { MON: '2', USDC: '0.2' },
@@ -423,4 +423,87 @@ test('the committed mainnet plan is the minimal profile: per-chain balance check
   assert.deepEqual(top.problems, []);
   assert.ok(top.chains.every((c) => c.assets.every((a) => a.reserve === '0')), 'top-up keeps no deploy reserve');
   assert.ok(top.chains.find((c) => c.chain === 'base').rows.some((x) => x.role === 'agent'), 'the Base agent comes with the top-up');
+});
+
+// ---- mainnet-audit fixes (S2, S3, S4, S5, S7, S9, S10)
+
+test('S3: pending lists a missing proof payout on a recorded mainnet split (primary and EURC), never on testnet', () => {
+  const cj = { arc: { networks: { mainnet: { chainId: 5042, usdc: '0x3600000000000000000000000000000000000000', splitTokens: { EURC: { address: EURC } } }, testnet: chains.arc.networks.testnet } } };
+  const dep = (network, token, extra = {}) => ({ contract: 'ShelterSplit', chain: 'arc', network, address: '0x' + '99'.repeat(20), token, verified: true, sourceVerified: true, ...extra });
+  const deploy = { chains: ['arc'], eurcChains: ['arc'] };
+  let p = D.pendingSteps({ deploy, network: 'mainnet', chains: cj, deployments: [dep('mainnet', 'USDC'), dep('mainnet', 'EURC', { proofTxs: ['0x1'] })], routers: [] });
+  assert.deepEqual(p.arc, ['proof']);
+  p = D.pendingSteps({ deploy, network: 'mainnet', chains: cj, deployments: [dep('mainnet', 'USDC', { proofTxs: ['0x1'] }), dep('mainnet', 'EURC')], routers: [] });
+  assert.deepEqual(p.arc, ['proof-eurc']);
+  p = D.pendingSteps({ deploy, network: 'testnet', chains: cj, deployments: [dep('testnet', 'USDC'), dep('testnet', 'EURC')], routers: [] });
+  assert.deepEqual(p.arc, []);
+  // the wrapper pays them before a:ingest, and only when PROOF_SHELTER is set
+  const sh = D.runAllScript({ network: 'mainnet', deploy: plan.mainnet.deploy, chains, wallets, date: 'x', root: tmp, project: tmp, waveDir: tmp });
+  const i4b = sh.indexOf('step "4b. proof payouts'), i5 = sh.indexOf('step "5. a:ingest');
+  assert.ok(i4b > sh.indexOf('step "4. DonateRouters') && i4b < i5);
+  assert.match(sh, /PROOF_SHELTER is empty: no proof payouts/);
+  assert.match(sh, /script\/ProofDisburse\.s\.sol:ProofDisburse/);
+  assert.match(sh, /CASTP='  '/);
+  const cast = { ...chains, arc: { ...chains.arc, networks: { ...chains.arc.networks, mainnet: { ...chains.arc.networks.mainnet, proofVia: 'cast' } } } };
+  assert.match(D.runAllScript({ network: 'mainnet', deploy: plan.mainnet.deploy, chains: cast, wallets, date: 'x', root: tmp, project: tmp, waveDir: tmp }), /CASTP=' arc '/, 'Arc pays its proof with cast sends (chains.json proofVia)');
+});
+
+test('S2: the deploy reserve is counted only on chains with a ShelterSplit still to deploy', () => {
+  const sh = D.runAllScript({ network: 'mainnet', deploy: plan.mainnet.deploy, chains, wallets, date: 'x', root: tmp, project: tmp, waveDir: tmp });
+  const js = sh.match(/RES_CHAINS="\$\(node -e '([^']*)' "\$PEND"\)"/)[1];
+  const res = (pend) => spawnSync(process.execPath, ['-e', js, JSON.stringify(pend)], { encoding: 'utf8' }).stdout.trim();
+  assert.equal(res({ arc: ['router-usdc', 'proof', 'verify'], base: ['usdc', 'router-usdc'], avax: ['eurc'] }), 'base,avax');
+  assert.equal(res({ arc: ['router-eurc'] }), '');
+});
+
+test('S5: a dry run plans routers after an unrecorded split instead of stopping the chain', () => {
+  const sh = D.runAllScript({ network: 'mainnet', deploy: plan.mainnet.deploy, chains, wallets, date: 'x', root: tmp, project: tmp, waveDir: tmp });
+  assert.match(sh, /if \[ "\$DRY" = 1 \] && grep -q "ShelterSplit recorded" "\$rerr"; then echo "  \$c \$sym router: would deploy a DonateRouter/);
+});
+
+test('S7: the mainnet wrapper refuses a leftover PROOF_AMOUNT or treasury from the shell, before signing anything', () => {
+  const all = join(tmp, 'mainnet-all-s7.sh');
+  writeFileSync(all, D.runAllScript({ network: 'mainnet', deploy: plan.mainnet.deploy, chains, wallets, date: 'x', root: tmp, project: tmp, waveDir: tmp }));
+  assert.equal(spawnSync('bash', ['-n', all]).status, 0);
+  let o = run(all, { CONFIRM_MAINNET: 'yes', PROOF_AMOUNT: '1000000' });
+  assert.equal(o.status, 1);
+  assert.match(o.stdout, /refused: PROOF_AMOUNT=1000000, but funding-plan\.json budgets 100000/);
+  o = run(all, { CONFIRM_MAINNET: 'yes', SHELTERSPLIT_TREASURY: '0x' + '66'.repeat(20) });
+  assert.equal(o.status, 1);
+  assert.match(o.stdout, /refused: SHELTERSPLIT_TREASURY=.* is not the wallets\.public\.json treasury/);
+  assert.match(readFileSync(all, 'utf8'), /export CONFIRM_MAINNET/);
+});
+
+test('S9 + S10: the Tempo memo prints the real signer flags, only with a proof shelter, from the env-resolved deployments file', () => {
+  const t = D.runAllScript({ network: 'testnet', deploy: plan.testnet.deploy, chains, wallets, date: 'x', root: tmp, project: tmp, waveDir: tmp });
+  assert.doesNotMatch(t, /--account \$FUND_KEYSTORE --tempo/);
+  assert.match(t, /\$SIGNER_TXT --tempo\.fee-token/);
+  assert.match(t, /if \[ -n "\$\{PROOF_SHELTER:-\}" \] && \[ -n "\$TEMPO_SPLIT" \]/);
+  assert.match(t, /DEPLOYMENTS="\$\{FUND_A_DEPLOYMENTS:-\$FUND_ROOT\/tracks\/a-build\/deployments\.json\}"/);
+  assert.match(t, /"\$DEPLOYMENTS" "\$NETWORK"\)"/);
+  assert.doesNotMatch(t, /"\$FUND_ROOT\/tracks\/a-build\/deployments\.json" "\$NETWORK"/);
+});
+
+test('S4: with WITH_RESERVE=1 a chain with baseFeeCapGwei refuses a base fee above the cap (stub cast)', () => {
+  const p2 = { mainnet: { deploy: plan.mainnet.deploy, chains: { arc: { ...plan.mainnet.chains.arc, baseFeeCapGwei: '10', deployer: { native: '0.01', reason: 'deploys' } } } } };
+  const r = D.resolvePlan({ plan: p2, chains, wallets, network: 'mainnet' });
+  assert.deepEqual(r.problems, []);
+  assert.equal(r.chains[0].baseFeeCap, '10000000000');
+  const f = join(tmp, 'distribute-basefee.sh');
+  writeFileSync(f, D.distributeScript(r, { network: 'mainnet', date: 'x' }));
+  const fee = join(stubDir, 'cast-fee');
+  writeFileSync(fee, `#!/usr/bin/env bash\nif [ "$1" = base-fee ]; then echo "\${FAKE_BASE_FEE}"; exit 0; fi\nexec ${JSON.stringify(STUB)} "$@"\n`);
+  chmodSync(fee, 0o755);
+  writeFileSync(BAL, JSON.stringify({ ids: { 'http://arc-m': '5042' }, [`http://arc-m:native:${DEPLOYER}`]: '100000000000000000000' }));
+  writeFileSync(LOG, '');
+  let o = run(f, { CONFIRM_MAINNET: 'yes', CAST_BIN: fee, CHECK_ONLY: '1', WITH_RESERVE: '1', FAKE_BASE_FEE: '20000000000' });
+  assert.equal(o.status, 1, o.stdout);
+  assert.match(o.stdout, /base fee is above what the deploy reserve covers/);
+  o = run(f, { CONFIRM_MAINNET: 'yes', CAST_BIN: fee, CHECK_ONLY: '1', WITH_RESERVE: '1', FAKE_BASE_FEE: '5000000000' });
+  assert.equal(o.status, 0, o.stdout);
+  assert.match(o.stdout, /base fee 5 gwei \(the deploy reserve covers up to 10 gwei\)/);
+  assert.equal(readFileSync(LOG, 'utf8'), '');
+  // the committed plan caps Avalanche
+  const real = JSON.parse(readFileSync(join(HERE, '..', 'tracks', 'a-build', 'funding-plan.json'), 'utf8'));
+  assert.equal(real.mainnet.chains.avalanche.baseFeeCapGwei, '10');
 });

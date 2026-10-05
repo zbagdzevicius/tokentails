@@ -13,7 +13,13 @@ import {
     matchMemo,
     ROUTER_PATH,
 } from './donate-router';
-import { DonationBroadcastError, hotWalletAddress, ShelterChain, shelterSplitInterface } from './shelter-chain';
+import {
+    DonationBroadcastError,
+    erc20Interface as chainErc20,
+    hotWalletAddress,
+    ShelterChain,
+    shelterSplitInterface,
+} from './shelter-chain';
 import { ShelterClaimService } from './shelter-claim.service';
 import { utcDay } from './shelter-donate.service';
 import {
@@ -448,11 +454,20 @@ export class ShelterMatchService {
                 // Arc: the native coin is USDC (18 decimals), so the match is one ShelterSplit.donate call.
                 await this.chain.sendDonation(config, memo, match * NATIVE_SCALE, onSigned);
             } else {
-                // Other chains: approve the split for exactly the match, wait for it, then disburse.
+                // Other chains: approve the split for the match ON TOP of what treats already left approved,
+                // wait for it, then disburse. A plain approve(match) would overwrite the treats' daily
+                // allowance, and a treat sent in between would spend part of the match's (SEC-6).
                 const token = await this.splitToken(config);
+                const hot = hotWalletAddress(config);
+                const current = hot
+                    ? await this.chain
+                          .ethCall(config, token, chainErc20.encodeFunctionData('allowance', [hot, config.splitAddress]))
+                          .then(raw => getBigInt(chainErc20.decodeFunctionResult('allowance', raw)[0]))
+                          .catch(() => ZERO)
+                    : ZERO;
                 const approve = await this.chain.sendContractCall(
                     token,
-                    erc20Interface.encodeFunctionData('approve', [config.splitAddress, match]),
+                    erc20Interface.encodeFunctionData('approve', [config.splitAddress, current + match]),
                     ZERO,
                     { config }
                 );

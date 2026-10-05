@@ -43,7 +43,7 @@ interface ChainUnits {
 export const PAYOUT_CHAINS: Record<number, ChainUnits> = {
   5042: { rpc: 'https://rpc.mainnet.arc.io', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'USDC' },
   5042002: { rpc: 'https://rpc.testnet.arc.io', logsApi: 'https://explorer.testnet.arc.io/api', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'USDC' },
-  4217: { rpc: 'https://rpc.tempo.xyz', decimals: 6, symbol: 'USDC' },
+  4217: { rpc: 'https://rpc.tempo.xyz', maxLogRange: 99_999, decimals: 6, symbol: 'USDC' },
   42431: { rpc: 'https://rpc.moderato.tempo.xyz', decimals: 6, symbol: 'pathUSD' },
   42161: { rpc: 'https://arb1.arbitrum.io/rpc', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
   421614: { rpc: 'https://sepolia-rollup.arbitrum.io/rpc', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },

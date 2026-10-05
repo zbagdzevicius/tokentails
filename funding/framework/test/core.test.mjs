@@ -173,3 +173,26 @@ test('single-brace fill-after-deploy slots ({SPLIT_ADDRESS}, {ARC_TX}) are place
   makeApp('braces', { criteria, draft: '## Impact <!-- criterion: C1 -->\nThe payload is {"id": 1} and {shelter}.\n' });
   assert.equal(level(await check('braces'), 'placeholders'), 'ok');
 });
+
+test('SUB-3: limits are checked with placeholders filled at worst case (0x address 42, tx hash 66, URL 60)', async () => {
+  assert.equal(CORE.placeholderWorstCase('ARB_SPLIT'), 42);
+  assert.equal(CORE.placeholderWorstCase('TEMPO_TX'), 66);
+  assert.equal(CORE.placeholderWorstCase('DEMO_URL'), 60);
+  makeApp('ph', {
+    criteria: '| C1 | V | 100% | "v" |\n',
+    draft: '## Chains <!-- criterion: C1 | limit: 60 -->\nSplit at {ARB_SPLIT} and {BASE_SPLIT}.\n',
+  });
+  const rs = await check('ph');
+  assert.equal(level(rs, 'limits'), 'error');
+  assert.match(rs.find((r) => r.name === 'limits').detail, /once placeholders are filled/);
+});
+
+test('SUB-2: a draft that never names its call chain is flagged (a warning at every status)', async () => {
+  const draft = '## Why <!-- criterion: C1 -->\nShelterSplit pays shelters on Tempo.\n';
+  makeApp('chain-draft', { call: { chain: 'avalanche' }, criteria: '| C1 | V | 100% | "v" |\n', draft });
+  assert.equal(level(await check('chain-draft'), 'chain'), 'warn');
+  makeApp('chain-review', { call: { chain: 'avalanche', status: 'in-review' }, criteria: '| C1 | V | 100% | "v" |\n', draft });
+  assert.equal(level(await check('chain-review'), 'chain'), 'warn');
+  makeApp('chain-ok', { call: { chain: ['tempo'] }, criteria: '| C1 | V | 100% | "v" |\n', draft });
+  assert.equal(level(await check('chain-ok'), 'chain'), 'ok');
+});

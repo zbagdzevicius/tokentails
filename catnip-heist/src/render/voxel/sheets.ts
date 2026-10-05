@@ -46,9 +46,19 @@ export interface VoxelSheet {
 
 let manifestPromise: Promise<AssetManifest> | null = null;
 
+/** Absolute (`https:`, `data:`, `blob:`...) and root-relative paths are used as they are. */
+const ABSOLUTE_URL = /^(?:[a-z][a-z0-9+.-]*:|\/)/i;
+
 export function assetUrl(path: string, base = ASSET_BASE): string {
-  return base + path;
+  return ABSOLUTE_URL.test(path) ? path : base + path;
 }
+
+/**
+ * What loadVoxelSheet needs: a manifest entry, or a sheet whose rows are not known yet (a player's
+ * own cat from the client). Without `rows`, frames are detected from the pixels and the rows are
+ * named from `rowNames` (in sheet order), else ROW0, ROW1, ...
+ */
+export type SheetSource = Omit<SheetEntry, 'rows'> & { rows?: SheetRow[]; rowNames?: readonly string[] };
 
 export function loadManifest(base = ASSET_BASE): Promise<AssetManifest> {
   if (!manifestPromise) {
@@ -130,20 +140,16 @@ function pickAnchorRow(rows: SheetRow[]): SheetRow | undefined {
 
 /**
  * Load a sheet described by a manifest entry. If the entry has no rows, frames are detected from
- * the pixels (rows are then named ROW0, ROW1, ...).
+ * the pixels (rows are then named from `rowNames`, else ROW0, ROW1, ...).
  */
-export function loadVoxelSheet(entry: SheetEntry, base = ASSET_BASE, frame = FRAME_PX): Promise<VoxelSheet> {
+export function loadVoxelSheet(entry: SheetSource, base = ASSET_BASE, frame = FRAME_PX): Promise<VoxelSheet> {
   const url = assetUrl(entry.sheet, base);
   let p = sheetCache.get(url);
   if (!p) {
     p = loadPixels(url).then((pixels) => {
       let rows = entry.rows;
       if (!rows || rows.length === 0) {
-        rows = detectFrames(pixels, frame).map((frames, i) => ({
-          name: `ROW${i}`,
-          frames,
-          bounds: rowBounds(pixels, frame, i, frames),
-        }));
+        rows = detectRows(pixels, frame, entry.rowNames);
       }
       const a = pickAnchorRow(rows);
       const anchorX = a ? Math.round((a.bounds.minX + a.bounds.maxX + 1) / 2) : frame / 2;
@@ -164,6 +170,15 @@ export function loadVoxelSheet(entry: SheetEntry, base = ASSET_BASE, frame = FRA
     p.catch(() => sheetCache.delete(url));
   }
   return p;
+}
+
+/** Rows detected from the pixels: frame counts, opaque bounds, and names (`names[i]`, else ROWi). */
+export function detectRows(pixels: PixelSource, frame = FRAME_PX, names?: readonly string[]): SheetRow[] {
+  return detectFrames(pixels, frame).map((frames, i) => ({
+    name: (names?.[i] ?? `ROW${i}`).toUpperCase(),
+    frames,
+    bounds: rowBounds(pixels, frame, i, frames),
+  }));
 }
 
 function rowBounds(px: PixelSource, frame: number, row: number, frames: number) {

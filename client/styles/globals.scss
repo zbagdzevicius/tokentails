@@ -383,6 +383,12 @@ html[data-zoom="locked"] body {
     );
 }
 
+// The Cat Yard's golden-hour sky (catnip-heist src/yard/Yard.ts, .chy-root), behind the Cat Yard
+// HOME while its module and cat sheets load, so the garden fades in on its own colours.
+:root {
+  --tt-yard-dusk: linear-gradient(160deg, #ffd9a0 0%, #f6b9cf 45%, #b68ad8 100%);
+}
+
 [data-sky="dusk"] {
   background-color: rgb(var(--tt-night-900));
   background-image: var(--tt-sky-dusk);

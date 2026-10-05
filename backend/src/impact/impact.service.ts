@@ -471,77 +471,89 @@ export class ImpactService implements OnApplicationBootstrap {
             fromBlock,
             lastScannedBlock: null,
         };
-        if (!config.splitAddress || !config.rpcUrl) {
-            return { money: empty, chain, chainSource: 'not-deployed' as ChainSource, chainAsOf: null };
-        }
-        const contract = config.splitAddress.toLowerCase();
-        const cursor: any = await this.cursorModel
-            .findOne({ _id: cursorIdFor(config.chainId, contract) })
-            .lean()
-            .catch(() => null);
+        // Every other indexed chain (impactChainConfigs: same network class as the main chain) adds its
+        // cursor's totals, per bucket and symbol, so USDC adds to USDC and a test coin or a gas coin stays
+        // under its own symbol. Their health does not gate the figures: a lagging chain's totals are
+        // still exactly its indexed rows. They are read first and never depend on the main chain: a main
+        // chain that is not deployed, not indexed yet or stale only affects its own figures.
+        const others = impactChainConfigs().map(c => ({ chainId: c.chainId, contract: c.splitAddress!.toLowerCase() }));
+        const otherCursors: any[] = (
+            others.length
+                ? await this.cursorModel
+                      .find({ _id: { $in: others.map(o => cursorIdFor(o.chainId, o.contract)) } })
+                      .lean()
+                      .catch(() => [])
+                : []
+        ).filter((c: any) => !!c);
+
+        const mainDeployed = !!(config.splitAddress && config.rpcUrl);
+        const contract = mainDeployed ? config.splitAddress!.toLowerCase() : null;
+        const cursor: any = mainDeployed
+            ? await this.cursorModel
+                  .findOne({ _id: cursorIdFor(config.chainId, contract!) })
+                  .lean()
+                  .catch(() => null)
+            : null;
         // A wallet.config.ts split has no SHELTER_SPLIT_FROM_BLOCK: its cursor holds the deploy block.
         if (fromBlock === null && cursor && config.autoChain && typeof cursor.fromBlock === 'number') {
             chain.fromBlock = cursor.fromBlock;
         }
-        if (!cursor || chain.fromBlock === null) {
-            return { money: empty, chain, chainSource: 'idle' as ChainSource, chainAsOf: null };
+        const mainIndexed = !!cursor && chain.fromBlock !== null;
+        const mainSource: ChainSource = !mainDeployed ? 'not-deployed' : 'idle';
+        if (!mainIndexed && !otherCursors.length) {
+            return { money: empty, chain, chainSource: mainSource, chainAsOf: null };
         }
-        chain.lastScannedBlock = typeof cursor.lastScannedBlock === 'number' ? cursor.lastScannedBlock : null;
-        const lastSuccess = cursor.lastSuccessAt ? new Date(cursor.lastSuccessAt) : null;
-        const lastError = cursor.lastErrorAt ? new Date(cursor.lastErrorAt) : null;
-        const healthy =
-            !!lastSuccess &&
-            now.getTime() - lastSuccess.getTime() <= CHAIN_STALE_MS &&
-            (!lastError || lastError.getTime() <= lastSuccess.getTime());
-
-        if (!healthy && previous?.money && previous.sources?.chain !== 'not-deployed') {
-            // Carry forward: the previous figures with the previous date, flagged as an error.
-            return {
-                money: previous.money,
-                chain,
-                chainSource: 'error' as ChainSource,
-                chainAsOf: previous.asOf?.chain || null,
-            };
+        let healthy = true;
+        let lastSuccess: Date | null = null;
+        if (mainIndexed) {
+            chain.lastScannedBlock = typeof cursor.lastScannedBlock === 'number' ? cursor.lastScannedBlock : null;
+            lastSuccess = cursor.lastSuccessAt ? new Date(cursor.lastSuccessAt) : null;
+            const lastError = cursor.lastErrorAt ? new Date(cursor.lastErrorAt) : null;
+            healthy =
+                !!lastSuccess &&
+                now.getTime() - lastSuccess.getTime() <= CHAIN_STALE_MS &&
+                (!lastError || lastError.getTime() <= lastSuccess.getTime());
+            if (!healthy && !otherCursors.length && previous?.money && previous.sources?.chain !== 'not-deployed') {
+                // Carry forward (main chain only): the previous figures with the previous date, flagged as an error.
+                return {
+                    money: previous.money,
+                    chain,
+                    chainSource: 'error' as ChainSource,
+                    chainAsOf: previous.asOf?.chain || null,
+                };
+            }
         }
-        // Every other indexed chain (impactChainConfigs: same network class as the main chain) adds its
-        // cursor's totals, per bucket and symbol, so USDC adds to USDC and a test coin or a gas coin stays
-        // under its own symbol. Their health does not gate the figures: a lagging chain's totals are
-        // still exactly its indexed rows.
-        const others = impactChainConfigs().map(c => ({ chainId: c.chainId, contract: c.splitAddress!.toLowerCase() }));
-        const otherCursors: any[] = others.length
-            ? await this.cursorModel
-                  .find({ _id: { $in: others.map(o => cursorIdFor(o.chainId, o.contract)) } })
-                  .lean()
-                  .catch(() => [])
-            : [];
-        const byBucket = mergeBuckets([cursor.totals, ...otherCursors.map(c => c.totals)]);
+        const indexed = [...(mainIndexed ? [cursor] : []), ...otherCursors];
+        const byBucket = mergeBuckets(indexed.map(c => c.totals));
+        const where = [...(mainIndexed ? [{ chainId: config.chainId, contract }] : []), ...others];
         const recipients: string[] = await this.eventModel
-            .distinct(
-                'shelter',
-                others.length
-                    ? { $or: [{ chainId: config.chainId, contract }, ...others] }
-                    : { chainId: config.chainId, contract }
-            )
+            .distinct('shelter', where.length === 1 ? where[0] : { $or: where })
             .catch(() => []);
         const money: PublicImpact['money'] = {
             custody: custodyOf(recipients as string[], shelters),
             bySymbol: totalsBySymbol(byBucket),
             byBucket,
-            eventCount: [cursor, ...otherCursors].reduce((n, c) => n + (c?.eventCount || 0), 0),
-            lastTxHash: cursor.lastTxHash || null,
+            eventCount: indexed.reduce((n, c) => n + (c?.eventCount || 0), 0),
+            lastTxHash: (mainIndexed ? cursor.lastTxHash : null) || null,
             ...(otherCursors.length
-                ? {
-                      byChain: Object.fromEntries(
-                          [cursor, ...otherCursors].map(c => [String(c.chainId), totalsBySymbol(c.totals || {})])
-                      ),
-                  }
+                ? { byChain: Object.fromEntries(indexed.map(c => [String(c.chainId), totalsBySymbol(c.totals || {})])) }
                 : {}),
         };
+        const otherSuccess = otherCursors
+            .map(c => (c.lastSuccessAt ? new Date(c.lastSuccessAt).getTime() : 0))
+            .reduce((a, b) => Math.max(a, b), 0);
         return {
             money,
             chain,
-            chainSource: (healthy ? 'ok' : 'error') as ChainSource,
-            chainAsOf: lastSuccess ? lastSuccess.toISOString() : null,
+            // The main chain's own state when it is indexed; otherwise the other chains carry the figures.
+            chainSource: (mainIndexed ? (healthy ? 'ok' : 'error') : 'ok') as ChainSource,
+            chainAsOf: mainIndexed
+                ? lastSuccess
+                    ? lastSuccess.toISOString()
+                    : null
+                : otherSuccess
+                  ? new Date(otherSuccess).toISOString()
+                  : null,
         };
     }
 

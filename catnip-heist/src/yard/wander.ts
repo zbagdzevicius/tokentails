@@ -7,7 +7,7 @@
  * stay inside the plaza bounds and gently keep apart.
  */
 
-export type YardBehaviour = 'WALK' | 'RUN' | 'IDLE' | 'SIT' | 'GROOM' | 'LOAF' | 'SLEEP' | 'DIG' | 'HOP' | 'POSE';
+export type YardBehaviour = 'WALK' | 'RUN' | 'IDLE' | 'SIT' | 'GROOM' | 'LOAF' | 'SLEEP' | 'DIG' | 'HOP' | 'POSE' | 'EAT';
 
 /** Sprite row each behaviour plays. */
 export const BEHAVIOUR_ROW: Record<YardBehaviour, string> = {
@@ -21,6 +21,7 @@ export const BEHAVIOUR_ROW: Record<YardBehaviour, string> = {
   DIG: 'DIGGING',
   HOP: 'JUMPING',
   POSE: 'SITTING',
+  EAT: 'DIGGING',
 };
 
 /** Label for the name card. */
@@ -35,6 +36,7 @@ export const BEHAVIOUR_LABEL: Record<YardBehaviour, string> = {
   DIG: 'Digging',
   HOP: 'Happy hop!',
   POSE: 'Saying hi',
+  EAT: 'Eating',
 };
 
 export interface Circle {
@@ -75,6 +77,10 @@ export interface YardAgent {
   /** Personal taste: sleepy cats nap more, playful ones run more (0..1). */
   sleepy: number;
   playful: number;
+  /** Set by sendTo(): what to do on arrival instead of picking the next behaviour. */
+  errand: { then: YardBehaviour; seconds: number } | null;
+  /** Meals finished (an EAT that ran its course), so a caller can wait for one. */
+  meals: number;
 }
 
 /** mulberry32 step: returns [value in [0,1), next state]. */
@@ -150,7 +156,7 @@ export function spawnPoint(a: YardAgent, world: YardWorld, others: readonly Yard
 export function createAgent(id: string, world: YardWorld, others: readonly YardAgent[] = []): YardAgent {
   const a: YardAgent = {
     x: 0, z: 0, vx: 0, vz: 0, behaviour: 'IDLE', timer: 0, tx: 0, tz: 0, speed: WALK_SPEED,
-    rng: seedOf(id) | 0, held: false, sleepy: 0, playful: 0,
+    rng: seedOf(id) | 0, held: false, sleepy: 0, playful: 0, errand: null, meals: 0,
   };
   a.sleepy = rand(a);
   a.playful = rand(a);
@@ -231,10 +237,35 @@ function nextBehaviour(a: YardAgent, world: YardWorld) {
   if (!startWalk(a, world)) startRest(a, 'IDLE');
 }
 
+/**
+ * Send an agent somewhere on purpose (feeding time: run to the bowls), then do `then` for `seconds`.
+ * It runs, wakes up if asleep, ignores being held on the way, and starts `then` where it stands if
+ * the path takes longer than expected.
+ */
+export function sendTo(a: YardAgent, world: YardWorld, x: number, z: number, then: YardBehaviour, seconds: number): void {
+  const b = world.bounds;
+  a.tx = Math.min(b.maxX, Math.max(b.minX, x));
+  a.tz = Math.min(b.maxZ, Math.max(b.minZ, z));
+  a.errand = { then, seconds };
+  a.behaviour = 'RUN';
+  a.speed = RUN_SPEED;
+  const d = Math.hypot(a.tx - a.x, a.tz - a.z);
+  a.timer = d / RUN_SPEED + 4;
+}
+
+function finishErrand(a: YardAgent) {
+  const e = a.errand!;
+  a.errand = null;
+  a.behaviour = e.then;
+  a.vx = a.vz = 0;
+  a.timer = e.seconds;
+}
+
 /** Make an agent react to a tap: a happy hop, then it sits facing the camera while held. */
 export function poke(a: YardAgent) {
   a.held = true;
   if (a.behaviour === 'SLEEP') return; // let sleeping cats lie
+  if (a.behaviour === 'EAT' || a.errand) return; // on its way to dinner, or eating: no hop
   a.behaviour = 'HOP';
   a.vx = a.vz = 0;
   a.timer = 0.75;
@@ -293,7 +324,7 @@ export function stepAgents(agents: YardAgent[], world: YardWorld, dtIn: number):
     const a = agents[ai];
     a.timer -= dt;
     if (a.behaviour === 'WALK' || a.behaviour === 'RUN') {
-      if (a.held) {
+      if (a.held && !a.errand) {
         a.behaviour = 'POSE';
         a.timer = 999;
         a.vx = a.vz = 0;
@@ -302,7 +333,8 @@ export function stepAgents(agents: YardAgent[], world: YardWorld, dtIn: number):
       const dx = a.tx - a.x, dz = a.tz - a.z;
       const d = Math.sqrt(dx * dx + dz * dz);
       if (d < 0.08 || a.timer <= 0) {
-        nextBehaviour(a, world);
+        if (a.errand) finishErrand(a);
+        else nextBehaviour(a, world);
         continue;
       }
       let vx = (dx / d) * a.speed, vz = (dz / d) * a.speed;
@@ -364,7 +396,12 @@ export function stepAgents(agents: YardAgent[], world: YardWorld, dtIn: number):
       a.z += a.vz * dt;
     } else {
       a.vx = a.vz = 0;
-      if (a.behaviour === 'HOP' && a.timer <= 0) {
+      if (a.behaviour === 'EAT' && a.timer <= 0) {
+        // A finished meal: a happy hop, then back to the usual (or posing, if held).
+        a.meals++;
+        a.behaviour = 'HOP';
+        a.timer = REST_RANGE.HOP![0];
+      } else if (a.behaviour === 'HOP' && a.timer <= 0) {
         if (a.held) {
           a.behaviour = 'POSE';
           a.timer = 999;

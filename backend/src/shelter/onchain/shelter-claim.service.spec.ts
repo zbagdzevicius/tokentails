@@ -214,6 +214,32 @@ describe('ShelterClaimService.publicGivingVerified', () => {
         ).resolves.toBe(false);
     });
 
+    it('SEC-2: a split that keeps part of a gift for the treasury, or lists an inactive shelter, is not public giving', async () => {
+        const c = config({ handedOver: true });
+        const answer = (wallets: string[], amounts: number[], toTreasury: number) => (ctx: ReturnType<typeof setup>) =>
+            ctx.chain.ethCall.mockImplementation(async (_c: any, _to: string, data: string) =>
+                data.startsWith(shelterSplitInterface.getFunction('preview')!.selector)
+                    ? shelterSplitInterface.encodeFunctionResult('preview', [wallets, amounts, toTreasury])
+                    : shelterSplitInterface.encodeFunctionResult('treasury', [TREASURY.address])
+            );
+        // A rotated shelter at 8000 bps: 20% of every gift goes to the treasury.
+        const ctx = setup();
+        answer([SHELTER.address], [800000], 200000)(ctx);
+        await ctx.claims.create({ chainId: 5042, wallet: SHELTER.address, status: 'rotated' });
+        await expect(ctx.service.publicGivingVerified(c, NOW)).resolves.toBe(false);
+        // A deactivated shelter: preview still lists it, with amount 0, and everything goes to the treasury.
+        const ctx2 = setup();
+        answer([SHELTER.address], [0], 1000000)(ctx2);
+        await ctx2.claims.create({ chainId: 5042, wallet: SHELTER.address, status: 'rotated' });
+        await expect(ctx2.service.publicGivingVerified(c, NOW)).resolves.toBe(false);
+        // An inactive, unrotated entry (amount 0) next to the paid, rotated shelter does not block it.
+        const ctx3 = setup();
+        const old = Wallet.createRandom().address;
+        answer([old, SHELTER.address], [0, 1000000], 0)(ctx3);
+        await ctx3.claims.create({ chainId: 5042, wallet: SHELTER.address, status: 'rotated' });
+        await expect(ctx3.service.publicGivingVerified(c, NOW)).resolves.toBe(true);
+    });
+
     it('caches a verdict for 10 minutes and does not cache a failed read', async () => {
         const ctx = setup();
         const c = config({ handedOver: true });

@@ -98,11 +98,11 @@ Gas has a 1.5x buffer. These are exactly the amounts the first balance check in 
 | Arc | 0.7 USDC (the gas coin) + 0.1 EURC | $0.81 |
 | Tempo | 0.3 USDC.e + 0.15 pathUSD | $0.45 |
 | Arbitrum One | 0.0004 ETH + 0.2 USDC | $1.29 |
-| Avalanche | 0.06 AVAX + 0.2 USDC | $0.86 |
+| Avalanche | 0.075 AVAX + 0.2 USDC | $1.03 |
 | Base | 0.0007 ETH + 0.2 USDC | $2.11 |
 | Robinhood Chain | 0.0004 ETH + 0.2 USDG | $1.29 |
 | Monad | 2 MON + 0.2 USDC | $0.27 |
-| **Total** | USDC 1.5 · USDC.e 0.3 · pathUSD 0.15 · EURC 0.1 · USDG 0.2 · ETH 0.0015 (Arb 0.0004, Base 0.0007, RH 0.0004) · AVAX 0.06 · MON 2 | **≈ $7.08** |
+| **Total** | USDC 1.5 · USDC.e 0.3 · pathUSD 0.15 · EURC 0.1 · USDG 0.2 · ETH 0.0015 (Arb 0.0004, Base 0.0007, RH 0.0004) · AVAX 0.075 · MON 2 | **≈ $7.25** |
 
 Prices: CoinGecko, Oct 5 08:11 UTC. Do not fund donatehot or the agent yourself: the script does it.
 Top up later (optional, one week of treats plus the Base x402 agent):

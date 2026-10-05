@@ -67,6 +67,8 @@ export const CHAINS = Object.freeze({
   4217: Object.freeze({
     name: "Tempo",
     rpc: "https://rpc.tempo.xyz",
+    // eth_getLogs answers spans below 100,000 blocks ("query exceeds max block range 100000"; checked 2026-10-05).
+    maxLogRange: 99999,
     explorer: "https://explore.tempo.xyz",
     nativeSymbol: "USD",
     nativeDecimals: 18,
@@ -160,8 +162,10 @@ export const CHAINS = Object.freeze({
   143: Object.freeze({
     name: "Monad",
     rpc: "https://rpc.monad.xyz",
-    // The public RPC answers eth_getLogs over at most 100 blocks (HTTP 413 beyond; checked 2026-10-04).
-    maxLogRange: 100,
+    // The public RPC answers eth_getLogs over at most 100 blocks (HTTP 413 beyond; checked 2026-10-04), so
+    // logs come from rpc1.monad.xyz, which serves 100,000-block spans in one call (checked 2026-10-05).
+    logRpc: "https://rpc1.monad.xyz",
+    maxLogRange: 100000,
     explorer: "https://monadvision.com",
     nativeSymbol: "MON",
     nativeDecimals: 18,
@@ -172,7 +176,9 @@ export const CHAINS = Object.freeze({
     name: "Monad Testnet",
     testnet: true,
     rpc: "https://testnet-rpc.monad.xyz",
-    maxLogRange: 100,
+    // Same 100-block cap; OnFinality's keyless endpoint takes 10,000-block windows (as the client page).
+    logRpc: "https://monad-testnet.api.onfinality.io/public",
+    maxLogRange: 10000,
     explorer: "https://testnet.monadvision.com",
     nativeSymbol: "MON",
     nativeDecimals: 18,

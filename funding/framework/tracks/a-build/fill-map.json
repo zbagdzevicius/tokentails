@@ -55,7 +55,7 @@
       "networks": [
         "mainnet"
       ],
-      "token": "USDC",
+      "token": "USDC.e",
       "field": "address"
     },
     "TEMPO_TX": {
@@ -64,7 +64,7 @@
       "networks": [
         "mainnet"
       ],
-      "token": "USDC",
+      "token": "USDC.e",
       "field": "memo",
       "how": "a:ingest does not record the manual disburseWithMemo call: paste its hash into fill-values.json as TEMPO_TX (check it with cast receipt <tx> --rpc-url $RPC_TEMPO_MAINNET)"
     },

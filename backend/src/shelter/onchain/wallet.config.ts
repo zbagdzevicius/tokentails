@@ -312,7 +312,7 @@ export const CHAINS: Record<string, ChainWallets> = {
         rpc: 'https://rpc.tempo.xyz',
         explorer: 'https://explore.tempo.xyz',
         token: {
-            symbol: 'USDC',
+            symbol: 'USDC.e',
             decimals: 6,
             address: '0x20c000000000000000000000b9537d11c60e8b50',
         },

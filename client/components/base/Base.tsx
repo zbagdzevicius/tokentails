@@ -1,9 +1,7 @@
 import { CAT_API } from "@/api/cat-api";
-import { MAX_CAT_STATUS, useCat } from "@/context/CatContext";
-import { useGame } from "@/context/GameContext";
+import { useSelectHomeCat } from "@/components/home/useSelectHomeCat";
+import { useCat } from "@/context/CatContext";
 import { useProfile } from "@/context/ProfileContext";
-import { useToast } from "@/context/ToastContext";
-import { GameType } from "@/models/game";
 import { StatusType } from "@/models/status";
 import { useQuery } from "@tanstack/react-query";
 import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
@@ -68,9 +66,8 @@ const BaseGame = forwardRef<IPhaserGame, IProps>(function PhaserGame(
 function Base() {
   const phaserRef = useRef<IPhaserGame | null>(null);
   const { setCatStatus, cat } = useCat();
-  const { profile, setProfileUpdate } = useProfile();
-  const toast = useToast();
-  const { setGameType } = useGame();
+  const { profile } = useProfile();
+  const selectCat = useSelectHomeCat();
 
   const { data: userCats } = useQuery({
     queryKey: ["user-cats", profile?._id],
@@ -122,28 +119,9 @@ function Base() {
     }
   }, [userCats, isGameLoaded, cat]);
 
+  // SELECT in the speech bubble: the same flow as the Cat Yard HOME's name card.
   GameEvents.CAT_CARD_DISPLAY.use((event) => {
-    if (event) {
-      const cat = event.npc;
-      const isSameCat = profile?.cat._id === cat._id;
-
-      if (isSameCat || !cat) {
-        toast({ message: "This cat is already selected" });
-        return;
-      }
-
-      setProfileUpdate({
-        cat,
-        cats: (profile!.cats || []).map((c) => (c._id === cat._id ? cat : c)),
-      });
-      CAT_API.setActive(cat._id!);
-      GameEvents.CAT_SPAWN.push({ cat });
-
-      toast({ message: `${cat.name} selected successfully!`, img: cat.catImg });
-      if (cat?.status?.EAT !== MAX_CAT_STATUS) {
-        setGameType(GameType.HOME);
-      }
-    }
+    if (event) selectCat(event.npc);
   });
 
   return (

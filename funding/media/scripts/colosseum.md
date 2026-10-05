@@ -46,7 +46,7 @@ No backend has to be trusted for the numbers.
 
 ## A named shelter
 visual: card
-title: First shelter: {SHELTER_NAME}\NWallet held by Token Tails until handover\NShelterSplit {SPLIT_ADDRESS}\NFirst payout {TEMPO_TX}
+title: First shelter: {SHELTER_NAME}\NWallet held by Token Tails until handover\NShelterSplit {SPLIT_ADDRESS}\NFirst memo payout {TEMPO_TX}
 
 The first shelter on the registry is {SHELTER_NAME}.
 The shelter's wallet is held by Token Tails on behalf of {SHELTER_NAME}, and it will be handed over to them.

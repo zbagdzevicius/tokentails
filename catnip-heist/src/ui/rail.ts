@@ -20,6 +20,7 @@
  * local client) and PUBLIC_FACTS_PATH. Any other host has no API and stays pre-launch.
  */
 import { FACTS, PUBLIC_FACTS_PATH, type PublicFact } from '../facts.generated';
+import { PAYOUT_CHAIN_META } from './shelter-payouts-chains';
 
 export type RailState = 'pre-launch' | 'live' | 'exhausted';
 
@@ -32,6 +33,10 @@ export interface RailInfo {
   amountUsdc: string;
   /** Where the state came from: the live status, or the facts (fetched or baked). */
   source: 'status' | 'facts' | 'baked';
+  /** The network the live treat goes out on, when the status names one (web copy only). */
+  chainId?: number;
+  /** What that treat is paid in there (USDC, USDC.e, USDG). */
+  coin?: string;
 }
 
 export interface RailCopy {
@@ -70,10 +75,10 @@ export function isWebHost(win: { Capacitor?: { isNativePlatform?: () => boolean 
 }
 
 /** A treat amount in USDC for the copy: "0.01 USDC" on the web, "$0.01" in the app. */
-export function formatTreat(amountUsdc: string, web: boolean): string {
+export function formatTreat(amountUsdc: string, web: boolean, coin = 'USDC'): string {
   const n = Number(amountUsdc);
   const shown = Number.isFinite(n) && n > 0 ? String(Math.round(n * 100) / 100) : '0.01';
-  return web ? `${shown} USDC` : `$${shown}`;
+  return web ? `${shown} ${coin}` : `$${shown}`;
 }
 
 /** 18-decimal native USDC (Arc) wei to a decimal string ("10000000000000000" -> "0.01"). */
@@ -88,9 +93,45 @@ export function weiToUsdc(amountWei: string): string | null {
   return `${whole}${frac ? '.' + frac : ''}`;
 }
 
-/** Maps the backend status body to the Heist's three states, or null when it is not a status. */
+const RANK: Record<RailState, number> = { live: 2, exhausted: 1, 'pre-launch': 0 };
+
+/** One chain entry (or the top-level main-chain fields) to a rail state, or null when it is not one. */
+function chainRail(b: { railState?: unknown; enabled?: unknown; treatsLeftToday?: unknown }): RailState | null {
+  const backend = b.railState as BackendRailState | undefined;
+  if (backend !== 'not-deployed' && backend !== 'paused' && backend !== 'live' && backend !== 'exhausted') return null;
+  let state: RailState = backend === 'live' ? 'live' : backend === 'exhausted' ? 'exhausted' : 'pre-launch';
+  if (state === 'live' && (b.enabled === false || (typeof b.treatsLeftToday === 'number' && b.treatsLeftToday <= 0))) {
+    state = b.enabled === false ? 'pre-launch' : 'exhausted';
+  }
+  return state;
+}
+
+/**
+ * Maps the backend status body to the Heist's three states, or null when it is not a status. With a
+ * per-chain list (`chains`), the best state across every network wins (live, then exhausted, then
+ * pre-launch), so a paused main chain never hides a live one the give page would pick.
+ */
 export function railFromStatus(body: unknown, fallbackAmount: string): RailInfo | null {
   if (!body || typeof body !== 'object') return null;
+  const list = (body as { chains?: unknown }).chains;
+  if (Array.isArray(list) && list.length) {
+    let best: { state: RailState; c: { chainId?: unknown; amountWei?: unknown; coin?: unknown } } | null = null;
+    for (const c of list) {
+      if (!c || typeof c !== 'object') continue;
+      const state = chainRail(c as never);
+      if (state && (!best || RANK[state] > RANK[best.state])) best = { state, c: c as never };
+    }
+    if (best) {
+      const amount = (typeof best.c.amountWei === 'string' && weiToUsdc(best.c.amountWei)) || fallbackAmount;
+      return {
+        state: best.state,
+        amountUsdc: amount,
+        source: 'status',
+        ...(typeof best.c.chainId === 'number' ? { chainId: best.c.chainId } : {}),
+        ...(typeof best.c.coin === 'string' && /^[A-Za-z0-9.]{1,12}$/.test(best.c.coin) ? { coin: best.c.coin } : {}),
+      };
+    }
+  }
   const b = body as { railState?: unknown; amountWei?: unknown; treatsLeftToday?: unknown };
   const backend = b.railState as BackendRailState | undefined;
   if (backend !== 'not-deployed' && backend !== 'paused' && backend !== 'live' && backend !== 'exhausted') return null;
@@ -113,12 +154,14 @@ export function amountFromFacts(body: unknown): string | null {
 
 /** The copy for a rail state. `name` is the rescued cat (in-game fiction). */
 export function railCopy(info: RailInfo, isWeb: boolean): RailCopy {
-  const treat = formatTreat(info.amountUsdc, isWeb);
+  const treat = formatTreat(info.amountUsdc, isWeb, info.coin);
+  // The network the live treat goes out on (web only, claims rule R10): Arc unless the status names another.
+  const chainName = (info.chainId !== undefined && PAYOUT_CHAIN_META[info.chainId]?.name) || 'Arc';
   if (info.state === 'live') {
     return {
       state: 'live',
       // claim: C-004, L-rail (the treat amount and the live rail state)
-      line: isWeb ? `Tap and Token Tails sends Pink Paw a ${treat} treat on Arc.` : `Tap and Token Tails sends Pink Paw a ${treat} treat.`,
+      line: isWeb ? `Tap and Token Tails sends Pink Paw a ${treat} treat on ${chainName}.` : `Tap and Token Tails sends Pink Paw a ${treat} treat.`,
       chip: null,
       showGive: true,
       // claim: C-004, L-rail

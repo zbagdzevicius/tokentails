@@ -21,6 +21,7 @@ export const fillPaths = {
   values: () => process.env.FUND_FILL_VALUES || join(FW, 'fill-values.json'),
   campaign: () => process.env.FUND_CAMPAIGN || join(FW, '..', '..', 'client', 'public', 'shelter-payouts', 'campaign.json'),
   deployments: () => process.env.FUND_A_DEPLOYMENTS || join(FW, 'tracks', 'a-build', 'deployments.json'),
+  routers: () => process.env.FUND_A_ROUTER_DEPLOYMENTS || join(FW, 'tracks', 'a-build', 'router-deployments.json'),
 };
 
 const PH = /\{([A-Z][A-Z0-9_]*)\}/g;
@@ -54,16 +55,20 @@ export function placeholdersIn(text) {
 
 const tokenOf = (d) => d.token || 'USDC';
 
-function pickDeployment(deployments, spec) {
+// The same instance walletConfig (wave.mjs) hands the backend: the one a DonateRouter fronts, else the
+// newest recorded. Drafts then cite the split treats actually pay into.
+export function pickDeployment(deployments, spec, routers = []) {
   for (const network of spec.networks || ['mainnet']) {
-    const d = deployments.find((x) => x.chain === spec.chain && x.network === network && (!spec.token || tokenOf(x) === spec.token));
+    const c = deployments.filter((x) => x.chain === spec.chain && x.network === network && (!spec.token || tokenOf(x) === spec.token));
+    const fronted = (x) => (routers || []).some((r) => r.network === network && String(r.split || '').toLowerCase() === String(x.address || '').toLowerCase());
+    const d = c.find(fronted) || c[c.length - 1];
     if (d) return { d, network };
   }
   return null;
 }
 
 // Resolve one placeholder for one application → { value, source } or { missing }.
-export function resolve(key, slug, { map, values, deployments, campaign }) {
+export function resolve(key, slug, { map, values, deployments, campaign, routers = [] }) {
   const spec = map[slug]?.[key] || map['*']?.[key];
   const human = values[slug]?.[key] ?? values[key];
   if (typeof human === 'string' && human.trim()) return { value: human.trim(), source: `fill-values.json${values[slug]?.[key] ? ` (${slug})` : ''}` };
@@ -75,7 +80,7 @@ export function resolve(key, slug, { map, values, deployments, campaign }) {
     return v ? { value: String(v), source: 'campaign.json' } : { missing: `campaign.json has no ${spec.path}${how}` };
   }
   if (spec.from === 'deploy' || spec.from === 'network-label') {
-    const hit = pickDeployment(deployments, spec);
+    const hit = pickDeployment(deployments, spec, routers);
     const where = `${spec.chain} ${(spec.networks || ['mainnet']).join(' or ')}${spec.token ? ` ${spec.token}` : ''}`;
     if (!hit) return { missing: `no ${where} deployment recorded (run the wave, then fund a:ingest)${how}` };
     if (spec.from === 'network-label') return { value: spec.labels?.[hit.network] || hit.network, source: `deployments.json (${spec.chain} ${hit.network})` };
@@ -100,9 +105,9 @@ export function applyFallbacks(text, slug, ctx) {
   return { text, applied, notFound };
 }
 
-export function planFill({ core, slugs, map, values, deployments, campaign, fallbacks = false }) {
+export function planFill({ core, slugs, map, values, deployments, campaign, routers = [], fallbacks = false }) {
   const plans = [];
-  const ctx = { map, values, deployments, campaign };
+  const ctx = { map, values, deployments, campaign, routers };
   for (const slug of slugs) {
     const app = core.loadApp(slug);
     const status = app.call.fm.status;
@@ -152,6 +157,7 @@ export default {
       map: readJson(fillPaths.map(), {}),
       values: readJson(fillPaths.values(), {}),
       deployments: readJson(fillPaths.deployments(), []),
+      routers: readJson(fillPaths.routers(), []),
       campaign: readJson(fillPaths.campaign(), {}),
       fallbacks: !!flags.fallbacks,
     };

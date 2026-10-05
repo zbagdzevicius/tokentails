@@ -77,3 +77,57 @@ describe('yard wander AI', () => {
     g.dispose();
   });
 });
+
+describe('feeding errands (HOME)', () => {
+  it('sendTo runs to the bowls around obstacles, eats, hops, and counts the meal', async () => {
+    const { sendTo } = await import('../wander');
+    const g = buildGarden();
+    const w = g.world;
+    const a = createAgent('luna', w, []);
+    // Start on the far side of the fountain, asleep: feeding time wakes it.
+    a.x = 3;
+    a.z = -4;
+    a.behaviour = 'SLEEP';
+    a.timer = 20;
+    sendTo(a, w, g.feedSpot.x, g.feedSpot.z, 'EAT', 2);
+    expect(a.behaviour as string).toBe('RUN');
+    const seen: string[] = [];
+    let ateAt = -1;
+    for (let t = 0; t < 30 * 20 && a.meals === 0; t++) {
+      stepAgents([a], w, 1 / 30);
+      if (seen[seen.length - 1] !== a.behaviour) seen.push(a.behaviour);
+      if ((a.behaviour as string) === 'EAT' && ateAt < 0) ateAt = Math.hypot(a.x - g.feedSpot.x, a.z - g.feedSpot.z);
+      expect(insideObstacle(w, a.x, a.z, 0.3)).toBe(false);
+    }
+    expect(a.meals).toBe(1);
+    expect(seen).toEqual(['RUN', 'EAT', 'HOP']);
+    expect(ateAt).toBeGreaterThanOrEqual(0);
+    expect(ateAt).toBeLessThan(0.3);
+    expect(a.errand).toBeNull();
+    g.dispose();
+  });
+
+  it('a held (selected) cat still goes to eat, and a tap does not interrupt the meal', async () => {
+    const { sendTo } = await import('../wander');
+    const [a] = makeAll(1);
+    poke(a);
+    sendTo(a, world, a.x + 1, a.z, 'EAT', 1);
+    for (let t = 0; t < 30 * 5 && a.behaviour !== 'EAT'; t++) stepAgents([a], world, 1 / 30);
+    expect(a.behaviour).toBe('EAT');
+    poke(a);
+    expect(a.behaviour).toBe('EAT');
+    for (let t = 0; t < 30 * 3; t++) stepAgents([a], world, 1 / 30);
+    expect(a.meals).toBe(1);
+    // Held: after the hop it poses for the open card.
+    expect(a.behaviour).toBe('POSE');
+  });
+
+  it('starts eating where it stands when the path takes too long', async () => {
+    const { sendTo } = await import('../wander');
+    const [a] = makeAll(1);
+    sendTo(a, world, a.x + 2, a.z, 'EAT', 1);
+    a.speed = 0; // stuck
+    for (let t = 0; t < 30 * 8 && a.behaviour !== 'EAT'; t++) stepAgents([a], world, 1 / 30);
+    expect(a.behaviour).toBe('EAT');
+  });
+});

@@ -39,13 +39,14 @@ export const CHAIN_ROLES: Record<string, string> = {
   arbitrum: "Ethereum rollup with low fees. Native ETH gifts are split too.",
   avalanche: "Avalanche C-Chain. Native AVAX gifts are split too.",
   base: "Coinbase's Ethereum rollup. Native ETH gifts are split too.",
-  robinhood: "Pays USDG on mainnet. The testnet has no stablecoin, so it uses a test coin (mUSDC).",
+  robinhood: "Pays USDG, a regulated dollar stablecoin: there is no USDC on this chain.",
+  robinhoodTestnet: "The testnet has no stablecoin, so it uses a test coin (mUSDC).",
   monad: "A fast EVM chain with Circle's own USDC. Native MON gifts are split too.",
 };
 
 const ROLE_BY_CHAIN_ID: Record<number, string> = {
   5042: "arc", 5042002: "arc", 4217: "tempo", 42431: "tempo", 42161: "arbitrum", 421614: "arbitrum",
-  43114: "avalanche", 43113: "avalanche", 8453: "base", 84532: "base", 4663: "robinhood", 46630: "robinhood",
+  43114: "avalanche", 43113: "avalanche", 8453: "base", 84532: "base", 4663: "robinhood", 46630: "robinhoodTestnet",
   143: "monad", 10143: "monad",
 };
 
@@ -70,7 +71,8 @@ export const SHELTER_CHAINS: Record<number, ChainInfo> = {
   421614: { name: "Arbitrum Sepolia", testnet: true, rpc: "https://sepolia-rollup.arbitrum.io/rpc", explorer: "https://sepolia.arbiscan.io", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "ETH" },
   43114: { name: "Avalanche C-Chain", rpc: "https://api.avax.network/ext/bc/C/rpc", explorer: "https://subnets.avax.network/c-chain", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "AVAX" },
   43113: { name: "Avalanche Fuji", testnet: true, rpc: "https://api.avax-test.network/ext/bc/C/rpc", explorer: "https://subnets-test.avax.network/c-chain", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "AVAX" },
-  4217: { name: "Tempo", rpc: "https://rpc.tempo.xyz", explorer: "https://explore.tempo.xyz", decimals: 6, symbol: "USDC.e", balanceToken: "0x20C000000000000000000000b9537d11c60E8b50" },
+  // Tempo: eth_getLogs answers spans below 100,000 blocks ("query exceeds max block range 100000"; checked 2026-10-05).
+  4217: { name: "Tempo", rpc: "https://rpc.tempo.xyz", maxLogRange: 99_999, explorer: "https://explore.tempo.xyz", decimals: 6, symbol: "USDC.e", balanceToken: "0x20C000000000000000000000b9537d11c60E8b50" },
   42431: { name: "Tempo Testnet", testnet: true, rpc: "https://rpc.moderato.tempo.xyz", explorer: "https://explore.testnet.tempo.xyz", decimals: 6, symbol: "pathUSD", balanceToken: "0x20c0000000000000000000000000000000000000" },
   // Robinhood Chain pays out USDG (Paxos), not USDC: no USDC exists there. Totals group by symbol,
   // so USDG is always shown on its own and never added into a USDC sum.

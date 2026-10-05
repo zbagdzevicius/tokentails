@@ -15,7 +15,7 @@ Grant request: ShelterSplit, x402 payments that pay animal shelters on {X402_CHA
 
 **What it is.** Token Tails is a cat-rescue game live on web, iOS and Android [F-015] [F-016]. We built ShelterSplit, an open MIT payout rail: one contract call splits a USDC payment across registered animal shelters and emits a public event per payout. Now any AI agent can pay it through x402.
 
-**What x402 unlocks.** {X402_URL} sells a shelter cat card (a real cat's story and portrait) for a small USDC price, using the standard `exact` scheme through a facilitator. `payTo` is the shelter's own wallet: the agent signs one EIP-3009 transfer straight to the shelter, the facilitator submits it and pays the gas, and Token Tails never holds or relays the money. It is new demand for shelters: agents and apps that would never set up a bank donation can now pay a shelter in one HTTP request. First mainnet payment: {PAY_TX}.
+**What x402 unlocks.** {X402_URL} sells a shelter cat card (a real cat's story and portrait) for a small USDC price, using the standard `exact` scheme through a facilitator. `payTo` is the shelter's own wallet: the agent signs one EIP-3009 transfer straight to the shelter, the facilitator submits it and pays the gas, and Token Tails never holds or relays the money. It is new demand for shelters: agents and apps that would never set up a bank donation can now pay a shelter with one request, a 402 and one paid retry. First mainnet payment: {PAY_TX}.
 
 **Live on mainnet.** Endpoint {X402_URL}; contract and payouts listed at https://tokentails.com/shelter-payouts; source at https://github.com/zbagdzevicius/tokentails (MIT, Foundry tests).
 
@@ -27,7 +27,7 @@ Grant request: ShelterSplit, x402 payments that pay animal shelters on {X402_CHA
 
 ### x_post
 
-An AI agent just paid an animal shelter over x402. One HTTP request, USDC straight to the shelter's own wallet, public receipt. Live on {X402_CHAIN}, MIT. @coinbaseDev {VIDEO_URL}
+An AI agent just paid an animal shelter over x402. One request, a 402, one paid retry: USDC straight to the shelter's own wallet, public receipt. Live on {X402_CHAIN}, MIT. @coinbaseDev {VIDEO_URL}
 
 ### video_script
 
@@ -37,4 +37,4 @@ Shot 3, the agent pays: "The agent signs the payment and retries. The facilitato
 Shot 4, the card: "The agent gets the cat card: a real shelter cat's story and portrait."
 Shot 5, the explorer: "On-chain, one USDC transfer from the agent to the shelter's own wallet. The facilitator paid the gas; Token Tails never touched the money."
 Shot 6, the payouts page: "Every payout is listed on tokentails.com/shelter-payouts. The first shelter is Pink Paw, and it holds its own wallet key."
-Shot 7, close: "ShelterSplit is open source under MIT. Any agent or app can pay a shelter in one request. That is new demand for shelters that never had a payments integration."
+Shot 7, close: "ShelterSplit is open source under MIT. Any agent or app can pay a shelter with one request and one paid retry. That is new demand for shelters that never had a payments integration."

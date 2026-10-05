@@ -71,6 +71,16 @@ describe('readTryShelterConfig (the try-it testnet)', () => {
             env({ SHELTER_TRY_CHAIN_ID: '5042002', SHELTER_TRY_PRIVATE_KEY: KEY_TRY })
         );
         expect(withKey?.privateKey).toBe(KEY_TRY);
+        // BE-6: the mainnet main key pasted as the try key is refused (one-wallet plan: same address).
+        expect(
+            readTryShelterConfig(env({ SHELTER_TRY_CHAIN_ID: '5042002', SHELTER_TRY_PRIVATE_KEY: KEY_MAIN }))?.privateKey
+        ).toBeNull();
+        // A testnet main chain's key holds test funds only and may serve the try-it testnet.
+        expect(
+            readTryShelterConfig(
+                env({ SHELTER_CHAIN_ID: '84532', SHELTER_TRY_CHAIN_ID: '5042002', SHELTER_TRY_PRIVATE_KEY: KEY_MAIN })
+            )?.privateKey
+        ).toBe(KEY_MAIN);
         // Relay and match stay off on the testnet unless their own flags say so.
         expect(readTryShelterConfig(env({ SHELTER_TRY_CHAIN_ID: '5042002' }))).toMatchObject({
             relayEnabled: false,

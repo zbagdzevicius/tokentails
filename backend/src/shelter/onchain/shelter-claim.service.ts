@@ -341,9 +341,21 @@ export class ShelterClaimService {
                 config.splitAddress,
                 shelterSplitInterface.encodeFunctionData('preview', [getBigInt(1000000)])
             );
-            const wallets = (shelterSplitInterface.decodeFunctionResult('preview', raw)[0] as string[]).map(w =>
-                String(w).toLowerCase()
-            );
+            // preview() lists inactive shelters too (amount 0) and returns the treasury remainder: only
+            // wallets that are actually paid count, and a split that keeps any part for the treasury
+            // (a rotated shelter below 10000 bps, a deactivated one) is not public giving.
+            const [listed, amounts, toTreasury] = shelterSplitInterface.decodeFunctionResult('preview', raw) as unknown as [
+                string[],
+                bigint[],
+                bigint,
+            ];
+            const wallets = listed
+                .filter((_w, i) => getBigInt(amounts?.[i] ?? 0) > getBigInt(0))
+                .map(w => String(w).toLowerCase());
+            if (getBigInt(toTreasury ?? 0) > getBigInt(0)) {
+                this.givingCache.set(key, { ok: false, at: now.getTime() });
+                return false;
+            }
             const rotated = new Set(
                 ((await this.claimModel.find({ chainId: config.chainId, status: 'rotated' }).lean()) as any[]).map(
                     row => String(row.wallet).toLowerCase()

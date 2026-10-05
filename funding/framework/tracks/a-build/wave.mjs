@@ -14,6 +14,7 @@ import { join, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { CORE } from '../../lib/core.mjs';
+import { mainnetGuard, deployerFor } from './distribute.mjs';
 // track.mjs imports this file to register the commands, so its helpers are loaded lazily here
 // (a static import back would hit the cycle before track.mjs has finished evaluating).
 let T;
@@ -71,9 +72,10 @@ export function splitToken(n, symbol = null) {
   }
   const def = n.splitToken
     ? { symbol: n.splitToken.symbol, address: n.splitToken.address || null, decimals: n.splitToken.decimals ?? 18 }
-    : { symbol: 'USDC', address: n.usdc || null, decimals: n.usdcDecimals ?? 6 };
+    : { symbol: n.usdcSymbol || 'USDC', address: n.usdc || null, decimals: n.usdcDecimals ?? 6 };
   const sym = symbol ? String(symbol).toUpperCase() : null;
-  if (!sym || sym === def.symbol) return { ...def, alt: false, listed: true, verify: false };
+  // usdcSymbol names a bridged USDC (USDC.e on Tempo mainnet): asking for USDC still means that token.
+  if (!sym || sym === String(def.symbol).toUpperCase() || (sym === 'USDC' && !n.splitToken)) return { ...def, alt: false, listed: true, verify: false };
   const t = n.splitTokens?.[sym];
   return { symbol: sym, address: t?.address || null, decimals: t?.decimals ?? 6, alt: true, listed: !!t, verify: !t || !!t.verify };
 }
@@ -155,7 +157,7 @@ const q = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
 // multisig later with transferOwnership + acceptOwnership.
 export const waveFile = (network, token = null) => `deploy-${network}${token && token.alt ? `-${token.symbol.toLowerCase()}` : ''}.sh`;
 
-export function waveScript(rows, { network = 'mainnet', date = new Date().toISOString().slice(0, 10), project, root = join(HERE, '..', '..'), token = null } = {}) {
+export function waveScript(rows, { network = 'mainnet', date = new Date().toISOString().slice(0, 10), project, root = join(HERE, '..', '..'), token = null, expectedDeployer = '', redeploy = false } = {}) {
   const alt = token && token.alt ? token.symbol : null;
   const mocks = rows.filter((r) => r.token.mock);
   if (mocks.length && network !== 'testnet') throw new Error(`mock payout token on ${network} (${mocks.map((r) => r.chain).join(', ')}): mocks are testnet-only`);
@@ -188,6 +190,8 @@ export function waveScript(rows, { network = 'mainnet', date = new Date().toISOS
       : `#   on ${r.chain} the same PROOF_AMOUNT is paid in ${r.token.symbol} (${r.token.decimals} decimals): hold that token there, not USDC`),
     `# Dry run first: DRY_RUN=1 ./${waveFile(network, token)}   (simulates, broadcasts nothing)`,
     'set -uo pipefail',
+    ...mainnetGuard(network, waveFile(network, token)),
+    ...(redeploy ? ['# Generated with --redeploy: deploy again even where an earlier broadcast holds a mined instance.', 'export FORCE_REDEPLOY="${FORCE_REDEPLOY-1}"'] : []),
     'export FOUNDRY_DISABLE_NIGHTLY_WARNING=1   # the Tempo-aware nightly prints a warning that would pollute captured output',
     `PROJECT=${q(project)}`,
     `FUND_ROOT=${q(root)}`,
@@ -199,6 +203,10 @@ export function waveScript(rows, { network = 'mainnet', date = new Date().toISOS
     'if [ -e "$FUND_KEYSTORE" ]; then SIGNER=(--keystore "$FUND_KEYSTORE"); else SIGNER=(--account "$FUND_KEYSTORE"); fi',
     '[ -n "${FUND_KEYSTORE_PASSWORD_FILE:-}" ] && SIGNER+=(--password-file "$FUND_KEYSTORE_PASSWORD_FILE")',
     'DEPLOYER="$(cast wallet address "${SIGNER[@]}")" || exit 1',
+    `EXPECTED_DEPLOYER=${q(expectedDeployer || '')}`,
+    'if [ -n "$EXPECTED_DEPLOYER" ] && [ "$(printf %s "$DEPLOYER" | tr A-F a-f)" != "$(printf %s "$EXPECTED_DEPLOYER" | tr A-F a-f)" ]; then',
+    '  echo "refused: keystore $FUND_KEYSTORE is $DEPLOYER, wallets.public.json names the deployer $EXPECTED_DEPLOYER"; exit 1',
+    'fi',
     'OWNER="${SHELTERSPLIT_OWNER:-$DEPLOYER}"',
     'BROADCAST="--broadcast"; [ "${DRY_RUN:-0}" = 1 ] && BROADCAST="" && echo "DRY RUN: simulating only"',
     'echo "deployer $DEPLOYER  owner $OWNER  treasury $SHELTERSPLIT_TREASURY"',
@@ -231,10 +239,23 @@ export function waveScript(rows, { network = 'mainnet', date = new Date().toISOS
     '  echo "deployer balance: $(cast balance "$DEPLOYER" --rpc-url "$url" --ether 2>/dev/null || echo "?")"',
     '  # The proof payout spends PROOF_AMOUNT of the payout token (USDC, or USDG on Robinhood): show it before deploying.',
     '  [ "$token" = MOCK ] || echo "deployer payout-token balance (raw units): $(cast call "$token" "balanceOf(address)(uint256)" "$DEPLOYER" --rpc-url "$url" 2>/dev/null || echo "?")"',
-    '  # Re-running this script after a partial failure must not deploy a second instance: skip a chain whose',
-    '  # broadcast, written after this script, already holds a mined ShelterSplit for this token.',
-    '  local prev="$PWD/broadcast/DeployShelterSplit.s.sol/$id/run-latest.json"',
-    '  if [ -n "$BROADCAST" ] && [ -z "${FORCE_REDEPLOY:-}" ] && [ "$prev" -nt "$SELF" ] && node -e \'const j=require(process.argv[1]),T=j.transactions||[],m=T.find(x=>x.transactionType==="CREATE"&&x.contractName==="MockUSDC"),k=(process.argv[2]==="MOCK"?String(m&&m.contractAddress||"none"):process.argv[2]).toLowerCase();const t=T.find(x=>x.transactionType==="CREATE"&&x.contractName==="ShelterSplit"&&String((x.arguments||[])[0]||"").toLowerCase()===k);const r=t&&(j.receipts||[]).find(y=>y.transactionHash===t.hash);process.exit(r&&r.status==="0x1"?0:1)\' "$prev" "$token" 2>/dev/null; then',
+    '  # Re-running after a partial failure must not deploy a second instance. This chain is here because no',
+    '  # instance for this token is recorded, so a ShelterSplit for this token already in the broadcast is an',
+    '  # unrecorded deploy: mined -> keep it (a:ingest records it); no receipt in the file -> ask the chain;',
+    '  # still unconfirmed -> refuse to redeploy. FORCE_REDEPLOY=1 deploys again regardless.',
+    '  local prev="$PWD/broadcast/DeployShelterSplit.s.sol/$id/run-latest.json" st=""',
+    '  if [ -n "$BROADCAST" ] && [ -z "${FORCE_REDEPLOY:-}" ] && [ -f "$prev" ]; then',
+    '    st="$(node -e \'const j=require(process.argv[1]),T=j.transactions||[],m=T.find(x=>x.transactionType==="CREATE"&&x.contractName==="MockUSDC"),k=(process.argv[2]==="MOCK"?String(m&&m.contractAddress||"none"):process.argv[2]).toLowerCase();const t=T.find(x=>x.transactionType==="CREATE"&&x.contractName==="ShelterSplit"&&String((x.arguments||[])[0]||"").toLowerCase()===k);if(!t){console.log("none");process.exit(0)}const r=(j.receipts||[]).find(y=>String(y.transactionHash).toLowerCase()===String(t.hash).toLowerCase());console.log(!r?"nore "+t.hash:r.status==="0x1"||r.status===1?"ok":"failed")\' "$prev" "$token" 2>/dev/null)"',
+    '    if [ "${st%% *}" = nore ]; then',
+    '      local h="${st#nore }" rc; rc="$(cast receipt "$h" --rpc-url "$url" --json 2>/dev/null)"',
+    '      # Mined: add the receipt to the broadcast so a:ingest records it exactly like a forge receipt.',
+    '      if [ -n "$rc" ] && node -e \'const fs=require("fs"),f=process.argv[1],j=JSON.parse(fs.readFileSync(f,"utf8")),r=JSON.parse(process.argv[2]);if(r.status!=="0x1"&&r.status!==1&&r.status!=="1")process.exit(2);r.status="0x1";j.receipts=[...(j.receipts||[]),r];fs.writeFileSync(f,JSON.stringify(j,null,2))\' "$prev" "$rc" 2>/dev/null; then st=ok',
+    '      elif [ -n "$rc" ]; then st=failed',
+    '      else echo "skip: an earlier deploy tx $h has no receipt yet (pending or dropped). Rerun once it is mined; if the explorer shows it dropped, FORCE_REDEPLOY=1 deploys again"; SKIP+=("$chain: earlier deploy $h unconfirmed"); return',
+    '      fi',
+    '    fi',
+    '  fi',
+    '  if [ "$st" = ok ]; then',
     '    echo "skip: already deployed by an earlier run of this script (see $prev); FORCE_REDEPLOY=1 deploys again"; PRIOR+=("$chain")',
     '    # The earlier run may have deployed and then failed the proof payout: retry it unless it already went through.',
     '    if [ -n "${PROOF_SHELTER:-}" ] && ! proof_done "$id"; then maybe_proof "$chain" "$id" "$url" "$@"; fi',
@@ -295,9 +316,12 @@ export function waveScript(rows, { network = 'mainnet', date = new Date().toISOS
   }
   lines.push(
     '',
-    'echo; echo "deployed: ${OK[*]:-none}"; [ ${#PRIOR[@]} -gt 0 ] && echo "deployed by an earlier run: ${PRIOR[*]}"',
+    'echo; if [ -n "$BROADCAST" ]; then echo "deployed: ${OK[*]:-none}"; else echo "simulated (nothing broadcast): ${OK[*]:-none}"; fi',
+    '[ ${#PRIOR[@]} -gt 0 ] && echo "deployed by an earlier run: ${PRIOR[*]}"',
     'for s in "${SKIP[@]:-}"; do [ -n "$s" ] && echo "skipped: $s"; done',
-    `[ -n "$BROADCAST" ] && [ $(( \${#OK[@]} + \${#PRIOR[@]} )) -gt 0 ] && (cd "$FUND_ROOT" && node bin/fund.mjs a:ingest --network ${network})`,
+    `if [ -n "$BROADCAST" ] && [ $(( \${#OK[@]} + \${#PRIOR[@]} )) -gt 0 ]; then (cd "$FUND_ROOT" && node bin/fund.mjs a:ingest --network ${network}) || echo "warning: a:ingest exited non-zero (see above)"; fi`,
+    '[ ${#SKIP[@]} -eq 0 ] || exit 1',
+    'exit 0',
     '',
   );
   return lines.join('\n');
@@ -652,7 +676,8 @@ async function cmdWave({ flags }) {
   const dir = wavePaths.dir();
   mkdirSync(dir, { recursive: true });
   const f = join(dir, waveFile(network, token));
-  writeFileSync(f, waveScript(rows, { network, token, project: (await A()).paths.project() }));
+  const expectedDeployer = deployerFor(loadPublicWallets(), network) || '';
+  writeFileSync(f, waveScript(rows, { network, token, project: (await A()).paths.project(), expectedDeployer, redeploy: !skipDeployed }));
   chmodSync(f, 0o755);
   say(`\nwrote ${f}`);
   say('the script signs with your Foundry keystore; read it, run it with DRY_RUN=1 first, then for real');

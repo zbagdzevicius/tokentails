@@ -19,6 +19,8 @@ export const TESTNET_OF: Record<number, number> = {
   421614: 42161, // Arbitrum Sepolia
   43113: 43114, // Avalanche Fuji
   42431: 4217, // Tempo testnet
+  46630: 4663, // Robinhood Chain testnet
+  10143: 143, // Monad testnet
 };
 
 const TOKEN_ICONS: Record<string, string> = {

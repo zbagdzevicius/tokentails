@@ -64,3 +64,24 @@ describe('iconLinksFor', () => {
     },
   );
 });
+
+// HOME (shared/home-yard.ts): the tokentails.com build adds the Cat Yard module as a second entry
+// and records its hashed path for the client.
+describe('home entry', () => {
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+  it('writes a generated module the client can import', async () => {
+    const { homeEntrySource } = await import('../vite.config');
+    const src = homeEntrySource('/heist-game/build/home-abc123.js');
+    expect(src).toContain('export const HOME_YARD_ENTRY = "/heist-game/build/home-abc123.js";');
+    expect(src).toMatch(/^\/\/ GENERATED/);
+  });
+
+  it('the committed client entry points at a built file', async () => {
+    const { existsSync } = await import('node:fs');
+    const generated = readFileSync(join(root, '..', 'client', 'components', 'home', 'yardEntry.generated.ts'), 'utf8');
+    const path = /HOME_YARD_ENTRY = "([^"]+)"/.exec(generated)?.[1];
+    expect(path).toMatch(/^\/heist-game\/build\/home-[\w-]+\.js$/);
+    expect(existsSync(join(root, '..', 'client', 'public', path!))).toBe(true);
+  });
+});

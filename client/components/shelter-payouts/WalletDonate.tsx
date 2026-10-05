@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useId, useState } from "react";
 import { Celebration } from "./Celebration";
+import { Sym } from "./payoutSections";
 import { ChainPicker } from "./ChainPicker";
 import { ChainInfo, explorerTx } from "./chains";
 import { FACT, factLine } from "./factLine";
@@ -63,6 +64,14 @@ type State =
 // claim: fiction a button label (the donor's own action), not an impact figure
 export const giveLabel = (amount: string, to: string | null, symbol = "USDC") =>
   to ? `Give ${amount} ${symbol} to ${to}` : `Give ${amount} ${symbol}`;
+
+/** giveLabel as JSX: the symbol keeps its case (USDC.e, pathUSD) inside the upper-case button style. */
+export const GiveLabel = ({ amount, to, symbol = "USDC" }: { amount: string; to: string | null; symbol?: string }) => (
+  <>
+    Give {amount} <Sym>{symbol}</Sym>
+    {to ? ` to ${to}` : ""}
+  </>
+);
 
 /** The chain's public RPC as the `rpc` function findSettledGift takes. */
 const publicRpc =
@@ -468,7 +477,7 @@ const GiveBlock = ({
             aria-pressed={amount === a}
             className={`${CHIP} min-h-11 px-3 ${amount === a ? "!bg-tt-cream !text-tt-gold-ink" : ""}`}
           >
-            {a} {symbol}
+            {a} <Sym>{symbol}</Sym>
           </button>
         ))}
       </fieldset>
@@ -480,7 +489,7 @@ const GiveBlock = ({
           className={GOLD_BUTTON}
           data-testid="wallet-give"
         >
-          {busy ? state.step : giveLabel(amount, to, symbol)}
+          {busy ? state.step : <GiveLabel amount={amount} to={to} symbol={symbol} />}
         </button>
         {native && router && primary === "sign" && !busy && !sent && (
           <button

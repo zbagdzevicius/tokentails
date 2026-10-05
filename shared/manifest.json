@@ -86,6 +86,13 @@
     ],
     "__tests__/shelter-goal.test.ts": [
       "client"
+    ],
+    "home-yard.ts": [
+      "client",
+      "heist"
+    ],
+    "__tests__/home-yard.test.ts": [
+      "client"
     ]
   }
 }

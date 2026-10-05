@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
     computeAddress,
     encodeBytes32String,
+    FetchRequest,
     getBigInt,
     Interface,
     JsonRpcProvider,
@@ -71,6 +72,20 @@ export function batchPayerOf(
     return null;
 }
 
+/** How long one RPC request may take before it fails (ethers' default is 300 s). */
+export const RPC_TIMEOUT_MS = 8000;
+
+/**
+ * The request every shelter provider uses: an 8 s timeout and no back-off retries on HTTP 429, so one
+ * slow or rate-limited public RPC fails fast instead of holding GET /shelter/donate/status open.
+ */
+export function rpcRequest(url: string): FetchRequest {
+    const req = new FetchRequest(url);
+    req.timeout = RPC_TIMEOUT_MS;
+    req.setThrottleParams({ maxAttempts: 1 });
+    return req;
+}
+
 /**
  * Thin ethers v6 wrapper, so the services stay testable with a mocked `ethers`.
  * Sends are serialised in-process, so two gifts in the same instant do not race for the hot wallet's nonce.
@@ -87,7 +102,10 @@ export class ShelterChain {
             // cacheTimeout -1: ethers otherwise reuses an identical RPC answer for 250 ms, so two hot-wallet
             // sends in quick succession (a treat, then a match) read the same pending nonce and the second
             // one is refused (NONCE_EXPIRED). Found by the local donation E2E (e2e-donate/stack.sh).
-            provider = new JsonRpcProvider(config.rpcUrl!, config.chainId, { staticNetwork: true, cacheTimeout: -1 });
+            provider = new JsonRpcProvider(rpcRequest(config.rpcUrl!), config.chainId, {
+                staticNetwork: true,
+                cacheTimeout: -1,
+            });
             this.providers.set(key, provider);
         }
         return provider;
@@ -344,6 +362,12 @@ export class ShelterChain {
             false,
         ]);
         return typeof block?.hash === 'string' ? block.hash.toLowerCase() : null;
+    }
+
+    /** The node's current gas price in wei (legacy gasPrice, else maxFeePerGas), or null when it gives none. */
+    async gasPrice(config: ShelterOnchainConfig): Promise<bigint | null> {
+        const fee = await this.provider(config).getFeeData();
+        return fee.gasPrice ?? fee.maxFeePerGas ?? null;
     }
 
     /** The native (gas) balance of `address` in wei. */

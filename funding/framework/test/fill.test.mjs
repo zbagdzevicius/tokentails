@@ -159,3 +159,12 @@ test('track B: fills answers.md (not the generated draft.md) and re-renders with
   assert.deepEqual(plans[0].filled.map((f) => f.key).sort(), ['PAY_TX', 'X402_URL']);
   assert.match(plans[0].next, /Endpoint https:\/\/api\.example\.com\/x, payment 0x12/);
 });
+
+test('SUB-11: fill cites the split walletConfig picks (router-fronted, else newest), not the first recorded', async () => {
+  const { pickDeployment } = await import('../lib/commands/fill.mjs');
+  const a = '0x' + 'a1'.repeat(20), b = '0x' + 'b2'.repeat(20), c = '0x' + 'c3'.repeat(20);
+  const dep = (address) => ({ chain: 'arc', network: 'mainnet', address, token: 'USDC' });
+  const spec = { chain: 'arc', networks: ['mainnet'], token: 'USDC' };
+  assert.equal(pickDeployment([dep(a), dep(b), dep(c)], spec).d.address, c);
+  assert.equal(pickDeployment([dep(a), dep(b), dep(c)], spec, [{ network: 'mainnet', split: b }]).d.address, b);
+});

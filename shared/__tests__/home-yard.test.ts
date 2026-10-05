@@ -1,0 +1,55 @@
+import {
+    HOME_YARD_API_VERSION,
+    HOME_YARD_MAX_CATS,
+    HomeYardCat,
+    isHomeYardModule,
+    pickHomeYardCats,
+    sameHomeYardIds,
+} from '../home-yard';
+
+const cat = (id: string, extra: Partial<HomeYardCat> = {}): HomeYardCat => ({
+    id,
+    name: id,
+    sheetUrl: `https://cdn.example/${id}.png`,
+    active: false,
+    hungry: false,
+    ...extra,
+});
+
+describe('home-yard contract', () => {
+    it('accepts only a module with the same API version and a factory', () => {
+        expect(isHomeYardModule({ HOME_YARD_API_VERSION, createHomeYard: () => ({}) })).toBe(true);
+        expect(isHomeYardModule({ HOME_YARD_API_VERSION: HOME_YARD_API_VERSION + 1, createHomeYard: () => ({}) })).toBe(false);
+        expect(isHomeYardModule({ HOME_YARD_API_VERSION })).toBe(false);
+        expect(isHomeYardModule(null)).toBe(false);
+        expect(isHomeYardModule('module')).toBe(false);
+    });
+
+    it('puts the active cat first, then the newest, and caps the list', () => {
+        const cats = [
+            cat('old', { createdAt: '2025-01-01T00:00:00Z' }),
+            cat('new', { createdAt: '2026-05-01T00:00:00Z' }),
+            cat('mid', { createdAt: '2025-06-01T00:00:00Z' }),
+            cat('me', { active: true, createdAt: '2020-01-01T00:00:00Z' }),
+        ];
+        expect(pickHomeYardCats(cats).map((c) => c.id)).toEqual(['me', 'new', 'mid', 'old']);
+        expect(pickHomeYardCats(cats, 2).map((c) => c.id)).toEqual(['me', 'new']);
+    });
+
+    it('keeps the active cat even when the cap is 1 and drops duplicates and sheetless cats', () => {
+        const cats = [cat('a'), cat('a'), cat('b', { sheetUrl: '' }), cat('c', { active: true })];
+        expect(pickHomeYardCats(cats, 1).map((c) => c.id)).toEqual(['c']);
+        expect(pickHomeYardCats(cats).map((c) => c.id)).toEqual(['c', 'a']);
+    });
+
+    it('defaults the cap to HOME_YARD_MAX_CATS', () => {
+        const many = Array.from({ length: HOME_YARD_MAX_CATS + 10 }, (_, i) => cat(`c${i}`));
+        expect(pickHomeYardCats(many)).toHaveLength(HOME_YARD_MAX_CATS);
+    });
+
+    it('compares id sets regardless of order', () => {
+        expect(sameHomeYardIds([cat('a'), cat('b')], [cat('b', { active: true }), cat('a')])).toBe(true);
+        expect(sameHomeYardIds([cat('a')], [cat('a'), cat('b')])).toBe(false);
+        expect(sameHomeYardIds([cat('a'), cat('b')], [cat('a'), cat('c')])).toBe(false);
+    });
+});

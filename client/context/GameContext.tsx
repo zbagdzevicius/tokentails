@@ -12,6 +12,7 @@ import {
   IGameStopEvent,
 } from "@/components/Phaser/events";
 import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
+import { useHomeYardMode } from "@/components/home/homeYardMode";
 import { ftueStore } from "@/components/Phaser/onboarding/ftue-store";
 import { haptic } from "@/components/Phaser/onboarding/haptics";
 import { ASSIST_SUGGEST_AFTER } from "@/components/Phaser/onboarding/hints";
@@ -85,6 +86,8 @@ type ContextState = {
   playGame: () => void;
   addNotification: (notification: IToast) => void;
   setOpenedModal: (modal: GameModal | null) => void;
+  /** The open game modal, if any (the Cat Yard HOME pauses its render loop under one). */
+  openedModal?: GameModal | null;
 };
 
 const GameContext = React.createContext<ContextState | undefined>(undefined);
@@ -108,6 +111,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<object>) => {
   // so it runs during render: the children below read the store with the right owner.
   ftueStore.setOwner(profile?._id ?? null);
   const showToast = useToast();
+  const homeMode = useHomeYardMode();
   const queryClient = useQueryClient();
   const [notifications, setNotifications] = useState<IToast[]>([]);
 
@@ -443,6 +447,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<object>) => {
     setGameType,
     addNotification,
     setOpenedModal,
+    openedModal,
     gameStop,
     lastOutcome,
     level,
@@ -549,7 +554,8 @@ const GameProvider = ({ children }: React.PropsWithChildren<object>) => {
               !(isStarted && gameType !== GameType.CATNIP_CHAOS) &&
               !(isStarted && gameType !== GameType.PIXEL_RESCUE) &&
               gameType !== GameType.SHELTER &&
-              !(gameType === GameType.HOME && !!profile.cat?.status?.EAT)
+              // HOME: only the Phaser fallback has a cat to steer (the Cat Yard's cats wander).
+              !(gameType === GameType.HOME && homeMode === "phaser" && !!profile.cat?.status?.EAT)
             }
           />
 
@@ -597,6 +603,7 @@ function useGame() {
     setGameType: context.setGameType,
     playGame: context.playGame,
     setOpenedModal: context.setOpenedModal,
+    openedModal: context.openedModal ?? null,
     gameStop: context.gameStop,
     lastOutcome: context.lastOutcome,
     level: context.level,

@@ -1,6 +1,6 @@
 import { SHELTER_CHAINS } from "./chains";
-// public/shelter-payouts/routers.json: the DonateRouter deployments (feature F1). It ships as [] and
-// the founder fills it after each deploy. A router is the only contract the public "give from your
+// public/shelter-payouts/routers.json: the DonateRouter deployments (feature F1), written by
+// `fund router record` from funding/framework/tracks/a-build/router-deployments.json. A router is the only contract the public "give from your
 // wallet" button talks to: it has no owner, pays every gift on in the call that brings it in, and
 // reverts if any part of a gift would reach the ShelterSplit treasury.
 

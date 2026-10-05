@@ -16,6 +16,7 @@ import {
   readErrorText,
   resolveChain,
 } from "./rpc";
+import { treatJarOpen } from "./treatChains";
 import { CHIP, HEADLINE, Kicker, MEMO, PANEL, PILL, PinkCat } from "./ui";
 
 // The pieces of /shelter-payouts that /impact shows too (the payouts feed, how it works, the give
@@ -324,10 +325,8 @@ export function useTreatJar(): { jar: DonateStatus | null | undefined; closed: b
       cancelled = true;
     };
   }, []);
-  const open =
-    !!jar?.enabled && BigInt(jar.amountWei || "0") > BigInt(0) &&
-    BigInt(jar.remainingTodayWei || "0") >= BigInt(jar.amountWei || "0");
-  return { jar, closed: jar !== undefined && !open };
+  // Open when any served network can take a treat now, not only the main chain (ux-1).
+  return { jar, closed: jar !== undefined && !treatJarOpen(jar) };
 }
 
 /**
@@ -409,7 +408,7 @@ export const HOW_IT_WORKS: readonly string[] = [
   "Free a shelter cat in Catnip Heist.",
   // claim: C-004, L-rail (the treat is Token Tails' own, and only while the rail is open)
   // Conditional, so it is true in every rail state (soon, paused, live, used up for today).
-  "Tap the rescue treat: while treats are open, Token Tails sends Pink Paw a small treat in USDC.",
+  "Tap the rescue treat: while treats are open, Token Tails sends Pink Paw a small treat in a stablecoin (USDC on most networks).",
   // claim: L-disbursed (every payout is a public chain event, listed here)
   "Every payout is read live from the chain and listed with its receipt.",
 

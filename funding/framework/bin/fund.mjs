@@ -121,13 +121,21 @@ async function runRouterCommand(cmd, rest, flags) {
     const p = plan.plan;
     const r = lib.routerEntryFromBroadcast(JSON.parse(readFileSync(f, 'utf8')), { chainId, network: p.network, chain: p.chain, split: p.split, token: p.token, symbol: p.symbol });
     if (r.problem) { console.error(`✗ ${r.problem}`); return 1; }
-    const file = process.env.FUND_A_ROUTER_DEPLOYMENTS || lib.ROUTER_DEPLOYMENTS;
+    const file = lib.routerPaths.routers();
     const list = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : [];
-    if (list.some((x) => String(x.router).toLowerCase() === r.entry.router)) { console.log(`already recorded: ${r.entry.router}`); return 0; }
+    const writeClient = () => {
+      // The client's give-from-wallet list is the public projection of router-deployments.json.
+      const out = lib.routerPaths.clientRouters();
+      if (!out || !existsSync(dirname(out))) return;
+      writeFileSync(out, JSON.stringify(lib.publicRouters(list), null, 2) + '\n');
+    };
+    // Dedup on (chain, network, router): one deployer nonce sequence gives the same address on many chains.
+    if (lib.routerAlreadyRecorded(list, r.entry)) { writeClient(); console.log(`already recorded: ${r.entry.router} on chain ${chainId}`); return 0; }
     const problems = lib.validateRouterDeployments([...list, r.entry]);
     if (problems.length) { for (const x of problems) console.error(`✗ ${x}`); return 1; }
     list.push(r.entry);
     writeFileSync(file, JSON.stringify(list, null, 2) + '\n');
+    writeClient();
     console.log(`recorded DonateRouter ${r.entry.router} (${p.chain} ${p.network} ${p.symbol}) in front of ${p.split}`);
     return 0;
   }

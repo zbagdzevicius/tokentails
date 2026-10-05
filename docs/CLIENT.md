@@ -71,6 +71,7 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `FIREBASE_AUTH_ORIGIN` | Build-time target of those rewrites (default the project's `firebaseapp.com` host) |
 | `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` | reCAPTCHA Enterprise site key; when set, the guest session request carries `x-firebase-appcheck`. Off by default |
 | `NEXT_PUBLIC_HEIST_PICKER` | The Catnip Heist card in the PLAY picker is on by default in every build (decision #15 overridden 2026-10-05); `0` hides it |
+| `NEXT_PUBLIC_HOME_YARD` | MY HOME is the Cat Yard (see "MY HOME" below) by default; `0`, `false`, `off` or `no` brings back the Phaser HOME |
 | `NEXT_PUBLIC_HEIST_LANDING_PILL` | `1`, `true` or `on` shows "Or play Catnip Heist now, no sign-up" under the landing hero. Default off (decision #15) |
 | `NEXT_PUBLIC_HEIST_LANDING_SECTION` | The landing's Catnip Heist section (showreel or poster, three beats, PLAY CATNIP HEIST) between the proof section and the globe. Default on since the founder overrode decision #15 (Poki carve-out) for this section on 2026-10-04; `0`, `false` or `off` hides it. The pill and the picker card stay off under #15 |
 | `NEXT_PUBLIC_IMPACT_URL` | CDN URL of the impact snapshot mirror (default `impact/impact.json` on the asset CDN) |
@@ -339,6 +340,30 @@ USD prices convert to XLM using `GET /cat/rates`. No EVM, Solana, or WalletConne
 Solana was removed in March 2026. Cat documents still carry `token.sei` and `tokenId` fields from
 an earlier chain.
 
+### MY HOME (Cat Yard)
+
+The lobby's MY HOME tile (also CatsModal's cat pick and the Shelter's HOME button) opens the Catnip
+Heist's Cat Yard with the player's own cats: `components/home/HomeYard.tsx`, mounted by
+`components/game/Game.tsx` (next/dynamic, `ssr: false`). The yard is a prebuilt ES module that
+catnip-heist's `npm run build:client` writes next to the Heist (`public/heist-game/build/home-*.js`,
+sharing its three.js chunk) and records in `components/home/yardEntry.generated.ts`; the contract
+is `shared/home-yard.ts`. Local files only, so the Capacitor export ships it.
+
+- Cats: `/user/cats` (else `profile.cats`), the active one from `profile.cat` (steady mint ring and
+  name tag). Each cat's own `spriteImg` sheet is voxelised (hats included); at most 24 are shown.
+- Feeding: the HUD's FEED button pushes `CAT_EAT`; the cat runs to the bowls and eats, then
+  `CAT_EATEN` fires and `setCatStatus` saves EAT 4 (tails reward and toast as before).
+- SELECT on another cat's name card runs `useSelectHomeCat`, the same flow as the Phaser bubble.
+- HUD (`GameSelect.tsx`, `YardHomeHud`): GO BACK and SHELTER top left, MY HOME title, the feed
+  panel at the bottom. No mobile controls (the yard's cats wander; drag pans, pinch / wheel zoom).
+- `game_loaded` is sent once the yard is ready (a sceneless `GAME_LOADED`, which the crash guard
+  ignores). No scores.
+- Falls back to the Phaser HOME (`components/base`) without WebGL, when the module fails to load or
+  has another API version, when it is not ready in 15 s, or with `NEXT_PUBLIC_HOME_YARD=0`; each
+  fallback reports `home_yard_fallback`.
+- Changing the yard: edit `catnip-heist/src/yard` or `src/home`, run its `tsc` and `vitest`, then
+  `npm run build:client` there and commit the rebuilt `public/heist-game` and the generated entry.
+
 ### Other
 
 Support tickets, share modal (native clipboard on Capacitor), stats page, pixel globe of partner
@@ -585,7 +610,7 @@ Render, scenes and the Shelter (fixed in task 2e, plan F10, G13):
 - Fixed (new): cat names were written unescaped into the speech bubble's `innerHTML`.
 - Fixed: the canvas never followed a resize or rotation, and the backing store ignored the pixel ratio.
 - Fixed (task 2e review): a mid-run cat switch restarted Purrsuit and Cupid with the wrong payload; a Shelter visit leaked its `CAT_SPAWN` listener.
-- Open: in landscape (844x390) the mobile controls bar (`z-30`) covers GO BACK, SHELTER and HOME in Home and the Shelter (the specs dispatch the click).
+- Open: in landscape (844x390) the mobile controls bar (`z-30`) covers GO BACK, SHELTER and HOME in the Shelter and in the Phaser HOME fallback (the specs dispatch the click). The Cat Yard HOME shows no mobile controls, so it is not affected there.
 - Open: Purrsuit plays a `"hit"` animation that is never created and builds `speed-effect` from a texture that is never loaded; the Shelter pushes `GAME_LOADED` twice.
 - Open: `components/Phaser/look/loadTextures.ts` counts a sheet that answers 200 with a non-image body only at the 20 s timeout.
 - Open: portals in Purrsuit un-hide every collected sprig on teleport (the cap clamp keeps saves valid).
@@ -782,8 +807,10 @@ with no web3 dependency (raw EIP-1193, an inline keccak in `keccak.ts`).
   Token Tails holds the wallet; otherwise hidden. Try-it slot: `testnet` when
   `NEXT_PUBLIC_WALLET_DONATE_CHAIN` names a chain with a `testnet` router. Public money only ever moves
   donor → router → ShelterSplit → shelter wallet.
-- **`public/shelter-payouts/routers.json`** ships as `[]`. The founder adds one entry per DonateRouter
-  deploy: `{ "chainId", "router", "usdc", "network": "testnet" | "mainnet", "label"?, "symbol"?, "eip3009"? }`
+- **`public/shelter-payouts/routers.json`** is generated: `fund router record` (run by the wave wrapper
+  after each DonateRouter deploy) rewrites it as the public projection of
+  `funding/framework/tracks/a-build/router-deployments.json`, and a framework test fails when the two
+  differ. Entry: `{ "chainId", "router", "usdc", "network": "testnet" | "mainnet", "symbol"?, "eip3009"? }`
   (`routers.ts` drops malformed entries). Off Arc (native USDC), an entry is kept only with
   `"eip3009": true`, set after checking the token has `receiveWithAuthorization` (Tempo TIP-20 does not;
   USDG is unverified). Do not hand-edit `deployments.json` or `campaign.json` for this.

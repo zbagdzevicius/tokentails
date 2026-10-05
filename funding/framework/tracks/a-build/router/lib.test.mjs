@@ -116,3 +116,59 @@ test('validateRouterDeployments checks the schema; the shipped file is valid', (
   assert.equal(validateRouterDeployments([{ chainId: 'x', network: 'devnet' }]).length, 7);
   assert.deepEqual(validateRouterDeployments({}), ['router-deployments.json must be an array']);
 });
+
+test('S1: routerAlreadyRecorded keys on chain + network + router, not the address alone', async () => {
+  const { routerAlreadyRecorded } = await import('./lib.mjs');
+  const R = '0xe39742be' + '00'.repeat(16);
+  const list = [{ chainId: 42161, network: 'mainnet', router: R }];
+  assert.equal(routerAlreadyRecorded(list, { chainId: 42161, network: 'mainnet', router: R.toUpperCase().replace('0X', '0x') }), true);
+  // Same CREATE address on another chain (same deployer nonce) is a new router.
+  assert.equal(routerAlreadyRecorded(list, { chainId: 43114, network: 'mainnet', router: R }), false);
+  assert.equal(routerAlreadyRecorded(list, { chainId: 8453, network: 'mainnet', router: R }), false);
+  assert.equal(routerAlreadyRecorded(list, { chainId: 42161, network: 'testnet', router: R }), false);
+});
+
+test('S1: fund router record records an identical router address on a second chain', async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync: wf, readFileSync: rf } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { spawnSync } = await import('node:child_process');
+  const dir = mkdtempSync(join(tmpdir(), 'router-rec-'));
+  const R = '0x' + 'e3'.repeat(20);
+  const S1 = '0x' + '11'.repeat(20), S2 = '0x' + '22'.repeat(20);
+  const U1 = '0x' + 'a1'.repeat(20), U2 = '0x' + 'a2'.repeat(20);
+  wf(join(dir, 'chains.json'), JSON.stringify({ arbitrum: { networks: { mainnet: { chainId: 42161, usdc: U1 } } }, avalanche: { networks: { mainnet: { chainId: 43114, usdc: U2 } } } }));
+  wf(join(dir, 'deployments.json'), JSON.stringify([
+    { contract: 'ShelterSplit', chainId: 42161, address: S1, token: 'USDC', recorded: '2026-10-05T00:00:00Z' },
+    { contract: 'ShelterSplit', chainId: 43114, address: S2, token: 'USDC', recorded: '2026-10-05T00:00:00Z' },
+  ]));
+  const routers = join(dir, 'router-deployments.json');
+  const client = join(dir, 'client-routers.json');
+  wf(routers, '[]');
+  for (const [id, split, usdc] of [[42161, S1, U1], [43114, S2, U2]]) {
+    const b = join(dir, 'project', 'broadcast', 'DeployDonateRouter.s.sol', String(id));
+    mkdirSync(b, { recursive: true });
+    const hash = '0x' + String(id).padStart(64, '0');
+    wf(join(b, 'run-latest.json'), JSON.stringify({ transactions: [{ transactionType: 'CREATE', contractName: 'DonateRouter', contractAddress: R, hash, arguments: [split, usdc] }], receipts: [{ transactionHash: hash, status: '0x1', blockNumber: '0x10' }] }));
+  }
+  const env = { ...process.env, FUND_A_CHAINS: join(dir, 'chains.json'), FUND_A_DEPLOYMENTS: join(dir, 'deployments.json'), FUND_A_ROUTER_DEPLOYMENTS: routers, FUND_A_CLIENT_ROUTERS: client, FUND_A_PROJECT: join(dir, 'project') };
+  const fund = new URL('../../../bin/fund.mjs', import.meta.url).pathname;
+  for (const id of [42161, 43114, 43114]) {
+    const r = spawnSync(process.execPath, [fund, 'router', 'record', '--chain', String(id), '--token', 'USDC'], { env, encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+  }
+  const list = JSON.parse(rf(routers, 'utf8'));
+  assert.deepEqual(list.map((x) => x.chainId), [42161, 43114]);
+  // C1/S11: the client projection is written alongside.
+  const pub = JSON.parse(rf(client, 'utf8'));
+  assert.deepEqual(pub.map((x) => [x.chainId, x.router]), [[42161, R], [43114, R]]);
+  assert.equal(pub[0].split, undefined);
+});
+
+test('C1: client/public/shelter-payouts/routers.json is the public projection of router-deployments.json', async () => {
+  const { publicRouters, CLIENT_ROUTERS } = await import('./lib.mjs');
+  const src = JSON.parse(readFileSync(ROUTER_DEPLOYMENTS, 'utf8'));
+  const client = JSON.parse(readFileSync(CLIENT_ROUTERS, 'utf8'));
+  const norm = (l) => l.map((x) => ({ ...x, router: x.router.toLowerCase(), usdc: x.usdc.toLowerCase() }));
+  assert.deepEqual(norm(client), norm(publicRouters(src)));
+});

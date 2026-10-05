@@ -13,10 +13,10 @@ x402 agent endpoint, payAndFetch in the SDK, the sponsored-treat flow, receipts 
 Required: public GitHub repo, demo video under 3 minutes. Live link: the page says optional but
 strongly encouraged; treat it as required. Test USDC is accepted, mainnet USDC is weighted more.
 
-Before submitting: the x402 endpoint is OFF by default (SHELTER_X402_ENABLED, answers 503 while
-off; the Colosseum draft says "off until handover"). The demo needs it on against the Arc mainnet
-instance, plus one paid agent call on the explorer. Decide that with the team; if it stays off,
-rewrite "What the agent does" to say the demo ran on Arc testnet.
+x402 is on by default, but on a mainnet the cat-card is offered only once publicGivingVerified
+passes: every wallet on the split is a rotated claim (Pink Paw's signed per-chain claim). Tameion
+closes before the handover, so the agent demo runs on Arc testnet and the body says so; the only
+mainnet claims are the split, the EURC instance and the sponsored treat (On-chain proof).
 
 Fill after the Oct 2 deploy (single braces, fund check does not flag them, search for "{"):
 {SPLIT_ADDRESS} ShelterSplit on Arc mainnet · {ARC_TX} first sponsored treat · {DEMO_URL} demo
@@ -27,12 +27,12 @@ https://tokentails.com/shelter-payouts. Live API: GET https://api.tokentails.com
 A budget-capped agent pays a cat shelter in USDC on Arc and gets something back: it calls /shelter/agent/cat-card, gets a 402 offer, pays ShelterSplit, retries with the tx hash and receives an adoptable-cat card. Every payout is public; we hold the shelter wallet until handover.
 
 ## What the agent does <!-- criterion: C1 | limit: 1500 -->
-The agent buys one adoptable-cat card from https://api.tokentails.com/shelter/agent/cat-card, and the whole price is split across shelter wallets on Arc. The loop has no human in it:
-1. The agent calls the URL. The server answers 402 with an x402-shaped offer: scheme onchain-receipt, network eip155 for Arc, the price, payTo set to the ShelterSplit contract and a one-time memo of the form x402:<nonce>.
+The agent buys one adoptable-cat card from https://api.tokentails.com/shelter/agent/cat-card, and the whole price is split across shelter wallets. The demo loop ran on Arc testnet, with no human in it:
+1. The agent calls the URL. The server answers 402 with an x402-shaped offer: scheme onchain-receipt, the Arc network, the price, payTo set to the ShelterSplit contract and a one-time memo x402:<nonce>.
 2. The agent checks the price against its own spending cap and calls donate(memo) on the contract, paying native USDC.
 3. It retries with an X-PAYMENT header carrying the transaction hash and nonce.
-4. The server reads the receipt over RPC: status ok, payout events from that contract with that memo summing to the price, a nonce it issued and that has not expired, and a hash never used before. Then it answers 200 with the card and an X-PAYMENT-RESPONSE header.
-payAndFetch in the open SDK does this and refuses any price above its cap. A second agent decides gifts: Claude weighs the goal, fresh public gifts and the day's budget, then gives or holds, with a reason. A CappedSpender contract caps each gift and each UTC day on-chain and pays only the shelter wallets on the split (ours until handover), so an over-cap proposal reverts. Shown on a local Arc testnet fork; testnet deploy pending. It spends Token Tails' own float, not donor money. Limit: the cat-card scheme is our own; the standard exact scheme is facilitator-agnostic and off on mainnet until handover. Demo: {DEMO_URL}.
+4. The server reads the receipt over RPC: status ok, payout events from that contract with that memo summing to the price, a nonce it issued and not expired, a hash never used before. Then it answers 200 with the card.
+On Arc mainnet the endpoint opens once Pink Paw holds its own key (its signed claim), so no public payment reaches a wallet we hold. payAndFetch in the open SDK runs this loop and refuses any price above its cap. A second agent decides gifts: Claude weighs the goal, fresh gifts and the day's budget, then gives or holds, with a reason; a CappedSpender contract caps each gift and each UTC day on-chain, so an over-cap proposal reverts (shown on a local Arc testnet fork). It spends Token Tails' own float, not donor money. Demo: {DEMO_URL}.
 
 ## How it works <!-- criterion: C1, C3 | limit: 1500 -->
 - ShelterSplit on Arc at {SPLIT_ADDRESS}: a registry of shelter wallets, names and shares in basis points. donate(memo) splits the USDC sent with the call across every active shelter in the same transaction and emits one public event per payout. The contract never holds funds between calls. An ERC-20 path, disburse(), does the same through the USDC token interface, with separate events so the two decimal scales never mix.
@@ -44,7 +44,7 @@ payAndFetch in the open SDK does this and refuses any price above its cap. A sec
 ## Circle tools used <!-- criterion: C3 | limit: 900 -->
 - USDC on Arc as both the payment and the gas: the agent needs no second token, and neither does a shelter.
 - Arc settlement: the server can accept the payment as soon as the receipt is final, so the agent gets its card in the same session.
-- EURC on Arc: the contract takes any token at deploy time, and a EURC instance is prepared for European shelters, not yet deployed.
+- EURC on Arc: the contract takes any token at deploy time; a EURC instance and its DonateRouter are live on Arc mainnet for European shelters.
 - x402 and EIP-3009: our standard exact scheme is facilitator-agnostic and pays the shelter's own wallet; next is pointing it at Circle's x402 facilitator (Arc, Base, Polygon PoS). A DonateRouter lets a donor give with one signature. Both stay off on mainnet until handover.
 Honest gap: no Circle Wallets, Paymaster, CCTP or Gateway yet. The next step is Circle Wallets for the shelter side, so a shelter can hold its own key without managing a seed phrase, which is also our path to handing over the first wallet.
 

@@ -34,7 +34,8 @@
       "avalanche": {
         "nativeSymbol": "AVAX",
         "gasPerTransfer": "0.002",
-        "deployer": { "native": "0.041", "tokens": { "USDC": "0.1" }, "reason": "ShelterSplit USDC + DonateRouter deploys and the proof (~0.032 AVAX at 1.5x), the 0.1 USDC proof payout (EURC instance later)" },
+        "baseFeeCapGwei": "10",
+        "deployer": { "native": "0.056", "tokens": { "USDC": "0.1" }, "reason": "ShelterSplit USDC + DonateRouter deploys and the proof (~0.032 AVAX at 1.5x; forge asks gasLimit x 2x base fee up front, so 0.056 covers a base fee up to ~10 gwei, the step-1 check refuses above baseFeeCapGwei), the 0.1 USDC proof payout (EURC instance later)" },
         "donatehot": { "native": "0.015", "tokens": { "USDC": "0.1" }, "reason": "treats: 0.1 USDC float (10 treats) plus gas for about 10 txs (~0.011 AVAX)" }
       },
       "base": {

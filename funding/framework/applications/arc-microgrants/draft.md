@@ -28,8 +28,8 @@ Built around it, all in the public repo:
 - One-tap gift: a verified player taps "Send Pink Paw a rescue treat" after a Catnip Heist win or on the payouts page. Token Tails pays a small sponsored amount, once a day, from a capped budget. No wallet, no gas.
 - Receipts and a share card for each payout, Pink Paw's profile with the custody disclosure, and a goal meter of the USDC that came in.
 - Rail: an MIT SDK and a one-tag donate widget.
-- Built, deploy pending: DonateRouter, with no owner. A donor signs one message for Arc's USDC (USDC is both gas and gift), our relay submits it, and Token Tails can match it. Mainnet giving waits until Pink Paw holds its own key.
-Live: both contracts on Arc mainnet, Pink Paw registered, one proof payout, and https://tokentails.com/shelter-payouts.
+- DonateRouter, deployed, with no owner. A donor signs one message for Arc's USDC (USDC is both gas and gift), our relay submits it, and Token Tails can match it. Mainnet giving waits until Pink Paw holds its own key.
+Live on Arc mainnet: USDC and EURC ShelterSplits with their DonateRouters, Pink Paw registered, proof payouts, https://tokentails.com/shelter-payouts.
 
 ## How it works <!-- criterion: C1, C2, C3 | limit: 1500 -->
 - Arc-native path: USDC is Arc's gas token, so the native and ERC-20 balances are one. donate(memo) and receive() split a USDC send with no approve step. disburse(amount, memo) serves ERC-20 payers such as the EURC instance.
@@ -37,7 +37,7 @@ Live: both contracts on Arc mainnet, Pink Paw registered, one proof payout, and 
 - Registry: the owner adds, updates, deactivates or removes shelters; dust goes to the treasury, so the split holds no balance.
 - Atomic batch: if one payout fails the whole batch reverts and nobody is paid short.
 - Sponsored gifts: a verified player taps once a day; a backend wallet with a small float calls donate('tt:<source>:<random id>') within a capped daily budget. No personal data in the memo.
-- One-signature gifts (built, not deployed): the donor signs an EIP-3009 receiveWithAuthorization that binds the router, memo and payout list. The router reverts if that list changed or any share would reach the treasury.
+- One-signature gifts (public after handover): the donor signs an EIP-3009 receiveWithAuthorization that binds the router, memo and payout list. The router reverts if that list changed or any share would reach the treasury.
 - Agent payments, off on mainnet until handover: standard x402 exact paid straight to the shelter wallet, or our own scheme (donate('x402:<nonce>'), tx checked over RPC, accepted once).
 - Trust model: the chain proves USDC reached the registered wallet, not who controls it. Token Tails holds the first wallet for Pink Paw until handover.
 - Reentrancy guard, pause, two-step ownership; fuzz and invariant Foundry suites; MIT.

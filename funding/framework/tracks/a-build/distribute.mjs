@@ -179,7 +179,7 @@ export function resolvePlan({ plan, chains, wallets, network, only = null, profi
     }
     const rows = [];
     for (const [role, spec] of Object.entries(pc)) {
-      if (['nativeSymbol', 'gasPerTransfer', 'gasAsset', 'tokens'].includes(role)) continue;
+      if (['nativeSymbol', 'gasPerTransfer', 'gasAsset', 'tokens', 'baseFeeCapGwei'].includes(role)) continue;
       if (!spec || typeof spec !== 'object') { local.push(`${at}.${role}: must be an object`); continue; }
       if (!String(spec.reason || '').trim()) local.push(`${at}.${role}: give a short reason`);
       if (role === 'deployer') {
@@ -205,10 +205,14 @@ export function resolvePlan({ plan, chains, wallets, network, only = null, profi
         if (raw) rows.push({ role, to: w.address, asset: a.key, tokenAddress: resolveToken(n, pc, sym).address, symbol: a.symbol, decimals: a.decimals, target: raw, amount: String(v), reason });
       }
     }
+    // The highest base fee the deployer reserve covers: forge sets maxFee at about 2x the base fee and
+    // the node wants gasLimit x maxFee up front, so a fee spike can refuse the deploy the reserve was sized for.
+    let baseFeeCap = '';
+    if (pc.baseFeeCapGwei !== undefined) { const v = amount(String(pc.baseFeeCapGwei), 9, 'baseFeeCapGwei'); if (v) baseFeeCap = v; }
     if (local.length) { problems.push(...local); continue; }
     out.push({
       chain, chainId: Number(n.chainId), rpcEnv: n.rpcEnv, publicRpc: n.publicRpc || '', nativeSymbol,
-      castArgs: castArgsOf(n), gas, assets: [...assets.values()], rows,
+      castArgs: castArgsOf(n), gas, assets: [...assets.values()], rows, baseFeeCap,
     });
   }
   return { chains: out, deploy: block.deploy || null, deployer, problems };
@@ -342,6 +346,13 @@ export function distributeScript(resolved, { network, profile = null, date = new
     '    [ "$short" = 0 ] || bad=1',
     '  done',
     '  [ $bad = 0 ] || { fail "$chain" "the deployer is short (table above): send it more, then rerun"; return 1; }',
+    '  # The deploy reserve assumes a base fee; forge asks for about 2x it up front. Refuse above the cap.',
+    '  if [ "${WITH_RESERVE:-0}" = 1 ] && [ -n "${BASEFEE_CAP:-}" ]; then',
+    '    local bf; bf="$($CAST base-fee --rpc-url "$URL" 2>/dev/null)"; bf="${bf%% *}"',
+    '    if ! [[ "$bf" =~ ^[0-9]+$ ]]; then fail "$chain" "cannot read the base fee"; return 1; fi',
+    '    echo "  $chain base fee $("${MATH[@]}" fmt "$bf" 9) gwei (the deploy reserve covers up to $("${MATH[@]}" fmt "$BASEFEE_CAP" 9) gwei)"',
+    '    [ "$("${MATH[@]}" sub "$bf" "$BASEFEE_CAP")" = 0 ] || { fail "$chain" "base fee is above what the deploy reserve covers: wait for a lower fee, or send the deployer more and raise baseFeeCapGwei"; return 1; }',
+    '  fi',
     '}',
     '',
     '# send chain: tops up every row, re-reading each balance right before the transfer.',
@@ -370,7 +381,7 @@ export function distributeScript(resolved, { network, profile = null, date = new
       `chain_${c.chain}() { # ${c.chain} ${network} ${c.chainId}`,
       `  CH=${q(c.chain)}; ID=${c.chainId}; RPCENV=${q(c.rpcEnv)}; PUBRPC=${q(c.publicRpc)}`,
       `  FEE=(${c.castArgs.map(q).join(' ')})`,
-      `  GAS_ASSET=${q(c.gas.asset)}; GAS_PER=${q(c.gas.perTransfer)}`,
+      `  GAS_ASSET=${q(c.gas.asset)}; GAS_PER=${q(c.gas.perTransfer)}; BASEFEE_CAP=${q(c.baseFeeCap || '')}`,
       `  ASSETS=(${c.assets.map((a) => q(`${a.key}|${a.symbol}|${a.decimals}|${a.reserve}`)).join(' ')})`,
       `  ROWS=(${c.rows.map((r) => q(`${r.role}|${r.to}|${r.asset}|${r.symbol}|${r.decimals}|${r.target}`)).join(' ')})`,
       '}',
@@ -434,6 +445,15 @@ export function pendingSteps({ deploy, network, chains, deployments, routers, on
     const has = (addr) => routers.some((r) => r.network === network && Number(r.chainId) === Number(n.chainId) && String(r.usdc || '').toLowerCase() === String(addr || '').toLowerCase());
     if ((deploy.routerChains || []).includes(chain) && !has(n.usdc)) steps.push('router-usdc');
     if ((deploy.eurcRouterChains || []).includes(chain) && !has(n.splitTokens?.EURC?.address)) steps.push('router-eurc');
+    // A recorded mainnet split whose proof payout never landed (the deploy went through, the proof did
+    // not): the wrapper pays it again instead of losing it. Testnet records predate proofTxs: no step.
+    if (network === 'mainnet') {
+      const newest = (l) => l.length ? l[l.length - 1] : null;
+      const prim = newest(recorded(chain, 'PRIMARY'));
+      if (prim && !(prim.proofTxs || []).length) steps.push('proof');
+      const eu = (deploy.eurcChains || []).includes(chain) ? newest(recorded(chain, 'EURC')) : null;
+      if (eu && !(eu.proofTxs || []).length) steps.push('proof-eurc');
+    }
     const mine = deployments.filter((d) => d.chain === chain && d.network === network);
     if (mine.some((d) => !d.verified)) steps.push('verify');
     if (n.verifier && mine.some((d) => !d.sourceVerified)) steps.push('verify-source');
@@ -475,6 +495,7 @@ export function runAllScript({ network, deploy, chains, wallets, date = new Date
     `#   2. ShelterSplit USDC instance (fund a:wave, then wave/deploy-${network}.sh) on chains without one`,
     `#   3. ShelterSplit EURC instance (wave/deploy-${network}-eurc.sh) on: ${(deploy.eurcChains || []).join(', ') || '-'}`,
     `#   4. DonateRouter (USDC) on: ${(deploy.routerChains || []).join(', ') || '-'}; EURC routers on: ${(deploy.eurcRouterChains || []).join(', ') || '-'}`,
+    '#   4b. proof payouts a recorded split is still missing (a deploy that went through while its proof failed)',
     '#   5. fund a:ingest (records, wallet.config.ts, the client and Heist lists) + a:backend-deployments',
     '#   6. fund a:verify + a:verify-source per chain',
     `#   7. wave/${dist} (donatehot treat float + gas, agent x402 amount + gas; top-ups only)`,
@@ -494,11 +515,17 @@ export function runAllScript({ network, deploy, chains, wallets, date = new Date
     `WAVE=${q(waveDir)}`,
     'cd "$FUND_ROOT" || exit 1',
     'FUND=(node bin/fund.mjs)',
+    `DEPLOYMENTS="\${FUND_A_DEPLOYMENTS:-$FUND_ROOT/tracks/a-build/deployments.json}"`,
     'export FOUNDRY_DISABLE_NIGHTLY_WARNING=1',
     'export FUND_KEYSTORE="${FUND_KEYSTORE:-tokentails}"',
     `export SHELTERSPLIT_TREASURY="\${SHELTERSPLIT_TREASURY:-${treasury}}"`,
     `export PROOF_SHELTER="\${PROOF_SHELTER-${pinkPaw}}"`,
     `export PROOF_SHELTER_NAME="\${PROOF_SHELTER_NAME:-Pink Paw}" PROOF_AMOUNT="\${PROOF_AMOUNT:-${proofDefault(network)}}"`,
+    '# A value left exported in this shell (the testnet deploy header sets PROOF_AMOUNT=1000000) must not',
+    '# silently change what the plan budgeted: refuse anything else unless it is overridden on purpose.',
+    `if [ "$PROOF_AMOUNT" != ${q(proofDefault(network))} ] && [ "\${OVERRIDE_PROOF_AMOUNT:-}" != yes ]; then echo "refused: PROOF_AMOUNT=$PROOF_AMOUNT, but funding-plan.json budgets ${proofDefault(network)} raw per proof. unset PROOF_AMOUNT, or OVERRIDE_PROOF_AMOUNT=yes after funding the deployer for it"; exit 1; fi`,
+    ...(treasury ? [`if [ "$(printf %s "$SHELTERSPLIT_TREASURY" | tr A-F a-f)" != ${q(treasury.toLowerCase())} ] && [ "\${OVERRIDE_TREASURY:-}" != yes ]; then echo "refused: SHELTERSPLIT_TREASURY=$SHELTERSPLIT_TREASURY is not the wallets.public.json treasury ${treasury}. unset it, or OVERRIDE_TREASURY=yes"; exit 1; fi`] : []),
+    ...(network === 'mainnet' ? ['export CONFIRM_MAINNET   # the generated deploy scripts carry the same guard'] : []),
     ...rpcLines,
     'DRY="${DRY_RUN:-0}"; export DRY_RUN="$DRY"',
     'if [ -e "$FUND_KEYSTORE" ]; then SIGNER=(--keystore "$FUND_KEYSTORE"); else SIGNER=(--account "$FUND_KEYSTORE"); fi',
@@ -507,6 +534,8 @@ export function runAllScript({ network, deploy, chains, wallets, date = new Date
     `ALL=${q(list.join(','))}`,
     `IDS=${q(` ${ids} `)}`,
     `FARGS=${q(` ${fargs} `)}`,
+    `RPCS=${q(` ${list.map((c) => `${c}:${net(c).rpcEnv}`).join(' ')} `)}`,
+    `CASTP=${q(` ${list.filter((c) => net(c).proofVia === 'cast').join(' ')} `)}   # chains whose proof payout runs as cast sends`,
     'CH_LIST="${CHAINS:-$ALL}"',
     'FAILED=(); WARN=()',
     'lc() { printf %s "$1" | tr A-F a-f; }',
@@ -515,6 +544,7 @@ export function runAllScript({ network, deploy, chains, wallets, date = new Date
     'alive() { local out=() c; IFS=, read -r -a cs <<<"$CH_LIST"; for c in "${cs[@]}"; do case ",$ALL," in *",$c,"*) ;; *) continue;; esac; failed "$c" || out+=("$c"); done; local IFS=,; echo "${out[*]:-}"; }',
     'idof() { local x="${IDS#* $1:}"; echo "${x%% *}"; }',
     'fargsof() { local x="${FARGS#* $1:}"; x="${x%% *}"; echo "${x//,/ }"; }',
+    'rpcof() { local x="${RPCS#* $1:}"; echo "${x%% *}"; }',
     'pending() { "${FUND[@]}" a:pending --network "$NETWORK" --chains "$1" 2>/dev/null; }',
     'has_step() { node -e \'const j=JSON.parse(process.argv[1]);process.exit((j[process.argv[2]]||[]).includes(process.argv[3])?0:1)\' "$1" "$2" "$3"; }',
     'chains_with() { node -e \'const j=JSON.parse(process.argv[1]);console.log(Object.keys(j).filter(c=>(j[c]||[]).includes(process.argv[2])).join(","))\' "$1" "$2"; }',
@@ -525,7 +555,10 @@ export function runAllScript({ network, deploy, chains, wallets, date = new Date
     'step "1. balance check (deploy reserve + distribution)"',
     'PEND="$(pending "$(alive)")" || { echo "fund a:pending failed"; exit 1; }',
     'echo "pending deploys: $PEND"',
-    'RES_CHAINS="$(node -e \'const j=JSON.parse(process.argv[1]);console.log(Object.keys(j).filter(c=>j[c].some(s=>!s.startsWith("verify"))).join(","))\' "$PEND")"',
+    '# The deploy reserve is counted only where a ShelterSplit is still to deploy. On a rerun after the split',
+    '# went through, its gas and proof are already spent: routers and a retried proof are checked without it',
+    '# (forge simulates first, so a short deployer stops that step without spending).',
+    'RES_CHAINS="$(node -e \'const j=JSON.parse(process.argv[1]);console.log(Object.keys(j).filter(c=>j[c].some(s=>s==="usdc"||s==="eurc")).join(","))\' "$PEND")"',
     'FF="$(mktemp)"',
     `dist() { # what chains [ENV=VALUE...]: runs ${dist}, stops every chain it reports (or all of them if it died)`,
     '  local what="$1" cs="$2" rc; shift 2',
@@ -565,7 +598,12 @@ export function runAllScript({ network, deploy, chains, wallets, date = new Date
     'router() { # chain step(router-usdc|router-eurc)',
     '  local c="$1" st="$2" id tok sym plan split token url',
     '  id="$(idof "$c")"; sym=USDC; [ "$st" = router-eurc ] && sym=EURC',
-    '  plan="$("${FUND[@]}" router plan --chain "$id" --token "$sym" --json)" || { fail "$c" "router plan ($sym)"; return; }',
+    '  local rerr; rerr="$(mktemp)"',
+    '  if ! plan="$("${FUND[@]}" router plan --chain "$id" --token "$sym" --json 2>"$rerr")"; then',
+    '    if [ "$DRY" = 1 ] && grep -q "ShelterSplit recorded" "$rerr"; then echo "  $c $sym router: would deploy a DonateRouter after the $sym ShelterSplit (dry run: nothing is recorded)"; rm -f "$rerr"; return; fi',
+    '    cat "$rerr" >&2; rm -f "$rerr"; fail "$c" "router plan ($sym)"; return',
+    '  fi',
+    '  rm -f "$rerr"',
     '  split="$(node -e \'console.log(JSON.parse(process.argv[1]).split)\' "$plan")"; token="$(node -e \'console.log(JSON.parse(process.argv[1]).token)\' "$plan")"',
     '  if [ "$(node -e \'console.log(JSON.parse(process.argv[1]).routers.length)\' "$plan")" != 0 ]; then echo "  skip $c $sym router: already recorded"; return; fi',
     '  local rpcEnv; rpcEnv="$(node -e \'console.log(JSON.parse(process.argv[1]).rpcEnv)\' "$plan")"; url="${!rpcEnv:-}"',
@@ -585,6 +623,49 @@ export function runAllScript({ network, deploy, chains, wallets, date = new Date
     '  RT="$(chains_with "$PEND" router-usdc)$(chains_with "$PEND" router-eurc)"',
     '  [ -n "$RT" ] || echo "  nothing to deploy: every planned DonateRouter is already recorded"',
     '  for st in router-usdc router-eurc; do for c in $(chains_with "$PEND" "$st" | tr , " "); do failed "$c" || router "$c" "$st"; done; done',
+    'fi',
+    '',
+    '# proof_for CHAIN STEP(proof|proof-eurc): pays the proof a recorded split is still missing (the deploy',
+    '# went through, its proof did not). Same calls as the deploy script; a:ingest records it right after.',
+    'proof_for() {',
+    '  local c="$1" st="$2" id env url split owner tok h sym=PRIMARY fa=() a',
+    '  [ "$st" = proof-eurc ] && sym=EURC',
+    '  id="$(idof "$c")"; env="$(rpcof "$c")"; url="${!env:-}"',
+    '  [ -n "$url" ] || { fail "$c" "set $env"; return; }',
+    '  [ "$(cast chain-id --rpc-url "$url" 2>/dev/null)" = "$id" ] || { fail "$c" "RPC $env is not chain $id"; return; }',
+    '  split="$(node -e \'const d=require(process.argv[1]),[c,n,s]=process.argv.slice(2);const x=d.filter(e=>e.contract!=="DonateRouter"&&e.chain===c&&e.network===n&&(s==="EURC"?String(e.token).toUpperCase()==="EURC":String(e.token).toUpperCase()!=="EURC"));const e=x[x.length-1];console.log(e&&!(e.proofTxs||[]).length?e.address:"")\' "$DEPLOYMENTS" "$c" "$NETWORK" "$sym")"',
+    '  [ -n "$split" ] || return 0',
+    '  owner="$(cast call "$split" "owner()(address)" --rpc-url "$url" 2>/dev/null)"',
+    '  [ "$(lc "${owner%% *}")" = "$(lc "$DEPLOYER")" ] || { WARN+=("$c: the $st payout needs the split owner ${owner:-?}; pay it from that key"); return; }',
+    '  echo "  $c: $st payout still missing on $split: paying $PROOF_AMOUNT raw to $PROOF_SHELTER"',
+    '  [ "$DRY" = 1 ] && { echo "    (dry run: nothing sent)"; return; }',
+    '  for a in $(fargsof "$c"); do fa+=("$a"); done',
+    '  case "$CASTP" in',
+    '    *" $c "*)',
+    '      local ca=() i=0; while [ $i -lt ${#fa[@]} ]; do if [ "${fa[$i]}" = --gas-estimate-multiplier ]; then i=$((i + 2)); else ca+=("${fa[$i]}"); i=$((i + 1)); fi; done',
+    '      tok="$(cast call "$split" "token()(address)" --rpc-url "$url")" || { fail "$c" "$st payout (token)"; return; }',
+    '      if ! cast call "$split" "getShelter(address)" "$PROOF_SHELTER" --rpc-url "$url" >/dev/null 2>&1; then',
+    '        cast send "$split" "addShelter(address,uint16,string)" "$PROOF_SHELTER" "${PROOF_BPS:-10000}" "$PROOF_SHELTER_NAME" --rpc-url "$url" "${SIGNER[@]}" ${ca[@]+"${ca[@]}"} >/dev/null || { fail "$c" "$st payout (addShelter)"; return; }',
+    '      fi',
+    '      cast send "$tok" "approve(address,uint256)" "$split" "$PROOF_AMOUNT" --rpc-url "$url" "${SIGNER[@]}" ${ca[@]+"${ca[@]}"} >/dev/null || { fail "$c" "$st payout (approve)"; return; }',
+    '      h="$(cast send "$split" "disburse(uint256,string)" "$PROOF_AMOUNT" "${PROOF_MEMO:-Token Tails first payout}" --rpc-url "$url" "${SIGNER[@]}" ${ca[@]+"${ca[@]}"} --json | node -e \'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s);if(r.status!=="0x1"&&r.status!==1&&r.status!=="1")process.exit(1);console.log(r.transactionHash)})\')" || { fail "$c" "$st payout (disburse)"; return; }',
+    '      mkdir -p "$PROJECT/broadcast/ProofDisburse.s.sol/$id"',
+    '      printf \'{"transactions":[{"transactionType":"CALL","function":"disburse(uint256,string)","contractAddress":"%s","hash":"%s"}]}\\n\' "$split" "$h" > "$PROJECT/broadcast/ProofDisburse.s.sol/$id/run-latest.json"',
+    '      ;;',
+    '    *)',
+    '      (cd "$PROJECT" && PROOF_SPLIT="$split" EXPECTED_CHAIN_ID="$id" forge script script/ProofDisburse.s.sol:ProofDisburse --rpc-url "$url" "${SIGNER[@]}" --sender "$DEPLOYER" --broadcast ${fa[@]+"${fa[@]}"}) || { fail "$c" "$st payout"; return; }',
+    '      ;;',
+    '  esac',
+    '  # Recorded now: a second proof on this chain overwrites the same run-latest.json.',
+    '  FUND_A_SKIP_SOURCE_VERIFY=1 "${FUND[@]}" a:ingest --network "$NETWORK" >/dev/null || WARN+=("$c: a:ingest after the $st payout failed; rerun fund a:ingest --network $NETWORK")',
+    '}',
+    'step "4b. proof payouts still missing on recorded splits"',
+    'if [ -z "${PROOF_SHELTER:-}" ]; then echo "  PROOF_SHELTER is empty: no proof payouts"',
+    'else',
+    '  PEND="$(pending "$(alive)")"',
+    '  PR="$(chains_with "$PEND" proof)$(chains_with "$PEND" proof-eurc)"',
+    '  [ -n "$PR" ] || echo "  nothing missing: every recorded split has its proof payout"',
+    '  for st in proof proof-eurc; do for c in $(chains_with "$PEND" "$st" | tr , " "); do failed "$c" || proof_for "$c" "$st"; done; done',
     'fi',
     '',
     'step "5. a:ingest + wallet.config.ts"',
@@ -622,12 +703,14 @@ export function runAllScript({ network, deploy, chains, wallets, date = new Date
     '  backend/src/shelter/onchain/wallet.config.ts client/public/shelter-payouts catnip-heist/public/payouts client/public/heist-game/payouts \\',
     '  funding/framework/applications; cd "$FUND_ROOT"',
     'echo "  git add <the paths above> && git commit -m \\"chore(funding): record $NETWORK deployments\\" && git push"',
-    `TEMPO_SPLIT="$(node -e 'const d=require(process.argv[1]);const x=d.filter(e=>e.chain==="tempo"&&e.network===process.argv[2]);console.log(x.length?x[x.length-1].address:"")' "$FUND_ROOT/tracks/a-build/deployments.json" "$NETWORK")"`,
+    'echo "  client/public/shelter-payouts/routers.json is rewritten by fund router record (the public router list): commit it too"',
+    `TEMPO_SPLIT="$(node -e 'const d=require(process.argv[1]);const x=d.filter(e=>e.chain==="tempo"&&e.network===process.argv[2]);console.log(x.length?x[x.length-1].address:"")' "$DEPLOYMENTS" "$NETWORK")"`,
+    'SIGNER_TXT="${SIGNER[*]}"',
     `TEMPO_TOKEN=${q(chains.tempo?.networks?.[network]?.usdc || '')}; TEMPO_RPC=${q(chains.tempo?.networks?.[network]?.rpcEnv || 'RPC_TEMPO')}`,
-    'if [ -n "$TEMPO_SPLIT" ] && case ",$(alive)," in *,tempo,*) true;; *) false;; esac; then',
+    'if [ -n "${PROOF_SHELTER:-}" ] && [ -n "$TEMPO_SPLIT" ] && case ",$(alive)," in *,tempo,*) true;; *) false;; esac; then',
     '  echo "Tempo campaign memo (you run it; fund fill reads TEMPO_TX from fill-values.json):"',
-    '  echo "  cast send $TEMPO_TOKEN \\"approve(address,uint256)\\" $TEMPO_SPLIT $PROOF_AMOUNT --rpc-url \\$$TEMPO_RPC --account $FUND_KEYSTORE --tempo.fee-token 0x20c0000000000000000000000000000000000000"',
-    '  echo "  cast send $TEMPO_SPLIT \\"disburseWithMemo(uint256,bytes32)\\" $PROOF_AMOUNT \\$(cast format-bytes32-string \\"Catnip Heist campaign\\") --rpc-url \\$$TEMPO_RPC --account $FUND_KEYSTORE --tempo.fee-token 0x20c0000000000000000000000000000000000000"',
+    '  echo "  cast send $TEMPO_TOKEN \\"approve(address,uint256)\\" $TEMPO_SPLIT $PROOF_AMOUNT --rpc-url \\$$TEMPO_RPC $SIGNER_TXT --tempo.fee-token 0x20c0000000000000000000000000000000000000"',
+    '  echo "  cast send $TEMPO_SPLIT \\"disburseWithMemo(uint256,bytes32)\\" $PROOF_AMOUNT \\$(cast format-bytes32-string \\"Catnip Heist campaign\\") --rpc-url \\$$TEMPO_RPC $SIGNER_TXT --tempo.fee-token 0x20c0000000000000000000000000000000000000"',
     'fi',
     '',
     'echo; for w in "${WARN[@]:-}"; do [ -n "$w" ] && echo "warning: $w"; done',
