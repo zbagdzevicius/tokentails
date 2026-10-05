@@ -1,11 +1,11 @@
 ---
 program: Arbitrum Open House Singapore online buildathon
 track: A
-status: ready
+status: submitted
 frame: payout-rail
 deadline: "2026-10-04T15:59:00+08:00"
 url: "https://www.hackquest.io/hackathons/Arbitrum-Open-House-Singapore-Online-Buildathon"
-next: "Upload the demo video and paste its link for {DEMO_URL}, then submit on HackQuest before 2026-10-04 15:59 (zone not shown: 18:59 Vilnius if UTC). Testnet entry: Arbitrum Sepolia."
+next: "Submitted 2026-10-04 on HackQuest (Arbitrum Sepolia entry). Wait for results; reuse the entry for Arbitrum Dubai (Oct 31 – Dec 6)."
 created: 2026-09-30
 profile: arbitrum-singapore
 chain: arbitrum
