@@ -73,7 +73,8 @@ describe('readTryShelterConfig (the try-it testnet)', () => {
         expect(withKey?.privateKey).toBe(KEY_TRY);
         // BE-6: the mainnet main key pasted as the try key is refused (one-wallet plan: same address).
         expect(
-            readTryShelterConfig(env({ SHELTER_TRY_CHAIN_ID: '5042002', SHELTER_TRY_PRIVATE_KEY: KEY_MAIN }))?.privateKey
+            readTryShelterConfig(env({ SHELTER_TRY_CHAIN_ID: '5042002', SHELTER_TRY_PRIVATE_KEY: KEY_MAIN }))
+                ?.privateKey
         ).toBeNull();
         // A testnet main chain's key holds test funds only and may serve the try-it testnet.
         expect(
@@ -416,5 +417,18 @@ describe('zero config: every wallet.config.ts chain of the main chain class', ()
             url: 'https://paid.example/rpc',
             maxRange: null,
         });
+    });
+});
+
+describe('stale KEY_ENV', () => {
+    it('falls back to SHELTER_DONATE_PRIVATE_KEY on a same-class chain instead of closing it', () => {
+        const key = '0x' + '11'.repeat(32);
+        const out = readRelayChainConfigs({
+            SHELTER_CHAIN_ID: '5042002',
+            SHELTER_DONATE_PRIVATE_KEY: key,
+            SHELTER_RELAY_CHAINS: '421614',
+            SHELTER_CHAIN_421614_KEY_ENV: 'SHELTER_DONATEHOT_KEY',
+        });
+        expect(out.find(c => c.chainId === 421614)?.privateKey).toBe(key);
     });
 });

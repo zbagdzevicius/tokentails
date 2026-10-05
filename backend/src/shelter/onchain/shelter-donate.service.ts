@@ -273,7 +273,8 @@ export class ShelterDonateService {
         const enabled = donateReady(config) && !unhealthy;
         // Never promise more treats than the hot wallet can pay for (a minimal float pays about 10).
         const afford = this.affordable.get(`${config.chainId}|${config.splitAddress}`);
-        const cap = afford === undefined || !config.autoChain ? dailySlots(config) : Math.min(dailySlots(config), afford);
+        const cap =
+            afford === undefined || !config.autoChain ? dailySlots(config) : Math.min(dailySlots(config), afford);
         let remaining = ZERO;
         let left = 0;
         if (enabled) {
@@ -342,8 +343,11 @@ export class ShelterDonateService {
 
     private async readTreatHealth(config: ShelterOnchainConfig): Promise<string | null> {
         const hot = hotWalletAddress(config);
-        if (!hot || !config.splitAddress) {
-            return 'no hot wallet key or split';
+        if (!hot) {
+            return config.disabledReason || 'no hot wallet key for this network';
+        }
+        if (!config.splitAddress) {
+            return config.disabledReason || 'no ShelterSplit recorded for this network';
         }
         const key = `${config.chainId}|${config.splitAddress}`;
         // A token chain pays disburse(amount) in the split's token; the main chain pays donate() in its

@@ -325,7 +325,12 @@ export function readTryShelterConfig(env: NodeJS.ProcessEnv = process.env): Shel
     // signs on the try-it testnet, even when it is pasted as SHELTER_TRY_PRIVATE_KEY (the one-wallet plan
     // uses one address on both networks, so "the testnet hot key" can be the mainnet one).
     let tryKey = (env.SHELTER_TRY_PRIVATE_KEY || '').trim() || null;
-    if (tryKey && !isTestnetChain(base.chainId) && base.privateKey && tryKey.toLowerCase() === base.privateKey.toLowerCase()) {
+    if (
+        tryKey &&
+        !isTestnetChain(base.chainId) &&
+        base.privateKey &&
+        tryKey.toLowerCase() === base.privateKey.toLowerCase()
+    ) {
         tryKey = null;
     }
     return {
@@ -441,6 +446,14 @@ export function readRelayChainConfigs(env: NodeJS.ProcessEnv = process.env): She
                 privateKey.toLowerCase() === base.privateKey.toLowerCase()
             ) {
                 privateKey = null;
+            }
+            if (!privateKey && shortcut && base.privateKey) {
+                // A stale or mistyped KEY_ENV (e.g. a variable that was never set) falls back to the one
+                // main key, the zero-config default, instead of silently closing the chain.
+                privateKey = base.privateKey;
+            }
+            if (!privateKey) {
+                disabledReason = `${p}KEY_ENV names ${keyEnv}, which holds no usable key`;
             }
         } else if (shortcut) {
             // One key: SHELTER_DONATE_PRIVATE_KEY signs on every chain listed here (one EVM key works on
