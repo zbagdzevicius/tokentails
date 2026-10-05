@@ -244,7 +244,7 @@ budget is per chain.
 
 | Status | Body | When |
 |---|---|---|
-| 200 | `{ txHash, chainId, amountWei, explorerUrl, coin? }` | Broadcast; `explorerUrl` is the chain's explorer (`https://explorer.arc.io/tx/<hash>` on Arc mainnet, `https://explorer.testnet.arc.io/tx/<hash>` on Arc testnet, basescan, arbiscan, the Avalanche, Tempo and Robinhood explorers). `amountWei` is 18 decimals on every chain; `coin` is set on a token treat. The call returns once broadcast, not once mined; the reconcile job settles it to CONFIRMED or FAILED on its own chain |
+| 200 | `{ txHash, chainId, amountWei, explorerUrl, coin? }` | Broadcast; `explorerUrl` is the chain's explorer (`https://explorer.arc.io/tx/<hash>` on Arc mainnet, `https://explorer.testnet.arc.io/tx/<hash>` on Arc testnet, basescan, arbiscan, the Avalanche, Tempo and Robinhood explorers, MonadVision on Monad). `amountWei` is 18 decimals on every chain; `coin` is set on a token treat. The call returns once broadcast, not once mined; the reconcile job settles it to CONFIRMED or FAILED on its own chain |
 | 400 | Validation error | `source` is not `heist` or `page`, `chainId` is not a positive whole number, or the body has other keys |
 | 403 | `{code: GUEST_FORBIDDEN}`, `{code: EMAIL_UNVERIFIED}`, `{code: DONATE_NOT_ELIGIBLE, reason, eligibleAt}` | A guest, an unverified email, or the policy (`account-too-new`, `no-saved-game`) |
 | 429 | `{code: DONATE_ALREADY_TODAY}` | This user already has a treat for the current UTC day (or the per-user limit) |
@@ -319,8 +319,8 @@ first; all offers of one 402 share one nonce, and the first valid payment on any
 
 Any rejected payment (bad header, unknown or expired nonce, receipt missing, reverted or short, tx
 already used) is a 402 whose `error` says why and whose `accepts` carries a fresh nonce. A receipt
-that is not mined yet does not use up the nonce, so the agent can retry with the same header. 503
-means the feature is off or there is no card to sell.
+that is not mined yet does not use up the nonce, so the agent can retry with the same header. 409
+means the feature is off, no chain is offered, or there is no card to sell.
 
 **Standard x402 `exact` on the same endpoint** (`x402-exact.ts`, off unless
 `SHELTER_X402_EXACT_ENABLED=true`). `payTo` is the shelter's own wallet; the agent signs an EIP-3009
@@ -445,8 +445,8 @@ Known limits:
   job waits up to 60 seconds for the approve.
 - The flush keeper (`router.flush('tt:flush')`, at most hourly, for at least 0.01 USDC) runs only while
   the relay or the match is on.
-- Known inconsistency, not changed here: the x402 section above says the shelter endpoints never answer
-  503, and its last paragraph still says "503 means the feature is off".
+- Fixed (docs, 2026-10-05): the x402 section said both "never answer 503" and "503 means the feature is
+  off". The code answers 409 (`shelter-x402.service.ts`); the paragraph now says 409.
 
 ## Impact
 

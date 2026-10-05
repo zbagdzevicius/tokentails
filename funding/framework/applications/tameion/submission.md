@@ -1,6 +1,6 @@
 # Tameion Agents Hackathon (Canteen x Circle x Arc) — submission
 
-_Generated 2026-10-04T14:14:44.852Z by `fund a:submission tameion` from draft.md, the program profile,
+_Generated 2026-10-05T15:57:05.963Z by `fund a:submission tameion` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -21,12 +21,12 @@ A budget-capped agent pays a cat shelter in USDC on Arc and gets something back:
 
 ## What the agent does
 
-The agent buys one adoptable-cat card from https://api.tokentails.com/shelter/agent/cat-card, and the whole price is split across shelter wallets on Arc. The loop has no human in it:
-1. The agent calls the URL. The server answers 402 with an x402-shaped offer: scheme onchain-receipt, network eip155 for Arc, the price, payTo set to the ShelterSplit contract and a one-time memo of the form x402:<nonce>.
+The agent buys one adoptable-cat card from https://api.tokentails.com/shelter/agent/cat-card, and the whole price is split across shelter wallets. The demo loop ran on Arc testnet, with no human in it:
+1. The agent calls the URL. The server answers 402 with an x402-shaped offer: scheme onchain-receipt, the Arc network, the price, payTo set to the ShelterSplit contract and a one-time memo x402:<nonce>.
 2. The agent checks the price against its own spending cap and calls donate(memo) on the contract, paying native USDC.
 3. It retries with an X-PAYMENT header carrying the transaction hash and nonce.
-4. The server reads the receipt over RPC: status ok, payout events from that contract with that memo summing to the price, a nonce it issued and that has not expired, and a hash never used before. Then it answers 200 with the card and an X-PAYMENT-RESPONSE header.
-payAndFetch in the open SDK does this and refuses any price above its cap. A second agent decides gifts: Claude weighs the goal, fresh public gifts and the day's budget, then gives or holds, with a reason. A CappedSpender contract caps each gift and each UTC day on-chain and pays only the shelter wallets on the split (ours until handover), so an over-cap proposal reverts. Shown on a local Arc testnet fork; testnet deploy pending. It spends Token Tails' own float, not donor money. Limit: the cat-card scheme is our own; the standard exact scheme is facilitator-agnostic and off on mainnet until handover. Demo: {DEMO_URL}.
+4. The server reads the receipt over RPC: status ok, payout events from that contract with that memo summing to the price, a nonce it issued and not expired, a hash never used before. Then it answers 200 with the card.
+On Arc mainnet the endpoint opens once Pink Paw holds its own key (its signed claim), so no public payment reaches a wallet we hold. payAndFetch in the open SDK runs this loop and refuses any price above its cap. A second agent decides gifts: Claude weighs the goal, fresh gifts and the day's budget, then gives or holds, with a reason; a CappedSpender contract caps each gift and each UTC day on-chain, so an over-cap proposal reverts (shown on a local Arc testnet fork). It spends Token Tails' own float, not donor money. Demo: {DEMO_URL}.
 
 ## How it works
 
@@ -40,7 +40,7 @@ payAndFetch in the open SDK does this and refuses any price above its cap. A sec
 
 - USDC on Arc as both the payment and the gas: the agent needs no second token, and neither does a shelter.
 - Arc settlement: the server can accept the payment as soon as the receipt is final, so the agent gets its card in the same session.
-- EURC on Arc: the contract takes any token at deploy time, and a EURC instance is prepared for European shelters, not yet deployed.
+- EURC on Arc: the contract takes any token at deploy time; a EURC instance and its DonateRouter are live on Arc mainnet for European shelters.
 - x402 and EIP-3009: our standard exact scheme is facilitator-agnostic and pays the shelter's own wallet; next is pointing it at Circle's x402 facilitator (Arc, Base, Polygon PoS). A DonateRouter lets a donor give with one signature. Both stay off on mainnet until handover.
 Honest gap: no Circle Wallets, Paymaster, CCTP or Gateway yet. The next step is Circle Wallets for the shelter side, so a shelter can hold its own key without managing a seed phrase, which is also our path to handing over the first wallet.
 
@@ -63,7 +63,7 @@ Arc mainnet: ShelterSplit at {SPLIT_ADDRESS}. The first sponsored treat to Pink 
 
 ## Build evidence
 
-All 73/73 Foundry tests pass (unit, fuzz, reentrancy with a malicious token, event emission). Creation bytecode sha256 `6a1faf73bad02285dd3d1198bd8c31e25f6e2283258e024dfb7d68e4595bf72c`, runtime 11199 bytes, commit `9734bed09985`, built 2026-10-01.
+All 149/149 Foundry tests pass (unit, fuzz, reentrancy with a malicious token, event emission). Creation bytecode sha256 `6a1faf73bad02285dd3d1198bd8c31e25f6e2283258e024dfb7d68e4595bf72c`, runtime 11199 bytes, commit `4546c17be4e4`, built 2026-10-05.
 
 ## Team
 
@@ -75,5 +75,5 @@ Token Tails is a Lithuanian small partnership (MB), registered in October 2024. 
 - [ ] Demo video under 3 minutes (required)
 - [ ] Live deployed link (optional on the page, strongly encouraged)
 - [ ] Only in-window progress (2026-09-27 to 2026-10-10) counts: show the delta, disclose prior work
-- [ ] Arc mainnet address recorded with fund a:record arc mainnet, x402 endpoint switched on, one paid agent call on the explorer
+- [ ] Arc mainnet split recorded by the mainnet wave (deployments.json), one paid agent call on Arc testnet on the explorer (mainnet x402 opens only after Pink Paw's per-chain claim)
 

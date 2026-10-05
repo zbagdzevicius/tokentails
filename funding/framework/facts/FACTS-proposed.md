@@ -1,7 +1,13 @@
 # Proposed fact changes (facts-verify pass, 2026-09-27)
 
-**Proposals only.** `facts/FACTS.md` is unchanged. A person applies the rows they accept to
-FACTS.md by hand, then runs `fund check` on each app that cites the fact.
+**Status 2026-10-05.** Applied to the registry: F-003, F-004, F-005, F-006, F-011, F-014, F-023
+and F-024 (`test/facts.test.mjs` checks the accepted rows). Not applied: F-012 (FACTS.md still says
+4,700), F-013 (still "40 cats across 23 IG/TikTok profiles") and the F-001 "540K+" wording; F-002
+and F-022 needed no change. FACTS.md is now generated: edit `facts/facts.json`, then run
+`fund facts build` (or `fund facts absorb` after a `fund refresh --write`), never FACTS.md by hand.
+
+**Proposals only** (as written on 2026-09-27). A person applies the rows they accept, then runs
+`fund check` on each app that cites the fact.
 
 Method: every fact in FACTS.md with status `unverified` or `sei-era` was checked against a public
 source with WebFetch or WebSearch on 2026-09-27. Pages were read through the fetch tool's

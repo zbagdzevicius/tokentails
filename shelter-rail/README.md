@@ -16,7 +16,9 @@ showcase shelter's wallet has its own disclosure below).
 A non-custodial, pass-through payout rail for animal shelters. Any game, app or AI agent can add a
 donate button: the payment goes from the payer's wallet into the ShelterSplit contract, which splits
 it across the registered shelter wallets in the same transaction and emits one public event per payout.
-The contract keeps no balance, so there is nothing to withdraw and nothing for the operator to hold.
+The contract keeps no balance between calls: every payment is paid out in the same transaction. The
+only exception is a token sent to it by plain transfer (or native coin forced in without a call),
+which the owner can recover with `sweep` or `sweepNative` (each emits a public event).
 
 MIT licensed. No dependencies. Works in browsers and Node 18+.
 
@@ -65,7 +67,7 @@ takes a native `donate()` gift; everywhere else a gift is the chain's USD coin (
 
 | Chain | Mainnet / testnet ID | Payout coin (mainnet / testnet) | EIP-3009 | Gas |
 |---|---|---|---|---|
-| Arc | 5042 / 5042002 | USDC (native, 18 decimals; ERC-20 view 6) / same | yes | USDC |
+| Arc | 5042 / 5042002 | USDC (native, 18 decimals; ERC-20 view 6) / same (EURC too) | yes | USDC |
 | Tempo | 4217 / 42431 | USDC.e / pathUSD (TIP-20) | no | none: fees in a USD stablecoin |
 | Arbitrum | 42161 / 421614 | USDC | yes | ETH |
 | Avalanche C-Chain | 43114 / 43113 | USDC (EURC too) | yes | AVAX |
@@ -74,16 +76,18 @@ takes a native `donate()` gift; everywhere else a gift is the chain's USD coin (
 | Monad | 143 / 10143 | USDC (Circle) | yes | MON |
 
 USDC, USDC.e, USDG, pathUSD, mUSDC and EURC are different coins: `readTotals` keeps them apart
-(`byCoin`). Monad's public RPC answers `eth_getLogs` over at most 100 blocks, so its scans use 100-block
-windows. Not in the table (no address recorded in this repo yet): EURC on Arbitrum, Tempo, Robinhood and
+(`byCoin`). Monad's public RPC answers `eth_getLogs` over at most 100 blocks, so log scans use a
+separate keyless log RPC (`logRpc`: `rpc1.monad.xyz` on mainnet, 100,000-block windows; OnFinality on
+testnet, 10,000-block windows). Not in the table (no address recorded in this repo yet): EURC on Arbitrum, Tempo, Robinhood and
 Monad.
 
 Contract addresses are **not hard-coded**. They are published in
 [`client/public/shelter-payouts/deployments.json`](../client/public/shelter-payouts/deployments.json)
 and served at `https://tokentails.com/shelter-payouts/deployments.json`. Each entry has at least
 `chainId` and `address` (optional: `fromBlock`, `tx` (the deploy transaction; its block is the scan
-start when `fromBlock` is absent), `rpc`, `symbol`/`token`, `decimals`). The list is empty until the first deploy; the
-widget shows "Donations open soon" until then.
+start when `fromBlock` is absent), `rpc`, `symbol`/`token`, `decimals`). The mainnet list is empty until the
+mainnet wave; the widget shows "Donations open soon" until then. The testnet splits on all seven chains
+are in `testnet-deployments.json` next to it, and the DonateRouters in `routers.json`.
 
 Contract interface used here:
 
@@ -259,6 +263,10 @@ transaction receipt on the chain itself.
 4. The server checks the receipt on that chain (status ok, payout events from the split with that memo
    summing to the price, tx hash used once, nonce issued by the server, not expired and used once) and
    answers `200` with the card and an `X-PAYMENT-RESPONSE` header.
+
+Testnets are always offered. A mainnet chain is offered only once the split there pays nothing but
+shelter wallets that signed their claim and were rotated in on-chain (until the Pink Paw handover, no
+mainnet offer appears).
 
 ```js
 import { payAndFetch } from "./src/sdk.mjs";

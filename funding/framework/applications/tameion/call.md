@@ -5,7 +5,7 @@ status: researching
 frame: payout-rail
 deadline: "2026-10-10T23:59:00-04:00"
 url: "https://tameion.thecanteenapp.com/"
-next: "After the Oct 2 Arc deploy: record it (fund a:record arc mainnet <address>), switch on the x402 endpoint, make one paid agent call, record a demo under 3 minutes, then fund a:submission tameion"
+next: "After the Arc mainnet wave (fund a:mainnet-plan --network mainnet, then a person runs CONFIRM_MAINNET=yes wave/mainnet-all.sh, which records the split): make one paid agent call on Arc testnet (x402 is on by default; on mainnet it opens only after Pink Paw's per-chain claim), record a demo under 3 minutes, then fund a:submission tameion"
 created: 2026-10-01
 profile: tameion
 chain: arc

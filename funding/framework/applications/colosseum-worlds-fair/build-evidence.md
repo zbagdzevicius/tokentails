@@ -1,14 +1,14 @@
 ---
-generated: "2026-10-01T08:54:36.423Z"
+generated: "2026-10-05T15:50:41.699Z"
 passed: true
-tests_total: 73
-tests_passed: 73
+tests_total: 149
+tests_passed: 149
 tests_failed: 0
 bytecode_sha256: 6a1faf73bad02285dd3d1198bd8c31e25f6e2283258e024dfb7d68e4595bf72c
 runtime_bytes: 11199
-commit: 9734bed09985
+commit: 4546c17be4e4
 tree: clean
-forge: "forge 0.3.0 (5a8bd89 2024-12-20T08:45:53.204298000Z)"
+forge: "forge Version: 1.6.0-nightly"
 ---
 # Build evidence — ShelterSplit
 
@@ -17,18 +17,94 @@ evidence older than 7 days once the application is `ready`.
 
 | Item | Value |
 |---|---|
-| Result | PASS — 73/73 Foundry tests passing |
+| Result | PASS — 149/149 Foundry tests passing |
 | Creation bytecode sha256 | `6a1faf73bad02285dd3d1198bd8c31e25f6e2283258e024dfb7d68e4595bf72c` |
 | Runtime size | 11199 bytes (EIP-170 limit 24576) |
-| Git commit | `9734bed09985` (clean) |
-| Toolchain | forge 0.3.0 (5a8bd89 2024-12-20T08:45:53.204298000Z), solc 0.8.24+commit.e11b9ed9 |
-| Generated | 2026-10-01T08:54:36.423Z |
+| Git commit | `4546c17be4e4` (clean) |
+| Toolchain | forge Version: 1.6.0-nightly, solc 0.8.24+commit.e11b9ed9 |
+| Generated | 2026-10-05T15:50:41.699Z |
 
 ## Tests
 
 | Suite | Test | Kind | Result |
 |---|---|---|---|
+| CappedSpenderTest | `testFuzz_NeverMoreThanDailyCapPerDay(uint256,uint256,uint256)` | Fuzz (512 runs) | pass |
+| CappedSpenderTest | `test_CapsAndAgentAreFixedAtDeploy()` | Unit | pass |
+| CappedSpenderTest | `test_ConstructorRejectsBadInput()` | Unit | pass |
+| CappedSpenderTest | `test_DayRollsOver()` | Unit | pass |
+| CappedSpenderTest | `test_DeployGuards()` | Unit | pass |
+| CappedSpenderTest | `test_Erc20ModeRejectsNativeFunding()` | Unit | pass |
+| CappedSpenderTest | `test_Erc20WithdrawOnlyToOwner()` | Unit | pass |
+| CappedSpenderTest | `test_Erc20_GiftPaysTheShelter()` | Unit | pass |
+| CappedSpenderTest | `test_ExactlyTxCapIsAllowed()` | Unit | pass |
+| CappedSpenderTest | `test_FailedGiftDoesNotUseTheDailyBudget()` | Unit | pass |
+| CappedSpenderTest | `test_InactiveShelterTripsTheGuard()` | Unit | pass |
+| CappedSpenderTest | `test_InsufficientFloatReverts()` | Unit | pass |
+| CappedSpenderTest | `test_LastSecondOfDayStillCountsAsSameDay()` | Unit | pass |
+| CappedSpenderTest | `test_MemoMustCarryTheAgentPrefix()` | Unit | pass |
+| CappedSpenderTest | `test_MemoTooLongReverts()` | Unit | pass |
+| CappedSpenderTest | `test_NativeFundingOnlyFromOwner()` | Unit | pass |
+| CappedSpenderTest | `test_Native_GiftPaysTheShelter()` | Unit | pass |
+| CappedSpenderTest | `test_NonAgentReverts()` | Unit | pass |
+| CappedSpenderTest | `test_OverDailyCapReverts()` | Unit | pass |
+| CappedSpenderTest | `test_OverTxCapReverts()` | Unit | pass |
+| CappedSpenderTest | `test_OwnershipIsTwoStepAndMovesWithdrawals()` | Unit | pass |
+| CappedSpenderTest | `test_PausedSplitReverts()` | Unit | pass |
+| CappedSpenderTest | `test_TreasuryShareGuard()` | Unit | pass |
+| CappedSpenderTest | `test_TreasuryShareGuardCatchesRoundingDust()` | Unit | pass |
+| CappedSpenderTest | `test_WithdrawOnlyToOwner()` | Unit | pass |
+| CappedSpenderTest | `test_ZeroAmountReverts()` | Unit | pass |
 | DeployShelterSplitTest | `test_ScriptDeploysWithEnvAndGuardsChain()` | Unit | pass |
+| DonateRouterTest | `testFuzz_FullShareAlwaysReachesShelter(uint256)` | Fuzz (512 runs) | pass |
+| DonateRouterTest | `test_AmountTamperingReverts()` | Unit | pass |
+| DonateRouterTest | `test_AnyoneMaySubmitAndOutcomeIsFixed()` | Unit | pass |
+| DonateRouterTest | `test_AuthGiftFromSmartWallet1271()` | Unit | pass |
+| DonateRouterTest | `test_AuthGiftPaysShelterInFull()` | Unit | pass |
+| DonateRouterTest | `test_AuthGiftVRS()` | Unit | pass |
+| DonateRouterTest | `test_CanDonate()` | Unit | pass |
+| DonateRouterTest | `test_ExpiredReverts()` | Unit | pass |
+| DonateRouterTest | `test_FlushEventHasNoNonce()` | Unit | pass |
+| DonateRouterTest | `test_FlushForwardsPlainTransfer()` | Unit | pass |
+| DonateRouterTest | `test_FlushGuarded()` | Unit | pass |
+| DonateRouterTest | `test_FlushZeroReverts()` | Unit | pass |
+| DonateRouterTest | `test_GuardRevertsOnRoundingDust()` | Unit | pass |
+| DonateRouterTest | `test_GuardRevertsOnUnallocatedThirds()` | Unit | pass |
+| DonateRouterTest | `test_GuardRevertsWhenShelterInactive()` | Unit | pass |
+| DonateRouterTest | `test_GuardRevertsWhenShelterShareBelowFull()` | Unit | pass |
+| DonateRouterTest | `test_ImmutableWiring()` | Unit | pass |
+| DonateRouterTest | `test_MemoTamperingReverts()` | Unit | pass |
+| DonateRouterTest | `test_MemoTooLongReverts()` | Unit | pass |
+| DonateRouterTest | `test_NativeCheckedGift()` | Unit | pass |
+| DonateRouterTest | `test_NativeGiftRefusesTreasuryShare()` | Unit | pass |
+| DonateRouterTest | `test_NativeGiftSplitsFully()` | Unit | pass |
+| DonateRouterTest | `test_NativeZeroHashSkipsCheck()` | Unit | pass |
+| DonateRouterTest | `test_NativeZeroReverts()` | Unit | pass |
+| DonateRouterTest | `test_NotYetValidReverts()` | Unit | pass |
+| DonateRouterTest | `test_PlainNativeSendReverts()` | Unit | pass |
+| DonateRouterTest | `test_PostPayoutCheckCatchesLyingSplitAuth()` | Unit | pass |
+| DonateRouterTest | `test_PostPayoutCheckCatchesLyingSplitNative()` | Unit | pass |
+| DonateRouterTest | `test_ReentryFromShelterWalletIsBlocked()` | Unit | pass |
+| DonateRouterTest | `test_ReplayReverts()` | Unit | pass |
+| DonateRouterTest | `test_RepointAfterSendingRevertsNative()` | Unit | pass |
+| DonateRouterTest | `test_RepointAfterSigningRevertsAuth()` | Unit | pass |
+| DonateRouterTest | `test_RepointAfterSigningRevertsVRS()` | Unit | pass |
+| DonateRouterTest | `test_RouterSignatureCannotBeRedeemedDirectly()` | Unit | pass |
+| DonateRouterTest | `test_ShareChangeAfterSigningReverts()` | Unit | pass |
+| DonateRouterTest | `test_SignatureForAnotherRouterReverts()` | Unit | pass |
+| DonateRouterTest | `test_SignedHashMustMatchAmount()` | Unit | pass |
+| DonateRouterTest | `test_SplitPausedReverts()` | Unit | pass |
+| DonateRouterTest | `test_WrongTokenReverts()` | Unit | pass |
+| DonateRouterTest | `test_ZeroAmountReverts()` | Unit | pass |
+| DonateRouterForkTest | `test_Fork_AuthGiftBytes()` | Unit | pass |
+| DonateRouterForkTest | `test_Fork_AuthGiftVRS()` | Unit | pass |
+| DonateRouterForkTest | `test_Fork_CanDonate()` | Unit | pass |
+| DonateRouterForkTest | `test_Fork_NativeCheckedGiftReachesPinkPaw()` | Unit | pass |
+| DonateRouterForkTest | `test_Fork_NativeGiftReachesPinkPaw()` | Unit | pass |
+| DonateRouterInvariantTest | `invariant_RouterKeepsOnlyUnflushedStrays()` | Invariant | pass |
+| DonateRouterInvariantTest | `invariant_ShelterTotalsMatchGifts()` | Invariant | pass |
+| DonateRouterInvariantTest | `invariant_SplitKeepsNothing()` | Invariant | pass |
+| DonateRouterInvariantTest | `invariant_TreasuriesNeverReceive()` | Invariant | pass |
+| DonateRouterInvariantTest | `test_HandlerPathsSucceedOnACleanSplit()` | Unit | pass |
 | ShelterSplitTest | `testFuzz_BpsCapNeverExceeded(uint16,uint16)` | Fuzz (512 runs) | pass |
 | ShelterSplitTest | `testFuzz_SplitConservesAmount(uint256,uint16,uint16,uint16)` | Fuzz (512 runs) | pass |
 | ShelterSplitTest | `test_BpsCapEnforcedOnAdd()` | Unit | pass |

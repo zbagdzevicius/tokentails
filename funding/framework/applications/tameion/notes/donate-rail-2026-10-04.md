@@ -55,6 +55,21 @@ Before recording, run one `--once` with the real key and check the log's `meta.m
 | x402 `exact` to the shelter wallet, router, wallet giving | built; mainnet off until the Pink Paw handover |
 | Real Claude call | not run in this session (no API key here); the request shape is unit-tested |
 
+Update 2026-10-05:
+- Arc testnet DonateRouters are deployed and proven with a signed 0.1-token gift each: USDC
+  `0xa1cf1db2042dea0f169b1acdab479d4f17852860`, EURC `0x47ed389d2af5f4cd3e884208b72d609e78f6c5df`.
+  The Arc testnet EURC split is `0x937f13ce28294011567615330dbcb859a06a0bba`.
+- No Arc mainnet split is recorded yet. A person runs the mainnet wave
+  (`fund a:mainnet-plan --network mainnet`, then `CONFIRM_MAINNET=yes wave/mainnet-all.sh`); on Arc it
+  deploys the USDC and EURC splits and routers and sends 0.1-token proofs. The minimal plan funds the
+  Arc agent with 0.15 USDC (0.1 for ten paid calls at 0.01, plus gas; `funding-plan.json`).
+- x402 is on by default. On Arc testnet the cat-card is always offered; on a mainnet only once Pink
+  Paw's signed v2 claim for that chain is recorded and rotated (`publicGivingVerified`). So the paid
+  agent call for this entry is on Arc testnet. `SHELTER_HANDED_OVER=false` is now an emergency off. The standard `exact` scheme is separate: opt-in through `SHELTER_X402_EXACT_*`, and on a mainnet it
+  still needs `SHELTER_HANDED_OVER=true` and a facilitator URL (`x402-exact.ts`).
+- CappedSpender is still not deployed on any network.
+- `submission.md` was regenerated from the corrected draft on 2026-10-05.
+
 ## Numbers and their keys
 
 - [C-001] goal; [C-004] treat size; [C-005] daily treat budget; [C-006] x402 cat-card price (0.01).

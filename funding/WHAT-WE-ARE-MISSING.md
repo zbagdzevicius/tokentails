@@ -1,5 +1,14 @@
 # What we are missing to win (2026-10-02)
 
+> **Status (2026-10-05), checked against the code; the audit below is unchanged.** Backend env for
+> gifts is now only `SHELTER_CHAIN_ID` and `SHELTER_DONATE_PRIVATE_KEY`: the split, router and
+> treasury come from the generated `backend/src/shelter/onchain/wallet.config.ts`, and treats and
+> x402 are on by default (a848d790). That resolves the x402 policy conflict: the x402 card is on on
+> testnets, and on a mainnet it, the relay and the match open only after the shelter's own wallet
+> is claimed on that chain. Monad (143 and 10143) is in the client's `chains.ts`. `campaign.json`
+> now has a 50,000 USDC goal and the Pink Paw wallet (cb10e83a). The contract runs on seven chains,
+> not four. Live-site items (backend env on DigitalOcean, endpoint status) were not re-checked.
+
 # What we are missing to win (merged from the Judge, Ops and Legal audits, Oct 1 evening)
 
 The hours below are estimates, and the score lifts are the judge's opinion. None of them are measured.

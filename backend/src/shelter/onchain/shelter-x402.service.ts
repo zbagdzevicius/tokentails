@@ -237,7 +237,7 @@ export class ShelterX402Service implements OnModuleInit {
         return readExactConfig(process.env, { hotWallet: hotWalletAddress(config) });
     }
 
-    /** Returns the paid card, or throws 402 (with a fresh challenge) or 503. */
+    /** Returns the paid card, or throws 402 (with a fresh challenge) or 409 (off, no card). */
     async catCard(paymentHeader: string | undefined, resource: string, now: Date = new Date()): Promise<X402PaidCard> {
         const config = readShelterConfig();
         const exact = this.exactConfig(config);

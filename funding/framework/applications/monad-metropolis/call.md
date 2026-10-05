@@ -48,4 +48,4 @@ Not stated on the public page.
 
 - Monad mainnet: chain 143, Circle USDC 0x754704Bc059F8C67012fEd69BC8A327a5aafb603 (6 decimals), gas MON, explorer https://monadvision.com. No deployment yet (mainnet wave).
 - Monad testnet: chain 10143, Circle USDC 0x534b2f3A21130d7a60830c2Df862319e593943A3 (6 decimals, EIP-712 version "2", EIP-3009), explorer https://testnet.monadvision.com.
-- Testnet proof: ShelterSplit 0x457c89e10a6e66633eda5bf82fd086febb5db147 (Sourcify verified) and DonateRouter 0xe271131be71e29f83084fd34aa6c70d50a2aea71 (Sourcify verified); 1 USDC proof payout, 0.01 MON native gift and a one-signature 0.1 USDC router gift, all paid to Pink Paw (tx hashes in deployments.json and router-deployments.json).
+- Testnet proof: ShelterSplit 0x457c89e10a6e66633eda5bf82fd086febb5db147 (Sourcify verified) and DonateRouter 0xe271131be71e29f83084fd34aa6c70d50a2aea71 (Sourcify verified); 1 USDC proof payout, 0.01 MON native gift and a one-signature 0.1 USDC router gift, all paid to Pink Paw (the USDC proof and router gift hashes are in deployments.json and router-deployments.json; the native gift hash is only in draft.md's header comment).

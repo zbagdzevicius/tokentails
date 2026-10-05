@@ -27,6 +27,7 @@ Other material in the repo:
 - `client/docs/`: Android Play automation and the original Paw Match execution plan.
 - `docs/plans/`: plans. `landing-game-alignment.md` is the landing and game alignment plan; `docs/plans/alignment-log/` is its audit trail, one log per build task (what was built, decisions applied, manual steps).
 - `contracts/stellar/soroban-nft/README.md` and `contracts/evm/deployed-contracts.md`: chain-specific deploy notes.
+- `funding/framework/tracks/a-build/README.md`: the shelter payout contracts on seven EVM chains and the testnet and mainnet deploy waves. `shelter-rail/README.md`: the donate SDK and widget.
 
 ## Conventions used in these docs
 

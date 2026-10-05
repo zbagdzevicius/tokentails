@@ -34,9 +34,11 @@ Run every command from the repo root unless the step says otherwise.
 ### 1. Faucet
 
 Fund the deployer, donatehot and agent on Arc testnet at <https://faucet.circle.com> (pick Arc
-Testnet; USDC is the gas token there). Fund the deployer on the other testnets in the wave:
-Arbitrum Sepolia, Avalanche Fuji and Tempo Moderato (pathUSD). Monad testnet has no USDC address
-in `chains.json` yet, so the wave skips it.
+Testnet; USDC is the gas token there). Fund the deployer on the other testnets in the wave: Base
+Sepolia, Arbitrum Sepolia, Avalanche Fuji and Monad testnet (Circle's faucet serves USDC on all
+four, plus EURC on Fuji), Tempo Moderato (pathUSD) and Robinhood Chain testnet (gas only: the wave
+deploys a test MockUSDC, mUSDC, as the payout token there). All seven testnets already have a
+recorded split (`funding/framework/tracks/a-build/deployments.json`), so a rerun skips them.
 
 To top up donatehot or agent from the deployer, run the command below. `DEPLOYER_PW` is the
 deployer keystore's password file in `funding/.secrets/`. Its exact name (`deployer-password.txt`
@@ -49,6 +51,13 @@ cast send 0x8D03d8295892F7dE2B7cE57585Aa45Dd4B3C2ba0 --value 0.5ether --rpc-url 
 ```
 
 ### 2. Deploy wave (testnet)
+
+The one-command way (since Oct 5): `node bin/fund.mjs a:mainnet-plan --network testnet` from
+`funding/framework` writes `wave/testnet-all.sh`, which defaults the keystore, treasury, Pink Paw
+proof payout and public RPCs for all seven testnets, deploys whatever `a:pending` still lists
+(splits, EURC on Arc and Fuji, routers), ingests, verifies and tops up donatehot and the agent. Run
+`DRY_RUN=1 ./tracks/a-build/wave/testnet-all.sh` first. The manual steps below still work for one
+chain.
 
 ```sh
 export RPC_ARC_TESTNET=https://rpc.testnet.arc.io
@@ -83,8 +92,10 @@ The deploy script runs this step itself. To run it by hand:
 (cd funding/framework && node bin/fund.mjs a:ingest --network testnet)
 ```
 
-This records each deploy in `tracks/a-build/deployments.json` with `network: "testnet"`. A
-testnet ingest never publishes to the client's `deployments.json`; only mainnet does.
+This records each deploy in `tracks/a-build/deployments.json` with `network: "testnet"` and
+regenerates `backend/src/shelter/onchain/wallet.config.ts`. A testnet ingest writes the separate
+`testnet-deployments.json` lists (client and Catnip Heist, the "Testnet proof" sections), never the
+mainnet `deployments.json`.
 
 ### 4. Start the local stack
 
@@ -183,9 +194,8 @@ rm -rf funding/e2e/out
   `e2e.mjs`. The backend then verifies emulator tokens, and `e2e.mjs` creates the test user in the
   emulator without reading `backend/.env`. Nothing is written to production Firebase Auth. Set the
   variable for both processes or for neither; with only one, sign-in returns 401.
-- **Known issues, not fixed here.** `explorerTxUrl` in
-  `backend/src/shelter/onchain/shelter-onchain.config.ts` always returns a mainnet
-  `explorer.arc.io` link, so `explorerUrl` in testnet responses points at the wrong explorer.
-  `campaign.json` targets Arc mainnet (5042), so the campaign meter and wallet-donate block stay
-  empty on a testnet run. The client's `chains.ts` has no Monad testnet (10143) entry, so a
-  Monad deployment needs an `rpc` and `explorer` override in `deployments.json`.
+- **Known issues, not fixed here.** `campaign.json` targets Arc mainnet (5042), so the campaign
+  meter and wallet-donate block stay empty on a testnet run.
+  Fixed: `explorerTxUrl` now takes the row's chain ID, so testnet responses link the right explorer
+  (bef8faec, 2026-10-03). The client's `chains.ts` has a Monad testnet (10143) entry, so no
+  `rpc`/`explorer` override is needed (9b918ede, 2026-10-04).

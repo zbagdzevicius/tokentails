@@ -1,6 +1,6 @@
 # Monad Metropolis online hackathon (Consumer Products & Payments track) — submission
 
-_Generated 2026-10-04T19:07:07.052Z by `fund a:submission monad-metropolis` from draft.md, the program profile,
+_Generated 2026-10-05T15:57:24.243Z by `fund a:submission monad-metropolis` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -34,13 +34,13 @@ The player never touches a wallet: purchases stay card or in-app payments.
 
 ## How it works
 
-- On {MONAD_NETWORK}, ShelterSplit at {MONAD_SPLIT} pays USDC with disburse(amount, memo): it pulls the payment, splits what arrived by basis points, and sends rounding dust to a treasury. Fast blocks and low fees make a small gift settle before the player has left the screen.
-- Safety: reentrancy guard, pause, two-step ownership, safe transfers, caps on shelters and memo length. A Foundry suite covers splits, dust, access control, reentrancy and fuzzing.
-- The give flow runs on the Arc instance at {SPLIT_ADDRESS} today: a backend wallet with a small float pays, with a memo that holds no personal data. First treat: {ARC_TX}. It pays Arc's native USDC through donate(); on Monad the native coin is MON, so moving the treat to Monad needs the backend to use the USDC disburse path, which is not built yet.
-- Agent payments, off until handover and on Arc only: our own onchain-receipt scheme (donate('x402:<nonce>'), tx checked over RPC, accepted once), plus standard x402 exact paid straight to the shelter wallet.
-- Donor gifts: a DonateRouter with no owner takes a one-signature USDC gift where the chain's USDC supports EIP-3009 (Circle USDC on Monad does), and reverts if any share would reach the treasury. Live on Monad testnet; off for the public until handover.
-- Trust model: the chain proves the funds reached the registered wallet, not who controls it.
-- ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/ in github.com/zbagdzevicius/tokentails). Demo: {DEMO_URL}.
+- On {MONAD_NETWORK}, ShelterSplit at {MONAD_SPLIT} pays USDC with disburse(amount, memo): it pulls the payment, splits it by basis points and sends rounding dust to a treasury. Fast blocks and low fees settle a small gift before the player leaves the screen.
+- Safety: reentrancy guard, pause, two-step ownership, safe transfers, caps on shelters and memo length. Foundry tests cover splits, dust, access control, reentrancy and fuzzing.
+- The give flow runs on Arc at {SPLIT_ADDRESS}: a backend wallet with a small float pays, with a memo that holds no personal data. First treat: {ARC_TX}. The same backend pays treats in USDC on Monad testnet through disburse().
+- Agent payments: our onchain-receipt scheme (memo x402:<nonce>, checked over RPC, accepted once) on every chain with a split, Monad included, plus standard x402 exact. On mainnet: only once Pink Paw holds its own key.
+- Donor gifts: an ownerless DonateRouter takes a one-signature USDC gift (EIP-3009, which Circle USDC on Monad supports) and reverts if any share would reach the treasury. Live on Monad testnet; off for the public until handover.
+- Trust model: the chain proves funds reached the registered wallet, not who controls it.
+- ShelterSplit and the Rail SDK are MIT (github.com/zbagdzevicius/tokentails). Demo: {DEMO_URL}.
 
 ## Deployment
 
@@ -52,7 +52,7 @@ The player never touches a wallet: purchases stay card or in-app payments.
 
 ## Build evidence
 
-All 73/73 Foundry tests pass (unit, fuzz, reentrancy with a malicious token, event emission). Creation bytecode sha256 `6a1faf73bad02285dd3d1198bd8c31e25f6e2283258e024dfb7d68e4595bf72c`, runtime 11199 bytes, commit `9734bed09985`, built 2026-10-01.
+All 149/149 Foundry tests pass (unit, fuzz, reentrancy with a malicious token, event emission). Creation bytecode sha256 `6a1faf73bad02285dd3d1198bd8c31e25f6e2283258e024dfb7d68e4595bf72c`, runtime 11199 bytes, commit `4546c17be4e4`, built 2026-10-05.
 
 ## Team
 

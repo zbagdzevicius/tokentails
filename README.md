@@ -22,7 +22,8 @@
 
 Token Tails links three loops. Shelters register rescued cats, and AI turns each one into a
 collectible character. Players collect, feed, stake, and play with those cats across pixel
-platformers and a match-3 mode, earning $TAILS and catnip. Anyone can buy an AI portrait of their
+platformers, a match-3 mode and the 3D stealth game Catnip Heist, earning Tails (rescue points with no cash
+value) and catnip. Anyone can buy an AI portrait of their
 own pet or a card pack, and purchases flow back to shelter partners. Ownership is recorded as NFTs
 on Stellar.
 
@@ -32,9 +33,10 @@ on Stellar.
 |---|---|---|
 | [`backend/`](backend/) | REST API: auth, cats, blessings, shelters, games, payments, AI generation, cron | NestJS 9, MongoDB, Stripe, Stellar SDK, OpenAI, Gemini |
 | [`client/`](client/) | Website, game shell, portrait funnel, feed, marketplace; also the mobile web bundle | Next.js 16, React 19, Phaser 4, Capacitor 7, Stellar Wallets Kit |
+| [`catnip-heist/`](catnip-heist/) | Catnip Heist, built into the client and hosted on `/heist` | three.js, Vite |
 | [`cms/`](cms/) | Admin console for shelters and staff | Next.js 16, Firebase Auth, TinyMCE |
 | [`contracts/`](contracts/) | Soroban NFT contracts (production), SKALE ERC-721s, faucets, archived prototypes | Rust, Solidity, Node |
-| [`shelter-rail/`](shelter-rail/) and [`ShelterSplit`](funding/framework/tracks/a-build/shelter-split/) | Shelter payout contract (Arc, Tempo, Arbitrum), its Foundry tests, and the donate SDK and widget | Solidity 0.8.24, Foundry, plain JS |
+| [`shelter-rail/`](shelter-rail/) and [`ShelterSplit`](funding/framework/tracks/a-build/shelter-split/) | Shelter payout contracts (ShelterSplit, DonateRouter) on seven EVM chains (Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain, Monad), their Foundry tests, and the donate SDK and widget | Solidity 0.8.24, Foundry, plain JS |
 | [`docs/`](docs/) | Project documentation | Markdown |
 | [`extra/`](extra/) | Traction figures and the settlement rail proposal | Markdown |
 
@@ -70,8 +72,9 @@ Full setup, environment variables, and gotchas are in [docs/DEVELOPMENT.md](docs
 
 - AI pipeline: OpenAI classifies a rescued cat's look and writes its story; Gemini paints its avatar and 4K themed pet portraits.
 - Five game modes on Phaser 4, including an 80-level platformer and a 30-level match-3 with per-level leaderboards.
-- Dual currency: $TAILS as soft currency, catnip as capped competitive score, plus an airdrop progression system.
-- Payments through Stripe (Checkout and Payment Elements) and Stellar (XLM and USDC) with server-side verification.
+- Dual currency: Tails as rescue points, catnip as capped competitive score, plus an airdrop progression system.
+- Payments through Stripe (Checkout and Payment Elements), Stellar (XLM and USDC) and a crypto checkout (USDC, EURC, USDC.e and USDG on seven EVM chains), all verified on the server.
+- Shelter payouts: sponsored treats, wallet gifts and an x402 agent endpoint pay through ShelterSplit, with a public payouts page and on-chain receipts. Testnets are live; the mainnet wave is next.
 - One codebase for web, iOS, and Android.
 
 ## Traction

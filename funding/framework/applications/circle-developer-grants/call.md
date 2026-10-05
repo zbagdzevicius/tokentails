@@ -5,7 +5,7 @@ status: researching
 frame: payout-rail
 deadline: rolling
 url: "https://www.circle.com/grant"
-next: Draft the 4-milestone plan, one on-chain metric per milestone
+next: "Only after the Arc Microgrants decision (by Oct 21; Arc excludes work already funded by Circle). Rewrite draft.md for Arc (it is a v0 copy pitching Tempo), with the 4-milestone plan and one on-chain metric per milestone"
 created: 2026-09-28
 profile: circle-developer-grants
 chain: arc

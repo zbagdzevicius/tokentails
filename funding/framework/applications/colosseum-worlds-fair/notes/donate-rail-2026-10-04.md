@@ -34,6 +34,23 @@ Robinhood Chain (see chain-decision.md). Closes Oct 12 23:59 PT (Oct 13 09:59 Vi
 | DonateRouter, relay, match, CappedSpender, agent | built and tested; not deployed; testnet deploys are founder steps (tracker rows Oct 5) |
 | Public mainnet giving | pending the Pink Paw handover (`SHELTER_HANDED_OVER`, `campaign.shelter.handover`) |
 
+Update 2026-10-05:
+- Testnet DonateRouters are deployed, source-verified and proven with a signed 0.1 USDC gift each on
+  Arbitrum Sepolia `0xe271131be71e29f83084fd34aa6c70d50a2aea71` and Base Sepolia
+  `0x683d66d89eaa7460d3a12337cdf8185fae37dfbd` (also Arc, Avalanche Fuji and Monad testnet;
+  `tracks/a-build/router-deployments.json`). Tempo and Robinhood have no router (no EIP-3009).
+- No mainnet split is recorded yet; the wave has not run. A person runs it:
+  `fund a:mainnet-plan --network mainnet`, then `CONFIRM_MAINNET=yes wave/mainnet-all.sh`. It deploys
+  the splits on all seven chains, routers on Arbitrum and Base (and Arc, Avalanche, Monad), and sends
+  a 0.1-token proof payout per chain.
+- CappedSpender is still not deployed on any network.
+- x402 is on by default; on a mainnet the x402 card opens per chain once Pink Paw's signed v2 claim
+  for that chain is recorded and rotated, and relay and match also need their own per-chain flag.
+  `SHELTER_HANDED_OVER=false` is now an emergency off. The wallet button still waits for
+  `campaign.shelter.handover`. The standard `exact` scheme is separate: opt-in through `SHELTER_X402_EXACT_*`, and on a mainnet it
+  still needs `SHELTER_HANDED_OVER=true` and a facilitator URL (`x402-exact.ts`).
+- The shelter-split Foundry suite is 149 tests, all passing (2026-10-05).
+
 ## Numbers and their keys
 
 [C-004] treat size, [C-005] daily budget, [C-001] campaign goal, [C-006] x402 price. Money moved:

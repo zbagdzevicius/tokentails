@@ -8,6 +8,9 @@ been sent. AI does not send, post, sign or submit.
 (`enabled:false`, `chainId:5042`, `splitAddress:null`), so the new backend is up. The treat stays off
 until the Arc mainnet split exists and `SHELTER_DONATE_*` is set. `/shelter/agent/cat-card` returns
 **504** (it should give 402 once x402 is on). `tokentails.com/shelter-payouts` returns 200.
+Since Oct 4 (a848d790) treats and the x402 card are on by default: the backend needs only
+`SHELTER_CHAIN_ID` and `SHELTER_DONATE_PRIVATE_KEY`, and Arc mainnet treats start once the deployed
+`wallet.config.ts` lists the Arc mainnet split and the hot wallet holds USDC. No flag to flip.
 
 ---
 
@@ -150,7 +153,7 @@ sentences from `applications/arc-microgrants/draft.md` (about −1 point), or `{
 **Values only you have.** Paste them into `funding/framework/fill-values.json`, then run
 `node bin/fund.mjs fill --write` again (2 min per value):
 - `TEMPO_TX`: the manual `disburseWithMemo` hash. `a:ingest` does not record it.
-- `ARC_TX`: the first sponsored treat on Arc. Once `SHELTER_DONATE_*` is on, tap "Send Pink Paw a rescue treat" and copy the tx from the receipt URL.
+- `ARC_TX`: the first sponsored treat on Arc. Once the Arc mainnet split is deployed and the hot wallet is funded (step 4), tap "Send Pink Paw a rescue treat" and copy the tx from the receipt URL.
 - `DEMO_URL`: one per entry if they differ, e.g. `"arc-microgrants": { "DEMO_URL": "https://..." }`.
 - `PITCH_VIDEO_URL`: Colosseum only.
 
@@ -187,8 +190,8 @@ into the DoraBacks form linked from the Arc call page, take a screenshot and set
 
 ## 9. Oct 10 and Oct 11: Tameion (if invited) and Colosseum
 
-Tameion closes Oct 10 23:59 ET (Oct 11 06:59 Vilnius) and needs the x402 decision (on now, or after
-the handover). Colosseum closes Oct 12 23:59 PT (Oct 13 09:59 Vilnius), and the Team Leader submits.
+Tameion closes Oct 10 23:59 ET (Oct 11 06:59 Vilnius) and uses the x402 agent card. It is on by
+default on testnets; on mainnet it opens only after Pink Paw claims its own wallet on that chain. Colosseum closes Oct 12 23:59 PT (Oct 13 09:59 Vilnius), and the Team Leader submits.
 Every member must register on colosseum.com first (5 min each).
 
 ## 10. Oct 12–16: x402 Foundation micro-grant (you 45 min, after the build)

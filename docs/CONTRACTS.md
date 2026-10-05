@@ -12,7 +12,7 @@ deployed contracts but partly broken source. The other two are abandoned explora
 | `motoko/` | Internet Computer | Abandoned prototype. Unmodified Rocklabs reference NFT canister. Never deployed. |
 | `move/` | Aptos | Dead file. Unmodified Aptos framework module with no manifest. Never deployed. |
 
-The top-level `contracts/deployed-contracts.md` contains no addresses. Deployed identifiers live in
+The top-level `contracts/deployed-contracts.md` only points to the address lists. Deployed identifiers live in
 `evm/deployed-contracts.md` and `stellar/soroban-nft/README.md`, and are consolidated below.
 
 ## How the app uses the chains
@@ -63,9 +63,9 @@ Deployed contract IDs (public on-chain identifiers):
 Admin and minter account: `GAVYPYRZFSSNWLOXURWWPB5T6PVPNTBL7BCEQXZP5VMVDSMUP7XF5TAN`. Explorer:
 https://stellar.expert/explorer. Public dashboard: https://dune.com/token_tails/token-tails.
 
-The README in that folder lists the mainnet Cat ID a second time as the testnet Blessing ID. The
-mainnet reading is corroborated by the architecture note in `extra/`, so treat the testnet
-Blessing line as a copy-paste error.
+The README in that folder used to list the mainnet Cat ID a second time as the testnet Blessing ID.
+The mainnet reading is corroborated by the architecture note in `extra/`, so that line was a
+copy-paste error; since 2026-10-05 the README says the testnet Blessing ID is not recorded.
 
 Infrastructure manifests in the same folder: `k8s-pubnet.yaml` (Helm values for a self-hosted
 `stellar/soroban-rpc` 21.3.0 node in namespace `stellar-rpc`) and `k8s-cert.yaml` (cert-manager
@@ -128,8 +128,8 @@ There are no tests for the Solidity contracts.
 Fork of the SKALE `recipes` API-distribution starter with Token Tails additions: the
 `mlaccesstoken` middleware, batch `POST /claim`, per-address balance, and threshold logic. Sends
 `0.0000005` sFUEL to addresses below 75 percent of that amount. Same route shape as the Stellar
-faucet. Env: `PRIVATE_KEY`, `RPC_URL`, `ML_ACCESS_TOKEN`, `PORT`. The README says to copy
-`.env.example` but the shipped file is `.env.sample`.
+faucet. Env: `PRIVATE_KEY`, `RPC_URL`, `ML_ACCESS_TOKEN`, `PORT` (default 8888). Copy `.env.sample`
+to `.env`.
 
 ## Internet Computer (`motoko/`)
 
@@ -159,9 +159,22 @@ not in `contracts/`. Details, deploy commands and disclosures: that folder's `RE
 
 Tests: `forge test` runs 149 tests, including `DonateRouterInvariant.t.sol` (stateful fuzz: no
 treasury ever receives a donor's gift; the router holds only unflushed plain transfers).
-No DonateRouter or CappedSpender is deployed yet (`router-deployments.json` is `[]`). Do not deploy the
-router on a mainnet before the Pink Paw handover: it is public and ownerless, so gifts through it
-would reach the wallet Token Tails still holds.
+Chains: Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain and Monad, each on mainnet and testnet.
+The split pays USDC, except pathUSD on Tempo and USDG on Robinhood Chain (the Robinhood testnet uses a
+mock token). Arc also has an EURC split; on mainnet that is the only EURC instance. Testnet splits are
+recorded in `tracks/a-build/deployments.json` and routers in `tracks/a-build/router-deployments.json`
+(seven testnet routers: Arc USDC and EURC, Arbitrum, Avalanche USDC and EURC, Base, Monad). Tempo and
+Robinhood Chain get no router: their tokens have no EIP-3009. `fund a:ingest` turns the records into
+the backend's public config `backend/src/shelter/onchain/wallet.config.ts`. No mainnet split or router
+is recorded yet; the mainnet wave (`tracks/a-build/wave/mainnet-all.sh`, run by a person with
+`CONFIRM_MAINNET=yes`) deploys the splits and, by default, the routers on Arc (USDC and EURC),
+Arbitrum, Avalanche, Base and Monad. CappedSpender is not deployed.
+
+The router is public and ownerless, so until the Pink Paw handover a gift through it reaches the
+wallet Token Tails still holds. The backend keeps mainnet relay, match and x402 closed on a chain until
+every wallet the split pays carries the shelter's signed claim for that chain, rotated in on-chain,
+none is a wallet Token Tails holds, and `preview` sends nothing to the treasury.
+`SHELTER_HANDED_OVER=false` closes them everywhere.
 
 Known issue: `flush()` forwards the router's whole USDC balance; if that amount would leave rounding
 dust for the treasury (for example a three-way split) every flush reverts and the stray USDC stays in
@@ -184,12 +197,12 @@ for the Rocklabs, Aptos, and SKALE code.
 Stellar:
 
 - `stellar-fuel/src/distribute-batch.js` passes `{ address }` but `Distribute` destructures `{ walletAddress }`, so batch claims fund `undefined`. Single claims work.
-- Resolved: the soroban-nft README now uses public RPC URLs only, and the old third-party key is invalid (confirmed 2026-09-29).
+- Resolved: the old third-party RPC key is invalid (confirmed 2026-09-29). The README still listed the keyed provider URLs until 2026-10-05; it now lists public RPC URLs only.
 - `NFTContract.mint` is an open, overwriting mint. If the deployed Pass contract is this code, that entrypoint is live.
 - Persistent storage is never TTL-extended, so ownership entries can be archived.
 - No events, no upgrade entrypoint. Fixes require redeploy and state migration.
 - `cat`, `blessing`, and `nft` are near-duplicate crates. Fixes must be applied three times.
-- The README's "deploy to mainnet" snippet passes `--network testnet`.
+- Fixed 2026-10-05 (docs): the README's "deploy to mainnet" snippet passed `--network testnet`; it now passes `--network mainnet`.
 
 SKALE:
 

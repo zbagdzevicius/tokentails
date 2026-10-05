@@ -185,6 +185,22 @@ handover, wallets, inflow log, token, start balance); the Heist reads them at ru
 C-001 has `maxAgeDays: 125`, so it goes stale around 6 Feb 2027, long before the 30 Sep 2027 end.
 That is the review cadence (re-check wallets, caps and dates), not an error.
 
+### Rail state, test money and the mainnet gate
+
+- **On by default is not live.** Treats and the x402 agent card are on by default in the backend
+  (since 2026-10-04), but they need a recorded split, a key and a funded hot wallet. No mainnet split
+  is recorded yet (`wallet.config.ts`), so copy still reads the rail state from `L-rail`, never from
+  the config entries C-004 and C-005.
+- **Test money stays apart.** The testnet deployments (seven chains) are shown only in their own
+  "Testnet proof" section: the Heist payouts modal and `/shelter-payouts` read a separate list
+  (`testnet-deployments.json`) with its own totals. The impact indexer sums only chains of the main
+  chain's network class, and the goal meter never counts a test coin. A testnet figure is never
+  added to a mainnet number.
+- **The claim gate backs the custody copy.** On a mainnet, the relay, the match and the
+  `onchain-receipt` x402 open per chain only after the shelter's claim is verified on chain, and a
+  wallet Token Tails holds is never accepted as a claim. That is what keeps "Gifts, the match and x402
+  payments count once Pink Paw holds its own wallet" true.
+
 ## Wording rules
 
 `tools/copy-lint/` checks these rules. It reads string literals, template literals, JSX text and

@@ -34,6 +34,21 @@ revising them. Target submit date Oct 7; closes Oct 14 23:59 ET (Oct 15 06:59 Vi
 | CappedSpender + treat agent | built and tested; demo on a local fork of Arc testnet only; testnet deploy is a founder step |
 | Public mainnet giving (router, wallet button, x402) | **pending the Pink Paw handover** (`campaign.shelter.handover`, backend `SHELTER_HANDED_OVER`) |
 
+Update 2026-10-05:
+- Arc testnet DonateRouters are deployed, source-verified and proven with a signed 0.1-token gift
+  each: USDC `0xa1cf1db2042dea0f169b1acdab479d4f17852860`, EURC
+  `0x47ed389d2af5f4cd3e884208b72d609e78f6c5df` (`tracks/a-build/router-deployments.json`).
+- Arc mainnet is still not deployed. A person runs it with the mainnet wave
+  (`fund a:mainnet-plan --network mainnet`, then `CONFIRM_MAINNET=yes wave/mainnet-all.sh`): USDC
+  and EURC splits, both routers, 0.1-token proofs, treasury `0x7b136b872bEad1dAE557d1286f125B7A8A197C9A`.
+- x402 is on by default. On a mainnet the x402 card opens per chain only when Pink Paw's signed v2
+  claim for that chain is recorded and rotated (`publicGivingVerified`); relay and match need that
+  claim plus their own per-chain flag. `SHELTER_HANDED_OVER=false` is now an emergency off, not the
+  switch. The wallet button still waits
+  for `campaign.shelter.handover`. The standard `exact` scheme is separate: opt-in through `SHELTER_X402_EXACT_*`, and on a mainnet it
+  still needs `SHELTER_HANDED_OVER=true` and a facilitator URL (`x402-exact.ts`).
+- The shelter-split Foundry suite is 149 tests, all passing (`fund a:build`, 2026-10-05).
+
 Gate G2b (CLAUDE.md): Pink Paw signs the wallet claim and the owner rotates by Oct 6 → mainnet giving
 on; otherwise submit Oct 7 with the testnet "try it live" link and the gate disclosed in one line:
 "Public giving on mainnet opens when the shelter holds its own key; until then Token Tails holds it

@@ -292,15 +292,30 @@ finishedAt }` (the F8 lease), plus the codex reset's period claims.
 (`open`, `actioned`, `dismissed`), `action`, `resolvedBy`, `resolvedAt`. Unique partial
 `open_report_per_reporter`, `{ status, createdAt }`. Responses never include reporters.
 
-## Treats and the Arc rail
+## Treats and the shelter rail
 
-**shelterdonations**: one treat per user and UTC day (`user_day_unique`): `status` (`PENDING`, `SENT`,
-`CONFIRMED`, `FAILED`), `failedReason`, `source` (`heist`, `page`), `memo`, `txHash`, `txNonce`,
-`txFrom`, `signedAt`, `lastCheckedAt`, `attempts[]` (earlier failed attempts of the same day). Indexes
-`status_updated`, `status_checked`, `txhash`, `attempts_txhash` (sparse).
+Collections of `backend/src/shelter/onchain/shelter-onchain.schema.ts`. Every chain row carries
+`chainId` (the seven chains of `wallet.config.ts`, mainnet or testnet).
 
-**shelterdonatedays**: the per-day budget slots (`day_unique`). **x402nonces** (TTL on `expiresAt`,
-600 s) and **x402usedtxs** (unique `txHash`): the agent card.
+**shelterdonations**: one treat per user and UTC day across all chains (`user_day_unique`): `chainId`,
+`status` (`PENDING`, `SENT`, `CONFIRMED`, `FAILED`), `failedReason`, `source` (`heist`, `page`), `memo`,
+`amountWei` (18 decimals on every chain), `tokenAmount` (6-decimal base units, token treats only),
+`txHash`, `txNonce`, `txFrom`, `signedAt`, `sentAt`, `confirmedAt`, `blockNumber`, `budgetSlot`,
+`lastCheckedAt`, `attempts[]` (earlier failed attempts of the same day). Indexes `status_updated`,
+`status_checked`, `txhash`, `attempts_txhash` (sparse).
+
+**shelterdonatedays**: the per-day budget slots (`day_unique`); the key is the bare day on the main
+chain and `<day>@<chainId>` elsewhere. **x402nonces** (unique `nonce`, TTL on `expiresAt`, 600 s) and
+**x402usedtxs** (unique `txHash`; `nonce`, `amountWei` in 18 decimals, `scheme` (`onchain-receipt` or
+`exact`), `chainId`, `amountBase`, `payTo`, `verifiedOnchain`): the agent card.
+
+| Collection | Holds | Indexes |
+|---|---|---|
+| `shelterrelaytxs` | One relayed wallet gift: `chainId`, `nonce`, `from`, `valueBase`, `memo`, `day`, `txHash`, `txNonce`, `txFrom`, `status` (`submitted`, `confirmed`, `failed`), `batchId`, `blockNumber`, `failedReason`, `settledTxHash`, `ipHash` (only with `SHELTER_RELAY_IP_PEPPER`) | unique `nonce_unique`, `txhash` (sparse), `status_updated` |
+| `sheltermatches` | One match per router gift: `chainId`, `donorTxHash`, `donorFrom`, `giftBase`, `matchBase`, `matchTxHash`, `matchTxNonce`, `status` (`pending`, `sent`, `confirmed`, `skipped-cap`, `skipped-small`, `failed`), `day`, `path`, `failedReason`, `budgetHeld` | unique `donor_tx_unique`, `match_txhash` (sparse), `status_updated` |
+| `shelterclaims` | A shelter's signed payout wallet, one row per chain and wallet (a v2 claim writes one row per chain): `chainId`, `wallet`, `message`, `signature`, `status` (`pending-rotation`, `approved`, `rotated`, `rejected`) | unique `chain_wallet_unique`, `created` |
+| `sheltercounters` | Atomic relay and match caps: `key`, `used`, `expiresAt` | unique `key_unique`, TTL `counter_ttl` |
+| `shelterrouterscans` | The RouterDonation scan cursor and the last flush: `key`, `lastBlock`, `lastFlushAt` | unique `key_unique` |
 
 ## Impact (plan F7, G4, G11)
 

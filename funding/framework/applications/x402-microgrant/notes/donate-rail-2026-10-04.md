@@ -12,7 +12,7 @@ for projects "live on mainnet" that "unlock new demand or supply".
 | New demand | Agents can now give to a shelter without a donation form; a budgeted agent (CappedSpender + Claude) shows how an AI can give safely inside on-chain caps. |
 | Developer tool | shelter-rail widget and SDK (MIT) for any site to add a give button. |
 
-## Correction to carry into answers.md (not edited here; another session owns it)
+## Correction to carry into answers.md (done: answers.md says payTo is the shelter's own wallet, checked 2026-10-05)
 
 answers.md says the x402 payment "is split on-chain between the shelter and the treasury". With the
 `exact` scheme the payment goes straight to the shelter wallet; nothing reaches a treasury. Fix that
@@ -33,6 +33,13 @@ sentence before posting.
 | `exact` scheme | built; testnet only (Base Sepolia via the default testnet facilitator) |
 | Mainnet | pending the Pink Paw handover: the grant needs mainnet, so do not apply before G2b passes |
 | Our own onchain-receipt scheme | built, endpoint off by default (`SHELTER_X402_ENABLED`) |
+
+Update 2026-10-05: the onchain-receipt card is now on by default (`SHELTER_X402_ENABLED=false` is an
+emergency off). On a mainnet it is offered per chain only once Pink Paw's signed v2 claim for that
+chain is recorded and rotated (`publicGivingVerified`). The `exact` row above is unchanged: it stays
+opt-in (`SHELTER_X402_EXACT_*`), the public facilitator settles Base Sepolia only, and mainnet needs
+`SHELTER_X402_FACILITATOR_URL` and `SHELTER_HANDED_OVER=true`. The optional `PLAN=topup` mainnet
+profile funds the Base agent with 0.5 USDC for this demo (`tracks/a-build/funding-plan.json`).
 
 ## Numbers and their keys
 

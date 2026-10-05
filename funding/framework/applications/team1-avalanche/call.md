@@ -5,7 +5,7 @@ status: researching
 frame: payout-rail
 deadline: rolling
 url: "https://team1.network/grants"
-next: Deploy ShelterSplit on Avalanche C-Chain, then fill the mini-grant form from submission.md
+next: "After Oct 21 (tracker). Rewrite draft.md for Avalanche (it is a v0 copy pitching Tempo). The Avalanche C-Chain USDC split and DonateRouter deploy in the mainnet wave (fund a:mainnet-plan --network mainnet, then a person runs CONFIRM_MAINNET=yes wave/mainnet-all.sh); an Avalanche EURC instance is deferred (funding-plan.json deploy.later). Then fund a:submission team1-avalanche and fill the mini-grant form"
 created: 2026-09-28
 profile: team1-avalanche
 chain: avalanche

@@ -77,7 +77,7 @@ With the prerequisites, the near-term plan is **~33–41 hours** (about 5 workin
 
 | Saving | Rows | What the framework removes |
 |---|---|---|
-| **90%+ vs manual, 50–91% vs AI only** | #1–6, #13, #17 (Track A) | ShelterSplit is already written and passes 33 tests; `a:init`, `a:submission` and `a:matrix` turn one build into each submission. Left: the signed deploy and a demo video |
+| **90%+ vs manual, 50–91% vs AI only** | #1–6, #13, #17 (Track A) | ShelterSplit is already written and passes 73 tests (Oct 5; 149 with DonateRouter and CappedSpender); `a:init`, `a:submission` and `a:matrix` turn one build into each submission. Left: the signed deploy and a demo video |
 | **~90% vs manual, ~50–63% vs AI only** | #3, #4, #20, #22, #24, #25 (Tracks B, E) | `b:fill` builds the paste sheet from approved blocks with limits enforced; `e:scan` replaces manual checking of 22 pages |
 | **81–92% vs manual, 23–33% vs AI only** | #7–12, #23 (Tracks C, D) | Rubric extraction, citation and limit checks, `c:score`, `c:budget`, `c:plan`, `d:export`, `d:clock`. Most remaining time is writing, real data (CAC, budgets) and people: partners, sponsors, the narrative lead |
 | **~58% vs manual, ~16% vs AI only** | #14–16, #18, #19 | These need a new chain port of the NFT stack; the framework only speeds the application around it |

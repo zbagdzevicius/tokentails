@@ -35,6 +35,19 @@ the end user."
 | DonateRouter, CappedSpender, agent | built and tested, chain-agnostic; not deployed anywhere |
 | Public mainnet giving | pending the Pink Paw handover |
 
+Update 2026-10-05 (the table above is from the morning of Oct 4):
+- Monad testnet (10143) is deployed: ShelterSplit `0x457c89e10a6e66633eda5bf82fd086febb5db147` and
+  DonateRouter `0xe271131be71e29f83084fd34aa6c70d50a2aea71`, both Sourcify-verified, with a 1 USDC
+  proof payout and a one-signature 0.1 USDC router gift to Pink Paw (`deployments.json`,
+  `router-deployments.json`). Monad testnet USDC supports EIP-3009 (EIP-712 name "USDC", version
+  "2", probed read-only), so the donor beat can use the router.
+- Monad mainnet (143) is not deployed. It is in the mainnet wave (`fund a:mainnet-plan --network
+  mainnet`, then a person runs `CONFIRM_MAINNET=yes wave/mainnet-all.sh`): split, router and a 0.1 USDC
+  proof; the minimal plan budgets 1.48 MON for the deployer because Monad bills the gas limit.
+- CappedSpender is still not deployed anywhere, and no ERC-20 variant of `fork-demo.sh` exists.
+- On a mainnet the x402 card, relay and match open per chain only after Pink Paw's signed v2 claim for
+  that chain; the wallet button waits for the handover.
+
 ## Numbers and their keys
 
 [C-004], [C-005], [C-001]; live totals only from [L-disbursed]. [P-002], [P-003], [C-008] are

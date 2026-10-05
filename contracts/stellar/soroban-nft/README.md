@@ -1,30 +1,22 @@
-# Soroban Project
+# Token Tails Soroban contracts
 
-## Project Structure
+Cargo workspace (`soroban-sdk 21.0.0`) with three NFT contracts: Cat, Blessing and Pass. Full
+description, entrypoints and known issues: [docs/CONTRACTS.md](../../../docs/CONTRACTS.md).
 
-This repository uses the recommended structure for a Soroban project:
 ```text
 .
 ├── contracts
-│   └── cat
-│   |   ├── src
-│   |   │   ├── lib.rs -> smart contract file
-│   |   │   └── test.rs -> tests file
-│   |   └── Cargo.toml -> contract configuration file 
-│   └── test_snapshots -> tests results file
-│   └── blessing
-│   |   ├── src
-│   |   │   ├── lib.rs -> smart contract file
-│   |   │   └── test.rs -> tests file
-│   |   └── Cargo.toml -> contract configuration file 
-│   └── test_snapshots -> tests results file
-├── Cargo.toml -> project configuration file
-└── README.md -> this file
+│   ├── cat        TokenTailsCat:      src/lib.rs (contract), src/test.rs (tests), Cargo.toml
+│   ├── blessing   TokenTailsBlessing: src/lib.rs, src/test.rs, Cargo.toml
+│   └── nft        TokenTailsPass:     src/lib.rs, src/test.rs, Cargo.toml
+├── k8s-pubnet.yaml, k8s-cert.yaml   self-hosted Soroban RPC (Helm values, cert-manager issuer)
+├── Cargo.toml   workspace configuration
+└── README.md    this file
 ```
 
 #### contracts TESTNET:
 - ##### TokenTailsCat NFT: `CAJRXVUUCM7GKWM4SHAZURJDCJMWQY2OZMOJ243SNOFESW5I6LYUTGFM`
-- ##### TokenTailsBlessing NFT: `CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF`
+- TokenTailsBlessing NFT: not recorded (an earlier line repeated the mainnet Cat ID here)
 
 #### contracts MAINNET:
 - ##### TokenTailsCat NFT: `CBHOJOPZ5BCWQ63RLMTCG73I3MM6E2N5UNZ2AE3ZVYY4MMFFAGUI6QVF`
@@ -68,19 +60,10 @@ stellar network add \
   --network-passphrase "Public Global Stellar Network ; September 2015"
 ```
 
-```
-stellar network add \
-  --global mainnet \
-  --rpc-url https://soroban-rpc.mainnet.stellar.gateway.fm \
-  --network-passphrase "Public Global Stellar Network ; September 2015"
-```
 
 ### Networks
 
 - official testnet `https://soroban-testnet.stellar.org`
-Liquify provider
-- public testnet `https://stellar.liquify.com/api=41EEWAH79Y5OCGI7/testnet`
-- public mainnet `https://stellar-mainnet.liquify.com/api=41EEWAH79Y5OCGI7/mainnet`
 Gateway provider
 - public testnet `https://soroban-rpc.testnet.stellar.gateway.fm`
 - public mainnet `https://soroban-rpc.mainnet.stellar.gateway.fm`
@@ -100,7 +83,7 @@ stellar contract deploy \
 stellar contract deploy \
   --wasm target/wasm32-unknown-unknown/release/blessing.wasm \
   --source zygis \
-  --network testnet
+  --network mainnet
 ```
 
 ### Contract initialization

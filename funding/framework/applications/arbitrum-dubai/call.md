@@ -5,7 +5,7 @@ status: researching
 frame: payout-rail
 deadline: 2026-12-06
 url: "https://www.hackquest.io/hackathons/Arbitrum-Open-House-Dubai-Online-Buildathon"
-next: Extend ShelterSplit (shelter registry UI, public dashboard) inside the build window
+next: "Oct 31: register and re-score on the published criteria (gate G10). The public payouts page already exists, so the in-window build must be something new. Rewrite draft.md for Arbitrum and Robinhood Chain (it is a v0 copy pitching Tempo)"
 created: 2026-09-28
 profile: arbitrum-dubai
 chain: [arbitrum, robinhood]

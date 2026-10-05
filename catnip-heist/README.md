@@ -20,9 +20,11 @@ Build-time env vars:
 
 | Var | Effect |
 |---|---|
-| `HEIST_BASE` | Deploy path (Vite `base`). Default `./` (relative, works from any directory URL that ends in `/`). Set an absolute sub-path to host elsewhere, e.g. `HEIST_BASE=/tokentails/heist/ npm run build` for GitHub Pages or `HEIST_BASE=/heist/` for tokentails.com/heist/. |
+| `HEIST_BASE` | Deploy path (Vite `base`). Default `./` (relative, works from any directory URL that ends in `/`). Set an absolute sub-path to host elsewhere, e.g. `HEIST_BASE=/tokentails/heist/ npm run build` for GitHub Pages. tokentails.com uses `npm run build:client` (base `/heist-game/`, see the end of this file). |
 | `HEIST_PAYOUTS_URL` | Full shelter payouts page, linked small from the in-game "Sent to shelters" modal (and, in app builds, from the win screen). Default `https://tokentails.com/shelter-payouts`; an empty value hides the link. |
-| `HEIST_GIVE_URL` | Give page behind the win screen's "Send Pink Paw a rescue treat 🐾" button, opened as `?from=heist&cat=<rescued cat>`. Default `/shelter-payouts/give` (same-origin relative, so it works under tokentails.com/heist; on another host such as GitHub Pages set a full URL or an empty value). An empty value hides the button. |
+| `HEIST_GIVE_URL` | Give page behind the win screen's "Send Pink Paw a rescue treat 🐾" button, opened as `?from=heist&cat=<rescued cat>`. Default `/shelter-payouts/give` (same-origin relative, so it works on tokentails.com; on another host such as GitHub Pages set a full URL or an empty value). An empty value hides the button. |
+| `HEIST_DEPLOYMENTS_URL` | Mainnet deployment list for the win-screen total and the payouts modal. Default `<base>payouts/deployments.json`; an empty value turns the total off. |
+| `HEIST_TESTNET_DEPLOYMENTS_URL` | Testnet list for the modal's "Testnet proof". Default `<base>payouts/testnet-deployments.json`; an empty value hides the section. |
 
 GitHub Pages: `.github/workflows/catnip-heist-pages.yml` (repo root) builds with
 `HEIST_BASE=/<repo>/heist/` and deploys `dist/` to `/<repo>/heist/`. It runs only from the Actions
@@ -431,7 +433,8 @@ cat.update(dt);                 // seconds
 
 ### Shelter payouts on the win screen and the "Sent to shelters" modal
 
-The rescue screen shows a read-only on-chain total ("X USDC sent to real shelters so far, on-chain").
+The rescue screen shows a read-only on-chain total ("Token Tails has sent X USDC to shelters so far,
+on-chain"; other coins such as USDG or EURC are listed separately with " + ", never summed as USDC).
 `src/ui/payouts.ts` reads ShelterSplit's `Disbursed` and `NativeDisbursed` events from public RPCs;
 no wallet is involved. The deployment list is `public/payouts/deployments.json`, written by
 `fund a:ingest` after a deploy. `HEIST_DEPLOYMENTS_URL` overrides it, and an empty value hides the line.
@@ -444,7 +447,10 @@ behalf until handover; the give page and payouts page disclose this.
 
 On web hosts the payouts live in the game: `src/ui/shelter-payouts.ts` is a DOM modal ("Sent to
 shelters") with the total, the latest payouts (memo, amount, time, explorer tx link), a row per
-deployment (contract and explorer link), the Pink Paw card with the give button, and friendly
+deployment (contract and explorer link), the Pink Paw card (its logo, cats from the backend's
+`GET /cat/sale` with bundled copies as the fallback, the live goal meter for fact C-001 from the
+backend's `GET /shelter/goal/C-001`, else the campaign wallet's balance while that is exact) with the
+give button, and friendly
 loading, empty ("First payouts land soon") and error (retry) states. It opens from the title (the
 gold pill), the pause menu and the win screen's "See shelter payouts", and on load with `?payouts`
 or `#payouts`. Escape closes it without resuming a paused run, Tab stays inside it and focus goes
@@ -457,11 +463,14 @@ Under the real payouts the modal has a "Testnet proof" section, labelled "Test c
 money", mirroring the client page's section. It reads its own list, `public/payouts/testnet-deployments.json`
 (a copy of `client/public/shelter-payouts/testnet-deployments.json`; `fund a:ingest --network testnet`
 writes both), and shows one card per testnet (Arc, Tempo, Arbitrum Sepolia, Avalanche Fuji, Base Sepolia,
-Robinhood) with its role line, token chips, that chain's own totals, contract explorer links and, per
+Robinhood Chain Testnet with its mock mUSDC, Monad Testnet; `TESTNET_CHAIN_IDS` in
+`src/ui/shelter-payouts-chains.ts`) with its role line, token chips, that chain's own totals, contract explorer links and, per
 test payout, an explorer link and a website receipt link (`<payouts page>/receipt?chain=&tx=`). Its
 totals are never summed across chains or added to the real total. `HEIST_TESTNET_DEPLOYMENTS_URL`
 overrides the list, and an empty value hides the section.
 
 `npm run build:client` builds a copy into `../client/public/heist-game/` (base `/heist-game/`) that
 reads the client's `/shelter-payouts/deployments.json` (and `/shelter-payouts/testnet-deployments.json`
-for the testnet proof) and links to `/shelter-payouts`.
+for the testnet proof) and links to `/shelter-payouts`. On tokentails.com, `/heist` is the Next host
+page (`client/pages/heist.tsx`) that embeds that build in an iframe; `client/next.config.js` redirects
+the old `/heist/index.html` to `/heist` and old `/heist/*` asset URLs to `/heist-game/*`.

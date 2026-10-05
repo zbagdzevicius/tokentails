@@ -1,3 +1,7 @@
+> Historical Paw Match work log (March 2026), kept for reference (checked 2026-10-05). The `/box`
+> build blocker it mentions is fixed (last entry). The current leaderboard and HUD behaviour is in
+> `docs/GAMES.md`, "Paw Match".
+
 Original prompt: create players leaderboard of this game mode for each level
 
 - Added per-level Paw Match leaderboard panel in Match3 level selection UI.

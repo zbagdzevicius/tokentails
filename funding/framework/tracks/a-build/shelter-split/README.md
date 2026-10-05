@@ -37,12 +37,31 @@ the whole call reverts and nobody is paid short.
 
 ## Deployments
 
-Source is verified on each explorer listed. Mainnet rows are added after the mainnet deploy.
+Source is verified for every split and router listed (Blockscout, Etherscan or Sourcify). The
+records are `../deployments.json` (splits) and `../router-deployments.json` (routers); `fund a:ingest`
+writes them and the public config `backend/src/shelter/onchain/wallet.config.ts`. Mainnet rows are
+added after the mainnet wave. Testnets, the split each chain defaults to plus the EURC instances:
 
-| Network | Address | Proof |
-|---|---|---|
-| Arc testnet (5042002) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://explorer.testnet.arc.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [payout](https://explorer.testnet.arc.io/tx/0xa90f97134ab92efa5ade8c6f1c6eddcc9bded100a6c1bc2a5b1b91ba6da4360a) |
-| Tempo testnet (42431) | [`0x9978e60da2352a8de02852788d34bd95849a598d`](https://explore.testnet.tempo.xyz/address/0x9978e60da2352a8de02852788d34bd95849a598d) | [payout](https://explore.testnet.tempo.xyz/tx/0x2a8d49065e0d9bbd8ba6f1563eebf5a34a60d9203f9fc07582d84ccb7791af2d), [memo payout](https://explore.testnet.tempo.xyz/tx/0x7e9dc9e3d731e7ad579134927f0a1dd202975ee3bb6e9e55f4463621eea47fda) |
+| Network | Token | ShelterSplit | DonateRouter | Proof |
+|---|---|---|---|---|
+| Arc testnet (5042002) | USDC | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://explorer.testnet.arc.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [`0xa1cf1db2042dea0f169b1acdab479d4f17852860`](https://explorer.testnet.arc.io/address/0xa1cf1db2042dea0f169b1acdab479d4f17852860) | [payout](https://explorer.testnet.arc.io/tx/0xa90f97134ab92efa5ade8c6f1c6eddcc9bded100a6c1bc2a5b1b91ba6da4360a) |
+| Arc testnet (5042002) | EURC | [`0x937f13ce28294011567615330dbcb859a06a0bba`](https://explorer.testnet.arc.io/address/0x937f13ce28294011567615330dbcb859a06a0bba) | [`0x47ed389d2af5f4cd3e884208b72d609e78f6c5df`](https://explorer.testnet.arc.io/address/0x47ed389d2af5f4cd3e884208b72d609e78f6c5df) | [payout](https://explorer.testnet.arc.io/tx/0xc68ceb5a3633b78cd1681c81dde1ff310ca04f1f378003497acc906eb88f387b) |
+| Tempo testnet (42431) | pathUSD | [`0x9978e60da2352a8de02852788d34bd95849a598d`](https://explore.testnet.tempo.xyz/address/0x9978e60da2352a8de02852788d34bd95849a598d) | – (no EIP-3009) | [payout](https://explore.testnet.tempo.xyz/tx/0x2a8d49065e0d9bbd8ba6f1563eebf5a34a60d9203f9fc07582d84ccb7791af2d), [memo payout](https://explore.testnet.tempo.xyz/tx/0x7e9dc9e3d731e7ad579134927f0a1dd202975ee3bb6e9e55f4463621eea47fda) |
+| Arbitrum Sepolia (421614) | USDC | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://sepolia.arbiscan.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [`0xe271131be71e29f83084fd34aa6c70d50a2aea71`](https://sepolia.arbiscan.io/address/0xe271131be71e29f83084fd34aa6c70d50a2aea71) | [payout](https://sepolia.arbiscan.io/tx/0x73cdfdb403067706ce0760fd38feed6e2a1e93bbc8d1f6cd1c9e75af7134184d) |
+| Avalanche Fuji (43113) | USDC | [`0x8bf026d3816cb2344d14aa6301fccde3b289878c`](https://subnets-test.avax.network/c-chain/address/0x8bf026d3816cb2344d14aa6301fccde3b289878c) | [`0x4b25318bf32f2740c086350f802452ef2095cb6f`](https://subnets-test.avax.network/c-chain/address/0x4b25318bf32f2740c086350f802452ef2095cb6f) | [payout](https://subnets-test.avax.network/c-chain/tx/0x4170387155b296e140924ed6a9289688dc4801dbab6372d8117ee42f9c256f02) |
+| Avalanche Fuji (43113) | EURC | [`0x6f0a33ec63cb79dcc13eff6f31795cd11b38a022`](https://subnets-test.avax.network/c-chain/address/0x6f0a33ec63cb79dcc13eff6f31795cd11b38a022) | [`0xa1cf1db2042dea0f169b1acdab479d4f17852860`](https://subnets-test.avax.network/c-chain/address/0xa1cf1db2042dea0f169b1acdab479d4f17852860) | [payout](https://subnets-test.avax.network/c-chain/tx/0xa0a985544ae6c97ec63c7581f404ff97962a3a14a1113e6de7459a80ea806efa) |
+| Base Sepolia (84532) | USDC | [`0x8bf026d3816cb2344d14aa6301fccde3b289878c`](https://sepolia.basescan.org/address/0x8bf026d3816cb2344d14aa6301fccde3b289878c) | [`0x683d66d89eaa7460d3a12337cdf8185fae37dfbd`](https://sepolia.basescan.org/address/0x683d66d89eaa7460d3a12337cdf8185fae37dfbd) | [payout](https://sepolia.basescan.org/tx/0x26a7b0135627bd743046a56fdd69a93b1a830472702f241d48bd7790efacc5fb) |
+| Robinhood Chain testnet (46630) | mUSDC (mock: the testnet has no stablecoin) | [`0x2d42d01a00d75ade8c4f9503a7a6cee8a5f34777`](https://explorer.testnet.chain.robinhood.com/address/0x2d42d01a00d75ade8c4f9503a7a6cee8a5f34777) | – (no EIP-3009) | [payout](https://explorer.testnet.chain.robinhood.com/tx/0x276c904ce4b5862e8cd72b3e561ea9ea2bfc26428844c5035817726c5a84aa23) |
+| Monad testnet (10143) | USDC | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://testnet.monadvision.com/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [`0xe271131be71e29f83084fd34aa6c70d50a2aea71`](https://testnet.monadvision.com/address/0xe271131be71e29f83084fd34aa6c70d50a2aea71) | [payout](https://testnet.monadvision.com/tx/0x6f360be3884051af5e2ae367bf7d66ae095808110756b3fa740a203ef474a556) |
+
+Base Sepolia and Avalanche Fuji also have an older USDC split at `0x457c…db147` (no router). It stays
+in the records and in `wallet.config.ts` under `otherSplits`.
+
+Mainnet plan (`../funding-plan.json`, `deploy`): a USDC split on all seven chains (Arc, Tempo,
+Arbitrum, Avalanche, Base, Robinhood Chain, Monad), with Robinhood paying USDG and Tempo pathUSD; an
+EURC split on Arc only; DonateRouters on Arc, Arbitrum, Avalanche, Base and Monad, plus the Arc EURC
+router. Tempo's TIP-20 tokens and Robinhood's USDG have no EIP-3009, so those chains get no router.
+The mainnet treasury is `0x7b136b872bEad1dAE557d1286f125B7A8A197C9A`.
 
 ## DonateRouter: give straight to the shelter, gas-free
 
@@ -97,12 +116,15 @@ What the chain enforces:
 - **Custody, today.** The only registered shelter wallet is held by Token Tails until the handover
   below. Until then router gifts would land in a wallet Token Tails controls, so the public paths
   (`NEXT_PUBLIC_WALLET_DONATE`, mainnet relay) stay off and any mention of the router must say
-  "the shelter wallet is held by Token Tails until handover" (fact `router_guard`, P-002).
+  "the shelter wallet is held by Token Tails until handover" (fact `router_guard`, P-002). The
+  backend enforces this per chain: mainnet relay, match and x402 open on a chain only once every
+  wallet the split pays carries the shelter's signed claim (the v2 claim message can name several
+  chains) and has been rotated in on-chain, and `preview` sends nothing to the treasury. `SHELTER_HANDED_OVER=false` closes them on every chain.
 
 Chains: the signed path needs Circle's EIP-3009 on the chain's USDC. `fund router plan` runs a
 read-only `authorizationState` preflight and refuses Tempo outright: its stablecoins are TIP-20
-tokens without EIP-3009, so a router there would only support `flush`. The Robinhood testnet token is
-a mock; run the preflight before relying on it.
+tokens without EIP-3009, so a router there would only support `flush`. Robinhood Chain has no router
+either: mainnet pays USDG (no EIP-3009) and the testnet token is a mock.
 
 Verified on Arc:
 
@@ -125,8 +147,11 @@ Verified on Arc:
 
 The ABI is in `abi/DonateRouter.json` (regenerate: `forge inspect src/DonateRouter.sol:DonateRouter abi --json > abi/DonateRouter.json`).
 
-### Deploy the router (manual founder step)
+### Deploy the router
 
+Routers deploy by default: the wave wrappers (`../wave/testnet-all.sh`, `../wave/mainnet-all.sh`)
+deploy one on every `routerChains` / `eurcRouterChains` entry of `../funding-plan.json` that has none
+recorded, and record it right away with `fund router record`. To deploy one by hand,
 `node funding/framework/bin/fund.mjs router plan --chain <id>` prints these with the right addresses:
 
 ```sh
@@ -140,7 +165,8 @@ SPLIT=<ShelterSplit> USDC=<its token()> EXPECTED_CHAIN_ID=<id> \
   forge script script/DeployDonateRouter.s.sol --rpc-url <rpc> --account <keystore> --broadcast
 ```
 
-Then record `{chainId, network, router, split, usdc, deployTx, deployedAt}` in
+Then `fund router record --chain <id> --token <USDC|EURC> --split <ShelterSplit>` reads the Foundry
+broadcast and appends `{chainId, network, router, split, usdc, deployTx, deployedAt, …}` to
 `../router-deployments.json`. Set the `router_guard` fact verified only after the handover.
 
 ### Shelter handover
@@ -171,6 +197,26 @@ SHELTERSPLIT_TOKEN=<USDC address> SHELTERSPLIT_TREASURY=<treasury> \
 SHELTERSPLIT_OWNER=<owner, defaults to the treasury> EXPECTED_CHAIN_ID=<chain id> \
 forge script script/DeployShelterSplit.s.sol --rpc-url <rpc> --account <keystore> --broadcast
 ```
+
+### The mainnet wave (a person runs it)
+
+One wallet funds everything. `fund a:distribute --network mainnet` and
+`fund a:mainnet-plan --network mainnet` write `../wave/distribute-mainnet.sh` and
+`../wave/mainnet-all.sh` from `../funding-plan.json` (the minimal profile, about $7.25 in all; send
+each chain's total to the deployer first). Then:
+
+```sh
+cd funding/framework/tracks/a-build/wave
+DRY_RUN=1 CONFIRM_MAINNET=yes ./mainnet-all.sh   # simulate: nothing is broadcast or recorded
+CONFIRM_MAINNET=yes ./mainnet-all.sh             # balance check, splits, EURC split (Arc), routers,
+                                                 # proofs, ingest, verify, distribute, fill
+```
+
+It refuses without `CONFIRM_MAINNET=yes` and refuses inside an AI agent session. The wave deploys
+with the deployer as owner and the treasury `0x7b136b872bEad1dAE557d1286f125B7A8A197C9A`, and sends
+one proof payout of 0.1 token (`PROOF_AMOUNT=100000`) per instance to Pink Paw. It is rerun-safe:
+recorded splits and routers are skipped. `PLAN=topup fund a:distribute --network mainnet` writes
+`../wave/distribute-mainnet-topup.sh`, which later raises the hot wallet to the one-week amounts.
 
 ## Disclosures
 

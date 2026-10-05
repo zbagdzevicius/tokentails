@@ -1,6 +1,6 @@
 # Circle Developer Grants — submission
 
-_Generated 2026-10-04T14:14:44.850Z by `fund a:submission circle-developer-grants` from draft.md, the program profile,
+_Generated 2026-10-05T15:57:06.077Z by `fund a:submission circle-developer-grants` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -63,5 +63,6 @@ Token Tails is a Lithuanian small partnership (MB), registered in October 2024. 
 
 ## Before you press submit
 
+- [ ] draft.md is a v0 copy that pitches Tempo: rewrite it for Arc before pasting anything (checked 2026-10-05)
 - [ ] Each milestone has one on-chain metric that anyone can check in the explorer
 

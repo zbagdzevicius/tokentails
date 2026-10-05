@@ -1,7 +1,32 @@
-# Direct donations: status (2026-10-04)
+# Direct donations: status (2026-10-04, updated 2026-10-05)
 
 Branch `feat/funding-winning-strategy`, uncommitted, nothing deployed or pushed. No `.env*` read, no
 real key used (anvil dev keys only), `deployments.json` and `router-deployments.json` untouched.
+
+## Update 2026-10-05
+
+What changed since the snapshot below (it is kept as written on 2026-10-04):
+- The work is committed on the branch. Testnet ShelterSplits are deployed and verified on all seven
+  chains (Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain, Monad), plus EURC splits on Arc and
+  Avalanche, and seven testnet DonateRouters (none on Tempo or Robinhood Chain: no EIP-3009). Records:
+  `funding/framework/tracks/a-build/deployments.json` and `router-deployments.json`.
+- `fund a:ingest` / `fund a:backend-deployments` generate the backend's public config
+  `backend/src/shelter/onchain/wallet.config.ts`. The backend needs only `SHELTER_CHAIN_ID` and
+  `SHELTER_DONATE_PRIVATE_KEY`; treats and x402 are on by default.
+- The backend's mainnet gate is now per chain: relay, match and the x402 `onchain-receipt` offer open
+  on a mainnet chain only when every wallet its split pays has signed the shelter claim (the v2 message
+  can name several chains) and was rotated in on-chain. `SHELTER_HANDED_OVER=false` is the kill switch
+  that closes them everywhere; x402 `exact` on mainnet still needs `SHELTER_HANDED_OVER=true`. The
+  client still checks `campaign.shelter.handover`.
+- Mainnet: nothing deployed yet. One wallet funds the wave (`funding-plan.json`, minimal profile, about
+  $7.25; `PLAN=topup` for one week of float later). `fund a:distribute` and `fund a:mainnet-plan` write
+  `wave/mainnet-all.sh`, which a person runs with `CONFIRM_MAINNET=yes` (it refuses in AI sessions).
+  Routers deploy by default; proof payouts are 0.1 token; EURC is on Arc only; the treasury is
+  `0x7b136b872bEad1dAE557d1286f125B7A8A197C9A`.
+- Open issue 1 (`flush` and rounding dust) is still open; it now applies to the mainnet router deploy.
+  Open issue 5 is fixed (docs, 2026-10-05).
+- Checks on 2026-10-05: `forge test` 149 passed; shelter-rail 62 passed; treat-agent 28 of 29 (the
+  observe test expects a 90 USDC goal, while `campaign.json` now holds 50,000).
 
 ## Why this portfolio
 
@@ -100,8 +125,9 @@ there (unit-tested in `shelter-goal.spec.ts`). Screens:
 10. Flagged, not changed (another session's edit): `WalletDonate.tsx`'s custody guard no longer checks `c.chainId === chainId`; it still re-reads the payout list on the chain in use. The owner should confirm this is intended.
 3. Treat-agent gifts count under "Other payouts" on the impact page.
 4. Only one gift per transaction is matched (errs low).
-5. The rail README says ShelterSplit "keeps no balance, nothing to withdraw", but the owner has
-   `sweep` and `sweepNative` for stray transfers.
+5. ~~The rail README says ShelterSplit "keeps no balance, nothing to withdraw", but the owner has
+   `sweep` and `sweepNative` for stray transfers.~~ Fixed 2026-10-05 (docs): the README now names
+   `sweep` and `sweepNative`.
 6. `fund router plan` step 4 says to set `router_guard` verified after a testnet deploy. The fact's
    note says to verify it only after the handover; follow the fact note.
 

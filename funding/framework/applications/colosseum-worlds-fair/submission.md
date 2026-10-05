@@ -1,6 +1,6 @@
 # Colosseum Crypto World's Fair — submission
 
-_Generated 2026-10-04T13:10:38.526Z by `fund a:submission colosseum-worlds-fair` from draft.md, the program profile,
+_Generated 2026-10-05T15:57:05.908Z by `fund a:submission colosseum-worlds-fair` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -31,7 +31,7 @@ Built between 2026-09-14 and 2026-10-12:
 - Catnip Heist at https://tokentails.com/heist, a deterministic voxel stealth game, the planned front door for shelter-funding purchases (roadmap step 3).
 - The giving loop: after a Heist win a verified player taps "Send Pink Paw a rescue treat"; Token Tails pays a small sponsored gift once a day from a capped budget, on Arc first. Each payout gets a receipt and share card; a meter counts inflows.
 - Rail: an MIT SDK and an embeddable donate widget.
-- Built, deploy pending: DonateRouter (no owner; a donor gives USDC with one signature, no gas token) and a treat agent whose spending caps a contract enforces.
+- DonateRouter (no owner; one-signature USDC gifts): deployed, public once Pink Paw holds its key. Built: a treat agent with contract-enforced caps.
 The buyer never touches a wallet: purchases stay card or in-app payments.
 
 ## Why Tempo
@@ -52,27 +52,27 @@ Tempo is a payments chain, and Token Tails already takes card payments through S
 
 ## On-chain proof
 
-Tempo mainnet: ShelterSplit at {SPLIT_ADDRESS}. The first payout to Pink Paw is transaction {TEMPO_TX}, with its memo, and it is listed on the payouts page. Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Before the hackathon, and disclosed as prior work, the team shipped three Soroban contracts on Stellar mainnet and ERC-721 contracts on SKALE testnet and mainnet.
+Tempo mainnet: ShelterSplit at {SPLIT_ADDRESS}. The first TIP-20 memo payout to Pink Paw is transaction {TEMPO_TX}, and it is listed on the payouts page. Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Before the hackathon, and disclosed as prior work, the team shipped three Soroban contracts on Stellar mainnet and ERC-721 contracts on SKALE testnet and mainnet.
 
 | Network | Contract | Transaction | Shelter payouts | Status |
 |---|---|---|---|---|
-| Tempo testnet (chain 42431) | [`0x9978e60da2352a8de02852788d34bd95849a598d`](https://explore.testnet.tempo.xyz/address/0x9978e60da2352a8de02852788d34bd95849a598d) | [deploy tx](https://explore.testnet.tempo.xyz/tx/0x8169cd8ca20c3e9a793185c5ef686ed38a460a799abddd075adc74672a0e2575) | [payout 1](https://explore.testnet.tempo.xyz/tx/0x2a8d49065e0d9bbd8ba6f1563eebf5a34a60d9203f9fc07582d84ccb7791af2d) | verified on-chain, source verified |
-| Robinhood Chain testnet (chain 46630) | [`0x2d42d01a00d75ade8c4f9503a7a6cee8a5f34777`](https://explorer.testnet.chain.robinhood.com/address/0x2d42d01a00d75ade8c4f9503a7a6cee8a5f34777) | [deploy tx](https://explorer.testnet.chain.robinhood.com/tx/0xf36898d4824c4906bdde2c36792a01c84c12725441cbeb50167cc009931d6881) | [payout 1](https://explorer.testnet.chain.robinhood.com/tx/0x276c904ce4b5862e8cd72b3e561ea9ea2bfc26428844c5035817726c5a84aa23) | verified on-chain, source verified |
-| Base testnet (chain 84532) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://sepolia.basescan.org/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://sepolia.basescan.org/tx/0x362b82466a4ba86c267bc3f05aea2c4e688d31f53271293050eab1106d293fc6) | - | verified on-chain, source verified |
-| Arbitrum One testnet (chain 421614) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://sepolia.arbiscan.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://sepolia.arbiscan.io/tx/0x3f51b51be745eac9ff65434ca4fc8e1ef15dd815c8bdce89decd74439f8f8845) | [payout 1](https://sepolia.arbiscan.io/tx/0x73cdfdb403067706ce0760fd38feed6e2a1e93bbc8d1f6cd1c9e75af7134184d) | verified on-chain, source verified |
-| Base testnet (chain 84532) | [`0x8bf026d3816cb2344d14aa6301fccde3b289878c`](https://sepolia.basescan.org/address/0x8bf026d3816cb2344d14aa6301fccde3b289878c) | [deploy tx](https://sepolia.basescan.org/tx/0x11bb6a6c264480a7fba025b2b94c7d4b7693e377d5f3289ab8dbe79de0d0b790) | [payout 1](https://sepolia.basescan.org/tx/0x26a7b0135627bd743046a56fdd69a93b1a830472702f241d48bd7790efacc5fb) | verified on-chain, source verified |
+| Tempo Moderato testnet (chain 42431) | [`0x9978e60da2352a8de02852788d34bd95849a598d`](https://explore.testnet.tempo.xyz/address/0x9978e60da2352a8de02852788d34bd95849a598d) | [deploy tx](https://explore.testnet.tempo.xyz/tx/0x8169cd8ca20c3e9a793185c5ef686ed38a460a799abddd075adc74672a0e2575) | [payout 1](https://explore.testnet.tempo.xyz/tx/0x2a8d49065e0d9bbd8ba6f1563eebf5a34a60d9203f9fc07582d84ccb7791af2d) | verified on-chain, source verified |
+| Robinhood Chain testnet (chain 46630) | [`0x2d42d01a00d75ade8c4f9503a7a6cee8a5f34777`](https://explorer.testnet.chain.robinhood.com/address/0x2d42d01a00d75ade8c4f9503a7a6cee8a5f34777) | [deploy tx](https://explorer.testnet.chain.robinhood.com/tx/0xf36898d4824c4906bdde2c36792a01c84c12725441cbeb50167cc009931d6881) | [payout 1](https://explorer.testnet.chain.robinhood.com/tx/0x276c904ce4b5862e8cd72b3e561ea9ea2bfc26428844c5035817726c5a84aa23), [payout 2](https://explorer.testnet.chain.robinhood.com/tx/0xaeca9242545aaa31c89eeab0eff49949e4d9f79467b588c5d0e9b9734d143375) | verified on-chain, source verified |
+| Base Sepolia testnet (chain 84532) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://sepolia.basescan.org/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://sepolia.basescan.org/tx/0x362b82466a4ba86c267bc3f05aea2c4e688d31f53271293050eab1106d293fc6) | - | verified on-chain, source verified |
+| Arbitrum Sepolia testnet (chain 421614) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://sepolia.arbiscan.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://sepolia.arbiscan.io/tx/0x3f51b51be745eac9ff65434ca4fc8e1ef15dd815c8bdce89decd74439f8f8845) | [payout 1](https://sepolia.arbiscan.io/tx/0x73cdfdb403067706ce0760fd38feed6e2a1e93bbc8d1f6cd1c9e75af7134184d) | verified on-chain, source verified |
+| Base Sepolia testnet (chain 84532) | [`0x8bf026d3816cb2344d14aa6301fccde3b289878c`](https://sepolia.basescan.org/address/0x8bf026d3816cb2344d14aa6301fccde3b289878c) | [deploy tx](https://sepolia.basescan.org/tx/0x11bb6a6c264480a7fba025b2b94c7d4b7693e377d5f3289ab8dbe79de0d0b790) | [payout 1](https://sepolia.basescan.org/tx/0x26a7b0135627bd743046a56fdd69a93b1a830472702f241d48bd7790efacc5fb), [payout 2](https://sepolia.basescan.org/tx/0xc8500f47d3a0ac47af26473cd92bb28c14d407df3b98a9affa4af37928a21467) | verified on-chain, source verified |
 
 ## Other chains
 
-This one submission also enters the Arbitrum, Base and Robinhood Chain tracks. Each chain runs the same ShelterSplit contract, from the same source and test suite; only the payout token differs.
-- Arbitrum One: ShelterSplit at {ARB_SPLIT}, paying out USDC.
-- Base: ShelterSplit at {BASE_SPLIT}, paying out native USDC.
-- Robinhood Chain: ShelterSplit at {ROBINHOOD_SPLIT}. Robinhood Chain has no USDC, so this instance pays out USDG (Paxos), and its payouts are readable on robinhoodchain.blockscout.com. The payouts page shows USDG as its own total and never adds it to USDC.
-On Arbitrum and Base, whose USDC supports EIP-3009, the same DonateRouter lets a donor give with one signature; Tempo uses TIP-20 memos instead (built, deploy pending).
+This one submission also enters the Arbitrum, Base and Robinhood Chain tracks. Every chain runs the same ShelterSplit, from the same source and tests; only the payout token differs.
+- Arbitrum One: ShelterSplit at {ARB_SPLIT}, paying USDC.
+- Base: ShelterSplit at {BASE_SPLIT}, paying native USDC.
+- Robinhood Chain: ShelterSplit at {ROBINHOOD_SPLIT}. It has no USDC, so it pays USDG (Paxos), readable on robinhoodchain.blockscout.com; the payouts page never adds USDG to USDC.
+On Arbitrum and Base a DonateRouter takes one-signature USDC gifts (EIP-3009); it opens to the public once Pink Paw holds its own key. Tempo uses TIP-20 memos instead.
 
 ## Build evidence
 
-All 73/73 Foundry tests pass (unit, fuzz, reentrancy with a malicious token, event emission). Creation bytecode sha256 `6a1faf73bad02285dd3d1198bd8c31e25f6e2283258e024dfb7d68e4595bf72c`, runtime 11199 bytes, commit `9734bed09985`, built 2026-10-01.
+All 149/149 Foundry tests pass (unit, fuzz, reentrancy with a malicious token, event emission). Creation bytecode sha256 `6a1faf73bad02285dd3d1198bd8c31e25f6e2283258e024dfb7d68e4595bf72c`, runtime 11199 bytes, commit `4546c17be4e4`, built 2026-10-05.
 
 ## Traction
 

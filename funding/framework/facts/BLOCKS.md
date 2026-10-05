@@ -9,11 +9,12 @@ funder's limit, never change a number without changing FACTS.md first.
 USDC payouts to the animal shelters that care for the cats.
 
 **Traction.** The app runs on web, iOS and Android [F-015] [F-016], with 542,000 registered users
-all time [F-001]. Its production Stellar contract has processed 1,218,693
-invocations since January 2025 [F-007].
+all time, including legacy accounts from the retired Telegram Mini App [F-001]. Its production
+Stellar contract has processed 1,218,693 invocations since January 2025 [F-007].
 
 **The rail.** ShelterSplit receives USDC, splits it by basis points across registered shelter
-wallets, and emits one event per payout, so every disbursement is publicly verifiable on-chain.
+wallets, and emits one event per payout, so every disbursement is publicly verifiable on-chain. It is
+built for seven chains: Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain (USDG) and Monad.
 
 ## game-studio
 
@@ -26,8 +27,8 @@ leaderboards [F-018].
 
 ## eu-cultural
 
-**One-liner.** An entertainment software developer based in Vilnius whose game has reached
-542,000 registered players [F-001], now developing its first narrative adventure.
+**One-liner.** An entertainment software developer based in Vilnius whose cat-rescue game ships on
+web, iOS and Android [F-015] [F-016], now developing its first narrative adventure.
 
 ## ai-creative
 
@@ -37,4 +38,5 @@ paints consistent character art and portraits [F-019].
 ## high-throughput
 
 **One-liner.** A consumer application with sustained on-chain activity: 1,218,693 invocations on
-its Stellar contract [F-007] and, on SEI, peaks of 659,000 weekly transactions [F-004].
+its Stellar contract [F-007] and, historically on SEI, a peak of 875,907 weekly transactions
+[F-004] (SEI activity stopped in early March 2026).

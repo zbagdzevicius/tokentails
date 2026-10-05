@@ -98,13 +98,13 @@ Budget: about 15 minutes a day.
 **A. X reply to a call for projects**
 > Token Tails fits this: free browser games (Phaser, no install) whose characters are AI-drawn
 > portraits of real shelter cats. Each cat is linked to its shelter, and our ShelterSplit contract
-> pays that shelter in USDC automatically (41 Foundry tests, testnet today). Demo: {demo_url}.
+> pays that shelter in USDC automatically (73 Foundry tests, on seven testnets today). Demo: {demo_url}.
 > {players} players so far. Happy to share the repo or a 2-minute walkthrough.
 
 **B. DM or email to an ecosystem lead**
 > Hi {name}, I saw your {post/office_hours} about {program}. We build Token Tails: casual browser
 > games where each playable cat is a real shelter cat, and a ShelterSplit contract routes USDC to that
-> shelter. It is tested (41 Foundry tests) but not yet on mainnet. We'd like to deploy it on {chain}
+> shelter. It is tested (73 Foundry tests) and live on seven testnets, but not yet on mainnet. We'd like to deploy it on {chain}
 > and run a {n}-shelter pilot. Would a 15-minute look at the demo ({demo_url}) be worthwhile, or is
 > there a better program or person for this? Repo: {repo_url}.
 

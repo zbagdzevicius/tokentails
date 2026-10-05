@@ -2,6 +2,15 @@
 
 > **Correction (2026-09-28):** `STRATEGY-PROOF.md` re-scored these programs against their live criteria and past winners. Only Arc Microgrants (15%) clears the 10% bar. Colosseum is ~2%, Dubai and Team1 ~5%, Circle ~2.5%, Mezo ~5%, and **Arbitrum DDA Gaming is closed**. Run the wave for Arc first; add the other chains only as optional, low-odds entries.
 
+> **Superseded (2026-10-05):** the deploy steps below are the Sep 29 version. The wave now covers
+> seven chains (Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain with USDG, Monad; Mezo is not
+> in the mainnet plan). It is one funded wallet and one command:
+> `node bin/fund.mjs a:mainnet-plan --network mainnet`, then
+> `CONFIRM_MAINNET=yes DRY_RUN=1 ./tracks/a-build/wave/mainnet-all.sh` from `funding/framework`
+> (a person runs it; it refuses inside an AI session). The proof payout is 0.1 token
+> (`PROOF_AMOUNT=100000`), and the RPCs, keystore, treasury and Pink Paw proof shelter have
+> defaults. Amounts: `USER-TODAY.md` §4. Steps: `framework/tracks/a-build/README.md`.
+
 **Strategy:** do the one expensive human thing once, and let it feed everything. That thing is
 deploying ShelterSplit to every chain that unlocks money, plus one real payout to one real shelter.
 After that, each application is AI drafting plus a human submit click.

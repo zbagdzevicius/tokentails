@@ -1,6 +1,6 @@
 # Chain decision — Colosseum Crypto World's Fair
 
-_Written 2026-09-27, updated 2026-10-03 (multi-track: Base and Robinhood Chain added). Sources are linked inline. Nothing here has been signed or broadcast._
+_Written 2026-09-27, updated 2026-10-03 (multi-track: Base and Robinhood Chain added) and 2026-10-05 (deploy state, mainnet wave). Sources are linked inline. All four chains are deployed on testnet; nothing is on mainnet yet._
 
 ## Decision
 
@@ -8,7 +8,10 @@ _Written 2026-09-27, updated 2026-10-03 (multi-track: Base and Robinhood Chain a
 
 **2026-10-03: multi-track confirmed.** The user confirmed that one Project Submission may enter several
 ecosystem tracks. "Tracks entered" is now Tempo, Arbitrum, Base and Robinhood Chain. The same ShelterSplit
-contract is deployed to each chain by the Track A mainnet wave (`fund a:wave --network mainnet`).
+contract is deployed to each chain by the Track A mainnet wave: `fund a:mainnet-plan --network mainnet`
+writes `tracks/a-build/wave/mainnet-all.sh`, and a person runs it with `CONFIRM_MAINNET=yes` (it refuses
+in an AI session). It deploys, sends a 0.1-token proof payout per chain, records with `fund a:ingest`
+and verifies.
 
 1. **Tempo mainnet first.** It has the larger track pool: "$100,000 will be awarded across 10 of the
    best products that integrate with the Tempo blockchain" (rules §14(f)). Colosseum's Tempo resources
@@ -25,7 +28,8 @@ contract is deployed to each chain by the Track A mainnet wave (`fund a:wave --n
      (Paxos Global Dollar) `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168`, 6 decimals; symbol and decimals
      were read on-chain with cast on 2026-10-03. Sources: [Paxos USDG mainnet](https://docs.paxos.com/guides/stablecoin/usdg/mainnet),
      [Robinhood Chain connecting](https://docs.robinhood.com/chain/connecting). Explorer:
-     https://robinhoodchain.blockscout.com. The testnet (46630) has no official stablecoin.
+     https://robinhoodchain.blockscout.com. The testnet (46630) has no official stablecoin, so the testnet
+     split pays a test MockUSDC (mUSDC) that the wave deployed; it is not a real dollar.
    - The payouts pages show USDG as its own total; it is never added into a USDC sum.
 
 Either chain's mainnet deployment satisfies `mainnet_required` (the chain list is "any of").
@@ -127,6 +131,13 @@ and watch for `Transfer(…, to: 0xB10C…)` from ShelterSplit.
 
 ## Deploy commands (a person runs, signs and broadcasts these)
 
+> Superseded on 2026-10-05. Tempo testnet is deployed (`0x9978e60da2352a8de02852788d34bd95849a598d`,
+> pays pathUSD), and so are Arbitrum Sepolia, Base Sepolia and Robinhood testnet
+> (`tracks/a-build/deployments.json`). Mainnet goes through the one wave script described under
+> Decision, not the per-chain commands below; the treasury is
+> `0x7b136b872bEad1dAE557d1286f125B7A8A197C9A`. The runtime is now 11,199 bytes, not 8,768. The
+> commands are kept as a manual fallback.
+
 Before mainnet: run the tests, the AI security review and a human review. The chains.json entries
 carry `"verify": true`, so `a:deploy` will warn.
 
@@ -177,9 +188,10 @@ is under the 30M cap per transaction, but expect a larger fee than on an L2.
 ## Still open (for a person)
 
 - Ask whether the Tempo track requires a mainnet deployment.
-- Robinhood Chain: the deployer needs ETH for gas and 1 USDG (not USDC) for the proof payout. The
-  Blockscout verifier URL `https://robinhoodchain.blockscout.com/api/` follows the Base/Arbitrum pattern;
-  if `fund a:verify-source` fails there, verify by hand on the explorer.
-- The draft's "Why Tempo" says a blocked shelter wallet stops the whole payout. That holds for TIP-403 transfer policies but not for T6 receive policies (silent redirect, see above). Either apply the contract fix or check every shelter wallet before registering it, before this claim goes to judges.
-- `build-evidence.md` still says 33/33. Re-run `fund a:build --slug colosseum-worlds-fair` so it picks
-  up the 8 TIP-20 tests, after committing `shelter-split/`.
+- Robinhood Chain: the deployer needs ETH for gas and 0.1 USDG (not USDC) for the proof payout
+  (`tracks/a-build/funding-plan.json`). Mainnet source verification goes through Sourcify: the
+  Blockscout API returns a Cloudflare 403 to forge (`chains.json`, checked 2026-10-03).
+- Done: the draft's "Why Tempo" now says a transfer-policy block reverts the whole batch and a
+  receive-policy redirect does not (Known limit). The contract fix is still not applied, so check every
+  shelter wallet before registering it.
+- Done: `build-evidence.md` is 149/149 at a clean commit (2026-10-05).

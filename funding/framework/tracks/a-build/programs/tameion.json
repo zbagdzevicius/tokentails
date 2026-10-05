@@ -7,7 +7,7 @@
   "mainnet_required": false,
   "build_window_start": "2026-09-27",
   "build_window_end": "2026-10-10",
-  "next": "After the Oct 2 Arc deploy: record it (fund a:record arc mainnet <address>), switch on the x402 endpoint, make one paid agent call, record a demo under 3 minutes, then fund a:submission tameion",
+  "next": "After the Arc mainnet wave (fund a:mainnet-plan --network mainnet, then a person runs CONFIRM_MAINNET=yes wave/mainnet-all.sh, which records the split): make one paid agent call on Arc testnet (x402 is on by default; on mainnet it opens only after Pink Paw's per-chain claim), record a demo under 3 minutes, then fund a:submission tameion",
   "criteria": [
     ["C1", "Agentic sophistication", "30%", "Agentic Sophistication"],
     ["C2", "Traction", "30%", "Traction (businesses onboarded, value moved, problems solved)"],
@@ -35,7 +35,7 @@
       "Demo video under 3 minutes (required)",
       "Live deployed link (optional on the page, strongly encouraged)",
       "Only in-window progress (2026-09-27 to 2026-10-10) counts: show the delta, disclose prior work",
-      "Arc mainnet address recorded with fund a:record arc mainnet, x402 endpoint switched on, one paid agent call on the explorer"
+      "Arc mainnet split recorded by the mainnet wave (deployments.json), one paid agent call on Arc testnet on the explorer (mainnet x402 opens only after Pink Paw's per-chain claim)"
     ]
   },
   "verify": [

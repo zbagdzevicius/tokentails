@@ -73,11 +73,11 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `NEXT_PUBLIC_HEIST_PICKER` | The Catnip Heist card in the PLAY picker is on by default in every build (decision #15 overridden 2026-10-05); `0` hides it |
 | `NEXT_PUBLIC_HOME_YARD` | MY HOME is the Cat Yard (see "MY HOME" below) by default; `0`, `false`, `off` or `no` brings back the Phaser HOME |
 | `NEXT_PUBLIC_HEIST_LANDING_PILL` | `1`, `true` or `on` shows "Or play Catnip Heist now, no sign-up" under the landing hero. Default off (decision #15) |
-| `NEXT_PUBLIC_HEIST_LANDING_SECTION` | The landing's Catnip Heist section (showreel or poster, three beats, PLAY CATNIP HEIST) between the proof section and the globe. Default on since the founder overrode decision #15 (Poki carve-out) for this section on 2026-10-04; `0`, `false` or `off` hides it. The pill and the picker card stay off under #15 |
+| `NEXT_PUBLIC_HEIST_LANDING_SECTION` | The landing's Catnip Heist section (showreel or poster, three beats, PLAY CATNIP HEIST) between the proof section and the globe. Default on since the founder overrode decision #15 (Poki carve-out) for this section on 2026-10-04; `0`, `false` or `off` hides it. The pill stays off under #15 |
 | `NEXT_PUBLIC_IMPACT_URL` | CDN URL of the impact snapshot mirror (default `impact/impact.json` on the asset CDN) |
 | `NEXT_PUBLIC_SNOWFALL` | `on` turns the seasonal Snowfall on (off by default, decision #47; month-day windows in `SNOWFALL_SEASONS`) |
 | `NEXT_PUBLIC_WALLET_DONATE` | `true` allows the real-money "Give from your wallet" block on `/shelter-payouts` (web only). It still shows only after the handover (`campaign.json` `shelter.handover` is `"handed-over"`) and when `public/shelter-payouts/routers.json` lists a `mainnet` DonateRouter for the campaign chain (or, with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`, a router or a listed mainnet ShelterSplit for each chain named there). Before the handover the page shows "Opens when Pink Paw holds its own key" and no button, whatever this flag says |
-| `NEXT_PUBLIC_WALLET_DONATE_CHAIN` | A testnet chain id (e.g. `5042002`, Arc testnet) for the separate "Try it live" block: test USDC, no real money, a TESTNET badge and a Circle faucet link. Shows when that testnet has a wallet path: a `testnet` router in `routers.json`, or its ShelterSplit in `testnet-deployments.json`. The block has a network picker for all six testnets (Arc, Tempo, Arbitrum Sepolia, Avalanche Fuji, Base Sepolia, Robinhood): router chains give with one signature, the others approve the split and call `disburse` (`disburseWithMemo` on Tempo). Unset: no try-it block |
+| `NEXT_PUBLIC_WALLET_DONATE_CHAIN` | A testnet chain id (e.g. `5042002`, Arc testnet) for the separate "Try it live" block: test USDC, no real money, a TESTNET badge and a Circle faucet link. Shows when that testnet has a wallet path: a `testnet` router in `routers.json`, or its ShelterSplit in `testnet-deployments.json`. The block has a network picker for all seven testnets (Arc, Tempo, Arbitrum Sepolia, Avalanche Fuji, Base Sepolia, Robinhood, Monad): router chains give with one signature, the others approve the split and call `disburse` (`disburseWithMemo` on Tempo). Unset: no try-it block |
 | `NEXT_PUBLIC_WALLET_DONATE_CHAINS` | Comma-separated mainnet chain ids the real-money block offers in its network picker (e.g. `5042,8453,4217`), each with a router or a listed mainnet ShelterSplit (`giveRails.campaignRails`). Unset: only the campaign chain with a mainnet router, as before. Needs `NEXT_PUBLIC_WALLET_DONATE=true` and the handover |
 | `NEXT_PUBLIC_E2E` | `1` compiles in the E2E-only hooks (fake Firebase adapter, crash probes, `window.__ttGames`, `window.__TT_E2E_GAME__`). CI's e2e build only; never deploy it |
 | `NEXT_PUBLIC_CAPTURE` | `1` compiles in the frame-stepping capture hooks (`window.__TT_CAPTURE__`) for the reel. Capture builds only |
@@ -108,7 +108,8 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `components/catbassadors/objects/` | The player cat class and abilities shared across platformers. |
 | `components/tailsCard/`, `cardEffects/` | Collectible card rendering and per-tier effects. |
 | `components/codex/` | PROGRESS (the CODEX modal): IMPACT tab (`impact/`), rewards, missions, tiers, badges, the web-only Vault, the Tails explainer, and the in-game portrait purchase flow. |
-| `components/web3/` | Stellar transfer, Stripe payment, payment chooser, rates hook. |
+| `components/web3/` | Stellar transfer, Stripe payment, payment chooser, rates hook, the EVM crypto checkout (`crypto/`). |
+| `components/shelter-payouts/` | `/shelter-payouts`, give, receipt and onboarding pages: payout reads, treat and wallet giving, chains (see its `README.md` and "Wallet giving" below). |
 | `components/blog/` | Feed, article, comments, likes. |
 | `components/marketplace/` | Cat store listing and detail. |
 | `components/shared/` | Modals (quests, packs, invite, support, wheel), leaderboards, music, joystick, `PixelButton`, `PixelIcon`, `CloseButton`, `CatnipIcon`, `Toast`, the AuthSheet (`auth/`). |
@@ -131,7 +132,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `art/` | Art sources and masters: the catnip matrices, the palette, `art/src/` (Aseprite and Tiled sources). |
 | `e2e/` | Playwright specs and fixtures, `e2e/capture/` for the reel. |
 | `components/seo/` | `SeoHead`, `site.ts` URL helpers, article JSON-LD. |
-| `components/landing/` | Homepage sections: `Sponsors.tsx` logo slider, `ProofSection.tsx` Paris event video and creator-reel marquee with an IntersectionObserver playback controller (styles in `styles/globals.scss` under `.reel-*`), `HeistSection.tsx` the Catnip Heist section (flagged off), `shelterNames.ts` the globe's shelter list (Pink Paw once). |
+| `components/landing/` | Homepage sections: `Sponsors.tsx` logo slider, `ProofSection.tsx` Paris event video and creator-reel marquee with an IntersectionObserver playback controller (styles in `styles/globals.scss` under `.reel-*`), `HeistSection.tsx` the Catnip Heist section (on by default, `NEXT_PUBLIC_HEIST_LANDING_SECTION`), `shelterNames.ts` the globe's shelter list (Pink Paw once). |
 | `features/portrait/` | Self-contained slice for the AI pet portrait product. |
 | `analytics/` | Consent-gated PostHog EU events. `events.ts` is the typed F9 event catalog (names and areas come from `shared/analytics-core.ts`, which the Heist reads too), `consent.ts` the stored choice, `client.ts` the gate, `errors.ts` the scrubbed `app_error` reporter, `scrub.ts` the scrubber, `gtm.ts` the Google Tag Manager gate, `game-run.ts` the GameContext hook, `platform.ts` `web`/`ios`/`android`. |
 | `context/` | Providers: query client, toast, profile, cat, game, Firebase auth, web3, entity metadata. |
@@ -158,7 +159,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `/game` | `pages/game.tsx` | Main web game shell: auth in `guest` mode (a silent anonymous session, no sign-in wall), game provider, the night intro curtain, Meet your cat for a pending player, the lobby. `?meet=1` replays Meet your cat (read once `router.isReady`, then removed); `?ref=` is captured for the referral. Canonical `/game` without the query. |
 | `/heist` | `pages/heist.tsx` | Catnip Heist host: optional auth, SeoHead, the `/heist-game/index.html?embed=1` iframe in the server HTML, the bridge and the save chip. `?from=` feeds `heist_open` and is stripped. `/heist/index.html` redirects here; `/heist/:path+` redirects to `/heist-game/:path+` (old asset links) |
 | `/heist-game/` | `public/heist-game/` | The static Heist build (`npm run build:client` in `catnip-heist/`); `public/heist/index.html` forwards app builds to `/heist`. |
-| `/shelter-payouts`, `/shelter-payouts/give`, `/shelter-payouts/receipt` | `pages/shelter-payouts*` | Treats and payouts on Arc, the give page (`requireAccount('give-treat')`), one receipt per donation (`noindex`). App builds show a proof notice that opens web `/impact`. |
+| `/shelter-payouts`, `/shelter-payouts/give`, `/shelter-payouts/receipt` | `pages/shelter-payouts*` | Treats and payouts on seven chains (mainnet list plus a separate testnet proof), the give page (`requireAccount('give-treat')`, a network picker on the web), one receipt per donation (`noindex`). App builds show a proof notice that opens web `/impact`. |
 | `/shelter-payouts/onboard` | `pages/shelter-payouts/onboard.tsx` | Shelter wallet handover (`noindex`, web only, wallet code loaded with `ssr: false`): why the shelter should hold its own key, connect a wallet, sign the claim message (`POST /shelter/claim`), then the status from `GET /shelter/claim`. Token Tails never sees the key. App builds show the proof notice. |
 | `/airdrop`, `/airdrop/*` | none | Redirect to `/shelter-payouts` (task 5e). |
 | `/catbassadors` | none | Legacy URL of the retired game shell. Permanent redirect to `/game` via `next.config.js`; redirects do not apply to the static export, so the Capacitor bundle has no page there. |
@@ -282,6 +283,13 @@ PET ART tab) hide them too. Details in MOBILE.md.
 arrives after `STELLAR_PACKS_SUNSET_AT` is recorded for a refund and answered 410 `STELLAR_PACKS_DEPRECATED`). API: docs/API.md "Crypto checkout". Web only: it renders inside
 `WebPayment`, which app builds replace with `AppCheckoutNotice`.
 
+Networks and coins come from the server (`GET /payments/crypto/config`, table in
+`backend/src/payments/crypto/crypto-chains.ts`): Arc, Base and Avalanche take USDC or EURC; Arbitrum
+and Monad take USDC; Tempo takes USDC.e; Robinhood Chain takes USDG (it has no USDC). Each has a
+testnet twin (Robinhood testnet's mUSDC is test-only, never offered in production). Native coins are
+never accepted. `checkout.ts` `CHECKOUT_ONLY_CHAINS` adds the wallet settings for a checkout network
+the donate rail's `chains.ts` does not know.
+
 - `api.ts`: `GET /payments/crypto/config`, `POST /payments/crypto/orders`, `GET .../orders/:id`,
   `POST .../orders/:id/confirm`; failures carry the `CRYPTO_PAY_*` code.
 - `checkout.ts`: network and coin choices, the EIP-681 payment link, a check of the server's
@@ -397,7 +405,7 @@ array.
 | `USER_API` | `api/user-api.ts` | `/user/profile`, `/user/guest/session`, `/user/guest/merge`, `DELETE /user/guest`, `DELETE /user/me`, `/user/catbassadors/referral`, leaderboards and positions, `/user/leaderboard/paw-match/:level`, `/user/codex`, `PUT /user/profile/:id/twitter`, `/user/catbassadors/live`, `/user/catbassadors/lives/redeem` and `/odds`, progression and claims |
 | `STARTER_API` | `api/starter-api.ts` | `/user/starter`, `/blessing/featured`, `/blessing/featured/names`, `/user/following/:id`, `PUT /cat/:id/name`, `POST /cat/:id/report` |
 | impact | `api/impact-api.ts`, `hooks/useImpact.ts` | The snapshot chain: CDN `impact.json`, then `GET /impact`, then the bundled `public/impact/snapshot.json` (3 s per source, 429 never retried); `normalizeImpact` validates `_v: 1` and drops bad values; `/impact/me` |
-| `SHELTER_API` | `api/shelter-api.ts` | `/shelter/donate` (reads the error `code`: `signed-out`, `not-eligible` with `reason` and `eligibleAt`, `already-sent`), `/shelter/donate/status`, `/shelter/donate/me` |
+| `SHELTER_API` | `api/shelter-api.ts` | `/shelter/donate` (optional `chainId`; reads the error `code`: `signed-out`, `not-eligible` with `reason` and `eligibleAt`, `already-sent`), `/shelter/donate/status` (per-chain `chains` list), `/shelter/donate/me` |
 | rescue goals, token status | `api/rescue-goals-api.ts`, `api/token-status-api.ts` | `/rescue-goals`, gives with `pledgeWithRetry` (same UUID up to 3 tries), `/user/token-status` (web only; any failure means POINTS) |
 | `IMAGE_API` | `api/image-api.ts` | `/image/portrait`, `PUT /image/portrait/:id/regenerate`, `/image/:id`, `/image/order/status` |
 | `STRIPE_API` | `api/stripe-api.ts` | `/web3/create-payment`, `/web3/confirm-payment`, `/image/create-checkout-session`, `/image/create-checkout-session-signed` |
@@ -803,10 +811,20 @@ with no web3 dependency (raw EIP-1193, an inline keccak in `keccak.ts`).
 
 - **Gate** (`giveMode.ts`, `walletGiveMode`, unit-tested). Campaign slot: `mainnet` only with
   `NEXT_PUBLIC_WALLET_DONATE=true`, `shelter.handover === "handed-over"` and a `mainnet` router for the
-  campaign chain; `awaiting-handover` (notice, no button, link to `/shelter-payouts/onboard`) while
-  Token Tails holds the wallet; otherwise hidden. Try-it slot: `testnet` when
-  `NEXT_PUBLIC_WALLET_DONATE_CHAIN` names a chain with a `testnet` router. Public money only ever moves
-  donor → router → ShelterSplit → shelter wallet.
+  campaign chain (with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`: a router or a listed mainnet ShelterSplit
+  on each chain named there); `awaiting-handover` (notice, no button, link to
+  `/shelter-payouts/onboard`) while Token Tails holds the wallet; otherwise hidden. Try-it slot:
+  `testnet` when `NEXT_PUBLIC_WALLET_DONATE_CHAIN` names a testnet with a wallet path (a `testnet`
+  router or a ShelterSplit in `testnet-deployments.json`).
+- **Seven chains, two paths** (`giveRails.ts`, unit-tested). The picker offers Arc, Tempo, Arbitrum,
+  Avalanche, Base, Robinhood Chain and Monad (mainnet or testnet ids). A chain with a router for its
+  own coin uses the router path below (never on Tempo). A chain without one, or whose token has no
+  EIP-3009 (Tempo's TIP-20 tokens, Robinhood's USDG and mUSDC), uses the split path: the giver
+  approves the listed ShelterSplit for the exact amount and calls `disburse(amount, memo)`
+  (`disburseWithMemo` with a bytes32 memo on Tempo). Before the wallet opens, `wallet.assertSplitTakes`
+  does the router guard's job: it refuses a paused split, a split that pays nobody, any part reaching
+  the treasury and, on real money, any wallet the shelter did not claim. Public money moves donor →
+  router → ShelterSplit → shelter wallet, or donor → ShelterSplit → shelter wallet.
 - **`public/shelter-payouts/routers.json`** is generated: `fund router record` (run by the wave wrapper
   after each DonateRouter deploy) rewrites it as the public projection of
   `funding/framework/tracks/a-build/router-deployments.json`, and a framework test fails when the two
@@ -819,7 +837,7 @@ with no web3 dependency (raw EIP-1193, an inline keccak in `keccak.ts`).
   `chainId` matches and `relay` is true; the match meter shows only inside the block of the chain it
   serves. Without the relay, Arc's block makes the one-transaction native gift the main button. The
   backend serves the try-it testnet next to its main chain through `SHELTER_TRY_*` (docs/BACKEND.md).
-  The try-it block lists every testnet router with a wallet path in a network picker.
+  The try-it block lists every testnet with a wallet path (router or split) in a network picker.
 - **Gasless gift** (`wallet.signAndGive`): connect and switch chain (then re-read `eth_chainId`: a
   wallet that ignored the switch gets `WrongNetworkError`, nothing is signed), check the router has
   code, refuse a donor account with code (smart account or EIP-7702 `0xef0100…`: `SmartAccountError`;
@@ -839,9 +857,9 @@ with no web3 dependency (raw EIP-1193, an inline keccak in `keccak.ts`).
   tx; only otherwise "the amount stayed in your wallet".
 - **Native path** (`wallet.giveNative`): `router.donateNative(memo, recipients)`, only on chains whose
   native coin is USDC (Arc), with `chainId` in the `eth_sendTransaction` params. Elsewhere the native
-  path is hidden and refused in code, so ETH, AVAX or MON is never sent as a gift. Nothing sends to
-  `ShelterSplit.donate` directly (the old `walletDonate` is gone): every public gift passes the router's
-  treasury guard.
+  path is hidden and refused in code, so ETH, AVAX or MON is never sent as a gift. On the split path
+  the Arc native gift is `ShelterSplit.donate(memo)` (`wallet.giveNativeToSplit`), checked by
+  `assertSplitTakes` first; the old `walletDonate` is gone.
 - **Labels.** The button reads `Give <amount> <token> to <shelter>` when the split pays one wallet,
   `to N shelters` when it pays several, and names no receiver until the list is read. The token symbol
   comes from the router entry or the chain (`USDG`, `EURC`), never a hardcoded USDC. After a gift the

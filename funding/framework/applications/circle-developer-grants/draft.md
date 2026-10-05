@@ -5,6 +5,15 @@ copied_from: colosseum-worlds-fair
 ---
 # Circle Developer Grants — submission draft
 
+<!-- STALE (checked 2026-10-05): this v0 draft is a copy of an early Colosseum draft and pitches
+ShelterSplit "on Tempo" in USDC.e. Rewrite it for Arc (native USDC, EURC) and Circle's tools before submitting, using the
+current arc-microgrants and colosseum-worlds-fair drafts as the source of truth. State of the build on
+2026-10-05: the same ShelterSplit is deployed and verified on seven testnets (Arc, Tempo, Arbitrum
+Sepolia, Avalanche Fuji, Base Sepolia, Robinhood testnet, Monad testnet); DonateRouters on Arc,
+Arbitrum, Avalanche, Base and Monad testnets; nothing on mainnet until a person runs the mainnet wave
+(fund a:mainnet-plan --network mainnet, then CONFIRM_MAINNET=yes wave/mainnet-all.sh). 149 Foundry
+tests pass. -->
+
 ## Summary <!-- criterion: C2, C3 | limit: 280 -->
 ShelterSplit is an open-source payout contract on Tempo. It takes a share of Token Tails' cat-rescue app revenue in USDC.e and pays it to registered animal-shelter wallets, with one on-chain event per shelter that anyone can check.
 

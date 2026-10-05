@@ -202,6 +202,10 @@ rejected). It runs on `/heist` as a static build inside an iframe with the `shar
 bridge, and saves go through `POST /user/catbassadors/live` with the replay
 (`client/components/heist/`, `docs/GAMES.md`, alignment log 4b).
 
+Outside this plan, the game also shipped a read-only "Sent to shelters" payouts modal (ShelterSplit
+payouts read from public RPCs, the Pink Paw goal meter and give button, and a "Testnet proof" section
+for the seven testnets). It never signs or holds keys. See "Shelter payouts" in `catnip-heist/README.md`.
+
 1. **Enum.** Add `CATNIP_HEIST` to `backend/src/game/game.schema.ts`, `client/models/game.ts` and
    `docs/API.md`. Check the other copies listed in `docs/DEVELOPMENT.md`.
 2. **Backend `game.schema.ts`.** Add heist level keys, per-level caps, `replayHash` and the

@@ -32,7 +32,7 @@ flowchart LR
         SOR[Soroban contracts<br/>Stellar mainnet]
         SK[SKALE contracts]
         FUEL[Faucet services<br/>stellar-fuel, sfuel]
-        ARC[ShelterSplit<br/>Arc]
+        ARC[ShelterSplit + DonateRouter<br/>Arc, Tempo, Arbitrum, Avalanche,<br/>Base, Robinhood Chain, Monad]
     end
 
     Web & App & CMS -->|accesstoken header| API
@@ -43,7 +43,8 @@ flowchart LR
     SOR -.->|tokenURI| API
     SK -.->|tokenURI| API
     Web & App -->|assets| SP
-    API -->|treats, paws, log indexer| ARC
+    API -->|treats, x402, relay, paws, log indexer| ARC
+    Web -->|wallet gifts, crypto checkout| ARC
     Web -->|/heist iframe| HEIST[Catnip Heist<br/>static build]
 ```
 
@@ -62,6 +63,8 @@ flowchart LR
 | Soroban contracts | `contracts/stellar/soroban-nft/` | Rust | Cat, Blessing, and Pass NFTs on Stellar mainnet |
 | SKALE contracts | `contracts/evm/` | Solidity | Cat and Blessing ERC-721 on SKALE Nebula |
 | Faucets | `contracts/stellar/stellar-fuel/`, `contracts/sfuel/` | Node, Express | Fund new player wallets with XLM or sFUEL |
+| Shelter payout contracts | `funding/framework/tracks/a-build/shelter-split/` | Solidity 0.8.24, Foundry | ShelterSplit (payout split) and DonateRouter (one-signature gifts). Recorded on the seven testnets in `deployments.json` and `router-deployments.json`; no mainnet split is recorded yet (see "Shelter payout chains") |
+| Shelter rail SDK | `shelter-rail/` | Plain JS, MIT | Donate SDK, drop-in widget and x402 agent client for the same chains; the widget is copied to `client/public/rail/` |
 | Archived | `contracts/motoko/`, `contracts/move/` | dfx, Aptos Move | Unused prototypes |
 
 ## Core domain
@@ -72,7 +75,7 @@ flowchart LR
 - **Shelter**: partner organisation. Staff users are scoped to their shelter.
 - **Order**: a purchase record whose `hash` is a Stellar transaction hash, a Stripe id, or `evm:<chainId>:<txHash>` for the crypto checkout.
 - **Game**: an immutable score submission (Heist rows carry a `replayDigest`).
-- **Impact**: payout events indexed from the Arc ShelterSplit contract, treats (`shelterdonations`), paws, attested off-chain payouts, shelter outcomes and an hourly public snapshot.
+- **Impact**: payout events indexed from the ShelterSplit contracts (and DonateRouter gifts) on the main chain and every recorded chain of the same network, treats (`shelterdonations`), paws, attested off-chain payouts, shelter outcomes and an hourly public snapshot.
 - **Rescue Goal**: a funded shelter need that players give Tails to.
 
 The full schema is in [DATA_MODEL.md](DATA_MODEL.md).
@@ -109,8 +112,8 @@ authority. Details: BACKEND.md, "Authentication".
 
 ### Public impact numbers
 
-1. A leased job indexes ShelterSplit payout logs on Arc every 5 minutes; treats, paws, attested payouts and outcomes are written by their own flows.
-2. An hourly job builds the impact snapshot from MongoDB and the chain cursor and stores it (and optionally mirrors `impact.json` to the CDN).
+1. A leased job indexes ShelterSplit payout logs and DonateRouter gifts every 5 minutes, with one cursor per chain and contract: the main chain (`SHELTER_CHAIN_ID`) and every chain in `wallet.config.ts` with a recorded split, of the main chain's network class only, so test money never sums with real money. EURC, mUSDC and gas coins stay under their own symbols, out of the USD totals. Treats, paws, attested payouts and outcomes are written by their own flows.
+2. An hourly job builds the impact snapshot from MongoDB and the chain cursors and stores it (and optionally mirrors `impact.json` to the CDN).
 3. The landing, `/impact` and `/stats` read the snapshot: CDN first, then `GET /impact`, then the bundled baseline; app builds read the committed baseline. Every number is a claim with a registry id (CLAIMS.md).
 
 ### Buying with Stripe
@@ -132,7 +135,7 @@ for a refund (410 `STELLAR_PACKS_DEPRECATED`). Portraits and loot boxes are stil
 
 ### Buying with USDC or EURC (crypto checkout)
 
-1. Client creates an order through `POST /payments/crypto/orders` for a pack, a loot box or one shelter cat; the server prices it and lists every accepted chain and token with the exact amount, the recipient and ready-to-send transactions.
+1. Client creates an order through `POST /payments/crypto/orders` for a pack, a loot box or one shelter cat; the server prices it and lists every accepted chain and token with the exact amount, the recipient and ready-to-send transactions. Accepted on mainnet: USDC on Arc, Base, Arbitrum, Avalanche and Monad, USDC.e on Tempo, USDG on Robinhood Chain, and EURC on Arc, Base and Avalanche (`backend/src/payments/crypto/crypto-chains.ts`). Native coins are never accepted.
 2. The buyer pays from their own wallet: a token transfer to the Token Tails treasury (bound to the order by a unique amount, or a TIP-20 memo on Tempo), or, for a shelter cat after the shelter's key handover, straight into the shelter's ShelterSplit with the order memo.
 3. Client sends `{chainId, txHash}` to `POST /payments/crypto/orders/:orderId/confirm`; the backend reads the receipt over RPC, checks token contract, recipient, amount or memo, confirmations and expiry, creates the `Order` keyed on the transaction hash and grants once. Details: BACKEND.md "Payments".
 
@@ -153,9 +156,37 @@ for a refund (410 `STELLAR_PACKS_DEPRECATED`). Portraits and loot boxes are stil
 
 Stellar is the production chain. Cat, Blessing, and Pass NFTs are Soroban contracts whose token
 URIs point at the backend metadata endpoints. SKALE Nebula has ERC-721 deployments of Cat and
-Blessing from an earlier phase. The minting call site is not in this repository: the backend
-serves metadata and verifies payments but never invokes a contract. See
+Blessing from an earlier phase. The NFT minting call site is not in this repository: the backend
+serves NFT metadata and verifies payments but never invokes an NFT contract. See
 [CONTRACTS.md](CONTRACTS.md).
+
+### Shelter payout chains
+
+Shelter giving runs on seven EVM chains, each with a mainnet and a testnet: Arc, Tempo, Arbitrum,
+Avalanche, Base, Robinhood Chain (USDG) and Monad. Each chain has a ShelterSplit (EURC has its own
+instance on Arc, and on Avalanche Fuji among the testnets) and, except on Tempo and Robinhood Chain, a DonateRouter for one-signature gifts.
+
+- **Records.** The deploy wave writes `funding/framework/tracks/a-build/deployments.json` and
+  `router-deployments.json`. `fund a:ingest` (or `fund a:backend-deployments`) turns them into the
+  public config `backend/src/shelter/onchain/wallet.config.ts` and the client and Heist lists
+  (`client/public/shelter-payouts/deployments.json`, `testnet-deployments.json`). Today only the
+  testnets are recorded; every mainnet `split` is `null` until the mainnet wave runs.
+- **Backend env.** The backend needs only `SHELTER_CHAIN_ID` (default Arc mainnet, 5042) and
+  `SHELTER_DONATE_PRIVATE_KEY` (the hot wallet). Splits, routers, RPCs and the treasury come from
+  `wallet.config.ts`. Sponsored treats and the x402 agent card are on by default on the main chain and
+  on every `wallet.config.ts` chain of the same network class, each health-checked and shown disabled
+  with its reason. The `SHELTER_*` overrides and emergency offs are listed in BACKEND.md.
+- **Mainnet gate.** On a mainnet, the relay, the match and the `onchain-receipt` x402 open per chain
+  only after the shelter's claim is verified on chain (`publicGivingVerified`: every payee of the split
+  is a rotated claim for that chain, signed with the v1 or the v2 multi-chain message, and none is a
+  wallet Token Tails holds). Testnets are always open.
+- **Client.** The give page's treat chain picker, the wallet giving picker, the crypto checkout, the
+  impact numbers, the Heist payouts modal (with its separate "Testnet proof" section) and the
+  `shelter-rail` SDK and widget all cover the same seven chains.
+- **Mainnet wave.** One wallet funds everything: `fund a:mainnet-plan --network mainnet` writes
+  `wave/mainnet-all.sh`, which a person runs with `CONFIRM_MAINNET=yes` (it refuses inside an AI agent
+  session). Amounts are in `funding-plan.json`; the steps are in
+  `funding/framework/tracks/a-build/README.md`.
 
 ## Assets and CDN
 
@@ -177,7 +208,8 @@ native builds still load them.
 | Client Stellar network and CDN | `NEXT_PUBLIC_IS_PROD` |
 | Client app build | `NEXT_PUBLIC_IS_APP` |
 | Look version | `public/look/manifest.json` `lookVersion`, with a per-device `localStorage` override |
-| Feature flags | `NEXT_PUBLIC_HEIST_PICKER`, `NEXT_PUBLIC_HEIST_LANDING_PILL`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PROXY` (client); `TAILS_TOKEN_MODE`, `AUTH_ENFORCE_EMAIL_VERIFIED`, `APP_CHECK_ENFORCE`, `IMPACT_JOBS_ENABLED`, `PAWS_SETTLEMENT_ENABLED` (backend) |
+| Shelter payout network | `SHELTER_CHAIN_ID` (backend; a testnet id serves the testnets, a mainnet id the mainnets) |
+| Feature flags | `NEXT_PUBLIC_HEIST_PICKER` (on unless `0`, `false`, `no` or `off`), `NEXT_PUBLIC_HEIST_LANDING_PILL`, `NEXT_PUBLIC_WALLET_DONATE`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PROXY` (client); `TAILS_TOKEN_MODE`, `AUTH_ENFORCE_EMAIL_VERIFIED`, `APP_CHECK_ENFORCE`, `IMPACT_JOBS_ENABLED`, `PAWS_SETTLEMENT_ENABLED` (backend) |
 | Backend CORS origins | `FRONT_END_URLS` plus hardcoded localhost, Capacitor, and production domains |
 
 Known origins: `tokentails.com`, `cats.tokentails.com`, `test.tokentails.com`, and the API at
@@ -190,7 +222,7 @@ Known origins: `tokentails.com`, `cats.tokentails.com`, `test.tokentails.com`, a
 - **Synchronous AI**: portrait and blessing generation run inside the request. There is no job queue.
 - **Client-supplied prices**: fixed. Stripe Checkout, Stripe PaymentIntents and Stellar all verify against the server price table, and spend and affiliate counters use the verified amount; see the backend known issues.
 - **Duplicated domain code**: enums, error codes, caps and reward constants are generated from `shared/` into every package (`scripts/sync-contracts.mjs --check` in CI); the remaining hand-kept copies are listed in DEVELOPMENT.md.
-- **Testing**: backend jest specs (`npm test`, mocked Mongoose, opt-in real-MongoDB specs), client, CMS and Heist suites (jest and vitest), Playwright end-to-end suites for the client and the Heist, 34 Rust tests for Soroban, all run by GitHub Actions (`.github/workflows/ci.yml`).
+- **Testing**: backend jest specs (`npm test`, mocked Mongoose, opt-in real-MongoDB specs), client, CMS and Heist suites (jest and vitest), Playwright end-to-end suites for the client and the Heist, the funding framework tests, 34 Rust tests for Soroban, Foundry tests for ShelterSplit and DonateRouter, and the `shelter-rail` tests. GitHub Actions (`.github/workflows/ci.yml`) runs the backend, client (with its Playwright suite), CMS, Heist vitest and funding framework tests; the Heist Playwright suite, Rust, Foundry and `shelter-rail` tests run locally only.
 
 ## About the settlement rail note
 

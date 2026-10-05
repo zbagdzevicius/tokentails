@@ -31,7 +31,10 @@ Dates are commit or migration dates.
 | 2026-07-24 | Traction and weekly transaction figures updated. |
 | 2026-09-16 | Gaming landing becomes the homepage at `/`; the "Forever Feline" app-family landing is removed and `/gaming` redirects to `/`. |
 | 2026-09-29 | Telegram dropped: Mini App, Telegram init-data auth, Telegram referral route, Telegram quests and links removed. Firebase is the only login. |
-| 2026-09-30 to 2026-10-02 | Landing and game alignment build (`docs/plans/landing-game-alignment.md`, uncommitted): W1 security hotfix, shared contracts and CI, guest play and the night AuthSheet, uid-first identity, Meet your cat, Catnip Heist on `/heist` with replay-verified saves, Tails as rescue points with Rescue Goals, the impact snapshot and `/impact`, the night design and world look, the botanical catnip, first-run onboarding in every mode, error boundaries. |
+| 2026-09-30 to 2026-10-02 | Landing and game alignment build (`docs/plans/landing-game-alignment.md`, first committed 2026-09-30 in 69b0a2a8): W1 security hotfix, shared contracts and CI, guest play and the night AuthSheet, uid-first identity, Meet your cat, Catnip Heist on `/heist` with replay-verified saves, Tails as rescue points with Rescue Goals, the impact snapshot and `/impact`, the night design and world look, the botanical catnip, first-run onboarding in every mode, error boundaries. |
+| 2026-10-02 to 2026-10-04 | ShelterSplit deployed and recorded on the seven testnets (Tempo and Arc on Oct 2; Robinhood Chain, Avalanche, Base and Arbitrum on Oct 3; Monad on Oct 4), plus a second EURC split on Arc testnet and Fuji. DonateRouters recorded on Arc testnet (USDC and EURC), Base Sepolia, Arbitrum Sepolia, Fuji and Monad testnet on Oct 4. The in-game shelter payouts modal arrives on Oct 3; it shows these deploys in a separate testnet proof section. |
+| 2026-10-04 | Shelter giving goes multi-chain: crypto checkout (USDC, EURC, USDC.e, USDG) becomes the default payment; Stellar pack sales close; 50,000 USDC goal for Pink Paw; custody-safe giving rail (gasless relay, 1:1 match, x402 `exact`); zero-config treats, x402, impact indexing and per-chain shelter claims on seven chains, configured by the generated `wallet.config.ts`. |
+| 2026-10-05 | One-wallet mainnet plan: `fund a:distribute` and `fund a:mainnet-plan` write `wave/mainnet-all.sh` (a person runs it with `CONFIRM_MAINNET=yes`); the minimal funding profile (about $7.25, 0.1-token proof payouts), the Token Tails treasury as the mainnet split treasury, DonateRouters deployed by default. The Catnip Heist card is on in the PLAY picker by default; in-game modals move to one night panel system. No mainnet split is recorded yet. |
 | 2026-09-17 | Rescue Mission Hub reduced to the sample card and portrait video; proof-section media switched to the deck originals hosted on the pitch site. |
 | 2026-09-16 | Homepage proof section added between the Rescue Mission Hub and the globe: Paris cat café event video (Bybit, ChainforGood) and a marquee of 15 creator reels, served from `public/landing/proof/`; videos load and play only while on screen and never under reduced motion. |
 
@@ -48,6 +51,7 @@ that predate the game. The blog features are that inheritance.
 2. Stellar: became the production chain. Soroban Cat, Blessing, and Pass contracts on mainnet; custodial Stellar wallets generated for every user; XLM and USDC payments verified through Horizon.
 3. Solana: briefly supported on the client, removed March 2026.
 4. Internet Computer and Aptos: prototypes only, never deployed.
+5. Shelter payout chains (October 2026): ShelterSplit and DonateRouter on Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain and Monad. Testnets are deployed; the mainnet wave is prepared but not yet run.
 
 ## Roadmap signals in the code
 

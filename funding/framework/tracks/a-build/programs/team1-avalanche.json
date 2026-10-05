@@ -14,7 +14,8 @@
       { "title": "Build evidence", "auto": "build" },
       { "title": "Traction", "from": "Traction" },
       { "title": "Team", "from": "Team" }
-    ]
+    ],
+    "checklist": ["draft.md is a v0 copy that pitches Tempo: rewrite it for Avalanche before pasting anything (checked 2026-10-05)"]
   },
   "verify": ["form fields and limits"]
 }

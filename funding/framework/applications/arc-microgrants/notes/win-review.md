@@ -1,5 +1,20 @@
 # Win review — Arc Microgrants (2026-09-28)
 
+> **Status on 2026-10-05.** This review is dated; the gates it lists have moved:
+> - Public repo: done. `github.com/zbagdzevicius/tokentails` is public and `main` holds ShelterSplit
+>   (`funding/framework/tracks/a-build/shelter-split`); build evidence now names a clean commit.
+> - Public page: done. https://tokentails.com/shelter-payouts is live.
+> - Testnet: ShelterSplit USDC and EURC instances, each with a DonateRouter, are deployed, verified
+>   and paid Pink Paw a 0.1-token proof on Arc testnet (`tracks/a-build/deployments.json`,
+>   `router-deployments.json`).
+> - Arc mainnet: still not deployed, so the hard gate still fails. The deploy is no longer
+>   `fund a:deploy` + `fund a:record` by hand: `fund a:mainnet-plan --network mainnet` writes
+>   `tracks/a-build/wave/mainnet-all.sh`, which a person runs with `CONFIRM_MAINNET=yes` (it refuses
+>   in an AI session). It deploys the USDC and EURC splits and both routers on Arc, sends 0.1-token
+>   proof payouts to Pink Paw, records everything with `fund a:ingest` and verifies it. Treasury:
+>   `0x7b136b872bEad1dAE557d1286f125B7A8A197C9A`.
+> - Still open: builder profile link, demo video, Pink Paw's consent letter or post.
+
 Short answer: we cannot prove this wins. Today it is **ineligible**. The program's only hard gate is
 "Your project must be deployed and working on Arc mainnet at the time you submit"
 (https://community.arc.io/public/events/arc-microgrants-f8tijfjhyq), and

@@ -1,6 +1,6 @@
 # Arc Microgrants — submission
 
-_Generated 2026-10-04T13:10:38.523Z by `fund a:submission arc-microgrants` from draft.md, the program profile,
+_Generated 2026-10-05T15:57:05.857Z by `fund a:submission arc-microgrants` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -27,7 +27,7 @@ ShelterSplit splits native USDC on Arc as it arrives and pays each registered sh
 - Registry: the owner adds, updates, deactivates or removes shelters; dust goes to the treasury, so the split holds no balance.
 - Atomic batch: if one payout fails the whole batch reverts and nobody is paid short.
 - Sponsored gifts: a verified player taps once a day; a backend wallet with a small float calls donate('tt:<source>:<random id>') within a capped daily budget. No personal data in the memo.
-- One-signature gifts (built, not deployed): the donor signs an EIP-3009 receiveWithAuthorization that binds the router, memo and payout list. The router reverts if that list changed or any share would reach the treasury.
+- One-signature gifts (public after handover): the donor signs an EIP-3009 receiveWithAuthorization that binds the router, memo and payout list. The router reverts if that list changed or any share would reach the treasury.
 - Agent payments, off on mainnet until handover: standard x402 exact paid straight to the shelter wallet, or our own scheme (donate('x402:<nonce>'), tx checked over RPC, accepted once).
 - Trust model: the chain proves USDC reached the registered wallet, not who controls it. Token Tails holds the first wallet for Pink Paw until handover.
 - Reentrancy guard, pause, two-step ownership; fuzz and invariant Foundry suites; MIT.
@@ -43,7 +43,7 @@ Arc mainnet: ShelterSplit (USDC) at {SPLIT_ADDRESS} and ShelterSplit (EURC) at {
 
 ## Build evidence
 
-All 73/73 Foundry tests pass (unit, fuzz, reentrancy with a malicious token, event emission). Creation bytecode sha256 `6a1faf73bad02285dd3d1198bd8c31e25f6e2283258e024dfb7d68e4595bf72c`, runtime 11199 bytes, commit `9734bed09985`, built 2026-10-01.
+All 149/149 Foundry tests pass (unit, fuzz, reentrancy with a malicious token, event emission). Creation bytecode sha256 `6a1faf73bad02285dd3d1198bd8c31e25f6e2283258e024dfb7d68e4595bf72c`, runtime 11199 bytes, commit `4546c17be4e4`, built 2026-10-05.
 
 ## Why it matters
 

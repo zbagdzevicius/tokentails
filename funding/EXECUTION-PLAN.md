@@ -1,8 +1,43 @@
 # Token Tails funding push: execution plan, 2026-09-30 to 2026-12-13
 
-## Update 2026-09-30
+## Update 2026-10-05: what is current (read this before the dated rows below)
 
-Built today, all off or empty until the Oct 2 deploy. Nothing below is live yet.
+The rows below are the Sep 30 plan. Several of its assumptions changed:
+- **Seven chains, not four:** Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain (USDG) and Monad.
+  All seven have testnet ShelterSplits recorded in `framework/tracks/a-build/deployments.json`
+  (EURC instances on Arc and Avalanche testnet; Robinhood testnet pays a test mUSDC). DonateRouters
+  are recorded on the Arc, Base, Arbitrum, Avalanche and Monad testnets (plus EURC routers on Arc and
+  Avalanche) in `router-deployments.json`. No mainnet contract is recorded yet.
+- **The mainnet wave is one wallet and one command.** Send the per-chain amounts in
+  `framework/tracks/a-build/funding-plan.json` (minimal profile, about $7.25; table in
+  `USER-TODAY.md` §4) to the deployer. Then, from `funding/framework`, in your own terminal:
+  `node bin/fund.mjs a:mainnet-plan --network mainnet`, then
+  `CONFIRM_MAINNET=yes DRY_RUN=1 ./tracks/a-build/wave/mainnet-all.sh`, then the same without
+  `DRY_RUN`. It checks balances, deploys the splits (EURC on Arc only) and the routers (Arc, Arbitrum,
+  Avalanche, Base, Monad; EURC router on Arc), sends one 0.1-token proof payout per instance
+  (`PROOF_AMOUNT=100000`), runs `a:ingest`, verifies, tops up the hot wallet and agent
+  (`a:distribute`) and fills the drafts. It refuses to run inside an AI session. The mainnet treasury
+  is `0x7b136b872bEad1dAE557d1286f125B7A8A197C9A`. A one-week top-up later: `PLAN=topup node bin/fund.mjs
+  a:distribute --network mainnet`. This replaces the per-script Oct 1–2 rows and the "1–5 USDC per
+  chain" balances in section 4.
+- **Public config is generated:** `backend/src/shelter/onchain/wallet.config.ts` is written by
+  `fund a:ingest` (or `fund a:backend-deployments`). The backend needs only `SHELTER_CHAIN_ID` and
+  `SHELTER_DONATE_PRIVATE_KEY` (see `docs/BACKEND.md`).
+- **Treats and x402 are on by default**, on every chain with a recorded split of the main chain's
+  network class. On a mainnet, x402, relay and match open only after the shelter's own wallet is
+  claimed on that chain (the v2 claim message can name several chains). Emergency off switches:
+  `SHELTER_DONATE_ENABLED=false`, `SHELTER_X402_ENABLED=false`, `SHELTER_HANDED_OVER=false`,
+  `SHELTER_AUTO_CHAINS=off`. Wallet giving on mainnet still needs `NEXT_PUBLIC_WALLET_DONATE=true`
+  and a handed-over shelter; the testnet "try it" block covers all seven testnets.
+- **Also built since Sep 30:** crypto checkout (including Robinhood USDG and Monad USDC), a chain
+  picker for sponsored treats, a multi-chain impact indexer, the Catnip Heist in-game payouts modal
+  with the testnet proof, a multi-chain rail SDK and widget, submission images in
+  `submission-images/`, and the run page `FUNDING-RUN.html`.
+- **Foundry tests:** 149 pass (73 ShelterSplit, 50 DonateRouter, 26 CappedSpender), not 73.
+
+## Update 2026-09-30 (superseded where the Oct 5 update above differs)
+
+Built that day, all off or empty until the Oct 2 deploy. Nothing below was live yet.
 - **Showcase shelter:** Pink Paw (Rožinė pėdutė). Token Tails holds its wallet until handover, and every page, README and draft says so. The wallet address is `null` in config until the deploy.
 - **Sponsored one-tap gift:** `POST /shelter/donate` (once per player per UTC day, capped daily budget) behind `SHELTER_DONATE_ENABLED`. It is reached from the Catnip Heist win screen and `/shelter-payouts/give`. To turn it on (Oct 2–4): set the `SHELTER_*` names from `docs/BACKEND.md` and fund the hot wallet with a small USDC float.
 - **Receipts and share cards:** `/shelter-payouts/receipt?chain=<id>&tx=<hash>`. The payouts page also has the Pink Paw profile, a campaign meter (`client/public/shelter-payouts/campaign.json`) and a balance line.

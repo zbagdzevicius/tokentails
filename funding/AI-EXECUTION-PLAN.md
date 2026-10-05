@@ -3,6 +3,12 @@
 Written 2026-09-25. Companion to `ALL-OPPORTUNITIES.md` (the list) and `PLAN.md` (the strategy).
 Constraints applied: remote-only; grants and accelerators only; no BGA, Mantle, SCF or Giveth.
 
+> **Status (2026-10-05):** this is the Sep 25 design. What was built from it lives in
+> `framework/` (start with `framework/README.md` and `framework/GUIDE.md`; the workspace layout in
+> §2 became `framework/facts/`, `framework/applications/` and `framework/TRACKER.md`). Exclusions
+> added on Sep 28: Taiko, Solana-only programs, SDF Marketing Grants and the Lithuanian travel
+> subsidy. Current dates and statuses: the funding tracker in the repo's `CLAUDE.md`.
+
 ---
 
 ## 1. The operating model

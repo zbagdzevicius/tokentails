@@ -1,20 +1,28 @@
 # Shelter payouts page (`/shelter-payouts`)
 
-Read-only transparency page. It lists every `Disbursed(address indexed shelter, uint256 amount, string memo)`
+Transparency page. It lists every `Disbursed(address indexed shelter, uint256 amount, string memo)`
 event from each ShelterSplit deployment, read in the browser with plain `eth_getLogs` calls to the
-chain's public RPC. No backend, no wallet, no new dependency.
+chain's public RPC. The payout feed needs no backend and no wallet, and adds no dependency.
+
+Chains (`chains.ts`), mainnet and testnet: Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain
+and Monad (Mezo is listed too). Robinhood Chain pays USDG (its testnet a test mUSDC), Tempo USDC.e
+(its testnet pathUSD), the others USDC. Totals group by symbol, so USDG never adds into a USDC sum.
 
 ## Data source
 
-`client/public/shelter-payouts/deployments.json` is the list of deployments. It ships as `[]`, and the
-page shows an empty state until it has entries.
+Two lists, kept apart so test money never sums with real payouts:
 
-After a deploy wave, `fund a:ingest` (run from `funding/framework`) writes the real deployments to
-`funding/framework/tracks/a-build/deployments.json`. Copy that file here:
+- `client/public/shelter-payouts/deployments.json`: the mainnet ShelterSplits. It ships as `[]`
+  until the mainnet wave, and the page shows an empty state until it has entries.
+- `client/public/shelter-payouts/testnet-deployments.json`: the testnet ShelterSplits, shown in the
+  separate "Testnet proof" section ("Already live on N testnets"). A testnet entry found in the
+  mainnet list moves to that section too.
 
-```sh
-cp funding/framework/tracks/a-build/deployments.json client/public/shelter-payouts/deployments.json
-```
+Do not copy files by hand. `fund a:ingest` (run from `funding/framework`) records a wave in
+`funding/framework/tracks/a-build/deployments.json` and writes the public copies: both lists here,
+the Catnip Heist's copies (`catnip-heist/public/payouts/`), the built Heist's mainnet list
+(`client/public/heist-game/payouts/deployments.json`) and the backend's
+`backend/src/shelter/onchain/wallet.config.ts`. Commit them after the run.
 
 Only `chainId` and `address` are required per entry. The page also uses:
 
@@ -22,8 +30,8 @@ Only `chainId` and `address` are required per entry. The page also uses:
 |---|---|
 | `tx` | Deploy tx. Its receipt gives the block where the log scan starts. |
 | `fromBlock` | Scan start block. Set it by hand if the RPC rejects the range. |
-| `rpc`, `explorer` | Override the built-in public RPC and explorer in `chains.ts` (needed for chains not listed there, such as Robinhood Chain). |
-| `decimals`, `symbol` | Override the payout token display (defaults: USDC, 6; MUSD, 18 on Mezo). |
+| `rpc`, `explorer` | Override the built-in public RPC and explorer in `chains.ts` (needed only for a chain not listed there). |
+| `decimals`, `symbol` | Override the payout token display (defaults per chain in `chains.ts`: USDC, 6; USDG on Robinhood Chain; USDC.e on Tempo; MUSD, 18 on Mezo). |
 
 ## Showcase shelter and campaign
 
@@ -62,15 +70,18 @@ Query params, not dynamic segments, because the app build is a static export.
 
 | Route | What it does |
 |---|---|
-| `/shelter-payouts/give?from=heist&cat=<name>[&chain=<id>]` | Signed-in one-tap treat: `POST /shelter/donate` (backend pays from its hot wallet). Web builds show network chips (`treatChains.ts`: Arc, Arbitrum, Base, Avalanche, Robinhood, Tempo, each with its coin); only chains the backend's `GET /shelter/donate/status` `chains` lists as live can be picked, and `?chain=<id>` preselects one when it is open (else Arc, with a note). App builds always use the main chain. Handles signed-out, 429 (once per UTC day, across all chains), 409 (disabled or budget spent). |
+| `/shelter-payouts/give?from=heist&cat=<name>[&chain=<id>]` | Signed-in one-tap treat: `POST /shelter/donate` (backend pays from its hot wallet). Web builds show network chips (`treatChains.ts`: Arc, Arbitrum, Base, Avalanche, Robinhood, Tempo, Monad, each with its coin: USDC, USDG on Robinhood, USDC.e on Tempo); only chains the backend's `GET /shelter/donate/status` `chains` lists as live can be picked (the rest are greyed out with a short reason), and `?chain=<id>` preselects one when it is open (else the backend's main chain, else the first open chip). The chosen chain goes to the backend as `chainId`. App builds always use the main chain. Handles signed-out, 429 (once per UTC day, across all chains), 409 (disabled or budget spent). |
 | `/shelter-payouts?embed=1` | Same page without the site header and footer, for a modal iframe (e.g. inside Catnip Heist). The Heist link is hidden and other links open with `target="_top"`. |
 | `/shelter-payouts/receipt?chain=<id>&tx=<hash>` | Reads the receipt over the public RPC, decodes NativeDisbursed/Disbursed, flags logs not from a listed contract, and draws a PNG share card in the browser. |
 
 ## Wallet giving
 
-`WalletDonate` gives through a DonateRouter listed in `routers.json`, gated by `walletGiveMode`
-(`giveMode.ts`): real money only after the handover, a testnet "Try it live" block for
-`NEXT_PUBLIC_WALLET_DONATE_CHAIN`, and "Opens when Pink Paw holds its own key" otherwise. Full flow,
+`WalletDonate` gives on any of the seven chains (`giveRails.ts`): through a DonateRouter listed in
+`routers.json` (one signature), or, on a chain without a router or whose token has no EIP-3009
+(Tempo, Robinhood), straight into the listed ShelterSplit (approve, then `disburse`). It is gated by
+`walletGiveMode` (`giveMode.ts`): real money only with `NEXT_PUBLIC_WALLET_DONATE=true` and after the
+handover, a testnet "Try it live" block for `NEXT_PUBLIC_WALLET_DONATE_CHAIN` with a picker over the
+seven testnets, and "Opens when Pink Paw holds its own key" otherwise. Full flow,
 env and fork E2E: `docs/CLIENT.md`, "Wallet giving". `/shelter-payouts/onboard` is the shelter's
 handover page (claim message in `claim.ts`).
 
@@ -84,4 +95,6 @@ Remove it only after the shelter controls its own wallet.
 `client/__test__/shelter-payouts-logs.test.ts` covers log decoding and amount formatting;
 `shelter-calldata`, `shelter-campaign`, `shelter-receipt` and `shelter-api` cover calldata (checked
 against keccak and ethers output), the wallet flow with a mocked provider, the goal sum, receipt
-decoding and the API status mapping.
+decoding and the API status mapping. `shelter-give-rails`, `shelter-give-mode`,
+`shelter-give-networks`, `shelter-chain-picker` and `shelter-wallet-give` cover the per-chain give
+paths, the gate, the treat chips, the wallet chain picker and the router gift flow.

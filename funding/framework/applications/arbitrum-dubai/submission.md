@@ -1,6 +1,6 @@
 # Arbitrum Open House Dubai online buildathon — submission
 
-_Generated 2026-10-04T19:08:53.928Z by `fund a:submission arbitrum-dubai` from draft.md, the program profile,
+_Generated 2026-10-05T15:57:06.138Z by `fund a:submission arbitrum-dubai` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -55,9 +55,13 @@ ShelterSplit's Tempo mainnet address and explorer link appear below once the dep
 
 ## Build evidence
 
-All 41/41 Foundry tests pass (unit, fuzz, reentrancy with a malicious token, event emission). Creation bytecode sha256 `b7ac944667b02b444335550a0c78a3a3f684a23c52fe8cc228632e8119964ada`, runtime 8768 bytes, **built from uncommitted source (untracked, not committed yet) — commit, push and re-run `fund a:build` before submitting**, built 2026-09-28.
+All 149/149 Foundry tests pass (unit, fuzz, reentrancy with a malicious token, event emission). Creation bytecode sha256 `6a1faf73bad02285dd3d1198bd8c31e25f6e2283258e024dfb7d68e4595bf72c`, runtime 11199 bytes, commit `4546c17be4e4`, built 2026-10-05.
 
 ## Team
 
 Token Tails is a Lithuanian small partnership (MB), registered in October 2024. The same team built and runs the whole product. It shipped the app to both app stores, built an AI pipeline that writes each cat's story and paints its portraits, and runs payments on three rails. It also wrote, tested and deployed the Stellar contracts behind the game, and it wrote ShelterSplit and its test suites.
+
+## Before you press submit
+
+- [ ] draft.md is a v0 copy that pitches Tempo: rewrite it for Arbitrum before pasting anything (checked 2026-10-05)
 

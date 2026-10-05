@@ -1,5 +1,13 @@
 # Winning strategy (2026-09-28)
 
+> **Status (2026-10-05):** a dated strategy; the odds and calendar below are as of Sep 28.
+> Since then: the wave covers seven chains (Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain,
+> Monad), all live on testnet with proof payouts; mainnet is one funded wallet and one command
+> (`EXECUTION-PLAN.md`, Oct 5 update). The showcase shelter is Pink Paw, with its wallet held by
+> Token Tails until the handover. The Sep 30 weekly was submitted. ShelterSplit has 73 tests (149
+> in the Foundry project), not 41. Current odds and dates: the tracker in the repo's `CLAUDE.md` and
+> `PERCENTILE-REASSESSMENT.md`.
+
 Method: five independent strategies were designed. Three judges reviewed all of them (a base-rate skeptic, a program-judge simulator and a feasibility check). One synthesis then applied every correction. Raw data: `WINNING-STRATEGY-DATA.json`.
 
 **About 45% chance of at least one cash win (range 0.30-0.55). About 28% chance of a win worth $500 or more. The plan is Arc proof-first plus Anitya small-field volume, with Colosseum Tempo, Arbitrum Dubai and Team1 riding the same deployed rail.**

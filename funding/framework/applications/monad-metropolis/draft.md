@@ -29,8 +29,12 @@ ShelterSplit 0x457c89e10a6e66633eda5bf82fd086febb5db147 (Sourcify verified), pro
 video · github.com/zbagdzevicius/tokentails public repo. HEIST_URL https://tokentails.com/heist · PAYOUTS_URL
 https://tokentails.com/shelter-payouts
 
-Chains, exactly: the one-tap sponsored treat and the x402 endpoint run on Arc only today. On Monad,
-ShelterSplit would pay USDC through disburse(). Do not claim a sponsored treat on Monad. -->
+Chains, exactly (re-checked 2026-10-05): production serves mainnets only and no mainnet split is
+recorded yet, so no treat or x402 call runs in production today. The backend offers the sponsored treat
+and the x402 card on every chain with a recorded split of its network class, Monad included; on a
+mainnet the x402 card waits for Pink Paw's signed per-chain claim. On Monad, ShelterSplit pays USDC
+through disburse(). Do not claim a production sponsored treat on Monad until the Monad mainnet split
+is recorded. -->
 
 ## Summary <!-- criterion: C1 | limit: 280 -->
 A player wins a round of Catnip Heist, taps "Send Pink Paw a rescue treat", and a real stablecoin payment reaches a cat shelter, with a public receipt. No wallet and no gas for the player. ShelterSplit, the payout rail behind it, deploys on Monad.
@@ -52,7 +56,7 @@ The player never touches a wallet: purchases stay card or in-app payments [F-020
 - On {MONAD_NETWORK}, ShelterSplit at {MONAD_SPLIT} pays USDC with disburse(amount, memo): it pulls the payment, splits it by basis points and sends rounding dust to a treasury. Fast blocks and low fees settle a small gift before the player leaves the screen.
 - Safety: reentrancy guard, pause, two-step ownership, safe transfers, caps on shelters and memo length. Foundry tests cover splits, dust, access control, reentrancy and fuzzing.
 - The give flow runs on Arc at {SPLIT_ADDRESS}: a backend wallet with a small float pays, with a memo that holds no personal data. First treat: {ARC_TX}. The same backend pays treats in USDC on Monad testnet through disburse().
-- Agent payments, off until handover, on Arc only: an onchain-receipt scheme (donate('x402:<nonce>'), checked over RPC, accepted once) and standard x402 exact.
+- Agent payments: our onchain-receipt scheme (memo x402:<nonce>, checked over RPC, accepted once) on every chain with a split, Monad included, plus standard x402 exact. On mainnet: only once Pink Paw holds its own key.
 - Donor gifts: an ownerless DonateRouter takes a one-signature USDC gift (EIP-3009, which Circle USDC on Monad supports) and reverts if any share would reach the treasury. Live on Monad testnet; off for the public until handover.
 - Trust model: the chain proves funds reached the registered wallet, not who controls it.
 - ShelterSplit and the Rail SDK are MIT (github.com/zbagdzevicius/tokentails). Demo: {DEMO_URL}.

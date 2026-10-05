@@ -27,7 +27,9 @@ catnip-heist/   Catnip Heist: standalone three.js game (Vite), built into client
 shared/         Framework-free TypeScript contracts copied into every package (plan F2)
 scripts/        Repo-level scripts: sync-contracts.mjs and its tests
 tools/          copy-lint (tone and claims lint, own package.json)
-funding/        Facts registry and generator (funding/framework), grant material
+funding/        Facts registry and generator (funding/framework), grant material, the shelter payout
+                contracts and deploy wave (funding/framework/tracks/a-build), submission images
+shelter-rail/   MIT donate SDK, widget and x402 agent client for the shelter payout chains (no deps)
 contracts/      Soroban, SKALE, faucets, archived chain prototypes
 docs/           This documentation; docs/plans/ holds the plans and the alignment logs
 extra/          Traction figures and the settlement rail proposal
@@ -54,6 +56,11 @@ Firebase login requires `FB_PRIVATE_KEY`; it is the only login path. AI features
 `GOOGLE_AI_API_KEY`. Uploads need the five `DO_SPACES_*` variables. Stripe needs the secret and
 webhook secret; forward webhooks locally with the Stripe CLI to `POST /image/webhook`.
 
+Shelter giving needs two variables: `SHELTER_CHAIN_ID` (a testnet id, such as 5042002 for Arc
+Testnet, for local work; unset means Arc mainnet) and `SHELTER_DONATE_PRIVATE_KEY` (a hot wallet
+holding a small token float plus gas). Everything else (splits, routers, RPCs, treasury) comes from
+the generated `backend/src/shelter/onchain/wallet.config.ts`. Treats and x402 are on by default.
+
 Lint and format:
 
 ```bash
@@ -61,7 +68,7 @@ npm run lint
 npm run format
 ```
 
-Tests: `npm test` runs jest over `src/**/*.spec.ts`: auth and identity, guests, payments (Stellar, Stripe, order schema and audit), search, throttling, jobs, codex reset, feeding, score submission (`/live`) and Heist replays, impact, Rescue Goals. Specs mock Mongoose and external SDKs and do not read a local env file, so they run on a clean checkout. Opt-in specs run against a real MongoDB (`MONGO_IT_URI`, `IDENTITY_SPEC_MONGO_URL`, `LIVE_SPEC_MONGO_URL`; see BACKEND.md, "Scripts"). Migrations live in a gitignored folder; see BACKEND.md.
+Tests: `npm test` runs jest over `src/**/*.spec.ts`: auth and identity, guests, payments (Stellar, Stripe, order schema and audit), search, throttling, jobs, codex reset, feeding, score submission (`/live`) and Heist replays, impact (including the multi-chain indexer), Rescue Goals, the crypto checkout, and the shelter on-chain services (treats, x402, relay, match, claims, `wallet.config.ts` against the client lists). Specs mock Mongoose and external SDKs and do not read a local env file, so they run on a clean checkout. Opt-in specs run against a real MongoDB (`MONGO_IT_URI`, `IDENTITY_SPEC_MONGO_URL`, `LIVE_SPEC_MONGO_URL`; see BACKEND.md, "Scripts"). Migrations live in a gitignored folder; see BACKEND.md.
 
 ## Client
 
@@ -192,6 +199,20 @@ npm run dev                          # port 8888
 SKALE contracts have no local toolchain; they are compiled and deployed through Remix. See
 CONTRACTS.md.
 
+Shelter payout contracts (ShelterSplit, DonateRouter) and the rail SDK:
+
+```bash
+cd funding/framework/tracks/a-build/shelter-split && forge test
+cd shelter-rail && npm test                     # then copy src/widget.js to client/public/rail/
+node --test --test-concurrency=1 'funding/framework/test/*.test.mjs'   # from the repo root; CI runs it
+```
+
+Deploys go through the wave scripts in `funding/framework/tracks/a-build/` (see its README). The
+mainnet wave is `fund a:mainnet-plan --network mainnet`, then `wave/mainnet-all.sh` with
+`CONFIRM_MAINNET=yes` (a `DRY_RUN=1` pass first). A person runs it: the script refuses inside an AI
+agent session. After any deploy, `fund a:ingest` regenerates `wallet.config.ts` and the client and
+Heist deployment lists; commit them.
+
 ## Mobile
 
 See [MOBILE.md](MOBILE.md). `npm run build:app` switches `next.config.js` to `output: "export"`
@@ -252,6 +273,7 @@ Other generated files, each with its generator and a check mode:
 | `client/public/reel/manifest.json` | the reel capture (`e2e/capture/`) | `client/components/reel/reel-manifest.json` | `__test__/art-reel.test.tsx` |
 | `backend/src/vendor/heist-sim/*` | `catnip-heist/scripts/vendor-sim.mjs` (`npm run vendor-sim`) | `catnip-heist/src/sim/server.ts` | `vendor-sim:check`, `vendor-sim:check-remote -- <backend url>` |
 | `client/public/heist-game/` | `npm run build:client` in `catnip-heist/` | the Heist source | `client/scripts/check-app-export.mjs` (app export) |
+| `backend/src/shelter/onchain/wallet.config.ts`, `client/public/shelter-payouts/deployments.json` and `testnet-deployments.json`, `catnip-heist/public/payouts/*.json`, `client/public/heist-game/payouts/deployments.json` | `node funding/framework/bin/fund.mjs a:ingest` (`a:backend-deployments` for the backend file alone) | `funding/framework/tracks/a-build/chains.json`, `deployments.json`, `router-deployments.json`, `wallets.public.json` | `wallet.config.spec.ts` (backend), `track-a-wallet-config.test.mjs` (funding) |
 | `funding/framework/facts/FACTS.md`, `client/public/facts/facts.json`, `client/lib/facts.generated.ts`, `backend/src/impact/facts.generated.ts`, `catnip-heist/src/facts.generated.ts`, `client/public/shelter-payouts/campaign.json` | `node funding/framework/bin/fund.mjs facts build` | `funding/framework/facts/facts.json` (see CLAIMS.md) | `facts build --check`, `fund facts gate` |
 
 Hand-kept copies that remain (keep them equal by hand; most are pinned by a test):
@@ -284,9 +306,11 @@ Hand-kept copies that remain (keep them equal by hand; most are pinned by a test
 (`sync-contracts --check`, its tests, `fund facts build --check`, the funding framework tests),
 `backend` (lint, build, test), `client` (tsc, the e2e tsconfig, eslint, jest, a `NEXT_PUBLIC_E2E=1`
 build and Playwright), `cms` (tsc, test), `heist` (vitest, `build:client`), `copy-lint` (its own
-tests, then the lint over the repo; the lint step is warn-only until task 7b makes it blocking) and
+tests, then the lint over the repo; since task 7b any finding fails the job) and
 `bundle-guards` (the palette guard, a production web build and an app export, grepped for test and
-capture hooks). `push` runs on `main` only; pull requests run through `pull_request`.
+capture hooks). `push` runs on `main` only; pull requests run through `pull_request`. CI does not
+run the Heist Playwright suite, the Soroban and Foundry tests or the `shelter-rail` tests; run them
+locally.
 `facts-weekly.yml` runs the facts report on Mondays, `cdn-sync.yml` uploads `client/public` to the
 CDN (DEPLOYMENT.md), `catnip-heist-pages.yml` publishes the Heist to GitHub Pages after checking the
 backend serves the same sim. Making the jobs required checks on `main` is a GitHub settings step.

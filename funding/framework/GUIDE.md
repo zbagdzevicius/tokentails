@@ -88,7 +88,7 @@ alias fund='node bin/fund.mjs'            # the "next:" lines are printed as "fu
 # AI steps run as tracked Claude Code sessions via ../orchestrator (fund ps / logs / watch / stats).
 # export FUND_AI_CMD='claude -p'          # only to skip orc and pipe prompts to a command instead
 export PATH="$HOME/.foundry/bin:$PATH"    # Track A only (forge)
-npm test                                  # 340 tests; should end with "fail 0"
+npm test                                  # 460 tests (Oct 5); should end with "fail 0"
 fund tracks                               # lists the five tracks and their commands
 ```
 
@@ -110,7 +110,7 @@ The autopilot above (`fund go`, `fund queue`, `fund done`) is the daily routine.
 are what `fund go` does not do for you:
 
 ```bash
-fund e:scan                 # what changed across 22 funding sources since yesterday
+fund e:scan                 # what changed across the 39 watched funding sources since yesterday
 fund e:triage --run         # AI sorts the changes: real opportunity? which track? next command
 fund e:remind               # parked programs whose revisit date has arrived
 fund check --all            # every open application, one pass/fail line each
@@ -156,14 +156,15 @@ before moving on. The tracks below replace or extend parts of this loop.
 **For:** Colosseum (#1), Arc Microgrants (#2), Arbitrum Dubai (#5) and Singapore (#6), Circle (#8),
 Base (#13), Arbitrum DDA (#14), Team1 (#17). **Saves:** ~90% vs manual.
 
-The contract, ShelterSplit, already exists (`tracks/a-build/shelter-split`) and passes 33 tests.
+The contract, ShelterSplit, already exists (`tracks/a-build/shelter-split`). The Foundry project
+passes 149 tests (Oct 5): 73 for ShelterSplit, 50 for DonateRouter and 26 for CappedSpender.
 Every program has a profile in `tracks/a-build/programs/`, so `a:init <key>` sets up everything.
 
 **Example — Colosseum, then Arc from the same build:**
 
 ```bash
 fund a:init colosseum-worlds-fair                         # already exists as the example; shown for completeness
-fund a:build --slug colosseum-worlds-fair                 # forge build + 33 tests → build-evidence.md
+fund a:build --slug colosseum-worlds-fair                 # forge build + tests → build-evidence.md
 fund a:deploy base testnet                                # prints the forge command; YOU run it and sign
 fund a:record base testnet 0xDEPLOYED --tx 0xTXHASH       # register the deployment
 fund a:verify base testnet                                # read-only check that the code is on chain
@@ -188,7 +189,15 @@ check first.
 
 **Profile keys:** `colosseum-worlds-fair`, `arc-microgrants`, `arbitrum-dubai`,
 `arbitrum-singapore`, `circle-developer-grants`, `base-builder-grants`, `arbitrum-dda-gaming`,
-`team1-avalanche`.
+`team1-avalanche`, `monad-metropolis`, `tameion`, `mezo-buildathon`.
+
+**Many chains at once (the usual way since Oct 2).** One-off `a:deploy` / `a:record` is for a single
+chain. For the seven chains (Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain, Monad) use the
+deploy wave: `fund a:wave` writes `wave/deploy-<network>.sh`, and `fund a:ingest` records the
+deploys and proof payouts and regenerates `backend/src/shelter/onchain/wallet.config.ts`. On mainnet,
+`fund a:mainnet-plan --network mainnet` writes one wrapper, `wave/mainnet-all.sh`, that you run
+yourself with `CONFIRM_MAINNET=yes` (DRY_RUN=1 first; it refuses inside an AI session). The steps
+and the one-wallet funding amounts are in `tracks/a-build/README.md` and `../USER-TODAY.md` §4.
 
 ---
 
@@ -292,7 +301,7 @@ numbers). `d:post` can't be re-run to reset the clock. At `KILL`, run `fund stat
 opportunities for every other track. **Saves:** ~90% vs checking pages by hand.
 
 ```bash
-fund e:scan                                  # first run baselines 22 sources; later runs show only changes
+fund e:scan                                  # first run baselines 39 sources; later runs show only changes
 fund e:triage --run                          # AI: which changes are real, remote grants/accelerators, and for which track
 fund e:add nouns-forum https://discourse.nouns.wtf/latest.rss --kind rss --keywords grant,proposal --feeds D
 fund e:scan --only nouns-forum
@@ -322,7 +331,7 @@ EU call page that 404s until publication). Schedule `fund e:scan` daily with cro
 | 4 | SKALE SIP-6 forum post | B | `fund b:new-form skale-sip6 --program "SKALE SIP-6" --url https://forum.skale.network/t/848 --frame high-throughput --fields "post:Forum post:longtext:3000:yes"` | 0.5 h |
 | 5 | Arbitrum Dubai buildathon | A | `fund a:init arbitrum-dubai --from colosseum-worlds-fair` | 1.5 h |
 | 6 | Arbitrum Singapore buildathon | A | `fund a:init arbitrum-singapore --from colosseum-worlds-fair` | 2 h |
-| 7 | SDF Marketing Grants | C | `fund new sdf-marketing --track C --frame payout-rail --program "SDF Marketing Grants" --deadline rolling --url https://stellar.org/grants-and-funding/marketing-grants` | 42 h |
+| 7 | SDF Marketing Grants (user excluded it, 2026-09-28) | C | `fund new sdf-marketing --track C --frame payout-rail --program "SDF Marketing Grants" --deadline rolling --url https://stellar.org/grants-and-funding/marketing-grants` | 42 h |
 | 8 | Circle Developer Grants | A | `fund a:init circle-developer-grants --from colosseum-worlds-fair` | 62 h |
 | 9 | Creative Europe MEDIA | C | `fund c:plan creative-europe-2027` (app exists) | 52 h + art |
 | 10 | Women TechEU 2 | C | `fund new women-techeu --track C --frame ai-creative --program "Women TechEU 2" --deadline 2027-01-14T17:00:00+01:00 --url https://womentecheurope.eu/active-calls/` — only if a woman co-founder is CEO/CTO | 8.5 h |
@@ -340,7 +349,7 @@ EU call page that 404s until publication). Schedule `fund e:scan` daily with cro
 | 22 | Mastercard Start Path | B | `fund new mastercard-startpath --track B --frame payout-rail --program "Mastercard Start Path" --url https://www.mastercard.com/global/en/business/fintech/fintech-programs/startpath.html` — check the seed-raised gate first | 2 h |
 | 23 | Nouns DAO proposal | D | `fund d:export nouns-dao` (app exists) | 27 h |
 | 24 | Artizen Fund S7 | B | Open artizen.fund in a browser; if it fits, `fund new artizen-s7 --track B --frame ai-creative ...` | 0.5 h |
-| 25 | Lithuanian travel subsidy | E | `fund e:remind` (app `lt-travel-subsidy-2027` exists; revisit 2027-07-01) | 2 h in 2027 |
+| 25 | Lithuanian travel subsidy (user dropped it, 2026-09-28) | E | `fund e:remind` (app `lt-travel-subsidy-2027` exists; revisit 2027-07-01) | 2 h in 2027 |
 
 ---
 

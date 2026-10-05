@@ -192,7 +192,7 @@ export interface ShelterOnchainConfig {
 
 /** A treat paid in a token (approve + disburse, or disburseWithMemo on Tempo). */
 export interface TreatTokenConfig {
-    /** Treat size in token base units (the six chains' tokens all have 6 decimals; TIP-20 always does). */
+    /** Treat size in token base units (the seven chains' tokens all have 6 decimals; TIP-20 always does). */
     amountBase: bigint;
     /** Daily treat budget on this chain, in token base units. */
     dailyBudgetBase: bigint;
@@ -391,12 +391,12 @@ const PRIVATE_KEY = /^0x[0-9a-fA-F]{64}$/;
  * _X402_ENABLED=false switch one chain off. Relay and match stay off unless their own flag is 'true'.
  *
  * A chain already served (the main chain or the try-it testnet) is skipped. A testnet never signs with
- * the main hot wallet key while the main chain is a mainnet (test funds only). A mainnet entry still
- * waits for SHELTER_HANDED_OVER and the on-chain claim check for the relay and match, like the main
- * chain. Treats there are Token Tails' own money (approve + disburse from the hot wallet, or
+ * the main hot wallet key while the main chain is a mainnet (test funds only). On a mainnet entry the
+ * relay and match still wait for the on-chain claim check (and stay shut under SHELTER_HANDED_OVER=false),
+ * like the main chain. Treats there are Token Tails' own money (approve + disburse from the hot wallet, or
  * disburseWithMemo on Tempo), so they need only their own flag, like the main chain's treat. x402 there
  * is the agent's money paid into that chain's split (approve + disburse, disburseWithMemo on Tempo,
- * donate on Arc); on a mainnet it waits for SHELTER_HANDED_OVER like the main chain. These chains take
+ * donate on Arc); on a mainnet it waits for the on-chain claim check like the main chain. These chains take
  * no shelter claims. Only the router path can be relayed: a gift straight
  * into a ShelterSplit (approve + disburse) is always sent and paid for by the donor's own wallet.
  */

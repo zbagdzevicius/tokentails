@@ -1,5 +1,10 @@
 # Token Tails Match-3 Mode: Creation + Delivery Plan
 
+> Historical plan, kept as design history (checked 2026-10-05). The shipped game has 30 levels in six
+> worlds of five (`components/Match3/match3.config.ts`), not the three levels below. Backend paths
+> written as `tokentails-be/...` now live under `backend/` in this monorepo. Current rules:
+> `docs/GAMES.md`, "Paw Match".
+
 ## Goal
 Ship a new in-game **Match-3** mode that is cat-themed, integrated into existing Token Tails game flow, tracked in backend progression, and polished for replayability.
 

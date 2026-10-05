@@ -17,7 +17,7 @@
       { "title": "Traction", "from": "Traction" },
       { "title": "Team", "from": "Team" }
     ],
-    "checklist": ["Each milestone has one on-chain metric that anyone can check in the explorer"]
+    "checklist": ["draft.md is a v0 copy that pitches Tempo: rewrite it for Arc before pasting anything (checked 2026-10-05)", "Each milestone has one on-chain metric that anyone can check in the explorer"]
   },
   "verify": ["current application form and limits"]
 }

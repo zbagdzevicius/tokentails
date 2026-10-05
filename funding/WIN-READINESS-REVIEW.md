@@ -1,5 +1,15 @@
 # Win-readiness review (2026-10-02)
 
+> **Status (2026-10-05), re-checked against the repo; the findings below are unchanged.** Now
+> resolved on `main` (4546c17b): SC-1 / S16 / OPS-3 (`shelter-split/LICENSE` and `README.md` are
+> tracked, and `COMMERCIAL_LICENSE.md` excludes `shelter-split/` and `shelter-rail/`; bef8faec,
+> Oct 3); A8 / S6 / OPS-10 (Monad has USDC addresses in `chains.json` and a recorded testnet split;
+> 9b918ede, Oct 4); OPS-11 (Robinhood Chain testnet split recorded, b08dd737, Oct 3). Still open:
+> S2 / OPS-7, no mainnet deployment is recorded on any chain. The mainnet wave is now
+> `wave/mainnet-all.sh` from `fund a:mainnet-plan` (see `EXECUTION-PLAN.md`, Oct 5 update), so the
+> `deploy-mainnet.sh` line numbers cited below no longer match. Live-backend items (S1, OPS-6) were
+> not re-checked.
+
 ## SC-1 [high, submissions] Drafts say ShelterSplit is MIT, but the public repo on main still shows only the all-rights-reserved commercial licence
 
 - File: funding/framework/tracks/a-build/shelter-split/LICENSE

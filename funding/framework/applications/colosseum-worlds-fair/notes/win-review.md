@@ -1,5 +1,19 @@
 # Win review — Colosseum Crypto World's Fair (2026-09-28)
 
+> **Status of the human fixes on 2026-10-05** (the scores below are from 2026-09-28):
+> - H1 done: the repo is public, and build evidence shows 149/149 tests at a clean commit on `main`.
+> - H2 open: Tempo, Arbitrum, Base and Robinhood are deployed on testnet, not mainnet. Mainnet is one
+>   script now (`fund a:mainnet-plan --network mainnet`, then a person runs
+>   `CONFIRM_MAINNET=yes wave/mainnet-all.sh`), not `fund a:record` per chain. The delivery-check fix
+>   is still not applied.
+> - H3 partly: Pink Paw is the named shelter, but Token Tails still holds its wallet.
+> - H5 partly: `disburseWithMemo` pays each shelter with TIP-20 `transferWithMemo` and has a testnet
+>   memo payout; no fee sponsorship.
+> - H6 done: https://tokentails.com/shelter-payouts and the sponsored treat with receipts are live.
+> - H8 partly: entering several tracks with one entry was confirmed by the user on 2026-10-03; whether
+>   Tempo needs mainnet is still open.
+> - H4, H7, H9, H10: open.
+
 This review cannot show that the entry will win, and the evidence says the opposite. As of today
 (14 days before the 2026-10-12 23:59 PT deadline), two blind judges and a benchmark researcher all
 say it would **win nothing**. The text fixes below remove the false and overstated claims. They do

@@ -12,5 +12,9 @@ Chain workspaces for Token Tails. Full documentation, including every deployed a
 | `motoko/` | Internet Computer | Archived prototype, never deployed. |
 | `move/` | Aptos | Archived file, never built. |
 
+The shelter payout contracts (ShelterSplit, DonateRouter, CappedSpender; Foundry, MIT) are not in this
+folder. They live in `funding/framework/tracks/a-build/shelter-split/`, with deployments recorded in
+`funding/framework/tracks/a-build/deployments.json` and `router-deployments.json`.
+
 Links: https://tokentails.com • Google Play `com.tokentails.app` • App Store `id6745582489`.
 Problems: info@tokentails.com.

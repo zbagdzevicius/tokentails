@@ -5,7 +5,7 @@ status: researching
 frame: payout-rail
 deadline: "2026-10-14T23:59:00-04:00"
 url: "https://community.arc.io/public/events/arc-microgrants-f8tijfjhyq"
-next: "Deploy ShelterSplit to Arc MAINNET (testnet-only builds are excluded), then fund a:record arc mainnet <address>"
+next: "Run the mainnet wave for Arc MAINNET (testnet-only builds are excluded): fund a:mainnet-plan --network mainnet, then a person runs CONFIRM_MAINNET=yes wave/mainnet-all.sh, which deploys and records the USDC and EURC splits and routers (fund a:ingest); then fund a:submission arc-microgrants"
 created: 2026-09-27
 profile: arc-microgrants
 chain: arc

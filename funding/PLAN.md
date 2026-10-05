@@ -7,6 +7,11 @@ opportunity claims, each attacked by an adversarial verifier. The evidence base 
 > **Scope update (2026-09-25):** BGA, Mantle, all Stellar Community Fund programs and Giveth are
 > not options for Token Tails, and funding lists are limited to grants and accelerators. Sections
 > below that recommend them are superseded — the current list is `ALL-OPPORTUNITIES.md`.
+>
+> **Status (2026-10-05):** on 2026-09-28 Taiko, Solana-only programs, SDF Marketing Grants and the
+> Lithuanian travel subsidy were excluded too, and the bar became a real chance above 10%. Current
+> dates, statuses and odds: the funding tracker in the repo's `CLAUDE.md`,
+> `framework/portfolio/opportunities.json` and `EXECUTION-PLAN.md` (Oct 5 update).
 
 ---
 

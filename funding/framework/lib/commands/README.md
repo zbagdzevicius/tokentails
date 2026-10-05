@@ -1,8 +1,9 @@
 # Core command modules
 
 Each file here default-exports one command definition (or an array of them). `bin/fund.mjs`
-loads them all at startup; a module name must not clash with a built-in (`new`, `check`, `prompt`,
-`status`, `tracker`, `list`, `facts`, `tracks`) or another module.
+loads them all at startup; a module name must not clash with a built-in (`help`, `new`, `check`,
+`prompt`, `status`, `tracker`, `list`, `facts`, `router`, `shelter`, `tracks`) or another module:
+built-ins are matched first, and a module is matched before a track command of the same name.
 
 ```js
 export default {

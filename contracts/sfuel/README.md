@@ -1,33 +1,22 @@
-# SKALE Starter - API Distribution 
+# sFUEL faucet (SKALE Nebula)
 
-## Installation
+Token Tails' sFUEL gas faucet. Forked from the SKALE recipes `starter-api-distribution-nodejs`
+starter, with an `mlaccesstoken` header check, batch claims and per-address balances. It sends
+0.0000005 sFUEL to addresses that hold less than 75 percent of that amount.
 
-Get started with a local API sFUEL Distribution in less than a minute.
-
-### Clone the Repository Locally
-```console
-git clone -b starter-api-distribution-nodejs https://github.com/skalenetwork/recipes.git
-```
-
-### Install Dependencies
-```console
-yarn install
-```
-
-### Create .env file
+## Run
 
 ```console
-cp .env.example .env
+npm install
+cp .env.sample .env
+npm start            # or npm run dev (nodemon)
 ```
 
-### Add Environment Variables
+Variables: `PRIVATE_KEY` (a wallet holding sFUEL on the chain at `RPC_URL`), `RPC_URL`,
+`ML_ACCESS_TOKEN` (every request must send it in the `mlaccesstoken` header) and `PORT` (default 8888).
 
-Add your private key to the .env file after the equals (=) sign.
-
-> Private Keys are from an Ethereum based wallet. The private key added to the .env should have sFUEL on the network specified in the .env under RPC_URL. The RPC_URL defaults to SKALE Chaos Testnet, you can change this to match your network.
-
-## Contributing
-Checkout the [Contributing Guide](.github/CONTRIBUTING.md) for more info on how to contribute to this repository
+Routes: `GET /` (health), `POST /claim` with `{ addresses: [] }` (batches of 100),
+`GET /claim/:address`, `GET /balance`, `GET /balance/:walletAddress`.
 
 ## Security and Liability
 All SKALE Recipes and code is WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

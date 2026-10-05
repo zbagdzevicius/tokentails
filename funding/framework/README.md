@@ -116,7 +116,7 @@ prompt is printed so it can be pasted anywhere.
 
 | Track | Dir | For | Key commands |
 |---|---|---|---|
-| A | `tracks/a-build` | One ShelterSplit contract → many hackathons and grants | `a:build` `a:record` `a:deployments` `a:matrix` `a:submission` |
+| A | `tracks/a-build` | One ShelterSplit contract → many hackathons and grants, on 7 chains (Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain, Monad) | `a:build` `a:record` `a:deployments` `a:matrix` `a:submission`; deploy wave: `a:wave` `a:ingest` `a:verify-source` `a:backend-deployments`; mainnet: `a:mainnet-plan` `a:distribute` `a:pending` (see `tracks/a-build/README.md`) |
 | B | `tracks/b-forms` | Short rolling forms, done in one sitting | `b:fill` `b:batch` `b:new-form` |
 | C | `tracks/c-proposals` | 20–70 page rubric-scored proposals | `c:plan` `c:score` `c:budget` `c:annexes` |
 | D | `tracks/d-dao` | DAO treasury proposals with a sponsor kill clock | `d:export` `d:clock` `d:log` |
@@ -129,16 +129,20 @@ Each track has its own README with its fast loop. **Step-by-step usage for every
 - `facts/FACTS.md` is pasted into AI prompts. **Never** put secrets, keys, bank details or personal
   data in it, or in any application file.
 - The fact base is the single source of truth. Change a number there first, then everywhere.
-- Exclusions (user decision, 2026-09-25): remote-only; grants and accelerators only; no BGA,
-  Mantle, Stellar Community Fund or Giveth.
+- Exclusions (user decisions, 2026-09-25 and 2026-09-28): remote until winning (winner-only travel
+  is fine); grants, prizes, bounties and equity-free accelerators only; no BGA, Mantle, Stellar
+  Community Fund, SDF Marketing Grants, Giveth, Taiko or Solana-only programs. The per-program
+  notes are in `portfolio/opportunities.json`.
 
 ## Validated
 
-340 tests (`npm test`) cover the core, all five tracks, the engine, loop, verify, go, the orc
-sessions (`test/sessions.test.mjs`, with a fake claude) and the golden path between them (`test/golden-path.test.mjs`); each track was built by one agent and
+460 tests (`npm test`, counted 2026-10-05) cover the core, all five tracks, the engine, loop,
+verify, go, the orc sessions (`test/sessions.test.mjs`, with a fake claude) and the golden path between them (`test/golden-path.test.mjs`); each track was built by one agent and
 then attacked by a separate validator that ran a fresh program end to end and fixed what broke
-(40 bugs fixed across A–D). Track A's contract passes 33 Foundry tests (`fund a:build`). Track E's
-22 sources were verified live on 2026-09-25.
+(40 bugs fixed across A–D). Track A's Foundry project passes 149 tests in 9 suites on 2026-10-05
+(`fund a:build`): 73 for ShelterSplit, 50 for DonateRouter (unit, fork and invariant) and 26 for the
+treat agent's CappedSpender. Track E's first 22 sources were verified live on 2026-09-25 (39 are
+watched now).
 
 ## Good to know
 
