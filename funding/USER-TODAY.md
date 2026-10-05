@@ -88,10 +88,28 @@ If they create their own wallet before the wave, put that address in `PROOF_SHEL
 
 **a. Send everything to the deployer** `0xd6F37D1241dA20BbE40D1210940Bc43A1Ec56263` (keystore
 `tokentails`), on each chain, the total of `deployer + donatehot + agent` in
-`funding/framework/tracks/a-build/funding-plan.json` (each line has its reason). Roughly:
-Arc 9 USDC + 1 EURC (Arc gas is USDC), Tempo 4 USDC.e + 3 pathUSD, Arbitrum 0.005 ETH + 3 USDC,
-Avalanche 0.4 AVAX + 3 USDC + 1 EURC, Base 0.005 ETH + 4 USDC, Robinhood 0.003 ETH + 3 USDG,
-Monad 3 MON + 3 USDC. Do not fund donatehot or the agent yourself: the script does it.
+`funding/framework/tracks/a-build/funding-plan.json` (each line has its reason). This is the
+minimal plan (Oct 5): every contract the submissions reference, one 0.1-token proof payout per
+instance, the 0.1 USDC.e Tempo memo, a 10-treat float on the hot wallet and a 0.1 USDC Arc agent.
+Gas has a 1.5x buffer. These are exactly the amounts the first balance check in `mainnet-all.sh` asks for:
+
+| Chain | Send to the deployer | ≈ USD |
+|---|---|---|
+| Arc | 0.7 USDC (the gas coin) + 0.1 EURC | $0.81 |
+| Tempo | 0.3 USDC.e + 0.15 pathUSD | $0.45 |
+| Arbitrum One | 0.0004 ETH + 0.2 USDC | $1.29 |
+| Avalanche | 0.06 AVAX + 0.2 USDC | $0.86 |
+| Base | 0.0007 ETH + 0.2 USDC | $2.11 |
+| Robinhood Chain | 0.0004 ETH + 0.2 USDG | $1.29 |
+| Monad | 2 MON + 0.2 USDC | $0.27 |
+| **Total** | USDC 1.5 · USDC.e 0.3 · pathUSD 0.15 · EURC 0.1 · USDG 0.2 · ETH 0.0015 (Arb 0.0004, Base 0.0007, RH 0.0004) · AVAX 0.06 · MON 2 | **≈ $7.08** |
+
+Prices: CoinGecko, Oct 5 08:11 UTC. Do not fund donatehot or the agent yourself: the script does it.
+Top up later (optional, one week of treats plus the Base x402 agent):
+`PLAN=topup node bin/fund.mjs a:distribute --network mainnet` writes `wave/distribute-mainnet-topup.sh`.
+Its `CHECK_ONLY=1` run prints what to send the deployer first (about Arc 13.6 USDC, Tempo 7 USDC.e + 0.42 pathUSD,
+Arbitrum 0.0061 ETH + 7 USDC, Avalanche 1.5 AVAX + 7 USDC, Base 0.0021 ETH + 7.5 USDC, Robinhood
+0.0061 ETH + 7 USDG, Monad 60 MON + 7 USDC; about $114).
 
 **b. Run one command** from `funding/framework`, in your own terminal (the scripts refuse to run
 inside an AI agent session and without `CONFIRM_MAINNET=yes`):
@@ -103,8 +121,8 @@ CONFIRM_MAINNET=yes ./tracks/a-build/wave/mainnet-all.sh             # for real 
 ```
 
 In order, per chain: balance check (it prints a per-chain shortfall table: send what it says is
-SHORT and rerun) → ShelterSplit USDC (`deploy-mainnet.sh`) → ShelterSplit EURC on Arc and Avalanche
-(`deploy-mainnet-eurc.sh`) → DonateRouters (on Arc, Arbitrum, Avalanche, Base and Monad, plus EURC routers on Arc and Avalanche) → `a:ingest` (writes `wallet.config.ts` and the client and
+SHORT and rerun) → ShelterSplit USDC (`deploy-mainnet.sh`, proof payout 0.1 token: `PROOF_AMOUNT=100000`) → ShelterSplit EURC on Arc
+(`deploy-mainnet-eurc.sh`; Avalanche EURC later) → DonateRouters (on Arc, Arbitrum, Avalanche, Base and Monad, plus the EURC router on Arc) → `a:ingest` (writes `wallet.config.ts` and the client and
 Heist lists) → `a:verify` + `a:verify-source` → `distribute-mainnet.sh` (tops up donatehot's treat
 float and gas, and the agent's x402 amount, only up to the plan's targets) → `fund fill --ingest
 --write`. A chain that fails a step is left out of the later steps; the others go on. Rerunning
@@ -112,7 +130,7 @@ the same command is safe: finished deploys are skipped and recipients already at
 Options: `CHAINS=arc,base` limits the run, `FUND_KEYSTORE_PASSWORD_FILE=<path>` skips the password
 prompt, `RPC_<CHAIN>_MAINNET` overrides the public RPCs, `PROOF_SHELTER=` turns the proof payout off.
 
-On Tempo the hot wallet pays its fees in pathUSD (the plan sends it 1 pathUSD), so no FeeManager
+On Tempo the hot wallet pays its fees in pathUSD (the plan sends it 0.1 pathUSD), so no FeeManager
 `setUserToken` call is needed. Arc is funded natively (USDC is the gas coin, one balance).
 
 **c. Commit the files it prints** at the end (deployments, router deployments, `wallet.config.ts`,
@@ -124,9 +142,9 @@ If Arbitrum One slips: `node bin/fund.mjs a:mainnet-plan --network testnet`, the
 then `node bin/fund.mjs fill --ingest --network testnet --write`. `{ARB_NETWORK}` becomes "Arbitrum
 Sepolia" on its own.
 
-No EURC: the balance check marks Arc and Avalanche short (their reserve includes 1 EURC). Either
-send 1 EURC on each, or delete `arc`/`avalanche` from `eurcChains` and `eurcRouterChains` and the
-`EURC` reserve lines in `funding-plan.json` (mainnet), rerun `a:mainnet-plan`, and remove the EURC
+No EURC: the balance check marks Arc short (its reserve includes 0.1 EURC). Either
+send 0.1 EURC there, or delete `arc` from `eurcChains` and `eurcRouterChains` and the
+`EURC` reserve line in `funding-plan.json` (mainnet), rerun `a:mainnet-plan`, and remove the EURC
 sentences from `applications/arc-microgrants/draft.md` (about −1 point), or `{EURC_SPLIT_ADDRESS}` stays open.
 
 **Values only you have.** Paste them into `funding/framework/fill-values.json`, then run

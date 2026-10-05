@@ -82,6 +82,15 @@ test('script: keystore signer, chain-id guard per chain, no private keys, dry ru
   assert.match(s, /payout-token balance/);
 });
 
+test('proof payout default: 0.1 token (100000 raw) on mainnet when PROOF_SHELTER is set; testnet still needs it exported', async () => {
+  const rows = await W.waveRanking({});
+  const m = W.waveScript(rows, { project, root: tmp, date: '2026-10-05', network: 'mainnet' });
+  assert.match(m, /\[ -n "\$\{PROOF_SHELTER:-\}" \] && export PROOF_AMOUNT="\$\{PROOF_AMOUNT:-100000\}"/);
+  assert.ok(m.indexOf('PROOF_AMOUNT:-100000') < m.indexOf('PROOF_SHELTER is set: export PROOF_AMOUNT'), 'the default lands before the check');
+  assert.match(m, /PROOF_AMOUNT=100000 {3}# 0\.1 USDC/);
+  assert.doesNotMatch(W.waveScript(rows, { project, root: tmp, date: '2026-10-05', network: 'testnet' }), /PROOF_AMOUNT:-100000\}/);
+});
+
 test('real chains.json: Robinhood Chain mainnet pays USDG, Base pays USDC', async () => {
   const real = JSON.parse(readFileSync(new URL('../tracks/a-build/chains.json', import.meta.url), 'utf8'));
   const rh = W.splitToken(real.robinhood.networks.mainnet);

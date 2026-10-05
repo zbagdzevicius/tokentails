@@ -368,3 +368,59 @@ test('the committed funding-plan.json resolves cleanly for both networks against
     assert.ok(existsSync(join(A, 'funding-plan.json')));
   }
 });
+
+test('profiles: --plan topup replaces whole roles per chain and writes its own script; unknown profile is a problem', () => {
+  const withTop = { ...plan, mainnet: { ...plan.mainnet, profiles: { topup: { chains: { arc: { donatehot: { native: '13', reason: 'a week' }, agent: { native: '0.6', reason: 'x402' } } } } } } };
+  const w = [...wallets, { label: 'agent-wallet', address: AGENT, chains: ['arc'] }];
+  const base = D.resolvePlan({ plan: withTop, chains, wallets: w, network: 'mainnet' });
+  assert.deepEqual(base.problems, []);
+  assert.deepEqual(base.chains[0].rows.map((r) => [r.role, r.amount]), [['donatehot', '3']]);
+  const top = D.resolvePlan({ plan: withTop, chains, wallets: w, network: 'mainnet', profile: 'topup' });
+  assert.deepEqual(top.problems, []);
+  assert.deepEqual(top.chains[0].rows.map((r) => [r.role, r.amount]), [['donatehot', '13'], ['agent', '0.6']]);
+  assert.equal(top.chains[0].gas.perTransfer, '10000000000000000', 'chain settings stay');
+  assert.match(D.resolvePlan({ plan: withTop, chains, wallets: w, network: 'mainnet', profile: 'nope' }).problems.join(), /no "mainnet\.profiles\.nope"/);
+  assert.equal(D.distributeFile('mainnet', 'topup'), 'distribute-mainnet-topup.sh');
+  assert.equal(D.distributeFile('mainnet'), 'distribute-mainnet.sh');
+  const sh = D.distributeScript(top, { network: 'mainnet', profile: 'topup', date: 'x' });
+  assert.match(sh, /fund a:distribute --network mainnet --plan topup/);
+  assert.match(sh, /refused: distribute-mainnet-topup\.sh touches MAINNET/);
+});
+
+test('wrapper: proof payout and Tempo memo default to 0.1 token on mainnet, 1 on testnet', () => {
+  const m = D.runAllScript({ network: 'mainnet', deploy: plan.mainnet.deploy, chains, wallets, date: 'x', root: tmp, project: tmp, waveDir: tmp });
+  assert.match(m, /PROOF_AMOUNT="\$\{PROOF_AMOUNT:-100000\}"/);
+  const t = D.runAllScript({ network: 'testnet', deploy: plan.testnet.deploy, chains: { ...chains, tempo: chains.tempo }, wallets, date: 'x', root: tmp, project: tmp, waveDir: tmp });
+  assert.match(t, /PROOF_AMOUNT="\$\{PROOF_AMOUNT:-1000000\}"/);
+  assert.match(t, /approve\(address,uint256\)\\" \$TEMPO_SPLIT \$PROOF_AMOUNT/);
+  assert.match(t, /disburseWithMemo\(uint256,bytes32\)\\" \$PROOF_AMOUNT/);
+});
+
+test('the committed mainnet plan is the minimal profile: per-chain balance check = the send-to-deployer table', () => {
+  const A = join(HERE, '..', 'tracks', 'a-build');
+  const read = (f) => JSON.parse(readFileSync(join(A, f), 'utf8'));
+  const realPlan = read('funding-plan.json');
+  const args = { plan: realPlan, chains: read('chains.json'), wallets: read('wallets.public.json').wallets, network: 'mainnet' };
+  const need = (r) => Object.fromEntries(r.chains.map((c) => [c.chain, Object.fromEntries(D.shortfallTable(c, { withReserve: true }).map((x) => [x.symbol, D.formatUnits(x.need, x.decimals)]))]));
+  const r = D.resolvePlan(args);
+  assert.deepEqual(r.problems, []);
+  // The table on FUNDING-RUN.html and USER-TODAY.md (Tempo's USDC is USDC.e).
+  assert.deepEqual(need(r), {
+    arc: { USDC: '0.7', EURC: '0.1' },
+    tempo: { pathUSD: '0.15', USDC: '0.3' },
+    arbitrum: { ETH: '0.0004', USDC: '0.2' },
+    avalanche: { AVAX: '0.06', USDC: '0.2' },
+    base: { ETH: '0.0007', USDC: '0.2' },
+    robinhood: { ETH: '0.0004', USDG: '0.2' },
+    monad: { MON: '2', USDC: '0.2' },
+  });
+  assert.deepEqual(realPlan.mainnet.deploy.eurcChains, ['arc']);
+  assert.deepEqual(realPlan.mainnet.deploy.eurcRouterChains, ['arc']);
+  assert.deepEqual(r.chains.filter((c) => c.rows.some((x) => x.role === 'agent')).map((c) => c.chain), ['arc'], 'agent on Arc only for now');
+  // Every token amount on the deployer is the 0.1 proof (two on Tempo: proof + campaign memo).
+  for (const c of r.chains) for (const a of c.assets) if (a.key !== 'native' && a.symbol !== 'pathUSD') assert.equal(a.reserve, c.chain === 'tempo' ? '200000' : '100000', `${c.chain} ${a.symbol}`);
+  const top = D.resolvePlan({ ...args, profile: 'topup' });
+  assert.deepEqual(top.problems, []);
+  assert.ok(top.chains.every((c) => c.assets.every((a) => a.reserve === '0')), 'top-up keeps no deploy reserve');
+  assert.ok(top.chains.find((c) => c.chain === 'base').rows.some((x) => x.role === 'agent'), 'the Base agent comes with the top-up');
+});

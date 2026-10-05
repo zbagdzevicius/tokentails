@@ -118,6 +118,9 @@ table), tops each recipient up to its target (skip within 1%), and `DRY_RUN=1` p
 transfer. `<network>-all.sh` runs: balance check → ShelterSplit USDC → EURC → DonateRouters → `a:ingest` → `a:verify` + `a:verify-source` →
 distribute → `fund fill` → files to commit; a failing chain stops, the others go on; reruns skip
 what is recorded. Mainnet scripts exit unless `CONFIRM_MAINNET=yes` and no AI-agent env is set.
+The mainnet plan is minimal by default (deploys, one 0.1-token proof per instance, a 10-treat hot-wallet
+float, 1.5x gas); `PLAN=topup node bin/fund.mjs a:distribute --network mainnet` (or `--plan topup`) writes
+`wave/distribute-mainnet-topup.sh` from `mainnet.profiles.topup` (one week of treats, the Base agent).
 
 ## The fast loop
 
@@ -173,7 +176,8 @@ node bin/fund.mjs a:ingest                     # (run by the script) record + ve
   to a Safe later with `transferOwnership` + `acceptOwnership`. Set `SHELTERSPLIT_OWNER` to use a
   different owner from the start.
 - **Proof payout (optional):** set `PROOF_SHELTER` (the shelter's own wallet), `PROOF_SHELTER_NAME`
-  and `PROOF_AMOUNT` (raw units; 1000000 = 1 USDC). After each deploy the script then runs
+  and `PROOF_AMOUNT` (raw units; 1000000 = 1 USDC; on mainnet it defaults to 100000 = 0.1 token, which the
+  minimal funding plan budgets). After each deploy the script then runs
   `script/ProofDisburse.s.sol`, which calls `addShelter`, `approve` and `disburse`. That gives one
   real payout to one real shelter. `a:ingest` records the tx in `proofTxs`, and every submission's
   deployment table links it.

@@ -180,7 +180,9 @@ export function waveScript(rows, { network = 'mainnet', date = new Date().toISOS
     '#   export SHELTERSPLIT_TREASURY=0x...               # receives unallocated share and dust (a Safe is best)',
     ...[...new Set(rows.map((r) => r.rpcEnv))].map((e) => `#   export ${e}=https://...`),
     '# Optional proof payout (one real transfer to one real shelter, the strongest on-chain proof):',
-    `#   export PROOF_SHELTER=0x... PROOF_SHELTER_NAME="..." PROOF_AMOUNT=1000000   # 1 ${alt || 'USDC'} (6 decimals)`,
+    network === 'mainnet'
+      ? `#   export PROOF_SHELTER=0x... PROOF_SHELTER_NAME="..." PROOF_AMOUNT=100000   # 0.1 ${alt || 'USDC'} (6 decimals); the mainnet default when unset`
+      : `#   export PROOF_SHELTER=0x... PROOF_SHELTER_NAME="..." PROOF_AMOUNT=1000000   # 1 ${alt || 'USDC'} (6 decimals)`,
     ...rows.filter((r) => !alt && r.token.symbol !== 'USDC').map((r) => r.token.mock
       ? `#   on ${r.chain} the same PROOF_AMOUNT is paid in the MOCK ${r.token.symbol} (${r.token.decimals} decimals) this script mints to the deployer`
       : `#   on ${r.chain} the same PROOF_AMOUNT is paid in ${r.token.symbol} (${r.token.decimals} decimals): hold that token there, not USDC`),
@@ -202,6 +204,7 @@ export function waveScript(rows, { network = 'mainnet', date = new Date().toISOS
     'echo "deployer $DEPLOYER  owner $OWNER  treasury $SHELTERSPLIT_TREASURY"',
     '[[ "$SHELTERSPLIT_TREASURY" =~ ^0x[0-9a-fA-F]{40}$ ]] || { echo "SHELTERSPLIT_TREASURY is not a 0x address"; exit 1; }',
     '# Checked up front: with set -u an unset PROOF_AMOUNT would abort the script after the first deploy.',
+    ...(network === 'mainnet' ? ['# Mainnet default: 0.1 token per instance (funding-plan.json budgets exactly that).', '[ -n "${PROOF_SHELTER:-}" ] && export PROOF_AMOUNT="${PROOF_AMOUNT:-100000}"'] : []),
     'if [ -n "${PROOF_SHELTER:-}" ]; then',
     '  [[ "$PROOF_SHELTER" =~ ^0x[0-9a-fA-F]{40}$ ]] || { echo "PROOF_SHELTER is not a 0x address"; exit 1; }',
     '  [[ "${PROOF_AMOUNT:-}" =~ ^[1-9][0-9]*$ ]] || { echo "PROOF_SHELTER is set: export PROOF_AMOUNT in raw token units (1000000 = 1 token at 6 decimals)"; exit 1; }',
