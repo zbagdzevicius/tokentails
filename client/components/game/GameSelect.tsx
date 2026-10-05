@@ -28,7 +28,9 @@ import {
 } from "@/components/impact/RescueTile";
 import { useLobbyImpact } from "@/components/impact/useLobbyImpact";
 import { GameEvents } from "../Phaser/events";
-import { useHomeYardMode } from "@/components/home/homeYardMode";
+import { isYardHome, useHomeYardMode } from "@/components/home/homeYardMode";
+import { YardHomeHud } from "@/components/home/YardHomeHud";
+import { NIGHT_PLATE } from "./nightPlate";
 import { DEFAULT_SPRITE_BOX, MD, lobbyLayout, type SpriteBox } from "./lobbyLayout";
 import { PixelButton } from "../shared/PixelButton";
 import { StatusBar } from "../shared/game/StatusBar";
@@ -60,9 +62,6 @@ const HomeTile = ({ setGameType }: { setGameType: (gameType: GameType | null) =>
   </button>
 );
 
-/** Night HUD plate (plan G6): the panel behind lobby HUD clusters, on the night palette. */
-const NIGHT_PLATE =
-  "bg-tt-night-800/85 border-2 border-tt-gold-500/60 shadow-[0_4px_0_rgb(var(--tt-night-950)),0_0_24px_rgb(var(--tt-gold-400)/0.12)] lowfx:shadow-[0_4px_0_rgb(var(--tt-night-950))]";
 
 /** Viewport size (the initial containing block, the box the scene background covers) and safe areas. */
 function useLobbyViewport() {
@@ -529,57 +528,6 @@ const LobbyScene = ({
   );
 };
 
-/**
- * The Cat Yard HOME's HUD, laid out like the Heist's yard: GO BACK and SHELTER in the top-left
- * corner on the safe area, the title at the top, and the feed panel at the bottom centre (the yard
- * lifts its name card above it). Nothing covers the garden's centre.
- */
-const YardHomeHud = ({
-  cat,
-  onBack,
-  onShelter,
-  onFeed,
-}: {
-  cat: ICat | null | undefined;
-  onBack: () => void;
-  onShelter: () => void;
-  onFeed: () => void;
-}) => {
-  const hungry = !!cat && (cat.status?.EAT || 0) < 4;
-  return (
-    <>
-      <div
-        className="fixed z-hud flex gap-2"
-        style={{ top: "max(0.75rem, env(safe-area-inset-top))", left: "max(0.75rem, env(safe-area-inset-left))" }}
-        data-testid="home-yard-nav"
-      >
-        <PixelButton text="← GO BACK" onClick={onBack} />
-        <PixelButton text="SHELTER" onClick={onShelter} />
-      </div>
-      <div
-        className="pointer-events-none fixed left-1/2 z-hud -translate-x-1/2 text-center top-[calc(max(0.75rem,env(safe-area-inset-top))+3.75rem)] md:top-[max(1rem,env(safe-area-inset-top))]"
-        aria-hidden="true"
-      >
-        <p className="whitespace-nowrap font-primary text-p1 uppercase leading-none text-tt-cream [text-shadow:0_3px_0_rgb(var(--tt-night-950))] md:text-h6">
-          My Home
-        </p>
-      </div>
-      {hungry && cat && (
-        <div
-          className={classNames("fixed left-1/2 z-hud flex -translate-x-1/2 flex-col items-center gap-2 px-3 pb-3 pt-2", NIGHT_PLATE)}
-          style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
-          data-testid="home-yard-feed"
-        >
-          <PixelButton text={`FEED ${cat.name}`} onClick={onFeed} />
-          <div className="w-36">
-            <StatusBar status={cat.status[StatusType.EAT]!} type={StatusType.EAT} />
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
-
 export const GameSelect = ({ setGameType, gameType }: IProps) => {
   const { cat } = useCat();
   const { setOpenedModal } = useGame();
@@ -591,7 +539,7 @@ export const GameSelect = ({ setGameType, gameType }: IProps) => {
   }, []);
   const homeMode = useHomeYardMode();
   // The Cat Yard HOME: its own HUD layout (below); the Phaser HOME and the other modes keep theirs.
-  const yardHome = gameType === GameType.HOME && homeMode === "yard";
+  const yardHome = isYardHome(gameType, homeMode);
   return (
     <>
       {yardHome && <YardHomeHud cat={cat} onBack={() => setGameType(null)} onShelter={() => setGameType(GameType.SHELTER)} onFeed={onFeedClick} />}

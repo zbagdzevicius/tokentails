@@ -63,6 +63,10 @@ export interface YardOptions {
   onSheetError?(id: string, error: unknown): void;
   /** A cat sent by feed() reached the bowls and started eating. */
   onEat?(id: string): void;
+  /** The WebGL context was lost (GPU reset, app in the background): the yard stops drawing. */
+  onContextLost?(): void;
+  /** Leave out the Heist's Nunito @font-face (the host page serves Nunito). Default true. */
+  nunitoFace?: boolean;
 }
 
 export interface YardCardInfo {
@@ -154,6 +158,10 @@ const YARD_CSS = `
 .chy-close { position: absolute; top: -14px; right: -14px; width: 40px !important; height: 40px !important; min-width: 40px; min-height: 40px !important; font-size: 18px !important; }
 .chy-zoom { position: absolute; right: calc(var(--ch-sar) + 12px); bottom: calc(var(--ch-sab) + var(--chy-card-bottom, 14px)); display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
 .chy-card.chy-on ~ .chy-zoom { bottom: calc(var(--ch-sab) + var(--chy-card-bottom, 14px) + 136px); }
+@media (max-height: 500px) {
+  /* Short landscape: no room for the zoom buttons above an open name card. */
+  .chy-card.chy-on ~ .chy-zoom { display: none; }
+}
 @media (max-width: 520px) {
   .chy-zoom { display: none; }
   .ch-yard-title { top: calc(var(--ch-sat) + 70px) !important; }
@@ -165,9 +173,18 @@ let yardCssInjected = false;
 
 let sharedYardRenderer: THREE.WebGLRenderer | null = null;
 
+/** Whether a renderer's WebGL context is gone (exported for tests). */
+export function isContextLost(renderer: Pick<THREE.WebGLRenderer, 'getContext'>): boolean {
+  try {
+    return renderer.getContext().isContextLost();
+  } catch {
+    return true;
+  }
+}
+
 export function createYard(container: HTMLElement, manifest: AssetManifest | null, opts: YardOptions = {}): YardAPI {
   const base = opts.base ?? ASSET_BASE;
-  ensureStyles(base);
+  ensureStyles(base, { nunito: opts.nunitoFace !== false });
   if (!yardCssInjected) {
     yardCssInjected = true;
     const st = document.createElement('style');
@@ -188,6 +205,12 @@ export function createYard(container: HTMLElement, manifest: AssetManifest | nul
   // One WebGL context for every Yard visit: re-creating it each time would recompile every shader
   // (seconds on weak GPUs) and pile up contexts. Materials are left undisposed on exit so their
   // compiled programs stay cached for the next visit.
+  // A context lost since the last visit (GPU reset, app backgrounded, evicted) never comes back
+  // on its own here: drop that renderer and start a fresh one, or the yard stays blank.
+  if (sharedYardRenderer && isContextLost(sharedYardRenderer)) {
+    sharedYardRenderer.dispose();
+    sharedYardRenderer = null;
+  }
   const renderer = sharedYardRenderer ?? (sharedYardRenderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' }));
   const maxPR = opts.maxPixelRatio ?? 2;
   const pixelRatio = () => Math.min(window.devicePixelRatio || 1, tier === 'high' ? maxPR : Math.min(maxPR, 1.5));
@@ -641,6 +664,14 @@ export function createYard(container: HTMLElement, manifest: AssetManifest | nul
   const el = renderer.domElement;
   // The canvas is shared between visits: every listener goes away with this visit.
   const listen = new AbortController();
+  el.addEventListener(
+    'webglcontextlost',
+    () => {
+      stop();
+      opts.onContextLost?.();
+    },
+    { signal: listen.signal },
+  );
   el.addEventListener('pointerdown', (e) => {
     try {
       el.setPointerCapture?.(e.pointerId);
@@ -1178,6 +1209,9 @@ export function createYard(container: HTMLElement, manifest: AssetManifest | nul
       auras.dispose();
       shadows.dispose();
       drops.dispose();
+      // The lights are new each visit: the sun's 2048² shadow map would wait for GC otherwise.
+      sun.dispose();
+      fill.dispose();
       listen.abort();
       renderer.renderLists.dispose();
       renderer.info.reset();

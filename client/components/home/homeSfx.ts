@@ -17,6 +17,8 @@ export const HOME_SOUNDS: Readonly<Record<HomeSound, { url: string; volume: numb
 });
 
 const cache = new Map<HomeSound, HTMLAudioElement>();
+/** The pending cut per sound: a replay clears it, or the old timer would stop the new play early. */
+const cuts = new Map<HomeSound, ReturnType<typeof setTimeout>>();
 
 export function playHomeSound(kind: HomeSound): void {
   try {
@@ -29,13 +31,24 @@ export function playHomeSound(kind: HomeSound): void {
       el = new Audio(spec.url);
       cache.set(kind, el);
     }
+    const pending = cuts.get(kind);
+    if (pending !== undefined) {
+      clearTimeout(pending);
+      cuts.delete(kind);
+    }
     el.volume = Math.min(1, gain);
     el.currentTime = 0;
     const played = el.play();
     if (played && typeof played.catch === "function") played.catch(() => undefined);
     if (spec.maxMs) {
       const node = el;
-      setTimeout(() => node.pause(), spec.maxMs);
+      cuts.set(
+        kind,
+        setTimeout(() => {
+          cuts.delete(kind);
+          node.pause();
+        }, spec.maxMs),
+      );
     }
   } catch {
     // Sound is cosmetic: never break HOME.

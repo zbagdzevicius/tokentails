@@ -65,13 +65,18 @@ export interface HomeYardOptions {
   onFed?(id: string): void;
   /** A cat's sheet failed to load. */
   onSheetError?(id: string): void;
+  /** The WebGL context was lost: the yard stopped drawing and will not recover this visit. */
+  onContextLost?(): void;
 }
 
 export interface HomeYardAPI {
   readonly ready: Promise<HomeYardReady>;
   /** New cats or a new active cat. Same ids: updates in place; other ids: rebuilds the yard. */
   setCats(cats: HomeYardCat[]): void;
-  /** Feeding time for one cat; resolves when it has eaten (onFed fires first). */
+  /**
+   * Feeding time for one cat; resolves when it has eaten (onFed fires first). A rebuild or dispose
+   * during the meal resolves it without onFed.
+   */
   feed(id: string): Promise<void>;
   select(id: string | null): void;
   focus(id: string): void;

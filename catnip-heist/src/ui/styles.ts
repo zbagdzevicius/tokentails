@@ -455,13 +455,18 @@ export function heistFontsBase(assetBase: string): string {
   return /assets\/$/.test(assetBase) ? assetBase.replace(/assets\/$/, 'fonts/') : `${assetBase.replace(/\/?$/, '/')}../fonts/`;
 }
 
-/** Inject the UI stylesheet (and the Cat Paw @font-face, resolved against `base`) once. */
-export function ensureStyles(base = ASSET_BASE): void {
+/**
+ * Inject the UI stylesheet (and the Cat Paw @font-face, resolved against `base`) once.
+ * `nunito: false` leaves out the Heist's own Nunito faces, for a host page that already serves
+ * Nunito (Token Tails' HOME): a second "Nunito" source would win and be downloaded again.
+ */
+export function ensureStyles(base = ASSET_BASE, opts: { nunito?: boolean } = {}): void {
   if (injected || typeof document === 'undefined') return;
   injected = true;
   const style = document.createElement('style');
   style.dataset.ch = 'ui';
   // Secondary text is Nunito (plan G12, decision #85), self-hosted next to the build in fonts/.
-  style.textContent = `@font-face { font-family: 'Cat Paw'; src: url('${base}fonts/catpaw.woff2') format('woff2'); font-display: swap; }\n${heistFontFaceCss(heistFontsBase(base))}\n${CSS}`;
+  const nunito = opts.nunito === false ? '' : `${heistFontFaceCss(heistFontsBase(base))}\n`;
+  style.textContent = `@font-face { font-family: 'Cat Paw'; src: url('${base}fonts/catpaw.woff2') format('woff2'); font-display: swap; }\n${nunito}${CSS}`;
   document.head.appendChild(style);
 }

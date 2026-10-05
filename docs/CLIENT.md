@@ -362,13 +362,24 @@ is `shared/home-yard.ts`. Local files only, so the Capacitor export ships it.
 - Feeding: the HUD's FEED button pushes `CAT_EAT`; the cat runs to the bowls and eats, then
   `CAT_EATEN` fires and `setCatStatus` saves EAT 4 (tails reward and toast as before).
 - SELECT on another cat's name card runs `useSelectHomeCat`, the same flow as the Phaser bubble.
-- HUD (`GameSelect.tsx`, `YardHomeHud`): GO BACK and SHELTER top left, MY HOME title, the feed
-  panel at the bottom. No mobile controls (the yard's cats wander; drag pans, pinch / wheel zoom).
+- HUD (`components/home/YardHomeHud.tsx`): GO BACK and SHELTER top left, MY HOME title, the feed
+  panel at the bottom. Its measured height lifts the yard's name card above it; in short landscape
+  (max-height 500px) the yard hides its zoom buttons while a card is open. No mobile controls (the
+  yard's cats wander; drag pans, pinch / wheel zoom).
+- Until HomeYard reports which HOME is showing, `useHomeYardMode` answers `yard` when the kill switch
+  allows it, so the old centred HUD, `bg-2.webp` and the snowfall do not flash on open.
+- A meal cut short (the yard rebuilt for a new cat list, or HOME closed) resolves `feed()` without
+  `onFed`: nothing is saved and FEED works again. An active cat with no `spriteImg` gets the grey
+  stand-in sheet.
 - `game_loaded` is sent once the yard is ready (a sceneless `GAME_LOADED`, which the crash guard
   ignores). No scores.
 - Falls back to the Phaser HOME (`components/base`) without WebGL, when the module fails to load or
-  has another API version, when it is not ready in 15 s, or with `NEXT_PUBLIC_HOME_YARD=0`; each
-  fallback reports `home_yard_fallback`.
+  has another API version, when it is not ready in 15 s, when the WebGL context is lost during the
+  visit (`reason: "context-lost"`; the next visit replaces the lost shared renderer), or with
+  `NEXT_PUBLIC_HOME_YARD=0`; each fallback reports `home_yard_fallback`. The yard leaves out the
+  Heist's own Nunito faces (the client serves Nunito) and keeps Cat Paw for its name card.
+- `scripts/check-app-export.mjs` fails an app export that lacks the module named in
+  `yardEntry.generated.ts`. End-to-end: `e2e/home-yard.spec.ts`.
 - Changing the yard: edit `catnip-heist/src/yard` or `src/home`, run its `tsc` and `vitest`, then
   `npm run build:client` there and commit the rebuilt `public/heist-game` and the generated entry.
 
@@ -619,6 +630,8 @@ Render, scenes and the Shelter (fixed in task 2e, plan F10, G13):
 - Fixed: the canvas never followed a resize or rotation, and the backing store ignored the pixel ratio.
 - Fixed (task 2e review): a mid-run cat switch restarted Purrsuit and Cupid with the wrong payload; a Shelter visit leaked its `CAT_SPAWN` listener.
 - Open: in landscape (844x390) the mobile controls bar (`z-30`) covers GO BACK, SHELTER and HOME in the Shelter and in the Phaser HOME fallback (the specs dispatch the click). The Cat Yard HOME shows no mobile controls, so it is not affected there.
+- Open (found in the HOME yard review, not changed): feeding a cat at EAT 0 shows no "Good job" toast, because `isMaxReached` in `context/CatContext.tsx` treats EAT 0 as "nothing to reward"; the toast only shows for EAT 1 to 3. The save and the tails reward still happen.
+- Open (expected): during a deploy, tabs opened before it import the old `home-*.js`, get a 404 and fall back to the Phaser HOME, which adds `home_yard_fallback` reports with `reason: "import"`.
 - Open: Purrsuit plays a `"hit"` animation that is never created and builds `speed-effect` from a texture that is never loaded; the Shelter pushes `GAME_LOADED` twice.
 - Open: `components/Phaser/look/loadTextures.ts` counts a sheet that answers 200 with a non-image body only at the 20 s timeout.
 - Open: portals in Purrsuit un-hide every collected sprig on teleport (the cap clamp keeps saves valid).

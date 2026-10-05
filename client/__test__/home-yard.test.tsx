@@ -59,7 +59,7 @@ jest.mock("@tanstack/react-query", () => ({ useQuery: () => ({ data: state.userC
 
 import { HomeYard } from "@/components/home/HomeYard";
 import { homeYardCats, isHungry, findOwnedCat } from "@/components/home/homeYardCats";
-import { getHomeYardMode, homeYardEnabled, setHomeYardMode } from "@/components/home/homeYardMode";
+import { getHomeYardMode, homeYardEnabled, setHomeFeedPanelHeight, setHomeYardMode } from "@/components/home/homeYardMode";
 import { HOME_YARD_ASSET_BASE, loadHomeYard } from "@/components/home/loadHomeYard";
 import { HOME_YARD_ENTRY } from "@/components/home/yardEntry.generated";
 import { GameEvent, GameEvents, installPhaserCrashGuard } from "@/components/Phaser/events";
@@ -268,6 +268,46 @@ describe("HomeYard", () => {
       await flush();
       expect(screen.getByText("phaser home")).toBeTruthy();
       expect(mockReport).toHaveBeenCalledWith("home_yard_fallback", expect.anything(), expect.objectContaining({ reason: "create" }));
+    });
+
+    it("when the WebGL context is lost after the yard was ready (no blank white HOME)", async () => {
+      const f = fakeModule();
+      render(<HomeYard fallback={<p>phaser home</p>} loader={() => Promise.resolve(f.mod)} enabled />);
+      await flush();
+      expect(screen.getByTestId("home-yard").dataset.state).toBe("ready");
+      act(() => f.options.onContextLost?.());
+      expect(screen.getByText("phaser home")).toBeTruthy();
+      expect(f.calls).toContain("dispose");
+      expect(mockReport).toHaveBeenCalledWith("home_yard_fallback", expect.anything(), expect.objectContaining({ reason: "context-lost" }));
+      expect(getHomeYardMode()).toBe("phaser");
+    });
+
+    it("a feed that ends without onFed (yard rebuilt mid-meal) saves nothing and FEED works again", async () => {
+      const f = fakeModule();
+      render(<HomeYard fallback={null} loader={() => Promise.resolve(f.mod)} enabled />);
+      await flush();
+      const api = (f.mod.createHomeYard as jest.Mock).mock.results[0].value as HomeYardAPI;
+      const feeds: (() => void)[] = [];
+      api.feed = (id) => {
+        f.calls.push(`feed:${id}`);
+        return new Promise<void>((resolve) => feeds.push(resolve));
+      };
+      act(() => GameEvents.CAT_EAT.push());
+      await act(async () => feeds[0]()); // resolved without onFed
+      expect(mockSetCatStatus).not.toHaveBeenCalled();
+      act(() => GameEvents.CAT_EAT.push());
+      expect(f.calls.filter((c) => c.startsWith("feed"))).toEqual(["feed:a", "feed:a"]);
+    });
+
+    it("the name card follows the measured feed panel", async () => {
+      const f = fakeModule();
+      render(<HomeYard fallback={null} loader={() => Promise.resolve(f.mod)} enabled />);
+      await flush();
+      const host = screen.getByTestId("home-yard").firstElementChild as HTMLElement;
+      expect(host.style.getPropertyValue("--chy-card-bottom")).toBe("132px");
+      act(() => setHomeFeedPanelHeight(100));
+      expect(host.style.getPropertyValue("--chy-card-bottom")).toBe("120px");
+      act(() => setHomeFeedPanelHeight(0));
     });
 
     it("when the kill switch is off, without loading anything", async () => {

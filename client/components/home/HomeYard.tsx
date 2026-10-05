@@ -24,7 +24,7 @@ import { useProfile } from "@/context/ProfileContext";
 import { StatusType } from "@/models/status";
 import type { HomeYardAPI, HomeYardModule } from "@/shared-contracts/home-yard";
 import { findOwnedCat, homeYardCats, isHungry } from "./homeYardCats";
-import { homeYardEnabled, setHomeYardMode } from "./homeYardMode";
+import { homeYardEnabled, setHomeYardMode, useHomeFeedPanelHeight } from "./homeYardMode";
 import { playHomeSound } from "./homeSfx";
 import { HOME_YARD_ASSET_BASE, HomeYardLoadError, loadHomeYard } from "./loadHomeYard";
 import { useSelectHomeCat } from "./useSelectHomeCat";
@@ -32,9 +32,22 @@ import { useSelectHomeCat } from "./useSelectHomeCat";
 /** The yard must be ready (sheets loaded, cats placed) within this, or HOME falls back. */
 export const HOME_YARD_TIMEOUT_MS = 15_000;
 
-/** Room for the HOME HUD's feed panel under the yard's name card (CSS px above the safe area). */
+/**
+ * Room for the HOME HUD's feed panel under the yard's name card (CSS px above the safe area):
+ * `CARD_ABOVE_FEED_PX` until the panel has been measured, then its real height plus its bottom
+ * offset and a gap (cardBottomPx).
+ */
 export const CARD_ABOVE_FEED_PX = 132;
 export const CARD_BOTTOM_PX = 16;
+/** The feed panel sits this far above the bottom (GameSelect: max(0.75rem, safe area)). */
+export const FEED_PANEL_BOTTOM_PX = 12;
+export const CARD_GAP_PX = 8;
+
+/** Where the yard's name card sits, given the measured feed panel (0: not measured / hidden). */
+export function cardBottomPx(hungry: boolean, feedPanelPx: number): number {
+  if (feedPanelPx > 0) return feedPanelPx + FEED_PANEL_BOTTOM_PX + CARD_GAP_PX;
+  return hungry ? CARD_ABOVE_FEED_PX : CARD_BOTTOM_PX;
+}
 
 interface Props {
   /** The Phaser HOME, shown whenever the yard cannot be. */
@@ -58,6 +71,7 @@ export function HomeYard({ fallback, loader = loadHomeYard, timeoutMs = HOME_YAR
   const { profile } = useProfile();
   const { cat, setCatStatus } = useCat();
   const { openedModal } = useGame();
+  const feedPanelPx = useHomeFeedPanelHeight();
   const selectCat = useSelectHomeCat();
   const { data: userCats } = useQuery({
     queryKey: ["user-cats", profile?._id],
@@ -127,6 +141,9 @@ export function HomeYard({ fallback, loader = loadHomeYard, timeoutMs = HOME_YAR
               l.selectCat(findOwnedCat(id, l.userCats, l.profileCats));
             },
             onEating: () => playHomeSound("eat"),
+            // A lost context leaves a blank yard: fall back to the Phaser HOME for this visit (the
+            // next visit starts a fresh renderer).
+            onContextLost: () => fail(new HomeYardLoadError("Home yard WebGL context lost", "context-lost")),
             onFed,
             onSheetError: (id) => {
               const active = id === latest.current.cat?._id;
@@ -205,7 +222,7 @@ export function HomeYard({ fallback, loader = loadHomeYard, timeoutMs = HOME_YAR
   if (state === "failed") return <>{fallback}</>;
 
   const hostStyle = {
-    "--chy-card-bottom": `${hungry ? CARD_ABOVE_FEED_PX : CARD_BOTTOM_PX}px`,
+    "--chy-card-bottom": `${cardBottomPx(hungry, feedPanelPx)}px`,
   } as CSSProperties;
 
   return (

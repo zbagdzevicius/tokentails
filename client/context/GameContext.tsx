@@ -12,7 +12,7 @@ import {
   IGameStopEvent,
 } from "@/components/Phaser/events";
 import { MobileButtons } from "@/components/Phaser/MobileButtons/MobileButtons";
-import { useHomeYardMode } from "@/components/home/homeYardMode";
+import { phaserHomeControls, useHomeYardMode } from "@/components/home/homeYardMode";
 import { ftueStore } from "@/components/Phaser/onboarding/ftue-store";
 import { haptic } from "@/components/Phaser/onboarding/haptics";
 import { ASSIST_SUGGEST_AFTER } from "@/components/Phaser/onboarding/hints";
@@ -555,7 +555,7 @@ const GameProvider = ({ children }: React.PropsWithChildren<object>) => {
               !(isStarted && gameType !== GameType.PIXEL_RESCUE) &&
               gameType !== GameType.SHELTER &&
               // HOME: only the Phaser fallback has a cat to steer (the Cat Yard's cats wander).
-              !(gameType === GameType.HOME && homeMode === "phaser" && !!profile.cat?.status?.EAT)
+              !phaserHomeControls(gameType, homeMode, profile.cat?.status?.EAT)
             }
           />
 

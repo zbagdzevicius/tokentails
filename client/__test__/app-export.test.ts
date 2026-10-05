@@ -181,6 +181,8 @@ describe("check-app-export.mjs", () => {
     "box.html",
   ];
   const HOST = '<iframe title="Catnip Heist" src="/heist-game/index.html?embed=1"></iframe>';
+  // The module MY HOME imports at runtime (catnip-heist build:client writes its name).
+  const HOME_ENTRY: string = require("../components/home/yardEntry.generated").HOME_YARD_ENTRY;
   const FORWARDER = '<script>location.replace("/heist" + location.search + location.hash);</script>';
   let dir: string;
 
@@ -200,6 +202,15 @@ describe("check-app-export.mjs", () => {
     write("impact/snapshot.json", JSON.stringify({ _v: 1, money: { bySymbol: {} } }));
     write("facts/facts.json", JSON.stringify({ version: 1, facts: [{ id: "F-011" }] }));
     mkdirSync(join(dir, "_next", "static"), { recursive: true });
+    write(HOME_ENTRY.slice(1), "export const HOME_YARD_API_VERSION = 1;");
+  });
+
+  it("fails when the HOME yard module the client imports is not in the export", () => {
+    write("heist-game/index.html", '<script src="/heist-game/build/index-a1.js"></script>');
+    rmSync(join(dir, HOME_ENTRY.slice(1)));
+    const result = run();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(`HOME yard module ${HOME_ENTRY} is missing`);
   });
 
   it("fails without the bundled impact baseline or the facts registry (task 7b)", () => {

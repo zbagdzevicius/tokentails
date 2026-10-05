@@ -119,9 +119,17 @@ export async function loadHomeEntries(
   return { entries, failed };
 }
 
+/**
+ * An active cat without a sheet gets the stand-in up front: pickHomeYardCats drops cats with no
+ * sheet, and HOME must still show (and feed) the player's own cat.
+ */
+export function withActiveSheet(cats: readonly HomeYardCat[]): HomeYardCat[] {
+  return cats.map((c) => (c && c.active && !c.sheetUrl ? { ...c, sheetUrl: FALLBACK_SHEET } : c));
+}
+
 export function createHomeYard(el: HTMLElement, options: HomeYardOptions, deps: HomeYardDeps = DEFAULT_DEPS): HomeYardAPI {
   const max = options.maxCats ?? HOME_YARD_MAX_CATS;
-  let cats = pickHomeYardCats(options.cats, max);
+  let cats = pickHomeYardCats(withActiveSheet(options.cats), max);
   let byId = new Map(cats.map((c) => [c.id, c]));
   let yard: YardAPI | null = null;
   let generation = 0;
@@ -165,6 +173,9 @@ export function createHomeYard(el: HTMLElement, options: HomeYardOptions, deps: 
         },
         onSheetError: (id) => options.onSheetError?.(id),
         onEat: (id) => options.onEating?.(id),
+        onContextLost: () => options.onContextLost?.(),
+        // Token Tails serves Nunito itself.
+        nunitoFace: false,
       });
       const built = yard;
       await built.ready;
@@ -183,7 +194,7 @@ export function createHomeYard(el: HTMLElement, options: HomeYardOptions, deps: 
     ready,
     setCats(next) {
       if (disposed) return;
-      const picked = pickHomeYardCats(next, max);
+      const picked = pickHomeYardCats(withActiveSheet(next), max);
       const same = sameHomeYardIds(cats, picked);
       cats = picked;
       byId = new Map(cats.map((c) => [c.id, c]));
@@ -199,7 +210,9 @@ export function createHomeYard(el: HTMLElement, options: HomeYardOptions, deps: 
       const y = await current;
       if (!y || disposed) return;
       await y.feed(id);
-      if (disposed) return;
+      // A rebuild (new cats) or dispose ended the meal early: no onFed, so no EAT save for a meal
+      // that never finished; the caller's FEED button comes back.
+      if (disposed || y !== yard) return;
       options.onFed?.(id);
     },
     select(id) {

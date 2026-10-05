@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SheetSource, VoxelSheet } from '../../render/voxel/sheets';
-import type { YardAPI, YardOptions } from '../../yard/Yard';
+import { isContextLost, type YardAPI, type YardOptions } from '../../yard/Yard';
 import type { HomeYardCat } from '../../shared-contracts/home-yard';
 import { CAT_ROWS } from '../../types';
 import {
@@ -13,6 +13,7 @@ import {
   homeTag,
   homeZoom,
   loadHomeEntries,
+  withActiveSheet,
   type HomeYardDeps,
 } from '../index';
 
@@ -171,6 +172,75 @@ describe('HOME yard module', () => {
     expect(h.yards[0].api.calls).toEqual(['stop', 'dispose']);
     await home.feed('a'); // no-op after dispose
     expect(h.yards[0].api.calls).not.toContain('feed:a');
+  });
+
+  it('an active cat without a sheet still shows, with the stand-in sheet', async () => {
+    const h = harness();
+    expect(withActiveSheet([cat('a', { active: true, sheetUrl: '' }), cat('b', { sheetUrl: '' })]).map((c) => c.sheetUrl)).toEqual([FALLBACK_SHEET, '']);
+    const home = createHomeYard(el, { assetBase: BASE, cats: [cat('a', { active: true, hungry: true, sheetUrl: '' }), cat('b')] }, h.deps);
+    await expect(home.ready).resolves.toEqual({ loaded: 2, failed: [] });
+    const { opts } = h.yards[0];
+    expect(opts.highlight).toBe('a');
+    expect(opts.entries?.find((e) => e.id === 'a')?.sheet).toBe(BASE + FALLBACK_SHEET);
+    home.setCats([cat('a', { active: true, sheetUrl: '' }), cat('b')]);
+    expect(h.createYard).toHaveBeenCalledTimes(1);
+  });
+
+  it('a rebuild during a meal resolves feed() without onFed (no EAT save for an unfinished meal)', async () => {
+    const h = harness();
+    const onFed = vi.fn();
+    const home = createHomeYard(el, { assetBase: BASE, cats: [cat('a', { active: true, hungry: true })], onFed }, h.deps);
+    await home.ready;
+    // The real yard resolves a pending feed when it is disposed.
+    let finish: () => void = () => undefined;
+    const first = h.yards[0].api;
+    first.feed = () => new Promise<void>((r) => (finish = r));
+    const origDispose = first.dispose;
+    first.dispose = () => {
+      origDispose();
+      finish();
+    };
+    const meal = home.feed('a');
+    await Promise.resolve();
+    home.setCats([cat('a', { active: true, hungry: true }), cat('b')]);
+    await vi.waitFor(() => expect(h.createYard).toHaveBeenCalledTimes(2));
+    await meal;
+    expect(onFed).not.toHaveBeenCalled();
+    // The next feed on the new yard reports as usual.
+    await home.feed('a');
+    expect(onFed).toHaveBeenCalledWith('a');
+  });
+
+  it('dispose during a meal resolves feed() without onFed', async () => {
+    const h = harness();
+    const onFed = vi.fn();
+    const home = createHomeYard(el, { assetBase: BASE, cats: [cat('a', { active: true, hungry: true })], onFed }, h.deps);
+    await home.ready;
+    let finish: () => void = () => undefined;
+    h.yards[0].api.feed = () => new Promise<void>((r) => (finish = r));
+    const meal = home.feed('a');
+    await Promise.resolve();
+    home.dispose();
+    finish();
+    await meal;
+    expect(onFed).not.toHaveBeenCalled();
+  });
+
+  it('passes a lost WebGL context up, and leaves the Nunito faces to the host page', async () => {
+    const h = harness();
+    const onContextLost = vi.fn();
+    const home = createHomeYard(el, { assetBase: BASE, cats: [cat('a', { active: true })], onContextLost }, h.deps);
+    await home.ready;
+    expect(h.yards[0].opts.nunitoFace).toBe(false);
+    h.yards[0].opts.onContextLost?.();
+    expect(onContextLost).toHaveBeenCalledTimes(1);
+  });
+
+  it('isContextLost: a lost or unreadable context counts as lost', () => {
+    const ctx = (lost: boolean) => ({ getContext: () => ({ isContextLost: () => lost }) as unknown as WebGLRenderingContext });
+    expect(isContextLost(ctx(true))).toBe(true);
+    expect(isContextLost(ctx(false))).toBe(false);
+    expect(isContextLost({ getContext: () => { throw new Error('gone'); } })).toBe(true);
   });
 
   it('card text helpers', () => {

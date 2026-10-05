@@ -83,6 +83,17 @@ if (!forwarder.includes('location.replace("/heist"')) {
   process.exit(1);
 }
 
+// MY HOME (the Cat Yard) imports a prebuilt module at runtime: the file the client names in
+// components/home/yardEntry.generated.ts must ship in the export, or the app falls back to Phaser.
+const yardEntrySource = readFileSync(new URL("../components/home/yardEntry.generated.ts", import.meta.url), "utf8");
+const yardEntry = /HOME_YARD_ENTRY\s*=\s*"([^"]+)"/.exec(yardEntrySource)?.[1];
+if (!yardEntry || !yardEntry.startsWith("/heist-game/build/") || !existsSync(join(outDir, yardEntry.slice(1)))) {
+  console.error(
+    `App export check failed: the HOME yard module ${yardEntry ?? "(not named)"} is missing in ${outDir} (rebuild with "npm run build:client" in catnip-heist).`,
+  );
+  process.exit(1);
+}
+
 // The bundled impact baseline must be a v1 snapshot, and the facts registry must parse and carry
 // the public entries, so an offline app still renders impact numbers with their tiers.
 const readJson = (file) => {

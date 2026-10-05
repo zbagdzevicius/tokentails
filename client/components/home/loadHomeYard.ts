@@ -9,7 +9,7 @@ import { HOME_YARD_ENTRY } from "./yardEntry.generated";
 export const HOME_YARD_ASSET_BASE = "/heist-game/assets/";
 
 export class HomeYardLoadError extends Error {
-  constructor(message: string, readonly reason: "webgl" | "import" | "version" | "timeout" | "create") {
+  constructor(message: string, readonly reason: "webgl" | "import" | "version" | "timeout" | "create" | "context-lost") {
     super(message);
     // Keeps `instanceof` working where classes are compiled down to ES5 (Error subclassing).
     Object.setPrototypeOf(this, HomeYardLoadError.prototype);
