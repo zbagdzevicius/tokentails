@@ -56,10 +56,16 @@ Firebase login requires `FB_PRIVATE_KEY`; it is the only login path. AI features
 `GOOGLE_AI_API_KEY`. Uploads need the five `DO_SPACES_*` variables. Stripe needs the secret and
 webhook secret; forward webhooks locally with the Stripe CLI to `POST /image/webhook`.
 
-Shelter giving needs two variables: `SHELTER_CHAIN_ID` (a testnet id, such as 5042002 for Arc
-Testnet, for local work; unset means Arc mainnet) and `SHELTER_DONATE_PRIVATE_KEY` (a hot wallet
-holding a small token float plus gas). Everything else (splits, routers, RPCs, treasury) comes from
-the generated `backend/src/shelter/onchain/wallet.config.ts`. Treats and x402 are on by default.
+Shelter giving needs no env locally. Without `NODE_ENV=production` the main chain defaults to Arc
+Testnet (5042002) and treats run on the seven testnets recorded in the generated
+`backend/src/shelter/onchain/wallet.config.ts` (splits, routers, RPCs, treasury all come from there).
+When `SHELTER_DONATE_PRIVATE_KEY` is unset, `main.ts` unlocks the local Foundry keystore of the hot
+wallet at startup (`~/.foundry/keystores/donatehot`, password in
+`funding/.secrets/donatehot-password.txt`; `SHELTER_DEV_KEYSTORE` names another keystore) and holds
+the key in memory for that process only. The log shows only the derived address; on any failure it
+prints one warning and treats report the missing key. It never runs under `NODE_ENV=production` or
+when the main chain is a mainnet. Optional overrides: `SHELTER_CHAIN_ID`, `SHELTER_NETWORK`
+(`mainnet` or `testnet`), `SHELTER_DONATE_PRIVATE_KEY`. Treats and x402 are on by default.
 
 Lint and format:
 

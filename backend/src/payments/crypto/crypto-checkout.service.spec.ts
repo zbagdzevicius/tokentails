@@ -33,6 +33,8 @@ const TX = (n: number) => '0x' + n.toString(16).padStart(64, '0');
 
 const ENV = {
     NODE_ENV: 'development',
+    // The shelter main chain as in production (Arc mainnet, no recorded split), so only anvil receives.
+    SHELTER_NETWORK: 'mainnet',
     CRYPTO_PAY_ENABLED: 'true',
     CRYPTO_PAY_LOCAL_USDC: USDC,
     CRYPTO_PAY_LOCAL_EURC: EURC,

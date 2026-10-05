@@ -24,7 +24,7 @@ const NOW = new Date('2026-10-02T12:00:00Z');
 const CURSOR_ID = cursorIdFor(fixture.chainId, fixture.contract);
 
 const config = () => ({
-    ...readShelterConfig({} as NodeJS.ProcessEnv),
+    ...readShelterConfig({ SHELTER_NETWORK: 'mainnet' } as NodeJS.ProcessEnv),
     chainId: fixture.chainId,
     splitAddress: fixture.contract,
     rpcUrl: 'https://rpc.example.test',

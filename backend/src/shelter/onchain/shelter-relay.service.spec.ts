@@ -128,7 +128,8 @@ describe('publicGivingAllowed (mainnet gate)', () => {
     it('reads SHELTER_HANDED_OVER as true only for the literal "true", and everything is off by default', () => {
         expect(readShelterConfig({ SHELTER_HANDED_OVER: 'yes' } as any).handedOver).toBe(false);
         expect(readShelterConfig({ SHELTER_HANDED_OVER: 'TRUE' } as any).handedOver).toBe(true);
-        const defaults = readShelterConfig({} as any);
+        // A production instance's defaults (Arc mainnet main chain, nothing recorded there).
+        const defaults = readShelterConfig({ SHELTER_NETWORK: 'mainnet' } as any);
         expect(defaults.relayEnabled).toBe(false);
         expect(defaults.matchEnabled).toBe(false);
         expect(defaults.routerAddress).toBeNull();

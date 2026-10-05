@@ -253,10 +253,33 @@ function address(value: string | undefined): string | null {
     return trimmed && isAddress(trimmed) ? getAddress(trimmed) : null;
 }
 
+export type ShelterNetwork = 'mainnet' | 'testnet';
+
+/** Whether this process runs as production: NODE_ENV=production, the backend's production signal. */
+export const isProductionEnv = (env: NodeJS.ProcessEnv = process.env): boolean =>
+    (env.NODE_ENV || '').trim().toLowerCase() === 'production';
+
+/**
+ * The network class of the default main chain: SHELTER_NETWORK=mainnet|testnet when set, else mainnet
+ * under NODE_ENV=production and testnet everywhere else (a dev box needs no shelter env at all).
+ */
+export function shelterNetwork(env: NodeJS.ProcessEnv = process.env): ShelterNetwork {
+    const raw = (env.SHELTER_NETWORK || '').trim().toLowerCase();
+    if (raw === 'mainnet' || raw === 'testnet') {
+        return raw;
+    }
+    return isProductionEnv(env) ? 'mainnet' : 'testnet';
+}
+
+/** The main chain when SHELTER_CHAIN_ID is unset or malformed: Arc mainnet or Arc testnet by shelterNetwork. */
+export const defaultShelterChainId = (env: NodeJS.ProcessEnv = process.env): number =>
+    shelterNetwork(env) === 'mainnet' ? ARC_MAINNET_CHAIN_ID : ARC_TESTNET_CHAIN_ID;
+
 /** Reads the SHELTER_* variables. Missing or malformed values fall back to safe defaults (features off). */
 export function readShelterConfig(env: NodeJS.ProcessEnv = process.env): ShelterOnchainConfig {
-    const chainId = Number((env.SHELTER_CHAIN_ID || '').trim() || ARC_MAINNET_CHAIN_ID);
-    const safeChainId = Number.isInteger(chainId) && chainId > 0 ? chainId : ARC_MAINNET_CHAIN_ID;
+    const fallbackChainId = defaultShelterChainId(env);
+    const chainId = Number((env.SHELTER_CHAIN_ID || '').trim() || fallbackChainId);
+    const safeChainId = Number.isInteger(chainId) && chainId > 0 ? chainId : fallbackChainId;
     const rpcUrl = (env.SHELTER_ARC_RPC_URL || '').trim() || DEFAULT_RPC[safeChainId] || null;
     const privateKey = (env.SHELTER_DONATE_PRIVATE_KEY || '').trim() || null;
     // The main chain's split defaults to its wallet.config.ts section (a recorded deploy), like every

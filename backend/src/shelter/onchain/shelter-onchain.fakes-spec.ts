@@ -58,11 +58,20 @@ export const SHELTER_ENV_KEYS = [
     'SHELTER_CLAIM_ALLOWED_WALLETS',
     'SHELTER_MATCH_EXCLUDE',
     'SHELTER_RELAY_IP_PEPPER',
+    'SHELTER_NETWORK',
 ];
 
+/**
+ * Resets the SHELTER_* env to `values`. The specs model a production instance, so the default main
+ * chain stays Arc mainnet (SHELTER_NETWORK=mainnet) unless `values` names SHELTER_NETWORK itself
+ * (undefined there means "unset", the NODE_ENV-driven default).
+ */
 export function withShelterEnv(values: Record<string, string | undefined>) {
     for (const key of SHELTER_ENV_KEYS) {
         delete process.env[key];
+    }
+    if (!('SHELTER_NETWORK' in values)) {
+        process.env.SHELTER_NETWORK = 'mainnet';
     }
     for (const [key, value] of Object.entries(values)) {
         if (value !== undefined) {
