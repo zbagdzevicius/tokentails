@@ -51,6 +51,12 @@ export const LANDING_SEO = Object.freeze({
 export const LANDING_REVALIDATE_SECONDS = 300;
 
 /**
+ * App Store / Play Store badges in the hero. Hidden while the store apps are deprecated (the game
+ * runs in the browser on every device); kept behind this flag so they can come back.
+ */
+export const SHOW_STORE_BADGES = false;
+
+/**
  * One fetch for the whole landing (plan 2.13 row 30): the CDN impact.json, with the API and the
  * bundled baseline as fallbacks. App builds (static export, no ISR) read the committed baseline.
  */
@@ -123,10 +129,10 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
               <Socials />
             </span>
 
-            {/* Phones: PLAY GAME first, the store badge under it, so neither sits on the hero cat. */}
+            {/* Phones: PLAY GAME first, the store badge (when shown) under it, so neither sits on the hero cat. */}
             <div className="absolute z-50 bottom-16 sm:bottom-12 lg:bottom-14 xl:bottom-16 2xl:bottom-20 3xl:bottom-32 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 md:gap-4 w-max max-w-[calc(100vw-2rem)]">
               <div className="flex flex-col sm:flex-row justify-center items-center">
-                {(isDesktop || isIOS) && (
+                {SHOW_STORE_BADGES && (isDesktop || isIOS) && (
                   <a
                     target="_blank"
                     href="https://apps.apple.com/app/id6745582489"
@@ -148,7 +154,7 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
                 >
                   <PixelButton as="span" text="PLAY" size="lg" subtext="GAME" />
                 </a>
-                {(isDesktop || isAndroid) && (
+                {SHOW_STORE_BADGES && (isDesktop || isAndroid) && (
                   <a
                     target="_blank"
                     href="https://play.google.com/store/apps/details?id=com.tokentails.app"

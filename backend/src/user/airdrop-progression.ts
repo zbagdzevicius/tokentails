@@ -724,7 +724,7 @@ export function buildAirdropProgression({
         {
             id: 'STREAK',
             label: 'Sustain activity',
-            description: 'Maintain an 8 day check-in streak.',
+            description: 'Spin the daily wheel on 8 days.',
             current: metrics.streak,
             target: 8,
             met: metrics.streak >= 8,
