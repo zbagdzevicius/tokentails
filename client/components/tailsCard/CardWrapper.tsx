@@ -26,6 +26,18 @@ type CardWrapperProps = {
   catType: CatAbilityType;
   isBackSide?: boolean;
   tier: Tier;
+  /**
+   * "static" skips the animated tier effects (canvas borders, particles) and draws a still tier
+   * glow instead: for cards in lists and grids, where dozens of animated effects cost frames.
+   */
+  effects?: "animated" | "static";
+};
+
+/** The still tier glow for `effects="static"`: the tier stays readable without animation. */
+const STATIC_TIER_GLOW: Partial<Record<Tier, string>> = {
+  [Tier.RARE]: "0 0 2.5cqw 0.6cqw rgba(110, 190, 255, 0.55)",
+  [Tier.EPIC]: "0 0 3cqw 0.8cqw rgba(214, 120, 255, 0.6)",
+  [Tier.LEGENDARY]: "0 0 3.5cqw 1cqw rgba(255, 205, 90, 0.7)",
 };
 
 const DROP_SHADOW_COLOR = "rgba(0, 0, 0, 0.3)";
@@ -56,6 +68,7 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
   catType,
   isBackSide = false,
   tier,
+  effects = "animated",
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const innerCardRef = useRef<HTMLDivElement>(null);
@@ -179,8 +192,8 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
             WebkitBackfaceVisibility: "hidden",
           }}
         >
-          <DivineGlowEffect tier={tier} />
-          {tier === Tier.LEGENDARY && (
+          {effects === "animated" && <DivineGlowEffect tier={tier} />}
+          {effects === "animated" && tier === Tier.LEGENDARY && (
             <LegendaryElectricBorder borderColor={borderColor} />
           )}
           {!isBackSide && (
@@ -211,7 +224,16 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
               alt="Sparkle"
               className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 z-[100] w-[12%] h-auto"
             />
-            <CardEffects tier={tier} />
+            {effects === "animated" ? (
+              <CardEffects tier={tier} />
+            ) : STATIC_TIER_GLOW[tier] ? (
+              <span
+                aria-hidden="true"
+                data-testid="card-static-glow"
+                className="pointer-events-none absolute inset-0 rounded-[3cqw]"
+                style={{ boxShadow: STATIC_TIER_GLOW[tier] }}
+              />
+            ) : null}
             <div
               className="relative w-full h-full overflow-hidden cursor-pointer flex items-center justify-center rounded-[3cqw] border-[max(1px,0.75cqw)]"
               style={{

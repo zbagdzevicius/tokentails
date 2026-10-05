@@ -48,6 +48,8 @@ export const TailsCardMini: React.FC<Props> = ({ cat, onClick }) => {
             catType={cat.type}
             isBackSide={true}
             style={MINI_CARD_STYLE}
+            // Mini cards live in grids: still tier glow, no animated effects (performance).
+            effects="static"
           >
             <div className="relative w-full h-full">
               {/* Custom mini card back without power section */}

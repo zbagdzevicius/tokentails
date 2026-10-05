@@ -236,8 +236,9 @@ const TierGroup = ({
         </span>
         <span aria-hidden="true" className="ml-1 h-[2px] flex-1 bg-tt-night-500/70" />
       </div>
-      {/* px-2: room for the cards' glow, which the modal's overflow-x clip would cut at the edge. */}
-      <ul className="grid grid-cols-2 gap-4 px-2 md:grid-cols-3 md:gap-6 lg:grid-cols-4 short:!grid-cols-5 short:!gap-3">
+      {/* Padding and gaps leave room for the cards' tier glow and badge, so neither touches the
+          section edge or the next card (the modal clips overflow-x at its edge). */}
+      <ul className="grid grid-cols-2 gap-5 px-3 py-3 md:grid-cols-3 md:gap-8 md:px-5 md:py-4 lg:grid-cols-4 short:!grid-cols-5 short:!gap-4">
         {shown.map((cat, index) => (
           <li key={cat._id! + index} className="min-w-0">
             <PetCard cat={cat} ping={pingFirst && index === 0} onOpen={setSelectedCat} />
