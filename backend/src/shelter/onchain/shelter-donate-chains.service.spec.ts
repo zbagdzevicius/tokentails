@@ -186,7 +186,7 @@ describe('treat networks: GET /shelter/donate/status', () => {
         });
     });
 
-    it('shows a chain with its flag on but no key as paused, and names mainnet coins (USDC.e, USDG)', async () => {
+    it('signs every same-class chain with the one main key, and names mainnet coins (USDC.e, USDG)', async () => {
         chainsEnv({
             SHELTER_CHAIN_ID: '5042',
             SHELTER_RELAY_CHAINS: '4217,4663,8453',
@@ -199,8 +199,8 @@ describe('treat networks: GET /shelter/donate/status', () => {
         const { chains } = await setup().service.status(NOW);
         expect(chains.map(c => [c.chainId, c.coin, c.railState, c.enabled])).toEqual([
             [5042, 'USDC', 'live', true],
-            [4217, 'USDC.e', 'paused', false],
-            [4663, 'USDG', 'paused', false],
+            [4217, 'USDC.e', 'live', true],
+            [4663, 'USDG', 'live', true],
             [8453, 'USDC', 'not-deployed', false],
         ]);
     });
@@ -247,7 +247,7 @@ describe('treat networks: POST /shelter/donate { chainId }', () => {
     });
 
     it('answers 409 paused for a listed chain that is not ready (no key)', async () => {
-        chainsEnv({ SHELTER_CHAIN_84532_KEY_ENV: '' });
+        chainsEnv({ SHELTER_CHAIN_84532_KEY_ENV: '', SHELTER_DONATE_PRIVATE_KEY: '' });
         const error = await httpError(setup().service.donate(user(), 'page', NOW, 84532));
         expect(error.getStatus()).toBe(409);
         expect(error.message).toBe(DONATE_PAUSED);

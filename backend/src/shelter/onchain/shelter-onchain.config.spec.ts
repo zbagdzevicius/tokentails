@@ -432,3 +432,27 @@ describe('stale KEY_ENV', () => {
         expect(out.find(c => c.chainId === 421614)?.privateKey).toBe(key);
     });
 });
+
+describe('relay chain listed without KEY_ENV', () => {
+    it('signs with SHELTER_DONATE_PRIVATE_KEY on a same-class chain even with SHELTER_AUTO_CHAINS=off', () => {
+        const key = '0x' + '22'.repeat(32);
+        const out = readRelayChainConfigs({
+            SHELTER_CHAIN_ID: '5042002',
+            SHELTER_DONATE_PRIVATE_KEY: key,
+            SHELTER_AUTO_CHAINS: 'off',
+            SHELTER_RELAY_CHAINS: '84532',
+            SHELTER_CHAIN_84532_SPLIT_ADDRESS: '0x8bf026d3816cb2344d14aa6301fccde3b289878c',
+        });
+        expect(out.find(c => c.chainId === 84532)?.privateKey).toBe(key);
+    });
+    it('never lends a mainnet key to a testnet', () => {
+        const key = '0x' + '33'.repeat(32);
+        const out = readRelayChainConfigs({
+            SHELTER_CHAIN_ID: '5042',
+            SHELTER_DONATE_PRIVATE_KEY: key,
+            SHELTER_RELAY_CHAINS: '84532',
+            SHELTER_CHAIN_84532_SPLIT_ADDRESS: '0x8bf026d3816cb2344d14aa6301fccde3b289878c',
+        });
+        expect(out.find(c => c.chainId === 84532)?.privateKey ?? null).toBeNull();
+    });
+});

@@ -455,9 +455,10 @@ export function readRelayChainConfigs(env: NodeJS.ProcessEnv = process.env): She
             if (!privateKey) {
                 disabledReason = `${p}KEY_ENV names ${keyEnv}, which holds no usable key`;
             }
-        } else if (shortcut) {
-            // One key: SHELTER_DONATE_PRIVATE_KEY signs on every chain listed here (one EVM key works on
-            // every EVM chain), which are always of the main chain's network class.
+        } else if (shortcut || testnet === isTestnetChain(base.chainId)) {
+            // One key: SHELTER_DONATE_PRIVATE_KEY signs on every chain of the main chain's network class
+            // (one EVM key works on every EVM chain), whether the chain came from wallet.config.ts or
+            // was only named in SHELTER_RELAY_CHAINS. A mainnet key never signs on a testnet.
             privateKey = base.privateKey;
             if (!privateKey) {
                 disabledReason = 'SHELTER_DONATE_PRIVATE_KEY is not set';
