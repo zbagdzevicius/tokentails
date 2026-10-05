@@ -267,7 +267,11 @@ describe('treat networks: POST /shelter/donate { chainId }', () => {
             explorerUrl: `https://sepolia.basescan.org/tx/${TX_HASH}`,
             coin: 'USDC',
         });
-        expect([providerArgs[0][0].url, ...providerArgs[0].slice(1)]).toEqual(['https://sepolia.base.org', 84532, { staticNetwork: true, cacheTimeout: -1 }]);
+        expect([providerArgs[0][0].url, ...providerArgs[0].slice(1)]).toEqual([
+            'https://sepolia.base.org',
+            84532,
+            { staticNetwork: true, cacheTimeout: -1 },
+        ]);
         const [approve, treat] = sendTransaction.mock.calls.map(c => c[0]);
         expect(approve.to.toLowerCase()).toBe(TOKEN);
         const [spender, approved] = erc20Interface.decodeFunctionData('approve', approve.data);
