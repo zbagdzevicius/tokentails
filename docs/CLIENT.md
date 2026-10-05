@@ -71,7 +71,6 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `FIREBASE_AUTH_ORIGIN` | Build-time target of those rewrites (default the project's `firebaseapp.com` host) |
 | `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` | reCAPTCHA Enterprise site key; when set, the guest session request carries `x-firebase-appcheck`. Off by default |
 | `NEXT_PUBLIC_HEIST_PICKER` | The Catnip Heist card in the PLAY picker is on by default in every build (decision #15 overridden 2026-10-05); `0` hides it |
-| `NEXT_PUBLIC_HOME_YARD` | MY HOME is the Cat Yard (see "MY HOME" below) by default; `0`, `false`, `off` or `no` brings back the Phaser HOME |
 | `NEXT_PUBLIC_HEIST_LANDING_PILL` | `1`, `true` or `on` shows "Or play Catnip Heist now, no sign-up" under the landing hero. Default off (decision #15) |
 | `NEXT_PUBLIC_HEIST_LANDING_SECTION` | The landing's Catnip Heist section (showreel or poster, three beats, PLAY CATNIP HEIST) between the proof section and the globe. Default on since the founder overrode decision #15 (Poki carve-out) for this section on 2026-10-04; `0`, `false` or `off` hides it. The pill stays off under #15 |
 | `NEXT_PUBLIC_IMPACT_URL` | CDN URL of the impact snapshot mirror (default `impact/impact.json` on the asset CDN) |
@@ -375,8 +374,7 @@ is `shared/home-yard.ts`. Local files only, so the Capacitor export ships it.
   ignores). No scores.
 - Falls back to the Phaser HOME (`components/base`) without WebGL, when the module fails to load or
   has another API version, when it is not ready in 15 s, when the WebGL context is lost during the
-  visit (`reason: "context-lost"`; the next visit replaces the lost shared renderer), or with
-  `NEXT_PUBLIC_HOME_YARD=0`; each fallback reports `home_yard_fallback`. The yard leaves out the
+  visit (`reason: "context-lost"`; the next visit replaces the lost shared renderer); each fallback reports `home_yard_fallback`. The yard leaves out the
   Heist's own Nunito faces (the client serves Nunito) and keeps Cat Paw for its name card.
 - `scripts/check-app-export.mjs` fails an app export that lacks the module named in
   `yardEntry.generated.ts`. End-to-end: `e2e/home-yard.spec.ts`.

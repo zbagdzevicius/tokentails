@@ -9,7 +9,7 @@
  * the Phaser speech bubble. No scores are written.
  *
  * Falls back to the Phaser HOME (`fallback`) when WebGL is missing, the module does not load or has
- * another API version, the yard is not ready in time, or NEXT_PUBLIC_HOME_YARD switches it off.
+ * another API version, or the yard is not ready in time.
  */
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -24,7 +24,7 @@ import { useProfile } from "@/context/ProfileContext";
 import { StatusType } from "@/models/status";
 import type { HomeYardAPI, HomeYardModule } from "@/shared-contracts/home-yard";
 import { findOwnedCat, homeYardCats, isHungry } from "./homeYardCats";
-import { homeYardEnabled, setHomeYardMode, useHomeFeedPanelHeight } from "./homeYardMode";
+import { setHomeYardMode, useHomeFeedPanelHeight } from "./homeYardMode";
 import { playHomeSound } from "./homeSfx";
 import { HOME_YARD_ASSET_BASE, HomeYardLoadError, loadHomeYard } from "./loadHomeYard";
 import { useSelectHomeCat } from "./useSelectHomeCat";
@@ -67,7 +67,7 @@ function reducedMotionNow(): boolean {
   return prefersReducedMotion();
 }
 
-export function HomeYard({ fallback, loader = loadHomeYard, timeoutMs = HOME_YARD_TIMEOUT_MS, enabled = homeYardEnabled() }: Props) {
+export function HomeYard({ fallback, loader = loadHomeYard, timeoutMs = HOME_YARD_TIMEOUT_MS, enabled = true }: Props) {
   const { profile } = useProfile();
   const { cat, setCatStatus } = useCat();
   const { openedModal } = useGame();

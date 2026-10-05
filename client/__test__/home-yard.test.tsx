@@ -59,7 +59,7 @@ jest.mock("@tanstack/react-query", () => ({ useQuery: () => ({ data: state.userC
 
 import { HomeYard } from "@/components/home/HomeYard";
 import { homeYardCats, isHungry, findOwnedCat } from "@/components/home/homeYardCats";
-import { getHomeYardMode, homeYardEnabled, setHomeFeedPanelHeight, setHomeYardMode } from "@/components/home/homeYardMode";
+import { getHomeYardMode, setHomeFeedPanelHeight, setHomeYardMode } from "@/components/home/homeYardMode";
 import { HOME_YARD_ASSET_BASE, loadHomeYard } from "@/components/home/loadHomeYard";
 import { HOME_YARD_ENTRY } from "@/components/home/yardEntry.generated";
 import { GameEvent, GameEvents, installPhaserCrashGuard } from "@/components/Phaser/events";
@@ -349,14 +349,6 @@ describe("loadHomeYard", () => {
 });
 
 describe("home yard pieces", () => {
-  it("the kill switch is on unless set to 0 / false / off / no", () => {
-    expect(homeYardEnabled(undefined)).toBe(true);
-    expect(homeYardEnabled("")).toBe(true);
-    expect(homeYardEnabled("1")).toBe(true);
-    expect(homeYardEnabled("on")).toBe(true);
-    for (const off of ["0", "false", "OFF", " no "]) expect(homeYardEnabled(off)).toBe(false);
-  });
-
   it("maps cats: profile list as fallback, the active cat added and fresh from the profile", () => {
     const fresh = cat("z", { status: { EAT: 0 } as ICat["status"], blessing: {} as ICat["blessing"] });
     const fromProfile = homeYardCats(undefined, [cat("x")], fresh);

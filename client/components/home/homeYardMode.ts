@@ -32,7 +32,7 @@ function subscribe(listener: () => void) {
  * kill switch allows it: answering `yard` here keeps the old centred HUD, `bg-2.webp` and the
  * snowfall from flashing for a moment. A fallback reports `phaser` and wins.
  */
-export function resolveHomeYardMode(current: HomeYardMode, enabled: boolean = homeYardEnabled()): "yard" | "phaser" {
+export function resolveHomeYardMode(current: HomeYardMode, enabled = true): "yard" | "phaser" {
   return current ?? (enabled ? "yard" : "phaser");
 }
 
@@ -68,14 +68,6 @@ function subscribeFeed(listener: () => void) {
 
 export function useHomeFeedPanelHeight(): number {
   return useSyncExternalStore(subscribeFeed, getHomeFeedPanelHeight, () => 0);
-}
-
-/**
- * The kill switch: `NEXT_PUBLIC_HOME_YARD` set to 0, false, off or no brings back the Phaser HOME.
- * On by default (unset or anything else).
- */
-export function homeYardEnabled(raw: string | undefined = process.env.NEXT_PUBLIC_HOME_YARD): boolean {
-  return !/^\s*(0|false|off|no)\s*$/i.test(raw ?? "");
 }
 
 /** HOME is showing as the Cat Yard: its HUD, its sky, no snowfall over it. */
