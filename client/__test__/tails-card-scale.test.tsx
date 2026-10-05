@@ -101,7 +101,6 @@ describe("card scaling", () => {
       "CardBack.tsx",
       "TailsCardMini.tsx",
       "cardEffects/DivineGlowEffect.tsx",
-      "cardEffects/LegendaryElectricBorder.tsx",
     ];
     for (const file of files) {
       const src = fs.readFileSync(path.join(CARD_DIR, file), "utf8");

@@ -8,10 +8,6 @@ import {
 import React, { useRef, useCallback, useMemo } from "react";
 import { CardEffects } from "./CardEffects";
 import { DivineGlowEffect } from "./cardEffects/DivineGlowEffect";
-import {
-  LegendaryElectricBorder,
-  LegendaryElectricBorderSVG,
-} from "./cardEffects/LegendaryElectricBorder";
 import { cdnFile } from "@/constants/utils";
 
 type CardWrapperProps = {
@@ -163,8 +159,6 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
 
   return (
     <>
-      {/* SVG Filter Definition - Always mounted */}
-      <LegendaryElectricBorderSVG />
       <div
         ref={cardRef}
         // A size container: everything inside is sized in `cqw` (1 cqw = 1% of the card's width),
@@ -193,9 +187,6 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
           }}
         >
           {effects === "animated" && <DivineGlowEffect tier={tier} />}
-          {effects === "animated" && tier === Tier.LEGENDARY && (
-            <LegendaryElectricBorder borderColor={borderColor} />
-          )}
           {!isBackSide && (
             <div className="absolute inset-[6%] rounded-[5cqw] bg-[#0b0b2a]" />
           )}
