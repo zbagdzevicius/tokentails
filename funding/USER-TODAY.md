@@ -104,8 +104,7 @@ CONFIRM_MAINNET=yes ./tracks/a-build/wave/mainnet-all.sh             # for real 
 
 In order, per chain: balance check (it prints a per-chain shortfall table: send what it says is
 SHORT and rerun) → ShelterSplit USDC (`deploy-mainnet.sh`) → ShelterSplit EURC on Arc and Avalanche
-(`deploy-mainnet-eurc.sh`) → DonateRouters (skipped until the handover; `MAINNET_ROUTERS=yes` turns
-them on, `tracks/a-build/README.md`) → `a:ingest` (writes `wallet.config.ts` and the client and
+(`deploy-mainnet-eurc.sh`) → DonateRouters (on Arc, Arbitrum, Avalanche, Base and Monad, plus EURC routers on Arc and Avalanche) → `a:ingest` (writes `wallet.config.ts` and the client and
 Heist lists) → `a:verify` + `a:verify-source` → `distribute-mainnet.sh` (tops up donatehot's treat
 float and gas, and the agent's x402 amount, only up to the plan's targets) → `fund fill --ingest
 --write`. A chain that fails a step is left out of the later steps; the others go on. Rerunning

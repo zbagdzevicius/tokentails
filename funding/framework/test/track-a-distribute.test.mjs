@@ -296,8 +296,8 @@ test('mainnet: both scripts refuse without CONFIRM_MAINNET=yes, and refuse insid
   // The testnet script has no such gate, and a mainnet script cannot carry testnet ids.
   assert.doesNotMatch(D.distributeScript(D.resolvePlan({ plan, chains, wallets, network: 'testnet' }), { network: 'testnet' }), /CONFIRM_MAINNET/);
   assert.match(readFileSync(dist, 'utf8'), /ALLOWED_IDS=' 5042 4217 42161 43114 8453 4663 143 '/);
-  // The mainnet wrapper keeps DonateRouters behind MAINNET_ROUTERS=yes (README: none before the handover).
-  assert.match(readFileSync(all, 'utf8'), /MAINNET_ROUTERS:-\}" != yes/);
+  // DonateRouters deploy on mainnet by default (decision 2026-10-05: no MAINNET_ROUTERS gate).
+  assert.doesNotMatch(readFileSync(all, 'utf8'), /MAINNET_ROUTERS/);
 });
 
 test('run-order wrapper: steps in order, syntax-valid, public RPC defaults, refuses a chain from the wrong network', () => {

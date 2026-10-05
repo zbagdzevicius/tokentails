@@ -54,7 +54,11 @@ Evidence, fetched 2026-09-29:
   `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` (both pages agree, 6 decimals). Circle also lists
   Avalanche and Base; it lists nothing for Arbitrum or Tempo, so those are `null` with `verify: true`.
 
-### DonateRouter: no mainnet deploy before the handover (added 2026-10-04, F2 review H2)
+### DonateRouter on mainnet before the handover (2026-10-04 F2 review H2; decision changed 2026-10-05)
+
+Decision 2026-10-05 (founder): the mainnet wave deploys DonateRouters by default, before the handover.
+The risk below stays true and is accepted: public gifts can reach the wallet Token Tails holds for
+Pink Paw until the key rotation; the drafts disclose that custody. Original note:
 
 The DonateRouter is ownerless and public. Once it exists on a mainnet, anyone can call
 `donateNative` or submit a signed gift themselves, and that money reaches the shelter wallet the split
@@ -111,8 +115,7 @@ node bin/fund.mjs router record --chain 43114 --token EURC          # record it 
 wallet (`donatehot`: treat float + gas) and the x402 `agent`; recipients come only from
 `wallets.public.json`. `distribute-<network>.sh` checks the deployer first (per-chain shortfall
 table), tops each recipient up to its target (skip within 1%), and `DRY_RUN=1` prints every
-transfer. `<network>-all.sh` runs: balance check → ShelterSplit USDC → EURC → DonateRouters (mainnet
-only with `MAINNET_ROUTERS=yes`, see above) → `a:ingest` → `a:verify` + `a:verify-source` →
+transfer. `<network>-all.sh` runs: balance check → ShelterSplit USDC → EURC → DonateRouters → `a:ingest` → `a:verify` + `a:verify-source` →
 distribute → `fund fill` → files to commit; a failing chain stops, the others go on; reruns skip
 what is recorded. Mainnet scripts exit unless `CONFIRM_MAINNET=yes` and no AI-agent env is set.
 
