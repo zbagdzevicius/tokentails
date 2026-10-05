@@ -18,9 +18,8 @@ export const HEIST_PICKER_HREF = "/heist";
 export const heistHref = (href: string) => `${href}?from=picker`;
 
 /**
- * The Heist card is behind `NEXT_PUBLIC_HEIST_PICKER` until the Poki carve-out is in writing
- * (decision #15): `1`/`true`/`on` shows it, `0`/`false`/`off` hides it, and unset means on in
- * development and in E2E builds (`NEXT_PUBLIC_E2E=1`), off in production builds.
+ * The Heist card in the picker: on by default in every build (founder, 2026-10-05, overriding
+ * decision #15's Poki hold). `NEXT_PUBLIC_HEIST_PICKER=0`/`false`/`off` hides it.
  */
 export function heistPickerEnabled(
   flag: string | undefined = process.env.NEXT_PUBLIC_HEIST_PICKER,
@@ -30,7 +29,11 @@ export function heistPickerEnabled(
   const value = (flag || "").trim();
   if (/^(1|true|yes|on)$/i.test(value)) return true;
   if (/^(0|false|no|off)$/i.test(value)) return false;
-  return nodeEnv !== "production" || e2e === "1";
+  // On by default everywhere (founder, 2026-10-05: decision #15 overridden); the flag can still
+  // turn it off. `nodeEnv` and `e2e` are kept for the call sites and tests.
+  void nodeEnv;
+  void e2e;
+  return true;
 }
 
 export interface GameCard {

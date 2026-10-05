@@ -37,10 +37,10 @@ function open(props: Partial<React.ComponentProps<typeof GameSelectModal>> = {})
 }
 
 describe("heistPickerEnabled (decision #15)", () => {
-  it("is on in development and off in production unless NEXT_PUBLIC_HEIST_PICKER says otherwise", () => {
+  it("is on by default in every build, and NEXT_PUBLIC_HEIST_PICKER=0 hides it", () => {
     expect(heistPickerEnabled(undefined, "development")).toBe(true);
     expect(heistPickerEnabled(undefined, "test")).toBe(true);
-    expect(heistPickerEnabled(undefined, "production", "")).toBe(false);
+    expect(heistPickerEnabled(undefined, "production", "")).toBe(true);
     expect(heistPickerEnabled(undefined, "production", "1")).toBe(true);
     expect(heistPickerEnabled("0", "production", "1")).toBe(false);
     expect(heistPickerEnabled("1", "production")).toBe(true);

@@ -70,7 +70,7 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PROXY` | `1`, `true`, `yes` or `on` adds the `/__/auth/*` and `/__/firebase/init.json` rewrites to the Firebase auth host (`next.config.js`). Default off |
 | `FIREBASE_AUTH_ORIGIN` | Build-time target of those rewrites (default the project's `firebaseapp.com` host) |
 | `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` | reCAPTCHA Enterprise site key; when set, the guest session request carries `x-firebase-appcheck`. Off by default |
-| `NEXT_PUBLIC_HEIST_PICKER` | `1` shows the Catnip Heist card in the PLAY picker in production (always on in development and E2E builds). Off until the Poki carve-out (decision #15) |
+| `NEXT_PUBLIC_HEIST_PICKER` | The Catnip Heist card in the PLAY picker is on by default in every build (decision #15 overridden 2026-10-05); `0` hides it |
 | `NEXT_PUBLIC_HEIST_LANDING_PILL` | `1`, `true` or `on` shows "Or play Catnip Heist now, no sign-up" under the landing hero. Default off (decision #15) |
 | `NEXT_PUBLIC_HEIST_LANDING_SECTION` | The landing's Catnip Heist section (showreel or poster, three beats, PLAY CATNIP HEIST) between the proof section and the globe. Default on since the founder overrode decision #15 (Poki carve-out) for this section on 2026-10-04; `0`, `false` or `off` hides it. The pill and the picker card stay off under #15 |
 | `NEXT_PUBLIC_IMPACT_URL` | CDN URL of the impact snapshot mirror (default `impact/impact.json` on the asset CDN) |
