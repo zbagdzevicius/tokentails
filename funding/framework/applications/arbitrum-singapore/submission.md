@@ -10,7 +10,7 @@ matching form field._
 | Program | Arbitrum Open House Singapore online buildathon |
 | Deadline | 2026-10-04T15:59:00+08:00 |
 | Call | https://www.hackquest.io/hackathons/Arbitrum-Open-House-Singapore-Online-Buildathon |
-| Repository | https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split |
+| Repository | https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split |
 | Demo | https://tokentails.com/heist |
 
 ## Summary  <!-- 268/280 chars -->

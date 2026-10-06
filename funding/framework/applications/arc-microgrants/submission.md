@@ -10,7 +10,7 @@ matching form field._
 | Program | Arc Microgrants |
 | Deadline | 2026-10-14T23:59:00-04:00 |
 | Call | https://community.arc.io/public/events/arc-microgrants-f8tijfjhyq |
-| Repository | https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split |
+| Repository | https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split |
 | Demo | _(not set — add `demo:` to call.md)_ |
 | Submitted via | DoraBacks registration link on the Arc call page |
 | Live deployment link | https://tokentails.com/shelter-payouts (plus the Arc explorer link for {SPLIT_ADDRESS}) |

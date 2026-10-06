@@ -10,7 +10,7 @@ matching form field._
 | Program | Arbitrum Open House Dubai online buildathon |
 | Deadline | 2026-12-06 |
 | Call | https://www.hackquest.io/hackathons/Arbitrum-Open-House-Dubai-Online-Buildathon |
-| Repository | https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split |
+| Repository | https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split |
 | Demo | _(not set — add `demo:` to call.md)_ |
 
 ## Summary  <!-- 231/280 chars -->

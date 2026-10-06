@@ -10,7 +10,7 @@ created: 2026-09-30
 profile: arbitrum-singapore
 chain: arbitrum
 mainnet_required: false
-repo: "https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split"
+repo: "https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split"
 demo: "https://tokentails.com/heist"
 build_window_start: 2026-09-13
 build_window_end: 2026-10-04

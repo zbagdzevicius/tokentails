@@ -10,7 +10,7 @@ matching form field._
 | Program | Tameion Agents Hackathon (Canteen x Circle x Arc) |
 | Deadline | 2026-10-10T23:59:00-04:00 |
 | Call | https://tameion.thecanteenapp.com/ |
-| Repository | https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split |
+| Repository | https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split |
 | Demo | _(not set — add `demo:` to call.md)_ |
 | Chain | Arc (mainnet USDC preferred and weighted more heavily; test USDC accepted) |
 | Problem area | Autonomous Operations (open RFB, not a mandatory track) |

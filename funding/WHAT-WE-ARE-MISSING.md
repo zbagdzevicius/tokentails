@@ -362,7 +362,7 @@ Both wallets have a balance of 0 on Arc mainnet, Arc testnet, Arbitrum, Avalanch
 4. **Monad (143) isn't in `client/components/shelter-payouts/chains.ts`.** The payouts page can't show a Monad payout.
 5. **Pink Paw consent:** Arc says Pink Paw "consented in writing" and Colosseum says "consented to be named". Make sure the written consent exists and is filed before you submit.
 6. **Placeholders aren't consistent.** Tameion, Arbitrum and Monad use `{DEMO_URL}`, `{ARB_SPLIT}` and `{MONAD_SPLIT}`, while the plan's fill-map uses `{DEMO_VIDEO_URL}`. The grep catches both, but the fill-map misses the first set.
-7. **The repo link has no README.** `tree/main/funding/framework/tracks/a-build/shelter-split` has none, and that's the page Arc and Colosseum judges land on.
+7. **The repo link has no README.** `tree/main/contracts/shelter-split` has none, and that's the page Arc and Colosseum judges land on.
 8. **The public repo tracks `client/.env.production`, `client/.env.app` and `cms/.env.*`.** I didn't read them. Confirm they hold only public values.
 9. **Colosseum `submission.md` already lists the Arbitrum track and Public Goods**, before G5 answers the multi-track question.
 10. **Tameion's deadline in the tracker** is "Oct 10 by 23:00 Vilnius"; the real close is Oct 10 23:59 ET (Oct 11 06:59 Vilnius). The tracker is safely early.

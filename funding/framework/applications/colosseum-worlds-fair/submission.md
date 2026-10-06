@@ -10,7 +10,7 @@ matching form field._
 | Program | Colosseum Crypto World's Fair |
 | Deadline | 2026-10-12T23:59:00-07:00 |
 | Call | https://colosseum.com/worldsfair |
-| Repository | https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split |
+| Repository | https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split |
 | Demo | _(not set — add `demo:` to call.md)_ |
 | Tracks entered | Tempo, Arbitrum, Base and Robinhood Chain |
 | Category | Payments / public goods |

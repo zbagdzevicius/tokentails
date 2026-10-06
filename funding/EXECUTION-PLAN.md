@@ -250,7 +250,7 @@ All commands start from the repo root `/Users/zygimantasbagdzevicius/me/tokentai
 
 | Placeholder | Source | Command |
 |---|---|---|
-| `repo:` and `{REPO_URL}` | The public repo URL after the Oct 1 merge | `gh repo view --json url -q .url`, then add `/tree/main/funding/framework/tracks/a-build/shelter-split` |
+| `repo:` and `{REPO_URL}` | The public repo URL after the Oct 1 merge | `gh repo view --json url -q .url`, then add `/tree/main/contracts/shelter-split` |
 | `demo:` and `{DEMO_VIDEO_URL}` | Uploads of `funding/media/out/demo-arc.mp4` and `demo-colosseum.mp4` | You paste the URLs, then the AI runs `a:submission` again |
 | `{PITCH_VIDEO_URL}` | Upload of your on-camera pitch | You paste the URL |
 | `{SPLIT_ADDRESS}` | The Arc USDC instance (Arc draft) and the Tempo instance (Colosseum draft) | `cat funding/framework/tracks/a-build/deployments.json` after `a:ingest` (the AI reads the field names from the file) |

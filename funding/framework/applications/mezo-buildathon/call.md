@@ -10,7 +10,7 @@ created: 2026-09-28
 profile: mezo-buildathon
 chain: mezo
 mainnet_required: true
-repo: "https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split"
+repo: "https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split"
 demo: ""
 build_window_start: 2026-10-16
 build_window_end: 2026-11-15

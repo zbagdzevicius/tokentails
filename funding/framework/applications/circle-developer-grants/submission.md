@@ -10,7 +10,7 @@ matching form field._
 | Program | Circle Developer Grants |
 | Deadline | rolling |
 | Call | https://www.circle.com/grant |
-| Repository | https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split |
+| Repository | https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split |
 | Demo | _(not set — add `demo:` to call.md)_ |
 
 ## Summary  <!-- 231/280 chars -->

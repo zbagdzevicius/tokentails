@@ -10,7 +10,7 @@ matching form field._
 | Program | Monad Metropolis online hackathon (Consumer Products & Payments track) |
 | Deadline | 2026-10-13 |
 | Call | https://monad.xyz/developers/hackathons/metropolis |
-| Repository | https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split |
+| Repository | https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split |
 | Demo | _(not set — add `demo:` to call.md)_ |
 
 ## Summary  <!-- 247/280 chars -->

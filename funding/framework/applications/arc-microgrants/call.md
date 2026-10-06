@@ -10,7 +10,7 @@ created: 2026-09-27
 profile: arc-microgrants
 chain: arc
 mainnet_required: true
-repo: "https://github.com/zbagdzevicius/tokentails/tree/main/funding/framework/tracks/a-build/shelter-split"
+repo: "https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split"
 demo: ""
 build_window_start: ""
 build_window_end: ""
