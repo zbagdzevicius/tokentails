@@ -154,6 +154,28 @@ $breakpoints: (
   text-shadow: 0 0 5px #ffe89a, 0 0 12px #ffcf66, 0 0 25px #ffb84d;
 }
 
+.glow-holo-pink {
+  // Neon holographic pink (the Influencer pack): a shifting holo sheen in the letters, pink neon around them.
+  // Gradient text is transparent, so the glow uses drop-shadow (a text-shadow would show through the glyphs).
+  background: linear-gradient(100deg, #ff7aa2 0%, #ffb3e6 22%, #e0b8ff 40%, #a8f0ff 52%, #ff9ad5 70%, #ff7aa2 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 3px rgba(255, 140, 190, 0.95)) drop-shadow(0 0 10px rgba(255, 92, 170, 0.7))
+    drop-shadow(0 0 22px rgba(214, 120, 255, 0.45));
+  animation: holo-shift 6s linear infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes holo-shift {
+  to {
+    background-position: 250% 0;
+  }
+}
+
 .glow-box {
   border-radius: 16px;
 

@@ -94,6 +94,8 @@ interface PackOfferConfig {
   pillOutsideSale?: boolean;
   /** The big glowing name over the art (md+), in the pack's colour. */
   glow: string;
+  /** Glow effect for that name: the shared gold `glow`, or the Influencer's neon holo pink. */
+  glowFx?: "glow" | "glow-holo-pink";
   featured?: boolean;
   tilt?: string;
 }
@@ -114,6 +116,7 @@ const PACK_OFFERS: PackOfferConfig[] = [
     pill: "Can hold a Legendary",
     pillTone: "pink",
     glow: "text-tt-pink",
+    glowFx: "glow-holo-pink",
     featured: true,
   },
   {
@@ -149,7 +152,7 @@ const PackOffer = ({ offer, onSelect }: { offer: PackOfferConfig; onSelect: (pac
     >
       <p
         aria-hidden="true"
-        className={clsx("glow mb-1 hidden font-primary text-h6 uppercase leading-none md:block short:!hidden", offer.glow)}
+        className={clsx(offer.glowFx ?? "glow", "mb-1 hidden font-primary text-h6 uppercase leading-none md:block short:!hidden", offer.glow)}
       >
         {offer.name}
       </p>
