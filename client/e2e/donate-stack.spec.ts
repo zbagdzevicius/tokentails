@@ -26,7 +26,7 @@
  */
 import { expect, test, type Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { forkRpc, injectForkWallet, waitMined } from "./fixtures/wallet-fork";
@@ -433,6 +433,8 @@ test.describe.serial("donation flows on the local stack", () => {
 
   test("11 treat agent: CappedSpender gives within caps, over-cap refused", async () => {
     const dir = join(REPO, "funding", "framework", "tracks", "a-build", "treat-agent");
+    // The treat agent is in the private funding checkout (funding/), absent on the public repo.
+    test.skip(!existsSync(dir), "funding/ (private) is absent");
     const env = {
       ...process.env,
       TREAT_AGENT_FAKE_LLM: "1",

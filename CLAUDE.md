@@ -11,7 +11,7 @@ not at the root. Documentation lives in `docs/`; start with `docs/ARCHITECTURE.m
 | `catnip-heist/` three.js + Vite | `npm run dev` (port 5173) | `npx tsc --noEmit`, `npx vitest run`, `npm run build:client` (commit `client/public/heist-game`) |
 | `contracts/stellar/soroban-nft/` Rust | `cargo test` | `stellar contract build` |
 | `shelter-rail/` MIT JS SDK + donate widget, no deps (copy `src/widget.js` to `client/public/rail/`) | – | `npm test` |
-| `funding/framework/tracks/a-build/shelter-split/` ShelterSplit + DonateRouter (Solidity, Foundry) | – | `forge test` |
+| `contracts/shelter-split/` ShelterSplit + DonateRouter + CappedSpender (Solidity, Foundry, MIT) | – | `forge build`, `forge test` |
 
 ## Rules that matter here
 
@@ -22,6 +22,7 @@ not at the root. Documentation lives in `docs/`; start with `docs/ARCHITECTURE.m
 - The backend has one `AppModule`; new controllers and providers are registered there. Business logic currently sits in controllers.
 - Game scores are saved only through `POST /user/catbassadors/live`. Do not add a second write path.
 - NFT contract addresses and mint calls are not in this repo. Metadata endpoints are in `backend/src/cat/cat.controller.ts`. ShelterSplit and DonateRouter addresses are public and generated: `backend/src/shelter/onchain/wallet.config.ts` (from `fund a:ingest`; never edit it by hand).
+- `funding/` is private (repo `zbagdzevicius/tokentails-funding`, see `docs/DEVELOPMENT.md`). Public code, tests, CI and docs must work without it; never add a hard dependency on it or link to it from public pages or submissions. Link judges to `contracts/shelter-split/`.
 - Known bugs and security issues are listed at the end of each doc. Do not "fix" them silently as a side effect of unrelated work; mention them.
 
 ## Funding tracker (keep this current)

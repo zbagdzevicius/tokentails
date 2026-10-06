@@ -203,10 +203,15 @@ export function lintSource(file, text, { facts, target, toneExempt = false }) {
   return findings;
 }
 
+// The full registry is in the private funding checkout (funding/, absent on the public repo). The
+// public copy `fund facts build` writes has every surfaced fact (id, status, surfaces, display), which
+// is all the claims rules read, so the lint gives the same result for any valid citation without it.
+export const FACTS_SOURCES = ['funding/framework/facts/facts.json', 'client/public/facts/facts.json'];
+
 export function loadFacts(root) {
-  const path = join(root, 'funding/framework/facts/facts.json');
   const map = new Map();
-  if (!existsSync(path)) return map;
+  const path = FACTS_SOURCES.map((p) => join(root, p)).find((p) => existsSync(p));
+  if (!path) return map;
   const reg = JSON.parse(readFileSync(path, 'utf8'));
   for (const f of reg.facts || []) map.set(f.id, f);
   return map;

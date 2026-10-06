@@ -57,13 +57,13 @@ flowchart LR
 | Catnip Heist | `catnip-heist/` | three.js, Vite | Standalone 3D stealth game; built into `client/public/heist-game/` and hosted on `/heist`; its simulation is vendored into the backend for replay verification |
 | Shared contracts | `shared/` | TypeScript | Enums, error codes, caps, storefront parser, Heist bridge, copy, names, analytics core; generated into every package by `scripts/sync-contracts.mjs` |
 | Copy lint | `tools/copy-lint/` | Node | Tone and claims lint over client, Heist, backend and CMS copy (CLAIMS.md) |
-| Facts registry | `funding/framework/facts/` | JSON + Node | Every public claim with its source, generated into the client, backend and Heist |
+| Facts registry | `funding/framework/facts/` (private funding checkout, not in this repo) | JSON + Node | Every public claim with its source, generated into the client, backend and Heist |
 | Mobile shells | `client/android/`, `client/ios/` | Capacitor 7 | Native wrappers around the static export |
 | Admin CMS | `cms/` | Next.js 16 | Shelter and staff operations console |
 | Soroban contracts | `contracts/stellar/soroban-nft/` | Rust | Cat, Blessing, and Pass NFTs on Stellar mainnet |
 | SKALE contracts | `contracts/evm/` | Solidity | Cat and Blessing ERC-721 on SKALE Nebula |
 | Faucets | `contracts/stellar/stellar-fuel/`, `contracts/sfuel/` | Node, Express | Fund new player wallets with XLM or sFUEL |
-| Shelter payout contracts | `funding/framework/tracks/a-build/shelter-split/` | Solidity 0.8.24, Foundry | ShelterSplit (payout split) and DonateRouter (one-signature gifts). Recorded on the seven testnets in `deployments.json` and `router-deployments.json`; no mainnet split is recorded yet (see "Shelter payout chains") |
+| Shelter payout contracts | `contracts/shelter-split/` | Solidity 0.8.24, Foundry | ShelterSplit (payout split) and DonateRouter (one-signature gifts). Recorded on the seven testnets in `deployments.json` and `router-deployments.json`; no mainnet split is recorded yet (see "Shelter payout chains") |
 | Shelter rail SDK | `shelter-rail/` | Plain JS, MIT | Donate SDK, drop-in widget and x402 agent client for the same chains; the widget is copied to `client/public/rail/` |
 | Archived | `contracts/motoko/`, `contracts/move/` | dfx, Aptos Move | Unused prototypes |
 
@@ -166,8 +166,8 @@ Shelter giving runs on seven EVM chains, each with a mainnet and a testnet: Arc,
 Avalanche, Base, Robinhood Chain (USDG) and Monad. Each chain has a ShelterSplit (EURC has its own
 instance on Arc, and on Avalanche Fuji among the testnets) and, except on Tempo and Robinhood Chain, a DonateRouter for one-signature gifts.
 
-- **Records.** The deploy wave writes `funding/framework/tracks/a-build/deployments.json` and
-  `router-deployments.json`. `fund a:ingest` (or `fund a:backend-deployments`) turns them into the
+- **Records.** The deploy wave (private funding checkout, see DEVELOPMENT.md) writes
+  `funding/framework/tracks/a-build/deployments.json` and `router-deployments.json`. `fund a:ingest` (or `fund a:backend-deployments`) turns them into the
   public config `backend/src/shelter/onchain/wallet.config.ts` and the client and Heist lists
   (`client/public/shelter-payouts/deployments.json`, `testnet-deployments.json`). Today only the
   testnets are recorded; every mainnet `split` is `null` until the mainnet wave runs.

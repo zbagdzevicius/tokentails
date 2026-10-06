@@ -73,7 +73,7 @@ export async function clearDonorCode(address: string = DEV.donor) {
 }
 
 const REPO = resolve(__dirname, "..", "..", "..");
-const SPLIT_DIR = join(REPO, "funding", "framework", "tracks", "a-build", "shelter-split");
+const SPLIT_DIR = join(REPO, "contracts", "shelter-split");
 
 let rpcId = 0;
 export async function forkRpc<T = unknown>(method: string, params: unknown[] = []): Promise<T> {

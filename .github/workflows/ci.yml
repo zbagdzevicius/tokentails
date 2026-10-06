@@ -6,10 +6,13 @@
 #   by a maintainer once the jobs are green. See docs/plans/alignment-log/1a.md.
 # - Jobs added by later tasks: `sync-fonts --check` in `contracts`, `check-palette.mjs` and
 #   `check-meta.mjs` in `bundle-guards`, the Heist vendored-sim sha check in `heist`.
-# - `contracts` runs `fund facts build --check` (task 2c, plan F7.1): the facts registry is valid,
-#   every generated copy matches it, and the campaign goal is reachable at the configured cap.
-#   Date-dependent fact checks (staleness, chain reconciliation) run weekly in facts-weekly.yml,
-#   never here.
+# - `contracts` runs `fund facts build --check` (task 2c, plan F7.1) when the private funding
+#   checkout is present at funding/: the facts registry is valid, every generated copy matches it,
+#   and the campaign goal is reachable at the configured cap. funding/ lives in the private
+#   zbagdzevicius/tokentails-funding repo, so on this public repo those steps skip and the private
+#   repo's own CI runs them against a checkout of this one. Date-dependent fact checks run weekly
+#   in facts-weekly.yml, never here.
+# - `shelter-split` builds and tests the shelter payout contracts in contracts/shelter-split.
 # - `copy-lint` (task 2c, plan F11) is a failing check since task 7b: any finding fails the job.
 #   Findings are also annotations and the job summary. GitHub shows only a capped number of
 #   annotations per step, so the job summary (and the uploaded report) is the full list.
@@ -50,13 +53,27 @@ jobs:
       - name: Sync script tests
         run: node --test 'scripts/__tests__/*.test.mjs'
       - name: Facts registry and generated copies are in sync, goals reachable
+        if: hashFiles('funding/framework/bin/fund.mjs') != ''
         run: node funding/framework/bin/fund.mjs facts build --check
       # All framework tests, not only facts.test.mjs: the generated FACTS.md feeds verify.mjs and the
       # track tests (task 2c changed track-b.test.mjs and verify.test.mjs when F-011 was verified).
       # One test file at a time: verify.test.mjs checks links against a local server with short
       # timeouts, and parallel files on a loaded runner can miss them (a flaky failure, pass-5 review).
       - name: Funding framework tests (facts generator, verify, tracks)
+        if: hashFiles('funding/framework/bin/fund.mjs') != ''
         run: node --test --test-concurrency=1 'funding/framework/test/*.test.mjs'
+
+  shelter-split:
+    name: shelter-split
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts/shelter-split
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: forge build
+      - run: forge test
 
   backend:
     name: backend

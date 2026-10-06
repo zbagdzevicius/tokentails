@@ -8,6 +8,10 @@
 # - Read-only on the code: it never edits facts.json or commits. A person fixes the registry and
 #   runs `node funding/framework/bin/fund.mjs facts build`.
 #
+# The registry lives in the private funding repo (zbagdzevicius/tokentails-funding, checked out at
+# funding/ locally). On this public repo funding/ is absent and every step below skips; the private
+# repo runs the same check on a schedule against a checkout of this repo.
+#
 # One-time setup by a maintainer (not done by this change):
 # - GitHub runs scheduled workflows only from the default branch, so this starts after the merge.
 # - Allow GitHub Actions to create issues (Settings > Actions > General > Workflow permissions).
@@ -42,15 +46,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Is the private funding checkout here?
+        id: has
+        run: if [ -f funding/framework/bin/fund.mjs ]; then echo "funding=1" >> "$GITHUB_OUTPUT"; else echo "funding/ is not in this repo; nothing to check" >> "$GITHUB_STEP_SUMMARY"; fi
       - name: Build check (schema, drift, goal reachability)
         id: build
+        if: steps.has.outputs.funding == '1'
         continue-on-error: true
         run: node funding/framework/bin/fund.mjs facts build --check > build.txt 2>&1
       - name: Date-dependent report (staleness, goals, probes, snapshot)
         id: report
+        if: steps.has.outputs.funding == '1'
         continue-on-error: true
         run: node funding/framework/bin/fund.mjs facts report --out report.md
       - name: Open, update or close the one facts issue
+        if: steps.has.outputs.funding == '1'
         run: |
           set -euo pipefail
           problems=0

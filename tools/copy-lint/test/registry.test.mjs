@@ -7,15 +7,22 @@
 // component owns, so the display is checked without R10. The app surfaces (game, heist, store) have
 // no Claim component (the Heist is plain DOM), so there the wording the app shows, appDisplay when
 // present, is checked with R10, and display is checked as a web-only branch.
+//
+// The registry schema is in the private funding checkout (funding/, absent on the public repo).
+// Without it the app surfaces are the copy lint's own list and the shared-word-list check skips.
 import assert from 'node:assert/strict';
-import { dirname, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { TARGETS, lintSource, loadFacts } from '../lib/lint.mjs';
 import { APP_WORDS } from '../lib/rules.mjs';
-import { APP_SURFACES, APP_WORDS as SCHEMA_APP_WORDS } from '../../../funding/framework/lib/facts/schema.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const SCHEMA = join(ROOT, 'funding/framework/lib/facts/schema.mjs');
+const schema = existsSync(SCHEMA) ? await import(pathToFileURL(SCHEMA).href) : null;
+const APP_SURFACES = schema ? schema.APP_SURFACES : ['game', 'heist', 'store'];
+const SCHEMA_APP_WORDS = schema ? schema.APP_WORDS : null;
 const facts = loadFacts(ROOT);
 const T = Object.fromEntries(TARGETS.map((t) => [t.name, t]));
 
@@ -48,9 +55,10 @@ for (const f of surfaced) {
   }
 }
 
-test('the registry schema and the copy lint share one app-build word list', () => {
+test('the registry schema and the copy lint share one app-build word list', { skip: !schema && 'funding/ (private) is absent' }, () => {
   const show = (list) => list.map((w) => `${w.re} ${w.what}`);
   assert.deepEqual(show(SCHEMA_APP_WORDS), show(APP_WORDS));
+  assert.deepEqual(schema.APP_SURFACES, ['game', 'heist', 'store'], 'update the fallback list at the top of this file');
 });
 
 test('an uncited display still fails, so the check above is not vacuous', () => {

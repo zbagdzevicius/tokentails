@@ -36,7 +36,7 @@ on Stellar.
 | [`catnip-heist/`](catnip-heist/) | Catnip Heist, built into the client and hosted on `/heist` | three.js, Vite |
 | [`cms/`](cms/) | Admin console for shelters and staff | Next.js 16, Firebase Auth, TinyMCE |
 | [`contracts/`](contracts/) | Soroban NFT contracts (production), SKALE ERC-721s, faucets, archived prototypes | Rust, Solidity, Node |
-| [`shelter-rail/`](shelter-rail/) and [`ShelterSplit`](funding/framework/tracks/a-build/shelter-split/) | Shelter payout contracts (ShelterSplit, DonateRouter) on seven EVM chains (Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain, Monad), their Foundry tests, and the donate SDK and widget | Solidity 0.8.24, Foundry, plain JS |
+| [`shelter-rail/`](shelter-rail/) and [`ShelterSplit`](contracts/shelter-split/) | Shelter payout contracts (ShelterSplit, DonateRouter) on seven EVM chains (Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain, Monad), their Foundry tests, and the donate SDK and widget | Solidity 0.8.24, Foundry, plain JS |
 | [`docs/`](docs/) | Project documentation | Markdown |
 | [`extra/`](extra/) | Traction figures and the settlement rail proposal | Markdown |
 
@@ -86,5 +86,5 @@ Figures and sources are in [extra/traction.md](extra/traction.md).
 This repository is commercially licensed. See [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md).
 The `contracts/` folder carries additional license files; see
 [docs/CONTRACTS.md](docs/CONTRACTS.md#licensing).
-The ShelterSplit contract, its tests and scripts in `funding/framework/tracks/a-build/shelter-split/`
+The ShelterSplit contract, its tests and scripts in `contracts/shelter-split/`
 and the `shelter-rail/` SDK are MIT licensed; see the `LICENSE` file in each folder.

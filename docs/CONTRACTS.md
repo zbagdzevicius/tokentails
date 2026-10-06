@@ -146,14 +146,16 @@ canister was ever deployed and nothing in the app references ICP.
 verbatim with its 34 unit tests. There is no `Move.toml`, so it cannot build, and nothing in the
 app references Aptos.
 
-## Shelter payout contracts (outside `contracts/`)
+## Shelter payout contracts (`contracts/shelter-split/`)
 
-The EVM shelter contracts live in `funding/framework/tracks/a-build/shelter-split/` (Foundry, MIT),
-not in `contracts/`. Details, deploy commands and disclosures: that folder's `README.md`.
+The EVM shelter contracts live in `contracts/shelter-split/` (Foundry, MIT, its own `LICENSE`).
+Details, deploy commands, how to verify and disclosures: that folder's `README.md`. The deploy wave
+and its raw records are private tooling (the funding repo); the public deployment lists it writes are
+`client/public/shelter-payouts/{deployments,testnet-deployments,routers}.json`.
 
 | Contract | What it does | Owner |
 |---|---|---|
-| `ShelterSplit.sol` | Registry of shelter wallets and basis-point shares; `donate(memo)`, `receive()`, `disburse`, `disburseWithMemo` (Tempo TIP-20) split a payment in the same transaction. Deployed on testnets; mainnet addresses only in `tracks/a-build/deployments.json` | Two-step owner (Token Tails) |
+| `ShelterSplit.sol` | Registry of shelter wallets and basis-point shares; `donate(memo)`, `receive()`, `disburse`, `disburseWithMemo` (Tempo TIP-20) split a payment in the same transaction. Deployed on testnets; mainnet addresses in `client/public/shelter-payouts/deployments.json` once recorded | Two-step owner (Token Tails) |
 | `DonateRouter.sol` | Public giving: a donor signs one EIP-3009 `ReceiveWithAuthorization`; anyone submits; the router pays ShelterSplit in the same transaction. The signature binds router, memo, salt and the payout list (`recipientsHash`). Reverts `RecipientsChanged` if the list moved after signing and `TreasuryShare` if any wei would reach the treasury. Arc native path `donateNative(memo[, expectedRecipients])`; `flush` forwards stray transfers | None |
 | `CappedSpender.sol` | The treat agent's wallet: immutable per-gift and per-UTC-day caps, pays only ShelterSplit, refuses while any share would reach the treasury | Token Tails (funds only) |
 
@@ -162,12 +164,11 @@ treasury ever receives a donor's gift; the router holds only unflushed plain tra
 Chains: Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain and Monad, each on mainnet and testnet.
 The split pays USDC, except pathUSD on Tempo and USDG on Robinhood Chain (the Robinhood testnet uses a
 mock token). Arc also has an EURC split; on mainnet that is the only EURC instance. Testnet splits are
-recorded in `tracks/a-build/deployments.json` and routers in `tracks/a-build/router-deployments.json`
-(seven testnet routers: Arc USDC and EURC, Arbitrum, Avalanche USDC and EURC, Base, Monad). Tempo and
-Robinhood Chain get no router: their tokens have no EIP-3009. `fund a:ingest` turns the records into
+listed in `client/public/shelter-payouts/testnet-deployments.json` and routers in
+`client/public/shelter-payouts/routers.json` (seven testnet routers: Arc USDC and EURC, Arbitrum, Avalanche USDC and EURC, Base, Monad). Tempo and
+Robinhood Chain get no router: their tokens have no EIP-3009. The deploy tooling turns its records into
 the backend's public config `backend/src/shelter/onchain/wallet.config.ts`. No mainnet split or router
-is recorded yet; the mainnet wave (`tracks/a-build/wave/mainnet-all.sh`, run by a person with
-`CONFIRM_MAINNET=yes`) deploys the splits and, by default, the routers on Arc (USDC and EURC),
+is recorded yet; the mainnet wave (private deploy tooling, run by a person) deploys the splits and, by default, the routers on Arc (USDC and EURC),
 Arbitrum, Avalanche, Base and Monad. CappedSpender is not deployed.
 
 The router is public and ownerless, so until the Pink Paw handover a gift through it reaches the

@@ -27,13 +27,35 @@ catnip-heist/   Catnip Heist: standalone three.js game (Vite), built into client
 shared/         Framework-free TypeScript contracts copied into every package (plan F2)
 scripts/        Repo-level scripts: sync-contracts.mjs and its tests
 tools/          copy-lint (tone and claims lint, own package.json)
-funding/        Facts registry and generator (funding/framework), grant material, the shelter payout
-                contracts and deploy wave (funding/framework/tracks/a-build), submission images
+funding/        PRIVATE: a checkout of the private zbagdzevicius/tokentails-funding repo (facts
+                registry and generators, deploy wave, grant material). Not part of this repo; see
+                "The private funding checkout" below. Everything here builds and tests without it.
 shelter-rail/   MIT donate SDK, widget and x402 agent client for the shelter payout chains (no deps)
 contracts/      Soroban, SKALE, faucets, archived chain prototypes
 docs/           This documentation; docs/plans/ holds the plans and the alignment logs
 extra/          Traction figures and the settlement rail proposal
 ```
+
+### The private funding checkout
+
+Funding material (opportunities, odds, strategy, drafts) and the tooling that generates some public
+files (the facts registry and `fund facts build`, the deploy wave and `fund a:ingest`, submission
+images) are in the private repo `zbagdzevicius/tokentails-funding`. It is not part of this repo and
+nothing here needs it: builds, tests and CI pass without it, and tests that compare against its
+registries skip.
+
+To run that tooling, clone the private repo into this checkout as `funding/` (gitignored here once
+the move is finished; until then an older copy of `funding/` is still tracked in this repo):
+
+```bash
+git clone https://github.com/zbagdzevicius/tokentails-funding.git funding
+node funding/framework/bin/fund.mjs facts build --check
+```
+
+The tooling finds this repo as the parent of `funding/`; `FUND_REPO_ROOT=<path>` overrides it for the
+facts commands. Generated files it writes here (the `facts.generated.ts` copies,
+`client/public/facts/facts.json`, `wallet.config.ts`, the `shelter-payouts` lists) are committed to
+this repo as usual. Wallet passwords stay in `funding/.secrets/` (gitignored in both repos).
 
 Never point a local backend at a production database. Mongoose `autoIndex` builds every
 schema-declared index on whatever `MONGODB_URI` names when the server starts, and the crons would run
@@ -208,12 +230,12 @@ CONTRACTS.md.
 Shelter payout contracts (ShelterSplit, DonateRouter) and the rail SDK:
 
 ```bash
-cd funding/framework/tracks/a-build/shelter-split && forge test
+cd contracts/shelter-split && forge test
 cd shelter-rail && npm test                     # then copy src/widget.js to client/public/rail/
-node --test --test-concurrency=1 'funding/framework/test/*.test.mjs'   # from the repo root; CI runs it
+node --test --test-concurrency=1 'funding/framework/test/*.test.mjs'   # only with the private funding checkout
 ```
 
-Deploys go through the wave scripts in `funding/framework/tracks/a-build/` (see its README). The
+Deploys go through the wave scripts in the private funding checkout (`funding/framework/tracks/a-build/`, see its README). The
 mainnet wave is `fund a:mainnet-plan --network mainnet`, then `wave/mainnet-all.sh` with
 `CONFIRM_MAINNET=yes` (a `DRY_RUN=1` pass first). A person runs it: the script refuses inside an AI
 agent session. After any deploy, `fund a:ingest` regenerates `wallet.config.ts` and the client and
@@ -309,14 +331,15 @@ Hand-kept copies that remain (keep them equal by hand; most are pinned by a test
 ## Continuous integration
 
 `.github/workflows/ci.yml` (decision #59, GitHub Actions replaces GitLab): `contracts`
-(`sync-contracts --check`, its tests, `fund facts build --check`, the funding framework tests),
+(`sync-contracts --check`, its tests; `fund facts build --check` and the funding framework tests only
+when the private `funding/` checkout is present), `shelter-split` (`forge build`, `forge test` in
+`contracts/shelter-split`),
 `backend` (lint, build, test), `client` (tsc, the e2e tsconfig, eslint, jest, a `NEXT_PUBLIC_E2E=1`
 build and Playwright), `cms` (tsc, test), `heist` (vitest, `build:client`), `copy-lint` (its own
 tests, then the lint over the repo; since task 7b any finding fails the job) and
 `bundle-guards` (the palette guard, a production web build and an app export, grepped for test and
 capture hooks). `push` runs on `main` only; pull requests run through `pull_request`. CI does not
-run the Heist Playwright suite, the Soroban and Foundry tests or the `shelter-rail` tests; run them
-locally.
+run the Heist Playwright suite, the Soroban tests or the `shelter-rail` tests; run them locally.
 `facts-weekly.yml` runs the facts report on Mondays, `cdn-sync.yml` uploads `client/public` to the
 CDN (DEPLOYMENT.md), `catnip-heist-pages.yml` publishes the Heist to GitHub Pages after checking the
 backend serves the same sim. Making the jobs required checks on `main` is a GitHub settings step.

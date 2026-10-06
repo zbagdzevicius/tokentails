@@ -5,7 +5,7 @@ All rights reserved.
 
 ## Excluded Folders
 
-This license does not cover `funding/framework/tracks/a-build/shelter-split/` or `shelter-rail/`.
+This license does not cover `contracts/shelter-split/` or `shelter-rail/`.
 Both are MIT licensed; see the `LICENSE` file in each folder.
 
 ## Grant of License

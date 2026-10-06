@@ -47,9 +47,15 @@ test('R4: a future-tense claim cannot say money moves now', () => {
 });
 
 test('R5: cited ids exist, are public and list the surface', () => {
-  assert.match(lint('// claim: F-999\nconst x = 1;')[0].message, /not in funding\/framework\/facts\/facts.json/);
-  assert.match(lint('// claim: F-024\nconst x = 1;')[0].message, /unverified: it can't be shown/);
-  assert.match(lint('// claim: F-017\nconst x = 1;')[0].message, /retired/);
+  assert.match(lint('// claim: F-999\nconst x = 1;')[0].message, /not in the facts registry/);
+  // Unverified and retired entries are only in the private registry (funding/); the public copy omits
+  // them. Pin the messages with stand-in entries so the check runs either way.
+  const withHidden = new Map(facts);
+  withHidden.set('F-024', { ...(facts.get('F-024') || { id: 'F-024', surfaces: [] }), status: 'unverified' });
+  withHidden.set('F-017', { ...(facts.get('F-017') || { id: 'F-017', surfaces: [] }), status: 'retired' });
+  const lintHidden = (text) => lintSource('client/components/x/Fixture.tsx', text, { facts: withHidden, target: T.client });
+  assert.match(lintHidden('// claim: F-024\nconst x = 1;')[0].message, /unverified: it can't be shown/);
+  assert.match(lintHidden('// claim: F-017\nconst x = 1;')[0].message, /retired/);
   assert.match(lint('<p data-claim="F-011">x</p>', { file: 'catnip-heist/src/ui/x.ts', target: 'heist' })[0].message, /"heist" surface/);
   assert.deepEqual(lint('<p data-claim="F-011">x</p>', { file: 'client/components/landing/A.tsx' }), []);
 });

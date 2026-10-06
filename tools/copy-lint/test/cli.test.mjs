@@ -1,18 +1,19 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { main } from '../bin/copy-lint.mjs';
-import { globToRegExp, lintRepo } from '../lib/lint.mjs';
+import { FACTS_SOURCES, globToRegExp, lintRepo } from '../lib/lint.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 function fixtureRepo() {
   const root = mkdtempSync(join(tmpdir(), 'copy-lint-'));
   const put = (p, s) => { mkdirSync(dirname(join(root, p)), { recursive: true }); writeFileSync(join(root, p), s); };
-  put('funding/framework/facts/facts.json', readFileSync(join(ROOT, 'funding/framework/facts/facts.json'), 'utf8'));
+  const facts = FACTS_SOURCES.find((p) => existsSync(join(ROOT, p)));
+  put(facts, readFileSync(join(ROOT, facts), 'utf8'));
   put('client/components/game/Win.tsx', 'export const W = () => <p>WIN $TAILS NOW</p>;\n');
   put('client/components/legacy/Old.tsx', 'export const O = () => <p>Airdrop soon</p>;\n');
   put('client/components/game/Win.test.tsx', 'export const T = () => <p>WIN $TAILS NOW</p>;\n');

@@ -75,7 +75,7 @@ Going to mainnet (a person runs it, never an AI session; the scripts refuse when
 set):
 
 ```bash
-cd funding/framework
+cd funding/framework                                         # the private funding checkout (DEVELOPMENT.md)
 node bin/fund.mjs a:mainnet-plan --network mainnet          # writes wave/mainnet-all.sh + distribute-mainnet.sh
 CONFIRM_MAINNET=yes DRY_RUN=1 ./tracks/a-build/wave/mainnet-all.sh   # simulate first
 CONFIRM_MAINNET=yes ./tracks/a-build/wave/mainnet-all.sh            # deploy, ingest, verify, distribute

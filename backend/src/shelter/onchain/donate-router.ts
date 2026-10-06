@@ -1,7 +1,7 @@
 import { getAddress, getBigInt, Interface, keccak256, AbiCoder, Signature, toUtf8Bytes } from 'ethers';
 
 /*
- * DonateRouter (feature F1, funding/framework/tracks/a-build/shelter-split): an ownerless router in
+ * DonateRouter (feature F1, contracts/shelter-split): an ownerless router in
  * front of ShelterSplit. A donor signs an EIP-3009 `receiveWithAuthorization` for USDC with the router
  * as the payee; anyone may submit it (the Token Tails relay pays the gas), and the router pulls the
  * USDC straight from the donor and disburses it through ShelterSplit in the same transaction. The

@@ -8,7 +8,9 @@ F7.2, F11, G5 and G11 in `docs/plans/landing-game-alignment.md`.
 ## The registry
 
 `funding/framework/facts/facts.json` is the only place a public claim is written down (decision
-#77: JSON). Edit it, then regenerate:
+#77: JSON). It is in the private funding checkout (DEVELOPMENT.md, "The private funding checkout");
+this repo holds the generated public copy `client/public/facts/facts.json`, which is what
+`tools/copy-lint` reads when the checkout is absent. Edit the registry, then regenerate:
 
 ```
 node funding/framework/bin/fund.mjs facts build          # write every generated copy

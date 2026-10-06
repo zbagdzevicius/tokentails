@@ -4,7 +4,7 @@
 // eth_getLogs JSON-RPC calls.
 
 // keccak256("Disbursed(address,uint256,string)"), checked against the compiled
-// ShelterSplit bytecode in funding/framework/tracks/a-build/shelter-split/out.
+// ShelterSplit bytecode in contracts/shelter-split/out.
 export const DISBURSED_TOPIC =
   "0x53e1c69daf8c00e0990d33cc076fc3c88a0c480beb39da2bcffa01252f63495a";
 

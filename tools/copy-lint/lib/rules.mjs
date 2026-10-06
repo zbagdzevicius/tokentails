@@ -85,8 +85,9 @@ const RATES = [
 // R9: G5 tone regex (plan F11), after removing the brand name.
 const TONE = /\$TAILS|\bairdrops?\b|\bTGE\b|\blisting\b|\bMNT\b|\ballocations?\b|\btokens?\b/i;
 
-// R10: app-build words. funding/framework/lib/facts/schema.mjs keeps the same list for registry
-// displays on app surfaces; test/registry.test.mjs fails when they differ.
+// R10: app-build words. The registry schema (funding/framework/lib/facts/schema.mjs, in the private
+// funding checkout) keeps the same list for registry displays on app surfaces; test/registry.test.mjs
+// fails when they differ, and skips that check when funding/ is absent.
 export const APP_WORDS = [
   { re: /\bUSDC\b/, what: 'USDC (show a USD equivalent with its FX date)' },
   { re: /\b0x[0-9a-fA-F]{6,}/, what: 'a 0x hash' },
@@ -205,7 +206,7 @@ export function checkUnit(u, ctx) {
 /** R5 for one cited id at a line. */
 export function checkCitation(id, ctx) {
   const f = ctx.facts.get(id);
-  if (!f) return [{ rule: 'R5', message: `${id} is not in funding/framework/facts/facts.json` }];
+  if (!f) return [{ rule: 'R5', message: `${id} is not in the facts registry (facts.json)` }];
   if (f.status === 'unverified' || f.status === 'retired') return [{ rule: 'R5', message: `${id} is ${f.status}: it can't be shown publicly (add a source and verify it, or remove the copy)` }];
   if (ctx.surface && !f.surfaces.includes(ctx.surface)) return [{ rule: 'R5', message: `${id} does not list the "${ctx.surface}" surface in facts.json` }];
   return [];
