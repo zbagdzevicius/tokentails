@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mascot Animations</title>
+<style>
+  :root { --bg: #2a1640; --panel: rgba(20, 10, 32, 0.78); --ink: #fcecbb; --accent: #ffc93c; --muted: #b9a6d6; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, sans-serif; overflow: hidden; }
+  canvas { display: block; }
+  #ui { position: fixed; left: 16px; bottom: 16px; right: 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+        background: var(--panel); border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 12px; backdrop-filter: blur(6px); }
+  button { background: #3d2266; color: var(--ink); border: 1px solid rgba(255,255,255,.15); border-radius: 10px; padding: 8px 14px;
+           font: 600 14px system-ui, sans-serif; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.on { background: var(--accent); color: #2a1640; border-color: var(--accent); }
+  label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); margin-left: 6px; }
+  input[type=range] { width: 110px; accent-color: var(--accent); }
+  #status { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .sep { width: 1px; align-self: stretch; background: rgba(255,255,255,.15); margin: 0 4px; }
+</style>
+</head>
+<body>
+<div id="ui">
+  <span id="clips"></span>
+  <span class="sep"></span>
+  <button id="pause">Pause</button>
+  <label><input type="checkbox" id="loop" checked /> Loop</label>
+  <label>Speed <input type="range" id="speed" min="0.1" max="2" step="0.05" value="1" /> <span id="speedv">1.0×</span></label>
+  <label>Blend <input type="range" id="fade" min="0" max="1" step="0.05" value="0.3" /> <span id="fadev">0.30 s</span></label>
+  <label><input type="checkbox" id="spin" /> Turntable</label>
+  <span id="status">loading…</span>
+</div>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.183.2/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.183.2/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true;
+document.body.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color("#2a1640");
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+const key = new THREE.DirectionalLight(0xffffff, 1.6);
+key.position.set(1.5, 3, 2.5); key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
+scene.add(key, new THREE.HemisphereLight(0xffffff, 0x553366, 0.6));
+const ground = new THREE.Mesh(new THREE.CircleGeometry(1.2, 64), new THREE.ShadowMaterial({ opacity: 0.25 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+const camera = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.01, 50);
+camera.position.set(0.6, 0.75, 2.4);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.5, 0); controls.enableDamping = true; controls.minDistance = 0.8; controls.maxDistance = 6;
+
+const $ = (id) => document.getElementById(id);
+const clock = new THREE.Clock();
+let mixer, current, model;
+const actions = {};
+
+new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load("./mascot-animated.glb", (gltf) => {
+  model = gltf.scene;
+  model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+  scene.add(model);
+  mixer = new THREE.AnimationMixer(model);
+  const order = ["Idle", "Wave", "TailWag", "Hop", "Walk", "LookAround"];
+  const clips = [...gltf.animations].sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
+  for (const clip of clips) {
+    actions[clip.name] = mixer.clipAction(clip);
+    const b = document.createElement("button");
+    b.textContent = clip.name; b.dataset.clip = clip.name;
+    b.onclick = () => play(clip.name);
+    $("clips").append(b, " ");
+  }
+  mixer.addEventListener("finished", () => play("Idle"));
+  play(actions.Idle ? "Idle" : clips[0].name);
+}, undefined, (err) => { $("status").textContent = "failed to load mascot-animated.glb"; console.error(err); });
+
+function play(name) {
+  const next = actions[name]; if (!next) return;
+  const fade = parseFloat($("fade").value);
+  next.reset();
+  next.setLoop($("loop").checked || name === "Idle" ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+  next.clampWhenFinished = true;
+  next.enabled = true; next.setEffectiveWeight(1); next.play();
+  if (current && current !== next) current.crossFadeTo(next, fade, false);
+  current = next;
+  mixer.timeScale = parseFloat($("speed").value);
+  $("pause").textContent = "Pause"; $("pause").classList.remove("on");
+  document.querySelectorAll("#clips button").forEach((b) => b.classList.toggle("on", b.dataset.clip === name));
+}
+
+$("pause").onclick = () => {
+  if (!mixer) return;
+  const paused = mixer.timeScale === 0;
+  mixer.timeScale = paused ? parseFloat($("speed").value) : 0;
+  $("pause").textContent = paused ? "Pause" : "Resume";
+  $("pause").classList.toggle("on", !paused);
+};
+$("speed").oninput = (e) => { $("speedv").textContent = (+e.target.value).toFixed(1) + "×"; if (mixer && mixer.timeScale !== 0) mixer.timeScale = +e.target.value; };
+$("fade").oninput = (e) => { $("fadev").textContent = (+e.target.value).toFixed(2) + " s"; };
+$("loop").onchange = () => { if (current) play(current.getClip().name); };
+
+addEventListener("keydown", (e) => {
+  const n = parseInt(e.key, 10);
+  const btns = [...document.querySelectorAll("#clips button")];
+  if (n >= 1 && n <= btns.length) btns[n - 1].click();
+  if (e.code === "Space") { e.preventDefault(); $("pause").click(); }
+});
+addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
+});
+
+renderer.setAnimationLoop(() => {
+  const dt = clock.getDelta();
+  if (mixer) mixer.update(dt);
+  if (model && $("spin").checked) model.rotation.y += dt * 0.6;
+  controls.update();
+  if (current) $("status").textContent = `${current.getClip().name}  ${(current.time).toFixed(2)} / ${current.getClip().duration.toFixed(2)} s`;
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

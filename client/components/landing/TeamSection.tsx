@@ -10,7 +10,11 @@ import {
   useState,
 } from "react";
 import { landingCtaHref } from "./landingCta";
+import dynamic from "next/dynamic";
 import { ITeamMember, SocialImages, teamMembers } from "./Team";
+
+// The 3D mascot is the "one more cat on the team": browser-only three.js, loaded near the viewport.
+const Mascot3D = dynamic(() => import("./Mascot3D").then((m) => m.Mascot3D), { ssr: false });
 
 type Guild = "BUILD" | "GROWTH" | "LEGAL" | "MORALE";
 
@@ -744,6 +748,7 @@ export const TeamSection = ({ cta }: TeamSectionProps = {}) => {
             aria-hidden
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(90vw,720px)] 3xl:w-[1100px] aspect-[2/1] bg-[radial-gradient(ellipse_at_center,rgb(var(--tt-gold-400)/.22),transparent_65%)] pointer-events-none"
           />
+          <Mascot3D className="relative -mb-6 md:-mb-10 3xl:-mb-14 h-[220px] w-[220px] md:h-[300px] md:w-[300px] 3xl:h-[420px] 3xl:w-[420px]" />
           <p className="relative font-paws uppercase text-tt-cream glow text-balance leading-[1.15] [word-spacing:0.3em] text-p3 md:text-h6 3xl:text-h4">
             <span className="font-primary">…</span>and{" "}
             <span className="text-h5 md:text-h3 3xl:text-h2">one</span> more
