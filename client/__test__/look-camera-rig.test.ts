@@ -1,4 +1,4 @@
-import { canStepZoom, DEADZONE, FOLLOW_LERP, installCameraRig, SKY_TILES } from "@/components/Phaser/look/cameraRig";
+import { canStepZoom, controlsInsetCss, DEADZONE, FOLLOW_LERP, installCameraRig, SKY_TILES } from "@/components/Phaser/look/cameraRig";
 import { LOOK_RESIZE } from "@/components/Phaser/look/makeGameConfig";
 import { CANVAS_PIXEL_RATIO } from "@/components/Phaser/look/registry";
 
@@ -205,4 +205,50 @@ describe("installCameraRig", () => {
     gameEvents.emit(LOOK_RESIZE, {});
     expect(camera.zoom).toBe(3);
   });
+
+  it("lifts the target above the on-screen touch controls and lets the camera scroll below the map", () => {
+    // Phone portrait: controls cover the bottom 200 CSS px of an 844 px viewport.
+    const doc = fakeControlsDoc(844, [{ top: 644, bottom: 820, width: 300, height: 176 }]);
+    const g = globalThis as { document?: unknown };
+    const prev = g.document;
+    g.document = doc;
+    try {
+      const { scene, camera, events } = fakeScene({ width: 390, height: 844 }, 2);
+      const rig = installCameraRig(scene as never, { preset: "platformer", world, reducedMotion: false });
+      const before = camera.bounds![3];
+      const cat = { body: { velocity: { x: 0 } } };
+      rig.follow(cat as never);
+      events.emit("update");
+      // 200 CSS px at DPR 2 and zoom 2 = 200 world units; the target sits half of that higher.
+      expect(camera.followOffset.y).toBe(-100);
+      expect(camera.bounds![3]).toBe(before + 200);
+      // Re-applying does not stack.
+      events.emit("update");
+      expect(camera.followOffset.y).toBe(-100);
+      // A scene that sets its own y offset (Cupid's gate) keeps it; the lift is added on top.
+      camera.followOffset.y = 30;
+      events.emit("update");
+      expect(camera.followOffset.y).toBe(30 - 100);
+      events.emit("update");
+      expect(camera.followOffset.y).toBe(30 - 100);
+    } finally {
+      g.document = prev;
+    }
+  });
+
+  it("measures no inset without visible controls", () => {
+    expect(controlsInsetCss(undefined)).toBe(0);
+    expect(controlsInsetCss(fakeControlsDoc(844, [{ top: 0, bottom: 0, width: 0, height: 0 }]) as never)).toBe(0);
+    expect(controlsInsetCss(fakeControlsDoc(844, [{ top: 700, bottom: 820, width: 90, height: 120 }, { top: 600, bottom: 690, width: 70, height: 90 }]) as never)).toBe(244);
+  });
 });
+
+/** A document with a [data-mobile-controls] overlay whose children have the given rects. */
+function fakeControlsDoc(vh: number, rects: { top: number; bottom: number; width: number; height: number }[]) {
+  const el = (r: { top: number; bottom: number; width: number; height: number }) => ({ getBoundingClientRect: () => r });
+  const root = { ...el({ top: vh, bottom: vh, width: 0, height: 0 }), querySelectorAll: () => rects.map(el) };
+  return {
+    defaultView: { innerHeight: vh },
+    querySelector: (sel: string) => (sel === "[data-mobile-controls]" ? root : null),
+  };
+}

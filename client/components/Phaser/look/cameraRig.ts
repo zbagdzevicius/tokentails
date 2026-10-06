@@ -11,8 +11,12 @@
  *             (`step`), so a resize while a scene is zoomed in (the Cupid tutorial tour) re-picks
  *             `k` and keeps `k + step` instead of snapping back
  *
- * The look-ahead is added on top of any follow offset the scene sets itself (Cupid's gate
- * offset): the rig only ever removes what it added.
+ *   controls  on touch layouts the on-screen controls ([data-mobile-controls]) cover the bottom of
+ *             the view; the rig measures them, lets the camera scroll that far below the map and
+ *             frames the target in the clear area above them, so the cat is never hidden
+ *
+ * The look-ahead (x) and the controls lift (y) are added on top of any follow offset the scene
+ * sets itself (Cupid's gate offset): the rig only ever removes what it added.
  *
  * Only type imports from Phaser.
  */
@@ -26,6 +30,27 @@ export const FOLLOW_LERP = 0.12;
 export const DEADZONE = { x: 0.12, y: 0.22 };
 /** Look-ahead as a share of the view width, and how fast it eases (per frame). */
 export const LOOK_AHEAD = { share: 0.12, ease: 0.05, minSpeed: 20 };
+/** How often (ms) the on-screen controls are re-measured. */
+export const CONTROLS_MEASURE_MS = 400;
+
+/**
+ * Height in CSS px that the on-screen touch controls cover at the bottom of the viewport: from the
+ * highest visible control to the viewport bottom. 0 when there are none (desktop, hidden, no DOM).
+ */
+export function controlsInsetCss(doc: Document | undefined = typeof document === "undefined" ? undefined : document): number {
+  const root = doc?.querySelector<HTMLElement>("[data-mobile-controls]");
+  if (!root || !doc?.defaultView) return 0;
+  const vh = doc.defaultView.innerHeight;
+  let top = Infinity;
+  for (const el of [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))]) {
+    const r = el.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) continue; // hidden (display:none, lg:hidden) or empty
+    if (r.bottom <= 0 || r.top >= vh) continue;
+    top = Math.min(top, r.top);
+  }
+  return Number.isFinite(top) ? Math.max(0, Math.round(vh - top)) : 0;
+}
+
 /** Sky room above the top tile, in tiles. */
 export const SKY_TILES = 8;
 
@@ -84,11 +109,42 @@ export function installCameraRig(scene: Phaser.Scene, options: CameraRigOptions)
   const shown = () => Math.max(1, zoom + step);
 
   const view = () => ({ width: camera.width / camera.zoom, height: camera.height / camera.zoom });
+  /** World units the touch controls cover at the bottom of the view (0 without controls). */
+  let insetWorld = 0;
+  let insetMeasuredAt = -Infinity;
+  /** The y offset the rig last wrote and how much of it was the controls lift. */
+  let writtenY: number | null = null;
+  let appliedY = 0;
 
   const applyBounds = () => {
     if (!options.world) return;
     bounds = cameraBounds(options.world, view(), { skyMargin: SKY_TILES * TILE_SIZE });
+    // Room below the map for the controls, so the camera can lift the ground above them.
+    if (insetWorld > 0) bounds = { ...bounds, height: bounds.height + Math.ceil(insetWorld) };
     camera.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
+  };
+
+  const measureControls = (now: number) => {
+    if (now - insetMeasuredAt < CONTROLS_MEASURE_MS) return;
+    insetMeasuredAt = now;
+    const css = controlsInsetCss();
+    // CSS px -> world units: the camera maps world to backing pixels (zoom), backing = css * dpr.
+    const next = css > 0 ? (css * getCanvasPixelRatio(scene)) / camera.zoom : 0;
+    if (Math.abs(next - insetWorld) < 1) return;
+    insetWorld = Math.min(next, view().height * 0.45);
+    applyBounds();
+  };
+
+  const liftAboveControls = () => {
+    if (!target) return;
+    // Centre the target in the clear area above the controls: the camera centre sits half the
+    // inset below the target. followOffset is subtracted from the target, so the lift is negative.
+    const want = -Math.round(insetWorld / 2);
+    const current = camera.followOffset.y;
+    const base = writtenY !== null && current === writtenY ? current - appliedY : current;
+    camera.followOffset.y = base + want;
+    writtenY = base + want;
+    appliedY = want;
   };
 
   const applyDeadzone = () => {
@@ -110,6 +166,8 @@ export function installCameraRig(scene: Phaser.Scene, options: CameraRigOptions)
   applyBounds();
 
   const lookAhead = () => {
+    measureControls(scene.time?.now ?? Date.now());
+    liftAboveControls();
     const following = (camera as unknown as { _follow?: unknown })._follow;
     if (!target || options.reducedMotion || following !== target) return;
     const body = (target as unknown as { body?: { velocity?: { x: number } } }).body;
@@ -178,6 +236,8 @@ export function installCameraRig(scene: Phaser.Scene, options: CameraRigOptions)
       ahead = 0;
       applied = 0;
       written = null;
+      writtenY = null;
+      appliedY = 0;
       camera.startFollow(next, true, FOLLOW_LERP, FOLLOW_LERP);
       applyDeadzone();
     },

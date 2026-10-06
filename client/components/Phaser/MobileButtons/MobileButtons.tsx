@@ -7,7 +7,9 @@ export const MobileButtons: React.FC<{
 }> = ({ isHidden }: { isHidden: boolean }) => {
   return (
     <>
+      {/* data-mobile-controls: the camera rig measures this overlay so the cat is framed above it. */}
       <div
+        data-mobile-controls
         className={`pb-safe z-30 fixed bottom-6 left-0 right-0 w-full flex lg:hidden items-end justify-between ${
           isHidden ? "hidden" : ""
         }`}
