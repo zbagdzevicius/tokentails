@@ -46,14 +46,14 @@ Tempo is a payments chain, and Token Tails already takes card payments through S
 - ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/ in github.com/zbagdzevicius/tokentails).
 
 ## On-chain proof <!-- criterion: C1, C4 | limit: 800 -->
-Tempo mainnet: ShelterSplit at {SPLIT_ADDRESS}. The first TIP-20 memo payout to Pink Paw is transaction {TEMPO_TX}, and it is listed on the payouts page. Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Before the hackathon, and disclosed as prior work, the team shipped three Soroban contracts on Stellar mainnet [F-009] and ERC-721 contracts on SKALE testnet and mainnet [F-010].
+Tempo mainnet: ShelterSplit at 0x9978e60da2352a8de02852788d34bd95849a598d. The first TIP-20 memo payout to Pink Paw is transaction {TEMPO_TX}, and it is listed on the payouts page. Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Before the hackathon, and disclosed as prior work, the team shipped three Soroban contracts on Stellar mainnet [F-009] and ERC-721 contracts on SKALE testnet and mainnet [F-010].
 
 ## Other chains <!-- criterion: C1, C5 | limit: 800 -->
 <!-- Before submitting: router-deployments.json must hold the mainnet DonateRouters on Arbitrum and Base. -->
 This one submission also enters the Arbitrum, Base and Robinhood Chain tracks. Every chain runs the same ShelterSplit, from the same source and tests; only the payout token differs.
-- Arbitrum One: ShelterSplit at {ARB_SPLIT}, paying USDC.
-- Base: ShelterSplit at {BASE_SPLIT}, paying native USDC.
-- Robinhood Chain: ShelterSplit at {ROBINHOOD_SPLIT}. It has no USDC, so it pays USDG (Paxos), readable on robinhoodchain.blockscout.com; the payouts page never adds USDG to USDC.
+- Arbitrum One: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147, paying USDC.
+- Base: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147, paying native USDC.
+- Robinhood Chain: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147. It has no USDC, so it pays USDG (Paxos), readable on robinhoodchain.blockscout.com; the payouts page never adds USDG to USDC.
 On Arbitrum and Base a DonateRouter takes one-signature USDC gifts (EIP-3009); it opens to the public once Pink Paw holds its own key. Tempo uses TIP-20 memos instead.
 
 ## Traction <!-- criterion: C2, C6 | limit: 1000 -->

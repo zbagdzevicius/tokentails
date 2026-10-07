@@ -138,5 +138,83 @@
       "0x5f5099e0cbbe7e7434fac2456d5b0a1ef4f2c787046e976ae617dc6a68f68f36"
     ],
     "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol; EIP-3009 probed read-only (authorizationState, DOMAIN_SEPARATOR, EIP-712 name \"USDC\" version \"2\"); proof: one signed 0.1 USDC ReceiveWithAuthorization gift, Disbursed to Pink Paw"
+  },
+  {
+    "chainId": 5042,
+    "network": "mainnet",
+    "router": "0x937f13ce28294011567615330dbcb859a06a0bba",
+    "split": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "usdc": "0x3600000000000000000000000000000000000000",
+    "deployTx": "0x94802ba0c6fb32b353ddfb0e71132e620d0ae8e4b30ffa3c3accfb8c579ddae1",
+    "deployedAt": "2026-10-07T16:49:24Z",
+    "chain": "arc",
+    "symbol": "USDC",
+    "fromBlock": 24761266,
+    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record"
+  },
+  {
+    "chainId": 42161,
+    "network": "mainnet",
+    "router": "0xb3adf1220d7d3835c2af1c194ff745d0d33bd052",
+    "split": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "usdc": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    "deployTx": "0x7f90778198486b4b43539f527670908451388213d72f260e360ee12497e8dc9b",
+    "deployedAt": "2026-10-07T16:49:33Z",
+    "chain": "arbitrum",
+    "symbol": "USDC",
+    "fromBlock": 512623488,
+    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record"
+  },
+  {
+    "chainId": 43114,
+    "network": "mainnet",
+    "router": "0xb3adf1220d7d3835c2af1c194ff745d0d33bd052",
+    "split": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "usdc": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+    "deployTx": "0x40929737ac6261ebb06d4bd5a646c9cf3d4e06f40586de34defa4ad61bd30a9c",
+    "deployedAt": "2026-10-07T16:49:38Z",
+    "chain": "avalanche",
+    "symbol": "USDC",
+    "fromBlock": 96969615,
+    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record"
+  },
+  {
+    "chainId": 8453,
+    "network": "mainnet",
+    "router": "0xb3adf1220d7d3835c2af1c194ff745d0d33bd052",
+    "split": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "deployTx": "0xb01307225cb1286b34ffc1eabbc1949ddf3ebf9ce1e819df2ae91115f082bea3",
+    "deployedAt": "2026-10-07T16:49:46Z",
+    "chain": "base",
+    "symbol": "USDC",
+    "fromBlock": 52301220,
+    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record"
+  },
+  {
+    "chainId": 143,
+    "network": "mainnet",
+    "router": "0xb3adf1220d7d3835c2af1c194ff745d0d33bd052",
+    "split": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "usdc": "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
+    "deployTx": "0x566c8a69d36759de206a8fe8c20770518ec66d72e1dc0ba94b348dd66a6fd093",
+    "deployedAt": "2026-10-07T16:49:52Z",
+    "chain": "monad",
+    "symbol": "USDC",
+    "fromBlock": 111375853,
+    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record"
+  },
+  {
+    "chainId": 5042,
+    "network": "mainnet",
+    "router": "0x683d66d89eaa7460d3a12337cdf8185fae37dfbd",
+    "split": "0xb3adf1220d7d3835c2af1c194ff745d0d33bd052",
+    "usdc": "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1",
+    "deployTx": "0x18ae224e5027e140fb6fe0bd221d42b3022cc3b9267e0a82d78780f70d9ce706",
+    "deployedAt": "2026-10-07T16:49:58Z",
+    "chain": "arc",
+    "symbol": "EURC",
+    "fromBlock": 24761333,
+    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record"
   }
 ]

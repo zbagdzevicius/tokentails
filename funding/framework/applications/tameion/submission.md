@@ -1,6 +1,6 @@
 # Tameion Agents Hackathon (Canteen x Circle x Arc) — submission
 
-_Generated 2026-10-05T15:57:05.963Z by `fund a:submission tameion` from draft.md, the program profile,
+_Generated 2026-10-07T19:29:52.071Z by `fund a:submission tameion` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -30,7 +30,7 @@ On Arc mainnet the endpoint opens once Pink Paw holds its own key (its signed cl
 
 ## How it works
 
-- ShelterSplit on Arc at {SPLIT_ADDRESS}: a registry of shelter wallets, names and shares in basis points. donate(memo) splits the USDC sent with the call across every active shelter in the same transaction and emits one public event per payout. The contract never holds funds between calls. An ERC-20 path, disburse(), does the same through the USDC token interface, with separate events so the two decimal scales never mix.
+- ShelterSplit on Arc at 0x457c89e10a6e66633eda5bf82fd086febb5db147: a registry of shelter wallets, names and shares in basis points. donate(memo) splits the USDC sent with the call across every active shelter in the same transaction and emits one public event per payout. The contract never holds funds between calls. An ERC-20 path, disburse(), does the same through the USDC token interface, with separate events so the two decimal scales never mix.
 - Sponsored treats, the human-facing twin: after a win in Catnip Heist (https://tokentails.com/heist) a signed-in player (anti-abuse: verified email, account older than a day) taps "Send Pink Paw a rescue treat", and a backend wallet with a small float pays a tiny gift, once a day per player, from a capped daily budget. Each payout gets a receipt page and a share card. First treat: {ARC_TX}.
 - The payouts page at https://tokentails.com/shelter-payouts reads chain events, not our database.
 - Safety: reentrancy guard, pause, two-step ownership, caps, a Foundry suite with fuzzing, and backend tests for the receipt check and replay protection.
@@ -54,10 +54,12 @@ Most agent-payment demos pay a seller. Here the seller's revenue is the donation
 
 ## Arc deployment
 
-Arc mainnet: ShelterSplit at {SPLIT_ADDRESS}. The first sponsored treat to Pink Paw is transaction {ARC_TX}, listed on the payouts page. Disclosure: Pink Paw (Rožinė pėdutė) is the first shelter, and its receiving wallet was created by and is held by Token Tails on behalf of the shelter until handover. Until then Token Tails controls the funds that reach that wallet; the contract itself holds nothing. Prior work, before the window: three Soroban contracts on Stellar mainnet, and ShelterSplit's ERC-20 split core, written from 2026-09-25, two days before the window opened. We also entered this work in Arc Microgrants.
+Arc mainnet: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147. The first sponsored treat to Pink Paw is transaction {ARC_TX}, listed on the payouts page. Disclosure: Pink Paw (Rožinė pėdutė) is the first shelter, and its receiving wallet was created by and is held by Token Tails on behalf of the shelter until handover. Until then Token Tails controls the funds that reach that wallet; the contract itself holds nothing. Prior work, before the window: three Soroban contracts on Stellar mainnet, and ShelterSplit's ERC-20 split core, written from 2026-09-25, two days before the window opened. We also entered this work in Arc Microgrants.
 
 | Network | Contract | Transaction | Shelter payouts | Status |
 |---|---|---|---|---|
+| Arc mainnet (chain 5042) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://explorer.arc.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://explorer.arc.io/tx/0xa88dca321dba7d2669b45defd8f6714f1dac29ad6e16bd47468e0d3a93aa7b1a) | [payout 1](https://explorer.arc.io/tx/0xd26f6e938afe5e6b8204c816a91927b19f73e0837ff376f06bb05659b260d68d) | verified on-chain, source verified |
+| Arc mainnet (chain 5042) | [`0xb3adf1220d7d3835c2af1c194ff745d0d33bd052`](https://explorer.arc.io/address/0xb3adf1220d7d3835c2af1c194ff745d0d33bd052) | [deploy tx](https://explorer.arc.io/tx/0xc9e01275524bda5860b4bfd95af13bc0f9db8f384929eeb89d0b72c0af59e469) | [payout 1](https://explorer.arc.io/tx/0x56d7f37ba0608f7c610d45e4c1bca9d961218aa49f99fbcd095f635b9c62481f) | verified on-chain, source verified |
 | Arc testnet (chain 5042002) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://explorer.testnet.arc.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://explorer.testnet.arc.io/tx/0x6af0fe0eae4abd65d8560cf4ed14ada55f2debd2e14e9306d45d81a271d0ede8) | [payout 1](https://explorer.testnet.arc.io/tx/0xa90f97134ab92efa5ade8c6f1c6eddcc9bded100a6c1bc2a5b1b91ba6da4360a) | verified on-chain, source verified |
 | Arc testnet (chain 5042002) | [`0x937f13ce28294011567615330dbcb859a06a0bba`](https://explorer.testnet.arc.io/address/0x937f13ce28294011567615330dbcb859a06a0bba) | [deploy tx](https://explorer.testnet.arc.io/tx/0xc63d3c5786aaf15474c0d74c5c65f6e0dcd33d232bdbbee0141a83313a1e59a3) | [payout 1](https://explorer.testnet.arc.io/tx/0xc68ceb5a3633b78cd1681c81dde1ff310ca04f1f378003497acc906eb88f387b) | verified on-chain, source verified |
 

@@ -1,1 +1,104 @@
-[]
+[
+  {
+    "contract": "ShelterSplit",
+    "chain": "arc",
+    "network": "mainnet",
+    "chainId": 5042,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0xa88dca321dba7d2669b45defd8f6714f1dac29ad6e16bd47468e0d3a93aa7b1a",
+    "token": "USDC",
+    "proofTxs": [
+      "0xd26f6e938afe5e6b8204c816a91927b19f73e0837ff376f06bb05659b260d68d"
+    ]
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "base",
+    "network": "mainnet",
+    "chainId": 8453,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0x97459e3c7b00c9d1a0aa0ecb9a6cae6bf82884549c4bc16b678d4e83d634c3ab",
+    "token": "USDC",
+    "proofTxs": [
+      "0x82867db58291b7d6ebba42f35b30d93974ea71f3dec78a0864f97c64522fe780"
+    ]
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "arbitrum",
+    "network": "mainnet",
+    "chainId": 42161,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0xf094217e60154b0da6ad74fddf49c65b27002f2e1e1d78eed5acff64300481d4",
+    "token": "USDC",
+    "proofTxs": [
+      "0x74f1eaf7fe3494608f1e80d92afc27c1035b8eaf34e3bd190695f1da46929216"
+    ]
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "robinhood",
+    "network": "mainnet",
+    "chainId": 4663,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0x8a6b3d87cfb893c78ac533dfc49c78745c4e7cac5aa3fbbe6516feb1eaf70ee7",
+    "token": "USDG",
+    "symbol": "USDG",
+    "decimals": 6,
+    "proofTxs": [
+      "0x4902093822e89d56b49b1168f7c0bf702f0a2cf9b578fe54eb8efdb3a49ad377"
+    ]
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "avalanche",
+    "network": "mainnet",
+    "chainId": 43114,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0xe701d3c22300fd10965065c16040f886d9fd91808e08a0460647d74b550bfd50",
+    "token": "USDC",
+    "proofTxs": [
+      "0x624cea2121311397c688384535ac700cabbd8f36d0523f2134edb133756b17b7"
+    ]
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "monad",
+    "network": "mainnet",
+    "chainId": 143,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0x62cf2ba31e081bade2af850f66970feaf8a4ac28e9ec7eb8a74516ab454c496c",
+    "token": "USDC",
+    "proofTxs": [
+      "0xd5502f608d776bd2286da096d666f4073d2b5872dcffc575bde95e3b537999f5"
+    ]
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "arc",
+    "network": "mainnet",
+    "chainId": 5042,
+    "address": "0xb3adf1220d7d3835c2af1c194ff745d0d33bd052",
+    "tx": "0xc9e01275524bda5860b4bfd95af13bc0f9db8f384929eeb89d0b72c0af59e469",
+    "token": "EURC",
+    "symbol": "EURC",
+    "decimals": 6,
+    "proofTxs": [
+      "0x56d7f37ba0608f7c610d45e4c1bca9d961218aa49f99fbcd095f635b9c62481f"
+    ]
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "tempo",
+    "network": "mainnet",
+    "chainId": 4217,
+    "address": "0x9978e60da2352a8de02852788d34bd95849a598d",
+    "tx": "0x94a1ad9d769c411032950013513741653652b6bedef6e78a0762f9d73dee4953",
+    "token": "USDC.e",
+    "symbol": "USDC.e",
+    "decimals": 6,
+    "proofTxs": [
+      "0xdc25ffea4a1f97b25c5d3cb5827919bd998f37c676867dd262bcf0158e7d3d33"
+    ]
+  }
+]

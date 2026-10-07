@@ -83,8 +83,30 @@ export const CHAINS: Record<string, ChainWallets> = {
             decimals: 6,
             address: '0x3600000000000000000000000000000000000000',
         },
-        split: null,
-        otherSplits: [],
+        split: {
+            address: '0x457c89e10a6e66633eda5bf82fd086febb5db147',
+            token: {
+                symbol: 'USDC',
+                decimals: 6,
+                address: '0x3600000000000000000000000000000000000000',
+            },
+            deployTx: '0xa88dca321dba7d2669b45defd8f6714f1dac29ad6e16bd47468e0d3a93aa7b1a',
+            router: '0x937f13ce28294011567615330dbcb859a06a0bba',
+            routerFromBlock: 24761266,
+        },
+        otherSplits: [
+            {
+                address: '0xb3adf1220d7d3835c2af1c194ff745d0d33bd052',
+                token: {
+                    symbol: 'EURC',
+                    decimals: 6,
+                    address: '0xbef5f6d51cb62b58e6a8f77868681825c6fe21c1',
+                },
+                deployTx: '0xc9e01275524bda5860b4bfd95af13bc0f9db8f384929eeb89d0b72c0af59e469',
+                router: '0x683d66d89eaa7460d3a12337cdf8185fae37dfbd',
+                routerFromBlock: 24761333,
+            },
+        ],
     },
     arcTestnet: {
         name: 'Arc Testnet',
@@ -134,7 +156,17 @@ export const CHAINS: Record<string, ChainWallets> = {
             decimals: 6,
             address: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
         },
-        split: null,
+        split: {
+            address: '0x457c89e10a6e66633eda5bf82fd086febb5db147',
+            token: {
+                symbol: 'USDC',
+                decimals: 6,
+                address: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
+            },
+            deployTx: '0x97459e3c7b00c9d1a0aa0ecb9a6cae6bf82884549c4bc16b678d4e83d634c3ab',
+            router: '0xb3adf1220d7d3835c2af1c194ff745d0d33bd052',
+            routerFromBlock: 52301220,
+        },
         otherSplits: [],
     },
     baseTestnet: {
@@ -183,7 +215,17 @@ export const CHAINS: Record<string, ChainWallets> = {
             decimals: 6,
             address: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
         },
-        split: null,
+        split: {
+            address: '0x457c89e10a6e66633eda5bf82fd086febb5db147',
+            token: {
+                symbol: 'USDC',
+                decimals: 6,
+                address: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+            },
+            deployTx: '0xf094217e60154b0da6ad74fddf49c65b27002f2e1e1d78eed5acff64300481d4',
+            router: '0xb3adf1220d7d3835c2af1c194ff745d0d33bd052',
+            routerFromBlock: 512623488,
+        },
         otherSplits: [],
     },
     arbitrumTestnet: {
@@ -221,7 +263,15 @@ export const CHAINS: Record<string, ChainWallets> = {
             decimals: 6,
             address: '0x5fc5360d0400a0fd4f2af552add042d716f1d168',
         },
-        split: null,
+        split: {
+            address: '0x457c89e10a6e66633eda5bf82fd086febb5db147',
+            token: {
+                symbol: 'USDG',
+                decimals: 6,
+                address: '0x5fc5360d0400a0fd4f2af552add042d716f1d168',
+            },
+            deployTx: '0x8a6b3d87cfb893c78ac533dfc49c78745c4e7cac5aa3fbbe6516feb1eaf70ee7',
+        },
         otherSplits: [],
     },
     robinhoodTestnet: {
@@ -257,7 +307,17 @@ export const CHAINS: Record<string, ChainWallets> = {
             decimals: 6,
             address: '0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e',
         },
-        split: null,
+        split: {
+            address: '0x457c89e10a6e66633eda5bf82fd086febb5db147',
+            token: {
+                symbol: 'USDC',
+                decimals: 6,
+                address: '0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e',
+            },
+            deployTx: '0xe701d3c22300fd10965065c16040f886d9fd91808e08a0460647d74b550bfd50',
+            router: '0xb3adf1220d7d3835c2af1c194ff745d0d33bd052',
+            routerFromBlock: 96969615,
+        },
         otherSplits: [],
     },
     avalancheTestnet: {
@@ -316,7 +376,15 @@ export const CHAINS: Record<string, ChainWallets> = {
             decimals: 6,
             address: '0x20c000000000000000000000b9537d11c60e8b50',
         },
-        split: null,
+        split: {
+            address: '0x9978e60da2352a8de02852788d34bd95849a598d',
+            token: {
+                symbol: 'USDC.e',
+                decimals: 6,
+                address: '0x20c000000000000000000000b9537d11c60e8b50',
+            },
+            deployTx: '0x94a1ad9d769c411032950013513741653652b6bedef6e78a0762f9d73dee4953',
+        },
         otherSplits: [],
     },
     tempoTestnet: {
@@ -353,7 +421,17 @@ export const CHAINS: Record<string, ChainWallets> = {
             decimals: 6,
             address: '0x754704bc059f8c67012fed69bc8a327a5aafb603',
         },
-        split: null,
+        split: {
+            address: '0x457c89e10a6e66633eda5bf82fd086febb5db147',
+            token: {
+                symbol: 'USDC',
+                decimals: 6,
+                address: '0x754704bc059f8c67012fed69bc8a327a5aafb603',
+            },
+            deployTx: '0x62cf2ba31e081bade2af850f66970feaf8a4ac28e9ec7eb8a74516ab454c496c',
+            router: '0xb3adf1220d7d3835c2af1c194ff745d0d33bd052',
+            routerFromBlock: 111375853,
+        },
         otherSplits: [],
     },
     monadTestnet: {

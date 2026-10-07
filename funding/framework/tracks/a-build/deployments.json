@@ -231,5 +231,173 @@
     "sourceVerified": true,
     "sourceVerifiedAt": "2026-10-04T14:16:03.992Z",
     "sourceVerifier": "sourcify"
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "arc",
+    "network": "mainnet",
+    "chainId": 5042,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0xa88dca321dba7d2669b45defd8f6714f1dac29ad6e16bd47468e0d3a93aa7b1a",
+    "token": "USDC",
+    "recorded": "2026-10-07T16:47:52.443Z",
+    "verified": true,
+    "note": "recorded by a:ingest from the Foundry broadcast",
+    "proofTxs": [
+      "0xd26f6e938afe5e6b8204c816a91927b19f73e0837ff376f06bb05659b260d68d"
+    ],
+    "verifiedAt": "2026-10-07T16:47:52.854Z",
+    "codeBytes": 11199,
+    "codeSha256": "8d3b11ee945077afc0f5b2912ba8cef09723d6a5a8e290eab439d686cf854e9a",
+    "sourceVerified": true,
+    "sourceVerifiedAt": "2026-10-07T16:48:11.393Z",
+    "sourceVerifier": "sourcify"
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "base",
+    "network": "mainnet",
+    "chainId": 8453,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0x97459e3c7b00c9d1a0aa0ecb9a6cae6bf82884549c4bc16b678d4e83d634c3ab",
+    "token": "USDC",
+    "recorded": "2026-10-07T16:47:52.444Z",
+    "verified": true,
+    "note": "recorded by a:ingest from the Foundry broadcast",
+    "proofTxs": [
+      "0x82867db58291b7d6ebba42f35b30d93974ea71f3dec78a0864f97c64522fe780"
+    ],
+    "verifiedAt": "2026-10-07T16:47:53.469Z",
+    "codeBytes": 11199,
+    "codeSha256": "ce077796095e5b51072f5c8f71a28f5f32ba4a42c3c00a8cbe8bc11c6c6ecaa9",
+    "sourceVerified": true,
+    "sourceVerifiedAt": "2026-10-07T19:28:30.550Z",
+    "sourceVerifier": "sourcify"
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "arbitrum",
+    "network": "mainnet",
+    "chainId": 42161,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0xf094217e60154b0da6ad74fddf49c65b27002f2e1e1d78eed5acff64300481d4",
+    "token": "USDC",
+    "recorded": "2026-10-07T16:47:52.444Z",
+    "verified": true,
+    "note": "recorded by a:ingest from the Foundry broadcast",
+    "proofTxs": [
+      "0x74f1eaf7fe3494608f1e80d92afc27c1035b8eaf34e3bd190695f1da46929216"
+    ],
+    "verifiedAt": "2026-10-07T16:47:54.015Z",
+    "codeBytes": 11199,
+    "codeSha256": "1c2a87b2e67fcd2f3106a6f0a5b00723a73b427b0149941191b5ef13f1c01c98",
+    "sourceVerified": true,
+    "sourceVerifiedAt": "2026-10-07T19:28:46.401Z",
+    "sourceVerifier": "sourcify"
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "robinhood",
+    "network": "mainnet",
+    "chainId": 4663,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0x8a6b3d87cfb893c78ac533dfc49c78745c4e7cac5aa3fbbe6516feb1eaf70ee7",
+    "token": "USDG",
+    "recorded": "2026-10-07T16:47:52.445Z",
+    "verified": true,
+    "note": "recorded by a:ingest from the Foundry broadcast",
+    "proofTxs": [
+      "0x4902093822e89d56b49b1168f7c0bf702f0a2cf9b578fe54eb8efdb3a49ad377"
+    ],
+    "verifiedAt": "2026-10-07T16:47:54.604Z",
+    "codeBytes": 11199,
+    "codeSha256": "871d2b469dad62173a24eaa2d665eef66accdcf5dde7f34441dfcce48b28362e",
+    "sourceVerified": true,
+    "sourceVerifiedAt": "2026-10-07T16:48:28.264Z",
+    "sourceVerifier": "sourcify"
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "avalanche",
+    "network": "mainnet",
+    "chainId": 43114,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0xe701d3c22300fd10965065c16040f886d9fd91808e08a0460647d74b550bfd50",
+    "token": "USDC",
+    "recorded": "2026-10-07T16:47:52.446Z",
+    "verified": true,
+    "note": "recorded by a:ingest from the Foundry broadcast",
+    "proofTxs": [
+      "0x624cea2121311397c688384535ac700cabbd8f36d0523f2134edb133756b17b7"
+    ],
+    "verifiedAt": "2026-10-07T16:47:54.925Z",
+    "codeBytes": 11199,
+    "codeSha256": "b5e5af3e90bc45c44764c0009e069851ad75e647c0fb8a85d3c0a9b505d53d22",
+    "sourceVerified": true,
+    "sourceVerifiedAt": "2026-10-07T16:48:29.205Z",
+    "sourceVerifier": "etherscan"
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "monad",
+    "network": "mainnet",
+    "chainId": 143,
+    "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "tx": "0x62cf2ba31e081bade2af850f66970feaf8a4ac28e9ec7eb8a74516ab454c496c",
+    "token": "USDC",
+    "recorded": "2026-10-07T16:47:52.447Z",
+    "verified": true,
+    "note": "recorded by a:ingest from the Foundry broadcast",
+    "proofTxs": [
+      "0xd5502f608d776bd2286da096d666f4073d2b5872dcffc575bde95e3b537999f5"
+    ],
+    "verifiedAt": "2026-10-07T16:47:55.297Z",
+    "codeBytes": 11199,
+    "codeSha256": "6b59ddea02d785296b0cfdfd5a16abcf5d46930dfa6cc85eb94dc65b6c6d3b13",
+    "sourceVerified": true,
+    "sourceVerifiedAt": "2026-10-07T16:48:45.134Z",
+    "sourceVerifier": "sourcify"
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "arc",
+    "network": "mainnet",
+    "chainId": 5042,
+    "address": "0xb3adf1220d7d3835c2af1c194ff745d0d33bd052",
+    "tx": "0xc9e01275524bda5860b4bfd95af13bc0f9db8f384929eeb89d0b72c0af59e469",
+    "token": "EURC",
+    "recorded": "2026-10-07T16:49:00.361Z",
+    "verified": true,
+    "note": "recorded by a:ingest from the Foundry broadcast",
+    "proofTxs": [
+      "0x56d7f37ba0608f7c610d45e4c1bca9d961218aa49f99fbcd095f635b9c62481f"
+    ],
+    "verifiedAt": "2026-10-07T16:49:00.763Z",
+    "codeBytes": 11199,
+    "codeSha256": "9d54ca57e7c107e258005b4af7fb1f35b1169de8b8dbea0a8b2806f0bc3059d1",
+    "sourceVerified": true,
+    "sourceVerifiedAt": "2026-10-07T16:49:17.482Z",
+    "sourceVerifier": "sourcify"
+  },
+  {
+    "contract": "ShelterSplit",
+    "chain": "tempo",
+    "network": "mainnet",
+    "chainId": 4217,
+    "address": "0x9978e60da2352a8de02852788d34bd95849a598d",
+    "tx": "0x94a1ad9d769c411032950013513741653652b6bedef6e78a0762f9d73dee4953",
+    "token": "USDC.e",
+    "recorded": "2026-10-07T19:28:29.132Z",
+    "verified": true,
+    "note": "recorded by a:ingest from the Foundry broadcast",
+    "proofTxs": [
+      "0xdc25ffea4a1f97b25c5d3cb5827919bd998f37c676867dd262bcf0158e7d3d33"
+    ],
+    "verifiedAt": "2026-10-07T19:28:30.024Z",
+    "codeBytes": 11199,
+    "codeSha256": "902e91d7d3b39202a225fd17e1670506b58a11dbb444b1a148c927d3dc3e6a69",
+    "sourceVerified": true,
+    "sourceVerifiedAt": "2026-10-07T19:29:04.840Z",
+    "sourceVerifier": "sourcify"
   }
 ]

@@ -1,6 +1,6 @@
 # Monad Metropolis online hackathon (Consumer Products & Payments track) — submission
 
-_Generated 2026-10-05T15:57:24.243Z by `fund a:submission monad-metropolis` from draft.md, the program profile,
+_Generated 2026-10-07T19:29:52.069Z by `fund a:submission monad-metropolis` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -34,9 +34,9 @@ The player never touches a wallet: purchases stay card or in-app payments.
 
 ## How it works
 
-- On {MONAD_NETWORK}, ShelterSplit at {MONAD_SPLIT} pays USDC with disburse(amount, memo): it pulls the payment, splits it by basis points and sends rounding dust to a treasury. Fast blocks and low fees settle a small gift before the player leaves the screen.
+- On Monad, ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147 pays USDC with disburse(amount, memo): it pulls the payment, splits it by basis points and sends rounding dust to a treasury. Fast blocks and low fees settle a small gift before the player leaves the screen.
 - Safety: reentrancy guard, pause, two-step ownership, safe transfers, caps on shelters and memo length. Foundry tests cover splits, dust, access control, reentrancy and fuzzing.
-- The give flow runs on Arc at {SPLIT_ADDRESS}: a backend wallet with a small float pays, with a memo that holds no personal data. First treat: {ARC_TX}. The same backend pays treats in USDC on Monad testnet through disburse().
+- The give flow runs on Arc at 0x457c89e10a6e66633eda5bf82fd086febb5db147: a backend wallet with a small float pays, with a memo that holds no personal data. First treat: {ARC_TX}. The same backend pays treats in USDC on Monad testnet through disburse().
 - Agent payments: our onchain-receipt scheme (memo x402:<nonce>, checked over RPC, accepted once) on every chain with a split, Monad included, plus standard x402 exact. On mainnet: only once Pink Paw holds its own key.
 - Donor gifts: an ownerless DonateRouter takes a one-signature USDC gift (EIP-3009, which Circle USDC on Monad supports) and reverts if any share would reach the treasury. Live on Monad testnet; off for the public until handover.
 - Trust model: the chain proves funds reached the registered wallet, not who controls it.
@@ -44,10 +44,11 @@ The player never touches a wallet: purchases stay card or in-app payments.
 
 ## Deployment
 
-{MONAD_NETWORK}: ShelterSplit at {MONAD_SPLIT}, source verified. Monad testnet (test coins): a 1 USDC payout, a 0.01 MON native gift and a one-signature 0.1 USDC router gift, all to Pink Paw. Arc: ShelterSplit at {SPLIT_ADDRESS}, first sponsored treat {ARC_TX}, listed on the payouts page. Disclosure: Pink Paw (Rožinė pėdutė) is the first shelter, and its receiving wallet is held by Token Tails on behalf of the shelter until handover. Until then Token Tails controls the funds that reach that wallet; the contract itself holds nothing. Prior work, before the window and not submitted: three Soroban contracts on Stellar mainnet.
+Monad: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147, source verified. Monad testnet (test coins): a 1 USDC payout, a 0.01 MON native gift and a one-signature 0.1 USDC router gift, all to Pink Paw. Arc: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147, first sponsored treat {ARC_TX}, listed on the payouts page. Disclosure: Pink Paw (Rožinė pėdutė) is the first shelter, and its receiving wallet is held by Token Tails on behalf of the shelter until handover. Until then Token Tails controls the funds that reach that wallet; the contract itself holds nothing. Prior work, before the window and not submitted: three Soroban contracts on Stellar mainnet.
 
 | Network | Contract | Transaction | Shelter payouts | Status |
 |---|---|---|---|---|
+| Monad mainnet (chain 143) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://monadvision.com/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://monadvision.com/tx/0x62cf2ba31e081bade2af850f66970feaf8a4ac28e9ec7eb8a74516ab454c496c) | [payout 1](https://monadvision.com/tx/0xd5502f608d776bd2286da096d666f4073d2b5872dcffc575bde95e3b537999f5) | verified on-chain, source verified |
 | Monad testnet (chain 10143) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://testnet.monadvision.com/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://testnet.monadvision.com/tx/0x91108a6f79c8da351b5caa39875b497808b4a423580891d480d25cf27b0c0489) | [payout 1](https://testnet.monadvision.com/tx/0x6f360be3884051af5e2ae367bf7d66ae095808110756b3fa740a203ef474a556) | verified on-chain, source verified |
 
 ## Build evidence

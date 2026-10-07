@@ -1,6 +1,6 @@
 # Arc Microgrants — submission
 
-_Generated 2026-10-05T15:57:05.857Z by `fund a:submission arc-microgrants` from draft.md, the program profile,
+_Generated 2026-10-07T19:29:52.065Z by `fund a:submission arc-microgrants` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -34,10 +34,12 @@ ShelterSplit splits native USDC on Arc as it arrives and pays each registered sh
 
 ## Arc mainnet deployment
 
-Arc mainnet: ShelterSplit (USDC) at {SPLIT_ADDRESS} and ShelterSplit (EURC) at {EURC_SPLIT_ADDRESS}. The first payout to Pink Paw is transaction {ARC_PROOF_TX}, a Disbursed event anyone can look up. Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Every payout into it stays public, before and after the handover. The team has shipped production contracts before: three Soroban contracts on Stellar mainnet, and ERC-721 contracts on SKALE testnet and mainnet.
+Arc mainnet: ShelterSplit (USDC) at 0x457c89e10a6e66633eda5bf82fd086febb5db147 and ShelterSplit (EURC) at 0xb3adf1220d7d3835c2af1c194ff745d0d33bd052. The first payout to Pink Paw is transaction 0xd26f6e938afe5e6b8204c816a91927b19f73e0837ff376f06bb05659b260d68d, a Disbursed event anyone can look up. Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Every payout into it stays public, before and after the handover. The team has shipped production contracts before: three Soroban contracts on Stellar mainnet, and ERC-721 contracts on SKALE testnet and mainnet.
 
 | Network | Contract | Transaction | Shelter payouts | Status |
 |---|---|---|---|---|
+| Arc mainnet (chain 5042) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://explorer.arc.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://explorer.arc.io/tx/0xa88dca321dba7d2669b45defd8f6714f1dac29ad6e16bd47468e0d3a93aa7b1a) | [payout 1](https://explorer.arc.io/tx/0xd26f6e938afe5e6b8204c816a91927b19f73e0837ff376f06bb05659b260d68d) | verified on-chain, source verified |
+| Arc mainnet (chain 5042) | [`0xb3adf1220d7d3835c2af1c194ff745d0d33bd052`](https://explorer.arc.io/address/0xb3adf1220d7d3835c2af1c194ff745d0d33bd052) | [deploy tx](https://explorer.arc.io/tx/0xc9e01275524bda5860b4bfd95af13bc0f9db8f384929eeb89d0b72c0af59e469) | [payout 1](https://explorer.arc.io/tx/0x56d7f37ba0608f7c610d45e4c1bca9d961218aa49f99fbcd095f635b9c62481f) | verified on-chain, source verified |
 | Arc testnet (chain 5042002) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://explorer.testnet.arc.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://explorer.testnet.arc.io/tx/0x6af0fe0eae4abd65d8560cf4ed14ada55f2debd2e14e9306d45d81a271d0ede8) | [payout 1](https://explorer.testnet.arc.io/tx/0xa90f97134ab92efa5ade8c6f1c6eddcc9bded100a6c1bc2a5b1b91ba6da4360a) | verified on-chain, source verified |
 | Arc testnet (chain 5042002) | [`0x937f13ce28294011567615330dbcb859a06a0bba`](https://explorer.testnet.arc.io/address/0x937f13ce28294011567615330dbcb859a06a0bba) | [deploy tx](https://explorer.testnet.arc.io/tx/0xc63d3c5786aaf15474c0d74c5c65f6e0dcd33d232bdbbee0141a83313a1e59a3) | [payout 1](https://explorer.testnet.arc.io/tx/0xc68ceb5a3633b78cd1681c81dde1ff310ca04f1f378003497acc906eb88f387b) | verified on-chain, source verified |
 
