@@ -41,7 +41,7 @@
       "base": {
         "nativeSymbol": "ETH",
         "gasPerTransfer": "0.00002",
-        "deployer": { "native": "0.00063", "tokens": { "USDC": "0.1" }, "reason": "ShelterSplit + DonateRouter deploys and the proof (~0.00004 ETH at 1.5x) plus the 0.0005 ETH OP-stack L1 data-fee allowance, the 0.1 USDC proof payout" },
+        "deployer": { "native": "0.0003", "tokens": { "USDC": "0.1" }, "reason": "ShelterSplit + DonateRouter deploys and the proof (~0.00004 ETH at 1.5x) plus a 0.00026 ETH L1 data-fee allowance (measured L1 fee per Base deploy ~3.4e-7 ETH; lowered Oct 7 to the 0.0004 ETH actually sent), the 0.1 USDC proof payout" },
         "donatehot": { "native": "0.00003", "tokens": { "USDC": "0.1" }, "reason": "treats: 0.1 USDC float (10 treats) plus gas and L1 fees for about 10 txs" }
       },
       "robinhood": {
