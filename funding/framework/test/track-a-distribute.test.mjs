@@ -406,8 +406,8 @@ test('the committed mainnet plan is the minimal profile: per-chain balance check
   assert.deepEqual(r.problems, []);
   // The table on FUNDING-RUN.html and USER-TODAY.md (Tempo's USDC is USDC.e).
   assert.deepEqual(need(r), {
-    arc: { USDC: '0.7', EURC: '0.1' },
-    tempo: { pathUSD: '0.15', USDC: '0.3' },
+    arc: { USDC: '5', EURC: '0.1' },
+    tempo: { pathUSD: '0.15', USDC: '3.2' },
     arbitrum: { ETH: '0.0004', USDC: '0.2' },
     avalanche: { AVAX: '0.075', USDC: '0.2' },
     base: { ETH: '0.0007', USDC: '0.2' },

@@ -92,27 +92,34 @@ If they create their own wallet before the wave, put that address in `PROOF_SHEL
 **a. Send everything to the deployer** `0xd6F37D1241dA20BbE40D1210940Bc43A1Ec56263` (keystore
 `tokentails`), on each chain, the total of `deployer + donatehot + agent` in
 `funding/framework/tracks/a-build/funding-plan.json` (each line has its reason). This is the
-minimal plan (Oct 5): every contract the submissions reference, one 0.1-token proof payout per
-instance, the 0.1 USDC.e Tempo memo, a 10-treat float on the hot wallet and a 0.1 USDC Arc agent.
+minimal plan (Oct 7): every contract the submissions reference, one 0.1-token proof payout per
+instance, the 0.1 USDC.e Tempo memo, a 0.1 USDC Arc agent, and on the hot wallet ≈300 treats on Arc
+and Tempo (so the sponsored-treat demo keeps working through judging: Arc decides by Oct 21, Colosseum
+judges until Dec 5) and a 10-treat float on every other chain.
 Gas has a 1.5x buffer. These are exactly the amounts the first balance check in `mainnet-all.sh` asks for:
 
-| Chain | Send to the deployer | ≈ USD |
-|---|---|---|
-| Arc | 0.7 USDC (the gas coin) + 0.1 EURC | $0.81 |
-| Tempo | 0.3 USDC.e + 0.15 pathUSD | $0.45 |
-| Arbitrum One | 0.0004 ETH + 0.2 USDC | $1.29 |
-| Avalanche | 0.075 AVAX + 0.2 USDC | $1.03 |
-| Base | 0.0007 ETH + 0.2 USDC | $2.11 |
-| Robinhood Chain | 0.0004 ETH + 0.2 USDG | $1.29 |
-| Monad | 2 MON + 0.2 USDC | $0.27 |
-| **Total** | USDC 1.5 · USDC.e 0.3 · pathUSD 0.15 · EURC 0.1 · USDG 0.2 · ETH 0.0015 (Arb 0.0004, Base 0.0007, RH 0.0004) · AVAX 0.075 · MON 2 | **≈ $7.25** |
+Colosseum: entering the Tempo, Arbitrum, Base and Robinhood tracks; Public Goods unticked (paid in Solana CASH).
 
-Prices: CoinGecko, Oct 5 08:11 UTC. Do not fund donatehot or the agent yourself: the script does it.
+| Chain | Send to the deployer | ≈ USD | Covers |
+|---|---|---|---|
+| Arc | 5 USDC (the gas coin) + 0.1 EURC | $5.11 | deploys + proofs; ≈300 treats for judging (hot wallet 4.45 USDC); agent 0.15 USDC |
+| Tempo | 3.2 USDC.e + 0.15 pathUSD | $3.35 | deploy, proof, memo; ≈300 treats for judging (hot wallet 3 USDC.e + 0.1 pathUSD fees) |
+| Arbitrum One | 0.0004 ETH + 0.2 USDC | $1.23 | deploys + proof; 10 treats |
+| Avalanche | 0.075 AVAX + 0.2 USDC | $1.02 | deploys + proof; 10 treats |
+| Base | 0.0007 ETH + 0.2 USDC | $2.00 | deploys + proof; 10 treats |
+| Robinhood Chain | 0.0004 ETH + 0.2 USDG | $1.23 | deploy + proof; 10 treats |
+| Monad | 2 MON + 0.2 USDC | $0.25 | deploys + proof; 10 treats |
+| **Total** | USDC 5.8 (Arc 5, Arb 0.2, Avax 0.2, Base 0.2, Monad 0.2) · USDC.e 3.2 · pathUSD 0.15 · EURC 0.1 · USDG 0.2 · ETH 0.0015 (Arb 0.0004, Base 0.0007, RH 0.0004) · AVAX 0.075 · MON 2 | **≈ $14.19** | |
+
+Prices: CoinGecko, Oct 7 12:07 UTC. Do not fund donatehot or the agent yourself: the script does it.
+From Solana: relay.link covers every line (pick the destination chain and token, recipient = the
+deployer, exact output = the amount above).
 Top up later (optional, one week of treats plus the Base x402 agent):
 `PLAN=topup node bin/fund.mjs a:distribute --network mainnet` writes `wave/distribute-mainnet-topup.sh`.
-Its `CHECK_ONLY=1` run prints what to send the deployer first (about Arc 13.6 USDC, Tempo 7 USDC.e + 0.42 pathUSD,
-Arbitrum 0.0061 ETH + 7 USDC, Avalanche 1.5 AVAX + 7 USDC, Base 0.0021 ETH + 7.5 USDC, Robinhood
-0.0061 ETH + 7 USDG, Monad 60 MON + 7 USDC; about $114).
+Its `CHECK_ONLY=1` run prints what to send the deployer first (with empty hot wallets: about Arc 13.6 USDC,
+Tempo 7 USDC.e + 0.42 pathUSD, Arbitrum 0.0061 ETH + 7 USDC, Avalanche 1.5 AVAX + 7 USDC, Base 0.0021 ETH
++ 7.5 USDC, Robinhood 0.0061 ETH + 7 USDG, Monad 60 MON + 7 USDC; about $112; less on Arc and Tempo,
+which already hold ≈300 treats).
 
 **b. Run one command** from `funding/framework`, in your own terminal (the scripts refuse to run
 inside an AI agent session and without `CONFIRM_MAINNET=yes`):
