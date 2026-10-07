@@ -76,7 +76,7 @@ How to maintain it:
 | Oct 6 | Record demos: Arc 10-second gasless gift + match (testnet try-it if G2b failed), Tameion agent with the on-chain over-cap refusal, Colosseum pitch | You | ⏳ |
 | **Oct 7** | **Submit Arc Microgrants** (closes Oct 14 23:59 ET = Oct 15 06:59 Vilnius) | You | ⏳ |
 | ~Oct 7, 14, 21 | Anitya weeklies (dates unconfirmed; watch Discord `#jam-submission`) | You | ⏳ |
-| **Oct 10, by 23:00 Vilnius** | **Submit Tameion** (public repo, demo video ≤3 min, live link) if invited | You | ⏳ |
+| **Oct 17, by 23:00 Vilnius** | **Submit Tameion** (closes Oct 17 23:59 ET = Oct 18 06:59 Vilnius; ≤1 h reusing the Arc work; public repo, demo video ≤3 min, live link) if invited | You | ⏳ |
 | **Oct 11** | **Submit Colosseum** (closes Oct 12 23:59 PT = Oct 13 09:59 Vilnius) | Team Leader | ⏳ |
 | Oct 11–12 | x402 `exact`: open a facilitator account (Circle x402 facilitator or CDP) for mainnet; set `SHELTER_X402_EXACT_*` (`_ENABLED=true`, `PAYTO` = Pink Paw's own wallet) and `SHELTER_X402_FACILITATOR_URL`; on mainnet `exact` also needs `SHELTER_HANDED_OVER=true` (after G2b; testnet can use x402.org on Base Sepolia). Post the x402 micro-grant Oct 12–16 with the first mainnet `exact` tx | You | ⏳ |
 | Oct 12 | Monad USDC EIP-3009: confirmed (testnet `version()` "2", `authorizationState` answers; DonateRouter live on Monad testnet, Oct 4); mainnet router deploys in the wave | You | ✅ |
@@ -101,7 +101,7 @@ How to maintain it:
 | G2b Handover | Oct 6 (23:59 Vilnius = 16:59 ET) | Pink Paw signs the claim and the owner rotates | Mainnet giving on / else Arc submits with the testnet try-it link and the disclosed gate |
 | G3 Arc donate button | Oct 4 | G2 passed, a real native payout shows on the live page, and the button works end to end | Ship the button / counter only |
 | G4 Deploy reality | Oct 5 | The Arc and Tempo splits and payouts are verified on-chain | Fill the drafts / fix, or drop that chain from the pitch |
-| G5 Colosseum tracks | Oct 3 ✅ | Multi-track is allowed (confirmed by the user on Oct 3) | Enter Tempo + Arbitrum + Base + Robinhood Chain tracks, plus Public Goods |
+| G5 Colosseum tracks | Oct 3 ✅ | Multi-track is allowed (confirmed by the user on Oct 3) | Enter Tempo + Arbitrum + Base + Robinhood Chain tracks; Public Goods unticked (Solana CASH) |
 | G6 Colosseum go | Oct 9 | Team Leader named, all members registered, pitch recorded, demo ≤ 3 min, pages live | Submit Oct 11 / cut scope and still submit |
 | G7 Arc last call | Oct 13 | Arc is submitted | – / submit before Oct 14 23:59 ET |
 | G8 Anitya main scope | Oct 18 | heist-08 is published and playable | Submit it / submit the best finished world |
@@ -115,7 +115,7 @@ How to maintain it:
 | Opportunity | Deadline | Chance | Prize | Status |
 |---|---|---|---|---|
 | Arc Microgrants | Oct 14 23:59 ET (target Oct 7) | 15% capped / ~50% if funded above a bar (q=0.7) | $500 | 🟡 draft ready |
-| Colosseum World's Fair (Tempo, Arbitrum, Base, Robinhood tracks + Public Goods; general pool ~1%) | Oct 12 23:59 PT | ~10–16% any track (q=0.7, multi-track); Tempo alone 2–5% | $5k–30k | 🟡 draft ready |
+| Colosseum World's Fair (Tempo, Arbitrum, Base, Robinhood tracks; Public Goods unticked: paid in Solana CASH; decline any accelerator offer) | Oct 12 23:59 PT | 3–5% (STRATEGY-REVIEW Oct 6); deliberate exception to the 10% rule, decided Oct 7 | $5k–30k | 🟡 entering (decided Oct 7) |
 | Anitya Weekly Challenge 2 | Sep 30 23:59 UTC | 13% | $50 | ✅ submitted |
 | Anitya later weeklies | weekly, dates unconfirmed | ~38% per round if ~8 entries (unverified N) | ~$100 | ⏳ 7 worlds ready |
 | Anitya World Jam main | Oct 21 22:59 | ~14% after payout risk (q=0.7) | $400–1,000 | ⏳ world ready |
@@ -128,7 +128,7 @@ How to maintain it:
 | Arbitrum Open House Singapore (online) | Oct 4 15:59, zone not shown (SGT worst case: 10:59 Vilnius) | 0.6% (q=0.7) | $15k mid ($115k pool) | ✅ submitted Oct 4 (Arbitrum Sepolia); results pending |
 | Monad Metropolis (Consumer & Payments) | Oct 13 (zone unverified) | ~1.5% (N unknown) | $10k (3 × $10k per track) | ⏳ testnet ShelterSplit + DonateRouter live on Monad testnet (Oct 4), source verified; rules to verify; mainnet in the wave |
 | Optional, higher cost: Hedera template bounty (Oct 4), Open Agent (Oct 20), Amazon dev (Oct 23), Bezi Jam 14 (Oct 26), YouCam (Nov 2), SIM Jam (Nov 4) | see `funding/PERCENTILE-REASSESSMENT.md` | 1–8% each | $150–5k | ⏸ consider only if time frees up after Oct 11 |
-| **Tameion Agents Hackathon** (Canteen × Circle × Arc), invite-only, online | Oct 10 23:59 ET (Oct 11 06:59 Vilnius) | ~9–17% (q=0.7, N 120–180 if invites shrink the field); 5% at N=252 | $650–10k (17 paid slots, $40k total) | ⏳ request an invite now; x402 agent + Arc USDC; check the Arc Microgrants "already funded by Circle/Arc" clash |
+| **Tameion Agents Hackathon** (Canteen × Circle × Arc), invite-only, online | Oct 17 23:59 ET (Oct 18 06:59 Vilnius) | 5–9% (field likely 250+, per `funding/STRATEGY-REVIEW.md`); cap at 1 h | $650–10k (17 paid slots, $40k total) | ⏳ request an invite now; x402 agent + Arc USDC; check the Arc Microgrants "already funded by Circle/Arc" clash |
 | Zoud GameLab Financial Literacy Game Jam (itch.io) | Nov 15 23:59 AoE | ~4–10% (new jam; 161 joined) | up to $140k incl. development support | ⏸ below the bar; needs a new financial-literacy game |
 | 2027 European Prize for Women Innovators (EIC/EIT) | Dec 1 17:00 CET | ~4.5% (200+ applicants, 9 prizes) | €20k–100k | ⏸ only if a woman co-founder applies |
 | Purina Pet Care Innovation Prize 2027 (petcareinnovation.net/prize) | Oct 6 (zone not shown) | – | $25k × up to 5, +$25k grand | ❌ not eligible: FAQ requires ≥ $100k annual revenue from the product, an established US business entity, and in-person Boot Camp (St. Louis, Feb 2027) and Global Pet Expo (Orlando), travel covered |
