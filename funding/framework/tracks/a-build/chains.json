@@ -84,8 +84,8 @@
           }
         },
         "verifier": {
-          "type": "blockscout",
-          "url": "https://base.blockscout.com/api/"
+          "type": "sourcify",
+          "url": "https://sourcify.dev/server"
         }
       },
       "testnet": {
@@ -141,8 +141,8 @@
           }
         },
         "verifier": {
-          "type": "blockscout",
-          "url": "https://arbitrum.blockscout.com/api/"
+          "type": "sourcify",
+          "url": "https://sourcify.dev/server"
         }
       },
       "testnet": {
@@ -309,7 +309,7 @@
           "--tempo.fee-token",
           "0x20c0000000000000000000000000000000000000",
           "--gas-estimate-multiplier",
-          "500"
+          "800"
         ],
         "proofVia": "cast",
         "verifier": {

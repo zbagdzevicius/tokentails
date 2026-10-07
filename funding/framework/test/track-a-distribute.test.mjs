@@ -410,7 +410,7 @@ test('the committed mainnet plan is the minimal profile: per-chain balance check
     tempo: { pathUSD: '0.15', USDC: '3.2' },
     arbitrum: { ETH: '0.0004', USDC: '0.2' },
     avalanche: { AVAX: '0.075', USDC: '0.2' },
-    base: { ETH: '0.0007', USDC: '0.2' },
+    base: { ETH: '0.00037', USDC: '0.2' }, // lowered Oct 7 to the 0.0004 ETH actually sent
     robinhood: { ETH: '0.0004', USDG: '0.2' },
     monad: { MON: '2', USDC: '0.2' },
   });
