@@ -1,6 +1,6 @@
 # Colosseum Crypto World's Fair — submission
 
-_Generated 2026-10-07T19:29:52.084Z by `fund a:submission colosseum-worlds-fair` from draft.md, the program profile,
+_Generated 2026-10-07T19:34:38.611Z by `fund a:submission colosseum-worlds-fair` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -52,7 +52,7 @@ Tempo is a payments chain, and Token Tails already takes card payments through S
 
 ## On-chain proof
 
-Tempo mainnet: ShelterSplit at 0x9978e60da2352a8de02852788d34bd95849a598d. The first TIP-20 memo payout to Pink Paw is transaction {TEMPO_TX}, and it is listed on the payouts page. Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Before the hackathon, and disclosed as prior work, the team shipped three Soroban contracts on Stellar mainnet and ERC-721 contracts on SKALE testnet and mainnet.
+Tempo mainnet: ShelterSplit at 0x9978e60da2352a8de02852788d34bd95849a598d. The first TIP-20 memo payout to Pink Paw is transaction 0xcd33906ebff5f978faaf6406e6b5bbf5506159a170ea964a9feec49a2d91b8b5, and it is listed on the payouts page. Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Before the hackathon, and disclosed as prior work, the team shipped three Soroban contracts on Stellar mainnet and ERC-721 contracts on SKALE testnet and mainnet.
 
 | Network | Contract | Transaction | Shelter payouts | Status |
 |---|---|---|---|---|

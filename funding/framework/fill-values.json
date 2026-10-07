@@ -3,7 +3,7 @@
   "DEMO_URL": "",
   "PITCH_VIDEO_URL": "",
   "ARC_TX": "",
-  "TEMPO_TX": "",
+  "TEMPO_TX": "0xcd33906ebff5f978faaf6406e6b5bbf5506159a170ea964a9feec49a2d91b8b5",
   "arbitrum-singapore": {
     "ARC_TX": "0xfd471deccfb14809bcef89cb8d520a3fcfccba26cf45612df86536f23434d350",
     "DEMO_URL": "https://tokentails.com/heist"

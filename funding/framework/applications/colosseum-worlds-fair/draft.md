@@ -46,7 +46,7 @@ Tempo is a payments chain, and Token Tails already takes card payments through S
 - ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/ in github.com/zbagdzevicius/tokentails).
 
 ## On-chain proof <!-- criterion: C1, C4 | limit: 800 -->
-Tempo mainnet: ShelterSplit at 0x9978e60da2352a8de02852788d34bd95849a598d. The first TIP-20 memo payout to Pink Paw is transaction {TEMPO_TX}, and it is listed on the payouts page. Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Before the hackathon, and disclosed as prior work, the team shipped three Soroban contracts on Stellar mainnet [F-009] and ERC-721 contracts on SKALE testnet and mainnet [F-010].
+Tempo mainnet: ShelterSplit at 0x9978e60da2352a8de02852788d34bd95849a598d. The first TIP-20 memo payout to Pink Paw is transaction 0xcd33906ebff5f978faaf6406e6b5bbf5506159a170ea964a9feec49a2d91b8b5, and it is listed on the payouts page. Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Before the hackathon, and disclosed as prior work, the team shipped three Soroban contracts on Stellar mainnet [F-009] and ERC-721 contracts on SKALE testnet and mainnet [F-010].
 
 ## Other chains <!-- criterion: C1, C5 | limit: 800 -->
 <!-- Before submitting: router-deployments.json must hold the mainnet DonateRouters on Arbitrum and Base. -->
