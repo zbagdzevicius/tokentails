@@ -66,7 +66,7 @@ export function sourcesCopy(
   const ids = Array.isArray(chainId) ? chainId : [chainId];
   const where = meterChains(ids);
   const coin = meterCoins(symbols);
-  const read = ids.length > 1 ? "Read from each chain." : "Read from the chain.";
+  const read = ids.length > 1 ? "Indexed from public on-chain events on each chain." : "Indexed from public on-chain events.";
   // claim: C-001 (the goal counts the USD stablecoins that come in to the campaign wallets), C-004 (treats)
   if (held) {
     return `Counts every ${coin} that comes in to the wallet Token Tails holds for ${shelter} on ${where}: today, ${today || "nothing yet"}. Gifts, the match and x402 payments count once ${shelter} holds its own wallet. ${read}`;

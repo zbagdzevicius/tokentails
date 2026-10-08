@@ -350,7 +350,7 @@ export function goalSourcesLine(sources: GoalSource[], chainCount = 1): string {
     const today = listWords(sources.map((x) => (x === 'treats' ? 'sponsored treats' : SOURCE_WORDS[x])));
     return `Counts what comes in to the wallet Token Tails holds for Pink Paw${where}: today, ${today || 'nothing yet'}. Gifts, the match and x402 payments count once Pink Paw holds its own wallet.`;
   }
-  return `Counts the ${listWords(sources.map((x) => SOURCE_WORDS[x]))} that come in to Pink Paw's wallets${where}, read from the chain${chainCount > 1 ? 's' : ''}.`;
+  return `Counts the ${listWords(sources.map((x) => SOURCE_WORDS[x]))} that come in to Pink Paw's wallets${where}, indexed from public on-chain events.`;
 }
 
 export interface PayoutsModalOptions {

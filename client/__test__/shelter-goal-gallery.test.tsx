@@ -74,7 +74,7 @@ describe("CampaignMeter", () => {
     expect(sources).toMatch(
       /Counts every US dollar stablecoin \(USDC, USDC\.e and USDG\) that comes in to the wallet Token Tails holds for Pink Paw on Arc, Tempo, Robinhood Chain and Monad: today, sponsored treats\./
     );
-    expect(sources).toMatch(/Read from each chain\./);
+    expect(sources).toMatch(/Indexed from public on-chain events on each chain\./);
     const list = screen.getByTestId("campaign-meter-chains");
     expect(Array.from(list.querySelectorAll("li")).map((li) => li.textContent)).toEqual(["Arc: 3 USDC", "Robinhood Chain: 1.5 USDG"]);
   });

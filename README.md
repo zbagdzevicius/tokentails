@@ -74,7 +74,7 @@ Full setup, environment variables, and gotchas are in [docs/DEVELOPMENT.md](docs
 - Five game modes on Phaser 4, including an 80-level platformer and a 30-level match-3 with per-level leaderboards.
 - Dual currency: Tails as rescue points, catnip as capped competitive score, plus an airdrop progression system.
 - Payments through Stripe (Checkout and Payment Elements), Stellar (XLM and USDC) and a crypto checkout (USDC, EURC, USDC.e and USDG on seven EVM chains), all verified on the server.
-- Shelter payouts: sponsored treats, wallet gifts and an x402 agent endpoint pay through ShelterSplit, with a public payouts page and on-chain receipts. Testnets are live; the mainnet wave is next.
+- Shelter payouts: sponsored treats, wallet gifts and an x402 agent endpoint pay through ShelterSplit, with a public payouts page and on-chain receipts. Live on mainnet on seven chains since Oct 7, 2026, with testnet copies for trying it out.
 - One codebase for web, iOS, and Android.
 
 ## Traction

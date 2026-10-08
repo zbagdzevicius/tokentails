@@ -400,13 +400,13 @@ describe('goal meter reading (fact C-001)', () => {
     expect(goalChainsLine(count.chains)).toBe('Arc: 3 USDC · Robinhood Chain: 1.5 USDG');
     expect(goalChainsLine([{ chainId: 5042, raised: 1n, symbols: ['USDC'] }])).toBe('');
     expect(goalSourcesLine(['treats'], 3)).toMatch(/^Counts what comes in to the wallet Token Tails holds for Pink Paw on 3 chains: today, sponsored treats\./);
-    expect(goalSourcesLine(['gifts', 'treats'], 7)).toBe("Counts the gifts and treats that come in to Pink Paw's wallets on 7 chains, read from the chains.");
+    expect(goalSourcesLine(['gifts', 'treats'], 7)).toBe("Counts the gifts and treats that come in to Pink Paw's wallets on 7 chains, indexed from public on-chain events.");
   });
 
   it('names only the sources live today', async () => {
     const { goalSourcesLine } = await import('../shelter-payouts');
     expect(goalSourcesLine(['treats', 'purchase-shares'])).toBe('Counts what comes in to the wallet Token Tails holds for Pink Paw: today, sponsored treats and shop shares. Gifts, the match and x402 payments count once Pink Paw holds its own wallet.');
-    expect(goalSourcesLine(['gifts', 'match', 'treats', 'x402'])).toBe("Counts the gifts, Token Tails' match, treats and x402 payments that come in to Pink Paw's wallets, read from the chain.");
+    expect(goalSourcesLine(['gifts', 'match', 'treats', 'x402'])).toBe("Counts the gifts, Token Tails' match, treats and x402 payments that come in to Pink Paw's wallets, indexed from public on-chain events.");
   });
 
   it('gives null when the chain cannot be read', async () => {

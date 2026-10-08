@@ -344,8 +344,11 @@
     if (!base || typeof fetch !== "function") return Promise.resolve(null);
     var want = String(split).toLowerCase();
     var url = base + "/shelter/payouts?network=" + network + "&chainId=" + chainId + "&address=" + want + "&limit=1";
-    return fetch(url, { credentials: "omit" })
-      .then(function (r) { return r.ok ? r.json() : null; })
+    // An index that does not answer in 8 s is treated as down; the chain read takes over.
+    var ctl = typeof AbortController === "function" ? new AbortController() : null;
+    var timer = ctl ? setTimeout(function () { ctl.abort(); }, 8000) : null;
+    return fetch(url, ctl ? { credentials: "omit", signal: ctl.signal } : { credentials: "omit" })
+      .then(function (r) { if (timer) clearTimeout(timer); return r.ok ? r.json() : null; }, function () { if (timer) clearTimeout(timer); return null; })
       .then(function (body) {
         var c = body && Array.isArray(body.contracts) ? body.contracts.filter(function (x) { return x && Number(x.chainId) === chainId && String(x.contract).toLowerCase() === want; })[0] : null;
         var t = c && c.indexedThrough;
